@@ -164,8 +164,64 @@ function writeDryRunReport(dir, report) {
   delete safe.pre_save_token;
   delete safe.token;
   delete safe.preSaveToken;
+  delete safe.nonce;
+  delete safe.confirmNonce;
   fs.writeFileSync(path.join(dir, `${runId}.json`), `${JSON.stringify(safe, null, 2)}\n`);
   return true;
+}
+
+function clickedMarkerPath(dir, runId) {
+  return path.join(dir, `${String(runId)}.clicked.json`);
+}
+
+function readClickedMarkers(dir) {
+  if (!dir || !fs.existsSync(dir)) return [];
+  let names = [];
+  try { names = fs.readdirSync(dir); } catch { return []; }
+  const markers = [];
+  for (const name of names) {
+    if (!name.endsWith(".clicked.json")) continue;
+    try {
+      const parsed = JSON.parse(fs.readFileSync(path.join(dir, name), "utf8"));
+      if (parsed && typeof parsed === "object") markers.push(parsed);
+    } catch {
+      markers.push({ run_id: name.slice(0, -".clicked.json".length), recorded: false });
+    }
+  }
+  return markers;
+}
+
+function qcSaveAlreadyClicked(dir, runId, preparationId) {
+  const wantedRun = String(runId || "");
+  const wantedPrep = String(preparationId || "");
+  return readClickedMarkers(dir).some((marker) => {
+    if (wantedRun && String(marker?.run_id || "") === wantedRun) return true;
+    return marker?.recorded !== true && wantedPrep && String(marker?.preparationId || "") === wantedPrep;
+  });
+}
+
+function writeClickedMarker(dir, marker) {
+  const runId = String(marker?.run_id || "");
+  if (!dir || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(runId)) return false;
+  fs.mkdirSync(dir, { recursive: true });
+  const safe = {
+    run_id: runId,
+    preparationId: String(marker.preparationId || ""),
+    fingerprint: String(marker.fingerprint || ""),
+    clickedAt: String(marker.clickedAt || new Date().toISOString()),
+    recorded: marker.recorded === true,
+  };
+  if (marker.serverStatus) safe.serverStatus = String(marker.serverStatus);
+  fs.writeFileSync(clickedMarkerPath(dir, runId), `${JSON.stringify(safe, null, 2)}\n`);
+  return true;
+}
+
+function removeClickedMarker(dir, runId) {
+  if (!dir || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(runId || ""))) return;
+  const file = clickedMarkerPath(dir, runId);
+  try {
+    if (fs.existsSync(file)) fs.unlinkSync(file);
+  } catch { /* a marker that cannot be removed still blocks a second click */ }
 }
 
 function findDryRunPass(dir, preparationId, fingerprint) {
@@ -1111,6 +1167,14 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
           throw nativeSaveDisabled([reason]);
         }
         const now = Number.isFinite(input.now) ? input.now : Date.now();
+        const sessionAlreadyClicked = session?.clickState === "clicked"
+          && String(session?.runId || "") === String(input.runId || "");
+        if (sessionAlreadyClicked || qcSaveAlreadyClicked(saveDir, input.runId, input.preparationId)) {
+          const blocked = ["ALREADY_CLICKED"];
+          const priorConfirmation = confirmationState(input, now);
+          if (!priorConfirmation.ok) blocked.push(priorConfirmation.reason);
+          throw nativeSaveDisabled(blocked);
+        }
         const reasons = [];
         let measured = null;
         try {
@@ -1147,32 +1211,36 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
           });
           const runs = Array.isArray(preflight.runs) ? preflight.runs : [];
           armed = runs.find((run) => canReuseArmedRun(run, preflight, input.preparationId)
-            && String(run.run_id || "") === String(input.runId || "")) || null;
+            && String(run.run_id || "") === String(input.runId || "")
+            && !qcSaveAlreadyClicked(saveDir, run.run_id, input.preparationId)) || null;
           if (!armed) {
-            const active = runs.find((run) => ACTIVE_RUN_STATUSES.has(String(run?.run_status || "")));
-            if (active) reasons.push("ACTIVE_RUN");
+            if (qcSaveAlreadyClicked(saveDir, input.runId, input.preparationId)) reasons.push("ALREADY_CLICKED");
             else {
-              const portalRef = preflight.context?.portal_product_ref;
-              const identity = assessPageIdentity(measured, portalRef);
-              if (!identity.ok) reasons.push("PAGE_IDENTITY_INVALID");
+              const active = runs.find((run) => ACTIVE_RUN_STATUSES.has(String(run?.run_status || "")));
+              if (active) reasons.push("ACTIVE_RUN");
               else {
-                const beforeArm = await live.readList();
-                const provisionalRequired = preflight.readiness?.status === "READY_PROVISIONAL";
-                const derived = Array.isArray(preflight.context?.derived_facts) ? preflight.context.derived_facts : [];
-                armed = await armQcPrepRun({
-                  productId: input.productId,
-                  accessToken: input.accessToken,
-                  preparationId: input.preparationId,
-                  expectedReadinessTuple: preflight.readiness?.readiness_tuple,
-                  provisionalLabAck: provisionalRequired ? true : false,
-                  provisionalAckNote: provisionalRequired ? noteAccepted(input.provisionalNote) : "",
-                  pageIdentityEvidence: identity.evidence,
-                  beforeListEvidence: listEvidence(beforeArm),
-                  derivedFactAck: derived.length > 0,
-                  derivedFactAckNote: derived.length > 0 ? noteAccepted(input.derivedNote) : "",
-                  callRpc: input.callRpc,
-                });
-                if (String(armed?.run_id || "") !== String(input.runId || "")) reasons.push("RUN_NOT_CONFIRMED");
+                const portalRef = preflight.context?.portal_product_ref;
+                const identity = assessPageIdentity(measured, portalRef);
+                if (!identity.ok) reasons.push("PAGE_IDENTITY_INVALID");
+                else {
+                  const beforeArm = await live.readList();
+                  const provisionalRequired = preflight.readiness?.status === "READY_PROVISIONAL";
+                  const derived = Array.isArray(preflight.context?.derived_facts) ? preflight.context.derived_facts : [];
+                  armed = await armQcPrepRun({
+                    productId: input.productId,
+                    accessToken: input.accessToken,
+                    preparationId: input.preparationId,
+                    expectedReadinessTuple: preflight.readiness?.readiness_tuple,
+                    provisionalLabAck: provisionalRequired ? true : false,
+                    provisionalAckNote: provisionalRequired ? noteAccepted(input.provisionalNote) : "",
+                    pageIdentityEvidence: identity.evidence,
+                    beforeListEvidence: listEvidence(beforeArm),
+                    derivedFactAck: derived.length > 0,
+                    derivedFactAckNote: derived.length > 0 ? noteAccepted(input.derivedNote) : "",
+                    callRpc: input.callRpc,
+                  });
+                  if (String(armed?.run_id || "") !== String(input.runId || "")) reasons.push("RUN_NOT_CONFIRMED");
+                }
               }
             }
           }
@@ -1285,6 +1353,14 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
         }
         consumed.row.used = true;
         session.clickState = "clicked";
+        const clickedAt = new Date(Number.isFinite(input.now) ? input.now : Date.now()).toISOString();
+        writeClickedMarker(saveDir, {
+          run_id: armed.run_id,
+          preparationId: String(input.preparationId || ""),
+          fingerprint: String(input.fingerprint || ""),
+          clickedAt,
+          recorded: false,
+        });
         let observation;
         try {
           observation = await live.observeSave({ allowClick: true });
@@ -1307,6 +1383,7 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
         if (observation?.clicked !== true) {
           session.token = null;
           session.clickState = "not-clicked";
+          removeClickedMarker(saveDir, armed.run_id);
           if (typeof live.resetForm === "function") {
             try { await live.resetForm({ productValue }); } catch { /* no click */ }
           }
@@ -1321,7 +1398,12 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
         if (observation.businessFailure == null) {
           observation.businessFailure = observation.responseParsed === true && statusText !== "" && statusText !== "1";
         }
-        const afterList = await live.readList();
+        let afterList = null;
+        try {
+          afterList = await live.readList();
+        } catch {
+          afterList = null;
+        }
         const delta = describeListDelta(beforeList, afterList, reread.fields);
         observation.listDelta = delta.listDelta;
         session.observed = true;
@@ -1356,7 +1438,24 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
           localFilename: fileCompared.filename || proof?.name || null,
           filled_values: reread.fields,
         };
-        let recorded;
+        const reportBase = {
+          run_id: armed.run_id,
+          preparationId: String(input.preparationId || ""),
+          fingerprint: String(input.fingerprint || ""),
+          listDelta: delta.listDelta,
+          before_count: delta.beforeCount,
+          after_count: delta.afterCount,
+          matched_row_id: delta.matchedRowId || "",
+          clicked: true,
+          autoRetry: false,
+          observation: evidence.observation,
+          localSha256: evidence.localSha256,
+          localSize: evidence.localSize,
+          localFilename: evidence.localFilename,
+          filled_values: reread.fields,
+        };
+        let recorded = null;
+        let recordFailed = false;
         try {
           recorded = await recordQcPrepRunSave({
             accessToken: input.accessToken,
@@ -1366,22 +1465,58 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
             saveEvidence: evidence,
             callRpc: input.callRpc,
           });
+        } catch {
+          recordFailed = true;
         } finally {
           session.token = null;
         }
+        if (recordFailed || !recorded) {
+          const report = {
+            ...reportBase,
+            outcome,
+            runStatus: "SAVE_AMBIGUOUS",
+            serverStatus: "NOT_RECORDED",
+            message: "Save was pressed but not recorded. Check the portal list by hand. Do not press Save again.",
+          };
+          writeDryRunReport(saveDir, report);
+          return {
+            ok: false,
+            outcome,
+            runStatus: report.runStatus,
+            serverStatus: "NOT_RECORDED",
+            reasons: [],
+            message: report.message,
+            clicked: true,
+            autoRetry: false,
+            report,
+            display: null,
+          };
+        }
+        writeClickedMarker(saveDir, {
+          run_id: armed.run_id,
+          preparationId: String(input.preparationId || ""),
+          fingerprint: String(input.fingerprint || ""),
+          clickedAt,
+          recorded: true,
+          serverStatus: recorded.run_status,
+        });
         session.recorded = true;
         session.runStatus = recorded.run_status;
         let verified = null;
-        if (recorded.run_status === "SAVE_CONFIRMED") {
-          verified = await verifyQcPrepRunRow({
-            accessToken: input.accessToken,
-            runId: armed.run_id,
-            afterListEvidence: listEvidence(afterList),
-            rereadValues: delta.matchedValues || {},
-            resolvedPortalRowId: delta.matchedRowId || "",
-            callRpc: input.callRpc,
-          });
-          session.runStatus = verified.run_status;
+        if (recorded.run_status === "SAVE_CONFIRMED" && afterList) {
+          try {
+            verified = await verifyQcPrepRunRow({
+              accessToken: input.accessToken,
+              runId: armed.run_id,
+              afterListEvidence: listEvidence(afterList),
+              rereadValues: delta.matchedValues || {},
+              resolvedPortalRowId: delta.matchedRowId || "",
+              callRpc: input.callRpc,
+            });
+            session.runStatus = verified.run_status;
+          } catch {
+            verified = null;
+          }
         }
         const message = recorded.run_status === "SAVE_CONFIRMED"
           ? verifyDisplay(verified || {}).text
@@ -1391,24 +1526,11 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
               ? "Check the portal list by hand."
               : (observation.message || "Save was not confirmed.");
         const report = {
-          run_id: armed.run_id,
-          preparationId: String(input.preparationId || ""),
-          fingerprint: String(input.fingerprint || ""),
+          ...reportBase,
           outcome,
           runStatus: session.runStatus,
           serverStatus: recorded.run_status,
           message,
-          listDelta: delta.listDelta,
-          before_count: delta.beforeCount,
-          after_count: delta.afterCount,
-          matched_row_id: delta.matchedRowId || "",
-          clicked: observation.clicked === true,
-          autoRetry: false,
-          observation: evidence.observation,
-          localSha256: evidence.localSha256,
-          localSize: evidence.localSize,
-          localFilename: evidence.localFilename,
-          filled_values: reread.fields,
         };
         writeDryRunReport(saveDir, report);
         return {

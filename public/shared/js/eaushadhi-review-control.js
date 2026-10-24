@@ -5853,7 +5853,7 @@ function qcFillPreflightCardHtml() {
   const saveReportHtml = saveReport
     ? `<div id="qcNativeSaveReport"><p>Save outcome: ${esc(saveReport.outcome || "")}. List: ${esc(saveReport.listDelta || "")}.</p><p>${esc(saveReport.message || "")}</p></div>`
     : "";
-  return `<section class="section-card" id="qcFillPreflightCard" data-build="D7.3">
+  return `<section class="section-card" id="qcFillPreflightCard" data-build="D7.3.1">
     <h3 class="section-title">Portal filling preflight (B5)</h3>
     ${state.qcFillLoading ? `<p class="muted-note" id="qcFillLoading">Reading preflight.</p>` : ""}
     ${state.qcFillNotice ? `<p class="muted-note" id="qcFillNotice">${esc(state.qcFillNotice)}</p>` : ""}
@@ -5903,7 +5903,7 @@ function qcFillPreflightCardHtml() {
     ${dryRunHtml}
     ${saveReportHtml}
     ${recaptureHtml}
-    <p class="muted-note" id="qcFillBuild">UI build D7.3</p>
+    <p class="muted-note" id="qcFillBuild">UI build D7.3.1</p>
   </section>`;
 }
 

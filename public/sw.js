@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v371"; // WP-07 D7.3 guarded native Save (off by default)
+const CACHE_NAME = "hub-cache-v372"; // WP-07 D7.3.1 a clicked Save is recorded once
 
 const PRECACHE = [
   // Hub shell
