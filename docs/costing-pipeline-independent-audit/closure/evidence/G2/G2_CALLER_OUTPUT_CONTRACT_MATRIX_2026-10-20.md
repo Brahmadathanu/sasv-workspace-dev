@@ -1,0 +1,3 @@
+# G2 six-caller compatibility test matrix
+
+Live read-only catalog: five direct callers return JSONB, one (`fn_effective_product_process_steps`) returns TABLE. All six are SECURITY DEFINER. Four costing callers are STABLE, two public workload RPCs VOLATILE. No direct caller has an EXCEPTION WHEN handler. Ambiguity errors would propagate, not produce ordinary JSON. Regression requirements: unique route output parity; no-route parity; synthetic two-APPROVED-route fails closed; cross-status overlap leaves prospective APPROVED-only behaviour unchanged; frozen snapshot IDs retained; permissions and search_path preserved; client RPC errors understandable. Test only in isolated PostgreSQL after baseline source snapshot. No live changes, G2 OPEN.

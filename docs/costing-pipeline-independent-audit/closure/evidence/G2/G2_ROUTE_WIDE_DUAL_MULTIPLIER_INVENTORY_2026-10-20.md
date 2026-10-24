@@ -1,0 +1,7 @@
+# G2 route-wide dual multiplier live inventory — 20 October 2026
+
+Read-only live counts: production_route_family_route_step 1668 total, six steps with expected_occurrence_count>1 AND standard_cycle_count>1, exclusively approved unarchived family_route_id=144. Product_process_route_override 1155 total, zero dual-positive. Direct labour step snapshots 213402 total, 210 dual-positive. Production overhead step snapshots 213157 total, 210 dual-positive.
+
+DL dual-positive snapshot entries occur in 35 refresh runs, six steps of one product each. Importantly, **protected refresh runs 122 and 128 each contain six dual-positive DL step snapshots**. Previously saying protected runs had no superseded-route references does not mean they were free from repetition configuration. Do NOT rewrite, purge, or rerun protected snapshots. Financial materiality and relative pool allocation still unverified.
+
+Code definitions multiply occurrence by cycle in DL and POH preview functions. Dhanyamlam requires eight total physical repetitions and route144 records 8 x 8. Propose targeted Route Manager improvement: show effective total repetition factor, explain occurrence vs cycles, require an explicit reason and physical evidence when both exceed one, and server-side rejection of missing rationale on new route approvals. Survey existing approved route separately; never assume MAX should replace product. Clone fixture regression before rollout. G2 high open; no live changes.

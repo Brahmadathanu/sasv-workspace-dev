@@ -1,0 +1,7 @@
+{"run_as": "owner identity dff17104-c02a-4bca-95b1-e8ddff46a9b6 (request.jwt.claim.sub, transaction-local), read-only calls",
+ "context": {"user_id":"dff17104-c02a-4bca-95b1-e8ddff46a9b6","can_edit":true,"can_view":true,"is_owner":true,"next_period_start":"2026-11-01","latest_period_start":"2026-10-01","default_valuation_date":"2026-11-01","supersession_valid_minutes":120},
+ "preflight_128_APPROVE": {"ok":false,"failed":["NOT_ALREADY_DESIGNATED (APPROVED)","PERIOD_OPEN (LOCKED)"],"passed":["RUN_SUCCESS","VALUATION_DATE_MATCHES (2026-10-16)","NO_ACTIVE_RUN","FINGERPRINT_CAPTURED (capture 13)","FINGERPRINT_CLEAN (0 drifted)","HAS_COST_SHEET (627)","NO_BLOCKED_SKUS (0)","REVIEW_REQUIRED_RECORDED (37)","NO_OTHER_APPROVED_RUN"],"counts":{"ready":590,"total":627,"blocked":0,"review_required":37}},
+ "preflight_128_SUPERSEDE": {"ok":false,"note":"expected: 128 is the approved run itself and October is LOCKED"},
+ "owner_row": {"user_id":"dff17104-c02a-4bca-95b1-e8ddff46a9b6","display_name":"Dr. Brahmadathan U","set_at":"2026-10-19T05:36:00Z (11:06 IST)"},
+ "after_calls": {"periods_md5":"4505bc5b880f9b6b55376da74967edce (= baseline)","audit_rows":11,"authorisations":0,"designations":3},
+ "grants": "9 RPCs: authenticated + service_role EXECUTE, anon none; 6 fn_w2_* helpers: no EXECUTE for anon/authenticated/service_role"}

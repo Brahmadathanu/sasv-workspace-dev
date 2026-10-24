@@ -1,0 +1,324 @@
+[
+ [
+  "B1",
+  "Fixture definitions equal live (pointer, cost sheet, both comparison views)",
+  "live md5s",
+  "['5cc25791', 'd20e3c32', '7e3254c2', 'b20a9206']",
+  true
+ ],
+ [
+  "W1-0",
+  "W1 SQL installs; in-file prechecks/postchecks pass",
+  "no error",
+  "installed",
+  true
+ ],
+ [
+  "W1-1",
+  "Feed: Sep run 122 = 634 SKUs, 74 IK / 70 OK negative",
+  "2026-09-01,122,634,74,70,latest=f",
+  "('2026-09-01', 122, 634, 74, 70, False)",
+  true
+ ],
+ [
+  "W1-2",
+  "Feed: Oct run 128 = 627 SKUs, 9 IK / 9 OK negative, latest approved",
+  "2026-10-01,128,627,9,9,latest=t",
+  "('2026-10-01', 128, 627, 9, 9, True)",
+  true
+ ],
+ [
+  "W1-3",
+  "Feed values identical to the approved runs' cost sheet (v_sku_detailed_cost_sheet 122/128)",
+  "0",
+  "0",
+  true
+ ],
+ [
+  "W1-4",
+  "Status labels per month",
+  "{'2026-07-01': 'DRAFT run 80 - not approved', '2026-08-01': 'DRAFT run 82 - not approved', '2026-09-01': 'Approved run 122', '2026-10-01': 'Approved run 128'}",
+  "{'2026-07-01': 'DRAFT run 80 - not approved', '2026-08-01': 'DRAFT run 82 - not approved', '2026-09-01': 'Approved run 122', '2026-10-01': 'Approved run 128'}",
+  true
+ ],
+ [
+  "W1-5",
+  "Governed Cost comparison: one run per month (Sep 122 / Oct 128)",
+  "[('2026-09-01',[122],634),('2026-10-01',[128],627)]",
+  "[('2026-09-01', [122], 634), ('2026-10-01', [128], 627)]",
+  true
+ ],
+ [
+  "W1-6",
+  "Governed Oct values = run 128 lines exactly (IK selling price)",
+  "0",
+  "0",
+  true
+ ],
+ [
+  "W1-7",
+  "Old vs governed comparison for Oct today (runs 127 and 128 hold equal values, so no visible difference yet; see W1-16)",
+  "info",
+  "0",
+  true
+ ],
+ [
+  "W1-8",
+  "Public governed comparison keeps every old column in order (client compatible) + 7 run columns",
+  "56+7",
+  "56+7",
+  true
+ ],
+ [
+  "W1-9",
+  "Grants: anon denied; authenticated denied on costing.* but reads public wrappers (permission stub=true)",
+  "denied/denied/1261,6,1261",
+  "denied/denied/1261,6,1261",
+  true
+ ],
+ [
+  "W1-10",
+  "No existing function/view/table/constraint changed; only 6 views added",
+  "changed=[]; added=6 views",
+  "changed=[]; added=['V costing.v_cost_sheet_snapshot_sku_monthly_comparison_governed', 'V costing.v_costing_period_run_status', 'V costing.v_price_revision_feed_approved', 'V public.v_cost_sheet_snapshot_sku_monthly_comparison_governed', 'V public.v_costing_pricing_period_run_status', 'V public.v_costing_pricing_price_revision_feed_approved']",
+  true
+ ],
+ [
+  "W1-11",
+  "W1 SQL re-run is idempotent (no definition change)",
+  "same",
+  "True",
+  true
+ ],
+ [
+  "W1-12",
+  "New Oct run without authorisation is refused (existing guard)",
+  "AU2_PERIOD_HOLDS_APPROVED_RUN",
+  "AU2_PERIOD_HOLDS_APPROVED_RUN: period 2026-10-01 holds APPROVED run 128; a recorded supersession authorisation is required",
+  true
+ ],
+ [
+  "W1-13",
+  "Simulated DRAFT run 129 (Oct, +10% prices, 627 SKUs) does not reach the feed",
+  "feed hash unchanged; pointer 128",
+  "draft rows=627; hash same=True; pointer=128",
+  true
+ ],
+ [
+  "W1-14",
+  "Oct label while run 129 is RUNNING shows active run",
+  "active_run_id=129",
+  "129",
+  true
+ ],
+ [
+  "W1-15",
+  "Oct label after draft 129 succeeds",
+  "APPROVED_NEWER_DRAFT | Approved run 128 (newer DRAFT run 129 - not approved)",
+  "APPROVED_NEWER_DRAFT | Approved run 128 (newer DRAFT run 129 - not approved)",
+  true
+ ],
+ [
+  "W1-16",
+  "Governed Cost comparison stays on run 128; old view picks up draft prices",
+  "governed [128]; old view differs",
+  "governed [128]; old view differing SKUs=627",
+  true
+ ],
+ [
+  "W1-17",
+  "Simulated Nov DRAFT run 130: not in feed; labelled DRAFT; Oct stays latest approved",
+  "0 rows; DRAFT | DRAFT run 130 - not approved; Oct latest=t",
+  "0 rows; DRAFT | DRAFT run 130 - not approved | latest_appr=false; Oct latest=True",
+  true
+ ],
+ [
+  "W1-18",
+  "Governed Cost comparison labels Nov draft rows",
+  "DRAFT run 130 - not approved / 627",
+  "DRAFT run 130 - not approved / 627",
+  true
+ ],
+ [
+  "W1-19",
+  "Feed unchanged after both simulated drafts",
+  "same hash",
+  "True",
+  true
+ ],
+ [
+  "W5-0a",
+  "Before W5: run 122 drift (live behaviour reproduced)",
+  "['sku_sales_allocation_basis_snapshot']",
+  "['sku_sales_allocation_basis_snapshot']",
+  true
+ ],
+ [
+  "W5-0b",
+  "Before W5: closing Sep is refused",
+  "AU2_CLOSE_FINGERPRINT_DRIFT",
+  "AU2_CLOSE_FINGERPRINT_DRIFT: run 122 has 1 drifted tables",
+  true
+ ],
+ [
+  "W5-1",
+  "W5 SQL installs (after W1); in-file prechecks/postchecks pass",
+  "no error",
+  "installed",
+  true
+ ],
+ [
+  "W5-2",
+  "After W5, before re-baseline: run 128 clean, run 122 still shows only the known drift",
+  "128=[]; 122=[sab]",
+  "128=[]; 122=['sku_sales_allocation_basis_snapshot']",
+  true
+ ],
+ [
+  "W5-3",
+  "New capture method reproduces approved capture 11 (run 128) byte for byte",
+  "true",
+  "True",
+  true
+ ],
+ [
+  "W5-4",
+  "Close Sep still refused before re-baseline",
+  "AU2_CLOSE_FINGERPRINT_DRIFT",
+  "AU2_CLOSE_FINGERPRINT_DRIFT: run 122 has 1 drifted tables",
+  true
+ ],
+ [
+  "W5-5",
+  "Re-baseline 122 without exclusions refused (values differ)",
+  "W5_REBASELINE_REFUSED ... values differ",
+  "W5_REBASELINE_REFUSED: run 122 does not equal reference capture 4: [{\"table\": \"sku_sales_allocation_basis_snap",
+  true
+ ],
+ [
+  "W5-6",
+  "Re-baseline 122 against run 128 capture refused",
+  "W5_REBASELINE_BAD_REFERENCE",
+  "W5_REBASELINE_BAD_REFERENCE: fingerprint 11 is not a capture of run 122",
+  true
+ ],
+ [
+  "W5-7",
+  "Excluding a non-existent column refused",
+  "excluded column does not exist",
+  "W5_REBASELINE_REFUSED: run 122 does not equal reference capture 4: [{\"table\": \"sku_sales_allocation_basis_snapshot\", \"problem\": \"excluded column does ",
+  true
+ ],
+ [
+  "W5-8",
+  "Excluding a column that holds values refused",
+  "non-null values",
+  "W5_REBASELINE_REFUSED: run 122 does not equal reference capture 4: [{\"table\": \"sku_sales_allocation_basis_snapshot\", \"problem\": \"excluded column sku_id has 634 ",
+  true
+ ],
+ [
+  "W5-9",
+  "Non-designated run 127 with a changed value: drift detected and re-baseline refused",
+  "drift [selling bridge]; REFUSED",
+  "['sku_selling_price_bridge_snapshot']; W5_REBASELINE_REFUSED: run 127 does not equal reference capt",
+  true
+ ],
+ [
+  "W5-10",
+  "authenticated role cannot call the re-baseline function",
+  "permission denied",
+  "permission denied for function rpc_rebaseline_run_fingerprin",
+  true
+ ],
+ [
+  "W5-11",
+  "Re-baseline file: 2 journal rows, all tables identical to approved captures 4 and 11",
+  "[(122,4,true,6),(128,11,true,6)] (6 local tables; live 50/51)",
+  "[(122, 4, 'true', 6), (128, 11, 'true', 6)]",
+  true
+ ],
+ [
+  "W5-12",
+  "After re-baseline: run 122 and run 128 verify with zero drift",
+  "122=[]; 128=[]",
+  "122=[]; 128=[]",
+  true
+ ],
+ [
+  "W5-13",
+  "Re-baseline re-run is idempotent (no extra captures)",
+  "3->5->5",
+  "3->5->5",
+  true
+ ],
+ [
+  "W5-14",
+  "W5 SQL re-run after re-baseline is idempotent",
+  "no error",
+  "ok",
+  true
+ ],
+ [
+  "W5-15",
+  "Close Sep accepted on approved run 122 after re-baseline (local, rolled back)",
+  "CLOSED 2026-09-01 on approved run 122; CLOSED/FINAL",
+  "CLOSED 2026-09-01 on approved run 122; CLOSED/FINAL",
+  true
+ ],
+ [
+  "W5-16",
+  "Re-baseline journal is append-only",
+  "AU2_APPEND_ONLY x2",
+  "True,True",
+  true
+ ],
+ [
+  "W5-17",
+  "New run 131 success capture records column lists (after-run trigger, unchanged)",
+  "RUN_SUCCESS:true",
+  "RUN_SUCCESS:true",
+  true
+ ],
+ [
+  "W5-18",
+  "Add 2 test columns (one with default values): no drift for 122, 128, 131",
+  "[] [] []",
+  "[] [] []",
+  true
+ ],
+ [
+  "W5-19",
+  "A removed/renamed hashed column is reported as drift (not an error, not silently ignored)",
+  "128 drift [pricing bridge]",
+  "['sku_pricing_bridge_snapshot']; W5_FINGERPRINT_COLUMNS_MISSING: costing.sku_pricing_bridge_snapshot no",
+  true
+ ],
+ [
+  "W5-20",
+  "Run 122/128 snapshot data unchanged by W5 + re-baseline (all scoped tables)",
+  "identical",
+  "True",
+  true
+ ],
+ [
+  "W5-21",
+  "Full install: only the 2 fingerprint functions + purpose check changed",
+  "changed=['F costing.fn_compute_run_fingerprint(p_refresh_run_id bigint)', 'F costing.fn_verify_run_fingerprint(p_refresh_run_id bigint)', 'K costing.costing_run_fingerprint.costing_run_fingerprint_purpose_check']",
+  "changed=['F costing.fn_compute_run_fingerprint(p_refresh_run_id bigint)', 'F costing.fn_verify_run_fingerprint(p_refresh_run_id bigint)', 'K costing.costing_run_fingerprint.costing_run_fingerprint_purpose_check']",
+  true
+ ],
+ [
+  "W5-22",
+  "Full install: added objects",
+  "6 views + 3 functions + 1 table + its constraints",
+  "['F costing.fn_run_fingerprint_current_columns(p_table text)', 'F costing.fn_run_fingerprint_table_hash(p_table text, p_refresh_run_id bigint, p_cols text[])', 'F costing.rpc_rebaseline_run_fingerprint(p_refresh_run_id bigint, p_reference_fingerprint_id bigint, p_excluded_columns jsonb, p_rebaselined_by text, p_reason text, p_approval_reference text)', 'K costing.costing_run_fingerprint_rebaseline.costing_run_fingerprint_rebaseline_approval_reference_check', 'K costing.costing_run_fingerprint_rebaseline.costing_run_fingerprint_rebaseline_pkey', 'K costing.costing_run_fingerprint_rebaseline.costing_run_fingerprint_rebaseline_reason_check', 'K costing.costing_run_fingerprint_rebaseline.costing_run_fingerprint_rebaseline_rebaselined_by_check', 'T costing.costing_run_fingerprint_rebaseline', 'V costing.v_cost_sheet_snapshot_sku_monthly_comparison_governed', 'V costing.v_costing_period_run_status', 'V costing.v_price_revision_feed_approved', 'V public.v_cost_sheet_snapshot_sku_monthly_comparison_governed', 'V public.v_costing_pricing_period_run_status', 'V public.v_costing_pricing_price_revision_feed_approved']",
+  true
+ ],
+ [
+  "W5-23",
+  "Close / designate / after-run / scope / pointer definitions unchanged",
+  "unchanged",
+  "True",
+  true
+ ]
+]

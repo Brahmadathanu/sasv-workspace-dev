@@ -1,0 +1,11 @@
+# Step 165 — Repair OK scheme lookup and reissue marketing exceptions (24 Oct 2026)
+
+**Defect discovered following user review:** marketing-supplied scheme `7 + 1` was written to `MARKETING PROMOTIONS MASTER` OK proposed scheme for 13 SKUs, but `DATA VALIDATION MASTER` OK scheme table E:G omitted this value. Therefore `PROMOTIONAL VIABILITY - OK` paid/free R/S lookups were blank, causing recommended MRP AH to be blank, CHECK INPUT for rounded viability, and incorrect assumptions evaluation statuses; 13 SKUs were erroneously portrayed as having no recommendation, and 6 of those were falsely marked BELOW TARGET. The first marketing report was **invalid and superseded**.
+
+**Fix:** Added `7 + 1` -> 7 paid, 1 free at `DATA VALIDATION MASTER!E10:G10`. The OK proposed schemes now all resolve; no other scheme in use is absent from the OK validation table.
+
+**Post-fix full OK viability verification:** 525 price-listed SKUs; 55 assumed OK MRPs BELOW TARGET (previous incorrect 61); 86 without a numeric OK assumption (unchanged); zero BELOW TARGET rows with missing numeric recommended MRP; no error cells. Specifically Ashta Choornam SKU71 50g evaluated ₹110, recommended ₹130, achieved 1.35% vs target 7%, status BELOW TARGET. Among the 13 7+1 SKUs: 7 BELOW TARGET and 6 PASS.
+
+**Reissued separate shareable marketing review Google Sheet** id `1HnL-qH-HFqNvH4s76h4UgP8kPMc1258_sW4Oe7RzzU4`: tab `BELOW PROFITABILITY TARGET` 55 rows and `MRP NOT PROVIDED` 86 rows. Cleared obsolete rows; restored range filters. Mathulai Manappagu 250g, SKU1244: proposed/existing ₹310, recommended ₹460, BELOW TARGET, but is explicitly marked INTERNAL REVIEW / existing MRP temporarily retained on user's instruction. The `ASSUMED VS RECOMMENDED MRP` lens now updates to 384 ACCEPTABLE, 55 BELOW TARGET.
+
+**Action:** Earlier downloaded CSVs must be discarded and downloaded anew from corrected marketing report. The marketing response must use 55 and 86, not 61 and 86. No approved MRP or DB policy changed. The 86 not provided includes starred entries excluded per marketing data-cleaning instruction; classification is absence of **usable numeric OK MRP assumption**, not necessarily omission of all information in marketing's source CSV.

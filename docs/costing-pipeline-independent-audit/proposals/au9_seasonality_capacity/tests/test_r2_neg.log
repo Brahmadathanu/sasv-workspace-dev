@@ -1,0 +1,4 @@
+R2-T1 partial state -> precheck aborts
+ERROR:  AU9-R2: targets in unexpected state (R1 0, G2 0, R2 76); re-review
+R2-T2 edit a superseded R1 row (expect ERROR)
+ERROR:  plant_capacity_profile rows are immutable; only closing an open row (setting effective_to) is allowed

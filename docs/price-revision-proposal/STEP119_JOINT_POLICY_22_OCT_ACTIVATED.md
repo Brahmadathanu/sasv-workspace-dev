@@ -1,0 +1,3 @@
+# Step119 — approved 22 October joint version INSTALLED
+
+User explicitly approved 2026-10-22 effective date. Applied live Supabase migration `price_revision_joint_ksheerabala_one_day_20261022_v2` SUCCESS. New `costing.joint_process_policy.id=2`, process_code KSHEERABALA_AVARTHI_JOINT, effective_from 2026-10-22, effective_to 2026-10-23 exclusive; 2 product outputs and 4 stage records copied from policy1 with same factors. Existing policy1 remains effective 2026-10-23 onward and unchanged. Live verification returned 2 outputs and 4 stages on both, no policy overlap. Run136 unchanged. Costing run must use 2026-10-22 valuation date and owner-authenticated supersession authorisation. Final product workload and financial reconciliation NOT YET VERIFIED. G0 OPEN.

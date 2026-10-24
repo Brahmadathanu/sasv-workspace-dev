@@ -1,0 +1,86 @@
+[
+ {
+  "refresh_run_id": 122,
+  "imc_alloc": "1600.752013398148984542517458510540854888749528361276312058756133500609877350246117383646942186500000000000000000000000000000",
+  "n": 9,
+  "reasons": [
+   "INTERNAL_MATERIAL_SOURCE_CONVERSION",
+   "NO_INTERNAL_MATERIAL_SOURCE"
+  ],
+  "ev54": [
+   {
+    "reason_code": "READY_INTERNAL_SOURCE_CONVERSION",
+    "source_status": "READY",
+    "stock_item_id": 1080,
+    "source_evidence": [
+     {
+      "qc_status": "READY",
+      "demand_source": "COMMERCIAL_PLUS_INTERNAL_DEMAND",
+      "demand_status": "READY",
+      "stores_status": "READY",
+      "product_base_uom": "Kg",
+      "absorption_base_qty": 16.04925,
+      "direct_labour_status": "READY",
+      "production_overhead_status": "READY",
+      "direct_qc_overhead_per_base": 9.41518076815694,
+      "direct_rm_stores_overhead_per_base": 0.2264291332644782,
+      "direct_production_overhead_per_base": 64.21921007779365,
+      "direct_manufacturing_labour_per_base": 55.039197541627175
+     },
+     {
+      "child_status": "READY",
+      "child_stock_item_id": 1083,
+      "qty_per_source_base": 0.03529411764705882,
+      "child_source_product_id": 275,
+      "child_conversion_per_base": 408.78958150677545
+     }
+    ],
+    "source_product_id": 277,
+    "qty_per_product_base": 0.00025,
+    "source_conversion_per_base": 143.3278851034343
+   }
+  ]
+ },
+ {
+  "refresh_run_id": 128,
+  "imc_alloc": "175.2645170364458736472148394510422176454558917594293657819604782673053755280643930979257706999594548274012397254994937327462982483157600000000000000000000000000000",
+  "n": 9,
+  "reasons": [
+   "INTERNAL_MATERIAL_SOURCE_CONVERSION",
+   "NO_INTERNAL_MATERIAL_SOURCE"
+  ],
+  "ev54": [
+   {
+    "reason_code": "READY_INTERNAL_SOURCE_CONVERSION",
+    "source_status": "READY",
+    "stock_item_id": 1080,
+    "source_evidence": [
+     {
+      "qc_status": "READY",
+      "demand_source": "COMMERCIAL_PLUS_INTERNAL_DEMAND",
+      "demand_status": "READY",
+      "stores_status": "READY",
+      "product_base_uom": "Kg",
+      "absorption_base_qty": 15.457583333333334,
+      "direct_labour_status": "READY",
+      "production_overhead_status": "READY",
+      "direct_qc_overhead_per_base": 0.993410456907207,
+      "direct_rm_stores_overhead_per_base": 0.21322844598907656,
+      "direct_production_overhead_per_base": 14.492001582508179,
+      "direct_manufacturing_labour_per_base": 15.201052236448618
+     },
+     {
+      "child_status": "READY",
+      "child_stock_item_id": 1083,
+      "qty_per_source_base": 0.03529411764705882,
+      "child_source_product_id": 275,
+      "child_conversion_per_base": 90.80950683080658
+     }
+    ],
+    "source_product_id": 277,
+    "qty_per_product_base": 0.00025,
+    "source_conversion_per_base": 34.10473413941096
+   }
+  ]
+ }
+]

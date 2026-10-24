@@ -1,0 +1,33 @@
+equipment_class,capacity_mode,unit,name_derived_rated,machine_count,plant_ids,values_requested
+CAPSULE_LOADER,THROUGHPUT,Nos/h,,1,1,effective throughput per hour and typical hours per batch
+PULVERISER_DISINTEGRATOR,THROUGHPUT,kg/h,,8,2 127 129 131 132 133 134 135,effective throughput per hour and typical hours per batch
+RASOUSHADHI_LEVIGATION_GRINDER,CHARGE,kg,,28,4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 23 25 26 27 29 30 31 32 33 34,effective working charge per load (and confirm rated)
+SS_COOKER,CHARGE,L,,6,35 36 37 38 157 158,effective working charge per load (and confirm rated)
+SS_OPEN_VESSEL,CHARGE,L,,4,39 40 51 52,effective working charge per load (and confirm rated)
+STONE_GRINDER,CHARGE,kg,,5,41 42 43 44 81,effective working charge per load (and confirm rated)
+KHALVAM_MANUAL_LEVIGATION,CHARGE,kg,,2,45 46,effective working charge per load (and confirm rated)
+SS_PROCESSING_VESSEL,CHARGE,L,,19,47 48 49 50 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67,effective working charge per load (and confirm rated)
+PILLS_WET_GRINDER,CHARGE,kg,,13,68 69 70 71 72 73 74 75 76 77 78 79 80,effective working charge per load (and confirm rated)
+FERMENTATION_TANK_1500L,CHARGE,L,1500.0,9,83 84 85 86 87 88 89 90 91,confirm rated 1500.0 L and give effective working volume (fill %)
+FERMENTATION_TANK_3000L,CHARGE,L,3000.0,13,92 93 94 95 96 97 98 99 100 101 102 103 104,confirm rated 3000.0 L and give effective working volume (fill %)
+WATER_TANK_USED_AS_FERMENTATION,CHARGE,L,1000.0,11,105 106 107 108 109 110 111 112 113 114 156,confirm rated 1000.0 L and give effective working volume (fill %)
+FIREWOOD_DRYER,CHARGE,kg,,4,118 119 120 146,effective working charge per load (and confirm rated)
+STEAM_JACKETED_DISTILLATION,CHARGE,L,,1,121,effective working charge per load (and confirm rated)
+PLANETARY_MIXER,CHARGE,kg,,1,125,effective working charge per load (and confirm rated)
+HYDRAULIC_OIL_PRESS,CHARGE,kg,,1,126,effective working charge per load (and confirm rated)
+HYDRAULIC_JUICE_PRESS,CHARGE,kg,,1,130,effective working charge per load (and confirm rated)
+VIBRO_SIFTER,THROUGHPUT,kg/h,,4,136 137 138 162,effective throughput per hour and typical hours per batch
+CAPSULE_FILLER,THROUGHPUT,Nos/h,,1,139,effective throughput per hour and typical hours per batch
+RAPID_MIXER_GRANULATOR,CHARGE,kg,,1,140,effective working charge per load (and confirm rated)
+ELECTRIC_TRAY_DRYER_24,CHARGE,kg,,2,141 149,effective working charge per load (and confirm rated)
+GRANULATOR_SIZING,CHARGE,kg,,1,147,effective working charge per load (and confirm rated)
+SS_PROCESSING_VESSEL,CHARGE,L,100.0,1,148,confirm rated 100.0 L and give effective working volume (fill %)
+SCREW_EXTRUDER,THROUGHPUT,kg/h,,1,152,effective throughput per hour and typical hours per batch
+PILL_MAKER,THROUGHPUT,kg/h,,1,153,effective throughput per hour and typical hours per batch
+COATING_PAN,CHARGE,kg,,1,154,effective working charge per load (and confirm rated)
+ROTARY_TABLET_PRESS,THROUGHPUT,Nos/h,,1,155,effective throughput per hour and typical hours per batch
+WATER_TANK_USED_AS_FERMENTATION,CHARGE,L,500.0,2,159 161,confirm rated 500.0 L and give effective working volume (fill %)
+TRADITIONAL_METAL_VESSEL,CHARGE,kg,,2,160 169,effective working charge per load (and confirm rated)
+ROOT_WASHER,THROUGHPUT,kg/h,,1,164,effective throughput per hour and typical hours per batch
+PUTA_FURNACE,CHARGE,kg,,1,165,effective working charge per load (and confirm rated)
+WET_GRINDER,CHARGE,kg,,1,174,effective working charge per load (and confirm rated)

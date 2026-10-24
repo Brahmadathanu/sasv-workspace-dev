@@ -1,0 +1,342 @@
+{
+ "mix": [
+  {
+   "kind": "PM",
+   "lines": 3,
+   "warning": "MISSING_MATERIAL_RATE",
+   "rate_source": "NONE",
+   "refresh_run_id": 122,
+   "monthly_value_rs": null
+  },
+  {
+   "kind": "PM",
+   "lines": 1683,
+   "warning": "-",
+   "rate_source": "LAST_PURCHASE",
+   "refresh_run_id": 122,
+   "monthly_value_rs": 1710909.81
+  },
+  {
+   "kind": "PM",
+   "lines": 339,
+   "warning": "STALE_PURCHASE_RATE",
+   "rate_source": "LAST_PURCHASE",
+   "refresh_run_id": 122,
+   "monthly_value_rs": 233437.24
+  },
+  {
+   "kind": "PM",
+   "lines": 245,
+   "warning": "STOCK_VALUATION_FALLBACK",
+   "rate_source": "STOCK_VALUATION",
+   "refresh_run_id": 122,
+   "monthly_value_rs": 31780.32
+  },
+  {
+   "kind": "PM",
+   "lines": 56,
+   "warning": "MANUAL_RATE_USED",
+   "rate_source": "MANUAL_RATE",
+   "refresh_run_id": 122,
+   "monthly_value_rs": 5208.91
+  },
+  {
+   "kind": "RM",
+   "lines": 2,
+   "warning": "MISSING_MATERIAL_RATE",
+   "rate_source": "NONE",
+   "refresh_run_id": 122,
+   "monthly_value_rs": null
+  },
+  {
+   "kind": "RM",
+   "lines": 9142,
+   "warning": "-",
+   "rate_source": "LAST_PURCHASE",
+   "refresh_run_id": 122,
+   "monthly_value_rs": 7608199.54
+  },
+  {
+   "kind": "RM",
+   "lines": 1841,
+   "warning": "STALE_PURCHASE_RATE",
+   "rate_source": "LAST_PURCHASE",
+   "refresh_run_id": 122,
+   "monthly_value_rs": 904743.44
+  },
+  {
+   "kind": "RM",
+   "lines": 170,
+   "warning": "MANUAL_RATE_USED",
+   "rate_source": "MANUAL_RATE",
+   "refresh_run_id": 122,
+   "monthly_value_rs": 265664.82
+  },
+  {
+   "kind": "RM",
+   "lines": 732,
+   "warning": "STOCK_VALUATION_FALLBACK",
+   "rate_source": "STOCK_VALUATION",
+   "refresh_run_id": 122,
+   "monthly_value_rs": 209494.25
+  },
+  {
+   "kind": "RM",
+   "lines": 9,
+   "warning": "-",
+   "rate_source": "INTERNAL_SOURCE_PRODUCT_RM_STANDARD_COST",
+   "refresh_run_id": 122,
+   "monthly_value_rs": 14588.56
+  },
+  {
+   "kind": "RM",
+   "lines": 2,
+   "warning": "-",
+   "rate_source": "GOVERNED_ZERO_COST",
+   "refresh_run_id": 122,
+   "monthly_value_rs": 0
+  },
+  {
+   "kind": "PM",
+   "lines": 3,
+   "warning": "MISSING_MATERIAL_RATE",
+   "rate_source": "NONE",
+   "refresh_run_id": 128,
+   "monthly_value_rs": null
+  },
+  {
+   "kind": "PM",
+   "lines": 1650,
+   "warning": "-",
+   "rate_source": "LAST_PURCHASE",
+   "refresh_run_id": 128,
+   "monthly_value_rs": 1947797.16
+  },
+  {
+   "kind": "PM",
+   "lines": 360,
+   "warning": "STALE_PURCHASE_RATE",
+   "rate_source": "LAST_PURCHASE",
+   "refresh_run_id": 128,
+   "monthly_value_rs": 224353.27
+  },
+  {
+   "kind": "PM",
+   "lines": 246,
+   "warning": "STOCK_VALUATION_FALLBACK",
+   "rate_source": "STOCK_VALUATION",
+   "refresh_run_id": 128,
+   "monthly_value_rs": 52416.89
+  },
+  {
+   "kind": "PM",
+   "lines": 48,
+   "warning": "MANUAL_RATE_USED",
+   "rate_source": "MANUAL_RATE",
+   "refresh_run_id": 128,
+   "monthly_value_rs": 13163.5
+  },
+  {
+   "kind": "RM",
+   "lines": 2,
+   "warning": "MISSING_MATERIAL_RATE",
+   "rate_source": "NONE",
+   "refresh_run_id": 128,
+   "monthly_value_rs": null
+  },
+  {
+   "kind": "RM",
+   "lines": 8983,
+   "warning": "-",
+   "rate_source": "LAST_PURCHASE",
+   "refresh_run_id": 128,
+   "monthly_value_rs": 8400588.73
+  },
+  {
+   "kind": "RM",
+   "lines": 1980,
+   "warning": "STALE_PURCHASE_RATE",
+   "rate_source": "LAST_PURCHASE",
+   "refresh_run_id": 128,
+   "monthly_value_rs": 620006.65
+  },
+  {
+   "kind": "RM",
+   "lines": 170,
+   "warning": "MANUAL_RATE_USED",
+   "rate_source": "MANUAL_RATE",
+   "refresh_run_id": 128,
+   "monthly_value_rs": 402745.01
+  },
+  {
+   "kind": "RM",
+   "lines": 732,
+   "warning": "STOCK_VALUATION_FALLBACK",
+   "rate_source": "STOCK_VALUATION",
+   "refresh_run_id": 128,
+   "monthly_value_rs": 205856.16
+  },
+  {
+   "kind": "RM",
+   "lines": 9,
+   "warning": "-",
+   "rate_source": "INTERNAL_SOURCE_PRODUCT_RM_STANDARD_COST",
+   "refresh_run_id": 128,
+   "monthly_value_rs": 6381.34
+  },
+  {
+   "kind": "RM",
+   "lines": 2,
+   "warning": "-",
+   "rate_source": "GOVERNED_ZERO_COST",
+   "refresh_run_id": 128,
+   "monthly_value_rs": 0
+  }
+ ],
+ "sums": [
+  {
+   "skus": 634,
+   "mat_review": 2,
+   "mat_blocked": 0,
+   "rm_unblocked": 634,
+   "pm_sum_maxdiff": 0,
+   "refresh_run_id": 122,
+   "rm_sum_maxdiff": 0,
+   "pm_sum_mismatch": 0,
+   "rm_sum_mismatch": 0,
+   "mat_identity_mismatch": 0
+  },
+  {
+   "skus": 627,
+   "mat_review": 0,
+   "mat_blocked": 0,
+   "rm_unblocked": 627,
+   "pm_sum_maxdiff": 0,
+   "refresh_run_id": 128,
+   "rm_sum_maxdiff": 0,
+   "pm_sum_mismatch": 0,
+   "rm_sum_mismatch": 0,
+   "mat_identity_mismatch": 0
+  }
+ ],
+ "pm_arith": [
+  {
+   "pm_lines": 2326,
+   "refresh_run_id": 122,
+   "pm_lines_with_wastage": 0,
+   "pm_rate_x_qty_mismatch": 0,
+   "pm_rate_after_valuation": 0
+  },
+  {
+   "pm_lines": 2307,
+   "refresh_run_id": 128,
+   "pm_lines_with_wastage": 0,
+   "pm_rate_x_qty_mismatch": 0,
+   "pm_rate_after_valuation": 0
+  }
+ ],
+ "rm_arith": [
+  {
+   "products": 537,
+   "product_lines": 9064,
+   "blocking_lines": 0,
+   "refresh_run_id": 122,
+   "max_process_loss": 0.98,
+   "calc_warning_lines": 0,
+   "products_loss_ge_1": 0,
+   "rate_after_valuation": 0,
+   "uom_conversion_mismatch": 0,
+   "line_rate_x_qty_mismatch": 0,
+   "products_with_process_loss": 436,
+   "form_conversion_applied_lines": 411
+  },
+  {
+   "products": 535,
+   "product_lines": 9049,
+   "blocking_lines": 0,
+   "refresh_run_id": 128,
+   "max_process_loss": 0.98,
+   "calc_warning_lines": 0,
+   "products_loss_ge_1": 0,
+   "rate_after_valuation": 0,
+   "uom_conversion_mismatch": 0,
+   "line_rate_x_qty_mismatch": 0,
+   "products_with_process_loss": 434,
+   "form_conversion_applied_lines": 408
+  }
+ ],
+ "sku_line": [
+  {
+   "sku_lines": 11898,
+   "refresh_run_id": 122,
+   "sku_line_scale_mismatch": 0
+  },
+  {
+   "sku_lines": 11878,
+   "refresh_run_id": 128,
+   "sku_line_scale_mismatch": 0
+  }
+ ],
+ "manual_trace": [
+  {
+   "manual_picks": 87,
+   "refresh_run_id": 128,
+   "manual_missing_now": 0,
+   "manual_now_inactive": 0,
+   "manual_value_changed": 0
+  },
+  {
+   "manual_picks": 88,
+   "refresh_run_id": 122,
+   "manual_missing_now": 0,
+   "manual_now_inactive": 0,
+   "manual_value_changed": 0
+  }
+ ],
+ "purchase_trace": [
+  {
+   "kind": "PM",
+   "refresh_run_id": 122,
+   "date_changed_now": 0,
+   "fact_missing_now": 0,
+   "rate_changed_now": 0,
+   "distinct_rate_picks": 445,
+   "newer_fact_now_qualifies": 0
+  },
+  {
+   "kind": "RM",
+   "refresh_run_id": 122,
+   "date_changed_now": 0,
+   "fact_missing_now": 0,
+   "rate_changed_now": 0,
+   "distinct_rate_picks": 554,
+   "newer_fact_now_qualifies": 0
+  },
+  {
+   "kind": "PM",
+   "refresh_run_id": 128,
+   "date_changed_now": 0,
+   "fact_missing_now": 0,
+   "rate_changed_now": 0,
+   "distinct_rate_picks": 440,
+   "newer_fact_now_qualifies": 0
+  },
+  {
+   "kind": "RM",
+   "refresh_run_id": 128,
+   "date_changed_now": 0,
+   "fact_missing_now": 0,
+   "rate_changed_now": 0,
+   "distinct_rate_picks": 554,
+   "newer_fact_now_qualifies": 0
+  }
+ ],
+ "sp_wastage_now": {
+  "sp_bom_lines": 797,
+  "sp_lines_wastage_nonzero": 0
+ },
+ "bom_wastage_now": {
+  "rm_bom_lines": 9382,
+  "rm_lines_wastage_nonzero": 0
+ }
+}

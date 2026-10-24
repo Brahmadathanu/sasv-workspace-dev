@@ -1,0 +1,35 @@
+{
+ "changed": [
+  "C costing.cost_period_governance_audit.cost_period_governance_audit_event_type_chk",
+  "F costing.fn_guard_designated_run_header()",
+  "F costing.fn_guard_designated_run_rows()"
+ ],
+ "removed": [],
+ "added": [
+  "C costing.costing_governance_owner.costing_governance_owner_display_name_check",
+  "C costing.costing_governance_owner.costing_governance_owner_pkey",
+  "C costing.costing_governance_owner.costing_governance_owner_singleton_check",
+  "F costing.fn_w2_audit(date,text,costing.cost_periods,costing.cost_periods,text,text,jsonb)",
+  "F costing.fn_w2_guard_closed_period()",
+  "F costing.fn_w2_guard_single_approved()",
+  "F costing.fn_w2_owner_name()",
+  "F costing.fn_w2_require_text(text,text)",
+  "F costing.fn_w2_run_checks(bigint,text)",
+  "F rpc_costing_approve_run(bigint,text,text)",
+  "F rpc_costing_authorise_supersession(date,text,text)",
+  "F rpc_costing_close_period(date,text,text)",
+  "F rpc_costing_lock_period(date,text,text)",
+  "F rpc_costing_open_next_period(text,text,date)",
+  "F rpc_costing_period_governance_context()",
+  "F rpc_costing_preflight_run(bigint,text)",
+  "F rpc_costing_reopen_period(date,text,text)",
+  "F rpc_costing_supersede_approved_run(bigint,text,text)",
+  "T costing.cost_period_governance_audit.trg_w2_audit_append_only",
+  "T costing.cost_period_governance_audit.trg_w2_audit_append_only_truncate",
+  "T costing.cost_periods.trg_w2_closed_period_final",
+  "T costing.costing_governance_owner.trg_au2_append_only",
+  "T costing.costing_governance_owner.trg_au2_append_only_truncate",
+  "T costing.costing_run_designation.trg_w2_single_approved",
+  "T costing.costing_run_fingerprint_rebaseline.trg_au2_append_only_truncate"
+ ]
+}

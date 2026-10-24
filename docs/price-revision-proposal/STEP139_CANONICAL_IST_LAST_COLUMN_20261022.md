@@ -1,0 +1,9 @@
+# Step 139 — Canonical IST refresh column, last in master (2026-10-22)
+
+User direction: per-cell UTC timestamp notes in Google Sheet are not useful; add the derived IST value directly to canonical DB view, source Sheet from that, and place IST at the end.
+
+Implemented live migration `20261022174839_price_revision_master_ist_refresh_display_20261022`: `CREATE OR REPLACE VIEW costing.v_price_revision_current_approved_master` appends **column 64** `refreshed_at_ist` as `to_char(d.refreshed_at AT TIME ZONE 'Asia/Kolkata','DD Mon YYYY, FMHH12:MI AM') || ' IST'`. Native PostgreSQL column comment gives its meaning. The original precise `refreshed_at` UTC timestamp is retained as canonical, without any data edits. Exact repo migration version parity at `supabase/migrations/20261022174839_price_revision_master_ist_refresh_display_20261022.sql`; mistakenly attempted alternate repo timestamp 20261022175940 was removed immediately.
+
+Google workbook `SASV - PRICE REVISION PROPOSAL` id `1K9u4YJ8qUfDcRfmTMRQDl3Ed24eItcm_0UW-jQhS21Q` `MASTER DATA`: appended last column **BL / 64** labeled **Refreshed At (IST)**, imported direct `refreshed_at_ist` for all 627 SKUs mapped by `SKU ID` from canonical view. Previous BI / column61 was restored to exact `refreshed_at` UTC per row labeled **Refreshed At (UTC)**. Cleared notes on BI and new BL (no per-cell notes maintained). BJ/BK IK/OK Boolean columns retained in place. Read-back showed BI UTC strings, BJ/BK booleans, BL format like `22 Oct 2026, 7:44 PM IST`. Supabase information_schema confirms derived IST last ordinal=64, Sheet grid columnCount=64. No changes to cost / approved run / regional eligibility.
+
+Future controlled refresh: mapping must be by field names, not arbitrary DB ordinal, because finance-facing Sheet column arrangement differs for classification; keep IST at last and preserve exact UTC in BI as separate database-sourced value, without explanatory notes.

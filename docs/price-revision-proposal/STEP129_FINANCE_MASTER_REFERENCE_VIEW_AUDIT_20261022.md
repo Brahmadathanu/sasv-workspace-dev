@@ -1,0 +1,20 @@
+# Step 129 — Finance master reference decision and Stage03a live view audit (22 October 2026)
+
+## User-approved design
+Create in the dedicated existing workbook `SASV - PRICE REVISION PROPOSAL` two adjacent new tabs in this order: `MASTER DATA REFERENCE` immediately before `MASTER DATA`. Finance-facing reference explains each derived field in plain language, with actual database formula and source; MASTER DATA contains only database values from the latest formally APPROVED costing refresh, not replicated cost formulas. Formatting simple. Separate later marketing promotions, date-effective objectives, regional IK/OK proposal and archived snapshots, per WORKFLOW_MASTER_AND_PRIME_COST_AUDIT_20261022.md. Current run 140 retained unchanged. Existing run136 preliminary tab retained untouched.
+
+## Stage03a read-only evidence
+- `costing.v_current_successful_costing_refresh_run` ranks per period with APPROVED priority and `row_number() partition by period_start`; live APPROVED selections: September run122 and October run140 (valuation 2026-10-22). **It does not by itself select one latest period**.
+- Existing `costing.v_price_revision_feed_approved` returns 1261 rows spanning 122 through 140. Its definition joins all period-specific approved selections; `is_latest_approved_period` checks period max, but rows from older months remain in result. It omits RM/PM breakdown, internal conversion, prime cost, overhead details, canonical region-specific marketing/pricing, GST/current discount and selected scheme. It emits obsolete common `pricing_cost_per_sku`.
+- Dependency confirmed in `pg_depend`: `public.v_costing_pricing_price_revision_feed_approved` references it. Public wrapper limits access by `CURRENT_USER` service_role/postgres or `app_has_permission('module:costing-control-center','view')`. Do **not** drop either view without a consumer, ACL and dependency migration.
+- `costing.v_sku_detailed_cost_sheet` has 627 rows/627 distinct SKU IDs for run140 and includes individual costs, costing statuses, GST/discount/contingency and common compatibility pricing. Canonical regional pricing costs reside in `sku_pricing_bridge_snapshot.pricing_cost_per_sku_ik/ok`, regional marketing in `marketing_expense_cost_per_sku_ik/ok`. Current scheme must be selected from `sku_selected_scheme_policy_context_snapshot` filtered by run+sku+region; SKU54 has exactly one IK and one OK selected policy, paid1/free0. Current RM/PM from `sku_manufacturing_cop_snapshot` or `sku_prime_cost_snapshot`. Selected run must be explicit and exact.
+- Example SKU54 run140: RM74.19696493000446, PM11.0616606, material85.25862553000445, conversion0.9676835180832185, prime86.22630904808767, COP89.43324560470906, admin6.650134589761114, finance admin0.8174620594277185, loaded96.90084225389789; IK marketing8.038687049806038, OK6.474020839778507, pricing IK104.93952930370394, OK103.3748630936764. MRP750 both, GST5, discount0, contingency2, scheme 'No Scheme' paid1/free0.
+- Target spreadsheet metadata verified: ID `1K9u4YJ8qUfDcRfmTMRQDl3Ed24eItcm_0UW-jQhS21Q`; currently sole tab `APPROVED BASELINE - RUN 136` (sheetId0). Must not substitute its historical values.
+
+## Controlled next gate
+1. Check product classification/group/subgroup source and scheme cardinality for all 627 SKUs; verify latest-approved exact-run exclusivity and null/status constraints.
+2. Implement minimal separate governed source view in a versioned migration, with preserved existing wrapper/dependents and secure access; verify 627 unique, regional values, representative samples and stable governance.
+3. Only then populate the two user-approved tabs (reference before master), no database formulas in Sheets. Verify staged live results.
+4. Do not drop older view or alter other programmes without dependency review/approved implementation.
+
+No database schema writes or Sheets edits made in this step.

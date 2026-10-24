@@ -1,0 +1,254 @@
+{
+ "run_ctx": [
+  {
+   "id": 122,
+   "period": "2026-09-01",
+   "valuation": "2026-09-10",
+   "finished_at": "2026-10-16T14:15:00.081468+00:00",
+   "requested_at": "2026-10-16T13:49:34.203148+00:00"
+  },
+  {
+   "id": 128,
+   "period": "2026-10-01",
+   "valuation": "2026-10-16",
+   "finished_at": "2026-10-18T08:10:00.053483+00:00",
+   "requested_at": "2026-10-18T07:43:19.638014+00:00"
+  }
+ ],
+ "rm_replay_diffs": [
+  {
+   "fn": 7,
+   "ln": null,
+   "frozen": 405.9986022433132,
+   "replay": null,
+   "run_id": 122,
+   "product_id": 1340
+  },
+  {
+   "fn": 8,
+   "ln": null,
+   "frozen": 272.10526315789474,
+   "replay": null,
+   "run_id": 122,
+   "product_id": 468
+  },
+  {
+   "fn": 4,
+   "ln": 4,
+   "frozen": 2650.910931174089,
+   "replay": 2910.3621232568603,
+   "run_id": 122,
+   "product_id": 824
+  },
+  {
+   "fn": 7,
+   "ln": 7,
+   "frozen": 1579.265419820454,
+   "replay": 1635.6678528819261,
+   "run_id": 122,
+   "product_id": 822
+  },
+  {
+   "fn": 5,
+   "ln": 5,
+   "frozen": 4472.850877192983,
+   "replay": 4457.620701754386,
+   "run_id": 122,
+   "product_id": 803
+  },
+  {
+   "fn": 27,
+   "ln": 27,
+   "frozen": 835.4978153668943,
+   "replay": 836.5897816635389,
+   "run_id": 122,
+   "product_id": 1046
+  },
+  {
+   "fn": 12,
+   "ln": 12,
+   "frozen": 0.9728511750793523,
+   "replay": 0.9793374548814215,
+   "run_id": 122,
+   "product_id": 732
+  },
+  {
+   "fn": 59,
+   "ln": 59,
+   "frozen": 0.6528937193117409,
+   "replay": 0.6554882312325686,
+   "run_id": 122,
+   "product_id": 450
+  }
+ ],
+ "rm_bom_line_cols": [
+  "id",
+  "rm_bom_id",
+  "line_no",
+  "stock_item_id",
+  "qty_per_reference_output",
+  "uom_id",
+  "wastage_pct",
+  "is_optional",
+  "remarks"
+ ],
+ "high_process_loss": [
+  {
+   "uom": "Kg",
+   "loss": 0.98,
+   "name": "Panaviraladi Bhasmam",
+   "ref_qty": 50,
+   "product_id": 67
+  },
+  {
+   "uom": "Kg",
+   "loss": 0.71,
+   "name": "Ayaveera Chendooram",
+   "ref_qty": 13,
+   "product_id": 766
+  },
+  {
+   "uom": "Kg",
+   "loss": 0.7,
+   "name": "Poonaikkali Choornam",
+   "ref_qty": 100,
+   "product_id": 854
+  },
+  {
+   "uom": "Kg",
+   "loss": 0.65,
+   "name": "Annabhedi Chendooram",
+   "ref_qty": 150,
+   "product_id": 761
+  },
+  {
+   "uom": "Kg",
+   "loss": 0.53,
+   "name": "Kalyana Ksharam",
+   "ref_qty": 32,
+   "product_id": 65
+  },
+  {
+   "uom": "Kg",
+   "loss": 0.5,
+   "name": "Venkara Podi",
+   "ref_qty": 10,
+   "product_id": 1040
+  },
+  {
+   "uom": "Kg",
+   "loss": 0.5,
+   "name": "Muthuchippi Parpam",
+   "ref_qty": 50,
+   "product_id": 801
+  },
+  {
+   "uom": "Kg",
+   "loss": 0.5,
+   "name": "Special Medicine 1",
+   "ref_qty": 50,
+   "product_id": 823
+  },
+  {
+   "uom": "Kg",
+   "loss": 0.48,
+   "name": "Special Medicine 2",
+   "ref_qty": 100,
+   "product_id": 824
+  },
+  {
+   "uom": "Kg",
+   "loss": 0.46,
+   "name": "Annabhedi Chendooram 2",
+   "ref_qty": 25,
+   "product_id": 762
+  },
+  {
+   "uom": "Kg",
+   "loss": 0.4,
+   "name": "Gowrichinthamani Chendooram",
+   "ref_qty": 3,
+   "product_id": 768
+  }
+ ],
+ "rm_replay_summary": [
+  {
+   "run": 128,
+   "differ": 0,
+   "products": 535
+  },
+  {
+   "run": 122,
+   "differ": 8,
+   "products": 537
+  }
+ ],
+ "missing_rate_lines": [
+  {
+   "run": 122,
+   "item": "Varinellin Veru [D]",
+   "kind": "RM",
+   "optional": true,
+   "sku_count": 2
+  },
+  {
+   "run": 128,
+   "item": "Varinellin Veru [D]",
+   "kind": "RM",
+   "optional": true,
+   "sku_count": 2
+  },
+  {
+   "run": 122,
+   "item": "Carton - DB 1 Santhigiri Printed 5 Ply",
+   "kind": "PM",
+   "optional": true,
+   "sku_count": 2
+  },
+  {
+   "run": 122,
+   "item": "Carton - Kumkumadi Lepam Printed 15 G x 100 Nos",
+   "kind": "PM",
+   "optional": true,
+   "sku_count": 1
+  },
+  {
+   "run": 128,
+   "item": "Carton - DB 1 Santhigiri Printed 5 Ply",
+   "kind": "PM",
+   "optional": true,
+   "sku_count": 2
+  },
+  {
+   "run": 128,
+   "item": "Carton - Kumkumadi Lepam Printed 15 G x 100 Nos",
+   "kind": "PM",
+   "optional": true,
+   "sku_count": 1
+  }
+ ],
+ "process_loss_bands": {
+  "0": 101,
+  "<5%": 228,
+  "5-20%": 185,
+  ">=40%": 11,
+  "20-40%": 10
+ },
+ "rm_bom_header_cols": [
+  "id",
+  "product_id",
+  "reference_output_qty",
+  "reference_output_uom_id",
+  "notes",
+  "created_at",
+  "created_by",
+  "last_updated_at",
+  "last_updated_by",
+  "process_loss_pct"
+ ],
+ "tally_purchase_feed": {
+  "rows": 15819,
+  "max_voucher_date": "2026-10-17",
+  "min_voucher_date": "2023-04-01"
+ }
+}

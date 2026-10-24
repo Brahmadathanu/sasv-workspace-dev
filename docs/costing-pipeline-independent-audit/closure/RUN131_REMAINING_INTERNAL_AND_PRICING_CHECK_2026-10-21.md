@@ -1,0 +1,9 @@
+# Run 131 — remaining internal material and downstream pricing status, 21 Oct 2026
+
+Read-only live checkpoint; no refresh, acceptance, migration, pricing release, or Sheets edits.
+
+1. Run131 continues as latest SUCCESS and UNAPPROVED, final_review_required_count frozen at 612.
+2. Five internal-source material review action groups: stock 158 Bulk Stock Special Medicine 2 (4 affected SKUs, selected_rate 2910.3621232568601); 1080 Balasarvangam SG Cap (1, 2967.8785972001783); 1083 Mahanarayana Thailam Internal (2, 574.6254208754209); 1092 Agasthyar Thailam (1, 382.4072420305275); 1150 Chathilinga Thailam SG Cap (1, 3164.653809620773). Nine frozen material drilldown lines. These are source-derived rates and not classified as approved stock-valuation fallback. Existing policy deliberately leaves changed internal source derived costs under review.
+3. sku_pricing_bridge_snapshot run131: 627 SKUs, 612 REVIEW_REQUIRED and 15 READY; region-specific states: 609 both IK/OK REVIEW_REQUIRED, 2 IK READY/OK REVIEW_REQUIRED, 1 IK REVIEW_REQUIRED/OK READY, 15 both READY. For sampled reviewed SKUs, MRP resolution RESOLVED, and notes state pricing calculable but regional cost components require review. Do not treat review propagation as 612 independent pricing faults or unilaterally clear pricing warnings. The historic seven pricing-bridge control reviews in previous gate notes are not equivalent to 612 SKU-level statuses; reconcile control grouping before closure.
+4. Previous live matcher continuity recognises 821 existing approvals among 841 original historical review groups; five changed internal source still review; 15 absent. Run131 snapshots are not retroactively rebuilt.
+5. Pending: exact internal-derived cost recomputation against source product batch cost, run-level pricing review grouping, full cost conservation, safe next governed refresh request, G2 attestation and G6 review; no refresh or release yet.

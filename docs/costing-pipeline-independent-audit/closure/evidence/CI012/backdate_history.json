@@ -1,0 +1,278 @@
+[
+{
+"t": "costing.batch_true_standard_switch",
+"recent": -1,
+"max_days": -1,
+"backdated": -1
+},
+{
+"t": "costing.capacity_fallback_policy",
+"recent": 17,
+"max_days": -14,
+"backdated": 0
+},
+{
+"t": "costing.cost_driver_policy_envelope",
+"recent": 6,
+"max_days": 5,
+"backdated": 2
+},
+{
+"t": "costing.cost_head_policy_ledger",
+"recent": 52,
+"max_days": 198,
+"backdated": 52
+},
+{
+"t": "costing.costing_sales_feed_switch",
+"recent": -1,
+"max_days": -1,
+"backdated": -1
+},
+{
+"t": "costing.direct_labour_workload_policy",
+"recent": 3,
+"max_days": 35,
+"backdated": 1
+},
+{
+"t": "costing.internal_material_source_lineage",
+"recent": 13,
+"max_days": 0,
+"backdated": 0
+},
+{
+"t": "costing.manufacturing_standard_rate_policy",
+"recent": 5,
+"max_days": 45,
+"backdated": 5
+},
+{
+"t": "costing.marketing_allocation_policy",
+"recent": 2,
+"max_days": 5,
+"backdated": 2
+},
+{
+"t": "costing.material_manual_rates",
+"recent": 87,
+"max_days": 88,
+"backdated": 31
+},
+{
+"t": "costing.material_review_acceptance_register",
+"recent": 1700,
+"max_days": 24,
+"backdated": 1700
+},
+{
+"t": "costing.material_zero_cost_rule",
+"recent": 1,
+"max_days": 0,
+"backdated": 0
+},
+{
+"t": "costing.materials_stores_component_classification",
+"recent": 0,
+"max_days": 0,
+"backdated": 0
+},
+{
+"t": "costing.materials_stores_workload_policy",
+"recent": 1,
+"max_days": 32,
+"backdated": 1
+},
+{
+"t": "costing.new_product_volume_plan",
+"recent": 1,
+"max_days": 17,
+"backdated": 1
+},
+{
+"t": "costing.packing_labour_responsibility_rule",
+"recent": 1,
+"max_days": 1,
+"backdated": 1
+},
+{
+"t": "costing.plant_aware_load_switch",
+"recent": 0,
+"max_days": 0,
+"backdated": 0
+},
+{
+"t": "costing.plant_capacity_profile",
+"recent": 298,
+"max_days": -14,
+"backdated": 0
+},
+{
+"t": "costing.product_mrp_derivation_policy",
+"recent": 117,
+"max_days": 472,
+"backdated": 115
+},
+{
+"t": "costing.product_process_route",
+"recent": 232,
+"max_days": 35,
+"backdated": 51
+},
+{
+"t": "costing.production_cost_centre",
+"recent": 88,
+"max_days": 35,
+"backdated": 21
+},
+{
+"t": "costing.production_overhead_workload_policy",
+"recent": 3,
+"max_days": 36,
+"backdated": 2
+},
+{
+"t": "costing.production_route_candidate_policy",
+"recent": 1,
+"max_days": 32,
+"backdated": 1
+},
+{
+"t": "costing.production_route_family",
+"recent": 98,
+"max_days": 35,
+"backdated": 19
+},
+{
+"t": "costing.production_route_family_product_group_map",
+"recent": 13,
+"max_days": 36,
+"backdated": 13
+},
+{
+"t": "costing.production_route_family_product_map",
+"recent": 440,
+"max_days": 35,
+"backdated": 259
+},
+{
+"t": "costing.production_route_family_product_subgroup_map",
+"recent": 17,
+"max_days": 1,
+"backdated": 12
+},
+{
+"t": "costing.production_route_family_route",
+"recent": 133,
+"max_days": 35,
+"backdated": 21
+},
+{
+"t": "costing.qc_batch_true_switch",
+"recent": -1,
+"max_days": -1,
+"backdated": -1
+},
+{
+"t": "costing.qc_workload_policy",
+"recent": 1,
+"max_days": 31,
+"backdated": 1
+},
+{
+"t": "costing.recurring_cost_pool_provision",
+"recent": 1,
+"max_days": 17,
+"backdated": 1
+},
+{
+"t": "costing.regional_sales_allocation_default_policy",
+"recent": 6,
+"max_days": 5,
+"backdated": 2
+},
+{
+"t": "costing.route_batch_charge_unit_mass",
+"recent": 2,
+"max_days": 17,
+"backdated": 2
+},
+{
+"t": "costing.route_equipment_load_capacity",
+"recent": 16,
+"max_days": 17,
+"backdated": 16
+},
+{
+"t": "costing.route_load_scaling_switch",
+"recent": -1,
+"max_days": -1,
+"backdated": -1
+},
+{
+"t": "costing.route_step_capacity_rule",
+"recent": 9,
+"max_days": -14,
+"backdated": 0
+},
+{
+"t": "costing.sales_allocation_default_policy",
+"recent": 4,
+"max_days": 23,
+"backdated": 4
+},
+{
+"t": "costing.sales_planning_fallback_unit_policy",
+"recent": 1,
+"max_days": 5,
+"backdated": 1
+},
+{
+"t": "costing.scheme_policy_rules",
+"recent": 0,
+"max_days": 0,
+"backdated": 0
+},
+{
+"t": "costing.sku_commercial_sales_assumption",
+"recent": 3,
+"max_days": 25,
+"backdated": 1
+},
+{
+"t": "costing.sku_mrp_policy",
+"recent": 45,
+"max_days": 470,
+"backdated": 42
+},
+{
+"t": "costing.sku_regional_commercial_sales_assumption",
+"recent": 1,
+"max_days": 31,
+"backdated": 1
+},
+{
+"t": "costing.sku_scheme_policy",
+"recent": 2,
+"max_days": 20,
+"backdated": 2
+},
+{
+"t": "costing.sku_selected_scheme_policy_context_snapshot",
+"recent": -1,
+"max_days": -1,
+"backdated": -1
+},
+{
+"t": "costing.sku_selling_price_policy",
+"recent": 656,
+"max_days": 45,
+"backdated": 656
+},
+{
+"t": "costing.staff_costing_classification",
+"recent": 7,
+"max_days": 137,
+"backdated": 7
+}
+]

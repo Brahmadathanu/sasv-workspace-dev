@@ -1,0 +1,283 @@
+{
+ "nulls_by_period": {
+  "2026-09-01": {
+   "period_start": 0,
+   "valuation_date": 0,
+   "refresh_run_id": 0,
+   "run_label": 0,
+   "approved_at": 0,
+   "approved_by": 0,
+   "designation_id": 0,
+   "is_latest_approved_period": 0,
+   "sku_id": 0,
+   "product_id": 0,
+   "product_name": 0,
+   "pack_size": 0,
+   "pack_uom": 0,
+   "mrp_ik": 0,
+   "mrp_ok": 0,
+   "material_cost_per_sku": 0,
+   "direct_labour_cost_per_sku": 0,
+   "manufacturing_cop_per_sku": 0,
+   "internal_loaded_cost_per_sku": 0,
+   "pricing_cost_per_sku": 0,
+   "ik_selling_price": 0,
+   "ok_selling_price": 0,
+   "ik_margin_amount_before_scheme": 0,
+   "ik_margin_percent_before_scheme": 0,
+   "ok_margin_amount_before_scheme": 0,
+   "ok_margin_percent_before_scheme": 0,
+   "ik_negative_margin": 0,
+   "ok_negative_margin": 0,
+   "cost_sheet_status": 0,
+   "refreshed_at": 0
+  },
+  "2026-10-01": {
+   "period_start": 0,
+   "valuation_date": 0,
+   "refresh_run_id": 0,
+   "run_label": 0,
+   "approved_at": 0,
+   "approved_by": 0,
+   "designation_id": 0,
+   "is_latest_approved_period": 0,
+   "sku_id": 0,
+   "product_id": 0,
+   "product_name": 0,
+   "pack_size": 0,
+   "pack_uom": 0,
+   "mrp_ik": 0,
+   "mrp_ok": 0,
+   "material_cost_per_sku": 0,
+   "direct_labour_cost_per_sku": 0,
+   "manufacturing_cop_per_sku": 0,
+   "internal_loaded_cost_per_sku": 0,
+   "pricing_cost_per_sku": 0,
+   "ik_selling_price": 0,
+   "ok_selling_price": 0,
+   "ik_margin_amount_before_scheme": 0,
+   "ik_margin_percent_before_scheme": 0,
+   "ok_margin_amount_before_scheme": 0,
+   "ok_margin_percent_before_scheme": 0,
+   "ik_negative_margin": 0,
+   "ok_negative_margin": 0,
+   "cost_sheet_status": 0,
+   "refreshed_at": 0
+  }
+ },
+ "oct_sums": {
+  "pack_size": 263622,
+  "mrp_ik": 301559,
+  "mrp_ok": 328526,
+  "material_cost_per_sku": 110465.2761,
+  "direct_labour_cost_per_sku": 7946.5919,
+  "manufacturing_cop_per_sku": 126292.3032,
+  "internal_loaded_cost_per_sku": 137392.3186,
+  "pricing_cost_per_sku": 159240.1194,
+  "ik_selling_price": 282770.9167,
+  "ok_selling_price": 308437.7619,
+  "ik_margin_amount_before_scheme": 160737.9499,
+  "ik_margin_percent_before_scheme": 33630.345,
+  "ok_margin_amount_before_scheme": 188034.118,
+  "ok_margin_percent_before_scheme": 35570.2647
+ },
+ "oct_counts": {
+  "rows": 627,
+  "distinct_sku": 627,
+  "distinct_product": 453,
+  "ikneg": 9,
+  "okneg": 9,
+  "either_neg": 9,
+  "status": {
+   "READY": 590,
+   "REVIEW_REQUIRED": 37
+  },
+  "valuation_date": "2026-10-16",
+  "run": 128,
+  "designation_id": 4,
+  "approved_at": "2026-10-18T08:48:51.796918+00:00",
+  "refreshed_at_min": "2026-10-18T07:56:48.808939+00:00",
+  "refreshed_at_max": "2026-10-18T07:56:49.198534+00:00"
+ },
+ "sep_counts": {
+  "rows": 634,
+  "distinct_sku": 634,
+  "ikneg": 74,
+  "okneg": 70,
+  "designation_id": 2,
+  "valuation_date": "2026-09-10"
+ },
+ "dup_grain": 0,
+ "identities_oct": {
+  "prime_eq_mat_dl": 8,
+  "prime_eq_mat_dl_conv": 0,
+  "cop_eq_prime_ovh": 0,
+  "ilc_eq_cop_admin": 0,
+  "pc_eq_ilc_mkt": 0,
+  "ik_sp_eq_basic_minus_disc": 0,
+  "ik_basic_eq_mrp_ex_gst": 0,
+  "ik_margin_eq_sp_minus_pc": 627,
+  "ik_margin_eq_sp_minus_pc_cont": 627,
+  "ik_pct_eq": 627,
+  "ok_margin_eq_sp_minus_pc_cont": 627,
+  "ok_margin_eq_sp_minus_pc": 627,
+  "disc_pct": [
+   0,
+   32,
+   33,
+   40
+  ],
+  "ok_disc_pct": [
+   0,
+   32,
+   33,
+   40
+  ],
+  "gst": [
+   5,
+   12
+  ],
+  "cont": [
+   2
+  ],
+  "sums": {
+   "prime": 118414.418,
+   "prod_ovh": 5505.8548,
+   "qc": 1739.3999,
+   "stores": 632.6304,
+   "admin": 9884.9202,
+   "fin_admin": 1215.0953,
+   "marketing": 21847.8008,
+   "conv": 2.55,
+   "ik_basic": 287089.8214,
+   "ik_disc": 4318.9048,
+   "ik_cont": 5655.4183,
+   "ok_cont": 6168.7552
+  }
+ },
+ "pct_range": {
+  "min": -4733.1801741612435,
+  "max": 93.34792362757312
+ },
+ "updatable": [
+  {
+   "v": "public.v_cost_sheet_snapshot_sku_monthly_comparison",
+   "upd": "NO",
+   "ins": "NO"
+  },
+  {
+   "v": "costing.v_cost_sheet_snapshot_sku_monthly_comparison",
+   "upd": "NO",
+   "ins": "NO"
+  },
+  {
+   "v": "public.v_cost_sheet_snapshot_sku_monthly_comparison_governed",
+   "upd": "NO",
+   "ins": "NO"
+  },
+  {
+   "v": "costing.v_cost_sheet_snapshot_sku_monthly_comparison_governed",
+   "upd": "NO",
+   "ins": "NO"
+  },
+  {
+   "v": "public.v_costing_pricing_period_run_status",
+   "upd": "NO",
+   "ins": "NO"
+  },
+  {
+   "v": "public.v_costing_pricing_price_revision_feed_approved",
+   "upd": "NO",
+   "ins": "NO"
+  },
+  {
+   "v": "public.v_costing_pricing_sku_detailed_cost_sheet",
+   "upd": "NO",
+   "ins": "NO"
+  },
+  {
+   "v": "costing.v_price_revision_feed_approved",
+   "upd": "NO",
+   "ins": "NO"
+  }
+ ],
+ "acl_compare": [
+  {
+   "v": "v_costing_pricing_sku_detailed_cost_sheet",
+   "acl": "{postgres=arwdDxtm/postgres,anon=m/postgres,authenticated=rm/postgres,service_role=arwdDxtm/postgres}"
+  },
+  {
+   "v": "v_cost_sheet_snapshot_sku_monthly_comparison",
+   "acl": "{postgres=arwdDxtm/postgres,anon=m/postgres,authenticated=rm/postgres,service_role=arwdDxtm/postgres}"
+  },
+  {
+   "v": "v_costing_pricing_period_run_status",
+   "acl": "{postgres=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+  },
+  {
+   "v": "v_cost_sheet_snapshot_sku_monthly_comparison_governed",
+   "acl": "{postgres=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+  }
+ ],
+ "fp": [
+  {
+   "id": 3,
+   "run": 122,
+   "purpose": "RUN_SUCCESS",
+   "at": "2026-10-16T14:15:00.081468+00:00"
+  },
+  {
+   "id": 4,
+   "run": 122,
+   "purpose": "DESIGNATION",
+   "at": "2026-10-16T14:36:52.341766+00:00"
+  },
+  {
+   "id": 9,
+   "run": 128,
+   "purpose": "RUN_SUCCESS",
+   "at": "2026-10-18T08:10:00.053483+00:00"
+  },
+  {
+   "id": 11,
+   "run": 128,
+   "purpose": "DESIGNATION",
+   "at": "2026-10-18T08:48:51.796918+00:00"
+  },
+  {
+   "id": 12,
+   "run": 122,
+   "purpose": "REBASELINE",
+   "at": "2026-10-19T01:47:28.477782+00:00"
+  },
+  {
+   "id": 13,
+   "run": 128,
+   "purpose": "REBASELINE",
+   "at": "2026-10-19T01:47:28.477782+00:00"
+  }
+ ],
+ "designation_rows": [
+  {
+   "id": 1,
+   "run": 119,
+   "des": "REFERENCE",
+   "at": "2026-10-15T16:58:43.297426+00:00",
+   "by": "Dr. Brahmadathan U"
+  },
+  {
+   "id": 2,
+   "run": 122,
+   "des": "APPROVED",
+   "at": "2026-10-16T14:36:52.341766+00:00",
+   "by": "Dr. Brahmadathan U"
+  },
+  {
+   "id": 4,
+   "run": 128,
+   "des": "APPROVED",
+   "at": "2026-10-18T08:48:51.796918+00:00",
+   "by": "Dr. Brahmadathan U"
+  }
+ ]
+}

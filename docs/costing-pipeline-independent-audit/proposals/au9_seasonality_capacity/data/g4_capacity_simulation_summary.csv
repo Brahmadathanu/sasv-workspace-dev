@@ -1,0 +1,6 @@
+scenario,median_cop_pct,skus_cheaper_gt5pct,skus_dearer_gt5pct,negative_margin_skus,new_negative,cleared_negative
+"A proposed rule (Grinding 8 kg, Kajjali 2 kg, pulverisers/pills 50 kg default)",-0.08,0,22,9,,
+"B strict G4: only route steps naming a machine (6 steps, Grinder 26) get 8 kg",-0.01,0,2,9,,
+C all Rasoushadhi grinding at 8 kg (incl. Kajjali),-0.06,0,20,9,,
+D all Rasoushadhi grinding at 2 kg (stone/khalvam),-0.23,0,34,9,,
+"E = A + fermentation steps at 1,000 L tanks",-0.11,0,21,9,,

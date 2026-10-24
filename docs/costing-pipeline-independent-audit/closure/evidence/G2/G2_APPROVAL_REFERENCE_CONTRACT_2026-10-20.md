@@ -1,0 +1,5 @@
+# G2 Approval reference and repetition control — verified
+
+Read-only live source: both `rpc_approve_route_family_route` and `rpc_approve_product_route` normalize and require meaningful `p_approval_reference`, reject placeholder values, require REVIEW_REQUIRED status, call their existing central validators and reject `valid=false`.
+
+Approval reference is evidence of approval, NOT an attestation that `expected_occurrence_count * standard_cycle_count` represents physical executions. Do not overload or parse arbitrary approval-reference text to enforce count semantics. Preferred minimal future work: display derived total executions during authoring and review; clarify cycles per occurrence; require explicit review of genuinely nested count pairs; add server-side enforcement to existing validators only once a verifiable, route-specific acknowledgement contract is designed. Avoid new tables unless demonstrated necessary. Existing approved route144, historical snapshots, runs122/128 and production functions remain unchanged. G2/CI-032 OPEN.

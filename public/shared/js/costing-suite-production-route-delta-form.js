@@ -420,6 +420,12 @@ export function buildProductDeltaFormHtml({
           </div>
           <div class="cp-prm-form-field"><span class="cp-field-label">Standard cycles</span>
             <input id="${prefix}Cycles" type="number" min="1" step="1" value="${escapeHtml(seed.standard_cycle_count ?? 1)}" />
+            <span class="cp-muted-text">Cycles within each occurrence, not total cycles per batch.</span>
+          </div>
+          <div class="cp-prm-form-field cp-prm-form-field--full" data-prm-repetitions-preview aria-live="polite">
+            <span class="cp-field-label">Total step executions per standard batch</span>
+            <span data-prm-repetitions-total>—</span>
+            <span class="cp-muted-text" data-prm-repetitions-warning hidden>Both factors exceed one. Confirm the process genuinely has cycles within each occurrence; otherwise correct the values before review.</span>
           </div>
         </div>
       </section>`,
@@ -471,6 +477,11 @@ export function buildProductDeltaFormHtml({
           </div>
           <div class="cp-prm-form-field"><span class="cp-field-label">Standard cycles</span>
             <input id="${prefix}AlterCycles" type="number" min="1" step="1" value="${escapeHtml(seed.standard_cycle_count ?? "")}" />
+          </div>
+          <div class="cp-prm-form-field cp-prm-form-field--full" data-prm-repetitions-preview aria-live="polite">
+            <span class="cp-field-label">Total step executions per standard batch</span>
+            <span data-prm-repetitions-total>—</span>
+            <span class="cp-muted-text" data-prm-repetitions-warning hidden>Both factors exceed one. Confirm cycles genuinely occur within each occurrence before review.</span>
           </div>
         </div>
       </section>`,
@@ -1271,6 +1282,32 @@ export function bindProductDeltaForm(
   }
   if (ccEl?.value) onCostCentreChange();
   refreshExclusion();
+
+  const repetitionPanels = ["add", "cycle"].map((name) => {
+    const panel = host.querySelector(`[data-prm-delta-panel="${name}"]`);
+    const suffix = name === "cycle" ? "Alter" : "";
+    const occurrencesInput = panel?.querySelector(`#${prefix}${suffix}Occ`);
+    const cyclesInput = panel?.querySelector(`#${prefix}${suffix}Cycles`);
+    const total = panel?.querySelector("[data-prm-repetitions-total]");
+    const warning = panel?.querySelector("[data-prm-repetitions-warning]");
+    const refresh = () => {
+      const occurrence = Number(occurrencesInput?.value);
+      const cycles = Number(cyclesInput?.value);
+      const valid = occurrencesInput?.value !== "" && cyclesInput?.value !== "" &&
+        Number.isSafeInteger(occurrence) && occurrence > 0 &&
+        Number.isSafeInteger(cycles) && cycles > 0 &&
+        Number.isSafeInteger(occurrence * cycles);
+      if (total) total.textContent = valid ? String(occurrence * cycles) : "Enter valid whole-number counts";
+      if (warning) warning.hidden = !(valid && occurrence > 1 && cycles > 1);
+    };
+    occurrencesInput?.addEventListener("input", refresh);
+    cyclesInput?.addEventListener("input", refresh);
+    refresh();
+    return {name, refresh};
+  });
+  operationEl?.addEventListener("change", () => {
+    repetitionPanels.forEach(({refresh}) => refresh());
+  });
 
   enhanceIfNeeded(activityEl);
   enhanceIfNeeded(ccEl);
