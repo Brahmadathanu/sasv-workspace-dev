@@ -30,4 +30,4 @@ These are **driver plausibility blockers**, not proof that math is wrong: G1 est
 - If staged correction is proposed, every prior approved run remains byte-for-byte immutable; only a newly authorised future valuation may consume effective-dated rules.
 - G2 NOT CLOSED. G3-G6 remain dependent; do not release pricing.
 ## Reference
-`closure/evidence/CAP/CAPACITY_P1_15_MACHINES.md`; `closure/G1_UPSTREAM_LINEAGE.md`; `closure/ISSUE_REGISTER.md`; `handover/CHATGPT_HANDOVER_2026-10-19_PART3.md`.
+`closure/evidence/CAP/CAPACITY_P1_15_MACHINES.md`; `closure/G1_UPSTREAM_LINEAGE.md`; `closure/ISSUE_REGISTER.md`; `archive/CHATGPT_HANDOVER_2026-10-19_PART3.md`.

@@ -11,7 +11,7 @@
 | Approved price data source | `costing.v_price_revision_current_approved_master`: 627 rows, 65 columns. See [contracts/PRICE_REVISION_FEED_CONTRACT_v2.md](contracts/PRICE_REVISION_FEED_CONTRACT_v2.md) |
 | Run 143 quality | 627/627 SKUs READY (0 REVIEW_REQUIRED, 0 BLOCKED); 6 SKUs have negative margin before scheme in both IK and OK; no null margins (read-only, 24 Oct 2026 16:00 IST) |
 | Price-revision Sheets | Show run 143 (confirmed by owner, 24 Oct 2026) |
-| CI-016 migration records | 492 live migrations backfilled (PR #81 merged; lab batch on `ci-016-lab-backfill`). Live 638 reconciled; 59 e-Aushadhi/WP07/regulatory versions remain with Jarvis. See `closure/CI-016_BACKFILL_2026-10-24.md` |
+| CI-016 migration records | 492 live migrations backfilled (PRs #81 and #82 merged). Live 638 reconciled; 59 e-Aushadhi/WP07/regulatory versions remain with Jarvis. See `closure/CI-016_BACKFILL_2026-10-24.md` |
 | Old feed | `public.v_costing_pricing_price_revision_feed_approved` is gone (retired 22 Oct; see `docs/price-revision-proposal/STEP131_*`) |
 | Cron | Active: 66 `costing_weekly_draft_0200_IST` (Mon 02:00 IST), 67 `costing_monthend_draft_0200_IST` (1st of month, 02:00 IST), 68 `costing_stage_processor_5min_governed`. Jobs 60 and 61 no longer exist |
 
@@ -29,19 +29,18 @@
 | #78 | open | Tooth Powder BOM: renamed 25 G PP jar and Tally mapping |
 | #77 | open | Absorbent Cotton Wool IP inventory and Tally aliases |
 | #73 | draft, do not merge | W1 client: approved/draft run labels and cost comparison |
-| #72 | draft | AU-4 normal budget and docs carrier (this branch's base) |
-| #70 | draft, 16 Oct | AU-2c master-data proposals for SKU 859/1277/879 plus AU-4 prep pack. **Likely obsolete**: superseded by later runs (up to 143, all 627 READY) and by AU-4 work on #72. Owner to confirm before closing |
-| #66 | draft, 15 Oct | MC06 overhead readiness gate (read-only). **Likely obsolete**: G6 seven-pool overhead conservation (21 Oct) covers it |
-| #61 | draft, 13 Oct | WP05 C1 dead dashboard view mapping. **Unclear**: small client cleanup that may still apply; check against main before closing |
-| #60 | draft, 13 Oct | WP05 G1/G2 docs. **Obsolete**: replaced by the closure G1/G2 docs on #72 |
+| #72 | draft | AU-4 normal budget and docs carrier |
+| #83 | open | CI-033 prepared SQL and live-apply record (docs only) |
+| #84 | open | Repo cleanup: archive superseded docs, remove `.temp/` and 2 never-applied migrations |
+| #60, #61, #66, #70 | closed 24 Oct | Closed as obsolete or premise wrong; see `closure/REPO_CLEANUP_CANDIDATES_2026-10-24.md` |
 
 ## Doc map
 - Policy: `POLICY_REGISTER.md`, `COST_HEAD_POLICY_LEDGER.md`, `DECISIONS_AND_OPEN_QUESTIONS.md`, `closure/IMPLEMENTATION_RULES.md`
 - Programme and issues: `closure/PROGRAMME.md`, `closure/ISSUE_REGISTER.md`
-- Price data contract: `contracts/PRICE_REVISION_FEED_CONTRACT_v2.md` (v1 is history)
+- Price data contract: `contracts/PRICE_REVISION_FEED_CONTRACT_v2.md` (v1 in `archive/`)
 - Automation: `closure/WEEKLY_COSTING_LIVE_CRON_ACTIVATION_2026-10-21.md`
 - Price revision: `docs/price-revision-proposal/`
-- History: `handover/`, `CHANGELOG.md`, dated `closure/*_2026-10-*.md` checkpoints
+- History: `archive/` (superseded handovers, checkpoints, mandate, contract v1), `handover/`, `CHANGELOG.md`, dated `closure/*_2026-10-*.md` checkpoints
 
 ## Other workstreams (merged to main)
 | Item | Live check (read-only, 24 Oct 2026 16:00 IST) | Docs |
@@ -51,4 +50,4 @@
 | Fill Planner urgent SKU labels (PR #75, merged 22 Oct) | Client-only change (`public/shared/js/fill-planner.js`); deployment not checked | None |
 
 ## Branch note
-`costing/au4-normal-budget` (and this cleanup branch) are about 647 commits ahead of `main` and 56 behind it. Rebasing onto main would pull in unrelated AU-4 history, so it was not done.
+`costing/au4-normal-budget` (PR #72) is far ahead of `main`; its docs were brought to main via PR #80, and its pruned helper scripts/logs remain there.

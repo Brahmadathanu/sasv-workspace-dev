@@ -40,7 +40,7 @@
 
 ### A3. PR #73 and the feed contract (07:50)
 - **Client PR #73** (draft, "DO NOT MERGE OR DEPLOY UNTIL REVIEWED"): `costing/w1-approved-run-labels` → `costing/au4-normal-budget`. It adds run label badges and the Cost comparison on the governed view (node tests 8/8). Retarget it to main before any deploy.
-- **Feed contract v1:** `contracts/PRICE_REVISION_FEED_CONTRACT_v1.md`, written from the live definitions. It covers grain, the 30 columns, selection rules and control totals.
+- **Feed contract v1:** `archive/PRICE_REVISION_FEED_CONTRACT_v1.md`, written from the live definitions. It covers grain, the 30 columns, selection rules and control totals.
 - **Key finding:** margins = MRP − (ILC + regional marketing). `pricing_cost_per_sku` (national marketing) is not the margin cost.
 
 ### A4. W2 governed period lifecycle: LIVE (19 Oct 11:06; approved 09:16)

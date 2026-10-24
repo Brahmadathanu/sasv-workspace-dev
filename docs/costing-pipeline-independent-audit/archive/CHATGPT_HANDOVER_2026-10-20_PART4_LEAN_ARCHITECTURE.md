@@ -21,7 +21,7 @@ Machine working charge may convert step quantity into discrete process loads; a 
 - No live mutations, drop, migration, switch, cron, runs, approval/period action, merge, deployments, pricing Sheets or client changes without explicit user authorisation. Read-only Supabase and GitHub repository documentation/tests allowed. Never touch Jarvis WP07.
 
 ## Work completed by ChatGPT after part3 (19–20 Oct)
-1. Checkpoint `closure/CHATGPT_TAKEOVER_CHECKPOINT_2026-10-19.md`; commits 5c13fc1b.
+1. Checkpoint `archive/CHATGPT_TAKEOVER_CHECKPOINT_2026-10-19.md`; commits 5c13fc1b.
 2. G2 triage `G2_CHATGPT_INDEPENDENT_TRIAGE_2026-10-19.md`; 15 priority machines all blocked.
 3. Detailed frozen route factors `G2_FROZEN_ROUTE_STEP_FORENSICS_2026-10-19.md`: product51 labour ₹93,475.19/month (13.24%),957 ₹69,374.49 (9.82%),695 ₹47,009.67 (6.66%). Top10 manufacturing labour share44%. All exact immutable run128 results.
 4. BMR audit `G2_BATCH_MASTER_BMR_PROVENANCE_2026-10-19.md` confirms standard batch references.

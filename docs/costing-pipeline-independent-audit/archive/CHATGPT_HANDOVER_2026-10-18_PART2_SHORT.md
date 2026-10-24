@@ -1,7 +1,7 @@
 > **SUPERSEDED (24 Oct 2026) — see [../CURRENT_STATE.md](../CURRENT_STATE.md).** Dated history only; live-state statements below (approved runs 122/128/131/136/140, cron 60/61, the public price feed view) are out of date.
 
 # Auditor handover, part 2: short version (18 Oct 2026, 21:50 IST)
-**Covers:** after the last handover (commit 42d3f89, 14:30 IST). Full version: `handover/CHATGPT_HANDOVER_2026-10-18_PART2.md`. Branch `costing/au4-normal-budget` (PR #72), not merged.
+**Covers:** after the last handover (commit 42d3f89, 14:30 IST). Full version: `archive/CHATGPT_HANDOVER_2026-10-18_PART2.md`. Branch `costing/au4-normal-budget` (PR #72), not merged.
 **Unchanged:** Sep locked, run 122 APPROVED; Oct locked, run 128 APPROVED; runs 124–127 unapproved; cron 60/61 paused. No refresh, no cost change, no Sheet edit, no merge.
 
 **Approved policy (user)**

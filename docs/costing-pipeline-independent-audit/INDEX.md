@@ -15,15 +15,15 @@ Updated 19 Oct 2026, 20:20 IST (part-3 handover). The audit branch `docs/costing
 | Next period | November: needs CF-1 build, lock/reopen functions, capacity confirmation (see backlog) |
 
 ## Start here
-- **LATEST HANDOVER (part 3, 19 Oct 20:20 IST): everything since 8ec5bee (W1/W5, W2, closure G0/G1, TB1–TB7, P33–P38, LB1, DVS-1 OFF, CI-012/CI-034 prepared, open items):** `handover/CHATGPT_HANDOVER_2026-10-19_PART3.md` (SUPERSEDED; short twin removed 24 Oct). Live state in section B2 there supersedes the table below.
+- **LATEST HANDOVER (part 3, 19 Oct 20:20 IST): everything since 8ec5bee (W1/W5, W2, closure G0/G1, TB1–TB7, P33–P38, LB1, DVS-1 OFF, CI-012/CI-034 prepared, open items):** `archive/CHATGPT_HANDOVER_2026-10-19_PART3.md` (SUPERSEDED; short twin removed 24 Oct). Live state in section B2 there supersedes the table below.
 - **Closure live applies:** `closure/TB_LIVE_APPLY_2026-10-19.md` · `closure/LB1_DVS1_LIVE_APPLY_2026-10-19.md` · prepared-not-applied: `closure/CI012_CI034_GUARD_AND_FIX.md`
-- **CURRENT PRIORITY: end-to-end server closure (mandate 19 Oct):** `COSTING_END_TO_END_SERVER_CLOSURE_MANDATE_2026-10-19.md` · programme `closure/PROGRAMME.md` · issue register `closure/ISSUE_REGISTER.json` (`.md`) · G0 `closure/G0_BASELINE_2026-10-19.md` · G1 `closure/G1_COST_WATERFALL_RECONCILIATION.md`
-- **Handover for the independent auditor:** `handover/CHATGPT_HANDOVER_2026-10-18.md` (SUPERSEDED; short twin removed 24 Oct)
-- **Handover part 2 (AU-9 capacity master, R2, G4 live switch OFF, runs/cron/Sheets-feed findings):** `handover/CHATGPT_HANDOVER_2026-10-18_PART2.md` (short: `handover/CHATGPT_HANDOVER_2026-10-18_PART2_SHORT.md`)
+- **CURRENT PRIORITY: end-to-end server closure (mandate 19 Oct):** `archive/COSTING_END_TO_END_SERVER_CLOSURE_MANDATE_2026-10-19.md` · programme `closure/PROGRAMME.md` · issue register `closure/ISSUE_REGISTER.json` (`.md`) · G0 `closure/G0_BASELINE_2026-10-19.md` · G1 `closure/G1_COST_WATERFALL_RECONCILIATION.md`
+- **Handover for the independent auditor:** `archive/CHATGPT_HANDOVER_2026-10-18.md` (SUPERSEDED; short twin removed 24 Oct)
+- **Handover part 2 (AU-9 capacity master, R2, G4 live switch OFF, runs/cron/Sheets-feed findings):** `archive/CHATGPT_HANDOVER_2026-10-18_PART2.md` (short: `archive/CHATGPT_HANDOVER_2026-10-18_PART2_SHORT.md`)
 - **Repository:** `Brahmadathanu/sasv-workspace-dev` (public), branch `costing/au4-normal-budget` (PR #72, open, not merged). Raw files: `https://raw.githubusercontent.com/Brahmadathanu/sasv-workspace-dev/costing/au4-normal-budget/docs/costing-pipeline-independent-audit/<path>` (verified 18 Oct 22:30 IST for both part-2 handover files at commit 8ec5bee)
 - **Consolidation plan (current priority):** `proposals/consolidation/CLIENT_GOVERNED_WORKFLOW_PLAN.md`: client-governed period/run workflow gap table and work packages W1–W5 (plan only)
 - **W1 + W5 LIVE (19 Oct 07:15–07:17):** `evidence/W1_W5/W1_W5_LIVE_INSTALL_2026-10-19.md` · parity `evidence/W1_W5/MIGRATION_PARITY_2026-10-19.md`
-- **Approved feed contract v1:** `contracts/PRICE_REVISION_FEED_CONTRACT_v1.md`
+- **Approved feed contract v1:** `archive/PRICE_REVISION_FEED_CONTRACT_v1.md`
 - **W2 LIVE (19 Oct 11:06):** `evidence/W2/W2_LIVE_INSTALL_2026-10-19.md`
 - **W2 local build:** `proposals/consolidation/w2/W2_LOCAL_TEST_REPORT.md` + PREPARED_W2 SQL; client branch `costing/w2-period-runs-panel`
 - **W2 design:** `proposals/consolidation/W2_GOVERNED_PERIOD_LIFECYCLE_DESIGN.md`
@@ -44,7 +44,7 @@ Updated 19 Oct 2026, 20:20 IST (part-3 handover). The audit branch `docs/costing
 | AU-5 batch-true, October rate quality, default volume, C1 | evidence/AU5/, proposals/au5/, proposals/rate_quality_oct/ |
 | AU-6 bundle (default v2, Abhraka, HO admin), run 126 | evidence/AU6/ |
 | QC per batch / small-batch + kit RCA | evidence/AU6Q/, evidence/AU6S/ |
-| AU-6A exponent package | evidence/AU6A/, proposals/au6_combined/PREPARED_au6_combined_package.sql (**SUPERSEDED** 18 Oct 09:06) |
+| AU-6A exponent package | evidence/AU6A/, archive/PREPARED_au6_combined_package.sql (**SUPERSEDED** 18 Oct 09:06) |
 | AU-6L equipment loads, combined v2, runs 127–128, October close | evidence/AU6L/ (applied SQL in evidence/AU6L/live/) |
 | Monthly carry-forward policy | POLICY_MONTHLY_CARRY_FORWARD_CF1.md |
 | AU-9 seasonality (DVS-1) + machine capacity profiles (PREPARED, not applied) | proposals/au9_seasonality_capacity/ (start: AU9_ARCHITECTURE_AND_MIGRATION_PROPOSAL.md; G1–G3 package PREPARED_AU9_G1_G3_capacity_master.sql + G1_G3_LOCAL_TEST_REPORT.md; live evidence evidence/AU9/; R1 revisions + G4 simulation R1_CAPACITY_REVISIONS_AND_G4_SIMULATION.md; R2 corrections R2_CAPACITY_CORRECTIONS_AND_G4_RESIMULATION.md; R2 live evidence evidence/AU9/AU9_R2_LIVE_APPLY_2026-10-18.md; G4 build + local test G4_PLANT_AWARE_LOADS_BUILD_AND_LOCAL_TEST.md, package PREPARED_AU9_G4_plant_aware_loads.sql; G4 live install (switch OFF) evidence/AU9/AU9_G4_LIVE_INSTALL_SWITCH_OFF_2026-10-18.md) |
@@ -55,7 +55,7 @@ No `supabase db push` / migration repair. Apply only through Supabase MCP `apply
 
 ## Current authoritative continuation (20 Oct 2026)
 - **Binding simplification/hard-retirement decision:** `closure/ARCHITECTURE_SIMPLIFICATION_AND_RETIREMENT_DIRECTIVE_2026-10-20.md`
-- **Full next-chat handover:** `handover/CHATGPT_HANDOVER_2026-10-20_PART4_LEAN_ARCHITECTURE.md`
+- **Full next-chat handover:** `archive/CHATGPT_HANDOVER_2026-10-20_PART4_LEAN_ARCHITECTURE.md`
 - **Master gate status:** `closure/PROGRAMME.md`; G0 DONE, G1 VERIFIED, G2 OPEN/LEAN RE-DESIGN, G3/G4 OPEN, G5 NOT STARTED, G6 NOT READY.
 - Never activate or delete live costing objects merely by reading these docs; require explicit user approval after tests and dependency review.
 

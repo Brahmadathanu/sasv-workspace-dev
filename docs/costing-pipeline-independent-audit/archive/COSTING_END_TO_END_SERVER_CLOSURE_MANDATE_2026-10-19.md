@@ -1,4 +1,4 @@
-> **SUPERSEDED (24 Oct 2026) — see [CURRENT_STATE.md](CURRENT_STATE.md).** Dated history only; live-state statements below (approved runs 122/128/131/136/140, cron 60/61, the public price feed view) are out of date.
+> **SUPERSEDED (24 Oct 2026) — see [CURRENT_STATE.md](../CURRENT_STATE.md).** Dated history only; live-state statements below (approved runs 122/128/131/136/140, cron 60/61, the public price feed view) are out of date.
 
 # Costing Suite — End-to-End Server Reliability Closure Mandate
 Date: 2026-10-19 IST
