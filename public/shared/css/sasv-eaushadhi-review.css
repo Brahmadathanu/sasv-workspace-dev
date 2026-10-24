@@ -1804,3 +1804,51 @@ body.sasv-eaushadhi-review #qcFillPreflightCard .icon-btn {
     width: 100%;
   }
 }
+
+body.sasv-eaushadhi-review .worklist-dots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+body.sasv-eaushadhi-review .worklist-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  box-sizing: border-box;
+}
+
+body.sasv-eaushadhi-review .worklist-dot.is-done { background: #166534; }
+body.sasv-eaushadhi-review .worklist-dot.is-review { background: #b45309; }
+body.sasv-eaushadhi-review .worklist-dot.is-todo { background: #6b7280; }
+body.sasv-eaushadhi-review .worklist-dot.is-fix { background: #991b1b; }
+body.sasv-eaushadhi-review .worklist-dot.is-empty {
+  background: transparent;
+  border: 1px solid #6b7280;
+}
+
+body.sasv-eaushadhi-review .worklist-id,
+body.sasv-eaushadhi-review .why-disabled {
+  display: block;
+  margin-top: 2px;
+}
+
+body.sasv-eaushadhi-review .worklist-clear {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+body.sasv-eaushadhi-review #techDrawer {
+  margin-top: 12px;
+}
+
+body.sasv-eaushadhi-review .worklist-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

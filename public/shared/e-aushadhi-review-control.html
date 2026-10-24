@@ -14,6 +14,7 @@
         <div class="page-sub">
           Review, verify, and ready licensed-product data. Portal entry is not part of this module.
         </div>
+        <p id="signedInRole" class="page-sub"></p>
       </div>
       <div class="header-actions">
         <button id="openReferenceDictionaryBtn" type="button" class="icon-btn with-label">Reference Dictionary</button>
@@ -47,7 +48,39 @@
 
     <div id="mainPanel">
       <section id="queuePanel">
-        <div class="queue-controls">
+        <div id="worklistFallback" class="status-banner" hidden>
+          <p id="worklistFallbackText">The worklist could not be loaded. Try Refresh.</p>
+          <button type="button" id="worklistRefresh" class="icon-btn with-label">Refresh</button>
+        </div>
+        <div id="worklistHome" hidden>
+          <div id="worklistTabs" class="review-nav" role="tablist" aria-label="Worklist"></div>
+          <div class="queue-controls">
+            <label class="worklist-filter">Family
+              <select id="worklistFamily" class="sasv-control" aria-label="Family"></select>
+            </label>
+            <div class="search-card">
+              <input id="worklistSearch" type="search" placeholder="Search name or id" aria-label="Search name or id" />
+              <button type="button" id="worklistClear" class="worklist-clear">Clear filters</button>
+              <span id="worklistCount" class="muted-note showing-count" aria-live="polite"></span>
+            </div>
+          </div>
+          <div class="table-card">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Product</th>
+                  <th scope="col">Family</th>
+                  <th scope="col">Progress</th>
+                  <th scope="col">Next step</th>
+                  <th scope="col">Reason</th>
+                  <th scope="col">Last change</th>
+                </tr>
+              </thead>
+              <tbody id="worklistBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="queue-controls" id="legacyQueueControls">
           <div class="search-card">
             <div class="search-wrap input-with-icon">
               <svg class="ea-icon ea-icon-search" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">

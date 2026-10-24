@@ -52,6 +52,14 @@ export async function fetchProductQueue() {
   return asArray(await callRpc("rpc_eaushadhi_product_queue"));
 }
 
+export async function fetchWorklist() {
+  return asArray(await callRpc("rpc_eaushadhi_worklist_v1"));
+}
+
+export async function fetchMyRoles() {
+  return asFirst(await callRpc("rpc_eaushadhi_my_roles_v1"));
+}
+
 export async function fetchPortalOptions(domainCode) {
   const domain = String(domainCode || "").toUpperCase();
   if (!PORTAL_DOMAINS.includes(domain)) {

@@ -354,3 +354,13 @@ Qualification: Portal laboratory is an internal provisional selection. It is not
 5. Saves: first 3 products, then batched sessions (~12–20/hour), each session authorized and each row confirmed by typing; target automatic CONFIRMED without manual resolve.
 6. Optional: operator-driven document verification (portal attachment SHA-256 compare).
 Open questions: D-01 sheet/tab source, second-reviewer availability, first product batch.
+
+## UX-1 — Worklist, roles, and why a button is off
+- The home list comes from `rpc_eaushadhi_worklist_v1` (one row per in-scope product). Tabs: To verify, Needs fix, Needs data, Awaiting approval, Ready for portal, Done. The last tab is remembered in this browser. Family and name/id search narrow the open tab. Each row shows eight stage dots and one next-step button.
+- If that RPC fails, the page says "The worklist could not be loaded. Try Refresh." and shows the previous queue.
+- `rpc_eaushadhi_my_roles_v1` runs once at start. The header reads Verifier, Approver, Verifier · Approver, or View only. If it fails, the person is treated as view only and approval buttons stay visible but off.
+- Approval buttons (verify, promote, arm, save, confirm, and the three list-resolution buttons) need an approver. Without that role the reason is "Needs an approver. Ask an approver to do this step." If the signed-in approver made the last change, the reason is "You made the last change. Another person must approve it."
+- `rpc_eaushadhi_role_grant_set_v1` grants or revokes VERIFIER or APPROVER. Only an approver can call it, and nobody can change their own grant. UX-1 does not show a screen for it.
+- A disabled action shows a short reason under the button. Technical ids, hashes, the build marker, and recovery buttons sit in a collapsed "Technical details" drawer that is added only for approvers.
+- Product 262 (Karpooradi Thailam) is Done. Save, Arm, and Dry run stay off with "Already saved and confirmed on the portal." and those calls are not sent.
+- UI build UX-1. Cache `hub-cache-v374`. The Save guards from D7.3 through D7.3.2 are unchanged, and a normal app start still cannot press Save.

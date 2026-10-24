@@ -514,6 +514,7 @@ const uiLiteralsWithoutCanonicalStop = [
   "${text.slice(0, 60)}…",
   "Suggested — confirm against the PDF",
   "Reopened — verify again",
+  " · ",
 ].reduce(
   (text, literal) => text.split(literal).join(""),
   (controlSrc + htmlSrc).split(STOP_BROWSER_TOOLTIP).join("").split(QC_PREP_VERIFIED_NOTE).join(""),

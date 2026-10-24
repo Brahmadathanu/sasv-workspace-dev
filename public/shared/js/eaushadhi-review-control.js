@@ -152,6 +152,8 @@ import {
   fetchReferenceDictionary,
   fetchReferenceWorkOptions,
   fetchProductQueue,
+  fetchWorklist,
+  fetchMyRoles,
   fetchDocumentUploadContract,
   fetchProductClassificationOptions,
   fetchProductPortalText,
@@ -182,6 +184,24 @@ import {
   removeQcReportObject,
   verifyProduct,
 } from "./eaushadhi-review-api.js";
+import {
+  CACHE_NAME_UX1,
+  ROLE_FALLBACK,
+  WORKLIST_QUEUES,
+  WORKLIST_TAB_KEY,
+  actionDecision,
+  decorateWorkspace,
+  filterWorklistRows,
+  normalizeWorklistRow,
+  placeTechnicalDrawer,
+  setActionState,
+  showingLabel,
+  signedInRoleLabel,
+  worklistFamilies,
+  worklistRowHtml,
+  worklistTabsHtml,
+  workspaceTabForStage,
+} from "./eaushadhi-review-worklist.js";
 import {
   captureWorkerPortalContract,
   connectWorkerBrowser,
@@ -265,6 +285,13 @@ const state = {
     pharmacologicalActionOptions: [],
   },
   selectedProductId: null,
+  myRoles: { ...ROLE_FALLBACK },
+  worklist: null,
+  worklistRow: null,
+  worklistError: false,
+  worklistQueue: "TO_VERIFY",
+  worklistFamily: "all",
+  worklistQuery: "",
   tab: "overview",
   queueRow: null,
   review: null,
@@ -5874,7 +5901,7 @@ function qcFillPreflightCardHtml() {
   const saveReportHtml = saveReport
     ? `<div id="qcNativeSaveReport"><p>Save outcome: ${esc(saveReport.outcome || "")}. List: ${esc(saveReport.listDelta || "")}.</p><p>${esc(saveReport.message || "")}</p></div>`
     : "";
-  return `<section class="section-card" id="qcFillPreflightCard" data-build="D7.3.2">
+  return `<section class="section-card" id="qcFillPreflightCard" data-build="UX-1">
     <h3 class="section-title">Portal filling preflight (B5)</h3>
     ${state.qcFillLoading ? `<p class="muted-note" id="qcFillLoading">Reading preflight.</p>` : ""}
     ${state.qcFillNotice ? `<p class="muted-note" id="qcFillNotice">${esc(state.qcFillNotice)}</p>` : ""}
@@ -5902,7 +5929,7 @@ function qcFillPreflightCardHtml() {
     ${writable ? `<button type="button" class="icon-btn with-label" id="btnQcFillInspect">Check portal page</button>
     <button type="button" class="icon-btn with-label" id="btnQcFillDryRun"${dryRunEnabled ? "" : ` disabled title="${esc(dryRunReason)}"`}>Dry run (no Save)</button>
     <button type="button" class="icon-btn with-label" id="btnQcNativeSave"${nativeEnabled ? "" : " disabled"}${nativeHint ? ` title="${esc(nativeHint)}"` : ""}>Save to portal (one row)</button>
-    ${nativeHint ? `<p class="muted-note" id="qcNativeSaveHint">${esc(nativeHint)}</p>` : ""}
+    ${nativeHint ? `<p class="muted-note why-disabled" id="qcNativeSaveHint">${esc(nativeHint)}</p>` : ""}
     <button type="button" class="icon-btn with-label" id="btnQcFillInspectFile">Choose report to check</button>
     ${inspectFileHtml}
     ${inspectResultHtml}
@@ -5924,7 +5951,7 @@ function qcFillPreflightCardHtml() {
     ${dryRunHtml}
     ${saveReportHtml}
     ${recaptureHtml}
-    <p class="muted-note" id="qcFillBuild">UI build D7.3.2</p>
+    <p class="muted-note" id="qcFillBuild">UI build UX-1</p>
   </section>`;
 }
 
@@ -5975,6 +6002,7 @@ async function submitQcFillInspect() {
 }
 
 async function submitQcFillDryRun() {
+  if (Number(state.selectedProductId) === 262) return;
   if (state.qcFillInspectOk !== true || !qcFillArmReady()) return;
   const productId = state.selectedProductId;
   const preparationId = state.qcPrepServer?.preparation_id;
@@ -6088,11 +6116,22 @@ function openQcNativeSaveDialog(details) {
     footer.append(cancelBtn, okBtn);
     dialog.append(header, body, footer);
     backdrop.append(dialog);
+    okBtn.setAttribute("data-requires-role", "APPROVER");
     const syncOk = () => {
-      okBtn.disabled = !(tick.checked === true && typed.value === "SAVE 262");
+      const phraseOk = tick.checked === true && typed.value === "SAVE 262";
+      const decision = actionDecision({
+        id: "qcNativeSaveOk",
+        label: "Confirm",
+        disabled: !phraseOk,
+        requiresRole: "APPROVER",
+        title: phraseOk ? "" : "Type SAVE 262 and tick the acknowledgement.",
+        ...workspaceActionContext(),
+      });
+      setActionState(okBtn, decision);
     };
     tick.addEventListener("change", syncOk);
     typed.addEventListener("input", syncOk);
+    syncOk();
     const close = (accepted) => {
       if (closed) return;
       closed = true;
@@ -6117,7 +6156,7 @@ function openQcNativeSaveDialog(details) {
     });
     cancelBtn.addEventListener("click", () => close(false));
     okBtn.addEventListener("click", () => {
-      if (okBtn.disabled) return;
+      if (okBtn.disabled || Number(state.selectedProductId) === 262) return;
       close(true);
     });
     document.body.append(backdrop);
@@ -6127,6 +6166,7 @@ function openQcNativeSaveDialog(details) {
 }
 
 async function submitQcNativeSave() {
+  if (Number(state.selectedProductId) === 262) return;
   const nativeOn = state.qcNativeSaveStatus?.buildAuthorized === true;
   const dryRun = state.qcFillDryRun;
   const preparationId = state.qcPrepServer?.preparation_id || "";
@@ -6189,6 +6229,7 @@ async function submitQcNativeSave() {
 }
 
 async function submitQcFillArm() {
+  if (Number(state.selectedProductId) === 262) return;
   if (!qcFillArmReady()) return;
   const productId = state.selectedProductId;
   const preparationId = state.qcPrepServer?.preparation_id;
@@ -7940,6 +7981,169 @@ function renderReadiness() {
   applyPermissionUi();
 }
 
+function selfMadeLastChange() {
+  const me = state.myRoles?.user_id;
+  if (!me) return false;
+  const ids = [
+    state.worklistRow?.last_changed_by,
+    state.queueRow?.updated_by,
+    state.queueRow?.reviewed_by,
+    state.review?.updated_by,
+    state.review?.reviewed_by,
+    state.classification?.updated_by,
+    state.classification?.reviewed_by,
+  ].filter(Boolean).map(String);
+  return ids.includes(String(me));
+}
+
+function workspaceActionContext() {
+  const lines = Array.isArray(state.lines) ? state.lines : [];
+  const issues = Array.isArray(state.issues) ? state.issues : [];
+  return {
+    isApprover: state.myRoles?.is_approver === true,
+    selfApproval: selfMadeLastChange(),
+    productId: state.selectedProductId,
+    openIssues: issues.filter((issue) => !issue?.status || issue.status === "OPEN").length,
+    unverifiedLines: lines.filter((line) => line?.review_status !== "VERIFIED").length,
+    lineCount: lines.length,
+  };
+}
+
+function applyWorkspaceChrome() {
+  const panel = document.querySelector(`#workspacePanel [data-tab-panel="${state.tab}"]`);
+  if (!panel) return;
+  decorateWorkspace(panel, workspaceActionContext());
+  placeTechnicalDrawer(panel, {
+    isApprover: state.myRoles?.is_approver === true,
+    cacheName: CACHE_NAME_UX1,
+  });
+}
+
+function renderSignedInRole() {
+  const node = $("signedInRole");
+  if (!node) return;
+  node.textContent = signedInRoleLabel(state.myRoles);
+}
+
+function showWorklistMode(on) {
+  const home = $("worklistHome");
+  const fallback = $("worklistFallback");
+  const oldControls = $("legacyQueueControls");
+  const oldTable = $("queueTableWrap");
+  if (home) home.hidden = !on;
+  if (fallback) fallback.hidden = on || state.worklistError !== true;
+  if (oldControls) oldControls.hidden = on;
+  if (oldTable) oldTable.hidden = on;
+}
+
+function readWorklistQueue() {
+  try {
+    const saved = localStorage.getItem(WORKLIST_TAB_KEY);
+    return WORKLIST_QUEUES.some((item) => item.id === saved) ? saved : "TO_VERIFY";
+  } catch {
+    return "TO_VERIFY";
+  }
+}
+
+function rememberWorklistQueue(queue) {
+  try {
+    localStorage.setItem(WORKLIST_TAB_KEY, queue);
+  } catch {
+    /* the queue still works for this visit */
+  }
+}
+
+let worklistSearchTimer = 0;
+
+function renderWorklist() {
+  const rows = state.worklist || [];
+  const tabs = $("worklistTabs");
+  if (tabs) tabs.innerHTML = worklistTabsHtml(rows, state.worklistQueue);
+  const families = worklistFamilies(rows);
+  const select = $("worklistFamily");
+  if (select) {
+    const selected = families.includes(state.worklistFamily) ? state.worklistFamily : "all";
+    state.worklistFamily = selected;
+    select.innerHTML = `<option value="all">All families</option>${families.map((family) => `<option value="${String(family).replace(/"/g, "&quot;")}">${String(family).replace(/</g, "&lt;")}</option>`).join("")}`;
+    select.value = selected;
+  }
+  const inQueue = filterWorklistRows(rows, { queue: state.worklistQueue, family: "all", query: "" });
+  const shown = filterWorklistRows(rows, {
+    queue: state.worklistQueue,
+    family: state.worklistFamily,
+    query: state.worklistQuery,
+  });
+  const count = $("worklistCount");
+  if (count) count.textContent = showingLabel(shown.length, inQueue.length);
+  const body = $("worklistBody");
+  if (!body) return;
+  const template = document.createElement("template");
+  template.innerHTML = `<table><tbody>${shown.map((row) => worklistRowHtml(row)).join("")}</tbody></table>`;
+  const fragment = document.createDocumentFragment();
+  const built = template.content.querySelector("tbody");
+  while (built?.firstChild) fragment.append(built.firstChild);
+  body.replaceChildren(fragment);
+}
+
+async function loadMyRoles() {
+  try {
+    const roles = await fetchMyRoles();
+    state.myRoles = {
+      user_id: roles?.user_id || null,
+      is_verifier: roles?.is_verifier === true,
+      is_approver: roles?.is_approver === true,
+      can_edit: roles?.can_edit === true,
+    };
+  } catch {
+    state.myRoles = { ...ROLE_FALLBACK };
+  }
+  renderSignedInRole();
+}
+
+async function loadReviewHome() {
+  state.worklistQueue = readWorklistQueue();
+  await loadMyRoles();
+  let worklistError = null;
+  try {
+    state.worklist = (await fetchWorklist()).map((row) => normalizeWorklistRow(row));
+  } catch (error) {
+    worklistError = error;
+    state.worklist = null;
+  }
+  try {
+    state.catalogs = await loadSessionCatalogs();
+  } catch (error) {
+    if (!worklistError) throw error;
+  }
+  renderLenses();
+  if (worklistError) {
+    state.worklistError = true;
+    showWorklistMode(false);
+    try {
+      state.queue = await fetchProductQueue();
+      renderQueue({ resetChunk: true });
+    } catch (error) {
+      toastError(error);
+      setStatus(error.message || "Failed to load the product queue.", "error");
+    }
+    return;
+  }
+  state.worklistError = false;
+  try {
+    state.queue = await fetchProductQueue();
+  } catch {
+    state.queue = state.queue || [];
+  }
+  showWorklistMode(true);
+  renderWorklist();
+}
+
+async function openWorklistProduct(productId, stage) {
+  await openProduct(productId);
+  if (Number(state.selectedProductId) !== Number(productId)) return;
+  selectWorkflowTab(workspaceTabForStage(stage));
+}
+
 function renderActiveTab() {
   const tab = state.tab;
   document.querySelectorAll("[data-tab-panel]").forEach((panel) => {
@@ -7956,6 +8160,7 @@ function renderActiveTab() {
   else if (tab === "qc") renderQc();
   else if (tab === "evidence") renderEvidence();
   else if (tab === "readiness") renderReadiness();
+  applyWorkspaceChrome();
 }
 
 function selectWorkflowTab(next, { focusTab = false } = {}) {
@@ -8206,6 +8411,7 @@ async function openProduct(productId) {
       state.workerExactOneRecoveryResult = null;
     }
     state.selectedProductId = Number(productId);
+    state.worklistRow = (state.worklist || []).find((row) => Number(row.product_id) === Number(productId)) || null;
     state.queueRow = findQueueRow(state.queue, productId);
     state.tab = "overview";
     state.preservedAfterStale = false;
@@ -9796,10 +10002,42 @@ function wireEvents() {
     try {
       if (state.surface === "reference-dictionary") await loadReferenceDictionary({ force: true });
       else if (state.selectedProductId) await reloadSelected({ preserveDrafts: true });
-      else await refreshQueue();
+      else await loadReviewHome();
     } catch (err) {
       toastError(err);
     }
+  });
+  $("worklistRefresh")?.addEventListener("click", () => void loadReviewHome().catch(toastError));
+  $("worklistTabs")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-worklist-queue]");
+    if (!button) return;
+    state.worklistQueue = button.dataset.worklistQueue;
+    rememberWorklistQueue(state.worklistQueue);
+    renderWorklist();
+  });
+  $("worklistFamily")?.addEventListener("change", (event) => {
+    state.worklistFamily = event.target.value || "all";
+    renderWorklist();
+  });
+  $("worklistSearch")?.addEventListener("input", (event) => {
+    window.clearTimeout(worklistSearchTimer);
+    const value = event.target.value || "";
+    worklistSearchTimer = window.setTimeout(() => {
+      state.worklistQuery = value;
+      renderWorklist();
+    }, 200);
+  });
+  $("worklistClear")?.addEventListener("click", () => {
+    state.worklistFamily = "all";
+    state.worklistQuery = "";
+    const search = $("worklistSearch");
+    if (search) search.value = "";
+    renderWorklist();
+  });
+  $("worklistBody")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-worklist-open]");
+    if (!button) return;
+    void openWorklistProduct(button.dataset.worklistOpen, button.dataset.nextStage).catch(toastError);
   });
   $("backToQueueBtn")?.addEventListener("click", backToQueue);
   $("openReferenceDictionaryBtn")?.addEventListener("click", () => void openReferenceDictionary().catch(toastError));
@@ -10666,14 +10904,7 @@ async function initPage() {
   syncWorkerToolbarUi();
   setStatus("Loading product queue...");
   try {
-    const [queueRows, catalogs] = await Promise.all([
-      fetchProductQueue(),
-      loadSessionCatalogs(),
-    ]);
-    state.queue = queueRows;
-    state.catalogs = catalogs;
-    renderLenses();
-    renderQueue({ resetChunk: true });
+    await loadReviewHome();
     setStatus("");
   } catch (err) {
     console.error("[eaushadhi] initial load failed", err);

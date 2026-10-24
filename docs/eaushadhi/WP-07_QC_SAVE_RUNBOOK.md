@@ -14,7 +14,7 @@ git rev-parse --short HEAD
 set EAUSHADHI_QC_NATIVE_SAVE=D7.3
 npm start
 ```
-PowerShell: `$env:EAUSHADHI_QC_NATIVE_SAVE="D7.3"; npm start`. Check the QC card shows the current UI build (D7.3.2).
+PowerShell: `$env:EAUSHADHI_QC_NATIVE_SAVE="D7.3"; npm start`. Check the QC card shows the current UI build (UX-1). The build marker is inside Technical details for approvers.
 
 ## 3. Prepare (nothing is saved)
 1. Portal: sign in, open Add Q.C (Quality Control) Register, choose the product. Leave the rest empty. Never press the portal Submit yourself.
