@@ -1,1 +1,0 @@
-psql -h /tmp -p 55439 -U postgres -d postgres -X -q -c "drop database if exists w1w5" -c "create database w1w5" -c "alter database w1w5 set timezone to 'UTC'" && pg_restore -h /tmp -p 55439 -U postgres -d w1w5 fixture_w1w5.dump 2>&1 | grep -v "^$" | head -5

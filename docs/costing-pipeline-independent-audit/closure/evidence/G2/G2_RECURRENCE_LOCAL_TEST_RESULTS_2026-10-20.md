@@ -1,6 +1,6 @@
 # G2 executable recurrence fixture — 20 Oct 2026
 
-**ISOLATED TEST: PASS 6/6**, Node `node --test`, not database integration and no live changes. Test source delivered as `recurrence-regression.test.mjs` in the conversation attachment; this evidence records the tested logic, not a claim that the file is committed to the repository.
+**ISOLATED TEST: PASS 6/6**, Node `node --test`, not database integration and no live changes. Test source delivered as `recurrence-regression.test.mjs` (helper/log kept on costing/au4-normal-budget at bc450c8) in the conversation attachment; this evidence records the tested logic, not a claim that the file is committed to the repository.
 
 Assertions: frozen Dhanyamlam labour factor174.8; proposed once-eight factor23.6; only six of nine steps normalized; POH factors210→28; genuinely independent cycle examples3/40/41/101 unchanged; frozen original fixture unchanged. The representative fixture encodes seq40/50/60/70 baseline relative DL factors0.6/1/1/0.1; POH factors1/1/1/0.25; these are reproduced from previously verified step snapshots. No charge-capacity validation, whole-cohort reallocation or writer integration was run.
 

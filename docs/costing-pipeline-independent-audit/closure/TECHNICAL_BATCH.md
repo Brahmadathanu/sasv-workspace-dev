@@ -9,7 +9,7 @@ To apply, use Supabase MCP `apply_migration`, one file per call, and only after 
 
 **Test bed:** a local PostgreSQL 17 fixture (`tb`) built from the live catalogue. It has the 216 relations the costing views depend on, the live view definitions (md5-identical for all 62), ACLs, RLS, policies and triggers, plus sample rows. Full masters are loaded, as are the ILC/COP/prime snapshots for runs 122 and 128.
 
-**Test runner:** `evidence/TB/run_tests.py`. It takes the state before, applies all files in order, then takes the state after. Results are in `evidence/TB/tb_test_results.json`.
+**Test runner:** `evidence/TB/run_tests.py` (helper/log kept on costing/au4-normal-budget at bc450c8). It takes the state before, applies all files in order, then takes the state after. Results are in `evidence/TB/tb_test_results.json`.
 
 **Test users:** synthetic — an unpermitted logged-in user, a costing user (`module:costing-control-center` view), an ETL admin (`hub_admin` use), plus `anon` and `service_role`.
 

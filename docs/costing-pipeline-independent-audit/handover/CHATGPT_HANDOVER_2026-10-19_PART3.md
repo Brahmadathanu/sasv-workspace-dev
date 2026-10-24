@@ -240,7 +240,7 @@ See section C.
 3. **LB1:** the ledger changed only the 22 status labels, with the same amounts (`evidence/LBD/`).
 4. **DVS-1:**
    - The policy is DRAFT, so DVS-1 is OFF.
-   - The RPC patch only adds branches that are inactive while OFF (diff `closure/evidence/DVS1/scripts/gen_dvs1.py` against the live definition).
+   - The RPC patch only adds branches that are inactive while OFF (diff `closure/evidence/DVS1/scripts/gen_dvs1.py` (helper/log kept on costing/au4-normal-budget at bc450c8) against the live definition).
    - The rolled-back replay method is sound.
 5. **CI-012 tiers:** check them against `evidence/CI012/backdate_history.json`.
 6. **CI-034:** the fix leaves `v_fill_inputs` and the forecasting view untouched.

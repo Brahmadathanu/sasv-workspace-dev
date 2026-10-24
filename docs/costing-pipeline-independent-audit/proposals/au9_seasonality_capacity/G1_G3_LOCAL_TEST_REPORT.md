@@ -15,7 +15,7 @@ Status: **PREPARED + TESTED LOCALLY. NOT APPLIED LIVE.**
 | Designated-run guard | Equivalent guard on the run 122/128 rows |
 | Hash agreement with live | The local copy's plant-master hash (0c269021…) and load-function hash agree with live, so the package prechecks pass on both |
 
-Builder: `tests/build_localcopy.py`. The generated SQL contains live data and is not committed.
+Builder: `tests/build_localcopy.py` (helper/log kept on costing/au4-normal-budget at bc450c8). The generated SQL contains live data and is not committed.
 
 ## 2. Results
 | # | Test | Result |
@@ -43,7 +43,7 @@ Builder: `tests/build_localcopy.py`. The generated SQL contains live data and is
 | T15 | `authenticated` role | Can read; insert is denied |
 | T16 | Tampering with an existing function inside the package | Post-check aborts ("3 fingerprints changed"); full rollback, 0 objects left |
 
-Logs: `tests/test_main.log`, `tests/test_counts.log`, `tests/test_negative.log`.
+Logs: `tests/test_main.log` (helper/log kept on costing/au4-normal-budget at bc450c8), `tests/test_counts.log` (helper/log kept on costing/au4-normal-budget at bc450c8), `tests/test_negative.log` (helper/log kept on costing/au4-normal-budget at bc450c8).
 
 ## 3. What the live apply would do
 One Supabase MCP `apply_migration` (name `au9_g1_g3_capacity_master`), with the file body unchanged, in a single transaction:

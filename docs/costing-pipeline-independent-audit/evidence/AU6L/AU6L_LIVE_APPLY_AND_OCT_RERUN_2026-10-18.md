@@ -14,7 +14,7 @@ Executor: Aryabhatta, using Supabase MCP only (apply_migration / execute_sql). N
 | 6 | Job 61 enabled; refresh requested | run 127 queued 10:18. Ran 10:20 to 10:45. **SUCCESS**. Job 61 paused again; jobs 60 and 61 both inactive. NOT approved, NOT locked (designations: 119 REFERENCE, 122 APPROVED only). |
 | 7 | Run 122 fingerprint after the run | identical |
 
-Applied file: `evidence/AU6L/live/APPLIED_au6_combined_v2_20261018044644.sql`; diff vs prepared: `live/prepared_vs_applied.diff` (22 placeholder lines + 1 post-check line).
+Applied file: `evidence/AU6L/live/APPLIED_au6_combined_v2_20261018044644.sql`; diff vs prepared: `live/prepared_vs_applied.diff` (helper/log kept on costing/au4-normal-budget at bc450c8) (22 placeholder lines + 1 post-check line).
 
 ## Run 127 results
 | Item | Run 126 | Run 127 |

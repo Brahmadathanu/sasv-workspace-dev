@@ -3,7 +3,7 @@
 ## Test environment inspection (actually executed)
 - Current runtime: Node 22 available; **no** `psql`, `postgres`, `initdb`, `pg_ctl`, Docker or Podman binaries; Python `psycopg` and `pglast` absent.
 - Attempt to install `pglast` failed because package index is unreachable; **no PostgreSQL parser or database compiler was run**.
-- Repository `closure/evidence/TB/run_tests.py` is a historical TB1–TB7 test script. It requires hard-coded `/workspace/au4wt`, `/workspace/tb`, Unix socket `/tmp` port `54329`, existing template database `tb` and psycopg. Its repository source and past result JSON are present, but those external runtime fixtures are **not present in the current execution environment**. It does not test G2 attestation. Past TB results therefore cannot certify new G2 SQL.
+- Repository `closure/evidence/TB/run_tests.py` (helper/log kept on costing/au4-normal-budget at bc450c8) is a historical TB1–TB7 test script. It requires hard-coded `/workspace/au4wt`, `/workspace/tb`, Unix socket `/tmp` port `54329`, existing template database `tb` and psycopg. Its repository source and past result JSON are present, but those external runtime fixtures are **not present in the current execution environment**. It does not test G2 attestation. Past TB results therefore cannot certify new G2 SQL.
 
 ## Live read-only schema compatibility
 Executed a read-only `information_schema.columns` query on Supabase project `qhmoqtxpeasamtlxaoak` for route headers, family steps and overrides. Found:
