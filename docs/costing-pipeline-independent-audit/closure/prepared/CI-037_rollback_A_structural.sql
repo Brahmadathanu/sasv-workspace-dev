@@ -170,6 +170,7 @@ end $do$;
 
 drop function if exists costing.fn_ci037_fill_pricing_bridge_profit(bigint);
 drop table if exists costing.sku_pricing_bridge_profit_snapshot;
+drop table if exists costing.costing_contingency_rate_policy;
 comment on column costing.sku_pricing_bridge_snapshot.ik_margin_amount_before_scheme is null;
 comment on column costing.sku_pricing_bridge_snapshot.ok_margin_amount_before_scheme is null;
 comment on column costing.sku_pricing_bridge_snapshot.ik_margin_percent_before_scheme is null;

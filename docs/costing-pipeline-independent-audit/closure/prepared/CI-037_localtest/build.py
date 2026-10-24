@@ -55,7 +55,7 @@ security definer
 set search_path to 'costing','public','pg_temp'
 as $fn$
 declare
-  v_des text; v_pb bigint; v_pb_sku bigint; v_sp bigint; v_sp_sku bigint; v_ss bigint; v_ss_bad bigint; v_ins bigint; v_missing bigint;
+  v_des text; v_rate numeric; v_rate_id bigint; v_rate_n int; v_vdate date; v_pb bigint; v_pb_sku bigint; v_sp bigint; v_sp_sku bigint; v_ss bigint; v_ss_bad bigint; v_ins bigint; v_missing bigint;
 begin
   if p_refresh_run_id is null then raise exception 'CI037: refresh run id is required'; end if;
   if not exists (select 1 from costing.costing_refresh_run r where r.id = p_refresh_run_id) then
@@ -65,6 +65,15 @@ begin
   select designation into v_des from costing.v_costing_run_effective_designation where refresh_run_id = p_refresh_run_id;
   if v_des in ('REFERENCE','APPROVED','REVOKED') then
     raise exception 'CI037: run % is %; designated history is immutable', p_refresh_run_id, v_des using errcode = 'P0001';
+  end if;
+
+  -- Governed contingency rate: exactly one APPROVED row of costing.costing_contingency_rate_policy covering the run's valuation date.
+  select valuation_date into v_vdate from costing.costing_refresh_run where id = p_refresh_run_id;
+  select count(*), max(id), max(rate_percent) into v_rate_n, v_rate_id, v_rate
+  from costing.costing_contingency_rate_policy
+  where status = 'APPROVED' and effective_from <= v_vdate and (effective_to is null or effective_to >= v_vdate);
+  if v_rate_n <> 1 then
+    raise exception 'CI037: expected exactly one APPROVED contingency-rate policy for valuation date %, found %', v_vdate, v_rate_n;
   end if;
 
   -- Cardinality: one pricing-bridge row per SKU, one selling-price row per pricing-bridge row,
@@ -102,7 +111,7 @@ begin
     scheme_id, scheme_paid_qty, scheme_free_qty, regional_marketing_cost_per_sku, internal_loaded_cost_per_sku,
     scheme_effective_selling_price, net_sales_realization_per_sku, estimated_profit_per_sku,
     estimated_profit_on_mrp_percent, estimated_profit_on_selling_price_percent, estimated_profit_on_realization_percent,
-    profit_calculation_status, profit_calculation_basis)
+    profit_calculation_status, profit_calculation_basis, contingency_rate_policy_id, contingency_policy_rate_percent)
   with src as (
     select pb.period_start, pb.valuation_date, pb.refresh_run_id, pb.id pb_id, sp.id sp_id, s.id ss_id, pb.sku_id, rg.r,
       case rg.r when 'IK' then pb.mrp_ik else pb.mrp_ok end mrp,
@@ -110,7 +119,7 @@ begin
       case rg.r when 'IK' then sp.ik_basic_price else sp.ok_basic_price end basic,
       case rg.r when 'IK' then sp.ik_discount_percent else sp.ok_discount_percent end disc,
       case rg.r when 'IK' then sp.ik_selling_price else sp.ok_selling_price end sell,
-      sp.contingency_percent cpct,
+      sp.contingency_percent cpct, spp.id spp_id, spp.contingency_percent spp_cpct,
       case rg.r when 'IK' then sp.ik_contingency_value else sp.ok_contingency_value end cont,
       s.scheme_id, s.paid_qty pq, s.free_qty fq, s.total_qty tq, s.resolution_status ss_status,
       case rg.r when 'IK' then pb.marketing_expense_cost_per_sku_ik else pb.marketing_expense_cost_per_sku_ok end mkt,
@@ -121,6 +130,7 @@ begin
     cross join (values ('IK'),('OK')) rg(r)
     join costing.sku_selling_price_bridge_snapshot sp on sp.pricing_bridge_snapshot_id = pb.id and sp.refresh_run_id = pb.refresh_run_id and sp.sku_id = pb.sku_id
     join costing.sku_selected_scheme_policy_context_snapshot s on s.refresh_run_id = pb.refresh_run_id and s.sku_id = pb.sku_id and s.region_code = rg.r
+    left join costing.sku_selling_price_policy spp on spp.id = sp.selling_price_policy_id
     where pb.refresh_run_id = p_refresh_run_id
   ), st as (
     select src.*,
@@ -128,7 +138,11 @@ begin
         when pb_status is null or sp_status is null then 'MISSING_UPSTREAM_STATUS'
         when pb_status = 'BLOCKED' or sp_status = 'BLOCKED' then 'UPSTREAM_BLOCKED'
         when pb_status not in ('READY','REVIEW_REQUIRED') or sp_status not in ('READY','REVIEW_REQUIRED') then 'UNKNOWN_UPSTREAM_STATUS'
-        when ss_status is null or ss_status = 'BLOCKED' then 'SCHEME_BLOCKED_OR_MISSING'
+        -- Live CHECK on sku_selected_scheme_policy_context_snapshot allows only RESOLVED_POLICY, DEFAULT_NO_SCHEME, BLOCKED.
+        -- There is no REVIEW_REQUIRED (or equivalent) scheme status; anything else is treated as an error.
+        when ss_status is null then 'SCHEME_STATUS_MISSING'
+        when ss_status = 'BLOCKED' then 'SCHEME_BLOCKED'
+        when ss_status not in ('RESOLVED_POLICY','DEFAULT_NO_SCHEME') then 'UNKNOWN_SCHEME_STATUS'
         when mrp is null then 'MISSING_MRP'
         when mrp <= 0 then 'INVALID_MRP'
         when gst is null then 'MISSING_GST'
@@ -142,7 +156,10 @@ begin
         when pq is null or fq is null or tq is null then 'MISSING_SCHEME_QUANTITY'
         when pq <= 0 or fq < 0 or tq <> pq + fq or pq <> trunc(pq) or fq <> trunc(fq) then 'INVALID_SCHEME_QUANTITY'
         when cpct is null or cont is null then 'MISSING_CONTINGENCY'
-        when cpct < 0 or cpct >= 100 or abs(cont - sell * cpct / 100) > 0.01 then 'CONTINGENCY_NOT_ON_SELLING_PRICE'
+        when spp_id is null then 'MISSING_CONTINGENCY_POLICY_SOURCE'
+        when spp_cpct is distinct from cpct then 'CONTINGENCY_POLICY_SOURCE_MISMATCH'
+        when cpct <> v_rate then 'CONTINGENCY_RATE_NOT_POLICY'
+        when abs(cont - sell * v_rate / 100) > 0.01 then 'CONTINGENCY_NOT_ON_SELLING_PRICE'
         when mkt is null then 'MISSING_REGIONAL_MARKETING'
         when mkt < 0 then 'INVALID_REGIONAL_MARKETING'
         when ilc is null then 'MISSING_COST'
@@ -166,7 +183,8 @@ begin
     case when prof is not null and sell > 0 then prof / sell * 100 end,
     case when prof is not null and nsr  > 0 then prof / nsr  * 100 end,
     status,
-    'CI-037 v2: contingency on post-discount ex-GST selling price; scheme price per delivered unit; regional marketing; internal loaded cost'
+    'CI-037 v3: contingency = governed policy rate x post-discount ex-GST selling price; scheme price per delivered unit; regional marketing; internal loaded cost',
+    v_rate_id, v_rate
   from v3;
   get diagnostics v_ins = row_count;
 
@@ -182,7 +200,28 @@ begin
   return v_ins;
 end $fn$;
 revoke all on function costing.fn_ci037_fill_pricing_bridge_profit(bigint) from public, anon, authenticated, service_role;"""
-table=r"""create table costing.sku_pricing_bridge_profit_snapshot (
+table=r"""-- Governed contingency rate (no company-wide live source exists; per-SKU sku_selling_price_policy.contingency_percent
+-- is the operational source and is cross-checked row by row against this policy).
+create table costing.costing_contingency_rate_policy (
+  id bigint generated always as identity primary key,
+  rate_percent numeric not null check (rate_percent >= 0 and rate_percent < 100),
+  basis text not null check (basis = 'POST_DISCOUNT_EX_GST_SELLING_PRICE'),
+  effective_from date not null,
+  effective_to date,
+  status text not null check (status in ('APPROVED','RETIRED')),
+  approved_by text not null,
+  approval_reference text not null,
+  created_at timestamptz not null default clock_timestamp(),
+  check (effective_to is null or effective_to >= effective_from)
+);
+create unique index costing_contingency_rate_policy_one_open on costing.costing_contingency_rate_policy ((true)) where status = 'APPROVED' and effective_to is null;
+alter table costing.costing_contingency_rate_policy enable row level security;
+revoke all on costing.costing_contingency_rate_policy from public, anon, authenticated, service_role;
+comment on table costing.costing_contingency_rate_policy is 'CI-037: governed company contingency rate and basis. Change only by owner-approved migration.';
+insert into costing.costing_contingency_rate_policy (rate_percent, basis, effective_from, status, approved_by, approval_reference)
+values (2, 'POST_DISCOUNT_EX_GST_SELLING_PRICE', date '2026-06-01', 'APPROVED', 'Dr. Brahmadathan U', 'CI-037 owner policy 24-Oct-2026: 2% of post-discount, GST-exclusive selling price');
+
+create table costing.sku_pricing_bridge_profit_snapshot (
   id bigint generated always as identity primary key,
   period_start date not null,
   valuation_date date not null,
@@ -204,6 +243,8 @@ table=r"""create table costing.sku_pricing_bridge_profit_snapshot (
   estimated_profit_on_realization_percent numeric,
   profit_calculation_status text not null,
   profit_calculation_basis text not null,
+  contingency_rate_policy_id bigint references costing.costing_contingency_rate_policy(id),
+  contingency_policy_rate_percent numeric,
   calculated_at timestamptz not null default clock_timestamp(),
   unique (refresh_run_id, sku_id, region_code),
   unique (pricing_bridge_snapshot_id, region_code),
@@ -221,7 +262,7 @@ legacy_comments="""comment on column costing.sku_pricing_bridge_snapshot.ik_marg
 comment on column costing.sku_pricing_bridge_snapshot.ok_margin_amount_before_scheme is 'Legacy MRP-based cost difference — not profit';
 comment on column costing.sku_pricing_bridge_snapshot.ik_margin_percent_before_scheme is 'Legacy MRP-based cost difference — not profit (% of GST-inclusive MRP)';
 comment on column costing.sku_pricing_bridge_snapshot.ok_margin_percent_before_scheme is 'Legacy MRP-based cost difference — not profit (% of GST-inclusive MRP)';"""
-fix=f"""-- CI-037 v2 PREPARED, NOT APPLIED. Apply only after owner approval, via Supabase MCP apply_migration
+fix=f"""-- CI-037 v3 PREPARED, NOT APPLIED. Apply only after owner approval, via Supabase MCP apply_migration
 -- (never supabase db push). Notify Jarvis first. Run CI-037_verify.sql BEFORE (must match the recorded baseline) and AFTER.
 --
 -- v2 change of design (fingerprint safety): run 119 (REFERENCE) has a legacy fingerprint capture without a column
@@ -324,6 +365,7 @@ end $do$;
 
 drop function if exists costing.fn_ci037_fill_pricing_bridge_profit(bigint);
 drop table if exists costing.sku_pricing_bridge_profit_snapshot;
+drop table if exists costing.costing_contingency_rate_policy;
 comment on column costing.sku_pricing_bridge_snapshot.ik_margin_amount_before_scheme is null;
 comment on column costing.sku_pricing_bridge_snapshot.ok_margin_amount_before_scheme is null;
 comment on column costing.sku_pricing_bridge_snapshot.ik_margin_percent_before_scheme is null;

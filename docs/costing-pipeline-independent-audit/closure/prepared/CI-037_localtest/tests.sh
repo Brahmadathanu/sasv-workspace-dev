@@ -41,6 +41,23 @@ select costing.fn_ci037_fill_pricing_bridge_profit(3);
 select sku_id, region_code, profit_calculation_status, estimated_profit_per_sku is null from costing.sku_pricing_bridge_profit_snapshot where refresh_run_id=3 order by 1,2;
 rollback;
 S
+q "T13b contingency rate / policy source / scheme status codes (rolled back)" -tA <<'S'
+begin;
+update costing.sku_selling_price_policy set contingency_percent=2.5 where id=(select selling_price_policy_id from costing.sku_selling_price_bridge_snapshot where refresh_run_id=3 and sku_id=975);
+update costing.sku_selling_price_bridge_snapshot set contingency_percent=2.5, ik_contingency_value=ik_selling_price*0.025, ok_contingency_value=ok_selling_price*0.025 where refresh_run_id=3 and sku_id=975;
+update costing.sku_selling_price_bridge_snapshot set contingency_percent=2.01 where refresh_run_id=3 and sku_id=45;
+update costing.sku_selected_scheme_policy_context_snapshot set resolution_status='BLOCKED' where refresh_run_id=3 and sku_id=51 and region_code='IK';
+update costing.sku_selected_scheme_policy_context_snapshot set resolution_status='REVIEW_REQUIRED' where refresh_run_id=3 and sku_id=51 and region_code='OK';
+select costing.fn_ci037_fill_pricing_bridge_profit(3);
+select sku_id, region_code, profit_calculation_status, estimated_profit_per_sku is null, contingency_policy_rate_percent from costing.sku_pricing_bridge_profit_snapshot where refresh_run_id=3 order by 1,2;
+rollback;
+S
+q "T13c no APPROVED contingency policy -> helper must raise (rolled back)" -tA <<'S'
+begin;
+update costing.costing_contingency_rate_policy set status='RETIRED';
+select costing.fn_ci037_fill_pricing_bridge_profit(3);
+rollback;
+S
 q "T14 missing OK scheme row -> must raise, nothing written (rolled back)" -tA <<'S'
 begin;
 delete from costing.sku_selected_scheme_policy_context_snapshot where refresh_run_id=3 and sku_id=45 and region_code='OK';

@@ -1,12 +1,12 @@
 == T0 baseline fingerprints (run1 legacy capture w/o cols, run2 with cols)
-   ae1ef87235d77d55f8b2eca5db96a96c|t
+   99a86406dc372d4a73724165424e6105|t
 == T1 v1-design check: ADD COLUMN on pricing bridge inside rolled-back txn -> legacy capture drifts?
    1|f
    2|t
 == T2 apply fix
-   psql:/workspace/sasv/docs/costing-pipeline-independent-audit/closure/prepared/CI-037_profit_fix.sql:219: NOTICE:  CI037_HOOK: inserted
+   psql:/workspace/sasv/docs/costing-pipeline-independent-audit/closure/prepared/CI-037_profit_fix.sql:260: NOTICE:  CI037_HOOK: inserted
 == T3 fingerprints after fix (must equal T0)
-   ae1ef87235d77d55f8b2eca5db96a96c|t
+   99a86406dc372d4a73724165424e6105|t
 == T4 view cols / owner / privs after fix
    79
    postgres||
@@ -48,12 +48,23 @@
    51|OK|UPSTREAM_BLOCKED|t
    975|IK|MISSING_GST|t
    975|OK|MISSING_GST|t
+== T13b contingency rate / policy source / scheme status codes (rolled back)
+   6
+   45|IK|CONTINGENCY_POLICY_SOURCE_MISMATCH|t|2
+   45|OK|CONTINGENCY_POLICY_SOURCE_MISMATCH|t|2
+   51|IK|SCHEME_BLOCKED|t|2
+   51|OK|UNKNOWN_SCHEME_STATUS|t|2
+   975|IK|CONTINGENCY_RATE_NOT_POLICY|t|2
+   975|OK|CONTINGENCY_RATE_NOT_POLICY|t|2
+== T13c no APPROVED contingency policy -> helper must raise (rolled back)
+   ERROR:  CI037: expected exactly one APPROVED contingency-rate policy for valuation date 2026-10-22, found 0
+   CONTEXT:  PL/pgSQL function fn_ci037_fill_pricing_bridge_profit(bigint) line 21 at RAISE
 == T14 missing OK scheme row -> must raise, nothing written (rolled back)
    ERROR:  CI037: selected-scheme rows incomplete or duplicated for run 3: 1 SKUs without exactly one IK and one OK row; 5 rows for 3 SKUs
-   CONTEXT:  PL/pgSQL function fn_ci037_fill_pricing_bridge_profit(bigint) line 39 at RAISE
+   CONTEXT:  PL/pgSQL function fn_ci037_fill_pricing_bridge_profit(bigint) line 48 at RAISE
 == T15 duplicate pricing-bridge SKU -> must raise (rolled back)
    ERROR:  CI037: 4 pricing-bridge rows but 3 distinct SKUs for run 3 (duplicates)
-   CONTEXT:  PL/pgSQL function fn_ci037_fill_pricing_bridge_profit(bigint) line 19 at RAISE
+   CONTEXT:  PL/pgSQL function fn_ci037_fill_pricing_bridge_profit(bigint) line 28 at RAISE
 == T16 verify script runs (errors only expected where live-only tables absent)
    |
    119|635||
@@ -103,6 +114,6 @@
    t
    t
 == T23 fingerprints after full cycle (must equal T0)
-   ae1ef87235d77d55f8b2eca5db96a96c|t
+   99a86406dc372d4a73724165424e6105|t
 == T24 fix re-applies cleanly after rollback A
-   psql:/workspace/sasv/docs/costing-pipeline-independent-audit/closure/prepared/CI-037_profit_fix.sql:219: NOTICE:  CI037_HOOK: inserted
+   psql:/workspace/sasv/docs/costing-pipeline-independent-audit/closure/prepared/CI-037_profit_fix.sql:260: NOTICE:  CI037_HOOK: inserted
