@@ -134,6 +134,8 @@ function buildQcPrepRunLive({ getPage, getWorkerState, log } = {}) {
       }, QC_PORTAL_CONTRACT.fileInputId);
       return proof;
     },
+    listWaitMs: 10000,
+    listPollMs: 400,
     async observeSave(spec = {}) {
       const page = currentPage();
       return evaluateFactory(page, createInPageSaveObserveScript(), {

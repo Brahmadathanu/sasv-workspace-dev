@@ -5842,18 +5842,39 @@ function qcFillPreflightCardHtml() {
   const nativeOn = nativeStatus.buildAuthorized === true;
   const nativeDryPass = dryRun?.outcome === "DRY_RUN_PASS"
     && String(dryRun?.report?.preparationId || "") === String(state.qcPrepServer?.preparation_id || "");
+  const saveDone = state.qcNativeSaveReport?.clicked === true
+    || ["SAVE_AMBIGUOUS", "SAVE_CONFIRMED", "SAVE_UNAUTHORIZED", "SAVE_REJECTED", "SAVE_FOUND_UNAUTHORIZED", "ROW_VERIFIED_DOCUMENT_NOT_VERIFIED", "FULLY_VERIFIED"].includes(latestStatus);
   const nativeEnabled = nativeOn
     && nativeDryPass
     && state.qcFillInspectOk === true
     && state.qcFillProvisionalAck === true
     && state.qcFillDerivedAck === true
-    && state.qcPrepRunBusy !== true;
-  const nativeHint = nativeOn ? "" : "Save is off in this build (start with EAUSHADHI_QC_NATIVE_SAVE=D7.3)";
+    && state.qcPrepRunBusy !== true
+    && !saveDone;
+  const missingSave = [];
+  if (state.qcFillInspectOk !== true) missingSave.push("Check portal page passed");
+  if (!nativeDryPass) missingSave.push("Dry run passed in this session");
+  if (state.qcFillProvisionalAck !== true || state.qcFillDerivedAck !== true) missingSave.push("both acknowledgements ticked");
+  if (state.qcPrepRunBusy === true) missingSave.push("the current step to finish");
+  let nativeHint = "";
+  if (!nativeOn) nativeHint = "Save is off in this build (start with EAUSHADHI_QC_NATIVE_SAVE=D7.3)";
+  else if (!nativeEnabled && saveDone) nativeHint = "Save already done for this run.";
+  else if (!nativeEnabled && missingSave.length) nativeHint = `Save needs: ${missingSave.join(" · ")}`;
+  const resolveParts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "2-digit", month: "2-digit", year: "numeric" }).formatToParts(new Date());
+  const resolvePick = (type) => resolveParts.find((part) => part.type === type)?.value || "";
+  const resolveDate = `${resolvePick("day")}-${resolvePick("month")}-${resolvePick("year")}`;
+  const resolveLab = String((preflight?.fill_fields || state.qcNativeSaveReport?.filled_values || {}).labName || "").replace(/\s+/g, " ").trim();
+  const resolveCount = state.qcNativeSaveReport?.after_count;
+  const resolveCountKnown = resolveCount != null && resolveCount !== "" && Number.isFinite(Number(resolveCount));
+  const resolveDefault = resolveCountKnown && resolveLab
+    ? `Operator checked e-Aushadhi QC list on ${resolveDate} (IST): ${Number(resolveCount)} Karpooradi Thailam row(s) seen, lab ${resolveLab}.`
+    : `Operator checked the e-Aushadhi QC list on ${resolveDate}.`;
+  const resolveNote = state.qcFillResolveNoteTouched === true ? String(state.qcFillResolveNote || "") : resolveDefault;
   const saveReport = state.qcNativeSaveReport;
   const saveReportHtml = saveReport
     ? `<div id="qcNativeSaveReport"><p>Save outcome: ${esc(saveReport.outcome || "")}. List: ${esc(saveReport.listDelta || "")}.</p><p>${esc(saveReport.message || "")}</p></div>`
     : "";
-  return `<section class="section-card" id="qcFillPreflightCard" data-build="D7.3.1">
+  return `<section class="section-card" id="qcFillPreflightCard" data-build="D7.3.2">
     <h3 class="section-title">Portal filling preflight (B5)</h3>
     ${state.qcFillLoading ? `<p class="muted-note" id="qcFillLoading">Reading preflight.</p>` : ""}
     ${state.qcFillNotice ? `<p class="muted-note" id="qcFillNotice">${esc(state.qcFillNotice)}</p>` : ""}
@@ -5893,7 +5914,7 @@ function qcFillPreflightCardHtml() {
     <button type="button" class="icon-btn with-label" id="btnQcFillReview"${state.qcFillRun?.reportReady ? "" : " disabled"}>Review before Save</button>
     <p id="qcFillOrderHint">Dry run arms its own run, or reuses an open dry-run run for this preparation. Do not click Arm filling first.</p>` : ""}
     ${recovery && writable ? `<p id="qcFillCheckList">Check the portal list.</p>
-    <label>Note<textarea id="qcFillResolveNote"></textarea></label>
+    <label>Note<textarea id="qcFillResolveNote">${esc(resolveNote)}</textarea></label>
     <label><input id="qcFillResolveAttest" type="checkbox"> I checked the portal list for this product.</label>
     <button type="button" class="icon-btn with-label" id="btnQcFillFound">Found on the list</button>
     <button type="button" class="icon-btn with-label" id="btnQcFillMissing">Not on the list</button>
@@ -5903,7 +5924,7 @@ function qcFillPreflightCardHtml() {
     ${dryRunHtml}
     ${saveReportHtml}
     ${recaptureHtml}
-    <p class="muted-note" id="qcFillBuild">UI build D7.3.1</p>
+    <p class="muted-note" id="qcFillBuild">UI build D7.3.2</p>
   </section>`;
 }
 
@@ -6519,6 +6540,10 @@ function onQcGovernanceField(event) {
     }
     if (target.id === "qcFillProvisionalAck") state.qcFillProvisionalAck = target.checked === true;
     if (target.id === "qcFillDerivedAck") state.qcFillDerivedAck = target.checked === true;
+  } else if (target?.id === "qcFillResolveNote") {
+    state.qcFillResolveNote = target.value;
+    state.qcFillResolveNoteTouched = true;
+    return;
   } else {
     return;
   }
