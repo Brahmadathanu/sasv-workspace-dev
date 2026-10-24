@@ -1,0 +1,20 @@
+-- backfilled from live schema_migrations on 2026-10-24, CI-016
+revoke select on public.bmr_card_not_initiated from anon;
+revoke select on public.bottled_stock_on_hand from anon;
+revoke select on public.fg_bulk_stock from anon;
+revoke select on public.v_app_module_registry from anon;
+revoke select on public.v_batch_plan_batches_status from anon;
+revoke select on public.v_batch_plan_lines_with_impact from anon;
+revoke select on public.v_batch_plan_mapping from anon;
+revoke select on public.v_batch_plan_mapping_rollup from anon;
+revoke select on public.v_batch_plan_rollup from anon;
+revoke select on public.v_fill_inputs from anon;
+revoke select on public.v_health_jobs_today from anon;
+revoke select on public.v_health_last_heartbeat from anon;
+revoke select on public.v_health_snapshot_today from anon;
+revoke select on public.v_inv_stock_item_alias_coverage from anon;
+revoke select on public.v_inv_stock_item_alias_search from anon;
+revoke select on public.v_job_activity from anon;
+revoke select on public.v_job_activity_detailed from anon;
+revoke select on public.v_module_badges from anon;
+revoke select on public.v_stock_checker from anon;

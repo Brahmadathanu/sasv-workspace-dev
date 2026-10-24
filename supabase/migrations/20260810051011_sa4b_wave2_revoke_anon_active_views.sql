@@ -1,0 +1,24 @@
+-- backfilled from live schema_migrations on 2026-10-24, CI-016
+revoke select on public.v_forecast_baseline_effective from anon;
+revoke select on public.v_forecast_plan_12m from anon;
+revoke select on public.v_forecast_runs_recent from anon;
+revoke select on public.v_forecast_overview from anon;
+revoke select on public.v_sku_catalog_enriched from anon;
+revoke select on public.v_sdv_dim_godown_region from anon;
+revoke select on public.v_dwl_fg_transfer_event from anon;
+revoke select on public.v_tally_fg_transfer_normalized from anon;
+revoke select on public.v_fg_bulk_transfer_history from anon;
+revoke select on public.v_fg_storage_residuals from anon;
+revoke select on public.v_sdv_sales_enriched from anon;
+revoke select on public.v_sdv_freshness from anon;
+revoke select on public.v_sop_flat from anon;
+revoke select on public.v_inv_stock_item_with_class from anon;
+revoke select on public.v_stock_current_by_item from anon;
+revoke select on public.v_stock_item_picker from anon;
+revoke select on public.v_product_bulk_consolidated from anon;
+revoke select on public.v_product_bulk_adjusted_to_base from anon;
+revoke select on public.v_wip_batches from anon;
+revoke select on public.v_mrp_rm_trace_batch from anon;
+revoke select on public.v_mrp_plm_issue_monthly_enriched from anon;
+revoke select on public.v_mrp_plm_planned_vs_issued_overview from anon;
+revoke select on public.v_mrp_rm_planned_vs_issued_overview from anon;

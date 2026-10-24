@@ -12,6 +12,7 @@
 | Run 143 quality | 627/627 SKUs READY (0 REVIEW_REQUIRED, 0 BLOCKED); 6 SKUs have negative margin before scheme in both IK and OK; no null margins (read-only, 24 Oct 2026 16:00 IST) |
 | Price-revision Sheets | Show run 143 (confirmed by owner, 24 Oct 2026) |
 | CI-033 security fix | Applied 24 Oct 16:47 IST (migration 20261024111733): logged-in users can no longer read `costing.v_cost_pool_monthly_combined` directly; the cost-pool summary screen is unchanged (53 rows, same checksum). Manual screen check with and without costing permission is still pending (owner). See `closure/CI-033_LIVE_APPLY_2026-10-24.md` |
+| CI-016 migration records | 492 live migrations backfilled (PR #81 merged; lab batch on `ci-016-lab-backfill`). Live 638 reconciled; 59 e-Aushadhi/WP07/regulatory versions remain with Jarvis. See `closure/CI-016_BACKFILL_2026-10-24.md` |
 | Old feed | `public.v_costing_pricing_price_revision_feed_approved` is gone (retired 22 Oct; see `docs/price-revision-proposal/STEP131_*`) |
 | Cron | Active: 66 `costing_weekly_draft_0200_IST` (Mon 02:00 IST), 67 `costing_monthend_draft_0200_IST` (1st of month, 02:00 IST), 68 `costing_stage_processor_5min_governed`. Jobs 60 and 61 no longer exist |
 

@@ -1,0 +1,4 @@
+-- backfilled from live schema_migrations on 2026-10-24, CI-016
+alter table public.product_skus add column if not exists price_list_ik boolean, add column if not exists price_list_ok boolean;
+comment on column public.product_skus.price_list_ik is 'Inside Kerala price-list membership, sourced from CS - PRODUCT PRICING DATABASE / PRODUCT PRICING, column PRICE LIST IK. TRUE=Y; FALSE=N; NULL=unverified/unmatched.';
+comment on column public.product_skus.price_list_ok is 'Outside Kerala price-list membership, sourced from CS - PRODUCT PRICING DATABASE / PRODUCT PRICING, column PRICE LIST OK. TRUE=Y; FALSE=N; NULL=unverified/unmatched.';
