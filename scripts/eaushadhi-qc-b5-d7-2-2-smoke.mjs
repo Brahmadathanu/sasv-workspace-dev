@@ -239,13 +239,13 @@ const readyHtml = ready.qcFillPreflightCardHtml();
 const reasonAt = readyHtml.indexOf('id="qcFillButtonsReason"');
 const reasonText = readyHtml.slice(reasonAt, readyHtml.indexOf("</p>", reasonAt));
 assert(readyHtml.includes('id="btnQcFillDryRun">') && reasonText === 'id="qcFillButtonsReason">', "Dry run is enabled and the reason line is empty");
-assert(readyHtml.includes('data-build="D7.3.1"') && readyHtml.includes('id="qcFillBuild"'), "the card shows UI build D7.3.1");
+assert(readyHtml.includes('data-build="D7.3.2"') && readyHtml.includes('id="qcFillBuild"'), "the card shows UI build D7.3.2");
 
 const networkAt = swSrc.indexOf("eaushadhi-review-");
 const cacheFirstAt = swSrc.indexOf("// Static → cache-first");
 const networkBranch = swSrc.slice(networkAt, cacheFirstAt);
 const reviewPath = "/shared/js/eaushadhi-review-control.js";
-assert(/const CACHE_NAME = "hub-cache-v372"/.test(swSrc), "service worker cache is v372");
+assert(/const CACHE_NAME = "hub-cache-v373"/.test(swSrc), "service worker cache is v373");
 assert(networkAt > 0 && networkAt < cacheFirstAt && networkBranch.includes('fetch(req, { cache: "no-store" })'), "the review renderer is in the network-first branch");
 assert(/\/shared\/js\/eaushadhi-review-.*\.js$/.test(reviewPath) && /\/shared\/js\/eaushadhi-.*\.js$/.test(reviewPath), "the review-control path matches the network-first rules");
 assert(!swSrc.slice(cacheFirstAt).includes("eaushadhi-review-control.js"), "the cache-first fallback does not name the review renderer");

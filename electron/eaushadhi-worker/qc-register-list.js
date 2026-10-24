@@ -2,6 +2,37 @@
 
 const { QC_FILL_KEYS } = require("./qc-register-portal-contract");
 
+const QC_LIST_FIELD_ALIASES = Object.freeze({
+  typeOfStudy: ["typeOfStudy", "typeofstudy", "type_of_study", "protocol"],
+  startDate: ["startDate", "startdate", "start_date"],
+  endDate: ["endDate", "enddate", "end_date"],
+  reportDate: ["reportDate", "reportdate", "report_date"],
+  batchNo: ["batchNo", "batchno", "batch_no", "batches"],
+  duration: ["duration", "shelf_life", "shelflife", "shelf_life_months"],
+  labName: ["labName", "labname", "lab_name", "laboratory"],
+  qualityCntrl: ["qualityCntrl", "qualitycntrl", "quality_cntrl", "qc", "quality"],
+});
+
+function isoFromParts(year, month, day) {
+  const utc = new Date(Date.UTC(year, month - 1, day));
+  if (utc.getUTCFullYear() !== year || utc.getUTCMonth() !== month - 1 || utc.getUTCDate() !== day) return "";
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function canonicalQcFillValue(key, value) {
+  const text = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (key === "startDate" || key === "endDate" || key === "reportDate") {
+    const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (iso) return isoFromParts(Number(iso[1]), Number(iso[2]), Number(iso[3])) || text;
+    const dmy = text.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+    if (dmy) return isoFromParts(Number(dmy[3]), Number(dmy[2]), Number(dmy[1])) || text;
+    return text;
+  }
+  if (key === "batchNo") return text.split(",").map((part) => part.trim()).filter(Boolean).join(",");
+  if (key === "duration" && /^\d+$/.test(text)) return String(Number(text));
+  return text;
+}
+
 function sameFillFields(left, right) {
   if (!left || !right || typeof left !== "object" || typeof right !== "object") return false;
   const leftKeys = Object.keys(left);
@@ -9,7 +40,31 @@ function sameFillFields(left, right) {
   if (leftKeys.length !== QC_FILL_KEYS.length || rightKeys.length !== QC_FILL_KEYS.length) return false;
   return QC_FILL_KEYS.every((key) => Object.prototype.hasOwnProperty.call(left, key)
     && Object.prototype.hasOwnProperty.call(right, key)
-    && String(left[key] ?? "") === String(right[key] ?? ""));
+    && canonicalQcFillValue(key, left[key]) === canonicalQcFillValue(key, right[key]));
+}
+
+function readListField(row, names) {
+  for (const name of names) {
+    if (Object.prototype.hasOwnProperty.call(row, name) && row[name] != null) return row[name];
+  }
+  const wanted = new Set(names.map((name) => name.toLowerCase()));
+  for (const name of Object.keys(row)) {
+    if (wanted.has(String(name).toLowerCase()) && row[name] != null) return row[name];
+  }
+  return undefined;
+}
+
+function portalRowIdFromListRow(row) {
+  const direct = [row?.id, row?.hid, row?.qc_id, row?.portal_row_id];
+  for (const value of direct) {
+    if (value != null && String(value).trim() !== "") return String(value).trim();
+  }
+  const action = row?.action == null ? "" : String(row.action);
+  const call = action.match(/(?:edit_qc|delete_qc)\(\s*['"]?(\d+)['"]?\s*\)/i);
+  if (call) return call[1];
+  const hid = action.match(/\bid\s*=\s*['"]hid(\d+)['"]/i);
+  if (hid) return hid[1];
+  return "";
 }
 
 function rowsOf(payload) {
@@ -85,13 +140,13 @@ function normalizeQcListRow(row) {
   if (!row || typeof row !== "object" || Array.isArray(row)) return null;
   const values = {};
   for (const key of QC_FILL_KEYS) {
-    if (row[key] == null) return null;
-    values[key] = String(row[key]);
+    const raw = readListField(row, QC_LIST_FIELD_ALIASES[key]);
+    if (raw == null) return null;
+    values[key] = canonicalQcFillValue(key, raw);
   }
-  const portalRowId = row.id ?? row.hid ?? row.qc_id ?? row.portal_row_id ?? null;
   return {
     values,
-    portalRowId: portalRowId == null ? "" : String(portalRowId).trim(),
+    portalRowId: portalRowIdFromListRow(row),
   };
 }
 
@@ -174,8 +229,10 @@ module.exports = {
   assessQcListDuplicate,
   listEvidence,
   mapGetqcDataResponse,
+  canonicalQcFillValue,
   normalizeQcListRow,
   parseQcRawDate,
+  portalRowIdFromListRow,
   rowsOf,
   sameFillFields,
 };

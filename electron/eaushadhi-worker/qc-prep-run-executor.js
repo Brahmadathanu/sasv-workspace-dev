@@ -1399,10 +1399,28 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
           observation.businessFailure = observation.responseParsed === true && statusText !== "" && statusText !== "1";
         }
         let afterList = null;
+        const listWaitMs = Number.isFinite(Number(live.listWaitMs)) ? Number(live.listWaitMs) : 0;
+        const listPollMs = Number.isFinite(Number(live.listPollMs)) && Number(live.listPollMs) > 0 ? Number(live.listPollMs) : 400;
+        const listWaitStarted = Date.now();
         try {
           afterList = await live.readList();
         } catch {
           afterList = null;
+        }
+        while (afterList && listWaitMs > 0 && Date.now() - listWaitStarted < listWaitMs) {
+          const beforeCount = Array.isArray(beforeList?.rows) ? beforeList.rows.length : null;
+          const afterCount = Array.isArray(afterList?.rows) ? afterList.rows.length : null;
+          if (beforeCount == null || afterCount == null || afterCount !== beforeCount) break;
+          const remaining = listWaitMs - (Date.now() - listWaitStarted);
+          if (remaining <= 0) break;
+          await new Promise((resolve) => setTimeout(resolve, Math.min(listPollMs, remaining)));
+          if (Date.now() - listWaitStarted >= listWaitMs) break;
+          try {
+            afterList = await live.readList();
+          } catch {
+            afterList = null;
+            break;
+          }
         }
         const delta = describeListDelta(beforeList, afterList, reread.fields);
         observation.listDelta = delta.listDelta;

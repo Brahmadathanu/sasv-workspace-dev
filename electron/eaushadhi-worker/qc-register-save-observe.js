@@ -85,7 +85,8 @@ function createInPageSaveWatchScript() {
               message: parsed && parsed.message != null ? String(parsed.message).slice(0, 500) : "",
               responseParsed: responseParsed,
               transportError: kind !== "loadend" || !xhr.status,
-              elapsedMs: Date.now() - started
+              elapsedMs: Date.now() - started,
+              source: "xhr"
             });
           }
           xhr.addEventListener("loadend", function() { record("loadend"); });
@@ -120,15 +121,16 @@ function createInPageSaveWatchScript() {
               message: parsed && parsed.message != null ? String(parsed.message).slice(0, 500) : "",
               responseParsed: responseParsed,
               transportError: false,
-              elapsedMs: Date.now() - started
+              elapsedMs: Date.now() - started,
+              source: "fetch"
             });
             return response;
           }).catch(function() {
-            hits.push({ url: String(url), method: String(method), actionType: "", httpStatus: response.status, status: "", message: "", responseParsed: false, transportError: true, elapsedMs: Date.now() - started });
+            hits.push({ url: String(url), method: String(method), actionType: "", httpStatus: response.status, status: "", message: "", responseParsed: false, transportError: true, elapsedMs: Date.now() - started, source: "fetch" });
             return response;
           });
         }).catch(function(error) {
-          hits.push({ url: String(url), method: String(method), actionType: "", httpStatus: 0, status: "", message: "", responseParsed: false, transportError: true, elapsedMs: Date.now() - started });
+          hits.push({ url: String(url), method: String(method), actionType: "", httpStatus: 0, status: "", message: "", responseParsed: false, transportError: true, elapsedMs: Date.now() - started, source: "fetch" });
           throw error;
         });
       };
@@ -145,6 +147,30 @@ function createInPageSaveWatchScript() {
       finish: function() {
         restore();
         var saveHits = hits.filter(function(hit) { return pathnameOf(hit.url).endsWith("/admin/SaveQCData"); });
+        function sameSave(left, right) {
+          return String(left.status) === String(right.status)
+            && String(left.message) === String(right.message)
+            && Number(left.httpStatus) === Number(right.httpStatus)
+            && left.responseParsed === right.responseParsed;
+        }
+        var instrumented = saveHits.filter(function(hit) { return hit.source === "xhr" || hit.source === "fetch"; });
+        var ajaxOnly = [];
+        saveHits.filter(function(hit) { return hit.source === "ajax"; }).forEach(function(ajaxHit) {
+          var paired = false;
+          for (var i = 0; i < instrumented.length; i++) {
+            if (instrumented[i].__sasvPaired) continue;
+            if (sameSave(ajaxHit, instrumented[i])) {
+              instrumented[i].__sasvPaired = true;
+              paired = true;
+              break;
+            }
+          }
+          if (!paired) ajaxOnly.push(ajaxHit);
+        });
+        saveHits = instrumented.concat(ajaxOnly).concat(saveHits.filter(function(hit) {
+          return hit.source !== "xhr" && hit.source !== "fetch" && hit.source !== "ajax";
+        }));
+        saveHits.forEach(function(hit) { delete hit.__sasvPaired; });
         var match = saveHits[0] || null;
         var ambiguous = !match || match.responseParsed !== true || match.transportError === true;
         return {
@@ -208,7 +234,8 @@ function createInPageSaveObserveScript() {
         responseParsed: responseParsed,
         transportError: !xhr || !xhr.status,
         contentType: contentType,
-        elapsedMs: 0
+        elapsedMs: 0,
+        source: "ajax"
       });
     });
   }

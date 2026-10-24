@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v372"; // WP-07 D7.3.1 a clicked Save is recorded once
+const CACHE_NAME = "hub-cache-v373"; // WP-07 D7.3.2 one portal row is confirmed when the list matches
 
 const PRECACHE = [
   // Hub shell
