@@ -24,7 +24,8 @@ Raw evidence: CI-037_preflight_baseline.json. No DDL, writes, migrations or refr
 - **The October period is not changed:** its status, valuation date and lock fields are untouched.
 - **Cron caution:** cron 66 (Sunday 20:30 UTC = **Mon 26 Oct 02:00 IST**) and cron 67 (28–31 Oct, 02:00 IST) create October runs automatically. After apply, those runs will run CI-037 without any manual trial.
 - **Safe method:** one manual request after apply and verify:
-  `select * from public.rpc_request_costing_refresh('2026-10-01','FULL_COSTING_REFRESH','ADMIN_VERIFICATION','CI-037 integration trial (non-designated)');`
+  `select * from costing.fn_request_costing_refresh_internal(date '2026-10-01','FULL_COSTING_REFRESH','ADMIN_VERIFICATION','CI-037 integration trial (non-designated)',null,false);`
+  The last argument (false) means no period is auto-created. The public wrapper rpc_request_costing_refresh needs a signed-in user (auth.uid() plus a permission check), so it cannot be called from the backend.
   Then wait for SUCCESS and run CI-037_verify.sql step 10. Do not designate the trial run.
 - **Consequences:**
   - After any run writes CI-037 rows, only rollback B (unhook) applies.
