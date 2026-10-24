@@ -8,7 +8,7 @@
 | October 2026 period | OPEN; valuation date 22 Oct 2026, DRAFT |
 | October approved run | **Run 143**, approved 24 Oct 2026 13:46 IST (approved_by `CHAT_AUTHORISED_BACKEND_ADMIN`); run finished 12:50 IST. Screen label: "Approved run 143". No newer draft run or active run |
 | How 143 replaced 140 | Owner refresh authorisation **#10** (Dr. Brahmadathan U, 24 Oct 12:45 IST), used by run 143. Reason: the Mathalam (F) manual rate (ID 18, ₹240/kg) was closed on 24 Oct, so the current purchase rate of ₹118/kg (dated 4 Aug 2026) applies. Run 140 (authorisation #9, 22 Oct) is history only |
-| Approved price data source | `costing.v_price_revision_current_approved_master`: 627 rows, 65 columns. See [contracts/PRICE_REVISION_FEED_CONTRACT_v2.md](contracts/PRICE_REVISION_FEED_CONTRACT_v2.md) |
+| Approved price data source | `costing.v_price_revision_current_approved_master`: 627 rows, 64 columns. See [contracts/PRICE_REVISION_FEED_CONTRACT_v2.md](contracts/PRICE_REVISION_FEED_CONTRACT_v2.md) |
 | Run 143 quality | 627/627 SKUs READY (0 REVIEW_REQUIRED, 0 BLOCKED); 6 SKUs have negative margin before scheme in both IK and OK; no null margins (read-only, 24 Oct 2026 16:00 IST) |
 | Price-revision Sheets | Show run 143 (confirmed by owner, 24 Oct 2026) |
 | CI-033 security fix | Applied 24 Oct 16:47 IST (migration 20261024111733): logged-in users can no longer read `costing.v_cost_pool_monthly_combined` directly; the cost-pool summary screen is unchanged (53 rows, same checksum). Manual screen check with and without costing permission is still pending (owner). See `closure/CI-033_LIVE_APPLY_2026-10-24.md` (record merged via PR #83) |

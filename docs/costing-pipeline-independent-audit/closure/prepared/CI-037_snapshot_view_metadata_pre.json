@@ -1,0 +1,207 @@
+{
+ "ncols": 64,
+ "owner": "postgres",
+ "relacl": null,
+ "reloptions": null,
+ "privs": [
+  {
+   "role": "anon",
+   "select": false,
+   "insert": false,
+   "update": false,
+   "delete": false
+  },
+  {
+   "role": "authenticated",
+   "select": false,
+   "insert": false,
+   "update": false,
+   "delete": false
+  },
+  {
+   "role": "service_role",
+   "select": false,
+   "insert": false,
+   "update": false,
+   "delete": false
+  },
+  {
+   "role": "postgres",
+   "select": true,
+   "insert": true,
+   "update": true,
+   "delete": true
+  }
+ ],
+ "view_comment": null,
+ "col_comments": [
+  {
+   "material_cost_per_sku": "Material Cost = RM Cost + PM Cost; approved per-SKU values."
+  },
+  {
+   "internal_material_conversion_cost_per_sku": "Additional conversion expenses of approved internally manufactured source materials: upstream direct labour, production overhead, QC overhead and incremental stores overhead (including recursive earlier stages), scaled by BOM consumption per finished SKU. Zero if no eligible source lineage. Source-material RM value is already in RM Cost."
+  },
+  {
+   "prime_cost_per_sku": "Prime Cost = Material Cost + Direct Labour + Internal Material Conversion Cost."
+  },
+  {
+   "manufacturing_cop_per_sku": "Manufacturing COP = Prime Cost + Production Overhead + QC Overhead + Materials/Stores Overhead."
+  },
+  {
+   "internal_loaded_cost_per_sku": "Internal Loaded Cost = Manufacturing COP + Administration Overhead + Finance Administration Overhead."
+  },
+  {
+   "pricing_cost_per_sku_ik": "IK Pricing Cost = Internal Loaded Cost + canonical IK Marketing Expense."
+  },
+  {
+   "pricing_cost_per_sku_ok": "OK Pricing Cost = Internal Loaded Cost + canonical OK Marketing Expense."
+  },
+  {
+   "ik_basic_price": "IK Basic Price = IK MRP / (1 + GST % / 100)."
+  },
+  {
+   "ok_basic_price": "OK Basic Price = OK MRP / (1 + GST % / 100)."
+  },
+  {
+   "ik_discount_amount": "IK Discount Amount = governed IK discount adjustment from approved selling-price policy."
+  },
+  {
+   "ok_discount_amount": "OK Discount Amount = governed OK discount adjustment from approved selling-price policy."
+  },
+  {
+   "ik_selling_price": "IK Selling Price = IK Basic Price - IK Discount Amount (before scheme/contingency)."
+  },
+  {
+   "ok_selling_price": "OK Selling Price = OK Basic Price - OK Discount Amount (before scheme/contingency)."
+  },
+  {
+   "ik_contingency_value": "IK Contingency Value = IK Basic Price × Contingency % / 100 under frozen pricing snapshot."
+  },
+  {
+   "ok_contingency_value": "OK Contingency Value = OK Basic Price × Contingency % / 100 under frozen pricing snapshot."
+  },
+  {
+   "ik_margin_amount_before_scheme": "IK Margin Before Scheme = IK MRP - IK Pricing Cost (approved pre-scheme pricing bridge; not net-realisation profit)."
+  },
+  {
+   "ik_margin_percent_before_scheme": "IK Margin Before Scheme % = 100 × IK Margin Before Scheme / IK MRP. Not equivalent to proposed after-scheme Profit on MRP."
+  },
+  {
+   "ok_margin_amount_before_scheme": "OK Margin Before Scheme = OK MRP - OK Pricing Cost (approved pre-scheme pricing bridge; not net-realisation profit)."
+  },
+  {
+   "ok_margin_percent_before_scheme": "OK Margin Before Scheme % = 100 × OK Margin Before Scheme / OK MRP. Not equivalent to proposed after-scheme Profit on MRP."
+  },
+  {
+   "price_list_ik": "IK price-list membership from public.product_skus; TRUE=included, FALSE=excluded, NULL=source SKU membership not yet verified."
+  },
+  {
+   "price_list_ok": "OK price-list membership from public.product_skus; TRUE=included, FALSE=excluded, NULL=source SKU membership not yet verified."
+  },
+  {
+   "refreshed_at_ist": "Human-readable last refresh timestamp in Indian Standard Time (Asia/Kolkata), derived from exact refreshed_at UTC timestamp. Display-only, canonical audit timestamp remains refreshed_at."
+  }
+ ],
+ "dependents": null,
+ "func_refs": null,
+ "chain_privs": "{postgres=X/postgres} owner postgres",
+ "designations": [
+  {
+   "refresh_run_id": 119,
+   "period_start": "2026-09-01",
+   "designation": "REFERENCE",
+   "designated_by": "Dr. Brahmadathan U",
+   "designated_at": "2026-10-15T16:58:43.297426+00:00",
+   "reason": "Audit reference, D-010/D-017",
+   "fingerprint_id": 1,
+   "designation_id": 1
+  },
+  {
+   "refresh_run_id": 122,
+   "period_start": "2026-09-01",
+   "designation": "APPROVED",
+   "designated_by": "Dr. Brahmadathan U",
+   "designated_at": "2026-10-16T14:36:52.341766+00:00",
+   "reason": "First APPROVED run, Sep 2026 (valuation 10-Sep LOCKED); acceptance passed; check 25 signed off by user 2026-10-16 20:05 IST",
+   "fingerprint_id": 4,
+   "designation_id": 2
+  },
+  {
+   "refresh_run_id": 128,
+   "period_start": "2026-10-01",
+   "designation": "REVOKED",
+   "designated_by": "Dr. Brahmadathan U",
+   "designated_at": "2026-10-21T10:18:22.798379+00:00",
+   "reason": "Superseded by run 136: Owner-approved G6 closure: October valuation 20-Oct-2026; 626 READY, 1 REVIEW, 0 BLOCKED. Seven financial pools reconciled and 17 integrity checks passed. Preserve historical run 128. [USER-G6-APPROVAL-20261021-RUN136]",
+   "fingerprint_id": 21,
+   "designation_id": 6
+  },
+  {
+   "refresh_run_id": 136,
+   "period_start": "2026-10-01",
+   "designation": "REVOKED",
+   "designated_by": "CHAT_AUTHORISED_BACKEND_ADMIN",
+   "designated_at": "2026-10-22T14:17:26.452476+00:00",
+   "reason": "Superseded by fully W2-verified run140; user-authorised backend administrative execution 2026-10-22; approval reference CHAT-20261022-RUN140",
+   "fingerprint_id": 26,
+   "designation_id": 8
+  },
+  {
+   "refresh_run_id": 140,
+   "period_start": "2026-10-01",
+   "designation": "REVOKED",
+   "designated_by": "CHAT_AUTHORISED_BACKEND_ADMIN",
+   "designated_at": "2026-10-24T08:16:24.990653+00:00",
+   "reason": "Superseded by run 143. Costing Governance Owner explicitly authorized approval in ChatGPT on 2026-10-24. Administrative execution, no user-session impersonation. Run 143 replaces run 140 after 13/13 supersession checks PASS; Mathalam (F) manual rate correction verified: 3 RM-cost SKUs changed and 57 inherited allocation flags unchanged. [MATHALAM-RATE-CORRECTION-20261024]",
+   "fingerprint_id": 29,
+   "designation_id": 10
+  },
+  {
+   "refresh_run_id": 143,
+   "period_start": "2026-10-01",
+   "designation": "APPROVED",
+   "designated_by": "CHAT_AUTHORISED_BACKEND_ADMIN",
+   "designated_at": "2026-10-24T08:16:24.990653+00:00",
+   "reason": "Supersedes run 140. Costing Governance Owner explicitly authorized approval in ChatGPT on 2026-10-24. Administrative execution, no user-session impersonation. Run 143 replaces run 140 after 13/13 supersession checks PASS; Mathalam (F) manual rate correction verified: 3 RM-cost SKUs changed and 57 inherited allocation flags unchanged. [MATHALAM-RATE-CORRECTION-20261024]",
+   "fingerprint_id": 30,
+   "designation_id": 11
+  }
+ ],
+ "note": "relacl NULL = owner default privileges only; effective privileges captured explicitly via has_table_privilege (anon/authenticated/service_role all false; postgres all true). No default ACLs in schema costing (pg_default_acl empty). No dependent views; no function bodies reference the view.",
+ "fingerprint_baseline": {
+  "aggregate_md5_runs_119_122_128_136_140_143": "e24fdba6178844b29b5360b8e258e929",
+  "preexisting_mismatch": "run 119 (REFERENCE) sku_sales_allocation_basis_snapshot matches=false BEFORE CI-037; all other 302 table checks true",
+  "legacy_margin_md5": [
+   {
+    "refresh_run_id": 119,
+    "n": 635,
+    "legacy_md5": "0dc018baf0608a2641f8b7f32ba92061"
+   },
+   {
+    "refresh_run_id": 122,
+    "n": 634,
+    "legacy_md5": "73ff42395fbe847648d2602c55a8d445"
+   },
+   {
+    "refresh_run_id": 128,
+    "n": 627,
+    "legacy_md5": "c678794ce52f3775b1ce6514352e47e4"
+   },
+   {
+    "refresh_run_id": 136,
+    "n": 627,
+    "legacy_md5": "69212699fde6488605314db8f7227272"
+   },
+   {
+    "refresh_run_id": 140,
+    "n": 627,
+    "legacy_md5": "a87870b950e2b97e8811dc51f02a154e"
+   },
+   {
+    "refresh_run_id": 143,
+    "n": 627,
+    "legacy_md5": "847226bb71b78b468cf31efc0a6b64d2"
+   }
+  ]
+ }
+}

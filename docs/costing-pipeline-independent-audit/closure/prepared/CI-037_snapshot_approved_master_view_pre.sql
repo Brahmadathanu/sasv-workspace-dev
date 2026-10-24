@@ -1,13 +1,4 @@
--- CI-037 ROLLBACK (prepared). Restores view, chain and table to the pre-CI-037 state. Apply only with approval.
-begin;
-do $do$
-declare v_def text; v_hook text := E'\n        perform costing.fn_ci037_fill_pricing_bridge_profit(p_refresh_run_id);';
-begin
-  v_def := pg_get_functiondef('costing.rpc_refresh_manufacturing_cop_chain(date,date,bigint)'::regprocedure);
-  if position(v_hook in v_def) > 0 then execute replace(v_def, v_hook, ''); end if;
-end $do$;
--- View must go back before columns are dropped (CREATE OR REPLACE cannot remove columns).
-drop view costing.v_price_revision_current_approved_master;
+-- Live text of costing.v_price_revision_current_approved_master, captured read-only 24 Oct 2026 (pg_get_viewdef). 64 columns. Owner postgres.
 create view costing.v_price_revision_current_approved_master as
 WITH approved_run AS (
          SELECT r.refresh_run_id,
@@ -95,31 +86,3 @@ WITH approved_run AS (
      LEFT JOIN categories cat ON cat.id = subcat.category_id
      JOIN costing.sku_selected_scheme_policy_context_snapshot si ON si.refresh_run_id = a.refresh_run_id AND si.sku_id = d.sku_id AND si.region_code = 'IK'::text
      JOIN costing.sku_selected_scheme_policy_context_snapshot so ON so.refresh_run_id = a.refresh_run_id AND so.sku_id = d.sku_id AND so.region_code = 'OK'::text;
--- Re-apply the live ACL captured before apply (expected postgres-only; record relacl in pre-check and restore grants here if different).
-revoke all on costing.v_price_revision_current_approved_master from public, anon, authenticated;
-drop function if exists costing.fn_ci037_fill_pricing_bridge_profit(bigint);
-alter table costing.sku_pricing_bridge_snapshot
-  drop column if exists ik_scheme_paid_qty,
-  drop column if exists ik_scheme_free_qty,
-  drop column if exists ik_scheme_effective_selling_price,
-  drop column if exists ik_net_sales_realization_per_sku,
-  drop column if exists ik_estimated_profit_per_sku,
-  drop column if exists ik_estimated_profit_on_mrp_percent,
-  drop column if exists ik_estimated_profit_on_selling_price_percent,
-  drop column if exists ik_estimated_profit_on_realization_percent,
-  drop column if exists ik_profit_calculation_status,
-  drop column if exists ok_scheme_paid_qty,
-  drop column if exists ok_scheme_free_qty,
-  drop column if exists ok_scheme_effective_selling_price,
-  drop column if exists ok_net_sales_realization_per_sku,
-  drop column if exists ok_estimated_profit_per_sku,
-  drop column if exists ok_estimated_profit_on_mrp_percent,
-  drop column if exists ok_estimated_profit_on_selling_price_percent,
-  drop column if exists ok_estimated_profit_on_realization_percent,
-  drop column if exists ok_profit_calculation_status,
-  drop column if exists profit_calculation_basis;
-comment on column costing.sku_pricing_bridge_snapshot.ik_margin_amount_before_scheme is null;
-comment on column costing.sku_pricing_bridge_snapshot.ok_margin_amount_before_scheme is null;
-comment on column costing.sku_pricing_bridge_snapshot.ik_margin_percent_before_scheme is null;
-comment on column costing.sku_pricing_bridge_snapshot.ok_margin_percent_before_scheme is null;
-commit;
