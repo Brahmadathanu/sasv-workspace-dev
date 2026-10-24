@@ -1,0 +1,23 @@
+-- backfilled from live schema_migrations on 2026-10-24, CI-016
+ALTER VIEW public.bmr_card_not_initiated SET (security_invoker = true);
+ALTER VIEW public.bottled_stock_on_hand SET (security_invoker = true);
+ALTER VIEW public.fg_bulk_stock SET (security_invoker = true);
+ALTER VIEW public.v_bmr_with_map_flag SET (security_invoker = true);
+ALTER VIEW public.v_forecast_baseline_effective SET (security_invoker = true);
+ALTER VIEW public.v_forecast_overview SET (security_invoker = true);
+ALTER VIEW public.v_forecast_runs_recent SET (security_invoker = true);
+ALTER VIEW public.v_health_jobs_today SET (security_invoker = true);
+ALTER VIEW public.v_health_last_heartbeat SET (security_invoker = true);
+ALTER VIEW public.v_health_snapshot_today SET (security_invoker = true);
+ALTER VIEW public.v_inv_stock_item_alias_coverage SET (security_invoker = true);
+ALTER VIEW public.v_inv_stock_item_alias_search SET (security_invoker = true);
+ALTER VIEW public.v_inv_stock_item_with_class SET (security_invoker = true);
+ALTER VIEW public.v_job_activity SET (security_invoker = true);
+ALTER VIEW public.v_job_activity_detailed SET (security_invoker = true);
+ALTER VIEW public.v_product_details SET (security_invoker = true);
+ALTER VIEW public.v_sdv_dim_godown_region SET (security_invoker = true);
+ALTER VIEW public.v_sku_catalog_enriched SET (security_invoker = true);
+ALTER VIEW public.v_sku_picker SET (security_invoker = true);
+ALTER VIEW public.v_sop_flat SET (security_invoker = true);
+ALTER VIEW public.v_stock_item_picker SET (security_invoker = true);
+ALTER VIEW public.v_wip_batches SET (security_invoker = true);

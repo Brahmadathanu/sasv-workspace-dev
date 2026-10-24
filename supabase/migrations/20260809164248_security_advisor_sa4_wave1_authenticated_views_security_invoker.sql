@@ -1,0 +1,20 @@
+-- backfilled from live schema_migrations on 2026-10-24, CI-016
+alter view public.v_costing_material_manual_rate_review set (security_invoker = true);
+alter view public.v_costing_policy_manager_scheme_options set (security_invoker = true);
+alter view public.v_costing_pricing_control_dashboard_snapshot set (security_invoker = true);
+alter view public.v_costing_pricing_control_integrity_audit_snapshot set (security_invoker = true);
+alter view public.v_costing_pricing_material_action_drilldown_snapshot set (security_invoker = true);
+alter view public.v_costing_pricing_material_action_queue_snapshot set (security_invoker = true);
+alter view public.v_costing_pricing_review_action_item_drilldown_snapshot set (security_invoker = true);
+alter view public.v_costing_pricing_review_top_action_items_snapshot set (security_invoker = true);
+alter view public.v_costing_pricing_review_workbench_summary_snapshot set (security_invoker = true);
+alter view public.v_costing_pricing_sku_control_status_snapshot set (security_invoker = true);
+alter view public.v_costing_scheme_master_register set (security_invoker = true);
+alter view public.v_product_mrp_adjustment_evidence set (security_invoker = true);
+alter view public.v_product_mrp_derivation_current set (security_invoker = true);
+alter view public.v_product_mrp_derivation_history set (security_invoker = true);
+alter view public.v_product_mrp_proposal_lines set (security_invoker = true);
+alter view public.v_product_mrp_proposal_register set (security_invoker = true);
+alter view public.v_product_mrp_reference_readiness set (security_invoker = true);
+alter view public.v_sku_mrp_effective set (security_invoker = true);
+alter view public.v_sku_mrp_policy_history set (security_invoker = true);
