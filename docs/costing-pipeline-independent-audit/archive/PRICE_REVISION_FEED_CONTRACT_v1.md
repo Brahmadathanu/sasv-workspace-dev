@@ -1,4 +1,4 @@
-> **SUPERSEDED — see [PRICE_REVISION_FEED_CONTRACT_v2.md](PRICE_REVISION_FEED_CONTRACT_v2.md).** `public.v_costing_pricing_price_revision_feed_approved` no longer exists (retired 22 Oct 2026). Kept as history.
+> **SUPERSEDED — see [PRICE_REVISION_FEED_CONTRACT_v2.md](../contracts/PRICE_REVISION_FEED_CONTRACT_v2.md).** `public.v_costing_pricing_price_revision_feed_approved` no longer exists (retired 22 Oct 2026). Kept as history.
 
 # Approved price revision feed: contract v1
 

@@ -2,7 +2,7 @@
 - Live Route161 family101 approved effective Oct20, historic Route144 superseded through Oct19; historical resolver repaired. October period reopened OPEN and valuation DRAFT Oct20 with audit15/16 (admin operation, NOT PWA session); historical approved run128 remains immutable.
 - New verification runs130,131 succeeded, neither designated/approved. 56 matched quantity drivers carried forward by explicit user approval plus SKU1771 default0.725 approved, all 57 matched in run131. No Policy7 change.
 - Run131 final control: 15 READY / 612 REVIEW_REQUIRED =605 material +7 pricing. 841 active Oct16 material acceptances; 826 still present with same issue summaries, 15 absent; 501 strictly matching currently observed rate/source/date triplets; full provenance and old/new approval parity pending. Do not blanket reaccept.
-- Run131 product pool reconciliation manufacturing labour ₹706,203, production OH ₹670,935.04, both exact; five-product SKU manufacturing allocation shortfall ₹85.89. G2 attestation HELD; G6 and Sheets BLOCKED. Full and actionable successor checkpoint: `closure/LIVE_HANDOVER_2026-10-20_RUN131_MATERIAL_AND_SKU_AUDIT.md`.
+- Run131 product pool reconciliation manufacturing labour ₹706,203, production OH ₹670,935.04, both exact; five-product SKU manufacturing allocation shortfall ₹85.89. G2 attestation HELD; G6 and Sheets BLOCKED. Full and actionable successor checkpoint: `archive/LIVE_HANDOVER_2026-10-20_RUN131_MATERIAL_AND_SKU_AUDIT.md`.
 - Documentation-only commit here, documenting preceding separate approved Supabase operations; no additional database mutation for this docs task.
 
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
@@ -52,7 +52,7 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 - No database writes, no apply_migration, no cron change, no merge or deploy. September unchanged (LOCKED).
 
 ## 2026-10-19 07:50: Feed contract v1, migration parity, W2 design (read-only); client PR opened
-- contracts/PRICE_REVISION_FEED_CONTRACT_v1.md, written from the live view definitions:
+- archive/PRICE_REVISION_FEED_CONTRACT_v1.md, written from the live view definitions:
   - covers objects, access, grain, 30 columns, selection rules and the Sheets query
   - October run 128 control totals
   - lists what is not in the feed (RM/PM split, overheads, discount policy, contingency, schemes, realisation) and its authoritative source
@@ -91,7 +91,7 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 - Nothing built; no database writes.
 
 ## 2026-10-18 21:50: ChatGPT handover part 2 + read-only runs/cron/Sheets-feed findings
-- handover/CHATGPT_HANDOVER_2026-10-18_PART2.md (full) and _PART2_SHORT.md cover everything after 42d3f89: AU-9 decisions P20–P29, G1–G3, R1 → R2, G4 live with the switch OFF, the simulation, open approvals and Sheets guidance.
+- archive/CHATGPT_HANDOVER_2026-10-18_PART2.md (full) and _PART2_SHORT.md cover everything after 42d3f89: AU-9 decisions P20–P29, G1–G3, R1 → R2, G4 live with the switch OFF, the simulation, open approvals and Sheets guidance.
 - Read-only findings (21:45):
   - Job 60 only queues a run for an OPEN/DRAFT current month; job 61 only advances queued runs.
   - Runs are kept; the current-run pointer = APPROVED, else latest success.
@@ -142,7 +142,7 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 - No live writes, migrations, merges or Sheet edits. Runs 122 and 128 were read only.
 
 ## 2026-10-18 14:30: Documentation consolidation and auditor handover
-- Added INDEX.md (current state and file map), POLICY_REGISTER.md (19 policies with status), handover/CHATGPT_HANDOVER_2026-10-18.md (+ _SHORT).
+- Added INDEX.md (current state and file map), POLICY_REGISTER.md (19 policies with status), archive/CHATGPT_HANDOVER_2026-10-18.md (+ _SHORT).
 - DECISIONS log: missing entries for 16–18 Oct added; AU-6A exponent marked SUPERSEDED; resolved OPEN items marked; consolidated open-items list.
 - PARKED_BACKLOG: statuses refreshed (AU6Q/AU6S/AU6-PKG); new rows AU2-P01, AU6L-P02, MKT-P01/P02, SKU-P01, PREV-P01, PRC-P02, AU7-P02, AU8-P03.
 - No live writes, merges or Sheet edits.
@@ -175,7 +175,7 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 - User-facing items: the 15-machine capacity table and the 86-SKU DVS-1 review worksheet.
 
 ## 2026-10-19 20:20 IST: ChatGPT handover part 3
-- handover/CHATGPT_HANDOVER_2026-10-19_PART3.md (full) and _PART3_SHORT.md: everything since 8ec5bee; approved policy, live state, prepared-not-applied and open items kept separate; what remains (gates, issues by severity, pending approvals, blocked, items to verify). POLICY_REGISTER P37/P38 status updated. No live change.
+- archive/CHATGPT_HANDOVER_2026-10-19_PART3.md (full) and _PART3_SHORT.md: everything since 8ec5bee; approved policy, live state, prepared-not-applied and open items kept separate; what remains (gates, issues by severity, pending approvals, blocked, items to verify). POLICY_REGISTER P37/P38 status updated. No live change.
 
 ## 2026-10-20 — ChatGPT handover Part4 / lean architectural governance
 - User binding direction: minimal future-proof cost allocation, avoid unwanted capacity complexity, hard-retire superseded executable architecture after tested approved migration; preserve immutable snapshots/migrations.

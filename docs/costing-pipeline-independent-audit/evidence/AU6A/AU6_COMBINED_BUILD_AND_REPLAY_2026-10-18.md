@@ -11,7 +11,7 @@ User decisions (2026-10-18 08:34 IST):
 
 Scope of approval: **build and test only**. Nothing has been applied live.
 
-Package: `proposals/au6_combined/PREPARED_au6_combined_package.sql`. It is a single migration (A AU-6Q → B kit → C AU-6A) and is kept out of `supabase/migrations`.
+Package: `archive/PREPARED_au6_combined_package.sql`. It is a single migration (A AU-6Q → B kit → C AU-6A) and is kept out of `supabase/migrations`.
 
 ## Design (C. AU-6A)
 - In the insert path of the Manufacturing-Labour and Production-Overhead writers, each step factor becomes step factor × (batch_size_ref / route-family median batch in the same base UOM)^b(resource class).

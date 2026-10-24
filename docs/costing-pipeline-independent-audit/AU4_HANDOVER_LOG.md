@@ -59,4 +59,4 @@ Then: ledger switch ON; cron 61 active, 60 paused. September pool total = ₹67,
 - Full acceptance: checks 1–24 PASS; 25 WAIVED (user sign-off); OVERALL PASS. Cron 60 and 61 both paused. Further September refreshes require a governed reopen.
 
 ## 2026-10-16 20:30 to 2026-10-18 14:30 IST: summary pointer
-AU-5 install; runs 123–128; October rate quality (841); C1 and Kvatha inactivations; AU-6 bundle; combined v2; 155+2 re-acceptance; October LOCKED and run 128 APPROVED (option A). Detailed entries: DECISIONS_AND_OPEN_QUESTIONS.md, CHANGELOG.md, evidence/AU5, AU6, AU6L. Auditor handover: handover/CHATGPT_HANDOVER_2026-10-18.md.
+AU-5 install; runs 123–128; October rate quality (841); C1 and Kvatha inactivations; AU-6 bundle; combined v2; 155+2 re-acceptance; October LOCKED and run 128 APPROVED (option A). Detailed entries: DECISIONS_AND_OPEN_QUESTIONS.md, CHANGELOG.md, evidence/AU5, AU6, AU6L. Auditor handover: archive/CHATGPT_HANDOVER_2026-10-18.md.

@@ -1,7 +1,7 @@
 > **SUPERSEDED (24 Oct 2026) — see [../CURRENT_STATE.md](../CURRENT_STATE.md).** Dated history only; live-state statements below (approved runs 122/128/131/136/140, cron 60/61, the public price feed view) are out of date.
 
 # ChatGPT takeover — server-side costing closure checkpoint
-Date: 2026-10-19 (IST); successor to handover/CHATGPT_HANDOVER_2026-10-19_PART3.md (commit 0074e69)
+Date: 2026-10-19 (IST); successor to archive/CHATGPT_HANDOVER_2026-10-19_PART3.md (commit 0074e69)
 Owner: ChatGPT for read-only audit, server-side implementation preparation and verification while Aryabhatta usage is unavailable.
 Authority: Existing Closure Mandate and user approvals P1–P38. **No new live deployment, policies, switches, cron, run, designation, merge or Sheets edit without user approval.**
 

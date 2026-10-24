@@ -57,7 +57,7 @@ User directed elimination of unnecessary costing-driver complexity and **hard re
 - **CI-029 / G3 remains OPEN:** 841 active material-review approvals from Oct16 have exact-date provenance. For Oct20 run131 826 old issues persist, 15 absent, 501 rate/source/date candidates, full fieldwise provenance unverified. Must classify before any carry-forward; blanket copy forbidden.
 - **G1/G6 SKU-allocation reconciliation new OPEN finding:** product manufacturing labour ₹706,203 conserved, but SKU allocation ₹706,117.11, residual **₹85.89** across product IDs 824,275,278,277,260 due to sub-unit SKU allocation shares. Diagnose allocation foundation; no balancing plug.
 - **Quantity-driver corrective acceptance DONE for 20 Oct:** 56 prior accepted driver assumptions (unchanged source fields) plus Product1341 SKU1771 policy7 0.725 monthly units explicitly approved; fresh run131 57/57 READY and 627/627 SKU DL/POH READY. This does NOT accept 605 material reviews or run131 itself.
-- Canonical source: `LIVE_HANDOVER_2026-10-20_RUN131_MATERIAL_AND_SKU_AUDIT.md`. User explicitly blocked ALL database-to-Google-Sheets integration until server completion plus independent numerical acceptance.
+- Canonical source: `../archive/LIVE_HANDOVER_2026-10-20_RUN131_MATERIAL_AND_SKU_AUDIT.md`. User explicitly blocked ALL database-to-Google-Sheets integration until server completion plus independent numerical acceptance.
 
 
 ### 21 October 2026 — G2 bounded closure / G6 release separation
