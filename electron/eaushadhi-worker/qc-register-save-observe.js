@@ -181,7 +181,8 @@ function createInPageSaveObserveScript() {
   function __sasvQcBindAjaxComplete(watchHandle) {
     var jq = (typeof window !== "undefined" && (window.jQuery || window.$)) || null;
     if (!jq || typeof jq !== "function") return;
-    jq(document).on("ajaxComplete", function(_event, xhr, settings) {
+    jq(document).off("ajaxComplete.sasvQcSave");
+    jq(document).on("ajaxComplete.sasvQcSave", function(_event, xhr, settings) {
       var url = settings && settings.url ? String(settings.url) : "";
       var path = "";
       try { path = new URL(url, "https://www.e-aushadhi.gov.in").pathname; } catch (error) { path = ""; }
@@ -211,28 +212,38 @@ function createInPageSaveObserveScript() {
       });
     });
   }
+  function __sasvQcUnbindAjaxComplete() {
+    var jq = (typeof window !== "undefined" && (window.jQuery || window.$)) || null;
+    if (!jq || typeof jq !== "function") return;
+    try { jq(document).off("ajaxComplete.sasvQcSave"); } catch (error) { /* the hook must not outlive the observation */ }
+  }
   async function __sasvQcObserveSave(spec) {
     var watch = __sasvQcInstallSaveWatch();
-    __sasvQcBindAjaxComplete(watch);
-    var target = document.getElementById(spec && spec.controlId);
-    var clicks = 0;
-    if (spec && spec.allowClick === true && target) {
-      clicks += 1;
-      target.click();
-      var started = Date.now();
-      var timeout = Number(spec.timeoutMs) || 15000;
-      while (Date.now() - started < timeout && watch.hits.length === 0) {
-        await new Promise(function(resolve) { setTimeout(resolve, 50); });
+    var observed = null;
+    try {
+      __sasvQcBindAjaxComplete(watch);
+      var target = document.getElementById(spec && spec.controlId);
+      var clicks = 0;
+      if (spec && spec.allowClick === true && target) {
+        clicks += 1;
+        target.click();
+        var started = Date.now();
+        var timeout = Number(spec.timeoutMs) || 15000;
+        while (Date.now() - started < timeout && watch.hits.length === 0) {
+          await new Promise(function(resolve) { setTimeout(resolve, 50); });
+        }
       }
+      observed = watch.finish();
+      var dialog = __sasvQcReadDialog();
+      observed.clicked = clicks === 1 && Boolean(target);
+      observed.invokeCount = clicks;
+      observed.dialogAppeared = dialog.dialogAppeared === true;
+      observed.dialogText = dialog.dialogText || "";
+      observed.message = observed.message == null ? "" : String(observed.message).slice(0, 500);
+      return observed;
+    } finally {
+      __sasvQcUnbindAjaxComplete();
     }
-    var observed = watch.finish();
-    var dialog = __sasvQcReadDialog();
-    observed.clicked = clicks === 1 && Boolean(target);
-    observed.invokeCount = clicks;
-    observed.dialogAppeared = dialog.dialogAppeared === true;
-    observed.dialogText = dialog.dialogText || "";
-    observed.message = observed.message == null ? "" : String(observed.message).slice(0, 500);
-    return observed;
   }
   return __sasvQcObserveSave;`;
 }

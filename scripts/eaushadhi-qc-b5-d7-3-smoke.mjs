@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -305,10 +305,12 @@ function callRpc(spy, options = {}) {
   };
 }
 
+let saveSerial = 0;
 function executor(spy, options = {}) {
+  saveSerial += 1;
   return createQcPrepRunExecutor({
     dryRunDir: dir,
-    saveDir,
+    saveDir: join(saveDir, `case-${saveSerial}`),
     live: liveFor(spy, options),
   });
 }
@@ -531,11 +533,22 @@ const otherRoute = await (async () => {
 })();
 assert(otherRoute.error?.code === "NATIVE_SAVE_DISABLED" && otherRoute.spy.click === 0, "another route is refused");
 
+function readSavedReports(folder) {
+  if (!existsSync(folder)) return "";
+  let text = "";
+  for (const name of readdirSync(folder)) {
+    const full = join(folder, name);
+    if (statSync(full).isDirectory()) text += readSavedReports(full);
+    else if (name.endsWith(".json")) text += readFileSync(full, "utf8");
+  }
+  return text;
+}
+
 const captured = [
   JSON.stringify(confirmedFresh.result || {}),
   JSON.stringify(noRow.result || {}),
   JSON.stringify(confirmedFresh.runner ? {} : {}),
-  readFileSync(join(saveDir, `${RUN}.json`), "utf8"),
+  readSavedReports(saveDir),
 ].join("\n");
 assert(!captured.includes(SECRET), "the pre-save token is absent from the report and renderer result");
 assert(!JSON.stringify(confirmedFresh.result?.report || {}).includes(SECRET) && !JSON.stringify(noRow.result?.report || {}).includes(SECRET), "sample reports do not contain the token");
@@ -591,8 +604,8 @@ assert(!executorSrc.includes('saveOutcome: "CONFIRMED"'), "the executor has no h
 assert(/const NATIVE_SAVE_AUTHORIZED = false/.test(contractSrc) && NATIVE_SAVE_AUTHORIZED === false, "NATIVE_SAVE_AUTHORIZED stays false");
 const flagRead = /env\.EAUSHADHI_QC_NATIVE_SAVE/;
 assert(flagRead.test(contractSrc) && !flagRead.test(executorSrc) && !flagRead.test(indexSrc) && !flagRead.test(controlSrc), "the build flag is read only in the contract");
-assert(/const CACHE_NAME = "hub-cache-v371"/.test(swSrc), "service worker cache is v371");
-assert(offHtml.includes('data-build="D7.3"') && offHtml.includes('id="qcFillBuild"'), "the card shows UI build D7.3");
+assert(/const CACHE_NAME = "hub-cache-v372"/.test(swSrc), "service worker cache is v372");
+assert(offHtml.includes('data-build="D7.3.1"') && offHtml.includes('id="qcFillBuild"'), "the card shows UI build D7.3.1");
 assert([off, unconfirmed, expired, reusedSecond, wrongRun, confirmedFresh, noRow, timeout, twice, duplicate, transport, stopped, mismatch, unauthorized, edited, otherRoute].every((item) => (item.spy?.click || 0) <= 1), "no case clicks more than once");
 
 if (previousFlag == null) delete process.env.EAUSHADHI_QC_NATIVE_SAVE;
