@@ -13,7 +13,7 @@ Raw evidence: CI-037_preflight_baseline.json. No DDL, writes, migrations or refr
 | 2b | View: md5 043180a4a2beb361b518410df0182293 (equals the snapshot); 64 columns in order (listed in the JSON); owner postgres; relacl NULL; reloptions NULL; SELECT anon/authenticated/service_role = false, postgres = true; 22 comments (md5 cd25d82a…); 627 rows, all run 143 | PASS |
 | 2c | Run 143: overall SUCCESS, Oct 2026, valuation date 22 Oct, designation APPROVED. Legacy margin md5 per run recorded. Pricing bridge has 48 columns; the 4 legacy columns have no comment yet | PASS |
 | 3 | CI-031 conflict: CI-031 comments only on costing.batch_true_standard_switch.rate_basis, batch_true_absorption_variance(.rate_basis and table), and constraint batch_true_standard_switch_rate_basis_check. CI-037 comments on sku_pricing_bridge_snapshot margin columns and new objects. No overlapping object. CI-031 is not applied live (comment NULL, no migration) | PASS: no conflict. Order: CI-031 first (comments only), then CI-037; either order is safe |
-| 4 | Controlled non-designated trial | POSSIBLE, see below |
+| 4 | Controlled non-designated trial | CORRECTED after apply: BLOCKED by fn_guard_designated_run_header (AU2_PERIOD_HOLDS_APPROVED_RUN). A run in October needs a recorded costing_period_refresh_authorization; see CI-037_LIVE_APPLY_2026-10-24.md |
 | 5 | Approval text and apply plan | See below |
 
 ## 4. Trial run: possible, with conditions
