@@ -324,3 +324,33 @@ Plain-word blockers:
 - Any other blocker is shown as its code.
 
 Qualification: Portal laboratory is an internal provisional selection. It is not the report issuer, and legal laboratory identity and portal eligibility are not verified.
+
+## D7.3.1 — Click recorded once, second press refused
+- Just before the single Submit click the app writes `qc-save/<run_id>.clicked.json` (run, preparation, fingerprint, time, `recorded: false`; no token or confirmation code).
+- If the portal list cannot be reread, the outcome is `AMBIGUOUS` and the server is still told once (`_record_save_v1`).
+- If that record call fails, the token is cleared and a local `NOT_RECORDED` report says: "Save was pressed but not recorded. Check the portal list by hand. Do not press Save again."
+- A second Save for the same run, or the same preparation while a click is unrecorded, is refused with `ALREADY_CLICKED`; use the Resolve form. Dry run may still reuse an armed run.
+- The portal response listener is removed when the watch ends. UI build D7.3.1, cache `hub-cache-v372`.
+
+## D7.3.2 — Self-confirming list match and operator hints
+- Root cause of the first Save being `AMBIGUOUS`: one portal response (status 1, "Data Saved Successfully") was counted twice (page watcher + jQuery ajax listener), and the list matcher expected form field names/exact text instead of the list's formatting (dates `01-10-2021`, spaced batches, numeric shelf life, row id inside Edit/Delete).
+- Fix: the jQuery copy is de-duplicated only when it matches a response the page watcher already caught (two genuine requests remain ambiguous); the list matcher normalises list formatting; a read-only reread waits up to 10 s if the list has not grown.
+- `CONFIRMED` still requires status 1, exactly one Save response and exactly one new matching row.
+- Resolve note auto-fills (e.g. "Operator checked e-Aushadhi QC list on 24-10-2026 (IST): 1 Karpooradi Thailam row(s) seen, lab HARIDEV FORMULATIONS."); editable, never overwritten after typing.
+- When Save is switched on but disabled, a line lists what is missing ("Save needs: Check portal page passed · Dry run passed in this session · both acknowledgements ticked") or "Save already done for this run."
+- UI build D7.3.2, cache `hub-cache-v373`.
+
+## Live status — first native Save (2026-10-24)
+- 2026-10-24 14:54 IST: first native Save for Product 262 (Karpooradi Thailam). Exactly one row added to the portal QC list (lab HARIDEV FORMULATIONS, batches and report attached). Run `fc0cd11f-f844-4f2b-a225-070321849788`.
+- Recorded as `AMBIGUOUS` (pre-D7.3.2 matcher); operator resolved "Found on the list" at 14:56 IST, run now `SAVE_CONFIRMED`.
+- Final portal Submit remains permanently excluded. Document verification (re-download and SHA-256 compare) is still pending.
+- Operator runbook: [WP-07_QC_SAVE_RUNBOOK.md](WP-07_QC_SAVE_RUNBOOK.md).
+
+## Scale-out roadmap (closure sprint, target 31 Oct 2026)
+1. Rebase pilot branch on main, rerun WP-07 smokes, PR and merge (user approval; coordinate with costing agent).
+2. B5.2: apply the abandon/dry-run-record RPCs (tested 36/36 rollback) so unsaved armed runs can be closed (authorization needed).
+3. Open arming to any product with a per-product `SAVE <product_id>` confirmation (server + one Cursor prompt).
+4. Import QC data from the Google Sheet (source pending decision D-01), prefill, batch readiness via a read-only bulk readiness RPC.
+5. Saves: first 3 products, then batched sessions (~12–20/hour), each session authorized and each row confirmed by typing; target automatic CONFIRMED without manual resolve.
+6. Optional: operator-driven document verification (portal attachment SHA-256 compare).
+Open questions: D-01 sheet/tab source, second-reviewer availability, first product batch.
