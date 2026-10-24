@@ -1,3 +1,5 @@
+> **STATUS UPDATE 24 Oct 2026:** PR #74 (governed BMR lifecycle) was **merged to main on 20 Oct 2026**. Lines below saying the client branch is unmerged or that merge is not authorised are history. Live read-only check on 24 Oct: `bmr_details.lifecycle_status` = 2,115 ACTIVE / 3 SUPERSEDED, 3 triggers on the table, and all six BMR migration versions recorded live. The isolated executable test gate in the verification doc was never run and stays open.
+
 # BMR lifecycle verification gate — 2026-10-20
 
 ## Outcome

@@ -1,0 +1,3 @@
+# Step 103 — Live read-only joint-stage labour arithmetic
+
+Using policy1 output records, policy1 shared stage records, existing `costing.fn_joint_stage_member_workload` and run136 validated per-cycle labour factors: B=0.09334, extraction=5.656404, processing=9.427340, cloth=9.427340, hydraulic=9.427340; total four-stage=33.938424 monthly workload units. Both beneficiaries included per stage. This is read-only mathematical regression, **not a successful execution of full Step99/Step96 refreshes** nor financial pool reconciliation. No prospective refresh run exists for date>=2026-10-23. Do not deploy solely on this evidence. Historical run136 unchanged.

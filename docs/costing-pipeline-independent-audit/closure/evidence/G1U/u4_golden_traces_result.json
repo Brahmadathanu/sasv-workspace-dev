@@ -1,0 +1,653 @@
+[
+ {
+  "prime": {
+   "imc": 0,
+   "prime": 241.8401193358085
+  },
+  "steps": [
+   {
+    "rc": "MANUAL",
+    "seq": 10,
+    "scope": "EXCLUDE_OTHER_POOL",
+    "factor": 0
+   },
+   {
+    "rc": "GRINDER",
+    "seq": 20,
+    "scope": "INCLUDE",
+    "factor": 1
+   },
+   {
+    "rc": "PROCESSING_VESSEL",
+    "seq": 30,
+    "scope": "INCLUDE",
+    "factor": 1
+   },
+   {
+    "rc": "PROCESSING_VESSEL",
+    "seq": 40,
+    "scope": "INCLUDE",
+    "factor": 38.4
+   },
+   {
+    "rc": "MANUAL",
+    "seq": 50,
+    "scope": "INCLUDE",
+    "factor": 64
+   },
+   {
+    "rc": "PROCESSING_VESSEL",
+    "seq": 60,
+    "scope": "INCLUDE",
+    "factor": 64
+   },
+   {
+    "rc": "STORAGE_OCCUPANCY",
+    "seq": 70,
+    "scope": "SUPERVISION",
+    "factor": 6.4
+   },
+   {
+    "rc": "GENERAL_AREA",
+    "seq": 80,
+    "scope": "EXCLUDE_OTHER_POOL",
+    "factor": 0
+   },
+   {
+    "rc": "GENERAL_AREA",
+    "seq": 90,
+    "scope": "EXCLUDE_OTHER_POOL",
+    "factor": 0
+   }
+  ],
+  "units": 22,
+  "labour": {
+   "dl": 164.64542955749909,
+   "mfg_dl": 162.00206123968857,
+   "status": "READY",
+   "packing": 2.643368317810515,
+   "workload": 511.15705627705626,
+   "product_share": 0.13236305897213735,
+   "route_intensity": 511.6,
+   "sku_within_product": 0.038128249566724434
+  },
+  "sku_id": 42,
+  "scaling": {
+   "raw": 174.8,
+   "batch": 1155,
+   "scaled": 511.6,
+   "solid_kg": 122.9375,
+   "charge_source": "BATCH_SIZE_REF_AND_RM_BOM"
+  },
+  "material": {
+   "pm": 26.037433,
+   "rm": 51.15725677830941,
+   "conv": 0.001,
+   "pack": "2000 mL",
+   "status": "READY",
+   "product": "Dhanyamlam",
+   "material": 77.19468977830941
+  },
+  "pm_lines": [
+   {
+    "qty": 1,
+    "src": "LAST_PURCHASE",
+    "cost": 24.32,
+    "date": "2024-09-27",
+    "item": "2 L HDPE Jerry Can - Milky White",
+    "rate": 24.32,
+    "warn": "STALE_PURCHASE_RATE"
+   },
+   {
+    "qty": 1,
+    "src": "LAST_PURCHASE",
+    "cost": 1.717433,
+    "date": "2024-09-13",
+    "item": "Label - Dhanyamlam 2 L",
+    "rate": 1.717433,
+    "warn": "STALE_PURCHASE_RATE"
+   }
+  ],
+  "rm_lines_top": [
+   {
+    "src": "MANUAL_RATE",
+    "uom": "L",
+    "date": "2026-06-01",
+    "fact": null,
+    "item": "Water",
+    "path": [
+     "PRODUCT:51",
+     "RM:1098"
+    ],
+    "rate": 10,
+    "warn": "MANUAL_RATE_USED",
+    "tally": null,
+    "cost_per_sku": 21.05263157894737,
+    "qty_purchase_per_base": 1.0526315789473684
+   },
+   {
+    "src": "LAST_PURCHASE",
+    "uom": "Kg",
+    "date": "2026-10-06",
+    "fact": 146704,
+    "item": "Cheru Naranga (F)",
+    "path": [
+     "PRODUCT:51",
+     "RM:216"
+    ],
+    "rate": 250,
+    "warn": null,
+    "tally": {
+     "qty": 6,
+     "avg_rate": 250,
+     "supplier": "Karthikeyan [Local Purchase]",
+     "voucher_date": "2026-10-06"
+    },
+    "cost_per_sku": 17.862838915470494,
+    "qty_purchase_per_base": 0.03572567783094099
+   },
+   {
+    "src": "LAST_PURCHASE",
+    "uom": "Kg",
+    "date": "2026-06-20",
+    "fact": 87269,
+    "item": "Muthira",
+    "path": [
+     "PRODUCT:51",
+     "RM:630"
+    ],
+    "rate": 90,
+    "warn": null,
+    "tally": {
+     "qty": 11.8,
+     "avg_rate": 90,
+     "supplier": "Naseela Traders",
+     "voucher_date": "2026-06-20"
+    },
+    "cost_per_sku": 3.215311004784689,
+    "qty_purchase_per_base": 0.017862838915470493
+   },
+   {
+    "src": "LAST_PURCHASE",
+    "uom": "Kg",
+    "date": "2026-09-03",
+    "fact": 134396,
+    "item": "Champa Pachari",
+    "path": [
+     "PRODUCT:51",
+     "RM:177"
+    ],
+    "rate": 49,
+    "warn": null,
+    "tally": {
+     "qty": 19,
+     "avg_rate": 49,
+     "supplier": "Naseela Traders",
+     "voucher_date": "2026-09-03"
+    },
+    "cost_per_sku": 1.6880382775119618,
+    "qty_purchase_per_base": 0.01722488038277512
+   }
+  ],
+  "rm_line_count": 13
+ },
+ {
+  "prime": {
+   "imc": 0,
+   "prime": 50.05672583936629
+  },
+  "steps": [
+   {
+    "rc": "MANUAL",
+    "seq": 10,
+    "scope": "EXCLUDE_OTHER_POOL",
+    "factor": 0
+   },
+   {
+    "rc": "DRYER_OR_OVEN",
+    "seq": 20,
+    "scope": "INCLUDE",
+    "factor": 0.6
+   },
+   {
+    "rc": "GRINDER",
+    "seq": 30,
+    "scope": "INCLUDE",
+    "factor": 1
+   },
+   {
+    "rc": "MANUAL",
+    "seq": 40,
+    "scope": "EXCLUDE_OTHER_POOL",
+    "factor": 0
+   },
+   {
+    "rc": "GENERAL_AREA",
+    "seq": 50,
+    "scope": "EXCLUDE_OTHER_POOL",
+    "factor": 0
+   },
+   {
+    "rc": "GENERAL_AREA",
+    "seq": 60,
+    "scope": "EXCLUDE_OTHER_POOL",
+    "factor": 0
+   }
+  ],
+  "units": 10.75,
+  "labour": {
+   "dl": 4.472066331217867,
+   "mfg_dl": 1.8286980134073525,
+   "status": "READY",
+   "packing": 2.643368317810515,
+   "workload": 0.1075,
+   "product_share": 2.783690191648724e-05,
+   "route_intensity": 1.6,
+   "sku_within_product": 1
+  },
+  "sku_id": 865,
+  "scaling": {
+   "raw": 1.6,
+   "batch": 160,
+   "scaled": 1.6,
+   "solid_kg": 44,
+   "charge_source": "UNIT_MASS_OVERRIDE"
+  },
+  "material": {
+   "pm": 10.2911332,
+   "rm": 35.29352630814842,
+   "conv": 1,
+   "pack": "275 g",
+   "status": "READY",
+   "product": "Kashaya Vasthi Kit",
+   "material": 45.58465950814842
+  },
+  "pm_lines": [
+   {
+    "qty": 1,
+    "src": "LAST_PURCHASE",
+    "cost": 5.063909,
+    "date": "2025-08-06",
+    "item": "Label - Kashaya Vasthi Kit 275 G",
+    "rate": 5.063909,
+    "warn": "STALE_PURCHASE_RATE"
+   },
+   {
+    "qty": 1,
+    "src": "LAST_PURCHASE",
+    "cost": 2.63,
+    "date": "2026-09-22",
+    "item": "100 ML PET Bottle - Natural",
+    "rate": 2.63,
+    "warn": null
+   },
+   {
+    "qty": 1,
+    "src": "LAST_PURCHASE",
+    "cost": 1.15,
+    "date": "2026-09-09",
+    "item": "25 MM ROPP Cap",
+    "rate": 1.15,
+    "warn": null
+   },
+   {
+    "qty": 0.004,
+    "src": "LAST_PURCHASE",
+    "cost": 0.8,
+    "date": "2026-07-21",
+    "item": "4 x 5 Inch PP Pouch - Natural",
+    "rate": 200,
+    "warn": null
+   },
+   {
+    "qty": 0.002,
+    "src": "MANUAL_RATE",
+    "cost": 0.4,
+    "date": "2026-06-01",
+    "item": "8 x 10 Inch PP Cover - Natural",
+    "rate": 200,
+    "warn": "MANUAL_RATE_USED"
+   },
+   {
+    "qty": 0.013889,
+    "src": "LAST_PURCHASE",
+    "cost": 0.2472242,
+    "date": "2026-06-22",
+    "item": "100 ML x 70 Nos - Carton",
+    "rate": 17.8,
+    "warn": null
+   }
+  ],
+  "rm_lines_top": [
+   {
+    "src": "LAST_PURCHASE",
+    "uom": "Kg",
+    "date": "2026-09-22",
+    "fact": 142039,
+    "item": "Thaen",
+    "path": [
+     "PRODUCT:685",
+     "RM:889"
+    ],
+    "rate": 140,
+    "warn": null,
+    "tally": {
+     "qty": 3190,
+     "avg_rate": 140,
+     "supplier": "Biju Thadathil Farm Resort Private Limited",
+     "voucher_date": "2026-09-22"
+    },
+    "cost_per_sku": 20.960365853658537,
+    "qty_purchase_per_base": 0.0005444250871080139
+   },
+   {
+    "src": "LAST_PURCHASE",
+    "uom": "Kg",
+    "date": "2026-05-18",
+    "fact": 64145,
+    "item": "Sathakuppa (D)",
+    "path": [
+     "PRODUCT:685",
+     "RM:861"
+    ],
+    "rate": 145,
+    "warn": null,
+    "tally": {
+     "qty": 100,
+     "avg_rate": 145,
+     "supplier": "Kera Traders",
+     "voucher_date": "2026-05-18"
+    },
+    "cost_per_sku": 7.959948461091754,
+    "qty_purchase_per_base": 0.00019962253193960512
+   },
+   {
+    "src": "LAST_PURCHASE",
+    "uom": "Kg",
+    "date": "2026-10-12",
+    "fact": 149091,
+    "item": "Avanakku Veru (F)",
+    "path": [
+     "PRODUCT:685",
+     "RM:98"
+    ],
+    "rate": 20,
+    "warn": null,
+    "tally": {
+     "qty": 73,
+     "avg_rate": 20,
+     "supplier": "Baby [Local Purchase]",
+     "voucher_date": "2026-10-12"
+    },
+    "cost_per_sku": 5.270034843205575,
+    "qty_purchase_per_base": 0.0009581881533101045
+   },
+   {
+    "src": "LAST_PURCHASE",
+    "uom": "Kg",
+    "date": "2026-07-25",
+    "fact": 113129,
+    "item": "Inthuppu",
+    "path": [
+     "PRODUCT:685",
+     "SEMI:1118",
+     "RM:316"
+    ],
+    "rate": 60,
+    "warn": null,
+    "tally": {
+     "qty": 55.5,
+     "avg_rate": 60,
+     "supplier": "Thulasi Exports & Import",
+     "voucher_date": "2026-07-25"
+    },
+    "cost_per_sku": 0.945580414450761,
+    "qty_purchase_per_base": 5.730790390610673e-05
+   }
+  ],
+  "rm_line_count": 5
+ },
+ {
+  "prime": {
+   "imc": 0,
+   "prime": 84.22462926667104
+  },
+  "steps": [
+   {
+    "rc": "GENERAL_AREA",
+    "seq": 10,
+    "scope": "EXCLUDE_OTHER_POOL",
+    "factor": 0
+   },
+   {
+    "rc": "MANUAL",
+    "seq": 20,
+    "scope": "INCLUDE",
+    "factor": 1
+   },
+   {
+    "rc": "DRYER_OR_OVEN",
+    "seq": 30,
+    "scope": "INCLUDE",
+    "factor": 0.6
+   },
+   {
+    "rc": "GRINDER",
+    "seq": 40,
+    "scope": "INCLUDE",
+    "factor": 1
+   },
+   {
+    "rc": "GRINDER",
+    "seq": 50,
+    "scope": "INCLUDE",
+    "factor": 1
+   },
+   {
+    "rc": "MANUAL",
+    "seq": 60,
+    "scope": "EXCLUDE_OTHER_POOL",
+    "factor": 0
+   },
+   {
+    "rc": "DRYER_OR_OVEN",
+    "seq": 70,
+    "scope": "INCLUDE",
+    "factor": 0.6
+   },
+   {
+    "rc": "MANUAL",
+    "seq": 80,
+    "scope": "INCLUDE",
+    "factor": 1
+   },
+   {
+    "rc": "GENERAL_AREA",
+    "seq": 90,
+    "scope": "EXCLUDE_OTHER_POOL",
+    "factor": 0
+   },
+   {
+    "rc": "GENERAL_AREA",
+    "seq": 100,
+    "scope": "EXCLUDE_OTHER_POOL",
+    "factor": 0
+   }
+  ],
+  "units": 4943.583333333333,
+  "labour": {
+   "dl": 12.152597987528749,
+   "mfg_dl": 9.509229669718232,
+   "status": "READY",
+   "packing": 2.643368317810515,
+   "workload": 257.0663333333333,
+   "product_share": 0.06656679355377688,
+   "route_intensity": 2600,
+   "sku_within_product": 1
+  },
+  "sku_id": 878,
+  "scaling": {
+   "raw": 5.2,
+   "batch": 50000,
+   "scaled": 2600,
+   "solid_kg": 25000,
+   "charge_source": "UNIT_MASS_OVERRIDE"
+  },
+  "material": {
+   "pm": 18.9815274,
+   "rm": 53.0905038791423,
+   "conv": 1,
+   "pack": "500 g",
+   "status": "READY",
+   "product": "Karkkidaka Kanji",
+   "material": 72.0720312791423
+  },
+  "pm_lines": [
+   {
+    "qty": 1,
+    "src": "LAST_PURCHASE",
+    "cost": 11,
+    "date": "2026-07-15",
+    "item": "Karkkidaka Kanji - Carry Bag",
+    "rate": 11,
+    "warn": null
+   },
+   {
+    "qty": 0.015,
+    "src": "LAST_PURCHASE",
+    "cost": 3.675,
+    "date": "2026-06-15",
+    "item": "200 MM PP Roll - Natural",
+    "rate": 245,
+    "warn": null
+   },
+   {
+    "qty": 0.011111,
+    "src": "MANUAL_RATE",
+    "cost": 2.2222,
+    "date": "2026-06-01",
+    "item": "8 x 10 Inch PP Cover - Natural",
+    "rate": 200,
+    "warn": "MANUAL_RATE_USED"
+   },
+   {
+    "qty": 0.083333,
+    "src": "LAST_PURCHASE",
+    "cost": 1.4833274,
+    "date": "2026-06-22",
+    "item": "100 ML x 70 Nos - Carton",
+    "rate": 17.8,
+    "warn": null
+   },
+   {
+    "qty": 1,
+    "src": "LAST_PURCHASE",
+    "cost": 0.462,
+    "date": "2026-06-05",
+    "item": "Karkkidaka Kanji - Leaflet",
+    "rate": 0.462,
+    "warn": null
+   },
+   {
+    "qty": 1,
+    "src": "LAST_PURCHASE",
+    "cost": 0.139,
+    "date": "2026-06-05",
+    "item": "Label - Karkkidaka Kanji 500 G",
+    "rate": 0.139,
+    "warn": null
+   }
+  ],
+  "rm_lines_top": [
+   {
+    "src": "LAST_PURCHASE",
+    "uom": "Kg",
+    "date": "2026-06-29",
+    "fact": 94595,
+    "item": "Cheru Payar",
+    "path": [
+     "PRODUCT:695",
+     "SEMI:1104",
+     "RM:217"
+    ],
+    "rate": 125,
+    "warn": null,
+    "tally": {
+     "qty": 210,
+     "avg_rate": 125,
+     "supplier": "S.Pottivel Chalai Tvm",
+     "voucher_date": "2026-06-29"
+    },
+    "cost_per_sku": 13.88888888888889,
+    "qty_purchase_per_base": 0.00022222222222222223
+   },
+   {
+    "src": "LAST_PURCHASE",
+    "uom": "Kg",
+    "date": "2026-07-28",
+    "fact": 115283,
+    "item": "Njavara Ari",
+    "path": [
+     "PRODUCT:695",
+     "SEMI:1194",
+     "RM:688"
+    ],
+    "rate": 52,
+    "warn": null,
+    "tally": {
+     "qty": 600,
+     "avg_rate": 52,
+     "supplier": "T.P Traders",
+     "voucher_date": "2026-07-28"
+    },
+    "cost_per_sku": 13.68421052631579,
+    "qty_purchase_per_base": 0.0005263157894736842
+   },
+   {
+    "src": "LAST_PURCHASE",
+    "uom": "Kg",
+    "date": "2026-06-03",
+    "fact": 75014,
+    "item": "Soochi Gothambu",
+    "path": [
+     "PRODUCT:695",
+     "SEMI:1200",
+     "RM:875"
+    ],
+    "rate": 112.2,
+    "warn": null,
+    "tally": {
+     "qty": 6200,
+     "avg_rate": 112.2,
+     "supplier": "S.Pottivel Chalai Tvm",
+     "voucher_date": "2026-06-03"
+    },
+    "cost_per_sku": 11.810526315789474,
+    "qty_purchase_per_base": 0.0002105263157894737
+   },
+   {
+    "src": "LAST_PURCHASE",
+    "uom": "Kg",
+    "date": "2026-10-10",
+    "fact": 148346,
+    "item": "Elakka",
+    "path": [
+     "PRODUCT:695",
+     "SEMI:1060",
+     "RM:264"
+    ],
+    "rate": 3000,
+    "warn": null,
+    "tally": {
+     "qty": 5,
+     "avg_rate": 3000,
+     "supplier": "Thulasi Exports & Import",
+     "voucher_date": "2026-10-10"
+    },
+    "cost_per_sku": 4.444444444444445,
+    "qty_purchase_per_base": 2.962962962962963e-06
+   }
+  ],
+  "rm_line_count": 19
+ }
+]

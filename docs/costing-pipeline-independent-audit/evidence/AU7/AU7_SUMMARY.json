@@ -1,0 +1,102 @@
+{
+ "total": 634,
+ "matched509": 509,
+ "new_vs509": 125,
+ "missing_from_run": [],
+ "in440": 440,
+ "up": 373,
+ "nochange": 261,
+ "same_as_old": 196,
+ "higher": 70,
+ "lower": 174,
+ "big": 158,
+ "rec": {
+  "SELF_FUNDED": 143,
+  "REVIEW": 318,
+  "HOLD_AU5": 173
+ },
+ "flags": {
+  "SLOW_MOVER": 66,
+  "LOWVOL": 132,
+  "MEHASAMANI": 1,
+  "NEG_MARGIN": 35,
+  "MANUAL_RATE": 141,
+  "STALE": 554,
+  "FALLBACK": 420
+ },
+ "nomrp": 0,
+ "top_big": [
+  [
+   988,
+   "Thampira Chendooram",
+   5,
+   "g",
+   270.0,
+   9820,
+   "low-volume batch overload (A3; old sheet used provisional ba"
+  ],
+  [
+   937,
+   "Abhraka Chendooram",
+   5,
+   "g",
+   230.0,
+   2815,
+   "low-volume batch overload (A3; old sheet used provisional ba"
+  ],
+  [
+   1286,
+   "Kalnaar Parpam",
+   5,
+   "g",
+   125.0,
+   1505,
+   "low-volume batch overload (A3; old sheet used provisional ba"
+  ],
+  [
+   979,
+   "Mandoora Chendooram",
+   5,
+   "g",
+   110.0,
+   1350,
+   "low-volume batch overload (A3; old sheet used provisional ba"
+  ],
+  [
+   652,
+   "Kasakulanthakan",
+   50,
+   "Nos",
+   330.0,
+   945,
+   "low-volume batch overload (A3; old sheet used provisional ba"
+  ],
+  [
+   483,
+   "Palandava Keram",
+   450,
+   "mL",
+   1445.0,
+   860,
+   "loaded cost 565.65->298.68 (ledger: interest excluded, fuel "
+  ],
+  [
+   949,
+   "Aya Chendooram",
+   5,
+   "g",
+   95.0,
+   660,
+   "low-volume batch overload (A3; old sheet used provisional ba"
+  ],
+  [
+   1295,
+   "Naka Parpam",
+   5,
+   "g",
+   110.0,
+   635,
+   "low-volume batch overload (A3; old sheet used provisional ba"
+  ]
+ ]
+}

@@ -1,0 +1,1805 @@
+{
+ "audit_rows": 11,
+ "auths": 0,
+ "capacity": {
+  "by_effective_from": {
+   "2026-11-01": 298
+  },
+  "current_by_applicability": {
+   "CAPACITY_BASED_PACKING": 10,
+   "CAPACITY_BASED_PRODUCTION": 151,
+   "NON_CAPACITY_PRODUCTION": 7,
+   "UTILITY": 3
+  },
+  "current_by_evidence": {
+   "NAME_DERIVED": 23,
+   "NONE": 71,
+   "USER_DECLARED": 77
+  },
+  "current_null_effective": 94,
+  "current_rows": 171,
+  "fallback_policy": 17,
+  "legacy_class_caps": 16,
+  "machine_41": [
+   [
+    41,
+    "CAPACITY_BASED_PRODUCTION",
+    "STONE_GRINDER",
+    "CHARGE",
+    "SOLID_CHARGE_KG",
+    "kg",
+    null,
+    null,
+    "NONE",
+    null,
+    true,
+    "2026-11-01",
+    "2026-11-01",
+    null,
+    "AU-9 G2 provisional backfill (classification only; no costing effect)",
+    "USER-APPROVAL-20261018-AU9-G1G3"
+   ],
+   [
+    203,
+    "CAPACITY_BASED_PRODUCTION",
+    "STONE_GRINDER",
+    "CHARGE",
+    "SOLID_CHARGE_KG",
+    "kg",
+    2,
+    2,
+    "USER_DECLARED",
+    "user-supplied 2026-10-18 16:19 IST: stone grinder 2 kg per charge (rated); working 2 kg provisional",
+    true,
+    "2026-11-01",
+    "2026-11-01",
+    41,
+    "AU-9 R1: user-supplied 2026-10-18 capacity / classification",
+    "USER-SUPPLIED-20261018-AU9-R1"
+   ],
+   [
+    280,
+    "CAPACITY_BASED_PRODUCTION",
+    "STONE_GRINDER",
+    "CHARGE",
+    "SOLID_CHARGE_KG",
+    "kg",
+    10,
+    10,
+    "USER_DECLARED",
+    "user-corrected 2026-10-18 18:19 IST: first stone grinder 10 kg per charge (mapped to \"Stone Grinder 1\", lowest id) (supersedes R1 2 kg)",
+    true,
+    "2026-11-01",
+    null,
+    203,
+    "AU-9 R2: user-corrected 2026-10-18 18:19 capacity (supersedes R1 where applicable)",
+    "USER-CORRECTED-20261018-AU9-R2"
+   ]
+  ],
+  "profile_machines": 171,
+  "profile_rows": 298,
+  "provisional": {
+   "true": 298
+  },
+  "readiness": {
+   "BLOCKED_NEEDS_CAPACITY": 74,
+   "NOT_OPERATIONAL": 3,
+   "NOT_REQUIRED": 20,
+   "READY_PROVISIONAL": 74
+  },
+  "readiness_rows": 171,
+  "revision_by": {
+   "capacity_fallback_policy:CREATE": 17,
+   "plant_capacity_profile:CLOSE": 127,
+   "plant_capacity_profile:CREATE": 171,
+   "plant_capacity_profile:SUPERSEDE": 127,
+   "route_step_capacity_rule:CREATE": 9
+  },
+  "revision_rows": 451,
+  "step_rules": [
+   [
+    1,
+    "T1_PULVERIZING_SIEVING",
+    "GRINDER",
+    158,
+    "Pulverizing and Sieving",
+    "CLASS_FALLBACK_T1",
+    null,
+    "P26-T1",
+    "2026-11-01",
+    null
+   ],
+   [
+    2,
+    "P26_RASOUSHADHI_GRINDING",
+    "GRINDER",
+    121,
+    "Grinding",
+    "EQUIPMENT_CLASS_CAPACITY",
+    "RASOUSHADHI_LEVIGATION_GRINDER",
+    "P26",
+    "2026-11-01",
+    null
+   ],
+   [
+    3,
+    "P26_KAJJALI_KHALVAM",
+    "GRINDER",
+    133,
+    "Kajjali grinding",
+    "EQUIPMENT_CLASS_CAPACITY",
+    "MECHANISED_KHALVAM_SET",
+    "P26",
+    "2026-11-01",
+    null
+   ],
+   [
+    4,
+    "T1_SIEVING",
+    "GRINDER",
+    22,
+    "Sieving",
+    "CLASS_FALLBACK_T1",
+    null,
+    "P26-T1",
+    "2026-11-01",
+    null
+   ],
+   [
+    5,
+    "T1_PULVERIZATION",
+    "GRINDER",
+    21,
+    "Pulverization",
+    "CLASS_FALLBACK_T1",
+    null,
+    "P26-T1",
+    "2026-11-01",
+    null
+   ],
+   [
+    6,
+    "T1_WET_PULVERIZATION",
+    "GRINDER",
+    222,
+    "Wet pulverization",
+    "CLASS_FALLBACK_T1",
+    null,
+    "P26-T1",
+    "2026-11-01",
+    null
+   ],
+   [
+    7,
+    "P26_WET_GRINDING",
+    "GRINDER",
+    314,
+    "Wet grinding \u2014 Vessels & Cookers",
+    "EQUIPMENT_CLASS_CAPACITY",
+    "WET_GRINDER",
+    "P26",
+    "2026-11-01",
+    null
+   ],
+   [
+    8,
+    "P26_PILL_GRINDING",
+    "GRINDER",
+    50,
+    "Pill grinding",
+    "EQUIPMENT_CLASS_CAPACITY",
+    "PILLS_WET_GRINDER",
+    "P26",
+    "2026-11-01",
+    null
+   ],
+   [
+    9,
+    "T1_DISINTEGRATION",
+    "GRINDER",
+    161,
+    "Disintegration",
+    "CLASS_FALLBACK_T1",
+    null,
+    "P26-T1",
+    "2026-11-01",
+    null
+   ]
+  ]
+ },
+ "captured_at": "2026-10-19T12:44:52.047324+00:00",
+ "cron": [
+  [
+   7,
+   "cleanup_etl_jobs_weekly",
+   "30 4 * * 0",
+   true
+  ],
+  [
+   8,
+   "maybe_push_stock_HALF_HOURLY_IST",
+   "7,37 3-4 * * *",
+   true
+  ],
+  [
+   9,
+   "maybe_push_stock_CATCHUP_IST_2355",
+   "25 18 * * *",
+   true
+  ],
+  [
+   10,
+   "enqueue_storage_cleanup_midnight_IST",
+   "30 18 * * *",
+   false
+  ],
+  [
+   11,
+   "enqueue_storage_cleanup_jobs_IST_0010",
+   "40 18 * * *",
+   false
+  ],
+  [
+   15,
+   "cleanup_raw_nightly",
+   "0 19 * * *",
+   true
+  ],
+  [
+   16,
+   "forecast_all_monthly_26th",
+   "0 2 26 * *",
+   true
+  ],
+  [
+   17,
+   "refresh_sales_monthly_0315_IST",
+   "45 21 * * *",
+   true
+  ],
+  [
+   21,
+   "refresh_mv_forecast_plan_12m_daily",
+   "10 3 * * *",
+   true
+  ],
+  [
+   22,
+   "supply_rollups_every_2min_fixed",
+   "0 2 * * *",
+   false
+  ],
+  [
+   23,
+   "supply_rollups_nightly_full_fixed",
+   "40 3 * * *",
+   true
+  ],
+  [
+   24,
+   "plm_issue_ingest_prevday",
+   "10 19 * * *",
+   true
+  ],
+  [
+   25,
+   "rm_issue_ingest_prevday",
+   "10 19 * * *",
+   true
+  ],
+  [
+   27,
+   "refresh_mv_tally_fg_transfer_snapshot_latest",
+   "35 2,22 * * *",
+   true
+  ],
+  [
+   36,
+   "refresh_mv_production_priority_queue_current_month_every_4h",
+   "45 2,22 * * *",
+   true
+  ],
+  [
+   37,
+   "refresh_rm_reservation_snapshot_current_month_every_4h",
+   "25 2,22 * * *",
+   true
+  ],
+  [
+   38,
+   "refresh_pm_reservation_snapshot_current_month_every_4h",
+   "30 2,22 * * *",
+   true
+  ],
+  [
+   39,
+   "priority_queue_snapshot_every_4h",
+   "10 6,22 * * *",
+   true
+  ],
+  [
+   40,
+   "refresh_blocker_snapshots_current_month_every_4h",
+   "0 2,22 * * *",
+   true
+  ],
+  [
+   41,
+   "refresh_execution_gate_snapshots_current_month_every_4h",
+   "5 2,22 * * *",
+   true
+  ],
+  [
+   42,
+   "refresh_pm_leverage_snapshot_every_4h",
+   "10 2,22 * * *",
+   true
+  ],
+  [
+   43,
+   "refresh_rm_leverage_snapshot_every_4h",
+   "15 2,22 * * *",
+   true
+  ],
+  [
+   44,
+   "refresh_material_status_snapshots_current_month_every_4h",
+   "20 2,22 * * *",
+   true
+  ],
+  [
+   48,
+   "refresh_mv_stock_purchase_value_base_working_hours",
+   "50 2,22 * * *",
+   true
+  ],
+  [
+   49,
+   "daily_preflight_1300",
+   "0 2 * * *",
+   true
+  ],
+  [
+   50,
+   "daily_preflight_1030",
+   "0 0 * * *",
+   true
+  ],
+  [
+   51,
+   "daily_preflight_0800",
+   "30 2 * * *",
+   true
+  ],
+  [
+   52,
+   "refresh_mv_mis_executive_summary_morning",
+   "0 3 * * *",
+   true
+  ],
+  [
+   53,
+   "refresh_mv_mis_executive_summary_night",
+   "0 22 * * *",
+   true
+  ],
+  [
+   60,
+   "costing_refresh_request_daily_0200_IST",
+   "30 20 * * *",
+   false
+  ],
+  [
+   61,
+   "costing_refresh_stage_processor_every_5min",
+   "*/5 * * * *",
+   false
+  ],
+  [
+   63,
+   "procurement_snapshot_refresh_request_daily_0135_IST",
+   "5 20 * * *",
+   true
+  ],
+  [
+   65,
+   "procurement_snapshot_refresh_stage_processor_every_minute",
+   "* * * * *",
+   true
+  ]
+ ],
+ "cron_6061_last": [
+  [
+   61,
+   "succeeded",
+   "2026-10-18T08:25:00.053025+00:00"
+  ],
+  [
+   61,
+   "succeeded",
+   "2026-10-18T08:20:00.056994+00:00"
+  ],
+  [
+   61,
+   "succeeded",
+   "2026-10-18T08:15:00.074529+00:00"
+  ],
+  [
+   61,
+   "succeeded",
+   "2026-10-18T08:10:00.053178+00:00"
+  ]
+ ],
+ "demand_objects": null,
+ "designations": [
+  {
+   "designated_at": "2026-10-15T16:58:43.297426+00:00",
+   "designated_by": "Dr. Brahmadathan U",
+   "designated_by_uid": null,
+   "designation": "REFERENCE",
+   "fingerprint_id": 1,
+   "id": 1,
+   "period_start": "2026-09-01",
+   "reason": "Audit reference, D-010/D-017",
+   "refresh_run_id": 119
+  },
+  {
+   "designated_at": "2026-10-16T14:36:52.341766+00:00",
+   "designated_by": "Dr. Brahmadathan U",
+   "designated_by_uid": "dff17104-c02a-4bca-95b1-e8ddff46a9b6",
+   "designation": "APPROVED",
+   "fingerprint_id": 4,
+   "id": 2,
+   "period_start": "2026-09-01",
+   "reason": "First APPROVED run, Sep 2026 (valuation 10-Sep LOCKED); acceptance passed; check 25 signed off by user 2026-10-16 20:05 IST",
+   "refresh_run_id": 122
+  },
+  {
+   "designated_at": "2026-10-18T08:48:51.796918+00:00",
+   "designated_by": "Dr. Brahmadathan U",
+   "designated_by_uid": "dff17104-c02a-4bca-95b1-e8ddff46a9b6",
+   "designation": "APPROVED",
+   "fingerprint_id": 11,
+   "id": 4,
+   "period_start": "2026-10-01",
+   "reason": "APPROVED October 2026 run (valuation 16-Oct LOCKED); USER-APPROVAL-20261018-OCT-LOCK-OPTION-A (user 2026-10-18 14:17 IST). Notes: capacities provisional (equipment-loads config, route_equipment_load_capacity); 60% seasonal cut-off chosen by Aryabhatta; 37 open reviews accepted as known exceptions (non-blocking); 9 negative-margin SKUs to pricing review.",
+   "refresh_run_id": 128
+  }
+ ],
+ "feed": [
+  [
+   "2026-09-01",
+   122,
+   634,
+   74,
+   70
+  ],
+  [
+   "2026-10-01",
+   128,
+   627,
+   9,
+   9
+  ]
+ ],
+ "feed_md5": "aed9d8c1a4f4e02250b1827998d1f3ce",
+ "fingerprints": [
+  [
+   1,
+   119,
+   "DESIGNATION",
+   "2026-10-15T16:58:43.297426+00:00",
+   null,
+   null,
+   0
+  ],
+  [
+   2,
+   121,
+   "RUN_SUCCESS",
+   "2026-10-16T12:20:00.163898+00:00",
+   null,
+   null,
+   0
+  ],
+  [
+   3,
+   122,
+   "RUN_SUCCESS",
+   "2026-10-16T14:15:00.081468+00:00",
+   null,
+   null,
+   0
+  ],
+  [
+   4,
+   122,
+   "DESIGNATION",
+   "2026-10-16T14:36:52.341766+00:00",
+   null,
+   null,
+   0
+  ],
+  [
+   5,
+   124,
+   "RUN_SUCCESS",
+   "2026-10-16T17:35:00.101222+00:00",
+   null,
+   null,
+   0
+  ],
+  [
+   6,
+   125,
+   "RUN_SUCCESS",
+   "2026-10-17T11:10:00.029317+00:00",
+   null,
+   null,
+   0
+  ],
+  [
+   7,
+   126,
+   "RUN_SUCCESS",
+   "2026-10-18T00:30:00.066926+00:00",
+   null,
+   null,
+   0
+  ],
+  [
+   8,
+   127,
+   "RUN_SUCCESS",
+   "2026-10-18T05:15:00.129083+00:00",
+   null,
+   null,
+   0
+  ],
+  [
+   9,
+   128,
+   "RUN_SUCCESS",
+   "2026-10-18T08:10:00.053483+00:00",
+   null,
+   null,
+   0
+  ],
+  [
+   11,
+   128,
+   "DESIGNATION",
+   "2026-10-18T08:48:51.796918+00:00",
+   null,
+   null,
+   0
+  ],
+  [
+   12,
+   122,
+   "REBASELINE",
+   "2026-10-19T01:47:28.477782+00:00",
+   null,
+   null,
+   0
+  ],
+  [
+   13,
+   128,
+   "REBASELINE",
+   "2026-10-19T01:47:28.477782+00:00",
+   null,
+   null,
+   0
+  ]
+ ],
+ "fp_keys_sample": [
+  "sku_prime_cost_snapshot",
+  "cost_pool_monthly_snapshot",
+  "sku_material_cost_snapshot",
+  "sku_qc_allocation_snapshot",
+  "route_load_scaling_snapshot",
+  "sku_pricing_bridge_snapshot",
+  "product_qc_workload_snapshot",
+  "sku_scheme_viability_snapshot",
+  "product_qc_allocation_snapshot",
+  "scheme_master_context_snapshot",
+  "sku_manufacturing_cop_snapshot",
+  "sku_pm_stores_workload_snapshot",
+  "cost_sheet_line_monthly_snapshot",
+  "sku_overhead_allocation_snapshot",
+  "sku_internal_loaded_cost_snapshot",
+  "sku_selling_price_bridge_snapshot",
+  "costing_control_dashboard_snapshot",
+  "sku_pm_material_cost_line_snapshot",
+  "sku_rm_material_cost_line_snapshot",
+  "product_direct_labour_step_snapshot",
+  "product_qc_method_workload_snapshot",
+  "product_rm_stores_workload_snapshot",
+  "sku_costing_control_status_snapshot",
+  "sku_sales_allocation_basis_snapshot",
+  "sku_packing_labour_workload_snapshot",
+  "cost_sheet_line_traceability_snapshot",
+  "direct_labour_component_pool_snapshot",
+  "sku_direct_labour_allocation_snapshot",
+  "material_costing_action_queue_snapshot",
+  "product_rm_material_cost_line_snapshot",
+  "sku_materials_stores_workload_snapshot",
+  "costing_review_top_action_item_snapshot",
+  "product_direct_labour_workload_snapshot",
+  "cost_sheet_rm_line_traceability_snapshot",
+  "costing_control_integrity_audit_snapshot",
+  "sku_materials_stores_allocation_snapshot",
+  "costing_review_workbench_summary_snapshot",
+  "product_production_overhead_step_snapshot",
+  "sku_internal_material_conversion_snapshot",
+  "sku_marketing_expense_allocation_snapshot",
+  "marketing_regional_sales_evidence_snapshot",
+  "material_costing_action_drilldown_snapshot",
+  "sku_production_overhead_allocation_snapshot",
+  "sku_selected_scheme_policy_context_snapshot",
+  "costing_review_action_item_drilldown_snapshot",
+  "product_production_overhead_workload_snapshot",
+  "sku_admin_finance_overhead_allocation_snapshot",
+  "marketing_signed_billed_sales_evidence_snapshot",
+  "sku_regional_marketing_allocation_basis_snapshot",
+  "sku_regional_marketing_expense_allocation_snapshot",
+  "product_internal_source_materials_stores_allocation_snapshot"
+ ],
+ "internal_loaded_128": 627,
+ "neg_oct": [
+  42,
+  43,
+  159,
+  193,
+  975,
+  1174,
+  1264,
+  1365,
+  1552
+ ],
+ "periods": [
+  [
+   "2026-03-01",
+   "OPEN",
+   "2026-03-31",
+   "DRAFT",
+   "MIGRATION_BACKFILL",
+   null,
+   null
+  ],
+  [
+   "2026-06-01",
+   "OPEN",
+   "2026-06-30",
+   "DRAFT",
+   "MIGRATION_BACKFILL",
+   null,
+   null
+  ],
+  [
+   "2026-07-01",
+   "OPEN",
+   "2026-07-22",
+   "DRAFT",
+   "MIGRATION_BACKFILL",
+   null,
+   null
+  ],
+  [
+   "2026-08-01",
+   "OPEN",
+   "2026-08-07",
+   "DRAFT",
+   "GOVERNED_MANUAL",
+   null,
+   null
+  ],
+  [
+   "2026-09-01",
+   "LOCKED",
+   "2026-09-10",
+   "LOCKED",
+   "GOVERNED_MANUAL",
+   "2026-10-16T14:36:38.910028+00:00",
+   null
+  ],
+  [
+   "2026-10-01",
+   "LOCKED",
+   "2026-10-16",
+   "LOCKED",
+   "SYSTEM_DEFAULT",
+   "2026-10-18T08:48:51.796918+00:00",
+   null
+  ]
+ ],
+ "products_seasonal": {
+  "is_seasonal_true": 15,
+  "total": 1342,
+  "with_profile": 15
+ },
+ "rebaseline": [
+  [
+   1,
+   122,
+   12,
+   4,
+   {
+    "sku_sales_allocation_basis_snapshot": [
+     "monthly_driver_plan_id"
+    ]
+   },
+   "USER-APPROVAL-20261019-W1-W5-REBASELINE",
+   "2026-10-19T01:47:28.477782+00:00",
+   {
+    "all_identical": true,
+    "tables": [
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "a80f546991ee4c9ab9c9d7f94f6ab00d",
+      "reference_md5": "a80f546991ee4c9ab9c9d7f94f6ab00d",
+      "rows": 7,
+      "table": "cost_pool_monthly_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "8cde946f2bf101fa73565be60ccc23d2",
+      "reference_md5": "8cde946f2bf101fa73565be60ccc23d2",
+      "rows": 27896,
+      "table": "cost_sheet_line_monthly_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "c64498c76d285570048103376ea9ec45",
+      "reference_md5": "c64498c76d285570048103376ea9ec45",
+      "rows": 27896,
+      "table": "cost_sheet_line_traceability_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "091cb5ff880710b6f8f7e4042138b7ac",
+      "reference_md5": "091cb5ff880710b6f8f7e4042138b7ac",
+      "rows": 11898,
+      "table": "cost_sheet_rm_line_traceability_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "d7c5810a14f8e2fa1f9d18c3922420d9",
+      "reference_md5": "d7c5810a14f8e2fa1f9d18c3922420d9",
+      "rows": 1,
+      "table": "costing_control_dashboard_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "10138e8bc2635daaac54eada97b91226",
+      "reference_md5": "10138e8bc2635daaac54eada97b91226",
+      "rows": 17,
+      "table": "costing_control_integrity_audit_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "d9e2c15a111b58686d7ce37c78f8c04f",
+      "reference_md5": "d9e2c15a111b58686d7ce37c78f8c04f",
+      "rows": 3388,
+      "table": "costing_review_action_item_drilldown_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "b85482adf3eae4a9f7cc366a169457ea",
+      "reference_md5": "b85482adf3eae4a9f7cc366a169457ea",
+      "rows": 875,
+      "table": "costing_review_top_action_item_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "5af97961fee60edcdfb5b23ba9faf19b",
+      "reference_md5": "5af97961fee60edcdfb5b23ba9faf19b",
+      "rows": 14,
+      "table": "costing_review_workbench_summary_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "8e5e1f3bbc9754d81e852b9428fe5818",
+      "reference_md5": "8e5e1f3bbc9754d81e852b9428fe5818",
+      "rows": 2,
+      "table": "direct_labour_component_pool_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "eda6fc3ee38276f68c9ca5443646af36",
+      "reference_md5": "eda6fc3ee38276f68c9ca5443646af36",
+      "rows": 108982,
+      "table": "marketing_regional_sales_evidence_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "ba874916a662a508b96ba8c741f29c4b",
+      "reference_md5": "ba874916a662a508b96ba8c741f29c4b",
+      "rows": 108982,
+      "table": "marketing_signed_billed_sales_evidence_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "ca7f713bc8c504c42e40bdbc20c4e528",
+      "reference_md5": "ca7f713bc8c504c42e40bdbc20c4e528",
+      "rows": 3388,
+      "table": "material_costing_action_drilldown_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "eecbc2c54ebbb73da3284158c3f3f696",
+      "reference_md5": "eecbc2c54ebbb73da3284158c3f3f696",
+      "rows": 819,
+      "table": "material_costing_action_queue_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "9a2f979036c0767e15f0807fff4565dd",
+      "reference_md5": "9a2f979036c0767e15f0807fff4565dd",
+      "rows": 5829,
+      "table": "product_direct_labour_step_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "5861d755dea2178b81a83fe2b9784c5e",
+      "reference_md5": "5861d755dea2178b81a83fe2b9784c5e",
+      "rows": 460,
+      "table": "product_direct_labour_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "74fbb69fb853bd341e46e91e62eeddb1",
+      "reference_md5": "74fbb69fb853bd341e46e91e62eeddb1",
+      "rows": 5,
+      "table": "product_internal_source_materials_stores_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "17d82619b40100085ad05aba9814fc12",
+      "reference_md5": "17d82619b40100085ad05aba9814fc12",
+      "rows": 5822,
+      "table": "product_production_overhead_step_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "6248d4ef1903c7180a76ba5f0c622aef",
+      "reference_md5": "6248d4ef1903c7180a76ba5f0c622aef",
+      "rows": 460,
+      "table": "product_production_overhead_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "a2b6c00f174d8ada6cc7b06c8fa23708",
+      "reference_md5": "a2b6c00f174d8ada6cc7b06c8fa23708",
+      "rows": 460,
+      "table": "product_qc_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "cd9736fd0d1389740965a2a39d7831c6",
+      "reference_md5": "cd9736fd0d1389740965a2a39d7831c6",
+      "rows": 2741,
+      "table": "product_qc_method_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "748a0f188b56343beeeceb94fda6d30f",
+      "reference_md5": "748a0f188b56343beeeceb94fda6d30f",
+      "rows": 460,
+      "table": "product_qc_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "004cce0576c3244286b52a14b25c5dec",
+      "reference_md5": "004cce0576c3244286b52a14b25c5dec",
+      "rows": 9064,
+      "table": "product_rm_material_cost_line_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "d301e33e7b3a01bbed0d4d583e0ea179",
+      "reference_md5": "d301e33e7b3a01bbed0d4d583e0ea179",
+      "rows": 460,
+      "table": "product_rm_stores_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "4f6e33c20e6960089c6c80c93e88f134",
+      "reference_md5": "4f6e33c20e6960089c6c80c93e88f134",
+      "rows": 6,
+      "table": "scheme_master_context_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "c221cf3f3d3a086fa31d9c8b3442a1f4",
+      "reference_md5": "c221cf3f3d3a086fa31d9c8b3442a1f4",
+      "rows": 634,
+      "table": "sku_admin_finance_overhead_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "d807dfcc620e95ed25b3cad99accfe9c",
+      "reference_md5": "d807dfcc620e95ed25b3cad99accfe9c",
+      "rows": 634,
+      "table": "sku_costing_control_status_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "6ae799189f8fe7a9c77b923713e359aa",
+      "reference_md5": "6ae799189f8fe7a9c77b923713e359aa",
+      "rows": 634,
+      "table": "sku_direct_labour_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "0f9b94759de065d74b917870cccffa25",
+      "reference_md5": "0f9b94759de065d74b917870cccffa25",
+      "rows": 634,
+      "table": "sku_internal_loaded_cost_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "241b1da47c8254d4d00d2640aaf43a84",
+      "reference_md5": "241b1da47c8254d4d00d2640aaf43a84",
+      "rows": 634,
+      "table": "sku_internal_material_conversion_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "0e95d7f1c2b8ea77a415d708a85c8036",
+      "reference_md5": "0e95d7f1c2b8ea77a415d708a85c8036",
+      "rows": 634,
+      "table": "sku_manufacturing_cop_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "825f91b8668923c8b34c4e7e1e591ad9",
+      "reference_md5": "825f91b8668923c8b34c4e7e1e591ad9",
+      "rows": 634,
+      "table": "sku_marketing_expense_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "60e8863d1bdf17d05bbe3aebf40c88d4",
+      "reference_md5": "60e8863d1bdf17d05bbe3aebf40c88d4",
+      "rows": 634,
+      "table": "sku_material_cost_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "132039f5c01cd7d63cab7771d57deb80",
+      "reference_md5": "132039f5c01cd7d63cab7771d57deb80",
+      "rows": 634,
+      "table": "sku_materials_stores_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "bef256e17d4f2004d821a43d7e3d2647",
+      "reference_md5": "bef256e17d4f2004d821a43d7e3d2647",
+      "rows": 634,
+      "table": "sku_materials_stores_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "ed8aefcb958331dcff6a0c23fee06c2c",
+      "reference_md5": "ed8aefcb958331dcff6a0c23fee06c2c",
+      "rows": 634,
+      "table": "sku_overhead_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "4b825c7bd89ea78806a982f31cf22454",
+      "reference_md5": "4b825c7bd89ea78806a982f31cf22454",
+      "rows": 634,
+      "table": "sku_packing_labour_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "6d8ea60b160a3ac5c61c362c5a5eec19",
+      "reference_md5": "6d8ea60b160a3ac5c61c362c5a5eec19",
+      "rows": 2326,
+      "table": "sku_pm_material_cost_line_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "4b94f71fafd19e7b9f4667d6debf468c",
+      "reference_md5": "4b94f71fafd19e7b9f4667d6debf468c",
+      "rows": 634,
+      "table": "sku_pm_stores_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "966eb718d11c2181fb0e146d2ab0562a",
+      "reference_md5": "966eb718d11c2181fb0e146d2ab0562a",
+      "rows": 634,
+      "table": "sku_pricing_bridge_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "88afccd2ce3f906d0c8aa63c42fa285e",
+      "reference_md5": "88afccd2ce3f906d0c8aa63c42fa285e",
+      "rows": 634,
+      "table": "sku_prime_cost_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "339928182c51c91e16ceea21e5e89872",
+      "reference_md5": "339928182c51c91e16ceea21e5e89872",
+      "rows": 634,
+      "table": "sku_production_overhead_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "d722eb6a996c06fd2c1bcc9a8ae9cb8c",
+      "reference_md5": "d722eb6a996c06fd2c1bcc9a8ae9cb8c",
+      "rows": 634,
+      "table": "sku_qc_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "c4344f78c1c9b8eb4cf7cdbd467093b7",
+      "reference_md5": "c4344f78c1c9b8eb4cf7cdbd467093b7",
+      "rows": 1268,
+      "table": "sku_regional_marketing_allocation_basis_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "6e4af7920fd820726f572c6dd9141d64",
+      "reference_md5": "6e4af7920fd820726f572c6dd9141d64",
+      "rows": 1268,
+      "table": "sku_regional_marketing_expense_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "be908c7474bcac17aaf9ec3eeb55a3f6",
+      "reference_md5": "be908c7474bcac17aaf9ec3eeb55a3f6",
+      "rows": 11898,
+      "table": "sku_rm_material_cost_line_snapshot"
+     },
+     {
+      "excluded": [
+       "monthly_driver_plan_id"
+      ],
+      "identical": true,
+      "md5": "059106b38db9dbf357e25c826174d84c",
+      "reference_md5": "059106b38db9dbf357e25c826174d84c",
+      "rows": 634,
+      "table": "sku_sales_allocation_basis_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "c3dd9f7a8502fc80e22929f84aa46605",
+      "reference_md5": "c3dd9f7a8502fc80e22929f84aa46605",
+      "rows": 3804,
+      "table": "sku_scheme_viability_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "1919442d4bea6a2b92f1cfab9cc171ed",
+      "reference_md5": "1919442d4bea6a2b92f1cfab9cc171ed",
+      "rows": 1268,
+      "table": "sku_selected_scheme_policy_context_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "e7973cf02b9a5bc45d652f123f96781b",
+      "reference_md5": "e7973cf02b9a5bc45d652f123f96781b",
+      "rows": 634,
+      "table": "sku_selling_price_bridge_snapshot"
+     }
+    ]
+   }
+  ],
+  [
+   2,
+   128,
+   13,
+   11,
+   {},
+   "USER-APPROVAL-20261019-W1-W5-REBASELINE",
+   "2026-10-19T01:47:28.477782+00:00",
+   {
+    "all_identical": true,
+    "tables": [
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "16699c913a42c594590591687a988b5a",
+      "reference_md5": "16699c913a42c594590591687a988b5a",
+      "rows": 7,
+      "table": "cost_pool_monthly_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "0ff638418d638fa5c95265894c2cbcd1",
+      "reference_md5": "0ff638418d638fa5c95265894c2cbcd1",
+      "rows": 27588,
+      "table": "cost_sheet_line_monthly_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "330e0d4f923d098b48e075e890ef5036",
+      "reference_md5": "330e0d4f923d098b48e075e890ef5036",
+      "rows": 27588,
+      "table": "cost_sheet_line_traceability_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "3e1a27166ff6bcb549cd731da837bb1e",
+      "reference_md5": "3e1a27166ff6bcb549cd731da837bb1e",
+      "rows": 11878,
+      "table": "cost_sheet_rm_line_traceability_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "0fbacdf6d4bc8c4146445527b504fcce",
+      "reference_md5": "0fbacdf6d4bc8c4146445527b504fcce",
+      "rows": 1,
+      "table": "costing_control_dashboard_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "c260be772c249d7d30afedd15a048beb",
+      "reference_md5": "c260be772c249d7d30afedd15a048beb",
+      "rows": 17,
+      "table": "costing_control_integrity_audit_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "2984c9c09cac72337e73f8c411fb366e",
+      "reference_md5": "2984c9c09cac72337e73f8c411fb366e",
+      "rows": 3541,
+      "table": "costing_review_action_item_drilldown_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "a348ff3fdf8562f5b5ba94e87b5fc27e",
+      "reference_md5": "a348ff3fdf8562f5b5ba94e87b5fc27e",
+      "rows": 889,
+      "table": "costing_review_top_action_item_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "d26ad0c87480076c97a1cda454b43067",
+      "reference_md5": "d26ad0c87480076c97a1cda454b43067",
+      "rows": 14,
+      "table": "costing_review_workbench_summary_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "ca42f91be35a9073d1ab04952cd43af5",
+      "reference_md5": "ca42f91be35a9073d1ab04952cd43af5",
+      "rows": 2,
+      "table": "direct_labour_component_pool_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "da9ca700c24393ee4d3b5e1c38732d38",
+      "reference_md5": "da9ca700c24393ee4d3b5e1c38732d38",
+      "rows": 109162,
+      "table": "marketing_regional_sales_evidence_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "6eab4a29eaecf7eab78157d648413c66",
+      "reference_md5": "6eab4a29eaecf7eab78157d648413c66",
+      "rows": 109162,
+      "table": "marketing_signed_billed_sales_evidence_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "044953cb93ec05c8d03394a3f4b46c2f",
+      "reference_md5": "044953cb93ec05c8d03394a3f4b46c2f",
+      "rows": 3541,
+      "table": "material_costing_action_drilldown_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "65aeae6862534527911d80d99670bcfb",
+      "reference_md5": "65aeae6862534527911d80d99670bcfb",
+      "rows": 831,
+      "table": "material_costing_action_queue_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "d7d6538e1938dba47a4c72afe063986d",
+      "reference_md5": "d7d6538e1938dba47a4c72afe063986d",
+      "rows": 5789,
+      "table": "product_direct_labour_step_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "011be8a693148db329131ddedc3004db",
+      "reference_md5": "011be8a693148db329131ddedc3004db",
+      "rows": 453,
+      "table": "product_direct_labour_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "b709564eda4f3011ea8777471c7ed526",
+      "reference_md5": "b709564eda4f3011ea8777471c7ed526",
+      "rows": 5,
+      "table": "product_internal_source_materials_stores_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "63a27937e27984d391d90cb4fcda5e92",
+      "reference_md5": "63a27937e27984d391d90cb4fcda5e92",
+      "rows": 5782,
+      "table": "product_production_overhead_step_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "42d8cfb7306986b5f44da6d7a536c8c7",
+      "reference_md5": "42d8cfb7306986b5f44da6d7a536c8c7",
+      "rows": 453,
+      "table": "product_production_overhead_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "080f4afaedc6e7cad64b7ed02ca63c8b",
+      "reference_md5": "080f4afaedc6e7cad64b7ed02ca63c8b",
+      "rows": 453,
+      "table": "product_qc_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "d30ee8c893834c5f9ddedc39905772ff",
+      "reference_md5": "d30ee8c893834c5f9ddedc39905772ff",
+      "rows": 2678,
+      "table": "product_qc_method_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "ab34785efc75dce432708a5f1fcf679e",
+      "reference_md5": "ab34785efc75dce432708a5f1fcf679e",
+      "rows": 453,
+      "table": "product_qc_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "cd6e1dc263db15c96321541623a7c274",
+      "reference_md5": "cd6e1dc263db15c96321541623a7c274",
+      "rows": 9049,
+      "table": "product_rm_material_cost_line_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "d5c2d16455e73784178f2db12cf76e85",
+      "reference_md5": "d5c2d16455e73784178f2db12cf76e85",
+      "rows": 453,
+      "table": "product_rm_stores_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "5c16747e495dd980e99b6a9bbbbd145f",
+      "reference_md5": "5c16747e495dd980e99b6a9bbbbd145f",
+      "rows": 898,
+      "table": "route_load_scaling_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "9d5f4bc1f63ca15a5c1806e282113157",
+      "reference_md5": "9d5f4bc1f63ca15a5c1806e282113157",
+      "rows": 6,
+      "table": "scheme_master_context_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "63fa9bad4c86825720fa7608e0439c72",
+      "reference_md5": "63fa9bad4c86825720fa7608e0439c72",
+      "rows": 627,
+      "table": "sku_admin_finance_overhead_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "da071095b9be1a62e5f3dbb1f4722b77",
+      "reference_md5": "da071095b9be1a62e5f3dbb1f4722b77",
+      "rows": 627,
+      "table": "sku_costing_control_status_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "f70311a3e8e6ba178a24d9c14f76a089",
+      "reference_md5": "f70311a3e8e6ba178a24d9c14f76a089",
+      "rows": 627,
+      "table": "sku_direct_labour_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "56b8b48bfe1a0403fbeeb42d653f7ac9",
+      "reference_md5": "56b8b48bfe1a0403fbeeb42d653f7ac9",
+      "rows": 627,
+      "table": "sku_internal_loaded_cost_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "07a7b2297f24eef37c0d676b578488f1",
+      "reference_md5": "07a7b2297f24eef37c0d676b578488f1",
+      "rows": 627,
+      "table": "sku_internal_material_conversion_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "50de2a12151a4cb76d9f758a4adcf575",
+      "reference_md5": "50de2a12151a4cb76d9f758a4adcf575",
+      "rows": 627,
+      "table": "sku_manufacturing_cop_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "e9dbff1419ebc98ad612b4093ac01f32",
+      "reference_md5": "e9dbff1419ebc98ad612b4093ac01f32",
+      "rows": 627,
+      "table": "sku_marketing_expense_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "bbed52bc292953c5667a6636f6d95d28",
+      "reference_md5": "bbed52bc292953c5667a6636f6d95d28",
+      "rows": 627,
+      "table": "sku_material_cost_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "f6a116dcae4ba725b7354d2ea8bde45d",
+      "reference_md5": "f6a116dcae4ba725b7354d2ea8bde45d",
+      "rows": 627,
+      "table": "sku_materials_stores_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "590cba975f3241671392d907ca6c9e17",
+      "reference_md5": "590cba975f3241671392d907ca6c9e17",
+      "rows": 627,
+      "table": "sku_materials_stores_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "bda18068dbf4e0269b8e799248f213ef",
+      "reference_md5": "bda18068dbf4e0269b8e799248f213ef",
+      "rows": 627,
+      "table": "sku_overhead_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "4fac826240689d926d40ffe65787fb05",
+      "reference_md5": "4fac826240689d926d40ffe65787fb05",
+      "rows": 627,
+      "table": "sku_packing_labour_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "f93982a439fabf49f4d843ab18188f00",
+      "reference_md5": "f93982a439fabf49f4d843ab18188f00",
+      "rows": 2307,
+      "table": "sku_pm_material_cost_line_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "b62ef6bd2d31e960e0870d579b0b1add",
+      "reference_md5": "b62ef6bd2d31e960e0870d579b0b1add",
+      "rows": 627,
+      "table": "sku_pm_stores_workload_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "ca98f263e8848c6beda6324c02bc6352",
+      "reference_md5": "ca98f263e8848c6beda6324c02bc6352",
+      "rows": 627,
+      "table": "sku_pricing_bridge_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "0a7460f4cfea6bac19da3fd2ba69e219",
+      "reference_md5": "0a7460f4cfea6bac19da3fd2ba69e219",
+      "rows": 627,
+      "table": "sku_prime_cost_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "3195bdc6d8982a959c33f463dbd70721",
+      "reference_md5": "3195bdc6d8982a959c33f463dbd70721",
+      "rows": 627,
+      "table": "sku_production_overhead_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "49502d3ca7faabfc7335820a22dd272d",
+      "reference_md5": "49502d3ca7faabfc7335820a22dd272d",
+      "rows": 627,
+      "table": "sku_qc_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "0723af669d8d087e9247becffb3c8b6b",
+      "reference_md5": "0723af669d8d087e9247becffb3c8b6b",
+      "rows": 1254,
+      "table": "sku_regional_marketing_allocation_basis_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "0da03206bd5614c337f0e3d9a2ee6082",
+      "reference_md5": "0da03206bd5614c337f0e3d9a2ee6082",
+      "rows": 1254,
+      "table": "sku_regional_marketing_expense_allocation_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "92699577dbe08bb49d0ac7c0e356fba5",
+      "reference_md5": "92699577dbe08bb49d0ac7c0e356fba5",
+      "rows": 11878,
+      "table": "sku_rm_material_cost_line_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "0e58f36074f0a08f792085c13a3efa45",
+      "reference_md5": "0e58f36074f0a08f792085c13a3efa45",
+      "rows": 627,
+      "table": "sku_sales_allocation_basis_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "bd7499e263e536802a2991a4e0e9c791",
+      "reference_md5": "bd7499e263e536802a2991a4e0e9c791",
+      "rows": 3762,
+      "table": "sku_scheme_viability_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "4ed81c69c08b9fc647d3a0490e66e519",
+      "reference_md5": "4ed81c69c08b9fc647d3a0490e66e519",
+      "rows": 1254,
+      "table": "sku_selected_scheme_policy_context_snapshot"
+     },
+     {
+      "excluded": [],
+      "identical": true,
+      "md5": "be2c5fac09433112d7b470e119b488f3",
+      "reference_md5": "be2c5fac09433112d7b470e119b488f3",
+      "rows": 627,
+      "table": "sku_selling_price_bridge_snapshot"
+     }
+    ]
+   }
+  ]
+ ],
+ "run_count": 108,
+ "run_status_counts": {
+  "CANCELLED": 1,
+  "FAILED": 14,
+  "SUCCESS": 93
+ },
+ "runs": [
+  [
+   110,
+   "2026-09-01",
+   "2026-09-10",
+   "FAILED",
+   "CAPTURED_AT_REQUEST",
+   "CRON_DAILY",
+   "2026-09-26T20:40:00.075321+00:00"
+  ],
+  [
+   111,
+   "2026-09-01",
+   "2026-09-10",
+   "SUCCESS",
+   "CAPTURED_AT_REQUEST",
+   "MANUAL_GOVERNED_PROOF",
+   "2026-09-27T02:29:01.461287+00:00"
+  ],
+  [
+   112,
+   "2026-09-01",
+   "2026-09-10",
+   "SUCCESS",
+   "CAPTURED_AT_REQUEST",
+   "MANUAL_GOVERNED_PROOF",
+   "2026-09-27T02:37:29.066215+00:00"
+  ],
+  [
+   113,
+   "2026-09-01",
+   "2026-09-10",
+   "SUCCESS",
+   "CAPTURED_AT_REQUEST",
+   "MANUAL_GOVERNED_PROOF",
+   "2026-09-27T02:47:17.853189+00:00"
+  ],
+  [
+   114,
+   "2026-09-01",
+   "2026-09-10",
+   "SUCCESS",
+   "CAPTURED_AT_REQUEST",
+   "MANUAL_GOVERNED_PROOF",
+   "2026-09-27T03:07:05.952901+00:00"
+  ],
+  [
+   115,
+   "2026-09-01",
+   "2026-09-10",
+   "SUCCESS",
+   "CAPTURED_AT_REQUEST",
+   "CRON_DAILY",
+   "2026-09-27T21:00:00.058881+00:00"
+  ],
+  [
+   116,
+   "2026-09-01",
+   "2026-09-10",
+   "FAILED",
+   "CAPTURED_AT_REQUEST",
+   "CRON_DAILY",
+   "2026-09-28T20:40:00.075557+00:00"
+  ],
+  [
+   117,
+   "2026-09-01",
+   "2026-09-10",
+   "FAILED",
+   "CAPTURED_AT_REQUEST",
+   "UI_TOOLBAR",
+   "2026-10-14T11:05:00.139458+00:00"
+  ],
+  [
+   118,
+   "2026-09-01",
+   "2026-09-10",
+   "SUCCESS",
+   "CAPTURED_AT_REQUEST",
+   "UI_TOOLBAR",
+   "2026-10-14T11:35:00.103451+00:00"
+  ],
+  [
+   119,
+   "2026-09-01",
+   "2026-09-10",
+   "SUCCESS",
+   "CAPTURED_AT_REQUEST",
+   "UI_TOOLBAR",
+   "2026-10-14T12:15:00.093035+00:00"
+  ],
+  [
+   120,
+   "2026-09-01",
+   "2026-09-10",
+   "FAILED",
+   "CAPTURED_AT_REQUEST",
+   "UI_TOOLBAR",
+   "2026-10-16T09:55:00.065564+00:00"
+  ],
+  [
+   121,
+   "2026-09-01",
+   "2026-09-10",
+   "SUCCESS",
+   "CAPTURED_AT_REQUEST",
+   "UI_TOOLBAR",
+   "2026-10-16T12:20:00.163898+00:00"
+  ],
+  [
+   122,
+   "2026-09-01",
+   "2026-09-10",
+   "SUCCESS",
+   "CAPTURED_AT_REQUEST",
+   "UI_TOOLBAR",
+   "2026-10-16T14:15:00.081468+00:00"
+  ],
+  [
+   123,
+   "2026-10-01",
+   "2026-10-16",
+   "FAILED",
+   "CAPTURED_AT_REQUEST",
+   "UI_TOOLBAR",
+   "2026-10-16T15:55:00.076261+00:00"
+  ],
+  [
+   124,
+   "2026-10-01",
+   "2026-10-16",
+   "SUCCESS",
+   "CAPTURED_AT_REQUEST",
+   "UI_TOOLBAR",
+   "2026-10-16T17:35:00.101222+00:00"
+  ],
+  [
+   125,
+   "2026-10-01",
+   "2026-10-16",
+   "SUCCESS",
+   "CAPTURED_AT_REQUEST",
+   "UI_TOOLBAR",
+   "2026-10-17T11:10:00.029317+00:00"
+  ],
+  [
+   126,
+   "2026-10-01",
+   "2026-10-16",
+   "SUCCESS",
+   "CAPTURED_AT_REQUEST",
+   "UI_TOOLBAR",
+   "2026-10-18T00:30:00.066926+00:00"
+  ],
+  [
+   127,
+   "2026-10-01",
+   "2026-10-16",
+   "SUCCESS",
+   "CAPTURED_AT_REQUEST",
+   "UI_TOOLBAR",
+   "2026-10-18T05:15:00.129083+00:00"
+  ],
+  [
+   128,
+   "2026-10-01",
+   "2026-10-16",
+   "SUCCESS",
+   "CAPTURED_AT_REQUEST",
+   "UI_TOOLBAR",
+   "2026-10-18T08:10:00.053483+00:00"
+  ]
+ ],
+ "switches": {
+  "batch_true_standard_switch": [
+   {
+    "changed_at": "2026-10-16T15:09:08.146066+00:00",
+    "changed_by": "USER-APPROVAL-AU5-REBASED-20261016",
+    "effective_from": "2026-10-01",
+    "id": true,
+    "is_enabled": true,
+    "note": "ON for runs with valuation_date >= 2026-10-01 only (September run 122 and locked period unaffected)",
+    "rate_basis": "NORMAL_VOLUME_RATE"
+   }
+  ],
+  "cost_head_policy_switch": [
+   {
+    "changed_at": "2026-10-16T11:52:03.84398+00:00",
+    "changed_by": "Dr. Brahmadathan U",
+    "id": true,
+    "is_enabled": true,
+    "note": "second governed run attempt; user approval 2026-10-16 17:21 IST"
+   }
+  ],
+  "costing_sales_feed_switch": [
+   {
+    "approval_reference": "USER-APPROVAL-20261018-AU6-V2",
+    "changed_at": "2026-10-18T04:46:44.551036+00:00",
+    "changed_by": "dff17104-c02a-4bca-95b1-e8ddff46a9b6",
+    "effective_from": "2026-10-01",
+    "id": true,
+    "is_enabled": true,
+    "note": "SALES-01 costing-only sales feed + seasonal 12-month average from Oct 2026",
+    "seasonal_top3_share_threshold": 0.6
+   }
+  ],
+  "plant_aware_load_switch": null,
+  "qc_batch_true_switch": [
+   {
+    "approval_reference": "USER-APPROVAL-20261018-AU6-V2",
+    "changed_at": "2026-10-18T04:46:44.551036+00:00",
+    "changed_by": "dff17104-c02a-4bca-95b1-e8ddff46a9b6",
+    "effective_from": "2026-10-01",
+    "id": true,
+    "is_enabled": true,
+    "note": "AU-6Q QC per-batch allocation from Oct 2026"
+   }
+  ],
+  "route_load_scaling_switch": [
+   {
+    "approval_reference": "USER-APPROVAL-20261018-AU6-V2",
+    "changed_at": "2026-10-18T04:46:44.551036+00:00",
+    "changed_by": "dff17104-c02a-4bca-95b1-e8ddff46a9b6",
+    "effective_from": "2026-10-01",
+    "id": true,
+    "is_enabled": true,
+    "note": "AU-6L equipment-loads route workload from Oct 2026"
+   }
+  ]
+ },
+ "verify_122": null,
+ "verify_122_n": 50,
+ "verify_128": null
+}

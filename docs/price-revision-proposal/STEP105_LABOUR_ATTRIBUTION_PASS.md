@@ -1,0 +1,3 @@
+# Step 105 — user-run live joint labour attribution PASS
+
+User executed read-only SQL and furnished the result: four stages 1389-1392, two members per stage, matching per-cycle factors 0.6,1,1,1. Combined stage workloads 5.656404,9.427340,9.427340,9.427340; totals product183 approx33.3121974545, product184 approx0.6262265455, sum33.938424. These are joint process labour stage attribution workload units, not financial amounts or total product workload. Original per-route step factors remain independent evidence. Need actual dual snapshot lineage gate and full financial reconciliation before deployment. G0 open; run136 unchanged.

@@ -1,0 +1,224 @@
+{
+ "fns": [
+  {
+   "f": "public.rpc_eaushadhi_reopen_product_classification(p_product_id integer, p_expected_row_version bigint, p_reason text)",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.rpc_eaushadhi_reopen_product_review(p_product_id integer, p_expected_row_version bigint, p_reason text)",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.forecast_lock_acquire()",
+   "secdef": false,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.forecast_lock_release()",
+   "secdef": false,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "costing.rpc_designate_costing_run(p_refresh_run_id bigint, p_designation text, p_designated_by text, p_reason text)",
+   "secdef": true,
+   "auth": false,
+   "svc": true
+  },
+  {
+   "f": "costing.rpc_authorize_period_refresh(p_period_start date, p_authorised_by text, p_reason text, p_valid_minutes integer)",
+   "secdef": true,
+   "auth": false,
+   "svc": true
+  },
+  {
+   "f": "costing.rpc_close_cost_period(p_period_start date, p_closed_by text, p_reason text, p_approval_reference text)",
+   "secdef": true,
+   "auth": false,
+   "svc": true
+  },
+  {
+   "f": "public.rpc_get_latest_governed_cost_period_start()",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "costing.rpc_ensure_cost_period(p_period_start date)",
+   "secdef": true,
+   "auth": false,
+   "svc": false
+  },
+  {
+   "f": "public.app_has_permission_core(p_user_id uuid, p_target text, p_mode text)",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.require_permission(p_target text, p_need_edit boolean)",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.bmr_block_changes_if_mapped()",
+   "secdef": true,
+   "auth": false,
+   "svc": true
+  },
+  {
+   "f": "public.trg_bmr_lock_if_mapped()",
+   "secdef": false,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "costing.fn_default_cost_period_valuation_date(p_period_start date)",
+   "secdef": false,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.rpc_get_cost_period_valuation_context(p_period_start date)",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.rpc_get_cost_period_governance_history(p_period_start date)",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.rpc_set_cost_period_valuation_date(p_period_start date, p_valuation_date date, p_reason text, p_approval_reference text)",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.proc_lifecycle_audit_block_mutation_internal()",
+   "secdef": true,
+   "auth": false,
+   "svc": true
+  },
+  {
+   "f": "public.rpc_eaushadhi_require_permission(p_edit boolean)",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.calc_sim_after_unblock_region_summary(top_n integer)",
+   "secdef": false,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.app_has_permission(p_target text, p_mode text)",
+   "secdef": false,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "costing.fn_guard_refresh_authorization()",
+   "secdef": false,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "costing.fn_guard_designated_run_rows()",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.rpc_eaushadhi_qc_preparation_reopen_v1(p_preparation_id uuid, p_expected_row_version bigint, p_attest boolean, p_reason_note text)",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.rpc_supersede_product_route(p_old_product_route_id bigint, p_new_product_route_id bigint)",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.rpc_supersede_route_family_route(p_old_family_route_id bigint, p_new_family_route_id bigint)",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.rpc_eaushadhi_reopen_line_review(p_source_composition_line_id bigint, p_expected_row_version bigint, p_reason text)",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "public.rpc_eaushadhi_reopen_product_actions(p_product_id integer, p_expected_workflow_row_version bigint, p_reason text)",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "costing.fn_request_costing_refresh_internal(p_period_start date, p_requested_scope text, p_source_trigger text, p_request_note text, p_requested_by uuid, p_allow_period_autocreate boolean)",
+   "secdef": true,
+   "auth": false,
+   "svc": false
+  },
+  {
+   "f": "public.rpc_request_costing_refresh(p_period_start date, p_requested_scope text, p_source_trigger text, p_request_note text)",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  },
+  {
+   "f": "costing.fn_guard_designated_run_header()",
+   "secdef": true,
+   "auth": true,
+   "svc": true
+  }
+ ],
+ "audit_events": [
+  {
+   "e": "VALUATION_DATE_CHANGED",
+   "src": "GOVERNED_RPC",
+   "n": 3
+  },
+  {
+   "e": "PERIOD_LOCKED",
+   "src": "GOVERNED_RPC",
+   "n": 2
+  },
+  {
+   "e": "MIGRATION_BACKFILL",
+   "src": "MIGRATION",
+   "n": 3
+  },
+  {
+   "e": "PERIOD_CREATED",
+   "src": "SYSTEM",
+   "n": 3
+  }
+ ],
+ "cp_triggers": [
+  "wp04_readiness_epoch_458128e51987: CREATE TRIGGER wp04_readiness_epoch_458128e51987 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.cost_periods FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+ ],
+ "rb_triggers": [
+  "trg_au2_append_only"
+ ],
+ "perm_def": "CREATE OR REPLACE FUNCTION public.app_has_permission(p_target text, p_mode text DEFAULT 'view'::text)\n RETURNS boolean\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\r\nDECLARE\r\n  v_uid uuid;\r\nBEGIN\r\n  v_uid := auth.uid();\r\n\r\n  IF v_uid IS NULL THEN\r\n    RETURN false;\r\n  END IF;\r\n\r\n  RETURN public.app_has_permission_core(v_uid, p_target, p_mode);\r\nEND;\r\n$function$\n",
+ "mig": [
+  "20261019014458 w1_approved_run_feed_and_labels",
+  "20261019014611 w5_fingerprint_fixed_columns",
+  "20261019014728 w5_rebaseline_runs_122_128"
+ ]
+}

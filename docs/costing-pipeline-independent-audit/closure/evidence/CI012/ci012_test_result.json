@@ -1,0 +1,38 @@
+{
+ "install": "ok",
+ "config": [
+  [
+   "AUDIT_ONLY",
+   4
+  ],
+  [
+   "FORWARD_ONLY",
+   8
+  ]
+ ],
+ "frozen_through": "2026-10-16",
+ "ist_today": "2026-10-19",
+ "refresh_after_guard_rowdiff": 0,
+ "FWD insert yesterday": "refused: CI012_BACKDATE_REFUSED: costing.plant_capacity_profile effective_from = 2026-10-18 is earlier than today 2026-",
+ "FWD insert 2026-10-10 (frozen)": "refused: CI012_BACKDATE_REFUSED: costing.plant_capacity_profile effective_from = 2026-10-10 is earlier than today 2026-",
+ "FWD insert today": "allowed",
+ "FWD insert tomorrow": "allowed",
+ "FWD close row with effective_to yesterday": "refused: CI012_BACKDATE_REFUSED: costing.plant_capacity_profile effective_to = 2026-10-18 is earlier than today 2026-10",
+ "FWD close row with effective_to today": "allowed",
+ "FWD update other column only": "allowed",
+ "DVS override backdated": "refused: CI012_BACKDATE_REFUSED: costing.sku_demand_volume_override effective_from = 2026-10-18 is earlier than today 2",
+ "ledger backdated": "refused: CI012_BACKDATE_REFUSED: costing.cost_head_policy_ledger effective_from = 2026-10-01 is earlier than today 2026",
+ "AUDIT backdated update": "allowed",
+ "audit_log_rows": [
+  [
+   "sales_allocation_default_policy",
+   "UPDATE",
+   "effective_from",
+   "2026-10-05",
+   "AUDIT_ONLY"
+  ]
+ ],
+ "NOT_INTO_FROZEN set 2026-10-10": "refused: CI012_BACKDATE_REFUSED: costing.new_product_volume_plan effective_from = 2026-10-10 is on/before frozen-throug",
+ "NOT_INTO_FROZEN set 2026-10-17 (after frozen, before today)": "allowed",
+ "runs_122_128_untouched": true
+}

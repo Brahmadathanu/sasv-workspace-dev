@@ -1,0 +1,129 @@
+[
+ {
+  "run": 122,
+  "n": 634,
+  "checks": {
+   "missing": {
+    "dl": 0,
+    "oh": 0,
+    "cop": 0,
+    "ilc": 0,
+    "prime": 0,
+    "bridge": 0
+   },
+   "fail_lists": {
+    "cop": null,
+    "ilc": null,
+    "m_ik": null,
+    "pc_ik": null,
+    "prime": null,
+    "dl_split": null,
+    "ilc_displayed_atomic": [
+     54,
+     56,
+     364,
+     365,
+     367,
+     658,
+     901,
+     902,
+     1285
+    ],
+    "ilc_displayed_atomic_ge_0_01": [
+     54,
+     56,
+     364,
+     365,
+     658,
+     901,
+     902,
+     1285
+    ]
+   },
+   "ilc.cop=cop": 634,
+   "DL split null": 0,
+   "bridge.ILC=ILC": 634,
+   "material=rm+pm": 634,
+   "cop.prime=prime": 634,
+   "DL=mfgDL+packingDL": 634,
+   "ILC=atomic incl IMC": 634,
+   "prime.DL=DL snapshot": 634,
+   "prime=material+DL+IMC": 634,
+   "COP=prime+PO+QC+stores": 634,
+   "ILC=COP+admin+finadmin": 634,
+   "ik_margin=mrp_ik-pc_ik": 634,
+   "ok_margin=mrp_ok-pc_ok": 634,
+   "prime.material=material": 634,
+   "cop.OH=overhead snapshot": 634,
+   "pricing_cost_ik=ILC+mkt_ik": 634,
+   "pricing_cost_ok=ILC+mkt_ok": 634,
+   "ik_margin=mrp_ik-pc_national": 0,
+   "ILC=displayed atomic (no IMC)": 625,
+   "pricing_cost=ILC+national mkt": 634,
+   "ILC displayed atomic diff >=0.01": 8
+  }
+ },
+ {
+  "run": 128,
+  "n": 627,
+  "checks": {
+   "missing": {
+    "dl": 0,
+    "oh": 0,
+    "cop": 0,
+    "ilc": 0,
+    "prime": 0,
+    "bridge": 0
+   },
+   "fail_lists": {
+    "cop": null,
+    "ilc": null,
+    "m_ik": null,
+    "pc_ik": null,
+    "prime": null,
+    "dl_split": null,
+    "ilc_displayed_atomic": [
+     54,
+     56,
+     364,
+     365,
+     367,
+     658,
+     901,
+     902,
+     1285
+    ],
+    "ilc_displayed_atomic_ge_0_01": [
+     54,
+     56,
+     364,
+     365,
+     658,
+     902,
+     1285
+    ]
+   },
+   "ilc.cop=cop": 627,
+   "DL split null": 0,
+   "bridge.ILC=ILC": 627,
+   "material=rm+pm": 627,
+   "cop.prime=prime": 627,
+   "DL=mfgDL+packingDL": 627,
+   "ILC=atomic incl IMC": 627,
+   "prime.DL=DL snapshot": 627,
+   "prime=material+DL+IMC": 627,
+   "COP=prime+PO+QC+stores": 627,
+   "ILC=COP+admin+finadmin": 627,
+   "ik_margin=mrp_ik-pc_ik": 627,
+   "ok_margin=mrp_ok-pc_ok": 627,
+   "prime.material=material": 627,
+   "cop.OH=overhead snapshot": 627,
+   "pricing_cost_ik=ILC+mkt_ik": 627,
+   "pricing_cost_ok=ILC+mkt_ok": 627,
+   "ik_margin=mrp_ik-pc_national": 0,
+   "ILC=displayed atomic (no IMC)": 618,
+   "pricing_cost=ILC+national mkt": 627,
+   "ILC displayed atomic diff >=0.01": 7
+  }
+ }
+]

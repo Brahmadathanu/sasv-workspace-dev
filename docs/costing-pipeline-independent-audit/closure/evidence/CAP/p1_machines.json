@@ -1,0 +1,407 @@
+[
+{
+"area": "-",
+"name": "Processing Vessel 19",
+"type": "SS Processing Vessel",
+"steps": [
+"Kashayam preparation",
+"Vessel processing"
+],
+"routes": null,
+"section": "Processing Section",
+"examples": [
+"Vazhaipoo Vatakam"
+],
+"plant_id": 67,
+"n_products": 1,
+"subsection": "Vessels and Cookers",
+"override_ops": [
+"ADD_STEP"
+],
+"n_products_costed_run128": 1
+},
+{
+"area": "Distillation Plant",
+"name": "Steam Jacketed Distillation Unit",
+"type": "Distillation Unit",
+"steps": [
+"Distillation"
+],
+"routes": [
+"THEENEER_DRAVAKAM_AQUEOUS_DISTILLATION_ROUTE"
+],
+"section": "Processing Section",
+"examples": [
+"Oma Theeneer",
+"Sombu Theeneer"
+],
+"plant_id": 121,
+"n_products": 2,
+"subsection": "Vessels and Cookers",
+"override_ops": null,
+"n_products_costed_run128": 2
+},
+{
+"area": "-",
+"name": "Planetary Mixing Machine",
+"type": "Mixing Machine",
+"steps": [
+"Batch mixing"
+],
+"routes": null,
+"section": "Processing Section",
+"examples": [
+"Thippili Rasayanam"
+],
+"plant_id": 125,
+"n_products": 1,
+"subsection": "Vessels and Cookers",
+"override_ops": [
+"ADD_STEP"
+],
+"n_products_costed_run128": 1
+},
+{
+"area": "-",
+"name": "Hydraulic Oil Pressing Machine",
+"type": "Oil Pressing Machine",
+"steps": [
+"Oil extraction"
+],
+"routes": [
+"MEDICATED_LIPID_GHRITHAM_KALKKAM_ROUTE",
+"MEDICATED_LIPID_GHRITHAM_KASHAYAM_ROUTE",
+"MEDICATED_LIPID_GHRITHAM_KASHAYAM_SWARASAM_ROUTE",
+"MEDICATED_LIPID_GHRITHAM_SWARASAM_ROUTE",
+"MEDICATED_LIPID_KALKKAM_ROUTE",
+"MEDICATED_LIPID_KASHAYAM_ROUTE",
+"MEDICATED_LIPID_KASHAYAM_SWARASAM_ROUTE",
+"MEDICATED_LIPID_KUZHAMBU_KALKKAM_ROUTE",
+"MEDICATED_LIPID_KUZHAMBU_KASHAYAM_ROUTE",
+"MEDICATED_LIPID_KUZHAMBU_KASHAYAM_SWARASAM_ROUTE",
+"MEDICATED_LIPID_KUZHAMBU_SWARASAM_ROUTE",
+"MEDICATED_LIPID_REPEATED_AVARTHI_ROUTE",
+"MEDICATED_LIPID_SEMISOLID_DIRECT_KALKKAM_ROUTE",
+"MEDICATED_LIPID_SEMISOLID_KASHAYAM_KALKKAM_ROUTE",
+"MEDICATED_LIPID_SEMISOLID_KASHAYAM_SWARASAM_KALKKAM_ROUTE",
+"MEDICATED_LIPID_SEMISOLID_SWARASAM_ROUTE",
+"MEDICATED_LIPID_SWARASAM_ROUTE"
+],
+"section": "Processing Section",
+"examples": [
+"Amara Ghritham",
+"Anuthailam",
+"Arakku Thailam",
+"Arimedadi Enna"
+],
+"plant_id": 126,
+"n_products": 150,
+"subsection": "Vessels and Cookers",
+"override_ops": null,
+"n_products_costed_run128": 137
+},
+{
+"area": "Juice Extraction",
+"name": "Hydraulic Juice Press",
+"type": "Juice Press",
+"steps": [
+"Juice extraction"
+],
+"routes": [
+"LEHYAM_KASHAYAM_SWARASAM_ROUTE_V2_V3",
+"LEHYAM_SWARASAM_ONLY_ROUTE_V2_V3",
+"MEDICATED_LIPID_GHRITHAM_KASHAYAM_SWARASAM_ROUTE",
+"MEDICATED_LIPID_GHRITHAM_SWARASAM_ROUTE",
+"MEDICATED_LIPID_KASHAYAM_SWARASAM_ROUTE",
+"MEDICATED_LIPID_KUZHAMBU_KASHAYAM_SWARASAM_ROUTE",
+"MEDICATED_LIPID_KUZHAMBU_SWARASAM_ROUTE",
+"MEDICATED_LIPID_SEMISOLID_KASHAYAM_SWARASAM_KALKKAM_ROUTE",
+"MEDICATED_LIPID_SEMISOLID_SWARASAM_ROUTE",
+"MEDICATED_LIPID_SWARASAM_ROUTE",
+"MENINOKKI_CHOORNAM_EXACT_ROUTE",
+"RASOUSHADHI_SWARASA_BHAVANA_POWDER_ROUTE"
+],
+"section": "Processing Section",
+"examples": [
+"Amara Ghritham",
+"Arjun Forte Capsule",
+"Arugan Thailam",
+"Asanamanjishtadi Enna"
+],
+"plant_id": 130,
+"n_products": 103,
+"subsection": "-",
+"override_ops": [
+"ADD_STEP"
+],
+"n_products_costed_run128": 95
+},
+{
+"area": "Capsules Filling Area",
+"name": "Manual Capsule Filling Machine",
+"type": "Capsule Filling Machine",
+"steps": [
+"Capsule filling"
+],
+"routes": [
+"HARD_CAPSULE_FILLING_ROUTE"
+],
+"section": "Processing Section",
+"examples": [
+"Arjun Forte Capsule",
+"Artiban Forte Capsule",
+"Balavardhini Capsule",
+"Endopile Capsule"
+],
+"plant_id": 139,
+"n_products": 13,
+"subsection": "Capsules & Tablets",
+"override_ops": null,
+"n_products_costed_run128": 12
+},
+{
+"area": "Tablet Granulation Area",
+"name": "Rapid Mixer Granulator",
+"type": "Granulator Machine",
+"steps": [
+"Wet granulation"
+],
+"routes": [
+"WET_GRANULATED_PUNCHED_TABLET_ROUTE_V2"
+],
+"section": "Processing Section",
+"examples": [
+"Amukkura Tablet",
+"Bhavana Kadukkai Tablet",
+"Impooral Tablet",
+"Kapada Mathirai"
+],
+"plant_id": 140,
+"n_products": 10,
+"subsection": "Capsules & Tablets",
+"override_ops": null,
+"n_products_costed_run128": 10
+},
+{
+"area": "Capsules & Tablets - Drying Area",
+"name": "Electric Tray Dryer (24 - Tray Single Door)",
+"type": "Dryer",
+"steps": [
+"Drying in electric oven"
+],
+"routes": [
+"STARCH_EXTRACTION_AQUEOUS_PURIFICATION_ROUTE",
+"WET_GRANULATED_PUNCHED_TABLET_ROUTE_V2"
+],
+"section": "Processing Section",
+"examples": [
+"Amukkura Tablet",
+"Balavardhini Capsule",
+"Bhavana Kadukkai Tablet",
+"Endopile Capsule"
+],
+"plant_id": 141,
+"n_products": 19,
+"subsection": "Capsules & Tablets",
+"override_ops": [
+"ADD_STEP"
+],
+"n_products_costed_run128": 19
+},
+{
+"area": "Tablet Punching Area",
+"name": "Granulator",
+"type": "Granulator Machine",
+"steps": [
+"Granule sizing"
+],
+"routes": [
+"WET_GRANULATED_PUNCHED_TABLET_ROUTE_V2"
+],
+"section": "Processing Section",
+"examples": [
+"Amukkura Tablet",
+"Bhavana Kadukkai Tablet",
+"Impooral Tablet",
+"Kapada Mathirai"
+],
+"plant_id": 147,
+"n_products": 11,
+"subsection": "Capsules & Tablets",
+"override_ops": [
+"ADD_STEP"
+],
+"n_products_costed_run128": 11
+},
+{
+"area": "Pills - Drying Area",
+"name": "Electric Tray Dryer (24 - Tray Single Door)",
+"type": "Dryer",
+"steps": [
+"Drying in electric oven",
+"Pill drying",
+"RM drying"
+],
+"routes": [
+"GUGGULU_THERMAL_ROUNDED_PILL_ROUTE",
+"ROUNDED_PILL_BHAVANA_ROUTE",
+"ROUNDED_PILL_RASOUSHADHI_BHAVANA_ROUTE",
+"SIDDHA_MEGHANADA_GULIKAI_ROUTE",
+"SIDDHA_MURUKKANVITHAI_MATHIRAI_ROUTE",
+"SIDDHA_SANTHACHANDRODAYA_MATHIRAI_ROUTE",
+"SIDDHA_VASANTHAKUSUMAKARA_MATHIRAI_ROUTE",
+"SIDDHA_VATHARAKSHASAN_GULIKAI_ROUTE",
+"SIDDHA_VISHNUCHAKRA_MATHIRAI_ROUTE",
+"SIDDHA-975-V1",
+"SIDDHA-976-V1",
+"SIDDHA-977-V1",
+"SIDDHA-978-V1"
+],
+"section": "Processing Section",
+"examples": [
+"Ananda Bhairava Mathirai",
+"Ashta Bhairava Mathirai",
+"Balasanjeevi Mathirai",
+"Brahmananda Bhairava Mathirai"
+],
+"plant_id": 149,
+"n_products": 29,
+"subsection": "Pills",
+"override_ops": [
+"ADD_STEP"
+],
+"n_products_costed_run128": 29
+},
+{
+"area": "Tablet Punching Area",
+"name": "Rotary Tablet Compression Machine (20-Station)",
+"type": "Tablet Punching Machine",
+"steps": [
+"Tablet punching"
+],
+"routes": [
+"WET_GRANULATED_PUNCHED_TABLET_ROUTE_V2"
+],
+"section": "Processing Section",
+"examples": [
+"Amukkura Tablet",
+"Bhavana Kadukkai Tablet",
+"Impooral Tablet",
+"Kapada Mathirai"
+],
+"plant_id": 155,
+"n_products": 10,
+"subsection": "Capsules & Tablets",
+"override_ops": null,
+"n_products_costed_run128": 10
+},
+{
+"area": "-",
+"name": "Firewood Dryer 1",
+"type": "Dryer",
+"steps": [
+"Post-process drying",
+"RM drying"
+],
+"routes": [
+"DRY_COARSE_POWDER_WASH_DRY_ROUTE",
+"DRY_FINE_POWDER_WASH_DRY_BHAVANA_ROUTE",
+"DRY_FINE_POWDER_WASH_DRY_POST_BLEND_ROUTE",
+"DRY_FINE_POWDER_WASH_DRY_ROUTE",
+"DRY_POWDER_WASH_DRY_VESSEL_POST_DRY_ROUTE",
+"DRY_POWDER_WASH_DRY_VESSEL_REPROCESS_ROUTE",
+"GANDHAKAMADHUSNUHI_ROUTE",
+"KALYANA_KSHARAM_ROUTE",
+"KASHAYA_VASTHI_KIT_COMPONENT_PREPARATION_ROUTE",
+"MENINOKKI_CHOORNAM_EXACT_ROUTE",
+"MEZHUKU_PROGRESSIVE_PULVERIZER_FORMATION_ROUTE_V2",
+"MULTI_COMPONENT_DRY_PREPARATION_ROUTE",
+"RASOUSHADHI_KUZHAMBU_STAGED_GRIND_EARTHEN_MATURATION_ROUTE",
+"RAW_MATERIAL_WASH_DRY_FG_RELEASE_ROUTE"
+],
+"section": "Processing Section",
+"examples": [
+"Adathodai Kudineer Choornam",
+"Agasthyar Kuzhambu",
+"Amukkura Choornam",
+"Ashta Choornam"
+],
+"plant_id": 119,
+"n_products": 71,
+"subsection": "Powder Formulations",
+"override_ops": [
+"ADD_STEP"
+],
+"n_products_costed_run128": 63
+},
+{
+"area": "-",
+"name": "Firewood Dryer 1",
+"type": "Dryer",
+"steps": [
+"Drying in firewood oven",
+"RM washing and drying"
+],
+"routes": null,
+"section": "Processing Section",
+"examples": [
+"Arjun Forte Capsule",
+"Neerkovai Tablet",
+"Thriphala Choornam Tablet",
+"Vazhaipoo Vatakam"
+],
+"plant_id": 146,
+"n_products": 4,
+"subsection": "Capsules & Tablets",
+"override_ops": [
+"ADD_STEP"
+],
+"n_products_costed_run128": 4
+},
+{
+"area": "Puta Sala",
+"name": "Pukaipokki Chakkara Aduppu",
+"type": "Stove",
+"steps": [
+"Passive cooling on Pukaipokki Chakkara Aduppu",
+"Pukaipokki Chakkara Aduppu firing"
+],
+"routes": [
+"ARUMUGHA_CHENDOORAM_EXACT_ROUTE",
+"ARUMUGHA_CHENDOORAM_EXACT_ROUTE_V2"
+],
+"section": "Processing Section",
+"examples": [
+"Arumugha Chendooram"
+],
+"plant_id": 165,
+"n_products": 1,
+"subsection": "Rasoushadhi",
+"override_ops": null,
+"n_products_costed_run128": 1
+},
+{
+"area": "Work Area",
+"name": "Heavy thick iron vessel (Irumbu Chatti)",
+"type": "Processing Vessel",
+"steps": [
+"Roasting",
+"Thermal lipid rendering \u2014 Rasoushadhi"
+],
+"routes": [
+"ANDA_THAILAM_EXACT_ROUTE",
+"JALAMANJARI_CHENDOORAM_EXACT_ROUTE",
+"JALAMANJARI_CHENDOORAM_EXACT_ROUTE_V2"
+],
+"section": "Processing Section",
+"examples": [
+"Anda Thailam",
+"Jalamanjari Chendooram"
+],
+"plant_id": 169,
+"n_products": 2,
+"subsection": "Rasoushadhi",
+"override_ops": null,
+"n_products_costed_run128": 2
+}
+]

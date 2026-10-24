@@ -1,0 +1,3 @@
+# Step 114 — AU9 October cutover preflight (2026-10-22)
+
+Live read-only verified 298 plant capacity profile records in database but **zero effective 2026-10-23**; capacity_fallback_policy has **zero** effective same date. AU9 G4 selector and resolver currently hardcode 2026-11-01 and switch table empty. Thus October G4 cutover CANNOT be safely performed merely by rewriting two function date checks and inserting switch. Verify effective date distributions and relevant approved revision history, and only then decide prospective reapproval/re-versioning as required. Don't modify existing effective_from dates in place, and keep run136 immutable. Step112 full DL/OH candidate integration remains unexecuted. G0 OPEN.
