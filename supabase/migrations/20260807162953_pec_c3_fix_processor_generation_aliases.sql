@@ -1,0 +1,157 @@
+-- backfilled from live schema_migrations on 2026-10-24, CI-016
+create or replace function public.proc_process_snapshot_refresh_next_stage()
+returns table(run_id bigint, stage_code text, stage_status text, run_status text, row_count integer, message text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_locked boolean := false;
+  v_run_id bigint;
+  v_stage_id bigint;
+  v_stage_code text;
+  v_target_revision bigint;
+  v_count integer := null;
+  v_message text := 'OK';
+  v_pending_count integer;
+  v_failed_count integer;
+  v_requested_revision bigint;
+  v_completed_revision bigint;
+  v_follow_up_run_id bigint;
+  v_follow_up_source text;
+  v_follow_up_by uuid;
+  v_vendor_count integer;
+  v_balance_count integer;
+  v_priority_count integer;
+begin
+  v_locked := pg_try_advisory_lock(hashtext('procurement_snapshot_refresh_stage_processor'));
+  if not v_locked then
+    return query select null::bigint,null::text,'SKIPPED'::text,'RUNNING'::text,null::integer,
+      'Another snapshot refresh stage is already processing.'::text;
+    return;
+  end if;
+
+  select r.run_id,s.stage_id,s.stage_code,r.target_revision
+  into v_run_id,v_stage_id,v_stage_code,v_target_revision
+  from public.proc_snapshot_refresh_run r
+  join public.proc_snapshot_refresh_run_stage s on s.run_id=r.run_id
+  where r.refresh_name='procurement_execution_snapshots'
+    and r.status in ('PENDING','RUNNING') and s.status='PENDING'
+  order by r.requested_at asc,s.stage_no asc limit 1;
+
+  if v_stage_id is null then
+    perform pg_advisory_unlock(hashtext('procurement_snapshot_refresh_stage_processor'));
+    return query select null::bigint,null::text,'NO_PENDING_STAGE'::text,'IDLE'::text,null::integer,
+      'No pending procurement snapshot refresh stage found.'::text;
+    return;
+  end if;
+
+  update public.proc_snapshot_refresh_run
+  set status='RUNNING',started_at=coalesce(started_at,now()),message=format('Refresh is running for revision %s.',v_target_revision)
+  where proc_snapshot_refresh_run.run_id=v_run_id;
+  update public.proc_snapshot_refresh_run_stage
+  set status='RUNNING',started_at=now(),message='Running'
+  where proc_snapshot_refresh_run_stage.stage_id=v_stage_id;
+
+  begin
+    if v_stage_code='01_VENDOR_CANDIDATES' then
+      select r.refreshed_count into v_count from public.proc_build_vendor_candidate_generation_internal(v_run_id) r;
+      truncate table public.proc_vendor_item_candidate_snapshot;
+      insert into public.proc_vendor_item_candidate_snapshot(material_class_id,stock_item_id,vendor_id,rate_value,evidence,source_summary,refreshed_at)
+      select g.material_class_id,g.stock_item_id,g.vendor_id,g.rate_value,g.evidence,g.source_summary,g.refreshed_at
+      from public.proc_vendor_item_candidate_generation g where g.run_id=v_run_id;
+
+    elsif v_stage_code='02_INDENT_BALANCES' then
+      select r.refreshed_count into v_count from public.proc_build_indent_balance_generation_internal(v_run_id) r;
+      truncate table public.proc_indent_line_balance_snapshot;
+      insert into public.proc_indent_line_balance_snapshot(indent_line_id,indent_id,material_class_id,stock_item_id,remaining_qty,refreshed_at)
+      select g.indent_line_id,g.indent_id,g.material_class_id,g.stock_item_id,g.remaining_qty,g.refreshed_at
+      from public.proc_indent_line_balance_generation g where g.run_id=v_run_id;
+
+    elsif v_stage_code='03_PRIORITY_SNAPSHOT' then
+      select r.refreshed_count into v_count from public.proc_build_indent_priority_generation_internal(v_run_id) r;
+      truncate table public.proc_indent_line_priority_snapshot;
+      insert into public.proc_indent_line_priority_snapshot(
+        indent_line_id,indent_id,indent_number,approved_date,material_class_id,material_class_code,material_class_label,
+        stock_item_id,stock_item_name,uom_id,uom_code,stock_qty,avg_monthly_6m,mos_months,missing_stock_record,missing_consumption_record,
+        criticality_class,criticality_reason,lead_time_days,urgency_band,urgency_score,urgency_reason,prod_pull_score,prod_pull_why,
+        net_excess_qty,aging_days,score_mos,score_lead_time,score_criticality,score_manual_urgency,score_prod_pull,score_aging,
+        penalty_oversupply,priority_score_system,priority_band_system,override_band,override_reason,overridden_at,overridden_by,
+        priority_band_final,priority_why,refreshed_at)
+      select g.indent_line_id,g.indent_id,g.indent_number,g.approved_date,g.material_class_id,g.material_class_code,g.material_class_label,
+        g.stock_item_id,g.stock_item_name,g.uom_id,g.uom_code,g.stock_qty,g.avg_monthly_6m,g.mos_months,g.missing_stock_record,g.missing_consumption_record,
+        g.criticality_class,g.criticality_reason,g.lead_time_days,g.urgency_band,g.urgency_score,g.urgency_reason,g.prod_pull_score,g.prod_pull_why,
+        g.net_excess_qty,g.aging_days,g.score_mos,g.score_lead_time,g.score_criticality,g.score_manual_urgency,g.score_prod_pull,g.score_aging,
+        g.penalty_oversupply,g.priority_score_system,g.priority_band_system,g.override_band,g.override_reason,g.overridden_at,g.overridden_by,
+        g.priority_band_final,g.priority_why,g.refreshed_at
+      from public.proc_indent_line_priority_generation g where g.run_id=v_run_id;
+
+    elsif v_stage_code='04_FINAL_STATUS_CHECK' then
+      select count(*)::integer into v_vendor_count from public.proc_vendor_item_candidate_generation g where g.run_id=v_run_id;
+      select count(*)::integer into v_balance_count from public.proc_indent_line_balance_generation g where g.run_id=v_run_id;
+      select count(*)::integer into v_priority_count from public.proc_indent_line_priority_generation g where g.run_id=v_run_id;
+
+      if v_vendor_count <> coalesce((select s.row_count from public.proc_snapshot_refresh_run_stage s where s.run_id=v_run_id and s.stage_code='01_VENDOR_CANDIDATES'),-1) then raise exception 'Vendor candidate generation count mismatch for run %',v_run_id; end if;
+      if v_balance_count <> coalesce((select s.row_count from public.proc_snapshot_refresh_run_stage s where s.run_id=v_run_id and s.stage_code='02_INDENT_BALANCES'),-1) then raise exception 'Indent balance generation count mismatch for run %',v_run_id; end if;
+      if v_priority_count <> coalesce((select s.row_count from public.proc_snapshot_refresh_run_stage s where s.run_id=v_run_id and s.stage_code='03_PRIORITY_SNAPSHOT'),-1) then raise exception 'Priority generation count mismatch for run %',v_run_id; end if;
+      if v_priority_count <> v_balance_count then raise exception 'Priority/balance same-run row count mismatch for run %: priority %, balance %',v_run_id,v_priority_count,v_balance_count; end if;
+      if (select count(*) from public.proc_vendor_item_candidate_snapshot)<>v_vendor_count
+         or (select count(*) from public.proc_indent_line_balance_snapshot)<>v_balance_count
+         or (select count(*) from public.proc_indent_line_priority_snapshot)<>v_priority_count then
+        raise exception 'Legacy compatibility snapshot mirror mismatch for run %',v_run_id;
+      end if;
+      v_count:=least(v_vendor_count,v_balance_count,v_priority_count);
+      v_message:=format('Generation integrity checked for run %s.',v_run_id);
+    else
+      raise exception 'Unknown refresh stage: %',v_stage_code;
+    end if;
+
+    update public.proc_snapshot_refresh_run_stage set status='SUCCESS',finished_at=now(),row_count=v_count,message=v_message
+    where proc_snapshot_refresh_run_stage.stage_id=v_stage_id;
+  exception when others then
+    update public.proc_snapshot_refresh_run_stage set status='FAILED',finished_at=now(),row_count=v_count,message=sqlerrm
+    where proc_snapshot_refresh_run_stage.stage_id=v_stage_id;
+    update public.proc_snapshot_refresh_run set status='FAILED',finished_at=now(),message=sqlerrm
+    where proc_snapshot_refresh_run.run_id=v_run_id;
+    perform pg_advisory_unlock(hashtext('procurement_snapshot_refresh_stage_processor'));
+    return query select v_run_id,v_stage_code,'FAILED'::text,'FAILED'::text,v_count,sqlerrm::text;
+    return;
+  end;
+
+  select count(*) into v_pending_count from public.proc_snapshot_refresh_run_stage s where s.run_id=v_run_id and s.status='PENDING';
+  select count(*) into v_failed_count from public.proc_snapshot_refresh_run_stage s where s.run_id=v_run_id and s.status='FAILED';
+
+  if v_failed_count>0 then
+    update public.proc_snapshot_refresh_run set status='FAILED',finished_at=now(),message='One or more refresh stages failed.' where proc_snapshot_refresh_run.run_id=v_run_id;
+  elsif v_pending_count=0 then
+    update public.proc_snapshot_refresh_run
+    set status='SUCCESS',finished_at=now(),message=format('Procurement snapshot refresh completed through revision %s.',v_target_revision)
+    where proc_snapshot_refresh_run.run_id=v_run_id;
+
+    insert into public.proc_snapshot_refresh_log(refresh_name,started_at,finished_at,success,vendor_candidate_count,indent_balance_count,priority_count,message)
+    select 'procurement_execution_snapshots',r.started_at,r.finished_at,true,
+      max(s.row_count) filter(where s.stage_code='01_VENDOR_CANDIDATES'),max(s.row_count) filter(where s.stage_code='02_INDENT_BALANCES'),
+      max(s.row_count) filter(where s.stage_code='03_PRIORITY_SNAPSHOT'),format('OK; generation-staged refresh completed through revision %s',v_target_revision)
+    from public.proc_snapshot_refresh_run r join public.proc_snapshot_refresh_run_stage s on s.run_id=r.run_id
+    where r.run_id=v_run_id group by r.started_at,r.finished_at;
+
+    perform pg_advisory_xact_lock(hashtext('procurement_snapshot_refresh_request'));
+    update public.proc_snapshot_refresh_control c set completed_revision=greatest(c.completed_revision,v_target_revision),updated_at=now()
+    where c.refresh_name='procurement_execution_snapshots';
+    select c.requested_revision,c.completed_revision,c.last_request_source,c.last_requested_by
+    into v_requested_revision,v_completed_revision,v_follow_up_source,v_follow_up_by
+    from public.proc_snapshot_refresh_control c where c.refresh_name='procurement_execution_snapshots' for update;
+    if v_requested_revision>v_completed_revision then
+      v_follow_up_run_id:=public.proc_create_snapshot_refresh_run_internal(v_requested_revision,coalesce(v_follow_up_source,'follow_up'),v_follow_up_by);
+    end if;
+  else
+    update public.proc_snapshot_refresh_run set status='RUNNING',message=format('Refresh is running for revision %s.',v_target_revision)
+    where proc_snapshot_refresh_run.run_id=v_run_id;
+  end if;
+
+  perform pg_advisory_unlock(hashtext('procurement_snapshot_refresh_stage_processor'));
+  return query select v_run_id,v_stage_code,'SUCCESS'::text,
+    (select r.status from public.proc_snapshot_refresh_run r where r.run_id=v_run_id),v_count,
+    case when v_follow_up_run_id is not null then format('%s Follow-up refresh run %s queued for newer revision %s.',v_message,v_follow_up_run_id,v_requested_revision) else v_message end;
+end;
+$$;

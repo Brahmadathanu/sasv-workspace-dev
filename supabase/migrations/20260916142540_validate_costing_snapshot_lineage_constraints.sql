@@ -1,0 +1,4 @@
+-- backfilled from live schema_migrations on 2026-10-24, CI-016
+alter table costing.costing_control_integrity_audit_snapshot validate constraint control_integrity_audit_context_pair_chk;
+alter table costing.costing_review_action_item_drilldown_snapshot validate constraint review_drilldown_exact_lineage_chk;
+alter table costing.material_costing_action_drilldown_snapshot validate constraint material_action_drilldown_exact_lineage_chk;
