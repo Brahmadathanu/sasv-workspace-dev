@@ -1,7 +1,7 @@
 # AU-7 full-range price proposal from APPROVED run 122 (v1, 2026-10-16)
 Source: server snapshots of run 122 only (control status, manufacturing COP, pricing bridge OK cost, selling-price bridge). Valuation date 10-Sep-2026, LOCKED. Run designation APPROVED. No Sheet edits, no live writes.
 Rule (unchanged from A7): min MRP = OK commercial cost / (0.5·(1−contingency)/(1+GST) − 0.07); proposed OK MRP = ceil5(max(current OK MRP, min)). This is a proposal only, not an approved price.
-Files: evidence/AU7/AU7_price_proposal_run122.{csv,xlsx}, AU7_SUMMARY.json, build.py (reproducible from the two read-only extracts).
+Files: evidence/AU7/AU7_price_proposal_run122.{csv,xlsx}, AU7_SUMMARY.json, build.py (helper/log kept on costing/au4-normal-budget at bc450c8) (reproducible from the two read-only extracts).
 
 ## Coverage
 634/634 active SKUs; every SKU has a current MRP policy. Per SKU: run id, valuation date/status, cost build-up, rate lineage (manual/review/stale/fallback line counts, volume basis), MRP/selling-policy ids, control status, flags, recommendation.
