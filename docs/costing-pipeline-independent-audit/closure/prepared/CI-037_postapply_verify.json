@@ -1,0 +1,96 @@
+{
+ "mig": [
+  "20261024171314 ci037_profit_chain_v3"
+ ],
+ "legacy": [
+  {
+   "refresh_run_id": 119,
+   "n": 635,
+   "m": "0dc018baf0608a2641f8b7f32ba92061"
+  },
+  {
+   "refresh_run_id": 122,
+   "n": 634,
+   "m": "73ff42395fbe847648d2602c55a8d445"
+  },
+  {
+   "refresh_run_id": 128,
+   "n": 627,
+   "m": "c678794ce52f3775b1ce6514352e47e4"
+  },
+  {
+   "refresh_run_id": 136,
+   "n": 627,
+   "m": "69212699fde6488605314db8f7227272"
+  },
+  {
+   "refresh_run_id": 140,
+   "n": 627,
+   "m": "a87870b950e2b97e8811dc51f02a154e"
+  },
+  {
+   "refresh_run_id": 143,
+   "n": 627,
+   "m": "847226bb71b78b468cf31efc0a6b64d2"
+  }
+ ],
+ "pb_ncols": 48,
+ "guards": [
+  "trg_au2_designated_run_guard O",
+  "trg_au2_snapshot_truncate_guard O"
+ ],
+ "ci037_rows_designated": 0,
+ "ci037_rows_total": 0,
+ "feed": [
+  {
+   "refresh_run_id": 143,
+   "count": 627,
+   "filled": 0
+  }
+ ],
+ "ncols": 79,
+ "first64_md5": "28a5c6372fa44aa75e3887c2c848191a",
+ "meta": {
+  "owner": "postgres",
+  "relacl": null,
+  "reloptions": null
+ },
+ "privs": {
+  "anon": false,
+  "authenticated": false,
+  "service_role": false,
+  "postgres": true
+ },
+ "comments": "cd25d82a989734a22223eb8a327086c7 n=22",
+ "hook": "1 true",
+ "policy": [
+  {
+   "id": 1,
+   "rate_percent": 2,
+   "basis": "POST_DISCOUNT_EX_GST_SELLING_PRICE",
+   "effective_from": "2026-06-01",
+   "effective_to": null,
+   "status": "APPROVED",
+   "approved_by": "Dr. Brahmadathan U",
+   "approval_reference": "CI-037 owner policy 24-Oct-2026: 2% of post-discount, GST-exclusive selling price"
+  }
+ ],
+ "new_privs": {
+  "anon": false,
+  "authenticated": false,
+  "service_role": false
+ },
+ "rls": [
+  "costing_contingency_rate_policy=true",
+  "sku_pricing_bridge_profit_snapshot=true"
+ ],
+ "helper_exec": {
+  "anon": false,
+  "authenticated": false,
+  "service_role": false
+ },
+ "legacy_comments": {
+  "ik_margin_amount_before_scheme": "Legacy MRP-based cost difference — not profit",
+  "ok_margin_amount_before_scheme": "Legacy MRP-based cost difference — not profit"
+ }
+}

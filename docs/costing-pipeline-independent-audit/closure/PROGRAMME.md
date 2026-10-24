@@ -6,7 +6,7 @@
 | G0 | DONE | 19 Oct baseline |
 | G1 | VERIFIED | 19 Oct reconciliation |
 | G2 | CLOSED for current release (owner, 21 Oct) | `G2_BOUNDED_RELEASE_CLOSURE_2026-10-21.md`; route-repetition attestation SQL still HELD as a future safeguard |
-| G3 | Policies ACCEPTED 19 Oct; whether the DVS-1 switch is on was not checked live (UNVERIFIED) | `G3_POLICY_DECISION_SHEET.md`, `LB1_DVS1_LIVE_APPLY_2026-10-19.md` |
+| G3 | Policies ACCEPTED 19 Oct. **DVS-1 is not active**: policy DVS-1 v1 is DRAFT, effective from 2026-11-01, with 0 approved versions, and run 143 has 0 DVS-1 snapshot rows. Run 143 used the existing sales-feed rule (switch ON from 2026-10-01; seasonal threshold 60% top-3 share): 468 SKUs max month in 12m, 101 seasonal 12-month average, 57 governed default, 1 new-product plan. Open data items CI-029/CI-030 | live read 24 Oct 18:10 IST |
 | G4 | W2 lifecycle LIVE; owner refresh authorisation and supersession working (auth #10 → run 143); cron 66/67/68 active; zero-unresolved-review approval guard live (21 Oct) | live read 24 Oct |
 | G5 | UNVERIFIED: approved cost-waterfall export is now `costing.v_price_revision_current_approved_master` (contract v2); no formal G5 acceptance doc found | — |
 | G6 | CLOSED 21 Oct (run 136). Current approved run 143: 627 READY / 0 review | live read 24 Oct |

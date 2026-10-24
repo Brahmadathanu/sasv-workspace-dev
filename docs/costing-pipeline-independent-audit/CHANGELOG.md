@@ -9,7 +9,7 @@
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
 ## 2026-10-24 15:50: Docs cleanup (docs only, read-only checks)
-- Added CURRENT_STATE.md (single entry point) and contracts/PRICE_REVISION_FEED_CONTRACT_v2.md for `costing.v_price_revision_current_approved_master` (627 rows, 65 cols). v1 marked superseded.
+- Added CURRENT_STATE.md (single entry point) and contracts/PRICE_REVISION_FEED_CONTRACT_v2.md for `costing.v_price_revision_current_approved_master` (627 rows, 64 cols). v1 marked superseded.
 - Recorded live state: run 143 is October's approved run (24 Oct 13:46 IST, superseded run 140 via owner authorisation #10; Mathalam (F) at ₹118/kg); October OPEN, 22 Oct valuation DRAFT; approved feed `costing.v_price_revision_current_approved_master` (old public feed view gone); cron 66/67/68 active, 60/61 gone.
 - Status banners refreshed (PROGRAMME, ISSUE_REGISTER CI-023/CI-024, cron replacement note, price-revision charter). Superseded banners on old handovers/checkpoints; unlinked _SHORT handover twins removed.
 

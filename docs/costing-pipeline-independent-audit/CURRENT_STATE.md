@@ -8,11 +8,13 @@
 | October 2026 period | OPEN; valuation date 22 Oct 2026, DRAFT |
 | October approved run | **Run 143**, approved 24 Oct 2026 13:46 IST (approved_by `CHAT_AUTHORISED_BACKEND_ADMIN`); run finished 12:50 IST. Screen label: "Approved run 143". No newer draft run or active run |
 | How 143 replaced 140 | Owner refresh authorisation **#10** (Dr. Brahmadathan U, 24 Oct 12:45 IST), used by run 143. Reason: the Mathalam (F) manual rate (ID 18, ₹240/kg) was closed on 24 Oct, so the current purchase rate of ₹118/kg (dated 4 Aug 2026) applies. Run 140 (authorisation #9, 22 Oct) is history only |
-| Approved price data source | `costing.v_price_revision_current_approved_master`: 627 rows, 65 columns. See [contracts/PRICE_REVISION_FEED_CONTRACT_v2.md](contracts/PRICE_REVISION_FEED_CONTRACT_v2.md) |
+| Approved price data source | `costing.v_price_revision_current_approved_master`: 627 rows, 64 columns. See [contracts/PRICE_REVISION_FEED_CONTRACT_v2.md](contracts/PRICE_REVISION_FEED_CONTRACT_v2.md) |
 | Run 143 quality | 627/627 SKUs READY (0 REVIEW_REQUIRED, 0 BLOCKED); 6 SKUs have negative margin before scheme in both IK and OK; no null margins (read-only, 24 Oct 2026 16:00 IST) |
 | Price-revision Sheets | Show run 143 (confirmed by owner, 24 Oct 2026) |
 | CI-033 security fix | Applied 24 Oct 16:47 IST (migration 20261024111733): logged-in users can no longer read `costing.v_cost_pool_monthly_combined` directly; the cost-pool summary screen is unchanged (53 rows, same checksum). Manual screen check with and without costing permission is still pending (owner). See `closure/CI-033_LIVE_APPLY_2026-10-24.md` (record merged via PR #83) |
 | CI-016 migration records | 492 live migrations backfilled (PRs #81 and #82 merged). Live 638 reconciled; 59 e-Aushadhi/WP07/regulatory versions remain with Jarvis. See `closure/CI-016_BACKFILL_2026-10-24.md` |
+| Demand method (G3) | DVS-1 not active (DRAFT, effective 1 Nov 2026, not approved). Run 143 used the 60% seasonal rule / max-month method |
+| Open costing items (24 Oct) | Data: CI-011 (74 machines without capacity), CI-029 (605 SKUs with at least one stale/fallback/manual rate line), CI-030 (11 high-loss products). CI-028 closed (owner). CI-031 rename prepared, pending apply. Decision: CI-037 (before-scheme margin is measured on GST-inclusive MRP; profit chain APPLIED 24 Oct (migration 20261024171314), verified; first data waits for an authorised run (October supersession authorisation or November)). Pricing: CI-036 (6 negative-margin SKUs). Closed: CI-035 (run 131 ₹85.89, historical) |
 | Old feed | `public.v_costing_pricing_price_revision_feed_approved` is gone (retired 22 Oct; see `docs/price-revision-proposal/STEP131_*`) |
 | Cron | Active: 66 `costing_weekly_draft_0200_IST` (Mon 02:00 IST), 67 `costing_monthend_draft_0200_IST` (1st of month, 02:00 IST), 68 `costing_stage_processor_5min_governed`. Jobs 60 and 61 no longer exist |
 

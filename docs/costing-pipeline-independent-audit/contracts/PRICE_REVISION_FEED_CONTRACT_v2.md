@@ -8,7 +8,7 @@
 - Grants (information_schema): `postgres` only. No `anon`/`authenticated`/`service_role` table grant is listed, so access is server-side/owner. Whether Sheets uses another route to read it is **unverified**.
 - Column meanings are stored as view column comments (STEP133).
 
-## Columns (65, in order)
+## Columns (64, in order — corrected 24 Oct 2026; earlier text said 65)
 refresh_run_id, period_start, valuation_date, sku_id, product_id, item, pack_size, pack_uom, product_group_id, product_group, product_subgroup_id, product_subgroup,
 rm_cost_per_sku, pm_cost_per_sku, material_cost_per_sku, direct_labour_cost_per_sku, internal_material_conversion_cost_per_sku, prime_cost_per_sku,
 production_overhead_cost_per_sku, quality_control_overhead_cost_per_sku, materials_stores_overhead_cost_per_sku, manufacturing_cop_per_sku,
