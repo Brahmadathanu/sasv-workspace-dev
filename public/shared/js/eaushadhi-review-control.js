@@ -196,7 +196,6 @@ import {
   normalizeWorklistRow,
   placeTechnicalDrawer,
   setActionState,
-  showingLabel,
   signedInRoleLabel,
   worklistClassOptions,
   worklistFamilyChoices,
@@ -8171,8 +8170,6 @@ function renderWorklist({ resetChunk = false, restoreScroll = false } = {}) {
   }
   if (state.worklistRenderedCount > filtered.length) state.worklistRenderedCount = filtered.length;
   const visible = visibleQueueRows(filtered, state.worklistRenderedCount);
-  const count = $("worklistCount");
-  if (count) count.textContent = showingLabel(visible.length, filtered.length);
   const body = $("worklistBody");
   if (!body) return;
   const template = document.createElement("template");
@@ -8212,10 +8209,71 @@ function appendWorklistChunk({ force = false } = {}) {
   while (built?.firstChild) fragment.append(built.firstChild);
   body.append(fragment);
   state.worklistRenderedCount = next;
-  const count = $("worklistCount");
-  if (count) count.textContent = showingLabel(Math.min(next, filtered.length), filtered.length);
   applyWorklistRoving();
   return true;
+}
+
+function placeWorklistFilterPopover() {
+  const drawer = $("worklistFilterDrawer");
+  const button = $("worklistFilterBtn");
+  if (!drawer || !button) return;
+  const rect = button.getBoundingClientRect();
+  const margin = 8;
+  const width = Math.min(320, window.innerWidth - margin * 2);
+  let left = rect.left;
+  if (left + width > window.innerWidth - margin) left = window.innerWidth - margin - width;
+  if (left < margin) left = margin;
+  let top = rect.bottom + 6;
+  drawer.style.width = `${Math.round(width)}px`;
+  drawer.style.left = `${Math.round(left)}px`;
+  drawer.style.top = `${Math.round(top)}px`;
+  const height = drawer.getBoundingClientRect().height;
+  if (top + height > window.innerHeight - margin && rect.top - 6 - height >= margin) {
+    drawer.style.top = `${Math.round(rect.top - 6 - height)}px`;
+  }
+}
+
+function setWorklistFiltersOpen(open) {
+  const drawer = $("worklistFilterDrawer");
+  const button = $("worklistFilterBtn");
+  const home = $("worklistHome");
+  if (!drawer || !button) return;
+  if (setWorklistFiltersOpen.onKey) {
+    document.removeEventListener("keydown", setWorklistFiltersOpen.onKey, true);
+    setWorklistFiltersOpen.onKey = null;
+  }
+  if (setWorklistFiltersOpen.onPointer) {
+    document.removeEventListener("pointerdown", setWorklistFiltersOpen.onPointer, true);
+    setWorklistFiltersOpen.onPointer = null;
+  }
+  drawer.hidden = !open;
+  button.setAttribute("aria-expanded", open ? "true" : "false");
+  if (!open) {
+    drawer.style.top = "";
+    drawer.style.left = "";
+    drawer.style.width = "";
+    const table = $("worklistTableWrap");
+    if (home && table && drawer.parentElement !== home) home.insertBefore(drawer, table);
+    return;
+  }
+  document.body.append(drawer);
+  placeWorklistFilterPopover();
+  const onKey = (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    setWorklistFiltersOpen(false);
+    button.focus();
+  };
+  const onPointer = (event) => {
+    if (drawer.contains(event.target) || button.contains(event.target)) return;
+    setWorklistFiltersOpen(false);
+  };
+  setWorklistFiltersOpen.onKey = onKey;
+  setWorklistFiltersOpen.onPointer = onPointer;
+  document.addEventListener("keydown", onKey, true);
+  document.addEventListener("pointerdown", onPointer, true);
+  drawer.querySelector(".worklist-filter-panel")?.focus();
 }
 
 function closeWorklistModal({ restoreFocus = true } = {}) {
@@ -8251,7 +8309,12 @@ function openWorklistModal(productId) {
   const title = document.createElement("h2");
   title.id = "worklistModalTitle";
   title.className = "sasv-modal__title";
-  title.textContent = row.product_name || "Product";
+  const name = document.createElement("span");
+  name.textContent = row.product_name || "Product";
+  const id = document.createElement("span");
+  id.className = "worklist-modal-id muted-note";
+  id.textContent = row.product_id == null ? "" : String(row.product_id);
+  title.append(name, id);
   header.append(title);
   const body = document.createElement("div");
   body.className = "sasv-modal__body";
@@ -8263,17 +8326,12 @@ function openWorklistModal(productId) {
   closeBtn.id = "worklistModalClose";
   closeBtn.className = "icon-btn with-label";
   closeBtn.textContent = "Close";
-  const openBtn = document.createElement("button");
-  openBtn.type = "button";
-  openBtn.id = "worklistModalOpen";
-  openBtn.className = "icon-btn with-label";
-  openBtn.textContent = "Open product";
   const primary = document.createElement("button");
   primary.type = "button";
   primary.id = "worklistModalPrimary";
   primary.className = "icon-btn with-label primary";
   primary.textContent = row.next_action || "View";
-  footer.append(closeBtn, openBtn, primary);
+  footer.append(closeBtn, primary);
   dialog.append(header, body, footer);
   backdrop.append(dialog);
   document.body.append(backdrop);
@@ -8284,19 +8342,10 @@ function openWorklistModal(productId) {
     if (event.target === backdrop) close();
   });
   closeBtn.addEventListener("click", close);
-  openBtn.addEventListener("click", () => {
-    closeWorklistModal({ restoreFocus: false });
-    void openWorklistProduct(row.product_id, "overview").catch(toastError);
-  });
   primary.addEventListener("click", () => {
     if (primary.disabled) return;
     closeWorklistModal({ restoreFocus: false });
     void openWorklistProduct(row.product_id, stage).catch(toastError);
-  });
-  const tech = $("worklistModalTech");
-  tech?.addEventListener("click", () => {
-    closeWorklistModal({ restoreFocus: false });
-    void openWorklistProduct(row.product_id, "overview").catch(toastError);
   });
   const onKey = (event) => {
     if (event.key === "Escape") {
@@ -10261,18 +10310,17 @@ function wireEvents() {
   });
   $("worklistFilterBtn")?.addEventListener("click", () => {
     const drawer = $("worklistFilterDrawer");
-    const button = $("worklistFilterBtn");
-    if (!drawer || !button) return;
-    drawer.hidden = !drawer.hidden;
-    button.setAttribute("aria-expanded", drawer.hidden ? "false" : "true");
+    if (!drawer) return;
+    setWorklistFiltersOpen(drawer.hidden);
+  });
+  $("worklistFilterDrawer")?.addEventListener("click", (event) => {
+    if (event.target === $("worklistFilterDrawer")) setWorklistFiltersOpen(false);
   });
   $("worklistFilterApply")?.addEventListener("click", () => {
     state.worklistFamily = $("worklistFamily")?.value || "all";
     state.worklistClass = $("worklistClass")?.value || "all";
     state.worklistBlocked = $("worklistBlocked")?.checked === true;
-    const drawer = $("worklistFilterDrawer");
-    if (drawer) drawer.hidden = true;
-    $("worklistFilterBtn")?.setAttribute("aria-expanded", "false");
+    setWorklistFiltersOpen(false);
     renderWorklist({ resetChunk: true });
   });
   $("worklistFilterClear")?.addEventListener("click", () => {

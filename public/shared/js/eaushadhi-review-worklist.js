@@ -38,14 +38,18 @@ const STATUS_PHRASE = {
   NO_DATA: "no data",
 };
 
-const STATUS_CLASS = {
-  DONE: "worklist-dot is-done",
-  IN_REVIEW: "worklist-dot is-review",
-  TODO: "worklist-dot is-todo",
-  NOT_STARTED: "worklist-dot is-todo",
-  NEEDS_FIX: "worklist-dot is-fix",
-  NO_DATA: "worklist-dot is-empty",
+const STATUS_TONE = {
+  DONE: "is-done",
+  IN_REVIEW: "is-review",
+  TODO: "is-todo",
+  NOT_STARTED: "is-todo",
+  NEEDS_FIX: "is-fix",
+  NO_DATA: "is-empty",
 };
+
+function stageTone(status) {
+  return STATUS_TONE[String(status || "NOT_STARTED")] || "is-todo";
+}
 
 export const REASONS = {
   approver: "Needs an approver. Ask an approver to do this step.",
@@ -249,7 +253,7 @@ export function progressDotsHtml(row) {
   return STAGE_DOTS.map(([key, label]) => {
     const status = String(row?.[key] || "NOT_STARTED");
     const phrase = STATUS_PHRASE[status] || status.toLowerCase();
-    const cls = STATUS_CLASS[status] || "worklist-dot is-todo";
+    const cls = `worklist-dot ${stageTone(status)}`;
     return `<span class="${cls}" title="${escapeHtml(`${label}: ${phrase}`)}"></span>`;
   }).join("");
 }
@@ -269,7 +273,8 @@ export function worklistRowHtml(row) {
   const reason = row?.blocking_reason ? String(row.blocking_reason) : "Nothing blocking";
   const stage = escapeHtml(workspaceTabForStage(row?.next_stage));
   return `<tr class="queue-row" data-product-id="${escapeHtml(row?.product_id)}" data-next-stage="${stage}" tabindex="-1" title="${escapeHtml(reason)}">
-    <td class="cell-product"><span class="worklist-name">${name}</span> <span class="worklist-id muted-note"> · ${escapeHtml(row?.product_id)}</span></td>
+    <td class="num-cell worklist-id-cell">${escapeHtml(row?.product_id)}</td>
+    <td class="cell-product"><span class="worklist-name">${name}</span></td>
     <td>${family}</td>
     <td><span class="worklist-dots">${progressDotsHtml(row)}</span></td>
     <td class="worklist-next">${action}</td>
@@ -277,18 +282,16 @@ export function worklistRowHtml(row) {
   </tr>`;
 }
 
-const CHIP_CLASS = {
-  DONE: "is-done",
-  IN_REVIEW: "is-review",
-  NEEDS_FIX: "is-fix",
-};
-
 export function stageChipsHtml(row) {
   return STAGE_DOTS.map(([key, label]) => {
     const status = String(row?.[key] || "NOT_STARTED");
-    const cls = CHIP_CLASS[status] || "is-todo";
-    return `<span class="worklist-chip ${cls}">${escapeHtml(label)}</span>`;
+    const phrase = STATUS_PHRASE[status] || status.toLowerCase();
+    return `<span class="worklist-chip ${stageTone(status)}" title="${escapeHtml(`${label}: ${phrase}`)}">${escapeHtml(label)}</span>`;
   }).join("");
+}
+
+function queueLabel(queue) {
+  return WORKLIST_QUEUES.find((item) => item.id === queue)?.label || queue || "";
 }
 
 export function whoCanActText(roles) {
@@ -319,19 +322,37 @@ export function nextActionDecision(row, roles) {
   });
 }
 
+function worklistTechHtml(row) {
+  const changedBy = row?.last_changed_by ? String(row.last_changed_by) : "Not recorded";
+  const stage = workspaceTabForStage(row?.next_stage);
+  return `<details id="worklistModalTech" class="worklist-tech">
+    <summary>Technical details</summary>
+    <div class="ea-change-item"><dl>
+      <div class="ea-change-pair"><dt>Changed by</dt><dd>${escapeHtml(changedBy)}</dd></div>
+      <div class="ea-change-pair"><dt>Next stage</dt><dd>${escapeHtml(stage)}</dd></div>
+    </dl></div>
+  </details>`;
+}
+
 export function worklistModalHtml(row, roles) {
   const why = row?.blocking_reason ? String(row.blocking_reason) : "Nothing blocking";
-  const tech = roles?.is_approver === true
-    ? `<p><button type="button" id="worklistModalTech">Technical details</button></p>`
-    : "";
-  return `<p><strong>${escapeHtml(row?.product_name || "")}</strong> <span class="muted-note">${escapeHtml(row?.product_id)}</span></p>
-    <p>${escapeHtml(row?.family || "Unassigned")} · ${escapeHtml(row?.medicine_class || "No class")} · ${escapeHtml(row?.queue || "")}</p>
-    <p class="worklist-chips">${stageChipsHtml(row)}</p>
-    <p>Composition verified ${escapeHtml(row?.composition_verified ?? 0)}/${escapeHtml(row?.composition_lines ?? 0)}. Open issues ${escapeHtml(row?.open_issues ?? 0)}. TG links ${escapeHtml(row?.therapeutic_links ?? 0)}.</p>
-    <p>Why it is here: ${escapeHtml(why)}</p>
-    <p>Who can act: ${escapeHtml(whoCanActText(roles))}</p>
-    <p>Last change: ${escapeHtml(formatIstDate(row?.last_changed_at))}</p>
-    ${tech}`;
+  const tech = roles?.is_approver === true ? worklistTechHtml(row) : "";
+  const quiet = why === "Nothing blocking" ? " is-quiet" : "";
+  return `<div class="worklist-modal">
+    <p class="worklist-modal-meta muted-note">${escapeHtml(row?.family || "Unassigned")} · ${escapeHtml(row?.medicine_class || "No class")} · ${escapeHtml(queueLabel(row?.queue))}</p>
+    <div class="worklist-chip-row" aria-label="Progress">${stageChipsHtml(row)}</div>
+    <dl class="worklist-stats">
+      <div><dt>Composition verified</dt><dd>${escapeHtml(row?.composition_verified ?? 0)}/${escapeHtml(row?.composition_lines ?? 0)}</dd></div>
+      <div><dt>Open issues</dt><dd>${escapeHtml(row?.open_issues ?? 0)}</dd></div>
+      <div><dt>TG links</dt><dd>${escapeHtml(row?.therapeutic_links ?? 0)}</dd></div>
+    </dl>
+    <div class="worklist-copy">
+      <section class="worklist-callout${quiet}"><h3>Why it is here</h3><p>${escapeHtml(why)}</p></section>
+      <section class="worklist-note"><h3>Who can act</h3><p>${escapeHtml(whoCanActText(roles))}</p></section>
+    </div>
+    <p class="muted-note worklist-updated">Last change ${escapeHtml(formatIstDate(row?.last_changed_at) || "not recorded")}</p>
+    ${tech}
+  </div>`;
 }
 
 export function worklistTableHtml(rows) {

@@ -82,6 +82,7 @@ check((doneDots.match(/is-done/g) || []).length === 8 && !doneDots.includes("is-
 
 const portalRow = worklistRowHtml(rawRows.find((row) => row.product_id === 15));
 check(portalRow.includes('data-next-stage="qc"') && portalRow.includes(">Fill portal<") && !portalRow.includes("<button"), "portal next step is plain text for the QC tab");
+check(portalRow.indexOf(">15<") >= 0 && portalRow.indexOf(">15<") < portalRow.indexOf("Epsilon") && !portalRow.includes(" · "), "id is its own column before the product name");
 const doneRow = worklistRowHtml(done[0]);
 check(doneRow.includes(">View<") && doneRow.includes('data-next-stage="overview"') && doneRow.includes('class="queue-row"'), "Done row reads View on one queue row");
 check(workspaceTabForStage("portal") === "qc" && workspaceTabForStage("evidence") === "evidence", "stage mapping");
@@ -334,17 +335,28 @@ check(control.includes("openWorklistModal(row.dataset.productId)") && control.in
 check(control.includes("primary.textContent = row.next_action || \"View\"") && control.includes('if (event.key === "Escape")'), "modal primary label is next_action and Escape closes");
 const modal = worklistModalHtml(rawRows[3], { is_verifier: true, is_approver: false });
 check(modal.includes("Why it is here") && modal.includes("Approve details") === false && !modal.includes("worklistModalTech"), "modal keeps the reason and hides technical details from a verifier");
-check(worklistModalHtml(rawRows[3], { is_approver: true }).includes("worklistModalTech"), "technical details link is present for an approver");
+const approverModal = worklistModalHtml(rawRows[3], { is_approver: true });
+check(approverModal.includes('<details id="worklistModalTech"') && !approverModal.includes("<button") && !control.includes("worklistModalOpen") && !control.includes("worklistCount"), "technical details stay inside the row window and the extra openers and count are gone");
 check(nextActionDecision(rawRows[3], { is_approver: false }).reason === REASONS.approver, "approve next step stays disabled without an approver");
 check(whoCanActText({ is_verifier: true, is_approver: true }).includes("different person"), "four-eyes note is in who can act");
 const home = html.slice(html.indexOf('id="worklistHome"'), html.indexOf('id="legacyQueueControls"'));
 const toolbar = home.slice(home.indexOf("worklist-toolbar"), home.indexOf('id="worklistFilterDrawer"'));
-check(toolbar.indexOf('id="worklistFilterBtn"') >= 0 && toolbar.indexOf('id="worklistFilterBtn"') < toolbar.indexOf('id="worklistSearch"'), "filter button is left of search");
+const card = toolbar.slice(toolbar.indexOf("worklist-search-card"));
+check(card.indexOf('id="worklistFilterBtn"') >= 0 && card.indexOf('id="worklistFilterBtn"') < card.indexOf('id="worklistSearch"'), "filter button sits inside the search card, left of search");
 check(toolbar.includes('aria-label="Filters"') && !/>\s*Filters\s*</.test(toolbar) && !toolbar.includes("worklistFamily"), "filter button is icon-only and Family is not on the home row");
 check(home.includes('id="worklistFamily"') && home.includes('id="worklistClass"') && home.includes("Only blocked"), "drawer has Family, Medicine class, and Only blocked");
+const emptyRow = rawRows.find((row) => row.product_id === 13);
+const emptyDots = progressDotsHtml(emptyRow);
+const emptyModal = worklistModalHtml(emptyRow, { is_approver: false });
+check((emptyDots.match(/is-empty/g) || []).length === 8, "no-data dots stay hollow");
+check((emptyModal.match(/worklist-chip is-empty/g) || []).length === 8 && !emptyModal.includes("worklist-dot") && !emptyModal.includes("is-todo") && emptyModal.includes("worklist-modal-meta"), "modal pills carry the hollow colour and the family line is quiet text");
+const portalModal = worklistModalHtml(rawRows.find((row) => row.product_id === 15), { is_approver: false });
+check((portalModal.match(/worklist-chip is-done/g) || []).length === 7 && (portalModal.match(/worklist-chip is-todo/g) || []).length === 1, "modal pills match green and grey");
+check(queueCss.includes(".worklist-chip-row") && queueCss.includes("flex-wrap: nowrap"), "eight status pills stay on one line");
 check(worklistFamilyChoices(many).some((choice) => choice.label === "Unassigned"), "Family choices include Unassigned");
 check(control.includes('$("worklistSearch")?.focus()'), "slash focuses the worklist search");
-check(queueCss.includes("white-space: nowrap") && queueCss.includes("height: 40px") && portalRow.includes(" · "), "rows are a single nowrap line");
+check(home.includes('class="worklist-filter-popover"') && control.includes("getBoundingClientRect"), "filter drawer opens beside the filter button");
+check(queueCss.includes("white-space: nowrap") && queueCss.includes("height: 40px") && queueCss.includes("vertical-align: middle") && queueCss.includes("#worklistTabs.review-nav") && queueCss.includes("overflow: visible") && queueCss.includes("border-bottom: 0"), "rows stay centered and the line above the tabs is gone");
 
 if (failed) {
   console.error(`UX-1 smoke failed ${failed}`);
