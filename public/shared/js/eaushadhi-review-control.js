@@ -192,12 +192,16 @@ import {
   actionDecision,
   decorateWorkspace,
   filterWorklistRows,
+  nextActionDecision,
   normalizeWorklistRow,
   placeTechnicalDrawer,
   setActionState,
   showingLabel,
   signedInRoleLabel,
-  worklistFamilies,
+  worklistClassOptions,
+  worklistFamilyChoices,
+  worklistFiltersActive,
+  worklistModalHtml,
   worklistRowHtml,
   worklistTabsHtml,
   workspaceTabForStage,
@@ -291,7 +295,12 @@ const state = {
   worklistError: false,
   worklistQueue: "TO_VERIFY",
   worklistFamily: "all",
+  worklistClass: "all",
+  worklistBlocked: false,
   worklistQuery: "",
+  worklistRenderedCount: 0,
+  worklistScrollTop: 0,
+  worklistFocusedId: null,
   tab: "overview",
   queueRow: null,
   review: null,
@@ -8055,34 +8064,252 @@ function rememberWorklistQueue(queue) {
 
 let worklistSearchTimer = 0;
 
-function renderWorklist() {
+function optionListHtml(choices, selected) {
+  return choices.map((choice) => {
+    const value = String(choice.value).replace(/"/g, "&quot;");
+    const label = String(choice.label).replace(/</g, "&lt;");
+    const on = choice.value === selected ? " selected" : "";
+    return `<option value="${value}"${on}>${label}</option>`;
+  }).join("");
+}
+
+function filteredWorklist() {
+  return filterWorklistRows(state.worklist || [], {
+    queue: state.worklistQueue,
+    family: state.worklistFamily,
+    medicineClass: state.worklistClass,
+    blockedOnly: state.worklistBlocked === true,
+    query: state.worklistQuery,
+  });
+}
+
+function syncWorklistFilterControls() {
+  const rows = state.worklist || [];
+  const family = $("worklistFamily");
+  if (family) {
+    family.innerHTML = optionListHtml(worklistFamilyChoices(rows), state.worklistFamily);
+    family.value = state.worklistFamily;
+  }
+  const klass = $("worklistClass");
+  if (klass) {
+    const choices = [
+      { value: "all", label: "All classes" },
+      ...worklistClassOptions(rows).map((name) => ({ value: name, label: name })),
+    ];
+    if (state.worklistClass !== "all" && !choices.some((choice) => choice.value === state.worklistClass)) {
+      state.worklistClass = "all";
+    }
+    klass.innerHTML = optionListHtml(choices, state.worklistClass);
+    klass.value = state.worklistClass;
+  }
+  const blocked = $("worklistBlocked");
+  if (blocked) blocked.checked = state.worklistBlocked === true;
+  const dot = $("worklistFilterDot");
+  if (dot) {
+    dot.hidden = !worklistFiltersActive({
+      family: state.worklistFamily,
+      medicineClass: state.worklistClass,
+      blockedOnly: state.worklistBlocked,
+    });
+  }
+  const clear = $("worklistSearchClear");
+  if (clear) clear.hidden = !safeText(state.worklistQuery);
+}
+
+function worklistRowEls() {
+  return Array.from(document.querySelectorAll("#worklistBody tr.queue-row[data-product-id]"));
+}
+
+function applyWorklistRoving() {
+  const rows = worklistRowEls();
+  if (!rows.length) return null;
+  const wanted = String(state.worklistFocusedId || "");
+  const active = rows.find((row) => String(row.dataset.productId) === wanted) || rows[0];
+  rows.forEach((row) => {
+    const on = row === active;
+    row.tabIndex = on ? 0 : -1;
+    row.classList.toggle("is-focused", on);
+  });
+  state.worklistFocusedId = active.dataset.productId;
+  return active;
+}
+
+function focusWorklistRow(productId) {
+  if (productId != null) state.worklistFocusedId = productId;
+  const active = applyWorklistRoving();
+  if (!active) return null;
+  active.focus();
+  active.scrollIntoView({ block: "nearest" });
+  return active;
+}
+
+function saveWorklistScroll() {
+  const wrap = $("worklistTableWrap");
+  if (wrap) state.worklistScrollTop = wrap.scrollTop;
+}
+
+function restoreWorklistScroll() {
+  const wrap = $("worklistTableWrap");
+  if (!wrap) return;
+  wrap.scrollTop = state.worklistScrollTop || 0;
+}
+
+function renderWorklist({ resetChunk = false, restoreScroll = false } = {}) {
   const rows = state.worklist || [];
   const tabs = $("worklistTabs");
   if (tabs) tabs.innerHTML = worklistTabsHtml(rows, state.worklistQueue);
-  const families = worklistFamilies(rows);
-  const select = $("worklistFamily");
-  if (select) {
-    const selected = families.includes(state.worklistFamily) ? state.worklistFamily : "all";
-    state.worklistFamily = selected;
-    select.innerHTML = `<option value="all">All families</option>${families.map((family) => `<option value="${String(family).replace(/"/g, "&quot;")}">${String(family).replace(/</g, "&lt;")}</option>`).join("")}`;
-    select.value = selected;
+  syncWorklistFilterControls();
+  const filtered = filteredWorklist();
+  if (resetChunk) {
+    state.worklistRenderedCount = resetQueueRenderCount(filtered.length);
+    state.worklistScrollTop = 0;
+    const wrap = $("worklistTableWrap");
+    if (wrap) wrap.scrollTop = 0;
   }
-  const inQueue = filterWorklistRows(rows, { queue: state.worklistQueue, family: "all", query: "" });
-  const shown = filterWorklistRows(rows, {
-    queue: state.worklistQueue,
-    family: state.worklistFamily,
-    query: state.worklistQuery,
-  });
+  if (state.worklistRenderedCount <= 0 && filtered.length) {
+    state.worklistRenderedCount = resetQueueRenderCount(filtered.length);
+  }
+  if (state.worklistRenderedCount > filtered.length) state.worklistRenderedCount = filtered.length;
+  const visible = visibleQueueRows(filtered, state.worklistRenderedCount);
   const count = $("worklistCount");
-  if (count) count.textContent = showingLabel(shown.length, inQueue.length);
+  if (count) count.textContent = showingLabel(visible.length, filtered.length);
   const body = $("worklistBody");
   if (!body) return;
   const template = document.createElement("template");
-  template.innerHTML = `<table><tbody>${shown.map((row) => worklistRowHtml(row)).join("")}</tbody></table>`;
+  template.innerHTML = `<table><tbody>${visible.map((row) => worklistRowHtml(row)).join("")}</tbody></table>`;
   const fragment = document.createDocumentFragment();
   const built = template.content.querySelector("tbody");
   while (built?.firstChild) fragment.append(built.firstChild);
   body.replaceChildren(fragment);
+  applyWorklistRoving();
+  if (restoreScroll) requestAnimationFrame(() => restoreWorklistScroll());
+}
+
+function appendWorklistChunk({ force = false } = {}) {
+  if (isProductMode()) return false;
+  const wrap = $("worklistTableWrap");
+  const body = $("worklistBody");
+  if (!wrap || !body) return false;
+  const filtered = filteredWorklist();
+  if (state.worklistRenderedCount >= filtered.length) return false;
+  if (
+    !force &&
+    !shouldAppendQueueChunk({
+      scrollTop: wrap.scrollTop,
+      clientHeight: wrap.clientHeight,
+      scrollHeight: wrap.scrollHeight,
+    })
+  ) {
+    return false;
+  }
+  const next = nextQueueRenderCount(state.worklistRenderedCount, filtered.length);
+  const extra = filtered.slice(state.worklistRenderedCount, next);
+  if (!extra.length) return false;
+  const template = document.createElement("template");
+  template.innerHTML = `<table><tbody>${extra.map((row) => worklistRowHtml(row)).join("")}</tbody></table>`;
+  const fragment = document.createDocumentFragment();
+  const built = template.content.querySelector("tbody");
+  while (built?.firstChild) fragment.append(built.firstChild);
+  body.append(fragment);
+  state.worklistRenderedCount = next;
+  const count = $("worklistCount");
+  if (count) count.textContent = showingLabel(Math.min(next, filtered.length), filtered.length);
+  applyWorklistRoving();
+  return true;
+}
+
+function closeWorklistModal({ restoreFocus = true } = {}) {
+  if (openWorklistModal.onKey) document.removeEventListener("keydown", openWorklistModal.onKey, true);
+  const backdrop = $("worklistModalBackdrop");
+  const productId = backdrop?.dataset.productId;
+  backdrop?.remove();
+  if (restoreFocus && productId) focusWorklistRow(productId);
+}
+
+function openWorklistModal(productId) {
+  const row = (state.worklist || []).find((item) => Number(item.product_id) === Number(productId));
+  if (!row || $("worklistModalBackdrop")) return;
+  state.worklistFocusedId = productId;
+  const roles = {
+    ...(state.myRoles || {}),
+    selfApproval: String(row.last_changed_by || "") !== "" && String(row.last_changed_by) === String(state.myRoles?.user_id || ""),
+  };
+  const decision = nextActionDecision(row, roles);
+  const backdrop = document.createElement("div");
+  backdrop.id = "worklistModalBackdrop";
+  backdrop.className = "sasv-modal-backdrop";
+  backdrop.dataset.productId = String(row.product_id);
+  const dialog = document.createElement("div");
+  dialog.id = "worklistModalDialog";
+  dialog.className = "sasv-modal";
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  dialog.setAttribute("aria-labelledby", "worklistModalTitle");
+  dialog.tabIndex = -1;
+  const header = document.createElement("div");
+  header.className = "sasv-modal__header";
+  const title = document.createElement("h2");
+  title.id = "worklistModalTitle";
+  title.className = "sasv-modal__title";
+  title.textContent = row.product_name || "Product";
+  header.append(title);
+  const body = document.createElement("div");
+  body.className = "sasv-modal__body";
+  body.innerHTML = worklistModalHtml(row, roles);
+  const footer = document.createElement("div");
+  footer.className = "sasv-modal__footer";
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.id = "worklistModalClose";
+  closeBtn.className = "icon-btn with-label";
+  closeBtn.textContent = "Close";
+  const openBtn = document.createElement("button");
+  openBtn.type = "button";
+  openBtn.id = "worklistModalOpen";
+  openBtn.className = "icon-btn with-label";
+  openBtn.textContent = "Open product";
+  const primary = document.createElement("button");
+  primary.type = "button";
+  primary.id = "worklistModalPrimary";
+  primary.className = "icon-btn with-label primary";
+  primary.textContent = row.next_action || "View";
+  footer.append(closeBtn, openBtn, primary);
+  dialog.append(header, body, footer);
+  backdrop.append(dialog);
+  document.body.append(backdrop);
+  setActionState(primary, decision);
+  const stage = workspaceTabForStage(row.next_stage);
+  const close = () => closeWorklistModal();
+  backdrop.addEventListener("click", (event) => {
+    if (event.target === backdrop) close();
+  });
+  closeBtn.addEventListener("click", close);
+  openBtn.addEventListener("click", () => {
+    closeWorklistModal({ restoreFocus: false });
+    void openWorklistProduct(row.product_id, "overview").catch(toastError);
+  });
+  primary.addEventListener("click", () => {
+    if (primary.disabled) return;
+    closeWorklistModal({ restoreFocus: false });
+    void openWorklistProduct(row.product_id, stage).catch(toastError);
+  });
+  const tech = $("worklistModalTech");
+  tech?.addEventListener("click", () => {
+    closeWorklistModal({ restoreFocus: false });
+    void openWorklistProduct(row.product_id, "overview").catch(toastError);
+  });
+  const onKey = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+      return;
+    }
+    trapModalTab(event, "worklistModalDialog");
+  };
+  openWorklistModal.onKey = onKey;
+  document.addEventListener("keydown", onKey, true);
+  dialog.focus();
 }
 
 async function loadMyRoles() {
@@ -8129,16 +8356,22 @@ async function loadReviewHome() {
     return;
   }
   state.worklistError = false;
+  showWorklistMode(true);
+  renderWorklist({ resetChunk: true });
+}
+
+async function ensureProductQueue() {
+  if (Array.isArray(state.queue) && state.queue.length) return;
   try {
     state.queue = await fetchProductQueue();
   } catch {
     state.queue = state.queue || [];
   }
-  showWorklistMode(true);
-  renderWorklist();
 }
 
 async function openWorklistProduct(productId, stage) {
+  saveWorklistScroll();
+  await ensureProductQueue();
   await openProduct(productId);
   if (Number(state.selectedProductId) !== Number(productId)) return;
   selectWorkflowTab(workspaceTabForStage(stage));
@@ -8542,8 +8775,19 @@ async function backToQueue() {
   syncSearchClear();
   const search = $("queueSearch");
   if (search) search.value = state.queueView.search;
-  renderQueue({ restoreScroll: true });
+  if ($("worklistHome") && !$("worklistHome").hidden) renderWorklist({ restoreScroll: true });
+  else renderQueue({ restoreScroll: true });
   requestAnimationFrame(() => {
+    if ($("worklistHome") && !$("worklistHome").hidden) {
+      restoreWorklistScroll();
+      const wanted = state.worklistFocusedId;
+      const rows = worklistRowEls();
+      const exists = rows.some((row) => String(row.dataset.productId) === String(wanted));
+      if (exists) focusWorklistRow(wanted);
+      else if (rows[0]) focusWorklistRow(rows[0].dataset.productId);
+      else $("worklistSearch")?.focus();
+      return;
+    }
     restoreQueueScroll();
     const wanted = state.queueView.openedProductId || state.queueView.focusedProductId;
     const rows = visibleQueueRowEls();
@@ -10013,31 +10257,85 @@ function wireEvents() {
     if (!button) return;
     state.worklistQueue = button.dataset.worklistQueue;
     rememberWorklistQueue(state.worklistQueue);
-    renderWorklist();
+    renderWorklist({ resetChunk: true });
   });
-  $("worklistFamily")?.addEventListener("change", (event) => {
-    state.worklistFamily = event.target.value || "all";
-    renderWorklist();
+  $("worklistFilterBtn")?.addEventListener("click", () => {
+    const drawer = $("worklistFilterDrawer");
+    const button = $("worklistFilterBtn");
+    if (!drawer || !button) return;
+    drawer.hidden = !drawer.hidden;
+    button.setAttribute("aria-expanded", drawer.hidden ? "false" : "true");
+  });
+  $("worklistFilterApply")?.addEventListener("click", () => {
+    state.worklistFamily = $("worklistFamily")?.value || "all";
+    state.worklistClass = $("worklistClass")?.value || "all";
+    state.worklistBlocked = $("worklistBlocked")?.checked === true;
+    const drawer = $("worklistFilterDrawer");
+    if (drawer) drawer.hidden = true;
+    $("worklistFilterBtn")?.setAttribute("aria-expanded", "false");
+    renderWorklist({ resetChunk: true });
+  });
+  $("worklistFilterClear")?.addEventListener("click", () => {
+    state.worklistFamily = "all";
+    state.worklistClass = "all";
+    state.worklistBlocked = false;
+    renderWorklist({ resetChunk: true });
   });
   $("worklistSearch")?.addEventListener("input", (event) => {
     window.clearTimeout(worklistSearchTimer);
     const value = event.target.value || "";
     worklistSearchTimer = window.setTimeout(() => {
       state.worklistQuery = value;
-      renderWorklist();
-    }, 200);
+      syncWorklistFilterControls();
+      renderWorklist({ resetChunk: true });
+    }, 180);
   });
-  $("worklistClear")?.addEventListener("click", () => {
-    state.worklistFamily = "all";
-    state.worklistQuery = "";
+  $("worklistSearch")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    if (safeText(state.worklistQuery)) {
+      $("worklistSearch").value = "";
+      state.worklistQuery = "";
+      renderWorklist({ resetChunk: true });
+      return;
+    }
+    $("worklistSearch").blur();
+    const row = worklistRowEls()[0];
+    (row || $("worklistFilterBtn"))?.focus();
+  });
+  $("worklistSearchClear")?.addEventListener("click", () => {
     const search = $("worklistSearch");
     if (search) search.value = "";
-    renderWorklist();
+    state.worklistQuery = "";
+    renderWorklist({ resetChunk: true });
+    $("worklistSearch")?.focus();
   });
+  $("worklistTableWrap")?.addEventListener("scroll", () => {
+    saveWorklistScroll();
+    appendWorklistChunk();
+  }, { passive: true });
   $("worklistBody")?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-worklist-open]");
-    if (!button) return;
-    void openWorklistProduct(button.dataset.worklistOpen, button.dataset.nextStage).catch(toastError);
+    const row = event.target.closest("tr.queue-row[data-product-id]");
+    if (!row) return;
+    openWorklistModal(row.dataset.productId);
+  });
+  $("worklistBody")?.addEventListener("keydown", (event) => {
+    if (isEditableKeyboardTarget(event.target)) return;
+    const row = event.target.closest("tr.queue-row[data-product-id]");
+    if (!row) return;
+    const rows = worklistRowEls();
+    const current = rows.indexOf(row);
+    if (current < 0) return;
+    if (event.key === "Enter") {
+      event.preventDefault();
+      openWorklistModal(row.dataset.productId);
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const next = nextRovingIndex(current, rows.length, event.key, { wrap: false });
+      if (rows[next]) focusWorklistRow(rows[next].dataset.productId);
+    }
   });
   $("backToQueueBtn")?.addEventListener("click", backToQueue);
   $("openReferenceDictionaryBtn")?.addEventListener("click", () => void openReferenceDictionary().catch(toastError));
@@ -10839,7 +11137,8 @@ function wireEvents() {
     if (event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey) {
       if (isProductMode() || isEditableKeyboardTarget(event.target)) return;
       event.preventDefault();
-      $("queueSearch")?.focus();
+      if ($("worklistHome") && !$("worklistHome").hidden) $("worklistSearch")?.focus();
+      else $("queueSearch")?.focus();
     }
   });
 

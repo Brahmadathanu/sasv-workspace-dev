@@ -1805,6 +1805,104 @@ body.sasv-eaushadhi-review #qcFillPreflightCard .icon-btn {
   }
 }
 
+body.sasv-eaushadhi-review #worklistHome {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+body.sasv-eaushadhi-review #worklistHome[hidden],
+body.sasv-eaushadhi-review #worklistFilterDrawer[hidden],
+body.sasv-eaushadhi-review #queueTableWrap[hidden],
+body.sasv-eaushadhi-review #legacyQueueControls[hidden] {
+  display: none !important;
+}
+
+body.sasv-eaushadhi-review .worklist-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 900px) {
+  body.sasv-eaushadhi-review .worklist-toolbar {
+    flex-wrap: nowrap;
+  }
+}
+
+body.sasv-eaushadhi-review .worklist-search-card {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review #worklistCount {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+body.sasv-eaushadhi-review #worklistFilterBtn {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+body.sasv-eaushadhi-review .worklist-filter-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #b45309;
+}
+
+body.sasv-eaushadhi-review .worklist-filter-drawer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  padding: 8px 0;
+}
+
+body.sasv-eaushadhi-review #worklistTableWrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+body.sasv-eaushadhi-review #worklistHome .data-table th,
+body.sasv-eaushadhi-review #worklistHome .data-table td {
+  padding: 6px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+  line-height: 1.2;
+}
+
+body.sasv-eaushadhi-review #worklistHome tbody tr.queue-row {
+  height: 40px;
+}
+
+body.sasv-eaushadhi-review .worklist-chips,
+body.sasv-eaushadhi-review .worklist-chip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+body.sasv-eaushadhi-review .worklist-chip {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: var(--sasv-text-xs, 12px);
+}
+
+body.sasv-eaushadhi-review .worklist-chip.is-done { background: #166534; color: #fff; }
+body.sasv-eaushadhi-review .worklist-chip.is-review { background: #b45309; color: #fff; }
+body.sasv-eaushadhi-review .worklist-chip.is-todo { background: #6b7280; color: #fff; }
+body.sasv-eaushadhi-review .worklist-chip.is-fix { background: #991b1b; color: #fff; }
+
 body.sasv-eaushadhi-review .worklist-dots {
   display: flex;
   gap: 4px;
@@ -1828,27 +1926,17 @@ body.sasv-eaushadhi-review .worklist-dot.is-empty {
   border: 1px solid #6b7280;
 }
 
-body.sasv-eaushadhi-review .worklist-id,
+body.sasv-eaushadhi-review .worklist-id {
+  display: inline;
+  font-weight: var(--sasv-fw-regular);
+}
+
 body.sasv-eaushadhi-review .why-disabled {
   display: block;
   margin-top: 2px;
-}
-
-body.sasv-eaushadhi-review .worklist-clear {
-  background: none;
-  border: 0;
-  padding: 0;
-  color: inherit;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 body.sasv-eaushadhi-review #techDrawer {
   margin-top: 12px;
 }
 
-body.sasv-eaushadhi-review .worklist-filter {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}

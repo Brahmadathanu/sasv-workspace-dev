@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v374"; // WP-07 UX-1 worklist, roles, why-disabled
+const CACHE_NAME = "hub-cache-v375"; // WP-07 UX-1.1 compact worklist
 
 const PRECACHE = [
   // Hub shell

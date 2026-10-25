@@ -10,15 +10,20 @@ import {
   filterWorklistRows,
   issuesReason,
   linesReason,
+  nextActionDecision,
   normalizeWorklistRow,
   placeTechnicalDrawer,
   progressDotsHtml,
   signedInRoleLabel,
+  whoCanActText,
   worklistFamilies,
+  worklistFamilyChoices,
+  worklistModalHtml,
   worklistRowHtml,
   worklistTabsHtml,
   workspaceTabForStage,
 } from "../public/shared/js/eaushadhi-review-worklist.js";
+import { nextQueueRenderCount, resetQueueRenderCount } from "../public/shared/js/eaushadhi-review-helpers.js";
 
 const require = createRequire(import.meta.url);
 const root = join(import.meta.dirname, "..");
@@ -76,9 +81,9 @@ const doneDots = progressDotsHtml(done[0]);
 check((doneDots.match(/is-done/g) || []).length === 8 && !doneDots.includes("is-todo"), "Product 262 has eight green dots");
 
 const portalRow = worklistRowHtml(rawRows.find((row) => row.product_id === 15));
-check(portalRow.includes('data-next-stage="qc"') && portalRow.includes(">Fill portal<"), "portal next step opens the QC tab");
+check(portalRow.includes('data-next-stage="qc"') && portalRow.includes(">Fill portal<") && !portalRow.includes("<button"), "portal next step is plain text for the QC tab");
 const doneRow = worklistRowHtml(done[0]);
-check(doneRow.includes(">View<") && doneRow.includes('data-next-stage="overview"'), "Done row button reads View");
+check(doneRow.includes(">View<") && doneRow.includes('data-next-stage="overview"') && doneRow.includes('class="queue-row"'), "Done row reads View on one queue row");
 check(workspaceTabForStage("portal") === "qc" && workspaceTabForStage("evidence") === "evidence", "stage mapping");
 
 class TextNode {
@@ -272,7 +277,7 @@ function technicalPanel(approver) {
   const recover = button(doc, "btnWorkerRecoverExactOneIdentity", "Recover Saved Portal Identity");
   const visible = button(doc, "btnVerifyDetails", "Verify Product Details");
   panel.append(build, run, probe, recover, visible);
-  placeTechnicalDrawer(panel, { isApprover: approver, cacheName: "hub-cache-v374" });
+  placeTechnicalDrawer(panel, { isApprover: approver, cacheName: "hub-cache-v375" });
   return panel;
 }
 const verifierTech = technicalPanel(false);
@@ -281,7 +286,7 @@ check(!verifierTech.querySelector("#techDrawer") && !verifierTech.textContent.in
 const drawer = approverTech.querySelector("#techDrawer");
 check(!!drawer && drawer.querySelector("summary").textContent === "Technical details", "drawer is present for an approver");
 const outside = approverTech.childNodes.filter((node) => node.id !== "techDrawer").map((node) => node.textContent || "").join(" ");
-check(!/UI build|[0-9a-f]{8}-[0-9a-f]{4}-|sha256|hub-cache-v374/.test(outside) && /UI build UX-1/.test(drawer.textContent) && /hub-cache-v374/.test(drawer.textContent), "no UUID, SHA, or UI build outside the drawer");
+check(!/UI build|[0-9a-f]{8}-[0-9a-f]{4}-|sha256|hub-cache-v375/.test(outside) && /UI build UX-1/.test(drawer.textContent) && /hub-cache-v375/.test(drawer.textContent), "no UUID, SHA, or UI build outside the drawer");
 check(approverTech.querySelector("#btnVerifyDetails") && !drawer.textContent.includes("Verify Product Details"), "ordinary actions stay outside the drawer");
 
 const closed = doc.createElement("div");
@@ -301,12 +306,45 @@ const contract = read("electron/eaushadhi-worker/qc-register-portal-contract.js"
 const executor = read("electron/eaushadhi-worker/qc-prep-run-executor.js");
 check(html.includes(WORKLIST_FALLBACK_TEXT) && html.includes('id="worklistRefresh"'), "error fallback banner and Refresh");
 check(api.includes("fetchWorklist") && api.includes("rpc_eaushadhi_worklist_v1") && api.includes("fetchMyRoles") && api.includes("rpc_eaushadhi_my_roles_v1"), "worklist and roles fetches");
-check(/const CACHE_NAME = "hub-cache-v374"/.test(sw) && sw.includes("// WP-07 UX-1 worklist, roles, why-disabled"), "cache v374");
+check(/const CACHE_NAME = "hub-cache-v375"/.test(sw) && sw.includes("// WP-07 UX-1.1 compact worklist"), "cache v375");
 check(control.includes("UI build UX-1") && control.includes('data-build="UX-1"') && control.includes("createDocumentFragment"), "marker UX-1 and one fragment");
 check(/const NATIVE_SAVE_AUTHORIZED = false/.test(contract), "build flag stays off");
 check(executor.includes("ALREADY_CLICKED") && control.includes('typed.value === "SAVE 262"'), "SAVE phrase and ALREADY_CLICKED remain");
 check(contract.includes('selector: "#save_btn"') && !executor.includes("submitProduct"), "no Submit selector");
 check(client.includes('command?.action') && client.includes("Already saved and confirmed on the portal."), "product 262 does not call arm or save");
+
+const queueCss = read("public/shared/css/sasv-eaushadhi-review.css");
+check(queueCss.includes("#queueTableWrap[hidden]") && queueCss.includes("display: none !important"), "hidden legacy queue is display none");
+const many = Array.from({ length: 438 }, (_, index) => normalizeWorklistRow({
+  product_id: index + 1,
+  product_name: `Bulk ${index + 1}`,
+  family: index % 2 ? "Taila" : "",
+  medicine_class: index % 3 ? "Thailam" : "Ghrita",
+  queue: "TO_VERIFY",
+  ...stage("TODO"),
+  next_action: "Start verification",
+  next_stage: "overview",
+  blocking_reason: index % 10 === 0 ? "This product is blocked in the product register." : null,
+}));
+check(resetQueueRenderCount(many.length) === 40, "first render is 40 rows of 438");
+check(nextQueueRenderCount(40, 438) === 80, "scroll-near-bottom appends 40 more");
+check(resetQueueRenderCount(filterWorklistRows(many, { queue: "TO_VERIFY", family: "Taila" }).length) === 40, "filter change resets to 40");
+check(resetQueueRenderCount(440) === 40, "a 440-row queue also starts at 40");
+check(control.includes("openWorklistModal(row.dataset.productId)") && control.includes('if (event.key === "Enter")'), "row click and Enter open the modal");
+check(control.includes("primary.textContent = row.next_action || \"View\"") && control.includes('if (event.key === "Escape")'), "modal primary label is next_action and Escape closes");
+const modal = worklistModalHtml(rawRows[3], { is_verifier: true, is_approver: false });
+check(modal.includes("Why it is here") && modal.includes("Approve details") === false && !modal.includes("worklistModalTech"), "modal keeps the reason and hides technical details from a verifier");
+check(worklistModalHtml(rawRows[3], { is_approver: true }).includes("worklistModalTech"), "technical details link is present for an approver");
+check(nextActionDecision(rawRows[3], { is_approver: false }).reason === REASONS.approver, "approve next step stays disabled without an approver");
+check(whoCanActText({ is_verifier: true, is_approver: true }).includes("different person"), "four-eyes note is in who can act");
+const home = html.slice(html.indexOf('id="worklistHome"'), html.indexOf('id="legacyQueueControls"'));
+const toolbar = home.slice(home.indexOf("worklist-toolbar"), home.indexOf('id="worklistFilterDrawer"'));
+check(toolbar.indexOf('id="worklistFilterBtn"') >= 0 && toolbar.indexOf('id="worklistFilterBtn"') < toolbar.indexOf('id="worklistSearch"'), "filter button is left of search");
+check(toolbar.includes('aria-label="Filters"') && !/>\s*Filters\s*</.test(toolbar) && !toolbar.includes("worklistFamily"), "filter button is icon-only and Family is not on the home row");
+check(home.includes('id="worklistFamily"') && home.includes('id="worklistClass"') && home.includes("Only blocked"), "drawer has Family, Medicine class, and Only blocked");
+check(worklistFamilyChoices(many).some((choice) => choice.label === "Unassigned"), "Family choices include Unassigned");
+check(control.includes('$("worklistSearch")?.focus()'), "slash focuses the worklist search");
+check(queueCss.includes("white-space: nowrap") && queueCss.includes("height: 40px") && portalRow.includes(" · "), "rows are a single nowrap line");
 
 if (failed) {
   console.error(`UX-1 smoke failed ${failed}`);

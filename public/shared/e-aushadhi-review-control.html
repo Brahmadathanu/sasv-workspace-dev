@@ -54,17 +54,41 @@
         </div>
         <div id="worklistHome" hidden>
           <div id="worklistTabs" class="review-nav" role="tablist" aria-label="Worklist"></div>
-          <div class="queue-controls">
-            <label class="worklist-filter">Family
+          <div class="worklist-toolbar">
+            <button type="button" id="worklistFilterBtn" class="icon-btn" aria-label="Filters" title="Filters" aria-expanded="false" aria-controls="worklistFilterDrawer">
+              <svg class="ea-icon ea-icon-filter" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                <path d="M2 3h12l-4.7 5.2v4.2l-2.6 1.3V8.2L2 3Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"></path>
+              </svg>
+              <span id="worklistFilterDot" class="worklist-filter-dot" hidden></span>
+            </button>
+            <div class="search-card worklist-search-card">
+              <div class="search-wrap input-with-icon">
+                <svg class="ea-icon ea-icon-search" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                  <circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                  <path d="M10.6 10.6 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                </svg>
+                <input id="worklistSearch" type="search" placeholder="Search name or id" aria-label="Search name or id" />
+                <button id="worklistSearchClear" class="input-clear-btn ea-clear-btn" type="button" aria-label="Clear search" hidden>
+                  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                    <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <span id="worklistCount" class="muted-note showing-count" aria-live="polite"></span>
+          </div>
+          <div id="worklistFilterDrawer" class="worklist-filter-drawer" hidden>
+            <label>Family
               <select id="worklistFamily" class="sasv-control" aria-label="Family"></select>
             </label>
-            <div class="search-card">
-              <input id="worklistSearch" type="search" placeholder="Search name or id" aria-label="Search name or id" />
-              <button type="button" id="worklistClear" class="worklist-clear">Clear filters</button>
-              <span id="worklistCount" class="muted-note showing-count" aria-live="polite"></span>
-            </div>
+            <label>Medicine class
+              <select id="worklistClass" class="sasv-control" aria-label="Medicine class"></select>
+            </label>
+            <label><input id="worklistBlocked" type="checkbox" /> Only blocked</label>
+            <button type="button" id="worklistFilterClear">Clear</button>
+            <button type="button" id="worklistFilterApply" class="icon-btn with-label primary">Apply</button>
           </div>
-          <div class="table-card">
+          <div class="table-card" id="worklistTableWrap">
             <table class="data-table">
               <thead>
                 <tr>
@@ -72,8 +96,7 @@
                   <th scope="col">Family</th>
                   <th scope="col">Progress</th>
                   <th scope="col">Next step</th>
-                  <th scope="col">Reason</th>
-                  <th scope="col">Last change</th>
+                  <th scope="col">Updated</th>
                 </tr>
               </thead>
               <tbody id="worklistBody"></tbody>

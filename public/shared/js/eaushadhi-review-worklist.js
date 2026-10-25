@@ -7,7 +7,7 @@ export const WORKLIST_TAB_KEY = "sasv.eaushadhi.worklistQueue";
 export const WORKLIST_FALLBACK_TEXT = "The worklist could not be loaded. Try Refresh.";
 export const ROLE_FALLBACK = { user_id: null, is_verifier: false, is_approver: false, can_edit: false };
 export const PORTAL_CONFIRMED_PRODUCT_ID = 262;
-export const CACHE_NAME_UX1 = "hub-cache-v374";
+export const CACHE_NAME_UX1 = "hub-cache-v375";
 
 export const WORKLIST_QUEUES = [
   { id: "TO_VERIFY", label: "To verify" },
@@ -187,11 +187,34 @@ export function worklistFamilies(rows) {
     .sort((a, b) => a.localeCompare(b));
 }
 
-export function filterWorklistRows(rows, { queue, family, query } = {}) {
+export function worklistClassOptions(rows) {
+  return [...new Set((rows || []).map((row) => String(row?.medicine_class || "").trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+}
+
+export function worklistFamilyChoices(rows) {
+  const names = worklistFamilies(rows).filter((name) => name !== "Unassigned");
+  return [
+    { value: "all", label: "All families" },
+    { value: "Unassigned", label: "Unassigned" },
+    ...names.map((name) => ({ value: name, label: name })),
+  ];
+}
+
+function familyMatches(row, family) {
+  if (!family || family === "all") return true;
+  const value = String(row?.family || "").trim();
+  if (family === "Unassigned") return value === "" || value === "Unassigned";
+  return value === family;
+}
+
+export function filterWorklistRows(rows, { queue, family, query, medicineClass, blockedOnly } = {}) {
   const needle = String(query || "").trim().toLowerCase();
   return (rows || []).filter((row) => {
     if (queue && row.queue !== queue) return false;
-    if (family && family !== "all" && row.family !== family) return false;
+    if (!familyMatches(row, family)) return false;
+    if (medicineClass && medicineClass !== "all" && String(row?.medicine_class || "") !== medicineClass) return false;
+    if (blockedOnly === true && !/blocked/i.test(String(row?.blocking_reason || ""))) return false;
     if (!needle) return true;
     return String(row.product_name || "").toLowerCase().includes(needle)
       || String(row.product_id).toLowerCase().includes(needle);
@@ -243,16 +266,72 @@ export function worklistRowHtml(row) {
   const name = escapeHtml(row?.product_name || "");
   const family = escapeHtml(row?.family || "");
   const action = escapeHtml(row?.next_action || "View");
-  const reason = row?.blocking_reason ? escapeHtml(row.blocking_reason) : "";
+  const reason = row?.blocking_reason ? String(row.blocking_reason) : "Nothing blocking";
   const stage = escapeHtml(workspaceTabForStage(row?.next_stage));
-  return `<tr data-product-id="${escapeHtml(row?.product_id)}">
-    <td><span class="worklist-name">${name}</span><span class="worklist-id muted-note">${escapeHtml(row?.product_id)}</span></td>
+  return `<tr class="queue-row" data-product-id="${escapeHtml(row?.product_id)}" data-next-stage="${stage}" tabindex="-1" title="${escapeHtml(reason)}">
+    <td class="cell-product"><span class="worklist-name">${name}</span> <span class="worklist-id muted-note"> · ${escapeHtml(row?.product_id)}</span></td>
     <td>${family}</td>
     <td><span class="worklist-dots">${progressDotsHtml(row)}</span></td>
-    <td><button type="button" class="icon-btn with-label" data-worklist-open="${escapeHtml(row?.product_id)}" data-next-stage="${stage}">${action}</button></td>
-    <td><span class="muted-note">${reason}</span></td>
+    <td class="worklist-next">${action}</td>
     <td>${escapeHtml(formatIstDate(row?.last_changed_at))}</td>
   </tr>`;
+}
+
+const CHIP_CLASS = {
+  DONE: "is-done",
+  IN_REVIEW: "is-review",
+  NEEDS_FIX: "is-fix",
+};
+
+export function stageChipsHtml(row) {
+  return STAGE_DOTS.map(([key, label]) => {
+    const status = String(row?.[key] || "NOT_STARTED");
+    const cls = CHIP_CLASS[status] || "is-todo";
+    return `<span class="worklist-chip ${cls}">${escapeHtml(label)}</span>`;
+  }).join("");
+}
+
+export function whoCanActText(roles) {
+  const verifier = roles?.is_verifier === true;
+  const approver = roles?.is_approver === true;
+  const note = "The approver must be a different person than the verifier.";
+  if (verifier && approver) return `You can verify and approve. ${note}`;
+  if (approver) return `You can approve. ${note}`;
+  if (verifier) return `You can verify. ${note}`;
+  return `View only. ${note}`;
+}
+
+export function worklistFiltersActive({ family, medicineClass, blockedOnly } = {}) {
+  return (family && family !== "all") || (medicineClass && medicineClass !== "all") || blockedOnly === true;
+}
+
+export function nextActionDecision(row, roles) {
+  const label = String(row?.next_action || "View");
+  const needsApprover = /^(Approve|Verify)\b/.test(label);
+  return actionDecision({
+    id: "worklistModalPrimary",
+    label,
+    requiresRole: needsApprover ? "APPROVER" : "",
+    isApprover: roles?.is_approver === true,
+    selfApproval: roles?.selfApproval === true,
+    productId: row?.product_id,
+    disabled: false,
+  });
+}
+
+export function worklistModalHtml(row, roles) {
+  const why = row?.blocking_reason ? String(row.blocking_reason) : "Nothing blocking";
+  const tech = roles?.is_approver === true
+    ? `<p><button type="button" id="worklistModalTech">Technical details</button></p>`
+    : "";
+  return `<p><strong>${escapeHtml(row?.product_name || "")}</strong> <span class="muted-note">${escapeHtml(row?.product_id)}</span></p>
+    <p>${escapeHtml(row?.family || "Unassigned")} · ${escapeHtml(row?.medicine_class || "No class")} · ${escapeHtml(row?.queue || "")}</p>
+    <p class="worklist-chips">${stageChipsHtml(row)}</p>
+    <p>Composition verified ${escapeHtml(row?.composition_verified ?? 0)}/${escapeHtml(row?.composition_lines ?? 0)}. Open issues ${escapeHtml(row?.open_issues ?? 0)}. TG links ${escapeHtml(row?.therapeutic_links ?? 0)}.</p>
+    <p>Why it is here: ${escapeHtml(why)}</p>
+    <p>Who can act: ${escapeHtml(whoCanActText(roles))}</p>
+    <p>Last change: ${escapeHtml(formatIstDate(row?.last_changed_at))}</p>
+    ${tech}`;
 }
 
 export function worklistTableHtml(rows) {
