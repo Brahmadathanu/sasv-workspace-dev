@@ -197,8 +197,7 @@ import {
   placeTechnicalDrawer,
   setActionState,
   signedInRoleLabel,
-  worklistClassOptions,
-  worklistFamilyChoices,
+  worklistLevelChoices,
   worklistFiltersActive,
   worklistModalHtml,
   worklistRowHtml,
@@ -293,8 +292,9 @@ const state = {
   worklistRow: null,
   worklistError: false,
   worklistQueue: "TO_VERIFY",
-  worklistFamily: "all",
-  worklistClass: "all",
+  worklistCategory: "all",
+  worklistSubcategory: "all",
+  worklistGroup: "all",
   worklistBlocked: false,
   worklistQuery: "",
   worklistRenderedCount: 0,
@@ -8075,44 +8075,76 @@ function optionListHtml(choices, selected) {
 function filteredWorklist() {
   return filterWorklistRows(state.worklist || [], {
     queue: state.worklistQueue,
-    family: state.worklistFamily,
-    medicineClass: state.worklistClass,
+    category: state.worklistCategory,
+    subcategory: state.worklistSubcategory,
+    group: state.worklistGroup,
     blockedOnly: state.worklistBlocked === true,
     query: state.worklistQuery,
   });
 }
 
+function queueWorklistRows() {
+  return (state.worklist || []).filter((row) => row.queue === state.worklistQueue);
+}
+
+function setLevelSelect(select, rows, level, selected) {
+  if (!select) return selected || "all";
+  const choices = worklistLevelChoices(rows, level);
+  let value = selected || "all";
+  if (!choices.some((choice) => choice.value === value)) value = "all";
+  select.innerHTML = optionListHtml(choices, value);
+  select.value = value;
+  return value;
+}
+
 function syncWorklistFilterControls() {
-  const rows = state.worklist || [];
-  const family = $("worklistFamily");
-  if (family) {
-    family.innerHTML = optionListHtml(worklistFamilyChoices(rows), state.worklistFamily);
-    family.value = state.worklistFamily;
-  }
-  const klass = $("worklistClass");
-  if (klass) {
-    const choices = [
-      { value: "all", label: "All classes" },
-      ...worklistClassOptions(rows).map((name) => ({ value: name, label: name })),
-    ];
-    if (state.worklistClass !== "all" && !choices.some((choice) => choice.value === state.worklistClass)) {
-      state.worklistClass = "all";
-    }
-    klass.innerHTML = optionListHtml(choices, state.worklistClass);
-    klass.value = state.worklistClass;
-  }
+  const rows = queueWorklistRows();
+  const category = setLevelSelect($("worklistCategory"), rows, "category", state.worklistCategory);
+  const subcategory = setLevelSelect(
+    $("worklistSubcategory"),
+    filterWorklistRows(rows, { category }),
+    "subcategory",
+    state.worklistSubcategory,
+  );
+  const group = setLevelSelect(
+    $("worklistGroup"),
+    filterWorklistRows(rows, { category, subcategory }),
+    "group",
+    state.worklistGroup,
+  );
+  state.worklistCategory = category;
+  state.worklistSubcategory = subcategory;
+  state.worklistGroup = group;
   const blocked = $("worklistBlocked");
   if (blocked) blocked.checked = state.worklistBlocked === true;
   const dot = $("worklistFilterDot");
   if (dot) {
     dot.hidden = !worklistFiltersActive({
-      family: state.worklistFamily,
-      medicineClass: state.worklistClass,
+      category,
+      subcategory,
+      group,
       blockedOnly: state.worklistBlocked,
     });
   }
   const clear = $("worklistSearchClear");
   if (clear) clear.hidden = !safeText(state.worklistQuery);
+}
+
+function refreshChildClassificationDrafts() {
+  const rows = queueWorklistRows();
+  const category = $("worklistCategory")?.value || "all";
+  const subcategory = setLevelSelect(
+    $("worklistSubcategory"),
+    filterWorklistRows(rows, { category }),
+    "subcategory",
+    $("worklistSubcategory")?.value || "all",
+  );
+  setLevelSelect(
+    $("worklistGroup"),
+    filterWorklistRows(rows, { category, subcategory }),
+    "group",
+    $("worklistGroup")?.value || "all",
+  );
 }
 
 function worklistRowEls() {
@@ -8254,6 +8286,7 @@ function setWorklistFiltersOpen(open) {
     drawer.style.width = "";
     const table = $("worklistTableWrap");
     if (home && table && drawer.parentElement !== home) home.insertBefore(drawer, table);
+    syncWorklistFilterControls();
     return;
   }
   document.body.append(drawer);
@@ -10316,16 +10349,29 @@ function wireEvents() {
   $("worklistFilterDrawer")?.addEventListener("click", (event) => {
     if (event.target === $("worklistFilterDrawer")) setWorklistFiltersOpen(false);
   });
+  $("worklistCategory")?.addEventListener("change", refreshChildClassificationDrafts);
+  $("worklistSubcategory")?.addEventListener("change", () => {
+    const category = $("worklistCategory")?.value || "all";
+    const subcategory = $("worklistSubcategory")?.value || "all";
+    setLevelSelect(
+      $("worklistGroup"),
+      filterWorklistRows(queueWorklistRows(), { category, subcategory }),
+      "group",
+      $("worklistGroup")?.value || "all",
+    );
+  });
   $("worklistFilterApply")?.addEventListener("click", () => {
-    state.worklistFamily = $("worklistFamily")?.value || "all";
-    state.worklistClass = $("worklistClass")?.value || "all";
+    state.worklistCategory = $("worklistCategory")?.value || "all";
+    state.worklistSubcategory = $("worklistSubcategory")?.value || "all";
+    state.worklistGroup = $("worklistGroup")?.value || "all";
     state.worklistBlocked = $("worklistBlocked")?.checked === true;
     setWorklistFiltersOpen(false);
     renderWorklist({ resetChunk: true });
   });
   $("worklistFilterClear")?.addEventListener("click", () => {
-    state.worklistFamily = "all";
-    state.worklistClass = "all";
+    state.worklistCategory = "all";
+    state.worklistSubcategory = "all";
+    state.worklistGroup = "all";
     state.worklistBlocked = false;
     renderWorklist({ resetChunk: true });
   });

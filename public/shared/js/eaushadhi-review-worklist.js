@@ -7,7 +7,7 @@ export const WORKLIST_TAB_KEY = "sasv.eaushadhi.worklistQueue";
 export const WORKLIST_FALLBACK_TEXT = "The worklist could not be loaded. Try Refresh.";
 export const ROLE_FALLBACK = { user_id: null, is_verifier: false, is_approver: false, can_edit: false };
 export const PORTAL_CONFIRMED_PRODUCT_ID = 262;
-export const CACHE_NAME_UX1 = "hub-cache-v375";
+export const CACHE_NAME_UX1 = "hub-cache-v376";
 
 export const WORKLIST_QUEUES = [
   { id: "TO_VERIFY", label: "To verify" },
@@ -186,42 +186,76 @@ export function normalizeWorklistRow(row) {
   return done;
 }
 
-export function worklistFamilies(rows) {
-  return [...new Set((rows || []).map((row) => String(row?.family || "").trim()).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b));
+function cleanText(value) {
+  return String(value ?? "").trim();
 }
 
-export function worklistClassOptions(rows) {
-  return [...new Set((rows || []).map((row) => String(row?.medicine_class || "").trim()).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b));
+const LEVEL_ALL_LABEL = {
+  category: "All categories",
+  subcategory: "All sub-categories",
+  group: "All groups",
+};
+
+export function classificationValue(row, level) {
+  if (level === "category") return cleanText(row?.category_name);
+  if (level === "subcategory") return cleanText(row?.subcategory_name);
+  if (level === "group") return cleanText(row?.group_name) || cleanText(row?.family);
+  if (level === "subgroup") return cleanText(row?.sub_group_name);
+  return "";
 }
 
-export function worklistFamilyChoices(rows) {
-  const names = worklistFamilies(rows).filter((name) => name !== "Unassigned");
-  return [
-    { value: "all", label: "All families" },
-    { value: "Unassigned", label: "Unassigned" },
-    ...names.map((name) => ({ value: name, label: name })),
-  ];
+export function classificationGroup(row) {
+  return classificationValue(row, "group") || "Unassigned";
 }
 
-function familyMatches(row, family) {
-  if (!family || family === "all") return true;
-  const value = String(row?.family || "").trim();
-  if (family === "Unassigned") return value === "" || value === "Unassigned";
-  return value === family;
+export function classificationPath(row) {
+  const parts = ["category", "subcategory", "group", "subgroup"]
+    .map((level) => classificationValue(row, level))
+    .filter(Boolean);
+  return parts.length ? parts.join(" > ") : "Unassigned";
 }
 
-export function filterWorklistRows(rows, { queue, family, query, medicineClass, blockedOnly } = {}) {
+export function worklistLevelChoices(rows, level) {
+  const values = (rows || []).map((row) => classificationValue(row, level));
+  const names = [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const choices = [{ value: "all", label: LEVEL_ALL_LABEL[level] || "All" }];
+  if (values.some((value) => value === "")) choices.push({ value: "Unassigned", label: "Unassigned" });
+  names.forEach((name) => choices.push({ value: name, label: name }));
+  return choices;
+}
+
+function levelMatches(row, level, selected) {
+  if (!selected || selected === "all") return true;
+  const value = classificationValue(row, level);
+  if (selected === "Unassigned") return value === "";
+  return value === selected;
+}
+
+export function filterWorklistRows(rows, {
+  queue,
+  category,
+  subcategory,
+  group,
+  query,
+  blockedOnly,
+} = {}) {
   const needle = String(query || "").trim().toLowerCase();
   return (rows || []).filter((row) => {
     if (queue && row.queue !== queue) return false;
-    if (!familyMatches(row, family)) return false;
-    if (medicineClass && medicineClass !== "all" && String(row?.medicine_class || "") !== medicineClass) return false;
+    if (!levelMatches(row, "category", category)) return false;
+    if (!levelMatches(row, "subcategory", subcategory)) return false;
+    if (!levelMatches(row, "group", group)) return false;
     if (blockedOnly === true && !/blocked/i.test(String(row?.blocking_reason || ""))) return false;
     if (!needle) return true;
-    return String(row.product_name || "").toLowerCase().includes(needle)
-      || String(row.product_id).toLowerCase().includes(needle);
+    return [
+      row.product_name,
+      row.product_id,
+      classificationValue(row, "category"),
+      classificationValue(row, "subcategory"),
+      classificationValue(row, "group"),
+      classificationValue(row, "subgroup"),
+      classificationPath(row),
+    ].join(" ").toLowerCase().includes(needle);
   });
 }
 
@@ -268,14 +302,15 @@ export function worklistTabsHtml(rows, activeQueue) {
 
 export function worklistRowHtml(row) {
   const name = escapeHtml(row?.product_name || "");
-  const family = escapeHtml(row?.family || "");
+  const group = classificationGroup(row);
+  const groupClass = group === "Unassigned" ? " muted-note" : "";
   const action = escapeHtml(row?.next_action || "View");
   const reason = row?.blocking_reason ? String(row.blocking_reason) : "Nothing blocking";
   const stage = escapeHtml(workspaceTabForStage(row?.next_stage));
   return `<tr class="queue-row" data-product-id="${escapeHtml(row?.product_id)}" data-next-stage="${stage}" tabindex="-1" title="${escapeHtml(reason)}">
     <td class="num-cell worklist-id-cell">${escapeHtml(row?.product_id)}</td>
     <td class="cell-product"><span class="worklist-name">${name}</span></td>
-    <td>${family}</td>
+    <td class="worklist-class-cell${groupClass}" title="${escapeHtml(classificationPath(row))}">${escapeHtml(group)}</td>
     <td><span class="worklist-dots">${progressDotsHtml(row)}</span></td>
     <td class="worklist-next">${action}</td>
     <td>${escapeHtml(formatIstDate(row?.last_changed_at))}</td>
@@ -290,10 +325,6 @@ export function stageChipsHtml(row) {
   }).join("");
 }
 
-function queueLabel(queue) {
-  return WORKLIST_QUEUES.find((item) => item.id === queue)?.label || queue || "";
-}
-
 export function whoCanActText(roles) {
   const verifier = roles?.is_verifier === true;
   const approver = roles?.is_approver === true;
@@ -304,8 +335,11 @@ export function whoCanActText(roles) {
   return `View only. ${note}`;
 }
 
-export function worklistFiltersActive({ family, medicineClass, blockedOnly } = {}) {
-  return (family && family !== "all") || (medicineClass && medicineClass !== "all") || blockedOnly === true;
+export function worklistFiltersActive({ category, subcategory, group, blockedOnly } = {}) {
+  return (category && category !== "all")
+    || (subcategory && subcategory !== "all")
+    || (group && group !== "all")
+    || blockedOnly === true;
 }
 
 export function nextActionDecision(row, roles) {
@@ -330,6 +364,7 @@ function worklistTechHtml(row) {
     <div class="ea-change-item"><dl>
       <div class="ea-change-pair"><dt>Changed by</dt><dd>${escapeHtml(changedBy)}</dd></div>
       <div class="ea-change-pair"><dt>Next stage</dt><dd>${escapeHtml(stage)}</dd></div>
+      <div class="ea-change-pair"><dt>Source sheet</dt><dd>${escapeHtml(cleanText(row?.source_sheet) || "Not recorded")}</dd></div>
     </dl></div>
   </details>`;
 }
@@ -339,7 +374,7 @@ export function worklistModalHtml(row, roles) {
   const tech = roles?.is_approver === true ? worklistTechHtml(row) : "";
   const quiet = why === "Nothing blocking" ? " is-quiet" : "";
   return `<div class="worklist-modal">
-    <p class="worklist-modal-meta muted-note">${escapeHtml(row?.family || "Unassigned")} · ${escapeHtml(row?.medicine_class || "No class")} · ${escapeHtml(queueLabel(row?.queue))}</p>
+    <p class="worklist-modal-meta muted-note">${escapeHtml(classificationPath(row))}</p>
     <div class="worklist-chip-row" aria-label="Progress">${stageChipsHtml(row)}</div>
     <dl class="worklist-stats">
       <div><dt>Composition verified</dt><dd>${escapeHtml(row?.composition_verified ?? 0)}/${escapeHtml(row?.composition_lines ?? 0)}</dd></div>

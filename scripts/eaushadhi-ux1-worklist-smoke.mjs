@@ -16,8 +16,9 @@ import {
   progressDotsHtml,
   signedInRoleLabel,
   whoCanActText,
-  worklistFamilies,
-  worklistFamilyChoices,
+  classificationGroup,
+  classificationPath,
+  worklistLevelChoices,
   worklistModalHtml,
   worklistRowHtml,
   worklistTabsHtml,
@@ -62,16 +63,16 @@ check(WORKLIST_QUEUES.map((item) => item.label).join(" · ") === "To verify · N
 const tabs = worklistTabsHtml(rawRows, "TO_VERIFY");
 check(tabs.includes('data-worklist-queue="TO_VERIFY"') && tabs.includes(">1<") && tabs.includes('data-worklist-queue="DONE"'), "queue tabs and counts from six rows");
 check((tabs.match(/data-worklist-queue="/g) || []).length === 6, "six queue tabs");
-const toVerify = filterWorklistRows(rawRows, { queue: "TO_VERIFY", family: "all", query: "" });
-const done = filterWorklistRows(rawRows, { queue: "DONE", family: "all", query: "" });
+const toVerify = filterWorklistRows(rawRows, { queue: "TO_VERIFY", group: "all", query: "" });
+const done = filterWorklistRows(rawRows, { queue: "DONE", group: "all", query: "" });
 check(toVerify.length === 1 && toVerify[0].product_id === 11, "To verify keeps the unfinished row");
 check(done.length === 1 && done[0].product_id === 262, "Product 262 is in Done");
 
-const families = worklistFamilies(rawRows);
-check(families[0] === "Churna" && families.includes("Ghrita") && families.includes("Taila"), "families are sorted");
-check(filterWorklistRows(rawRows, { queue: "TO_VERIFY", family: "Churna", query: "" }).length === 0, "family filter");
-check(filterWorklistRows(rawRows, { family: "all", query: "beta" }).length === 1, "search by name");
-check(filterWorklistRows(rawRows, { family: "all", query: "14" })[0].product_name === "Delta Ghrita", "search by id");
+const groups = worklistLevelChoices(rawRows, "group");
+check(groups[1]?.value === "Churna" && groups.some((choice) => choice.value === "Ghrita") && groups.some((choice) => choice.value === "Taila"), "groups are sorted");
+check(filterWorklistRows(rawRows, { queue: "TO_VERIFY", group: "Churna", query: "" }).length === 0, "group filter");
+check(filterWorklistRows(rawRows, { group: "all", query: "beta" }).length === 1, "search by name");
+check(filterWorklistRows(rawRows, { group: "all", query: "14" })[0].product_name === "Delta Ghrita", "search by id");
 
 const dots = progressDotsHtml(rawRows.find((row) => row.product_id === 12));
 check((dots.match(/worklist-dot/g) || []).length === 8, "eight dots");
@@ -307,7 +308,7 @@ const contract = read("electron/eaushadhi-worker/qc-register-portal-contract.js"
 const executor = read("electron/eaushadhi-worker/qc-prep-run-executor.js");
 check(html.includes(WORKLIST_FALLBACK_TEXT) && html.includes('id="worklistRefresh"'), "error fallback banner and Refresh");
 check(api.includes("fetchWorklist") && api.includes("rpc_eaushadhi_worklist_v1") && api.includes("fetchMyRoles") && api.includes("rpc_eaushadhi_my_roles_v1"), "worklist and roles fetches");
-check(/const CACHE_NAME = "hub-cache-v375"/.test(sw) && sw.includes("// WP-07 UX-1.1 compact worklist"), "cache v375");
+check(/const CACHE_NAME = "hub-cache-v376"/.test(sw) && sw.includes("// WP-07 UX-1.2 classification filters"), "cache v376");
 check(control.includes("UI build UX-1") && control.includes('data-build="UX-1"') && control.includes("createDocumentFragment"), "marker UX-1 and one fragment");
 check(/const NATIVE_SAVE_AUTHORIZED = false/.test(contract), "build flag stays off");
 check(executor.includes("ALREADY_CLICKED") && control.includes('typed.value === "SAVE 262"'), "SAVE phrase and ALREADY_CLICKED remain");
@@ -320,7 +321,6 @@ const many = Array.from({ length: 438 }, (_, index) => normalizeWorklistRow({
   product_id: index + 1,
   product_name: `Bulk ${index + 1}`,
   family: index % 2 ? "Taila" : "",
-  medicine_class: index % 3 ? "Thailam" : "Ghrita",
   queue: "TO_VERIFY",
   ...stage("TODO"),
   next_action: "Start verification",
@@ -329,7 +329,7 @@ const many = Array.from({ length: 438 }, (_, index) => normalizeWorklistRow({
 }));
 check(resetQueueRenderCount(many.length) === 40, "first render is 40 rows of 438");
 check(nextQueueRenderCount(40, 438) === 80, "scroll-near-bottom appends 40 more");
-check(resetQueueRenderCount(filterWorklistRows(many, { queue: "TO_VERIFY", family: "Taila" }).length) === 40, "filter change resets to 40");
+check(resetQueueRenderCount(filterWorklistRows(many, { queue: "TO_VERIFY", group: "Taila" }).length) === 40, "filter change resets to 40");
 check(resetQueueRenderCount(440) === 40, "a 440-row queue also starts at 40");
 check(control.includes("openWorklistModal(row.dataset.productId)") && control.includes('if (event.key === "Enter")'), "row click and Enter open the modal");
 check(control.includes("primary.textContent = row.next_action || \"View\"") && control.includes('if (event.key === "Escape")'), "modal primary label is next_action and Escape closes");
@@ -343,8 +343,8 @@ const home = html.slice(html.indexOf('id="worklistHome"'), html.indexOf('id="leg
 const toolbar = home.slice(home.indexOf("worklist-toolbar"), home.indexOf('id="worklistFilterDrawer"'));
 const card = toolbar.slice(toolbar.indexOf("worklist-search-card"));
 check(card.indexOf('id="worklistFilterBtn"') >= 0 && card.indexOf('id="worklistFilterBtn"') < card.indexOf('id="worklistSearch"'), "filter button sits inside the search card, left of search");
-check(toolbar.includes('aria-label="Filters"') && !/>\s*Filters\s*</.test(toolbar) && !toolbar.includes("worklistFamily"), "filter button is icon-only and Family is not on the home row");
-check(home.includes('id="worklistFamily"') && home.includes('id="worklistClass"') && home.includes("Only blocked"), "drawer has Family, Medicine class, and Only blocked");
+check(toolbar.includes('aria-label="Filters"') && !/>\s*Filters\s*</.test(toolbar) && !toolbar.includes("worklistCategory"), "filter button is icon-only and classification filters are not on the home row");
+check(home.includes(">Classification<") && home.includes('id="worklistCategory"') && home.includes('id="worklistSubcategory"') && home.includes('id="worklistGroup"') && home.includes("Only blocked") && !home.includes("worklistFamily") && !home.includes("Medicine class"), "drawer has Category, Sub-category, Group, and Only blocked");
 const emptyRow = rawRows.find((row) => row.product_id === 13);
 const emptyDots = progressDotsHtml(emptyRow);
 const emptyModal = worklistModalHtml(emptyRow, { is_approver: false });
@@ -353,7 +353,33 @@ check((emptyModal.match(/worklist-chip is-empty/g) || []).length === 8 && !empty
 const portalModal = worklistModalHtml(rawRows.find((row) => row.product_id === 15), { is_approver: false });
 check((portalModal.match(/worklist-chip is-done/g) || []).length === 7 && (portalModal.match(/worklist-chip is-todo/g) || []).length === 1, "modal pills match green and grey");
 check(queueCss.includes(".worklist-chip-row") && queueCss.includes("flex-wrap: nowrap"), "eight status pills stay on one line");
-check(worklistFamilyChoices(many).some((choice) => choice.label === "Unassigned"), "Family choices include Unassigned");
+check(worklistLevelChoices(many, "group").some((choice) => choice.label === "Unassigned"), "Group choices include Unassigned");
+const classified = [
+  { product_id: 31, product_name: "Path One", queue: "TO_VERIFY", category_name: "Classical", subcategory_name: "Taila", group_name: "Kalka", sub_group_name: "Sneha", family: "Kalka", source_sheet: "PROD ING - Kalka", ...stage("TODO") },
+  { product_id: 32, product_name: "Path Two", queue: "TO_VERIFY", category_name: "Classical", subcategory_name: "Ghrita", group_name: "Sneha", sub_group_name: "", family: "Sneha", ...stage("TODO") },
+  { product_id: 33, product_name: "Path Three", queue: "TO_VERIFY", category_name: "Proprietary", subcategory_name: "Taila", group_name: "Other", family: "Other", ...stage("TODO") },
+  { product_id: 34, product_name: "Other queue", queue: "NEEDS_FIX", category_name: "Excluded", subcategory_name: "Taila", group_name: "Hidden", family: "Hidden", ...stage("TODO") },
+  { product_id: 35, product_name: "Stale sheet", queue: "TO_VERIFY", family: "Taila", ...stage("TODO") },
+  { product_id: 36, product_name: "Blank class", queue: "TO_VERIFY", category_name: "", family: "", ...stage("TODO") },
+].map(normalizeWorklistRow);
+const openQueue = classified.filter((row) => row.queue === "TO_VERIFY");
+check(classificationGroup(classified[0]) === "Kalka" && classificationPath(classified[0]) === "Classical > Taila > Kalka > Sneha", "full path uses the four live fields");
+check(classificationGroup(classified[4]) === "Taila" && classificationPath(classified[4]) === "Taila", "family is only the stale-server fallback");
+check(classificationGroup(classified[5]) === "Unassigned" && classificationPath(classified[5]) === "Unassigned", "blank classification reads Unassigned");
+const pathRow = worklistRowHtml(classified[0]);
+check(pathRow.includes(">Kalka<") && pathRow.includes("Classical &gt; Taila &gt; Kalka &gt; Sneha") && !pathRow.includes("medicine_class"), "classification cell shows the group and the path tooltip");
+const pathModal = worklistModalHtml(classified[0], { is_approver: false });
+check(pathModal.includes("Classical &gt; Taila &gt; Kalka &gt; Sneha") && !pathModal.includes("No class") && !pathModal.includes("To verify") && !pathModal.includes("Source sheet"), "dialog line is the path only");
+const sheetModal = worklistModalHtml(classified[0], { is_approver: true });
+check(sheetModal.includes("Source sheet") && sheetModal.includes("PROD ING - Kalka"), "approver technical details show the source sheet");
+const classical = openQueue.filter((row) => row.category_name === "Classical");
+const taila = classical.filter((row) => row.subcategory_name === "Taila");
+check(worklistLevelChoices(openQueue, "category").some((choice) => choice.value === "Classical") && worklistLevelChoices(openQueue, "category").every((choice) => choice.value !== "Excluded"), "category choices come from the open queue");
+check(worklistLevelChoices(classical, "subcategory").some((choice) => choice.value === "Ghrita") && worklistLevelChoices(classical, "subcategory").every((choice) => choice.value !== "Other"), "sub-category choices narrow to the category");
+check(worklistLevelChoices(taila, "group").some((choice) => choice.value === "Kalka") && worklistLevelChoices(taila, "group").every((choice) => choice.value !== "Sneha"), "group choices narrow to the sub-category");
+check(filterWorklistRows(classified, { queue: "TO_VERIFY", category: "Classical", subcategory: "Taila", group: "Kalka" }).length === 1, "cascading filter keeps one product");
+check(filterWorklistRows(classified, { queue: "TO_VERIFY", query: "ghrita" }).length === 1, "search matches a sub-category");
+check(worklistLevelChoices([classified[5]], "category").some((choice) => choice.value === "Unassigned"), "blank category is Unassigned");
 check(control.includes('$("worklistSearch")?.focus()'), "slash focuses the worklist search");
 check(home.includes('class="worklist-filter-popover"') && control.includes("getBoundingClientRect"), "filter drawer opens beside the filter button");
 check(queueCss.includes("white-space: nowrap") && queueCss.includes("height: 40px") && queueCss.includes("vertical-align: middle") && queueCss.includes("#worklistTabs.review-nav") && queueCss.includes("overflow: visible") && queueCss.includes("border-bottom: 0"), "rows stay centered and the line above the tabs is gone");
