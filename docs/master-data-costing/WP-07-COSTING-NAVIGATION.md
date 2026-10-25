@@ -1,3 +1,5 @@
+> **Renamed 25 Oct 2026: this work pack is now MDC-07** (master-data-costing). It is unrelated to the e-Aushadhi WP-07 programme. File name kept so old links still work.
+
 # WP-07 — Costing Suite Navigation and Information Architecture
 
 ## Objective
