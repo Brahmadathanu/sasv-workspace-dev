@@ -1998,6 +1998,7 @@ body.sasv-eaushadhi-review .worklist-chip-row {
   flex-wrap: nowrap;
   gap: 4px;
   align-items: center;
+  overflow-x: auto;
 }
 
 body.sasv-eaushadhi-review .worklist-chip-row .worklist-chip {
@@ -2179,7 +2180,7 @@ body.sasv-eaushadhi-review .worklist-stage-name {
 
 @media (max-width: 640px) {
   body.sasv-eaushadhi-review .worklist-copy {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 
   body.sasv-eaushadhi-review .worklist-stats {

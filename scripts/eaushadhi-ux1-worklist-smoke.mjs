@@ -16,6 +16,7 @@ import {
   progressDotsHtml,
   signedInRoleLabel,
   whoCanActText,
+  worklistEmptyHtml,
   classificationGroup,
   classificationPath,
   worklistLevelChoices,
@@ -332,7 +333,7 @@ check(nextQueueRenderCount(40, 438) === 80, "scroll-near-bottom appends 40 more"
 check(resetQueueRenderCount(filterWorklistRows(many, { queue: "TO_VERIFY", group: "Taila" }).length) === 40, "filter change resets to 40");
 check(resetQueueRenderCount(440) === 40, "a 440-row queue also starts at 40");
 check(control.includes("openWorklistModal(row.dataset.productId)") && control.includes('if (event.key === "Enter")'), "row click and Enter open the modal");
-check(control.includes("primary.textContent = row.next_action || \"View\"") && control.includes('if (event.key === "Escape")'), "modal primary label is next_action and Escape closes");
+check(control.includes("primary.textContent = decision.buttonLabel || \"View\"") && control.includes('if (event.key === "Escape")'), "modal primary label comes from the step decision and Escape closes");
 const modal = worklistModalHtml(rawRows[3], { is_verifier: true, is_approver: false });
 check(modal.includes("Why it is here") && modal.includes("Approve details") === false && !modal.includes("worklistModalTech"), "modal keeps the reason and hides technical details from a verifier");
 const approverModal = worklistModalHtml(rawRows[3], { is_approver: true });
@@ -352,7 +353,7 @@ check((emptyDots.match(/is-empty/g) || []).length === 8, "no-data dots stay holl
 check((emptyModal.match(/worklist-chip is-empty/g) || []).length === 8 && !emptyModal.includes("worklist-dot") && !emptyModal.includes("is-todo") && emptyModal.includes("worklist-modal-meta"), "modal pills carry the hollow colour and the family line is quiet text");
 const portalModal = worklistModalHtml(rawRows.find((row) => row.product_id === 15), { is_approver: false });
 check((portalModal.match(/worklist-chip is-done/g) || []).length === 7 && (portalModal.match(/worklist-chip is-todo/g) || []).length === 1, "modal pills match green and grey");
-check(queueCss.includes(".worklist-chip-row") && queueCss.includes("flex-wrap: nowrap"), "eight status pills stay on one line");
+check(queueCss.includes(".worklist-chip-row") && queueCss.includes("flex-wrap: nowrap") && queueCss.includes("overflow-x: auto"), "eight status pills stay on one scrolling line");
 check(worklistLevelChoices(many, "group").some((choice) => choice.label === "Unassigned"), "Group choices include Unassigned");
 const classified = [
   { product_id: 31, product_name: "Path One", queue: "TO_VERIFY", category_name: "Classical", subcategory_name: "Taila", group_name: "Kalka", sub_group_name: "Sneha", family: "Kalka", source_sheet: "PROD ING - Kalka", ...stage("TODO") },
@@ -383,6 +384,90 @@ check(worklistLevelChoices([classified[5]], "category").some((choice) => choice.
 check(control.includes('$("worklistSearch")?.focus()'), "slash focuses the worklist search");
 check(home.includes('class="worklist-filter-popover"') && control.includes("getBoundingClientRect"), "filter drawer opens beside the filter button");
 check(queueCss.includes("white-space: nowrap") && queueCss.includes("height: 40px") && queueCss.includes("vertical-align: middle") && queueCss.includes("#worklistTabs.review-nav") && queueCss.includes("overflow: visible") && queueCss.includes("border-bottom: 0"), "rows stay centered and the line above the tabs is gone");
+check(worklistRowHtml(rawRows[0]).includes('aria-label="Progress, 0 of 8 done"'), "progress summary for a new product");
+check(worklistRowHtml(done[0]).includes('aria-label="Progress, 8 of 8 done"'), "progress summary for Product 262");
+check(worklistEmptyHtml().includes("No products match.") && !worklistEmptyHtml().includes("queue-row"), "empty filter copy is not a product row");
+check(home.includes('id="worklistFilteredCount"'), "quiet filtered count is in the toolbar");
+check(control.includes("decision.buttonLabel || \"View\"") && control.includes("appendWorklistChunk({ force: true })") && control.includes('trapModalTab(event, "worklistFilterDrawer")') && control.includes('$("worklistCategory")?.focus()'), "keyboard chunk, filter focus trap, and button label");
+const narrowCss = queueCss.slice(queueCss.indexOf("@media (max-width: 640px)"));
+check(narrowCss.includes(".worklist-copy") && narrowCss.includes("grid-template-columns: 1fr;"), "dialog cards stack on a narrow window");
+
+const rolePeople = {
+  verifier: { is_verifier: true, is_approver: false },
+  approver: { is_verifier: false, is_approver: true },
+  both: { is_verifier: true, is_approver: true },
+  view: { is_verifier: false, is_approver: false },
+  self: { is_verifier: true, is_approver: true, selfApproval: true },
+};
+const roleSteps = [
+  ["View", "overview", "DONE", "view", { queue: "DONE" }],
+  ["Fix product record", "overview", "NEEDS_FIX", "verifier"],
+  ["Add sheet data", "overview", "NO_DATA", "verifier"],
+  ["Start verification", "overview", "TODO", "verifier"],
+  ["Verify details", "details", "TODO", "verifier"],
+  ["Approve details", "details", "IN_REVIEW", "approver"],
+  ["Fix composition issues", "composition", "NEEDS_FIX", "verifier"],
+  ["Verify composition", "composition", "TODO", "verifier"],
+  ["Approve composition", "composition", "IN_REVIEW", "approver"],
+  ["Verify actions", "actions", "TODO", "verifier"],
+  ["Approve actions", "actions", "IN_REVIEW", "approver"],
+  ["Wait for QC report", "qc", "NO_DATA", "wait"],
+  ["Verify QC values", "qc", "TODO", "verifier"],
+  ["Upload report", "evidence", "TODO", "verifier"],
+  ["Fill portal", "portal", "NOT_STARTED", "verifier"],
+];
+function roleSample(label, nextStage, status, extra = {}) {
+  const row = {
+    product_id: 80,
+    product_name: "Role sample",
+    queue: "TO_VERIFY",
+    ...stage("TODO"),
+    next_action: label,
+    next_stage: nextStage,
+    ...extra,
+  };
+  row[`stage_${nextStage}`] = status;
+  return row;
+}
+let roleMisses = 0;
+roleSteps.forEach(([label, nextStage, status, kind, extra]) => {
+  const row = roleSample(label, nextStage, status, extra);
+  Object.entries(rolePeople).forEach(([person, roles]) => {
+    const decision = nextActionDecision(row, roles);
+    let enabled = false;
+    let reason = "";
+    let buttonLabel = label;
+    if (kind === "view" || kind === "wait") {
+      enabled = true;
+      buttonLabel = "View";
+    } else if (kind === "approver") {
+      if (person === "self") reason = REASONS.self;
+      else if (person === "approver" || person === "both") enabled = true;
+      else reason = REASONS.approver;
+    } else if (person === "verifier" || person === "both" || person === "self") {
+      enabled = true;
+    } else {
+      reason = REASONS.verifier;
+    }
+    if (decision.enabled !== enabled || decision.reason !== reason || decision.buttonLabel !== buttonLabel) {
+      roleMisses += 1;
+      console.error(`FAIL role ${label} / ${person}: enabled=${decision.enabled} reason=${decision.reason} button=${decision.buttonLabel}`);
+    }
+  });
+});
+check(roleMisses === 0, "role matrix for verifier, approver, both, view-only, and self-changed");
+const approveSample = roleSample("Approve details", "details", "IN_REVIEW");
+const renamedApprove = roleSample("Send this upstairs", "details", "IN_REVIEW");
+const approveVerifier = nextActionDecision(approveSample, rolePeople.verifier);
+const renamedVerifier = nextActionDecision(renamedApprove, rolePeople.verifier);
+check(approveVerifier.enabled === renamedVerifier.enabled && approveVerifier.reason === renamedVerifier.reason, "a renamed label does not change an approver decision");
+const verifySample = roleSample("Verify details", "details", "TODO");
+const renamedVerify = roleSample("Look at the record", "details", "TODO");
+check(nextActionDecision(verifySample, rolePeople.self).enabled === true && nextActionDecision(renamedVerify, rolePeople.self).enabled === true && nextActionDecision(renamedVerify, rolePeople.view).reason === REASONS.verifier, "a renamed verifier step stays a verifier step");
+const portal262 = roleSample("Fill portal", "portal", "NOT_STARTED", { product_id: 262, queue: "READY_FOR_PORTAL", ...stage("DONE"), stage_portal: "NOT_STARTED" });
+check(nextActionDecision(portal262, rolePeople.both).reason === REASONS.portal && nextActionDecision({ ...portal262, next_action: "Ship it" }, rolePeople.both).reason === REASONS.portal, "Fill portal on Product 262 stays locked without reading the label");
+const normalized262 = normalizeWorklistRow(portal262);
+check(normalized262.queue === "DONE" && normalized262.next_action === "View" && nextActionDecision(normalized262, rolePeople.view).buttonLabel === "View" && workspaceTabForStage("portal") === "qc", "Product 262 opens as View and portal still maps to the qc tab");
 
 if (failed) {
   console.error(`UX-1 smoke failed ${failed}`);

@@ -62,6 +62,7 @@ export const REASONS = {
   saveDone: "Save already done for this run.",
   upload: "Upload the QC report first.",
   sheet: "No sheet data is linked to this product yet.",
+  verifier: "Needs a verifier. Ask a verifier to do this step.",
 };
 
 export const APPROVER_IDS = new Set([
@@ -283,6 +284,11 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
+export function progressSummary(row) {
+  const done = STAGE_DOTS.filter(([key]) => String(row?.[key] || "") === "DONE").length;
+  return `Progress, ${done} of ${STAGE_DOTS.length} done`;
+}
+
 export function progressDotsHtml(row) {
   return STAGE_DOTS.map(([key, label]) => {
     const status = String(row?.[key] || "NOT_STARTED");
@@ -311,7 +317,7 @@ export function worklistRowHtml(row) {
     <td class="num-cell worklist-id-cell">${escapeHtml(row?.product_id)}</td>
     <td class="cell-product"><span class="worklist-name">${name}</span></td>
     <td class="worklist-class-cell${groupClass}" title="${escapeHtml(classificationPath(row))}">${escapeHtml(group)}</td>
-    <td><span class="worklist-dots">${progressDotsHtml(row)}</span></td>
+    <td><span class="worklist-dots" aria-label="${escapeHtml(progressSummary(row))}">${progressDotsHtml(row)}</span></td>
     <td class="worklist-next">${action}</td>
     <td>${escapeHtml(formatIstDate(row?.last_changed_at))}</td>
   </tr>`;
@@ -342,18 +348,39 @@ export function worklistFiltersActive({ category, subcategory, group, blockedOnl
     || blockedOnly === true;
 }
 
+const APPROVER_NEXT_STAGES = new Set(["details", "composition", "actions"]);
+
+export function worklistStepKind(row) {
+  const stage = String(row?.next_stage || "");
+  if (Number(row?.product_id) === PORTAL_CONFIRMED_PRODUCT_ID && stage === "portal") return "portal-lock";
+  if (APPROVER_NEXT_STAGES.has(stage) && String(row?.[`stage_${stage}`] || "") === "IN_REVIEW") return "approver";
+  if (stage === "qc" && String(row?.stage_qc || "") === "NO_DATA") return "wait";
+  if (row?.queue === "DONE") return "view";
+  return "verifier";
+}
+
 export function nextActionDecision(row, roles) {
-  const label = String(row?.next_action || "View");
-  const needsApprover = /^(Approve|Verify)\b/.test(label);
-  return actionDecision({
-    id: "worklistModalPrimary",
-    label,
-    requiresRole: needsApprover ? "APPROVER" : "",
-    isApprover: roles?.is_approver === true,
-    selfApproval: roles?.selfApproval === true,
-    productId: row?.product_id,
-    disabled: false,
-  });
+  const kind = worklistStepKind(row);
+  const serverLabel = cleanText(row?.next_action) || "View";
+  if (kind === "portal-lock") {
+    return { enabled: false, reason: REASONS.portal, buttonLabel: "View", requiresApprover: false };
+  }
+  if (kind === "wait" || kind === "view") {
+    return { enabled: true, reason: "", buttonLabel: "View", requiresApprover: false };
+  }
+  if (kind === "approver") {
+    if (roles?.is_approver !== true) {
+      return { enabled: false, reason: REASONS.approver, buttonLabel: serverLabel, requiresApprover: true };
+    }
+    if (roles?.selfApproval === true) {
+      return { enabled: false, reason: REASONS.self, buttonLabel: serverLabel, requiresApprover: true };
+    }
+    return { enabled: true, reason: "", buttonLabel: serverLabel, requiresApprover: true };
+  }
+  if (roles?.is_verifier !== true) {
+    return { enabled: false, reason: REASONS.verifier, buttonLabel: serverLabel, requiresApprover: false };
+  }
+  return { enabled: true, reason: "", buttonLabel: serverLabel, requiresApprover: false };
 }
 
 function worklistTechHtml(row) {
@@ -388,6 +415,10 @@ export function worklistModalHtml(row, roles) {
     <p class="muted-note worklist-updated">Last change ${escapeHtml(formatIstDate(row?.last_changed_at) || "not recorded")}</p>
     ${tech}
   </div>`;
+}
+
+export function worklistEmptyHtml() {
+  return `<tr class="worklist-empty"><td colspan="6">No products match.</td></tr>`;
 }
 
 export function worklistTableHtml(rows) {

@@ -198,6 +198,7 @@ import {
   setActionState,
   signedInRoleLabel,
   worklistLevelChoices,
+  worklistEmptyHtml,
   worklistFiltersActive,
   worklistModalHtml,
   worklistRowHtml,
@@ -8128,6 +8129,32 @@ function syncWorklistFilterControls() {
   }
   const clear = $("worklistSearchClear");
   if (clear) clear.hidden = !safeText(state.worklistQuery);
+  syncWorklistFilteredCount(filterWorklistRows(rows, {
+    category: state.worklistCategory,
+    subcategory: state.worklistSubcategory,
+    group: state.worklistGroup,
+    blockedOnly: state.worklistBlocked === true,
+    query: state.worklistQuery,
+  }).length);
+}
+
+function syncWorklistFilteredCount(total) {
+  const node = $("worklistFilteredCount");
+  if (!node) return;
+  const active = worklistFiltersActive({
+    category: state.worklistCategory,
+    subcategory: state.worklistSubcategory,
+    group: state.worklistGroup,
+    blockedOnly: state.worklistBlocked,
+  }) || Boolean(safeText(state.worklistQuery));
+  if (!active) {
+    node.hidden = true;
+    node.textContent = "";
+    return;
+  }
+  const count = Number(total) || 0;
+  node.hidden = false;
+  node.textContent = `${count} ${count === 1 ? "product" : "products"}`;
 }
 
 function refreshChildClassificationDrafts() {
@@ -8204,8 +8231,9 @@ function renderWorklist({ resetChunk = false, restoreScroll = false } = {}) {
   const visible = visibleQueueRows(filtered, state.worklistRenderedCount);
   const body = $("worklistBody");
   if (!body) return;
+  const markup = visible.length ? visible.map((row) => worklistRowHtml(row)).join("") : worklistEmptyHtml();
   const template = document.createElement("template");
-  template.innerHTML = `<table><tbody>${visible.map((row) => worklistRowHtml(row)).join("")}</tbody></table>`;
+  template.innerHTML = `<table><tbody>${markup}</tbody></table>`;
   const fragment = document.createDocumentFragment();
   const built = template.content.querySelector("tbody");
   while (built?.firstChild) fragment.append(built.firstChild);
@@ -8270,6 +8298,7 @@ function setWorklistFiltersOpen(open) {
   const button = $("worklistFilterBtn");
   const home = $("worklistHome");
   if (!drawer || !button) return;
+  const wasOpen = drawer.hidden !== true;
   if (setWorklistFiltersOpen.onKey) {
     document.removeEventListener("keydown", setWorklistFiltersOpen.onKey, true);
     setWorklistFiltersOpen.onKey = null;
@@ -8287,16 +8316,19 @@ function setWorklistFiltersOpen(open) {
     const table = $("worklistTableWrap");
     if (home && table && drawer.parentElement !== home) home.insertBefore(drawer, table);
     syncWorklistFilterControls();
+    if (wasOpen) button.focus();
     return;
   }
   document.body.append(drawer);
   placeWorklistFilterPopover();
   const onKey = (event) => {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    event.stopPropagation();
-    setWorklistFiltersOpen(false);
-    button.focus();
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      setWorklistFiltersOpen(false);
+      return;
+    }
+    trapModalTab(event, "worklistFilterDrawer");
   };
   const onPointer = (event) => {
     if (drawer.contains(event.target) || button.contains(event.target)) return;
@@ -8306,7 +8338,7 @@ function setWorklistFiltersOpen(open) {
   setWorklistFiltersOpen.onPointer = onPointer;
   document.addEventListener("keydown", onKey, true);
   document.addEventListener("pointerdown", onPointer, true);
-  drawer.querySelector(".worklist-filter-panel")?.focus();
+  $("worklistCategory")?.focus();
 }
 
 function closeWorklistModal({ restoreFocus = true } = {}) {
@@ -8363,7 +8395,7 @@ function openWorklistModal(productId) {
   primary.type = "button";
   primary.id = "worklistModalPrimary";
   primary.className = "icon-btn with-label primary";
-  primary.textContent = row.next_action || "View";
+  primary.textContent = decision.buttonLabel || "View";
   footer.append(closeBtn, primary);
   dialog.append(header, body, footer);
   backdrop.append(dialog);
@@ -10427,8 +10459,13 @@ function wireEvents() {
     }
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
-      const next = nextRovingIndex(current, rows.length, event.key, { wrap: false });
-      if (rows[next]) focusWorklistRow(rows[next].dataset.productId);
+      let rowsNow = rows;
+      let next = nextRovingIndex(current, rowsNow.length, event.key, { wrap: false });
+      if (event.key === "ArrowDown" && next === current && appendWorklistChunk({ force: true })) {
+        rowsNow = worklistRowEls();
+        next = current + 1;
+      }
+      if (rowsNow[next]) focusWorklistRow(rowsNow[next].dataset.productId);
     }
   });
   $("backToQueueBtn")?.addEventListener("click", backToQueue);
