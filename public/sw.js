@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v373"; // WP-07 D7.3.2 one portal row is confirmed when the list matches
+const CACHE_NAME = "hub-cache-v374"; // costing W1 run-status badge; v373 was WP-07 D7.3.2
 
 const PRECACHE = [
   // Hub shell
