@@ -1,5 +1,7 @@
 # SASV Master Data Governance, Product Lifecycle & Costing Suite UX Consolidation
 
+> **Status update 25 Oct 2026 (read-only audit):** this programme was dormant from 8 Oct 2026. Costing work after that date ran under `docs/costing-pipeline-independent-audit/` (see its `CURRENT_STATE.md`). WP-1 and WP00–WP04 are done and verified on main and live. SEC-P01 is done live. The old "WP07" here is renamed **MDC-07** so it is not confused with the e-Aushadhi WP-07 programme. Every remaining item and its proposed disposition is in [MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md](MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md). The programme is **not closed yet**. References below to Run 115 and Build 4 are history; current approved runs are 122 (Sep, locked) and 143 (Oct).
+
 ## Authority
 This directory is the durable workflow authority for this programme. Live Supabase state governs server reality; current Git main governs repository reality; approved programme documents govern workflow state; chat is supporting context.
 
@@ -33,7 +35,7 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 - [x] WP04 — Central Master Data / Costing Readiness Control Centre — COMPLETED, VERIFIED, MERGED, AND CLOSED
 - [ ] WP05 — Costing Suite Functional Rationalisation Audit
 - [ ] WP06 — Pricing Policy Manager Simplification
-- [ ] WP07 — Costing Suite Navigation and Information Architecture
+- [ ] MDC-07 (was WP07) — Costing Suite Navigation and Information Architecture
 - [ ] WP08 — Product / Master Data Navigation Rationalisation
 - [ ] WP09 — Wider Application Launcher/Section Audit
 - [ ] WP10 — Governance Safeguards for Future Product/SKU Creation
@@ -44,7 +46,7 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11–WP12. Later phases do not start because an attractive future idea appears.
 
 ## Programme status
-IN PROGRESS
+IN PROGRESS: closing. Remaining items and dispositions: MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md (25 Oct 2026)
 
 ## Active work pack
 None. WP04 — Central Master Data / Costing Readiness Control Centre is completed, verified, merged, and closed. WP05 has not started.
