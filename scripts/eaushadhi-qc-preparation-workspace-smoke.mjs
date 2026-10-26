@@ -1115,6 +1115,7 @@ const saveHarness = new Function(
    function saveQcPreparation() { return Promise.resolve({ ok: true, row_version: 2 }); }
    function showToast(message) { toasts.push(message); }
    function userMessageForError() { return "failed"; }
+   function refreshStageReview() { return Promise.resolve(); }
    function renderQc() {}
    function renderQcSurface() {}
    function revealQcPrepResult() {}
@@ -1465,6 +1466,8 @@ const capturedEvidence = await new Function(
    function renderQc() {}
    function showToast() {}
    function reloadQcPreparationWorkspace() {}
+   function refreshStageReview() { return Promise.resolve(); }
+   function rememberApprovalRefusal() {}
    function userMessageForError() { return "failed"; }
    ${extractCallable("submitQcSourceVerify")}
    return submitQcSourceVerify().then(() => captured);`,

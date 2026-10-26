@@ -242,6 +242,13 @@ selfPanel.append(button(doc, "btnVerifyDetails", "Verify Product Details"));
 decorateWorkspace(selfPanel, { isApprover: true, selfApproval: true, productId: 11 });
 check(selfPanel.querySelector("button").disabled && selfPanel.querySelector("button").nextElementSibling.textContent === REASONS.self, "self-approval reason");
 
+const portalSelf = doc.createElement("div");
+portalSelf.append(button(doc, "btnQcNativeSave", "Save to portal (one row)"));
+portalSelf.append(button(doc, "btnVerifyPortalDiseases", "Accept & Verify Portal Text"));
+decorateWorkspace(portalSelf, { isApprover: true, selfApproval: true, productId: 11 });
+check(portalSelf.querySelector("#btnQcNativeSave").disabled !== true, "portal save stays available to the same person");
+check(portalSelf.querySelector("#btnVerifyPortalDiseases").disabled !== true, "portal text stays available to the same person");
+
 const approverPanel = doc.createElement("div");
 approverPanel.append(button(doc, "btnVerifyDetails", "Verify Product Details"));
 approverPanel.append(button(doc, "btnQcFillDryRun", "Dry run (no Save)", { disabled: true, title: "Check portal page first." }));

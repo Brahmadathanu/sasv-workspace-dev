@@ -33,6 +33,7 @@ const requiredRpcs = [
   "rpc_eaushadhi_permission_purpose_options",
   "rpc_eaushadhi_save_line_review",
   "rpc_eaushadhi_product_review_get",
+  "rpc_eaushadhi_stage_review_state_v1",
   "rpc_eaushadhi_product_review_save",
   "rpc_eaushadhi_pharmacological_action_options",
   "rpc_eaushadhi_product_actions_get",
@@ -214,7 +215,7 @@ assert(
 );
 assert(helpersSrc.includes('saveStatus === "saving"'), "saving status gates classification Verify");
 assert(controlSrc.includes("Regulatory purpose"), "existing Product Details section retained");
-assert(controlSrc.includes("Verify Portal Classification"), "Verify action exists");
+assert(controlSrc.includes('id="btnVerifyClassification"') && controlSrc.includes(">Approve</button>"), "classification approval action exists");
 assert(controlSrc.includes("Reopen Portal Classification"), "Reopen action exists");
 assert(controlSrc.includes("openReopen(\"classification\""), "classification uses reopen modal");
 assert(helpersSrc.includes("preEntryReopenAvailability"), "shared pre-entry reopen availability helper exists");
@@ -390,13 +391,13 @@ assert(
   /export async function loadProductWorkspace[\s\S]*fetchDocumentUploadContract[\s\S]*review_status/.test(apiSrc) === false,
   "document contract fetch is not gated on review status",
 );
-assert(controlSrc.includes("Verify line"), "composition verify line wording");
+assert(controlSrc.includes('data-line-verify') && controlSrc.includes(">Approve</button>"), "composition approval wording");
 assert(controlSrc.includes("data-source-correct"), "correct source action exists");
 assert(!/Save progress/.test(controlSrc + htmlSrc), "routine save progress button removed");
 assert(!/Save as In Review/.test(controlSrc + htmlSrc), "routine save as in review buttons removed");
 assert(
-  controlSrc.includes("Verify reviewed lines") || htmlSrc.includes("Verify reviewed lines"),
-  "verify reviewed lines action exists",
+  controlSrc.includes("Approve reviewed lines") || htmlSrc.includes("Approve reviewed lines"),
+  "approve reviewed lines action exists",
 );
 assert(controlSrc.includes("verifyReviewedConfirmLabel"), "verify reviewed confirm label helper is used");
 assert(controlSrc.includes("canVerifyProductDetails"), "product details verify eligibility is used");

@@ -327,3 +327,7 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - **Check portal page** reads identity, list coverage, laboratory option value, and an optional local PDF. It does not arm, attach, or click the Submit-labelled control. `nativeSaveClickEnabled` stays false.
 - B5.1 applied 20261013155440: QC labName = laboratory name, not portal id. The repository file is the applied SQL, byte-exact, and was not applied again from this checkout.
 - The client fills `#lab_name` only when an option value equals that name. `LoadQCData` is read with `TotalCount` first. `GetqcData` raw dates are accepted only as `YYYY-MM-DD`. The Submit label still does not click Save.
+
+## 2026-10-26 — WP-07 UX-2 known limit: portal text and Product Details four-eyes
+- Saving portal text rewrites `product_review.updated_by` without changing `review_status`. The next Product Details approval then follows the person who saved the portal text.
+- A separate server fix is planned. The client does not clear or rewrite that stamp.

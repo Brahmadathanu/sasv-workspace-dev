@@ -283,6 +283,45 @@ export function approvalNoticeFromError(error) {
   };
 }
 
+export function stageSaverCopy(row, formatWhen) {
+  if (!row?.saved_at) return "";
+  const when = typeof formatWhen === "function" ? safeText(formatWhen(row.saved_at)) : "";
+  const stamp = when ? ` on ${when}` : "";
+  if (row.saved_by_me === true) return `You saved this for review${stamp}.`;
+  const name = safeText(row.saved_by_name);
+  if (name) return `Saved for review by ${name}${stamp}.`;
+  return `Saved for review by another person${stamp}.`;
+}
+
+export function stageApprovalBlock(row, { failed = false, loaded = false } = {}) {
+  if (failed === true || loaded !== true) return null;
+  if (!row) return fourEyesMessage({ message: "FOUR_EYES_NOT_SAVED_FOR_REVIEW" });
+  if (!row.block_code || row.review_status === "VERIFIED") return null;
+  return fourEyesMessage({ message: row.block_code });
+}
+
+export function bulkApprovalSummary(codes) {
+  const counts = {
+    FOUR_EYES_SAME_PERSON: 0,
+    FOUR_EYES_NOT_SAVED_FOR_REVIEW: 0,
+    APPROVER_ROLE_REQUIRED: 0,
+    OTHER: 0,
+  };
+  for (const code of Array.isArray(codes) ? codes : []) {
+    if (code === "FOUR_EYES_SAME_PERSON" || code === "FOUR_EYES_NOT_SAVED_FOR_REVIEW" || code === "APPROVER_ROLE_REQUIRED") {
+      counts[code] += 1;
+    } else {
+      counts.OTHER += 1;
+    }
+  }
+  const parts = [];
+  if (counts.FOUR_EYES_SAME_PERSON) parts.push(`${counts.FOUR_EYES_SAME_PERSON} need a different approver`);
+  if (counts.FOUR_EYES_NOT_SAVED_FOR_REVIEW) parts.push(`${counts.FOUR_EYES_NOT_SAVED_FOR_REVIEW} not saved for review yet`);
+  if (counts.APPROVER_ROLE_REQUIRED) parts.push(`${counts.APPROVER_ROLE_REQUIRED} need an approver`);
+  if (counts.OTHER) parts.push(`${counts.OTHER} could not be approved`);
+  return parts.join(". ");
+}
+
 const PORTAL_FIELD_SPECS = Object.freeze([
   {
     domain: "INGREDIENT_TYPE",
@@ -687,9 +726,9 @@ export function summarizeVerifyReviewedLines(lines, drafts, issues) {
   return summary;
 }
 
-export function autosaveStateLabel(status) {
+export function autosaveStateLabel(status, { forReview = false } = {}) {
   if (status === "saving") return "Saving...";
-  if (status === "saved") return "Saved";
+  if (status === "saved") return forReview ? "Saved for review" : "Saved";
   if (status === "failed") return "Save failed";
   if (status === "stale") return "Server data changed - refresh/review required";
   if (status === "locked") return "Verified - reopen to edit";
@@ -1626,7 +1665,7 @@ export function canVerifyActionSet({
 export function verifyReviewedConfirmLabel(eligibleCount) {
   const count = toInt(eligibleCount);
   if (count < 1) return "No lines eligible";
-  return `Verify ${count} reviewed lines`;
+  return `Approve ${count} reviewed lines`;
 }
 
 export function verifyReviewedEmptyGuidance(eligibleCount) {

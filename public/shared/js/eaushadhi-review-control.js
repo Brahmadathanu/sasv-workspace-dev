@@ -122,6 +122,11 @@ import {
   suggestionBasisSummary,
   summarizeVerifyReviewedLines,
   syncWorkingSourceQuantityDraft,
+  approvalNoticeFromError,
+  bulkApprovalSummary,
+  fourEyesMessage,
+  stageApprovalBlock,
+  stageSaverCopy,
   userMessageForError,
   validateEvidenceFile,
   workingActionReviewStatus,
@@ -154,6 +159,7 @@ import {
   fetchProductQueue,
   fetchWorklist,
   fetchMyRoles,
+  fetchStageReviewState,
   fetchDocumentUploadContract,
   fetchProductClassificationOptions,
   fetchProductPortalText,
@@ -289,6 +295,11 @@ const state = {
   },
   selectedProductId: null,
   myRoles: { ...ROLE_FALLBACK },
+  stageReview: [],
+  stageReviewLoaded: false,
+  stageReviewFailed: false,
+  approvalNotice: null,
+  pendingApproval: null,
   worklist: null,
   worklistRow: null,
   worklistError: false,
@@ -761,61 +772,170 @@ function syncPortalTextUi() {
   setHintEl("portalDiseasesHint", hint);
 }
 
+function stageRow(stage, itemKey = null) {
+  const key = itemKey == null || itemKey === "" ? "" : String(itemKey);
+  return (state.stageReview || []).find((row) => row?.stage === stage && String(row.item_key || "") === key) || null;
+}
+
+function stageGate(stage, itemKey = null) {
+  if (state.stageReviewFailed === true || state.stageReviewLoaded !== true) return null;
+  return stageApprovalBlock(stageRow(stage, itemKey), { failed: false, loaded: true });
+}
+
+function combineApproval(fieldOk, fieldReason, stage, itemKey = null) {
+  if (fieldOk !== true) return { ok: false, reason: fieldReason || "", code: "" };
+  const gate = stageGate(stage, itemKey);
+  if (gate) return { ok: false, reason: gate.userMessage, code: gate.code };
+  return { ok: true, reason: "", code: "" };
+}
+
+function stageSaverHtml(stage, itemKey = null) {
+  const id = itemKey == null || itemKey === "" ? `stageSaver-${stage}` : `stageSaver-${stage}-${itemKey}`;
+  const text = state.stageReviewLoaded === true && state.stageReviewFailed !== true
+    ? stageSaverCopy(stageRow(stage, itemKey), qcIstStamp)
+    : "";
+  return `<p class="muted-note" id="${escapeHtml(id)}"${text ? "" : " hidden"}>${escapeHtml(text)}</p>`;
+}
+
+function approvalNoticeHtml(stage, itemKey = "") {
+  const notice = state.approvalNotice;
+  if (!notice || notice.stage !== stage || String(notice.itemKey || "") !== String(itemKey || "")) return "";
+  const tech = notice.technical
+    ? `<details class="worklist-tech"><summary>Technical details</summary><div class="ea-change-item"><dl>
+        <div class="ea-change-pair"><dt>Code</dt><dd>${escapeHtml(notice.technical.code || "Not recorded")}</dd></div>
+        <div class="ea-change-pair"><dt>Call</dt><dd>${escapeHtml(notice.technical.rpc || "Not recorded")}</dd></div>
+        <div class="ea-change-pair"><dt>Hint</dt><dd>${escapeHtml(notice.technical.hint || "Not recorded")}</dd></div>
+      </dl></div></details>`
+    : "";
+  if (!notice.unknown) return tech;
+  return `<p class="disabled-reason">${escapeHtml(`${notice.text} ${notice.next}`)}</p>${tech}`;
+}
+
+function rememberApprovalRefusal(err) {
+  const pending = state.pendingApproval;
+  if (!pending) return;
+  const notice = approvalNoticeFromError(err);
+  state.approvalNotice = {
+    stage: pending.stage,
+    itemKey: pending.itemKey || "",
+    ...notice,
+    technical: state.myRoles?.is_approver === true ? {
+      code: notice.code || safeText(err?.original?.code || err?.code),
+      rpc: safeText(err?.rpcName),
+      hint: safeText(err?.original?.hint || err?.hint),
+    } : null,
+  };
+}
+
+async function loadStageReview(productId) {
+  try {
+    const rows = await fetchStageReviewState(productId);
+    return { rows: Array.isArray(rows) ? rows : [], failed: false };
+  } catch (err) {
+    console.error("[eaushadhi] stage review state failed", err);
+    return { rows: [], failed: true };
+  }
+}
+
+function applyStageReviewResult(result) {
+  state.stageReview = result?.rows || [];
+  state.stageReviewFailed = result?.failed === true;
+  state.stageReviewLoaded = result?.failed !== true;
+}
+
+function paintStageSaver(stage, itemKey = null) {
+  const id = itemKey == null || itemKey === "" ? `stageSaver-${stage}` : `stageSaver-${stage}-${itemKey}`;
+  const el = document.getElementById(id);
+  if (!el) return;
+  const text = state.stageReviewLoaded === true && state.stageReviewFailed !== true
+    ? stageSaverCopy(stageRow(stage, itemKey), qcIstStamp)
+    : "";
+  el.hidden = !text;
+  el.textContent = text;
+}
+
+function applyStageReviewChrome() {
+  paintStageSaver("details");
+  paintStageSaver("classification");
+  paintStageSaver("actions");
+  for (const row of state.lines || []) {
+    const lineId = row?.source_composition_line_id;
+    paintStageSaver("line", lineId);
+    syncLineVerifyUi(lineId);
+  }
+  const preparationId = state.qcPrepServer?.preparation_id;
+  if (preparationId) paintStageSaver("qc", preparationId);
+  syncDetailsVerifyUi();
+  syncClassificationVerifyUi();
+  syncActionsVerifyUi();
+  if (isProductMode()) applyWorkspaceChrome();
+}
+
+async function refreshStageReview({ render = false } = {}) {
+  const productId = state.selectedProductId;
+  if (!productId) return;
+  const result = await loadStageReview(productId);
+  if (!idsEqual(state.selectedProductId, productId)) return;
+  applyStageReviewResult(result);
+  if (render && isProductMode()) renderActiveTab();
+  else applyStageReviewChrome();
+}
+
+function applyApprovalButton(btn, decision, hintId) {
+  if (!btn) return;
+  const blocked = decision.ok !== true;
+  btn.disabled = blocked || !canWrite() || state.busy;
+  btn.dataset.forceDisabled = blocked ? "true" : "false";
+  if (decision.code) btn.dataset.blockCode = decision.code;
+  else delete btn.dataset.blockCode;
+  if (decision.reason) btn.title = decision.reason;
+  else btn.removeAttribute("title");
+  setHintEl(hintId, decision.reason);
+}
+
 function syncDetailsVerifyUi() {
   const btn = $("btnVerifyDetails");
   if (!btn) return;
-  const ok = canVerifyProductDetails(state.detailsDraft, {
+  const fieldOk = canVerifyProductDetails(state.detailsDraft, {
     canEdit: canWrite(),
     saveStatus: state.detailsSaveStatus,
   });
-  const reason = productDetailsVerifyPendingCopy(state.detailsDraft, {
+  const fieldReason = productDetailsVerifyPendingCopy(state.detailsDraft, {
     saveStatus: state.detailsSaveStatus,
   });
-  btn.disabled = !ok || !canWrite() || state.busy;
-  btn.dataset.forceDisabled = ok ? "false" : "true";
-  if (reason) btn.title = reason;
-  else btn.removeAttribute("title");
-  setHintEl("detailsVerifyHint", reason);
+  applyApprovalButton(btn, combineApproval(fieldOk, fieldReason, "details"), "detailsVerifyHint");
 }
 
 function syncActionsVerifyUi() {
   const btn = $("btnVerifyActions");
   if (!btn) return;
-  const ok = canVerifyActionSet({
+  const fieldOk = canVerifyActionSet({
     actions: state.actionsDraft,
     reviewStatus: state.actionsReviewStatus,
     saveStatus: state.actionsSaveStatus,
     canEdit: canWrite(),
   });
-  const reason = actionSetVerifyPendingCopy({
+  const fieldReason = actionSetVerifyPendingCopy({
     actions: state.actionsDraft,
     reviewStatus: state.actionsReviewStatus,
     saveStatus: state.actionsSaveStatus,
   });
-  btn.disabled = !ok || !canWrite() || state.busy;
-  btn.dataset.forceDisabled = ok ? "false" : "true";
-  if (reason) btn.title = reason;
-  else btn.removeAttribute("title");
-  setHintEl("actionsVerifyHint", reason);
+  applyApprovalButton(btn, combineApproval(fieldOk, fieldReason, "actions"), "actionsVerifyHint");
 }
 
 function syncClassificationVerifyUi() {
   const btn = $("btnVerifyClassification");
   if (!btn) return;
-  const ok = canVerifyClassification(state.classificationDraft, {
+  const fieldOk = canVerifyClassification(state.classificationDraft, {
     canEdit: canWrite(),
     saveStatus: state.classificationSaveStatus,
     reviewStatus: state.classification?.review_status,
   });
-  const reason = classificationVerifyPendingCopy(state.classificationDraft, {
+  const fieldReason = classificationVerifyPendingCopy(state.classificationDraft, {
     saveStatus: state.classificationSaveStatus,
     reviewStatus: state.classification?.review_status,
   });
-  btn.disabled = !ok || !canWrite() || state.busy;
-  btn.dataset.forceDisabled = ok ? "false" : "true";
-  if (reason) btn.title = reason;
-  else btn.removeAttribute("title");
-  setHintEl("classificationVerifyHint", reason);
+  applyApprovalButton(btn, combineApproval(fieldOk, fieldReason, "classification"), "classificationVerifyHint");
 }
 
 function syncLineVerifyUi(lineId) {
@@ -825,7 +945,7 @@ function syncLineVerifyUi(lineId) {
   const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, id));
   const draft = state.lineDrafts.get(id);
   const saveStatus = state.lineSaveStatus.get(id) || "";
-  const ok = canVerifyCompositionLine({
+  const fieldOk = canVerifyCompositionLine({
     draft,
     issues: state.issues,
     lineId: id,
@@ -833,16 +953,20 @@ function syncLineVerifyUi(lineId) {
     saveStatus,
     canEdit: canWrite(),
   });
-  const reason = lineVerifyPendingCopy({
+  const fieldReason = lineVerifyPendingCopy({
     draft,
     issues: state.issues,
     lineId: id,
     reviewStatus: row?.review_status,
     saveStatus,
   });
-  btn.disabled = !ok || !canWrite() || state.busy;
-  btn.dataset.forceDisabled = ok ? "false" : "true";
-  btn.title = reason || "Confirm the reviewed portal mapping as correct.";
+  const decision = combineApproval(fieldOk, fieldReason, "line", id);
+  btn.disabled = decision.ok !== true || !canWrite() || state.busy;
+  btn.dataset.forceDisabled = decision.ok ? "false" : "true";
+  if (decision.code) btn.dataset.blockCode = decision.code;
+  else delete btn.dataset.blockCode;
+  if (decision.reason) btn.title = decision.reason;
+  else btn.removeAttribute("title");
 }
 
 function toastError(err) {
@@ -866,8 +990,20 @@ function lockNoteHtml() {
   return `<span class="ea-lock-note"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false"><rect x="4" y="7" width="8" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"></rect><path d="M6 7V5a2 2 0 0 1 4 0v2" fill="none" stroke="currentColor" stroke-width="1.4"></path></svg> Verified - reopen to edit</span>`;
 }
 
+function autosaveForReview(id) {
+  if (id === "detailsAutosave") return normalizeReviewStatus(state.review?.review_status) === "IN_REVIEW";
+  if (id === "classificationAutosave") return normalizeReviewStatus(state.classification?.review_status) === "IN_REVIEW";
+  if (id === "actionsAutosave") return normalizeReviewStatus(state.actionsReviewStatus) === "IN_REVIEW";
+  if (String(id).startsWith("line-save-")) {
+    const lineId = String(id).slice("line-save-".length);
+    const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
+    return normalizeReviewStatus(row?.review_status) === "IN_REVIEW";
+  }
+  return false;
+}
+
 function autosaveHtml(status, id) {
-  const label = autosaveStateLabel(status);
+  const label = autosaveStateLabel(status, { forReview: autosaveForReview(id) });
   if (!label) return `<span class="ea-autosave" ${id ? `id="${escapeHtml(id)}"` : ""} hidden></span>`;
   const live = status === "failed" || status === "stale" ? ' aria-live="polite"' : "";
   const cls =
@@ -878,7 +1014,7 @@ function autosaveHtml(status, id) {
 function patchAutosaveEl(id, status) {
   const el = $(id);
   if (!el) return;
-  const label = autosaveStateLabel(status);
+  const label = autosaveStateLabel(status, { forReview: autosaveForReview(id) });
   el.hidden = !label;
   el.textContent = label;
   el.classList.toggle("is-failed", status === "failed" || status === "stale");
@@ -1411,6 +1547,7 @@ function renderDetails() {
   const detailsVerifyHint = productDetailsVerifyPendingCopy(draft, {
     saveStatus: state.detailsSaveStatus,
   });
+  const detailsDecision = combineApproval(detailsVerifyOk, detailsVerifyHint, "details");
   const classDraft =
     state.classificationDraft || classificationDraftFromReview(state.classification);
   const classLocked = isVerifiedStatus(
@@ -1429,6 +1566,7 @@ function renderDetails() {
     saveStatus: state.classificationSaveStatus,
     reviewStatus: state.classification?.review_status,
   });
+  const classDecision = combineApproval(classVerifyOk, classVerifyHint, "classification");
   const classStatus = normalizeReviewStatus(
     state.classification?.review_status ?? classDraft.reviewStatus,
   ) || "PENDING";
@@ -1466,6 +1604,7 @@ function renderDetails() {
         <textarea id="fldClassNotes" class="sasv-control" rows="2" data-edit-action="true" data-classification-field="notes"${classDisable}>${escapeHtml(classDraft.reviewNotes || "")}</textarea>
       </div>
       ${autosaveHtml(state.classificationSaveStatus, "classificationAutosave")}
+      ${stageSaverHtml("classification")}
       <div class="action-row">
         ${
           classLocked
@@ -1478,14 +1617,17 @@ function renderDetails() {
           })
         }`
             : `<button type="button" class="icon-btn with-label primary" id="btnVerifyClassification" data-edit-action="true"${
-                classVerifyOk ? "" : " data-force-disabled=\"true\""
-              }${classVerifyHint ? ` title="${escapeHtml(classVerifyHint)}"` : ""}>Verify Portal Classification</button>`
+                classDecision.ok ? "" : " data-force-disabled=\"true\""
+              }${classDecision.code ? ` data-block-code="${escapeHtml(classDecision.code)}"` : ""}${
+                classDecision.reason ? ` title="${escapeHtml(classDecision.reason)}"` : ""
+              }>Approve</button>`
         }
       </div>
+      ${approvalNoticeHtml("classification")}
       ${
         classLocked
           ? ""
-          : `<p class="disabled-reason" id="classificationVerifyHint"${classVerifyHint ? "" : " hidden"}>${escapeHtml(classVerifyHint)}</p>`
+          : `<p class="disabled-reason" id="classificationVerifyHint"${classDecision.reason ? "" : " hidden"}>${escapeHtml(classDecision.reason)}</p>`
       }
     </div>
     <div class="section-card${locked ? " is-verified" : ""}">
@@ -1591,6 +1733,7 @@ function renderDetails() {
         <textarea id="fldReviewNotes" class="sasv-control" rows="2" data-edit-action="true"${disable}>${escapeHtml(draft.reviewNotes || "")}</textarea>
       </div>
       ${autosaveHtml(state.detailsSaveStatus, "detailsAutosave")}
+      ${stageSaverHtml("details")}
       <div class="action-row">
         ${
           locked
@@ -1603,14 +1746,17 @@ function renderDetails() {
           })
         }`
             : `<button type="button" class="icon-btn with-label primary" id="btnVerifyDetails" data-edit-action="true"${
-                detailsVerifyOk ? "" : " data-force-disabled=\"true\""
-              }${detailsVerifyHint ? ` title="${escapeHtml(detailsVerifyHint)}"` : ""}>Verify Product Details</button>`
+                detailsDecision.ok ? "" : " data-force-disabled=\"true\""
+              }${detailsDecision.code ? ` data-block-code="${escapeHtml(detailsDecision.code)}"` : ""}${
+                detailsDecision.reason ? ` title="${escapeHtml(detailsDecision.reason)}"` : ""
+              }>Approve</button>`
         }
       </div>
+      ${approvalNoticeHtml("details")}
       ${
         locked
           ? ""
-          : `<p class="disabled-reason" id="detailsVerifyHint"${detailsVerifyHint ? "" : " hidden"}>${escapeHtml(detailsVerifyHint)}</p>`
+          : `<p class="disabled-reason" id="detailsVerifyHint"${detailsDecision.reason ? "" : " hidden"}>${escapeHtml(detailsDecision.reason)}</p>`
       }
     </div>`;
   if (locked) {
@@ -1708,6 +1854,7 @@ function renderComposition() {
         saveStatus,
         canEdit: canWrite(),
       });
+      const lineDecision = combineApproval(lineVerifyOk, lineVerifyHint, "line", id);
       const resolved = state.resolvedSourceByLine.get(String(id));
       const reference = row.referenceMapping || null;
       const referenceBlock = `<section class="reference-mapping-block${reference ? "" : " is-blocked"}"${reference ? ` data-reference-mapping-id="${escapeHtml(reference.mapping_id)}"` : ""}>
@@ -1751,6 +1898,7 @@ function renderComposition() {
           <label class="visually-hidden" for="${escapeHtml(notesId)}">Notes</label>
           <input id="${escapeHtml(notesId)}" class="sasv-control" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" placeholder="Notes" aria-label="Notes"${lockedControlAttrs} />
           ${autosaveHtml(saveStatus, `line-save-${id}`)}
+          ${stageSaverHtml("line", id)}
           ${
             locked
               ? `${chip("success", "Verified")} ${lockNoteHtml()}
@@ -1765,8 +1913,10 @@ function renderComposition() {
           }
           ${postEntryIngredientFormReconcileButton(id)}`
               : `<button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}"${
-                  lineVerifyOk ? "" : " data-force-disabled=\"true\""
-                } title="${escapeHtml(lineVerifyHint || "Confirm the reviewed portal mapping as correct.")}">Verify line</button>
+                  lineDecision.ok ? "" : " data-force-disabled=\"true\""
+                }${lineDecision.code ? ` data-block-code="${escapeHtml(lineDecision.code)}"` : ""}${
+                  lineDecision.reason ? ` title="${escapeHtml(lineDecision.reason)}"` : ""
+                }>Approve</button>
           ${
             canCorrect
               ? `<button type="button" class="icon-btn with-label" data-edit-action="true" id="btn-correct-${escapeHtml(id)}" data-source-correct="${escapeHtml(id)}" title="Edit the current working source before approval.">Correct source</button>`
@@ -2630,11 +2780,13 @@ function renderActions() {
     reviewStatus: state.actionsReviewStatus,
     saveStatus: state.actionsSaveStatus,
   });
+  const actionsDecision = combineApproval(actionsVerifyOk, actionsVerifyHint, "actions");
   host.innerHTML = `
     <div class="section-card${locked ? " is-verified" : ""}">
       <h3 class="section-title">Pharmacological action</h3>
       ${locked ? lockNoteHtml() : `<p class="muted-note">Select every applicable action from the server vocabulary. Additional exact wording can be added. Changes save automatically. Verify when the complete set is correct.</p>`}
       ${autosaveHtml(state.actionsSaveStatus, "actionsAutosave")}
+      ${stageSaverHtml("actions")}
       ${
         vocab.length
           ? `<div class="action-vocab-list" role="group" aria-label="Pharmacological action vocabulary">
@@ -2684,14 +2836,17 @@ function renderActions() {
         }`
             : `<button type="button" class="icon-btn with-label" id="btnAddAction" data-edit-action="true">Add custom action</button>
         <button type="button" class="icon-btn with-label primary" id="btnVerifyActions" data-edit-action="true"${
-          actionsVerifyOk ? "" : " data-force-disabled=\"true\""
-        }${actionsVerifyHint ? ` title="${escapeHtml(actionsVerifyHint)}"` : ""}>Verify Actions</button>`
+          actionsDecision.ok ? "" : " data-force-disabled=\"true\""
+        }${actionsDecision.code ? ` data-block-code="${escapeHtml(actionsDecision.code)}"` : ""}${
+          actionsDecision.reason ? ` title="${escapeHtml(actionsDecision.reason)}"` : ""
+        }>Approve</button>`
         }
       </div>
+      ${approvalNoticeHtml("actions")}
       ${
         locked
           ? ""
-          : `<p class="disabled-reason" id="actionsVerifyHint"${actionsVerifyHint ? "" : " hidden"}>${escapeHtml(actionsVerifyHint)}</p>`
+          : `<p class="disabled-reason" id="actionsVerifyHint"${actionsDecision.reason ? "" : " hidden"}>${escapeHtml(actionsDecision.reason)}</p>`
       }
     </div>`;
   applyPermissionUi();
@@ -4371,7 +4526,7 @@ function qcPrepWorkspaceHtml(model) {
       </div>
       <div class="action-row">
         <button type="button" class="icon-btn with-label" id="btnQcPrepReview"${model.reviewDisabled ? " disabled" : ""}>Check (server review)</button>
-        <button type="button" class="icon-btn with-label" id="btnQcPrepSave" data-edit-action="true"${model.saveDisabled ? " disabled" : ""}>Save draft</button>
+        <button type="button" class="icon-btn with-label" id="btnQcPrepSave" data-edit-action="true"${model.saveDisabled ? " disabled" : ""}>Save for review</button>
         <button type="button" class="icon-btn with-label" id="btnQcPrepReload"${model.reloadDisabled ? " disabled" : ""}>Reload server copy</button>
       </div>
     </section>`;
@@ -4606,7 +4761,7 @@ function qcSourceFactsModel() {
     && String(state.qcReportByteResult.reservation_id) === String(latest.reservation_id);
   const verifiedSha = latest?.verified_sha256 || (sessionMatches ? state.qcReportByteResult.verified_sha256 : "") || "";
   const report = latest ? { ...latest, verified_sha256: verifiedSha || latest.verified_sha256 || "" } : null;
-  const blockReason = qcSourceFactsBlockReason({
+  let blockReason = qcSourceFactsBlockReason({
     electron: workerApiAvailable(),
     canWrite: canWrite(),
     busy: state.busy === true || state.qcSourceVerifyRunning === true,
@@ -4618,6 +4773,10 @@ function qcSourceFactsModel() {
     reportFilename: form.report_filename,
     verifiedSha,
   });
+  const qcGate = !blockReason && typeof stageGate === "function"
+    ? stageGate("qc", preparation?.preparation_id)
+    : null;
+  if (qcGate) blockReason = qcGate.userMessage;
   const verified = preparation?.preparation_status === "VERIFIED";
   const savedRows = verified ? qcRowsFromFactEvidence(state.qcEvidenceRecheck?.fact_evidence) : null;
   const rows = verified ? savedRows : qcFactRowsCurrent();
@@ -4628,6 +4787,7 @@ function qcSourceFactsModel() {
   const version = latest ? String(latest.version_no).padStart(2, "0") : "";
   return {
     blockReason,
+    blockCode: qcGate?.code || "",
     enabled: blockReason === "" && verified !== true,
     readOnly: verified === true,
     savedMissing: verified === true && savedRows == null,
@@ -4736,15 +4896,17 @@ function qcSourceFactsCardHtml(model) {
   return `<section class="section-card" id="qcSourceFactsCard">
     <h3 class="section-title">Verify source facts <span id="qcEvidenceBadge" class="${badgeClass}"${badgeStyle ? ` style="${badgeStyle}"` : ""}>${esc(badge.label)}</span></h3>
     ${badge.detail ? `<p class="muted-note" id="qcEvidenceBadgeDetail">${esc(badge.detail)}</p>` : `<p class="muted-note" id="qcEvidenceBadgeDetail"></p>`}
-    ${model.blockReason && model.readOnly !== true ? `<p class="muted-note" id="qcSourceFactsBlock">${esc(model.blockReason)}</p>` : ""}
+    ${typeof stageSaverHtml === "function" ? stageSaverHtml("qc", state.qcPrepServer?.preparation_id) : ""}
+    ${model.blockReason && model.readOnly !== true ? `<p class="disabled-reason" id="qcSourceFactsBlock">${esc(model.blockReason)}</p>` : ""}
     ${model.savedMissing ? `<p id="qcSourceFactsSavedMissing">Saved fact evidence is not available in this view</p>` : ""}
     <div class="form-grid">${rows}</div>
     ${model.readOnly === true ? "" : `<label class="qc-prep-block"><input id="qcFactAttest" type="checkbox"${model.attest ? " checked" : ""}${model.enabled ? "" : " disabled"}> I have reviewed every fact above against the verified QC test report (V${esc(model.version)}).</label>`}
     ${model.notice ? `<p class="muted-note ea-autosave is-failed" id="qcSourceFactsNotice">${esc(model.notice)}</p>` : ""}
     <div class="action-row">
-      ${model.readOnly === true ? "" : `<button type="button" class="icon-btn with-label primary" id="btnQcVerifySourceFacts"${model.canSubmit ? "" : " disabled"}>${model.running ? "Verifying source facts..." : "Verify source facts"}</button>`}
+      ${model.readOnly === true ? "" : `<button type="button" class="icon-btn with-label primary" id="btnQcVerifySourceFacts"${model.canSubmit ? "" : " disabled"}${model.blockCode ? ` data-block-code="${esc(model.blockCode)}"` : ""}>${model.running ? "Approving..." : "Approve"}</button>`}
       ${model.canReopen || model.reopenRunning ? `<button type="button" class="icon-btn with-label" id="btnQcReopenSourceFacts"${model.canReopen ? "" : " disabled"}>${model.reopenRunning ? "Reopening..." : "Reopen for re-verification"}</button>` : ""}
     </div>
+    ${typeof approvalNoticeHtml === "function" ? approvalNoticeHtml("qc", state.qcPrepServer?.preparation_id) : ""}
   </section>`;
 }
 
@@ -4834,9 +4996,9 @@ async function submitQcSourceVerify() {
   try {
     const submittedRows = structuredClone(qcFactRowsCurrent());
     const accepted = await openQcConfirm({
-      title: "Verify source facts",
+      title: "Approve source facts",
       message: `This marks the QC draft as source-verified against V${version} (SHA-256 ${model.sha12}…). Any later edit will require verifying again. Continue?\n${qcSourceVerifyFactLines(submittedRows)}`,
-      okLabel: "Verify source facts",
+      okLabel: "Approve",
       returnFocusId: "btnQcVerifySourceFacts",
       idPrefix: "qcSourceVerifyConfirm",
     });
@@ -4854,15 +5016,20 @@ async function submitQcSourceVerify() {
     });
     if (state.selectedProductId !== productId) return;
     if (result?.ok === false) {
+      state.pendingApproval = { stage: "qc", itemKey: String(preparation?.preparation_id || "") };
+      rememberApprovalRefusal({ message: result.message, code: result.message });
+      state.pendingApproval = null;
       state.qcFactNotice = userMessageForError({ message: result.message }) || "QC source verification failed.";
       state.qcFactHighlights = Array.isArray(result.details?.facts) ? result.details.facts : [];
+      await refreshStageReview({ render: true });
       return;
     }
-    showToast(`Source facts verified (version ${result.row_version})`, "success");
+    showToast(`Source facts approved (version ${result.row_version})`, "success");
     state.qcFactNotice = "";
     state.qcFactHighlights = [];
     state.qcEvidenceLoadedFor = null;
     state.qcEvidenceLoading = false;
+    await refreshStageReview();
     reloadQcPreparationWorkspace();
   } catch (error) {
     if (state.selectedProductId !== productId) return;
@@ -6876,6 +7043,7 @@ async function submitQcPreparationSave() {
     state.qcEvidenceLoadedFor = null;
     state.qcEvidenceLoading = false;
     state.busy = false;
+    await refreshStageReview();
     reloadQcPreparationWorkspace({ preserveNotice: notice });
   } catch (error) {
     if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
@@ -7990,27 +8158,11 @@ function renderReadiness() {
   applyPermissionUi();
 }
 
-function selfMadeLastChange() {
-  const me = state.myRoles?.user_id;
-  if (!me) return false;
-  const ids = [
-    state.worklistRow?.last_changed_by,
-    state.queueRow?.updated_by,
-    state.queueRow?.reviewed_by,
-    state.review?.updated_by,
-    state.review?.reviewed_by,
-    state.classification?.updated_by,
-    state.classification?.reviewed_by,
-  ].filter(Boolean).map(String);
-  return ids.includes(String(me));
-}
-
 function workspaceActionContext() {
   const lines = Array.isArray(state.lines) ? state.lines : [];
   const issues = Array.isArray(state.issues) ? state.issues : [];
   return {
     isApprover: state.myRoles?.is_approver === true,
-    selfApproval: selfMadeLastChange(),
     productId: state.selectedProductId,
     openIssues: issues.filter((issue) => !issue?.status || issue.status === "OPEN").length,
     unverifiedLines: lines.filter((line) => line?.review_status !== "VERIFIED").length,
@@ -8742,7 +8894,10 @@ async function openProduct(productId) {
   state.busy = true;
   setStatus("Loading product review workspace...");
   try {
-    const payload = await loadProductWorkspace(productId);
+    const [payload, stageReview] = await Promise.all([
+      loadProductWorkspace(productId),
+      loadStageReview(productId),
+    ]);
     if (gen !== state.loadGen) return;
     if (!idsEqual(state.selectedProductId, productId)) {
       state.workerFoundationResult = null;
@@ -8757,6 +8912,7 @@ async function openProduct(productId) {
       state.workerRebaseResult = null;
       state.workerExactOneRecoveryResult = null;
     }
+    applyStageReviewResult(stageReview);
     state.selectedProductId = Number(productId);
     state.worklistRow = (state.worklist || []).find((row) => Number(row.product_id) === Number(productId)) || null;
     state.queueRow = findQueueRow(state.queue, productId);
@@ -8792,8 +8948,12 @@ async function reloadSelected({
   if (!state.selectedProductId) return;
   const scroll = restoreComposition ? $("workspaceScroll")?.scrollTop : null;
   const gen = ++state.loadGen;
-  const payload = await loadProductWorkspace(state.selectedProductId);
+  const [payload, stageReview] = await Promise.all([
+    loadProductWorkspace(state.selectedProductId),
+    loadStageReview(state.selectedProductId),
+  ]);
   if (gen !== state.loadGen) return;
+  applyStageReviewResult(stageReview);
   await refreshQueue({ silent: true });
   applyWorkspacePayload(payload, { preserveDrafts });
   applyPromoteNotesIfNeeded();
@@ -8838,6 +8998,11 @@ async function backToQueue() {
   await flushAllLineAutosaves();
   await flushActionsAutosave();
   state.selectedProductId = null;
+  state.stageReview = [];
+  state.stageReviewLoaded = false;
+  state.stageReviewFailed = false;
+  state.approvalNotice = null;
+  state.pendingApproval = null;
   state.workerFoundationResult = null;
   state.workerQcPreparationReadResult = null;
   state.workerQcReportReadResult = null;
@@ -8937,12 +9102,18 @@ async function runMutation(fn) {
     $("staleBanner").hidden = true;
   } catch (err) {
     console.error("[eaushadhi] mutation failed", err);
+    if (state.pendingApproval) {
+      rememberApprovalRefusal(err);
+      state.pendingApproval = null;
+      await refreshStageReview({ render: true });
+    }
     if (err instanceof EaushadhiRpcError && err.kind === ERROR_KIND.STALE) {
       await handleStale(err);
     } else {
       toastError(err);
     }
   } finally {
+    state.pendingApproval = null;
     state.busy = false;
     applyPermissionUi();
   }
@@ -8968,9 +9139,11 @@ async function submitDetails(verify) {
     await persistDetails(false);
     return;
   }
+  state.pendingApproval = { stage: "details", itemKey: "" };
+  state.approvalNotice = null;
   await runMutation(async () => {
     await persistDetails(true);
-    showToast("Product details verified.", "success");
+    showToast("Product details approved.", "success");
     await reloadSelected();
   });
 }
@@ -8988,7 +9161,7 @@ function linePayload(draft, verify) {
   };
 }
 
-async function persistLine(lineId, verify) {
+async function persistLine(lineId, verify, { refresh = true } = {}) {
   const id = String(lineId);
   if (lineHalted.has(id) && !verify) return null;
   const draft = state.lineDrafts.get(id);
@@ -9003,6 +9176,7 @@ async function persistLine(lineId, verify) {
   if (row && result?.review_status) row.review_status = result.review_status;
   state.lineSaveStatus.set(id, "saved");
   patchAutosaveEl(`line-save-${id}`, "saved");
+  if (refresh) await refreshStageReview();
   const chipHost = document.querySelector(`.line-card[data-line-id="${id}"] .line-head`);
   if (chipHost && result?.review_status) {
     const chips = chipHost.querySelectorAll(".status-chip");
@@ -9083,6 +9257,7 @@ async function persistDetails(verify) {
   if (result?.review_status && state.review) state.review.review_status = result.review_status;
   state.detailsSaveStatus = "saved";
   patchAutosaveEl("detailsAutosave", "saved");
+  await refreshStageReview();
   return result;
 }
 
@@ -9293,6 +9468,7 @@ async function persistClassification(verify) {
   state.classificationBaseline = { ...state.classificationDraft };
   state.classificationSaveStatus = "saved";
   patchAutosaveEl("classificationAutosave", "saved");
+  await refreshStageReview();
   return result;
 }
 
@@ -9395,9 +9571,11 @@ async function submitClassification(verify) {
     await autosaveClassification();
     return;
   }
+  state.pendingApproval = { stage: "classification", itemKey: "" };
+  state.approvalNotice = null;
   await runMutation(async () => {
     await persistClassification(true);
-    showToast("Portal Classification verified.", "success");
+    showToast("Portal Classification approved.", "success");
     await reloadSelected({ preserveDrafts: false });
   });
 }
@@ -9421,6 +9599,7 @@ async function persistActions(verify) {
   state.actionsBaseline = [...state.actionsDraft];
   state.actionsSaveStatus = "saved";
   patchAutosaveEl("actionsAutosave", "saved");
+  await refreshStageReview();
   return result;
 }
 
@@ -9553,9 +9732,11 @@ async function submitLine(lineId, verify) {
     await autosaveLine(lineId);
     return;
   }
+  state.pendingApproval = { stage: "line", itemKey: String(lineId) };
+  state.approvalNotice = null;
   await runMutation(async () => {
     await persistLine(lineId, true);
-    showToast("Line verified.", "success");
+    showToast("Line approved.", "success");
     await reloadSelected({ preserveDrafts: true, restoreComposition: true, focusLineId: lineId });
   });
 }
@@ -9583,9 +9764,11 @@ async function submitActions(verify) {
     await persistActions(false);
     return;
   }
+  state.pendingApproval = { stage: "actions", itemKey: "" };
+  state.approvalNotice = null;
   await runMutation(async () => {
     await persistActions(true);
-    showToast("Pharmacological actions verified.", "success");
+    showToast("Pharmacological actions approved.", "success");
     await reloadSelected();
   });
 }
@@ -9943,29 +10126,30 @@ async function submitVerifyReviewed() {
     return;
   }
   closeVerifyReviewed();
-  let verified = 0;
-  let failed = 0;
+  let approved = 0;
+  const failures = [];
   for (const id of ids) {
     try {
       flushDebounced(autosaveTimers, `line:${id}`);
       await waitLineIdle(id);
       const draft = state.lineDrafts.get(String(id));
       if (!draft || !lineSelectionsComplete(draft)) {
-        failed += 1;
+        failures.push("OTHER");
         continue;
       }
-      await persistLine(id, true);
-      verified += 1;
+      await persistLine(id, true, { refresh: false });
+      approved += 1;
     } catch (err) {
-      failed += 1;
-      console.error("[eaushadhi] verify reviewed line failed", err);
+      console.error("[eaushadhi] approve reviewed line failed", err);
+      failures.push(fourEyesMessage(err)?.code || "OTHER");
     }
   }
-  showToast(
-    failed ? `Verified ${verified}. Failed ${failed}.` : `Verified ${verified} reviewed lines.`,
-    failed ? "warning" : "success",
-    5200,
-  );
+  const grouped = bulkApprovalSummary(failures);
+  const toast = grouped
+    ? (approved ? `Approved ${approved}. ${grouped}.` : `${grouped}.`)
+    : `Approved ${approved} reviewed lines.`;
+  showToast(toast, failures.length ? "warning" : "success", 5200);
+  await refreshStageReview();
   await reloadSelected({ restoreComposition: true });
 }
 

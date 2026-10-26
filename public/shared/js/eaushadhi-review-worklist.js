@@ -2,6 +2,7 @@
  * UX-1 worklist, role copy, and why-disabled decisions.
  * Rendering stays in the review page. This module does not call the network.
  */
+import { fourEyesMessage } from "./eaushadhi-review-helpers.js";
 
 export const WORKLIST_TAB_KEY = "sasv.eaushadhi.worklistQueue";
 export const WORKLIST_FALLBACK_TEXT = "The worklist could not be loaded. Try Refresh.";
@@ -433,6 +434,10 @@ function isPortalWriteControl(id, label) {
   return /^dry run\b/i.test(label) || /^arm filling\b/i.test(label) || /^save\b/i.test(label);
 }
 
+function isPortalTextControl(id) {
+  return id === "btnVerifyPortalDiseases" || id === "btnSavePortalDiseases";
+}
+
 function requiresApprover(id, label, explicit) {
   return explicit === "APPROVER" || APPROVER_IDS.has(id) || APPROVER_LABELS.has(cleanLabel(label));
 }
@@ -475,10 +480,14 @@ export function actionDecision(input = {}) {
   if (productId === PORTAL_CONFIRMED_PRODUCT_ID && isPortalWriteControl(id, label)) {
     return { enabled: false, reason: REASONS.portal, requiresApprover: approverControl };
   }
+  const stageBlock = fourEyesMessage({ message: input.blockCode });
+  if (stageBlock) {
+    return { enabled: false, reason: stageBlock.userMessage, requiresApprover: true };
+  }
   if (approverControl && input.isApprover !== true) {
     return { enabled: false, reason: REASONS.approver, requiresApprover: true };
   }
-  if (approverControl && input.selfApproval === true) {
+  if (approverControl && input.selfApproval === true && !isPortalWriteControl(id, label) && !isPortalTextControl(id)) {
     return { enabled: false, reason: REASONS.self, requiresApprover: true };
   }
   if (input.disabled !== true) {
@@ -493,22 +502,57 @@ export function actionDecision(input = {}) {
   };
 }
 
+function ownsStageReason(button) {
+  return button.id === "btnVerifyDetails"
+    || button.id === "btnVerifyClassification"
+    || button.id === "btnVerifyActions"
+    || button.id === "btnQcVerifySourceFacts"
+    || button.hasAttribute?.("data-line-verify")
+    || button.hasAttribute?.("data-block-code");
+}
+
+function reasonHost(button) {
+  const next = button.nextElementSibling;
+  if (next && next.classList && (next.classList.contains("why-disabled") || next.classList.contains("disabled-reason"))) {
+    return next;
+  }
+  if (!ownsStageReason(button)) return null;
+  const row = button.closest?.(".action-row");
+  const scan = (start, step) => {
+    let node = start;
+    while (node) {
+      if (node.classList?.contains("disabled-reason")) return node;
+      if (node.classList?.contains("action-row")) return null;
+      node = node[step];
+    }
+    return null;
+  };
+  return scan(row?.nextElementSibling, "nextElementSibling") || scan(row?.previousElementSibling, "previousElementSibling");
+}
+
 export function setActionState(button, { enabled, reason } = {}) {
   if (!button) return;
-  const next = button.nextElementSibling;
-  const existing = next && next.classList && next.classList.contains("why-disabled") ? next : null;
+  const existing = reasonHost(button);
   if (enabled) {
     button.disabled = false;
     if (button.removeAttribute) {
       button.removeAttribute("aria-disabled");
       button.removeAttribute("title");
     }
-    if (existing && existing.remove) existing.remove();
+    if (existing?.classList?.contains("disabled-reason")) {
+      existing.hidden = true;
+      existing.textContent = "";
+    } else if (existing && existing.remove) existing.remove();
     return;
   }
   button.disabled = true;
   button.setAttribute("aria-disabled", "true");
   button.title = reason || "";
+  if (existing?.classList?.contains("disabled-reason")) {
+    existing.hidden = false;
+    existing.textContent = reason || "";
+    return;
+  }
   const doc = button.ownerDocument || globalThis.document;
   const line = existing || doc.createElement("p");
   line.className = "muted-note why-disabled";
@@ -523,6 +567,7 @@ function buttonContext(button, context) {
     title: button.title || "",
     disabled: button.disabled === true || button.getAttribute?.("disabled") != null,
     requiresRole: button.getAttribute?.("data-requires-role") || "",
+    blockCode: button.getAttribute?.("data-block-code") || "",
     isApprover: context.isApprover === true,
     selfApproval: context.selfApproval === true,
     productId: context.productId,

@@ -60,6 +60,12 @@ export async function fetchMyRoles() {
   return asFirst(await callRpc("rpc_eaushadhi_my_roles_v1"));
 }
 
+export async function fetchStageReviewState(productId) {
+  return asArray(await callRpc("rpc_eaushadhi_stage_review_state_v1", {
+    p_product_id: Number(productId),
+  }));
+}
+
 export async function fetchPortalOptions(domainCode) {
   const domain = String(domainCode || "").toUpperCase();
   if (!PORTAL_DOMAINS.includes(domain)) {
