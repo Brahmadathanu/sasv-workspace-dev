@@ -2,6 +2,8 @@
 
 **Verified read-only on 24 Oct 2026, 23:40 IST** (Supabase project qhmoqtxpeasamtlxaoak, SELECT only). This page supersedes every earlier "current status" banner in this folder. Older handovers and checkpoints are dated history.
 
+> **Addendum 26 Oct 2026:** Applied live: CI-038 (migration 20261026022352), CI-039 (20261026050322), CI-038a (20261026083214); files now in `supabase/migrations/`, rollbacks/verify in `closure/prepared/`. PRs #90 and #95 merged (cache `hub-cache-v375`). SKUs 41 and 846 entered and activated 26 Oct; route #256 approved. The October readiness snapshot is stale for these two SKUs; readiness expected from the November run (2 Nov, 02:00 IST). Per-run valuation-date redesign CI-040 to CI-043 pending decisions D1–D7. Audit files D–L added under `audit-2026-10-25/`.
+
 ## Live facts
 | Item | Live state |
 |---|---|
