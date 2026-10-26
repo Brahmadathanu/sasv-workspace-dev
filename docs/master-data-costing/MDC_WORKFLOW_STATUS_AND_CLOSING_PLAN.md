@@ -2,6 +2,8 @@
 
 Read-only audit of the master-data-costing (MDC) programme against `main` and live Supabase (SELECT only). Status: **closing, not closed.** The programme closes after every item below has a recorded disposition and the "do now" items are finished.
 
+> **Addendum 26 Oct 2026:** CI-038 (SKU activation guard), CI-038a (activation as-of today) and CI-039 (scheduler fix) are applied live; migration files are now in `supabase/migrations/`. PRs #90 and #95 merged. SKUs 41 and 846 completed and activated (see CHANGELOG_DECISIONS.md, 2026-10-26). The per-run valuation-date redesign (CI-040 to CI-043) is pending owner decisions D1–D7.
+
 ## Done
 | Item | Status | Evidence |
 |---|---|---|

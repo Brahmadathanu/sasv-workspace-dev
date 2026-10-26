@@ -2,6 +2,8 @@
 
 > **Status update 25 Oct 2026 (read-only audit):** this programme was dormant from 8 Oct 2026. Costing work after that date ran under `docs/costing-pipeline-independent-audit/` (see its `CURRENT_STATE.md`). WP-1 and WP00–WP04 are done and verified on main and live. SEC-P01 is done live. The old "WP07" here is renamed **MDC-07** so it is not confused with the e-Aushadhi WP-07 programme. Every remaining item and its proposed disposition is in [MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md](MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md). The programme is **not closed yet**. References below to Run 115 and Build 4 are history; current approved runs are 122 (Sep, locked) and 143 (Oct).
 
+> **Update 26 Oct 2026:** CI-038, CI-038a and CI-039 applied live and recorded in the repo; SKUs 41 and 846 activated. See CHANGELOG_DECISIONS.md (2026-10-26).
+
 ## Authority
 This directory is the durable workflow authority for this programme. Live Supabase state governs server reality; current Git main governs repository reality; approved programme documents govern workflow state; chat is supporting context.
 
