@@ -2378,10 +2378,26 @@ export function formatPrmDeltaBaseStepLabel(step = {}) {
   return seqPart || String(name || resolvePrmFamilyStepId(step) || "");
 }
 
+const PRM_BYPASS_BLOCKED_STEP_SCOPES = new Set([
+  "BOUNDARY_RM_ISSUE",
+  "BOUNDARY_FG_TRANSFER",
+]);
+
+const PRM_BYPASS_BLOCKED_STEP_KEYS = new Set(["RM_ISSUE", "FG_TRANSFER"]);
+
+function prmFamilyStepBypassScope(step = {}) {
+  return normalizePrmCode(
+    step?.route_step_scope || step?.step_scope || step?.scope,
+  ).toUpperCase();
+}
+
+/** Server bypass rejects RM-issue and FG-transfer boundaries only. */
 export function selectPrmBypassEligibleFamilySteps(steps = []) {
   return coercePrmList(steps).filter((step) => {
-    const raw = step?.allows_skip_with_approval;
-    return raw === true || raw === "true" || raw === "t" || raw === 1 || raw === "1";
+    const scope = prmFamilyStepBypassScope(step);
+    if (scope) return !PRM_BYPASS_BLOCKED_STEP_SCOPES.has(scope);
+    const stepKey = normalizePrmCode(step?.step_key).toUpperCase();
+    return !PRM_BYPASS_BLOCKED_STEP_KEYS.has(stepKey);
   });
 }
 
