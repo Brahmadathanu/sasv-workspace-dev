@@ -4854,7 +4854,7 @@ async function submitQcSourceVerify() {
     });
     if (state.selectedProductId !== productId) return;
     if (result?.ok === false) {
-      state.qcFactNotice = result.message || "QC source verification failed.";
+      state.qcFactNotice = userMessageForError({ message: result.message }) || "QC source verification failed.";
       state.qcFactHighlights = Array.isArray(result.details?.facts) ? result.details.facts : [];
       return;
     }
@@ -6813,7 +6813,7 @@ async function submitQcPreparationReview() {
     const result = await reviewQcPreparation(productId, token, qcPrepPayloadFromForm(form));
     if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
     if (result?.ok === false) {
-      state.qcPrepNotice = result.message || "QC preparation workspace failed.";
+      state.qcPrepNotice = userMessageForError({ message: result.message }) || "QC preparation workspace failed.";
       showToast(state.qcPrepNotice, "error");
       return;
     }
@@ -6866,7 +6866,7 @@ async function submitQcPreparationSave() {
     });
     if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
     if (result?.ok === false) {
-      state.qcPrepNotice = result.message || "QC preparation workspace failed.";
+      state.qcPrepNotice = userMessageForError({ message: result.message }) || "QC preparation workspace failed.";
       showToast(state.qcPrepNotice, "error");
       return;
     }

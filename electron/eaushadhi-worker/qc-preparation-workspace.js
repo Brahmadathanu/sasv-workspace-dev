@@ -102,8 +102,21 @@ function assertRpc(callRpc) {
   }
 }
 
+const FOUR_EYES_REFUSAL_CODES = [
+  "FOUR_EYES_SAME_PERSON",
+  "FOUR_EYES_NOT_SAVED_FOR_REVIEW",
+  "APPROVER_ROLE_REQUIRED",
+];
+
+function fourEyesRefusalCode(error) {
+  const message = String(error?.message || "");
+  return FOUR_EYES_REFUSAL_CODES.find((code) => message.includes(code)) || "";
+}
+
 function toWorkspaceError(error) {
   if (error instanceof WorkerError) return error;
+  const refusal = fourEyesRefusalCode(error);
+  if (refusal) return workerError(ERROR_KINDS.AUTHORIZATION, refusal);
   const status = Number(error?.status || error?.statusCode || 0);
   const code = String(error?.code || error?.errcode || "");
   if (status === 401 || status === 403 || code === "42501" || code === "PGRST301") {
@@ -594,6 +607,8 @@ function qcFactNamesFromIncomplete(message) {
 
 function mapQcSourceVerifyError(error) {
   if (error instanceof WorkerError) return error;
+  const refusal = fourEyesRefusalCode(error);
+  if (refusal) return workerError(ERROR_KINDS.AUTHORIZATION, refusal);
   const code = String(error?.code || error?.errcode || "");
   const status = Number(error?.status || error?.statusCode || 0);
   const message = String(error?.message || "");
@@ -1496,6 +1511,7 @@ module.exports = {
   reviewQcPreparation,
   saveQcPreparation,
   mapQcSourceVerifyError,
+  toWorkspaceError,
   verifyQcPreparationSource,
   mapQcReopenError,
   reopenQcPreparation,

@@ -1219,6 +1219,12 @@ for (const [serverMessage, plain] of mappedMessages) {
 }
 const permissionMapped = workspace.mapQcSourceVerifyError({ code: "42501", message: "permission denied" });
 assert(permissionMapped.message === "You need edit permission for e-Aushadhi.", "42501 maps to the edit-permission sentence");
+for (const refusal of ["FOUR_EYES_SAME_PERSON", "FOUR_EYES_NOT_SAVED_FOR_REVIEW", "APPROVER_ROLE_REQUIRED"]) {
+  const passed = workspace.mapQcSourceVerifyError({ code: "42501", message: refusal, hint: "server hint" });
+  assert(passed.message === refusal, `${refusal} passes through verify mapping before the permission sentence`);
+  const workspacePassed = workspace.toWorkspaceError({ code: "42501", message: refusal });
+  assert(workspacePassed.message === refusal, `${refusal} passes through workspace mapping before the permission sentence`);
+}
 const namedFacts = workspace.mapQcSourceVerifyError({
   message: "FACT_EVIDENCE_INCOMPLETE: SUPPORTED_FACT_REFERENCE_REQUIRED_STUDY_START_DATE, UNSUPPORTED_FACT_NOTE_REQUIRED_BATCHES",
 });

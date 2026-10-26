@@ -331,14 +331,13 @@ export function stageChipsHtml(row) {
   }).join("");
 }
 
-export function whoCanActText(roles) {
-  const verifier = roles?.is_verifier === true;
-  const approver = roles?.is_approver === true;
-  const note = "The approver must be a different person than the verifier.";
-  if (verifier && approver) return `You can verify and approve. ${note}`;
-  if (approver) return `You can approve. ${note}`;
-  if (verifier) return `You can verify. ${note}`;
-  return `View only. ${note}`;
+export function whoCanActText(row, roles) {
+  const decision = nextActionDecision(row, roles);
+  if (!decision.enabled) return decision.reason;
+  const kind = worklistStepKind(row);
+  if (kind === "wait" || kind === "view") return "You can open this product.";
+  if (kind === "approver") return "You can approve this step.";
+  return "You can save this for review. A different approver approves it later.";
 }
 
 export function worklistFiltersActive({ category, subcategory, group, blockedOnly } = {}) {
@@ -410,7 +409,7 @@ export function worklistModalHtml(row, roles) {
     </dl>
     <div class="worklist-copy">
       <section class="worklist-callout${quiet}"><h3>Why it is here</h3><p>${escapeHtml(why)}</p></section>
-      <section class="worklist-note"><h3>Who can act</h3><p>${escapeHtml(whoCanActText(roles))}</p></section>
+      <section class="worklist-note"><h3>Who can act</h3><p>${escapeHtml(whoCanActText(row, roles))}</p></section>
     </div>
     <p class="muted-note worklist-updated">Last change ${escapeHtml(formatIstDate(row?.last_changed_at) || "not recorded")}</p>
     ${tech}

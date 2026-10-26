@@ -230,6 +230,59 @@ export const ERROR_KIND = Object.freeze({
   SERVER: "server",
 });
 
+export const FOUR_EYES_REFUSALS = Object.freeze({
+  FOUR_EYES_SAME_PERSON: Object.freeze({
+    text: "Another person must approve this. You saved it for review.",
+    next: "Ask a different approver to approve it.",
+  }),
+  FOUR_EYES_NOT_SAVED_FOR_REVIEW: Object.freeze({
+    text: "This step has not been saved for review yet.",
+    next: "Save it for review, then ask a different approver to approve it.",
+  }),
+  APPROVER_ROLE_REQUIRED: Object.freeze({
+    text: "Only an approver can approve this step.",
+    next: "Ask an approver to approve it.",
+  }),
+});
+
+export const APPROVAL_UNKNOWN = Object.freeze({
+  text: "This could not be completed.",
+  next: "Try again. If it keeps happening, an approver can open Technical details.",
+});
+
+export function fourEyesCodeIn(value) {
+  const text = safeText(value);
+  if (!text) return "";
+  return Object.keys(FOUR_EYES_REFUSALS).find((code) => text.includes(code)) || "";
+}
+
+export function fourEyesMessage(error) {
+  const code = fourEyesCodeIn(error?.message)
+    || fourEyesCodeIn(error?.original?.message)
+    || fourEyesCodeIn(error?.hint)
+    || fourEyesCodeIn(error?.details);
+  if (!code) return null;
+  const row = FOUR_EYES_REFUSALS[code];
+  return {
+    code,
+    text: row.text,
+    next: row.next,
+    userMessage: `${row.text} ${row.next}`,
+  };
+}
+
+export function approvalNoticeFromError(error) {
+  const mapped = fourEyesMessage(error);
+  if (mapped) return mapped;
+  return {
+    code: safeText(error?.code || error?.original?.code),
+    text: APPROVAL_UNKNOWN.text,
+    next: APPROVAL_UNKNOWN.next,
+    userMessage: `${APPROVAL_UNKNOWN.text} ${APPROVAL_UNKNOWN.next}`,
+    unknown: true,
+  };
+}
+
 const PORTAL_FIELD_SPECS = Object.freeze([
   {
     domain: "INGREDIENT_TYPE",
@@ -1632,6 +1685,16 @@ export function canVerifyProductWorkflow({
 }
 
 export function classifyRpcError(error) {
+  const fourEyes = fourEyesMessage(error);
+  if (fourEyes) {
+    return {
+      kind: ERROR_KIND.AUTHORIZATION,
+      userMessage: fourEyes.userMessage,
+      retryable: false,
+      fourEyes,
+    };
+  }
+
   const code = safeText(error?.code || error?.errcode);
   const message = safeText(error?.message || error?.error_description || error);
   const combined = `${code} ${message}`.toLowerCase();

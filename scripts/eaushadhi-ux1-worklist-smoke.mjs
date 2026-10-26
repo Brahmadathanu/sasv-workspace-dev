@@ -339,7 +339,7 @@ check(modal.includes("Why it is here") && modal.includes("Approve details") === 
 const approverModal = worklistModalHtml(rawRows[3], { is_approver: true });
 check(approverModal.includes('<details id="worklistModalTech"') && !approverModal.includes("<button") && !control.includes("worklistModalOpen") && !control.includes("worklistCount"), "technical details stay inside the row window and the extra openers and count are gone");
 check(nextActionDecision(rawRows[3], { is_approver: false }).reason === REASONS.approver, "approve next step stays disabled without an approver");
-check(whoCanActText({ is_verifier: true, is_approver: true }).includes("different person"), "four-eyes note is in who can act");
+check(whoCanActText(roleSample("Verify details", "details", "TODO"), { is_verifier: true, is_approver: true }).includes("different approver"), "a verifier step says a different approver approves later");
 const home = html.slice(html.indexOf('id="worklistHome"'), html.indexOf('id="legacyQueueControls"'));
 const toolbar = home.slice(home.indexOf("worklist-toolbar"), home.indexOf('id="worklistFilterDrawer"'));
 const card = toolbar.slice(toolbar.indexOf("worklist-search-card"));
@@ -449,9 +449,11 @@ roleSteps.forEach(([label, nextStage, status, kind, extra]) => {
     } else {
       reason = REASONS.verifier;
     }
-    if (decision.enabled !== enabled || decision.reason !== reason || decision.buttonLabel !== buttonLabel) {
+    const card = whoCanActText(row, roles);
+    const cardAgrees = decision.enabled ? card.length > 0 : card === decision.reason;
+    if (decision.enabled !== enabled || decision.reason !== reason || decision.buttonLabel !== buttonLabel || !cardAgrees) {
       roleMisses += 1;
-      console.error(`FAIL role ${label} / ${person}: enabled=${decision.enabled} reason=${decision.reason} button=${decision.buttonLabel}`);
+      console.error(`FAIL role ${label} / ${person}: enabled=${decision.enabled} reason=${decision.reason} button=${decision.buttonLabel} card=${card}`);
     }
   });
 });
