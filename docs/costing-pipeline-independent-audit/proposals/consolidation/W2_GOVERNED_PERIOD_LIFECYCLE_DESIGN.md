@@ -1,5 +1,7 @@
 # W2: governed period lifecycle (open, approve, lock, reopen, supersede, close) and client buttons. DESIGN ONLY.
 
+> **SUPERSEDED by redesign v2.2 (27 Oct 2026).** This document describes an earlier design. For how costing approval, month-end and locking work now, see [COSTING_REDESIGN_V2_CURRENT_STATE.md](../../COSTING_REDESIGN_V2_CURRENT_STATE.md). The text below is kept unchanged as history.
+
 - **Status:** design and local build plan, 19 Oct 2026 07:45 IST. Nothing has been built and nothing is live.
 - **Inputs:** read-only live inventory (`w2_live_inventory_2026-10-19.json`) and the live function definitions.
 - **Order approved:** W1 → W5 (done, live) → **W2** → W3 → W4.

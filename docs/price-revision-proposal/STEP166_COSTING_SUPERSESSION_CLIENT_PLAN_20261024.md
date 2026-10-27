@@ -1,3 +1,5 @@
+> **SUPERSEDED by redesign v2.2 (27 Oct 2026).** This document describes an earlier design. For how costing approval, month-end and locking work now, see [COSTING_REDESIGN_V2_CURRENT_STATE.md](../costing-pipeline-independent-audit/COSTING_REDESIGN_V2_CURRENT_STATE.md). The text below is kept unchanged as history.
+
 > **STATUS UPDATE 24 Oct 2026 15:50 IST — RE-BRIEF REQUIRED:** the supersession this plan assumes has **already happened**. Owner authorisation **#10** (24 Oct 12:45 IST, issued through the backend) was used by run 143, which was approved at 13:46 IST and replaced run 140 as October's approved run (Mathalam (F) at ₹118/kg). The "verified production facts" below are now out of date. The screen's scope (a general owner supersession action for future periods) must be re-briefed before Cursor plans it. The plan text below is kept unchanged.
 
 # Step 166 — Costing supersession client gap (24 Oct 2026)

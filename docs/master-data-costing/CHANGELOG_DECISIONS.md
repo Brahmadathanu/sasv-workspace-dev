@@ -142,3 +142,23 @@
 **Decision:** Master data for SKU 41 (Dhanyamlam 1000 mL, re-activated) and SKU 846 (Gorochanadi 300 g, product 667) was entered on 26 Oct by Dr. Brahmadathan U through his own logged-in console session (audit trail in his name): MRP policies (#1830 for SKU 41), selling/GST policies (#1323 for SKU 41), PM BOM revisions 685 (SKU 41) and 686 (SKU 846) approved, No Scheme policies IK/OK (#1332/#1333 for SKU 41, #1334/#1335 for SKU 846), batch size #555, mapping #462, and product route #256 approved (reference `PRM-PR-667-V1-APP-20261026`) with three bypasses of steps 451, 457 and 458. Both SKUs were then activated.
 **Impact:** The October readiness snapshot predates these entries and October's valuation date is 22 Oct, so readiness for both SKUs is expected from the November run (scheduled Monday 2 Nov 2026, 02:00 IST).
 **Status:** RECORDED.
+
+## 2026-10-26 — SKU 846 policy ids (addition to the SKU 41 / 846 entry)
+**Decision:** Record the SKU 846 (Gorochanadi 300 g) policy ids missing from the entry above: MRP policy **#1831** (APPROVED, effective 26 Oct 2026; earlier policy #442 from 1 Apr 2025 remains on record) and selling/GST policy **#1324** (active, effective 26 Oct 2026). Checked read-only on production, 27 Oct 2026.
+**Reason:** PR #96 listed these ids for SKU 41 only.
+
+## 2026-10-27 — CI-040 v2.1 and CI-041 v2.1 applied (costing redesign v2)
+**Decision:** Approval now needs a preview first (15-minute acknowledgement) and approval supersedes the previous approved run in one step; the old three-argument approve route refuses. The scheduler uses the India business date and retries temporary failures a limited number of times. Live versions 20261027033918 and 20261027034040 (09:09–09:10 IST).
+**Reason:** One governed approval path with a visible impact check; drafts keep running after approval without changing the approved run.
+
+## 2026-10-27 — CI-045 applied
+**Decision:** Approved and reference runs are protected so their provenance cannot change underneath them. Live version 20261027064617 (12:16 IST).
+**Reason:** Approved history must stay immutable.
+
+## 2026-10-27 — CI-042 v2.2 applied
+**Decision:** Locking changes the lock state only (no date or run change); quarter-close batch lock added; month-end finalise uses the preview and approves without locking; old finalise route refuses; display/status views give ready-made labels. Live version 20261027121655 (17:46 IST); all pre/post checks passed.
+**Reason:** Separate approval from locking; screens show server labels instead of calculating them.
+
+## 2026-10-27 — CI-043 v2.2 revision B applied
+**Decision:** Read-only health check (`rpc_costing_health_check`) with 9 adjustable thresholds; reports only, no schedule, no alerts. Install aborts if a threshold already exists with a different value. Operational findings are reported for investigation, not treated as migration failure. Live version 20261027153126 (21:01 IST); first report: no ERROR, WARN for run 119 (known) and the 26 Oct job-66 failure (fixed by CI-039).
+**Reason:** One place to see costing problems; scheduling and alerting are separate decisions. CI-044, health-check scheduling, alert delivery and the backdating cutoff warning remain unapproved.

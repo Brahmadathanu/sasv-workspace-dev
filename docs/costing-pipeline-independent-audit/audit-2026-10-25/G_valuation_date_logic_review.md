@@ -1,4 +1,6 @@
 # G — Costing period valuation date: how it is set, advanced and locked (review)
+
+> **SUPERSEDED by redesign v2.2 (27 Oct 2026).** This document describes an earlier design. For how costing approval, month-end and locking work now, see [COSTING_REDESIGN_V2_CURRENT_STATE.md](../COSTING_REDESIGN_V2_CURRENT_STATE.md). The text below is kept unchanged as history.
 Prepared 26 Oct 2026 (IST). Read-only review of live function bodies in project qhmoqtxpeasamtlxaoak plus docs/costing-pipeline-independent-audit/PERIOD_LIFECYCLE_DESIGN.md.
 
 ## 1. What the valuation date is

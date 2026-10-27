@@ -1,5 +1,13 @@
 # First governed client-triggered refresh — runbook (PREPARED, NOT EXECUTED) — 2026-10-16 14:20 IST
 
+> **Update 27 Oct 2026 — approval steps have changed (redesign v2.2).** Sections below that approve with the old three-argument route or move the month's valuation date are out of date. Today's order is:
+> 1. **Refresh** as before (`rpc_request_costing_refresh`); the run keeps its own valuation date.
+> 2. **Preview**: `rpc_costing_preview_approval_impact(run)` — read the impact, SKU changes, stale/cutoff messages. This writes a 15-minute acknowledgement on production, so only the owner does it, for real.
+> 3. **Approve**: `rpc_costing_approve_run_with_preview(run, reason, reference, preview_ack_id, acknowledge_stale)` — supersedes the previous approved run in the same step. At month end use `rpc_costing_finalize_monthend_run_with_preview` with the same arguments (it approves, it does not lock).
+> 4. **Lock** (separate decision): `rpc_costing_lock_period` for one month or `rpc_costing_lock_periods_for_close` for a quarter — changes the lock state only.
+> 5. **Health check**: `rpc_costing_health_check()` — read the ERROR/WARN list; it only reports.
+> Details: [../COSTING_REDESIGN_V2_CURRENT_STATE.md](../COSTING_REDESIGN_V2_CURRENT_STATE.md).
+
 ## 1. Target
 - **Period September 2026**: status OPEN, valuation date 2026-09-10 (status DRAFT). The October period does not exist and must not be created for this run.
 - **What the user clicks:**

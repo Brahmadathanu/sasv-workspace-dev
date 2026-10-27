@@ -2,6 +2,8 @@
 
 Read-only audit of the master-data-costing (MDC) programme against `main` and live Supabase (SELECT only). Status: **closing, not closed.** The programme closes after every item below has a recorded disposition and the "do now" items are finished.
 
+> **Addendum 27 Oct 2026:** costing redesign v2 applied live (CI-040 v2.1, CI-041 v2.1, CI-045, CI-042 v2.2, CI-043 v2.2 rev B); migration record copies are in `supabase/migrations/`, records in `docs/costing-pipeline-independent-audit/redesign-v2/`. Master data is not changed by these. Still open: CI-044 (parked), health-check schedule/alerts, backdating cutoff warning, Cursor approval screen and refresh/date-label briefs. See `docs/costing-pipeline-independent-audit/COSTING_REDESIGN_V2_CURRENT_STATE.md`.
+
 > **Addendum 26 Oct 2026:** CI-038 (SKU activation guard), CI-038a (activation as-of today) and CI-039 (scheduler fix) are applied live; migration files are now in `supabase/migrations/`. PRs #90 and #95 merged. SKUs 41 and 846 completed and activated (see CHANGELOG_DECISIONS.md, 2026-10-26). The per-run valuation-date redesign (CI-040 to CI-043) is pending owner decisions D1–D7.
 
 ## Done

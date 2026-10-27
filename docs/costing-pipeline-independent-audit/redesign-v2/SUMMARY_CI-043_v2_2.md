@@ -1,0 +1,7 @@
+# CI-043 v2.2 summary — 27 Oct 2026 (preparation only, not applied)
+Files: `20261027093000_ci043v22_costing_health_check.sql` (cfae7868…), `20261027093000_ci043v22_ROLLBACK.sql` (d01ce828…), `verify_ci043v22_pre.sql` (dd2eb814…), `verify_ci043v22_post.sql` (194dd6ec…), `verify_ci043v22_post_rpc.sql` (9fbf3517…) [rev b], `test_ci043v22_verify.sh`, `TEST_RESULTS_CI043v22_verify.txt`, `CHANGES_CI043_V2_1_TO_V2_2.md`, `APPROVAL_REQUEST_CI-043.md` (A8b, new A9).
+Objects: costing.fn_costing_health_check(date) (STABLE, SECURITY DEFINER, owner-only), public.rpc_costing_health_check() (authenticated + service_role, no anon), 9 health_* settings. No policy, view, data or cron change. Reports only; not alerting; the 30-min processor check concerns overdue queued runs only.
+Fresh baseline 18:32 IST: fingerprint 3e5515ed…, runs 118/143, audit 17/21, designations 9/11, fingerprints 28/30, 0 queued/running, cron 34/68, 3 settings, no health_* keys — all pass. Revalidate immediately before apply; any legitimate difference → investigate/re-baseline, never automatic recovery.
+Tests: 17/17 CI-043 v2.2 rev b (rerun 27 Oct); earlier 158/158 main, 35/35 rollbacks unchanged since the migration is unchanged.
+Rev b: operational ERRORs are reported as INFO rows and investigated, not a migration failure; the rollback compares current value with the default (no change history); the authenticated RPC test is a DB-level simulation, not the app's Supabase auth path.
+Old tests line:, 158/158 main, 35/35 rollbacks.

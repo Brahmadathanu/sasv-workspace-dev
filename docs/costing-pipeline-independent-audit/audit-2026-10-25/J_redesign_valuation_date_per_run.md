@@ -1,4 +1,6 @@
 # J — Redesign: a valuation date for each run, drafts continue after approval, approval supersedes in one step
+
+> **SUPERSEDED by redesign v2.2 (27 Oct 2026).** This document describes an earlier design. For how costing approval, month-end and locking work now, see [COSTING_REDESIGN_V2_CURRENT_STATE.md](../COSTING_REDESIGN_V2_CURRENT_STATE.md). The text below is kept unchanged as history.
 Prepared Mon 26 Oct 2026 (IST). Status: **design for review only.** Nothing applied, no migration, no repo change.
 Basis: live function, trigger, view and constraint definitions read today with SELECT-only queries on project qhmoqtxpeasamtlxaoak, plus reports G, H and I. CI-039 (the stopgap scheduler fix) is treated as applied.
 
