@@ -14,3 +14,9 @@ These five files are **record-only copies of changes that are already applied to
 | CI-043 v2.2 rev B | `20261027153126_ci043v22_costing_health_check.sql` | 27 Oct 21:01 | cfae78680e4e1c2ddde0661eba8bfd24 |
 
 Rollback and verify scripts are in `../closure/prepared/` (`CI-040v21_*`, `CI-041v21_*`, `CI-045_*`, `CI-042v22_*`, `CI-043v22_*`). Rollbacks are for emergencies only and need the owner's approval.
+
+## Replay safety (checked 27 Oct 2026)
+All five versions above are already recorded in production's migration history, so the Supabase CLI treats them as applied. There is no CI and no deploy script that pushes migrations. The repo and production histories already differ in both directions (18 / 73 versions) — a pre-existing gap; never run `supabase db push` against production. Details and the safe procedure: [../MIGRATION_HISTORY_RECONCILIATION.md](../MIGRATION_HISTORY_RECONCILIATION.md).
+
+## Related
+[../README_COSTING_SUITE.md](../README_COSTING_SUITE.md) · [../COSTING_OPERATIONS_RUNBOOK_CURRENT.md](../COSTING_OPERATIONS_RUNBOOK_CURRENT.md) · [../DECISION_LOG.md](../DECISION_LOG.md) · [../STATUS_AND_REMAINING_WORK.md](../STATUS_AND_REMAINING_WORK.md)

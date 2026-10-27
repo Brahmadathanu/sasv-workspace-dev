@@ -1,10 +1,26 @@
 # Costing redesign v2 — current state
 
-**Checked read-only on production on 27 Oct 2026, 21:40–22:00 IST** (project qhmoqtxpeasamtlxaoak, SELECT only). This page describes how costing approval, month-end and locking work **now**. Where older documents (G, J, W2 design, Step 166, the first-governed-run runbook) say something different, this page wins.
+**Checked read-only on production on 27 Oct 2026, 21:40–22:00 IST** (project qhmoqtxpeasamtlxaoak, SELECT only). This page describes how costing approval, month-end and locking work **now**. Where older documents (G, J, W2 design, Step 166, the historical first-governed-run runbook) say something different, this page wins.
 
 ## 1. The design in plain words
-- **Each run keeps its own valuation date.** A refresh run captures its date when it is requested. The month no longer has one "working date" that moves around; the month's stored date is only the official date of the approved run.
-- **Drafts keep coming after approval.** The weekly (Monday 02:00 IST) and month-end (02:00 IST on the 29th–31st) drafts continue to run. A new draft never replaces the approved run by itself.
+- **Each run keeps its own valuation date, and it never changes.** A run's date is captured when the run is requested (scheduled drafts and the new recalculation route set it themselves; the legacy Refresh button copies the month's stored date, see §9).
+- **The month's official valuation date comes from its approved run.** It is the approved run's own date. It is worked out (derived) each time from the approved run; it is not read from the month's stored date. A month with no approved run has no official date.
+- **The month's stored date is a legacy field kept for compatibility.** It is not moved by the scheduler, approval, month-end finalise or lock, and it can legitimately stay at an older value. Example: October's stored date is 22 Oct; if a 31 Oct month-end run is later approved, October's official date becomes 31 Oct while the stored date can stay 22 Oct.
+- **Drafts keep coming after approval.** Weekly drafts (Monday) and the month-end draft (on the 1st, for the month just ended) continue. A new draft never replaces the approved run by itself. Exact timing: §5.
+
+### 1a. Official date vs legacy stored date (checked read-only 27 Oct 2026)
+| | Official valuation date | Legacy stored month date |
+|---|---|---|
+| Where it comes from | The approved run's own date (`costing_refresh_run.valuation_date` of the APPROVED run) | Column `costing.cost_periods.valuation_date` |
+| Where to read it | `official_valuation_date` (same as `approved_run_valuation_date`) in `costing.v_costing_period_run_status` / `public.v_costing_pricing_period_run_status` | `valuation_date` in the same views, or `cost_periods` |
+| Who or what uses it | Pricing labels (`pricing_use_label`), month-end and approval decisions, screens (planned) | Only the legacy Refresh button route (`rpc_request_costing_refresh` copies it into the new run) and the legacy setter `rpc_set_cost_period_valuation_date` |
+| Changed by | Approving a different run | Only the legacy setter (audited, needs reason) |
+| Can they differ? | Yes, by design | Yes, by design |
+| October 2026 today | **22 Oct** (approved run 143) | **22 Oct** (status DRAFT) — same value today, by coincidence of history |
+| September 2026 today | 10 Sep (run 122) | 10 Sep (LOCKED) |
+| June, July, August 2026 | none (no approved run) | 30 Jun, 22 Jul, 7 Aug |
+
+Screens must label runs with the official date and the run's own date, never with the stored date.
 - **Approval is one governed step with a preview.** The owner first opens a preview (it shows the impact, SKU changes, whether the run is stale, any cutoff message). Opening the preview writes a short-lived acknowledgement (valid 15 minutes). Approval must quote that acknowledgement. If a run is already approved for the month, the new approval supersedes it in the same step.
 - **Month-end finalise** uses the same preview + acknowledgement and approves the month-end run; it no longer locks the month.
 - **Locking only changes the lock state.** Locking a month (single month, or several months at quarter close) does not change any date or run. Locking requires an approved run and no run in progress.
@@ -35,9 +51,10 @@ Approval requests, summaries and apply records: [redesign-v2/](redesign-v2/).
 | Lock one month | `rpc_costing_lock_period(p_period_start date, p_reason text, p_approval_reference text)` | costing edit permission (server checks) |
 | Lock several months (quarter close) | `rpc_costing_lock_periods_for_close(p_period_starts date[], p_reason text, p_approval_reference text)` | costing edit permission |
 | Health report | `rpc_costing_health_check()` | logged-in users with costing view permission; not anonymous |
-| Request a refresh (unchanged) | `rpc_request_costing_refresh(p_period_start date, p_requested_scope text, p_source_trigger text, p_request_note text)` | unchanged |
-| Set month valuation date (unchanged, legacy) | `rpc_set_cost_period_valuation_date(p_period_start date, p_valuation_date date, p_reason text, p_approval_reference text)` | unchanged |
-| Closed (refuse, write nothing) | `rpc_costing_approve_run(bigint,text,text)`, `rpc_costing_finalize_monthend_run(bigint,text,text)` | — |
+| Request a recalculation draft (new, CI-041) | `rpc_costing_request_recalculation(p_period_start date, p_reason text, p_valuation_date date default null)` | costing edit permission, logged in; reason ≥ 10 characters |
+| Request a refresh (legacy; used by today's Refresh button) | `rpc_request_costing_refresh(p_period_start date, p_requested_scope text, p_source_trigger text, p_request_note text)` | costing edit permission; **copies the stored month date** |
+| Set month stored date (legacy; do not use) | `rpc_set_cost_period_valuation_date(p_period_start date, p_valuation_date date, p_reason text, p_approval_reference text)` | unchanged |
+| Closed (refuse with `W2_USE_NEW_APPROVAL_ROUTE`, write nothing) | `rpc_costing_approve_run(bigint,text,text)`, `rpc_costing_finalize_monthend_run(bigint,text,text)`, `rpc_costing_supersede_approved_run(bigint,text,text)` | — |
 
 Screens should read labels from `public.v_costing_pricing_run_display_status` (Draft / Approved / Reference / Superseded / Failed / Cancelled, with a ready-made label) rather than work them out.
 
@@ -53,13 +70,34 @@ Screens should read labels from `public.v_costing_pricing_run_display_status` (D
 | health_preview_ack_unused_warn_count / _min_age_days | 50 / 30 | pile-up of unused old preview acknowledgements |
 | health_retry_overdue_minutes | 20 | temporary failure with no retry decision |
 
-## 5. Scheduled jobs (unchanged by v2)
-| Job | Schedule | Purpose |
-|---|---|---|
-| 66 `costing_weekly_draft_0200_IST` | Monday 02:00 IST | weekly draft |
-| 67 `costing_monthend_draft_0200_IST` | 02:00 IST on 29th–31st | month-end draft |
-| 68 stage processor | every 5 minutes | runs queued stages |
-There is no health-check job and no alerting.
+## 5. Scheduled jobs and month-end timing (unchanged by v2; checked read-only in `cron.job` on 27 Oct 2026)
+Cron schedules on this database are in **UTC**. IST = UTC + 5:30.
+| Job | Cron expression (UTC) | Fires (IST) | Calls |
+|---|---|---|---|
+| 66 `costing_weekly_draft_0200_IST` | `30 20 * * 0` | Every Monday 02:00 IST (Sunday 20:30 UTC) | `costing.rpc_request_scheduled_costing_refresh_internal()` |
+| 67 `costing_monthend_draft_0200_IST` | `30 20 28-31 * *` | 02:00 IST on the 29th, 30th, 31st **and the 1st** of the next month (UTC days 28–31 at 20:30) | the same function |
+| 68 `costing_stage_processor_5min_governed` | `*/5 * * * *` | every 5 minutes | `public.rpc_process_pending_costing_refresh_stage()` (works through queued runs) |
+
+There is no health-check job and no alerting. Job 61 no longer exists.
+
+**(a) When job 67 executes.** At 20:30 UTC on UTC days 28–31, i.e. 02:00 IST on the following IST day: in a 31-day month the 29th, 30th, 31st and the 1st; in a 30-day month the 29th, 30th and the 1st; after February (28 days) only on 1 March. Because the UTC days always include the month's last day, one firing always lands on the 1st (IST).
+
+**(b) When an eligible month-end draft is created.** The function first works out today's **India business date** (`costing.fn_india_business_date()`, Asia/Kolkata). It only creates a month-end draft when that date is the **1st**. On the 29th–31st it does nothing except the retry sweep and returns `NOT_SCHEDULED` (unless that day is a Monday, when the weekly branch runs). On the 1st it drafts the month just ended, if all of these hold:
+- the month exists and is OPEN with stored-date status DRAFT (a LOCKED month is skipped: `PERIOD_NOT_OPEN_DRAFT`);
+- the draft date is not earlier than the approved run's date (otherwise `SKIPPED_BEFORE_APPROVED_DATE`);
+- the latest scheduled run of that month did not fail for a governance reason (otherwise `GOVERNANCE_FAILURE_BLOCKS`);
+- no run for that month is queued or running (otherwise it returns `ACTIVE_RUN_PRESENT` and creates nothing);
+- no duplicate: if a scheduled run at the same date already succeeded, it is reused (`EXISTING_RUN`).
+If the 1st produced nothing, the next **Monday** weekly pass adds the missed month-end draft once (`CATCH_UP_RUN_CREATED`), only if no scheduled or successful run exists at that date. When the 1st is a Monday, both month-end and weekly drafts are created.
+
+**(c) Which valuation date it gets.** The **last day of the month just ended**. Weekly drafts get the Monday's India date, in the current month.
+
+**October 2026 example.**
+- 29, 30, 31 Oct 02:00 IST (Thu, Fri, Sat): job 67 runs, result `NOT_SCHEDULED`; no draft.
+- **Sun 1 Nov 02:00 IST** (Sat 31 Oct 20:30 UTC): job 67 creates the **October month-end draft dated 31 Oct** (October is OPEN/DRAFT; 31 Oct is not before run 143's 22 Oct). Job 68 then costs it. It is labelled "not for pricing"; run 143 stays approved until the owner approves otherwise.
+- **Mon 2 Nov 02:00 IST**: job 66 creates November's period if needed and a **November weekly draft dated 2 Nov**. The October catch-up is skipped because 1 Nov already produced the 31 Oct draft.
+- November month-end: job 67 fires 29 and 30 Nov (nothing) and **Tue 1 Dec 02:00 IST** (30 Nov 20:30 UTC), which drafts November dated 30 Nov.
+- The stored date is not moved by any of these.
 
 ## 6. Baseline and known findings (27 Oct 2026)
 - Fingerprint of runs 119/122/143 (combined): `3e5515ed97189b747ea3a8d18c3f4411`.
@@ -71,7 +109,7 @@ There is no health-check job and no alerting.
 ## 7. Known risks
 - The preview writes a row on production each time it is opened; test previews must not be run against production.
 - The health check only reports when called; nobody is alerted automatically.
-- The month's stored valuation date (legacy setter) still exists; screens must not use it to label runs.
+- The month's stored date (legacy setter) still exists and the legacy Refresh button still copies it into new runs (October: 22 Oct). Screens must not use it to label runs. See §9.
 - Rolling back CI-043 keeps settings changed after install; one changed and later set back to the default is deleted (no full change history).
 
 ## 8. Open items (not approved, separate decisions)
@@ -80,3 +118,18 @@ There is no health-check job and no alerting.
 - **Backdating cutoff warning** — investigation pending.
 - **Cursor approval screen** (`COSTING_APPROVAL_SCREEN_V1`, off by default) — plan under review; no code yet.
 - **Refresh and date-labels brief** (`costingRecalcWithDateV1`) — prepared for Cursor; no code yet.
+
+## 9. Legacy screen boundaries (checked in the repo on 27 Oct 2026; no code changed)
+| Screen element today | File | Server route it calls | Status | Use meanwhile? |
+|---|---|---|---|---|
+| Toolbar **Refresh** button | `public/shared/js/costing-suite-shell.js` (around line 2653) | `rpc_request_costing_refresh` | Works; the new run copies the month's **stored** date (October: 22 Oct), not today | Only with the owner's approval, knowing the date it will use |
+| **Cost period valuation** panel ("change valuation date") | `public/shared/js/costing-suite-cost-period-valuation.js` + `...-valuation-helpers.js` | `rpc_set_cost_period_valuation_date` | Works; moves only the legacy stored date (audited) | **Do not use.** It is no longer needed and does not change the official date |
+| Approve / finalise / lock / health buttons | — | — | **None exist** in the client today. No client file calls the closed three-argument routes | Use the database routes in the runbook, with the owner's approval |
+
+| Planned (Cursor, not built) | Flag (default OFF) | What changes |
+|---|---|---|
+| Approval screen: preview → approve / month-end finalise | `COSTING_APPROVAL_SCREEN_V1` | Calls `rpc_costing_preview_approval_impact` then `rpc_costing_approve_run_with_preview` / `rpc_costing_finalize_monthend_run_with_preview`; shows server labels |
+| Refresh with a date + date labels | `costingRecalcWithDateV1` | Refresh calls `rpc_costing_request_recalculation`; screens show "Official (approved) date" and "Latest draft date" from the status view; the stored date at most as a small legacy label |
+
+## 10. Related documents
+[README_COSTING_SUITE.md](README_COSTING_SUITE.md) · [COSTING_OPERATIONS_RUNBOOK_CURRENT.md](COSTING_OPERATIONS_RUNBOOK_CURRENT.md) · [MONTH_END_APPROVAL_RUNBOOK.md](MONTH_END_APPROVAL_RUNBOOK.md) · [STATUS_AND_REMAINING_WORK.md](STATUS_AND_REMAINING_WORK.md) · [DECISION_LOG.md](DECISION_LOG.md) · [MIGRATION_HISTORY_RECONCILIATION.md](MIGRATION_HISTORY_RECONCILIATION.md) · [GRANT_AUDIT_2026-10-27.md](GRANT_AUDIT_2026-10-27.md) · historical: [runbooks/HISTORICAL_FIRST_GOVERNED_CLIENT_RUN_RUNBOOK_2026-10.md](runbooks/HISTORICAL_FIRST_GOVERNED_CLIENT_RUN_RUNBOOK_2026-10.md)
