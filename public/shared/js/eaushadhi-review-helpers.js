@@ -1670,7 +1670,70 @@ export function verifyReviewedConfirmLabel(eligibleCount) {
 
 export function verifyReviewedEmptyGuidance(eligibleCount) {
   if (toInt(eligibleCount) > 0) return "";
-  return "No ingredient lines are eligible yet. Review or change a Pending line first; autosave will move it to In Review.";
+  return "No ingredient lines are eligible yet. Use Save for review on a Pending line (or change a field so autosave runs) to move it to In Review.";
+}
+
+/** Display-only: live correction notes may store a literal \\n or \n between appends. */
+export function normalizeReviewNotesForDisplay(value) {
+  const text = value == null ? "" : String(value);
+  return text.replace(/\\\\n/g, "\n").replace(/\\n/g, "\n");
+}
+
+export const CLASSIFICATION_OPTIONS_UNLOADED_COPY =
+  "Options for this product type have not been loaded yet";
+
+export function classificationScopedOptionsUnloaded(options, { productTypeSelected = false } = {}) {
+  return productTypeSelected === true && selectableClassificationOptions(options).length === 0;
+}
+
+export const LINE_SAVE_FOR_REVIEW_LABEL = "Save for review";
+export const LINE_SAVED_FOR_REVIEW_LABEL = "Saved for review";
+
+/**
+ * Explicit composition Save for review control.
+ * Visible whenever the line is not VERIFIED. Stays enabled when values are unchanged
+ * so default suggestions can be accepted; stays disabled (and does not re-save) when
+ * another person already saved and the draft is still clean.
+ */
+export function lineSaveForReviewUi({
+  reviewStatus,
+  draft,
+  baseline,
+  stageRow,
+  canWrite = true,
+  busy = false,
+} = {}) {
+  if (isVerifiedStatus(reviewStatus)) {
+    return {
+      visible: false,
+      enabled: false,
+      label: LINE_SAVE_FOR_REVIEW_LABEL,
+      title: "",
+    };
+  }
+  const dirty = lineDirty(draft, baseline);
+  const hasSaver = Boolean(stageRow?.saved_at);
+  const savedByMe = hasSaver && stageRow?.saved_by_me === true;
+  const savedByOther = hasSaver && stageRow?.saved_by_me !== true;
+  if (!dirty && (savedByMe || savedByOther)) {
+    return {
+      visible: true,
+      enabled: false,
+      label: LINE_SAVED_FOR_REVIEW_LABEL,
+      title: savedByOther
+        ? "Another person already saved this line for review."
+        : "This line is already saved for review.",
+    };
+  }
+  const enabled = canWrite === true && busy !== true;
+  return {
+    visible: true,
+    enabled,
+    label: LINE_SAVE_FOR_REVIEW_LABEL,
+    title: enabled
+      ? "Save the current mapping for review, including accepted suggestions."
+      : "",
+  };
 }
 
 export function canPromoteFormulation({
@@ -1967,22 +2030,42 @@ export function classificationVerifyGaps(draft) {
   return gaps;
 }
 
-export function classificationVerifyPendingCopy(draft, { saveStatus, reviewStatus } = {}) {
+export function classificationVerifyPendingCopy(
+  draft,
+  { saveStatus, reviewStatus, categoryOptions, subtypeOptions } = {},
+) {
   if (isVerifiedStatus(reviewStatus ?? draft?.reviewStatus)) {
     return "Portal Classification is already verified.";
   }
   if (saveStatus === "saving") return "Saving classification...";
   if (saveStatus === "stale") return "Server data changed - refresh/review required";
   if (saveStatus === "failed") return "Save failed. Refresh and retry before verifying.";
+  const typeSelected = Boolean(optionId(draft?.productTypeOptionId));
+  if (
+    classificationScopedOptionsUnloaded(categoryOptions, { productTypeSelected: typeSelected })
+    || classificationScopedOptionsUnloaded(subtypeOptions, { productTypeSelected: typeSelected })
+  ) {
+    return CLASSIFICATION_OPTIONS_UNLOADED_COPY;
+  }
   const gaps = classificationVerifyGaps(draft);
   if (!gaps.length) return "";
   return `Verification pending: ${joinListWithAnd(gaps)}.`;
 }
 
-export function canVerifyClassification(draft, { canEdit = true, saveStatus, reviewStatus } = {}) {
+export function canVerifyClassification(
+  draft,
+  { canEdit = true, saveStatus, reviewStatus, categoryOptions, subtypeOptions } = {},
+) {
   if (canEdit === false) return false;
   if (isVerifiedStatus(reviewStatus ?? draft?.reviewStatus)) return false;
   if (saveStatus === "saving" || saveStatus === "failed" || saveStatus === "stale") {
+    return false;
+  }
+  const typeSelected = Boolean(optionId(draft?.productTypeOptionId));
+  if (
+    classificationScopedOptionsUnloaded(categoryOptions, { productTypeSelected: typeSelected })
+    || classificationScopedOptionsUnloaded(subtypeOptions, { productTypeSelected: typeSelected })
+  ) {
     return false;
   }
   return classificationVerifyGaps(draft).length === 0;

@@ -36,8 +36,10 @@ import {
   canVerifyProductDetails,
   classificationDirty,
   classificationDraftFromReview,
+  classificationScopedOptionsUnloaded,
   classificationSuggestionCopy,
   classificationVerifyPendingCopy,
+  CLASSIFICATION_OPTIONS_UNLOADED_COPY,
   CLASSIFICATION_SUBTYPE_INDEPENDENCE_NOTE,
   clearIncompatibleClassificationChildren,
   classifyRpcError,
@@ -89,8 +91,10 @@ import {
   lineDirty,
   lineDraftFromRow,
   lineHasResolvableSourceIssue,
+  lineSaveForReviewUi,
   lineSelectionsComplete,
   lineVerifyPendingCopy,
+  normalizeReviewNotesForDisplay,
   mergePreservedLineDraft,
   nextQueueRenderCount,
   nextRequiredAction,
@@ -930,16 +934,48 @@ function syncClassificationVerifyUi() {
     canEdit: canWrite(),
     saveStatus: state.classificationSaveStatus,
     reviewStatus: state.classification?.review_status,
+    categoryOptions: state.classificationOptions.PRODUCT_CATEGORY,
+    subtypeOptions: state.classificationOptions.PRODUCT_SUBTYPE,
   });
   const fieldReason = classificationVerifyPendingCopy(state.classificationDraft, {
     saveStatus: state.classificationSaveStatus,
     reviewStatus: state.classification?.review_status,
+    categoryOptions: state.classificationOptions.PRODUCT_CATEGORY,
+    subtypeOptions: state.classificationOptions.PRODUCT_SUBTYPE,
   });
   applyApprovalButton(btn, combineApproval(fieldOk, fieldReason, "classification"), "classificationVerifyHint");
 }
 
+function syncLineSaveReviewUi(lineId) {
+  const id = String(lineId);
+  const btn = document.querySelector(`[data-line-save="${id}"]`);
+  if (!btn) return;
+  const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, id));
+  const ui = lineSaveForReviewUi({
+    reviewStatus: row?.review_status,
+    draft: state.lineDrafts.get(id),
+    baseline: state.lineBaselines.get(id),
+    stageRow: stageRow("line", id),
+    canWrite: canWrite(),
+    busy: state.busy,
+  });
+  if (!ui.visible) {
+    btn.hidden = true;
+    btn.disabled = true;
+    btn.dataset.forceDisabled = "true";
+    return;
+  }
+  btn.hidden = false;
+  btn.textContent = ui.label;
+  btn.disabled = !ui.enabled;
+  btn.dataset.forceDisabled = ui.enabled ? "false" : "true";
+  if (ui.title) btn.title = ui.title;
+  else btn.removeAttribute("title");
+}
+
 function syncLineVerifyUi(lineId) {
   const id = String(lineId);
+  syncLineSaveReviewUi(id);
   const btn = document.querySelector(`[data-line-verify="${id}"]`);
   if (!btn) return;
   const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, id));
@@ -1028,9 +1064,16 @@ function patchAutosaveEl(id, status) {
   if (String(id).startsWith("line-save-")) syncLineVerifyUi(String(id).slice("line-save-".length));
 }
 
-function confirmLeaveDirty() {
+async function confirmLeaveDirty(returnFocusId = "backToQueueBtn") {
   if (!workspaceIsDirty()) return true;
-  return window.confirm("You have unsaved review edits. Discard them?");
+  return openQcConfirm({
+    title: "Unsaved review edits",
+    message: "You have unsaved review edits. Discard them?",
+    okLabel: "Leave without saving",
+    cancelLabel: "Stay",
+    returnFocusId,
+    idPrefix: "leaveDirtyConfirm",
+  });
 }
 
 function chip(statusClass, label) {
@@ -1301,7 +1344,7 @@ function classificationOptionHtml(options, selectedId, { emptyLabel = "Select...
   return parts.join("");
 }
 
-function classificationSubtypeOptionHtml(draft) {
+function classificationSubtypeOptionHtml(draft, { optionsUnloaded = false } = {}) {
   const mode = resolveClassificationSubtypeMode({
     ...(draft || {}),
     preserveBlank: false,
@@ -1311,7 +1354,7 @@ function classificationSubtypeOptionHtml(draft) {
   // BLANK and UNRESOLVED both render as correctable "Not yet resolved" plus
   // fill-eligible options only (no Blank / "-" choices).
   return classificationOptionHtml(state.classificationOptions.PRODUCT_SUBTYPE, selected, {
-    emptyLabel: "Not yet resolved",
+    emptyLabel: optionsUnloaded ? CLASSIFICATION_OPTIONS_UNLOADED_COPY : "Not yet resolved",
   });
 }
 
@@ -1539,7 +1582,9 @@ function renderDetails() {
   const suggested = review.suggested_permission_purpose_label
     ? `Suggested: ${review.suggested_permission_purpose_label}`
     : "";
-  const disable = locked ? " disabled" : "";
+  const disable = locked
+    ? ' disabled aria-disabled="true" data-force-disabled="true"'
+    : "";
   const detailsVerifyOk = canVerifyProductDetails(draft, {
     canEdit: canWrite(),
     saveStatus: state.detailsSaveStatus,
@@ -1553,18 +1598,32 @@ function renderDetails() {
   const classLocked = isVerifiedStatus(
     state.classification?.review_status ?? classDraft.reviewStatus,
   );
-  const classDisable = classLocked ? " disabled" : "";
+  const classDisable = classLocked
+    ? ' disabled aria-disabled="true" data-force-disabled="true"'
+    : "";
   const typeSelected = optionId(classDraft.productTypeOptionId);
-  const childDisable = classDisable || !typeSelected ? " disabled" : "";
+  const childDisable = classDisable || (!typeSelected ? " disabled" : "");
   const classSuggestions = classificationSuggestionCopy(state.classification);
+  const categoryUnloaded = classificationScopedOptionsUnloaded(
+    state.classificationOptions.PRODUCT_CATEGORY,
+    { productTypeSelected: Boolean(typeSelected) },
+  );
+  const subtypeUnloaded = classificationScopedOptionsUnloaded(
+    state.classificationOptions.PRODUCT_SUBTYPE,
+    { productTypeSelected: Boolean(typeSelected) },
+  );
   const classVerifyOk = canVerifyClassification(classDraft, {
     canEdit: canWrite(),
     saveStatus: state.classificationSaveStatus,
     reviewStatus: state.classification?.review_status,
+    categoryOptions: state.classificationOptions.PRODUCT_CATEGORY,
+    subtypeOptions: state.classificationOptions.PRODUCT_SUBTYPE,
   });
   const classVerifyHint = classificationVerifyPendingCopy(classDraft, {
     saveStatus: state.classificationSaveStatus,
     reviewStatus: state.classification?.review_status,
+    categoryOptions: state.classificationOptions.PRODUCT_CATEGORY,
+    subtypeOptions: state.classificationOptions.PRODUCT_SUBTYPE,
   });
   const classDecision = combineApproval(classVerifyOk, classVerifyHint, "classification");
   const classStatus = normalizeReviewStatus(
@@ -1587,17 +1646,29 @@ function renderDetails() {
       <div class="form-field">
         <label for="fldClassCategory">Category / Dosage Form</label>
         <select id="fldClassCategory" class="sasv-control" data-edit-action="true" data-classification-field="category"${childDisable}>
-          ${classificationOptionHtml(state.classificationOptions.PRODUCT_CATEGORY, classDraft.productCategoryOptionId)}
+          ${classificationOptionHtml(state.classificationOptions.PRODUCT_CATEGORY, classDraft.productCategoryOptionId, {
+            emptyLabel: categoryUnloaded ? CLASSIFICATION_OPTIONS_UNLOADED_COPY : "Select...",
+          })}
         </select>
         <span class="muted-note">Suggested Category: ${escapeHtml(classSuggestions.productCategory)}</span>
+        ${
+          categoryUnloaded
+            ? `<span class="muted-note" id="classCategoryUnloadedNote">${escapeHtml(CLASSIFICATION_OPTIONS_UNLOADED_COPY)}</span>`
+            : ""
+        }
       </div>
       <div class="form-field">
         <label for="fldClassSubtype">Portal Sub Type</label>
         <select id="fldClassSubtype" class="sasv-control" data-edit-action="true" data-classification-field="subtype"${childDisable}>
-          ${classificationSubtypeOptionHtml(classDraft)}
+          ${classificationSubtypeOptionHtml(classDraft, { optionsUnloaded: subtypeUnloaded })}
         </select>
         <span class="muted-note">Portal Sub Type: ${escapeHtml(classSuggestions.productSubtype)}</span>
         <span class="muted-note">${escapeHtml(CLASSIFICATION_SUBTYPE_INDEPENDENCE_NOTE)}</span>
+        ${
+          subtypeUnloaded
+            ? `<span class="muted-note" id="classSubtypeUnloadedNote">${escapeHtml(CLASSIFICATION_OPTIONS_UNLOADED_COPY)}</span>`
+            : ""
+        }
       </div>
       <div class="form-field">
         <label for="fldClassNotes">Review Notes</label>
@@ -1855,6 +1926,14 @@ function renderComposition() {
         canEdit: canWrite(),
       });
       const lineDecision = combineApproval(lineVerifyOk, lineVerifyHint, "line", id);
+      const saveReviewUi = lineSaveForReviewUi({
+        reviewStatus: row.review_status,
+        draft,
+        baseline: state.lineBaselines.get(String(id)),
+        stageRow: stageRow("line", id),
+        canWrite: canWrite(),
+        busy: state.busy,
+      });
       const resolved = state.resolvedSourceByLine.get(String(id));
       const reference = row.referenceMapping || null;
       const referenceBlock = `<section class="reference-mapping-block${reference ? "" : " is-blocked"}"${reference ? ` data-reference-mapping-id="${escapeHtml(reference.mapping_id)}"` : ""}>
@@ -1896,7 +1975,7 @@ function renderComposition() {
         ${referenceBlock}
         <div class="line-notes-row">
           <label class="visually-hidden" for="${escapeHtml(notesId)}">Notes</label>
-          <input id="${escapeHtml(notesId)}" class="sasv-control" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" placeholder="Notes" aria-label="Notes"${lockedControlAttrs} />
+          <textarea id="${escapeHtml(notesId)}" class="sasv-control" rows="2" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" placeholder="Notes" aria-label="Notes"${lockedControlAttrs}>${escapeHtml(normalizeReviewNotesForDisplay(draft.reviewNotes || ""))}</textarea>
           ${autosaveHtml(saveStatus, `line-save-${id}`)}
           ${stageSaverHtml("line", id)}
           ${
@@ -1912,7 +1991,14 @@ function renderComposition() {
             })
           }
           ${postEntryIngredientFormReconcileButton(id)}`
-              : `<button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}"${
+              : `${
+                  saveReviewUi.visible
+                    ? `<button type="button" class="icon-btn with-label" data-edit-action="true" data-line-save="${escapeHtml(id)}"${
+                        saveReviewUi.enabled ? "" : " data-force-disabled=\"true\""
+                      }${saveReviewUi.title ? ` title="${escapeHtml(saveReviewUi.title)}"` : ""}>${escapeHtml(saveReviewUi.label)}</button>`
+                    : ""
+                }
+          <button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}"${
                   lineDecision.ok ? "" : " data-force-disabled=\"true\""
                 }${lineDecision.code ? ` data-block-code="${escapeHtml(lineDecision.code)}"` : ""}${
                   lineDecision.reason ? ` title="${escapeHtml(lineDecision.reason)}"` : ""
@@ -2107,7 +2193,7 @@ async function loadReferenceDictionary({ force = false } = {}) {
 
 async function openReferenceDictionary() {
   if (isProductMode()) {
-    if (!confirmLeaveDirty()) return;
+    if (!(await confirmLeaveDirty("openReferenceDictionaryBtn"))) return;
     await flushAllLineAutosaves();
     await flushDetailsAutosave();
     await flushClassificationAutosave();
@@ -2604,7 +2690,7 @@ async function submitSourceCorrect() {
     state.resolvedSourceByLine.delete(String(lineId));
     state.lineDrafts.delete(optionId(lineId));
     closeSourceCorrect();
-    showToast("Working source corrected. The line has been returned to review.", "success");
+    showToast("Source corrected. The line is back to Pending. Save it for review again.", "success");
     await reloadSelected({
       preserveDrafts: true,
       restoreComposition: true,
@@ -2768,7 +2854,9 @@ function renderActions() {
       .filter(Boolean),
   );
   const locked = isVerifiedStatus(state.actionsReviewStatus);
-  const disable = locked ? " disabled" : "";
+  const disable = locked
+    ? ' disabled aria-disabled="true" data-force-disabled="true"'
+    : "";
   const actionsVerifyOk = canVerifyActionSet({
     actions: rows,
     reviewStatus: state.actionsReviewStatus,
@@ -3128,7 +3216,17 @@ function qcReportByteCheckWarning(version) {
 }
 
 function openQcConfirm(options) {
-  const { title, message, okLabel, returnFocusId, idPrefix, reasonRequired, attestLabel, extraText } = options || {};
+  const {
+    title,
+    message,
+    okLabel,
+    cancelLabel,
+    returnFocusId,
+    idPrefix,
+    reasonRequired,
+    attestLabel,
+    extraText,
+  } = options || {};
   if (openQcConfirm.showing === true) return Promise.resolve(false);
   openQcConfirm.showing = true;
   const prefix = idPrefix || "qcConfirm";
@@ -3190,7 +3288,7 @@ function openQcConfirm(options) {
     cancelBtn.type = "button";
     cancelBtn.id = `${prefix}Cancel`;
     cancelBtn.className = "icon-btn with-label";
-    cancelBtn.textContent = "Cancel";
+    cancelBtn.textContent = String(cancelLabel || "Cancel");
     const okBtn = document.createElement("button");
     okBtn.type = "button";
     okBtn.id = `${prefix}Ok`;
@@ -8880,7 +8978,7 @@ async function refreshQueue({ silent = false } = {}) {
 
 async function openProduct(productId) {
   if (state.selectedProductId && !idsEqual(state.selectedProductId, productId)) {
-    if (!confirmLeaveDirty()) return;
+    if (!(await confirmLeaveDirty("backToQueueBtn"))) return;
     await flushDetailsAutosave();
     await flushClassificationAutosave();
     await flushAllLineAutosaves();
@@ -8992,7 +9090,7 @@ async function reloadSelected({
 }
 
 async function backToQueue() {
-  if (!confirmLeaveDirty()) return;
+  if (!(await confirmLeaveDirty("backToQueueBtn"))) return;
   await flushDetailsAutosave();
   await flushClassificationAutosave();
   await flushAllLineAutosaves();
@@ -9700,11 +9798,12 @@ async function waitLineIdle(lineId) {
 }
 
 async function submitLine(lineId, verify) {
-  const draft = state.lineDrafts.get(String(lineId));
+  const id = String(lineId);
+  const draft = state.lineDrafts.get(id);
   if (!draft) return;
+  const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
   if (verify) {
-    const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
-    const saveStatus = state.lineSaveStatus.get(String(lineId)) || "";
+    const saveStatus = state.lineSaveStatus.get(id) || "";
     const reason = lineVerifyPendingCopy({
       draft,
       issues: state.issues,
@@ -9725,11 +9824,27 @@ async function submitLine(lineId, verify) {
       showToast(reason || "This line is not ready to verify.", "error");
       return;
     }
+  } else {
+    const saveUi = lineSaveForReviewUi({
+      reviewStatus: row?.review_status,
+      draft,
+      baseline: state.lineBaselines.get(id),
+      stageRow: stageRow("line", id),
+      canWrite: canWrite(),
+      busy: state.busy,
+    });
+    if (!saveUi.visible || !saveUi.enabled) {
+      showToast(saveUi.title || "This line cannot be saved for review right now.", "error");
+      syncLineSaveReviewUi(id);
+      return;
+    }
   }
   flushDebounced(autosaveTimers, `line:${lineId}`);
   await waitLineIdle(lineId);
   if (!verify) {
     await autosaveLine(lineId);
+    syncLineSaveReviewUi(id);
+    syncLineVerifyUi(id);
     return;
   }
   state.pendingApproval = { stage: "line", itemKey: String(lineId) };
@@ -10533,7 +10648,7 @@ function wireEvents() {
     if (workerMenuOpen) positionWorkerMenu();
   });
   $("homeBtn")?.addEventListener("click", async () => {
-    if (!confirmLeaveDirty()) return;
+    if (!(await confirmLeaveDirty("homeBtn"))) return;
     await flushDetailsAutosave();
     await flushClassificationAutosave();
     await flushAllLineAutosaves();
@@ -10875,7 +10990,12 @@ function wireEvents() {
     if (event.target.id === "btnVerifyClassification") void submitClassification(true);
     if (event.target.id === "btnReopenClassification") openReopen("classification", event.target);
     const boolBtn = event.target.closest("[data-bool-value]");
-    if (boolBtn && state.detailsDraft && canEditReviewedSection(state.review?.review_status)) {
+    if (
+      boolBtn
+      && state.detailsDraft
+      && canEditReviewedSection(state.review?.review_status)
+      && !isVerifiedStatus(state.review?.review_status)
+    ) {
       const group = boolBtn.closest("[data-bool-key]");
       const key = group?.dataset.boolKey;
       if (key === "combinedRestricted") {
@@ -10928,6 +11048,10 @@ function wireEvents() {
   $("tab-details")?.addEventListener("input", (event) => {
     if (state.tab !== "details") return;
     if (event.target.id === "fldClassNotes") {
+      if (isVerifiedStatus(state.classification?.review_status)) {
+        event.target.value = state.classificationDraft?.reviewNotes || "";
+        return;
+      }
       syncClassificationDraftFromForm();
       queueClassificationAutosave(false);
       return;
@@ -10942,6 +11066,14 @@ function wireEvents() {
       syncPortalTextDraftFromForm();
       return;
     }
+    if (isVerifiedStatus(state.review?.review_status)) {
+      const draft = state.detailsDraft;
+      if (!draft) return;
+      if (event.target.id === "fldTitle") event.target.value = draft.compositionTitle || "";
+      if (event.target.id === "fldDiseases") event.target.value = draft.diseasesConditions || "";
+      if (event.target.id === "fldReviewNotes") event.target.value = draft.reviewNotes || "";
+      return;
+    }
     syncDetailsDraftFromForm();
     if (["fldTitle", "fldDiseases", "fldReviewNotes"].includes(event.target.id)) {
       queueDetailsAutosave(false);
@@ -10950,10 +11082,23 @@ function wireEvents() {
   $("tab-details")?.addEventListener("change", (event) => {
     if (state.tab !== "details") return;
     if (event.target.id === "fldClassProductType") {
+      if (isVerifiedStatus(state.classification?.review_status)) {
+        event.target.value = optionId(state.classificationDraft?.productTypeOptionId) || "";
+        return;
+      }
       void handleClassificationTypeChange();
       return;
     }
     if (event.target.id === "fldClassCategory" || event.target.id === "fldClassSubtype") {
+      if (isVerifiedStatus(state.classification?.review_status)) {
+        const draft = state.classificationDraft;
+        if (event.target.id === "fldClassCategory") {
+          event.target.value = optionId(draft?.productCategoryOptionId) || "";
+        } else {
+          event.target.value = optionId(draft?.productSubtypeOptionId) || "";
+        }
+        return;
+      }
       syncClassificationDraftFromForm();
       queueClassificationAutosave(true);
       renderDetails();
@@ -10962,6 +11107,12 @@ function wireEvents() {
     if (event.target.id === "fldPortalShelfmonthRoute") {
       syncPortalFieldsDraftFromForm();
       queuePortalFieldsAutosave(true);
+      return;
+    }
+    if (isVerifiedStatus(state.review?.review_status)) {
+      if (event.target.id === "fldPurpose") {
+        event.target.value = optionId(state.detailsDraft?.permissionPurposeTermId) || "";
+      }
       return;
     }
     syncDetailsDraftFromForm();
@@ -10992,7 +11143,10 @@ function wireEvents() {
     const draft = state.lineDrafts.get(String(lineId));
     if (!draft) return;
     if (!row || isVerifiedStatus(row.review_status)) {
-      el.value = key === "reviewNotes" ? draft.reviewNotes || "" : draft[key] || "";
+      el.value =
+        key === "reviewNotes"
+          ? normalizeReviewNotesForDisplay(draft.reviewNotes || "")
+          : draft[key] || "";
       return;
     }
     draft[key] = key === "reviewNotes" ? el.value : optionId(el.value);
@@ -11021,11 +11175,12 @@ function wireEvents() {
     const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
     const draft = state.lineDrafts.get(String(lineId));
     if (!row || isVerifiedStatus(row.review_status)) {
-      if (draft) el.value = draft.reviewNotes || "";
+      if (draft) el.value = normalizeReviewNotesForDisplay(draft.reviewNotes || "");
       return;
     }
     if (draft) draft.reviewNotes = el.value;
     queueLineAutosave(lineId, false);
+    syncLineSaveReviewUi(lineId);
   });
   $("tab-composition")?.addEventListener("focusout", (event) => {
     const el = event.target;
@@ -11034,7 +11189,7 @@ function wireEvents() {
     const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
     if (!row || isVerifiedStatus(row.review_status)) return;
     flushDebounced(autosaveTimers, `line:${lineId}`);
-    void autosaveLine(lineId);
+    void autosaveLine(lineId).then(() => syncLineSaveReviewUi(lineId));
   });
   $("tab-composition")?.addEventListener("click", (event) => {
     if (event.target.id === "btnWorkerCompositionPreview") {
@@ -11054,11 +11209,13 @@ function wireEvents() {
       clearCompositionFilters();
       return;
     }
+    const saveReview = event.target.closest("[data-line-save]");
     const verify = event.target.closest("[data-line-verify]");
     const resolve = event.target.closest("[data-source-resolve]");
     const correct = event.target.closest("[data-source-correct]");
     const reopen = event.target.closest("[data-line-reopen]");
     const reconcile = event.target.closest("[data-line-reconcile]");
+    if (saveReview) void submitLine(saveReview.dataset.lineSave, false);
     if (verify) submitLine(verify.dataset.lineVerify, true);
     if (resolve) openSourceResolve(resolve.dataset.sourceResolve, resolve);
     if (correct) openSourceCorrect(correct.dataset.sourceCorrect, correct);
@@ -11067,6 +11224,9 @@ function wireEvents() {
   });
 
   $("tab-actions")?.addEventListener("click", (event) => {
+    if (isVerifiedStatus(state.actionsReviewStatus) && event.target.id !== "btnReopenActions") {
+      return;
+    }
     if (event.target.id === "btnAddAction") {
       state.actionsDraft = [...state.actionsDraft, ""];
       renderActions();
@@ -11098,6 +11258,10 @@ function wireEvents() {
   $("tab-actions")?.addEventListener("input", (event) => {
     const el = event.target;
     if (el.dataset.actionText == null) return;
+    if (isVerifiedStatus(state.actionsReviewStatus)) {
+      renderActions();
+      return;
+    }
     const vocab = state.catalogs.pharmacologicalActionOptions || [];
     const custom = customActionDraftRows(state.actionsDraft, vocab);
     custom[Number(el.dataset.actionText)] = el.value;
@@ -11111,6 +11275,10 @@ function wireEvents() {
   $("tab-actions")?.addEventListener("change", (event) => {
     const el = event.target;
     if (el.dataset.actionVocabToggle == null) return;
+    if (isVerifiedStatus(state.actionsReviewStatus)) {
+      renderActions();
+      return;
+    }
     const vocab = state.catalogs.pharmacologicalActionOptions || [];
     state.actionsDraft = composeActionsDraft(
       vocab,

@@ -189,8 +189,10 @@ assert(
   "classification draft sync refreshes Verify without full navigation",
 );
 assert(
-  /const classDisable = classLocked \? " disabled" : ""/.test(controlSrc),
-  "only VERIFIED globally locks classification fields",
+  /const classDisable = classLocked\s*\?\s*' disabled aria-disabled="true" data-force-disabled="true"'\s*:\s*""/.test(
+    controlSrc,
+  ),
+  "only VERIFIED globally locks classification fields with force-disabled",
 );
 assert(
   !/classDisable = classLocked \|\|/.test(controlSrc),
@@ -425,7 +427,8 @@ assert(!/Verify \$\{eligible\} reviewed lines/.test(controlSrc), "zero-count ver
     assert(renderFn.includes(`${domain}:`), `${domain} remains in the locked governed Composition field set`);
   }
   assert(
-    /<input[^>]*data-draft-key="reviewNotes"[^>]*\$\{lockedControlAttrs\}/.test(renderFn),
+    /<(?:input|textarea)[^>]*data-draft-key="reviewNotes"[^>]*\$\{lockedControlAttrs\}/.test(renderFn)
+      || /data-draft-key="reviewNotes"[^]*\$\{lockedControlAttrs\}/.test(renderFn),
     "VERIFIED Composition Notes consumes the persistent lifecycle lock",
   );
   assert(
@@ -456,8 +459,9 @@ assert(
     "Composition mapping guard precedes draft, provenance, autosave, and verify-state mutation",
   );
   assert(
-    changeHandler.includes('el.value = key === "reviewNotes" ? draft.reviewNotes || "" : draft[key] || "";') &&
-      /if \(!row \|\| isVerifiedStatus\(row\.review_status\)\) \{[\s\S]*return;/.test(changeHandler),
+    (/normalizeReviewNotesForDisplay\(draft\.reviewNotes \|\| ""\)/.test(changeHandler)
+      || changeHandler.includes('el.value = key === "reviewNotes" ? draft.reviewNotes || "" : draft[key] || "";'))
+      && /if \(!row \|\| isVerifiedStatus\(row\.review_status\)\) \{[\s\S]*return;/.test(changeHandler),
     "rejected Composition mapping events restore the unchanged draft value",
   );
   const inputGuard = inputHandler.indexOf("if (!row || isVerifiedStatus(row.review_status))");
@@ -468,7 +472,8 @@ assert(
     "Composition Notes input guard precedes draft mutation and autosave",
   );
   assert(
-    inputHandler.includes('if (draft) el.value = draft.reviewNotes || "";'),
+    inputHandler.includes('if (draft) el.value = normalizeReviewNotesForDisplay(draft.reviewNotes || "");')
+      || inputHandler.includes('if (draft) el.value = draft.reviewNotes || "";'),
     "rejected Composition Notes input restores the unchanged draft value",
   );
   const focusoutGuard = focusoutHandler.indexOf("if (!row || isVerifiedStatus(row.review_status)) return;");
