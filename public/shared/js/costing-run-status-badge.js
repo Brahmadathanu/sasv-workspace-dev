@@ -1,7 +1,17 @@
 // W1: governed run label for the pricing screens ("Approved run N" / "DRAFT run N - not approved").
 // Reads public.v_costing_pricing_period_run_status (one row per month). Pure helpers are exported for tests.
+// When COSTING_APPROVAL_SCREEN_V1 is ON, prefer server display_label_v2 / official & draft dates.
+
+import { isCostingApprovalScreenV1Enabled } from "./costing-feature-flags.js";
+import { describeRunStatusForApprovalFlag } from "./costing-approval-labels.js";
 
 export const RUN_STATUS_VIEW = "v_costing_pricing_period_run_status";
+
+export const RUN_STATUS_SELECT_V1 =
+  "period_start,display_state,display_label,displayed_run_id,approved_run_id,approved_at,approved_by,newer_draft_run_id,active_run_id,active_run_status";
+
+export const RUN_STATUS_SELECT_APPROVAL_V1 =
+  "period_start,display_state,display_label,display_label_v2,pricing_use_label,displayed_run_id,approved_run_id,approved_at,approved_by,newer_draft_run_id,active_run_id,active_run_status,official_valuation_date,latest_draft_valuation_date,latest_draft_run_id,approved_run_valuation_date,newer_draft_count,superseded_run_count";
 
 // Lenses whose data come from a costing refresh run (pricing screens).
 export const RUN_SCOPED_LENSES = new Set([
@@ -83,11 +93,10 @@ export function createRunStatusBadge({ supabase, anchor, doc = globalThis.docume
 
   async function fetchRow(periodStart) {
     if (cache.has(periodStart)) return cache.get(periodStart);
+    const approvalOn = isCostingApprovalScreenV1Enabled();
     const { data, error } = await supabase
       .from(RUN_STATUS_VIEW)
-      .select(
-        "period_start,display_state,display_label,displayed_run_id,approved_run_id,approved_at,approved_by,newer_draft_run_id,active_run_id,active_run_status",
-      )
+      .select(approvalOn ? RUN_STATUS_SELECT_APPROVAL_V1 : RUN_STATUS_SELECT_V1)
       .eq("period_start", periodStart)
       .maybeSingle();
     if (error) throw error;
@@ -107,7 +116,10 @@ export function createRunStatusBadge({ supabase, anchor, doc = globalThis.docume
     try {
       const row = await fetchRow(periodStart);
       if (my !== generation) return;
-      applyRunStatusBadge(node, describeRunStatus(row), true);
+      const info = isCostingApprovalScreenV1Enabled()
+        ? describeRunStatusForApprovalFlag(row)
+        : describeRunStatus(row);
+      applyRunStatusBadge(node, info, true);
     } catch (err) {
       if (my !== generation) return;
       console.warn("Run status unavailable", err);

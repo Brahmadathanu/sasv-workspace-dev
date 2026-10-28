@@ -604,7 +604,7 @@ assert(!executorSrc.includes('saveOutcome: "CONFIRMED"'), "the executor has no h
 assert(/const NATIVE_SAVE_AUTHORIZED = false/.test(contractSrc) && NATIVE_SAVE_AUTHORIZED === false, "NATIVE_SAVE_AUTHORIZED stays false");
 const flagRead = /env\.EAUSHADHI_QC_NATIVE_SAVE/;
 assert(flagRead.test(contractSrc) && !flagRead.test(executorSrc) && !flagRead.test(indexSrc) && !flagRead.test(controlSrc), "the build flag is read only in the contract");
-assert(/const CACHE_NAME = "hub-cache-v375"/.test(swSrc), "service worker cache is v375");
+assert(/const CACHE_NAME = "hub-cache-v376"/.test(swSrc), "service worker cache is v376");
 assert(offHtml.includes('data-build="D7.3.2"') && offHtml.includes('id="qcFillBuild"'), "the card shows UI build D7.3.2");
 assert([off, unconfirmed, expired, reusedSecond, wrongRun, confirmedFresh, noRow, timeout, twice, duplicate, transport, stopped, mismatch, unauthorized, edited, otherRoute].every((item) => (item.spy?.click || 0) <= 1), "no case clicks more than once");
 

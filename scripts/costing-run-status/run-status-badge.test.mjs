@@ -2,6 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { describeRunStatus, applyRunStatusBadge, createRunStatusBadge, RUN_SCOPED_LENSES } from "../../public/shared/js/costing-run-status-badge.js";
+import { describeRunStatusForApprovalFlag } from "../../public/shared/js/costing-approval-labels.js";
 
 // Rows exactly as costing.v_costing_period_run_status returned them in the local W1 test (run_tests.py).
 const ROWS = {
@@ -75,4 +76,19 @@ test("hidden state ignores info", () => {
   const el = { dataset: {}, setAttribute() {}, hidden: false };
   applyRunStatusBadge(el, null, false);
   assert.equal(el.hidden, true);
+});
+
+test("flag-on 31 Oct draft uses server not-for-pricing label", () => {
+  const row = {
+    period_start: "2026-10-01",
+    display_state: "DRAFT",
+    display_label: "DRAFT run 151 - not approved",
+    display_label_v2: "Draft – not for pricing (run 151)",
+    pricing_use_label: "Draft – not for pricing",
+    official_valuation_date: null,
+    latest_draft_valuation_date: "2026-10-31",
+  };
+  const info = describeRunStatusForApprovalFlag(row);
+  assert.match(info.text, /not for pricing/i);
+  assert.equal(info.tone, "draft");
 });

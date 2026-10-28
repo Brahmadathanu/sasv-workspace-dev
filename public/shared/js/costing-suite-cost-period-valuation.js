@@ -18,6 +18,11 @@ import {
   normalizeCostPeriodValuationContext,
   unwrapCostPeriodGovernanceHistoryPayload,
 } from "./costing-suite-cost-period-valuation-helpers.js";
+import { isCostingApprovalScreenV1Enabled } from "./costing-feature-flags.js";
+import {
+  formatLatestDraftValuationDate,
+  formatOfficialValuationDate,
+} from "./costing-approval-labels.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -109,6 +114,7 @@ function formatActorFromContext(value) {
 export function createCostPeriodValuationController(deps = {}) {
   const {
     costingRpc,
+    supabase = null,
     showToast,
     canView = () => false,
     canEdit = () => false,
@@ -121,6 +127,7 @@ export function createCostPeriodValuationController(deps = {}) {
     contextLoading: false,
     contextError: null,
     contextRequestId: 0,
+    periodStatusRow: null,
     historyRows: [],
     historyLoading: false,
     historyError: null,
@@ -308,6 +315,10 @@ export function createCostPeriodValuationController(deps = {}) {
       return;
     }
 
+    const approvalOn = isCostingApprovalScreenV1Enabled();
+    const valuationDateLabel = approvalOn
+      ? "Stored month date (legacy)"
+      : "Valuation date";
     const rows = [
       ["Period", formatDisplayDate(ctx.period_start)],
       [
@@ -317,7 +328,19 @@ export function createCostPeriodValuationController(deps = {}) {
           periodStatusTone(ctx.period_status),
         ),
       ],
-      ["Valuation date", formatDisplayDate(ctx.valuation_date)],
+    ];
+    if (approvalOn) {
+      rows.push([
+        "Official (approved) date",
+        text(formatOfficialValuationDate(state.periodStatusRow)),
+      ]);
+      rows.push([
+        "Latest draft date",
+        text(formatLatestDraftValuationDate(state.periodStatusRow)),
+      ]);
+    }
+    rows.push(
+      [valuationDateLabel, formatDisplayDate(ctx.valuation_date)],
       [
         "Valuation source",
         text(formatCostPeriodValuationSourceLabel(ctx.valuation_date_source)),
@@ -333,7 +356,7 @@ export function createCostPeriodValuationController(deps = {}) {
       ["Approval reference", text(ctx.valuation_date_approval_reference)],
       ["Set at", formatDateTime(ctx.valuation_date_set_at)],
       ["Set by", text(formatActorFromContext(ctx.valuation_date_set_by))],
-    ];
+    );
 
     if (ctx.locked_at || ctx.lock_reason) {
       rows.push(["Locked at", formatDateTime(ctx.locked_at)]);
@@ -602,6 +625,24 @@ export function createCostPeriodValuationController(deps = {}) {
       }
       if (error) throw error;
       state.context = normalizeCostPeriodValuationContext(data);
+      state.periodStatusRow = null;
+      if (isCostingApprovalScreenV1Enabled() && supabase) {
+        try {
+          const statusRes = await supabase
+            .from("v_costing_pricing_period_run_status")
+            .select(
+              "period_start,official_valuation_date,latest_draft_valuation_date,display_label_v2,pricing_use_label",
+            )
+            .eq("period_start", selectedPeriod)
+            .maybeSingle();
+          if (!statusRes.error) state.periodStatusRow = statusRes.data || null;
+        } catch (statusErr) {
+          console.warn(
+            "[cost-period-valuation] period status labels unavailable",
+            statusErr,
+          );
+        }
+      }
       state.contextLoading = false;
       state.contextError = state.context
         ? null

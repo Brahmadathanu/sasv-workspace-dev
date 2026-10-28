@@ -59,6 +59,8 @@ import {
   isPortfolioReadinessLens,
 } from "./costing-suite-readiness.js";
 import { createCostPeriodValuationController } from "./costing-suite-cost-period-valuation.js";
+import { isCostingApprovalScreenV1Enabled } from "./costing-feature-flags.js";
+import { createCostingApprovalScreenController } from "./costing-approval-screen.js";
 import {
   createQcActionQueueController,
   isQcActionQueueLens,
@@ -4501,6 +4503,9 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     periodStart: ACTIVE_PERIOD_START,
     lensId: CURRENT_LENS,
   });
+  if (isCostingApprovalScreenV1Enabled()) {
+    void costingApprovalScreenCtrl?.reload?.();
+  }
   try {
     costBuildCtrl.syncManualProvisionLayout();
     if (!isProductionRouteLens(CURRENT_LENS)) {
@@ -8959,6 +8964,7 @@ const portfolioReadinessCtrl = createPortfolioReadinessController({
 
 const costPeriodValuationCtrl = createCostPeriodValuationController({
   costingRpc,
+  supabase,
   showToast,
   canView: () => PERM_CAN_VIEW === true,
   canEdit: () =>
@@ -8968,16 +8974,35 @@ const costPeriodValuationCtrl = createCostPeriodValuationController({
     ACTIVE_ROUTE_CONFIG?.moduleKey === "costing-control-center",
 });
 
+const costingApprovalScreenCtrl = isCostingApprovalScreenV1Enabled()
+  ? createCostingApprovalScreenController({
+      supabase,
+      costingRpc,
+      showToast,
+      formatMoney,
+      getActivePeriodStart: () => ACTIVE_PERIOD_START,
+      isControlCenterRoute: () =>
+        ACTIVE_ROUTE_CONFIG?.moduleKey === "costing-control-center",
+    })
+  : null;
+
 async function reloadCostPeriodValuationIfNeeded() {
   if (ACTIVE_ROUTE_CONFIG?.moduleKey !== "costing-control-center") {
     costPeriodValuationCtrl.onRouteExit?.();
+    costingApprovalScreenCtrl?.onRouteExit?.();
     return;
   }
   if (PERM_CAN_VIEW !== true) {
     costPeriodValuationCtrl.onRouteExit?.();
+    costingApprovalScreenCtrl?.onRouteExit?.();
     return;
   }
   await costPeriodValuationCtrl.loadForActivePeriod();
+  if (isCostingApprovalScreenV1Enabled()) {
+    costingApprovalScreenCtrl?.mount?.();
+  } else {
+    costingApprovalScreenCtrl?.onRouteExit?.();
+  }
   // CPV paint may re-show the strip; reassert Readiness hide when still active.
   if (isPortfolioReadinessLens(CURRENT_LENS)) {
     syncReadinessShellChrome();
