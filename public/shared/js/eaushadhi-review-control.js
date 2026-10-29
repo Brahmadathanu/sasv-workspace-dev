@@ -108,6 +108,10 @@ import {
   parseOptionalNumericQuantity,
   portalFieldSpecs,
   portalFillStepperModel,
+  portalGateReasonOk,
+  portalGateRefusalMessage,
+  PORTAL_ENTRY_ON_NO_AUTOSAVE_COPY,
+  PORTAL_GATE_REASON_RANGE_COPY,
   classificationSelectedOptionDisplay,
   productDetailsVerifyPendingCopy,
   promoteUnavailableReason,
@@ -166,6 +170,8 @@ import {
   fetchWorklist,
   fetchMyRoles,
   fetchStageReviewState,
+  fetchPortalEntryGate,
+  setPortalEntryGate,
   fetchDocumentUploadContract,
   fetchProductClassificationOptions,
   fetchProductPortalText,
@@ -304,6 +310,11 @@ const state = {
   stageReview: [],
   stageReviewLoaded: false,
   stageReviewFailed: false,
+  portalEntryGate: null,
+  portalEntryGateLoading: false,
+  portalEntryGateError: "",
+  portalEntryGateReason: "",
+  portalEntryGateBusy: false,
   approvalNotice: null,
   pendingApproval: null,
   worklist: null,
@@ -1328,9 +1339,13 @@ function optionHtml(options, selectedId, extra = []) {
   return parts.join("");
 }
 
-function classificationOptionHtml(options, selectedId, { emptyLabel = "Select..." } = {}) {
+function classificationOptionHtml(
+  options,
+  selectedId,
+  { emptyLabel = "Select...", domain = "" } = {},
+) {
   const seen = new Set();
-  const list = selectableClassificationOptions(options);
+  const list = selectableClassificationOptions(options, { domain });
   const parts = [`<option value="">${escapeHtml(emptyLabel)}</option>`];
   for (const opt of list) {
     const id = optionId(opt?.portal_option_id ?? opt?.id);
@@ -1344,7 +1359,7 @@ function classificationOptionHtml(options, selectedId, { emptyLabel = "Select...
     );
   }
   if (selectedId && !seen.has(String(selectedId))) {
-    const display = classificationSelectedOptionDisplay(options, selectedId);
+    const display = classificationSelectedOptionDisplay(options, selectedId, { domain });
     parts.push(
       `<option value="${escapeHtml(selectedId)}" selected>${escapeHtml(display.label)}</option>`,
     );
@@ -1363,6 +1378,7 @@ function classificationSubtypeOptionHtml(draft, { optionsUnloaded = false } = {}
   // fill-eligible options only (no Blank / "-" choices).
   return classificationOptionHtml(state.classificationOptions.PRODUCT_SUBTYPE, selected, {
     emptyLabel: optionsUnloaded ? CLASSIFICATION_OPTIONS_UNLOADED_COPY : "Not yet resolved",
+    domain: "PRODUCT_SUBTYPE",
   });
 }
 
@@ -1656,6 +1672,7 @@ function renderDetails() {
         <select id="fldClassCategory" class="sasv-control" data-edit-action="true" data-classification-field="category"${childDisable}>
           ${classificationOptionHtml(state.classificationOptions.PRODUCT_CATEGORY, classDraft.productCategoryOptionId, {
             emptyLabel: categoryUnloaded ? CLASSIFICATION_OPTIONS_UNLOADED_COPY : "Select...",
+            domain: "PRODUCT_CATEGORY",
           })}
         </select>
         <span class="muted-note">Suggested Category: ${escapeHtml(classSuggestions.productCategory)}</span>
@@ -8183,7 +8200,76 @@ function renderQc() {
   applyPermissionUi();
 }
 
+async function loadPortalEntryGate(productId) {
+  const id = Number(productId);
+  if (!id || id === FIRST_CONTROLLED_PRODUCT_ID) {
+    state.portalEntryGate = null;
+    state.portalEntryGateLoading = false;
+    state.portalEntryGateError = "";
+    return null;
+  }
+  state.portalEntryGateLoading = true;
+  state.portalEntryGateError = "";
+  try {
+    const gate = await fetchPortalEntryGate(id);
+    if (!idsEqual(state.selectedProductId, id)) return null;
+    state.portalEntryGate = gate;
+    return gate;
+  } catch (err) {
+    if (!idsEqual(state.selectedProductId, id)) return null;
+    state.portalEntryGate = { product_id: id, enabled: false };
+    state.portalEntryGateError = portalGateRefusalMessage(err);
+    toastError(err);
+    return null;
+  } finally {
+    if (idsEqual(state.selectedProductId, id)) state.portalEntryGateLoading = false;
+  }
+}
+
+function queuePortalEntryGateLoad() {
+  const id = Number(state.selectedProductId);
+  if (!id || id === FIRST_CONTROLLED_PRODUCT_ID) return;
+  if (state.portalEntryGateLoading) return;
+  if (state.portalEntryGate && Number(state.portalEntryGate.product_id) === id) return;
+  void loadPortalEntryGate(id).then(() => {
+    if (state.tab === "readiness" && idsEqual(state.selectedProductId, id)) renderReadiness();
+  });
+}
+
+async function submitPortalEntryGateToggle(enabled) {
+  const id = Number(state.selectedProductId);
+  if (!id || id === FIRST_CONTROLLED_PRODUCT_ID) return;
+  if (state.myRoles?.is_approver !== true) {
+    showToast(portalGateRefusalMessage({ message: "APPROVER_ROLE_REQUIRED" }), "error");
+    return;
+  }
+  const reason = safeText(state.portalEntryGateReason || $("fldPortalEntryGateReason")?.value);
+  if (!portalGateReasonOk(reason)) {
+    showToast(PORTAL_GATE_REASON_RANGE_COPY, "error");
+    return;
+  }
+  if (state.portalEntryGateBusy) return;
+  state.portalEntryGateBusy = true;
+  try {
+    await setPortalEntryGate({ productId: id, enabled: enabled === true, reason });
+    state.portalEntryGateReason = "";
+    await loadPortalEntryGate(id);
+    showToast(
+      enabled === true ? "Portal entry is turned on for this product." : "Portal entry is turned off for this product.",
+      "success",
+    );
+  } catch (err) {
+    showToast(portalGateRefusalMessage(err), "error", 5200);
+    await loadPortalEntryGate(id);
+  } finally {
+    state.portalEntryGateBusy = false;
+    if (state.tab === "readiness") renderReadiness();
+  }
+}
+
 function renderFillOnPortalSection() {
+  const isApprover = state.myRoles?.is_approver === true;
+  const gateEnabled = state.portalEntryGate?.enabled === true;
   const model = portalFillStepperModel({
     productId: state.selectedProductId,
     review: state.review,
@@ -8192,6 +8278,8 @@ function renderFillOnPortalSection() {
     actionsDraft: state.actionsDraft,
     actionsReviewStatus: state.actionsReviewStatus,
     stageReview: state.stageReview,
+    gateEnabled,
+    isApprover,
   });
   const statusHtml = model.statusRows
     .map(
@@ -8208,6 +8296,7 @@ function renderFillOnPortalSection() {
       <p class="muted-note" id="fillOnPortalClosedNote">${escapeHtml(model.closedMessage)}</p>
     </div>`;
   }
+  queuePortalEntryGateLoad();
   const stepsHtml = model.portalSteps
     .map(
       (step) =>
@@ -8220,13 +8309,48 @@ function renderFillOnPortalSection() {
   const warningHtml = model.samePersonWarning
     ? `<p class="muted-note" id="fillOnPortalSamePersonWarning">${escapeHtml(model.samePersonWarning)}</p>`
     : "";
+  const gateLoadingHtml = state.portalEntryGateLoading
+    ? `<p class="muted-note" id="fillOnPortalGateLoading">Reading portal entry gate.</p>`
+    : "";
+  const gateErrorHtml = state.portalEntryGateError
+    ? `<p class="disabled-reason" id="fillOnPortalGateError">${escapeHtml(state.portalEntryGateError)}</p>`
+    : "";
+  const gateStatusHtml = `<p class="muted-note" id="fillOnPortalGateStatus">Portal entry gate: <strong>${
+    gateEnabled ? "On" : "Off"
+  }</strong> (from server).</p>`;
+  const reasonValue = escapeHtml(state.portalEntryGateReason || "");
+  const reasonOk = portalGateReasonOk(state.portalEntryGateReason);
+  const gateToggleHtml = model.showGateToggle
+    ? `<div class="form-field" id="fillOnPortalGateControls">
+        <label for="fldPortalEntryGateReason">Reason for turning portal entry on or off</label>
+        <textarea id="fldPortalEntryGateReason" class="sasv-control" rows="2" data-edit-action="true">${reasonValue}</textarea>
+        <span class="muted-note">${escapeHtml(PORTAL_GATE_REASON_RANGE_COPY)}</span>
+        <div class="action-row">
+          <button type="button" class="icon-btn with-label" id="btnPortalEntryGateOn" data-edit-action="true"${
+            reasonOk && !gateEnabled && !state.portalEntryGateBusy ? "" : ' data-force-disabled="true"'
+          }>Turn on portal entry</button>
+          <button type="button" class="icon-btn with-label" id="btnPortalEntryGateOff" data-edit-action="true"${
+            reasonOk && gateEnabled && !state.portalEntryGateBusy ? "" : ' data-force-disabled="true"'
+          }>Turn off portal entry</button>
+        </div>
+      </div>`
+    : `<p class="muted-note" id="fillOnPortalApproverOnly">${escapeHtml(model.approverOnlyCopy)}</p>`;
+  const onMessageHtml =
+    gateEnabled && model.gateOnMessage
+      ? `<p class="muted-note" id="fillOnPortalOnNoAutosave">${escapeHtml(PORTAL_ENTRY_ON_NO_AUTOSAVE_COPY)}</p>`
+      : "";
   return `<div class="section-card" id="fillOnPortalSection">
       <h3 class="section-title">Fill on portal</h3>
+      ${gateLoadingHtml}
+      ${gateErrorHtml}
+      ${gateStatusHtml}
       <p class="muted-note" id="fillOnPortalEntryNote">${escapeHtml(model.portalEntryMessage)}</p>
+      ${onMessageHtml}
       ${warningHtml}
+      ${gateToggleHtml}
       <div class="readiness-compact" id="fillOnPortalStatusList">${statusHtml}</div>
       <div class="portal-fill-steps" id="fillOnPortalSteps">${stepsHtml}</div>
-      <p class="muted-note">This section is display-only in this build. It does not Save, Submit, or Authorize portal entry.</p>
+      <p class="muted-note">This build does not Save, Submit, or Authorize a portal Save. The server remains the only judge of enablement.</p>
     </div>`;
 }
 
@@ -9083,6 +9207,11 @@ async function openProduct(productId, returnFocus = null) {
     }
     applyStageReviewResult(stageReview);
     state.selectedProductId = Number(productId);
+    state.portalEntryGate = null;
+    state.portalEntryGateLoading = false;
+    state.portalEntryGateError = "";
+    state.portalEntryGateReason = "";
+    state.portalEntryGateBusy = false;
     state.worklistRow = (state.worklist || []).find((row) => Number(row.product_id) === Number(productId)) || null;
     state.queueRow = findQueueRow(state.queue, productId);
     state.tab = "overview";
@@ -9170,6 +9299,11 @@ async function backToQueue() {
   state.stageReview = [];
   state.stageReviewLoaded = false;
   state.stageReviewFailed = false;
+  state.portalEntryGate = null;
+  state.portalEntryGateLoading = false;
+  state.portalEntryGateError = "";
+  state.portalEntryGateReason = "";
+  state.portalEntryGateBusy = false;
   state.approvalNotice = null;
   state.pendingApproval = null;
   state.workerFoundationResult = null;
@@ -11416,6 +11550,8 @@ function wireEvents() {
     if (event.target.id === "btnQcPreparationRead") submitQcPreparationReadProbe();
     if (event.target.id === "btnQcReportRead") submitQcReportReadProbe();
     if (event.target.id === "btnOpenQcTab") selectWorkflowTab("qc");
+    if (event.target.id === "btnPortalEntryGateOn") void submitPortalEntryGateToggle(true);
+    if (event.target.id === "btnPortalEntryGateOff") void submitPortalEntryGateToggle(false);
     if (event.target.id === "btnWorkerEntryDryRun") submitWorkerEntryDryRun();
     if (event.target.id === "btnWorkerProductDetailsPreview") submitWorkerProductDetailsPreview();
     if (event.target.id === "btnWorkerProductDetailsStart") submitWorkerProductDetailsStart();
@@ -11438,6 +11574,22 @@ function wireEvents() {
     if (event.target.id === "fldVerifyNotes") {
       state.verifyNotes = event.target.value;
       state.verifyNotesOrigin = "user";
+    }
+    if (event.target.id === "fldPortalEntryGateReason") {
+      state.portalEntryGateReason = event.target.value || "";
+      const onBtn = $("btnPortalEntryGateOn");
+      const offBtn = $("btnPortalEntryGateOff");
+      const reasonOk = portalGateReasonOk(state.portalEntryGateReason);
+      const gateOn = state.portalEntryGate?.enabled === true;
+      const busy = state.portalEntryGateBusy === true;
+      if (onBtn) {
+        onBtn.disabled = !reasonOk || gateOn || busy || !canWrite();
+        onBtn.dataset.forceDisabled = onBtn.disabled ? "true" : "false";
+      }
+      if (offBtn) {
+        offBtn.disabled = !reasonOk || !gateOn || busy || !canWrite();
+        offBtn.dataset.forceDisabled = offBtn.disabled ? "true" : "false";
+      }
     }
   });
   $("tab-qc")?.addEventListener("click", (event) => {

@@ -1966,11 +1966,16 @@ export function classificationOptionPortalValue(option) {
   return safeText(option?.portal_external_id ?? option?.portal_value ?? option?.external_id);
 }
 
+/** Portal external ids 31/32 mean “no subtype” — Sub Type domain only. */
+export function isPortalValuePlaceholderSubtype(option) {
+  const portalValue = classificationOptionPortalValue(option);
+  return portalValue === "31" || portalValue === "32";
+}
+
 export function isPortalPlaceholderSubtypeOption(option) {
   if (!option || typeof option !== "object") return false;
   if (isDashOrBlankPortalOptionLabel(option.label)) return true;
-  const portalValue = classificationOptionPortalValue(option);
-  return portalValue === "31" || portalValue === "32";
+  return isPortalValuePlaceholderSubtype(option);
 }
 
 export function findClassificationOptionById(options, selectedId) {
@@ -1985,14 +1990,15 @@ export function findClassificationOptionById(options, selectedId) {
  * Display label for a selected classification option that is not in the fill-eligible list.
  * Never returns a raw option id.
  */
-export function classificationSelectedOptionDisplay(options, selectedId) {
+export function classificationSelectedOptionDisplay(options, selectedId, { domain } = {}) {
   const id = optionId(selectedId);
   if (!id) return { kind: "none", label: "" };
   const found = findClassificationOptionById(options, id);
   if (!found) {
     return { kind: "missing", label: CLASSIFICATION_MISSING_OPTION_COPY };
   }
-  if (isPortalPlaceholderSubtypeOption(found)) {
+  const domainCode = safeText(domain).toUpperCase();
+  if (domainCode === "PRODUCT_SUBTYPE" && isPortalPlaceholderSubtypeOption(found)) {
     return { kind: "placeholder", label: CLASSIFICATION_PLACEHOLDER_SUBTYPE_COPY };
   }
   const label = safeText(found.label);
@@ -2002,16 +2008,21 @@ export function classificationSelectedOptionDisplay(options, selectedId) {
   return { kind: "ok", label };
 }
 
-export function isFillEligibleClassificationOption(option) {
+export function isFillEligibleClassificationOption(option, { domain } = {}) {
   if (!option || typeof option !== "object") return false;
   if (option.fill_eligible === false) return false;
   if (isDashOrBlankPortalOptionLabel(option.label)) return false;
-  if (isPortalPlaceholderSubtypeOption(option)) return false;
+  const domainCode = safeText(domain).toUpperCase();
+  if (domainCode === "PRODUCT_SUBTYPE" && isPortalValuePlaceholderSubtype(option)) {
+    return false;
+  }
   return Boolean(optionId(option.portal_option_id ?? option.id));
 }
 
-export function selectableClassificationOptions(options) {
-  return (Array.isArray(options) ? options : []).filter(isFillEligibleClassificationOption);
+export function selectableClassificationOptions(options, { domain } = {}) {
+  return (Array.isArray(options) ? options : []).filter((opt) =>
+    isFillEligibleClassificationOption(opt, { domain }),
+  );
 }
 
 export function classificationDraftFromReview(review) {
@@ -2188,6 +2199,30 @@ export const PORTAL_STEP_QC_BLOCKED_COPY =
   "QC portal fill is not available in this phase.";
 export const PORTAL_SAME_PERSON_WARNING_COPY =
   "You saved Product Details for review. Another Approver will need to fill this on the portal when entry is enabled.";
+export const PORTAL_ENTRY_ON_NO_AUTOSAVE_COPY =
+  "Portal entry is turned on. Automatic portal Save for this product is not available yet.";
+export const PORTAL_BOTH_APPROVERS_SAVED_COPY =
+  "Both Approvers have saved steps for review on this product, so neither can authorize the portal Save. Ask the owner how to proceed.";
+export const PORTAL_APPROVER_ONLY_GATE_COPY =
+  "Only an Approver can turn on portal entry or authorize a Save.";
+export const PORTAL_GATE_APPROVER_REFUSAL_COPY = "Only an Approver can do this.";
+export const PORTAL_GATE_REASON_RANGE_COPY =
+  "Enter a reason between 10 and 1000 characters.";
+
+export function portalGateReasonOk(reason) {
+  const length = safeText(reason).length;
+  return length >= 10 && length <= 1000;
+}
+
+export function portalGateRefusalMessage(error) {
+  const code =
+    fourEyesCodeIn(error?.message)
+    || fourEyesCodeIn(error?.original?.message)
+    || fourEyesCodeIn(error?.code)
+    || fourEyesCodeIn(error?.original?.code);
+  if (code === "APPROVER_ROLE_REQUIRED") return PORTAL_GATE_APPROVER_REFUSAL_COPY;
+  return userMessageForError(error);
+}
 
 function portalFillStatusLabel(status) {
   return displayText(normalizeReviewStatus(status) || "PENDING", "PENDING");
@@ -2201,8 +2236,9 @@ function findStageReviewRow(stageReview, stage, itemKey = null) {
 }
 
 /**
- * Read-only Fill on portal model for the Readiness tab.
- * Does not decide readiness or enablement; Phase A never exposes Save/Submit/auth UI.
+ * Fill on portal model for the Readiness tab.
+ * Never decides enablement/readiness for Save; gate comes from the server row only.
+ * B1: no Authorize / typed confirmation / worker calls.
  */
 export function portalFillStepperModel({
   productId,
@@ -2212,6 +2248,8 @@ export function portalFillStepperModel({
   actionsDraft,
   actionsReviewStatus,
   stageReview,
+  gateEnabled = false,
+  isApprover = false,
 } = {}) {
   const closedProduct = Number(productId) === FIRST_CONTROLLED_PRODUCT_ID;
   const detailsStatus = normalizeReviewStatus(review?.review_status) || "PENDING";
@@ -2267,12 +2305,55 @@ export function portalFillStepperModel({
   }
 
   const detailsStage = findStageReviewRow(stageReview, "details");
+  const classificationStage = findStageReviewRow(stageReview, "classification");
+  const actionsStage = findStageReviewRow(stageReview, "actions");
+  const authStages = [detailsStage, classificationStage, actionsStage].filter(Boolean);
+  const savedByMe = authStages.some((row) => row.saved_by_me === true && row.saved_at);
+  const savedByOther = authStages.some((row) => row.saved_at && row.saved_by_me !== true);
+  const bothApproversSaved = !closedProduct && savedByMe && savedByOther;
+
   const samePersonWarning =
     !closedProduct
     && detailsStage?.saved_by_me === true
     && !isVerifiedStatus(detailsStatus)
       ? PORTAL_SAME_PERSON_WARNING_COPY
       : "";
+
+  const unverifiedStageLabels = [];
+  if (!isVerifiedStatus(detailsStatus)) unverifiedStageLabels.push("Product Details");
+  if (!isVerifiedStatus(classificationStatus)) unverifiedStageLabels.push("Portal Classification");
+  if (!isVerifiedStatus(actionsStatus)) unverifiedStageLabels.push("Pharmacological Action");
+  for (const row of statusRows.filter((item) => item.kind === "line")) {
+    if (!isVerifiedStatus(row.status)) unverifiedStageLabels.push(row.label);
+  }
+
+  const gateOn = gateEnabled === true;
+  let screenState = "gate_off";
+  let screenMessage = PORTAL_ENTRY_NOT_ENABLED_COPY;
+  if (closedProduct) {
+    screenState = "closed";
+    screenMessage = PORTAL_PRODUCT_CLOSED_COPY;
+  } else if (!gateOn) {
+    screenState = "gate_off";
+    screenMessage = PORTAL_ENTRY_NOT_ENABLED_COPY;
+  } else if (bothApproversSaved) {
+    screenState = "both_approvers_saved";
+    screenMessage = PORTAL_BOTH_APPROVERS_SAVED_COPY;
+  } else if (savedByMe && unverifiedStageLabels.length === 0) {
+    screenState = "same_person_blocked";
+    screenMessage =
+      "You saved a review step for this product. Another Approver must authorize the portal Save.";
+  } else if (unverifiedStageLabels.length) {
+    screenState = "stages_unverified";
+    screenMessage = `Portal entry is turned on, but these steps are not verified yet: ${unverifiedStageLabels.join(", ")}.`;
+  } else {
+    screenState = "ready";
+    screenMessage = PORTAL_ENTRY_ON_NO_AUTOSAVE_COPY;
+  }
+
+  const detailsStepReason = !gateOn
+    ? PORTAL_ENTRY_NOT_ENABLED_COPY
+    : PORTAL_ENTRY_ON_NO_AUTOSAVE_COPY;
 
   const portalSteps = closedProduct
     ? []
@@ -2281,7 +2362,7 @@ export function portalFillStepperModel({
           id: "product_details",
           label: "Product Details",
           blocked: true,
-          reason: PORTAL_ENTRY_NOT_ENABLED_COPY,
+          reason: detailsStepReason,
         },
         {
           id: "composition",
@@ -2300,12 +2381,19 @@ export function portalFillStepperModel({
   return {
     closedProduct,
     closedMessage: closedProduct ? PORTAL_PRODUCT_CLOSED_COPY : "",
-    portalEntryMessage: closedProduct ? "" : PORTAL_ENTRY_NOT_ENABLED_COPY,
+    portalEntryMessage: closedProduct ? "" : screenMessage,
+    gateEnabled: gateOn,
+    gateOnMessage: gateOn && !closedProduct ? PORTAL_ENTRY_ON_NO_AUTOSAVE_COPY : "",
+    screenState,
+    unverifiedStageLabels,
+    bothApproversSaved,
     statusRows,
     portalSteps,
     samePersonWarning,
-    /** Informational only — never used to disable or hide controls. */
     samePersonWarningBlocks: false,
+    isApprover: isApprover === true,
+    showGateToggle: !closedProduct && isApprover === true,
+    approverOnlyCopy: PORTAL_APPROVER_ONLY_GATE_COPY,
     showSaveUi: false,
     showSubmit: false,
     showAuthorizeUi: false,

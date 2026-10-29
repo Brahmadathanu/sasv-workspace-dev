@@ -66,6 +66,39 @@ export async function fetchStageReviewState(productId) {
   }));
 }
 
+/** PKG3a: missing row means enabled = false. */
+export async function fetchPortalEntryGate(productId) {
+  const row = asFirst(
+    await callRpc("rpc_eaushadhi_portal_entry_gate_get_v1", {
+      p_product_id: Number(productId),
+    }),
+  );
+  if (!row) {
+    return {
+      product_id: Number(productId),
+      enabled: false,
+      enabled_by: null,
+      enabled_at: null,
+      notes: null,
+      updated_at: null,
+    };
+  }
+  return {
+    ...row,
+    product_id: Number(row.product_id ?? productId),
+    enabled: row.enabled === true,
+  };
+}
+
+/** Approver-only on the server. Client must re-read with fetchPortalEntryGate after. */
+export async function setPortalEntryGate({ productId, enabled, reason }) {
+  return await callRpc("rpc_eaushadhi_portal_entry_gate_set_v1", {
+    p_product_id: Number(productId),
+    p_enabled: enabled === true,
+    p_reason: String(reason || "").trim(),
+  });
+}
+
 export async function fetchPortalOptions(domainCode) {
   const domain = String(domainCode || "").toUpperCase();
   if (!PORTAL_DOMAINS.includes(domain)) {
