@@ -3,6 +3,7 @@
 Read-only comparison of `supabase/migrations/` (this branch, 606 files) with production's `supabase_migrations.schema_migrations` (661 versions). **All commands below are documentation only — none was executed.**
 
 ## 1. The five redesign-v2 files are byte-identical and already recorded
+> **Update 29 Oct 2026:** two more record-only copies added the same way: `20261029152138_ci046_owner_only_locking.sql` (md5 1be20299…66c1) and `20261029152614_ci047_costing_function_grant_tidy.sql` (md5 622bbdeb…6a23), byte-identical to the files applied by `apply_migration`. Seven record copies in total; no new replay hazard.
 | Change | Version | md5 (file = production record) | In production history |
 |---|---|---|---|
 | CI-040 v2.1 | 20261027033918 | ab7fb50473d609be1b50546a85a7abd6 | yes |

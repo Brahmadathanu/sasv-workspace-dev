@@ -1,13 +1,13 @@
-# Costing suite — status and remaining work (27 Oct 2026, 23:30 IST)
+# Costing suite — status and remaining work (updated 29 Oct 2026, 22:00 IST)
 
 Estimates are the assistant's estimates, not commitments.
 
 | State | Item |
 |---|---|
-| **Done / live** | CI-038, CI-038a, CI-039 (26 Oct); CI-040 v2.1, CI-041 v2.1, CI-045, CI-042 v2.2, CI-043 v2.2 rev B (27 Oct). Run 143 October approved (22 Oct). September locked (run 122). |
+| **Done / live** | CI-038, CI-038a, CI-039 (26 Oct); CI-040 v2.1, CI-041 v2.1, CI-045, CI-042 v2.2, CI-043 v2.2 rev B (27 Oct); **CI-046 owner-only locking (29 Oct 20:51 IST, v20261029152138) and CI-047 PUBLIC-execute tidy-up of 37 costing functions (29 Oct 20:56 IST, v20261029152614)**. PR #99 approval screen Phase 1 merged (main e2c5fde, flag OFF). Run 143 October approved (22 Oct). September locked (run 122). |
 | **Prepared (docs)** | Draft PR #98: current state, current runbook, October month-end runbook, decision log, migration reconciliation, grant audit, README. Cursor briefs: approval screen (revision pending), Refresh and date labels. |
-| **Open, needs owner decision** | Merge PR #98. Health-check schedule and alerts. Back-dating cutoff warning. Grant tidy-up (11 trigger + 26 helper functions, 47 readable relations). June–August governance reconciliation (no approved runs). Migration-history housekeeping (18/73 gap). CI-044 (parked). |
-| **Waiting** | Cursor approval-screen plan revision (owner pastes the six-point message, plan mode). Then the Refresh and date-labels plan. |
+| **Open, needs owner decision** | Merge PR #98. Health-check schedule and alerts. Back-dating cutoff warning. Grant tidy-up of the 47 readable relations and default privileges (the 37 functions are done by CI-047). CI-048 health-check log + alert channel (design ready). June–August governance reconciliation (no approved runs). Migration-history housekeeping (18/73 gap). CI-044 (parked). |
+| **Waiting** | Cursor plans (owner at office PC): Refresh and date labels (final brief 29 Oct), Phase 2 lock screen (brief 29 Oct). First production walkthrough of the approval screen (owner session). |
 
 ## Verification plan
 **Sun 1 Nov, after 02:00 IST** (read-only)

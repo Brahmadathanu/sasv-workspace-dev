@@ -25,7 +25,9 @@ Tables: batch_true_absorption_variance, batch_true_standard_switch, capacity_fal
 Views: v_capacity_value_origin, v_costing_run_effective_designation, v_costing_sku_selector, v_current_successful_costing_refresh_run, v_plant_capacity_readiness, v_regional_marketing_evidence_review_queue, v_run_fingerprint_method, v_sales_allocation_quantity_driver_review_queue, v_sku_detailed_cost_sheet_current, v_sku_scheme_comparison_current.
 These are not exposed over the API (schema `costing` is not in the API schema list); the risk is low but read access should be deliberate.
 
-## Proposed fix (prepared, NOT applied; needs the owner's approval and isolation testing)
+> **Update 29 Oct 2026:** steps 1–2 are **LIVE** as CI-047 (v20261029152614, 20:56 IST, owner-approved t228u): PUBLIC execute revoked from all 37; authenticated granted only on `fn_regional_marketing_review_status(bigint)` and `fn_sales_allocation_quantity_driver_review_status(bigint)`. Step 3 (47 relations) and default privileges remain open. Owner-only locking is live as CI-046.
+
+## Proposed fix (as of 27 Oct; steps 1–2 now applied by CI-047)
 1. `REVOKE EXECUTE ON FUNCTION costing.<each of the 11 trigger functions>() FROM PUBLIC;` — triggers keep working (Postgres checks EXECUTE on a trigger function when the trigger is created, not when it fires).
 2. For the 26 helpers: `REVOKE EXECUTE … FROM PUBLIC;` then `GRANT EXECUTE … TO authenticated` only where a public wrapper needs it (to be checked function by function).
 3. For the 47 relations: check each against client and wrapper use (not yet checked); revoke SELECT from authenticated where unused.

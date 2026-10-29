@@ -38,6 +38,8 @@ Screens must label runs with the official date and the run's own date, never wit
 | CI-041 v2.1 | Scheduler uses the India business date; limited retries | 20261027034040 | 27 Oct 09:10 |
 | CI-045 | Provenance guard for designated runs | 20261027064617 | 27 Oct 12:16 |
 | CI-042 v2.2 | Lock changes lock state only; quarter batch lock; month-end finalise with preview; display/status views | 20261027121655 | 27 Oct 17:46 |
+| CI-046 | Lock routes owner-only (W2_OWNER_ONLY) | 20261029152138 | 29 Oct 20:51 |
+| CI-047 | PUBLIC execute removed from 37 costing functions | 20261029152614 | 29 Oct 20:56 |
 | CI-043 v2.2 rev B | Read-only health check + 9 adjustable thresholds | 20261027153126 | 27 Oct 21:01 |
 
 Approval requests, summaries and apply records: [redesign-v2/](redesign-v2/).
@@ -48,8 +50,8 @@ Approval requests, summaries and apply records: [redesign-v2/](redesign-v2/).
 | Preview before approval (writes a 15-min acknowledgement) | `rpc_costing_preview_approval_impact(p_refresh_run_id bigint)` | logged-in users with costing permission |
 | Approve (supersedes the current approved run if any) | `rpc_costing_approve_run_with_preview(p_refresh_run_id bigint, p_reason text, p_approval_reference text, p_preview_ack_id bigint, p_acknowledge_stale boolean)` | owner only (server checks) |
 | Month-end finalise | `rpc_costing_finalize_monthend_run_with_preview(` same five arguments `)` | owner only |
-| Lock one month | `rpc_costing_lock_period(p_period_start date, p_reason text, p_approval_reference text)` | costing edit permission (server checks) |
-| Lock several months (quarter close) | `rpc_costing_lock_periods_for_close(p_period_starts date[], p_reason text, p_approval_reference text)` | costing edit permission |
+| Lock one month | `rpc_costing_lock_period(p_period_start date, p_reason text, p_approval_reference text)` | costing edit permission **and owner only** (CI-046, 29 Oct) |
+| Lock several months (quarter close) | `rpc_costing_lock_periods_for_close(p_period_starts date[], p_reason text, p_approval_reference text)` | costing edit permission **and owner only** (CI-046) |
 | Health report | `rpc_costing_health_check()` | logged-in users with costing view permission; not anonymous |
 | Request a recalculation draft (new, CI-041) | `rpc_costing_request_recalculation(p_period_start date, p_reason text, p_valuation_date date default null)` | costing edit permission, logged in; reason ≥ 10 characters |
 | Request a refresh (legacy; used by today's Refresh button) | `rpc_request_costing_refresh(p_period_start date, p_requested_scope text, p_source_trigger text, p_request_note text)` | costing edit permission; **copies the stored month date** |

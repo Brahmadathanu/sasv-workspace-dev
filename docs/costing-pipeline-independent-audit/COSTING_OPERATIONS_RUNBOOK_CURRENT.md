@@ -40,7 +40,7 @@ Refresh → Preview → Approve (or Month-end finalise) → Lock (only before a 
 
 ## 5. Lock (separate decision, normally at quarter close)
 - **Purpose:** freeze the month's state before a formal close. Changes the lock state only; no date or run changes.
-- **Who:** costing edit permission; owner's approval required by policy.
+- **Who:** owner only (server checks since CI-046, 29 Oct; `W2_OWNER_ONLY`), plus costing edit permission.
 - **Routes:** `rpc_costing_lock_period(p_period_start date, p_reason text, p_approval_reference text)`; quarter batch `rpc_costing_lock_periods_for_close(p_period_starts date[], p_reason text, p_approval_reference text)` (all-or-nothing, one calendar quarter, first-of-month dates).
 - **Server enforces:** month OPEN; an approved run exists; no queued/running run; approved run's fingerprint has no drift.
 - **Afterwards:** `period_status` LOCKED; official date unchanged. Note: a locked month gets no more scheduled drafts.
