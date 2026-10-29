@@ -108,6 +108,7 @@ import {
   parseOptionalNumericQuantity,
   portalFieldSpecs,
   portalFillStepperModel,
+  classificationSelectedOptionDisplay,
   productDetailsVerifyPendingCopy,
   promoteUnavailableReason,
   provenanceLabel,
@@ -1309,15 +1310,19 @@ function optionHtml(options, selectedId, extra = []) {
     const id = optionId(opt?.portal_option_id ?? opt?.term_id ?? opt?.id);
     if (!id || seen.has(id)) continue;
     seen.add(id);
-    const label = displayText(opt?.label, id);
+    const label = safeText(opt?.label);
+    if (!label) continue;
     const selected = idsEqual(id, selectedId) ? " selected" : "";
     parts.push(
       `<option value="${escapeHtml(id)}"${selected}>${escapeHtml(label)}</option>`,
     );
   }
   if (selectedId && !seen.has(String(selectedId))) {
+    const display = classificationSelectedOptionDisplay(list, selectedId);
     parts.push(
-      `<option value="${escapeHtml(selectedId)}" selected>Current value ${escapeHtml(selectedId)}</option>`,
+      `<option value="${escapeHtml(selectedId)}" selected>${escapeHtml(
+        display.label || "Selected option is not in the current list. Re-open the product or contact the administrator.",
+      )}</option>`,
     );
   }
   return parts.join("");
@@ -1331,15 +1336,17 @@ function classificationOptionHtml(options, selectedId, { emptyLabel = "Select...
     const id = optionId(opt?.portal_option_id ?? opt?.id);
     if (!id || seen.has(id)) continue;
     seen.add(id);
-    const label = displayText(opt?.label, id);
+    const label = safeText(opt?.label);
+    if (!label) continue;
     const selected = idsEqual(id, selectedId) ? " selected" : "";
     parts.push(
       `<option value="${escapeHtml(id)}"${selected}>${escapeHtml(label)}</option>`,
     );
   }
   if (selectedId && !seen.has(String(selectedId))) {
+    const display = classificationSelectedOptionDisplay(options, selectedId);
     parts.push(
-      `<option value="${escapeHtml(selectedId)}" selected>Current value ${escapeHtml(selectedId)}</option>`,
+      `<option value="${escapeHtml(selectedId)}" selected>${escapeHtml(display.label)}</option>`,
     );
   }
   return parts.join("");

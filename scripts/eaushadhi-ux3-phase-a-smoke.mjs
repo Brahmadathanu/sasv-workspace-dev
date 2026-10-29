@@ -5,12 +5,17 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  CLASSIFICATION_MISSING_OPTION_COPY,
+  CLASSIFICATION_PLACEHOLDER_SUBTYPE_COPY,
   PORTAL_ENTRY_NOT_ENABLED_COPY,
   PORTAL_PRODUCT_CLOSED_COPY,
   PORTAL_SAME_PERSON_WARNING_COPY,
   PORTAL_STEP_COMPOSITION_BLOCKED_COPY,
   PORTAL_STEP_QC_BLOCKED_COPY,
+  classificationSelectedOptionDisplay,
+  isPortalPlaceholderSubtypeOption,
   portalFillStepperModel,
+  selectableClassificationOptions,
 } from "../public/shared/js/eaushadhi-review-helpers.js";
 
 let failed = 0;
@@ -98,7 +103,61 @@ check(
 check(
   open.samePersonWarning === PORTAL_SAME_PERSON_WARNING_COPY
     && open.samePersonWarningBlocks === false,
-  "same-person warning is informational and does not block",
+  "same-person warning shows when saved by me and Details is not Verified",
+);
+const verifiedSelf = portalFillStepperModel({
+  productId: 1,
+  review: { review_status: "VERIFIED" },
+  classification: { review_status: "VERIFIED" },
+  lines: [],
+  actionsDraft: [],
+  actionsReviewStatus: "VERIFIED",
+  stageReview: [{ stage: "details", item_key: "", saved_at: "2026-10-29T10:00:00Z", saved_by_me: true }],
+});
+check(
+  verifiedSelf.samePersonWarning === ""
+    && verifiedSelf.samePersonWarningBlocks === false,
+  "same-person warning is hidden once Product Details is Verified",
+);
+
+// A1 — placeholder / missing subtype display (Product 262 evidence shape)
+const karpooradiSubtype = {
+  portal_option_id: "274",
+  portal_external_id: "31",
+  label: "-",
+  fill_eligible: false,
+};
+const realSubtype = {
+  portal_option_id: "99",
+  portal_external_id: "12",
+  label: "Tailam",
+  fill_eligible: true,
+};
+check(
+  isPortalPlaceholderSubtypeOption(karpooradiSubtype) === true
+    && selectableClassificationOptions([karpooradiSubtype, realSubtype]).every(
+      (opt) => String(opt.portal_option_id) !== "274",
+    ),
+  "A1 placeholder subtype '-' / portal value 31 is not a fill-selectable option",
+);
+check(
+  classificationSelectedOptionDisplay([karpooradiSubtype, realSubtype], "274").label
+    === CLASSIFICATION_PLACEHOLDER_SUBTYPE_COPY,
+  "A1 Product 262 placeholder subtype displays No sub type (portal shows '-')",
+);
+check(
+  classificationSelectedOptionDisplay([karpooradiSubtype, realSubtype], "99").label === "Tailam",
+  "A1 non-placeholder selection shows the real option label",
+);
+check(
+  classificationSelectedOptionDisplay([realSubtype], "274").label
+    === CLASSIFICATION_MISSING_OPTION_COPY,
+  "A1 missing selected option uses the administrator copy",
+);
+check(
+  !control.includes("Current value ")
+    && control.includes("classificationSelectedOptionDisplay"),
+  "A1 never shows Current value <id> in classification option HTML",
 );
 check(
   open.showSaveUi === false
@@ -159,9 +218,9 @@ check(
   "Fill on portal section has no Save, Submit, Authorize or typed-confirmation control elements",
 );
 
-console.log(`UX-3 Phase A smoke checks: ${passed} passed, ${failed} failed`);
+console.log(`UX-3 smoke checks: ${passed} passed, ${failed} failed`);
 if (failed) {
-  console.error(`UX-3 Phase A smoke failed ${failed}`);
+  console.error(`UX-3 smoke failed ${failed}`);
   process.exit(1);
 }
-console.log("UX-3 Phase A smoke passed");
+console.log("UX-3 smoke passed");

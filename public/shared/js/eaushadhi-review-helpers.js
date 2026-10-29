@@ -1956,10 +1956,57 @@ export function isDashOrBlankPortalOptionLabel(label) {
   return text === "-" || text === "–" || text === "—" || lower === "blank";
 }
 
+/** Portal Sub Type placeholders that mean “no subtype” (e.g. portal values 31 / 32). */
+export const CLASSIFICATION_PLACEHOLDER_SUBTYPE_COPY =
+  "No sub type (portal shows '-')";
+export const CLASSIFICATION_MISSING_OPTION_COPY =
+  "Selected option is not in the current list. Re-open the product or contact the administrator.";
+
+export function classificationOptionPortalValue(option) {
+  return safeText(option?.portal_external_id ?? option?.portal_value ?? option?.external_id);
+}
+
+export function isPortalPlaceholderSubtypeOption(option) {
+  if (!option || typeof option !== "object") return false;
+  if (isDashOrBlankPortalOptionLabel(option.label)) return true;
+  const portalValue = classificationOptionPortalValue(option);
+  return portalValue === "31" || portalValue === "32";
+}
+
+export function findClassificationOptionById(options, selectedId) {
+  const id = optionId(selectedId);
+  if (!id) return null;
+  return (Array.isArray(options) ? options : []).find((opt) =>
+    idsEqual(opt?.portal_option_id ?? opt?.id, id),
+  ) || null;
+}
+
+/**
+ * Display label for a selected classification option that is not in the fill-eligible list.
+ * Never returns a raw option id.
+ */
+export function classificationSelectedOptionDisplay(options, selectedId) {
+  const id = optionId(selectedId);
+  if (!id) return { kind: "none", label: "" };
+  const found = findClassificationOptionById(options, id);
+  if (!found) {
+    return { kind: "missing", label: CLASSIFICATION_MISSING_OPTION_COPY };
+  }
+  if (isPortalPlaceholderSubtypeOption(found)) {
+    return { kind: "placeholder", label: CLASSIFICATION_PLACEHOLDER_SUBTYPE_COPY };
+  }
+  const label = safeText(found.label);
+  if (!label) {
+    return { kind: "missing", label: CLASSIFICATION_MISSING_OPTION_COPY };
+  }
+  return { kind: "ok", label };
+}
+
 export function isFillEligibleClassificationOption(option) {
   if (!option || typeof option !== "object") return false;
   if (option.fill_eligible === false) return false;
   if (isDashOrBlankPortalOptionLabel(option.label)) return false;
+  if (isPortalPlaceholderSubtypeOption(option)) return false;
   return Boolean(optionId(option.portal_option_id ?? option.id));
 }
 
@@ -2221,7 +2268,9 @@ export function portalFillStepperModel({
 
   const detailsStage = findStageReviewRow(stageReview, "details");
   const samePersonWarning =
-    !closedProduct && detailsStage?.saved_by_me === true
+    !closedProduct
+    && detailsStage?.saved_by_me === true
+    && !isVerifiedStatus(detailsStatus)
       ? PORTAL_SAME_PERSON_WARNING_COPY
       : "";
 
