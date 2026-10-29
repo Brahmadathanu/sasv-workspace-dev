@@ -331,3 +331,9 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 ## 2026-10-26 — WP-07 UX-2 known limit: portal text and Product Details four-eyes
 - Saving portal text rewrites `product_review.updated_by` without changing `review_status`. The next Product Details approval then follows the person who saved the portal text.
 - A separate server fix is planned. The client does not clear or rewrite that stamp.
+
+## 2026-10-29 — WP-07 UX-5.1 composition line note normalisation
+- The client shows a literal `\n` and a literal `\\n` in a composition line note as real line breaks (display only).
+- If the user edits the note, the saved text is the normalised form with real line breaks.
+- Stored notes are never rewritten otherwise.
+- The server-side separator fix is a separate Jarvis task (PKG2).

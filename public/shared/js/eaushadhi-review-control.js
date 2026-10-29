@@ -1064,14 +1064,14 @@ function patchAutosaveEl(id, status) {
   if (String(id).startsWith("line-save-")) syncLineVerifyUi(String(id).slice("line-save-".length));
 }
 
-async function confirmLeaveDirty(returnFocusId = "backToQueueBtn") {
+async function confirmLeaveDirty(returnFocus = "backToQueueBtn") {
   if (!workspaceIsDirty()) return true;
   return openQcConfirm({
     title: "Unsaved review edits",
     message: "You have unsaved review edits. Discard them?",
     okLabel: "Leave without saving",
     cancelLabel: "Stay",
-    returnFocusId,
+    returnFocus,
     idPrefix: "leaveDirtyConfirm",
   });
 }
@@ -3215,6 +3215,17 @@ function qcReportByteCheckWarning(version) {
   return `The server will read the stored PDF and compute its SHA-256. If the checksum does not match, the file is not a valid PDF, or it is over 2 MB, this version (V${version}) is permanently marked BYTES_MISMATCH and cannot be re-checked. You would need to upload a new version. Continue?`;
 }
 
+function resolveReturnFocus(returnFocus, returnFocusId) {
+  if (returnFocus && typeof returnFocus === "object" && typeof returnFocus.focus === "function") {
+    return returnFocus;
+  }
+  const id =
+    (typeof returnFocus === "string" && returnFocus) ||
+    (typeof returnFocusId === "string" && returnFocusId) ||
+    "";
+  return id ? document.getElementById(id) : null;
+}
+
 function openQcConfirm(options) {
   const {
     title,
@@ -3222,6 +3233,7 @@ function openQcConfirm(options) {
     okLabel,
     cancelLabel,
     returnFocusId,
+    returnFocus,
     idPrefix,
     reasonRequired,
     attestLabel,
@@ -3230,8 +3242,11 @@ function openQcConfirm(options) {
   if (openQcConfirm.showing === true) return Promise.resolve(false);
   openQcConfirm.showing = true;
   const prefix = idPrefix || "qcConfirm";
-  const focusId = returnFocusId || "";
-  const trigger = focusId ? document.getElementById(focusId) : null;
+  const trigger = resolveReturnFocus(returnFocus, returnFocusId);
+  const focusId =
+    (typeof returnFocusId === "string" && returnFocusId) ||
+    (typeof returnFocus === "string" && returnFocus) ||
+    "";
   const gated = reasonRequired === true || Boolean(attestLabel);
   return new Promise((resolve) => {
     let closed = false;
@@ -8976,9 +8991,9 @@ async function refreshQueue({ silent = false } = {}) {
   if (!silent) setStatus("");
 }
 
-async function openProduct(productId) {
+async function openProduct(productId, returnFocus = null) {
   if (state.selectedProductId && !idsEqual(state.selectedProductId, productId)) {
-    if (!(await confirmLeaveDirty("backToQueueBtn"))) return;
+    if (!(await confirmLeaveDirty(returnFocus != null ? returnFocus : "backToQueueBtn"))) return;
     await flushDetailsAutosave();
     await flushClassificationAutosave();
     await flushAllLineAutosaves();
@@ -9842,6 +9857,15 @@ async function submitLine(lineId, verify) {
   flushDebounced(autosaveTimers, `line:${lineId}`);
   await waitLineIdle(lineId);
   if (!verify) {
+    if (lineHalted.has(id) || !canWrite()) {
+      showToast(
+        "This line has a save conflict. Refresh the product, then save for review again.",
+        "error",
+      );
+      syncLineSaveReviewUi(id);
+      syncLineVerifyUi(id);
+      return;
+    }
     await autosaveLine(lineId);
     syncLineSaveReviewUi(id);
     syncLineVerifyUi(id);
@@ -10880,7 +10904,7 @@ function wireEvents() {
   $("queueTbody")?.addEventListener("click", (event) => {
     const row = event.target.closest("[data-product-id]");
     if (!row) return;
-    openProduct(row.dataset.productId);
+    openProduct(row.dataset.productId, row);
   });
   $("queueTbody")?.addEventListener("keydown", (event) => {
     if (isEditableKeyboardTarget(event.target)) return;
@@ -10891,7 +10915,7 @@ function wireEvents() {
     if (current < 0) return;
     if (event.key === "Enter") {
       event.preventDefault();
-      openProduct(row.dataset.productId);
+      openProduct(row.dataset.productId, row);
       return;
     }
     if (event.key === " ") {

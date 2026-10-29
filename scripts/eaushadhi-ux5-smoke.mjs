@@ -75,6 +75,43 @@ check(
     && control.includes('await confirmLeaveDirty("openReferenceDictionaryBtn")'),
   "Goal 2 leave confirm is awaited at exit paths",
 );
+const openProductFn = control.slice(
+  control.indexOf("async function openProduct"),
+  control.indexOf("async function reloadSelected"),
+);
+check(
+  /async function openProduct\(productId,\s*returnFocus\s*=\s*null\)/.test(openProductFn)
+    && openProductFn.includes('confirmLeaveDirty(returnFocus != null ? returnFocus : "backToQueueBtn")')
+    && !openProductFn.includes('confirmLeaveDirty("backToQueueBtn")'),
+  "UX-5.1 openProduct no longer hard-codes backToQueueBtn for leave focus",
+);
+check(
+  control.includes("function resolveReturnFocus")
+    && control.includes("resolveReturnFocus(returnFocus, returnFocusId)"),
+  "UX-5.1 openQcConfirm accepts an element or id for return focus",
+);
+check(
+  /openProduct\(row\.dataset\.productId,\s*row\)/.test(control),
+  "UX-5.1 queue row click/Enter passes the clicked row as return focus",
+);
+check(
+  control.includes(
+    "This line has a save conflict. Refresh the product, then save for review again.",
+  )
+    && /if \(!verify\) \{[\s\S]*?lineHalted\.has\(id\) \|\| !canWrite\(\)[\s\S]*?This line has a save conflict/.test(
+      control,
+    ),
+  "UX-5.1 explicit Save for review shows the conflict toast when halted or not writable",
+);
+const autosaveLineFn = control.slice(
+  control.indexOf("async function autosaveLine"),
+  control.indexOf("function queueLineAutosave"),
+);
+check(
+  /if \(lineHalted\.has\(id\) \|\| !canWrite\(\)\) return;/.test(autosaveLineFn)
+    && !autosaveLineFn.includes("This line has a save conflict"),
+  "UX-5.1 background autosave stays silent on halt / no-write",
+);
 
 // --- Goal 3: composition Save for review + toast + notes ---
 const draft = {
