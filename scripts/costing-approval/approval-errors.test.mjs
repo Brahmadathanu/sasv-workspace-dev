@@ -26,6 +26,26 @@ test("expired preview asks to reopen", () => {
   );
 });
 
+test("CODE prefix is mapped before free-text patterns", () => {
+  const mapped = mapCostingApprovalError(
+    "W2_OWNER_ONLY: Permission denied for module:costing-control-center",
+  );
+  assert.equal(mapped.kind, "owner");
+  assert.equal(mapped.title, "Only the costing governance owner can approve.");
+});
+
+test("module permission denial uses edit-permission wording, not owner-only", () => {
+  const mapped = mapCostingApprovalError(
+    "Permission denied for module:costing-control-center",
+  );
+  assert.equal(mapped.kind, "permission");
+  assert.equal(
+    mapped.title,
+    "You don't have edit permission for the Costing Control Centre.",
+  );
+  assert.match(mapped.detail, /Permission denied for module:costing-control-center/);
+});
+
 test("MONTHEND refusals match by message start and keep server text", () => {
   const open = mapCostingApprovalError(
     "MONTHEND_PERIOD_NOT_OPEN: period 2026-10-01 is LOCKED",
@@ -70,7 +90,8 @@ test("owner / permission / reason / reference errors come before MONTHEND_*", ()
   assert.equal(reference.kind, "reference");
 
   const permission = mapCostingApprovalError(
-    "permission denied for module:costing-control-center; MONTHEND_PERIOD_NOT_OPEN: locked",
+    "Permission denied for module:costing-control-center; MONTHEND_PERIOD_NOT_OPEN: locked",
   );
   assert.equal(permission.kind, "permission");
+  assert.match(permission.title, /edit permission/i);
 });

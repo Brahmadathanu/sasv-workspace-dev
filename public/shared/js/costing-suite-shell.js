@@ -8964,7 +8964,6 @@ const portfolioReadinessCtrl = createPortfolioReadinessController({
 
 const costPeriodValuationCtrl = createCostPeriodValuationController({
   costingRpc,
-  supabase,
   showToast,
   canView: () => PERM_CAN_VIEW === true,
   canEdit: () =>

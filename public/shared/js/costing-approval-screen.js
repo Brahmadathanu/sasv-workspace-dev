@@ -136,7 +136,9 @@ export function createCostingApprovalScreenController(deps) {
     getActivePeriodStart,
     isControlCenterRoute,
     formatMoney = formatInr,
+    confirmFn = (...args) => globalThis.confirm?.(...args),
     doc = globalThis.document,
+    nowFn = () => Date.now(),
   } = deps;
 
   const state = {
@@ -148,6 +150,8 @@ export function createCostingApprovalScreenController(deps) {
     previewAckId: null,
     inFlight: false,
     loadGeneration: 0,
+    previewExpired: false,
+    countdownTimer: null,
   };
 
   function panel() {
@@ -164,17 +168,23 @@ export function createCostingApprovalScreenController(deps) {
     el.classList.toggle("hidden", !visible);
   }
 
+  function clearCountdown() {
+    if (state.countdownTimer != null) {
+      globalThis.clearInterval?.(state.countdownTimer);
+      state.countdownTimer = null;
+    }
+    state.previewExpired = false;
+  }
+
   function setInFlight(next) {
     state.inFlight = next === true;
-    const approveBtn = $("casApproveBtn", doc);
-    const finalizeBtn = $("casFinalizeBtn", doc);
-    if (approveBtn) approveBtn.disabled = state.inFlight || !canSubmitApprove();
-    if (finalizeBtn) finalizeBtn.disabled = state.inFlight || !canSubmitApprove();
+    syncSubmitButtons();
   }
 
   function canSubmitApprove() {
     const preview = state.preview;
     if (!preview || !state.previewAckId) return false;
+    if (state.previewExpired) return false;
     if (preview.can_approve === false) return false;
     const reason = String($("casReason", doc)?.value || "").trim();
     const reference = String($("casApprovalReference", doc)?.value || "").trim();
@@ -186,15 +196,11 @@ export function createCostingApprovalScreenController(deps) {
   }
 
   function syncSubmitButtons() {
-    if (state.inFlight) {
-      setInFlight(true);
-      return;
-    }
-    const ok = canSubmitApprove();
     const approveBtn = $("casApproveBtn", doc);
     const finalizeBtn = $("casFinalizeBtn", doc);
-    if (approveBtn) approveBtn.disabled = !ok;
-    if (finalizeBtn) finalizeBtn.disabled = !ok;
+    const disabled = state.inFlight || !canSubmitApprove();
+    if (approveBtn) approveBtn.disabled = disabled;
+    if (finalizeBtn) finalizeBtn.disabled = disabled;
   }
 
   function showMappedError(err) {
@@ -206,6 +212,41 @@ export function createCostingApprovalScreenController(deps) {
     }
     showToast?.(mapped.title, "error", 5200);
     return mapped;
+  }
+
+  function clearStaleAck() {
+    const staleAck = $("casStaleAck", doc);
+    if (staleAck) staleAck.checked = false;
+  }
+
+  function showReopenPreviewPrompt(mapped) {
+    // Keep reason / reference. Clear stale preview body and stale tick.
+    clearCountdown();
+    state.preview = null;
+    state.previewAckId = null;
+    clearStaleAck();
+    const formWrap = $("casApproveForm", doc);
+    if (formWrap) formWrap.hidden = false;
+    const body = $("casPreviewBody", doc);
+    if (body) {
+      body.innerHTML = `
+        <div class="cas-block cas-warn">
+          <div class="cas-block-title">Preview no longer usable</div>
+          <div class="cas-danger">${escapeHtml(formatMappedErrorForDisplay(mapped))}</div>
+          <button type="button" class="cas-action" id="casReopenPreviewBtn">Open preview again</button>
+        </div>
+      `;
+      $("casReopenPreviewBtn", doc)?.addEventListener("click", () => {
+        if (state.selectedRunId == null) return;
+        void openPreviewForRun(state.selectedRunId);
+      });
+    }
+    const err = $("casFormError", doc);
+    if (err) {
+      err.textContent = formatMappedErrorForDisplay(mapped);
+      err.hidden = false;
+    }
+    syncSubmitButtons();
   }
 
   async function reloadLists() {
@@ -311,6 +352,7 @@ export function createCostingApprovalScreenController(deps) {
   }
 
   function closeModal() {
+    clearCountdown();
     setVisible(modal(), false);
     state.preview = null;
     state.previewAckId = null;
@@ -323,23 +365,68 @@ export function createCostingApprovalScreenController(deps) {
     }
   }
 
+  function focusModal() {
+    const el = modal();
+    if (!el) return;
+    const focusTarget =
+      $("casModalClose", doc) ||
+      $("casReason", doc) ||
+      el.querySelector?.("button, [href], input, textarea, select") ||
+      el;
+    try {
+      focusTarget?.focus?.();
+    } catch {
+      /* ignore focus failures in stub docs */
+    }
+  }
+
+  function startExpiryCountdown(ackExpiresAt) {
+    clearCountdown();
+    const expiryMs = new Date(ackExpiresAt).getTime();
+    if (!Number.isFinite(expiryMs)) return;
+    const label = $("casExpiryCountdown", doc);
+    const tick = () => {
+      const remaining = expiryMs - nowFn();
+      if (remaining <= 0) {
+        state.previewExpired = true;
+        if (label) label.textContent = "Preview expired.";
+        syncSubmitButtons();
+        clearCountdown();
+        return;
+      }
+      const secs = Math.ceil(remaining / 1000);
+      const mm = String(Math.floor(secs / 60)).padStart(2, "0");
+      const ss = String(secs % 60).padStart(2, "0");
+      if (label) label.textContent = `Preview expires in ${mm}:${ss}`;
+    };
+    tick();
+    state.countdownTimer = globalThis.setInterval?.(tick, 1000) ?? null;
+  }
+
   async function openPreviewForRun(runId) {
-    // Preview is intentionally only reachable from the Review button click path.
+    // Preview is intentionally only reachable from Review / Open preview again clicks.
     const numericId = Number(runId);
     if (!Number.isFinite(numericId)) return;
     state.selectedRunId = numericId;
     state.preview = null;
     state.previewAckId = null;
+    state.previewExpired = false;
+    clearCountdown();
     setVisible(modal(), true);
+    ensureDialogSemantics();
+    focusModal();
     const body = $("casPreviewBody", doc);
     const formWrap = $("casApproveForm", doc);
     if (body) body.innerHTML = `<div class="cas-muted">Loading impact preview…</div>`;
-    if (formWrap) formWrap.hidden = true;
+    // Keep form visible so typed reason/reference survive a reopen after refusal.
+    if (formWrap) formWrap.hidden = false;
+    clearStaleAck();
     const err = $("casFormError", doc);
     if (err) {
       err.textContent = "";
       err.hidden = true;
     }
+    syncSubmitButtons();
 
     try {
       const { data, error } = await costingRpc(RPC.preview, {
@@ -354,10 +441,15 @@ export function createCostingApprovalScreenController(deps) {
       state.previewAckId = preview.preview_ack_id;
       renderPreview(preview);
       if (formWrap) formWrap.hidden = false;
+      if (preview.ack_expires_at) startExpiryCountdown(preview.ack_expires_at);
       syncSubmitButtons();
     } catch (err) {
       console.warn("[costing-approval] preview failed", err);
       const mapped = showMappedError(err);
+      if (mapped.action === REOPEN_PREVIEW) {
+        showReopenPreviewPrompt(mapped);
+        return;
+      }
       if (body) {
         body.innerHTML = `<div class="cas-danger">${escapeHtml(formatMappedErrorForDisplay(mapped))}</div>`;
       }
@@ -393,8 +485,7 @@ export function createCostingApprovalScreenController(deps) {
 
     const staleWrap = $("casStaleAckWrap", doc);
     if (staleWrap) staleWrap.hidden = !staleness.acknowledgement_required;
-    const staleAck = $("casStaleAck", doc);
-    if (staleAck) staleAck.checked = false;
+    clearStaleAck();
 
     const checkHtml = checks.length
       ? `<ul class="cas-check-list">${checks
@@ -476,6 +567,7 @@ export function createCostingApprovalScreenController(deps) {
       <div class="cas-muted">Preview valid until ${escapeHtml(
         preview.ack_expires_at ? formatIst(preview.ack_expires_at) : "—",
       )}</div>
+      <div class="cas-muted" id="casExpiryCountdown"></div>
     `;
 
     const filter = $("casSkuFilter", doc);
@@ -520,7 +612,7 @@ export function createCostingApprovalScreenController(deps) {
         : preview.action === "APPROVE_AND_SUPERSEDE"
           ? `Approve run ${state.selectedRunId} and supersede run ${preview.current_approved_run}?`
           : `Approve run ${state.selectedRunId}?`;
-    if (!globalThis.confirm?.(confirmText)) return;
+    if (!confirmFn(confirmText)) return;
 
     setInFlight(true);
     const errHost = $("casFormError", doc);
@@ -558,9 +650,8 @@ export function createCostingApprovalScreenController(deps) {
         return;
       }
       if (mapped.action === REOPEN_PREVIEW) {
-        // User must click Review again; do not auto-call preview.
-        state.preview = null;
-        state.previewAckId = null;
+        showReopenPreviewPrompt(mapped);
+        return;
       }
     } finally {
       setInFlight(false);
@@ -575,12 +666,33 @@ export function createCostingApprovalScreenController(deps) {
     void openPreviewForRun(btn.getAttribute("data-cas-review"));
   }
 
+  function onDocumentKeydown(event) {
+    if (event.key !== "Escape") return;
+    const el = modal();
+    if (!el || el.hidden || el.classList.contains("hidden")) return;
+    if (state.inFlight) return;
+    event.preventDefault?.();
+    closeModal();
+  }
+
+  function ensureDialogSemantics() {
+    const el = modal();
+    if (!el) return;
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-modal", "true");
+    el.setAttribute("aria-labelledby", "casModalTitle");
+  }
+
   function bind() {
     if (state.mounted) return;
     state.mounted = true;
     panel()?.addEventListener("click", onPanelClick);
-    $("casModalClose", doc)?.addEventListener("click", () => closeModal());
-    $("casCancelBtn", doc)?.addEventListener("click", () => closeModal());
+    $("casModalClose", doc)?.addEventListener("click", () => {
+      if (!state.inFlight) closeModal();
+    });
+    $("casCancelBtn", doc)?.addEventListener("click", () => {
+      if (!state.inFlight) closeModal();
+    });
     $("casApproveBtn", doc)?.addEventListener("click", () => void submitDecision("approve"));
     $("casFinalizeBtn", doc)?.addEventListener("click", () => void submitDecision("finalize"));
     $("casReason", doc)?.addEventListener("input", syncSubmitButtons);
@@ -595,6 +707,8 @@ export function createCostingApprovalScreenController(deps) {
         showToast?.("Could not copy details.", "warn");
       }
     });
+    doc.addEventListener?.("keydown", onDocumentKeydown);
+    ensureDialogSemantics();
   }
 
   function mount() {
@@ -618,7 +732,11 @@ export function createCostingApprovalScreenController(deps) {
     reload: reloadLists,
     onRouteExit,
     // Test seams (no production side effects)
-    _openPreviewForRun: openPreviewForRun,
+    openPreviewForRun,
+    submitDecision,
+    syncSubmitButtons,
+    canSubmitApprove,
+    showReopenPreviewPrompt,
     _state: state,
   };
 }

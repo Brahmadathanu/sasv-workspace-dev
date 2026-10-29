@@ -69,15 +69,3 @@ test("allowed RPC names and deny-list", () => {
   assert.ok(FORBIDDEN_RPCS.includes("rpc_costing_health_check"));
   assert.ok(!FORBIDDEN_RPCS.includes(RPC.preview));
 });
-
-test("preview is not invoked by module import (button-click only)", async () => {
-  // Importing the module must not call any RPC. This test only asserts the seam.
-  let previewCalls = 0;
-  const fakeRpc = async (name) => {
-    if (name === RPC.preview) previewCalls += 1;
-    return { data: null, error: null };
-  };
-  assert.equal(previewCalls, 0);
-  await fakeRpc("rpc_get_costing_refresh_status");
-  assert.equal(previewCalls, 0);
-});
