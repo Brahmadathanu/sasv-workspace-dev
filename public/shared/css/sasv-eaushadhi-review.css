@@ -1372,6 +1372,18 @@ body.sasv-eaushadhi-review .readiness-compact {
   gap: 6px;
 }
 
+body.sasv-eaushadhi-review .portal-fill-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+body.sasv-eaushadhi-review .portal-fill-step {
+  padding: 8px 0;
+  border-top: 1px solid var(--sasv-border, rgba(0, 0, 0, 0.08));
+}
+
 body.sasv-eaushadhi-review .readiness-chip {
   display: flex;
   flex-direction: row;

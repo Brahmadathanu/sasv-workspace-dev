@@ -107,6 +107,7 @@ import {
   optionId,
   parseOptionalNumericQuantity,
   portalFieldSpecs,
+  portalFillStepperModel,
   productDetailsVerifyPendingCopy,
   promoteUnavailableReason,
   provenanceLabel,
@@ -8175,6 +8176,53 @@ function renderQc() {
   applyPermissionUi();
 }
 
+function renderFillOnPortalSection() {
+  const model = portalFillStepperModel({
+    productId: state.selectedProductId,
+    review: state.review,
+    classification: state.classification,
+    lines: state.lines,
+    actionsDraft: state.actionsDraft,
+    actionsReviewStatus: state.actionsReviewStatus,
+    stageReview: state.stageReview,
+  });
+  const statusHtml = model.statusRows
+    .map(
+      (row) =>
+        `<div class="readiness-chip"><span>${escapeHtml(row.label)}</span>${chip(
+          reviewStatusChipClass(row.status),
+          row.statusLabel,
+        )}</div>`,
+    )
+    .join("");
+  if (model.closedProduct) {
+    return `<div class="section-card" id="fillOnPortalSection">
+      <h3 class="section-title">Fill on portal</h3>
+      <p class="muted-note" id="fillOnPortalClosedNote">${escapeHtml(model.closedMessage)}</p>
+    </div>`;
+  }
+  const stepsHtml = model.portalSteps
+    .map(
+      (step) =>
+        `<div class="portal-fill-step" data-portal-fill-step="${escapeHtml(step.id)}">
+          <strong>${escapeHtml(step.label)}</strong>
+          <p class="muted-note">${escapeHtml(step.reason)}</p>
+        </div>`,
+    )
+    .join("");
+  const warningHtml = model.samePersonWarning
+    ? `<p class="muted-note" id="fillOnPortalSamePersonWarning">${escapeHtml(model.samePersonWarning)}</p>`
+    : "";
+  return `<div class="section-card" id="fillOnPortalSection">
+      <h3 class="section-title">Fill on portal</h3>
+      <p class="muted-note" id="fillOnPortalEntryNote">${escapeHtml(model.portalEntryMessage)}</p>
+      ${warningHtml}
+      <div class="readiness-compact" id="fillOnPortalStatusList">${statusHtml}</div>
+      <div class="portal-fill-steps" id="fillOnPortalSteps">${stepsHtml}</div>
+      <p class="muted-note">This section is display-only in this build. It does not Save, Submit, or Authorize portal entry.</p>
+    </div>`;
+}
+
 function renderReadiness() {
   queueQcPreparationLoad();
   queueQcEvidenceRecheck();
@@ -8266,6 +8314,7 @@ function renderReadiness() {
       <p class="muted-note">These actions prepare internal records only. They do not enter or submit the Government portal.</p>
       <p class="muted-note">Portal entry statuses (${escapeHtml(normalizeEntryStatus(row.entry_status))}) are display-only in this module.</p>
     </div>
+    ${renderFillOnPortalSection()}
     ${renderWorkerFoundationCard()}
     ${renderEntryDryRunCard()}`;
   applyPermissionUi();

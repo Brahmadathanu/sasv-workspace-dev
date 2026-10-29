@@ -337,3 +337,11 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - If the user edits the note, the saved text is the normalised form with real line breaks.
 - Stored notes are never rewritten otherwise.
 - The server-side separator fix is a separate Jarvis task (PKG2).
+
+## 2026-10-29 — WP-07 UX-3 Phase A Fill on portal (display only)
+- Readiness tab shows a Fill on portal section with stage/line/action status and portal steps.
+- Phase A copy when not closed: "Portal entry is not enabled for this product yet." The client does not infer enablement.
+- No Save, Submit, Authorize, or typed-confirmation controls. Composition and QC steps are blocked with plain reasons.
+- Product 262 shows only "Already saved and confirmed on the portal."
+- Same-person text from stage saver data is informational only and never disables UI.
+- Gate get/set and save_authorization wait for PKG3a (Phase B).

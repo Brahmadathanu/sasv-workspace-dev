@@ -2129,3 +2129,137 @@ export function neverMapInternalDosageToPortalSubtype(internalSubtypeLabel) {
   if (label.includes("kuzhambu")) return null;
   return null;
 }
+
+/** UX-3 Phase A — Fill on portal (display only; no enablement inference). */
+export const PORTAL_ENTRY_NOT_ENABLED_COPY =
+  "Portal entry is not enabled for this product yet.";
+export const PORTAL_PRODUCT_CLOSED_COPY =
+  "Already saved and confirmed on the portal.";
+export const PORTAL_STEP_COMPOSITION_BLOCKED_COPY =
+  "Composition portal fill is not available in this phase.";
+export const PORTAL_STEP_QC_BLOCKED_COPY =
+  "QC portal fill is not available in this phase.";
+export const PORTAL_SAME_PERSON_WARNING_COPY =
+  "You saved Product Details for review. Another Approver will need to fill this on the portal when entry is enabled.";
+
+function portalFillStatusLabel(status) {
+  return displayText(normalizeReviewStatus(status) || "PENDING", "PENDING");
+}
+
+function findStageReviewRow(stageReview, stage, itemKey = null) {
+  const key = itemKey == null || itemKey === "" ? "" : String(itemKey);
+  return (Array.isArray(stageReview) ? stageReview : []).find(
+    (row) => row?.stage === stage && String(row.item_key || "") === key,
+  ) || null;
+}
+
+/**
+ * Read-only Fill on portal model for the Readiness tab.
+ * Does not decide readiness or enablement; Phase A never exposes Save/Submit/auth UI.
+ */
+export function portalFillStepperModel({
+  productId,
+  review,
+  classification,
+  lines,
+  actionsDraft,
+  actionsReviewStatus,
+  stageReview,
+} = {}) {
+  const closedProduct = Number(productId) === FIRST_CONTROLLED_PRODUCT_ID;
+  const detailsStatus = normalizeReviewStatus(review?.review_status) || "PENDING";
+  const classificationStatus =
+    normalizeReviewStatus(classification?.review_status) || "PENDING";
+  const actionsStatus = normalizeReviewStatus(actionsReviewStatus) || "PENDING";
+  const statusRows = [
+    {
+      kind: "details",
+      label: "Product Details",
+      status: detailsStatus,
+      statusLabel: portalFillStatusLabel(detailsStatus),
+    },
+    {
+      kind: "classification",
+      label: "Portal Classification",
+      status: classificationStatus,
+      statusLabel: portalFillStatusLabel(classificationStatus),
+    },
+  ];
+  for (const line of Array.isArray(lines) ? lines : []) {
+    const lineId = optionId(line?.source_composition_line_id);
+    const lineStatus = normalizeReviewStatus(line?.review_status) || "PENDING";
+    const rowNo = displayText(line?.source_row_no, "");
+    const name = safeText(line?.raw_ingredient_name) || (lineId ? `Line ${lineId}` : "Line");
+    statusRows.push({
+      kind: "line",
+      itemKey: lineId,
+      label: rowNo ? `Composition line ${rowNo}: ${name}` : `Composition line: ${name}`,
+      status: lineStatus,
+      statusLabel: portalFillStatusLabel(lineStatus),
+    });
+  }
+  const actionTexts = (Array.isArray(actionsDraft) ? actionsDraft : [])
+    .map((text) => safeText(text))
+    .filter(Boolean);
+  if (!actionTexts.length) {
+    statusRows.push({
+      kind: "actions",
+      label: "Pharmacological Action",
+      status: actionsStatus,
+      statusLabel: portalFillStatusLabel(actionsStatus),
+    });
+  } else {
+    for (const text of actionTexts) {
+      statusRows.push({
+        kind: "action",
+        label: `Pharmacological action: ${text}`,
+        status: actionsStatus,
+        statusLabel: portalFillStatusLabel(actionsStatus),
+      });
+    }
+  }
+
+  const detailsStage = findStageReviewRow(stageReview, "details");
+  const samePersonWarning =
+    !closedProduct && detailsStage?.saved_by_me === true
+      ? PORTAL_SAME_PERSON_WARNING_COPY
+      : "";
+
+  const portalSteps = closedProduct
+    ? []
+    : [
+        {
+          id: "product_details",
+          label: "Product Details",
+          blocked: true,
+          reason: PORTAL_ENTRY_NOT_ENABLED_COPY,
+        },
+        {
+          id: "composition",
+          label: "Composition",
+          blocked: true,
+          reason: PORTAL_STEP_COMPOSITION_BLOCKED_COPY,
+        },
+        {
+          id: "qc",
+          label: "QC",
+          blocked: true,
+          reason: PORTAL_STEP_QC_BLOCKED_COPY,
+        },
+      ];
+
+  return {
+    closedProduct,
+    closedMessage: closedProduct ? PORTAL_PRODUCT_CLOSED_COPY : "",
+    portalEntryMessage: closedProduct ? "" : PORTAL_ENTRY_NOT_ENABLED_COPY,
+    statusRows,
+    portalSteps,
+    samePersonWarning,
+    /** Informational only — never used to disable or hide controls. */
+    samePersonWarningBlocks: false,
+    showSaveUi: false,
+    showSubmit: false,
+    showAuthorizeUi: false,
+    showTypedConfirmation: false,
+  };
+}
