@@ -2315,3 +2315,83 @@ body.sasv-costing-control-center .cp-readiness-gap-bound {
 .sc-run-status[data-tone="approved-pending"] { background: #fff6e0; color: #7a5300; border-color: #f0d48a; }
 .sc-run-status[data-tone="draft"] { background: #fdecec; color: #a12622; border-color: #f2b8b5; }
 .sc-run-status[data-tone="empty"] { background: #f1f3f5; color: #555; border-color: #dde1e5; }
+
+/* Phase 1 approval screen (COSTING_APPROVAL_SCREEN_V1) */
+.cas-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: min(360px, 100%);
+  max-width: 420px;
+  margin: 0 8px;
+  padding: 10px 12px;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: var(--sasv-surface-elevated, #fff);
+}
+.cas-panel[hidden],
+.cas-panel.hidden { display: none; }
+.cas-panel-title { font-size: 13px; font-weight: 700; }
+.cas-muted { color: #64748b; font-size: 12px; }
+.cas-danger { color: #b91c1c; font-size: 12px; white-space: pre-wrap; }
+.cas-period-summary { display: grid; gap: 4px; }
+.cas-kv { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.cas-kv span { color: #64748b; }
+.cas-run-list { display: grid; gap: 8px; max-height: 220px; overflow: auto; }
+.cas-run-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #f8fafc;
+}
+.cas-run-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cas-chip {
+  display: inline-flex;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid #dbe3ee;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+.cas-run-label { font-size: 12px; margin-top: 4px; }
+.cas-run-actions { margin-top: 8px; }
+.cas-action,
+.cas-linkish {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.cas-linkish { border: none; background: transparent; color: #1d4ed8; padding: 0; }
+.cas-modal-panel { width: min(960px, 100%); }
+.cas-approve-form { display: grid; gap: 10px; margin-top: 14px; }
+.cas-approve-form label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; }
+.cas-stale-ack { display: flex !important; align-items: flex-start; gap: 8px; font-weight: 600; }
+.cas-block {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: #fff;
+}
+.cas-block.cas-warn { background: #fffbeb; border-color: #f59e0b55; }
+.cas-block-title { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+.cas-check-list { margin: 0; padding-left: 18px; font-size: 12px; }
+.cas-check-list .cas-fail { color: #b91c1c; }
+.cas-check-list .cas-pass { color: #166534; }
+.cas-counts { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; margin-bottom: 10px; }
+.cas-counts span {
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: #f8fafc;
+}
+.cas-table-wrap { overflow: auto; max-height: 220px; }
+.cas-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.cas-table th,
+.cas-table td { border-bottom: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+.cas-table .c-right { text-align: right; }
+.cas-sku-tools { margin-bottom: 8px; }
