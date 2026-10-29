@@ -1,6 +1,6 @@
 # WP-07 Operator journey: e-Aushadhi Review
 
-Status as of 27 Oct 2026 (IST). Screens are on branch `feat/wp07-ux1-worklist` (tip `851804c`), not yet merged into main. The server changes listed here are live for everyone.
+Status as of 29 Oct 2026 (IST). Screens are on branch `feat/wp07-ux1-worklist` (tip `78cf8a6`; this document was last checked against `851804c` for sections 1-6), not yet merged into main. The server changes listed here are live for everyone.
 
 ## 1. Who does what
 
@@ -75,11 +75,43 @@ The app reads each step's status, saver, and whether you can approve from one se
 - Therapeutic data: the "TG - " sheets. Ingredients: the "PROD ING - " sheets. These were imported once (tag `WP07_SHEET_IMPORT_20261024`). Corrections are made in the database from now on, not in the sheets. The 24 Oct imports are still marked as staged.
 - QC data: only from COA PDFs.
 
-## 6. Known limits (27 Oct 2026)
+## 6. Locked steps and saving lines (UX-5)
 
-- The Composition step has not yet been tested on screen with seeded products. The pilot will test it.
-- The portal text card is avoided until the pilot is done.
+- When a step is VERIFIED its fields are read-only. Only "Reopen" unlocks them. Looking at a locked field never marks the form as changed.
+- Leaving a product with unsaved changes shows an in-page box with **Stay** and **Leave without saving** (no Windows pop-up).
+- A Composition line showing default suggestions has its own **Save for review**. Saving it makes you its saver.
+- After "Correct source" the line goes back to Pending. Save it for review again.
+- If the portal options for a product type are not loaded, the lists say so and Approve stays off. Options for six Product Types were loaded on 29 Oct.
+
+## 7. Fill on portal (Readiness tab) and the portal entry gate (UX-3)
+
+The Readiness tab has a **Fill on portal** section. It shows each step's status and what would be filled. It never shows or clicks the portal's final Submit.
+
+### Turning portal entry on or off
+- Only an Approver sees the switch. You must type a reason (10 to 1000 characters). The app reads the server again after every change.
+- Turning it on does not fill or Save anything by itself.
+
+### Messages you may see
+| Message | What it means |
+|---|---|
+| "Portal entry is not enabled for this product yet." | The gate for this product is off. An Approver can turn it on. |
+| "Portal entry is turned on. Automatic portal Save for this product is not available yet." | The gate is on, but the app cannot yet Save this product on the portal (worker unlock, UX-3 B2, not built). |
+| "Portal entry is turned on, but these steps are not verified yet: ..." | Finish the two-person approval of the listed steps first. |
+| "More than one person saved steps for review on this product, including you. An Approver who saved none of them must authorize the portal Save." | You and someone else both saved steps. You cannot authorize; an Approver who saved nothing on this product must. (Text change F1 pending in the app.) |
+| "Only an Approver can turn on portal entry or authorize a Save." | You do not hold the Approver role. |
+| "Already saved and confirmed on the portal." | Product 262. Closed; nothing to do. |
+
+### Who can authorize a portal Save (strict two-person rule)
+- An Approver who saved none of the product's steps (Details, Classification, any line).
+- Today the only Approvers are the owner and Aneesh. If **both** saved steps on a product, nobody can authorize it.
+- Each Save needs its own typed confirmation `SAVE PRODUCT <id>`. An unclear result stops; the app never retries by itself.
+
+## 8. Known limits (29 Oct 2026)
+
 - Product 262 (Karpooradi Thailam) is Done and locked. Save, Arm and Dry run stay off with "Already saved and confirmed on the portal."
+- Portal Save from the app works for no other product yet. The worker is still locked to 262 until UX-3 B2 is built and you choose the first product.
+- Composition and QC portal fill show "not available in this phase".
 - QC filling works only for Product 262. The server allows QC arming only for that product.
-- Portal filling screens (the portal stepper, UX-3) are not built yet. The final portal Submit is never used by the app.
+- The final portal Submit is never used by the app.
 - The worklist screens are not merged into main yet. To use them, run the app from the branch folder.
+- The pilot (owner and Aneesh) is still in progress; record findings on the pilot sheet.
