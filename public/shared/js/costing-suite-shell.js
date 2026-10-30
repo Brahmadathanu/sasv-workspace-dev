@@ -60,9 +60,10 @@ import {
   isPortfolioReadinessLens,
 } from "./costing-suite-readiness.js";
 import { createCostPeriodValuationController } from "./costing-suite-cost-period-valuation.js";
-import { isCostingApprovalScreenV1Enabled, isCostingLockScreenV1Enabled, isCostingRecalcWithDateV1Enabled } from "./costing-feature-flags.js";
+import { isCostingApprovalScreenV1Enabled, isCostingLockScreenV1Enabled, isCostingRecalcWithDateV1Enabled, isCostingRunStatusV1Enabled } from "./costing-feature-flags.js";
 import { createCostingApprovalScreenController } from "./costing-approval-screen.js";
 import { createCostingLockScreenController } from "./costing-lock-screen.js";
+import { createCostingRunStatusScreenController } from "./costing-run-status-screen.js";
 import {
   createQcActionQueueController,
   isQcActionQueueLens,
@@ -9036,17 +9037,33 @@ const costingLockScreenCtrl = isCostingLockScreenV1Enabled()
     })
   : null;
 
+const costingRunStatusScreenCtrl = isCostingRunStatusV1Enabled()
+  ? createCostingRunStatusScreenController({
+      supabase,
+      costingRpc,
+      showToast,
+      formatDate,
+      formatDateTime,
+      stageLabels: COSTING_REFRESH_STAGE_LABELS,
+      getActivePeriodStart: () => ACTIVE_PERIOD_START,
+      isControlCenterRoute: () =>
+        ACTIVE_ROUTE_CONFIG?.moduleKey === "costing-control-center",
+    })
+  : null;
+
 async function reloadCostPeriodValuationIfNeeded() {
   if (ACTIVE_ROUTE_CONFIG?.moduleKey !== "costing-control-center") {
     costPeriodValuationCtrl.onRouteExit?.();
     costingApprovalScreenCtrl?.onRouteExit?.();
     costingLockScreenCtrl?.onRouteExit?.();
+    costingRunStatusScreenCtrl?.onRouteExit?.();
     return;
   }
   if (PERM_CAN_VIEW !== true) {
     costPeriodValuationCtrl.onRouteExit?.();
     costingApprovalScreenCtrl?.onRouteExit?.();
     costingLockScreenCtrl?.onRouteExit?.();
+    costingRunStatusScreenCtrl?.onRouteExit?.();
     return;
   }
   await costPeriodValuationCtrl.loadForActivePeriod();
@@ -9059,6 +9076,11 @@ async function reloadCostPeriodValuationIfNeeded() {
     costingLockScreenCtrl?.mount?.();
   } else {
     costingLockScreenCtrl?.onRouteExit?.();
+  }
+  if (isCostingRunStatusV1Enabled()) {
+    costingRunStatusScreenCtrl?.mount?.();
+  } else {
+    costingRunStatusScreenCtrl?.onRouteExit?.();
   }
   // CPV paint may re-show the strip; reassert Readiness hide when still active.
   if (isPortfolioReadinessLens(CURRENT_LENS)) {

@@ -2851,6 +2851,25 @@
         <div id="casPeriodSummary" class="cas-period-summary"></div>
         <div id="casRunList" class="cas-run-list"></div>
       </div>
+      <div
+        id="costingRunStatusPanel"
+        class="cas-panel hidden"
+        hidden
+        aria-hidden="true"
+        aria-label="Run status and health"
+      >
+        <div class="cas-panel-head">
+          <div class="cas-panel-title">Run status</div>
+          <div class="cas-muted">Server status and failure explanations.</div>
+        </div>
+        <div id="crsRunList" class="cas-run-list"></div>
+        <div id="crsRunDetail"></div>
+        <div class="crs-health-head">
+          <div class="cas-panel-title">Health check</div>
+          <button type="button" class="cas-action" id="crsHealthRefresh">Check again</button>
+        </div>
+        <div id="crsHealthList" class="cas-run-list"></div>
+      </div>
       <div class="filter-item search">
         <input
           type="text"

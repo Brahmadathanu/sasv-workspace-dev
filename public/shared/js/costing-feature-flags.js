@@ -32,3 +32,13 @@ export function isCostingLockScreenV1Enabled(storage = globalThis.localStorage) 
     return false;
   }
 }
+
+export const COSTING_RUN_STATUS_V1 = "COSTING_RUN_STATUS_V1";
+
+export function isCostingRunStatusV1Enabled(storage = globalThis.localStorage) {
+  try {
+    return storage?.getItem?.(COSTING_RUN_STATUS_V1) === "1";
+  } catch {
+    return false;
+  }
+}
