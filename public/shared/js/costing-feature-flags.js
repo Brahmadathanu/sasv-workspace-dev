@@ -22,3 +22,13 @@ export function isCostingApprovalScreenV1Enabled(storage = globalThis.localStora
     return false;
   }
 }
+
+export const COSTING_LOCK_SCREEN_V1 = "COSTING_LOCK_SCREEN_V1";
+
+export function isCostingLockScreenV1Enabled(storage = globalThis.localStorage) {
+  try {
+    return storage?.getItem?.(COSTING_LOCK_SCREEN_V1) === "1";
+  } catch {
+    return false;
+  }
+}

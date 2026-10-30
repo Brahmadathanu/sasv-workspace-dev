@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v377"; // costing approval screen Phase 1; v375 was product-route bypass
+const CACHE_NAME = "hub-cache-v378"; // costing lock screen Phase 2; v375 was product-route bypass
 
 const PRECACHE = [
   // Hub shell

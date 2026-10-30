@@ -4,6 +4,7 @@ import {
   ALREADY_DONE_RELOAD,
   REOPEN_PREVIEW,
   mapCostingApprovalError,
+  mapCostingLockError,
 } from "../../public/shared/js/costing-approval-errors.js";
 
 test("W2_APPROVAL_CHECKS_FAILED includes the server failed-check detail", () => {
@@ -94,4 +95,36 @@ test("owner / permission / reason / reference errors come before MONTHEND_*", ()
   );
   assert.equal(permission.kind, "permission");
   assert.match(permission.title, /edit permission/i);
+});
+
+const lockCase = (name, message, title) =>
+  test(name, () => assert.equal(mapCostingLockError(message).title, title));
+
+lockCase("lock permission whole text is matched before its embedded colon", "Permission denied for module:costing-control-center (edit=true)", "You do not have costing permission.");
+lockCase("lock Not authenticated text asks for sign in", "Not authenticated", "Please sign in again.");
+lockCase("lock W2_AUTH_REQUIRED remains mapped", "W2_AUTH_REQUIRED: session", "Please sign in again.");
+lockCase("lock owner wording is action specific", "W2_OWNER_ONLY: reserved", "Only the costing owner can lock a month.");
+lockCase("lock reason refusal is mapped", "W2_REASON_REQUIRED: short", "Please give a reason (at least 10 characters).");
+lockCase("lock approval reference code without colon is mapped", "W2_APPROVAL_REFERENCE_REQUIRED", "Please give an approval reference.");
+lockCase("lock missing period is mapped", "W2_PERIOD_NOT_FOUND: 2026-08-01", "This month does not exist in costing.");
+lockCase("lock requires open and keeps lock wording", "W2_LOCK_REQUIRES_OPEN: period is LOCKED", "This month is not open (it is already locked or closed).");
+lockCase("lock requires approved run", "W2_LOCK_REQUIRES_APPROVED_RUN: none", "This month has no approved run, so it cannot be locked.");
+lockCase("lock active run is mapped", "W2_ACTIVE_RUN: queued", "A run is queued or running for this month. Try again after it finishes.");
+lockCase("lock fingerprint drift is mapped", "W2_FINGERPRINT_DRIFT: run 143", "The approved run's data no longer matches its fingerprint. Do not lock; tell the costing assistant.");
+lockCase("batch null array chooses a month", "W2_BATCH_NULL_ARRAY: null", "Choose at least one month.");
+lockCase("batch empty chooses a month", "W2_BATCH_EMPTY: empty", "Choose at least one month.");
+lockCase("batch null element chooses a month", "W2_BATCH_NULL_ELEMENT: null", "Choose at least one month.");
+lockCase("batch duplicate month is mapped", "W2_BATCH_DUPLICATE_MONTH: 2026-09-01", "A month is listed twice.");
+lockCase("batch first-of-month refusal is mapped", "W2_BATCH_NOT_FIRST_OF_MONTH: 2026-09-02", "Months must be given as the first day of the month.");
+lockCase("batch mixed quarter is mapped", "W2_BATCH_MIXED_QUARTER: mixed", "Lock one calendar quarter at a time.");
+lockCase("batch unknown month is mapped", "W2_BATCH_UNKNOWN_MONTH: missing", "One or more months do not exist in costing.");
+test("both month-not-finished prefixes use the lock wording", () => {
+  for (const code of ["W2_PERIOD_NOT_FINISHED", "MONTHEND_PERIOD_NOT_FINISHED"]) {
+    assert.equal(mapCostingLockError(`${code}: open`).title, "This month has not ended yet, so it cannot be locked.");
+  }
+});
+test("unknown lock refusal falls back with its first line", () => {
+  const mapped = mapCostingLockError("ODD_REFUSAL no colon\nsecret second line");
+  assert.equal(mapped.title, "The server refused:");
+  assert.equal(mapped.detail, "ODD_REFUSAL no colon");
 });
