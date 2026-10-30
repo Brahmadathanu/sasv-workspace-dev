@@ -2377,14 +2377,15 @@ body.sasv-costing-control-center .cp-readiness-gap-bound {
 }
 #costingRunStatusPanel .cas-run-list { min-width: 0; }
 #costingRunStatusPanel .crs-run-card,
-#costingRunStatusPanel .crs-health-row { overflow-wrap: anywhere; }
+#costingRunStatusPanel .crs-health-row,
+#costingRunStatusPanel .cas-block { overflow-wrap: anywhere; }
 #costingRunStatusPanel .crs-stage-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 #costingRunStatusPanel .crs-stage-chip { white-space: normal; }
 #costingRunStatusPanel .crs-explanation { margin: 8px 0; font-size: 12px; }
 #costingRunStatusPanel .crs-health-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 #costingRunStatusPanel #crsHealthRefresh { margin: 0; flex: 0 0 auto; }
 @media (max-width: 520px) {
-  #costingRunStatusPanel { width: 100%; max-width: 100%; margin-inline: 0; }
+  #costingRunStatusPanel { width: calc(100vw - 24px); max-width: calc(100vw - 24px); margin-inline: 0; }
   #costingRunStatusPanel .cas-run-head { align-items: flex-start; }
 }
 .cls-panel { max-width: 480px; }
