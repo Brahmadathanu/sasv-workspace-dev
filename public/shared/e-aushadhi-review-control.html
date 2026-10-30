@@ -48,6 +48,7 @@
 
     <div id="mainPanel">
       <section id="queuePanel">
+        <div id="worklistLoading" class="status-banner" role="status">Loading worklist...</div>
         <div id="worklistFallback" class="status-banner" hidden>
           <p id="worklistFallbackText">The worklist could not be loaded. Try Refresh.</p>
           <button type="button" id="worklistRefresh" class="icon-btn with-label">Refresh</button>
@@ -114,7 +115,7 @@
             </table>
           </div>
         </div>
-        <div class="queue-controls" id="legacyQueueControls">
+        <div class="queue-controls" id="legacyQueueControls" hidden>
           <div class="search-card">
             <div class="search-wrap input-with-icon">
               <svg class="ea-icon ea-icon-search" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
@@ -151,7 +152,7 @@
           </div>
         </div>
 
-        <div class="table-card" id="queueTableWrap">
+        <div class="table-card" id="queueTableWrap" hidden>
           <table class="data-table">
             <thead>
               <tr>

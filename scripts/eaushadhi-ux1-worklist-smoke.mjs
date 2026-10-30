@@ -324,7 +324,7 @@ check(contract.includes('selector: "#save_btn"') && !executor.includes("submitPr
 check(client.includes('command?.action') && client.includes("Already saved and confirmed on the portal."), "product 262 does not call arm or save");
 
 const queueCss = read("public/shared/css/sasv-eaushadhi-review.css");
-check(queueCss.includes("#queueTableWrap[hidden]") && queueCss.includes("display: none !important"), "hidden legacy queue is display none");
+check(html.includes('id="worklistLoading"') && html.includes('id="worklistHome" hidden') && html.includes('id="legacyQueueControls" hidden') && html.includes('id="queueTableWrap" hidden') && control.includes('if (loading) loading.hidden = true') && control.includes('if (oldControls) oldControls.hidden = on') && control.includes('if (oldTable) oldTable.hidden = on'), "initial loading placeholder hides both queues; success shows worklist and failure restores legacy fallback");
 const many = Array.from({ length: 438 }, (_, index) => normalizeWorklistRow({
   product_id: index + 1,
   product_name: `Bulk ${index + 1}`,

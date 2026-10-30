@@ -1038,6 +1038,12 @@ function syncLineVerifyUi(lineId) {
   else delete btn.dataset.blockCode;
   if (decision.reason) btn.title = decision.reason;
   else btn.removeAttribute("title");
+  const message = btn.closest(".line-card")?.querySelector(".line-decision-message");
+  if (message) {
+    message.hidden = !decision.reason;
+    message.textContent = decision.reason || "";
+    message.title = decision.reason || "";
+  }
 }
 
 function toastError(err) {
@@ -1074,22 +1080,43 @@ function autosaveForReview(id) {
 }
 
 function autosaveHtml(status, id) {
-  const label = autosaveStateLabel(status, { forReview: autosaveForReview(id) });
+  const lineId = String(id || "").startsWith("line-save-") ? String(id).slice("line-save-".length) : null;
+  const displayStatus = lineId && !status && lineDirty(state.lineDrafts.get(lineId), state.lineBaselines.get(lineId))
+    ? "unsaved"
+    : status;
+  const label = displayStatus === "unsaved"
+    ? "Unsaved changes"
+    : autosaveStateLabel(displayStatus, { forReview: autosaveForReview(id) });
   if (!label) return `<span class="ea-autosave" ${id ? `id="${escapeHtml(id)}"` : ""} hidden></span>`;
-  const live = status === "failed" || status === "stale" ? ' aria-live="polite"' : "";
-  const cls =
-    status === "failed" || status === "stale" ? "ea-autosave is-failed" : "ea-autosave";
-  return `<span class="${cls}" ${id ? `id="${escapeHtml(id)}"` : ""} ${live}>${escapeHtml(label)}</span>`;
+  const tone = displayStatus === "failed" || displayStatus === "stale"
+    ? "is-failed"
+    : displayStatus === "saved"
+      ? "is-saved"
+      : displayStatus === "saving"
+        ? "is-saving"
+        : displayStatus === "unsaved"
+          ? "is-unsaved"
+          : "";
+  const icon = displayStatus === "saved" ? "✓" : displayStatus === "saving" ? "◷" : displayStatus === "failed" || displayStatus === "stale" ? "!" : displayStatus === "unsaved" ? "•" : "";
+  const live = lineId ? ' role="status" aria-live="polite"' : displayStatus === "failed" || displayStatus === "stale" ? ' aria-live="polite"' : "";
+  return `<span class="ea-autosave${tone ? ` ${tone}` : ""}" ${id ? `id="${escapeHtml(id)}"` : ""}${live}>${icon ? `<span aria-hidden="true">${icon}</span> ` : ""}${escapeHtml(label)}</span>`;
 }
 
 function patchAutosaveEl(id, status) {
   const el = $(id);
   if (!el) return;
-  const label = autosaveStateLabel(status, { forReview: autosaveForReview(id) });
+  const label = status === "unsaved" ? "Unsaved changes" : autosaveStateLabel(status, { forReview: autosaveForReview(id) });
+  const icon = status === "saved" ? "✓" : status === "saving" ? "◷" : status === "failed" || status === "stale" ? "!" : status === "unsaved" ? "•" : "";
   el.hidden = !label;
-  el.textContent = label;
+  el.innerHTML = icon ? `<span aria-hidden="true">${icon}</span> ${escapeHtml(label)}` : escapeHtml(label);
   el.classList.toggle("is-failed", status === "failed" || status === "stale");
-  if (status === "failed" || status === "stale") el.setAttribute("aria-live", "polite");
+  el.classList.toggle("is-saving", status === "saving");
+  el.classList.toggle("is-saved", status === "saved");
+  el.classList.toggle("is-unsaved", status === "unsaved");
+  if (String(id).startsWith("line-save-")) {
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+  } else if (status === "failed" || status === "stale") el.setAttribute("aria-live", "polite");
   else el.removeAttribute("aria-live");
   if (id === "detailsAutosave") syncDetailsVerifyUi();
   if (id === "portalFieldsAutosave") syncPortalFieldsUi();
@@ -1117,7 +1144,7 @@ function chip(statusClass, label) {
 
 function provenanceChipHtml(lineId, draftKey, provenance) {
   const code = provenance || "no_suggestion";
-  return `<span class="prov-chip" data-provenance="${escapeHtml(code)}" data-prov-for="${escapeHtml(lineId)}-${escapeHtml(draftKey)}">${escapeHtml(provenanceLabel(code))}</span>`;
+  return `<span class="prov-chip" data-provenance="${escapeHtml(code)}" data-prov-for="${escapeHtml(lineId)}-${escapeHtml(draftKey)}"><span aria-hidden="true">✦</span> ${escapeHtml(provenanceLabel(code))}</span>`;
 }
 
 function filteredQueue() {
@@ -1968,9 +1995,6 @@ function renderCompositionLegacy() {
         .join("");
       const qty = formatRawQuantityDisplay(row.raw_quantity_text, row.raw_unit_text);
       const scientific = escapeHtml(safeText(row.raw_scientific_name));
-      const nameHtml = scientific
-        ? `<span class="line-ingredient">${escapeHtml(sourceFieldDisplay(row.raw_ingredient_name))}</span><span class="line-scientific">${scientific}</span>`
-        : `<span class="line-ingredient">${escapeHtml(sourceFieldDisplay(row.raw_ingredient_name))}</span>`;
       const notesId = `line-${id}-reviewNotes`;
       const canResolve = !locked && lineHasResolvableSourceIssue(state.issues, id);
       const canCorrect = canCorrectWorkingSourceLine({
@@ -2004,35 +2028,51 @@ function renderCompositionLegacy() {
       });
       const resolved = state.resolvedSourceByLine.get(String(id));
       const reference = row.referenceMapping || null;
+      const sourceReference = row.raw_reference_text || reference?.source_reference_examples?.[0] || "-";
+      const referenceReady = reference?.reference_ready === true;
       const referenceBlock = `<section class="reference-mapping-block${reference ? "" : " is-blocked"}"${reference ? ` data-reference-mapping-id="${escapeHtml(reference.mapping_id)}"` : ""}>
-        <div><span class="muted-note">Source Reference</span><strong>${escapeHtml(row.raw_reference_text || reference?.source_reference_examples?.[0] || "-")}</strong></div>
-        <div><span class="muted-note">Canonical Reference Work</span><strong>${escapeHtml(reference?.canonical_label || "Not mapped")}</strong></div>
-        <div><span class="muted-note">e-Aushadhi Projection</span><strong>${escapeHtml(reference?.portal_label && reference?.portal_external_id ? `${reference.portal_label} / ${reference.portal_external_id}` : "Not mapped")}</strong></div>
-        <div><span class="muted-note">Reference Governance</span>${chip(reference?.reference_ready === true ? "success" : "warning", referenceGovernanceLabel(reference))}</div>
+        <div><span class="muted-note">Source wording</span><strong>${escapeHtml(sourceReference)}</strong>${sourceReference === "-" ? '<span class="reference-mapping-helper">No reference text was imported for this line.</span>' : ""}</div>
+        <div><span class="muted-note">Standard reference work</span><strong>${escapeHtml(reference?.canonical_label || "Not mapped")}</strong></div>
+        <div><span class="muted-note">Portal reference</span><strong>${escapeHtml(reference?.portal_label && reference?.portal_external_id ? `${reference.portal_label} / ${reference.portal_external_id}` : "Not mapped")}</strong></div>
+        <div><span class="muted-note">Mapping status</span>${chip(referenceReady ? "success" : "warning", referenceGovernanceLabel(reference))}</div>
+        <p class="reference-mapping-guidance">${referenceReady ? "Ready. This verified mapping can be used for portal entry." : "Reference mapping is managed in the Reference Dictionary tab."}</p>
       </section>`;
+      const actionButtons = locked
+        ? `${chip("success", "Verified")} ${lockNoteHtml()}
+          ${preEntryReopenButton({
+            kind: "line",
+            lineId: id,
+            id: `btn-reopen-${id}`,
+            label: "Reopen for correction",
+            dataAttribute: ` data-line-reopen="${escapeHtml(id)}"`,
+          })}
+          ${postEntryIngredientFormReconcileButton(id)}`
+        : `${saveReviewUi.visible
+          ? `<button type="button" class="icon-btn with-label" data-edit-action="true" data-line-save="${escapeHtml(id)}"${
+              saveReviewUi.enabled ? "" : " data-force-disabled=\"true\""
+            }${saveReviewUi.title ? ` title="${escapeHtml(saveReviewUi.title)}"` : ""}>${escapeHtml(saveReviewUi.label)}</button>`
+          : ""}
+          <button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}"${
+            lineDecision.ok ? "" : " data-force-disabled=\"true\""
+          }${lineDecision.code ? ` data-block-code="${escapeHtml(lineDecision.code)}"` : ""}${
+            lineDecision.reason ? ` title="${escapeHtml(lineDecision.reason)}"` : ""
+          }>Approve</button>
+          ${canCorrect
+            ? `<button type="button" class="icon-btn with-label" data-edit-action="true" id="btn-correct-${escapeHtml(id)}" data-source-correct="${escapeHtml(id)}" title="Edit the current working source before approval.">Correct source</button>`
+            : ""}`;
       return `<article class="line-card${hasBlocker ? " has-blocker" : hasError ? " has-error" : ""}${locked ? " is-verified" : ""}" data-line-id="${escapeHtml(id)}">
-        <div class="working-source-block">
-          <span class="working-source-label">Working source</span>
-          <div class="line-head">
-            <span class="line-no">${escapeHtml(displayText(row.source_row_no))}</span>
-            <span class="line-title">${nameHtml}</span>
-            <span class="line-qty">${escapeHtml(qty || "-")}</span>
-            ${chip(reviewStatusChipClass(row.review_status), displayText(row.review_status, "PENDING"))}
-            ${
-              topSev
-                ? chip(
-                    severityRank(topSev.severity) >= 2 ? "danger" : "warning",
-                    severityLabel(topSev.severity),
-                  )
-                : ""
-            }
+        <details class="source-imported-details">
+          <summary>Source as imported</summary>
+          <div class="meta-grid source-imported-grid">
+            <div class="meta-item"><span class="meta-label">Ingredient</span><span class="meta-value">${escapeHtml(sourceFieldDisplay(row.raw_ingredient_name))}</span></div>
+            <div class="meta-item"><span class="meta-label">Botanical name</span><span class="meta-value">${scientific || "-"}</span></div>
+            <div class="meta-item"><span class="meta-label">Part used</span><span class="meta-value">${escapeHtml(sourceFieldDisplay(row.raw_part_used))}</span></div>
+            <div class="meta-item"><span class="meta-label">Quantity</span><span class="meta-value">${escapeHtml(qty || "-")}</span></div>
           </div>
-          <div class="line-sub">Part used: ${escapeHtml(sourceFieldDisplay(row.raw_part_used))}</div>
-          <p class="muted-note working-source-audit">Imported source retained for audit</p>
-        </div>
+        </details>
         ${
           resolved
-            ? `<div class="line-resolution">Governed resolution: ${joinHtmlParts([
+            ? `<div class="line-resolution">Governed source resolution: ${joinHtmlParts([
                 escapeHtml(resolved.identity),
                 escapeHtml(resolved.part),
               ])}</div>`
@@ -2045,48 +2085,14 @@ function renderCompositionLegacy() {
           <label class="visually-hidden" for="${escapeHtml(notesId)}">Notes</label>
           <textarea id="${escapeHtml(notesId)}" class="sasv-control" rows="2" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" placeholder="Notes" aria-label="Notes"${lockedControlAttrs}>${escapeHtml(normalizeReviewNotesForDisplay(draft.reviewNotes || ""))}</textarea>
           ${autosaveHtml(saveStatus, `line-save-${id}`)}
-          ${stageSaverHtml("line", id)}
-          ${
-            locked
-              ? `${chip("success", "Verified")} ${lockNoteHtml()}
-          ${
-            preEntryReopenButton({
-              kind: "line",
-              lineId: id,
-              id: `btn-reopen-${id}`,
-              label: "Reopen for correction",
-              dataAttribute: ` data-line-reopen="${escapeHtml(id)}"`,
-            })
-          }
-          ${postEntryIngredientFormReconcileButton(id)}`
-              : `${
-                  saveReviewUi.visible
-                    ? `<button type="button" class="icon-btn with-label" data-edit-action="true" data-line-save="${escapeHtml(id)}"${
-                        saveReviewUi.enabled ? "" : " data-force-disabled=\"true\""
-                      }${saveReviewUi.title ? ` title="${escapeHtml(saveReviewUi.title)}"` : ""}>${escapeHtml(saveReviewUi.label)}</button>`
-                    : ""
-                }
-          <button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}"${
-                  lineDecision.ok ? "" : " data-force-disabled=\"true\""
-                }${lineDecision.code ? ` data-block-code="${escapeHtml(lineDecision.code)}"` : ""}${
-                  lineDecision.reason ? ` title="${escapeHtml(lineDecision.reason)}"` : ""
-                }>Approve</button>
-          ${
-            canCorrect
-              ? `<button type="button" class="icon-btn with-label" data-edit-action="true" id="btn-correct-${escapeHtml(id)}" data-source-correct="${escapeHtml(id)}" title="Edit the current working source before approval.">Correct source</button>`
-              : ""
-          }`
-          }
+        </div>
+        <div class="line-action-layout">
+          <div class="line-action-buttons">${actionButtons}${canResolve ? `<button type="button" class="icon-btn with-label source-resolve-btn" data-edit-action="true" id="btn-resolve-${escapeHtml(id)}" data-source-resolve="${escapeHtml(id)}">Resolve source issue</button>` : ""}</div>
+          <div class="line-action-message">${stageSaverHtml("line", id)}<span class="disabled-reason line-decision-message"${lineDecision.reason ? ` title="${escapeHtml(lineDecision.reason)}"` : " hidden"}>${escapeHtml(lineDecision.reason || "")}</span></div>
         </div>
         ${
           lineIssues.length
-            ? `<div class="line-issues">${renderIssues(lineIssues, "")}
-              ${
-                canResolve
-                  ? `<button type="button" class="icon-btn with-label source-resolve-btn" data-edit-action="true" id="btn-resolve-${escapeHtml(id)}" data-source-resolve="${escapeHtml(id)}">Resolve source issue</button>`
-                  : ""
-              }
-            </div>`
+            ? `<div class="line-issues">${renderIssues(lineIssues, "")}</div>`
             : ""
         }
       </article>`;
@@ -8634,10 +8640,12 @@ function renderSignedInRole() {
 
 function showWorklistMode(on) {
   const home = $("worklistHome");
+  const loading = $("worklistLoading");
   const fallback = $("worklistFallback");
   const oldControls = $("legacyQueueControls");
   const oldTable = $("queueTableWrap");
   if (home) home.hidden = !on;
+  if (loading) loading.hidden = true;
   if (fallback) fallback.hidden = on || state.worklistError !== true;
   if (oldControls) oldControls.hidden = on;
   if (oldTable) oldTable.hidden = on;
@@ -9056,7 +9064,19 @@ function refreshCompositionLineModal(lineId, { focus = false, focusNext = false 
   }
   state.compositionModalLineId = id;
   $("compositionLineModalTitle").textContent = `Line ${displayText(row.source_row_no)} - ${sourceFieldDisplay(row.raw_ingredient_name)}`;
+  const modalIssues = issuesForLine(state.issues, id);
+  const topIssue = modalIssues.slice().sort((a, b) => severityRank(b.severity) - severityRank(a.severity))[0];
+  const summary = $("compositionLineModalSummary");
+  if (summary) {
+    summary.innerHTML = `<span>${escapeHtml(sourceFieldDisplay(row.raw_scientific_name))}</span><span>${escapeHtml(formatRawQuantityDisplay(row.raw_quantity_text, row.raw_unit_text) || "-")}</span><span>${escapeHtml(sourceFieldDisplay(row.raw_part_used))}</span><span class="status-chip composition-line-summary-review ${escapeHtml(reviewStatusChipClass(row.review_status))}">${escapeHtml(displayText(row.review_status, "PENDING"))}</span>${topIssue ? chip(severityRank(topIssue.severity) >= 2 ? "danger" : "warning", severityLabel(topIssue.severity)) : chip("neutral", "Clear")}`;
+  }
   body.innerHTML = html;
+  const saveStatusHost = $("compositionLineModalSaveStatus");
+  const saveStatus = document.getElementById(`line-save-${id}`);
+  if (saveStatusHost) {
+    saveStatusHost.replaceChildren();
+    if (saveStatus) saveStatusHost.append(saveStatus);
+  }
   const nav = compositionModalNavigation(id);
   const previous = $("compositionLineModalPrevious");
   const next = $("compositionLineModalNext");
@@ -9139,13 +9159,15 @@ function openCompositionLineModal(lineId, returnFocus) {
   dialog.setAttribute("aria-modal", "true");
   dialog.setAttribute("aria-labelledby", "compositionLineModalTitle");
   dialog.tabIndex = -1;
-  dialog.innerHTML = `<div class="sasv-modal__header"><h2 id="compositionLineModalTitle" class="sasv-modal__title"></h2><button type="button" id="compositionLineModalClose" class="sasv-modal__close" aria-label="Close">&times;</button></div>
+  dialog.innerHTML = `<div class="sasv-modal__header composition-line-modal-header"><div class="composition-line-modal-heading"><h2 id="compositionLineModalTitle" class="sasv-modal__title"></h2><div id="compositionLineModalSummary" class="composition-line-summary"></div></div><button type="button" id="compositionLineModalClose" class="sasv-modal__close" aria-label="Close">&times;</button></div>
     <div id="compositionLineModalBody" class="sasv-modal__body"></div>
     <div class="sasv-modal__footer composition-line-modal-nav">
-      <button type="button" id="compositionLineModalPrevious" class="icon-btn with-label">Previous</button>
-      <button type="button" id="compositionLineModalNext" class="icon-btn with-label">Next</button>
-      <button type="button" id="compositionLineModalNextReview" class="icon-btn with-label">Next line needing review</button>
-      <button type="button" id="compositionLineModalDone" class="icon-btn with-label">Close</button>
+      <div id="compositionLineModalSaveStatus" class="composition-line-footer-status"></div>
+      <div id="compositionLineModalNavigation" class="composition-line-footer-navigation">
+        <button type="button" id="compositionLineModalPrevious" class="icon-btn with-label">Previous</button>
+        <button type="button" id="compositionLineModalNext" class="icon-btn with-label">Next</button>
+        <button type="button" id="compositionLineModalNextReview" class="icon-btn with-label">Next line needing review</button>
+      </div>
     </div>`;
   backdrop.append(dialog);
   document.body.append(backdrop);
@@ -9153,7 +9175,6 @@ function openCompositionLineModal(lineId, returnFocus) {
     if (event.target === backdrop) void requestCloseCompositionLineModal();
   });
   $("compositionLineModalClose").addEventListener("click", () => void requestCloseCompositionLineModal());
-  $("compositionLineModalDone").addEventListener("click", () => void requestCloseCompositionLineModal());
   ["compositionLineModalPrevious", "compositionLineModalNext", "compositionLineModalNextReview"].forEach((buttonId) => {
     $(buttonId).addEventListener("click", (event) => {
       const target = event.currentTarget.dataset.targetLineId;
@@ -9790,6 +9811,13 @@ async function persistLine(lineId, verify, { refresh = true } = {}) {
     if (chips[0]) {
       chips[0].className = `status-chip ${reviewStatusChipClass(result.review_status)}`;
       chips[0].textContent = displayText(result.review_status, "PENDING");
+    }
+  }
+  if (result?.review_status && idsEqual(state.compositionModalLineId, id)) {
+    const summaryChip = document.querySelector("#compositionLineModalSummary .composition-line-summary-review");
+    if (summaryChip) {
+      summaryChip.className = `status-chip composition-line-summary-review ${reviewStatusChipClass(result.review_status)}`;
+      summaryChip.textContent = displayText(result.review_status, "PENDING");
     }
   }
   return result;
@@ -11094,7 +11122,7 @@ function handleCompositionLineChange(event) {
         fieldKey: SUGGESTION_FIELD_KEYS[spec.domain],
       });
       chipEl.dataset.provenance = provenance;
-      chipEl.textContent = provenanceLabel(provenance);
+      chipEl.innerHTML = `<span aria-hidden="true">✦</span> ${escapeHtml(provenanceLabel(provenance))}`;
     }
   }
   if (key !== "reviewNotes") queueLineAutosave(lineId, true);
@@ -11113,6 +11141,7 @@ function handleCompositionLineInput(event) {
     return true;
   }
   if (draft) draft.reviewNotes = el.value;
+  patchAutosaveEl(`line-save-${lineId}`, "unsaved");
   queueLineAutosave(lineId, false);
   syncLineSaveReviewUi(lineId);
   return true;
@@ -11765,7 +11794,7 @@ function wireEvents() {
           fieldKey: SUGGESTION_FIELD_KEYS[spec.domain],
         });
         chipEl.dataset.provenance = next;
-        chipEl.textContent = provenanceLabel(next);
+        chipEl.innerHTML = `<span aria-hidden="true">✦</span> ${escapeHtml(provenanceLabel(next))}`;
       }
     }
     if (key !== "reviewNotes") queueLineAutosave(lineId, true);

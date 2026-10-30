@@ -821,6 +821,13 @@ body.sasv-eaushadhi-review .composition-table .line-scientific {
   font-style: italic;
 }
 
+body.sasv-eaushadhi-review .composition-table .composition-col-botanical {
+  width: 22%;
+  max-width: 240px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 body.sasv-eaushadhi-review #compositionLineModalBackdrop {
   z-index: var(--sasv-z-modal);
 }
@@ -830,7 +837,50 @@ body.sasv-eaushadhi-review .composition-line-modal .line-card {
 }
 
 body.sasv-eaushadhi-review .composition-line-modal-nav {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
   align-items: center;
+  gap: var(--sasv-space-3);
+}
+
+body.sasv-eaushadhi-review .composition-line-modal-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .composition-line-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 4px;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-eaushadhi-review .composition-line-summary > span:not(.status-chip) + span:not(.status-chip)::before {
+  content: "·";
+  margin-right: 10px;
+}
+
+body.sasv-eaushadhi-review .composition-line-footer-status {
+  width: 190px;
+  min-width: 190px;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+}
+
+body.sasv-eaushadhi-review .composition-line-footer-navigation {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: var(--sasv-space-2);
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .composition-line-footer-navigation button {
+  white-space: nowrap;
 }
 
 body.sasv-eaushadhi-review #sourceResolveBackdrop:not([hidden]),
@@ -853,6 +903,17 @@ body.sasv-eaushadhi-review .ea-autosave.is-stale {
 }
 
 body.sasv-eaushadhi-review .ea-autosave.is-verified {
+  color: var(--sasv-success);
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-eaushadhi-review .ea-autosave.is-saving,
+body.sasv-eaushadhi-review .ea-autosave.is-unsaved {
+  color: var(--sasv-warning);
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-eaushadhi-review .ea-autosave.is-saved {
   color: var(--sasv-success);
   font-weight: var(--sasv-fw-semibold);
 }
@@ -1038,6 +1099,13 @@ body.sasv-eaushadhi-review .reference-mapping-block .status-chip {
   white-space: normal;
   overflow-wrap: anywhere;
   line-height: var(--sasv-lh-normal);
+}
+
+body.sasv-eaushadhi-review .reference-mapping-guidance {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
 }
 
 body.sasv-eaushadhi-review .reference-mapping-status-row {
@@ -1353,11 +1421,13 @@ body.sasv-eaushadhi-review .portal-field select {
   font-weight: var(--sasv-fw-medium);
 }
 
-body.sasv-eaushadhi-review .working-source-block {
-  margin-bottom: 8px;
+body.sasv-eaushadhi-review .source-imported-details {
+  margin: 0 0 var(--sasv-space-3);
+  border-bottom: 1px solid var(--sasv-divider);
+  padding-bottom: var(--sasv-space-2);
 }
 
-body.sasv-eaushadhi-review .working-source-label,
+body.sasv-eaushadhi-review .source-imported-details > summary,
 body.sasv-eaushadhi-review .portal-mapping-label {
   display: block;
   margin: 0 0 var(--sasv-space-1);
@@ -1368,22 +1438,61 @@ body.sasv-eaushadhi-review .portal-mapping-label {
   color: var(--sasv-text-muted);
 }
 
-body.sasv-eaushadhi-review .working-source-audit {
-  margin: var(--sasv-space-1) 0 0;
-  font-size: var(--sasv-text-xs);
+body.sasv-eaushadhi-review .source-imported-details > summary {
+  cursor: pointer;
+}
+
+body.sasv-eaushadhi-review .source-imported-grid {
+  margin-top: var(--sasv-space-2);
 }
 
 body.sasv-eaushadhi-review .line-notes-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin-top: 6px;
+  display: block;
+  margin-top: var(--sasv-space-3);
 }
 
-body.sasv-eaushadhi-review .line-notes-row input {
-  flex: 1;
+body.sasv-eaushadhi-review .line-notes-row textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+body.sasv-eaushadhi-review .line-action-layout {
+  display: flex;
+  align-items: center;
+  gap: var(--sasv-space-3);
+  margin-top: var(--sasv-space-2);
   min-width: 0;
+}
+
+body.sasv-eaushadhi-review .line-action-buttons {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sasv-space-2);
+}
+
+body.sasv-eaushadhi-review .line-action-message {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 1.4em;
+  line-height: 1.4;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+body.sasv-eaushadhi-review .line-action-message:not(:has(:not([hidden]))) {
+  display: none;
+}
+
+body.sasv-eaushadhi-review .line-action-message > * {
+  display: inline;
+  margin: 0;
+}
+
+body.sasv-eaushadhi-review .line-action-message > * + *::before {
+  content: " · ";
 }
 
 body.sasv-eaushadhi-review .line-issues {
@@ -1391,35 +1500,25 @@ body.sasv-eaushadhi-review .line-issues {
 }
 
 body.sasv-eaushadhi-review .prov-chip {
-  display: inline-block;
-  margin-top: 2px;
-  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 3px;
+  padding: 0;
   font-size: var(--sasv-text-xs);
-  font-weight: var(--sasv-fw-medium);
+  font-weight: var(--sasv-fw-regular);
   letter-spacing: 0.01em;
-  border: 1px solid var(--sasv-control-border);
-  border-radius: var(--sasv-radius-sm);
+  border: 0;
   background: transparent;
   color: var(--sasv-text-muted);
 }
 
 body.sasv-eaushadhi-review .prov-chip[data-provenance="verified"] {
-  border-style: solid;
-  border-width: 1px;
   color: var(--sasv-success);
 }
 
 body.sasv-eaushadhi-review .prov-chip[data-provenance="default_suggestion"] {
   font-style: italic;
-  border-style: dashed;
-}
-
-body.sasv-eaushadhi-review .prov-chip[data-provenance="exact_suggestion"] {
-  border-style: solid;
-}
-
-body.sasv-eaushadhi-review .prov-chip[data-provenance="manually_changed"] {
-  border-style: dotted;
 }
 
 body.sasv-eaushadhi-review .evidence-list {
@@ -1639,7 +1738,24 @@ body.sasv-eaushadhi-review .action-vocab-item {
     padding: 7px 5px;
   }
   body.sasv-eaushadhi-review .composition-line-modal-nav {
-    justify-content: flex-start;
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
+  }
+  body.sasv-eaushadhi-review .composition-line-footer-status {
+    width: 100%;
+    min-width: 0;
+  }
+  body.sasv-eaushadhi-review .composition-line-footer-navigation {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  body.sasv-eaushadhi-review .line-action-layout {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--sasv-space-1);
+  }
+  body.sasv-eaushadhi-review .line-action-message {
+    width: 100%;
   }
   body.sasv-eaushadhi-review .portal-fields {
     grid-template-columns: 1fr;
@@ -1975,7 +2091,17 @@ body.sasv-eaushadhi-review #worklistHome {
   min-height: 0;
 }
 
+body.sasv-eaushadhi-review #worklistLoading {
+  padding: var(--sasv-space-3);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+}
+
 body.sasv-eaushadhi-review #worklistHome[hidden],
+body.sasv-eaushadhi-review #worklistLoading[hidden],
 body.sasv-eaushadhi-review #worklistFilterDrawer[hidden],
 body.sasv-eaushadhi-review #queueTableWrap[hidden],
 body.sasv-eaushadhi-review #legacyQueueControls[hidden] {
