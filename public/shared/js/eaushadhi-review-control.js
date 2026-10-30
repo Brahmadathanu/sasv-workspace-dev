@@ -1778,7 +1778,7 @@ function renderDetails() {
       </div>
     </div>
     </div>
-    <div class="section-card" id="portalDiseasesCard">
+    <div class="section-card${isVerifiedStatus(portalTextStatus) || portalTextEntryLocked() ? " is-locked" : ""}" id="portalDiseasesCard">
       <div class="ux6-section-head">
       <div class="section-title-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <h3 class="section-title" style="margin:0">e-Aushadhi Portal Text</h3>
@@ -1820,7 +1820,7 @@ function renderDetails() {
           : `<p class="muted-note">Portal projection is not available for this product yet.</p>`
       }
     </div>
-    <div class="section-card">
+    <div class="section-card${portalTextEntryLocked() ? " is-locked" : ""}">
       <h3 class="section-title">Portal entry fields</h3>
       <p class="muted-note">Governed portal remarks and shelf-life route for Product Details execution. Saved to the product dossier; worker reads these via content_get.</p>
       ${

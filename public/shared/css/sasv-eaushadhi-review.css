@@ -723,7 +723,8 @@ body.sasv-eaushadhi-review .line-card.has-error {
 }
 
 body.sasv-eaushadhi-review .line-card.is-verified,
-body.sasv-eaushadhi-review .section-card.is-verified {
+body.sasv-eaushadhi-review .section-card.is-verified,
+body.sasv-eaushadhi-review .section-card.is-locked {
   background: var(--sasv-surface-soft);
   border-left: 3px solid var(--sasv-success);
 }

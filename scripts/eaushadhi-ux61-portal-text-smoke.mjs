@@ -62,8 +62,11 @@ state.queueRow.entry_status = 'NOT_STARTED'; state.portalTextDraft = { rowVersio
 run.syncPortalTextUi(); run.applyPermissionUi();
 check(buttons.every((id) => elements[id].disabled), 'existing viewer permissions still disable actions');
 const baseline = execFileSync('git', ['show', 'd432f83:public/shared/js/eaushadhi-review-control.js'], { cwd: root, encoding: 'utf8' });
+const withoutCardTint = (source) => source
+  .replace('${isVerifiedStatus(portalTextStatus) || portalTextEntryLocked() ? " is-locked" : ""}', '')
+  .replace('${portalTextEntryLocked() ? " is-locked" : ""}', '');
 const removeUi = (source, from) => source.replace(extract(source, from, 'stageRow'), 'PORTAL_TEXT_UI');
-check(removeUi(control, 'portalTextEntryLocked').replace(/\r\n/g, '\n') === removeUi(baseline, 'portalTextBlockingReason').replace(/\r\n/g, '\n'), 'all other client code unchanged, including render, Fill on portal, worker and save handlers');
+check(withoutCardTint(removeUi(control, 'portalTextEntryLocked')).replace(/\r\n/g, '\n') === removeUi(baseline, 'portalTextBlockingReason').replace(/\r\n/g, '\n'), 'all other client code unchanged, apart from approved card classes, including Fill on portal, worker and save handlers');
 const submit = control.slice(control.indexOf('async function submitPortalText('), control.indexOf('async function persistClassification('));
 check(submit.indexOf('const blocked = portalTextBlockingReason()') < submit.indexOf('await runMutation(') && submit.includes('if (blocked)'), 'existing submit guard refuses locked actions before mutation');
 check(/\.primary:disabled,[\s\S]*?background: #6b7280;/.test(readFileSync(join(root, 'public/shared/css/sasv-eaushadhi-review.css'), 'utf8')), 'existing grey disabled-primary style is available without colour changes');
