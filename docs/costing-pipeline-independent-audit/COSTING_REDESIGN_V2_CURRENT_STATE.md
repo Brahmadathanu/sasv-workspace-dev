@@ -118,8 +118,10 @@ If the 1st produced nothing, the next **Monday** weekly pass adds the missed mon
 - **CI-044** — parked.
 - **Health-check schedule and alert delivery** — not approved.
 - **Backdating cutoff warning** — investigation pending.
-- **Cursor approval screen** (`COSTING_APPROVAL_SCREEN_V1`, off by default) — plan under review; no code yet.
-- **Refresh and date-labels brief** (`costingRecalcWithDateV1`) — prepared for Cursor; no code yet.
+- **Approval screen** (`COSTING_APPROVAL_SCREEN_V1`, off by default) — **shipped** in PR #99 (main `e2c5fde`, 29 Oct); first production walkthrough pending.
+- **Refresh with date + date labels** (`COSTING_RECALC_WITH_DATE_V1`, off by default) — **shipped** in PR #100 (main `008fc26`, 30 Oct); hides the old change-date tab while on.
+- **Lock screen** (`COSTING_LOCK_SCREEN_V1`, cache v378) — Codex Phase A request ready (30 Oct).
+- **CI-049** month-ended lock guard — drafted, not authorised. **CI-048** health-check log/alerts — design only.
 
 ## 9. Legacy screen boundaries (checked in the repo on 27 Oct 2026; no code changed)
 | Screen element today | File | Server route it calls | Status | Use meanwhile? |
@@ -128,10 +130,12 @@ If the 1st produced nothing, the next **Monday** weekly pass adds the missed mon
 | **Cost period valuation** panel ("change valuation date") | `public/shared/js/costing-suite-cost-period-valuation.js` + `...-valuation-helpers.js` | `rpc_set_cost_period_valuation_date` | Works; moves only the legacy stored date (audited) | **Do not use.** It is no longer needed and does not change the official date |
 | Approve / finalise / lock / health buttons | — | — | **None exist** in the client today. No client file calls the closed three-argument routes | Use the database routes in the runbook, with the owner's approval |
 
-| Planned (Cursor, not built) | Flag (default OFF) | What changes |
+> **30 Oct 2026:** both rows below are now **built and merged** (PR #99, PR #100), flags OFF by default; the legacy rows above still describe behaviour while the flags are off. The table title is kept as written on 27 Oct.
+
+| Planned on 27 Oct (now shipped) | Flag (default OFF) | What changes |
 |---|---|---|
 | Approval screen: preview → approve / month-end finalise | `COSTING_APPROVAL_SCREEN_V1` | Calls `rpc_costing_preview_approval_impact` then `rpc_costing_approve_run_with_preview` / `rpc_costing_finalize_monthend_run_with_preview`; shows server labels |
-| Refresh with a date + date labels | `costingRecalcWithDateV1` | Refresh calls `rpc_costing_request_recalculation`; screens show "Official (approved) date" and "Latest draft date" from the status view; the stored date at most as a small legacy label |
+| Refresh with a date + date labels | `COSTING_RECALC_WITH_DATE_V1` | Refresh calls `rpc_costing_request_recalculation`; screens show "Official (approved) date" and "Latest draft date" from the status view; the stored date at most as a small legacy label |
 
 ## 10. Related documents
 [README_COSTING_SUITE.md](README_COSTING_SUITE.md) · [COSTING_OPERATIONS_RUNBOOK_CURRENT.md](COSTING_OPERATIONS_RUNBOOK_CURRENT.md) · [MONTH_END_APPROVAL_RUNBOOK.md](MONTH_END_APPROVAL_RUNBOOK.md) · [STATUS_AND_REMAINING_WORK.md](STATUS_AND_REMAINING_WORK.md) · [DECISION_LOG.md](DECISION_LOG.md) · [MIGRATION_HISTORY_RECONCILIATION.md](MIGRATION_HISTORY_RECONCILIATION.md) · [GRANT_AUDIT_2026-10-27.md](GRANT_AUDIT_2026-10-27.md) · historical: [runbooks/HISTORICAL_FIRST_GOVERNED_CLIENT_RUN_RUNBOOK_2026-10.md](runbooks/HISTORICAL_FIRST_GOVERNED_CLIENT_RUN_RUNBOOK_2026-10.md)

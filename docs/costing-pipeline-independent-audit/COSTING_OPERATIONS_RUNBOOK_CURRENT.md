@@ -2,7 +2,7 @@
 
 Checked against production read-only on 27 Oct 2026 (function definitions and signatures). Replaces the [historical first-governed-run runbook](runbooks/HISTORICAL_FIRST_GOVERNED_CLIENT_RUN_RUNBOOK_2026-10.md). Background: [COSTING_REDESIGN_V2_CURRENT_STATE.md](COSTING_REDESIGN_V2_CURRENT_STATE.md).
 
-> **Every step except the health check is a production action.** Refresh, preview, approve, finalise and lock each write to production and need the owner's explicit approval text first. Until the Cursor approval screen exists, approve / finalise / lock / recalculation can only be done through the database, inside the owner's own logged-in session (the server records who acted). Nothing here is to be run by an assistant without that approval.
+> **Every step except the health check is a production action.** Refresh, preview, approve, finalise and lock each write to production and need the owner's explicit approval text first. Approval/month-end finalise (PR #99, flag `COSTING_APPROVAL_SCREEN_V1`) and recalculation with a date (PR #100, flag `COSTING_RECALC_WITH_DATE_V1`) now have screens, both OFF by default and not yet walked through in production; lock has no screen yet (next Codex package). Until a screen is switched on and walked through, these actions are done inside the owner's own logged-in session (the server records who acted). Nothing here is to be run by an assistant without that approval.
 
 ## Order
 Refresh → Preview → Approve (or Month-end finalise) → Lock (only before a formal close) → Health check.
