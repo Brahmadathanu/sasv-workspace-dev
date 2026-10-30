@@ -639,7 +639,7 @@ assert.ok(routeConfig.includes('defaultLens: "dashboard"'));
 assert.ok(shellSrc.includes("costing-suite-readiness.js"));
 assert.ok(shellSrc.includes("isPortfolioReadinessLens"));
 assert.ok(htmlSrc.includes("readinessLensHost"));
-assert.ok(/hub-cache-v376/.test(sw));
+assert.ok(/hub-cache-v377/.test(sw));
 assert.ok(!/hub-cache-v342/.test(sw));
 assert.ok(/costing-suite-readiness/.test(sw));
 pass("registry/route/shell/html/sw integration markers");
@@ -903,7 +903,7 @@ pass("readiness scroll sentinel and keyset runtime preserved");
 
 assert.ok(registry.includes("portfolio-readiness"));
 assert.ok(routeConfig.includes("portfolio-readiness"));
-assert.ok(/hub-cache-v376/.test(sw));
+assert.ok(/hub-cache-v377/.test(sw));
 assert.ok(!/hub-cache-v342/.test(sw));
 pass("SW v362 and registry/route unchanged");
 

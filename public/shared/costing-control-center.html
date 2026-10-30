@@ -357,7 +357,8 @@
         line-height: 1.2;
         cursor: pointer;
         width: fit-content;
-        max-width: 100%;
+        max-width: min(100%, 220px);
+        overflow: hidden;
         white-space: nowrap;
       }
       .search-card .cpv-chip:hover,
@@ -371,10 +372,15 @@
         cursor: not-allowed;
       }
       .search-card .cpv-chip-label {
+        flex: 0 0 auto;
         color: var(--muted, #6b7280);
         font-weight: var(--cp-fw-label);
       }
       .search-card .cpv-chip-value {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         color: var(--text, #0f172a);
         font-weight: var(--cp-fw-emphasis);
       }

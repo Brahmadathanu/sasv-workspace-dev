@@ -2,7 +2,7 @@
 // Reads public.v_costing_pricing_period_run_status (one row per month). Pure helpers are exported for tests.
 // When COSTING_APPROVAL_SCREEN_V1 is ON, prefer server display_label_v2 / official & draft dates.
 
-import { isCostingApprovalScreenV1Enabled } from "./costing-feature-flags.js";
+import { isCostingApprovalScreenV1Enabled, isCostingRecalcWithDateV1Enabled } from "./costing-feature-flags.js";
 import { describeRunStatusForApprovalFlag } from "./costing-approval-labels.js";
 
 export const RUN_STATUS_VIEW = "v_costing_pricing_period_run_status";
@@ -93,7 +93,7 @@ export function createRunStatusBadge({ supabase, anchor, doc = globalThis.docume
 
   async function fetchRow(periodStart) {
     if (cache.has(periodStart)) return cache.get(periodStart);
-    const approvalOn = isCostingApprovalScreenV1Enabled();
+    const approvalOn = isCostingApprovalScreenV1Enabled() || isCostingRecalcWithDateV1Enabled();
     const { data, error } = await supabase
       .from(RUN_STATUS_VIEW)
       .select(approvalOn ? RUN_STATUS_SELECT_APPROVAL_V1 : RUN_STATUS_SELECT_V1)
@@ -105,7 +105,7 @@ export function createRunStatusBadge({ supabase, anchor, doc = globalThis.docume
     return data || null;
   }
 
-  async function refresh({ periodStart, lensId }) {
+  async function refresh({ periodStart, lensId, periodStatusRow }) {
     const node = ensureEl();
     if (!node) return;
     const my = ++generation;
@@ -114,7 +114,7 @@ export function createRunStatusBadge({ supabase, anchor, doc = globalThis.docume
       return;
     }
     try {
-      const row = await fetchRow(periodStart);
+      const row = periodStatusRow === undefined ? await fetchRow(periodStart) : periodStatusRow;
       if (my !== generation) return;
       const info = isCostingApprovalScreenV1Enabled()
         ? describeRunStatusForApprovalFlag(row)

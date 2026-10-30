@@ -5,6 +5,9 @@
  * severity precedence, portfolio totals, or writer invocation.
  */
 
+import { isCostingRecalcWithDateV1Enabled } from "./costing-feature-flags.js";
+import { periodDateLabels } from "./costing-recalculation.js";
+
 export const PORTFOLIO_READINESS_LENS_ID = "portfolio-readiness";
 export const READINESS_PAGE_LIMIT = 50;
 export const READINESS_PERIOD_LIMIT = 24;
@@ -652,6 +655,7 @@ function emptyMembershipGapStream() {
 export function createPortfolioReadinessController(deps = {}) {
   const {
     costingRpc,
+    getPeriodRunStatus = () => null,
     showToast,
     text: shellText,
     statusChip,
@@ -2068,7 +2072,9 @@ export function createPortfolioReadinessController(deps = {}) {
       kv("Product ID", text(ctx.product_id)),
       kv("SKU ID", text(ctx.sku_id)),
       kv("Period start", text(ctx.period_start)),
-      kv("Valuation date", text(ctx.valuation_date)),
+      ...(isCostingRecalcWithDateV1Enabled()
+        ? periodDateLabels(getPeriodRunStatus(ctx.period_start)).map(([label, value]) => kv(label, text(value)))
+        : [kv("Valuation date", text(ctx.valuation_date))]),
       kv("Context type", text(ctx.context_type)),
       kv("Integrity", text(ctx.context_integrity_status)),
       kv("Refresh run", text(ctx.refresh_run_id)),

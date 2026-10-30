@@ -2369,6 +2369,37 @@ body.sasv-costing-control-center .cp-readiness-gap-bound {
 .cas-modal-panel { width: min(960px, 100%); }
 .cas-approve-form { display: grid; gap: 10px; margin-top: 14px; }
 .cas-approve-form label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; }
+
+/* Native governed-recalculation dialog; inner surfaces reuse CCC modal classes. */
+#costingRecalculationDialog {
+  width: min(480px, calc(100vw - 28px));
+  max-width: 480px;
+  max-height: calc(100vh - 28px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text, #0f172a);
+  overflow: visible;
+}
+#costingRecalculationDialog::backdrop {
+  background: color-mix(in srgb, var(--sasv-text, #0f172a) 28%, transparent);
+}
+#costingRecalculationDialog .cost-sheet-sign-panel {
+  width: 100%;
+  max-height: calc(100vh - 28px);
+  display: flex;
+  flex-direction: column;
+}
+#costingRecalculationDialog .cost-sheet-sign-body {
+  overflow-y: auto;
+}
+#costingRecalculationDialog .sign-grid {
+  grid-template-columns: 1fr;
+}
+#costingRecalculationDialog .recalc-full-row {
+  grid-column: 1 / -1;
+  margin: 0;
+}
 .cas-stale-ack { display: flex !important; align-items: flex-start; gap: 8px; font-weight: 600; }
 .cas-block {
   border: 1px solid #e2e8f0;
