@@ -20,7 +20,15 @@ function check(ok, label) {
   else { failed++; console.error(`FAIL ${label}`); }
 }
 const oldDetails = details(original), newDetails = details(control);
-check(normalize(control.replace(newDetails, '')) === normalize(original.replace(oldDetails, '')), 'all control code outside renderDetails unchanged, including Esc/close, autosave, gate and worker');
+// UX-6.1 separately tests the intentional portal-text entry lock. Keep the
+// original UX-6 contract for every other part of the control file.
+const withoutPortalTextUi = (source) => {
+  const start = source.includes('function portalTextEntryLocked()')
+    ? source.indexOf('function portalTextEntryLocked()')
+    : source.indexOf('function portalTextBlockingReason()');
+  return source.slice(0, start) + source.slice(source.indexOf('function stageRow(', start));
+};
+check(normalize(withoutPortalTextUi(control.replace(newDetails, ''))) === normalize(withoutPortalTextUi(original.replace(oldDetails, ''))), 'all other control code unchanged, including Esc/close, autosave, gate and worker');
 check(normalize(read('public/shared/e-aushadhi-review-control.html')) === normalize(baseline('public/shared/e-aushadhi-review-control.html')), 'workspaceScroll, header, tabs and scroll structure unchanged');
 const tokens = (s, re) => JSON.stringify([...normalize(s).matchAll(re)].map((m) => m[0]).sort());
 check(tokens(newDetails, /\b(?:id|data-[\w-]+)="[^"]*"/g) === tokens(oldDetails, /\b(?:id|data-[\w-]+)="[^"]*"/g), 'all existing IDs and data attributes preserved');

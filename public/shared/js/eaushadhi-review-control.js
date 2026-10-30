@@ -758,7 +758,16 @@ function portalTextDirty(draft, row) {
   );
 }
 
+function portalTextEntryLocked() {
+  return ["ENTERED", "PORTAL_VERIFIED", "SUBMITTED"].includes(
+    normalizeEntryStatus(state.queueRow?.entry_status),
+  );
+}
+
 function portalTextBlockingReason() {
+  if (portalTextEntryLocked()) {
+    return "Locked: portal entry for this product is already done, so the portal text cannot be changed.";
+  }
   const draft = state.portalTextDraft;
   if (!draft) return "Portal text is unavailable for this product.";
   if (draft.rowVersion == null) {
@@ -776,6 +785,13 @@ function portalTextBlockingReason() {
 }
 
 function syncPortalTextUi() {
+  const locked = portalTextEntryLocked();
+  ["fldPortalDiseases", "fldPortalDiseasesReason"].forEach((id) => {
+    const field = $(id);
+    if (!field) return;
+    field.readOnly = locked;
+    field.setAttribute("aria-readonly", String(locked));
+  });
   const hint = portalTextBlockingReason();
   const ok = !hint && canWrite();
   ["btnVerifyPortalDiseases", "btnSavePortalDiseases"].forEach((id) => {
