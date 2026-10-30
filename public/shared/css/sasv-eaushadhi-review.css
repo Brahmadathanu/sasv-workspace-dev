@@ -738,6 +738,104 @@ body.sasv-eaushadhi-review .composition-action-bar {
   margin: 0 0 8px;
 }
 
+body.sasv-eaushadhi-review .composition-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+}
+
+body.sasv-eaushadhi-review .composition-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+body.sasv-eaushadhi-review .composition-table th,
+body.sasv-eaushadhi-review .composition-table td {
+  padding: 8px;
+  overflow-wrap: anywhere;
+  vertical-align: middle;
+}
+
+body.sasv-eaushadhi-review .composition-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-xs);
+  text-align: left;
+}
+
+body.sasv-eaushadhi-review .composition-table th:first-child,
+body.sasv-eaushadhi-review .composition-table td:first-child {
+  width: 54px;
+}
+
+body.sasv-eaushadhi-review .composition-table-row {
+  cursor: pointer;
+  border-top: 1px solid var(--sasv-divider);
+}
+
+body.sasv-eaushadhi-review .composition-table-row:hover,
+body.sasv-eaushadhi-review .composition-table-row:focus,
+body.sasv-eaushadhi-review .composition-table-row.is-focused {
+  outline: none;
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-eaushadhi-review .composition-table-row:focus-visible {
+  box-shadow: inset 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-eaushadhi-review .composition-table-row.is-verified {
+  background: var(--sasv-surface-soft);
+  box-shadow: inset 3px 0 0 var(--sasv-success);
+}
+
+body.sasv-eaushadhi-review .composition-table-row.is-verified:hover,
+body.sasv-eaushadhi-review .composition-table-row.is-verified:focus {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-eaushadhi-review .composition-table .line-ingredient,
+body.sasv-eaushadhi-review .composition-table .line-scientific {
+  display: block;
+}
+
+body.sasv-eaushadhi-review .composition-table .line-ingredient {
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-eaushadhi-review .composition-table .line-scientific {
+  margin-top: 2px;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-xs);
+  font-style: italic;
+}
+
+body.sasv-eaushadhi-review #compositionLineModalBackdrop {
+  z-index: var(--sasv-z-modal);
+}
+
+body.sasv-eaushadhi-review .composition-line-modal .line-card {
+  margin: 0;
+}
+
+body.sasv-eaushadhi-review .composition-line-modal-nav {
+  align-items: center;
+}
+
+body.sasv-eaushadhi-review #sourceResolveBackdrop:not([hidden]),
+body.sasv-eaushadhi-review #sourceCorrectBackdrop:not([hidden]),
+body.sasv-eaushadhi-review #reopenBackdrop:not([hidden]),
+body.sasv-eaushadhi-review #postEntryReconcileBackdrop:not([hidden]) {
+  z-index: calc(var(--sasv-z-modal) + 1);
+}
+
 body.sasv-eaushadhi-review .ea-autosave {
   font-size: var(--sasv-text-xs);
   font-weight: var(--sasv-fw-regular);
@@ -1467,6 +1565,9 @@ body.sasv-eaushadhi-review .action-vocab-item {
   body.sasv-eaushadhi-review .line-head {
     grid-template-columns: auto 1fr auto;
   }
+  body.sasv-eaushadhi-review .composition-col-mapping {
+    display: none;
+  }
 }
 
 @media (max-width: 960px) {
@@ -1508,6 +1609,17 @@ body.sasv-eaushadhi-review .action-vocab-item {
   }
   body.sasv-eaushadhi-review .issue-row {
     grid-template-columns: 1fr;
+  }
+  body.sasv-eaushadhi-review .composition-col-part,
+  body.sasv-eaushadhi-review .composition-col-quantity {
+    display: none;
+  }
+  body.sasv-eaushadhi-review .composition-table th,
+  body.sasv-eaushadhi-review .composition-table td {
+    padding: 7px 5px;
+  }
+  body.sasv-eaushadhi-review .composition-line-modal-nav {
+    justify-content: flex-start;
   }
   body.sasv-eaushadhi-review .portal-fields {
     grid-template-columns: 1fr;

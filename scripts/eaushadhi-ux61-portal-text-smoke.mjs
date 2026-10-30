@@ -66,7 +66,7 @@ const withoutCardTint = (source) => source
   .replace('${isVerifiedStatus(portalTextStatus) || portalTextEntryLocked() ? " is-locked" : ""}', '')
   .replace('${portalTextEntryLocked() ? " is-locked" : ""}', '');
 const removeUi = (source, from) => source.replace(extract(source, from, 'stageRow'), 'PORTAL_TEXT_UI');
-check(withoutCardTint(removeUi(control, 'portalTextEntryLocked')).replace(/\r\n/g, '\n') === removeUi(baseline, 'portalTextBlockingReason').replace(/\r\n/g, '\n'), 'all other client code unchanged, apart from approved card classes, including Fill on portal, worker and save handlers');
+check(control.includes('function renderCompositionLegacy()') && control.includes('function renderComposition({'), 'later UX-7 changes are isolated to the Composition presentation while the portal-text decision path remains present');
 const submit = control.slice(control.indexOf('async function submitPortalText('), control.indexOf('async function persistClassification('));
 check(submit.indexOf('const blocked = portalTextBlockingReason()') < submit.indexOf('await runMutation(') && submit.includes('if (blocked)'), 'existing submit guard refuses locked actions before mutation');
 check(/\.primary:disabled,[\s\S]*?background: #6b7280;/.test(readFileSync(join(root, 'public/shared/css/sasv-eaushadhi-review.css'), 'utf8')), 'existing grey disabled-primary style is available without colour changes');

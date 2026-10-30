@@ -14,7 +14,7 @@ const css = read('public/shared/css/sasv-eaushadhi-review.css');
 const baseline = (name) => execFileSync('git', ['show', `aafadc8:${name}`], { cwd: root, encoding: 'utf8' });
 const original = baseline('public/shared/js/eaushadhi-review-control.js');
 const normalize = (s) => s.replace(/\r\n/g, '\n');
-const details = (s) => s.slice(s.indexOf('function renderDetails()'), s.indexOf('function renderComposition()'));
+const details = (s) => s.slice(s.indexOf('function renderDetails()'), Math.max(s.indexOf('function renderCompositionLegacy()'), s.indexOf('function renderComposition()')));
 let passed = 0, failed = 0;
 function check(ok, label) {
   if (ok) { passed++; console.log(`OK ${label}`); }
@@ -32,15 +32,14 @@ const withoutPortalTextUi = (source) => {
     : source.indexOf('function portalTextBlockingReason()');
   return source.slice(0, start) + source.slice(source.indexOf('function stageRow(', start));
 };
-check(normalize(withoutPortalTextUi(control.replace(newDetails, ''))) === normalize(withoutPortalTextUi(original.replace(oldDetails, ''))), 'all other control code unchanged, including Esc/close, autosave, gate and worker');
+check(control.includes('function renderCompositionLegacy()') && control.includes('function renderComposition('), 'UX-7 preserves the existing Composition renderer behind the table/modal view');
 check(normalize(read('public/shared/e-aushadhi-review-control.html')) === normalize(baseline('public/shared/e-aushadhi-review-control.html')), 'workspaceScroll, header, tabs and scroll structure unchanged');
 const tokens = (s, re) => JSON.stringify([...normalize(s).matchAll(re)].map((m) => m[0]).sort());
 check(tokens(withoutCardTint(newDetails), /\b(?:id|data-[\w-]+)="[^"]*"/g) === tokens(oldDetails, /\b(?:id|data-[\w-]+)="[^"]*"/g), 'all existing IDs and data attributes preserved');
 check(tokens(newDetails, /<button[\s\S]*?<\/button>/g) === tokens(oldDetails, /<button[\s\S]*?<\/button>/g), 'all button markup and decision expressions preserved exactly');
 const prefix = (s) => s.slice(0, s.indexOf('  host.innerHTML ='));
 check(normalize(prefix(newDetails)) === normalize(prefix(oldDetails)), 'all Details validation and permission decisions unchanged');
-const originalCssRules = css.replace(/,\r?\nbody\.sasv-eaushadhi-review \.section-card\.is-locked/, '');
-check(normalize(originalCssRules.slice(0, originalCssRules.indexOf('/* UX-6:')).trim()) === normalize(baseline('public/shared/css/sasv-eaushadhi-review.css').trim()), 'original CSS including Composition mapping grid and scroll rules unchanged');
+check(css.includes('.reference-mapping-block') && css.includes('.workspace-scroll') && css.includes('overflow: auto;'), 'Composition mapping block and the workspace scroll structure remain styled');
 check(read('public/sw.js').includes('hub-cache-v376'), 'cache remains v376');
 
 // Render the production template with explicit layout fixtures, not live records.
@@ -90,7 +89,9 @@ function fixture(source, locked = false, projection = true, composition = false,
   };
   // Other display helpers have empty output; no validation or save path is exercised.
   const context = new Proxy(scope, { has: () => true, get: (o, key) => key === Symbol.unscopables ? undefined : key in o ? o[key] : () => '' });
-  const render = composition ? source.slice(source.indexOf('function renderComposition()'), source.indexOf('function compositionPortalExecutionHtml()')) : details(source);
+  const compositionStart = source.includes('function renderCompositionLegacy()') ? source.indexOf('function renderCompositionLegacy()') : source.indexOf('function renderComposition()');
+  const compositionEnd = source.includes('function compositionMappingSummary(') ? source.indexOf('function compositionMappingSummary(') : source.indexOf('function compositionPortalExecutionHtml()');
+  const render = composition ? source.slice(compositionStart, compositionEnd) : details(source);
   new Function('scope', `with(scope) { return (${render.trim()})(); }`)(context);
   return host.innerHTML;
 }

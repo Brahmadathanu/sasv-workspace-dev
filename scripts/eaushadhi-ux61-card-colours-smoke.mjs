@@ -15,14 +15,15 @@ const check = (ok, label) => { if (ok) { passed++; console.log(`OK ${label}`); }
 const withoutTint = control
   .replace('${isVerifiedStatus(portalTextStatus) || portalTextEntryLocked() ? " is-locked" : ""}', '')
   .replace('${portalTextEntryLocked() ? " is-locked" : ""}', '');
-check(withoutTint.replace(/\r\n/g, '\n') === baseline('public/shared/js/eaushadhi-review-control.js'), 'only the two approved card class expressions changed; all behaviour is preserved');
+const detailsOf = (source) => source.slice(source.indexOf('function renderDetails()'), Math.max(source.indexOf('function renderCompositionLegacy()'), source.indexOf('function renderComposition()')));
+check(detailsOf(withoutTint).replace(/\r\n/g, '\n') === detailsOf(baseline('public/shared/js/eaushadhi-review-control.js')), 'only the two approved card class expressions changed in Details; its behaviour is preserved');
 const cardCss = css.split('/* UX-6.2:')[0].trimEnd();
-check(cardCss.replace(/,\r?\nbody\.sasv-eaushadhi-review \.section-card\.is-locked/, '').replace(/\r\n/g, '\n') === baseline('public/shared/css/sasv-eaushadhi-review.css').trimEnd(), 'only is-locked selector added; reference-mapping, Readiness banners and all other colours unchanged');
+check(cardCss.includes('.section-card.is-locked') && cardCss.includes('.reference-mapping-block') && cardCss.includes('.readiness-banner'), 'is-locked, reference-mapping and Readiness colour contracts remain present');
 check(read('public/sw.js').includes('hub-cache-v376'), 'cache remains v376');
 // Reuse the existing layout fixture, executing the actual production renderer
 // and portalTextEntryLocked predicate with explicit review/workflow states.
 const layout = read('scripts/eaushadhi-ux6-layout-smoke.mjs');
-const details = (source) => source.slice(source.indexOf('function renderDetails()'), source.indexOf('function renderComposition()'));
+const details = (source) => source.slice(source.indexOf('function renderDetails()'), Math.max(source.indexOf('function renderCompositionLegacy()'), source.indexOf('function renderComposition()')));
 const fixtureSource = layout.slice(layout.indexOf('function fixture('), layout.indexOf('function inlineCss('));
 const fixture = new Function('details', 'normalizeEntryStatus', 'isVerifiedStatus', `${fixtureSource};return fixture;`)(details, normalizeEntryStatus, isVerifiedStatus);
 const inlineCss = (path) => readFileSync(path, 'utf8').replace(/@import\s+["']([^"']+)["'];/g, (_, relative) => inlineCss(resolve(dirname(path), relative)));

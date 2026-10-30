@@ -293,7 +293,13 @@ const state = {
     search: "",
     reviewLens: "all",
     attention: "all",
+    renderedCount: QUEUE_RENDER_CHUNK,
+    focusedLineId: null,
   },
+  compositionModalLineId: null,
+  compositionModalReturnFocusId: null,
+  compositionModalOrder: [],
+  compositionLineHtml: new Map(),
   catalogs: {
     portalOptions: {
       INGREDIENT_TYPE: [],
@@ -1902,7 +1908,7 @@ function renderDetails() {
   applyPermissionUi();
 }
 
-function renderComposition() {
+function renderCompositionLegacy() {
   const host = $("tab-composition");
   const filtered = filterCompositionLines(state.lines, state.issues, state.compositionView);
   const executionPanel = compositionPortalExecutionHtml();
@@ -2087,6 +2093,115 @@ function renderComposition() {
     })
     .join("");
   applyPermissionUi();
+}
+
+function compositionMappingSummary(row, lineId) {
+  const draft = state.lineDrafts.get(String(lineId)) || lineDraftFromRow(row);
+  if (!lineSelectionsComplete(draft)) return { label: "Needs mapping", tone: "warning" };
+  if (row?.referenceMapping?.reference_ready !== true) {
+    return { label: "Reference pending", tone: "warning" };
+  }
+  return { label: "Mapping complete", tone: "neutral" };
+}
+
+function compositionFilteredLines() {
+  return filterCompositionLines(state.lines, state.issues, state.compositionView);
+}
+
+function compositionTableRowHtml(row) {
+  const id = optionId(row.source_composition_line_id);
+  const issues = issuesForLine(state.issues, id);
+  const top = issues.slice().sort((a, b) => severityRank(b.severity) - severityRank(a.severity))[0];
+  const mapping = compositionMappingSummary(row, id);
+  const ingredient = sourceFieldDisplay(row.raw_ingredient_name);
+  const scientific = safeText(row.raw_scientific_name);
+  const quantity = formatRawQuantityDisplay(row.raw_quantity_text, row.raw_unit_text) || "-";
+  const attention = top
+    ? chip(severityRank(top.severity) >= 2 ? "danger" : "warning", severityLabel(top.severity))
+    : chip("neutral", "Clear");
+  return `<tr class="composition-table-row${isVerifiedStatus(row.review_status) ? " is-verified" : ""}" data-line-id="${escapeHtml(id)}" tabindex="-1" aria-haspopup="dialog" aria-label="Open line ${escapeHtml(displayText(row.source_row_no))}: ${escapeHtml(ingredient)}">
+    <td class="composition-col-line">${escapeHtml(displayText(row.source_row_no))}</td>
+    <td class="composition-col-ingredient"><span class="line-ingredient">${escapeHtml(ingredient)}</span>${scientific ? `<span class="line-scientific">${escapeHtml(scientific)}</span>` : ""}</td>
+    <td class="composition-col-part">${escapeHtml(sourceFieldDisplay(row.raw_part_used))}</td>
+    <td class="composition-col-quantity">${escapeHtml(quantity)}</td>
+    <td class="composition-col-mapping">${chip(mapping.tone, mapping.label)}</td>
+    <td class="composition-col-review">${chip(reviewStatusChipClass(row.review_status), displayText(row.review_status, "PENDING"))}</td>
+    <td class="composition-col-attention">${attention}</td>
+  </tr>`;
+}
+
+function visibleCompositionRows() {
+  return Array.from(document.querySelectorAll("#compositionTableBody tr[data-line-id]"));
+}
+
+function applyCompositionRowRoving() {
+  const rows = visibleCompositionRows();
+  if (!rows.length) return null;
+  const wanted = String(state.compositionView.focusedLineId || "");
+  const active = rows.find((row) => String(row.dataset.lineId) === wanted) || rows[0];
+  rows.forEach((row) => {
+    row.tabIndex = row === active ? 0 : -1;
+    row.classList.toggle("is-focused", row === active);
+  });
+  state.compositionView.focusedLineId = active.dataset.lineId;
+  return active;
+}
+
+function focusCompositionRow(lineId, { scroll = true } = {}) {
+  if (lineId != null) state.compositionView.focusedLineId = String(lineId);
+  const filtered = compositionFilteredLines();
+  const index = filtered.findIndex((row) => idsEqual(row.source_composition_line_id, lineId));
+  if (index >= state.compositionView.renderedCount) {
+    state.compositionView.renderedCount = Math.ceil((index + 1) / QUEUE_RENDER_CHUNK) * QUEUE_RENDER_CHUNK;
+    renderComposition();
+  }
+  const active = applyCompositionRowRoving();
+  active?.focus();
+  if (scroll) active?.scrollIntoView({ block: "nearest" });
+  return active;
+}
+
+function renderComposition({ resetChunk = false, preserveModal = true } = {}) {
+  const host = $("tab-composition");
+  if (!host) return;
+  const modalLineId = preserveModal ? state.compositionModalLineId : null;
+  const activeView = state.compositionView;
+  state.compositionView = { ...activeView, search: "", reviewLens: "all", attention: "all" };
+  renderCompositionLegacy();
+  state.compositionLineHtml = new Map(
+    Array.from(host.querySelectorAll(".line-card[data-line-id]")).map((card) => [String(card.dataset.lineId), card.outerHTML]),
+  );
+  const execution = host.querySelector(".composition-portal-execution")?.outerHTML || "";
+  state.compositionView = activeView;
+  const filtered = compositionFilteredLines();
+  if (resetChunk) state.compositionView.renderedCount = resetQueueRenderCount(filtered.length);
+  if (!filtered.length) {
+    if (!state.lines.length) return;
+    host.innerHTML = `${execution}<div class="section-card empty-state"><p>No ingredient lines match the current composition filters.</p><button type="button" class="icon-btn with-label" id="btnClearCompositionFilters">Clear filters</button></div>`;
+    if (modalLineId) refreshCompositionLineModal(modalLineId);
+    return;
+  }
+  if (!state.compositionView.renderedCount) {
+    state.compositionView.renderedCount = resetQueueRenderCount(filtered.length);
+  }
+  const shown = filtered.slice(0, state.compositionView.renderedCount);
+  host.innerHTML = `${execution}<div class="composition-table-wrap">
+    <table class="data-table composition-table" aria-label="Composition ingredients">
+      <thead><tr><th>Line</th><th>Ingredient</th><th class="composition-col-part">Part used</th><th class="composition-col-quantity">Quantity</th><th class="composition-col-mapping">Mapping</th><th>Review</th><th>Attention</th></tr></thead>
+      <tbody id="compositionTableBody">${shown.map((row) => compositionTableRowHtml(row)).join("")}</tbody>
+    </table>
+  </div>`;
+  applyCompositionRowRoving();
+  if (modalLineId) refreshCompositionLineModal(modalLineId);
+}
+
+function appendCompositionChunk() {
+  const filtered = compositionFilteredLines();
+  const next = nextQueueRenderCount(state.compositionView.renderedCount, filtered.length);
+  if (next === state.compositionView.renderedCount) return false;
+  state.compositionView.renderedCount = next;
+  renderComposition();
+  return true;
 }
 
 function compositionPortalExecutionHtml() {
@@ -8908,6 +9023,149 @@ function openWorklistModal(productId) {
   dialog.focus();
 }
 
+function compositionModalFilteredIds() {
+  const available = new Set(state.lines.map((row) => String(row.source_composition_line_id)));
+  const retained = state.compositionModalOrder.filter((id) => available.has(String(id)));
+  return retained.length ? retained : compositionFilteredLines().map((row) => String(row.source_composition_line_id));
+}
+
+function compositionModalNavigation(lineId) {
+  const ids = compositionModalFilteredIds();
+  const index = ids.indexOf(String(lineId));
+  const nextReview = ids.slice(Math.max(0, index + 1)).find((id) => {
+    const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, id));
+    return row && !isVerifiedStatus(row.review_status);
+  }) || null;
+  return {
+    previous: index > 0 ? ids[index - 1] : null,
+    next: index >= 0 && index < ids.length - 1 ? ids[index + 1] : null,
+    nextReview,
+  };
+}
+
+function refreshCompositionLineModal(lineId, { focus = false, focusNext = false } = {}) {
+  const id = String(lineId || state.compositionModalLineId || "");
+  const dialog = $("compositionLineModalDialog");
+  const body = $("compositionLineModalBody");
+  const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, id));
+  const html = state.compositionLineHtml.get(id);
+  if (!dialog || !body || !row || !html) {
+    if (dialog) closeCompositionLineModalNow({ restoreFocus: true });
+    return false;
+  }
+  state.compositionModalLineId = id;
+  $("compositionLineModalTitle").textContent = `Line ${displayText(row.source_row_no)} - ${sourceFieldDisplay(row.raw_ingredient_name)}`;
+  body.innerHTML = html;
+  const nav = compositionModalNavigation(id);
+  const previous = $("compositionLineModalPrevious");
+  const next = $("compositionLineModalNext");
+  const nextReview = $("compositionLineModalNextReview");
+  previous.disabled = !nav.previous;
+  previous.dataset.targetLineId = nav.previous || "";
+  next.disabled = !nav.next;
+  next.dataset.targetLineId = nav.next || "";
+  nextReview.disabled = !nav.nextReview;
+  nextReview.dataset.targetLineId = nav.nextReview || "";
+  applyPermissionUi();
+  syncLineVerifyUi(id);
+  if (focusNext) requestAnimationFrame(() => next.focus());
+  else if (focus) requestAnimationFrame(() => dialog.focus());
+  return true;
+}
+
+function closeCompositionLineModalNow({ restoreFocus = true } = {}) {
+  const returnId = state.compositionModalReturnFocusId || state.compositionModalLineId;
+  $("compositionLineModalBackdrop")?.remove();
+  state.compositionModalLineId = null;
+  state.compositionModalReturnFocusId = null;
+  state.compositionModalOrder = [];
+  if (restoreFocus && returnId) focusCompositionRow(returnId);
+}
+
+async function settleCompositionModalLine(lineId) {
+  const id = String(lineId || "");
+  if (!id) return true;
+  if (flushDebounced(autosaveTimers, `line:${id}`)) await autosaveLine(id);
+  await waitLineIdle(id);
+  const draft = state.lineDrafts.get(id);
+  const baseline = state.lineBaselines.get(id);
+  if (!lineDirty(draft, baseline)) return true;
+  const leave = await openQcConfirm({
+    title: "Unsaved review edits",
+    message: "You have unsaved review edits. Discard them?",
+    okLabel: "Leave without saving",
+    cancelLabel: "Stay",
+    returnFocus: $("compositionLineModalDialog"),
+    idPrefix: "leaveCompositionLineConfirm",
+  });
+  if (!leave) return false;
+  if (baseline) state.lineDrafts.set(id, { ...baseline });
+  return true;
+}
+
+async function requestCloseCompositionLineModal() {
+  const id = state.compositionModalLineId;
+  if (!(await settleCompositionModalLine(id))) return false;
+  closeCompositionLineModalNow({ restoreFocus: true });
+  renderComposition();
+  return true;
+}
+
+async function navigateCompositionLineModal(targetLineId) {
+  const current = state.compositionModalLineId;
+  if (!targetLineId || !(await settleCompositionModalLine(current))) return false;
+  state.compositionModalReturnFocusId = String(targetLineId);
+  return refreshCompositionLineModal(String(targetLineId), { focus: true });
+}
+
+function openCompositionLineModal(lineId, returnFocus) {
+  const id = String(lineId || "");
+  if (!state.compositionLineHtml.has(id)) return;
+  if ($("compositionLineModalBackdrop")) {
+    refreshCompositionLineModal(id, { focus: true });
+    return;
+  }
+  state.compositionModalLineId = id;
+  state.compositionModalReturnFocusId = String(returnFocus?.dataset?.lineId || id);
+  state.compositionModalOrder = compositionFilteredLines().map((row) => String(row.source_composition_line_id));
+  const backdrop = document.createElement("div");
+  backdrop.id = "compositionLineModalBackdrop";
+  backdrop.className = "sasv-modal-backdrop";
+  const dialog = document.createElement("div");
+  dialog.id = "compositionLineModalDialog";
+  dialog.className = "sasv-modal sasv-modal--lg composition-line-modal";
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  dialog.setAttribute("aria-labelledby", "compositionLineModalTitle");
+  dialog.tabIndex = -1;
+  dialog.innerHTML = `<div class="sasv-modal__header"><h2 id="compositionLineModalTitle" class="sasv-modal__title"></h2><button type="button" id="compositionLineModalClose" class="sasv-modal__close" aria-label="Close">&times;</button></div>
+    <div id="compositionLineModalBody" class="sasv-modal__body"></div>
+    <div class="sasv-modal__footer composition-line-modal-nav">
+      <button type="button" id="compositionLineModalPrevious" class="icon-btn with-label">Previous</button>
+      <button type="button" id="compositionLineModalNext" class="icon-btn with-label">Next</button>
+      <button type="button" id="compositionLineModalNextReview" class="icon-btn with-label">Next line needing review</button>
+      <button type="button" id="compositionLineModalDone" class="icon-btn with-label">Close</button>
+    </div>`;
+  backdrop.append(dialog);
+  document.body.append(backdrop);
+  backdrop.addEventListener("click", (event) => {
+    if (event.target === backdrop) void requestCloseCompositionLineModal();
+  });
+  $("compositionLineModalClose").addEventListener("click", () => void requestCloseCompositionLineModal());
+  $("compositionLineModalDone").addEventListener("click", () => void requestCloseCompositionLineModal());
+  ["compositionLineModalPrevious", "compositionLineModalNext", "compositionLineModalNextReview"].forEach((buttonId) => {
+    $(buttonId).addEventListener("click", (event) => {
+      const target = event.currentTarget.dataset.targetLineId;
+      if (target) void navigateCompositionLineModal(target);
+    });
+  });
+  $("compositionLineModalBody").addEventListener("change", handleCompositionLineChange);
+  $("compositionLineModalBody").addEventListener("input", handleCompositionLineInput);
+  $("compositionLineModalBody").addEventListener("focusout", handleCompositionLineFocusout);
+  $("compositionLineModalBody").addEventListener("click", handleCompositionLineClick);
+  refreshCompositionLineModal(id, { focus: true });
+}
+
 async function loadMyRoles() {
   try {
     const roles = await fetchMyRoles();
@@ -9012,13 +9270,19 @@ function selectWorkflowTab(next, { focusTab = false } = {}) {
 
 function applyCompositionFilterChange() {
   renderCompositionFilterLenses();
-  renderComposition();
+  renderComposition({ resetChunk: true });
   const scroll = $("workspaceScroll");
   if (scroll) scroll.scrollTop = 0;
 }
 
 function clearCompositionFilters() {
-  state.compositionView = { search: "", reviewLens: "all", attention: "all" };
+  state.compositionView = {
+    search: "",
+    reviewLens: "all",
+    attention: "all",
+    renderedCount: QUEUE_RENDER_CHUNK,
+    focusedLineId: null,
+  };
   applyCompositionFilterChange();
 }
 
@@ -9219,7 +9483,13 @@ async function openProduct(productId, returnFocus = null) {
   saveQueueScroll();
   state.queueView.focusedProductId = productId;
   state.queueView.openedProductId = productId;
-  state.compositionView = { search: "", reviewLens: "all", attention: "all" };
+  state.compositionView = {
+    search: "",
+    reviewLens: "all",
+    attention: "all",
+    renderedCount: QUEUE_RENDER_CHUNK,
+    focusedLineId: null,
+  };
   const gen = ++state.loadGen;
   state.busy = true;
   setStatus("Loading product review workspace...");
@@ -9301,18 +9571,14 @@ async function reloadSelected({
       if (scroll != null && $("workspaceScroll")) {
         $("workspaceScroll").scrollTop = scroll;
       }
-      const correctBtn = focusLineId
-        ? document.getElementById(`btn-correct-${focusLineId}`)
-        : null;
-      const resolveBtn = focusLineId
-        ? document.getElementById(`btn-resolve-${focusLineId}`)
-        : null;
-      const reconcileBtn = focusLineId
-        ? document.getElementById(`btn-reconcile-${focusLineId}`)
-        : null;
-      const card = focusLineId
-        ? document.querySelector(`.line-card[data-line-id="${focusLineId}"]`)
-        : null;
+      if (!focusLineId) return;
+      const tableRow = focusCompositionRow(focusLineId, { scroll: true });
+      if (!$("compositionLineModalBackdrop")) openCompositionLineModal(focusLineId, tableRow);
+      else refreshCompositionLineModal(focusLineId);
+      const correctBtn = document.getElementById(`btn-correct-${focusLineId}`);
+      const resolveBtn = document.getElementById(`btn-resolve-${focusLineId}`);
+      const reconcileBtn = document.getElementById(`btn-reconcile-${focusLineId}`);
+      const card = document.querySelector(`.line-card[data-line-id="${focusLineId}"]`);
       const preferred =
         focusControl === "correct"
           ? correctBtn
@@ -9321,7 +9587,7 @@ async function reloadSelected({
             : focusControl === "reconcile"
               ? reconcileBtn
               : resolveBtn || correctBtn;
-      (preferred || card?.querySelector("select") || card)?.focus?.();
+      (preferred || card?.querySelector("select") || $("compositionLineModalDialog"))?.focus?.();
     });
   }
 }
@@ -10104,6 +10370,7 @@ async function submitLine(lineId, verify) {
     await persistLine(lineId, true);
     showToast("Line approved.", "success");
     await reloadSelected({ preserveDrafts: true, restoreComposition: true, focusLineId: lineId });
+    refreshCompositionLineModal(lineId, { focusNext: true });
   });
 }
 
@@ -10437,10 +10704,6 @@ async function submitReopen() {
       focusLineId: kind === "line" ? lineId : null,
       focusControl: kind === "line" ? "correct" : null,
     });
-    if (kind === "line") {
-      document.getElementById(`btn-reopen-${lineId}`)?.blur();
-      document.querySelector(`.line-card[data-line-id="${lineId}"] select`)?.focus();
-    }
   });
 }
 
@@ -10803,6 +11066,83 @@ async function openCurrentCopy() {
 function applyQueueFilterChange() {
   renderLenses();
   renderQueue({ resetChunk: true });
+}
+
+function handleCompositionLineChange(event) {
+  const el = event.target;
+  const lineId = el.dataset.lineId;
+  const key = el.dataset.draftKey;
+  if (!lineId || !key) return false;
+  const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
+  const draft = state.lineDrafts.get(String(lineId));
+  if (!draft) return true;
+  if (!row || isVerifiedStatus(row.review_status)) {
+    el.value = key === "reviewNotes" ? normalizeReviewNotesForDisplay(draft.reviewNotes || "") : draft[key] || "";
+    return true;
+  }
+  draft[key] = key === "reviewNotes" ? el.value : optionId(el.value);
+  const spec = portalFieldSpecs().find((item) => item.draftKey === key);
+  if (row && spec) {
+    const chipEl = document.querySelector(`[data-prov-for="${lineId}-${key}"]`);
+    if (chipEl) {
+      const provenance = resolveFieldProvenance({
+        reviewStatus: row.review_status,
+        selectedId: draft[key],
+        suggestedId: row[spec.suggestedKey],
+        suggestionBasis: row.suggestion_basis,
+        fieldKey: SUGGESTION_FIELD_KEYS[spec.domain],
+      });
+      chipEl.dataset.provenance = provenance;
+      chipEl.textContent = provenanceLabel(provenance);
+    }
+  }
+  if (key !== "reviewNotes") queueLineAutosave(lineId, true);
+  syncLineVerifyUi(lineId);
+  return true;
+}
+
+function handleCompositionLineInput(event) {
+  const el = event.target;
+  if (el.dataset.draftKey !== "reviewNotes") return false;
+  const lineId = el.dataset.lineId;
+  const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
+  const draft = state.lineDrafts.get(String(lineId));
+  if (!row || isVerifiedStatus(row.review_status)) {
+    if (draft) el.value = normalizeReviewNotesForDisplay(draft.reviewNotes || "");
+    return true;
+  }
+  if (draft) draft.reviewNotes = el.value;
+  queueLineAutosave(lineId, false);
+  syncLineSaveReviewUi(lineId);
+  return true;
+}
+
+function handleCompositionLineFocusout(event) {
+  const el = event.target;
+  if (el.dataset.draftKey !== "reviewNotes") return false;
+  const lineId = el.dataset.lineId;
+  const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
+  if (!row || isVerifiedStatus(row.review_status)) return true;
+  flushDebounced(autosaveTimers, `line:${lineId}`);
+  void autosaveLine(lineId).then(() => syncLineSaveReviewUi(lineId));
+  return true;
+}
+
+function handleCompositionLineClick(event) {
+  const saveReview = event.target.closest("[data-line-save]");
+  const verify = event.target.closest("[data-line-verify]");
+  const resolve = event.target.closest("[data-source-resolve]");
+  const correct = event.target.closest("[data-source-correct]");
+  const reopen = event.target.closest("[data-line-reopen]");
+  const reconcile = event.target.closest("[data-line-reconcile]");
+  if (!(saveReview || verify || resolve || correct || reopen || reconcile)) return false;
+  if (saveReview) void submitLine(saveReview.dataset.lineSave, false);
+  else if (verify) void submitLine(verify.dataset.lineVerify, true);
+  else if (resolve) openSourceResolve(resolve.dataset.sourceResolve, resolve);
+  else if (correct) openSourceCorrect(correct.dataset.sourceCorrect, correct);
+  else if (reopen) openReopen("line", reopen, reopen.dataset.lineReopen);
+  else if (reconcile) openPostEntryReconcile(reconcile.dataset.lineReconcile, reconcile);
+  return true;
 }
 
 function wireEvents() {
@@ -11179,6 +11519,16 @@ function wireEvents() {
       onActivate: (btn) => selectWorkflowTab(btn.dataset.tab, { focusTab: true }),
     });
   });
+  $("workspaceScroll")?.addEventListener("scroll", () => {
+    if (state.tab !== "composition") return;
+    const scroll = $("workspaceScroll");
+    if (!scroll || !shouldAppendQueueChunk({
+      scrollTop: scroll.scrollTop,
+      clientHeight: scroll.clientHeight,
+      scrollHeight: scroll.scrollHeight,
+    })) return;
+    appendCompositionChunk();
+  }, { passive: true });
 
   $("compositionSearch")?.addEventListener("input", (event) => {
     const value = event.target.value || "";
@@ -11386,6 +11736,7 @@ function wireEvents() {
   $("btnVerifyReviewedLines")?.addEventListener("click", openVerifyReviewed);
 
   $("tab-composition")?.addEventListener("change", (event) => {
+    if (handleCompositionLineChange(event)) return;
     const el = event.target;
     const lineId = el.dataset.lineId;
     const key = el.dataset.draftKey;
@@ -11420,6 +11771,7 @@ function wireEvents() {
     syncLineVerifyUi(lineId);
   });
   $("tab-composition")?.addEventListener("input", (event) => {
+    if (handleCompositionLineInput(event)) return;
     const el = event.target;
     if (el.dataset.draftKey !== "reviewNotes") return;
     const lineId = el.dataset.lineId;
@@ -11434,6 +11786,7 @@ function wireEvents() {
     syncLineSaveReviewUi(lineId);
   });
   $("tab-composition")?.addEventListener("focusout", (event) => {
+    if (handleCompositionLineFocusout(event)) return;
     const el = event.target;
     if (el.dataset.draftKey !== "reviewNotes") return;
     const lineId = el.dataset.lineId;
@@ -11443,6 +11796,13 @@ function wireEvents() {
     void autosaveLine(lineId).then(() => syncLineSaveReviewUi(lineId));
   });
   $("tab-composition")?.addEventListener("click", (event) => {
+    const tableRow = event.target.closest("tr.composition-table-row[data-line-id]");
+    if (tableRow) {
+      state.compositionView.focusedLineId = tableRow.dataset.lineId;
+      applyCompositionRowRoving();
+      openCompositionLineModal(tableRow.dataset.lineId, tableRow);
+      return;
+    }
     if (event.target.id === "btnWorkerCompositionPreview") {
       void submitWorkerCompositionPreview();
       return;
@@ -11460,6 +11820,7 @@ function wireEvents() {
       clearCompositionFilters();
       return;
     }
+    if (handleCompositionLineClick(event)) return;
     const saveReview = event.target.closest("[data-line-save]");
     const verify = event.target.closest("[data-line-verify]");
     const resolve = event.target.closest("[data-source-resolve]");
@@ -11472,6 +11833,23 @@ function wireEvents() {
     if (correct) openSourceCorrect(correct.dataset.sourceCorrect, correct);
     if (reopen) openReopen("line", reopen, reopen.dataset.lineReopen);
     if (reconcile) openPostEntryReconcile(reconcile.dataset.lineReconcile, reconcile);
+  });
+  $("tab-composition")?.addEventListener("keydown", (event) => {
+    if (isEditableKeyboardTarget(event.target)) return;
+    const row = event.target.closest("tr.composition-table-row[data-line-id]");
+    if (!row) return;
+    const rows = visibleCompositionRows();
+    const current = rows.indexOf(row);
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openCompositionLineModal(row.dataset.lineId, row);
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const nextIndex = nextRovingIndex(current, rows.length, event.key, { wrap: false });
+      if (rows[nextIndex]) focusCompositionRow(rows[nextIndex].dataset.lineId);
+    }
   });
 
   $("tab-actions")?.addEventListener("click", (event) => {
@@ -11875,6 +12253,17 @@ function wireEvents() {
         return;
       }
       trapModalTab(event, "postEntryReconcileDialog");
+      return;
+    }
+    if (openQcConfirm.showing === true) return;
+    if (state.compositionModalLineId && $("compositionLineModalDialog")) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        void requestCloseCompositionLineModal();
+        return;
+      }
+      trapModalTab(event, "compositionLineModalDialog");
       return;
     }
     if (state.verifyReviewed.open) {
