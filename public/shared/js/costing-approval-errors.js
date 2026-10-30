@@ -248,6 +248,86 @@ export function mapCostingApprovalError(rawMessage) {
   };
 }
 
+const LOCK_ERROR_TITLES = Object.freeze({
+  W2_AUTH_REQUIRED: "Please sign in again.",
+  W2_OWNER_ONLY: "Only the costing owner can lock a month.",
+  W2_REASON_REQUIRED: "Please give a reason (at least 10 characters).",
+  W2_APPROVAL_REFERENCE_REQUIRED: "Please give an approval reference.",
+  W2_PERIOD_NOT_FOUND: "This month does not exist in costing.",
+  W2_LOCK_REQUIRES_APPROVED_RUN:
+    "This month has no approved run, so it cannot be locked.",
+  W2_ACTIVE_RUN:
+    "A run is queued or running for this month. Try again after it finishes.",
+  W2_PERIOD_NOT_FINISHED:
+    "This month has not ended yet, so it cannot be locked.",
+  MONTHEND_PERIOD_NOT_FINISHED:
+    "This month has not ended yet, so it cannot be locked.",
+  W2_BATCH_NULL_ARRAY: "Choose at least one month.",
+  W2_BATCH_EMPTY: "Choose at least one month.",
+  W2_BATCH_NULL_ELEMENT: "Choose at least one month.",
+  W2_BATCH_UNKNOWN_MONTH: "One or more months do not exist in costing.",
+});
+
+const LOCK_ERROR_TITLES_WITH_DETAIL = Object.freeze({
+  W2_LOCK_REQUIRES_OPEN:
+    "This month is not open (it is already locked or closed).",
+  W2_FINGERPRINT_DRIFT:
+    "The approved run's data no longer matches its fingerprint. Do not lock; tell the costing assistant.",
+  W2_BATCH_DUPLICATE_MONTH: "A month is listed twice.",
+  W2_BATCH_NOT_FIRST_OF_MONTH:
+    "Months must be given as the first day of the month.",
+  W2_BATCH_MIXED_QUARTER: "Lock one calendar quarter at a time.",
+});
+
+export function mapCostingLockError(rawMessage) {
+  const message = String(rawMessage?.message || rawMessage || "");
+  const line = firstLine(message);
+
+  // This server text contains a colon inside the module name, so it must be
+  // recognized before extracting a CODE prefix.
+  if (
+    line.startsWith(
+      "Permission denied for module:costing-control-center (edit=true)",
+    )
+  ) {
+    return {
+      kind: "permission",
+      title: "You do not have costing permission.",
+      detail: line,
+      action: null,
+    };
+  }
+
+  if (line === "Not authenticated") {
+    return {
+      kind: "auth",
+      title: "Please sign in again.",
+      detail: line,
+      action: null,
+    };
+  }
+
+  // A few lock refusals are emitted without a colon. In that case the whole
+  // first line is the code; otherwise the text before the first colon is it.
+  const colon = line.indexOf(":");
+  const code = colon < 0 ? line : line.slice(0, colon).trim();
+  const title = LOCK_ERROR_TITLES[code];
+  if (title) {
+    return { kind: code, title, detail: line, action: null };
+  }
+  const detailedTitle = LOCK_ERROR_TITLES_WITH_DETAIL[code];
+  if (detailedTitle) {
+    return { kind: code, title: detailedTitle, detail: line, action: null };
+  }
+
+  return {
+    kind: "unknown",
+    title: "The server refused:",
+    detail: line || "Unknown refusal.",
+    action: null,
+  };
+}
+
 export function formatMappedErrorForDisplay(mapped) {
   if (!mapped) return "";
   if (!mapped.detail || mapped.detail === mapped.title) return mapped.title;

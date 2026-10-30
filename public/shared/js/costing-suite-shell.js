@@ -60,8 +60,9 @@ import {
   isPortfolioReadinessLens,
 } from "./costing-suite-readiness.js";
 import { createCostPeriodValuationController } from "./costing-suite-cost-period-valuation.js";
-import { isCostingApprovalScreenV1Enabled, isCostingRecalcWithDateV1Enabled } from "./costing-feature-flags.js";
+import { isCostingApprovalScreenV1Enabled, isCostingLockScreenV1Enabled, isCostingRecalcWithDateV1Enabled } from "./costing-feature-flags.js";
 import { createCostingApprovalScreenController } from "./costing-approval-screen.js";
+import { createCostingLockScreenController } from "./costing-lock-screen.js";
 import {
   createQcActionQueueController,
   isQcActionQueueLens,
@@ -9025,15 +9026,27 @@ const costingApprovalScreenCtrl = isCostingApprovalScreenV1Enabled()
     })
   : null;
 
+const costingLockScreenCtrl = isCostingLockScreenV1Enabled()
+  ? createCostingLockScreenController({
+      supabase,
+      costingRpc,
+      showToast,
+      isControlCenterRoute: () =>
+        ACTIVE_ROUTE_CONFIG?.moduleKey === "costing-control-center",
+    })
+  : null;
+
 async function reloadCostPeriodValuationIfNeeded() {
   if (ACTIVE_ROUTE_CONFIG?.moduleKey !== "costing-control-center") {
     costPeriodValuationCtrl.onRouteExit?.();
     costingApprovalScreenCtrl?.onRouteExit?.();
+    costingLockScreenCtrl?.onRouteExit?.();
     return;
   }
   if (PERM_CAN_VIEW !== true) {
     costPeriodValuationCtrl.onRouteExit?.();
     costingApprovalScreenCtrl?.onRouteExit?.();
+    costingLockScreenCtrl?.onRouteExit?.();
     return;
   }
   await costPeriodValuationCtrl.loadForActivePeriod();
@@ -9041,6 +9054,11 @@ async function reloadCostPeriodValuationIfNeeded() {
     costingApprovalScreenCtrl?.mount?.();
   } else {
     costingApprovalScreenCtrl?.onRouteExit?.();
+  }
+  if (isCostingLockScreenV1Enabled()) {
+    costingLockScreenCtrl?.mount?.();
+  } else {
+    costingLockScreenCtrl?.onRouteExit?.();
   }
   // CPV paint may re-show the strip; reassert Readiness hide when still active.
   if (isPortfolioReadinessLens(CURRENT_LENS)) {
