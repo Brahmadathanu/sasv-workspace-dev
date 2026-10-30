@@ -2201,8 +2201,8 @@ export const PORTAL_SAME_PERSON_WARNING_COPY =
   "You saved Product Details for review. Another Approver will need to fill this on the portal when entry is enabled.";
 export const PORTAL_ENTRY_ON_NO_AUTOSAVE_COPY =
   "Portal entry is turned on. Automatic portal Save for this product is not available yet.";
-export const PORTAL_BOTH_APPROVERS_SAVED_COPY =
-  "Both Approvers have saved steps for review on this product, so neither can authorize the portal Save. Ask the owner how to proceed.";
+export const PORTAL_MULTIPLE_SAVERS_COPY =
+  "More than one person saved steps for review on this product, including you. An Approver who saved none of them must authorize the portal Save.";
 export const PORTAL_APPROVER_ONLY_GATE_COPY =
   "Only an Approver can turn on portal entry or authorize a Save.";
 export const PORTAL_GATE_APPROVER_REFUSAL_COPY = "Only an Approver can do this.";
@@ -2310,7 +2310,7 @@ export function portalFillStepperModel({
   const authStages = [detailsStage, classificationStage, actionsStage].filter(Boolean);
   const savedByMe = authStages.some((row) => row.saved_by_me === true && row.saved_at);
   const savedByOther = authStages.some((row) => row.saved_at && row.saved_by_me !== true);
-  const bothApproversSaved = !closedProduct && savedByMe && savedByOther;
+  const multipleSavers = !closedProduct && savedByMe && savedByOther;
 
   const samePersonWarning =
     !closedProduct
@@ -2336,9 +2336,9 @@ export function portalFillStepperModel({
   } else if (!gateOn) {
     screenState = "gate_off";
     screenMessage = PORTAL_ENTRY_NOT_ENABLED_COPY;
-  } else if (bothApproversSaved) {
-    screenState = "both_approvers_saved";
-    screenMessage = PORTAL_BOTH_APPROVERS_SAVED_COPY;
+  } else if (multipleSavers) {
+    screenState = "multiple_savers";
+    screenMessage = PORTAL_MULTIPLE_SAVERS_COPY;
   } else if (savedByMe && unverifiedStageLabels.length === 0) {
     screenState = "same_person_blocked";
     screenMessage =
@@ -2386,7 +2386,7 @@ export function portalFillStepperModel({
     gateOnMessage: gateOn && !closedProduct ? PORTAL_ENTRY_ON_NO_AUTOSAVE_COPY : "",
     screenState,
     unverifiedStageLabels,
-    bothApproversSaved,
+    multipleSavers,
     statusRows,
     portalSteps,
     samePersonWarning,

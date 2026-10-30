@@ -8,7 +8,7 @@ import {
   CLASSIFICATION_MISSING_OPTION_COPY,
   CLASSIFICATION_PLACEHOLDER_SUBTYPE_COPY,
   PORTAL_APPROVER_ONLY_GATE_COPY,
-  PORTAL_BOTH_APPROVERS_SAVED_COPY,
+  PORTAL_MULTIPLE_SAVERS_COPY,
   PORTAL_ENTRY_NOT_ENABLED_COPY,
   PORTAL_ENTRY_ON_NO_AUTOSAVE_COPY,
   PORTAL_GATE_APPROVER_REFUSAL_COPY,
@@ -53,9 +53,14 @@ check(
   "gate-on no-autosave copy is exact",
 );
 check(
-  PORTAL_BOTH_APPROVERS_SAVED_COPY
-    === "Both Approvers have saved steps for review on this product, so neither can authorize the portal Save. Ask the owner how to proceed.",
-  "both-approvers copy is exact",
+  PORTAL_MULTIPLE_SAVERS_COPY
+    === "More than one person saved steps for review on this product, including you. An Approver who saved none of them must authorize the portal Save.",
+  "multiple-savers copy is exact",
+);
+
+check(
+  !new RegExp(["both", "approvers"].join("_") + "|" + ["BOTH", "APPROVERS"].join("_") + "|" + "both" + "Approvers").test(helpers + control),
+  "retired multiple-saver identifiers are absent from helpers and control",
 );
 
 const closed = portalFillStepperModel({
@@ -176,8 +181,8 @@ const both = portalFillStepperModel({
   isApprover: true,
 });
 check(
-  both.bothApproversSaved === true && both.portalEntryMessage === PORTAL_BOTH_APPROVERS_SAVED_COPY,
-  "both Approvers saved copy when two savers exist",
+  both.multipleSavers === true && both.screenState === "multiple_savers" && both.portalEntryMessage === PORTAL_MULTIPLE_SAVERS_COPY,
+  "multiple savers state and copy when two savers exist",
 );
 
 check(portalGateReasonOk("1234567890") === true, "reason length 10 is accepted");
