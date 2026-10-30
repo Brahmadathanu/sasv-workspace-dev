@@ -16,7 +16,8 @@ const withoutTint = control
   .replace('${isVerifiedStatus(portalTextStatus) || portalTextEntryLocked() ? " is-locked" : ""}', '')
   .replace('${portalTextEntryLocked() ? " is-locked" : ""}', '');
 check(withoutTint.replace(/\r\n/g, '\n') === baseline('public/shared/js/eaushadhi-review-control.js'), 'only the two approved card class expressions changed; all behaviour is preserved');
-check(css.replace(/,\r?\nbody\.sasv-eaushadhi-review \.section-card\.is-locked/, '').replace(/\r\n/g, '\n') === baseline('public/shared/css/sasv-eaushadhi-review.css'), 'only is-locked selector added; reference-mapping, Readiness banners and all other colours unchanged');
+const cardCss = css.split('/* UX-6.2:')[0].trimEnd();
+check(cardCss.replace(/,\r?\nbody\.sasv-eaushadhi-review \.section-card\.is-locked/, '').replace(/\r\n/g, '\n') === baseline('public/shared/css/sasv-eaushadhi-review.css').trimEnd(), 'only is-locked selector added; reference-mapping, Readiness banners and all other colours unchanged');
 check(read('public/sw.js').includes('hub-cache-v376'), 'cache remains v376');
 // Reuse the existing layout fixture, executing the actual production renderer
 // and portalTextEntryLocked predicate with explicit review/workflow states.

@@ -2271,3 +2271,19 @@ body.sasv-eaushadhi-review #tab-composition .line-notes-row textarea {
     width: 100%;
   }
 }
+
+/* UX-6.2: readable locked controls; enabled fields and buttons keep their styles. */
+body.sasv-eaushadhi-review :is(input, textarea).sasv-control:disabled,
+body.sasv-eaushadhi-review :is(input, textarea).sasv-control[readonly],
+body.sasv-eaushadhi-review select.sasv-control:disabled {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  -webkit-text-fill-color: var(--sasv-text-secondary);
+  border-color: var(--sasv-border);
+  cursor: not-allowed;
+  outline: none;
+  box-shadow: none;
+  opacity: 1;
+  user-select: text;
+  -webkit-user-select: text;
+}
