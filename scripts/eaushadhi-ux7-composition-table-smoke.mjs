@@ -40,7 +40,7 @@ for (const label of ["Line", "Ingredient", "Part used", "Quantity", "Mapping", "
 }
 check(table.includes('aria-haspopup="dialog"'), "rows expose their dialog behaviour");
 check(table.includes('tabindex="-1"'), "rows participate in roving keyboard focus");
-check(table.includes("raw_scientific_name"), "ingredient cell includes botanical/scientific name");
+check(table.includes('class="composition-col-ingredient"') && table.includes('class="composition-col-botanical"') && table.includes("raw_scientific_name"), "ingredient and botanical/scientific names use separate columns");
 check(table.includes("raw_part_used"), "part-used value is displayed");
 check(table.includes("formatRawQuantityDisplay"), "quantity and unit use the existing display helper");
 check(table.includes("compositionMappingSummary"), "mapping label comes from the dedicated existing-decision summary");
@@ -78,11 +78,11 @@ for (const closer of ["closeSourceCorrect", "closeSourceResolve", "closeReopen",
   check(closeBlock.includes("trigger") && closeBlock.includes(".focus"), `${closer} restores focus to its triggering modal button`);
 }
 check(css.includes(".composition-table-wrap") && css.includes("overflow-x: hidden"), "table wrapper cannot create horizontal scrolling");
-check(css.includes(".composition-table") && css.includes("table-layout: fixed"), "table uses a bounded fixed layout");
+check(css.includes(".composition-table") && css.includes("table-layout: fixed") && css.includes(".composition-table tbody td") && css.includes("vertical-align: middle"), "table uses a bounded fixed layout with vertically centred body cells");
 check(css.includes(".composition-table th") && css.includes("position: sticky"), "table header stays visible in the one workspace scroll area");
-check(css.includes("@media (max-width: 980px)") && css.includes(".composition-col-mapping"), "narrow layout removes the mapping summary column");
+check(css.indexOf("@media (max-width: 1100px)") < css.indexOf("@media (max-width: 980px)") && css.includes(".composition-col-botanical") && css.includes(".composition-col-mapping"), "botanical column hides before the mapping summary column at narrow widths");
 check(css.includes(".composition-col-part") && css.includes(".composition-col-quantity"), "small layout removes secondary part and quantity columns");
-check(css.includes("#sourceCorrectBackdrop:not([hidden])") && css.includes("calc(var(--sasv-z-modal) + 1)"), "nested dialogs stack above the line modal");
+check(css.includes("#sourceCorrectBackdrop:not([hidden])") && css.includes("calc(var(--sasv-z-modal) + 1)") && css.includes(".reference-mapping-block .status-chip") && css.includes("overflow-wrap: anywhere"), "nested dialogs stack correctly and the reference governance chip wraps within the modal");
 check(html.includes('id="workspaceScroll" class="workspace-scroll"'), "the existing workspace scroll container is unchanged");
 check(!js.includes("hub-cache-v377") && read("public/sw.js").includes("hub-cache-v376"), "cache remains hub-cache-v376");
 check(!js.includes("combined approve") && !modal.includes("Approve all"), "no combined approval action was added");
@@ -102,7 +102,7 @@ try {
   const page = await browser.newPage();
   for (const [width, height] of [[1366, 768], [600, 768]]) {
     await page.setViewportSize({ width, height });
-    await page.setContent(`<style>${css}</style><body class="sasv-eaushadhi-review"><div id="workspaceScroll" class="workspace-scroll" style="width:100%;height:500px"><div class="composition-table-wrap"><table class="composition-table"><thead><tr><th>Line</th><th>Ingredient</th><th class="composition-col-part">Part used</th><th class="composition-col-quantity">Quantity</th><th class="composition-col-mapping">Mapping</th><th>Review</th><th>Attention</th></tr></thead><tbody><tr class="composition-table-row" tabindex="0"><td>931</td><td><span class="line-ingredient">A deliberately long ingredient name that must wrap</span><span class="line-scientific">Botanical name</span></td><td class="composition-col-part">Whole plant</td><td class="composition-col-quantity">10 milligrams</td><td class="composition-col-mapping">Reference pending</td><td>Pending</td><td>Clear</td></tr></tbody></table></div></div></body>`);
+    await page.setContent(`<style>${css}</style><body class="sasv-eaushadhi-review"><div id="workspaceScroll" class="workspace-scroll" style="width:100%;height:500px"><div class="composition-table-wrap"><table class="composition-table"><thead><tr><th>Line</th><th>Ingredient</th><th class="composition-col-botanical">Botanical name</th><th class="composition-col-part">Part used</th><th class="composition-col-quantity">Quantity</th><th class="composition-col-mapping">Mapping</th><th>Review</th><th>Attention</th></tr></thead><tbody><tr class="composition-table-row" tabindex="0"><td>931</td><td><span class="line-ingredient">A deliberately long ingredient name that must wrap</span></td><td class="composition-col-botanical"><span class="line-scientific">Botanical name</span></td><td class="composition-col-part">Whole plant</td><td class="composition-col-quantity">10 milligrams</td><td class="composition-col-mapping">Reference pending</td><td>Pending</td><td>Clear</td></tr></tbody></table></div><section class="reference-mapping-block"><div><span>Reference Governance</span><span class="status-chip warning">Global reference mapping required with deliberately extended fixture text</span></div></section></div></body>`);
     check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}x${height}: Composition table creates no horizontal page scroll`);
     check(await page.locator("#workspaceScroll").evaluate((el) => el.scrollWidth <= el.clientWidth), `${width}x${height}: Composition table creates no horizontal workspace scroll`);
   }

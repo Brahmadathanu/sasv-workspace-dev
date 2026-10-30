@@ -2121,7 +2121,8 @@ function compositionTableRowHtml(row) {
     : chip("neutral", "Clear");
   return `<tr class="composition-table-row${isVerifiedStatus(row.review_status) ? " is-verified" : ""}" data-line-id="${escapeHtml(id)}" tabindex="-1" aria-haspopup="dialog" aria-label="Open line ${escapeHtml(displayText(row.source_row_no))}: ${escapeHtml(ingredient)}">
     <td class="composition-col-line">${escapeHtml(displayText(row.source_row_no))}</td>
-    <td class="composition-col-ingredient"><span class="line-ingredient">${escapeHtml(ingredient)}</span>${scientific ? `<span class="line-scientific">${escapeHtml(scientific)}</span>` : ""}</td>
+    <td class="composition-col-ingredient"><span class="line-ingredient">${escapeHtml(ingredient)}</span></td>
+    <td class="composition-col-botanical">${scientific ? `<span class="line-scientific">${escapeHtml(scientific)}</span>` : "-"}</td>
     <td class="composition-col-part">${escapeHtml(sourceFieldDisplay(row.raw_part_used))}</td>
     <td class="composition-col-quantity">${escapeHtml(quantity)}</td>
     <td class="composition-col-mapping">${chip(mapping.tone, mapping.label)}</td>
@@ -2187,7 +2188,7 @@ function renderComposition({ resetChunk = false, preserveModal = true } = {}) {
   const shown = filtered.slice(0, state.compositionView.renderedCount);
   host.innerHTML = `${execution}<div class="composition-table-wrap">
     <table class="data-table composition-table" aria-label="Composition ingredients">
-      <thead><tr><th>Line</th><th>Ingredient</th><th class="composition-col-part">Part used</th><th class="composition-col-quantity">Quantity</th><th class="composition-col-mapping">Mapping</th><th>Review</th><th>Attention</th></tr></thead>
+      <thead><tr><th>Line</th><th>Ingredient</th><th class="composition-col-botanical">Botanical name</th><th class="composition-col-part">Part used</th><th class="composition-col-quantity">Quantity</th><th class="composition-col-mapping">Mapping</th><th>Review</th><th>Attention</th></tr></thead>
       <tbody id="compositionTableBody">${shown.map((row) => compositionTableRowHtml(row)).join("")}</tbody>
     </table>
   </div>`;
