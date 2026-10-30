@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v375"; // product-route bypass follows the server boundary rule; v374 was costing W1 run-status badge
+const CACHE_NAME = "hub-cache-v377"; // costing approval screen Phase 1; v375 was product-route bypass
 
 const PRECACHE = [
   // Hub shell

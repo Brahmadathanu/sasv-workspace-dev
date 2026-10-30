@@ -357,7 +357,8 @@
         line-height: 1.2;
         cursor: pointer;
         width: fit-content;
-        max-width: 100%;
+        max-width: min(100%, 220px);
+        overflow: hidden;
         white-space: nowrap;
       }
       .search-card .cpv-chip:hover,
@@ -371,10 +372,15 @@
         cursor: not-allowed;
       }
       .search-card .cpv-chip-label {
+        flex: 0 0 auto;
         color: var(--muted, #6b7280);
         font-weight: var(--cp-fw-label);
       }
       .search-card .cpv-chip-value {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         color: var(--text, #0f172a);
         font-weight: var(--cp-fw-emphasis);
       }
@@ -2831,6 +2837,20 @@
           </button>
         </div>
       </div>
+      <div
+        id="costingApprovalPanel"
+        class="cas-panel hidden"
+        hidden
+        aria-hidden="true"
+        aria-label="Period and runs approval"
+      >
+        <div class="cas-panel-head">
+          <div class="cas-panel-title">Period &amp; runs</div>
+          <div class="cas-muted">Server labels only. Review opens preview on click.</div>
+        </div>
+        <div id="casPeriodSummary" class="cas-period-summary"></div>
+        <div id="casRunList" class="cas-run-list"></div>
+      </div>
       <div class="filter-item search">
         <input
           type="text"
@@ -4720,6 +4740,86 @@
             hidden
           >
             Confirm Change
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Costing approval preview / approve / month-end finalise (flag-gated in JS) -->
+    <div
+      id="costingApprovalModal"
+      class="cost-sheet-sign-modal hidden"
+      hidden
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="casModalTitle"
+    >
+      <div class="cost-sheet-sign-panel cas-modal-panel">
+        <div class="cost-sheet-sign-header">
+          <div>
+            <span class="cp-modal-title" id="casModalTitle">Review for approval</span>
+            <div class="peq-modal-subtitle" id="casModalSubtitle"></div>
+          </div>
+          <button
+            type="button"
+            class="icon-btn"
+            id="casModalClose"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div class="cost-sheet-sign-body">
+          <div id="casPreviewBody"></div>
+          <div id="casApproveForm" class="cas-approve-form" hidden>
+            <label>
+              Reason <span style="color: #b91c1c">*</span>
+              <textarea
+                id="casReason"
+                class="form-control"
+                rows="3"
+                placeholder="Why this run is being approved"
+              ></textarea>
+            </label>
+            <label>
+              Approval reference <span style="color: #b91c1c">*</span>
+              <input
+                id="casApprovalReference"
+                class="form-control"
+                type="text"
+                placeholder="Board / memo reference"
+              />
+            </label>
+            <label id="casStaleAckWrap" class="cas-stale-ack" hidden>
+              <input type="checkbox" id="casStaleAck" />
+              Approve anyway – I have read the later entries
+            </label>
+            <div id="casFormError" class="cas-danger" hidden role="alert"></div>
+            <button type="button" class="cas-linkish" id="casCopyErrorBtn">
+              Copy details
+            </button>
+          </div>
+        </div>
+        <div class="cost-sheet-sign-actions">
+          <button type="button" class="icon-btn" id="casCancelBtn">Cancel</button>
+          <button
+            type="button"
+            class="icon-btn"
+            id="casFinalizeBtn"
+            disabled
+            title="Secondary: month-end finalise via preview"
+          >
+            Month-end Finalise
+          </button>
+          <button
+            type="button"
+            class="icon-btn icon-btn-primary"
+            id="casApproveBtn"
+            disabled
+          >
+            Approve
           </button>
         </div>
       </div>

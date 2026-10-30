@@ -19,6 +19,9 @@ import {
   unwrapCostPeriodGovernanceHistoryPayload,
 } from "./costing-suite-cost-period-valuation-helpers.js";
 
+import { isCostingRecalcWithDateV1Enabled } from "./costing-feature-flags.js";
+import { periodDateLabels, periodDateText, periodOfficialDateText } from "./costing-recalculation.js";
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -109,6 +112,7 @@ function formatActorFromContext(value) {
 export function createCostPeriodValuationController(deps = {}) {
   const {
     costingRpc,
+    getPeriodRunStatus = () => null,
     showToast,
     canView = () => false,
     canEdit = () => false,
@@ -210,8 +214,14 @@ export function createCostPeriodValuationController(deps = {}) {
       valueText = "…";
       title = "No valuation context";
     } else {
-      valueText = formatDisplayDate(state.context.valuation_date);
-      title = `Valuation governance · ${valueText}`;
+      const recalculationOn = isCostingRecalcWithDateV1Enabled();
+      const periodStatus = recalculationOn ? getPeriodRunStatus() : null;
+      valueText = recalculationOn
+        ? periodOfficialDateText(periodStatus)
+        : formatDisplayDate(state.context.valuation_date);
+      title = recalculationOn
+        ? periodDateText(periodStatus)
+        : `Valuation governance · ${valueText}`;
       clickable = true;
     }
 
@@ -223,7 +233,7 @@ export function createCostPeriodValuationController(deps = {}) {
       aria-label="${escapeHtml(title)}"
       ${clickable && !state.mutationPending ? "" : "disabled"}
     >
-      <span class="cpv-chip-label">Valuation</span>
+      <span class="cpv-chip-label">${isCostingRecalcWithDateV1Enabled() ? "Period dates" : "Valuation"}</span>
       <span class="cpv-chip-value" data-cpv-chip-value>${escapeHtml(valueText)}</span>
     </button>`;
 
@@ -237,7 +247,7 @@ export function createCostPeriodValuationController(deps = {}) {
   function syncChangeTabAvailability() {
     const tab = document.getElementById("cpvTabChange");
     if (!tab) return;
-    const hasEdit = canEdit() === true;
+    const hasEdit = !isCostingRecalcWithDateV1Enabled() && canEdit() === true;
     tab.hidden = !hasEdit;
     if (!hasEdit && state.activeTab === "change") {
       setActiveTab("overview");
@@ -248,7 +258,7 @@ export function createCostPeriodValuationController(deps = {}) {
     const next = ["overview", "change", "history"].includes(tabId)
       ? tabId
       : "overview";
-    if (next === "change" && canEdit() !== true) {
+    if (next === "change" && (isCostingRecalcWithDateV1Enabled() || canEdit() !== true)) {
       state.activeTab = "overview";
     } else {
       state.activeTab = next;
@@ -317,7 +327,12 @@ export function createCostPeriodValuationController(deps = {}) {
           periodStatusTone(ctx.period_status),
         ),
       ],
-      ["Valuation date", formatDisplayDate(ctx.valuation_date)],
+      ...(isCostingRecalcWithDateV1Enabled()
+        ? [
+            ...periodDateLabels(getPeriodRunStatus()).map(([label, value]) => [label, text(value)]),
+            ["Stored month date (legacy)", `<small>${formatDisplayDate(ctx.valuation_date)}</small>`],
+          ]
+        : [["Valuation date", formatDisplayDate(ctx.valuation_date)]]),
       [
         "Valuation source",
         text(formatCostPeriodValuationSourceLabel(ctx.valuation_date_source)),
@@ -473,6 +488,7 @@ export function createCostPeriodValuationController(deps = {}) {
   }
 
   async function confirmChange() {
+    if (isCostingRecalcWithDateV1Enabled()) return;
     if (state.mutationPending) return;
     const ctx = state.context;
     if (!ctx) {

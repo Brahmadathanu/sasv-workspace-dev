@@ -2,6 +2,7 @@ import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 import { showToast as sasvShowToast } from "./toast.js";
 import { mountModuleActionIcons } from "./sasv-module-chrome.js";
+import { createPeriodDateStatus, createRecalculationController, periodDateText, periodOfficialDateText } from "./costing-recalculation.js";
 import { createRunStatusBadge } from "./costing-run-status-badge.js";
 import {
   COSTING_SUITE_MODULES,
@@ -59,6 +60,8 @@ import {
   isPortfolioReadinessLens,
 } from "./costing-suite-readiness.js";
 import { createCostPeriodValuationController } from "./costing-suite-cost-period-valuation.js";
+import { isCostingApprovalScreenV1Enabled, isCostingRecalcWithDateV1Enabled } from "./costing-feature-flags.js";
+import { createCostingApprovalScreenController } from "./costing-approval-screen.js";
 import {
   createQcActionQueueController,
   isQcActionQueueLens,
@@ -1922,6 +1925,19 @@ function paintReadinessValuationFromContext(context = {}) {
   strip.removeAttribute("hidden");
   strip.setAttribute("aria-hidden", "false");
   const chipValue = strip.querySelector("[data-cpv-chip-value]");
+  if (isCostingRecalcWithDateV1Enabled()) {
+    const periodStatus = periodDateStatus.get();
+    if (chipValue) chipValue.textContent = periodOfficialDateText(periodStatus);
+    const chipLabel = strip.querySelector(".cpv-chip-label");
+    if (chipLabel) chipLabel.textContent = "Period dates";
+    const chipBtn = $("cpvValuationChip");
+    if (chipBtn) {
+      chipBtn.disabled = true;
+      chipBtn.title = periodDateText(periodStatus);
+      chipBtn.setAttribute("aria-label", periodDateText(periodStatus));
+    }
+    return;
+  }
   const valuationRaw = context.valuation_date;
   const valuation =
     valuationRaw != null && String(valuationRaw).trim() !== ""
@@ -2434,6 +2450,15 @@ function costingFrom(viewName) {
 }
 
 const runStatusBadge = createRunStatusBadge({ supabase, anchor: lastRefreshed });
+const periodDateStatus = createPeriodDateStatus({ supabase, getPeriod: () => ACTIVE_PERIOD_START });
+const recalculationCtrl = createRecalculationController({
+  costingRpc,
+  getPeriod: () => ACTIVE_PERIOD_START,
+  canEdit: () => PERM_CAN_EDIT === true || PERM_CONTROL_CENTER_EDIT === true,
+  invalidateBadge: () => runStatusBadge.invalidate(),
+  reloadStatus: () => loadRowsForLens(),
+  showToast,
+});
 
 async function costingRpc(name, params, options = null) {
   let query = supabase.rpc(name, params);
@@ -4243,6 +4268,7 @@ async function setActiveCostingPeriod(periodStart) {
   if (!normalized || normalized === ACTIVE_PERIOD_START) return;
 
   ACTIVE_PERIOD_START = normalized;
+  if (isCostingRecalcWithDateV1Enabled()) recalculationCtrl.onPeriodChange();
   clearSkuStatusDiagnosisCache();
   costBuildCtrl.setManualProvisionPeriodFilter(normalized);
   costSheetCtrl.invalidatePrintableLinesCache();
@@ -4495,12 +4521,25 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     resetCccProgressiveWindow();
   }
   const loadGeneration = ++ROWS_LOAD_GENERATION;
+  if (isCostingRecalcWithDateV1Enabled() && !isProductionRouteManagerRoute()) {
+    recalculationCtrl.onPeriodChange();
+    try {
+      await periodDateStatus.reload();
+    } catch {
+      showToast("Period dates unavailable.", "info");
+    }
+    if (loadGeneration !== ROWS_LOAD_GENERATION) return;
+  }
   const lensLabel = LENSES.find((l) => l.id === CURRENT_LENS)?.label || "view";
   setLoadingMask(true, `Loading ${lensLabel}...`);
   void runStatusBadge.refresh({
     periodStart: ACTIVE_PERIOD_START,
     lensId: CURRENT_LENS,
+    periodStatusRow: isCostingRecalcWithDateV1Enabled() ? periodDateStatus.get() : undefined,
   });
+  if (isCostingApprovalScreenV1Enabled()) {
+    void costingApprovalScreenCtrl?.reload?.();
+  }
   try {
     costBuildCtrl.syncManualProvisionLayout();
     if (!isProductionRouteLens(CURRENT_LENS)) {
@@ -7484,6 +7523,10 @@ async function refreshOpenDrawerIfNeeded() {
 }
 
 async function requestCostingRefreshFromToolbar() {
+  if (isCostingRecalcWithDateV1Enabled()) {
+    recalculationCtrl.open();
+    return;
+  }
   await runStagedCostingRefreshAndReload({
     sourceTrigger: "UI_TOOLBAR",
     requestNote: "Toolbar request costing refresh",
@@ -8936,6 +8979,7 @@ const controlCenterCtrl = createControlCenterController({
 });
 
 const portfolioReadinessCtrl = createPortfolioReadinessController({
+  getPeriodRunStatus: (period) => periodDateStatus.get(period),
   costingRpc,
   showToast,
   text,
@@ -8958,6 +9002,7 @@ const portfolioReadinessCtrl = createPortfolioReadinessController({
 });
 
 const costPeriodValuationCtrl = createCostPeriodValuationController({
+  getPeriodRunStatus: () => periodDateStatus.get(),
   costingRpc,
   showToast,
   canView: () => PERM_CAN_VIEW === true,
@@ -8968,16 +9013,35 @@ const costPeriodValuationCtrl = createCostPeriodValuationController({
     ACTIVE_ROUTE_CONFIG?.moduleKey === "costing-control-center",
 });
 
+const costingApprovalScreenCtrl = isCostingApprovalScreenV1Enabled()
+  ? createCostingApprovalScreenController({
+      supabase,
+      costingRpc,
+      showToast,
+      formatMoney,
+      getActivePeriodStart: () => ACTIVE_PERIOD_START,
+      isControlCenterRoute: () =>
+        ACTIVE_ROUTE_CONFIG?.moduleKey === "costing-control-center",
+    })
+  : null;
+
 async function reloadCostPeriodValuationIfNeeded() {
   if (ACTIVE_ROUTE_CONFIG?.moduleKey !== "costing-control-center") {
     costPeriodValuationCtrl.onRouteExit?.();
+    costingApprovalScreenCtrl?.onRouteExit?.();
     return;
   }
   if (PERM_CAN_VIEW !== true) {
     costPeriodValuationCtrl.onRouteExit?.();
+    costingApprovalScreenCtrl?.onRouteExit?.();
     return;
   }
   await costPeriodValuationCtrl.loadForActivePeriod();
+  if (isCostingApprovalScreenV1Enabled()) {
+    costingApprovalScreenCtrl?.mount?.();
+  } else {
+    costingApprovalScreenCtrl?.onRouteExit?.();
+  }
   // CPV paint may re-show the strip; reassert Readiness hide when still active.
   if (isPortfolioReadinessLens(CURRENT_LENS)) {
     syncReadinessShellChrome();
