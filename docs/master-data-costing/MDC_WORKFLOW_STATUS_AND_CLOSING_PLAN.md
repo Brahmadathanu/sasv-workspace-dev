@@ -1,6 +1,8 @@
 # MDC workflow status and closing plan (25 Oct 2026)
 
-Read-only audit of the master-data-costing (MDC) programme against `main` and live Supabase (SELECT only). Status: **closing, not closed.** The programme closes after every item below has a recorded disposition and the "do now" items are finished.
+Read-only audit of the master-data-costing (MDC) programme against `main` and live Supabase (SELECT only). Status: **closing, not closed** (re-checked 30 Oct 2026). The programme closes after every item below has a recorded disposition and the "do now" items are finished.
+
+> **Addendum 30 Oct 2026 (supersedes the addenda below):** CI-040–CI-043 and CI-045 are **applied** (27 Oct), not pending. CI-046 owner-only locking (20261029152138) and CI-047 grant tidy of 37 functions (20261029152614) applied 29 Oct. PR #99 (e2c5fde) and PR #100 (008fc26) merged, flags OFF, cache v377. SKU 105 (Kolakulathadi Choornam 1000 g) is also active, with SKUs 41 and 846. Plant capacity checked live 30 Oct: 74 machines BLOCKED_NEEDS_CAPACITY, 74 READY_PROVISIONAL, 3 not operational, 20 not required (171). Client work moves from Cursor to **Codex**; "Cursor" in the table below means the client builder, now Codex. New open item rows are at the end. Live picture: [ALIGNED_STATUS_2026-10-30.md](ALIGNED_STATUS_2026-10-30.md).
 
 > **Addendum 27 Oct 2026:** costing redesign v2 applied live (CI-040 v2.1, CI-041 v2.1, CI-045, CI-042 v2.2, CI-043 v2.2 rev B); migration record copies are in `supabase/migrations/`, records in `docs/costing-pipeline-independent-audit/redesign-v2/`. Master data is not changed by these. Still open: CI-044 (parked), health-check schedule/alerts, backdating cutoff warning, Cursor approval screen and refresh/date-label briefs. See `docs/costing-pipeline-independent-audit/COSTING_REDESIGN_V2_CURRENT_STATE.md`.
 
@@ -40,5 +42,8 @@ Read-only audit of the master-data-costing (MDC) programme against `main` and li
 | CCC-P02 pricing duplication audit | | Not started; findings in the 25 Oct audit | **Backlog** (CW-08/CW-09) |
 | CCC-P03 legacy dashboard summary views | Two old views still exist; one dead client reference | Partly done | **Backlog** CW-14 (client) then a separate gated server drop |
 
+| CW-12 / CI-011 plant capacity | 74 machines have no capacity | Open (live count 30 Oct) | **Owner/production** supply data; read-only list via Codex; any write needs approval |
+| CW-03 profit after scheme per SKU | Screen column | UNKNOWN (no client commit found 30 Oct) | **Backlog** after a status check |
+
 ## Closing order
-1. Merge this docs PR. 2. Owner decisions (CSE-P01, PERF-P01, WP10, open periods). 3. Cursor plan-mode UX audit, reviewed, then small client PRs. 4. Write the closing note pointing to the costing-suite backlog, and mark the programme CLOSED.
+1. Merge this docs PR. 2. Owner decisions (CSE-P01, PERF-P01, WP10, open periods). 3. Codex Phase A plan (was Cursor plan-mode) UX audit, reviewed, then small client PRs. 4. Write the closing note pointing to the costing-suite backlog, and mark the programme CLOSED.

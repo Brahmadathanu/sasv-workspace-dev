@@ -1,5 +1,7 @@
 # Parked Backlog
 
+> **30 Oct 2026:** SEC-P01 is **done** (kept here as a closed record). UX-P01 is now backlog item CW-11 (server routes live, no screen). CCC-P03 = CW-14. Current dispositions: [MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md](MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md).
+
 | ID | Description | Source/context | Intended WP | Why parked | Dependencies | Priority | Status |
 |---|---|---|---|---|---|---|---|
 | SEC-P01 | Five previously identified RLS-disabled tables require policy analysis before any RLS change: `inv_material_identity`, `inv_material_identity_part`, `inv_material_stock_item_map`, `inv_material_identity_name`, `therapeutic_indication_lexicon_entry`. | Costing/database security hardening carry-forward | Future security hardening gate | Enabling RLS without policy/consumer analysis could break valid access; unrelated to WP01 completeness contract. | Explicit policy/consumer audit | Medium | DONE live (verified read-only 25 Oct 2026: RLS on for all 5 tables; `authenticated` has no SELECT/INSERT). Docs-only update |

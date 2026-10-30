@@ -1,5 +1,7 @@
 # SASV Master Data Governance, Product Lifecycle & Costing Suite UX Consolidation
 
+> **Status 30 Oct 2026 (checked read-only against main `008fc26` and production):** WP-1 and WP00–WP04 done. WP05 and WP12 **partly done**; WP06–WP11 not started (dispositions in [MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md](MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md)). Costing redesign v2 and CI-046/CI-047 are live; PR #99 (approval screen, flag `COSTING_APPROVAL_SCREEN_V1`) and PR #100 (Refresh with date, flag `COSTING_RECALC_WITH_DATE_V1`) are merged with flags **OFF**; service worker `hub-cache-v377`. Client code is now built by **Codex** (Phase A plan only → Phase B after the owner's written authorisation); older mentions of ChatGPT/Cursor below describe past work. Document map: [README.md](README.md). Live picture: [ALIGNED_STATUS_2026-10-30.md](ALIGNED_STATUS_2026-10-30.md).
+
 > **Status update 25 Oct 2026 (read-only audit):** this programme was dormant from 8 Oct 2026. Costing work after that date ran under `docs/costing-pipeline-independent-audit/` (see its `CURRENT_STATE.md`). WP-1 and WP00–WP04 are done and verified on main and live. SEC-P01 is done live. The old "WP07" here is renamed **MDC-07** so it is not confused with the e-Aushadhi WP-07 programme. Every remaining item and its proposed disposition is in [MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md](MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md). The programme is **not closed yet**. References below to Run 115 and Build 4 are history; current approved runs are 122 (Sep, locked) and 143 (Oct).
 
 > **Update 26 Oct 2026:** CI-038, CI-038a and CI-039 applied live and recorded in the repo; SKUs 41 and 846 activated. See CHANGELOG_DECISIONS.md (2026-10-26).
@@ -51,12 +53,12 @@ WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11
 IN PROGRESS: closing. Remaining items and dispositions: MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md (25 Oct 2026)
 
 ## Active work pack
-None. WP04 — Central Master Data / Costing Readiness Control Centre is completed, verified, merged, and closed. WP05 has not started.
+None formally open. WP05 is **partly done**: the 25 Oct client audit is its proposed output, awaiting owner acceptance. (Before 25 Oct this line said "WP05 has not started".)
 
 ## Active gate
 None. WP04-G8 is completed and post-merge verification passed.
 
-WP04 merged to `main` as `1ff8d13e90b5078dde7e414e3c257cf41aa6f34b` with parent 1 `a007cea4d624835dc5406a952657769868619649` and parent 2 `836ff0e9e9fd8dbe27061dde2a6346236466b2a4`. G0–G8 are complete. Formal G7 remains PASS; Track A remains CLOSED / APPLIED / PROVEN; Track B remains accepted at runtime candidate `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`. Post-merge verification confirmed the merged tree matches the verified branch tree, Build 4 remains current/COMPLETED with Run 115 and 1793/611 populations, source fingerprint matches, Readiness RPC and CSE-P01 are unchanged, and no new statement-timeout or legacy-dashboard-summary log event was found in the checked post-merge window. No GitHub CI evidence is claimed. WP05 remains not started.
+WP04 merged to `main` as `1ff8d13e90b5078dde7e414e3c257cf41aa6f34b` with parent 1 `a007cea4d624835dc5406a952657769868619649` and parent 2 `836ff0e9e9fd8dbe27061dde2a6346236466b2a4`. G0–G8 are complete. Formal G7 remains PASS; Track A remains CLOSED / APPLIED / PROVEN; Track B remains accepted at runtime candidate `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`. Post-merge verification confirmed the merged tree matches the verified branch tree, Build 4 remains current/COMPLETED with Run 115 and 1793/611 populations, source fingerprint matches, Readiness RPC and CSE-P01 are unchanged, and no new statement-timeout or legacy-dashboard-summary log event was found in the checked post-merge window. No GitHub CI evidence is claimed. (At WP04 merge time WP05 had not started; see the 30 Oct status above.)
 
 ## Overall completion progress
 5 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, WP03, and WP04 are complete. WP04 merged to `main` as `1ff8d13e90b5078dde7e414e3c257cf41aa6f34b`; its final synchronized feature head was `836ff0e9e9fd8dbe27061dde2a6346236466b2a4`, while the signed-in runtime candidate verified in G7 was `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
@@ -87,9 +89,11 @@ No WP02/WP03 blocker remains. Parked items stay parked for their assigned later 
 No Track A rerun is required without fresh defect evidence.
 
 ## Immediate next action
-WP04 is closed. WP05 — Costing Suite Functional Rationalisation Audit may be opened as a separate work pack/chat when explicitly started; do not reopen WP04 without fresh regression evidence.
+See the closing order in MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md (owner decisions CSE-P01, WP10, PERF-P01, plant capacity; then Codex client packages). Do not reopen WP04 without fresh regression evidence.
 
 ## Server development operating model
+> 30 Oct 2026: server work is now done by the costing assistant (Aryabhatta) through Supabase with the owner's explicit approval text per live write; client work by Codex. The text below is the original model.
+
 ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.
 
 ## Client development operating model
