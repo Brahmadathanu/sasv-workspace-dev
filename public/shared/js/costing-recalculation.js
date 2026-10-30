@@ -18,6 +18,10 @@ export function periodDateText(row) {
   return periodDateLabels(row).map(([label, value]) => `${label}: ${value}`).join(" \u00b7 ");
 }
 
+export function periodOfficialDateText(row) {
+  return periodDateLabels(row)[0][1];
+}
+
 export function recalculationSuccessText(row) {
   const parts = [
     `Draft run ${row.refresh_run_id} requested for ${row.period_start} at ${row.valuation_date}.`,
@@ -65,6 +69,13 @@ export function createRecalculationController({
     if (el("recalcSubmit")) el("recalcSubmit").disabled = pending;
     if (el("recalcClose")) el("recalcClose").disabled = pending;
     if (el("recalcHeaderClose")) el("recalcHeaderClose").disabled = pending;
+    if (el("recalcResult") && (pending || el("recalcResult").textContent === "Requesting\u2026")) {
+      el("recalcResult").textContent = pending ? "Requesting\u2026" : "";
+    }
+    if (el("recalcForm")) {
+      if (pending) el("recalcForm").setAttribute("aria-busy", "true");
+      else el("recalcForm").removeAttribute("aria-busy");
+    }
   }
   function onPeriodChange() {
     if (period !== getPeriod()) {
@@ -183,6 +194,7 @@ export function createRecalculationController({
     el("recalcCopy").hidden = true;
     el("recalcConfirmation").textContent = "A new draft will be costed at the date the server chooses (today, India date, or the month's last day if the month has ended). It is not used for pricing until approved.";
     dialog.showModal();
+    el("recalcReason").focus();
   }
   return { open, submit, onPeriodChange };
 }

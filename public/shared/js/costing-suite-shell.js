@@ -2,7 +2,7 @@ import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 import { showToast as sasvShowToast } from "./toast.js";
 import { mountModuleActionIcons } from "./sasv-module-chrome.js";
-import { createPeriodDateStatus, createRecalculationController, periodDateText } from "./costing-recalculation.js";
+import { createPeriodDateStatus, createRecalculationController, periodDateText, periodOfficialDateText } from "./costing-recalculation.js";
 import { createRunStatusBadge } from "./costing-run-status-badge.js";
 import {
   COSTING_SUITE_MODULES,
@@ -1926,13 +1926,15 @@ function paintReadinessValuationFromContext(context = {}) {
   strip.setAttribute("aria-hidden", "false");
   const chipValue = strip.querySelector("[data-cpv-chip-value]");
   if (isCostingRecalcWithDateV1Enabled()) {
-    if (chipValue) chipValue.textContent = periodDateText(periodDateStatus.get());
+    const periodStatus = periodDateStatus.get();
+    if (chipValue) chipValue.textContent = periodOfficialDateText(periodStatus);
     const chipLabel = strip.querySelector(".cpv-chip-label");
     if (chipLabel) chipLabel.textContent = "Period dates";
     const chipBtn = $("cpvValuationChip");
     if (chipBtn) {
       chipBtn.disabled = true;
-      chipBtn.title = "Readiness period dates (server status)";
+      chipBtn.title = periodDateText(periodStatus);
+      chipBtn.setAttribute("aria-label", periodDateText(periodStatus));
     }
     return;
   }
@@ -2457,18 +2459,6 @@ const recalculationCtrl = createRecalculationController({
   reloadStatus: () => loadRowsForLens(),
   showToast,
 });
-
-function paintPeriodDateContext() {
-  let host = $("costingPeriodDateContext");
-  if (!host) {
-    host = document.createElement("p");
-    host.id = "costingPeriodDateContext";
-    host.className = "cp-muted-text";
-    host.setAttribute("role", "status");
-    $("kpiStripWrap")?.append(host);
-  }
-  host.textContent = periodDateText(periodDateStatus.get());
-}
 
 async function costingRpc(name, params, options = null) {
   let query = supabase.rpc(name, params);
@@ -4539,7 +4529,6 @@ async function loadRowsForLens({ preservePage = false } = {}) {
       showToast("Period dates unavailable.", "info");
     }
     if (loadGeneration !== ROWS_LOAD_GENERATION) return;
-    paintPeriodDateContext();
   }
   const lensLabel = LENSES.find((l) => l.id === CURRENT_LENS)?.label || "view";
   setLoadingMask(true, `Loading ${lensLabel}...`);

@@ -20,7 +20,7 @@ import {
 } from "./costing-suite-cost-period-valuation-helpers.js";
 
 import { isCostingRecalcWithDateV1Enabled } from "./costing-feature-flags.js";
-import { periodDateLabels, periodDateText } from "./costing-recalculation.js";
+import { periodDateLabels, periodDateText, periodOfficialDateText } from "./costing-recalculation.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -214,10 +214,14 @@ export function createCostPeriodValuationController(deps = {}) {
       valueText = "…";
       title = "No valuation context";
     } else {
-      valueText = isCostingRecalcWithDateV1Enabled()
-        ? periodDateText(getPeriodRunStatus())
+      const recalculationOn = isCostingRecalcWithDateV1Enabled();
+      const periodStatus = recalculationOn ? getPeriodRunStatus() : null;
+      valueText = recalculationOn
+        ? periodOfficialDateText(periodStatus)
         : formatDisplayDate(state.context.valuation_date);
-      title = `Valuation governance · ${valueText}`;
+      title = recalculationOn
+        ? periodDateText(periodStatus)
+        : `Valuation governance · ${valueText}`;
       clickable = true;
     }
 

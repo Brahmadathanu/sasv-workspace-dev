@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
-import { createRecalculationController, createPeriodDateStatus, periodDateText, recalculationSuccessText, EMPTY_DATE_HELP } from "../../public/shared/js/costing-recalculation.js";
+import { createRecalculationController, createPeriodDateStatus, periodDateText, periodOfficialDateText, recalculationSuccessText, EMPTY_DATE_HELP } from "../../public/shared/js/costing-recalculation.js";
 import { mapCostingApprovalError } from "../../public/shared/js/costing-approval-errors.js";
 import { createRunStatusBadge, RUN_STATUS_SELECT_V1, RUN_STATUS_SELECT_APPROVAL_V1, describeRunStatus } from "../../public/shared/js/costing-run-status-badge.js";
 import { describeRunStatusForApprovalFlag } from "../../public/shared/js/costing-approval-labels.js";
@@ -137,6 +137,7 @@ test("success text omits null optional fields", () => {
 test("labels distinguish official/draft and null official", () => {
   assert.equal(periodDateText({ official_valuation_date: "2026-10-22", latest_draft_valuation_date: "2026-10-29" }), "Official (approved) date: 2026-10-22 \u00b7 Latest draft date: 2026-10-29");
   assert.equal(periodDateText(null), "Official (approved) date: Not approved \u00b7 Latest draft date: \u2014");
+  assert.equal(periodOfficialDateText({ official_valuation_date: "2026-10-22", latest_draft_valuation_date: "2026-10-29" }), "2026-10-22");
 });
 test("period status ignores out-of-order responses", async () => {
   let period = "2026-10-01"; const a = deferred(), b = deferred(); let n = 0;
@@ -205,6 +206,14 @@ test("governed module has no old poller, date maths, date bounds or retry", () =
   assert.doesNotMatch(src, /normalizeRefreshStatusRow|runStagedCostingRefreshAndReload|rpc_get_costing_refresh_status|new Date|setTimeout|setInterval|\bmin=|\bmax=|minLength/);
   assert.ok(src.includes(EMPTY_DATE_HELP));
   assert.match(src, /mapped.kind !== "unknown"/);
+  assert.doesNotMatch(shell, /paintPeriodDateContext|costingPeriodDateContext/);
+  const readinessChip = shell.match(/function paintReadinessValuationFromContext[\s\S]*?\n}/)?.[0] || "";
+  assert.match(readinessChip, /chipValue\.textContent = periodOfficialDateText\(periodStatus\)/);
+  assert.match(readinessChip, /chipBtn\.title = periodDateText\(periodStatus\)/);
+  const html = read("public/shared/costing-control-center.html");
+  assert.match(html, /\.search-card \.cpv-chip\s*\{[\s\S]*max-width:\s*min\(100%, 220px\)[\s\S]*overflow:\s*hidden/);
+  assert.match(html, /\.search-card \.cpv-chip\s*\{[\s\S]*white-space:\s*nowrap/);
+  assert.match(html, /\.search-card \.cpv-chip-value\s*\{[\s\S]*text-overflow:\s*ellipsis/);
 });
 test("new forbidden valuation name is guarded; legacy controls have ON guards", () => {
   const helpers = read("public/shared/js/costing-suite-cost-period-valuation-helpers.js");
@@ -223,8 +232,9 @@ function fakeDocument() {
       nodes.set(id, {
         id, hidden: false, disabled: false, value: "", dataset: {}, textContent: "", innerHTML: "", handlers: {},
         classList: { contains: x => classes.has(x), add: x => classes.add(x), remove: x => classes.delete(x), toggle(x, on) { if (on) classes.add(x); else classes.delete(x); } },
-        setAttribute: (k, v) => attrs.set(k, v), getAttribute: k => attrs.get(k),
+        setAttribute: (k, v) => attrs.set(k, v), getAttribute: k => attrs.get(k), removeAttribute: k => attrs.delete(k),
         addEventListener(name, handler) { this.handlers[name] = handler; },
+        focus() { this.focused = true; },
         querySelector: () => node("stripBody"),
         close() { this.closed = true; }, showModal() { this.closed = false; },
         reset() { for (const n of nodes.values()) n.value = ""; },
@@ -268,13 +278,14 @@ test("dialog shows exact help, confirms selected date, cancel sends no RPC, subm
   assert.match(doc.node("created").innerHTML, /id="recalcReason" class="form-control"/);
   const css = read("public/shared/css/sasv-costing.css");
   assert.match(css, /#costingRecalculationDialog\s*\{[\s\S]*max-width:\s*480px/);
-  assert.match(css, /#costingRecalculationDialog::backdrop\s*\{\s*background:\s*rgba\(15, 23, 42, 0\.38\)/);
+  assert.match(css, /#costingRecalculationDialog::backdrop\s*\{\s*background:\s*color-mix\(in srgb, var\(--sasv-text, #0f172a\) 28%, transparent\)/);
   assert.match(css, /#costingRecalculationDialog \.sign-grid\s*\{\s*grid-template-columns:\s*1fr/);
   assert.match(doc.node("created").innerHTML, /aria-describedby="recalcDateHelp"/);
   assert.equal(
     doc.node("recalcConfirmation").textContent,
     "A new draft will be costed at the date the server chooses (today, India date, or the month's last day if the month has ended). It is not used for pricing until approved.",
   );
+  assert.equal(doc.node("recalcReason").focused, true);
   doc.node("recalcDate").value = "";
   doc.node("recalcDate").handlers.input();
   assert.equal(
@@ -289,7 +300,10 @@ test("dialog shows exact help, confirms selected date, cancel sends no RPC, subm
   doc.node("recalcReason").value = "Reviewed costs";
   doc.node("recalcDate").value = "2026-10-25";
   doc.node("recalcForm").handlers.submit({ preventDefault() {} });
+  assert.equal(doc.node("recalcResult").textContent, "Requesting\u2026");
+  assert.equal(doc.node("recalcForm").getAttribute("aria-busy"), "true");
   await new Promise(resolve => setImmediate(resolve));
+  assert.equal(doc.node("recalcForm").getAttribute("aria-busy"), undefined);
   assert.equal(calls[0][1].p_valuation_date, "2026-10-25");
   assert.equal(doc.node("recalcResult").textContent, recalculationSuccessText(result));
 });
@@ -335,8 +349,9 @@ test("period chip/overview render both server dates; ON blocks every legacy chan
       getPeriodRunStatus: () => ({ official_valuation_date: "2026-10-22", latest_draft_valuation_date: "2026-10-29" }),
     });
     await ctrl.loadForActivePeriod();
-    assert.match(doc.node("stripBody").innerHTML, /Official \(approved\) date: 2026-10-22/);
-    assert.match(doc.node("stripBody").innerHTML, /Latest draft date: 2026-10-29/);
+    const chipValue = doc.node("stripBody").innerHTML.match(/data-cpv-chip-value[^>]*>([^<]*)/)?.[1] || "";
+    assert.equal(chipValue, "2026-10-22");
+    assert.match(doc.node("stripBody").innerHTML, /title="Official \(approved\) date: 2026-10-22 · Latest draft date: 2026-10-29"/);
     ctrl.openModal("change");
     assert.equal(ctrl.getState().activeTab, "overview");
     assert.equal(doc.node("cpvTabChange").hidden, true);
