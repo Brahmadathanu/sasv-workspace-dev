@@ -673,7 +673,7 @@ assert(controlSrc.includes("Save only; Submit is not allowed."), "the review mod
 assert(readFileSync(join(root, "electron/eaushadhi-worker/qc-prep-run-executor.js"), "utf8").includes("Row verified — document not verified (trusted document check not available yet)"), "row verified wording is the document-not-verified sentence");
 assert(!controlSrc.includes("fully verified"), "the screen does not say fully verified");
 assert(controlSrc.includes(QC_PORTAL_CONTRACT.saveControlCapturedText) || controlSrc.includes("labelled Submit"), "the screen explains the Submit label");
-assert(/const CACHE_NAME = "hub-cache-v376"/.test(swSrc), "service worker cache is v376");
+assert(/const CACHE_NAME = "hub-cache-v377"/.test(swSrc), "service worker cache is v377");
 
 const counted = assessQcListResponse({ status: "1", data: [{ id: "1" }, { id: "2" }], TotalCount: 2, total: 9 }, { pageno: 0 });
 assert(counted.coverageComplete === true && counted.totalSource === "TotalCount" && counted.totalCount === 2, "TotalCount is the list total");

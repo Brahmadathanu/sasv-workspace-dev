@@ -37,6 +37,15 @@ function monthendPrefix(message) {
 
 function mapCodedMessage(code, message) {
   switch (code) {
+    case "W2_RUN_DATE_BEFORE_APPROVED":
+      return { kind: code, title: "The date is before the approved run's date. Choose a later date.", detail: firstLine(message), action: null };
+    case "CI041_FUTURE_DATE":
+      return { kind: code, title: "The date cannot be in the future.", detail: firstLine(message), action: null };
+    case "CI041_DATE_OUTSIDE_PERIOD":
+      return { kind: code, title: "The date must fall within the month.", detail: firstLine(message), action: null };
+    case "CI041_BAD_PERIOD":
+    case "CI041_DATE_REQUIRED":
+      return { kind: code, title: "This month is locked or closed; no recalculation is possible.", detail: firstLine(message), action: null };
     case "W2_PREVIEW_REQUIRED":
       return {
         kind: code,
@@ -180,6 +189,15 @@ function mapTextPatterns(message) {
     return {
       kind: "reference",
       title: "Please enter the approval reference.",
+      detail: line,
+      action: null,
+    };
+  }
+
+  if (line.includes("only for an OPEN period") || line.includes("does not exist")) {
+    return {
+      kind: "period",
+      title: "This month is locked or closed; no recalculation is possible.",
       detail: line,
       action: null,
     };
