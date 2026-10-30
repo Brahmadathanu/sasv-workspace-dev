@@ -1655,11 +1655,42 @@ function renderDetails() {
   ) || "PENDING";
   host.innerHTML = `
     <div class="section-card${classLocked ? " is-verified" : ""}" id="portalClassificationCard">
+      <div class="ux6-section-head">
       <div class="section-title-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <h3 class="section-title" style="margin:0">Portal Classification</h3>
         ${chip(reviewStatusChipClass(classStatus), displayText(classStatus, "PENDING"))}
       </div>
+      <div class="ux6-section-actions">
+      ${autosaveHtml(state.classificationSaveStatus, "classificationAutosave")}
+      ${stageSaverHtml("classification")}
+      <div class="action-row">
+        ${
+          classLocked
+            ? `${chip("success", "Verified")}
+        ${
+          preEntryReopenButton({
+            kind: "classification",
+            id: "btnReopenClassification",
+            label: "Reopen Portal Classification",
+          })
+        }`
+            : `<button type="button" class="icon-btn with-label primary" id="btnVerifyClassification" data-edit-action="true"${
+                classDecision.ok ? "" : " data-force-disabled=\"true\""
+              }${classDecision.code ? ` data-block-code="${escapeHtml(classDecision.code)}"` : ""}${
+                classDecision.reason ? ` title="${escapeHtml(classDecision.reason)}"` : ""
+              }>Approve</button>`
+        }
+      </div>
+      ${approvalNoticeHtml("classification")}
+      ${
+        classLocked
+          ? ""
+          : `<p class="disabled-reason" id="classificationVerifyHint"${classDecision.reason ? "" : " hidden"}>${escapeHtml(classDecision.reason)}</p>`
+      }
+      </div>
+      </div>
       ${classLocked ? lockNoteHtml() : ""}
+      <div class="form-grid ux6-classification-grid">
       <div class="form-field">
         <label for="fldClassProductType">Product Type</label>
         <select id="fldClassProductType" class="sasv-control" data-edit-action="true" data-classification-field="type"${classDisable}>
@@ -1695,37 +1726,14 @@ function renderDetails() {
             : ""
         }
       </div>
+      </div>
       <div class="form-field">
         <label for="fldClassNotes">Review Notes</label>
         <textarea id="fldClassNotes" class="sasv-control" rows="2" data-edit-action="true" data-classification-field="notes"${classDisable}>${escapeHtml(classDraft.reviewNotes || "")}</textarea>
       </div>
-      ${autosaveHtml(state.classificationSaveStatus, "classificationAutosave")}
-      ${stageSaverHtml("classification")}
-      <div class="action-row">
-        ${
-          classLocked
-            ? `${chip("success", "Verified")}
-        ${
-          preEntryReopenButton({
-            kind: "classification",
-            id: "btnReopenClassification",
-            label: "Reopen Portal Classification",
-          })
-        }`
-            : `<button type="button" class="icon-btn with-label primary" id="btnVerifyClassification" data-edit-action="true"${
-                classDecision.ok ? "" : " data-force-disabled=\"true\""
-              }${classDecision.code ? ` data-block-code="${escapeHtml(classDecision.code)}"` : ""}${
-                classDecision.reason ? ` title="${escapeHtml(classDecision.reason)}"` : ""
-              }>Approve</button>`
-        }
-      </div>
-      ${approvalNoticeHtml("classification")}
-      ${
-        classLocked
-          ? ""
-          : `<p class="disabled-reason" id="classificationVerifyHint"${classDecision.reason ? "" : " hidden"}>${escapeHtml(classDecision.reason)}</p>`
-      }
+
     </div>
+    <div class="ux6-details-pair">
     <div class="section-card${locked ? " is-verified" : ""}">
       <h3 class="section-title">Regulatory purpose</h3>
       ${locked ? lockNoteHtml() : ""}
@@ -1753,10 +1761,25 @@ function renderDetails() {
         }
       </div>
     </div>
+    </div>
     <div class="section-card" id="portalDiseasesCard">
+      <div class="ux6-section-head">
       <div class="section-title-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <h3 class="section-title" style="margin:0">e-Aushadhi Portal Text</h3>
         ${chip(portalTextChipClass, displayText(portalTextStatus, "PENDING"))}
+      </div>
+      ${portalTextAvailable ? `<div class="ux6-section-actions">
+      ${autosaveHtml(state.portalTextSaveStatus, "portalTextAutosave")}
+      <div class="action-row">
+        <button type="button" class="icon-btn with-label primary" id="btnVerifyPortalDiseases" data-edit-action="true"${
+          portalTextHint ? ` data-force-disabled="true" title="${escapeHtml(portalTextHint)}"` : ""
+        }>Accept &amp; Verify Portal Text</button>
+        <button type="button" class="icon-btn with-label" id="btnSavePortalDiseases" data-edit-action="true"${
+          portalTextHint ? ` data-force-disabled="true" title="${escapeHtml(portalTextHint)}"` : ""
+        }>Save for Review</button>
+      </div>
+      <p class="disabled-reason" id="portalDiseasesHint"${portalTextHint ? "" : " hidden"}>${escapeHtml(portalTextHint)}</p>
+      </div>` : ""}
       </div>
       <p class="muted-note">Portal-safe projection of Diseases / Conditions. The canonical text above is preserved; only this projection is typed into the Government portal.</p>
       ${
@@ -1777,16 +1800,7 @@ function renderDetails() {
         <label for="fldPortalDiseasesReason">Reason${portalReasonRequired ? " (required)" : ""}</label>
         <textarea id="fldPortalDiseasesReason" class="sasv-control" rows="2" data-edit-action="true">${escapeHtml(portalTextDraft.reason || "")}</textarea>
       </div>
-      ${autosaveHtml(state.portalTextSaveStatus, "portalTextAutosave")}
-      <div class="action-row">
-        <button type="button" class="icon-btn with-label primary" id="btnVerifyPortalDiseases" data-edit-action="true"${
-          portalTextHint ? ` data-force-disabled="true" title="${escapeHtml(portalTextHint)}"` : ""
-        }>Accept &amp; Verify Portal Text</button>
-        <button type="button" class="icon-btn with-label" id="btnSavePortalDiseases" data-edit-action="true"${
-          portalTextHint ? ` data-force-disabled="true" title="${escapeHtml(portalTextHint)}"` : ""
-        }>Save for Review</button>
-      </div>
-      <p class="disabled-reason" id="portalDiseasesHint"${portalTextHint ? "" : " hidden"}>${escapeHtml(portalTextHint)}</p>`
+`
           : `<p class="muted-note">Portal projection is not available for this product yet.</p>`
       }
     </div>
@@ -1798,6 +1812,7 @@ function renderDetails() {
           ? ""
           : `<p class="muted-note">Portal dossier fields lock once entry has begun (${escapeHtml(normalizeEntryStatus(state.queueRow?.entry_status))}).</p>`
       }
+      <div class="form-grid ux6-entry-grid">
       <div class="form-field">
         <label for="fldPortalRemarks">Portal Remarks</label>
         <textarea id="fldPortalRemarks" class="sasv-control" rows="2" data-edit-action="true" placeholder="Required before portal entry"${portalDisable}>${escapeHtml(portalDraft.remarks || "")}</textarea>
@@ -1818,16 +1833,13 @@ function renderDetails() {
             : `<span class="muted-note">Unresolved: choose the exact portal shelf-life route.</span>`
         }
       </div>
+      </div>
       ${autosaveHtml(state.portalFieldsSaveStatus, "portalFieldsAutosave")}
     </div>
     <div class="section-card${locked ? " is-verified" : ""}">
+      <div class="ux6-section-head">
       <h3 class="section-title">Controlled declarations</h3>
-      <p class="muted-note">SASV in-scope products are recorded as No. Null remains Not reviewed and never defaults to No. Changes save automatically. Verify when the section is correct.</p>
-      ${combinedDeclarationControl(draft)}
-      <div class="form-field" style="margin-top:10px">
-        <label for="fldReviewNotes">Review notes</label>
-        <textarea id="fldReviewNotes" class="sasv-control" rows="2" data-edit-action="true"${disable}>${escapeHtml(draft.reviewNotes || "")}</textarea>
-      </div>
+      <div class="ux6-section-actions">
       ${autosaveHtml(state.detailsSaveStatus, "detailsAutosave")}
       ${stageSaverHtml("details")}
       <div class="action-row">
@@ -1854,6 +1866,15 @@ function renderDetails() {
           ? ""
           : `<p class="disabled-reason" id="detailsVerifyHint"${detailsDecision.reason ? "" : " hidden"}>${escapeHtml(detailsDecision.reason)}</p>`
       }
+      </div>
+      </div>
+      <p class="muted-note">SASV in-scope products are recorded as No. Null remains Not reviewed and never defaults to No. Changes save automatically. Verify when the section is correct.</p>
+      ${combinedDeclarationControl(draft)}
+      <div class="form-field" style="margin-top:10px">
+        <label for="fldReviewNotes">Review notes</label>
+        <textarea id="fldReviewNotes" class="sasv-control" rows="2" data-edit-action="true"${disable}>${escapeHtml(draft.reviewNotes || "")}</textarea>
+      </div>
+
     </div>`;
   if (locked) {
     host.querySelectorAll("[data-bool-value]").forEach((el) => {

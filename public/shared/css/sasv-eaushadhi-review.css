@@ -2200,3 +2200,73 @@ body.sasv-eaushadhi-review .worklist-stage-name {
   }
 }
 
+
+/* UX-6: reuse the existing cards, controls and single workspace scroll area. */
+body.sasv-eaushadhi-review #tab-details .ux6-classification-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 10px;
+}
+body.sasv-eaushadhi-review #tab-details .ux6-details-pair,
+body.sasv-eaushadhi-review #tab-details .ux6-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+body.sasv-eaushadhi-review #tab-details .ux6-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+body.sasv-eaushadhi-review #tab-details .ux6-section-actions {
+  flex: 0 1 420px;
+  min-width: 0;
+  max-width: 100%;
+}
+body.sasv-eaushadhi-review #tab-details .ux6-section-actions .action-row {
+  margin-top: 4px;
+}
+body.sasv-eaushadhi-review #tab-details .ux6-section-actions p {
+  margin: 4px 0;
+}
+body.sasv-eaushadhi-review #tab-details .form-field,
+body.sasv-eaushadhi-review #tab-details .section-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+body.sasv-eaushadhi-review #tab-details .sasv-control {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+body.sasv-eaushadhi-review #tab-details .action-row button {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+body.sasv-eaushadhi-review #tab-composition .line-notes-row {
+  gap: 6px 8px;
+}
+body.sasv-eaushadhi-review #tab-composition .line-notes-row textarea {
+  flex: 1 1 280px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+@media (max-width: 760px) {
+  body.sasv-eaushadhi-review #tab-details .ux6-classification-grid,
+  body.sasv-eaushadhi-review #tab-details .ux6-details-pair,
+  body.sasv-eaushadhi-review #tab-details .ux6-entry-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.sasv-eaushadhi-review #tab-details .ux6-section-head {
+    flex-direction: column;
+  }
+  body.sasv-eaushadhi-review #tab-details .ux6-section-actions {
+    flex-basis: auto;
+    width: 100%;
+  }
+}
