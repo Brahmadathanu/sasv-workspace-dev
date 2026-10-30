@@ -61,6 +61,11 @@ export function createRecalculationController({
   let period = null;
   let dialog = null;
   const el = (id) => doc?.getElementById(id);
+  function syncPendingState() {
+    if (el("recalcSubmit")) el("recalcSubmit").disabled = pending;
+    if (el("recalcClose")) el("recalcClose").disabled = pending;
+    if (el("recalcHeaderClose")) el("recalcHeaderClose").disabled = pending;
+  }
   function onPeriodChange() {
     if (period !== getPeriod()) {
       ++generation;
@@ -76,7 +81,7 @@ export function createRecalculationController({
     }
     const mine = generation;
     pending = true;
-    if (el("recalcSubmit")) el("recalcSubmit").disabled = true;
+    syncPendingState();
     if (el("recalcError")) el("recalcError").textContent = "";
     try {
       const args = { p_period_start: periodStart, p_reason: reason };
@@ -108,7 +113,7 @@ export function createRecalculationController({
       return { error };
     } finally {
       pending = false;
-      if (el("recalcSubmit")) el("recalcSubmit").disabled = false;
+      syncPendingState();
     }
   }
   function open() {
@@ -121,27 +126,44 @@ export function createRecalculationController({
     if (!dialog) {
       dialog = doc.createElement("dialog");
       dialog.id = "costingRecalculationDialog";
+      dialog.className = "costing-recalculation-dialog";
       dialog.setAttribute("aria-labelledby", "recalcTitle");
-      dialog.innerHTML = `<form id="recalcForm">
-        <h2 id="recalcTitle">Request a recalculation (draft)</h2>
-        <p id="recalcPeriod"></p>
-        <label>Reason <textarea id="recalcReason" rows="3"></textarea></label>
-        <label>Valuation date (optional) <input id="recalcDate" type="date" aria-describedby="recalcDateHelp"></label>
-        <p id="recalcDateHelp">${EMPTY_DATE_HELP}</p>
-        <p id="recalcConfirmation"></p>
-        <p id="recalcError" role="alert"></p>
-        <button id="recalcCopy" type="button" hidden>Copy details</button>
-        <p id="recalcResult" role="status"></p>
-        <button id="recalcSubmit" type="submit">Request draft</button>
-        <button id="recalcClose" type="button">Close</button>
+      dialog.innerHTML = `<form id="recalcForm" class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <div>
+            <span class="cp-modal-title" id="recalcTitle">Request a recalculation (draft)</span>
+            <div class="peq-modal-subtitle" id="recalcPeriod"></div>
+          </div>
+          <button id="recalcHeaderClose" type="button" class="icon-btn" title="Close" aria-label="Close">&times;</button>
+        </div>
+        <div class="cost-sheet-sign-body">
+          <div class="sign-grid">
+            <label>Reason <textarea id="recalcReason" class="form-control" rows="3"></textarea></label>
+            <label>Valuation date (optional) <input id="recalcDate" class="form-control" type="date" aria-describedby="recalcDateHelp"></label>
+            <p id="recalcDateHelp" class="cp-muted-text recalc-full-row">${EMPTY_DATE_HELP}</p>
+            <p id="recalcConfirmation" class="cp-prm-form-notice recalc-full-row"></p>
+            <p id="recalcError" class="cas-danger recalc-full-row" role="alert"></p>
+            <button id="recalcCopy" class="cas-linkish recalc-full-row" type="button" hidden>Copy details</button>
+            <p id="recalcResult" class="cp-muted-text recalc-full-row" role="status"></p>
+          </div>
+        </div>
+        <div class="cost-sheet-sign-actions">
+          <button id="recalcClose" type="button" class="icon-btn">Close</button>
+          <button id="recalcSubmit" type="submit" class="icon-btn icon-btn-primary">Request draft</button>
+        </div>
       </form>`;
       doc.body.append(dialog);
       el("recalcForm").addEventListener("submit", (event) => {
         event.preventDefault();
         void submit({ reason: el("recalcReason").value, valuationDate: el("recalcDate").value });
       });
-      el("recalcClose").addEventListener("click", () => {
+      const closeDialog = () => {
         if (!pending) dialog.close();
+      };
+      el("recalcClose").addEventListener("click", closeDialog);
+      el("recalcHeaderClose").addEventListener("click", closeDialog);
+      dialog.addEventListener("cancel", (event) => {
+        if (pending) event.preventDefault();
       });
       el("recalcDate").addEventListener("input", () => {
         const selectedDate = el("recalcDate").value;

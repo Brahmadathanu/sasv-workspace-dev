@@ -258,6 +258,18 @@ test("dialog shows exact help, confirms selected date, cancel sends no RPC, subm
   });
   controller.open();
   assert.ok(doc.node("created").innerHTML.includes(EMPTY_DATE_HELP));
+  assert.equal(doc.node("created").className, "costing-recalculation-dialog");
+  assert.match(doc.node("created").innerHTML, /class="cost-sheet-sign-panel"/);
+  assert.match(doc.node("created").innerHTML, /class="cost-sheet-sign-header"/);
+  assert.match(doc.node("created").innerHTML, /class="cost-sheet-sign-body"/);
+  assert.match(doc.node("created").innerHTML, /class="cost-sheet-sign-actions"/);
+  assert.match(doc.node("created").innerHTML, /id="recalcSubmit"[^>]*class="icon-btn icon-btn-primary"/);
+  assert.match(doc.node("created").innerHTML, /id="recalcClose"[^>]*class="icon-btn"/);
+  assert.match(doc.node("created").innerHTML, /id="recalcReason" class="form-control"/);
+  const css = read("public/shared/css/sasv-costing.css");
+  assert.match(css, /#costingRecalculationDialog\s*\{[\s\S]*max-width:\s*480px/);
+  assert.match(css, /#costingRecalculationDialog::backdrop\s*\{\s*background:\s*rgba\(15, 23, 42, 0\.38\)/);
+  assert.match(css, /#costingRecalculationDialog \.sign-grid\s*\{\s*grid-template-columns:\s*1fr/);
   assert.match(doc.node("created").innerHTML, /aria-describedby="recalcDateHelp"/);
   assert.equal(
     doc.node("recalcConfirmation").textContent,
@@ -292,10 +304,19 @@ test("Close does not dismiss the dialog while a request is pending", async () =>
   controller.open();
   doc.node("recalcReason").value = "Reviewed costs";
   doc.node("recalcForm").handlers.submit({ preventDefault() {} });
+  assert.equal(doc.node("recalcSubmit").disabled, true);
+  assert.equal(doc.node("recalcClose").disabled, true);
+  assert.equal(doc.node("recalcHeaderClose").disabled, true);
   doc.node("recalcClose").handlers.click();
   assert.equal(doc.node("created").closed, false);
+  let cancelPrevented = false;
+  doc.node("created").handlers.cancel({ preventDefault() { cancelPrevented = true; } });
+  assert.equal(cancelPrevented, true);
   request.resolve({ data: result });
   await new Promise(resolve => setImmediate(resolve));
+  assert.equal(doc.node("recalcSubmit").disabled, false);
+  assert.equal(doc.node("recalcClose").disabled, false);
+  assert.equal(doc.node("recalcHeaderClose").disabled, false);
   doc.node("recalcClose").handlers.click();
   assert.equal(doc.node("created").closed, true);
 });
