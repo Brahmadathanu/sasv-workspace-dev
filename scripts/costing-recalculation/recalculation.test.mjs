@@ -106,14 +106,14 @@ for (const [code, message] of [
   ["W2_RUN_DATE_BEFORE_APPROVED", "The date is before the approved run's date. Choose a later date."],
   ["CI041_FUTURE_DATE", "The date cannot be in the future."],
   ["CI041_DATE_OUTSIDE_PERIOD", "The date must fall within the month."],
-  ["CI041_BAD_PERIOD", "This month is locked or closed; no recalculation is possible."],
-  ["CI041_DATE_REQUIRED", "This month is locked or closed; no recalculation is possible."],
+  ["CI041_BAD_PERIOD", "The month is not valid. Reload and choose the month again."],
+  ["CI041_DATE_REQUIRED", "A month and date are required."],
   ["W2_REASON_REQUIRED", "Please enter a reason (at least 10 characters)."],
   ["W2_AUTH_REQUIRED", "Please sign in again."],
 ]) test(code + " maps by message prefix despite P0001", () => {
   assert.equal(mapCostingApprovalError({ code: "P0001", message: code + ": server detail" }).title, message);
 });
-for (const message of ["Recalculation is only for an OPEN period", "Period does not exist"]) test("uncoded period refusal: " + message, () => {
+for (const message of ["Recalculation is only for an OPEN period", "Costing period 2026-10-01 does not exist"]) test("uncoded period refusal: " + message, () => {
   assert.equal(mapCostingApprovalError(message).title, "This month is locked or closed; no recalculation is possible.");
 });
 test("uncoded authentication and permission mappings remain unchanged", () => {
@@ -123,6 +123,16 @@ test("uncoded authentication and permission mappings remain unchanged", () => {
 test("unknown first line and coded precedence", () => {
   assert.equal(mapCostingApprovalError("New refusal\nprivate second line").detail, "New refusal");
   assert.equal(mapCostingApprovalError("CI041_FUTURE_DATE: period does not exist").title, "The date cannot be in the future.");
+});
+test("does not exist text is narrowly scoped", () => {
+  assert.equal(mapCostingApprovalError("MONTHEND_RUN_NOT_FOUND: run 5 does not exist").kind, "MONTHEND_RUN_NOT_FOUND");
+  assert.equal(mapCostingApprovalError("function public.x(date) does not exist").kind, "unknown");
+});
+test("success text omits null optional fields", () => {
+  assert.equal(
+    recalculationSuccessText({ ...result, pricing_note: null, action: null }),
+    "Draft run 144 requested for 2026-10-01 at 2026-10-29.",
+  );
 });
 test("labels distinguish official/draft and null official", () => {
   assert.equal(periodDateText({ official_valuation_date: "2026-10-22", latest_draft_valuation_date: "2026-10-29" }), "Official (approved) date: 2026-10-22 \u00b7 Latest draft date: 2026-10-29");
@@ -147,6 +157,15 @@ for (const recalc of [false, true]) for (const approval of [false, true]) test(`
     await badge.refresh({ periodStart: row.period_start, lensId: "dashboard" });
     assert.equal(select, recalc || approval ? RUN_STATUS_SELECT_APPROVAL_V1 : RUN_STATUS_SELECT_V1);
     assert.equal(node.title, (approval ? describeRunStatusForApprovalFlag(row) : describeRunStatus(row)).title);
+    let opens = 0; const legacyCalls = [];
+    const toolbar = new Function("isCostingRecalcWithDateV1Enabled", "recalculationCtrl", "runStagedCostingRefreshAndReload", "return async " + fn(shell, "requestCostingRefreshFromToolbar"))(
+      () => recalc,
+      { open() { opens++; } },
+      async args => legacyCalls.push(args),
+    );
+    await toolbar();
+    assert.equal(opens, +recalc);
+    assert.equal(legacyCalls.length, recalc ? 0 : 1);
   } finally { globalThis.localStorage = previous; }
 });
 test("toolbar dispatch toggles, OFF staged call stays byte-identical", async () => {
@@ -239,6 +258,17 @@ test("dialog shows exact help, confirms selected date, cancel sends no RPC, subm
   });
   controller.open();
   assert.ok(doc.node("created").innerHTML.includes(EMPTY_DATE_HELP));
+  assert.match(doc.node("created").innerHTML, /aria-describedby="recalcDateHelp"/);
+  assert.equal(
+    doc.node("recalcConfirmation").textContent,
+    "A new draft will be costed at the date the server chooses (today, India date, or the month's last day if the month has ended). It is not used for pricing until approved.",
+  );
+  doc.node("recalcDate").value = "";
+  doc.node("recalcDate").handlers.input();
+  assert.equal(
+    doc.node("recalcConfirmation").textContent,
+    "A new draft will be costed at the date the server chooses (today, India date, or the month's last day if the month has ended). It is not used for pricing until approved.",
+  );
   doc.node("recalcDate").value = "2026-10-25";
   doc.node("recalcDate").handlers.input();
   assert.match(doc.node("recalcConfirmation").textContent, /at 2026-10-25/);
@@ -250,6 +280,24 @@ test("dialog shows exact help, confirms selected date, cancel sends no RPC, subm
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(calls[0][1].p_valuation_date, "2026-10-25");
   assert.equal(doc.node("recalcResult").textContent, recalculationSuccessText(result));
+});
+
+test("Close does not dismiss the dialog while a request is pending", async () => {
+  const doc = fakeDocument(); const request = deferred();
+  const controller = createRecalculationController({
+    doc, costingRpc: () => request.promise,
+    getPeriod: () => "2026-10-01", canEdit: () => true,
+    invalidateBadge() {}, reloadStatus: async () => {}, showToast() {},
+  });
+  controller.open();
+  doc.node("recalcReason").value = "Reviewed costs";
+  doc.node("recalcForm").handlers.submit({ preventDefault() {} });
+  doc.node("recalcClose").handlers.click();
+  assert.equal(doc.node("created").closed, false);
+  request.resolve({ data: result });
+  await new Promise(resolve => setImmediate(resolve));
+  doc.node("recalcClose").handlers.click();
+  assert.equal(doc.node("created").closed, true);
 });
 
 test("period chip/overview render both server dates; ON blocks every legacy change entry", async () => {

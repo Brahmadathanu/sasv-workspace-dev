@@ -44,8 +44,9 @@ function mapCodedMessage(code, message) {
     case "CI041_DATE_OUTSIDE_PERIOD":
       return { kind: code, title: "The date must fall within the month.", detail: firstLine(message), action: null };
     case "CI041_BAD_PERIOD":
+      return { kind: code, title: "The month is not valid. Reload and choose the month again.", detail: firstLine(message), action: null };
     case "CI041_DATE_REQUIRED":
-      return { kind: code, title: "This month is locked or closed; no recalculation is possible.", detail: firstLine(message), action: null };
+      return { kind: code, title: "A month and date are required.", detail: firstLine(message), action: null };
     case "W2_PREVIEW_REQUIRED":
       return {
         kind: code,
@@ -194,7 +195,10 @@ function mapTextPatterns(message) {
     };
   }
 
-  if (line.includes("only for an OPEN period") || line.includes("does not exist")) {
+  if (
+    line.includes("only for an OPEN period") ||
+    /^Costing period \S+ does not exist/.test(line)
+  ) {
     return {
       kind: "period",
       title: "This month is locked or closed; no recalculation is possible.",

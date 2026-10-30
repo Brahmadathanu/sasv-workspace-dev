@@ -19,7 +19,16 @@ export function periodDateText(row) {
 }
 
 export function recalculationSuccessText(row) {
-  return `Draft run ${row.refresh_run_id} requested for ${row.period_start} at ${row.valuation_date}. ${row.pricing_note} Action: ${row.action}`;
+  const parts = [
+    `Draft run ${row.refresh_run_id} requested for ${row.period_start} at ${row.valuation_date}.`,
+  ];
+  if (row.pricing_note != null && String(row.pricing_note).trim() !== "") {
+    parts.push(String(row.pricing_note).trim());
+  }
+  if (row.action != null && String(row.action).trim() !== "") {
+    parts.push(`Action: ${String(row.action).trim()}`);
+  }
+  return parts.join(" ");
 }
 
 // No settled-month cache: a newer draft can appear after an approved run.
@@ -117,8 +126,8 @@ export function createRecalculationController({
         <h2 id="recalcTitle">Request a recalculation (draft)</h2>
         <p id="recalcPeriod"></p>
         <label>Reason <textarea id="recalcReason" rows="3"></textarea></label>
-        <label>Valuation date (optional) <input id="recalcDate" type="date"></label>
-        <p>${EMPTY_DATE_HELP}</p>
+        <label>Valuation date (optional) <input id="recalcDate" type="date" aria-describedby="recalcDateHelp"></label>
+        <p id="recalcDateHelp">${EMPTY_DATE_HELP}</p>
         <p id="recalcConfirmation"></p>
         <p id="recalcError" role="alert"></p>
         <button id="recalcCopy" type="button" hidden>Copy details</button>
@@ -131,9 +140,14 @@ export function createRecalculationController({
         event.preventDefault();
         void submit({ reason: el("recalcReason").value, valuationDate: el("recalcDate").value });
       });
-      el("recalcClose").addEventListener("click", () => dialog.close());
+      el("recalcClose").addEventListener("click", () => {
+        if (!pending) dialog.close();
+      });
       el("recalcDate").addEventListener("input", () => {
-        el("recalcConfirmation").textContent = `A new draft will be costed at ${el("recalcDate").value || "today"}. It is not used for pricing until approved.`;
+        const selectedDate = el("recalcDate").value;
+        el("recalcConfirmation").textContent = selectedDate
+          ? `A new draft will be costed at ${selectedDate}. It is not used for pricing until approved.`
+          : "A new draft will be costed at the date the server chooses (today, India date, or the month's last day if the month has ended). It is not used for pricing until approved.";
       });
       el("recalcCopy").addEventListener("click", async () => {
         try { await globalThis.navigator.clipboard.writeText(el("recalcError").textContent); }
@@ -145,7 +159,7 @@ export function createRecalculationController({
     el("recalcError").textContent = "";
     el("recalcResult").textContent = "";
     el("recalcCopy").hidden = true;
-    el("recalcConfirmation").textContent = "A new draft will be costed at today. It is not used for pricing until approved.";
+    el("recalcConfirmation").textContent = "A new draft will be costed at the date the server chooses (today, India date, or the month's last day if the month has ended). It is not used for pricing until approved.";
     dialog.showModal();
   }
   return { open, submit, onPeriodChange };

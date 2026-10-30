@@ -21,7 +21,6 @@ import {
 
 import { isCostingRecalcWithDateV1Enabled } from "./costing-feature-flags.js";
 import { periodDateLabels, periodDateText } from "./costing-recalculation.js";
-import { formatIst } from "./costing-run-status-badge.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -343,7 +342,7 @@ export function createCostPeriodValuationController(deps = {}) {
       ],
       ["Last change reason", text(ctx.valuation_date_change_reason)],
       ["Approval reference", text(ctx.valuation_date_approval_reference)],
-      ["Set at", isCostingRecalcWithDateV1Enabled() ? text(ctx.valuation_date_set_at ? formatIst(ctx.valuation_date_set_at) : null) : formatDateTime(ctx.valuation_date_set_at)],
+      ["Set at", formatDateTime(ctx.valuation_date_set_at)],
       ["Set by", text(formatActorFromContext(ctx.valuation_date_set_by))],
     ];
 
