@@ -1,3 +1,5 @@
+> **Status (30 Oct 2026): SUPERSEDED by redesign v2.2 (27 Oct 2026). Its job facts are out of date (job 67 is active now).** Current view: [../COSTING_REDESIGN_V2_CURRENT_STATE.md](../COSTING_REDESIGN_V2_CURRENT_STATE.md). Kept as a dated record; do not act on its status lines.
+
 # H: How runs, valuation dates, scheduled jobs and guards work, and how to improve them
 Prepared 26 Oct 2026 (IST). Read-only. Based on review G (live function bodies) and a live check today: job 66 is active, job 67 is paused, job 68 is active. Job 66's last run on 26 Oct at 02:00 IST failed. The run table already stores each run's own valuation date.
 

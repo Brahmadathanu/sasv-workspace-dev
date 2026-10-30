@@ -1,3 +1,5 @@
+> **Status (30 Oct 2026): HISTORICAL — 25 Oct 2026 decision request; answered (see decision log).** Current view: [../DECISION_LOG.md](../DECISION_LOG.md). Kept as a dated record; do not act on its status lines.
+
 # Decisions for Dr. Brahmadathan U (25 Oct 2026)
 All findings are read-only checks of the live database and repo on 25 Oct 2026. Nothing was changed.
 

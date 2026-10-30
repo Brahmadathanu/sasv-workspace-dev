@@ -1,3 +1,5 @@
+> **Status (30 Oct 2026): HISTORICAL — frozen at 24 Oct 2026.** Current view: [DECISION_LOG.md](DECISION_LOG.md) (decisions from 26 Oct) and [STATUS_AND_REMAINING_WORK.md](STATUS_AND_REMAINING_WORK.md). Kept as a dated record; do not act on its status lines.
+
 # Changelog: costing pipeline audit
 Newest first (sorted by date and time, 24 Oct 2026). All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, archive/.
 

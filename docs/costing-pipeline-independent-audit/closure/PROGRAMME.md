@@ -1,3 +1,5 @@
+> **Status (30 Oct 2026): HISTORICAL — closure programme G0–G6 (19–24 Oct 2026).** Current view: [../STATUS_AND_REMAINING_WORK.md](../STATUS_AND_REMAINING_WORK.md). Kept as a dated record; do not act on its status lines.
+
 > **CURRENT LIVE STATUS — 24 OCT 2026 15:50 IST (supersedes the 20 Oct banner and all status lines below):** run 143 is October's approved run (24 Oct 13:46 IST, superseded run 140 via owner authorisation #10; Mathalam (F) at ₹118/kg); October OPEN, 22 Oct valuation DRAFT; approved feed `costing.v_price_revision_current_approved_master` (old public feed view gone); cron 66/67/68 active, 60/61 gone. Single entry point: [../CURRENT_STATE.md](../CURRENT_STATE.md). Gate rows below are dated history; their current status is not checked again here unless the issue register says so.
 
 ## Gate status — 24 Oct 2026 16:00 IST (supersedes the 19 Oct table below)

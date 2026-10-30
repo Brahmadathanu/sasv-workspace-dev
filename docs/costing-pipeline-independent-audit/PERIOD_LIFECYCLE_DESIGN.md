@@ -1,3 +1,5 @@
+> **Status (30 Oct 2026): HISTORICAL — draft design (16–18 Oct 2026), replaced by redesign v2.** Current view: [COSTING_REDESIGN_V2_CURRENT_STATE.md](COSTING_REDESIGN_V2_CURRENT_STATE.md). Kept as a dated record; do not act on its status lines.
+
 # Period lifecycle design (draft migration supabase/migrations_draft/20261016100000; local tests 7/7)
 > **Status update 18 Oct 2026:** the lifecycle tick is still a draft and not applied. October was created by `rpc_ensure_cost_period` (16 Oct, audit 11). Sep and Oct were locked by user-approved one-off guarded SQL (option A; audit PERIOD_LOCKED rows). There is still no lock/reopen RPC; that work is backlog AU2-P01 (option C), to be built before the November close.
 

@@ -1,3 +1,5 @@
+> **Status (30 Oct 2026): SUPERSEDED (state as of 24–27 Oct 2026).** Current view: [README_COSTING_SUITE.md](README_COSTING_SUITE.md), [STATUS_AND_REMAINING_WORK.md](STATUS_AND_REMAINING_WORK.md), [COSTING_REDESIGN_V2_CURRENT_STATE.md](COSTING_REDESIGN_V2_CURRENT_STATE.md) and [../master-data-costing/ALIGNED_STATUS_2026-10-30.md](../master-data-costing/ALIGNED_STATUS_2026-10-30.md). Kept as a dated record; do not act on its status lines.
+
 # Costing suite: current state (single entry point)
 
 **Verified read-only on 24 Oct 2026, 23:40 IST** (Supabase project qhmoqtxpeasamtlxaoak, SELECT only). This page supersedes every earlier "current status" banner in this folder. Older handovers and checkpoints are dated history.

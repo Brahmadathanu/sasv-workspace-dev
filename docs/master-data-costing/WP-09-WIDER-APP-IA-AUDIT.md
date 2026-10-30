@@ -1,3 +1,5 @@
+> **Status (30 Oct 2026): SKELETON — written 27 Sep 2026 and never developed. Its real status and disposition are in the closing plan.** Current view: [MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md](MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md). Kept as a dated record; do not act on its status lines.
+
 # WP-09 — Wider Application Launcher/Section Audit
 
 ## Objective

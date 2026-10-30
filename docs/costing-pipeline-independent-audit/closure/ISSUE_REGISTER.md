@@ -1,3 +1,5 @@
+> **Status (30 Oct 2026): HISTORICAL — issue register as of 24 Oct 2026; CI-038 onwards are tracked elsewhere.** Current view: [../STATUS_AND_REMAINING_WORK.md](../STATUS_AND_REMAINING_WORK.md) and [../DECISION_LOG.md](../DECISION_LOG.md). Kept as a dated record; do not act on its status lines.
+
 > **24 Oct 2026 cleanup:** CI-023 and CI-024 updated to live state. Second pass at 16:00 IST: open items re-checked read-only where possible; each row's status says Verified or UNVERIFIED. See [../CURRENT_STATE.md](../CURRENT_STATE.md).
 
 # Issue register (canonical; the old JSON copy, frozen at 19 Oct, is in `../archive/ISSUE_REGISTER.json`)

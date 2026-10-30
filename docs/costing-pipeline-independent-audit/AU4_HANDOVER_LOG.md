@@ -1,3 +1,5 @@
+> **Status (30 Oct 2026): HISTORICAL — AU-4 handover log (16–18 Oct 2026).** Current view: [STATUS_AND_REMAINING_WORK.md](STATUS_AND_REMAINING_WORK.md). Kept as a dated record; do not act on its status lines.
+
 ## 2026-10-16 08:50 IST — 7 staff classifications applied to LIVE (user-authorised)
 - Script: proposals/AU4_staff_classification_7_active.sql (insert body only, via execute_sql). Local PG17 test passed first (apply, idempotent re-apply, rollback).
 - Result: 7 rows (remarks tag AU4-7STAFF-20261016); UNCLASSIFIED active staff now 0.

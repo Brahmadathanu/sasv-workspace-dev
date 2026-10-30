@@ -1,3 +1,5 @@
+> **Status (30 Oct 2026): HISTORICAL — PR #72 era decisions, frozen at 24 Oct 2026. Decisions stay valid unless a later record changes them.** Current view: [DECISION_LOG.md](DECISION_LOG.md). Kept as a dated record; do not act on its status lines.
+
 # Decisions and open questions (costing implementation, PR #72)
 Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlier decisions (D-001 to D-024, to 16 Oct 07:46) are in this file on the audit branch `docs/costing-pipeline-independent-audit`. Policy status summary: POLICY_REGISTER.md.
 

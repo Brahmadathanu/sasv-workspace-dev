@@ -1,3 +1,5 @@
+> **Status (30 Oct 2026): HISTORICAL — acceptance framework for the first approved run (Oct 2026). Approval now follows preview → approve; this framework is not a current approval gate.** Current view: [COSTING_OPERATIONS_RUNBOOK_CURRENT.md](COSTING_OPERATIONS_RUNBOOK_CURRENT.md). Kept as a dated record; do not act on its status lines.
+
 # First-APPROVED-run acceptance framework
 Harness: `acceptance/first_approved_run_acceptance.sql` (read-only; `\set run_id N` on local/psql; literal substitution on live MCP). 12 checks + EVIDENCE_SNAPSHOT row (md5 of all results + timestamp) — store output in evidence/ as immutable record and as costing_run_fingerprint purpose ACCEPTANCE when approval is executed.
 Checklist (all PASS required): run exists; SUCCESS; 0 blocked; 0 review-required; period governed; valuation date APPROVED/LOCKED; run valuation date = period; no other APPROVED in period; SUCCESS fingerprint; LATEST_SUCCESS is never auto-approved (explicit user designation only); normal rates approved (readiness has no REVIEW_REQUIRED); cron jobs 60/61 active.

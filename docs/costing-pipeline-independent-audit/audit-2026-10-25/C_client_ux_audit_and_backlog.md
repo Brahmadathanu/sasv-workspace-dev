@@ -1,3 +1,5 @@
+> **Status (30 Oct 2026): PARTLY SUPERSEDED — 25 Oct 2026 code review. CW-01 (lock) is the next Codex package, CW-02 approval screen shipped in PR #99, Refresh with date shipped in PR #100 (both flags OFF). The CW list is still the backlog reference.** Current view: [../../master-data-costing/ALIGNED_STATUS_2026-10-30.md](../../master-data-costing/ALIGNED_STATUS_2026-10-30.md). Kept as a dated record; do not act on its status lines.
+
 # Part C: client gap and UI/UX audit, with backlog
 
 Code read on `origin/main` (worktree /workspace/audit-wt), 25 Oct 2026. Preview pages need a login, so this is a code review; nothing was clicked.

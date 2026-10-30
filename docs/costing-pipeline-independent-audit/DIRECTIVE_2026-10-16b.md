@@ -1,3 +1,5 @@
+> **Status (30 Oct 2026): HISTORICAL — 16 Oct 2026 directive.** Current view: [STATUS_AND_REMAINING_WORK.md](STATUS_AND_REMAINING_WORK.md). Kept as a dated record; do not act on its status lines.
+
 # User clarification 2026-10-16 07:46 IST (summary)
 Structured summary as relayed by the parent agent (verbatim text not attached). Supersedes the previous decision request. PR #71 already merged (main 80c14ab).
 Rules: no live writes, cron changes, rate approvals, consumer switches, merges or sheet edits; draft PRs on costing/* only.
