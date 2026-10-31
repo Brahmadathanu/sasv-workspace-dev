@@ -1,3 +1,5 @@
+> **SUPERSEDED / HISTORICAL as of 31 Oct 2026 - see [CURRENT_STATE_2026-10-31.md](../master-data-costing/CURRENT_STATE_2026-10-31.md).** This document is kept for history. Its status lines are not current.
+
 # Costing suite: current state (single entry point)
 
 **Verified read-only on 24 Oct 2026, 23:40 IST** (Supabase project qhmoqtxpeasamtlxaoak, SELECT only). This page supersedes every earlier "current status" banner in this folder. Older handovers and checkpoints are dated history.

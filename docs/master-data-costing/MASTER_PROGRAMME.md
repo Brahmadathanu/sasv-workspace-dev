@@ -1,5 +1,7 @@
 # SASV Master Data Governance, Product Lifecycle & Costing Suite UX Consolidation
 
+> **Update 31 Oct 2026:** current state is in [CURRENT_STATE_2026-10-31.md](CURRENT_STATE_2026-10-31.md) and remaining work in [REMAINING_WORK_2026-10-31.md](REMAINING_WORK_2026-10-31.md). Since 26 Oct: CI-040 to CI-047 and CI-050 are live (CSE-P01 is done); costing screen PRs #99 to #106 are merged with seven switched-off flags; `main` is `9ea163d`, cache `hub-cache-v383`. The "Active work pack", "Major unresolved blockers" and "Immediate next action" sections below describe 8 Oct 2026 and are historical.
+
 > **Status update 25 Oct 2026 (read-only audit):** this programme was dormant from 8 Oct 2026. Costing work after that date ran under `docs/costing-pipeline-independent-audit/` (see its `CURRENT_STATE.md`). WP-1 and WP00–WP04 are done and verified on main and live. SEC-P01 is done live. The old "WP07" here is renamed **MDC-07** so it is not confused with the e-Aushadhi WP-07 programme. Every remaining item and its proposed disposition is in [MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md](MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md). The programme is **not closed yet**. References below to Run 115 and Build 4 are history; current approved runs are 122 (Sep, locked) and 143 (Oct).
 
 > **Update 26 Oct 2026:** CI-038, CI-038a and CI-039 applied live and recorded in the repo; SKUs 41 and 846 activated. See CHANGELOG_DECISIONS.md (2026-10-26).
@@ -48,7 +50,7 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11–WP12. Later phases do not start because an attractive future idea appears.
 
 ## Programme status
-IN PROGRESS: closing. Remaining items and dispositions: MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md (25 Oct 2026)
+IN PROGRESS: closing. Current remaining items: REMAINING_WORK_2026-10-31.md (31 Oct 2026). Earlier list and dispositions: MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md (25 Oct 2026)
 
 ## Active work pack
 None. WP04 — Central Master Data / Costing Readiness Control Centre is completed, verified, merged, and closed. WP05 has not started.
@@ -80,7 +82,7 @@ No WP02/WP03 blocker remains. Parked items stay parked for their assigned later 
 
 - UX-P02 → WP11.
 - NAV-P01 / NAV-P02 → WP08.
-- CSE-P01 commercial-sales LIVE_AS_OF multi-row authority → costing/commercial-sales evidence governance.
+- ~~CSE-P01 commercial-sales LIVE_AS_OF multi-row authority~~ → DONE: owner chose option B on 26 Oct 2026; CI-050 applied live 31 Oct 2026.
 - PERF-P01 broader portfolio-readiness performance architecture → separate future architectural decision.
 - WP05 park candidates from Track B acceptance (SKU Control Status ↔ Readiness rationalisation; wider Costing/Pricing Policy Manager duplication audit; parked legacy dashboard-summary dependency audit) → WP05; they remain parked. WP05 has not started.
 
