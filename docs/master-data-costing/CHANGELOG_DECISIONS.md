@@ -142,3 +142,14 @@
 **Decision:** Master data for SKU 41 (Dhanyamlam 1000 mL, re-activated) and SKU 846 (Gorochanadi 300 g, product 667) was entered on 26 Oct by Dr. Brahmadathan U through his own logged-in console session (audit trail in his name): MRP policies (#1830 for SKU 41), selling/GST policies (#1323 for SKU 41), PM BOM revisions 685 (SKU 41) and 686 (SKU 846) approved, No Scheme policies IK/OK (#1332/#1333 for SKU 41, #1334/#1335 for SKU 846), batch size #555, mapping #462, and product route #256 approved (reference `PRM-PR-667-V1-APP-20261026`) with three bypasses of steps 451, 457 and 458. Both SKUs were then activated.
 **Impact:** The October readiness snapshot predates these entries and October's valuation date is 22 Oct, so readiness for both SKUs is expected from the November run (scheduled Monday 2 Nov 2026, 02:00 IST).
 **Status:** RECORDED.
+
+## 2026-10-31 — CSE-P01 implemented (CI-050 applied live)
+**Decision:** The owner's 26 Oct option B is now implemented. CI-050 (`ci050_cse_p01_sales_basis_option_b`, version `20261031123530`) was applied 31 Oct 2026 18:05 IST on the owner's written approval. Approved runs 122/143 and the run fingerprint are unchanged. The readiness snapshot is stale as expected; its rebuild is separately governed, after the October decision.
+**Status:** APPLIED live. This supersedes "its migration is still to be prepared (not applied)" in the 2026-10-26 entry above.
+
+## 2026-10-31 — Costing screen PRs #99 to #106 on main (all switched off)
+**Decision:** Merged on the owner's text: #99 approval screen, #100 refresh with date, #101 lock screen, #102 run status, #103 polish, #104 consistent labels, #105 duplicate-sequence dialog, #106 table tools. `main` = `9ea163d`, cache `hub-cache-v383`. Seven flags, all off by default. The lock flag stays off for open months until CI-049 is live or the owner decides. No database change in these PRs.
+**Status:** MERGED. See CURRENT_STATE_2026-10-31.md and REMAINING_WORK_2026-10-31.md.
+
+## 2026-10-26 entry "Per-run valuation date redesign" — status note (31 Oct 2026)
+The "PENDING owner decisions D1–D7" status is historical: D1–D7 were decided 26–27 Oct, and CI-040, CI-041, CI-042, CI-043 and CI-045 are live.

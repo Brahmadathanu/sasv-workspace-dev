@@ -1,3 +1,5 @@
+> **SUPERSEDED / HISTORICAL as of 31 Oct 2026 - see [CURRENT_STATE_2026-10-31.md](../../master-data-costing/CURRENT_STATE_2026-10-31.md).** This document is kept for history. Its status lines are not current.
+
 # Decisions for Dr. Brahmadathan U (25 Oct 2026)
 All findings are read-only checks of the live database and repo on 25 Oct 2026. Nothing was changed.
 

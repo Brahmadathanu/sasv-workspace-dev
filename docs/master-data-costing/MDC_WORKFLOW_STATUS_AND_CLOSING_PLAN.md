@@ -1,3 +1,5 @@
+> **SUPERSEDED / HISTORICAL as of 31 Oct 2026 - see [CURRENT_STATE_2026-10-31.md](CURRENT_STATE_2026-10-31.md).** This document is kept for history. Its status lines are not current.
+
 # MDC workflow status and closing plan (25 Oct 2026)
 
 Read-only audit of the master-data-costing (MDC) programme against `main` and live Supabase (SELECT only). Status: **closing, not closed.** The programme closes after every item below has a recorded disposition and the "do now" items are finished.
@@ -32,7 +34,7 @@ Read-only audit of the master-data-costing (MDC) programme against `main` and li
 | UX-P02 Manage Products polish | Density, dialogs, narrow layout | Not started | **Backlog** (with CW-13) |
 | NAV-P01 master data navigation | | Not started | **Backlog** with WP08 |
 | NAV-P02 readiness route link map | Server route codes have no Manage Products link | Partly done (costing side has a resolver) | **Backlog** with WP08 |
-| CSE-P01 commercial-sales LIVE_AS_OF ambiguity | Which sales snapshot row counts when several exist | Unclear | **Owner** decision |
+| CSE-P01 commercial-sales LIVE_AS_OF ambiguity | Which sales snapshot row counts when several exist | DONE (31 Oct: option B, CI-050 live) | — |
 | PERF-P01 readiness performance | Speed of readiness lookups | Unclear; live stats show single-SKU readiness averaging ~4.9 s (max ~8 s) | **Owner** decision |
 | CCC-P01 SKU Control Status vs Readiness | Two overlapping lenses | Not started | **Backlog** (Cursor UX plan) |
 | CCC-P02 pricing duplication audit | | Not started; findings in the 25 Oct audit | **Backlog** (CW-08/CW-09) |
