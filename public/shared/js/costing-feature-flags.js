@@ -62,3 +62,13 @@ export function isCostingDialogsV1Enabled(storage = globalThis.localStorage) {
     return false;
   }
 }
+
+export const COSTING_TABLE_TOOLS_V1 = "COSTING_TABLE_TOOLS_V1";
+
+export function isCostingTableToolsV1Enabled(storage = globalThis.localStorage) {
+  try {
+    return storage?.getItem?.(COSTING_TABLE_TOOLS_V1) === "1";
+  } catch {
+    return false;
+  }
+}
