@@ -65,6 +65,8 @@ import { costingIssueDisplayLabel, costingStatusDisplayLabel } from "./costing-s
 import { createCostingApprovalScreenController } from "./costing-approval-screen.js";
 import { createCostingLockScreenController } from "./costing-lock-screen.js";
 import { createCostingRunStatusScreenController } from "./costing-run-status-screen.js";
+import { isCostingTableToolsV1Enabled } from "./costing-feature-flags.js";
+import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor } from "./costing-table-tools.js";
 import {
   createQcActionQueueController,
   isQcActionQueueLens,
@@ -637,6 +639,8 @@ let ALL_ROWS = [];
 let VIEW = [];
 let CURRENT_PAGE = 1;
 let PAGE_SIZE = 25;
+// CW-05 table tools state (used only when COSTING_TABLE_TOOLS_V1 is ON).
+let CW05_SORT_CTX = null;
 const CCC_PROGRESSIVE_LENS_IDS = new Set([
   "costing-review-workbench",
   "sku-control-status",
@@ -5949,6 +5953,10 @@ function renderTableHeaderForLens() {
     const sheetHeaders = costSheetCtrl.getTableHeaders(CURRENT_LENS);
     const sheetAlignments = costSheetCtrl.getTableAlignments(CURRENT_LENS);
     if (sheetHeaders && sheetAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        renderCw05GenericTableHeader(sheetHeaders, sheetAlignments);
+        return;
+      }
       tableHead.innerHTML = `<tr>${sheetHeaders
         .map((h, i) => {
           const classes = [sheetAlignments[i] || "c-left"];
@@ -6057,6 +6065,10 @@ function renderTableHeaderForLens() {
         "c-right",
       ],
     }[CURRENT_LENS] || [];
+  if (isCostingTableToolsV1Enabled()) {
+    renderCw05GenericTableHeader(headers, alignments);
+    return;
+  }
   tableHead.innerHTML = `<tr>${headers
     .map((h, i) => {
       const classes = [alignments[i] || "c-left"];
@@ -6064,6 +6076,41 @@ function renderTableHeaderForLens() {
       return `<th class="${classes.join(" ")}">${text(h, "")}</th>`;
     })
     .join("")}</tr>`;
+}
+
+/**
+ * CW-05 (COSTING_TABLE_TOOLS_V1 ON only): header with sort buttons for the
+ * cost-sheet lens branch and the generic header map. Columns without a row key
+ * render exactly as the legacy <th>.
+ */
+function renderCw05GenericTableHeader(headers, alignments) {
+  const columns = tableColumnsFor(CURRENT_LENS) || [];
+  const sortState = activeSortState(CW05_SORT_CTX, CURRENT_LENS, VIEW);
+  tableHead.innerHTML = `<tr>${headers
+    .map((h, i) => {
+      const classes = [alignments[i] || "c-left"];
+      if (i === 0 && h === "") classes.push("lane-col");
+      const col = columns[i];
+      const key = col && col.label === h ? col.key : null;
+      if (!key) {
+        return `<th class="${classes.join(" ")}">${text(h, "")}</th>`;
+      }
+      const help = columnHelpFor(CURRENT_LENS, key);
+      const titleAttr = help ? ` title="${text(help, "")}"` : "";
+      return `<th class="${classes.join(" ")}" aria-sort="${ariaSortFor(sortState, key)}"${titleAttr}><button type="button" data-cw05-sort="${i}">${text(h, "")}${sortIndicatorFor(sortState, key)}</button></th>`;
+    })
+    .join("")}</tr>`;
+  tableHead.querySelectorAll("button[data-cw05-sort]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const col = columns[Number(btn.dataset.cw05Sort)];
+      if (!col?.key) return;
+      const result = applySortClick(CW05_SORT_CTX, CURRENT_LENS, VIEW, col);
+      CW05_SORT_CTX = result.ctx;
+      VIEW = result.view;
+      CURRENT_PAGE = 1;
+      renderTable();
+    });
+  });
 }
 
 function productSkuLabel(row) {
@@ -7603,6 +7650,7 @@ function setRmTraceExportBusy(busy) {
 
 async function exportActiveViewCsv() {
   if (!isMaterialCostTraceLensActive()) {
+    if (isCostingTableToolsV1Enabled() && exportCw05CsvForView()) return;
     exportCsvForRows(VIEW);
     return;
   }
@@ -7649,6 +7697,17 @@ function onCostingSuiteRefreshClick(event) {
     return;
   }
   void refreshCostingChain();
+}
+
+/**
+ * CW-05 (COSTING_TABLE_TOOLS_V1 ON only): export the rows in VIEW (current
+ * filtered and sorted order) through the legacy exportCsvForRows, so headers,
+ * column order and filename are exactly the legacy ones. The only additions
+ * are VIEW order and formula neutralisation of text cells.
+ */
+function exportCw05CsvForView() {
+  exportCsvForRows(neutraliseCsvRows(VIEW));
+  return true;
 }
 
 function exportCsvForRows(rows) {

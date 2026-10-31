@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v382"; // costing dialogs CW-06 item 1; v381 was UX consistency
+const CACHE_NAME = "hub-cache-v383"; // CW-05 table tools; v382 was costing dialogs CW-06 item 1
 
 const PRECACHE = [
   // Hub shell
