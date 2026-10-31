@@ -759,6 +759,12 @@ body.sasv-eaushadhi-review.ea-mode-product:has(#tab-composition:not([hidden])) .
   overflow: hidden;
 }
 
+@media (max-height: 560px) {
+  body.sasv-eaushadhi-review.ea-mode-product:has(#tab-composition:not([hidden])) .workspace-scroll {
+    overflow-y: auto;
+  }
+}
+
 body.sasv-eaushadhi-review #tab-composition:not([hidden]) {
   height: 100%;
   min-height: 0;

@@ -38,6 +38,7 @@ check(js.includes("focusCompositionRow(returnId, { scroll: false })") && js.incl
 check(css.includes(".composition-table th") && css.includes("position: sticky") && css.includes("background: var(--sasv-surface-soft)"), "table header remains sticky and opaque");
 check(css.includes(".composition-table-wrap") && css.includes("overflow-y: auto") && !/composition-table-wrap\s*\{[^}]*overflow-y:\s*scroll/s.test(css) && css.includes("scrollbar-gutter: auto"), "table scroller uses overflow-y:auto with scrollbar-gutter:auto");
 check(css.includes(":has(#tab-composition:not([hidden])) .workspace-scroll") && css.includes("overflow: hidden"), "Composition tab keeps #workspaceScroll non-scrolling");
+check(/@media \(max-height: 560px\)\s*\{[\s\S]*?ea-mode-product:has\(#tab-composition:not\(\[hidden\]\)\) \.workspace-scroll[\s\S]*?overflow-y:\s*auto/.test(css), "short windows allow Composition #workspaceScroll to scroll vertically");
 check(css.includes(".composition-toolbar") && css.includes("flex-wrap: wrap") && css.includes(".composition-toolbar-action-row") && css.includes("align-items: center"), "toolbar uses a shared flex action row with centered items");
 check(js.includes(">Set source reference</button>") && html.includes(">Approve reviewed lines</button>") && js.includes("ea-btn--soft"), "Set source reference is soft and Approve reviewed lines stays primary text-only");
 check(!/<button type="button" id="btnVerifyReviewedLines"[^>]*>\s*<svg/.test(html) && !/<button type="button" id="btnSetSourceReference"[^>]*>\s*<svg/.test(js), "Composition action buttons no longer embed leading icons");
@@ -48,6 +49,9 @@ check(!js.includes("globalThis.confirm") && js.includes('idPrefix: "sourceRefere
 check(js.includes("event.stopImmediatePropagation()") && js.includes('cancelLabel: "Keep editing"'), "nested confirmation captures Escape before the bulk dialog");
 check(js.includes('if ($("sourceReferenceDiscardBackdrop") || openQcConfirm.showing === true) return;'), "bulk keydown yields while nested discard confirm is open");
 check(js.includes("canWrite() && !batchRunning") && !js.includes("const allowed = canWrite() && !state.busy;"), "Approve reviewed lines locks for batch apply and is not gated on state.busy");
+check(js.includes("state.sourceReferenceBulk.applying === true || state.verifyReviewed.running === true") && js.includes("if (state.verifyReviewed.running) return;"), "Approve disabled while verifyReviewed.running and openVerifyReviewed is a no-op");
+check(/async function submitVerifyReviewed\([\s\S]*?try \{[\s\S]*?\} finally \{\s*state\.verifyReviewed\.running = false;\s*renderCompositionToolbarActions\(\);/m.test(js), "verifyReviewed.running clears in finally even if an error is thrown");
+check(html.includes('id="btnVerifyReviewedLinesHint"') && html.includes("visually-hidden") && js.includes('aria-describedby", "btnVerifyReviewedLinesHint"') && js.includes('setAttribute("aria-disabled"'), "disabled Approve sets aria-disabled and aria-describedby to a visually hidden reason hint");
 check(js.includes('id="sourceReferenceInlinePrompt"') && js.includes('hidden') && js.includes("bulk.inlinePrompt"), "inline prompt stays in the toolbar but is hidden when empty");
 check(!js.includes('id="sourceReferenceButtonReason"') && js.includes('title="${escapeHtml(reason)}"'), "source-reference reason is tooltip-only");
 
@@ -122,6 +126,8 @@ globalThis.__ux91 = {
   selectWorkflowTab,
   openSourceReferenceBulkDialog,
   requestCloseSourceReferenceBulkDialog,
+  openVerifyReviewed,
+  renderCompositionToolbarActions,
   renderComposition,
   syncCompositionFilterControls,
   state,
@@ -398,6 +404,44 @@ try {
     });
     await page.waitForSelector("#sourceReferenceBulkDialog", { state: "detached" });
   }
+
+  await page.setViewportSize({ width: 1366, height: 480 });
+  await page.goto(pageUrl, { waitUntil: "networkidle" });
+  await page.waitForFunction(() => globalThis.__ux91?.access?.loaded === true);
+  await page.evaluate(async () => {
+    const api = globalThis.__ux91;
+    await api.openProduct(262);
+    api.selectWorkflowTab("composition");
+  });
+  await page.waitForSelector("#compositionTableScroll");
+  check(await page.evaluate(() => {
+    const style = getComputedStyle(document.querySelector("#workspaceScroll"));
+    return style.overflowY === "auto";
+  }), "480px-high at 125%: Composition #workspaceScroll allows vertical page scroll");
+  check(await page.evaluate(() => {
+    const api = globalThis.__ux91;
+    api.state.verifyReviewed.running = true;
+    api.renderCompositionToolbarActions();
+    const approve = document.querySelector("#btnVerifyReviewedLines");
+    const hint = document.querySelector("#btnVerifyReviewedLinesHint");
+    const disabledOk = approve?.disabled === true
+      && approve.getAttribute("aria-disabled") === "true"
+      && approve.getAttribute("aria-describedby") === "btnVerifyReviewedLinesHint"
+      && hint
+      && hint.hidden === false
+      && hint.textContent === approve.title
+      && approve.title === "An action is already in progress.";
+    api.openVerifyReviewed();
+    const openNoOp = api.state.verifyReviewed.open === false
+      && document.querySelector("#verifyReviewedBackdrop")?.hidden === true;
+    api.state.verifyReviewed.running = false;
+    api.renderCompositionToolbarActions();
+    const cleared = approve?.disabled === false
+      && approve.getAttribute("aria-disabled") === "false"
+      && !approve.hasAttribute("aria-describedby")
+      && hint?.hidden === true;
+    return disabledOk && openNoOp && cleared;
+  }), "Approve disables with aria hint while verifyReviewed.running and openVerifyReviewed is a no-op");
 } finally {
   await browser.close();
   await new Promise((resolveClose) => server.close(resolveClose));

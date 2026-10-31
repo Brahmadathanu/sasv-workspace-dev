@@ -59,6 +59,10 @@ check(control.includes('sourceReferenceLineRelation(line, target) === "DIFFERENT
 check(openBulk.includes("bulk.requestId = newSourceReferenceRequestId()") && !openBulk.includes("bulk.requestId ||="), "opening always assigns a fresh request id");
 check(control.includes("bulk.requestId = newSourceReferenceRequestId()"), "rebuilding preview creates a new request id");
 check(control.includes("state.sourceReferenceBulk.applying === true") && control.includes("An action is already in progress."), "Approve reviewed lines locks while a source-reference batch is applying");
+check(control.includes("state.sourceReferenceBulk.applying === true || state.verifyReviewed.running === true"), "Approve and confirm also lock while verifyReviewed.running");
+check(/function openVerifyReviewed\(\)\s*\{\s*if \(state\.verifyReviewed\.running\) return;/.test(control), "openVerifyReviewed is a no-op while the approve batch is running");
+check(control.includes("if (state.verifyReviewed.running) return;") && control.includes("state.verifyReviewed.running = true;") && control.includes("state.verifyReviewed.running = false;"), "submitVerifyReviewed sets running before close and clears it afterward");
+check(control.includes("state.verifyReviewed.running = true;") && control.indexOf("state.verifyReviewed.running = true;") < control.indexOf("closeVerifyReviewed();", control.indexOf("async function submitVerifyReviewed")) && /async function submitVerifyReviewed\([\s\S]*?try \{[\s\S]*?\} finally \{\s*state\.verifyReviewed\.running = false;\s*renderCompositionToolbarActions\(\);/m.test(control), "verifyReviewed.running clears in finally even if an error is thrown");
 check(control.includes("await setSourceReferenceBulk"), "Apply waits for the RPC result");
 check(control.indexOf("await setSourceReferenceBulk") < control.indexOf("state.lines = state.lines.map", control.indexOf("async function applySourceReferenceBulk")), "local lines are not changed before RPC success");
 check(control.includes("await reloadSelected({ preserveDrafts: false"), "success reloads affected lines and reference decisions");

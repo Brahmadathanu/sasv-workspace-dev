@@ -546,7 +546,7 @@ const state = {
     reason: "",
     trigger: null,
   },
-  verifyReviewed: { open: false },
+  verifyReviewed: { open: false, running: false },
   productDetailsConfirm: {
     open: false,
     mode: null,
@@ -2324,18 +2324,37 @@ function sourceReferenceToolbarHtml() {
 function renderCompositionToolbarActions() {
   const host = $("compositionToolbarActions");
   if (host) host.innerHTML = sourceReferenceToolbarHtml();
+  const batchRunning = state.sourceReferenceBulk.applying === true || state.verifyReviewed.running === true;
   const approve = $("btnVerifyReviewedLines");
   if (approve) {
-    const batchRunning = state.sourceReferenceBulk.applying === true;
     const allowed = canWrite() && !batchRunning;
-    approve.disabled = !allowed;
-    approve.classList.toggle("ea-btn--primary", canWrite());
-    approve.classList.toggle("ea-btn--secondary", !canWrite());
-    approve.title = !canWrite()
+    const reason = !canWrite()
       ? "e-Aushadhi Automation permission is required."
       : batchRunning
         ? "An action is already in progress."
         : "";
+    approve.disabled = !allowed;
+    approve.setAttribute("aria-disabled", allowed ? "false" : "true");
+    approve.classList.toggle("ea-btn--primary", canWrite());
+    approve.classList.toggle("ea-btn--secondary", !canWrite());
+    approve.title = reason;
+    const hint = $("btnVerifyReviewedLinesHint");
+    if (hint) {
+      if (!allowed && reason) {
+        hint.hidden = false;
+        hint.textContent = reason;
+        approve.setAttribute("aria-describedby", "btnVerifyReviewedLinesHint");
+      } else {
+        hint.hidden = true;
+        hint.textContent = "";
+        approve.removeAttribute("aria-describedby");
+      }
+    }
+  }
+  const confirm = $("verifyReviewedConfirm");
+  if (confirm && batchRunning) {
+    confirm.disabled = true;
+    confirm.setAttribute("aria-disabled", "true");
   }
 }
 
@@ -11347,8 +11366,10 @@ function renderVerifyReviewedBody() {
   const btn = $("verifyReviewedConfirm");
   if (btn) {
     btn.textContent = verifyReviewedConfirmLabel(eligible);
-    const ok = eligible > 0 && canWrite();
+    const batchRunning = state.sourceReferenceBulk.applying === true || state.verifyReviewed.running === true;
+    const ok = eligible > 0 && canWrite() && !batchRunning;
     btn.disabled = !ok || state.busy;
+    btn.setAttribute("aria-disabled", btn.disabled ? "true" : "false");
     btn.dataset.forceDisabled = ok ? "false" : "true";
   }
   applyPermissionUi();
@@ -11362,6 +11383,7 @@ function closeVerifyReviewed() {
 }
 
 function openVerifyReviewed() {
+  if (state.verifyReviewed.running) return;
   state.verifyReviewed.open = true;
   const backdrop = $("verifyReviewedBackdrop");
   if (backdrop) backdrop.hidden = false;
@@ -11370,39 +11392,47 @@ function openVerifyReviewed() {
 }
 
 async function submitVerifyReviewed() {
+  if (state.verifyReviewed.running) return;
   const summary = summarizeVerifyReviewedLines(state.lines, state.lineDrafts, state.issues);
   const ids = summary.eligible.slice();
   if (!ids.length) {
     showToast(verifyReviewedEmptyGuidance(0), "error");
     return;
   }
+  state.verifyReviewed.running = true;
   closeVerifyReviewed();
-  let approved = 0;
-  const failures = [];
-  for (const id of ids) {
-    try {
-      flushDebounced(autosaveTimers, `line:${id}`);
-      await waitLineIdle(id);
-      const draft = state.lineDrafts.get(String(id));
-      if (!draft || !lineSelectionsComplete(draft)) {
-        failures.push("OTHER");
-        continue;
+  renderCompositionToolbarActions();
+  try {
+    let approved = 0;
+    const failures = [];
+    for (const id of ids) {
+      try {
+        flushDebounced(autosaveTimers, `line:${id}`);
+        await waitLineIdle(id);
+        const draft = state.lineDrafts.get(String(id));
+        if (!draft || !lineSelectionsComplete(draft)) {
+          failures.push("OTHER");
+          continue;
+        }
+        await persistLine(id, true, { refresh: false });
+        approved += 1;
+      } catch (err) {
+        console.error("[eaushadhi] approve reviewed line failed", err);
+        failures.push(fourEyesMessage(err)?.code || "OTHER");
       }
-      await persistLine(id, true, { refresh: false });
-      approved += 1;
-    } catch (err) {
-      console.error("[eaushadhi] approve reviewed line failed", err);
-      failures.push(fourEyesMessage(err)?.code || "OTHER");
     }
+    const grouped = bulkApprovalSummary(failures);
+    const toast = grouped
+      ? (approved ? `Approved ${approved}. ${grouped}.` : `${grouped}.`)
+      : `Approved ${approved} reviewed lines.`;
+    showToast(toast, failures.length ? "warning" : "success", 5200);
+    await refreshStageReview();
+    await reloadSelected({ restoreComposition: true });
+    refreshSourceReferencePreviewAfterLineChange();
+  } finally {
+    state.verifyReviewed.running = false;
+    renderCompositionToolbarActions();
   }
-  const grouped = bulkApprovalSummary(failures);
-  const toast = grouped
-    ? (approved ? `Approved ${approved}. ${grouped}.` : `${grouped}.`)
-    : `Approved ${approved} reviewed lines.`;
-  showToast(toast, failures.length ? "warning" : "success", 5200);
-  await refreshStageReview();
-  await reloadSelected({ restoreComposition: true });
-  refreshSourceReferencePreviewAfterLineChange();
 }
 
 async function hashFileSha256(file) {
