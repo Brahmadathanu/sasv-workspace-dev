@@ -63,6 +63,7 @@ export function createCostingRunStatusScreenController(deps) {
     activePeriod: "",
     rows: [],
     healthLoading: false,
+    healthRequestId: 0,
   };
 
   function panel() {
@@ -92,7 +93,7 @@ export function createCostingRunStatusScreenController(deps) {
             <span class="cas-chip">${escapeHtml(row.pricing_use_label || "—")}</span>
           </div>
           <div class="cas-run-label">${escapeHtml(row.display_label || "—")}</div>
-          <div class="cas-muted">Valuation ${escapeHtml(row.valuation_date || "—")} · ${escapeHtml(row.source_trigger || "—")}</div>
+          <div class="cas-muted">Valuation ${escapeHtml(formatDate(row.valuation_date))} · ${escapeHtml(row.source_trigger || "—")}</div>
           <div class="cas-muted">Requested ${escapeHtml(formatDateTime(row.requested_at))}${row.finished_at ? ` · Finished ${escapeHtml(formatDateTime(row.finished_at))}` : ""}</div>
           ${failed ? `<button type="button" class="cas-action" data-crs-detail="${escapeHtml(row.refresh_run_id)}">Explain failed run</button>` : ""}
         </article>`;
@@ -165,8 +166,8 @@ export function createCostingRunStatusScreenController(deps) {
         p_period_start: periodStart,
         p_requested_scope: RUN_STATUS_SCOPE,
       });
-      if (error) throw error;
       if (generation !== state.loadGeneration || periodStart !== getActivePeriodStart?.()) return false;
+      if (error) throw error;
       const row = Array.isArray(data) ? data[0] : null;
       if (!row) {
         if (host) host.innerHTML = '<div class="cas-muted">Run details not found.</div>';
@@ -176,7 +177,7 @@ export function createCostingRunStatusScreenController(deps) {
       renderDetail(row);
       return true;
     } catch (error) {
-      if (generation !== state.loadGeneration) return false;
+      if (generation !== state.loadGeneration || periodStart !== getActivePeriodStart?.()) return false;
       if (host) host.innerHTML = `<div class="cas-danger">${escapeHtml(error?.message || "Could not load run details.")}</div>`;
       return false;
     }
@@ -204,6 +205,8 @@ export function createCostingRunStatusScreenController(deps) {
 
   async function loadHealth() {
     if (state.healthLoading) return;
+    const generation = state.loadGeneration;
+    const requestId = ++state.healthRequestId;
     state.healthLoading = true;
     const button = $("crsHealthRefresh", doc);
     if (button) button.disabled = true;
@@ -211,11 +214,14 @@ export function createCostingRunStatusScreenController(deps) {
     if (host) host.innerHTML = '<div class="cas-muted">Checking…</div>';
     try {
       const { data, error } = await costingRpc(RUN_STATUS_READ_RPCS[1]);
+      if (requestId !== state.healthRequestId || generation !== state.loadGeneration || !isControlCenterRoute?.()) return;
       if (error) throw error;
       renderHealth(Array.isArray(data) ? data : []);
     } catch (error) {
+      if (requestId !== state.healthRequestId || generation !== state.loadGeneration || !isControlCenterRoute?.()) return;
       if (host) host.innerHTML = `<div class="cas-danger">${escapeHtml(error?.message || "Could not load health findings.")}</div>`;
     } finally {
+      if (requestId !== state.healthRequestId) return;
       state.healthLoading = false;
       if (button) button.disabled = false;
     }
@@ -248,8 +254,12 @@ export function createCostingRunStatusScreenController(deps) {
 
   function onRouteExit() {
     ++state.loadGeneration;
+    ++state.healthRequestId;
+    state.healthLoading = false;
     state.activePeriod = "";
     state.rows = [];
+    const button = $("crsHealthRefresh", doc);
+    if (button) button.disabled = false;
     setVisible(panel(), false);
   }
 
