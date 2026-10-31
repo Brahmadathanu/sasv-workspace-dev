@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v381"; // costing run status screen; v375 was product-route bypass
+const CACHE_NAME = "hub-cache-v382"; // costing dialogs CW-06 item 1; v381 was UX consistency
 
 const PRECACHE = [
   // Hub shell

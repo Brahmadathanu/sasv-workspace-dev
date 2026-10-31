@@ -245,7 +245,7 @@ const networkAt = swSrc.indexOf("eaushadhi-review-");
 const cacheFirstAt = swSrc.indexOf("// Static → cache-first");
 const networkBranch = swSrc.slice(networkAt, cacheFirstAt);
 const reviewPath = "/shared/js/eaushadhi-review-control.js";
-assert(/const CACHE_NAME = "hub-cache-v381"/.test(swSrc), "service worker cache is v381");
+assert(/const CACHE_NAME = "hub-cache-v382"/.test(swSrc), "service worker cache is v382");
 assert(networkAt > 0 && networkAt < cacheFirstAt && networkBranch.includes('fetch(req, { cache: "no-store" })'), "the review renderer is in the network-first branch");
 assert(/\/shared\/js\/eaushadhi-review-.*\.js$/.test(reviewPath) && /\/shared\/js\/eaushadhi-.*\.js$/.test(reviewPath), "the review-control path matches the network-first rules");
 assert(!swSrc.slice(cacheFirstAt).includes("eaushadhi-review-control.js"), "the cache-first fallback does not name the review renderer");

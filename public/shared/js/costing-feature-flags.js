@@ -52,3 +52,13 @@ export function isCostingUxConsistencyV1Enabled(storage = globalThis.localStorag
     return false;
   }
 }
+
+export const COSTING_DIALOGS_V1 = "COSTING_DIALOGS_V1";
+
+export function isCostingDialogsV1Enabled(storage = globalThis.localStorage) {
+  try {
+    return storage?.getItem?.(COSTING_DIALOGS_V1) === "1";
+  } catch {
+    return false;
+  }
+}
