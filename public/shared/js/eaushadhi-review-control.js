@@ -1531,9 +1531,78 @@ function workflowStagesWithQc() {
   return stages.map((stage, index) => ({ ...stage, step: index + 1 }));
 }
 
+const COMPOSITION_ACTION_HINT_TEXT = "Changes save automatically. Verify when the section is correct.";
+
+function ensureCompositionActionHint() {
+  let tip = $("compositionActionHint");
+  if (!tip) {
+    tip = document.createElement("span");
+    tip.id = "compositionActionHint";
+    tip.className = "composition-info-tooltip";
+    tip.setAttribute("role", "tooltip");
+    tip.textContent = COMPOSITION_ACTION_HINT_TEXT;
+    const tabs = $("workspaceTabs");
+    if (tabs?.parentElement) tabs.insertAdjacentElement("afterend", tip);
+    else document.body.appendChild(tip);
+  } else if (tip.closest(".workflow-nav")) {
+    const tabs = $("workspaceTabs");
+    if (tabs) tabs.insertAdjacentElement("afterend", tip);
+    else document.body.appendChild(tip);
+  }
+  return tip;
+}
+
+function placeCompositionActionHint() {
+  const tip = ensureCompositionActionHint();
+  const icon = document.querySelector("#wf-tab-composition .composition-info-icon") || $("wf-tab-composition");
+  if (!tip || !icon) return;
+  const gap = 6;
+  const margin = 8;
+  tip.classList.add("is-open");
+  tip.style.top = "0px";
+  tip.style.left = "0px";
+  const ir = icon.getBoundingClientRect();
+  const tr = tip.getBoundingClientRect();
+  let top = ir.bottom + gap;
+  if (top + tr.height > window.innerHeight - margin) {
+    top = ir.top - gap - tr.height;
+  }
+  if (top < margin) top = margin;
+  let left = ir.left + ir.width / 2 - tr.width / 2;
+  if (left < margin) left = margin;
+  if (left + tr.width > window.innerWidth - margin) {
+    left = Math.max(margin, window.innerWidth - margin - tr.width);
+  }
+  tip.style.top = `${Math.round(top)}px`;
+  tip.style.left = `${Math.round(left)}px`;
+}
+
+function showCompositionActionHint() {
+  placeCompositionActionHint();
+}
+
+function hideCompositionActionHint() {
+  const tip = $("compositionActionHint");
+  if (!tip) return;
+  tip.classList.remove("is-open");
+  tip.style.top = "";
+  tip.style.left = "";
+}
+
+function wireCompositionActionHint() {
+  const tab = $("wf-tab-composition");
+  if (!tab) return;
+  tab.addEventListener("mouseenter", showCompositionActionHint);
+  tab.addEventListener("mouseleave", hideCompositionActionHint);
+  tab.addEventListener("focus", showCompositionActionHint);
+  tab.addEventListener("blur", hideCompositionActionHint);
+}
+
 function renderWorkflowNav() {
   const host = $("workspaceTabs");
   if (!host) return;
+  const wasOpen = $("compositionActionHint")?.classList.contains("is-open") === true;
+  hideCompositionActionHint();
   const ctx = stageCtx();
   host.innerHTML = workflowStagesWithQc().map((stage) => {
     const selected = state.tab === stage.id;
@@ -1544,15 +1613,14 @@ function renderWorkflowNav() {
     const label = stage.id === "composition"
       ? `<span>${escapeHtml(stage.label)}</span><span class="composition-info-icon" aria-hidden="true"><span class="composition-info-glyph">i</span></span>`
       : `<span>${escapeHtml(stage.label)}</span>`;
-    const button = `<button type="button" class="workflow-step${complete ? " is-complete" : ""}" role="tab" id="wf-tab-${escapeHtml(stage.id)}" data-tab="${escapeHtml(stage.id)}" aria-controls="tab-${escapeHtml(stage.id)}" aria-selected="${selected ? "true" : "false"}" tabindex="${selected ? "0" : "-1"}"${compositionHint}>
+    return `<button type="button" class="workflow-step${complete ? " is-complete" : ""}" role="tab" id="wf-tab-${escapeHtml(stage.id)}" data-tab="${escapeHtml(stage.id)}" aria-controls="tab-${escapeHtml(stage.id)}" aria-selected="${selected ? "true" : "false"}" tabindex="${selected ? "0" : "-1"}"${compositionHint}>
       <span class="step-no">${escapeHtml(String(stage.step))}</span>
       ${label}
     </button>`;
-    const tooltip = stage.id === "composition"
-      ? `<span id="compositionActionHint" class="composition-info-tooltip" role="tooltip">Changes save automatically. Verify when the section is correct.</span>`
-      : "";
-    return `${button}${tooltip}`;
   }).join("");
+  ensureCompositionActionHint();
+  wireCompositionActionHint();
+  if (wasOpen && document.activeElement?.id === "wf-tab-composition") showCompositionActionHint();
 }
 
 function renderProductHeader() {
@@ -11892,7 +11960,14 @@ function wireEvents() {
   window.addEventListener("resize", () => {
     if (workerMenuOpen) positionWorkerMenu();
     if ($("compositionFilterDrawer")?.hidden === false) placeCompositionFilterPopover();
+    if ($("compositionActionHint")?.classList.contains("is-open")) placeCompositionActionHint();
   });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if ($("compositionActionHint")?.classList.contains("is-open")) hideCompositionActionHint();
+  });
+  ensureCompositionActionHint();
+  wireCompositionActionHint();
   $("homeBtn")?.addEventListener("click", async () => {
     if (!(await confirmLeaveDirty("homeBtn"))) return;
     await flushDetailsAutosave();

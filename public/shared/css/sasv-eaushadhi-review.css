@@ -526,7 +526,7 @@ body.sasv-eaushadhi-review .workflow-nav {
   display: flex;
   gap: 2px;
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
   margin-bottom: 8px;
   padding: 3px;
   border: 1px solid var(--sasv-border);
@@ -1105,10 +1105,6 @@ body.sasv-eaushadhi-review .composition-filter-badge {
   overflow: hidden;
 }
 
-body.sasv-eaushadhi-review #wf-tab-composition {
-  overflow: visible;
-}
-
 body.sasv-eaushadhi-review .composition-info-icon {
   display: inline-flex;
   align-items: center;
@@ -1136,24 +1132,29 @@ body.sasv-eaushadhi-review .composition-info-glyph {
 }
 
 body.sasv-eaushadhi-review .composition-info-tooltip {
-  position: absolute;
-  z-index: var(--sasv-z-dropdown);
-  max-width: 260px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: calc(var(--sasv-z-dropdown) + 20);
+  max-width: 280px;
   padding: 6px 8px;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
   color: var(--sasv-text);
   background: var(--sasv-surface-elevated, var(--sasv-surface));
   border: 1px solid var(--sasv-border);
   border-radius: var(--sasv-radius-sm);
   box-shadow: var(--sasv-shadow-md);
-  transform: translateY(calc(var(--sasv-control-md) + 4px));
+  font-size: var(--sasv-text-sm);
+  line-height: var(--sasv-lh-normal);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
-body.sasv-eaushadhi-review #wf-tab-composition:hover + .composition-info-tooltip,
-body.sasv-eaushadhi-review #wf-tab-composition:focus-visible + .composition-info-tooltip,
-body.sasv-eaushadhi-review #wf-tab-composition:focus + .composition-info-tooltip {
+body.sasv-eaushadhi-review .composition-info-tooltip.is-open {
   opacity: 1;
+  visibility: visible;
 }
 
 body.sasv-eaushadhi-review .source-reference-bulk-body {

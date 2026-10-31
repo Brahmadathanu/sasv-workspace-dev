@@ -29,6 +29,15 @@ check(!html.includes('id="openReferenceDictionaryFromCompositionBtn"') && !js.in
 check(html.includes('aria-describedby="compositionActionHint"') && html.includes('id="compositionActionHint"') && html.includes("composition-info-icon") && html.includes("composition-info-glyph"), "Composition tab exposes the helper through an info tooltip");
 check(js.includes('stage.id === "composition"') && js.includes("composition-info-glyph") && js.includes("compositionActionHint"), "renderWorkflowNav keeps the Composition helper icon and tooltip after rebuild");
 check(css.includes(".composition-info-glyph") && css.includes("width: 16px") && css.includes("height: 16px") && css.includes("width: 24px"), "helper icon is a 16px circled i inside a 24px target");
+check(css.includes("position: fixed") && css.includes("max-width: 280px") && css.includes("pointer-events: none") && js.includes("getBoundingClientRect()") && js.includes("placeCompositionActionHint"), "Composition helper tooltip is a fixed floating layer placed from the icon rect");
+check(js.includes("showCompositionActionHint") && js.includes("hideCompositionActionHint") && js.includes('event.key !== "Escape"') && js.includes('mouseenter", showCompositionActionHint') && js.includes('blur", hideCompositionActionHint'), "helper tooltip shows on Composition hover/focus and hides on blur, mouseleave and Escape");
+check((() => {
+  const start = html.indexOf('id="workspaceTabs"');
+  const open = html.indexOf(">", start);
+  const close = html.indexOf("</div>", open);
+  const tip = html.indexOf('id="compositionActionHint"');
+  return start !== -1 && tip > close && /overflow-y:\s*hidden/.test(css) && js.includes("ensureCompositionActionHint");
+})(), "helper tooltip lives outside the workflow nav card and does not force nav overflow scroll");
 check(js.includes("placeCompositionFilterPopover") && js.includes("setCompositionFiltersOpen") && js.includes('event.key === "Escape"'), "drawer has positioned Escape-close behaviour");
 check(js.includes('document.addEventListener("pointerdown", onPointer, true)') && js.includes('button.focus()'), "outside click closes drawer and returns funnel focus");
 check(js.includes("clear.disabled = !compositionFiltersAreActive(state.compositionView)"), "drawer Clear filters follows search or lens activity");
@@ -128,6 +137,9 @@ globalThis.__ux91 = {
   requestCloseSourceReferenceBulkDialog,
   openVerifyReviewed,
   renderCompositionToolbarActions,
+  showCompositionActionHint,
+  hideCompositionActionHint,
+  placeCompositionActionHint,
   renderComposition,
   syncCompositionFilterControls,
   state,
@@ -278,6 +290,25 @@ try {
       const notClipped = ir.left >= tr.left - 1 && ir.right <= tr.right + 1 && ir.top >= tr.top - 1 && ir.bottom <= tr.bottom + 1;
       return visible && notClipped && getComputedStyle(icon).color !== "rgba(0, 0, 0, 0)";
     }), `${width}px at 125%: Composition helper icon has non-zero size and is not clipped`);
+    check(await page.evaluate(() => {
+      const api = globalThis.__ux91;
+      api.showCompositionActionHint();
+      const nav = document.querySelector("#workspaceTabs");
+      const tip = document.querySelector("#compositionActionHint");
+      if (!nav || !tip || !tip.classList.contains("is-open")) return false;
+      const style = getComputedStyle(tip);
+      const rect = tip.getBoundingClientRect();
+      const inViewport = rect.top >= -0.5
+        && rect.left >= -0.5
+        && rect.bottom <= innerHeight + 0.5
+        && rect.right <= innerWidth + 0.5
+        && rect.width > 0
+        && rect.height > 0;
+      const navNoScroll = nav.scrollHeight <= nav.clientHeight + 0.5;
+      const floating = style.position === "fixed" && style.pointerEvents === "none";
+      api.hideCompositionActionHint();
+      return floating && navNoScroll && inViewport;
+    }), `${width}px at 125%: helper tooltip is fully in viewport and does not make the nav card scroll`);
     check(await page.evaluate(() => {
       const set = document.querySelector("#btnSetSourceReference");
       const approve = document.querySelector("#btnVerifyReviewedLines");
