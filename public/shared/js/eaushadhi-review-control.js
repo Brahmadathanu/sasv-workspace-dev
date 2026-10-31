@@ -891,6 +891,7 @@ function paintStageSaver(stage, itemKey = null) {
     : "";
   el.hidden = !text;
   el.textContent = text;
+  if (stage === "line") syncCompositionLineFooterMessage();
 }
 
 function applyStageReviewChrome() {
@@ -1038,11 +1039,31 @@ function syncLineVerifyUi(lineId) {
   else delete btn.dataset.blockCode;
   if (decision.reason) btn.title = decision.reason;
   else btn.removeAttribute("title");
-  const message = btn.closest(".line-card")?.querySelector(".line-decision-message");
+  const message = document.querySelector("#compositionLineModalMessage .line-decision-message")
+    || btn.closest(".line-card")?.querySelector(".line-decision-message");
   if (message) {
     message.hidden = !decision.reason;
     message.textContent = decision.reason || "";
     message.title = decision.reason || "";
+  }
+  syncCompositionLineFooterMessage();
+}
+
+function syncCompositionLineFooterMessage() {
+  const host = $("compositionLineModalMessage");
+  if (!host) return;
+  const text = Array.from(host.children)
+    .filter((node) => !node.hidden)
+    .map((node) => safeText(node.textContent))
+    .filter(Boolean)
+    .join(" · ");
+  host.hidden = !text;
+  if (text) {
+    host.title = text;
+    host.setAttribute("aria-label", text);
+  } else {
+    host.removeAttribute("title");
+    host.removeAttribute("aria-label");
   }
 }
 
@@ -2030,12 +2051,16 @@ function renderCompositionLegacy() {
       const reference = row.referenceMapping || null;
       const sourceReference = row.raw_reference_text || reference?.source_reference_examples?.[0] || "-";
       const referenceReady = reference?.reference_ready === true;
+      const referenceGuidance = referenceReady
+        ? "Ready. This verified mapping can be used for portal entry."
+        : "Reference mapping is managed in the Reference Dictionary tab.";
+      const referenceStatus = referenceGovernanceLabel(reference);
       const referenceBlock = `<section class="reference-mapping-block${reference ? "" : " is-blocked"}"${reference ? ` data-reference-mapping-id="${escapeHtml(reference.mapping_id)}"` : ""}>
-        <div><span class="muted-note">Source wording</span><strong>${escapeHtml(sourceReference)}</strong>${sourceReference === "-" ? '<span class="reference-mapping-helper">No reference text was imported for this line.</span>' : ""}</div>
+        <div><span class="muted-note">Source wording</span><strong>${escapeHtml(sourceReference)}</strong>${sourceReference === "-" ? '<span class="reference-mapping-helper" title="No reference text was imported for this line.">No reference text was imported for this line.</span>' : ""}</div>
         <div><span class="muted-note">Standard reference work</span><strong>${escapeHtml(reference?.canonical_label || "Not mapped")}</strong></div>
         <div><span class="muted-note">Portal reference</span><strong>${escapeHtml(reference?.portal_label && reference?.portal_external_id ? `${reference.portal_label} / ${reference.portal_external_id}` : "Not mapped")}</strong></div>
-        <div><span class="muted-note">Mapping status</span>${chip(referenceReady ? "success" : "warning", referenceGovernanceLabel(reference))}</div>
-        <p class="reference-mapping-guidance">${referenceReady ? "Ready. This verified mapping can be used for portal entry." : "Reference mapping is managed in the Reference Dictionary tab."}</p>
+        <div><span class="muted-note">Mapping status</span><span class="reference-mapping-value${referenceReady ? " is-ready" : ""}" title="${escapeHtml(referenceStatus)}">${escapeHtml(referenceStatus)}</span></div>
+        <p class="reference-mapping-guidance" title="${escapeHtml(referenceGuidance)}">${escapeHtml(referenceGuidance)}</p>
       </section>`;
       const actionButtons = locked
         ? `${chip("success", "Verified")} ${lockNoteHtml()}
@@ -2088,8 +2113,8 @@ function renderCompositionLegacy() {
         </div>
         <div class="line-action-layout">
           <div class="line-action-buttons">${actionButtons}${canResolve ? `<button type="button" class="icon-btn with-label source-resolve-btn" data-edit-action="true" id="btn-resolve-${escapeHtml(id)}" data-source-resolve="${escapeHtml(id)}">Resolve source issue</button>` : ""}</div>
-          <div class="line-action-message">${stageSaverHtml("line", id)}<span class="disabled-reason line-decision-message"${lineDecision.reason ? ` title="${escapeHtml(lineDecision.reason)}"` : " hidden"}>${escapeHtml(lineDecision.reason || "")}</span></div>
         </div>
+        <div class="line-footer-message-source">${stageSaverHtml("line", id)}<span class="disabled-reason line-decision-message"${lineDecision.reason ? ` title="${escapeHtml(lineDecision.reason)}"` : " hidden"}>${escapeHtml(lineDecision.reason || "")}</span></div>
         ${
           lineIssues.length
             ? `<div class="line-issues">${renderIssues(lineIssues, "")}</div>`
@@ -9077,6 +9102,14 @@ function refreshCompositionLineModal(lineId, { focus = false, focusNext = false 
     saveStatusHost.replaceChildren();
     if (saveStatus) saveStatusHost.append(saveStatus);
   }
+  const messageHost = $("compositionLineModalMessage");
+  const messageSource = body.querySelector(".line-footer-message-source");
+  if (messageHost) {
+    messageHost.replaceChildren();
+    if (messageSource) messageHost.append(...messageSource.childNodes);
+    syncCompositionLineFooterMessage();
+  }
+  messageSource?.remove();
   const nav = compositionModalNavigation(id);
   const previous = $("compositionLineModalPrevious");
   const next = $("compositionLineModalNext");
@@ -9163,6 +9196,7 @@ function openCompositionLineModal(lineId, returnFocus) {
     <div id="compositionLineModalBody" class="sasv-modal__body"></div>
     <div class="sasv-modal__footer composition-line-modal-nav">
       <div id="compositionLineModalSaveStatus" class="composition-line-footer-status"></div>
+      <div id="compositionLineModalMessage" class="composition-line-footer-message" hidden></div>
       <div id="compositionLineModalNavigation" class="composition-line-footer-navigation">
         <button type="button" id="compositionLineModalPrevious" class="icon-btn with-label">Previous</button>
         <button type="button" id="compositionLineModalNext" class="icon-btn with-label">Next</button>

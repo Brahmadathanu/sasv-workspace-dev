@@ -816,9 +816,14 @@ body.sasv-eaushadhi-review .composition-table .line-ingredient {
 
 body.sasv-eaushadhi-review .composition-table .line-scientific {
   margin-top: 2px;
-  color: var(--sasv-text-muted);
-  font-size: var(--sasv-text-xs);
-  font-style: italic;
+  color: var(--sasv-text);
+  font-size: inherit;
+  font-style: normal;
+  font-weight: var(--sasv-fw-regular);
+}
+
+body.sasv-eaushadhi-review .composition-table .line-scientific::before {
+  content: none;
 }
 
 body.sasv-eaushadhi-review .composition-table .composition-col-botanical {
@@ -838,9 +843,12 @@ body.sasv-eaushadhi-review .composition-line-modal .line-card {
 
 body.sasv-eaushadhi-review .composition-line-modal-nav {
   display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
+  grid-template-columns: 190px minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--sasv-space-3);
+  min-height: 54px;
+  max-height: 54px;
+  overflow: hidden;
 }
 
 body.sasv-eaushadhi-review .composition-line-modal-heading {
@@ -858,17 +866,36 @@ body.sasv-eaushadhi-review .composition-line-summary {
   font-size: var(--sasv-text-sm);
 }
 
-body.sasv-eaushadhi-review .composition-line-summary > span:not(.status-chip) + span:not(.status-chip)::before {
-  content: "·";
-  margin-right: 10px;
-}
-
 body.sasv-eaushadhi-review .composition-line-footer-status {
   width: 190px;
   min-width: 190px;
   min-height: 22px;
   display: flex;
   align-items: center;
+}
+
+body.sasv-eaushadhi-review .composition-line-footer-message {
+  min-width: 0;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.sasv-eaushadhi-review .composition-line-footer-message[hidden] {
+  display: block !important;
+  visibility: hidden;
+}
+
+body.sasv-eaushadhi-review .composition-line-footer-message > * {
+  display: inline;
+  margin: 0;
+}
+
+body.sasv-eaushadhi-review .composition-line-footer-message > * + *::before {
+  content: " · ";
 }
 
 body.sasv-eaushadhi-review .composition-line-footer-navigation {
@@ -1077,10 +1104,10 @@ body.sasv-eaushadhi-review .portal-fields {
 
 body.sasv-eaushadhi-review .reference-mapping-block {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
-  margin-top: 12px;
-  padding: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin-top: 8px;
+  padding: 8px 10px;
   border: 1px solid var(--border, #dbe3ea);
   border-radius: 10px;
   background: #f8fafc;
@@ -1092,13 +1119,31 @@ body.sasv-eaushadhi-review .reference-mapping-block > div {
   min-width: 0;
 }
 
-body.sasv-eaushadhi-review .reference-mapping-block .status-chip {
-  max-width: 100%;
+body.sasv-eaushadhi-review .reference-mapping-value {
   min-width: 0;
-  height: auto;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  color: var(--sasv-text);
+  font-weight: var(--sasv-fw-semibold);
   line-height: var(--sasv-lh-normal);
+  overflow-wrap: anywhere;
+}
+
+body.sasv-eaushadhi-review .reference-mapping-value::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--sasv-warning);
+  vertical-align: middle;
+}
+
+body.sasv-eaushadhi-review .reference-mapping-value.is-ready {
+  color: var(--sasv-success);
+}
+
+body.sasv-eaushadhi-review .reference-mapping-value.is-ready::before {
+  background: var(--sasv-success);
 }
 
 body.sasv-eaushadhi-review .reference-mapping-guidance {
@@ -1106,6 +1151,15 @@ body.sasv-eaushadhi-review .reference-mapping-guidance {
   margin: 0;
   color: var(--sasv-text-muted);
   font-size: var(--sasv-text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.sasv-eaushadhi-review .reference-mapping-block .reference-mapping-helper {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 body.sasv-eaushadhi-review .reference-mapping-status-row {
@@ -1457,9 +1511,7 @@ body.sasv-eaushadhi-review .line-notes-row textarea {
 }
 
 body.sasv-eaushadhi-review .line-action-layout {
-  display: flex;
-  align-items: center;
-  gap: var(--sasv-space-3);
+  display: block;
   margin-top: var(--sasv-space-2);
   min-width: 0;
 }
@@ -1470,29 +1522,6 @@ body.sasv-eaushadhi-review .line-action-buttons {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sasv-space-2);
-}
-
-body.sasv-eaushadhi-review .line-action-message {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 1.4em;
-  line-height: 1.4;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-body.sasv-eaushadhi-review .line-action-message:not(:has(:not([hidden]))) {
-  display: none;
-}
-
-body.sasv-eaushadhi-review .line-action-message > * {
-  display: inline;
-  margin: 0;
-}
-
-body.sasv-eaushadhi-review .line-action-message > * + *::before {
-  content: " · ";
 }
 
 body.sasv-eaushadhi-review .line-issues {
@@ -1740,6 +1769,8 @@ body.sasv-eaushadhi-review .action-vocab-item {
   body.sasv-eaushadhi-review .composition-line-modal-nav {
     grid-template-columns: minmax(0, 1fr);
     justify-content: stretch;
+    min-height: 112px;
+    max-height: 112px;
   }
   body.sasv-eaushadhi-review .composition-line-footer-status {
     width: 100%;
@@ -1749,16 +1780,11 @@ body.sasv-eaushadhi-review .action-vocab-item {
     flex-wrap: wrap;
     justify-content: flex-end;
   }
-  body.sasv-eaushadhi-review .line-action-layout {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: var(--sasv-space-1);
-  }
-  body.sasv-eaushadhi-review .line-action-message {
-    width: 100%;
-  }
   body.sasv-eaushadhi-review .portal-fields {
     grid-template-columns: 1fr;
+  }
+  body.sasv-eaushadhi-review .reference-mapping-block {
+    grid-template-columns: minmax(0, 1fr);
   }
   body.sasv-eaushadhi-review .reference-review-summary {
     grid-template-columns: minmax(0, 1fr);
