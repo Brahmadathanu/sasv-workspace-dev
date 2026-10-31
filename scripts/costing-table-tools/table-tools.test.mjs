@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 import * as flags from "../../public/shared/js/costing-feature-flags.js";
+import * as tools from "../../public/shared/js/costing-table-tools.js";
 import {
   COLUMN_HELP,
   GENERIC_TABLE_COLUMNS,
@@ -113,7 +115,11 @@ function stripCw05(src) {
     "header gate",
   );
   remove(
-    /\n\/\*\* CW-05 \(COSTING_TABLE_TOOLS_V1 ON only\)[\s\S]*?\n}\n(?=\nfunction productSkuLabel)/,
+    "      if (isCostingTableToolsV1Enabled()) {\n        renderCw05GenericTableHeader(sheetHeaders, sheetAlignments);\n        return;\n      }\n",
+    "cost-sheet header gate",
+  );
+  remove(
+    /\n\/\*\*\n \* CW-05 \(COSTING_TABLE_TOOLS_V1 ON only\): header[\s\S]*?\n}\n(?=\nfunction productSkuLabel)/,
     "header renderer",
   );
   remove(
@@ -137,12 +143,17 @@ test("flag OFF: every CW-05 entry point sits behind isCostingTableToolsV1Enabled
   const src = read(SHELL);
   const callers = (name) =>
     src.split("\n").filter((l) => l.includes(`${name}(`) && !l.includes(`function ${name}(`));
-  for (const name of ["renderCw05GenericTableHeader", "exportCw05CsvForView"]) {
+  for (const [name, expected] of [
+    ["renderCw05GenericTableHeader", 2],
+    ["exportCw05CsvForView", 1],
+  ]) {
     const lines = callers(name);
-    assert.equal(lines.length, 1, name);
-    const idx = src.indexOf(lines[0]);
-    const window = src.slice(Math.max(0, idx - 80), idx + lines[0].length);
-    assert.match(window, /isCostingTableToolsV1Enabled\(\)/, name);
+    assert.equal(lines.length, expected, name);
+    for (const line of lines) {
+      const idx = src.indexOf(line);
+      const window = src.slice(Math.max(0, idx - 80), idx + line.length);
+      assert.match(window, /isCostingTableToolsV1Enabled\(\)/, name);
+    }
   }
   // Every reference to the imported tool helpers lives inside the two gated functions.
   const gatedFns = [
@@ -425,4 +436,221 @@ test("service worker cache is hub-cache-v383", () => {
     sw.split("\n")[1],
     'const CACHE_NAME = "hub-cache-v383"; // CW-05 table tools; v382 was costing dialogs CW-06 item 1',
   );
+});
+
+// ---- Shell header/CSV behaviour in a sandbox (real shell function source, mocked DOM) ----
+const COST_SHEET_LENSES = ["sku-cost-sheet", "printable-cost-sheet", "cost-comparison"];
+
+function extractFn(src, name) {
+  let start = src.indexOf(`\nfunction ${name}(`);
+  let asyncStart = src.indexOf(`\nasync function ${name}(`);
+  if (start < 0 || (asyncStart >= 0 && asyncStart < start)) start = asyncStart;
+  assert.ok(start >= 0, `function ${name} found`);
+  const end = src.indexOf("\n}\n", start);
+  return src.slice(start + 1, end + 2);
+}
+
+function costSheetModuleTables() {
+  const src = read("public/shared/js/costing-suite-cost-sheet.js");
+  const grab = (name) =>
+    vm.runInNewContext(`(${src.match(new RegExp(`const ${name} = (\\{[\\s\\S]*?\\n\\});`))[1]})`);
+  return { headers: grab("TABLE_HEADERS"), alignments: grab("TABLE_ALIGNMENTS") };
+}
+
+function makeTableHead() {
+  return {
+    _html: "",
+    buttons: [],
+    set innerHTML(v) {
+      this._html = v;
+      this.buttons = [...v.matchAll(/data-cw05-sort="(\d+)"/g)].map((m) => ({
+        dataset: { cw05Sort: m[1] },
+        handlers: [],
+        addEventListener(type, fn) {
+          if (type === "click") this.handlers.push(fn);
+        },
+        click() {
+          this.handlers.forEach((fn) => fn());
+        },
+      }));
+    },
+    get innerHTML() {
+      return this._html;
+    },
+    querySelectorAll(sel) {
+      return sel === "button[data-cw05-sort]" ? this.buttons : [];
+    },
+  };
+}
+
+function makeShellSandbox({ source, flagOn, withCw05 }) {
+  const tables = costSheetModuleTables();
+  const no = () => false;
+  const ctx = {
+    ...tools,
+    tableHead: makeTableHead(),
+    CURRENT_LENS: "",
+    VIEW: [],
+    CURRENT_PAGE: 3,
+    CW05_SORT_CTX: null,
+    CW05_HEADER_LENS: null,
+    renderTableCalls: 0,
+    exported: [],
+    isCostingTableToolsV1Enabled: () => flagOn,
+    isDriverGovernanceLens: no,
+    isCostBuildLens: no,
+    isMaterialCostLens: no,
+    isSchemeComparisonLens: no,
+    isCostSheetLens: (lens) => COST_SHEET_LENSES.includes(lens),
+    isPricingPolicyLens: no,
+    isControlCenterLens: no,
+    isMaterialCostTraceLensActive: no,
+    costSheetCtrl: {
+      getTableHeaders: (lens) => tables.headers[lens] || null,
+      getTableAlignments: (lens) => tables.alignments[lens] || null,
+    },
+  };
+  vm.createContext(ctx);
+  const names = ["escapeHtml", "text", "renderTableHeaderForLens", "exportActiveViewCsv"];
+  if (withCw05) names.push("renderCw05GenericTableHeader", "exportCw05CsvForView");
+  vm.runInContext(
+    [
+      ...names.map((n) => extractFn(source, n)),
+      "function renderTable() { renderTableCalls += 1; }",
+      "function exportCsvForRows(rows) { exported.push(rows); }",
+    ].join("\n"),
+    ctx,
+  );
+  return ctx;
+}
+
+function headerHtml(ctx, lens) {
+  ctx.CURRENT_LENS = lens;
+  vm.runInContext("renderTableHeaderForLens()", ctx);
+  return ctx.tableHead.innerHTML;
+}
+
+const SAMPLE_SKU_ROWS = [
+  { sku_id: "S-C", product_name: "P1", mrp_ik: 30, mrp_ok: 31 },
+  { sku_id: "S-A", product_name: "P2", mrp_ik: "10", mrp_ok: null },
+  { sku_id: "S-D", product_name: "P3", mrp_ik: null, mrp_ok: 5 },
+  { sku_id: "S-B", product_name: "=P4", mrp_ik: 20, mrp_ok: 9 },
+];
+
+test("(c) flag OFF: header HTML for all three cost-sheet lenses is identical to main", () => {
+  const base = makeShellSandbox({ source: readBase(SHELL), flagOn: false, withCw05: false });
+  const head = makeShellSandbox({ source: read(SHELL), flagOn: false, withCw05: true });
+  for (const lens of COST_SHEET_LENSES) {
+    const b = headerHtml(base, lens);
+    assert.ok(b.startsWith("<tr><th"), lens);
+    assert.equal(headerHtml(head, lens), b, lens);
+    assert.equal(head.CW05_HEADER_LENS, null, lens);
+  }
+  // Flag OFF CSV goes straight to the legacy export with VIEW itself.
+  head.VIEW = SAMPLE_SKU_ROWS;
+  head.CURRENT_LENS = "sku-cost-sheet";
+  vm.runInContext("exportActiveViewCsv()", head);
+  assert.equal(head.exported.length, 1);
+  assert.equal(head.exported[0], SAMPLE_SKU_ROWS);
+});
+
+test("(a) flag ON: cost-sheet lenses reach the CW-05 header with aria-sort, title and sort buttons", () => {
+  const head = makeShellSandbox({ source: read(SHELL), flagOn: true, withCw05: true });
+  const base = makeShellSandbox({ source: readBase(SHELL), flagOn: false, withCw05: false });
+  const sku = headerHtml(head, "sku-cost-sheet");
+  assert.equal(head.CW05_HEADER_LENS, "sku-cost-sheet");
+  assert.match(
+    sku,
+    /<th class="c-right" aria-sort="none" title="MRP IK\. Click to sort\."><button type="button" data-cw05-sort="3">MRP IK<\/button><\/th>/,
+  );
+  assert.equal(head.tableHead.buttons.length, 6);
+  // Unsortable columns keep the legacy markup.
+  assert.ok(sku.includes('<th class="c-center lane-col"></th>'));
+  assert.ok(sku.includes('<th class="c-left">Product / SKU</th>'));
+  assert.ok(sku.includes('<th class="c-left">Status</th>'));
+  // Same labels as the cost-sheet branch, in the same order.
+  const strip = (html) => html.replace(/<[^>]+>/g, "|").replace(/\|+/g, "|");
+  assert.equal(strip(sku), strip(headerHtml(base, "sku-cost-sheet")));
+
+  const printable = headerHtml(head, "printable-cost-sheet");
+  assert.equal(head.tableHead.buttons.length, 3);
+  assert.match(printable, /aria-sort="none" title="Refreshed At\. Click to sort\."><button type="button" data-cw05-sort="5">Refreshed At<\/button>/);
+  assert.ok(printable.includes('<th class="c-left">Product</th>'));
+});
+
+test("(b) flag ON: cost-comparison stays unsortable and renders exactly as on main", () => {
+  const head = makeShellSandbox({ source: read(SHELL), flagOn: true, withCw05: true });
+  const base = makeShellSandbox({ source: readBase(SHELL), flagOn: false, withCw05: false });
+  const html = headerHtml(head, "cost-comparison");
+  assert.equal(html, headerHtml(base, "cost-comparison"));
+  assert.doesNotMatch(html, /aria-sort|data-cw05-sort|<button|title=/);
+  assert.equal(head.tableHead.buttons.length, 0);
+  // CSV for cost-comparison falls back to the legacy export of VIEW.
+  head.VIEW = [{ a: 1 }];
+  vm.runInContext("exportActiveViewCsv()", head);
+  assert.equal(head.exported[0], head.VIEW);
+});
+
+test("(d) flag ON: header click sorts VIEW in memory, resets page, row index maps to sorted row; filter clears", () => {
+  const head = makeShellSandbox({ source: read(SHELL), flagOn: true, withCw05: true });
+  const ALL_ROWS = SAMPLE_SKU_ROWS.slice();
+  head.VIEW = [...ALL_ROWS];
+  headerHtml(head, "sku-cost-sheet");
+  const mrpIk = () => head.tableHead.buttons.find((b) => b.dataset.cw05Sort === "3");
+  mrpIk().click();
+  assert.equal(head.CURRENT_PAGE, 1);
+  assert.equal(head.renderTableCalls, 1);
+  assert.deepEqual(head.VIEW.map((r) => r.sku_id), ["S-A", "S-B", "S-C", "S-D"]);
+  assert.deepEqual(ALL_ROWS.map((r) => r.sku_id), ["S-C", "S-A", "S-D", "S-B"], "ALL_ROWS untouched");
+  const html = headerHtml(head, "sku-cost-sheet");
+  assert.match(html, /aria-sort="ascending"[^>]*><button type="button" data-cw05-sort="3">MRP IK ▲<\/button>/);
+  // Row click mapping exactly as renderTable/click handler do it.
+  const PAGE_SIZE = 2;
+  for (const page of [1, 2]) {
+    const start = (page - 1) * PAGE_SIZE;
+    head.VIEW.slice(start, start + PAGE_SIZE).forEach((row, idx) => {
+      const attr = `data-row-index="${start + idx}"`;
+      const rowIndex = Number(attr.match(/"(\d+)"/)[1]);
+      assert.equal(head.VIEW[rowIndex], row);
+    });
+  }
+  mrpIk().click();
+  assert.deepEqual(head.VIEW.map((r) => r.sku_id), ["S-C", "S-B", "S-A", "S-D"]);
+  assert.match(headerHtml(head, "sku-cost-sheet"), /aria-sort="descending"[^>]*><button[^>]*>MRP IK ▼</);
+  // Filter/search/reload replace VIEW from ALL_ROWS: the sort is cleared.
+  head.VIEW = [...ALL_ROWS];
+  const cleared = headerHtml(head, "sku-cost-sheet");
+  assert.doesNotMatch(cleared, /ascending|descending|▲|▼/);
+  mrpIk().click();
+  assert.deepEqual(head.VIEW.map((r) => r.sku_id), ["S-A", "S-B", "S-C", "S-D"], "fresh cycle starts at asc");
+});
+
+test("(e) flag ON: cost-sheet CSV uses displayed labels, displayed order and sorted VIEW", () => {
+  const head = makeShellSandbox({ source: read(SHELL), flagOn: true, withCw05: true });
+  head.VIEW = SAMPLE_SKU_ROWS.slice();
+  headerHtml(head, "sku-cost-sheet");
+  head.tableHead.buttons.find((b) => b.dataset.cw05Sort === "3").click();
+  vm.runInContext("exportActiveViewCsv()", head);
+  assert.equal(head.exported.length, 1);
+  const rows = head.exported[0];
+  const labels = ["SKU ID", "MRP IK", "MRP OK", "Internal Loaded Cost", "IK Selling Price", "OK Selling Price"];
+  assert.deepEqual(Object.keys(rows[0]), labels);
+  assert.deepEqual(rows.map((r) => r["SKU ID"]), ["S-A", "S-B", "S-C", "S-D"]);
+  assert.ok(!Object.keys(rows[0]).includes("mrp_ik"));
+  assert.equal(rows.length, head.VIEW.length);
+
+  head.VIEW = [{ sku_column_labels: "IK 100ml", product_cost_sheet_status: "-ok", refreshed_at: "2026-10-01T05:00:00Z", product_name: "X" }];
+  headerHtml(head, "printable-cost-sheet");
+  vm.runInContext("exportActiveViewCsv()", head);
+  assert.deepEqual(head.exported[1], [
+    { "SKU Columns": "IK 100ml", Status: "'-ok", "Refreshed At": "2026-10-01T05:00:00Z" },
+  ]);
+});
+
+test("column map labels match the cost-sheet module's own header labels", () => {
+  const { headers } = costSheetModuleTables();
+  for (const lens of COST_SHEET_LENSES) {
+    assert.deepEqual(GENERIC_TABLE_COLUMNS[lens].map((c) => c.label), [...headers[lens]], lens);
+  }
+  assert.ok(GENERIC_TABLE_COLUMNS["cost-comparison"].every((c) => c.key === null));
 });

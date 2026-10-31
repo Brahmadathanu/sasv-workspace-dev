@@ -5954,6 +5954,10 @@ function renderTableHeaderForLens() {
     const sheetHeaders = costSheetCtrl.getTableHeaders(CURRENT_LENS);
     const sheetAlignments = costSheetCtrl.getTableAlignments(CURRENT_LENS);
     if (sheetHeaders && sheetAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        renderCw05GenericTableHeader(sheetHeaders, sheetAlignments);
+        return;
+      }
       tableHead.innerHTML = `<tr>${sheetHeaders
         .map((h, i) => {
           const classes = [sheetAlignments[i] || "c-left"];
@@ -6075,7 +6079,11 @@ function renderTableHeaderForLens() {
     .join("")}</tr>`;
 }
 
-/** CW-05 (COSTING_TABLE_TOOLS_V1 ON only): generic header with sort buttons. */
+/**
+ * CW-05 (COSTING_TABLE_TOOLS_V1 ON only): header with sort buttons for the
+ * cost-sheet lens branch and the generic header map. Columns without a row key
+ * render exactly as the legacy <th>.
+ */
 function renderCw05GenericTableHeader(headers, alignments) {
   const columns = tableColumnsFor(CURRENT_LENS) || [];
   const sortState = activeSortState(CW05_SORT_CTX, CURRENT_LENS, VIEW);
