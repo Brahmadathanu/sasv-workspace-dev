@@ -215,6 +215,10 @@ test("governed module has no old poller, date maths, date bounds or retry", () =
   assert.match(html, /\.search-card \.cpv-chip\s*\{[\s\S]*white-space:\s*nowrap/);
   assert.match(html, /\.search-card \.cpv-chip-value\s*\{[\s\S]*text-overflow:\s*ellipsis/);
 });
+test("Period dates chip aria-label keeps the full server date text", () => {
+  const readinessChip = shell.match(/function paintReadinessValuationFromContext[\s\S]*?\n}/)?.[0] || "";
+  assert.match(readinessChip, /chipBtn\.setAttribute\("aria-label", periodDateText\(periodStatus\)\)/);
+});
 test("new forbidden valuation name is guarded; legacy controls have ON guards", () => {
   const helpers = read("public/shared/js/costing-suite-cost-period-valuation-helpers.js");
   assert.match(helpers.split("COST_PERIOD_VALUATION_FORBIDDEN_SUBSTRINGS")[1], /rpc_costing_request_recalculation/);

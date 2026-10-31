@@ -63,7 +63,7 @@ const HEALTH = [
   { severity: "INFO", check_code: "SYSTEM_OK", period_start: null, run_id: null, detail: "Other checks passed." },
 ];
 
-function harness({ runs = OCTOBER_RUNS, rpcImpl, periodRef = { value: "2026-10-01" } } = {}) {
+function harness({ runs = OCTOBER_RUNS, rpcImpl, periodRef = { value: "2026-10-01" }, routeRef = { value: true } } = {}) {
   const ids = Object.fromEntries(["costingRunStatusPanel", "crsRunList", "crsRunDetail", "crsHealthRefresh", "crsHealthList"].map((id) => [id, element(id, id === "costingRunStatusPanel")]));
   const doc = { getElementById: (id) => ids[id] || null };
   const queryCalls = [];
@@ -89,13 +89,13 @@ function harness({ runs = OCTOBER_RUNS, rpcImpl, periodRef = { value: "2026-10-0
       throw new Error(`Unexpected RPC ${name}`);
     },
     getActivePeriodStart: () => periodRef.value,
-    isControlCenterRoute: () => true,
+    isControlCenterRoute: () => routeRef.value,
     stageLabels: { "02_MATERIAL_SNAPSHOT": "Material snapshot fallback" },
     formatDate: (value) => `DATE(${value})`,
     formatDateTime: (value) => `TIME(${value})`,
     doc,
   });
-  return { ctrl, ids, queryCalls, rpcCalls, periodRef };
+  return { ctrl, ids, queryCalls, rpcCalls, periodRef, routeRef };
 }
 
 test("run-status flag defaults OFF and requires exact string 1", () => {
@@ -126,6 +126,12 @@ test("run cards preserve server display and pricing labels", async () => {
   assert.match(h.ids.crsRunList.innerHTML, /Failed - not for pricing/);
   assert.match(h.ids.crsRunList.innerHTML, /Not for pricing/);
   assert.doesNotMatch(h.ids.crsRunList.innerHTML, /never used for pricing/);
+});
+
+test("run cards format valuation_date with the existing injected formatter", async () => {
+  const h = harness(); await h.ctrl.reload();
+  assert.match(h.ids.crsRunList.innerHTML, /Valuation DATE\(2026-10-31\)/);
+  assert.match(h.ids.crsRunList.innerHTML, /Valuation DATE\(2026-10-22\)/);
 });
 
 test("zero visible rows use the permission-safe empty copy", async () => {
@@ -172,6 +178,14 @@ test("detail discards a stale response after period change", async () => {
   const h = harness({ rpcImpl: async (name) => { if (name === RUN_STATUS_READ_RPCS[0]) { await gate; return { data: [RUN_147], error: null }; } return { data: HEALTH, error: null }; } });
   await h.ctrl.reload(); const detail = h.ctrl.openRunDetail(147); h.periodRef.value = "2026-11-01"; release();
   assert.equal(await detail, false);
+});
+
+test("detail discards a stale error after period change", async () => {
+  let reject; const gate = new Promise((resolve, rejectPromise) => { reject = rejectPromise; });
+  const h = harness({ rpcImpl: async (name) => { if (name === RUN_STATUS_READ_RPCS[0]) return gate; return { data: HEALTH, error: null }; } });
+  await h.ctrl.reload(); const detail = h.ctrl.openRunDetail(147); h.periodRef.value = "2026-11-01"; reject(new Error("old month failed"));
+  assert.equal(await detail, false);
+  assert.doesNotMatch(h.ids.crsRunDetail.innerHTML, /old month failed/);
 });
 
 test("run 147 mapping uses existing formatter and preserves server message", () => {
@@ -221,6 +235,29 @@ test("health double click while loading sends one call", async () => {
   const h = harness({ rpcImpl: async () => { await gate; return { data: HEALTH, error: null }; } });
   const first = h.ctrl.reloadHealth(); const second = h.ctrl.reloadHealth();
   assert.equal(h.rpcCalls.length, 1); release(); await Promise.all([first, second]);
+});
+
+test("health drops late success and error after route exit without changing a newer request", async () => {
+  const pending = [];
+  const h = harness({ rpcImpl: async () => new Promise((resolve, reject) => pending.push({ resolve, reject })) });
+  const first = h.ctrl.reloadHealth();
+  h.routeRef.value = false;
+  h.ctrl.onRouteExit();
+  h.routeRef.value = true;
+  const second = h.ctrl.reloadHealth();
+  pending[0].resolve({ data: HEALTH, error: null });
+  await first;
+  assert.doesNotMatch(h.ids.crsHealthList.innerHTML, /JOB_RECENT_FAILURE/);
+  assert.equal(h.ctrl._state.healthLoading, true);
+  assert.equal(h.ids.crsHealthRefresh.disabled, true);
+  const staleRequestId = h.ctrl._state.healthRequestId;
+  h.routeRef.value = false;
+  h.ctrl.onRouteExit();
+  pending[1].reject(new Error("old health failed"));
+  await second;
+  assert.doesNotMatch(h.ids.crsHealthList.innerHTML, /old health failed/);
+  assert.ok(h.ctrl._state.healthRequestId > staleRequestId);
+  assert.equal(h.ctrl._state.healthLoading, false);
 });
 
 test("flag-OFF shell path leaves static panel hidden and has no controller calls", () => {

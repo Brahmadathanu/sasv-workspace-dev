@@ -73,6 +73,39 @@ function harness({ rpcImpl } = {}) {
   return { ctrl, ids, rows, queries, calls, checked, get loads() { return loads; } };
 }
 
+function markupHarness({ withRunStatus = true } = {}) {
+  const inserts = [];
+  const anchor = (id) => ({
+    id,
+    insertAdjacentHTML(position, markup) { inserts.push({ id, position, markup }); },
+  });
+  const runStatus = anchor("costingRunStatusPanel");
+  const approval = anchor("costingApprovalPanel");
+  const body = anchor("body");
+  const doc = {
+    body,
+    getElementById(id) {
+      if (id === "costingRunStatusPanel" && withRunStatus) return runStatus;
+      if (id === "costingApprovalPanel") return approval;
+      return null;
+    },
+  };
+  const supabase = {
+    from() {
+      const query = { select() { return query; }, order() { return Promise.resolve({ data: [], error: null }); } };
+      return query;
+    },
+  };
+  const ctrl = createCostingLockScreenController({
+    supabase,
+    doc,
+    isControlCenterRoute: () => true,
+    showToast() {},
+    costingRpc: async () => ({ data: null, error: null }),
+  });
+  return { ctrl, inserts };
+}
+
 test("lock flag defaults off", () => assert.equal(isCostingLockScreenV1Enabled({ getItem: () => null }), false));
 test("lock flag accepts exactly string 1", () => {
   assert.equal(isCostingLockScreenV1Enabled({ getItem: () => "1" }), true);
@@ -103,4 +136,8 @@ test("single submit calls only exception route with exact payload", async () => 
 test("double submit while pending sends one call", async () => { let release; const gate = new Promise((r) => { release = r; }); const h = harness({ rpcImpl: async () => { await gate; return { data: { period_start: "2026-09-01", approved_run: 122, official_valuation_date: "2026-09-30", audit_id: 1 }, error: null }; } }); h.ctrl.openSingle("2026-09-01"); const first = h.ctrl.submit(); const second = h.ctrl.submit(); assert.equal(h.calls.length, 1); release(); await Promise.all([first, second]); });
 test("batch failure shows no locked result", async () => { const h = harness({ rpcImpl: async () => ({ data: null, error: { message: "W2_BATCH_MIXED_QUARTER: no" } }) }); h.ctrl.openBatch(["2026-09-01"]); await h.ctrl.submit(); assert.equal(h.ids.clsResult.hidden, true); assert.match(h.ids.clsFormError.textContent, /one calendar quarter/); });
 test("success displays result and reloads status exactly once", async () => { const h = harness(); h.ctrl.openSingle("2026-09-01"); const before = h.loads; await h.ctrl.submit(); assert.equal(h.loads, before + 1); assert.equal(h.ids.clsResult.hidden, false); assert.match(h.ids.clsResult.textContent, /approved run 122/); });
-test("source contains no Date arithmetic or owner call and preserves OFF safety contracts", () => { const src = read("public/shared/js/costing-lock-screen.js"); assert.doesNotMatch(src, /new Date|Date\.now|get.*owner|is.*owner/i); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.batch)); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.single)); const sw = read("public/sw.js"); assert.match(sw, /hub-cache-v379/); const html = read("public/shared/costing-control-center.html"); assert.doesNotMatch(html, /costingLockPanel|costingLockDialog/); const shell = read("public/shared/js/costing-suite-shell.js"); assert.match(shell, /const costingLockScreenCtrl = isCostingLockScreenV1Enabled\(\)/); });
+test("successful lock keeps Submit disabled until either dialog mode is reopened", async () => { const h = harness(); h.ctrl.openSingle("2026-09-01"); await h.ctrl.submit(); assert.equal(h.ids.clsSubmitBtn.disabled, true); assert.equal(h.ids.clsResult.hidden, false); await h.ctrl.submit(); assert.equal(h.calls.length, 1); assert.equal(h.ids.clsReason.value, "Quarter close authorised by board"); h.ctrl.openBatch(["2026-09-01"]); assert.equal(h.ids.clsSubmitBtn.disabled, false); });
+test("a successful retry clears the previous attempt error", async () => { let attempt = 0; const h = harness({ rpcImpl: async () => (++attempt === 1 ? { data: null, error: { message: "W2_ACTIVE_RUN: wait" } } : { data: { period_start: "2026-09-01", approved_run: 122, official_valuation_date: "2026-09-30", audit_id: 1 }, error: null }) }); h.ctrl.openSingle("2026-09-01"); await h.ctrl.submit(); assert.equal(h.ids.clsFormError.hidden, false); await h.ctrl.submit(); assert.equal(h.ids.clsFormError.hidden, true); assert.equal(h.ids.clsFormError.textContent, ""); assert.equal(h.ids.clsResult.hidden, false); });
+test("lock panel inserts before the run-status panel when available", () => { const h = markupHarness(); h.ctrl.mount(); assert.deepEqual(h.inserts[0] && { id: h.inserts[0].id, position: h.inserts[0].position }, { id: "costingRunStatusPanel", position: "beforebegin" }); assert.match(h.inserts[0].markup, /id="costingLockPanel"/); });
+test("lock panel falls back to after the approval panel", () => { const h = markupHarness({ withRunStatus: false }); h.ctrl.mount(); assert.deepEqual(h.inserts[0] && { id: h.inserts[0].id, position: h.inserts[0].position }, { id: "costingApprovalPanel", position: "afterend" }); assert.match(h.inserts[0].markup, /id="costingLockPanel"/); });
+test("source contains no Date arithmetic or owner call and preserves OFF safety contracts", () => { const src = read("public/shared/js/costing-lock-screen.js"); assert.doesNotMatch(src, /new Date|Date\.now|get.*owner|is.*owner/i); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.batch)); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.single)); const sw = read("public/sw.js"); assert.match(sw, /hub-cache-v380/); const html = read("public/shared/costing-control-center.html"); assert.doesNotMatch(html, /costingLockPanel|costingLockDialog/); const shell = read("public/shared/js/costing-suite-shell.js"); assert.match(shell, /const costingLockScreenCtrl = isCostingLockScreenV1Enabled\(\)/); });

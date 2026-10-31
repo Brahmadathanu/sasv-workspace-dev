@@ -99,6 +99,7 @@ export function createCostingLockScreenController(deps) {
     rows: [],
     mode: null,
     selectedPeriodStarts: [],
+    succeeded: false,
   };
 
   function setVisible(node, visible) {
@@ -118,17 +119,20 @@ export function createCostingLockScreenController(deps) {
 
   function ensureMarkup() {
     if (panel() && dialog()) return;
-    $("costingApprovalPanel", doc)?.insertAdjacentHTML?.(
-      "afterend",
-      `<div id="costingLockPanel" class="cas-panel cls-panel hidden" hidden aria-hidden="true" aria-label="Close costing periods">
+    const panelMarkup = `<div id="costingLockPanel" class="cas-panel cls-panel hidden" hidden aria-hidden="true" aria-label="Close costing periods">
         <div class="cas-panel-head">
           <div class="cas-panel-title">Close period</div>
           <div class="cas-muted">Select months explicitly. The server decides whether they can be locked.</div>
         </div>
         <div id="clsPeriodList" class="cas-run-list cls-period-list"></div>
         <button type="button" class="icon-btn icon-btn-primary" id="clsCloseQuarterBtn">Close quarter (lock months)</button>
-      </div>`,
-    );
+      </div>`;
+    const runStatusPanel = $("costingRunStatusPanel", doc);
+    if (runStatusPanel?.insertAdjacentHTML) {
+      runStatusPanel.insertAdjacentHTML("beforebegin", panelMarkup);
+    } else {
+      $("costingApprovalPanel", doc)?.insertAdjacentHTML?.("afterend", panelMarkup);
+    }
     const dialogMarkup = `<div id="costingLockDialog" class="cost-sheet-sign-modal hidden" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="clsDialogTitle">
       <div class="cost-sheet-sign-panel cls-modal-panel">
         <div class="cost-sheet-sign-header">
@@ -216,6 +220,7 @@ export function createCostingLockScreenController(deps) {
   function renderDialog(mode, periodStarts) {
     state.mode = mode;
     state.selectedPeriodStarts = [...periodStarts];
+    state.succeeded = false;
     $("clsDialogTitle", doc).textContent =
       mode === "batch" ? "Close quarter (lock months)" : "Lock a single month (authorised exception)";
     const intro = $("clsDialogIntro", doc);
@@ -275,14 +280,14 @@ export function createCostingLockScreenController(deps) {
 
   function syncSubmit() {
     const submit = $("clsSubmitBtn", doc);
-    if (submit) submit.disabled = state.inFlight;
+    if (submit) submit.disabled = state.inFlight || state.succeeded;
     $("clsCloseBtn", doc) && ($("clsCloseBtn", doc).disabled = state.inFlight);
     $("clsCancelBtn", doc) && ($("clsCancelBtn", doc).disabled = state.inFlight);
     $("clsLockForm", doc)?.setAttribute?.("aria-busy", state.inFlight ? "true" : "false");
   }
 
   async function submit() {
-    if (state.inFlight || !state.mode) return;
+    if (state.inFlight || state.succeeded || !state.mode) return;
     const reason = $("clsReason", doc)?.value || "";
     const reference = $("clsApprovalReference", doc)?.value || "";
     const isBatch = state.mode === "batch";
@@ -297,11 +302,17 @@ export function createCostingLockScreenController(deps) {
       if (error) throw error;
       const parsed = unwrapRpcJson(data) || {};
       const lines = lockSuccessLines(parsed);
+      const errorHost = $("clsFormError", doc);
+      if (errorHost) {
+        errorHost.textContent = "";
+        errorHost.hidden = true;
+      }
       const result = $("clsResult", doc);
       if (result) {
         result.textContent = `${lines.join("\n")}${isBatch ? `\nCount: ${parsed.count}` : ""}`;
         result.hidden = false;
       }
+      state.succeeded = true;
       showToast?.("Period lock recorded by the server.", "success");
       await reload();
     } catch (error) {
