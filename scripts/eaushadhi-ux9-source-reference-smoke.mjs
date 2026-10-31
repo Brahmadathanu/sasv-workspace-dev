@@ -56,7 +56,7 @@ check(control.includes("selected.length > 200"), "write refuses more than 200 ex
 check(control.includes("expected_row_version: Number(line.row_version)"), "payload preserves preview row_version");
 check(control.includes("expected_raw_reference_text"), "payload preserves the exact preview wording");
 check(control.includes('sourceReferenceLineRelation(line, target) === "DIFFERENT"'), "replace confirmation is derived only for explicitly selected different wording");
-check(control.includes("bulk.requestId ||= newSourceReferenceRequestId()"), "one request id is retained across Apply retries");
+check(openBulk.includes("bulk.requestId = newSourceReferenceRequestId()") && !openBulk.includes("bulk.requestId ||="), "opening always assigns a fresh request id");
 check(control.includes("bulk.requestId = newSourceReferenceRequestId()"), "rebuilding preview creates a new request id");
 check(control.includes("await setSourceReferenceBulk"), "Apply waits for the RPC result");
 check(control.indexOf("await setSourceReferenceBulk") < control.indexOf("state.lines = state.lines.map", control.indexOf("async function applySourceReferenceBulk")), "local lines are not changed before RPC success");
@@ -86,8 +86,19 @@ check(preview.lines.find((line) => line.source_composition_line_id === 934).lock
 check(success.lines[0].review_status === "PENDING" && success.lines[0].row_version === 5, "mock success covers returned Pending state and new version");
 check(success.applied_count === 1 && success.unchanged_count === 0, "mock success keeps changed and unchanged counts separate");
 check(control.includes('if (current === wanted) return "SAME"') && control.includes('return "RESPELL"'), "same requires exact trimmed equality and case-only differences are respells");
+check(control.includes('.replace(/[\\p{P}]+/gu, " ")') && control.includes('.replace(/\\s+/g, " ")') && control.includes('.toLocaleLowerCase()'), "respell mirrors normalize_controlled_term_alias lowercase, punctuation and collapsed whitespace");
 check(control.includes('relation === "DIFFERENT" && preview?.caller?.is_approver !== true'), "case-only respells do not require an Approver");
 check(control.includes('confirm_replace_different: sourceReferenceLineRelation(line, target) === "DIFFERENT"'), "case-only respells do not set replace-different confirmation");
+{
+  const fn = new Function(`
+    const safeText = (value) => String(value ?? "");
+    ${control.slice(control.indexOf("function sourceReferenceLineRelation"), control.indexOf("function sourceReferenceEligible"))}
+    return sourceReferenceLineRelation;
+  `)();
+  check(fn({ raw_reference_text: "API Vol. I" }, "API Vol. I") === "SAME", "exact trimmed wording is SAME");
+  check(fn({ raw_reference_text: "API  Vol. I." }, "api vol i") === "RESPELL", "punctuation and whitespace-only differences are RESPELL");
+  check(fn({ raw_reference_text: "API Vol. I" }, "API Vol. II") === "DIFFERENT", "distinct wording stays DIFFERENT");
+}
 check(!control.includes("globalThis.confirm") && control.includes('title: "Discard this source-reference change?"') && control.includes('cancelLabel: "Keep editing"') && control.includes('okLabel: "Discard"'), "dirty close uses the approved in-page discard confirmation");
 check(control.includes("sourceReferenceBulk.reason.trim() || state.sourceReferenceBulk.selected.size"), "dirty close is based on reason or ticked lines");
 check(control.includes("if (state.sourceReferenceBulk.applying) return false"), "Escape, backdrop and buttons cannot close while applying");
@@ -103,7 +114,42 @@ check(openBulk.includes("ensureSourceReferencePreview({ force: true, rerender: f
 check(control.includes('LINE_VERIFIED: "Verified. Reopen the line to correct it"'), "verified-line lock uses the approved recovery wording");
 check((control.match(/refreshSourceReferencePreviewAfterLineChange\(\)/g) || []).length >= 7, "line reopen, save, approvals, correction and bulk Apply invalidate and refetch preview");
 check(control.includes("event.stopImmediatePropagation()") && control.includes('idPrefix: "sourceReferenceDiscard"'), "capture-phase Escape is stopped inside the nested discard confirmation");
+check(control.includes('if ($("sourceReferenceDiscardBackdrop") || openQcConfirm.showing === true) return;'), "bulk keydown yields while nested discard confirm is open");
 check(control.includes('cancelClassName: "icon-btn with-label ea-btn ea-btn--secondary"') && control.includes('okClassName: "icon-btn with-label ea-btn ea-btn--danger"'), "nested confirmation uses secondary Keep editing and danger Discard buttons");
+{
+  let bulkCloseCalls = 0;
+  let trapCalls = 0;
+  const elements = {
+    sourceReferenceDiscardBackdrop: { id: "sourceReferenceDiscardBackdrop" },
+    sourceReferenceBulkDialog: { id: "sourceReferenceBulkDialog", focus() {} },
+  };
+  const $ = (id) => elements[id] || null;
+  const openQcConfirm = { showing: false };
+  const requestCloseSourceReferenceBulkDialog = () => { bulkCloseCalls += 1; };
+  const trapModalTab = () => { trapCalls += 1; };
+  const sourceReferenceBulkKeydown = new Function(
+    "$",
+    "openQcConfirm",
+    "requestCloseSourceReferenceBulkDialog",
+    "trapModalTab",
+    `${control.slice(control.indexOf("function sourceReferenceBulkKeydown"), control.indexOf("async function openSourceReferenceBulkDialog"))}; return sourceReferenceBulkKeydown;`,
+  )($, openQcConfirm, requestCloseSourceReferenceBulkDialog, trapModalTab);
+  const escapeEvent = {
+    key: "Escape",
+    preventDefault() {},
+    stopPropagation() {},
+    stopImmediatePropagation() {},
+  };
+  sourceReferenceBulkKeydown(escapeEvent);
+  check(bulkCloseCalls === 0 && trapCalls === 0, "Escape does nothing in bulk keydown while discard backdrop exists");
+  delete elements.sourceReferenceDiscardBackdrop;
+  openQcConfirm.showing = true;
+  sourceReferenceBulkKeydown(escapeEvent);
+  check(bulkCloseCalls === 0 && trapCalls === 0, "Escape does nothing in bulk keydown while openQcConfirm.showing");
+  openQcConfirm.showing = false;
+  sourceReferenceBulkKeydown(escapeEvent);
+  check(bulkCloseCalls === 1, "Escape closes bulk only when nested discard is absent");
+}
 
 console.log(`UX-9 source-reference checks: ${passed} passed, ${failed} failed`);
 if (failed) process.exitCode = 1;

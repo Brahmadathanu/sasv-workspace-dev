@@ -1,10 +1,12 @@
 /** UX-9.1 Composition toolbar, filter drawer and table-scroll contract. */
 import { readFileSync, existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { createServer } from "node:http";
+import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const sharedRoot = join(root, "public/shared");
 const read = (name) => readFileSync(join(root, name), "utf8");
 const html = read("public/shared/e-aushadhi-review-control.html");
 const js = read("public/shared/js/eaushadhi-review-control.js");
@@ -36,6 +38,112 @@ check(js.includes('id="sourceReferenceBulkClose"') && js.includes("source-refere
 check(css.includes(".source-reference-bulk-heading") && css.includes("flex: 1 1 auto") && css.includes("min-width: 0"), "bulk heading lets the close button sit at the far right");
 check(!js.includes("globalThis.confirm") && js.includes('idPrefix: "sourceReferenceDiscard"'), "discard uses a nested in-page confirmation");
 check(js.includes("event.stopImmediatePropagation()") && js.includes('cancelLabel: "Keep editing"'), "nested confirmation captures Escape before the bulk dialog");
+check(js.includes('if ($("sourceReferenceDiscardBackdrop") || openQcConfirm.showing === true) return;'), "bulk keydown yields while nested discard confirm is open");
+check(js.includes("const allowed = canWrite();") && !js.includes("const allowed = canWrite() && !state.busy;"), "Approve reviewed lines is not gated on state.busy");
+
+const fixtureLines = Array.from({ length: 80 }, (_, index) => ({
+  source_composition_line_id: 1000 + index,
+  source_row_no: index + 1,
+  raw_ingredient_name: `Ingredient ${index + 1}`,
+  raw_scientific_name: index % 4 === 0 ? `Botanica longissima specimen ${index + 1}` : "",
+  raw_part_used: "Root",
+  raw_quantity_text: "10",
+  raw_unit_text: "mg",
+  raw_reference_text: index === 1 ? "API Vol. I" : null,
+  review_status: "PENDING",
+  row_version: 1 + index,
+  suggestion_basis: null,
+}));
+
+const previewLines = fixtureLines.map((line) => ({
+  source_composition_line_id: line.source_composition_line_id,
+  source_row_no: line.source_row_no,
+  raw_ingredient_name: line.raw_ingredient_name,
+  raw_reference_text: line.raw_reference_text,
+  row_version: line.row_version,
+  review_status: line.review_status,
+  lock_reason: null,
+}));
+
+const mime = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".ico": "image/x-icon",
+};
+
+const supabaseStub = `export const supabase = {
+  auth: {
+    getSession: async () => ({ data: { session: { user: { id: "ux91-smoke-user" } } }, error: null }),
+  },
+  rpc: async (name, args) => {
+    const data = typeof globalThis.__ux91Rpc === "function" ? globalThis.__ux91Rpc(name, args) : [];
+    return { data, error: null };
+  },
+  schema() { return this; },
+  from() { return this; },
+  select() { return this; },
+  eq() { return this; },
+  maybeSingle: async () => ({ data: null, error: null }),
+  storage: {
+    from() {
+      return {
+        upload: async () => ({ data: {}, error: null }),
+        remove: async () => ({ data: {}, error: null }),
+        createSignedUrl: async () => ({ data: { signedUrl: "about:blank" }, error: null }),
+      };
+    },
+  },
+};
+export const labSupabase = supabase;
+export const hrSupabase = supabase;
+export const handleSupabaseError = (error) => error;
+`;
+
+function transformControl(source) {
+  if (!source.includes("\ninitPage();")) throw new Error("expected initPage() bootstrap in production control");
+  return `${source.replace(
+    /\ninitPage\(\);\s*$/,
+    `
+globalThis.__ux91 = {
+  openProduct,
+  selectWorkflowTab,
+  openSourceReferenceBulkDialog,
+  requestCloseSourceReferenceBulkDialog,
+  state,
+  access,
+};
+initPage();
+`,
+  )}`;
+}
+
+const server = createServer((req, res) => {
+  const url = new URL(req.url || "/", "http://127.0.0.1");
+  let rel = decodeURIComponent(url.pathname);
+  if (rel === "/" || rel === "/e-aushadhi-review-control.html") rel = "/e-aushadhi-review-control.html";
+  const filePath = join(sharedRoot, rel.replace(/^\//, ""));
+  if (!filePath.startsWith(sharedRoot) || !existsSync(filePath)) {
+    res.writeHead(404).end("not found");
+    return;
+  }
+  const type = mime[extname(filePath)] || "application/octet-stream";
+  if (rel.endsWith("/js/supabaseClient.js")) {
+    res.writeHead(200, { "content-type": type, "cache-control": "no-store" }).end(supabaseStub);
+    return;
+  }
+  let body = readFileSync(filePath);
+  if (rel.endsWith("/js/eaushadhi-review-control.js")) {
+    body = Buffer.from(transformControl(body.toString("utf8")), "utf8");
+  }
+  res.writeHead(200, { "content-type": type, "cache-control": "no-store" }).end(body);
+});
+
+await new Promise((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+const { port } = server.address();
+const pageUrl = `http://127.0.0.1:${port}/e-aushadhi-review-control.html`;
 
 let require = createRequire(join(root, "package.json"));
 let chromium;
@@ -46,31 +154,139 @@ if (!executablePath) throw new Error("Set UX91_BROWSER_PATH to an installed Chro
 const browser = await chromium.launch({ headless: true, executablePath });
 try {
   const page = await browser.newPage({ deviceScaleFactor: 1.25 });
+  await page.addInitScript(({ lines, preview }) => {
+    globalThis.__ux91Rpc = (name) => {
+      switch (name) {
+        case "get_user_permissions":
+          return [{ target: "module:e-aushadhi-automation", can_view: true, can_edit: true }];
+        case "rpc_eaushadhi_my_roles_v1":
+          return { is_verifier: true, is_approver: true, is_admin: false };
+        case "rpc_eaushadhi_worklist_v1":
+          return [{
+            product_id: 262,
+            product_name: "UX91 fixture product",
+            family: "Fixture",
+            queue_code: "TO_VERIFY",
+            next_action_label: "Open composition",
+            updated_at: "2026-10-31T00:00:00Z",
+          }];
+        case "rpc_eaushadhi_product_queue":
+          return [{ product_id: 262, product_name: "UX91 fixture product" }];
+        case "rpc_eaushadhi_portal_options":
+        case "rpc_eaushadhi_permission_purpose_options":
+        case "rpc_eaushadhi_pharmacological_action_options":
+        case "rpc_eaushadhi_product_classification_options":
+        case "rpc_eaushadhi_product_actions_get":
+        case "rpc_eaushadhi_product_issues":
+        case "rpc_eaushadhi_reference_mapping_get":
+        case "rpc_eaushadhi_stage_review_state_v1":
+          return [];
+        case "rpc_eaushadhi_product_review_get":
+          return {
+            product_id: 262,
+            product_name: "UX91 fixture product",
+            review_status: "PENDING",
+            row_version: 1,
+          };
+        case "rpc_eaushadhi_review_queue":
+          return lines;
+        case "rpc_eaushadhi_product_evidence_status":
+          return { product_id: 262, has_approved_copy: false };
+        case "rpc_eaushadhi_product_classification_review_get":
+          return { product_id: 262, review_status: "PENDING", row_version: 1 };
+        case "rpc_eaushadhi_approved_product_copy_get":
+        case "rpc_eaushadhi_product_dossier_portal_fields_get":
+        case "rpc_eaushadhi_product_portal_text_get":
+          return null;
+        case "rpc_eaushadhi_document_upload_contract":
+          return {
+            product_id: 262,
+            document_purpose: "APPROVED_PRODUCT_COPY",
+            extension: "pdf",
+            expected_file_name: "copy.pdf",
+            expected_storage_path: "copy/copy.pdf",
+          };
+        case "rpc_eaushadhi_source_reference_preview_v1":
+          return {
+            product_id: 262,
+            max_lines: 200,
+            caller: { is_verifier: true, is_approver: true },
+            product_lock_reason: null,
+            known_wordings: [{ raw_reference_text: "API Vol. I", line_count: 20, product_line_count: 1 }],
+            lines: preview,
+          };
+        default:
+          return [];
+      }
+    };
+  }, { lines: fixtureLines, preview: previewLines });
+
   for (const width of [1366, 683]) {
     await page.setViewportSize({ width, height: 768 });
-    await page.setContent(`<style>:root{--sasv-surface:#fff;--sasv-surface-soft:#f8fafc;--sasv-text:#172033;--sasv-border:#cbd5e1;--sasv-action-primary:#1769aa;--sasv-control-md:36px;--sasv-radius-sm:6px;--sasv-fw-semibold:600}.composition-table-row{height:32px}${css}</style><body class="sasv-eaushadhi-review"><div id="compositionToolbar" class="composition-toolbar"><button id="compositionFilterBtn" class="icon-btn ea-btn ea-btn--icon ea-btn--secondary" aria-expanded="false">F<span id="compositionFilterBadge" class="composition-filter-badge" hidden>0</span></button><div class="search-wrap"><input id="compositionSearch"></div><span id="compositionRowCount">Showing 40 of 80</span><div id="compositionToolbarActions" class="composition-toolbar-actions"><button class="icon-btn with-label ea-btn ea-btn--secondary">Set source reference</button></div><button id="btnVerifyReviewedLines" class="icon-btn with-label ea-btn ea-btn--primary">Approve reviewed lines</button></div><div id="compositionFilterDrawer" class="worklist-filter-popover" hidden><div class="worklist-filter-panel" tabindex="-1"><button id="lens">Pending</button><button id="clear" class="ea-btn ea-btn--quiet">Clear</button></div></div><div id="compositionTableScroll" class="composition-table-wrap" style="height:260px"><table class="composition-table"><thead><tr><th>Line</th><th>Ingredient</th></tr></thead><tbody id="rows"></tbody></table></div><div id="fixtureModal" hidden><button id="fixtureClose">Close</button></div><script>(()=>{const data=Array.from({length:80},(_,i)=>i+1);let shown=40;const rows=document.querySelector('#rows');function paint(){rows.innerHTML=data.slice(0,shown).map(i=>'<tr class="composition-table-row" data-line-id="'+i+'" tabindex="'+(i===1?'0':'-1')+'"><td>'+i+'</td><td>Ingredient '+i+'</td></tr>').join('')}paint();const scroll=document.querySelector('#compositionTableScroll');scroll.addEventListener('scroll',()=>{if(scroll.scrollTop+scroll.clientHeight>=scroll.scrollHeight-4&&shown<80){const top=scroll.scrollTop;shown=Math.min(80,shown+40);paint();scroll.scrollTop=top}});rows.addEventListener('keydown',e=>{const row=e.target.closest('tr');if(!row)return;const all=[...rows.children];let i=all.indexOf(row);if(e.key==='ArrowDown'&&all[i+1]){e.preventDefault();row.tabIndex=-1;all[i+1].tabIndex=0;all[i+1].focus()}});let returnRow=null;rows.addEventListener('click',e=>{returnRow=e.target.closest('tr');document.querySelector('#fixtureModal').hidden=false});document.querySelector('#fixtureClose').onclick=()=>{const top=scroll.scrollTop;document.querySelector('#fixtureModal').hidden=true;returnRow.focus({preventScroll:true});scroll.scrollTop=top};const filter=document.querySelector('#compositionFilterBtn'),drawer=document.querySelector('#compositionFilterDrawer');filter.onclick=()=>{drawer.hidden=false;filter.setAttribute('aria-expanded','true');drawer.querySelector('button').focus()};document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!drawer.hidden){e.stopPropagation();drawer.hidden=true;filter.setAttribute('aria-expanded','false');filter.focus()}},true);document.addEventListener('pointerdown',e=>{if(!drawer.hidden&&!drawer.contains(e.target)&&!filter.contains(e.target)){drawer.hidden=true;filter.setAttribute('aria-expanded','false');filter.focus()}},true)})();</script></body>`);
+    await page.goto(pageUrl, { waitUntil: "networkidle" });
+    await page.waitForFunction(() => globalThis.__ux91?.access?.loaded === true);
+    await page.evaluate(async () => {
+      const api = globalThis.__ux91;
+      await api.openProduct(262);
+      api.selectWorkflowTab("composition");
+    });
+    await page.waitForSelector("#compositionTableScroll");
+    await page.waitForSelector("#compositionTableBody tr.composition-table-row");
+
     check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}px at 125%: toolbar/table create no horizontal page scroll`);
-    check(await page.locator("#compositionTableScroll").evaluate((el) => el.scrollWidth <= el.clientWidth), `${width}px at 125%: table scroller has no horizontal overflow`);
-    check(await page.locator(".composition-table th").first().evaluate((el) => { const s=getComputedStyle(el); return s.position==="sticky"&&s.top==="0px"&&s.backgroundColor!=="rgba(0, 0, 0, 0)"; }), `${width}px at 125%: table header is computed sticky and opaque`);
-    check(await page.locator("#compositionToolbar").evaluate((host) => { const items=[...host.children].filter((el)=>getComputedStyle(el).display!=="none").map((el)=>el.getBoundingClientRect()); return items.every((a,i)=>items.every((b,j)=>i===j||a.right<=b.left+1||b.right<=a.left+1||a.bottom<=b.top+1||b.bottom<=a.top+1)); }), `${width}px at 125%: toolbar actions wrap without overlap`);
+    check(await page.locator("#compositionTableScroll").evaluate((el) => getComputedStyle(el).overflowX === "hidden" && document.documentElement.scrollWidth <= innerWidth), `${width}px at 125%: table scroller clips horizontal overflow without page scroll`);
+    check(await page.locator(".composition-table th").first().evaluate((el) => { const s = getComputedStyle(el); return s.position === "sticky" && s.top === "0px" && s.backgroundColor !== "rgba(0, 0, 0, 0)"; }), `${width}px at 125%: table header is computed sticky and opaque`);
+    check(await page.locator("#compositionToolbar").evaluate((host) => {
+      const items = [...host.children].filter((el) => getComputedStyle(el).display !== "none").map((el) => el.getBoundingClientRect());
+      return items.every((a, i) => items.every((b, j) => i === j || a.right <= b.left + 1 || b.right <= a.left + 1 || a.bottom <= b.top + 1 || b.bottom <= a.top + 1));
+    }), `${width}px at 125%: toolbar actions wrap without overlap`);
+
     await page.locator("#compositionFilterBtn").click();
     check(await page.locator("#compositionFilterBtn").getAttribute("aria-expanded") === "true", `${width}px: filter drawer opens and updates aria-expanded`);
     await page.keyboard.press("Escape");
     check(await page.evaluate(() => document.activeElement?.id === "compositionFilterBtn" && document.querySelector("#compositionFilterDrawer").hidden), `${width}px: Escape closes drawer and restores funnel focus`);
-    await page.locator("#compositionTableScroll").evaluate((el) => { el.scrollTop=el.scrollHeight; el.dispatchEvent(new Event("scroll")); });
-    check(await page.locator("#rows tr").count() === 80, `${width}px: progressive scroll appends the next 40 rows`);
-    await page.locator('#rows tr[data-line-id="41"]').focus();
+
+    check(await page.locator("#compositionTableBody tr").count() === 40, `${width}px: first paint shows 40 of 80 production fixture rows`);
+    await page.locator("#compositionTableScroll").evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+      el.dispatchEvent(new Event("scroll", { bubbles: true }));
+    });
+    await page.waitForFunction(() => document.querySelectorAll("#compositionTableBody tr").length === 80);
+    check(await page.locator("#compositionTableBody tr").count() === 80, `${width}px: progressive scroll appends the next 40 rows`);
+
+    await page.locator('#compositionTableBody tr[data-line-id="1040"]').focus();
     await page.keyboard.press("ArrowDown");
-    check(await page.evaluate(() => document.activeElement?.dataset?.lineId === "42"), `${width}px: keyboard row focus advances inside the scroller`);
-    await page.locator("#compositionTableScroll").evaluate((el) => { el.scrollTop=120; });
-    await page.locator('#rows tr[data-line-id="42"]').click();
+    check(await page.evaluate(() => document.activeElement?.dataset?.lineId === "1041"), `${width}px: keyboard row focus advances inside the scroller`);
+
+    await page.locator("#compositionTableScroll").evaluate((el) => { el.scrollTop = 120; });
+    await page.locator('#compositionTableBody tr[data-line-id="1041"]').click();
+    await page.waitForSelector("#compositionLineModalDialog");
     const before = await page.locator("#compositionTableScroll").evaluate((el) => el.scrollTop);
-    await page.locator("#fixtureClose").click();
-    check(await page.evaluate(() => document.activeElement?.dataset?.lineId === "42"), `${width}px: modal close returns focus to the same row`);
+    await page.locator("#compositionLineModalClose").click();
+    await page.waitForSelector("#compositionLineModalDialog", { state: "detached" });
+    check(await page.evaluate(() => document.activeElement?.dataset?.lineId === "1041"), `${width}px: modal close returns focus to the same row`);
     check(await page.locator("#compositionTableScroll").evaluate((el, top) => el.scrollTop === top, before), `${width}px: modal close preserves table scroll position`);
+
+    await page.locator("#btnSetSourceReference").click();
+    await page.waitForSelector("#sourceReferenceBulkDialog");
+    await page.locator("#sourceReferenceReason").fill("Discard escape smoke reason");
+    await page.keyboard.press("Escape");
+    await page.waitForSelector("#sourceReferenceDiscardBackdrop");
+    await page.keyboard.press("Escape");
+    check(await page.evaluate(() => {
+      const discardGone = !document.getElementById("sourceReferenceDiscardBackdrop");
+      const bulkOpen = Boolean(document.getElementById("sourceReferenceBulkDialog"));
+      const focusInside = Boolean(document.getElementById("sourceReferenceBulkDialog")?.contains(document.activeElement));
+      return discardGone && bulkOpen && focusInside;
+    }), `${width}px: nested discard Escape closes only the confirm and restores bulk focus`);
+    await page.evaluate(async () => {
+      await globalThis.__ux91.requestCloseSourceReferenceBulkDialog({ force: true });
+    });
+    await page.waitForSelector("#sourceReferenceBulkDialog", { state: "detached" });
   }
 } finally {
   await browser.close();
+  await new Promise((resolveClose) => server.close(resolveClose));
 }
 
 console.log(`UX-9.1 Composition toolbar checks: ${passed} passed, ${failed} failed`);

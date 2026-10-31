@@ -2312,11 +2312,11 @@ function renderCompositionToolbarActions() {
   if (host) host.innerHTML = sourceReferenceToolbarHtml();
   const approve = $("btnVerifyReviewedLines");
   if (approve) {
-    const allowed = canWrite() && !state.busy;
+    const allowed = canWrite();
     approve.disabled = !allowed;
     approve.classList.toggle("ea-btn--primary", allowed);
     approve.classList.toggle("ea-btn--secondary", !allowed);
-    approve.title = allowed ? "" : (canWrite() ? "An action is already in progress." : "e-Aushadhi Automation permission is required.");
+    approve.title = allowed ? "" : "e-Aushadhi Automation permission is required.";
   }
 }
 
@@ -2337,7 +2337,13 @@ function sourceReferenceLineRelation(line, target) {
   const wanted = safeText(target).trim();
   if (!current) return "BLANK";
   if (current === wanted) return "SAME";
-  if (current.toLocaleLowerCase() === wanted.toLocaleLowerCase()) return "RESPELL";
+  const normalizeAlias = (value) => value
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[\p{P}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (normalizeAlias(current) === normalizeAlias(wanted)) return "RESPELL";
   return "DIFFERENT";
 }
 
@@ -2531,6 +2537,7 @@ async function requestCloseSourceReferenceBulkDialog({ force = false } = {}) {
 }
 
 function sourceReferenceBulkKeydown(event) {
+  if ($("sourceReferenceDiscardBackdrop") || openQcConfirm.showing === true) return;
   if (event.key === "Escape") {
     event.preventDefault();
     event.stopPropagation();
@@ -2573,7 +2580,7 @@ async function openSourceReferenceBulkDialog({ target = null, scope = null } = {
   }
   bulk.target = target || sourceReferenceDefaultTarget(preview);
   bulk.allowNew = Boolean(target) && !sourceReferenceKnownWordings(preview).some((item) => safeText(item.raw_reference_text).toLowerCase() === safeText(target).toLowerCase());
-  bulk.requestId ||= newSourceReferenceRequestId();
+  bulk.requestId = newSourceReferenceRequestId();
   renderSourceReferenceBulkDialog();
   $("sourceReferenceBulkDialog")?.focus();
 }
@@ -9832,6 +9839,7 @@ function setCompositionFiltersOpen(open, { restoreFocus = true } = {}) {
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
+      event.stopImmediatePropagation();
       setCompositionFiltersOpen(false);
       return;
     }
