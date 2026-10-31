@@ -1,5 +1,7 @@
 # WP-07 Operator journey: e-Aushadhi Review
 
+> **Refreshed 31 Oct 2026 (IST).** Sections 6a, 6b, 9 and 10 below describe the screens on branch `feat/wp07-ux1-worklist` (tip `c5821b1`, not merged). Where older sections disagree, sections 9–10 win. Current state: [wp07/CURRENT_STATE.md](wp07/CURRENT_STATE.md).
+
 Status as of 29 Oct 2026 (IST). Screens are on branch `feat/wp07-ux1-worklist` (tip `78cf8a6`; this document was last checked against `851804c` for sections 1-6), not yet merged into main. The server changes listed here are live for everyone.
 
 ## 1. Who does what
@@ -106,7 +108,7 @@ The Readiness tab has a **Fill on portal** section. It shows each step's status 
 - Today the only Approvers are the owner and Aneesh. If **both** saved steps on a product, nobody can authorize it.
 - Each Save needs its own typed confirmation `SAVE PRODUCT <id>`. An unclear result stops; the app never retries by itself.
 
-## 8. Known limits (29 Oct 2026)
+## 8. Known limits (29 Oct 2026) — partly stale as of 2026-10-31, see section 10
 
 - Product 262 (Karpooradi Thailam) is Done and locked. Save, Arm and Dry run stay off with "Already saved and confirmed on the portal."
 - Portal Save from the app works for no other product yet. The worker is still locked to 262 until UX-3 B2 is built and you choose the first product.
@@ -115,3 +117,41 @@ The Readiness tab has a **Fill on portal** section. It shows each step's status 
 - The final portal Submit is never used by the app.
 - The worklist screens are not merged into main yet. To use them, run the app from the branch folder.
 - The pilot (owner and Aneesh) is still in progress; record findings on the pilot sheet.
+
+## 6a. Composition table (UX-7, UX-9.1)
+1. Open a product and go to **Composition**. All ingredient lines show as one table: Ingredient, Botanical name (hidden in narrow windows), part used, quantity and unit, mapping and review status.
+2. The toolbar stays fixed. Row 1: the **funnel** (filters), search, and "Showing N of M". Row 2: **Set source reference** (left, light fill) and **Approve reviewed lines** (right, solid green).
+3. Filters open in a side drawer titled "Filters (N)". When any filter is on, the funnel shows an amber dot. Escape closes the drawer.
+4. Only the table scrolls, and only when the rows do not fit; the header stays in place.
+5. Hover (or Tab to) the small "i" next to **Composition**: "Changes save automatically. Verify when the section is correct."
+6. Click a row to open that line.
+
+## 6b. The line window (UX-8, UX-8.1)
+1. **Top**: line title and summary strip (botanical name, quantity and unit, part used, review status, attention).
+2. **Source as imported**: collapsed; click to see the raw sheet values.
+3. **Reference**: Source wording, Standard reference work, Portal reference, Mapping status. Mapping one wording in the Reference Dictionary tab covers every line with that wording. "-" means no reference text was imported.
+4. **Notes**, then the action buttons (Save for review, Approve, Correct source, Resolve source issue, as allowed).
+5. **Footer**: save status on the left (Unsaved changes, Saving..., Saved, Error); Previous, Next, Next line needing review on the right. Messages appear in the footer and do not move the buttons.
+6. Close with X, clicking outside, or Esc; unsaved changes are saved first, or you choose Stay / Leave without saving.
+- **Correct source** changes raw ingredient, scientific name, part, quantity, unit (reason required) and sends the line back to Pending. It does not change the reference wording — use Set source reference.
+
+## 9. Set source reference (UX-9, server live 31 Oct 2026)
+1. On Composition, click **Set source reference**. (Off, with a reason in the tooltip, if you have no Verifier/Approver role or the product's portal entry has started — today Product 262.)
+2. Choose the wording from the known list. **Enter a new wording** is for Approvers only.
+3. Choose which lines: blank lines (default), selected lines, or all lines. Lines that already have a *different* wording change only if you tick them, and only an Approver can.
+4. Type a **reason** (10–500 characters; the counter shows "0/500").
+5. Check the preview, then **Apply**. If Apply is greyed, hover it to see why.
+6. All listed lines change together or none do. Changed lines go back to **Pending**: save them for review again, and a different person approves.
+7. **Cancel** with typed text asks "Discard this source-reference change?" in the page.
+- **Verified lines cannot be changed here.** Reopen the line first, then set the reference, then save and approve it again.
+- "Preview is out of date" means someone changed a line meanwhile: rebuild the preview.
+- You cannot clear a reference (set it back to blank) yet; that waits for the portal blank-reference answer.
+- **Approve reviewed lines** approves the reviewed lines in one batch (four-eyes still applies per line). It is locked while a batch or a source-reference apply is running.
+
+## 10. Known limits (31 Oct 2026)
+- Product 262 is Done and locked; the worker (portal Save) is locked to 262; B2 unlock is on hold.
+- The final portal Submit is never used. Each portal Save needs its own authorization.
+- The worklist, Composition table and UX-9 screens are on the branch only, not merged into main.
+- Unknown whether the portal accepts an ingredient with no reference (owner/Aneesh check).
+- Small open polish items: floating tooltip does not follow page scroll; tab focus ring may be clipped.
+- Pilot with Aneesh still in progress.

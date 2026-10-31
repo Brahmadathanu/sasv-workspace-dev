@@ -1,5 +1,7 @@
 # B2 decision sheet: letting the app Save one more product on the portal
 
+> **Status 31 Oct 2026:** still open — B2 worker unlock is ON HOLD pending these answers. References to Codex now mean "the client builder" (see ADR-14).
+
 29 Oct 2026 IST. Plan only. Nothing changes on the live system from this sheet.
 
 ## What B2 is, in one line

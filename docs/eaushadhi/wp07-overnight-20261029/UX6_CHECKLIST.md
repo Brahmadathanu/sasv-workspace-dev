@@ -1,5 +1,7 @@
 # UX-6 checklist: product modal scrolling and field layout
 
+> **Stale as of 2026-10-31.** Kept for history. Codex is out of usage (ADR-14); these packages are done or replaced. Current state: [../wp07/CURRENT_STATE.md](../wp07/CURRENT_STATE.md); next work: [../wp07/CLAUDE_CODE_BUNDLES.md](../wp07/CLAUDE_CODE_BUNDLES.md).
+
 29 Oct 2026 IST. New item (not in the earlier UX plan). Small polish, not a redesign. Fill in after the owner sees the modal on screen.
 Screen used: ______ (size, e.g. 1366x768; Windows scaling ___%)   Date/time (IST): ______   Branch SHA: ______
 

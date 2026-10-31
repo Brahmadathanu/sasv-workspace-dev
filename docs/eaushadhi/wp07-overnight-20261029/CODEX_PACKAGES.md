@@ -1,5 +1,7 @@
 # WP-07 Codex packages (replaces pending Cursor messages), prepared 29 Oct 2026 IST
 
+> **Stale as of 2026-10-31.** Kept for history. Codex is out of usage (ADR-14); these packages are done or replaced. Current state: [../wp07/CURRENT_STATE.md](../wp07/CURRENT_STATE.md); next work: [../wp07/CLAUDE_CODE_BUNDLES.md](../wp07/CLAUDE_CODE_BUNDLES.md).
+
 For the owner: paste block 0 first, once, in a new Codex session. Then paste one package at a time. Send me Codex's reply (plan or commit hash) and I audit it before the next step.
 Branch tip when written: `78cf8a6` (UX-3 B1) on `feat/wp07-ux1-worklist`, cache `hub-cache-v376`.
 
