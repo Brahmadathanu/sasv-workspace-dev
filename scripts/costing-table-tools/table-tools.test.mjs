@@ -118,6 +118,18 @@ function stripCw05(src) {
     "cost-sheet header gate",
   );
   remove(
+    "    if (isCostingTableToolsV1Enabled()) {\n      renderCw05GenericTableHeader(headers, alignments);\n      return;\n    }\n",
+    "driver-governance header gate",
+  );
+  remove(
+    "      if (isCostingTableToolsV1Enabled()) {\n        renderCw05GenericTableHeader(schemeHeaders, schemeAlignments);\n        return;\n      }\n",
+    "scheme-comparison header gate",
+  );
+  remove(
+    "      if (isCostingTableToolsV1Enabled()) {\n        renderCw05GenericTableHeader(ccHeaders, ccAlignments);\n        return;\n      }\n",
+    "control-centre header gate",
+  );
+  remove(
     /\n\/\*\*\n \* CW-05 \(COSTING_TABLE_TOOLS_V1 ON only\): header[\s\S]*?\n}\n(?=\nfunction productSkuLabel)/,
     "header renderer",
   );
@@ -143,7 +155,7 @@ test("flag OFF: every CW-05 entry point sits behind isCostingTableToolsV1Enabled
   const callers = (name) =>
     src.split("\n").filter((l) => l.includes(`${name}(`) && !l.includes(`function ${name}(`));
   for (const [name, expected] of [
-    ["renderCw05GenericTableHeader", 2],
+    ["renderCw05GenericTableHeader", 5],
     ["exportCw05CsvForView", 1],
   ]) {
     const lines = callers(name);
@@ -169,6 +181,8 @@ test("flag OFF: every CW-05 entry point sits behind isCostingTableToolsV1Enabled
     "columnHelpFor(",
     "sortIndicatorFor(",
     "tableColumnsFor(",
+    "withAccessors(",
+    "isSortableColumn(",
     "neutraliseCsvRows(",
     "data-cw05-sort",
   ]) {
@@ -335,7 +349,8 @@ test("neutralised rows through the legacy escape equal csvCell per cell; keys an
 
 test("column map labels match the shell generic header labels exactly", () => {
   const shell = read(SHELL);
-  for (const [lens, cols] of Object.entries(GENERIC_TABLE_COLUMNS)) {
+  for (const lens of ["sku-cost-sheet", "printable-cost-sheet", "cost-comparison"]) {
+    const cols = GENERIC_TABLE_COLUMNS[lens];
     const block = shell.match(new RegExp(`  const headers = \\{[\\s\\S]*?"${lens}": \\[([\\s\\S]*?)\\]`))[1];
     const labels = [...block.matchAll(/"([^"]*)"/g)].map((m) => m[1]);
     assert.deepEqual(cols.map((c) => c.label), labels, lens);
@@ -425,12 +440,12 @@ test("row-click index resolves to the sorted row after a header sort", () => {
 });
 
 // 10. Cache pin
-test("service worker cache is hub-cache-v383", () => {
+test("service worker cache is hub-cache-v384", () => {
   const sw = read("public/sw.js");
-  assert.match(sw, /const CACHE_NAME = "hub-cache-v383"/);
+  assert.match(sw, /const CACHE_NAME = "hub-cache-v384"/);
   assert.equal(
     sw.split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v383"; // CW-05 table tools; v382 was costing dialogs CW-06 item 1',
+    'const CACHE_NAME = "hub-cache-v384"; // CW-05 pkg 2 table tools; v383 was CW-05 table tools',
   );
 });
 
@@ -527,7 +542,7 @@ function makeShellSandbox({ source, flagOn, withCw05, realExport = false }) {
     },
   };
   vm.createContext(ctx);
-  const names = ["escapeHtml", "text", "renderTableHeaderForLens", "exportActiveViewCsv"];
+  const names = ["escapeHtml", "text", "getRowStatus", "renderTableHeaderForLens", "exportActiveViewCsv"];
   if (withCw05) names.push("renderCw05GenericTableHeader", "exportCw05CsvForView");
   vm.runInContext(
     [
@@ -579,19 +594,20 @@ test("(a) flag ON: cost-sheet lenses reach the CW-05 header with aria-sort, titl
     sku,
     /<th class="c-right" aria-sort="none" title="MRP IK\. Click to sort\."><button type="button" data-cw05-sort="3">MRP IK<\/button><\/th>/,
   );
-  assert.equal(head.tableHead.buttons.length, 6);
-  // Unsortable columns keep the legacy markup.
+  assert.equal(head.tableHead.buttons.length, 8);
+  // The lane column stays unsortable with the legacy markup.
   assert.ok(sku.includes('<th class="c-center lane-col"></th>'));
-  assert.ok(sku.includes('<th class="c-left">Product / SKU</th>'));
-  assert.ok(sku.includes('<th class="c-left">Status</th>'));
+  // Product / SKU and Status are sortable (pkg 2) and have no help title.
+  assert.ok(sku.includes('<th class="c-left" aria-sort="none"><button type="button" data-cw05-sort="1">Product / SKU</button></th>'));
+  assert.ok(sku.includes('<th class="c-left" aria-sort="none"><button type="button" data-cw05-sort="8">Status</button></th>'));
   // Same labels as the cost-sheet branch, in the same order.
   const strip = (html) => html.replace(/<[^>]+>/g, "|").replace(/\|+/g, "|");
   assert.equal(strip(sku), strip(headerHtml(base, "sku-cost-sheet")));
 
   const printable = headerHtml(head, "printable-cost-sheet");
-  assert.equal(head.tableHead.buttons.length, 3);
+  assert.equal(head.tableHead.buttons.length, 6);
   assert.match(printable, /aria-sort="none" title="Refreshed At\. Click to sort\."><button type="button" data-cw05-sort="5">Refreshed At<\/button>/);
-  assert.ok(printable.includes('<th class="c-left">Product</th>'));
+  assert.ok(printable.includes('<th class="c-left" aria-sort="none"><button type="button" data-cw05-sort="0">Product</button></th>'));
 });
 
 test("(b) flag ON: cost-comparison stays unsortable and renders exactly as on main", () => {

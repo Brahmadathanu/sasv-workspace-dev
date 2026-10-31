@@ -66,7 +66,7 @@ import { createCostingApprovalScreenController } from "./costing-approval-screen
 import { createCostingLockScreenController } from "./costing-lock-screen.js";
 import { createCostingRunStatusScreenController } from "./costing-run-status-screen.js";
 import { isCostingTableToolsV1Enabled } from "./costing-feature-flags.js";
-import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor } from "./costing-table-tools.js";
+import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, isSortableColumn, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor, withAccessors } from "./costing-table-tools.js";
 import {
   createQcActionQueueController,
   isQcActionQueueLens,
@@ -5896,6 +5896,10 @@ function renderTableHeaderForLens() {
   if (isDriverGovernanceLens(CURRENT_LENS)) {
     const headers = driverGovernanceCtrl.getTableHeaders();
     const alignments = driverGovernanceCtrl.getTableAlignments();
+    if (isCostingTableToolsV1Enabled()) {
+      renderCw05GenericTableHeader(headers, alignments);
+      return;
+    }
     tableHead.innerHTML = `<tr>${headers
       .map((h, i) => {
         const classes = [alignments[i] || "c-left"];
@@ -5939,6 +5943,10 @@ function renderTableHeaderForLens() {
     const schemeHeaders = schemeComparisonCtrl.getTableHeaders();
     const schemeAlignments = schemeComparisonCtrl.getTableAlignments();
     if (schemeHeaders && schemeAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        renderCw05GenericTableHeader(schemeHeaders, schemeAlignments);
+        return;
+      }
       tableHead.innerHTML = `<tr>${schemeHeaders
         .map((h, i) => {
           const classes = [schemeAlignments[i] || "c-left"];
@@ -5986,6 +5994,10 @@ function renderTableHeaderForLens() {
     const ccHeaders = controlCenterCtrl.getTableHeaders(CURRENT_LENS);
     const ccAlignments = controlCenterCtrl.getTableAlignments(CURRENT_LENS);
     if (ccHeaders && ccAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        renderCw05GenericTableHeader(ccHeaders, ccAlignments);
+        return;
+      }
       tableHead.innerHTML = `<tr>${ccHeaders
         .map((h, i) => {
           const classes = [ccAlignments[i] || "c-left"];
@@ -6080,18 +6092,21 @@ function renderTableHeaderForLens() {
 
 /**
  * CW-05 (COSTING_TABLE_TOOLS_V1 ON only): header with sort buttons for the
- * cost-sheet lens branch and the generic header map. Columns without a row key
- * render exactly as the legacy <th>.
+ * driver-governance, scheme-comparison, cost-sheet and control-centre lens
+ * branches and the generic header map. Columns without a sortable key render
+ * exactly as the legacy <th>.
  */
 function renderCw05GenericTableHeader(headers, alignments) {
-  const columns = tableColumnsFor(CURRENT_LENS) || [];
+  const columns = withAccessors(tableColumnsFor(CURRENT_LENS) || [], {
+    row_status: getRowStatus,
+  });
   const sortState = activeSortState(CW05_SORT_CTX, CURRENT_LENS, VIEW);
   tableHead.innerHTML = `<tr>${headers
     .map((h, i) => {
       const classes = [alignments[i] || "c-left"];
       if (i === 0 && h === "") classes.push("lane-col");
       const col = columns[i];
-      const key = col && col.label === h ? col.key : null;
+      const key = col && col.label === h && isSortableColumn(col) ? col.key : null;
       if (!key) {
         return `<th class="${classes.join(" ")}">${text(h, "")}</th>`;
       }
@@ -6103,7 +6118,7 @@ function renderCw05GenericTableHeader(headers, alignments) {
   tableHead.querySelectorAll("button[data-cw05-sort]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const col = columns[Number(btn.dataset.cw05Sort)];
-      if (!col?.key) return;
+      if (!isSortableColumn(col)) return;
       const result = applySortClick(CW05_SORT_CTX, CURRENT_LENS, VIEW, col);
       CW05_SORT_CTX = result.ctx;
       VIEW = result.view;
