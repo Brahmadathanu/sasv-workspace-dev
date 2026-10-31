@@ -522,6 +522,7 @@ body.sasv-eaushadhi-review .product-badges {
 }
 
 body.sasv-eaushadhi-review .workflow-nav {
+  position: relative;
   display: flex;
   gap: 2px;
   overflow-x: auto;
@@ -741,7 +742,11 @@ body.sasv-eaushadhi-review .composition-action-bar {
 body.sasv-eaushadhi-review .composition-table-wrap {
   width: 100%;
   max-width: 100%;
+  max-height: calc(100vh - 300px);
+  min-height: 180px;
   overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--sasv-border);
   border-radius: var(--sasv-radius-md);
   background: var(--sasv-surface);
@@ -907,6 +912,161 @@ body.sasv-eaushadhi-review .composition-reference-toolbar {
   margin-bottom: var(--sasv-space-2);
 }
 
+body.sasv-eaushadhi-review .source-reference-bulk-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review #sourceReferenceDiscardBackdrop {
+  z-index: calc(var(--sasv-z-modal) + 1);
+}
+
+body.sasv-eaushadhi-review .ea-btn {
+  min-height: var(--sasv-control-md);
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--sasv-radius-sm);
+  font-weight: var(--sasv-fw-semibold);
+  cursor: pointer;
+}
+
+body.sasv-eaushadhi-review .ea-btn--sm {
+  min-height: var(--sasv-control-sm);
+}
+
+body.sasv-eaushadhi-review .ea-btn:focus-visible {
+  outline: 2px solid var(--sasv-focus-ring-strong);
+  outline-offset: 2px;
+}
+
+body.sasv-eaushadhi-review .ea-btn:disabled,
+body.sasv-eaushadhi-review .ea-btn[aria-disabled="true"] {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+body.sasv-eaushadhi-review .ea-btn--primary {
+  color: #fff;
+  background: var(--sasv-action-primary);
+  border: 1px solid var(--sasv-action-primary);
+}
+
+body.sasv-eaushadhi-review .ea-btn--primary:not(:disabled):hover {
+  background: var(--sasv-action-primary-hover);
+}
+
+body.sasv-eaushadhi-review .ea-btn--primary:not(:disabled):active {
+  background: var(--sasv-action-primary-active);
+}
+
+body.sasv-eaushadhi-review .ea-btn--secondary {
+  color: var(--sasv-text);
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+}
+
+body.sasv-eaushadhi-review .ea-btn--secondary:not(:disabled):hover {
+  background: var(--sasv-action-secondary-hover);
+}
+
+body.sasv-eaushadhi-review .ea-btn--quiet {
+  color: var(--sasv-action-primary);
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+body.sasv-eaushadhi-review .ea-btn--quiet:not(:disabled):hover {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-eaushadhi-review .ea-btn--danger {
+  color: #fff;
+  background: var(--sasv-danger);
+  border: 1px solid var(--sasv-danger);
+}
+
+body.sasv-eaushadhi-review .ea-btn--icon {
+  width: var(--sasv-control-md);
+  min-width: var(--sasv-control-md);
+  padding: 0;
+}
+
+body.sasv-eaushadhi-review .composition-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 8px;
+}
+
+body.sasv-eaushadhi-review .composition-toolbar > .search-wrap {
+  flex: 1 1 320px;
+  min-width: 180px;
+}
+
+body.sasv-eaushadhi-review .composition-toolbar-actions {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-left: auto;
+}
+
+body.sasv-eaushadhi-review #compositionFilterBtn {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+body.sasv-eaushadhi-review .composition-filter-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding-inline: 4px;
+  border-radius: 9px;
+  color: #fff;
+  background: var(--sasv-action-primary);
+  font-size: 10px;
+  line-height: 17px;
+  text-align: center;
+}
+
+body.sasv-eaushadhi-review .composition-info-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 4px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 10px;
+  font-style: normal;
+}
+
+body.sasv-eaushadhi-review .composition-info-tooltip {
+  position: absolute;
+  z-index: var(--sasv-z-dropdown);
+  max-width: 260px;
+  padding: 6px 8px;
+  opacity: 0;
+  pointer-events: none;
+  color: var(--sasv-text);
+  background: var(--sasv-surface-elevated, var(--sasv-surface));
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  box-shadow: var(--sasv-shadow-md);
+  transform: translateY(calc(var(--sasv-control-md) + 4px));
+}
+
+body.sasv-eaushadhi-review #wf-tab-composition:hover + .composition-info-tooltip,
+body.sasv-eaushadhi-review #wf-tab-composition:focus-visible + .composition-info-tooltip {
+  opacity: 1;
+}
+
 body.sasv-eaushadhi-review .source-reference-bulk-body {
   display: grid;
   gap: var(--sasv-space-3);
@@ -952,12 +1112,25 @@ body.sasv-eaushadhi-review .source-reference-preview-list {
 
 body.sasv-eaushadhi-review .source-reference-preview-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(150px, auto);
+  grid-template-columns: 22px minmax(0, 1fr) minmax(150px, auto);
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
   background: var(--sasv-surface);
   border-bottom: 1px solid var(--sasv-border-subtle);
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-check {
+  display: grid;
+  place-items: center;
+  width: 22px;
+}
+
+body.sasv-eaushadhi-review .source-reference-reason-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 body.sasv-eaushadhi-review .source-reference-preview-row:last-child {
@@ -1821,6 +1994,17 @@ body.sasv-eaushadhi-review .action-vocab-item {
 }
 
 @media (max-width: 1100px) {
+  body.sasv-eaushadhi-review .composition-toolbar {
+    flex-wrap: wrap;
+  }
+  body.sasv-eaushadhi-review .composition-toolbar-actions {
+    order: 4;
+    flex: 1 1 auto;
+    margin-left: 0;
+  }
+  body.sasv-eaushadhi-review #btnVerifyReviewedLines {
+    order: 5;
+  }
   body.sasv-eaushadhi-review .composition-col-botanical {
     display: none;
   }
@@ -1882,6 +2066,19 @@ body.sasv-eaushadhi-review .action-vocab-item {
   body.sasv-eaushadhi-review .composition-col-quantity {
     display: none;
   }
+  body.sasv-eaushadhi-review .composition-toolbar > .search-wrap {
+    flex-basis: calc(100% - var(--sasv-control-md) - 8px);
+  }
+  body.sasv-eaushadhi-review .composition-toolbar-actions,
+  body.sasv-eaushadhi-review #btnVerifyReviewedLines {
+    flex: 1 1 auto;
+  }
+  body.sasv-eaushadhi-review .composition-reference-toolbar {
+    flex-wrap: wrap;
+  }
+  body.sasv-eaushadhi-review .composition-table-wrap {
+    max-height: calc(100vh - 350px);
+  }
   body.sasv-eaushadhi-review .composition-table th,
   body.sasv-eaushadhi-review .composition-table td {
     padding: 7px 5px;
@@ -1904,7 +2101,7 @@ body.sasv-eaushadhi-review .action-vocab-item {
     justify-content: flex-start;
   }
   body.sasv-eaushadhi-review .source-reference-preview-row {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: 22px minmax(0, 1fr);
   }
   body.sasv-eaushadhi-review .source-reference-preview-outcome {
     grid-column: 2;

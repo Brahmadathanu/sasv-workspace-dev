@@ -4,6 +4,7 @@ const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "
 const control = read("public/shared/js/eaushadhi-review-control.js");
 const api = read("public/shared/js/eaushadhi-review-api.js");
 const css = read("public/shared/css/sasv-eaushadhi-review.css");
+const openBulk = control.slice(control.indexOf("async function openSourceReferenceBulkDialog"), control.indexOf("function sourceReferenceErrorInfo"));
 let passed = 0;
 let failed = 0;
 function check(value, label) {
@@ -87,13 +88,22 @@ check(success.applied_count === 1 && success.unchanged_count === 0, "mock succes
 check(control.includes('if (current === wanted) return "SAME"') && control.includes('return "RESPELL"'), "same requires exact trimmed equality and case-only differences are respells");
 check(control.includes('relation === "DIFFERENT" && preview?.caller?.is_approver !== true'), "case-only respells do not require an Approver");
 check(control.includes('confirm_replace_different: sourceReferenceLineRelation(line, target) === "DIFFERENT"'), "case-only respells do not set replace-different confirmation");
-check(control.includes('globalThis.confirm("Discard this source-reference change?")'), "dirty close asks the approved discard question");
+check(!control.includes("globalThis.confirm") && control.includes('title: "Discard this source-reference change?"') && control.includes('cancelLabel: "Keep editing"') && control.includes('okLabel: "Discard"'), "dirty close uses the approved in-page discard confirmation");
 check(control.includes("sourceReferenceBulk.reason.trim() || state.sourceReferenceBulk.selected.size"), "dirty close is based on reason or ticked lines");
-check(control.includes("backdrop && state.sourceReferenceBulk.applying"), "backdrop clicks are ignored while applying");
+check(control.includes("if (state.sourceReferenceBulk.applying) return false"), "Escape, backdrop and buttons cannot close while applying");
 check(control.includes("bulk.target = event.target.value; renewSourceReferenceRequestId(); syncSourceReferenceBulkLiveUi();") && control.includes("bulk.reason = event.target.value; renewSourceReferenceRequestId(); syncSourceReferenceBulkLiveUi();"), "typing updates live state without redrawing the dialog");
 check((control.match(/renewSourceReferenceRequestId\(\)/g) || []).length >= 7, "target, flag, reason, scope and selection changes renew the request id");
 check(control.includes("!line.lock_reason && !safeText(line.raw_reference_text) && !affected.has"), "locked blank lines are excluded from the inline prompt count");
 check(!control.includes("All eligible blank and same-wording lines") && !control.includes('value="ALL"'), "duplicate all-lines scope is removed");
+check(control.includes("sourceReferenceApplyBlockReason") && control.includes("sourceReferenceReasonCount") && control.includes("sourceReferenceReasonHint"), "Apply gate exposes a live reason hint and 500-character counter");
+check(control.includes("source-reference-preview-check") && control.includes("aria-hidden=\"true\""), "preview keeps a fixed checkbox column in every scope");
+check(control.includes("sourceReferenceDefaultTarget") && control.includes("product_line_count") && control.includes("count > 0"), "default wording is chosen only from wording already used on the product");
+check(control.includes("(used on ${Number(item.product_line_count) || 0} lines)"), "known wording counts use the approved copy");
+check(openBulk.includes("ensureSourceReferencePreview({ force: true, rerender: false })") && openBulk.indexOf("renderSourceReferenceBulkLoading()") < openBulk.indexOf("ensureSourceReferencePreview({ force: true, rerender: false })"), "dialog opens with Loading before a forced preview fetch");
+check(control.includes('LINE_VERIFIED: "Verified. Reopen the line to correct it"'), "verified-line lock uses the approved recovery wording");
+check((control.match(/refreshSourceReferencePreviewAfterLineChange\(\)/g) || []).length >= 7, "line reopen, save, approvals, correction and bulk Apply invalidate and refetch preview");
+check(control.includes("event.stopImmediatePropagation()") && control.includes('idPrefix: "sourceReferenceDiscard"'), "capture-phase Escape is stopped inside the nested discard confirmation");
+check(control.includes('cancelClassName: "icon-btn with-label ea-btn ea-btn--secondary"') && control.includes('okClassName: "icon-btn with-label ea-btn ea-btn--danger"'), "nested confirmation uses secondary Keep editing and danger Discard buttons");
 
 console.log(`UX-9 source-reference checks: ${passed} passed, ${failed} failed`);
 if (failed) process.exitCode = 1;

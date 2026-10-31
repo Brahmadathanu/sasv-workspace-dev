@@ -297,6 +297,7 @@ const state = {
     attention: "all",
     renderedCount: QUEUE_RENDER_CHUNK,
     focusedLineId: null,
+    scrollTop: 0,
   },
   compositionModalLineId: null,
   compositionModalReturnFocusId: null,
@@ -306,6 +307,7 @@ const state = {
     preview: null,
     productId: null,
     loading: false,
+    loadGeneration: 0,
     error: "",
     requestId: null,
     target: "",
@@ -1262,10 +1264,22 @@ function renderCompositionFilterLenses() {
   if (search && search.value !== state.compositionView.search) {
     search.value = state.compositionView.search;
   }
-  const barClear = $("btnClearCompositionFiltersBar");
-  if (barClear) {
-    barClear.hidden = !compositionFiltersAreActive(state.compositionView);
+  syncCompositionFilterControls();
+}
+
+function compositionActiveDrawerFilterCount() {
+  return Number(state.compositionView.reviewLens !== "all") + Number(state.compositionView.attention !== "all");
+}
+
+function syncCompositionFilterControls() {
+  const count = compositionActiveDrawerFilterCount();
+  const badge = $("compositionFilterBadge");
+  if (badge) {
+    badge.hidden = count === 0;
+    badge.textContent = String(count);
   }
+  const clear = $("btnClearCompositionFiltersDrawer");
+  if (clear) clear.disabled = !compositionFiltersAreActive(state.compositionView);
 }
 
 function queueRowHtml(row) {
@@ -2206,7 +2220,7 @@ function focusCompositionRow(lineId, { scroll = true } = {}) {
     renderComposition();
   }
   const active = applyCompositionRowRoving();
-  active?.focus();
+  active?.focus(scroll ? undefined : { preventScroll: true });
   if (scroll) active?.scrollIntoView({ block: "nearest" });
   return active;
 }
@@ -2217,13 +2231,15 @@ function newSourceReferenceRequestId() {
 
 function sourceReferenceLockLabel(reason) {
   return ({
-    LINE_VERIFIED: "Line verified",
+    LINE_VERIFIED: "Verified. Reopen the line to correct it",
     PORTAL_ENTRY_STARTED: "Portal entry started",
     FORMULATION_APPROVED: "Formulation approved",
   })[safeText(reason)] || safeText(reason).replaceAll("_", " ").toLowerCase() || "Unavailable";
 }
 
 function resetSourceReferenceBulkPreview() {
+  state.sourceReferenceBulk.loadGeneration += 1;
+  state.sourceReferenceBulk.loading = false;
   state.sourceReferenceBulk.preview = null;
   state.sourceReferenceBulk.productId = null;
   state.sourceReferenceBulk.error = "";
@@ -2233,17 +2249,23 @@ function resetSourceReferenceBulkPreview() {
   state.sourceReferenceBulk.message = "";
 }
 
+function refreshSourceReferencePreviewAfterLineChange() {
+  resetSourceReferenceBulkPreview();
+  if (state.selectedProductId) void ensureSourceReferencePreview({ force: true });
+}
+
 async function ensureSourceReferencePreview({ force = false, rerender = true } = {}) {
   const bulk = state.sourceReferenceBulk;
   const productId = Number(state.selectedProductId);
-  if (!productId || bulk.loading) return bulk.preview;
+  if (!productId || (bulk.loading && !force)) return bulk.preview;
   if (!force && bulk.preview && Number(bulk.productId) === productId) return bulk.preview;
+  const generation = ++bulk.loadGeneration;
   bulk.loading = true;
   bulk.error = "";
   if (rerender && state.tab === "composition") renderComposition({ preserveModal: true });
   try {
     const preview = await fetchSourceReferencePreview(productId);
-    if (Number(state.selectedProductId) !== productId) return null;
+    if (generation !== bulk.loadGeneration || Number(state.selectedProductId) !== productId) return null;
     bulk.preview = preview || null;
     bulk.productId = productId;
     bulk.requestId = newSourceReferenceRequestId();
@@ -2251,11 +2273,13 @@ async function ensureSourceReferencePreview({ force = false, rerender = true } =
     bulk.showAll = false;
     return bulk.preview;
   } catch (err) {
+    if (generation !== bulk.loadGeneration) return null;
     bulk.preview = null;
     bulk.productId = productId;
     bulk.error = err?.original?.hint || err?.message || "Source-reference preview is unavailable.";
     return null;
   } finally {
+    if (generation !== bulk.loadGeneration) return;
     bulk.loading = false;
     if (rerender && Number(state.selectedProductId) === productId && state.tab === "composition") {
       renderComposition({ preserveModal: true });
@@ -2277,10 +2301,23 @@ function sourceReferenceToolbarHtml() {
           : "";
   const disabled = bulk.loading || !preview || Boolean(reason);
   return `<div class="composition-reference-toolbar">
-    <button type="button" id="btnSetSourceReference" class="icon-btn with-label"${disabled ? " disabled" : ""}${reason ? ` title="${escapeHtml(reason)}"` : ""}>Set source reference</button>
+    <button type="button" id="btnSetSourceReference" class="icon-btn with-label ea-btn ea-btn--secondary"${disabled ? " disabled" : ""}${reason ? ` title="${escapeHtml(reason)}"` : ""}><svg class="ea-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M3 2.5h7.5A2.5 2.5 0 0 1 13 5v8.5H5.5A2.5 2.5 0 0 1 3 11V2.5Zm0 8.5a2.5 2.5 0 0 1 2.5-2.5H13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"></path></svg>Set source reference</button>
     ${reason ? `<span id="sourceReferenceButtonReason" class="muted-note">${escapeHtml(reason)}</span>` : ""}
     ${bulk.inlinePrompt ? `<span id="sourceReferenceInlinePrompt" class="muted-note">${Number(bulk.inlinePrompt.count)} other lines have no reference. <button type="button" class="text-btn" data-source-reference-prompt>Apply this to them?</button></span>` : ""}
   </div>`;
+}
+
+function renderCompositionToolbarActions() {
+  const host = $("compositionToolbarActions");
+  if (host) host.innerHTML = sourceReferenceToolbarHtml();
+  const approve = $("btnVerifyReviewedLines");
+  if (approve) {
+    const allowed = canWrite() && !state.busy;
+    approve.disabled = !allowed;
+    approve.classList.toggle("ea-btn--primary", allowed);
+    approve.classList.toggle("ea-btn--secondary", !allowed);
+    approve.title = allowed ? "" : (canWrite() ? "An action is already in progress." : "e-Aushadhi Automation permission is required.");
+  }
 }
 
 function sourceReferenceKnownWordings(preview) {
@@ -2335,6 +2372,15 @@ function renewSourceReferenceRequestId() {
   state.sourceReferenceBulk.requestId = newSourceReferenceRequestId();
 }
 
+function sourceReferenceApplyBlockReason() {
+  const bulk = state.sourceReferenceBulk;
+  if (bulk.applying) return "Applying source-reference changes.";
+  if (!sourceReferenceCurrentTarget()) return "Choose a wording to enable Apply.";
+  if (!sourceReferenceChangingLines().length) return "Select at least one line that will change.";
+  if (bulk.reason.trim().length < 10) return "Type a reason of at least 10 characters to enable Apply.";
+  return "";
+}
+
 function syncSourceReferenceBulkLiveUi() {
   const bulk = state.sourceReferenceBulk;
   const changing = sourceReferenceChangingLines();
@@ -2343,8 +2389,17 @@ function syncSourceReferenceBulkLiveUi() {
   if (count) count.textContent = `${changing.length} lines will change${chosen.length > changing.length ? ` · ${chosen.length - changing.length} unchanged` : ""}`;
   const apply = $("sourceReferenceApply");
   if (apply) {
-    apply.disabled = bulk.applying || !sourceReferenceCurrentTarget() || !changing.length || bulk.reason.trim().length < 10;
+    const blocked = sourceReferenceApplyBlockReason();
+    apply.disabled = Boolean(blocked);
+    apply.title = blocked;
     apply.textContent = bulk.applying ? "Applying…" : `Apply ${changing.length} changes`;
+  }
+  const reasonCount = $("sourceReferenceReasonCount");
+  if (reasonCount) reasonCount.textContent = `${bulk.reason.length}/500`;
+  const reasonHint = $("sourceReferenceReasonHint");
+  if (reasonHint) {
+    reasonHint.hidden = bulk.reason.trim().length >= 10;
+    reasonHint.textContent = "Type a reason (at least 10 characters) to enable Apply";
   }
 }
 
@@ -2353,6 +2408,22 @@ function sourceReferenceProductKind() {
   const option = (state.classificationOptions?.PRODUCT_CATEGORY || []).find((item) => idsEqual(item.option_id || item.id, categoryId));
   const text = safeText(option?.option_label || option?.label || option?.name || state.classification?.product_category_label).toLowerCase();
   return text.includes("proprietary") ? "PROPRIETARY" : text.includes("classical") ? "CLASSICAL" : "OTHER";
+}
+
+function sourceReferenceDefaultTarget(preview) {
+  const used = sourceReferenceKnownWordings(preview)
+    .map((item, index) => ({ item, index, count: Number(item.product_line_count) || 0 }))
+    .filter((entry) => entry.count > 0)
+    .sort((a, b) => b.count - a.count || a.index - b.index);
+  return used[0]?.item?.raw_reference_text || "";
+}
+
+function renderSourceReferenceBulkLoading(message = "Loading source-reference options…") {
+  const dialog = $("sourceReferenceBulkDialog");
+  if (!dialog) return;
+  dialog.innerHTML = `<div class="sasv-modal__header"><div class="source-reference-bulk-heading"><h2 id="sourceReferenceBulkTitle" class="sasv-modal__title">Set source reference</h2><p class="muted-note">Choose a governed source wording and preview every affected line.</p></div><button type="button" id="sourceReferenceBulkClose" class="sasv-modal__close icon-btn ea-btn ea-btn--icon ea-btn--quiet" aria-label="Close">&times;</button></div><div class="sasv-modal__body"><p id="sourceReferenceBulkLoading" role="status" aria-live="polite">${escapeHtml(message)}</p></div><div class="sasv-modal__footer"><button type="button" id="sourceReferenceBulkCancel" class="icon-btn with-label ea-btn ea-btn--secondary">Cancel</button><button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" disabled>Apply</button></div>`;
+  $("sourceReferenceBulkClose")?.addEventListener("click", () => void requestCloseSourceReferenceBulkDialog());
+  $("sourceReferenceBulkCancel")?.addEventListener("click", () => void requestCloseSourceReferenceBulkDialog());
 }
 
 function renderSourceReferenceBulkDialog() {
@@ -2366,6 +2437,7 @@ function renderSourceReferenceBulkDialog() {
   const chosen = sourceReferenceChosenLines();
   const changing = sourceReferenceChangingLines();
   const reason = bulk.reason;
+  const applyBlocked = sourceReferenceApplyBlockReason();
   const allRows = lines.map((line) => {
     const id = String(line.source_composition_line_id);
     const relation = target ? sourceReferenceLineRelation(line, target) : "BLANK";
@@ -2378,24 +2450,24 @@ function renderSourceReferenceBulkDialog() {
         ? relation === "SAME" ? "Unchanged" : relation === "DIFFERENT" ? "Replace different wording" : relation === "RESPELL" ? "Update spelling" : "Fill blank"
         : relation === "DIFFERENT" ? "Excluded: select this line explicitly" : "Not selected";
     return `<li class="source-reference-preview-row" data-source-reference-line-id="${escapeHtml(id)}">
-      ${bulk.scope === "SELECTED" ? `<input type="checkbox" data-source-reference-select="${escapeHtml(id)}"${bulk.selected.has(id) ? " checked" : ""}${canTick ? "" : " disabled"} aria-label="Select line ${escapeHtml(displayText(line.source_row_no))}">` : ""}
+      <span class="source-reference-preview-check">${bulk.scope === "SELECTED" ? `<input type="checkbox" data-source-reference-select="${escapeHtml(id)}"${bulk.selected.has(id) ? " checked" : ""}${canTick ? "" : " disabled"} aria-label="Select line ${escapeHtml(displayText(line.source_row_no))}">` : '<span aria-hidden="true"></span>'}</span>
       <span class="source-reference-preview-main"><strong>Line ${escapeHtml(displayText(line.source_row_no))} · ${escapeHtml(sourceFieldDisplay(line.raw_ingredient_name))}</strong><span>${escapeHtml(line.raw_reference_text || "No source reference recorded")}</span></span>
-      <span class="source-reference-preview-outcome${!eligibility.ok ? " is-excluded" : ""}">${escapeHtml(outcome)}${sourceReferenceProductKind() === "PROPRIETARY" && bulk.scope === "SELECTED" && relation === "BLANK" ? ` <button type="button" class="text-btn" data-source-reference-previous="${escapeHtml(id)}">Same as previous line</button>` : ""}</span>
+      <span class="source-reference-preview-outcome${!eligibility.ok ? " is-excluded" : ""}">${escapeHtml(outcome)}${sourceReferenceProductKind() === "PROPRIETARY" && bulk.scope === "SELECTED" && relation === "BLANK" ? ` <button type="button" class="text-btn ea-btn ea-btn--sm ea-btn--quiet" data-source-reference-previous="${escapeHtml(id)}">Same as previous line</button>` : ""}</span>
     </li>`;
   });
   const visibleRows = bulk.showAll ? allRows : allRows.slice(0, 50);
   const newDisabled = preview.caller?.is_approver !== true;
-  dialog.innerHTML = `<div class="sasv-modal__header"><div><h2 id="sourceReferenceBulkTitle" class="sasv-modal__title">Set source reference</h2><p class="muted-note">Choose a governed source wording and preview every affected line.</p></div><button type="button" id="sourceReferenceBulkClose" class="sasv-modal__close" aria-label="Close">&times;</button></div>
+  dialog.innerHTML = `<div class="sasv-modal__header"><div class="source-reference-bulk-heading"><h2 id="sourceReferenceBulkTitle" class="sasv-modal__title">Set source reference</h2><p class="muted-note">Choose a governed source wording and preview every affected line.</p></div><button type="button" id="sourceReferenceBulkClose" class="sasv-modal__close icon-btn ea-btn ea-btn--icon ea-btn--quiet" aria-label="Close"${bulk.applying ? " disabled" : ""}>&times;</button></div>
     <div class="sasv-modal__body source-reference-bulk-body">
-      <div class="form-field"><label for="sourceReferenceWording">Reference wording</label><select id="sourceReferenceWording" class="sasv-control"><option value="">Select a known wording</option>${known.map((item) => `<option value="${escapeHtml(item.raw_reference_text)}"${!bulk.allowNew && item.raw_reference_text === bulk.target ? " selected" : ""}>${escapeHtml(item.raw_reference_text)} (${Number(item.product_line_count) || 0} product lines)</option>`).join("")}<option value="__NEW__"${bulk.allowNew ? " selected" : ""}${newDisabled ? " disabled" : ""}>Enter a new wording</option></select>${newDisabled ? '<span class="muted-note">Approver needed to enter a new wording.</span>' : ""}</div>
+      <div class="form-field"><label for="sourceReferenceWording">Reference wording</label><select id="sourceReferenceWording" class="sasv-control"><option value="">Select a known wording</option>${known.map((item) => `<option value="${escapeHtml(item.raw_reference_text)}"${!bulk.allowNew && item.raw_reference_text === bulk.target ? " selected" : ""}>${escapeHtml(item.raw_reference_text)} (used on ${Number(item.product_line_count) || 0} lines)</option>`).join("")}<option value="__NEW__"${bulk.allowNew ? " selected" : ""}${newDisabled ? " disabled" : ""}>Enter a new wording</option></select>${newDisabled ? '<span class="muted-note">Approver needed to enter a new wording.</span>' : ""}</div>
       ${bulk.allowNew ? `<div class="form-field"><label for="sourceReferenceNewWording">New wording</label><input id="sourceReferenceNewWording" class="sasv-control" maxlength="300" value="${escapeHtml(bulk.target)}"><span class="muted-note">New wording may require mapping in the Reference Dictionary.</span></div>` : ""}
       <fieldset class="source-reference-scope"><legend>Apply to</legend><label><input type="radio" name="sourceReferenceScope" value="BLANK"${bulk.scope === "BLANK" ? " checked" : ""}> All unlocked lines with no reference (${lines.filter((line) => !line.lock_reason && !safeText(line.raw_reference_text)).length})</label><label><input type="radio" name="sourceReferenceScope" value="SELECTED"${bulk.scope === "SELECTED" ? " checked" : ""}> Selected lines</label>${sourceReferenceProductKind() === "CLASSICAL" ? '<span class="muted-note">Lines in this product normally share one source reference.</span>' : ""}</fieldset>
-      <section aria-labelledby="sourceReferencePreviewTitle"><div class="source-reference-preview-heading"><h3 id="sourceReferencePreviewTitle">Preview</h3><strong>${changing.length} lines will change${chosen.length > changing.length ? ` · ${chosen.length - changing.length} unchanged` : ""}</strong></div><ul id="sourceReferencePreview" class="source-reference-preview-list">${visibleRows.join("")}</ul>${allRows.length > 50 && !bulk.showAll ? '<button type="button" id="sourceReferenceViewAll" class="text-btn">View all</button>' : ""}</section>
-      <div class="form-field"><label for="sourceReferenceReason">Reason</label><textarea id="sourceReferenceReason" class="sasv-control" rows="2" minlength="10" maxlength="500" placeholder="Required, 10–500 characters">${escapeHtml(reason)}</textarea><span class="muted-note">Updated lines return to Pending and must be saved for review again.</span></div>
+      <section aria-labelledby="sourceReferencePreviewTitle"><div class="source-reference-preview-heading"><h3 id="sourceReferencePreviewTitle">Preview</h3><strong>${changing.length} lines will change${chosen.length > changing.length ? ` · ${chosen.length - changing.length} unchanged` : ""}</strong></div><ul id="sourceReferencePreview" class="source-reference-preview-list">${visibleRows.join("")}</ul>${allRows.length > 50 && !bulk.showAll ? '<button type="button" id="sourceReferenceViewAll" class="text-btn ea-btn ea-btn--sm ea-btn--quiet">View all</button>' : ""}</section>
+      <div class="form-field"><label for="sourceReferenceReason">Reason</label><textarea id="sourceReferenceReason" class="sasv-control" rows="2" minlength="10" maxlength="500" placeholder="Required, 10–500 characters">${escapeHtml(reason)}</textarea><div class="source-reference-reason-meta"><span id="sourceReferenceReasonHint" class="muted-note"${reason.trim().length >= 10 ? " hidden" : ""}>Type a reason (at least 10 characters) to enable Apply</span><span id="sourceReferenceReasonCount" class="muted-note">${reason.length}/500</span></div><span class="muted-note">Updated lines return to Pending and must be saved for review again.</span></div>
       <div id="sourceReferenceBulkMessage" class="ea-callout" role="status" aria-live="polite"${bulk.message ? "" : " hidden"}>${escapeHtml(bulk.message)}</div>
-    </div><div class="sasv-modal__footer"><button type="button" id="sourceReferenceBulkCancel" class="icon-btn with-label">Cancel</button><button type="button" id="sourceReferenceApply" class="icon-btn with-label primary"${bulk.applying || !target || !changing.length || reason.trim().length < 10 ? " disabled" : ""}>${bulk.applying ? "Applying…" : `Apply ${changing.length} changes`}</button></div>`;
-  $("sourceReferenceBulkClose").addEventListener("click", () => requestCloseSourceReferenceBulkDialog());
-  $("sourceReferenceBulkCancel").addEventListener("click", () => requestCloseSourceReferenceBulkDialog());
+    </div><div class="sasv-modal__footer"><button type="button" id="sourceReferenceBulkCancel" class="icon-btn with-label ea-btn ea-btn--secondary"${bulk.applying ? " disabled" : ""}>Cancel</button><button type="button" id="sourceReferenceApply" class="icon-btn with-label primary ea-btn ea-btn--primary"${applyBlocked ? ` disabled title="${escapeHtml(applyBlocked)}"` : ""}>${bulk.applying ? "Applying…" : `Apply ${changing.length} changes`}</button></div>`;
+  $("sourceReferenceBulkClose").addEventListener("click", () => void requestCloseSourceReferenceBulkDialog());
+  $("sourceReferenceBulkCancel").addEventListener("click", () => void requestCloseSourceReferenceBulkDialog());
   $("sourceReferenceWording").addEventListener("change", handleSourceReferenceWordingChange);
   $("sourceReferenceNewWording")?.addEventListener("input", (event) => { bulk.target = event.target.value; renewSourceReferenceRequestId(); syncSourceReferenceBulkLiveUi(); });
   dialog.querySelectorAll('input[name="sourceReferenceScope"]').forEach((input) => input.addEventListener("change", (event) => { bulk.scope = event.target.value; renewSourceReferenceRequestId(); renderSourceReferenceBulkDialog(); }));
@@ -2439,9 +2511,21 @@ function sourceReferenceBulkIsDirty() {
   return Boolean(state.sourceReferenceBulk.reason.trim() || state.sourceReferenceBulk.selected.size);
 }
 
-function requestCloseSourceReferenceBulkDialog({ force = false, backdrop = false } = {}) {
-  if (backdrop && state.sourceReferenceBulk.applying) return false;
-  if (!force && sourceReferenceBulkIsDirty() && !globalThis.confirm("Discard this source-reference change?")) return false;
+async function requestCloseSourceReferenceBulkDialog({ force = false } = {}) {
+  if (state.sourceReferenceBulk.applying) return false;
+  if (!force && sourceReferenceBulkIsDirty()) {
+    const discard = await openQcConfirm({
+      title: "Discard this source-reference change?",
+      message: "Your reason and selected lines will be discarded.",
+      okLabel: "Discard",
+      cancelLabel: "Keep editing",
+      returnFocus: $("sourceReferenceBulkDialog"),
+      idPrefix: "sourceReferenceDiscard",
+      cancelClassName: "icon-btn with-label ea-btn ea-btn--secondary",
+      okClassName: "icon-btn with-label ea-btn ea-btn--danger",
+    });
+    if (!discard) return false;
+  }
   closeSourceReferenceBulkDialog();
   return true;
 }
@@ -2451,15 +2535,14 @@ function sourceReferenceBulkKeydown(event) {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-    requestCloseSourceReferenceBulkDialog();
+    void requestCloseSourceReferenceBulkDialog();
     return;
   }
   trapModalTab(event, "sourceReferenceBulkDialog");
 }
 
 async function openSourceReferenceBulkDialog({ target = null, scope = null } = {}) {
-  const preview = await ensureSourceReferencePreview({ force: false });
-  if (!preview || preview.product_lock_reason || preview.caller?.is_verifier !== true) return;
+  if ($("sourceReferenceBulkBackdrop")) return;
   const bulk = state.sourceReferenceBulk;
   bulk.scope = scope || (sourceReferenceProductKind() === "PROPRIETARY" ? "SELECTED" : "BLANK");
   bulk.selected = new Set();
@@ -2467,16 +2550,30 @@ async function openSourceReferenceBulkDialog({ target = null, scope = null } = {
   bulk.reason = "";
   bulk.message = "";
   bulk.allowNew = false;
-  bulk.target = target || sourceReferenceKnownWordings(preview)[0]?.raw_reference_text || "";
-  bulk.allowNew = Boolean(target) && !sourceReferenceKnownWordings(preview).some((item) => safeText(item.raw_reference_text).toLowerCase() === safeText(target).toLowerCase());
-  bulk.requestId ||= newSourceReferenceRequestId();
+  bulk.target = target || "";
   const backdrop = document.createElement("div");
   backdrop.id = "sourceReferenceBulkBackdrop";
   backdrop.className = "sasv-modal-backdrop";
   backdrop.innerHTML = '<div id="sourceReferenceBulkDialog" class="sasv-modal sasv-modal--lg" role="dialog" aria-modal="true" aria-labelledby="sourceReferenceBulkTitle" tabindex="-1"></div>';
   document.body.append(backdrop);
-  backdrop.addEventListener("click", (event) => { if (event.target === backdrop) requestCloseSourceReferenceBulkDialog({ backdrop: true }); });
+  backdrop.addEventListener("click", (event) => { if (event.target === backdrop) void requestCloseSourceReferenceBulkDialog({ backdrop: true }); });
   document.addEventListener("keydown", sourceReferenceBulkKeydown, true);
+  renderSourceReferenceBulkLoading();
+  $("sourceReferenceBulkDialog")?.focus();
+  const preview = await ensureSourceReferencePreview({ force: true, rerender: false });
+  if (!$("sourceReferenceBulkDialog")) return;
+  renderCompositionToolbarActions();
+  if (!preview) {
+    renderSourceReferenceBulkLoading(bulk.error || "Source-reference preview is unavailable.");
+    return;
+  }
+  if (preview.product_lock_reason || preview.caller?.is_verifier !== true) {
+    renderSourceReferenceBulkLoading(preview.product_lock_reason ? sourceReferenceLockLabel(preview.product_lock_reason) : "e-Aushadhi Automation Verifier permission is required.");
+    return;
+  }
+  bulk.target = target || sourceReferenceDefaultTarget(preview);
+  bulk.allowNew = Boolean(target) && !sourceReferenceKnownWordings(preview).some((item) => safeText(item.raw_reference_text).toLowerCase() === safeText(target).toLowerCase());
+  bulk.requestId ||= newSourceReferenceRequestId();
   renderSourceReferenceBulkDialog();
   $("sourceReferenceBulkDialog")?.focus();
 }
@@ -2488,6 +2585,7 @@ function sourceReferenceErrorInfo(err) {
 
 async function rebuildSourceReferencePreview(message) {
   await ensureSourceReferencePreview({ force: true, rerender: false });
+  renderCompositionToolbarActions();
   state.sourceReferenceBulk.message = message;
   if ($("sourceReferenceBulkDialog")) renderSourceReferenceBulkDialog();
 }
@@ -2520,8 +2618,7 @@ async function applySourceReferenceBulk() {
     closeSourceReferenceBulkDialog();
     const blankRemaining = sourceReferenceLines(preview).filter((line) => !line.lock_reason && !safeText(line.raw_reference_text) && !affected.has(String(line.source_composition_line_id))).length;
     bulk.inlinePrompt = Number(result.applied_count) === 1 && blankRemaining > 0 ? { count: blankRemaining, target: result.raw_reference_text || target } : null;
-    resetSourceReferenceBulkPreview();
-    void ensureSourceReferencePreview();
+    refreshSourceReferencePreviewAfterLineChange();
     setStatus(`${Number(result.applied_count) || 0} lines updated. Updated lines are Pending and must be saved for review again.`, "success");
   } catch (err) {
     const info = sourceReferenceErrorInfo(err);
@@ -2547,6 +2644,8 @@ async function applySourceReferenceBulk() {
 function renderComposition({ resetChunk = false, preserveModal = true } = {}) {
   const host = $("tab-composition");
   if (!host) return;
+  const priorTableScroll = $("compositionTableScroll")?.scrollTop ?? state.compositionView.scrollTop ?? 0;
+  renderCompositionToolbarActions();
   const modalLineId = preserveModal ? state.compositionModalLineId : null;
   const activeView = state.compositionView;
   state.compositionView = { ...activeView, search: "", reviewLens: "all", attention: "all" };
@@ -2560,11 +2659,11 @@ function renderComposition({ resetChunk = false, preserveModal = true } = {}) {
   if (resetChunk) state.compositionView.renderedCount = resetQueueRenderCount(filtered.length);
   if (!filtered.length) {
     if (!state.lines.length) {
-      host.innerHTML = `${execution}${sourceReferenceToolbarHtml()}<div class="section-card empty-state">No composition lines returned for this product.</div>`;
+      host.innerHTML = `${execution}<div class="section-card empty-state">No composition lines returned for this product.</div>`;
       if (Number(state.sourceReferenceBulk.productId) !== Number(state.selectedProductId) && !state.sourceReferenceBulk.loading) void ensureSourceReferencePreview();
       return;
     }
-    host.innerHTML = `${execution}${sourceReferenceToolbarHtml()}<div class="section-card empty-state"><p>No ingredient lines match the current composition filters.</p><button type="button" class="icon-btn with-label" id="btnClearCompositionFilters">Clear filters</button></div>`;
+    host.innerHTML = `${execution}<div class="section-card empty-state"><p>No ingredient lines match the current composition filters.</p><button type="button" class="icon-btn with-label ea-btn ea-btn--quiet" id="btnClearCompositionFilters">Clear filters</button></div>`;
     if (modalLineId) refreshCompositionLineModal(modalLineId);
     if (Number(state.sourceReferenceBulk.productId) !== Number(state.selectedProductId) && !state.sourceReferenceBulk.loading) void ensureSourceReferencePreview();
     return;
@@ -2573,12 +2672,17 @@ function renderComposition({ resetChunk = false, preserveModal = true } = {}) {
     state.compositionView.renderedCount = resetQueueRenderCount(filtered.length);
   }
   const shown = filtered.slice(0, state.compositionView.renderedCount);
-  host.innerHTML = `${execution}${sourceReferenceToolbarHtml()}<div class="composition-table-wrap">
+  host.innerHTML = `${execution}<div id="compositionTableScroll" class="composition-table-wrap">
     <table class="data-table composition-table" aria-label="Composition ingredients">
       <thead><tr><th>Line</th><th>Ingredient</th><th class="composition-col-botanical">Botanical name</th><th class="composition-col-part">Part used</th><th class="composition-col-quantity">Quantity</th><th class="composition-col-mapping">Mapping</th><th>Review</th><th>Attention</th></tr></thead>
       <tbody id="compositionTableBody">${shown.map((row) => compositionTableRowHtml(row)).join("")}</tbody>
     </table>
   </div>`;
+  const tableScroll = $("compositionTableScroll");
+  if (tableScroll) {
+    state.compositionView.scrollTop = resetChunk ? 0 : priorTableScroll;
+    tableScroll.scrollTop = state.compositionView.scrollTop;
+  }
   applyCompositionRowRoving();
   if (modalLineId) refreshCompositionLineModal(modalLineId);
   if (Number(state.sourceReferenceBulk.productId) !== Number(state.selectedProductId) && !state.sourceReferenceBulk.loading) void ensureSourceReferencePreview();
@@ -3263,6 +3367,7 @@ async function submitSourceCorrect() {
       focusLineId: lineId,
       focusControl: "correct",
     });
+    refreshSourceReferencePreviewAfterLineChange();
   });
 }
 
@@ -3804,6 +3909,8 @@ function openQcConfirm(options) {
     reasonRequired,
     attestLabel,
     extraText,
+    cancelClassName,
+    okClassName,
   } = options || {};
   if (openQcConfirm.showing === true) return Promise.resolve(false);
   openQcConfirm.showing = true;
@@ -3868,12 +3975,12 @@ function openQcConfirm(options) {
     const cancelBtn = document.createElement("button");
     cancelBtn.type = "button";
     cancelBtn.id = `${prefix}Cancel`;
-    cancelBtn.className = "icon-btn with-label";
+    cancelBtn.className = cancelClassName || "icon-btn with-label";
     cancelBtn.textContent = String(cancelLabel || "Cancel");
     const okBtn = document.createElement("button");
     okBtn.type = "button";
     okBtn.id = `${prefix}Ok`;
-    okBtn.className = "icon-btn with-label primary";
+    okBtn.className = okClassName || "icon-btn with-label primary";
     okBtn.textContent = String(okLabel || "OK");
     if (gated) okBtn.disabled = true;
     footer.append(cancelBtn, okBtn);
@@ -3906,6 +4013,7 @@ function openQcConfirm(options) {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
+        event.stopImmediatePropagation();
         close(false);
         return;
       }
@@ -9518,8 +9626,10 @@ async function settleCompositionModalLine(lineId) {
 async function requestCloseCompositionLineModal() {
   const id = state.compositionModalLineId;
   if (!(await settleCompositionModalLine(id))) return false;
-  closeCompositionLineModalNow({ restoreFocus: true });
+  const returnId = state.compositionModalReturnFocusId || id;
+  closeCompositionLineModalNow({ restoreFocus: false });
   renderComposition();
+  if (returnId) focusCompositionRow(returnId, { scroll: false });
   return true;
 }
 
@@ -9653,6 +9763,7 @@ function renderActiveTab() {
   renderWorkflowNav();
   const filters = $("compositionFilters");
   if (filters) filters.hidden = tab !== "composition";
+  if (tab !== "composition" && $("compositionFilterDrawer")?.hidden === false) setCompositionFiltersOpen(false, { restoreFocus: false });
   if (tab === "composition") renderCompositionFilterLenses();
   if (tab === "overview") renderOverview();
   else if (tab === "details") renderDetails();
@@ -9682,10 +9793,65 @@ function selectWorkflowTab(next, { focusTab = false } = {}) {
   }
 }
 
+function placeCompositionFilterPopover() {
+  const drawer = $("compositionFilterDrawer");
+  const button = $("compositionFilterBtn");
+  if (!drawer || !button) return;
+  const rect = button.getBoundingClientRect();
+  const margin = 8;
+  const width = Math.min(360, window.innerWidth - margin * 2);
+  const left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin));
+  const top = rect.bottom + 6;
+  drawer.style.width = `${Math.round(width)}px`;
+  drawer.style.left = `${Math.round(left)}px`;
+  drawer.style.top = `${Math.round(top)}px`;
+  const height = drawer.getBoundingClientRect().height;
+  if (top + height > window.innerHeight - margin && rect.top - 6 - height >= margin) {
+    drawer.style.top = `${Math.round(rect.top - 6 - height)}px`;
+  }
+}
+
+function setCompositionFiltersOpen(open, { restoreFocus = true } = {}) {
+  const drawer = $("compositionFilterDrawer");
+  const button = $("compositionFilterBtn");
+  if (!drawer || !button) return;
+  if (setCompositionFiltersOpen.onKey) document.removeEventListener("keydown", setCompositionFiltersOpen.onKey, true);
+  if (setCompositionFiltersOpen.onPointer) document.removeEventListener("pointerdown", setCompositionFiltersOpen.onPointer, true);
+  setCompositionFiltersOpen.onKey = null;
+  setCompositionFiltersOpen.onPointer = null;
+  if (!open) {
+    drawer.hidden = true;
+    button.setAttribute("aria-expanded", "false");
+    if (restoreFocus) button.focus();
+    return;
+  }
+  drawer.hidden = false;
+  button.setAttribute("aria-expanded", "true");
+  placeCompositionFilterPopover();
+  const onKey = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      setCompositionFiltersOpen(false);
+      return;
+    }
+    trapModalTab(event, "compositionFilterDrawer");
+  };
+  const onPointer = (event) => {
+    if (drawer.contains(event.target) || button.contains(event.target)) return;
+    setCompositionFiltersOpen(false);
+  };
+  setCompositionFiltersOpen.onKey = onKey;
+  setCompositionFiltersOpen.onPointer = onPointer;
+  document.addEventListener("keydown", onKey, true);
+  document.addEventListener("pointerdown", onPointer, true);
+  drawer.querySelector(".worklist-filter-panel")?.focus();
+}
+
 function applyCompositionFilterChange() {
   renderCompositionFilterLenses();
   renderComposition({ resetChunk: true });
-  const scroll = $("workspaceScroll");
+  const scroll = $("compositionTableScroll");
   if (scroll) scroll.scrollTop = 0;
 }
 
@@ -9696,6 +9862,7 @@ function clearCompositionFilters() {
     attention: "all",
     renderedCount: QUEUE_RENDER_CHUNK,
     focusedLineId: null,
+    scrollTop: 0,
   };
   applyCompositionFilterChange();
 }
@@ -9903,6 +10070,7 @@ async function openProduct(productId, returnFocus = null) {
     attention: "all",
     renderedCount: QUEUE_RENDER_CHUNK,
     focusedLineId: null,
+    scrollTop: 0,
   };
   const gen = ++state.loadGen;
   state.busy = true;
@@ -9966,6 +10134,7 @@ async function reloadSelected({
 } = {}) {
   if (!state.selectedProductId) return;
   const scroll = restoreComposition ? $("workspaceScroll")?.scrollTop : null;
+  const compositionScroll = restoreComposition ? ($("compositionTableScroll")?.scrollTop ?? state.compositionView.scrollTop ?? 0) : null;
   const gen = ++state.loadGen;
   const [payload, stageReview] = await Promise.all([
     loadProductWorkspace(state.selectedProductId),
@@ -9984,6 +10153,10 @@ async function reloadSelected({
     requestAnimationFrame(() => {
       if (scroll != null && $("workspaceScroll")) {
         $("workspaceScroll").scrollTop = scroll;
+      }
+      if (compositionScroll != null && $("compositionTableScroll")) {
+        state.compositionView.scrollTop = compositionScroll;
+        $("compositionTableScroll").scrollTop = compositionScroll;
       }
       if (!focusLineId) return;
       const tableRow = focusCompositionRow(focusLineId, { scroll: true });
@@ -10783,6 +10956,7 @@ async function submitLine(lineId, verify) {
     await autosaveLine(lineId);
     syncLineSaveReviewUi(id);
     syncLineVerifyUi(id);
+    refreshSourceReferencePreviewAfterLineChange();
     return;
   }
   state.pendingApproval = { stage: "line", itemKey: String(lineId) };
@@ -10791,6 +10965,7 @@ async function submitLine(lineId, verify) {
     await persistLine(lineId, true);
     showToast("Line approved.", "success");
     await reloadSelected({ preserveDrafts: true, restoreComposition: true, focusLineId: lineId });
+    refreshSourceReferencePreviewAfterLineChange();
     refreshCompositionLineModal(lineId, { focusNext: true });
   });
 }
@@ -11125,6 +11300,7 @@ async function submitReopen() {
       focusLineId: kind === "line" ? lineId : null,
       focusControl: kind === "line" ? "correct" : null,
     });
+    if (kind === "line") refreshSourceReferencePreviewAfterLineChange();
   });
 }
 
@@ -11201,6 +11377,7 @@ async function submitVerifyReviewed() {
   showToast(toast, failures.length ? "warning" : "success", 5200);
   await refreshStageReview();
   await reloadSelected({ restoreComposition: true });
+  refreshSourceReferencePreviewAfterLineChange();
 }
 
 async function hashFileSha256(file) {
@@ -11659,6 +11836,7 @@ function wireEvents() {
   });
   window.addEventListener("resize", () => {
     if (workerMenuOpen) positionWorkerMenu();
+    if ($("compositionFilterDrawer")?.hidden === false) placeCompositionFilterPopover();
   });
   $("homeBtn")?.addEventListener("click", async () => {
     if (!(await confirmLeaveDirty("homeBtn"))) return;
@@ -11782,7 +11960,6 @@ function wireEvents() {
   });
   $("backToQueueBtn")?.addEventListener("click", backToQueue);
   $("openReferenceDictionaryBtn")?.addEventListener("click", () => void openReferenceDictionary().catch(toastError));
-  $("openReferenceDictionaryFromCompositionBtn")?.addEventListener("click", () => void openReferenceDictionary().catch(toastError));
   $("backFromReferenceDictionaryBtn")?.addEventListener("click", () => {
     closeWorkerMenu();
     setAppMode("queue");
@@ -11941,16 +12118,17 @@ function wireEvents() {
       onActivate: (btn) => selectWorkflowTab(btn.dataset.tab, { focusTab: true }),
     });
   });
-  $("workspaceScroll")?.addEventListener("scroll", () => {
-    if (state.tab !== "composition") return;
-    const scroll = $("workspaceScroll");
-    if (!scroll || !shouldAppendQueueChunk({
+  $("tab-composition")?.addEventListener("scroll", (event) => {
+    if (state.tab !== "composition" || event.target.id !== "compositionTableScroll") return;
+    const scroll = event.target;
+    state.compositionView.scrollTop = scroll.scrollTop;
+    if (!shouldAppendQueueChunk({
       scrollTop: scroll.scrollTop,
       clientHeight: scroll.clientHeight,
       scrollHeight: scroll.scrollHeight,
     })) return;
     appendCompositionChunk();
-  }, { passive: true });
+  }, { passive: true, capture: true });
 
   $("compositionSearch")?.addEventListener("input", (event) => {
     const value = event.target.value || "";
@@ -11960,15 +12138,31 @@ function wireEvents() {
       applyCompositionFilterChange();
     }, 180);
   });
+  $("compositionFilterBtn")?.addEventListener("click", () => {
+    const drawer = $("compositionFilterDrawer");
+    if (drawer) setCompositionFiltersOpen(drawer.hidden);
+  });
+  $("compositionFilterDrawer")?.addEventListener("click", (event) => {
+    if (event.target === $("compositionFilterDrawer")) setCompositionFiltersOpen(false);
+  });
+  $("compositionToolbarActions")?.addEventListener("click", (event) => {
+    if (event.target.closest("[data-source-reference-prompt]")) {
+      const prompt = state.sourceReferenceBulk.inlinePrompt;
+      if (prompt) void openSourceReferenceBulkDialog({ target: prompt.target, scope: "BLANK" });
+      return;
+    }
+    const setReference = event.target.closest("#btnSetSourceReference");
+    if (setReference && !setReference.disabled) void openSourceReferenceBulkDialog();
+  });
   $("compositionSearchClear")?.addEventListener("click", () => {
     $("compositionSearch").value = "";
     state.compositionView.search = "";
     applyCompositionFilterChange();
     $("compositionSearch")?.focus();
   });
-  $("btnClearCompositionFiltersBar")?.addEventListener("click", () => {
+  $("btnClearCompositionFiltersDrawer")?.addEventListener("click", () => {
     clearCompositionFilters();
-    $("compositionSearch")?.focus();
+    syncCompositionFilterControls();
   });
   $("compositionReviewLenses")?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-comp-review-lens]");
@@ -12218,15 +12412,6 @@ function wireEvents() {
     void autosaveLine(lineId).then(() => syncLineSaveReviewUi(lineId));
   });
   $("tab-composition")?.addEventListener("click", (event) => {
-    if (event.target.closest("[data-source-reference-prompt]")) {
-      const prompt = state.sourceReferenceBulk.inlinePrompt;
-      if (prompt) void openSourceReferenceBulkDialog({ target: prompt.target, scope: "BLANK" });
-      return;
-    }
-    if (event.target.id === "btnSetSourceReference" && !event.target.disabled) {
-      void openSourceReferenceBulkDialog();
-      return;
-    }
     const tableRow = event.target.closest("tr.composition-table-row[data-line-id]");
     if (tableRow) {
       state.compositionView.focusedLineId = tableRow.dataset.lineId;

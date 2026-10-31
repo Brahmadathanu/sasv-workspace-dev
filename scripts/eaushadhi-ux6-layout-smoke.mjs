@@ -42,6 +42,10 @@ const prefix = (s) => s.slice(0, s.indexOf('  host.innerHTML ='));
 check(normalize(prefix(newDetails)) === normalize(prefix(oldDetails)), 'all Details validation and permission decisions unchanged');
 check(css.includes('.reference-mapping-block') && css.includes('.workspace-scroll') && css.includes('overflow: auto;'), 'Composition mapping block and the workspace scroll structure remain styled');
 check(read('public/sw.js').includes('hub-cache-v376'), 'cache remains v376');
+check(pageHtml.indexOf('id="compositionToolbar"') < pageHtml.indexOf('id="workspaceScroll"'), 'Composition toolbar remains fixed above the scrolling workspace');
+check(control.includes('event.target.id !== "compositionTableScroll"') && control.includes('state.compositionView.scrollTop = scroll.scrollTop'), 'Composition table owns progressive scroll state');
+check(control.includes('focusCompositionRow(returnId, { scroll: false })') && control.includes('preventScroll: true'), 'row-modal close restores focus without shifting table scroll');
+check(css.includes('.composition-toolbar') && css.includes('flex-wrap: wrap') && css.includes('max-height: calc(100vh - 350px)'), 'Composition toolbar and table scroller adapt at half-width and narrow layouts');
 
 // Render the production template with explicit layout fixtures, not live records.
 function fixture(source, locked = false, projection = true, composition = false, cardState = {}) {
