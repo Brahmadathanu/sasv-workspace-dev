@@ -17,11 +17,10 @@ import {
   columnHelpFor,
   compareValues,
   csvCell,
-  csvColumnsFor,
   nextSortState,
   sortIndicatorFor,
   sortRows,
-  toLabelledCsvRows,
+  neutraliseCsvRows,
 } from "../../public/shared/js/costing-table-tools.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -107,7 +106,7 @@ function stripCw05(src) {
   );
   remove(/import \{[^}]*\} from "\.\/costing-table-tools\.js";\n/, "tools import");
   remove(
-    "// CW-05 table tools state (used only when COSTING_TABLE_TOOLS_V1 is ON).\nlet CW05_SORT_CTX = null;\nlet CW05_HEADER_LENS = null;\n",
+    "// CW-05 table tools state (used only when COSTING_TABLE_TOOLS_V1 is ON).\nlet CW05_SORT_CTX = null;\n",
     "state",
   );
   remove(
@@ -168,10 +167,9 @@ test("flag OFF: every CW-05 entry point sits behind isCostingTableToolsV1Enabled
     "applySortClick(",
     "ariaSortFor(",
     "columnHelpFor(",
-    "csvColumnsFor(",
     "sortIndicatorFor(",
     "tableColumnsFor(",
-    "toLabelledCsvRows(",
+    "neutraliseCsvRows(",
     "data-cw05-sort",
   ]) {
     assert.ok(gated.includes(helper), `gated uses ${helper}`);
@@ -298,7 +296,7 @@ test("buildCsv uses displayed labels in displayed order and only the given rows"
   assert.equal(buildCsv(columns, rows.slice(0, 1)).split("\n").length, 2);
 });
 
-test("label-keyed rows fed through the legacy exportCsvForRows escape equal buildCsv", () => {
+test("neutralised rows through the legacy escape equal csvCell per cell; keys and order kept", () => {
   // Re-implementation of the unchanged legacy body (see exportCsvForRows in the shell).
   const legacy = (rows) => {
     const keys = Array.from(
@@ -315,26 +313,24 @@ test("label-keyed rows fed through the legacy exportCsvForRows escape equal buil
   };
   const shell = read(SHELL);
   assert.ok(shell.includes("const csvEscape = (value) => `\"${String(value ?? \"\").replace(/\"/g, '\"\"')}\"`;"));
-  for (const lens of Object.keys(GENERIC_TABLE_COLUMNS)) {
-    const columns = csvColumnsFor(lens);
-    const rows = [
-      Object.fromEntries(columns.map((c, i) => [c.key, i % 2 ? `-${i}` : i])),
-      Object.fromEntries(columns.map((c) => [c.key, null])),
-      Object.fromEntries(columns.map((c) => [c.key, 'q"uote,\nnl'])),
-    ];
-    if (!columns.length) continue;
-    assert.equal(legacy(toLabelledCsvRows(columns, rows)), buildCsv(columns, rows), lens);
-  }
-  assert.deepEqual(csvColumnsFor("sku-cost-sheet").map((c) => c.label), [
-    "SKU ID",
-    "MRP IK",
-    "MRP OK",
-    "Internal Loaded Cost",
-    "IK Selling Price",
-    "OK Selling Price",
-  ]);
-  assert.deepEqual(csvColumnsFor("cost-comparison"), []);
-  assert.deepEqual(csvColumnsFor("unknown-lens"), []);
+  const rows = [
+    { b: "=x", a: -12.5, c: 'q"uote,\nnl', d: null },
+    { a: "-12.5", e: "+1", b: "@h", c: "\tt", d: "\rr", f: undefined },
+    { z: 0, a: "plain" },
+  ];
+  const copy = JSON.parse(JSON.stringify(rows));
+  const out = neutraliseCsvRows(rows);
+  assert.deepEqual(JSON.parse(JSON.stringify(rows)), copy, "input not mutated");
+  out.forEach((row, i) => assert.deepEqual(Object.keys(row), Object.keys(rows[i])));
+  const keys = ["b", "a", "c", "d", "e", "f", "z"];
+  const expected = [
+    keys.map((k) => csvCell(k)).join(","),
+    ...rows.map((row) => keys.map((k) => csvCell(row[k])).join(",")),
+  ].join("\n");
+  assert.equal(legacy(out), expected);
+  assert.equal(legacy(out).split("\n")[0], legacy(rows).split("\n")[0], "header identical to legacy");
+  assert.equal(out[0].a, -12.5);
+  assert.equal(out[1].a, "'-12.5");
 });
 
 test("column map labels match the shell generic header labels exactly", () => {
@@ -483,7 +479,7 @@ function makeTableHead() {
   };
 }
 
-function makeShellSandbox({ source, flagOn, withCw05 }) {
+function makeShellSandbox({ source, flagOn, withCw05, realExport = false }) {
   const tables = costSheetModuleTables();
   const no = () => false;
   const ctx = {
@@ -493,9 +489,29 @@ function makeShellSandbox({ source, flagOn, withCw05 }) {
     VIEW: [],
     CURRENT_PAGE: 3,
     CW05_SORT_CTX: null,
-    CW05_HEADER_LENS: null,
     renderTableCalls: 0,
     exported: [],
+    csvOut: [],
+    filenames: [],
+    toasts: [],
+    ACTIVE_PERIOD_START: "2026-09-01",
+    showToast: (msg, kind) => ctx.toasts.push([msg, kind]),
+    Blob: class {
+      constructor(parts) {
+        ctx.csvOut.push(parts.join(""));
+      }
+    },
+    URL: { createObjectURL: () => "blob:x", revokeObjectURL: () => {} },
+    document: {
+      createElement: () => ({
+        set download(v) {
+          ctx.filenames.push(v);
+        },
+        click() {},
+        remove() {},
+      }),
+      body: { appendChild() {} },
+    },
     isCostingTableToolsV1Enabled: () => flagOn,
     isDriverGovernanceLens: no,
     isCostBuildLens: no,
@@ -517,7 +533,9 @@ function makeShellSandbox({ source, flagOn, withCw05 }) {
     [
       ...names.map((n) => extractFn(source, n)),
       "function renderTable() { renderTableCalls += 1; }",
-      "function exportCsvForRows(rows) { exported.push(rows); }",
+      realExport
+        ? extractFn(source, "exportCsvForRows")
+        : "function exportCsvForRows(rows) { exported.push(rows); }",
     ].join("\n"),
     ctx,
   );
@@ -544,7 +562,6 @@ test("(c) flag OFF: header HTML for all three cost-sheet lenses is identical to 
     const b = headerHtml(base, lens);
     assert.ok(b.startsWith("<tr><th"), lens);
     assert.equal(headerHtml(head, lens), b, lens);
-    assert.equal(head.CW05_HEADER_LENS, null, lens);
   }
   // Flag OFF CSV goes straight to the legacy export with VIEW itself.
   head.VIEW = SAMPLE_SKU_ROWS;
@@ -558,7 +575,6 @@ test("(a) flag ON: cost-sheet lenses reach the CW-05 header with aria-sort, titl
   const head = makeShellSandbox({ source: read(SHELL), flagOn: true, withCw05: true });
   const base = makeShellSandbox({ source: readBase(SHELL), flagOn: false, withCw05: false });
   const sku = headerHtml(head, "sku-cost-sheet");
-  assert.equal(head.CW05_HEADER_LENS, "sku-cost-sheet");
   assert.match(
     sku,
     /<th class="c-right" aria-sort="none" title="MRP IK\. Click to sort\."><button type="button" data-cw05-sort="3">MRP IK<\/button><\/th>/,
@@ -585,10 +601,10 @@ test("(b) flag ON: cost-comparison stays unsortable and renders exactly as on ma
   assert.equal(html, headerHtml(base, "cost-comparison"));
   assert.doesNotMatch(html, /aria-sort|data-cw05-sort|<button|title=/);
   assert.equal(head.tableHead.buttons.length, 0);
-  // CSV for cost-comparison falls back to the legacy export of VIEW.
-  head.VIEW = [{ a: 1 }];
+  // CSV for cost-comparison: same keys and values (no formula-leading text here).
+  head.VIEW = [{ a: 1, b: "x" }];
   vm.runInContext("exportActiveViewCsv()", head);
-  assert.equal(head.exported[0], head.VIEW);
+  assert.deepEqual({ ...head.exported[0][0] }, { a: 1, b: "x" });
 });
 
 test("(d) flag ON: header click sorts VIEW in memory, resets page, row index maps to sorted row; filter clears", () => {
@@ -625,26 +641,88 @@ test("(d) flag ON: header click sorts VIEW in memory, resets page, row index map
   assert.deepEqual(head.VIEW.map((r) => r.sku_id), ["S-A", "S-B", "S-C", "S-D"], "fresh cycle starts at asc");
 });
 
-test("(e) flag ON: cost-sheet CSV uses displayed labels, displayed order and sorted VIEW", () => {
-  const head = makeShellSandbox({ source: read(SHELL), flagOn: true, withCw05: true });
-  head.VIEW = SAMPLE_SKU_ROWS.slice();
-  headerHtml(head, "sku-cost-sheet");
-  head.tableHead.buttons.find((b) => b.dataset.cw05Sort === "3").click();
-  vm.runInContext("exportActiveViewCsv()", head);
-  assert.equal(head.exported.length, 1);
-  const rows = head.exported[0];
-  const labels = ["SKU ID", "MRP IK", "MRP OK", "Internal Loaded Cost", "IK Selling Price", "OK Selling Price"];
-  assert.deepEqual(Object.keys(rows[0]), labels);
-  assert.deepEqual(rows.map((r) => r["SKU ID"]), ["S-A", "S-B", "S-C", "S-D"]);
-  assert.ok(!Object.keys(rows[0]).includes("mrp_ik"));
-  assert.equal(rows.length, head.VIEW.length);
+// Representative fixture rows carrying every key the view rows carry.
+const FIXTURE_ROWS = {
+  "sku-cost-sheet": [
+    { period_start: "2026-09-01", product_id: 11, product_name: "Alpha Tablet", sku_id: 101, sku_display_name: "Alpha 10s", sku_column_label: "IK 10s", mrp_ik: 30, mrp_ok: 32, internal_loaded_cost_per_sku: 12.75, ik_selling_price: 25.5, ok_selling_price: 27, cost_sheet_status: "READY", missing_cost_flag: false, notes: "=HYPERLINK(1)" },
+    { period_start: "2026-09-01", product_id: 12, product_name: "@Beta Syrup", sku_id: 102, sku_display_name: "Beta 100ml", sku_column_label: "OK 100ml", mrp_ik: 10, mrp_ok: null, internal_loaded_cost_per_sku: -12.5, ik_selling_price: "-12.5", ok_selling_price: 9, cost_sheet_status: "+WARN", missing_cost_flag: true, notes: 'say "hi", ok' },
+    { period_start: "2026-09-01", product_id: 13, product_name: "Gamma", sku_id: 103, sku_display_name: "Gamma 1kg", sku_column_label: "IK 1kg", mrp_ik: 20, mrp_ok: 22, internal_loaded_cost_per_sku: 8, ik_selling_price: 18, ok_selling_price: 19, cost_sheet_status: "READY", missing_cost_flag: false, notes: "-note" },
+  ],
+  "printable-cost-sheet": [
+    { period_start: "2026-09-01", product_id: 21, product_name: "Zeta Oil", product_code: "Z-1", category_id: 1, category_name: "Oils", subcategory_id: 2, subcategory_name: "Thailam", group_id: 3, group_name: "G1", sub_group_id: 4, sub_group_name: "SG1", sku_count: 2, sku_column_labels: "=IK 100ml", product_cost_sheet_status: "READY", refreshed_at: "2026-10-01T05:00:00+00:00", refresh_run_id: 9001, valuation_date: "2026-09-30", line_count: 14, warning_count: 0, notes: "+x" },
+    { period_start: "2026-09-01", product_id: 22, product_name: "Eta Churna", product_code: "E-2", category_id: 1, category_name: "Churna", subcategory_id: 5, subcategory_name: "Powder", group_id: 3, group_name: "G2", sub_group_id: 6, sub_group_name: "SG2", sku_count: 1, sku_column_labels: "IK 50g", product_cost_sheet_status: "-PARTIAL", refreshed_at: "2026-09-15T05:00:00+00:00", refresh_run_id: 9002, valuation_date: "2026-09-30", line_count: -12.5, warning_count: 2, notes: "\tTabbed" },
+  ],
+};
+const SORT_BUTTON = { "sku-cost-sheet": "3", "printable-cost-sheet": "5" };
+// Clicks: sku-cost-sheet MRP IK descending (2), printable-cost-sheet Refreshed At ascending (1).
+const SORT_CLICKS = { "sku-cost-sheet": 2, "printable-cost-sheet": 1 };
 
-  head.VIEW = [{ sku_column_labels: "IK 100ml", product_cost_sheet_status: "-ok", refreshed_at: "2026-10-01T05:00:00Z", product_name: "X" }];
-  headerHtml(head, "printable-cost-sheet");
-  vm.runInContext("exportActiveViewCsv()", head);
-  assert.deepEqual(head.exported[1], [
-    { "SKU Columns": "IK 100ml", Status: "'-ok", "Refreshed At": "2026-10-01T05:00:00Z" },
-  ]);
+function exportCsvText(sandbox, lens, rows, { sortClicks = 0 } = {}) {
+  sandbox.VIEW = rows.slice();
+  headerHtml(sandbox, lens);
+  for (let i = 0; i < sortClicks; i += 1) {
+    sandbox.tableHead.buttons.find((b) => b.dataset.cw05Sort === SORT_BUTTON[lens]).click();
+  }
+  sandbox.csvOut.length = 0;
+  sandbox.filenames.length = 0;
+  vm.runInContext("exportActiveViewCsv()", sandbox);
+  assert.equal(sandbox.csvOut.length, 1);
+  return { csv: sandbox.csvOut[0], filename: sandbox.filenames[0], view: sandbox.VIEW };
+}
+
+for (const lens of ["sku-cost-sheet", "printable-cost-sheet"]) {
+  test(`(e) ${lens} CSV: flag-OFF identical to main; flag-ON keeps legacy headers, sorted VIEW order, neutralised text`, () => {
+    const rows = FIXTURE_ROWS[lens];
+    const keyCount = Object.keys(rows[0]).length;
+    const base = makeShellSandbox({ source: readBase(SHELL), flagOn: false, withCw05: false, realExport: true });
+    const off = makeShellSandbox({ source: read(SHELL), flagOn: false, withCw05: true, realExport: true });
+    const on = makeShellSandbox({ source: read(SHELL), flagOn: true, withCw05: true, realExport: true });
+
+    const b = exportCsvText(base, lens, rows);
+    const o = exportCsvText(off, lens, rows);
+    assert.equal(o.csv, b.csv, "flag OFF byte-identical to main");
+    const stripTs = (f) => f.replace(/_TS_\d+\.csv$/, "");
+    assert.equal(stripTs(o.filename), stripTs(b.filename));
+    assert.equal(b.csv.split("\n")[0].split(",").length, keyCount);
+    // Legacy output has no neutralisation.
+    assert.ok(b.csv.includes('"=') || b.csv.includes('"+') || b.csv.includes('"-'));
+
+    const n = exportCsvText(on, lens, rows, { sortClicks: SORT_CLICKS[lens] });
+    const lines = n.csv.split("\n");
+    assert.equal(lines[0], b.csv.split("\n")[0], "flag-ON header equals legacy header exactly");
+    assert.equal(stripTs(n.filename), stripTs(b.filename), "filename unchanged apart from timestamp");
+    // Row order follows the sorted VIEW.
+    const legacyOfSorted = exportCsvText(
+      makeShellSandbox({ source: readBase(SHELL), flagOn: false, withCw05: false, realExport: true }),
+      lens,
+      n.view,
+    ).csv;
+    const keys = lines[0].split(",").map((h) => JSON.parse(h));
+    const expected = [
+      lines[0],
+      ...n.view.map((row) => keys.map((k) => csvCell(row[k])).join(",")),
+    ].join("\n");
+    assert.equal(n.csv, expected);
+    assert.notDeepEqual(n.view.map((r) => r.product_id), rows.map((r) => r.product_id), "VIEW was reordered");
+    assert.equal(lines.length, legacyOfSorted.split("\n").length);
+    // Differences from legacy-of-sorted are only the apostrophe prefixes.
+    assert.equal(n.csv.replace(/"'([=+\-@\t\r])/g, '"$1'), legacyOfSorted);
+    assert.ok(/"'[=+\-@\t]/.test(n.csv), "ON output has neutralised cells");
+    assert.ok(!/"'[=+\-@\t]/.test(b.csv), "OFF output has none");
+  });
+}
+
+test("(e) number -12.5 is never prefixed; string -12.5 is prefixed only with the flag ON", () => {
+  const rows = [{ id: 1, n: -12.5, s: "-12.5", f: "=1+1", p: "+1", a: "@x" }];
+  const on = makeShellSandbox({ source: read(SHELL), flagOn: true, withCw05: true, realExport: true });
+  const off = makeShellSandbox({ source: read(SHELL), flagOn: false, withCw05: true, realExport: true });
+  on.CURRENT_LENS = off.CURRENT_LENS = "sku-cost-sheet";
+  on.VIEW = rows;
+  off.VIEW = rows;
+  vm.runInContext("exportActiveViewCsv()", on);
+  vm.runInContext("exportActiveViewCsv()", off);
+  assert.equal(on.csvOut[0], `"id","n","s","f","p","a"\n"1","-12.5","'-12.5","'=1+1","'+1","'@x"`);
+  assert.equal(off.csvOut[0], `"id","n","s","f","p","a"\n"1","-12.5","-12.5","=1+1","+1","@x"`);
 });
 
 test("column map labels match the cost-sheet module's own header labels", () => {

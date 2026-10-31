@@ -116,8 +116,7 @@ export function buildCsv(columns, rows) {
 /**
  * Column -> row-key mapping for lenses listed in the shell's generic header map.
  * key: null means the displayed cell is not a single row field (composite,
- * fallback chain or client-derived), so the column is not sortable and is not
- * exported by the CW-05 CSV path.
+ * fallback chain or client-derived), so the column is not sortable.
  */
 export const GENERIC_TABLE_COLUMNS = Object.freeze({
   "sku-cost-sheet": Object.freeze([
@@ -170,26 +169,20 @@ export function tableColumnsFor(lens) {
   return GENERIC_TABLE_COLUMNS[lens] || null;
 }
 
-/** Columns that can be exported (have a row key), in displayed order. */
-export function csvColumnsFor(lens) {
-  const cols = tableColumnsFor(lens) || [];
-  return cols
-    .filter((c) => c.key)
-    .map((c) => ({ key: c.key, label: c.label }));
-}
-
 /**
- * Rows re-keyed by displayed label (in displayed order) with formula-leading
- * string values neutralised. Fed to the shell's existing exportCsvForRows, this
- * yields exactly buildCsv(columns, rows) while reusing its download/filename code.
+ * Copies of `rows` with every key kept in its original order and only
+ * formula-leading string values neutralised (numbers and other types are left
+ * as they are). Fed to the shell's legacy exportCsvForRows, each cell escapes
+ * to exactly csvCell(value), while the legacy column derivation (headers and
+ * order) and filename are reused unchanged.
  */
-export function toLabelledCsvRows(columns, rows) {
-  const cols = Array.isArray(columns) ? columns : [];
+export function neutraliseCsvRows(rows) {
   const list = Array.isArray(rows) ? rows : [];
   return list.map((row) => {
+    if (!row || typeof row !== "object") return row;
     const out = {};
-    cols.forEach((c) => {
-      out[c.label] = neutraliseCsvValue(row?.[c.key]);
+    Object.keys(row).forEach((k) => {
+      out[k] = neutraliseCsvValue(row[k]);
     });
     return out;
   });

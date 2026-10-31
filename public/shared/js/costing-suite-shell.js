@@ -66,7 +66,7 @@ import { createCostingApprovalScreenController } from "./costing-approval-screen
 import { createCostingLockScreenController } from "./costing-lock-screen.js";
 import { createCostingRunStatusScreenController } from "./costing-run-status-screen.js";
 import { isCostingTableToolsV1Enabled } from "./costing-feature-flags.js";
-import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, csvColumnsFor, sortIndicatorFor, tableColumnsFor, toLabelledCsvRows } from "./costing-table-tools.js";
+import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor } from "./costing-table-tools.js";
 import {
   createQcActionQueueController,
   isQcActionQueueLens,
@@ -641,7 +641,6 @@ let CURRENT_PAGE = 1;
 let PAGE_SIZE = 25;
 // CW-05 table tools state (used only when COSTING_TABLE_TOOLS_V1 is ON).
 let CW05_SORT_CTX = null;
-let CW05_HEADER_LENS = null;
 const CCC_PROGRESSIVE_LENS_IDS = new Set([
   "costing-review-workbench",
   "sku-control-status",
@@ -6087,7 +6086,6 @@ function renderTableHeaderForLens() {
 function renderCw05GenericTableHeader(headers, alignments) {
   const columns = tableColumnsFor(CURRENT_LENS) || [];
   const sortState = activeSortState(CW05_SORT_CTX, CURRENT_LENS, VIEW);
-  CW05_HEADER_LENS = CURRENT_LENS;
   tableHead.innerHTML = `<tr>${headers
     .map((h, i) => {
       const classes = [alignments[i] || "c-left"];
@@ -7702,16 +7700,13 @@ function onCostingSuiteRefreshClick(event) {
 }
 
 /**
- * CW-05 (COSTING_TABLE_TOOLS_V1 ON only): export the rows in VIEW (after
- * filter/sort) with displayed header labels in displayed order and formula
- * neutralisation, reusing exportCsvForRows for download and filename.
- * Returns false when the lens did not render the CW-05 generic header.
+ * CW-05 (COSTING_TABLE_TOOLS_V1 ON only): export the rows in VIEW (current
+ * filtered and sorted order) through the legacy exportCsvForRows, so headers,
+ * column order and filename are exactly the legacy ones. The only additions
+ * are VIEW order and formula neutralisation of text cells.
  */
 function exportCw05CsvForView() {
-  if (CW05_HEADER_LENS !== CURRENT_LENS) return false;
-  const columns = csvColumnsFor(CURRENT_LENS);
-  if (!columns.length) return false;
-  exportCsvForRows(toLabelledCsvRows(columns, VIEW));
+  exportCsvForRows(neutraliseCsvRows(VIEW));
   return true;
 }
 
