@@ -584,7 +584,10 @@ function severityChipClass(severity) {
 function formatLabel(code) {
   const raw = normalizeCode(code);
   if (!raw) return "—";
-  if (isCostingUxConsistencyV1Enabled()) return costingIssueDisplayLabel(raw);
+  if (isCostingUxConsistencyV1Enabled()) {
+    const label = costingIssueDisplayLabel(raw);
+    return label === raw ? raw.replaceAll("_", " ") : label;
+  }
   return raw.replaceAll("_", " ");
 }
 

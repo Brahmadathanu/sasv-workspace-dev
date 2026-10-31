@@ -7,6 +7,8 @@ import {
   isCostingUxConsistencyV1Enabled,
 } from "../../public/shared/js/costing-feature-flags.js";
 import {
+  COSTING_ISSUE_DISPLAY_LABELS,
+  COSTING_STATUS_DISPLAY_LABELS,
   costingIssueDisplayLabel,
   costingRunBadgeDisplayLabel,
   costingStatusDisplayLabel,
@@ -26,16 +28,31 @@ test("UX consistency flag defaults OFF and accepts exactly string 1", () => {
 test("flag ON maps only confirmed common status families", () => {
   assert.equal(costingStatusDisplayLabel("READY"), "Ready");
   assert.equal(costingStatusDisplayLabel("REVIEW_REQUIRED"), "Review required");
-  assert.equal(costingStatusDisplayLabel("BLOCKER"), "Blocked");
-  assert.equal(costingStatusDisplayLabel("PARTIAL_SUCCESS"), "Partial");
-  assert.equal(costingStatusDisplayLabel("WARN"), "Warning");
+  assert.equal(costingStatusDisplayLabel("BLOCKER"), "Blocker");
+  assert.equal(costingStatusDisplayLabel("PARTIAL_SUCCESS"), "Partly succeeded");
+  assert.equal(costingStatusDisplayLabel("SUCCESS"), "Succeeded");
+  assert.equal(costingStatusDisplayLabel("COMPLETED"), "Completed");
+  assert.equal(costingStatusDisplayLabel("ERROR"), "Error");
+  assert.equal(costingStatusDisplayLabel("FAILED"), "Failed");
 });
 
 test("confirmed existing issue labels are shared without changing their codes", () => {
   const code = "MISSING_RM_AND_PM_FOUNDATION";
   assert.equal(costingIssueDisplayLabel(code), "Missing RM and PM foundation");
   assert.equal(code, "MISSING_RM_AND_PM_FOUNDATION");
-  assert.equal(costingIssueDisplayLabel("STALE_PM_PURCHASE_RATE"), "Stale purchase rate");
+  assert.equal(costingIssueDisplayLabel("RM_FOUNDATION_PRESENT"), "RM foundation present");
+  assert.equal(costingIssueDisplayLabel("PM_FOUNDATION_PRESENT"), "PM foundation present");
+  assert.equal(costingIssueDisplayLabel("FOUNDATION_PRESENT"), "Foundation present");
+  assert.equal(costingIssueDisplayLabel("STALE_PM_PURCHASE_RATE"), "Stale PM purchase rate");
+});
+
+test("every explicit code has a distinct display label", () => {
+  const entries = [
+    ...Object.entries(COSTING_STATUS_DISPLAY_LABELS),
+    ...Object.entries(COSTING_ISSUE_DISPLAY_LABELS),
+  ];
+  const labels = entries.map(([, label]) => label);
+  assert.equal(new Set(labels).size, labels.length);
 });
 
 test("unknown status and issue codes fall back verbatim", () => {
@@ -72,7 +89,16 @@ test("rendering boundaries retain their exact OFF branches", () => {
   const readiness = read("public/shared/js/costing-suite-readiness.js");
   assert.match(shell, /isCostingUxConsistencyV1Enabled\(\)[\s\S]*\? costingStatusDisplayLabel\(status\)[\s\S]*: status/);
   assert.match(control, /isCostingUxConsistencyV1Enabled\(\)[\s\S]*: row\.action_severity/);
-  assert.match(readiness, /if \(isCostingUxConsistencyV1Enabled\(\)\) return costingIssueDisplayLabel\(raw\);[\s\S]*return raw\.replaceAll/);
+  assert.match(readiness, /if \(isCostingUxConsistencyV1Enabled\(\)\) \{[\s\S]*label === raw \? raw\.replaceAll\("_", " "\) : label;[\s\S]*return raw\.replaceAll/);
+});
+
+test("legacy unknown fallbacks and SKU Control special wording stay intact", () => {
+  const shell = read("public/shared/js/costing-suite-shell.js");
+  const control = read("public/shared/js/costing-suite-control-center.js");
+  const readiness = read("public/shared/js/costing-suite-readiness.js");
+  assert.match(shell, /label === String\(code\) \? String\(code\)\.replace\(\/_\/g, " "\) : label/);
+  assert.match(readiness, /label === raw \? raw\.replaceAll\("_", " "\) : label/);
+  assert.match(control, /const s = normalizeStatus\(severity\);[\s\S]*REVIEW_REQUIRED[\s\S]*return "Review";[\s\S]*return s \? costingStatusDisplayLabel\(s\) : "--";/);
 });
 
 test("raw codes remain in filter, severity ordering, query and CSV paths", () => {

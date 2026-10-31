@@ -3325,7 +3325,10 @@ function marginBandChip(value) {
 
 function issueCodeLabel(code) {
   if (!code) return "--";
-  if (isCostingUxConsistencyV1Enabled()) return costingIssueDisplayLabel(code);
+  if (isCostingUxConsistencyV1Enabled()) {
+    const label = costingIssueDisplayLabel(code);
+    return label === String(code) ? String(code).replace(/_/g, " ") : label;
+  }
   return String(code).replace(/_/g, " ");
 }
 

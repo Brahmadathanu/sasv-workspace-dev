@@ -1014,10 +1014,13 @@ export function createControlCenterController(deps) {
 
   /** Display-only SKU Control Status labels — raw control_severity unchanged. */
   function formatSkuControlStatusDisplayLabel(severity) {
-    if (isCostingUxConsistencyV1Enabled()) {
-      return costingStatusDisplayLabel(severity);
-    }
     const s = normalizeStatus(severity);
+    if (isCostingUxConsistencyV1Enabled()) {
+      if (s === "BLOCKER" || s === "BLOCKED") return "Blocked";
+      if (s === "REVIEW_REQUIRED" || s === "REVIEW") return "Review";
+      if (s === "READY") return "Ready";
+      return s ? costingStatusDisplayLabel(s) : "--";
+    }
     if (s === "BLOCKER" || s === "BLOCKED") return "Blocked";
     if (s === "REVIEW_REQUIRED" || s === "REVIEW") return "Review";
     if (s === "READY") return "Ready";
