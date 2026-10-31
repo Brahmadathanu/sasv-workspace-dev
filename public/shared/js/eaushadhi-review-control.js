@@ -2296,9 +2296,12 @@ function sourceReferenceCurrentTarget() {
 }
 
 function sourceReferenceLineRelation(line, target) {
-  const current = safeText(line?.raw_reference_text).replace(/\s+/g, " ").trim();
+  const current = safeText(line?.raw_reference_text).trim();
+  const wanted = safeText(target).trim();
   if (!current) return "BLANK";
-  return current.localeCompare(target, undefined, { sensitivity: "accent" }) === 0 ? "SAME" : "DIFFERENT";
+  if (current === wanted) return "SAME";
+  if (current.toLocaleLowerCase() === wanted.toLocaleLowerCase()) return "RESPELL";
+  return "DIFFERENT";
 }
 
 function sourceReferenceEligible(line, target, preview) {
@@ -2319,7 +2322,6 @@ function sourceReferenceChosenLines() {
     const eligible = sourceReferenceEligible(line, target, preview);
     if (!eligible.ok) return false;
     if (bulk.scope === "SELECTED") return bulk.selected.has(String(line.source_composition_line_id));
-    if (bulk.scope === "ALL") return eligible.relation !== "DIFFERENT";
     return eligible.relation === "BLANK";
   }).slice(0, Number(preview.max_lines) || 200);
 }
@@ -2327,6 +2329,23 @@ function sourceReferenceChosenLines() {
 function sourceReferenceChangingLines() {
   const target = sourceReferenceCurrentTarget();
   return sourceReferenceChosenLines().filter((line) => sourceReferenceLineRelation(line, target) !== "SAME");
+}
+
+function renewSourceReferenceRequestId() {
+  state.sourceReferenceBulk.requestId = newSourceReferenceRequestId();
+}
+
+function syncSourceReferenceBulkLiveUi() {
+  const bulk = state.sourceReferenceBulk;
+  const changing = sourceReferenceChangingLines();
+  const chosen = sourceReferenceChosenLines();
+  const count = $("sourceReferencePreviewTitle")?.parentElement?.querySelector("strong");
+  if (count) count.textContent = `${changing.length} lines will change${chosen.length > changing.length ? ` · ${chosen.length - changing.length} unchanged` : ""}`;
+  const apply = $("sourceReferenceApply");
+  if (apply) {
+    apply.disabled = bulk.applying || !sourceReferenceCurrentTarget() || !changing.length || bulk.reason.trim().length < 10;
+    apply.textContent = bulk.applying ? "Applying…" : `Apply ${changing.length} changes`;
+  }
 }
 
 function sourceReferenceProductKind() {
@@ -2356,7 +2375,7 @@ function renderSourceReferenceBulkDialog() {
     const outcome = !eligibility.ok
       ? `Excluded: ${eligibility.reason}`
       : selected
-        ? relation === "SAME" ? "Unchanged" : relation === "DIFFERENT" ? "Replace different wording" : "Fill blank"
+        ? relation === "SAME" ? "Unchanged" : relation === "DIFFERENT" ? "Replace different wording" : relation === "RESPELL" ? "Update spelling" : "Fill blank"
         : relation === "DIFFERENT" ? "Excluded: select this line explicitly" : "Not selected";
     return `<li class="source-reference-preview-row" data-source-reference-line-id="${escapeHtml(id)}">
       ${bulk.scope === "SELECTED" ? `<input type="checkbox" data-source-reference-select="${escapeHtml(id)}"${bulk.selected.has(id) ? " checked" : ""}${canTick ? "" : " disabled"} aria-label="Select line ${escapeHtml(displayText(line.source_row_no))}">` : ""}
@@ -2370,17 +2389,17 @@ function renderSourceReferenceBulkDialog() {
     <div class="sasv-modal__body source-reference-bulk-body">
       <div class="form-field"><label for="sourceReferenceWording">Reference wording</label><select id="sourceReferenceWording" class="sasv-control"><option value="">Select a known wording</option>${known.map((item) => `<option value="${escapeHtml(item.raw_reference_text)}"${!bulk.allowNew && item.raw_reference_text === bulk.target ? " selected" : ""}>${escapeHtml(item.raw_reference_text)} (${Number(item.product_line_count) || 0} product lines)</option>`).join("")}<option value="__NEW__"${bulk.allowNew ? " selected" : ""}${newDisabled ? " disabled" : ""}>Enter a new wording</option></select>${newDisabled ? '<span class="muted-note">Approver needed to enter a new wording.</span>' : ""}</div>
       ${bulk.allowNew ? `<div class="form-field"><label for="sourceReferenceNewWording">New wording</label><input id="sourceReferenceNewWording" class="sasv-control" maxlength="300" value="${escapeHtml(bulk.target)}"><span class="muted-note">New wording may require mapping in the Reference Dictionary.</span></div>` : ""}
-      <fieldset class="source-reference-scope"><legend>Apply to</legend><label><input type="radio" name="sourceReferenceScope" value="BLANK"${bulk.scope === "BLANK" ? " checked" : ""}> All lines with no reference (${lines.filter((line) => !safeText(line.raw_reference_text)).length})</label><label><input type="radio" name="sourceReferenceScope" value="SELECTED"${bulk.scope === "SELECTED" ? " checked" : ""}> Selected lines</label><label><input type="radio" name="sourceReferenceScope" value="ALL"${bulk.scope === "ALL" ? " checked" : ""}> All eligible blank and same-wording lines</label>${sourceReferenceProductKind() === "CLASSICAL" ? '<span class="muted-note">Lines in this product normally share one source reference.</span>' : ""}</fieldset>
+      <fieldset class="source-reference-scope"><legend>Apply to</legend><label><input type="radio" name="sourceReferenceScope" value="BLANK"${bulk.scope === "BLANK" ? " checked" : ""}> All unlocked lines with no reference (${lines.filter((line) => !line.lock_reason && !safeText(line.raw_reference_text)).length})</label><label><input type="radio" name="sourceReferenceScope" value="SELECTED"${bulk.scope === "SELECTED" ? " checked" : ""}> Selected lines</label>${sourceReferenceProductKind() === "CLASSICAL" ? '<span class="muted-note">Lines in this product normally share one source reference.</span>' : ""}</fieldset>
       <section aria-labelledby="sourceReferencePreviewTitle"><div class="source-reference-preview-heading"><h3 id="sourceReferencePreviewTitle">Preview</h3><strong>${changing.length} lines will change${chosen.length > changing.length ? ` · ${chosen.length - changing.length} unchanged` : ""}</strong></div><ul id="sourceReferencePreview" class="source-reference-preview-list">${visibleRows.join("")}</ul>${allRows.length > 50 && !bulk.showAll ? '<button type="button" id="sourceReferenceViewAll" class="text-btn">View all</button>' : ""}</section>
       <div class="form-field"><label for="sourceReferenceReason">Reason</label><textarea id="sourceReferenceReason" class="sasv-control" rows="2" minlength="10" maxlength="500" placeholder="Required, 10–500 characters">${escapeHtml(reason)}</textarea><span class="muted-note">Updated lines return to Pending and must be saved for review again.</span></div>
       <div id="sourceReferenceBulkMessage" class="ea-callout" role="status" aria-live="polite"${bulk.message ? "" : " hidden"}>${escapeHtml(bulk.message)}</div>
     </div><div class="sasv-modal__footer"><button type="button" id="sourceReferenceBulkCancel" class="icon-btn with-label">Cancel</button><button type="button" id="sourceReferenceApply" class="icon-btn with-label primary"${bulk.applying || !target || !changing.length || reason.trim().length < 10 ? " disabled" : ""}>${bulk.applying ? "Applying…" : `Apply ${changing.length} changes`}</button></div>`;
-  $("sourceReferenceBulkClose").addEventListener("click", closeSourceReferenceBulkDialog);
-  $("sourceReferenceBulkCancel").addEventListener("click", closeSourceReferenceBulkDialog);
+  $("sourceReferenceBulkClose").addEventListener("click", () => requestCloseSourceReferenceBulkDialog());
+  $("sourceReferenceBulkCancel").addEventListener("click", () => requestCloseSourceReferenceBulkDialog());
   $("sourceReferenceWording").addEventListener("change", handleSourceReferenceWordingChange);
-  $("sourceReferenceNewWording")?.addEventListener("input", (event) => { bulk.target = event.target.value; renderSourceReferenceBulkDialog(); $("sourceReferenceNewWording")?.focus(); });
-  dialog.querySelectorAll('input[name="sourceReferenceScope"]').forEach((input) => input.addEventListener("change", (event) => { bulk.scope = event.target.value; renderSourceReferenceBulkDialog(); }));
-  dialog.querySelectorAll("[data-source-reference-select]").forEach((input) => input.addEventListener("change", (event) => { const id = event.target.dataset.sourceReferenceSelect; if (event.target.checked) bulk.selected.add(id); else bulk.selected.delete(id); renderSourceReferenceBulkDialog(); }));
+  $("sourceReferenceNewWording")?.addEventListener("input", (event) => { bulk.target = event.target.value; renewSourceReferenceRequestId(); syncSourceReferenceBulkLiveUi(); });
+  dialog.querySelectorAll('input[name="sourceReferenceScope"]').forEach((input) => input.addEventListener("change", (event) => { bulk.scope = event.target.value; renewSourceReferenceRequestId(); renderSourceReferenceBulkDialog(); }));
+  dialog.querySelectorAll("[data-source-reference-select]").forEach((input) => input.addEventListener("change", (event) => { const id = event.target.dataset.sourceReferenceSelect; if (event.target.checked) bulk.selected.add(id); else bulk.selected.delete(id); renewSourceReferenceRequestId(); renderSourceReferenceBulkDialog(); }));
   dialog.querySelectorAll("[data-source-reference-previous]").forEach((button) => button.addEventListener("click", () => {
     const line = lines.find((item) => String(item.source_composition_line_id) === button.dataset.sourceReferencePrevious);
     const previous = lines.slice(0, Math.max(0, lines.indexOf(line))).reverse().find((item) => safeText(item.raw_reference_text));
@@ -2390,10 +2409,11 @@ function renderSourceReferenceBulkDialog() {
     bulk.target = previous.raw_reference_text;
     bulk.selected.add(button.dataset.sourceReferencePrevious);
     bulk.message = "";
+    renewSourceReferenceRequestId();
     renderSourceReferenceBulkDialog();
   }));
   $("sourceReferenceViewAll")?.addEventListener("click", () => { bulk.showAll = true; renderSourceReferenceBulkDialog(); });
-  $("sourceReferenceReason").addEventListener("input", (event) => { bulk.reason = event.target.value; renderSourceReferenceBulkDialog(); const next = $("sourceReferenceReason"); next.setSelectionRange(next.value.length, next.value.length); next.focus(); });
+  $("sourceReferenceReason").addEventListener("input", (event) => { bulk.reason = event.target.value; renewSourceReferenceRequestId(); syncSourceReferenceBulkLiveUi(); });
   $("sourceReferenceApply").addEventListener("click", () => void applySourceReferenceBulk());
 }
 
@@ -2402,6 +2422,7 @@ function handleSourceReferenceWordingChange(event) {
   bulk.allowNew = event.target.value === "__NEW__";
   bulk.target = bulk.allowNew ? "" : event.target.value;
   bulk.selected = new Set();
+  renewSourceReferenceRequestId();
   renderSourceReferenceBulkDialog();
   (bulk.allowNew ? $("sourceReferenceNewWording") : $("sourceReferenceReason"))?.focus();
 }
@@ -2414,12 +2435,23 @@ function closeSourceReferenceBulkDialog() {
   $("btnSetSourceReference")?.focus();
 }
 
+function sourceReferenceBulkIsDirty() {
+  return Boolean(state.sourceReferenceBulk.reason.trim() || state.sourceReferenceBulk.selected.size);
+}
+
+function requestCloseSourceReferenceBulkDialog({ force = false, backdrop = false } = {}) {
+  if (backdrop && state.sourceReferenceBulk.applying) return false;
+  if (!force && sourceReferenceBulkIsDirty() && !globalThis.confirm("Discard this source-reference change?")) return false;
+  closeSourceReferenceBulkDialog();
+  return true;
+}
+
 function sourceReferenceBulkKeydown(event) {
   if (event.key === "Escape") {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-    closeSourceReferenceBulkDialog();
+    requestCloseSourceReferenceBulkDialog();
     return;
   }
   trapModalTab(event, "sourceReferenceBulkDialog");
@@ -2443,7 +2475,7 @@ async function openSourceReferenceBulkDialog({ target = null, scope = null } = {
   backdrop.className = "sasv-modal-backdrop";
   backdrop.innerHTML = '<div id="sourceReferenceBulkDialog" class="sasv-modal sasv-modal--lg" role="dialog" aria-modal="true" aria-labelledby="sourceReferenceBulkTitle" tabindex="-1"></div>';
   document.body.append(backdrop);
-  backdrop.addEventListener("click", (event) => { if (event.target === backdrop) closeSourceReferenceBulkDialog(); });
+  backdrop.addEventListener("click", (event) => { if (event.target === backdrop) requestCloseSourceReferenceBulkDialog({ backdrop: true }); });
   document.addEventListener("keydown", sourceReferenceBulkKeydown, true);
   renderSourceReferenceBulkDialog();
   $("sourceReferenceBulkDialog")?.focus();
@@ -2486,7 +2518,7 @@ async function applySourceReferenceBulk() {
     const openLine = state.compositionModalLineId && affected.has(String(state.compositionModalLineId)) ? state.compositionModalLineId : null;
     await reloadSelected({ preserveDrafts: false, restoreComposition: true, focusLineId: openLine });
     closeSourceReferenceBulkDialog();
-    const blankRemaining = sourceReferenceLines(preview).filter((line) => !safeText(line.raw_reference_text) && !affected.has(String(line.source_composition_line_id))).length;
+    const blankRemaining = sourceReferenceLines(preview).filter((line) => !line.lock_reason && !safeText(line.raw_reference_text) && !affected.has(String(line.source_composition_line_id))).length;
     bulk.inlinePrompt = Number(result.applied_count) === 1 && blankRemaining > 0 ? { count: blankRemaining, target: result.raw_reference_text || target } : null;
     resetSourceReferenceBulkPreview();
     void ensureSourceReferencePreview();

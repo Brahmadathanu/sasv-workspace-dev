@@ -84,6 +84,16 @@ check(preview.lines.filter((line) => !line.raw_reference_text && !line.lock_reas
 check(preview.lines.find((line) => line.source_composition_line_id === 934).lock_reason === "LINE_VERIFIED", "mock preview covers excluded verified lines");
 check(success.lines[0].review_status === "PENDING" && success.lines[0].row_version === 5, "mock success covers returned Pending state and new version");
 check(success.applied_count === 1 && success.unchanged_count === 0, "mock success keeps changed and unchanged counts separate");
+check(control.includes('if (current === wanted) return "SAME"') && control.includes('return "RESPELL"'), "same requires exact trimmed equality and case-only differences are respells");
+check(control.includes('relation === "DIFFERENT" && preview?.caller?.is_approver !== true'), "case-only respells do not require an Approver");
+check(control.includes('confirm_replace_different: sourceReferenceLineRelation(line, target) === "DIFFERENT"'), "case-only respells do not set replace-different confirmation");
+check(control.includes('globalThis.confirm("Discard this source-reference change?")'), "dirty close asks the approved discard question");
+check(control.includes("sourceReferenceBulk.reason.trim() || state.sourceReferenceBulk.selected.size"), "dirty close is based on reason or ticked lines");
+check(control.includes("backdrop && state.sourceReferenceBulk.applying"), "backdrop clicks are ignored while applying");
+check(control.includes("bulk.target = event.target.value; renewSourceReferenceRequestId(); syncSourceReferenceBulkLiveUi();") && control.includes("bulk.reason = event.target.value; renewSourceReferenceRequestId(); syncSourceReferenceBulkLiveUi();"), "typing updates live state without redrawing the dialog");
+check((control.match(/renewSourceReferenceRequestId\(\)/g) || []).length >= 7, "target, flag, reason, scope and selection changes renew the request id");
+check(control.includes("!line.lock_reason && !safeText(line.raw_reference_text) && !affected.has"), "locked blank lines are excluded from the inline prompt count");
+check(!control.includes("All eligible blank and same-wording lines") && !control.includes('value="ALL"'), "duplicate all-lines scope is removed");
 
 console.log(`UX-9 source-reference checks: ${passed} passed, ${failed} failed`);
 if (failed) process.exitCode = 1;
