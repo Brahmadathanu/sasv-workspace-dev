@@ -31,7 +31,8 @@ const legacy = block("function renderCompositionLegacy(", "function compositionM
 const reload = block("async function reloadSelected(", "async function persistLine(");
 const approve = block("async function submitLine(", "function handleCompositionLineChange(");
 const reopen = block("async function submitReopen(", "function renderVerifyReviewedBody(");
-const globalKeys = block('document.addEventListener("keydown"', "window.addEventListener(");
+const globalKeyStart = js.lastIndexOf('document.addEventListener("keydown", (event) => {');
+const globalKeys = globalKeyStart >= 0 ? js.slice(globalKeyStart, js.indexOf("window.addEventListener(", globalKeyStart)) : "";
 
 check(js.includes("function renderCompositionLegacy()"), "existing line-card renderer is retained as the single editor markup source");
 check(render.includes("state.compositionLineHtml = new Map"), "line editor markup is reused in the modal");

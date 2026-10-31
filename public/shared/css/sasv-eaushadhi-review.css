@@ -857,13 +857,133 @@ body.sasv-eaushadhi-review .composition-line-modal-heading {
 }
 
 body.sasv-eaushadhi-review .composition-line-summary {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.5fr) minmax(90px, .65fr) minmax(100px, .75fr) auto;
+  align-items: end;
+  gap: 6px 18px;
+  margin-top: 6px;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-eaushadhi-review .composition-line-summary-item {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+body.sasv-eaushadhi-review .composition-line-summary-label {
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-xs);
+  font-weight: var(--sasv-fw-semibold);
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+body.sasv-eaushadhi-review .composition-line-summary-value {
+  min-width: 0;
+  color: var(--sasv-text);
+  font-weight: var(--sasv-fw-medium);
+}
+
+body.sasv-eaushadhi-review .composition-line-summary-botanical .composition-line-summary-value {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+body.sasv-eaushadhi-review .composition-line-summary-chips {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+body.sasv-eaushadhi-review .composition-reference-toolbar {
+  display: flex;
   align-items: center;
-  gap: 4px 10px;
-  margin-top: 4px;
+  gap: var(--sasv-space-2);
+  margin-bottom: var(--sasv-space-2);
+}
+
+body.sasv-eaushadhi-review .source-reference-bulk-body {
+  display: grid;
+  gap: var(--sasv-space-3);
+}
+
+body.sasv-eaushadhi-review .source-reference-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+}
+
+body.sasv-eaushadhi-review .source-reference-scope legend {
+  padding-inline: 4px;
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sasv-space-2);
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-heading h3 {
+  margin: 0;
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-list {
+  display: grid;
+  gap: 1px;
+  max-height: 280px;
+  margin: 6px 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  list-style: none;
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(150px, auto);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--sasv-surface);
+  border-bottom: 1px solid var(--sasv-border-subtle);
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-row:last-child {
+  border-bottom: 0;
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-main {
+  display: grid;
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-main span {
+  overflow: hidden;
+  color: var(--sasv-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-outcome {
   color: var(--sasv-text-muted);
   font-size: var(--sasv-text-sm);
+  text-align: right;
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-outcome.is-excluded {
+  color: var(--sasv-warning-text, #7a4b00);
 }
 
 body.sasv-eaushadhi-review .composition-line-footer-status {
@@ -1771,6 +1891,24 @@ body.sasv-eaushadhi-review .action-vocab-item {
     justify-content: stretch;
     min-height: 112px;
     max-height: 112px;
+  }
+  body.sasv-eaushadhi-review .composition-line-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+  body.sasv-eaushadhi-review .composition-line-summary-botanical,
+  body.sasv-eaushadhi-review .composition-line-summary-chips {
+    grid-column: 1 / -1;
+  }
+  body.sasv-eaushadhi-review .composition-line-summary-chips {
+    justify-content: flex-start;
+  }
+  body.sasv-eaushadhi-review .source-reference-preview-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  body.sasv-eaushadhi-review .source-reference-preview-outcome {
+    grid-column: 2;
+    text-align: left;
   }
   body.sasv-eaushadhi-review .composition-line-footer-status {
     width: 100%;

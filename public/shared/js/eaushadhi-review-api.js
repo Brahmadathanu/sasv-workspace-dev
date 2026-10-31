@@ -454,6 +454,34 @@ export async function correctWorkingSourceLine({
   );
 }
 
+export async function fetchSourceReferencePreview(productId) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_source_reference_preview_v1", {
+      p_product_id: Number(productId),
+    }),
+  );
+}
+
+export async function setSourceReferenceBulk({
+  productId,
+  requestId,
+  referenceText,
+  allowNewWording = false,
+  reason,
+  lines,
+} = {}) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_set_source_reference_bulk_v1", {
+      p_product_id: Number(productId),
+      p_request_id: requestId,
+      p_reference_text: referenceText,
+      p_allow_new_wording: allowNewWording === true,
+      p_reason: reason,
+      p_lines: Array.isArray(lines) ? lines : [],
+    }),
+  );
+}
+
 export async function reopenLineReview({
   sourceCompositionLineId,
   expectedRowVersion,
