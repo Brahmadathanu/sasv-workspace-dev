@@ -58,6 +58,7 @@ check(control.includes("expected_raw_reference_text"), "payload preserves the ex
 check(control.includes('sourceReferenceLineRelation(line, target) === "DIFFERENT"'), "replace confirmation is derived only for explicitly selected different wording");
 check(openBulk.includes("bulk.requestId = newSourceReferenceRequestId()") && !openBulk.includes("bulk.requestId ||="), "opening always assigns a fresh request id");
 check(control.includes("bulk.requestId = newSourceReferenceRequestId()"), "rebuilding preview creates a new request id");
+check(control.includes("state.sourceReferenceBulk.applying === true") && control.includes("An action is already in progress."), "Approve reviewed lines locks while a source-reference batch is applying");
 check(control.includes("await setSourceReferenceBulk"), "Apply waits for the RPC result");
 check(control.indexOf("await setSourceReferenceBulk") < control.indexOf("state.lines = state.lines.map", control.indexOf("async function applySourceReferenceBulk")), "local lines are not changed before RPC success");
 check(control.includes("await reloadSelected({ preserveDrafts: false"), "success reloads affected lines and reference decisions");
@@ -86,7 +87,7 @@ check(preview.lines.find((line) => line.source_composition_line_id === 934).lock
 check(success.lines[0].review_status === "PENDING" && success.lines[0].row_version === 5, "mock success covers returned Pending state and new version");
 check(success.applied_count === 1 && success.unchanged_count === 0, "mock success keeps changed and unchanged counts separate");
 check(control.includes('if (current === wanted) return "SAME"') && control.includes('return "RESPELL"'), "same requires exact trimmed equality and case-only differences are respells");
-check(control.includes('.replace(/[\\p{P}]+/gu, " ")') && control.includes('.replace(/\\s+/g, " ")') && control.includes('.toLocaleLowerCase()'), "respell mirrors normalize_controlled_term_alias lowercase, punctuation and collapsed whitespace");
+check(control.includes('.trim().replace(/\\s+/g, " ").toLowerCase()') && !control.includes(".normalize(\"NFKC\")") && !control.includes("[\\p{P}]"), "respell mirrors normalize_controlled_term_alias trim, collapse whitespace and lowercase only");
 check(control.includes('relation === "DIFFERENT" && preview?.caller?.is_approver !== true'), "case-only respells do not require an Approver");
 check(control.includes('confirm_replace_different: sourceReferenceLineRelation(line, target) === "DIFFERENT"'), "case-only respells do not set replace-different confirmation");
 {
@@ -96,7 +97,8 @@ check(control.includes('confirm_replace_different: sourceReferenceLineRelation(l
     return sourceReferenceLineRelation;
   `)();
   check(fn({ raw_reference_text: "API Vol. I" }, "API Vol. I") === "SAME", "exact trimmed wording is SAME");
-  check(fn({ raw_reference_text: "API  Vol. I." }, "api vol i") === "RESPELL", "punctuation and whitespace-only differences are RESPELL");
+  check(fn({ raw_reference_text: "API  Vol. I" }, "api vol. i") === "RESPELL", "whitespace and case-only differences are RESPELL");
+  check(fn({ raw_reference_text: "API Vol. I." }, "API Vol. I") === "DIFFERENT", "punctuation differences stay DIFFERENT");
   check(fn({ raw_reference_text: "API Vol. I" }, "API Vol. II") === "DIFFERENT", "distinct wording stays DIFFERENT");
 }
 check(!control.includes("globalThis.confirm") && control.includes('title: "Discard this source-reference change?"') && control.includes('cancelLabel: "Keep editing"') && control.includes('okLabel: "Discard"'), "dirty close uses the approved in-page discard confirmation");

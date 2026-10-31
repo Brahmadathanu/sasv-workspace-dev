@@ -21,10 +21,14 @@ function check(ok, label) {
 check(html.includes('id="compositionToolbar"') && html.indexOf('id="compositionToolbar"') < html.indexOf('id="workspaceScroll"'), "Composition toolbar is outside the workspace/table scroll content");
 check(html.includes('id="compositionFilterBtn"') && html.includes('aria-controls="compositionFilterDrawer"'), "filter button names and controls its drawer");
 check(html.includes('id="compositionFilterBadge"') && js.includes("compositionActiveDrawerFilterCount"), "filter badge is backed by lens-only count logic");
+check(js.includes('badge.textContent = ""') && css.includes("background: var(--sasv-warning)") && css.includes(".composition-filter-badge"), "funnel uses an amber dot with no number when filters are active");
+check(js.includes("`Filters (${count})`") && js.includes("`Filters, ${count} active`"), "drawer title and funnel aria-label report the active filter count");
 check(html.includes('id="compositionFilterDrawer"') && html.includes('id="compositionReviewLenses"') && html.includes('id="compositionAttentionLenses"'), "existing lens IDs move into the drawer");
 check(html.includes('id="btnClearCompositionFiltersDrawer"') && !html.includes('id="btnClearCompositionFiltersBar"'), "drawer owns the only toolbar Clear filters action");
 check(!html.includes('id="openReferenceDictionaryFromCompositionBtn"') && !js.includes('$("openReferenceDictionaryFromCompositionBtn")'), "Composition Reference Dictionary shortcut and handler are removed");
-check(html.includes('aria-describedby="compositionActionHint"') && html.includes('id="compositionActionHint"') && html.includes("composition-info-icon"), "Composition tab exposes the helper through an info tooltip");
+check(html.includes('aria-describedby="compositionActionHint"') && html.includes('id="compositionActionHint"') && html.includes("composition-info-icon") && html.includes("composition-info-glyph"), "Composition tab exposes the helper through an info tooltip");
+check(js.includes('stage.id === "composition"') && js.includes("composition-info-glyph") && js.includes("compositionActionHint"), "renderWorkflowNav keeps the Composition helper icon and tooltip after rebuild");
+check(css.includes(".composition-info-glyph") && css.includes("width: 16px") && css.includes("height: 16px") && css.includes("width: 24px"), "helper icon is a 16px circled i inside a 24px target");
 check(js.includes("placeCompositionFilterPopover") && js.includes("setCompositionFiltersOpen") && js.includes('event.key === "Escape"'), "drawer has positioned Escape-close behaviour");
 check(js.includes('document.addEventListener("pointerdown", onPointer, true)') && js.includes('button.focus()'), "outside click closes drawer and returns funnel focus");
 check(js.includes("clear.disabled = !compositionFiltersAreActive(state.compositionView)"), "drawer Clear filters follows search or lens activity");
@@ -32,14 +36,20 @@ check(js.includes('event.target.id !== "compositionTableScroll"') && js.includes
 check(js.includes("state.compositionView.scrollTop = scroll.scrollTop") && js.includes("compositionScroll"), "table scroll position is captured and restored across reloads");
 check(js.includes("focusCompositionRow(returnId, { scroll: false })") && js.includes("preventScroll"), "modal close restores row focus without moving the table scroll");
 check(css.includes(".composition-table th") && css.includes("position: sticky") && css.includes("background: var(--sasv-surface-soft)"), "table header remains sticky and opaque");
-check(css.includes(".composition-toolbar") && css.includes("flex-wrap: wrap") && css.includes(".composition-toolbar-actions"), "toolbar has an explicit responsive wrap layout");
-check(css.includes(".ea-btn--primary") && css.includes(".ea-btn--secondary") && css.includes(".ea-btn--quiet") && css.includes(".ea-btn--danger") && css.includes(".ea-btn--icon"), "scoped button system defines every approved variant");
+check(css.includes(".composition-table-wrap") && css.includes("overflow-y: auto") && !/composition-table-wrap\s*\{[^}]*overflow-y:\s*scroll/s.test(css) && css.includes("scrollbar-gutter: auto"), "table scroller uses overflow-y:auto with scrollbar-gutter:auto");
+check(css.includes(":has(#tab-composition:not([hidden])) .workspace-scroll") && css.includes("overflow: hidden"), "Composition tab keeps #workspaceScroll non-scrolling");
+check(css.includes(".composition-toolbar") && css.includes("flex-wrap: wrap") && css.includes(".composition-toolbar-action-row") && css.includes("align-items: center"), "toolbar uses a shared flex action row with centered items");
+check(js.includes(">Set source reference</button>") && html.includes(">Approve reviewed lines</button>") && js.includes("ea-btn--soft"), "Set source reference is soft and Approve reviewed lines stays primary text-only");
+check(!/<button type="button" id="btnVerifyReviewedLines"[^>]*>\s*<svg/.test(html) && !/<button type="button" id="btnSetSourceReference"[^>]*>\s*<svg/.test(js), "Composition action buttons no longer embed leading icons");
+check(css.includes(".ea-btn--primary") && css.includes(".ea-btn--secondary") && css.includes(".ea-btn--soft") && css.includes(".ea-btn--quiet") && css.includes(".ea-btn--danger") && css.includes(".ea-btn--icon"), "scoped button system defines every approved variant");
 check(js.includes('id="sourceReferenceBulkClose"') && js.includes("source-reference-bulk-heading"), "bulk header uses a flexible title wrapper with close last");
 check(css.includes(".source-reference-bulk-heading") && css.includes("flex: 1 1 auto") && css.includes("min-width: 0"), "bulk heading lets the close button sit at the far right");
 check(!js.includes("globalThis.confirm") && js.includes('idPrefix: "sourceReferenceDiscard"'), "discard uses a nested in-page confirmation");
 check(js.includes("event.stopImmediatePropagation()") && js.includes('cancelLabel: "Keep editing"'), "nested confirmation captures Escape before the bulk dialog");
 check(js.includes('if ($("sourceReferenceDiscardBackdrop") || openQcConfirm.showing === true) return;'), "bulk keydown yields while nested discard confirm is open");
-check(js.includes("const allowed = canWrite();") && !js.includes("const allowed = canWrite() && !state.busy;"), "Approve reviewed lines is not gated on state.busy");
+check(js.includes("canWrite() && !batchRunning") && !js.includes("const allowed = canWrite() && !state.busy;"), "Approve reviewed lines locks for batch apply and is not gated on state.busy");
+check(js.includes('id="sourceReferenceInlinePrompt"') && js.includes('hidden') && js.includes("bulk.inlinePrompt"), "inline prompt stays in the toolbar but is hidden when empty");
+check(!js.includes('id="sourceReferenceButtonReason"') && js.includes('title="${escapeHtml(reason)}"'), "source-reference reason is tooltip-only");
 
 const fixtureLines = Array.from({ length: 80 }, (_, index) => ({
   source_composition_line_id: 1000 + index,
@@ -112,6 +122,8 @@ globalThis.__ux91 = {
   selectWorkflowTab,
   openSourceReferenceBulkDialog,
   requestCloseSourceReferenceBulkDialog,
+  renderComposition,
+  syncCompositionFilterControls,
   state,
   access,
 };
@@ -234,12 +246,107 @@ try {
     await page.waitForSelector("#compositionTableBody tr.composition-table-row");
 
     check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}px at 125%: toolbar/table create no horizontal page scroll`);
-    check(await page.locator("#compositionTableScroll").evaluate((el) => getComputedStyle(el).overflowX === "hidden" && document.documentElement.scrollWidth <= innerWidth), `${width}px at 125%: table scroller clips horizontal overflow without page scroll`);
+    check(await page.locator("#compositionTableScroll").evaluate((el) => getComputedStyle(el).overflowX === "hidden" && getComputedStyle(el).overflowY === "auto" && getComputedStyle(el).scrollbarGutter !== "stable" && document.documentElement.scrollWidth <= innerWidth), `${width}px at 125%: table scroller clips horizontal overflow with overflow-y:auto`);
+    check(await page.evaluate(() => {
+      const style = getComputedStyle(document.querySelector("#workspaceScroll"));
+      return style.overflow === "hidden" || style.overflowY === "hidden";
+    }), `${width}px: Composition tab keeps #workspaceScroll non-scrolling`);
     check(await page.locator(".composition-table th").first().evaluate((el) => { const s = getComputedStyle(el); return s.position === "sticky" && s.top === "0px" && s.backgroundColor !== "rgba(0, 0, 0, 0)"; }), `${width}px at 125%: table header is computed sticky and opaque`);
     check(await page.locator("#compositionToolbar").evaluate((host) => {
       const items = [...host.children].filter((el) => getComputedStyle(el).display !== "none").map((el) => el.getBoundingClientRect());
       return items.every((a, i) => items.every((b, j) => i === j || a.right <= b.left + 1 || b.right <= a.left + 1 || a.bottom <= b.top + 1 || b.bottom <= a.top + 1));
     }), `${width}px at 125%: toolbar actions wrap without overlap`);
+    check(await page.evaluate(() => {
+      const prompt = document.querySelector("#sourceReferenceInlinePrompt");
+      return prompt instanceof HTMLElement && prompt.hidden === true && prompt.offsetParent === null;
+    }), `${width}px: empty source-reference inline prompt is hidden and takes no space`);
+    check(await page.evaluate(() => {
+      const icon = document.querySelector("#wf-tab-composition .composition-info-icon");
+      const glyph = document.querySelector("#wf-tab-composition .composition-info-glyph");
+      const tab = document.querySelector("#wf-tab-composition");
+      if (!icon || !glyph || !tab) return false;
+      const ir = icon.getBoundingClientRect();
+      const gr = glyph.getBoundingClientRect();
+      const tr = tab.getBoundingClientRect();
+      const visible = ir.width > 0 && ir.height > 0 && gr.width >= 15 && gr.height >= 15;
+      const notClipped = ir.left >= tr.left - 1 && ir.right <= tr.right + 1 && ir.top >= tr.top - 1 && ir.bottom <= tr.bottom + 1;
+      return visible && notClipped && getComputedStyle(icon).color !== "rgba(0, 0, 0, 0)";
+    }), `${width}px at 125%: Composition helper icon has non-zero size and is not clipped`);
+    check(await page.evaluate(() => {
+      const set = document.querySelector("#btnSetSourceReference");
+      const approve = document.querySelector("#btnVerifyReviewedLines");
+      const row = document.querySelector(".composition-toolbar-action-row");
+      if (!set || !approve || !row) return false;
+      const sr = set.getBoundingClientRect();
+      const ar = approve.getBoundingClientRect();
+      return Math.abs(sr.top - ar.top) <= 1
+        && Math.abs(sr.height - ar.height) <= 1
+        && getComputedStyle(row).alignItems === "center"
+        && set.classList.contains("ea-btn--soft")
+        && approve.classList.contains("ea-btn--primary");
+    }), `${width}px at 125%: Set soft and Approve primary share identical height/top in the action row`);
+
+    check(await page.evaluate(() => {
+      const api = globalThis.__ux91;
+      api.state.compositionView.reviewLens = "all";
+      api.state.compositionView.attention = "all";
+      api.syncCompositionFilterControls();
+      const badge = document.querySelector("#compositionFilterBadge");
+      const title = document.querySelector("#compositionFilterTitle")?.textContent || "";
+      const label = document.querySelector("#compositionFilterBtn")?.getAttribute("aria-label") || "";
+      return badge?.hidden === true && title === "Filters (0)" && label === "Filters, 0 active";
+    }), `${width}px: funnel badge hidden at 0 active filters`);
+    check(await page.evaluate(() => {
+      const api = globalThis.__ux91;
+      api.state.compositionView.reviewLens = "pending";
+      api.state.compositionView.attention = "all";
+      api.syncCompositionFilterControls();
+      const badge = document.querySelector("#compositionFilterBadge");
+      return badge?.hidden === false && badge.getBoundingClientRect().width >= 6 && (document.querySelector("#compositionFilterTitle")?.textContent || "") === "Filters (1)" && (document.querySelector("#compositionFilterBtn")?.getAttribute("aria-label") || "") === "Filters, 1 active";
+    }), `${width}px: funnel shows amber dot at 1 active filter`);
+    check(await page.evaluate(() => {
+      const api = globalThis.__ux91;
+      api.state.compositionView.reviewLens = "pending";
+      api.state.compositionView.attention = "issues";
+      api.syncCompositionFilterControls();
+      const badge = document.querySelector("#compositionFilterBadge");
+      return badge?.hidden === false && (document.querySelector("#compositionFilterTitle")?.textContent || "") === "Filters (2)" && (document.querySelector("#compositionFilterBtn")?.getAttribute("aria-label") || "") === "Filters, 2 active";
+    }), `${width}px: funnel keeps amber dot at 2 active filters`);
+
+    if (width === 683) {
+      check(await page.evaluate(() => {
+        const set = document.querySelector("#btnSetSourceReference")?.getBoundingClientRect();
+        const approve = document.querySelector("#btnVerifyReviewedLines")?.getBoundingClientRect();
+        if (!set || !approve) return false;
+        const sameRow = Math.abs(set.top - approve.top) <= 1;
+        const leftRight = set.right <= approve.left + 1;
+        const singleLine = set.height <= 42 && approve.height <= 42;
+        return sameRow && leftRight && singleLine;
+      }), `${width}px at 125%: Set source reference left and Approve reviewed lines right on one non-wrapping row`);
+    }
+
+    await page.evaluate((threeLines) => {
+      const api = globalThis.__ux91;
+      api.state.compositionView.reviewLens = "all";
+      api.state.compositionView.attention = "all";
+      api.syncCompositionFilterControls();
+      api.state.lines = threeLines;
+      api.state.compositionView.renderedCount = 40;
+      api.renderComposition({ resetChunk: true });
+    }, fixtureLines.slice(0, 3));
+    await page.waitForFunction(() => document.querySelectorAll("#compositionTableBody tr").length === 3);
+    check(await page.locator("#compositionTableScroll").evaluate((el) => {
+      const style = getComputedStyle(el);
+      const borderX = (parseFloat(style.borderLeftWidth) || 0) + (parseFloat(style.borderRightWidth) || 0);
+      return el.scrollHeight <= el.clientHeight && el.offsetWidth - el.clientWidth <= borderX + 0.5;
+    }), `${width}px: with 3 fixture rows the table scroller has no vertical scroll bar`);
+
+    await page.evaluate((allLines) => {
+      const api = globalThis.__ux91;
+      api.state.lines = allLines;
+      api.renderComposition({ resetChunk: true });
+    }, fixtureLines);
+    await page.waitForFunction(() => document.querySelectorAll("#compositionTableBody tr").length === 40);
 
     await page.locator("#compositionFilterBtn").click();
     check(await page.locator("#compositionFilterBtn").getAttribute("aria-expanded") === "true", `${width}px: filter drawer opens and updates aria-expanded`);
@@ -253,6 +360,13 @@ try {
     });
     await page.waitForFunction(() => document.querySelectorAll("#compositionTableBody tr").length === 80);
     check(await page.locator("#compositionTableBody tr").count() === 80, `${width}px: progressive scroll appends the next 40 rows`);
+    check(await page.locator("#compositionTableScroll").evaluate((el) => {
+      const style = getComputedStyle(el);
+      const borderX = (parseFloat(style.borderLeftWidth) || 0) + (parseFloat(style.borderRightWidth) || 0);
+      const classicBar = el.offsetWidth - el.clientWidth > borderX + 0.5;
+      // Headless Chromium may use overlay scrollbars (no width), so overflow height is the durable signal.
+      return el.scrollHeight > el.clientHeight && (classicBar || el.scrollHeight - el.clientHeight > 40);
+    }), `${width}px: with 80 fixture rows the table scroller shows a vertical scroll bar`);
 
     await page.locator('#compositionTableBody tr[data-line-id="1040"]').focus();
     await page.keyboard.press("ArrowDown");

@@ -1276,8 +1276,12 @@ function syncCompositionFilterControls() {
   const badge = $("compositionFilterBadge");
   if (badge) {
     badge.hidden = count === 0;
-    badge.textContent = String(count);
+    badge.textContent = "";
   }
+  const filterBtn = $("compositionFilterBtn");
+  if (filterBtn) filterBtn.setAttribute("aria-label", `Filters, ${count} active`);
+  const title = $("compositionFilterTitle");
+  if (title) title.textContent = `Filters (${count})`;
   const clear = $("btnClearCompositionFiltersDrawer");
   if (clear) clear.disabled = !compositionFiltersAreActive(state.compositionView);
 }
@@ -1534,10 +1538,20 @@ function renderWorkflowNav() {
   host.innerHTML = workflowStagesWithQc().map((stage) => {
     const selected = state.tab === stage.id;
     const complete = stage.id === "qc" ? false : workflowStageComplete(stage.id, ctx);
-    return `<button type="button" class="workflow-step${complete ? " is-complete" : ""}" role="tab" id="wf-tab-${escapeHtml(stage.id)}" data-tab="${escapeHtml(stage.id)}" aria-controls="tab-${escapeHtml(stage.id)}" aria-selected="${selected ? "true" : "false"}" tabindex="${selected ? "0" : "-1"}">
+    const compositionHint = stage.id === "composition"
+      ? ' aria-describedby="compositionActionHint"'
+      : "";
+    const label = stage.id === "composition"
+      ? `<span>${escapeHtml(stage.label)}</span><span class="composition-info-icon" aria-hidden="true"><span class="composition-info-glyph">i</span></span>`
+      : `<span>${escapeHtml(stage.label)}</span>`;
+    const button = `<button type="button" class="workflow-step${complete ? " is-complete" : ""}" role="tab" id="wf-tab-${escapeHtml(stage.id)}" data-tab="${escapeHtml(stage.id)}" aria-controls="tab-${escapeHtml(stage.id)}" aria-selected="${selected ? "true" : "false"}" tabindex="${selected ? "0" : "-1"}"${compositionHint}>
       <span class="step-no">${escapeHtml(String(stage.step))}</span>
-      <span>${escapeHtml(stage.label)}</span>
+      ${label}
     </button>`;
+    const tooltip = stage.id === "composition"
+      ? `<span id="compositionActionHint" class="composition-info-tooltip" role="tooltip">Changes save automatically. Verify when the section is correct.</span>`
+      : "";
+    return `${button}${tooltip}`;
   }).join("");
 }
 
@@ -2300,10 +2314,10 @@ function sourceReferenceToolbarHtml() {
           ? "e-Aushadhi Automation Verifier permission is required."
           : "";
   const disabled = bulk.loading || !preview || Boolean(reason);
+  const prompt = bulk.inlinePrompt;
   return `<div class="composition-reference-toolbar">
-    <button type="button" id="btnSetSourceReference" class="icon-btn with-label ea-btn ea-btn--secondary"${disabled ? " disabled" : ""}${reason ? ` title="${escapeHtml(reason)}"` : ""}><svg class="ea-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M3 2.5h7.5A2.5 2.5 0 0 1 13 5v8.5H5.5A2.5 2.5 0 0 1 3 11V2.5Zm0 8.5a2.5 2.5 0 0 1 2.5-2.5H13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"></path></svg>Set source reference</button>
-    ${reason ? `<span id="sourceReferenceButtonReason" class="muted-note">${escapeHtml(reason)}</span>` : ""}
-    ${bulk.inlinePrompt ? `<span id="sourceReferenceInlinePrompt" class="muted-note">${Number(bulk.inlinePrompt.count)} other lines have no reference. <button type="button" class="text-btn" data-source-reference-prompt>Apply this to them?</button></span>` : ""}
+    <button type="button" id="btnSetSourceReference" class="icon-btn with-label ea-btn ea-btn--soft"${disabled ? " disabled" : ""}${reason ? ` title="${escapeHtml(reason)}"` : ""}>Set source reference</button>
+    <span id="sourceReferenceInlinePrompt" class="muted-note"${prompt ? "" : " hidden"}>${prompt ? `${Number(prompt.count)} other lines have no reference. <button type="button" class="text-btn" data-source-reference-prompt>Apply this to them?</button>` : ""}</span>
   </div>`;
 }
 
@@ -2312,11 +2326,16 @@ function renderCompositionToolbarActions() {
   if (host) host.innerHTML = sourceReferenceToolbarHtml();
   const approve = $("btnVerifyReviewedLines");
   if (approve) {
-    const allowed = canWrite();
+    const batchRunning = state.sourceReferenceBulk.applying === true;
+    const allowed = canWrite() && !batchRunning;
     approve.disabled = !allowed;
-    approve.classList.toggle("ea-btn--primary", allowed);
-    approve.classList.toggle("ea-btn--secondary", !allowed);
-    approve.title = allowed ? "" : "e-Aushadhi Automation permission is required.";
+    approve.classList.toggle("ea-btn--primary", canWrite());
+    approve.classList.toggle("ea-btn--secondary", !canWrite());
+    approve.title = !canWrite()
+      ? "e-Aushadhi Automation permission is required."
+      : batchRunning
+        ? "An action is already in progress."
+        : "";
   }
 }
 
@@ -2337,12 +2356,8 @@ function sourceReferenceLineRelation(line, target) {
   const wanted = safeText(target).trim();
   if (!current) return "BLANK";
   if (current === wanted) return "SAME";
-  const normalizeAlias = (value) => value
-    .normalize("NFKC")
-    .toLocaleLowerCase()
-    .replace(/[\p{P}]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  // Mirror regulatory.normalize_controlled_term_alias: trim, collapse whitespace, lowercase.
+  const normalizeAlias = (value) => value.trim().replace(/\s+/g, " ").toLowerCase();
   if (normalizeAlias(current) === normalizeAlias(wanted)) return "RESPELL";
   return "DIFFERENT";
 }
@@ -2611,6 +2626,7 @@ async function applySourceReferenceBulk() {
     confirm_replace_different: sourceReferenceLineRelation(line, target) === "DIFFERENT",
   }));
   bulk.applying = true;
+  renderCompositionToolbarActions();
   renderSourceReferenceBulkDialog();
   try {
     const result = await setSourceReferenceBulk({ productId: preview.product_id, requestId: bulk.requestId, referenceText: target, allowNewWording: bulk.allowNew, reason, lines: payload });
@@ -2644,6 +2660,7 @@ async function applySourceReferenceBulk() {
     }
   } finally {
     bulk.applying = false;
+    renderCompositionToolbarActions();
     if ($("sourceReferenceBulkDialog")) renderSourceReferenceBulkDialog();
   }
 }

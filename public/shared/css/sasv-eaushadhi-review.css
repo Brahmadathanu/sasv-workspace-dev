@@ -526,6 +526,7 @@ body.sasv-eaushadhi-review .workflow-nav {
   display: flex;
   gap: 2px;
   overflow-x: auto;
+  overflow-y: visible;
   margin-bottom: 8px;
   padding: 3px;
   border: 1px solid var(--sasv-border);
@@ -746,10 +747,34 @@ body.sasv-eaushadhi-review .composition-table-wrap {
   min-height: 180px;
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-gutter: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--sasv-border);
   border-radius: var(--sasv-radius-md);
   background: var(--sasv-surface);
+}
+
+/* Composition tab: only the table scroller scrolls; workspace does not. */
+body.sasv-eaushadhi-review.ea-mode-product:has(#tab-composition:not([hidden])) .workspace-scroll {
+  overflow: hidden;
+}
+
+body.sasv-eaushadhi-review #tab-composition:not([hidden]) {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.sasv-eaushadhi-review #tab-composition .composition-portal-execution {
+  flex: 0 0 auto;
+}
+
+body.sasv-eaushadhi-review #tab-composition .composition-table-wrap {
+  flex: 1 1 auto;
+  min-height: 180px;
+  max-height: none;
 }
 
 body.sasv-eaushadhi-review .composition-table {
@@ -908,8 +933,17 @@ body.sasv-eaushadhi-review .composition-line-summary-chips {
 body.sasv-eaushadhi-review .composition-reference-toolbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--sasv-space-2);
-  margin-bottom: var(--sasv-space-2);
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .composition-toolbar-actions .composition-reference-toolbar {
+  margin-bottom: 0;
+}
+
+body.sasv-eaushadhi-review #sourceReferenceInlinePrompt[hidden] {
+  display: none !important;
 }
 
 body.sasv-eaushadhi-review .source-reference-bulk-heading {
@@ -972,6 +1006,17 @@ body.sasv-eaushadhi-review .ea-btn--secondary:not(:disabled):hover {
   background: var(--sasv-action-secondary-hover);
 }
 
+body.sasv-eaushadhi-review .ea-btn--soft {
+  color: var(--sasv-action-primary);
+  background: var(--sasv-action-primary-soft);
+  border: 1px solid var(--sasv-action-primary-soft-border);
+}
+
+body.sasv-eaushadhi-review .ea-btn--soft:not(:disabled):hover {
+  background: var(--sasv-action-primary-soft);
+  filter: brightness(0.97);
+}
+
 body.sasv-eaushadhi-review .ea-btn--quiet {
   color: var(--sasv-action-primary);
   background: transparent;
@@ -996,6 +1041,7 @@ body.sasv-eaushadhi-review .ea-btn--icon {
 
 body.sasv-eaushadhi-review .composition-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -1004,15 +1050,32 @@ body.sasv-eaushadhi-review .composition-toolbar {
 }
 
 body.sasv-eaushadhi-review .composition-toolbar > .search-wrap {
-  flex: 1 1 320px;
-  min-width: 180px;
+  flex: 1 1 220px;
+  min-width: 160px;
+}
+
+body.sasv-eaushadhi-review .composition-toolbar-action-row {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
 }
 
 body.sasv-eaushadhi-review .composition-toolbar-actions {
   display: flex;
   align-items: center;
+  gap: 8px;
   min-width: 0;
-  margin-left: auto;
+  margin-left: 0;
+}
+
+body.sasv-eaushadhi-review #btnSetSourceReference,
+body.sasv-eaushadhi-review #btnVerifyReviewedLines {
+  white-space: nowrap;
+  flex: 0 0 auto;
+  min-height: var(--sasv-control-md);
 }
 
 body.sasv-eaushadhi-review #compositionFilterBtn {
@@ -1022,29 +1085,48 @@ body.sasv-eaushadhi-review #compositionFilterBtn {
 
 body.sasv-eaushadhi-review .composition-filter-badge {
   position: absolute;
-  top: -5px;
-  right: -5px;
-  min-width: 17px;
-  height: 17px;
-  padding-inline: 4px;
-  border-radius: 9px;
-  color: #fff;
-  background: var(--sasv-action-primary);
-  font-size: 10px;
-  line-height: 17px;
-  text-align: center;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  padding: 0;
+  border-radius: 50%;
+  color: transparent;
+  background: var(--sasv-warning);
+  font-size: 0;
+  line-height: 0;
+  overflow: hidden;
+}
+
+body.sasv-eaushadhi-review #wf-tab-composition {
+  overflow: visible;
 }
 
 body.sasv-eaushadhi-review .composition-info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 2px;
+  flex: 0 0 auto;
+  color: var(--sasv-text-muted);
+  vertical-align: middle;
+}
+
+body.sasv-eaushadhi-review .composition-info-glyph {
   display: inline-grid;
   place-items: center;
-  width: 15px;
-  height: 15px;
-  margin-left: 4px;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
   border: 1px solid currentColor;
   border-radius: 50%;
-  font-size: 10px;
+  font-size: 11px;
   font-style: normal;
+  font-weight: var(--sasv-fw-semibold);
+  line-height: 1;
 }
 
 body.sasv-eaushadhi-review .composition-info-tooltip {
@@ -1063,7 +1145,8 @@ body.sasv-eaushadhi-review .composition-info-tooltip {
 }
 
 body.sasv-eaushadhi-review #wf-tab-composition:hover + .composition-info-tooltip,
-body.sasv-eaushadhi-review #wf-tab-composition:focus-visible + .composition-info-tooltip {
+body.sasv-eaushadhi-review #wf-tab-composition:focus-visible + .composition-info-tooltip,
+body.sasv-eaushadhi-review #wf-tab-composition:focus + .composition-info-tooltip {
   opacity: 1;
 }
 
@@ -1994,19 +2077,16 @@ body.sasv-eaushadhi-review .action-vocab-item {
 }
 
 @media (max-width: 1100px) {
-  body.sasv-eaushadhi-review .composition-toolbar {
-    flex-wrap: wrap;
-  }
-  body.sasv-eaushadhi-review .composition-toolbar-actions {
-    order: 4;
-    flex: 1 1 auto;
-    margin-left: 0;
-  }
-  body.sasv-eaushadhi-review #btnVerifyReviewedLines {
-    order: 5;
-  }
   body.sasv-eaushadhi-review .composition-col-botanical {
     display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  /* Too narrow for both action buttons: stack Set then Approve; order unchanged. */
+  body.sasv-eaushadhi-review .composition-toolbar-action-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
@@ -2069,15 +2149,14 @@ body.sasv-eaushadhi-review .action-vocab-item {
   body.sasv-eaushadhi-review .composition-toolbar > .search-wrap {
     flex-basis: calc(100% - var(--sasv-control-md) - 8px);
   }
-  body.sasv-eaushadhi-review .composition-toolbar-actions,
-  body.sasv-eaushadhi-review #btnVerifyReviewedLines {
-    flex: 1 1 auto;
-  }
   body.sasv-eaushadhi-review .composition-reference-toolbar {
     flex-wrap: wrap;
   }
   body.sasv-eaushadhi-review .composition-table-wrap {
     max-height: calc(100vh - 350px);
+  }
+  body.sasv-eaushadhi-review #tab-composition .composition-table-wrap {
+    max-height: none;
   }
   body.sasv-eaushadhi-review .composition-table th,
   body.sasv-eaushadhi-review .composition-table td {
