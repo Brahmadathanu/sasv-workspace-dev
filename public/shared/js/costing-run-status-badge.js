@@ -2,8 +2,9 @@
 // Reads public.v_costing_pricing_period_run_status (one row per month). Pure helpers are exported for tests.
 // When COSTING_APPROVAL_SCREEN_V1 is ON, prefer server display_label_v2 / official & draft dates.
 
-import { isCostingApprovalScreenV1Enabled, isCostingRecalcWithDateV1Enabled } from "./costing-feature-flags.js";
+import { isCostingApprovalScreenV1Enabled, isCostingRecalcWithDateV1Enabled, isCostingUxConsistencyV1Enabled } from "./costing-feature-flags.js";
 import { describeRunStatusForApprovalFlag } from "./costing-approval-labels.js";
+import { costingRunBadgeDisplayLabel } from "./costing-status-labels.js";
 
 export const RUN_STATUS_VIEW = "v_costing_pricing_period_run_status";
 
@@ -116,9 +117,13 @@ export function createRunStatusBadge({ supabase, anchor, doc = globalThis.docume
     try {
       const row = periodStatusRow === undefined ? await fetchRow(periodStart) : periodStatusRow;
       if (my !== generation) return;
-      const info = isCostingApprovalScreenV1Enabled()
+      const approvalOn = isCostingApprovalScreenV1Enabled();
+      const info = approvalOn
         ? describeRunStatusForApprovalFlag(row)
         : describeRunStatus(row);
+      if (isCostingUxConsistencyV1Enabled() && !approvalOn) {
+        info.text = costingRunBadgeDisplayLabel(info.text);
+      }
       applyRunStatusBadge(node, info, true);
     } catch (err) {
       if (my !== generation) return;

@@ -18,6 +18,7 @@ import {
   isCostingLockScreenV1Enabled,
   isCostingRecalcWithDateV1Enabled,
   isCostingRunStatusV1Enabled,
+  isCostingUxConsistencyV1Enabled,
 } from "../../public/shared/js/costing-feature-flags.js";
 import { FORBIDDEN_RPCS } from "../../public/shared/js/costing-approval-screen.js";
 
@@ -111,13 +112,14 @@ test("lock flag accepts exactly string 1", () => {
   assert.equal(isCostingLockScreenV1Enabled({ getItem: () => "1" }), true);
   for (const value of ["0", 1, true, "true"]) assert.equal(isCostingLockScreenV1Enabled({ getItem: () => value }), false);
 });
-test("all sixteen costing flag combinations stay independent", () => {
-  for (let bits = 0; bits < 16; bits += 1) {
-    const storage = { getItem: (key) => ({ COSTING_LOCK_SCREEN_V1: bits & 1 ? "1" : null, COSTING_APPROVAL_SCREEN_V1: bits & 2 ? "1" : null, COSTING_RECALC_WITH_DATE_V1: bits & 4 ? "1" : null, COSTING_RUN_STATUS_V1: bits & 8 ? "1" : null })[key] };
+test("all thirty-two costing flag combinations stay independent", () => {
+  for (let bits = 0; bits < 32; bits += 1) {
+    const storage = { getItem: (key) => ({ COSTING_LOCK_SCREEN_V1: bits & 1 ? "1" : null, COSTING_APPROVAL_SCREEN_V1: bits & 2 ? "1" : null, COSTING_RECALC_WITH_DATE_V1: bits & 4 ? "1" : null, COSTING_RUN_STATUS_V1: bits & 8 ? "1" : null, COSTING_UX_CONSISTENCY_V1: bits & 16 ? "1" : null })[key] };
     assert.equal(isCostingLockScreenV1Enabled(storage), Boolean(bits & 1));
     assert.equal(isCostingApprovalScreenV1Enabled(storage), Boolean(bits & 2));
     assert.equal(isCostingRecalcWithDateV1Enabled(storage), Boolean(bits & 4));
     assert.equal(isCostingRunStatusV1Enabled(storage), Boolean(bits & 8));
+    assert.equal(isCostingUxConsistencyV1Enabled(storage), Boolean(bits & 16));
   }
 });
 test("quarter grouping uses period text", () => { assert.equal(quarterLabel("2026-09-01"), "2026 Q3"); assert.equal(quarterLabel("2026-10-01"), "2026 Q4"); });
@@ -140,4 +142,4 @@ test("successful lock keeps Submit disabled until either dialog mode is reopened
 test("a successful retry clears the previous attempt error", async () => { let attempt = 0; const h = harness({ rpcImpl: async () => (++attempt === 1 ? { data: null, error: { message: "W2_ACTIVE_RUN: wait" } } : { data: { period_start: "2026-09-01", approved_run: 122, official_valuation_date: "2026-09-30", audit_id: 1 }, error: null }) }); h.ctrl.openSingle("2026-09-01"); await h.ctrl.submit(); assert.equal(h.ids.clsFormError.hidden, false); await h.ctrl.submit(); assert.equal(h.ids.clsFormError.hidden, true); assert.equal(h.ids.clsFormError.textContent, ""); assert.equal(h.ids.clsResult.hidden, false); });
 test("lock panel inserts before the run-status panel when available", () => { const h = markupHarness(); h.ctrl.mount(); assert.deepEqual(h.inserts[0] && { id: h.inserts[0].id, position: h.inserts[0].position }, { id: "costingRunStatusPanel", position: "beforebegin" }); assert.match(h.inserts[0].markup, /id="costingLockPanel"/); });
 test("lock panel falls back to after the approval panel", () => { const h = markupHarness({ withRunStatus: false }); h.ctrl.mount(); assert.deepEqual(h.inserts[0] && { id: h.inserts[0].id, position: h.inserts[0].position }, { id: "costingApprovalPanel", position: "afterend" }); assert.match(h.inserts[0].markup, /id="costingLockPanel"/); });
-test("source contains no Date arithmetic or owner call and preserves OFF safety contracts", () => { const src = read("public/shared/js/costing-lock-screen.js"); assert.doesNotMatch(src, /new Date|Date\.now|get.*owner|is.*owner/i); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.batch)); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.single)); const sw = read("public/sw.js"); assert.match(sw, /hub-cache-v380/); const html = read("public/shared/costing-control-center.html"); assert.doesNotMatch(html, /costingLockPanel|costingLockDialog/); const shell = read("public/shared/js/costing-suite-shell.js"); assert.match(shell, /const costingLockScreenCtrl = isCostingLockScreenV1Enabled\(\)/); });
+test("source contains no Date arithmetic or owner call and preserves OFF safety contracts", () => { const src = read("public/shared/js/costing-lock-screen.js"); assert.doesNotMatch(src, /new Date|Date\.now|get.*owner|is.*owner/i); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.batch)); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.single)); const sw = read("public/sw.js"); assert.match(sw, /hub-cache-v381/); const html = read("public/shared/costing-control-center.html"); assert.doesNotMatch(html, /costingLockPanel|costingLockDialog/); const shell = read("public/shared/js/costing-suite-shell.js"); assert.match(shell, /const costingLockScreenCtrl = isCostingLockScreenV1Enabled\(\)/); });
