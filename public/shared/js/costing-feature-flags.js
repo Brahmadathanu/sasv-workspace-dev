@@ -42,3 +42,13 @@ export function isCostingRunStatusV1Enabled(storage = globalThis.localStorage) {
     return false;
   }
 }
+
+export const COSTING_UX_CONSISTENCY_V1 = "COSTING_UX_CONSISTENCY_V1";
+
+export function isCostingUxConsistencyV1Enabled(storage = globalThis.localStorage) {
+  try {
+    return storage?.getItem?.(COSTING_UX_CONSISTENCY_V1) === "1";
+  } catch {
+    return false;
+  }
+}

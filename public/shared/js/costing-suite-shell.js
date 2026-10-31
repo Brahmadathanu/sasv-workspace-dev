@@ -60,7 +60,8 @@ import {
   isPortfolioReadinessLens,
 } from "./costing-suite-readiness.js";
 import { createCostPeriodValuationController } from "./costing-suite-cost-period-valuation.js";
-import { isCostingApprovalScreenV1Enabled, isCostingLockScreenV1Enabled, isCostingRecalcWithDateV1Enabled, isCostingRunStatusV1Enabled } from "./costing-feature-flags.js";
+import { isCostingApprovalScreenV1Enabled, isCostingLockScreenV1Enabled, isCostingRecalcWithDateV1Enabled, isCostingRunStatusV1Enabled, isCostingUxConsistencyV1Enabled } from "./costing-feature-flags.js";
+import { costingIssueDisplayLabel, costingStatusDisplayLabel } from "./costing-status-labels.js";
 import { createCostingApprovalScreenController } from "./costing-approval-screen.js";
 import { createCostingLockScreenController } from "./costing-lock-screen.js";
 import { createCostingRunStatusScreenController } from "./costing-run-status-screen.js";
@@ -2427,7 +2428,6 @@ async function drillToCostingTarget(moduleKey, lensId, filters = {}) {
 let LENSES = buildActiveLenses();
 
 const VIEW_BY_LENS = {
-  dashboard: "v_costing_pricing_dashboard_summary",
   "sku-cost-sheet": "v_costing_pricing_sku_selector",
   "printable-cost-sheet": "v_costing_pricing_printable_cost_sheet_lines",
   // W1: one governed run per month (approved, else labelled draft); never mixes runs.
@@ -3295,14 +3295,20 @@ function laneClass(row) {
 
 function statusChip(status) {
   if (!status) return '<span class="status-chip gray">--</span>';
-  return `<span class="status-chip ${getStatusClass(status)}">${text(status)}</span>`;
+  const label = isCostingUxConsistencyV1Enabled()
+    ? costingStatusDisplayLabel(status)
+    : status;
+  return `<span class="status-chip ${getStatusClass(status)}">${text(label)}</span>`;
 }
 
 function compactStatusText(status) {
   if (!status)
     return '<span class="status-chip gray cp-status-chip-compact">--</span>';
   const cls = getStatusClass(status);
-  return `<span class="status-chip ${cls} cp-status-chip-compact">${text(status)}</span>`;
+  const label = isCostingUxConsistencyV1Enabled()
+    ? costingStatusDisplayLabel(status)
+    : status;
+  return `<span class="status-chip ${cls} cp-status-chip-compact">${text(label)}</span>`;
 }
 
 function marginBandChip(value) {
@@ -3319,6 +3325,7 @@ function marginBandChip(value) {
 
 function issueCodeLabel(code) {
   if (!code) return "--";
+  if (isCostingUxConsistencyV1Enabled()) return costingIssueDisplayLabel(code);
   return String(code).replace(/_/g, " ");
 }
 

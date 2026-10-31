@@ -5,7 +5,8 @@
  * severity precedence, portfolio totals, or writer invocation.
  */
 
-import { isCostingRecalcWithDateV1Enabled } from "./costing-feature-flags.js";
+import { isCostingRecalcWithDateV1Enabled, isCostingUxConsistencyV1Enabled } from "./costing-feature-flags.js";
+import { costingIssueDisplayLabel } from "./costing-status-labels.js";
 import { periodDateLabels } from "./costing-recalculation.js";
 
 export const PORTFOLIO_READINESS_LENS_ID = "portfolio-readiness";
@@ -583,7 +584,16 @@ function severityChipClass(severity) {
 function formatLabel(code) {
   const raw = normalizeCode(code);
   if (!raw) return "—";
+  if (isCostingUxConsistencyV1Enabled()) return costingIssueDisplayLabel(raw);
   return raw.replaceAll("_", " ");
+}
+
+function displayStatusText(value) {
+  return text(
+    isCostingUxConsistencyV1Enabled()
+      ? costingIssueDisplayLabel(value)
+      : value,
+  );
 }
 
 function boolLabel(value) {
@@ -1852,7 +1862,7 @@ export function createPortfolioReadinessController(deps = {}) {
       <div class="cp-cell-primary">${text(name)}</div>
       <div class="cp-muted-text">SKU ${text(ctx.sku_id)} · Product ${text(
         ctx.product_id,
-      )} · ${text(pack)} · ${text(lifecycle.product_status)} · SKU ${text(
+      )} · ${text(pack)} · ${displayStatusText(lifecycle.product_status)} · SKU ${text(
         boolLabel(lifecycle.sku_is_active),
       )}${
         lifecycle.sku_is_sample ? " · Sample" : ""
@@ -2058,7 +2068,7 @@ export function createPortfolioReadinessController(deps = {}) {
         <div class="cp-readiness-detail-foundations">${foundationChips}</div>
         <div class="cp-readiness-detail-essentials">
           <span>Pack <strong>${text(packLabel)}</strong></span>
-          <span>Product <strong>${text(lifecycle.product_status)}</strong></span>
+          <span>Product <strong>${displayStatusText(lifecycle.product_status)}</strong></span>
           <span>SKU active <strong>${text(
             boolLabel(lifecycle.sku_is_active),
           )}</strong></span>
@@ -2076,10 +2086,10 @@ export function createPortfolioReadinessController(deps = {}) {
         ? periodDateLabels(getPeriodRunStatus(ctx.period_start)).map(([label, value]) => kv(label, text(value)))
         : [kv("Valuation date", text(ctx.valuation_date))]),
       kv("Context type", text(ctx.context_type)),
-      kv("Integrity", text(ctx.context_integrity_status)),
+      kv("Integrity", displayStatusText(ctx.context_integrity_status)),
       kv("Refresh run", text(ctx.refresh_run_id)),
       kv("Evidence refresh run", text(ctx.evidence_refresh_run_id)),
-      kv("Run status", text(ctx.run_status)),
+      kv("Run status", displayStatusText(ctx.run_status)),
     ].join("");
 
     const depsHtml = deps.length
@@ -2145,7 +2155,11 @@ export function createPortfolioReadinessController(deps = {}) {
     const severity = assessmentOverallSeverity(assessment);
     return {
       title: identity.product_name || `SKU ${ctx.sku_id || ""}`,
-      subtitle: `Readiness · ${severity || "—"} · SKU ${ctx.sku_id ?? "—"}`,
+      subtitle: `Readiness · ${
+        isCostingUxConsistencyV1Enabled()
+          ? costingIssueDisplayLabel(severity) || "—"
+          : severity || "—"
+      } · SKU ${ctx.sku_id ?? "—"}`,
       tabs: [{ id: "readiness", label: "Readiness" }],
       activeTab: "readiness",
     };

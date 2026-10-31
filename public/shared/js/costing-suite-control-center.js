@@ -5,6 +5,8 @@ import {
   resolveSkuControlPrimaryMessage,
   resolveSkuControlSecondaryMaterialMessage,
 } from "./costing-suite-recommended-ui-route.js";
+import { isCostingUxConsistencyV1Enabled } from "./costing-feature-flags.js";
+import { costingStatusDisplayLabel } from "./costing-status-labels.js";
 
 export const CONTROL_CENTER_LENS_IDS = [
   "dashboard",
@@ -1012,6 +1014,9 @@ export function createControlCenterController(deps) {
 
   /** Display-only SKU Control Status labels — raw control_severity unchanged. */
   function formatSkuControlStatusDisplayLabel(severity) {
+    if (isCostingUxConsistencyV1Enabled()) {
+      return costingStatusDisplayLabel(severity);
+    }
     const s = normalizeStatus(severity);
     if (s === "BLOCKER" || s === "BLOCKED") return "Blocked";
     if (s === "REVIEW_REQUIRED" || s === "REVIEW") return "Review";
@@ -1903,7 +1908,13 @@ export function createControlCenterController(deps) {
 
     return {
       title: row.stock_item_name || row.stock_item_id || "Material Action",
-      subtitle: [row.material_area, row.action_severity, row.recommended_ui_route]
+      subtitle: [
+        row.material_area,
+        isCostingUxConsistencyV1Enabled()
+          ? costingStatusDisplayLabel(row.action_severity)
+          : row.action_severity,
+        row.recommended_ui_route,
+      ]
         .filter(Boolean)
         .join(" / "),
       tabs,
@@ -1966,7 +1977,13 @@ export function createControlCenterController(deps) {
       title:
         row?.product_name ||
         (row?.product_id != null ? `Product ${row.product_id}` : "SKU Control"),
-      subtitle: [formatSkuPackLabel(row), primaryLabel, row?.control_severity]
+      subtitle: [
+        formatSkuPackLabel(row),
+        primaryLabel,
+        isCostingUxConsistencyV1Enabled()
+          ? costingStatusDisplayLabel(row?.control_severity)
+          : row?.control_severity,
+      ]
         .filter(Boolean)
         .join(" · "),
       tabs,
