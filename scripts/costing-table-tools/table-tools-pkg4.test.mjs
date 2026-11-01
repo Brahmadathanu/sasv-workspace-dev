@@ -9,7 +9,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { costingScopeReport } from "../lib/costing-scope-guard.mjs";
+import { costingScopeReport, applyCw07Labels } from "../lib/costing-scope-guard.mjs";
 import * as tools from "../../public/shared/js/costing-table-tools.js";
 import { readSourceLf } from "../lib/read-source-lf.mjs";
 
@@ -19,7 +19,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const read = (rel) => readSourceLf(root, rel); // LF-normalised: see scripts/lib/read-source-lf.mjs
 const BASE = "2b3f298bdba5f4fa9f1045fe1539a38c58b5c719";
 const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-const readBase = (rel) => git("show", `${BASE}:${rel}`);
+const readBase = (rel) => applyCw07Labels(git("show", `${BASE}:${rel}`)); // CW-07: label rename tolerated, nothing else
 const SHELL = "public/shared/js/costing-suite-shell.js";
 const TOOLS = "public/shared/js/costing-table-tools.js";
 const LOCK = "public/shared/js/costing-lock-screen.js";

@@ -9,7 +9,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { costingScopeReport } from "../lib/costing-scope-guard.mjs";
+import { costingScopeReport, applyCw07Labels } from "../lib/costing-scope-guard.mjs";
 import * as flags from "../../public/shared/js/costing-feature-flags.js";
 import * as worklist from "../../public/shared/js/costing-review-worklist.js";
 import * as tableTools from "../../public/shared/js/costing-table-tools.js";
@@ -38,7 +38,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const read = (rel) => readSourceLf(root, rel); // LF-normalised: see scripts/lib/read-source-lf.mjs
 const BASE = "be20ea68ca4ff35bd0b9aead76438d3cf62e7cfd";
 const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-const readBase = (rel) => git("show", `${BASE}:${rel}`);
+const readBase = (rel) => applyCw07Labels(git("show", `${BASE}:${rel}`)); // CW-07: label rename tolerated, nothing else
 const SHELL = "public/shared/js/costing-suite-shell.js";
 const MODULE = "public/shared/js/costing-review-worklist.js";
 const JS = "public/shared/js";
@@ -581,7 +581,8 @@ test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS
   // Scope guard (WP-07 Bundle B correction): HTML/CSS/supabase/package.json checks cover what Costing owns or
   // depends on (scripts/lib/costing-scope-guard.mjs) instead of the whole repository, so unrelated modules that
   // land on main later (e.g. WP-07 e-Aushadhi HTML/CSS and its own migration) no longer trip this package test.
-  assert.equal(git("diff", BASE, "--", ...protectedFiles), "");
+  // CW-07: costing-route-config.js may differ from the base only by the Cost Sheet label rename (applied to the base text).
+  for (const rel of protectedFiles) assert.equal(read(rel), readBase(rel), rel);
   const scope = costingScopeReport({ git, root, base: BASE });
   assert.deepEqual(scope.supabase, [], "no Costing or history-rewriting supabase change");
   assert.deepEqual(scope.packageJson, [], "package.json unchanged");

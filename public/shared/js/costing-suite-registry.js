@@ -33,7 +33,7 @@ export const COSTING_SUITE_MODULES = [
   },
   {
     id: "cost-sheet-review",
-    label: "Cost Sheet Review & Approval",
+    label: "Cost Sheet Review",
     lensIds: [
       "sku-cost-sheet",
       "printable-cost-sheet",
