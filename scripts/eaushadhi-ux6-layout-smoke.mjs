@@ -44,7 +44,7 @@ check(tokens(newDetails, /<button[\s\S]*?<\/button>/g) === tokens(oldDetails, /<
 const prefix = (s) => s.slice(0, s.indexOf('  host.innerHTML ='));
 check(normalize(prefix(newDetails)) === normalize(prefix(oldDetails)), 'all Details validation and permission decisions unchanged');
 check(css.includes('.reference-mapping-block') && css.includes('.workspace-scroll') && css.includes('overflow: auto;'), 'Composition mapping block and the workspace scroll structure remain styled');
-check(read('public/sw.js').includes('hub-cache-v389'), 'cache remains v389');
+check(read('public/sw.js').includes('hub-cache-v390'), 'cache remains v390');
 check(pageHtml.indexOf('id="compositionToolbar"') < pageHtml.indexOf('id="workspaceScroll"'), 'Composition toolbar remains fixed above the scrolling workspace');
 check(control.includes('event.target.id !== "compositionTableScroll"') && control.includes('state.compositionView.scrollTop = scroll.scrollTop'), 'Composition table owns progressive scroll state');
 check(control.includes('focusCompositionRow(returnId, { scroll: false })') && control.includes('preventScroll: true'), 'row-modal close restores focus without shifting table scroll');

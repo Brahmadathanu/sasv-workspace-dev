@@ -316,7 +316,7 @@ const contract = read("electron/eaushadhi-worker/qc-register-portal-contract.js"
 const executor = read("electron/eaushadhi-worker/qc-prep-run-executor.js");
 check(html.includes(WORKLIST_FALLBACK_TEXT) && html.includes('id="worklistRefresh"'), "error fallback banner and Refresh");
 check(api.includes("fetchWorklist") && api.includes("rpc_eaushadhi_worklist_v1") && api.includes("fetchMyRoles") && api.includes("rpc_eaushadhi_my_roles_v1"), "worklist and roles fetches");
-check(/const CACHE_NAME = "hub-cache-v389"/.test(sw) && sw.includes("// WP-07 e-Aushadhi review UX"), "cache v389");
+check(/const CACHE_NAME = "hub-cache-v390"/.test(sw) && sw.includes("// Costing UX-F1") && sw.includes("v389 was WP-07 e-Aushadhi review UX"), "cache v390 (v389 was WP-07)");
 check(control.includes("UI build UX-1") && control.includes('data-build="UX-1"') && control.includes("createDocumentFragment"), "marker UX-1 and one fragment");
 check(/const NATIVE_SAVE_AUTHORIZED = false/.test(contract), "build flag stays off");
 check(executor.includes("ALREADY_CLICKED") && control.includes('typed.value === "SAVE 262"'), "SAVE phrase and ALREADY_CLICKED remain");
