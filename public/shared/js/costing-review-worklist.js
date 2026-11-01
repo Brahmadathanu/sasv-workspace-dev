@@ -148,11 +148,12 @@ function runLine(runContext) {
 /** HTML for the worklist panel. All server text is escaped. */
 export function renderReviewWorklistHtml(
   groups,
-  { selectedKey = null, runContext = null, runDiagnosis = null, rowCount = null } = {},
+  { selectedKey = null, runContext = null, runDiagnosis = null, rowCount = null, runPicker = null } = {},
 ) {
   const list = Array.isArray(groups) ? groups : [];
   const head = `<div class="rwl-head">
   <div class="rwl-title">Review worklist</div>
+  ${runPicker ? renderReviewWorklistRunPickerHtml(runPicker) : ""}
   <div class="rwl-run">${runLine(runContext)}</div>
   <div class="rwl-frozen">${escapeHtml(REVIEW_WORKLIST_FROZEN_RUN_TEXT)}</div>
   ${runDiagnosis ? renderReviewWorklistRunDiagnosisHtml(runDiagnosis) : ""}
@@ -280,7 +281,7 @@ export function createReviewWorklistRunStatusLoader({ query }) {
  * refresh_run_id / period_start and the server period run status. Only ids are
  * compared; labels and codes are passed through unchanged.
  */
-export function describeReviewWorklistRunContext({ rows, periodStart, runStatus }) {
+export function describeReviewWorklistRunContext({ rows, periodStart, runStatus, selectedRunId = null, runPickerAvailable = false }) {
   const list = Array.isArray(rows) ? rows : [];
   const ctx = reviewWorklistRunContext(list);
   const listRunIds = ctx.runIds;
@@ -300,7 +301,9 @@ export function describeReviewWorklistRunContext({ rows, periodStart, runStatus 
   else if (!row) kind = "status-missing";
   else if (!list.length) kind = "no-rows";
   else if (listRunIds.length > 1) kind = "mixed";
-  else if (displayedRunId && listRunId !== displayedRunId) kind = "mismatch";
+  else if (idText(selectedRunId) && listRunId === idText(selectedRunId) && listRunId !== displayedRunId) {
+    kind = approvedRunId && listRunId === approvedRunId ? "approved" : "selected-not-approved";
+  } else if (displayedRunId && listRunId !== displayedRunId) kind = "mismatch";
   else if (approvedRunId && listRunId === approvedRunId) kind = "approved";
   else kind = "not-approved";
   return Object.freeze({
@@ -320,6 +323,8 @@ export function describeReviewWorklistRunContext({ rows, periodStart, runStatus 
     activeRunId,
     activeRunStatus: row?.active_run_status ?? null,
     error: status === "error" ? runStatus.error : null,
+    selectedRunId: idText(selectedRunId),
+    runPickerAvailable: Boolean(runPickerAvailable),
   });
 }
 
@@ -343,6 +348,10 @@ export function renderReviewWorklistRunDiagnosisHtml(d) {
   if (d.kind === "approved") {
     lines.push(`<div class="rwl-rc-line">These rows are from approved run ${e(d.listRunId)}.</div>`);
   }
+  if (d.kind === "selected-not-approved") {
+    lines.push(`<div class="rwl-rc-line rwl-rc-draft" role="alert"><strong>Draft run ${e(d.listRunId)} — not for pricing.</strong> You are viewing its frozen SKU rows read-only, for diagnosis only. The run in use for this period is run ${e(d.displayedRunId || "--")}.</div>`);
+    lines.push(`<div class="rwl-rc-line rwl-rc-muted">${e(REVIEW_WORKLIST_SELECTED_RUN_DRAWER_TEXT)}</div>`);
+  }
   if (d.kind === "not-approved") {
     lines.push(`<div class="rwl-rc-line rwl-rc-warn">These rows are from run ${e(d.listRunId)}, which is not an approved run.</div>`);
   }
@@ -356,7 +365,8 @@ export function renderReviewWorklistRunDiagnosisHtml(d) {
     lines.push(`<div class="rwl-rc-line rwl-rc-warn" role="alert">Some loaded rows belong to another period than ${e(d.periodStart || "--")}. Reload the period.</div>`);
   }
   if (d.newerDraftRunId && d.newerDraftRunId !== d.listRunId) {
-    lines.push(`<div class="rwl-rc-line">Newer draft run ${e(d.newerDraftRunId)} exists for this period and is not approved. ${e(REVIEW_WORKLIST_DRAFT_UNAVAILABLE_TEXT)}</div>`);
+    const how = d.runPickerAvailable ? REVIEW_WORKLIST_DRAFT_PICKER_TEXT : REVIEW_WORKLIST_DRAFT_UNAVAILABLE_TEXT;
+    lines.push(`<div class="rwl-rc-line">Newer draft run ${e(d.newerDraftRunId)} exists for this period and is not approved. ${e(how)}</div>`);
   }
   if (d.activeRunId) {
     lines.push(`<div class="rwl-rc-line">Run ${e(d.activeRunId)} is ${e(d.activeRunStatus || "in progress")} for this period; its results are not shown until it finishes.</div>`);
@@ -367,4 +377,115 @@ export function renderReviewWorklistRunDiagnosisHtml(d) {
   }
   lines.push(`<div class="rwl-rc-line rwl-rc-muted">${e(REVIEW_WORKLIST_FIX_SCREEN_TEXT)}</div>`);
   return `<div class="rwl-run-context" data-rwl-run-context="${e(d.kind)}">${lines.join("\n")}</div>`;
+}
+
+// ---------------------------------------------------------------------------
+// C1B: read-only run selector. Choices come ONLY from the server's period run
+// status (displayed_run_id, approved_run_id, newer_draft_run_id). Rows for a
+// chosen run are read from the run-scoped view by period AND run id.
+// ---------------------------------------------------------------------------
+
+export const REVIEW_WORKLIST_BY_RUN_VIEW = "v_costing_pricing_sku_control_status_by_run";
+export const REVIEW_WORKLIST_DRAFT_PICKER_TEXT =
+  "Choose it under “Run” above to inspect its frozen SKU rows (read-only, not for pricing).";
+export const REVIEW_WORKLIST_SELECTED_RUN_DRAWER_TEXT =
+  "Row details: the per-line material evidence in the SKU drawer comes from views pinned to the run in use, so it can be empty for this run; the drawer's current-source diagnosis shows today's data, not this run.";
+
+/**
+ * Run choices from one period run-status row. Ids are deduplicated and only
+ * server-advertised ids are offered. The default is displayed_run_id.
+ * Labels use server facts only (approved id, newer-draft id, display_state).
+ */
+export function reviewWorklistRunChoices(statusRow) {
+  if (!statusRow) return Object.freeze([]);
+  const displayed = idText(statusRow.displayed_run_id);
+  const approved = idText(statusRow.approved_run_id);
+  const newerDraft = idText(statusRow.newer_draft_run_id);
+  const state = code(statusRow.display_state);
+  const out = [];
+  const add = (runId) => {
+    if (!runId || out.some((c) => c.runId === runId)) return;
+    let kind;
+    let label;
+    if (approved && runId === approved) {
+      kind = "approved";
+      label = `Run ${runId} — Approved / in use`;
+    } else if (newerDraft && runId === newerDraft) {
+      kind = "draft";
+      label = `Run ${runId} — Draft — not for pricing`;
+    } else if (state === "REFERENCE_NOT_APPROVED") {
+      kind = "reference";
+      label = `Run ${runId} — Reference — not approved`;
+    } else {
+      kind = "draft";
+      label = `Run ${runId} — Draft — not for pricing`;
+    }
+    if (runId === displayed) label += " (shown by default)";
+    out.push(Object.freeze({ runId, kind, label, isDefault: runId === displayed }));
+  };
+  add(displayed);
+  add(approved);
+  add(newerDraft);
+  return Object.freeze(out);
+}
+
+/** True only for an id the server advertised in `choices` (never URL/user input). */
+export function isReviewWorklistRunChoice(choices, runId) {
+  const id = idText(runId);
+  return Boolean(id) && (Array.isArray(choices) ? choices : []).some((c) => c.runId === id);
+}
+
+/**
+ * Rows for a chosen run must all belong to that period and run; anything else
+ * is rejected so a different run is never shown under the chosen label.
+ */
+export function validateReviewWorklistRunRows(rows, { periodStart, runId }) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (!list.length) return Object.freeze({ ok: false, reason: "empty", rows: list });
+  const bad = list.find(
+    (r) => String(r?.period_start ?? "") !== String(periodStart) || idText(r?.refresh_run_id) !== idText(runId),
+  );
+  if (bad) return Object.freeze({ ok: false, reason: "foreign", rows: list });
+  return Object.freeze({ ok: true, reason: null, rows: list });
+}
+
+/** Same display order as the Control Centre's sku-control-status load. */
+export function sortReviewWorklistRows(rows) {
+  const rank = { BLOCKER: 0, REVIEW_REQUIRED: 1, READY: 2 };
+  return [...(Array.isArray(rows) ? rows : [])].sort((a, b) => {
+    const left = rank[code(a?.control_severity)] ?? 99;
+    const right = rank[code(b?.control_severity)] ?? 99;
+    if (left !== right) return left - right;
+    const productCmp = String(a?.product_name || "").localeCompare(String(b?.product_name || ""));
+    if (productCmp) return productCmp;
+    return Number(a?.sku_id) - Number(b?.sku_id);
+  });
+}
+
+/** Accessible run picker plus load state. `load` = { status, runId, error } or null. */
+export function renderReviewWorklistRunPickerHtml({ choices = [], selectedRunId = null, load = null } = {}) {
+  const e = escapeHtml;
+  const list = Array.isArray(choices) ? choices : [];
+  if (!list.length) return "";
+  const sel = idText(selectedRunId) || list.find((c) => c.isDefault)?.runId || list[0].runId;
+  const busy = load?.status === "loading";
+  const options = list
+    .map((c) => `<option value="${e(c.runId)}"${c.runId === sel ? " selected" : ""}>${e(c.label)}</option>`)
+    .join("");
+  const disabled = list.length < 2 || busy ? " disabled" : "";
+  let note = "";
+  if (busy) note = `<div class="rwl-run-load" role="status">Loading SKU rows for run ${e(load.runId)}…</div>`;
+  else if (load?.status === "error") {
+    note = `<div class="rwl-run-load rwl-rc-warn" role="alert">SKU rows for run ${e(load.runId)} could not be loaded: ${e(load.error || "unknown error")}. The table still shows run ${e(load.shownRunId || "--")}.</div>`;
+  } else if (load?.status === "empty") {
+    note = `<div class="rwl-run-load rwl-rc-warn" role="alert">No SKU rows were returned for run ${e(load.runId)} (no permission, or the run has no SKU rows). The table still shows run ${e(load.shownRunId || "--")}.</div>`;
+  } else if (load?.status === "foreign") {
+    note = `<div class="rwl-run-load rwl-rc-warn" role="alert">The server returned rows that do not belong to run ${e(load.runId)} for this period; nothing was shown. The table still shows run ${e(load.shownRunId || "--")}.</div>`;
+  }
+  return `<div class="rwl-run-picker">
+  <label for="rwlRunSelect">Run</label>
+  <select id="rwlRunSelect" data-rwl-run-select="1" aria-describedby="rwlRunSelectHelp"${disabled}>${options}</select>
+  <div id="rwlRunSelectHelp" class="rwl-rc-muted">Only runs advertised by the server for this period. Draft runs are read-only and not for pricing.</div>
+  ${note}
+</div>`;
 }
