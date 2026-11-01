@@ -327,7 +327,9 @@ const REVIEW_WORKLIST_SHELL_BLOCKS = [
   /import \{[^}]*\} from "\.\/costing-review-worklist\.js";\n/,
   "// Costing review worklist v1 selection (used only when COSTING_REVIEW_WORKLIST_V1 is ON):\n// { key, rows } where rows is the ALL_ROWS array the group was picked on, so any\n// reload, period change or lens switch (each assigns a new ALL_ROWS) clears it.\nlet REVIEW_WORKLIST_GROUP = null;\n",
   '  if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n    rows = filterReviewWorklistRows(rows, reviewWorklistSelectedKey());\n  }\n',
-  '    if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n      renderReviewWorklistPanel();\n    }\n',
+  '    if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n      renderReviewWorklistPanel();\n    }\n',  // UX-F1: run-context chrome gates (flag only).
+  '    if (isCostingReviewWorklistV1Enabled()) {\n      renderCccRunContextChrome();\n    }\n',
+  '      if (isCostingReviewWorklistV1Enabled()) {\n        renderCccKpiRunCaption();\n      }\n',
 ];
 const REVIEW_WORKLIST_FN_RE =
   /\/\*\* Review worklist v1 \(flag ON only\): selected group key[\s\S]*?\n}\n\n(?=function applyFilters\(\) \{\n)/;
@@ -608,7 +610,13 @@ test("pkg3 COLUMN_HELP unchanged; module safety; FORBIDDEN_RPCS identical; no CS
   for (const re of [/\.rpc\(/g, /new Date/g, /Date\.now/g]) {
     assert.equal(count(read(SHELL), re), count(readBase(SHELL), re), String(re));
   }
-  assert.equal(git("diff", "--name-only", PKG3_BASE, "--", "*.css", "*.html").trim(), "");
+  // No HTML change; any CSS change since this base is append-only (this package added none; later
+  // features append their own scoped blocks, checked in their suites).
+  assert.equal(git("diff", "--name-only", PKG3_BASE, "--", "*.html").trim(), "");
+  const cssBase = git("show", `${PKG3_BASE}:public/shared/css/sasv-costing.css`);
+  assert.ok(fs.readFileSync(path.join(root, "public/shared/css/sasv-costing.css"), "utf8").startsWith(cssBase), "CSS append-only since base");
+  const otherCss = git("diff", "--name-only", PKG3_BASE, "--", "*.css").trim().split("\n").filter(Boolean);
+  assert.ok(otherCss.every((f) => f === "public/shared/css/sasv-costing.css"), otherCss.join(","));
   for (const f of ["pricing-policy", "cost-build", "material-cost", "control-center"]) {
     assert.equal(git("diff", PKG3_BASE, "--", `${JS}/costing-suite-${f}.js`), "", f);
   }

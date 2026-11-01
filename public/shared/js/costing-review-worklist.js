@@ -13,6 +13,17 @@ import {
 } from "./costing-suite-recommended-ui-route.js";
 import { costingStatusDisplayLabel } from "./costing-status-labels.js";
 import { RUN_STATUS_SELECT_V1, RUN_STATUS_VIEW } from "./costing-run-status-badge.js";
+// UX-F1: CCC run-context presentation helpers, re-exported so the shell keeps a
+// single run-context UI import.
+export {
+  CCC_DRAFT_SUMMARY_SELECT,
+  createLatestOnlyLoader,
+  describeDashboardRunContext,
+  describeKpiRunCaption,
+  renderDashboardRunContextHtml,
+  renderKpiRunCaptionHtml,
+  summariseRunRows,
+} from "./costing-ccc-run-context.js";
 
 /** Raw server severities shown in the worklist (READY rows are excluded). */
 export const REVIEW_WORKLIST_SEVERITIES = Object.freeze(["BLOCKER", "REVIEW_REQUIRED"]);
@@ -145,49 +156,102 @@ function runLine(runContext) {
   return `Run shown: ${runs} · valuation ${vals}`;
 }
 
+/**
+ * Status pill (one short line) for the worklist toolbar. Text carries the
+ * meaning; the tone only adds colour (colour-independent).
+ */
+export function reviewWorklistStatusPill(d) {
+  if (!d) return null;
+  const id = d.listRunId;
+  switch (d.kind) {
+    case "selected-not-approved":
+      return { tone: "draft", text: `Draft run ${id} · Not for pricing` };
+    case "approved":
+      return { tone: "approved", text: `Approved run ${id}` };
+    case "not-approved":
+      return { tone: "draft", text: `Run ${id} · Not approved` };
+    case "loading":
+      return { tone: "neutral", text: "Checking run status…" };
+    case "status-error":
+      return { tone: "warn", text: `${d.listRunIds.length ? `Run ${d.listRunIds.join(", ")}` : "Run"} · status not verified` };
+    case "status-missing":
+      return { tone: "warn", text: "No run status" };
+    case "no-rows":
+      return { tone: "neutral", text: "No SKU rows" };
+    case "mismatch":
+      return { tone: "warn", text: `Run ${id || "--"} · reload needed` };
+    case "mixed":
+      return { tone: "warn", text: "Several runs loaded · reload" };
+    default:
+      return { tone: "neutral", text: "No period selected" };
+  }
+}
+
+/** Short visible alerts (exceptions and the draft drawer caveat only). */
+export function reviewWorklistVisibleAlerts(d) {
+  if (!d) return [];
+  const out = [];
+  if (d.kind === "selected-not-approved") {
+    out.push({ role: "note", tone: "draft", text: `Drawer evidence is from run ${d.displayedRunId || "--"}, not draft ${d.listRunId}.` });
+  }
+  if (d.kind === "status-error") out.push({ role: "alert", tone: "warn", text: "Run status could not be read; approved/draft designation is not verified." });
+  if (d.kind === "status-missing") out.push({ role: "note", tone: "warn", text: "No run status for this period (no run yet, or no permission)." });
+  if (d.kind === "mismatch") out.push({ role: "alert", tone: "warn", text: `Rows are from run ${d.listRunId || "--"}; the server now shows run ${d.displayedRunId}. Reload the period.` });
+  if (d.kind === "mixed") out.push({ role: "alert", tone: "warn", text: "Rows from several runs are loaded. Reload the period." });
+  if (d.periodMismatch) out.push({ role: "alert", tone: "warn", text: "Some rows belong to another period. Reload the period." });
+  return out;
+}
+
 /** HTML for the worklist panel. All server text is escaped. */
 export function renderReviewWorklistHtml(
   groups,
   { selectedKey = null, runContext = null, runDiagnosis = null, rowCount = null, runPicker = null } = {},
 ) {
+  const e = escapeHtml;
   const list = Array.isArray(groups) ? groups : [];
-  const head = `<div class="rwl-head">
-  <div class="rwl-title">Review worklist</div>
+  const pill = reviewWorklistStatusPill(runDiagnosis);
+  const alerts = reviewWorklistVisibleAlerts(runDiagnosis)
+    .map((a) => `<div class="rwl-alert rwl-alert-${a.tone}" role="${a.role}">${e(a.text)}</div>`)
+    .join("");
+  const head = `<div class="rwl-toolbar">
+  <h2 class="rwl-title">Review worklist</h2>
   ${runPicker ? renderReviewWorklistRunPickerHtml(runPicker) : ""}
-  <div class="rwl-run">${runLine(runContext)}</div>
-  <div class="rwl-frozen">${escapeHtml(REVIEW_WORKLIST_FROZEN_RUN_TEXT)}</div>
-  ${runDiagnosis ? renderReviewWorklistRunDiagnosisHtml(runDiagnosis) : ""}
+  ${pill ? `<span class="rwl-pill rwl-pill-${pill.tone}" data-rwl-pill="${e(runDiagnosis.kind)}">${e(pill.text)}</span>` : ""}
   ${selectedKey ? `<button type="button" class="rwl-clear" data-rwl-clear="1">Clear group</button>` : ""}
-</div>`;
+</div>
+<div class="rwl-run">${runLine(runContext)}</div>
+${alerts}
+<details class="rwl-details">
+  <summary>Run details and caveats</summary>
+  <div class="rwl-frozen">${e(REVIEW_WORKLIST_FROZEN_RUN_TEXT)}</div>
+  ${runDiagnosis ? renderReviewWorklistRunDiagnosisHtml(runDiagnosis) : ""}
+</details>`;
   if (!list.length) {
     const emptyText = rowCount === 0 ? REVIEW_WORKLIST_NO_ROWS_TEXT : REVIEW_WORKLIST_EMPTY_TEXT;
-    return `<div class="rwl-panel">${head}<div class="rwl-empty">${escapeHtml(emptyText)}</div></div>`;
+    return `<section class="rwl-panel" aria-label="Review worklist">${head}<div class="rwl-empty">${e(emptyText)}</div></section>`;
   }
   const items = list
     .map((g) => {
       const primary = formatFirstControlStatusLabel(g.firstControlStatus) || g.firstControlStatus;
       const routeLabel = formatRecommendedUiRouteLabel(g.route) || g.route;
       const target = resolveReviewWorklistTarget(g.rows[0]);
-      const note = g.notesDiffer
-        ? `<div class="rwl-note">${escapeHtml(REVIEW_WORKLIST_MIXED_NOTES_TEXT)}</div>`
-        : g.note
-          ? `<div class="rwl-note">${escapeHtml(g.note)}</div>`
-          : "";
+      const noteText = g.notesDiffer ? REVIEW_WORKLIST_MIXED_NOTES_TEXT : g.note;
+      const note = noteText ? `<div class="rwl-note" title="${e(noteText)}">${e(noteText)}</div>` : "";
       const open = target.navigable
-        ? `<button type="button" class="rwl-open" data-rwl-open="${escapeHtml(g.key)}">Open fix screen</button>`
-        : `<span class="rwl-nolink">${escapeHtml(target.label)} – ${escapeHtml(REVIEW_WORKLIST_NO_LINK_TEXT)}</span>`;
+        ? `<button type="button" class="rwl-open" data-rwl-open="${e(g.key)}">Open fix screen</button>`
+        : `<span class="rwl-nolink" title="${e(`${target.label} – ${REVIEW_WORKLIST_NO_LINK_TEXT}`)}">No fix screen link yet</span>`;
       const selected = selectedKey === g.key;
-      return `<div class="rwl-group${selected ? " rwl-selected" : ""}" data-rwl-group="${escapeHtml(g.key)}">
-  <div class="rwl-severity">${escapeHtml(costingStatusDisplayLabel(g.severity))}</div>
-  <div class="rwl-primary">${escapeHtml(primary)}</div>
-  <div class="rwl-route">${escapeHtml(routeLabel)}</div>
-  <div class="rwl-count">${g.count} SKU${g.count === 1 ? "" : "s"}</div>
+      const sevClass = g.severity === "BLOCKER" ? "rwl-sev-blocker" : "rwl-sev-review";
+      return `<li class="rwl-group rwl-card ${sevClass}${selected ? " rwl-selected" : ""}" data-rwl-group="${e(g.key)}">
+  <div class="rwl-card-head"><span class="rwl-severity">${e(costingStatusDisplayLabel(g.severity))}</span><span class="rwl-count">${g.count} SKU${g.count === 1 ? "" : "s"}</span></div>
+  <div class="rwl-primary">${e(primary)}</div>
+  <div class="rwl-route">${e(routeLabel)}</div>
   ${note}
-  <div class="rwl-actions"><button type="button" class="rwl-select" data-rwl-select="${escapeHtml(g.key)}"${selected ? ' aria-pressed="true"' : ""}>Show in table</button>${open}</div>
-</div>`;
+  <div class="rwl-actions"><button type="button" class="rwl-select" data-rwl-select="${e(g.key)}"${selected ? ' aria-pressed="true"' : ' aria-pressed="false"'}>Show in table</button>${open}</div>
+</li>`;
     })
     .join("\n");
-  return `<div class="rwl-panel">${head}<div class="rwl-groups">${items}</div></div>`;
+  return `<section class="rwl-panel" aria-label="Review worklist">${head}<ul class="rwl-groups" role="list">${items}</ul></section>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -349,8 +413,8 @@ export function renderReviewWorklistRunDiagnosisHtml(d) {
     lines.push(`<div class="rwl-rc-line">These rows are from approved run ${e(d.listRunId)}.</div>`);
   }
   if (d.kind === "selected-not-approved") {
-    lines.push(`<div class="rwl-rc-line rwl-rc-draft" role="alert"><strong>Draft run ${e(d.listRunId)} — not for pricing.</strong> You are viewing its frozen SKU rows read-only, for diagnosis only. The run displayed for this period is run ${e(d.displayedRunId || "--")}.</div>`);
-    lines.push(`<div class="rwl-rc-line rwl-rc-warn rwl-rc-drawer" role="note"><strong>Row drawer evidence is not this run's evidence.</strong> ${e(REVIEW_WORKLIST_SELECTED_RUN_DRAWER_TEXT)}</div>`);
+    lines.push(`<div class="rwl-rc-line rwl-rc-draft"><strong>Draft run ${e(d.listRunId)} — not for pricing.</strong> You are viewing its frozen SKU rows read-only, for diagnosis only. The run displayed for this period is run ${e(d.displayedRunId || "--")}.</div>`);
+    lines.push(`<div class="rwl-rc-line rwl-rc-warn rwl-rc-drawer"><strong>Row drawer evidence is not this run's evidence.</strong> ${e(REVIEW_WORKLIST_SELECTED_RUN_DRAWER_TEXT)}</div>`);
   }
   if (d.kind === "not-approved") {
     lines.push(`<div class="rwl-rc-line rwl-rc-warn">These rows are from run ${e(d.listRunId)}, which is not an approved run.</div>`);
@@ -487,7 +551,7 @@ export function renderReviewWorklistRunPickerHtml({ choices = [], selectedRunId 
   return `<div class="rwl-run-picker">
   <label for="rwlRunSelect">Run</label>
   <select id="rwlRunSelect" data-rwl-run-select="1" aria-describedby="rwlRunSelectHelp"${disabled}>${options}</select>
-  <div id="rwlRunSelectHelp" class="rwl-rc-muted">Only runs advertised by the server for this period. Draft runs are read-only and not for pricing.</div>
+  <div id="rwlRunSelectHelp" class="rwl-sr">Only runs advertised by the server for this period. Draft runs are read-only and not for pricing.</div>
   ${note}
 </div>`;
 }

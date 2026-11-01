@@ -162,6 +162,8 @@ function makeSandbox({ source, worklistOn, tableToolsOn = false }) {
     REVIEW_WORKLIST_RUN_STATUS: null,
     REVIEW_WORKLIST_RUN_SELECTION: null,
     REVIEW_WORKLIST_RUN_LOAD: null,
+    REVIEW_WORKLIST_PENDING_RUN: null,
+    renderCccRunContextChrome: () => null,
     ROWS_LOAD_GENERATION: 0,
     isRowsLoadCurrent: (g) => g === ctx.ROWS_LOAD_GENERATION,
     fetchAllRows: async () => [],
@@ -317,8 +319,14 @@ test("worklist flag OFF: legacy shell lines unchanged; every new line is behind 
   for (const gated of [
     '  if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n    rows = filterReviewWorklistRows(rows, reviewWorklistSelectedKey());\n  }\n',
     '    if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n      renderReviewWorklistPanel();\n    }\n',
+    // UX-F1: run-context chrome (KPI caption + Dashboard card), flag only (any CCC lens).
+    '    if (isCostingReviewWorklistV1Enabled()) {\n      renderCccRunContextChrome();\n    }\n',
+    '      if (isCostingReviewWorklistV1Enabled()) {\n        renderCccKpiRunCaption();\n      }\n',
   ]) {
     assert.equal(head.split(gated).length, 2, gated);
+  }
+  for (const fn of ["renderCccKpiRunCaption", "renderCccRunContextChrome"]) {
+    assert.match(extractFn(head, fn).split("\n")[1], /^\s+if \(!isCostingReviewWorklistV1Enabled\(\)\) return null;$/, fn);
   }
   const HELPERS = ["reviewWorklistSelectedKey", "reviewWorklistRunStatus", "reviewWorklistActiveRun", "reviewWorklistGovernedRows", "selectReviewWorklistRun", "renderReviewWorklistPanel"];
   const helpers = HELPERS.map((fn) => extractFn(head, fn));
@@ -337,16 +345,19 @@ test("worklist flag OFF: legacy shell lines unchanged; every new line is behind 
   for (const re of [/\.rpc\(/, /new Date/, /Date\.now/, /Date\.parse/]) {
     assert.ok(!added.some((l) => re.test(l)), String(re));
   }
-  // C1B: exactly one added costingFrom read, of the run-scoped view, inside the gated run selector.
+  // C1B + UX-F1: the only added costingFrom reads are of the run-scoped view, inside the gated
+  // run selector (C1B) and the gated dashboard draft summary (UX-F1).
   const costingFromLines = added.filter((l) => /costingFrom\(/.test(l));
-  assert.deepEqual(costingFromLines.map((l) => l.slice(1).trim()), ["costingFrom(REVIEW_WORKLIST_BY_RUN_VIEW)"]);
+  assert.deepEqual(costingFromLines.map((l) => l.slice(1).trim()), ["costingFrom(REVIEW_WORKLIST_BY_RUN_VIEW)", "costingFrom(REVIEW_WORKLIST_BY_RUN_VIEW)"]);
   assert.ok(extractFn(head, "selectReviewWorklistRun").includes("costingFrom(REVIEW_WORKLIST_BY_RUN_VIEW)"));
+  assert.ok(extractFn(head, "renderCccRunContextChrome").includes("costingFrom(REVIEW_WORKLIST_BY_RUN_VIEW)"));
   assert.equal(worklist.REVIEW_WORKLIST_BY_RUN_VIEW, "v_costing_pricing_sku_control_status_by_run");
   // C1: exactly one added read, of the existing authorised period run-status view (same view and
   // columns as the run-status badge), and only inside the flag-gated reviewWorklistRunStatus helper.
   const fromLines = added.filter((l) => /\.from\(/.test(l));
-  assert.deepEqual(fromLines.map((l) => l.slice(1).trim()), [".from(REVIEW_WORKLIST_RUN_STATUS_VIEW)"]);
+  assert.deepEqual(fromLines.map((l) => l.slice(1).trim()), [".from(REVIEW_WORKLIST_RUN_STATUS_VIEW)", ".from(REVIEW_WORKLIST_RUN_STATUS_VIEW)"]);
   assert.ok(extractFn(head, "reviewWorklistRunStatus").includes(".from(REVIEW_WORKLIST_RUN_STATUS_VIEW)"));
+  assert.ok(extractFn(head, "renderCccRunContextChrome").includes(".from(REVIEW_WORKLIST_RUN_STATUS_VIEW)"));
   assert.equal(worklist.REVIEW_WORKLIST_RUN_STATUS_VIEW, "v_costing_pricing_period_run_status");
   assert.equal(
     worklist.REVIEW_WORKLIST_RUN_STATUS_SELECT,
@@ -388,7 +399,7 @@ test("worklist self-check (i): 4 server-code groups; show in table filters VIEW;
     assert.equal(reviewWorklistGroupKey(ctx.VIEW[idx]), key);
   }
   assert.match(ctx.workbenchSummary.innerHTML, /data-rwl-clear/);
-  assert.match(ctx.workbenchSummary.innerHTML, /rwl-group rwl-selected" data-rwl-group="REVIEW_REQUIRED\|MATERIAL_REVIEW_REQUIRED\|MATERIAL_RATE_REVIEW"/);
+  assert.match(ctx.workbenchSummary.innerHTML, /rwl-group rwl-card rwl-sev-review rwl-selected" data-rwl-group="REVIEW_REQUIRED\|MATERIAL_REVIEW_REQUIRED\|MATERIAL_RATE_REVIEW"/);
   // Search still narrows within the group (existing search, unchanged).
   ctx.searchBox.value = "nothing-matches";
   run(ctx, "applySearch()");
@@ -519,7 +530,7 @@ test("worklist labels come from the existing helpers; server text escaped; fixed
   const groups = groupReviewWorklistRows(rows);
   const html = renderReviewWorklistHtml(groups, { selectedKey: null, runContext: reviewWorklistRunContext(rows) });
   for (const g of groups) {
-    assert.ok(html.includes(`<div class="rwl-severity">${costingStatusDisplayLabel(g.severity)}</div>`), g.key);
+    assert.ok(html.includes(`<span class="rwl-severity">${costingStatusDisplayLabel(g.severity)}</span>`), g.key);
     assert.ok(html.includes(`<div class="rwl-primary">${formatFirstControlStatusLabel(g.firstControlStatus)}</div>`), g.key);
     assert.ok(html.includes(`<div class="rwl-route">${formatRecommendedUiRouteLabel(g.route)}</div>`), g.key);
   }
@@ -573,7 +584,9 @@ test("COSTING_REVIEW_WORKLIST_V1 defaults OFF and accepts exactly string 1", () 
 test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS append-only .rwl- block", async () => {
   const protectedFiles = [
     "costing-approval-screen.js", "costing-approval-errors.js", "costing-approval-labels.js",
-    "costing-run-status-screen.js", "costing-run-status-badge.js", "costing-recalculation.js", "costing-status-labels.js",
+    // costing-run-status-badge.js: changed by UX-F1 (compact chip, flag ON only); its flag-OFF path is
+    // checked in scripts/costing-ccc-uxf1/uxf1.test.mjs.
+    "costing-run-status-screen.js", "costing-recalculation.js", "costing-status-labels.js",
     "costing-suite-control-center.js", "costing-suite-recommended-ui-route.js", "costing-route-config.js",
     "costing-suite-pricing-policy.js", "costing-suite-cost-build.js", "costing-suite-material-cost.js",
   ].map((f) => `${JS}/${f}`);
@@ -595,6 +608,13 @@ test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS
     const added = head.slice(base.length);
     const selectors = added.split("\n").filter((l) => /\{\s*$/.test(l) || /,\s*$/.test(l));
     assert.ok(selectors.length > 0);
-    for (const l of selectors) assert.match(l.trim(), /^\.rwl-/, l);
+    // Every selector is scoped to flag-only markup: .rwl- (worklist), .ccc- (UX-F1 run context) or
+    // the compact header chip (.sc-run-status[data-compact="1"], set only when the flag is ON).
+    for (const l of selectors) {
+      if (/^\s*@media/.test(l)) continue;
+      for (const part of l.replace(/\{\s*$/, "").split(",").map((x) => x.trim()).filter(Boolean)) {
+        assert.match(part, /^(\.rwl-|\.ccc-|\.sc-run-status\[data-compact="1"\])/, part);
+      }
+    }
   }
 });
