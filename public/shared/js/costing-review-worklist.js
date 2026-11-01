@@ -245,8 +245,24 @@ export function renderReviewWorklistHtml(
 ) {
   const e = escapeHtml;
   const list = Array.isArray(groups) ? groups : [];
-  const pill = reviewWorklistStatusPill(runDiagnosis);
+  // UX-F3: the page header already names Approved 143 / Draft 148, and the run picker names the selected run.
+  // So the toolbar repeats no run id, date or approved badge: only a draft marker (draft identity must stay
+  // unmistakable), a short drawer-provenance note for a draft, and operational errors stay visible. Run line,
+  // server status and the full drawer-evidence explanation live in the information disclosure.
+  const kind = runDiagnosis?.kind || null;
+  const basePill = reviewWorklistStatusPill(runDiagnosis);
+  const pill =
+    kind === "selected-not-approved"
+      ? { tone: "draft", text: "Draft · not for pricing" }
+      : kind === "approved"
+        ? null
+        : basePill;
+  const drawerNote =
+    kind === "selected-not-approved"
+      ? `<span class="rwl-drawer-note" role="note" title="${e(`Drawer evidence is from run ${runDiagnosis.displayedRunId || "--"}, not draft ${runDiagnosis.listRunId}.`)}">Drawer: run ${e(runDiagnosis.displayedRunId || "--")}</span>`
+      : "";
   const alerts = reviewWorklistVisibleAlerts(runDiagnosis)
+    .filter((a) => !(kind === "selected-not-approved" && a.tone === "draft"))
     .map((a) => `<div class="rwl-alert rwl-alert-${a.tone}" role="${a.role}">${e(a.text)}</div>`)
     .join("");
   const labels = groupLabels(list);
@@ -258,14 +274,20 @@ export function renderReviewWorklistHtml(
     shownCount: filterState?.shownCount ?? null,
     totalCount: filterState?.totalCount ?? null,
   });
+  const infoWarn = kind === "selected-not-approved" || (kind && kind !== "approved");
+  const infoLabel =
+    kind === "selected-not-approved"
+      ? `Run details and caveats. Drawer evidence is from run ${runDiagnosis.displayedRunId || "--"}, not draft ${runDiagnosis.listRunId}.`
+      : "Run details and caveats";
   const head = `<div class="rwl-toolbar">
-  <h2 class="rwl-title">Review worklist</h2>
+  <h2 class="rwl-title rwl-sr">Review worklist</h2>
   ${runPicker ? renderReviewWorklistRunPickerHtml(runPicker) : ""}
-  ${pill ? `<span class="rwl-pill rwl-pill-${pill.tone}" data-rwl-pill="${e(runDiagnosis.kind)}">${e(pill.text)}</span>` : ""}
-  <span class="rwl-run">${runLine(runContext)}</span>
-  <details class="rwl-details rwl-info">
-    <summary aria-label="Run details and caveats" title="Run details and caveats">&#9432;<span class="rwl-sr"> Run details and caveats</span></summary>
+  ${pill ? `<span class="rwl-pill rwl-pill-${pill.tone}" data-rwl-pill="${e(kind)}">${e(pill.text)}</span>` : ""}
+  ${drawerNote}
+  <details class="rwl-details rwl-info${infoWarn ? " rwl-info-warn" : ""}">
+    <summary aria-label="${e(infoLabel)}" title="${e(infoLabel)}">&#9432;<span class="rwl-sr"> Run details and caveats</span></summary>
     <div class="rwl-info-body">
+      <div class="rwl-run">${runLine(runContext)}</div>
       <div class="rwl-frozen">${e(REVIEW_WORKLIST_FROZEN_RUN_TEXT)}</div>
       ${runDiagnosis ? renderReviewWorklistRunDiagnosisHtml(runDiagnosis) : ""}
     </div>

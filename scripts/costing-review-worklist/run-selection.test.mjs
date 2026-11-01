@@ -332,10 +332,10 @@ test("switch to draft 148: run-scoped read by period AND run; groups, counts and
   assert.equal((html.match(/data-rwl-select=/g) || []).length, 4);
   assert.equal(severityLine(html), "Loaded rows (run 148): 628 — BLOCKER 1 · REVIEW_REQUIRED 113 · READY 514");
   assert.ok(html.includes("Run shown: 148 · valuation 2026-10-31"));
-  // UX-F1: one short status pill and one short visible drawer caveat; the full explanation is in the disclosure.
-  assert.ok(html.includes('<span class="rwl-pill rwl-pill-draft" data-rwl-pill="selected-not-approved">Draft run 148 · Not for pricing</span>'));
-  assert.ok(html.includes('<div class="rwl-alert rwl-alert-draft" role="note">Drawer evidence is from run 143, not draft 148.</div>'));
-  const details = html.split('<details class="rwl-details rwl-info">')[1].split("</details>")[0];
+  // UX-F3: a short draft marker and a short drawer note stay visible; the full explanation is in the disclosure.
+  assert.ok(html.includes('<span class="rwl-pill rwl-pill-draft" data-rwl-pill="selected-not-approved">Draft · not for pricing</span>'));
+  assert.ok(html.includes('role="note" title="Drawer evidence is from run 143, not draft 148.">Drawer: run 143</span>'));
+  const details = html.split('<details class="rwl-details rwl-info rwl-info-warn">')[1].split("</details>")[0];
   assert.match(details, /<strong>Draft run 148 — not for pricing\.<\/strong> You are viewing its frozen SKU rows read-only, for diagnosis only\. The run displayed for this period is run 143\./);
   // Drawer limitation is prominent (warning line with a bold lead), not a muted footnote.
   assert.ok(html.includes(`<div class="rwl-rc-line rwl-rc-warn rwl-rc-drawer"><strong>Row drawer evidence is not this run's evidence.</strong> ${REVIEW_WORKLIST_SELECTED_RUN_DRAWER_TEXT.replace(/'/g, "&#039;")}</div>`));

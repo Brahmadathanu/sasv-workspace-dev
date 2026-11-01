@@ -659,9 +659,11 @@ test("UX-F2 pills: compact markup with dynamic counts; no cards, route prose or 
   assert.match(html, new RegExp(`aria-pressed="false" aria-label="${costingStatusDisplayLabel("BLOCKER")}: [^"]*, 1 SKU\\. Show in table"`));
   assert.match(html, /aria-pressed="false" aria-label="[^"]*, 110 SKUs\. Show in table"/);
   assert.doesNotMatch(html, /aria-pressed="true"|data-rwl-clear|data-rwl-scope/);
-  // One slim run row: run picker area, status pill, run line and the info disclosure in the toolbar.
-  assert.match(html, /<span class="rwl-run">Run shown: 148 · valuation 2026-10-31<\/span>/);
-  assert.match(html, /<details class="rwl-details rwl-info">\s*<summary aria-label="Run details and caveats" title="Run details and caveats">/);
+  // UX-F3: one toolbar (picker, optional draft marker, info disclosure); the run line sits inside the disclosure.
+  assert.doesNotMatch(html.replace(/<details[\s\S]*?<\/details>/, ""), /Run shown/);
+  assert.match(html, /<details class="rwl-details rwl-info[^"]*">\s*<summary aria-label="Run details and caveats[^"]*" title="[^"]*">/);
+  assert.match(html, /<div class="rwl-run">Run shown: 148 · valuation 2026-10-31<\/div>/);
+  assert.match(html, /<h2 class="rwl-title rwl-sr">/);
 });
 
 test("UX-F2 pills: selected pill is pressed with Clear; same status under two routes gets a route suffix; server text escaped", () => {
@@ -846,4 +848,76 @@ test("UX-F2 CSS: appended compact block only; chips wrap in one row; focus-visib
   assert.match(block, /@media \(max-width: 520px\) \{[\s\S]*\.rwl-chip \{ min-height: 40px; \}[\s\S]*max-height: 40vh/);
   for (const sel of block.split("\n").map((l) => l.match(/^\s*(\.rwl-[^{]+)\{/)?.[1]).filter(Boolean)) assert.match(sel.trim(), /^\.rwl-/);
   assert.doesNotMatch(block, /\.ccc-(?!rc)|!important/);
+});
+
+// ===========================================================================
+// UX-F3: toolbar de-duplication + solid secondary KPI filter chips
+// ===========================================================================
+function f3Html(kind, { rows = makeRows(), status = { displayed_run_id: 143, approved_run_id: 143, newer_draft_run_id: 148, display_state: "APPROVED" }, selectedRunId = null } = {}) {
+  const groups = groupReviewWorklistRows(rows);
+  const d = kind === "raw" ? null : { ...worklist.describeReviewWorklistRunContext({ rows, periodStart: "2026-10-01", runStatus: { status: "ready", row: status }, selectedRunId, runPickerAvailable: true }), ...(kind && kind !== "auto" ? { kind } : {}) };
+  return renderReviewWorklistHtml(groups, {
+    runContext: reviewWorklistRunContext(rows), runDiagnosis: d, rowCount: rows.length,
+    runPicker: { choices: worklist.reviewWorklistRunChoices(status), selectedRunId },
+  });
+}
+const outsideInfo = (h) => h.replace(/<details[\s\S]*?<\/details>/, "");
+
+test("UX-F3 toolbar: run picker kept; approved run repeats no badge, date or run line; draft keeps a short marker", () => {
+  const approved = f3Html("approved", { rows: makeRows().map((r) => ({ ...r, refresh_run_id: 143 })), selectedRunId: "143" });
+  const vis = outsideInfo(approved);
+  assert.match(vis, /<select id="rwlRunSelect"/);
+  assert.doesNotMatch(vis, /data-rwl-pill|Run shown|valuation|Approved run|Draft run \d/);
+  assert.doesNotMatch(approved, /rwl-info-warn|rwl-drawer-note/);
+  const draft = outsideInfo(f3Html("selected-not-approved", { selectedRunId: "148" }));
+  assert.match(draft, /<select id="rwlRunSelect"/);
+  assert.match(draft, /data-rwl-pill="selected-not-approved">Draft · not for pricing<\/span>/);
+  assert.match(draft, />Drawer: run 143<\/span>/);
+  assert.doesNotMatch(draft, /Run shown|valuation|Draft run 148|class="rwl-alert/);
+  // Exactly one toolbar and one chip row.
+  assert.equal((draft.match(/class="rwl-toolbar"/g) || []).length, 1);
+  assert.equal((draft.match(/class="rwl-chips"/g) || []).length, 1);
+});
+
+test("UX-F3 operational problems stay visible outside the disclosure; provenance prose moves inside it", () => {
+  for (const [kind, re] of [
+    ["status-error", /role="alert">Run status could not be read/],
+    ["mismatch", /role="alert">Rows are from run/],
+    ["mixed", /role="alert">Rows from several runs/],
+    ["status-missing", /role="note">No run status for this period/],
+  ]) {
+    const h = f3Html(kind);
+    assert.match(outsideInfo(h), re, kind);
+    assert.match(h, /rwl-info rwl-info-warn/, `${kind}: info control flagged`);
+  }
+  const draft = f3Html("selected-not-approved", { selectedRunId: "148" });
+  const info = draft.match(/<details[\s\S]*?<\/details>/)[0];
+  assert.match(info, /Row drawer evidence is not this run's evidence\./);
+  assert.match(info, /Run shown: 148 · valuation 2026-10-31/);
+  assert.doesNotMatch(outsideInfo(draft), /Row drawer evidence is not|pinned to the displayed/);
+});
+
+test("UX-F3 chips: solid severity-specific fills, pressed/focus states, readable contrast, appended CSS only", () => {
+  const css = read("public/shared/css/sasv-costing.css");
+  const f3 = css.slice(css.indexOf("UX-F3: one toolbar + one chip row"));
+  assert.ok(f3.length > 200);
+  const rule = (sel) => f3.match(new RegExp(`${sel.replace(/[.\[\]"=()]/g, "\\$&")}\\s*\\{([^}]*)\\}`))?.[1] || "";
+  const bg = (sel) => (rule(sel).match(/background:\s*(#[0-9a-f]{6})/i) || [])[1];
+  const lum = (hex) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  const fills = { blocker: bg(".rwl-chip.rwl-sev-blocker"), review: bg(".rwl-chip.rwl-sev-review"), blockerOn: bg('.rwl-chip.rwl-sev-blocker[aria-pressed="true"]'), reviewOn: bg('.rwl-chip.rwl-sev-review[aria-pressed="true"]') };
+  assert.ok(Object.values(fills).every(Boolean), JSON.stringify(fills));
+  assert.notEqual(fills.blocker, fills.review, "severity-specific colours");
+  assert.notEqual(fills.blocker, fills.blockerOn);
+  for (const [k, hex] of Object.entries(fills)) assert.ok(contrast(hex, "#ffffff") >= 4.5, `${k} ${hex} white text contrast`);
+  assert.ok(contrast("#1f2937", "#ffffff") >= 4.5, "count badge contrast");
+  assert.match(rule(".rwl-chip"), /color:\s*#fff/);
+  assert.match(f3, /\.rwl-chip\[aria-pressed="true"\][^{]*\{[^}]*box-shadow:[^}]*#111827/, "visible pressed ring (not colour alone)");
+  assert.match(f3, /\.rwl-chip\[aria-pressed="true"\] \.rwl-chip-label::before \{ content: "\\2713/, "pressed check mark text cue");
+  assert.match(f3, /\.rwl-chip:focus-visible \{ outline: 3px solid/);
+  assert.match(f3, /@media \(max-width: 520px\) \{\s*\.rwl-chip \{ min-height: 40px; \}/);
+  assert.doesNotMatch(f3, /!important|\.ccc-kpi|\.kpi/, "distinct from the global KPI cards");
+  // Earlier CSS (UX-F2 and before) is a strict prefix of the file: append-only.
+  const f2 = css.slice(0, css.indexOf("UX-F3: one toolbar + one chip row"));
+  assert.ok(f2.includes("UX-F2: compact review worklist"));
 });

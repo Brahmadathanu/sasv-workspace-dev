@@ -245,20 +245,22 @@ test("latest-only loader discards stale answers and keys on key + ref", async ()
 });
 
 // 6. Worklist compact structure
-test("worklist: one short status line, one run line, compact pills; caveats in a native disclosure", () => {
+test("worklist (UX-F3): one toolbar, draft marker + short drawer note, one chip row; run line and caveats in the disclosure", () => {
   const rows = draftRows();
   const groups = worklist.groupReviewWorklistRows(rows.map((r) => ({ ...r, first_control_status: r.control_severity === "BLOCKER" ? "MATERIAL_COST_BLOCKED" : "PRIME_COST_REVIEW_REQUIRED", recommended_ui_route: r.control_severity === "BLOCKER" ? "MATERIAL_RATE_MANAGER" : "COST_REVIEW_WORKBENCH", pm_blocking_line_count: 1 })));
   const d = worklist.describeReviewWorklistRunContext({ rows, periodStart: OCT, runStatus: ready(STATUS_OCT), selectedRunId: "148", runPickerAvailable: true });
   const html = worklist.renderReviewWorklistHtml(groups, { runContext: worklist.reviewWorklistRunContext(rows), runDiagnosis: d, rowCount: rows.length });
-  const visible = html.replace(/<details class="rwl-details rwl-info">[\s\S]*?<\/details>/, "");
-  assert.match(visible, /<span class="rwl-pill rwl-pill-draft" data-rwl-pill="selected-not-approved">Draft run 148 · Not for pricing<\/span>/);
-  assert.match(visible, /<span class="rwl-run">Run shown: 148 · valuation 2026-10-31<\/span>/);
-  assert.match(visible, /<div class="rwl-alert rwl-alert-draft" role="note">Drawer evidence is from run 143, not draft 148\.<\/div>/);
+  const visible = html.replace(/<details class="rwl-details rwl-info rwl-info-warn">[\s\S]*?<\/details>/, "");
+  // UX-F3: the header already names Approved 143 / Draft 148, so the toolbar repeats no run id or date; the draft
+  // identity stays as one short marker, and drawer provenance as one short visible note (full text in the disclosure).
+  assert.match(visible, /<span class="rwl-pill rwl-pill-draft" data-rwl-pill="selected-not-approved">Draft · not for pricing<\/span>/);
+  assert.match(visible, /<span class="rwl-drawer-note" role="note" title="Drawer evidence is from run 143, not draft 148\.">Drawer: run 143<\/span>/);
+  assert.doesNotMatch(visible, /Run shown|valuation 2026|Draft run 148|class="rwl-alert/);
   // No long prose in the visible part.
   assert.doesNotMatch(visible, /Fixes you make|frozen SKU rows read-only|current-source diagnosis|Server run status|Loaded rows/);
-  assert.equal((visible.match(/class="rwl-alert/g) || []).length, 1);
-  const details = html.match(/<details class="rwl-details rwl-info">([\s\S]*?)<\/details>/)[1];
-  assert.match(details, /<summary aria-label="Run details and caveats"/);
+  const details = html.match(/<details class="rwl-details rwl-info rwl-info-warn">([\s\S]*?)<\/details>/)[1];
+  assert.match(details, /<summary aria-label="Run details and caveats\. Drawer evidence is from run 143, not draft 148\."/);
+  assert.match(details, /<div class="rwl-run">Run shown: 148 · valuation 2026-10-31<\/div>/);
   assert.match(details, /Fixes you make on the fix screens do not change this frozen run\./);
   assert.match(details, /Row drawer evidence is not this run's evidence\.<\/strong> The per-line material evidence/);
   assert.match(details, /Loaded rows \(run 148\): 628 — BLOCKER 1 · REVIEW_REQUIRED 113 · READY 514/);
@@ -434,7 +436,7 @@ test("shell dashboard: caption + run-context card from server reads; draft count
   assert.deepEqual(runRead.eq, [["period_start", OCT], ["refresh_run_id", "148"]]);
   assert.equal(runRead.select, "*");
   await s.answerRun(s.runPending.length - 1, { data: draftRows().map((r) => ({ ...r, first_control_status: "X", recommended_ui_route: null })), error: null });
-  assert.match(s.workbenchSummary.innerHTML, /data-rwl-pill="selected-not-approved">Draft run 148 · Not for pricing/);
+  assert.match(s.workbenchSummary.innerHTML, /data-rwl-pill="selected-not-approved">Draft · not for pricing/);
   // Caption on the SKU lens now warns that the worklist shows another run (reuses the worklist status read).
   const statusReads = s.reads.filter((q) => q.view === "v_costing_pricing_period_run_status").length;
   s.caption();
