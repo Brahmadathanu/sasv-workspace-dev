@@ -141,6 +141,7 @@ function makeShell({ flagOn = true, statusFor = { [OCT]: STATUS_OCT, [SEP]: STAT
     REVIEW_WORKLIST_RUN_STATUS: null,
     REVIEW_WORKLIST_RUN_SELECTION: null,
     REVIEW_WORKLIST_RUN_LOAD: null,
+    REVIEW_WORKLIST_PENDING_RUN: null,
     ROWS_LOAD_GENERATION: 1,
     isRowsLoadCurrent: (g) => g === ctx.ROWS_LOAD_GENERATION,
     workbenchSummary: summary,
@@ -331,9 +332,13 @@ test("switch to draft 148: run-scoped read by period AND run; groups, counts and
   assert.equal((html.match(/data-rwl-select=/g) || []).length, 4);
   assert.equal(severityLine(html), "Loaded rows (run 148): 628 — BLOCKER 1 · REVIEW_REQUIRED 113 · READY 514");
   assert.ok(html.includes("Run shown: 148 · valuation 2026-10-31"));
-  assert.match(html, /role="alert"><strong>Draft run 148 — not for pricing\.<\/strong> You are viewing its frozen SKU rows read-only, for diagnosis only\. The run displayed for this period is run 143\./);
+  // UX-F1: one short status pill and one short visible drawer caveat; the full explanation is in the disclosure.
+  assert.ok(html.includes('<span class="rwl-pill rwl-pill-draft" data-rwl-pill="selected-not-approved">Draft run 148 · Not for pricing</span>'));
+  assert.ok(html.includes('<div class="rwl-alert rwl-alert-draft" role="note">Drawer evidence is from run 143, not draft 148.</div>'));
+  const details = html.split('<details class="rwl-details">')[1].split("</details>")[0];
+  assert.match(details, /<strong>Draft run 148 — not for pricing\.<\/strong> You are viewing its frozen SKU rows read-only, for diagnosis only\. The run displayed for this period is run 143\./);
   // Drawer limitation is prominent (warning line with a bold lead), not a muted footnote.
-  assert.ok(html.includes(`<div class="rwl-rc-line rwl-rc-warn rwl-rc-drawer" role="note"><strong>Row drawer evidence is not this run's evidence.</strong> ${REVIEW_WORKLIST_SELECTED_RUN_DRAWER_TEXT.replace(/'/g, "&#039;")}</div>`));
+  assert.ok(html.includes(`<div class="rwl-rc-line rwl-rc-warn rwl-rc-drawer"><strong>Row drawer evidence is not this run's evidence.</strong> ${REVIEW_WORKLIST_SELECTED_RUN_DRAWER_TEXT.replace(/'/g, "&#039;")}</div>`));
   assert.match(REVIEW_WORKLIST_SELECTED_RUN_DRAWER_TEXT, /pinned to the displayed \(governed\) run/);
   assert.doesNotMatch(html, /in use/);
   assert.match(html, /<option value="148" selected>/);
@@ -370,7 +375,8 @@ test("arbitrary run ids are refused; the selector is the only entry point (no UR
   const src = read(SHELL);
   for (const fn of HELPERS) assert.doesNotMatch(extractFn(src, fn), /location|URLSearchParams|searchParams|hash/, fn);
   const callers = src.split("\n").filter((l) => l.includes("selectReviewWorklistRun(") && !l.includes("function selectReviewWorklistRun("));
-  assert.deepEqual(callers.map((l) => l.trim()), ["void selectReviewWorklistRun(select.value);"]);
+  // UX-F1 adds one caller: the dashboard intent, honoured only for the server's newer_draft_run_id.
+  assert.deepEqual(callers.map((l) => l.trim()), ["void selectReviewWorklistRun(pending.runId);", "void selectReviewWorklistRun(select.value);"]);
 });
 
 test("stale answers: a period switch or a newer choice discards a late run-148 response", async () => {
@@ -532,7 +538,7 @@ test("on run 148: group filter and existing fix links (SKU/period kept); unmappe
   }
   // Only read/select/navigate controls exist.
   const controls = [...new Set([...html.matchAll(/data-(rwl-[\w-]+)=/g)].map((m) => m[1]))].sort();
-  assert.deepEqual(controls, ["rwl-clear", "rwl-group", "rwl-open", "rwl-run-context", "rwl-run-select", "rwl-select"]);
+  assert.deepEqual(controls, ["rwl-clear", "rwl-group", "rwl-open", "rwl-pill", "rwl-run-context", "rwl-run-select", "rwl-select"]);
 });
 
 test("no writes or new endpoints: only the two read views are queried", async () => {

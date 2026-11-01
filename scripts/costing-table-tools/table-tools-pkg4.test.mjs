@@ -447,7 +447,13 @@ test("pkg4 unsortable columns key null; table-tools diff is only the three entri
   const controllers = ["control-center", "pricing-policy", "cost-build", "material-cost", "mrp-applied-history"].map((f) => `${JS}/costing-suite-${f}.js`);
   // costing-review-worklist.js is changed by C1 and covered by scripts/costing-review-worklist/run-context.test.mjs.
   assert.equal(git("diff", BASE, "--", ...controllers, `${JS}/costing-feature-flags.js`, "supabase/", "package.json"), "");
-  assert.equal(git("diff", "--name-only", BASE, "--", "*.css", "*.html").trim(), "");
+  // No HTML change; any CSS change since this base is append-only (this package added none; later
+  // features append their own scoped blocks, checked in their suites).
+  assert.equal(git("diff", "--name-only", BASE, "--", "*.html").trim(), "");
+  const cssBase = git("show", `${BASE}:public/shared/css/sasv-costing.css`);
+  assert.ok(fs.readFileSync(path.join(root, "public/shared/css/sasv-costing.css"), "utf8").startsWith(cssBase), "CSS append-only since base");
+  const otherCss = git("diff", "--name-only", BASE, "--", "*.css").trim().split("\n").filter(Boolean);
+  assert.ok(otherCss.every((f) => f === "public/shared/css/sasv-costing.css"), otherCss.join(","));
 });
 
 // 6. Cache pin

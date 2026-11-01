@@ -2,7 +2,8 @@
 // Reads public.v_costing_pricing_period_run_status (one row per month). Pure helpers are exported for tests.
 // When COSTING_APPROVAL_SCREEN_V1 is ON, prefer server display_label_v2 / official & draft dates.
 
-import { isCostingApprovalScreenV1Enabled, isCostingRecalcWithDateV1Enabled, isCostingUxConsistencyV1Enabled } from "./costing-feature-flags.js";
+import { isCostingApprovalScreenV1Enabled, isCostingRecalcWithDateV1Enabled, isCostingReviewWorklistV1Enabled, isCostingUxConsistencyV1Enabled } from "./costing-feature-flags.js";
+import { describeCompactRunBadge, renderCompactRunBadgeHtml } from "./costing-ccc-run-context.js";
 import { describeRunStatusForApprovalFlag } from "./costing-approval-labels.js";
 import { costingRunBadgeDisplayLabel } from "./costing-status-labels.js";
 
@@ -76,6 +77,25 @@ export function applyRunStatusBadge(el, info, visible) {
   el.dataset.tone = info.tone;
 }
 
+/**
+ * UX-F1 (COSTING_REVIEW_WORKLIST_V1 ON only): compact header chip, e.g.
+ * "Approved 143" + "Draft 148". The full explanation stays in title and
+ * aria-label, exactly as computed for the long badge.
+ */
+export function applyCompactRunStatusBadge(el, compact, info) {
+  if (!el) return;
+  el.hidden = false;
+  el.innerHTML = renderCompactRunBadgeHtml(compact);
+  el.title = info.title;
+  el.setAttribute("aria-label", info.title);
+  el.dataset.tone = info.tone;
+  el.dataset.compact = "1";
+  if (compact.newerDraftRunId) el.dataset.newerDraft = compact.newerDraftRunId;
+  else delete el.dataset.newerDraft;
+  // Lets the narrow-screen header truncate the title instead of overlapping it (CSS, flag ON only).
+  el.ownerDocument?.body?.classList?.add("ccc-compact-header");
+}
+
 export function createRunStatusBadge({ supabase, anchor, doc = globalThis.document }) {
   let el = null;
   let generation = 0;
@@ -123,6 +143,10 @@ export function createRunStatusBadge({ supabase, anchor, doc = globalThis.docume
         : describeRunStatus(row);
       if (isCostingUxConsistencyV1Enabled() && !approvalOn) {
         info.text = costingRunBadgeDisplayLabel(info.text);
+      }
+      if (isCostingReviewWorklistV1Enabled()) {
+        applyCompactRunStatusBadge(node, describeCompactRunBadge(row), info);
+        return;
       }
       applyRunStatusBadge(node, info, true);
     } catch (err) {
