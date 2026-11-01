@@ -514,7 +514,7 @@ test("scope: no supabase/, migration, controller, protected-screen, HTML or cach
     "costing-table-tools.js", "costing-suite-readiness.js", "costing-suite-pricing-policy.js", "costing-suite-cost-build.js", "costing-suite-material-cost.js",
   ].map((f) => `public/shared/js/${f}`);
   assert.equal(git("diff", BASE, "--", ...unchanged), "");
-  // UX-F1 allocates no cache; the only permitted sw.js change is WP-07's reserved hub-cache-v389 line.
+  // UX-F1 allocates no cache; the only permitted sw.js change is WP-07's reserved hub-cache-v390 line.
   const swChanged = git("diff", "-U0", BASE, "--", "public/sw.js").split("\n").filter((l) => /^[+-][^+-]/.test(l));
   assert.ok(swChanged.every((l) => /^[+-]const CACHE_NAME = "hub-cache-v38[89]";/.test(l)), "no UX-F1 cache allocation: " + swChanged.join(" | "));
   const css = read("public/shared/css/sasv-costing.css");
