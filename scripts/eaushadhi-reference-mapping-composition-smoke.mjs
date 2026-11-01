@@ -80,7 +80,11 @@ assert.match(api, /fetchPortalOptions\("REFERENCE"\)/);
 assert.match(api, /rpc_eaushadhi_reference_mapping_verify/);
 assert.match(control, /Source Reference/);
 assert.match(control, /Canonical Reference Work/);
-assert.match(control, /Reference Governance/);
+// WP-07 UX-6.1 plain-language relabel: the line-card "Reference Governance" chip is now
+// "Mapping status" (same referenceGovernanceLabel(reference) value and the same
+// reference_ready gate), so the governance semantics are asserted, not the old caption.
+assert.match(control, /Mapping status/);
+assert.match(control, /const referenceReady = reference\?\.reference_ready === true/);
 assert.match(control, /referenceGovernanceLabel\(reference\)/);
 assert.doesNotMatch(control, /data-reference-review=/);
 assert.doesNotMatch(control, /isReferenceActionOwner/);

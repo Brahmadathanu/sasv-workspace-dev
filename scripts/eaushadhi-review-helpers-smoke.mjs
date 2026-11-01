@@ -765,7 +765,8 @@ assert(
   verifyReviewedEmptyGuidance(0).includes("No ingredient lines are eligible yet"),
   "zero eligible shows pending-line guidance",
 );
-assert(verifyReviewedConfirmLabel(2) === "Verify 2 reviewed lines", "positive eligible keeps count in confirm label");
+// WP-07 UX-2 (four-eyes): the bulk action is worded "Approve"; the count is still kept.
+assert(verifyReviewedConfirmLabel(2) === "Approve 2 reviewed lines", "positive eligible keeps count in confirm label");
 
 const completeDetails = {
   permissionPurposeTermId: 9,
@@ -1146,6 +1147,13 @@ const karpooradiClassification = {
   row_version: 1,
 };
 const classDraft = classificationDraftFromReview(karpooradiClassification);
+// WP-07 UX-5 Goal 4: with a Product Type chosen, Approve/hint require the scoped
+// Category and Sub Type option lists to be loaded. These are loaded lists, so the
+// gap rules below are exercised as before.
+const loadedScopedOptions = {
+  categoryOptions: [{ portal_option_id: 278, label: "Taila (Oil)", fill_eligible: true }],
+  subtypeOptions: [{ portal_option_id: 266, label: "Balya", fill_eligible: true }],
+};
 assert(classDraft.productTypeOptionId === "120", "Type suggestion seeds draft without Verify");
 assert(classDraft.productCategoryOptionId === "278", "Category suggestion seeds draft without Verify");
 assert(classDraft.productSubtypeOptionId == null, "Sub Type remains UNRESOLVED without invention");
@@ -1156,7 +1164,7 @@ assert(
   "UNRESOLVED cannot Verify",
 );
 assert(
-  /not yet resolved/i.test(classificationVerifyPendingCopy(classDraft, {})),
+  /not yet resolved/i.test(classificationVerifyPendingCopy(classDraft, loadedScopedOptions)),
   "UNRESOLVED verify copy names unresolved subtype",
 );
 assert(
@@ -1181,7 +1189,7 @@ assert(
       productSubtypeOptionId: "266",
       reviewStatus: "IN_REVIEW",
     },
-    { canEdit: true, saveStatus: "" },
+    { canEdit: true, saveStatus: "", ...loadedScopedOptions },
   ) === true,
   "valid OPTION classification can Verify in mocked contract test",
 );
@@ -1274,7 +1282,7 @@ assert(
   "classification autosave saving disables Verify",
 );
 assert(
-  canVerifyClassification(validClassDraft, { canEdit: true, saveStatus: "saved" }) === true,
+  canVerifyClassification(validClassDraft, { canEdit: true, saveStatus: "saved", ...loadedScopedOptions }) === true,
   "after successful save status becomes saved, valid classification Verify becomes enabled",
 );
 assert(

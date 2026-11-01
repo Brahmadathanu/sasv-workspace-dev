@@ -408,7 +408,11 @@ assert(controlSrc.includes("canVerifyActionSet"), "actions verify eligibility is
 assert(!/Verify \$\{eligible\} reviewed lines/.test(controlSrc), "zero-count verify label is not interpolated directly");
 
 {
-  const renderStart = controlSrc.indexOf("function renderComposition()");
+  // WP-07 UX-9: renderComposition() is now the table/modal shell; the line-card
+  // markup (lifecycle lock, saveStatus, verify hint) lives in renderCompositionLegacy(),
+  // which still feeds the line modal (see ux10 smoke check (c)).
+  const renderStart = controlSrc.indexOf("function renderCompositionLegacy()");
+  assert(renderStart !== -1, "line-card renderer exists");
   const renderEnd = controlSrc.indexOf("\nfunction ", renderStart + 1);
   const renderFn = controlSrc.slice(renderStart, renderEnd === -1 ? undefined : renderEnd);
   const declIdx = renderFn.indexOf("const saveStatus = state.lineSaveStatus.get(String(id))");
@@ -520,6 +524,9 @@ const uiLiteralsWithoutCanonicalStop = [
   "${text.slice(0, 60)}…",
   "Suggested — confirm against the PDF",
   "Reopened — verify again",
+  // WP-07 UX-9 bulk source-reference flow: valid UTF-8 ellipsis in progress copy.
+  "Loading source-reference options…",
+  "Applying…",
   " · ",
 ].reduce(
   (text, literal) => text.split(literal).join(""),
