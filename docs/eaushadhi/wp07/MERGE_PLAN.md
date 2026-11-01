@@ -1,5 +1,7 @@
 # Merge plan: `feat/wp07-ux1-worklist` → `main` (refreshed 1 Nov 2026)
 
+> **CURRENT INTEGRATION GATE (1 Nov 2026):** This file preserves the original planning snapshot; its starting SHAs/cache allocations and branch procedure are superseded. Actual draft integration is PR #120 (`merge-prep/wp07`, `9b8faa1`, cache v389); migration/docs reconciliation is draft PR #122 targeting that integration branch. `main` advanced to `cfab901` (Costing UX-F1, cache still v388). Refresh and reconcile main, run overlapping Costing/WP-07 tests, and obtain explicit owner merge approval. Do **not** execute the outdated rebase/bump steps below verbatim.
+
 **REQUIRES OWNER APPROVAL, AND A CACHE-NUMBER CHECK WITH THE COSTING ORCHESTRATION (now ChatGPT, formerly the Aryabhatta agent), BEFORE OPENING THE PR.** Supersedes the 30/31 Oct plans (main then at v379/v383).
 
 ## State (1 Nov 2026)
