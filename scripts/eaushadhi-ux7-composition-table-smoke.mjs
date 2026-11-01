@@ -88,7 +88,8 @@ for (const closer of ["closeSourceCorrect", "closeSourceResolve", "closeReopen",
   const closeBlock = block(`function ${closer}(`, "\n}");
   check(closeBlock.includes("trigger") && closeBlock.includes(".focus"), `${closer} restores focus to its triggering modal button`);
 }
-check(css.includes(".composition-table-wrap") && css.includes("overflow-x: hidden"), "table wrapper cannot create horizontal scrolling");
+// Bundle A A5: the wrapper now owns horizontal overflow (overflow-x:auto) so the page/workspace never scrolls sideways.
+check(/\.composition-table-wrap \{[^}]*overflow-x:\s*auto;/s.test(css), "table wrapper owns any horizontal scrolling so the page cannot scroll sideways");
 check(css.includes(".composition-table") && css.includes("table-layout: fixed") && css.includes(".composition-table tbody td") && css.includes("vertical-align: middle"), "table uses a bounded fixed layout with vertically centred body cells");
 check(render.includes('id="compositionTableScroll"') && css.includes(".composition-table th") && css.includes("position: sticky") && css.includes("overflow-y: auto"), "table header stays visible in the dedicated table scroller");
 check(css.indexOf("@media (max-width: 1100px)") < css.indexOf("@media (max-width: 980px)") && css.includes(".composition-col-botanical") && css.includes(".composition-col-mapping"), "botanical column hides before the mapping summary column at narrow widths");

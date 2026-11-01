@@ -715,7 +715,7 @@ function preEntryReopenButton({ kind, lineId = null, id, label, dataAttribute = 
   const disabled = availability.enabled
     ? ""
     : ` disabled aria-disabled="true" data-force-disabled="true" title="${escapeHtml(availability.reason)}"`;
-  return `<button type="button" class="icon-btn with-label ea-reopen-btn" id="${escapeHtml(id)}" data-edit-action="true"${dataAttribute}${disabled}>${escapeHtml(label)}</button>`;
+  return `<button type="button" class="icon-btn with-label ea-reopen-btn ea-btn ea-btn--secondary" id="${escapeHtml(id)}" data-edit-action="true"${dataAttribute}${disabled}>${escapeHtml(label)}</button>`;
 }
 
 function currentPostEntryIngredientFormReconcile(lineId) {
@@ -744,7 +744,7 @@ function currentPostEntryIngredientFormReconcile(lineId) {
 function postEntryIngredientFormReconcileButton(lineId) {
   const authority = currentPostEntryIngredientFormReconcile(lineId);
   if (!authority.availability.visible) return "";
-  return `<button type="button" class="icon-btn with-label" data-edit-action="true" id="btn-reconcile-${escapeHtml(lineId)}" data-line-reconcile="${escapeHtml(lineId)}">Reconcile mapping</button>`;
+  return `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" data-edit-action="true" id="btn-reconcile-${escapeHtml(lineId)}" data-line-reconcile="${escapeHtml(lineId)}">Reconcile mapping</button>`;
 }
 
 const CANONICAL_DISEASES_LOCK_STATUSES = Object.freeze([
@@ -1589,6 +1589,36 @@ function hideCompositionActionHint() {
   tip.style.left = "";
 }
 
+function compositionActionHintAnchorVisible(anchor) {
+  if (!anchor || !anchor.isConnected) return false;
+  const rect = anchor.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return false;
+  if (rect.bottom <= 0 || rect.top >= window.innerHeight || rect.right <= 0 || rect.left >= window.innerWidth) return false;
+  const nav = $("workspaceTabs");
+  if (nav && nav.contains(anchor)) {
+    const nr = nav.getBoundingClientRect();
+    if (rect.right <= nr.left || rect.left >= nr.right || rect.bottom <= nr.top || rect.top >= nr.bottom) return false;
+  }
+  return true;
+}
+
+let compositionActionHintFrame = 0;
+
+/** Bundle A A1: keep the open floating helper on its "i" while the page, workspace or nav scrolls/resizes. */
+function scheduleCompositionActionHintPlacement() {
+  if (compositionActionHintFrame) return;
+  compositionActionHintFrame = requestAnimationFrame(() => {
+    compositionActionHintFrame = 0;
+    if (!$("compositionActionHint")?.classList.contains("is-open")) return;
+    const anchor = document.querySelector("#wf-tab-composition .composition-info-icon") || $("wf-tab-composition");
+    if (!compositionActionHintAnchorVisible(anchor)) {
+      hideCompositionActionHint();
+      return;
+    }
+    placeCompositionActionHint();
+  });
+}
+
 function wireCompositionActionHint() {
   const tab = $("wf-tab-composition");
   if (!tab) return;
@@ -1620,7 +1650,13 @@ function renderWorkflowNav() {
   }).join("");
   ensureCompositionActionHint();
   wireCompositionActionHint();
-  if (wasOpen && document.activeElement?.id === "wf-tab-composition") showCompositionActionHint();
+  // Bundle A A4: the rebuilt tab button gets no new mouseenter/focus event, so reopen the helper when the
+  // pointer is still over it or it holds focus (e.g. right after clicking or arrowing to Composition).
+  const compositionTab = $("wf-tab-composition");
+  const stillHovered = (() => {
+    try { return compositionTab?.matches(":hover") === true; } catch { return false; }
+  })();
+  if (compositionTab && (stillHovered || (wasOpen && document.activeElement === compositionTab))) showCompositionActionHint();
 }
 
 function renderProductHeader() {
@@ -1858,7 +1894,7 @@ function renderDetails() {
             label: "Reopen Portal Classification",
           })
         }`
-            : `<button type="button" class="icon-btn with-label primary" id="btnVerifyClassification" data-edit-action="true"${
+            : `<button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnVerifyClassification" data-edit-action="true"${
                 classDecision.ok ? "" : " data-force-disabled=\"true\""
               }${classDecision.code ? ` data-block-code="${escapeHtml(classDecision.code)}"` : ""}${
                 classDecision.reason ? ` title="${escapeHtml(classDecision.reason)}"` : ""
@@ -1955,10 +1991,10 @@ function renderDetails() {
       ${portalTextAvailable ? `<div class="ux6-section-actions">
       ${autosaveHtml(state.portalTextSaveStatus, "portalTextAutosave")}
       <div class="action-row">
-        <button type="button" class="icon-btn with-label primary" id="btnVerifyPortalDiseases" data-edit-action="true"${
+        <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnVerifyPortalDiseases" data-edit-action="true"${
           portalTextHint ? ` data-force-disabled="true" title="${escapeHtml(portalTextHint)}"` : ""
         }>Accept &amp; Verify Portal Text</button>
-        <button type="button" class="icon-btn with-label" id="btnSavePortalDiseases" data-edit-action="true"${
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnSavePortalDiseases" data-edit-action="true"${
           portalTextHint ? ` data-force-disabled="true" title="${escapeHtml(portalTextHint)}"` : ""
         }>Save for Review</button>
       </div>
@@ -2037,7 +2073,7 @@ function renderDetails() {
             label: "Reopen Product Details",
           })
         }`
-            : `<button type="button" class="icon-btn with-label primary" id="btnVerifyDetails" data-edit-action="true"${
+            : `<button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnVerifyDetails" data-edit-action="true"${
                 detailsDecision.ok ? "" : " data-force-disabled=\"true\""
               }${detailsDecision.code ? ` data-block-code="${escapeHtml(detailsDecision.code)}"` : ""}${
                 detailsDecision.reason ? ` title="${escapeHtml(detailsDecision.reason)}"` : ""
@@ -3685,7 +3721,7 @@ function renderActions() {
               ${
                 locked
                   ? ""
-                  : `<button type="button" class="icon-btn" data-edit-action="true" data-action-remove="${index}" aria-label="Remove custom action" title="Remove custom action">Remove</button>`
+                  : `<button type="button" class="icon-btn ea-btn ea-btn--icon ea-btn--secondary" data-edit-action="true" data-action-remove="${index}" aria-label="Remove custom action" title="Remove custom action">Remove</button>`
               }
             </div>`;
           })
@@ -3704,8 +3740,8 @@ function renderActions() {
             label: "Reopen Actions",
           })
         }`
-            : `<button type="button" class="icon-btn with-label" id="btnAddAction" data-edit-action="true">Add custom action</button>
-        <button type="button" class="icon-btn with-label primary" id="btnVerifyActions" data-edit-action="true"${
+            : `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnAddAction" data-edit-action="true">Add custom action</button>
+        <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnVerifyActions" data-edit-action="true"${
           actionsDecision.ok ? "" : " data-force-disabled=\"true\""
         }${actionsDecision.code ? ` data-block-code="${escapeHtml(actionsDecision.code)}"` : ""}${
           actionsDecision.reason ? ` title="${escapeHtml(actionsDecision.reason)}"` : ""
@@ -3745,16 +3781,16 @@ function copyCardSubline(hasCopy, copy, pick) {
 
 function copyCardActions(hasCopy, pick, canUpload) {
   if (pick?.file) {
-    return `<button type="button" class="icon-btn with-label primary" id="btnUploadCopy" data-edit-action="true"${
+    return `<button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnUploadCopy" data-edit-action="true"${
       canUpload ? "" : ` data-force-disabled="true"`
     }>Upload copy</button>
-        <button type="button" class="icon-btn with-label" id="btnCancelCopy">Cancel</button>`;
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnCancelCopy">Cancel</button>`;
   }
   if (hasCopy) {
-    return `<button type="button" class="icon-btn with-label" id="btnOpenCopy">Open copy</button>
-        <button type="button" class="icon-btn with-label" id="btnReplaceCopy" data-edit-action="true">Replace copy</button>`;
+    return `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnOpenCopy">Open copy</button>
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnReplaceCopy" data-edit-action="true">Replace copy</button>`;
   }
-  return `<button type="button" class="icon-btn with-label" id="btnChooseCopy" data-edit-action="true" aria-label="Choose approved product copy file" title="PDF, JPG, or PNG. Max 20 MB.">Choose file</button>`;
+  return `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnChooseCopy" data-edit-action="true" aria-label="Choose approved product copy file" title="PDF, JPG, or PNG. Max 20 MB.">Choose file</button>`;
 }
 
 const QC_REPORT_MAX_BYTES = 2 * 1024 * 1024;
@@ -4505,13 +4541,13 @@ function qcTestReportCardHtml(model) {
     latestLine = `<p class="muted-note" id="qcReportByteStatus">Bytes not yet verified</p>${details}<p class="muted-note">${esc(b1)}. ${esc(b2)}</p>`;
   }
   const checkButton = qcReportShowByteCheck(model)
-    ? `<button type="button" class="icon-btn with-label" id="btnQcReportCheckBytes"${model.verifying || model.confirmOpen ? " disabled" : ""}>Check bytes on server</button>`
+    ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcReportCheckBytes"${model.verifying || model.confirmOpen ? " disabled" : ""}>Check bytes on server</button>`
     : "";
   const newVersionButton = model.offerNewVersion && model.electron === true && model.canWrite === true
-    ? `<button type="button" class="icon-btn with-label" id="btnQcReportReserveNew">Reserve a new version</button>`
+    ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcReportReserveNew">Reserve a new version</button>`
     : "";
   const chosen = model.chosenName
-    ? `<div id="qcReportChosenFile"><p class="muted-note" id="qcReportSelectedFile">Selected: ${esc(model.chosenName)} (${esc(model.chosenSizeText)})</p><p class="muted-note qc-report-sha" id="qcReportShaPreview">SHA-256 ${esc(model.shaPreview || "")}</p><button type="button" class="icon-btn with-label" id="btnQcReportClearFile">Clear</button></div>`
+    ? `<div id="qcReportChosenFile"><p class="muted-note" id="qcReportSelectedFile">Selected: ${esc(model.chosenName)} (${esc(model.chosenSizeText)})</p><p class="muted-note qc-report-sha" id="qcReportShaPreview">SHA-256 ${esc(model.shaPreview || "")}</p><button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcReportClearFile">Clear</button></div>`
     : "";
   return `<section class="section-card" id="qcTestReportCard">
     <h3 class="section-title">QC Test Report (Product 262)</h3>
@@ -4520,7 +4556,7 @@ function qcTestReportCardHtml(model) {
     <ul class="progress-list">${rows}</ul>
     <p class="muted-note" id="qcReportNextName">Next file name: ${esc(model.nextLabel)}</p>
     <p class="muted-note qc-prep-block">${esc(model.nextFileName)}</p>
-    <button type="button" class="icon-btn with-label" id="btnQcReportCopyName">Copy name</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcReportCopyName">Copy name</button>
     ${chosen}
     ${model.fileError ? `<p class="muted-note ea-autosave is-failed" id="qcReportFileError">${esc(model.fileError)}</p>` : ""}
     ${model.verifyError ? `<p class="muted-note ea-autosave is-failed" id="qcReportVerifyError">${esc(model.verifyError)}</p>` : ""}
@@ -4529,7 +4565,7 @@ function qcTestReportCardHtml(model) {
     ${model.warning ? `<p class="muted-note ea-autosave is-failed" id="qcReportWarning">${esc(model.warning)}</p>` : ""}
     ${model.notice ? `<p class="muted-note" id="qcReportNotice">${esc(model.notice)}</p>` : ""}
     <input id="fldQcReportFile" type="file" accept="application/pdf,.pdf" />
-    <button type="button" class="icon-btn with-label" id="btnQcReportUpload"${model.uploadDisabled ? " disabled" : ""}>Upload</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcReportUpload"${model.uploadDisabled ? " disabled" : ""}>Upload</button>
   </section>`;
 }
 
@@ -4562,7 +4598,7 @@ function renderEvidence() {
         <span class="meta-label">Expected filename</span>
         <div class="ea-expected-file-row">
           <span class="ea-expected-file-name" id="eaExpectedFileName">${escapeHtml(expectedName || "Unavailable")}</span>
-          <button type="button" class="icon-btn with-label" id="btnCopyExpectedFileName"${expectedName ? "" : " disabled"}>Copy</button>
+          <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnCopyExpectedFileName"${expectedName ? "" : " disabled"}>Copy</button>
         </div>
       </div>
       ${state.copyContractError ? `<p class="muted-note ea-autosave is-failed ea-copy-contract-error" aria-live="polite">${escapeHtml(state.copyContractError)}</p>` : ""}
@@ -5408,9 +5444,9 @@ function qcPrepWorkspaceHtml(model) {
       <section class="section-card">
         <h4 class="section-title">Test report</h4>
         <p class="muted-note qc-prep-block" id="qcPrepFileName">File name: EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf</p>
-        <button type="button" class="icon-btn with-label" id="btnQcPrepCopyName">Copy name</button>
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcPrepCopyName">Copy name</button>
         <p class="muted-note qc-prep-block" id="qcPrepShaView">SHA-256: ${model.sha ? esc(model.sha) : "computed at upload (D2)"}</p>
-        ${model.reportRegistered ? `<p class="muted-note qc-prep-block" id="qcPrepRegisteredReport">Test report: V${esc(model.reportVersion)} registered \u2013 ${esc(model.reportFileName)}; SHA-256 ${esc(model.sha)}. ${esc(b1Text)}. ${esc(b2Text)}</p><button type="button" class="icon-btn with-label" id="btnOpenEvidenceFromQc">Open Evidence tab</button>` : `<p class="muted-note qc-prep-block" id="qcPrepRegisteredReport">No report uploaded. Upload in the Evidence tab.</p>`}
+        ${model.reportRegistered ? `<p class="muted-note qc-prep-block" id="qcPrepRegisteredReport">Test report: V${esc(model.reportVersion)} registered \u2013 ${esc(model.reportFileName)}; SHA-256 ${esc(model.sha)}. ${esc(b1Text)}. ${esc(b2Text)}</p><button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnOpenEvidenceFromQc">Open Evidence tab</button>` : `<p class="muted-note qc-prep-block" id="qcPrepRegisteredReport">No report uploaded. Upload in the Evidence tab.</p>`}
         <p class="muted-note qc-prep-block">Portal upload limit: PDF ≤ 2 MB. Upload is in the Evidence tab.</p>
       </section>
       ${reasonList}
@@ -5423,9 +5459,9 @@ function qcPrepWorkspaceHtml(model) {
         <div id="qcPrepFormChecks">${reasonItems(formChecks)}</div>
       </div>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnQcPrepReview"${model.reviewDisabled ? " disabled" : ""}>Check (server review)</button>
-        <button type="button" class="icon-btn with-label" id="btnQcPrepSave" data-edit-action="true"${model.saveDisabled ? " disabled" : ""}>Save for review</button>
-        <button type="button" class="icon-btn with-label" id="btnQcPrepReload"${model.reloadDisabled ? " disabled" : ""}>Reload server copy</button>
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcPrepReview"${model.reviewDisabled ? " disabled" : ""}>Check (server review)</button>
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcPrepSave" data-edit-action="true"${model.saveDisabled ? " disabled" : ""}>Save for review</button>
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcPrepReload"${model.reloadDisabled ? " disabled" : ""}>Reload server copy</button>
       </div>
     </section>`;
 }
@@ -5801,8 +5837,8 @@ function qcSourceFactsCardHtml(model) {
     ${model.readOnly === true ? "" : `<label class="qc-prep-block"><input id="qcFactAttest" type="checkbox"${model.attest ? " checked" : ""}${model.enabled ? "" : " disabled"}> I have reviewed every fact above against the verified QC test report (V${esc(model.version)}).</label>`}
     ${model.notice ? `<p class="muted-note ea-autosave is-failed" id="qcSourceFactsNotice">${esc(model.notice)}</p>` : ""}
     <div class="action-row">
-      ${model.readOnly === true ? "" : `<button type="button" class="icon-btn with-label primary" id="btnQcVerifySourceFacts"${model.canSubmit ? "" : " disabled"}${model.blockCode ? ` data-block-code="${esc(model.blockCode)}"` : ""}>${model.running ? "Approving..." : "Approve"}</button>`}
-      ${model.canReopen || model.reopenRunning ? `<button type="button" class="icon-btn with-label" id="btnQcReopenSourceFacts"${model.canReopen ? "" : " disabled"}>${model.reopenRunning ? "Reopening..." : "Reopen for re-verification"}</button>` : ""}
+      ${model.readOnly === true ? "" : `<button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnQcVerifySourceFacts"${model.canSubmit ? "" : " disabled"}${model.blockCode ? ` data-block-code="${esc(model.blockCode)}"` : ""}>${model.running ? "Approving..." : "Approve"}</button>`}
+      ${model.canReopen || model.reopenRunning ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcReopenSourceFacts"${model.canReopen ? "" : " disabled"}>${model.reopenRunning ? "Reopening..." : "Reopen for re-verification"}</button>` : ""}
     </div>
     ${typeof approvalNoticeHtml === "function" ? approvalNoticeHtml("qc", state.qcPrepServer?.preparation_id) : ""}
   </section>`;
@@ -6216,10 +6252,10 @@ function qcLabDecisionCardHtml() {
       </div>`
     : "";
   const buttons = hasHead
-    ? `<button type="button" class="icon-btn with-label" id="btnQcLabCorrect"${ready ? "" : " disabled"}>Correct</button>
-       <button type="button" class="icon-btn with-label" id="btnQcLabReplace"${ready ? "" : " disabled"}>Replace</button>
-       <button type="button" class="icon-btn with-label" id="btnQcLabWithdraw"${ready ? "" : " disabled"}>Withdraw</button>`
-    : `<button type="button" class="icon-btn with-label primary" id="btnQcLabRecord"${ready ? "" : " disabled"}>${state.qcGovernanceRunning ? "Recording..." : "Record"}</button>`;
+    ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcLabCorrect"${ready ? "" : " disabled"}>Correct</button>
+       <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcLabReplace"${ready ? "" : " disabled"}>Replace</button>
+       <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcLabWithdraw"${ready ? "" : " disabled"}>Withdraw</button>`
+    : `<button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnQcLabRecord"${ready ? "" : " disabled"}>${state.qcGovernanceRunning ? "Recording..." : "Record"}</button>`;
   return `<section class="section-card" id="qcLabDecisionCard">
     <h3 class="section-title">Record laboratory decision</h3>
     <p id="qcLabIssuer">Report issuer: ${esc(form.source_report_issuer || "")}</p>
@@ -6393,7 +6429,7 @@ function qcFactAcceptCardHtml() {
         <textarea id="qcFactAcceptNote-${esc(item.fact)}" data-qc-accept-fact="${esc(item.fact)}" data-qc-accept-role="note">${esc(draft.note || "")}</textarea>
       </label>
       <label><input id="qcFactAcceptAttest-${esc(item.fact)}" type="checkbox" data-qc-accept-fact="${esc(item.fact)}" data-qc-accept-role="attest"${draft.attest ? " checked" : ""}> I attest this fact acceptance.</label>
-      <button type="button" class="icon-btn with-label primary" id="btnQcFactAccept-${esc(item.fact)}" data-qc-accept-fact="${esc(item.fact)}"${ready ? "" : " disabled"}>Accept</button>
+      <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnQcFactAccept-${esc(item.fact)}" data-qc-accept-fact="${esc(item.fact)}"${ready ? "" : " disabled"}>Accept</button>
     </div>`;
   }).join("");
   return `<section class="section-card" id="qcFactAcceptCard">
@@ -6656,8 +6692,8 @@ function qcFactCorrectCardHtml() {
           <textarea id="qcFactCorrectReason-${esc(item.fact)}" data-qc-correct-fact="${esc(item.fact)}" data-qc-correct-role="reason">${esc(draft.reason || "")}</textarea>
         </label>
         <label><input id="qcFactCorrectAttest-${esc(item.fact)}" type="checkbox" data-qc-correct-fact="${esc(item.fact)}" data-qc-correct-role="attest"${draft.attest ? " checked" : ""}> I confirm this basis is accurate and I am accountable for this correction.</label>
-        <button type="button" class="icon-btn with-label primary" id="btnQcFactCorrectSave-${esc(item.fact)}" data-qc-correct-fact="${esc(item.fact)}"${ready ? "" : " disabled"}>Correct</button>`
-      : `<button type="button" class="icon-btn with-label" id="btnQcFactCorrect-${esc(item.fact)}" data-qc-correct-fact="${esc(item.fact)}"${blocked ? " disabled" : ""}>Correct</button>`;
+        <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnQcFactCorrectSave-${esc(item.fact)}" data-qc-correct-fact="${esc(item.fact)}"${ready ? "" : " disabled"}>Correct</button>`
+      : `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFactCorrect-${esc(item.fact)}" data-qc-correct-fact="${esc(item.fact)}"${blocked ? " disabled" : ""}>Correct</button>`;
     return `<div class="form-field form-span-2" data-qc-correct-row="${esc(item.fact)}">
       <span class="meta-label">${esc(qcReadinessFactLabel(item.fact))}</span>
       <p>Basis: ${esc(qcBasisCategoryLabel(item.basis_category))}</p>
@@ -6769,7 +6805,7 @@ function qcProtocolMappingCardHtml() {
       <textarea id="qcMappingReason">${esc(state.qcMappingReason || "")}</textarea>
     </label>
     <label><input id="qcMappingAttest" type="checkbox"${state.qcMappingAttest ? " checked" : ""}> I attest this protocol mapping.</label>
-    <button type="button" class="icon-btn with-label primary" id="btnQcMappingVerify"${ready ? "" : " disabled"}>Verify</button>
+    <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnQcMappingVerify"${ready ? "" : " disabled"}>Verify</button>
   </section>`;
 }
 
@@ -7000,27 +7036,27 @@ function qcFillPreflightCardHtml() {
     <p id="qcFillScope">Save only; Submit is not allowed.</p>
     <p id="qcFillSaveBlocked">${esc(QC_FILL_SAVE_BLOCKED)}</p>
     <p id="qcFillButtonsReason">${esc(dryRunReason)}</p>
-    ${writable ? `<button type="button" class="icon-btn with-label" id="btnQcFillInspect">Check portal page</button>
-    <button type="button" class="icon-btn with-label" id="btnQcFillDryRun"${dryRunEnabled ? "" : ` disabled title="${esc(dryRunReason)}"`}>Dry run (no Save)</button>
-    <button type="button" class="icon-btn with-label" id="btnQcNativeSave"${nativeEnabled ? "" : " disabled"}${nativeHint ? ` title="${esc(nativeHint)}"` : ""}>Save to portal (one row)</button>
+    ${writable ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillInspect">Check portal page</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillDryRun"${dryRunEnabled ? "" : ` disabled title="${esc(dryRunReason)}"`}>Dry run (no Save)</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcNativeSave"${nativeEnabled ? "" : " disabled"}${nativeHint ? ` title="${esc(nativeHint)}"` : ""}>Save to portal (one row)</button>
     ${nativeHint ? `<p class="muted-note why-disabled" id="qcNativeSaveHint">${esc(nativeHint)}</p>` : ""}
-    <button type="button" class="icon-btn with-label" id="btnQcFillInspectFile">Choose report to check</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillInspectFile">Choose report to check</button>
     ${inspectFileHtml}
     ${inspectResultHtml}
     <input id="qcFillInspectFile" type="file" accept="application/pdf,.pdf" hidden>
-    <button type="button" class="icon-btn with-label primary" id="btnQcFillArm"${armDisabled}${armDisabled ? ` title="${esc(armReason)}"` : ""}>Arm filling</button>
-    <button type="button" class="icon-btn with-label" id="btnQcFillFields"${armed && !state.qcPrepRunBusy ? "" : " disabled"}>Fill portal fields</button>
-    <button type="button" class="icon-btn with-label" id="btnQcFillChooseReport"${state.qcFillRun?.filled ? "" : " disabled"}>Choose verified report</button>
+    <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnQcFillArm"${armDisabled}${armDisabled ? ` title="${esc(armReason)}"` : ""}>Arm filling</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillFields"${armed && !state.qcPrepRunBusy ? "" : " disabled"}>Fill portal fields</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillChooseReport"${state.qcFillRun?.filled ? "" : " disabled"}>Choose verified report</button>
     <input id="qcFillReportFile" type="file" accept="application/pdf,.pdf" hidden>
-    <button type="button" class="icon-btn with-label" id="btnQcFillReview"${state.qcFillRun?.reportReady ? "" : " disabled"}>Review before Save</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillReview"${state.qcFillRun?.reportReady ? "" : " disabled"}>Review before Save</button>
     <p id="qcFillOrderHint">Dry run arms its own run, or reuses an open dry-run run for this preparation. Do not click Arm filling first.</p>` : ""}
     ${recovery && writable ? `<p id="qcFillCheckList">Check the portal list.</p>
     <label>Note<textarea id="qcFillResolveNote">${esc(resolveNote)}</textarea></label>
     <label><input id="qcFillResolveAttest" type="checkbox"> I checked the portal list for this product.</label>
-    <button type="button" class="icon-btn with-label" id="btnQcFillFound">Found on the list</button>
-    <button type="button" class="icon-btn with-label" id="btnQcFillMissing">Not on the list</button>
-    ${latestStatus === "SAVE_ARMED" ? `<button type="button" class="icon-btn with-label" id="btnQcFillUnknown">Record unknown result</button>` : ""}` : ""}
-    ${latestStatus === "SAVE_CONFIRMED" && writable ? `<button type="button" class="icon-btn with-label" id="btnQcFillVerify">Read the saved row</button>` : ""}
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillFound">Found on the list</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillMissing">Not on the list</button>
+    ${latestStatus === "SAVE_ARMED" ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillUnknown">Record unknown result</button>` : ""}` : ""}
+    ${latestStatus === "SAVE_CONFIRMED" && writable ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillVerify">Read the saved row</button>` : ""}
     ${runHtml ? `<ul id="qcFillRuns">${runHtml}</ul>` : ""}
     ${dryRunHtml}
     ${saveReportHtml}
@@ -8003,7 +8039,7 @@ function renderWorkerFoundationCard() {
   const probeBlock = probeProduct
     ? `
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnQcPreparationRead"${
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcPreparationRead"${
           probeBlocked ? ` disabled aria-disabled="true"` : ""
         }>QC preparation read probe</button>
       </div>
@@ -8014,7 +8050,7 @@ function renderWorkerFoundationCard() {
       )}</p>
       <p class="muted-note">Expected to report a non-empty list after the first preparation is saved.</p>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnQcReportRead"${
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcReportRead"${
           probeBlocked ? ` disabled aria-disabled="true"` : ""
         }>QC report read probe</button>
       </div>
@@ -8030,7 +8066,7 @@ function renderWorkerFoundationCard() {
       <p class="muted-note">Internal verification is not portal entry and is not portal verification.</p>
       <p class="muted-note" id="workerReadinessBrowserContext">${escapeHtml(browserLine)}</p>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnWorkerFoundation" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnWorkerFoundation" data-edit-action="true" ${
           checkDisabled ? `data-force-disabled="true"` : ""
         }>Foundation Check</button>
       </div>
@@ -8260,7 +8296,7 @@ function renderEntryDryRunCard() {
       <p class="muted-note">Internal ${escapeHtml(readyChip)}. Worker ${escapeHtml(workerStatusLabel(state.workerStatus))} (${escapeHtml(workerState)}).</p>
       <p class="muted-note">${escapeHtml(contractLine)}</p>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnWorkerEntryDryRun" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnWorkerEntryDryRun" data-edit-action="true" ${
           checkDisabled ? `data-force-disabled="true"` : ""
         }>Check Entry Readiness</button>
       </div>
@@ -8277,13 +8313,13 @@ function renderEntryDryRunCard() {
       }
       <p class="muted-note">Lifecycle: NOT_STARTED -> IN_PROGRESS -> ENTERED -> PORTAL_VERIFIED (stop). No Composition. No submit.</p>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnWorkerProductDetailsPreview" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnWorkerProductDetailsPreview" data-edit-action="true" ${
           checkDisabled ? `data-force-disabled="true"` : ""
         }>Preview Product Details</button>
-        <button type="button" class="icon-btn with-label primary" id="btnWorkerProductDetailsStart" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnWorkerProductDetailsStart" data-edit-action="true" ${
           startDisabled ? `data-force-disabled="true"` : ""
         }>Start Product Details</button>
-        <button type="button" class="icon-btn with-label primary" id="btnWorkerProductDetailsResume" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnWorkerProductDetailsResume" data-edit-action="true" ${
           resumeDisabled ? `data-force-disabled="true"` : ""
         }>Resume Product Details</button>
       </div>
@@ -8303,7 +8339,7 @@ function renderEntryDryRunCard() {
       ${
         showExactOneRecovery
           ? `<div class="action-row">
-        <button type="button" class="icon-btn with-label primary" id="btnWorkerRecoverExactOneIdentity" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnWorkerRecoverExactOneIdentity" data-edit-action="true" ${
           exactOneRecoveryDisabled ? `data-force-disabled="true"` : ""
         }>Recover Saved Portal Identity</button>
       </div>
@@ -8317,12 +8353,12 @@ function renderEntryDryRunCard() {
       ${
         showReconcile
           ? `<div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnWorkerReconcileAmbiguous" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnWorkerReconcileAmbiguous" data-edit-action="true" ${
           reconcileDisabled ? `data-force-disabled="true"` : ""
         }>Reconcile Ambiguous Save</button>
         ${
           showRebase
-            ? `<button type="button" class="icon-btn with-label" id="btnWorkerRebasePortalProjection" data-edit-action="true" ${
+            ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnWorkerRebasePortalProjection" data-edit-action="true" ${
                 reconcileDisabled ? `data-force-disabled="true"` : ""
               }>Rebase existing run authority</button>`
             : ""
@@ -9086,10 +9122,10 @@ function renderFillOnPortalSection() {
         <textarea id="fldPortalEntryGateReason" class="sasv-control" rows="2" data-edit-action="true">${reasonValue}</textarea>
         <span class="muted-note">${escapeHtml(PORTAL_GATE_REASON_RANGE_COPY)}</span>
         <div class="action-row">
-          <button type="button" class="icon-btn with-label" id="btnPortalEntryGateOn" data-edit-action="true"${
+          <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnPortalEntryGateOn" data-edit-action="true"${
             reasonOk && !gateEnabled && !state.portalEntryGateBusy ? "" : ' data-force-disabled="true"'
           }>Turn on portal entry</button>
-          <button type="button" class="icon-btn with-label" id="btnPortalEntryGateOff" data-edit-action="true"${
+          <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnPortalEntryGateOff" data-edit-action="true"${
             reasonOk && gateEnabled && !state.portalEntryGateBusy ? "" : ' data-force-disabled="true"'
           }>Turn off portal entry</button>
         </div>
@@ -9156,7 +9192,7 @@ function renderReadiness() {
   host.innerHTML = `
     <div class="section-card" id="qcReadinessSummary">
       <p class="muted-note">${escapeHtml(qcReadinessSummaryText())}</p>
-      <button type="button" class="icon-btn with-label" id="btnOpenQcTab">Open QC Register</button>
+      <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnOpenQcTab">Open QC Register</button>
     </div>
     <div class="section-card">
       <div class="readiness-banner ${ready ? "is-ready" : "is-not-ready"}">${
@@ -9181,7 +9217,7 @@ function renderReadiness() {
         <textarea id="fldPromoteNotes" class="sasv-control" rows="2" data-edit-action="true">${escapeHtml(state.promoteNotes)}</textarea>
       </div>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label primary" id="btnPromote" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnPromote" data-edit-action="true" ${
           promoteOk ? "" : `data-force-disabled="true" title="${escapeHtml(promoteReason)}"`
         }>Promote Verified Formulation</button>
       </div>
@@ -9195,7 +9231,7 @@ function renderReadiness() {
         <textarea id="fldVerifyNotes" class="sasv-control" rows="2" data-edit-action="true">${escapeHtml(state.verifyNotes)}</textarea>
       </div>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnVerifyProduct" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnVerifyProduct" data-edit-action="true" ${
           verifyOk ? "" : `data-force-disabled="true" title="${escapeHtml(verifyReason)}"`
         }>Verify Product internally</button>
       </div>
@@ -11960,8 +11996,11 @@ function wireEvents() {
   window.addEventListener("resize", () => {
     if (workerMenuOpen) positionWorkerMenu();
     if ($("compositionFilterDrawer")?.hidden === false) placeCompositionFilterPopover();
-    if ($("compositionActionHint")?.classList.contains("is-open")) placeCompositionActionHint();
+    if ($("compositionActionHint")?.classList.contains("is-open")) scheduleCompositionActionHintPlacement();
   });
+  window.addEventListener("scroll", () => {
+    if ($("compositionActionHint")?.classList.contains("is-open")) scheduleCompositionActionHintPlacement();
+  }, { capture: true, passive: true });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     if ($("compositionActionHint")?.classList.contains("is-open")) hideCompositionActionHint();
@@ -12242,6 +12281,11 @@ function wireEvents() {
     const btn = event.target.closest("[data-tab]");
     if (!btn) return;
     selectWorkflowTab(btn.dataset.tab);
+  });
+  // Bundle A A3: a partly visible tab is not scrolled by focus alone, which cut its focus ring at the strip edge.
+  $("workspaceTabs")?.addEventListener("focusin", (event) => {
+    const step = event.target.closest?.(".workflow-step");
+    if (step) step.scrollIntoView?.({ block: "nearest", inline: "nearest" });
   });
   $("workspaceTabs")?.addEventListener("keydown", (event) => {
     handleRovingKey(event, $("workspaceTabs"), {
