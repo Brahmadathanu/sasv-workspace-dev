@@ -328,7 +328,9 @@ const REVIEW_WORKLIST_SHELL_BLOCKS = [
   /import \{[^}]*\} from "\.\/costing-review-worklist\.js";\n/,
   "// Costing review worklist v1 selection (used only when COSTING_REVIEW_WORKLIST_V1 is ON):\n// { key, rows } where rows is the ALL_ROWS array the group was picked on, so any\n// reload, period change or lens switch (each assigns a new ALL_ROWS) clears it.\nlet REVIEW_WORKLIST_GROUP = null;\n",
   '  if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n    rows = filterReviewWorklistRows(rows, reviewWorklistSelectedKey());\n  }\n',
-  '    if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n      renderReviewWorklistPanel();\n    }\n',
+  '    if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n      renderReviewWorklistPanel();\n    }\n',  // UX-F1: run-context chrome gates (flag only).
+  '    if (isCostingReviewWorklistV1Enabled()) {\n      renderCccRunContextChrome();\n    }\n',
+  '      if (isCostingReviewWorklistV1Enabled()) {\n        renderCccKpiRunCaption();\n      }\n',
 ];
 const REVIEW_WORKLIST_FN_RE =
   /\/\*\* Review worklist v1 \(flag ON only\): selected group key[\s\S]*?\n}\n\n(?=function applyFilters\(\) \{\n)/;
@@ -613,7 +615,11 @@ test("pkg3 COLUMN_HELP unchanged; module safety; FORBIDDEN_RPCS identical; no CS
   // depends on (scripts/lib/costing-scope-guard.mjs) instead of the whole repository, so unrelated modules that
   // land on main later (e.g. WP-07 e-Aushadhi HTML/CSS and its own migration) no longer trip this package test.
   const scope = costingScopeReport({ git, root, base: PKG3_BASE });
-  assert.deepEqual(scope.css, [], "no Costing or shared-contract CSS changed");
+  // Reconciled with UX-F1 (#121): within the Costing CSS scope only public/shared/css/sasv-costing.css may
+  // change, and only append-only since base (later features append their own scoped blocks).
+  assert.deepEqual(scope.css.filter((f) => f !== "public/shared/css/sasv-costing.css"), [], "no other Costing or shared-contract CSS changed");
+  const cssBase = git("show", `${PKG3_BASE}:public/shared/css/sasv-costing.css`);
+  assert.ok(fs.readFileSync(path.join(root, "public/shared/css/sasv-costing.css"), "utf8").startsWith(cssBase), "sasv-costing.css append-only since base");
   assert.deepEqual(scope.html, [], "no Costing HTML changed");
   for (const f of ["pricing-policy", "cost-build", "material-cost", "control-center"]) {
     assert.equal(git("diff", PKG3_BASE, "--", `${JS}/costing-suite-${f}.js`), "", f);
