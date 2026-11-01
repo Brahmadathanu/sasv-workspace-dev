@@ -897,27 +897,90 @@ test("UX-F3 operational problems stay visible outside the disclosure; provenance
   assert.doesNotMatch(outsideInfo(draft), /Row drawer evidence is not|pinned to the displayed/);
 });
 
-test("UX-F3 chips: solid severity-specific fills, pressed/focus states, readable contrast, appended CSS only", () => {
+const f4Css = () => {
   const css = read("public/shared/css/sasv-costing.css");
-  const f3 = css.slice(css.indexOf("UX-F3: one toolbar + one chip row"));
-  assert.ok(f3.length > 200);
-  const rule = (sel) => f3.match(new RegExp(`${sel.replace(/[.\[\]"=()]/g, "\\$&")}\\s*\\{([^}]*)\\}`))?.[1] || "";
-  const bg = (sel) => (rule(sel).match(/background:\s*(#[0-9a-f]{6})/i) || [])[1];
-  const lum = (hex) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
-  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
-  const fills = { blocker: bg(".rwl-chip.rwl-sev-blocker"), review: bg(".rwl-chip.rwl-sev-review"), blockerOn: bg('.rwl-chip.rwl-sev-blocker[aria-pressed="true"]'), reviewOn: bg('.rwl-chip.rwl-sev-review[aria-pressed="true"]') };
-  assert.ok(Object.values(fills).every(Boolean), JSON.stringify(fills));
-  assert.notEqual(fills.blocker, fills.review, "severity-specific colours");
-  assert.notEqual(fills.blocker, fills.blockerOn);
-  for (const [k, hex] of Object.entries(fills)) assert.ok(contrast(hex, "#ffffff") >= 4.5, `${k} ${hex} white text contrast`);
-  assert.ok(contrast("#1f2937", "#ffffff") >= 4.5, "count badge contrast");
-  assert.match(rule(".rwl-chip"), /color:\s*#fff/);
-  assert.match(f3, /\.rwl-chip\[aria-pressed="true"\][^{]*\{[^}]*box-shadow:[^}]*#111827/, "visible pressed ring (not colour alone)");
-  assert.match(f3, /\.rwl-chip\[aria-pressed="true"\] \.rwl-chip-label::before \{ content: "\\2713/, "pressed check mark text cue");
-  assert.match(f3, /\.rwl-chip:focus-visible \{ outline: 3px solid/);
-  assert.match(f3, /@media \(max-width: 520px\) \{\s*\.rwl-chip \{ min-height: 40px; \}/);
-  assert.doesNotMatch(f3, /!important|\.ccc-kpi|\.kpi/, "distinct from the global KPI cards");
-  // Earlier CSS (UX-F2 and before) is a strict prefix of the file: append-only.
-  const f2 = css.slice(0, css.indexOf("UX-F3: one toolbar + one chip row"));
-  assert.ok(f2.includes("UX-F2: compact review worklist"));
+  return css.slice(css.indexOf("UX-F4: restrained worklist"));
+};
+const cssRule = (block, sel) => block.match(new RegExp(`(?:^|\\n)${sel.replace(/[.\[\]"=()*+?^$|\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`))?.[1] || "";
+const hexLum = (hex) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+const hexContrast = (a, b) => { const [x, y] = [hexLum(a), hexLum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+const hexOf = (rule, prop) => (rule.match(new RegExp(`(?:^|[;\\s])${prop}:\\s*(#[0-9a-f]{6})`, "i")) || [])[1];
+
+test("UX-F4 chips: muted tinted fills with dark severity text (WCAG AA), distinct pressed and focus states", () => {
+  const f4 = f4Css();
+  const blocker = cssRule(f4, ".rwl-chip.rwl-sev-blocker");
+  const review = cssRule(f4, ".rwl-chip.rwl-sev-review");
+  const blockerOn = cssRule(f4, '.rwl-chip.rwl-sev-blocker[aria-pressed="true"]');
+  const reviewOn = cssRule(f4, '.rwl-chip.rwl-sev-review[aria-pressed="true"]');
+  for (const [name, r] of Object.entries({ blocker, review, blockerOn, reviewOn })) {
+    const bg = hexOf(r, "background"), fg = hexOf(r, "color");
+    assert.ok(bg && fg, name);
+    assert.ok(hexLum(bg) > 0.7, `${name}: tinted (light) fill, not saturated: ${bg}`);
+    assert.ok(hexContrast(bg, fg) >= 7, `${name}: label contrast ${hexContrast(bg, fg).toFixed(1)}`);
+    assert.ok(hexContrast(bg, "#ffffff") < 1.5, `${name}: no solid saturated block`);
+  }
+  assert.notEqual(hexOf(blocker, "background"), hexOf(review, "background"), "severity-specific tints");
+  assert.notEqual(hexOf(blocker, "color"), hexOf(review, "color"));
+  assert.notEqual(hexOf(blocker, "background"), hexOf(blockerOn, "background"), "pressed differs from rest");
+  assert.notEqual(hexOf(review, "background"), hexOf(reviewOn, "background"));
+  // Pressed: not colour alone (inset ring + stronger border + check mark text); badge keeps readable colour.
+  assert.match(cssRule(f4, '.rwl-chip[aria-pressed="true"], .rwl-chip.rwl-selected'), /box-shadow: inset 0 0 0 1px currentColor/);
+  assert.ok(hexContrast(hexOf(blockerOn, "border-color"), "#ffffff") >= 4.5, "pressed border is a strong severity colour");
+  assert.match(f4, /\.rwl-chip\[aria-pressed="true"\] \.rwl-chip-label::before \{ content: "\\2713/);
+  assert.match(cssRule(f4, ".rwl-chip .rwl-count"), /color: inherit/);
+  // Keyboard focus: its own visible outline, different from the pressed ring, never removed.
+  const focus = cssRule(f4, ".rwl-chip:focus-visible");
+  assert.match(focus, /outline: 2px solid/);
+  assert.match(focus, /outline-offset: 2px/);
+  assert.doesNotMatch(f4, /outline: (?:none|0)[^;]*;[^}]*\.rwl-chip|\.rwl-chip[^{]*\{[^}]*outline: (?:none|0)\b/);
+  assert.doesNotMatch(f4, /!important|\.ccc-kpi|\.kpi/);
+});
+
+test("UX-F4 layout: chips are flexible equal columns across the width; toolbar end is pinned right; responsive breakpoints", () => {
+  const f4 = f4Css();
+  const chips = cssRule(f4, ".rwl-chips");
+  assert.match(chips, /display: grid/);
+  assert.match(chips, /grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 190px\), 1fr\)\)/, "equal flexible columns that collapse");
+  assert.doesNotMatch(chips, /flex-wrap|justify-content: flex-start/);
+  const chip = cssRule(f4, ".rwl-chip");
+  assert.match(chip, /width: 100%/);
+  assert.match(chip, /min-width: 0/);
+  assert.match(cssRule(f4, ".rwl-end"), /margin-left: auto/);
+  assert.match(cssRule(f4, ".rwl-compact .rwl-toolbar"), /display: flex; flex-wrap: wrap/);
+  // Tablet: the end group takes its own full-width row, right-aligned; phone: narrower columns and 40px targets.
+  assert.match(f4, /@media \(max-width: 900px\) \{\s*\.rwl-end \{ flex: 1 1 100%; justify-content: flex-end; margin-left: 0; \}\s*\.rwl-chips \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/); // tablet: balanced 2 x 2
+  assert.match(f4, /@media \(max-width: 520px\) \{[\s\S]*minmax\(min\(100%, 150px\), 1fr\)[\s\S]*\.rwl-chip \{ min-height: 40px; \}[\s\S]*\.rwl-run-picker select \{ min-height: 40px; \}/);
+  // The disclosure panel opens leftwards from the right edge so it cannot overflow the viewport.
+  assert.match(cssRule(f4, ".rwl-info-body"), /right: 0/);
+});
+
+test("UX-F4 run selector follows the Costing control language (tokens, soft focus ring, native select)", () => {
+  const f4 = f4Css();
+  const sel = cssRule(f4, ".rwl-run-picker select");
+  for (const token of ["--sasv-control-md", "--sasv-control-border", "--sasv-radius-sm", "--sasv-control-bg", "--sasv-text-sm"]) assert.ok(sel.includes(token), token);
+  const focus = f4.match(/\.rwl-run-picker select:focus, \.rwl-run-picker select:focus-visible \{([^}]*)\}/)?.[1] || "";
+  assert.match(focus, /--sasv-control-border-focus/);
+  assert.match(focus, /box-shadow: 0 0 0 3px var\(--sasv-focus-ring/);
+  assert.doesNotMatch(sel, /appearance: none|-webkit-appearance: none/, "native select semantics kept");
+  // Same tokens as the established Costing controls.
+  const css = read("public/shared/css/sasv-costing.css");
+  assert.match(css, /body\.sasv-costing #costingPeriodSelect,[\s\S]*?border: 1px solid var\(--sasv-control-border\)/);
+});
+
+test("UX-F4 markup: end group (Clear, drawer note, info) is one right-aligned unit after the picker; at most two rows when unfiltered", () => {
+  const draft = f3Html("selected-not-approved", { selectedRunId: "148" });
+  const toolbar = draft.match(/<div class="rwl-toolbar">([\s\S]*?)<\/div>\n<div class="rwl-chips"|<div class="rwl-toolbar">([\s\S]*?)\n<\/div>/)[0];
+  assert.ok(toolbar.indexOf("rwl-run-picker") < toolbar.indexOf('class="rwl-end"'), "picker first, end group last");
+  const end = draft.match(/<div class="rwl-end">([\s\S]*?)<\/details>\s*<\/div>/)[1];
+  assert.ok(end.indexOf("rwl-drawer-note") < end.indexOf("<details"), "note then info disclosure");
+  assert.doesNotMatch(draft, /rwl-groups|rwl-card/);
+  // Rows: toolbar + chip row only (no alert/scope row without errors or extra filters).
+  const rowsOf = (h) => ["rwl-toolbar", "rwl-chips", "rwl-alert", "rwl-scope"].filter((c) => h.includes(`class="${c}`));
+  assert.deepEqual(rowsOf(draft), ["rwl-toolbar", "rwl-chips"]);
+  // Clear group lives in the end group, not in the chip grid (keeps four equal columns).
+  const rows = makeRows();
+  const sel = renderReviewWorklistHtml(groupReviewWorklistRows(rows), { selectedKey: KEY_PRIME, runContext: reviewWorklistRunContext(rows) });
+  assert.match(sel, /<div class="rwl-end">\s*<button type="button" class="rwl-clear" data-rwl-clear="1">Clear group<\/button>/);
+  assert.doesNotMatch(sel.match(/<div class="rwl-chips"[\s\S]*?<\/div>/)[0], /rwl-clear/);
+  assert.equal((sel.match(/class="rwl-chip /g) || []).length, 4);
 });

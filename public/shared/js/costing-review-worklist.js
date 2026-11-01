@@ -283,15 +283,18 @@ export function renderReviewWorklistHtml(
   <h2 class="rwl-title rwl-sr">Review worklist</h2>
   ${runPicker ? renderReviewWorklistRunPickerHtml(runPicker) : ""}
   ${pill ? `<span class="rwl-pill rwl-pill-${pill.tone}" data-rwl-pill="${e(kind)}">${e(pill.text)}</span>` : ""}
-  ${drawerNote}
-  <details class="rwl-details rwl-info${infoWarn ? " rwl-info-warn" : ""}">
-    <summary aria-label="${e(infoLabel)}" title="${e(infoLabel)}">&#9432;<span class="rwl-sr"> Run details and caveats</span></summary>
-    <div class="rwl-info-body">
-      <div class="rwl-run">${runLine(runContext)}</div>
-      <div class="rwl-frozen">${e(REVIEW_WORKLIST_FROZEN_RUN_TEXT)}</div>
-      ${runDiagnosis ? renderReviewWorklistRunDiagnosisHtml(runDiagnosis) : ""}
-    </div>
-  </details>
+  <div class="rwl-end">
+    ${selectedKey && selectedIdx >= 0 ? `<button type="button" class="rwl-clear" data-rwl-clear="1">Clear group</button>` : ""}
+    ${drawerNote}
+    <details class="rwl-details rwl-info${infoWarn ? " rwl-info-warn" : ""}">
+      <summary aria-label="${e(infoLabel)}" title="${e(infoLabel)}">&#9432;<span class="rwl-sr"> Run details and caveats</span></summary>
+      <div class="rwl-info-body">
+        <div class="rwl-run">${runLine(runContext)}</div>
+        <div class="rwl-frozen">${e(REVIEW_WORKLIST_FROZEN_RUN_TEXT)}</div>
+        ${runDiagnosis ? renderReviewWorklistRunDiagnosisHtml(runDiagnosis) : ""}
+      </div>
+    </details>
+  </div>
 </div>
 ${alerts}`;
   if (!list.length) {
@@ -309,9 +312,8 @@ ${alerts}`;
       return `<button type="button" class="rwl-chip ${sevClass}${selected ? " rwl-selected" : ""}" data-rwl-select="${e(g.key)}" data-rwl-group="${e(g.key)}" aria-pressed="${selected ? "true" : "false"}" aria-label="${e(aria)}" title="${e(tip)}"><span class="rwl-chip-label">${e(labels[i])}</span><span class="rwl-count">${g.count}</span></button>`;
     })
     .join("");
-  const clear = selectedKey && selectedIdx >= 0 ? `<button type="button" class="rwl-clear" data-rwl-clear="1">Clear group</button>` : "";
   const scopeHtml = scope ? `<div class="rwl-scope" role="status" aria-live="polite" data-rwl-scope="1">${e(scope)}</div>` : "";
-  return `<section class="rwl-panel rwl-compact" aria-label="Review worklist">${head}<div class="rwl-chips" role="group" aria-label="Review groups (select to filter the SKU table)">${chips}${clear}</div>${scopeHtml}</section>`;
+  return `<section class="rwl-panel rwl-compact" aria-label="Review worklist">${head}<div class="rwl-chips" role="group" aria-label="Review groups (select to filter the SKU table)">${chips}</div>${scopeHtml}</section>`;
 }
 
 /**

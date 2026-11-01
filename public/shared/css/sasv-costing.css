@@ -2683,32 +2683,52 @@ body.sasv-costing-control-center .cp-readiness-gap-bound {
 }
 
 /* =====================================================================
-   UX-F3: one toolbar + one chip row; solid secondary KPI filter chips. Appended; earlier rules untouched.
+   UX-F4: restrained worklist. Tinted secondary KPI chips spread across the width; soft run selector;
+   drawer note and info disclosure pinned to the toolbar far right. Replaces the UX-F3 block (same PR).
    ===================================================================== */
-.rwl-compact .rwl-toolbar { gap: 4px 8px; }
-.rwl-compact .rwl-run-picker label { font-size: 12px; }
-.rwl-drawer-note { font-size: 12px; font-weight: 600; color: var(--sasv-warning, #92400e); }
+.rwl-compact .rwl-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.rwl-end { display: flex; align-items: center; gap: 6px 8px; margin-left: auto; min-width: 0; }
+.rwl-run-picker select {
+  min-height: var(--sasv-control-md, 36px); padding: 0 8px; max-width: 100%;
+  border: 1px solid var(--sasv-control-border, #d1d5db); border-radius: var(--sasv-radius-sm, 7px);
+  background: var(--sasv-control-bg, #fff); color: var(--sasv-text, #1f2937);
+  font: inherit; font-size: var(--sasv-text-sm, 13px);
+}
+.rwl-run-picker select:focus, .rwl-run-picker select:focus-visible {
+  outline: none; border-color: var(--sasv-control-border-focus, #2563eb); box-shadow: 0 0 0 3px var(--sasv-focus-ring, rgba(37, 99, 235, 0.25));
+}
+.rwl-run-picker select:disabled { opacity: 0.7; }
+.rwl-drawer-note { font-size: 12px; font-weight: 600; color: var(--sasv-warning, #92400e); white-space: nowrap; }
 .rwl-info-warn > summary { color: var(--sasv-warning, #92400e); background: var(--sasv-warning-bg, #fffbeb); }
+.rwl-info-body { left: auto; right: 0; }
 .rwl-info-body .rwl-run { margin-bottom: 4px; }
-.rwl-chips { gap: 4px 6px; }
+.rwl-chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 6px; }
 .rwl-chip {
-  min-height: 26px; padding: 2px 4px 2px 10px; border: 2px solid transparent; border-radius: 6px;
-  color: #fff; font-size: 12px; font-weight: 600; letter-spacing: 0.01em;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-width: 0; min-height: 30px;
+  padding: 3px 8px 3px 10px; border: 1px solid transparent; border-radius: 6px; cursor: pointer;
+  font: inherit; font-size: 12px; font-weight: 600; box-shadow: none;
 }
-.rwl-chip.rwl-sev-blocker { background: #b91c1c; border-color: #b91c1c; }
-.rwl-chip.rwl-sev-review { background: #b45309; border-color: #b45309; }
+.rwl-chip.rwl-sev-blocker { background: #fdeeee; border-color: #f2c9c9; color: #7f1d1d; }
+.rwl-chip.rwl-sev-review { background: #fdf5e4; border-color: #efdcae; color: #78350f; }
+.rwl-chip .rwl-chip-label { min-width: 0; overflow-wrap: anywhere; text-align: left; line-height: 1.2; }
 .rwl-chip .rwl-count {
-  min-width: 22px; padding: 0 6px; border-radius: 4px; text-align: center; font-size: 12px; font-weight: 700;
-  background: rgba(255, 255, 255, 0.92); color: #1f2937;
+  flex: none; min-width: 24px; padding: 0 6px; border-radius: 4px; text-align: center; font-size: 12px; font-weight: 700;
+  background: rgba(255, 255, 255, 0.75); color: inherit;
 }
-.rwl-chip:hover { filter: brightness(0.92); }
-.rwl-chip[aria-pressed="true"], .rwl-chip.rwl-selected {
-  box-shadow: 0 0 0 2px var(--sasv-surface, #fff), 0 0 0 4px #111827; border-color: #111827; color: #fff;
-}
-.rwl-chip.rwl-sev-blocker[aria-pressed="true"] { background: #7f1d1d; }
-.rwl-chip.rwl-sev-review[aria-pressed="true"] { background: #78350f; }
+.rwl-chip:hover { filter: none; }
+.rwl-chip.rwl-sev-blocker:hover { background: #fbe0e0; }
+.rwl-chip.rwl-sev-review:hover { background: #fbecc8; }
+.rwl-chip[aria-pressed="true"], .rwl-chip.rwl-selected { box-shadow: inset 0 0 0 1px currentColor; border-width: 1px; }
+.rwl-chip.rwl-sev-blocker[aria-pressed="true"] { background: #f9d6d6; border-color: #b91c1c; color: #7f1d1d; }
+.rwl-chip.rwl-sev-review[aria-pressed="true"] { background: #f8e4b3; border-color: #b45309; color: #78350f; }
 .rwl-chip[aria-pressed="true"] .rwl-chip-label::before { content: "\2713\00a0"; }
-.rwl-chip:focus-visible { outline: 3px solid var(--sasv-action-primary, #2563eb); outline-offset: 3px; }
+.rwl-chip:focus-visible { outline: 2px solid var(--sasv-action-primary, #1d4ed8); outline-offset: 2px; }
+@media (max-width: 900px) {
+  .rwl-end { flex: 1 1 100%; justify-content: flex-end; margin-left: 0; }
+  .rwl-chips { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 520px) {
+  .rwl-chips { grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); }
   .rwl-chip { min-height: 40px; }
+  .rwl-run-picker select { min-height: 40px; }
 }

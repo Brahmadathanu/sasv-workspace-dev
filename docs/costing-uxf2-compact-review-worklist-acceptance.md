@@ -40,3 +40,19 @@ OUTSTANDING (not yet performed; needs the live app, a signed-in session and cred
 - Owner decision: ⓘ details are a native disclosure rather than a hover tooltip.
 
 Merge remains the owner's decision; nothing here approves merge, deployment or flag changes.
+
+## UX-F3 / UX-F4 design decisions (owner live-preview feedback, 2026-11-01)
+UX-F3 (commit cff6b5e), accepted in principle:
+- The page header already names Approved 143 / Draft 148, so the worklist toolbar repeats no run id, valuation date or approved badge. The run picker is kept. A draft run keeps one short marker ("Draft · not for pricing") so draft identity stays unmistakable.
+- Run line, server status and the full drawer-evidence explanation moved into the accessible information disclosure. Because hiding it could blur provenance, a short visible note ("Drawer: run 143") stays beside it and the disclosure control is flagged (warning tone and accessible name) for drafts and any exception state.
+- Operational problems (status error, run mismatch, mixed runs, period mismatch, missing status) remain visible outside the disclosure.
+- Filter pills became secondary KPI chips (distinct from the global KPI cards).
+
+UX-F4 (owner: saturated chips too intense):
+- Chips use subtle tinted fills with dark severity-coloured label and count (red tint for blocker, amber tint for review; label contrast at least 7:1). Selected state: stronger tint, severity-colour border, inset ring and a check mark (never colour alone). Keyboard focus is a separate 2px outline with offset, so focus and selection are distinguishable.
+- Four chips spread across the full width as equal flexible grid columns: 4 on desktop, 2 x 2 on tablets (up to 900px), 2 columns with 40px targets on phones (up to 520px). No left-aligned narrow cluster.
+- Run selector follows the established Costing control language (control tokens, soft focus ring, native select semantics kept).
+- Drawer note, Clear group and the information disclosure form one end group pinned to the toolbar far right (margin-left:auto; own right-aligned row on tablets/phones). The disclosure opens leftwards from the right edge.
+- Desktop target: two rows (toolbar + chip row). A third row appears only when a real alert (error) or the filter-composition note applies.
+- Unchanged: per-run server-derived counts, run isolation and draft safeguards, the single shared group state used by chips and drawer, row-level modals, flag-OFF behaviour, service-worker cache (v390), WP-07 files and migrations.
+- Automated checks added: colour tint/contrast, pressed/focus distinctness, grid and breakpoint rules, selector tokens, end-group markup and two-row structure. Live-browser, keyboard and denied-role acceptance remain outstanding as listed above.
