@@ -88,7 +88,7 @@ const IN_LENSES = [
 const EXPECTED_BUTTONS = {
   [SCHEME_LENS]: 9,
   "costing-review-workbench": 11,
-  "sku-control-status": 4,
+  "sku-control-status": 6,
   [DRIVER_LENS]: 11,
   "sku-cost-sheet": 8,
   "printable-cost-sheet": 6,
@@ -284,6 +284,12 @@ test("pkg2 flag OFF: legacy templates intact; shell equals base apart from gated
     "    if (isCostingTableToolsV1Enabled()) {\n      renderCw05GenericTableHeader(headers, alignments);\n      return;\n    }\n",
     "      if (isCostingTableToolsV1Enabled()) {\n        renderCw05GenericTableHeader(schemeHeaders, schemeAlignments);\n        return;\n      }\n",
     "      if (isCostingTableToolsV1Enabled()) {\n        renderCw05GenericTableHeader(ccHeaders, ccAlignments);\n        return;\n      }\n",
+    // pkg 3 cost-build gate
+    "      if (isCostingTableToolsV1Enabled()) {\n        if (renderCw05GenericTableHeader(buildHeaders, buildAlignments, cw05TabTableId())) return;\n      }\n",
+    // pkg 3 material gate
+    "      if (isCostingTableToolsV1Enabled()) {\n        if (renderCw05GenericTableHeader(materialHeaders, materialAlignments, cw05TabTableId())) return;\n      }\n",
+    // pkg 3 pricing-policy gate
+    "      if (isCostingTableToolsV1Enabled()) {\n        if (renderCw05GenericTableHeader(policyHeaders, policyAlignments, cw05TabTableId())) return;\n      }\n",
   ];
   let stripped = head;
   for (const g of gates) {
@@ -297,7 +303,7 @@ test("pkg2 flag OFF: legacy templates intact; shell equals base apart from gated
   assert.equal(dropRenderer(stripped), dropRenderer(base));
   // Every renderCw05GenericTableHeader call sits right after a flag check.
   const calls = head.split("\n").filter((l) => l.includes("renderCw05GenericTableHeader(") && !l.includes("function "));
-  assert.equal(calls.length, 5);
+  assert.equal(calls.length, 8);
   for (const line of calls) {
     const idx = head.indexOf(line);
     assert.match(head.slice(idx - 60, idx), /if \(isCostingTableToolsV1Enabled\(\)\) \{\n\s*$/);
@@ -432,10 +438,12 @@ test("pkg2 column map labels equal the source header arrays element by element",
     assert.equal(new Set(keys).size, keys.length, `${lens} keys unique`);
   }
   assert.equal(tableColumnsFor("dashboard"), null);
-  // SKU and Pack (controller-internal formatters) stay unsortable.
+  // SKU and Pack sort by raw server fields (pkg 3).
   const scs = tableColumnsFor("sku-control-status");
-  assert.equal(isSortableColumn(scs[1]), false);
-  assert.equal(isSortableColumn(scs[2]), false);
+  assert.equal(scs[1].key, "sku_id");
+  assert.equal(scs[1].type, "number");
+  assert.equal(scs[2].key, "pack_size");
+  assert.equal(scs[2].type, "number");
   // cost-comparison unchanged: all unsortable.
   assert.ok(tableColumnsFor("cost-comparison").every((c) => !isSortableColumn(c)));
 });
@@ -458,7 +466,9 @@ test("pkg2 accessors follow render fallbacks; Status uses injected getRowStatus;
   assert.equal(statusCol.get, null);
   assert.equal(isSortableColumn(statusCol), false);
   const src = read(TOOLS);
-  assert.doesNotMatch(src, /overall_control_status|costing_status|pricing_bridge_status/);
+  // No copy of the getRowStatus fallback chain (pkg 3 maps raw pricing_bridge_status as a column key).
+  assert.doesNotMatch(src, /overall_control_status|costing_status/);
+  assert.doesNotMatch(src, /control_severity[\s\S]{0,200}first_control_status[\s\S]{0,200}cost_sheet_status/);
   const injected = withAccessors(tableColumnsFor("sku-cost-sheet"), { row_status: (r) => r.s })[8];
   assert.ok(Object.isFrozen(injected));
   assert.equal(isSortableColumn(injected), true);

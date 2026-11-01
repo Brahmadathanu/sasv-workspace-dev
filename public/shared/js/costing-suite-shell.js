@@ -66,7 +66,7 @@ import { createCostingApprovalScreenController } from "./costing-approval-screen
 import { createCostingLockScreenController } from "./costing-lock-screen.js";
 import { createCostingRunStatusScreenController } from "./costing-run-status-screen.js";
 import { isCostingTableToolsV1Enabled } from "./costing-feature-flags.js";
-import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, isSortableColumn, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor, withAccessors } from "./costing-table-tools.js";
+import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, isSortableColumn, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor, tableColumnsForTable, withAccessors } from "./costing-table-tools.js";
 import {
   createQcActionQueueController,
   isQcActionQueueLens,
@@ -5913,6 +5913,9 @@ function renderTableHeaderForLens() {
     const buildHeaders = costBuildCtrl.getTableHeaders(CURRENT_LENS);
     const buildAlignments = costBuildCtrl.getTableAlignments(CURRENT_LENS);
     if (buildHeaders && buildAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        if (renderCw05GenericTableHeader(buildHeaders, buildAlignments, cw05TabTableId())) return;
+      }
       tableHead.innerHTML = `<tr>${buildHeaders
         .map((h, i) => {
           const classes = [buildAlignments[i] || "c-left"];
@@ -5928,6 +5931,9 @@ function renderTableHeaderForLens() {
     const materialHeaders = materialCostCtrl.getTableHeaders(CURRENT_LENS);
     const materialAlignments = materialCostCtrl.getTableAlignments(CURRENT_LENS);
     if (materialHeaders && materialAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        if (renderCw05GenericTableHeader(materialHeaders, materialAlignments, cw05TabTableId())) return;
+      }
       tableHead.innerHTML = `<tr>${materialHeaders
         .map((h, i) => {
           const classes = [materialAlignments[i] || "c-left"];
@@ -5980,6 +5986,9 @@ function renderTableHeaderForLens() {
     const policyHeaders = pricingPolicyCtrl.getTableHeaders(CURRENT_LENS);
     const policyAlignments = pricingPolicyCtrl.getTableAlignments(CURRENT_LENS);
     if (policyHeaders && policyAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        if (renderCw05GenericTableHeader(policyHeaders, policyAlignments, cw05TabTableId())) return;
+      }
       tableHead.innerHTML = `<tr>${policyHeaders
         .map((h, i) => {
           const classes = [policyAlignments[i] || "c-left"];
@@ -6095,12 +6104,21 @@ function renderTableHeaderForLens() {
  * driver-governance, scheme-comparison, cost-sheet and control-centre lens
  * branches and the generic header map. Columns without a sortable key render
  * exactly as the legacy <th>.
+ * Optional `tableId` (cost build, material and pricing branches): a string from
+ * cw05TabTableId() uses that tab's column map and scopes the sort to the tab;
+ * null means the tab has no CW-05 table, nothing is rendered and false is
+ * returned so the caller keeps its legacy header. Returns true when rendered.
  */
-function renderCw05GenericTableHeader(headers, alignments) {
-  const columns = withAccessors(tableColumnsFor(CURRENT_LENS) || [], {
+function renderCw05GenericTableHeader(headers, alignments, tableId) {
+  if (tableId === null) return false;
+  const sortScope = tableId || CURRENT_LENS;
+  const baseColumns = tableId
+    ? tableColumnsForTable(tableId)
+    : tableColumnsFor(CURRENT_LENS);
+  const columns = withAccessors(baseColumns || [], {
     row_status: getRowStatus,
   });
-  const sortState = activeSortState(CW05_SORT_CTX, CURRENT_LENS, VIEW);
+  const sortState = activeSortState(CW05_SORT_CTX, sortScope, VIEW);
   tableHead.innerHTML = `<tr>${headers
     .map((h, i) => {
       const classes = [alignments[i] || "c-left"];
@@ -6119,13 +6137,68 @@ function renderCw05GenericTableHeader(headers, alignments) {
     btn.addEventListener("click", () => {
       const col = columns[Number(btn.dataset.cw05Sort)];
       if (!isSortableColumn(col)) return;
-      const result = applySortClick(CW05_SORT_CTX, CURRENT_LENS, VIEW, col);
+      const result = applySortClick(CW05_SORT_CTX, sortScope, VIEW, col);
       CW05_SORT_CTX = result.ctx;
       VIEW = result.view;
       CURRENT_PAGE = 1;
       renderTable();
     });
   });
+  return true;
+}
+
+/**
+ * CW-05 (COSTING_TABLE_TOOLS_V1 ON only): "<lens>:<tab>" id of the read-only
+ * tab tables that get table tools, from the controllers' own tab/view getters.
+ * Returns null for every other tab (workflow, write and trace tables).
+ */
+function cw05TabTableId() {
+  if (CURRENT_LENS === "mrp-governance") {
+    if (
+      pricingPolicyCtrl.isMrpAppliedHistoryTabActive() ||
+      pricingPolicyCtrl.isMrpApplicationTabActive() ||
+      pricingPolicyCtrl.isMrpDecisionsTabActive() ||
+      pricingPolicyCtrl.isMrpProposalsTabActive()
+    ) {
+      return null;
+    }
+    if (pricingPolicyCtrl.isProductDerivationPoliciesTabActive()) {
+      const view = pricingPolicyCtrl.getProductDerivationPolicyView();
+      if (view === "current") return "mrp-governance:derivation-current";
+      if (view === "history") return "mrp-governance:derivation-history";
+      return null;
+    }
+    if (pricingPolicyCtrl.isSkuMrpPoliciesTabActive()) {
+      const view = pricingPolicyCtrl.getSkuMrpPolicyView();
+      if (view === "current") return "mrp-governance:sku-mrp-current";
+      if (view === "history") return "mrp-governance:sku-mrp-history";
+    }
+    return null;
+  }
+  if (CURRENT_LENS === "policy-manager") {
+    const tab = pricingPolicyCtrl.getPolicyManagerTab();
+    if (tab === "sku-overview") return "policy-manager:sku-overview";
+    if (tab === "scheme-rule-register") return "policy-manager:scheme-rule-register";
+    return null;
+  }
+  if (CURRENT_LENS === "cost-governance") {
+    const tab = costBuildCtrl.getCostGovernanceTab();
+    if (tab === "mapping-register" || tab === "excluded" || tab === "cost-pool-summary") {
+      return `cost-governance:${tab}`;
+    }
+    return null;
+  }
+  if (CURRENT_LENS === "staff-governance") {
+    return costBuildCtrl.getStaffGovernanceTab() === "staff-pool-summary"
+      ? "staff-governance:staff-pool-summary"
+      : null;
+  }
+  if (CURRENT_LENS === "manual-rate-manager") {
+    const tab = materialCostCtrl.getManualRateManagerTab();
+    if (tab === "register" || tab === "history") return `manual-rate-manager:${tab}`;
+    return null;
+  }
+  return null;
 }
 
 function productSkuLabel(row) {
