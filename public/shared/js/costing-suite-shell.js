@@ -67,7 +67,7 @@ import { createCostingLockScreenController } from "./costing-lock-screen.js";
 import { createCostingRunStatusScreenController } from "./costing-run-status-screen.js";
 import { isCostingTableToolsV1Enabled } from "./costing-feature-flags.js";
 import { isCostingReviewWorklistV1Enabled } from "./costing-feature-flags.js";
-import { CCC_DRAFT_SUMMARY_SELECT, createLatestOnlyLoader, createReviewWorklistRunStatusLoader, describeDashboardRunContext, describeKpiRunCaption, describeReviewWorklistRunContext, filterReviewWorklistRows, groupReviewWorklistRows, isReviewWorklistRunChoice, renderDashboardRunContextHtml, renderKpiRunCaptionHtml, renderReviewWorklistHtml, resolveReviewWorklistTarget, reviewWorklistRunChoices, reviewWorklistRunContext, sortReviewWorklistRows, summariseRunRows, validateReviewWorklistRunRows, REVIEW_WORKLIST_BY_RUN_VIEW, REVIEW_WORKLIST_NO_NAV_TOAST, REVIEW_WORKLIST_RUN_STATUS_SELECT, REVIEW_WORKLIST_RUN_STATUS_VIEW } from "./costing-review-worklist.js";
+import { CCC_DRAFT_SUMMARY_SELECT, createLatestOnlyLoader, createReviewWorklistRunStatusLoader, describeDashboardRunContext, describeKpiRunCaption, describeReviewWorklistRunContext, filterReviewWorklistRows, groupReviewWorklistRows, isReviewWorklistRunChoice, renderDashboardRunContextHtml, renderKpiRunCaptionHtml, renderReviewWorklistDrawerGroupHtml, renderReviewWorklistHtml, reviewWorklistRunChoices, reviewWorklistRunContext, sortReviewWorklistRows, summariseRunRows, validateReviewWorklistRunRows, REVIEW_WORKLIST_BY_RUN_VIEW, REVIEW_WORKLIST_RUN_STATUS_SELECT, REVIEW_WORKLIST_RUN_STATUS_VIEW } from "./costing-review-worklist.js";
 import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, isSortableColumn, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor, tableColumnsForTable, withAccessors } from "./costing-table-tools.js";
 import {
   createQcActionQueueController,
@@ -5943,6 +5943,76 @@ function reviewWorklistRunStatus() {
 }
 
 /** Review worklist v1 (flag ON only): read-only panel in #workbenchSummary. */
+/**
+ * UX-F2: the single entry point for changing the worklist group (pills, drawer radios and "Clear group" all
+ * call it). It only records the canonical key; filtering stays in applyFilters -> applySearch, which composes
+ * the group (AND) with the drawer Status / Issue / Source choices and the search box. Re-rendering the table
+ * re-renders the panel and the drawer section, so both controls always show the same selection.
+ */
+function setReviewWorklistGroup(key) {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return;
+  // Only a group that exists in the rows currently loaded can be selected (never a stale or foreign key).
+  const known = key && groupReviewWorklistRows(ALL_ROWS).some((g) => g.key === String(key));
+  REVIEW_WORKLIST_GROUP = known ? { key: String(key), rows: ALL_ROWS } : null;
+  CURRENT_PAGE = 1;
+  applyFilters();
+}
+
+/** Drawer "Clear" resets every drawer choice, the review group included. */
+function clearReviewWorklistGroup() {
+  REVIEW_WORKLIST_GROUP = null;
+}
+
+/** Narrowing the table besides the group: drawer checklist choices and the search box (for the scope note). */
+function reviewWorklistFilterState() {
+  const drawerFilterCount =
+    (ACTIVE_FILTERS.status?.length || 0) + (ACTIVE_FILTERS.issue?.length || 0) + (ACTIVE_FILTERS.source?.length || 0);
+  return {
+    drawerFilterCount,
+    searchActive: Boolean(String(searchBox?.value || "").trim()),
+    shownCount: Array.isArray(VIEW) ? VIEW.length : null,
+    totalCount: ALL_ROWS.length,
+  };
+}
+
+/** Drops the drawer's Review group section once it no longer applies (flag OFF / other lens). */
+function removeInactiveReviewWorklistDrawerGroup() {
+  if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") return;
+  $("peqFilterDrawer")?.querySelector?.('[data-peq-section="review-group"]')?.remove?.();
+}
+
+/**
+ * Mirrors the group into the filter drawer as a "Review group" radio section (built here so no Costing HTML
+ * changes). Removed whenever the flag is OFF, the lens is not SKU Control Status or there are no groups.
+ */
+function syncReviewWorklistDrawerGroup(groups, selectedKey) {
+  const drawer = typeof $ === "function" ? $("peqFilterDrawer") : null;
+  if (!drawer) return;
+  const existing = drawer.querySelector?.('[data-peq-section="review-group"]') || null;
+  const active =
+    isCostingReviewWorklistV1Enabled() &&
+    CURRENT_LENS === "sku-control-status" &&
+    Array.isArray(groups) &&
+    groups.length > 0;
+  if (!active) {
+    existing?.remove?.();
+    return;
+  }
+  let section = existing;
+  if (!section) {
+    section = document.createElement("div");
+    section.className = "peq-filter-section";
+    section.setAttribute("data-peq-section", "review-group");
+    section.addEventListener("change", (event) => {
+      const input = event.target;
+      if (!input?.hasAttribute?.("data-rwl-drawer-group")) return;
+      setReviewWorklistGroup(input.value || null);
+    });
+    drawer.prepend(section);
+  }
+  section.innerHTML = renderReviewWorklistDrawerGroupHtml(groups, { selectedKey });
+}
+
 function renderReviewWorklistPanel() {
   if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return;
   if (!workbenchSummary) return;
@@ -6009,6 +6079,7 @@ function renderReviewWorklistPanel() {
       runPickerAvailable: choices.length > 1,
     }),
     rowCount: ALL_ROWS.length,
+    filterState: reviewWorklistFilterState(),
     runPicker: choices.length
       ? {
           choices,
@@ -6025,34 +6096,16 @@ function renderReviewWorklistPanel() {
       void selectReviewWorklistRun(select.value);
     });
   });
+  syncReviewWorklistDrawerGroup(groups, selectedKey);
+  // Pills toggle the one canonical group selection: activating the active pill clears it.
   workbenchSummary.querySelectorAll("[data-rwl-select]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      REVIEW_WORKLIST_GROUP = { key: btn.dataset.rwlSelect, rows: ALL_ROWS };
-      CURRENT_PAGE = 1;
-      applyFilters();
+      const key = btn.dataset.rwlSelect;
+      setReviewWorklistGroup(reviewWorklistSelectedKey() === key ? null : key);
     });
   });
   workbenchSummary.querySelectorAll("[data-rwl-clear]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      REVIEW_WORKLIST_GROUP = null;
-      CURRENT_PAGE = 1;
-      applyFilters();
-    });
-  });
-  workbenchSummary.querySelectorAll("[data-rwl-open]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const group = groups.find((g) => g.key === btn.dataset.rwlOpen);
-      const target = group ? resolveReviewWorklistTarget(group.rows[0]) : null;
-      if (!target?.navigable || typeof navigateToCostingRoute !== "function") {
-        showToast(REVIEW_WORKLIST_NO_NAV_TOAST, "info");
-        return;
-      }
-      navigateToCostingRoute(
-        target.moduleKey,
-        target.navigateParams || { lens: target.lensId },
-        { newTab: target.newTab === true },
-      );
-    });
+    btn.addEventListener("click", () => setReviewWorklistGroup(null));
   });
 }
 
@@ -8391,6 +8444,7 @@ function updateFilterButtonState() {
     count = getInteractablePeqFilterCheckboxes().filter(
       (cb) => cb.checked,
     ).length;
+    if (reviewWorklistSelectedKey()) count += 1;
   }
   btn.classList.toggle("peq-filter-btn--active", count > 0);
   const badge = btn.querySelector(".peq-filter-badge");
@@ -8423,6 +8477,7 @@ function updateFilterButtonState() {
 }
 
 function syncFilterCheckboxes() {
+  removeInactiveReviewWorklistDrawerGroup();
   sanitizeActiveFiltersToVisibleOptions();
   document
     .querySelectorAll("#peqFilterDrawer input[data-filter-group]")
@@ -8732,6 +8787,7 @@ function wireFilterDrawer() {
       }) ||
         materialCostCtrl.wasLastActionQueueLoadRemediation?.() === true);
     ACTIVE_FILTERS = { status: [], issue: [], source: [] };
+    clearReviewWorklistGroup();
     syncFilterCheckboxes();
     if (leavingRemediation) {
       clearStage05RemediationLaunchContext();

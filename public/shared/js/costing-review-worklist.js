@@ -202,10 +202,46 @@ export function reviewWorklistVisibleAlerts(d) {
   return out;
 }
 
-/** HTML for the worklist panel. All server text is escaped. */
+/** Visible label of a group (server first-control status label; route appended only to disambiguate). */
+export function reviewWorklistGroupLabel(group, { withRoute = false } = {}) {
+  const primary = formatFirstControlStatusLabel(group.firstControlStatus) || group.firstControlStatus;
+  const routeLabel = formatRecommendedUiRouteLabel(group.route) || group.route;
+  return withRoute && routeLabel ? `${primary} · ${routeLabel}` : primary;
+}
+
+/** Labels per group key; the route is appended only where two groups would otherwise read the same. */
+function groupLabels(groups) {
+  const base = groups.map((g) => reviewWorklistGroupLabel(g));
+  return groups.map((g, i) =>
+    base.filter((l) => l === base[i]).length > 1 ? reviewWorklistGroupLabel(g, { withRoute: true }) : base[i],
+  );
+}
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/**
+ * UX-F2 composition note: the group is ANDed with the drawer's Status / Issue / Source choices and the search
+ * box (one pipeline in the shell). Shown whenever any of them narrows the table so the combination is visible.
+ */
+export function describeReviewWorklistScope({ selectedLabel = null, drawerFilterCount = 0, searchActive = false, shownCount = null, totalCount = null } = {}) {
+  const extras = [];
+  if (drawerFilterCount > 0) extras.push(plural(drawerFilterCount, "drawer filter"));
+  if (searchActive) extras.push("search");
+  if (!selectedLabel && !extras.length) return null;
+  const parts = [];
+  if (selectedLabel) parts.push(`Group: ${selectedLabel}`);
+  if (extras.length) parts.push(`${selectedLabel ? "also " : "Table narrowed by "}${extras.join(" + ")}`);
+  if (shownCount !== null && totalCount !== null) parts.push(`showing ${shownCount} of ${totalCount} rows`);
+  return parts.join(" · ");
+}
+
+/**
+ * HTML for the compact worklist panel (UX-F2): one slim run row, one wrapping row of toggle pills.
+ * Pills are the ONLY group control here; the drawer exposes the same canonical group key. All server text is escaped.
+ */
 export function renderReviewWorklistHtml(
   groups,
-  { selectedKey = null, runContext = null, runDiagnosis = null, rowCount = null, runPicker = null } = {},
+  { selectedKey = null, runContext = null, runDiagnosis = null, rowCount = null, runPicker = null, filterState = null } = {},
 ) {
   const e = escapeHtml;
   const list = Array.isArray(groups) ? groups : [];
@@ -213,45 +249,67 @@ export function renderReviewWorklistHtml(
   const alerts = reviewWorklistVisibleAlerts(runDiagnosis)
     .map((a) => `<div class="rwl-alert rwl-alert-${a.tone}" role="${a.role}">${e(a.text)}</div>`)
     .join("");
+  const labels = groupLabels(list);
+  const selectedIdx = list.findIndex((g) => g.key === selectedKey);
+  const scope = describeReviewWorklistScope({
+    selectedLabel: selectedIdx >= 0 ? labels[selectedIdx] : null,
+    drawerFilterCount: filterState?.drawerFilterCount || 0,
+    searchActive: Boolean(filterState?.searchActive),
+    shownCount: filterState?.shownCount ?? null,
+    totalCount: filterState?.totalCount ?? null,
+  });
   const head = `<div class="rwl-toolbar">
   <h2 class="rwl-title">Review worklist</h2>
   ${runPicker ? renderReviewWorklistRunPickerHtml(runPicker) : ""}
   ${pill ? `<span class="rwl-pill rwl-pill-${pill.tone}" data-rwl-pill="${e(runDiagnosis.kind)}">${e(pill.text)}</span>` : ""}
-  ${selectedKey ? `<button type="button" class="rwl-clear" data-rwl-clear="1">Clear group</button>` : ""}
+  <span class="rwl-run">${runLine(runContext)}</span>
+  <details class="rwl-details rwl-info">
+    <summary aria-label="Run details and caveats" title="Run details and caveats">&#9432;<span class="rwl-sr"> Run details and caveats</span></summary>
+    <div class="rwl-info-body">
+      <div class="rwl-frozen">${e(REVIEW_WORKLIST_FROZEN_RUN_TEXT)}</div>
+      ${runDiagnosis ? renderReviewWorklistRunDiagnosisHtml(runDiagnosis) : ""}
+    </div>
+  </details>
 </div>
-<div class="rwl-run">${runLine(runContext)}</div>
-${alerts}
-<details class="rwl-details">
-  <summary>Run details and caveats</summary>
-  <div class="rwl-frozen">${e(REVIEW_WORKLIST_FROZEN_RUN_TEXT)}</div>
-  ${runDiagnosis ? renderReviewWorklistRunDiagnosisHtml(runDiagnosis) : ""}
-</details>`;
+${alerts}`;
   if (!list.length) {
     const emptyText = rowCount === 0 ? REVIEW_WORKLIST_NO_ROWS_TEXT : REVIEW_WORKLIST_EMPTY_TEXT;
-    return `<section class="rwl-panel" aria-label="Review worklist">${head}<div class="rwl-empty">${e(emptyText)}</div></section>`;
+    return `<section class="rwl-panel rwl-compact" aria-label="Review worklist">${head}<div class="rwl-empty">${e(emptyText)}</div></section>`;
   }
-  const items = list
-    .map((g) => {
-      const primary = formatFirstControlStatusLabel(g.firstControlStatus) || g.firstControlStatus;
-      const routeLabel = formatRecommendedUiRouteLabel(g.route) || g.route;
-      const target = resolveReviewWorklistTarget(g.rows[0]);
-      const noteText = g.notesDiffer ? REVIEW_WORKLIST_MIXED_NOTES_TEXT : g.note;
-      const note = noteText ? `<div class="rwl-note" title="${e(noteText)}">${e(noteText)}</div>` : "";
-      const open = target.navigable
-        ? `<button type="button" class="rwl-open" data-rwl-open="${e(g.key)}">Open fix screen</button>`
-        : `<span class="rwl-nolink" title="${e(`${target.label} – ${REVIEW_WORKLIST_NO_LINK_TEXT}`)}">No fix screen link yet</span>`;
+  const chips = list
+    .map((g, i) => {
       const selected = selectedKey === g.key;
       const sevClass = g.severity === "BLOCKER" ? "rwl-sev-blocker" : "rwl-sev-review";
-      return `<li class="rwl-group rwl-card ${sevClass}${selected ? " rwl-selected" : ""}" data-rwl-group="${e(g.key)}">
-  <div class="rwl-card-head"><span class="rwl-severity">${e(costingStatusDisplayLabel(g.severity))}</span><span class="rwl-count">${g.count} SKU${g.count === 1 ? "" : "s"}</span></div>
-  <div class="rwl-primary">${e(primary)}</div>
-  <div class="rwl-route">${e(routeLabel)}</div>
-  ${note}
-  <div class="rwl-actions"><button type="button" class="rwl-select" data-rwl-select="${e(g.key)}"${selected ? ' aria-pressed="true"' : ' aria-pressed="false"'}>Show in table</button>${open}</div>
-</li>`;
+      const sevLabel = costingStatusDisplayLabel(g.severity);
+      const noteText = g.notesDiffer ? REVIEW_WORKLIST_MIXED_NOTES_TEXT : g.note;
+      const tip = [`${sevLabel}: ${labels[i]}`, noteText].filter(Boolean).join(" – ");
+      const aria = `${sevLabel}: ${labels[i]}, ${plural(g.count, "SKU")}. ${selected ? "Showing in table; activate to clear" : "Show in table"}`;
+      return `<button type="button" class="rwl-chip ${sevClass}${selected ? " rwl-selected" : ""}" data-rwl-select="${e(g.key)}" data-rwl-group="${e(g.key)}" aria-pressed="${selected ? "true" : "false"}" aria-label="${e(aria)}" title="${e(tip)}"><span class="rwl-chip-label">${e(labels[i])}</span><span class="rwl-count">${g.count}</span></button>`;
     })
-    .join("\n");
-  return `<section class="rwl-panel" aria-label="Review worklist">${head}<ul class="rwl-groups" role="list">${items}</ul></section>`;
+    .join("");
+  const clear = selectedKey && selectedIdx >= 0 ? `<button type="button" class="rwl-clear" data-rwl-clear="1">Clear group</button>` : "";
+  const scopeHtml = scope ? `<div class="rwl-scope" role="status" aria-live="polite" data-rwl-scope="1">${e(scope)}</div>` : "";
+  return `<section class="rwl-panel rwl-compact" aria-label="Review worklist">${head}<div class="rwl-chips" role="group" aria-label="Review groups (select to filter the SKU table)">${chips}${clear}</div>${scopeHtml}</section>`;
+}
+
+/**
+ * Drawer "Review group" section: the same canonical group key as the pills (one selection, two controls).
+ * A radio set, because exactly one precise group (severity | first control status | route) can be active.
+ */
+export function renderReviewWorklistDrawerGroupHtml(groups, { selectedKey = null } = {}) {
+  const e = escapeHtml;
+  const list = Array.isArray(groups) ? groups : [];
+  if (!list.length) return "";
+  const labels = groupLabels(list);
+  const hasSel = list.some((g) => g.key === selectedKey);
+  const row = (value, text, checked) =>
+    `<li><label><input type="radio" name="rwlDrawerGroup" data-rwl-drawer-group="1" value="${e(value)}"${checked ? " checked" : ""} /> ${e(text)}</label></li>`;
+  const items = [row("", "All rows", !hasSel)]
+    .concat(list.map((g, i) => row(g.key, `${costingStatusDisplayLabel(g.severity)}: ${labels[i]} (${g.count})`, g.key === selectedKey)))
+    .join("");
+  return `<div class="peq-filter-section-title">Review group</div>
+<ul class="peq-filter-checklist" role="radiogroup" aria-label="Review group">${items}</ul>
+<div class="rwl-drawer-note">One group at a time. Combines (AND) with Status, Issue, Source and search. “Clear” resets all, including this.</div>`;
 }
 
 // ---------------------------------------------------------------------------

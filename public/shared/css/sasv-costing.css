@@ -2645,3 +2645,39 @@ body.sasv-costing-control-center .cp-readiness-gap-bound {
   .rwl-run-picker select { flex: 1 1 auto; min-height: 40px; }
   .rwl-select, .rwl-open, .rwl-clear, .ccc-rc-cta { min-height: 40px; }
 }
+
+/* =====================================================================
+   UX-F2: compact review worklist (pills + unified drawer group). Appended; earlier rules untouched.
+   ===================================================================== */
+.rwl-compact { gap: 4px; margin: 2px 0 6px; }
+.rwl-compact .rwl-toolbar { gap: 4px 10px; }
+.rwl-compact .rwl-title { font-size: 13px; }
+.rwl-compact .rwl-run { font-size: 12px; color: var(--muted, #6b7280); }
+.rwl-info { position: relative; }
+.rwl-info > summary { cursor: pointer; list-style: none; min-width: 24px; min-height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; }
+.rwl-info > summary::-webkit-details-marker { display: none; }
+.rwl-info-body {
+  position: absolute; z-index: 20; left: 0; top: 100%; width: min(480px, 90vw); max-height: 50vh; overflow: auto;
+  padding: 8px 10px; border: 1px solid var(--sasv-border, #e5e7eb); border-radius: var(--sasv-radius-sm, 7px);
+  background: var(--sasv-surface, #fff); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+.rwl-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
+.rwl-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 28px; max-width: 100%; padding: 2px 10px;
+  border: 1px solid var(--sasv-border, #d1d5db); border-left-width: 4px; border-radius: 999px; cursor: pointer;
+  background: var(--sasv-surface, #fff); color: inherit; font: inherit; font-size: 12px; font-weight: 600;
+}
+.rwl-chip.rwl-sev-blocker { border-left-color: var(--sasv-danger, #b91c1c); }
+.rwl-chip.rwl-sev-review { border-left-color: var(--sasv-warning, #b45309); }
+.rwl-chip .rwl-chip-label { overflow-wrap: anywhere; text-align: left; }
+.rwl-chip .rwl-count { font-size: 12px; }
+.rwl-chip[aria-pressed="true"], .rwl-chip.rwl-selected {
+  background: var(--sasv-action-primary, #2563eb); color: #fff; border-color: var(--sasv-action-primary, #2563eb);
+}
+.rwl-chip:focus-visible { outline: 2px solid var(--sasv-action-primary, #2563eb); outline-offset: 2px; }
+.rwl-scope { font-size: 12px; color: var(--muted, #6b7280); }
+.rwl-drawer-note { font-size: 11px; color: var(--muted, #6b7280); margin-top: 4px; }
+@media (max-width: 520px) {
+  .rwl-chip { min-height: 40px; }
+  .rwl-info-body { position: static; width: auto; max-height: 40vh; box-shadow: none; margin-top: 4px; }
+}
