@@ -532,10 +532,10 @@ test("COSTING_REVIEW_WORKLIST_V1 defaults OFF and accepts exactly string 1", () 
 // 9. Protected files, help, sw, CSS
 test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS append-only .rwl- block", async () => {
   const protectedFiles = [
-    "costing-approval-screen.js", "costing-approval-errors.js", "costing-approval-labels.js", "costing-lock-screen.js",
+    "costing-approval-screen.js", "costing-approval-errors.js", "costing-approval-labels.js",
     "costing-run-status-screen.js", "costing-run-status-badge.js", "costing-recalculation.js", "costing-status-labels.js",
     "costing-suite-control-center.js", "costing-suite-recommended-ui-route.js", "costing-route-config.js",
-    "costing-suite-pricing-policy.js", "costing-suite-cost-build.js", "costing-suite-material-cost.js", "costing-table-tools.js",
+    "costing-suite-pricing-policy.js", "costing-suite-cost-build.js", "costing-suite-material-cost.js",
   ].map((f) => `${JS}/${f}`);
   assert.equal(git("diff", BASE, "--", ...protectedFiles, "supabase/", "package.json"), "");
   assert.equal(git("diff", "--name-only", BASE, "--", "*.html").trim(), "");
@@ -544,7 +544,7 @@ test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS
   assert.deepEqual(JSON.parse(JSON.stringify(tableTools.COLUMN_HELP)), JSON.parse(JSON.stringify(baseMod.COLUMN_HELP)));
   assert.equal(
     read("public/sw.js").split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v386"; // Costing review worklist v1; v385 was CW-05 pkg 3 table tools',
+    'const CACHE_NAME = "hub-cache-v387"; // CW-05 pkg 4 table tools; v386 was Costing review worklist v1',
   );
   const cssChanged = git("diff", "--name-only", BASE, "--", "*.css").trim().split("\n").filter(Boolean);
   assert.ok(cssChanged.length === 0 || (cssChanged.length === 1 && cssChanged[0] === "public/shared/css/sasv-costing.css"));

@@ -179,14 +179,14 @@ const OUT_TABS = [
   ["mrp proposals", "mrp-governance", { mrpTab: "mrp-proposals" }],
   ["mrp decisions", "mrp-governance", { mrpTab: "mrp-decisions" }],
   ["mrp application", "mrp-governance", { mrpTab: "mrp-application" }],
-  ["mrp applied history", "mrp-governance", { mrpTab: "mrp-applied-history" }],
-  ["policy-manager scheme-master", "policy-manager", { pmTab: "scheme-master" }],
+  // pkg 4: applied-history register is IN (see table-tools-pkg4.test.mjs).
+  // pkg 4: scheme-master raw columns are IN (see table-tools-pkg4.test.mjs).
   ["policy-manager commercial-sales-assumptions", "policy-manager", { pmTab: "commercial-sales-assumptions" }],
   ["cost-governance unmapped", "cost-governance", { cgTab: "unmapped" }],
   ["staff-governance staff-review", "staff-governance", { sgTab: "staff-review" }],
   ["staff-governance staff-register", "staff-governance", { sgTab: "staff-register" }],
   ["manual-provisions register", "manual-provisions", { mpTab: "register" }],
-  ["manual-provisions impact", "manual-provisions", { mpTab: "impact" }],
+  // pkg 4: manual-provisions impact is IN (see table-tools-pkg4.test.mjs).
   ["manual-rate-manager action-queue", "manual-rate-manager", { mrmTab: "action-queue" }],
   ["manual-rate-manager stage05 remediation", "manual-rate-manager", { mrmTab: "action-queue", remediation: true }],
   ["rm-cost-trace", "rm-cost-trace", { mrmTab: "register" }],
@@ -529,7 +529,8 @@ test("pkg3 labels equal the controller header arrays; a mismatched label renders
     assert.equal(new Set(keys).size, keys.length, `${id} keys unique`);
   }
   assert.ok(Object.isFrozen(TAB_TABLE_COLUMNS));
-  assert.deepEqual(Object.keys(TAB_TABLE_COLUMNS).sort(), Object.keys(IN_TABLES).sort());
+  const PKG4_TABLE_IDS = ["mrp-governance:applied-history-register", "manual-provisions:impact", "policy-manager:scheme-master"];
+  assert.deepEqual(Object.keys(TAB_TABLE_COLUMNS).sort(), [...Object.keys(IN_TABLES), ...PKG4_TABLE_IDS].sort());
   assert.equal(tableColumnsForTable("cost-governance:unmapped"), null);
   // No IN pricing header is "" (pricing branch has no lane-col rule).
   for (const id of Object.keys(IN_TABLES).filter((k) => k.startsWith("mrp-governance") || k.startsWith("policy-manager"))) {
@@ -613,9 +614,9 @@ test("pkg3 COLUMN_HELP unchanged; module safety; FORBIDDEN_RPCS identical; no CS
 });
 
 // 8. Cache pin
-test("pkg3 sw.js line 2 is the v386 line", () => {
+test("pkg3 sw.js line 2 is the v387 line", () => {
   assert.equal(
     read("public/sw.js").split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v386"; // Costing review worklist v1; v385 was CW-05 pkg 3 table tools',
+    'const CACHE_NAME = "hub-cache-v387"; // CW-05 pkg 4 table tools; v386 was Costing review worklist v1',
   );
 });
