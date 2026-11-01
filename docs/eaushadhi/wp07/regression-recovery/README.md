@@ -147,3 +147,18 @@ node --test scripts/costing-review-worklist/review-worklist.test.mjs scripts/cos
 bash docs/eaushadhi/wp07/regression-recovery/run-inventory.sh "$PWD" out.tsv          # LF
 bash docs/eaushadhi/wp07/regression-recovery/run-inventory.sh "$PWD" out.tsv crlf     # Windows-like git behaviour
 ```
+
+## 10. Reconciliation with `origin/main` `74441b9` (Costing v390 release, PR #123)
+
+* Merge of `74441b9` into PR #124. 8 Costing test files conflicted only on the `read()` line (and the CSS
+  append-only `startsWith(cssBase)` line in table-tools pkg3/pkg4): main had independently added an inline
+  `.replace(/\r\n/g, "\n")`. Resolved by keeping the shared `readSourceLf` helper (identical semantics); all v390
+  expectations from main (`hub-cache-v390`, "release cache line is v390", "no stale cache line added", the
+  v388/389/390 sw.js diff allowance in the UX-F1 scope test) are kept verbatim.
+* `scope-guard.test.mjs`: main already carried the same `fileURLToPath` fix; the file is identical to main.
+* `public/`, `electron/`, `supabase/`, `sw.js`: zero diff against main.
+* Finding: seven WP-07 UX smokes (`ux1, ux3, ux5, ux6-layout, ux61-card-colours, ux62-controls, ux7`) still pinned
+  `hub-cache-v389` and **fail on `main@74441b9` itself** (PR #123 missed them). Pins updated to v390 in a separate
+  commit. `ux3`/`ux5` contained a literal `!/hub-cache-v390/` guard; it now reads `!/hub-cache-v391/`, i.e. the
+  "no unplanned further bump" intent is kept, shifted past the owner-coordinated v390 release. **Owner to confirm**
+  this reading; the commit can be dropped independently.
