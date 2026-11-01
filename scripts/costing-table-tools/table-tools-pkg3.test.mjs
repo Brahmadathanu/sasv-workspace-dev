@@ -10,6 +10,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { costingScopeReport } from "../lib/costing-scope-guard.mjs";
 import * as tools from "../../public/shared/js/costing-table-tools.js";
+import { readSourceLf } from "../lib/read-source-lf.mjs";
 
 const {
   COLUMN_HELP,
@@ -24,7 +25,7 @@ const {
 } = tools;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
+const read = (rel) => readSourceLf(root, rel); // LF-normalised: see scripts/lib/read-source-lf.mjs
 const PKG3_BASE = "8bc872c4b0ecb40842f7dd72eed05cf0cae532ec";
 const readBase = (rel) =>
   execFileSync("git", ["show", `${PKG3_BASE}:${rel}`], {
@@ -623,7 +624,7 @@ test("pkg3 COLUMN_HELP unchanged; module safety; FORBIDDEN_RPCS identical; no CS
   // change, and only append-only since base (later features append their own scoped blocks).
   assert.deepEqual(scope.css.filter((f) => f !== "public/shared/css/sasv-costing.css"), [], "no other Costing or shared-contract CSS changed");
   const cssBase = git("show", `${PKG3_BASE}:public/shared/css/sasv-costing.css`);
-  assert.ok(fs.readFileSync(path.join(root, "public/shared/css/sasv-costing.css"), "utf8").replace(/\r\n/g, "\n").startsWith(cssBase), "sasv-costing.css append-only since base");
+  assert.ok(read("public/shared/css/sasv-costing.css").startsWith(cssBase), "sasv-costing.css append-only since base");
   assert.deepEqual(scope.html, [], "no Costing HTML changed");
   for (const f of ["pricing-policy", "cost-build", "material-cost", "control-center"]) {
     assert.equal(git("diff", PKG3_BASE, "--", `${JS}/costing-suite-${f}.js`), "", f);

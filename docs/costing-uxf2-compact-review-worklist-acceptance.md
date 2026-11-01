@@ -1,6 +1,6 @@
 # Costing UX-F2 — Compact, unified SKU review filters
 
-Status: implementation pending; Gate 1 usability remediation. Base main 74441b96329887b1e253c509d0154c2c9d869b5c (v390). Owner feedback: 2026-11-01.
+Status: implementation complete (commit a5008fa, reconciled with main a6d35b9 / WP-07 PR #124); browser and denied-role acceptance OUTSTANDING. Gate 1 usability remediation. Base main 74441b96329887b1e253c509d0154c2c9d869b5c (v390). Owner feedback: 2026-11-01.
 
 ## Problem
 UX-F1 puts four tall worklist group cards above the SKU Control Status table when `COSTING_REVIEW_WORKLIST_V1=1`, reducing visible rows. Cards repeat filtering available in the drawer and offer separate 'Open fix screen' links although row-level in-page diagnosis/fix modals already exist.
@@ -24,3 +24,19 @@ UX-F1 puts four tall worklist group cards above the SKU Control Status table whe
 - Existing 308 Costing tests, scope guard, relevant e-Aushadhi/PEC/pricing smoke tests must pass on LF and CRLF; update prior large-card assertions only for intentional UX-F2 differences without weakening security/business assertions.
 - Browser acceptance: 900px desktop screenshot, narrow/mobile screenshot, keyboard, drawer, draft 148 to approved 143 switch, row modal and denied-role JWT checks.
 - No migrations, DB writes, run approvals, deployments, feature-flag flips or merge; protected `20261015045233_ppm_inactive_sku_mrp_policy_governance.sql` NEVER touch. User is sole final merge approver.
+
+## Status of acceptance items
+Implementation-complete (code and automated tests; verified under LF and CRLF checkouts):
+- Compact panel: one slim run row (selector, approved/draft badge, run and date line, ⓘ details disclosure) and one wrapping row of toggle pills with dynamic counts; tall cards, route prose and "Open fix screen" links removed; draft not-for-pricing pill and drawer-evidence alert stay visible.
+- One canonical group selection (`setReviewWorklistGroup`) shared by pills, a drawer "Review group" radio section and "Clear group"; filtering stays in the existing `applyFilters`/`applySearch` (no second pipeline, no extra reads); the precise group is never mapped onto broad Status choices; AND composition with Status/Issue/Source/search is shown in a scope note; drawer Clear resets the group and the badge counts it.
+- Group invalidated on reload, run, period or lens change; unknown group keys are ignored; flag OFF unchanged.
+- Appended, `.rwl-`-scoped CSS: focus-visible, 40px touch targets and bounded disclosure on mobile.
+- Isolated-panel render measured with the real CSS (sample 1/110/2/1 rows): 247px to 90px at 1280px width, 710px to 319px at 390px width.
+
+OUTSTANDING (not yet performed; needs the live app, a signed-in session and credentials):
+- Browser acceptance in the live app: 900px desktop screenshot, narrow/mobile screenshot, keyboard operation, drawer interaction, draft 148 to approved 143 switch, row modal unchanged.
+- Denied-role JWT checks (permission-denied and no-rows states with a role lacking Control Centre read access).
+- eslint run (tooling not available in the development sandbox).
+- Owner decision: ⓘ details are a native disclosure rather than a hover tooltip.
+
+Merge remains the owner's decision; nothing here approves merge, deployment or flag changes.

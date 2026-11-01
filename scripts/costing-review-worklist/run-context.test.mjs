@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import * as worklist from "../../public/shared/js/costing-review-worklist.js";
 import { RUN_STATUS_SELECT_V1, RUN_STATUS_VIEW } from "../../public/shared/js/costing-run-status-badge.js";
 import { resolveRecommendedUiRouteTarget } from "../../public/shared/js/costing-suite-recommended-ui-route.js";
+import { readSourceLf } from "../lib/read-source-lf.mjs";
 
 const {
   REVIEW_WORKLIST_DRAFT_UNAVAILABLE_TEXT,
@@ -29,7 +30,7 @@ const {
 } = worklist;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
+const read = (rel) => readSourceLf(root, rel); // LF-normalised: see scripts/lib/read-source-lf.mjs
 const SHELL = "public/shared/js/costing-suite-shell.js";
 const PERIOD = "2026-10-01";
 
