@@ -245,29 +245,29 @@ test("latest-only loader discards stale answers and keys on key + ref", async ()
 });
 
 // 6. Worklist compact structure
-test("worklist: one short status line, one run line, cards; caveats in a native disclosure", () => {
+test("worklist (UX-F3): one toolbar, draft marker + short drawer note, one chip row; run line and caveats in the disclosure", () => {
   const rows = draftRows();
   const groups = worklist.groupReviewWorklistRows(rows.map((r) => ({ ...r, first_control_status: r.control_severity === "BLOCKER" ? "MATERIAL_COST_BLOCKED" : "PRIME_COST_REVIEW_REQUIRED", recommended_ui_route: r.control_severity === "BLOCKER" ? "MATERIAL_RATE_MANAGER" : "COST_REVIEW_WORKBENCH", pm_blocking_line_count: 1 })));
   const d = worklist.describeReviewWorklistRunContext({ rows, periodStart: OCT, runStatus: ready(STATUS_OCT), selectedRunId: "148", runPickerAvailable: true });
   const html = worklist.renderReviewWorklistHtml(groups, { runContext: worklist.reviewWorklistRunContext(rows), runDiagnosis: d, rowCount: rows.length });
-  const visible = html.replace(/<details class="rwl-details">[\s\S]*?<\/details>/, "");
-  assert.match(visible, /<span class="rwl-pill rwl-pill-draft" data-rwl-pill="selected-not-approved">Draft run 148 · Not for pricing<\/span>/);
-  assert.match(visible, /<div class="rwl-run">Run shown: 148 · valuation 2026-10-31<\/div>/);
-  assert.match(visible, /<div class="rwl-alert rwl-alert-draft" role="note">Drawer evidence is from run 143, not draft 148\.<\/div>/);
+  const visible = html.replace(/<details class="rwl-details rwl-info rwl-info-warn">[\s\S]*?<\/details>/, "");
+  // UX-F3: the header already names Approved 143 / Draft 148, so the toolbar repeats no run id or date; the draft
+  // identity stays as one short marker, and drawer provenance as one short visible note (full text in the disclosure).
+  assert.doesNotMatch(visible, /data-rwl-pill|Draft · not for pricing/); // UX-F5: the picker option carries the draft wording
+  assert.match(visible, /<span class="rwl-drawer-note" role="note" title="Drawer evidence is from run 143, not draft 148\.">Drawer: run 143<\/span>/);
+  assert.doesNotMatch(visible, /Run shown|valuation 2026|Draft run 148|class="rwl-alert/);
   // No long prose in the visible part.
   assert.doesNotMatch(visible, /Fixes you make|frozen SKU rows read-only|current-source diagnosis|Server run status|Loaded rows/);
-  assert.equal((visible.match(/class="rwl-alert/g) || []).length, 1);
-  const details = html.match(/<details class="rwl-details">([\s\S]*?)<\/details>/)[1];
-  assert.match(details, /<summary>Run details and caveats<\/summary>/);
+  const details = html.match(/<details class="rwl-details rwl-info rwl-info-warn">([\s\S]*?)<\/details>/)[1];
+  assert.match(details, /<summary aria-label="Run details and caveats\. Drawer evidence is from run 143, not draft 148\."/);
+  assert.match(details, /<div class="rwl-run">Run shown: 148 · valuation 2026-10-31<\/div>/);
   assert.match(details, /Fixes you make on the fix screens do not change this frozen run\./);
   assert.match(details, /Row drawer evidence is not this run's evidence\.<\/strong> The per-line material evidence/);
   assert.match(details, /Loaded rows \(run 148\): 628 — BLOCKER 1 · REVIEW_REQUIRED 113 · READY 514/);
-  // Cards: list semantics, severity as text, one primary action, fix link only when mapped.
-  assert.match(html, /<ul class="rwl-groups" role="list">/);
-  assert.match(html, /<li class="rwl-group rwl-card rwl-sev-blocker" data-rwl-group="BLOCKER\|MATERIAL_COST_BLOCKED\|MATERIAL_RATE_MANAGER">/);
-  assert.match(html, /<span class="rwl-severity">[^<]+<\/span><span class="rwl-count">1 SKU<\/span>/);
-  assert.match(html, /aria-pressed="false">Show in table<\/button><button type="button" class="rwl-open" data-rwl-open="BLOCKER\|MATERIAL_COST_BLOCKED\|MATERIAL_RATE_MANAGER">Open fix screen<\/button>/);
-  assert.match(html, /<span class="rwl-nolink" title="[^"]*No dedicated screen link yet – open a SKU row for details\.">No fix screen link yet<\/span>/);
+  // UX-F2 pills: toggle buttons (aria-pressed) with the count; no tall cards, route prose or fix links.
+  assert.match(html, /<div class="rwl-chips" role="group" aria-label="Review groups/);
+  assert.match(html, /<button type="button" class="rwl-chip rwl-sev-blocker" data-rwl-select="BLOCKER\|MATERIAL_COST_BLOCKED\|MATERIAL_RATE_MANAGER" data-rwl-group="[^"]+" aria-pressed="false" aria-label="[^"]*1 SKU[^"]*" title="[^"]*"><span class="rwl-chip-label">[^<]+<\/span><span class="rwl-count">1<\/span><\/button>/);
+  assert.doesNotMatch(html, /rwl-card|rwl-groups|rwl-open|data-rwl-open|Open fix screen|No fix screen link|rwl-nolink|rwl-route|rwl-primary|Show in table<\/button>/);
   assert.doesNotMatch(html, /style=/, "no inline styles");
   // Pill kinds.
   const pill = (kind, extra = {}) => worklist.reviewWorklistStatusPill({ kind, listRunId: "143", listRunIds: ["143"], ...extra });
@@ -337,6 +337,8 @@ function makeShell({ flagOn = true, lens = "dashboard", statusFor = { [OCT]: STA
     CURRENT_PAGE: 1,
     ROWS_LOAD_GENERATION: 1,
     REVIEW_WORKLIST_GROUP: null,
+    ACTIVE_FILTERS: { status: [], issue: [], source: [] },
+    searchBox: { value: "" },
     REVIEW_WORKLIST_RUN_STATUS: null,
     REVIEW_WORKLIST_RUN_SELECTION: null,
     REVIEW_WORKLIST_RUN_LOAD: null,
@@ -364,7 +366,7 @@ function makeShell({ flagOn = true, lens = "dashboard", statusFor = { [OCT]: STA
   };
   vm.createContext(ctx);
   const src = read(SHELL);
-  const names = ["cccSummaryIdentity", "renderCccKpiRunCaption", "renderCccRunContextChrome", "reviewWorklistSelectedKey", "reviewWorklistRunStatus", "reviewWorklistActiveRun", "reviewWorklistGovernedRows", "selectReviewWorklistRun", "renderReviewWorklistPanel"];
+  const names = ["cccSummaryIdentity", "renderCccKpiRunCaption", "renderCccRunContextChrome", "reviewWorklistSelectedKey", "reviewWorklistRunStatus", "reviewWorklistActiveRun", "reviewWorklistGovernedRows", "selectReviewWorklistRun", "renderReviewWorklistPanel", "setReviewWorklistGroup", "reviewWorklistFilterState", "syncReviewWorklistDrawerGroup", "removeInactiveReviewWorklistDrawerGroup", "clearReviewWorklistGroup"];
   vm.runInContext([...names.map((n) => extractFn(src, n)), `async function fetchAllRows(factory) { const res = await factory(); if (res.error) throw res.error; return res.data || []; }`].join("\n"), ctx);
   return {
     ctx, reads, kpiStripWrap, workbenchSummary, created,
@@ -434,7 +436,8 @@ test("shell dashboard: caption + run-context card from server reads; draft count
   assert.deepEqual(runRead.eq, [["period_start", OCT], ["refresh_run_id", "148"]]);
   assert.equal(runRead.select, "*");
   await s.answerRun(s.runPending.length - 1, { data: draftRows().map((r) => ({ ...r, first_control_status: "X", recommended_ui_route: null })), error: null });
-  assert.match(s.workbenchSummary.innerHTML, /data-rwl-pill="selected-not-approved">Draft run 148 · Not for pricing/);
+  assert.match(s.workbenchSummary.innerHTML, /<option value="148" selected>Run 148 — Draft — not for pricing<\/option>/);
+  assert.doesNotMatch(s.workbenchSummary.innerHTML, /data-rwl-pill="selected-not-approved"/);
   // Caption on the SKU lens now warns that the worklist shows another run (reuses the worklist status read).
   const statusReads = s.reads.filter((q) => q.view === "v_costing_pricing_period_run_status").length;
   s.caption();

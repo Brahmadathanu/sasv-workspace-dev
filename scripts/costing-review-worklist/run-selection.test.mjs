@@ -94,7 +94,7 @@ function extractFn(src, name) {
   assert.ok(start >= 0, name);
   return src.slice(start + 1, src.indexOf("\n}\n", start) + 2);
 }
-const HELPERS = ["reviewWorklistSelectedKey", "reviewWorklistRunStatus", "reviewWorklistActiveRun", "reviewWorklistGovernedRows", "selectReviewWorklistRun", "renderReviewWorklistPanel"];
+const HELPERS = ["reviewWorklistSelectedKey", "reviewWorklistRunStatus", "reviewWorklistActiveRun", "reviewWorklistGovernedRows", "selectReviewWorklistRun", "renderReviewWorklistPanel", "setReviewWorklistGroup", "reviewWorklistFilterState", "syncReviewWorklistDrawerGroup", "removeInactiveReviewWorklistDrawerGroup", "clearReviewWorklistGroup"];
 
 function makeShell({ flagOn = true, statusFor = { [OCT]: STATUS_OCT, [SEP]: STATUS_SEP }, realFetchAllRows = false } = {}) {
   const statusQueries = [];
@@ -139,6 +139,8 @@ function makeShell({ flagOn = true, statusFor = { [OCT]: STATUS_OCT, [SEP]: STAT
     VIEW: [],
     CURRENT_PAGE: 3,
     REVIEW_WORKLIST_GROUP: null,
+    ACTIVE_FILTERS: { status: [], issue: [], source: [] },
+    searchBox: { value: "" },
     REVIEW_WORKLIST_RUN_STATUS: null,
     REVIEW_WORKLIST_RUN_SELECTION: null,
     REVIEW_WORKLIST_RUN_LOAD: null,
@@ -200,9 +202,6 @@ function makeShell({ flagOn = true, statusFor = { [OCT]: STATUS_OCT, [SEP]: STAT
       h.node.value = String(runId);
       h.fn();
       return flush();
-    },
-    clickOpen(key) {
-      summary.handlers.filter((x) => x.attr === "rwl-open" && x.key === key).at(-1).fn();
     },
     clickSelect(key) {
       summary.handlers.filter((x) => x.attr === "rwl-select" && x.key === key).at(-1).fn();
@@ -333,10 +332,11 @@ test("switch to draft 148: run-scoped read by period AND run; groups, counts and
   assert.equal((html.match(/data-rwl-select=/g) || []).length, 4);
   assert.equal(severityLine(html), "Loaded rows (run 148): 628 — BLOCKER 1 · REVIEW_REQUIRED 113 · READY 514");
   assert.ok(html.includes("Run shown: 148 · valuation 2026-10-31"));
-  // UX-F1: one short status pill and one short visible drawer caveat; the full explanation is in the disclosure.
-  assert.ok(html.includes('<span class="rwl-pill rwl-pill-draft" data-rwl-pill="selected-not-approved">Draft run 148 · Not for pricing</span>'));
-  assert.ok(html.includes('<div class="rwl-alert rwl-alert-draft" role="note">Drawer evidence is from run 143, not draft 148.</div>'));
-  const details = html.split('<details class="rwl-details">')[1].split("</details>")[0];
+  // UX-F3: a short draft marker and a short drawer note stay visible; the full explanation is in the disclosure.
+  assert.ok(!html.includes('data-rwl-pill="selected-not-approved"'), "UX-F5: no draft badge in the toolbar");
+  assert.ok(html.includes('<option value="148" selected>Run 148 — Draft — not for pricing</option>'));
+  assert.ok(html.includes('role="note" title="Drawer evidence is from run 143, not draft 148.">Drawer: run 143</span>'));
+  const details = html.split('<details class="rwl-details rwl-info rwl-info-warn">')[1].split("</details>")[0];
   assert.match(details, /<strong>Draft run 148 — not for pricing\.<\/strong> You are viewing its frozen SKU rows read-only, for diagnosis only\. The run displayed for this period is run 143\./);
   // Drawer limitation is prominent (warning line with a bold lead), not a muted footnote.
   assert.ok(html.includes(`<div class="rwl-rc-line rwl-rc-warn rwl-rc-drawer"><strong>Row drawer evidence is not this run's evidence.</strong> ${REVIEW_WORKLIST_SELECTED_RUN_DRAWER_TEXT.replace(/'/g, "&#039;")}</div>`));
@@ -517,7 +517,7 @@ test("if the server stops advertising the chosen run, the screen returns to the 
   assert.doesNotMatch(s.summary.innerHTML, /run 148/);
 });
 
-test("on run 148: group filter and existing fix links (SKU/period kept); unmapped route explained", async () => {
+test("on run 148: pill filters the draft rows; no fix links in the summary; routes stay with row actions", async () => {
   const s = makeShell();
   await readyOctober(s);
   await s.choose("148");
@@ -525,21 +525,13 @@ test("on run 148: group filter and existing fix links (SKU/period kept); unmappe
   s.clickSelect("REVIEW_REQUIRED|PRIME_COST_REVIEW_REQUIRED|COST_REVIEW_WORKBENCH");
   assert.equal(s.ctx.VIEW.length, 110);
   assert.ok(s.ctx.VIEW.every((r) => String(r.refresh_run_id) === "148"));
-  s.clickOpen("BLOCKER|MATERIAL_COST_BLOCKED|MATERIAL_RATE_MANAGER");
-  const blocked = s.ctx.ALL_ROWS.find((r) => r.control_severity === "BLOCKER");
-  const expected = resolveRecommendedUiRouteTarget(blocked.recommended_ui_route, reviewWorklistRouteContext(blocked));
-  assert.equal(s.ctx.navigations.length, 1);
-  assert.equal(s.ctx.navigations[0].moduleKey, "material-cost-manager");
-  assert.deepEqual(JSON.parse(JSON.stringify(s.ctx.navigations[0].params)), JSON.parse(JSON.stringify(expected.navigateParams)));
-  assert.equal(s.ctx.navigations[0].params.periodStart, OCT);
+  assert.equal(s.ctx.navigations.length, 0);
   const html = s.summary.innerHTML;
-  for (const key of ["REVIEW_REQUIRED|PRIME_COST_REVIEW_REQUIRED|COST_REVIEW_WORKBENCH", "REVIEW_REQUIRED|PRICING_BRIDGE_REVIEW_REQUIRED|COST_REVIEW_WORKBENCH"]) {
-    assert.ok(!s.summary.handlers.some((h) => h.attr === "rwl-open" && h.key === key), key);
-    assert.ok(html.split(`data-rwl-group="${key}"`)[1].split("rwl-actions")[1].includes(REVIEW_WORKLIST_NO_LINK_TEXT), key);
-  }
-  // Only read/select/navigate controls exist.
+  assert.doesNotMatch(html, /rwl-open|Open fix screen|No fix screen link/);
+  assert.ok(!html.includes(REVIEW_WORKLIST_NO_LINK_TEXT));
+  // Only read / select controls exist (pills, clear, run selector, status pill, run context).
   const controls = [...new Set([...html.matchAll(/data-(rwl-[\w-]+)=/g)].map((m) => m[1]))].sort();
-  assert.deepEqual(controls, ["rwl-clear", "rwl-group", "rwl-open", "rwl-pill", "rwl-run-context", "rwl-run-select", "rwl-select"]);
+  assert.deepEqual(controls, ["rwl-group", "rwl-run-context", "rwl-run-select", "rwl-select", "rwl-scope"].sort());
 });
 
 test("no writes or new endpoints: only the two read views are queried", async () => {

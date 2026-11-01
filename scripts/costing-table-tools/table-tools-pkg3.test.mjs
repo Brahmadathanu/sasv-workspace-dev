@@ -324,6 +324,10 @@ const legacyTh = (cls, label) => `<th class="${cls}">${label}</th>`;
 
 // 1. Flag OFF identity
 const REVIEW_WORKLIST_SHELL_BLOCKS = [
+  // UX-F2: three single-line, flag/lens-gated hooks into legacy drawer code (badge count, section cleanup, Clear).
+  "    if (reviewWorklistSelectedKey()) count += 1;\n",
+  "  removeInactiveReviewWorklistDrawerGroup();\n",
+  "    clearReviewWorklistGroup();\n",
   'import { isCostingReviewWorklistV1Enabled } from "./costing-feature-flags.js";\n',
   // C1: the worklist import list may grow; still exactly one import line from the module.
   /import \{[^}]*\} from "\.\/costing-review-worklist\.js";\n/,

@@ -2645,3 +2645,97 @@ body.sasv-costing-control-center .cp-readiness-gap-bound {
   .rwl-run-picker select { flex: 1 1 auto; min-height: 40px; }
   .rwl-select, .rwl-open, .rwl-clear, .ccc-rc-cta { min-height: 40px; }
 }
+
+/* =====================================================================
+   UX-F2: compact review worklist (pills + unified drawer group). Appended; earlier rules untouched.
+   ===================================================================== */
+.rwl-compact { gap: 4px; margin: 2px 0 6px; }
+.rwl-compact .rwl-toolbar { gap: 4px 10px; }
+.rwl-compact .rwl-title { font-size: 13px; }
+.rwl-compact .rwl-run { font-size: 12px; color: var(--muted, #6b7280); }
+.rwl-info { position: relative; }
+.rwl-info > summary { cursor: pointer; list-style: none; min-width: 24px; min-height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; }
+.rwl-info > summary::-webkit-details-marker { display: none; }
+.rwl-info-body {
+  position: absolute; z-index: 20; left: 0; top: 100%; width: min(480px, 90vw); max-height: 50vh; overflow: auto;
+  padding: 8px 10px; border: 1px solid var(--sasv-border, #e5e7eb); border-radius: var(--sasv-radius-sm, 7px);
+  background: var(--sasv-surface, #fff); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+.rwl-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
+.rwl-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 28px; max-width: 100%; padding: 2px 10px;
+  border: 1px solid var(--sasv-border, #d1d5db); border-left-width: 4px; border-radius: 999px; cursor: pointer;
+  background: var(--sasv-surface, #fff); color: inherit; font: inherit; font-size: 12px; font-weight: 600;
+}
+.rwl-chip.rwl-sev-blocker { border-left-color: var(--sasv-danger, #b91c1c); }
+.rwl-chip.rwl-sev-review { border-left-color: var(--sasv-warning, #b45309); }
+.rwl-chip .rwl-chip-label { overflow-wrap: anywhere; text-align: left; }
+.rwl-chip .rwl-count { font-size: 12px; }
+.rwl-chip[aria-pressed="true"], .rwl-chip.rwl-selected {
+  background: var(--sasv-action-primary, #2563eb); color: #fff; border-color: var(--sasv-action-primary, #2563eb);
+}
+.rwl-chip:focus-visible { outline: 2px solid var(--sasv-action-primary, #2563eb); outline-offset: 2px; }
+.rwl-scope { font-size: 12px; color: var(--muted, #6b7280); }
+.rwl-drawer-note { font-size: 11px; color: var(--muted, #6b7280); margin-top: 4px; }
+@media (max-width: 520px) {
+  .rwl-chip { min-height: 40px; }
+  .rwl-info-body { position: static; width: auto; max-height: 40vh; box-shadow: none; margin-top: 4px; }
+}
+
+/* =====================================================================
+   UX-F4: restrained worklist. Tinted secondary KPI chips spread across the width; soft run selector;
+   drawer note and info disclosure pinned to the toolbar far right. Replaces the UX-F3 block (same PR).
+   ===================================================================== */
+.rwl-compact .rwl-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.rwl-end { display: flex; align-items: center; gap: 6px 8px; margin-left: auto; min-width: 0; }
+.rwl-run-picker select {
+  min-height: var(--sasv-control-md, 36px); max-width: 100%; padding: 0 30px 0 10px;
+  border: 1px solid var(--sasv-primary-300, #6fc4b5); border-radius: var(--sasv-radius-sm, 7px);
+  background-color: var(--sasv-primary-100, #d5efe9); color: var(--sasv-text, #1f2937);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%230f6157' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; background-size: 12px 8px;
+  -webkit-appearance: none; appearance: none; cursor: pointer;
+  font: inherit; font-size: var(--sasv-text-sm, 13px); font-weight: 600;
+}
+.rwl-run-picker select:hover { background-color: var(--sasv-primary-200, #a9ddd3); }
+.rwl-run-picker select:focus, .rwl-run-picker select:focus-visible {
+  outline: none; border-color: var(--sasv-control-border-focus, #147a6c); box-shadow: 0 0 0 3px var(--sasv-focus-ring, rgba(20, 122, 108, 0.25));
+}
+.rwl-run-picker select:disabled {
+  background-color: var(--sasv-neutral-100, #f4f7f8); border-color: var(--sasv-control-border, #d1d5db);
+  color: var(--sasv-text-muted, #6b7c80); cursor: not-allowed; opacity: 1;
+}
+.rwl-drawer-note { font-size: 12px; font-weight: 600; color: var(--sasv-warning, #92400e); white-space: nowrap; }
+.rwl-info-warn > summary { color: var(--sasv-warning, #92400e); background: var(--sasv-warning-bg, #fffbeb); }
+.rwl-info-body { left: auto; right: 0; }
+.rwl-info-body .rwl-run { margin-bottom: 4px; }
+.rwl-chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 6px; }
+.rwl-chip {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-width: 0; min-height: 30px;
+  padding: 3px 8px 3px 10px; border: 1px solid transparent; border-radius: 6px; cursor: pointer;
+  font: inherit; font-size: 12px; font-weight: 600; box-shadow: none;
+}
+.rwl-chip.rwl-sev-blocker { background: #fdeeee; border-color: #f2c9c9; color: #7f1d1d; }
+.rwl-chip.rwl-sev-review { background: #fdf5e4; border-color: #efdcae; color: #78350f; }
+.rwl-chip .rwl-chip-label { min-width: 0; overflow-wrap: anywhere; text-align: left; line-height: 1.2; }
+.rwl-chip .rwl-count {
+  flex: none; min-width: 24px; padding: 0 6px; border-radius: 4px; text-align: center; font-size: 12px; font-weight: 700;
+  background: rgba(255, 255, 255, 0.75); color: inherit;
+}
+.rwl-chip:hover { filter: none; }
+.rwl-chip.rwl-sev-blocker:hover { background: #fbe0e0; }
+.rwl-chip.rwl-sev-review:hover { background: #fbecc8; }
+.rwl-chip[aria-pressed="true"], .rwl-chip.rwl-selected { box-shadow: inset 0 0 0 1px currentColor; border-width: 1px; }
+.rwl-chip.rwl-sev-blocker[aria-pressed="true"] { background: #f9d6d6; border-color: #b91c1c; color: #7f1d1d; }
+.rwl-chip.rwl-sev-review[aria-pressed="true"] { background: #f8e4b3; border-color: #b45309; color: #78350f; }
+.rwl-chip[aria-pressed="true"] .rwl-chip-label::before { content: "\2713\00a0"; }
+.rwl-chip:focus-visible { outline: 2px solid var(--sasv-action-primary, #1d4ed8); outline-offset: 2px; }
+@media (max-width: 900px) {
+  .rwl-end { flex: 1 1 100%; justify-content: flex-end; margin-left: 0; }
+  .rwl-chips { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .rwl-chips { grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); }
+  .rwl-chip { min-height: 40px; }
+  .rwl-run-picker select { min-height: 40px; }
+}

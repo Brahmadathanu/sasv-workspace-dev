@@ -246,6 +246,9 @@ function makeShell({ flagOn }) {
     ALL_ROWS: fixtureRows(),
     CURRENT_PAGE: 1,
     REVIEW_WORKLIST_GROUP: null,
+    ACTIVE_FILTERS: { status: [], issue: [], source: [] },
+    searchBox: { value: "" },
+    VIEW: [],
     REVIEW_WORKLIST_RUN_STATUS: null,
     REVIEW_WORKLIST_RUN_SELECTION: null,
     REVIEW_WORKLIST_RUN_LOAD: null,
@@ -276,7 +279,7 @@ function makeShell({ flagOn }) {
   vm.createContext(ctx);
   const src = read(SHELL);
   vm.runInContext(
-    ["reviewWorklistSelectedKey", "reviewWorklistRunStatus", "reviewWorklistActiveRun", "reviewWorklistGovernedRows", "selectReviewWorklistRun", "renderReviewWorklistPanel"]
+    ["reviewWorklistSelectedKey", "reviewWorklistRunStatus", "reviewWorklistActiveRun", "reviewWorklistGovernedRows", "selectReviewWorklistRun", "renderReviewWorklistPanel", "setReviewWorklistGroup", "reviewWorklistFilterState", "syncReviewWorklistDrawerGroup", "removeInactiveReviewWorklistDrawerGroup", "clearReviewWorklistGroup"]
       .map((n) => extractFn(src, n))
       .join("\n"),
     ctx,
@@ -321,28 +324,23 @@ test("C1 shell: flag ON reads the status view once, shows loading, then the run 
   assert.doesNotMatch(s.summary.innerHTML, /run 143|run 148/);
 });
 
-test("C1 shell: blocked SKU opens the existing fix screen with the period preserved; no write paths", async () => {
+test("C1 shell: summary has no fix-screen navigation (row actions own it); period preserved; no write paths", async () => {
   const s = makeShell({ flagOn: true });
   s.render();
   await flush();
   s.deferred[0].resolve({ data: STATUS_APPROVED_NEWER_DRAFT, error: null });
   await flush();
-  const open = s.summary.nodes.filter((n) => n.attr === "rwl-open");
+  assert.equal(s.summary.nodes.filter((n) => n.attr === "rwl-open").length, 0, "no Open fix screen button in the compact panel");
   const blockedKey = "BLOCKER|MATERIAL_COST_BLOCKED|MATERIAL_RATE_MANAGER";
-  const btn = open.find((n) => n.value === blockedKey);
-  assert.ok(btn, "blocked group has an Open fix screen button");
+  const btn = s.summary.nodes.find((n) => n.attr === "rwl-select" && n.value === blockedKey);
+  assert.ok(btn, "blocked group is a selectable pill");
   btn.fn();
-  const row = s.ctx.ALL_ROWS.find((r) => r.control_severity === "BLOCKER");
-  const expected = resolveRecommendedUiRouteTarget(row.recommended_ui_route, reviewWorklistRouteContext(row));
-  assert.equal(s.ctx.navigations.length, 1);
-  assert.equal(s.ctx.navigations[0].moduleKey, "material-cost-manager");
-  assert.deepEqual(JSON.parse(JSON.stringify(s.ctx.navigations[0].params)), JSON.parse(JSON.stringify(expected.navigateParams)));
-  assert.equal(s.ctx.navigations[0].params.periodStart, PERIOD);
+  assert.equal(s.ctx.navigations.length, 0, "selecting a pill never navigates");
   // Only read/select/navigate controls are rendered.
   const controls = [...s.summary.innerHTML.matchAll(/data-(rwl-[\w-]+)=/g)].map((m) => m[1]);
   // C1B adds only the read-only run selector.
-  // C1B adds the read-only run selector; UX-F1 adds the status pill (text only).
-  assert.deepEqual([...new Set(controls)].sort(), ["rwl-group", "rwl-open", "rwl-pill", "rwl-run-context", "rwl-run-select", "rwl-select"]);
+  // C1B adds the read-only run selector; UX-F3: an approved run shows no status pill (the page header names it).
+  assert.deepEqual([...new Set(controls)].sort(), ["rwl-group", "rwl-run-context", "rwl-run-select", "rwl-select"]);
   assert.equal(s.queries.length, 1);
   assert.ok(s.queries.every((q) => q.view === RUN_STATUS_VIEW));
 });

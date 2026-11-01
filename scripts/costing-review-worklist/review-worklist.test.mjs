@@ -252,7 +252,7 @@ function makeSandbox({ source, worklistOn, tableToolsOn = false }) {
     "exportCw05CsvForView",
     "exportCsvForRows",
   ];
-  if (source.includes("\nfunction renderReviewWorklistPanel(")) names.push("reviewWorklistSelectedKey", "renderReviewWorklistPanel");
+  if (source.includes("\nfunction renderReviewWorklistPanel(")) names.push("normalizeStatus", "statusTokenMatches", "reviewWorklistSelectedKey", "renderReviewWorklistPanel", "setReviewWorklistGroup", "reviewWorklistFilterState", "syncReviewWorklistDrawerGroup", "removeInactiveReviewWorklistDrawerGroup", "clearReviewWorklistGroup");
   if (source.includes("\nfunction reviewWorklistRunStatus(")) names.push("reviewWorklistRunStatus");
   if (source.includes("\nfunction reviewWorklistActiveRun(")) names.push("reviewWorklistActiveRun", "reviewWorklistGovernedRows", "selectReviewWorklistRun");
   vm.runInContext(
@@ -337,13 +337,14 @@ test("worklist flag OFF: legacy shell lines unchanged; every new line is behind 
   assert.deepEqual(calls.map((l) => l.trim()), [
     "rows = filterReviewWorklistRows(rows, reviewWorklistSelectedKey());",
     "renderReviewWorklistPanel();",
+    "if (reviewWorklistSelectedKey()) count += 1;", // UX-F2: drawer badge counts the review group
   ]);
   for (const fn of HELPERS) {
     const body = extractFn(head, fn);
     assert.match(body.split("\n")[1], /^\s+if \(!\(isCostingReviewWorklistV1Enabled\(\) && CURRENT_LENS === "sku-control-status"\)\) return/);
   }
   const gates = head.split("\n").filter((l) => l.includes('isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status"'));
-  assert.equal(gates.length, 8); // 2 call-site gates + 6 helper early returns (C1: run status; C1B: active run, governed rows, select run)
+  assert.equal(gates.length, 10); // 2 call-site gates + 6 helper early returns (C1/C1B) + 2 UX-F2 (setReviewWorklistGroup, removeInactiveReviewWorklistDrawerGroup)
   for (const re of [/\.rpc\(/, /new Date/, /Date\.now/, /Date\.parse/]) {
     assert.ok(!added.some((l) => re.test(l)), String(re));
   }
@@ -387,7 +388,7 @@ test("worklist self-check (i): 4 server-code groups; show in table filters VIEW;
   );
   assert.ok(groups.every((g) => g.severity !== "READY"));
   assert.equal(ctx.workbenchSummary.querySelectorAll("[data-rwl-select]").length, 4);
-  assert.ok(html.includes("110 SKUs") && html.includes("1 SKU<"));
+  assert.ok(html.includes('<span class="rwl-count">110</span>') && html.includes('<span class="rwl-count">1</span>'));
   // Group rows keep identity and input order.
   assert.ok(groups[1].rows.every((r) => rows.includes(r)));
 
@@ -400,8 +401,8 @@ test("worklist self-check (i): 4 server-code groups; show in table filters VIEW;
     const idx = Number(tr.match(/\d+/)[0]);
     assert.equal(reviewWorklistGroupKey(ctx.VIEW[idx]), key);
   }
-  assert.match(ctx.workbenchSummary.innerHTML, /data-rwl-clear/);
-  assert.match(ctx.workbenchSummary.innerHTML, /rwl-group rwl-card rwl-sev-review rwl-selected" data-rwl-group="REVIEW_REQUIRED\|MATERIAL_REVIEW_REQUIRED\|MATERIAL_RATE_REVIEW"/);
+  assert.doesNotMatch(ctx.workbenchSummary.innerHTML, /data-rwl-clear|Clear group/, "UX-F5: no Clear group button");
+  assert.match(ctx.workbenchSummary.innerHTML, /rwl-chip rwl-sev-review rwl-selected" data-rwl-select="REVIEW_REQUIRED\|MATERIAL_REVIEW_REQUIRED\|MATERIAL_RATE_REVIEW" data-rwl-group="[^"]+" aria-pressed="true"/);
   // Search still narrows within the group (existing search, unchanged).
   ctx.searchBox.value = "nothing-matches";
   run(ctx, "applySearch()");
@@ -410,7 +411,7 @@ test("worklist self-check (i): 4 server-code groups; show in table filters VIEW;
   run(ctx, "applySearch()");
   assert.equal(ctx.VIEW.length, 2);
 
-  ctx.workbenchSummary.button("rwl-clear").click();
+  ctx.workbenchSummary.button("rwl-select", key).click(); // click the active chip again: clears
   assert.equal(ctx.VIEW.length, rows.length);
   assert.deepEqual(ids(ctx.VIEW), ids(rows));
   assert.doesNotMatch(ctx.workbenchSummary.innerHTML, /data-rwl-clear/);
@@ -436,37 +437,23 @@ test("worklist self-check (i): empty state when the run shown has no blocked or 
   assert.ok(ctx.workbenchSummary.innerHTML.includes("Run shown: -- · valuation --"));
 });
 
-// 3. Navigation
-test("worklist navigation: mapped groups open via the existing resolver; unmapped groups have no button", () => {
+// 3. Navigation (UX-F2): the summary no longer navigates; fix screens stay on the existing row-level actions.
+test("worklist navigation: the compact summary has no fix-screen links or navigation", () => {
   const ctx = makeSandbox({ source: read(SHELL), worklistOn: true });
   const rows = makeRows();
   load(ctx, rows);
   const groups = groupReviewWorklistRows(rows);
+  const html = ctx.workbenchSummary.innerHTML;
+  assert.doesNotMatch(html, /data-rwl-open|rwl-open|Open fix screen|No fix screen link|rwl-nolink/);
+  assert.equal(ctx.workbenchSummary.querySelectorAll("[data-rwl-open]").length, 0);
+  for (const g of groups) ctx.workbenchSummary.button("rwl-select", g.key).click();
+  assert.equal(ctx.navigations.length, 0, "selecting pills never navigates");
+  assert.equal(ctx.toasts.length, 0);
+  // The route resolver itself is unchanged and still used by the row-level actions of the Control Centre.
   const blocker = groups.find((g) => g.route === "MATERIAL_RATE_MANAGER");
-  ctx.workbenchSummary.button("rwl-open", blocker.key).click();
   const expected = resolveRecommendedUiRouteTarget("MATERIAL_RATE_MANAGER", reviewWorklistRouteContext(blocker.rows[0]));
   assert.equal(expected.navigable, true);
-  assert.equal(ctx.navigations.length, 1);
-  assert.equal(ctx.navigations[0].moduleKey, "material-cost-manager");
-  assert.deepEqual(JSON.parse(JSON.stringify(ctx.navigations[0].params)), JSON.parse(JSON.stringify(expected.navigateParams || { lens: expected.lensId })));
-  assert.deepEqual({ ...ctx.navigations[0].options }, { newTab: expected.newTab === true });
-
-  const rateReview = groups.find((g) => g.route === "MATERIAL_RATE_REVIEW");
-  ctx.workbenchSummary.button("rwl-open", rateReview.key).click();
-  const rr = resolveRecommendedUiRouteTarget("MATERIAL_RATE_REVIEW", reviewWorklistRouteContext(rateReview.rows[0]));
-  assert.equal(ctx.navigations[1].moduleKey, "costing-control-center");
-  assert.equal(ctx.navigations[1].params.lens ?? rr.lensId, "costing-review-workbench");
-  assert.deepEqual(JSON.parse(JSON.stringify(ctx.navigations[1].params)), JSON.parse(JSON.stringify(rr.navigateParams || { lens: rr.lensId })));
-
-  for (const g of groups.filter((x) => x.route === "COST_REVIEW_WORKBENCH")) {
-    assert.equal(ctx.workbenchSummary.button("rwl-open", g.key), undefined, g.key);
-    const block = ctx.workbenchSummary.innerHTML.split(`data-rwl-group="${g.key}"`)[1].split("</div>\n</div>")[0];
-    assert.ok(block.includes(REVIEW_WORKLIST_NO_LINK_TEXT), g.key);
-  }
-  assert.equal(ctx.navigations.length, 2);
-  assert.equal(ctx.toasts.length, 0);
-
-  // Non-navigable fallback uses the control centre's existing toast text.
+  assert.equal(expected.moduleKey, "material-cost-manager");
   assert.equal(REVIEW_WORKLIST_NO_NAV_TOAST, "No dedicated navigation is configured for this control yet.");
   assert.ok(ccSrc.includes(`"${REVIEW_WORKLIST_NO_NAV_TOAST}"`), "same toast text as the control centre");
 });
@@ -532,9 +519,8 @@ test("worklist labels come from the existing helpers; server text escaped; fixed
   const groups = groupReviewWorklistRows(rows);
   const html = renderReviewWorklistHtml(groups, { selectedKey: null, runContext: reviewWorklistRunContext(rows) });
   for (const g of groups) {
-    assert.ok(html.includes(`<span class="rwl-severity">${costingStatusDisplayLabel(g.severity)}</span>`), g.key);
-    assert.ok(html.includes(`<div class="rwl-primary">${formatFirstControlStatusLabel(g.firstControlStatus)}</div>`), g.key);
-    assert.ok(html.includes(`<div class="rwl-route">${formatRecommendedUiRouteLabel(g.route)}</div>`), g.key);
+    assert.ok(html.includes(`<span class="rwl-chip-label">${formatFirstControlStatusLabel(g.firstControlStatus)}</span>`), g.key);
+    assert.ok(html.includes(`aria-label="${costingStatusDisplayLabel(g.severity)}: ${formatFirstControlStatusLabel(g.firstControlStatus)}, `), g.key);
   }
   assert.ok(html.includes(REVIEW_WORKLIST_FROZEN_RUN_TEXT));
   assert.equal(
@@ -625,4 +611,392 @@ test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS
       }
     }
   }
+});
+
+// ===========================================================================
+// UX-F2: compact pills + unified drawer group (one canonical group key)
+// ===========================================================================
+const KEY_BLOCK = "BLOCKER|MATERIAL_COST_BLOCKED|MATERIAL_RATE_MANAGER";
+const KEY_PRIME = "REVIEW_REQUIRED|PRIME_COST_REVIEW_REQUIRED|COST_REVIEW_WORKBENCH";
+const KEY_MATREV = "REVIEW_REQUIRED|MATERIAL_REVIEW_REQUIRED|MATERIAL_RATE_REVIEW";
+const KEY_BRIDGE = "REVIEW_REQUIRED|PRICING_BRIDGE_REVIEW_REQUIRED|COST_REVIEW_WORKBENCH";
+
+// Fake filter drawer so the shell's real drawer-sync code runs in the sandbox.
+function withDrawer(ctx) {
+  const drawer = {
+    section: null,
+    querySelector: (sel) => (sel === '[data-peq-section="review-group"]' ? drawer.section : null),
+    prepend: (el) => { drawer.section = el; el.remove = () => { drawer.section = null; }; },
+  };
+  ctx.$ = (id) => (id === "peqFilterDrawer" ? drawer : null);
+  ctx.document.createElement = () => {
+    const el = { className: "", attrs: {}, handlers: {}, innerHTML: "",
+      setAttribute(k, v) { el.attrs[k] = v; }, addEventListener(t, fn) { el.handlers[t] = fn; } };
+    return el;
+  };
+  drawer.pick = (value) => drawer.section.handlers.change({ target: { hasAttribute: (n) => n === "data-rwl-drawer-group", value } });
+  drawer.checked = () => (drawer.section?.innerHTML.match(/value="([^"]*)" checked/) || [])[1] ?? null;
+  return drawer;
+}
+const pressedKeys = (ctx) => [...ctx.workbenchSummary.innerHTML.matchAll(/data-rwl-select="([^"]+)" data-rwl-group="[^"]+" aria-pressed="true"/g)].map((m) => m[1]);
+
+test("UX-F2 pills: compact markup with dynamic counts; no cards, route prose or fix links", () => {
+  const rows = makeRows();
+  const groups = groupReviewWorklistRows(rows);
+  const html = renderReviewWorklistHtml(groups, { runContext: reviewWorklistRunContext(rows), rowCount: rows.length });
+  assert.doesNotMatch(html, /rwl-card|<ul|<li|rwl-open|Open fix screen|No fix screen|rwl-route|rwl-primary|rwl-note|Show in table<\/button>/);
+  const chips = [...html.matchAll(/<button type="button" class="rwl-chip [^"]*" data-rwl-select="([^"]+)"[^>]*><span class="rwl-chip-label">([^<]+)<\/span><span class="rwl-count">(\d+)<\/span><\/button>/g)];
+  assert.deepEqual(chips.map((m) => [m[1], Number(m[3])]), [[KEY_BLOCK, 1], [KEY_PRIME, 110], [KEY_MATREV, 2], [KEY_BRIDGE, 1]]);
+  // Counts follow the rows given (not hard-coded): a different row set gives different counts.
+  const fewer = renderReviewWorklistHtml(groupReviewWorklistRows(rows.filter((r) => r.first_control_status !== "PRIME_COST_REVIEW_REQUIRED")), {});
+  assert.doesNotMatch(fewer, /rwl-count">110</);
+  assert.equal([...fewer.matchAll(/class="rwl-chip /g)].length, 3);
+  // Labels come from the existing helper; every pill is a native button with a pressed state and an accessible name incl. count.
+  for (const m of chips) {
+    const g = groups.find((x) => x.key === m[1]);
+    assert.equal(m[2], formatFirstControlStatusLabel(g.firstControlStatus));
+  }
+  assert.match(html, new RegExp(`aria-pressed="false" aria-label="${costingStatusDisplayLabel("BLOCKER")}: [^"]*, 1 SKU\\. Show in table"`));
+  assert.match(html, /aria-pressed="false" aria-label="[^"]*, 110 SKUs\. Show in table"/);
+  assert.doesNotMatch(html, /aria-pressed="true"|data-rwl-clear|data-rwl-scope/);
+  // UX-F3: one toolbar (picker, optional draft marker, info disclosure); the run line sits inside the disclosure.
+  assert.doesNotMatch(html.replace(/<details[\s\S]*?<\/details>/, ""), /Run shown/);
+  assert.match(html, /<details class="rwl-details rwl-info[^"]*">\s*<summary aria-label="Run details and caveats[^"]*" title="[^"]*">/);
+  assert.match(html, /<div class="rwl-run">Run shown: 148 · valuation 2026-10-31<\/div>/);
+  assert.match(html, /<h2 class="rwl-title rwl-sr">/);
+});
+
+test("UX-F2 pills: selected pill is pressed with Clear; same status under two routes gets a route suffix; server text escaped", () => {
+  const rows = makeRows();
+  rows[rows.length - 1] = { ...rows[rows.length - 1], control_severity: "REVIEW_REQUIRED", first_control_status: "PRIME_COST_REVIEW_REQUIRED", recommended_ui_route: "<img src=x>", control_note: '"><b>x</b>' };
+  const groups = groupReviewWorklistRows(rows);
+  const html = renderReviewWorklistHtml(groups, { selectedKey: KEY_BLOCK, runContext: reviewWorklistRunContext(rows) });
+  assert.deepEqual(pressed(html), [KEY_BLOCK]);
+  assert.doesNotMatch(html, /data-rwl-clear|Clear group/);
+  const prime = groups.filter((g) => g.firstControlStatus === "PRIME_COST_REVIEW_REQUIRED");
+  assert.equal(prime.length, 2);
+  const labels = [...html.matchAll(/<span class="rwl-chip-label">([^<]*Prime Cost Review Required[^<]*)<\/span>/g)].map((m) => m[1]);
+  assert.equal(labels.length, 2);
+  assert.equal(new Set(labels).size, 2, `labels are distinguishable: ${labels}`);
+  assert.ok(labels.every((l) => l.includes("·")), `disambiguated: ${labels}`);
+  assert.doesNotMatch(html, /<img|<b>x/);
+  function pressed(h) { return [...h.matchAll(/data-rwl-select="([^"]+)"[^>]*aria-pressed="true"/g)].map((m) => m[1]); }
+});
+
+test("UX-F2 scope note: group composes with drawer filters and search; plain wording; nothing when unfiltered", () => {
+  const f = worklist.describeReviewWorklistScope;
+  assert.equal(f({}), null);
+  assert.equal(f({ selectedLabel: "Prime cost review required" }), "Group: Prime cost review required");
+  assert.equal(
+    f({ selectedLabel: "Prime cost review required", drawerFilterCount: 2, searchActive: true, shownCount: 4, totalCount: 628 }),
+    "Group: Prime cost review required · also 2 drawer filters + search · showing 4 of 628 rows",
+  );
+  assert.equal(f({ drawerFilterCount: 1 }), "Table narrowed by 1 drawer filter");
+});
+
+test("UX-F2 drawer group html: one radio set mirroring the pills; All rows when none; composition note", () => {
+  const groups = groupReviewWorklistRows(makeRows());
+  const none = worklist.renderReviewWorklistDrawerGroupHtml(groups, { selectedKey: null });
+  assert.equal([...none.matchAll(/type="radio"/g)].length, 5);
+  assert.match(none, /value="" checked/);
+  assert.doesNotMatch(none, /value="[^"]+" checked/);
+  const sel = worklist.renderReviewWorklistDrawerGroupHtml(groups, { selectedKey: KEY_PRIME });
+  assert.deepEqual([...sel.matchAll(/value="([^"]*)" checked/g)].map((m) => m[1]), [KEY_PRIME]);
+  assert.match(sel, /role="radiogroup" aria-label="Review group"/);
+  assert.match(sel, /Combines \(AND\) with Status, Issue, Source and search/);
+  assert.equal(worklist.renderReviewWorklistDrawerGroupHtml([], {}), "");
+});
+
+test("UX-F2 shell: pill click filters at once; clicking the active pill clears it; no second pipeline", () => {
+  const ctx = makeSandbox({ source: read(SHELL), worklistOn: true });
+  const rows = makeRows();
+  load(ctx, rows);
+  assert.equal(ctx.VIEW.length, rows.length);
+  ctx.workbenchSummary.button("rwl-select", KEY_PRIME).click();
+  assert.equal(ctx.VIEW.length, 110);
+  assert.equal(ctx.CURRENT_PAGE, 1);
+  assert.deepEqual(pressedKeys(ctx), [KEY_PRIME]);
+  // Clicking another pill replaces the selection (single canonical group).
+  ctx.workbenchSummary.button("rwl-select", KEY_BLOCK).click();
+  assert.equal(ctx.VIEW.length, 1);
+  assert.deepEqual(pressedKeys(ctx), [KEY_BLOCK]);
+  // Active pill again clears.
+  ctx.workbenchSummary.button("rwl-select", KEY_BLOCK).click();
+  assert.equal(ctx.VIEW.length, rows.length);
+  assert.deepEqual(pressedKeys(ctx), []);
+  // Same pipeline: the shell has no extra filter function, and pills change only REVIEW_WORKLIST_GROUP.
+  const src = read(SHELL);
+  assert.equal((src.match(/filterReviewWorklistRows\(/g) || []).length, 1, "single filter call site (applySearch)");
+  assert.deepEqual(JSON.parse(JSON.stringify(ctx.ACTIVE_FILTERS)), { status: [], issue: [], source: [] });
+});
+
+test("UX-F2 shell: drawer and pills show the same selection (both directions) and never map a precise group to a broad status", () => {
+  const ctx = makeSandbox({ source: read(SHELL), worklistOn: true });
+  const drawer = withDrawer(ctx);
+  const rows = makeRows();
+  load(ctx, rows);
+  assert.ok(drawer.section, "drawer section created with the panel");
+  assert.equal(drawer.checked(), "");
+  // Pill -> drawer.
+  ctx.workbenchSummary.button("rwl-select", KEY_MATREV).click();
+  assert.equal(drawer.checked(), KEY_MATREV);
+  assert.equal(ctx.VIEW.length, 2);
+  // Drawer -> pill.
+  drawer.pick(KEY_PRIME);
+  assert.equal(ctx.VIEW.length, 110);
+  assert.deepEqual(pressedKeys(ctx), [KEY_PRIME]);
+  assert.equal(drawer.checked(), KEY_PRIME);
+  // The precise 110-SKU group is NOT the broad REVIEW_REQUIRED status (113 rows): drawer Status stays untouched.
+  assert.deepEqual(JSON.parse(JSON.stringify(ctx.ACTIVE_FILTERS.status)), []);
+  ctx.ACTIVE_FILTERS.status = ["REVIEW_REQUIRED"];
+  drawer.pick("");
+  assert.equal(ctx.VIEW.length, 113, "broad status choice alone = 113 review rows");
+  assert.deepEqual(pressedKeys(ctx), []);
+  assert.equal(drawer.checked(), "");
+  // Drawer "All rows" with nothing else active restores every row.
+  ctx.ACTIVE_FILTERS.status = [];
+  drawer.pick(KEY_BLOCK);
+  drawer.pick("");
+  assert.equal(ctx.VIEW.length, rows.length);
+});
+
+test("UX-F2 shell: group, drawer Status/Issue/Source and search compose (AND) and the combination is shown", () => {
+  const ctx = makeSandbox({ source: read(SHELL), worklistOn: true });
+  withDrawer(ctx);
+  load(ctx, makeRows());
+  ctx.workbenchSummary.button("rwl-select", KEY_PRIME).click();
+  assert.doesNotMatch(ctx.workbenchSummary.innerHTML, /also \d+ drawer/);
+  assert.match(ctx.workbenchSummary.innerHTML, /data-rwl-scope="1">Group: [^<]+ · showing 110 of 139 rows</);
+  // Conflicting broad status (BLOCKER) with the REVIEW group -> no rows, and the note says why.
+  ctx.ACTIVE_FILTERS.status = ["BLOCKER"];
+  run(ctx, "applyFilters()");
+  assert.equal(ctx.VIEW.length, 0);
+  assert.match(ctx.workbenchSummary.innerHTML, /also 1 drawer filter · showing 0 of 139 rows/);
+  ctx.ACTIVE_FILTERS.status = ["REVIEW_REQUIRED"];
+  ctx.searchBox.value = "zzz-no-match";
+  run(ctx, "applyFilters()");
+  assert.equal(ctx.VIEW.length, 0);
+  assert.match(ctx.workbenchSummary.innerHTML, /also 1 drawer filter \+ search/);
+  ctx.searchBox.value = "";
+  run(ctx, "applyFilters()");
+  assert.equal(ctx.VIEW.length, 110);
+  // Without a group the note still appears when other filters narrow the table.
+  ctx.workbenchSummary.button("rwl-select", KEY_PRIME).click(); // active chip again clears the group
+  assert.match(ctx.workbenchSummary.innerHTML, /Table narrowed by 1 drawer filter/);
+  assert.equal(ctx.VIEW.length, 113);
+});
+
+test("UX-F2 shell: drawer Clear resets the group too; the filter badge counts it", () => {
+  const ctx = makeSandbox({ source: read(SHELL), worklistOn: true });
+  const drawer = withDrawer(ctx);
+  load(ctx, makeRows());
+  drawer.pick(KEY_BLOCK);
+  assert.equal(ctx.VIEW.length, 1);
+  // Reproduces the drawer Clear handler's two statements for the group (gated one-liner, then re-apply).
+  run(ctx, "ACTIVE_FILTERS = { status: [], issue: [], source: [] }; clearReviewWorklistGroup(); applyFilters();");
+  assert.equal(ctx.VIEW.length, 139);
+  assert.equal(drawer.checked(), "");
+  const src = read(SHELL);
+  const clearHandler = src.slice(src.indexOf('$("peqFilterClear")?.addEventListener("click"'));
+  assert.ok(clearHandler.indexOf("clearReviewWorklistGroup();") > 0 && clearHandler.indexOf("clearReviewWorklistGroup();") < clearHandler.indexOf("applyFilters();"));
+  assert.match(src, /if \(reviewWorklistSelectedKey\(\)\) count \+= 1;/);
+});
+
+test("UX-F2 shell: reload, run switch and lens change invalidate the group in both controls", () => {
+  const ctx = makeSandbox({ source: read(SHELL), worklistOn: true });
+  const drawer = withDrawer(ctx);
+  load(ctx, makeRows());
+  drawer.pick(KEY_PRIME);
+  assert.equal(ctx.VIEW.length, 110);
+  // A reload / different run / different period assigns a new ALL_ROWS array: the selection is dropped.
+  const other = makeRows().filter((r) => r.first_control_status !== "MATERIAL_REVIEW_REQUIRED");
+  load(ctx, other);
+  assert.equal(ctx.VIEW.length, other.length);
+  assert.deepEqual(pressedKeys(ctx), []);
+  assert.equal(drawer.checked(), "");
+  assert.ok(!drawer.section.innerHTML.includes(KEY_MATREV), "group that no longer exists is not offered");
+  // A group key that does not exist in the loaded rows cannot be selected.
+  run(ctx, `setReviewWorklistGroup("REVIEW_REQUIRED|NOT_A_GROUP|X")`);
+  assert.equal(ctx.VIEW.length, other.length, "an unknown key is ignored, not an invisible filter");
+  assert.deepEqual(pressedKeys(ctx), []);
+  // Leaving the lens removes the drawer section; the group is ignored on other lenses.
+  ctx.CURRENT_LENS = "dashboard";
+  run(ctx, "removeInactiveReviewWorklistDrawerGroup()");
+  assert.equal(drawer.section, null);
+  run(ctx, `setReviewWorklistGroup("${KEY_BLOCK}")`);
+  assert.equal(run(ctx, "reviewWorklistSelectedKey()"), null);
+});
+
+test("UX-F2 shell: flag OFF creates no drawer section and ignores group changes", () => {
+  const ctx = makeSandbox({ source: read(SHELL), worklistOn: false });
+  const drawer = withDrawer(ctx);
+  load(ctx, makeRows());
+  assert.equal(drawer.section, null);
+  run(ctx, `setReviewWorklistGroup("${KEY_BLOCK}")`);
+  assert.equal(ctx.REVIEW_WORKLIST_GROUP, null);
+  assert.equal(ctx.VIEW.length, 139);
+  assert.equal(ctx.workbenchSummary.innerHTML, "");
+});
+
+test("UX-F2 CSS: appended compact block only; chips wrap in one row; focus-visible; touch size and no unbounded mobile header", () => {
+  const css = read("public/shared/css/sasv-costing.css");
+  const block = css.slice(css.indexOf("UX-F2: compact review worklist"));
+  assert.ok(block.length > 200);
+  assert.match(block, /\.rwl-chips \{ display: flex; flex-wrap: wrap;/);
+  assert.match(block, /\.rwl-chip:focus-visible \{ outline: 2px solid/);
+  assert.match(block, /\.rwl-chip\[aria-pressed="true"\]/);
+  assert.match(block, /@media \(max-width: 520px\) \{[\s\S]*\.rwl-chip \{ min-height: 40px; \}[\s\S]*max-height: 40vh/);
+  for (const sel of block.split("\n").map((l) => l.match(/^\s*(\.rwl-[^{]+)\{/)?.[1]).filter(Boolean)) assert.match(sel.trim(), /^\.rwl-/);
+  assert.doesNotMatch(block, /\.ccc-(?!rc)|!important/);
+});
+
+// ===========================================================================
+// UX-F3: toolbar de-duplication + solid secondary KPI filter chips
+// ===========================================================================
+function f3Html(kind, { rows = makeRows(), status = { displayed_run_id: 143, approved_run_id: 143, newer_draft_run_id: 148, display_state: "APPROVED" }, selectedRunId = null } = {}) {
+  const groups = groupReviewWorklistRows(rows);
+  const d = kind === "raw" ? null : { ...worklist.describeReviewWorklistRunContext({ rows, periodStart: "2026-10-01", runStatus: { status: "ready", row: status }, selectedRunId, runPickerAvailable: true }), ...(kind && kind !== "auto" ? { kind } : {}) };
+  return renderReviewWorklistHtml(groups, {
+    runContext: reviewWorklistRunContext(rows), runDiagnosis: d, rowCount: rows.length,
+    runPicker: { choices: worklist.reviewWorklistRunChoices(status), selectedRunId },
+  });
+}
+const outsideInfo = (h) => h.replace(/<details[\s\S]*?<\/details>/, "");
+
+test("UX-F3 toolbar: run picker kept; approved run repeats no badge, date or run line; draft shows no badge but the picker says Draft — not for pricing", () => {
+  const approved = f3Html("approved", { rows: makeRows().map((r) => ({ ...r, refresh_run_id: 143 })), selectedRunId: "143" });
+  const vis = outsideInfo(approved);
+  assert.match(vis, /<select id="rwlRunSelect"/);
+  assert.doesNotMatch(vis, /data-rwl-pill|Run shown|valuation|Approved run|Draft run \d/);
+  assert.doesNotMatch(approved, /rwl-info-warn|rwl-drawer-note/);
+  const draft = outsideInfo(f3Html("selected-not-approved", { selectedRunId: "148" }));
+  assert.match(draft, /<select id="rwlRunSelect"/);
+  // UX-F5: no toolbar badge; the picker option carries the full draft wording.
+  assert.doesNotMatch(draft, /data-rwl-pill|Draft · not for pricing|rwl-pill-draft/);
+  assert.match(draft, /<option value="148" selected>Run 148 — Draft — not for pricing<\/option>/);
+  assert.match(draft, />Drawer: run 143<\/span>/);
+  assert.doesNotMatch(draft, /Run shown|valuation|Draft run 148|class="rwl-alert/);
+  // Exactly one toolbar and one chip row.
+  assert.equal((draft.match(/class="rwl-toolbar"/g) || []).length, 1);
+  assert.equal((draft.match(/class="rwl-chips"/g) || []).length, 1);
+});
+
+test("UX-F3 operational problems stay visible outside the disclosure; provenance prose moves inside it", () => {
+  for (const [kind, re] of [
+    ["status-error", /role="alert">Run status could not be read/],
+    ["mismatch", /role="alert">Rows are from run/],
+    ["mixed", /role="alert">Rows from several runs/],
+    ["status-missing", /role="note">No run status for this period/],
+  ]) {
+    const h = f3Html(kind);
+    assert.match(outsideInfo(h), re, kind);
+    assert.match(h, /rwl-info rwl-info-warn/, `${kind}: info control flagged`);
+  }
+  const draft = f3Html("selected-not-approved", { selectedRunId: "148" });
+  const info = draft.match(/<details[\s\S]*?<\/details>/)[0];
+  assert.match(info, /Row drawer evidence is not this run's evidence\./);
+  assert.match(info, /Run shown: 148 · valuation 2026-10-31/);
+  assert.doesNotMatch(outsideInfo(draft), /Row drawer evidence is not|pinned to the displayed/);
+});
+
+const f4Css = () => {
+  const css = read("public/shared/css/sasv-costing.css");
+  return css.slice(css.indexOf("UX-F4: restrained worklist"));
+};
+const cssRule = (block, sel) => block.match(new RegExp(`(?:^|\\n)${sel.replace(/[.\[\]"=()*+?^$|\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`))?.[1] || "";
+const hexLum = (hex) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+const hexContrast = (a, b) => { const [x, y] = [hexLum(a), hexLum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+const hexOf = (rule, prop) => (rule.match(new RegExp(`(?:^|[;\\s])${prop}:\\s*(#[0-9a-f]{6})`, "i")) || [])[1];
+
+test("UX-F4 chips: muted tinted fills with dark severity text (WCAG AA), distinct pressed and focus states", () => {
+  const f4 = f4Css();
+  const blocker = cssRule(f4, ".rwl-chip.rwl-sev-blocker");
+  const review = cssRule(f4, ".rwl-chip.rwl-sev-review");
+  const blockerOn = cssRule(f4, '.rwl-chip.rwl-sev-blocker[aria-pressed="true"]');
+  const reviewOn = cssRule(f4, '.rwl-chip.rwl-sev-review[aria-pressed="true"]');
+  for (const [name, r] of Object.entries({ blocker, review, blockerOn, reviewOn })) {
+    const bg = hexOf(r, "background"), fg = hexOf(r, "color");
+    assert.ok(bg && fg, name);
+    assert.ok(hexLum(bg) > 0.7, `${name}: tinted (light) fill, not saturated: ${bg}`);
+    assert.ok(hexContrast(bg, fg) >= 7, `${name}: label contrast ${hexContrast(bg, fg).toFixed(1)}`);
+    assert.ok(hexContrast(bg, "#ffffff") < 1.5, `${name}: no solid saturated block`);
+  }
+  assert.notEqual(hexOf(blocker, "background"), hexOf(review, "background"), "severity-specific tints");
+  assert.notEqual(hexOf(blocker, "color"), hexOf(review, "color"));
+  assert.notEqual(hexOf(blocker, "background"), hexOf(blockerOn, "background"), "pressed differs from rest");
+  assert.notEqual(hexOf(review, "background"), hexOf(reviewOn, "background"));
+  // Pressed: not colour alone (inset ring + stronger border + check mark text); badge keeps readable colour.
+  assert.match(cssRule(f4, '.rwl-chip[aria-pressed="true"], .rwl-chip.rwl-selected'), /box-shadow: inset 0 0 0 1px currentColor/);
+  assert.ok(hexContrast(hexOf(blockerOn, "border-color"), "#ffffff") >= 4.5, "pressed border is a strong severity colour");
+  assert.match(f4, /\.rwl-chip\[aria-pressed="true"\] \.rwl-chip-label::before \{ content: "\\2713/);
+  assert.match(cssRule(f4, ".rwl-chip .rwl-count"), /color: inherit/);
+  // Keyboard focus: its own visible outline, different from the pressed ring, never removed.
+  const focus = cssRule(f4, ".rwl-chip:focus-visible");
+  assert.match(focus, /outline: 2px solid/);
+  assert.match(focus, /outline-offset: 2px/);
+  assert.doesNotMatch(f4, /outline: (?:none|0)[^;]*;[^}]*\.rwl-chip|\.rwl-chip[^{]*\{[^}]*outline: (?:none|0)\b/);
+  assert.doesNotMatch(f4, /!important|\.ccc-kpi|\.kpi/);
+});
+
+test("UX-F4 layout: chips are flexible equal columns across the width; toolbar end is pinned right; responsive breakpoints", () => {
+  const f4 = f4Css();
+  const chips = cssRule(f4, ".rwl-chips");
+  assert.match(chips, /display: grid/);
+  assert.match(chips, /grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 190px\), 1fr\)\)/, "equal flexible columns that collapse");
+  assert.doesNotMatch(chips, /flex-wrap|justify-content: flex-start/);
+  const chip = cssRule(f4, ".rwl-chip");
+  assert.match(chip, /width: 100%/);
+  assert.match(chip, /min-width: 0/);
+  assert.match(cssRule(f4, ".rwl-end"), /margin-left: auto/);
+  assert.match(cssRule(f4, ".rwl-compact .rwl-toolbar"), /display: flex; flex-wrap: wrap/);
+  // Tablet: the end group takes its own full-width row, right-aligned; phone: narrower columns and 40px targets.
+  assert.match(f4, /@media \(max-width: 900px\) \{\s*\.rwl-end \{ flex: 1 1 100%; justify-content: flex-end; margin-left: 0; \}\s*\.rwl-chips \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/); // tablet: balanced 2 x 2
+  assert.match(f4, /@media \(max-width: 520px\) \{[\s\S]*minmax\(min\(100%, 150px\), 1fr\)[\s\S]*\.rwl-chip \{ min-height: 40px; \}[\s\S]*\.rwl-run-picker select \{ min-height: 40px; \}/);
+  // The disclosure panel opens leftwards from the right edge so it cannot overflow the viewport.
+  assert.match(cssRule(f4, ".rwl-info-body"), /right: 0/);
+});
+
+test("UX-F4/F5 run selector: SASV tokens, visibly tinted fill, chevron, soft focus ring, disabled state, native select", () => {
+  const f4 = f4Css();
+  const sel = cssRule(f4, ".rwl-run-picker select");
+  for (const token of ["--sasv-control-md", "--sasv-radius-sm", "--sasv-text-sm", "--sasv-primary-100", "--sasv-primary-300"]) assert.ok(sel.includes(token), token);
+  const focus = f4.match(/\.rwl-run-picker select:focus, \.rwl-run-picker select:focus-visible \{([^}]*)\}/)?.[1] || "";
+  assert.match(focus, /--sasv-control-border-focus/);
+  assert.match(focus, /box-shadow: 0 0 0 3px var\(--sasv-focus-ring/);
+  // UX-F5: visibly tinted (not white) surface from the SASV primary tokens, custom chevron, disabled state.
+  const bgc = sel.match(/background-color:\s*var\(--sasv-primary-100, (#[0-9a-f]{6})\)/i)?.[1];
+  assert.ok(bgc, "tinted fill from --sasv-primary-100");
+  assert.ok(hexContrast(bgc, "#ffffff") >= 1.15, `fill is visibly not white (${hexContrast(bgc, "#ffffff").toFixed(2)}:1)`);
+  assert.ok(hexContrast(bgc, "#1f2937") >= 7, "dark text on the tint");
+  assert.match(sel, /background-image: url\("data:image\/svg\+xml/, "chevron");
+  assert.match(sel, /background-position: right 10px center/);
+  assert.match(sel, /padding: 0 30px 0 10px/, "room for the chevron");
+  assert.match(f4, /\.rwl-run-picker select:hover \{ background-color: var\(--sasv-primary-200/);
+  const dis = f4.match(/\.rwl-run-picker select:disabled \{([^}]*)\}/)?.[1] || "";
+  assert.match(dis, /cursor: not-allowed/);
+  assert.match(dis, /--sasv-control-border/);
+  assert.match(dis, /background-color: var\(--sasv-neutral-100/);
+  assert.doesNotMatch(f4, /\.rwl-run-picker select[^{]*\{[^}]*(?:display: none|pointer-events: none)/);
+  assert.match(read("public/shared/js/costing-review-worklist.js"), /<select id="rwlRunSelect" data-rwl-run-select="1" aria-describedby="rwlRunSelectHelp"/, "native <select> kept");
+  // Same tokens as the established Costing controls.
+  const css = read("public/shared/css/sasv-costing.css");
+  assert.match(css, /body\.sasv-costing #costingPeriodSelect,[\s\S]*?border: 1px solid var\(--sasv-control-border\)/);
+});
+
+test("UX-F4 markup: end group (drawer note, info) is one right-aligned unit after the picker; at most two rows when unfiltered", () => {
+  const draft = f3Html("selected-not-approved", { selectedRunId: "148" });
+  const toolbar = draft.match(/<div class="rwl-toolbar">([\s\S]*?)<\/div>\n<div class="rwl-chips"|<div class="rwl-toolbar">([\s\S]*?)\n<\/div>/)[0];
+  assert.ok(toolbar.indexOf("rwl-run-picker") < toolbar.indexOf('class="rwl-end"'), "picker first, end group last");
+  const end = draft.match(/<div class="rwl-end">([\s\S]*?)<\/details>\s*<\/div>/)[1];
+  assert.ok(end.indexOf("rwl-drawer-note") < end.indexOf("<details"), "note then info disclosure");
+  assert.doesNotMatch(draft, /rwl-groups|rwl-card/);
+  // Rows: toolbar + chip row only (no alert/scope row without errors or extra filters).
+  const rowsOf = (h) => ["rwl-toolbar", "rwl-chips", "rwl-alert", "rwl-scope"].filter((c) => h.includes(`class="${c}`));
+  assert.deepEqual(rowsOf(draft), ["rwl-toolbar", "rwl-chips"]);
+  // Clear group lives in the end group, not in the chip grid (keeps four equal columns).
+  const rows = makeRows();
+  const sel = renderReviewWorklistHtml(groupReviewWorklistRows(rows), { selectedKey: KEY_PRIME, runContext: reviewWorklistRunContext(rows) });
+  assert.doesNotMatch(sel, /rwl-clear|Clear group/, "no redundant Clear group button; the active chip toggles and the drawer clears");
+  assert.match(sel, /aria-pressed="true"/);
+  assert.equal((sel.match(/class="rwl-chip /g) || []).length, 4);
 });
