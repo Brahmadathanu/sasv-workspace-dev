@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { costingScopeReport, costingCssScope, costingHtmlScope } from "../lib/costing-scope-guard.mjs";
+import { costingScopeReport, costingCssScope, costingHtmlScope, sqlTouchesCosting } from "../lib/costing-scope-guard.mjs";
 
 const FILES = {
   "package.json": '{ "name": "fixture" }\n',
@@ -81,6 +81,17 @@ const negatives = [
   ["existing migration modified", (r) => r.write("supabase/migrations/20260101000000_costing_base.sql", "create table costing.t (id bigint);\n"), (rep) => rep.supabase.some((v) => v.startsWith("M supabase/migrations/20260101000000_costing_base.sql"))],
   ["existing migration deleted", (r) => { fs.rmSync(path.join(r.dir, "supabase/migrations/20260101000000_costing_base.sql")); r.git("add", "-A"); }, (rep) => rep.supabase.some((v) => v.startsWith("D supabase/migrations/20260101000000_costing_base.sql"))],
   ["new migration touching costing added", (r) => r.write("supabase/migrations/20261101000000_x.sql", "alter table costing.t add column y int;\n"), (rep) => rep.supabase.some((v) => v.includes("added migration touches costing"))],
+  ...[
+    ["schema-qualified table", "alter table costing.sku_sales_allocation_basis_snapshot add column z int;\n"],
+    ["public costing_refresh_run", "create or replace view public.costing_refresh_run as select 1;\n"],
+    ["costing_cost_snapshot", "create table public.costing_cost_snapshot (id int);\n"],
+    ["suffixed name", "drop view if exists public.v_current_successful_costing_refresh_run;\n"],
+    ["function name", "create function public.fn_costing_view_allowed() returns boolean language sql as $$select true$$;\n"],
+    ["grant to costing role", "grant select on some_table to costing_admin;\n"],
+    ["policy on costing table", "create policy p on costing.cost_periods for select using (true);\n"],
+    ["quoted mixed case", 'alter table "Costing"."Thing" rename to x;\n'],
+    ["comment on costing object", "comment on table costing.cost_periods is 'x';\n"],
+  ].map(([name, sql]) => [`added migration: ${name}`, (r) => r.write("supabase/migrations/20261101000001_" + name.replace(/\W+/g, "_") + ".sql", sql), (rep) => rep.supabase.some((v) => v.includes("added migration touches costing"))]),
   ["supabase config changed", (r) => r.write("supabase/config.toml", 'project_id = "other"\n'), (rep) => rep.supabase.some((v) => v.includes("supabase/config.toml"))],
   ["file added outside supabase/migrations", (r) => r.write("supabase/functions/x/index.ts", "export {};\n"), (rep) => rep.supabase.some((v) => v.includes("outside supabase/migrations/"))],
   ["package.json changed", (r) => r.write("package.json", '{ "name": "changed" }\n'), (rep) => rep.packageJson.includes("package.json")],
@@ -102,4 +113,34 @@ test("negative control: unstaged working-tree edit to a Costing page is detected
   t.after(repo.cleanup);
   fs.writeFileSync(path.join(repo.dir, "public/shared/costing-control-center.html"), "<p>unstaged</p>\n");
   assert.ok(repo.report().html.includes("public/shared/costing-control-center.html"));
+});
+
+test("sqlTouchesCosting: Costing identifiers match; unrelated WP-07 and look-alike words do not", () => {
+  for (const sql of ["costing.x", "public.costing_refresh_run", "costing_cost_snapshot", "x_costing_y", "FN_COSTING_VIEW", "select * from \"costing\".t", "-- costing note"]) {
+    assert.equal(sqlTouchesCosting(sql), true, sql);
+  }
+  for (const sql of ["create table regulatory.eaushadhi_role (id int);", "alter table regulatory.source_composition_line add column a int;", "accosting", "costings", "costing2", "discosting_x", ""]) {
+    assert.equal(sqlTouchesCosting(sql), false, sql);
+  }
+});
+
+test("positive control: realistic unrelated WP-07 migrations are allowed", (t) => {
+  const repo = makeRepo();
+  t.after(repo.cleanup);
+  repo.write("supabase/migrations/20261024115131_wp07_ux1_roles_worklist.sql", [
+    "create table if not exists regulatory.eaushadhi_review_role (user_id uuid primary key, role text not null);",
+    "create or replace function public.rpc_eaushadhi_my_roles_v1() returns jsonb language sql security definer as $$ select '{}'::jsonb $$;",
+    "grant execute on function public.rpc_eaushadhi_my_roles_v1() to authenticated;",
+    "create policy wp07_roles_read on regulatory.eaushadhi_review_role for select using (true);",
+  ].join("\n") + "\n");
+  repo.write("supabase/migrations/20261031102139_wp07_ux9_source_reference_bulk.sql", "create table regulatory.source_reference_bulk_request (id uuid primary key);\n");
+  assert.deepEqual(repo.report().supabase, []);
+});
+
+test("regression: real WP-07 migration in this repository is allowed, real Costing migrations are flagged", () => {
+  const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const read = (f) => fs.readFileSync(path.join(root, "supabase/migrations", f), "utf8");
+  assert.equal(sqlTouchesCosting(read("20261024115131_wp07_ux1_roles_worklist.sql")), false);
+  assert.equal(sqlTouchesCosting(read("20260802142952_grant_production_route_manager_to_costing_admin.sql")), true);
+  assert.equal(sqlTouchesCosting(read("20260916142052_retire_obsolete_public_period_only_costing_review_writer.sql")), true);
 });

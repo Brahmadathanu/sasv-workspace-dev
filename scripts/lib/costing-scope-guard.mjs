@@ -30,7 +30,18 @@ export const COSTING_HTML_FILES = Object.freeze([
 export const SHARED_STYLE_ROOT = "public/shared/css/style.css";
 const COSTING_HTML_PATTERN = /^public\/shared\/costing-[^/]*\.html$/;
 const COSTING_CSS_PATTERN = /(^|\/)[^/]*costing[^/]*\.css$/i;
-const COSTING_SQL_PATTERN = /\bcosting\b/i;
+// "costing" as a whole token where "_" and "." also delimit, so that all of these match:
+//   costing.sku_price (schema), public.costing_refresh_run, fn_costing_view_allowed, costing_admin (role),
+//   v_current_successful_costing_refresh_run, GRANT/POLICY/ALTER/DROP/COMMENT statements naming any of them.
+// Letters and digits on either side prevent matches inside other words ("accosting", "costings", "costing2").
+// SQL comments are scanned too on purpose: a migration that merely talks about costing is flagged for review
+// rather than silently allowed (conservative; real WP-07 migrations do not contain the word).
+const COSTING_SQL_PATTERN = /(^|[^a-z0-9])costing(?![a-z0-9])/i;
+
+/** True when migration SQL references Costing-owned database objects (schema, table, view, function, role). */
+export function sqlTouchesCosting(sql) {
+  return COSTING_SQL_PATTERN.test(String(sql || ""));
+}
 
 const lines = (text) => String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);
 
@@ -102,7 +113,7 @@ export function supabaseCostingViolations({ git, root, base }) {
     if (status !== "A") { out.push(`${status} ${file}: existing supabase/ files are immutable for Costing packages`); continue; }
     if (!file.startsWith("supabase/migrations/")) { out.push(`A ${file}: change outside supabase/migrations/`); continue; }
     const sql = readHead(file) || "";
-    if (COSTING_SQL_PATTERN.test(sql)) out.push(`A ${file}: added migration touches costing`);
+    if (sqlTouchesCosting(sql)) out.push(`A ${file}: added migration touches costing`);
   }
   return out;
 }
