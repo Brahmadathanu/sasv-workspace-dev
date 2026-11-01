@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v387"; // CW-05 pkg 4 table tools; v386 was Costing review worklist v1
+const CACHE_NAME = "hub-cache-v388"; // Costing review worklist run context and run selector (C1/C1B); v387 was CW-05 pkg 4 table tools
 
 const PRECACHE = [
   // Hub shell

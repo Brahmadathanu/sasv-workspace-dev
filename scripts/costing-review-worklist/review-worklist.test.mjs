@@ -584,7 +584,7 @@ test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS
   assert.deepEqual(JSON.parse(JSON.stringify(tableTools.COLUMN_HELP)), JSON.parse(JSON.stringify(baseMod.COLUMN_HELP)));
   assert.equal(
     read("public/sw.js").split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v387"; // CW-05 pkg 4 table tools; v386 was Costing review worklist v1',
+    'const CACHE_NAME = "hub-cache-v388"; // Costing review worklist run context and run selector (C1/C1B); v387 was CW-05 pkg 4 table tools',
   );
   const cssChanged = git("diff", "--name-only", BASE, "--", "*.css").trim().split("\n").filter(Boolean);
   assert.ok(cssChanged.length === 0 || (cssChanged.length === 1 && cssChanged[0] === "public/shared/css/sasv-costing.css"));

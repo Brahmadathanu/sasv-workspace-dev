@@ -470,12 +470,12 @@ test("row-click index resolves to the sorted row after a header sort", () => {
 });
 
 // 10. Cache pin
-test("service worker cache is hub-cache-v387", () => {
+test("service worker cache is hub-cache-v388", () => {
   const sw = read("public/sw.js");
-  assert.match(sw, /const CACHE_NAME = "hub-cache-v387"/);
+  assert.match(sw, /const CACHE_NAME = "hub-cache-v388"/);
   assert.equal(
     sw.split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v387"; // CW-05 pkg 4 table tools; v386 was Costing review worklist v1',
+    'const CACHE_NAME = "hub-cache-v388"; // Costing review worklist run context and run selector (C1/C1B); v387 was CW-05 pkg 4 table tools',
   );
 });
 
