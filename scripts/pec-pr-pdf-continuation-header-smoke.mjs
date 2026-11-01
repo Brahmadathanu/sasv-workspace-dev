@@ -117,8 +117,8 @@ assert(
   "exportPrFormPdf is unchanged by the continuation header",
 );
 assert(
-  /CACHE_NAME = "hub-cache-v384"/.test(swSrc),
-  "service worker cache generation is hub-cache-v384",
+  /CACHE_NAME = "hub-cache-v385"/.test(swSrc),
+  "service worker cache generation is hub-cache-v385",
 );
 
 function loadJsPdf() {

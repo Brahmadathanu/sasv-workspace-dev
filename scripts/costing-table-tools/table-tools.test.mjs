@@ -130,6 +130,18 @@ function stripCw05(src) {
     "control-centre header gate",
   );
   remove(
+    "      if (isCostingTableToolsV1Enabled()) {\n        if (renderCw05GenericTableHeader(buildHeaders, buildAlignments, cw05TabTableId())) return;\n      }\n",
+    "cost-build header gate (pkg 3)",
+  );
+  remove(
+    "      if (isCostingTableToolsV1Enabled()) {\n        if (renderCw05GenericTableHeader(materialHeaders, materialAlignments, cw05TabTableId())) return;\n      }\n",
+    "material header gate (pkg 3)",
+  );
+  remove(
+    "      if (isCostingTableToolsV1Enabled()) {\n        if (renderCw05GenericTableHeader(policyHeaders, policyAlignments, cw05TabTableId())) return;\n      }\n",
+    "pricing-policy header gate (pkg 3)",
+  );
+  remove(
     /\n\/\*\*\n \* CW-05 \(COSTING_TABLE_TOOLS_V1 ON only\): header[\s\S]*?\n}\n(?=\nfunction productSkuLabel)/,
     "header renderer",
   );
@@ -155,7 +167,7 @@ test("flag OFF: every CW-05 entry point sits behind isCostingTableToolsV1Enabled
   const callers = (name) =>
     src.split("\n").filter((l) => l.includes(`${name}(`) && !l.includes(`function ${name}(`));
   for (const [name, expected] of [
-    ["renderCw05GenericTableHeader", 5],
+    ["renderCw05GenericTableHeader", 8],
     ["exportCw05CsvForView", 1],
   ]) {
     const lines = callers(name);
@@ -440,12 +452,12 @@ test("row-click index resolves to the sorted row after a header sort", () => {
 });
 
 // 10. Cache pin
-test("service worker cache is hub-cache-v384", () => {
+test("service worker cache is hub-cache-v385", () => {
   const sw = read("public/sw.js");
-  assert.match(sw, /const CACHE_NAME = "hub-cache-v384"/);
+  assert.match(sw, /const CACHE_NAME = "hub-cache-v385"/);
   assert.equal(
     sw.split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v384"; // CW-05 pkg 2 table tools; v383 was CW-05 table tools',
+    'const CACHE_NAME = "hub-cache-v385"; // CW-05 pkg 3 table tools; v384 was CW-05 pkg 2 table tools',
   );
 });
 
