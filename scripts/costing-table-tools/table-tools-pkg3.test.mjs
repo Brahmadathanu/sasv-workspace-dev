@@ -630,6 +630,6 @@ test("pkg3 COLUMN_HELP unchanged; module safety; FORBIDDEN_RPCS identical; no CS
 test("pkg3 sw.js line 2 is the v388 line", () => {
   assert.equal(
     read("public/sw.js").split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v389"; // WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A); v388 was Costing review worklist run selector (C1/C1B)',
+    'const CACHE_NAME = "hub-cache-v390"; // WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A); v388 was Costing review worklist run selector (C1/C1B)',
   );
 });
