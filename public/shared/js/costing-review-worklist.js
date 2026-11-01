@@ -12,6 +12,7 @@ import {
   resolveRecommendedUiRouteTarget,
 } from "./costing-suite-recommended-ui-route.js";
 import { costingStatusDisplayLabel } from "./costing-status-labels.js";
+import { RUN_STATUS_SELECT_V1, RUN_STATUS_VIEW } from "./costing-run-status-badge.js";
 
 /** Raw server severities shown in the worklist (READY rows are excluded). */
 export const REVIEW_WORKLIST_SEVERITIES = Object.freeze(["BLOCKER", "REVIEW_REQUIRED"]);
@@ -145,16 +146,21 @@ function runLine(runContext) {
 }
 
 /** HTML for the worklist panel. All server text is escaped. */
-export function renderReviewWorklistHtml(groups, { selectedKey = null, runContext = null } = {}) {
+export function renderReviewWorklistHtml(
+  groups,
+  { selectedKey = null, runContext = null, runDiagnosis = null, rowCount = null } = {},
+) {
   const list = Array.isArray(groups) ? groups : [];
   const head = `<div class="rwl-head">
   <div class="rwl-title">Review worklist</div>
   <div class="rwl-run">${runLine(runContext)}</div>
   <div class="rwl-frozen">${escapeHtml(REVIEW_WORKLIST_FROZEN_RUN_TEXT)}</div>
+  ${runDiagnosis ? renderReviewWorklistRunDiagnosisHtml(runDiagnosis) : ""}
   ${selectedKey ? `<button type="button" class="rwl-clear" data-rwl-clear="1">Clear group</button>` : ""}
 </div>`;
   if (!list.length) {
-    return `<div class="rwl-panel">${head}<div class="rwl-empty">${escapeHtml(REVIEW_WORKLIST_EMPTY_TEXT)}</div></div>`;
+    const emptyText = rowCount === 0 ? REVIEW_WORKLIST_NO_ROWS_TEXT : REVIEW_WORKLIST_EMPTY_TEXT;
+    return `<div class="rwl-panel">${head}<div class="rwl-empty">${escapeHtml(emptyText)}</div></div>`;
   }
   const items = list
     .map((g) => {
@@ -181,4 +187,184 @@ export function renderReviewWorklistHtml(groups, { selectedKey = null, runContex
     })
     .join("\n");
   return `<div class="rwl-panel">${head}<div class="rwl-groups">${items}</div></div>`;
+}
+
+// ---------------------------------------------------------------------------
+// C1: run context for the worklist (read-only; still behind
+// COSTING_REVIEW_WORKLIST_V1). Server ids and labels are shown verbatim; the
+// client only compares run ids to say which run the loaded rows belong to.
+// ---------------------------------------------------------------------------
+
+/** Same view and columns the existing run-status badge already reads. */
+export const REVIEW_WORKLIST_RUN_STATUS_VIEW = RUN_STATUS_VIEW;
+export const REVIEW_WORKLIST_RUN_STATUS_SELECT = RUN_STATUS_SELECT_V1;
+
+export const REVIEW_WORKLIST_NO_ROWS_TEXT =
+  "No SKU control rows were returned for this period. Either the period has no successful run, or your account cannot read Control Centre data.";
+export const REVIEW_WORKLIST_DRAFT_UNAVAILABLE_TEXT =
+  "Its SKU rows cannot be shown here: this screen's data source returns only the run in use for each month. Showing them needs a read-only, run-scoped view that is not available yet (pending owner approval).";
+export const REVIEW_WORKLIST_FIX_SCREEN_TEXT =
+  "Fix screens show current source data, not the frozen run values above.";
+
+const SEVERITY_ORDER = ["BLOCKER", "REVIEW_REQUIRED", "READY"];
+
+function idText(value) {
+  return value === null || value === undefined || value === "" ? null : String(value);
+}
+
+/** Raw severity counts of the loaded rows (server codes, in BLOCKER/REVIEW/READY/other order). */
+export function reviewWorklistSeverityCounts(rows) {
+  const counts = new Map();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const severity = code(row?.control_severity) || "(none)";
+    counts.set(severity, (counts.get(severity) || 0) + 1);
+  }
+  const ordered = [];
+  for (const sev of SEVERITY_ORDER) if (counts.has(sev)) ordered.push([sev, counts.get(sev)]);
+  for (const [sev, n] of [...counts.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+    if (!SEVERITY_ORDER.includes(sev)) ordered.push([sev, n]);
+  }
+  return Object.freeze(ordered.map(([severity, count]) => Object.freeze({ severity, count })));
+}
+
+/**
+ * Loader for the period run status with stale-response protection. `query`
+ * is (periodStart) => Promise<{ data, error }>. A new key (period or reloaded
+ * rows) starts a new request; a response for an older key is discarded.
+ */
+export function createReviewWorklistRunStatusLoader({ query }) {
+  let generation = 0;
+  let current = { key: null, periodStart: null, status: "idle", row: null, error: null };
+  function snapshot() {
+    return Object.freeze({ ...current });
+  }
+  function ensure(periodStart, rowsRef, onSettled) {
+    if (!periodStart) {
+      if (current.status !== "idle" || current.key !== null) {
+        generation += 1;
+        current = { key: null, periodStart: null, status: "idle", row: null, error: null };
+      }
+      return snapshot();
+    }
+    if (current.key && current.key.periodStart === periodStart && current.key.rowsRef === rowsRef) {
+      return snapshot();
+    }
+    const my = ++generation;
+    const key = { periodStart, rowsRef };
+    current = { key, periodStart, status: "loading", row: null, error: null };
+    Promise.resolve()
+      .then(() => query(periodStart))
+      .then(
+        (result) => {
+          if (my !== generation) return;
+          if (result?.error) {
+            current = { key, periodStart, status: "error", row: null, error: String(result.error?.message || result.error) };
+          } else {
+            current = { key, periodStart, status: "ready", row: result?.data || null, error: null };
+          }
+          onSettled?.();
+        },
+        (error) => {
+          if (my !== generation) return;
+          current = { key, periodStart, status: "error", row: null, error: String(error?.message || error) };
+          onSettled?.();
+        },
+      );
+    return snapshot();
+  }
+  return { ensure, state: snapshot };
+}
+
+/**
+ * Describe which run the loaded rows belong to, from the rows' own
+ * refresh_run_id / period_start and the server period run status. Only ids are
+ * compared; labels and codes are passed through unchanged.
+ */
+export function describeReviewWorklistRunContext({ rows, periodStart, runStatus }) {
+  const list = Array.isArray(rows) ? rows : [];
+  const ctx = reviewWorklistRunContext(list);
+  const listRunIds = ctx.runIds;
+  const listRunId = listRunIds.length === 1 ? listRunIds[0] : null;
+  const periodMismatch = periodStart
+    ? list.some((r) => r?.period_start && String(r.period_start) !== String(periodStart))
+    : false;
+  const status = runStatus?.status || "idle";
+  const row = status === "ready" ? runStatus.row : null;
+  const displayedRunId = idText(row?.displayed_run_id);
+  const approvedRunId = idText(row?.approved_run_id);
+  const newerDraftRunId = idText(row?.newer_draft_run_id);
+  const activeRunId = idText(row?.active_run_id);
+  let kind;
+  if (status === "loading" || status === "idle") kind = status;
+  else if (status === "error") kind = "status-error";
+  else if (!row) kind = "status-missing";
+  else if (!list.length) kind = "no-rows";
+  else if (listRunIds.length > 1) kind = "mixed";
+  else if (displayedRunId && listRunId !== displayedRunId) kind = "mismatch";
+  else if (approvedRunId && listRunId === approvedRunId) kind = "approved";
+  else kind = "not-approved";
+  return Object.freeze({
+    kind,
+    periodStart: periodStart ? String(periodStart) : null,
+    listRunIds,
+    listValuationDates: ctx.valuationDates,
+    listRunId,
+    periodMismatch,
+    rowCount: list.length,
+    severityCounts: reviewWorklistSeverityCounts(list),
+    serverState: row?.display_state ?? null,
+    serverLabel: row?.display_label ?? null,
+    displayedRunId,
+    approvedRunId,
+    newerDraftRunId,
+    activeRunId,
+    activeRunStatus: row?.active_run_status ?? null,
+    error: status === "error" ? runStatus.error : null,
+  });
+}
+
+/** HTML for the run-context block (all server text escaped). */
+export function renderReviewWorklistRunDiagnosisHtml(d) {
+  if (!d) return "";
+  const lines = [];
+  const e = escapeHtml;
+  if (d.kind === "loading") lines.push(`<div class="rwl-rc-line" role="status">Loading run status for ${e(d.periodStart || "--")}…</div>`);
+  if (d.kind === "idle") lines.push(`<div class="rwl-rc-line">No period selected.</div>`);
+  if (d.kind === "status-error") {
+    const stored = d.listRunIds.length ? ` The loaded rows still show the run they are stored under (run ${d.listRunIds.map(e).join(", ")}).` : "";
+    lines.push(`<div class="rwl-rc-line rwl-rc-warn" role="alert">Run status could not be read: ${e(d.error || "unknown error")}. The run's current designation (approved or draft) could not be verified.${stored}</div>`);
+  }
+  if (d.kind === "status-missing") {
+    lines.push(`<div class="rwl-rc-line rwl-rc-warn">The server returned no run status for ${e(d.periodStart || "--")} (no run yet, or no permission to read Control Centre status).</div>`);
+  }
+  if (d.serverLabel || d.serverState) {
+    lines.push(`<div class="rwl-rc-line">Server run status: ${e(d.serverLabel || "--")}${d.serverState ? ` <span class="rwl-rc-code">[${e(d.serverState)}]</span>` : ""}</div>`);
+  }
+  if (d.kind === "approved") {
+    lines.push(`<div class="rwl-rc-line">These rows are from approved run ${e(d.listRunId)}.</div>`);
+  }
+  if (d.kind === "not-approved") {
+    lines.push(`<div class="rwl-rc-line rwl-rc-warn">These rows are from run ${e(d.listRunId)}, which is not an approved run.</div>`);
+  }
+  if (d.kind === "mismatch") {
+    lines.push(`<div class="rwl-rc-line rwl-rc-warn" role="alert">The loaded rows are from run ${e(d.listRunId || "--")}, but the server now shows run ${e(d.displayedRunId)} for this period. Reload the period before acting.</div>`);
+  }
+  if (d.kind === "mixed") {
+    lines.push(`<div class="rwl-rc-line rwl-rc-warn" role="alert">Rows from more than one run are loaded (${d.listRunIds.map(e).join(", ")}). Counts may mix runs. Reload the period.</div>`);
+  }
+  if (d.periodMismatch) {
+    lines.push(`<div class="rwl-rc-line rwl-rc-warn" role="alert">Some loaded rows belong to another period than ${e(d.periodStart || "--")}. Reload the period.</div>`);
+  }
+  if (d.newerDraftRunId && d.newerDraftRunId !== d.listRunId) {
+    lines.push(`<div class="rwl-rc-line">Newer draft run ${e(d.newerDraftRunId)} exists for this period and is not approved. ${e(REVIEW_WORKLIST_DRAFT_UNAVAILABLE_TEXT)}</div>`);
+  }
+  if (d.activeRunId) {
+    lines.push(`<div class="rwl-rc-line">Run ${e(d.activeRunId)} is ${e(d.activeRunStatus || "in progress")} for this period; its results are not shown until it finishes.</div>`);
+  }
+  if (d.rowCount > 0) {
+    const counts = d.severityCounts.map((c) => `${e(c.severity)} ${c.count}`).join(" · ");
+    lines.push(`<div class="rwl-rc-line">Loaded rows${d.listRunId ? ` (run ${e(d.listRunId)})` : ""}: ${d.rowCount} — ${counts}</div>`);
+  }
+  lines.push(`<div class="rwl-rc-line rwl-rc-muted">${e(REVIEW_WORKLIST_FIX_SCREEN_TEXT)}</div>`);
+  return `<div class="rwl-run-context" data-rwl-run-context="${e(d.kind)}">${lines.join("\n")}</div>`;
 }

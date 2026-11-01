@@ -323,7 +323,8 @@ const legacyTh = (cls, label) => `<th class="${cls}">${label}</th>`;
 // 1. Flag OFF identity
 const REVIEW_WORKLIST_SHELL_BLOCKS = [
   'import { isCostingReviewWorklistV1Enabled } from "./costing-feature-flags.js";\n',
-  'import { filterReviewWorklistRows, groupReviewWorklistRows, renderReviewWorklistHtml, resolveReviewWorklistTarget, reviewWorklistRunContext, REVIEW_WORKLIST_NO_NAV_TOAST } from "./costing-review-worklist.js";\n',
+  // C1: the worklist import list may grow; still exactly one import line from the module.
+  /import \{[^}]*\} from "\.\/costing-review-worklist\.js";\n/,
   "// Costing review worklist v1 selection (used only when COSTING_REVIEW_WORKLIST_V1 is ON):\n// { key, rows } where rows is the ALL_ROWS array the group was picked on, so any\n// reload, period change or lens switch (each assigns a new ALL_ROWS) clears it.\nlet REVIEW_WORKLIST_GROUP = null;\n",
   '  if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n    rows = filterReviewWorklistRows(rows, reviewWorklistSelectedKey());\n  }\n',
   '    if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n      renderReviewWorklistPanel();\n    }\n',
@@ -375,7 +376,7 @@ test("pkg3 flag OFF: legacy templates verbatim; shell equals base apart from gat
   }
   // Costing review worklist v1 (separate feature, flag-gated): each block stripped exactly once.
   for (const w of REVIEW_WORKLIST_SHELL_BLOCKS) {
-    assert.equal(stripped.split(w).length, 2, w);
+    assert.equal(stripped.split(w).length, 2, String(w));
     stripped = stripped.replace(w, "");
   }
   assert.match(stripped, REVIEW_WORKLIST_FN_RE);
