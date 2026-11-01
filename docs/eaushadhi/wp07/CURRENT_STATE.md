@@ -69,3 +69,10 @@ Floating tooltip and keyboard/Escape: pass. Short window: pass. Findings sent to
 - Independent read-only GitHub verification confirmed main `9c189d6`, cache v388, and Bundle A PR #118 still draft at `6c4434a`.
 - Orchestrator assigned **candidate `hub-cache-v389` for WP-07 draft integration preparation**, subject to a fresh check immediately before the version change; no technical reservation can stop concurrent mergers.
 - Revised Bundle B may prepare a separate `merge-prep/wp07` branch and one draft PR to main; no merge, production writes or portal action approved. Preserve Costing and WP-07 changes; test all relevant cache pins.
+
+## 9. Bundle B draft PR #120 independent audit (1 Nov 2026)
+- Claude integrated Bundle A with main `9c189d6` (v388) to branch `merge-prep/wp07` head `6b88313`, cache `v389`; [PR #120](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/120) is draft, unmerged. GitHub independently verified base/head/main and 31 commits ahead, zero behind.
+- All 12 WP-07 and four QC suites reported passing, but **three Costing regression tests are red**. Independent inspection confirms their historical change-scope guards compare global `supabase/` and/or all `*.html` and `*.css` against Costing package anchors; legitimate WP-07 additions trigger them.
+- **Audit verdict: correction required before merge**: narrowly scope Costing historical diff guards to their intended owned files while retaining positive checks for Costing changes; regression-test the adjustment against main and integration. Do not relax functional/security checks.
+- Separate release blocker: migration repo/live parity not yet independently established. PR #120 includes inherited WP-07 migration `20261024115131`; other live UX1–UX9 migration copies (including `20261031102139`) remain on docs branch. Complete read-only version/statement parity audit and plan any repo-only corrections under server-worker governance. No db push.
+- Bundle A owner screen acceptance remains valid. No main merge, deployment, server mutation, native Save or final Submit approved.
