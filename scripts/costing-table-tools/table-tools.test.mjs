@@ -96,7 +96,8 @@ const OLD_GENERIC_HEADER = `  tableHead.innerHTML = \`<tr>\${headers
 
 const REVIEW_WORKLIST_SHELL_BLOCKS = [
   'import { isCostingReviewWorklistV1Enabled } from "./costing-feature-flags.js";\n',
-  'import { filterReviewWorklistRows, groupReviewWorklistRows, renderReviewWorklistHtml, resolveReviewWorklistTarget, reviewWorklistRunContext, REVIEW_WORKLIST_NO_NAV_TOAST } from "./costing-review-worklist.js";\n',
+  // C1: the worklist import list may grow; still exactly one import line from the module.
+  /import \{[^}]*\} from "\.\/costing-review-worklist\.js";\n/,
   "// Costing review worklist v1 selection (used only when COSTING_REVIEW_WORKLIST_V1 is ON):\n// { key, rows } where rows is the ALL_ROWS array the group was picked on, so any\n// reload, period change or lens switch (each assigns a new ALL_ROWS) clears it.\nlet REVIEW_WORKLIST_GROUP = null;\n",
   '  if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n    rows = filterReviewWorklistRows(rows, reviewWorklistSelectedKey());\n  }\n',
   '    if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n      renderReviewWorklistPanel();\n    }\n',
@@ -163,7 +164,7 @@ function stripCw05(src) {
   remove(/\/\*\*\n \* CW-05 \(COSTING_TABLE_TOOLS_V1 ON only\)[\s\S]*?\n}\n\n(?=function exportCsvForRows)/, "csv helper");
   // Costing review worklist v1 (separate feature, flag-gated).
   for (const w of REVIEW_WORKLIST_SHELL_BLOCKS) {
-    assert.equal(out.split(w).length, 2, w);
+    assert.equal(out.split(w).length, 2, String(w));
     remove(w, "review worklist block");
   }
   remove(REVIEW_WORKLIST_FN_RE, "review worklist helpers");

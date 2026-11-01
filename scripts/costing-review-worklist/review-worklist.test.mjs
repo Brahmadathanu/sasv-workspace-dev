@@ -159,6 +159,21 @@ function makeSandbox({ source, worklistOn, tableToolsOn = false }) {
     PAGE_SIZE: 25,
     CW05_SORT_CTX: null,
     REVIEW_WORKLIST_GROUP: null,
+    REVIEW_WORKLIST_RUN_STATUS: null,
+    runStatusQueries: [],
+    // C1: run-status reads go to the existing period status view (mocked; approved run 148 for the fixture).
+    supabase: {
+      from(view) {
+        const q = { view, select: null, filters: [] };
+        ctx.runStatusQueries.push(q);
+        const api = {
+          select(cols) { q.select = cols; return api; },
+          eq(k, v) { q.filters.push([k, v]); return api; },
+          maybeSingle: () => Promise.resolve({ data: { period_start: "2026-10-01", display_state: "APPROVED", display_label: "Approved run 148", displayed_run_id: 148, approved_run_id: 148, newer_draft_run_id: null, active_run_id: null, active_run_status: null }, error: null }),
+        };
+        return api;
+      },
+    },
     ACTIVE_FILTERS: { status: [], issue: [], source: [] },
     ACTIVE_PERIOD_START: "2026-10-01",
     searchBox: { value: "" },
@@ -228,6 +243,7 @@ function makeSandbox({ source, worklistOn, tableToolsOn = false }) {
     "exportCsvForRows",
   ];
   if (source.includes("\nfunction renderReviewWorklistPanel(")) names.push("reviewWorklistSelectedKey", "renderReviewWorklistPanel");
+  if (source.includes("\nfunction reviewWorklistRunStatus(")) names.push("reviewWorklistRunStatus");
   vm.runInContext(
     [
       ...names.map((n) => extractFn(source, n)),
@@ -297,22 +313,32 @@ test("worklist flag OFF: legacy shell lines unchanged; every new line is behind 
   ]) {
     assert.equal(head.split(gated).length, 2, gated);
   }
-  const helpers = ["reviewWorklistSelectedKey", "renderReviewWorklistPanel"].map((fn) => extractFn(head, fn));
+  const helpers = ["reviewWorklistSelectedKey", "reviewWorklistRunStatus", "renderReviewWorklistPanel"].map((fn) => extractFn(head, fn));
   const outsideHelpers = helpers.reduce((acc, h) => acc.replace(h, ""), head);
   const calls = outsideHelpers.split("\n").filter((l) => /reviewWorklistSelectedKey\(\)|renderReviewWorklistPanel\(\)/.test(l));
   assert.deepEqual(calls.map((l) => l.trim()), [
     "rows = filterReviewWorklistRows(rows, reviewWorklistSelectedKey());",
     "renderReviewWorklistPanel();",
   ]);
-  for (const fn of ["reviewWorklistSelectedKey", "renderReviewWorklistPanel"]) {
+  for (const fn of ["reviewWorklistSelectedKey", "reviewWorklistRunStatus", "renderReviewWorklistPanel"]) {
     const body = extractFn(head, fn);
     assert.match(body.split("\n")[1], /^\s+if \(!\(isCostingReviewWorklistV1Enabled\(\) && CURRENT_LENS === "sku-control-status"\)\) return/);
   }
   const gates = head.split("\n").filter((l) => l.includes('isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status"'));
-  assert.equal(gates.length, 4);
-  for (const re of [/\.rpc\(/, /costingFrom\(/, /\.from\(/, /new Date/, /Date\.now/, /Date\.parse/]) {
+  assert.equal(gates.length, 5); // 2 call-site gates + 3 helper early returns (C1 adds reviewWorklistRunStatus)
+  for (const re of [/\.rpc\(/, /costingFrom\(/, /new Date/, /Date\.now/, /Date\.parse/]) {
     assert.ok(!added.some((l) => re.test(l)), String(re));
   }
+  // C1: exactly one added read, of the existing authorised period run-status view (same view and
+  // columns as the run-status badge), and only inside the flag-gated reviewWorklistRunStatus helper.
+  const fromLines = added.filter((l) => /\.from\(/.test(l));
+  assert.deepEqual(fromLines.map((l) => l.slice(1).trim()), [".from(REVIEW_WORKLIST_RUN_STATUS_VIEW)"]);
+  assert.ok(extractFn(head, "reviewWorklistRunStatus").includes(".from(REVIEW_WORKLIST_RUN_STATUS_VIEW)"));
+  assert.equal(worklist.REVIEW_WORKLIST_RUN_STATUS_VIEW, "v_costing_pricing_period_run_status");
+  assert.equal(
+    worklist.REVIEW_WORKLIST_RUN_STATUS_SELECT,
+    "period_start,display_state,display_label,displayed_run_id,approved_run_id,approved_at,approved_by,newer_draft_run_id,active_run_id,active_run_status",
+  );
 });
 
 // 2. Self-check (i)
@@ -379,7 +405,8 @@ test("worklist self-check (i): empty state when the run shown has no blocked or 
   assert.equal(ctx.workbenchSummary.querySelectorAll("[data-rwl-select]").length, 0);
   assert.ok(ctx.workbenchSummary.innerHTML.includes("Run shown: 148 · valuation 2026-10-31"));
   load(ctx, []);
-  assert.ok(ctx.workbenchSummary.innerHTML.includes(REVIEW_WORKLIST_EMPTY_TEXT));
+  // C1: no rows at all is distinguished from "rows, but none blocked or under review".
+  assert.ok(ctx.workbenchSummary.innerHTML.includes(worklist.REVIEW_WORKLIST_NO_ROWS_TEXT));
   assert.ok(ctx.workbenchSummary.innerHTML.includes("Run shown: -- · valuation --"));
 });
 

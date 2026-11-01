@@ -423,11 +423,19 @@ test("pkg4 unsortable columns key null; table-tools diff is only the three entri
     '+        showToast?.("Period lock recorded, but the period list could not refresh. Reload the page to see it.", "error");',
     "+      }",
   ]);
-  // Shell: only additions, all inside cw05TabTableId(); lock wiring untouched.
-  const shellDiff = git("diff", "-U0", BASE, "--", SHELL).split("\n");
-  assert.ok(!shellDiff.some((l) => l.startsWith("-") && !l.startsWith("---")));
-  const fnText = extractFn(read(SHELL), "cw05TabTableId");
-  for (const l of shellDiff.filter((x) => x.startsWith("+") && !x.startsWith("+++"))) assert.ok(fnText.includes(l.slice(1)), l);
+  // Shell (feature-scoped, C1): cw05TabTableId() equals its base text plus exactly the pkg 4 additions;
+  // the lock wiring is untouched. Other shell features are checked by their own suites.
+  const PKG4_SHELL_ADDITIONS = [
+    '    if (pricingPolicyCtrl.isMrpAppliedHistoryTabActive()) {\n      return pricingPolicyCtrl.getMrpAppliedHistoryView() !== "workspace"\n        ? "mrp-governance:applied-history-register"\n        : null;\n    }\n',
+    '    if (tab === "scheme-master") return "policy-manager:scheme-master";\n',
+    '  if (CURRENT_LENS === "manual-provisions") {\n    return costBuildCtrl.getManualProvisionTab() === "impact" ? "manual-provisions:impact" : null;\n  }\n',
+  ];
+  let fnText = extractFn(read(SHELL), "cw05TabTableId");
+  for (const add of PKG4_SHELL_ADDITIONS) {
+    assert.equal(fnText.split(add).length, 2, add);
+    fnText = fnText.replace(add, "");
+  }
+  assert.equal(fnText, extractFn(readBase(SHELL), "cw05TabTableId"));
   assert.ok(read(SHELL).includes("const costingLockScreenCtrl = isCostingLockScreenV1Enabled()"));
   // FORBIDDEN_RPCS, controllers, CSS/HTML, supabase, package.
   const rel = `${JS}/costing-approval-screen.js`;
@@ -437,7 +445,8 @@ test("pkg4 unsortable columns key null; table-tools diff is only the three entri
   };
   assert.equal(slice(read(rel)), slice(readBase(rel)));
   const controllers = ["control-center", "pricing-policy", "cost-build", "material-cost", "mrp-applied-history"].map((f) => `${JS}/costing-suite-${f}.js`);
-  assert.equal(git("diff", BASE, "--", ...controllers, `${JS}/costing-review-worklist.js`, `${JS}/costing-feature-flags.js`, "supabase/", "package.json"), "");
+  // costing-review-worklist.js is changed by C1 and covered by scripts/costing-review-worklist/run-context.test.mjs.
+  assert.equal(git("diff", BASE, "--", ...controllers, `${JS}/costing-feature-flags.js`, "supabase/", "package.json"), "");
   assert.equal(git("diff", "--name-only", BASE, "--", "*.css", "*.html").trim(), "");
 });
 

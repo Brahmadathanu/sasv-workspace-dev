@@ -67,7 +67,7 @@ import { createCostingLockScreenController } from "./costing-lock-screen.js";
 import { createCostingRunStatusScreenController } from "./costing-run-status-screen.js";
 import { isCostingTableToolsV1Enabled } from "./costing-feature-flags.js";
 import { isCostingReviewWorklistV1Enabled } from "./costing-feature-flags.js";
-import { filterReviewWorklistRows, groupReviewWorklistRows, renderReviewWorklistHtml, resolveReviewWorklistTarget, reviewWorklistRunContext, REVIEW_WORKLIST_NO_NAV_TOAST } from "./costing-review-worklist.js";
+import { createReviewWorklistRunStatusLoader, describeReviewWorklistRunContext, filterReviewWorklistRows, groupReviewWorklistRows, renderReviewWorklistHtml, resolveReviewWorklistTarget, reviewWorklistRunContext, REVIEW_WORKLIST_NO_NAV_TOAST, REVIEW_WORKLIST_RUN_STATUS_SELECT, REVIEW_WORKLIST_RUN_STATUS_VIEW } from "./costing-review-worklist.js";
 import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, isSortableColumn, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor, tableColumnsForTable, withAccessors } from "./costing-table-tools.js";
 import {
   createQcActionQueueController,
@@ -5713,6 +5713,28 @@ function reviewWorklistSelectedKey() {
   return REVIEW_WORKLIST_GROUP.key;
 }
 
+// C1 run context (flag ON only): period run status from the existing
+// authorised view, loaded lazily; stale responses are discarded by the loader.
+let REVIEW_WORKLIST_RUN_STATUS = null;
+
+/** Review worklist v1 (flag ON only): run-status loader for the run-context block. */
+function reviewWorklistRunStatus() {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return null;
+  if (!REVIEW_WORKLIST_RUN_STATUS) {
+    REVIEW_WORKLIST_RUN_STATUS = createReviewWorklistRunStatusLoader({
+      query: (periodStart) =>
+        supabase
+          .from(REVIEW_WORKLIST_RUN_STATUS_VIEW)
+          .select(REVIEW_WORKLIST_RUN_STATUS_SELECT)
+          .eq("period_start", periodStart)
+          .maybeSingle(),
+    });
+  }
+  return REVIEW_WORKLIST_RUN_STATUS.ensure(ACTIVE_PERIOD_START, ALL_ROWS, () => {
+    renderReviewWorklistPanel();
+  });
+}
+
 /** Review worklist v1 (flag ON only): read-only panel in #workbenchSummary. */
 function renderReviewWorklistPanel() {
   if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return;
@@ -5722,6 +5744,12 @@ function renderReviewWorklistPanel() {
   workbenchSummary.innerHTML = renderReviewWorklistHtml(groups, {
     selectedKey,
     runContext: reviewWorklistRunContext(ALL_ROWS),
+    runDiagnosis: describeReviewWorklistRunContext({
+      rows: ALL_ROWS,
+      periodStart: ACTIVE_PERIOD_START,
+      runStatus: reviewWorklistRunStatus(),
+    }),
+    rowCount: ALL_ROWS.length,
   });
   workbenchSummary.classList.add("is-visible");
   workbenchSummary.querySelectorAll("[data-rwl-select]").forEach((btn) => {
