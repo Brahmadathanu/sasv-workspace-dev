@@ -5,7 +5,7 @@
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -361,7 +361,17 @@ assert(
 assert(!indexSrc.includes("rpc_eaushadhi_worker_run_begin"), "worker index does not call run_begin");
 assert(!/page\.(click|fill|selectOption|setInputFiles)\(/.test(captureSrc), "capture does not fill or click");
 assert(!/\.goto\s*\(/.test(captureSrc), "capture does not call goto");
-assert(!/qc|quality control/i.test(controlSrc + dryRunSrc), "no QC");
+// Intent: the first-entry dry-run and capture path carries no QC logic. This used to be asserted over the whole
+// renderer control file too, but that file now legitimately holds the delivered WP-07 QC Register UI (hundreds of
+// QC references), and worker index.js wires the later QC report upload. Both are therefore excluded; the dry-run
+// and every capture/*.js module must stay QC-free.
+const captureDir = join(root, "electron/eaushadhi-worker/capture");
+const captureModules = readdirSync(captureDir).filter((name) => name.endsWith(".js"));
+const captureModuleSrc = captureModules
+  .map((name) => readFileSync(join(captureDir, name), "utf8"))
+  .join("\n");
+assert(captureModules.includes("index.js") && captureModules.length >= 10, "all capture modules are scanned for QC");
+assert(!/qc|quality control/i.test(captureModuleSrc + dryRunSrc), "no QC");
 assert(!/mark_submitted/.test(indexSrc + dryRunSrc), "no Submit lifecycle");
 
 const classificationMigration = readFileSync(

@@ -834,14 +834,15 @@ function installQcConfirmDom() {
     document,
     button,
     press(key) {
-      const event = { key, shiftKey: false, preventDefault() {}, stopPropagation() {} };
+      const event = { key, shiftKey: false, preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {} };
       for (const fn of [...keyListeners]) fn(event);
     },
   };
 }
 
 const modalApi = new Function(
-  `${extractFunction("openQcConfirm")}
+  `${extractFunction("resolveReturnFocus")}
+   ${extractFunction("openQcConfirm")}
    ${extractFunction("openQcByteCheckConfirm")}
    return openQcByteCheckConfirm;`,
 )();
@@ -869,7 +870,8 @@ confirmDom.document.getElementById("qcByteCheckConfirmBackdrop").dispatch("click
 });
 assert(await held === false, "a backdrop click resolves the byte-check confirm false");
 const reopenConfirm = new Function(
-  `${extractFunction("openQcConfirm")}
+  `${extractFunction("resolveReturnFocus")}
+   ${extractFunction("openQcConfirm")}
    return openQcConfirm;`,
 )();
 const reopenButton = confirmDom.document.createElement("button");
@@ -967,7 +969,12 @@ const fallbackNote = notesApi({
   report_filename: "lab.pdf",
 }, []);
 assert(fallbackNote.report_evidence_note.includes("EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf"), "a non-canonical report name falls back to V01");
-const edgeBytes = readFileSync(join(root, "supabase/functions/eaushadhi-qc-report-verify/index.ts"));
+// The pins below are for the committed (LF) blob. A Windows checkout with core.autocrlf=true holds CRLF bytes, so
+// only CR LF -> LF is undone, byte-for-byte (latin1 round-trip); any other byte change still changes size and hash.
+const edgeBytes = Buffer.from(
+  readFileSync(join(root, "supabase/functions/eaushadhi-qc-report-verify/index.ts")).toString("latin1").replace(/\r\n/g, "\n"),
+  "latin1",
+);
 assert(edgeBytes.length === 4592, "edge function is 4592 bytes");
 assert(createHash("sha256").update(edgeBytes).digest("hex") === "c469594ae10e5aafb1520b02cbc771c0de90ce0a5927f4238fd8af16a9b5044f", "edge function sha256 matches");
 for (const relative of [

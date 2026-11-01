@@ -13,6 +13,7 @@ import { costingScopeReport } from "../lib/costing-scope-guard.mjs";
 import * as ccc from "../../public/shared/js/costing-ccc-run-context.js";
 import * as worklist from "../../public/shared/js/costing-review-worklist.js";
 import { applyCompactRunStatusBadge, createRunStatusBadge, describeRunStatus } from "../../public/shared/js/costing-run-status-badge.js";
+import { readSourceLf } from "../lib/read-source-lf.mjs";
 
 const {
   createLatestOnlyLoader,
@@ -26,7 +27,7 @@ const {
 } = ccc;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
+const read = (rel) => readSourceLf(root, rel); // LF-normalised: see scripts/lib/read-source-lf.mjs
 const BASE = "9c189d60967c2efd3b99f4703416eb22123d96e2";
 const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 const readBase = (rel) => git("show", `${BASE}:${rel}`);

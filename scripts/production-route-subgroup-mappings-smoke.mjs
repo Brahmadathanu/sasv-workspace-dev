@@ -2,9 +2,9 @@
  * Gate 11Y.10I.2C.3F.1C — Product Subgroup Mapping client foundation smoke.
  * Fixtures/stubs only. No live Subgroup create/update/submit/approve/inactivate.
  */
-import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readSourceLf } from "./lib/read-source-lf.mjs";
 import {
   PRODUCTION_ROUTE_LENS_IDS,
   PRM_EMPTY_STATES,
@@ -29,7 +29,7 @@ import {
 } from "../public/shared/js/costing-suite-production-route-rpc.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const read = (relativePath) => readFileSync(join(root, relativePath), "utf8");
+const read = (relativePath) => readSourceLf(root, relativePath); // LF-normalised: see scripts/lib/read-source-lf.mjs
 
 const helpersSrc = read(
   "public/shared/js/costing-suite-production-route-helpers.js",
