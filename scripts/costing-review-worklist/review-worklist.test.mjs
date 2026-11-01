@@ -401,7 +401,7 @@ test("worklist self-check (i): 4 server-code groups; show in table filters VIEW;
     const idx = Number(tr.match(/\d+/)[0]);
     assert.equal(reviewWorklistGroupKey(ctx.VIEW[idx]), key);
   }
-  assert.match(ctx.workbenchSummary.innerHTML, /data-rwl-clear/);
+  assert.doesNotMatch(ctx.workbenchSummary.innerHTML, /data-rwl-clear|Clear group/, "UX-F5: no Clear group button");
   assert.match(ctx.workbenchSummary.innerHTML, /rwl-chip rwl-sev-review rwl-selected" data-rwl-select="REVIEW_REQUIRED\|MATERIAL_REVIEW_REQUIRED\|MATERIAL_RATE_REVIEW" data-rwl-group="[^"]+" aria-pressed="true"/);
   // Search still narrows within the group (existing search, unchanged).
   ctx.searchBox.value = "nothing-matches";
@@ -411,7 +411,7 @@ test("worklist self-check (i): 4 server-code groups; show in table filters VIEW;
   run(ctx, "applySearch()");
   assert.equal(ctx.VIEW.length, 2);
 
-  ctx.workbenchSummary.button("rwl-clear").click();
+  ctx.workbenchSummary.button("rwl-select", key).click(); // click the active chip again: clears
   assert.equal(ctx.VIEW.length, rows.length);
   assert.deepEqual(ids(ctx.VIEW), ids(rows));
   assert.doesNotMatch(ctx.workbenchSummary.innerHTML, /data-rwl-clear/);
@@ -672,7 +672,7 @@ test("UX-F2 pills: selected pill is pressed with Clear; same status under two ro
   const groups = groupReviewWorklistRows(rows);
   const html = renderReviewWorklistHtml(groups, { selectedKey: KEY_BLOCK, runContext: reviewWorklistRunContext(rows) });
   assert.deepEqual(pressed(html), [KEY_BLOCK]);
-  assert.match(html, /data-rwl-clear="1">Clear group<\/button>/);
+  assert.doesNotMatch(html, /data-rwl-clear|Clear group/);
   const prime = groups.filter((g) => g.firstControlStatus === "PRIME_COST_REVIEW_REQUIRED");
   assert.equal(prime.length, 2);
   const labels = [...html.matchAll(/<span class="rwl-chip-label">([^<]*Prime Cost Review Required[^<]*)<\/span>/g)].map((m) => m[1]);
@@ -781,7 +781,7 @@ test("UX-F2 shell: group, drawer Status/Issue/Source and search compose (AND) an
   run(ctx, "applyFilters()");
   assert.equal(ctx.VIEW.length, 110);
   // Without a group the note still appears when other filters narrow the table.
-  ctx.workbenchSummary.button("rwl-clear").click();
+  ctx.workbenchSummary.button("rwl-select", KEY_PRIME).click(); // active chip again clears the group
   assert.match(ctx.workbenchSummary.innerHTML, /Table narrowed by 1 drawer filter/);
   assert.equal(ctx.VIEW.length, 113);
 });
@@ -863,7 +863,7 @@ function f3Html(kind, { rows = makeRows(), status = { displayed_run_id: 143, app
 }
 const outsideInfo = (h) => h.replace(/<details[\s\S]*?<\/details>/, "");
 
-test("UX-F3 toolbar: run picker kept; approved run repeats no badge, date or run line; draft keeps a short marker", () => {
+test("UX-F3 toolbar: run picker kept; approved run repeats no badge, date or run line; draft shows no badge but the picker says Draft — not for pricing", () => {
   const approved = f3Html("approved", { rows: makeRows().map((r) => ({ ...r, refresh_run_id: 143 })), selectedRunId: "143" });
   const vis = outsideInfo(approved);
   assert.match(vis, /<select id="rwlRunSelect"/);
@@ -871,7 +871,9 @@ test("UX-F3 toolbar: run picker kept; approved run repeats no badge, date or run
   assert.doesNotMatch(approved, /rwl-info-warn|rwl-drawer-note/);
   const draft = outsideInfo(f3Html("selected-not-approved", { selectedRunId: "148" }));
   assert.match(draft, /<select id="rwlRunSelect"/);
-  assert.match(draft, /data-rwl-pill="selected-not-approved">Draft · not for pricing<\/span>/);
+  // UX-F5: no toolbar badge; the picker option carries the full draft wording.
+  assert.doesNotMatch(draft, /data-rwl-pill|Draft · not for pricing|rwl-pill-draft/);
+  assert.match(draft, /<option value="148" selected>Run 148 — Draft — not for pricing<\/option>/);
   assert.match(draft, />Drawer: run 143<\/span>/);
   assert.doesNotMatch(draft, /Run shown|valuation|Draft run 148|class="rwl-alert/);
   // Exactly one toolbar and one chip row.
@@ -954,20 +956,34 @@ test("UX-F4 layout: chips are flexible equal columns across the width; toolbar e
   assert.match(cssRule(f4, ".rwl-info-body"), /right: 0/);
 });
 
-test("UX-F4 run selector follows the Costing control language (tokens, soft focus ring, native select)", () => {
+test("UX-F4/F5 run selector: SASV tokens, visibly tinted fill, chevron, soft focus ring, disabled state, native select", () => {
   const f4 = f4Css();
   const sel = cssRule(f4, ".rwl-run-picker select");
-  for (const token of ["--sasv-control-md", "--sasv-control-border", "--sasv-radius-sm", "--sasv-control-bg", "--sasv-text-sm"]) assert.ok(sel.includes(token), token);
+  for (const token of ["--sasv-control-md", "--sasv-radius-sm", "--sasv-text-sm", "--sasv-primary-100", "--sasv-primary-300"]) assert.ok(sel.includes(token), token);
   const focus = f4.match(/\.rwl-run-picker select:focus, \.rwl-run-picker select:focus-visible \{([^}]*)\}/)?.[1] || "";
   assert.match(focus, /--sasv-control-border-focus/);
   assert.match(focus, /box-shadow: 0 0 0 3px var\(--sasv-focus-ring/);
-  assert.doesNotMatch(sel, /appearance: none|-webkit-appearance: none/, "native select semantics kept");
+  // UX-F5: visibly tinted (not white) surface from the SASV primary tokens, custom chevron, disabled state.
+  const bgc = sel.match(/background-color:\s*var\(--sasv-primary-100, (#[0-9a-f]{6})\)/i)?.[1];
+  assert.ok(bgc, "tinted fill from --sasv-primary-100");
+  assert.ok(hexContrast(bgc, "#ffffff") >= 1.15, `fill is visibly not white (${hexContrast(bgc, "#ffffff").toFixed(2)}:1)`);
+  assert.ok(hexContrast(bgc, "#1f2937") >= 7, "dark text on the tint");
+  assert.match(sel, /background-image: url\("data:image\/svg\+xml/, "chevron");
+  assert.match(sel, /background-position: right 10px center/);
+  assert.match(sel, /padding: 0 30px 0 10px/, "room for the chevron");
+  assert.match(f4, /\.rwl-run-picker select:hover \{ background-color: var\(--sasv-primary-200/);
+  const dis = f4.match(/\.rwl-run-picker select:disabled \{([^}]*)\}/)?.[1] || "";
+  assert.match(dis, /cursor: not-allowed/);
+  assert.match(dis, /--sasv-control-border/);
+  assert.match(dis, /background-color: var\(--sasv-neutral-100/);
+  assert.doesNotMatch(f4, /\.rwl-run-picker select[^{]*\{[^}]*(?:display: none|pointer-events: none)/);
+  assert.match(read("public/shared/js/costing-review-worklist.js"), /<select id="rwlRunSelect" data-rwl-run-select="1" aria-describedby="rwlRunSelectHelp"/, "native <select> kept");
   // Same tokens as the established Costing controls.
   const css = read("public/shared/css/sasv-costing.css");
   assert.match(css, /body\.sasv-costing #costingPeriodSelect,[\s\S]*?border: 1px solid var\(--sasv-control-border\)/);
 });
 
-test("UX-F4 markup: end group (Clear, drawer note, info) is one right-aligned unit after the picker; at most two rows when unfiltered", () => {
+test("UX-F4 markup: end group (drawer note, info) is one right-aligned unit after the picker; at most two rows when unfiltered", () => {
   const draft = f3Html("selected-not-approved", { selectedRunId: "148" });
   const toolbar = draft.match(/<div class="rwl-toolbar">([\s\S]*?)<\/div>\n<div class="rwl-chips"|<div class="rwl-toolbar">([\s\S]*?)\n<\/div>/)[0];
   assert.ok(toolbar.indexOf("rwl-run-picker") < toolbar.indexOf('class="rwl-end"'), "picker first, end group last");
@@ -980,7 +996,7 @@ test("UX-F4 markup: end group (Clear, drawer note, info) is one right-aligned un
   // Clear group lives in the end group, not in the chip grid (keeps four equal columns).
   const rows = makeRows();
   const sel = renderReviewWorklistHtml(groupReviewWorklistRows(rows), { selectedKey: KEY_PRIME, runContext: reviewWorklistRunContext(rows) });
-  assert.match(sel, /<div class="rwl-end">\s*<button type="button" class="rwl-clear" data-rwl-clear="1">Clear group<\/button>/);
-  assert.doesNotMatch(sel.match(/<div class="rwl-chips"[\s\S]*?<\/div>/)[0], /rwl-clear/);
+  assert.doesNotMatch(sel, /rwl-clear|Clear group/, "no redundant Clear group button; the active chip toggles and the drawer clears");
+  assert.match(sel, /aria-pressed="true"/);
   assert.equal((sel.match(/class="rwl-chip /g) || []).length, 4);
 });

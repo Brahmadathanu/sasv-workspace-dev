@@ -246,17 +246,14 @@ export function renderReviewWorklistHtml(
   const e = escapeHtml;
   const list = Array.isArray(groups) ? groups : [];
   // UX-F3: the page header already names Approved 143 / Draft 148, and the run picker names the selected run.
-  // So the toolbar repeats no run id, date or approved badge: only a draft marker (draft identity must stay
-  // unmistakable), a short drawer-provenance note for a draft, and operational errors stay visible. Run line,
+  // So the toolbar repeats no run id, date or run badge: only a short drawer-provenance note for a draft and
+  // operational errors stay visible (draft identity is carried by the picker option text). Run line,
   // server status and the full drawer-evidence explanation live in the information disclosure.
   const kind = runDiagnosis?.kind || null;
   const basePill = reviewWorklistStatusPill(runDiagnosis);
-  const pill =
-    kind === "selected-not-approved"
-      ? { tone: "draft", text: "Draft · not for pricing" }
-      : kind === "approved"
-        ? null
-        : basePill;
+  // UX-F5: no toolbar badge for approved or draft runs. The picker option already reads "Run 148 — Draft — not
+  // for pricing" and the page header separates Approved from Draft; pills remain only for exception states.
+  const pill = kind === "selected-not-approved" || kind === "approved" ? null : basePill;
   const drawerNote =
     kind === "selected-not-approved"
       ? `<span class="rwl-drawer-note" role="note" title="${e(`Drawer evidence is from run ${runDiagnosis.displayedRunId || "--"}, not draft ${runDiagnosis.listRunId}.`)}">Drawer: run ${e(runDiagnosis.displayedRunId || "--")}</span>`
@@ -284,7 +281,6 @@ export function renderReviewWorklistHtml(
   ${runPicker ? renderReviewWorklistRunPickerHtml(runPicker) : ""}
   ${pill ? `<span class="rwl-pill rwl-pill-${pill.tone}" data-rwl-pill="${e(kind)}">${e(pill.text)}</span>` : ""}
   <div class="rwl-end">
-    ${selectedKey && selectedIdx >= 0 ? `<button type="button" class="rwl-clear" data-rwl-clear="1">Clear group</button>` : ""}
     ${drawerNote}
     <details class="rwl-details rwl-info${infoWarn ? " rwl-info-warn" : ""}">
       <summary aria-label="${e(infoLabel)}" title="${e(infoLabel)}">&#9432;<span class="rwl-sr"> Run details and caveats</span></summary>

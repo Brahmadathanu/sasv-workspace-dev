@@ -56,3 +56,11 @@ UX-F4 (owner: saturated chips too intense):
 - Desktop target: two rows (toolbar + chip row). A third row appears only when a real alert (error) or the filter-composition note applies.
 - Unchanged: per-run server-derived counts, run isolation and draft safeguards, the single shared group state used by chips and drawer, row-level modals, flag-OFF behaviour, service-worker cache (v390), WP-07 files and migrations.
 - Automated checks added: colour tint/contrast, pressed/focus distinctness, grid and breakpoint rules, selector tokens, end-group markup and two-row structure. Live-browser, keyboard and denied-role acceptance remain outstanding as listed above.
+
+## UX-F5 final corrections (owner live-browser acceptance, 2026-11-01)
+Owner live-browser functional acceptance PASSED for: pill filter / drawer synchronisation, same-pill toggle-clear, run 148 and 143 switching, and the row-level modal. Final small UI corrections applied:
+- Removed the redundant "Clear group" toolbar button. Clearing is by clicking the active chip again (`aria-pressed` toggles) or the drawer Clear / "All rows"; both are unchanged and tested.
+- Removed the redundant "Draft · not for pricing" toolbar badge. The native run selector's option already reads "Run 148 — Draft — not for pricing", and the page header keeps Approved and Draft separate. Status pills remain only for exception states (not approved, status unverified, mismatch, mixed runs). The drawer note ("Drawer: run 143"), the information disclosure and all error alerts are unchanged.
+- Run selector: visibly tinted fill from the SASV primary tokens (--sasv-primary-100 resting, -200 hover), primary-300 border, a custom chevron, a soft focus ring, and a distinct disabled state. It remains a native `<select>` (keyboard, screen-reader and mobile-picker behaviour intact).
+- Automated checks updated: no Clear control in markup, chip toggle clears, no draft badge while the picker carries the full wording, tint distinguishable from white with dark-text contrast, chevron/padding/hover/disabled rules.
+- Still outstanding for the owner or deployment environment: denied-role JWT checks and eslint. No merge, deployment, migration, flag or cache change is part of this work; merge needs separate explicit approval.

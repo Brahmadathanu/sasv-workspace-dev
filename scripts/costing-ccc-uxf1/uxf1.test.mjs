@@ -253,7 +253,7 @@ test("worklist (UX-F3): one toolbar, draft marker + short drawer note, one chip 
   const visible = html.replace(/<details class="rwl-details rwl-info rwl-info-warn">[\s\S]*?<\/details>/, "");
   // UX-F3: the header already names Approved 143 / Draft 148, so the toolbar repeats no run id or date; the draft
   // identity stays as one short marker, and drawer provenance as one short visible note (full text in the disclosure).
-  assert.match(visible, /<span class="rwl-pill rwl-pill-draft" data-rwl-pill="selected-not-approved">Draft · not for pricing<\/span>/);
+  assert.doesNotMatch(visible, /data-rwl-pill|Draft · not for pricing/); // UX-F5: the picker option carries the draft wording
   assert.match(visible, /<span class="rwl-drawer-note" role="note" title="Drawer evidence is from run 143, not draft 148\.">Drawer: run 143<\/span>/);
   assert.doesNotMatch(visible, /Run shown|valuation 2026|Draft run 148|class="rwl-alert/);
   // No long prose in the visible part.
@@ -436,7 +436,8 @@ test("shell dashboard: caption + run-context card from server reads; draft count
   assert.deepEqual(runRead.eq, [["period_start", OCT], ["refresh_run_id", "148"]]);
   assert.equal(runRead.select, "*");
   await s.answerRun(s.runPending.length - 1, { data: draftRows().map((r) => ({ ...r, first_control_status: "X", recommended_ui_route: null })), error: null });
-  assert.match(s.workbenchSummary.innerHTML, /data-rwl-pill="selected-not-approved">Draft · not for pricing/);
+  assert.match(s.workbenchSummary.innerHTML, /<option value="148" selected>Run 148 — Draft — not for pricing<\/option>/);
+  assert.doesNotMatch(s.workbenchSummary.innerHTML, /data-rwl-pill="selected-not-approved"/);
   // Caption on the SKU lens now warns that the worklist shows another run (reuses the worklist status read).
   const statusReads = s.reads.filter((q) => q.view === "v_costing_pricing_period_run_status").length;
   s.caption();

@@ -6104,9 +6104,6 @@ function renderReviewWorklistPanel() {
       setReviewWorklistGroup(reviewWorklistSelectedKey() === key ? null : key);
     });
   });
-  workbenchSummary.querySelectorAll("[data-rwl-clear]").forEach((btn) => {
-    btn.addEventListener("click", () => setReviewWorklistGroup(null));
-  });
 }
 
 function applyFilters() {

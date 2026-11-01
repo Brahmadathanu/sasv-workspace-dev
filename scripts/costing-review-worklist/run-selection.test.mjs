@@ -333,7 +333,8 @@ test("switch to draft 148: run-scoped read by period AND run; groups, counts and
   assert.equal(severityLine(html), "Loaded rows (run 148): 628 — BLOCKER 1 · REVIEW_REQUIRED 113 · READY 514");
   assert.ok(html.includes("Run shown: 148 · valuation 2026-10-31"));
   // UX-F3: a short draft marker and a short drawer note stay visible; the full explanation is in the disclosure.
-  assert.ok(html.includes('<span class="rwl-pill rwl-pill-draft" data-rwl-pill="selected-not-approved">Draft · not for pricing</span>'));
+  assert.ok(!html.includes('data-rwl-pill="selected-not-approved"'), "UX-F5: no draft badge in the toolbar");
+  assert.ok(html.includes('<option value="148" selected>Run 148 — Draft — not for pricing</option>'));
   assert.ok(html.includes('role="note" title="Drawer evidence is from run 143, not draft 148.">Drawer: run 143</span>'));
   const details = html.split('<details class="rwl-details rwl-info rwl-info-warn">')[1].split("</details>")[0];
   assert.match(details, /<strong>Draft run 148 — not for pricing\.<\/strong> You are viewing its frozen SKU rows read-only, for diagnosis only\. The run displayed for this period is run 143\./);
@@ -530,7 +531,7 @@ test("on run 148: pill filters the draft rows; no fix links in the summary; rout
   assert.ok(!html.includes(REVIEW_WORKLIST_NO_LINK_TEXT));
   // Only read / select controls exist (pills, clear, run selector, status pill, run context).
   const controls = [...new Set([...html.matchAll(/data-(rwl-[\w-]+)=/g)].map((m) => m[1]))].sort();
-  assert.deepEqual(controls, ["rwl-clear", "rwl-group", "rwl-pill", "rwl-run-context", "rwl-run-select", "rwl-select", "rwl-scope"].sort());
+  assert.deepEqual(controls, ["rwl-group", "rwl-run-context", "rwl-run-select", "rwl-select", "rwl-scope"].sort());
 });
 
 test("no writes or new endpoints: only the two read views are queried", async () => {

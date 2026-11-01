@@ -2689,15 +2689,22 @@ body.sasv-costing-control-center .cp-readiness-gap-bound {
 .rwl-compact .rwl-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .rwl-end { display: flex; align-items: center; gap: 6px 8px; margin-left: auto; min-width: 0; }
 .rwl-run-picker select {
-  min-height: var(--sasv-control-md, 36px); padding: 0 8px; max-width: 100%;
-  border: 1px solid var(--sasv-control-border, #d1d5db); border-radius: var(--sasv-radius-sm, 7px);
-  background: var(--sasv-control-bg, #fff); color: var(--sasv-text, #1f2937);
-  font: inherit; font-size: var(--sasv-text-sm, 13px);
+  min-height: var(--sasv-control-md, 36px); max-width: 100%; padding: 0 30px 0 10px;
+  border: 1px solid var(--sasv-primary-300, #6fc4b5); border-radius: var(--sasv-radius-sm, 7px);
+  background-color: var(--sasv-primary-100, #d5efe9); color: var(--sasv-text, #1f2937);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%230f6157' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; background-size: 12px 8px;
+  -webkit-appearance: none; appearance: none; cursor: pointer;
+  font: inherit; font-size: var(--sasv-text-sm, 13px); font-weight: 600;
 }
+.rwl-run-picker select:hover { background-color: var(--sasv-primary-200, #a9ddd3); }
 .rwl-run-picker select:focus, .rwl-run-picker select:focus-visible {
-  outline: none; border-color: var(--sasv-control-border-focus, #2563eb); box-shadow: 0 0 0 3px var(--sasv-focus-ring, rgba(37, 99, 235, 0.25));
+  outline: none; border-color: var(--sasv-control-border-focus, #147a6c); box-shadow: 0 0 0 3px var(--sasv-focus-ring, rgba(20, 122, 108, 0.25));
 }
-.rwl-run-picker select:disabled { opacity: 0.7; }
+.rwl-run-picker select:disabled {
+  background-color: var(--sasv-neutral-100, #f4f7f8); border-color: var(--sasv-control-border, #d1d5db);
+  color: var(--sasv-text-muted, #6b7c80); cursor: not-allowed; opacity: 1;
+}
 .rwl-drawer-note { font-size: 12px; font-weight: 600; color: var(--sasv-warning, #92400e); white-space: nowrap; }
 .rwl-info-warn > summary { color: var(--sasv-warning, #92400e); background: var(--sasv-warning-bg, #fffbeb); }
 .rwl-info-body { left: auto; right: 0; }
