@@ -1,5 +1,7 @@
 # WP-07 e-Aushadhi — current state (as of 1 Nov 2026, IST)
 
+> **LATEST INTEGRATION STATUS (1 Nov 2026, supersedes older section 2–4 branch/cache snapshots):** Bundle A passed owner screen acceptance. Bundle B accepted client audit at `9b8faa1` (draft PR #120; cache v389). Ten UX/PKG SQL migrations have exact live-history MD5 parity; nine and eleven authoritative docs are staged in draft PR #122 (`52e86b6`), targeting Bundle B. New main `cfab901` (Costing UX-F1, cache v388) is ahead of PR #120's merge base `9c189d6`; main overlap must be reconciled before any merge. Neither PR may merge without separate owner approval. **Do not follow obsolete v376/v387 or Bundle A-pending instructions below as current actions.**
+
 This is the single "where are we" page for WP-07. If another WP-07 note disagrees with it, this page wins until it is next refreshed.
 
 ## 1. Live database (project `qhmoqtxpeasamtlxaoak`)
