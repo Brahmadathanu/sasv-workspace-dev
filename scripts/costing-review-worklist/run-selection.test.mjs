@@ -222,7 +222,11 @@ const severityLine = (html) => html.match(/Loaded rows[^<]*/)?.[0];
 test("run choices: only server ids, deduplicated, default = displayed, server-fact labels", () => {
   const c = reviewWorklistRunChoices(STATUS_OCT);
   assert.deepEqual(c.map((x) => [x.runId, x.kind, x.isDefault]), [["143", "approved", true], ["148", "draft", false]]);
-  assert.equal(c[0].label, "Run 143 — Approved / in use (shown by default)");
+  assert.equal(c[0].label, "Run 143 — Approved — displayed for this period");
+  // A historical approved run (e.g. September 122) is labelled for its period only; no pricing-use wording.
+  const sep = reviewWorklistRunChoices(STATUS_SEP);
+  assert.deepEqual(sep.map((x) => x.label), ["Run 122 — Approved — displayed for this period"]);
+  for (const x of [...c, ...sep]) assert.doesNotMatch(x.label, /in use|pricing basis|used for pricing|current pricing/i, x.label);
   assert.equal(c[1].label, "Run 148 — Draft — not for pricing");
   assert.deepEqual(reviewWorklistRunChoices({ displayed_run_id: 150, approved_run_id: null, newer_draft_run_id: null, display_state: "DRAFT" }).map((x) => x.label), ["Run 150 — Draft — not for pricing (shown by default)"]);
   assert.deepEqual(reviewWorklistRunChoices({ displayed_run_id: 90, display_state: "REFERENCE_NOT_APPROVED" }).map((x) => x.kind), ["reference"]);
@@ -265,7 +269,7 @@ test("picker: accessible native select, disabled while loading, escaped server i
   const html = renderReviewWorklistRunPickerHtml({ choices: reviewWorklistRunChoices(STATUS_OCT) });
   assert.match(html, /<label for="rwlRunSelect">Run<\/label>/);
   assert.match(html, /<select id="rwlRunSelect" data-rwl-run-select="1" aria-describedby="rwlRunSelectHelp">/);
-  assert.match(html, /<option value="143" selected>Run 143 — Approved \/ in use \(shown by default\)<\/option><option value="148">Run 148 — Draft — not for pricing<\/option>/);
+  assert.match(html, /<option value="143" selected>Run 143 — Approved — displayed for this period<\/option><option value="148">Run 148 — Draft — not for pricing<\/option>/);
   assert.doesNotMatch(html, /style=|tabindex=|onkeydown|onclick/);
   const loading = renderReviewWorklistRunPickerHtml({ choices: reviewWorklistRunChoices(STATUS_OCT), selectedRunId: "148", load: { status: "loading", runId: "148" } });
   assert.match(loading, /aria-describedby="rwlRunSelectHelp" disabled>/);
@@ -290,7 +294,7 @@ test("default: displayed run 143 is selected; draft 148 is offered; no run-scope
   const s = makeShell();
   await readyOctober(s);
   const html = s.summary.innerHTML;
-  assert.match(html, /<option value="143" selected>Run 143 — Approved \/ in use \(shown by default\)<\/option>/);
+  assert.match(html, /<option value="143" selected>Run 143 — Approved — displayed for this period<\/option>/);
   assert.match(html, /<option value="148">Run 148 — Draft — not for pricing<\/option>/);
   assert.ok(html.includes(`Newer draft run 148 exists for this period and is not approved. ${REVIEW_WORKLIST_DRAFT_PICKER_TEXT}`));
   assert.ok(html.includes("These rows are from approved run 143."));
@@ -327,8 +331,11 @@ test("switch to draft 148: run-scoped read by period AND run; groups, counts and
   assert.equal((html.match(/data-rwl-select=/g) || []).length, 4);
   assert.equal(severityLine(html), "Loaded rows (run 148): 628 — BLOCKER 1 · REVIEW_REQUIRED 113 · READY 514");
   assert.ok(html.includes("Run shown: 148 · valuation 2026-10-31"));
-  assert.match(html, /role="alert"><strong>Draft run 148 — not for pricing\.<\/strong> You are viewing its frozen SKU rows read-only, for diagnosis only\. The run in use for this period is run 143\./);
-  assert.ok(html.includes(REVIEW_WORKLIST_SELECTED_RUN_DRAWER_TEXT.replace(/'/g, "&#039;")));
+  assert.match(html, /role="alert"><strong>Draft run 148 — not for pricing\.<\/strong> You are viewing its frozen SKU rows read-only, for diagnosis only\. The run displayed for this period is run 143\./);
+  // Drawer limitation is prominent (warning line with a bold lead), not a muted footnote.
+  assert.ok(html.includes(`<div class="rwl-rc-line rwl-rc-warn rwl-rc-drawer" role="note"><strong>Row drawer evidence is not this run's evidence.</strong> ${REVIEW_WORKLIST_SELECTED_RUN_DRAWER_TEXT.replace(/'/g, "&#039;")}</div>`));
+  assert.match(REVIEW_WORKLIST_SELECTED_RUN_DRAWER_TEXT, /pinned to the displayed \(governed\) run/);
+  assert.doesNotMatch(html, /in use/);
   assert.match(html, /<option value="148" selected>/);
   assert.doesNotMatch(html, /server now shows run|Reload the period/);
   assert.equal(s.statusQueries.length, 1, "no duplicate status read on run switch");

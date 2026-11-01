@@ -203,7 +203,7 @@ export const REVIEW_WORKLIST_RUN_STATUS_SELECT = RUN_STATUS_SELECT_V1;
 export const REVIEW_WORKLIST_NO_ROWS_TEXT =
   "No SKU control rows were returned for this period. Either the period has no successful run, or your account cannot read Control Centre data.";
 export const REVIEW_WORKLIST_DRAFT_UNAVAILABLE_TEXT =
-  "Its SKU rows cannot be shown here: this screen's data source returns only the run in use for each month. Showing them needs a read-only, run-scoped view that is not available yet (pending owner approval).";
+  "Its SKU rows cannot be shown here: this screen's data source returns only the displayed (governed) run for each month. Showing them needs a read-only, run-scoped view that is not available yet (pending owner approval).";
 export const REVIEW_WORKLIST_FIX_SCREEN_TEXT =
   "Fix screens show current source data, not the frozen run values above.";
 
@@ -349,8 +349,8 @@ export function renderReviewWorklistRunDiagnosisHtml(d) {
     lines.push(`<div class="rwl-rc-line">These rows are from approved run ${e(d.listRunId)}.</div>`);
   }
   if (d.kind === "selected-not-approved") {
-    lines.push(`<div class="rwl-rc-line rwl-rc-draft" role="alert"><strong>Draft run ${e(d.listRunId)} — not for pricing.</strong> You are viewing its frozen SKU rows read-only, for diagnosis only. The run in use for this period is run ${e(d.displayedRunId || "--")}.</div>`);
-    lines.push(`<div class="rwl-rc-line rwl-rc-muted">${e(REVIEW_WORKLIST_SELECTED_RUN_DRAWER_TEXT)}</div>`);
+    lines.push(`<div class="rwl-rc-line rwl-rc-draft" role="alert"><strong>Draft run ${e(d.listRunId)} — not for pricing.</strong> You are viewing its frozen SKU rows read-only, for diagnosis only. The run displayed for this period is run ${e(d.displayedRunId || "--")}.</div>`);
+    lines.push(`<div class="rwl-rc-line rwl-rc-warn rwl-rc-drawer" role="note"><strong>Row drawer evidence is not this run's evidence.</strong> ${e(REVIEW_WORKLIST_SELECTED_RUN_DRAWER_TEXT)}</div>`);
   }
   if (d.kind === "not-approved") {
     lines.push(`<div class="rwl-rc-line rwl-rc-warn">These rows are from run ${e(d.listRunId)}, which is not an approved run.</div>`);
@@ -389,7 +389,7 @@ export const REVIEW_WORKLIST_BY_RUN_VIEW = "v_costing_pricing_sku_control_status
 export const REVIEW_WORKLIST_DRAFT_PICKER_TEXT =
   "Choose it under “Run” above to inspect its frozen SKU rows (read-only, not for pricing).";
 export const REVIEW_WORKLIST_SELECTED_RUN_DRAWER_TEXT =
-  "Row details: the per-line material evidence in the SKU drawer comes from views pinned to the run in use, so it can be empty for this run; the drawer's current-source diagnosis shows today's data, not this run.";
+  "The per-line material evidence in the SKU drawer is pinned to the displayed (governed) run of the period, so it cannot show this run's evidence (it may be empty or missing). The drawer's current-source diagnosis shows today's data, not this frozen run.";
 
 /**
  * Run choices from one period run-status row. Ids are deduplicated and only
@@ -408,8 +408,10 @@ export function reviewWorklistRunChoices(statusRow) {
     let kind;
     let label;
     if (approved && runId === approved) {
+      // Approved for this period only. No pricing-use wording: that needs the
+      // authoritative pricing_use_label / is_latest_approved_period fields.
       kind = "approved";
-      label = `Run ${runId} — Approved / in use`;
+      label = runId === displayed ? `Run ${runId} — Approved — displayed for this period` : `Run ${runId} — Approved for this period`;
     } else if (newerDraft && runId === newerDraft) {
       kind = "draft";
       label = `Run ${runId} — Draft — not for pricing`;
@@ -420,7 +422,7 @@ export function reviewWorklistRunChoices(statusRow) {
       kind = "draft";
       label = `Run ${runId} — Draft — not for pricing`;
     }
-    if (runId === displayed) label += " (shown by default)";
+    if (runId === displayed && kind !== "approved") label += " (shown by default)";
     out.push(Object.freeze({ runId, kind, label, isDefault: runId === displayed }));
   };
   add(displayed);
