@@ -314,7 +314,11 @@ export function createCostingLockScreenController(deps) {
       }
       state.succeeded = true;
       showToast?.("Period lock recorded by the server.", "success");
-      await reload();
+      try {
+        await reload();
+      } catch {
+        showToast?.("Period lock recorded, but the period list could not refresh. Reload the page to see it.", "error");
+      }
     } catch (error) {
       const mapped = mapCostingLockError(error);
       const host = $("clsFormError", doc);

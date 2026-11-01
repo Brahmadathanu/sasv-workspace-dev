@@ -153,3 +153,7 @@
 
 ## 2026-10-26 entry "Per-run valuation date redesign" — status note (31 Oct 2026)
 The "PENDING owner decisions D1–D7" status is historical: D1–D7 were decided 26–27 Oct, and CI-040, CI-041, CI-042, CI-043 and CI-045 are live.
+
+## 2026-11-01 — PRs #107 to #112 merged; run 148; owner decisions
+**Decision:** Merged on the owner's text: #107 docs (`8143426`), #108 CW-05 pkg 2 (`e58dec0`), #109 migration line endings (`8bc872c`), #110 CW-05 pkg 3 (`be20ea6`), #111 review worklist (`2b3f298`), #112 CW-05 pkg 4 + lock leftovers (`7bccaba`). Cache `hub-cache-v387`; eight default-off flags (new: `COSTING_REVIEW_WORKLIST_V1`). Job 67 created October draft run 148 (not for pricing; 514 ready / 113 review / 1 blocked). Owner: clear blocked/review SKUs client-side; read-only views only after the October finalise, no migration now; client coding via Claude cloud bulk packages.
+**Status:** MERGED / RECORDED. See CURRENT_STATE_2026-11-01.md.

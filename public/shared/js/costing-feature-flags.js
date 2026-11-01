@@ -72,3 +72,13 @@ export function isCostingTableToolsV1Enabled(storage = globalThis.localStorage) 
     return false;
   }
 }
+
+export const COSTING_REVIEW_WORKLIST_V1 = "COSTING_REVIEW_WORKLIST_V1";
+
+export function isCostingReviewWorklistV1Enabled(storage = globalThis.localStorage) {
+  try {
+    return storage?.getItem?.(COSTING_REVIEW_WORKLIST_V1) === "1";
+  } catch {
+    return false;
+  }
+}

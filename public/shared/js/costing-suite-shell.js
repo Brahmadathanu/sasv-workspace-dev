@@ -66,7 +66,9 @@ import { createCostingApprovalScreenController } from "./costing-approval-screen
 import { createCostingLockScreenController } from "./costing-lock-screen.js";
 import { createCostingRunStatusScreenController } from "./costing-run-status-screen.js";
 import { isCostingTableToolsV1Enabled } from "./costing-feature-flags.js";
-import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor } from "./costing-table-tools.js";
+import { isCostingReviewWorklistV1Enabled } from "./costing-feature-flags.js";
+import { filterReviewWorklistRows, groupReviewWorklistRows, renderReviewWorklistHtml, resolveReviewWorklistTarget, reviewWorklistRunContext, REVIEW_WORKLIST_NO_NAV_TOAST } from "./costing-review-worklist.js";
+import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, isSortableColumn, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor, tableColumnsForTable, withAccessors } from "./costing-table-tools.js";
 import {
   createQcActionQueueController,
   isQcActionQueueLens,
@@ -641,6 +643,10 @@ let CURRENT_PAGE = 1;
 let PAGE_SIZE = 25;
 // CW-05 table tools state (used only when COSTING_TABLE_TOOLS_V1 is ON).
 let CW05_SORT_CTX = null;
+// Costing review worklist v1 selection (used only when COSTING_REVIEW_WORKLIST_V1 is ON):
+// { key, rows } where rows is the ALL_ROWS array the group was picked on, so any
+// reload, period change or lens switch (each assigns a new ALL_ROWS) clears it.
+let REVIEW_WORKLIST_GROUP = null;
 const CCC_PROGRESSIVE_LENS_IDS = new Set([
   "costing-review-workbench",
   "sku-control-status",
@@ -5697,6 +5703,58 @@ function filterMatch(row, group, selected) {
   });
 }
 
+/** Review worklist v1 (flag ON only): selected group key, if still valid for ALL_ROWS. */
+function reviewWorklistSelectedKey() {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return null;
+  if (!REVIEW_WORKLIST_GROUP || REVIEW_WORKLIST_GROUP.rows !== ALL_ROWS) {
+    REVIEW_WORKLIST_GROUP = null;
+    return null;
+  }
+  return REVIEW_WORKLIST_GROUP.key;
+}
+
+/** Review worklist v1 (flag ON only): read-only panel in #workbenchSummary. */
+function renderReviewWorklistPanel() {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return;
+  if (!workbenchSummary) return;
+  const groups = groupReviewWorklistRows(ALL_ROWS);
+  const selectedKey = reviewWorklistSelectedKey();
+  workbenchSummary.innerHTML = renderReviewWorklistHtml(groups, {
+    selectedKey,
+    runContext: reviewWorklistRunContext(ALL_ROWS),
+  });
+  workbenchSummary.classList.add("is-visible");
+  workbenchSummary.querySelectorAll("[data-rwl-select]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      REVIEW_WORKLIST_GROUP = { key: btn.dataset.rwlSelect, rows: ALL_ROWS };
+      CURRENT_PAGE = 1;
+      applyFilters();
+    });
+  });
+  workbenchSummary.querySelectorAll("[data-rwl-clear]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      REVIEW_WORKLIST_GROUP = null;
+      CURRENT_PAGE = 1;
+      applyFilters();
+    });
+  });
+  workbenchSummary.querySelectorAll("[data-rwl-open]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const group = groups.find((g) => g.key === btn.dataset.rwlOpen);
+      const target = group ? resolveReviewWorklistTarget(group.rows[0]) : null;
+      if (!target?.navigable || typeof navigateToCostingRoute !== "function") {
+        showToast(REVIEW_WORKLIST_NO_NAV_TOAST, "info");
+        return;
+      }
+      navigateToCostingRoute(
+        target.moduleKey,
+        target.navigateParams || { lens: target.lensId },
+        { newTab: target.newTab === true },
+      );
+    });
+  });
+}
+
 function applyFilters() {
   if (
     isQcActionQueueLens(CURRENT_LENS) ||
@@ -5765,6 +5823,9 @@ function applySearch() {
     rows = pricingPolicyCtrl.filterCommercialSalesAssumptionRows?.(rows) || rows;
   }
   if (q) rows = rows.filter((row) => getSearchBlob(row).includes(q));
+  if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {
+    rows = filterReviewWorklistRows(rows, reviewWorklistSelectedKey());
+  }
   if (shouldUseCccProgressiveRender() || shouldRenderAllCccDashboardRows()) {
     resetCccProgressiveWindow();
   }
@@ -5896,6 +5957,10 @@ function renderTableHeaderForLens() {
   if (isDriverGovernanceLens(CURRENT_LENS)) {
     const headers = driverGovernanceCtrl.getTableHeaders();
     const alignments = driverGovernanceCtrl.getTableAlignments();
+    if (isCostingTableToolsV1Enabled()) {
+      renderCw05GenericTableHeader(headers, alignments);
+      return;
+    }
     tableHead.innerHTML = `<tr>${headers
       .map((h, i) => {
         const classes = [alignments[i] || "c-left"];
@@ -5909,6 +5974,9 @@ function renderTableHeaderForLens() {
     const buildHeaders = costBuildCtrl.getTableHeaders(CURRENT_LENS);
     const buildAlignments = costBuildCtrl.getTableAlignments(CURRENT_LENS);
     if (buildHeaders && buildAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        if (renderCw05GenericTableHeader(buildHeaders, buildAlignments, cw05TabTableId())) return;
+      }
       tableHead.innerHTML = `<tr>${buildHeaders
         .map((h, i) => {
           const classes = [buildAlignments[i] || "c-left"];
@@ -5924,6 +5992,9 @@ function renderTableHeaderForLens() {
     const materialHeaders = materialCostCtrl.getTableHeaders(CURRENT_LENS);
     const materialAlignments = materialCostCtrl.getTableAlignments(CURRENT_LENS);
     if (materialHeaders && materialAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        if (renderCw05GenericTableHeader(materialHeaders, materialAlignments, cw05TabTableId())) return;
+      }
       tableHead.innerHTML = `<tr>${materialHeaders
         .map((h, i) => {
           const classes = [materialAlignments[i] || "c-left"];
@@ -5939,6 +6010,10 @@ function renderTableHeaderForLens() {
     const schemeHeaders = schemeComparisonCtrl.getTableHeaders();
     const schemeAlignments = schemeComparisonCtrl.getTableAlignments();
     if (schemeHeaders && schemeAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        renderCw05GenericTableHeader(schemeHeaders, schemeAlignments);
+        return;
+      }
       tableHead.innerHTML = `<tr>${schemeHeaders
         .map((h, i) => {
           const classes = [schemeAlignments[i] || "c-left"];
@@ -5972,6 +6047,9 @@ function renderTableHeaderForLens() {
     const policyHeaders = pricingPolicyCtrl.getTableHeaders(CURRENT_LENS);
     const policyAlignments = pricingPolicyCtrl.getTableAlignments(CURRENT_LENS);
     if (policyHeaders && policyAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        if (renderCw05GenericTableHeader(policyHeaders, policyAlignments, cw05TabTableId())) return;
+      }
       tableHead.innerHTML = `<tr>${policyHeaders
         .map((h, i) => {
           const classes = [policyAlignments[i] || "c-left"];
@@ -5986,6 +6064,10 @@ function renderTableHeaderForLens() {
     const ccHeaders = controlCenterCtrl.getTableHeaders(CURRENT_LENS);
     const ccAlignments = controlCenterCtrl.getTableAlignments(CURRENT_LENS);
     if (ccHeaders && ccAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        renderCw05GenericTableHeader(ccHeaders, ccAlignments);
+        return;
+      }
       tableHead.innerHTML = `<tr>${ccHeaders
         .map((h, i) => {
           const classes = [ccAlignments[i] || "c-left"];
@@ -6080,18 +6162,30 @@ function renderTableHeaderForLens() {
 
 /**
  * CW-05 (COSTING_TABLE_TOOLS_V1 ON only): header with sort buttons for the
- * cost-sheet lens branch and the generic header map. Columns without a row key
- * render exactly as the legacy <th>.
+ * driver-governance, scheme-comparison, cost-sheet and control-centre lens
+ * branches and the generic header map. Columns without a sortable key render
+ * exactly as the legacy <th>.
+ * Optional `tableId` (cost build, material and pricing branches): a string from
+ * cw05TabTableId() uses that tab's column map and scopes the sort to the tab;
+ * null means the tab has no CW-05 table, nothing is rendered and false is
+ * returned so the caller keeps its legacy header. Returns true when rendered.
  */
-function renderCw05GenericTableHeader(headers, alignments) {
-  const columns = tableColumnsFor(CURRENT_LENS) || [];
-  const sortState = activeSortState(CW05_SORT_CTX, CURRENT_LENS, VIEW);
+function renderCw05GenericTableHeader(headers, alignments, tableId) {
+  if (tableId === null) return false;
+  const sortScope = tableId || CURRENT_LENS;
+  const baseColumns = tableId
+    ? tableColumnsForTable(tableId)
+    : tableColumnsFor(CURRENT_LENS);
+  const columns = withAccessors(baseColumns || [], {
+    row_status: getRowStatus,
+  });
+  const sortState = activeSortState(CW05_SORT_CTX, sortScope, VIEW);
   tableHead.innerHTML = `<tr>${headers
     .map((h, i) => {
       const classes = [alignments[i] || "c-left"];
       if (i === 0 && h === "") classes.push("lane-col");
       const col = columns[i];
-      const key = col && col.label === h ? col.key : null;
+      const key = col && col.label === h && isSortableColumn(col) ? col.key : null;
       if (!key) {
         return `<th class="${classes.join(" ")}">${text(h, "")}</th>`;
       }
@@ -6103,14 +6197,78 @@ function renderCw05GenericTableHeader(headers, alignments) {
   tableHead.querySelectorAll("button[data-cw05-sort]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const col = columns[Number(btn.dataset.cw05Sort)];
-      if (!col?.key) return;
-      const result = applySortClick(CW05_SORT_CTX, CURRENT_LENS, VIEW, col);
+      if (!isSortableColumn(col)) return;
+      const result = applySortClick(CW05_SORT_CTX, sortScope, VIEW, col);
       CW05_SORT_CTX = result.ctx;
       VIEW = result.view;
       CURRENT_PAGE = 1;
       renderTable();
     });
   });
+  return true;
+}
+
+/**
+ * CW-05 (COSTING_TABLE_TOOLS_V1 ON only): "<lens>:<tab>" id of the read-only
+ * tab tables that get table tools, from the controllers' own tab/view getters.
+ * Returns null for every other tab (workflow, write and trace tables).
+ */
+function cw05TabTableId() {
+  if (CURRENT_LENS === "mrp-governance") {
+    if (pricingPolicyCtrl.isMrpAppliedHistoryTabActive()) {
+      return pricingPolicyCtrl.getMrpAppliedHistoryView() !== "workspace"
+        ? "mrp-governance:applied-history-register"
+        : null;
+    }
+    if (
+      pricingPolicyCtrl.isMrpAppliedHistoryTabActive() ||
+      pricingPolicyCtrl.isMrpApplicationTabActive() ||
+      pricingPolicyCtrl.isMrpDecisionsTabActive() ||
+      pricingPolicyCtrl.isMrpProposalsTabActive()
+    ) {
+      return null;
+    }
+    if (pricingPolicyCtrl.isProductDerivationPoliciesTabActive()) {
+      const view = pricingPolicyCtrl.getProductDerivationPolicyView();
+      if (view === "current") return "mrp-governance:derivation-current";
+      if (view === "history") return "mrp-governance:derivation-history";
+      return null;
+    }
+    if (pricingPolicyCtrl.isSkuMrpPoliciesTabActive()) {
+      const view = pricingPolicyCtrl.getSkuMrpPolicyView();
+      if (view === "current") return "mrp-governance:sku-mrp-current";
+      if (view === "history") return "mrp-governance:sku-mrp-history";
+    }
+    return null;
+  }
+  if (CURRENT_LENS === "policy-manager") {
+    const tab = pricingPolicyCtrl.getPolicyManagerTab();
+    if (tab === "sku-overview") return "policy-manager:sku-overview";
+    if (tab === "scheme-rule-register") return "policy-manager:scheme-rule-register";
+    if (tab === "scheme-master") return "policy-manager:scheme-master";
+    return null;
+  }
+  if (CURRENT_LENS === "cost-governance") {
+    const tab = costBuildCtrl.getCostGovernanceTab();
+    if (tab === "mapping-register" || tab === "excluded" || tab === "cost-pool-summary") {
+      return `cost-governance:${tab}`;
+    }
+    return null;
+  }
+  if (CURRENT_LENS === "staff-governance") {
+    return costBuildCtrl.getStaffGovernanceTab() === "staff-pool-summary"
+      ? "staff-governance:staff-pool-summary"
+      : null;
+  }
+  if (CURRENT_LENS === "manual-rate-manager") {
+    const tab = materialCostCtrl.getManualRateManagerTab();
+    if (tab === "register" || tab === "history") return `manual-rate-manager:${tab}`;
+    return null;
+  }
+  if (CURRENT_LENS === "manual-provisions") {
+    return costBuildCtrl.getManualProvisionTab() === "impact" ? "manual-provisions:impact" : null;
+  }
+  return null;
 }
 
 function productSkuLabel(row) {
@@ -6480,6 +6638,9 @@ function renderTable() {
     });
   } else {
     controlCenterCtrl.renderWorkbenchSummary(ALL_ROWS, CURRENT_LENS);
+    if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {
+      renderReviewWorklistPanel();
+    }
   }
 
   materialCostCtrl.syncRmTraceChrome();

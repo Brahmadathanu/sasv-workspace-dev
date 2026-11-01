@@ -37,7 +37,7 @@ function node(id, extras = {}) {
   };
 }
 
-function harness({ rpcImpl } = {}) {
+function harness({ rpcImpl, showToast } = {}) {
   const ids = Object.fromEntries([
     "costingLockPanel", "costingLockDialog", "clsPeriodList", "clsCloseQuarterBtn", "clsDialogTitle", "clsDialogIntro",
     "clsSelectedPeriods", "clsLockForm", "clsReason", "clsApprovalReference", "clsFormError", "clsResult",
@@ -64,7 +64,7 @@ function harness({ rpcImpl } = {}) {
   const originalFrom = supabase.from;
   supabase.from = (...args) => { loads += 1; return originalFrom(...args); };
   const ctrl = createCostingLockScreenController({
-    supabase, doc, isControlCenterRoute: () => true, showToast() {},
+    supabase, doc, isControlCenterRoute: () => true, showToast: showToast || (() => {}),
     costingRpc: async (name, params) => {
       calls.push({ name, params });
       if (rpcImpl) return rpcImpl(name, params);
@@ -144,4 +144,65 @@ test("successful lock keeps Submit disabled until either dialog mode is reopened
 test("a successful retry clears the previous attempt error", async () => { let attempt = 0; const h = harness({ rpcImpl: async () => (++attempt === 1 ? { data: null, error: { message: "W2_ACTIVE_RUN: wait" } } : { data: { period_start: "2026-09-01", approved_run: 122, official_valuation_date: "2026-09-30", audit_id: 1 }, error: null }) }); h.ctrl.openSingle("2026-09-01"); await h.ctrl.submit(); assert.equal(h.ids.clsFormError.hidden, false); await h.ctrl.submit(); assert.equal(h.ids.clsFormError.hidden, true); assert.equal(h.ids.clsFormError.textContent, ""); assert.equal(h.ids.clsResult.hidden, false); });
 test("lock panel inserts before the run-status panel when available", () => { const h = markupHarness(); h.ctrl.mount(); assert.deepEqual(h.inserts[0] && { id: h.inserts[0].id, position: h.inserts[0].position }, { id: "costingRunStatusPanel", position: "beforebegin" }); assert.match(h.inserts[0].markup, /id="costingLockPanel"/); });
 test("lock panel falls back to after the approval panel", () => { const h = markupHarness({ withRunStatus: false }); h.ctrl.mount(); assert.deepEqual(h.inserts[0] && { id: h.inserts[0].id, position: h.inserts[0].position }, { id: "costingApprovalPanel", position: "afterend" }); assert.match(h.inserts[0].markup, /id="costingLockPanel"/); });
-test("source contains no Date arithmetic or owner call and preserves OFF safety contracts", () => { const src = read("public/shared/js/costing-lock-screen.js"); assert.doesNotMatch(src, /new Date|Date\.now|get.*owner|is.*owner/i); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.batch)); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.single)); const sw = read("public/sw.js"); assert.match(sw, /hub-cache-v383/); const html = read("public/shared/costing-control-center.html"); assert.doesNotMatch(html, /costingLockPanel|costingLockDialog/); const shell = read("public/shared/js/costing-suite-shell.js"); assert.match(shell, /const costingLockScreenCtrl = isCostingLockScreenV1Enabled\(\)/); });
+test("source contains no Date arithmetic or owner call and preserves OFF safety contracts", () => { const src = read("public/shared/js/costing-lock-screen.js"); assert.doesNotMatch(src, /new Date|Date\.now|get.*owner|is.*owner/i); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.batch)); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.single)); const sw = read("public/sw.js"); assert.match(sw, /hub-cache-v387/); const html = read("public/shared/costing-control-center.html"); assert.doesNotMatch(html, /costingLockPanel|costingLockDialog/); const shell = read("public/shared/js/costing-suite-shell.js"); assert.match(shell, /const costingLockScreenCtrl = isCostingLockScreenV1Enabled\(\)/); });
+
+// L1: a period-list refresh failure after a successful lock is not reported as a lock failure.
+test("a status refresh failure after a successful lock is not shown as a lock error", async () => {
+  const { mapCostingLockError } = await import("../../public/shared/js/costing-approval-errors.js");
+  const toasts = [];
+  const h = harness({ showToast: (message, kind) => toasts.push({ message, kind }) });
+  h.ctrl.openSingle("2026-09-01");
+  Object.defineProperty(h.ids.clsPeriodList, "innerHTML", {
+    configurable: true,
+    get() { return ""; },
+    set() { throw new Error("period list host unavailable"); },
+  });
+  await h.ctrl.submit();
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.ids.clsResult.hidden, false);
+  assert.match(h.ids.clsResult.textContent, /approved run 122/);
+  assert.equal(h.ids.clsFormError.hidden, true);
+  assert.equal(h.ids.clsSubmitBtn.disabled, true);
+  const messages = toasts.map((t) => t.message);
+  assert.ok(messages.includes("Period lock recorded by the server."));
+  assert.ok(messages.includes("Period lock recorded, but the period list could not refresh. Reload the page to see it."));
+  const mappedTitles = [
+    mapCostingLockError(new Error("period list host unavailable")).title,
+    mapCostingLockError({ message: "period list host unavailable" }).title,
+  ];
+  for (const title of mappedTitles) assert.ok(!messages.includes(title), title);
+  assert.deepEqual(toasts.filter((t) => t.kind === "error").map((t) => t.message), [
+    "Period lock recorded, but the period list could not refresh. Reload the page to see it.",
+  ]);
+});
+
+// L2: batch mode double-submit and post-success lockout.
+test("batch double submit while pending sends one call", async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const h = harness({
+    rpcImpl: async () => {
+      await gate;
+      return { data: { locked: [{ period_start: "2026-09-01", approved_run: 122, official_valuation_date: "2026-09-30", audit_id: 9 }], count: 1 }, error: null };
+    },
+  });
+  h.ctrl.openBatch(["2026-07-01", "2026-09-01"]);
+  const first = h.ctrl.submit();
+  const second = h.ctrl.submit();
+  release();
+  await Promise.all([first, second]);
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.calls[0].name, LOCK_RPC.batch);
+});
+
+test("successful batch lock keeps Submit disabled and a second submit sends nothing", async () => {
+  const h = harness();
+  h.ctrl.openBatch(["2026-09-01"]);
+  await h.ctrl.submit();
+  assert.equal(h.ids.clsSubmitBtn.disabled, true);
+  assert.match(h.ids.clsResult.textContent, /Count: 1/);
+  await h.ctrl.submit();
+  assert.equal(h.calls.length, 1);
+  h.ctrl.openSingle("2026-09-01");
+  assert.equal(h.ids.clsSubmitBtn.disabled, false);
+});

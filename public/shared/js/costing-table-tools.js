@@ -44,14 +44,29 @@ export function compareValues(a, b, type = "text") {
  * Blank values sort last for both "asc" and "desc". dir "none" returns a copy.
  */
 export function sortRows(rows, key, dir, type = "text") {
+  return sortRowsWith(rows, key, (row) => row?.[key], dir, type);
+}
+
+/**
+ * Like sortRows, but for a column `{ key, type, get }`: when `get` is a
+ * function the sort value is get(row), otherwise row[key].
+ */
+export function sortRowsBy(rows, column, dir) {
+  const key = column?.key;
+  const get =
+    typeof column?.get === "function" ? column.get : (row) => row?.[key];
+  return sortRowsWith(rows, key, get, dir, column?.type || "text");
+}
+
+function sortRowsWith(rows, key, get, dir, type) {
   const list = Array.isArray(rows) ? rows : [];
   if (!key || (dir !== "asc" && dir !== "desc")) return list.slice();
   const sign = dir === "desc" ? -1 : 1;
   return list
     .map((row, index) => ({ row, index }))
     .sort((x, y) => {
-      const va = x.row?.[key];
-      const vb = y.row?.[key];
+      const va = get(x.row);
+      const vb = get(y.row);
       const aBlank = isBlankValue(va);
       const bBlank = isBlankValue(vb);
       if (aBlank !== bBlank) return aBlank ? 1 : -1;
@@ -113,15 +128,70 @@ export function buildCsv(columns, rows) {
   ].join("\n");
 }
 
+// Pure sort-value accessors. They read raw row fields in the same fallback
+// order as the row render code; they never re-derive business values.
+function firstPresent(...values) {
+  for (const v of values) {
+    if (v !== null && v !== undefined && v !== "") return v;
+  }
+  return "";
+}
+
+function joinPresent(...values) {
+  return values
+    .map((v) => (v === null || v === undefined ? "" : String(v)))
+    .filter((v) => v !== "")
+    .join(" ");
+}
+
+/** Product / SKU cell (shell productSkuLabel): product text, then SKU text. */
+export function productSkuSortText(row) {
+  return joinPresent(
+    firstPresent(row?.product_name, row?.product_id),
+    firstPresent(row?.sku_display_name, row?.sku_column_label, row?.sku_id),
+  );
+}
+
+export function productSortText(row) {
+  return firstPresent(row?.product_name, row?.product_id);
+}
+
+export function categorySortText(row) {
+  return joinPresent(row?.category_name, row?.subcategory_name);
+}
+
+export function groupSortText(row) {
+  return joinPresent(row?.group_name, row?.sub_group_name);
+}
+
+export function stockItemSortText(row) {
+  return firstPresent(row?.stock_item_name, row?.stock_item_id);
+}
+
+/** Allocation Pool cell (cost governance): label, then raw pool code. */
+export function allocationPoolSortText(row) {
+  return firstPresent(row?.allocation_pool_label, row?.allocation_pool);
+}
+
+/** Costing Class cell (staff pool summary): label, then raw class code. */
+export function costingClassSortText(row) {
+  return firstPresent(row?.costing_class_label, row?.costing_class);
+}
+
+const col = (label, key, type = "text", get) =>
+  Object.freeze(get === undefined ? { label, key, type } : { label, key, type, get });
+
 /**
- * Column -> row-key mapping for lenses listed in the shell's generic header map.
- * key: null means the displayed cell is not a single row field (composite,
- * fallback chain or client-derived), so the column is not sortable.
+ * Column -> row-key mapping per lens (labels equal the lens header arrays).
+ * key: null means the displayed cell has no safe sort value, so the column is
+ * not sortable. `get` (function) gives the sort value; `get: null` means the
+ * shell must inject the accessor (see withAccessors) and until then the column
+ * is not sortable.
  */
 export const GENERIC_TABLE_COLUMNS = Object.freeze({
   "sku-cost-sheet": Object.freeze([
     Object.freeze({ label: "", key: null, type: "text" }),
-    Object.freeze({ label: "Product / SKU", key: null, type: "text" }),
+    col("Product / SKU", "product_sku_label", "text", productSkuSortText),
     Object.freeze({ label: "SKU ID", key: "sku_id", type: "text" }),
     Object.freeze({ label: "MRP IK", key: "mrp_ik", type: "number" }),
     Object.freeze({ label: "MRP OK", key: "mrp_ok", type: "number" }),
@@ -132,12 +202,12 @@ export const GENERIC_TABLE_COLUMNS = Object.freeze({
     }),
     Object.freeze({ label: "IK Selling Price", key: "ik_selling_price", type: "number" }),
     Object.freeze({ label: "OK Selling Price", key: "ok_selling_price", type: "number" }),
-    Object.freeze({ label: "Status", key: null, type: "text" }),
+    col("Status", "row_status", "text", null),
   ]),
   "printable-cost-sheet": Object.freeze([
-    Object.freeze({ label: "Product", key: null, type: "text" }),
-    Object.freeze({ label: "Category", key: null, type: "text" }),
-    Object.freeze({ label: "Group", key: null, type: "text" }),
+    col("Product", "product_label", "text", productSortText),
+    col("Category", "category_label", "text", categorySortText),
+    col("Group", "group_label", "text", groupSortText),
     Object.freeze({ label: "SKU Columns", key: "sku_column_labels", type: "text" }),
     Object.freeze({ label: "Status", key: "product_cost_sheet_status", type: "text" }),
     Object.freeze({ label: "Refreshed At", key: "refreshed_at", type: "date" }),
@@ -163,10 +233,257 @@ export const GENERIC_TABLE_COLUMNS = Object.freeze({
     Object.freeze({ label: "Profit OK", key: null, type: "number" }),
     Object.freeze({ label: "MoM Profit OK Change", key: null, type: "number" }),
   ]),
+  "scheme-comparison": Object.freeze([
+    col("Product / SKU", "product_sku_label", "text", productSkuSortText),
+    col("Scheme", "scheme_name"),
+    col("IK Net Realisation", "ik_net_sales_realisation", "number"),
+    col("IK Margin %", "ik_margin_percent_after_scheme", "number"),
+    col("IK Margin Band", "ik_scheme_margin_band"),
+    col("OK Net Realisation", "ok_net_sales_realisation", "number"),
+    col("OK Margin %", "ok_margin_percent_after_scheme", "number"),
+    col("OK Margin Band", "ok_scheme_margin_band"),
+    col("Status", "scheme_viability_status"),
+  ]),
+  "costing-review-workbench": Object.freeze([
+    col("Material", "stock_item_label", "text", stockItemSortText),
+    col("Area", "material_area"),
+    col("Severity", "action_severity"),
+    col("Route", "recommended_ui_route"),
+    col("Affected Lines", "affected_line_count", "number"),
+    col("Affected Products", "affected_product_count", "number"),
+    col("Affected SKUs", "affected_sku_count", "number"),
+    col("Blocking SKUs", "approval_blocking_sku_count", "number"),
+    col("Review SKUs", "review_sku_count", "number"),
+    col("Action Note", "action_note_summary"),
+    col("Snapshot Refreshed", "snapshot_refreshed_at", "date"),
+  ]),
+  "sku-control-status": Object.freeze([
+    col("Product", "product_label", "text", productSortText),
+    col("SKU", "sku_id", "number"),
+    col("Pack", "pack_size", "number"),
+    col("Status", "control_severity"),
+    col("Primary Control", "first_control_status"),
+    col("Recommended Route", "recommended_ui_route"),
+  ]),
+  "driver-governance": Object.freeze([
+    col("Cost Element", "cost_element_label"),
+    col("Driver Domain", "driver_domain"),
+    col("Formula", "formula_type"),
+    col("Lifecycle", "lifecycle_status"),
+    col("Validation", "validation_status"),
+    col("Effective From", "effective_from", "date"),
+    col("Maturity", "maturity_status"),
+    col("Client", "client_status"),
+    col("DQ", "data_quality_status"),
+    col("Cutover", "cutover_status"),
+    col("Owner", "owner_module"),
+  ]),
 });
+
+/** A column is sortable when it has a key and no missing (null) accessor. */
+export function isSortableColumn(column) {
+  if (!column || !column.key) return false;
+  if (!("get" in column)) return true;
+  return typeof column.get === "function";
+}
+
+/**
+ * New frozen column objects with shell-provided accessors injected by key
+ * (e.g. { row_status: getRowStatus }). Columns not named are returned as is.
+ */
+export function withAccessors(columns, accessors) {
+  const list = Array.isArray(columns) ? columns : [];
+  const map = accessors || {};
+  return Object.freeze(
+    list.map((c) =>
+      c && c.key && typeof map[c.key] === "function"
+        ? Object.freeze({ ...c, get: map[c.key] })
+        : c,
+    ),
+  );
+}
 
 export function tableColumnsFor(lens) {
   return GENERIC_TABLE_COLUMNS[lens] || null;
+}
+
+/**
+ * Column maps for read-only TABS, keyed by "<lens>:<tab>" (labels equal the
+ * controller header arrays). The shell resolves the id from the controllers'
+ * tab/view getters; every other tab has no entry and keeps the legacy header.
+ * key: null = display is composite or client-derived, so not sortable.
+ */
+export const TAB_TABLE_COLUMNS = Object.freeze({
+  "mrp-governance:sku-mrp-current": Object.freeze([
+    col("Product", "product_name"),
+    col("Pack", "pack_size", "number"),
+    col("IK MRP", "mrp_ik", "number"),
+    col("OK MRP", "mrp_ok", "number"),
+    col("OK uplift", "ok_pct", "number"),
+    col("Calculation mode", "calc_mode"),
+    col("Effective from", "effective_from", "date"),
+    col("Source", "source_type"),
+    col("Quality", "source_quality"),
+  ]),
+  "mrp-governance:sku-mrp-history": Object.freeze([
+    col("Product", "product_name"),
+    col("Pack", "pack_size", "number"),
+    col("IK MRP", "mrp_ik", "number"),
+    col("OK MRP", "mrp_ok", "number"),
+    col("Mode", "calc_mode"),
+    col("Lifecycle", "lifecycle_label"),
+    col("Effective period", null),
+    col("Source", "source_type"),
+    col("Policy ID", "policy_id", "number"),
+    col("Previous policy ID", "previous_policy_id", "number"),
+  ]),
+  "mrp-governance:derivation-current": Object.freeze([
+    col("Product", "product_name"),
+    col("Reference Pack", "reference_pack_size", "number"),
+    col("Ref IK", "reference_mrp_ik", "number"),
+    col("Ref OK", "reference_mrp_ok", "number"),
+    col("OK uplift", "reference_ok_pct", "number"),
+    col("Effective from", "effective_from", "date"),
+    col("Status", "status"),
+    col("Source", "reference_selection_source"),
+    col("Quality", "source_quality"),
+    col("Readiness", null),
+  ]),
+  "mrp-governance:derivation-history": Object.freeze([
+    col("Product", "product_name"),
+    col("Reference Pack", "reference_pack_size", "number"),
+    col("Reference MRP", null),
+    col("Lifecycle", null),
+    col("Status", "status"),
+    col("Effective period", null),
+    col("Source", "source_type"),
+    col("Quality", "source_quality"),
+    col("Policy ID", "derivation_policy_id", "number"),
+    col("Previous policy ID", "previous_policy_id", "number"),
+  ]),
+  "policy-manager:sku-overview": Object.freeze([
+    col("Product / SKU", "product_sku_label", "text", productSkuSortText),
+    col("MRP IK", "mrp_ik", "number"),
+    col("MRP OK", "mrp_ok", "number"),
+    col("GST %", "gst_percent", "number"),
+    col("Discount IK %", "ik_discount_percent", "number"),
+    col("Discount OK %", "ok_discount_percent", "number"),
+    col("Contingency %", "contingency_percent", "number"),
+    col("Scheme IK", "ik_selected_scheme_name"),
+    col("Scheme OK", "ok_selected_scheme_name"),
+    col("Pricing Status", "pricing_bridge_status"),
+    col("Selling Price Status", "selling_price_bridge_status"),
+  ]),
+  "policy-manager:scheme-rule-register": Object.freeze([
+    col("Rule", "policy_rule_id", "number"),
+    col("Scope", "policy_scope"),
+    col("Region", "region_code"),
+    col("Scheme", "scheme_name"),
+    col("Apply Mode", "apply_mode"),
+    col("Effective From", "effective_from", "date"),
+    col("Effective To", "effective_to", "date"),
+    col("Status", "rule_status"),
+    col("Remarks", "remarks"),
+  ]),
+  "cost-governance:mapping-register": Object.freeze([
+    col("", null),
+    col("Expense Head", "expense_group"),
+    col("Allocation Pool", "allocation_pool_label", "text", allocationPoolSortText),
+    col("Mapping Status", "mapping_status"),
+    col("Include in Costing", null),
+    col("Remarks", "remarks"),
+  ]),
+  "cost-governance:excluded": Object.freeze([
+    col("", null),
+    col("Expense Head", "expense_group"),
+    col("Allocation Pool", "allocation_pool_label", "text", allocationPoolSortText),
+    col("Mapping Status", "mapping_status"),
+    col("Include in Costing", null),
+    col("Remarks", "remarks"),
+  ]),
+  "cost-governance:cost-pool-summary": Object.freeze([
+    col("Period", "period_start", "date"),
+    col("Allocation Pool", "allocation_pool_label", "text", allocationPoolSortText),
+    col("Source Type", "pool_source_type"),
+    col("Staff Amount", "staff_pool_amount", "number"),
+    col("Expense Provision", "expense_provision_amount", "number"),
+    col("Manual Provision", "manual_provision_amount", "number"),
+    col("Total Pool Amount", "total_pool_amount", "number"),
+    col("Status", "pool_status"),
+  ]),
+  "staff-governance:staff-pool-summary": Object.freeze([
+    col("Period", "period_start", "date"),
+    col("Allocation Pool", "allocation_pool"),
+    col("Costing Class", "costing_class_label", "text", costingClassSortText),
+    col("Staff Count", "staff_count", "number"),
+    col("Pool Amount", "pool_amount", "number"),
+    col("Status", "pool_status"),
+  ]),
+  "manual-rate-manager:register": Object.freeze([
+    col("", null),
+    col("Stock Item", "stock_item_label", "text", stockItemSortText),
+    col("Costing Rate", "rate_value", "number"),
+    col("Origin", null),
+    col("Effective From", "effective_from", "date"),
+    col("Effective To", "effective_to", "date"),
+    col("Status", "status"),
+    col("Register Status", "register_status"),
+    col("Latest Purchase Rate", "latest_purchase_rate", "number"),
+    col("Latest Purchase Date", "latest_purchase_date", "date"),
+    col("Recommended Action", "recommended_action"),
+  ]),
+  "manual-rate-manager:history": Object.freeze([
+    col("", null),
+    col("Manual Rate ID", "manual_rate_id", "number"),
+    col("Stock Item", "stock_item_label", "text", stockItemSortText),
+    col("Rate", "rate_value", "number"),
+    col("Origin / Evidence", null),
+    col("Effective From", "effective_from", "date"),
+    col("Effective To", "effective_to", "date"),
+    col("Status", "status"),
+    col("Reason / Approval Reference", "reason"),
+    col("Created At", "created_at", "date"),
+    col("Last Updated At", "last_updated_at", "date"),
+  ]),
+  "mrp-governance:applied-history-register": Object.freeze([
+    col("Proposal", null),
+    col("Product", "product_name"),
+    col("Effective date", "proposed_effective_from", "date"),
+    col("Applied lines", "approved_line_count", "number"),
+    col("Rejected lines", "rejected_line_count", "number"),
+    col("Blocked lines", "blocked_line_count", "number"),
+    col("Applied at", "applied_at", "date"),
+    col("Applied by", "applied_by"),
+    col("Application note", "submission_note"),
+    col("Trace status", null),
+  ]),
+  "manual-provisions:impact": Object.freeze([
+    col("Period", "period_start", "date"),
+    col("Allocation Pool", "allocation_pool_label", "text", allocationPoolSortText),
+    col("Staff Amount", "staff_pool_amount", "number"),
+    col("Expense Provision", "expense_provision_amount", "number"),
+    col("Manual Provision", "manual_provision_amount", "number"),
+    col("Total Pool Amount", "total_pool_amount", "number"),
+    col("Source Type", "pool_source_type"),
+    col("Status", "pool_status"),
+  ]),
+  "policy-manager:scheme-master": Object.freeze([
+    col("Scheme", null),
+    col("Paid Qty", "paid_qty", "number"),
+    col("Free Qty", "free_qty", "number"),
+    col("Total Qty", null),
+    col("Effective Free Discount %", null),
+    col("Status", null),
+    col("Type", null),
+    col("Active Direct Policies", null),
+    col("Active Hierarchy Rules", null),
+    col("Viability Periods", null),
+    col("Updated At", "updated_at", "date"),
+  ]),
+});
+
+export function tableColumnsForTable(tableId) {
+  return TAB_TABLE_COLUMNS[tableId] || null;
 }
 
 /**
@@ -227,7 +544,7 @@ export function applySortClick(ctx, lens, view, column) {
   const next =
     state.dir === "none"
       ? unsorted
-      : sortRows(unsorted, state.key, state.dir, column.type || "text");
+      : sortRowsBy(unsorted, column, state.dir);
   return {
     ctx: { lens, state, sortedView: next, unsorted },
     view: next,

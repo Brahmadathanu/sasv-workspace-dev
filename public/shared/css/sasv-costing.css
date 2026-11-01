@@ -2453,3 +2453,22 @@ body.sasv-costing-control-center .cp-readiness-gap-bound {
 .cas-table td { border-bottom: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
 .cas-table .c-right { text-align: right; }
 .cas-sku-tools { margin-bottom: 8px; }
+
+/* CW-05 table tools (COSTING_TABLE_TOOLS_V1 ON only: these buttons exist only when the flag is on) */
+#tableHead th > button[data-cw05-sort] {
+  all: unset; /* drop the global style.css button look */
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+#tableHead th > button[data-cw05-sort]:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+#tableHead th[aria-sort="ascending"] > button[data-cw05-sort],
+#tableHead th[aria-sort="descending"] > button[data-cw05-sort] {
+  font-weight: 700;
+}
