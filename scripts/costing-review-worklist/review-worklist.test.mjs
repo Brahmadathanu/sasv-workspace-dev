@@ -160,6 +160,12 @@ function makeSandbox({ source, worklistOn, tableToolsOn = false }) {
     CW05_SORT_CTX: null,
     REVIEW_WORKLIST_GROUP: null,
     REVIEW_WORKLIST_RUN_STATUS: null,
+    REVIEW_WORKLIST_RUN_SELECTION: null,
+    REVIEW_WORKLIST_RUN_LOAD: null,
+    ROWS_LOAD_GENERATION: 0,
+    isRowsLoadCurrent: (g) => g === ctx.ROWS_LOAD_GENERATION,
+    fetchAllRows: async () => [],
+    costingFrom: (view) => ctx.supabase.from(view),
     runStatusQueries: [],
     // C1: run-status reads go to the existing period status view (mocked; approved run 148 for the fixture).
     supabase: {
@@ -244,6 +250,7 @@ function makeSandbox({ source, worklistOn, tableToolsOn = false }) {
   ];
   if (source.includes("\nfunction renderReviewWorklistPanel(")) names.push("reviewWorklistSelectedKey", "renderReviewWorklistPanel");
   if (source.includes("\nfunction reviewWorklistRunStatus(")) names.push("reviewWorklistRunStatus");
+  if (source.includes("\nfunction reviewWorklistActiveRun(")) names.push("reviewWorklistActiveRun", "reviewWorklistGovernedRows", "selectReviewWorklistRun");
   vm.runInContext(
     [
       ...names.map((n) => extractFn(source, n)),
@@ -313,22 +320,28 @@ test("worklist flag OFF: legacy shell lines unchanged; every new line is behind 
   ]) {
     assert.equal(head.split(gated).length, 2, gated);
   }
-  const helpers = ["reviewWorklistSelectedKey", "reviewWorklistRunStatus", "renderReviewWorklistPanel"].map((fn) => extractFn(head, fn));
+  const HELPERS = ["reviewWorklistSelectedKey", "reviewWorklistRunStatus", "reviewWorklistActiveRun", "reviewWorklistGovernedRows", "selectReviewWorklistRun", "renderReviewWorklistPanel"];
+  const helpers = HELPERS.map((fn) => extractFn(head, fn));
   const outsideHelpers = helpers.reduce((acc, h) => acc.replace(h, ""), head);
   const calls = outsideHelpers.split("\n").filter((l) => /reviewWorklistSelectedKey\(\)|renderReviewWorklistPanel\(\)/.test(l));
   assert.deepEqual(calls.map((l) => l.trim()), [
     "rows = filterReviewWorklistRows(rows, reviewWorklistSelectedKey());",
     "renderReviewWorklistPanel();",
   ]);
-  for (const fn of ["reviewWorklistSelectedKey", "reviewWorklistRunStatus", "renderReviewWorklistPanel"]) {
+  for (const fn of HELPERS) {
     const body = extractFn(head, fn);
     assert.match(body.split("\n")[1], /^\s+if \(!\(isCostingReviewWorklistV1Enabled\(\) && CURRENT_LENS === "sku-control-status"\)\) return/);
   }
   const gates = head.split("\n").filter((l) => l.includes('isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status"'));
-  assert.equal(gates.length, 5); // 2 call-site gates + 3 helper early returns (C1 adds reviewWorklistRunStatus)
-  for (const re of [/\.rpc\(/, /costingFrom\(/, /new Date/, /Date\.now/, /Date\.parse/]) {
+  assert.equal(gates.length, 8); // 2 call-site gates + 6 helper early returns (C1: run status; C1B: active run, governed rows, select run)
+  for (const re of [/\.rpc\(/, /new Date/, /Date\.now/, /Date\.parse/]) {
     assert.ok(!added.some((l) => re.test(l)), String(re));
   }
+  // C1B: exactly one added costingFrom read, of the run-scoped view, inside the gated run selector.
+  const costingFromLines = added.filter((l) => /costingFrom\(/.test(l));
+  assert.deepEqual(costingFromLines.map((l) => l.slice(1).trim()), ["costingFrom(REVIEW_WORKLIST_BY_RUN_VIEW)"]);
+  assert.ok(extractFn(head, "selectReviewWorklistRun").includes("costingFrom(REVIEW_WORKLIST_BY_RUN_VIEW)"));
+  assert.equal(worklist.REVIEW_WORKLIST_BY_RUN_VIEW, "v_costing_pricing_sku_control_status_by_run");
   // C1: exactly one added read, of the existing authorised period run-status view (same view and
   // columns as the run-status badge), and only inside the flag-gated reviewWorklistRunStatus helper.
   const fromLines = added.filter((l) => /\.from\(/.test(l));
@@ -571,7 +584,7 @@ test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS
   assert.deepEqual(JSON.parse(JSON.stringify(tableTools.COLUMN_HELP)), JSON.parse(JSON.stringify(baseMod.COLUMN_HELP)));
   assert.equal(
     read("public/sw.js").split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v387"; // CW-05 pkg 4 table tools; v386 was Costing review worklist v1',
+    'const CACHE_NAME = "hub-cache-v388"; // Costing review worklist run context and run selector (C1/C1B); v387 was CW-05 pkg 4 table tools',
   );
   const cssChanged = git("diff", "--name-only", BASE, "--", "*.css").trim().split("\n").filter(Boolean);
   assert.ok(cssChanged.length === 0 || (cssChanged.length === 1 && cssChanged[0] === "public/shared/css/sasv-costing.css"));

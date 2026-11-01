@@ -61,3 +61,29 @@ Proposed `public.v_costing_pricing_sku_control_status_by_run` (read-only view, `
 ## 8. Cache and coordination
 
 The draft does not touch `public/sw.js` or any pin. Before merge, the cache must move to the next free number (v388 per the 1 Nov state, after confirming no other branch reserved it), Jarvis must be told first, and the current `hub-cache-v387` pin sites updated (see the PR body for the list).
+
+---
+
+## C1B addendum — read-only run selector (stacked on C1; same flag)
+
+The owner has since deployed `public.v_costing_pricing_sku_control_status_by_run` (SELECT-only for `authenticated`, `service_role`; `security_invoker = true`; same 40 columns as the snapshot view). C1B uses it read-only. The governed snapshot view is unchanged and still drives the default screen. Browser JWT tests (permitted and denied user) are **still to be done by the owner** in a real browser.
+
+**What C1B adds (flag `COSTING_REVIEW_WORKLIST_V1` only):**
+- A **Run** selector in the worklist, listing only the runs the server advertises for the month in the period run-status view: `displayed_run_id`, `approved_run_id`, `newer_draft_run_id` (deduplicated). No other id is accepted (not from the URL, not typed).
+- Default = the displayed run (October: 143, "Approved — displayed for this period"; an approved run is labelled for its own period only, never as the current pricing basis). Choosing 148 ("Draft — not for pricing") reads the run-scoped view with **both** `period_start` and `refresh_run_id`, pages through all rows, checks that every row belongs to that period and run, and then feeds the same worklist groups, table, drawer and fix links.
+- While 148 is shown: a prominent "Draft run 148 — not for pricing" notice, the loaded counts by severity and the groups by server `first_control_status` (from the rows actually returned; nothing hard-coded). Valuation date only from the loaded rows.
+- Switching back to 143 restores the governed rows (no extra read). Period change, reload or lens switch always return to the displayed run; late answers are discarded (`ROWS_LOAD_GENERATION`).
+- Empty answer (no permission or no rows), failed read and rows of another run are reported; the table keeps the previous run.
+
+**Owner steps (browser):**
+1. Enable: `localStorage.setItem("COSTING_REVIEW_WORKLIST_V1", "1")`, reload. Disable (rollback): `localStorage.removeItem("COSTING_REVIEW_WORKLIST_V1")`, reload.
+2. SKU Control Status → period 2026-10 → worklist shows Run = "Run 143 — Approved — displayed for this period".
+3. Choose "Run 148 — Draft — not for pricing". Expect the draft notice, "Run shown: 148 · valuation 2026-10-31", and groups from the live rows (preflight: 1 MATERIAL_COST_BLOCKED, 110 PRIME_COST_REVIEW_REQUIRED, 2 MATERIAL_REVIEW_REQUIRED, 1 PRICING_BRIDGE_REVIEW_REQUIRED; live data may differ and is what is shown).
+4. Blocked SKU: "Show in table" on the BLOCKER group → open the row (drawer) → "Open fix screen" (Material Cost Manager › action queue, same period). Prime-cost and pricing-bridge groups show the honest "no dedicated screen link yet" text (COST_REVIEW_WORKBENCH unmapped).
+5. Choose 143 again → back to the approved run. Change period → selector resets to that month's displayed run.
+6. Repeat step 3 as a user **without** Control Centre view permission: expect "No SKU rows were returned for run 148 …" and no SKU results.
+
+**Known limits (open points):**
+- **Drawer evidence is not draft evidence.** The SKU drawer's per-line material evidence comes from `v_costing_pricing_material_action_drilldown_snapshot`, which is pinned to the displayed (governed) run of the period; it cannot represent draft 148's evidence (it may be empty or missing). The drawer's "current source diagnosis" is today's data, not the frozen run. While a non-default run is shown, the worklist states this as a warning line ("Row drawer evidence is not this run's evidence."). A run-scoped evidence view would be a separate, owner-approved backend item.
+- COST_REVIEW_WORKBENCH remains unmapped (no fix link for 111 of the 114 draft review/blocked SKUs).
+- The cause split of the 110 prime-cost reviews still needs its own read contract.

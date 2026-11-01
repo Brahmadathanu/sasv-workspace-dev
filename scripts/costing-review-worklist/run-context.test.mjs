@@ -219,7 +219,8 @@ test("C1 loader discards stale responses and re-reads only on a new period or re
 
 // 7. Shell integration (real flag-gated helpers in a sandbox)
 function extractFn(src, name) {
-  const start = src.indexOf(`\nfunction ${name}(`);
+  let start = src.indexOf(`\nfunction ${name}(`);
+  if (start < 0) start = src.indexOf(`\nasync function ${name}(`);
   assert.ok(start >= 0, name);
   return src.slice(start + 1, src.indexOf("\n}\n", start) + 2);
 }
@@ -245,6 +246,12 @@ function makeShell({ flagOn }) {
     CURRENT_PAGE: 1,
     REVIEW_WORKLIST_GROUP: null,
     REVIEW_WORKLIST_RUN_STATUS: null,
+    REVIEW_WORKLIST_RUN_SELECTION: null,
+    REVIEW_WORKLIST_RUN_LOAD: null,
+    ROWS_LOAD_GENERATION: 0,
+    isRowsLoadCurrent: (g) => g === ctx.ROWS_LOAD_GENERATION,
+    fetchAllRows: async () => [],
+    costingFrom: (view) => ctx.supabase.from(view),
     workbenchSummary: summary,
     isCostingReviewWorklistV1Enabled: () => flagOn,
     applyFilters: () => {},
@@ -266,7 +273,12 @@ function makeShell({ flagOn }) {
   };
   vm.createContext(ctx);
   const src = read(SHELL);
-  vm.runInContext(["reviewWorklistSelectedKey", "reviewWorklistRunStatus", "renderReviewWorklistPanel"].map((n) => extractFn(src, n)).join("\n"), ctx);
+  vm.runInContext(
+    ["reviewWorklistSelectedKey", "reviewWorklistRunStatus", "reviewWorklistActiveRun", "reviewWorklistGovernedRows", "selectReviewWorklistRun", "renderReviewWorklistPanel"]
+      .map((n) => extractFn(src, n))
+      .join("\n"),
+    ctx,
+  );
   return { ctx, queries, deferred, summary, render: () => vm.runInContext("renderReviewWorklistPanel()", ctx) };
 }
 const flush = () => new Promise((r) => setImmediate(r));
@@ -326,7 +338,8 @@ test("C1 shell: blocked SKU opens the existing fix screen with the period preser
   assert.equal(s.ctx.navigations[0].params.periodStart, PERIOD);
   // Only read/select/navigate controls are rendered.
   const controls = [...s.summary.innerHTML.matchAll(/data-(rwl-[\w-]+)=/g)].map((m) => m[1]);
-  assert.deepEqual([...new Set(controls)].sort(), ["rwl-group", "rwl-open", "rwl-run-context", "rwl-select"]);
+  // C1B adds only the read-only run selector.
+  assert.deepEqual([...new Set(controls)].sort(), ["rwl-group", "rwl-open", "rwl-run-context", "rwl-run-select", "rwl-select"]);
   assert.equal(s.queries.length, 1);
   assert.ok(s.queries.every((q) => q.view === RUN_STATUS_VIEW));
 });

@@ -67,7 +67,7 @@ import { createCostingLockScreenController } from "./costing-lock-screen.js";
 import { createCostingRunStatusScreenController } from "./costing-run-status-screen.js";
 import { isCostingTableToolsV1Enabled } from "./costing-feature-flags.js";
 import { isCostingReviewWorklistV1Enabled } from "./costing-feature-flags.js";
-import { createReviewWorklistRunStatusLoader, describeReviewWorklistRunContext, filterReviewWorklistRows, groupReviewWorklistRows, renderReviewWorklistHtml, resolveReviewWorklistTarget, reviewWorklistRunContext, REVIEW_WORKLIST_NO_NAV_TOAST, REVIEW_WORKLIST_RUN_STATUS_SELECT, REVIEW_WORKLIST_RUN_STATUS_VIEW } from "./costing-review-worklist.js";
+import { createReviewWorklistRunStatusLoader, describeReviewWorklistRunContext, filterReviewWorklistRows, groupReviewWorklistRows, isReviewWorklistRunChoice, renderReviewWorklistHtml, resolveReviewWorklistTarget, reviewWorklistRunChoices, reviewWorklistRunContext, sortReviewWorklistRows, validateReviewWorklistRunRows, REVIEW_WORKLIST_BY_RUN_VIEW, REVIEW_WORKLIST_NO_NAV_TOAST, REVIEW_WORKLIST_RUN_STATUS_SELECT, REVIEW_WORKLIST_RUN_STATUS_VIEW } from "./costing-review-worklist.js";
 import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, isSortableColumn, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor, tableColumnsForTable, withAccessors } from "./costing-table-tools.js";
 import {
   createQcActionQueueController,
@@ -5716,6 +5716,103 @@ function reviewWorklistSelectedKey() {
 // C1 run context (flag ON only): period run status from the existing
 // authorised view, loaded lazily; stale responses are discarded by the loader.
 let REVIEW_WORKLIST_RUN_STATUS = null;
+// C1B run selection (flag ON only): { periodStart, runId, rowsRef, governedRowsRef }.
+// Valid only while ALL_ROWS is the rows array it installed, so any governed
+// reload (period change, reload, lens switch) returns to the displayed run.
+let REVIEW_WORKLIST_RUN_SELECTION = null;
+// C1B run-row load state for the picker: { periodStart, runId, status, error, shownRunId, generation, governedRowsRef }.
+let REVIEW_WORKLIST_RUN_LOAD = null;
+
+/** Review worklist v1 (flag ON only): the chosen non-default run, if still the rows shown. */
+function reviewWorklistActiveRun() {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return null;
+  const sel = REVIEW_WORKLIST_RUN_SELECTION;
+  if (!sel || sel.rowsRef !== ALL_ROWS || sel.periodStart !== ACTIVE_PERIOD_START) {
+    REVIEW_WORKLIST_RUN_SELECTION = null;
+    return null;
+  }
+  return sel;
+}
+
+/** Review worklist v1 (flag ON only): rows of the governed (displayed) run for this period. */
+function reviewWorklistGovernedRows() {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return ALL_ROWS;
+  const sel = reviewWorklistActiveRun();
+  return sel ? sel.governedRowsRef : ALL_ROWS;
+}
+
+/**
+ * Review worklist v1 (flag ON only): show a server-advertised run. The default
+ * (displayed) run restores the governed rows; another run is read read-only from
+ * the run-scoped view by period AND run id. Late answers are discarded.
+ */
+async function selectReviewWorklistRun(runId) {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return;
+  const status = REVIEW_WORKLIST_RUN_STATUS?.state();
+  const periodStart = ACTIVE_PERIOD_START;
+  if (!status || status.status !== "ready" || status.periodStart !== periodStart) return;
+  const choices = reviewWorklistRunChoices(status.row);
+  if (!isReviewWorklistRunChoice(choices, runId)) {
+    showToast("This run is not offered for this period.", "info");
+    return;
+  }
+  const chosen = String(runId);
+  const defaultRunId = choices.find((c) => c.isDefault)?.runId || null;
+  const active = reviewWorklistActiveRun();
+  const governedRowsRef = active ? active.governedRowsRef : ALL_ROWS;
+  if (chosen === defaultRunId) {
+    ++ROWS_LOAD_GENERATION;
+    REVIEW_WORKLIST_RUN_LOAD = null;
+    if (!active) {
+      renderReviewWorklistPanel();
+      return;
+    }
+    REVIEW_WORKLIST_RUN_SELECTION = null;
+    REVIEW_WORKLIST_GROUP = null;
+    ALL_ROWS = governedRowsRef;
+    CURRENT_PAGE = 1;
+    applyFilters();
+    return;
+  }
+  const shownRunId = active ? active.runId : defaultRunId;
+  const loadGeneration = ++ROWS_LOAD_GENERATION;
+  const loadBase = { periodStart, runId: chosen, shownRunId, generation: loadGeneration, governedRowsRef };
+  REVIEW_WORKLIST_RUN_LOAD = { ...loadBase, status: "loading", error: null };
+  renderReviewWorklistPanel();
+  let rows;
+  try {
+    rows = await fetchAllRows(
+      () =>
+        costingFrom(REVIEW_WORKLIST_BY_RUN_VIEW)
+          .select("*")
+          .eq("period_start", periodStart)
+          .eq("refresh_run_id", chosen)
+          .order("control_severity", { ascending: true })
+          .order("product_name", { ascending: true })
+          .order("sku_id", { ascending: true }),
+      1000,
+    );
+  } catch (error) {
+    if (!isRowsLoadCurrent(loadGeneration) || ACTIVE_PERIOD_START !== periodStart) return;
+    REVIEW_WORKLIST_RUN_LOAD = { ...loadBase, status: "error", error: String(error?.message || error) };
+    renderReviewWorklistPanel();
+    return;
+  }
+  if (!isRowsLoadCurrent(loadGeneration) || ACTIVE_PERIOD_START !== periodStart) return;
+  const checked = validateReviewWorklistRunRows(rows, { periodStart, runId: chosen });
+  if (!checked.ok) {
+    REVIEW_WORKLIST_RUN_LOAD = { ...loadBase, status: checked.reason, error: null };
+    renderReviewWorklistPanel();
+    return;
+  }
+  const sorted = sortReviewWorklistRows(checked.rows);
+  REVIEW_WORKLIST_RUN_LOAD = null;
+  REVIEW_WORKLIST_RUN_SELECTION = { periodStart, runId: chosen, rowsRef: sorted, governedRowsRef };
+  REVIEW_WORKLIST_GROUP = null;
+  ALL_ROWS = sorted;
+  CURRENT_PAGE = 1;
+  applyFilters();
+}
 
 /** Review worklist v1 (flag ON only): run-status loader for the run-context block. */
 function reviewWorklistRunStatus() {
@@ -5730,7 +5827,7 @@ function reviewWorklistRunStatus() {
           .maybeSingle(),
     });
   }
-  return REVIEW_WORKLIST_RUN_STATUS.ensure(ACTIVE_PERIOD_START, ALL_ROWS, () => {
+  return REVIEW_WORKLIST_RUN_STATUS.ensure(ACTIVE_PERIOD_START, reviewWorklistGovernedRows(), () => {
     renderReviewWorklistPanel();
   });
 }
@@ -5739,6 +5836,38 @@ function reviewWorklistRunStatus() {
 function renderReviewWorklistPanel() {
   if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return;
   if (!workbenchSummary) return;
+  const runStatus = reviewWorklistRunStatus();
+  const choices =
+    runStatus?.status === "ready" && runStatus.periodStart === ACTIVE_PERIOD_START
+      ? reviewWorklistRunChoices(runStatus.row)
+      : [];
+  const activeRun = reviewWorklistActiveRun();
+  if (
+    activeRun &&
+    runStatus?.status === "ready" &&
+    runStatus.periodStart === ACTIVE_PERIOD_START &&
+    !isReviewWorklistRunChoice(choices, activeRun.runId)
+  ) {
+    // The server no longer advertises the chosen run: return to the displayed run.
+    REVIEW_WORKLIST_RUN_SELECTION = null;
+    REVIEW_WORKLIST_GROUP = null;
+    ALL_ROWS = activeRun.governedRowsRef;
+    ++ROWS_LOAD_GENERATION;
+    showToast("The selected run is no longer offered for this period; showing the default run.", "info");
+    CURRENT_PAGE = 1;
+    applyFilters(); // re-renders the table and this panel with the displayed run
+    return;
+  }
+  const runLoad = REVIEW_WORKLIST_RUN_LOAD;
+  if (
+    runLoad &&
+    (runLoad.periodStart !== ACTIVE_PERIOD_START ||
+      runLoad.governedRowsRef !== reviewWorklistGovernedRows() ||
+      (runLoad.status === "loading" && !isRowsLoadCurrent(runLoad.generation)))
+  ) {
+    // Superseded by a period change, reload or newer load: drop the stale load state.
+    REVIEW_WORKLIST_RUN_LOAD = null;
+  }
   const groups = groupReviewWorklistRows(ALL_ROWS);
   const selectedKey = reviewWorklistSelectedKey();
   workbenchSummary.innerHTML = renderReviewWorklistHtml(groups, {
@@ -5747,11 +5876,27 @@ function renderReviewWorklistPanel() {
     runDiagnosis: describeReviewWorklistRunContext({
       rows: ALL_ROWS,
       periodStart: ACTIVE_PERIOD_START,
-      runStatus: reviewWorklistRunStatus(),
+      runStatus,
+      selectedRunId: activeRun ? activeRun.runId : null,
+      runPickerAvailable: choices.length > 1,
     }),
     rowCount: ALL_ROWS.length,
+    runPicker: choices.length
+      ? {
+          choices,
+          selectedRunId: REVIEW_WORKLIST_RUN_LOAD?.status === "loading"
+            ? REVIEW_WORKLIST_RUN_LOAD.runId
+            : activeRun ? activeRun.runId : null,
+          load: REVIEW_WORKLIST_RUN_LOAD,
+        }
+      : null,
   });
   workbenchSummary.classList.add("is-visible");
+  workbenchSummary.querySelectorAll("[data-rwl-run-select]").forEach((select) => {
+    select.addEventListener("change", () => {
+      void selectReviewWorklistRun(select.value);
+    });
+  });
   workbenchSummary.querySelectorAll("[data-rwl-select]").forEach((btn) => {
     btn.addEventListener("click", () => {
       REVIEW_WORKLIST_GROUP = { key: btn.dataset.rwlSelect, rows: ALL_ROWS };
