@@ -241,6 +241,8 @@ import {
   normalizeProductRouteHistory,
   resolveRouteFamilyRouteStateFromHistory,
 } from "./costing-suite-production-route-rpc.js";
+import { isCostingDialogsV1Enabled } from "./costing-feature-flags.js";
+import { openDuplicateFamilySequenceSubmitModal } from "./costing-dialogs-duplicate-sequence.js";
 import { createProductionRouteEditorController } from "./costing-suite-production-route-editor.js";
 import { createProductionRouteCandidatesController } from "./costing-suite-production-route-candidates.js";
 import { createProductionCostCentresController } from "./costing-suite-production-route-cost-centres.js";
@@ -10321,6 +10323,30 @@ export function createProductionRouteController(deps = {}) {
           }
           const dupes = editor.findDuplicateFamilyStepSequences?.() || [];
           if (dupes.length) {
+            if (isCostingDialogsV1Enabled()) {
+              await openDuplicateFamilySequenceSubmitModal({
+                dupes,
+                openModal,
+                closeModal,
+                formShell,
+                onModal,
+                withMutation,
+                isDetailsModalOpen,
+                escapeHtml: text,
+                onConfirmWrite: async () => {
+                  const result = await editor.submitFamily();
+                  if (result?.ok) {
+                    await refreshFamilyRouteEditorAfterLifecycleMutation({
+                      successMessage: "Family Route submitted for review.",
+                      refreshFailureMessage:
+                        "Family Route submitted for review, but the editor could not be refreshed.",
+                      preserveValidationStale: false,
+                    });
+                  }
+                },
+              });
+              return;
+            }
             const proceed = window.confirm(
               `Duplicate sequence number(s) within this route: ${dupes.join(", ")}. Server uniqueness remains authoritative. Continue submit?`,
             );

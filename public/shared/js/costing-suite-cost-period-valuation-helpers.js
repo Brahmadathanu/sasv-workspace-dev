@@ -32,6 +32,7 @@ export const COST_PERIOD_VALUATION_RPC_ARG_KEYS = Object.freeze({
 export const COST_PERIOD_VALUATION_FORBIDDEN_SUBSTRINGS = Object.freeze([
   "v_cost_periods",
   "rpc_request_costing_refresh",
+  "rpc_costing_request_recalculation",
   "rpc_refresh_cost",
   "create_costing_snapshot",
   "rebuild_costing",

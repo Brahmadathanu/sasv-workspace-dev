@@ -1,3 +1,5 @@
+> **SUPERSEDED / HISTORICAL as of 31 Oct 2026 - see [CURRENT_STATE_2026-10-31.md](CURRENT_STATE_2026-10-31.md).** This document is kept for history. Its status lines are not current. In particular, CSE-P01 (listed below as parked) was decided on 26 Oct and implemented live by CI-050 on 31 Oct 2026.
+
 # WP-03 — Creation-Time Guided Completeness
 
 ## Objective

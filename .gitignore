@@ -55,3 +55,4 @@ Thumbs.db
 
 # Coverage reports (if you ever add tests)
 coverage/
+.temp/

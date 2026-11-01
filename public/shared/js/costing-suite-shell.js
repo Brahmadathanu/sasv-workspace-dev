@@ -2,6 +2,8 @@ import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 import { showToast as sasvShowToast } from "./toast.js";
 import { mountModuleActionIcons } from "./sasv-module-chrome.js";
+import { createPeriodDateStatus, createRecalculationController, periodDateText, periodOfficialDateText } from "./costing-recalculation.js";
+import { createRunStatusBadge } from "./costing-run-status-badge.js";
 import {
   COSTING_SUITE_MODULES,
   LENS_REGISTRY,
@@ -58,6 +60,15 @@ import {
   isPortfolioReadinessLens,
 } from "./costing-suite-readiness.js";
 import { createCostPeriodValuationController } from "./costing-suite-cost-period-valuation.js";
+import { isCostingApprovalScreenV1Enabled, isCostingLockScreenV1Enabled, isCostingRecalcWithDateV1Enabled, isCostingRunStatusV1Enabled, isCostingUxConsistencyV1Enabled } from "./costing-feature-flags.js";
+import { costingIssueDisplayLabel, costingStatusDisplayLabel } from "./costing-status-labels.js";
+import { createCostingApprovalScreenController } from "./costing-approval-screen.js";
+import { createCostingLockScreenController } from "./costing-lock-screen.js";
+import { createCostingRunStatusScreenController } from "./costing-run-status-screen.js";
+import { isCostingTableToolsV1Enabled } from "./costing-feature-flags.js";
+import { isCostingReviewWorklistV1Enabled } from "./costing-feature-flags.js";
+import { createReviewWorklistRunStatusLoader, describeReviewWorklistRunContext, filterReviewWorklistRows, groupReviewWorklistRows, isReviewWorklistRunChoice, renderReviewWorklistHtml, resolveReviewWorklistTarget, reviewWorklistRunChoices, reviewWorklistRunContext, sortReviewWorklistRows, validateReviewWorklistRunRows, REVIEW_WORKLIST_BY_RUN_VIEW, REVIEW_WORKLIST_NO_NAV_TOAST, REVIEW_WORKLIST_RUN_STATUS_SELECT, REVIEW_WORKLIST_RUN_STATUS_VIEW } from "./costing-review-worklist.js";
+import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, isSortableColumn, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor, tableColumnsForTable, withAccessors } from "./costing-table-tools.js";
 import {
   createQcActionQueueController,
   isQcActionQueueLens,
@@ -630,6 +641,12 @@ let ALL_ROWS = [];
 let VIEW = [];
 let CURRENT_PAGE = 1;
 let PAGE_SIZE = 25;
+// CW-05 table tools state (used only when COSTING_TABLE_TOOLS_V1 is ON).
+let CW05_SORT_CTX = null;
+// Costing review worklist v1 selection (used only when COSTING_REVIEW_WORKLIST_V1 is ON):
+// { key, rows } where rows is the ALL_ROWS array the group was picked on, so any
+// reload, period change or lens switch (each assigns a new ALL_ROWS) clears it.
+let REVIEW_WORKLIST_GROUP = null;
 const CCC_PROGRESSIVE_LENS_IDS = new Set([
   "costing-review-workbench",
   "sku-control-status",
@@ -1921,6 +1938,19 @@ function paintReadinessValuationFromContext(context = {}) {
   strip.removeAttribute("hidden");
   strip.setAttribute("aria-hidden", "false");
   const chipValue = strip.querySelector("[data-cpv-chip-value]");
+  if (isCostingRecalcWithDateV1Enabled()) {
+    const periodStatus = periodDateStatus.get();
+    if (chipValue) chipValue.textContent = periodOfficialDateText(periodStatus);
+    const chipLabel = strip.querySelector(".cpv-chip-label");
+    if (chipLabel) chipLabel.textContent = "Period dates";
+    const chipBtn = $("cpvValuationChip");
+    if (chipBtn) {
+      chipBtn.disabled = true;
+      chipBtn.title = periodDateText(periodStatus);
+      chipBtn.setAttribute("aria-label", periodDateText(periodStatus));
+    }
+    return;
+  }
   const valuationRaw = context.valuation_date;
   const valuation =
     valuationRaw != null && String(valuationRaw).trim() !== ""
@@ -2408,10 +2438,10 @@ async function drillToCostingTarget(moduleKey, lensId, filters = {}) {
 let LENSES = buildActiveLenses();
 
 const VIEW_BY_LENS = {
-  dashboard: "v_costing_pricing_dashboard_summary",
   "sku-cost-sheet": "v_costing_pricing_sku_selector",
   "printable-cost-sheet": "v_costing_pricing_printable_cost_sheet_lines",
-  "cost-comparison": "v_cost_sheet_snapshot_sku_monthly_comparison",
+  // W1: one governed run per month (approved, else labelled draft); never mixes runs.
+  "cost-comparison": "v_cost_sheet_snapshot_sku_monthly_comparison_governed",
   "policy-manager": "v_costing_policy_manager_sku_overview",
   "scheme-comparison": SCHEME_COMPARISON_VIEW,
   "cost-governance": "v_costing_unmapped_expense_heads_for_mapping",
@@ -2430,6 +2460,17 @@ const PERIOD_PICKER_DISABLED_TITLE =
 function costingFrom(viewName) {
   return supabase.from(viewName);
 }
+
+const runStatusBadge = createRunStatusBadge({ supabase, anchor: lastRefreshed });
+const periodDateStatus = createPeriodDateStatus({ supabase, getPeriod: () => ACTIVE_PERIOD_START });
+const recalculationCtrl = createRecalculationController({
+  costingRpc,
+  getPeriod: () => ACTIVE_PERIOD_START,
+  canEdit: () => PERM_CAN_EDIT === true || PERM_CONTROL_CENTER_EDIT === true,
+  invalidateBadge: () => runStatusBadge.invalidate(),
+  reloadStatus: () => loadRowsForLens(),
+  showToast,
+});
 
 async function costingRpc(name, params, options = null) {
   let query = supabase.rpc(name, params);
@@ -3264,14 +3305,20 @@ function laneClass(row) {
 
 function statusChip(status) {
   if (!status) return '<span class="status-chip gray">--</span>';
-  return `<span class="status-chip ${getStatusClass(status)}">${text(status)}</span>`;
+  const label = isCostingUxConsistencyV1Enabled()
+    ? costingStatusDisplayLabel(status)
+    : status;
+  return `<span class="status-chip ${getStatusClass(status)}">${text(label)}</span>`;
 }
 
 function compactStatusText(status) {
   if (!status)
     return '<span class="status-chip gray cp-status-chip-compact">--</span>';
   const cls = getStatusClass(status);
-  return `<span class="status-chip ${cls} cp-status-chip-compact">${text(status)}</span>`;
+  const label = isCostingUxConsistencyV1Enabled()
+    ? costingStatusDisplayLabel(status)
+    : status;
+  return `<span class="status-chip ${cls} cp-status-chip-compact">${text(label)}</span>`;
 }
 
 function marginBandChip(value) {
@@ -3288,6 +3335,10 @@ function marginBandChip(value) {
 
 function issueCodeLabel(code) {
   if (!code) return "--";
+  if (isCostingUxConsistencyV1Enabled()) {
+    const label = costingIssueDisplayLabel(code);
+    return label === String(code) ? String(code).replace(/_/g, " ") : label;
+  }
   return String(code).replace(/_/g, " ");
 }
 
@@ -4239,6 +4290,7 @@ async function setActiveCostingPeriod(periodStart) {
   if (!normalized || normalized === ACTIVE_PERIOD_START) return;
 
   ACTIVE_PERIOD_START = normalized;
+  if (isCostingRecalcWithDateV1Enabled()) recalculationCtrl.onPeriodChange();
   clearSkuStatusDiagnosisCache();
   costBuildCtrl.setManualProvisionPeriodFilter(normalized);
   costSheetCtrl.invalidatePrintableLinesCache();
@@ -4491,8 +4543,25 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     resetCccProgressiveWindow();
   }
   const loadGeneration = ++ROWS_LOAD_GENERATION;
+  if (isCostingRecalcWithDateV1Enabled() && !isProductionRouteManagerRoute()) {
+    recalculationCtrl.onPeriodChange();
+    try {
+      await periodDateStatus.reload();
+    } catch {
+      showToast("Period dates unavailable.", "info");
+    }
+    if (loadGeneration !== ROWS_LOAD_GENERATION) return;
+  }
   const lensLabel = LENSES.find((l) => l.id === CURRENT_LENS)?.label || "view";
   setLoadingMask(true, `Loading ${lensLabel}...`);
+  void runStatusBadge.refresh({
+    periodStart: ACTIVE_PERIOD_START,
+    lensId: CURRENT_LENS,
+    periodStatusRow: isCostingRecalcWithDateV1Enabled() ? periodDateStatus.get() : undefined,
+  });
+  if (isCostingApprovalScreenV1Enabled()) {
+    void costingApprovalScreenCtrl?.reload?.();
+  }
   try {
     costBuildCtrl.syncManualProvisionLayout();
     if (!isProductionRouteLens(CURRENT_LENS)) {
@@ -5634,6 +5703,231 @@ function filterMatch(row, group, selected) {
   });
 }
 
+/** Review worklist v1 (flag ON only): selected group key, if still valid for ALL_ROWS. */
+function reviewWorklistSelectedKey() {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return null;
+  if (!REVIEW_WORKLIST_GROUP || REVIEW_WORKLIST_GROUP.rows !== ALL_ROWS) {
+    REVIEW_WORKLIST_GROUP = null;
+    return null;
+  }
+  return REVIEW_WORKLIST_GROUP.key;
+}
+
+// C1 run context (flag ON only): period run status from the existing
+// authorised view, loaded lazily; stale responses are discarded by the loader.
+let REVIEW_WORKLIST_RUN_STATUS = null;
+// C1B run selection (flag ON only): { periodStart, runId, rowsRef, governedRowsRef }.
+// Valid only while ALL_ROWS is the rows array it installed, so any governed
+// reload (period change, reload, lens switch) returns to the displayed run.
+let REVIEW_WORKLIST_RUN_SELECTION = null;
+// C1B run-row load state for the picker: { periodStart, runId, status, error, shownRunId, generation, governedRowsRef }.
+let REVIEW_WORKLIST_RUN_LOAD = null;
+
+/** Review worklist v1 (flag ON only): the chosen non-default run, if still the rows shown. */
+function reviewWorklistActiveRun() {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return null;
+  const sel = REVIEW_WORKLIST_RUN_SELECTION;
+  if (!sel || sel.rowsRef !== ALL_ROWS || sel.periodStart !== ACTIVE_PERIOD_START) {
+    REVIEW_WORKLIST_RUN_SELECTION = null;
+    return null;
+  }
+  return sel;
+}
+
+/** Review worklist v1 (flag ON only): rows of the governed (displayed) run for this period. */
+function reviewWorklistGovernedRows() {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return ALL_ROWS;
+  const sel = reviewWorklistActiveRun();
+  return sel ? sel.governedRowsRef : ALL_ROWS;
+}
+
+/**
+ * Review worklist v1 (flag ON only): show a server-advertised run. The default
+ * (displayed) run restores the governed rows; another run is read read-only from
+ * the run-scoped view by period AND run id. Late answers are discarded.
+ */
+async function selectReviewWorklistRun(runId) {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return;
+  const status = REVIEW_WORKLIST_RUN_STATUS?.state();
+  const periodStart = ACTIVE_PERIOD_START;
+  if (!status || status.status !== "ready" || status.periodStart !== periodStart) return;
+  const choices = reviewWorklistRunChoices(status.row);
+  if (!isReviewWorklistRunChoice(choices, runId)) {
+    showToast("This run is not offered for this period.", "info");
+    return;
+  }
+  const chosen = String(runId);
+  const defaultRunId = choices.find((c) => c.isDefault)?.runId || null;
+  const active = reviewWorklistActiveRun();
+  const governedRowsRef = active ? active.governedRowsRef : ALL_ROWS;
+  if (chosen === defaultRunId) {
+    ++ROWS_LOAD_GENERATION;
+    REVIEW_WORKLIST_RUN_LOAD = null;
+    if (!active) {
+      renderReviewWorklistPanel();
+      return;
+    }
+    REVIEW_WORKLIST_RUN_SELECTION = null;
+    REVIEW_WORKLIST_GROUP = null;
+    ALL_ROWS = governedRowsRef;
+    CURRENT_PAGE = 1;
+    applyFilters();
+    return;
+  }
+  const shownRunId = active ? active.runId : defaultRunId;
+  const loadGeneration = ++ROWS_LOAD_GENERATION;
+  const loadBase = { periodStart, runId: chosen, shownRunId, generation: loadGeneration, governedRowsRef };
+  REVIEW_WORKLIST_RUN_LOAD = { ...loadBase, status: "loading", error: null };
+  renderReviewWorklistPanel();
+  let rows;
+  try {
+    rows = await fetchAllRows(
+      () =>
+        costingFrom(REVIEW_WORKLIST_BY_RUN_VIEW)
+          .select("*")
+          .eq("period_start", periodStart)
+          .eq("refresh_run_id", chosen)
+          .order("control_severity", { ascending: true })
+          .order("product_name", { ascending: true })
+          .order("sku_id", { ascending: true }),
+      1000,
+    );
+  } catch (error) {
+    if (!isRowsLoadCurrent(loadGeneration) || ACTIVE_PERIOD_START !== periodStart) return;
+    REVIEW_WORKLIST_RUN_LOAD = { ...loadBase, status: "error", error: String(error?.message || error) };
+    renderReviewWorklistPanel();
+    return;
+  }
+  if (!isRowsLoadCurrent(loadGeneration) || ACTIVE_PERIOD_START !== periodStart) return;
+  const checked = validateReviewWorklistRunRows(rows, { periodStart, runId: chosen });
+  if (!checked.ok) {
+    REVIEW_WORKLIST_RUN_LOAD = { ...loadBase, status: checked.reason, error: null };
+    renderReviewWorklistPanel();
+    return;
+  }
+  const sorted = sortReviewWorklistRows(checked.rows);
+  REVIEW_WORKLIST_RUN_LOAD = null;
+  REVIEW_WORKLIST_RUN_SELECTION = { periodStart, runId: chosen, rowsRef: sorted, governedRowsRef };
+  REVIEW_WORKLIST_GROUP = null;
+  ALL_ROWS = sorted;
+  CURRENT_PAGE = 1;
+  applyFilters();
+}
+
+/** Review worklist v1 (flag ON only): run-status loader for the run-context block. */
+function reviewWorklistRunStatus() {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return null;
+  if (!REVIEW_WORKLIST_RUN_STATUS) {
+    REVIEW_WORKLIST_RUN_STATUS = createReviewWorklistRunStatusLoader({
+      query: (periodStart) =>
+        supabase
+          .from(REVIEW_WORKLIST_RUN_STATUS_VIEW)
+          .select(REVIEW_WORKLIST_RUN_STATUS_SELECT)
+          .eq("period_start", periodStart)
+          .maybeSingle(),
+    });
+  }
+  return REVIEW_WORKLIST_RUN_STATUS.ensure(ACTIVE_PERIOD_START, reviewWorklistGovernedRows(), () => {
+    renderReviewWorklistPanel();
+  });
+}
+
+/** Review worklist v1 (flag ON only): read-only panel in #workbenchSummary. */
+function renderReviewWorklistPanel() {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return;
+  if (!workbenchSummary) return;
+  const runStatus = reviewWorklistRunStatus();
+  const choices =
+    runStatus?.status === "ready" && runStatus.periodStart === ACTIVE_PERIOD_START
+      ? reviewWorklistRunChoices(runStatus.row)
+      : [];
+  const activeRun = reviewWorklistActiveRun();
+  if (
+    activeRun &&
+    runStatus?.status === "ready" &&
+    runStatus.periodStart === ACTIVE_PERIOD_START &&
+    !isReviewWorklistRunChoice(choices, activeRun.runId)
+  ) {
+    // The server no longer advertises the chosen run: return to the displayed run.
+    REVIEW_WORKLIST_RUN_SELECTION = null;
+    REVIEW_WORKLIST_GROUP = null;
+    ALL_ROWS = activeRun.governedRowsRef;
+    ++ROWS_LOAD_GENERATION;
+    showToast("The selected run is no longer offered for this period; showing the default run.", "info");
+    CURRENT_PAGE = 1;
+    applyFilters(); // re-renders the table and this panel with the displayed run
+    return;
+  }
+  const runLoad = REVIEW_WORKLIST_RUN_LOAD;
+  if (
+    runLoad &&
+    (runLoad.periodStart !== ACTIVE_PERIOD_START ||
+      runLoad.governedRowsRef !== reviewWorklistGovernedRows() ||
+      (runLoad.status === "loading" && !isRowsLoadCurrent(runLoad.generation)))
+  ) {
+    // Superseded by a period change, reload or newer load: drop the stale load state.
+    REVIEW_WORKLIST_RUN_LOAD = null;
+  }
+  const groups = groupReviewWorklistRows(ALL_ROWS);
+  const selectedKey = reviewWorklistSelectedKey();
+  workbenchSummary.innerHTML = renderReviewWorklistHtml(groups, {
+    selectedKey,
+    runContext: reviewWorklistRunContext(ALL_ROWS),
+    runDiagnosis: describeReviewWorklistRunContext({
+      rows: ALL_ROWS,
+      periodStart: ACTIVE_PERIOD_START,
+      runStatus,
+      selectedRunId: activeRun ? activeRun.runId : null,
+      runPickerAvailable: choices.length > 1,
+    }),
+    rowCount: ALL_ROWS.length,
+    runPicker: choices.length
+      ? {
+          choices,
+          selectedRunId: REVIEW_WORKLIST_RUN_LOAD?.status === "loading"
+            ? REVIEW_WORKLIST_RUN_LOAD.runId
+            : activeRun ? activeRun.runId : null,
+          load: REVIEW_WORKLIST_RUN_LOAD,
+        }
+      : null,
+  });
+  workbenchSummary.classList.add("is-visible");
+  workbenchSummary.querySelectorAll("[data-rwl-run-select]").forEach((select) => {
+    select.addEventListener("change", () => {
+      void selectReviewWorklistRun(select.value);
+    });
+  });
+  workbenchSummary.querySelectorAll("[data-rwl-select]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      REVIEW_WORKLIST_GROUP = { key: btn.dataset.rwlSelect, rows: ALL_ROWS };
+      CURRENT_PAGE = 1;
+      applyFilters();
+    });
+  });
+  workbenchSummary.querySelectorAll("[data-rwl-clear]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      REVIEW_WORKLIST_GROUP = null;
+      CURRENT_PAGE = 1;
+      applyFilters();
+    });
+  });
+  workbenchSummary.querySelectorAll("[data-rwl-open]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const group = groups.find((g) => g.key === btn.dataset.rwlOpen);
+      const target = group ? resolveReviewWorklistTarget(group.rows[0]) : null;
+      if (!target?.navigable || typeof navigateToCostingRoute !== "function") {
+        showToast(REVIEW_WORKLIST_NO_NAV_TOAST, "info");
+        return;
+      }
+      navigateToCostingRoute(
+        target.moduleKey,
+        target.navigateParams || { lens: target.lensId },
+        { newTab: target.newTab === true },
+      );
+    });
+  });
+}
+
 function applyFilters() {
   if (
     isQcActionQueueLens(CURRENT_LENS) ||
@@ -5702,6 +5996,9 @@ function applySearch() {
     rows = pricingPolicyCtrl.filterCommercialSalesAssumptionRows?.(rows) || rows;
   }
   if (q) rows = rows.filter((row) => getSearchBlob(row).includes(q));
+  if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {
+    rows = filterReviewWorklistRows(rows, reviewWorklistSelectedKey());
+  }
   if (shouldUseCccProgressiveRender() || shouldRenderAllCccDashboardRows()) {
     resetCccProgressiveWindow();
   }
@@ -5833,6 +6130,10 @@ function renderTableHeaderForLens() {
   if (isDriverGovernanceLens(CURRENT_LENS)) {
     const headers = driverGovernanceCtrl.getTableHeaders();
     const alignments = driverGovernanceCtrl.getTableAlignments();
+    if (isCostingTableToolsV1Enabled()) {
+      renderCw05GenericTableHeader(headers, alignments);
+      return;
+    }
     tableHead.innerHTML = `<tr>${headers
       .map((h, i) => {
         const classes = [alignments[i] || "c-left"];
@@ -5846,6 +6147,9 @@ function renderTableHeaderForLens() {
     const buildHeaders = costBuildCtrl.getTableHeaders(CURRENT_LENS);
     const buildAlignments = costBuildCtrl.getTableAlignments(CURRENT_LENS);
     if (buildHeaders && buildAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        if (renderCw05GenericTableHeader(buildHeaders, buildAlignments, cw05TabTableId())) return;
+      }
       tableHead.innerHTML = `<tr>${buildHeaders
         .map((h, i) => {
           const classes = [buildAlignments[i] || "c-left"];
@@ -5861,6 +6165,9 @@ function renderTableHeaderForLens() {
     const materialHeaders = materialCostCtrl.getTableHeaders(CURRENT_LENS);
     const materialAlignments = materialCostCtrl.getTableAlignments(CURRENT_LENS);
     if (materialHeaders && materialAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        if (renderCw05GenericTableHeader(materialHeaders, materialAlignments, cw05TabTableId())) return;
+      }
       tableHead.innerHTML = `<tr>${materialHeaders
         .map((h, i) => {
           const classes = [materialAlignments[i] || "c-left"];
@@ -5876,6 +6183,10 @@ function renderTableHeaderForLens() {
     const schemeHeaders = schemeComparisonCtrl.getTableHeaders();
     const schemeAlignments = schemeComparisonCtrl.getTableAlignments();
     if (schemeHeaders && schemeAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        renderCw05GenericTableHeader(schemeHeaders, schemeAlignments);
+        return;
+      }
       tableHead.innerHTML = `<tr>${schemeHeaders
         .map((h, i) => {
           const classes = [schemeAlignments[i] || "c-left"];
@@ -5890,6 +6201,10 @@ function renderTableHeaderForLens() {
     const sheetHeaders = costSheetCtrl.getTableHeaders(CURRENT_LENS);
     const sheetAlignments = costSheetCtrl.getTableAlignments(CURRENT_LENS);
     if (sheetHeaders && sheetAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        renderCw05GenericTableHeader(sheetHeaders, sheetAlignments);
+        return;
+      }
       tableHead.innerHTML = `<tr>${sheetHeaders
         .map((h, i) => {
           const classes = [sheetAlignments[i] || "c-left"];
@@ -5905,6 +6220,9 @@ function renderTableHeaderForLens() {
     const policyHeaders = pricingPolicyCtrl.getTableHeaders(CURRENT_LENS);
     const policyAlignments = pricingPolicyCtrl.getTableAlignments(CURRENT_LENS);
     if (policyHeaders && policyAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        if (renderCw05GenericTableHeader(policyHeaders, policyAlignments, cw05TabTableId())) return;
+      }
       tableHead.innerHTML = `<tr>${policyHeaders
         .map((h, i) => {
           const classes = [policyAlignments[i] || "c-left"];
@@ -5919,6 +6237,10 @@ function renderTableHeaderForLens() {
     const ccHeaders = controlCenterCtrl.getTableHeaders(CURRENT_LENS);
     const ccAlignments = controlCenterCtrl.getTableAlignments(CURRENT_LENS);
     if (ccHeaders && ccAlignments) {
+      if (isCostingTableToolsV1Enabled()) {
+        renderCw05GenericTableHeader(ccHeaders, ccAlignments);
+        return;
+      }
       tableHead.innerHTML = `<tr>${ccHeaders
         .map((h, i) => {
           const classes = [ccAlignments[i] || "c-left"];
@@ -5998,6 +6320,10 @@ function renderTableHeaderForLens() {
         "c-right",
       ],
     }[CURRENT_LENS] || [];
+  if (isCostingTableToolsV1Enabled()) {
+    renderCw05GenericTableHeader(headers, alignments);
+    return;
+  }
   tableHead.innerHTML = `<tr>${headers
     .map((h, i) => {
       const classes = [alignments[i] || "c-left"];
@@ -6005,6 +6331,117 @@ function renderTableHeaderForLens() {
       return `<th class="${classes.join(" ")}">${text(h, "")}</th>`;
     })
     .join("")}</tr>`;
+}
+
+/**
+ * CW-05 (COSTING_TABLE_TOOLS_V1 ON only): header with sort buttons for the
+ * driver-governance, scheme-comparison, cost-sheet and control-centre lens
+ * branches and the generic header map. Columns without a sortable key render
+ * exactly as the legacy <th>.
+ * Optional `tableId` (cost build, material and pricing branches): a string from
+ * cw05TabTableId() uses that tab's column map and scopes the sort to the tab;
+ * null means the tab has no CW-05 table, nothing is rendered and false is
+ * returned so the caller keeps its legacy header. Returns true when rendered.
+ */
+function renderCw05GenericTableHeader(headers, alignments, tableId) {
+  if (tableId === null) return false;
+  const sortScope = tableId || CURRENT_LENS;
+  const baseColumns = tableId
+    ? tableColumnsForTable(tableId)
+    : tableColumnsFor(CURRENT_LENS);
+  const columns = withAccessors(baseColumns || [], {
+    row_status: getRowStatus,
+  });
+  const sortState = activeSortState(CW05_SORT_CTX, sortScope, VIEW);
+  tableHead.innerHTML = `<tr>${headers
+    .map((h, i) => {
+      const classes = [alignments[i] || "c-left"];
+      if (i === 0 && h === "") classes.push("lane-col");
+      const col = columns[i];
+      const key = col && col.label === h && isSortableColumn(col) ? col.key : null;
+      if (!key) {
+        return `<th class="${classes.join(" ")}">${text(h, "")}</th>`;
+      }
+      const help = columnHelpFor(CURRENT_LENS, key);
+      const titleAttr = help ? ` title="${text(help, "")}"` : "";
+      return `<th class="${classes.join(" ")}" aria-sort="${ariaSortFor(sortState, key)}"${titleAttr}><button type="button" data-cw05-sort="${i}">${text(h, "")}${sortIndicatorFor(sortState, key)}</button></th>`;
+    })
+    .join("")}</tr>`;
+  tableHead.querySelectorAll("button[data-cw05-sort]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const col = columns[Number(btn.dataset.cw05Sort)];
+      if (!isSortableColumn(col)) return;
+      const result = applySortClick(CW05_SORT_CTX, sortScope, VIEW, col);
+      CW05_SORT_CTX = result.ctx;
+      VIEW = result.view;
+      CURRENT_PAGE = 1;
+      renderTable();
+    });
+  });
+  return true;
+}
+
+/**
+ * CW-05 (COSTING_TABLE_TOOLS_V1 ON only): "<lens>:<tab>" id of the read-only
+ * tab tables that get table tools, from the controllers' own tab/view getters.
+ * Returns null for every other tab (workflow, write and trace tables).
+ */
+function cw05TabTableId() {
+  if (CURRENT_LENS === "mrp-governance") {
+    if (pricingPolicyCtrl.isMrpAppliedHistoryTabActive()) {
+      return pricingPolicyCtrl.getMrpAppliedHistoryView() !== "workspace"
+        ? "mrp-governance:applied-history-register"
+        : null;
+    }
+    if (
+      pricingPolicyCtrl.isMrpAppliedHistoryTabActive() ||
+      pricingPolicyCtrl.isMrpApplicationTabActive() ||
+      pricingPolicyCtrl.isMrpDecisionsTabActive() ||
+      pricingPolicyCtrl.isMrpProposalsTabActive()
+    ) {
+      return null;
+    }
+    if (pricingPolicyCtrl.isProductDerivationPoliciesTabActive()) {
+      const view = pricingPolicyCtrl.getProductDerivationPolicyView();
+      if (view === "current") return "mrp-governance:derivation-current";
+      if (view === "history") return "mrp-governance:derivation-history";
+      return null;
+    }
+    if (pricingPolicyCtrl.isSkuMrpPoliciesTabActive()) {
+      const view = pricingPolicyCtrl.getSkuMrpPolicyView();
+      if (view === "current") return "mrp-governance:sku-mrp-current";
+      if (view === "history") return "mrp-governance:sku-mrp-history";
+    }
+    return null;
+  }
+  if (CURRENT_LENS === "policy-manager") {
+    const tab = pricingPolicyCtrl.getPolicyManagerTab();
+    if (tab === "sku-overview") return "policy-manager:sku-overview";
+    if (tab === "scheme-rule-register") return "policy-manager:scheme-rule-register";
+    if (tab === "scheme-master") return "policy-manager:scheme-master";
+    return null;
+  }
+  if (CURRENT_LENS === "cost-governance") {
+    const tab = costBuildCtrl.getCostGovernanceTab();
+    if (tab === "mapping-register" || tab === "excluded" || tab === "cost-pool-summary") {
+      return `cost-governance:${tab}`;
+    }
+    return null;
+  }
+  if (CURRENT_LENS === "staff-governance") {
+    return costBuildCtrl.getStaffGovernanceTab() === "staff-pool-summary"
+      ? "staff-governance:staff-pool-summary"
+      : null;
+  }
+  if (CURRENT_LENS === "manual-rate-manager") {
+    const tab = materialCostCtrl.getManualRateManagerTab();
+    if (tab === "register" || tab === "history") return `manual-rate-manager:${tab}`;
+    return null;
+  }
+  if (CURRENT_LENS === "manual-provisions") {
+    return costBuildCtrl.getManualProvisionTab() === "impact" ? "manual-provisions:impact" : null;
+  }
+  return null;
 }
 
 function productSkuLabel(row) {
@@ -6374,6 +6811,9 @@ function renderTable() {
     });
   } else {
     controlCenterCtrl.renderWorkbenchSummary(ALL_ROWS, CURRENT_LENS);
+    if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {
+      renderReviewWorklistPanel();
+    }
   }
 
   materialCostCtrl.syncRmTraceChrome();
@@ -7476,6 +7916,10 @@ async function refreshOpenDrawerIfNeeded() {
 }
 
 async function requestCostingRefreshFromToolbar() {
+  if (isCostingRecalcWithDateV1Enabled()) {
+    recalculationCtrl.open();
+    return;
+  }
   await runStagedCostingRefreshAndReload({
     sourceTrigger: "UI_TOOLBAR",
     requestNote: "Toolbar request costing refresh",
@@ -7540,6 +7984,7 @@ function setRmTraceExportBusy(busy) {
 
 async function exportActiveViewCsv() {
   if (!isMaterialCostTraceLensActive()) {
+    if (isCostingTableToolsV1Enabled() && exportCw05CsvForView()) return;
     exportCsvForRows(VIEW);
     return;
   }
@@ -7586,6 +8031,17 @@ function onCostingSuiteRefreshClick(event) {
     return;
   }
   void refreshCostingChain();
+}
+
+/**
+ * CW-05 (COSTING_TABLE_TOOLS_V1 ON only): export the rows in VIEW (current
+ * filtered and sorted order) through the legacy exportCsvForRows, so headers,
+ * column order and filename are exactly the legacy ones. The only additions
+ * are VIEW order and formula neutralisation of text cells.
+ */
+function exportCw05CsvForView() {
+  exportCsvForRows(neutraliseCsvRows(VIEW));
+  return true;
 }
 
 function exportCsvForRows(rows) {
@@ -8928,6 +9384,7 @@ const controlCenterCtrl = createControlCenterController({
 });
 
 const portfolioReadinessCtrl = createPortfolioReadinessController({
+  getPeriodRunStatus: (period) => periodDateStatus.get(period),
   costingRpc,
   showToast,
   text,
@@ -8950,6 +9407,7 @@ const portfolioReadinessCtrl = createPortfolioReadinessController({
 });
 
 const costPeriodValuationCtrl = createCostPeriodValuationController({
+  getPeriodRunStatus: () => periodDateStatus.get(),
   costingRpc,
   showToast,
   canView: () => PERM_CAN_VIEW === true,
@@ -8960,16 +9418,73 @@ const costPeriodValuationCtrl = createCostPeriodValuationController({
     ACTIVE_ROUTE_CONFIG?.moduleKey === "costing-control-center",
 });
 
+const costingApprovalScreenCtrl = isCostingApprovalScreenV1Enabled()
+  ? createCostingApprovalScreenController({
+      supabase,
+      costingRpc,
+      showToast,
+      formatMoney,
+      getActivePeriodStart: () => ACTIVE_PERIOD_START,
+      isControlCenterRoute: () =>
+        ACTIVE_ROUTE_CONFIG?.moduleKey === "costing-control-center",
+    })
+  : null;
+
+const costingLockScreenCtrl = isCostingLockScreenV1Enabled()
+  ? createCostingLockScreenController({
+      supabase,
+      costingRpc,
+      showToast,
+      isControlCenterRoute: () =>
+        ACTIVE_ROUTE_CONFIG?.moduleKey === "costing-control-center",
+    })
+  : null;
+
+const costingRunStatusScreenCtrl = isCostingRunStatusV1Enabled()
+  ? createCostingRunStatusScreenController({
+      supabase,
+      costingRpc,
+      showToast,
+      formatDate,
+      formatDateTime,
+      stageLabels: COSTING_REFRESH_STAGE_LABELS,
+      getActivePeriodStart: () => ACTIVE_PERIOD_START,
+      isControlCenterRoute: () =>
+        ACTIVE_ROUTE_CONFIG?.moduleKey === "costing-control-center",
+    })
+  : null;
+
 async function reloadCostPeriodValuationIfNeeded() {
   if (ACTIVE_ROUTE_CONFIG?.moduleKey !== "costing-control-center") {
     costPeriodValuationCtrl.onRouteExit?.();
+    costingApprovalScreenCtrl?.onRouteExit?.();
+    costingLockScreenCtrl?.onRouteExit?.();
+    costingRunStatusScreenCtrl?.onRouteExit?.();
     return;
   }
   if (PERM_CAN_VIEW !== true) {
     costPeriodValuationCtrl.onRouteExit?.();
+    costingApprovalScreenCtrl?.onRouteExit?.();
+    costingLockScreenCtrl?.onRouteExit?.();
+    costingRunStatusScreenCtrl?.onRouteExit?.();
     return;
   }
   await costPeriodValuationCtrl.loadForActivePeriod();
+  if (isCostingApprovalScreenV1Enabled()) {
+    costingApprovalScreenCtrl?.mount?.();
+  } else {
+    costingApprovalScreenCtrl?.onRouteExit?.();
+  }
+  if (isCostingLockScreenV1Enabled()) {
+    costingLockScreenCtrl?.mount?.();
+  } else {
+    costingLockScreenCtrl?.onRouteExit?.();
+  }
+  if (isCostingRunStatusV1Enabled()) {
+    costingRunStatusScreenCtrl?.mount?.();
+  } else {
+    costingRunStatusScreenCtrl?.onRouteExit?.();
+  }
   // CPV paint may re-show the strip; reassert Readiness hide when still active.
   if (isPortfolioReadinessLens(CURRENT_LENS)) {
     syncReadinessShellChrome();

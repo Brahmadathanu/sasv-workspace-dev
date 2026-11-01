@@ -8,7 +8,7 @@ export const WORKLIST_TAB_KEY = "sasv.eaushadhi.worklistQueue";
 export const WORKLIST_FALLBACK_TEXT = "The worklist could not be loaded. Try Refresh.";
 export const ROLE_FALLBACK = { user_id: null, is_verifier: false, is_approver: false, can_edit: false };
 export const PORTAL_CONFIRMED_PRODUCT_ID = 262;
-export const CACHE_NAME_UX1 = "hub-cache-v376";
+export const CACHE_NAME_UX1 = "hub-cache-v389";
 
 export const WORKLIST_QUEUES = [
   { id: "TO_VERIFY", label: "To verify" },

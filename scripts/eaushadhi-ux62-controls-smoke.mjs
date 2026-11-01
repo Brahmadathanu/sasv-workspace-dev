@@ -16,7 +16,7 @@ let passed = 0, failed = 0;
 const check = (ok, label) => { if (ok) { passed++; console.log(`OK ${label}`); } else { failed++; console.error(`FAIL ${label}`); } };
 check(addition.includes('background: var(--sasv-surface-soft)') && addition.includes('cursor: not-allowed') && addition.includes('user-select: text'), 'UX-6.2 control rule remains intact after later Composition CSS');
 check(read('public/shared/js/eaushadhi-review-control.js').includes('function renderCompositionLegacy()'), 'later JavaScript preserves the original disabled/read-only Composition renderer');
-check(read('public/sw.js').includes('hub-cache-v376'), 'cache remains v376');
+check(read('public/sw.js').includes('hub-cache-v389'), 'cache remains v389');
 const selector = addition.slice(addition.indexOf('*/') + 2, addition.indexOf('{')).trim();
 const selectors = selector.split(/,\r?\n/).map((s) => s.trim());
 check(selectors.length === 3 && selectors.every((s) => s.startsWith('body.sasv-eaushadhi-review ')) && (addition.match(/\{/g) || []).length === 1, 'one three-selector rule scoped to the review body');

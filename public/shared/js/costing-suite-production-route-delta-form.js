@@ -190,6 +190,23 @@ function operationOptionsHtml(selected) {
     .join("");
 }
 
+function familyStepMarkedNonSkippable(step = {}) {
+  if (
+    !step ||
+    !Object.prototype.hasOwnProperty.call(step, "allows_skip_with_approval")
+  ) {
+    return false;
+  }
+  const raw = step.allows_skip_with_approval;
+  return !(
+    raw === true ||
+    raw === "true" ||
+    raw === "t" ||
+    raw === 1 ||
+    raw === "1"
+  );
+}
+
 function baseStepOptionsHtml(steps, selectedId, { bypassOnly = false } = {}) {
   const list = bypassOnly
     ? selectPrmBypassEligibleFamilySteps(steps)
@@ -198,7 +215,12 @@ function baseStepOptionsHtml(steps, selectedId, { bypassOnly = false } = {}) {
   for (const step of list) {
     const id = resolvePrmFamilyStepId(step);
     if (id == null) continue;
-    opts.push(optionHtml(id, formatPrmDeltaBaseStepLabel(step), selectedId));
+    const label = formatPrmDeltaBaseStepLabel(step);
+    const marked =
+      bypassOnly && familyStepMarkedNonSkippable(step)
+        ? `${label} (non-skippable in family)`
+        : label;
+    opts.push(optionHtml(id, marked, selectedId));
   }
   return opts.join("");
 }
@@ -334,7 +356,7 @@ export function buildProductDeltaFormHtml({
         <div class="cp-detail-grid cp-detail-grid--2col">
           <div class="cp-prm-form-field cp-prm-form-field--full"><span class="cp-field-label">Base step</span>
             <select id="${prefix}BaseStep" class="cp-period-select" data-prm-delta-base-step>${baseStepOptionsHtml(familySteps, seed.base_step_id, { bypassOnly })}</select>
-            <span class="cp-muted-text" data-prm-delta-bypass-hint ${bypassOnly ? "" : "hidden"}>Only Family steps that allow skip-with-approval can be bypassed.</span>
+            <span class="cp-muted-text" data-prm-delta-bypass-hint ${bypassOnly ? "" : "hidden"}>Bypassing a step the family marks non-skippable needs a reason; approvers will see it.</span>
           </div>
         </div>
       </section>`,
@@ -710,7 +732,7 @@ export function validatePrmProductDeltaForm(
       (step) => resolvePrmFamilyStepId(step) === values.base_step_id,
     );
     if (!eligible) {
-      errors.push("This Family step does not permit approved bypass.");
+      errors.push("RM issue and FG transfer steps cannot be bypassed.");
     }
   }
   if (op === "REPLACE_STEP") {

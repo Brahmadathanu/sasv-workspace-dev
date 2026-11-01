@@ -100,30 +100,40 @@ const family10 = [
     family_route_step_id: 50,
     sequence_no: 10,
     activity_name: "RM dispensation",
+    step_key: "RM_ISSUE",
+    route_step_scope: "BOUNDARY_RM_ISSUE",
     allows_skip_with_approval: false,
   },
   {
     family_route_step_id: 51,
     sequence_no: 20,
     activity_name: "Pulverization",
+    step_key: "PULVERIZATION",
+    route_step_scope: "PRODUCTION_PROCESS",
     allows_skip_with_approval: true,
   },
   {
     family_route_step_id: 52,
     sequence_no: 30,
     activity_name: "Sieving",
+    step_key: "SIEVING",
+    route_step_scope: "PRODUCTION_PROCESS",
     allows_skip_with_approval: true,
   },
   {
     family_route_step_id: 53,
     sequence_no: 40,
     activity_name: "Finished Goods Quality Assessment",
+    step_key: "QC_ASSESSMENT",
+    route_step_scope: "PRODUCTION_PROCESS",
     allows_skip_with_approval: false,
   },
   {
     family_route_step_id: 54,
     sequence_no: 50,
     activity_name: "Transfer to FG store",
+    step_key: "FG_TRANSFER",
+    route_step_scope: "BOUNDARY_FG_TRANSFER",
     allows_skip_with_approval: false,
   },
 ];
@@ -208,12 +218,40 @@ const locatedFormHtml = buildProductDeltaFormHtml({
   familySteps: family10,
 });
 const bypassEligible = selectPrmBypassEligibleFamilySteps(family10);
-const flipped = selectPrmBypassEligibleFamilySteps(
+const flagFlipped = selectPrmBypassEligibleFamilySteps(
   family10.map((step) => ({
     ...step,
     allows_skip_with_approval: step.family_route_step_id === 50,
   })),
 );
+const keyFallback = selectPrmBypassEligibleFamilySteps([
+  {
+    family_route_step_id: 50,
+    step_key: "RM_ISSUE",
+    allows_skip_with_approval: true,
+  },
+  {
+    family_route_step_id: 51,
+    step_key: "PULVERIZATION",
+    allows_skip_with_approval: false,
+  },
+  {
+    family_route_step_id: 54,
+    step_key: "FG_TRANSFER",
+    allows_skip_with_approval: true,
+  },
+  {
+    family_route_step_id: 60,
+    step_scope: "BOUNDARY_RM_ISSUE",
+    allows_skip_with_approval: true,
+  },
+  {
+    family_route_step_id: 61,
+    scope: "BOUNDARY_FG_TRANSFER",
+    step_key: "SIEVING",
+    allows_skip_with_approval: true,
+  },
+]);
 const canonicalRow = normalizePrmProductRouteOverride({
   id: 12,
   operation_type: "ADD_STEP",
@@ -274,6 +312,22 @@ const bypassValid = validatePrmProductDeltaForm(
     operation_type: "BYPASS_STEP",
     base_step_id: 51,
     override_reason: "Skip pulverization for this Product",
+  },
+  { familySteps: family10 },
+);
+const bypassFlagOff = validatePrmProductDeltaForm(
+  {
+    operation_type: "BYPASS_STEP",
+    base_step_id: 53,
+    override_reason: "Bypass quality assessment for this Product",
+  },
+  { familySteps: family10 },
+);
+const bypassNoReason = validatePrmProductDeltaForm(
+  {
+    operation_type: "BYPASS_STEP",
+    base_step_id: 53,
+    override_reason: "",
   },
   { familySteps: family10 },
 );
@@ -394,20 +448,33 @@ const bypassBaseSelect =
 assert(
   bypassBaseSelect.includes('value="51"') &&
     bypassBaseSelect.includes('value="52"') &&
+    bypassBaseSelect.includes('value="53"') &&
+    bypassBaseSelect.includes("(non-skippable in family)") &&
     !bypassBaseSelect.includes('value="50"') &&
+    !bypassBaseSelect.includes('value="54"') &&
     !bypassBaseSelect.includes('value="20"') &&
     formatPrmDeltaBaseStepLabel(family10[1]) === "Seq 20 — Pulverization" &&
     resolvePrmFamilyStepId(family10[1]) === 51,
   "14 base step stores real step id",
 );
 assert(
-  bypassEligible.map((s) => s.family_route_step_id).join(",") === "51,52" &&
-    flipped.map((s) => s.family_route_step_id).join(",") === "50" &&
+  bypassEligible.map((s) => s.family_route_step_id).join(",") === "51,52,53" &&
+    flagFlipped.map((s) => s.family_route_step_id).join(",") === "51,52,53" &&
+    keyFallback.map((s) => s.family_route_step_id).join(",") === "51" &&
     !formSrc.includes("51, 52") &&
     !formSrc.includes("family_route_step_id === 51") &&
+    bypassFormHtml.includes(
+      "Bypassing a step the family marks non-skippable needs a reason; approvers will see it.",
+    ) &&
     bypassInvalid.ok === false &&
-    bypassValid.ok === true,
-  "15 bypass options honor skip-with-approval",
+    bypassInvalid.errors.some((msg) =>
+      msg.includes("RM issue and FG transfer steps cannot be bypassed."),
+    ) &&
+    bypassValid.ok === true &&
+    bypassFlagOff.ok === true &&
+    bypassNoReason.ok === false &&
+    bypassNoReason.errors.some((msg) => /rationale/i.test(msg)),
+  "15 bypass options follow the server boundary rule",
 );
 assert(
   addFormHtml.includes("<select id=\"prmProductDeltaActivity\"") &&

@@ -78,6 +78,15 @@ import {
   normalizeLabUserError,
   readinessFailureCopy,
 } from "./lab-user-error.js";
+import {
+  contextDecision,
+  meaningfulRepeatReason,
+  pickRegisterNumber,
+  priorAnalysisRegisterNumber,
+  REPEAT_REQUEST_STATUS,
+  repeatStatusLabel,
+  unwrapRpcJson,
+} from "./lab-repeat-analysis-governance.js";
 
 // ── DOM helpers ───────────────────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
@@ -125,6 +134,15 @@ const physRegRef = $("physRegRef");
 const analysedBy = $("analysedBy");
 const personInCharge = $("personInCharge");
 const remarks = $("remarks");
+const repeatGovernance = $("repeatGovernance");
+const repeatGovernanceBody = $("repeatGovernanceBody");
+const repeatReasonWrap = $("repeatReasonWrap");
+const repeatReason = $("repeatReason");
+const repeatReasonMsg = $("repeatReasonMsg");
+const requestRepeatBtn = $("requestRepeatBtn");
+const repeatApprovalQueue = $("repeatApprovalQueue");
+const repeatApprovalRows = $("repeatApprovalRows");
+const refreshRepeatQueueBtn = $("refreshRepeatQueueBtn");
 
 // Field messages
 const productMsg = $("productMsg");
@@ -182,8 +200,12 @@ let rmItems = []; // RM items from v_rm_pm_item_with_group (category_code = 'RM'
 let pmItems = []; // PM items from v_rm_pm_item_with_group (category_code = 'PM')
 let mappingCheckDebounceTimer = null;
 let pendingSwitchType = null; // type pill click queued pending confirmation
+let repeatContextVerified = false;
+let repeatDecision = null;
+let repeatContextRequestId = 0;
 
 const RECEIVE_SAMPLE_ACTION = "RECEIVE_SAMPLE";
+const APPROVE_REPEAT_ACTION = "APPROVE_REPEAT_ANALYSIS";
 const RECEIVE_DENIED_MSG =
   "You do not have permission to receive/register samples.";
 const PERMISSION_VERIFY_FAILED_MSG =
@@ -274,7 +296,7 @@ async function loadReceiveSamplePermission() {
       "fn_get_user_workflow_action_permissions",
       {
         p_user_id: currentUserId,
-        p_action_codes: [RECEIVE_SAMPLE_ACTION],
+        p_action_codes: [RECEIVE_SAMPLE_ACTION, APPROVE_REPEAT_ACTION],
       },
     );
 
@@ -286,6 +308,10 @@ async function loadReceiveSamplePermission() {
     });
 
     receivePermissionVerified = true;
+    if (mayWorkflowAction(APPROVE_REPEAT_ACTION)) {
+      repeatApprovalQueue.classList.remove("hidden");
+      await loadRepeatApprovalQueue();
+    }
     if (!mayWorkflowAction(RECEIVE_SAMPLE_ACTION)) {
       startAnalysisBtn.disabled = true;
       startAnalysisBtn.title = RECEIVE_DENIED_MSG;
@@ -558,12 +584,13 @@ function wireEvents() {
     syncSearchInputFromSelect(productSelect);
     clearFieldError(batchSearchInput, batchSelectMsg);
     clearMappingState();
+    clearRepeatContext();
     await populateFgBatchDropdown(productSelect.value);
     updateSampleTypeSummary();
   });
 
   // Batch No dropdown → populate read-only fields + trigger mapping check
-  batchNoSelect.addEventListener("change", () => {
+  batchNoSelect.addEventListener("change", async () => {
     syncSearchInputFromSelect(batchNoSelect);
     const opt = batchNoSelect.options[batchNoSelect.selectedIndex];
     if (batchNoSelect.value && opt) {
@@ -571,10 +598,12 @@ function wireEvents() {
       batchUomDisplay.value = opt.dataset.uom ?? "";
       clearFieldError(batchSearchInput, batchSelectMsg);
       if (productSelect.value) scheduleProtocolCheck();
+      await loadRepeatContext(opt.dataset.bmrId);
     } else {
       batchSizeDisplay.value = "";
       batchUomDisplay.value = "";
       clearMappingState();
+      clearRepeatContext();
     }
     updateStartButton();
     updateSampleTypeSummary();
@@ -633,6 +662,13 @@ function wireEvents() {
 
   // Start analysis
   startAnalysisBtn.addEventListener("click", startAnalysis);
+  requestRepeatBtn.addEventListener("click", requestRepeatAnalysis);
+  refreshRepeatQueueBtn.addEventListener("click", loadRepeatApprovalQueue);
+  repeatApprovalRows.addEventListener("click", handleRepeatQueueAction);
+  repeatReason.addEventListener("input", () => {
+    repeatReasonMsg.textContent = "";
+    requestRepeatBtn.disabled = !meaningfulRepeatReason(repeatReason.value);
+  });
 
   // Test preview toggle
   testPreviewToggle.addEventListener("click", () => {
@@ -686,6 +722,7 @@ function clearFormData() {
   startError.classList.add("hidden");
   startError.textContent = "";
   clearMappingState();
+  clearRepeatContext();
   updateSampleTypeSummary();
 }
 
@@ -1514,6 +1551,154 @@ function clearMappingState() {
   updateStartButton();
 }
 
+function clearRepeatContext() {
+  repeatContextRequestId += 1;
+  repeatContextVerified = false;
+  repeatDecision = null;
+  repeatGovernance.classList.add("hidden");
+  repeatReasonWrap.classList.add("hidden");
+  repeatReason.value = "";
+  repeatReasonMsg.textContent = "";
+  requestRepeatBtn.disabled = true;
+  updateStartButton();
+}
+
+async function loadRepeatContext(bmrId) {
+  const requestId = ++repeatContextRequestId;
+  repeatContextVerified = false;
+  repeatDecision = null;
+  repeatGovernance.classList.remove("hidden");
+  repeatReasonWrap.classList.add("hidden");
+  repeatGovernanceBody.textContent = "Checking existing and prior analyses…";
+  updateStartButton();
+
+  if (!bmrId || !Number.isInteger(Number(bmrId))) {
+    repeatGovernanceBody.textContent = "The selected batch has no valid BMR identifier. Registration is blocked.";
+    return;
+  }
+
+  try {
+    const { data, error } = await labSupabase.rpc("fn_get_repeat_analysis_context", {
+      p_bmr_id: Number(bmrId),
+    });
+    if (error) throw error;
+    if (requestId !== repeatContextRequestId) return;
+    repeatDecision = contextDecision(data);
+    repeatContextVerified = true;
+    renderRepeatContext();
+  } catch (err) {
+    if (requestId !== repeatContextRequestId) return;
+    console.error("[lab-analysis-entry] repeat context failed:", err);
+    repeatGovernanceBody.textContent = `Repeat-analysis context could not be verified: ${normalizeLabUserError(err)}`;
+    toast("Repeat-analysis context could not be verified. Registration is blocked.", "error");
+  } finally {
+    updateStartButton();
+  }
+}
+
+function renderRepeatContext() {
+  const { kind, prior, active, request } = repeatDecision;
+  const priorStatus = prior?.status || prior?.analysis_status || "Completed";
+  if (kind === "FIRST_ANALYSIS") {
+    repeatGovernanceBody.innerHTML = "<strong>First analysis</strong> — no earlier completed analysis exists for this BMR.";
+    return;
+  }
+  if (kind === "ACTIVE_BLOCK") {
+    repeatGovernanceBody.innerHTML = `<strong>Existing Analysis</strong> — another analysis is active. Duplicate registration is blocked.<div class="repeat-meta"><span class="repeat-chip">${esc(pickRegisterNumber(active))}</span><span class="repeat-chip">${esc(active?.status || active?.analysis_status || "Active")}</span></div>`;
+    return;
+  }
+  const requestStatus = request ? repeatStatusLabel(request) : "Repeat Approval Required";
+  repeatGovernanceBody.innerHTML = `<strong>Repeat Approval Required</strong> — this batch already has an analysis. Another analysis requires administrative authorization.<div class="repeat-meta"><span class="repeat-chip">Existing Analysis: ${esc(pickRegisterNumber(prior))}</span><span class="repeat-chip">${esc(priorStatus)}</span><span class="repeat-chip">${esc(requestStatus)}</span></div>`;
+  if (kind === "APPROVED_REPEAT") {
+    repeatGovernanceBody.insertAdjacentHTML("beforeend", "<p><strong>Approved.</strong> Complete the receipt details below. This authorization is single-use and server-enforced.</p>");
+    return;
+  }
+  const mayRequest = !request || ["Rejected", "Authorization Expired", "Authorization Consumed"].includes(requestStatus);
+  repeatReasonWrap.classList.toggle("hidden", !mayRequest);
+}
+
+async function requestRepeatAnalysis() {
+  const reason = repeatReason.value.trim();
+  const bmrId = Number(batchNoSelect.options[batchNoSelect.selectedIndex]?.dataset.bmrId);
+  if (!meaningfulRepeatReason(reason)) {
+    repeatReasonMsg.textContent = "Enter a meaningful justification of at least 15 characters.";
+    return;
+  }
+  requestRepeatBtn.disabled = true;
+  try {
+    const { error } = await labSupabase.rpc("fn_request_repeat_analysis", { p_bmr_id: bmrId, p_reason: reason });
+    if (error) throw error;
+    toast("Repeat-analysis request submitted for administrative review.", "success");
+    await loadRepeatContext(bmrId);
+    if (mayWorkflowAction(APPROVE_REPEAT_ACTION)) await loadRepeatApprovalQueue();
+  } catch (err) {
+    const msg = normalizeLabUserError(err);
+    repeatReasonMsg.textContent = msg;
+    toast(msg, "error");
+    requestRepeatBtn.disabled = true;
+  }
+}
+
+function repeatQueueRecords(data) {
+  const value = unwrapRpcJson(data);
+  if (Array.isArray(value)) return value;
+  return Array.isArray(value?.requests) ? value.requests : value ? [value] : [];
+}
+
+async function loadRepeatApprovalQueue() {
+  if (!mayWorkflowAction(APPROVE_REPEAT_ACTION)) return;
+  refreshRepeatQueueBtn.disabled = true;
+  repeatApprovalRows.innerHTML = '<div class="repeat-body">Loading pending requests…</div>';
+  try {
+    const { data, error } = await labSupabase.rpc("fn_list_repeat_analysis_requests", { p_status: REPEAT_REQUEST_STATUS });
+    if (error) throw error;
+    const rows = repeatQueueRecords(data);
+    repeatApprovalRows.innerHTML = rows.length ? rows.map(renderRepeatRequest).join("") : '<div class="repeat-body">No pending repeat-analysis requests.</div>';
+  } catch (err) {
+    repeatApprovalRows.innerHTML = `<div class="start-error">${esc(normalizeLabUserError(err))}</div>`;
+  } finally {
+    refreshRepeatQueueBtn.disabled = false;
+  }
+}
+
+function renderRepeatRequest(row) {
+  const id = row.request_id ?? row.id;
+  const bmr = row.bmr_no || row.bmr_id || "—";
+  const batch = row.batch_no || row.batch_no_snapshot || "—";
+  const product = row.product_name || row.item_name || "—";
+  const previous = priorAnalysisRegisterNumber(row);
+  const reason = row.reason || row.justification || "—";
+  return `<article class="repeat-request" data-request-id="${esc(String(id))}"><div class="repeat-request-grid"><div><strong>BMR / Batch</strong><br>${esc(String(bmr))} / ${esc(String(batch))}</div><div><strong>Product</strong><br>${esc(product)}</div><div><strong>Previous analysis</strong><br>${esc(previous)}</div></div><div class="repeat-body"><strong>Justification:</strong> ${esc(reason)}</div><div class="repeat-decision-actions"><textarea class="form-control repeat-decision-remarks" rows="2" placeholder="Mandatory decision remarks" aria-label="Decision remarks"></textarea><button class="repeat-action" data-repeat-decision="approve" type="button">Approve</button><button class="repeat-action repeat-reject" data-repeat-decision="reject" type="button">Reject</button></div><div class="field-msg repeat-decision-message" role="alert"></div></article>`;
+}
+
+async function handleRepeatQueueAction(event) {
+  const button = event.target.closest("[data-repeat-decision]");
+  if (!button || !mayWorkflowAction(APPROVE_REPEAT_ACTION)) return;
+  const card = button.closest("[data-request-id]");
+  const remarksEl = card?.querySelector(".repeat-decision-remarks");
+  const messageEl = card?.querySelector(".repeat-decision-message");
+  const remarksText = remarksEl?.value.trim() || "";
+  if (!meaningfulRepeatReason(remarksText)) {
+    messageEl.textContent = "Decision remarks of at least 15 characters are required.";
+    return;
+  }
+  card.querySelectorAll("button").forEach((el) => { el.disabled = true; });
+  try {
+    const { data, error } = await labSupabase.rpc("fn_decide_repeat_analysis", {
+      p_request_id: Number(card.dataset.requestId),
+      p_approve: button.dataset.repeatDecision === "approve",
+      p_remarks: remarksText,
+    });
+    if (error) throw error;
+    toast(`Repeat-analysis request ${String(unwrapRpcJson(data) || "decided").toLowerCase()}.`, "success");
+    await loadRepeatApprovalQueue();
+  } catch (err) {
+    const msg = normalizeLabUserError(err);
+    messageEl.textContent = msg;
+    toast(msg, "error");
+  }
+}
+
 // ── FG batch dropdown population ──────────────────────────────────────────────
 async function populateFgBatchDropdown(productId) {
   const requestId = ++fgBatchLoadRequestId;
@@ -1588,6 +1773,7 @@ async function populateFgBatchDropdown(productId) {
       opt.textContent = r.batch_no ?? "—";
       opt.dataset.batchSize = r.batch_size ?? "";
       opt.dataset.uom = r.uom ?? "";
+      opt.dataset.bmrId = r.bmr_id ?? "";
       batchNoSelect.appendChild(opt);
     });
     batchNoSelect.disabled = false;
@@ -1772,11 +1958,13 @@ function updateStartButton() {
 
   const permissionAllows =
     receivePermissionVerified && mayWorkflowAction(RECEIVE_SAMPLE_ACTION);
+  const repeatAllows = !isFG || (repeatContextVerified && ["FIRST_ANALYSIS", "APPROVED_REPEAT"].includes(repeatDecision?.kind));
 
   const canStart = !!(
     currentSampleType &&
     mappingReady &&
     permissionAllows &&
+    repeatAllows &&
     (isFG
       ? productSelect.value && batchNoSelect.value
       : stockItemSelect.value) &&
@@ -1867,6 +2055,14 @@ async function startAnalysis() {
     return;
   }
 
+  if (currentSampleType === "FG_BATCH" && (!repeatContextVerified || !repeatDecision)) {
+    const msg = "Repeat-analysis authorization could not be verified. Registration is blocked for safety.";
+    startError.textContent = msg;
+    startError.classList.remove("hidden");
+    toast(msg, "error");
+    return;
+  }
+
   const { valid, errors } = validateForm();
   if (!valid) {
     const msg = errors[0] ?? "Please fill in all required fields.";
@@ -1901,17 +2097,26 @@ async function startAnalysis() {
   startAnalysisBtn.disabled = true;
 
   try {
-    const params = buildRpcParams();
-
-    const { data, error } = await labSupabase.rpc(
-      "fn_receive_sample_and_create_analysis",
-      params,
-    );
+    const approvedRepeat = currentSampleType === "FG_BATCH" && repeatDecision.kind === "APPROVED_REPEAT";
+    const requestId = repeatDecision?.request?.request_id ?? repeatDecision?.request?.id;
+    const rpcName = approvedRepeat ? "fn_receive_repeat_sample" : "fn_receive_sample_and_create_analysis";
+    const params = approvedRepeat
+      ? {
+          p_request_id: requestId,
+          p_sample_received_date: selectedSampleDate(),
+          p_physical_register_ref: physRegRef.value.trim(),
+          p_analysed_by_staff_id: analysedBy.value,
+          p_person_in_charge_staff_id: personInCharge.value,
+          p_remarks: remarks.value.trim() || null,
+        }
+      : buildRpcParams();
+    if (approvedRepeat && !requestId) throw new Error("Approved repeat request ID is unavailable. Registration is blocked.");
+    const { data, error } = await labSupabase.rpc(rpcName, params);
 
     if (error) throw error;
 
-    const result = Array.isArray(data) ? data[0] : data;
-    if (!result?.analysis_id) {
+    const result = unwrapRpcJson(data);
+    if (!result?.analysis_id && !result?.analysis_register_no) {
       throw new Error(
         "Server did not return an analysis_id. Please contact support.",
       );
@@ -1927,7 +2132,12 @@ async function startAnalysis() {
     startError.classList.remove("hidden");
     toast(msg, "error");
     startAnalysisBtn.classList.remove("loading");
-    startAnalysisBtn.disabled = false;
+    if (currentSampleType === "FG_BATCH") {
+      const bmrId = batchNoSelect.options[batchNoSelect.selectedIndex]?.dataset.bmrId;
+      await loadRepeatContext(bmrId);
+    } else {
+      updateStartButton();
+    }
   }
 }
 
@@ -2051,6 +2261,7 @@ function resetForm() {
   // Reset state
   currentSampleType = null;
   createdAnalysis = null;
+  clearRepeatContext();
 
   // Reset type pills
   typePills.querySelectorAll(".type-pill").forEach((p) => {

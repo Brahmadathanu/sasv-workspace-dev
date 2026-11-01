@@ -33,7 +33,7 @@ Status counts: APPROVED 1 (₹161,969.07/mo), EXCLUDED 6 (₹0.00/mo), PROVISION
 | Direct E | Job Work Expense | PRODUCTION_OVERHEAD | PROVISIONAL | 25,562.25 | 25,562.25 | 306,747 | 33,535 | FY25-26/12; attribution to processes pending |
 | Direct E | Lab Expenses (DE) | QUALITY_CONTROL_OVERHEAD | PROVISIONAL | 51,291.67 | 51,291.67 | 615,500 | 388,382 | FY25-26/12 |
 | Direct E | Mess Expenses (DE) | PRODUCTION_OVERHEAD | PROVISIONAL | 177,224.92 | 177,224.92 | 2,126,699 | 742,781 | 100% mfg pending headcount-share evidence |
-| Direct E | Packing & Forwarding Charges (DE) | MATERIALS_STORES_OVERHEAD | UNRESOLVED | 5,618.53 | 9,979.33 | 67,422 | 46,451 | Inbound/production share only; outbound share to MARKETING pending split evidence |
+| Direct E | Packing & Forwarding Charges (DE) | MATERIALS_STORES_OVERHEAD | APPROVED | 5,618.53 | 9,979.33 | 67,422 | 46,451 | APPROVED live (ledger id 44, user decision 16 Oct 2026, effective 1 Apr 2026): factory share only; outbound balance not in product cost. Verified read-only 25 Oct 2026 |
 | Direct E | Printing & Stationery (DE) | PRODUCTION_OVERHEAD | PROVISIONAL | 8,346.24 | 8,346.24 | 100,155 | 15,468 | AU-3 standard monthly provision (higher-of-years) |
 | Direct E | Rates & Taxes (DE) | FINANCE_ADMIN_OVERHEAD | PROVISIONAL | 18,959.67 | 18,959.67 | 116,700 | 79,835 | AU-3 standard monthly provision (higher-of-years) |
 | Direct E | Repairs & Maintenances (DE) | PRODUCTION_OVERHEAD | PROVISIONAL | 41,978.20 | 69,457.91 | 503,738 | 454,479 | Recurring normal; FY26-27 spike 2.78L excluded as non-recurring |

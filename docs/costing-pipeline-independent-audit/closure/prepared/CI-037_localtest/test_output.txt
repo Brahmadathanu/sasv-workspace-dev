@@ -1,0 +1,119 @@
+== T0 baseline fingerprints (run1 legacy capture w/o cols, run2 with cols)
+   99a86406dc372d4a73724165424e6105|t
+== T1 v1-design check: ADD COLUMN on pricing bridge inside rolled-back txn -> legacy capture drifts?
+   1|f
+   2|t
+== T2 apply fix
+   psql:/workspace/sasv/docs/costing-pipeline-independent-audit/closure/prepared/CI-037_profit_fix.sql:260: NOTICE:  CI037_HOOK: inserted
+== T3 fingerprints after fix (must equal T0)
+   99a86406dc372d4a73724165424e6105|t
+== T4 view cols / owner / privs after fix
+   79
+   postgres||
+   anon|f
+   authenticated|f
+   service_role|f
+   postgres|t
+== T5 hook block re-run (idempotent)
+   psql:hook.sql:26: NOTICE:  CI037_HOOK: already present and correctly positioned; no change
+== T6 hook count
+   1
+== T7 duplicated hook -> must error
+   psql:hook.sql:26: ERROR:  CI037_HOOK: hook found 2 times, expected 0 or 1
+   CONTEXT:  PL/pgSQL function inline_code_block line 17 at RAISE
+== T8 misplaced hook -> must error
+   psql:hook.sql:26: ERROR:  CI037_HOOK: hook present but not immediately after the selected-scheme step
+   CONTEXT:  PL/pgSQL function inline_code_block line 19 at RAISE
+== T9 helper on APPROVED run 1 -> must refuse
+   ERROR:  CI037: run 1 is APPROVED; designated history is immutable
+   CONTEXT:  PL/pgSQL function fn_ci037_fill_pricing_bridge_profit(bigint) line 12 at RAISE
+== T10 direct insert into profit table for designated run -> guard must block
+   ERROR:  AU2_DESIGNATED_RUN_IMMUTABLE: run 1 is APPROVED; INSERT on costing.sku_pricing_bridge_profit_snapshot prohibited
+   CONTEXT:  PL/pgSQL function fn_guard_designated_run_rows() line 14 at RAISE
+== T11 helper on undesignated run 3
+   6
+   45|IK|1+0|19.14|18.53|6.68|CALCULATED
+   45|OK|1+0|19.14|18.53|6.68|CALCULATED
+   51|IK|1+0|255.24|246.24|114.29|CALCULATED
+   51|OK|5+1|212.70|203.70|71.75|CALCULATED
+   975|IK|1+0|28590.48|27537.75|-8111.95|CALCULATED
+   975|OK|1+0|28590.48|27537.75|-8111.95|CALCULATED
+== T12 rerun helper (idempotent, same count)
+   6|6
+== T13 invalid inputs -> explicit codes, never CALCULATED (rolled back)
+   6
+   45|IK|CONTINGENCY_NOT_ON_SELLING_PRICE|t
+   45|OK|INVALID_SCHEME_QUANTITY|t
+   51|IK|INVALID_MRP|t
+   51|OK|UPSTREAM_BLOCKED|t
+   975|IK|MISSING_GST|t
+   975|OK|MISSING_GST|t
+== T13b contingency rate / policy source / scheme status codes (rolled back)
+   6
+   45|IK|CONTINGENCY_POLICY_SOURCE_MISMATCH|t|2
+   45|OK|CONTINGENCY_POLICY_SOURCE_MISMATCH|t|2
+   51|IK|SCHEME_BLOCKED|t|2
+   51|OK|UNKNOWN_SCHEME_STATUS|t|2
+   975|IK|CONTINGENCY_RATE_NOT_POLICY|t|2
+   975|OK|CONTINGENCY_RATE_NOT_POLICY|t|2
+== T13c no APPROVED contingency policy -> helper must raise (rolled back)
+   ERROR:  CI037: expected exactly one APPROVED contingency-rate policy for valuation date 2026-10-22, found 0
+   CONTEXT:  PL/pgSQL function fn_ci037_fill_pricing_bridge_profit(bigint) line 21 at RAISE
+== T14 missing OK scheme row -> must raise, nothing written (rolled back)
+   ERROR:  CI037: selected-scheme rows incomplete or duplicated for run 3: 1 SKUs without exactly one IK and one OK row; 5 rows for 3 SKUs
+   CONTEXT:  PL/pgSQL function fn_ci037_fill_pricing_bridge_profit(bigint) line 48 at RAISE
+== T15 duplicate pricing-bridge SKU -> must raise (rolled back)
+   ERROR:  CI037: 4 pricing-bridge rows but 3 distinct SKUs for run 3 (duplicates)
+   CONTEXT:  PL/pgSQL function fn_ci037_fill_pricing_bridge_profit(bigint) line 28 at RAISE
+== T16 verify script runs (errors only expected where live-only tables absent)
+   |
+   119|635||
+   122|634||
+   128|627||
+   136|627||
+   140|627||
+   143|627||
+   48
+   costing.sku_pricing_bridge_snapshot|trg_au2_designated_run_guard|O|t
+   costing.sku_pricing_bridge_snapshot|trg_au2_snapshot_truncate_guard|O|f
+   costing.sku_pricing_bridge_profit_snapshot|trg_au2_designated_run_guard|O|t
+   costing.sku_pricing_bridge_profit_snapshot|trg_au2_snapshot_truncate_guard|O|f
+   0
+   1|3
+   79
+   postgres||
+   anon|f
+   authenticated|f
+   service_role|f
+   postgres|t
+   1|t
+   ik_margin_amount_before_scheme|Legacy MRP-based cost difference — not profit
+   ik_margin_percent_before_scheme|Legacy MRP-based cost difference — not profit (% of GST-inclusive MRP)
+   ok_margin_amount_before_scheme|Legacy MRP-based cost difference — not profit
+   ok_margin_percent_before_scheme|Legacy MRP-based cost difference — not profit (% of GST-inclusive MRP)
+== T17 rollback A with data present -> must refuse
+   psql:/workspace/sasv/docs/costing-pipeline-independent-audit/closure/prepared/CI-037_rollback_A_structural.sql:14: ERROR:  CI037_ROLLBACK_A_REFUSED: CI-037 data exists for runs 3; use CI-037_rollback_B_post_use.sql
+   CONTEXT:  PL/pgSQL function inline_code_block line 5 at RAISE
+== T18 rollback B (unhook, keep data)
+   psql:/workspace/sasv/docs/costing-pipeline-independent-audit/closure/prepared/CI-037_rollback_B_post_use.sql:21: NOTICE:  CI037_UNHOOK: removed
+== T19 after B: hooks / rows kept / view cols
+   0
+   6
+   79
+== T20 rollback B again (idempotent)
+   psql:/workspace/sasv/docs/costing-pipeline-independent-audit/closure/prepared/CI-037_rollback_B_post_use.sql:21: NOTICE:  CI037_UNHOOK: not present; no change
+== T21 clear test data, then rollback A
+== T21b rollback A
+   psql:/workspace/sasv/docs/costing-pipeline-independent-audit/closure/prepared/CI-037_rollback_A_structural.sql:31: NOTICE:  CI037_UNHOOK: not present; no change
+== T22 after A: view cols / owner+acl+reloptions / privs / comment count / table gone / chain = pre / view = pre
+   64
+   postgres||
+   anon=false,authenticated=false,service_role=false,postgres=true
+   22
+   t
+   t
+   t
+== T23 fingerprints after full cycle (must equal T0)
+   99a86406dc372d4a73724165424e6105|t
+== T24 fix re-applies cleanly after rollback A
+   psql:/workspace/sasv/docs/costing-pipeline-independent-audit/closure/prepared/CI-037_profit_fix.sql:260: NOTICE:  CI037_HOOK: inserted

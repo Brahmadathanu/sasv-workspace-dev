@@ -54,7 +54,7 @@ check(
   "Goal 1 verified sections revert edits in event handlers",
 );
 check(!control.includes("hub-cache-v377"), "Goal 1 does not bump cache past v376 in control");
-check(/hub-cache-v376/.test(sw) && !/hub-cache-v377/.test(sw), "cache stays at v376 for merge plan");
+check(/hub-cache-v389/.test(sw) && !/hub-cache-v390/.test(sw), "cache stays at v389 for merge plan");
 
 // --- Goal 2: in-page leave confirm ---
 check(!control.includes("window.confirm("), "Goal 2 removes native window.confirm");

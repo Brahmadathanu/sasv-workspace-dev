@@ -110,3 +110,50 @@
 **Reason:** G0–G7 and both recovery tracks were completed/accepted, the branch was synchronized to current main, all bounded WP04 regression checks passed, the authorized normal two-parent merge completed, and independent post-merge verification found no regression.
 **Impact:** WP04 exits the active programme. WP05 remains not started and may open separately. Parked WP05 candidates (SKU Control Status ↔ Readiness rationalisation, wider Costing/Pricing Policy Manager duplication audit, and legacy dashboard-summary dependency audit) remain parked. No release/publish is implied by this closure.
 **Status:** CLOSED — preserves DEC-011 / DEC-014 / DEC-015 and all historical G7 recovery evidence.
+
+## 2026-10-26 — CI-038 — SKU activation guard (applied live)
+**Decision:** A SKU can be created active, or switched from inactive to active, only when all five items exist (no exemptions). Every SKU active-flag change is written to `product_sku_change_log`.
+**Evidence:** Migration `20261026022352_ci038_sku_activation_guard` (live). Rollback and verify: `docs/costing-pipeline-independent-audit/closure/prepared/CI-038_rollback.sql`, `CI-038_verify.sql`.
+**Status:** APPLIED live 26 Oct 2026.
+
+## 2026-10-26 — CI-038a — Activation check as-of date (applied live)
+**Decision:** The activation check uses as-of date `GREATEST(period valuation date, today in IST)`, so entries effective today count.
+**Evidence:** Migration `20261026083214_ci038a_activation_asof_today` (live). Rollback and verify: `CI-038a_rollback.sql`, `CI-038a_verify.sql`.
+**Status:** APPLIED live 26 Oct 2026.
+
+## 2026-10-26 — CI-039 — Scheduler stopgap fix (applied live)
+**Decision:** The scheduled costing refresh skips a month whose run is already approved (`SKIPPED_APPROVED_PERIOD`), fixes the case where the 1st of the month is a Monday, and labels scheduled audit rows `CRON_SCHEDULED`.
+**Evidence:** Migration `20261026050322_ci039_scheduler_skip_approved_and_monday_first` (live); fingerprints of runs 119/122/143 unchanged. Rollback and verify: `CI-039_rollback.sql`, `CI-039_verify.sql`.
+**Status:** APPLIED live 26 Oct 2026.
+
+## 2026-10-26 — Client PRs #90 and #95 (merged)
+**Decision:** PR #90 added the W1 badge. PR #95 aligned the product-route bypass screen with the server rule (every step except RM issue and FG transfer may be bypassed, reason required) and moved the cache to `hub-cache-v375`.
+**Status:** MERGED.
+
+## 2026-10-26 — Old periods and CSE-P01
+**Decision:** The March, June, July and August periods stay open and are labelled historical drafts. CSE-P01: costing screens use the approved run's snapshot, otherwise the latest run.
+**Status:** Periods decision RECORDED. CSE-P01 decided; its migration is still to be prepared (not applied).
+
+## 2026-10-26 — Per-run valuation date redesign (CI-040 to CI-043)
+**Decision:** None yet. The redesign is proposed in `docs/costing-pipeline-independent-audit/audit-2026-10-25/J_redesign_valuation_date_per_run.md`.
+**Status:** PENDING owner decisions D1–D7. Not decided, nothing prepared or applied.
+
+## 2026-10-26 — SKU 41 and SKU 846 master data
+**Decision:** Master data for SKU 41 (Dhanyamlam 1000 mL, re-activated) and SKU 846 (Gorochanadi 300 g, product 667) was entered on 26 Oct by Dr. Brahmadathan U through his own logged-in console session (audit trail in his name): MRP policies (#1830 for SKU 41), selling/GST policies (#1323 for SKU 41), PM BOM revisions 685 (SKU 41) and 686 (SKU 846) approved, No Scheme policies IK/OK (#1332/#1333 for SKU 41, #1334/#1335 for SKU 846), batch size #555, mapping #462, and product route #256 approved (reference `PRM-PR-667-V1-APP-20261026`) with three bypasses of steps 451, 457 and 458. Both SKUs were then activated.
+**Impact:** The October readiness snapshot predates these entries and October's valuation date is 22 Oct, so readiness for both SKUs is expected from the November run (scheduled Monday 2 Nov 2026, 02:00 IST).
+**Status:** RECORDED.
+
+## 2026-10-31 — CSE-P01 implemented (CI-050 applied live)
+**Decision:** The owner's 26 Oct option B is now implemented. CI-050 (`ci050_cse_p01_sales_basis_option_b`, version `20261031123530`) was applied 31 Oct 2026 18:05 IST on the owner's written approval. Approved runs 122/143 and the run fingerprint are unchanged. The readiness snapshot is stale as expected; its rebuild is separately governed, after the October decision.
+**Status:** APPLIED live. This supersedes "its migration is still to be prepared (not applied)" in the 2026-10-26 entry above.
+
+## 2026-10-31 — Costing screen PRs #99 to #106 on main (all switched off)
+**Decision:** Merged on the owner's text: #99 approval screen, #100 refresh with date, #101 lock screen, #102 run status, #103 polish, #104 consistent labels, #105 duplicate-sequence dialog, #106 table tools. `main` = `9ea163d`, cache `hub-cache-v383`. Seven flags, all off by default. The lock flag stays off for open months until CI-049 is live or the owner decides. No database change in these PRs.
+**Status:** MERGED. See CURRENT_STATE_2026-10-31.md and REMAINING_WORK_2026-10-31.md.
+
+## 2026-10-26 entry "Per-run valuation date redesign" — status note (31 Oct 2026)
+The "PENDING owner decisions D1–D7" status is historical: D1–D7 were decided 26–27 Oct, and CI-040, CI-041, CI-042, CI-043 and CI-045 are live.
+
+## 2026-11-01 — PRs #107 to #112 merged; run 148; owner decisions
+**Decision:** Merged on the owner's text: #107 docs (`8143426`), #108 CW-05 pkg 2 (`e58dec0`), #109 migration line endings (`8bc872c`), #110 CW-05 pkg 3 (`be20ea6`), #111 review worklist (`2b3f298`), #112 CW-05 pkg 4 + lock leftovers (`7bccaba`). Cache `hub-cache-v387`; eight default-off flags (new: `COSTING_REVIEW_WORKLIST_V1`). Job 67 created October draft run 148 (not for pricing; 514 ready / 113 review / 1 blocked). Owner: clear blocked/review SKUs client-side; read-only views only after the October finalise, no migration now; client coding via Claude cloud bulk packages.
+**Status:** MERGED / RECORDED. See CURRENT_STATE_2026-11-01.md.

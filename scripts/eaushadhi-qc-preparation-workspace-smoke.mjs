@@ -819,7 +819,10 @@ assert(!liveList.includes("qcPrepStart") && !liveList.includes("qcPrepEnd") && !
 const datePath = onField.slice(onField.indexOf('target.id === "qcPrepStart"'), onField.indexOf("state.qcPrepReasons"));
 assert(datePath.includes("event.type === \"input\" || event.type === \"change\"") && datePath.includes("return"), "date input and change return after sync");
 assert(!datePath.includes("renderReadiness") && !datePath.includes("focus") && !datePath.includes("scrollIntoView"), "date input and change do not re-render, focus, or scroll");
-const focusoutAt = controlSrc.indexOf('addEventListener("focusout"');
+// Anchor on the QC tab handler itself: UX-7 added an earlier focusout listener (line modal), so the first
+// focusout in the file is no longer the one that contains the QC date-blur logic.
+const focusoutAt = controlSrc.indexOf('$("tab-qc")?.addEventListener("focusout"');
+assert(focusoutAt > 0, "QC tab focusout handler located");
 const focusout = controlSrc.slice(focusoutAt, controlSrc.indexOf('addEventListener("keydown"', focusoutAt));
 assert(focusout.includes("updateQcPrepDateMessages()") && focusout.includes("event.relatedTarget !== event.target"), "date blur calls updateQcPrepDateMessages");
 assert(!focusout.includes("renderReadiness"), "date blur does not re-render");
@@ -1632,7 +1635,7 @@ assert((controlSrc.match(/reopenQcPreparation\(/g) || []).length === 1, "reopenQ
 assert(preloadSrc.includes("reopenQcPreparation") && preloadSrc.includes("eaushadhi-worker:qc-preparation-reopen"), "preload exposes reopenQcPreparation");
 assert(ipcSrc.includes("CHANNELS.QC_PREPARATION_REOPEN") && ipcSrc.includes("eaushadhi-worker:qc-preparation-reopen"), "ipc registers the reopen channel");
 assert(controlSrc.includes('onwheel="this.blur()"') && extractFunction("onQcSourceFactField").includes('event.type !== "change"') && extractFunction("onQcSourceFactField").includes("document.getElementById(focusId)?.focus()"), "a fact select changes only on change, restores focus, and blurs on the wheel");
-assert(readFileSync(join(root, "public/sw.js"), "utf8").includes('const CACHE_NAME = "hub-cache-v376"'), "CACHE_NAME is v376");
+assert(readFileSync(join(root, "public/sw.js"), "utf8").includes('const CACHE_NAME = "hub-cache-v389"'), "CACHE_NAME is v389");
 
 const readinessRpc = mockRpc(async () => ({
   status: "NOT_READY",

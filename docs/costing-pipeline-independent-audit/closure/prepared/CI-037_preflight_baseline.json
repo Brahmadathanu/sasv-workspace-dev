@@ -1,0 +1,202 @@
+{
+ "missing_cols": null,
+ "funcs": [
+  {
+   "f": "costing.fn_guard_designated_run_rows()",
+   "exists": true,
+   "ret": "trigger"
+  },
+  {
+   "f": "costing.fn_guard_snapshot_truncate()",
+   "exists": true,
+   "ret": "trigger"
+  },
+  {
+   "f": "costing.rpc_refresh_manufacturing_cop_chain(date,date,bigint)",
+   "exists": true,
+   "ret": "TABLE(refreshed_period_start date, inserted_row_count bigint, blocked_count bigint, review_required_count bigint, ready_count bigint, refresh_status text)"
+  },
+  {
+   "f": "costing.fn_verify_run_fingerprint(bigint)",
+   "exists": true,
+   "ret": "TABLE(table_name text, captured jsonb, current_value jsonb, matches boolean)"
+  }
+ ],
+ "anchor_count": 1,
+ "hook_count": 0,
+ "chain_md5": "2881dde493f9409f2ad61c5d8969b3c9",
+ "new_names_taken": null,
+ "helper_exists": 0,
+ "mig_latest": [
+  {
+   "version": "20261024115131",
+   "name": "wp07_ux1_roles_worklist"
+  },
+  {
+   "version": "20261024111733",
+   "name": "ci033_revoke_cost_pool_combined"
+  },
+  {
+   "version": "20261024070154",
+   "name": "tooth_powder_pp_jar_alias_and_bom_switch"
+  }
+ ],
+ "mig_ci037": null,
+ "mig_ci031": null,
+ "ci031_live_comment": null,
+ "view_md5": "043180a4a2beb361b518410df0182293",
+ "view_cols": [
+  "refresh_run_id",
+  "period_start",
+  "valuation_date",
+  "sku_id",
+  "product_id",
+  "item",
+  "pack_size",
+  "pack_uom",
+  "product_group_id",
+  "product_group",
+  "product_subgroup_id",
+  "product_subgroup",
+  "rm_cost_per_sku",
+  "pm_cost_per_sku",
+  "material_cost_per_sku",
+  "direct_labour_cost_per_sku",
+  "internal_material_conversion_cost_per_sku",
+  "prime_cost_per_sku",
+  "production_overhead_cost_per_sku",
+  "quality_control_overhead_cost_per_sku",
+  "materials_stores_overhead_cost_per_sku",
+  "manufacturing_cop_per_sku",
+  "admin_overhead_cost_per_sku",
+  "finance_admin_overhead_cost_per_sku",
+  "internal_loaded_cost_per_sku",
+  "marketing_expense_cost_per_sku_ik",
+  "marketing_expense_cost_per_sku_ok",
+  "pricing_cost_per_sku_ik",
+  "pricing_cost_per_sku_ok",
+  "mrp_ik",
+  "mrp_ok",
+  "gst_percent",
+  "ik_basic_price",
+  "ok_basic_price",
+  "ik_discount_percent",
+  "ok_discount_percent",
+  "ik_discount_amount",
+  "ok_discount_amount",
+  "ik_selling_price",
+  "ok_selling_price",
+  "contingency_percent",
+  "ik_contingency_value",
+  "ok_contingency_value",
+  "ik_scheme_id",
+  "ik_scheme_name",
+  "ik_scheme_paid_qty",
+  "ik_scheme_free_qty",
+  "ok_scheme_id",
+  "ok_scheme_name",
+  "ok_scheme_paid_qty",
+  "ok_scheme_free_qty",
+  "ik_margin_amount_before_scheme",
+  "ik_margin_percent_before_scheme",
+  "ok_margin_amount_before_scheme",
+  "ok_margin_percent_before_scheme",
+  "cost_sheet_status",
+  "refreshed_at",
+  "product_category_id",
+  "product_category",
+  "product_subcategory_id",
+  "product_subcategory",
+  "price_list_ik",
+  "price_list_ok",
+  "refreshed_at_ist"
+ ],
+ "view_meta": {
+  "owner": "postgres",
+  "relacl": null,
+  "reloptions": null
+ },
+ "view_privs": {
+  "anon": false,
+  "authenticated": false,
+  "service_role": false,
+  "postgres": true
+ },
+ "view_comments_md5": "cd25d82a989734a22223eb8a327086c7 n=22",
+ "view_rows": [
+  {
+   "refresh_run_id": 143,
+   "count": 627
+  }
+ ],
+ "designations": [
+  "119 REFERENCE",
+  "122 APPROVED",
+  "128 REVOKED",
+  "136 REVOKED",
+  "140 REVOKED",
+  "143 APPROVED"
+ ],
+ "legacy_md5": [
+  {
+   "refresh_run_id": 119,
+   "n": 635,
+   "m": "0dc018baf0608a2641f8b7f32ba92061"
+  },
+  {
+   "refresh_run_id": 122,
+   "n": 634,
+   "m": "73ff42395fbe847648d2602c55a8d445"
+  },
+  {
+   "refresh_run_id": 128,
+   "n": 627,
+   "m": "c678794ce52f3775b1ce6514352e47e4"
+  },
+  {
+   "refresh_run_id": 136,
+   "n": 627,
+   "m": "69212699fde6488605314db8f7227272"
+  },
+  {
+   "refresh_run_id": 140,
+   "n": 627,
+   "m": "a87870b950e2b97e8811dc51f02a154e"
+  },
+  {
+   "refresh_run_id": 143,
+   "n": 627,
+   "m": "847226bb71b78b468cf31efc0a6b64d2"
+  }
+ ],
+ "pb_ncols": 48,
+ "pb_comments": {
+  "ik_margin_amount_before_scheme": null,
+  "ok_margin_amount_before_scheme": null,
+  "ik_margin_percent_before_scheme": null,
+  "ok_margin_percent_before_scheme": null
+ },
+ "run143": {
+  "status": "SUCCESS",
+  "period": "2026-10-01",
+  "vdate": "2026-10-22"
+ },
+ "now_ist": "24 Oct 2026 22:34",
+ "fingerprints": {
+  "aggregate_md5": "e24fdba6178844b29b5360b8e258e929",
+  "checks": 304,
+  "mismatches": [
+   "119 sku_sales_allocation_basis_snapshot (pre-existing)"
+  ],
+  "runs": [
+   119,
+   122,
+   128,
+   136,
+   140,
+   143
+  ]
+ },
+ "captured_at_ist": "24 Oct 2026 22:34 IST (read-only)",
+ "source_commit": "078a0f3"
+}

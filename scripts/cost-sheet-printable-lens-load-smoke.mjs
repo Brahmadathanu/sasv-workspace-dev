@@ -340,7 +340,7 @@ assert(
   "Production Route Manager default lens unchanged",
 );
 assert(
-  /dashboard:\s*["']v_costing_pricing_dashboard_summary["']/.test(shellSrc) &&
+  !/dashboard:\s*["']v_costing_pricing_dashboard_summary["']/.test(shellSrc) &&
     /["']policy-manager["']\s*:\s*["']v_costing_policy_manager_sku_overview["']/.test(
       shellSrc,
     ),

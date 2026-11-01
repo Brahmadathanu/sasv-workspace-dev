@@ -96,7 +96,7 @@ check(css.indexOf("@media (max-width: 1100px)") < css.indexOf("@media (max-width
 check(css.includes(".composition-col-part") && css.includes(".composition-col-quantity"), "small layout removes secondary part and quantity columns");
 check(css.includes("#sourceCorrectBackdrop:not([hidden])") && css.includes("calc(var(--sasv-z-modal) + 1)") && css.includes(".reference-mapping-value") && !legacy.includes('Mapping status</span>${chip('), "nested dialogs stack correctly and reference mapping status is plain text rather than a chip");
 check(html.includes('id="workspaceScroll" class="workspace-scroll"'), "the existing workspace scroll container is unchanged");
-check(!js.includes("hub-cache-v377") && read("public/sw.js").includes("hub-cache-v376"), "cache remains hub-cache-v376");
+check(!js.includes("hub-cache-v377") && read("public/sw.js").includes("hub-cache-v389"), "cache remains hub-cache-v389");
 check(!js.includes("combined approve") && !modal.includes("Approve all"), "no combined approval action was added");
 check(js.includes("isFirstControlledEntryProduct") && js.includes("931"), "controlled product 262/line 931 path remains present");
 
