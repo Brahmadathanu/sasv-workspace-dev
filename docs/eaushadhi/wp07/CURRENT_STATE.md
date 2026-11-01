@@ -58,3 +58,8 @@ Floating tooltip and keyboard/Escape: pass. Short window: pass. Findings sent to
 - A1–A6 and scoped tab styling are present. The legacy composition-card render path is still used by the line modal and was correctly retained. No merge or rebase authorized.
 - Parked low findings for a later suitable bundle: disabled primary/danger button contrast is not fully ratio-tested in the disabled state; two older markup-comparison smokes now narrowly strip Bundle A class tokens, so future test changes must preserve their meaningful regression coverage.
 - **Next gate:** owner look-only screen verification of PR #118 at 125% (tooltip, narrow/full-width scroll, focus rings and button contrast). **Do not click an active Approve, Save, Apply, gate On/Off or portal action during this check.** Final `9.1 final ok` and Bundle B remain pending owner acceptance/approval.
+
+## 7. Bundle A owner acceptance (1 Nov 2026)
+- Owner launched the isolated Windows checkout of Bundle A at `6c4434a` and reported **all screen tests passed**. This closes the Bundle A owner visual-check gate and provides the outstanding UX-9.1 final acceptance.
+- Draft PR #118 remains unmerged; the separate documentation branch is also unmerged. The two low audit observations remain parked, not blockers.
+- **Next gate: Bundle B merge preparation, requiring a new explicit owner approval and a fresh main/cache coordination check.** No rebase, cache change, merge, production write, portal Save or Submit is authorized by this acceptance.
