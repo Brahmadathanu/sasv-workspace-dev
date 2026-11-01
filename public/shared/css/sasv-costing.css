@@ -2739,3 +2739,32 @@ body.sasv-costing-control-center .cp-readiness-gap-bound {
   .rwl-chip { min-height: 40px; }
   .rwl-run-picker select { min-height: 40px; }
 }
+
+/* =====================================================================
+   CW-13: responsive hardening (measured by scripts/costing-responsive/responsive-audit.mjs).
+   Narrow headers wrap the actions below the title when the title would be squeezed (title never clipped or
+   one letter per line); keyboard focus on the filter
+   button and the Production Route as-of date uses the same visible ring as other Costing controls.
+   ===================================================================== */
+@media (max-width: 520px) {
+  body.sasv-costing .page-header {
+    flex-wrap: wrap;
+  }
+  body.sasv-costing .page-header > div:first-child {
+    flex: 1 1 10rem;
+    min-width: 0;
+  }
+  body.sasv-costing .page-header > div:last-child {
+    margin-left: auto;
+  }
+  body.sasv-costing .page-header h1.sasv-module-title {
+    white-space: normal;
+    overflow-wrap: break-word;
+    line-height: 1.15;
+  }
+}
+body.sasv-costing .peq-filter-btn:focus-visible,
+body.sasv-production-route-manager #prmAsOfDate:focus-visible {
+  outline: 2px solid var(--sasv-action-primary);
+  outline-offset: 2px;
+}
