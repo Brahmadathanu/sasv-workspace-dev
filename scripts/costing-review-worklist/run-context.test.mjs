@@ -138,6 +138,10 @@ test("C1 loading, read error, no status row (permission) and no rows are all exp
   assert.equal(error.kind, "status-error");
   const errorHtml = renderReviewWorklistHtml(groupReviewWorklistRows(rows), { runDiagnosis: error, rowCount: rows.length });
   assert.match(errorHtml, /role="alert">Run status could not be read: permission denied for view/);
+  // The failed status read must not claim the server's current run was verified.
+  assert.ok(errorHtml.includes("The run's current designation (approved or draft) could not be verified."));
+  assert.ok(errorHtml.includes("The loaded rows still show the run they are stored under (run 143)."));
+  assert.doesNotMatch(errorHtml, /still the run shown by the server|approved run 143/);
   assert.equal((errorHtml.match(/data-rwl-select=/g) || []).length, 4, "list still rendered on status failure");
 
   const missing = describeReviewWorklistRunContext({ rows: [], periodStart: PERIOD, runStatus: ready(null) });

@@ -331,7 +331,8 @@ export function renderReviewWorklistRunDiagnosisHtml(d) {
   if (d.kind === "loading") lines.push(`<div class="rwl-rc-line" role="status">Loading run status for ${e(d.periodStart || "--")}…</div>`);
   if (d.kind === "idle") lines.push(`<div class="rwl-rc-line">No period selected.</div>`);
   if (d.kind === "status-error") {
-    lines.push(`<div class="rwl-rc-line rwl-rc-warn" role="alert">Run status could not be read: ${e(d.error || "unknown error")}. The list below is still the run shown by the server for this period.</div>`);
+    const stored = d.listRunIds.length ? ` The loaded rows still show the run they are stored under (run ${d.listRunIds.map(e).join(", ")}).` : "";
+    lines.push(`<div class="rwl-rc-line rwl-rc-warn" role="alert">Run status could not be read: ${e(d.error || "unknown error")}. The run's current designation (approved or draft) could not be verified.${stored}</div>`);
   }
   if (d.kind === "status-missing") {
     lines.push(`<div class="rwl-rc-line rwl-rc-warn">The server returned no run status for ${e(d.periodStart || "--")} (no run yet, or no permission to read Control Centre status).</div>`);

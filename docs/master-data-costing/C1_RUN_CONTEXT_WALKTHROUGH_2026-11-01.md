@@ -43,7 +43,7 @@ So the worklist can say exactly which run it shows and that draft 148 exists, bu
 
 ## 6. States you may see in the run-context block
 
-Loading · approved · not approved (draft or reference run shown) · mismatch (rows from run A, server now shows run B: reload) · mixed runs / other period (should not happen; reload) · active run in progress · status read error (list still shown) · no status row (no run or no permission) · no SKU rows at all (no run or no permission).
+Loading · approved · not approved (draft or reference run shown) · mismatch (rows from run A, server now shows run B: reload) · mixed runs / other period (should not happen; reload) · active run in progress · status read error (list still shown; the run's current designation is reported as not verified, and the rows keep their stored run id) · no status row (no run or no permission) · no SKU rows at all (no run or no permission).
 
 ## 7. Backend blocker and proposed read contract (NOT implemented; pending owner approval, after the October finalise)
 
