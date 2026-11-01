@@ -362,7 +362,7 @@ function makeShell({ flagOn = true, lens = "dashboard", statusFor = { [OCT]: STA
   };
   vm.createContext(ctx);
   const src = read(SHELL);
-  const names = ["renderCccKpiRunCaption", "renderCccRunContextChrome", "reviewWorklistSelectedKey", "reviewWorklistRunStatus", "reviewWorklistActiveRun", "reviewWorklistGovernedRows", "selectReviewWorklistRun", "renderReviewWorklistPanel"];
+  const names = ["cccSummaryIdentity", "renderCccKpiRunCaption", "renderCccRunContextChrome", "reviewWorklistSelectedKey", "reviewWorklistRunStatus", "reviewWorklistActiveRun", "reviewWorklistGovernedRows", "selectReviewWorklistRun", "renderReviewWorklistPanel"];
   vm.runInContext([...names.map((n) => extractFn(src, n)), `async function fetchAllRows(factory) { const res = await factory(); if (res.error) throw res.error; return res.data || []; }`].join("\n"), ctx);
   return {
     ctx, reads, kpiStripWrap, workbenchSummary, created,
@@ -477,7 +477,7 @@ test("shell: period change re-reads status; September has no draft card CTA and 
 
 test("shell: only read views, no writes; new code is behind the flag", () => {
   const src = read(SHELL);
-  const fnText = ["renderCccKpiRunCaption", "renderCccRunContextChrome"].map((n) => extractFn(src, n)).join("\n");
+  const fnText = ["cccSummaryIdentity", "renderCccKpiRunCaption", "renderCccRunContextChrome"].map((n) => extractFn(src, n)).join("\n");
   assert.doesNotMatch(fnText, /\.rpc\(|costingRpc|\binsert\(|\bupsert\(|\.update\(|\.delete\(|service_role|new Date|Date\.now|location|URLSearchParams/);
   assert.doesNotMatch(read("public/shared/js/costing-ccc-run-context.js"), /supabase|\.rpc\(|\.from\(|fetch\(|new Date|Date\.now|document|window|localStorage/);
   for (const gated of [
@@ -490,7 +490,7 @@ test("shell: only read views, no writes; new code is behind the flag", () => {
   assert.deepEqual(calls.map((l) => l.trim()), [
     "renderCccKpiRunCaption();",
     "return renderCccRunContextChrome({ captionOnly: true });",
-    "statusState = CCC_RUN_STATUS_LOADER.ensure(periodStart, periodStart, summary, () => renderCccRunContextChrome());",
+    "statusState = CCC_RUN_STATUS_LOADER.ensure(periodStart, periodStart, cccSummaryIdentity(summary), () => renderCccRunContextChrome());",
     "() => renderCccRunContextChrome(),",
     "renderCccRunContextChrome();",
   ]);
@@ -514,4 +514,79 @@ test("scope: no supabase/, migration, controller, protected-screen, HTML or cach
   const cssBase = readBase("public/shared/css/sasv-costing.css");
   assert.ok(css.startsWith(cssBase));
   assert.match(css.slice(cssBase.length), /^\n\/\* =+\n {3}UX-F1: CCC run context/);
+});
+
+
+// 9. Audit follow-up: no repeated reads, stale handling, navigation, responsive header
+test("shell: fresh summary OBJECTS on every render (same run) trigger no repeated status or 628-row draft reads", async () => {
+  const s = makeShell();
+  s.chrome();
+  await flush();
+  await s.answerStatus();
+  await s.answerRun(0, { data: draftRows(), error: null });
+  const before = s.reads.length;
+  for (let i = 0; i < 5; i += 1) {
+    s.ctx.summary = { ...SUMMARY_143 }; // controller hands back a new object each render
+    s.chrome();
+    s.caption();
+    await flush();
+  }
+  assert.equal(s.reads.length, before, "no extra reads across 5 render cycles with new summary objects");
+  assert.equal(s.reads.filter((q) => q.view === "v_costing_pricing_period_run_status").length, 1);
+  assert.equal(s.reads.filter((q) => q.view === "v_costing_pricing_sku_control_status_by_run").length, 1);
+  assert.match(s.workbenchSummary.innerHTML, /514 \/ 628/);
+});
+
+test("shell: a genuinely different governed run (new run id in the summary) re-reads once", async () => {
+  const s = makeShell();
+  s.chrome();
+  await flush();
+  await s.answerStatus();
+  await s.answerRun(0, { data: draftRows(), error: null });
+  s.ctx.summary = { ...SUMMARY_143, refresh_run_id: 150 };
+  s.chrome();
+  await flush();
+  assert.equal(s.reads.filter((q) => q.view === "v_costing_pricing_period_run_status").length, 2);
+  s.chrome();
+  await flush();
+  assert.equal(s.reads.filter((q) => q.view === "v_costing_pricing_period_run_status").length, 2, "and only once");
+});
+
+test("shell: stale status answer after a period change is discarded", async () => {
+  const s = makeShell();
+  s.chrome();
+  await flush();
+  s.ctx.ACTIVE_PERIOD_START = SEP;
+  s.ctx.summary = SUMMARY_122;
+  s.chrome();
+  await flush();
+  // October answer arrives late, September answer arrives after.
+  await s.answerStatus(0);
+  assert.doesNotMatch(s.workbenchSummary.innerHTML, /148/, "late October answer not shown for September");
+  assert.equal(s.reads.filter((q) => q.view === "v_costing_pricing_sku_control_status_by_run").length, 0, "no draft read from a stale answer");
+  await s.answerStatus(1);
+  assert.match(s.workbenchSummary.innerHTML, /Approved run 122/);
+});
+
+test("shell: stale draft-summary answer after a period change is discarded", async () => {
+  const s = makeShell();
+  s.chrome();
+  await flush();
+  await s.answerStatus();
+  s.ctx.ACTIVE_PERIOD_START = SEP;
+  s.ctx.summary = SUMMARY_122;
+  s.chrome();
+  await flush();
+  await s.answerRun(0, { data: draftRows(), error: null }); // late October draft rows
+  await s.answerStatus(1);
+  assert.doesNotMatch(s.workbenchSummary.innerHTML, /148|514/);
+});
+
+test("responsive header: compact chip rules, 520px breakpoint and title ellipsis are flag-scoped CSS", () => {
+  const css = read("public/shared/css/sasv-costing.css");
+  const block = css.slice(readBase("public/shared/css/sasv-costing.css").length);
+  assert.match(block, /\.ccc-compact-header \.page-header h1\s*\{[^}]*text-overflow:\s*ellipsis/);
+  assert.match(block, /@media \(max-width: 520px\)/);
+  assert.match(block, /\.sc-run-status\[data-compact="1"\]/);
+  assert.doesNotMatch(block, /(^|\n)\s*(\.sc-run-status|\.page-header|body)\s*[{,]/, "no unscoped header rules");
 });

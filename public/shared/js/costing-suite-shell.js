@@ -5744,6 +5744,15 @@ function renderCccKpiRunCaption() {
   return renderCccRunContextChrome({ captionOnly: true });
 }
 
+/**
+ * UX-F1: primitive identity of a control-summary row (run id + valuation date).
+ * The controller may hand back a new object on every render; loaders must key
+ * on this value, never on the object reference, so re-renders do not re-query.
+ */
+function cccSummaryIdentity(summary) {
+  return `${summary?.refresh_run_id ?? ""}|${summary?.valuation_date ?? ""}`;
+}
+
 /** UX-F1 (flag ON only): KPI-strip run caption and the Dashboard run-context card. */
 function renderCccRunContextChrome({ captionOnly = false } = {}) {
   if (!isCostingReviewWorklistV1Enabled()) return null;
@@ -5767,7 +5776,7 @@ function renderCccRunContextChrome({ captionOnly = false } = {}) {
             .maybeSingle(),
       });
     }
-    statusState = CCC_RUN_STATUS_LOADER.ensure(periodStart, periodStart, summary, () => renderCccRunContextChrome());
+    statusState = CCC_RUN_STATUS_LOADER.ensure(periodStart, periodStart, cccSummaryIdentity(summary), () => renderCccRunContextChrome());
     if (statusState.status === "ready") statusRow = statusState.row;
   }
   const activeRun = CURRENT_LENS === "sku-control-status" ? reviewWorklistActiveRun() : null;
@@ -5807,7 +5816,7 @@ function renderCccRunContextChrome({ captionOnly = false } = {}) {
     draftState = CCC_DRAFT_SUMMARY_LOADER.ensure(
       `${periodStart}|${newerDraft}`,
       { periodStart, runId: String(newerDraft) },
-      summary,
+      cccSummaryIdentity(summary),
       () => renderCccRunContextChrome(),
     );
   }
