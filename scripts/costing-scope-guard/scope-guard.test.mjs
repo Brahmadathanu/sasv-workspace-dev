@@ -8,6 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { costingScopeReport, costingCssScope, costingHtmlScope, sqlTouchesCosting } from "../lib/costing-scope-guard.mjs";
 
 const FILES = {
@@ -138,7 +139,7 @@ test("positive control: realistic unrelated WP-07 migrations are allowed", (t) =
 });
 
 test("regression: real WP-07 migration in this repository is allowed, real Costing migrations are flagged", () => {
-  const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const read = (f) => fs.readFileSync(path.join(root, "supabase/migrations", f), "utf8");
   assert.equal(sqlTouchesCosting(read("20261024115131_wp07_ux1_roles_worklist.sql")), false);
   assert.equal(sqlTouchesCosting(read("20260802142952_grant_production_route_manager_to_costing_admin.sql")), true);

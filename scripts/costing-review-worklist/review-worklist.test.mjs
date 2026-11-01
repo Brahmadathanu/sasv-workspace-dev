@@ -19,6 +19,7 @@ import {
   resolveRecommendedUiRouteTarget,
 } from "../../public/shared/js/costing-suite-recommended-ui-route.js";
 import { costingStatusDisplayLabel } from "../../public/shared/js/costing-status-labels.js";
+import { readSourceLf } from "../lib/read-source-lf.mjs";
 
 const {
   REVIEW_WORKLIST_EMPTY_TEXT,
@@ -34,7 +35,7 @@ const {
 } = worklist;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+const read = (rel) => readSourceLf(root, rel); // LF-normalised: see scripts/lib/read-source-lf.mjs
 const BASE = "be20ea68ca4ff35bd0b9aead76438d3cf62e7cfd";
 const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 const readBase = (rel) => git("show", `${BASE}:${rel}`);

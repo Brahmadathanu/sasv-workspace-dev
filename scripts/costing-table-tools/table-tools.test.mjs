@@ -22,9 +22,10 @@ import {
   sortRows,
   neutraliseCsvRows,
 } from "../../public/shared/js/costing-table-tools.js";
+import { readSourceLf } from "../lib/read-source-lf.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+const read = (rel) => readSourceLf(root, rel); // LF-normalised: see scripts/lib/read-source-lf.mjs
 const BASE = "1c505ed6c1ff90505b904048602c004e39f5fbae";
 const readBase = (rel) =>
   execFileSync("git", ["show", `${BASE}:${rel}`], {

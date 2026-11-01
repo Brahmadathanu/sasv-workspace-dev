@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { costingScopeReport } from "../lib/costing-scope-guard.mjs";
 import * as tools from "../../public/shared/js/costing-table-tools.js";
 import { DRIVER_GOVERNANCE_TABLE_HEADERS } from "../../public/shared/js/costing-suite-driver-governance-helpers.js";
+import { readSourceLf } from "../lib/read-source-lf.mjs";
 
 const {
   COLUMN_HELP,
@@ -28,7 +29,7 @@ const {
 } = tools;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+const read = (rel) => readSourceLf(root, rel); // LF-normalised: see scripts/lib/read-source-lf.mjs
 const PKG2_BASE = "814342657804dd6770dcb8c91ec319555f19a711";
 const readBase = (rel) =>
   execFileSync("git", ["show", `${PKG2_BASE}:${rel}`], {

@@ -3,9 +3,9 @@
  * Client-only source/contract smoke. No mutation, no refresh, no server writes.
  * Does not create Thaleesapathradi Powder Blending / seq 35 / Activity 105 / CC 38.
  */
-import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readSourceLf } from "./lib/read-source-lf.mjs";
 import {
   PRM_DELTA_OPERATIONS,
   PRM_EXACT_RUN_CONTEXT,
@@ -30,7 +30,7 @@ import {
 } from "../public/shared/js/costing-suite-production-route-delta-form.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const read = (relativePath) => readFileSync(join(root, relativePath), "utf8");
+const read = (relativePath) => readSourceLf(root, relativePath); // LF-normalised: see scripts/lib/read-source-lf.mjs
 
 const mainSrc = read("public/shared/js/costing-suite-production-route.js");
 const helpersSrc = read(
