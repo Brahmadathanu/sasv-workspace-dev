@@ -1,5 +1,8 @@
 # WP-07 remaining work / backlog (refreshed 1 Nov 2026, IST)
 
+> **CURRENT INTEGRATION STATUS — 1 November 2026 (supersedes earlier branch/cache/merge instructions below):** The authoritative integration branch is `main` at `a6d35b93945b92626789f4f35a9eb25365026427`; the service-worker cache is `hub-cache-v390`. WP-07 client integration PR #120, Costing v390 PR #123, and WP-07 test-harness reconciliation PR #124 are merged. PR #122 is the remaining **draft, unmerged** repository-only reconciliation of nine historical WP-07 migration SQL files and eleven governance documents; it targets `main`. On 1 November, a read-only audit independently compared all nine SQL files with `supabase_migrations.schema_migrations.statements`: **9/9 exact text matches and matching MD5 values**. These migrations are **already applied**: never run `db push`, reapply, rewrite, or rename these files. Some original migration preambles say “NOT APPLIED”; those are preserved historical comments, **not current operational status**. Earlier instructions below naming v387/v388/v389, describing PR #120 as unmerged, or prescribing rebase/cache bumps are historical and MUST NOT be executed. Preserve Product 262 restrictions, four-eyes controls, native portal Save requiring individual owner approval, and the permanent prohibition on portal Submit. No production writes or migration execution; merge PR #122 only on separate owner approval. The agreed Costing/WP-07 shared-`main` integration freeze remains active through this gate.
+
+
 Owner = Dr. Brahmadathan. Orchestrator/server worker = ChatGPT; client worker = Claude Code (ADR-15).
 
 | # | Item | State | Blocked on | Where |
