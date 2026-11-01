@@ -9,6 +9,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { costingScopeReport } from "../lib/costing-scope-guard.mjs";
 import * as flags from "../../public/shared/js/costing-feature-flags.js";
 import * as worklist from "../../public/shared/js/costing-review-worklist.js";
 import * as tableTools from "../../public/shared/js/costing-table-tools.js";
@@ -577,8 +578,14 @@ test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS
     "costing-suite-control-center.js", "costing-suite-recommended-ui-route.js", "costing-route-config.js",
     "costing-suite-pricing-policy.js", "costing-suite-cost-build.js", "costing-suite-material-cost.js",
   ].map((f) => `${JS}/${f}`);
-  assert.equal(git("diff", BASE, "--", ...protectedFiles, "supabase/", "package.json"), "");
-  assert.equal(git("diff", "--name-only", BASE, "--", "*.html").trim(), "");
+  // Scope guard (WP-07 Bundle B correction): HTML/CSS/supabase/package.json checks cover what Costing owns or
+  // depends on (scripts/lib/costing-scope-guard.mjs) instead of the whole repository, so unrelated modules that
+  // land on main later (e.g. WP-07 e-Aushadhi HTML/CSS and its own migration) no longer trip this package test.
+  assert.equal(git("diff", BASE, "--", ...protectedFiles), "");
+  const scope = costingScopeReport({ git, root, base: BASE });
+  assert.deepEqual(scope.supabase, [], "no Costing or history-rewriting supabase change");
+  assert.deepEqual(scope.packageJson, [], "package.json unchanged");
+  assert.deepEqual(scope.html, [], "no Costing HTML changed");
   const baseTools = readBase(`${JS}/costing-table-tools.js`);
   const baseMod = await import(`data:text/javascript;base64,${Buffer.from(baseTools).toString("base64")}`);
   assert.deepEqual(JSON.parse(JSON.stringify(tableTools.COLUMN_HELP)), JSON.parse(JSON.stringify(baseMod.COLUMN_HELP)));
@@ -586,7 +593,7 @@ test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS
     read("public/sw.js").split("\n")[1],
     'const CACHE_NAME = "hub-cache-v389"; // WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A); v388 was Costing review worklist run selector (C1/C1B)',
   );
-  const cssChanged = git("diff", "--name-only", BASE, "--", "*.css").trim().split("\n").filter(Boolean);
+  const cssChanged = scope.css;
   assert.ok(cssChanged.length === 0 || (cssChanged.length === 1 && cssChanged[0] === "public/shared/css/sasv-costing.css"));
   if (cssChanged.length) {
     const head = read("public/shared/css/sasv-costing.css");

@@ -8,6 +8,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { costingScopeReport } from "../lib/costing-scope-guard.mjs";
 import * as tools from "../../public/shared/js/costing-table-tools.js";
 
 const {
@@ -608,7 +609,12 @@ test("pkg3 COLUMN_HELP unchanged; module safety; FORBIDDEN_RPCS identical; no CS
   for (const re of [/\.rpc\(/g, /new Date/g, /Date\.now/g]) {
     assert.equal(count(read(SHELL), re), count(readBase(SHELL), re), String(re));
   }
-  assert.equal(git("diff", "--name-only", PKG3_BASE, "--", "*.css", "*.html").trim(), "");
+  // Scope guard (WP-07 Bundle B correction): HTML/CSS/supabase/package.json checks cover what Costing owns or
+  // depends on (scripts/lib/costing-scope-guard.mjs) instead of the whole repository, so unrelated modules that
+  // land on main later (e.g. WP-07 e-Aushadhi HTML/CSS and its own migration) no longer trip this package test.
+  const scope = costingScopeReport({ git, root, base: PKG3_BASE });
+  assert.deepEqual(scope.css, [], "no Costing or shared-contract CSS changed");
+  assert.deepEqual(scope.html, [], "no Costing HTML changed");
   for (const f of ["pricing-policy", "cost-build", "material-cost", "control-center"]) {
     assert.equal(git("diff", PKG3_BASE, "--", `${JS}/costing-suite-${f}.js`), "", f);
   }

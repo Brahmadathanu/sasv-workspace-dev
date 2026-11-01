@@ -9,6 +9,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { costingScopeReport } from "../lib/costing-scope-guard.mjs";
 import * as tools from "../../public/shared/js/costing-table-tools.js";
 
 const { COLUMN_HELP, csvCell, isSortableColumn, sortRowsBy, tableColumnsForTable } = tools;
@@ -446,8 +447,15 @@ test("pkg4 unsortable columns key null; table-tools diff is only the three entri
   assert.equal(slice(read(rel)), slice(readBase(rel)));
   const controllers = ["control-center", "pricing-policy", "cost-build", "material-cost", "mrp-applied-history"].map((f) => `${JS}/costing-suite-${f}.js`);
   // costing-review-worklist.js is changed by C1 and covered by scripts/costing-review-worklist/run-context.test.mjs.
-  assert.equal(git("diff", BASE, "--", ...controllers, `${JS}/costing-feature-flags.js`, "supabase/", "package.json"), "");
-  assert.equal(git("diff", "--name-only", BASE, "--", "*.css", "*.html").trim(), "");
+  // Scope guard (WP-07 Bundle B correction): HTML/CSS/supabase/package.json checks cover what Costing owns or
+  // depends on (scripts/lib/costing-scope-guard.mjs) instead of the whole repository, so unrelated modules that
+  // land on main later (e.g. WP-07 e-Aushadhi HTML/CSS and its own migration) no longer trip this package test.
+  assert.equal(git("diff", BASE, "--", ...controllers, `${JS}/costing-feature-flags.js`), "");
+  const scope = costingScopeReport({ git, root, base: BASE });
+  assert.deepEqual(scope.supabase, [], "no Costing or history-rewriting supabase change");
+  assert.deepEqual(scope.packageJson, [], "package.json unchanged");
+  assert.deepEqual(scope.css, [], "no Costing or shared-contract CSS changed");
+  assert.deepEqual(scope.html, [], "no Costing HTML changed");
 });
 
 // 6. Cache pin

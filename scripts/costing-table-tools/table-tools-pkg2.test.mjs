@@ -8,6 +8,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { costingScopeReport } from "../lib/costing-scope-guard.mjs";
 import * as tools from "../../public/shared/js/costing-table-tools.js";
 import { DRIVER_GOVERNANCE_TABLE_HEADERS } from "../../public/shared/js/costing-suite-driver-governance-helpers.js";
 
@@ -536,13 +537,11 @@ test("pkg2 CSS: one appended block at file end, every selector scoped to [data-c
   for (const l of selectorLines) assert.ok(l.includes("[data-cw05-sort]"), l);
   const diff = execFileSync("git", ["diff", PKG2_BASE, "--", CSS], { cwd: root, encoding: "utf8" });
   assert.ok(!diff.split("\n").some((l) => l.startsWith("-") && !l.startsWith("---")), "only added lines");
-  const changed = execFileSync("git", ["diff", "--name-only", PKG2_BASE, "--", "*.css", "*.html"], {
-    cwd: root,
-    encoding: "utf8",
-  })
-    .trim()
-    .split("\n")
-    .filter(Boolean);
+  // Scope guard (WP-07 Bundle B correction): only Costing / shared-contract HTML and CSS count
+  // (scripts/lib/costing-scope-guard.mjs); unrelated modules such as WP-07 e-Aushadhi are out of scope.
+  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  const scope = costingScopeReport({ git, root, base: PKG2_BASE });
+  const changed = [...scope.css, ...scope.html].sort();
   assert.deepEqual(changed, [CSS]);
 });
 
