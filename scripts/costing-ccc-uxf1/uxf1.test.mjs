@@ -9,6 +9,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { costingScopeReport } from "../lib/costing-scope-guard.mjs";
 import * as ccc from "../../public/shared/js/costing-ccc-run-context.js";
 import * as worklist from "../../public/shared/js/costing-review-worklist.js";
 import { applyCompactRunStatusBadge, createRunStatusBadge, describeRunStatus } from "../../public/shared/js/costing-run-status-badge.js";
@@ -498,7 +499,12 @@ test("shell: only read views, no writes; new code is behind the flag", () => {
 
 // 8. Scope and protected files
 test("scope: no supabase/, migration, controller, protected-screen, HTML or cache changes; CSS append-only and scoped", () => {
-  assert.equal(git("diff", BASE, "--", "supabase/", "package.json", "package-lock.json"), "");
+  // Reconciled with WP-07 (#120): supabase/ and HTML checks use the shared Costing scope guard, so the WP-07
+  // migration copy and e-Aushadhi HTML do not trip this UX-F1 test; Costing-owned paths stay protected.
+  const scope = costingScopeReport({ git, root, base: BASE });
+  assert.deepEqual(scope.supabase, [], "no Costing or history-rewriting supabase change");
+  assert.deepEqual(scope.html, [], "no Costing HTML changed");
+  assert.equal(git("diff", BASE, "--", "package.json", "package-lock.json"), "");
   const mig = "supabase/migrations/20261015045233_ppm_inactive_sku_mrp_policy_governance.sql";
   assert.equal(git("rev-parse", `${BASE}:${mig}`).trim(), git("hash-object", mig).trim());
   const unchanged = [
@@ -508,8 +514,9 @@ test("scope: no supabase/, migration, controller, protected-screen, HTML or cach
     "costing-table-tools.js", "costing-suite-readiness.js", "costing-suite-pricing-policy.js", "costing-suite-cost-build.js", "costing-suite-material-cost.js",
   ].map((f) => `public/shared/js/${f}`);
   assert.equal(git("diff", BASE, "--", ...unchanged), "");
-  assert.equal(git("diff", "--name-only", BASE, "--", "*.html").trim(), "");
-  assert.equal(git("diff", BASE, "--", "public/sw.js"), "", "no cache allocation in this draft");
+  // UX-F1 allocates no cache; the only permitted sw.js change is WP-07's reserved hub-cache-v389 line.
+  const swChanged = git("diff", "-U0", BASE, "--", "public/sw.js").split("\n").filter((l) => /^[+-][^+-]/.test(l));
+  assert.ok(swChanged.every((l) => /^[+-]const CACHE_NAME = "hub-cache-v38[89]";/.test(l)), "no UX-F1 cache allocation: " + swChanged.join(" | "));
   const css = read("public/shared/css/sasv-costing.css");
   const cssBase = readBase("public/shared/css/sasv-costing.css");
   assert.ok(css.startsWith(cssBase));
