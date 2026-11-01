@@ -1,4 +1,4 @@
-# WP-07 e-Aushadhi — current state (as of 31 Oct 2026, IST)
+# WP-07 e-Aushadhi — current state (as of 1 Nov 2026, IST)
 
 This is the single "where are we" page for WP-07. If another WP-07 note disagrees with it, this page wins until it is next refreshed.
 
@@ -27,18 +27,27 @@ Standing rules still in force: strict four-eyes on every stage; portal final **S
 |---|---|---|---|---|---|---|---|---|---|---|
 | 34 | 36 | 91 | 61 | 79 | 51 | 57 | 46 | 82 | 86 | 86 |
 
-- Owner screen checks: UX-8.1 passed; UX-9.1 round 3 passed 5/6, the tooltip defect fixed in `c5821b1`; **final "9.1 final ok" still pending**.
-- Open low findings: (1) floating tooltip does not follow page scroll while open; (2) the "flag clears in finally" check is regex-only, not a run of the error case; (3) tab-strip focus ring may be clipped.
+- Owner screen checks: UX-8.1 passed; UX-9.1 round 3 passed 5/6, the tooltip defect fixed in `c5821b1`; 1 Nov check: see §4a; **final "9.1 final ok" still pending** (Bundle A).
+- Open low findings (all in Bundle A as A1–A3): (1) floating tooltip does not follow page scroll while open; (2) the "flag clears in finally" check is regex-only, not a run of the error case; (3) tab-strip focus ring may be clipped.
 
-## 3. Main, cache and merge status
-- `main` cache is `hub-cache-v383` (PR #106, `9ea163d`; costing workstream PRs #100–#106 by Aryabhatta). `main` has since moved to `8143426` (docs-only, PR #107).
-- To merge the client branch: rebase onto `main`, bump cache to **v384 or later**, update four e-Aushadhi smoke pins (version strings only: `eaushadhi-qc-preparation-workspace-smoke`, `eaushadhi-qc-b5-d7-smoke`, `eaushadhi-qc-b5-d7-2-2-smoke`, `eaushadhi-qc-b5-d7-3-smoke`), hand-merge `CHANGELOG_DECISIONS.md`, run every smoke. See [MERGE_PLAN.md](MERGE_PLAN.md).
-- **Merge needs owner approval and a ping to Aryabhatta first.**
+## 3. Main, cache and merge status (checked 1 Nov 2026)
+- `origin/main` is **`5c5b7ba`** (docs PR #113) with cache **`hub-cache-v387`** (CW-05 pkg 4, PR #112). Costing PRs #106–#112 moved main v383 → v387; each changed the four e-Aushadhi smoke pins by version string only.
+- Open costing drafts: **#115** (`feat/costing-c1-run-context-diagnostics`, `fb7e863`) and **#117** (`feat/costing-c1b-run-148-worklist`, stacked on #115, `7a8f929`) — both still at v387, no bump; #114/#116 are docs drafts (as reported by the costing orchestration; PR numbers not re-checked in this pass).
+- **No cache number is reserved for WP-07.** The client branch `feat/wp07-ux1-worklist` (`c5821b1`) is on `hub-cache-v376`. At merge it takes the next free number at that moment (v388 if nobody has used it; otherwise the next).
+- To merge: owner approval, then confirm the number with the costing orchestration (ChatGPT), rebase onto `main`, bump, update the four e-Aushadhi pins (version strings only: `eaushadhi-qc-preparation-workspace-smoke`, `eaushadhi-qc-b5-d7-smoke`, `eaushadhi-qc-b5-d7-2-2-smoke`, `eaushadhi-qc-b5-d7-3-smoke`), hand-merge `CHANGELOG_DECISIONS.md`, run every smoke. See [MERGE_PLAN.md](MERGE_PLAN.md).
 
-## 4. Delivery model
-Codex hit its usage limit; Cursor is the interim client builder. The owner is considering Claude Code (Pro plan) cloud sessions: one brief → one draft PR covering several related UX items. See [CLAUDE_CODE_BUNDLES.md](CLAUDE_CODE_BUNDLES.md). Jarvis (Grok Bot) keeps server design/apply, audits and docs.
+## 4. Delivery model (ADR-15, owner-accepted 1 Nov 2026)
+- **ChatGPT** = orchestrator + server worker (plans, audits, Supabase server work only after owner approval). The costing suite is also orchestrated in ChatGPT (no longer by the Aryabhatta agent).
+- **Claude Code** (cloud sessions, Pro plan) = client worker: all client coding as bulk packages (one brief → one draft PR). See [CLAUDE_CODE_BUNDLES.md](CLAUDE_CODE_BUNDLES.md).
+- **Jarvis (Grok Bot)** = audit, planning and status support unless the owner says otherwise.
+- Codex (usage limit) and Cursor (interim) are retired from the default flow.
+- Handover: [HANDOVER_TO_CHATGPT.md](HANDOVER_TO_CHATGPT.md).
+
+## 4a. Owner screen check at `c5821b1` (1 Nov 2026)
+Floating tooltip and keyboard/Escape: pass. Short window: pass. Findings sent to Bundle A: **A4** tooltip should also show from the Composition tab button, and the "i" needs a more visible colour; **A5** no horizontal scroll bar at half width when the table is wider; **A6** "Approve reviewed lines" text turns dark on hover (unreadable). "9.1 final ok" waits for these fixes.
 
 ## 5. Open questions
 - Portal blank reference: does the portal accept an ingredient with no reference? ([PORTAL_BLANK_REFERENCE_SHEET.md](PORTAL_BLANK_REFERENCE_SHEET.md)) — owner or Aneesh.
 - B2 worker unlock (three answers, [B2 decision sheet](../wp07-overnight-20261029/B2_DECISION_SHEET.md)).
+- Live Apply test of UX-9 on Product 270 or 268 (changes real data): owner decision.
 - ADR-08 two-Approver dead end: third Approver vs reopen-and-re-save (to confirm).

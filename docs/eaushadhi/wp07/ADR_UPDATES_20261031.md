@@ -1,6 +1,6 @@
-# WP-07 ADRs — index and status (31 Oct 2026)
+# WP-07 ADRs — index and status (refreshed 1 Nov 2026)
 
-Full text of ADR-01..ADR-10 lives in [../CHANGELOG_DECISIONS.md](../CHANGELOG_DECISIONS.md). ADR-11..ADR-14 were added there on 31 Oct 2026. This table is the status index.
+Full text of ADR-01..ADR-10 lives in [../CHANGELOG_DECISIONS.md](../CHANGELOG_DECISIONS.md). ADR-11..ADR-14 were added there on 31 Oct 2026; ADR-15 on 1 Nov 2026. This table is the status index.
 
 | ADR | Title | Status |
 |---|---|---|
@@ -13,8 +13,9 @@ Full text of ADR-01..ADR-10 lives in [../CHANGELOG_DECISIONS.md](../CHANGELOG_DE
 | ADR-07 | Working mode | Accepted |
 | ADR-08 | Two-person portal entry gate | Accepted, live (only Product 262 enabled; dead-end handling TO CONFIRM) |
 | ADR-09 | Portal options load | Accepted, live |
-| ADR-10 | Client implementer changed to Codex | **Superseded by ADR-14** (31 Oct) |
+| ADR-10 | Client implementer changed to Codex | **Superseded** by ADR-14 (31 Oct), then ADR-15 (1 Nov); Codex retired |
 | ADR-11 | Composition table and line modal (UX-7, UX-8, UX-8.1) | Accepted (owner screen checks passed) |
 | ADR-12 | Reference mapping by wording; bulk source reference design | Accepted (design); blank-reference clearing **Pending portal answer** |
 | ADR-13 | UX-9 server rules (bulk source reference) | Accepted, live `20261031102139` |
-| ADR-14 | UX-9.1 composition screen pattern and delivery model | Screen pattern Accepted; Claude Code bundles **Proposed** |
+| ADR-14 | UX-9.1 composition screen pattern and delivery model | Screen pattern Accepted (final ok pending Bundle A A4–A6); delivery part **superseded by ADR-15** |
+| ADR-15 | Orchestration: ChatGPT orchestrator + server worker, Claude Code client worker, bulk packages | **Accepted by owner 1 Nov 2026**; Codex and Cursor roles retired |

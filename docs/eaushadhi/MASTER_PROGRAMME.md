@@ -7,6 +7,7 @@ Build a complete SASV-to-e-Aushadhi pipeline in which every licensed Ayurveda/Si
 The server is the authoritative preparation and governance layer. The portal is an execution target, not the place where product data is discovered or decided.
 
 ## Architecture and execution ownership
+> **Update 1 Nov 2026 (ADR-15):** for WP-07, ChatGPT is again the orchestrator and server worker; **Claude Code** (cloud sessions) is the client worker, working in bulk packages (one brief → one draft PR). Read "Cursor/Codex" below as "the client worker (now Claude Code)". The 2026-10-10 Jarvis-as-driver line is stale: Jarvis (Grok Bot) is now audit/plan/status support. See [wp07/HANDOVER_TO_CHATGPT.md](wp07/HANDOVER_TO_CHATGPT.md).
 - ChatGPT is the programme architect across all work packs.
 - WP-07 driver since 2026-10-10 (user-authorised): Jarvis acts in ChatGPT's planning/server/audit role; ChatGPT is updated after milestones (see CHANGELOG 2026-10-11).
 - ChatGPT owns server/database planning and implementation.

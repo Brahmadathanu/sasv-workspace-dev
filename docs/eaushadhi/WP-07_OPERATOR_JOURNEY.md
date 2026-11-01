@@ -1,8 +1,9 @@
 # WP-07 Operator journey: e-Aushadhi Review
 
-> **Refreshed 31 Oct 2026 (IST).** Sections 6a, 6b, 9 and 10 below describe the screens on branch `feat/wp07-ux1-worklist` (tip `c5821b1`, not merged). Where older sections disagree, sections 9–10 win. Current state: [wp07/CURRENT_STATE.md](wp07/CURRENT_STATE.md).
+> **Refreshed 1 Nov 2026 (IST).** Owner screen check 1 Nov at `c5821b1`: three fixes pending in Bundle A (Composition tab button also opens the helper; more visible "i"; horizontal scroll bar at half width; "Approve reviewed lines" text stays white on hover). Glossary: [wp07/GLOSSARY.md](wp07/GLOSSARY.md).
+> Previously refreshed 31 Oct 2026 (IST). Sections 6a, 6b, 9 and 10 below describe the screens on branch `feat/wp07-ux1-worklist` (tip `c5821b1`, not merged). Where older sections disagree, sections 9–10 win. Current state: [wp07/CURRENT_STATE.md](wp07/CURRENT_STATE.md).
 
-Status as of 29 Oct 2026 (IST). Screens are on branch `feat/wp07-ux1-worklist` (tip `78cf8a6`; this document was last checked against `851804c` for sections 1-6), not yet merged into main. The server changes listed here are live for everyone.
+*Stale header kept for history —* Status as of 29 Oct 2026 (IST). Screens are on branch `feat/wp07-ux1-worklist` (tip `78cf8a6`; this document was last checked against `851804c` for sections 1-6), not yet merged into main. The server changes listed here are live for everyone.
 
 ## 1. Who does what
 
