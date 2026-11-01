@@ -1,3 +1,5 @@
+> **SUPERSEDED / HISTORICAL (1 Nov 2026):** replaced by [CURRENT_STATE_2026-11-01.md](CURRENT_STATE_2026-11-01.md). Kept for history only.
+
 # Costing suite and master-data costing: current state (31 Oct 2026)
 
 **This is the single "where are we now" page as of 31 Oct 2026, 23:30 IST.** Where an older document disagrees with this page, this page wins. The list of remaining work is in [REMAINING_WORK_2026-10-31.md](REMAINING_WORK_2026-10-31.md).

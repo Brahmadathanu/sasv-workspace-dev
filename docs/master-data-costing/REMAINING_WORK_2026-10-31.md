@@ -1,3 +1,5 @@
+> **SUPERSEDED / HISTORICAL (1 Nov 2026):** replaced by [REMAINING_WORK_2026-11-01.md](REMAINING_WORK_2026-11-01.md). Kept for history only.
+
 # Master costing workflow: remaining work (31 Oct 2026)
 
 Read together with [CURRENT_STATE_2026-10-31.md](CURRENT_STATE_2026-10-31.md).
