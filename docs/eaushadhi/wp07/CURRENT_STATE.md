@@ -51,3 +51,10 @@ Floating tooltip and keyboard/Escape: pass. Short window: pass. Findings sent to
 - B2 worker unlock (three answers, [B2 decision sheet](../wp07-overnight-20261029/B2_DECISION_SHEET.md)).
 - Live Apply test of UX-9 on Product 270 or 268 (changes real data): owner decision.
 - ADR-08 two-Approver dead end: third Approver vs reopen-and-re-save (to confirm).
+
+## 6. Bundle A independent audit (1 Nov 2026)
+- Claude Code delivered draft PR [#118](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/118), branch `feat/wp07-bundle-a-ux-polish`, head `6c4434a`, targeting `feat/wp07-ux1-worklist` at `c5821b1` (not main).
+- ChatGPT independently read the PR metadata, base/head comparison, patches and new smoke source. **Verdict: PASS WITH LOW FINDINGS — code review, not final visual acceptance.** The PR changes seven client/CSS/test files; no committed Supabase/server/worker/cache or service-worker file changes. Claude reports all 11 original smokes at baseline with zero failures and the new UX-10 smoke 124/124; these checks were inspected but not independently rerun.
+- A1–A6 and scoped tab styling are present. The legacy composition-card render path is still used by the line modal and was correctly retained. No merge or rebase authorized.
+- Parked low findings for a later suitable bundle: disabled primary/danger button contrast is not fully ratio-tested in the disabled state; two older markup-comparison smokes now narrowly strip Bundle A class tokens, so future test changes must preserve their meaningful regression coverage.
+- **Next gate:** owner look-only screen verification of PR #118 at 125% (tooltip, narrow/full-width scroll, focus rings and button contrast). **Do not click an active Approve, Save, Apply, gate On/Off or portal action during this check.** Final `9.1 final ok` and Bundle B remain pending owner acceptance/approval.
