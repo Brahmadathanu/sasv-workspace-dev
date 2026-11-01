@@ -819,7 +819,10 @@ assert(!liveList.includes("qcPrepStart") && !liveList.includes("qcPrepEnd") && !
 const datePath = onField.slice(onField.indexOf('target.id === "qcPrepStart"'), onField.indexOf("state.qcPrepReasons"));
 assert(datePath.includes("event.type === \"input\" || event.type === \"change\"") && datePath.includes("return"), "date input and change return after sync");
 assert(!datePath.includes("renderReadiness") && !datePath.includes("focus") && !datePath.includes("scrollIntoView"), "date input and change do not re-render, focus, or scroll");
-const focusoutAt = controlSrc.indexOf('addEventListener("focusout"');
+// Anchor on the QC tab handler itself: UX-7 added an earlier focusout listener (line modal), so the first
+// focusout in the file is no longer the one that contains the QC date-blur logic.
+const focusoutAt = controlSrc.indexOf('$("tab-qc")?.addEventListener("focusout"');
+assert(focusoutAt > 0, "QC tab focusout handler located");
 const focusout = controlSrc.slice(focusoutAt, controlSrc.indexOf('addEventListener("keydown"', focusoutAt));
 assert(focusout.includes("updateQcPrepDateMessages()") && focusout.includes("event.relatedTarget !== event.target"), "date blur calls updateQcPrepDateMessages");
 assert(!focusout.includes("renderReadiness"), "date blur does not re-render");
@@ -1115,6 +1118,7 @@ const saveHarness = new Function(
    function saveQcPreparation() { return Promise.resolve({ ok: true, row_version: 2 }); }
    function showToast(message) { toasts.push(message); }
    function userMessageForError() { return "failed"; }
+   function refreshStageReview() { return Promise.resolve(); }
    function renderQc() {}
    function renderQcSurface() {}
    function revealQcPrepResult() {}
@@ -1219,6 +1223,12 @@ for (const [serverMessage, plain] of mappedMessages) {
 }
 const permissionMapped = workspace.mapQcSourceVerifyError({ code: "42501", message: "permission denied" });
 assert(permissionMapped.message === "You need edit permission for e-Aushadhi.", "42501 maps to the edit-permission sentence");
+for (const refusal of ["FOUR_EYES_SAME_PERSON", "FOUR_EYES_NOT_SAVED_FOR_REVIEW", "APPROVER_ROLE_REQUIRED"]) {
+  const passed = workspace.mapQcSourceVerifyError({ code: "42501", message: refusal, hint: "server hint" });
+  assert(passed.message === refusal, `${refusal} passes through verify mapping before the permission sentence`);
+  const workspacePassed = workspace.toWorkspaceError({ code: "42501", message: refusal });
+  assert(workspacePassed.message === refusal, `${refusal} passes through workspace mapping before the permission sentence`);
+}
 const namedFacts = workspace.mapQcSourceVerifyError({
   message: "FACT_EVIDENCE_INCOMPLETE: SUPPORTED_FACT_REFERENCE_REQUIRED_STUDY_START_DATE, UNSUPPORTED_FACT_NOTE_REQUIRED_BATCHES",
 });
@@ -1459,6 +1469,8 @@ const capturedEvidence = await new Function(
    function renderQc() {}
    function showToast() {}
    function reloadQcPreparationWorkspace() {}
+   function refreshStageReview() { return Promise.resolve(); }
+   function rememberApprovalRefusal() {}
    function userMessageForError() { return "failed"; }
    ${extractCallable("submitQcSourceVerify")}
    return submitQcSourceVerify().then(() => captured);`,
@@ -1623,7 +1635,7 @@ assert((controlSrc.match(/reopenQcPreparation\(/g) || []).length === 1, "reopenQ
 assert(preloadSrc.includes("reopenQcPreparation") && preloadSrc.includes("eaushadhi-worker:qc-preparation-reopen"), "preload exposes reopenQcPreparation");
 assert(ipcSrc.includes("CHANNELS.QC_PREPARATION_REOPEN") && ipcSrc.includes("eaushadhi-worker:qc-preparation-reopen"), "ipc registers the reopen channel");
 assert(controlSrc.includes('onwheel="this.blur()"') && extractFunction("onQcSourceFactField").includes('event.type !== "change"') && extractFunction("onQcSourceFactField").includes("document.getElementById(focusId)?.focus()"), "a fact select changes only on change, restores focus, and blurs on the wheel");
-assert(readFileSync(join(root, "public/sw.js"), "utf8").includes('const CACHE_NAME = "hub-cache-v388"'), "CACHE_NAME is v388");
+assert(readFileSync(join(root, "public/sw.js"), "utf8").includes('const CACHE_NAME = "hub-cache-v389"'), "CACHE_NAME is v389");
 
 const readinessRpc = mockRpc(async () => ({
   status: "NOT_READY",

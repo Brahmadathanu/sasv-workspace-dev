@@ -36,8 +36,10 @@ import {
   canVerifyProductDetails,
   classificationDirty,
   classificationDraftFromReview,
+  classificationScopedOptionsUnloaded,
   classificationSuggestionCopy,
   classificationVerifyPendingCopy,
+  CLASSIFICATION_OPTIONS_UNLOADED_COPY,
   CLASSIFICATION_SUBTYPE_INDEPENDENCE_NOTE,
   clearIncompatibleClassificationChildren,
   classifyRpcError,
@@ -89,8 +91,10 @@ import {
   lineDirty,
   lineDraftFromRow,
   lineHasResolvableSourceIssue,
+  lineSaveForReviewUi,
   lineSelectionsComplete,
   lineVerifyPendingCopy,
+  normalizeReviewNotesForDisplay,
   mergePreservedLineDraft,
   nextQueueRenderCount,
   nextRequiredAction,
@@ -103,6 +107,12 @@ import {
   optionId,
   parseOptionalNumericQuantity,
   portalFieldSpecs,
+  portalFillStepperModel,
+  portalGateReasonOk,
+  portalGateRefusalMessage,
+  PORTAL_ENTRY_ON_NO_AUTOSAVE_COPY,
+  PORTAL_GATE_REASON_RANGE_COPY,
+  classificationSelectedOptionDisplay,
   productDetailsVerifyPendingCopy,
   promoteUnavailableReason,
   provenanceLabel,
@@ -122,6 +132,11 @@ import {
   suggestionBasisSummary,
   summarizeVerifyReviewedLines,
   syncWorkingSourceQuantityDraft,
+  approvalNoticeFromError,
+  bulkApprovalSummary,
+  fourEyesMessage,
+  stageApprovalBlock,
+  stageSaverCopy,
   userMessageForError,
   validateEvidenceFile,
   workingActionReviewStatus,
@@ -152,11 +167,17 @@ import {
   fetchReferenceDictionary,
   fetchReferenceWorkOptions,
   fetchProductQueue,
+  fetchWorklist,
+  fetchMyRoles,
+  fetchStageReviewState,
+  fetchPortalEntryGate,
+  setPortalEntryGate,
   fetchDocumentUploadContract,
   fetchProductClassificationOptions,
   fetchProductPortalText,
   correctWorkingSourceLine,
   fetchSourceIssueContext,
+  fetchSourceReferencePreview,
   verifyReferenceAlias,
   verifyReferenceMapping,
   loadProductWorkspace,
@@ -176,12 +197,34 @@ import {
   saveProductReview,
   saveProductDossierPortalFields,
   saveProductPortalText,
+  setSourceReferenceBulk,
   signedApprovedProductCopyUrl,
   uploadApprovedProductCopyObject,
   uploadQcReportObject,
   removeQcReportObject,
   verifyProduct,
 } from "./eaushadhi-review-api.js";
+import {
+  CACHE_NAME_UX1,
+  ROLE_FALLBACK,
+  WORKLIST_QUEUES,
+  WORKLIST_TAB_KEY,
+  actionDecision,
+  decorateWorkspace,
+  filterWorklistRows,
+  nextActionDecision,
+  normalizeWorklistRow,
+  placeTechnicalDrawer,
+  setActionState,
+  signedInRoleLabel,
+  worklistLevelChoices,
+  worklistEmptyHtml,
+  worklistFiltersActive,
+  worklistModalHtml,
+  worklistRowHtml,
+  worklistTabsHtml,
+  workspaceTabForStage,
+} from "./eaushadhi-review-worklist.js";
 import {
   captureWorkerPortalContract,
   connectWorkerBrowser,
@@ -252,6 +295,30 @@ const state = {
     search: "",
     reviewLens: "all",
     attention: "all",
+    renderedCount: QUEUE_RENDER_CHUNK,
+    focusedLineId: null,
+    scrollTop: 0,
+  },
+  compositionModalLineId: null,
+  compositionModalReturnFocusId: null,
+  compositionModalOrder: [],
+  compositionLineHtml: new Map(),
+  sourceReferenceBulk: {
+    preview: null,
+    productId: null,
+    loading: false,
+    loadGeneration: 0,
+    error: "",
+    requestId: null,
+    target: "",
+    allowNew: false,
+    scope: "BLANK",
+    selected: new Set(),
+    showAll: false,
+    applying: false,
+    reason: "",
+    message: "",
+    inlinePrompt: null,
   },
   catalogs: {
     portalOptions: {
@@ -265,6 +332,29 @@ const state = {
     pharmacologicalActionOptions: [],
   },
   selectedProductId: null,
+  myRoles: { ...ROLE_FALLBACK },
+  stageReview: [],
+  stageReviewLoaded: false,
+  stageReviewFailed: false,
+  portalEntryGate: null,
+  portalEntryGateLoading: false,
+  portalEntryGateError: "",
+  portalEntryGateReason: "",
+  portalEntryGateBusy: false,
+  approvalNotice: null,
+  pendingApproval: null,
+  worklist: null,
+  worklistRow: null,
+  worklistError: false,
+  worklistQueue: "TO_VERIFY",
+  worklistCategory: "all",
+  worklistSubcategory: "all",
+  worklistGroup: "all",
+  worklistBlocked: false,
+  worklistQuery: "",
+  worklistRenderedCount: 0,
+  worklistScrollTop: 0,
+  worklistFocusedId: null,
   tab: "overview",
   queueRow: null,
   review: null,
@@ -456,7 +546,7 @@ const state = {
     reason: "",
     trigger: null,
   },
-  verifyReviewed: { open: false },
+  verifyReviewed: { open: false, running: false },
   productDetailsConfirm: {
     open: false,
     mode: null,
@@ -625,7 +715,7 @@ function preEntryReopenButton({ kind, lineId = null, id, label, dataAttribute = 
   const disabled = availability.enabled
     ? ""
     : ` disabled aria-disabled="true" data-force-disabled="true" title="${escapeHtml(availability.reason)}"`;
-  return `<button type="button" class="icon-btn with-label ea-reopen-btn" id="${escapeHtml(id)}" data-edit-action="true"${dataAttribute}${disabled}>${escapeHtml(label)}</button>`;
+  return `<button type="button" class="icon-btn with-label ea-reopen-btn ea-btn ea-btn--secondary" id="${escapeHtml(id)}" data-edit-action="true"${dataAttribute}${disabled}>${escapeHtml(label)}</button>`;
 }
 
 function currentPostEntryIngredientFormReconcile(lineId) {
@@ -654,7 +744,7 @@ function currentPostEntryIngredientFormReconcile(lineId) {
 function postEntryIngredientFormReconcileButton(lineId) {
   const authority = currentPostEntryIngredientFormReconcile(lineId);
   if (!authority.availability.visible) return "";
-  return `<button type="button" class="icon-btn with-label" data-edit-action="true" id="btn-reconcile-${escapeHtml(lineId)}" data-line-reconcile="${escapeHtml(lineId)}">Reconcile mapping</button>`;
+  return `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" data-edit-action="true" id="btn-reconcile-${escapeHtml(lineId)}" data-line-reconcile="${escapeHtml(lineId)}">Reconcile mapping</button>`;
 }
 
 const CANONICAL_DISEASES_LOCK_STATUSES = Object.freeze([
@@ -694,7 +784,16 @@ function portalTextDirty(draft, row) {
   );
 }
 
+function portalTextEntryLocked() {
+  return ["ENTERED", "PORTAL_VERIFIED", "SUBMITTED"].includes(
+    normalizeEntryStatus(state.queueRow?.entry_status),
+  );
+}
+
 function portalTextBlockingReason() {
+  if (portalTextEntryLocked()) {
+    return "Locked: portal entry for this product is already done, so the portal text cannot be changed.";
+  }
   const draft = state.portalTextDraft;
   if (!draft) return "Portal text is unavailable for this product.";
   if (draft.rowVersion == null) {
@@ -712,6 +811,13 @@ function portalTextBlockingReason() {
 }
 
 function syncPortalTextUi() {
+  const locked = portalTextEntryLocked();
+  ["fldPortalDiseases", "fldPortalDiseasesReason"].forEach((id) => {
+    const field = $(id);
+    if (!field) return;
+    field.readOnly = locked;
+    field.setAttribute("aria-readonly", String(locked));
+  });
   const hint = portalTextBlockingReason();
   const ok = !hint && canWrite();
   ["btnVerifyPortalDiseases", "btnSavePortalDiseases"].forEach((id) => {
@@ -725,71 +831,213 @@ function syncPortalTextUi() {
   setHintEl("portalDiseasesHint", hint);
 }
 
+function stageRow(stage, itemKey = null) {
+  const key = itemKey == null || itemKey === "" ? "" : String(itemKey);
+  return (state.stageReview || []).find((row) => row?.stage === stage && String(row.item_key || "") === key) || null;
+}
+
+function stageGate(stage, itemKey = null) {
+  if (state.stageReviewFailed === true || state.stageReviewLoaded !== true) return null;
+  return stageApprovalBlock(stageRow(stage, itemKey), { failed: false, loaded: true });
+}
+
+function combineApproval(fieldOk, fieldReason, stage, itemKey = null) {
+  if (fieldOk !== true) return { ok: false, reason: fieldReason || "", code: "" };
+  const gate = stageGate(stage, itemKey);
+  if (gate) return { ok: false, reason: gate.userMessage, code: gate.code };
+  return { ok: true, reason: "", code: "" };
+}
+
+function stageSaverHtml(stage, itemKey = null) {
+  const id = itemKey == null || itemKey === "" ? `stageSaver-${stage}` : `stageSaver-${stage}-${itemKey}`;
+  const text = state.stageReviewLoaded === true && state.stageReviewFailed !== true
+    ? stageSaverCopy(stageRow(stage, itemKey), qcIstStamp)
+    : "";
+  return `<p class="muted-note" id="${escapeHtml(id)}"${text ? "" : " hidden"}>${escapeHtml(text)}</p>`;
+}
+
+function approvalNoticeHtml(stage, itemKey = "") {
+  const notice = state.approvalNotice;
+  if (!notice || notice.stage !== stage || String(notice.itemKey || "") !== String(itemKey || "")) return "";
+  const tech = notice.technical
+    ? `<details class="worklist-tech"><summary>Technical details</summary><div class="ea-change-item"><dl>
+        <div class="ea-change-pair"><dt>Code</dt><dd>${escapeHtml(notice.technical.code || "Not recorded")}</dd></div>
+        <div class="ea-change-pair"><dt>Call</dt><dd>${escapeHtml(notice.technical.rpc || "Not recorded")}</dd></div>
+        <div class="ea-change-pair"><dt>Hint</dt><dd>${escapeHtml(notice.technical.hint || "Not recorded")}</dd></div>
+      </dl></div></details>`
+    : "";
+  if (!notice.unknown) return tech;
+  return `<p class="disabled-reason">${escapeHtml(`${notice.text} ${notice.next}`)}</p>${tech}`;
+}
+
+function rememberApprovalRefusal(err) {
+  const pending = state.pendingApproval;
+  if (!pending) return;
+  const notice = approvalNoticeFromError(err);
+  state.approvalNotice = {
+    stage: pending.stage,
+    itemKey: pending.itemKey || "",
+    ...notice,
+    technical: state.myRoles?.is_approver === true ? {
+      code: notice.code || safeText(err?.original?.code || err?.code),
+      rpc: safeText(err?.rpcName),
+      hint: safeText(err?.original?.hint || err?.hint),
+    } : null,
+  };
+}
+
+async function loadStageReview(productId) {
+  try {
+    const rows = await fetchStageReviewState(productId);
+    return { rows: Array.isArray(rows) ? rows : [], failed: false };
+  } catch (err) {
+    console.error("[eaushadhi] stage review state failed", err);
+    return { rows: [], failed: true };
+  }
+}
+
+function applyStageReviewResult(result) {
+  state.stageReview = result?.rows || [];
+  state.stageReviewFailed = result?.failed === true;
+  state.stageReviewLoaded = result?.failed !== true;
+}
+
+function paintStageSaver(stage, itemKey = null) {
+  const id = itemKey == null || itemKey === "" ? `stageSaver-${stage}` : `stageSaver-${stage}-${itemKey}`;
+  const el = document.getElementById(id);
+  if (!el) return;
+  const text = state.stageReviewLoaded === true && state.stageReviewFailed !== true
+    ? stageSaverCopy(stageRow(stage, itemKey), qcIstStamp)
+    : "";
+  el.hidden = !text;
+  el.textContent = text;
+  if (stage === "line") syncCompositionLineFooterMessage();
+}
+
+function applyStageReviewChrome() {
+  paintStageSaver("details");
+  paintStageSaver("classification");
+  paintStageSaver("actions");
+  for (const row of state.lines || []) {
+    const lineId = row?.source_composition_line_id;
+    paintStageSaver("line", lineId);
+    syncLineVerifyUi(lineId);
+  }
+  const preparationId = state.qcPrepServer?.preparation_id;
+  if (preparationId) paintStageSaver("qc", preparationId);
+  syncDetailsVerifyUi();
+  syncClassificationVerifyUi();
+  syncActionsVerifyUi();
+  if (isProductMode()) applyWorkspaceChrome();
+}
+
+async function refreshStageReview({ render = false } = {}) {
+  const productId = state.selectedProductId;
+  if (!productId) return;
+  const result = await loadStageReview(productId);
+  if (!idsEqual(state.selectedProductId, productId)) return;
+  applyStageReviewResult(result);
+  if (render && isProductMode()) renderActiveTab();
+  else applyStageReviewChrome();
+}
+
+function applyApprovalButton(btn, decision, hintId) {
+  if (!btn) return;
+  const blocked = decision.ok !== true;
+  btn.disabled = blocked || !canWrite() || state.busy;
+  btn.dataset.forceDisabled = blocked ? "true" : "false";
+  if (decision.code) btn.dataset.blockCode = decision.code;
+  else delete btn.dataset.blockCode;
+  if (decision.reason) btn.title = decision.reason;
+  else btn.removeAttribute("title");
+  setHintEl(hintId, decision.reason);
+}
+
 function syncDetailsVerifyUi() {
   const btn = $("btnVerifyDetails");
   if (!btn) return;
-  const ok = canVerifyProductDetails(state.detailsDraft, {
+  const fieldOk = canVerifyProductDetails(state.detailsDraft, {
     canEdit: canWrite(),
     saveStatus: state.detailsSaveStatus,
   });
-  const reason = productDetailsVerifyPendingCopy(state.detailsDraft, {
+  const fieldReason = productDetailsVerifyPendingCopy(state.detailsDraft, {
     saveStatus: state.detailsSaveStatus,
   });
-  btn.disabled = !ok || !canWrite() || state.busy;
-  btn.dataset.forceDisabled = ok ? "false" : "true";
-  if (reason) btn.title = reason;
-  else btn.removeAttribute("title");
-  setHintEl("detailsVerifyHint", reason);
+  applyApprovalButton(btn, combineApproval(fieldOk, fieldReason, "details"), "detailsVerifyHint");
 }
 
 function syncActionsVerifyUi() {
   const btn = $("btnVerifyActions");
   if (!btn) return;
-  const ok = canVerifyActionSet({
+  const fieldOk = canVerifyActionSet({
     actions: state.actionsDraft,
     reviewStatus: state.actionsReviewStatus,
     saveStatus: state.actionsSaveStatus,
     canEdit: canWrite(),
   });
-  const reason = actionSetVerifyPendingCopy({
+  const fieldReason = actionSetVerifyPendingCopy({
     actions: state.actionsDraft,
     reviewStatus: state.actionsReviewStatus,
     saveStatus: state.actionsSaveStatus,
   });
-  btn.disabled = !ok || !canWrite() || state.busy;
-  btn.dataset.forceDisabled = ok ? "false" : "true";
-  if (reason) btn.title = reason;
-  else btn.removeAttribute("title");
-  setHintEl("actionsVerifyHint", reason);
+  applyApprovalButton(btn, combineApproval(fieldOk, fieldReason, "actions"), "actionsVerifyHint");
 }
 
 function syncClassificationVerifyUi() {
   const btn = $("btnVerifyClassification");
   if (!btn) return;
-  const ok = canVerifyClassification(state.classificationDraft, {
+  const fieldOk = canVerifyClassification(state.classificationDraft, {
     canEdit: canWrite(),
     saveStatus: state.classificationSaveStatus,
     reviewStatus: state.classification?.review_status,
+    categoryOptions: state.classificationOptions.PRODUCT_CATEGORY,
+    subtypeOptions: state.classificationOptions.PRODUCT_SUBTYPE,
   });
-  const reason = classificationVerifyPendingCopy(state.classificationDraft, {
+  const fieldReason = classificationVerifyPendingCopy(state.classificationDraft, {
     saveStatus: state.classificationSaveStatus,
     reviewStatus: state.classification?.review_status,
+    categoryOptions: state.classificationOptions.PRODUCT_CATEGORY,
+    subtypeOptions: state.classificationOptions.PRODUCT_SUBTYPE,
   });
-  btn.disabled = !ok || !canWrite() || state.busy;
-  btn.dataset.forceDisabled = ok ? "false" : "true";
-  if (reason) btn.title = reason;
+  applyApprovalButton(btn, combineApproval(fieldOk, fieldReason, "classification"), "classificationVerifyHint");
+}
+
+function syncLineSaveReviewUi(lineId) {
+  const id = String(lineId);
+  const btn = document.querySelector(`[data-line-save="${id}"]`);
+  if (!btn) return;
+  const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, id));
+  const ui = lineSaveForReviewUi({
+    reviewStatus: row?.review_status,
+    draft: state.lineDrafts.get(id),
+    baseline: state.lineBaselines.get(id),
+    stageRow: stageRow("line", id),
+    canWrite: canWrite(),
+    busy: state.busy,
+  });
+  if (!ui.visible) {
+    btn.hidden = true;
+    btn.disabled = true;
+    btn.dataset.forceDisabled = "true";
+    return;
+  }
+  btn.hidden = false;
+  btn.textContent = ui.label;
+  btn.disabled = !ui.enabled;
+  btn.dataset.forceDisabled = ui.enabled ? "false" : "true";
+  if (ui.title) btn.title = ui.title;
   else btn.removeAttribute("title");
-  setHintEl("classificationVerifyHint", reason);
 }
 
 function syncLineVerifyUi(lineId) {
   const id = String(lineId);
+  syncLineSaveReviewUi(id);
   const btn = document.querySelector(`[data-line-verify="${id}"]`);
   if (!btn) return;
   const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, id));
   const draft = state.lineDrafts.get(id);
   const saveStatus = state.lineSaveStatus.get(id) || "";
-  const ok = canVerifyCompositionLine({
+  const fieldOk = canVerifyCompositionLine({
     draft,
     issues: state.issues,
     lineId: id,
@@ -797,16 +1045,46 @@ function syncLineVerifyUi(lineId) {
     saveStatus,
     canEdit: canWrite(),
   });
-  const reason = lineVerifyPendingCopy({
+  const fieldReason = lineVerifyPendingCopy({
     draft,
     issues: state.issues,
     lineId: id,
     reviewStatus: row?.review_status,
     saveStatus,
   });
-  btn.disabled = !ok || !canWrite() || state.busy;
-  btn.dataset.forceDisabled = ok ? "false" : "true";
-  btn.title = reason || "Confirm the reviewed portal mapping as correct.";
+  const decision = combineApproval(fieldOk, fieldReason, "line", id);
+  btn.disabled = decision.ok !== true || !canWrite() || state.busy;
+  btn.dataset.forceDisabled = decision.ok ? "false" : "true";
+  if (decision.code) btn.dataset.blockCode = decision.code;
+  else delete btn.dataset.blockCode;
+  if (decision.reason) btn.title = decision.reason;
+  else btn.removeAttribute("title");
+  const message = document.querySelector("#compositionLineModalMessage .line-decision-message")
+    || btn.closest(".line-card")?.querySelector(".line-decision-message");
+  if (message) {
+    message.hidden = !decision.reason;
+    message.textContent = decision.reason || "";
+    message.title = decision.reason || "";
+  }
+  syncCompositionLineFooterMessage();
+}
+
+function syncCompositionLineFooterMessage() {
+  const host = $("compositionLineModalMessage");
+  if (!host) return;
+  const text = Array.from(host.children)
+    .filter((node) => !node.hidden)
+    .map((node) => safeText(node.textContent))
+    .filter(Boolean)
+    .join(" · ");
+  host.hidden = !text;
+  if (text) {
+    host.title = text;
+    host.setAttribute("aria-label", text);
+  } else {
+    host.removeAttribute("title");
+    host.removeAttribute("aria-label");
+  }
 }
 
 function toastError(err) {
@@ -830,23 +1108,56 @@ function lockNoteHtml() {
   return `<span class="ea-lock-note"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false"><rect x="4" y="7" width="8" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"></rect><path d="M6 7V5a2 2 0 0 1 4 0v2" fill="none" stroke="currentColor" stroke-width="1.4"></path></svg> Verified - reopen to edit</span>`;
 }
 
+function autosaveForReview(id) {
+  if (id === "detailsAutosave") return normalizeReviewStatus(state.review?.review_status) === "IN_REVIEW";
+  if (id === "classificationAutosave") return normalizeReviewStatus(state.classification?.review_status) === "IN_REVIEW";
+  if (id === "actionsAutosave") return normalizeReviewStatus(state.actionsReviewStatus) === "IN_REVIEW";
+  if (String(id).startsWith("line-save-")) {
+    const lineId = String(id).slice("line-save-".length);
+    const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
+    return normalizeReviewStatus(row?.review_status) === "IN_REVIEW";
+  }
+  return false;
+}
+
 function autosaveHtml(status, id) {
-  const label = autosaveStateLabel(status);
+  const lineId = String(id || "").startsWith("line-save-") ? String(id).slice("line-save-".length) : null;
+  const displayStatus = lineId && !status && lineDirty(state.lineDrafts.get(lineId), state.lineBaselines.get(lineId))
+    ? "unsaved"
+    : status;
+  const label = displayStatus === "unsaved"
+    ? "Unsaved changes"
+    : autosaveStateLabel(displayStatus, { forReview: autosaveForReview(id) });
   if (!label) return `<span class="ea-autosave" ${id ? `id="${escapeHtml(id)}"` : ""} hidden></span>`;
-  const live = status === "failed" || status === "stale" ? ' aria-live="polite"' : "";
-  const cls =
-    status === "failed" || status === "stale" ? "ea-autosave is-failed" : "ea-autosave";
-  return `<span class="${cls}" ${id ? `id="${escapeHtml(id)}"` : ""} ${live}>${escapeHtml(label)}</span>`;
+  const tone = displayStatus === "failed" || displayStatus === "stale"
+    ? "is-failed"
+    : displayStatus === "saved"
+      ? "is-saved"
+      : displayStatus === "saving"
+        ? "is-saving"
+        : displayStatus === "unsaved"
+          ? "is-unsaved"
+          : "";
+  const icon = displayStatus === "saved" ? "✓" : displayStatus === "saving" ? "◷" : displayStatus === "failed" || displayStatus === "stale" ? "!" : displayStatus === "unsaved" ? "•" : "";
+  const live = lineId ? ' role="status" aria-live="polite"' : displayStatus === "failed" || displayStatus === "stale" ? ' aria-live="polite"' : "";
+  return `<span class="ea-autosave${tone ? ` ${tone}` : ""}" ${id ? `id="${escapeHtml(id)}"` : ""}${live}>${icon ? `<span aria-hidden="true">${icon}</span> ` : ""}${escapeHtml(label)}</span>`;
 }
 
 function patchAutosaveEl(id, status) {
   const el = $(id);
   if (!el) return;
-  const label = autosaveStateLabel(status);
+  const label = status === "unsaved" ? "Unsaved changes" : autosaveStateLabel(status, { forReview: autosaveForReview(id) });
+  const icon = status === "saved" ? "✓" : status === "saving" ? "◷" : status === "failed" || status === "stale" ? "!" : status === "unsaved" ? "•" : "";
   el.hidden = !label;
-  el.textContent = label;
+  el.innerHTML = icon ? `<span aria-hidden="true">${icon}</span> ${escapeHtml(label)}` : escapeHtml(label);
   el.classList.toggle("is-failed", status === "failed" || status === "stale");
-  if (status === "failed" || status === "stale") el.setAttribute("aria-live", "polite");
+  el.classList.toggle("is-saving", status === "saving");
+  el.classList.toggle("is-saved", status === "saved");
+  el.classList.toggle("is-unsaved", status === "unsaved");
+  if (String(id).startsWith("line-save-")) {
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+  } else if (status === "failed" || status === "stale") el.setAttribute("aria-live", "polite");
   else el.removeAttribute("aria-live");
   if (id === "detailsAutosave") syncDetailsVerifyUi();
   if (id === "portalFieldsAutosave") syncPortalFieldsUi();
@@ -856,9 +1167,16 @@ function patchAutosaveEl(id, status) {
   if (String(id).startsWith("line-save-")) syncLineVerifyUi(String(id).slice("line-save-".length));
 }
 
-function confirmLeaveDirty() {
+async function confirmLeaveDirty(returnFocus = "backToQueueBtn") {
   if (!workspaceIsDirty()) return true;
-  return window.confirm("You have unsaved review edits. Discard them?");
+  return openQcConfirm({
+    title: "Unsaved review edits",
+    message: "You have unsaved review edits. Discard them?",
+    okLabel: "Leave without saving",
+    cancelLabel: "Stay",
+    returnFocus,
+    idPrefix: "leaveDirtyConfirm",
+  });
 }
 
 function chip(statusClass, label) {
@@ -867,7 +1185,7 @@ function chip(statusClass, label) {
 
 function provenanceChipHtml(lineId, draftKey, provenance) {
   const code = provenance || "no_suggestion";
-  return `<span class="prov-chip" data-provenance="${escapeHtml(code)}" data-prov-for="${escapeHtml(lineId)}-${escapeHtml(draftKey)}">${escapeHtml(provenanceLabel(code))}</span>`;
+  return `<span class="prov-chip" data-provenance="${escapeHtml(code)}" data-prov-for="${escapeHtml(lineId)}-${escapeHtml(draftKey)}"><span aria-hidden="true">✦</span> ${escapeHtml(provenanceLabel(code))}</span>`;
 }
 
 function filteredQueue() {
@@ -946,10 +1264,26 @@ function renderCompositionFilterLenses() {
   if (search && search.value !== state.compositionView.search) {
     search.value = state.compositionView.search;
   }
-  const barClear = $("btnClearCompositionFiltersBar");
-  if (barClear) {
-    barClear.hidden = !compositionFiltersAreActive(state.compositionView);
+  syncCompositionFilterControls();
+}
+
+function compositionActiveDrawerFilterCount() {
+  return Number(state.compositionView.reviewLens !== "all") + Number(state.compositionView.attention !== "all");
+}
+
+function syncCompositionFilterControls() {
+  const count = compositionActiveDrawerFilterCount();
+  const badge = $("compositionFilterBadge");
+  if (badge) {
+    badge.hidden = count === 0;
+    badge.textContent = "";
   }
+  const filterBtn = $("compositionFilterBtn");
+  if (filterBtn) filterBtn.setAttribute("aria-label", `Filters, ${count} active`);
+  const title = $("compositionFilterTitle");
+  if (title) title.textContent = `Filters (${count})`;
+  const clear = $("btnClearCompositionFiltersDrawer");
+  if (clear) clear.disabled = !compositionFiltersAreActive(state.compositionView);
 }
 
 function queueRowHtml(row) {
@@ -1093,43 +1427,53 @@ function optionHtml(options, selectedId, extra = []) {
     const id = optionId(opt?.portal_option_id ?? opt?.term_id ?? opt?.id);
     if (!id || seen.has(id)) continue;
     seen.add(id);
-    const label = displayText(opt?.label, id);
+    const label = safeText(opt?.label);
+    if (!label) continue;
     const selected = idsEqual(id, selectedId) ? " selected" : "";
     parts.push(
       `<option value="${escapeHtml(id)}"${selected}>${escapeHtml(label)}</option>`,
     );
   }
   if (selectedId && !seen.has(String(selectedId))) {
+    const display = classificationSelectedOptionDisplay(list, selectedId);
     parts.push(
-      `<option value="${escapeHtml(selectedId)}" selected>Current value ${escapeHtml(selectedId)}</option>`,
+      `<option value="${escapeHtml(selectedId)}" selected>${escapeHtml(
+        display.label || "Selected option is not in the current list. Re-open the product or contact the administrator.",
+      )}</option>`,
     );
   }
   return parts.join("");
 }
 
-function classificationOptionHtml(options, selectedId, { emptyLabel = "Select..." } = {}) {
+function classificationOptionHtml(
+  options,
+  selectedId,
+  { emptyLabel = "Select...", domain = "" } = {},
+) {
   const seen = new Set();
-  const list = selectableClassificationOptions(options);
+  const list = selectableClassificationOptions(options, { domain });
   const parts = [`<option value="">${escapeHtml(emptyLabel)}</option>`];
   for (const opt of list) {
     const id = optionId(opt?.portal_option_id ?? opt?.id);
     if (!id || seen.has(id)) continue;
     seen.add(id);
-    const label = displayText(opt?.label, id);
+    const label = safeText(opt?.label);
+    if (!label) continue;
     const selected = idsEqual(id, selectedId) ? " selected" : "";
     parts.push(
       `<option value="${escapeHtml(id)}"${selected}>${escapeHtml(label)}</option>`,
     );
   }
   if (selectedId && !seen.has(String(selectedId))) {
+    const display = classificationSelectedOptionDisplay(options, selectedId, { domain });
     parts.push(
-      `<option value="${escapeHtml(selectedId)}" selected>Current value ${escapeHtml(selectedId)}</option>`,
+      `<option value="${escapeHtml(selectedId)}" selected>${escapeHtml(display.label)}</option>`,
     );
   }
   return parts.join("");
 }
 
-function classificationSubtypeOptionHtml(draft) {
+function classificationSubtypeOptionHtml(draft, { optionsUnloaded = false } = {}) {
   const mode = resolveClassificationSubtypeMode({
     ...(draft || {}),
     preserveBlank: false,
@@ -1139,7 +1483,8 @@ function classificationSubtypeOptionHtml(draft) {
   // BLANK and UNRESOLVED both render as correctable "Not yet resolved" plus
   // fill-eligible options only (no Blank / "-" choices).
   return classificationOptionHtml(state.classificationOptions.PRODUCT_SUBTYPE, selected, {
-    emptyLabel: "Not yet resolved",
+    emptyLabel: optionsUnloaded ? CLASSIFICATION_OPTIONS_UNLOADED_COPY : "Not yet resolved",
+    domain: "PRODUCT_SUBTYPE",
   });
 }
 
@@ -1186,18 +1531,132 @@ function workflowStagesWithQc() {
   return stages.map((stage, index) => ({ ...stage, step: index + 1 }));
 }
 
+const COMPOSITION_ACTION_HINT_TEXT = "Changes save automatically. Verify when the section is correct.";
+
+function ensureCompositionActionHint() {
+  let tip = $("compositionActionHint");
+  if (!tip) {
+    tip = document.createElement("span");
+    tip.id = "compositionActionHint";
+    tip.className = "composition-info-tooltip";
+    tip.setAttribute("role", "tooltip");
+    tip.textContent = COMPOSITION_ACTION_HINT_TEXT;
+    const tabs = $("workspaceTabs");
+    if (tabs?.parentElement) tabs.insertAdjacentElement("afterend", tip);
+    else document.body.appendChild(tip);
+  } else if (tip.closest(".workflow-nav")) {
+    const tabs = $("workspaceTabs");
+    if (tabs) tabs.insertAdjacentElement("afterend", tip);
+    else document.body.appendChild(tip);
+  }
+  return tip;
+}
+
+function placeCompositionActionHint() {
+  const tip = ensureCompositionActionHint();
+  const icon = document.querySelector("#wf-tab-composition .composition-info-icon") || $("wf-tab-composition");
+  if (!tip || !icon) return;
+  const gap = 6;
+  const margin = 8;
+  tip.classList.add("is-open");
+  tip.style.top = "0px";
+  tip.style.left = "0px";
+  const ir = icon.getBoundingClientRect();
+  const tr = tip.getBoundingClientRect();
+  let top = ir.bottom + gap;
+  if (top + tr.height > window.innerHeight - margin) {
+    top = ir.top - gap - tr.height;
+  }
+  if (top < margin) top = margin;
+  let left = ir.left + ir.width / 2 - tr.width / 2;
+  if (left < margin) left = margin;
+  if (left + tr.width > window.innerWidth - margin) {
+    left = Math.max(margin, window.innerWidth - margin - tr.width);
+  }
+  tip.style.top = `${Math.round(top)}px`;
+  tip.style.left = `${Math.round(left)}px`;
+}
+
+function showCompositionActionHint() {
+  placeCompositionActionHint();
+}
+
+function hideCompositionActionHint() {
+  const tip = $("compositionActionHint");
+  if (!tip) return;
+  tip.classList.remove("is-open");
+  tip.style.top = "";
+  tip.style.left = "";
+}
+
+function compositionActionHintAnchorVisible(anchor) {
+  if (!anchor || !anchor.isConnected) return false;
+  const rect = anchor.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return false;
+  if (rect.bottom <= 0 || rect.top >= window.innerHeight || rect.right <= 0 || rect.left >= window.innerWidth) return false;
+  const nav = $("workspaceTabs");
+  if (nav && nav.contains(anchor)) {
+    const nr = nav.getBoundingClientRect();
+    if (rect.right <= nr.left || rect.left >= nr.right || rect.bottom <= nr.top || rect.top >= nr.bottom) return false;
+  }
+  return true;
+}
+
+let compositionActionHintFrame = 0;
+
+/** Bundle A A1: keep the open floating helper on its "i" while the page, workspace or nav scrolls/resizes. */
+function scheduleCompositionActionHintPlacement() {
+  if (compositionActionHintFrame) return;
+  compositionActionHintFrame = requestAnimationFrame(() => {
+    compositionActionHintFrame = 0;
+    if (!$("compositionActionHint")?.classList.contains("is-open")) return;
+    const anchor = document.querySelector("#wf-tab-composition .composition-info-icon") || $("wf-tab-composition");
+    if (!compositionActionHintAnchorVisible(anchor)) {
+      hideCompositionActionHint();
+      return;
+    }
+    placeCompositionActionHint();
+  });
+}
+
+function wireCompositionActionHint() {
+  const tab = $("wf-tab-composition");
+  if (!tab) return;
+  tab.addEventListener("mouseenter", showCompositionActionHint);
+  tab.addEventListener("mouseleave", hideCompositionActionHint);
+  tab.addEventListener("focus", showCompositionActionHint);
+  tab.addEventListener("blur", hideCompositionActionHint);
+}
+
 function renderWorkflowNav() {
   const host = $("workspaceTabs");
   if (!host) return;
+  const wasOpen = $("compositionActionHint")?.classList.contains("is-open") === true;
+  hideCompositionActionHint();
   const ctx = stageCtx();
   host.innerHTML = workflowStagesWithQc().map((stage) => {
     const selected = state.tab === stage.id;
     const complete = stage.id === "qc" ? false : workflowStageComplete(stage.id, ctx);
-    return `<button type="button" class="workflow-step${complete ? " is-complete" : ""}" role="tab" id="wf-tab-${escapeHtml(stage.id)}" data-tab="${escapeHtml(stage.id)}" aria-controls="tab-${escapeHtml(stage.id)}" aria-selected="${selected ? "true" : "false"}" tabindex="${selected ? "0" : "-1"}">
+    const compositionHint = stage.id === "composition"
+      ? ' aria-describedby="compositionActionHint"'
+      : "";
+    const label = stage.id === "composition"
+      ? `<span>${escapeHtml(stage.label)}</span><span class="composition-info-icon" aria-hidden="true"><span class="composition-info-glyph">i</span></span>`
+      : `<span>${escapeHtml(stage.label)}</span>`;
+    return `<button type="button" class="workflow-step${complete ? " is-complete" : ""}" role="tab" id="wf-tab-${escapeHtml(stage.id)}" data-tab="${escapeHtml(stage.id)}" aria-controls="tab-${escapeHtml(stage.id)}" aria-selected="${selected ? "true" : "false"}" tabindex="${selected ? "0" : "-1"}"${compositionHint}>
       <span class="step-no">${escapeHtml(String(stage.step))}</span>
-      <span>${escapeHtml(stage.label)}</span>
+      ${label}
     </button>`;
   }).join("");
+  ensureCompositionActionHint();
+  wireCompositionActionHint();
+  // Bundle A A4: the rebuilt tab button gets no new mouseenter/focus event, so reopen the helper when the
+  // pointer is still over it or it holds focus (e.g. right after clicking or arrowing to Composition).
+  const compositionTab = $("wf-tab-composition");
+  const stillHovered = (() => {
+    try { return compositionTab?.matches(":hover") === true; } catch { return false; }
+  })();
+  if (compositionTab && (stillHovered || (wasOpen && document.activeElement === compositionTab))) showCompositionActionHint();
 }
 
 function renderProductHeader() {
@@ -1367,7 +1826,9 @@ function renderDetails() {
   const suggested = review.suggested_permission_purpose_label
     ? `Suggested: ${review.suggested_permission_purpose_label}`
     : "";
-  const disable = locked ? " disabled" : "";
+  const disable = locked
+    ? ' disabled aria-disabled="true" data-force-disabled="true"'
+    : "";
   const detailsVerifyOk = canVerifyProductDetails(draft, {
     canEdit: canWrite(),
     saveStatus: state.detailsSaveStatus,
@@ -1375,61 +1836,53 @@ function renderDetails() {
   const detailsVerifyHint = productDetailsVerifyPendingCopy(draft, {
     saveStatus: state.detailsSaveStatus,
   });
+  const detailsDecision = combineApproval(detailsVerifyOk, detailsVerifyHint, "details");
   const classDraft =
     state.classificationDraft || classificationDraftFromReview(state.classification);
   const classLocked = isVerifiedStatus(
     state.classification?.review_status ?? classDraft.reviewStatus,
   );
-  const classDisable = classLocked ? " disabled" : "";
+  const classDisable = classLocked
+    ? ' disabled aria-disabled="true" data-force-disabled="true"'
+    : "";
   const typeSelected = optionId(classDraft.productTypeOptionId);
-  const childDisable = classDisable || !typeSelected ? " disabled" : "";
+  const childDisable = classDisable || (!typeSelected ? " disabled" : "");
   const classSuggestions = classificationSuggestionCopy(state.classification);
+  const categoryUnloaded = classificationScopedOptionsUnloaded(
+    state.classificationOptions.PRODUCT_CATEGORY,
+    { productTypeSelected: Boolean(typeSelected) },
+  );
+  const subtypeUnloaded = classificationScopedOptionsUnloaded(
+    state.classificationOptions.PRODUCT_SUBTYPE,
+    { productTypeSelected: Boolean(typeSelected) },
+  );
   const classVerifyOk = canVerifyClassification(classDraft, {
     canEdit: canWrite(),
     saveStatus: state.classificationSaveStatus,
     reviewStatus: state.classification?.review_status,
+    categoryOptions: state.classificationOptions.PRODUCT_CATEGORY,
+    subtypeOptions: state.classificationOptions.PRODUCT_SUBTYPE,
   });
   const classVerifyHint = classificationVerifyPendingCopy(classDraft, {
     saveStatus: state.classificationSaveStatus,
     reviewStatus: state.classification?.review_status,
+    categoryOptions: state.classificationOptions.PRODUCT_CATEGORY,
+    subtypeOptions: state.classificationOptions.PRODUCT_SUBTYPE,
   });
+  const classDecision = combineApproval(classVerifyOk, classVerifyHint, "classification");
   const classStatus = normalizeReviewStatus(
     state.classification?.review_status ?? classDraft.reviewStatus,
   ) || "PENDING";
   host.innerHTML = `
     <div class="section-card${classLocked ? " is-verified" : ""}" id="portalClassificationCard">
+      <div class="ux6-section-head">
       <div class="section-title-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <h3 class="section-title" style="margin:0">Portal Classification</h3>
         ${chip(reviewStatusChipClass(classStatus), displayText(classStatus, "PENDING"))}
       </div>
-      ${classLocked ? lockNoteHtml() : ""}
-      <div class="form-field">
-        <label for="fldClassProductType">Product Type</label>
-        <select id="fldClassProductType" class="sasv-control" data-edit-action="true" data-classification-field="type"${classDisable}>
-          ${classificationOptionHtml(state.classificationOptions.PRODUCT_TYPE, classDraft.productTypeOptionId)}
-        </select>
-        <span class="muted-note">Suggested Product Type: ${escapeHtml(classSuggestions.productType)}</span>
-      </div>
-      <div class="form-field">
-        <label for="fldClassCategory">Category / Dosage Form</label>
-        <select id="fldClassCategory" class="sasv-control" data-edit-action="true" data-classification-field="category"${childDisable}>
-          ${classificationOptionHtml(state.classificationOptions.PRODUCT_CATEGORY, classDraft.productCategoryOptionId)}
-        </select>
-        <span class="muted-note">Suggested Category: ${escapeHtml(classSuggestions.productCategory)}</span>
-      </div>
-      <div class="form-field">
-        <label for="fldClassSubtype">Portal Sub Type</label>
-        <select id="fldClassSubtype" class="sasv-control" data-edit-action="true" data-classification-field="subtype"${childDisable}>
-          ${classificationSubtypeOptionHtml(classDraft)}
-        </select>
-        <span class="muted-note">Portal Sub Type: ${escapeHtml(classSuggestions.productSubtype)}</span>
-        <span class="muted-note">${escapeHtml(CLASSIFICATION_SUBTYPE_INDEPENDENCE_NOTE)}</span>
-      </div>
-      <div class="form-field">
-        <label for="fldClassNotes">Review Notes</label>
-        <textarea id="fldClassNotes" class="sasv-control" rows="2" data-edit-action="true" data-classification-field="notes"${classDisable}>${escapeHtml(classDraft.reviewNotes || "")}</textarea>
-      </div>
+      <div class="ux6-section-actions">
       ${autosaveHtml(state.classificationSaveStatus, "classificationAutosave")}
+      ${stageSaverHtml("classification")}
       <div class="action-row">
         ${
           classLocked
@@ -1441,17 +1894,66 @@ function renderDetails() {
             label: "Reopen Portal Classification",
           })
         }`
-            : `<button type="button" class="icon-btn with-label primary" id="btnVerifyClassification" data-edit-action="true"${
-                classVerifyOk ? "" : " data-force-disabled=\"true\""
-              }${classVerifyHint ? ` title="${escapeHtml(classVerifyHint)}"` : ""}>Verify Portal Classification</button>`
+            : `<button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnVerifyClassification" data-edit-action="true"${
+                classDecision.ok ? "" : " data-force-disabled=\"true\""
+              }${classDecision.code ? ` data-block-code="${escapeHtml(classDecision.code)}"` : ""}${
+                classDecision.reason ? ` title="${escapeHtml(classDecision.reason)}"` : ""
+              }>Approve</button>`
         }
       </div>
+      ${approvalNoticeHtml("classification")}
       ${
         classLocked
           ? ""
-          : `<p class="disabled-reason" id="classificationVerifyHint"${classVerifyHint ? "" : " hidden"}>${escapeHtml(classVerifyHint)}</p>`
+          : `<p class="disabled-reason" id="classificationVerifyHint"${classDecision.reason ? "" : " hidden"}>${escapeHtml(classDecision.reason)}</p>`
       }
+      </div>
+      </div>
+      ${classLocked ? lockNoteHtml() : ""}
+      <div class="form-grid ux6-classification-grid">
+      <div class="form-field">
+        <label for="fldClassProductType">Product Type</label>
+        <select id="fldClassProductType" class="sasv-control" data-edit-action="true" data-classification-field="type"${classDisable}>
+          ${classificationOptionHtml(state.classificationOptions.PRODUCT_TYPE, classDraft.productTypeOptionId)}
+        </select>
+        <span class="muted-note">Suggested Product Type: ${escapeHtml(classSuggestions.productType)}</span>
+      </div>
+      <div class="form-field">
+        <label for="fldClassCategory">Category / Dosage Form</label>
+        <select id="fldClassCategory" class="sasv-control" data-edit-action="true" data-classification-field="category"${childDisable}>
+          ${classificationOptionHtml(state.classificationOptions.PRODUCT_CATEGORY, classDraft.productCategoryOptionId, {
+            emptyLabel: categoryUnloaded ? CLASSIFICATION_OPTIONS_UNLOADED_COPY : "Select...",
+            domain: "PRODUCT_CATEGORY",
+          })}
+        </select>
+        <span class="muted-note">Suggested Category: ${escapeHtml(classSuggestions.productCategory)}</span>
+        ${
+          categoryUnloaded
+            ? `<span class="muted-note" id="classCategoryUnloadedNote">${escapeHtml(CLASSIFICATION_OPTIONS_UNLOADED_COPY)}</span>`
+            : ""
+        }
+      </div>
+      <div class="form-field">
+        <label for="fldClassSubtype">Portal Sub Type</label>
+        <select id="fldClassSubtype" class="sasv-control" data-edit-action="true" data-classification-field="subtype"${childDisable}>
+          ${classificationSubtypeOptionHtml(classDraft, { optionsUnloaded: subtypeUnloaded })}
+        </select>
+        <span class="muted-note">Portal Sub Type: ${escapeHtml(classSuggestions.productSubtype)}</span>
+        <span class="muted-note">${escapeHtml(CLASSIFICATION_SUBTYPE_INDEPENDENCE_NOTE)}</span>
+        ${
+          subtypeUnloaded
+            ? `<span class="muted-note" id="classSubtypeUnloadedNote">${escapeHtml(CLASSIFICATION_OPTIONS_UNLOADED_COPY)}</span>`
+            : ""
+        }
+      </div>
+      </div>
+      <div class="form-field">
+        <label for="fldClassNotes">Review Notes</label>
+        <textarea id="fldClassNotes" class="sasv-control" rows="2" data-edit-action="true" data-classification-field="notes"${classDisable}>${escapeHtml(classDraft.reviewNotes || "")}</textarea>
+      </div>
+
     </div>
+    <div class="ux6-details-pair">
     <div class="section-card${locked ? " is-verified" : ""}">
       <h3 class="section-title">Regulatory purpose</h3>
       ${locked ? lockNoteHtml() : ""}
@@ -1479,10 +1981,25 @@ function renderDetails() {
         }
       </div>
     </div>
-    <div class="section-card" id="portalDiseasesCard">
+    </div>
+    <div class="section-card${isVerifiedStatus(portalTextStatus) || portalTextEntryLocked() ? " is-locked" : ""}" id="portalDiseasesCard">
+      <div class="ux6-section-head">
       <div class="section-title-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <h3 class="section-title" style="margin:0">e-Aushadhi Portal Text</h3>
         ${chip(portalTextChipClass, displayText(portalTextStatus, "PENDING"))}
+      </div>
+      ${portalTextAvailable ? `<div class="ux6-section-actions">
+      ${autosaveHtml(state.portalTextSaveStatus, "portalTextAutosave")}
+      <div class="action-row">
+        <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnVerifyPortalDiseases" data-edit-action="true"${
+          portalTextHint ? ` data-force-disabled="true" title="${escapeHtml(portalTextHint)}"` : ""
+        }>Accept &amp; Verify Portal Text</button>
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnSavePortalDiseases" data-edit-action="true"${
+          portalTextHint ? ` data-force-disabled="true" title="${escapeHtml(portalTextHint)}"` : ""
+        }>Save for Review</button>
+      </div>
+      <p class="disabled-reason" id="portalDiseasesHint"${portalTextHint ? "" : " hidden"}>${escapeHtml(portalTextHint)}</p>
+      </div>` : ""}
       </div>
       <p class="muted-note">Portal-safe projection of Diseases / Conditions. The canonical text above is preserved; only this projection is typed into the Government portal.</p>
       ${
@@ -1503,20 +2020,11 @@ function renderDetails() {
         <label for="fldPortalDiseasesReason">Reason${portalReasonRequired ? " (required)" : ""}</label>
         <textarea id="fldPortalDiseasesReason" class="sasv-control" rows="2" data-edit-action="true">${escapeHtml(portalTextDraft.reason || "")}</textarea>
       </div>
-      ${autosaveHtml(state.portalTextSaveStatus, "portalTextAutosave")}
-      <div class="action-row">
-        <button type="button" class="icon-btn with-label primary" id="btnVerifyPortalDiseases" data-edit-action="true"${
-          portalTextHint ? ` data-force-disabled="true" title="${escapeHtml(portalTextHint)}"` : ""
-        }>Accept &amp; Verify Portal Text</button>
-        <button type="button" class="icon-btn with-label" id="btnSavePortalDiseases" data-edit-action="true"${
-          portalTextHint ? ` data-force-disabled="true" title="${escapeHtml(portalTextHint)}"` : ""
-        }>Save for Review</button>
-      </div>
-      <p class="disabled-reason" id="portalDiseasesHint"${portalTextHint ? "" : " hidden"}>${escapeHtml(portalTextHint)}</p>`
+`
           : `<p class="muted-note">Portal projection is not available for this product yet.</p>`
       }
     </div>
-    <div class="section-card">
+    <div class="section-card${portalTextEntryLocked() ? " is-locked" : ""}">
       <h3 class="section-title">Portal entry fields</h3>
       <p class="muted-note">Governed portal remarks and shelf-life route for Product Details execution. Saved to the product dossier; worker reads these via content_get.</p>
       ${
@@ -1524,6 +2032,7 @@ function renderDetails() {
           ? ""
           : `<p class="muted-note">Portal dossier fields lock once entry has begun (${escapeHtml(normalizeEntryStatus(state.queueRow?.entry_status))}).</p>`
       }
+      <div class="form-grid ux6-entry-grid">
       <div class="form-field">
         <label for="fldPortalRemarks">Portal Remarks</label>
         <textarea id="fldPortalRemarks" class="sasv-control" rows="2" data-edit-action="true" placeholder="Required before portal entry"${portalDisable}>${escapeHtml(portalDraft.remarks || "")}</textarea>
@@ -1544,17 +2053,15 @@ function renderDetails() {
             : `<span class="muted-note">Unresolved: choose the exact portal shelf-life route.</span>`
         }
       </div>
+      </div>
       ${autosaveHtml(state.portalFieldsSaveStatus, "portalFieldsAutosave")}
     </div>
     <div class="section-card${locked ? " is-verified" : ""}">
+      <div class="ux6-section-head">
       <h3 class="section-title">Controlled declarations</h3>
-      <p class="muted-note">SASV in-scope products are recorded as No. Null remains Not reviewed and never defaults to No. Changes save automatically. Verify when the section is correct.</p>
-      ${combinedDeclarationControl(draft)}
-      <div class="form-field" style="margin-top:10px">
-        <label for="fldReviewNotes">Review notes</label>
-        <textarea id="fldReviewNotes" class="sasv-control" rows="2" data-edit-action="true"${disable}>${escapeHtml(draft.reviewNotes || "")}</textarea>
-      </div>
+      <div class="ux6-section-actions">
       ${autosaveHtml(state.detailsSaveStatus, "detailsAutosave")}
+      ${stageSaverHtml("details")}
       <div class="action-row">
         ${
           locked
@@ -1566,16 +2073,28 @@ function renderDetails() {
             label: "Reopen Product Details",
           })
         }`
-            : `<button type="button" class="icon-btn with-label primary" id="btnVerifyDetails" data-edit-action="true"${
-                detailsVerifyOk ? "" : " data-force-disabled=\"true\""
-              }${detailsVerifyHint ? ` title="${escapeHtml(detailsVerifyHint)}"` : ""}>Verify Product Details</button>`
+            : `<button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnVerifyDetails" data-edit-action="true"${
+                detailsDecision.ok ? "" : " data-force-disabled=\"true\""
+              }${detailsDecision.code ? ` data-block-code="${escapeHtml(detailsDecision.code)}"` : ""}${
+                detailsDecision.reason ? ` title="${escapeHtml(detailsDecision.reason)}"` : ""
+              }>Approve</button>`
         }
       </div>
+      ${approvalNoticeHtml("details")}
       ${
         locked
           ? ""
-          : `<p class="disabled-reason" id="detailsVerifyHint"${detailsVerifyHint ? "" : " hidden"}>${escapeHtml(detailsVerifyHint)}</p>`
+          : `<p class="disabled-reason" id="detailsVerifyHint"${detailsDecision.reason ? "" : " hidden"}>${escapeHtml(detailsDecision.reason)}</p>`
       }
+      </div>
+      </div>
+      <p class="muted-note">SASV in-scope products are recorded as No. Null remains Not reviewed and never defaults to No. Changes save automatically. Verify when the section is correct.</p>
+      ${combinedDeclarationControl(draft)}
+      <div class="form-field" style="margin-top:10px">
+        <label for="fldReviewNotes">Review notes</label>
+        <textarea id="fldReviewNotes" class="sasv-control" rows="2" data-edit-action="true"${disable}>${escapeHtml(draft.reviewNotes || "")}</textarea>
+      </div>
+
     </div>`;
   if (locked) {
     host.querySelectorAll("[data-bool-value]").forEach((el) => {
@@ -1587,7 +2106,7 @@ function renderDetails() {
   applyPermissionUi();
 }
 
-function renderComposition() {
+function renderCompositionLegacy() {
   const host = $("tab-composition");
   const filtered = filterCompositionLines(state.lines, state.issues, state.compositionView);
   const executionPanel = compositionPortalExecutionHtml();
@@ -1647,9 +2166,6 @@ function renderComposition() {
         .join("");
       const qty = formatRawQuantityDisplay(row.raw_quantity_text, row.raw_unit_text);
       const scientific = escapeHtml(safeText(row.raw_scientific_name));
-      const nameHtml = scientific
-        ? `<span class="line-ingredient">${escapeHtml(sourceFieldDisplay(row.raw_ingredient_name))}</span><span class="line-scientific">${scientific}</span>`
-        : `<span class="line-ingredient">${escapeHtml(sourceFieldDisplay(row.raw_ingredient_name))}</span>`;
       const notesId = `line-${id}-reviewNotes`;
       const canResolve = !locked && lineHasResolvableSourceIssue(state.issues, id);
       const canCorrect = canCorrectWorkingSourceLine({
@@ -1672,37 +2188,66 @@ function renderComposition() {
         saveStatus,
         canEdit: canWrite(),
       });
+      const lineDecision = combineApproval(lineVerifyOk, lineVerifyHint, "line", id);
+      const saveReviewUi = lineSaveForReviewUi({
+        reviewStatus: row.review_status,
+        draft,
+        baseline: state.lineBaselines.get(String(id)),
+        stageRow: stageRow("line", id),
+        canWrite: canWrite(),
+        busy: state.busy,
+      });
       const resolved = state.resolvedSourceByLine.get(String(id));
       const reference = row.referenceMapping || null;
+      const sourceReference = row.raw_reference_text || reference?.source_reference_examples?.[0] || "-";
+      const referenceReady = reference?.reference_ready === true;
+      const referenceGuidance = referenceReady
+        ? "Ready. This verified mapping can be used for portal entry."
+        : "Reference mapping is managed in the Reference Dictionary tab.";
+      const referenceStatus = referenceGovernanceLabel(reference);
       const referenceBlock = `<section class="reference-mapping-block${reference ? "" : " is-blocked"}"${reference ? ` data-reference-mapping-id="${escapeHtml(reference.mapping_id)}"` : ""}>
-        <div><span class="muted-note">Source Reference</span><strong>${escapeHtml(row.raw_reference_text || reference?.source_reference_examples?.[0] || "-")}</strong></div>
-        <div><span class="muted-note">Canonical Reference Work</span><strong>${escapeHtml(reference?.canonical_label || "Not mapped")}</strong></div>
-        <div><span class="muted-note">e-Aushadhi Projection</span><strong>${escapeHtml(reference?.portal_label && reference?.portal_external_id ? `${reference.portal_label} / ${reference.portal_external_id}` : "Not mapped")}</strong></div>
-        <div><span class="muted-note">Reference Governance</span>${chip(reference?.reference_ready === true ? "success" : "warning", referenceGovernanceLabel(reference))}</div>
+        <div><span class="muted-note">Source wording</span><strong>${escapeHtml(sourceReference)}</strong>${sourceReference === "-" ? '<span class="reference-mapping-helper" title="No reference text was imported for this line.">No reference text was imported for this line.</span>' : ""}</div>
+        <div><span class="muted-note">Standard reference work</span><strong>${escapeHtml(reference?.canonical_label || "Not mapped")}</strong></div>
+        <div><span class="muted-note">Portal reference</span><strong>${escapeHtml(reference?.portal_label && reference?.portal_external_id ? `${reference.portal_label} / ${reference.portal_external_id}` : "Not mapped")}</strong></div>
+        <div><span class="muted-note">Mapping status</span><span class="reference-mapping-value${referenceReady ? " is-ready" : ""}" title="${escapeHtml(referenceStatus)}">${escapeHtml(referenceStatus)}</span></div>
+        <p class="reference-mapping-guidance" title="${escapeHtml(referenceGuidance)}">${escapeHtml(referenceGuidance)}</p>
       </section>`;
+      const actionButtons = locked
+        ? `${chip("success", "Verified")} ${lockNoteHtml()}
+          ${preEntryReopenButton({
+            kind: "line",
+            lineId: id,
+            id: `btn-reopen-${id}`,
+            label: "Reopen for correction",
+            dataAttribute: ` data-line-reopen="${escapeHtml(id)}"`,
+          })}
+          ${postEntryIngredientFormReconcileButton(id)}`
+        : `${saveReviewUi.visible
+          ? `<button type="button" class="icon-btn with-label" data-edit-action="true" data-line-save="${escapeHtml(id)}"${
+              saveReviewUi.enabled ? "" : " data-force-disabled=\"true\""
+            }${saveReviewUi.title ? ` title="${escapeHtml(saveReviewUi.title)}"` : ""}>${escapeHtml(saveReviewUi.label)}</button>`
+          : ""}
+          <button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}"${
+            lineDecision.ok ? "" : " data-force-disabled=\"true\""
+          }${lineDecision.code ? ` data-block-code="${escapeHtml(lineDecision.code)}"` : ""}${
+            lineDecision.reason ? ` title="${escapeHtml(lineDecision.reason)}"` : ""
+          }>Approve</button>
+          ${canCorrect
+            ? `<button type="button" class="icon-btn with-label" data-edit-action="true" id="btn-correct-${escapeHtml(id)}" data-source-correct="${escapeHtml(id)}" title="Edit the current working source before approval.">Correct source</button>`
+            : ""}`;
       return `<article class="line-card${hasBlocker ? " has-blocker" : hasError ? " has-error" : ""}${locked ? " is-verified" : ""}" data-line-id="${escapeHtml(id)}">
-        <div class="working-source-block">
-          <span class="working-source-label">Working source</span>
-          <div class="line-head">
-            <span class="line-no">${escapeHtml(displayText(row.source_row_no))}</span>
-            <span class="line-title">${nameHtml}</span>
-            <span class="line-qty">${escapeHtml(qty || "-")}</span>
-            ${chip(reviewStatusChipClass(row.review_status), displayText(row.review_status, "PENDING"))}
-            ${
-              topSev
-                ? chip(
-                    severityRank(topSev.severity) >= 2 ? "danger" : "warning",
-                    severityLabel(topSev.severity),
-                  )
-                : ""
-            }
+        <details class="source-imported-details">
+          <summary>Source as imported</summary>
+          <div class="meta-grid source-imported-grid">
+            <div class="meta-item"><span class="meta-label">Ingredient</span><span class="meta-value">${escapeHtml(sourceFieldDisplay(row.raw_ingredient_name))}</span></div>
+            <div class="meta-item"><span class="meta-label">Botanical name</span><span class="meta-value">${scientific || "-"}</span></div>
+            <div class="meta-item"><span class="meta-label">Part used</span><span class="meta-value">${escapeHtml(sourceFieldDisplay(row.raw_part_used))}</span></div>
+            <div class="meta-item"><span class="meta-label">Quantity</span><span class="meta-value">${escapeHtml(qty || "-")}</span></div>
           </div>
-          <div class="line-sub">Part used: ${escapeHtml(sourceFieldDisplay(row.raw_part_used))}</div>
-          <p class="muted-note working-source-audit">Imported source retained for audit</p>
-        </div>
+        </details>
         ${
           resolved
-            ? `<div class="line-resolution">Governed resolution: ${joinHtmlParts([
+            ? `<div class="line-resolution">Governed source resolution: ${joinHtmlParts([
                 escapeHtml(resolved.identity),
                 escapeHtml(resolved.part),
               ])}</div>`
@@ -1713,46 +2258,590 @@ function renderComposition() {
         ${referenceBlock}
         <div class="line-notes-row">
           <label class="visually-hidden" for="${escapeHtml(notesId)}">Notes</label>
-          <input id="${escapeHtml(notesId)}" class="sasv-control" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" placeholder="Notes" aria-label="Notes"${lockedControlAttrs} />
+          <textarea id="${escapeHtml(notesId)}" class="sasv-control" rows="2" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" placeholder="Notes" aria-label="Notes"${lockedControlAttrs}>${escapeHtml(normalizeReviewNotesForDisplay(draft.reviewNotes || ""))}</textarea>
           ${autosaveHtml(saveStatus, `line-save-${id}`)}
-          ${
-            locked
-              ? `${chip("success", "Verified")} ${lockNoteHtml()}
-          ${
-            preEntryReopenButton({
-              kind: "line",
-              lineId: id,
-              id: `btn-reopen-${id}`,
-              label: "Reopen for correction",
-              dataAttribute: ` data-line-reopen="${escapeHtml(id)}"`,
-            })
-          }
-          ${postEntryIngredientFormReconcileButton(id)}`
-              : `<button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}"${
-                  lineVerifyOk ? "" : " data-force-disabled=\"true\""
-                } title="${escapeHtml(lineVerifyHint || "Confirm the reviewed portal mapping as correct.")}">Verify line</button>
-          ${
-            canCorrect
-              ? `<button type="button" class="icon-btn with-label" data-edit-action="true" id="btn-correct-${escapeHtml(id)}" data-source-correct="${escapeHtml(id)}" title="Edit the current working source before approval.">Correct source</button>`
-              : ""
-          }`
-          }
         </div>
+        <div class="line-action-layout">
+          <div class="line-action-buttons">${actionButtons}${canResolve ? `<button type="button" class="icon-btn with-label source-resolve-btn" data-edit-action="true" id="btn-resolve-${escapeHtml(id)}" data-source-resolve="${escapeHtml(id)}">Resolve source issue</button>` : ""}</div>
+        </div>
+        <div class="line-footer-message-source">${stageSaverHtml("line", id)}<span class="disabled-reason line-decision-message"${lineDecision.reason ? ` title="${escapeHtml(lineDecision.reason)}"` : " hidden"}>${escapeHtml(lineDecision.reason || "")}</span></div>
         ${
           lineIssues.length
-            ? `<div class="line-issues">${renderIssues(lineIssues, "")}
-              ${
-                canResolve
-                  ? `<button type="button" class="icon-btn with-label source-resolve-btn" data-edit-action="true" id="btn-resolve-${escapeHtml(id)}" data-source-resolve="${escapeHtml(id)}">Resolve source issue</button>`
-                  : ""
-              }
-            </div>`
+            ? `<div class="line-issues">${renderIssues(lineIssues, "")}</div>`
             : ""
         }
       </article>`;
     })
     .join("");
   applyPermissionUi();
+}
+
+function compositionMappingSummary(row, lineId) {
+  const draft = state.lineDrafts.get(String(lineId)) || lineDraftFromRow(row);
+  if (!lineSelectionsComplete(draft)) return { label: "Needs mapping", tone: "warning" };
+  if (row?.referenceMapping?.reference_ready !== true) {
+    return { label: "Reference pending", tone: "warning" };
+  }
+  return { label: "Mapping complete", tone: "neutral" };
+}
+
+function compositionFilteredLines() {
+  return filterCompositionLines(state.lines, state.issues, state.compositionView);
+}
+
+function compositionTableRowHtml(row) {
+  const id = optionId(row.source_composition_line_id);
+  const issues = issuesForLine(state.issues, id);
+  const top = issues.slice().sort((a, b) => severityRank(b.severity) - severityRank(a.severity))[0];
+  const mapping = compositionMappingSummary(row, id);
+  const ingredient = sourceFieldDisplay(row.raw_ingredient_name);
+  const scientific = safeText(row.raw_scientific_name);
+  const quantity = formatRawQuantityDisplay(row.raw_quantity_text, row.raw_unit_text) || "-";
+  const attention = top
+    ? chip(severityRank(top.severity) >= 2 ? "danger" : "warning", severityLabel(top.severity))
+    : chip("neutral", "Clear");
+  return `<tr class="composition-table-row${isVerifiedStatus(row.review_status) ? " is-verified" : ""}" data-line-id="${escapeHtml(id)}" tabindex="-1" aria-haspopup="dialog" aria-label="Open line ${escapeHtml(displayText(row.source_row_no))}: ${escapeHtml(ingredient)}">
+    <td class="composition-col-line">${escapeHtml(displayText(row.source_row_no))}</td>
+    <td class="composition-col-ingredient"><span class="line-ingredient">${escapeHtml(ingredient)}</span></td>
+    <td class="composition-col-botanical">${scientific ? `<span class="line-scientific">${escapeHtml(scientific)}</span>` : "-"}</td>
+    <td class="composition-col-part">${escapeHtml(sourceFieldDisplay(row.raw_part_used))}</td>
+    <td class="composition-col-quantity">${escapeHtml(quantity)}</td>
+    <td class="composition-col-mapping">${chip(mapping.tone, mapping.label)}</td>
+    <td class="composition-col-review">${chip(reviewStatusChipClass(row.review_status), displayText(row.review_status, "PENDING"))}</td>
+    <td class="composition-col-attention">${attention}</td>
+  </tr>`;
+}
+
+function visibleCompositionRows() {
+  return Array.from(document.querySelectorAll("#compositionTableBody tr[data-line-id]"));
+}
+
+function applyCompositionRowRoving() {
+  const rows = visibleCompositionRows();
+  if (!rows.length) return null;
+  const wanted = String(state.compositionView.focusedLineId || "");
+  const active = rows.find((row) => String(row.dataset.lineId) === wanted) || rows[0];
+  rows.forEach((row) => {
+    row.tabIndex = row === active ? 0 : -1;
+    row.classList.toggle("is-focused", row === active);
+  });
+  state.compositionView.focusedLineId = active.dataset.lineId;
+  return active;
+}
+
+function focusCompositionRow(lineId, { scroll = true } = {}) {
+  if (lineId != null) state.compositionView.focusedLineId = String(lineId);
+  const filtered = compositionFilteredLines();
+  const index = filtered.findIndex((row) => idsEqual(row.source_composition_line_id, lineId));
+  if (index >= state.compositionView.renderedCount) {
+    state.compositionView.renderedCount = Math.ceil((index + 1) / QUEUE_RENDER_CHUNK) * QUEUE_RENDER_CHUNK;
+    renderComposition();
+  }
+  const active = applyCompositionRowRoving();
+  active?.focus(scroll ? undefined : { preventScroll: true });
+  if (scroll) active?.scrollIntoView({ block: "nearest" });
+  return active;
+}
+
+function newSourceReferenceRequestId() {
+  return globalThis.crypto.randomUUID();
+}
+
+function sourceReferenceLockLabel(reason) {
+  return ({
+    LINE_VERIFIED: "Verified. Reopen the line to correct it",
+    PORTAL_ENTRY_STARTED: "Portal entry started",
+    FORMULATION_APPROVED: "Formulation approved",
+  })[safeText(reason)] || safeText(reason).replaceAll("_", " ").toLowerCase() || "Unavailable";
+}
+
+function resetSourceReferenceBulkPreview() {
+  state.sourceReferenceBulk.loadGeneration += 1;
+  state.sourceReferenceBulk.loading = false;
+  state.sourceReferenceBulk.preview = null;
+  state.sourceReferenceBulk.productId = null;
+  state.sourceReferenceBulk.error = "";
+  state.sourceReferenceBulk.requestId = null;
+  state.sourceReferenceBulk.selected = new Set();
+  state.sourceReferenceBulk.showAll = false;
+  state.sourceReferenceBulk.message = "";
+}
+
+function refreshSourceReferencePreviewAfterLineChange() {
+  resetSourceReferenceBulkPreview();
+  if (state.selectedProductId) void ensureSourceReferencePreview({ force: true });
+}
+
+async function ensureSourceReferencePreview({ force = false, rerender = true } = {}) {
+  const bulk = state.sourceReferenceBulk;
+  const productId = Number(state.selectedProductId);
+  if (!productId || (bulk.loading && !force)) return bulk.preview;
+  if (!force && bulk.preview && Number(bulk.productId) === productId) return bulk.preview;
+  const generation = ++bulk.loadGeneration;
+  bulk.loading = true;
+  bulk.error = "";
+  if (rerender && state.tab === "composition") renderComposition({ preserveModal: true });
+  try {
+    const preview = await fetchSourceReferencePreview(productId);
+    if (generation !== bulk.loadGeneration || Number(state.selectedProductId) !== productId) return null;
+    bulk.preview = preview || null;
+    bulk.productId = productId;
+    bulk.requestId = newSourceReferenceRequestId();
+    bulk.selected = new Set();
+    bulk.showAll = false;
+    return bulk.preview;
+  } catch (err) {
+    if (generation !== bulk.loadGeneration) return null;
+    bulk.preview = null;
+    bulk.productId = productId;
+    bulk.error = err?.original?.hint || err?.message || "Source-reference preview is unavailable.";
+    return null;
+  } finally {
+    if (generation !== bulk.loadGeneration) return;
+    bulk.loading = false;
+    if (rerender && Number(state.selectedProductId) === productId && state.tab === "composition") {
+      renderComposition({ preserveModal: true });
+    }
+  }
+}
+
+function sourceReferenceToolbarHtml() {
+  const bulk = state.sourceReferenceBulk;
+  const preview = Number(bulk.productId) === Number(state.selectedProductId) ? bulk.preview : null;
+  const reason = bulk.loading
+    ? "Loading source-reference options…"
+    : bulk.error
+      ? bulk.error
+      : preview?.product_lock_reason
+        ? `Excluded: ${sourceReferenceLockLabel(preview.product_lock_reason)}`
+        : preview && preview.caller?.is_verifier !== true
+          ? "e-Aushadhi Automation Verifier permission is required."
+          : "";
+  const disabled = bulk.loading || !preview || Boolean(reason);
+  const prompt = bulk.inlinePrompt;
+  return `<div class="composition-reference-toolbar">
+    <button type="button" id="btnSetSourceReference" class="icon-btn with-label ea-btn ea-btn--soft"${disabled ? " disabled" : ""}${reason ? ` title="${escapeHtml(reason)}"` : ""}>Set source reference</button>
+    <span id="sourceReferenceInlinePrompt" class="muted-note"${prompt ? "" : " hidden"}>${prompt ? `${Number(prompt.count)} other lines have no reference. <button type="button" class="text-btn" data-source-reference-prompt>Apply this to them?</button>` : ""}</span>
+  </div>`;
+}
+
+function renderCompositionToolbarActions() {
+  const host = $("compositionToolbarActions");
+  if (host) host.innerHTML = sourceReferenceToolbarHtml();
+  const batchRunning = state.sourceReferenceBulk.applying === true || state.verifyReviewed.running === true;
+  const approve = $("btnVerifyReviewedLines");
+  if (approve) {
+    const allowed = canWrite() && !batchRunning;
+    const reason = !canWrite()
+      ? "e-Aushadhi Automation permission is required."
+      : batchRunning
+        ? "An action is already in progress."
+        : "";
+    approve.disabled = !allowed;
+    approve.setAttribute("aria-disabled", allowed ? "false" : "true");
+    approve.classList.toggle("ea-btn--primary", canWrite());
+    approve.classList.toggle("ea-btn--secondary", !canWrite());
+    approve.title = reason;
+    const hint = $("btnVerifyReviewedLinesHint");
+    if (hint) {
+      if (!allowed && reason) {
+        hint.hidden = false;
+        hint.textContent = reason;
+        approve.setAttribute("aria-describedby", "btnVerifyReviewedLinesHint");
+      } else {
+        hint.hidden = true;
+        hint.textContent = "";
+        approve.removeAttribute("aria-describedby");
+      }
+    }
+  }
+  const confirm = $("verifyReviewedConfirm");
+  if (confirm && batchRunning) {
+    confirm.disabled = true;
+    confirm.setAttribute("aria-disabled", "true");
+  }
+}
+
+function sourceReferenceKnownWordings(preview) {
+  return Array.isArray(preview?.known_wordings) ? preview.known_wordings : [];
+}
+
+function sourceReferenceLines(preview) {
+  return Array.isArray(preview?.lines) ? preview.lines : [];
+}
+
+function sourceReferenceCurrentTarget() {
+  return safeText(state.sourceReferenceBulk.target).replace(/\s+/g, " ").trim();
+}
+
+function sourceReferenceLineRelation(line, target) {
+  const current = safeText(line?.raw_reference_text).trim();
+  const wanted = safeText(target).trim();
+  if (!current) return "BLANK";
+  if (current === wanted) return "SAME";
+  // Mirror regulatory.normalize_controlled_term_alias: trim, collapse whitespace, lowercase.
+  const normalizeAlias = (value) => value.trim().replace(/\s+/g, " ").toLowerCase();
+  if (normalizeAlias(current) === normalizeAlias(wanted)) return "RESPELL";
+  return "DIFFERENT";
+}
+
+function sourceReferenceEligible(line, target, preview) {
+  if (line?.lock_reason) return { ok: false, reason: sourceReferenceLockLabel(line.lock_reason) };
+  const relation = sourceReferenceLineRelation(line, target);
+  if (relation === "DIFFERENT" && preview?.caller?.is_approver !== true) {
+    return { ok: false, reason: "Approver needed" };
+  }
+  return { ok: true, relation };
+}
+
+function sourceReferenceChosenLines() {
+  const bulk = state.sourceReferenceBulk;
+  const preview = bulk.preview;
+  const target = sourceReferenceCurrentTarget();
+  if (!preview || !target) return [];
+  return sourceReferenceLines(preview).filter((line) => {
+    const eligible = sourceReferenceEligible(line, target, preview);
+    if (!eligible.ok) return false;
+    if (bulk.scope === "SELECTED") return bulk.selected.has(String(line.source_composition_line_id));
+    return eligible.relation === "BLANK";
+  }).slice(0, Number(preview.max_lines) || 200);
+}
+
+function sourceReferenceChangingLines() {
+  const target = sourceReferenceCurrentTarget();
+  return sourceReferenceChosenLines().filter((line) => sourceReferenceLineRelation(line, target) !== "SAME");
+}
+
+function renewSourceReferenceRequestId() {
+  state.sourceReferenceBulk.requestId = newSourceReferenceRequestId();
+}
+
+function sourceReferenceApplyBlockReason() {
+  const bulk = state.sourceReferenceBulk;
+  if (bulk.applying) return "Applying source-reference changes.";
+  if (!sourceReferenceCurrentTarget()) return "Choose a wording to enable Apply.";
+  if (!sourceReferenceChangingLines().length) return "Select at least one line that will change.";
+  if (bulk.reason.trim().length < 10) return "Type a reason of at least 10 characters to enable Apply.";
+  return "";
+}
+
+function syncSourceReferenceBulkLiveUi() {
+  const bulk = state.sourceReferenceBulk;
+  const changing = sourceReferenceChangingLines();
+  const chosen = sourceReferenceChosenLines();
+  const count = $("sourceReferencePreviewTitle")?.parentElement?.querySelector("strong");
+  if (count) count.textContent = `${changing.length} lines will change${chosen.length > changing.length ? ` · ${chosen.length - changing.length} unchanged` : ""}`;
+  const apply = $("sourceReferenceApply");
+  if (apply) {
+    const blocked = sourceReferenceApplyBlockReason();
+    apply.disabled = Boolean(blocked);
+    apply.title = blocked;
+    apply.textContent = bulk.applying ? "Applying…" : `Apply ${changing.length} changes`;
+  }
+  const reasonCount = $("sourceReferenceReasonCount");
+  if (reasonCount) reasonCount.textContent = `${bulk.reason.length}/500`;
+  const reasonHint = $("sourceReferenceReasonHint");
+  if (reasonHint) {
+    reasonHint.hidden = bulk.reason.trim().length >= 10;
+    reasonHint.textContent = "Type a reason (at least 10 characters) to enable Apply";
+  }
+}
+
+function sourceReferenceProductKind() {
+  const categoryId = optionId(state.classification?.product_category_option_id || state.classificationDraft?.productCategoryOptionId);
+  const option = (state.classificationOptions?.PRODUCT_CATEGORY || []).find((item) => idsEqual(item.option_id || item.id, categoryId));
+  const text = safeText(option?.option_label || option?.label || option?.name || state.classification?.product_category_label).toLowerCase();
+  return text.includes("proprietary") ? "PROPRIETARY" : text.includes("classical") ? "CLASSICAL" : "OTHER";
+}
+
+function sourceReferenceDefaultTarget(preview) {
+  const used = sourceReferenceKnownWordings(preview)
+    .map((item, index) => ({ item, index, count: Number(item.product_line_count) || 0 }))
+    .filter((entry) => entry.count > 0)
+    .sort((a, b) => b.count - a.count || a.index - b.index);
+  return used[0]?.item?.raw_reference_text || "";
+}
+
+function renderSourceReferenceBulkLoading(message = "Loading source-reference options…") {
+  const dialog = $("sourceReferenceBulkDialog");
+  if (!dialog) return;
+  dialog.innerHTML = `<div class="sasv-modal__header"><div class="source-reference-bulk-heading"><h2 id="sourceReferenceBulkTitle" class="sasv-modal__title">Set source reference</h2><p class="muted-note">Choose a governed source wording and preview every affected line.</p></div><button type="button" id="sourceReferenceBulkClose" class="sasv-modal__close icon-btn ea-btn ea-btn--icon ea-btn--quiet" aria-label="Close">&times;</button></div><div class="sasv-modal__body"><p id="sourceReferenceBulkLoading" role="status" aria-live="polite">${escapeHtml(message)}</p></div><div class="sasv-modal__footer"><button type="button" id="sourceReferenceBulkCancel" class="icon-btn with-label ea-btn ea-btn--secondary">Cancel</button><button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" disabled>Apply</button></div>`;
+  $("sourceReferenceBulkClose")?.addEventListener("click", () => void requestCloseSourceReferenceBulkDialog());
+  $("sourceReferenceBulkCancel")?.addEventListener("click", () => void requestCloseSourceReferenceBulkDialog());
+}
+
+function renderSourceReferenceBulkDialog() {
+  const bulk = state.sourceReferenceBulk;
+  const preview = bulk.preview;
+  const dialog = $("sourceReferenceBulkDialog");
+  if (!dialog || !preview) return;
+  const target = sourceReferenceCurrentTarget();
+  const known = sourceReferenceKnownWordings(preview);
+  const lines = sourceReferenceLines(preview);
+  const chosen = sourceReferenceChosenLines();
+  const changing = sourceReferenceChangingLines();
+  const reason = bulk.reason;
+  const applyBlocked = sourceReferenceApplyBlockReason();
+  const allRows = lines.map((line) => {
+    const id = String(line.source_composition_line_id);
+    const relation = target ? sourceReferenceLineRelation(line, target) : "BLANK";
+    const eligibility = target ? sourceReferenceEligible(line, target, preview) : { ok: false, reason: "Choose a wording" };
+    const selected = chosen.some((item) => String(item.source_composition_line_id) === id);
+    const canTick = bulk.scope === "SELECTED" && eligibility.ok;
+    const outcome = !eligibility.ok
+      ? `Excluded: ${eligibility.reason}`
+      : selected
+        ? relation === "SAME" ? "Unchanged" : relation === "DIFFERENT" ? "Replace different wording" : relation === "RESPELL" ? "Update spelling" : "Fill blank"
+        : relation === "DIFFERENT" ? "Excluded: select this line explicitly" : "Not selected";
+    return `<li class="source-reference-preview-row" data-source-reference-line-id="${escapeHtml(id)}">
+      <span class="source-reference-preview-check">${bulk.scope === "SELECTED" ? `<input type="checkbox" data-source-reference-select="${escapeHtml(id)}"${bulk.selected.has(id) ? " checked" : ""}${canTick ? "" : " disabled"} aria-label="Select line ${escapeHtml(displayText(line.source_row_no))}">` : '<span aria-hidden="true"></span>'}</span>
+      <span class="source-reference-preview-main"><strong>Line ${escapeHtml(displayText(line.source_row_no))} · ${escapeHtml(sourceFieldDisplay(line.raw_ingredient_name))}</strong><span>${escapeHtml(line.raw_reference_text || "No source reference recorded")}</span></span>
+      <span class="source-reference-preview-outcome${!eligibility.ok ? " is-excluded" : ""}">${escapeHtml(outcome)}${sourceReferenceProductKind() === "PROPRIETARY" && bulk.scope === "SELECTED" && relation === "BLANK" ? ` <button type="button" class="text-btn ea-btn ea-btn--sm ea-btn--quiet" data-source-reference-previous="${escapeHtml(id)}">Same as previous line</button>` : ""}</span>
+    </li>`;
+  });
+  const visibleRows = bulk.showAll ? allRows : allRows.slice(0, 50);
+  const newDisabled = preview.caller?.is_approver !== true;
+  dialog.innerHTML = `<div class="sasv-modal__header"><div class="source-reference-bulk-heading"><h2 id="sourceReferenceBulkTitle" class="sasv-modal__title">Set source reference</h2><p class="muted-note">Choose a governed source wording and preview every affected line.</p></div><button type="button" id="sourceReferenceBulkClose" class="sasv-modal__close icon-btn ea-btn ea-btn--icon ea-btn--quiet" aria-label="Close"${bulk.applying ? " disabled" : ""}>&times;</button></div>
+    <div class="sasv-modal__body source-reference-bulk-body">
+      <div class="form-field"><label for="sourceReferenceWording">Reference wording</label><select id="sourceReferenceWording" class="sasv-control"><option value="">Select a known wording</option>${known.map((item) => `<option value="${escapeHtml(item.raw_reference_text)}"${!bulk.allowNew && item.raw_reference_text === bulk.target ? " selected" : ""}>${escapeHtml(item.raw_reference_text)} (used on ${Number(item.product_line_count) || 0} lines)</option>`).join("")}<option value="__NEW__"${bulk.allowNew ? " selected" : ""}${newDisabled ? " disabled" : ""}>Enter a new wording</option></select>${newDisabled ? '<span class="muted-note">Approver needed to enter a new wording.</span>' : ""}</div>
+      ${bulk.allowNew ? `<div class="form-field"><label for="sourceReferenceNewWording">New wording</label><input id="sourceReferenceNewWording" class="sasv-control" maxlength="300" value="${escapeHtml(bulk.target)}"><span class="muted-note">New wording may require mapping in the Reference Dictionary.</span></div>` : ""}
+      <fieldset class="source-reference-scope"><legend>Apply to</legend><label><input type="radio" name="sourceReferenceScope" value="BLANK"${bulk.scope === "BLANK" ? " checked" : ""}> All unlocked lines with no reference (${lines.filter((line) => !line.lock_reason && !safeText(line.raw_reference_text)).length})</label><label><input type="radio" name="sourceReferenceScope" value="SELECTED"${bulk.scope === "SELECTED" ? " checked" : ""}> Selected lines</label>${sourceReferenceProductKind() === "CLASSICAL" ? '<span class="muted-note">Lines in this product normally share one source reference.</span>' : ""}</fieldset>
+      <section aria-labelledby="sourceReferencePreviewTitle"><div class="source-reference-preview-heading"><h3 id="sourceReferencePreviewTitle">Preview</h3><strong>${changing.length} lines will change${chosen.length > changing.length ? ` · ${chosen.length - changing.length} unchanged` : ""}</strong></div><ul id="sourceReferencePreview" class="source-reference-preview-list">${visibleRows.join("")}</ul>${allRows.length > 50 && !bulk.showAll ? '<button type="button" id="sourceReferenceViewAll" class="text-btn ea-btn ea-btn--sm ea-btn--quiet">View all</button>' : ""}</section>
+      <div class="form-field"><label for="sourceReferenceReason">Reason</label><textarea id="sourceReferenceReason" class="sasv-control" rows="2" minlength="10" maxlength="500" placeholder="Required, 10–500 characters">${escapeHtml(reason)}</textarea><div class="source-reference-reason-meta"><span id="sourceReferenceReasonHint" class="muted-note"${reason.trim().length >= 10 ? " hidden" : ""}>Type a reason (at least 10 characters) to enable Apply</span><span id="sourceReferenceReasonCount" class="muted-note">${reason.length}/500</span></div><span class="muted-note">Updated lines return to Pending and must be saved for review again.</span></div>
+      <div id="sourceReferenceBulkMessage" class="ea-callout" role="status" aria-live="polite"${bulk.message ? "" : " hidden"}>${escapeHtml(bulk.message)}</div>
+    </div><div class="sasv-modal__footer"><button type="button" id="sourceReferenceBulkCancel" class="icon-btn with-label ea-btn ea-btn--secondary"${bulk.applying ? " disabled" : ""}>Cancel</button><button type="button" id="sourceReferenceApply" class="icon-btn with-label primary ea-btn ea-btn--primary"${applyBlocked ? ` disabled title="${escapeHtml(applyBlocked)}"` : ""}>${bulk.applying ? "Applying…" : `Apply ${changing.length} changes`}</button></div>`;
+  $("sourceReferenceBulkClose").addEventListener("click", () => void requestCloseSourceReferenceBulkDialog());
+  $("sourceReferenceBulkCancel").addEventListener("click", () => void requestCloseSourceReferenceBulkDialog());
+  $("sourceReferenceWording").addEventListener("change", handleSourceReferenceWordingChange);
+  $("sourceReferenceNewWording")?.addEventListener("input", (event) => { bulk.target = event.target.value; renewSourceReferenceRequestId(); syncSourceReferenceBulkLiveUi(); });
+  dialog.querySelectorAll('input[name="sourceReferenceScope"]').forEach((input) => input.addEventListener("change", (event) => { bulk.scope = event.target.value; renewSourceReferenceRequestId(); renderSourceReferenceBulkDialog(); }));
+  dialog.querySelectorAll("[data-source-reference-select]").forEach((input) => input.addEventListener("change", (event) => { const id = event.target.dataset.sourceReferenceSelect; if (event.target.checked) bulk.selected.add(id); else bulk.selected.delete(id); renewSourceReferenceRequestId(); renderSourceReferenceBulkDialog(); }));
+  dialog.querySelectorAll("[data-source-reference-previous]").forEach((button) => button.addEventListener("click", () => {
+    const line = lines.find((item) => String(item.source_composition_line_id) === button.dataset.sourceReferencePrevious);
+    const previous = lines.slice(0, Math.max(0, lines.indexOf(line))).reverse().find((item) => safeText(item.raw_reference_text));
+    if (!previous) { bulk.message = "No previous line has a source reference."; renderSourceReferenceBulkDialog(); return; }
+    bulk.allowNew = !known.some((item) => safeText(item.raw_reference_text).toLowerCase() === safeText(previous.raw_reference_text).toLowerCase());
+    if (bulk.allowNew && preview.caller?.is_approver !== true) { bulk.message = "Approver needed to use the previous line's new wording."; renderSourceReferenceBulkDialog(); return; }
+    bulk.target = previous.raw_reference_text;
+    bulk.selected.add(button.dataset.sourceReferencePrevious);
+    bulk.message = "";
+    renewSourceReferenceRequestId();
+    renderSourceReferenceBulkDialog();
+  }));
+  $("sourceReferenceViewAll")?.addEventListener("click", () => { bulk.showAll = true; renderSourceReferenceBulkDialog(); });
+  $("sourceReferenceReason").addEventListener("input", (event) => { bulk.reason = event.target.value; renewSourceReferenceRequestId(); syncSourceReferenceBulkLiveUi(); });
+  $("sourceReferenceApply").addEventListener("click", () => void applySourceReferenceBulk());
+}
+
+function handleSourceReferenceWordingChange(event) {
+  const bulk = state.sourceReferenceBulk;
+  bulk.allowNew = event.target.value === "__NEW__";
+  bulk.target = bulk.allowNew ? "" : event.target.value;
+  bulk.selected = new Set();
+  renewSourceReferenceRequestId();
+  renderSourceReferenceBulkDialog();
+  (bulk.allowNew ? $("sourceReferenceNewWording") : $("sourceReferenceReason"))?.focus();
+}
+
+function closeSourceReferenceBulkDialog() {
+  const backdrop = $("sourceReferenceBulkBackdrop");
+  if (!backdrop) return;
+  document.removeEventListener("keydown", sourceReferenceBulkKeydown, true);
+  backdrop.remove();
+  $("btnSetSourceReference")?.focus();
+}
+
+function sourceReferenceBulkIsDirty() {
+  return Boolean(state.sourceReferenceBulk.reason.trim() || state.sourceReferenceBulk.selected.size);
+}
+
+async function requestCloseSourceReferenceBulkDialog({ force = false } = {}) {
+  if (state.sourceReferenceBulk.applying) return false;
+  if (!force && sourceReferenceBulkIsDirty()) {
+    const discard = await openQcConfirm({
+      title: "Discard this source-reference change?",
+      message: "Your reason and selected lines will be discarded.",
+      okLabel: "Discard",
+      cancelLabel: "Keep editing",
+      returnFocus: $("sourceReferenceBulkDialog"),
+      idPrefix: "sourceReferenceDiscard",
+      cancelClassName: "icon-btn with-label ea-btn ea-btn--secondary",
+      okClassName: "icon-btn with-label ea-btn ea-btn--danger",
+    });
+    if (!discard) return false;
+  }
+  closeSourceReferenceBulkDialog();
+  return true;
+}
+
+function sourceReferenceBulkKeydown(event) {
+  if ($("sourceReferenceDiscardBackdrop") || openQcConfirm.showing === true) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    void requestCloseSourceReferenceBulkDialog();
+    return;
+  }
+  trapModalTab(event, "sourceReferenceBulkDialog");
+}
+
+async function openSourceReferenceBulkDialog({ target = null, scope = null } = {}) {
+  if ($("sourceReferenceBulkBackdrop")) return;
+  const bulk = state.sourceReferenceBulk;
+  bulk.scope = scope || (sourceReferenceProductKind() === "PROPRIETARY" ? "SELECTED" : "BLANK");
+  bulk.selected = new Set();
+  bulk.showAll = false;
+  bulk.reason = "";
+  bulk.message = "";
+  bulk.allowNew = false;
+  bulk.target = target || "";
+  const backdrop = document.createElement("div");
+  backdrop.id = "sourceReferenceBulkBackdrop";
+  backdrop.className = "sasv-modal-backdrop";
+  backdrop.innerHTML = '<div id="sourceReferenceBulkDialog" class="sasv-modal sasv-modal--lg" role="dialog" aria-modal="true" aria-labelledby="sourceReferenceBulkTitle" tabindex="-1"></div>';
+  document.body.append(backdrop);
+  backdrop.addEventListener("click", (event) => { if (event.target === backdrop) void requestCloseSourceReferenceBulkDialog({ backdrop: true }); });
+  document.addEventListener("keydown", sourceReferenceBulkKeydown, true);
+  renderSourceReferenceBulkLoading();
+  $("sourceReferenceBulkDialog")?.focus();
+  const preview = await ensureSourceReferencePreview({ force: true, rerender: false });
+  if (!$("sourceReferenceBulkDialog")) return;
+  renderCompositionToolbarActions();
+  if (!preview) {
+    renderSourceReferenceBulkLoading(bulk.error || "Source-reference preview is unavailable.");
+    return;
+  }
+  if (preview.product_lock_reason || preview.caller?.is_verifier !== true) {
+    renderSourceReferenceBulkLoading(preview.product_lock_reason ? sourceReferenceLockLabel(preview.product_lock_reason) : "e-Aushadhi Automation Verifier permission is required.");
+    return;
+  }
+  bulk.target = target || sourceReferenceDefaultTarget(preview);
+  bulk.allowNew = Boolean(target) && !sourceReferenceKnownWordings(preview).some((item) => safeText(item.raw_reference_text).toLowerCase() === safeText(target).toLowerCase());
+  bulk.requestId = newSourceReferenceRequestId();
+  renderSourceReferenceBulkDialog();
+  $("sourceReferenceBulkDialog")?.focus();
+}
+
+function sourceReferenceErrorInfo(err) {
+  const original = err?.original || err || {};
+  return { sqlstate: safeText(original.code || err?.code), code: safeText(original.message), hint: safeText(original.hint), details: safeText(original.details) };
+}
+
+async function rebuildSourceReferencePreview(message) {
+  await ensureSourceReferencePreview({ force: true, rerender: false });
+  renderCompositionToolbarActions();
+  state.sourceReferenceBulk.message = message;
+  if ($("sourceReferenceBulkDialog")) renderSourceReferenceBulkDialog();
+}
+
+async function applySourceReferenceBulk() {
+  const bulk = state.sourceReferenceBulk;
+  const preview = bulk.preview;
+  const target = sourceReferenceCurrentTarget();
+  const reason = safeText(bulk.reason).trim();
+  const selected = sourceReferenceChosenLines();
+  if (!preview || !target || reason.length < 10 || reason.length > 500 || !sourceReferenceChangingLines().length || selected.length > 200 || bulk.applying) return;
+  const payload = selected.map((line) => ({
+    source_composition_line_id: Number(line.source_composition_line_id),
+    expected_row_version: Number(line.row_version),
+    expected_raw_reference_text: line.raw_reference_text == null ? null : String(line.raw_reference_text),
+    confirm_replace_different: sourceReferenceLineRelation(line, target) === "DIFFERENT",
+  }));
+  bulk.applying = true;
+  renderCompositionToolbarActions();
+  renderSourceReferenceBulkDialog();
+  try {
+    const result = await setSourceReferenceBulk({ productId: preview.product_id, requestId: bulk.requestId, referenceText: target, allowNewWording: bulk.allowNew, reason, lines: payload });
+    if (!result) throw new Error("No source-reference result was returned.");
+    const affected = new Set((result.lines || []).map((line) => String(line.source_composition_line_id)));
+    state.lines = state.lines.map((line) => {
+      const updated = (result.lines || []).find((item) => idsEqual(item.source_composition_line_id, line.source_composition_line_id));
+      return updated ? { ...line, raw_reference_text: updated.raw_reference_text, review_status: updated.review_status, row_version: updated.row_version, reviewed_by: null, reviewed_at: null } : line;
+    });
+    const openLine = state.compositionModalLineId && affected.has(String(state.compositionModalLineId)) ? state.compositionModalLineId : null;
+    await reloadSelected({ preserveDrafts: false, restoreComposition: true, focusLineId: openLine });
+    closeSourceReferenceBulkDialog();
+    const blankRemaining = sourceReferenceLines(preview).filter((line) => !line.lock_reason && !safeText(line.raw_reference_text) && !affected.has(String(line.source_composition_line_id))).length;
+    bulk.inlinePrompt = Number(result.applied_count) === 1 && blankRemaining > 0 ? { count: blankRemaining, target: result.raw_reference_text || target } : null;
+    refreshSourceReferencePreviewAfterLineChange();
+    setStatus(`${Number(result.applied_count) || 0} lines updated. Updated lines are Pending and must be saved for review again.`, "success");
+  } catch (err) {
+    const info = sourceReferenceErrorInfo(err);
+    const rebuild = ["LINE_NOT_IN_PRODUCT", "DIFFERENT_REFERENCE_NOT_CONFIRMED", "REQUEST_ID_REUSE_MISMATCH", "SOURCE_CHANGED_SINCE_PREVIEW", "LINE_VERIFIED"].includes(info.code) || info.sqlstate === "40001";
+    if (rebuild) {
+      bulk.requestId = null;
+      await rebuildSourceReferencePreview(info.code === "SOURCE_CHANGED_SINCE_PREVIEW" || info.sqlstate === "40001" ? "Preview is out of date. It has been rebuilt." : (info.hint || "The preview changed and has been rebuilt."));
+    } else {
+      const disable = (info.sqlstate === "42501" && info.code !== "APPROVER_ROLE_REQUIRED") || ["PORTAL_ENTRY_STARTED", "FORMULATION_APPROVED"].includes(info.code);
+      bulk.message = info.code === "APPROVER_ROLE_REQUIRED" ? `Ask an Approver. ${info.hint || info.details}`.trim() : (info.hint || (["REASON_REQUIRED", "BLANK_REFERENCE_NOT_ALLOWED", "WORDING_TOO_LONG", "WORDING_NOT_KNOWN", "LINE_COUNT_INVALID"].includes(info.code) ? info.code.replaceAll("_", " ").toLowerCase() : "Could not set the source reference."));
+      if (disable) {
+        await ensureSourceReferencePreview({ force: true });
+        closeSourceReferenceBulkDialog();
+        setStatus(info.hint || "Source-reference editing is unavailable.", "error");
+      }
+    }
+  } finally {
+    bulk.applying = false;
+    renderCompositionToolbarActions();
+    if ($("sourceReferenceBulkDialog")) renderSourceReferenceBulkDialog();
+  }
+}
+
+function renderComposition({ resetChunk = false, preserveModal = true } = {}) {
+  const host = $("tab-composition");
+  if (!host) return;
+  const priorTableScroll = $("compositionTableScroll")?.scrollTop ?? state.compositionView.scrollTop ?? 0;
+  renderCompositionToolbarActions();
+  const modalLineId = preserveModal ? state.compositionModalLineId : null;
+  const activeView = state.compositionView;
+  state.compositionView = { ...activeView, search: "", reviewLens: "all", attention: "all" };
+  renderCompositionLegacy();
+  state.compositionLineHtml = new Map(
+    Array.from(host.querySelectorAll(".line-card[data-line-id]")).map((card) => [String(card.dataset.lineId), card.outerHTML]),
+  );
+  const execution = host.querySelector(".composition-portal-execution")?.outerHTML || "";
+  state.compositionView = activeView;
+  const filtered = compositionFilteredLines();
+  if (resetChunk) state.compositionView.renderedCount = resetQueueRenderCount(filtered.length);
+  if (!filtered.length) {
+    if (!state.lines.length) {
+      host.innerHTML = `${execution}<div class="section-card empty-state">No composition lines returned for this product.</div>`;
+      if (Number(state.sourceReferenceBulk.productId) !== Number(state.selectedProductId) && !state.sourceReferenceBulk.loading) void ensureSourceReferencePreview();
+      return;
+    }
+    host.innerHTML = `${execution}<div class="section-card empty-state"><p>No ingredient lines match the current composition filters.</p><button type="button" class="icon-btn with-label ea-btn ea-btn--quiet" id="btnClearCompositionFilters">Clear filters</button></div>`;
+    if (modalLineId) refreshCompositionLineModal(modalLineId);
+    if (Number(state.sourceReferenceBulk.productId) !== Number(state.selectedProductId) && !state.sourceReferenceBulk.loading) void ensureSourceReferencePreview();
+    return;
+  }
+  if (!state.compositionView.renderedCount) {
+    state.compositionView.renderedCount = resetQueueRenderCount(filtered.length);
+  }
+  const shown = filtered.slice(0, state.compositionView.renderedCount);
+  host.innerHTML = `${execution}<div id="compositionTableScroll" class="composition-table-wrap">
+    <table class="data-table composition-table" aria-label="Composition ingredients">
+      <thead><tr><th>Line</th><th>Ingredient</th><th class="composition-col-botanical">Botanical name</th><th class="composition-col-part">Part used</th><th class="composition-col-quantity">Quantity</th><th class="composition-col-mapping">Mapping</th><th>Review</th><th>Attention</th></tr></thead>
+      <tbody id="compositionTableBody">${shown.map((row) => compositionTableRowHtml(row)).join("")}</tbody>
+    </table>
+  </div>`;
+  const tableScroll = $("compositionTableScroll");
+  if (tableScroll) {
+    state.compositionView.scrollTop = resetChunk ? 0 : priorTableScroll;
+    tableScroll.scrollTop = state.compositionView.scrollTop;
+  }
+  applyCompositionRowRoving();
+  if (modalLineId) refreshCompositionLineModal(modalLineId);
+  if (Number(state.sourceReferenceBulk.productId) !== Number(state.selectedProductId) && !state.sourceReferenceBulk.loading) void ensureSourceReferencePreview();
+}
+
+function appendCompositionChunk() {
+  const filtered = compositionFilteredLines();
+  const next = nextQueueRenderCount(state.compositionView.renderedCount, filtered.length);
+  if (next === state.compositionView.renderedCount) return false;
+  state.compositionView.renderedCount = next;
+  renderComposition();
+  return true;
 }
 
 function compositionPortalExecutionHtml() {
@@ -1921,7 +3010,7 @@ async function loadReferenceDictionary({ force = false } = {}) {
 
 async function openReferenceDictionary() {
   if (isProductMode()) {
-    if (!confirmLeaveDirty()) return;
+    if (!(await confirmLeaveDirty("openReferenceDictionaryBtn"))) return;
     await flushAllLineAutosaves();
     await flushDetailsAutosave();
     await flushClassificationAutosave();
@@ -2418,13 +3507,14 @@ async function submitSourceCorrect() {
     state.resolvedSourceByLine.delete(String(lineId));
     state.lineDrafts.delete(optionId(lineId));
     closeSourceCorrect();
-    showToast("Working source corrected. The line has been returned to review.", "success");
+    showToast("Source corrected. The line is back to Pending. Save it for review again.", "success");
     await reloadSelected({
       preserveDrafts: true,
       restoreComposition: true,
       focusLineId: lineId,
       focusControl: "correct",
     });
+    refreshSourceReferencePreviewAfterLineChange();
   });
 }
 
@@ -2582,7 +3672,9 @@ function renderActions() {
       .filter(Boolean),
   );
   const locked = isVerifiedStatus(state.actionsReviewStatus);
-  const disable = locked ? " disabled" : "";
+  const disable = locked
+    ? ' disabled aria-disabled="true" data-force-disabled="true"'
+    : "";
   const actionsVerifyOk = canVerifyActionSet({
     actions: rows,
     reviewStatus: state.actionsReviewStatus,
@@ -2594,11 +3686,13 @@ function renderActions() {
     reviewStatus: state.actionsReviewStatus,
     saveStatus: state.actionsSaveStatus,
   });
+  const actionsDecision = combineApproval(actionsVerifyOk, actionsVerifyHint, "actions");
   host.innerHTML = `
     <div class="section-card${locked ? " is-verified" : ""}">
       <h3 class="section-title">Pharmacological action</h3>
       ${locked ? lockNoteHtml() : `<p class="muted-note">Select every applicable action from the server vocabulary. Additional exact wording can be added. Changes save automatically. Verify when the complete set is correct.</p>`}
       ${autosaveHtml(state.actionsSaveStatus, "actionsAutosave")}
+      ${stageSaverHtml("actions")}
       ${
         vocab.length
           ? `<div class="action-vocab-list" role="group" aria-label="Pharmacological action vocabulary">
@@ -2627,7 +3721,7 @@ function renderActions() {
               ${
                 locked
                   ? ""
-                  : `<button type="button" class="icon-btn" data-edit-action="true" data-action-remove="${index}" aria-label="Remove custom action" title="Remove custom action">Remove</button>`
+                  : `<button type="button" class="icon-btn ea-btn ea-btn--icon ea-btn--secondary" data-edit-action="true" data-action-remove="${index}" aria-label="Remove custom action" title="Remove custom action">Remove</button>`
               }
             </div>`;
           })
@@ -2646,16 +3740,19 @@ function renderActions() {
             label: "Reopen Actions",
           })
         }`
-            : `<button type="button" class="icon-btn with-label" id="btnAddAction" data-edit-action="true">Add custom action</button>
-        <button type="button" class="icon-btn with-label primary" id="btnVerifyActions" data-edit-action="true"${
-          actionsVerifyOk ? "" : " data-force-disabled=\"true\""
-        }${actionsVerifyHint ? ` title="${escapeHtml(actionsVerifyHint)}"` : ""}>Verify Actions</button>`
+            : `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnAddAction" data-edit-action="true">Add custom action</button>
+        <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnVerifyActions" data-edit-action="true"${
+          actionsDecision.ok ? "" : " data-force-disabled=\"true\""
+        }${actionsDecision.code ? ` data-block-code="${escapeHtml(actionsDecision.code)}"` : ""}${
+          actionsDecision.reason ? ` title="${escapeHtml(actionsDecision.reason)}"` : ""
+        }>Approve</button>`
         }
       </div>
+      ${approvalNoticeHtml("actions")}
       ${
         locked
           ? ""
-          : `<p class="disabled-reason" id="actionsVerifyHint"${actionsVerifyHint ? "" : " hidden"}>${escapeHtml(actionsVerifyHint)}</p>`
+          : `<p class="disabled-reason" id="actionsVerifyHint"${actionsDecision.reason ? "" : " hidden"}>${escapeHtml(actionsDecision.reason)}</p>`
       }
     </div>`;
   applyPermissionUi();
@@ -2684,16 +3781,16 @@ function copyCardSubline(hasCopy, copy, pick) {
 
 function copyCardActions(hasCopy, pick, canUpload) {
   if (pick?.file) {
-    return `<button type="button" class="icon-btn with-label primary" id="btnUploadCopy" data-edit-action="true"${
+    return `<button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnUploadCopy" data-edit-action="true"${
       canUpload ? "" : ` data-force-disabled="true"`
     }>Upload copy</button>
-        <button type="button" class="icon-btn with-label" id="btnCancelCopy">Cancel</button>`;
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnCancelCopy">Cancel</button>`;
   }
   if (hasCopy) {
-    return `<button type="button" class="icon-btn with-label" id="btnOpenCopy">Open copy</button>
-        <button type="button" class="icon-btn with-label" id="btnReplaceCopy" data-edit-action="true">Replace copy</button>`;
+    return `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnOpenCopy">Open copy</button>
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnReplaceCopy" data-edit-action="true">Replace copy</button>`;
   }
-  return `<button type="button" class="icon-btn with-label" id="btnChooseCopy" data-edit-action="true" aria-label="Choose approved product copy file" title="PDF, JPG, or PNG. Max 20 MB.">Choose file</button>`;
+  return `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnChooseCopy" data-edit-action="true" aria-label="Choose approved product copy file" title="PDF, JPG, or PNG. Max 20 MB.">Choose file</button>`;
 }
 
 const QC_REPORT_MAX_BYTES = 2 * 1024 * 1024;
@@ -2936,13 +4033,40 @@ function qcReportByteCheckWarning(version) {
   return `The server will read the stored PDF and compute its SHA-256. If the checksum does not match, the file is not a valid PDF, or it is over 2 MB, this version (V${version}) is permanently marked BYTES_MISMATCH and cannot be re-checked. You would need to upload a new version. Continue?`;
 }
 
+function resolveReturnFocus(returnFocus, returnFocusId) {
+  if (returnFocus && typeof returnFocus === "object" && typeof returnFocus.focus === "function") {
+    return returnFocus;
+  }
+  const id =
+    (typeof returnFocus === "string" && returnFocus) ||
+    (typeof returnFocusId === "string" && returnFocusId) ||
+    "";
+  return id ? document.getElementById(id) : null;
+}
+
 function openQcConfirm(options) {
-  const { title, message, okLabel, returnFocusId, idPrefix, reasonRequired, attestLabel, extraText } = options || {};
+  const {
+    title,
+    message,
+    okLabel,
+    cancelLabel,
+    returnFocusId,
+    returnFocus,
+    idPrefix,
+    reasonRequired,
+    attestLabel,
+    extraText,
+    cancelClassName,
+    okClassName,
+  } = options || {};
   if (openQcConfirm.showing === true) return Promise.resolve(false);
   openQcConfirm.showing = true;
   const prefix = idPrefix || "qcConfirm";
-  const focusId = returnFocusId || "";
-  const trigger = focusId ? document.getElementById(focusId) : null;
+  const trigger = resolveReturnFocus(returnFocus, returnFocusId);
+  const focusId =
+    (typeof returnFocusId === "string" && returnFocusId) ||
+    (typeof returnFocus === "string" && returnFocus) ||
+    "";
   const gated = reasonRequired === true || Boolean(attestLabel);
   return new Promise((resolve) => {
     let closed = false;
@@ -2998,12 +4122,12 @@ function openQcConfirm(options) {
     const cancelBtn = document.createElement("button");
     cancelBtn.type = "button";
     cancelBtn.id = `${prefix}Cancel`;
-    cancelBtn.className = "icon-btn with-label";
-    cancelBtn.textContent = "Cancel";
+    cancelBtn.className = cancelClassName || "icon-btn with-label";
+    cancelBtn.textContent = String(cancelLabel || "Cancel");
     const okBtn = document.createElement("button");
     okBtn.type = "button";
     okBtn.id = `${prefix}Ok`;
-    okBtn.className = "icon-btn with-label primary";
+    okBtn.className = okClassName || "icon-btn with-label primary";
     okBtn.textContent = String(okLabel || "OK");
     if (gated) okBtn.disabled = true;
     footer.append(cancelBtn, okBtn);
@@ -3036,6 +4160,7 @@ function openQcConfirm(options) {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
+        event.stopImmediatePropagation();
         close(false);
         return;
       }
@@ -3416,13 +4541,13 @@ function qcTestReportCardHtml(model) {
     latestLine = `<p class="muted-note" id="qcReportByteStatus">Bytes not yet verified</p>${details}<p class="muted-note">${esc(b1)}. ${esc(b2)}</p>`;
   }
   const checkButton = qcReportShowByteCheck(model)
-    ? `<button type="button" class="icon-btn with-label" id="btnQcReportCheckBytes"${model.verifying || model.confirmOpen ? " disabled" : ""}>Check bytes on server</button>`
+    ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcReportCheckBytes"${model.verifying || model.confirmOpen ? " disabled" : ""}>Check bytes on server</button>`
     : "";
   const newVersionButton = model.offerNewVersion && model.electron === true && model.canWrite === true
-    ? `<button type="button" class="icon-btn with-label" id="btnQcReportReserveNew">Reserve a new version</button>`
+    ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcReportReserveNew">Reserve a new version</button>`
     : "";
   const chosen = model.chosenName
-    ? `<div id="qcReportChosenFile"><p class="muted-note" id="qcReportSelectedFile">Selected: ${esc(model.chosenName)} (${esc(model.chosenSizeText)})</p><p class="muted-note qc-report-sha" id="qcReportShaPreview">SHA-256 ${esc(model.shaPreview || "")}</p><button type="button" class="icon-btn with-label" id="btnQcReportClearFile">Clear</button></div>`
+    ? `<div id="qcReportChosenFile"><p class="muted-note" id="qcReportSelectedFile">Selected: ${esc(model.chosenName)} (${esc(model.chosenSizeText)})</p><p class="muted-note qc-report-sha" id="qcReportShaPreview">SHA-256 ${esc(model.shaPreview || "")}</p><button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcReportClearFile">Clear</button></div>`
     : "";
   return `<section class="section-card" id="qcTestReportCard">
     <h3 class="section-title">QC Test Report (Product 262)</h3>
@@ -3431,7 +4556,7 @@ function qcTestReportCardHtml(model) {
     <ul class="progress-list">${rows}</ul>
     <p class="muted-note" id="qcReportNextName">Next file name: ${esc(model.nextLabel)}</p>
     <p class="muted-note qc-prep-block">${esc(model.nextFileName)}</p>
-    <button type="button" class="icon-btn with-label" id="btnQcReportCopyName">Copy name</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcReportCopyName">Copy name</button>
     ${chosen}
     ${model.fileError ? `<p class="muted-note ea-autosave is-failed" id="qcReportFileError">${esc(model.fileError)}</p>` : ""}
     ${model.verifyError ? `<p class="muted-note ea-autosave is-failed" id="qcReportVerifyError">${esc(model.verifyError)}</p>` : ""}
@@ -3440,7 +4565,7 @@ function qcTestReportCardHtml(model) {
     ${model.warning ? `<p class="muted-note ea-autosave is-failed" id="qcReportWarning">${esc(model.warning)}</p>` : ""}
     ${model.notice ? `<p class="muted-note" id="qcReportNotice">${esc(model.notice)}</p>` : ""}
     <input id="fldQcReportFile" type="file" accept="application/pdf,.pdf" />
-    <button type="button" class="icon-btn with-label" id="btnQcReportUpload"${model.uploadDisabled ? " disabled" : ""}>Upload</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcReportUpload"${model.uploadDisabled ? " disabled" : ""}>Upload</button>
   </section>`;
 }
 
@@ -3473,7 +4598,7 @@ function renderEvidence() {
         <span class="meta-label">Expected filename</span>
         <div class="ea-expected-file-row">
           <span class="ea-expected-file-name" id="eaExpectedFileName">${escapeHtml(expectedName || "Unavailable")}</span>
-          <button type="button" class="icon-btn with-label" id="btnCopyExpectedFileName"${expectedName ? "" : " disabled"}>Copy</button>
+          <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnCopyExpectedFileName"${expectedName ? "" : " disabled"}>Copy</button>
         </div>
       </div>
       ${state.copyContractError ? `<p class="muted-note ea-autosave is-failed ea-copy-contract-error" aria-live="polite">${escapeHtml(state.copyContractError)}</p>` : ""}
@@ -4319,9 +5444,9 @@ function qcPrepWorkspaceHtml(model) {
       <section class="section-card">
         <h4 class="section-title">Test report</h4>
         <p class="muted-note qc-prep-block" id="qcPrepFileName">File name: EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf</p>
-        <button type="button" class="icon-btn with-label" id="btnQcPrepCopyName">Copy name</button>
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcPrepCopyName">Copy name</button>
         <p class="muted-note qc-prep-block" id="qcPrepShaView">SHA-256: ${model.sha ? esc(model.sha) : "computed at upload (D2)"}</p>
-        ${model.reportRegistered ? `<p class="muted-note qc-prep-block" id="qcPrepRegisteredReport">Test report: V${esc(model.reportVersion)} registered \u2013 ${esc(model.reportFileName)}; SHA-256 ${esc(model.sha)}. ${esc(b1Text)}. ${esc(b2Text)}</p><button type="button" class="icon-btn with-label" id="btnOpenEvidenceFromQc">Open Evidence tab</button>` : `<p class="muted-note qc-prep-block" id="qcPrepRegisteredReport">No report uploaded. Upload in the Evidence tab.</p>`}
+        ${model.reportRegistered ? `<p class="muted-note qc-prep-block" id="qcPrepRegisteredReport">Test report: V${esc(model.reportVersion)} registered \u2013 ${esc(model.reportFileName)}; SHA-256 ${esc(model.sha)}. ${esc(b1Text)}. ${esc(b2Text)}</p><button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnOpenEvidenceFromQc">Open Evidence tab</button>` : `<p class="muted-note qc-prep-block" id="qcPrepRegisteredReport">No report uploaded. Upload in the Evidence tab.</p>`}
         <p class="muted-note qc-prep-block">Portal upload limit: PDF ≤ 2 MB. Upload is in the Evidence tab.</p>
       </section>
       ${reasonList}
@@ -4334,9 +5459,9 @@ function qcPrepWorkspaceHtml(model) {
         <div id="qcPrepFormChecks">${reasonItems(formChecks)}</div>
       </div>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnQcPrepReview"${model.reviewDisabled ? " disabled" : ""}>Check (server review)</button>
-        <button type="button" class="icon-btn with-label" id="btnQcPrepSave" data-edit-action="true"${model.saveDisabled ? " disabled" : ""}>Save draft</button>
-        <button type="button" class="icon-btn with-label" id="btnQcPrepReload"${model.reloadDisabled ? " disabled" : ""}>Reload server copy</button>
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcPrepReview"${model.reviewDisabled ? " disabled" : ""}>Check (server review)</button>
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcPrepSave" data-edit-action="true"${model.saveDisabled ? " disabled" : ""}>Save for review</button>
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcPrepReload"${model.reloadDisabled ? " disabled" : ""}>Reload server copy</button>
       </div>
     </section>`;
 }
@@ -4570,7 +5695,7 @@ function qcSourceFactsModel() {
     && String(state.qcReportByteResult.reservation_id) === String(latest.reservation_id);
   const verifiedSha = latest?.verified_sha256 || (sessionMatches ? state.qcReportByteResult.verified_sha256 : "") || "";
   const report = latest ? { ...latest, verified_sha256: verifiedSha || latest.verified_sha256 || "" } : null;
-  const blockReason = qcSourceFactsBlockReason({
+  let blockReason = qcSourceFactsBlockReason({
     electron: workerApiAvailable(),
     canWrite: canWrite(),
     busy: state.busy === true || state.qcSourceVerifyRunning === true,
@@ -4582,6 +5707,10 @@ function qcSourceFactsModel() {
     reportFilename: form.report_filename,
     verifiedSha,
   });
+  const qcGate = !blockReason && typeof stageGate === "function"
+    ? stageGate("qc", preparation?.preparation_id)
+    : null;
+  if (qcGate) blockReason = qcGate.userMessage;
   const verified = preparation?.preparation_status === "VERIFIED";
   const savedRows = verified ? qcRowsFromFactEvidence(state.qcEvidenceRecheck?.fact_evidence) : null;
   const rows = verified ? savedRows : qcFactRowsCurrent();
@@ -4592,6 +5721,7 @@ function qcSourceFactsModel() {
   const version = latest ? String(latest.version_no).padStart(2, "0") : "";
   return {
     blockReason,
+    blockCode: qcGate?.code || "",
     enabled: blockReason === "" && verified !== true,
     readOnly: verified === true,
     savedMissing: verified === true && savedRows == null,
@@ -4700,15 +5830,17 @@ function qcSourceFactsCardHtml(model) {
   return `<section class="section-card" id="qcSourceFactsCard">
     <h3 class="section-title">Verify source facts <span id="qcEvidenceBadge" class="${badgeClass}"${badgeStyle ? ` style="${badgeStyle}"` : ""}>${esc(badge.label)}</span></h3>
     ${badge.detail ? `<p class="muted-note" id="qcEvidenceBadgeDetail">${esc(badge.detail)}</p>` : `<p class="muted-note" id="qcEvidenceBadgeDetail"></p>`}
-    ${model.blockReason && model.readOnly !== true ? `<p class="muted-note" id="qcSourceFactsBlock">${esc(model.blockReason)}</p>` : ""}
+    ${typeof stageSaverHtml === "function" ? stageSaverHtml("qc", state.qcPrepServer?.preparation_id) : ""}
+    ${model.blockReason && model.readOnly !== true ? `<p class="disabled-reason" id="qcSourceFactsBlock">${esc(model.blockReason)}</p>` : ""}
     ${model.savedMissing ? `<p id="qcSourceFactsSavedMissing">Saved fact evidence is not available in this view</p>` : ""}
     <div class="form-grid">${rows}</div>
     ${model.readOnly === true ? "" : `<label class="qc-prep-block"><input id="qcFactAttest" type="checkbox"${model.attest ? " checked" : ""}${model.enabled ? "" : " disabled"}> I have reviewed every fact above against the verified QC test report (V${esc(model.version)}).</label>`}
     ${model.notice ? `<p class="muted-note ea-autosave is-failed" id="qcSourceFactsNotice">${esc(model.notice)}</p>` : ""}
     <div class="action-row">
-      ${model.readOnly === true ? "" : `<button type="button" class="icon-btn with-label primary" id="btnQcVerifySourceFacts"${model.canSubmit ? "" : " disabled"}>${model.running ? "Verifying source facts..." : "Verify source facts"}</button>`}
-      ${model.canReopen || model.reopenRunning ? `<button type="button" class="icon-btn with-label" id="btnQcReopenSourceFacts"${model.canReopen ? "" : " disabled"}>${model.reopenRunning ? "Reopening..." : "Reopen for re-verification"}</button>` : ""}
+      ${model.readOnly === true ? "" : `<button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnQcVerifySourceFacts"${model.canSubmit ? "" : " disabled"}${model.blockCode ? ` data-block-code="${esc(model.blockCode)}"` : ""}>${model.running ? "Approving..." : "Approve"}</button>`}
+      ${model.canReopen || model.reopenRunning ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcReopenSourceFacts"${model.canReopen ? "" : " disabled"}>${model.reopenRunning ? "Reopening..." : "Reopen for re-verification"}</button>` : ""}
     </div>
+    ${typeof approvalNoticeHtml === "function" ? approvalNoticeHtml("qc", state.qcPrepServer?.preparation_id) : ""}
   </section>`;
 }
 
@@ -4798,9 +5930,9 @@ async function submitQcSourceVerify() {
   try {
     const submittedRows = structuredClone(qcFactRowsCurrent());
     const accepted = await openQcConfirm({
-      title: "Verify source facts",
+      title: "Approve source facts",
       message: `This marks the QC draft as source-verified against V${version} (SHA-256 ${model.sha12}…). Any later edit will require verifying again. Continue?\n${qcSourceVerifyFactLines(submittedRows)}`,
-      okLabel: "Verify source facts",
+      okLabel: "Approve",
       returnFocusId: "btnQcVerifySourceFacts",
       idPrefix: "qcSourceVerifyConfirm",
     });
@@ -4818,15 +5950,20 @@ async function submitQcSourceVerify() {
     });
     if (state.selectedProductId !== productId) return;
     if (result?.ok === false) {
-      state.qcFactNotice = result.message || "QC source verification failed.";
+      state.pendingApproval = { stage: "qc", itemKey: String(preparation?.preparation_id || "") };
+      rememberApprovalRefusal({ message: result.message, code: result.message });
+      state.pendingApproval = null;
+      state.qcFactNotice = userMessageForError({ message: result.message }) || "QC source verification failed.";
       state.qcFactHighlights = Array.isArray(result.details?.facts) ? result.details.facts : [];
+      await refreshStageReview({ render: true });
       return;
     }
-    showToast(`Source facts verified (version ${result.row_version})`, "success");
+    showToast(`Source facts approved (version ${result.row_version})`, "success");
     state.qcFactNotice = "";
     state.qcFactHighlights = [];
     state.qcEvidenceLoadedFor = null;
     state.qcEvidenceLoading = false;
+    await refreshStageReview();
     reloadQcPreparationWorkspace();
   } catch (error) {
     if (state.selectedProductId !== productId) return;
@@ -5115,10 +6252,10 @@ function qcLabDecisionCardHtml() {
       </div>`
     : "";
   const buttons = hasHead
-    ? `<button type="button" class="icon-btn with-label" id="btnQcLabCorrect"${ready ? "" : " disabled"}>Correct</button>
-       <button type="button" class="icon-btn with-label" id="btnQcLabReplace"${ready ? "" : " disabled"}>Replace</button>
-       <button type="button" class="icon-btn with-label" id="btnQcLabWithdraw"${ready ? "" : " disabled"}>Withdraw</button>`
-    : `<button type="button" class="icon-btn with-label primary" id="btnQcLabRecord"${ready ? "" : " disabled"}>${state.qcGovernanceRunning ? "Recording..." : "Record"}</button>`;
+    ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcLabCorrect"${ready ? "" : " disabled"}>Correct</button>
+       <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcLabReplace"${ready ? "" : " disabled"}>Replace</button>
+       <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcLabWithdraw"${ready ? "" : " disabled"}>Withdraw</button>`
+    : `<button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnQcLabRecord"${ready ? "" : " disabled"}>${state.qcGovernanceRunning ? "Recording..." : "Record"}</button>`;
   return `<section class="section-card" id="qcLabDecisionCard">
     <h3 class="section-title">Record laboratory decision</h3>
     <p id="qcLabIssuer">Report issuer: ${esc(form.source_report_issuer || "")}</p>
@@ -5292,7 +6429,7 @@ function qcFactAcceptCardHtml() {
         <textarea id="qcFactAcceptNote-${esc(item.fact)}" data-qc-accept-fact="${esc(item.fact)}" data-qc-accept-role="note">${esc(draft.note || "")}</textarea>
       </label>
       <label><input id="qcFactAcceptAttest-${esc(item.fact)}" type="checkbox" data-qc-accept-fact="${esc(item.fact)}" data-qc-accept-role="attest"${draft.attest ? " checked" : ""}> I attest this fact acceptance.</label>
-      <button type="button" class="icon-btn with-label primary" id="btnQcFactAccept-${esc(item.fact)}" data-qc-accept-fact="${esc(item.fact)}"${ready ? "" : " disabled"}>Accept</button>
+      <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnQcFactAccept-${esc(item.fact)}" data-qc-accept-fact="${esc(item.fact)}"${ready ? "" : " disabled"}>Accept</button>
     </div>`;
   }).join("");
   return `<section class="section-card" id="qcFactAcceptCard">
@@ -5555,8 +6692,8 @@ function qcFactCorrectCardHtml() {
           <textarea id="qcFactCorrectReason-${esc(item.fact)}" data-qc-correct-fact="${esc(item.fact)}" data-qc-correct-role="reason">${esc(draft.reason || "")}</textarea>
         </label>
         <label><input id="qcFactCorrectAttest-${esc(item.fact)}" type="checkbox" data-qc-correct-fact="${esc(item.fact)}" data-qc-correct-role="attest"${draft.attest ? " checked" : ""}> I confirm this basis is accurate and I am accountable for this correction.</label>
-        <button type="button" class="icon-btn with-label primary" id="btnQcFactCorrectSave-${esc(item.fact)}" data-qc-correct-fact="${esc(item.fact)}"${ready ? "" : " disabled"}>Correct</button>`
-      : `<button type="button" class="icon-btn with-label" id="btnQcFactCorrect-${esc(item.fact)}" data-qc-correct-fact="${esc(item.fact)}"${blocked ? " disabled" : ""}>Correct</button>`;
+        <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnQcFactCorrectSave-${esc(item.fact)}" data-qc-correct-fact="${esc(item.fact)}"${ready ? "" : " disabled"}>Correct</button>`
+      : `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFactCorrect-${esc(item.fact)}" data-qc-correct-fact="${esc(item.fact)}"${blocked ? " disabled" : ""}>Correct</button>`;
     return `<div class="form-field form-span-2" data-qc-correct-row="${esc(item.fact)}">
       <span class="meta-label">${esc(qcReadinessFactLabel(item.fact))}</span>
       <p>Basis: ${esc(qcBasisCategoryLabel(item.basis_category))}</p>
@@ -5668,7 +6805,7 @@ function qcProtocolMappingCardHtml() {
       <textarea id="qcMappingReason">${esc(state.qcMappingReason || "")}</textarea>
     </label>
     <label><input id="qcMappingAttest" type="checkbox"${state.qcMappingAttest ? " checked" : ""}> I attest this protocol mapping.</label>
-    <button type="button" class="icon-btn with-label primary" id="btnQcMappingVerify"${ready ? "" : " disabled"}>Verify</button>
+    <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnQcMappingVerify"${ready ? "" : " disabled"}>Verify</button>
   </section>`;
 }
 
@@ -5874,7 +7011,7 @@ function qcFillPreflightCardHtml() {
   const saveReportHtml = saveReport
     ? `<div id="qcNativeSaveReport"><p>Save outcome: ${esc(saveReport.outcome || "")}. List: ${esc(saveReport.listDelta || "")}.</p><p>${esc(saveReport.message || "")}</p></div>`
     : "";
-  return `<section class="section-card" id="qcFillPreflightCard" data-build="D7.3.2">
+  return `<section class="section-card" id="qcFillPreflightCard" data-build="UX-1">
     <h3 class="section-title">Portal filling preflight (B5)</h3>
     ${state.qcFillLoading ? `<p class="muted-note" id="qcFillLoading">Reading preflight.</p>` : ""}
     ${state.qcFillNotice ? `<p class="muted-note" id="qcFillNotice">${esc(state.qcFillNotice)}</p>` : ""}
@@ -5899,32 +7036,32 @@ function qcFillPreflightCardHtml() {
     <p id="qcFillScope">Save only; Submit is not allowed.</p>
     <p id="qcFillSaveBlocked">${esc(QC_FILL_SAVE_BLOCKED)}</p>
     <p id="qcFillButtonsReason">${esc(dryRunReason)}</p>
-    ${writable ? `<button type="button" class="icon-btn with-label" id="btnQcFillInspect">Check portal page</button>
-    <button type="button" class="icon-btn with-label" id="btnQcFillDryRun"${dryRunEnabled ? "" : ` disabled title="${esc(dryRunReason)}"`}>Dry run (no Save)</button>
-    <button type="button" class="icon-btn with-label" id="btnQcNativeSave"${nativeEnabled ? "" : " disabled"}${nativeHint ? ` title="${esc(nativeHint)}"` : ""}>Save to portal (one row)</button>
-    ${nativeHint ? `<p class="muted-note" id="qcNativeSaveHint">${esc(nativeHint)}</p>` : ""}
-    <button type="button" class="icon-btn with-label" id="btnQcFillInspectFile">Choose report to check</button>
+    ${writable ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillInspect">Check portal page</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillDryRun"${dryRunEnabled ? "" : ` disabled title="${esc(dryRunReason)}"`}>Dry run (no Save)</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcNativeSave"${nativeEnabled ? "" : " disabled"}${nativeHint ? ` title="${esc(nativeHint)}"` : ""}>Save to portal (one row)</button>
+    ${nativeHint ? `<p class="muted-note why-disabled" id="qcNativeSaveHint">${esc(nativeHint)}</p>` : ""}
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillInspectFile">Choose report to check</button>
     ${inspectFileHtml}
     ${inspectResultHtml}
     <input id="qcFillInspectFile" type="file" accept="application/pdf,.pdf" hidden>
-    <button type="button" class="icon-btn with-label primary" id="btnQcFillArm"${armDisabled}${armDisabled ? ` title="${esc(armReason)}"` : ""}>Arm filling</button>
-    <button type="button" class="icon-btn with-label" id="btnQcFillFields"${armed && !state.qcPrepRunBusy ? "" : " disabled"}>Fill portal fields</button>
-    <button type="button" class="icon-btn with-label" id="btnQcFillChooseReport"${state.qcFillRun?.filled ? "" : " disabled"}>Choose verified report</button>
+    <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnQcFillArm"${armDisabled}${armDisabled ? ` title="${esc(armReason)}"` : ""}>Arm filling</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillFields"${armed && !state.qcPrepRunBusy ? "" : " disabled"}>Fill portal fields</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillChooseReport"${state.qcFillRun?.filled ? "" : " disabled"}>Choose verified report</button>
     <input id="qcFillReportFile" type="file" accept="application/pdf,.pdf" hidden>
-    <button type="button" class="icon-btn with-label" id="btnQcFillReview"${state.qcFillRun?.reportReady ? "" : " disabled"}>Review before Save</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillReview"${state.qcFillRun?.reportReady ? "" : " disabled"}>Review before Save</button>
     <p id="qcFillOrderHint">Dry run arms its own run, or reuses an open dry-run run for this preparation. Do not click Arm filling first.</p>` : ""}
     ${recovery && writable ? `<p id="qcFillCheckList">Check the portal list.</p>
     <label>Note<textarea id="qcFillResolveNote">${esc(resolveNote)}</textarea></label>
     <label><input id="qcFillResolveAttest" type="checkbox"> I checked the portal list for this product.</label>
-    <button type="button" class="icon-btn with-label" id="btnQcFillFound">Found on the list</button>
-    <button type="button" class="icon-btn with-label" id="btnQcFillMissing">Not on the list</button>
-    ${latestStatus === "SAVE_ARMED" ? `<button type="button" class="icon-btn with-label" id="btnQcFillUnknown">Record unknown result</button>` : ""}` : ""}
-    ${latestStatus === "SAVE_CONFIRMED" && writable ? `<button type="button" class="icon-btn with-label" id="btnQcFillVerify">Read the saved row</button>` : ""}
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillFound">Found on the list</button>
+    <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillMissing">Not on the list</button>
+    ${latestStatus === "SAVE_ARMED" ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillUnknown">Record unknown result</button>` : ""}` : ""}
+    ${latestStatus === "SAVE_CONFIRMED" && writable ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcFillVerify">Read the saved row</button>` : ""}
     ${runHtml ? `<ul id="qcFillRuns">${runHtml}</ul>` : ""}
     ${dryRunHtml}
     ${saveReportHtml}
     ${recaptureHtml}
-    <p class="muted-note" id="qcFillBuild">UI build D7.3.2</p>
+    <p class="muted-note" id="qcFillBuild">UI build UX-1</p>
   </section>`;
 }
 
@@ -5975,6 +7112,7 @@ async function submitQcFillInspect() {
 }
 
 async function submitQcFillDryRun() {
+  if (Number(state.selectedProductId) === 262) return;
   if (state.qcFillInspectOk !== true || !qcFillArmReady()) return;
   const productId = state.selectedProductId;
   const preparationId = state.qcPrepServer?.preparation_id;
@@ -6088,11 +7226,22 @@ function openQcNativeSaveDialog(details) {
     footer.append(cancelBtn, okBtn);
     dialog.append(header, body, footer);
     backdrop.append(dialog);
+    okBtn.setAttribute("data-requires-role", "APPROVER");
     const syncOk = () => {
-      okBtn.disabled = !(tick.checked === true && typed.value === "SAVE 262");
+      const phraseOk = tick.checked === true && typed.value === "SAVE 262";
+      const decision = actionDecision({
+        id: "qcNativeSaveOk",
+        label: "Confirm",
+        disabled: !phraseOk,
+        requiresRole: "APPROVER",
+        title: phraseOk ? "" : "Type SAVE 262 and tick the acknowledgement.",
+        ...workspaceActionContext(),
+      });
+      setActionState(okBtn, decision);
     };
     tick.addEventListener("change", syncOk);
     typed.addEventListener("input", syncOk);
+    syncOk();
     const close = (accepted) => {
       if (closed) return;
       closed = true;
@@ -6117,7 +7266,7 @@ function openQcNativeSaveDialog(details) {
     });
     cancelBtn.addEventListener("click", () => close(false));
     okBtn.addEventListener("click", () => {
-      if (okBtn.disabled) return;
+      if (okBtn.disabled || Number(state.selectedProductId) === 262) return;
       close(true);
     });
     document.body.append(backdrop);
@@ -6127,6 +7276,7 @@ function openQcNativeSaveDialog(details) {
 }
 
 async function submitQcNativeSave() {
+  if (Number(state.selectedProductId) === 262) return;
   const nativeOn = state.qcNativeSaveStatus?.buildAuthorized === true;
   const dryRun = state.qcFillDryRun;
   const preparationId = state.qcPrepServer?.preparation_id || "";
@@ -6189,6 +7339,7 @@ async function submitQcNativeSave() {
 }
 
 async function submitQcFillArm() {
+  if (Number(state.selectedProductId) === 262) return;
   if (!qcFillArmReady()) return;
   const productId = state.selectedProductId;
   const preparationId = state.qcPrepServer?.preparation_id;
@@ -6763,7 +7914,7 @@ async function submitQcPreparationReview() {
     const result = await reviewQcPreparation(productId, token, qcPrepPayloadFromForm(form));
     if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
     if (result?.ok === false) {
-      state.qcPrepNotice = result.message || "QC preparation workspace failed.";
+      state.qcPrepNotice = userMessageForError({ message: result.message }) || "QC preparation workspace failed.";
       showToast(state.qcPrepNotice, "error");
       return;
     }
@@ -6816,7 +7967,7 @@ async function submitQcPreparationSave() {
     });
     if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
     if (result?.ok === false) {
-      state.qcPrepNotice = result.message || "QC preparation workspace failed.";
+      state.qcPrepNotice = userMessageForError({ message: result.message }) || "QC preparation workspace failed.";
       showToast(state.qcPrepNotice, "error");
       return;
     }
@@ -6826,6 +7977,7 @@ async function submitQcPreparationSave() {
     state.qcEvidenceLoadedFor = null;
     state.qcEvidenceLoading = false;
     state.busy = false;
+    await refreshStageReview();
     reloadQcPreparationWorkspace({ preserveNotice: notice });
   } catch (error) {
     if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
@@ -6887,7 +8039,7 @@ function renderWorkerFoundationCard() {
   const probeBlock = probeProduct
     ? `
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnQcPreparationRead"${
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcPreparationRead"${
           probeBlocked ? ` disabled aria-disabled="true"` : ""
         }>QC preparation read probe</button>
       </div>
@@ -6898,7 +8050,7 @@ function renderWorkerFoundationCard() {
       )}</p>
       <p class="muted-note">Expected to report a non-empty list after the first preparation is saved.</p>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnQcReportRead"${
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnQcReportRead"${
           probeBlocked ? ` disabled aria-disabled="true"` : ""
         }>QC report read probe</button>
       </div>
@@ -6914,7 +8066,7 @@ function renderWorkerFoundationCard() {
       <p class="muted-note">Internal verification is not portal entry and is not portal verification.</p>
       <p class="muted-note" id="workerReadinessBrowserContext">${escapeHtml(browserLine)}</p>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnWorkerFoundation" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnWorkerFoundation" data-edit-action="true" ${
           checkDisabled ? `data-force-disabled="true"` : ""
         }>Foundation Check</button>
       </div>
@@ -7144,7 +8296,7 @@ function renderEntryDryRunCard() {
       <p class="muted-note">Internal ${escapeHtml(readyChip)}. Worker ${escapeHtml(workerStatusLabel(state.workerStatus))} (${escapeHtml(workerState)}).</p>
       <p class="muted-note">${escapeHtml(contractLine)}</p>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnWorkerEntryDryRun" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnWorkerEntryDryRun" data-edit-action="true" ${
           checkDisabled ? `data-force-disabled="true"` : ""
         }>Check Entry Readiness</button>
       </div>
@@ -7161,13 +8313,13 @@ function renderEntryDryRunCard() {
       }
       <p class="muted-note">Lifecycle: NOT_STARTED -> IN_PROGRESS -> ENTERED -> PORTAL_VERIFIED (stop). No Composition. No submit.</p>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnWorkerProductDetailsPreview" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnWorkerProductDetailsPreview" data-edit-action="true" ${
           checkDisabled ? `data-force-disabled="true"` : ""
         }>Preview Product Details</button>
-        <button type="button" class="icon-btn with-label primary" id="btnWorkerProductDetailsStart" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnWorkerProductDetailsStart" data-edit-action="true" ${
           startDisabled ? `data-force-disabled="true"` : ""
         }>Start Product Details</button>
-        <button type="button" class="icon-btn with-label primary" id="btnWorkerProductDetailsResume" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnWorkerProductDetailsResume" data-edit-action="true" ${
           resumeDisabled ? `data-force-disabled="true"` : ""
         }>Resume Product Details</button>
       </div>
@@ -7187,7 +8339,7 @@ function renderEntryDryRunCard() {
       ${
         showExactOneRecovery
           ? `<div class="action-row">
-        <button type="button" class="icon-btn with-label primary" id="btnWorkerRecoverExactOneIdentity" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnWorkerRecoverExactOneIdentity" data-edit-action="true" ${
           exactOneRecoveryDisabled ? `data-force-disabled="true"` : ""
         }>Recover Saved Portal Identity</button>
       </div>
@@ -7201,12 +8353,12 @@ function renderEntryDryRunCard() {
       ${
         showReconcile
           ? `<div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnWorkerReconcileAmbiguous" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnWorkerReconcileAmbiguous" data-edit-action="true" ${
           reconcileDisabled ? `data-force-disabled="true"` : ""
         }>Reconcile Ambiguous Save</button>
         ${
           showRebase
-            ? `<button type="button" class="icon-btn with-label" id="btnWorkerRebasePortalProjection" data-edit-action="true" ${
+            ? `<button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnWorkerRebasePortalProjection" data-edit-action="true" ${
                 reconcileDisabled ? `data-force-disabled="true"` : ""
               }>Rebase existing run authority</button>`
             : ""
@@ -7844,6 +8996,160 @@ function renderQc() {
   applyPermissionUi();
 }
 
+async function loadPortalEntryGate(productId) {
+  const id = Number(productId);
+  if (!id || id === FIRST_CONTROLLED_PRODUCT_ID) {
+    state.portalEntryGate = null;
+    state.portalEntryGateLoading = false;
+    state.portalEntryGateError = "";
+    return null;
+  }
+  state.portalEntryGateLoading = true;
+  state.portalEntryGateError = "";
+  try {
+    const gate = await fetchPortalEntryGate(id);
+    if (!idsEqual(state.selectedProductId, id)) return null;
+    state.portalEntryGate = gate;
+    return gate;
+  } catch (err) {
+    if (!idsEqual(state.selectedProductId, id)) return null;
+    state.portalEntryGate = { product_id: id, enabled: false };
+    state.portalEntryGateError = portalGateRefusalMessage(err);
+    toastError(err);
+    return null;
+  } finally {
+    if (idsEqual(state.selectedProductId, id)) state.portalEntryGateLoading = false;
+  }
+}
+
+function queuePortalEntryGateLoad() {
+  const id = Number(state.selectedProductId);
+  if (!id || id === FIRST_CONTROLLED_PRODUCT_ID) return;
+  if (state.portalEntryGateLoading) return;
+  if (state.portalEntryGate && Number(state.portalEntryGate.product_id) === id) return;
+  void loadPortalEntryGate(id).then(() => {
+    if (state.tab === "readiness" && idsEqual(state.selectedProductId, id)) renderReadiness();
+  });
+}
+
+async function submitPortalEntryGateToggle(enabled) {
+  const id = Number(state.selectedProductId);
+  if (!id || id === FIRST_CONTROLLED_PRODUCT_ID) return;
+  if (state.myRoles?.is_approver !== true) {
+    showToast(portalGateRefusalMessage({ message: "APPROVER_ROLE_REQUIRED" }), "error");
+    return;
+  }
+  const reason = safeText(state.portalEntryGateReason || $("fldPortalEntryGateReason")?.value);
+  if (!portalGateReasonOk(reason)) {
+    showToast(PORTAL_GATE_REASON_RANGE_COPY, "error");
+    return;
+  }
+  if (state.portalEntryGateBusy) return;
+  state.portalEntryGateBusy = true;
+  try {
+    await setPortalEntryGate({ productId: id, enabled: enabled === true, reason });
+    state.portalEntryGateReason = "";
+    await loadPortalEntryGate(id);
+    showToast(
+      enabled === true ? "Portal entry is turned on for this product." : "Portal entry is turned off for this product.",
+      "success",
+    );
+  } catch (err) {
+    showToast(portalGateRefusalMessage(err), "error", 5200);
+    await loadPortalEntryGate(id);
+  } finally {
+    state.portalEntryGateBusy = false;
+    if (state.tab === "readiness") renderReadiness();
+  }
+}
+
+function renderFillOnPortalSection() {
+  const isApprover = state.myRoles?.is_approver === true;
+  const gateEnabled = state.portalEntryGate?.enabled === true;
+  const model = portalFillStepperModel({
+    productId: state.selectedProductId,
+    review: state.review,
+    classification: state.classification,
+    lines: state.lines,
+    actionsDraft: state.actionsDraft,
+    actionsReviewStatus: state.actionsReviewStatus,
+    stageReview: state.stageReview,
+    gateEnabled,
+    isApprover,
+  });
+  const statusHtml = model.statusRows
+    .map(
+      (row) =>
+        `<div class="readiness-chip"><span>${escapeHtml(row.label)}</span>${chip(
+          reviewStatusChipClass(row.status),
+          row.statusLabel,
+        )}</div>`,
+    )
+    .join("");
+  if (model.closedProduct) {
+    return `<div class="section-card" id="fillOnPortalSection">
+      <h3 class="section-title">Fill on portal</h3>
+      <p class="muted-note" id="fillOnPortalClosedNote">${escapeHtml(model.closedMessage)}</p>
+    </div>`;
+  }
+  queuePortalEntryGateLoad();
+  const stepsHtml = model.portalSteps
+    .map(
+      (step) =>
+        `<div class="portal-fill-step" data-portal-fill-step="${escapeHtml(step.id)}">
+          <strong>${escapeHtml(step.label)}</strong>
+          <p class="muted-note">${escapeHtml(step.reason)}</p>
+        </div>`,
+    )
+    .join("");
+  const warningHtml = model.samePersonWarning
+    ? `<p class="muted-note" id="fillOnPortalSamePersonWarning">${escapeHtml(model.samePersonWarning)}</p>`
+    : "";
+  const gateLoadingHtml = state.portalEntryGateLoading
+    ? `<p class="muted-note" id="fillOnPortalGateLoading">Reading portal entry gate.</p>`
+    : "";
+  const gateErrorHtml = state.portalEntryGateError
+    ? `<p class="disabled-reason" id="fillOnPortalGateError">${escapeHtml(state.portalEntryGateError)}</p>`
+    : "";
+  const gateStatusHtml = `<p class="muted-note" id="fillOnPortalGateStatus">Portal entry gate: <strong>${
+    gateEnabled ? "On" : "Off"
+  }</strong> (from server).</p>`;
+  const reasonValue = escapeHtml(state.portalEntryGateReason || "");
+  const reasonOk = portalGateReasonOk(state.portalEntryGateReason);
+  const gateToggleHtml = model.showGateToggle
+    ? `<div class="form-field" id="fillOnPortalGateControls">
+        <label for="fldPortalEntryGateReason">Reason for turning portal entry on or off</label>
+        <textarea id="fldPortalEntryGateReason" class="sasv-control" rows="2" data-edit-action="true">${reasonValue}</textarea>
+        <span class="muted-note">${escapeHtml(PORTAL_GATE_REASON_RANGE_COPY)}</span>
+        <div class="action-row">
+          <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnPortalEntryGateOn" data-edit-action="true"${
+            reasonOk && !gateEnabled && !state.portalEntryGateBusy ? "" : ' data-force-disabled="true"'
+          }>Turn on portal entry</button>
+          <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnPortalEntryGateOff" data-edit-action="true"${
+            reasonOk && gateEnabled && !state.portalEntryGateBusy ? "" : ' data-force-disabled="true"'
+          }>Turn off portal entry</button>
+        </div>
+      </div>`
+    : `<p class="muted-note" id="fillOnPortalApproverOnly">${escapeHtml(model.approverOnlyCopy)}</p>`;
+  const onMessageHtml =
+    gateEnabled && model.gateOnMessage
+      ? `<p class="muted-note" id="fillOnPortalOnNoAutosave">${escapeHtml(PORTAL_ENTRY_ON_NO_AUTOSAVE_COPY)}</p>`
+      : "";
+  return `<div class="section-card" id="fillOnPortalSection">
+      <h3 class="section-title">Fill on portal</h3>
+      ${gateLoadingHtml}
+      ${gateErrorHtml}
+      ${gateStatusHtml}
+      <p class="muted-note" id="fillOnPortalEntryNote">${escapeHtml(model.portalEntryMessage)}</p>
+      ${onMessageHtml}
+      ${warningHtml}
+      ${gateToggleHtml}
+      <div class="readiness-compact" id="fillOnPortalStatusList">${statusHtml}</div>
+      <div class="portal-fill-steps" id="fillOnPortalSteps">${stepsHtml}</div>
+      <p class="muted-note">This build does not Save, Submit, or Authorize a portal Save. The server remains the only judge of enablement.</p>
+    </div>`;
+}
+
 function renderReadiness() {
   queueQcPreparationLoad();
   queueQcEvidenceRecheck();
@@ -7886,7 +9192,7 @@ function renderReadiness() {
   host.innerHTML = `
     <div class="section-card" id="qcReadinessSummary">
       <p class="muted-note">${escapeHtml(qcReadinessSummaryText())}</p>
-      <button type="button" class="icon-btn with-label" id="btnOpenQcTab">Open QC Register</button>
+      <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnOpenQcTab">Open QC Register</button>
     </div>
     <div class="section-card">
       <div class="readiness-banner ${ready ? "is-ready" : "is-not-ready"}">${
@@ -7911,7 +9217,7 @@ function renderReadiness() {
         <textarea id="fldPromoteNotes" class="sasv-control" rows="2" data-edit-action="true">${escapeHtml(state.promoteNotes)}</textarea>
       </div>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label primary" id="btnPromote" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label primary ea-btn ea-btn--primary" id="btnPromote" data-edit-action="true" ${
           promoteOk ? "" : `data-force-disabled="true" title="${escapeHtml(promoteReason)}"`
         }>Promote Verified Formulation</button>
       </div>
@@ -7925,7 +9231,7 @@ function renderReadiness() {
         <textarea id="fldVerifyNotes" class="sasv-control" rows="2" data-edit-action="true">${escapeHtml(state.verifyNotes)}</textarea>
       </div>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnVerifyProduct" data-edit-action="true" ${
+        <button type="button" class="icon-btn with-label ea-btn ea-btn--secondary" id="btnVerifyProduct" data-edit-action="true" ${
           verifyOk ? "" : `data-force-disabled="true" title="${escapeHtml(verifyReason)}"`
         }>Verify Product internally</button>
       </div>
@@ -7935,9 +9241,665 @@ function renderReadiness() {
       <p class="muted-note">These actions prepare internal records only. They do not enter or submit the Government portal.</p>
       <p class="muted-note">Portal entry statuses (${escapeHtml(normalizeEntryStatus(row.entry_status))}) are display-only in this module.</p>
     </div>
+    ${renderFillOnPortalSection()}
     ${renderWorkerFoundationCard()}
     ${renderEntryDryRunCard()}`;
   applyPermissionUi();
+}
+
+function workspaceActionContext() {
+  const lines = Array.isArray(state.lines) ? state.lines : [];
+  const issues = Array.isArray(state.issues) ? state.issues : [];
+  return {
+    isApprover: state.myRoles?.is_approver === true,
+    productId: state.selectedProductId,
+    openIssues: issues.filter((issue) => !issue?.status || issue.status === "OPEN").length,
+    unverifiedLines: lines.filter((line) => line?.review_status !== "VERIFIED").length,
+    lineCount: lines.length,
+  };
+}
+
+function applyWorkspaceChrome() {
+  const panel = document.querySelector(`#workspacePanel [data-tab-panel="${state.tab}"]`);
+  if (!panel) return;
+  decorateWorkspace(panel, workspaceActionContext());
+  placeTechnicalDrawer(panel, {
+    isApprover: state.myRoles?.is_approver === true,
+    cacheName: CACHE_NAME_UX1,
+  });
+}
+
+function renderSignedInRole() {
+  const node = $("signedInRole");
+  if (!node) return;
+  node.textContent = signedInRoleLabel(state.myRoles);
+}
+
+function showWorklistMode(on) {
+  const home = $("worklistHome");
+  const loading = $("worklistLoading");
+  const fallback = $("worklistFallback");
+  const oldControls = $("legacyQueueControls");
+  const oldTable = $("queueTableWrap");
+  if (home) home.hidden = !on;
+  if (loading) loading.hidden = true;
+  if (fallback) fallback.hidden = on || state.worklistError !== true;
+  if (oldControls) oldControls.hidden = on;
+  if (oldTable) oldTable.hidden = on;
+}
+
+function readWorklistQueue() {
+  try {
+    const saved = localStorage.getItem(WORKLIST_TAB_KEY);
+    return WORKLIST_QUEUES.some((item) => item.id === saved) ? saved : "TO_VERIFY";
+  } catch {
+    return "TO_VERIFY";
+  }
+}
+
+function rememberWorklistQueue(queue) {
+  try {
+    localStorage.setItem(WORKLIST_TAB_KEY, queue);
+  } catch {
+    /* the queue still works for this visit */
+  }
+}
+
+let worklistSearchTimer = 0;
+
+function optionListHtml(choices, selected) {
+  return choices.map((choice) => {
+    const value = String(choice.value).replace(/"/g, "&quot;");
+    const label = String(choice.label).replace(/</g, "&lt;");
+    const on = choice.value === selected ? " selected" : "";
+    return `<option value="${value}"${on}>${label}</option>`;
+  }).join("");
+}
+
+function filteredWorklist() {
+  return filterWorklistRows(state.worklist || [], {
+    queue: state.worklistQueue,
+    category: state.worklistCategory,
+    subcategory: state.worklistSubcategory,
+    group: state.worklistGroup,
+    blockedOnly: state.worklistBlocked === true,
+    query: state.worklistQuery,
+  });
+}
+
+function queueWorklistRows() {
+  return (state.worklist || []).filter((row) => row.queue === state.worklistQueue);
+}
+
+function setLevelSelect(select, rows, level, selected) {
+  if (!select) return selected || "all";
+  const choices = worklistLevelChoices(rows, level);
+  let value = selected || "all";
+  if (!choices.some((choice) => choice.value === value)) value = "all";
+  select.innerHTML = optionListHtml(choices, value);
+  select.value = value;
+  return value;
+}
+
+function syncWorklistFilterControls() {
+  const rows = queueWorklistRows();
+  const category = setLevelSelect($("worklistCategory"), rows, "category", state.worklistCategory);
+  const subcategory = setLevelSelect(
+    $("worklistSubcategory"),
+    filterWorklistRows(rows, { category }),
+    "subcategory",
+    state.worklistSubcategory,
+  );
+  const group = setLevelSelect(
+    $("worklistGroup"),
+    filterWorklistRows(rows, { category, subcategory }),
+    "group",
+    state.worklistGroup,
+  );
+  state.worklistCategory = category;
+  state.worklistSubcategory = subcategory;
+  state.worklistGroup = group;
+  const blocked = $("worklistBlocked");
+  if (blocked) blocked.checked = state.worklistBlocked === true;
+  const dot = $("worklistFilterDot");
+  if (dot) {
+    dot.hidden = !worklistFiltersActive({
+      category,
+      subcategory,
+      group,
+      blockedOnly: state.worklistBlocked,
+    });
+  }
+  const clear = $("worklistSearchClear");
+  if (clear) clear.hidden = !safeText(state.worklistQuery);
+  syncWorklistFilteredCount(filterWorklistRows(rows, {
+    category: state.worklistCategory,
+    subcategory: state.worklistSubcategory,
+    group: state.worklistGroup,
+    blockedOnly: state.worklistBlocked === true,
+    query: state.worklistQuery,
+  }).length);
+}
+
+function syncWorklistFilteredCount(total) {
+  const node = $("worklistFilteredCount");
+  if (!node) return;
+  const active = worklistFiltersActive({
+    category: state.worklistCategory,
+    subcategory: state.worklistSubcategory,
+    group: state.worklistGroup,
+    blockedOnly: state.worklistBlocked,
+  }) || Boolean(safeText(state.worklistQuery));
+  if (!active) {
+    node.hidden = true;
+    node.textContent = "";
+    return;
+  }
+  const count = Number(total) || 0;
+  node.hidden = false;
+  node.textContent = `${count} ${count === 1 ? "product" : "products"}`;
+}
+
+function refreshChildClassificationDrafts() {
+  const rows = queueWorklistRows();
+  const category = $("worklistCategory")?.value || "all";
+  const subcategory = setLevelSelect(
+    $("worklistSubcategory"),
+    filterWorklistRows(rows, { category }),
+    "subcategory",
+    $("worklistSubcategory")?.value || "all",
+  );
+  setLevelSelect(
+    $("worklistGroup"),
+    filterWorklistRows(rows, { category, subcategory }),
+    "group",
+    $("worklistGroup")?.value || "all",
+  );
+}
+
+function worklistRowEls() {
+  return Array.from(document.querySelectorAll("#worklistBody tr.queue-row[data-product-id]"));
+}
+
+function applyWorklistRoving() {
+  const rows = worklistRowEls();
+  if (!rows.length) return null;
+  const wanted = String(state.worklistFocusedId || "");
+  const active = rows.find((row) => String(row.dataset.productId) === wanted) || rows[0];
+  rows.forEach((row) => {
+    const on = row === active;
+    row.tabIndex = on ? 0 : -1;
+    row.classList.toggle("is-focused", on);
+  });
+  state.worklistFocusedId = active.dataset.productId;
+  return active;
+}
+
+function focusWorklistRow(productId) {
+  if (productId != null) state.worklistFocusedId = productId;
+  const active = applyWorklistRoving();
+  if (!active) return null;
+  active.focus();
+  active.scrollIntoView({ block: "nearest" });
+  return active;
+}
+
+function saveWorklistScroll() {
+  const wrap = $("worklistTableWrap");
+  if (wrap) state.worklistScrollTop = wrap.scrollTop;
+}
+
+function restoreWorklistScroll() {
+  const wrap = $("worklistTableWrap");
+  if (!wrap) return;
+  wrap.scrollTop = state.worklistScrollTop || 0;
+}
+
+function renderWorklist({ resetChunk = false, restoreScroll = false } = {}) {
+  const rows = state.worklist || [];
+  const tabs = $("worklistTabs");
+  if (tabs) tabs.innerHTML = worklistTabsHtml(rows, state.worklistQueue);
+  syncWorklistFilterControls();
+  const filtered = filteredWorklist();
+  if (resetChunk) {
+    state.worklistRenderedCount = resetQueueRenderCount(filtered.length);
+    state.worklistScrollTop = 0;
+    const wrap = $("worklistTableWrap");
+    if (wrap) wrap.scrollTop = 0;
+  }
+  if (state.worklistRenderedCount <= 0 && filtered.length) {
+    state.worklistRenderedCount = resetQueueRenderCount(filtered.length);
+  }
+  if (state.worklistRenderedCount > filtered.length) state.worklistRenderedCount = filtered.length;
+  const visible = visibleQueueRows(filtered, state.worklistRenderedCount);
+  const body = $("worklistBody");
+  if (!body) return;
+  const markup = visible.length ? visible.map((row) => worklistRowHtml(row)).join("") : worklistEmptyHtml();
+  const template = document.createElement("template");
+  template.innerHTML = `<table><tbody>${markup}</tbody></table>`;
+  const fragment = document.createDocumentFragment();
+  const built = template.content.querySelector("tbody");
+  while (built?.firstChild) fragment.append(built.firstChild);
+  body.replaceChildren(fragment);
+  applyWorklistRoving();
+  if (restoreScroll) requestAnimationFrame(() => restoreWorklistScroll());
+}
+
+function appendWorklistChunk({ force = false } = {}) {
+  if (isProductMode()) return false;
+  const wrap = $("worklistTableWrap");
+  const body = $("worklistBody");
+  if (!wrap || !body) return false;
+  const filtered = filteredWorklist();
+  if (state.worklistRenderedCount >= filtered.length) return false;
+  if (
+    !force &&
+    !shouldAppendQueueChunk({
+      scrollTop: wrap.scrollTop,
+      clientHeight: wrap.clientHeight,
+      scrollHeight: wrap.scrollHeight,
+    })
+  ) {
+    return false;
+  }
+  const next = nextQueueRenderCount(state.worklistRenderedCount, filtered.length);
+  const extra = filtered.slice(state.worklistRenderedCount, next);
+  if (!extra.length) return false;
+  const template = document.createElement("template");
+  template.innerHTML = `<table><tbody>${extra.map((row) => worklistRowHtml(row)).join("")}</tbody></table>`;
+  const fragment = document.createDocumentFragment();
+  const built = template.content.querySelector("tbody");
+  while (built?.firstChild) fragment.append(built.firstChild);
+  body.append(fragment);
+  state.worklistRenderedCount = next;
+  applyWorklistRoving();
+  return true;
+}
+
+function placeWorklistFilterPopover() {
+  const drawer = $("worklistFilterDrawer");
+  const button = $("worklistFilterBtn");
+  if (!drawer || !button) return;
+  const rect = button.getBoundingClientRect();
+  const margin = 8;
+  const width = Math.min(320, window.innerWidth - margin * 2);
+  let left = rect.left;
+  if (left + width > window.innerWidth - margin) left = window.innerWidth - margin - width;
+  if (left < margin) left = margin;
+  let top = rect.bottom + 6;
+  drawer.style.width = `${Math.round(width)}px`;
+  drawer.style.left = `${Math.round(left)}px`;
+  drawer.style.top = `${Math.round(top)}px`;
+  const height = drawer.getBoundingClientRect().height;
+  if (top + height > window.innerHeight - margin && rect.top - 6 - height >= margin) {
+    drawer.style.top = `${Math.round(rect.top - 6 - height)}px`;
+  }
+}
+
+function setWorklistFiltersOpen(open) {
+  const drawer = $("worklistFilterDrawer");
+  const button = $("worklistFilterBtn");
+  const home = $("worklistHome");
+  if (!drawer || !button) return;
+  const wasOpen = drawer.hidden !== true;
+  if (setWorklistFiltersOpen.onKey) {
+    document.removeEventListener("keydown", setWorklistFiltersOpen.onKey, true);
+    setWorklistFiltersOpen.onKey = null;
+  }
+  if (setWorklistFiltersOpen.onPointer) {
+    document.removeEventListener("pointerdown", setWorklistFiltersOpen.onPointer, true);
+    setWorklistFiltersOpen.onPointer = null;
+  }
+  drawer.hidden = !open;
+  button.setAttribute("aria-expanded", open ? "true" : "false");
+  if (!open) {
+    drawer.style.top = "";
+    drawer.style.left = "";
+    drawer.style.width = "";
+    const table = $("worklistTableWrap");
+    if (home && table && drawer.parentElement !== home) home.insertBefore(drawer, table);
+    syncWorklistFilterControls();
+    if (wasOpen) button.focus();
+    return;
+  }
+  document.body.append(drawer);
+  placeWorklistFilterPopover();
+  const onKey = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      setWorklistFiltersOpen(false);
+      return;
+    }
+    trapModalTab(event, "worklistFilterDrawer");
+  };
+  const onPointer = (event) => {
+    if (drawer.contains(event.target) || button.contains(event.target)) return;
+    setWorklistFiltersOpen(false);
+  };
+  setWorklistFiltersOpen.onKey = onKey;
+  setWorklistFiltersOpen.onPointer = onPointer;
+  document.addEventListener("keydown", onKey, true);
+  document.addEventListener("pointerdown", onPointer, true);
+  $("worklistCategory")?.focus();
+}
+
+function closeWorklistModal({ restoreFocus = true } = {}) {
+  if (openWorklistModal.onKey) document.removeEventListener("keydown", openWorklistModal.onKey, true);
+  const backdrop = $("worklistModalBackdrop");
+  const productId = backdrop?.dataset.productId;
+  backdrop?.remove();
+  if (restoreFocus && productId) focusWorklistRow(productId);
+}
+
+function openWorklistModal(productId) {
+  const row = (state.worklist || []).find((item) => Number(item.product_id) === Number(productId));
+  if (!row || $("worklistModalBackdrop")) return;
+  state.worklistFocusedId = productId;
+  const roles = {
+    ...(state.myRoles || {}),
+    selfApproval: String(row.last_changed_by || "") !== "" && String(row.last_changed_by) === String(state.myRoles?.user_id || ""),
+  };
+  const decision = nextActionDecision(row, roles);
+  const backdrop = document.createElement("div");
+  backdrop.id = "worklistModalBackdrop";
+  backdrop.className = "sasv-modal-backdrop";
+  backdrop.dataset.productId = String(row.product_id);
+  const dialog = document.createElement("div");
+  dialog.id = "worklistModalDialog";
+  dialog.className = "sasv-modal";
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  dialog.setAttribute("aria-labelledby", "worklistModalTitle");
+  dialog.tabIndex = -1;
+  const header = document.createElement("div");
+  header.className = "sasv-modal__header";
+  const title = document.createElement("h2");
+  title.id = "worklistModalTitle";
+  title.className = "sasv-modal__title";
+  const name = document.createElement("span");
+  name.textContent = row.product_name || "Product";
+  const id = document.createElement("span");
+  id.className = "worklist-modal-id muted-note";
+  id.textContent = row.product_id == null ? "" : String(row.product_id);
+  title.append(name, id);
+  header.append(title);
+  const body = document.createElement("div");
+  body.className = "sasv-modal__body";
+  body.innerHTML = worklistModalHtml(row, roles);
+  const footer = document.createElement("div");
+  footer.className = "sasv-modal__footer";
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.id = "worklistModalClose";
+  closeBtn.className = "icon-btn with-label";
+  closeBtn.textContent = "Close";
+  const primary = document.createElement("button");
+  primary.type = "button";
+  primary.id = "worklistModalPrimary";
+  primary.className = "icon-btn with-label primary";
+  primary.textContent = decision.buttonLabel || "View";
+  footer.append(closeBtn, primary);
+  dialog.append(header, body, footer);
+  backdrop.append(dialog);
+  document.body.append(backdrop);
+  setActionState(primary, decision);
+  const stage = workspaceTabForStage(row.next_stage);
+  const close = () => closeWorklistModal();
+  backdrop.addEventListener("click", (event) => {
+    if (event.target === backdrop) close();
+  });
+  closeBtn.addEventListener("click", close);
+  primary.addEventListener("click", () => {
+    if (primary.disabled) return;
+    closeWorklistModal({ restoreFocus: false });
+    void openWorklistProduct(row.product_id, stage).catch(toastError);
+  });
+  const onKey = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+      return;
+    }
+    trapModalTab(event, "worklistModalDialog");
+  };
+  openWorklistModal.onKey = onKey;
+  document.addEventListener("keydown", onKey, true);
+  dialog.focus();
+}
+
+function compositionModalFilteredIds() {
+  const available = new Set(state.lines.map((row) => String(row.source_composition_line_id)));
+  const retained = state.compositionModalOrder.filter((id) => available.has(String(id)));
+  return retained.length ? retained : compositionFilteredLines().map((row) => String(row.source_composition_line_id));
+}
+
+function compositionModalNavigation(lineId) {
+  const ids = compositionModalFilteredIds();
+  const index = ids.indexOf(String(lineId));
+  const nextReview = ids.slice(Math.max(0, index + 1)).find((id) => {
+    const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, id));
+    return row && !isVerifiedStatus(row.review_status);
+  }) || null;
+  return {
+    previous: index > 0 ? ids[index - 1] : null,
+    next: index >= 0 && index < ids.length - 1 ? ids[index + 1] : null,
+    nextReview,
+  };
+}
+
+function refreshCompositionLineModal(lineId, { focus = false, focusNext = false } = {}) {
+  const id = String(lineId || state.compositionModalLineId || "");
+  const dialog = $("compositionLineModalDialog");
+  const body = $("compositionLineModalBody");
+  const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, id));
+  const html = state.compositionLineHtml.get(id);
+  if (!dialog || !body || !row || !html) {
+    if (dialog) closeCompositionLineModalNow({ restoreFocus: true });
+    return false;
+  }
+  state.compositionModalLineId = id;
+  $("compositionLineModalTitle").textContent = `Line ${displayText(row.source_row_no)} - ${sourceFieldDisplay(row.raw_ingredient_name)}`;
+  const modalIssues = issuesForLine(state.issues, id);
+  const topIssue = modalIssues.slice().sort((a, b) => severityRank(b.severity) - severityRank(a.severity))[0];
+  const summary = $("compositionLineModalSummary");
+  if (summary) {
+    const botanical = sourceFieldDisplay(row.raw_scientific_name);
+    summary.innerHTML = `<div class="composition-line-summary-item composition-line-summary-botanical"><span class="composition-line-summary-label">Botanical name</span><span class="composition-line-summary-value" title="${escapeHtml(botanical)}">${escapeHtml(botanical)}</span></div><div class="composition-line-summary-item"><span class="composition-line-summary-label">Quantity</span><span class="composition-line-summary-value">${escapeHtml(formatRawQuantityDisplay(row.raw_quantity_text, row.raw_unit_text) || "-")}</span></div><div class="composition-line-summary-item"><span class="composition-line-summary-label">Part used</span><span class="composition-line-summary-value">${escapeHtml(sourceFieldDisplay(row.raw_part_used))}</span></div><div class="composition-line-summary-chips"><span class="status-chip composition-line-summary-review ${escapeHtml(reviewStatusChipClass(row.review_status))}">${escapeHtml(displayText(row.review_status, "PENDING"))}</span>${topIssue ? chip(severityRank(topIssue.severity) >= 2 ? "danger" : "warning", severityLabel(topIssue.severity)) : chip("neutral", "Clear")}</div>`;
+  }
+  body.innerHTML = html;
+  const saveStatusHost = $("compositionLineModalSaveStatus");
+  const saveStatus = document.getElementById(`line-save-${id}`);
+  if (saveStatusHost) {
+    saveStatusHost.replaceChildren();
+    if (saveStatus) saveStatusHost.append(saveStatus);
+  }
+  const messageHost = $("compositionLineModalMessage");
+  const messageSource = body.querySelector(".line-footer-message-source");
+  if (messageHost) {
+    messageHost.replaceChildren();
+    if (messageSource) messageHost.append(...messageSource.childNodes);
+    syncCompositionLineFooterMessage();
+  }
+  messageSource?.remove();
+  const nav = compositionModalNavigation(id);
+  const previous = $("compositionLineModalPrevious");
+  const next = $("compositionLineModalNext");
+  const nextReview = $("compositionLineModalNextReview");
+  previous.disabled = !nav.previous;
+  previous.dataset.targetLineId = nav.previous || "";
+  next.disabled = !nav.next;
+  next.dataset.targetLineId = nav.next || "";
+  nextReview.disabled = !nav.nextReview;
+  nextReview.dataset.targetLineId = nav.nextReview || "";
+  applyPermissionUi();
+  syncLineVerifyUi(id);
+  if (focusNext) requestAnimationFrame(() => next.focus());
+  else if (focus) requestAnimationFrame(() => dialog.focus());
+  return true;
+}
+
+function closeCompositionLineModalNow({ restoreFocus = true } = {}) {
+  const returnId = state.compositionModalReturnFocusId || state.compositionModalLineId;
+  $("compositionLineModalBackdrop")?.remove();
+  state.compositionModalLineId = null;
+  state.compositionModalReturnFocusId = null;
+  state.compositionModalOrder = [];
+  if (restoreFocus && returnId) focusCompositionRow(returnId);
+}
+
+async function settleCompositionModalLine(lineId) {
+  const id = String(lineId || "");
+  if (!id) return true;
+  if (flushDebounced(autosaveTimers, `line:${id}`)) await autosaveLine(id);
+  await waitLineIdle(id);
+  const draft = state.lineDrafts.get(id);
+  const baseline = state.lineBaselines.get(id);
+  if (!lineDirty(draft, baseline)) return true;
+  const leave = await openQcConfirm({
+    title: "Unsaved review edits",
+    message: "You have unsaved review edits. Discard them?",
+    okLabel: "Leave without saving",
+    cancelLabel: "Stay",
+    returnFocus: $("compositionLineModalDialog"),
+    idPrefix: "leaveCompositionLineConfirm",
+  });
+  if (!leave) return false;
+  if (baseline) state.lineDrafts.set(id, { ...baseline });
+  return true;
+}
+
+async function requestCloseCompositionLineModal() {
+  const id = state.compositionModalLineId;
+  if (!(await settleCompositionModalLine(id))) return false;
+  const returnId = state.compositionModalReturnFocusId || id;
+  closeCompositionLineModalNow({ restoreFocus: false });
+  renderComposition();
+  if (returnId) focusCompositionRow(returnId, { scroll: false });
+  return true;
+}
+
+async function navigateCompositionLineModal(targetLineId) {
+  const current = state.compositionModalLineId;
+  if (!targetLineId || !(await settleCompositionModalLine(current))) return false;
+  state.compositionModalReturnFocusId = String(targetLineId);
+  return refreshCompositionLineModal(String(targetLineId), { focus: true });
+}
+
+function openCompositionLineModal(lineId, returnFocus) {
+  const id = String(lineId || "");
+  if (!state.compositionLineHtml.has(id)) return;
+  if ($("compositionLineModalBackdrop")) {
+    refreshCompositionLineModal(id, { focus: true });
+    return;
+  }
+  state.compositionModalLineId = id;
+  state.compositionModalReturnFocusId = String(returnFocus?.dataset?.lineId || id);
+  state.compositionModalOrder = compositionFilteredLines().map((row) => String(row.source_composition_line_id));
+  const backdrop = document.createElement("div");
+  backdrop.id = "compositionLineModalBackdrop";
+  backdrop.className = "sasv-modal-backdrop";
+  const dialog = document.createElement("div");
+  dialog.id = "compositionLineModalDialog";
+  dialog.className = "sasv-modal sasv-modal--lg composition-line-modal";
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  dialog.setAttribute("aria-labelledby", "compositionLineModalTitle");
+  dialog.tabIndex = -1;
+  dialog.innerHTML = `<div class="sasv-modal__header composition-line-modal-header"><div class="composition-line-modal-heading"><h2 id="compositionLineModalTitle" class="sasv-modal__title"></h2><div id="compositionLineModalSummary" class="composition-line-summary"></div></div><button type="button" id="compositionLineModalClose" class="sasv-modal__close" aria-label="Close">&times;</button></div>
+    <div id="compositionLineModalBody" class="sasv-modal__body"></div>
+    <div class="sasv-modal__footer composition-line-modal-nav">
+      <div id="compositionLineModalSaveStatus" class="composition-line-footer-status"></div>
+      <div id="compositionLineModalMessage" class="composition-line-footer-message" hidden></div>
+      <div id="compositionLineModalNavigation" class="composition-line-footer-navigation">
+        <button type="button" id="compositionLineModalPrevious" class="icon-btn with-label">Previous</button>
+        <button type="button" id="compositionLineModalNext" class="icon-btn with-label">Next</button>
+        <button type="button" id="compositionLineModalNextReview" class="icon-btn with-label">Next line needing review</button>
+      </div>
+    </div>`;
+  backdrop.append(dialog);
+  document.body.append(backdrop);
+  backdrop.addEventListener("click", (event) => {
+    if (event.target === backdrop) void requestCloseCompositionLineModal();
+  });
+  $("compositionLineModalClose").addEventListener("click", () => void requestCloseCompositionLineModal());
+  ["compositionLineModalPrevious", "compositionLineModalNext", "compositionLineModalNextReview"].forEach((buttonId) => {
+    $(buttonId).addEventListener("click", (event) => {
+      const target = event.currentTarget.dataset.targetLineId;
+      if (target) void navigateCompositionLineModal(target);
+    });
+  });
+  $("compositionLineModalBody").addEventListener("change", handleCompositionLineChange);
+  $("compositionLineModalBody").addEventListener("input", handleCompositionLineInput);
+  $("compositionLineModalBody").addEventListener("focusout", handleCompositionLineFocusout);
+  $("compositionLineModalBody").addEventListener("click", handleCompositionLineClick);
+  refreshCompositionLineModal(id, { focus: true });
+}
+
+async function loadMyRoles() {
+  try {
+    const roles = await fetchMyRoles();
+    state.myRoles = {
+      user_id: roles?.user_id || null,
+      is_verifier: roles?.is_verifier === true,
+      is_approver: roles?.is_approver === true,
+      can_edit: roles?.can_edit === true,
+    };
+  } catch {
+    state.myRoles = { ...ROLE_FALLBACK };
+  }
+  renderSignedInRole();
+}
+
+async function loadReviewHome() {
+  state.worklistQueue = readWorklistQueue();
+  await loadMyRoles();
+  let worklistError = null;
+  try {
+    state.worklist = (await fetchWorklist()).map((row) => normalizeWorklistRow(row));
+  } catch (error) {
+    worklistError = error;
+    state.worklist = null;
+  }
+  try {
+    state.catalogs = await loadSessionCatalogs();
+  } catch (error) {
+    if (!worklistError) throw error;
+  }
+  renderLenses();
+  if (worklistError) {
+    state.worklistError = true;
+    showWorklistMode(false);
+    try {
+      state.queue = await fetchProductQueue();
+      renderQueue({ resetChunk: true });
+    } catch (error) {
+      toastError(error);
+      setStatus(error.message || "Failed to load the product queue.", "error");
+    }
+    return;
+  }
+  state.worklistError = false;
+  showWorklistMode(true);
+  renderWorklist({ resetChunk: true });
+}
+
+async function ensureProductQueue() {
+  if (Array.isArray(state.queue) && state.queue.length) return;
+  try {
+    state.queue = await fetchProductQueue();
+  } catch {
+    state.queue = state.queue || [];
+  }
+}
+
+async function openWorklistProduct(productId, stage) {
+  saveWorklistScroll();
+  await ensureProductQueue();
+  await openProduct(productId);
+  if (Number(state.selectedProductId) !== Number(productId)) return;
+  selectWorkflowTab(workspaceTabForStage(stage));
 }
 
 function renderActiveTab() {
@@ -7948,6 +9910,7 @@ function renderActiveTab() {
   renderWorkflowNav();
   const filters = $("compositionFilters");
   if (filters) filters.hidden = tab !== "composition";
+  if (tab !== "composition" && $("compositionFilterDrawer")?.hidden === false) setCompositionFiltersOpen(false, { restoreFocus: false });
   if (tab === "composition") renderCompositionFilterLenses();
   if (tab === "overview") renderOverview();
   else if (tab === "details") renderDetails();
@@ -7956,6 +9919,7 @@ function renderActiveTab() {
   else if (tab === "qc") renderQc();
   else if (tab === "evidence") renderEvidence();
   else if (tab === "readiness") renderReadiness();
+  applyWorkspaceChrome();
 }
 
 function selectWorkflowTab(next, { focusTab = false } = {}) {
@@ -7976,15 +9940,78 @@ function selectWorkflowTab(next, { focusTab = false } = {}) {
   }
 }
 
+function placeCompositionFilterPopover() {
+  const drawer = $("compositionFilterDrawer");
+  const button = $("compositionFilterBtn");
+  if (!drawer || !button) return;
+  const rect = button.getBoundingClientRect();
+  const margin = 8;
+  const width = Math.min(360, window.innerWidth - margin * 2);
+  const left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin));
+  const top = rect.bottom + 6;
+  drawer.style.width = `${Math.round(width)}px`;
+  drawer.style.left = `${Math.round(left)}px`;
+  drawer.style.top = `${Math.round(top)}px`;
+  const height = drawer.getBoundingClientRect().height;
+  if (top + height > window.innerHeight - margin && rect.top - 6 - height >= margin) {
+    drawer.style.top = `${Math.round(rect.top - 6 - height)}px`;
+  }
+}
+
+function setCompositionFiltersOpen(open, { restoreFocus = true } = {}) {
+  const drawer = $("compositionFilterDrawer");
+  const button = $("compositionFilterBtn");
+  if (!drawer || !button) return;
+  if (setCompositionFiltersOpen.onKey) document.removeEventListener("keydown", setCompositionFiltersOpen.onKey, true);
+  if (setCompositionFiltersOpen.onPointer) document.removeEventListener("pointerdown", setCompositionFiltersOpen.onPointer, true);
+  setCompositionFiltersOpen.onKey = null;
+  setCompositionFiltersOpen.onPointer = null;
+  if (!open) {
+    drawer.hidden = true;
+    button.setAttribute("aria-expanded", "false");
+    if (restoreFocus) button.focus();
+    return;
+  }
+  drawer.hidden = false;
+  button.setAttribute("aria-expanded", "true");
+  placeCompositionFilterPopover();
+  const onKey = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      setCompositionFiltersOpen(false);
+      return;
+    }
+    trapModalTab(event, "compositionFilterDrawer");
+  };
+  const onPointer = (event) => {
+    if (drawer.contains(event.target) || button.contains(event.target)) return;
+    setCompositionFiltersOpen(false);
+  };
+  setCompositionFiltersOpen.onKey = onKey;
+  setCompositionFiltersOpen.onPointer = onPointer;
+  document.addEventListener("keydown", onKey, true);
+  document.addEventListener("pointerdown", onPointer, true);
+  drawer.querySelector(".worklist-filter-panel")?.focus();
+}
+
 function applyCompositionFilterChange() {
   renderCompositionFilterLenses();
-  renderComposition();
-  const scroll = $("workspaceScroll");
+  renderComposition({ resetChunk: true });
+  const scroll = $("compositionTableScroll");
   if (scroll) scroll.scrollTop = 0;
 }
 
 function clearCompositionFilters() {
-  state.compositionView = { search: "", reviewLens: "all", attention: "all" };
+  state.compositionView = {
+    search: "",
+    reviewLens: "all",
+    attention: "all",
+    renderedCount: QUEUE_RENDER_CHUNK,
+    focusedLineId: null,
+    scrollTop: 0,
+  };
   applyCompositionFilterChange();
 }
 
@@ -8174,9 +10201,9 @@ async function refreshQueue({ silent = false } = {}) {
   if (!silent) setStatus("");
 }
 
-async function openProduct(productId) {
+async function openProduct(productId, returnFocus = null) {
   if (state.selectedProductId && !idsEqual(state.selectedProductId, productId)) {
-    if (!confirmLeaveDirty()) return;
+    if (!(await confirmLeaveDirty(returnFocus != null ? returnFocus : "backToQueueBtn"))) return;
     await flushDetailsAutosave();
     await flushClassificationAutosave();
     await flushAllLineAutosaves();
@@ -8185,12 +10212,22 @@ async function openProduct(productId) {
   saveQueueScroll();
   state.queueView.focusedProductId = productId;
   state.queueView.openedProductId = productId;
-  state.compositionView = { search: "", reviewLens: "all", attention: "all" };
+  state.compositionView = {
+    search: "",
+    reviewLens: "all",
+    attention: "all",
+    renderedCount: QUEUE_RENDER_CHUNK,
+    focusedLineId: null,
+    scrollTop: 0,
+  };
   const gen = ++state.loadGen;
   state.busy = true;
   setStatus("Loading product review workspace...");
   try {
-    const payload = await loadProductWorkspace(productId);
+    const [payload, stageReview] = await Promise.all([
+      loadProductWorkspace(productId),
+      loadStageReview(productId),
+    ]);
     if (gen !== state.loadGen) return;
     if (!idsEqual(state.selectedProductId, productId)) {
       state.workerFoundationResult = null;
@@ -8205,7 +10242,14 @@ async function openProduct(productId) {
       state.workerRebaseResult = null;
       state.workerExactOneRecoveryResult = null;
     }
+    applyStageReviewResult(stageReview);
     state.selectedProductId = Number(productId);
+    state.portalEntryGate = null;
+    state.portalEntryGateLoading = false;
+    state.portalEntryGateError = "";
+    state.portalEntryGateReason = "";
+    state.portalEntryGateBusy = false;
+    state.worklistRow = (state.worklist || []).find((row) => Number(row.product_id) === Number(productId)) || null;
     state.queueRow = findQueueRow(state.queue, productId);
     state.tab = "overview";
     state.preservedAfterStale = false;
@@ -8238,9 +10282,14 @@ async function reloadSelected({
 } = {}) {
   if (!state.selectedProductId) return;
   const scroll = restoreComposition ? $("workspaceScroll")?.scrollTop : null;
+  const compositionScroll = restoreComposition ? ($("compositionTableScroll")?.scrollTop ?? state.compositionView.scrollTop ?? 0) : null;
   const gen = ++state.loadGen;
-  const payload = await loadProductWorkspace(state.selectedProductId);
+  const [payload, stageReview] = await Promise.all([
+    loadProductWorkspace(state.selectedProductId),
+    loadStageReview(state.selectedProductId),
+  ]);
   if (gen !== state.loadGen) return;
+  applyStageReviewResult(stageReview);
   await refreshQueue({ silent: true });
   applyWorkspacePayload(payload, { preserveDrafts });
   applyPromoteNotesIfNeeded();
@@ -8253,18 +10302,18 @@ async function reloadSelected({
       if (scroll != null && $("workspaceScroll")) {
         $("workspaceScroll").scrollTop = scroll;
       }
-      const correctBtn = focusLineId
-        ? document.getElementById(`btn-correct-${focusLineId}`)
-        : null;
-      const resolveBtn = focusLineId
-        ? document.getElementById(`btn-resolve-${focusLineId}`)
-        : null;
-      const reconcileBtn = focusLineId
-        ? document.getElementById(`btn-reconcile-${focusLineId}`)
-        : null;
-      const card = focusLineId
-        ? document.querySelector(`.line-card[data-line-id="${focusLineId}"]`)
-        : null;
+      if (compositionScroll != null && $("compositionTableScroll")) {
+        state.compositionView.scrollTop = compositionScroll;
+        $("compositionTableScroll").scrollTop = compositionScroll;
+      }
+      if (!focusLineId) return;
+      const tableRow = focusCompositionRow(focusLineId, { scroll: true });
+      if (!$("compositionLineModalBackdrop")) openCompositionLineModal(focusLineId, tableRow);
+      else refreshCompositionLineModal(focusLineId);
+      const correctBtn = document.getElementById(`btn-correct-${focusLineId}`);
+      const resolveBtn = document.getElementById(`btn-resolve-${focusLineId}`);
+      const reconcileBtn = document.getElementById(`btn-reconcile-${focusLineId}`);
+      const card = document.querySelector(`.line-card[data-line-id="${focusLineId}"]`);
       const preferred =
         focusControl === "correct"
           ? correctBtn
@@ -8273,18 +10322,28 @@ async function reloadSelected({
             : focusControl === "reconcile"
               ? reconcileBtn
               : resolveBtn || correctBtn;
-      (preferred || card?.querySelector("select") || card)?.focus?.();
+      (preferred || card?.querySelector("select") || $("compositionLineModalDialog"))?.focus?.();
     });
   }
 }
 
 async function backToQueue() {
-  if (!confirmLeaveDirty()) return;
+  if (!(await confirmLeaveDirty("backToQueueBtn"))) return;
   await flushDetailsAutosave();
   await flushClassificationAutosave();
   await flushAllLineAutosaves();
   await flushActionsAutosave();
   state.selectedProductId = null;
+  state.stageReview = [];
+  state.stageReviewLoaded = false;
+  state.stageReviewFailed = false;
+  state.portalEntryGate = null;
+  state.portalEntryGateLoading = false;
+  state.portalEntryGateError = "";
+  state.portalEntryGateReason = "";
+  state.portalEntryGateBusy = false;
+  state.approvalNotice = null;
+  state.pendingApproval = null;
   state.workerFoundationResult = null;
   state.workerQcPreparationReadResult = null;
   state.workerQcReportReadResult = null;
@@ -8336,8 +10395,19 @@ async function backToQueue() {
   syncSearchClear();
   const search = $("queueSearch");
   if (search) search.value = state.queueView.search;
-  renderQueue({ restoreScroll: true });
+  if ($("worklistHome") && !$("worklistHome").hidden) renderWorklist({ restoreScroll: true });
+  else renderQueue({ restoreScroll: true });
   requestAnimationFrame(() => {
+    if ($("worklistHome") && !$("worklistHome").hidden) {
+      restoreWorklistScroll();
+      const wanted = state.worklistFocusedId;
+      const rows = worklistRowEls();
+      const exists = rows.some((row) => String(row.dataset.productId) === String(wanted));
+      if (exists) focusWorklistRow(wanted);
+      else if (rows[0]) focusWorklistRow(rows[0].dataset.productId);
+      else $("worklistSearch")?.focus();
+      return;
+    }
     restoreQueueScroll();
     const wanted = state.queueView.openedProductId || state.queueView.focusedProductId;
     const rows = visibleQueueRowEls();
@@ -8373,12 +10443,18 @@ async function runMutation(fn) {
     $("staleBanner").hidden = true;
   } catch (err) {
     console.error("[eaushadhi] mutation failed", err);
+    if (state.pendingApproval) {
+      rememberApprovalRefusal(err);
+      state.pendingApproval = null;
+      await refreshStageReview({ render: true });
+    }
     if (err instanceof EaushadhiRpcError && err.kind === ERROR_KIND.STALE) {
       await handleStale(err);
     } else {
       toastError(err);
     }
   } finally {
+    state.pendingApproval = null;
     state.busy = false;
     applyPermissionUi();
   }
@@ -8404,9 +10480,11 @@ async function submitDetails(verify) {
     await persistDetails(false);
     return;
   }
+  state.pendingApproval = { stage: "details", itemKey: "" };
+  state.approvalNotice = null;
   await runMutation(async () => {
     await persistDetails(true);
-    showToast("Product details verified.", "success");
+    showToast("Product details approved.", "success");
     await reloadSelected();
   });
 }
@@ -8424,7 +10502,7 @@ function linePayload(draft, verify) {
   };
 }
 
-async function persistLine(lineId, verify) {
+async function persistLine(lineId, verify, { refresh = true } = {}) {
   const id = String(lineId);
   if (lineHalted.has(id) && !verify) return null;
   const draft = state.lineDrafts.get(id);
@@ -8439,12 +10517,20 @@ async function persistLine(lineId, verify) {
   if (row && result?.review_status) row.review_status = result.review_status;
   state.lineSaveStatus.set(id, "saved");
   patchAutosaveEl(`line-save-${id}`, "saved");
+  if (refresh) await refreshStageReview();
   const chipHost = document.querySelector(`.line-card[data-line-id="${id}"] .line-head`);
   if (chipHost && result?.review_status) {
     const chips = chipHost.querySelectorAll(".status-chip");
     if (chips[0]) {
       chips[0].className = `status-chip ${reviewStatusChipClass(result.review_status)}`;
       chips[0].textContent = displayText(result.review_status, "PENDING");
+    }
+  }
+  if (result?.review_status && idsEqual(state.compositionModalLineId, id)) {
+    const summaryChip = document.querySelector("#compositionLineModalSummary .composition-line-summary-review");
+    if (summaryChip) {
+      summaryChip.className = `status-chip composition-line-summary-review ${reviewStatusChipClass(result.review_status)}`;
+      summaryChip.textContent = displayText(result.review_status, "PENDING");
     }
   }
   return result;
@@ -8519,6 +10605,7 @@ async function persistDetails(verify) {
   if (result?.review_status && state.review) state.review.review_status = result.review_status;
   state.detailsSaveStatus = "saved";
   patchAutosaveEl("detailsAutosave", "saved");
+  await refreshStageReview();
   return result;
 }
 
@@ -8729,6 +10816,7 @@ async function persistClassification(verify) {
   state.classificationBaseline = { ...state.classificationDraft };
   state.classificationSaveStatus = "saved";
   patchAutosaveEl("classificationAutosave", "saved");
+  await refreshStageReview();
   return result;
 }
 
@@ -8831,9 +10919,11 @@ async function submitClassification(verify) {
     await autosaveClassification();
     return;
   }
+  state.pendingApproval = { stage: "classification", itemKey: "" };
+  state.approvalNotice = null;
   await runMutation(async () => {
     await persistClassification(true);
-    showToast("Portal Classification verified.", "success");
+    showToast("Portal Classification approved.", "success");
     await reloadSelected({ preserveDrafts: false });
   });
 }
@@ -8857,6 +10947,7 @@ async function persistActions(verify) {
   state.actionsBaseline = [...state.actionsDraft];
   state.actionsSaveStatus = "saved";
   patchAutosaveEl("actionsAutosave", "saved");
+  await refreshStageReview();
   return result;
 }
 
@@ -8957,11 +11048,12 @@ async function waitLineIdle(lineId) {
 }
 
 async function submitLine(lineId, verify) {
-  const draft = state.lineDrafts.get(String(lineId));
+  const id = String(lineId);
+  const draft = state.lineDrafts.get(id);
   if (!draft) return;
+  const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
   if (verify) {
-    const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
-    const saveStatus = state.lineSaveStatus.get(String(lineId)) || "";
+    const saveStatus = state.lineSaveStatus.get(id) || "";
     const reason = lineVerifyPendingCopy({
       draft,
       issues: state.issues,
@@ -8982,17 +11074,47 @@ async function submitLine(lineId, verify) {
       showToast(reason || "This line is not ready to verify.", "error");
       return;
     }
+  } else {
+    const saveUi = lineSaveForReviewUi({
+      reviewStatus: row?.review_status,
+      draft,
+      baseline: state.lineBaselines.get(id),
+      stageRow: stageRow("line", id),
+      canWrite: canWrite(),
+      busy: state.busy,
+    });
+    if (!saveUi.visible || !saveUi.enabled) {
+      showToast(saveUi.title || "This line cannot be saved for review right now.", "error");
+      syncLineSaveReviewUi(id);
+      return;
+    }
   }
   flushDebounced(autosaveTimers, `line:${lineId}`);
   await waitLineIdle(lineId);
   if (!verify) {
+    if (lineHalted.has(id) || !canWrite()) {
+      showToast(
+        "This line has a save conflict. Refresh the product, then save for review again.",
+        "error",
+      );
+      syncLineSaveReviewUi(id);
+      syncLineVerifyUi(id);
+      return;
+    }
     await autosaveLine(lineId);
+    syncLineSaveReviewUi(id);
+    syncLineVerifyUi(id);
+    refreshSourceReferencePreviewAfterLineChange();
     return;
   }
+  state.pendingApproval = { stage: "line", itemKey: String(lineId) };
+  state.approvalNotice = null;
   await runMutation(async () => {
     await persistLine(lineId, true);
-    showToast("Line verified.", "success");
+    showToast("Line approved.", "success");
     await reloadSelected({ preserveDrafts: true, restoreComposition: true, focusLineId: lineId });
+    refreshSourceReferencePreviewAfterLineChange();
+    refreshCompositionLineModal(lineId, { focusNext: true });
   });
 }
 
@@ -9019,9 +11141,11 @@ async function submitActions(verify) {
     await persistActions(false);
     return;
   }
+  state.pendingApproval = { stage: "actions", itemKey: "" };
+  state.approvalNotice = null;
   await runMutation(async () => {
     await persistActions(true);
-    showToast("Pharmacological actions verified.", "success");
+    showToast("Pharmacological actions approved.", "success");
     await reloadSelected();
   });
 }
@@ -9324,10 +11448,7 @@ async function submitReopen() {
       focusLineId: kind === "line" ? lineId : null,
       focusControl: kind === "line" ? "correct" : null,
     });
-    if (kind === "line") {
-      document.getElementById(`btn-reopen-${lineId}`)?.blur();
-      document.querySelector(`.line-card[data-line-id="${lineId}"] select`)?.focus();
-    }
+    if (kind === "line") refreshSourceReferencePreviewAfterLineChange();
   });
 }
 
@@ -9349,8 +11470,10 @@ function renderVerifyReviewedBody() {
   const btn = $("verifyReviewedConfirm");
   if (btn) {
     btn.textContent = verifyReviewedConfirmLabel(eligible);
-    const ok = eligible > 0 && canWrite();
+    const batchRunning = state.sourceReferenceBulk.applying === true || state.verifyReviewed.running === true;
+    const ok = eligible > 0 && canWrite() && !batchRunning;
     btn.disabled = !ok || state.busy;
+    btn.setAttribute("aria-disabled", btn.disabled ? "true" : "false");
     btn.dataset.forceDisabled = ok ? "false" : "true";
   }
   applyPermissionUi();
@@ -9364,6 +11487,7 @@ function closeVerifyReviewed() {
 }
 
 function openVerifyReviewed() {
+  if (state.verifyReviewed.running) return;
   state.verifyReviewed.open = true;
   const backdrop = $("verifyReviewedBackdrop");
   if (backdrop) backdrop.hidden = false;
@@ -9372,37 +11496,47 @@ function openVerifyReviewed() {
 }
 
 async function submitVerifyReviewed() {
+  if (state.verifyReviewed.running) return;
   const summary = summarizeVerifyReviewedLines(state.lines, state.lineDrafts, state.issues);
   const ids = summary.eligible.slice();
   if (!ids.length) {
     showToast(verifyReviewedEmptyGuidance(0), "error");
     return;
   }
+  state.verifyReviewed.running = true;
   closeVerifyReviewed();
-  let verified = 0;
-  let failed = 0;
-  for (const id of ids) {
-    try {
-      flushDebounced(autosaveTimers, `line:${id}`);
-      await waitLineIdle(id);
-      const draft = state.lineDrafts.get(String(id));
-      if (!draft || !lineSelectionsComplete(draft)) {
-        failed += 1;
-        continue;
+  renderCompositionToolbarActions();
+  try {
+    let approved = 0;
+    const failures = [];
+    for (const id of ids) {
+      try {
+        flushDebounced(autosaveTimers, `line:${id}`);
+        await waitLineIdle(id);
+        const draft = state.lineDrafts.get(String(id));
+        if (!draft || !lineSelectionsComplete(draft)) {
+          failures.push("OTHER");
+          continue;
+        }
+        await persistLine(id, true, { refresh: false });
+        approved += 1;
+      } catch (err) {
+        console.error("[eaushadhi] approve reviewed line failed", err);
+        failures.push(fourEyesMessage(err)?.code || "OTHER");
       }
-      await persistLine(id, true);
-      verified += 1;
-    } catch (err) {
-      failed += 1;
-      console.error("[eaushadhi] verify reviewed line failed", err);
     }
+    const grouped = bulkApprovalSummary(failures);
+    const toast = grouped
+      ? (approved ? `Approved ${approved}. ${grouped}.` : `${grouped}.`)
+      : `Approved ${approved} reviewed lines.`;
+    showToast(toast, failures.length ? "warning" : "success", 5200);
+    await refreshStageReview();
+    await reloadSelected({ restoreComposition: true });
+    refreshSourceReferencePreviewAfterLineChange();
+  } finally {
+    state.verifyReviewed.running = false;
+    renderCompositionToolbarActions();
   }
-  showToast(
-    failed ? `Verified ${verified}. Failed ${failed}.` : `Verified ${verified} reviewed lines.`,
-    failed ? "warning" : "success",
-    5200,
-  );
-  await reloadSelected({ restoreComposition: true });
 }
 
 async function hashFileSha256(file) {
@@ -9691,6 +11825,84 @@ function applyQueueFilterChange() {
   renderQueue({ resetChunk: true });
 }
 
+function handleCompositionLineChange(event) {
+  const el = event.target;
+  const lineId = el.dataset.lineId;
+  const key = el.dataset.draftKey;
+  if (!lineId || !key) return false;
+  const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
+  const draft = state.lineDrafts.get(String(lineId));
+  if (!draft) return true;
+  if (!row || isVerifiedStatus(row.review_status)) {
+    el.value = key === "reviewNotes" ? normalizeReviewNotesForDisplay(draft.reviewNotes || "") : draft[key] || "";
+    return true;
+  }
+  draft[key] = key === "reviewNotes" ? el.value : optionId(el.value);
+  const spec = portalFieldSpecs().find((item) => item.draftKey === key);
+  if (row && spec) {
+    const chipEl = document.querySelector(`[data-prov-for="${lineId}-${key}"]`);
+    if (chipEl) {
+      const provenance = resolveFieldProvenance({
+        reviewStatus: row.review_status,
+        selectedId: draft[key],
+        suggestedId: row[spec.suggestedKey],
+        suggestionBasis: row.suggestion_basis,
+        fieldKey: SUGGESTION_FIELD_KEYS[spec.domain],
+      });
+      chipEl.dataset.provenance = provenance;
+      chipEl.innerHTML = `<span aria-hidden="true">✦</span> ${escapeHtml(provenanceLabel(provenance))}`;
+    }
+  }
+  if (key !== "reviewNotes") queueLineAutosave(lineId, true);
+  syncLineVerifyUi(lineId);
+  return true;
+}
+
+function handleCompositionLineInput(event) {
+  const el = event.target;
+  if (el.dataset.draftKey !== "reviewNotes") return false;
+  const lineId = el.dataset.lineId;
+  const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
+  const draft = state.lineDrafts.get(String(lineId));
+  if (!row || isVerifiedStatus(row.review_status)) {
+    if (draft) el.value = normalizeReviewNotesForDisplay(draft.reviewNotes || "");
+    return true;
+  }
+  if (draft) draft.reviewNotes = el.value;
+  patchAutosaveEl(`line-save-${lineId}`, "unsaved");
+  queueLineAutosave(lineId, false);
+  syncLineSaveReviewUi(lineId);
+  return true;
+}
+
+function handleCompositionLineFocusout(event) {
+  const el = event.target;
+  if (el.dataset.draftKey !== "reviewNotes") return false;
+  const lineId = el.dataset.lineId;
+  const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
+  if (!row || isVerifiedStatus(row.review_status)) return true;
+  flushDebounced(autosaveTimers, `line:${lineId}`);
+  void autosaveLine(lineId).then(() => syncLineSaveReviewUi(lineId));
+  return true;
+}
+
+function handleCompositionLineClick(event) {
+  const saveReview = event.target.closest("[data-line-save]");
+  const verify = event.target.closest("[data-line-verify]");
+  const resolve = event.target.closest("[data-source-resolve]");
+  const correct = event.target.closest("[data-source-correct]");
+  const reopen = event.target.closest("[data-line-reopen]");
+  const reconcile = event.target.closest("[data-line-reconcile]");
+  if (!(saveReview || verify || resolve || correct || reopen || reconcile)) return false;
+  if (saveReview) void submitLine(saveReview.dataset.lineSave, false);
+  else if (verify) void submitLine(verify.dataset.lineVerify, true);
+  else if (resolve) openSourceResolve(resolve.dataset.sourceResolve, resolve);
+  else if (correct) openSourceCorrect(correct.dataset.sourceCorrect, correct);
+  else if (reopen) openReopen("line", reopen, reopen.dataset.lineReopen);
+  else if (reconcile) openPostEntryReconcile(reconcile.dataset.lineReconcile, reconcile);
+  return true;
+}
+
 function wireEvents() {
   mountModuleActionIcons({
     home: $("homeBtn"),
@@ -9783,9 +11995,20 @@ function wireEvents() {
   });
   window.addEventListener("resize", () => {
     if (workerMenuOpen) positionWorkerMenu();
+    if ($("compositionFilterDrawer")?.hidden === false) placeCompositionFilterPopover();
+    if ($("compositionActionHint")?.classList.contains("is-open")) scheduleCompositionActionHintPlacement();
   });
+  window.addEventListener("scroll", () => {
+    if ($("compositionActionHint")?.classList.contains("is-open")) scheduleCompositionActionHintPlacement();
+  }, { capture: true, passive: true });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if ($("compositionActionHint")?.classList.contains("is-open")) hideCompositionActionHint();
+  });
+  ensureCompositionActionHint();
+  wireCompositionActionHint();
   $("homeBtn")?.addEventListener("click", async () => {
-    if (!confirmLeaveDirty()) return;
+    if (!(await confirmLeaveDirty("homeBtn"))) return;
     await flushDetailsAutosave();
     await flushClassificationAutosave();
     await flushAllLineAutosaves();
@@ -9796,14 +12019,116 @@ function wireEvents() {
     try {
       if (state.surface === "reference-dictionary") await loadReferenceDictionary({ force: true });
       else if (state.selectedProductId) await reloadSelected({ preserveDrafts: true });
-      else await refreshQueue();
+      else await loadReviewHome();
     } catch (err) {
       toastError(err);
     }
   });
+  $("worklistRefresh")?.addEventListener("click", () => void loadReviewHome().catch(toastError));
+  $("worklistTabs")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-worklist-queue]");
+    if (!button) return;
+    state.worklistQueue = button.dataset.worklistQueue;
+    rememberWorklistQueue(state.worklistQueue);
+    renderWorklist({ resetChunk: true });
+  });
+  $("worklistFilterBtn")?.addEventListener("click", () => {
+    const drawer = $("worklistFilterDrawer");
+    if (!drawer) return;
+    setWorklistFiltersOpen(drawer.hidden);
+  });
+  $("worklistFilterDrawer")?.addEventListener("click", (event) => {
+    if (event.target === $("worklistFilterDrawer")) setWorklistFiltersOpen(false);
+  });
+  $("worklistCategory")?.addEventListener("change", refreshChildClassificationDrafts);
+  $("worklistSubcategory")?.addEventListener("change", () => {
+    const category = $("worklistCategory")?.value || "all";
+    const subcategory = $("worklistSubcategory")?.value || "all";
+    setLevelSelect(
+      $("worklistGroup"),
+      filterWorklistRows(queueWorklistRows(), { category, subcategory }),
+      "group",
+      $("worklistGroup")?.value || "all",
+    );
+  });
+  $("worklistFilterApply")?.addEventListener("click", () => {
+    state.worklistCategory = $("worklistCategory")?.value || "all";
+    state.worklistSubcategory = $("worklistSubcategory")?.value || "all";
+    state.worklistGroup = $("worklistGroup")?.value || "all";
+    state.worklistBlocked = $("worklistBlocked")?.checked === true;
+    setWorklistFiltersOpen(false);
+    renderWorklist({ resetChunk: true });
+  });
+  $("worklistFilterClear")?.addEventListener("click", () => {
+    state.worklistCategory = "all";
+    state.worklistSubcategory = "all";
+    state.worklistGroup = "all";
+    state.worklistBlocked = false;
+    renderWorklist({ resetChunk: true });
+  });
+  $("worklistSearch")?.addEventListener("input", (event) => {
+    window.clearTimeout(worklistSearchTimer);
+    const value = event.target.value || "";
+    worklistSearchTimer = window.setTimeout(() => {
+      state.worklistQuery = value;
+      syncWorklistFilterControls();
+      renderWorklist({ resetChunk: true });
+    }, 180);
+  });
+  $("worklistSearch")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    if (safeText(state.worklistQuery)) {
+      $("worklistSearch").value = "";
+      state.worklistQuery = "";
+      renderWorklist({ resetChunk: true });
+      return;
+    }
+    $("worklistSearch").blur();
+    const row = worklistRowEls()[0];
+    (row || $("worklistFilterBtn"))?.focus();
+  });
+  $("worklistSearchClear")?.addEventListener("click", () => {
+    const search = $("worklistSearch");
+    if (search) search.value = "";
+    state.worklistQuery = "";
+    renderWorklist({ resetChunk: true });
+    $("worklistSearch")?.focus();
+  });
+  $("worklistTableWrap")?.addEventListener("scroll", () => {
+    saveWorklistScroll();
+    appendWorklistChunk();
+  }, { passive: true });
+  $("worklistBody")?.addEventListener("click", (event) => {
+    const row = event.target.closest("tr.queue-row[data-product-id]");
+    if (!row) return;
+    openWorklistModal(row.dataset.productId);
+  });
+  $("worklistBody")?.addEventListener("keydown", (event) => {
+    if (isEditableKeyboardTarget(event.target)) return;
+    const row = event.target.closest("tr.queue-row[data-product-id]");
+    if (!row) return;
+    const rows = worklistRowEls();
+    const current = rows.indexOf(row);
+    if (current < 0) return;
+    if (event.key === "Enter") {
+      event.preventDefault();
+      openWorklistModal(row.dataset.productId);
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      let rowsNow = rows;
+      let next = nextRovingIndex(current, rowsNow.length, event.key, { wrap: false });
+      if (event.key === "ArrowDown" && next === current && appendWorklistChunk({ force: true })) {
+        rowsNow = worklistRowEls();
+        next = current + 1;
+      }
+      if (rowsNow[next]) focusWorklistRow(rowsNow[next].dataset.productId);
+    }
+  });
   $("backToQueueBtn")?.addEventListener("click", backToQueue);
   $("openReferenceDictionaryBtn")?.addEventListener("click", () => void openReferenceDictionary().catch(toastError));
-  $("openReferenceDictionaryFromCompositionBtn")?.addEventListener("click", () => void openReferenceDictionary().catch(toastError));
   $("backFromReferenceDictionaryBtn")?.addEventListener("click", () => {
     closeWorkerMenu();
     setAppMode("queue");
@@ -9914,7 +12239,7 @@ function wireEvents() {
   $("queueTbody")?.addEventListener("click", (event) => {
     const row = event.target.closest("[data-product-id]");
     if (!row) return;
-    openProduct(row.dataset.productId);
+    openProduct(row.dataset.productId, row);
   });
   $("queueTbody")?.addEventListener("keydown", (event) => {
     if (isEditableKeyboardTarget(event.target)) return;
@@ -9925,7 +12250,7 @@ function wireEvents() {
     if (current < 0) return;
     if (event.key === "Enter") {
       event.preventDefault();
-      openProduct(row.dataset.productId);
+      openProduct(row.dataset.productId, row);
       return;
     }
     if (event.key === " ") {
@@ -9957,11 +12282,27 @@ function wireEvents() {
     if (!btn) return;
     selectWorkflowTab(btn.dataset.tab);
   });
+  // Bundle A A3: a partly visible tab is not scrolled by focus alone, which cut its focus ring at the strip edge.
+  $("workspaceTabs")?.addEventListener("focusin", (event) => {
+    const step = event.target.closest?.(".workflow-step");
+    if (step) step.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  });
   $("workspaceTabs")?.addEventListener("keydown", (event) => {
     handleRovingKey(event, $("workspaceTabs"), {
       onActivate: (btn) => selectWorkflowTab(btn.dataset.tab, { focusTab: true }),
     });
   });
+  $("tab-composition")?.addEventListener("scroll", (event) => {
+    if (state.tab !== "composition" || event.target.id !== "compositionTableScroll") return;
+    const scroll = event.target;
+    state.compositionView.scrollTop = scroll.scrollTop;
+    if (!shouldAppendQueueChunk({
+      scrollTop: scroll.scrollTop,
+      clientHeight: scroll.clientHeight,
+      scrollHeight: scroll.scrollHeight,
+    })) return;
+    appendCompositionChunk();
+  }, { passive: true, capture: true });
 
   $("compositionSearch")?.addEventListener("input", (event) => {
     const value = event.target.value || "";
@@ -9971,15 +12312,31 @@ function wireEvents() {
       applyCompositionFilterChange();
     }, 180);
   });
+  $("compositionFilterBtn")?.addEventListener("click", () => {
+    const drawer = $("compositionFilterDrawer");
+    if (drawer) setCompositionFiltersOpen(drawer.hidden);
+  });
+  $("compositionFilterDrawer")?.addEventListener("click", (event) => {
+    if (event.target === $("compositionFilterDrawer")) setCompositionFiltersOpen(false);
+  });
+  $("compositionToolbarActions")?.addEventListener("click", (event) => {
+    if (event.target.closest("[data-source-reference-prompt]")) {
+      const prompt = state.sourceReferenceBulk.inlinePrompt;
+      if (prompt) void openSourceReferenceBulkDialog({ target: prompt.target, scope: "BLANK" });
+      return;
+    }
+    const setReference = event.target.closest("#btnSetSourceReference");
+    if (setReference && !setReference.disabled) void openSourceReferenceBulkDialog();
+  });
   $("compositionSearchClear")?.addEventListener("click", () => {
     $("compositionSearch").value = "";
     state.compositionView.search = "";
     applyCompositionFilterChange();
     $("compositionSearch")?.focus();
   });
-  $("btnClearCompositionFiltersBar")?.addEventListener("click", () => {
+  $("btnClearCompositionFiltersDrawer")?.addEventListener("click", () => {
     clearCompositionFilters();
-    $("compositionSearch")?.focus();
+    syncCompositionFilterControls();
   });
   $("compositionReviewLenses")?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-comp-review-lens]");
@@ -10024,7 +12381,12 @@ function wireEvents() {
     if (event.target.id === "btnVerifyClassification") void submitClassification(true);
     if (event.target.id === "btnReopenClassification") openReopen("classification", event.target);
     const boolBtn = event.target.closest("[data-bool-value]");
-    if (boolBtn && state.detailsDraft && canEditReviewedSection(state.review?.review_status)) {
+    if (
+      boolBtn
+      && state.detailsDraft
+      && canEditReviewedSection(state.review?.review_status)
+      && !isVerifiedStatus(state.review?.review_status)
+    ) {
       const group = boolBtn.closest("[data-bool-key]");
       const key = group?.dataset.boolKey;
       if (key === "combinedRestricted") {
@@ -10077,6 +12439,10 @@ function wireEvents() {
   $("tab-details")?.addEventListener("input", (event) => {
     if (state.tab !== "details") return;
     if (event.target.id === "fldClassNotes") {
+      if (isVerifiedStatus(state.classification?.review_status)) {
+        event.target.value = state.classificationDraft?.reviewNotes || "";
+        return;
+      }
       syncClassificationDraftFromForm();
       queueClassificationAutosave(false);
       return;
@@ -10091,6 +12457,14 @@ function wireEvents() {
       syncPortalTextDraftFromForm();
       return;
     }
+    if (isVerifiedStatus(state.review?.review_status)) {
+      const draft = state.detailsDraft;
+      if (!draft) return;
+      if (event.target.id === "fldTitle") event.target.value = draft.compositionTitle || "";
+      if (event.target.id === "fldDiseases") event.target.value = draft.diseasesConditions || "";
+      if (event.target.id === "fldReviewNotes") event.target.value = draft.reviewNotes || "";
+      return;
+    }
     syncDetailsDraftFromForm();
     if (["fldTitle", "fldDiseases", "fldReviewNotes"].includes(event.target.id)) {
       queueDetailsAutosave(false);
@@ -10099,10 +12473,23 @@ function wireEvents() {
   $("tab-details")?.addEventListener("change", (event) => {
     if (state.tab !== "details") return;
     if (event.target.id === "fldClassProductType") {
+      if (isVerifiedStatus(state.classification?.review_status)) {
+        event.target.value = optionId(state.classificationDraft?.productTypeOptionId) || "";
+        return;
+      }
       void handleClassificationTypeChange();
       return;
     }
     if (event.target.id === "fldClassCategory" || event.target.id === "fldClassSubtype") {
+      if (isVerifiedStatus(state.classification?.review_status)) {
+        const draft = state.classificationDraft;
+        if (event.target.id === "fldClassCategory") {
+          event.target.value = optionId(draft?.productCategoryOptionId) || "";
+        } else {
+          event.target.value = optionId(draft?.productSubtypeOptionId) || "";
+        }
+        return;
+      }
       syncClassificationDraftFromForm();
       queueClassificationAutosave(true);
       renderDetails();
@@ -10111,6 +12498,12 @@ function wireEvents() {
     if (event.target.id === "fldPortalShelfmonthRoute") {
       syncPortalFieldsDraftFromForm();
       queuePortalFieldsAutosave(true);
+      return;
+    }
+    if (isVerifiedStatus(state.review?.review_status)) {
+      if (event.target.id === "fldPurpose") {
+        event.target.value = optionId(state.detailsDraft?.permissionPurposeTermId) || "";
+      }
       return;
     }
     syncDetailsDraftFromForm();
@@ -10133,6 +12526,7 @@ function wireEvents() {
   $("btnVerifyReviewedLines")?.addEventListener("click", openVerifyReviewed);
 
   $("tab-composition")?.addEventListener("change", (event) => {
+    if (handleCompositionLineChange(event)) return;
     const el = event.target;
     const lineId = el.dataset.lineId;
     const key = el.dataset.draftKey;
@@ -10141,7 +12535,10 @@ function wireEvents() {
     const draft = state.lineDrafts.get(String(lineId));
     if (!draft) return;
     if (!row || isVerifiedStatus(row.review_status)) {
-      el.value = key === "reviewNotes" ? draft.reviewNotes || "" : draft[key] || "";
+      el.value =
+        key === "reviewNotes"
+          ? normalizeReviewNotesForDisplay(draft.reviewNotes || "")
+          : draft[key] || "";
       return;
     }
     draft[key] = key === "reviewNotes" ? el.value : optionId(el.value);
@@ -10157,35 +12554,45 @@ function wireEvents() {
           fieldKey: SUGGESTION_FIELD_KEYS[spec.domain],
         });
         chipEl.dataset.provenance = next;
-        chipEl.textContent = provenanceLabel(next);
+        chipEl.innerHTML = `<span aria-hidden="true">✦</span> ${escapeHtml(provenanceLabel(next))}`;
       }
     }
     if (key !== "reviewNotes") queueLineAutosave(lineId, true);
     syncLineVerifyUi(lineId);
   });
   $("tab-composition")?.addEventListener("input", (event) => {
+    if (handleCompositionLineInput(event)) return;
     const el = event.target;
     if (el.dataset.draftKey !== "reviewNotes") return;
     const lineId = el.dataset.lineId;
     const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
     const draft = state.lineDrafts.get(String(lineId));
     if (!row || isVerifiedStatus(row.review_status)) {
-      if (draft) el.value = draft.reviewNotes || "";
+      if (draft) el.value = normalizeReviewNotesForDisplay(draft.reviewNotes || "");
       return;
     }
     if (draft) draft.reviewNotes = el.value;
     queueLineAutosave(lineId, false);
+    syncLineSaveReviewUi(lineId);
   });
   $("tab-composition")?.addEventListener("focusout", (event) => {
+    if (handleCompositionLineFocusout(event)) return;
     const el = event.target;
     if (el.dataset.draftKey !== "reviewNotes") return;
     const lineId = el.dataset.lineId;
     const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
     if (!row || isVerifiedStatus(row.review_status)) return;
     flushDebounced(autosaveTimers, `line:${lineId}`);
-    void autosaveLine(lineId);
+    void autosaveLine(lineId).then(() => syncLineSaveReviewUi(lineId));
   });
   $("tab-composition")?.addEventListener("click", (event) => {
+    const tableRow = event.target.closest("tr.composition-table-row[data-line-id]");
+    if (tableRow) {
+      state.compositionView.focusedLineId = tableRow.dataset.lineId;
+      applyCompositionRowRoving();
+      openCompositionLineModal(tableRow.dataset.lineId, tableRow);
+      return;
+    }
     if (event.target.id === "btnWorkerCompositionPreview") {
       void submitWorkerCompositionPreview();
       return;
@@ -10203,19 +12610,42 @@ function wireEvents() {
       clearCompositionFilters();
       return;
     }
+    if (handleCompositionLineClick(event)) return;
+    const saveReview = event.target.closest("[data-line-save]");
     const verify = event.target.closest("[data-line-verify]");
     const resolve = event.target.closest("[data-source-resolve]");
     const correct = event.target.closest("[data-source-correct]");
     const reopen = event.target.closest("[data-line-reopen]");
     const reconcile = event.target.closest("[data-line-reconcile]");
+    if (saveReview) void submitLine(saveReview.dataset.lineSave, false);
     if (verify) submitLine(verify.dataset.lineVerify, true);
     if (resolve) openSourceResolve(resolve.dataset.sourceResolve, resolve);
     if (correct) openSourceCorrect(correct.dataset.sourceCorrect, correct);
     if (reopen) openReopen("line", reopen, reopen.dataset.lineReopen);
     if (reconcile) openPostEntryReconcile(reconcile.dataset.lineReconcile, reconcile);
   });
+  $("tab-composition")?.addEventListener("keydown", (event) => {
+    if (isEditableKeyboardTarget(event.target)) return;
+    const row = event.target.closest("tr.composition-table-row[data-line-id]");
+    if (!row) return;
+    const rows = visibleCompositionRows();
+    const current = rows.indexOf(row);
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openCompositionLineModal(row.dataset.lineId, row);
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const nextIndex = nextRovingIndex(current, rows.length, event.key, { wrap: false });
+      if (rows[nextIndex]) focusCompositionRow(rows[nextIndex].dataset.lineId);
+    }
+  });
 
   $("tab-actions")?.addEventListener("click", (event) => {
+    if (isVerifiedStatus(state.actionsReviewStatus) && event.target.id !== "btnReopenActions") {
+      return;
+    }
     if (event.target.id === "btnAddAction") {
       state.actionsDraft = [...state.actionsDraft, ""];
       renderActions();
@@ -10247,6 +12677,10 @@ function wireEvents() {
   $("tab-actions")?.addEventListener("input", (event) => {
     const el = event.target;
     if (el.dataset.actionText == null) return;
+    if (isVerifiedStatus(state.actionsReviewStatus)) {
+      renderActions();
+      return;
+    }
     const vocab = state.catalogs.pharmacologicalActionOptions || [];
     const custom = customActionDraftRows(state.actionsDraft, vocab);
     custom[Number(el.dataset.actionText)] = el.value;
@@ -10260,6 +12694,10 @@ function wireEvents() {
   $("tab-actions")?.addEventListener("change", (event) => {
     const el = event.target;
     if (el.dataset.actionVocabToggle == null) return;
+    if (isVerifiedStatus(state.actionsReviewStatus)) {
+      renderActions();
+      return;
+    }
     const vocab = state.catalogs.pharmacologicalActionOptions || [];
     state.actionsDraft = composeActionsDraft(
       vocab,
@@ -10317,6 +12755,8 @@ function wireEvents() {
     if (event.target.id === "btnQcPreparationRead") submitQcPreparationReadProbe();
     if (event.target.id === "btnQcReportRead") submitQcReportReadProbe();
     if (event.target.id === "btnOpenQcTab") selectWorkflowTab("qc");
+    if (event.target.id === "btnPortalEntryGateOn") void submitPortalEntryGateToggle(true);
+    if (event.target.id === "btnPortalEntryGateOff") void submitPortalEntryGateToggle(false);
     if (event.target.id === "btnWorkerEntryDryRun") submitWorkerEntryDryRun();
     if (event.target.id === "btnWorkerProductDetailsPreview") submitWorkerProductDetailsPreview();
     if (event.target.id === "btnWorkerProductDetailsStart") submitWorkerProductDetailsStart();
@@ -10339,6 +12779,22 @@ function wireEvents() {
     if (event.target.id === "fldVerifyNotes") {
       state.verifyNotes = event.target.value;
       state.verifyNotesOrigin = "user";
+    }
+    if (event.target.id === "fldPortalEntryGateReason") {
+      state.portalEntryGateReason = event.target.value || "";
+      const onBtn = $("btnPortalEntryGateOn");
+      const offBtn = $("btnPortalEntryGateOff");
+      const reasonOk = portalGateReasonOk(state.portalEntryGateReason);
+      const gateOn = state.portalEntryGate?.enabled === true;
+      const busy = state.portalEntryGateBusy === true;
+      if (onBtn) {
+        onBtn.disabled = !reasonOk || gateOn || busy || !canWrite();
+        onBtn.dataset.forceDisabled = onBtn.disabled ? "true" : "false";
+      }
+      if (offBtn) {
+        offBtn.disabled = !reasonOk || !gateOn || busy || !canWrite();
+        offBtn.dataset.forceDisabled = offBtn.disabled ? "true" : "false";
+      }
     }
   });
   $("tab-qc")?.addEventListener("click", (event) => {
@@ -10589,6 +13045,17 @@ function wireEvents() {
       trapModalTab(event, "postEntryReconcileDialog");
       return;
     }
+    if (openQcConfirm.showing === true) return;
+    if (state.compositionModalLineId && $("compositionLineModalDialog")) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        void requestCloseCompositionLineModal();
+        return;
+      }
+      trapModalTab(event, "compositionLineModalDialog");
+      return;
+    }
     if (state.verifyReviewed.open) {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -10601,7 +13068,8 @@ function wireEvents() {
     if (event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey) {
       if (isProductMode() || isEditableKeyboardTarget(event.target)) return;
       event.preventDefault();
-      $("queueSearch")?.focus();
+      if ($("worklistHome") && !$("worklistHome").hidden) $("worklistSearch")?.focus();
+      else $("queueSearch")?.focus();
     }
   });
 
@@ -10666,14 +13134,7 @@ async function initPage() {
   syncWorkerToolbarUi();
   setStatus("Loading product queue...");
   try {
-    const [queueRows, catalogs] = await Promise.all([
-      fetchProductQueue(),
-      loadSessionCatalogs(),
-    ]);
-    state.queue = queueRows;
-    state.catalogs = catalogs;
-    renderLenses();
-    renderQueue({ resetChunk: true });
+    await loadReviewHome();
     setStatus("");
   } catch (err) {
     console.error("[eaushadhi] initial load failed", err);

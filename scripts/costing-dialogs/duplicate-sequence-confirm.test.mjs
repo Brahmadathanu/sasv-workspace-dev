@@ -59,9 +59,9 @@ test("source: OFF path still contains native window.confirm; ON path gates it", 
   );
 });
 
-test("service worker cache is hub-cache-v388", () => {
+test("service worker cache is hub-cache-v389", () => {
   const sw = read("public/sw.js");
-  assert.match(sw, /const CACHE_NAME = "hub-cache-v388"/);
+  assert.match(sw, /const CACHE_NAME = "hub-cache-v389"/);
   assert.doesNotMatch(sw, /const CACHE_NAME = "hub-cache-v381"/);
 });
 

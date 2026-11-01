@@ -14,6 +14,7 @@
         <div class="page-sub">
           Review, verify, and ready licensed-product data. Portal entry is not part of this module.
         </div>
+        <p id="signedInRole" class="page-sub"></p>
       </div>
       <div class="header-actions">
         <button id="openReferenceDictionaryBtn" type="button" class="icon-btn with-label">Reference Dictionary</button>
@@ -47,7 +48,74 @@
 
     <div id="mainPanel">
       <section id="queuePanel">
-        <div class="queue-controls">
+        <div id="worklistLoading" class="status-banner" role="status">Loading worklist...</div>
+        <div id="worklistFallback" class="status-banner" hidden>
+          <p id="worklistFallbackText">The worklist could not be loaded. Try Refresh.</p>
+          <button type="button" id="worklistRefresh" class="icon-btn with-label">Refresh</button>
+        </div>
+        <div id="worklistHome" hidden>
+          <div id="worklistTabs" class="review-nav" role="tablist" aria-label="Worklist"></div>
+          <div class="worklist-toolbar">
+            <div class="search-card worklist-search-card">
+              <button type="button" id="worklistFilterBtn" class="icon-btn" aria-label="Filters" title="Filters" aria-expanded="false" aria-controls="worklistFilterDrawer">
+                <svg class="ea-icon ea-icon-filter" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                  <path d="M2 3h12l-4.7 5.2v4.2l-2.6 1.3V8.2L2 3Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"></path>
+                </svg>
+                <span id="worklistFilterDot" class="worklist-filter-dot" hidden></span>
+              </button>
+              <div class="search-wrap input-with-icon">
+                <svg class="ea-icon ea-icon-search" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                  <circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                  <path d="M10.6 10.6 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                </svg>
+                <input id="worklistSearch" type="search" placeholder="Search name or id" aria-label="Search name or id" />
+                <button id="worklistSearchClear" class="input-clear-btn ea-clear-btn" type="button" aria-label="Clear search" hidden>
+                  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                    <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <span id="worklistFilteredCount" class="muted-note showing-count" hidden></span>
+          </div>
+          <div id="worklistFilterDrawer" class="worklist-filter-popover" hidden>
+            <div class="worklist-filter-panel" role="dialog" aria-labelledby="worklistFilterTitle" tabindex="-1">
+              <h2 id="worklistFilterTitle" class="worklist-filter-title">Filters</h2>
+              <div class="worklist-filter-fields">
+                <label>Category
+                  <select id="worklistCategory" class="sasv-control" aria-label="Category"></select>
+                </label>
+                <label>Sub-category
+                  <select id="worklistSubcategory" class="sasv-control" aria-label="Sub-category"></select>
+                </label>
+                <label>Group
+                  <select id="worklistGroup" class="sasv-control" aria-label="Group"></select>
+                </label>
+                <label class="worklist-filter-check"><input id="worklistBlocked" type="checkbox" /> Only blocked</label>
+              </div>
+              <div class="worklist-filter-actions">
+                <button type="button" id="worklistFilterClear" class="clear-link">Clear</button>
+                <button type="button" id="worklistFilterApply" class="icon-btn with-label primary">Apply</button>
+              </div>
+            </div>
+          </div>
+          <div class="table-card" id="worklistTableWrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">ID</th>
+                  <th scope="col">Product</th>
+                  <th scope="col">Classification</th>
+                  <th scope="col">Progress</th>
+                  <th scope="col">Next step</th>
+                  <th scope="col">Updated</th>
+                </tr>
+              </thead>
+              <tbody id="worklistBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="queue-controls" id="legacyQueueControls" hidden>
           <div class="search-card">
             <div class="search-wrap input-with-icon">
               <svg class="ea-icon ea-icon-search" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
@@ -84,7 +152,7 @@
           </div>
         </div>
 
-        <div class="table-card" id="queueTableWrap">
+        <div class="table-card" id="queueTableWrap" hidden>
           <table class="data-table">
             <thead>
               <tr>
@@ -165,15 +233,22 @@
           <div id="workspaceTabs" class="workflow-nav" role="tablist" aria-label="Review workflow">
             <button type="button" class="workflow-step" role="tab" id="wf-tab-overview" data-tab="overview" aria-controls="tab-overview" aria-selected="true">Overview</button>
             <button type="button" class="workflow-step" role="tab" id="wf-tab-details" data-tab="details" aria-controls="tab-details" aria-selected="false">Product Details</button>
-            <button type="button" class="workflow-step" role="tab" id="wf-tab-composition" data-tab="composition" aria-controls="tab-composition" aria-selected="false">Composition</button>
+            <button type="button" class="workflow-step" role="tab" id="wf-tab-composition" data-tab="composition" aria-controls="tab-composition" aria-selected="false" aria-describedby="compositionActionHint">Composition <span class="composition-info-icon" aria-hidden="true"><span class="composition-info-glyph">i</span></span></button>
             <button type="button" class="workflow-step" role="tab" id="wf-tab-actions" data-tab="actions" aria-controls="tab-actions" aria-selected="false">Pharmacological Action</button>
             <button type="button" class="workflow-step" role="tab" id="wf-tab-qc" data-tab="qc" aria-controls="tab-qc" aria-selected="false">QC Register</button>
             <button type="button" class="workflow-step" role="tab" id="wf-tab-evidence" data-tab="evidence" aria-controls="tab-evidence" aria-selected="false">Evidence</button>
             <button type="button" class="workflow-step" role="tab" id="wf-tab-readiness" data-tab="readiness" aria-controls="tab-readiness" aria-selected="false">Readiness</button>
           </div>
+          <span id="compositionActionHint" class="composition-info-tooltip" role="tooltip">Changes save automatically. Verify when the section is correct.</span>
           <p id="productKeyboardHint" class="keyboard-hint">Keyboard: Left/Right workflow stages, Tab fields</p>
           <div id="compositionFilters" class="composition-filters" hidden>
-            <div class="search-card compact-search">
+            <div id="compositionToolbar" class="composition-toolbar">
+              <button type="button" id="compositionFilterBtn" class="icon-btn ea-btn ea-btn--icon ea-btn--secondary" aria-label="Filters, 0 active" title="Filters" aria-expanded="false" aria-controls="compositionFilterDrawer">
+                <svg class="ea-icon ea-icon-filter" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                  <path d="M2 3h12l-4.7 5.2v4.2l-2.6 1.3V8.2L2 3Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"></path>
+                </svg>
+                <span id="compositionFilterBadge" class="composition-filter-badge" hidden></span>
+              </button>
               <div class="search-wrap input-with-icon">
                 <svg class="ea-icon ea-icon-search" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
                   <circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
@@ -187,21 +262,28 @@
                 </button>
               </div>
               <span id="compositionRowCount" class="muted-note showing-count" aria-live="polite"></span>
-              <button type="button" id="btnClearCompositionFiltersBar" class="icon-btn with-label" hidden>Clear filters</button>
-            </div>
-            <div class="composition-action-bar">
-              <p id="compositionActionHint" class="keyboard-hint">Changes save automatically. Verify when the section is correct.</p>
-              <button type="button" id="openReferenceDictionaryFromCompositionBtn" class="icon-btn with-label">Open Reference Dictionary</button>
-              <button type="button" id="btnVerifyReviewedLines" class="icon-btn with-label" data-edit-action="true">Verify reviewed lines</button>
-            </div>
-            <div class="secondary-lenses composition-lens-row">
-              <div class="lens-group">
-                <span class="lens-group-label" id="compReviewLabel">Review</span>
-                <div id="compositionReviewLenses" class="lens-pills compact" role="radiogroup" aria-labelledby="compReviewLabel"></div>
+              <div class="composition-toolbar-action-row">
+                <div id="compositionToolbarActions" class="composition-toolbar-actions"></div>
+                <button type="button" id="btnVerifyReviewedLines" class="icon-btn with-label ea-btn ea-btn--primary" data-edit-action="true" aria-disabled="false">Approve reviewed lines</button>
+                <span id="btnVerifyReviewedLinesHint" class="visually-hidden" hidden></span>
               </div>
-              <div class="lens-group">
-                <span class="lens-group-label" id="compAttentionLabel">Attention</span>
-                <div id="compositionAttentionLenses" class="lens-pills compact" role="radiogroup" aria-labelledby="compAttentionLabel"></div>
+            </div>
+            <div id="compositionFilterDrawer" class="worklist-filter-popover" hidden>
+              <div class="worklist-filter-panel" role="dialog" aria-labelledby="compositionFilterTitle" tabindex="-1">
+                <h2 id="compositionFilterTitle" class="worklist-filter-title">Filters (0)</h2>
+                <div class="worklist-filter-fields">
+                  <div class="lens-group">
+                    <span class="lens-group-label" id="compReviewLabel">Review</span>
+                    <div id="compositionReviewLenses" class="lens-pills compact" role="radiogroup" aria-labelledby="compReviewLabel"></div>
+                  </div>
+                  <div class="lens-group">
+                    <span class="lens-group-label" id="compAttentionLabel">Attention</span>
+                    <div id="compositionAttentionLenses" class="lens-pills compact" role="radiogroup" aria-labelledby="compAttentionLabel"></div>
+                  </div>
+                </div>
+                <div class="worklist-filter-actions">
+                  <button type="button" id="btnClearCompositionFiltersDrawer" class="icon-btn with-label ea-btn ea-btn--quiet">Clear filters</button>
+                </div>
               </div>
             </div>
           </div>
@@ -313,7 +395,7 @@
     <div id="verifyReviewedBackdrop" class="sasv-modal-backdrop ea-source-resolve" hidden>
       <div id="verifyReviewedDialog" class="sasv-modal" role="dialog" aria-modal="true" aria-labelledby="verifyReviewedTitle" tabindex="-1">
         <div class="sasv-modal__header">
-          <h2 id="verifyReviewedTitle" class="sasv-modal__title">Verify reviewed lines</h2>
+          <h2 id="verifyReviewedTitle" class="sasv-modal__title">Approve reviewed lines</h2>
           <button type="button" id="verifyReviewedClose" class="sasv-modal__close" aria-label="Cancel">
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
               <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
@@ -323,7 +405,7 @@
         <div id="verifyReviewedBody" class="sasv-modal__body"></div>
         <div class="sasv-modal__footer">
           <button type="button" id="verifyReviewedCancel" class="icon-btn with-label">Cancel</button>
-          <button type="button" id="verifyReviewedConfirm" class="icon-btn with-label primary" data-edit-action="true" disabled data-force-disabled="true">Verify reviewed lines</button>
+          <button type="button" id="verifyReviewedConfirm" class="icon-btn with-label primary" data-edit-action="true" disabled data-force-disabled="true">Approve reviewed lines</button>
         </div>
       </div>
     </div>

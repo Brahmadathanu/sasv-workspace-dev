@@ -230,6 +230,98 @@ export const ERROR_KIND = Object.freeze({
   SERVER: "server",
 });
 
+export const FOUR_EYES_REFUSALS = Object.freeze({
+  FOUR_EYES_SAME_PERSON: Object.freeze({
+    text: "Another person must approve this. You saved it for review.",
+    next: "Ask a different approver to approve it.",
+  }),
+  FOUR_EYES_NOT_SAVED_FOR_REVIEW: Object.freeze({
+    text: "This step has not been saved for review yet.",
+    next: "Save it for review, then ask a different approver to approve it.",
+  }),
+  APPROVER_ROLE_REQUIRED: Object.freeze({
+    text: "Only an approver can approve this step.",
+    next: "Ask an approver to approve it.",
+  }),
+});
+
+export const APPROVAL_UNKNOWN = Object.freeze({
+  text: "This could not be completed.",
+  next: "Try again. If it keeps happening, an approver can open Technical details.",
+});
+
+export function fourEyesCodeIn(value) {
+  const text = safeText(value);
+  if (!text) return "";
+  return Object.keys(FOUR_EYES_REFUSALS).find((code) => text.includes(code)) || "";
+}
+
+export function fourEyesMessage(error) {
+  const code = fourEyesCodeIn(error?.message)
+    || fourEyesCodeIn(error?.original?.message)
+    || fourEyesCodeIn(error?.hint)
+    || fourEyesCodeIn(error?.details);
+  if (!code) return null;
+  const row = FOUR_EYES_REFUSALS[code];
+  return {
+    code,
+    text: row.text,
+    next: row.next,
+    userMessage: `${row.text} ${row.next}`,
+  };
+}
+
+export function approvalNoticeFromError(error) {
+  const mapped = fourEyesMessage(error);
+  if (mapped) return mapped;
+  return {
+    code: safeText(error?.code || error?.original?.code),
+    text: APPROVAL_UNKNOWN.text,
+    next: APPROVAL_UNKNOWN.next,
+    userMessage: `${APPROVAL_UNKNOWN.text} ${APPROVAL_UNKNOWN.next}`,
+    unknown: true,
+  };
+}
+
+export function stageSaverCopy(row, formatWhen) {
+  if (!row?.saved_at) return "";
+  const when = typeof formatWhen === "function" ? safeText(formatWhen(row.saved_at)) : "";
+  const stamp = when ? ` on ${when}` : "";
+  if (row.saved_by_me === true) return `You saved this for review${stamp}.`;
+  const name = safeText(row.saved_by_name);
+  if (name) return `Saved for review by ${name}${stamp}.`;
+  return `Saved for review by another person${stamp}.`;
+}
+
+export function stageApprovalBlock(row, { failed = false, loaded = false } = {}) {
+  if (failed === true || loaded !== true) return null;
+  if (!row) return fourEyesMessage({ message: "FOUR_EYES_NOT_SAVED_FOR_REVIEW" });
+  if (!row.block_code || row.review_status === "VERIFIED") return null;
+  return fourEyesMessage({ message: row.block_code });
+}
+
+export function bulkApprovalSummary(codes) {
+  const counts = {
+    FOUR_EYES_SAME_PERSON: 0,
+    FOUR_EYES_NOT_SAVED_FOR_REVIEW: 0,
+    APPROVER_ROLE_REQUIRED: 0,
+    OTHER: 0,
+  };
+  for (const code of Array.isArray(codes) ? codes : []) {
+    if (code === "FOUR_EYES_SAME_PERSON" || code === "FOUR_EYES_NOT_SAVED_FOR_REVIEW" || code === "APPROVER_ROLE_REQUIRED") {
+      counts[code] += 1;
+    } else {
+      counts.OTHER += 1;
+    }
+  }
+  const parts = [];
+  if (counts.FOUR_EYES_SAME_PERSON) parts.push(`${counts.FOUR_EYES_SAME_PERSON} need a different approver`);
+  if (counts.FOUR_EYES_NOT_SAVED_FOR_REVIEW) parts.push(`${counts.FOUR_EYES_NOT_SAVED_FOR_REVIEW} not saved for review yet`);
+  if (counts.APPROVER_ROLE_REQUIRED) parts.push(`${counts.APPROVER_ROLE_REQUIRED} need an approver`);
+  if (counts.OTHER) parts.push(`${counts.OTHER} could not be approved`);
+  return parts.join(". ");
+}
+
 const PORTAL_FIELD_SPECS = Object.freeze([
   {
     domain: "INGREDIENT_TYPE",
@@ -634,9 +726,9 @@ export function summarizeVerifyReviewedLines(lines, drafts, issues) {
   return summary;
 }
 
-export function autosaveStateLabel(status) {
+export function autosaveStateLabel(status, { forReview = false } = {}) {
   if (status === "saving") return "Saving...";
-  if (status === "saved") return "Saved";
+  if (status === "saved") return forReview ? "Saved for review" : "Saved";
   if (status === "failed") return "Save failed";
   if (status === "stale") return "Server data changed - refresh/review required";
   if (status === "locked") return "Verified - reopen to edit";
@@ -1573,12 +1665,75 @@ export function canVerifyActionSet({
 export function verifyReviewedConfirmLabel(eligibleCount) {
   const count = toInt(eligibleCount);
   if (count < 1) return "No lines eligible";
-  return `Verify ${count} reviewed lines`;
+  return `Approve ${count} reviewed lines`;
 }
 
 export function verifyReviewedEmptyGuidance(eligibleCount) {
   if (toInt(eligibleCount) > 0) return "";
-  return "No ingredient lines are eligible yet. Review or change a Pending line first; autosave will move it to In Review.";
+  return "No ingredient lines are eligible yet. Use Save for review on a Pending line (or change a field so autosave runs) to move it to In Review.";
+}
+
+/** Display-only: live correction notes may store a literal \\n or \n between appends. */
+export function normalizeReviewNotesForDisplay(value) {
+  const text = value == null ? "" : String(value);
+  return text.replace(/\\\\n/g, "\n").replace(/\\n/g, "\n");
+}
+
+export const CLASSIFICATION_OPTIONS_UNLOADED_COPY =
+  "Options for this product type have not been loaded yet";
+
+export function classificationScopedOptionsUnloaded(options, { productTypeSelected = false } = {}) {
+  return productTypeSelected === true && selectableClassificationOptions(options).length === 0;
+}
+
+export const LINE_SAVE_FOR_REVIEW_LABEL = "Save for review";
+export const LINE_SAVED_FOR_REVIEW_LABEL = "Saved for review";
+
+/**
+ * Explicit composition Save for review control.
+ * Visible whenever the line is not VERIFIED. Stays enabled when values are unchanged
+ * so default suggestions can be accepted; stays disabled (and does not re-save) when
+ * another person already saved and the draft is still clean.
+ */
+export function lineSaveForReviewUi({
+  reviewStatus,
+  draft,
+  baseline,
+  stageRow,
+  canWrite = true,
+  busy = false,
+} = {}) {
+  if (isVerifiedStatus(reviewStatus)) {
+    return {
+      visible: false,
+      enabled: false,
+      label: LINE_SAVE_FOR_REVIEW_LABEL,
+      title: "",
+    };
+  }
+  const dirty = lineDirty(draft, baseline);
+  const hasSaver = Boolean(stageRow?.saved_at);
+  const savedByMe = hasSaver && stageRow?.saved_by_me === true;
+  const savedByOther = hasSaver && stageRow?.saved_by_me !== true;
+  if (!dirty && (savedByMe || savedByOther)) {
+    return {
+      visible: true,
+      enabled: false,
+      label: LINE_SAVED_FOR_REVIEW_LABEL,
+      title: savedByOther
+        ? "Another person already saved this line for review."
+        : "This line is already saved for review.",
+    };
+  }
+  const enabled = canWrite === true && busy !== true;
+  return {
+    visible: true,
+    enabled,
+    label: LINE_SAVE_FOR_REVIEW_LABEL,
+    title: enabled
+      ? "Save the current mapping for review, including accepted suggestions."
+      : "",
+  };
 }
 
 export function canPromoteFormulation({
@@ -1632,6 +1787,16 @@ export function canVerifyProductWorkflow({
 }
 
 export function classifyRpcError(error) {
+  const fourEyes = fourEyesMessage(error);
+  if (fourEyes) {
+    return {
+      kind: ERROR_KIND.AUTHORIZATION,
+      userMessage: fourEyes.userMessage,
+      retryable: false,
+      fourEyes,
+    };
+  }
+
   const code = safeText(error?.code || error?.errcode);
   const message = safeText(error?.message || error?.error_description || error);
   const combined = `${code} ${message}`.toLowerCase();
@@ -1791,15 +1956,73 @@ export function isDashOrBlankPortalOptionLabel(label) {
   return text === "-" || text === "–" || text === "—" || lower === "blank";
 }
 
-export function isFillEligibleClassificationOption(option) {
+/** Portal Sub Type placeholders that mean “no subtype” (e.g. portal values 31 / 32). */
+export const CLASSIFICATION_PLACEHOLDER_SUBTYPE_COPY =
+  "No sub type (portal shows '-')";
+export const CLASSIFICATION_MISSING_OPTION_COPY =
+  "Selected option is not in the current list. Re-open the product or contact the administrator.";
+
+export function classificationOptionPortalValue(option) {
+  return safeText(option?.portal_external_id ?? option?.portal_value ?? option?.external_id);
+}
+
+/** Portal external ids 31/32 mean “no subtype” — Sub Type domain only. */
+export function isPortalValuePlaceholderSubtype(option) {
+  const portalValue = classificationOptionPortalValue(option);
+  return portalValue === "31" || portalValue === "32";
+}
+
+export function isPortalPlaceholderSubtypeOption(option) {
+  if (!option || typeof option !== "object") return false;
+  if (isDashOrBlankPortalOptionLabel(option.label)) return true;
+  return isPortalValuePlaceholderSubtype(option);
+}
+
+export function findClassificationOptionById(options, selectedId) {
+  const id = optionId(selectedId);
+  if (!id) return null;
+  return (Array.isArray(options) ? options : []).find((opt) =>
+    idsEqual(opt?.portal_option_id ?? opt?.id, id),
+  ) || null;
+}
+
+/**
+ * Display label for a selected classification option that is not in the fill-eligible list.
+ * Never returns a raw option id.
+ */
+export function classificationSelectedOptionDisplay(options, selectedId, { domain } = {}) {
+  const id = optionId(selectedId);
+  if (!id) return { kind: "none", label: "" };
+  const found = findClassificationOptionById(options, id);
+  if (!found) {
+    return { kind: "missing", label: CLASSIFICATION_MISSING_OPTION_COPY };
+  }
+  const domainCode = safeText(domain).toUpperCase();
+  if (domainCode === "PRODUCT_SUBTYPE" && isPortalPlaceholderSubtypeOption(found)) {
+    return { kind: "placeholder", label: CLASSIFICATION_PLACEHOLDER_SUBTYPE_COPY };
+  }
+  const label = safeText(found.label);
+  if (!label) {
+    return { kind: "missing", label: CLASSIFICATION_MISSING_OPTION_COPY };
+  }
+  return { kind: "ok", label };
+}
+
+export function isFillEligibleClassificationOption(option, { domain } = {}) {
   if (!option || typeof option !== "object") return false;
   if (option.fill_eligible === false) return false;
   if (isDashOrBlankPortalOptionLabel(option.label)) return false;
+  const domainCode = safeText(domain).toUpperCase();
+  if (domainCode === "PRODUCT_SUBTYPE" && isPortalValuePlaceholderSubtype(option)) {
+    return false;
+  }
   return Boolean(optionId(option.portal_option_id ?? option.id));
 }
 
-export function selectableClassificationOptions(options) {
-  return (Array.isArray(options) ? options : []).filter(isFillEligibleClassificationOption);
+export function selectableClassificationOptions(options, { domain } = {}) {
+  return (Array.isArray(options) ? options : []).filter((opt) =>
+    isFillEligibleClassificationOption(opt, { domain }),
+  );
 }
 
 export function classificationDraftFromReview(review) {
@@ -1865,22 +2088,42 @@ export function classificationVerifyGaps(draft) {
   return gaps;
 }
 
-export function classificationVerifyPendingCopy(draft, { saveStatus, reviewStatus } = {}) {
+export function classificationVerifyPendingCopy(
+  draft,
+  { saveStatus, reviewStatus, categoryOptions, subtypeOptions } = {},
+) {
   if (isVerifiedStatus(reviewStatus ?? draft?.reviewStatus)) {
     return "Portal Classification is already verified.";
   }
   if (saveStatus === "saving") return "Saving classification...";
   if (saveStatus === "stale") return "Server data changed - refresh/review required";
   if (saveStatus === "failed") return "Save failed. Refresh and retry before verifying.";
+  const typeSelected = Boolean(optionId(draft?.productTypeOptionId));
+  if (
+    classificationScopedOptionsUnloaded(categoryOptions, { productTypeSelected: typeSelected })
+    || classificationScopedOptionsUnloaded(subtypeOptions, { productTypeSelected: typeSelected })
+  ) {
+    return CLASSIFICATION_OPTIONS_UNLOADED_COPY;
+  }
   const gaps = classificationVerifyGaps(draft);
   if (!gaps.length) return "";
   return `Verification pending: ${joinListWithAnd(gaps)}.`;
 }
 
-export function canVerifyClassification(draft, { canEdit = true, saveStatus, reviewStatus } = {}) {
+export function canVerifyClassification(
+  draft,
+  { canEdit = true, saveStatus, reviewStatus, categoryOptions, subtypeOptions } = {},
+) {
   if (canEdit === false) return false;
   if (isVerifiedStatus(reviewStatus ?? draft?.reviewStatus)) return false;
   if (saveStatus === "saving" || saveStatus === "failed" || saveStatus === "stale") {
+    return false;
+  }
+  const typeSelected = Boolean(optionId(draft?.productTypeOptionId));
+  if (
+    classificationScopedOptionsUnloaded(categoryOptions, { productTypeSelected: typeSelected })
+    || classificationScopedOptionsUnloaded(subtypeOptions, { productTypeSelected: typeSelected })
+  ) {
     return false;
   }
   return classificationVerifyGaps(draft).length === 0;
@@ -1943,4 +2186,217 @@ export function neverMapInternalDosageToPortalSubtype(internalSubtypeLabel) {
   if (!label) return null;
   if (label.includes("kuzhambu")) return null;
   return null;
+}
+
+/** UX-3 Phase A — Fill on portal (display only; no enablement inference). */
+export const PORTAL_ENTRY_NOT_ENABLED_COPY =
+  "Portal entry is not enabled for this product yet.";
+export const PORTAL_PRODUCT_CLOSED_COPY =
+  "Already saved and confirmed on the portal.";
+export const PORTAL_STEP_COMPOSITION_BLOCKED_COPY =
+  "Composition portal fill is not available in this phase.";
+export const PORTAL_STEP_QC_BLOCKED_COPY =
+  "QC portal fill is not available in this phase.";
+export const PORTAL_SAME_PERSON_WARNING_COPY =
+  "You saved Product Details for review. Another Approver will need to fill this on the portal when entry is enabled.";
+export const PORTAL_ENTRY_ON_NO_AUTOSAVE_COPY =
+  "Portal entry is turned on. Automatic portal Save for this product is not available yet.";
+export const PORTAL_MULTIPLE_SAVERS_COPY =
+  "More than one person saved steps for review on this product, including you. An Approver who saved none of them must authorize the portal Save.";
+export const PORTAL_APPROVER_ONLY_GATE_COPY =
+  "Only an Approver can turn on portal entry or authorize a Save.";
+export const PORTAL_GATE_APPROVER_REFUSAL_COPY = "Only an Approver can do this.";
+export const PORTAL_GATE_REASON_RANGE_COPY =
+  "Enter a reason between 10 and 1000 characters.";
+
+export function portalGateReasonOk(reason) {
+  const length = safeText(reason).length;
+  return length >= 10 && length <= 1000;
+}
+
+export function portalGateRefusalMessage(error) {
+  const code =
+    fourEyesCodeIn(error?.message)
+    || fourEyesCodeIn(error?.original?.message)
+    || fourEyesCodeIn(error?.code)
+    || fourEyesCodeIn(error?.original?.code);
+  if (code === "APPROVER_ROLE_REQUIRED") return PORTAL_GATE_APPROVER_REFUSAL_COPY;
+  return userMessageForError(error);
+}
+
+function portalFillStatusLabel(status) {
+  return displayText(normalizeReviewStatus(status) || "PENDING", "PENDING");
+}
+
+function findStageReviewRow(stageReview, stage, itemKey = null) {
+  const key = itemKey == null || itemKey === "" ? "" : String(itemKey);
+  return (Array.isArray(stageReview) ? stageReview : []).find(
+    (row) => row?.stage === stage && String(row.item_key || "") === key,
+  ) || null;
+}
+
+/**
+ * Fill on portal model for the Readiness tab.
+ * Never decides enablement/readiness for Save; gate comes from the server row only.
+ * B1: no Authorize / typed confirmation / worker calls.
+ */
+export function portalFillStepperModel({
+  productId,
+  review,
+  classification,
+  lines,
+  actionsDraft,
+  actionsReviewStatus,
+  stageReview,
+  gateEnabled = false,
+  isApprover = false,
+} = {}) {
+  const closedProduct = Number(productId) === FIRST_CONTROLLED_PRODUCT_ID;
+  const detailsStatus = normalizeReviewStatus(review?.review_status) || "PENDING";
+  const classificationStatus =
+    normalizeReviewStatus(classification?.review_status) || "PENDING";
+  const actionsStatus = normalizeReviewStatus(actionsReviewStatus) || "PENDING";
+  const statusRows = [
+    {
+      kind: "details",
+      label: "Product Details",
+      status: detailsStatus,
+      statusLabel: portalFillStatusLabel(detailsStatus),
+    },
+    {
+      kind: "classification",
+      label: "Portal Classification",
+      status: classificationStatus,
+      statusLabel: portalFillStatusLabel(classificationStatus),
+    },
+  ];
+  for (const line of Array.isArray(lines) ? lines : []) {
+    const lineId = optionId(line?.source_composition_line_id);
+    const lineStatus = normalizeReviewStatus(line?.review_status) || "PENDING";
+    const rowNo = displayText(line?.source_row_no, "");
+    const name = safeText(line?.raw_ingredient_name) || (lineId ? `Line ${lineId}` : "Line");
+    statusRows.push({
+      kind: "line",
+      itemKey: lineId,
+      label: rowNo ? `Composition line ${rowNo}: ${name}` : `Composition line: ${name}`,
+      status: lineStatus,
+      statusLabel: portalFillStatusLabel(lineStatus),
+    });
+  }
+  const actionTexts = (Array.isArray(actionsDraft) ? actionsDraft : [])
+    .map((text) => safeText(text))
+    .filter(Boolean);
+  if (!actionTexts.length) {
+    statusRows.push({
+      kind: "actions",
+      label: "Pharmacological Action",
+      status: actionsStatus,
+      statusLabel: portalFillStatusLabel(actionsStatus),
+    });
+  } else {
+    for (const text of actionTexts) {
+      statusRows.push({
+        kind: "action",
+        label: `Pharmacological action: ${text}`,
+        status: actionsStatus,
+        statusLabel: portalFillStatusLabel(actionsStatus),
+      });
+    }
+  }
+
+  const detailsStage = findStageReviewRow(stageReview, "details");
+  const classificationStage = findStageReviewRow(stageReview, "classification");
+  const actionsStage = findStageReviewRow(stageReview, "actions");
+  const authStages = [detailsStage, classificationStage, actionsStage].filter(Boolean);
+  const savedByMe = authStages.some((row) => row.saved_by_me === true && row.saved_at);
+  const savedByOther = authStages.some((row) => row.saved_at && row.saved_by_me !== true);
+  const multipleSavers = !closedProduct && savedByMe && savedByOther;
+
+  const samePersonWarning =
+    !closedProduct
+    && detailsStage?.saved_by_me === true
+    && !isVerifiedStatus(detailsStatus)
+      ? PORTAL_SAME_PERSON_WARNING_COPY
+      : "";
+
+  const unverifiedStageLabels = [];
+  if (!isVerifiedStatus(detailsStatus)) unverifiedStageLabels.push("Product Details");
+  if (!isVerifiedStatus(classificationStatus)) unverifiedStageLabels.push("Portal Classification");
+  if (!isVerifiedStatus(actionsStatus)) unverifiedStageLabels.push("Pharmacological Action");
+  for (const row of statusRows.filter((item) => item.kind === "line")) {
+    if (!isVerifiedStatus(row.status)) unverifiedStageLabels.push(row.label);
+  }
+
+  const gateOn = gateEnabled === true;
+  let screenState = "gate_off";
+  let screenMessage = PORTAL_ENTRY_NOT_ENABLED_COPY;
+  if (closedProduct) {
+    screenState = "closed";
+    screenMessage = PORTAL_PRODUCT_CLOSED_COPY;
+  } else if (!gateOn) {
+    screenState = "gate_off";
+    screenMessage = PORTAL_ENTRY_NOT_ENABLED_COPY;
+  } else if (multipleSavers) {
+    screenState = "multiple_savers";
+    screenMessage = PORTAL_MULTIPLE_SAVERS_COPY;
+  } else if (savedByMe && unverifiedStageLabels.length === 0) {
+    screenState = "same_person_blocked";
+    screenMessage =
+      "You saved a review step for this product. Another Approver must authorize the portal Save.";
+  } else if (unverifiedStageLabels.length) {
+    screenState = "stages_unverified";
+    screenMessage = `Portal entry is turned on, but these steps are not verified yet: ${unverifiedStageLabels.join(", ")}.`;
+  } else {
+    screenState = "ready";
+    screenMessage = PORTAL_ENTRY_ON_NO_AUTOSAVE_COPY;
+  }
+
+  const detailsStepReason = !gateOn
+    ? PORTAL_ENTRY_NOT_ENABLED_COPY
+    : PORTAL_ENTRY_ON_NO_AUTOSAVE_COPY;
+
+  const portalSteps = closedProduct
+    ? []
+    : [
+        {
+          id: "product_details",
+          label: "Product Details",
+          blocked: true,
+          reason: detailsStepReason,
+        },
+        {
+          id: "composition",
+          label: "Composition",
+          blocked: true,
+          reason: PORTAL_STEP_COMPOSITION_BLOCKED_COPY,
+        },
+        {
+          id: "qc",
+          label: "QC",
+          blocked: true,
+          reason: PORTAL_STEP_QC_BLOCKED_COPY,
+        },
+      ];
+
+  return {
+    closedProduct,
+    closedMessage: closedProduct ? PORTAL_PRODUCT_CLOSED_COPY : "",
+    portalEntryMessage: closedProduct ? "" : screenMessage,
+    gateEnabled: gateOn,
+    gateOnMessage: gateOn && !closedProduct ? PORTAL_ENTRY_ON_NO_AUTOSAVE_COPY : "",
+    screenState,
+    unverifiedStageLabels,
+    multipleSavers,
+    statusRows,
+    portalSteps,
+    samePersonWarning,
+    samePersonWarningBlocks: false,
+    isApprover: isApprover === true,
+    showGateToggle: !closedProduct && isApprover === true,
+    approverOnlyCopy: PORTAL_APPROVER_ONLY_GATE_COPY,
+    showSaveUi: false,
+    showSubmit: false,
+    showAuthorizeUi: false,
+    showTypedConfirmation: false,
+  };
 }

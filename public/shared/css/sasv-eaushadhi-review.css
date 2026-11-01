@@ -15,6 +15,8 @@ body.sasv-eaushadhi-review .page-header {
   align-items: flex-start;
   gap: var(--sasv-space-3);
   flex-shrink: 0;
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
 body.sasv-eaushadhi-review .page-sub {
@@ -23,6 +25,13 @@ body.sasv-eaushadhi-review .page-sub {
   font-weight: var(--sasv-fw-regular);
   line-height: var(--sasv-lh-normal);
   margin-top: 2px;
+}
+
+body.sasv-eaushadhi-review #signedInRole {
+  margin: 2px 0 0;
+  color: var(--sasv-action-primary);
+  font-weight: var(--sasv-fw-semibold);
+  line-height: 1.2;
 }
 
 body.sasv-eaushadhi-review .header-actions {
@@ -193,7 +202,7 @@ body.sasv-eaushadhi-review #mainPanel {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 /* Mutually exclusive application modes — do not rely on [hidden] vs display:flex */
@@ -203,6 +212,12 @@ body.sasv-eaushadhi-review.ea-mode-queue #queuePanel {
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 body.sasv-eaushadhi-review.ea-mode-queue #workspacePanel {
@@ -507,9 +522,11 @@ body.sasv-eaushadhi-review .product-badges {
 }
 
 body.sasv-eaushadhi-review .workflow-nav {
+  position: relative;
   display: flex;
   gap: 2px;
   overflow-x: auto;
+  overflow-y: hidden;
   margin-bottom: 8px;
   padding: 3px;
   border: 1px solid var(--sasv-border);
@@ -552,6 +569,12 @@ body.sasv-eaushadhi-review .workflow-step[aria-selected="true"] {
   color: var(--sasv-text);
   font-weight: var(--sasv-fw-semibold);
   box-shadow: inset 0 -2px 0 var(--sasv-action-primary);
+}
+
+/* Bundle A A3: inset focus ring so the scrolling tab strip never clips it. */
+body.sasv-eaushadhi-review .workflow-nav .workflow-step:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: -3px;
 }
 
 body.sasv-eaushadhi-review .workflow-step.is-complete .step-no {
@@ -708,7 +731,8 @@ body.sasv-eaushadhi-review .line-card.has-error {
 }
 
 body.sasv-eaushadhi-review .line-card.is-verified,
-body.sasv-eaushadhi-review .section-card.is-verified {
+body.sasv-eaushadhi-review .section-card.is-verified,
+body.sasv-eaushadhi-review .section-card.is-locked {
   background: var(--sasv-surface-soft);
   border-left: 3px solid var(--sasv-success);
 }
@@ -720,6 +744,645 @@ body.sasv-eaushadhi-review .composition-action-bar {
   justify-content: space-between;
   gap: 8px;
   margin: 0 0 8px;
+}
+
+body.sasv-eaushadhi-review .composition-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  max-height: calc(100vh - 300px);
+  min-height: 180px;
+  /* Bundle A A5: the table scroller owns BOTH axes; a horizontal bar appears only when the table is wider. */
+  overflow-x: auto;
+  overflow-y: auto;
+  scrollbar-gutter: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+}
+
+/* Composition tab: only the table scroller scrolls; workspace does not. */
+body.sasv-eaushadhi-review.ea-mode-product:has(#tab-composition:not([hidden])) .workspace-scroll {
+  overflow: hidden;
+}
+
+@media (max-height: 560px) {
+  body.sasv-eaushadhi-review.ea-mode-product:has(#tab-composition:not([hidden])) .workspace-scroll {
+    overflow-y: auto;
+  }
+}
+
+body.sasv-eaushadhi-review #tab-composition:not([hidden]) {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.sasv-eaushadhi-review #tab-composition .composition-portal-execution {
+  flex: 0 0 auto;
+}
+
+body.sasv-eaushadhi-review #tab-composition .composition-table-wrap {
+  flex: 1 1 auto;
+  min-height: 180px;
+  max-height: none;
+}
+
+body.sasv-eaushadhi-review .composition-table {
+  width: 100%;
+  min-width: 720px;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+body.sasv-eaushadhi-review .composition-table th,
+body.sasv-eaushadhi-review .composition-table td {
+  padding: 8px;
+  overflow-wrap: anywhere;
+  vertical-align: middle;
+}
+
+body.sasv-eaushadhi-review .composition-table tbody td {
+  vertical-align: middle;
+}
+
+body.sasv-eaushadhi-review .composition-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-xs);
+  text-align: left;
+}
+
+body.sasv-eaushadhi-review .composition-table th:first-child,
+body.sasv-eaushadhi-review .composition-table td:first-child {
+  width: 54px;
+}
+
+body.sasv-eaushadhi-review .composition-table-row {
+  cursor: pointer;
+  border-top: 1px solid var(--sasv-divider);
+}
+
+body.sasv-eaushadhi-review .composition-table-row:hover,
+body.sasv-eaushadhi-review .composition-table-row:focus,
+body.sasv-eaushadhi-review .composition-table-row.is-focused {
+  outline: none;
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-eaushadhi-review .composition-table-row:focus-visible {
+  box-shadow: inset 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-eaushadhi-review .composition-table-row.is-verified {
+  background: var(--sasv-surface-soft);
+  box-shadow: inset 3px 0 0 var(--sasv-success);
+}
+
+body.sasv-eaushadhi-review .composition-table-row.is-verified:hover,
+body.sasv-eaushadhi-review .composition-table-row.is-verified:focus {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-eaushadhi-review .composition-table .line-ingredient,
+body.sasv-eaushadhi-review .composition-table .line-scientific {
+  display: block;
+}
+
+body.sasv-eaushadhi-review .composition-table .line-ingredient {
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-eaushadhi-review .composition-table .line-scientific {
+  margin-top: 2px;
+  color: var(--sasv-text);
+  font-size: inherit;
+  font-style: normal;
+  font-weight: var(--sasv-fw-regular);
+}
+
+body.sasv-eaushadhi-review .composition-table .line-scientific::before {
+  content: none;
+}
+
+body.sasv-eaushadhi-review .composition-table .composition-col-botanical {
+  width: 22%;
+  max-width: 240px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+body.sasv-eaushadhi-review #compositionLineModalBackdrop {
+  z-index: var(--sasv-z-modal);
+}
+
+body.sasv-eaushadhi-review .composition-line-modal .line-card {
+  margin: 0;
+}
+
+body.sasv-eaushadhi-review .composition-line-modal-nav {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sasv-space-3);
+  min-height: 54px;
+  max-height: 54px;
+  overflow: hidden;
+}
+
+body.sasv-eaushadhi-review .composition-line-modal-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .composition-line-summary {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.5fr) minmax(90px, .65fr) minmax(100px, .75fr) auto;
+  align-items: end;
+  gap: 6px 18px;
+  margin-top: 6px;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-eaushadhi-review .composition-line-summary-item {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+body.sasv-eaushadhi-review .composition-line-summary-label {
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-xs);
+  font-weight: var(--sasv-fw-semibold);
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+body.sasv-eaushadhi-review .composition-line-summary-value {
+  min-width: 0;
+  color: var(--sasv-text);
+  font-weight: var(--sasv-fw-medium);
+}
+
+body.sasv-eaushadhi-review .composition-line-summary-botanical .composition-line-summary-value {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+body.sasv-eaushadhi-review .composition-line-summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+body.sasv-eaushadhi-review .composition-reference-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sasv-space-2);
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .composition-toolbar-actions .composition-reference-toolbar {
+  margin-bottom: 0;
+}
+
+body.sasv-eaushadhi-review #sourceReferenceInlinePrompt[hidden] {
+  display: none !important;
+}
+
+body.sasv-eaushadhi-review .source-reference-bulk-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review #sourceReferenceDiscardBackdrop {
+  z-index: calc(var(--sasv-z-modal) + 1);
+}
+
+body.sasv-eaushadhi-review .ea-btn {
+  min-height: var(--sasv-control-md);
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--sasv-radius-sm);
+  font-weight: var(--sasv-fw-semibold);
+  cursor: pointer;
+}
+
+body.sasv-eaushadhi-review .ea-btn--sm {
+  min-height: var(--sasv-control-sm);
+}
+
+body.sasv-eaushadhi-review .ea-btn:focus-visible {
+  outline: 2px solid var(--sasv-focus-ring-strong);
+  outline-offset: 2px;
+}
+
+body.sasv-eaushadhi-review .ea-btn:disabled,
+body.sasv-eaushadhi-review .ea-btn[aria-disabled="true"] {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+body.sasv-eaushadhi-review .ea-btn--primary {
+  color: #fff;
+  background: var(--sasv-action-primary);
+  border: 1px solid var(--sasv-action-primary);
+}
+
+body.sasv-eaushadhi-review .ea-btn--primary:not(:disabled):hover {
+  background: var(--sasv-action-primary-hover);
+}
+
+body.sasv-eaushadhi-review .ea-btn--primary:not(:disabled):active {
+  background: var(--sasv-action-primary-active);
+}
+
+body.sasv-eaushadhi-review .ea-btn--secondary {
+  color: var(--sasv-text);
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+}
+
+body.sasv-eaushadhi-review .ea-btn--secondary:not(:disabled):hover {
+  background: var(--sasv-action-secondary-hover);
+}
+
+body.sasv-eaushadhi-review .ea-btn--soft {
+  color: var(--sasv-action-primary);
+  background: var(--sasv-action-primary-soft);
+  border: 1px solid var(--sasv-action-primary-soft-border);
+}
+
+body.sasv-eaushadhi-review .ea-btn--soft:not(:disabled):hover {
+  background: var(--sasv-action-primary-soft);
+  filter: brightness(0.97);
+}
+
+body.sasv-eaushadhi-review .ea-btn--quiet {
+  color: var(--sasv-action-primary);
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+body.sasv-eaushadhi-review .ea-btn--quiet:not(:disabled):hover {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-eaushadhi-review .ea-btn--danger {
+  color: #fff;
+  background: var(--sasv-danger);
+  border: 1px solid var(--sasv-danger);
+}
+
+/*
+ * Bundle A A6: every .ea-btn variant keeps its own text colour in hover, focus-visible, active and disabled.
+ * The shared `body.sasv-module .icon-btn:hover { color: var(--sasv-text) }` rule otherwise turns light text dark
+ * on the solid variants. `.ea-btn.ea-btn--x` outranks it without !important.
+ */
+body.sasv-eaushadhi-review .ea-btn.ea-btn--primary,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--primary:hover,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--primary:focus-visible,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--primary:active,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--primary:disabled {
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+body.sasv-eaushadhi-review .ea-btn.ea-btn--primary:not(:disabled):hover,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--primary:not(:disabled):focus-visible {
+  background: var(--sasv-action-primary-hover);
+  border-color: var(--sasv-action-primary-hover);
+}
+
+body.sasv-eaushadhi-review .ea-btn.ea-btn--primary:not(:disabled):active {
+  background: var(--sasv-action-primary-active);
+  border-color: var(--sasv-action-primary-active);
+}
+
+body.sasv-eaushadhi-review .ea-btn.ea-btn--secondary:hover,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--secondary:focus-visible,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--secondary:active {
+  color: var(--sasv-text);
+}
+
+body.sasv-eaushadhi-review .ea-btn.ea-btn--secondary:not(:disabled):hover,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--secondary:not(:disabled):active {
+  background: var(--sasv-action-secondary-hover);
+  border-color: var(--sasv-control-border-hover);
+}
+
+body.sasv-eaushadhi-review .ea-btn.ea-btn--soft,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--soft:hover,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--soft:focus-visible,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--soft:active,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--soft:disabled {
+  color: var(--sasv-primary-700, var(--sasv-action-primary-hover));
+}
+
+body.sasv-eaushadhi-review .ea-btn.ea-btn--soft:not(:disabled):hover,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--soft:not(:disabled):active {
+  background: var(--sasv-action-primary-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+}
+
+body.sasv-eaushadhi-review .ea-btn.ea-btn--quiet:hover,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--quiet:focus-visible,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--quiet:active {
+  color: var(--sasv-primary-700, var(--sasv-action-primary-hover));
+}
+
+body.sasv-eaushadhi-review .ea-btn.ea-btn--quiet:not(:disabled):hover,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--quiet:not(:disabled):active {
+  border-color: transparent;
+}
+
+body.sasv-eaushadhi-review .ea-btn.ea-btn--danger,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--danger:hover,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--danger:focus-visible,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--danger:active,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--danger:disabled {
+  color: #fff;
+}
+
+body.sasv-eaushadhi-review .ea-btn.ea-btn--danger:not(:disabled):hover,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--danger:not(:disabled):focus-visible,
+body.sasv-eaushadhi-review .ea-btn.ea-btn--danger:not(:disabled):active {
+  background: #991b1b;
+  border-color: #991b1b;
+}
+
+body.sasv-eaushadhi-review .ea-btn--icon {
+  width: var(--sasv-control-md);
+  min-width: var(--sasv-control-md);
+  padding: 0;
+}
+
+body.sasv-eaushadhi-review .composition-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 8px;
+}
+
+body.sasv-eaushadhi-review .composition-toolbar > .search-wrap {
+  flex: 1 1 220px;
+  min-width: 160px;
+}
+
+body.sasv-eaushadhi-review .composition-toolbar-action-row {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .composition-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-left: 0;
+}
+
+body.sasv-eaushadhi-review #btnSetSourceReference,
+body.sasv-eaushadhi-review #btnVerifyReviewedLines {
+  white-space: nowrap;
+  flex: 0 0 auto;
+  min-height: var(--sasv-control-md);
+}
+
+body.sasv-eaushadhi-review #compositionFilterBtn {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+body.sasv-eaushadhi-review .composition-filter-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  padding: 0;
+  border-radius: 50%;
+  color: transparent;
+  background: var(--sasv-warning);
+  font-size: 0;
+  line-height: 0;
+  overflow: hidden;
+}
+
+body.sasv-eaushadhi-review .composition-info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 2px;
+  flex: 0 0 auto;
+  /* Bundle A A4: blue info accent (>= 3:1 on the tab strip), distinct from the amber filter dot. */
+  color: var(--sasv-info);
+  vertical-align: middle;
+}
+
+body.sasv-eaushadhi-review .composition-info-glyph {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: var(--sasv-fw-semibold);
+  line-height: 1;
+}
+
+body.sasv-eaushadhi-review .composition-info-tooltip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: calc(var(--sasv-z-dropdown) + 20);
+  max-width: 280px;
+  padding: 6px 8px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  color: var(--sasv-text);
+  background: var(--sasv-surface-elevated, var(--sasv-surface));
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  box-shadow: var(--sasv-shadow-md);
+  font-size: var(--sasv-text-sm);
+  line-height: var(--sasv-lh-normal);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+body.sasv-eaushadhi-review .composition-info-tooltip.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+
+body.sasv-eaushadhi-review .source-reference-bulk-body {
+  display: grid;
+  gap: var(--sasv-space-3);
+}
+
+body.sasv-eaushadhi-review .source-reference-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+}
+
+body.sasv-eaushadhi-review .source-reference-scope legend {
+  padding-inline: 4px;
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sasv-space-2);
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-heading h3 {
+  margin: 0;
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-list {
+  display: grid;
+  gap: 1px;
+  max-height: 280px;
+  margin: 6px 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  list-style: none;
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) minmax(150px, auto);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--sasv-surface);
+  border-bottom: 1px solid var(--sasv-border-subtle);
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-check {
+  display: grid;
+  place-items: center;
+  width: 22px;
+}
+
+body.sasv-eaushadhi-review .source-reference-reason-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-row:last-child {
+  border-bottom: 0;
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-main {
+  display: grid;
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-main span {
+  overflow: hidden;
+  color: var(--sasv-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-outcome {
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  text-align: right;
+}
+
+body.sasv-eaushadhi-review .source-reference-preview-outcome.is-excluded {
+  color: var(--sasv-warning-text, #7a4b00);
+}
+
+body.sasv-eaushadhi-review .composition-line-footer-status {
+  width: 190px;
+  min-width: 190px;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+}
+
+body.sasv-eaushadhi-review .composition-line-footer-message {
+  min-width: 0;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.sasv-eaushadhi-review .composition-line-footer-message[hidden] {
+  display: block !important;
+  visibility: hidden;
+}
+
+body.sasv-eaushadhi-review .composition-line-footer-message > * {
+  display: inline;
+  margin: 0;
+}
+
+body.sasv-eaushadhi-review .composition-line-footer-message > * + *::before {
+  content: " · ";
+}
+
+body.sasv-eaushadhi-review .composition-line-footer-navigation {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: var(--sasv-space-2);
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .composition-line-footer-navigation button {
+  white-space: nowrap;
+}
+
+body.sasv-eaushadhi-review #sourceResolveBackdrop:not([hidden]),
+body.sasv-eaushadhi-review #sourceCorrectBackdrop:not([hidden]),
+body.sasv-eaushadhi-review #reopenBackdrop:not([hidden]),
+body.sasv-eaushadhi-review #postEntryReconcileBackdrop:not([hidden]) {
+  z-index: calc(var(--sasv-z-modal) + 1);
 }
 
 body.sasv-eaushadhi-review .ea-autosave {
@@ -735,6 +1398,17 @@ body.sasv-eaushadhi-review .ea-autosave.is-stale {
 }
 
 body.sasv-eaushadhi-review .ea-autosave.is-verified {
+  color: var(--sasv-success);
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-eaushadhi-review .ea-autosave.is-saving,
+body.sasv-eaushadhi-review .ea-autosave.is-unsaved {
+  color: var(--sasv-warning);
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-eaushadhi-review .ea-autosave.is-saved {
   color: var(--sasv-success);
   font-weight: var(--sasv-fw-semibold);
 }
@@ -898,10 +1572,10 @@ body.sasv-eaushadhi-review .portal-fields {
 
 body.sasv-eaushadhi-review .reference-mapping-block {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
-  margin-top: 12px;
-  padding: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin-top: 8px;
+  padding: 8px 10px;
   border: 1px solid var(--border, #dbe3ea);
   border-radius: 10px;
   background: #f8fafc;
@@ -910,6 +1584,50 @@ body.sasv-eaushadhi-review .reference-mapping-block {
 body.sasv-eaushadhi-review .reference-mapping-block > div {
   display: grid;
   gap: 3px;
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .reference-mapping-value {
+  min-width: 0;
+  color: var(--sasv-text);
+  font-weight: var(--sasv-fw-semibold);
+  line-height: var(--sasv-lh-normal);
+  overflow-wrap: anywhere;
+}
+
+body.sasv-eaushadhi-review .reference-mapping-value::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--sasv-warning);
+  vertical-align: middle;
+}
+
+body.sasv-eaushadhi-review .reference-mapping-value.is-ready {
+  color: var(--sasv-success);
+}
+
+body.sasv-eaushadhi-review .reference-mapping-value.is-ready::before {
+  background: var(--sasv-success);
+}
+
+body.sasv-eaushadhi-review .reference-mapping-guidance {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.sasv-eaushadhi-review .reference-mapping-block .reference-mapping-helper {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 body.sasv-eaushadhi-review .reference-mapping-status-row {
@@ -1225,11 +1943,13 @@ body.sasv-eaushadhi-review .portal-field select {
   font-weight: var(--sasv-fw-medium);
 }
 
-body.sasv-eaushadhi-review .working-source-block {
-  margin-bottom: 8px;
+body.sasv-eaushadhi-review .source-imported-details {
+  margin: 0 0 var(--sasv-space-3);
+  border-bottom: 1px solid var(--sasv-divider);
+  padding-bottom: var(--sasv-space-2);
 }
 
-body.sasv-eaushadhi-review .working-source-label,
+body.sasv-eaushadhi-review .source-imported-details > summary,
 body.sasv-eaushadhi-review .portal-mapping-label {
   display: block;
   margin: 0 0 var(--sasv-space-1);
@@ -1240,22 +1960,36 @@ body.sasv-eaushadhi-review .portal-mapping-label {
   color: var(--sasv-text-muted);
 }
 
-body.sasv-eaushadhi-review .working-source-audit {
-  margin: var(--sasv-space-1) 0 0;
-  font-size: var(--sasv-text-xs);
+body.sasv-eaushadhi-review .source-imported-details > summary {
+  cursor: pointer;
+}
+
+body.sasv-eaushadhi-review .source-imported-grid {
+  margin-top: var(--sasv-space-2);
 }
 
 body.sasv-eaushadhi-review .line-notes-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin-top: 6px;
+  display: block;
+  margin-top: var(--sasv-space-3);
 }
 
-body.sasv-eaushadhi-review .line-notes-row input {
-  flex: 1;
+body.sasv-eaushadhi-review .line-notes-row textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+body.sasv-eaushadhi-review .line-action-layout {
+  display: block;
+  margin-top: var(--sasv-space-2);
   min-width: 0;
+}
+
+body.sasv-eaushadhi-review .line-action-buttons {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sasv-space-2);
 }
 
 body.sasv-eaushadhi-review .line-issues {
@@ -1263,35 +1997,25 @@ body.sasv-eaushadhi-review .line-issues {
 }
 
 body.sasv-eaushadhi-review .prov-chip {
-  display: inline-block;
-  margin-top: 2px;
-  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 3px;
+  padding: 0;
   font-size: var(--sasv-text-xs);
-  font-weight: var(--sasv-fw-medium);
+  font-weight: var(--sasv-fw-regular);
   letter-spacing: 0.01em;
-  border: 1px solid var(--sasv-control-border);
-  border-radius: var(--sasv-radius-sm);
+  border: 0;
   background: transparent;
   color: var(--sasv-text-muted);
 }
 
 body.sasv-eaushadhi-review .prov-chip[data-provenance="verified"] {
-  border-style: solid;
-  border-width: 1px;
   color: var(--sasv-success);
 }
 
 body.sasv-eaushadhi-review .prov-chip[data-provenance="default_suggestion"] {
   font-style: italic;
-  border-style: dashed;
-}
-
-body.sasv-eaushadhi-review .prov-chip[data-provenance="exact_suggestion"] {
-  border-style: solid;
-}
-
-body.sasv-eaushadhi-review .prov-chip[data-provenance="manually_changed"] {
-  border-style: dotted;
 }
 
 body.sasv-eaushadhi-review .evidence-list {
@@ -1355,6 +2079,18 @@ body.sasv-eaushadhi-review .readiness-compact {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 6px;
+}
+
+body.sasv-eaushadhi-review .portal-fill-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+body.sasv-eaushadhi-review .portal-fill-step {
+  padding: 8px 0;
+  border-top: 1px solid var(--sasv-border, rgba(0, 0, 0, 0.08));
 }
 
 body.sasv-eaushadhi-review .readiness-chip {
@@ -1432,12 +2168,29 @@ body.sasv-eaushadhi-review .action-vocab-item {
   line-height: var(--sasv-lh-normal);
 }
 
+@media (max-width: 1100px) {
+  body.sasv-eaushadhi-review .composition-col-botanical {
+    display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  /* Too narrow for both action buttons: stack Set then Approve; order unchanged. */
+  body.sasv-eaushadhi-review .composition-toolbar-action-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
 @media (max-width: 980px) {
   body.sasv-eaushadhi-review .portal-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   body.sasv-eaushadhi-review .line-head {
     grid-template-columns: auto 1fr auto;
+  }
+  body.sasv-eaushadhi-review .composition-col-mapping {
+    display: none;
   }
 }
 
@@ -1470,6 +2223,9 @@ body.sasv-eaushadhi-review .action-vocab-item {
   body.sasv-eaushadhi-review .page-sub {
     display: none;
   }
+  body.sasv-eaushadhi-review #signedInRole {
+    display: block;
+  }
   body.sasv-eaushadhi-review .ea-worker-toolbar {
     border-right: none;
     padding-right: 0;
@@ -1478,8 +2234,63 @@ body.sasv-eaushadhi-review .action-vocab-item {
   body.sasv-eaushadhi-review .issue-row {
     grid-template-columns: 1fr;
   }
+  body.sasv-eaushadhi-review .composition-col-part,
+  body.sasv-eaushadhi-review .composition-col-quantity {
+    display: none;
+  }
+  body.sasv-eaushadhi-review .composition-toolbar > .search-wrap {
+    flex-basis: calc(100% - var(--sasv-control-md) - 8px);
+  }
+  body.sasv-eaushadhi-review .composition-reference-toolbar {
+    flex-wrap: wrap;
+  }
+  body.sasv-eaushadhi-review .composition-table-wrap {
+    max-height: calc(100vh - 350px);
+  }
+  body.sasv-eaushadhi-review #tab-composition .composition-table-wrap {
+    max-height: none;
+  }
+  body.sasv-eaushadhi-review .composition-table th,
+  body.sasv-eaushadhi-review .composition-table td {
+    padding: 7px 5px;
+  }
+  body.sasv-eaushadhi-review .composition-line-modal-nav {
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
+    min-height: 112px;
+    max-height: 112px;
+  }
+  body.sasv-eaushadhi-review .composition-line-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+  body.sasv-eaushadhi-review .composition-line-summary-botanical,
+  body.sasv-eaushadhi-review .composition-line-summary-chips {
+    grid-column: 1 / -1;
+  }
+  body.sasv-eaushadhi-review .composition-line-summary-chips {
+    justify-content: flex-start;
+  }
+  body.sasv-eaushadhi-review .source-reference-preview-row {
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+  body.sasv-eaushadhi-review .source-reference-preview-outcome {
+    grid-column: 2;
+    text-align: left;
+  }
+  body.sasv-eaushadhi-review .composition-line-footer-status {
+    width: 100%;
+    min-width: 0;
+  }
+  body.sasv-eaushadhi-review .composition-line-footer-navigation {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
   body.sasv-eaushadhi-review .portal-fields {
     grid-template-columns: 1fr;
+  }
+  body.sasv-eaushadhi-review .reference-mapping-block {
+    grid-template-columns: minmax(0, 1fr);
   }
   body.sasv-eaushadhi-review .reference-review-summary {
     grid-template-columns: minmax(0, 1fr);
@@ -1803,4 +2614,466 @@ body.sasv-eaushadhi-review #qcFillPreflightCard .icon-btn {
   body.sasv-eaushadhi-review #qcFillPreflightCard .icon-btn {
     width: 100%;
   }
+}
+
+body.sasv-eaushadhi-review #worklistHome {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+body.sasv-eaushadhi-review #worklistLoading {
+  padding: var(--sasv-space-3);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-eaushadhi-review #worklistHome[hidden],
+body.sasv-eaushadhi-review #worklistLoading[hidden],
+body.sasv-eaushadhi-review #worklistFilterDrawer[hidden],
+body.sasv-eaushadhi-review #queueTableWrap[hidden],
+body.sasv-eaushadhi-review #legacyQueueControls[hidden] {
+  display: none !important;
+}
+
+body.sasv-eaushadhi-review #worklistTabs.review-nav {
+  flex: 0 0 auto;
+  align-items: center;
+  flex-wrap: wrap;
+  overflow: visible;
+  margin-top: 0;
+}
+
+body.sasv-eaushadhi-review .worklist-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 900px) {
+  body.sasv-eaushadhi-review .worklist-toolbar {
+    flex-wrap: nowrap;
+  }
+}
+
+body.sasv-eaushadhi-review .worklist-search-card {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-bottom: 8px;
+}
+
+body.sasv-eaushadhi-review #worklistFilterBtn {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+body.sasv-eaushadhi-review .worklist-filter-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #b45309;
+}
+
+body.sasv-eaushadhi-review .worklist-filter-popover {
+  position: fixed;
+  z-index: var(--sasv-z-dropdown);
+}
+
+body.sasv-eaushadhi-review .worklist-filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  background: var(--sasv-surface-elevated, var(--sasv-surface));
+  color: var(--sasv-text);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-lg);
+  box-shadow: var(--sasv-shadow-lg);
+}
+
+body.sasv-eaushadhi-review .worklist-filter-title {
+  margin: 0;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-eaushadhi-review .worklist-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+body.sasv-eaushadhi-review .worklist-filter-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+body.sasv-eaushadhi-review .worklist-filter-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+body.sasv-eaushadhi-review .worklist-filter-fields label.worklist-filter-check {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+body.sasv-eaushadhi-review #worklistFilterClear {
+  margin-right: auto;
+}
+
+body.sasv-eaushadhi-review #worklistTableWrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0;
+}
+
+body.sasv-eaushadhi-review #worklistHome table.data-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+body.sasv-eaushadhi-review #worklistHome thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--sasv-surface-soft);
+  box-shadow: 0 -1px 0 var(--sasv-surface-soft), inset 0 -1px 0 var(--sasv-divider);
+}
+
+body.sasv-eaushadhi-review #worklistHome .data-table th,
+body.sasv-eaushadhi-review #worklistHome .data-table td {
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 8px;
+  line-height: 40px;
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+  border-bottom: 0;
+  box-shadow: inset 0 -1px 0 var(--sasv-divider);
+}
+
+body.sasv-eaushadhi-review #worklistHome tbody tr.queue-row {
+  height: 40px;
+}
+
+body.sasv-eaushadhi-review .worklist-chips,
+body.sasv-eaushadhi-review .worklist-chip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+body.sasv-eaushadhi-review .worklist-chip {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: var(--sasv-text-xs, 12px);
+}
+
+body.sasv-eaushadhi-review .worklist-chip.is-done { background: #166534; color: #fff; }
+body.sasv-eaushadhi-review .worklist-chip.is-review { background: #b45309; color: #fff; }
+body.sasv-eaushadhi-review .worklist-chip.is-todo { background: #6b7280; color: #fff; }
+body.sasv-eaushadhi-review .worklist-chip.is-fix { background: #991b1b; color: #fff; }
+body.sasv-eaushadhi-review .worklist-chip.is-empty {
+  background: var(--sasv-surface);
+  color: var(--sasv-text-muted);
+  border: 1px solid #6b7280;
+}
+
+body.sasv-eaushadhi-review .worklist-chip-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  align-items: center;
+  overflow-x: auto;
+}
+
+body.sasv-eaushadhi-review .worklist-chip-row .worklist-chip {
+  flex: 0 0 auto;
+  justify-content: center;
+  height: 22px;
+  padding: 0 7px;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+body.sasv-eaushadhi-review .worklist-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  vertical-align: middle;
+  line-height: 0;
+}
+
+body.sasv-eaushadhi-review .worklist-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  box-sizing: border-box;
+}
+
+body.sasv-eaushadhi-review .worklist-dot.is-done { background: #166534; }
+body.sasv-eaushadhi-review .worklist-dot.is-review { background: #b45309; }
+body.sasv-eaushadhi-review .worklist-dot.is-todo { background: #6b7280; }
+body.sasv-eaushadhi-review .worklist-dot.is-fix { background: #991b1b; }
+body.sasv-eaushadhi-review .worklist-dot.is-empty {
+  background: transparent;
+  border: 1px solid #6b7280;
+}
+
+body.sasv-eaushadhi-review #worklistHome .worklist-id-cell {
+  width: 4.5rem;
+  max-width: 4.5rem;
+  color: var(--sasv-text-muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--sasv-fw-regular);
+}
+
+body.sasv-eaushadhi-review .why-disabled {
+  display: block;
+  margin-top: 2px;
+}
+
+body.sasv-eaushadhi-review #techDrawer {
+  margin-top: 12px;
+}
+
+body.sasv-eaushadhi-review .worklist-tech {
+  margin-top: 12px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+}
+
+body.sasv-eaushadhi-review .worklist-tech > summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-eaushadhi-review .worklist-tech[open] > summary {
+  border-bottom: 1px solid var(--sasv-divider);
+}
+
+body.sasv-eaushadhi-review .worklist-tech .ea-change-item {
+  padding: 8px 12px 10px;
+}
+
+body.sasv-eaushadhi-review #worklistModalClose {
+  margin-right: auto;
+}
+
+body.sasv-eaushadhi-review #worklistModalDialog {
+  width: min(640px, calc(100vw - 32px));
+}
+
+body.sasv-eaushadhi-review .worklist-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+body.sasv-eaushadhi-review #worklistModalTitle {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+body.sasv-eaushadhi-review .worklist-modal-id {
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-regular);
+}
+
+body.sasv-eaushadhi-review .worklist-modal-meta {
+  margin: 0;
+}
+
+body.sasv-eaushadhi-review .worklist-stats,
+body.sasv-eaushadhi-review .worklist-copy {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+body.sasv-eaushadhi-review .worklist-copy {
+  grid-template-columns: 1fr 1fr;
+}
+
+body.sasv-eaushadhi-review .worklist-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+body.sasv-eaushadhi-review .worklist-stats > div,
+body.sasv-eaushadhi-review .worklist-callout,
+body.sasv-eaushadhi-review .worklist-note {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+}
+
+body.sasv-eaushadhi-review .worklist-stats dt,
+body.sasv-eaushadhi-review .worklist-callout h3,
+body.sasv-eaushadhi-review .worklist-note h3 {
+  margin: 0;
+  font-size: var(--sasv-text-xs);
+  font-weight: var(--sasv-fw-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-eaushadhi-review .worklist-stats dd {
+  margin: 2px 0 0;
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-eaushadhi-review .worklist-callout p,
+body.sasv-eaushadhi-review .worklist-note p,
+body.sasv-eaushadhi-review .worklist-updated {
+  margin: 4px 0 0;
+}
+
+body.sasv-eaushadhi-review .worklist-callout:not(.is-quiet) {
+  box-shadow: inset 3px 0 0 #b45309;
+}
+
+body.sasv-eaushadhi-review .worklist-stage-board {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+body.sasv-eaushadhi-review .worklist-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px 0 6px;
+  border: 1px solid var(--sasv-border);
+  border-radius: 999px;
+  background: var(--sasv-surface);
+}
+
+body.sasv-eaushadhi-review .worklist-stage-name {
+  font-size: var(--sasv-text-xs);
+  font-weight: var(--sasv-fw-semibold);
+  line-height: 1;
+}
+
+@media (max-width: 640px) {
+  body.sasv-eaushadhi-review .worklist-copy {
+    grid-template-columns: 1fr;
+  }
+
+  body.sasv-eaushadhi-review .worklist-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* UX-6: reuse the existing cards, controls and single workspace scroll area. */
+body.sasv-eaushadhi-review #tab-details .ux6-classification-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 10px;
+}
+body.sasv-eaushadhi-review #tab-details .ux6-details-pair,
+body.sasv-eaushadhi-review #tab-details .ux6-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+body.sasv-eaushadhi-review #tab-details .ux6-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+body.sasv-eaushadhi-review #tab-details .ux6-section-actions {
+  flex: 0 1 420px;
+  min-width: 0;
+  max-width: 100%;
+}
+body.sasv-eaushadhi-review #tab-details .ux6-section-actions .action-row {
+  margin-top: 4px;
+}
+body.sasv-eaushadhi-review #tab-details .ux6-section-actions p {
+  margin: 4px 0;
+}
+body.sasv-eaushadhi-review #tab-details .form-field,
+body.sasv-eaushadhi-review #tab-details .section-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+body.sasv-eaushadhi-review #tab-details .sasv-control {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+body.sasv-eaushadhi-review #tab-details .action-row button {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+body.sasv-eaushadhi-review #tab-composition .line-notes-row {
+  gap: 6px 8px;
+}
+body.sasv-eaushadhi-review #tab-composition .line-notes-row textarea {
+  flex: 1 1 280px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+@media (max-width: 760px) {
+  body.sasv-eaushadhi-review #tab-details .ux6-classification-grid,
+  body.sasv-eaushadhi-review #tab-details .ux6-details-pair,
+  body.sasv-eaushadhi-review #tab-details .ux6-entry-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.sasv-eaushadhi-review #tab-details .ux6-section-head {
+    flex-direction: column;
+  }
+  body.sasv-eaushadhi-review #tab-details .ux6-section-actions {
+    flex-basis: auto;
+    width: 100%;
+  }
+}
+
+/* UX-6.2: readable locked controls; enabled fields and buttons keep their styles. */
+body.sasv-eaushadhi-review :is(input, textarea).sasv-control:disabled,
+body.sasv-eaushadhi-review :is(input, textarea).sasv-control[readonly],
+body.sasv-eaushadhi-review select.sasv-control:disabled {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  -webkit-text-fill-color: var(--sasv-text-secondary);
+  border-color: var(--sasv-border);
+  cursor: not-allowed;
+  outline: none;
+  box-shadow: none;
+  opacity: 1;
+  user-select: text;
+  -webkit-user-select: text;
 }

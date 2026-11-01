@@ -238,6 +238,9 @@ export async function readQcFillPreflight(productId, accessToken, draft) {
 
 export async function executeQcPrepRun(productId, accessToken, command) {
   if (!workerApiAvailable()) return unsupported();
+  if (Number(productId) === 262 && ["arm", "dryRun", "nativeSaveConfirm"].includes(command?.action)) {
+    return { ok: false, message: "Already saved and confirmed on the portal." };
+  }
   if (typeof window.eaushadhiWorkerAPI.executeQcPrepRun !== "function") return unsupported();
   return window.eaushadhiWorkerAPI.executeQcPrepRun(productId, accessToken, command);
 }
@@ -250,6 +253,9 @@ export async function recordQcLabDecision(productId, accessToken, draft) {
 
 export async function saveQcPreparation(productId, accessToken, draft) {
   if (!workerApiAvailable()) return unsupported();
+  if (Number(productId) === 262) {
+    return { ok: false, message: "Already saved and confirmed on the portal." };
+  }
   if (typeof window.eaushadhiWorkerAPI.saveQcPreparation !== "function") return unsupported();
   return window.eaushadhiWorkerAPI.saveQcPreparation(productId, accessToken, draft);
 }

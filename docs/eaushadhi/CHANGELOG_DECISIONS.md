@@ -327,3 +327,21 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - **Check portal page** reads identity, list coverage, laboratory option value, and an optional local PDF. It does not arm, attach, or click the Submit-labelled control. `nativeSaveClickEnabled` stays false.
 - B5.1 applied 20261013155440: QC labName = laboratory name, not portal id. The repository file is the applied SQL, byte-exact, and was not applied again from this checkout.
 - The client fills `#lab_name` only when an option value equals that name. `LoadQCData` is read with `TotalCount` first. `GetqcData` raw dates are accepted only as `YYYY-MM-DD`. The Submit label still does not click Save.
+
+## 2026-10-26 — WP-07 UX-2 known limit: portal text and Product Details four-eyes
+- Saving portal text rewrites `product_review.updated_by` without changing `review_status`. The next Product Details approval then follows the person who saved the portal text.
+- A separate server fix is planned. The client does not clear or rewrite that stamp.
+
+## 2026-10-29 — WP-07 UX-5.1 composition line note normalisation
+- The client shows a literal `\n` and a literal `\\n` in a composition line note as real line breaks (display only).
+- If the user edits the note, the saved text is the normalised form with real line breaks.
+- Stored notes are never rewritten otherwise.
+- The server-side separator fix is a separate Jarvis task (PKG2).
+
+## 2026-10-29 — WP-07 UX-3 Phase A Fill on portal (display only)
+- Readiness tab shows a Fill on portal section with stage/line/action status and portal steps.
+- Phase A copy when not closed: "Portal entry is not enabled for this product yet." The client does not infer enablement.
+- No Save, Submit, Authorize, or typed-confirmation controls. Composition and QC steps are blocked with plain reasons.
+- Product 262 shows only "Already saved and confirmed on the portal."
+- Same-person text from stage saver data is informational only and never disables UI.
+- Gate get/set and save_authorization wait for PKG3a (Phase B).

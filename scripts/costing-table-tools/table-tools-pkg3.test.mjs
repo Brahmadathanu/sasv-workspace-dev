@@ -8,6 +8,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { costingScopeReport } from "../lib/costing-scope-guard.mjs";
 import * as tools from "../../public/shared/js/costing-table-tools.js";
 
 const {
@@ -610,13 +611,16 @@ test("pkg3 COLUMN_HELP unchanged; module safety; FORBIDDEN_RPCS identical; no CS
   for (const re of [/\.rpc\(/g, /new Date/g, /Date\.now/g]) {
     assert.equal(count(read(SHELL), re), count(readBase(SHELL), re), String(re));
   }
-  // No HTML change; any CSS change since this base is append-only (this package added none; later
-  // features append their own scoped blocks, checked in their suites).
-  assert.equal(git("diff", "--name-only", PKG3_BASE, "--", "*.html").trim(), "");
+  // Scope guard (WP-07 Bundle B correction): HTML/CSS/supabase/package.json checks cover what Costing owns or
+  // depends on (scripts/lib/costing-scope-guard.mjs) instead of the whole repository, so unrelated modules that
+  // land on main later (e.g. WP-07 e-Aushadhi HTML/CSS and its own migration) no longer trip this package test.
+  const scope = costingScopeReport({ git, root, base: PKG3_BASE });
+  // Reconciled with UX-F1 (#121): within the Costing CSS scope only public/shared/css/sasv-costing.css may
+  // change, and only append-only since base (later features append their own scoped blocks).
+  assert.deepEqual(scope.css.filter((f) => f !== "public/shared/css/sasv-costing.css"), [], "no other Costing or shared-contract CSS changed");
   const cssBase = git("show", `${PKG3_BASE}:public/shared/css/sasv-costing.css`);
-  assert.ok(fs.readFileSync(path.join(root, "public/shared/css/sasv-costing.css"), "utf8").startsWith(cssBase), "CSS append-only since base");
-  const otherCss = git("diff", "--name-only", PKG3_BASE, "--", "*.css").trim().split("\n").filter(Boolean);
-  assert.ok(otherCss.every((f) => f === "public/shared/css/sasv-costing.css"), otherCss.join(","));
+  assert.ok(fs.readFileSync(path.join(root, "public/shared/css/sasv-costing.css"), "utf8").startsWith(cssBase), "sasv-costing.css append-only since base");
+  assert.deepEqual(scope.html, [], "no Costing HTML changed");
   for (const f of ["pricing-policy", "cost-build", "material-cost", "control-center"]) {
     assert.equal(git("diff", PKG3_BASE, "--", `${JS}/costing-suite-${f}.js`), "", f);
   }
@@ -626,6 +630,6 @@ test("pkg3 COLUMN_HELP unchanged; module safety; FORBIDDEN_RPCS identical; no CS
 test("pkg3 sw.js line 2 is the v388 line", () => {
   assert.equal(
     read("public/sw.js").split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v388"; // Costing review worklist run context and run selector (C1/C1B); v387 was CW-05 pkg 4 table tools',
+    'const CACHE_NAME = "hub-cache-v389"; // WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A); v388 was Costing review worklist run selector (C1/C1B)',
   );
 });

@@ -52,6 +52,53 @@ export async function fetchProductQueue() {
   return asArray(await callRpc("rpc_eaushadhi_product_queue"));
 }
 
+export async function fetchWorklist() {
+  return asArray(await callRpc("rpc_eaushadhi_worklist_v1"));
+}
+
+export async function fetchMyRoles() {
+  return asFirst(await callRpc("rpc_eaushadhi_my_roles_v1"));
+}
+
+export async function fetchStageReviewState(productId) {
+  return asArray(await callRpc("rpc_eaushadhi_stage_review_state_v1", {
+    p_product_id: Number(productId),
+  }));
+}
+
+/** PKG3a: missing row means enabled = false. */
+export async function fetchPortalEntryGate(productId) {
+  const row = asFirst(
+    await callRpc("rpc_eaushadhi_portal_entry_gate_get_v1", {
+      p_product_id: Number(productId),
+    }),
+  );
+  if (!row) {
+    return {
+      product_id: Number(productId),
+      enabled: false,
+      enabled_by: null,
+      enabled_at: null,
+      notes: null,
+      updated_at: null,
+    };
+  }
+  return {
+    ...row,
+    product_id: Number(row.product_id ?? productId),
+    enabled: row.enabled === true,
+  };
+}
+
+/** Approver-only on the server. Client must re-read with fetchPortalEntryGate after. */
+export async function setPortalEntryGate({ productId, enabled, reason }) {
+  return await callRpc("rpc_eaushadhi_portal_entry_gate_set_v1", {
+    p_product_id: Number(productId),
+    p_enabled: enabled === true,
+    p_reason: String(reason || "").trim(),
+  });
+}
+
 export async function fetchPortalOptions(domainCode) {
   const domain = String(domainCode || "").toUpperCase();
   if (!PORTAL_DOMAINS.includes(domain)) {
@@ -403,6 +450,34 @@ export async function correctWorkingSourceLine({
       p_raw_quantity_value: rawQuantityValue,
       p_raw_unit_text: rawUnitText,
       p_correction_reason: correctionReason,
+    }),
+  );
+}
+
+export async function fetchSourceReferencePreview(productId) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_source_reference_preview_v1", {
+      p_product_id: Number(productId),
+    }),
+  );
+}
+
+export async function setSourceReferenceBulk({
+  productId,
+  requestId,
+  referenceText,
+  allowNewWording = false,
+  reason,
+  lines,
+} = {}) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_set_source_reference_bulk_v1", {
+      p_product_id: Number(productId),
+      p_request_id: requestId,
+      p_reference_text: referenceText,
+      p_allow_new_wording: allowNewWording === true,
+      p_reason: reason,
+      p_lines: Array.isArray(lines) ? lines : [],
     }),
   );
 }
