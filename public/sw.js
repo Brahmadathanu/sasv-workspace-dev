@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v385"; // CW-05 pkg 3 table tools; v384 was CW-05 pkg 2 table tools
+const CACHE_NAME = "hub-cache-v386"; // Costing review worklist v1; v385 was CW-05 pkg 3 table tools
 
 const PRECACHE = [
   // Hub shell

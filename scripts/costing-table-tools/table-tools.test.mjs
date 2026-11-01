@@ -57,7 +57,7 @@ test("COSTING_TABLE_TOOLS_V1 defaults OFF and accepts exactly string 1", () => {
 });
 
 // 2. Independence across all seven flags
-test("all 128 costing flag combinations stay independent", () => {
+test("all 256 costing flag combinations stay independent", () => {
   const pairs = [
     ["COSTING_RECALC_WITH_DATE_V1", flags.isCostingRecalcWithDateV1Enabled],
     ["COSTING_APPROVAL_SCREEN_V1", flags.isCostingApprovalScreenV1Enabled],
@@ -66,12 +66,13 @@ test("all 128 costing flag combinations stay independent", () => {
     ["COSTING_UX_CONSISTENCY_V1", flags.isCostingUxConsistencyV1Enabled],
     ["COSTING_DIALOGS_V1", flags.isCostingDialogsV1Enabled],
     ["COSTING_TABLE_TOOLS_V1", flags.isCostingTableToolsV1Enabled],
+    ["COSTING_REVIEW_WORKLIST_V1", flags.isCostingReviewWorklistV1Enabled],
   ];
   for (const [key, fn] of pairs) {
     assert.equal(flags[key], key);
     assert.equal(typeof fn, "function", key);
   }
-  for (let bits = 0; bits < 128; bits += 1) {
+  for (let bits = 0; bits < 256; bits += 1) {
     const store = new Map();
     pairs.forEach(([key], i) => {
       if (bits & (1 << i)) store.set(key, "1");
@@ -92,6 +93,16 @@ const OLD_GENERIC_HEADER = `  tableHead.innerHTML = \`<tr>\${headers
     })
     .join("")}</tr>\`;
 }`;
+
+const REVIEW_WORKLIST_SHELL_BLOCKS = [
+  'import { isCostingReviewWorklistV1Enabled } from "./costing-feature-flags.js";\n',
+  'import { filterReviewWorklistRows, groupReviewWorklistRows, renderReviewWorklistHtml, resolveReviewWorklistTarget, reviewWorklistRunContext, REVIEW_WORKLIST_NO_NAV_TOAST } from "./costing-review-worklist.js";\n',
+  "// Costing review worklist v1 selection (used only when COSTING_REVIEW_WORKLIST_V1 is ON):\n// { key, rows } where rows is the ALL_ROWS array the group was picked on, so any\n// reload, period change or lens switch (each assigns a new ALL_ROWS) clears it.\nlet REVIEW_WORKLIST_GROUP = null;\n",
+  '  if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n    rows = filterReviewWorklistRows(rows, reviewWorklistSelectedKey());\n  }\n',
+  '    if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n      renderReviewWorklistPanel();\n    }\n',
+];
+const REVIEW_WORKLIST_FN_RE =
+  /\/\*\* Review worklist v1 \(flag ON only\): selected group key[\s\S]*?\n}\n\n(?=function applyFilters\(\) \{\n)/;
 
 function stripCw05(src) {
   let out = src;
@@ -150,6 +161,12 @@ function stripCw05(src) {
     "csv gate",
   );
   remove(/\/\*\*\n \* CW-05 \(COSTING_TABLE_TOOLS_V1 ON only\)[\s\S]*?\n}\n\n(?=function exportCsvForRows)/, "csv helper");
+  // Costing review worklist v1 (separate feature, flag-gated).
+  for (const w of REVIEW_WORKLIST_SHELL_BLOCKS) {
+    assert.equal(out.split(w).length, 2, w);
+    remove(w, "review worklist block");
+  }
+  remove(REVIEW_WORKLIST_FN_RE, "review worklist helpers");
   return out;
 }
 
@@ -452,12 +469,12 @@ test("row-click index resolves to the sorted row after a header sort", () => {
 });
 
 // 10. Cache pin
-test("service worker cache is hub-cache-v385", () => {
+test("service worker cache is hub-cache-v386", () => {
   const sw = read("public/sw.js");
-  assert.match(sw, /const CACHE_NAME = "hub-cache-v385"/);
+  assert.match(sw, /const CACHE_NAME = "hub-cache-v386"/);
   assert.equal(
     sw.split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v385"; // CW-05 pkg 3 table tools; v384 was CW-05 pkg 2 table tools',
+    'const CACHE_NAME = "hub-cache-v386"; // Costing review worklist v1; v385 was CW-05 pkg 3 table tools',
   );
 });
 

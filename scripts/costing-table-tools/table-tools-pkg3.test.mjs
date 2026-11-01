@@ -321,6 +321,16 @@ function fixtureRows(tableId) {
 const legacyTh = (cls, label) => `<th class="${cls}">${label}</th>`;
 
 // 1. Flag OFF identity
+const REVIEW_WORKLIST_SHELL_BLOCKS = [
+  'import { isCostingReviewWorklistV1Enabled } from "./costing-feature-flags.js";\n',
+  'import { filterReviewWorklistRows, groupReviewWorklistRows, renderReviewWorklistHtml, resolveReviewWorklistTarget, reviewWorklistRunContext, REVIEW_WORKLIST_NO_NAV_TOAST } from "./costing-review-worklist.js";\n',
+  "// Costing review worklist v1 selection (used only when COSTING_REVIEW_WORKLIST_V1 is ON):\n// { key, rows } where rows is the ALL_ROWS array the group was picked on, so any\n// reload, period change or lens switch (each assigns a new ALL_ROWS) clears it.\nlet REVIEW_WORKLIST_GROUP = null;\n",
+  '  if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n    rows = filterReviewWorklistRows(rows, reviewWorklistSelectedKey());\n  }\n',
+  '    if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n      renderReviewWorklistPanel();\n    }\n',
+];
+const REVIEW_WORKLIST_FN_RE =
+  /\/\*\* Review worklist v1 \(flag ON only\): selected group key[\s\S]*?\n}\n\n(?=function applyFilters\(\) \{\n)/;
+
 test("pkg3 flag OFF: every IN table and OUT tab renders the base header exactly", () => {
   const base = makeSandbox({ source: readBase(SHELL), flagOn: false });
   const head = makeSandbox({ source: read(SHELL), flagOn: false });
@@ -363,6 +373,13 @@ test("pkg3 flag OFF: legacy templates verbatim; shell equals base apart from gat
     assert.equal(stripped.split(g).length, 2, g);
     stripped = stripped.replace(g, "");
   }
+  // Costing review worklist v1 (separate feature, flag-gated): each block stripped exactly once.
+  for (const w of REVIEW_WORKLIST_SHELL_BLOCKS) {
+    assert.equal(stripped.split(w).length, 2, w);
+    stripped = stripped.replace(w, "");
+  }
+  assert.match(stripped, REVIEW_WORKLIST_FN_RE);
+  stripped = stripped.replace(REVIEW_WORKLIST_FN_RE, "");
   const dropCw05 = (s) =>
     s
       .replace(/\n\/\*\*\n \* CW-05 \(COSTING_TABLE_TOOLS_V1 ON only\): header[\s\S]*?\n}\n(?=\nfunction productSkuLabel)/, "")
@@ -596,9 +613,9 @@ test("pkg3 COLUMN_HELP unchanged; module safety; FORBIDDEN_RPCS identical; no CS
 });
 
 // 8. Cache pin
-test("pkg3 sw.js line 2 is the v385 line", () => {
+test("pkg3 sw.js line 2 is the v386 line", () => {
   assert.equal(
     read("public/sw.js").split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v385"; // CW-05 pkg 3 table tools; v384 was CW-05 pkg 2 table tools',
+    'const CACHE_NAME = "hub-cache-v386"; // Costing review worklist v1; v385 was CW-05 pkg 3 table tools',
   );
 });

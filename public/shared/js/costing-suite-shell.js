@@ -66,6 +66,8 @@ import { createCostingApprovalScreenController } from "./costing-approval-screen
 import { createCostingLockScreenController } from "./costing-lock-screen.js";
 import { createCostingRunStatusScreenController } from "./costing-run-status-screen.js";
 import { isCostingTableToolsV1Enabled } from "./costing-feature-flags.js";
+import { isCostingReviewWorklistV1Enabled } from "./costing-feature-flags.js";
+import { filterReviewWorklistRows, groupReviewWorklistRows, renderReviewWorklistHtml, resolveReviewWorklistTarget, reviewWorklistRunContext, REVIEW_WORKLIST_NO_NAV_TOAST } from "./costing-review-worklist.js";
 import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, isSortableColumn, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor, tableColumnsForTable, withAccessors } from "./costing-table-tools.js";
 import {
   createQcActionQueueController,
@@ -641,6 +643,10 @@ let CURRENT_PAGE = 1;
 let PAGE_SIZE = 25;
 // CW-05 table tools state (used only when COSTING_TABLE_TOOLS_V1 is ON).
 let CW05_SORT_CTX = null;
+// Costing review worklist v1 selection (used only when COSTING_REVIEW_WORKLIST_V1 is ON):
+// { key, rows } where rows is the ALL_ROWS array the group was picked on, so any
+// reload, period change or lens switch (each assigns a new ALL_ROWS) clears it.
+let REVIEW_WORKLIST_GROUP = null;
 const CCC_PROGRESSIVE_LENS_IDS = new Set([
   "costing-review-workbench",
   "sku-control-status",
@@ -5697,6 +5703,58 @@ function filterMatch(row, group, selected) {
   });
 }
 
+/** Review worklist v1 (flag ON only): selected group key, if still valid for ALL_ROWS. */
+function reviewWorklistSelectedKey() {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return null;
+  if (!REVIEW_WORKLIST_GROUP || REVIEW_WORKLIST_GROUP.rows !== ALL_ROWS) {
+    REVIEW_WORKLIST_GROUP = null;
+    return null;
+  }
+  return REVIEW_WORKLIST_GROUP.key;
+}
+
+/** Review worklist v1 (flag ON only): read-only panel in #workbenchSummary. */
+function renderReviewWorklistPanel() {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return;
+  if (!workbenchSummary) return;
+  const groups = groupReviewWorklistRows(ALL_ROWS);
+  const selectedKey = reviewWorklistSelectedKey();
+  workbenchSummary.innerHTML = renderReviewWorklistHtml(groups, {
+    selectedKey,
+    runContext: reviewWorklistRunContext(ALL_ROWS),
+  });
+  workbenchSummary.classList.add("is-visible");
+  workbenchSummary.querySelectorAll("[data-rwl-select]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      REVIEW_WORKLIST_GROUP = { key: btn.dataset.rwlSelect, rows: ALL_ROWS };
+      CURRENT_PAGE = 1;
+      applyFilters();
+    });
+  });
+  workbenchSummary.querySelectorAll("[data-rwl-clear]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      REVIEW_WORKLIST_GROUP = null;
+      CURRENT_PAGE = 1;
+      applyFilters();
+    });
+  });
+  workbenchSummary.querySelectorAll("[data-rwl-open]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const group = groups.find((g) => g.key === btn.dataset.rwlOpen);
+      const target = group ? resolveReviewWorklistTarget(group.rows[0]) : null;
+      if (!target?.navigable || typeof navigateToCostingRoute !== "function") {
+        showToast(REVIEW_WORKLIST_NO_NAV_TOAST, "info");
+        return;
+      }
+      navigateToCostingRoute(
+        target.moduleKey,
+        target.navigateParams || { lens: target.lensId },
+        { newTab: target.newTab === true },
+      );
+    });
+  });
+}
+
 function applyFilters() {
   if (
     isQcActionQueueLens(CURRENT_LENS) ||
@@ -5765,6 +5823,9 @@ function applySearch() {
     rows = pricingPolicyCtrl.filterCommercialSalesAssumptionRows?.(rows) || rows;
   }
   if (q) rows = rows.filter((row) => getSearchBlob(row).includes(q));
+  if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {
+    rows = filterReviewWorklistRows(rows, reviewWorklistSelectedKey());
+  }
   if (shouldUseCccProgressiveRender() || shouldRenderAllCccDashboardRows()) {
     resetCccProgressiveWindow();
   }
@@ -6568,6 +6629,9 @@ function renderTable() {
     });
   } else {
     controlCenterCtrl.renderWorkbenchSummary(ALL_ROWS, CURRENT_LENS);
+    if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {
+      renderReviewWorklistPanel();
+    }
   }
 
   materialCostCtrl.syncRmTraceChrome();
