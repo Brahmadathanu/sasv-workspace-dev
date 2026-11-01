@@ -34,7 +34,7 @@ const {
 } = worklist;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
 const BASE = "be20ea68ca4ff35bd0b9aead76438d3cf62e7cfd";
 const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 const readBase = (rel) => git("show", `${BASE}:${rel}`);
@@ -604,7 +604,7 @@ test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS
   assert.deepEqual(JSON.parse(JSON.stringify(tableTools.COLUMN_HELP)), JSON.parse(JSON.stringify(baseMod.COLUMN_HELP)));
   assert.equal(
     read("public/sw.js").split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v389"; // WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A); v388 was Costing review worklist run selector (C1/C1B)',
+    'const CACHE_NAME = "hub-cache-v390"; // Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)',
   );
   const cssChanged = scope.css;
   assert.ok(cssChanged.length === 0 || (cssChanged.length === 1 && cssChanged[0] === "public/shared/css/sasv-costing.css"));

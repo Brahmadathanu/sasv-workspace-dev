@@ -28,7 +28,7 @@ const {
 } = tools;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
 const PKG2_BASE = "814342657804dd6770dcb8c91ec319555f19a711";
 const readBase = (rel) =>
   execFileSync("git", ["show", `${PKG2_BASE}:${rel}`], {

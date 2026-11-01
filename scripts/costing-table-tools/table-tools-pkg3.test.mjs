@@ -24,7 +24,7 @@ const {
 } = tools;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
 const PKG3_BASE = "8bc872c4b0ecb40842f7dd72eed05cf0cae532ec";
 const readBase = (rel) =>
   execFileSync("git", ["show", `${PKG3_BASE}:${rel}`], {
@@ -619,7 +619,7 @@ test("pkg3 COLUMN_HELP unchanged; module safety; FORBIDDEN_RPCS identical; no CS
   // change, and only append-only since base (later features append their own scoped blocks).
   assert.deepEqual(scope.css.filter((f) => f !== "public/shared/css/sasv-costing.css"), [], "no other Costing or shared-contract CSS changed");
   const cssBase = git("show", `${PKG3_BASE}:public/shared/css/sasv-costing.css`);
-  assert.ok(fs.readFileSync(path.join(root, "public/shared/css/sasv-costing.css"), "utf8").startsWith(cssBase), "sasv-costing.css append-only since base");
+  assert.ok(fs.readFileSync(path.join(root, "public/shared/css/sasv-costing.css"), "utf8").replace(/\r\n/g, "\n").startsWith(cssBase), "sasv-costing.css append-only since base");
   assert.deepEqual(scope.html, [], "no Costing HTML changed");
   for (const f of ["pricing-policy", "cost-build", "material-cost", "control-center"]) {
     assert.equal(git("diff", PKG3_BASE, "--", `${JS}/costing-suite-${f}.js`), "", f);
@@ -627,9 +627,9 @@ test("pkg3 COLUMN_HELP unchanged; module safety; FORBIDDEN_RPCS identical; no CS
 });
 
 // 8. Cache pin
-test("pkg3 sw.js line 2 is the v388 line", () => {
+test("pkg3 sw.js line 2 is the v390 line", () => {
   assert.equal(
     read("public/sw.js").split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v389"; // WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A); v388 was Costing review worklist run selector (C1/C1B)',
+    'const CACHE_NAME = "hub-cache-v390"; // Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)',
   );
 });

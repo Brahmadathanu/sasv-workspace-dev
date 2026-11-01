@@ -29,7 +29,7 @@ const {
 } = worklist;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
 const SHELL = "public/shared/js/costing-suite-shell.js";
 const PERIOD = "2026-10-01";
 

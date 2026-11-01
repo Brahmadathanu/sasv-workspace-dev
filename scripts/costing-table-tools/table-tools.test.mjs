@@ -24,7 +24,7 @@ import {
 } from "../../public/shared/js/costing-table-tools.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
 const BASE = "1c505ed6c1ff90505b904048602c004e39f5fbae";
 const readBase = (rel) =>
   execFileSync("git", ["show", `${BASE}:${rel}`], {
@@ -472,12 +472,12 @@ test("row-click index resolves to the sorted row after a header sort", () => {
 });
 
 // 10. Cache pin
-test("service worker cache is hub-cache-v389", () => {
+test("service worker cache is hub-cache-v390", () => {
   const sw = read("public/sw.js");
-  assert.match(sw, /const CACHE_NAME = "hub-cache-v389"/);
+  assert.match(sw, /const CACHE_NAME = "hub-cache-v390"/);
   assert.equal(
     sw.split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v389"; // WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A); v388 was Costing review worklist run selector (C1/C1B)',
+    'const CACHE_NAME = "hub-cache-v390"; // Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)',
   );
 });
 
