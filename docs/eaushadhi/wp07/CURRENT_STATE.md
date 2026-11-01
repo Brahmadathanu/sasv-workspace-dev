@@ -63,3 +63,9 @@ Floating tooltip and keyboard/Escape: pass. Short window: pass. Findings sent to
 - Owner launched the isolated Windows checkout of Bundle A at `6c4434a` and reported **all screen tests passed**. This closes the Bundle A owner visual-check gate and provides the outstanding UX-9.1 final acceptance.
 - Draft PR #118 remains unmerged; the separate documentation branch is also unmerged. The two low audit observations remain parked, not blockers.
 - **Next gate: Bundle B merge preparation, requiring a new explicit owner approval and a fresh main/cache coordination check.** No rebase, cache change, merge, production write, portal Save or Submit is authorized by this acceptance.
+
+## 8. Bundle B revised integration boundary (1 Nov 2026)
+- Claude's first Bundle B session correctly stopped without changes when Costing PR #117 advanced main to `9c189d60967c2efd3b99f4703416eb22123d96e2` and `hub-cache-v388`.
+- Independent read-only GitHub verification confirmed main `9c189d6`, cache v388, and Bundle A PR #118 still draft at `6c4434a`.
+- Orchestrator assigned **candidate `hub-cache-v389` for WP-07 draft integration preparation**, subject to a fresh check immediately before the version change; no technical reservation can stop concurrent mergers.
+- Revised Bundle B may prepare a separate `merge-prep/wp07` branch and one draft PR to main; no merge, production writes or portal action approved. Preserve Costing and WP-07 changes; test all relevant cache pins.
