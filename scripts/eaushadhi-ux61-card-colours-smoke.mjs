@@ -12,7 +12,9 @@ const css = read('public/shared/css/sasv-eaushadhi-review.css');
 const baseline = (path) => execFileSync('git', ['show', `2f7674d:${path}`], { cwd: root, encoding: 'utf8' }).replace(/\r\n/g, '\n');
 let passed = 0, failed = 0;
 const check = (ok, label) => { if (ok) { passed++; console.log(`OK ${label}`); } else { failed++; console.error(`FAIL ${label}`); } };
+// Bundle A (UX-10) only appends the scoped .ea-btn classes to existing buttons; strip exactly those tokens.
 const withoutTint = control
+  .replace(/ ea-btn ea-btn--(?:primary|secondary)(?=")/g, '')
   .replace('${isVerifiedStatus(portalTextStatus) || portalTextEntryLocked() ? " is-locked" : ""}', '')
   .replace('${portalTextEntryLocked() ? " is-locked" : ""}', '');
 const detailsOf = (source) => source.slice(source.indexOf('function renderDetails()'), Math.max(source.indexOf('function renderCompositionLegacy()'), source.indexOf('function renderComposition()')));

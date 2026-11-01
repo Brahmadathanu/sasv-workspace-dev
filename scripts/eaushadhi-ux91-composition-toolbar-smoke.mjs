@@ -59,7 +59,7 @@ check(js.includes("event.stopImmediatePropagation()") && js.includes('cancelLabe
 check(js.includes('if ($("sourceReferenceDiscardBackdrop") || openQcConfirm.showing === true) return;'), "bulk keydown yields while nested discard confirm is open");
 check(js.includes("canWrite() && !batchRunning") && !js.includes("const allowed = canWrite() && !state.busy;"), "Approve reviewed lines locks for batch apply and is not gated on state.busy");
 check(js.includes("state.sourceReferenceBulk.applying === true || state.verifyReviewed.running === true") && js.includes("if (state.verifyReviewed.running) return;"), "Approve disabled while verifyReviewed.running and openVerifyReviewed is a no-op");
-check(/async function submitVerifyReviewed\([\s\S]*?try \{[\s\S]*?\} finally \{\s*state\.verifyReviewed\.running = false;\s*renderCompositionToolbarActions\(\);/m.test(js), "verifyReviewed.running clears in finally even if an error is thrown");
+// Bundle A A2: the old regex-only "clears in finally" check is replaced by a behavioural run (see end of file).
 check(html.includes('id="btnVerifyReviewedLinesHint"') && html.includes("visually-hidden") && js.includes('aria-describedby", "btnVerifyReviewedLinesHint"') && js.includes('setAttribute("aria-disabled"'), "disabled Approve sets aria-disabled and aria-describedby to a visually hidden reason hint");
 check(js.includes('id="sourceReferenceInlinePrompt"') && js.includes('hidden') && js.includes("bulk.inlinePrompt"), "inline prompt stays in the toolbar but is hidden when empty");
 check(!js.includes('id="sourceReferenceButtonReason"') && js.includes('title="${escapeHtml(reason)}"'), "source-reference reason is tooltip-only");
@@ -102,6 +102,10 @@ const supabaseStub = `export const supabase = {
     getSession: async () => ({ data: { session: { user: { id: "ux91-smoke-user" } } }, error: null }),
   },
   rpc: async (name, args) => {
+    if (globalThis.__ux91RpcThrow === true) {
+      globalThis.__ux91RpcThrown = (globalThis.__ux91RpcThrown || 0) + 1;
+      throw new Error("ux91 mocked RPC failure: " + name);
+    }
     const data = typeof globalThis.__ux91Rpc === "function" ? globalThis.__ux91Rpc(name, args) : [];
     return { data, error: null };
   },
@@ -136,6 +140,7 @@ globalThis.__ux91 = {
   openSourceReferenceBulkDialog,
   requestCloseSourceReferenceBulkDialog,
   openVerifyReviewed,
+  submitVerifyReviewed,
   renderCompositionToolbarActions,
   showCompositionActionHint,
   hideCompositionActionHint,
@@ -264,7 +269,8 @@ try {
     await page.waitForSelector("#compositionTableBody tr.composition-table-row");
 
     check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}px at 125%: toolbar/table create no horizontal page scroll`);
-    check(await page.locator("#compositionTableScroll").evaluate((el) => getComputedStyle(el).overflowX === "hidden" && getComputedStyle(el).overflowY === "auto" && getComputedStyle(el).scrollbarGutter !== "stable" && document.documentElement.scrollWidth <= innerWidth), `${width}px at 125%: table scroller clips horizontal overflow with overflow-y:auto`);
+    // Bundle A A5 (owner, 1 Nov 2026): the table scroller now owns horizontal overflow too (overflow-x:auto) instead of clipping it.
+    check(await page.locator("#compositionTableScroll").evaluate((el) => getComputedStyle(el).overflowX === "auto" && getComputedStyle(el).overflowY === "auto" && getComputedStyle(el).scrollbarGutter !== "stable" && document.documentElement.scrollWidth <= innerWidth), `${width}px at 125%: table scroller owns horizontal overflow (overflow-x:auto) with overflow-y:auto and no page scroll`);
     check(await page.evaluate(() => {
       const style = getComputedStyle(document.querySelector("#workspaceScroll"));
       return style.overflow === "hidden" || style.overflowY === "hidden";
@@ -473,6 +479,37 @@ try {
       && hint?.hidden === true;
     return disabledOk && openNoOp && cleared;
   }), "Approve disables with aria hint while verifyReviewed.running and openVerifyReviewed is a no-op");
+  // Bundle A A2: behavioural replacement for the old regex-only "clears in finally" check.
+  check(await page.evaluate(async () => {
+    const api = globalThis.__ux91;
+    const line = api.state.lines[0];
+    const id = String(line.source_composition_line_id);
+    line.review_status = "IN_REVIEW";
+    const draft = api.state.lineDrafts.get(id) || {};
+    api.state.lineDrafts.set(id, { ...draft, sourceCompositionLineId: line.source_composition_line_id, rowVersion: line.row_version, ingredientTypeOptionId: 1, ingredientFormOptionId: 2, partUsedOptionId: 3, measurementOptionId: 4 });
+    api.state.lineSaveStatus.set(id, "saved");
+    const origError = console.error;
+    console.error = () => {};
+    globalThis.__ux91RpcThrow = true;
+    globalThis.__ux91RpcThrown = 0;
+    let runningDuring = null;
+    try {
+      const pending = api.submitVerifyReviewed();
+      runningDuring = api.state.verifyReviewed.running;
+      await pending;
+    } catch {
+      // A rejection escaping the batch is acceptable; finally must still have run.
+    } finally {
+      globalThis.__ux91RpcThrow = false;
+      console.error = origError;
+    }
+    const approve = document.querySelector("#btnVerifyReviewedLines");
+    return globalThis.__ux91RpcThrown > 0
+      && runningDuring === true
+      && api.state.verifyReviewed.running === false
+      && approve?.disabled === false
+      && approve.getAttribute("aria-disabled") === "false";
+  }), "verifyReviewed.running clears in finally when the RPC throws (behavioural) and Approve is re-enabled");
 } finally {
   await browser.close();
   await new Promise((resolveClose) => server.close(resolveClose));

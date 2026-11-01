@@ -23,7 +23,10 @@ function check(ok, label) {
 const withoutCardTint = (source) => source
   .replace('${isVerifiedStatus(portalTextStatus) || portalTextEntryLocked() ? " is-locked" : ""}', '')
   .replace('${portalTextEntryLocked() ? " is-locked" : ""}', '');
-const oldDetails = details(original), newDetails = details(control);
+// Bundle A (UX-10) only appends the scoped .ea-btn classes to existing Details buttons; strip exactly those
+// tokens so this contract still proves every other byte of the Details markup is unchanged.
+const withoutBundleAButtonClasses = (source) => source.replace(/ ea-btn ea-btn--(?:primary|secondary)(?=")/g, '');
+const oldDetails = details(original), newDetails = details(withoutBundleAButtonClasses(control));
 // UX-6.1 separately tests the intentional portal-text entry lock. Keep the
 // original UX-6 contract for every other part of the control file.
 const withoutPortalTextUi = (source) => {
