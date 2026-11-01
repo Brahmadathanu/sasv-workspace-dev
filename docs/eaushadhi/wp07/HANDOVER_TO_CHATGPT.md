@@ -1,5 +1,7 @@
 # Handover to ChatGPT — WP-07 e-Aushadhi (1 Nov 2026, IST)
 
+> **CURRENT HANDOVER ADDENDUM (1 Nov 2026):** The original continuation prompt below is historical and must not be treated as an instruction to wait for Bundle A. Bundle A is owner-accepted; Bundle B client audit passed. Draft PR #120 at `9b8faa1` (cache v389) awaits reconciliation with advanced main `cfab901`; draft PR #122 at `52e86b6` stages nine exactly live-matched SQL migrations and eleven WP-07 docs. Neither PR is merged. No live migration, portal action, or final merge is authorized. Continue from the newest dated gate in `CURRENT_STATE.md` and coordinate cache with Costing.
+
 ## Ready-to-paste first message to ChatGPT
 ```
 You are now the ORCHESTRATOR and SERVER WORKER for WP-07 (e-Aushadhi worklist, review and portal entry) in repo Brahmadathanu/sasv-workspace-dev, Supabase project qhmoqtxpeasamtlxaoak. Claude Code (cloud sessions) is the CLIENT WORKER and does all client coding as bulk packages: one brief -> one draft PR. I will paste Claude's reports to you; you audit them.
