@@ -248,6 +248,7 @@ function makeShell({ flagOn }) {
     REVIEW_WORKLIST_RUN_STATUS: null,
     REVIEW_WORKLIST_RUN_SELECTION: null,
     REVIEW_WORKLIST_RUN_LOAD: null,
+    REVIEW_WORKLIST_PENDING_RUN: null,
     ROWS_LOAD_GENERATION: 0,
     isRowsLoadCurrent: (g) => g === ctx.ROWS_LOAD_GENERATION,
     fetchAllRows: async () => [],
@@ -339,7 +340,8 @@ test("C1 shell: blocked SKU opens the existing fix screen with the period preser
   // Only read/select/navigate controls are rendered.
   const controls = [...s.summary.innerHTML.matchAll(/data-(rwl-[\w-]+)=/g)].map((m) => m[1]);
   // C1B adds only the read-only run selector.
-  assert.deepEqual([...new Set(controls)].sort(), ["rwl-group", "rwl-open", "rwl-run-context", "rwl-run-select", "rwl-select"]);
+  // C1B adds the read-only run selector; UX-F1 adds the status pill (text only).
+  assert.deepEqual([...new Set(controls)].sort(), ["rwl-group", "rwl-open", "rwl-pill", "rwl-run-context", "rwl-run-select", "rwl-select"]);
   assert.equal(s.queries.length, 1);
   assert.ok(s.queries.every((q) => q.view === RUN_STATUS_VIEW));
 });

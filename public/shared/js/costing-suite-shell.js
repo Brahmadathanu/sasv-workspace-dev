@@ -67,7 +67,7 @@ import { createCostingLockScreenController } from "./costing-lock-screen.js";
 import { createCostingRunStatusScreenController } from "./costing-run-status-screen.js";
 import { isCostingTableToolsV1Enabled } from "./costing-feature-flags.js";
 import { isCostingReviewWorklistV1Enabled } from "./costing-feature-flags.js";
-import { createReviewWorklistRunStatusLoader, describeReviewWorklistRunContext, filterReviewWorklistRows, groupReviewWorklistRows, isReviewWorklistRunChoice, renderReviewWorklistHtml, resolveReviewWorklistTarget, reviewWorklistRunChoices, reviewWorklistRunContext, sortReviewWorklistRows, validateReviewWorklistRunRows, REVIEW_WORKLIST_BY_RUN_VIEW, REVIEW_WORKLIST_NO_NAV_TOAST, REVIEW_WORKLIST_RUN_STATUS_SELECT, REVIEW_WORKLIST_RUN_STATUS_VIEW } from "./costing-review-worklist.js";
+import { CCC_DRAFT_SUMMARY_SELECT, createLatestOnlyLoader, createReviewWorklistRunStatusLoader, describeDashboardRunContext, describeKpiRunCaption, describeReviewWorklistRunContext, filterReviewWorklistRows, groupReviewWorklistRows, isReviewWorklistRunChoice, renderDashboardRunContextHtml, renderKpiRunCaptionHtml, renderReviewWorklistHtml, resolveReviewWorklistTarget, reviewWorklistRunChoices, reviewWorklistRunContext, sortReviewWorklistRows, summariseRunRows, validateReviewWorklistRunRows, REVIEW_WORKLIST_BY_RUN_VIEW, REVIEW_WORKLIST_NO_NAV_TOAST, REVIEW_WORKLIST_RUN_STATUS_SELECT, REVIEW_WORKLIST_RUN_STATUS_VIEW } from "./costing-review-worklist.js";
 import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, isSortableColumn, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor, tableColumnsForTable, withAccessors } from "./costing-table-tools.js";
 import {
   createQcActionQueueController,
@@ -4595,6 +4595,9 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     if (shouldShowKpiStrip()) {
       await controlCenterCtrl.loadGlobalSummaries(ACTIVE_PERIOD_START);
       if (!isRowsLoadCurrent(loadGeneration)) return;
+      if (isCostingReviewWorklistV1Enabled()) {
+        renderCccKpiRunCaption();
+      }
     }
 
     if (CURRENT_LENS === "manual-provisions") {
@@ -5722,6 +5725,113 @@ let REVIEW_WORKLIST_RUN_STATUS = null;
 let REVIEW_WORKLIST_RUN_SELECTION = null;
 // C1B run-row load state for the picker: { periodStart, runId, status, error, shownRunId, generation, governedRowsRef }.
 let REVIEW_WORKLIST_RUN_LOAD = null;
+// UX-F1 (flag ON only): dashboard "Review draft" intent { periodStart, runId }, in memory only.
+// Consumed once on SKU Control Status, and honoured only if the server still
+// advertises that id as the period's newer draft run.
+let REVIEW_WORKLIST_PENDING_RUN = null;
+// UX-F1 (flag ON only): latest-only loaders for the dashboard run context.
+let CCC_RUN_STATUS_LOADER = null;
+let CCC_DRAFT_SUMMARY_LOADER = null;
+
+/**
+ * UX-F1 (flag ON only): caption naming the run of the global KPI strip. Built
+ * from the same control-snapshot row the strip displays, so it always matches
+ * the strip; it also warns when the worklist below shows another run.
+ */
+function renderCccKpiRunCaption() {
+  if (!isCostingReviewWorklistV1Enabled()) return null;
+  if (ACTIVE_ROUTE_CONFIG?.moduleKey !== "costing-control-center") return null;
+  return renderCccRunContextChrome({ captionOnly: true });
+}
+
+/**
+ * UX-F1: primitive identity of a control-summary row (run id + valuation date).
+ * The controller may hand back a new object on every render; loaders must key
+ * on this value, never on the object reference, so re-renders do not re-query.
+ */
+function cccSummaryIdentity(summary) {
+  return `${summary?.refresh_run_id ?? ""}|${summary?.valuation_date ?? ""}`;
+}
+
+/** UX-F1 (flag ON only): KPI-strip run caption and the Dashboard run-context card. */
+function renderCccRunContextChrome({ captionOnly = false } = {}) {
+  if (!isCostingReviewWorklistV1Enabled()) return null;
+  if (ACTIVE_ROUTE_CONFIG?.moduleKey !== "costing-control-center") return null;
+  const periodStart = ACTIVE_PERIOD_START || null;
+  const summary = controlCenterCtrl.getControlDashboardSummary?.() || null;
+  let statusState = null;
+  let statusRow = null;
+  if (CURRENT_LENS === "sku-control-status") {
+    // Reuse the worklist's own status read (no duplicate request on this lens).
+    statusState = REVIEW_WORKLIST_RUN_STATUS?.state() || null;
+    if (statusState?.status === "ready" && statusState.periodStart === periodStart) statusRow = statusState.row;
+  } else {
+    if (!CCC_RUN_STATUS_LOADER) {
+      CCC_RUN_STATUS_LOADER = createLatestOnlyLoader({
+        query: (p) =>
+          supabase
+            .from(REVIEW_WORKLIST_RUN_STATUS_VIEW)
+            .select(REVIEW_WORKLIST_RUN_STATUS_SELECT)
+            .eq("period_start", p)
+            .maybeSingle(),
+      });
+    }
+    statusState = CCC_RUN_STATUS_LOADER.ensure(periodStart, periodStart, cccSummaryIdentity(summary), () => renderCccRunContextChrome());
+    if (statusState.status === "ready") statusRow = statusState.row;
+  }
+  const activeRun = CURRENT_LENS === "sku-control-status" ? reviewWorklistActiveRun() : null;
+  const caption = describeKpiRunCaption({ summary, statusRow, worklistRunId: activeRun ? activeRun.runId : null });
+  if (kpiStripWrap && kpiStrip) {
+    let captionEl = document.getElementById("cccKpiRunCaption");
+    if (!captionEl) {
+      captionEl = document.createElement("div");
+      captionEl.id = "cccKpiRunCaption";
+      captionEl.className = "ccc-kpi-caption";
+      kpiStripWrap.insertBefore(captionEl, kpiStrip);
+    }
+    captionEl.innerHTML = renderKpiRunCaptionHtml(caption);
+    captionEl.hidden = !caption;
+  }
+  if (captionOnly || CURRENT_LENS !== "dashboard" || !workbenchSummary) return caption;
+  const newerDraft = statusRow?.newer_draft_run_id;
+  let draftState = null;
+  if (periodStart && newerDraft !== null && newerDraft !== undefined && newerDraft !== "") {
+    if (!CCC_DRAFT_SUMMARY_LOADER) {
+      CCC_DRAFT_SUMMARY_LOADER = createLatestOnlyLoader({
+        query: async ({ periodStart: p, runId }) =>
+          summariseRunRows(
+            await fetchAllRows(
+              () =>
+                costingFrom(REVIEW_WORKLIST_BY_RUN_VIEW)
+                  .select(CCC_DRAFT_SUMMARY_SELECT)
+                  .eq("period_start", p)
+                  .eq("refresh_run_id", runId)
+                  .order("sku_id", { ascending: true }),
+              1000,
+            ),
+            { periodStart: p, runId },
+          ),
+      });
+    }
+    draftState = CCC_DRAFT_SUMMARY_LOADER.ensure(
+      `${periodStart}|${newerDraft}`,
+      { periodStart, runId: String(newerDraft) },
+      cccSummaryIdentity(summary),
+      () => renderCccRunContextChrome(),
+    );
+  }
+  workbenchSummary.innerHTML = renderDashboardRunContextHtml(
+    describeDashboardRunContext({ periodStart, status: statusState, summary, draft: draftState }),
+  );
+  workbenchSummary.classList.add("is-visible");
+  workbenchSummary.querySelectorAll("[data-ccc-review-draft]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      REVIEW_WORKLIST_PENDING_RUN = { periodStart, runId: String(btn.dataset.cccReviewDraft) };
+      void switchLens("sku-control-status");
+    });
+  });
+  return caption;
+}
 
 /** Review worklist v1 (flag ON only): the chosen non-default run, if still the rows shown. */
 function reviewWorklistActiveRun() {
@@ -5867,6 +5977,24 @@ function renderReviewWorklistPanel() {
   ) {
     // Superseded by a period change, reload or newer load: drop the stale load state.
     REVIEW_WORKLIST_RUN_LOAD = null;
+  }
+  const pending = REVIEW_WORKLIST_PENDING_RUN;
+  if (pending && pending.periodStart !== ACTIVE_PERIOD_START) {
+    REVIEW_WORKLIST_PENDING_RUN = null;
+  } else if (pending && runStatus?.status === "ready" && runStatus.periodStart === ACTIVE_PERIOD_START) {
+    // UX-F1: honour the dashboard "Review draft" intent only for the server's newer draft id.
+    REVIEW_WORKLIST_PENDING_RUN = null;
+    const advertised = String(runStatus.row?.newer_draft_run_id ?? "");
+    if (
+      pending.runId === advertised &&
+      isReviewWorklistRunChoice(choices, pending.runId) &&
+      !activeRun &&
+      !REVIEW_WORKLIST_RUN_LOAD
+    ) {
+      queueMicrotask(() => {
+        void selectReviewWorklistRun(pending.runId);
+      });
+    }
   }
   const groups = groupReviewWorklistRows(ALL_ROWS);
   const selectedKey = reviewWorklistSelectedKey();
@@ -6813,6 +6941,9 @@ function renderTable() {
     controlCenterCtrl.renderWorkbenchSummary(ALL_ROWS, CURRENT_LENS);
     if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {
       renderReviewWorklistPanel();
+    }
+    if (isCostingReviewWorklistV1Enabled()) {
+      renderCccRunContextChrome();
     }
   }
 

@@ -256,7 +256,9 @@ const REVIEW_WORKLIST_SHELL_BLOCKS = [
   /import \{[^}]*\} from "\.\/costing-review-worklist\.js";\n/,
   "// Costing review worklist v1 selection (used only when COSTING_REVIEW_WORKLIST_V1 is ON):\n// { key, rows } where rows is the ALL_ROWS array the group was picked on, so any\n// reload, period change or lens switch (each assigns a new ALL_ROWS) clears it.\nlet REVIEW_WORKLIST_GROUP = null;\n",
   '  if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n    rows = filterReviewWorklistRows(rows, reviewWorklistSelectedKey());\n  }\n',
-  '    if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n      renderReviewWorklistPanel();\n    }\n',
+  '    if (isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status") {\n      renderReviewWorklistPanel();\n    }\n',  // UX-F1: run-context chrome gates (flag only).
+  '    if (isCostingReviewWorklistV1Enabled()) {\n      renderCccRunContextChrome();\n    }\n',
+  '      if (isCostingReviewWorklistV1Enabled()) {\n        renderCccKpiRunCaption();\n      }\n',
 ];
 const REVIEW_WORKLIST_FN_RE =
   /\/\*\* Review worklist v1 \(flag ON only\): selected group key[\s\S]*?\n}\n\n(?=function applyFilters\(\) \{\n)/;
@@ -530,7 +532,10 @@ test("pkg2 CSS: one appended block at file end, every selector scoped to [data-c
   const added = head.slice(base.length);
   assert.ok(added.length > 0);
   assert.match(added, /^\n\/\* CW-05 table tools/);
-  const selectorLines = added
+  // Feature-scoped: the CW-05 block is the first appended block (up to the next top-level
+  // comment block); later blocks belong to other features and are checked by their suites.
+  const cw05Block = added.split(/\n(?=\n\/\*)/)[0];
+  const selectorLines = cw05Block
     .split("\n")
     .filter((l) => /\{\s*$/.test(l) || /,\s*$/.test(l));
   assert.ok(selectorLines.length >= 4);

@@ -454,7 +454,11 @@ test("pkg4 unsortable columns key null; table-tools diff is only the three entri
   const scope = costingScopeReport({ git, root, base: BASE });
   assert.deepEqual(scope.supabase, [], "no Costing or history-rewriting supabase change");
   assert.deepEqual(scope.packageJson, [], "package.json unchanged");
-  assert.deepEqual(scope.css, [], "no Costing or shared-contract CSS changed");
+  // Reconciled with UX-F1 (#121): within the Costing CSS scope only public/shared/css/sasv-costing.css may
+  // change, and only append-only since base (later features append their own scoped blocks).
+  assert.deepEqual(scope.css.filter((f) => f !== "public/shared/css/sasv-costing.css"), [], "no other Costing or shared-contract CSS changed");
+  const cssBase = git("show", `${BASE}:public/shared/css/sasv-costing.css`);
+  assert.ok(fs.readFileSync(path.join(root, "public/shared/css/sasv-costing.css"), "utf8").startsWith(cssBase), "sasv-costing.css append-only since base");
   assert.deepEqual(scope.html, [], "no Costing HTML changed");
 });
 
