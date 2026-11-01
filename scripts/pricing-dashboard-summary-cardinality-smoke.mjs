@@ -246,7 +246,7 @@ assert(
 );
 assert(
   /CACHE_NAME = "hub-cache-v390"/.test(swSrc),
-  "current SW generation is v389",
+  "current SW generation is v390",
 );
 assert(!/hub-cache-v342/.test(swSrc), "SW no longer v342");
 

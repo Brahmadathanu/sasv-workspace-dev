@@ -10,7 +10,7 @@ import {
 } from "../../public/shared/js/costing-dialogs-duplicate-sequence.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
 
 test("COSTING_DIALOGS_V1 defaults OFF and accepts exactly string 1", () => {
   for (const value of [null, undefined, "", "0", 1, true, "true"]) {

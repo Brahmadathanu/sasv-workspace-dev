@@ -24,7 +24,7 @@ import {
 import { FORBIDDEN_RPCS } from "../../public/shared/js/costing-approval-screen.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
 
 function node(id, extras = {}) {
   return {

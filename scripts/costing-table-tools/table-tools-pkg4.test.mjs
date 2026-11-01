@@ -15,7 +15,7 @@ import * as tools from "../../public/shared/js/costing-table-tools.js";
 const { COLUMN_HELP, csvCell, isSortableColumn, sortRowsBy, tableColumnsForTable } = tools;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
 const BASE = "2b3f298bdba5f4fa9f1045fe1539a38c58b5c719";
 const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 const readBase = (rel) => git("show", `${BASE}:${rel}`);
@@ -458,7 +458,7 @@ test("pkg4 unsortable columns key null; table-tools diff is only the three entri
   // change, and only append-only since base (later features append their own scoped blocks).
   assert.deepEqual(scope.css.filter((f) => f !== "public/shared/css/sasv-costing.css"), [], "no other Costing or shared-contract CSS changed");
   const cssBase = git("show", `${BASE}:public/shared/css/sasv-costing.css`);
-  assert.ok(fs.readFileSync(path.join(root, "public/shared/css/sasv-costing.css"), "utf8").startsWith(cssBase), "sasv-costing.css append-only since base");
+  assert.ok(fs.readFileSync(path.join(root, "public/shared/css/sasv-costing.css"), "utf8").replace(/\r\n/g, "\n").startsWith(cssBase), "sasv-costing.css append-only since base");
   assert.deepEqual(scope.html, [], "no Costing HTML changed");
 });
 

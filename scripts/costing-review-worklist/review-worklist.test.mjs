@@ -34,7 +34,7 @@ const {
 } = worklist;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
 const BASE = "be20ea68ca4ff35bd0b9aead76438d3cf62e7cfd";
 const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 const readBase = (rel) => git("show", `${BASE}:${rel}`);

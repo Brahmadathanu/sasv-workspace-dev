@@ -26,7 +26,7 @@ const {
 } = ccc;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
 const BASE = "9c189d60967c2efd3b99f4703416eb22123d96e2";
 const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 const readBase = (rel) => git("show", `${BASE}:${rel}`);
@@ -516,7 +516,10 @@ test("scope: no supabase/, migration, controller, protected-screen, HTML or cach
   assert.equal(git("diff", BASE, "--", ...unchanged), "");
   // This package changes only the service-worker cache line from v389 to v390.
   const swChanged = git("diff", "-U0", BASE, "--", "public/sw.js").split("\n").filter((l) => /^[+-][^+-]/.test(l));
-  assert.ok(swChanged.every((l) => /^[+-]const CACHE_NAME = "hub-cache-v(?:389|390)";/.test(l)), "no UX-F1 cache allocation: " + swChanged.join(" | "));
+  // BASE is the historical v388 UX-F1 base, so the diff is -v388 / +v390 (WP-07's v389 sits in between).
+  assert.ok(swChanged.every((l) => /^[+-]const CACHE_NAME = "hub-cache-v(?:388|389|390)";/.test(l)), "no UX-F1 cache allocation: " + swChanged.join(" | "));
+  assert.ok(swChanged.some((l) => /^\+const CACHE_NAME = "hub-cache-v390";/.test(l)), "release cache line is v390: " + swChanged.join(" | "));
+  assert.ok(!swChanged.some((l) => /^\+const CACHE_NAME = "hub-cache-v38[89]";/.test(l)), "no stale cache line added: " + swChanged.join(" | "));
   const css = read("public/shared/css/sasv-costing.css");
   const cssBase = readBase("public/shared/css/sasv-costing.css");
   assert.ok(css.startsWith(cssBase));
