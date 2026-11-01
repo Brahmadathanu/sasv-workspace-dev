@@ -6215,6 +6215,11 @@ function renderCw05GenericTableHeader(headers, alignments, tableId) {
  */
 function cw05TabTableId() {
   if (CURRENT_LENS === "mrp-governance") {
+    if (pricingPolicyCtrl.isMrpAppliedHistoryTabActive()) {
+      return pricingPolicyCtrl.getMrpAppliedHistoryView() !== "workspace"
+        ? "mrp-governance:applied-history-register"
+        : null;
+    }
     if (
       pricingPolicyCtrl.isMrpAppliedHistoryTabActive() ||
       pricingPolicyCtrl.isMrpApplicationTabActive() ||
@@ -6240,6 +6245,7 @@ function cw05TabTableId() {
     const tab = pricingPolicyCtrl.getPolicyManagerTab();
     if (tab === "sku-overview") return "policy-manager:sku-overview";
     if (tab === "scheme-rule-register") return "policy-manager:scheme-rule-register";
+    if (tab === "scheme-master") return "policy-manager:scheme-master";
     return null;
   }
   if (CURRENT_LENS === "cost-governance") {
@@ -6258,6 +6264,9 @@ function cw05TabTableId() {
     const tab = materialCostCtrl.getManualRateManagerTab();
     if (tab === "register" || tab === "history") return `manual-rate-manager:${tab}`;
     return null;
+  }
+  if (CURRENT_LENS === "manual-provisions") {
+    return costBuildCtrl.getManualProvisionTab() === "impact" ? "manual-provisions:impact" : null;
   }
   return null;
 }
