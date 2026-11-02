@@ -14,7 +14,7 @@
 
 - Repository: `Brahmadathanu/sasv-workspace-dev`; current `main` HEAD verified by GitHub `3d0b6185f4351469cf23969beefac0e8875e0c2e`.
 - Squash merged in sequence: #126 (CW-06) `4f1cb406`; #127 (CW-13) `86b4ad5e`; #128 (CW-07) `3d0b6185`.
-- Claire/Claude reported **393/393 Costing+library tests** on reconciled PR head, LF+CRLF, browser tests not skipped. **A fresh run on the final merged `main` is still pending independent proof.** Smokes 42/57 on prior sandbox, other 15 e-Aushadhi dependency failures matched `main`; not a clean global smoke pass.
+- Claude reported **393/393 Costing+library tests** on reconciled PR head, LF+CRLF, browser tests not skipped. **A fresh run on the final merged `main` is still pending independent proof.** Smokes 42/57 on prior sandbox, other 15 e-Aushadhi dependency failures matched `main`; not a clean global smoke pass.
 - Service worker code designation `hub-cache-v390`; *live PWA deployment/version still requires separate evidence*. Default-OFF costing flags are unchanged. No database edits or feature activations in this merge series.
 - Earlier 3/10 chat progress meter has **no located formal ten-gate source**. Do not present it as authoritative. Master-data programme ledger records **WP00–WP04 complete (5 of 13 substantive WP00–WP12)**, with WP-1 prerequisite control-plane complete. This is a work-pack count, not a time-weighted percentage.
 
