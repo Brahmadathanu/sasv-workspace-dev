@@ -25,6 +25,8 @@ No work belonging to later gates; no guessed data; no unrelated/e-Aushadhi chang
 * Implementation package plan — [A6](WP05_A6_IMPLEMENTATION_PACKAGE_PLAN_2026-11-02.md)
 * Regression evidence (408/408 LF and CRLF, 0 skipped) — [A7](WP05_A7_REGRESSION_EVIDENCE_2026-11-02.md)
 
+G2 correction pass applied: first wave = presentation-only grouping (grouping ≠ consolidation); Readiness stays LIVE_AS_OF (no run selector); PRM run 80/82 are fixed historical fixtures (D5, server review first); server contracts for supersede/family-create/proposal-decide recorded as independently-reviewed (not re-verified here).
+
 Confirmed PRM defects: C1 (Supersede needs loaded record), C2 (candidate scope controls hidden), C3 (candidate family create omits `p_family_code`).
 
 ## Approved design / contract
@@ -40,16 +42,16 @@ Not yet approved.
 - [ ] Final handover
 
 ## Current Gate
-`WP05-G1 — audit evidence complete; awaiting design review (no implementation approved)`
+`WP05-G2 — design review OPEN. Audit evidence (G1) delivered and corrected in the G2 consolidated correction pass; no design acceptance and no implementation permission is implied.`
 
 ## Gate Status
-[~] IN PROGRESS — audit deliverables done; design-review gate open
+[~] IN PROGRESS — audit evidence delivered; WP05-G2 design review open (not accepted)
 
 ## Required to close
 Entry criteria must be satisfied and the work pack explicitly started.
 
 ## Next gate
-WP05-G2 — owner design review of A3/A5 decisions D1–D10; then bounded packages per A6.
+Owner closes WP05-G2 (design review of A3/A5 decisions D1–D10). Only then may bounded first-wave (presentation-only) packages per A6 be briefed. Tier 2 consolidation stays conditional.
 
 ## Server changes
 None.

@@ -99,10 +99,10 @@ One module permission and **one `can_edit` for everything** (create, approve, su
 | 1 | `route-readiness` | Per-product route readiness (as-of) — default hub | Landing | Row actions: create product route, create assignment | Hub; links to editor/viewer/evidence/families |
 | 2 | `product-route-assignments` | Product→Family assignment lifecycle | Pill / Product Summary | Create/Submit/Approve/Cancel/Inactivate/Correct effective-from | |
 | 3 | `product-subgroup-mappings` | Subgroup→Family mapping lifecycle | Pill | Create DRAFT/Save/Submit/Approve/Inactivate | Group-level mapping lives in Route Families (inconsistent) |
-| 4 | `shared-workload-preview` | Exact-run DL/POH workload preview + explain | Pill only | none (R) | **Hard-coded run 82** (HLP 177-203) |
+| 4 | `shared-workload-preview` | Exact-run DL/POH workload preview + explain | Pill only | none (R) | Fixed fixture context: period 2026-08-01 / valuation 2026-08-07 / run 82 (HLP 177-203); not a current run selection |
 | 5 | `route-families` | Family master, mappings, approved routes | Pill / Family Summary | Create Route Family (own code entry), Approve, Map Product Group, edit/approve mapping | Governed creation path (MAIN 6006-6130) |
-| 6 | `route-family-mapping-review` | Exact-run coverage candidates for mapping review | From Route Families toolbar / pill | none (maps via Route Families) | Hard-coded run 82 |
-| 7 | `route-family-foundation-review` | Exact-run historical foundation evidence | Pill / links | none (R) | Hard-coded run 82 |
+| 6 | `route-family-mapping-review` | Exact-run coverage candidates for mapping review | From Route Families toolbar / pill | none (maps via Route Families) | Fixed fixture context (run 82; HLP 177-203) |
+| 7 | `route-family-foundation-review` | Exact-run historical foundation evidence | Pill / links | none (R) | Fixed fixture context (run 82; HLP 177-203) |
 | 8 | `production-cost-centres` | Cost Centre master lifecycle | Pill; editor blocker link | Create/Edit/Validate/Approve/Inactivate | |
 | 9 | `route-family-route-editor` | Draft/validate/submit/approve family routes | Pill (empty chooser) / Family Summary | Create draft, Clone, step add/edit/delete/reorder, Validate, Submit, Approve | No Supersede button (stub toast, MAIN 10409-10416); approve supersedes server-side |
 | 10 | `product-route-editor` | Product deltas over inherited family route | **Row actions only** (pill alone = dead-end empty state) | Create DRAFT, Validate, Submit, Approve, **Supersede**, delta add/edit/remove | Defect C1 (A5) |

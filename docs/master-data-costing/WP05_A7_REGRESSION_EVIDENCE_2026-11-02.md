@@ -34,10 +34,11 @@ Per-package commands from the CW docs (e.g. `node --test scripts/costing-dialogs
 * Composition: 390 Costing-suite tests + 18 in `scripts/lib` and `scripts/tally-etl-contract` = 408 (counted separately: lib+tally = 18/18).
 
 ### Discrepancy and incident (reported, not hidden)
-1. **Baseline 393 vs 408.** The previously reported 393/393 (PR-head, pre-merge) does not equal the 408 now observed over the same file set; the 15-test difference is **unexplained** (candidate causes: different test selection, or tests added between the counted head and merged main). Not investigated further; all 408 pass.
+1. **Baseline 393 vs 408 — unresolved.** The previously reported 393/393 (pre-merge PR head) does not equal the 408 observed over this file set (390 Costing + 18 lib/tally). No reproducible evidence was gathered to explain the 15-test difference (no per-test inventory of the earlier head was compared), so it is retained as an **unresolved comparison**. All 408 pass; this is not a claim of regression or of growth.
 2. **First CRLF run: 400/408 (8 failures)** — tests 79, 91, 210, 219, 335, 344, 346, 354 (uxf1, review-worklist, table-tools pkg2/3/4). Cause was **my environment**: the worktree was created with `-c core.autocrlf=true` only at checkout time, so the later `git diff`/`git show` calls inside those tests (which compare against the LF blob) saw every CRLF line as changed (`git status` listed 494 modified files). After exporting the same setting persistently (clean `git status`), the identical suite is 408/408. This is **not a product defect** and the `read-source-lf` helper behaves as designed; but it is a documented trap for anyone reproducing CRLF runs: *apply autocrlf as repo/global config, not only at checkout*.
 
 ## Not run (limitations)
+* **No global smoke, signed-in browser, or live PWA validation is claimed.**
 * **Smoke scripts** (`scripts/*-smoke.mjs`, ~170 files incl. production-route and e-Aushadhi) were not run: the earlier reported baseline (42/57 on an older sandbox, with 15 e-Aushadhi/Node-21 dependency failures) is unverified on this `main`; no global-smoke claim is made.
 * Signed-in/populated-data browser acceptance, live PWA version check and GitHub CI: not available/not claimed.
 * No test touched production state; approval-preview RPC never called.

@@ -39,6 +39,10 @@ Fail-closed: any permission-load failure → all false (shell 3440-3484). Nav is
 |---|---|
 | `rpc_create_route_family` builder requires `p_family_code` and `p_family_name`; optional `p_effective_from`, `p_description` | RPCJS 806-836 |
 | `rpc_supersede_product_route` takes `p_old_product_route_id`, `p_new_product_route_id` | ED 123; RPCJS 1661-1680 |
+| `public.rpc_supersede_product_route` requires two active, APPROVED route versions of the same product; supersedes the old approved route and sets its ending effective date relative to the replacement (independent read-only server review; not re-verified by this audit) | review brief 2 Nov (G2) |
+| `public.rpc_create_route_family` requires `p_family_code` **and** `p_family_name` — never generate a code | RPCJS 806-836 + independent review |
+| `rpc_decide_product_mrp_proposal_line` checks PPM edit permission, validates proposal state, records the deciding user; inspected body has no explicit different-submitter/approver check (narrow finding; other safeguards not excluded; no implementation authorised) | independent review (G2); D7 |
+| Fixed exact-run contexts: Route Readiness default run 80 (2026-07-01 / 2026-07-22; used only by the unused exact-run readiness builder), Workload/Mapping/Foundation run 82 (2026-08-01 / 2026-08-07) — historical fixtures | HLP 166-203, 1940 |
 | Approval-reference required by builders for approvals (blank rejected) | RPCJS builders |
 
 ## 4. Feature-flag registry (`costing-feature-flags.js`) — all default OFF, `localStorage === "1"`, per-browser
