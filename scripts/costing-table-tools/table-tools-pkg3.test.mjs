@@ -8,7 +8,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { costingScopeReport } from "../lib/costing-scope-guard.mjs";
+import { costingScopeReport, applyCw07Labels } from "../lib/costing-scope-guard.mjs";
 import * as tools from "../../public/shared/js/costing-table-tools.js";
 import { readSourceLf } from "../lib/read-source-lf.mjs";
 
@@ -28,11 +28,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const read = (rel) => readSourceLf(root, rel); // LF-normalised: see scripts/lib/read-source-lf.mjs
 const PKG3_BASE = "8bc872c4b0ecb40842f7dd72eed05cf0cae532ec";
 const readBase = (rel) =>
-  execFileSync("git", ["show", `${PKG3_BASE}:${rel}`], {
-    cwd: root,
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-  });
+  applyCw07Labels( // CW-07: label rename tolerated, nothing else
+    execFileSync("git", ["show", `${PKG3_BASE}:${rel}`], {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    }),
+  );
 const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8" });
 const SHELL = "public/shared/js/costing-suite-shell.js";
 const TOOLS = "public/shared/js/costing-table-tools.js";
