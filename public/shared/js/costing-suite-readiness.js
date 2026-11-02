@@ -8,12 +8,22 @@
 import { isCostingRecalcWithDateV1Enabled, isCostingUxConsistencyV1Enabled } from "./costing-feature-flags.js";
 import { costingIssueDisplayLabel } from "./costing-status-labels.js";
 import { periodDateLabels } from "./costing-recalculation.js";
+import { COSTING_ROUTE_CONFIG } from "./costing-route-config.js";
+import {
+  formatRecommendedUiRouteLabel,
+  resolveRecommendedUiRouteTarget,
+} from "./costing-suite-recommended-ui-route.js";
+import { buildCsv } from "./costing-table-tools.js";
 
 export const PORTFOLIO_READINESS_LENS_ID = "portfolio-readiness";
 export const READINESS_PAGE_LIMIT = 50;
 export const READINESS_PERIOD_LIMIT = 24;
 export const READINESS_GAP_LIMIT = 25;
 export const READINESS_SEARCH_DEBOUNCE_MS = 300;
+/** Page size used when walking the existing portfolio RPC for "export all matching". */
+export const READINESS_EXPORT_PAGE_LIMIT = 100;
+/** Hard bound on pages walked by "export all matching" (100 x 200 = 20,000 rows). */
+export const READINESS_EXPORT_MAX_PAGES = 200;
 
 export const READINESS_POPULATION_SCOPES = Object.freeze([
   "OPERATIONAL",
@@ -556,6 +566,328 @@ export function validatePortfolioEnvelope(payload) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// WP05-P01 — Readiness usability helpers (pure; no RPC, no writes).
+// Readiness stays a LIVE_AS_OF governed snapshot. Nothing here selects,
+// reads or implies an approved/draft costing run.
+// ---------------------------------------------------------------------------
+
+export const READINESS_LIVE_AS_OF_CONTEXT_TYPE = "LIVE_AS_OF";
+
+export const READINESS_LIVE_AS_OF_EXPLANATION =
+  "Readiness is a live governed snapshot: it is evaluated as of the governed period and the time shown, and it follows current master data. It is not tied to an approved or draft costing run. SKU Control Status can instead show a frozen costing run.";
+
+const NO_DESTINATION_TEXT = "No destination is configured for this item yet.";
+
+const READINESS_NON_ACTIONABLE_STATUSES = new Set(["READY", "NOT_APPLICABLE"]);
+
+/** Describe the governed period / as-of context shown above the register. */
+export function describeReadinessLiveAsOf({
+  periodStart = null,
+  valuationDate = null,
+  observedAt = null,
+  contextType = null,
+  integrityStatus = null,
+  populationScope = null,
+} = {}) {
+  const ctxType = normalizeCode(contextType);
+  const known = ctxType === READINESS_LIVE_AS_OF_CONTEXT_TYPE;
+  return {
+    basis: known ? READINESS_LIVE_AS_OF_CONTEXT_TYPE : ctxType || null,
+    isLiveAsOf: known,
+    periodStart: toIsoDate(periodStart),
+    valuationDate: toIsoDate(valuationDate),
+    observedAt: observedAt == null || observedAt === "" ? null : String(observedAt),
+    integrityStatus: normalizeCode(integrityStatus) || null,
+    populationScope: normalizeCode(populationScope) || null,
+    // Only claim "live" when the server says so; otherwise show what it said.
+    explanation: known || !ctxType ? READINESS_LIVE_AS_OF_EXPLANATION : null,
+  };
+}
+
+function isActionableStatus(status, applicability) {
+  if (normalizeCode(applicability) === "NOT_APPLICABLE") return false;
+  const code = normalizeCode(status);
+  if (!code) return true; // no server status: surface it, do not hide a gap
+  return !READINESS_NON_ACTIONABLE_STATUSES.has(code);
+}
+
+/**
+ * Validate a resolver target against the existing route configuration so a
+ * button is only offered where a real, configured destination exists.
+ */
+export function isConfiguredRemediationTarget(target) {
+  if (!target || target.navigable !== true) return false;
+  const config = COSTING_ROUTE_CONFIG[target.moduleKey];
+  if (!config?.routePath) return false;
+  if (target.lensId && Array.isArray(config.allowedLensIds)) {
+    return config.allowedLensIds.includes(target.lensId);
+  }
+  return true;
+}
+
+function remediationContext(assessment) {
+  const ctx = asObject(assessment?.context) || {};
+  const downstream = asObject(assessment?.downstream_control) || {};
+  return {
+    productId: ctx.product_id,
+    skuId: ctx.sku_id,
+    periodStart: ctx.period_start,
+    sellingPriceBridgeStatus: downstream.selling_price_bridge_status,
+    pricingBridgeStatus: downstream.pricing_bridge_status,
+    // The readiness contract does not return RM/PM blocking-line counts, so
+    // Material Rate Manager remediation correctly resolves as non-navigable.
+  };
+}
+
+/**
+ * Build fix actions from the server-provided recommended_ui_route values on an
+ * assessment (dependencies, shared issues, downstream control). The resolver
+ * decides the destination; where it cannot, the item stays visible without a
+ * destination. No route is invented here.
+ */
+export function buildReadinessRemediationActions(assessment) {
+  const a = asObject(assessment);
+  if (!a) return [];
+  const context = remediationContext(a);
+  const actions = [];
+  const seen = new Set();
+
+  const push = (kind, title, status, routeCode) => {
+    const route = normalizeCode(routeCode);
+    if (!route) return;
+    const target = resolveRecommendedUiRouteTarget(route, context);
+    const navigable = isConfiguredRemediationTarget(target);
+    const key = `${route}|${navigable ? JSON.stringify(target.navigateParams || {}) : title}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    actions.push({
+      kind,
+      title: title || route,
+      status: normalizeCode(status) || null,
+      routeCode: route,
+      routeLabel: formatRecommendedUiRouteLabel(route) || route,
+      navigable,
+      buttonLabel: navigable ? target.label : null,
+      moduleKey: navigable ? target.moduleKey : null,
+      navigateParams: navigable ? { ...(target.navigateParams || {}) } : null,
+      unavailableReason: navigable ? null : NO_DESTINATION_TEXT,
+    });
+  };
+
+  for (const dep of asArray(a.dependencies)) {
+    const d = asObject(dep);
+    if (!d) continue;
+    const status = d.effective_status || d.raw_status;
+    if (!isActionableStatus(status, d.applicability)) continue;
+    push("dependency", d.label || d.dependency_code, status, d.recommended_ui_route);
+  }
+  for (const issue of asArray(a.shared_issues)) {
+    const s = asObject(issue);
+    if (!s) continue;
+    if (!isActionableStatus(s.status, null)) continue;
+    push("shared_issue", s.issue_code, s.status, s.recommended_ui_route);
+  }
+  const downstream = asObject(a.downstream_control);
+  if (downstream && isActionableStatus(downstream.control_severity, null)) {
+    push(
+      "downstream_control",
+      "Downstream costing control",
+      downstream.control_severity,
+      downstream.recommended_ui_route,
+    );
+  }
+  return actions;
+}
+
+function cssQueryList(value) {
+  return Array.isArray(value) ? value.join(",") : String(value);
+}
+
+/**
+ * Same-origin href for a remediation target when the shell navigator is not
+ * injected. Limited to targets whose query keys need no shell-side
+ * canonicalisation (Pricing Policy Manager is excluded on purpose).
+ */
+export function buildReadinessRouteHref(action) {
+  if (!action?.navigable || action.moduleKey === "pricing-policy-manager") {
+    return null;
+  }
+  const config = COSTING_ROUTE_CONFIG[action.moduleKey];
+  const file = /([^/]+\.html)$/i.exec(String(config?.routePath || ""))?.[1];
+  if (!file) return null;
+  const p = action.navigateParams || {};
+  const qs = new URLSearchParams();
+  if (p.lens) qs.set("lens", p.lens);
+  if (p.status?.length) qs.set("status", cssQueryList(p.status));
+  if (p.issue?.length) qs.set("issue", cssQueryList(p.issue));
+  if (p.source?.length) qs.set("source", cssQueryList(p.source));
+  if (p.managerTab) qs.set("manager_tab", p.managerTab);
+  if (p.periodStart) qs.set("period_start", p.periodStart);
+  if (p.productId != null) qs.set("product_id", String(p.productId));
+  if (p.skuId != null) qs.set("sku_id", String(p.skuId));
+  const query = qs.toString();
+  return query ? `${file}?${query}` : file;
+}
+
+/** Spreadsheet formula-injection guard that also covers leading whitespace. */
+export function neutraliseReadinessCsvCell(value) {
+  if (typeof value !== "string") return value;
+  if (/^[\s\u0000-\u001f]*[=+\-@]/.test(value) || /^[\t\r\n]/.test(value)) {
+    return `'${value}`;
+  }
+  return value;
+}
+
+export const READINESS_EXPORT_EXTENTS = Object.freeze({
+  loaded: "LOADED_PAGES",
+  all: "ALL_MATCHING",
+  partial: "PARTIAL_ALL_MATCHING",
+});
+
+export const READINESS_CSV_COLUMNS = Object.freeze([
+  { key: "export_basis", label: "Export basis" },
+  { key: "export_extent", label: "Export extent" },
+  { key: "exported_rows", label: "Rows in export" },
+  { key: "matched_count", label: "Server matched count" },
+  { key: "population_scope", label: "Population scope" },
+  { key: "applied_filters", label: "Applied filters" },
+  { key: "search", label: "Search" },
+  { key: "period_start", label: "Period start" },
+  { key: "valuation_date", label: "Valuation date" },
+  { key: "observed_at", label: "Observed at (latest page)" },
+  { key: "context_type", label: "Context type" },
+  { key: "context_integrity_status", label: "Context integrity" },
+  { key: "sku_id", label: "SKU ID" },
+  { key: "product_id", label: "Product ID" },
+  { key: "product_name", label: "Product" },
+  { key: "pack", label: "Pack" },
+  { key: "product_status", label: "Product status" },
+  { key: "sku_is_active", label: "SKU active" },
+  { key: "sku_is_sample", label: "Sample" },
+  { key: "overall_severity", label: "Overall" },
+  { key: "product_master_foundation_status", label: "Product master" },
+  { key: "sku_master_foundation_status", label: "SKU master" },
+  { key: "costing_foundation_status", label: "Costing foundation" },
+  { key: "evidence_quality_status", label: "Evidence quality" },
+  { key: "costing_outcome_status", label: "Costing outcome" },
+  { key: "dependencies", label: "Dependencies (code:status)" },
+  { key: "first_control_status", label: "First control status" },
+  { key: "control_severity", label: "Control severity" },
+  { key: "recommended_ui_route", label: "Recommended route" },
+  { key: "control_note", label: "Control note" },
+  { key: "fix_destination", label: "Fix destination" },
+]);
+
+function csvBool(value) {
+  if (value === true) return "Yes";
+  if (value === false) return "No";
+  return "";
+}
+
+/** Flatten one readiness assessment into CSV values (raw server values only). */
+export function readinessAssessmentToCsvRow(assessment, meta = {}) {
+  const a = asObject(assessment) || {};
+  const ctx = asObject(a.context) || {};
+  const identity = asObject(a.identity) || {};
+  const lifecycle = asObject(a.lifecycle) || {};
+  const summary = asObject(a.summary) || {};
+  const downstream = asObject(a.downstream_control) || {};
+  const pack =
+    identity.pack_size != null
+      ? `${identity.pack_size}${identity.pack_uom ? ` ${identity.pack_uom}` : ""}`
+      : "";
+  const actions = buildReadinessRemediationActions(a);
+  const fix = actions
+    .map((x) => `${x.routeLabel}: ${x.navigable ? x.buttonLabel : "no destination"}`)
+    .join("; ");
+  return {
+    export_basis: READINESS_LIVE_AS_OF_CONTEXT_TYPE,
+    export_extent: meta.extent ?? "",
+    exported_rows: meta.exportedRows ?? "",
+    matched_count: meta.matchedCount ?? "",
+    population_scope: meta.populationScope ?? "",
+    applied_filters: meta.appliedFilters ?? "",
+    search: meta.search ?? "",
+    period_start: ctx.period_start ?? meta.periodStart ?? "",
+    valuation_date: ctx.valuation_date ?? "",
+    observed_at: meta.observedAt ?? "",
+    context_type: ctx.context_type ?? "",
+    context_integrity_status: ctx.context_integrity_status ?? "",
+    sku_id: ctx.sku_id ?? "",
+    product_id: ctx.product_id ?? "",
+    product_name: identity.product_name ?? "",
+    pack,
+    product_status: lifecycle.product_status ?? "",
+    sku_is_active: csvBool(lifecycle.sku_is_active),
+    sku_is_sample: csvBool(lifecycle.sku_is_sample),
+    overall_severity: summary.overall_severity ?? "",
+    product_master_foundation_status: summary.product_master_foundation_status ?? "",
+    sku_master_foundation_status: summary.sku_master_foundation_status ?? "",
+    costing_foundation_status: summary.costing_foundation_status ?? "",
+    evidence_quality_status: summary.evidence_quality_status ?? "",
+    costing_outcome_status: summary.costing_outcome_status ?? "",
+    dependencies: asArray(a.dependencies)
+      .map((d) => {
+        const o = asObject(d) || {};
+        return `${o.dependency_code ?? ""}:${o.effective_status ?? o.raw_status ?? ""}`;
+      })
+      .join("; "),
+    first_control_status: downstream.first_control_status ?? "",
+    control_severity: downstream.control_severity ?? "",
+    recommended_ui_route: downstream.recommended_ui_route ?? "",
+    control_note: downstream.control_note ?? "",
+    fix_destination: fix,
+  };
+}
+
+/** Build the CSV text. Every string cell passes the formula-injection guard. */
+export function buildReadinessCsv(assessments, meta = {}) {
+  const rows = asArray(assessments).map((assessment) => {
+    const flat = readinessAssessmentToCsvRow(assessment, meta);
+    const safe = {};
+    for (const [k, v] of Object.entries(flat)) safe[k] = neutraliseReadinessCsvCell(v);
+    return safe;
+  });
+  return buildCsv(READINESS_CSV_COLUMNS, rows);
+}
+
+export function buildReadinessCsvFilename({
+  periodStart,
+  populationScope,
+  extent,
+  rowCount,
+  now = new Date(),
+} = {}) {
+  const yyyymm = String(periodStart || "").slice(0, 7).replace("-", "");
+  const ts = now.toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
+  const extentTag =
+    extent === READINESS_EXPORT_EXTENTS.all
+      ? "ALL_MATCHING"
+      : extent === READINESS_EXPORT_EXTENTS.partial
+        ? "PARTIAL"
+        : "LOADED_PAGES";
+  return `ERP_COSTING_READINESS_LIVE_AS_OF_PERIOD_${yyyymm}_${normalizeCode(
+    populationScope,
+  ) || "SCOPE"}_${extentTag}_ROWS_${rowCount}_TS_${ts}.csv`;
+}
+
+function defaultDownloadCsv(csv, filename) {
+  if (typeof document === "undefined" || typeof Blob === "undefined") {
+    return false;
+  }
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  return true;
+}
+
 export function assessmentSkuId(assessment) {
   const ctx = asObject(assessment?.context);
   return toBigIntOrNull(ctx?.sku_id ?? assessment?.sku_id);
@@ -682,6 +1014,10 @@ export function createPortfolioReadinessController(deps = {}) {
     onFilterUiChange = null,
     onGovernedPeriodsLoaded = null,
     onPortfolioContextLoaded = null,
+    // WP05-P01: optional shell navigator (same signature as the shell's
+    // navigateToCostingRoute). When absent, same-page-family hrefs are used.
+    navigateToCostingRoute = null,
+    downloadCsv = defaultDownloadCsv,
   } = deps;
 
   const t = typeof shellText === "function" ? shellText : text;
@@ -693,8 +1029,10 @@ export function createPortfolioReadinessController(deps = {}) {
   let selectedSkuId = null;
   let membershipScrollGeneration = 0;
   let membershipScrollObservers = [];
+  let exportGeneration = 0;
 
   const state = {
+    exporting: false,
     periods: [],
     periodStart: null,
     periodsUnavailable: false,
@@ -794,6 +1132,7 @@ export function createPortfolioReadinessController(deps = {}) {
 
   function invalidatePendingRequests() {
     loadGeneration += 1;
+    exportGeneration += 1;
   }
 
   function isActiveLens() {
@@ -1534,6 +1873,7 @@ export function createPortfolioReadinessController(deps = {}) {
     const els = hostEls();
     if (!els.host || els.host.dataset.bound === "1") return;
     els.host.dataset.bound = "1";
+    ensureUsabilityPanels(els);
 
     on(els.scopeSelect, "change", () => {
       void applyControlChanges({ resetPaging: true });
@@ -1570,6 +1910,21 @@ export function createPortfolioReadinessController(deps = {}) {
       if (state.membershipModalOpen) {
         closeMembershipModal();
       }
+    });
+    on(els.host, "click", (ev) => {
+      const exportBtn = ev.target?.closest?.("[data-readiness-export]");
+      if (!exportBtn) return;
+      ev.preventDefault();
+      void exportCsv({
+        scope: exportBtn.dataset.readinessExport === "all" ? "all" : "loaded",
+      });
+    });
+    on(document, "click", (ev) => {
+      const fixBtn = ev.target?.closest?.("[data-readiness-fix]");
+      if (!fixBtn) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      runFixAction(Number(fixBtn.dataset.readinessFix));
     });
     on(els.tableBody, "click", (ev) => {
       const row = ev.target?.closest?.("tr[data-sku-id]");
@@ -1882,7 +2237,7 @@ export function createPortfolioReadinessController(deps = {}) {
     )}" tabindex="0" role="button" aria-label="Open readiness detail for SKU ${escapeHtml(
       skuId ?? "",
     )}">
-      <td>${rowIdentityHtml(assessment)}</td>
+      <td>${rowIdentityHtml(assessment)}${rowFixHintHtml(assessment)}</td>
       <td>${chip(severity)}</td>
       <td>${chip(summary.product_master_foundation_status)}</td>
       <td>${chip(summary.sku_master_foundation_status)}</td>
@@ -1901,7 +2256,7 @@ export function createPortfolioReadinessController(deps = {}) {
     )}" tabindex="0" role="button" aria-label="Open readiness detail for SKU ${escapeHtml(
       skuId ?? "",
     )}">
-      <div class="cp-readiness-card-top">${rowIdentityHtml(assessment)}${chip(
+      <div class="cp-readiness-card-top">${rowIdentityHtml(assessment)}${rowFixHintHtml(assessment)}${chip(
         severity,
       )}</div>
       <div class="cp-readiness-card-dims">
@@ -1986,6 +2341,310 @@ export function createPortfolioReadinessController(deps = {}) {
     }
     renderAppendStatus();
     renderRows();
+    renderLiveAsOf();
+    renderExportControls();
+  }
+
+  // ---- WP05-P01: LIVE_AS_OF clarity, remediation, CSV export ----------------
+
+  function ensureUsabilityPanels(els) {
+    const host = els.host;
+    const doc = typeof document !== "undefined" ? document : null;
+    if (!host || !doc) return;
+    if (!doc.getElementById("readinessLiveAsOf")) {
+      const banner = doc.createElement("div");
+      banner.id = "readinessLiveAsOf";
+      banner.className = "cp-readiness-live-asof cp-muted-text";
+      banner.setAttribute("role", "note");
+      banner.setAttribute("aria-label", "Readiness as-of context");
+      const anchor = els.statusHost?.nextSibling || null;
+      host.insertBefore(banner, anchor);
+    }
+    const toolbar = host.querySelector(".cp-readiness-register-card-toolbar");
+    if (toolbar && !doc.getElementById("readinessExportLoadedBtn")) {
+      const wrap = doc.createElement("span");
+      wrap.className = "cp-readiness-export";
+      wrap.innerHTML =
+        `<button type="button" id="readinessExportLoadedBtn" class="cp-readiness-membership-btn" data-readiness-export="loaded">Export CSV</button> ` +
+        `<button type="button" id="readinessExportAllBtn" class="cp-readiness-membership-btn" data-readiness-export="all" hidden>Export all matching</button>` +
+        `<span id="readinessExportNote" class="cp-muted-text" role="status" aria-live="polite"></span>`;
+      toolbar.appendChild(wrap);
+    }
+  }
+
+  function currentLiveAsOf() {
+    const ctx = asObject(state.portfolio?.context) || {};
+    const periodRow = state.periods.find((p) => p.period_start === state.periodStart);
+    return describeReadinessLiveAsOf({
+      periodStart: ctx.period_start || state.periodStart,
+      valuationDate: ctx.valuation_date || periodRow?.valuation_date || null,
+      observedAt: state.portfolio?.observed_at ?? null,
+      contextType: ctx.context_type ?? null,
+      integrityStatus: ctx.context_integrity_status ?? null,
+      populationScope: state.portfolio?.population_scope || state.populationScope,
+    });
+  }
+
+  function renderLiveAsOf() {
+    const doc = typeof document !== "undefined" ? document : null;
+    const el = doc?.getElementById("readinessLiveAsOf");
+    if (!el) return;
+    if (state.periodsUnavailable && !state.periodStart) {
+      el.innerHTML = "";
+      return;
+    }
+    const m = currentLiveAsOf();
+    const basis = m.basis
+      ? `<strong>${escapeHtml(m.basis === "LIVE_AS_OF" ? "Live as-of snapshot" : `Context ${m.basis}`)}</strong>`
+      : `<strong>Live as-of snapshot</strong>`;
+    const bits = [
+      `Governed period <strong>${text(m.periodStart)}</strong>`,
+      `Valuation date <strong>${text(m.valuationDate)}</strong>`,
+      `Observed at <strong>${text(m.observedAt)}</strong>`,
+      `Population <strong>${text(m.populationScope ? formatLabel(m.populationScope) : null)}</strong>`,
+    ];
+    if (m.integrityStatus) {
+      bits.push(`Integrity <strong>${text(formatLabel(m.integrityStatus))}</strong>`);
+    }
+    el.innerHTML = `<div>${basis} · ${bits.join(" · ")}</div>${
+      m.explanation
+        ? `<div>${escapeHtml(m.explanation)}</div>`
+        : `<div>The server reported context type ${text(m.basis)}; values are shown as returned.</div>`
+    }`;
+  }
+
+  function exportFilterSummary() {
+    const parts = [];
+    const add = (label, codes) => {
+      if (codes.length) parts.push(`${label}=${codes.join("|")}`);
+    };
+    add("severity", state.overallSeverities);
+    add("dependency", state.dependencyCodes);
+    add("owner", state.ownerModules);
+    add("route", state.routeCodes);
+    return parts.join("; ");
+  }
+
+  function renderExportControls() {
+    const doc = typeof document !== "undefined" ? document : null;
+    const loadedBtn = doc?.getElementById("readinessExportLoadedBtn");
+    const allBtn = doc?.getElementById("readinessExportAllBtn");
+    const note = doc?.getElementById("readinessExportNote");
+    if (!loadedBtn || !allBtn) return;
+    const p = state.portfolio;
+    const loaded = state.registerRows.length;
+    const matched = Number(p?.matched_count) || 0;
+    const usable =
+      !!p && !state.portfolioUnavailable && !state.periodsUnavailable && loaded > 0;
+    const more = usable && p.has_more === true;
+    loadedBtn.textContent = !usable
+      ? "Export CSV"
+      : more
+        ? `Export loaded rows (${loaded} of ${matched})`
+        : `Export CSV (${loaded} row${loaded === 1 ? "" : "s"})`;
+    loadedBtn.disabled = !usable || state.exporting || state.loadingPortfolio;
+    allBtn.hidden = !more;
+    if (more) allBtn.removeAttribute("hidden");
+    else allBtn.setAttribute("hidden", "");
+    allBtn.textContent = `Export all matching (${matched})`;
+    allBtn.disabled = !more || state.exporting || state.loadingPortfolio;
+    if (note) {
+      note.textContent = state.exporting
+        ? " Preparing export…"
+        : more
+          ? " Loaded rows only covers pages already loaded; use Export all matching for the full filtered set."
+          : "";
+    }
+  }
+
+  async function collectAllMatchingRows(gen) {
+    const periodStart = state.periodStart;
+    const rows = [];
+    const seen = new Set();
+    let after = null;
+    let observedAt = null;
+    let matched = null;
+    let complete = false;
+    let pages = 0;
+    while (pages < READINESS_EXPORT_MAX_PAGES) {
+      const req = buildPortfolioRequest({
+        periodStart,
+        populationScope: state.populationScope,
+        overallSeverities: state.overallSeverities,
+        dependencyCodes: state.dependencyCodes,
+        ownerModules: state.ownerModules,
+        routeCodes: state.routeCodes,
+        search: state.search,
+        afterSkuId: after,
+        limit: READINESS_EXPORT_PAGE_LIMIT,
+      });
+      const data = await rpcCall(req.rpc, emptyFilterArraysToNull(req.args));
+      if (gen !== exportGeneration || disposed) return { cancelled: true };
+      const validated = validatePortfolioEnvelope(data);
+      if (!validated.ok) throw new Error(validated.error);
+      const page = validated.value;
+      if (page.context.period_start !== periodStart) {
+        throw new Error("Export page returned a different governed period.");
+      }
+      pages += 1;
+      observedAt = page.observed_at;
+      matched = page.matched_count;
+      for (const row of asArray(page.rows)) {
+        const id = assessmentSkuIdFromRow(row);
+        if (id != null) {
+          if (seen.has(id)) continue;
+          seen.add(id);
+        }
+        rows.push(row);
+      }
+      if (!page.has_more) {
+        complete = true;
+        break;
+      }
+      after = page.next_after_sku_id;
+    }
+    return { rows, observedAt, matched, complete, pages };
+  }
+
+  /**
+   * Export readiness as CSV through the existing portfolio contract.
+   * scope "loaded": exactly the rows already loaded in the register.
+   * scope "all": walks the same RPC with the same period/filters/search.
+   */
+  async function exportCsv({ scope = "loaded" } = {}) {
+    if (state.exporting) return { ok: false, busy: true };
+    try {
+      if (canView() !== true) {
+        throw Object.assign(new Error("Permission denied"), { status: 403 });
+      }
+      if (!state.portfolio || state.portfolioUnavailable || !state.periodStart) {
+        showToast?.("Readiness is not available to export.", "error");
+        return { ok: false };
+      }
+      state.exporting = true;
+      const gen = ++exportGeneration;
+      renderExportControls();
+      let rows;
+      let extent;
+      let observedAt = state.portfolio.observed_at;
+      let matched = state.portfolio.matched_count;
+      if (scope === "all") {
+        const res = await collectAllMatchingRows(gen);
+        if (res.cancelled) {
+          showToast?.("Export cancelled because the view changed.", "info");
+          return { ok: false, cancelled: true };
+        }
+        rows = res.rows;
+        observedAt = res.observedAt;
+        matched = res.matched;
+        extent = res.complete
+          ? READINESS_EXPORT_EXTENTS.all
+          : READINESS_EXPORT_EXTENTS.partial;
+      } else {
+        rows = state.registerRows.slice();
+        extent = READINESS_EXPORT_EXTENTS.loaded;
+      }
+      if (!rows.length) {
+        showToast?.("No rows to export", "info");
+        return { ok: false, empty: true };
+      }
+      const meta = {
+        extent,
+        exportedRows: rows.length,
+        matchedCount: matched,
+        populationScope: state.portfolio.population_scope || state.populationScope,
+        appliedFilters: exportFilterSummary(),
+        search: state.search,
+        periodStart: state.periodStart,
+        observedAt,
+      };
+      const csv = buildReadinessCsv(rows, meta);
+      const filename = buildReadinessCsvFilename({
+        periodStart: state.periodStart,
+        populationScope: meta.populationScope,
+        extent,
+        rowCount: rows.length,
+      });
+      downloadCsv(csv, filename);
+      const label =
+        extent === READINESS_EXPORT_EXTENTS.loaded
+          ? `Exported ${rows.length} loaded row${rows.length === 1 ? "" : "s"}${
+              state.portfolio.has_more ? ` of ${matched} matched (not the full set)` : ""
+            }`
+          : extent === READINESS_EXPORT_EXTENTS.all
+            ? `Exported all ${rows.length} matching rows`
+            : `Partial export: ${rows.length} of ${matched} matching rows (page limit reached)`;
+      showToast?.(label, extent === READINESS_EXPORT_EXTENTS.partial ? "info" : "success");
+      return { ok: true, extent, rowCount: rows.length, filename, csv };
+    } catch (err) {
+      const msg = isPermissionError(err)
+        ? "Export unavailable — permission denied for portfolio readiness."
+        : `Export failed — ${err?.message || "could not read readiness."}`;
+      showToast?.(msg, "error");
+      return { ok: false, error: msg };
+    } finally {
+      state.exporting = false;
+      renderExportControls();
+    }
+  }
+
+  function currentFixActions() {
+    return state.selectedAssessment
+      ? buildReadinessRemediationActions(state.selectedAssessment)
+      : [];
+  }
+
+  function rowFixHintHtml(assessment) {
+    const nav = buildReadinessRemediationActions(assessment).filter((x) => x.navigable);
+    if (!nav.length) return "";
+    const names = Array.from(new Set(nav.map((x) => x.routeLabel)));
+    return `<div class="cp-muted-text">Fix available: ${escapeHtml(names.join(", "))}</div>`;
+  }
+
+  function renderFixActionsHtml(assessment) {
+    const actions = buildReadinessRemediationActions(assessment);
+    if (!actions.length) return "";
+    const items = actions
+      .map((x, idx) => {
+        const status = x.status ? ` ${chip(x.status)}` : "";
+        const control = x.navigable
+          ? `<button type="button" class="cp-prm-link-btn" data-readiness-fix="${idx}">${escapeHtml(
+              x.buttonLabel,
+            )}</button> <span class="cp-muted-text">opens in a new tab</span>`
+          : `<span class="cp-muted-text">${escapeHtml(x.routeLabel)} — ${escapeHtml(
+              x.unavailableReason,
+            )}</span>`;
+        return `<li class="cp-readiness-fix-item"><strong>${escapeHtml(
+          formatLabel(x.title),
+        )}</strong>${status}<div>${control}</div></li>`;
+      })
+      .join("");
+    return section(
+      "How to fix",
+      `<ul class="cp-readiness-fix-list">${items}</ul>`,
+      { className: "cp-readiness-detail-fix" },
+    );
+  }
+
+  function runFixAction(index) {
+    const action = currentFixActions()[index];
+    if (!action || !action.navigable) {
+      showToast?.(NO_DESTINATION_TEXT, "info");
+      return { ok: false };
+    }
+    if (typeof navigateToCostingRoute === "function") {
+      navigateToCostingRoute(action.moduleKey, action.navigateParams, {
+        newTab: true,
+      });
+      return { ok: true, via: "shell" };
+    }
+    const href = buildReadinessRouteHref(action);
+    if (href && typeof window !== "undefined" && typeof window.open === "function") {
+      window.open(href, "_blank", "noopener,noreferrer");
+      return { ok: true, via: "href", href };
+    }
+    showToast?.(NO_DESTINATION_TEXT, "info");
+    return { ok: false };
   }
 
   function kv(label, valueHtml) {
@@ -2142,6 +2801,7 @@ export function createPortfolioReadinessController(deps = {}) {
 
     return `
       ${firstTier}
+      ${renderFixActionsHtml(a)}
       ${section("Context", `<div class="cp-readiness-detail-grid">${contextGrid}</div>`, {
         className: "cp-readiness-detail-context",
       })}
@@ -2239,6 +2899,11 @@ export function createPortfolioReadinessController(deps = {}) {
     getSelectedAssessment: () => state.selectedAssessment,
     getDrawerConfig,
     renderDrawerTab,
+    exportCsv,
+    getRemediationActions: (assessment) =>
+      buildReadinessRemediationActions(assessment || state.selectedAssessment),
+    runFixAction,
+    getLiveAsOf: currentLiveAsOf,
     // Exported for smoke / contract checks only — not business calculators.
     __test: {
       getState: () => ({ ...state, selectedSkuId }),
