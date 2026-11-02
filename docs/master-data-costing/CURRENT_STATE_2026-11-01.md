@@ -1,3 +1,5 @@
+> **SUPERSEDED FOR REPOSITORY MERGE STATUS — 2 Nov 2026:** This remains the 1 Nov evidence snapshot, not the current code baseline. PRs #126, #127 and #128 subsequently merged in sequence; current GitHub `main` verified as `3d0b6185f4351469cf23969beefac0e8875e0c2e` with designated cache v390. Do not use the `7bccaba`/v387/next-v388 labels below as current. Final 393-suite check on new `main`, actual deployment and server run state are separate outstanding verifications. No change to database facts is asserted by this banner.
+
 # Costing suite and master-data costing: current state (1 Nov 2026)
 
 **This is the single "where are we now" page as of 1 Nov 2026 (IST).** It supersedes [CURRENT_STATE_2026-10-31.md](CURRENT_STATE_2026-10-31.md). Remaining work: [REMAINING_WORK_2026-11-01.md](REMAINING_WORK_2026-11-01.md). How client coding is now done: [CLAUDE_CLOUD_WORKFLOW.md](CLAUDE_CLOUD_WORKFLOW.md).
