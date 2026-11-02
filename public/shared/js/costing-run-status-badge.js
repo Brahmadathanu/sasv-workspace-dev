@@ -78,6 +78,26 @@ export function applyRunStatusBadge(el, info, visible) {
 }
 
 /**
+ * CW-13: structured, server-derived run facts on the badge element (data-* only, no visible change). The mobile
+ * header button/popover reads these instead of parsing text, so run ids and valuation dates always come from the
+ * same governed row that produced the badge label. Keys are removed when the row does not carry the value.
+ */
+export function applyRunStatusDataset(el, row) {
+  const ds = el?.dataset;
+  if (!ds) return;
+  const set = (key, value) => {
+    if (value === null || value === undefined || value === "") delete ds[key];
+    else ds[key] = String(value);
+  };
+  set("displayState", row?.display_state);
+  set("runDisplayed", row?.displayed_run_id);
+  set("runApproved", row?.approved_run_id);
+  set("runDraft", row?.newer_draft_run_id ?? row?.latest_draft_run_id);
+  set("valuationApproved", row?.approved_run_valuation_date ?? row?.official_valuation_date);
+  set("valuationDraft", row?.latest_draft_valuation_date);
+}
+
+/**
  * UX-F1 (COSTING_REVIEW_WORKLIST_V1 ON only): compact header chip, e.g.
  * "Approved 143" + "Draft 148". The full explanation stays in title and
  * aria-label, exactly as computed for the long badge.
@@ -131,12 +151,14 @@ export function createRunStatusBadge({ supabase, anchor, doc = globalThis.docume
     if (!node) return;
     const my = ++generation;
     if (!periodStart || !RUN_SCOPED_LENSES.has(lensId)) {
+      applyRunStatusDataset(node, null);
       applyRunStatusBadge(node, null, false);
       return;
     }
     try {
       const row = periodStatusRow === undefined ? await fetchRow(periodStart) : periodStatusRow;
       if (my !== generation) return;
+      applyRunStatusDataset(node, row);
       const approvalOn = isCostingApprovalScreenV1Enabled();
       const info = approvalOn
         ? describeRunStatusForApprovalFlag(row)
@@ -151,6 +173,7 @@ export function createRunStatusBadge({ supabase, anchor, doc = globalThis.docume
       applyRunStatusBadge(node, info, true);
     } catch (err) {
       if (my !== generation) return;
+      applyRunStatusDataset(node, null);
       console.warn("Run status unavailable", err);
       applyRunStatusBadge(node, { text: "Run status unavailable", tone: "empty", title: "Could not read the run status." }, true);
     }
