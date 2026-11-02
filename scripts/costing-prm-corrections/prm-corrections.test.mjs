@@ -7,8 +7,6 @@ import { fileURLToPath } from "node:url";
 import {
   COSTING_PRM_CORRECTIONS_V1,
   isCostingPrmCorrectionsV1Enabled,
-} from "../../public/shared/js/costing-feature-flags.js";
-import {
   PRM_FIXED_HISTORICAL_CONTEXTS,
   createSupersedeSelectionValidator,
   formatFixedHistoricalContextLabel,
@@ -198,7 +196,6 @@ test("source: supersede selector reuses editor.supersedeProduct with only new_pr
 test("source: scope guard - no schema, migration, cache-version or e-Aushadhi file is part of this package's code", () => {
   const files = [
     "public/shared/js/costing-suite-production-route-corrections.js",
-    "public/shared/js/costing-feature-flags.js",
   ];
   for (const f of files) assert.doesNotMatch(read(f), /CACHE_VERSION|cacheVersion|migrations|eaushadhi/i, f);
 });

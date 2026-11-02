@@ -241,12 +241,10 @@ import {
   normalizeProductRouteHistory,
   resolveRouteFamilyRouteStateFromHistory,
 } from "./costing-suite-production-route-rpc.js";
-import {
-  isCostingDialogsV1Enabled,
-  isCostingPrmCorrectionsV1Enabled,
-} from "./costing-feature-flags.js";
+import { isCostingDialogsV1Enabled } from "./costing-feature-flags.js";
 import {
   FIXED_HISTORICAL_CONTEXT_NOTE,
+  isCostingPrmCorrectionsV1Enabled,
   SUPERSEDE_NO_REPLACEMENT_NOTE,
   createSupersedeSelectionValidator,
   formatSupersedeOptionLabel,

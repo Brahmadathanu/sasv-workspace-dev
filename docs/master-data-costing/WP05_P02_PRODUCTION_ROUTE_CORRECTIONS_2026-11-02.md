@@ -16,7 +16,7 @@ Client-only. Draft PR; not merged. Baseline `main` `3d0b6185f4351469cf23969beefa
 Live `rpc_supersede_product_route` (migration `20260812173816`) requires both routes to be `status = 'APPROVED'`, `archived_at is null` and of the same Product, then sets the old route's `effective_to` from the new route's `effective_from`. The selector mirrors exactly that using `rpc_get_product_route_history`, which returns the full table rows (`status`, `archived_at`, `product_id`). The direction (which of two approved routes is "old") is the loaded route; the client does not judge dates. The server stays the authority.
 
 ## Files
-`costing-suite-production-route.js`, `-route-editor.js`, `costing-dialogs-route-input.js`, `costing-feature-flags.js`, new `costing-suite-production-route-corrections.js` (pure logic); tests under `scripts/costing-prm-corrections/` and two count assertions in `scripts/costing-dialogs/route-input-dialogs.test.mjs` (call sites 2→3, `notify` 2→3). No HTML/CSS change was needed.
+`costing-suite-production-route.js`, `-route-editor.js`, `costing-dialogs-route-input.js`, new `costing-suite-production-route-corrections.js` (pure logic; it also defines the flag, so the shared `costing-feature-flags.js` stays byte-identical because other packages' tests guard it); tests under `scripts/costing-prm-corrections/` and two count assertions in `scripts/costing-dialogs/route-input-dialogs.test.mjs` (call sites 2→3, `notify` 2→3). No HTML/CSS change was needed.
 
 ## Remaining limitations
 * Which approved route is "old" vs "new" is not validated by date client-side (by design); the server rejects unsuitable pairs.

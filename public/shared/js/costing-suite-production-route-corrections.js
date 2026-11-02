@@ -18,6 +18,18 @@ import {
   resolvePrmProductHistoryRouteId,
 } from "./costing-suite-production-route-helpers.js";
 
+// Feature flag (default OFF; only the string "1" in this browser's localStorage turns it on). Defined here, not in
+// costing-feature-flags.js, so that shared flag file (guarded byte-for-byte by other packages' tests) stays untouched.
+export const COSTING_PRM_CORRECTIONS_V1 = "COSTING_PRM_CORRECTIONS_V1";
+
+export function isCostingPrmCorrectionsV1Enabled(storage = globalThis.localStorage) {
+  try {
+    return storage?.getItem?.(COSTING_PRM_CORRECTIONS_V1) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export const SUPERSEDE_NO_REPLACEMENT_NOTE =
   "Supersede is unavailable: this Product has no other approved route version to replace this one.";
 export const SUPERSEDE_HISTORY_ERROR_NOTE =
