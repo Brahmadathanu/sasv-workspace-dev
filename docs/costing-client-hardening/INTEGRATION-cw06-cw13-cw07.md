@@ -32,6 +32,6 @@ Independent of the sequence: the Home-page label needs the separate governed `ap
 
 ## Owner acceptance commands (Windows CMD, repo root)
 ```
-node --test scripts\costing-approval scripts\costing-ccc-uxf1 scripts\costing-cost-sheet scripts\costing-dialogs scripts\costing-recalculation scripts\costing-responsive scripts\costing-review-worklist scripts\costing-run-status scripts\costing-run-status-screen scripts\costing-scope-guard scripts\costing-table-tools scripts\costing-ux-consistency scripts\lib
+node --test "scripts/costing-*/*.test.mjs" "scripts/lib/*.test.mjs"
 ```
-(Node treats directory arguments as modules on some versions; if so, pass the `*.test.mjs` files explicitly.) Browser tests need Playwright (chromium) and skip cleanly without it; `COSTING_RESPONSIVE_SKIP=1` and `COSTING_DIALOGS_BROWSER_SKIP=1` skip them explicitly.
+(Node 21+ expands the quoted glob itself, which includes the owner's Node 24. On older Node pass the files explicitly: directory arguments are treated as modules.)Browser tests need Playwright (chromium) and skip cleanly without it; `COSTING_RESPONSIVE_SKIP=1` and `COSTING_DIALOGS_BROWSER_SKIP=1` skip them explicitly.
