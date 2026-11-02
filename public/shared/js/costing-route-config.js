@@ -70,7 +70,7 @@ export const COSTING_ROUTE_CONFIG = {
     permissionTarget: "module:cost-sheet-review",
     suiteId: "cost-sheet-review",
     defaultLens: "sku-cost-sheet",
-    title: "Cost Sheet Review & Approval",
+    title: "Cost Sheet Review",
     subtitle:
       "SKU cost details, printable cost sheets, snapshot comparison, scheme viability, QC and Materials / Stores action queues",
     routePath: "public/shared/cost-sheet-review.html",

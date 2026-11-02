@@ -1707,7 +1707,7 @@ function redirectRelocatedSchemeComparisonFromPpmIfNeeded() {
   });
   if (!started) {
     showToast(
-      "Scheme Comparison is now available under Cost Sheet Review & Approval.",
+      "Scheme Comparison is now available under Cost Sheet Review.",
       "warning",
       5200,
     );

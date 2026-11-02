@@ -4617,7 +4617,7 @@ export function createCostSheetController(deps) {
       drill_route_lens_id: "rm-cost-trace",
       source_module_key: "cost-sheet-review",
       source_lens_id: sourceLensId,
-      source_module_label: "Cost Sheet Review & Approval",
+      source_module_label: "Cost Sheet Review",
       drill_filter_json: {
         trace_component: "RM",
         material_area: "RM",
