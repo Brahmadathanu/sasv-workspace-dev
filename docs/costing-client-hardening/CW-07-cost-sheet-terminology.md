@@ -1,5 +1,7 @@
 # CW-07 — Cost Sheet terminology correction
 
+> **Owner status (2 Nov): client terminology accepted (PR #128 head `4f27cd06`, no further client change required).** The Home-page label is sourced from the live `public.app_modules` row for `cost-sheet-review` (label and description still say "Cost Sheet Review & Approval" / "approval support"); correcting it is a separate, owner-authorised server metadata change and is **not** part of any of these PRs. The earlier statement in this note that no hub string exists on the client stands: the Home label comes from the database registry view, not from client code.
+
 Branch `feat/costing-cw07-cost-sheet-terminology`, baseline main `28cfadb20de3e2f3daf0aadada096f541254819d`. Draft; not merged.
 
 ## Finding

@@ -1,5 +1,7 @@
 # CW-06 — Production Route Manager in-page dialogs
 
+> **Owner status (2 Nov): mock-browser acceptance evidence accepted; PR #126 head `151cb615`.** Production Route navigation defects found while building that evidence are **explicitly deferred** (not fixed here, not blocking): (1) Historical Candidate Review hides its scope controls (`renderCandidates()` never adds `is-visible`); (2) its "Create Manufacturing Route Family" action cannot reach the server (`p_family_code is required`). Both exist on `main` with the flag on or off; a separate task card was queued. `COSTING_DIALOGS_V1` stays default OFF.
+
 Branch `feat/costing-cw06-route-dialogs`, baseline main `28cfadb20de3e2f3daf0aadada096f541254819d`. Draft; not merged.
 
 ## Audit of native prompt / confirm / alert (Costing client, `public/shared/js/costing-*.js`)

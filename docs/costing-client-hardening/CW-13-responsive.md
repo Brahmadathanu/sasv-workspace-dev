@@ -1,5 +1,7 @@
 # CW-13 — Responsive hardening of the six Costing suites
 
+> **Owner status (2 Nov): PR #127 head `bc60bf78` accepted in the browser, no further observations.** Includes the Home-button fix and the compact mobile header (status icon popover, freshness chip retired).
+
 Branch `feat/costing-cw13-responsive`, baseline main `28cfadb20de3e2f3daf0aadada096f541254819d`. Draft; not merged.
 
 ## Method (reproducible, no network, no Supabase)
