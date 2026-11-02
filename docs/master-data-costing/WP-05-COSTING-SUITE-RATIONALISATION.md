@@ -30,7 +30,7 @@ G2 correction pass applied: first wave = presentation-only grouping (grouping �
 Confirmed PRM defects: C1 (Supersede needs loaded record), C2 (candidate scope controls hidden), C3 (candidate family create omits `p_family_code`).
 
 ## Approved design / contract
-Not yet approved.
+**Owner decision, 2 Nov 2026 — WP05-G2 Tier 1 DESIGN ACCEPTED.** Accept the evidence-backed task-oriented grouped navigation as design baseline, not implementation approval. Preserve six modules, 32 lens IDs, 10 Pricing Policy workspaces, deep links, distinct live-vs-run truth models, authorisation boundaries, RPC payloads, default-OFF flags, history, and existing controllers. Tier 2 controller/screen consolidation remains separately gated and NOT approved. D3: keep CCC/MCM review authority separate for now; D4: Commercial Sales Assumptions stays in PPM; D5 historical run selection requires a separate server contract; D7 maker-checker is deferred governance; D10 Utilities Hub label is a separate server-authorised update. P01 and P02 may be briefed independently, but no implementation, merge, deployment or server write is authorised by this decision alone.
 
 ## Milestones
 - [x] Current-state/audit gate (static; A1–A7)
