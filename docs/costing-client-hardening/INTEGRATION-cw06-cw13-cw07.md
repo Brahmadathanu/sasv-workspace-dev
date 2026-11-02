@@ -34,4 +34,4 @@ Independent of the sequence: the Home-page label needs the separate governed `ap
 ```
 node --test "scripts/costing-*/*.test.mjs" "scripts/lib/*.test.mjs"
 ```
-(Node 21+ expands the quoted glob itself, which includes the owner's Node 24. On older Node pass the files explicitly: directory arguments are treated as modules.)Browser tests need Playwright (chromium) and skip cleanly without it; `COSTING_RESPONSIVE_SKIP=1` and `COSTING_DIALOGS_BROWSER_SKIP=1` skip them explicitly.
+(Node 21+ expands the quoted glob itself, which includes the owner's Node 24. On older Node pass the files explicitly: directory arguments are treated as modules.) Browser tests need Playwright (chromium) and skip cleanly without it; `COSTING_RESPONSIVE_SKIP=1` and `COSTING_DIALOGS_BROWSER_SKIP=1` skip them explicitly.
