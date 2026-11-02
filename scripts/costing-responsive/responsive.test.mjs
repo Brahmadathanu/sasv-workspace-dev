@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { COSTING_ROUTE_CONFIG } from "../../public/shared/js/costing-route-config.js";
 import { LONG_RUN_STATUS_TEXT, PAGES, WIDTHS, audit, launchAudit, measureHtml, openAuditPage } from "./responsive-audit.mjs";
 import { describeRunStatusPopover, installRunStatusPopover } from "../../public/shared/js/costing-run-status-popover.js";
+import { applyCw07Labels } from "../lib/costing-scope-guard.mjs";
 import { applyRunStatusDataset } from "../../public/shared/js/costing-run-status-badge.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -66,7 +67,10 @@ test("freshness indicator retired by CSS only: element kept as an inert anchor; 
   assert.match(block, /body\.sasv-costing #lastRefreshed \{\s*display: none;/);
   for (const [, rel] of PAGES) assert.match(read(`public/${rel}`), /id="lastRefreshed"/, `${rel} keeps the anchor element`);
   const shell = read("public/shared/js/costing-suite-shell.js");
-  assert.equal(shell, execFileSync("git", ["show", "28cfadb20de3e2f3daf0aadada096f541254819d:public/shared/js/costing-suite-shell.js"], { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).replace(/\r\n/g, "\n"), "shell unchanged (no null-safety risk introduced)");
+  // CW-07 (cost-sheet terminology) renames one toast label in the shell; its helper is applied to the base text so the
+  // shell may differ from the baseline by exactly that rename and nothing else.
+  const baseShell = execFileSync("git", ["show", "28cfadb20de3e2f3daf0aadada096f541254819d:public/shared/js/costing-suite-shell.js"], { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).replace(/\r\n/g, "\n");
+  assert.equal(shell, applyCw07Labels(baseShell), "shell unchanged apart from the CW-07 label rename (no null-safety risk introduced)");
   assert.match(shell, /const runStatusBadge = createRunStatusBadge\(\{ supabase, anchor: lastRefreshed \}\);/, "badge still anchors on the (hidden) element");
   assert.match(shell, /setVisible\(lastRefreshed, true\);/);
   assert.match(shell, /id="refreshBtn"|const refreshBtn = \$\("refreshBtn"\)/);
