@@ -118,14 +118,48 @@ export function supabaseCostingViolations({ git, root, base }) {
   return out;
 }
 
+// CW-07 (Cost Sheet terminology): the Cost Sheet screen has no approval action, so its user-facing name changed
+// from "Cost Sheet Review & Approval" to "Cost Sheet Review". These are the ONLY text differences the historical
+// "Costing files unchanged" package tests tolerate for that rename: they apply the rename to the base text before
+// comparing, so any other change to those files is still detected. Identifiers (module key, permission target,
+// route path, lens ids) are intentionally absent: they must never change.
+export const CW07_LABEL_CHANGES = Object.freeze([
+  ["<title>Cost Sheet Review &amp; Approval</title>", "<title>Cost Sheet Review</title>"],
+  ['<h1 class="sasv-module-title">Cost Sheet Review &amp; Approval</h1>', '<h1 class="sasv-module-title">Cost Sheet Review</h1>'],
+  ["SKU cost details, printable cost sheets, monthly comparison, and\n            approval support", "SKU cost details, printable cost sheets, snapshot comparison, scheme\n            viability, QC and Materials / Stores action queues"],
+  ['title: "Cost Sheet Review & Approval",', 'title: "Cost Sheet Review",'],
+  ['label: "Cost Sheet Review & Approval",', 'label: "Cost Sheet Review",'],
+  ['source_module_label: "Cost Sheet Review & Approval",', 'source_module_label: "Cost Sheet Review",'],
+  ['"Scheme Comparison is now available under Cost Sheet Review & Approval.",', '"Scheme Comparison is now available under Cost Sheet Review.",'],
+]);
+
+/** Base text with the CW-07 label rename applied (LF-normalised). Files without those strings are unchanged. */
+export function applyCw07Labels(text) {
+  let out = String(text ?? "").replace(/\r\n/g, "\n");
+  for (const [from, to] of CW07_LABEL_CHANGES) out = out.split(from).join(to);
+  return out;
+}
+
+/** True when `rel` differs from `base` only by the CW-07 label rename. */
+export function isCw07LabelOnlyChange({ git, root, base, rel }) {
+  const { readHead, readBase } = makeReaders({ git, root, base });
+  const head = readHead(rel);
+  const before = readBase(rel);
+  if (head === null || before === null) return false;
+  return head.replace(/\r\n/g, "\n") === applyCw07Labels(before);
+}
+
+const withoutCw07LabelOnly = (paths, ctx) => paths.filter((rel) => !isCw07LabelOnlyChange({ ...ctx, rel }));
+
 /** One-call summary used by the package tests. */
 export function costingScopeReport({ git, root, base }) {
   const htmlScope = costingHtmlScope({ git, base });
   const cssScope = costingCssScope({ git, root, base });
+  const ctx = { git, root, base };
   return {
     htmlScope,
     cssScope,
-    html: changedInScope({ git, base, scope: htmlScope }),
+    html: withoutCw07LabelOnly(changedInScope({ git, base, scope: htmlScope }), ctx),
     css: changedInScope({ git, base, scope: cssScope }),
     supabase: supabaseCostingViolations({ git, root, base }),
     packageJson: changedInScope({ git, base, scope: ["package.json"] }),

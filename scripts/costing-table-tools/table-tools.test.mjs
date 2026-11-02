@@ -5,6 +5,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
+import { applyCw07Labels } from "../lib/costing-scope-guard.mjs";
 import * as flags from "../../public/shared/js/costing-feature-flags.js";
 import * as tools from "../../public/shared/js/costing-table-tools.js";
 import {
@@ -28,11 +29,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const read = (rel) => readSourceLf(root, rel); // LF-normalised: see scripts/lib/read-source-lf.mjs
 const BASE = "1c505ed6c1ff90505b904048602c004e39f5fbae";
 const readBase = (rel) =>
-  execFileSync("git", ["show", `${BASE}:${rel}`], {
-    cwd: root,
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-  });
+  applyCw07Labels( // CW-07: label rename tolerated, nothing else
+    execFileSync("git", ["show", `${BASE}:${rel}`], {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    }),
+  );
 const SHELL = "public/shared/js/costing-suite-shell.js";
 const TOOLS = "public/shared/js/costing-table-tools.js";
 

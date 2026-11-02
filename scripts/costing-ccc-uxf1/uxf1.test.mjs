@@ -9,7 +9,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { costingScopeReport } from "../lib/costing-scope-guard.mjs";
+import { costingScopeReport, applyCw07Labels } from "../lib/costing-scope-guard.mjs";
 import * as ccc from "../../public/shared/js/costing-ccc-run-context.js";
 import * as worklist from "../../public/shared/js/costing-review-worklist.js";
 import { applyCompactRunStatusBadge, createRunStatusBadge, describeRunStatus } from "../../public/shared/js/costing-run-status-badge.js";
@@ -30,7 +30,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const read = (rel) => readSourceLf(root, rel); // LF-normalised: see scripts/lib/read-source-lf.mjs
 const BASE = "9c189d60967c2efd3b99f4703416eb22123d96e2";
 const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-const readBase = (rel) => git("show", `${BASE}:${rel}`);
+const readBase = (rel) => applyCw07Labels(git("show", `${BASE}:${rel}`)); // CW-07: label rename tolerated, nothing else
 const SHELL = "public/shared/js/costing-suite-shell.js";
 const OCT = "2026-10-01";
 const SEP = "2026-09-01";
@@ -517,7 +517,8 @@ test("scope: no supabase/, migration, controller, protected-screen, HTML or cach
     "costing-run-status-screen.js", "costing-recalculation.js", "costing-status-labels.js", "costing-feature-flags.js",
     "costing-table-tools.js", "costing-suite-readiness.js", "costing-suite-pricing-policy.js", "costing-suite-cost-build.js", "costing-suite-material-cost.js",
   ].map((f) => `public/shared/js/${f}`);
-  assert.equal(git("diff", BASE, "--", ...unchanged), "");
+  // CW-07: costing-route-config.js may differ from the base only by the Cost Sheet label rename (applied to the base text).
+  for (const rel of unchanged) assert.equal(read(rel), readBase(rel), rel);
   // This package changes only the service-worker cache line from v389 to v390.
   const swChanged = git("diff", "-U0", BASE, "--", "public/sw.js").split("\n").filter((l) => /^[+-][^+-]/.test(l));
   // BASE is the historical v388 UX-F1 base, so the diff is -v388 / +v390 (WP-07's v389 sits in between).
