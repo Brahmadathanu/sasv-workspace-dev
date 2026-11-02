@@ -37,7 +37,7 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 - [x] WP02 — Product + SKU Lifecycle Redesign — COMPLETED, VERIFIED, AND MERGED
 - [x] WP03 — Creation-Time Guided Completeness — COMPLETED, VERIFIED, AND MERGED
 - [x] WP04 — Central Master Data / Costing Readiness Control Centre — COMPLETED, VERIFIED, MERGED, AND CLOSED
-- [ ] WP05 — Costing Suite Functional Rationalisation Audit
+- [~] WP05 — Costing Suite Functional Rationalisation Audit — audit evidence complete 2 Nov 2026 (draft PR), design review pending; see WP-05 document
 - [ ] WP06 — Pricing Policy Manager Simplification
 - [ ] MDC-07 (was WP07) — Costing Suite Navigation and Information Architecture
 - [ ] WP08 — Product / Master Data Navigation Rationalisation
@@ -53,7 +53,7 @@ WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11
 IN PROGRESS: closing. Current remaining items: REMAINING_WORK_2026-10-31.md (31 Oct 2026). Earlier list and dispositions: MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md (25 Oct 2026)
 
 ## Active work pack
-None. WP04 — Central Master Data / Costing Readiness Control Centre is completed, verified, merged, and closed. WP05 has not started.
+None. WP04 — Central Master Data / Costing Readiness Control Centre is completed, verified, merged, and closed. WP05 audit evidence was completed on 2 Nov 2026 (WP05_A1–A7, draft PR); design review pending, no implementation approved.
 
 ## Active gate
 None. WP04-G8 is completed and post-merge verification passed.

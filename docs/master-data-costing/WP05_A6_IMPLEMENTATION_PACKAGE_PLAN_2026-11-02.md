@@ -1,0 +1,31 @@
+# WP05-A6 — Bounded Claude implementation-package plan (2 Nov 2026)
+
+**PLAN ONLY. Nothing here is authorised.** Packages start only after WP05 design acceptance and a written owner brief per [CLAUDE_CLOUD_WORKFLOW.md](CLAUDE_CLOUD_WORKFLOW.md) (one brief, one draft PR, never merge; sequential merges on the owner's exact sentence). Client-only; no migrations; new behaviour behind a default-OFF flag where it changes behaviour; no approval-preview RPC against production; migration `20261015045233` untouched; cache bump only on an owner-approved release pack, coordinated with Jarvis.
+
+Baseline for every package: current `main` (re-verify SHA); test baseline 408/408 on LF and CRLF ([A7](WP05_A7_REGRESSION_EVIDENCE_2026-11-02.md)).
+
+## 0. Shared prerequisite — IA spec (docs only, WP05 close)
+One shared shell/IA spec (from [A3](WP05_A3_PROPOSED_NAVIGATION_ARCHITECTURE_2026-11-02.md)) is frozen **before** any parallel edit, because `costing-suite-shell.js` (10 276 lines) is shared by all six pages.
+
+## 1. Packages
+
+| Pkg | Scope | Pack | Files owned (exclusive) | Depends on | Flag | Acceptance tests |
+|---|---|---|---|---|---|---|
+| **P02 — PRM defect fixes (C1-C3, C5 label)** | Candidate scope controls visible & preselected; candidate "Create Route Family" routed to governed code-entry modal (no invented code); prompt dialog stays open on `ok:false`; Product Route Editor product picker + status-gated Supersede + history-based new-route chooser; show exact-run context in the UI | WP05 | `costing-suite-production-route.js` (candidates render 10740-10860, 11255), `-route-editor.js`, `-route-candidates.js`, `costing-dialogs-route-input.js`, `production-route-manager.html` (CSS only) | D9 | New behaviour behind `COSTING_DIALOGS_V1` or a new `COSTING_ROUTE_FIXES_V1`; flag-OFF code path byte-identical (follow flag-off parity test style) | Mock-backend browser test (pattern of `route-dialogs-browser.test.mjs`): controls visible; create-family never sends a code absent user input and sends `p_family_code` when typed; dialog stays open on failure; Supersede absent without record/when status invalid; payload `p_old/p_new` unchanged; write-RPC recorder shows **zero** calls on cancel; flag-OFF parity |
+| **P01 — SKU Control ↔ Readiness parity** | Readiness: fix-screen navigation via `resolveRecommendedUiRouteTarget`, shared CSV, run-context caption (no merge yet) | WP05 | `costing-suite-readiness.js`, small shell hooks (`ALL_ROWS`/`VIEW`, 2054) | B2 (design) | none or `COSTING_REVIEW_WORKLIST_V1` | Existing `wp04-readiness-client-contract-smoke`, new unit tests for navigation and export; RPC list unchanged (`FORBIDDEN_RPCS` identical) |
+| **N1 — Nav grouping engine + context chip/breadcrumb** | Shared grouped-nav renderer reading group metadata from registry; lens ids/aliases unchanged; context chip & breadcrumb; no permission change | MDC-07 | `costing-suite-registry.js`, `costing-route-config.js`, shell nav render (5010-5110), `sasv-costing.css` (append-only block) | IA spec; P02 merged if PRM touched | `COSTING_NAV_GROUPS_V1` (default OFF) | Registry still 32 lenses / every id resolves; deep links `?lens=`/`?workspace=` unchanged; permission checks byte-identical; CW-13 responsive test extended (390/520/768/900/1280); flag-OFF parity |
+| **N2 — MCM/CBM grouping + role-aware trace tabs** | Group nav labels; hide trace tabs without role view | MDC-07 | route-config entries for MCM/CBM; trace tab visibility in `material-cost.js` (3974-4012 read-only use) | N1, D8 | same as N1 | `canAccessRmTrace/PmTrace` unchanged; RM and PM remain separate ids; export roles untouched |
+| **N3 — CSR Action Queues + cross-links** | Combine QC / M&S queues behind queue switch (both loaders kept); links CSR Scheme Comparison ↔ PPM SKU Policy Overview; remediation links open with period/product | MDC-07 | `costing-suite-qc-action-queue.js`, `-materials-stores-action-queue.js`, `-scheme-comparison.js`, registry | N1 | N1 flag | Both RPC param shapes unchanged; `qc-rpc-contract-smoke`, `materials-stores-rpc-contract-smoke`; CSR stays read-only (no write RPC added) |
+| **N4 — PRM five-group nav + context persistence + Evidence & Review** | Group PRM pills; keep ids on pill click; Evidence & Review tabs over unchanged RPCs; Effective tab inside Product Route | MDC-07 | `costing-suite-production-route*.js`, shell pill handler 5262-5280 | P02, N1 | N1 flag | Journey test: select product → switch groups → context retained; every old lens id still resolves; all 24 read / 38 write RPC names unchanged (adapter smoke) |
+| **W6 — PPM workspace grouping** | Group 10 workspaces; retire lens/workspace dual vocabulary via aliases; metadata fix (C9); label disambiguation | WP06 | `costing-suite-pricing-policy.js` (84-200, 702-715), registry | N1, WP06 design | N1 flag | `?workspace=` canonical URLs unchanged; legacy lens ids redirect; SC5 redirect test retained; single edit flag unchanged |
+| **U11 — Terminology/labels/status glossary pass** | Consistency across new groups | WP11 | label maps (`costing-status-labels.js`) | N-packs | `COSTING_UX_CONSISTENCY_V1` | `status-labels.test.mjs` extended |
+| **K1 — SKU Review combine (tabs)** | One SKU Review destination with two truth-model tabs | MDC-07 | control-center + readiness mounts | P01, D2 | N1 flag | Both loaders' RPC/view sets unchanged; run selector only under worklist flag |
+
+## 2. Dependency graph
+`IA spec → {P02 ∥ P01} → N1 → {N2 ∥ N3 ∥ N4 ∥ W6} → K1 → U11`. Packages in braces are file-disjoint and can run as parallel Claude sessions **except** shell edits (N1 owns shell nav render; others request hooks, not edit it). P02 and P01 are independent of the nav work and are the first safe parallel pair.
+
+## 3. Out of packages (separate authorisation)
+Server `app_modules` label (D10); exact-run selection contract (D5); maker-checker verification (D7); any permission split; CW-01/CW-02 period & approval screens; CSA relocation (D4); retiring `v_costing_pricing_dashboard_summary` (CCC-P03).
+
+## 4. Standard acceptance gate for every package
+Full suite 408+new on LF **and** CRLF (Windows-equivalent autocrlf config) with Chromium tests not skipped; flag-OFF parity; no `supabase/`/migration diff; `FORBIDDEN_RPCS` unchanged; self-review; populated-data signed-in browser acceptance by owner before merge.
