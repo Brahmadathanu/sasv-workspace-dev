@@ -34,7 +34,7 @@ Confirmed PRM defects: C1 (Supersede needs loaded record), C2 (candidate scope c
 
 ## Milestones
 - [x] Current-state/audit gate (static; A1–A7)
-- [ ] Design/contract gate where applicable
+- [x] Design/contract gate — Tier 1 accepted by owner 2 Nov 2026
 - [ ] Implementation gate where applicable
 - [ ] Focused verification
 - [ ] Independent audit
@@ -42,16 +42,16 @@ Confirmed PRM defects: C1 (Supersede needs loaded record), C2 (candidate scope c
 - [ ] Final handover
 
 ## Current Gate
-`WP05-G2 — design review OPEN. Audit evidence (G1) delivered and corrected in the G2 consolidated correction pass; no design acceptance and no implementation permission is implied.`
+`WP05-G3 — accepted Tier 1 design; bounded P01/P02 package briefs and implementation gate preparation (implementation not yet authorised).`
 
 ## Gate Status
-[~] IN PROGRESS — audit evidence delivered; WP05-G2 design review open (not accepted)
+[~] IN PROGRESS — WP05-G1 audit complete and WP05-G2 Tier 1 design accepted; WP05 remains open
 
 ## Required to close
 Entry criteria must be satisfied and the work pack explicitly started.
 
 ## Next gate
-Owner closes WP05-G2 (design review of A3/A5 decisions D1–D10). Only then may bounded first-wave (presentation-only) packages per A6 be briefed. Tier 2 consolidation stays conditional.
+Prepare and review bounded P01 and P02 Claude implementation briefs, then seek separate implementation authorisation. No package implementation or merge is implied by G2 acceptance. Tier 2 consolidation stays conditional.
 
 ## Server changes
 None.
@@ -63,7 +63,7 @@ None (documentation only). Proposed packages: A6.
 Baseline suite only: 408/408 LF and CRLF on `3d0b618` — A7.
 
 ## Decisions created
-None.
+Owner accepted Tier 1 design on 2 Nov 2026 (see Approved design / contract); unresolved server-governance and Tier 2 decisions remain separately gated.
 
 ## Risks
 Premature assumptions; scope drift; duplicated authority; loss of effective-dated/history semantics.
