@@ -26,6 +26,12 @@ At 390 px the long titles ("Costing Control Center", "Cost Sheet Review & Approv
 - `:focus-visible` outline (2 px, `--sasv-action-primary`, 2 px offset) on `.peq-filter-btn` and `#prmAsOfDate`.
 No HTML restructuring, no change to table scrolling, no `!important`, no new colours, no JavaScript, `hub-cache-v390` untouched.
 
+## Follow-up: clipped Home button (owner preview acceptance, 2 Nov)
+- **Reproduction.** The first audit used the fake backend's short chip text ("Run status unavailable"), so it missed this. On the real pages the run-status chip carries a longer label (approved run, newer draft, valuation date). `responsive-audit.mjs --stress-chip` sets the chip to `"Approved run 143 · Draft run 148 · valuation 31 Oct 2026"`, and the harness now also reports `clippedActions` (any header button or chip whose right edge is beyond the header or the viewport). Baseline with the stress chip, 30 cases: 15 cases failed; at 390 px the Home button was pushed completely off screen on all six pages and the page scrolled horizontally (scrollWidth up to 523 px at 390 px width); Cost Sheet Review also failed at 520 and 768 px. Evidence: `evidence-cw13/home-button-stress-390-before.png`, `stress-before.json`.
+- **Cause.** `.sc-run-status` is `white-space: nowrap` with no width limit and the header actions row (`.page-header > div:last-child`) cannot wrap, and the Cost Sheet page sets it to `flex: 0 0 auto`.
+- **Fix (CSS only, same appended block).** The actions row may shrink (`min-width: 0; max-width: 100%`), wraps and right-aligns at ≤ 900 px, and the non-compact chip is capped to the row with an ellipsis (the full text stays in its `title`). Result: 0 clipped actions and 0 page overflow in all 30 stress cases and all 30 normal cases (`evidence-cw13/home-button-stress-390-after.png`, `stress-after.json`). Trade-off: with a long chip the header can use up to three short rows on a phone (title, actions, chip and status).
+- **Other five suites** are covered by the same 30-case run (stress and normal) and are clean.
+
 ## What was NOT verified (honest limits)
 - The harness uses an empty-data fake backend, so data-heavy tables, the row details modal, loaded charts and the permission-denied states were not exercised with real rows. Page-level overflow is therefore proven for the page chrome, toolbars, tabs, selects and drawer, not for every populated lens. Wide tables already sit inside scroll containers.
 - Run-status chip wording and the loading state were observed only as rendered by the fake ("Run status unavailable").
@@ -34,7 +40,7 @@ No HTML restructuring, no change to table scrolling, no `!important`, no new col
 - Touch-target size: header icon buttons are 28 px at ≤ 520 px (above the WCAG 2.2 minimum of 24 px, below the 44 px comfort size); left as designed, flagged for an owner decision.
 
 ## Tests
-`scripts/costing-responsive/responsive.test.mjs` (7 tests): harness covers exactly the six route pages and five widths; the CSS block is one appended, `body.sasv-`-scoped, token-only block without `overflow-x: hidden` or `!important`; header wrap rules; focus outline rule; detector self-test (overflow, clipped title and overlap are really detected on synthetic pages); browser run over all 30 cases; focus-visibility run at 390 and 1280 px.
+`scripts/costing-responsive/responsive.test.mjs` (11 tests): harness covers exactly the six route pages and five widths; the CSS block is one appended, `body.sasv-`-scoped, token-only block without `overflow-x: hidden` or `!important`; header wrap rules; focus outline rule; detector self-test (overflow, clipped title and overlap are really detected on synthetic pages); browser run over all 30 cases; focus-visibility run at 390 and 1280 px.
 
 ## Owner acceptance
 Windows CMD (needs Playwright installed): `node --test scripts\costing-responsive\responsive.test.mjs`. Manual: open each suite at a phone width (browser device toolbar, 390 px): the title must be fully visible, the filter button must show a clear ring when tabbed to, and the header actions may sit on a second row.

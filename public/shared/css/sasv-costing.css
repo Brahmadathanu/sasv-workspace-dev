@@ -2763,6 +2763,24 @@ body.sasv-costing-control-center .cp-readiness-gap-bound {
     line-height: 1.15;
   }
 }
+/* CW-13 follow-up: a long run-status chip must not push the Home button out of the header. */
+body.sasv-costing .page-header > div:last-child {
+  min-width: 0;
+  max-width: 100%;
+}
+body.sasv-costing .page-header .sc-run-status:not([data-compact="1"]) {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 900px) {
+  body.sasv-costing .page-header > div:last-child {
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
 body.sasv-costing .peq-filter-btn:focus-visible,
 body.sasv-production-route-manager #prmAsOfDate:focus-visible {
   outline: 2px solid var(--sasv-action-primary);

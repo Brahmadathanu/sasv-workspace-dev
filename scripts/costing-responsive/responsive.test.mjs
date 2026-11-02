@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { COSTING_ROUTE_CONFIG } from "../../public/shared/js/costing-route-config.js";
-import { PAGES, WIDTHS, audit, measureHtml } from "./responsive-audit.mjs";
+import { LONG_RUN_STATUS_TEXT, PAGES, WIDTHS, audit, measureHtml } from "./responsive-audit.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
@@ -78,4 +78,42 @@ test("browser: keyboard focus is visible on every tabbed control (six pages, des
   if (res.skipped) return t.skip(res.skipped);
   const bad = res.results.filter((r) => r.focusProblems.length);
   assert.deepEqual(bad.map((r) => `${r.page}@${r.width}: ${r.focusProblems.map((f) => f.id || f.cls).join(",")}`), []);
+});
+
+test("long run-status chip: Home and the other header actions stay inside the header and the viewport (CW-13 follow-up CSS)", () => {
+  assert.match(block, /body\.sasv-costing \.page-header > div:last-child \{\s*min-width: 0;\s*max-width: 100%;\s*\}/);
+  assert.match(block, /body\.sasv-costing \.page-header \.sc-run-status:not\(\[data-compact="1"\]\) \{\s*max-width: 100%;\s*min-width: 0;\s*overflow: hidden;\s*text-overflow: ellipsis;/);
+  assert.match(block, /@media \(max-width: 900px\) \{\s*body\.sasv-costing \.page-header > div:last-child \{\s*flex: 0 1 auto;\s*flex-wrap: wrap;\s*justify-content: flex-end;/);
+  assert.doesNotMatch(block, /overflow-x:\s*hidden|!important/);
+});
+
+test("detector self-test: a header whose actions run past the header edge is reported as clipped", async (t) => {
+  if (SKIP_BROWSER) return t.skip("COSTING_RESPONSIVE_SKIP=1");
+  const html = `<div style="padding:0 40px"><div class="page-header" style="display:flex;width:300px"><div><h1>T</h1></div><div class="header-actions" style="display:flex;gap:8px"><button style="width:120px">a</button><span class="sc-run-status" style="white-space:nowrap;width:200px">${LONG_RUN_STATUS_TEXT}</span><button id="homeBtn" style="width:42px">h</button></div></div></div>`;
+  const bad = await measureHtml(html);
+  if (bad.skipped) return t.skip(bad.skipped);
+  assert.ok(bad.clippedActions.length >= 1, JSON.stringify(bad.clippedActions));
+  const ok = await measureHtml('<div class="page-header" style="display:flex;width:300px"><div><h1>T</h1></div><div class="header-actions" style="display:flex;gap:8px"><button id="homeBtn" style="width:42px">h</button></div></div>');
+  assert.deepEqual(ok.clippedActions, []);
+});
+
+test("browser: with a long realistic run-status chip no header action (Home included) is clipped and no page overflows, six pages x five widths", async (t) => {
+  if (SKIP_BROWSER) return t.skip("COSTING_RESPONSIVE_SKIP=1");
+  const res = await audit({ focus: false, stressChip: true });
+  if (res.skipped) return t.skip(res.skipped);
+  assert.equal(res.results.length, PAGES.length * WIDTHS.length);
+  const bad = res.results.filter((r) => r.clippedActions.length || r.pageOverflow || r.headerOverlaps.length);
+  assert.deepEqual(bad.map((r) => `${r.page}@${r.width}: clipped=${r.clippedActions.join("|")} overflow=${r.pageOverflow}`), []);
+});
+
+test("browser: Home button on Cost Sheet Review is fully visible and clickable-sized at 390 and 520 px (also with the long chip)", async (t) => {
+  if (SKIP_BROWSER) return t.skip("COSTING_RESPONSIVE_SKIP=1");
+  for (const stressChip of [false, true]) {
+    const res = await audit({ pages: PAGES.filter(([n]) => n === "cost-sheet-review"), widths: [390, 520], focus: false, stressChip });
+    if (res.skipped) return t.skip(res.skipped);
+    for (const r of res.results) {
+      assert.deepEqual(r.clippedActions, [], `${r.width}px stress=${stressChip}`);
+      assert.equal(r.pageOverflow, false, `${r.width}px stress=${stressChip}`);
+    }
+  }
 });

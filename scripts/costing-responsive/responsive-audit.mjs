@@ -119,10 +119,22 @@ function measure() {
       if (ox > 2 && oy > 2) overlaps.push(`${sel(a)} x ${sel(b)}`);
     }
   }
+  // Header actions (incl. the Home button) must stay inside the page header and the viewport, whatever the
+  // run-status chip text is: a clipped Home button is unreachable on phones.
+  const headerBox = document.querySelector(".page-header")?.getBoundingClientRect();
+  const clippedActions = [];
+  if (headerBox) {
+    for (const el of document.querySelectorAll(".page-header button, .page-header .sc-run-status, .page-header .sc-snapshot")) {
+      if (!visible(el)) continue;
+      const r = el.getBoundingClientRect();
+      if (r.right > headerBox.right + 1 || r.right > vw + 1 || r.left < -1) clippedActions.push(`${sel(el)}@${Math.round(r.right)}>${Math.round(headerBox.right)}`);
+    }
+  }
   const h1 = document.querySelector(".page-header h1");
   const titleClipped = h1 ? h1.scrollWidth > h1.clientWidth + 1 : false;
   return {
     headerOverlaps: overlaps.slice(0, 6),
+    clippedActions: clippedActions.slice(0, 6),
     titleClipped,
     viewport: vw,
     docScrollWidth: doc.scrollWidth,
@@ -174,7 +186,10 @@ export async function measureHtml(html, width = 390) {
   }
 }
 
-export async function audit({ pages = PAGES, widths = WIDTHS, shotsDir = null, focus = true } = {}) {
+// Realistic long run-status text (approved run, newer draft, valuation date) used by the header stress check.
+export const LONG_RUN_STATUS_TEXT = "Approved run 143 · Draft run 148 · valuation 31 Oct 2026";
+
+export async function audit({ pages = PAGES, widths = WIDTHS, shotsDir = null, focus = true, stressChip = false } = {}) {
   let chromium;
   try {
     chromium = createRequire(import.meta.url)("playwright").chromium;
@@ -201,6 +216,16 @@ export async function audit({ pages = PAGES, widths = WIDTHS, shotsDir = null, f
         await page.route(/esm\.sh\/@supabase\/supabase-js/, (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: SUPABASE_STUB }));
         await page.goto(`${base}/${rel}`, { waitUntil: "load" });
         await page.waitForTimeout(1200);
+        if (stressChip) {
+          await page.evaluate((text) => {
+            for (const chip of document.querySelectorAll(".sc-run-status")) {
+              chip.hidden = false;
+              const main = chip.querySelector(".sc-run-status-main");
+              if (main) main.textContent = text;
+              else chip.textContent = text;
+            }
+          }, LONG_RUN_STATUS_TEXT);
+        }
         const m = await page.evaluate(measure);
         const f = focus ? await focusAudit(page) : [];
         if (shotsDir) {
@@ -222,10 +247,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const arg = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : null; };
   const only = arg("--pages")?.split(",");
   const pages = only ? PAGES.filter(([n]) => only.includes(n)) : PAGES;
-  const res = await audit({ pages, shotsDir: arg("--shots") });
+  const res = await audit({ pages, shotsDir: arg("--shots"), stressChip: process.argv.includes("--stress-chip"), focus: !process.argv.includes("--no-focus") });
   if (res.skipped) { console.log(`SKIP: ${res.skipped}`); process.exit(0); }
   if (arg("--json")) fs.writeFileSync(arg("--json"), JSON.stringify(res, null, 2));
   for (const r of res.results) {
-    console.log(`${r.page.padEnd(26)} ${String(r.width).padStart(4)}px overflow=${r.pageOverflow ? "YES" : "no "} scrollW=${r.docScrollWidth} focusIssues=${r.focusProblems.length} hdrOverlap=${r.headerOverlaps.length} titleClip=${r.titleClipped ? 'Y' : 'n'} controls=${r.interactiveTotal} errs=${r.pageErrors.length}${r.pageOverflow ? " culprits=" + r.culprits.slice(0, 3).map((c) => c.el + "@" + c.right).join(", ") : ""}`);
+    console.log(`${r.page.padEnd(26)} ${String(r.width).padStart(4)}px overflow=${r.pageOverflow ? "YES" : "no "} scrollW=${r.docScrollWidth} focusIssues=${r.focusProblems.length} hdrOverlap=${r.headerOverlaps.length} clippedActions=${r.clippedActions.length} titleClip=${r.titleClipped ? 'Y' : 'n'} controls=${r.interactiveTotal} errs=${r.pageErrors.length}${r.pageOverflow ? " culprits=" + r.culprits.slice(0, 3).map((c) => c.el + "@" + c.right).join(", ") : ""}`);
   }
 }
