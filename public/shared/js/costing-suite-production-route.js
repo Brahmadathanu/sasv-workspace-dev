@@ -243,6 +243,13 @@ import {
 } from "./costing-suite-production-route-rpc.js";
 import { isCostingDialogsV1Enabled } from "./costing-feature-flags.js";
 import { openDuplicateFamilySequenceSubmitModal } from "./costing-dialogs-duplicate-sequence.js";
+import {
+  FAMILY_DIALOG_TITLE,
+  SUPERSEDE_DIALOG_TITLE,
+  openRouteTextPromptModal,
+  validateRouteFamilyName,
+  validateSupersedeRouteId,
+} from "./costing-dialogs-route-input.js";
 import { createProductionRouteEditorController } from "./costing-suite-production-route-editor.js";
 import { createProductionRouteCandidatesController } from "./costing-suite-production-route-candidates.js";
 import { createProductionCostCentresController } from "./costing-suite-production-route-cost-centres.js";
@@ -10407,6 +10414,38 @@ export function createProductionRouteController(deps = {}) {
           );
           return;
         }
+        if (isCostingDialogsV1Enabled()) {
+          // CW-06: in-page dialog; same editor.supersedeProduct call and payload as the native prompt below.
+          const openedRouteId = state.selectedProductRouteId;
+          await openRouteTextPromptModal({
+            title: SUPERSEDE_DIALOG_TITLE,
+            subtitle: "Replaces the current approved route with a new approved draft",
+            fieldId: "prmSupersedeNewRouteId",
+            label: "New approved draft route ID",
+            hint: "The server checks that the new route is a valid approved draft before superseding.",
+            inputMode: "numeric",
+            submitLabel: "Supersede",
+            validate: (raw) => validateSupersedeRouteId(raw, { currentRouteId: openedRouteId }),
+            isStale: () => state.selectedProductRouteId !== openedRouteId,
+            onSubmit: async (newId) => {
+              await editor.supersedeProduct({ new_product_route_id: newId });
+              if (state.selectedProductRouteId) {
+                await editor.loadProductDetail(state.selectedProductRouteId);
+              }
+              paintAcceptedPrmLens();
+            },
+            openModal,
+            closeModal,
+            formShell,
+            formField,
+            onModal,
+            withMutation,
+            isDetailsModalOpen,
+            escapeHtml: text,
+            notify: showToast,
+          });
+          return;
+        }
         const newId = window.prompt("New approved draft route ID:", "");
         if (newId) {
           await editor.supersedeProduct({ new_product_route_id: newId });
@@ -10773,6 +10812,38 @@ export function createProductionRouteController(deps = {}) {
         await candidates.requestUseInDraft(step || {});
       }
       if (event.target.closest("[data-prm-create-family]")) {
+        if (isCostingDialogsV1Enabled()) {
+          // CW-06: in-page dialog; same candidates.createRouteFamily call and payload as the native prompt below.
+          const openedLens = state.activeLens;
+          await openRouteTextPromptModal({
+            title: FAMILY_DIALOG_TITLE,
+            subtitle: "Product Groups remain unmapped",
+            fieldId: "prmCreateFamilyName",
+            label: "Manufacturing Route Family name",
+            submitLabel: "Create",
+            validate: validateRouteFamilyName,
+            isStale: () => state.activeLens !== openedLens,
+            onSubmit: async (familyName) => {
+              const result = await candidates.createRouteFamily({
+                route_family_name: familyName,
+              });
+              if (result.ok) {
+                showToast?.("Manufacturing Route Family created. Product Groups remain unmapped.", "success");
+              }
+              return result;
+            },
+            openModal,
+            closeModal,
+            formShell,
+            formField,
+            onModal,
+            withMutation,
+            isDetailsModalOpen,
+            escapeHtml: text,
+            notify: showToast,
+          });
+          return;
+        }
         const name = window.prompt("Manufacturing Route Family name:", "");
         if (name) {
           const result = await candidates.createRouteFamily({
