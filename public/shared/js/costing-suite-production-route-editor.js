@@ -1465,7 +1465,7 @@ export function createProductionRouteEditorController(deps = {}) {
       const empty =
         options.emptyMessage ||
         "No Product Route selected.\n\nOpen a Product from Route Readiness / Product Summary to create or edit a Product-specific route.";
-      return `<div class="status cp-prm-empty-state">${text(empty).replace(/\n/g, "<br>")}</div>`;
+      return `<div class="status cp-prm-empty-state">${text(empty).replace(/\n/g, "<br>")}</div>${options.productPickerHtml || ""}`;
     }
     const lifecycle = resolvePrmProductRouteLifecycleActions({
       status: routeStatus(header),
@@ -1481,7 +1481,7 @@ export function createProductionRouteEditorController(deps = {}) {
         ${header.approval_reference ? `<div><span class="cp-field-label">Approval reference</span> ${text(header.approval_reference)}</div>` : ""}
       </header>
       ${isPrmRouteReadOnlyStatus(routeStatus(header)) ? `<div class="status cp-prm-readonly">This Product route version is read-only.</div>` : ""}
-      ${validationHtml(productState, "product")}
+      ${validationHtml(productState, "product")}${options.supersedeGate?.note ? `<p class="cp-muted-text" data-prm-supersede-note role="status">${text(options.supersedeGate.note)}</p>` : ""}
       <div class="cp-prm-actions">
         ${
           lifecycle.validateVisible
@@ -1498,7 +1498,13 @@ export function createProductionRouteEditorController(deps = {}) {
             ? `<button type="button" class="icon-btn icon-btn-primary" data-prm-action="approve-product" ${options.costCentreBlocked ? "disabled" : ""}>Approve…</button>`
             : ""
         }
-        <button type="button" class="icon-btn" data-prm-action="supersede-product">Supersede</button>
+        ${
+          // WP05-P02: options.supersedeGate is only passed with COSTING_PRM_CORRECTIONS_V1 ON. Without it the
+          // legacy always-visible button is rendered unchanged.
+          options.supersedeGate === undefined || options.supersedeGate?.visible
+            ? `<button type="button" class="icon-btn" data-prm-action="supersede-product">Supersede</button>`
+            : ""
+        }${options.showRouteHistory ? `<button type="button" class="icon-btn" data-prm-action="product-route-history">Route history</button>` : ""}
         ${lifecycle.canAddDelta ? `<button type="button" class="icon-btn" data-prm-action="add-product-delta">Add delta</button>` : ""}
       </div>
       <section class="cp-detail-section"><h3 class="cp-section-title">A. Inherited family route</h3>

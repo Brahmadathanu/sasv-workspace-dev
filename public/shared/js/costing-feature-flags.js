@@ -82,3 +82,15 @@ export function isCostingReviewWorklistV1Enabled(storage = globalThis.localStora
     return false;
   }
 }
+
+// WP05-P02 Production Route corrections (candidate scope controls, governed family-creation handoff,
+// product-route picker + supersede replacement selector, fixed-historical-context labels). Default OFF.
+export const COSTING_PRM_CORRECTIONS_V1 = "COSTING_PRM_CORRECTIONS_V1";
+
+export function isCostingPrmCorrectionsV1Enabled(storage = globalThis.localStorage) {
+  try {
+    return storage?.getItem?.(COSTING_PRM_CORRECTIONS_V1) === "1";
+  } catch {
+    return false;
+  }
+}
