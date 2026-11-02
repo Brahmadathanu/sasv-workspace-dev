@@ -22,7 +22,12 @@ Branch `feat/costing-cw06-route-dialogs`, baseline main `28cfadb20de3e2f3daf0aad
 - No production route edits, database writes or RPC calls occurred during development; tests use fakes.
 
 ## Tests
-`scripts/costing-dialogs/route-input-dialogs.test.mjs` (15 tests): validators, open/focus/ARIA, approve, incorrect input, Enter, cancel, Escape/backdrop cleanup (including a late click), repeated submission, stale state, write failure with no raw error leakage and retry, callback cleanup, plus source contracts for flag-OFF legacy code, payload parity, no data access in the dialog module, permission checks and RPC-name parity.
+`scripts/costing-dialogs/route-input-dialogs.test.mjs` (23 tests): validators, open/focus/ARIA, approve, incorrect input, Enter, cancel, Escape/backdrop cleanup (including a late click), repeated submission, stale state, write failure with no raw error leakage and retry, callback cleanup, plus source contracts for flag-OFF legacy code, payload parity, no data access in the dialog module, permission checks and RPC-name parity.
+
+## Review correction (owner review comment on PR #126, 2026-11-02)
+- **Error wording.** The previous message said "Nothing was changed from this dialog". A failed request does not prove that: the response can be lost after the server committed. The message is now "Unable to confirm whether the request completed. Refresh or check the current route or family state before retrying." (`GENERIC_SUBMIT_ERROR`); a regression test pins the exact text and rejects any "nothing changed" claim, and raw error text is still never shown.
+- **Cancel / close while a write is pending** (independently re-checked; a defect was found and fixed). Before: Cancel or Escape while the write was running closed the modal and, when the write finished, the dialog called `closeModal({ restorePrevious: true })` a second time, which could close or restore an unrelated modal. Now: the Cancel button is disabled (`aria-disabled`) and ignored while the write is pending; if the modal is closed anyway (Escape / backdrop) the write cannot be cancelled, so the dialog never touches the modal stack again, the promise resolves only after the write settles (`dismissed: true`), and a late failure is reported with the same non-committal wording through the screen's toast (`notify: showToast`). After a failed write Cancel and Submit are re-enabled. Success and idle Cancel still close exactly once with `restorePrevious: true`.
+- Request payloads, RPC calls and the flag-OFF native prompts are unchanged (tests unchanged and extended).
 
 ## Owner acceptance (Windows CMD)
 ```

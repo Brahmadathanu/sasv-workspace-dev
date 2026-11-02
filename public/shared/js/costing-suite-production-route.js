@@ -10442,6 +10442,7 @@ export function createProductionRouteController(deps = {}) {
             withMutation,
             isDetailsModalOpen,
             escapeHtml: text,
+            notify: showToast,
           });
           return;
         }
@@ -10839,6 +10840,7 @@ export function createProductionRouteController(deps = {}) {
             withMutation,
             isDetailsModalOpen,
             escapeHtml: text,
+            notify: showToast,
           });
           return;
         }

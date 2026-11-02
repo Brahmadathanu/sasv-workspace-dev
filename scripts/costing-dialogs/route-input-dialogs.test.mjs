@@ -19,6 +19,8 @@ const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\
 
 // ---- fake PRM modal harness (mirrors openModal/onModal/withMutation/closeModal contracts) ----
 function makeHarness({ stale = () => false, onSubmit, validate } = {}) {
+  const notices = [];
+  const closeCalls = [];
   const listeners = [];
   const attrs = new Map();
   const state = { open: 0, closed: 0, submitted: [], busy: false, toasts: 0 };
@@ -29,6 +31,7 @@ function makeHarness({ stale = () => false, onSubmit, validate } = {}) {
     removeAttribute(k) { attrs.delete(k); },
   };
   const err = { textContent: "", hidden: true };
+  const cancelBtn = { disabled: false, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, removeAttribute(k) { delete this.attrs[k]; } };
   const submitBtn = { disabled: false, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, removeAttribute(k) { delete this.attrs[k]; } };
   let cleanup = null;
   const host = {
@@ -36,13 +39,14 @@ function makeHarness({ stale = () => false, onSubmit, validate } = {}) {
       if (sel === "#fld") return input;
       if (sel === "#fldError") return err;
       if (sel === "[data-prm-prompt-submit]") return submitBtn;
+      if (sel === "[data-prm-prompt-cancel]") return cancelBtn;
       return null;
     },
   };
   const target = (sel) => ({ closest: (q) => (q === sel ? {} : null), id: sel === "input" ? "fld" : "" });
   const api = {
-    input, err, submitBtn, state, attrs,
-    click: (what) => Promise.all(listeners.filter((l) => l.type === "click").map((l) => l.fn({ target: { closest: (q) => (q === what ? (what === "[data-prm-prompt-submit]" ? submitBtn : {}) : null) } }))),
+    input, err, submitBtn, cancelBtn, state, attrs, notices, closeCalls,
+    click: (what) => Promise.all(listeners.filter((l) => l.type === "click").map((l) => l.fn({ target: { closest: (q) => (q === what ? (what === "[data-prm-prompt-submit]" ? submitBtn : what === "[data-prm-prompt-cancel]" ? cancelBtn : {}) : null) } }))),
     enter: () => Promise.all(listeners.filter((l) => l.type === "keydown").map((l) => l.fn({ key: "Enter", target: { id: "fld" }, preventDefault() {} }))),
     escape: () => { state.closed += 1; cleanup?.(); }, // PRM Escape/backdrop -> closeModal -> modal cleanup
     listenerCount: () => listeners.length,
@@ -53,7 +57,8 @@ function makeHarness({ stale = () => false, onSubmit, validate } = {}) {
     isStale: stale,
     onSubmit: async (value) => { state.submitted.push(value); return onSubmit ? onSubmit(value) : { ok: true }; },
     openModal: (cfg) => { state.open += 1; cleanup = cfg.cleanup; state.html = cfg.html; cfg.bind(host); },
-    closeModal: () => { state.closed += 1; const c = cleanup; cleanup = null; c?.(); },
+    closeModal: (opts) => { state.closed += 1; closeCalls.push(opts); const c = cleanup; cleanup = null; c?.(); },
+    notify: (message, level) => notices.push([message, level]),
     formShell: ({ fieldsHtml, actionsHtml }) => `<div>${fieldsHtml}${actionsHtml}</div>`,
     formField: ({ id, label }) => `<label for="${id}">${label}</label><input id="${id}" />`,
     onModal: (el, type, fn) => listeners.push({ type, fn }),
@@ -177,6 +182,7 @@ test("write failure: safe generic message, no raw error text leaked, dialog stay
   await h.click("[data-prm-prompt-submit]");
   assert.equal(h.err.textContent, GENERIC_SUBMIT_ERROR);
   assert.doesNotMatch(h.err.textContent, /secret|relation/);
+  assert.doesNotMatch(h.err.textContent, /nothing (was )?changed|no change|not (been )?(saved|changed)|failed to save/i, "never claims the server made no change");
   assert.equal(h.state.closed, 0);
   assert.equal(h.submitBtn.disabled, false);
   fail = false;
@@ -235,4 +241,125 @@ test("source: candidate-use review keeps its native fallback only when no in-pag
   const cand = read("public/shared/js/costing-suite-production-route-candidates.js");
   assert.match(cand, /typeof confirmCandidateUse === "function"\s*\?\s*await confirmCandidateUse\(review\)\s*:\s*window\.confirm\(review\.message\)/);
   assert.match(SRC, /confirmCandidateUse: openCandidateReviewModal/, "production route always injects the in-page review modal");
+});
+
+test("failure wording is non-committal: a lost response does not prove the server made no change", () => {
+  assert.equal(
+    GENERIC_SUBMIT_ERROR,
+    "Unable to confirm whether the request completed. Refresh or check the current route or family state before retrying.",
+  );
+  assert.match(GENERIC_SUBMIT_ERROR, /Unable to confirm whether the request completed/);
+  assert.match(GENERIC_SUBMIT_ERROR, /Refresh or check/);
+  assert.doesNotMatch(GENERIC_SUBMIT_ERROR, /nothing|no change|not changed|check your connection/i);
+  // The dialog module no longer carries the old claim anywhere.
+  assert.doesNotMatch(read("public/shared/js/costing-dialogs-route-input.js").replace(/\/\/.*|\/\*[\s\S]*?\*\//g, ""), /Nothing was changed/);
+});
+
+test("pending write: Cancel is disabled and ignored; the dialog stays open and the write completes once", async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const h = makeHarness({ onSubmit: async () => { await gate; return { ok: true }; } });
+  h.input.value = "5";
+  const submit = h.click("[data-prm-prompt-submit]");
+  await Promise.resolve();
+  assert.equal(h.cancelBtn.disabled, true);
+  assert.equal(h.cancelBtn.attrs["aria-disabled"], "true");
+  await h.click("[data-prm-prompt-cancel]");
+  assert.equal(h.state.closed, 0, "Cancel while pending does not close the modal");
+  release();
+  await submit;
+  assert.deepEqual(h.state.submitted, ["5"]);
+  assert.equal(h.state.closed, 1);
+  assert.deepEqual(h.closeCalls, [{ restorePrevious: true }]);
+  assert.equal((await h.promise).submitted, true);
+});
+
+test("failed write re-enables Cancel and Submit so the user can leave or retry after checking state", async () => {
+  const h = makeHarness({ onSubmit: async () => { throw new Error("boom"); } });
+  h.input.value = "5";
+  await h.click("[data-prm-prompt-submit]");
+  assert.equal(h.cancelBtn.disabled, false);
+  assert.equal(h.cancelBtn.attrs["aria-disabled"], undefined);
+  assert.equal(h.submitBtn.disabled, false);
+  await h.click("[data-prm-prompt-cancel]");
+  assert.deepEqual(await h.promise, { submitted: false });
+  assert.equal(h.state.closed, 1);
+});
+
+test("Escape/backdrop while the write is pending: no second close or restore; promise resolves after the write with dismissed", async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const h = makeHarness({ onSubmit: async () => { await gate; return { ok: true, id: 3 }; } });
+  h.input.value = "5";
+  const submit = h.click("[data-prm-prompt-submit]");
+  await Promise.resolve();
+  h.escape(); // modal closed externally; escape() itself counts one close in the harness
+  const closedAtEscape = h.state.closed;
+  let resolved = false;
+  h.promise.then(() => { resolved = true; });
+  await Promise.resolve(); await Promise.resolve();
+  assert.equal(resolved, false, "promise waits for the pending write (the write cannot be cancelled)");
+  release();
+  await submit;
+  assert.deepEqual(await h.promise, { submitted: true, dismissed: true, result: { ok: true, id: 3 } });
+  assert.equal(h.state.closed, closedAtEscape, "late completion never calls closeModal again");
+  assert.deepEqual(h.closeCalls, [], "and never restores a parent modal");
+  assert.deepEqual(h.notices, []);
+});
+
+test("a modal opened after a dismissed-while-pending dialog is not closed by the late completion", async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const h = makeHarness({ onSubmit: async () => { await gate; return { ok: true }; } });
+  h.input.value = "5";
+  const submit = h.click("[data-prm-prompt-submit]");
+  await Promise.resolve();
+  h.escape();
+  const other = { open: true }; // the user opens another PRM modal while the write is still pending
+  release();
+  await submit;
+  await h.promise;
+  assert.equal(other.open, true);
+  assert.equal(h.closeCalls.length, 0, "no closeModal call that could close the other modal");
+});
+
+test("late failure after dismissal is reported through notify with the non-committal wording, not through the gone DOM", async () => {
+  let rejectIt;
+  const gate = new Promise((_r, rej) => { rejectIt = rej; });
+  const h = makeHarness({ onSubmit: async () => { await gate; } });
+  h.input.value = "5";
+  const submit = h.click("[data-prm-prompt-submit]");
+  await Promise.resolve();
+  h.escape();
+  const errBefore = h.err.textContent;
+  rejectIt(new Error("network down: secret detail"));
+  await submit;
+  assert.deepEqual(h.notices, [[GENERIC_SUBMIT_ERROR, "warning"]]);
+  assert.equal(h.err.textContent, errBefore, "no write into the detached dialog");
+  assert.deepEqual(await h.promise, { submitted: true, dismissed: true, failed: true });
+  assert.doesNotMatch(JSON.stringify(h.notices), /secret|network down/);
+  assert.equal(h.closeCalls.length, 0);
+});
+
+test("normal approve closes exactly once and restores the parent (nested modal contract)", async () => {
+  const h = makeHarness();
+  h.input.value = "7";
+  await h.click("[data-prm-prompt-submit]");
+  assert.deepEqual(h.closeCalls, [{ restorePrevious: true }]);
+  assert.equal((await h.promise).submitted, true);
+});
+
+test("Cancel before any write closes once with restorePrevious and never writes", async () => {
+  const h = makeHarness();
+  await h.click("[data-prm-prompt-cancel]");
+  assert.deepEqual(h.closeCalls, [{ restorePrevious: true }]);
+  assert.deepEqual(h.state.submitted, []);
+  assert.deepEqual(await h.promise, { submitted: false });
+});
+
+test("source: both route-screen dialogs pass showToast as notify; RPC calls and OFF-path prompts unchanged", () => {
+  assert.equal((SRC.match(/notify: showToast,/g) || []).length, 2);
+  assert.match(SRC, /const newId = window\.prompt\("New approved draft route ID:", ""\);/);
+  assert.match(SRC, /const name = window\.prompt\("Manufacturing Route Family name:", ""\);/);
+  assert.match(SRC, /await editor\.supersedeProduct\(\{ new_product_route_id: newId \}\);/);
 });
