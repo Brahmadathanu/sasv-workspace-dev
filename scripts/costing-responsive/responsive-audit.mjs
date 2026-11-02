@@ -22,7 +22,7 @@ export const PAGES = [
   ["pricing-policy-manager", "shared/pricing-policy-manager.html"],
   ["production-route-manager", "shared/production-route-manager.html"],
 ];
-export const WIDTHS = [390, 520, 768, 900, 1280];
+export const WIDTHS = [320, 390, 520, 768, 900, 1280];
 
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json", ".woff2": "font/woff2" };
 
@@ -130,9 +130,32 @@ function measure() {
       if (r.right > headerBox.right + 1 || r.right > vw + 1 || r.left < -1) clippedActions.push(`${sel(el)}@${Math.round(r.right)}>${Math.round(headerBox.right)}`);
     }
   }
+  // Compact-header facts (CW-13 mobile header): size and row layout of the header, header control sizes, the status
+  // icon button versus the long chip, and that the retired freshness chip is not rendered.
+  const hdr = document.querySelector(".page-header");
+  const hdrRect = hdr?.getBoundingClientRect();
+  const titleEl = document.querySelector(".page-header h1");
+  const titleRect = titleEl?.getBoundingClientRect();
+  const homeRect = document.getElementById("homeBtn")?.getBoundingClientRect();
+  const shown = (el) => Boolean(el) && visible(el);
+  const chipEl = document.querySelector(".sc-run-status");
+  const runBtn = document.getElementById("costingRunStatusBtn");
+  const controls = [...document.querySelectorAll(".page-header button")].filter(visible).map((b) => { const r = b.getBoundingClientRect(); return { id: b.id || sel(b), w: Math.round(r.width), h: Math.round(r.height) }; });
+  const compact = {
+    headerHeight: hdrRect ? Math.round(hdrRect.height) : null,
+    titleFontPx: titleEl ? parseFloat(getComputedStyle(titleEl).fontSize) : null,
+    // One row: the title and Home button share a horizontal band (their vertical ranges overlap).
+    sameRow: Boolean(titleRect && homeRect) && Math.min(titleRect.bottom, homeRect.bottom) - Math.max(titleRect.top, homeRect.top) > 4,
+    smallestControl: controls.length ? Math.min(...controls.map((c) => Math.min(c.w, c.h))) : null,
+    runButtonShown: shown(runBtn),
+    chipShown: shown(chipEl),
+    freshnessShown: shown(document.getElementById("lastRefreshed")),
+    refreshPresent: Boolean(document.getElementById("refreshBtn")),
+  };
   const h1 = document.querySelector(".page-header h1");
   const titleClipped = h1 ? h1.scrollWidth > h1.clientWidth + 1 : false;
   return {
+    compact,
     headerOverlaps: overlaps.slice(0, 6),
     clippedActions: clippedActions.slice(0, 6),
     titleClipped,
@@ -188,6 +211,39 @@ export async function measureHtml(html, width = 390) {
 
 // Realistic long run-status text (approved run, newer draft, valuation date) used by the header stress check.
 export const LONG_RUN_STATUS_TEXT = "Approved run 143 · Draft run 148 · valuation 31 Oct 2026";
+
+/** Launches chromium plus the static server for interaction tests; null when Playwright is unavailable. */
+export async function launchAudit() {
+  let chromium;
+  try {
+    chromium = createRequire(import.meta.url)("playwright").chromium;
+  } catch {
+    return null;
+  }
+  const server = await startServer();
+  const browser = await chromium.launch({ args: ["--no-sandbox"] });
+  return { browser, base: `http://127.0.0.1:${server.address().port}`, close: async () => { await browser.close(); server.close(); } };
+}
+
+/** Opens one Costing page with the fake backend. `storage` entries are written to localStorage before load. */
+export async function openAuditPage(env, rel, { width = 390, storage = {}, stressChip = false } = {}) {
+  const context = await env.browser.newContext({ viewport: { width, height: 900 } });
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e.message).slice(0, 200)));
+  await page.addInitScript((entries) => { try { for (const [k, v] of Object.entries(entries)) localStorage.setItem(k, v); } catch { /* ignore */ } }, storage);
+  await page.route(/cdnjs\.cloudflare\.com|fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net|esm\.sh/, (r) => {
+    if (/\.css/.test(r.request().url())) return r.fulfill({ status: 200, contentType: "text/css", body: "" });
+    return r.fulfill({ status: 200, contentType: "text/javascript", body: "" });
+  });
+  await page.route(/esm\.sh\/@supabase\/supabase-js/, (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: SUPABASE_STUB }));
+  await page.goto(`${env.base}/${rel}`, { waitUntil: "load" });
+  await page.waitForTimeout(1200);
+  if (stressChip) {
+    await page.evaluate((text) => { for (const chip of document.querySelectorAll(".sc-run-status")) { chip.hidden = false; const main = chip.querySelector(".sc-run-status-main"); if (main) main.textContent = text; else chip.textContent = text; } }, LONG_RUN_STATUS_TEXT);
+  }
+  return { context, page, errors };
+}
 
 export async function audit({ pages = PAGES, widths = WIDTHS, shotsDir = null, focus = true, stressChip = false } = {}) {
   let chromium;
@@ -247,7 +303,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const arg = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : null; };
   const only = arg("--pages")?.split(",");
   const pages = only ? PAGES.filter(([n]) => only.includes(n)) : PAGES;
-  const res = await audit({ pages, shotsDir: arg("--shots"), stressChip: process.argv.includes("--stress-chip"), focus: !process.argv.includes("--no-focus") });
+  const widthsArg = arg("--widths")?.split(",").map(Number).filter(Boolean);
+  const res = await audit({ pages, widths: widthsArg || WIDTHS, shotsDir: arg("--shots"), stressChip: process.argv.includes("--stress-chip"), focus: !process.argv.includes("--no-focus") });
   if (res.skipped) { console.log(`SKIP: ${res.skipped}`); process.exit(0); }
   if (arg("--json")) fs.writeFileSync(arg("--json"), JSON.stringify(res, null, 2));
   for (const r of res.results) {
