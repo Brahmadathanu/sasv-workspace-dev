@@ -1,0 +1,785 @@
+{
+  "results": [
+    {
+      "page": "costing-control-center",
+      "width": 390,
+      "headerOverlaps": [],
+      "clippedActions": [
+        "span#costingRunStatusBadge.sc-run-status@446>372",
+        "div#lastRefreshed.sc-snapshot.snapshot-fresh@487>372",
+        "button#homeBtn.icon-btn.sasv-home-btn@534>372"
+      ],
+      "titleClipped": false,
+      "viewport": 390,
+      "docScrollWidth": 390,
+      "bodyScrollWidth": 534,
+      "pageOverflow": true,
+      "culprits": [
+        {
+          "el": "div",
+          "right": 534,
+          "width": 516
+        },
+        {
+          "el": "span#costingRunStatusBadge.sc-run-status",
+          "right": 446,
+          "width": 346
+        },
+        {
+          "el": "div#lastRefreshed.sc-snapshot.snapshot-fresh",
+          "right": 487,
+          "width": 28
+        },
+        {
+          "el": "span.sc-snapshot-dot",
+          "right": 478,
+          "width": 10
+        },
+        {
+          "el": "button#homeBtn.icon-btn.sasv-home-btn",
+          "right": 534,
+          "width": 42
+        },
+        {
+          "el": "svg",
+          "right": 521,
+          "width": 16
+        },
+        {
+          "el": "span.home-label",
+          "right": 513,
+          "width": 1
+        }
+      ],
+      "interactiveTotal": 178,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "costing-control-center",
+      "width": 520,
+      "headerOverlaps": [],
+      "clippedActions": [
+        "button#homeBtn.icon-btn.sasv-home-btn@534>502"
+      ],
+      "titleClipped": false,
+      "viewport": 520,
+      "docScrollWidth": 520,
+      "bodyScrollWidth": 534,
+      "pageOverflow": true,
+      "culprits": [
+        {
+          "el": "div",
+          "right": 534,
+          "width": 516
+        },
+        {
+          "el": "button#homeBtn.icon-btn.sasv-home-btn",
+          "right": 534,
+          "width": 42
+        }
+      ],
+      "interactiveTotal": 178,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "costing-control-center",
+      "width": 768,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 768,
+      "docScrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 178,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "costing-control-center",
+      "width": 900,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 900,
+      "docScrollWidth": 900,
+      "bodyScrollWidth": 900,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 178,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "costing-control-center",
+      "width": 1280,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 1280,
+      "docScrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 178,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "cost-build-manager",
+      "width": 390,
+      "headerOverlaps": [],
+      "clippedActions": [
+        "span#costingRunStatusBadge.sc-run-status@446>372",
+        "div#lastRefreshed.sc-snapshot.snapshot-fresh@487>372",
+        "button#homeBtn.icon-btn.sasv-home-btn@534>372"
+      ],
+      "titleClipped": false,
+      "viewport": 390,
+      "docScrollWidth": 513,
+      "bodyScrollWidth": 534,
+      "pageOverflow": true,
+      "culprits": [
+        {
+          "el": "div",
+          "right": 534,
+          "width": 516
+        },
+        {
+          "el": "span#costingRunStatusBadge.sc-run-status",
+          "right": 446,
+          "width": 346
+        },
+        {
+          "el": "div#lastRefreshed.sc-snapshot.snapshot-fresh",
+          "right": 487,
+          "width": 28
+        },
+        {
+          "el": "span.sc-snapshot-dot",
+          "right": 478,
+          "width": 10
+        },
+        {
+          "el": "button#homeBtn.icon-btn.sasv-home-btn",
+          "right": 534,
+          "width": 42
+        },
+        {
+          "el": "svg",
+          "right": 521,
+          "width": 16
+        },
+        {
+          "el": "span.home-label",
+          "right": 513,
+          "width": 1
+        }
+      ],
+      "interactiveTotal": 160,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "cost-build-manager",
+      "width": 520,
+      "headerOverlaps": [],
+      "clippedActions": [
+        "button#homeBtn.icon-btn.sasv-home-btn@534>502"
+      ],
+      "titleClipped": false,
+      "viewport": 520,
+      "docScrollWidth": 520,
+      "bodyScrollWidth": 534,
+      "pageOverflow": true,
+      "culprits": [
+        {
+          "el": "div",
+          "right": 534,
+          "width": 516
+        },
+        {
+          "el": "button#homeBtn.icon-btn.sasv-home-btn",
+          "right": 534,
+          "width": 42
+        }
+      ],
+      "interactiveTotal": 160,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "cost-build-manager",
+      "width": 768,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 768,
+      "docScrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 160,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "cost-build-manager",
+      "width": 900,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 900,
+      "docScrollWidth": 900,
+      "bodyScrollWidth": 900,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 160,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "cost-build-manager",
+      "width": 1280,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 1280,
+      "docScrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 160,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "cost-sheet-review",
+      "width": 390,
+      "headerOverlaps": [],
+      "clippedActions": [
+        "span#costingRunStatusBadge.sc-run-status@456>362",
+        "div#lastRefreshed.sc-snapshot.snapshot-fresh@497>362",
+        "button#homeBtn.icon-btn.sasv-home-btn@544>362"
+      ],
+      "titleClipped": false,
+      "viewport": 390,
+      "docScrollWidth": 523,
+      "bodyScrollWidth": 544,
+      "pageOverflow": true,
+      "culprits": [
+        {
+          "el": "div.header-actions",
+          "right": 544,
+          "width": 516
+        },
+        {
+          "el": "span#costingRunStatusBadge.sc-run-status",
+          "right": 456,
+          "width": 346
+        },
+        {
+          "el": "div#lastRefreshed.sc-snapshot.snapshot-fresh",
+          "right": 497,
+          "width": 28
+        },
+        {
+          "el": "span.sc-snapshot-dot",
+          "right": 488,
+          "width": 10
+        },
+        {
+          "el": "button#homeBtn.icon-btn.sasv-home-btn",
+          "right": 544,
+          "width": 42
+        },
+        {
+          "el": "svg",
+          "right": 531,
+          "width": 16
+        },
+        {
+          "el": "span.home-label",
+          "right": 523,
+          "width": 1
+        }
+      ],
+      "interactiveTotal": 161,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "cost-sheet-review",
+      "width": 520,
+      "headerOverlaps": [],
+      "clippedActions": [
+        "div#lastRefreshed.sc-snapshot.snapshot-fresh@497>492",
+        "button#homeBtn.icon-btn.sasv-home-btn@544>492"
+      ],
+      "titleClipped": false,
+      "viewport": 520,
+      "docScrollWidth": 523,
+      "bodyScrollWidth": 544,
+      "pageOverflow": true,
+      "culprits": [
+        {
+          "el": "div.header-actions",
+          "right": 544,
+          "width": 516
+        },
+        {
+          "el": "button#homeBtn.icon-btn.sasv-home-btn",
+          "right": 544,
+          "width": 42
+        },
+        {
+          "el": "svg",
+          "right": 531,
+          "width": 16
+        },
+        {
+          "el": "span.home-label",
+          "right": 523,
+          "width": 1
+        }
+      ],
+      "interactiveTotal": 161,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "cost-sheet-review",
+      "width": 768,
+      "headerOverlaps": [],
+      "clippedActions": [
+        "button#homeBtn.icon-btn.sasv-home-btn@763>740"
+      ],
+      "titleClipped": false,
+      "viewport": 768,
+      "docScrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 161,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "cost-sheet-review",
+      "width": 900,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 900,
+      "docScrollWidth": 900,
+      "bodyScrollWidth": 900,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 161,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "cost-sheet-review",
+      "width": 1280,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 1280,
+      "docScrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 161,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "material-cost-manager",
+      "width": 390,
+      "headerOverlaps": [],
+      "clippedActions": [
+        "span#costingRunStatusBadge.sc-run-status@446>372",
+        "div#lastRefreshed.sc-snapshot.snapshot-fresh@487>372",
+        "button#homeBtn.icon-btn.sasv-home-btn@534>372"
+      ],
+      "titleClipped": false,
+      "viewport": 390,
+      "docScrollWidth": 513,
+      "bodyScrollWidth": 534,
+      "pageOverflow": true,
+      "culprits": [
+        {
+          "el": "div",
+          "right": 534,
+          "width": 516
+        },
+        {
+          "el": "span#costingRunStatusBadge.sc-run-status",
+          "right": 446,
+          "width": 346
+        },
+        {
+          "el": "div#lastRefreshed.sc-snapshot.snapshot-fresh",
+          "right": 487,
+          "width": 28
+        },
+        {
+          "el": "span.sc-snapshot-dot",
+          "right": 478,
+          "width": 10
+        },
+        {
+          "el": "button#homeBtn.icon-btn.sasv-home-btn",
+          "right": 534,
+          "width": 42
+        },
+        {
+          "el": "svg",
+          "right": 521,
+          "width": 16
+        },
+        {
+          "el": "span.home-label",
+          "right": 513,
+          "width": 1
+        }
+      ],
+      "interactiveTotal": 169,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "material-cost-manager",
+      "width": 520,
+      "headerOverlaps": [],
+      "clippedActions": [
+        "button#homeBtn.icon-btn.sasv-home-btn@534>502"
+      ],
+      "titleClipped": false,
+      "viewport": 520,
+      "docScrollWidth": 520,
+      "bodyScrollWidth": 534,
+      "pageOverflow": true,
+      "culprits": [
+        {
+          "el": "div",
+          "right": 534,
+          "width": 516
+        },
+        {
+          "el": "button#homeBtn.icon-btn.sasv-home-btn",
+          "right": 534,
+          "width": 42
+        }
+      ],
+      "interactiveTotal": 169,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "material-cost-manager",
+      "width": 768,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 768,
+      "docScrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 169,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "material-cost-manager",
+      "width": 900,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 900,
+      "docScrollWidth": 900,
+      "bodyScrollWidth": 900,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 169,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "material-cost-manager",
+      "width": 1280,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 1280,
+      "docScrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 169,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "pricing-policy-manager",
+      "width": 390,
+      "headerOverlaps": [],
+      "clippedActions": [
+        "span#costingRunStatusBadge.sc-run-status@434>384",
+        "div#lastRefreshed.sc-snapshot.snapshot-fresh@475>384",
+        "button#homeBtn.sasv-home-btn.icon-btn@522>384"
+      ],
+      "titleClipped": false,
+      "viewport": 390,
+      "docScrollWidth": 501,
+      "bodyScrollWidth": 522,
+      "pageOverflow": true,
+      "culprits": [
+        {
+          "el": "div",
+          "right": 522,
+          "width": 516
+        },
+        {
+          "el": "span#costingRunStatusBadge.sc-run-status",
+          "right": 434,
+          "width": 346
+        },
+        {
+          "el": "div#lastRefreshed.sc-snapshot.snapshot-fresh",
+          "right": 475,
+          "width": 28
+        },
+        {
+          "el": "span.sc-snapshot-dot",
+          "right": 466,
+          "width": 10
+        },
+        {
+          "el": "button#homeBtn.sasv-home-btn.icon-btn",
+          "right": 522,
+          "width": 42
+        },
+        {
+          "el": "svg",
+          "right": 509,
+          "width": 16
+        },
+        {
+          "el": "span.home-label",
+          "right": 501,
+          "width": 1
+        }
+      ],
+      "interactiveTotal": 269,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "pricing-policy-manager",
+      "width": 520,
+      "headerOverlaps": [],
+      "clippedActions": [
+        "button#homeBtn.sasv-home-btn.icon-btn@522>514"
+      ],
+      "titleClipped": false,
+      "viewport": 520,
+      "docScrollWidth": 520,
+      "bodyScrollWidth": 522,
+      "pageOverflow": true,
+      "culprits": [
+        {
+          "el": "div",
+          "right": 522,
+          "width": 516
+        },
+        {
+          "el": "button#homeBtn.sasv-home-btn.icon-btn",
+          "right": 522,
+          "width": 42
+        }
+      ],
+      "interactiveTotal": 269,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "pricing-policy-manager",
+      "width": 768,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 768,
+      "docScrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 269,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "pricing-policy-manager",
+      "width": 900,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 900,
+      "docScrollWidth": 900,
+      "bodyScrollWidth": 900,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 269,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "pricing-policy-manager",
+      "width": 1280,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 1280,
+      "docScrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 269,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "production-route-manager",
+      "width": 390,
+      "headerOverlaps": [],
+      "clippedActions": [
+        "span#costingRunStatusBadge.sc-run-status@446>372",
+        "div#lastRefreshed.sc-snapshot.snapshot-fresh@487>372",
+        "button#homeBtn.icon-btn.sasv-home-btn@534>372"
+      ],
+      "titleClipped": false,
+      "viewport": 390,
+      "docScrollWidth": 513,
+      "bodyScrollWidth": 534,
+      "pageOverflow": true,
+      "culprits": [
+        {
+          "el": "div",
+          "right": 534,
+          "width": 516
+        },
+        {
+          "el": "span#costingRunStatusBadge.sc-run-status",
+          "right": 446,
+          "width": 346
+        },
+        {
+          "el": "div#lastRefreshed.sc-snapshot.snapshot-fresh",
+          "right": 487,
+          "width": 28
+        },
+        {
+          "el": "span.sc-snapshot-dot",
+          "right": 478,
+          "width": 10
+        },
+        {
+          "el": "button#homeBtn.icon-btn.sasv-home-btn",
+          "right": 534,
+          "width": 42
+        },
+        {
+          "el": "svg",
+          "right": 521,
+          "width": 16
+        },
+        {
+          "el": "span.home-label",
+          "right": 513,
+          "width": 1
+        }
+      ],
+      "interactiveTotal": 45,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "production-route-manager",
+      "width": 520,
+      "headerOverlaps": [],
+      "clippedActions": [
+        "button#homeBtn.icon-btn.sasv-home-btn@534>502"
+      ],
+      "titleClipped": false,
+      "viewport": 520,
+      "docScrollWidth": 520,
+      "bodyScrollWidth": 534,
+      "pageOverflow": true,
+      "culprits": [
+        {
+          "el": "div",
+          "right": 534,
+          "width": 516
+        },
+        {
+          "el": "button#homeBtn.icon-btn.sasv-home-btn",
+          "right": 534,
+          "width": 42
+        }
+      ],
+      "interactiveTotal": 45,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "production-route-manager",
+      "width": 768,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 768,
+      "docScrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 45,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "production-route-manager",
+      "width": 900,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 900,
+      "docScrollWidth": 900,
+      "bodyScrollWidth": 900,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 45,
+      "focusProblems": [],
+      "pageErrors": []
+    },
+    {
+      "page": "production-route-manager",
+      "width": 1280,
+      "headerOverlaps": [],
+      "clippedActions": [],
+      "titleClipped": false,
+      "viewport": 1280,
+      "docScrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "pageOverflow": false,
+      "culprits": [],
+      "interactiveTotal": 45,
+      "focusProblems": [],
+      "pageErrors": []
+    }
+  ]
+}

@@ -2739,3 +2739,167 @@ body.sasv-costing-control-center .cp-readiness-gap-bound {
   .rwl-chip { min-height: 40px; }
   .rwl-run-picker select { min-height: 40px; }
 }
+
+/* =====================================================================
+   CW-13: responsive hardening (measured by scripts/costing-responsive/responsive-audit.mjs).
+   Compact mobile header shared by the six Costing modules: smaller title on the same row as the actions, the
+   run-status chip replaced on phones by a status icon button (costing-run-status-popover.js), the elapsed-time
+   freshness indicator retired, and a visible focus ring on the filter button and the Production Route date.
+   ===================================================================== */
+/* The elapsed-time freshness chip is retired on all six pages. The element stays in the DOM as an inert, hidden
+   anchor (the run-status badge inserts itself before it and the shell guards every reference), so nothing can
+   crash on a missing node; Refresh, the refresh RPC and loading and error handling are untouched. */
+body.sasv-costing #lastRefreshed {
+  display: none;
+}
+/* A long run-status chip must not push the Home button out of the header. */
+body.sasv-costing .page-header > div:last-child {
+  min-width: 0;
+  max-width: 100%;
+}
+body.sasv-costing .page-header .sc-run-status:not([data-compact="1"]) {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 900px) {
+  body.sasv-costing .page-header > div:last-child {
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+/* Status icon button (phones only; hidden elsewhere and until the badge exists). */
+body.sasv-costing .sc-run-status-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--sasv-control-border, currentColor);
+  border-radius: var(--sasv-radius-sm, 7px);
+  background: var(--sasv-surface, transparent);
+  color: var(--sasv-text, inherit);
+  cursor: pointer;
+}
+body.sasv-costing .sc-run-status-btn[data-tone="approved"] {
+  color: var(--sasv-success, #17663a);
+  background: var(--sasv-success-bg, #e7f6ec);
+  border-color: var(--sasv-success-border, #b7e1c5);
+}
+body.sasv-costing .sc-run-status-btn[data-tone="approved-pending"] {
+  color: var(--sasv-warning, #7a5300);
+  background: var(--sasv-warning-bg, #fff6e0);
+  border-color: var(--sasv-warning-border, #f0d48a);
+}
+body.sasv-costing .sc-run-status-btn[data-tone="draft"] {
+  color: var(--sasv-danger, #a12622);
+  background: var(--sasv-danger-bg, #fdecec);
+  border-color: var(--sasv-danger-border, #f2b8b5);
+}
+body.sasv-costing .sc-run-status-btn[data-tone="empty"] {
+  color: var(--sasv-text-muted, #555555);
+  background: var(--sasv-surface-soft, #f1f3f5);
+  border-color: var(--sasv-control-border, #dde1e5);
+}
+body.sasv-costing .sc-run-status-btn .dot {
+  fill: currentColor;
+  stroke: none;
+}
+body.sasv-costing .sc-run-status-btn:focus-visible {
+  outline: 2px solid var(--sasv-action-primary);
+  outline-offset: 2px;
+}
+body.sasv-costing .sc-run-status-popover {
+  position: fixed;
+  z-index: 1000;
+  width: min(92vw, 320px);
+  max-height: 60vh;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--sasv-control-border, currentColor);
+  border-radius: var(--sasv-radius-sm, 7px);
+  background: var(--sasv-surface, Canvas);
+  color: var(--sasv-text, CanvasText);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  font-size: 13px;
+  line-height: 1.35;
+}
+body.sasv-costing .sc-run-status-popover[hidden] {
+  display: none;
+}
+body.sasv-costing .sc-run-status-popover:focus-visible {
+  outline: 2px solid var(--sasv-action-primary);
+  outline-offset: 2px;
+}
+body.sasv-costing .sc-run-status-popover dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 10px;
+  margin: 6px 0;
+}
+body.sasv-costing .sc-run-status-popover dt {
+  color: var(--sasv-text-muted, inherit);
+}
+body.sasv-costing .sc-run-status-popover dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+body.sasv-costing .sc-run-status-popover-warn {
+  margin: 6px 0 0;
+  font-weight: 600;
+  color: var(--sasv-danger, #a12622);
+}
+body.sasv-costing .sc-run-status-popover-detail {
+  margin: 6px 0 0;
+  color: var(--sasv-text-muted, inherit);
+  font-size: 12px;
+}
+@media (max-width: 520px) {
+  /* Same-row compact header: heading and actions share one row; they wrap only when the title would drop under 6 rem
+     (extreme titles, very narrow screens or browser zoom). */
+  body.sasv-costing .page-header {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+  }
+  body.sasv-costing .page-header > div:first-child {
+    flex: 1 1 6rem;
+    min-width: 0;
+  }
+  body.sasv-costing .page-header > div:last-child {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+  body.sasv-costing .page-header h1.sasv-module-title {
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+  /* 32 px targets (WCAG 2.2 minimum is 24 px). */
+  body.sasv-costing .page-header .icon-btn,
+  body.sasv-costing .page-header #homeBtn,
+  body.sasv-costing .page-header .sc-run-status-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    padding: 0;
+    flex: 0 0 32px;
+  }
+  body.sasv-costing .sc-run-status-btn:not([hidden]) {
+    display: inline-flex;
+  }
+  /* Only once the button exists does the long chip give way to it. */
+  body.sasv-costing.sc-run-status-btn-ready .page-header .sc-run-status {
+    display: none;
+  }
+}
+body.sasv-costing .peq-filter-btn:focus-visible,
+body.sasv-production-route-manager #prmAsOfDate:focus-visible {
+  outline: 2px solid var(--sasv-action-primary);
+  outline-offset: 2px;
+}
