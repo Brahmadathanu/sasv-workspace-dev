@@ -600,7 +600,20 @@ test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS
     const head = read("public/shared/css/sasv-costing.css");
     const base = readBase("public/shared/css/sasv-costing.css");
     assert.ok(head.startsWith(base), "append only");
-    const added = head.slice(base.length);
+    // CW-13 appended a separate, delimited responsive block; it is checked by its own stricter rule below
+    // (every selector body.sasv- scoped). Everything before it must still be UX-F1/F2 worklist CSS only.
+    const CW13_MARKER = "/* =====================================================================\n   CW-13: responsive hardening";
+    const addedAll = head.slice(base.length);
+    const cw13At = addedAll.indexOf(CW13_MARKER);
+    const added = cw13At === -1 ? addedAll : addedAll.slice(0, cw13At);
+    if (cw13At !== -1) {
+      const cw13 = addedAll.slice(cw13At);
+      const cw13Selectors = cw13.split("\n").filter((l) => (/\{\s*$/.test(l) || /,\s*$/.test(l)) && !/^\s*(@media|\/\*|\*|=)/.test(l));
+      assert.ok(cw13Selectors.length > 0);
+      for (const l of cw13Selectors) {
+        for (const part of l.replace(/\{\s*$/, "").split(",").map((x) => x.trim()).filter(Boolean)) assert.match(part, /^body\.sasv-/, part);
+      }
+    }
     const selectors = added.split("\n").filter((l) => /\{\s*$/.test(l) || /,\s*$/.test(l));
     assert.ok(selectors.length > 0);
     // Every selector is scoped to flag-only markup: .rwl- (worklist), .ccc- (UX-F1 run context) or
