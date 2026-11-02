@@ -1,3 +1,5 @@
+> **Merged update — 2 Nov 2026:** PR #126 was squash-merged into `main` as `4f1cb406551049532feec8c7a07ca53e20c62ddb`. The original branch/draft statement below records the pre-merge development state. `COSTING_DIALOGS_V1` remains default OFF. Real Production Route Candidate Review reachability and missing family-code issues are existing, deferred defects; the automated acceptance uses an in-memory mock, not live production writes.
+
 # CW-06 — Production Route Manager in-page dialogs
 
 Branch `feat/costing-cw06-route-dialogs`, baseline main `28cfadb20de3e2f3daf0aadada096f541254819d`. Draft; not merged.
