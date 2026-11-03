@@ -41,7 +41,7 @@ test("helper covers exactly the four worklist codes; unknown codes return empty 
   }
 });
 
-test("flag OFF (absent, 0, true, throwing storage): legacy Title Case labels exactly", () => {
+test("flag OFF (absent, 0, true, empty, throwing storage): legacy Title Case labels exactly", () => {
   const groups = groupReviewWorklistRows(rows);
   for (const v of [null, "0", "true", ""]) {
     withFlag(v, () => {
@@ -49,6 +49,14 @@ test("flag OFF (absent, 0, true, throwing storage): legacy Title Case labels exa
     });
   }
   assert.equal(reviewWorklistGroupLabel(groups[0]), CODES[groups[0].firstControlStatus][1]);
+  // Real throwing-storage fixture: getItem throws, so the flag must read as OFF.
+  const prev = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem() { throw new Error("blocked"); } } });
+  try {
+    for (const g of groups) assert.equal(reviewWorklistGroupLabel(g), CODES[g.firstControlStatus][1]);
+  } finally {
+    if (prev) Object.defineProperty(globalThis, "localStorage", prev); else delete globalThis.localStorage;
+  }
 });
 
 test("flag ON ('1'): sentence-case labels; group keys, codes and counts are unchanged", () => {
