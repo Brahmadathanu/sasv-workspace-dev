@@ -350,18 +350,22 @@ export function validatePricingPolicyNavMetadata() {
     errors.push("scheme-comparison must not remain a PPM workspace (SC4)");
   }
 
-  const expectedOrder = [
-    "sku-mrp-policies",
-    "product-derivation-policies",
-    "mrp-proposals",
-    "proposal-decisions",
-    "approved-for-application",
-    "applied-proposal-history",
-    "sku-overview",
-    "scheme-master",
-    "scheme-rule-register",
-    COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID,
-  ];
+  // W6: with the flag OFF the original order is expected; with it ON the approved N1 contract order is.
+  const expectedOrder =
+    W6_PRESENTATION.workspaces === LEGACY_PRICING_POLICY_WORKSPACES
+      ? [
+          "sku-mrp-policies",
+          "product-derivation-policies",
+          "mrp-proposals",
+          "proposal-decisions",
+          "approved-for-application",
+          "applied-proposal-history",
+          "sku-overview",
+          "scheme-master",
+          "scheme-rule-register",
+          COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID,
+        ]
+      : COSTING_PPM_NAV_GROUP_CONTRACT.groups.flatMap((group) => group.workspaceIds);
   if (PRICING_POLICY_WORKSPACE_IDS.length !== expectedOrder.length) {
     errors.push(
       `expected ${expectedOrder.length} workspaces, got ${PRICING_POLICY_WORKSPACE_IDS.length}`,
