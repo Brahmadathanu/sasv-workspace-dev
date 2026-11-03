@@ -1,0 +1,39 @@
+# Claude Code Cloud — Full-Programme Night Execution Brief (3 Nov 2026)
+**Source:** owner request in INVENTORY RELATED WORKS: complete the entire agreed WP00–WP12 workflow before Electron release; maximise safe cloud progress and minimise token waste. Read `FULL_PROGRAMME_COMPLETION_EXECUTION_2026-11-03.md` first for scope and non-negotiable controls.
+
+## Role and limits
+You are the autonomous **client-side engineering and verification worker**, not the server data approver or merge authority. Work against `Brahmadathanu/sasv-workspace-dev`, baseline Git `main` `4bbadf8802b1f7a6df02d207b1a8e3cca117ca09` (verify SHA again before branch creation). Never merge PRs, apply Supabase SQL, approve/reject live SKU reviews, finalise/approve runs, turn flags on, deploy, bump service worker, version, tag or publish. Do not change e-Aushadhi WP-07, pending migration `20261015045233`, or retention PR #137. GitHub PR #141 is a separate pending read-only evidence PR; do not merge it. PR #142 is a separate draft documentation plan; read its approved intent but do not rely on its unmerged state as current main.
+
+## Primary outcome — keep work moving, not just audit
+
+### Phase A: integrated baseline and shared understanding (execute, don't merely propose)
+1. Read `MASTER_PROGRAMME.md`, `FULL_PROGRAMME_COMPLETION_EXECUTION_2026-11-03.md` from PR #142, `IMPLEMENTATION_RULES.md`, `CLAUDE_CLOUD_WORKFLOW.md`, the live `WP-05...`–`WP-12...` work-pack docs, `WP05_A5...` and `WP05_A6...`. Use targeted `git grep` and scoped file reads; do not dump a whole repository into chat.
+2. Confirm `main` SHA, full Git history, clean worktree, Node/Chromium availability. Run full `node --test` against explicit `scripts/**/*.test.*` paths (not a directory), with browser tests actually executed. Preserve output to logs. Record tests/pass/fail/skipped/cancelled/TODO and exact SHA. Do not assume previous 605 baseline if new changes occurred.
+3. Extract actual residual work for **each WP05–WP12**: current code, user-facing gap, already-delivered changes, server/permission contract, dependencies, tests, and exact acceptance. Distinguish essential completion from owner-policy gates and genuinely optional Tier-2 discoveries. **Do not mark WP08–WP12 irrelevant to release.**
+
+### Phase B: client-end draft 148 review and approval path (architecture + tests first)
+4. Study `public/shared/js/costing-review-worklist.js`, `costing-approval-screen.js`, `costing-suite-control-center.js`, relevant cost sheet/review/readiness modules, and existing `scripts/costing-review-worklist/`, `scripts/costing-approval/` suites. Query existing source contracts only; the assistant has already independently verified: October draft 148 = 514 READY / 113 REVIEW / 1 BLOCKED (110 prime, 2 material, 1 pricing bridge); approved October run 143 remains pricing authority; 149 November is draft. All source statuses are frozen snapshots. Never infer current SKU defects solely from these figures.
+5. Draw exact journey: run picker → 148 → 110 prime-cost review worklist group → SKU evidence/drilldown → authorised acceptance/rejection controls → server response → client refresh → run status; plus two material reviews, one pricing bridge and blocked SKU 105. Verify that **the existing client actually contains the per-component review acceptance**, as opposed to merely a run-level final-approval screen; do not conflate the two. Verify RPC shape/role requirements from checked-in contracts; if missing, mark server-contract question and STOP on that particular mutation, not the entire other work.
+6. Add focused read-only/unit/Chromium test coverage for observed gaps. If a **deterministic, client-only, low-risk functional defect** is reproduced and the existing contract unambiguously specifies the fix, implement it in a dedicated branch `claude/costing-review-client-closure` and open **one draft PR** with LF/CRLF full tests. Do not invent approvals, status transitions or bulk acceptance. Never call production preview/approval RPCs from tests.
+
+### Phase C: WP11 U11 terminology package — bounded coding in parallel if file-disjoint
+7. Audit `costing-status-labels.js`, its callers and `scripts/costing-status-labels/`; reconcile confusing Costing terms against existing owner-approved vocabulary (draft vs approved, LIVE_AS_OF vs run-scoped, blocked vs review, source/valuation dates). **Implement only unambiguous presentation-label harmonisation** on a new isolated `claude/costing-u11-terminology` branch; add tests proving internal status codes, RPC payloads, role-gates, data labels, legacy deep links and default-OFF paths unchanged. If a wording choice changes governance meaning, document it for owner decision and skip that label; do not stall other safe work. Open a draft PR, do not merge.
+8. If U11 genuinely requires the new `COSTING_UX_CONSISTENCY_V1` flag, implement exact `1`, default OFF, with byte-compatible OFF path and rigorous tests. Prefer reusing existing flags/terminology data only when the documented contract permits; never unilaterally enable flags.
+
+### Phase D: remaining packages and full-workflow test plan
+9. WP08 Product/SKU/BOM/route/policy navigation: prepare evidence-backed target/screen mapping and implementation brief, not destructive merger without owner design decision.
+10. WP09 full app launcher: inventory routes, role boundaries, shared navigation including e-Aushadhi (read-only analysis only; leave paused code untouched); prepare bounded change brief.
+11. WP10 safeguard: map current server-authoritative completeness, operational activation, READY/BLOCKED and warning-vs-block decision; plan but **no invented schema/RPC/business rule**. Flag owner decision explicitly.
+12. WP11 additional UX polish and WP12 exhaustive acceptance: plan checked-in tests for SKU creation → readiness, approve/reject/finalise client governance, period history, permission regression, narrow screens and packaged Electron. Identify which tests can be run in cloud and which require signed-in roles / Windows.
+
+## Optimise for maximum useful output with bounded risk
+
+- Work until **each authorised phase has a tangible output**; do not stop because one browser test takes time. Run tests, inspect and fix actual failures, continue.
+- Prefer one concise doc audit PR and at most two distinct client implementation draft PRs (review-client and U11), each with isolated file ownership and exact test-head evidence. If overlapping changes are unavoidable, serialize.
+- Do not create numerous new tabs/modules/screens; integrate into existing UI. Ensure worklist and approval actions remain distinct as their contracts require.
+- If a genuinely high-risk missing server contract or owner-policy choice appears, **stop only that affected action**, document question/options/evidence, and continue other independent analysis/tests.
+- Clear output: `main` SHA, each PR number + head, file scopes, exact LF/CRLF/Chromium test counts, defects fixed, unresolved gates and ordered merge/next brief recommendations. Update programme documentation in the docs draft PR, not on main.
+- No generic repeated progress messages. Only milestone-specific short updates. Preserve state in branch docs/logs so future sessions can resume without rereading 100k lines. Do not claim successful live signed-in or Windows-native tests if not actually executed.
+
+## Stop condition
+STOP before any merge, client feature flag activation, production data review/approval/finalisation, server SQL writes, PWA deployment, cache bump, Electron version/build publish or GitHub Release. Independent ChatGPT review + explicit owner approval is required for each merge.
