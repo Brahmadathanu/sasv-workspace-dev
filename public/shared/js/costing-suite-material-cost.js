@@ -4687,18 +4687,24 @@ export function createMaterialCostController(deps) {
     select?.querySelectorAll("optgroup").forEach((el) => {
       if (el.label === "Traces") setHidden(el, hideGroup);
     });
-    if (!traceNavObserver && typeof MutationObserver === "function") {
-      // The shell re-renders the pills on every lens switch: re-apply once, after its own markup is in place.
-      traceNavObserver = new MutationObserver(() => {
-        traceNavObserver.disconnect();
-        try {
-          syncTraceNavVisibility();
-        } finally {
-          observeTraceNav(pills, select);
-        }
-      });
-      observeTraceNav(pills, select);
-    }
+  }
+
+  // Started at controller creation (flag ON only) so the shell's very first pill render is already filtered
+  // fail-closed; every later shell re-render is re-filtered the same way.
+  function initTraceNavObserver() {
+    if (traceNavObserver || typeof document === "undefined" || typeof MutationObserver !== "function") return;
+    const pills = document.getElementById("lensPills");
+    const select = document.getElementById("lensSelect");
+    if (!pills && !select) return;
+    traceNavObserver = new MutationObserver(() => {
+      traceNavObserver.disconnect();
+      try {
+        syncTraceNavVisibility();
+      } finally {
+        observeTraceNav(pills, select);
+      }
+    });
+    observeTraceNav(pills, select);
   }
 
   function observeTraceNav(pills, select) {
@@ -6423,6 +6429,8 @@ export function createMaterialCostController(deps) {
       }
     });
   }
+
+  if (isCostingNavGroupsV1Enabled()) initTraceNavObserver();
 
   return {
     bindEvents,

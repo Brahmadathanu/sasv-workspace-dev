@@ -17,6 +17,7 @@ export function stripN2MaterialCost(src) {
   t = cut(t, "  // N2: show only the trace navigation entries", "  function syncRmTraceChrome() {");
   t = t.replace("    syncActiveTraceComponentFromLens();\n    syncTraceNavVisibility();\n", "    syncActiveTraceComponentFromLens();\n");
   t = t.replace("    syncRmTraceChrome,\n    syncTraceNavVisibility,\n", "    syncRmTraceChrome,\n");
+  t = t.replace("  if (isCostingNavGroupsV1Enabled()) initTraceNavObserver();\n\n", "");
   return t;
 }
 

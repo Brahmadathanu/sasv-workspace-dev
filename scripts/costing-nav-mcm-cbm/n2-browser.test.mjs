@@ -45,7 +45,7 @@ export function createClient() {
     from: (t) => { globalThis.__calls.push({ kind: "from", name: t }); return chain(t); },
     rpc: (name, args) => {
       globalThis.__calls.push({ kind: "rpc", name, args: JSON.parse(JSON.stringify(args ?? {})) });
-      if (name === "get_user_permissions") return Promise.resolve({ data: globalThis.__N2_PERMS, error: null });
+      if (name === "get_user_permissions") return new Promise((r) => setTimeout(() => r({ data: globalThis.__N2_PERMS, error: null }), globalThis.__N2_DELAY || 0));
       return chain(name);
     },
     schema: () => client, channel: () => ({ on() { return this; }, subscribe() { return this; } }), removeChannel() {},
@@ -63,23 +63,24 @@ const getEnv = async (t) => {
 };
 test.after(async () => { await env?.close(); });
 
-async function open(e, rel, { storage = {}, targets = [], query = "", width = 1280, perms } = {}) {
+async function open(e, rel, { storage = {}, targets = [], query = "", width = 1280, perms, delay = 0, settle = 1200 } = {}) {
   const context = await e.browser.newContext({ viewport: { width, height: 900 } });
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (err) => errors.push(String(err.message).slice(0, 200)));
   const payload = perms ?? [...MODULES, ...targets].map((target) => ({ target, can_view: true, can_edit: false }));
-  await page.addInitScript(({ entries, payload: p }) => {
+  await page.addInitScript(({ entries, payload: p, delay: d }) => {
     try { for (const [k, v] of Object.entries(entries)) localStorage.setItem(k, v); } catch { /* ignore */ }
     globalThis.__N2_PERMS = p;
-  }, { entries: storage, payload });
+    globalThis.__N2_DELAY = d;
+  }, { entries: storage, payload, delay });
   await page.route(/cdnjs\.cloudflare\.com|fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net|esm\.sh/, (r) => {
     if (/\.css/.test(r.request().url())) return r.fulfill({ status: 200, contentType: "text/css", body: "" });
     return r.fulfill({ status: 200, contentType: "text/javascript", body: "" });
   });
   await page.route(/esm\.sh\/@supabase\/supabase-js/, (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: STUB }));
   await page.goto(`${e.base}/${rel}${query}`, { waitUntil: "load" });
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(settle);
   return { context, page, errors };
 }
 
@@ -266,5 +267,24 @@ test("Material Cost: Rates scope note on the Manual Rate Manager only when the f
   await on.context.close();
   const off = await open(e, MCM, { storage: {}, targets: [RM, PM] });
   assert.deepEqual((await nav(off.page)).scopeNotes, []);
+  await off.context.close();
+});
+
+test("fail closed while permissions are unresolved: trace entries stay hidden until the RM/PM roles resolve (flag ON); flag OFF shows them throughout", async (t) => {
+  const e = await getEnv(t); if (!e) return;
+  const on = await open(e, MCM, { storage: FLAG_ON, targets: [RM], delay: 2500, settle: 900 });
+  let s = await nav(on.page);
+  assert.notEqual(s.pills["rm-cost-trace"], true, "unresolved: RM not visible (not rendered or hidden)");
+  assert.notEqual(s.pills["pm-cost-trace"], true, "unresolved: PM not visible");
+  assert.notEqual(s.groups.traces, true);
+  await on.page.waitForTimeout(3200);
+  s = await nav(on.page);
+  assert.equal(s.pills["rm-cost-trace"], true, "resolved with the RM role: RM shown");
+  assert.equal(s.pills["pm-cost-trace"], false);
+  await on.context.close();
+  const off = await open(e, MCM, { storage: {}, targets: [RM], delay: 2500, settle: 900 });
+  s = await nav(off.page);
+  assert.equal(s.pills["rm-cost-trace"], true);
+  assert.equal(s.pills["pm-cost-trace"], true);
   await off.context.close();
 });
