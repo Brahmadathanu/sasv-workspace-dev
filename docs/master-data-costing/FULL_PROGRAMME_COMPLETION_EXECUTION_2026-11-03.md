@@ -1,3 +1,5 @@
+> **Integration reconciliation (3 Nov 2026, after U11 merge):** U11 PR #144 squash-merged to `main` `cf26ae5ed6c69b9e5f52e195f033cfb94e2e781b` (pre-merge final LF 610/610 and CRLF 610/610, 0 skipped; Chromium executed). The nine Costing flags remain default OFF. Subsequent client/server evidence design is now controlled by [CLIENT_DRAFT_RUN_EVIDENCE_IMPLEMENTATION_GATE_2026-11-03.md](CLIENT_DRAFT_RUN_EVIDENCE_IMPLEMENTATION_GATE_2026-11-03.md). Supporting, not-yet-merged historical audit PRs: #141 (live Supabase), #143 (Claude baseline/client), #145 (WP05–WP12 mapping). This branch’s original base SHA `4bbadf8` remains a historical provenance marker, not the current `main`. No work-pack closure or release was triggered by U11 integration.
+
 # Master Data & Costing Suite — Full Programme Completion Before Electron Release
 **Execution plan and Claude Cloud handover — 3 November 2026**
 
