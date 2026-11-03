@@ -121,12 +121,13 @@ test("Sibling navigation calls the shell contract with period only, new tab, exi
 });
 
 test("File ownership: only the three controllers (plus this package's tests/docs) change versus the base", () => {
+  // Immutable N3 package range: compare the original N1 base to the original N3 head,
+  // not the moving checkout. Later accepted N2/N4 changes must not be attributed to N3.
   const base = "85a163f2bc36476953939bfb637b81f632d6b9b9";
-  let changed;
-  try {
-    changed = execSyncImpl(`git diff --name-only ${base} -- . ":(exclude)scripts/costing-cross-links" ":(exclude)docs"`, { cwd: root, encoding: "utf8" })
-      .split("\n").filter(Boolean);
-  } catch { return; } // base object not available (shallow clone): ownership is enforced by review
+  const packageHead = "5f7252ead2997747b82ffe002307553d2b212b5e";
+  const changed = execSyncImpl(`git diff --name-only ${base} ${packageHead} -- . ":(exclude)scripts/costing-cross-links" ":(exclude)docs"`, { cwd: root, encoding: "utf8" })
+    .split("\n").filter(Boolean);
+  assert.ok(changed.length > 0, "N3 historical package diff must not be empty");
   const allowed = new Set([
     `${JS}/costing-suite-scheme-comparison.js`,
     `${JS}/costing-suite-qc-action-queue.js`,
