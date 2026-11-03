@@ -44,13 +44,26 @@ Command: `node --test $(find scripts -name "*.test.*" | sort)` (29 files). Chrom
 
 **Limitations / not done by N1 (by design):** no controller changes (N2 role-aware trace tabs, N3 cross-links, N4 selected Product/Family/Route persistence and chip feeding, W6 PPM grouping); the "Evidence & Review" sub-grouping inside the PRM Review group is deferred to N4; the shell does not yet feed Product/Family/Route/Run chips (only the governed period and the static basis); mock-backend browser tests only — signed-in populated-data acceptance is outstanding and required before the flag is considered for activation.
 
+## MDC-07 package N2 — Material Cost and Cost Build navigation refinement (implemented 3 Nov 2026; draft PR, not merged)
+**Flag:** the existing N1 flag `COSTING_NAV_GROUPS_V1` (default OFF, exact `1`). No new flag. Flag OFF: both controllers behave byte-for-byte as before (pinned by tests that strip exactly the N2 additions and compare with the N1 text).
+
+**Files changed:** `costing-suite-material-cost.js`, `costing-suite-cost-build.js` only (plus tests). Shell, registry, route config, N1 contract/context modules, feature flags, CSS, HTML, `sw.js` and Driver Governance's own controller are untouched.
+
+* **Role-aware trace navigation (MCM):** `syncTraceNavVisibility()` (called from the existing `syncRmTraceChrome`, re-applied by a `MutationObserver` after each shell pill re-render) hides the RM / PM trace pill, select option and, when neither is allowed, the whole Traces group. It only *reads* the unchanged `canAccessRmTrace()` / `canAccessPmTrace()`; RM and PM are decided independently, fail closed (unresolved permissions, or any `can_view` that is not exactly `true`, hide the entry). Entries are hidden with `hidden` (+ `disabled` on options), never removed from the DOM or the contract, so no lens id, route or deep link changes. The lens the user is currently on is never hidden: a deep link to an unauthorised trace keeps its active entry and its existing in-page restricted message, and still issues no trace RPC.
+* **Scope notes (flag ON):** a one-line note, labelled with the N1 group (`getNavGroupForLens`, read-only), above the existing tab strip of Manual Rate Manager (Rates), Cost Governance and Staff Governance (Mapping & classification) and Manual Provisions (Provisions). They keep Materials Rate functions, trace evidence, expense-head mapping, staff governance, manual provisions and driver-policy approval distinct. Existing `cp-muted-text` class; no CSS added.
+* **Unchanged:** every RPC, workflow, export, permission function and export role (verified: identical read/RPC sequence flag ON vs OFF for the same destinations; no write RPC).
+
+**Tests added (`scripts/costing-nav-mcm-cbm/`):** `n2.test.mjs` (9; visibility function for all role combinations, fail-closed, current-lens rule, contract ids, scope notes, strip reproduces N1 controllers exactly, permission functions and RPC names byte-identical, file-scope guard) and `n2-browser.test.mjs` (9 Chromium tests with per-test permissions: four role combinations at 1280/390, non-boolean grants, flag OFF parity, re-render persistence, unauthorised deep link, authorised trace still loads, backend parity, Cost Build and Material Cost notes). Five historical "controller unchanged" pin tests now compare after `scripts/lib/n2-nav-strip.mjs`.
+
+**Limitations:** Driver Governance (own controller file) and the trace lenses carry no scope note; the shell still shows its own context bar for them. Because the pills are rendered by the shell (not editable in N2), hiding is applied by the controller to the shell's markup after render, so a very brief frame with trace entries visible is possible before the first permission-resolved sync (the entries are hidden first by the observer on their first render only once permissions are resolved; before that `syncRmTraceChrome` has not run). A shell-side filter hook would be the cleaner long-term design (shared-contract change, reported separately, not made). Mock-backend browser tests only; signed-in populated-data acceptance outstanding.
+
 ## Approved design / contract
 Not yet approved.
 
 ## Milestones
 - [x] Current-state/audit gate (WP05 A1–A7, merged #130)
 - [x] Design/contract gate where applicable (A3 Tier 1, owner-accepted 2 Nov 2026)
-- [~] Implementation gate where applicable — N1 implemented on a draft PR; N2/N3/N4/W6/U11 not started
+- [~] Implementation gate where applicable — N1 and N2 implemented on draft PRs; N3/N4/W6/U11 not started
 - [ ] Focused verification
 - [ ] Independent audit
 - [ ] Merge/post-merge proof where applicable

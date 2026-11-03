@@ -13,6 +13,7 @@ import { costingScopeReport, applyCw07Labels } from "../lib/costing-scope-guard.
 import * as tools from "../../public/shared/js/costing-table-tools.js";
 import { readSourceLf } from "../lib/read-source-lf.mjs";
 import { stripN1 } from "../lib/n1-nav-strip.mjs";
+import { stripN2 } from "../lib/n2-nav-strip.mjs";
 
 const { COLUMN_HELP, csvCell, isSortableColumn, sortRowsBy, tableColumnsForTable } = tools;
 
@@ -454,7 +455,10 @@ test("pkg4 unsortable columns key null; table-tools diff is only the three entri
   // Scope guard (WP-07 Bundle B correction): HTML/CSS/supabase/package.json checks cover what Costing owns or
   // depends on (scripts/lib/costing-scope-guard.mjs) instead of the whole repository, so unrelated modules that
   // land on main later (e.g. WP-07 e-Aushadhi HTML/CSS and its own migration) no longer trip this package test.
-  assert.equal(git("diff", BASE, "--", ...controllers), "");
+  // MDC-07 N2: cost-build and material-cost may carry only the flag-gated N2 additions (scripts/lib/n2-nav-strip.mjs).
+  const n2Controllers = controllers.filter((c) => /cost-build|material-cost/.test(c));
+  for (const c of n2Controllers) assert.equal(stripN2(c, read(c)), git("show", `${BASE}:${c}`).replace(/\r\n/g, "\n"), c);
+  assert.equal(git("diff", BASE, "--", ...controllers.filter((c) => !n2Controllers.includes(c))), "");
   assert.ok(readSourceLf(root, `${JS}/costing-feature-flags.js`).includes("COSTING_NAV_GROUPS_V1"), "plain source read still contains the N1 flag");
   assert.equal(read(`${JS}/costing-feature-flags.js`), git("show", `${BASE}:${JS}/costing-feature-flags.js`).replace(/\r\n/g, "\n"), "feature flags unchanged apart from the N1 append");
   const scope = costingScopeReport({ git, root, base: BASE });
