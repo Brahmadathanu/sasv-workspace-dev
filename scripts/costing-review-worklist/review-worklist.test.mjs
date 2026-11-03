@@ -23,6 +23,7 @@ import { readSourceLf } from "../lib/read-source-lf.mjs";
 import { stripN1 } from "../lib/n1-nav-strip.mjs";
 import { stripN2 } from "../lib/n2-nav-strip.mjs";
 import { stripW6 } from "../lib/w6-nav-strip.mjs";
+import { stripU11 } from "../lib/u11-label-strip.mjs";
 
 const {
   REVIEW_WORKLIST_EMPTY_TEXT,
@@ -588,7 +589,7 @@ test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS
   // land on main later (e.g. WP-07 e-Aushadhi HTML/CSS and its own migration) no longer trip this package test.
   // CW-07: costing-route-config.js may differ from the base only by the Cost Sheet label rename (applied to the base text).
   // MDC-07 W6: the PPM controller may carry only the flag-gated W6 five-group projection (scripts/lib/w6-nav-strip.mjs).
-  for (const rel of protectedFiles) assert.equal(stripW6(rel, stripN2(rel, read(rel))), readBase(rel), rel);
+  for (const rel of protectedFiles) assert.equal(stripU11(rel, stripW6(rel, stripN2(rel, read(rel)))), readBase(rel), rel);
   const scope = costingScopeReport({ git, root, base: BASE });
   assert.deepEqual(scope.supabase, [], "no Costing or history-rewriting supabase change");
   assert.deepEqual(scope.packageJson, [], "package.json unchanged");

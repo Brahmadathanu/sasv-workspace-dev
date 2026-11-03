@@ -11,7 +11,8 @@ import {
   normalizeRecommendedUiRouteCode,
   resolveRecommendedUiRouteTarget,
 } from "./costing-suite-recommended-ui-route.js";
-import { costingStatusDisplayLabel } from "./costing-status-labels.js";
+import { isCostingUxConsistencyV1Enabled } from "./costing-feature-flags.js";
+import { costingControlStatusDisplayLabel, costingStatusDisplayLabel } from "./costing-status-labels.js";
 import { RUN_STATUS_SELECT_V1, RUN_STATUS_VIEW } from "./costing-run-status-badge.js";
 // UX-F1: CCC run-context presentation helpers, re-exported so the shell keeps a
 // single run-context UI import.
@@ -204,7 +205,8 @@ export function reviewWorklistVisibleAlerts(d) {
 
 /** Visible label of a group (server first-control status label; route appended only to disambiguate). */
 export function reviewWorklistGroupLabel(group, { withRoute = false } = {}) {
-  const primary = formatFirstControlStatusLabel(group.firstControlStatus) || group.firstControlStatus;
+  const unified = isCostingUxConsistencyV1Enabled() ? costingControlStatusDisplayLabel(group.firstControlStatus) : "";
+  const primary = unified || formatFirstControlStatusLabel(group.firstControlStatus) || group.firstControlStatus;
   const routeLabel = formatRecommendedUiRouteLabel(group.route) || group.route;
   return withRoute && routeLabel ? `${primary} · ${routeLabel}` : primary;
 }

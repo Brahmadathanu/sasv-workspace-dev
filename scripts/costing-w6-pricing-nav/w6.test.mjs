@@ -163,16 +163,15 @@ test("source: W6 adds no second navigation engine, new flag, RPC, storage, date 
   assert.deepEqual([...new Set(added.match(/is[A-Za-z]+V1Enabled/g) || [])], ["isCostingNavGroupsV1Enabled"], "only the existing N1 flag");
 });
 
+// Fixed, immutable W6 range (N4 merge .. W6 squash merge): later packages (e.g. U11) cannot widen or evade this guard.
+const W6_MERGE = "d395d7e8031a28e56ea1b0997424932997a36636";
 test("source: W6 changes only the PPM controller (plus tests and docs): shell, registry, route config, nav helpers, flags, CSS, HTML, SQL and cache are untouched", () => {
   gitOrFail("cat-file", "-e", `${MAIN_BASE}^{commit}`);
-  const changed = [
-    ...gitOrFail("diff", "--name-only", MAIN_BASE).split("\n"),
-    ...gitOrFail("diff", "--name-only", "--cached", MAIN_BASE).split("\n"),
-    ...gitOrFail("ls-files", "--others", "--exclude-standard").split("\n"),
-  ].filter(Boolean);
+  gitOrFail("cat-file", "-e", `${W6_MERGE}^{commit}`);
+  const changed = [...new Set(gitOrFail("diff", "--name-only", MAIN_BASE, W6_MERGE).split("\n").filter(Boolean))];
   assert.ok(changed.includes("public/shared/js/costing-suite-pricing-policy.js"));
-  assert.deepEqual([...new Set(changed)].filter((f) => f.startsWith("public/")), ["public/shared/js/costing-suite-pricing-policy.js"]);
-  assert.deepEqual([...new Set(changed)].filter((f) => /^(supabase|sql)\/|\.html$|sw\.js$|package(-lock)?\.json$/.test(f)), []);
+  assert.deepEqual(changed.filter((f) => f.startsWith("public/")), ["public/shared/js/costing-suite-pricing-policy.js"]);
+  assert.deepEqual(changed.filter((f) => /^(supabase|sql)\/|\.html$|sw\.js$|package(-lock)?\.json$/.test(f)), []);
 });
 
 // ---- the historical-pin strip helper removes exactly W6's additions and nothing else ----
