@@ -323,11 +323,7 @@ export function validatePricingPolicyNavMetadata() {
       errors.push(`duplicate group id: ${group.id}`);
     else groupIds.add(group.id);
   }
-  for (const expected of [
-    "mrp-policy-setup",
-    "mrp-change-workflow",
-    "selling-schemes",
-  ]) {
+  for (const expected of W6_PRESENTATION.groups.map((group) => group.id)) {
     if (!groupIds.has(expected)) errors.push(`missing nav group: ${expected}`);
   }
   if (groupIds.has("analysis")) {
