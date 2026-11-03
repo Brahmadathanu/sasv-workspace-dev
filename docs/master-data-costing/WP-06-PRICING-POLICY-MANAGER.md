@@ -56,7 +56,7 @@ None.
 W6 draft PR #139 changes only PPM-controller exports: an exact-flag-ON projection derives 5 groups and 10 workspace display assignments/order from the N1 contract, while OFF returns the original arrays and objects unmodified. An explicit `legacyGroupId` on the ON projection preserves former Area mapping and existing internal MRP/selling classifications. The existing shell consumes these metadata exports without a shell modification. No feature is activated.
 
 ## Tests / verification
-Focused pure/source metadata assertions in `scripts/costing-w6-pricing-nav/w6.test.mjs` were added to draft #139. **Not yet executed as a full verified LF/CRLF regression**; mock-browser/Chromium acceptance, flag-OFF rendered markup parity and historical checkout tests remain mandatory before independent acceptance.
+Focused metadata assertions (`scripts/costing-w6-pricing-nav/w6.test.mjs`) and Chromium desktop/narrow/legacy-link cases (`scripts/costing-w6-pricing-nav/w6-browser.test.mjs`) were added to draft #139. **Not yet executed as a verified LF/CRLF or Chromium regression.** Tests have been authored only; execute, review, and correct against real results. Historical full-history checkout and combined regression remain mandatory before independent acceptance.
 
 ## Decisions created
 3 Nov 2026: Owner approved the N1 five-group design for W6, required legacy navigation compatibility, and deferred C9 shared-registry changes.
