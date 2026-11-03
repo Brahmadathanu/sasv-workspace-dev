@@ -115,3 +115,6 @@ All work-pack objectives and required verification gates pass; documentation and
 
 ## Final handover
 Not started.
+
+## MDC-07 package W6 — Pricing Policy Manager five-group navigation (draft PR #139; status 3 Nov 2026)
+W6 consumes the merged N1 `COSTING_PPM_NAV_GROUP_CONTRACT` (SKU policies / MRP / MRP change workflow / Schemes / Costing inputs) inside the PPM controller (`costing-suite-pricing-policy.js` only) behind the existing exact-`1` flag `COSTING_NAV_GROUPS_V1` (default OFF; no new flag, no second navigation engine). OFF returns the original three-group metadata unmodified; ON derives the five groups and the display order of all ten unchanged workspaces, keeping a `legacyGroupId` so Area aliases, internal MRP/selling classifications and default-workspace resolution are unchanged. Legacy `?lens=`/`?workspace=` URLs resolve identically ON and OFF; the only period-scoped workspace remains Commercial Sales Assumptions. C9 (shared registry `periodScoped`) is deferred. Full detail and verification: `WP-06-PRICING-POLICY-MANAGER.md` and PR #139. W6 touches no file that N4 (PR #135) touches except that this section is appended at the end of this document; merge order and any reconciliation are recorded in the PR descriptions.
