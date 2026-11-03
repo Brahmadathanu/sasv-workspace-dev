@@ -272,7 +272,8 @@ function cfgLensIds() { return COSTING_ROUTE_CONFIG["production-route-manager"].
 test("scope guard: N1 shared files, registry, route config, HTML, SQL and cache are untouched by this package", () => {
   let changed;
   try {
-    changed = execFileSync("git", ["diff", "--name-only", "85a163f2bc36476953939bfb637b81f632d6b9b9"], { cwd: root, encoding: "utf8" })
+    // Compared with current main (N1/N2/N3 merged) so only this package's own files are judged.
+    changed = execFileSync("git", ["diff", "--name-only", "7f46f3784dcbc2b5059e940763c80befd3437746"], { cwd: root, encoding: "utf8" })
       .split("\n").filter(Boolean);
     changed.push(...execFileSync("git", ["ls-files", "--others", "--exclude-standard"], { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean));
   } catch {
