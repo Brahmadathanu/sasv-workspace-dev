@@ -38,10 +38,10 @@ W6 design audit completed 3 Nov 2026. The existing Pricing Policy Manager contro
 - [ ] Final handover
 
 ## Current Gate
-`WP06-W6 — approved bounded implementation; pending tests and independent review`
+`WP06-W6 — implementation on draft PR #139; full regression and independent review pending`
 
 ## Gate Status
-[~] W6 DESIGN APPROVED — implementation not yet delivered
+[~] W6 DESIGN APPROVED; controller metadata implementation and focused unit tests committed on draft PR #139; Chromium/full-suite regression pending
 
 ## Required to close
 W6 must implement the approved five-group presentation without violating compatibility, pass LF/CRLF and Chromium regression, undergo independent audit and obtain explicit owner merge approval. The wider WP06 work pack is not automatically closed.
@@ -53,10 +53,10 @@ W6 client implementation on its existing branch, focused regression and draft PR
 None.
 
 ## Client changes
-None.
+W6 draft PR #139 changes only PPM-controller exports: an exact-flag-ON projection derives 5 groups and 10 workspace display assignments/order from the N1 contract, while OFF returns the original arrays and objects unmodified. An explicit `legacyGroupId` on the ON projection preserves former Area mapping and existing internal MRP/selling classifications. The existing shell consumes these metadata exports without a shell modification. No feature is activated.
 
 ## Tests / verification
-None.
+Focused pure/source metadata assertions in `scripts/costing-w6-pricing-nav/w6.test.mjs` were added to draft #139. **Not yet executed as a full verified LF/CRLF regression**; mock-browser/Chromium acceptance, flag-OFF rendered markup parity and historical checkout tests remain mandatory before independent acceptance.
 
 ## Decisions created
 3 Nov 2026: Owner approved the N1 five-group design for W6, required legacy navigation compatibility, and deferred C9 shared-registry changes.
