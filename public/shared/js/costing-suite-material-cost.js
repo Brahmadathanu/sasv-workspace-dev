@@ -1,4 +1,6 @@
 import { supabase } from "./supabaseClient.js";
+import { isCostingNavGroupsV1Enabled } from "./costing-feature-flags.js";
+import { getNavGroupForLens } from "./costing-nav-groups.js";
 
 export const MATERIAL_COST_LENS_IDS = [
   "manual-rate-manager",
@@ -219,6 +221,47 @@ const MANUAL_RATE_MANAGER_TAB_IDS = new Set([
   "register",
   "history",
 ]);
+
+// MDC-07 / N2 — presentation only (COSTING_NAV_GROUPS_V1, default OFF). Nothing here changes a permission check,
+// RPC, export or lens id. The RM and PM trace destinations stay separate; the permission functions below
+// (canAccessRmTrace / canAccessPmTrace) remain the only authority and are merely READ to decide whether a
+// navigation entry is shown.
+export const MCM_TRACE_NAV_LENS_IDS = Object.freeze(["rm-cost-trace", "pm-cost-trace"]);
+const MCM_NAV_SUITE_ID = "material-cost";
+const MCM_TRACE_NAV_GROUP_ID = "traces";
+
+/**
+ * Which trace navigation entries to show. Fail closed: while permissions are unresolved, or when the
+ * corresponding view permission is not exactly true, the entry is hidden. The lens the user is currently on is
+ * never hidden (a deep link keeps its in-page restricted message and an active entry), and flag OFF shows all.
+ */
+export function resolveTraceNavVisibility({
+  navGroupsEnabled,
+  permissionsResolved,
+  canViewRm,
+  canViewPm,
+  currentLens,
+} = {}) {
+  if (navGroupsEnabled !== true) {
+    return { "rm-cost-trace": true, "pm-cost-trace": true, tracesGroup: true };
+  }
+  const resolved = permissionsResolved === true;
+  const rm = (resolved && canViewRm === true) || currentLens === "rm-cost-trace";
+  const pm = (resolved && canViewPm === true) || currentLens === "pm-cost-trace";
+  return { "rm-cost-trace": rm, "pm-cost-trace": pm, tracesGroup: rm || pm };
+}
+
+/** Static scope note per Material Cost lens (display text only; keeps Rates and Traces distinct). */
+export const MCM_NAV_SCOPE_NOTES = Object.freeze({
+  "manual-rate-manager": "Rates: set and review manual RM/PM costing rates. Trace evidence is a separate, restricted view.",
+});
+
+export function renderMaterialCostNavScopeHtml(lensId, escape = (v) => String(v ?? "")) {
+  const note = MCM_NAV_SCOPE_NOTES[lensId];
+  if (!note) return "";
+  const group = getNavGroupForLens(MCM_NAV_SUITE_ID, MATERIAL_COST_LENS_IDS, lensId);
+  return `<div class="cp-muted-text" data-nav-scope="${escape(lensId)}"${group ? ` data-nav-group="${escape(group.id)}"` : ""}>${group ? `<strong>${escape(group.label)}</strong> · ` : ""}${escape(note)}</div>`;
+}
 
 const RATE_ORIGIN_MANUAL = "MANUAL_ENTRY";
 const RATE_ORIGIN_VENDOR = "VENDOR_RATE_BOOK";
@@ -4603,8 +4646,76 @@ export function createMaterialCostController(deps) {
     closeAdvanced?.();
   }
 
+  // N2: show only the trace navigation entries the user may view (flag-gated; reads, never changes, permissions).
+  let traceNavObserver = null;
+
+  function syncTraceNavVisibility() {
+    if (!isCostingNavGroupsV1Enabled()) return;
+    if (typeof document === "undefined") return;
+    const pills = document.getElementById("lensPills");
+    const select = document.getElementById("lensSelect");
+    if (!pills && !select) return;
+    const perms = getTracePermissionsSafe();
+    const visible = resolveTraceNavVisibility({
+      navGroupsEnabled: true,
+      permissionsResolved: perms.permissionsResolved === true,
+      canViewRm: canAccessRmTrace(),
+      canViewPm: canAccessPmTrace(),
+      currentLens: getCurrentLens(),
+    });
+    const setHidden = (el, hide) => {
+      if (!el) return;
+      if (hide) {
+        el.hidden = true;
+        el.setAttribute("data-nav-hidden", "role");
+        if (el.tagName === "OPTION" || el.tagName === "OPTGROUP") el.disabled = true;
+      } else if (el.getAttribute("data-nav-hidden") === "role") {
+        el.hidden = false;
+        el.removeAttribute("data-nav-hidden");
+        if (el.tagName === "OPTION" || el.tagName === "OPTGROUP") el.disabled = false;
+      }
+    };
+    for (const lensId of MCM_TRACE_NAV_LENS_IDS) {
+      const hide = visible[lensId] !== true;
+      pills?.querySelectorAll(`.pill[data-lens="${lensId}"]`).forEach((el) => setHidden(el, hide));
+      select?.querySelectorAll(`option[value="${lensId}"]`).forEach((el) => setHidden(el, hide));
+    }
+    const hideGroup = visible.tracesGroup !== true;
+    pills
+      ?.querySelectorAll(`[data-nav-group="${MCM_TRACE_NAV_GROUP_ID}"]`)
+      .forEach((el) => setHidden(el, hideGroup));
+    select?.querySelectorAll("optgroup").forEach((el) => {
+      if (el.label === "Traces") setHidden(el, hideGroup);
+    });
+  }
+
+  // Started at controller creation (flag ON only) so the shell's very first pill render is already filtered
+  // fail-closed; every later shell re-render is re-filtered the same way.
+  function initTraceNavObserver() {
+    if (traceNavObserver || typeof document === "undefined" || typeof MutationObserver !== "function") return;
+    const pills = document.getElementById("lensPills");
+    const select = document.getElementById("lensSelect");
+    if (!pills && !select) return;
+    traceNavObserver = new MutationObserver(() => {
+      traceNavObserver.disconnect();
+      try {
+        syncTraceNavVisibility();
+      } finally {
+        observeTraceNav(pills, select);
+      }
+    });
+    observeTraceNav(pills, select);
+  }
+
+  function observeTraceNav(pills, select) {
+    if (!traceNavObserver) return;
+    if (pills) traceNavObserver.observe(pills, { childList: true });
+    if (select) traceNavObserver.observe(select, { childList: true });
+  }
+
   function syncRmTraceChrome() {
     syncActiveTraceComponentFromLens();
+    syncTraceNavVisibility();
     syncManualRateManagerControlsVisibility();
 
     const rmDom = getRmTraceDom();
@@ -6023,6 +6134,7 @@ export function createMaterialCostController(deps) {
 
     workbenchSummaryEl.classList.add("is-visible");
     workbenchSummaryEl.innerHTML = `
+    ${isCostingNavGroupsV1Enabled() ? renderMaterialCostNavScopeHtml("manual-rate-manager", escapeHtml) : ""}
     <div class="cp-workbench-compact-summary" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
       ${tabs
         .map(
@@ -6318,6 +6430,8 @@ export function createMaterialCostController(deps) {
     });
   }
 
+  if (isCostingNavGroupsV1Enabled()) initTraceNavObserver();
+
   return {
     bindEvents,
     handleEscapeKey,
@@ -6366,6 +6480,7 @@ export function createMaterialCostController(deps) {
     applyTraceLaunchContext,
     clearTraceLaunchExactIdentityOnPeriodChange,
     syncRmTraceChrome,
+    syncTraceNavVisibility,
     syncTracePageFromShell,
     getTracePage,
     getTraceTotalCount,

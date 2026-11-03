@@ -44,19 +44,41 @@ Command: `node --test $(find scripts -name "*.test.*" | sort)` (29 files). Chrom
 
 **Limitations / not done by N1 (by design):** no controller changes (N2 role-aware trace tabs, N3 cross-links, N4 selected Product/Family/Route persistence and chip feeding, W6 PPM grouping); the "Evidence & Review" sub-grouping inside the PRM Review group is deferred to N4; the shell does not yet feed Product/Family/Route/Run chips (only the governed period and the static basis); mock-backend browser tests only — signed-in populated-data acceptance is outstanding and required before the flag is considered for activation.
 
+## MDC-07 package N2 — Material Cost and Cost Build navigation refinement (implemented 3 Nov 2026; draft PR, not merged)
+**Flag:** the existing N1 flag `COSTING_NAV_GROUPS_V1` (default OFF, exact `1`). No new flag. Flag OFF: both controllers behave byte-for-byte as before (pinned by tests that strip exactly the N2 additions and compare with the N1 text).
+
+**Files changed:** `costing-suite-material-cost.js`, `costing-suite-cost-build.js` only (plus tests). Shell, registry, route config, N1 contract/context modules, feature flags, CSS, HTML, `sw.js` and Driver Governance's own controller are untouched.
+
+* **Role-aware trace navigation (MCM):** `syncTraceNavVisibility()` (called from the existing `syncRmTraceChrome`, re-applied by a `MutationObserver` after each shell pill re-render) hides the RM / PM trace pill, select option and, when neither is allowed, the whole Traces group. It only *reads* the unchanged `canAccessRmTrace()` / `canAccessPmTrace()`; RM and PM are decided independently, fail closed (unresolved permissions, or any `can_view` that is not exactly `true`, hide the entry). Entries are hidden with `hidden` (+ `disabled` on options), never removed from the DOM or the contract, so no lens id, route or deep link changes. The lens the user is currently on is never hidden: a deep link to an unauthorised trace keeps its active entry and its existing in-page restricted message, and still issues no trace RPC.
+* **Scope notes (flag ON):** a one-line note, labelled with the N1 group (`getNavGroupForLens`, read-only), above the existing tab strip of Manual Rate Manager (Rates), Cost Governance and Staff Governance (Mapping & classification) and Manual Provisions (Provisions). They keep Materials Rate functions, trace evidence, expense-head mapping, staff governance, manual provisions and driver-policy approval distinct. Existing `cp-muted-text` class; no CSS added.
+* **Unchanged:** every RPC, workflow, export, permission function and export role (verified: identical read/RPC sequence flag ON vs OFF for the same destinations; no write RPC).
+
+**Tests added (`scripts/costing-nav-mcm-cbm/`):** `n2.test.mjs` (9; visibility function for all role combinations, fail-closed, current-lens rule, contract ids, scope notes, strip reproduces N1 controllers exactly, permission functions and RPC names byte-identical, file-scope guard) and `n2-browser.test.mjs` (9 Chromium tests with per-test permissions: four role combinations at 1280/390, non-boolean grants, flag OFF parity, re-render persistence, unauthorised deep link, authorised trace still loads, backend parity, Cost Build and Material Cost notes). Five historical "controller unchanged" pin tests now compare after `scripts/lib/n2-nav-strip.mjs`.
+
+**Results (tested head `3cf48b2`):** 530 tests, 530 pass, 0 fail, 0 skipped on LF and on CRLF (511 N1 baseline + 19 new), Chromium ran; flag-OFF parity snapshot (96 pages/deep links) byte-identical to N1 main `85a163f`.
+
+**Limitations:** Driver Governance (own controller file) and the trace lenses carry no scope note; the shell still shows its own context bar for them. Because the pills are rendered by the shell (not editable in N2), hiding is applied by the controller to the shell's markup after each render (a `MutationObserver` started when the controller is created, flag ON only; the shell renders no pills before permissions resolve, and after that the filter is fail-closed). A shell-side filter hook would be the cleaner long-term design (shared-contract change, reported separately, not made). Mock-backend browser tests only; signed-in populated-data acceptance outstanding.
+
 ## Approved design / contract
 Not yet approved.
 
 ## Milestones
 - [x] Current-state/audit gate (WP05 A1–A7, merged #130)
 - [x] Design/contract gate where applicable (A3 Tier 1, owner-accepted 2 Nov 2026)
-- [~] Implementation gate where applicable — N1 implemented on a draft PR; N2/N3/N4/W6/U11 not started
+- [~] Implementation gate where applicable — N1 and N2 implemented on draft PRs; N3/N4/W6/U11 not started
 - [ ] Focused verification
 - [ ] Independent audit
 - [ ] Merge/post-merge proof where applicable
 - [ ] Final handover
 
 ## Current Gate
+### MDC-07 / N3 — Cost Sheet Review cross-links and Action Queues (draft PR, not merged)
+
+* **Scheme Comparison → Pricing Policy Manager › SKU Policy Overview:** each row with its own `period_start` and `sku_id` gets a "SKU policy overview ↗" anchor (inside the existing Product / SKU cell; headers, alignments, CSV export and the row-click drawer are unchanged) to `pricing-policy-manager.html?workspace=sku-overview&period_start=…&product_id=…&sku_id=…` in a new tab. `product_id` is added only when the row carries it. A row without its own period or SKU gets no link (nothing is inferred). Pure navigation: no new RPC, no write, no flag read.
+* **Action Queues:** QC and Materials & Stores remain two lenses, two controllers, two unchanged RPCs (`rpc_get_qc_action_queue`, `rpc_get_materials_stores_action_queue`; param shapes untouched) in the N1 "Action Queues" group. Each queue's detail panel gains an "Open … Action Queue" link to the sibling lens (new tab, governed period only). Existing remediation links are unchanged.
+* **Limitations:** the shell's PPM launch consumes `workspace` and `period_start`; it does not preselect a Product or SKU in SKU Policy Overview, and the queue lenses have no launch-time product filter, so `product_id`/`sku_id` are carried on the Scheme Comparison link only as the existing contract allows and the queue sibling link carries the period only. The reverse PPM → Scheme Comparison link lives in the Pricing Policy Manager controller (W6, out of N3 scope). The shell-injected `navigateToCostingRoute` is used for queue links; the Scheme Comparison anchor uses the same relative page link the shell resolves on shared pages because the shell does not inject navigation into that controller. No flag was activated, no cache bump.
+* **Tests:** `scripts/costing-cross-links/` (`cross-links.test.mjs`, `cross-links-browser.test.mjs`).
+
 `MDC-07-N1 — implemented on a draft PR; awaiting independent review and owner acceptance. No merge, flag activation or further package is implied.`
 
 ## Gate Status
@@ -76,6 +98,8 @@ N1 (draft PR): `costing-nav-groups.js`, `costing-nav-context.js`, flag in `costi
 
 ## Tests / verification
 See Gate A and the N1 section above. Not performed: signed-in populated-data acceptance, live PWA/cache check, global smoke run.
+
+**Git history requirement (N2/N3 historical ownership guards):** the guards `File ownership: only the three controllers…` (`scripts/costing-cross-links/cross-links.test.mjs`) and `source: N2 touches only the two controller files…` (`scripts/costing-nav-mcm-cbm/n2.test.mjs`) compare permanent squash-merge commits on `main`: N3 #134 `85a163f` → `55acfce`, N2 #136 `55acfce` → `7f46f37`. They need full history (at least back to `85a163f`). A shallow or partial checkout fails them **explicitly** with the message "needs commit … Run: git fetch --unshallow"; they never skip. The repository currently has no CI workflow that runs these tests (only `public/netlify.toml`, a deploy config); any future CI job must check out with `fetch-depth: 0` (or unshallow). They no longer depend on the original feature branches.
 
 ## Decisions created
 None.

@@ -387,6 +387,31 @@ export function createMaterialsStoresActionQueueController(deps = {}) {
     );
   }
 
+  // N3: sibling Action Queue link. Two lenses / two controllers stay separate; this only opens the other lens
+  // of the same Cost Sheet Review route in a new tab. Carries the governed period only (the queue lenses do not
+  // consume a product filter at launch); never infers a period.
+  function siblingQueuePeriod(row) {
+    return String(row?.period_start || state.period_start || "").trim();
+  }
+
+  function openSiblingQueue(row) {
+    const period = siblingQueuePeriod(row);
+    if (!period || typeof navigateToCostingRoute !== "function") {
+      showToast?.("QC Action Queue is unavailable for this row (period is required).", "warning");
+      return;
+    }
+    navigateToCostingRoute(
+      "cost-sheet-review",
+      { lens: "qc-action-queue", period_start: period },
+      { newTab: true },
+    );
+  }
+
+  function siblingQueueHtml(row) {
+    if (!siblingQueuePeriod(row) || typeof navigateToCostingRoute !== "function") return "";
+    return `<button type="button" class="icon-btn" data-ms-aq-nav="sibling-queue">Open QC Action Queue</button><p class="cp-muted-text cp-ms-aq-nav-note">Separate queue with its own filters. Opens in a new tab for the same costing period.</p>`;
+  }
+
   function openMonthlyBasisExplain(row) {
     if (typeof openSkuMaterialsStoresExplainFromQueue !== "function") {
       showToast?.(
@@ -573,7 +598,7 @@ export function createMaterialsStoresActionQueueController(deps = {}) {
       </section>
       <section class="cp-detail-section">
         <h3 class="cp-section-title">Navigation</h3>
-        <div class="cp-ms-aq-actions">${navigationHtml(row)}</div>
+        <div class="cp-ms-aq-actions">${navigationHtml(row)}${siblingQueueHtml(row)}</div>
       </section>
       <section class="cp-detail-section">
         <h3 class="cp-section-title">Explain</h3>
@@ -622,6 +647,7 @@ export function createMaterialsStoresActionQueueController(deps = {}) {
         const nav = btn.getAttribute("data-ms-aq-nav");
         if (nav === "rm") openMaterialCostManagerRm(row);
         else if (nav === "pm") openMaterialCostManagerPm(row);
+        else if (nav === "sibling-queue") openSiblingQueue(row);
         else if (nav === "monthly" || nav === "sku-explain") {
           openMonthlyBasisExplain(row);
         } else if (nav === "product-explain") {

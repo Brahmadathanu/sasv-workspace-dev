@@ -7,6 +7,7 @@ import { mapCostingApprovalError } from "../../public/shared/js/costing-approval
 import { createRunStatusBadge, RUN_STATUS_SELECT_V1, RUN_STATUS_SELECT_APPROVAL_V1, describeRunStatus } from "../../public/shared/js/costing-run-status-badge.js";
 import { describeRunStatusForApprovalFlag } from "../../public/shared/js/costing-approval-labels.js";
 import { isCostingRecalcWithDateV1Enabled } from "../../public/shared/js/costing-feature-flags.js";
+import { stripN2 } from "../lib/n2-nav-strip.mjs";
 
 const read = name => fs.readFileSync(new URL("../../" + name, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const shell = read("public/shared/js/costing-suite-shell.js");
@@ -186,9 +187,10 @@ test("PRM dispatch unchanged and never opens recalculation", () => {
   const click = new Function("isProductionRouteManagerRoute", "refreshProductionRouteManagerLens", "refreshCostingChain", "return " + fn(shell, "onCostingSuiteRefreshClick"))(() => true, () => prm++, () => toolbar++);
   click({ preventDefault() {} }); assert.equal(prm, 1); assert.equal(toolbar, 0);
 });
+// MDC-07 N2: compared with the N1 main text (the file now also carries the flag-gated N2 navigation additions, stripped here).
 test("material acceptance remains byte-identical and calls old staged function in both flag states", async () => {
   const path = "public/shared/js/costing-suite-material-cost.js";
-  assert.equal(read(path), execFileSync("git", ["show", "HEAD:" + path], { encoding: "utf8" }).replace(/\r\n/g, "\n"));
+  assert.equal(stripN2(path, read(path)), execFileSync("git", ["show", "85a163f2bc36476953939bfb637b81f632d6b9b9:" + path], { encoding: "utf8" }).replace(/\r\n/g, "\n"));
   const src = read(path); const start = src.indexOf("  async function finalizeMaterialReviewAcceptanceAction(");
   const end = src.indexOf("\n  async function ", start + 10);
   const body = src.slice(start, end);

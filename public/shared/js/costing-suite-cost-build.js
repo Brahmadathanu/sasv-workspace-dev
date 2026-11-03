@@ -1,3 +1,6 @@
+import { isCostingNavGroupsV1Enabled } from "./costing-feature-flags.js";
+import { getNavGroupForLens } from "./costing-nav-groups.js";
+
 export const COST_BUILD_LENS_IDS = [
   "cost-governance",
   "staff-governance",
@@ -6,6 +9,28 @@ export const COST_BUILD_LENS_IDS = [
 
 export function isCostBuildLens(lensId) {
   return COST_BUILD_LENS_IDS.includes(lensId);
+}
+
+// MDC-07 / N2 — presentation only (COSTING_NAV_GROUPS_V1, default OFF). A static scope note per Cost Build lens,
+// labelled with the N1 group the lens belongs to, so expense-head mapping, staff governance and manual provisions
+// are never read as Materials Rate functions, trace evidence or driver-policy approval. Driver Governance has its
+// own controller and is not touched here. No RPC, permission, export or lens id is involved.
+const CBM_NAV_SUITE_ID = "cost-build";
+
+export const CBM_NAV_SCOPE_NOTES = Object.freeze({
+  "cost-governance":
+    "Expense-head mapping: assign ledger expense heads to cost pools. Not a materials rate function, trace evidence or driver-policy approval.",
+  "staff-governance":
+    "Staff governance: classify staff into cost pools and review salary data. Separate from expense-head mapping and manual provisions.",
+  "manual-provisions":
+    "Manual provisions: manually entered cost-pool amounts. Separate from expense-head mapping, staff governance and driver-policy approval.",
+});
+
+export function renderCostBuildNavScopeHtml(lensId, escape = (v) => String(v ?? "")) {
+  const note = CBM_NAV_SCOPE_NOTES[lensId];
+  if (!note) return "";
+  const group = getNavGroupForLens(CBM_NAV_SUITE_ID, COST_BUILD_LENS_IDS, lensId);
+  return `<div class="cp-muted-text" data-nav-scope="${escape(lensId)}"${group ? ` data-nav-group="${escape(group.id)}"` : ""}>${group ? `<strong>${escape(group.label)}</strong> · ` : ""}${escape(note)}</div>`;
 }
 
 function costGovernanceHeaders(tab) {
@@ -733,6 +758,7 @@ export function createCostBuildController(deps) {
 
     workbenchSummaryEl.classList.add("is-visible");
     workbenchSummaryEl.innerHTML = `
+    ${isCostingNavGroupsV1Enabled() ? renderCostBuildNavScopeHtml("manual-provisions", escapeHtml) : ""}
     <div class="cp-workbench-compact-summary" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
       ${tabs
         .map(
@@ -1297,6 +1323,7 @@ export function createCostBuildController(deps) {
 
     workbenchSummaryEl.classList.add("is-visible");
     workbenchSummaryEl.innerHTML = `
+    ${isCostingNavGroupsV1Enabled() ? renderCostBuildNavScopeHtml("cost-governance", escapeHtml) : ""}
     <div class="cp-workbench-compact-summary" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
       ${tabs
         .map(
@@ -1343,6 +1370,7 @@ export function createCostBuildController(deps) {
 
     workbenchSummaryEl.classList.add("is-visible");
     workbenchSummaryEl.innerHTML = `
+    ${isCostingNavGroupsV1Enabled() ? renderCostBuildNavScopeHtml("staff-governance", escapeHtml) : ""}
     <div class="cp-workbench-compact-summary" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
       ${tabs
         .map(

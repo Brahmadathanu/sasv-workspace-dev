@@ -522,6 +522,28 @@ export function createQcActionQueueController(deps = {}) {
     return `<button type="button" class="icon-btn cp-qc-aq-copy-btn" data-qc-aq-copy="${escapeHtml(attr)}" data-qc-aq-copy-label="${escapeHtml(label)}">Copy ${escapeHtml(label)}</button>`;
   }
 
+  // N3: sibling Action Queue link. Two lenses / two controllers stay separate; this only opens the other lens
+  // of the same Cost Sheet Review route in a new tab. Carries the governed period only (the queue lenses do not
+  // consume a product filter at launch); never infers a period.
+  function openSiblingQueue(row) {
+    const period = String(row?.period_start || state.period_start || "").trim();
+    if (!period || typeof navigateToCostingRoute !== "function") {
+      showToast?.("Materials / Stores Action Queue is unavailable for this row (period is required).", "warning");
+      return;
+    }
+    navigateToCostingRoute(
+      "cost-sheet-review",
+      { lens: "materials-stores-action-queue", period_start: period },
+      { newTab: true },
+    );
+  }
+
+  function siblingQueueHtml(row) {
+    const period = String(row?.period_start || state.period_start || "").trim();
+    if (!period || typeof navigateToCostingRoute !== "function") return "";
+    return `<button type="button" class="icon-btn" data-qc-aq-nav="sibling-queue">Open Materials / Stores Action Queue</button><p class="cp-muted-text cp-qc-aq-nav-note">Separate queue with its own filters. Opens in a new tab for the same costing period.</p>`;
+  }
+
   function navigationHtml(row) {
     const code = normalizeQcCode(row.action_code);
     const buttons = [];
@@ -565,6 +587,7 @@ export function createQcActionQueueController(deps = {}) {
         `<span class="cp-muted-text">No dedicated navigation route for this action code yet.</span>`,
       );
     }
+    buttons.push(siblingQueueHtml(row));
     return buttons.join("");
   }
 
@@ -759,6 +782,7 @@ export function createQcActionQueueController(deps = {}) {
         if (action === "protocol") openProtocolManager(row);
         else if (action === "spec") openSpecProfileManager(row);
         else if (action === "absorption") openAbsorptionReview(row);
+        else if (action === "sibling-queue") openSiblingQueue(row);
         else if (action === "explain") {
           if (typeof openProductQcExplainFromQueue === "function") {
             void openProductQcExplainFromQueue(row);
