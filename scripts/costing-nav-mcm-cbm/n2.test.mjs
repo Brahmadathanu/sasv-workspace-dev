@@ -104,10 +104,12 @@ test("source: permission functions, RPC names and export roles are byte-identica
 });
 
 test("source: N2 touches only the two controller files (plus their tests); shared N1 files, shell, registry, route config, CSS, HTML, sw and supabase are untouched", () => {
-  const changed = execFileSync("git", ["diff", "--name-only", N1_HEAD], { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean);
-  const staged = execFileSync("git", ["diff", "--name-only", "--cached", N1_HEAD], { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean);
-  const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard"], { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean);
-  const all = [...new Set([...changed, ...staged, ...untracked])];
+  // Immutable N2 package range: subsequent N3/N4 changes on main are not N2-owned.
+  // Missing Git objects fail the test explicitly rather than silently skipping the guard.
+  const n2Head = "ae41de8d6eb98d352528316709394c560ae748b2";
+  const all = execFileSync("git", ["diff", "--name-only", N1_HEAD, n2Head], { cwd: root, encoding: "utf8" })
+    .split("\n").filter(Boolean);
+  assert.ok(all.length > 0, "N2 historical package diff must not be empty");
   const forbidden = [
     /costing-suite-shell\.js$/, /costing-suite-registry\.js$/, /costing-route-config\.js$/, /costing-nav-groups\.js$/,
     /costing-nav-context\.js$/, /costing-feature-flags\.js$/, /\.css$/, /\.html$/, /sw\.js$/, /^supabase\//, /package(-lock)?\.json$/,
