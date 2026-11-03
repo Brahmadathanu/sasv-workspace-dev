@@ -40,6 +40,7 @@ function respond(name, args) {
     }
     case "rpc_get_product_route_history":
       if (cfg.failHistory) return bad("mock: history unavailable");
+      if (cfg.historyRows) return ok({ product_id: args.p_product_id, rows: cfg.historyRows[args.p_product_id] ?? [] });
       return ok({ product_id: args.p_product_id, rows: routes.filter((r) => r.product_id === Number(args.p_product_id)) });
     case "rpc_preview_route_family_candidate":
       return ok({ scope_mode: "PRE_MAPPING_PRODUCT_GROUP_SET", selected_product_groups: [{ product_group_id: 501, product_group_name: "Mock Group A" }], family_steps: [], counts: { products: 1 } });
@@ -69,7 +70,13 @@ export function createClient() {
     from: () => chain(),
     rpc: (name, args) => {
       mock.rpc.push({ name, args: JSON.parse(JSON.stringify(args ?? {})) });
-      const pending = Promise.resolve(respond(name, args || {}));
+      // cfg.delays / cfg.delaysOnce: { "<rpc>:<first arg value>": ms } delay every / only the first matching response (race tests).
+      const key = name + ":" + Object.values(args || {})[0];
+      const once = (mock.cfg.delaysOnce = mock.cfg.delaysOnce || {});
+      const wait = Number(key in once ? once[key] : (mock.cfg.delays || {})[key]) || 0;
+      delete once[key]; // delaysOnce: only the first call with this key is delayed
+      const snapshot = respond(name, args || {}); // computed NOW: a delayed response carries the data of request time
+      const pending = new Promise((resolve) => setTimeout(() => resolve(snapshot), wait));
       const q = { then: (a, b) => pending.then(a, b), catch: (b) => pending.catch(b), range: () => q, select: () => q, single: () => q, maybeSingle: () => q };
       return q;
     },

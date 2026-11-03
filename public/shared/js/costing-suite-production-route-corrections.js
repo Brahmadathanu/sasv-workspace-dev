@@ -48,8 +48,8 @@ export function prmRouteHeaderStatus(header = {}) {
 }
 
 /**
- * Replacement candidates for the route being superseded: other versions of the SAME Product, APPROVED and not
- * archived. Order and values come from the server history response; nothing is added or reordered.
+ * Replacement candidates for the route being superseded: other versions of the SAME Product (row.product_id must be
+ * present and equal), APPROVED and not archived. Order and values come from the server history response; nothing is added or reordered.
  */
 export function selectSupersedeReplacementRoutes({ oldRouteId, productId, versions } = {}) {
   const oldId = normalizePrmIntegerId(oldRouteId);
@@ -60,8 +60,10 @@ export function selectSupersedeReplacementRoutes({ oldRouteId, productId, versio
   for (const row of versions) {
     const id = resolvePrmProductHistoryRouteId(row);
     if (id == null || id === oldId || seen.has(id)) continue;
-    const rowProduct = normalizePrmIntegerId(row?.product_id);
-    if (rowProduct != null && rowProduct !== pid) continue;
+    // Fail closed: the row must itself carry the same product_id. The history RPC filters by product and returns
+    // whole table rows today, but eligibility must not depend on that - a row with no (or another) product is
+    // never offered.
+    if (normalizePrmIntegerId(row?.product_id) !== pid) continue;
     if (row?.archived_at) continue;
     if (!isApproved(prmRouteHeaderStatus(row))) continue;
     seen.add(id);

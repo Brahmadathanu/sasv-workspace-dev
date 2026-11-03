@@ -54,6 +54,21 @@ test("supersede replacements: same Product, APPROVED, non-archived, never the ol
   assert.deepEqual(selectSupersedeReplacementRoutes({ oldRouteId: 1, productId: 7, versions: null }), []);
 });
 
+test("supersede replacements fail closed on identity: rows with a missing or different product_id are never offered", () => {
+  const rows = [
+    { product_route_id: 2, status: "APPROVED" }, // no product_id
+    { product_route_id: 3, product_id: null, status: "APPROVED" },
+    { product_route_id: 4, product_id: "x", status: "APPROVED" },
+    { product_route_id: 5, product_id: 8, status: "APPROVED" }, // other product
+    { product_route_id: 6, product_id: "7", status: "APPROVED" }, // numeric string is the same product
+  ];
+  assert.deepEqual(selectSupersedeReplacementRoutes({ oldRouteId: 1, productId: 7, versions: rows }).map((r) => r.product_route_id), [6]);
+  // header without its own product_id: nothing can be established
+  const header = { product_route_id: 1, status: "APPROVED" };
+  assert.deepEqual(selectSupersedeReplacementRoutes({ oldRouteId: 1, productId: header.product_id, versions: rows }), []);
+  assert.equal(resolveSupersedeGate({ header, choices: { status: "ready", versions: rows } }).visible, false);
+});
+
 test("supersede gate: approved route with a replacement only; loading/error/none/not-approved hide the action", () => {
   const header = { product_route_id: 1, product_id: 7, status: "APPROVED" };
   assert.equal(resolveSupersedeGate({ header, choices: { status: "ready", versions: H } }).visible, true);
@@ -198,4 +213,13 @@ test("source: scope guard - no schema, migration, cache-version or e-Aushadhi fi
     "public/shared/js/costing-suite-production-route-corrections.js",
   ];
   for (const f of files) assert.doesNotMatch(read(f), /CACHE_VERSION|cacheVersion|migrations|eaushadhi/i, f);
+});
+
+test("source: async-race guards are present (tagged requests, post-await re-checks, in-flight latch)", () => {
+  assert.match(MAIN, /supersedeChoicesSeq \+= 1/);
+  assert.match(MAIN, /state\.supersedeChoices\?\.seq !== seq/);
+  assert.match(MAIN, /if \(supersedeOpening\) return;/);
+  assert.match(MAIN, /now\.routeId !== oldRouteId \|\| now\.productId !== productId/);
+  assert.match(MAIN, /state\.supersedeChoices = null; \/\/ never reuse a gate/);
+  assert.doesNotMatch(MAIN, /product_id: detail\.product_id \?\? state\.selectedProductId/, "no fallback identity for eligibility");
 });

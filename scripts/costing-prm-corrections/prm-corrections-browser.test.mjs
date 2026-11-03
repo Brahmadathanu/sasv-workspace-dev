@@ -269,6 +269,124 @@ test("C1 mobile 390px: the empty-editor Product picker is visible and the page d
   });
 });
 
+// ---------- Review pass: identity fail-closed and async races ----------
+const URL_9001 = "?lens=product-route-editor&product_route_id=9001&product_id=77";
+const supersedeBtn = (page) => page.evaluate(() => Boolean(document.querySelector('[data-prm-action="supersede-product"]')));
+const row = (id, extra = {}) => ({ product_route_id: id, product_id: 77, status: "APPROVED", version_label: `v${id}`, ...extra });
+
+test("R1 identity: history rows without or with another product_id are never offered; Supersede stays hidden without a valid pair", async (t) => {
+  const bad = [row(9001), (({ product_id, ...r }) => r)(row(9002)), row(9100, { product_id: 78 })];
+  await withPage(t, URL_9001, { cfg: { historyRows: { 77: bad } } }, async (page) => {
+    await page.waitForSelector("[data-prm-supersede-note]");
+    assert.equal(await supersedeBtn(page), false);
+    assert.match(await page.textContent("[data-prm-supersede-note]"), /no other approved/);
+  });
+  await withPage(t, URL_9001, { cfg: { historyRows: { 77: [...bad, row(9007)] } } }, async (page) => {
+    await page.waitForSelector('[data-prm-action="supersede-product"]');
+    await page.click('[data-prm-action="supersede-product"]');
+    await page.waitForSelector("#prmSupersedeNewRouteId");
+    assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll("#prmSupersedeNewRouteId option")].map((o) => o.value)), ["", "9007"]);
+    assert.deepEqual(await writeCalls(page), []);
+  });
+});
+
+test("R2 stale history response after the user moved to another route cannot expose Supersede", async (t) => {
+  await withPage(t, URL_9001, { cfg: { delaysOnce: { "rpc_get_product_route_history:77": 900 } } }, async (page) => {
+    await page.waitForSelector('[data-prm-action="product-route-history"]');
+    assert.equal(await supersedeBtn(page), false, "gate still loading: hidden");
+    await page.click('[data-prm-action="product-route-history"]'); // second (undelayed) history call
+    await page.waitForSelector('#detailsModal button[data-prm-history-open="9003"]');
+    await page.click('#detailsModal button[data-prm-history-open="9003"]');
+    await page.waitForFunction(() => /product_route_id=9003/.test(location.href));
+    await page.waitForTimeout(1200); // the 9001 gate response arrives now
+    assert.equal(await supersedeBtn(page), false, "DRAFT 9003 never shows Supersede");
+    assert.match(page.url(), /product_route_id=9003/);
+    assert.deepEqual(await writeCalls(page), []);
+  });
+});
+
+test("R2b an older history response (taken before the server state changed) cannot overwrite the fresh check", async (t) => {
+  const both = [row(9001), row(9002)];
+  await withPage(t, URL_9001, { cfg: { historyRows: { 77: both }, delaysOnce: { "rpc_get_product_route_history:77": 900 } } }, async (page) => {
+    await page.waitForSelector("[data-prm-supersede-note]"); // request A (snapshot: 9002 is APPROVED) is in flight
+    // The server state changes: 9002 is no longer an approved version.
+    await page.evaluate(() => { window.__mock.cfg.historyRows = { 77: [{ product_route_id: 9001, product_id: 77, status: "APPROVED" }, { product_route_id: 9002, product_id: 77, status: "SUPERSEDED" }] }; });
+    await page.click(".cp-prm-editor-header"); // any editor action invalidates the pending check and re-renders
+    await page.waitForFunction(() => /no other approved/.test(document.querySelector("[data-prm-supersede-note]")?.textContent || ""));
+    await page.waitForTimeout(1200); // the older response (still listing 9002 as APPROVED) arrives now
+    assert.equal(await supersedeBtn(page), false, "stale answer must not expose Supersede");
+    assert.match(await page.textContent("[data-prm-supersede-note]"), /no other approved/);
+  });
+});
+
+test("R2c leaving the editor while the Supersede dialog's history is loading never opens the dialog", async (t) => {
+  await withPage(t, URL_9001, {}, async (page) => {
+    await page.waitForSelector('[data-prm-action="supersede-product"]');
+    await page.evaluate(() => { window.__mock.cfg.delaysOnce["rpc_get_product_route_history:77"] = 700; });
+    await page.click('[data-prm-action="supersede-product"]');
+    await page.click('button.pill[data-lens="route-readiness"]');
+    await page.waitForTimeout(1100);
+    assert.equal(await page.evaluate(() => Boolean(document.getElementById("prmSupersedeNewRouteId"))), false);
+    assert.deepEqual(await writeCalls(page), []);
+  });
+});
+
+test("R3 navigating away while the gate is loading is harmless and a later visit recomputes it", async (t) => {
+  await withPage(t, URL_9001, { cfg: { delaysOnce: { "rpc_get_product_route_history:77": 700 } } }, async (page) => {
+    await page.waitForSelector('[data-prm-action="product-route-history"]');
+    await page.click('button.pill[data-lens="route-readiness"]');
+    await page.waitForTimeout(1000);
+    assert.equal(await page.evaluate(() => Boolean(document.querySelector('[data-prm-editor="product"]'))), false, "stale response did not repaint the editor");
+    assert.match(page.url(), /lens=route-readiness/);
+    await page.goto(page.url().replace(/lens=route-readiness[^#]*/, "lens=product-route-editor&product_route_id=9001&product_id=77"));
+    await page.waitForSelector('[data-prm-action="supersede-product"]');
+  });
+});
+
+test("R4 rapid Product switching: the last choice wins even if an earlier history response arrives later", async (t) => {
+  await withPage(t, "?lens=product-route-editor", { cfg: { delays: { "rpc_get_product_route_history:78": 800 } } }, async (page) => {
+    await page.waitForSelector("#prmProductEditorProduct", { state: "attached" });
+    await page.evaluate(() => { const s = document.getElementById("prmProductEditorProduct"); for (const v of ["78", "77"]) { s.value = v; s.dispatchEvent(new Event("change", { bubbles: true })); } });
+    await page.waitForFunction(() => /product_route_id=9003/.test(location.href));
+    await page.waitForTimeout(1200); // product 78's slow response has now arrived
+    assert.match(page.url(), /product_id=77/);
+    assert.match(page.url(), /product_route_id=9003/);
+    assert.equal(await page.evaluate(() => document.querySelector("[data-prm-editor='product-history-chooser']") === null), true, "78's chooser did not replace 77's route");
+    assert.equal(await supersedeBtn(page), false);
+    assert.deepEqual(await writeCalls(page), []);
+  });
+});
+
+test("R5 repeated clicks: one dialog and one history fetch for Supersede; one fetch for Route history; one write on double submit", async (t) => {
+  await withPage(t, URL_9001, { cfg: { delaysOnce: {}, delays: { "rpc_supersede_product_route:9001": 600 } } }, async (page) => {
+    await page.waitForSelector('[data-prm-action="supersede-product"]');
+    const before = await count(page, "rpc_get_product_route_history");
+    await page.evaluate(() => window.__mock.cfg.delaysOnce["rpc_get_product_route_history:77"] = 400);
+    await page.dblclick('[data-prm-action="supersede-product"]');
+    await page.waitForSelector("#prmSupersedeNewRouteId");
+    await page.waitForTimeout(300);
+    assert.equal((await count(page, "rpc_get_product_route_history")) - before, 1, "one fetch for a double click");
+    assert.equal(await page.evaluate(() => document.querySelectorAll("#prmSupersedeNewRouteId").length), 1, "one dialog");
+    await page.selectOption("#prmSupersedeNewRouteId", "9002");
+    await page.focus("#prmSupersedeNewRouteId");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
+    await page.click("[data-prm-prompt-submit]", { force: true, noWaitAfter: true }).catch(() => {});
+    await page.waitForFunction(() => document.getElementById("detailsModal")?.classList.contains("hidden"));
+    assert.deepEqual(await writeCalls(page), [{ name: "rpc_supersede_product_route", args: { p_old_product_route_id: 9001, p_new_product_route_id: 9002 } }]);
+  });
+  await withPage(t, URL_9001, { cfg: {} }, async (page) => {
+    await page.waitForSelector('[data-prm-action="product-route-history"]');
+    await page.waitForTimeout(300);
+    const before = await count(page, "rpc_get_product_route_history");
+    await page.evaluate(() => window.__mock.cfg.delaysOnce["rpc_get_product_route_history:77"] = 400);
+    await page.dblclick('[data-prm-action="product-route-history"]');
+    await page.waitForSelector("#detailsModal [data-prm-history-table]");
+    await page.waitForTimeout(300);
+    assert.equal((await count(page, "rpc_get_product_route_history")) - before, 1);
+  });
+});
+
 // ---------- Historical context labels ----------
 test("Fixed historical context: labelled on Workload Preview, Mapping Review and Foundation Review (flag ON), absent with flag OFF", async (t) => {
   for (const [lens, runText] of [["shared-workload-preview", /Run 82/], ["route-family-mapping-review", /Run 82/], ["route-family-foundation-review", /Run 82/]]) {

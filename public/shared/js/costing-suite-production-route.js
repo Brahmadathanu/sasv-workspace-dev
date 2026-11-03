@@ -9779,11 +9779,25 @@ export function createProductionRouteController(deps = {}) {
   }
 
   // ---- WP05-P02 (COSTING_PRM_CORRECTIONS_V1 only) -------------------------------------------------------------
+  // Strict: the loaded route's own product_id (the detail header is a whole table row, so it carries one). No
+  // fallback to URL/selection state - supersession eligibility fails closed when the route's product is unknown.
   function productEditorHeader() {
     const detail = editor.getProductState?.()?.detail;
-    if (!detail) return null;
-    return { ...detail, product_id: detail.product_id ?? state.selectedProductId };
+    return detail ? { ...detail } : null;
   }
+
+  // Async-race protection (flag ON): every history request is tagged; only the newest request for the route that
+  // is STILL loaded may populate the supersede gate or open a dialog.
+  let supersedeChoicesSeq = 0;
+  let supersedeOpening = false;
+  const loadedProductRoute = () => {
+    const header = productEditorHeader();
+    return {
+      routeId: header ? resolvePrmProductHistoryRouteId(header) : null,
+      productId: header ? normalizePrmIntegerId(header.product_id) : null,
+    };
+  };
+  const editorLensStillActive = () => state.activeLens === "product-route-editor";
 
   function buildProductEditorCorrectionOptions() {
     const header = productEditorHeader();
@@ -9802,20 +9816,34 @@ export function createProductionRouteController(deps = {}) {
     if (routeId != null && productId != null && canonicalPrmRouteStatus(prmRouteHeaderStatus(header)) === "APPROVED") {
       const key = `${productId}:${routeId}`;
       if (state.supersedeChoices?.key !== key) {
-        state.supersedeChoices = { key, status: "loading", versions: [] };
+        const seq = (supersedeChoicesSeq += 1);
+        state.supersedeChoices = { key, seq, status: "loading", versions: [] };
         loadProductHistory(productId)
           .catch(() => ({ ok: false, versions: [] }))
           .then((result) => {
-            if (state.supersedeChoices?.key !== key) return;
+            // Outdated response (newer request, other route, cleared choices, lens left): drop it.
+            if (state.supersedeChoices === null && editorLensStillActive()) {
+              // Cleared by an action while in flight: this answer predates it. Re-render to ask again.
+              const cur = loadedProductRoute();
+              if (`${cur.productId}:${cur.routeId}` === key) paintAcceptedPrmLens();
+              return;
+            }
+            if (state.supersedeChoices?.seq !== seq || state.supersedeChoices?.key !== key) return;
+            const now = loadedProductRoute();
+            if (!editorLensStillActive() || `${now.productId}:${now.routeId}` !== key) return;
             state.supersedeChoices = {
               key,
+              seq,
               status: result?.ok ? "ready" : "error",
               versions: result?.versions || [],
             };
-            if (state.activeLens === "product-route-editor") paintAcceptedPrmLens();
+            paintAcceptedPrmLens();
           });
       }
       choices = state.supersedeChoices;
+    } else if (canonicalPrmRouteStatus(prmRouteHeaderStatus(header)) === "APPROVED") {
+      // Approved but the route's own id/product is unknown: eligibility cannot be established (fail closed).
+      choices = { status: "error", versions: [] };
     }
     return {
       supersedeGate: resolveSupersedeGate({ header, choices }),
@@ -9843,6 +9871,7 @@ export function createProductionRouteController(deps = {}) {
   }
 
   async function openSupersedeSelectorDialog() {
+    if (supersedeOpening) return; // repeated click while the history request is in flight
     const header = productEditorHeader();
     const oldRouteId = header ? resolvePrmProductHistoryRouteId(header) : null;
     const productId = header ? normalizePrmIntegerId(header.product_id) : null;
@@ -9855,10 +9884,21 @@ export function createProductionRouteController(deps = {}) {
       return;
     }
     // Fresh history at open time: eligibility must reflect the server's current rows, not a cached list.
-    const history = await loadProductHistory(productId);
+    supersedeOpening = true;
+    let history;
+    try {
+      history = await loadProductHistory(productId);
+    } finally {
+      supersedeOpening = false;
+    }
     if (!history.ok) {
       showToast?.("Replacement routes could not be determined. Nothing was changed.", "warning");
       return;
+    }
+    {
+      // The user may have switched route/product or left the lens while the request was in flight.
+      const now = loadedProductRoute();
+      if (!editorLensStillActive() || now.routeId !== oldRouteId || now.productId !== productId) return;
     }
     const candidates = selectSupersedeReplacementRoutes({
       oldRouteId,
@@ -10583,14 +10623,24 @@ export function createProductionRouteController(deps = {}) {
       }
       if (action === "product-route-history" && mode === "product") {
         // WP05-P02 (flag ON): choose another version of this Product's route from its history.
+        if (supersedeOpening) return;
         const header = productEditorHeader();
-        const pid = normalizePrmIntegerId(header?.product_id);
+        const pid = normalizePrmIntegerId(header?.product_id ?? state.selectedProductId);
         if (pid == null) {
           showToast?.("Product is required to load route history.", "warning");
           return;
         }
-        const history = await loadProductHistory(pid);
+        const before = loadedProductRoute();
+        supersedeOpening = true;
+        let history;
+        try {
+          history = await loadProductHistory(pid);
+        } finally {
+          supersedeOpening = false;
+        }
         if (!history.ok) return;
+        const after = loadedProductRoute();
+        if (!editorLensStillActive() || after.routeId !== before.routeId) return;
         openHistoryModal("Product route history", history.versions, "product", null, pid);
         return;
       }
@@ -11299,6 +11349,7 @@ export function createProductionRouteController(deps = {}) {
       return finalizePrmLoad(token, active, result);
     }
     if (active === "product-route-editor") {
+      state.supersedeChoices = null; // never reuse a gate computed for an earlier visit/route
       const productRouteId = normalizePrmIntegerId(deepLink.product_route_id);
       const productId = normalizePrmIntegerId(deepLink.product_id);
       state.selectedProductRouteId = productRouteId;
