@@ -62,9 +62,24 @@ test("identifiers are untouched: module key, permission target, suite id, route 
 });
 
 test("diff against the baseline is exactly the label rename (nothing else changed in these files)", () => {
-  for (const rel of ["public/shared/js/costing-route-config.js", "public/shared/js/costing-suite-registry.js", "public/shared/js/costing-suite-shell.js", "public/shared/js/costing-suite-cost-sheet.js", HTML]) {
+  for (const rel of ["public/shared/js/costing-route-config.js", "public/shared/js/costing-suite-registry.js", "public/shared/js/costing-suite-cost-sheet.js", HTML]) {
     assert.equal(read(rel), applyCw07Labels(showBase(rel)), rel);
   }
+  // MDC-07 N1 (flag-gated navigation) is the only later package allowed to edit the shell: every line of the
+  // label-renamed baseline must still appear, in order, in the current shell, except the single flat
+  // `lensSelect.innerHTML = activeSuites` line that N1 turns into a flag-gated ternary. N1 otherwise only adds lines.
+  const shellRel = "public/shared/js/costing-suite-shell.js";
+  const baseLines = applyCw07Labels(showBase(shellRel)).split("\n");
+  const nowLines = read(shellRel).split("\n");
+  const REPLACED_BY_N1 = "      lensSelect.innerHTML = activeSuites";
+  let at = 0;
+  const missing = [];
+  for (const line of baseLines) {
+    const found = nowLines.indexOf(line, at);
+    if (found === -1) missing.push(line);
+    else at = found + 1;
+  }
+  assert.deepEqual(missing, [REPLACED_BY_N1], "shell: only the select-population line is replaced; everything else is untouched");
   assert.equal(CW07_LABEL_CHANGES.length, 7);
   for (const [from, to] of CW07_LABEL_CHANGES) assert.notEqual(from, to);
 });
