@@ -253,6 +253,7 @@ import {
   resolveSupersedeGate,
   selectSupersedeReplacementRoutes,
 } from "./costing-suite-production-route-corrections.js";
+import { createPrmNavContextTracker } from "./costing-suite-production-route-nav-context.js";
 import { openDuplicateFamilySequenceSubmitModal } from "./costing-dialogs-duplicate-sequence.js";
 import {
   FAMILY_DIALOG_TITLE,
@@ -604,6 +605,18 @@ export function createProductionRouteController(deps = {}) {
     error: null,
     permissionDenied: false,
   };
+
+  // MDC-07 / N4: Product / Family / route-version context persistence. Inert unless COSTING_PRM_NAV_CONTEXT_V1 is "1".
+  const navContext = createPrmNavContextTracker({
+    getNames: (ctx) => {
+      const product = findEffectiveViewerProductRow(ctx.product_id);
+      const family = findEffectiveViewerRouteFamilyRow(ctx.route_family_id);
+      return {
+        product: product.product_name || product.name || "",
+        family: family.route_family_name || family.name || "",
+      };
+    },
+  });
 
   const editor = createProductionRouteEditorController({
     costingRpc,
@@ -2639,6 +2652,7 @@ export function createProductionRouteController(deps = {}) {
           let result = await load({
             lens: resolved,
             deepLink: state.deepLink,
+            explicit: true,
           });
           // One retry when a competing generation raced the soft-nav load.
           if (
@@ -2649,6 +2663,7 @@ export function createProductionRouteController(deps = {}) {
             result = await load({
               lens: resolved,
               deepLink: state.deepLink,
+              explicit: true,
             });
           }
           if (result?.stale === true || state.activeLens !== resolved) {
@@ -4588,6 +4603,7 @@ export function createProductionRouteController(deps = {}) {
   async function openFamilySummary(row, { fromStackRestore = false } = {}) {
     const routeFamilyId = row.route_family_id ?? row.id;
     state.selectedRouteFamilyId = routeFamilyId;
+    if (state.activeLens === "route-families") navContext.selectFamily(routeFamilyId);
     await ensureMasterOptions();
     await loadFamilyHistory(routeFamilyId);
     const routeState = resolveRouteFamilyRouteStateFromHistory(
@@ -11216,7 +11232,34 @@ export function createProductionRouteController(deps = {}) {
     return { ...result, generation: token, stale: false };
   }
 
-  async function load({ lens, deepLink = {}, resetOffset = false, search } = {}) {
+  // MDC-07 / N4: hydrates stored context into identity lenses and commits only ACCEPTED loads. With the flag OFF this
+  // is a direct pass-through to the unchanged loader below.
+  async function load(options = {}) {
+    if (!navContext.isEnabled()) return loadPrmLens(options);
+    const { lens, deepLink = {}, explicit = false } = options;
+    const requested = String(lens || getCurrentLens() || PRODUCTION_ROUTE_DEFAULT_LENS).trim();
+    // explicit: an in-app navigate() call already states the complete intent (e.g. "create a route for this Family"),
+    // so nothing is injected into it; its outcome is still committed. Pills / URL reloads / back-forward hydrate.
+    const { deepLink: hydrated, injected } = explicit
+      ? { deepLink, injected: [] }
+      : navContext.hydrate(requested, deepLink);
+    const result = await loadPrmLens(hydrated === deepLink ? options : { ...options, deepLink: hydrated });
+    // Stale / superseded / disposed loads never touch the stored context (finalizePrmLoad marks them stale).
+    if (disposed || !result || result.stale !== false || result.generation !== lensRenderGeneration) return result;
+    if (result.ok === false) {
+      navContext.invalidate(injected);
+      return result;
+    }
+    navContext.commit(state.activeLens, {
+      deepLink: hydrated,
+      productHeader: productEditorHeader(),
+      familyHeader: editor.getFamilyState?.()?.detail || null,
+      effectiveViewer: state.effectiveViewer,
+    });
+    return result;
+  }
+
+  async function loadPrmLens({ lens, deepLink = {}, resetOffset = false, search } = {}) {
     if (disposed) return { ok: false };
     state.deepLink = { ...deepLink };
     if (deepLink.as_of_date) state.as_of_date = deepLink.as_of_date;
@@ -12205,6 +12248,7 @@ export function createProductionRouteController(deps = {}) {
 
   function destroy() {
     disposed = true;
+    navContext.clear();
     if (prmOwnsDetailsModal) {
       closeModal({ restorePrevious: false });
     } else {
@@ -12306,6 +12350,9 @@ export function createProductionRouteController(deps = {}) {
     closeModal,
     destroy,
     getState: () => state,
+    /** MDC-07 / N4: stored Product / Family / route-version context ({} ids are null when unset). */
+    getNavContext: () => navContext.get(),
+    clearNavContext: () => navContext.clear(),
     buildExactRunReadinessRpcArgs,
     buildReadinessRpcArgs,
     PRODUCTION_ROUTE_RPC_NAMES,
