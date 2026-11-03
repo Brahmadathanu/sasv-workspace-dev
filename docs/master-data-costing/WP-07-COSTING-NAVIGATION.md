@@ -59,7 +59,7 @@ Command: `node --test $(find scripts -name "*.test.*" | sort)` (29 files). Chrom
 
 **Limitations:** Driver Governance (own controller file) and the trace lenses carry no scope note; the shell still shows its own context bar for them. Because the pills are rendered by the shell (not editable in N2), hiding is applied by the controller to the shell's markup after each render (a `MutationObserver` started when the controller is created, flag ON only; the shell renders no pills before permissions resolve, and after that the filter is fail-closed). A shell-side filter hook would be the cleaner long-term design (shared-contract change, reported separately, not made). Mock-backend browser tests only; signed-in populated-data acceptance outstanding.
 
-## MDC-07 package N4 — Production Route context persistence (implemented 3 Nov 2026; draft PR #135, not merged)
+## MDC-07 package N4 — Production Route context persistence (implemented 3 Nov 2026; merged to `main` as #135, `2ce8af0`)
 **Base:** originally `main` `85a163f` (N1 merged as #133); reconciled on 3 Nov 2026 with `main` `7f46f37` (N3 #134 and N2 #136 merged) and then with `main` `026c646` (#138, the repaired N2/N3 historical ownership guards). The integrations changed only this document and the merged guard tests: the N4 code files do not overlap with N2/N3/#138 files. N4's own scope guard keeps its fixed baseline `7f46f37`. **Flag:** `COSTING_PRM_NAV_CONTEXT_V1` (defined in `costing-suite-production-route-nav-context.js`, not in the shared flags file); default OFF; only the exact `localStorage` value `1` enables it; independent of `COSTING_NAV_GROUPS_V1` (chips are only *shown* when N1 is on) and of `COSTING_PRM_CORRECTIONS_V1`. Not activated for any user.
 
 **What it does (controller side only):**
@@ -80,7 +80,7 @@ Not yet approved.
 ## Milestones
 - [x] Current-state/audit gate (WP05 A1–A7, merged #130)
 - [x] Design/contract gate where applicable (A3 Tier 1, owner-accepted 2 Nov 2026)
-- [~] Implementation gate where applicable — N1 (#133), N3 (#134) and N2 (#136) merged to `main`; N4 implemented on draft PR #135 awaiting independent review; W6/U11 not started
+- [~] Implementation gate where applicable — N1 (#133), N3 (#134), N2 (#136) and N4 (#135) merged to `main`; W6 implemented on draft PR #139 awaiting independent review; U11 not started
 - [ ] Focused verification
 - [ ] Independent audit
 - [ ] Merge/post-merge proof where applicable
@@ -94,16 +94,16 @@ Not yet approved.
 * **Limitations:** the shell's PPM launch consumes `workspace` and `period_start`; it does not preselect a Product or SKU in SKU Policy Overview, and the queue lenses have no launch-time product filter, so `product_id`/`sku_id` are carried on the Scheme Comparison link only as the existing contract allows and the queue sibling link carries the period only. The reverse PPM → Scheme Comparison link lives in the Pricing Policy Manager controller (W6, out of N3 scope). The shell-injected `navigateToCostingRoute` is used for queue links; the Scheme Comparison anchor uses the same relative page link the shell resolves on shared pages because the shell does not inject navigation into that controller. No flag was activated, no cache bump.
 * **Tests:** `scripts/costing-cross-links/` (`cross-links.test.mjs`, `cross-links-browser.test.mjs`).
 
-`MDC-07-N4 — implemented on draft PR #135 (reconciled with main 7f46f37); awaiting independent review and owner acceptance. N1, N2 and N3 are merged. No merge, flag activation or further package is implied.`
+`MDC-07-W6 — implemented on draft PR #139 (reconciled with main 2ce8af0); awaiting independent review and owner acceptance. N1, N2, N3 and N4 are merged. No merge, flag activation or further package is implied.`
 
 ## Gate Status
-[~] IN PROGRESS — N1, N2, N3 merged; N4 delivered for review (draft PR #135); W6, U11 outstanding
+[~] IN PROGRESS — N1, N2, N3, N4 merged; W6 delivered for review (draft PR #139); U11 outstanding
 
 ## Required to close
 Entry criteria must be satisfied and the work pack explicitly started.
 
 ## Next gate
-Independent review of the N4 draft PR (#135); owner decision; then sequential briefs W6 → U11 (A6 §2; N1, N2, N3 already merged). Each later package consumes the N1 contract and must not edit the registry, route config, shell navigation or the shared CSS block.
+Independent review of the W6 draft PR (#139); owner decision; then the U11 brief (A6 §2; N1, N2, N3, N4 already merged). Each later package consumes the N1 contract and must not edit the registry, route config, shell navigation or the shared CSS block.
 
 ## Server changes
 None.
@@ -132,4 +132,4 @@ All work-pack objectives and required verification gates pass; documentation and
 Not started.
 
 ## MDC-07 package W6 — Pricing Policy Manager five-group navigation (draft PR #139; status 3 Nov 2026)
-W6 consumes the merged N1 `COSTING_PPM_NAV_GROUP_CONTRACT` (SKU policies / MRP / MRP change workflow / Schemes / Costing inputs) inside the PPM controller (`costing-suite-pricing-policy.js` only) behind the existing exact-`1` flag `COSTING_NAV_GROUPS_V1` (default OFF; no new flag, no second navigation engine). OFF returns the original three-group metadata unmodified; ON derives the five groups and the display order of all ten unchanged workspaces, keeping a `legacyGroupId` so Area aliases, internal MRP/selling classifications and default-workspace resolution are unchanged. Legacy `?lens=`/`?workspace=` URLs resolve identically ON and OFF; the only period-scoped workspace remains Commercial Sales Assumptions. C9 (shared registry `periodScoped`) is deferred. Full detail and verification: `WP-06-PRICING-POLICY-MANAGER.md` and PR #139. W6 touches no file that N4 (PR #135) touches except that this section is appended at the end of this document; merge order and any reconciliation are recorded in the PR descriptions.
+W6 consumes the merged N1 `COSTING_PPM_NAV_GROUP_CONTRACT` (SKU policies / MRP / MRP change workflow / Schemes / Costing inputs) inside the PPM controller (`costing-suite-pricing-policy.js` only) behind the existing exact-`1` flag `COSTING_NAV_GROUPS_V1` (default OFF; no new flag, no second navigation engine). OFF returns the original three-group metadata unmodified; ON derives the five groups and the display order of all ten unchanged workspaces, keeping a `legacyGroupId` so Area aliases, internal MRP/selling classifications and default-workspace resolution are unchanged. Legacy `?lens=`/`?workspace=` URLs resolve identically ON and OFF; the only period-scoped workspace remains Commercial Sales Assumptions. C9 (shared registry `periodScoped`) is deferred. Full detail and verification: `WP-06-PRICING-POLICY-MANAGER.md` and PR #139. N4 (#135) is merged; W6 was reconciled with `main` `2ce8af0` and does not touch any N4 file except this document. **Historical pins:** four historical package tests (`costing-ccc-uxf1`, `costing-review-worklist`, `costing-table-tools` pkg3/pkg4) pin the PPM controller to its pre-W6 text; they now apply `scripts/lib/w6-nav-strip.mjs`, which reverses exactly the W6 edits (proven to reproduce the pre-W6 file byte-for-byte and not to hide any other change), following the N1/N2 strip precedent. These four failed on the first full-suite run of the W6 branch and were corrected without weakening them.

@@ -15,6 +15,7 @@ import * as worklist from "../../public/shared/js/costing-review-worklist.js";
 import { applyCompactRunStatusBadge, createRunStatusBadge, describeRunStatus } from "../../public/shared/js/costing-run-status-badge.js";
 import { readSourceLf } from "../lib/read-source-lf.mjs";
 import { stripN2 } from "../lib/n2-nav-strip.mjs";
+import { stripW6 } from "../lib/w6-nav-strip.mjs";
 
 const {
   createLatestOnlyLoader,
@@ -522,7 +523,8 @@ test("scope: no supabase/, migration, controller, protected-screen, HTML or cach
   // it has its own contract tests in scripts/costing-readiness-usability and scripts/wp04-readiness-client-contract-smoke.mjs).
   // CW-07: costing-route-config.js may differ from the base only by the Cost Sheet label rename (applied to the base text).
   // MDC-07 N2: the two controllers may carry only the flag-gated N2 navigation additions (scripts/lib/n2-nav-strip.mjs).
-  for (const rel of unchanged) assert.equal(stripN2(rel, read(rel)), readBase(rel), rel);
+  // MDC-07 W6: the PPM controller may carry only the flag-gated W6 five-group projection (scripts/lib/w6-nav-strip.mjs).
+  for (const rel of unchanged) assert.equal(stripW6(rel, stripN2(rel, read(rel))), readBase(rel), rel);
   // MDC-07 N1: costing-feature-flags.js may only be appended to (the COSTING_NAV_GROUPS_V1 flag); nothing existing changes.
   const flagsRel = "public/shared/js/costing-feature-flags.js";
   assert.ok(read(flagsRel).startsWith(readBase(flagsRel)), "feature flags: existing content unchanged (append-only)");

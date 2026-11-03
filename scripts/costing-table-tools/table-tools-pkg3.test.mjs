@@ -13,6 +13,7 @@ import * as tools from "../../public/shared/js/costing-table-tools.js";
 import { readSourceLf } from "../lib/read-source-lf.mjs";
 import { stripN1 } from "../lib/n1-nav-strip.mjs";
 import { stripN2 } from "../lib/n2-nav-strip.mjs";
+import { stripW6 } from "../lib/w6-nav-strip.mjs";
 
 const {
   COLUMN_HELP,
@@ -635,7 +636,8 @@ test("pkg3 COLUMN_HELP unchanged; module safety; FORBIDDEN_RPCS identical; no CS
   for (const f of ["pricing-policy", "cost-build", "material-cost", "control-center"]) {
     const rel = `${JS}/costing-suite-${f}.js`;
     // MDC-07 N2: the two Costing controllers may carry only the flag-gated N2 additions (scripts/lib/n2-nav-strip.mjs).
-    if (f === "cost-build" || f === "material-cost") assert.equal(stripN2(rel, read(rel)), git("show", `${PKG3_BASE}:${rel}`).replace(/\r\n/g, "\n"), f);
+    // MDC-07 W6: the PPM controller may carry only the flag-gated W6 five-group projection (scripts/lib/w6-nav-strip.mjs).
+    if (f === "cost-build" || f === "material-cost" || f === "pricing-policy") assert.equal(stripW6(rel, stripN2(rel, read(rel))), git("show", `${PKG3_BASE}:${rel}`).replace(/\r\n/g, "\n"), f);
     else assert.equal(git("diff", PKG3_BASE, "--", rel), "", f);
   }
 });

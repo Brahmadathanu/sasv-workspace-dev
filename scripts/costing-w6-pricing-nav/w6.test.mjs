@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { stripW6PricingPolicy, stripW6 } from "../lib/w6-nav-strip.mjs";
 import {
   resolvePricingPolicyW6Presentation,
   PRICING_POLICY_WORKSPACE_IDS,
@@ -142,7 +143,8 @@ test("ON presents identical per-workspace business metadata (capabilities, perio
 });
 
 // ---- scope guards (explicit failure when history is unavailable: full history required, `git fetch --unshallow`) ----
-const MAIN_BASE = "026c646fcb7c8e41b3beb64cadeb657bfb811b75";
+// Permanent main commit after N1/N2/N3/N4 were merged (N4 squash #135).
+const MAIN_BASE = "2ce8af0731afbb2bb0c998cf3074a3dec59b5a3c";
 function gitOrFail(...args) {
   try {
     return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -171,4 +173,30 @@ test("source: W6 changes only the PPM controller (plus tests and docs): shell, r
   assert.ok(changed.includes("public/shared/js/costing-suite-pricing-policy.js"));
   assert.deepEqual([...new Set(changed)].filter((f) => f.startsWith("public/")), ["public/shared/js/costing-suite-pricing-policy.js"]);
   assert.deepEqual([...new Set(changed)].filter((f) => /^(supabase|sql)\/|\.html$|sw\.js$|package(-lock)?\.json$/.test(f)), []);
+});
+
+// ---- the historical-pin strip helper removes exactly W6's additions and nothing else ----
+const PPM_REL = "public/shared/js/costing-suite-pricing-policy.js";
+const readPpm = () => fs.readFileSync(path.join(root, PPM_REL), "utf8").replace(/\r\n/g, "\n");
+const baselinePpm = () => gitOrFail("show", `${MAIN_BASE}:${PPM_REL}`).replace(/\r\n/g, "\n");
+
+test("strip helper: removing the W6 additions from the controller reproduces the pre-W6 file exactly", () => {
+  assert.notEqual(readPpm(), baselinePpm(), "W6 really changes the controller");
+  assert.equal(stripW6PricingPolicy(readPpm()), baselinePpm());
+  assert.equal(stripW6(PPM_REL, readPpm()), baselinePpm());
+  assert.equal(stripW6PricingPolicy(baselinePpm()), baselinePpm(), "idempotent on the pre-W6 text");
+  assert.equal(stripW6("public/shared/js/costing-suite-cost-build.js", "x"), "x", "other files are never touched");
+});
+
+// (Edits inside the W6 block itself are W6-owned and are covered by the W6 behaviour tests above, not by the historical pins.)
+test("strip helper is not a blanket: any extra edit to the controller survives stripping and therefore fails the historical pin", () => {
+  for (const tamper of [
+    (t) => t + "\n// unrelated change\n",
+    (t) => t.replace('export const PRICING_POLICY_DEFAULT_AREA = "selling-schemes";', 'export const PRICING_POLICY_DEFAULT_AREA = "mrp-policies";'),
+    (t) => t.replace('export const MRP_GOVERNANCE_DEFAULT_TAB = "sku-mrp-policies";', 'export const MRP_GOVERNANCE_DEFAULT_TAB = "mrp-proposals";'),
+  ]) {
+    const tampered = tamper(readPpm());
+    assert.notEqual(tampered, readPpm());
+    assert.notEqual(stripW6PricingPolicy(tampered), baselinePpm());
+  }
 });
