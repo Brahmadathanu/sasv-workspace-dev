@@ -16,7 +16,7 @@
 |---|---|---|---|
 | CS-R1 Repository/ledger alignment | Current work-pack pages, A6 package plan and unified workflow reflect actual merge sequence and explicitly separate historical dated reports | This docs PR #140 (pending) | Assistant audit; owner merge approval |
 | CS-R2 Navigation/UX release scope freeze | Confirm delivered P01/P02/N1–N4/W6 behaviour, decide whether U11 terminology package is necessary for this release; keep Tier-2 merges/C9 outside scope unless separately authorised | Wave merged; U11 not started; scope decision open | Owner + client worker |
-| CS-R3 Operational costing/run reconciliation | **Read-only** check live approved vs draft valuation period, blocked/review reasons, cron/refresh, price-view semantics, readiness freshness, unresolved CI-048/049 and any outstanding October finalisation *before* deciding whether server action is required | Historical records may be stale; LIVE status not established by this client audit | Assistant/Supabase read-only |
+| CS-R3 Operational costing/run reconciliation | **Read-only** check live approved vs draft valuation period, blocked/review reasons, cron/refresh, price-view semantics, readiness freshness, unresolved CI-048/049 and any outstanding October finalisation *before* deciding whether server action is required | **PARTIAL LIVE CHECK:** October OPEN, approved 143 for pricing, draft 148; November OPEN, draft 149; other checks outstanding (see §2A) | Assistant/Supabase read-only |
 | CS-R4 Governed production corrections | For any live-blocking issue from CS-R3, document SQL/RPC contract, impact, approval/rollback and run evidence; no automatic writes, migrations, finalise or approval | Conditional, no authorisation yet | Owner and server worker |
 | CS-R5 Signed-in acceptance and flag plan | Authorised role-based, populated-data walkthrough of P01/P02, all six Costing modules, deep links, historical/run-context separation and ON/OFF flag states. No flag ON merely because tests passed | Outstanding | Owner/test operators |
 | CS-R6 Full integration regression | Clean full-history source checkout, full Node/Chromium LF+CRLF, historical guards, critical server contracts and no skipped tests; separate legacy smoke expectations triaged, not silently waived | Full pre-merge proof + exact tree equivalence; fresh post-merge run and legacy smoke triage outstanding | Claude/Windows/cloud test worker |
@@ -25,6 +25,20 @@
 | CS-R9 Publishing approval | Explicit owner approval after CS-R1–R8; publish GitHub release/distribute installer; validate update behaviour | HOLD | Owner |
 
 **A release is not declared ready merely because a gate is “not applicable”: document the evidence and explicit disposition.** Flag ON requires its own signed-in acceptance and approval; default-OFF release may be evaluated independently after governance review.
+
+## 2A. Initial LIVE operational evidence — read-only Supabase query (3 Nov 2026)
+
+Queried canonical `public.v_costing_pricing_period_run_status` in project `qhmoqtxpeasamtlxaoak`. This is **actual live status at query time**, not a proposal or cached October chat summary.
+
+| Period | Status | Pricing-approved run | Latest successful/draft | Interpretation |
+|---|---|---|---|---|
+| November 2026 | OPEN | none | 149 / 149 | Draft 149; not for pricing |
+| October 2026 | OPEN | **143** (valuation 22 Oct) | 148 / 148 | Approved 143 remains in use for pricing; newer draft 148 (31 Oct) requires review and is not for pricing |
+| September 2026 | LOCKED | **122** (valuation 10 Sep) | 122 / 121 | Final/locked approved September remains unchanged |
+| August 2026 | OPEN | none | 82 / 82 | Older historical draft, not for pricing |
+| July 2026 | OPEN | none | 80 / 80 | Older historical draft, not for pricing |
+
+**Gate implication:** October has **not** been finalised or locked; neither its draft 148 nor November draft 149 may be treated as approved. CS-R3 is now **PARTIALLY VERIFIED** (period status). Still to investigate read-only: 148 review/block populations and causes, valuation/refresh and readiness freshness, weekly/month-end cron outcomes, CI-048/049 implementation state, and any dependent views or approval gates. No SQL writes, approval/finalisation or readiness rebuild performed. Do not equate July/August historical exact-run fixtures with current costing.
 
 ## 3. Work-package boundaries — prevent scope creep
 
