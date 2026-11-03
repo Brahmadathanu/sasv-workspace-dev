@@ -1,3 +1,5 @@
+> **Updated next execution (after U11 #144 merged, 3 Nov):** Do **not** repeat phases already completed: baseline 605/605, U11 final 610/610 and WP05–WP12 preliminary maps in #143/#145. New `main` `cf26ae5ed6c69b9e5f52e195f033cfb94e2e781b`. Next safe implementation package is **A7 material acceptance contract test-only PR** (see [CLIENT_DRAFT_RUN_EVIDENCE_IMPLEMENTATION_GATE_2026-11-03.md](CLIENT_DRAFT_RUN_EVIDENCE_IMPLEMENTATION_GATE_2026-11-03.md)); in parallel finish the detailed role/contract and UX proposal for run-148 component evidence without any new production RPC or base-table query. Any write-enabled regional acceptance client design must follow exact CCC role/eligible queue contract and separate owner approval. The broad one-pass brief below is historical; avoid paying Claude tokens to re-audit it.
+
 # Claude Code Cloud — Full-Programme Night Execution Brief (3 Nov 2026)
 **Source:** owner request in INVENTORY RELATED WORKS: complete the entire agreed WP00–WP12 workflow before Electron release; maximise safe cloud progress and minimise token waste. Read `FULL_PROGRAMME_COMPLETION_EXECUTION_2026-11-03.md` first for scope and non-negotiable controls.
 
