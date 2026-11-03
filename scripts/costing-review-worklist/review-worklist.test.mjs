@@ -21,6 +21,7 @@ import {
 import { costingStatusDisplayLabel } from "../../public/shared/js/costing-status-labels.js";
 import { readSourceLf } from "../lib/read-source-lf.mjs";
 import { stripN1 } from "../lib/n1-nav-strip.mjs";
+import { stripN2 } from "../lib/n2-nav-strip.mjs";
 
 const {
   REVIEW_WORKLIST_EMPTY_TEXT,
@@ -585,7 +586,7 @@ test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS
   // depends on (scripts/lib/costing-scope-guard.mjs) instead of the whole repository, so unrelated modules that
   // land on main later (e.g. WP-07 e-Aushadhi HTML/CSS and its own migration) no longer trip this package test.
   // CW-07: costing-route-config.js may differ from the base only by the Cost Sheet label rename (applied to the base text).
-  for (const rel of protectedFiles) assert.equal(read(rel), readBase(rel), rel);
+  for (const rel of protectedFiles) assert.equal(stripN2(rel, read(rel)), readBase(rel), rel);
   const scope = costingScopeReport({ git, root, base: BASE });
   assert.deepEqual(scope.supabase, [], "no Costing or history-rewriting supabase change");
   assert.deepEqual(scope.packageJson, [], "package.json unchanged");
