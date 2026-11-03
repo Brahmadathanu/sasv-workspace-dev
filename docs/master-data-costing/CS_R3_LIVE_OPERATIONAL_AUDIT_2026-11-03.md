@@ -86,6 +86,19 @@ Read `costing.sku_pricing_bridge_snapshot` for run 148 joined to the one `PRICIN
 
 `public.app_nav_sections` has **11 active sections** (Work Log; Planning Workspace; MRP & Procurement; Inventory & Sales Analytics; Product & Reference Master; Plant & Assets; QA/QC; BMR & Production Records; SOPs; System & Integrations; Administration). `public.v_app_module_registry` returns **115 navigation-enabled and active module rows**, including 22 Product & Reference Master, 23 Inventory & Sales, 16 MRP & Procurement and 17 QA/QC. These are **module rows, not necessarily 115 different destination URLs**. IA08/09 should map `module_key`, `section_key`, `label`, `route_path`, role/access conditions and actual client routing before proposing launcher consolidation; no server change or module deactivation authorised.
 
+## 2E. More specific authority/source codes (additional read-only join)
+
+Direct-labour component snapshot `costing.sku_direct_labour_allocation_snapshot` (run 148, 110 prime-review SKUs) reports:
+- **109 SKUs** `allocation_reason_code=REVIEW_REQUIRED_DIRECT_LABOUR_COMPONENT_FOUNDATION`, all using `MANUFACTURING_ROUTE_PLUS_EXPECTED_PACKAGE_UNITS` component model. Of these, **52** allocation basis `OK` / resolution `READY`; **32** `NO_SKU_SALES_IN_LOOKBACK` / resolution `REVIEW_REQUIRED`; **25** `NO_PRODUCT_SALES_IN_LOOKBACK` / resolution `REVIEW_REQUIRED`.
+- Remaining **1 SKU** is `READY_ZERO_SASV_MANUFACTURING_AND_PACKING_LABOUR` with direct labour READY; its review is internal-conversion driven.
+
+**Meaning:** 109 prime-cost reviews trace to **direct-labour component foundation**, not necessarily sales/quantity data alone. The 57 no-sales-basis SKUs are a subset and require separate evidence/assumption governance. The 52 with resolved basis still need the route/labour-component foundation examined. The source reason code should be surfaced read-only through the existing client/approved contract if accessible; it is not a justification to auto-accept.
+
+For Dhanyamlam SKU 41, `costing.sku_regional_marketing_expense_allocation_snapshot` (run 148) confirms:
+- IK: `regional_basis_source=REGIONAL_ACTUAL_UNITS`, basis and expense allocation READY.
+- OK: `regional_basis_source=REGION_SCALED_COMMON_BASIS`, both REVIEW_REQUIRED. Its note states there are **no positive regional SKU actual units or governed regional assumption**; the common SKU basis is scaled by the product regional actual quantity share and **requires review**. Monetary value uses `ACTUAL_SIGNED_BILLED_SALES` for both regions.
+- Governing question is whether and how a **regional physical-basis assumption** should be approved at the source, not acceptance of a generic pricing bridge status.
+
 ## 3. Material issue lines are not SKU counts
 
 A separate review-workbench snapshot for November 149 reports review issues including stale RM purchase rate 1,596 lines, RM stock valuation fallback 729, stale PM purchase rate 371, PM stock valuation fallback 243, and **one blocked missing-required-PM rate line**. Issue categories overlap and must not be summed as distinct SKU totals. October material snapshot results returned run 143, not 148; no assumption made about draft 148 from that view.
