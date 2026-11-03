@@ -54,6 +54,38 @@ All six `costing.costing_refresh_run_stage` stages succeeded:
 
 **Diagnostic implication:** a large portion of October's 113 final review SKUs emerges **after** the material stage (only 2 material-review SKUs there). The prime-cost and later control layers need targeted examination before deciding that all 110 prime-cost review SKUs reflect missing raw-material prices. This does not justify automatic acceptance or a refreshed approved run.
 
+## 2B. Component-level root-cause split for the 110 prime-cost reviews (3 Nov additional live query)
+
+Joined run-148 `PRIME_COST_REVIEW_REQUIRED` SKU ids from `public.v_costing_pricing_sku_control_status_by_run` to `costing.sku_prime_cost_snapshot` by `refresh_run_id=148` and `sku_id`. **Exactly 110 matching SKU rows**:
+
+| Direct labour | Allocation resolution | Internal conversion | Material costing | SKUs |
+|---|---|---|---|---:|
+| REVIEW_REQUIRED | REVIEW_REQUIRED | READY | READY | 56 |
+| REVIEW_REQUIRED | READY | READY | READY | 51 |
+| READY | READY | REVIEW_REQUIRED | READY | 1 |
+| REVIEW_REQUIRED | READY | REVIEW_REQUIRED | READY | 1 |
+| REVIEW_REQUIRED | REVIEW_REQUIRED | REVIEW_REQUIRED | READY | 1 |
+| **Total** | | | | **110** |
+
+**109/110 have direct-labour review; 57/110 have allocation resolution review; 3/110 have internal conversion review; all 110 material costing statuses are READY.** Component conditions overlap, so they are not additive. The `prime_costing_note` confirms the composite cost is calculated but one or more components require review.
+
+`allocation_resolution_note` among the 110 contains evidence of **SALES-01** historical sales allocation basis and **Smart default v2 / NEW_PRODUCT_NO_HISTORY / policy 6** assumptions. These notes indicate distinct provenance/review concerns rather than a single missing material rate. Further analysis of the *governed direct-labour allocation status* and upstream acceptance/policy is required before prescribing any change. A new `prime acceptance` RPC is **not** justified by these findings.
+
+## 2C. Pricing bridge exception is specifically OK regional Marketing allocation
+
+Read `costing.sku_pricing_bridge_snapshot` for run 148 joined to the one `PRICING_BRIDGE_REVIEW_REQUIRED` SKU:
+
+- SKU **41**, **Dhanyamlam**.
+- `pricing_bridge_status_ik=READY`; `marketing_expense_allocation_status_ik=READY`.
+- `pricing_bridge_status_ok=REVIEW_REQUIRED`; `marketing_expense_allocation_status_ok=REVIEW_REQUIRED`.
+- The OK note states pricing is calculable but needs review because one or more regional cost components need review. Thus the pricing bridge inherits **OK Marketing allocation** review, not an unidentified global approval anomaly.
+
+**Follow-up:** examine approved regional Marketing allocation policy/evidence and existing PPM client remedy path; do **not** invent a `pricing_bridge_accept` RPC or approve it blindly.
+
+## 2D. WP08/09 server-driven launcher inputs are available read-only
+
+`public.app_nav_sections` has **11 active sections** (Work Log; Planning Workspace; MRP & Procurement; Inventory & Sales Analytics; Product & Reference Master; Plant & Assets; QA/QC; BMR & Production Records; SOPs; System & Integrations; Administration). `public.v_app_module_registry` returns **115 navigation-enabled and active module rows**, including 22 Product & Reference Master, 23 Inventory & Sales, 16 MRP & Procurement and 17 QA/QC. These are **module rows, not necessarily 115 different destination URLs**. IA08/09 should map `module_key`, `section_key`, `label`, `route_path`, role/access conditions and actual client routing before proposing launcher consolidation; no server change or module deactivation authorised.
+
 ## 3. Material issue lines are not SKU counts
 
 A separate review-workbench snapshot for November 149 reports review issues including stale RM purchase rate 1,596 lines, RM stock valuation fallback 729, stale PM purchase rate 371, PM stock valuation fallback 243, and **one blocked missing-required-PM rate line**. Issue categories overlap and must not be summed as distinct SKU totals. October material snapshot results returned run 143, not 148; no assumption made about draft 148 from that view.
