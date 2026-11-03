@@ -104,10 +104,19 @@ test("source: permission functions, RPC names and export roles are byte-identica
 });
 
 test("source: N2 touches only the two controller files (plus their tests); shared N1 files, shell, registry, route config, CSS, HTML, sw and supabase are untouched", () => {
-  // Immutable N2 package range: subsequent N3/N4 changes on main are not N2-owned.
-  // Missing Git objects fail the test explicitly rather than silently skipping the guard.
-  const n2Head = "ae41de8d6eb98d352528316709394c560ae748b2";
-  const all = execFileSync("git", ["diff", "--name-only", N1_HEAD, n2Head], { cwd: root, encoding: "utf8" })
+  // Permanent squash-merge range of N2 (#136) on main: N3 squash 55acfce -> N2 squash 7f46f37. Both commits are part of
+  // main's history (not feature-branch heads), so a full clone has them; later N4 changes are never attributed to N2.
+  // A missing object (shallow clone) is an explicit FAILURE, never a silent skip: run `git fetch --unshallow`.
+  const n2Base = "55acfcfebeeddf5396c4198e0691a56d9b70162e";
+  const n2Head = "7f46f3784dcbc2b5059e940763c80befd3437746";
+  for (const sha of [n2Base, n2Head]) {
+    try {
+      execFileSync("git", ["cat-file", "-e", `${sha}^{commit}`], { cwd: root, stdio: "pipe" });
+    } catch {
+      assert.fail(`historical ownership guard needs commit ${sha} (full git history). Shallow or partial clone? Run: git fetch --unshallow`);
+    }
+  }
+  const all = execFileSync("git", ["diff", "--name-only", n2Base, n2Head], { cwd: root, encoding: "utf8" })
     .split("\n").filter(Boolean);
   assert.ok(all.length > 0, "N2 historical package diff must not be empty");
   const forbidden = [

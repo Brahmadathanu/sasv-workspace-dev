@@ -121,10 +121,18 @@ test("Sibling navigation calls the shell contract with period only, new tab, exi
 });
 
 test("File ownership: only the three controllers (plus this package's tests/docs) change versus the base", () => {
-  // Immutable N3 package range: compare the original N1 base to the original N3 head,
-  // not the moving checkout. Later accepted N2/N4 changes must not be attributed to N3.
+  // Permanent squash-merge range of N3 (#134) on main: N1 merge 85a163f -> N3 squash 55acfce. These commits are part of
+  // main's history (not feature-branch heads), so a full clone has them; later N2/N4 changes are never attributed to N3.
+  // A missing object (shallow clone) is an explicit FAILURE, never a silent skip: run `git fetch --unshallow`.
   const base = "85a163f2bc36476953939bfb637b81f632d6b9b9";
-  const packageHead = "5f7252ead2997747b82ffe002307553d2b212b5e";
+  const packageHead = "55acfcfebeeddf5396c4198e0691a56d9b70162e";
+  for (const sha of [base, packageHead]) {
+    try {
+      execSyncImpl(`git cat-file -e ${sha}^{commit}`, { cwd: root, stdio: "pipe" });
+    } catch {
+      assert.fail(`historical ownership guard needs commit ${sha} (full git history). Shallow or partial clone? Run: git fetch --unshallow`);
+    }
+  }
   const changed = execSyncImpl(`git diff --name-only ${base} ${packageHead} -- . ":(exclude)scripts/costing-cross-links" ":(exclude)docs"`, { cwd: root, encoding: "utf8" })
     .split("\n").filter(Boolean);
   assert.ok(changed.length > 0, "N3 historical package diff must not be empty");
