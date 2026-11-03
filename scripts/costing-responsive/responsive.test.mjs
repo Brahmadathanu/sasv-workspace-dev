@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { COSTING_ROUTE_CONFIG } from "../../public/shared/js/costing-route-config.js";
 import { LONG_RUN_STATUS_TEXT, PAGES, WIDTHS, audit, launchAudit, measureHtml, openAuditPage } from "./responsive-audit.mjs";
 import { describeRunStatusPopover, installRunStatusPopover } from "../../public/shared/js/costing-run-status-popover.js";
+import { stripN1Shell } from "../lib/n1-nav-strip.mjs";
 import { applyCw07Labels } from "../lib/costing-scope-guard.mjs";
 import { applyRunStatusDataset } from "../../public/shared/js/costing-run-status-badge.js";
 
@@ -66,7 +67,7 @@ test("run-status icon button CSS: hidden by default and above 520 px, status-cod
 test("freshness indicator retired by CSS only: element kept as an inert anchor; Refresh, run-status badge and shell untouched", () => {
   assert.match(block, /body\.sasv-costing #lastRefreshed \{\s*display: none;/);
   for (const [, rel] of PAGES) assert.match(read(`public/${rel}`), /id="lastRefreshed"/, `${rel} keeps the anchor element`);
-  const shell = read("public/shared/js/costing-suite-shell.js");
+  const shell = stripN1Shell(read("public/shared/js/costing-suite-shell.js")); // MDC-07 N1 additions removed (flag-gated)
   // CW-07 (cost-sheet terminology) renames one toast label in the shell; its helper is applied to the base text so the
   // shell may differ from the baseline by exactly that rename and nothing else.
   const baseShell = execFileSync("git", ["show", "28cfadb20de3e2f3daf0aadada096f541254819d:public/shared/js/costing-suite-shell.js"], { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).replace(/\r\n/g, "\n");

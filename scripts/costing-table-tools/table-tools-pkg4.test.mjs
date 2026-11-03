@@ -451,7 +451,9 @@ test("pkg4 unsortable columns key null; table-tools diff is only the three entri
   // Scope guard (WP-07 Bundle B correction): HTML/CSS/supabase/package.json checks cover what Costing owns or
   // depends on (scripts/lib/costing-scope-guard.mjs) instead of the whole repository, so unrelated modules that
   // land on main later (e.g. WP-07 e-Aushadhi HTML/CSS and its own migration) no longer trip this package test.
-  assert.equal(git("diff", BASE, "--", ...controllers, `${JS}/costing-feature-flags.js`), "");
+  assert.equal(git("diff", BASE, "--", ...controllers), "");
+  assert.equal(read(`${JS}/costing-feature-flags.js`), readSourceLf(root, `${JS}/costing-feature-flags.js`)); // N1 strip applied by the reader
+  assert.equal(read(`${JS}/costing-feature-flags.js`), git("show", `${BASE}:${JS}/costing-feature-flags.js`).replace(/\r\n/g, "\n"), "feature flags unchanged apart from the N1 append");
   const scope = costingScopeReport({ git, root, base: BASE });
   assert.deepEqual(scope.supabase, [], "no Costing or history-rewriting supabase change");
   assert.deepEqual(scope.packageJson, [], "package.json unchanged");
