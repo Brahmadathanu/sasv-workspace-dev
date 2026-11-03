@@ -1,3 +1,5 @@
+> **Merged update — 2 Nov 2026:** PR #127 was squash-merged as `86b4ad5e326fa9ceae32f3d8c042901eddab6066`, following owner acceptance of the compact 390px header and run-status popover. Its 385/385 post-#126 and the 393/393 reconciled head tests (LF/CRLF) were Claude-reported. Final `main` retest and live deployment confirmation remain separate checks. The old draft/branch wording below is historical.
+
 # CW-13 — Responsive hardening of the six Costing suites
 
 Branch `feat/costing-cw13-responsive`, baseline main `28cfadb20de3e2f3daf0aadada096f541254819d`. Draft; not merged.

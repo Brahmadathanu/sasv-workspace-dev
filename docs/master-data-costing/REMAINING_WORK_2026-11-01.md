@@ -1,3 +1,5 @@
+> **STATUS RECONCILIATION — 2 Nov 2026:** The CW-13 responsive/mobile package (#127), CW-06 dialog package (#126) and CW-07 terminology package (#128) were merged on `main` (`3d0b6185`) after the 1 Nov inventory was written. They are **not open implementation packages**. CW-13 mobile browser acceptance and CW-07 client wording acceptance passed; CW-06 mock-browser evidence passed but the pre-existing Historical Candidate Review controls remain hidden and its family-create action lacks required `p_family_code`. The Hub Home label still comes from `public.app_modules`, pending separate governed approval. Final post-merge tests, live deployment confirmation and full navigation rationalisation remain open. Other owner decisions below retain their recorded status until independently rechecked.
+
 # Master costing workflow: remaining work (1 Nov 2026)
 
 Supersedes [REMAINING_WORK_2026-10-31.md](REMAINING_WORK_2026-10-31.md); read with [CURRENT_STATE_2026-11-01.md](CURRENT_STATE_2026-11-01.md). Items not listed below keep their 31 Oct status in the old file (sections A 6–14, B 19–32, D 40).

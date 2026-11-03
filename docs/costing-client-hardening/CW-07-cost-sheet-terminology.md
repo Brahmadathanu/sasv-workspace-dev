@@ -1,3 +1,5 @@
+> **Merged update — 2 Nov 2026:** PR #128 was squash-merged as `3d0b6185f4351469cf23969beefac0e8875e0c2e`, including the test-only reconciliation after CW-13. Owner accepted the client wording. The Utilities Hub Home tile label is independently stored in the live `public.app_modules` registry and was **not** changed by CW-07; correcting its display label/description requires a separate owner-approved metadata update. Existing branch/draft language below is historical.
+
 # CW-07 — Cost Sheet terminology correction
 
 Branch `feat/costing-cw07-cost-sheet-terminology`, baseline main `28cfadb20de3e2f3daf0aadada096f541254819d`. Draft; not merged.
