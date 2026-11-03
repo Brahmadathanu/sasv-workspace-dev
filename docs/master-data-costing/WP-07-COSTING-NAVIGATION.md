@@ -114,6 +114,8 @@ N1 (merged): `costing-nav-groups.js`, `costing-nav-context.js`, flag in `costing
 ## Tests / verification
 See Gate A and the N1 section above. Not performed: signed-in populated-data acceptance, live PWA/cache check, global smoke run.
 
+**Git history requirement (N2/N3 historical ownership guards):** the guards `File ownership: only the three controllers…` (`scripts/costing-cross-links/cross-links.test.mjs`) and `source: N2 touches only the two controller files…` (`scripts/costing-nav-mcm-cbm/n2.test.mjs`) compare permanent squash-merge commits on `main`: N3 #134 `85a163f` → `55acfce`, N2 #136 `55acfce` → `7f46f37`. They need full history (at least back to `85a163f`). A shallow or partial checkout fails them **explicitly** with the message "needs commit … Run: git fetch --unshallow"; they never skip. The repository currently has no CI workflow that runs these tests (only `public/netlify.toml`, a deploy config); any future CI job must check out with `fetch-depth: 0` (or unshallow). They no longer depend on the original feature branches.
+
 ## Decisions created
 None.
 
