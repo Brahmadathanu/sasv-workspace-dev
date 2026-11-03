@@ -515,8 +515,10 @@ test("scope: no supabase/, migration, controller, protected-screen, HTML or cach
     "costing-suite-control-center.js", "costing-suite-recommended-ui-route.js", "costing-route-config.js",
     "costing-approval-screen.js", "costing-approval-errors.js", "costing-approval-labels.js", "costing-lock-screen.js",
     "costing-run-status-screen.js", "costing-recalculation.js", "costing-status-labels.js", "costing-feature-flags.js",
-    "costing-table-tools.js", "costing-suite-readiness.js", "costing-suite-pricing-policy.js", "costing-suite-cost-build.js", "costing-suite-material-cost.js",
+    "costing-table-tools.js", "costing-suite-pricing-policy.js", "costing-suite-cost-build.js", "costing-suite-material-cost.js",
   ].map((f) => `public/shared/js/${f}`);
+  // WP05-P01: costing-suite-readiness.js is intentionally no longer pinned to the UX-F1 base (Readiness usability package;
+  // it has its own contract tests in scripts/costing-readiness-usability and scripts/wp04-readiness-client-contract-smoke.mjs).
   // CW-07: costing-route-config.js may differ from the base only by the Cost Sheet label rename (applied to the base text).
   for (const rel of unchanged) assert.equal(read(rel), readBase(rel), rel);
   // This package changes only the service-worker cache line from v389 to v390.
