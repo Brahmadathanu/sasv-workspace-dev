@@ -269,23 +269,25 @@ test("source: three evidence lenses stay three separate lenses in the Review gro
 });
 function cfgLensIds() { return COSTING_ROUTE_CONFIG["production-route-manager"].allowedLensIds; }
 
-// Fixed N4 baseline: current main after N1/N2/N3 were merged. Intentionally NOT the moving origin/main.
-const N4_BASE = "7f46f3784dcbc2b5059e940763c80befd3437746";
+// Immutable N4 package range on main: N2 squash + #138 repair (026c646) -> N4 squash #135 (2ce8af0). Judging this fixed range
+// (not the moving checkout) keeps the guard valid on every later branch; later packages (e.g. W6) are never attributed to N4.
+const N4_BASE = "026c646fcb7c8e41b3beb64cadeb657bfb811b75";
+const N4_HEAD = "2ce8af0731afbb2bb0c998cf3074a3dec59b5a3c";
+
+/** Changed files of a permanent range. An unavailable or invalid commit is a test FAILURE (never a silent pass). */
+function changedInRange(base, head) {
+  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  try {
+    for (const sha of [base, head]) git("cat-file", "-e", `${sha}^{commit}`);
+    return git("diff", "--name-only", base, head).split("\n").filter(Boolean);
+  } catch (err) {
+    assert.fail(`scope guard cannot compare ${base}..${head} (shallow clone, missing object or no git? run: git fetch --unshallow): ${String(err.message).split("\n")[0]}`);
+  }
+}
 
 test("scope guard: N1 shared files, registry, route config, HTML, SQL and cache are untouched by this package", () => {
-  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8" });
-  // An unavailable or invalid baseline is a test FAILURE (never a silent pass): the ownership check must really run.
-  let changed;
-  try {
-    git("cat-file", "-e", `${N4_BASE}^{commit}`);
-    changed = git("diff", "--name-only", N4_BASE).split("\n").filter(Boolean);
-    changed.push(...git("diff", "--name-only", "--cached", N4_BASE).split("\n").filter(Boolean));
-    changed.push(...git("ls-files", "--others", "--exclude-standard").split("\n").filter(Boolean));
-  } catch (err) {
-    assert.fail(`scope guard cannot compare with baseline ${N4_BASE} (shallow clone, missing object or no git?): ${String(err.message).split("\n")[0]}`);
-  }
-  changed = [...new Set(changed)];
-  assert.ok(changed.length > 0, "the comparison produced no changed files: the baseline cannot be right for this branch");
+  const changed = changedInRange(N4_BASE, N4_HEAD);
+  assert.ok(changed.length > 0, "the comparison produced no changed files: the range cannot be right");
   assert.ok(changed.includes("public/shared/js/costing-suite-production-route-nav-context.js"), "N4's own module must appear in the comparison");
   const forbidden = /(^|\/)(costing-suite-shell|costing-suite-registry|costing-route-config|costing-nav-groups|costing-nav-context|costing-feature-flags)\.js$|sasv-costing\.css$|\.html$|^supabase\/|^sql\/|sw\.js$|service-worker|cache/i;
   assert.deepEqual(changed.filter((f) => forbidden.test(f)), []);
@@ -296,6 +298,7 @@ test("scope guard: N1 shared files, registry, route config, HTML, SQL and cache 
   );
 });
 
-test("scope guard fails explicitly (not silently) when the baseline is unavailable", () => {
-  assert.throws(() => execFileSync("git", ["cat-file", "-e", "0000000000000000000000000000000000000000^{commit}"], { cwd: root, stdio: "pipe" }));
+test("scope guard fails explicitly (not silently) when a range commit is unavailable", () => {
+  assert.throws(() => changedInRange("0000000000000000000000000000000000000000", N4_HEAD), /scope guard cannot compare/);
+  assert.throws(() => changedInRange(N4_BASE, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"), /scope guard cannot compare/);
 });

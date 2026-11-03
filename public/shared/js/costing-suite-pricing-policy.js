@@ -1,3 +1,5 @@
+import { isCostingNavGroupsV1Enabled } from "./costing-feature-flags.js";
+import { COSTING_PPM_NAV_GROUP_CONTRACT } from "./costing-nav-groups.js";
 import {
   MRP_PROPOSAL_VIEWS,
   createMrpProposalHandlers,
@@ -62,7 +64,7 @@ export const PRICING_POLICY_DEFAULT_AREA = "selling-schemes";
  * Presentation-only navigation groups (desktop separators / narrow optgroups).
  * Not interactive state and carries no capabilities or workspace memory.
  */
-export const PRICING_POLICY_NAV_GROUPS = [
+const LEGACY_PRICING_POLICY_NAV_GROUPS = [
   { id: "mrp-policy-setup", label: "MRP Policy Setup" },
   { id: "mrp-change-workflow", label: "MRP Change Workflow" },
   { id: "selling-schemes", label: "Selling & Schemes" },
@@ -81,7 +83,7 @@ const PRICING_POLICY_GROUP_TO_COMPAT_AREA_ID = {
  * SC4: operational workspaces (Scheme Comparison removed).
  * EVP-3I2C9E: commercial-sales-assumptions is the sole period-scoped PPM workspace.
  */
-export const PRICING_POLICY_WORKSPACES = [
+const LEGACY_PRICING_POLICY_WORKSPACES = [
   {
     id: "sku-mrp-policies",
     label: "SKU MRP Policies",
@@ -199,6 +201,40 @@ export const PRICING_POLICY_WORKSPACES = [
   },
 ];
 
+/**
+ * WP06/W6: PPM owns its display metadata; the existing shell consumes these two exports.
+ * The default-OFF path returns the original arrays and original objects unmodified.
+ * The ON path derives all ten workspaces and five presentation groups from the approved
+ * N1 contract. legacyGroupId is deliberately retained for inbound Area compatibility.
+ * This is evaluated at module load; flag changes require page reload, as for N1.
+ */
+export function resolvePricingPolicyW6Presentation(enabled = isCostingNavGroupsV1Enabled()) {
+  if (enabled !== true) return {
+    groups: LEGACY_PRICING_POLICY_NAV_GROUPS,
+    workspaces: LEGACY_PRICING_POLICY_WORKSPACES,
+  };
+  const contract = COSTING_PPM_NAV_GROUP_CONTRACT.groups;
+  const source = new Map(LEGACY_PRICING_POLICY_WORKSPACES.map((ws) => [ws.id, ws]));
+  const used = new Set();
+  const groups = [];
+  const workspaces = [];
+  for (const group of contract) {
+    groups.push({ id: group.id, label: group.label });
+    for (const id of group.workspaceIds) {
+      const original = source.get(id);
+      if (!original || used.has(id)) throw new Error(`W6 invalid PPM workspace contract: ${id}`);
+      used.add(id);
+      workspaces.push({ ...original, groupId: group.id, legacyGroupId: original.groupId });
+    }
+  }
+  if (used.size !== source.size) throw new Error("W6 PPM workspace contract omits workspaces");
+  return { groups, workspaces };
+}
+
+const W6_PRESENTATION = resolvePricingPolicyW6Presentation();
+export const PRICING_POLICY_NAV_GROUPS = W6_PRESENTATION.groups;
+export const PRICING_POLICY_WORKSPACES = W6_PRESENTATION.workspaces;
+
 export const PRICING_POLICY_NAV_GROUP_IDS = PRICING_POLICY_NAV_GROUPS.map(
   (g) => g.id,
 );
@@ -220,7 +256,7 @@ export const PRICING_POLICY_AREA_IDS = Object.keys(
 const PRICING_POLICY_WORKSPACE_TO_AREA = (() => {
   const map = new Map();
   for (const ws of PRICING_POLICY_WORKSPACES) {
-    const areaId = PRICING_POLICY_GROUP_TO_COMPAT_AREA_ID[ws.groupId];
+    const areaId = PRICING_POLICY_GROUP_TO_COMPAT_AREA_ID[ws.legacyGroupId || ws.groupId];
     if (areaId) map.set(ws.id, areaId);
   }
   return map;
@@ -249,7 +285,7 @@ export const MRP_GOVERNANCE_DEFAULT_TAB = "sku-mrp-policies";
 
 export const MRP_GOVERNANCE_TABS = PRICING_POLICY_WORKSPACES.filter(
   (w) =>
-    w.groupId === "mrp-policy-setup" || w.groupId === "mrp-change-workflow",
+    (w.legacyGroupId || w.groupId) === "mrp-policy-setup" || (w.legacyGroupId || w.groupId) === "mrp-change-workflow",
 ).map((w) => ({
   id: w.id,
   label: w.label,
@@ -259,7 +295,7 @@ export const MRP_GOVERNANCE_TABS = PRICING_POLICY_WORKSPACES.filter(
 export const MRP_GOVERNANCE_TAB_IDS = MRP_GOVERNANCE_TABS.map((tab) => tab.id);
 
 const SELLING_SCHEME_WORKSPACE_IDS = PRICING_POLICY_WORKSPACES.filter(
-  (w) => w.groupId === "selling-schemes",
+  (w) => (w.legacyGroupId || w.groupId) === "selling-schemes",
 ).map((w) => w.id);
 
 /** Sub-views inside SKU MRP Policies — shared by desktop tabs and narrow select. */
@@ -287,11 +323,7 @@ export function validatePricingPolicyNavMetadata() {
       errors.push(`duplicate group id: ${group.id}`);
     else groupIds.add(group.id);
   }
-  for (const expected of [
-    "mrp-policy-setup",
-    "mrp-change-workflow",
-    "selling-schemes",
-  ]) {
+  for (const expected of W6_PRESENTATION.groups.map((group) => group.id)) {
     if (!groupIds.has(expected)) errors.push(`missing nav group: ${expected}`);
   }
   if (groupIds.has("analysis")) {
@@ -318,18 +350,22 @@ export function validatePricingPolicyNavMetadata() {
     errors.push("scheme-comparison must not remain a PPM workspace (SC4)");
   }
 
-  const expectedOrder = [
-    "sku-mrp-policies",
-    "product-derivation-policies",
-    "mrp-proposals",
-    "proposal-decisions",
-    "approved-for-application",
-    "applied-proposal-history",
-    "sku-overview",
-    "scheme-master",
-    "scheme-rule-register",
-    COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID,
-  ];
+  // W6: with the flag OFF the original order is expected; with it ON the approved N1 contract order is.
+  const expectedOrder =
+    W6_PRESENTATION.workspaces === LEGACY_PRICING_POLICY_WORKSPACES
+      ? [
+          "sku-mrp-policies",
+          "product-derivation-policies",
+          "mrp-proposals",
+          "proposal-decisions",
+          "approved-for-application",
+          "applied-proposal-history",
+          "sku-overview",
+          "scheme-master",
+          "scheme-rule-register",
+          COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID,
+        ]
+      : COSTING_PPM_NAV_GROUP_CONTRACT.groups.flatMap((group) => group.workspaceIds);
   if (PRICING_POLICY_WORKSPACE_IDS.length !== expectedOrder.length) {
     errors.push(
       `expected ${expectedOrder.length} workspaces, got ${PRICING_POLICY_WORKSPACE_IDS.length}`,
