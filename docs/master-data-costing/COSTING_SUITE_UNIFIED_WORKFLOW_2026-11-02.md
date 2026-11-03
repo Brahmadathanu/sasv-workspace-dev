@@ -1,6 +1,6 @@
 # Costing Suite — Unified Workflow Control and Handover (2 November 2026)
 
-> **Authoritative navigation and workstream coordination page (proposed, PR #129; NOT merged).** This document consolidates the route to existing evidence, **not** the underlying historical or server-governance records. On conflict: live Supabase governs server facts; current Git `main` governs code; approved dated decisions govern scope. A date-stamped old report never outranks verified newer evidence.
+> **Authoritative navigation and workstream coordination page (merged via PR #129; status reconciled 3 Nov 2026 below).** This document consolidates the route to existing evidence, **not** the underlying historical or server-governance records. On conflict: live Supabase governs server facts; current Git `main` governs code; approved dated decisions govern scope. A date-stamped old report never outranks verified newer evidence.
 
 ## The two documentation namespaces — decision
 
@@ -10,7 +10,16 @@
 
 **Do not delete or squash history, old SQL evidence, active migrations, old PR branches, or the paused e-Aushadhi namespace as part of documentation unification.** Unification means a single current navigation and status register with references, not merging unrelated policies into one giant document or deleting proof.
 
-## Verified repository baseline (2 Nov)
+## Verified status — 3 Nov 2026 (reconciliation; supersedes the 2 Nov baseline and the "Phase 0/1" planning text where they differ)
+
+* **`main` verified at `86f1c18c538eea224fd3ad8198e5527413892474`.** #129 (`1ad8e42`), #130 (`b5ca04f`, WP05 audit A1–A7), #131 (`fc39b1b`, WP05-P02) and #132 (`86f1c18`, WP05-P01) are squash-merged. This file is no longer "proposed" and PR #129 is no longer a draft.
+* **Combined regression baseline on pristine `main` `86f1c18`: 471/471 on LF and 471/471 on CRLF (persistent `core.autocrlf=true`, clean `git status`), 0 skipped, Chromium ran.** This replaces the 393 (CW pack) and 408 (WP05 audit) figures, which were totals for earlier heads and are not additive. Legacy `scripts/production-route-*-smoke.mjs`: 51 of 63 fail on pristine `main` (stale cache-version pins and similar); the WP04 readiness client contract smoke passes. Detail: [WP-07](WP-07-COSTING-NAVIGATION.md).
+* **WP05:** audit merged; **Tier 1 design accepted by the owner (2 Nov 2026)**; Tier 2 consolidation not approved; WP05 remains open. The "begin WP05 immediately" instruction below is complete for the audit phase.
+* **P02 and P01 are integrated** (default OFF; P02 behind `COSTING_PRM_CORRECTIONS_V1`). Post-merge limitations: signed-in populated-data acceptance outstanding; the 51 legacy smoke failures predate them.
+* **MDC-07 N1** (shared navigation contract, grouped renderer, context chip/breadcrumb, `COSTING_NAV_GROUPS_V1` default OFF) is implemented on a draft PR awaiting independent review; not merged, flag not activated. **Remaining: N2 (MCM/CBM grouping), N3 (CSR cross-links/queues), N4 (PRM five-group nav + context persistence), W6 (PPM workspace grouping), U11 (terminology).** None is authorised until its own brief.
+* Unchanged: no database writes or migrations, no feature activation, `hub-cache-v390` designation, e-Aushadhi WP-07 paused, migration `20261015045233` untouched. Outstanding: signed-in acceptance, October/November period items, Utilities Hub label (D10, server-governed).
+
+## Verified repository baseline (2 Nov — historical; see the 3 Nov reconciliation above)
 
 - Repository: `Brahmadathanu/sasv-workspace-dev`; current `main` HEAD verified by GitHub `3d0b6185f4351469cf23969beefac0e8875e0c2e`.
 - Squash merged in sequence: #126 (CW-06) `4f1cb406`; #127 (CW-13) `86b4ad5e`; #128 (CW-07) `3d0b6185`.
@@ -40,4 +49,4 @@
 
 ## Next-chat starting instruction
 
-Read **this file**, `docs/master-data-costing/MASTER_PROGRAMME.md`, `WP-05-COSTING-SUITE-RATIONALISATION.md`, `WP-07-COSTING-NAVIGATION.md`, `REMAINING_WORK_2026-11-01.md`, `docs/costing-pipeline-independent-audit/audit-2026-10-25/C_client_ux_audit_and_backlog.md`, and **current GitHub main**. Check PR #129 (documentation draft), which contains this proposed authoritative entry point. **Begin WP05 current-lens inventory and consolidation design immediately**; do not wait for a fresh chat to plan it from scratch. Keep cadence and evidence-based progress, not a made-up 3/10 metric.
+Read **this file**, `docs/master-data-costing/MASTER_PROGRAMME.md`, `WP-05-COSTING-SUITE-RATIONALISATION.md`, `WP-07-COSTING-NAVIGATION.md`, `REMAINING_WORK_2026-11-01.md`, `docs/costing-pipeline-independent-audit/audit-2026-10-25/C_client_ux_audit_and_backlog.md`, and **current GitHub main**. *(3 Nov: PR #129 is merged and WP05 inventory/design are done; start from the 3 Nov reconciliation above and the WP-07 document.)* ~~Begin WP05 current-lens inventory and consolidation design immediately~~ — complete for the audit phase. Keep cadence and evidence-based progress, not a made-up 3/10 metric.

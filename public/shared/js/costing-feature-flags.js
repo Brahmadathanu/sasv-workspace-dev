@@ -82,3 +82,15 @@ export function isCostingReviewWorklistV1Enabled(storage = globalThis.localStora
     return false;
   }
 }
+
+// MDC-07 / N1: grouped Costing navigation + breadcrumb/context chip. Default OFF; only the exact value "1" enables it.
+// Independent of COSTING_PRM_CORRECTIONS_V1 (a separate flag in costing-suite-production-route-corrections.js).
+export const COSTING_NAV_GROUPS_V1 = "COSTING_NAV_GROUPS_V1";
+
+export function isCostingNavGroupsV1Enabled(storage = globalThis.localStorage) {
+  try {
+    return storage?.getItem?.(COSTING_NAV_GROUPS_V1) === "1";
+  } catch {
+    return false;
+  }
+}

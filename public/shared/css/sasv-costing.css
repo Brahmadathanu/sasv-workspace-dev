@@ -2903,3 +2903,97 @@ body.sasv-production-route-manager #prmAsOfDate:focus-visible {
   outline: 2px solid var(--sasv-action-primary);
   outline-offset: 2px;
 }
+
+/* MDC-07 N1: grouped navigation + breadcrumb/context chip (active only under COSTING_NAV_GROUPS_V1; the classes
+   below are never emitted when the flag is OFF). Append-only; every selector is scoped to body.sasv-costing. */
+body.sasv-costing .lens-pills.cp-nav-groups {
+  align-items: stretch;
+  gap: 10px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  max-width: 100%;
+}
+body.sasv-costing .cp-nav-group {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 8px 4px;
+  border-left: 2px solid var(--sasv-border);
+}
+body.sasv-costing .cp-nav-group:first-child {
+  border-left-color: transparent;
+  padding-left: 2px;
+}
+body.sasv-costing .cp-nav-group-heading {
+  font-size: 10px;
+  font-weight: var(--sasv-fw-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sasv-text-muted);
+  white-space: nowrap;
+}
+body.sasv-costing .cp-nav-group-current .cp-nav-group-heading {
+  color: var(--sasv-action-primary-active);
+}
+body.sasv-costing .cp-nav-group-pills {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+body.sasv-costing .cp-nav-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-bottom: 6px;
+  min-width: 0;
+}
+body.sasv-costing .cp-breadcrumb-list,
+body.sasv-costing .cp-context-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+body.sasv-costing .cp-breadcrumb-item {
+  font-size: var(--sasv-text-xs);
+  color: var(--sasv-text-muted);
+  overflow-wrap: anywhere;
+}
+body.sasv-costing .cp-breadcrumb-item + .cp-breadcrumb-item::before {
+  content: "\203A";
+  margin-right: 6px;
+}
+body.sasv-costing .cp-breadcrumb-item[aria-current="page"] {
+  color: var(--sasv-text);
+  font-weight: var(--sasv-fw-semibold);
+}
+body.sasv-costing .cp-context-chip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+  padding: 1px 8px;
+  border: 1px solid var(--sasv-border);
+  border-radius: 999px;
+  background: var(--sasv-surface-soft);
+  font-size: var(--sasv-text-xs);
+  color: var(--sasv-text);
+  overflow-wrap: anywhere;
+}
+body.sasv-costing .cp-context-chip-label {
+  color: var(--sasv-text-muted);
+}
+body.sasv-costing .cp-context-chip-historical,
+body.sasv-costing .cp-context-chip-basis-fixed-historical {
+  border-style: dashed;
+}
+body.sasv-costing .cp-context-chip-basis-live-as-of {
+  border-color: var(--sasv-action-primary-soft-border);
+  background: var(--sasv-selection-soft);
+}

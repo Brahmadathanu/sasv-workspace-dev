@@ -514,13 +514,16 @@ test("scope: no supabase/, migration, controller, protected-screen, HTML or cach
   const unchanged = [
     "costing-suite-control-center.js", "costing-suite-recommended-ui-route.js", "costing-route-config.js",
     "costing-approval-screen.js", "costing-approval-errors.js", "costing-approval-labels.js", "costing-lock-screen.js",
-    "costing-run-status-screen.js", "costing-recalculation.js", "costing-status-labels.js", "costing-feature-flags.js",
+    "costing-run-status-screen.js", "costing-recalculation.js", "costing-status-labels.js",
     "costing-table-tools.js", "costing-suite-pricing-policy.js", "costing-suite-cost-build.js", "costing-suite-material-cost.js",
   ].map((f) => `public/shared/js/${f}`);
   // WP05-P01: costing-suite-readiness.js is intentionally no longer pinned to the UX-F1 base (Readiness usability package;
   // it has its own contract tests in scripts/costing-readiness-usability and scripts/wp04-readiness-client-contract-smoke.mjs).
   // CW-07: costing-route-config.js may differ from the base only by the Cost Sheet label rename (applied to the base text).
   for (const rel of unchanged) assert.equal(read(rel), readBase(rel), rel);
+  // MDC-07 N1: costing-feature-flags.js may only be appended to (the COSTING_NAV_GROUPS_V1 flag); nothing existing changes.
+  const flagsRel = "public/shared/js/costing-feature-flags.js";
+  assert.ok(read(flagsRel).startsWith(readBase(flagsRel)), "feature flags: existing content unchanged (append-only)");
   // This package changes only the service-worker cache line from v389 to v390.
   const swChanged = git("diff", "-U0", BASE, "--", "public/sw.js").split("\n").filter((l) => /^[+-][^+-]/.test(l));
   // BASE is the historical v388 UX-F1 base, so the diff is -v388 / +v390 (WP-07's v389 sits in between).

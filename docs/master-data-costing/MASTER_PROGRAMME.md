@@ -1,4 +1,12 @@
-> **Single coordinated Costing Suite workflow entry point (proposed 2 Nov):** [COSTING_SUITE_UNIFIED_WORKFLOW_2026-11-02.md](COSTING_SUITE_UNIFIED_WORKFLOW_2026-11-02.md). This establishes one client/master-data programme control plane while preserving the distinct server audit evidence and e-Aushadhi WP-07 pause. Documentation PR #129 remains draft until owner review.
+> **Single coordinated Costing Suite workflow entry point:** [COSTING_SUITE_UNIFIED_WORKFLOW_2026-11-02.md](COSTING_SUITE_UNIFIED_WORKFLOW_2026-11-02.md). This establishes one client/master-data programme control plane while preserving the distinct server audit evidence and e-Aushadhi WP-07 pause. *(3 Nov: documentation PR #129 is merged; this is the live entry point, no longer proposed.)*
+
+> **Verified status — 3 Nov 2026 (supersedes the "pending review" wording of the 2 Nov banners below).**
+> * `main` was verified at `86f1c18c538eea224fd3ad8198e5527413892474`. Squash-merged and no longer drafts: #129 (docs reconciliation, `1ad8e42`), #130 (WP05 audit A1–A7, `b5ca04f`), #131 (WP05-P02 Production Route corrections, `fc39b1b`), #132 (WP05-P01 Readiness usability, `86f1c18`).
+> * **WP05 Tier 1 design is ACCEPTED** (owner, 2 Nov 2026): presentation-only grouping; Tier 2 consolidation not approved. WP05 itself stays open (G3/implementation packages).
+> * **P01 and P02 are integrated on main**, all new behaviour default OFF (P02 behind `COSTING_PRM_CORRECTIONS_V1`). Post-merge limitations: signed-in populated-data acceptance not yet done; 51 legacy `production-route-*` smokes fail identically on pristine main (see the N1 evidence in [WP-07](WP-07-COSTING-NAVIGATION.md)).
+> * **Combined baseline on pristine main `86f1c18`: 471/471 on LF and on CRLF, 0 skipped (Chromium ran).** The earlier 393 and 408 figures are historical single-PR totals and must not be added together.
+> * **MDC-07 package N1 (shared navigation contract, grouped renderer, context chip/breadcrumb, flag `COSTING_NAV_GROUPS_V1`, default OFF) is IMPLEMENTED on a draft PR, awaiting independent review and owner acceptance. It is not merged and no flag is activated.** Evidence: [WP-07-COSTING-NAVIGATION.md](WP-07-COSTING-NAVIGATION.md). Remaining: N2, N3, N4, W6, U11.
+> * Formal count unchanged: 5 of 13 substantive work packs accepted. No database write, migration, feature activation, cache bump, Electron release or PWA deployment happened in this series.
 
 > **Post-merge documentation checkpoint — 2 Nov 2026 (pending review):** Costing client PRs #126 (CW-06), #127 (CW-13) and #128 (CW-07) are squash-merged on GitHub `main` at `3d0b6185f4351469cf23969beefac0e8875e0c2e` (respective merge SHAs `4f1cb406`, `86b4ad5e`, `3d0b6185`). Their combined **393/393 LF and CRLF** regression outcome was reported by Claude for the reconciled PR head; the final merged `main` has not yet been independently retested. Cache v390 remains designated; deployment is not independently established. The 1 Nov current-state and remaining-work documents below are historical snapshots and need an authoritative 2 Nov reconciliation. The *3/10 formal gates* displayed in chat has not been traced to a formal ten-gate ledger; do not treat it as official programme completion. WP05 rationalisation and MDC-07 navigation work are **not automatically closed** by these hardening packages. Production Route Historical Candidate Review navigation defects and the database-sourced Home label remain deferred. **No database writes or flags activated.**
 
@@ -41,9 +49,9 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 - [x] WP02 — Product + SKU Lifecycle Redesign — COMPLETED, VERIFIED, AND MERGED
 - [x] WP03 — Creation-Time Guided Completeness — COMPLETED, VERIFIED, AND MERGED
 - [x] WP04 — Central Master Data / Costing Readiness Control Centre — COMPLETED, VERIFIED, MERGED, AND CLOSED
-- [~] WP05 — Costing Suite Functional Rationalisation Audit — audit evidence delivered 2 Nov 2026 (draft PR #130); WP05-G2 design review OPEN, not accepted; see WP-05 document
+- [~] WP05 — Costing Suite Functional Rationalisation Audit — audit merged (#130); Tier 1 design ACCEPTED 2 Nov 2026; P02 (#131) and P01 (#132) merged; WP05 remains open; see WP-05 document
 - [ ] WP06 — Pricing Policy Manager Simplification
-- [ ] MDC-07 (was WP07) — Costing Suite Navigation and Information Architecture
+- [~] MDC-07 (was WP07) — Costing Suite Navigation and Information Architecture — N1 implemented on a draft PR (3 Nov 2026), awaiting review; N2/N3/N4/W6/U11 not started
 - [ ] WP08 — Product / Master Data Navigation Rationalisation
 - [ ] WP09 — Wider Application Launcher/Section Audit
 - [ ] WP10 — Governance Safeguards for Future Product/SKU Creation
@@ -57,7 +65,7 @@ WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11
 IN PROGRESS: closing. Current remaining items: REMAINING_WORK_2026-10-31.md (31 Oct 2026). Earlier list and dispositions: MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md (25 Oct 2026)
 
 ## Active work pack
-None. WP04 — Central Master Data / Costing Readiness Control Centre is completed, verified, merged, and closed. WP05 audit evidence was delivered on 2 Nov 2026 (WP05_A1–A7, draft PR #130); WP05-G2 design review remains open, no design acceptance or implementation approved. Formal count unchanged: 5 of 13 substantive work packs accepted.
+None formally accepted as active (see 3 Nov status above). WP04 — Central Master Data / Costing Readiness Control Centre is completed, verified, merged, and closed. *Updated 3 Nov 2026:* WP05 audit evidence (A1–A7) merged as #130; the owner accepted the WP05-G2 Tier 1 design on 2 Nov 2026; P02 (#131) and P01 (#132) are merged; MDC-07 package N1 is implemented on a draft PR awaiting independent review. No package other than N1 is authorised. Formal count unchanged: 5 of 13 substantive work packs accepted.
 
 ## Active gate
 None. WP04-G8 is completed and post-merge verification passed.
@@ -88,12 +96,12 @@ No WP02/WP03 blocker remains. Parked items stay parked for their assigned later 
 - NAV-P01 / NAV-P02 → WP08.
 - ~~CSE-P01 commercial-sales LIVE_AS_OF multi-row authority~~ → DONE: owner chose option B on 26 Oct 2026; CI-050 applied live 31 Oct 2026.
 - PERF-P01 broader portfolio-readiness performance architecture → separate future architectural decision.
-- WP05 park candidates from Track B acceptance (SKU Control Status ↔ Readiness rationalisation; wider Costing/Pricing Policy Manager duplication audit; parked legacy dashboard-summary dependency audit) → WP05; they remain parked. WP05 has not started.
+- WP05 park candidates from Track B acceptance (SKU Control Status ↔ Readiness rationalisation; wider Costing/Pricing Policy Manager duplication audit; parked legacy dashboard-summary dependency audit) → WP05; they remain parked. *(Superseded 3 Nov 2026: WP05 started on 2 Nov; its audit, Tier 1 design acceptance, P01 and P02 are on main.)*
 
 No Track A rerun is required without fresh defect evidence.
 
 ## Immediate next action
-WP04 is closed. WP05 — Costing Suite Functional Rationalisation Audit may be opened as a separate work pack/chat when explicitly started; do not reopen WP04 without fresh regression evidence.
+WP04 is closed; do not reopen it without fresh regression evidence. *(3 Nov 2026)* WP05 is open and its Tier 1 design is accepted; the next step is independent review of the N1 draft PR, then (each on its own written brief) N2, N3, N4, W6 and U11 in the order of [A6](WP05_A6_IMPLEMENTATION_PACKAGE_PLAN_2026-11-02.md). Signed-in populated-data acceptance of P01/P02/N1 and the owner decisions in A5 remain open.
 
 ## Server development operating model
 ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.

@@ -67,6 +67,9 @@ import { createCostingLockScreenController } from "./costing-lock-screen.js";
 import { createCostingRunStatusScreenController } from "./costing-run-status-screen.js";
 import { isCostingTableToolsV1Enabled } from "./costing-feature-flags.js";
 import { isCostingReviewWorklistV1Enabled } from "./costing-feature-flags.js";
+import { isCostingNavGroupsV1Enabled } from "./costing-feature-flags.js";
+import { resolveNavGroups, renderGroupedNavHtml, renderGroupedSelectHtml } from "./costing-nav-groups.js";
+import { buildNavContextModel, costingNavContext, renderNavContextHtml } from "./costing-nav-context.js";
 import { CCC_DRAFT_SUMMARY_SELECT, createLatestOnlyLoader, createReviewWorklistRunStatusLoader, describeDashboardRunContext, describeKpiRunCaption, describeReviewWorklistRunContext, filterReviewWorklistRows, groupReviewWorklistRows, isReviewWorklistRunChoice, renderDashboardRunContextHtml, renderKpiRunCaptionHtml, renderReviewWorklistDrawerGroupHtml, renderReviewWorklistHtml, reviewWorklistRunChoices, reviewWorklistRunContext, sortReviewWorklistRows, summariseRunRows, validateReviewWorklistRunRows, REVIEW_WORKLIST_BY_RUN_VIEW, REVIEW_WORKLIST_RUN_STATUS_SELECT, REVIEW_WORKLIST_RUN_STATUS_VIEW } from "./costing-review-worklist.js";
 import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, isSortableColumn, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor, tableColumnsForTable, withAccessors } from "./costing-table-tools.js";
 import {
@@ -3762,6 +3765,7 @@ function renderCostingPeriodOptions() {
     .join("");
 
   if (active) costingPeriodSelect.value = active;
+  refreshNavContextBar();
 }
 
 function relocatePricingPolicyChromeHosts() {
@@ -5002,6 +5006,50 @@ function renderPricingPolicyNarrowSelects() {
   select.setAttribute("aria-label", "Pricing policy workspace");
 }
 
+/**
+ * N1: grouped navigation is active only when COSTING_NAV_GROUPS_V1 is exactly "1" AND the route is not the
+ * controller-managed Pricing Policy Manager (its workspace navigation stays in its own controller until W6).
+ */
+function isNavGroupsActive() {
+  return isCostingNavGroupsV1Enabled() && !isPricingPolicyManagerRoute();
+}
+
+function getActiveNavGroups() {
+  return resolveNavGroups(ACTIVE_ROUTE_CONFIG.suiteId, getAllowedLensIds());
+}
+
+/** N1 breadcrumb + context chips (display only; values come from state this shell already holds). */
+function refreshNavContextBar() {
+  if (!lensSuiteLabel || !ACTIVE_ROUTE_CONFIG) return;
+  let bar = $("cpNavContext");
+  if (!isNavGroupsActive()) {
+    // Flag OFF: nothing to undo unless a bar was previously inserted (keeps OFF parity untouched).
+    if (bar) {
+      bar.remove();
+      lensSuiteLabel.hidden = false;
+    }
+    return;
+  }
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "cpNavContext";
+    bar.className = "cp-nav-context";
+    lensSuiteLabel.insertAdjacentElement("afterend", bar);
+  }
+  const group = getActiveNavGroups().find((g) => g.lensIds.includes(CURRENT_LENS)) || null;
+  const lensMeta = getLensMeta(CURRENT_LENS);
+  const model = buildNavContextModel({
+    moduleTitle: ACTIVE_ROUTE_CONFIG.title,
+    group,
+    lensId: CURRENT_LENS,
+    periodScoped: !!lensMeta?.periodScoped,
+    context: { ...costingNavContext.get(), period: ACTIVE_PERIOD_START || costingNavContext.get().period || "" },
+  });
+  bar.innerHTML = renderNavContextHtml(model);
+  // The breadcrumb replaces the plain "Module → Lens" label (no duplicate text for screen readers).
+  lensSuiteLabel.hidden = true;
+}
+
 function renderLensPillButton(lensId) {
   const meta = getLensMeta(lensId);
   if (!meta) return "";
@@ -5094,6 +5142,13 @@ function renderLensPills() {
         }
       });
       renderPricingPolicyNarrowSelects();
+    } else if (isNavGroupsActive()) {
+      // N1 (COSTING_NAV_GROUPS_V1): same buttons/handler/lens ids, presented in labelled groups.
+      lensPills.classList.add("cp-nav-groups");
+      lensPills.innerHTML = renderGroupedNavHtml(getActiveNavGroups(), CURRENT_LENS);
+      lensPills.querySelectorAll(".pill").forEach((btn) => {
+        btn.addEventListener("click", () => switchLens(btn.dataset.lens));
+      });
     } else {
       lensPills.innerHTML = activeSuites
         .map((suite) => {
@@ -5111,7 +5166,9 @@ function renderLensPills() {
 
   if (lensSelect && !isPricingPolicyManagerRoute()) {
     withProgrammaticLensSync(() => {
-      lensSelect.innerHTML = activeSuites
+      lensSelect.innerHTML = isNavGroupsActive()
+        ? renderGroupedSelectHtml(getActiveNavGroups())
+        : activeSuites
         .map((suite) => {
           const options = suite.lensIds
             .map((lensId) => {
@@ -5131,6 +5188,7 @@ function renderLensPills() {
   }
 
   updateLensSuiteLabel();
+  refreshNavContextBar();
 }
 
 /**
@@ -9917,6 +9975,8 @@ document.addEventListener("click", (event) => {
 });
 refreshBtn?.addEventListener("click", onCostingSuiteRefreshClick);
 costingPeriodSelect?.addEventListener("change", () => {
+  // N1: refresh the context chip once the existing handler has updated the active period (no-op when flag OFF).
+  setTimeout(refreshNavContextBar, 0);
   if (costingPeriodSelect.disabled) return;
   if (isPortfolioReadinessLens(CURRENT_LENS)) {
     void portfolioReadinessCtrl
@@ -10080,6 +10140,8 @@ searchClear?.addEventListener("click", () => {
   }
   searchBox.focus();
 });
+costingNavContext.subscribe(() => refreshNavContextBar());
+
 lensSelect?.addEventListener("change", () => {
   if (isProgrammaticLensSync) return;
   switchLens(lensSelect.value);

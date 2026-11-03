@@ -91,19 +91,21 @@ export function createClient() {
 /**
  * Opens the real page. flags: { corrections, dialogs } set localStorage only. cfg overrides the mock backend.
  */
-export async function openPage(browser, base, search, { corrections = true, dialogs = false, width = 1280, height = 900, cfg = {} } = {}) {
+export async function openPage(browser, base, search, { corrections = true, dialogs = false, width = 1280, height = 900, cfg = {}, storage = {} } = {}) {
   const context = await browser.newContext({ viewport: { width, height } });
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e.message).slice(0, 200)));
-  await page.addInitScript(({ corrections: c, dialogs: d, cfg: conf }) => {
+  await page.addInitScript(({ corrections: c, dialogs: d, cfg: conf, storage: extra }) => {
     try {
+      // MDC-07 N1: optional additional flags (e.g. COSTING_NAV_GROUPS_V1) for tests; absent -> nothing extra is set.
+      for (const [k, v] of Object.entries(extra || {})) localStorage.setItem(k, v);
       for (const [k, on] of [["COSTING_PRM_CORRECTIONS_V1", c], ["COSTING_DIALOGS_V1", d]]) {
         if (on) localStorage.setItem(k, "1"); else localStorage.removeItem(k);
       }
     } catch { /* ignore */ }
     window.__mock = { rpc: [], cfg: conf };
-  }, { corrections, dialogs, cfg: { routes: ROUTES, ...cfg } });
+  }, { corrections, dialogs, cfg: { routes: ROUTES, ...cfg }, storage });
   await page.route(/cdnjs\.cloudflare\.com|fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net|esm\.sh/, (r) => {
     if (/\.css/.test(r.request().url())) return r.fulfill({ status: 200, contentType: "text/css", body: "" });
     return r.fulfill({ status: 200, contentType: "text/javascript", body: "" });
