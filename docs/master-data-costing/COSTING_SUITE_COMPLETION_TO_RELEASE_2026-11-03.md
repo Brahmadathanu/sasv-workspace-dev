@@ -38,6 +38,8 @@ Queried canonical `public.v_costing_pricing_period_run_status` in project `qhmoq
 | August 2026 | OPEN | none | 82 / 82 | Older historical draft, not for pricing |
 | July 2026 | OPEN | none | 80 / 80 | Older historical draft, not for pricing |
 
+**Material review snapshot (separate read-only view):** `v_costing_pricing_review_workbench_summary_snapshot` returns, for **November draft run 149**, 1 blocked issue line (`MISSING_REQUIRED_PM_RATE`) and review-required issue-line categories led by stale RM purchase rate (1,596), RM stock valuation fallback (729), stale PM purchase rate (371), and PM stock valuation fallback (243). These are **issue-line totals, not distinct SKUs**, and overlapping categories must not be summed as blocked/review SKU counts. The query returned **October snapshot rows for approved run 143, not draft 148**, so this result cannot establish draft-148 issue counts or acceptance. Follow up against run-scoped authoritative status before any approval decision.
+
 **Gate implication:** October has **not** been finalised or locked; neither its draft 148 nor November draft 149 may be treated as approved. CS-R3 is now **PARTIALLY VERIFIED** (period status). Still to investigate read-only: 148 review/block populations and causes, valuation/refresh and readiness freshness, weekly/month-end cron outcomes, CI-048/049 implementation state, and any dependent views or approval gates. No SQL writes, approval/finalisation or readiness rebuild performed. Do not equate July/August historical exact-run fixtures with current costing.
 
 ## 3. Work-package boundaries — prevent scope creep
