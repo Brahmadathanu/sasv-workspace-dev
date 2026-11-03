@@ -258,3 +258,42 @@ test("pages: no HTML edits are needed (nav host elements already exist on all si
     for (const id of ids) assert.ok(html.includes(`id="${id}"`), `${c.moduleKey} ${id}`);
   }
 });
+
+// ---- test-integrity: plain source reads keep N1; the historical-comparison strip removes only N1 ----
+import { readSourceLf } from "../lib/read-source-lf.mjs";
+import { stripN1, stripN1Flags, stripN1Shell } from "../lib/n1-nav-strip.mjs";
+import { execFileSync } from "node:child_process";
+const SHELL_REL = "public/shared/js/costing-suite-shell.js";
+const FLAGS_REL = "public/shared/js/costing-feature-flags.js";
+const BASE_N1 = "86f1c18c538eea224fd3ad8198e5527413892474";
+const baseText = (rel) => execFileSync("git", ["show", `${BASE_N1}:${rel}`], { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).replace(/\r\n/g, "\n");
+
+test("readSourceLf only normalises line endings: N1 additions stay visible to normal source-contract reads", () => {
+  const shell = readSourceLf(root, SHELL_REL);
+  const flags = readSourceLf(root, FLAGS_REL);
+  for (const marker of ["isNavGroupsActive", "refreshNavContextBar", "renderGroupedNavHtml", "costing-nav-groups.js"]) assert.ok(shell.includes(marker), marker);
+  assert.ok(flags.includes("COSTING_NAV_GROUPS_V1"));
+  assert.equal(shell, fs.readFileSync(path.join(root, SHELL_REL), "utf8").replace(/\r\n/g, "\n"), "identical to the raw file apart from CRLF->LF");
+  assert.doesNotMatch(fs.readFileSync(path.join(root, "scripts/lib/read-source-lf.mjs"), "utf8"), /n1-nav-strip|stripN1/, "reader has no N1 knowledge");
+});
+
+test("legacy comparison strip removes exactly the N1 additions: stripped sources equal the pre-N1 baseline", () => {
+  assert.equal(stripN1Shell(readSourceLf(root, SHELL_REL)), baseText(SHELL_REL).split("\n").join("\n"), "shell == pre-N1 shell");
+  assert.equal(stripN1Flags(readSourceLf(root, FLAGS_REL)), baseText(FLAGS_REL), "flags == pre-N1 flags");
+  assert.equal(stripN1("public/shared/js/costing-suite-registry.js", "x"), "x", "other files untouched");
+  assert.equal(stripN1(SHELL_REL, "no n1 here\n"), "no n1 here\n");
+});
+
+test("mutation: a change to a protected non-N1 shell/flag section survives the strip, so historical tests still fail", () => {
+  const shell = readSourceLf(root, SHELL_REL);
+  const pre = baseText(SHELL_REL);
+  const mutated = shell.replace("const lensPills = $(\"lensPills\");", "const lensPills = $(\"lensPillsX\");");
+  assert.notEqual(mutated, shell);
+  assert.notEqual(stripN1Shell(mutated), pre, "mutated non-N1 line is still detected after stripping");
+  const mutated2 = shell.replace("  closeDetails();\n  try {\n    await loadRowsForLens();", "  closeDetails();\n  try {\n    await loadRowsForLens(1);");
+  assert.notEqual(mutated2, shell);
+  assert.notEqual(stripN1Shell(mutated2), pre);
+  const flags = readSourceLf(root, FLAGS_REL).replace('=== "1"', '!== "1"');
+  assert.notEqual(stripN1Flags(flags), baseText(FLAGS_REL));
+  // N1's own code is not protected by the strip (it is removed on purpose); it is pinned by the full-source N1 tests above.
+});

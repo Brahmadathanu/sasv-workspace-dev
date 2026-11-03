@@ -24,9 +24,12 @@ import {
   neutraliseCsvRows,
 } from "../../public/shared/js/costing-table-tools.js";
 import { readSourceLf } from "../lib/read-source-lf.mjs";
+import { stripN1 } from "../lib/n1-nav-strip.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => readSourceLf(root, rel); // LF-normalised: see scripts/lib/read-source-lf.mjs
+// Historical pre-N1 comparison reader: LF-normalised source with ONLY the flag-gated MDC-07 N1 additions removed from the
+// shell and feature-flag files (scripts/lib/n1-nav-strip.mjs). readSourceLf itself is unchanged and strips nothing.
+const read = (rel) => stripN1(rel, readSourceLf(root, rel));
 const BASE = "1c505ed6c1ff90505b904048602c004e39f5fbae";
 const readBase = (rel) =>
   applyCw07Labels( // CW-07: label rename tolerated, nothing else

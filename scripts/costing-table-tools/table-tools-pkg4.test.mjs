@@ -12,11 +12,14 @@ import { fileURLToPath } from "node:url";
 import { costingScopeReport, applyCw07Labels } from "../lib/costing-scope-guard.mjs";
 import * as tools from "../../public/shared/js/costing-table-tools.js";
 import { readSourceLf } from "../lib/read-source-lf.mjs";
+import { stripN1 } from "../lib/n1-nav-strip.mjs";
 
 const { COLUMN_HELP, csvCell, isSortableColumn, sortRowsBy, tableColumnsForTable } = tools;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => readSourceLf(root, rel); // LF-normalised: see scripts/lib/read-source-lf.mjs
+// Historical pre-N1 comparison reader: LF-normalised source with ONLY the flag-gated MDC-07 N1 additions removed from the
+// shell and feature-flag files (scripts/lib/n1-nav-strip.mjs). readSourceLf itself is unchanged and strips nothing.
+const read = (rel) => stripN1(rel, readSourceLf(root, rel));
 const BASE = "2b3f298bdba5f4fa9f1045fe1539a38c58b5c719";
 const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 const readBase = (rel) => applyCw07Labels(git("show", `${BASE}:${rel}`)); // CW-07: label rename tolerated, nothing else
@@ -452,7 +455,7 @@ test("pkg4 unsortable columns key null; table-tools diff is only the three entri
   // depends on (scripts/lib/costing-scope-guard.mjs) instead of the whole repository, so unrelated modules that
   // land on main later (e.g. WP-07 e-Aushadhi HTML/CSS and its own migration) no longer trip this package test.
   assert.equal(git("diff", BASE, "--", ...controllers), "");
-  assert.equal(read(`${JS}/costing-feature-flags.js`), readSourceLf(root, `${JS}/costing-feature-flags.js`)); // N1 strip applied by the reader
+  assert.ok(readSourceLf(root, `${JS}/costing-feature-flags.js`).includes("COSTING_NAV_GROUPS_V1"), "plain source read still contains the N1 flag");
   assert.equal(read(`${JS}/costing-feature-flags.js`), git("show", `${BASE}:${JS}/costing-feature-flags.js`).replace(/\r\n/g, "\n"), "feature flags unchanged apart from the N1 append");
   const scope = costingScopeReport({ git, root, base: BASE });
   assert.deepEqual(scope.supabase, [], "no Costing or history-rewriting supabase change");
