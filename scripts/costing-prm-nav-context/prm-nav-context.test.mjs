@@ -269,16 +269,33 @@ test("source: three evidence lenses stay three separate lenses in the Review gro
 });
 function cfgLensIds() { return COSTING_ROUTE_CONFIG["production-route-manager"].allowedLensIds; }
 
+// Fixed N4 baseline: current main after N1/N2/N3 were merged. Intentionally NOT the moving origin/main.
+const N4_BASE = "7f46f3784dcbc2b5059e940763c80befd3437746";
+
 test("scope guard: N1 shared files, registry, route config, HTML, SQL and cache are untouched by this package", () => {
+  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8" });
+  // An unavailable or invalid baseline is a test FAILURE (never a silent pass): the ownership check must really run.
   let changed;
   try {
-    // Compared with current main (N1/N2/N3 merged) so only this package's own files are judged.
-    changed = execFileSync("git", ["diff", "--name-only", "7f46f3784dcbc2b5059e940763c80befd3437746"], { cwd: root, encoding: "utf8" })
-      .split("\n").filter(Boolean);
-    changed.push(...execFileSync("git", ["ls-files", "--others", "--exclude-standard"], { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean));
-  } catch {
-    return; // no git / base commit not available: skip
+    git("cat-file", "-e", `${N4_BASE}^{commit}`);
+    changed = git("diff", "--name-only", N4_BASE).split("\n").filter(Boolean);
+    changed.push(...git("diff", "--name-only", "--cached", N4_BASE).split("\n").filter(Boolean));
+    changed.push(...git("ls-files", "--others", "--exclude-standard").split("\n").filter(Boolean));
+  } catch (err) {
+    assert.fail(`scope guard cannot compare with baseline ${N4_BASE} (shallow clone, missing object or no git?): ${String(err.message).split("\n")[0]}`);
   }
+  changed = [...new Set(changed)];
+  assert.ok(changed.length > 0, "the comparison produced no changed files: the baseline cannot be right for this branch");
+  assert.ok(changed.includes("public/shared/js/costing-suite-production-route-nav-context.js"), "N4's own module must appear in the comparison");
   const forbidden = /(^|\/)(costing-suite-shell|costing-suite-registry|costing-route-config|costing-nav-groups|costing-nav-context|costing-feature-flags)\.js$|sasv-costing\.css$|\.html$|^supabase\/|^sql\/|sw\.js$|service-worker|cache/i;
   assert.deepEqual(changed.filter((f) => forbidden.test(f)), []);
+  // Only the Production Route controller + its new module may change under public/.
+  assert.deepEqual(
+    changed.filter((f) => f.startsWith("public/")).sort(),
+    ["public/shared/js/costing-suite-production-route-nav-context.js", "public/shared/js/costing-suite-production-route.js"],
+  );
+});
+
+test("scope guard fails explicitly (not silently) when the baseline is unavailable", () => {
+  assert.throws(() => execFileSync("git", ["cat-file", "-e", "0000000000000000000000000000000000000000^{commit}"], { cwd: root, stdio: "pipe" }));
 });
