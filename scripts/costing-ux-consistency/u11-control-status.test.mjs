@@ -74,3 +74,17 @@ test("flag ON leaves unmapped server codes on the legacy humanised label", () =>
   assert.equal(off, "Some New Status");
   assert.equal(on, off);
 });
+
+test("strip helper removes exactly the U11 block: result equals the pre-U11 file; tampering is not masked", async () => {
+  const { stripU11 } = await import("../lib/u11-label-strip.mjs");
+  const { execFileSync } = await import("node:child_process");
+  const fs = await import("node:fs");
+  const rel = "public/shared/js/costing-status-labels.js";
+  const head = fs.readFileSync(rel, "utf8").replace(/\r\n/g, "\n");
+  const base = execFileSync("git", ["show", `4bbadf8802b1f7a6df02d207b1a8e3cca117ca09:${rel}`], { encoding: "utf8" }).replace(/\r\n/g, "\n");
+  assert.notEqual(head, base, "U11 really changes the file");
+  assert.equal(stripU11(rel, head), base);
+  assert.equal(stripU11(rel, base), base, "idempotent on the pre-U11 text");
+  assert.notEqual(stripU11(rel, head.replace('READY: "Ready"', 'READY: "OK"')), base, "other edits are not masked");
+  assert.equal(stripU11("public/shared/js/other.js", "x"), "x");
+});

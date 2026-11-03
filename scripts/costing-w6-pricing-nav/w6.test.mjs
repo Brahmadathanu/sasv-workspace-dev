@@ -171,7 +171,9 @@ test("source: W6 changes only the PPM controller (plus tests and docs): shell, r
     ...gitOrFail("ls-files", "--others", "--exclude-standard").split("\n"),
   ].filter(Boolean);
   assert.ok(changed.includes("public/shared/js/costing-suite-pricing-policy.js"));
-  assert.deepEqual([...new Set(changed)].filter((f) => f.startsWith("public/")), ["public/shared/js/costing-suite-pricing-policy.js"]);
+  // U11 (WP11) later adds only these two files; tests/lib changes are outside public/.
+  const U11_FILES = ["public/shared/js/costing-review-worklist.js", "public/shared/js/costing-status-labels.js"];
+  assert.deepEqual([...new Set(changed)].filter((f) => f.startsWith("public/") && !U11_FILES.includes(f)), ["public/shared/js/costing-suite-pricing-policy.js"]);
   assert.deepEqual([...new Set(changed)].filter((f) => /^(supabase|sql)\/|\.html$|sw\.js$|package(-lock)?\.json$/.test(f)), []);
 });
 

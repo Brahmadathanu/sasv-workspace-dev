@@ -23,6 +23,7 @@ import { readSourceLf } from "../lib/read-source-lf.mjs";
 import { stripN1 } from "../lib/n1-nav-strip.mjs";
 import { stripN2 } from "../lib/n2-nav-strip.mjs";
 import { stripW6 } from "../lib/w6-nav-strip.mjs";
+import { stripU11 } from "../lib/u11-label-strip.mjs";
 
 const {
   REVIEW_WORKLIST_EMPTY_TEXT,
@@ -579,7 +580,7 @@ test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS
     "costing-approval-screen.js", "costing-approval-errors.js", "costing-approval-labels.js",
     // costing-run-status-badge.js: changed by UX-F1 (compact chip, flag ON only); its flag-OFF path is
     // checked in scripts/costing-ccc-uxf1/uxf1.test.mjs.
-    "costing-run-status-screen.js", "costing-recalculation.js",
+    "costing-run-status-screen.js", "costing-recalculation.js", "costing-status-labels.js",
     "costing-suite-control-center.js", "costing-suite-recommended-ui-route.js", "costing-route-config.js",
     "costing-suite-pricing-policy.js", "costing-suite-cost-build.js", "costing-suite-material-cost.js",
   ].map((f) => `${JS}/${f}`);
@@ -588,16 +589,7 @@ test("worklist: protected files unchanged; COLUMN_HELP unchanged; sw line 2; CSS
   // land on main later (e.g. WP-07 e-Aushadhi HTML/CSS and its own migration) no longer trip this package test.
   // CW-07: costing-route-config.js may differ from the base only by the Cost Sheet label rename (applied to the base text).
   // MDC-07 W6: the PPM controller may carry only the flag-gated W6 five-group projection (scripts/lib/w6-nav-strip.mjs).
-  for (const rel of protectedFiles) assert.equal(stripW6(rel, stripN2(rel, read(rel))), readBase(rel), rel);
-  // U11: costing-status-labels.js may differ from the base only by the additive control-status block
-  // (flag COSTING_UX_CONSISTENCY_V1, see scripts/costing-ux-consistency/u11-control-status.test.mjs).
-  {
-    const rel = `${JS}/costing-status-labels.js`;
-    const u11 = /\/\/ U11: sentence-case labels[\s\S]*?\n\}\n\n(?=export function costingStatusDisplayLabel)/;
-    const text = read(rel);
-    assert.match(text, u11);
-    assert.equal(text.replace(u11, ""), readBase(rel), rel);
-  }
+  for (const rel of protectedFiles) assert.equal(stripU11(rel, stripW6(rel, stripN2(rel, read(rel)))), readBase(rel), rel);
   const scope = costingScopeReport({ git, root, base: BASE });
   assert.deepEqual(scope.supabase, [], "no Costing or history-rewriting supabase change");
   assert.deepEqual(scope.packageJson, [], "package.json unchanged");
