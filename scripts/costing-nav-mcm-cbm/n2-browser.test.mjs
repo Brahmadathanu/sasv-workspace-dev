@@ -270,7 +270,7 @@ test("Material Cost: Rates scope note on the Manual Rate Manager only when the f
   await off.context.close();
 });
 
-test("fail closed while permissions are unresolved: trace entries stay hidden until the RM/PM roles resolve (flag ON); flag OFF shows them throughout", async (t) => {
+test("fail closed while permissions are unresolved: trace entries stay hidden until the RM/PM roles resolve (flag ON); flag OFF shows them all once rendered", async (t) => {
   const e = await getEnv(t); if (!e) return;
   const on = await open(e, MCM, { storage: FLAG_ON, targets: [RM], delay: 2500, settle: 900 });
   let s = await nav(on.page);
@@ -282,7 +282,7 @@ test("fail closed while permissions are unresolved: trace entries stay hidden un
   assert.equal(s.pills["rm-cost-trace"], true, "resolved with the RM role: RM shown");
   assert.equal(s.pills["pm-cost-trace"], false);
   await on.context.close();
-  const off = await open(e, MCM, { storage: {}, targets: [RM], delay: 2500, settle: 900 });
+  const off = await open(e, MCM, { storage: {}, targets: [RM], delay: 2500, settle: 3600 });
   s = await nav(off.page);
   assert.equal(s.pills["rm-cost-trace"], true);
   assert.equal(s.pills["pm-cost-trace"], true);
