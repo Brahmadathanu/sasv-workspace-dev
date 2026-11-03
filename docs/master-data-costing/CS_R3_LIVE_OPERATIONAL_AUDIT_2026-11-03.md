@@ -42,6 +42,18 @@ These are `costing.costing_refresh_run.final_*` totals independently matched aga
 
 **Interpretation warning:** these are per-run snapshots and may predate subsequent SKU/BOM master edits (including SKU 105). They do not independently prove that a *current* BOM or rate remains defective; no new refresh or other write is authorised from this read.
 
+## 2A. Draft 148 six-stage evidence and interpretation
+
+All six `costing.costing_refresh_run_stage` stages succeeded:
+1. `01_ENSURE_PERIOD`: period ensured.
+2. `02_MATERIAL_SNAPSHOT`: **625 ready / 2 review / 1 blocked** out of 628 SKUs.
+3. `03_COST_BUILD_TO_SCHEME`: **3,084 ready / 678 review / 6 blocked** out of 3,768 stage rows. **These are cost-build/scheme stage rows, not distinct SKUs**, and cannot be compared directly with the SKU control totals.
+4. `04_COST_SHEET_SNAPSHOT`: 27,632 cost-sheet traceability snapshot rows inserted; other trace details in its output.
+5. `05_CONTROL_MAINTENANCE`: 628 SKU control snapshot rows, 913 review-action rows, 853 material queue rows, 3,361 material drilldown rows.
+6. `06_FINAL_STATUS_CHECK`: **514 ready / 113 review / 1 blocked** at SKU control level, with `overall_control_status='BLOCKED'` because a hard blocker remains.
+
+**Diagnostic implication:** a large portion of October's 113 final review SKUs emerges **after** the material stage (only 2 material-review SKUs there). The prime-cost and later control layers need targeted examination before deciding that all 110 prime-cost review SKUs reflect missing raw-material prices. This does not justify automatic acceptance or a refreshed approved run.
+
 ## 3. Material issue lines are not SKU counts
 
 A separate review-workbench snapshot for November 149 reports review issues including stale RM purchase rate 1,596 lines, RM stock valuation fallback 729, stale PM purchase rate 371, PM stock valuation fallback 243, and **one blocked missing-required-PM rate line**. Issue categories overlap and must not be summed as distinct SKU totals. October material snapshot results returned run 143, not 148; no assumption made about draft 148 from that view.
