@@ -739,6 +739,17 @@ export function neutraliseReadinessCsvCell(value) {
   return value;
 }
 
+export const READINESS_EXPORT_PARTIAL_REASONS = Object.freeze({
+  pageLimit: "PAGE_LIMIT_REACHED",
+  cursorMissing: "CURSOR_MISSING",
+  cursorNotAdvancing: "CURSOR_NOT_ADVANCING",
+  emptyPageWithMore: "EMPTY_PAGE_WITH_MORE",
+  noNewRows: "NO_NEW_ROWS",
+  cursorEchoMismatch: "CURSOR_ECHO_MISMATCH",
+  matchedCountChanged: "MATCHED_COUNT_CHANGED",
+  rowCountMismatch: "ROW_COUNT_MISMATCH",
+});
+
 export const READINESS_EXPORT_EXTENTS = Object.freeze({
   loaded: "LOADED_PAGES",
   all: "ALL_MATCHING",
@@ -749,6 +760,7 @@ export const READINESS_CSV_COLUMNS = Object.freeze([
   { key: "export_basis", label: "Export basis" },
   { key: "export_extent", label: "Export extent" },
   { key: "exported_rows", label: "Rows in export" },
+  { key: "export_note", label: "Export note" },
   { key: "matched_count", label: "Server matched count" },
   { key: "population_scope", label: "Population scope" },
   { key: "applied_filters", label: "Applied filters" },
@@ -805,6 +817,7 @@ export function readinessAssessmentToCsvRow(assessment, meta = {}) {
     export_basis: READINESS_LIVE_AS_OF_CONTEXT_TYPE,
     export_extent: meta.extent ?? "",
     exported_rows: meta.exportedRows ?? "",
+    export_note: meta.note ?? "",
     matched_count: meta.matchedCount ?? "",
     population_scope: meta.populationScope ?? "",
     applied_filters: meta.appliedFilters ?? "",
@@ -886,6 +899,89 @@ function defaultDownloadCsv(csv, filename) {
   a.remove();
   URL.revokeObjectURL(url);
   return true;
+}
+
+/**
+ * Walk the portfolio keyset until complete, or stop with an explicit reason.
+ * `fetchPage(afterSkuId)` must return a validated portfolio page value (or
+ * throw). `isCancelled()` aborts silently. Completeness is only claimed when
+ * the server says has_more=false AND the cursor chain was well-formed AND the
+ * unique row count equals the (stable) matched_count.
+ */
+export async function walkReadinessPortfolioPages({
+  fetchPage,
+  isCancelled = () => false,
+  expectedPeriodStart,
+  expectedPopulationScope,
+  maxPages = READINESS_EXPORT_MAX_PAGES,
+} = {}) {
+  const R = READINESS_EXPORT_PARTIAL_REASONS;
+  const rows = [];
+  const seenRows = new Set();
+  const seenCursors = new Set();
+  let after = null;
+  let observedAt = null;
+  let matched = null;
+  let pages = 0;
+  let reason = null;
+  let complete = false;
+  while (pages < maxPages) {
+    const page = await fetchPage(after);
+    if (isCancelled()) return { cancelled: true };
+    if (page.context.period_start !== expectedPeriodStart) {
+      throw new Error("Export page returned a different governed period.");
+    }
+    if (page.population_scope !== expectedPopulationScope) {
+      throw new Error("Export page returned a different population scope.");
+    }
+    pages += 1;
+    observedAt = page.observed_at;
+    if (matched != null && page.matched_count !== matched) {
+      reason = R.matchedCountChanged;
+      break;
+    }
+    matched = page.matched_count;
+    if ((page.after_sku_id ?? null) !== (after ?? null)) {
+      reason = R.cursorEchoMismatch;
+      break;
+    }
+    let added = 0;
+    for (const row of asArray(page.rows)) {
+      const id = assessmentSkuIdFromRow(row);
+      if (id != null) {
+        if (seenRows.has(id)) continue;
+        seenRows.add(id);
+      }
+      rows.push(row);
+      added += 1;
+    }
+    if (!page.has_more) {
+      complete = rows.length === matched;
+      if (!complete) reason = R.rowCountMismatch;
+      break;
+    }
+    const next = page.next_after_sku_id;
+    if (next == null) {
+      reason = R.cursorMissing;
+      break;
+    }
+    if (page.rows.length === 0) {
+      reason = R.emptyPageWithMore;
+      break;
+    }
+    if ((after != null && next <= after) || seenCursors.has(next)) {
+      reason = R.cursorNotAdvancing;
+      break;
+    }
+    if (added === 0) {
+      reason = R.noNewRows;
+      break;
+    }
+    seenCursors.add(next);
+    after = next;
+  }
+  if (!complete && !reason) reason = R.pageLimit;
+  return { rows, observedAt, matched, complete, reason, pages };
 }
 
 export function assessmentSkuId(assessment) {
@@ -1033,6 +1129,8 @@ export function createPortfolioReadinessController(deps = {}) {
 
   const state = {
     exporting: false,
+    // Request context (period/scope/filters/search) of the rows currently in the register.
+    loadedContext: null,
     periods: [],
     periodStart: null,
     periodsUnavailable: false,
@@ -1175,6 +1273,39 @@ export function createPortfolioReadinessController(deps = {}) {
     state.registerRows = [];
   }
 
+  function contextFromArgs(args) {
+    return Object.freeze({
+      periodStart: args.p_period_start,
+      populationScope: args.p_population_scope,
+      overallSeverities: Object.freeze([...(args.p_overall_severities || [])]),
+      dependencyCodes: Object.freeze([...(args.p_dependency_codes || [])]),
+      ownerModules: Object.freeze([...(args.p_owner_modules || [])]),
+      routeCodes: Object.freeze([...(args.p_route_codes || [])]),
+      search: args.p_search ?? null,
+    });
+  }
+
+  function sameLoadedContext(a, b) {
+    return !!a && !!b && JSON.stringify(a) === JSON.stringify(b);
+  }
+
+  /** Context the user is looking at right now (period/scope/filters/search). */
+  function liveViewContext() {
+    return contextFromArgs(
+      emptyFilterArraysToNull(
+        buildPortfolioRequest({
+          periodStart: state.periodStart,
+          populationScope: state.populationScope,
+          overallSeverities: state.overallSeverities,
+          dependencyCodes: state.dependencyCodes,
+          ownerModules: state.ownerModules,
+          routeCodes: state.routeCodes,
+          search: state.search,
+        }).args,
+      ),
+    );
+  }
+
   function resetFilters({ keepSearch = false } = {}) {
     state.overallSeverities = [];
     state.dependencyCodes = [];
@@ -1315,6 +1446,7 @@ export function createPortfolioReadinessController(deps = {}) {
         state.registerRows = dedupeReadinessRows(state.registerRows, pageRows);
       }
       state.portfolio = { ...validated.value, rows: state.registerRows };
+      state.loadedContext = contextFromArgs(req.args);
       state.portfolioUnavailable = false;
       state.portfolioError = null;
       if (typeof onPortfolioContextLoaded === "function") {
@@ -1331,6 +1463,7 @@ export function createPortfolioReadinessController(deps = {}) {
         };
       }
       state.portfolio = null;
+      state.loadedContext = null;
       state.registerRows = [];
       state.portfolioUnavailable = true;
       state.portfolioError = isPermissionError(err)
@@ -1564,6 +1697,7 @@ export function createPortfolioReadinessController(deps = {}) {
     setHostVisibility(true);
     ensureBound();
 
+    exportGeneration += 1;
     const gen = ++loadGeneration;
     const periodsResult = await loadGovernedPeriods({
       selectNewest: true,
@@ -1584,6 +1718,7 @@ export function createPortfolioReadinessController(deps = {}) {
 
   function syncSearchFromShell(value) {
     state.search = String(value || "").trim();
+    exportGeneration += 1;
     resetKeyset();
     return loadPortfolio({ preserveKeyset: true });
   }
@@ -2413,15 +2548,15 @@ export function createPortfolioReadinessController(deps = {}) {
     }`;
   }
 
-  function exportFilterSummary() {
+  function exportFilterSummary(ctx) {
     const parts = [];
     const add = (label, codes) => {
       if (codes.length) parts.push(`${label}=${codes.join("|")}`);
     };
-    add("severity", state.overallSeverities);
-    add("dependency", state.dependencyCodes);
-    add("owner", state.ownerModules);
-    add("route", state.routeCodes);
+    add("severity", ctx.overallSeverities);
+    add("dependency", ctx.dependencyCodes);
+    add("owner", ctx.ownerModules);
+    add("route", ctx.routeCodes);
     return parts.join("; ");
   }
 
@@ -2457,59 +2592,26 @@ export function createPortfolioReadinessController(deps = {}) {
     }
   }
 
-  async function collectAllMatchingRows(gen) {
-    const periodStart = state.periodStart;
-    const rows = [];
-    const seen = new Set();
-    let after = null;
-    let observedAt = null;
-    let matched = null;
-    let complete = false;
-    let pages = 0;
-    while (pages < READINESS_EXPORT_MAX_PAGES) {
-      const req = buildPortfolioRequest({
-        periodStart,
-        populationScope: state.populationScope,
-        overallSeverities: state.overallSeverities,
-        dependencyCodes: state.dependencyCodes,
-        ownerModules: state.ownerModules,
-        routeCodes: state.routeCodes,
-        search: state.search,
-        afterSkuId: after,
-        limit: READINESS_EXPORT_PAGE_LIMIT,
-      });
-      const data = await rpcCall(req.rpc, emptyFilterArraysToNull(req.args));
-      if (gen !== exportGeneration || disposed) return { cancelled: true };
-      const validated = validatePortfolioEnvelope(data);
-      if (!validated.ok) throw new Error(validated.error);
-      const page = validated.value;
-      if (page.context.period_start !== periodStart) {
-        throw new Error("Export page returned a different governed period.");
-      }
-      pages += 1;
-      observedAt = page.observed_at;
-      matched = page.matched_count;
-      for (const row of asArray(page.rows)) {
-        const id = assessmentSkuIdFromRow(row);
-        if (id != null) {
-          if (seen.has(id)) continue;
-          seen.add(id);
-        }
-        rows.push(row);
-      }
-      if (!page.has_more) {
-        complete = true;
-        break;
-      }
-      after = page.next_after_sku_id;
+  function describePartialReason(reason) {
+    const R = READINESS_EXPORT_PARTIAL_REASONS;
+    switch (reason) {
+      case R.pageLimit:
+        return "page limit reached";
+      case R.matchedCountChanged:
+        return "matched count changed while exporting";
+      case R.rowCountMismatch:
+        return "row count did not match the server matched count";
+      default:
+        return "server paging was inconsistent";
     }
-    return { rows, observedAt, matched, complete, pages };
   }
 
   /**
    * Export readiness as CSV through the existing portfolio contract.
    * scope "loaded": exactly the rows already loaded in the register.
-   * scope "all": walks the same RPC with the same period/filters/search.
+   * scope "all": walks the same RPC with the context the register was loaded
+   * with (period/scope/filters/search are frozen at click time; any change to
+   * the view while exporting cancels the export instead of mixing contexts).
    */
   async function exportCsv({ scope = "loaded" } = {}) {
     if (state.exporting) return { ok: false, busy: true };
@@ -2517,21 +2619,68 @@ export function createPortfolioReadinessController(deps = {}) {
       if (canView() !== true) {
         throw Object.assign(new Error("Permission denied"), { status: 403 });
       }
-      if (!state.portfolio || state.portfolioUnavailable || !state.periodStart) {
+      if (
+        !state.portfolio ||
+        state.portfolioUnavailable ||
+        !state.periodStart ||
+        !state.loadedContext
+      ) {
         showToast?.("Readiness is not available to export.", "error");
         return { ok: false };
+      }
+      if (state.loadingPortfolio || state.appendingMore) {
+        showToast?.("Readiness is still loading; try the export again.", "info");
+        return { ok: false, busy: true };
+      }
+      const ctx = state.loadedContext;
+      if (!sameLoadedContext(ctx, liveViewContext())) {
+        showToast?.(
+          "Filters or search changed since the register loaded; apply them before exporting.",
+          "info",
+        );
+        return { ok: false, stale: true };
       }
       state.exporting = true;
       const gen = ++exportGeneration;
       renderExportControls();
+      const viewStillSame = () =>
+        gen === exportGeneration &&
+        !disposed &&
+        isActiveLens() &&
+        sameLoadedContext(ctx, state.loadedContext) &&
+        sameLoadedContext(ctx, liveViewContext());
       let rows;
       let extent;
+      let note = "";
+      let partialReason = null;
       let observedAt = state.portfolio.observed_at;
       let matched = state.portfolio.matched_count;
       if (scope === "all") {
-        const res = await collectAllMatchingRows(gen);
-        if (res.cancelled) {
-          showToast?.("Export cancelled because the view changed.", "info");
+        const res = await walkReadinessPortfolioPages({
+          expectedPeriodStart: ctx.periodStart,
+          expectedPopulationScope: ctx.populationScope,
+          isCancelled: () => !viewStillSame(),
+          fetchPage: async (afterSkuId) => {
+            const req = buildPortfolioRequest({
+              periodStart: ctx.periodStart,
+              populationScope: ctx.populationScope,
+              overallSeverities: ctx.overallSeverities,
+              dependencyCodes: ctx.dependencyCodes,
+              ownerModules: ctx.ownerModules,
+              routeCodes: ctx.routeCodes,
+              search: ctx.search,
+              afterSkuId,
+              limit: READINESS_EXPORT_PAGE_LIMIT,
+            });
+            const data = await rpcCall(req.rpc, emptyFilterArraysToNull(req.args));
+            if (!viewStillSame()) return { cancelledPage: true, context: {} };
+            const validated = validatePortfolioEnvelope(data);
+            if (!validated.ok) throw new Error(validated.error);
+            return validated.value;
+          },
+        });
+        if (res.cancelled || !viewStillSame()) {
+          showToast?.("Export cancelled because the view changed; nothing was downloaded.", "info");
           return { ok: false, cancelled: true };
         }
         rows = res.rows;
@@ -2540,9 +2689,16 @@ export function createPortfolioReadinessController(deps = {}) {
         extent = res.complete
           ? READINESS_EXPORT_EXTENTS.all
           : READINESS_EXPORT_EXTENTS.partial;
+        if (!res.complete) {
+          partialReason = res.reason;
+          note = `PARTIAL: ${rows.length} of ${matched} matching rows (${describePartialReason(res.reason)}: ${res.reason})`;
+        }
       } else {
         rows = state.registerRows.slice();
         extent = READINESS_EXPORT_EXTENTS.loaded;
+        if (state.portfolio.has_more) {
+          note = `LOADED PAGES ONLY: ${rows.length} of ${matched} matching rows`;
+        }
       }
       if (!rows.length) {
         showToast?.("No rows to export", "info");
@@ -2550,18 +2706,19 @@ export function createPortfolioReadinessController(deps = {}) {
       }
       const meta = {
         extent,
+        note,
         exportedRows: rows.length,
         matchedCount: matched,
-        populationScope: state.portfolio.population_scope || state.populationScope,
-        appliedFilters: exportFilterSummary(),
-        search: state.search,
-        periodStart: state.periodStart,
+        populationScope: ctx.populationScope,
+        appliedFilters: exportFilterSummary(ctx),
+        search: ctx.search ?? "",
+        periodStart: ctx.periodStart,
         observedAt,
       };
       const csv = buildReadinessCsv(rows, meta);
       const filename = buildReadinessCsvFilename({
-        periodStart: state.periodStart,
-        populationScope: meta.populationScope,
+        periodStart: ctx.periodStart,
+        populationScope: ctx.populationScope,
         extent,
         rowCount: rows.length,
       });
@@ -2573,9 +2730,11 @@ export function createPortfolioReadinessController(deps = {}) {
             }`
           : extent === READINESS_EXPORT_EXTENTS.all
             ? `Exported all ${rows.length} matching rows`
-            : `Partial export: ${rows.length} of ${matched} matching rows (page limit reached)`;
+            : `Partial export: ${rows.length} of ${matched} matching rows (${describePartialReason(
+                partialReason,
+              )}) — not the full set`;
       showToast?.(label, extent === READINESS_EXPORT_EXTENTS.partial ? "info" : "success");
-      return { ok: true, extent, rowCount: rows.length, filename, csv };
+      return { ok: true, extent, rowCount: rows.length, filename, csv, note };
     } catch (err) {
       const msg = isPermissionError(err)
         ? "Export unavailable — permission denied for portfolio readiness."
