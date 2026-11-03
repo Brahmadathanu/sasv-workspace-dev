@@ -1,3 +1,5 @@
+> **Authoritative post-merge checkpoint — 3 Nov 2026 (newer than historical status entries below).** GitHub `main` = `d395d7e8031a28e56ea1b0997424932997a36636`. The Costing Tier-1 navigation feature wave is **fully integrated**: N1 #133 (`85a163f`), N3 #134 (`55acfcf`), N2 #136 (`7f46f37`), N4 #135 (`2ce8af0`), W6 #139 (`d395d7e`); N2/N3 guard repair #138 (`026c646`) also merged. Final W6 head `5c3869a`: LF 605/605 and CRLF 605/605, 0 failed/skipped/cancelled/TODO, 61 Chromium tests per run, **pre-merge**. Verified **exact Git blob/tree equivalence** between final-tested W6 head and squash-merged `main` (2,271 matching entries, 0 mismatches); a fresh post-merge execution is not claimed. All new flags remain default OFF; no deployment, cache bump, Supabase write or activation. **This completes the N1/N2/N3/N4/W6 client navigation wave only**, not WP05, WP06, MDC-07 or the wider programme: U11, signed-in populated-data acceptance, production/flag rollout and later work packs remain open. Electron repository version remains `6.1.0`; latest GitHub published release is `v6.1.0` (18 Aug 2026); release candidate/build/Windows smoke/version bump are not yet approved or performed. PWA service-worker cache remains `hub-cache-v390`. e-Aushadhi WP-07 and storage-retention work remain paused/parked respectively. Historical draft/not-started statements below are superseded by this checkpoint, not retroactively rewritten.
+
 # WP-06 — Pricing Policy Manager Simplification
 
 ## Objective
@@ -31,29 +33,29 @@ W6 design audit completed 3 Nov 2026. The existing Pricing Policy Manager contro
 ## Milestones
 - [x] W6 current-state/design audit (design-gate report, 3 Nov 2026)
 - [x] W6 five-group design/contract gate (owner-approved 3 Nov 2026)
-- [ ] Implementation gate where applicable
-- [ ] Focused verification
-- [ ] Independent audit
-- [ ] Merge/post-merge proof where applicable
+- [x] W6 client implementation completed and squash-merged (#139, `d395d7e`)
+- [x] W6 focused verification (13 unit + 10 Chromium tests)
+- [x] W6 independent review and owner merge approval
+- [x] W6 squash merge and exact tested-tree equivalence proof; fresh post-merge execution not performed
 - [ ] Final handover
 
 ## Current Gate
-`WP06-W6 — implementation on draft PR #139; full regression and independent review pending`
+`WP06-W6 — integrated on main; wider WP06 business simplification and live acceptance remain open`
 
 ## Gate Status
-[~] W6 DESIGN APPROVED; controller metadata implementation and focused unit tests committed on draft PR #139; Chromium/full-suite regression pending
+[x] W6 NAVIGATION PACKAGE MERGED (#139, `d395d7e`); [~] wider WP06 work pack remains open
 
 ## Required to close
 W6 must implement the approved five-group presentation without violating compatibility, pass LF/CRLF and Chromium regression, undergo independent audit and obtain explicit owner merge approval. The wider WP06 work pack is not automatically closed.
 
 ## Next gate
-W6 client implementation on its existing branch, focused regression and draft PR for independent review.
+Signed-in populated-data verification before any flag activation; assess remaining WP06 requirements separately. U11 is a later WP11 package, not part of W6.
 
 ## Server changes
 None.
 
 ## Client changes
-W6 draft PR #139 changes only PPM-controller exports: an exact-flag-ON projection derives 5 groups and 10 workspace display assignments/order from the N1 contract, while OFF returns the original arrays and objects unmodified. An explicit `legacyGroupId` on the ON projection preserves former Area mapping and existing internal MRP/selling classifications. The existing shell consumes these metadata exports without a shell modification. No feature is activated.
+W6 merged PR #139 changes only PPM-controller exports: an exact-flag-ON projection derives 5 groups and 10 workspace display assignments/order from the N1 contract, while OFF returns the original arrays and objects unmodified. An explicit `legacyGroupId` on the ON projection preserves former Area mapping and existing internal MRP/selling classifications. The existing shell consumes these metadata exports without a shell modification. No feature is activated.
 
 ## Tests / verification
 **W6 verification (3 Nov 2026, draft PR #139; exact totals are in the PR description for the tested head).** `scripts/costing-w6-pricing-nav/w6.test.mjs` (metadata, legacy-resolution parity ON/OFF evaluated at module load in a child process, derived MRP/selling classifications, exact-flag handling, source/scope guards) and `w6-browser.test.mjs` (Chromium: desktop 1/2/4/2/1 vs 2/4/4 strips, narrow five-optgroup dropdown with selection, all ten deep links and twelve legacy URL shapes identical ON/OFF, click-through, back/forward across page loads, console hygiene) were **executed** in Chromium with zero skipped tests and run inside the complete LF and CRLF suites on the reconciled branch (full git history, as required by the N2/N3 historical guards). Defect found and fixed during verification: with the flag ON the module-load metadata validator still required the legacy workspace order and logged a `console.error` on every page load; its expected order now follows the active presentation (mutation-checked). Observed, preserved behaviour: workspace switching uses `replaceState`, so it adds no history entries in either mode. Historical pin tests that compare the PPM controller with its pre-W6 text (`costing-ccc-uxf1`, `costing-review-worklist`, `costing-table-tools` pkg3/pkg4) apply `scripts/lib/w6-nav-strip.mjs` (exact reversal of the W6 additions; tested to be exact and not blanket). Reconciled with `main` `2ce8af0` after N4 (#135) merged. Not performed: signed-in populated-data acceptance, live PWA/cache check. The flag is not activated. C9 stays deferred.

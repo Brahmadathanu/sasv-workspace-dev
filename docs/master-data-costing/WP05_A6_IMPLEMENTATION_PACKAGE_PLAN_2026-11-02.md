@@ -1,3 +1,5 @@
+> **Implementation reconciliation — 3 Nov 2026:** P01 #132, P02 #131, N1 #133, N2 #136, N3 #134, N4 #135 and W6 #139 are now merged on `main` `d395d7e`; N2/N3 guard correction #138 also merged. W6 final verified source: LF and CRLF 605/605 each, 61 Chromium tests per run, zero skips; exact tree equality with squash-merged main. **U11 has not started.** The matrix and merge order below are the historical design/brief, not a list of still-open PRs or a licence to change C9. Signed-in/flag activation and broader WP05/WP06/MDC-07 closure remain open. Current bounded release plan: [COSTING_SUITE_COMPLETION_TO_RELEASE_2026-11-03.md](COSTING_SUITE_COMPLETION_TO_RELEASE_2026-11-03.md).
+
 # WP05-A6 — Bounded Claude implementation-package plan (2 Nov 2026)
 
 > **Status 3 Nov 2026:** P02 (#131) and P01 (#132) are merged. N1 is implemented on a draft PR (not merged; see [WP-07](WP-07-COSTING-NAVIGATION.md)). N2, N3, N4, W6 and U11 are not started. The post-merge baseline is **471** tests (LF and CRLF), replacing the 408 below.

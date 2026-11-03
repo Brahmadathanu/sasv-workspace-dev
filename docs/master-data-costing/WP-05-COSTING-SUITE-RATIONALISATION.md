@@ -1,3 +1,5 @@
+> **Post-merge current status (3 Nov 2026):** WP05-P02 #131 and WP05-P01 #132 are merged; navigation N1 #133, N3 #134, N2 #136, N4 #135 and W6 #139 are merged on `main` `d395d7e`. The original Tier-1 design/architecture and independent reviews are evidenced. **WP05 itself stays OPEN** until live signed-in verification, disposition of outstanding A5 issues and formal closure. Historical “N1 draft/not started” statements below are superseded. See [Costing Suite completion-to-release gate](COSTING_SUITE_COMPLETION_TO_RELEASE_2026-11-03.md) and [PR #140](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/140). No Tier-2 screen/controller merger is implicitly authorised.
+
 # WP-05 — Costing Suite Functional Rationalisation Audit
 
 ## Objective
