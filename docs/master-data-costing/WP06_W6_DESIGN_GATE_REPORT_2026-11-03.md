@@ -39,3 +39,12 @@ Policy-edit permissions, proposal decision governance (D7 maker-checker still un
 
 ## 5. Ready to implement once decided
 Plan: controller-only grouped strip behind the N1 flag (OFF path untouched), new focused test file for deep links, legacy redirects, permissions and Chromium interaction, then full LF/CRLF suite (baseline 511 after N1; re-verify). Draft PR, stop at independent review.
+
+## 6. Implementation dependency discovered during orchestration (3 Nov 2026)
+
+The shared `costing-suite-shell.js` currently renders PPM's desktop strip in `renderPricingPolicyDirectWorkspaceStripHtml` by iterating the exported `PRICING_POLICY_WORKSPACES` and inserting separators when `workspace.groupId` changes. Its narrow selector builds `<optgroup>` from exported `PRICING_POLICY_NAV_GROUPS` and each workspace's `groupId`; the suite heading also consumes these exported objects. Therefore the statement “PPM navigation is wholly controller-rendered” is not accurate in implementation terms: **the shell is the rendering consumer of controller-owned metadata**.
+
+The approved W6 boundary remains unchanged: **do not edit the shared shell or N1 navigation contract**. Implement the approved ON five-group presentation through compatible, flag-dependent metadata exported by the PPM controller, or another controller-only adapter consumed through the existing shell interface. In doing so, preserve legacy `?workspace=`, `?lens=`, default landing, `PRICING_POLICY_COMPAT_AREA_DEFAULT_WORKSPACE`, legacy group/area aliases and all workspace business capability metadata even when the displayed group changes. The flag-OFF exports, order, strip, heading and narrow dropdown must remain equivalent to existing behaviour. A metadata-only change must not accidentally cause legacy area resolution to use new display group ids; separate compatibility identity from presentation grouping if necessary.
+
+**Acceptance additions:** explicit tests for all ten ON workspace group assignments/order, OFF parity, desktop and narrow shell rendering, legacy area/lens round trips, direct and backward navigation, unchanged period-scoping and RPC/permissions; one Chromium journey for each presentation mode. If the existing shell contract cannot support these without a shared shell edit, stop with the exact minimal proposed interface change rather than modifying shell outside the approved W6 scope.
+
