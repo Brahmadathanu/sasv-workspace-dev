@@ -55,6 +55,8 @@ Command: `node --test $(find scripts -name "*.test.*" | sort)` (29 files). Chrom
 
 **Tests added (`scripts/costing-nav-mcm-cbm/`):** `n2.test.mjs` (9; visibility function for all role combinations, fail-closed, current-lens rule, contract ids, scope notes, strip reproduces N1 controllers exactly, permission functions and RPC names byte-identical, file-scope guard) and `n2-browser.test.mjs` (9 Chromium tests with per-test permissions: four role combinations at 1280/390, non-boolean grants, flag OFF parity, re-render persistence, unauthorised deep link, authorised trace still loads, backend parity, Cost Build and Material Cost notes). Five historical "controller unchanged" pin tests now compare after `scripts/lib/n2-nav-strip.mjs`.
 
+**Results (tested head `3cf48b2`):** 530 tests, 530 pass, 0 fail, 0 skipped on LF and on CRLF (511 N1 baseline + 19 new), Chromium ran; flag-OFF parity snapshot (96 pages/deep links) byte-identical to N1 main `85a163f`.
+
 **Limitations:** Driver Governance (own controller file) and the trace lenses carry no scope note; the shell still shows its own context bar for them. Because the pills are rendered by the shell (not editable in N2), hiding is applied by the controller to the shell's markup after each render (a `MutationObserver` started when the controller is created, flag ON only; the shell renders no pills before permissions resolve, and after that the filter is fail-closed). A shell-side filter hook would be the cleaner long-term design (shared-contract change, reported separately, not made). Mock-backend browser tests only; signed-in populated-data acceptance outstanding.
 
 ## Approved design / contract
