@@ -28,7 +28,7 @@ No work belonging to later gates; no guessed data; no unrelated/e-Aushadhi chang
 
 Command: `node --test $(find scripts -name "*.test.*" | sort)` (29 files). Chromium tests ran (0 skipped): responsive suite, route dialogs, WP05-P02 browser acceptance. 471 is the first combined figure; it is **not** 408 + P01 + P02 arithmetic (the earlier 393/408 totals belong to earlier heads). Legacy smokes: `wp04-readiness-client-contract-smoke.mjs` passes; of the 63 `production-route-*-smoke.mjs` scripts, **51 fail on pristine main** (examples: stale `hub-cache-v299` pins, archived-routes subgroup pin) and 13 pass. These are known legacy failures, not regressions: the identical 51 fail on the N1 branch (`diff` of the failing sets is empty). Other smokes (about 95, mostly e-Aushadhi/unrelated) were not run.
 
-## MDC-07 package N1 — shared navigation contract (implemented 3 Nov 2026; draft PR, not merged)
+## MDC-07 package N1 — shared navigation contract (implemented 3 Nov 2026; merged to `main` as #133, `85a163f`)
 **Flag:** `COSTING_NAV_GROUPS_V1` in `costing-feature-flags.js`; default OFF; enabled only by the exact browser `localStorage` value `1`; independent of `COSTING_PRM_CORRECTIONS_V1`. Not activated for any user.
 
 **Architecture (presentation only; no permission, route, lens id, controller, RPC or payload changed):**
@@ -44,7 +44,7 @@ Command: `node --test $(find scripts -name "*.test.*" | sort)` (29 files). Chrom
 
 **Limitations / not done by N1 (by design):** no controller changes (N2 role-aware trace tabs, N3 cross-links, N4 selected Product/Family/Route persistence and chip feeding, W6 PPM grouping); the "Evidence & Review" sub-grouping inside the PRM Review group is deferred to N4; the shell does not yet feed Product/Family/Route/Run chips (only the governed period and the static basis); mock-backend browser tests only — signed-in populated-data acceptance is outstanding and required before the flag is considered for activation.
 
-## MDC-07 package N2 — Material Cost and Cost Build navigation refinement (implemented 3 Nov 2026; draft PR, not merged)
+## MDC-07 package N2 — Material Cost and Cost Build navigation refinement (implemented 3 Nov 2026; merged to `main` as #136, `7f46f37`)
 **Flag:** the existing N1 flag `COSTING_NAV_GROUPS_V1` (default OFF, exact `1`). No new flag. Flag OFF: both controllers behave byte-for-byte as before (pinned by tests that strip exactly the N2 additions and compare with the N1 text).
 
 **Files changed:** `costing-suite-material-cost.js`, `costing-suite-cost-build.js` only (plus tests). Shell, registry, route config, N1 contract/context modules, feature flags, CSS, HTML, `sw.js` and Driver Governance's own controller are untouched.
@@ -59,42 +59,57 @@ Command: `node --test $(find scripts -name "*.test.*" | sort)` (29 files). Chrom
 
 **Limitations:** Driver Governance (own controller file) and the trace lenses carry no scope note; the shell still shows its own context bar for them. Because the pills are rendered by the shell (not editable in N2), hiding is applied by the controller to the shell's markup after each render (a `MutationObserver` started when the controller is created, flag ON only; the shell renders no pills before permissions resolve, and after that the filter is fail-closed). A shell-side filter hook would be the cleaner long-term design (shared-contract change, reported separately, not made). Mock-backend browser tests only; signed-in populated-data acceptance outstanding.
 
+## MDC-07 package N4 — Production Route context persistence (implemented 3 Nov 2026; draft PR #135, not merged)
+**Base:** originally `main` `85a163f` (N1 merged as #133); reconciled on 3 Nov 2026 with `main` `7f46f37` (N3 #134 and N2 #136 merged) and then with `main` `026c646` (#138, the repaired N2/N3 historical ownership guards). The integrations changed only this document and the merged guard tests: the N4 code files do not overlap with N2/N3/#138 files. N4's own scope guard keeps its fixed baseline `7f46f37`. **Flag:** `COSTING_PRM_NAV_CONTEXT_V1` (defined in `costing-suite-production-route-nav-context.js`, not in the shared flags file); default OFF; only the exact `localStorage` value `1` enables it; independent of `COSTING_NAV_GROUPS_V1` (chips are only *shown* when N1 is on) and of `COSTING_PRM_CORRECTIONS_V1`. Not activated for any user.
+
+**What it does (controller side only):**
+* `costing-suite-production-route-nav-context.js` (new, pure: no RPC, DOM, storage writes, dates or run numbers) remembers `product_id`, `product_route_id`, `route_family_id`, `family_route_id` and feeds the N1 store `costingNavContext.set({product, family, route})`. It never sets `run` or `period`.
+* `costing-suite-production-route.js`: `load()` becomes a thin wrapper around the unchanged loader (`loadPrmLens`). Flag OFF = direct pass-through. Flag ON: (1) URL/pill/back-forward loads of **identity lenses only** (Product Assignments, Product Route Editor, Effective Route Viewer, Family Route Editor, Historical Evidence Review) have missing ids filled from the stored context; (2) only an **accepted** load (not stale, not disposed, not failed) commits, using the loaded header ids as authority; (3) opening a Family summary selects that Family. `navigate()` loads are marked `explicit` and are never hydrated (e.g. "create a route for this Family" stays a create).
+* **Validity rules:** a new Product drops the route version and (unless a Family is supplied) the Family/Family route; a new Family drops the Family route and (unless a Product is supplied) the Product/route; an explicit id in the URL is never overwritten and, if it differs from the stored one, nothing else is injected; a route version is only restored together with its Product (Family route with its Family); a hydrated id whose load fails is forgotten (only if the load was not stale).
+* The Effective Route Viewer's own Product picker bypasses `load()`; with the flag ON it commits the chosen Product (and the server-derived Family) and keeps the URL's `product_id` in step via `replaceState` (otherwise the stale URL id would win on the next pill switch). Emptying that picker clears the stored Product/Family.
+* **Not hydrated by design:** Readiness, Workload Preview, Mapping Review, Foundation Review, Cost Centres, Subgroup Mappings, Archived Routes, Families register. Those lenses get no hidden filters or run; their own sticky filters stay as before. Mapping Review, Foundation Review and Historical Candidate Review remain three separate lenses/pills in the N1 Review group (A6 "tabbed Evidence & Review" stays deferred). The fixed historical contexts (run 80 / 82) are untouched; there is no current-run resolver and the module contains no run number.
+* Shell, registry, route config, nav-groups/nav-context helpers, shared flags file, CSS, HTML, SQL, cache: **unchanged**. The 24 read / 38 write RPC names in the controller are unchanged (baseline file test).
+
+**Tests (`scripts/costing-prm-nav-context/`):** `prm-nav-context.test.mjs` (25: flag, reconcile/hydrate rules, tracker ON/OFF, source/scope guards) and `prm-nav-context-browser.test.mjs` (12 Chromium journeys on the mock backend: version restored across groups, OFF parity, evidence lenses independent with identical requests and no run chip, Product switch drops the version, Family switch drops the Product, slow/abandoned responses, rapid clicking, all 13 lens deep links ON = OFF, RPC sequence ON(empty)=OFF and read-only, Effective Viewer picker commit + URL sync, abandoned hydrated load). Mutation-checked: disabling hydration and removing the stale guard each fail the intended tests.
+
+**Limitations:** URL is not rewritten with hydrated ids except the Effective Viewer picker's `product_id` (a reload of a pill-navigated page restores only what the URL carries); a URL-origin load cannot be told apart from a pill switch, so the stored version is re-applied to a URL that names the same Product; no dedicated 'clear selection' control (selection clears by choosing another Product/Family, emptying the Effective Viewer picker, or on page reload); Effective Route Viewer contributes only `route_family_id` from the server payload; mock-backend only — signed-in populated-data acceptance outstanding; flag must not be activated before that.
+
 ## Approved design / contract
 Not yet approved.
 
 ## Milestones
 - [x] Current-state/audit gate (WP05 A1–A7, merged #130)
 - [x] Design/contract gate where applicable (A3 Tier 1, owner-accepted 2 Nov 2026)
-- [~] Implementation gate where applicable — N1 and N2 implemented on draft PRs; N3/N4/W6/U11 not started
+- [~] Implementation gate where applicable — N1 (#133), N3 (#134) and N2 (#136) merged to `main`; N4 implemented on draft PR #135 awaiting independent review; W6/U11 not started
 - [ ] Focused verification
 - [ ] Independent audit
 - [ ] Merge/post-merge proof where applicable
 - [ ] Final handover
 
 ## Current Gate
-### MDC-07 / N3 — Cost Sheet Review cross-links and Action Queues (draft PR, not merged)
+### MDC-07 / N3 — Cost Sheet Review cross-links and Action Queues (merged to `main` as #134, `55acfcf`)
 
 * **Scheme Comparison → Pricing Policy Manager › SKU Policy Overview:** each row with its own `period_start` and `sku_id` gets a "SKU policy overview ↗" anchor (inside the existing Product / SKU cell; headers, alignments, CSV export and the row-click drawer are unchanged) to `pricing-policy-manager.html?workspace=sku-overview&period_start=…&product_id=…&sku_id=…` in a new tab. `product_id` is added only when the row carries it. A row without its own period or SKU gets no link (nothing is inferred). Pure navigation: no new RPC, no write, no flag read.
 * **Action Queues:** QC and Materials & Stores remain two lenses, two controllers, two unchanged RPCs (`rpc_get_qc_action_queue`, `rpc_get_materials_stores_action_queue`; param shapes untouched) in the N1 "Action Queues" group. Each queue's detail panel gains an "Open … Action Queue" link to the sibling lens (new tab, governed period only). Existing remediation links are unchanged.
 * **Limitations:** the shell's PPM launch consumes `workspace` and `period_start`; it does not preselect a Product or SKU in SKU Policy Overview, and the queue lenses have no launch-time product filter, so `product_id`/`sku_id` are carried on the Scheme Comparison link only as the existing contract allows and the queue sibling link carries the period only. The reverse PPM → Scheme Comparison link lives in the Pricing Policy Manager controller (W6, out of N3 scope). The shell-injected `navigateToCostingRoute` is used for queue links; the Scheme Comparison anchor uses the same relative page link the shell resolves on shared pages because the shell does not inject navigation into that controller. No flag was activated, no cache bump.
 * **Tests:** `scripts/costing-cross-links/` (`cross-links.test.mjs`, `cross-links-browser.test.mjs`).
 
-`MDC-07-N1 — implemented on a draft PR; awaiting independent review and owner acceptance. No merge, flag activation or further package is implied.`
+`MDC-07-N4 — implemented on draft PR #135 (reconciled with main 7f46f37); awaiting independent review and owner acceptance. N1, N2 and N3 are merged. No merge, flag activation or further package is implied.`
 
 ## Gate Status
-[~] IN PROGRESS — N1 delivered for review; N2, N3, N4, W6, U11 outstanding
+[~] IN PROGRESS — N1, N2, N3 merged; N4 delivered for review (draft PR #135); W6, U11 outstanding
 
 ## Required to close
 Entry criteria must be satisfied and the work pack explicitly started.
 
 ## Next gate
-Independent review of the N1 draft PR; owner decision; then sequential briefs N2 → N3 → N4 → W6 → U11 (A6 §2). Each later package consumes the N1 contract and must not edit the registry, route config, shell navigation or the shared CSS block.
+Independent review of the N4 draft PR (#135); owner decision; then sequential briefs W6 → U11 (A6 §2; N1, N2, N3 already merged). Each later package consumes the N1 contract and must not edit the registry, route config, shell navigation or the shared CSS block.
 
 ## Server changes
 None.
 
 ## Client changes
-N1 (draft PR): `costing-nav-groups.js`, `costing-nav-context.js`, flag in `costing-feature-flags.js`, flag-gated navigation branches in `costing-suite-shell.js`, appended CSS block. No HTML, registry, route-config, controller, Supabase or migration change.
+N1 (merged): `costing-nav-groups.js`, `costing-nav-context.js`, flag in `costing-feature-flags.js`, flag-gated navigation branches in `costing-suite-shell.js`, appended CSS block. No HTML, registry, route-config, controller, Supabase or migration change. N2/N3 (merged): controller-side changes listed in their sections. N4 (draft PR #135): `costing-suite-production-route-nav-context.js` (new) and thin hooks in `costing-suite-production-route.js`, behind `COSTING_PRM_NAV_CONTEXT_V1`.
 
 ## Tests / verification
 See Gate A and the N1 section above. Not performed: signed-in populated-data acceptance, live PWA/cache check, global smoke run.
