@@ -1,3 +1,5 @@
+> **Owner disposition — 3 Nov 2026, AFTER this report:** W6 five-group design is **APPROVED** as documented in [WP-06-PRICING-POLICY-MANAGER.md](WP-06-PRICING-POLICY-MANAGER.md). Adopt the existing N1 five-group contract verbatim, retaining all 10 workspaces and legacy URLs/workspace semantics. The PPM controller may consume the existing exact-`1`, default-OFF `COSTING_NAV_GROUPS_V1` flag; flag-OFF keeps the existing three-group UI. Presentation group IDs/labels may change only under flag ON. C9 registry period-scoping remains explicitly deferred. This report's STOP/NOT MET findings below describe the earlier design audit, not the current authorisation. Implementation, independent review and merge are still outstanding.
+
 # WP06 / W6 — Design-gate report (3 Nov 2026)
 
 **Outcome: STOPPED at the design gate. No code changed.** Base `main` `85a163f2bc36476953939bfb637b81f632d6b9b9` verified (N1 merged as #133, working tree clean).
