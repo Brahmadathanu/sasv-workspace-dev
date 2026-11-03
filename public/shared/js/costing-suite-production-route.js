@@ -1274,6 +1274,20 @@ export function createProductionRouteController(deps = {}) {
     );
   }
 
+  // N4 (flag ON): a Product chosen in the picker is not a URL navigation. Keep the URL's product_id equal to the stored
+  // one, otherwise the stale URL id (an explicit selection) would win on the next pill switch.
+  function syncNavProductToUrl(productId) {
+    if (!navContext.isEnabled() || typeof window === "undefined") return;
+    try {
+      const url = new URL(window.location.href);
+      if (productId == null) url.searchParams.delete("product_id");
+      else url.searchParams.set("product_id", String(productId));
+      window.history.replaceState({}, "", url.toString());
+    } catch {
+      /* ignore URL sync failures */
+    }
+  }
+
   async function loadEffectiveViewerProduct(productId, source = "user-select") {
     const pid = normalizePrmIntegerId(productId);
     if (pid == null) {
@@ -11173,11 +11187,17 @@ export function createProductionRouteController(deps = {}) {
         const pid = normalizePrmIntegerId(selectEl.value);
         if (pid == null) {
           resetEffectiveViewer();
+          // N4 (flag ON): emptying the picker is an explicit deselect of the Product and what was derived from it.
+          navContext.invalidate(["product_id", "route_family_id"]);
+          syncNavProductToUrl(null);
           paintAcceptedPrmLens();
           return;
         }
         await loadEffectiveViewerProduct(pid, "user-select");
         if (state.activeLens !== "effective-route-viewer") return;
+        // N4 (flag ON): the picker loads without going through load(); commit what is actually displayed.
+        navContext.commit("effective-route-viewer", { effectiveViewer: state.effectiveViewer });
+        if (state.effectiveViewer?.status === "ready") syncNavProductToUrl(pid);
         paintAcceptedPrmLens();
       });
     }

@@ -108,6 +108,30 @@ test("journey ON: switching Product through the Product picker drops the previou
   });
 });
 
+test("journey ON: choosing another Product in the Effective Route Viewer picker is remembered; emptying the picker clears it", async (t) => {
+  await withPage(t, EDITOR, { storage: N4 }, async (page) => {
+    await settle(page, 1200);
+    await pill(page, "effective-route-viewer", 1000);
+    await page.selectOption("#prmEffectiveProduct", "78");
+    await settle(page, 900);
+    let c = await chips(page);
+    assert.match(c.product, /Other Product \(#78\)/);
+    assert.equal(c.route, undefined, "Product 77's version does not follow the new Product");
+    const before = await detailCalls(page, 9002);
+    await pill(page, "route-readiness");
+    await pill(page, "effective-route-viewer", 1000);
+    assert.equal(await page.inputValue("#prmEffectiveProduct"), "78", "the picker shows the remembered Product, not the stale URL one");
+    await pill(page, "product-route-editor", 1200);
+    assert.equal(await detailCalls(page, 9002), before, "Product 77's version is not re-opened");
+    await pill(page, "effective-route-viewer", 1000);
+    await page.selectOption("#prmEffectiveProduct", "");
+    await settle(page, 600);
+    c = await chips(page);
+    assert.equal(c.product, undefined);
+    assert.equal(c.family, undefined);
+  });
+});
+
 test("journey ON: changing Family drops the unrelated Product and Family route (Historical Evidence Review deep links)", async (t) => {
   await withPage(t, "?lens=historical-candidate-review&route_family_id=12&product_id=78", { storage: N4 }, async (page) => {
     await settle(page, 1000);

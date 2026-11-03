@@ -53,6 +53,8 @@ export const PRM_LENS_CONTEXT_KEYS = Object.freeze({
   "historical-candidate-review": Object.freeze(["product_id", "route_family_id"]),
 });
 
+const ROUTE_KEYS = Object.freeze(["product_route_id", "family_route_id"]);
+
 const EMPTY = Object.freeze({
   product_id: null,
   product_route_id: null,
@@ -95,6 +97,9 @@ export function reconcilePrmNavContext(prev, loaded) {
     }
   }
   for (const key of PRM_NAV_CONTEXT_KEYS) if (l[key] != null) next[key] = l[key];
+  // A lens that opened a Product / Family WITHOUT a route (create or chooser flow) says so with `clear`: the
+  // previously stored route must not silently replace that explicit intent on the next reload.
+  for (const key of Array.isArray(loaded?.clear) ? loaded.clear : []) if (ROUTE_KEYS.includes(key) && l[key] == null) next[key] = null;
   return next;
 }
 
@@ -143,7 +148,7 @@ export function collectPrmLoadedIds(lensId, view = {}) {
         return { product_id: headerProductId, product_route_id: headerRouteId };
       }
       // Create / chooser flows: the Product is the selection, no route version is established.
-      return dl.product_id != null && dl.product_route_id == null ? { product_id: dl.product_id } : null;
+      return dl.product_id != null && dl.product_route_id == null ? { product_id: dl.product_id, clear: ["product_route_id"] } : null;
     }
     case "route-family-route-editor": {
       const header = view.familyHeader;
@@ -154,7 +159,7 @@ export function collectPrmLoadedIds(lensId, view = {}) {
       if (headerRouteId != null && headerFamilyId != null) {
         return { route_family_id: headerFamilyId, family_route_id: headerRouteId };
       }
-      return dl.route_family_id != null && dl.family_route_id == null ? { route_family_id: dl.route_family_id } : null;
+      return dl.route_family_id != null && dl.family_route_id == null ? { route_family_id: dl.route_family_id, clear: ["family_route_id"] } : null;
     }
     case "effective-route-viewer": {
       const ev = view.effectiveViewer;

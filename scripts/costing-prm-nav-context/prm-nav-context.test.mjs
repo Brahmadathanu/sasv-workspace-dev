@@ -60,6 +60,14 @@ test("reconcile: a new Family drops the Family route and the Product unless one 
   assert.deepEqual(reconcilePrmNavContext(ids({}), { product_id: 5 }), ids({ product_id: 5 }));
 });
 
+test("reconcile: a create / chooser load clears the stored route of the same Product / Family, and only route ids", () => {
+  const prev = ids({ product_id: 77, product_route_id: 9002, route_family_id: 11, family_route_id: 300 });
+  assert.deepEqual(reconcilePrmNavContext(prev, { product_id: 77, clear: ["product_route_id"] }), { ...prev, product_route_id: null });
+  assert.deepEqual(reconcilePrmNavContext(prev, { route_family_id: 11, clear: ["family_route_id"] }), { ...prev, family_route_id: null });
+  assert.equal(reconcilePrmNavContext(prev, { product_id: 77, product_route_id: 9001, clear: ["product_route_id"] }).product_route_id, 9001, "an established id is never cleared");
+  assert.deepEqual(reconcilePrmNavContext(prev, { clear: ["product_id", "route_family_id", "bogus"] }), prev, "identity ids and unknown keys are never cleared");
+});
+
 test("reconcile never mutates its inputs", () => {
   const prev = Object.freeze(ids({ product_id: 1, product_route_id: 2 }));
   const loaded = Object.freeze({ product_id: 3 });
@@ -118,7 +126,7 @@ test("hydrate preserves unrelated deep-link keys (as_of_date, product_group_id) 
 
 test("collectPrmLoadedIds: header ids are authoritative; evidence/register lenses establish nothing", () => {
   assert.deepEqual(collectPrmLoadedIds("product-route-editor", { deepLink: { product_id: "5", product_route_id: "9" }, productHeader: { product_route_id: 9001, product_id: 77 } }), { product_id: 77, product_route_id: 9001 });
-  assert.deepEqual(collectPrmLoadedIds("product-route-editor", { deepLink: { product_id: "78" }, productHeader: null }), { product_id: 78 }, "create / chooser flow: Product only");
+  assert.deepEqual(collectPrmLoadedIds("product-route-editor", { deepLink: { product_id: "78" }, productHeader: null }), { product_id: 78, clear: ["product_route_id"] }, "create / chooser flow: Product only, stored route cleared");
   assert.equal(collectPrmLoadedIds("product-route-editor", { deepLink: { product_route_id: "9" }, productHeader: null }), null, "failed/absent header: nothing established");
   assert.deepEqual(collectPrmLoadedIds("route-family-route-editor", { deepLink: {}, familyHeader: { family_route_id: 300, route_family_id: 11 } }), { route_family_id: 11, family_route_id: 300 });
   assert.deepEqual(collectPrmLoadedIds("effective-route-viewer", { effectiveViewer: { status: "ready", productId: 77, payload: { route_family_id: 11 } } }), { product_id: 77, route_family_id: 11 });
@@ -237,6 +245,7 @@ test("source: controller wiring is flag-gated - OFF delegates straight to the un
   assert.equal((MAIN.match(/explicit: true,/g) || []).length, 2, "only navigate() marks its loads explicit");
   assert.match(MAIN, /if \(disposed \|\| !result \|\| result\.stale !== false \|\| result\.generation !== lensRenderGeneration\) return result;/);
   assert.match(MAIN, /if \(state\.activeLens === "route-families"\) navContext\.selectFamily\(routeFamilyId\);/);
+  assert.match(MAIN, /function syncNavProductToUrl\(productId\) \{\n    if \(!navContext\.isEnabled\(\) \|\| typeof window === "undefined"\) return;/, "URL sync is flag-gated");
 });
 
 test("source: RPC names, lens ids and P02 safeguards in the controller are unchanged", () => {
