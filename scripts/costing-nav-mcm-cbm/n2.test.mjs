@@ -104,10 +104,21 @@ test("source: permission functions, RPC names and export roles are byte-identica
 });
 
 test("source: N2 touches only the two controller files (plus their tests); shared N1 files, shell, registry, route config, CSS, HTML, sw and supabase are untouched", () => {
-  const changed = execFileSync("git", ["diff", "--name-only", N1_HEAD], { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean);
-  const staged = execFileSync("git", ["diff", "--name-only", "--cached", N1_HEAD], { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean);
-  const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard"], { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean);
-  const all = [...new Set([...changed, ...staged, ...untracked])];
+  // Permanent squash-merge range of N2 (#136) on main: N3 squash 55acfce -> N2 squash 7f46f37. Both commits are part of
+  // main's history (not feature-branch heads), so a full clone has them; later N4 changes are never attributed to N2.
+  // A missing object (shallow clone) is an explicit FAILURE, never a silent skip: run `git fetch --unshallow`.
+  const n2Base = "55acfcfebeeddf5396c4198e0691a56d9b70162e";
+  const n2Head = "7f46f3784dcbc2b5059e940763c80befd3437746";
+  for (const sha of [n2Base, n2Head]) {
+    try {
+      execFileSync("git", ["cat-file", "-e", `${sha}^{commit}`], { cwd: root, stdio: "pipe" });
+    } catch {
+      assert.fail(`historical ownership guard needs commit ${sha} (full git history). Shallow or partial clone? Run: git fetch --unshallow`);
+    }
+  }
+  const all = execFileSync("git", ["diff", "--name-only", n2Base, n2Head], { cwd: root, encoding: "utf8" })
+    .split("\n").filter(Boolean);
+  assert.ok(all.length > 0, "N2 historical package diff must not be empty");
   const forbidden = [
     /costing-suite-shell\.js$/, /costing-suite-registry\.js$/, /costing-route-config\.js$/, /costing-nav-groups\.js$/,
     /costing-nav-context\.js$/, /costing-feature-flags\.js$/, /\.css$/, /\.html$/, /sw\.js$/, /^supabase\//, /package(-lock)?\.json$/,
