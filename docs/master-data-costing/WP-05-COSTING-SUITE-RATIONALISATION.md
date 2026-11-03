@@ -35,14 +35,14 @@ Confirmed PRM defects: C1 (Supersede needs loaded record), C2 (candidate scope c
 ## Milestones
 - [x] Current-state/audit gate (static; A1–A7)
 - [x] Design/contract gate — Tier 1 accepted by owner 2 Nov 2026
-- [ ] Implementation gate where applicable
+- [~] Implementation gate where applicable — P02 (#131) and P01 (#132) merged; N1 on a draft PR (3 Nov 2026); N2/N3/N4/W6/U11 not started
 - [ ] Focused verification
 - [ ] Independent audit
 - [ ] Merge/post-merge proof where applicable
 - [ ] Final handover
 
 ## Current Gate
-`WP05-G3 — accepted Tier 1 design; bounded P01/P02 package briefs and implementation gate preparation (implementation not yet authorised).`
+`WP05-G3 — Tier 1 design accepted; P01 and P02 implemented and merged; MDC-07 N1 awaiting independent review. Other packages (N2, N3, N4, W6, U11) await their own written briefs.`
 
 ## Gate Status
 [~] IN PROGRESS — WP05-G1 audit complete and WP05-G2 Tier 1 design accepted; WP05 remains open
@@ -51,16 +51,16 @@ Confirmed PRM defects: C1 (Supersede needs loaded record), C2 (candidate scope c
 Entry criteria must be satisfied and the work pack explicitly started.
 
 ## Next gate
-Prepare and review bounded P01 and P02 Claude implementation briefs, then seek separate implementation authorisation. No package implementation or merge is implied by G2 acceptance. Tier 2 consolidation stays conditional.
+Independent review and owner acceptance of the N1 draft PR; then N2/N3/N4/W6 briefs. Signed-in populated-data acceptance of P01, P02 and N1. Tier 2 consolidation stays conditional and unapproved.
 
 ## Server changes
 None.
 
 ## Client changes
-None (documentation only). Proposed packages: A6.
+Merged 3 Nov 2026: P02 Production Route corrections (#131, `COSTING_PRM_CORRECTIONS_V1` default OFF) and P01 Readiness usability (#132). Navigation package N1 is a draft PR (see [WP-07](WP-07-COSTING-NAVIGATION.md)). Remaining packages: A6.
 
 ## Tests / verification
-Baseline suite only: 408/408 LF and CRLF on `3d0b618` — A7.
+Audit baseline 408/408 LF and CRLF on `3d0b618` (A7). **Combined post-merge baseline on `main` `86f1c18`: 471/471 LF and CRLF, 0 skipped** (3 Nov 2026; [WP-07](WP-07-COSTING-NAVIGATION.md)). The 393/408/471 figures are different heads and are not additive.
 
 ## Decisions created
 Owner accepted Tier 1 design on 2 Nov 2026 (see Approved design / contract); unresolved server-governance and Tier 2 decisions remain separately gated.

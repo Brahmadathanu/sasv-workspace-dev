@@ -1,6 +1,8 @@
 # WP05-A6 — Bounded Claude implementation-package plan (2 Nov 2026)
 
-**PLAN ONLY. Nothing here is authorised.** Packages start only after WP05 design acceptance and a written owner brief per [CLAUDE_CLOUD_WORKFLOW.md](CLAUDE_CLOUD_WORKFLOW.md) (one brief, one draft PR, never merge; sequential merges on the owner's exact sentence). Client-only; no migrations; new behaviour behind a default-OFF flag where it changes behaviour; no approval-preview RPC against production; migration `20261015045233` untouched; cache bump only on an owner-approved release pack, coordinated with Jarvis.
+> **Status 3 Nov 2026:** P02 (#131) and P01 (#132) are merged. N1 is implemented on a draft PR (not merged; see [WP-07](WP-07-COSTING-NAVIGATION.md)). N2, N3, N4, W6 and U11 are not started. The post-merge baseline is **471** tests (LF and CRLF), replacing the 408 below.
+
+**PLAN ONLY for packages not yet briefed. Nothing here is authorised beyond a written owner brief.** Packages start only after WP05 design acceptance and a written owner brief per [CLAUDE_CLOUD_WORKFLOW.md](CLAUDE_CLOUD_WORKFLOW.md) (one brief, one draft PR, never merge; sequential merges on the owner's exact sentence). Client-only; no migrations; new behaviour behind a default-OFF flag where it changes behaviour; no approval-preview RPC against production; migration `20261015045233` untouched; cache bump only on an owner-approved release pack, coordinated with Jarvis.
 
 Baseline for every package: current `main` (re-verify SHA); test baseline 408/408 on LF and CRLF ([A7](WP05_A7_REGRESSION_EVIDENCE_2026-11-02.md)).
 

@@ -11,6 +11,8 @@ See MASTER_PROGRAMME.md and the approved programme handoff. This file is the dur
 ## Entry criteria
 All prerequisite work packs in MASTER_PROGRAMME.md are completed and verified.
 
+*3 Nov 2026:* the WP05 Tier 1 design (A3, accepted by the owner 2 Nov 2026) and the P01/P02 packages (#132, #131) are on `main` `86f1c18`; N1 was started on the owner's written brief. MDC-07 is the Costing navigation work pack and is unrelated to the paused e-Aushadhi WP-07.
+
 ## Scope
 As defined by the approved programme handoff; refine only from audited live architecture and explicit decisions.
 
@@ -18,40 +20,62 @@ As defined by the approved programme handoff; refine only from audited live arch
 No work belonging to later gates; no guessed data; no unrelated/e-Aushadhi changes.
 
 ## Current-state findings
-Not started.
+**Gate A — combined post-merge regression (3 Nov 2026, pristine `main` `86f1c18c538eea224fd3ad8198e5527413892474`).** Cloud container, Linux 6.18, Node v22.23.4, Playwright 1.63.0 / Chromium (`/opt/pw-browsers`), no Supabase access.
+| Run | tests | pass | fail | skipped | cancelled |
+|---|---|---|---|---|---|
+| LF worktree | 471 | 471 | 0 | 0 | 0 |
+| CRLF worktree (`core.autocrlf=true`, `core.eol=crlf` persisted per worktree; `git status` clean) | 471 | 471 | 0 | 0 | 0 |
+
+Command: `node --test $(find scripts -name "*.test.*" | sort)` (29 files). Chromium tests ran (0 skipped): responsive suite, route dialogs, WP05-P02 browser acceptance. 471 is the first combined figure; it is **not** 408 + P01 + P02 arithmetic (the earlier 393/408 totals belong to earlier heads). Legacy smokes: `wp04-readiness-client-contract-smoke.mjs` passes; of the 63 `production-route-*-smoke.mjs` scripts, **51 fail on pristine main** (examples: stale `hub-cache-v299` pins, archived-routes subgroup pin) and 13 pass. These are known legacy failures, not regressions: the identical 51 fail on the N1 branch (`diff` of the failing sets is empty). Other smokes (about 95, mostly e-Aushadhi/unrelated) were not run.
+
+## MDC-07 package N1 — shared navigation contract (implemented 3 Nov 2026; draft PR, not merged)
+**Flag:** `COSTING_NAV_GROUPS_V1` in `costing-feature-flags.js`; default OFF; enabled only by the exact browser `localStorage` value `1`; independent of `COSTING_PRM_CORRECTIONS_V1`. Not activated for any user.
+
+**Architecture (presentation only; no permission, route, lens id, controller, RPC or payload changed):**
+* `costing-nav-groups.js` — the single reusable contract `COSTING_NAV_GROUP_CONTRACT` (suite id → ordered groups with stable `id`, `label`, `contextLabel`, ordered `lensIds`), the resolver `resolveNavGroups(suiteId, allowedLensIds)` (derives from the route's allowed lens ids; drops unknown ids; any lens the contract does not name falls into a trailing "More" group so no destination can disappear), `validateNavGroupContract()`, the string renderers (`role="group"` pill groups, narrow-screen `<optgroup>` select) and the static data-basis table (`LIVE_AS_OF`, `RUN_SCOPED`, `FIXED_HISTORICAL`). Groups follow WP05-A3: CCC Overview / Workbench / SKU Review; MCM Rates / Traces; CBM Mapping & classification / Provisions / Policy approval; CSR Review / Documents / Action Queues; **PRM Readiness / Assign & Map / Build / Review / History**. Pricing Policy: the compatible workspace contract `COSTING_PPM_NAV_GROUP_CONTRACT` (5 groups covering all 10 workspaces) is defined but `controllerManaged`; the shell does not render it — the PPM controller keeps its own navigation until W6, so there is no competing second navigation system.
+* `costing-nav-context.js` — display-only context store/model: chips for Product, Family, Route, governed Period and Run, a basis chip, and the breadcrumb Module › Group › Lens. A chip exists only for a value that was supplied (no defaults, no inference, no lifecycle or costing calculation, no RPC). A run on a fixed-historical lens is labelled "Run (fixed historical)"; the basis text for those lenses states "not the current costing run"; no fixed run number (80/82) is embedded in N1. `costingNavContext.set(...)` is the interface N4 will use; N1 does not implement Product Route context persistence.
+* `costing-suite-shell.js` (navigation-specific parts only): `isNavGroupsActive()` gates three small branches in `renderLensPills` (grouped pills, grouped select) plus `refreshNavContextBar()`. The pill buttons keep `class="pill"`, `data-lens` and the existing `switchLens` click handler, so deep links, `?lens=`, URL sync and permission handling are untouched. The shell period is shown only for period-scoped lenses.
+* `sasv-costing.css`: one appended block, all selectors `body.sasv-costing …`, no `!important`, no hidden overflow. At ≤520 px the existing responsive rule still swaps pills for the select (now with option groups); at 521–900 px the group strip scrolls horizontally inside its own container.
+* `registry` and `route-config` are consumed, not edited (their invariants are pinned by tests).
+
+**Flag-OFF parity evidence:** `scripts/costing-nav-groups/off-parity-snapshot.mjs` snapshots the navigation chrome (suite label, `#lensPills`, `#lensSelect`, active lens, URL) and page title for every deep link of all six pages at 390 and 1280 px (PPM workspaces and legacy lens ids included) with the flag absent; run against pristine main and the branch the JSON outputs are __PARITY__. Source tests additionally pin the original flat-pill and select branches verbatim, and the OFF path of `refreshNavContextBar()` does nothing unless a bar was inserted.
+
+**Tests added (`scripts/costing-nav-groups/`):** `nav-groups.test.mjs` (21; flag exact-`1` and independence, 6 modules / 32 lens ids / route-config snapshot, contract soundness, PRM five groups, renderers and escaping, context never invents values, basis distinctness, source: no RPC/Supabase/storage/date maths in new modules, shell data-access names equal the pre-N1 baseline, CSS scoping, PPM contract covers 10 workspaces), `nav-groups-browser.test.mjs` (12 genuine Chromium interaction tests: all 6 pages ON, PPM unchanged, OFF markup, all 30 non-PPM `?lens=` deep links plus PPM legacy lens/workspace URLs, ON/OFF deep-link parity, SC5 redirect, click-through navigation, narrow select, six pages × 390/520/768/900/1280 overflow, horizontal scrolling at 768/900, ARIA/keyboard/focus ring, chips and Historical-vs-LIVE_AS_OF), `nav-groups-prm-integration.test.mjs` (4; identical RPC name+payload sequence ON vs OFF over a 13-lens click-through, zero writes, P02 candidate controls and P01 Readiness unaffected). Additive optional `storage` parameter on the P02 test harness `openPage`. Totals on the branch: __BRANCH_TOTALS__.
+
+**Limitations / not done by N1 (by design):** no controller changes (N2 role-aware trace tabs, N3 cross-links, N4 selected Product/Family/Route persistence and chip feeding, W6 PPM grouping); the "Evidence & Review" sub-grouping inside the PRM Review group is deferred to N4; the shell does not yet feed Product/Family/Route/Run chips (only the governed period and the static basis); mock-backend browser tests only — signed-in populated-data acceptance is outstanding and required before the flag is considered for activation.
 
 ## Approved design / contract
 Not yet approved.
 
 ## Milestones
-- [ ] Current-state/audit gate
-- [ ] Design/contract gate where applicable
-- [ ] Implementation gate where applicable
+- [x] Current-state/audit gate (WP05 A1–A7, merged #130)
+- [x] Design/contract gate where applicable (A3 Tier 1, owner-accepted 2 Nov 2026)
+- [~] Implementation gate where applicable — N1 implemented on a draft PR; N2/N3/N4/W6/U11 not started
 - [ ] Focused verification
 - [ ] Independent audit
 - [ ] Merge/post-merge proof where applicable
 - [ ] Final handover
 
 ## Current Gate
-`WP07-G0 — entry criteria / not started`
+`MDC-07-N1 — implemented on a draft PR; awaiting independent review and owner acceptance. No merge, flag activation or further package is implied.`
 
 ## Gate Status
-[ ] NOT STARTED
+[~] IN PROGRESS — N1 delivered for review; N2, N3, N4, W6, U11 outstanding
 
 ## Required to close
 Entry criteria must be satisfied and the work pack explicitly started.
 
 ## Next gate
-To be determined from evidence when this WP becomes active.
+Independent review of the N1 draft PR; owner decision; then sequential briefs N2 → N3 → N4 → W6 → U11 (A6 §2). Each later package consumes the N1 contract and must not edit the registry, route config, shell navigation or the shared CSS block.
 
 ## Server changes
 None.
 
 ## Client changes
-None.
+N1 (draft PR): `costing-nav-groups.js`, `costing-nav-context.js`, flag in `costing-feature-flags.js`, flag-gated navigation branches in `costing-suite-shell.js`, appended CSS block. No HTML, registry, route-config, controller, Supabase or migration change.
 
 ## Tests / verification
-None.
+See Gate A and the N1 section above. Not performed: signed-in populated-data acceptance, live PWA/cache check, global smoke run.
 
 ## Decisions created
 None.
