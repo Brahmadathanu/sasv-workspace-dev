@@ -220,7 +220,7 @@ test("source: flag OFF keeps both native prompts verbatim; ON path is gated befo
 
 test("source: ON path calls the same editor/candidates methods with the same argument shapes (payload parity)", () => {
   assert.match(SRC, /await editor\.supersedeProduct\(\{ new_product_route_id: newId \}\);/);
-  assert.equal((SRC.match(/editor\.supersedeProduct\(/g) || []).length, 2, "legacy + dialog, nothing else");
+  assert.equal((SRC.match(/editor\.supersedeProduct\(/g) || []).length, 3, "legacy + CW-06 dialog + WP05-P02 gated selector (COSTING_PRM_CORRECTIONS_V1), nothing else");
   assert.equal((SRC.match(/candidates\.createRouteFamily\(\{\s*route_family_name: (?:familyName|name),/g) || []).length, 2);
   assert.doesNotMatch(read("public/shared/js/costing-dialogs-route-input.js"), /\.rpc\(|costingRpc|supabase|insert|upsert|\.from\(/, "dialog module has no data access");
   const dialogSrc = read("public/shared/js/costing-dialogs-route-input.js");
@@ -358,7 +358,8 @@ test("Cancel before any write closes once with restorePrevious and never writes"
 });
 
 test("source: both route-screen dialogs pass showToast as notify; RPC calls and OFF-path prompts unchanged", () => {
-  assert.equal((SRC.match(/notify: showToast,/g) || []).length, 2);
+  // CW-06 supersede + family dialogs, plus the WP05-P02 gated supersede selector.
+  assert.equal((SRC.match(/notify: showToast,/g) || []).length, 3);
   assert.match(SRC, /const newId = window\.prompt\("New approved draft route ID:", ""\);/);
   assert.match(SRC, /const name = window\.prompt\("Manufacturing Route Family name:", ""\);/);
   assert.match(SRC, /await editor\.supersedeProduct\(\{ new_product_route_id: newId \}\);/);

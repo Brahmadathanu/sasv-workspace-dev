@@ -242,6 +242,17 @@ import {
   resolveRouteFamilyRouteStateFromHistory,
 } from "./costing-suite-production-route-rpc.js";
 import { isCostingDialogsV1Enabled } from "./costing-feature-flags.js";
+import {
+  FIXED_HISTORICAL_CONTEXT_NOTE,
+  isCostingPrmCorrectionsV1Enabled,
+  SUPERSEDE_NO_REPLACEMENT_NOTE,
+  createSupersedeSelectionValidator,
+  formatSupersedeOptionLabel,
+  prmRouteHeaderStatus,
+  resolveCandidateScope,
+  resolveSupersedeGate,
+  selectSupersedeReplacementRoutes,
+} from "./costing-suite-production-route-corrections.js";
 import { openDuplicateFamilySequenceSubmitModal } from "./costing-dialogs-duplicate-sequence.js";
 import {
   FAMILY_DIALOG_TITLE,
@@ -538,6 +549,8 @@ export function createProductionRouteController(deps = {}) {
     selectedProductId: null,
     productRouteCreateHandoff: null,
     productRouteReentryChooser: null,
+    supersedeChoices: null, // WP05-P02 (flag ON only): { key, status, versions } for the loaded Product route
+    candidateScope: null, // WP05-P02 (flag ON only): user's candidate scope selection, kept across repaints
     selectedProductRouteId: null,
     selectedRouteFamilyId: null,
     selectedFamilyRouteId: null,
@@ -2422,7 +2435,21 @@ export function createProductionRouteController(deps = {}) {
   function exactRunContextHtml(context = PRM_EXACT_RUN_CONTEXT) {
     return `<p class="cp-muted-text cp-prm-exact-run" data-prm-exact-run>${text(
       formatPrmExactRunContextCue(context),
+    )}</p>${fixedHistoricalNoteHtml()}`;
+  }
+
+  /** WP05-P02 label (flag ON only): states that the Run context on this lens is a fixed historical one. */
+  function fixedHistoricalNoteHtml() {
+    if (!isCostingPrmCorrectionsV1Enabled()) return "";
+    return `<p class="cp-muted-text cp-prm-fixed-context" data-prm-fixed-historical-context>${text(
+      FIXED_HISTORICAL_CONTEXT_NOTE,
     )}</p>`;
+  }
+  function fixedHistoricalSpanHtml() {
+    if (!isCostingPrmCorrectionsV1Enabled()) return "";
+    return `<span class="cp-prm-mapping-review-meta-sep" aria-hidden="true">·</span><span data-prm-fixed-historical-context>${text(
+      FIXED_HISTORICAL_CONTEXT_NOTE,
+    )}</span>`;
   }
 
   function readinessAsOfContextHtml() {
@@ -6003,7 +6030,7 @@ export function createProductionRouteController(deps = {}) {
     await openFamilySummary(row, { fromStackRestore: false });
   }
 
-  function openCreateFamilyModal() {
+  function openCreateFamilyModal({ notice = "" } = {}) {
     if (!canEdit()) {
       showToast?.("Edit permission required.", "warning");
       return;
@@ -6013,7 +6040,9 @@ export function createProductionRouteController(deps = {}) {
       subtitle: "Family master only — no Product Group is mapped automatically",
       html: formShell({
         notice:
-          "Enter the governed Family identity below. You can approve and map Product Groups after creation.",
+          (notice
+            ? text(notice)
+            : "Enter the governed Family identity below. You can approve and map Product Groups after creation."),
         sectionTitle: "Family identity",
         fieldsHtml: [
           formField({
@@ -7838,6 +7867,8 @@ export function createProductionRouteController(deps = {}) {
     const table = document.getElementById("mainTable");
     if (table) table.style.display = "";
     clearLensOwnedDom();
+    // WP05-P02 (flag ON): the summary host carries the fixed Run context cue and is hidden by default.
+    if (isCostingPrmCorrectionsV1Enabled()) host.summary?.classList?.add("is-visible");
     if (table) table.setAttribute("data-prm-workload-table", "1");
     bindWorkloadInfiniteScroll(host.tableWrap);
     const headers = [
@@ -8339,7 +8370,7 @@ export function createProductionRouteController(deps = {}) {
       title="${text(immutability)}"
       aria-description="${text(immutability)}"
     >
-      <span data-prm-mapping-review-frozen>Frozen: Run ${text(runId)} · ${text(periodLabel)} · Valuation ${text(valuationLabel)}</span>
+      <span data-prm-mapping-review-frozen>Frozen: Run ${text(runId)} · ${text(periodLabel)} · Valuation ${text(valuationLabel)}</span>${fixedHistoricalSpanHtml()}
       <span class="cp-prm-mapping-review-meta-sep" aria-hidden="true">·</span>
       <span data-prm-mapping-review-asof>Current source: ${text(asOfLabel)}</span>
       <span class="cp-prm-mapping-review-meta-sep" aria-hidden="true">·</span>
@@ -8635,7 +8666,7 @@ export function createProductionRouteController(deps = {}) {
       title="${text(immutability)}"
       aria-description="${text(immutability)}"
     >
-      <span data-prm-foundation-review-frozen>Frozen: Run ${text(runId)} · ${text(periodLabel)} · Valuation ${text(valuationLabel)}</span>
+      <span data-prm-foundation-review-frozen>Frozen: Run ${text(runId)} · ${text(periodLabel)} · Valuation ${text(valuationLabel)}</span>${fixedHistoricalSpanHtml()}
       <span class="cp-prm-foundation-meta-sep" aria-hidden="true">·</span>
       <span data-prm-foundation-review-asof>Current source: ${text(asOfLabel)}</span>
       <span class="cp-prm-foundation-meta-sep" aria-hidden="true">·</span>
@@ -9709,6 +9740,10 @@ export function createProductionRouteController(deps = {}) {
       return;
     }
     const createOptions = createMode ? buildProductRouteCreateRenderOptions() : {};
+    const correctionOptions =
+      mode === "product" && !createMode && isCostingPrmCorrectionsV1Enabled()
+        ? buildProductEditorCorrectionOptions()
+        : {};
     const familyEmpty =
       mode === "family" && !editor.getFamilyState?.()?.detail;
     const familyEmptyOptions = familyEmpty
@@ -9724,7 +9759,9 @@ export function createProductionRouteController(deps = {}) {
       createMode,
       ...createOptions,
       ...familyEmptyOptions,
+      ...correctionOptions,
     });
+    bindProductEditorPicker(lensRoot);
     if (familyEmpty) {
       const selectEl = lensRoot.querySelector("[data-prm-family-empty-select]");
       if (selectEl) {
@@ -9739,6 +9776,181 @@ export function createProductionRouteController(deps = {}) {
       void refreshFamilyRouteEmptyContext(lensRoot);
     }
     bindEditor(lensRoot, mode);
+  }
+
+  // ---- WP05-P02 (COSTING_PRM_CORRECTIONS_V1 only) -------------------------------------------------------------
+  // Strict: the loaded route's own product_id (the detail header is a whole table row, so it carries one). No
+  // fallback to URL/selection state - supersession eligibility fails closed when the route's product is unknown.
+  function productEditorHeader() {
+    const detail = editor.getProductState?.()?.detail;
+    return detail ? { ...detail } : null;
+  }
+
+  // Async-race protection (flag ON): every history request is tagged; only the newest request for the route that
+  // is STILL loaded may populate the supersede gate or open a dialog.
+  let supersedeChoicesSeq = 0;
+  let supersedeOpening = false;
+  const loadedProductRoute = () => {
+    const header = productEditorHeader();
+    return {
+      routeId: header ? resolvePrmProductHistoryRouteId(header) : null,
+      productId: header ? normalizePrmIntegerId(header.product_id) : null,
+    };
+  };
+  const editorLensStillActive = () => state.activeLens === "product-route-editor";
+
+  function buildProductEditorCorrectionOptions() {
+    const header = productEditorHeader();
+    if (!header) {
+      return {
+        productPickerHtml: `<div class="cp-prm-actions cp-prm-editor-product-picker">
+          <label class="cp-field-label" for="prmProductEditorProduct">Select Product</label>
+          <select id="prmProductEditorProduct" class="cp-period-select" aria-label="Search or select Product">${buildEffectiveViewerProductOptionsHtml(state.selectedProductId)}</select>
+        </div>
+        <p class="cp-muted-text">Choosing a Product opens its route, or lists its route versions to choose from.</p>`,
+      };
+    }
+    const routeId = resolvePrmProductHistoryRouteId(header);
+    const productId = normalizePrmIntegerId(header.product_id);
+    let choices = null;
+    if (routeId != null && productId != null && canonicalPrmRouteStatus(prmRouteHeaderStatus(header)) === "APPROVED") {
+      const key = `${productId}:${routeId}`;
+      if (state.supersedeChoices?.key !== key) {
+        const seq = (supersedeChoicesSeq += 1);
+        state.supersedeChoices = { key, seq, status: "loading", versions: [] };
+        loadProductHistory(productId)
+          .catch(() => ({ ok: false, versions: [] }))
+          .then((result) => {
+            // Outdated response (newer request, other route, cleared choices, lens left): drop it.
+            if (state.supersedeChoices === null && editorLensStillActive()) {
+              // Cleared by an action while in flight: this answer predates it. Re-render to ask again.
+              const cur = loadedProductRoute();
+              if (`${cur.productId}:${cur.routeId}` === key) paintAcceptedPrmLens();
+              return;
+            }
+            if (state.supersedeChoices?.seq !== seq || state.supersedeChoices?.key !== key) return;
+            const now = loadedProductRoute();
+            if (!editorLensStillActive() || `${now.productId}:${now.routeId}` !== key) return;
+            state.supersedeChoices = {
+              key,
+              seq,
+              status: result?.ok ? "ready" : "error",
+              versions: result?.versions || [],
+            };
+            paintAcceptedPrmLens();
+          });
+      }
+      choices = state.supersedeChoices;
+    } else if (canonicalPrmRouteStatus(prmRouteHeaderStatus(header)) === "APPROVED") {
+      // Approved but the route's own id/product is unknown: eligibility cannot be established (fail closed).
+      choices = { status: "error", versions: [] };
+    }
+    return {
+      supersedeGate: resolveSupersedeGate({ header, choices }),
+      showRouteHistory: true,
+    };
+  }
+
+  function bindProductEditorPicker(lensRoot) {
+    const selectEl = lensRoot?.querySelector?.("#prmProductEditorProduct");
+    if (!selectEl) return;
+    enhanceSearchableSelect(selectEl, {
+      placeholder: "Search or select Product",
+      allowEmptyOption: true,
+      openOnFocus: true,
+      showAllWhenEmpty: true,
+      clearSelectedOnBackspace: true,
+    });
+    on(selectEl, "change", () => {
+      const pid = normalizePrmIntegerId(selectEl.value);
+      if (pid == null) return;
+      // Same navigation the Product Summary hand-off uses: the loader opens the single current route or lists the
+      // Product's route versions to choose from. No route id is guessed here.
+      navigate("product-route-editor", { product_id: pid });
+    });
+  }
+
+  async function openSupersedeSelectorDialog() {
+    if (supersedeOpening) return; // repeated click while the history request is in flight
+    const header = productEditorHeader();
+    const oldRouteId = header ? resolvePrmProductHistoryRouteId(header) : null;
+    const productId = header ? normalizePrmIntegerId(header.product_id) : null;
+    if (
+      oldRouteId == null ||
+      productId == null ||
+      canonicalPrmRouteStatus(prmRouteHeaderStatus(header)) !== "APPROVED"
+    ) {
+      showToast?.("Only an approved Product route can be superseded.", "warning");
+      return;
+    }
+    // Fresh history at open time: eligibility must reflect the server's current rows, not a cached list.
+    supersedeOpening = true;
+    let history;
+    try {
+      history = await loadProductHistory(productId);
+    } finally {
+      supersedeOpening = false;
+    }
+    if (!history.ok) {
+      showToast?.("Replacement routes could not be determined. Nothing was changed.", "warning");
+      return;
+    }
+    {
+      // The user may have switched route/product or left the lens while the request was in flight.
+      const now = loadedProductRoute();
+      if (!editorLensStillActive() || now.routeId !== oldRouteId || now.productId !== productId) return;
+    }
+    const candidates = selectSupersedeReplacementRoutes({
+      oldRouteId,
+      productId,
+      versions: history.versions,
+    });
+    if (!candidates.length) {
+      showToast?.(SUPERSEDE_NO_REPLACEMENT_NOTE, "info");
+      return;
+    }
+    const currentRouteId = () =>
+      resolvePrmProductHistoryRouteId(editor.getProductState?.()?.detail || {});
+    const named = [header.product_name, header.version_label || header.version]
+      .filter(Boolean)
+      .join(" · ");
+    await openRouteTextPromptModal({
+      title: SUPERSEDE_DIALOG_TITLE,
+      subtitle: "Replaces this approved route with another approved version of the same Product",
+      fieldId: "prmSupersedeNewRouteId",
+      label: "Replacement approved route",
+      hint: "Only other approved versions of this Product are listed. The server validates the pair and sets the ending date.",
+      notice: `Route being superseded: ${named ? `${named} · ` : ""}ID ${oldRouteId}.`,
+      selectOptions: candidates.map((row) => ({
+        value: String(resolvePrmProductHistoryRouteId(row)),
+        label: formatSupersedeOptionLabel(row),
+      })),
+      selectPlaceholder: "Select replacement route…",
+      submitLabel: "Supersede",
+      keepOpenOnFailure: true,
+      validate: createSupersedeSelectionValidator(candidates),
+      isStale: () => currentRouteId() !== oldRouteId,
+      onSubmit: async (newId) => {
+        const response = await editor.supersedeProduct({ new_product_route_id: newId });
+        if (!response?.ok) return response;
+        showToast?.("Product route superseded.", "success");
+        state.supersedeChoices = null;
+        if (state.selectedProductRouteId) {
+          await editor.loadProductDetail(state.selectedProductRouteId);
+        }
+        paintAcceptedPrmLens();
+        return response;
+      },
+      openModal,
+      closeModal,
+      formShell,
+      formField,
+      onModal,
+      withMutation,
+      isDetailsModalOpen,
+      escapeHtml: text,
+      notify: showToast,
+    });
   }
 
   function buildProductRouteCreateRenderOptions() {
@@ -10118,6 +10330,9 @@ export function createProductionRouteController(deps = {}) {
 
   function bindEditor(host, mode) {
     on(host, "click", async (event) => {
+      if (mode === "product" && isCostingPrmCorrectionsV1Enabled()) {
+        state.supersedeChoices = null; // any action may change route statuses: re-check before the next paint
+      }
       if (mode === "product") {
         const createDraft = event.target.closest(
           "[data-prm-action='create-product-draft']",
@@ -10406,12 +10621,39 @@ export function createProductionRouteController(deps = {}) {
         openApproveFamilyRouteModal();
         return;
       }
+      if (action === "product-route-history" && mode === "product") {
+        // WP05-P02 (flag ON): choose another version of this Product's route from its history.
+        if (supersedeOpening) return;
+        const header = productEditorHeader();
+        const pid = normalizePrmIntegerId(header?.product_id ?? state.selectedProductId);
+        if (pid == null) {
+          showToast?.("Product is required to load route history.", "warning");
+          return;
+        }
+        const before = loadedProductRoute();
+        supersedeOpening = true;
+        let history;
+        try {
+          history = await loadProductHistory(pid);
+        } finally {
+          supersedeOpening = false;
+        }
+        if (!history.ok) return;
+        const after = loadedProductRoute();
+        if (!editorLensStillActive() || after.routeId !== before.routeId) return;
+        openHistoryModal("Product route history", history.versions, "product", null, pid);
+        return;
+      }
       if (action === `supersede-${mode}`) {
         if (mode === "family") {
           showToast?.(
             "Manual supersede is not the normal workflow. Use Clone as New Version, then Approve the successor.",
             "info",
           );
+          return;
+        }
+        if (isCostingPrmCorrectionsV1Enabled()) {
+          await openSupersedeSelectorDialog();
           return;
         }
         if (isCostingDialogsV1Enabled()) {
@@ -10747,11 +10989,24 @@ export function createProductionRouteController(deps = {}) {
     const lensRoot = ensureLensRoot("historical-candidate-review");
     const bodyRoot = document.createElement("div");
     lensRoot.appendChild(bodyRoot);
+    // WP05-P02 (flag ON): show the scope controls and keep the user's / deep-link selection. Flag OFF renders
+    // exactly as before (controls inside the hidden summary host, nothing preselected).
+    const fixCandidateScope = isCostingPrmCorrectionsV1Enabled();
+    const scope = fixCandidateScope
+      ? resolveCandidateScope({
+          scope: state.candidateScope,
+          deepLink: state.deepLink,
+          selectedRouteFamilyId: state.selectedRouteFamilyId,
+          selectedProductId: state.selectedProductId,
+        })
+      : { familyId: "", productId: "", groupIds: [] };
+    const sel = (value, wanted) =>
+      fixCandidateScope && wanted != null && wanted !== "" && String(value) === String(wanted);
     host.summary.innerHTML = `<div class="cp-prm-candidate-controls">
       <div class="cp-prm-actions">
-        <label>Approved Manufacturing Route Family<select id="prmCandidateFamily" class="cp-period-select"><option value="">Select family</option>${state.routeFamilies.map((family) => option(family.route_family_id ?? family.id, family.route_family_name || family.family_name)).join("")}</select></label>
-        <label>Product Groups (Mode B)<select id="prmCandidateGroups" class="cp-period-select" multiple>${state.productGroups.map((group) => option(group.product_group_id ?? group.id, hierarchy(group))).join("")}</select></label>
-        <label>Product<select id="prmCandidateProduct" class="cp-period-select"><option value="">Select Product</option>${state.products.map((product) => option(product.product_id ?? product.id, product.product_name || product.name)).join("")}</select></label>
+        <label>Approved Manufacturing Route Family<select id="prmCandidateFamily" class="cp-period-select"><option value="">Select family</option>${state.routeFamilies.map((family) => { const id = family.route_family_id ?? family.id; return option(id, family.route_family_name || family.family_name, sel(id, scope.familyId)); }).join("")}</select></label>
+        <label>Product Groups (Mode B)<select id="prmCandidateGroups" class="cp-period-select" multiple>${state.productGroups.map((group) => { const id = group.product_group_id ?? group.id; return option(id, hierarchy(group), fixCandidateScope && scope.groupIds.includes(String(id))); }).join("")}</select></label>
+        <label>Product<select id="prmCandidateProduct" class="cp-period-select"><option value="">Select Product</option>${state.products.map((product) => { const id = product.product_id ?? product.id; return option(id, product.product_name || product.name, sel(id, scope.productId)); }).join("")}</select></label>
       </div>
       <div class="cp-prm-actions">
         <button class="icon-btn" data-prm-candidate="family-a">Preview family evidence</button>
@@ -10761,6 +11016,7 @@ export function createProductionRouteController(deps = {}) {
       </div>
     </div>`;
     bodyRoot.innerHTML = candidates.render();
+    if (fixCandidateScope) host.summary.classList.add("is-visible");
     bindCandidates({ ...host, candidates: bodyRoot });
   }
 
@@ -10775,6 +11031,9 @@ export function createProductionRouteController(deps = {}) {
       const productGroupIds = [
         ...(document.getElementById("prmCandidateGroups")?.selectedOptions || []),
       ].map((item) => Number(item.value));
+      if (isCostingPrmCorrectionsV1Enabled()) {
+        state.candidateScope = { familyId, productId, groupIds: productGroupIds };
+      }
       if (kind === "family-a") {
         await candidates.previewFamilyCandidate({
           route_family_id: familyId,
@@ -10812,6 +11071,16 @@ export function createProductionRouteController(deps = {}) {
         await candidates.requestUseInDraft(step || {});
       }
       if (event.target.closest("[data-prm-create-family]")) {
+        if (isCostingPrmCorrectionsV1Enabled()) {
+          // WP05-P02: hand off to the governed Route Family creation modal (user types BOTH the family code and
+          // the name; the code is never generated or derived). Failures keep that modal open; success is only
+          // reported after the server accepted the request.
+          openCreateFamilyModal({
+            notice:
+              "Opened from Historical Evidence Review. Enter the governed Family code and name; no Product Group is mapped by creating a Family.",
+          });
+          return;
+        }
         if (isCostingDialogsV1Enabled()) {
           // CW-06: in-page dialog; same candidates.createRouteFamily call and payload as the native prompt below.
           const openedLens = state.activeLens;
@@ -11080,6 +11349,7 @@ export function createProductionRouteController(deps = {}) {
       return finalizePrmLoad(token, active, result);
     }
     if (active === "product-route-editor") {
+      state.supersedeChoices = null; // never reuse a gate computed for an earlier visit/route
       const productRouteId = normalizePrmIntegerId(deepLink.product_route_id);
       const productId = normalizePrmIntegerId(deepLink.product_id);
       state.selectedProductRouteId = productRouteId;
@@ -11157,6 +11427,7 @@ export function createProductionRouteController(deps = {}) {
       if (acceptedCandidates.stale) return acceptedCandidates;
       state.selectedRouteFamilyId = deepLink.route_family_id || null;
       state.selectedProductId = deepLink.product_id || null;
+      state.candidateScope = null;
       return acceptedCandidates;
     }
     if (active === "effective-route-viewer") {

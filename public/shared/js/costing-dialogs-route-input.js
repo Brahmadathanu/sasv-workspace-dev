@@ -26,6 +26,15 @@ export const STALE_ROUTE_MESSAGE =
 export const GENERIC_SUBMIT_ERROR =
   "Unable to confirm whether the request completed. Refresh or check the current route or family state before retrying.";
 
+/** Reason text for a returned { ok: false }: the server/builder message as given, else a neutral line. */
+export function failureReason(result) {
+  const message =
+    (typeof result?.error?.message === "string" && result.error.message) ||
+    (Array.isArray(result?.errors) && result.errors.filter(Boolean).join("; ")) ||
+    "";
+  return message || "The request was not completed. Check the message shown on screen before retrying.";
+}
+
 /** New approved draft route id: required positive whole number, not the route being superseded. */
 export function validateSupersedeRouteId(raw, { currentRouteId = null } = {}) {
   const value = String(raw ?? "").trim();
@@ -59,6 +68,10 @@ export function openRouteTextPromptModal({
   hint = "",
   inputType = "text",
   inputMode = "",
+  notice = "", // opt-in: plain-text context line (escaped), e.g. which route is being superseded
+  selectOptions = null, // opt-in: [{ value, label }] renders a labelled <select> instead of a text input
+  selectPlaceholder = "Select…",
+  keepOpenOnFailure = false, // opt-in: a returned { ok: false } keeps the dialog open and shows the reason
   submitLabel = "Submit",
   validate,
   isStale = () => false,
@@ -90,8 +103,23 @@ export function openRouteTextPromptModal({
         subtitle,
         html: formShell({
           sectionTitle: "",
+          notice: notice ? escapeHtml(notice) : "",
           fieldsHtml:
-            formField({ id: fieldId, label, type: inputType, required: true, full: true, hint }) +
+            (Array.isArray(selectOptions)
+              ? formField({
+                  id: fieldId,
+                  label,
+                  type: "select",
+                  required: true,
+                  full: true,
+                  hint,
+                  optionsHtml:
+                    `<option value="">${escapeHtml(selectPlaceholder)}</option>` +
+                    selectOptions
+                      .map((o) => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`)
+                      .join(""),
+                })
+              : formField({ id: fieldId, label, type: inputType, required: true, full: true, hint })) +
             `<div id="${escapeHtml(errId)}" class="cp-prm-field-error" style="color:var(--sasv-danger,#b91c1c);font-size:12px;grid-column:1/-1" role="alert" aria-live="assertive" hidden></div>`,
           actionsHtml: `<button type="button" class="icon-btn" data-prm-prompt-cancel>Cancel</button><button type="button" class="icon-btn icon-btn-primary" data-prm-prompt-submit>${escapeHtml(submitLabel)}</button>`,
         }),
@@ -149,11 +177,20 @@ export function openRouteTextPromptModal({
               if (!dismissed) setCancelLocked(false);
             }
             if (dismissed) {
+              if (keepOpenOnFailure && outcome?.ran && outcome.result?.ok === false) {
+                notify(failureReason(outcome.result), "warning");
+              }
               // Closed while the write was pending: the write could not be cancelled. Do not close/restore any
               // modal again; report the outcome once it is known.
               if (outcome?.failed) notify(GENERIC_SUBMIT_ERROR, "warning");
               if (outcome?.ran) finish({ submitted: true, dismissed: true, result: outcome.result });
               else finish({ submitted: Boolean(outcome?.failed), dismissed: true, failed: Boolean(outcome?.failed) });
+              return;
+            }
+            if (keepOpenOnFailure && outcome?.ran && outcome.result?.ok === false) {
+              // The request was refused (nothing was reported as done): keep the dialog open with the reason,
+              // never close it as if it had succeeded.
+              showError(failureReason(outcome.result));
               return;
             }
             if (outcome?.ran) {
