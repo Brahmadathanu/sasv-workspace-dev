@@ -60,6 +60,49 @@ export function getSchemeComparisonDescription() {
   return SCHEME_COMPARISON_PURPOSE;
 }
 
+export const SCHEME_COMPARISON_PPM_PAGE = "pricing-policy-manager.html";
+export const SCHEME_COMPARISON_PPM_WORKSPACE = "sku-overview";
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * N3: contextual link from a Scheme Comparison row to Pricing Policy Manager › SKU Policy Overview.
+ * Navigation only (no data access, no write). Uses the existing PPM launch contract
+ * (workspace, period_start, product_id, sku_id) and the same relative page link the shell produces on shared
+ * pages. Never infers context: without the row's own period_start and sku_id there is no link; product_id is
+ * added only when the row carries it.
+ * @returns {string|null}
+ */
+export function buildPricingPolicySkuOverviewHref(row) {
+  const period = String(row?.period_start ?? "").trim();
+  const skuId = row?.sku_id;
+  if (!ISO_DATE.test(period)) return null;
+  if (skuId == null || String(skuId).trim() === "") return null;
+  const qs = new URLSearchParams();
+  qs.set("workspace", SCHEME_COMPARISON_PPM_WORKSPACE);
+  qs.set("period_start", period);
+  const productId = row?.product_id;
+  if (productId != null && String(productId).trim() !== "") {
+    qs.set("product_id", String(productId));
+  }
+  qs.set("sku_id", String(skuId));
+  return `${SCHEME_COMPARISON_PPM_PAGE}?${qs.toString()}`;
+}
+
+function escapeAttr(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function policyLinkHtml(row) {
+  const href = buildPricingPolicySkuOverviewHref(row);
+  if (!href) return "";
+  return `<div class="cp-muted-text cp-sc-policy-link"><a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer" data-sc-ppm-link="sku-overview" title="Opens Pricing Policy Manager › SKU Policy Overview in a new tab">SKU policy overview ↗</a></div>`;
+}
+
 /**
  * @param {object} deps
  * @param {Function} deps.costingFrom
@@ -104,7 +147,7 @@ export function createSchemeComparisonController(deps) {
 
   function renderTableRow(row, trAttrs) {
     return `<tr ${trAttrs}>
-      <td>${productSkuLabel(row)}</td>
+      <td>${productSkuLabel(row)}${policyLinkHtml(row)}</td>
       <td>${text(row.scheme_name)}</td>
       <td class="c-right">${formatMoney(row.ik_net_sales_realisation)}</td>
       <td class="c-right">${formatPercent(row.ik_margin_percent_after_scheme)}</td>

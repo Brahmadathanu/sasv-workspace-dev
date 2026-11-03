@@ -57,6 +57,13 @@ Not yet approved.
 - [ ] Final handover
 
 ## Current Gate
+### MDC-07 / N3 — Cost Sheet Review cross-links and Action Queues (draft PR, not merged)
+
+* **Scheme Comparison → Pricing Policy Manager › SKU Policy Overview:** each row with its own `period_start` and `sku_id` gets a "SKU policy overview ↗" anchor (inside the existing Product / SKU cell; headers, alignments, CSV export and the row-click drawer are unchanged) to `pricing-policy-manager.html?workspace=sku-overview&period_start=…&product_id=…&sku_id=…` in a new tab. `product_id` is added only when the row carries it. A row without its own period or SKU gets no link (nothing is inferred). Pure navigation: no new RPC, no write, no flag read.
+* **Action Queues:** QC and Materials & Stores remain two lenses, two controllers, two unchanged RPCs (`rpc_get_qc_action_queue`, `rpc_get_materials_stores_action_queue`; param shapes untouched) in the N1 "Action Queues" group. Each queue's detail panel gains an "Open … Action Queue" link to the sibling lens (new tab, governed period only). Existing remediation links are unchanged.
+* **Limitations:** the shell's PPM launch consumes `workspace` and `period_start`; it does not preselect a Product or SKU in SKU Policy Overview, and the queue lenses have no launch-time product filter, so `product_id`/`sku_id` are carried on the Scheme Comparison link only as the existing contract allows and the queue sibling link carries the period only. The reverse PPM → Scheme Comparison link lives in the Pricing Policy Manager controller (W6, out of N3 scope). The shell-injected `navigateToCostingRoute` is used for queue links; the Scheme Comparison anchor uses the same relative page link the shell resolves on shared pages because the shell does not inject navigation into that controller. No flag was activated, no cache bump.
+* **Tests:** `scripts/costing-cross-links/` (`cross-links.test.mjs`, `cross-links-browser.test.mjs`).
+
 `MDC-07-N1 — implemented on a draft PR; awaiting independent review and owner acceptance. No merge, flag activation or further package is implied.`
 
 ## Gate Status
