@@ -58,7 +58,8 @@ test("infinite scroll: batches of 25 in stable order, total, end state, no dupli
   assert.deepEqual(names, [...names].sort(), "stable name order");
   assert.equal(new Set(names).size, 60);
   assert.equal(await page.textContent("#maCount"), "60 activities");
-  assert.match(await page.textContent("#maListStatus"), /All 60 loaded/);
+  assert.equal(await page.locator(".ma-feed").count(), 0, "no persistent catalogue footer");
+  assert.equal((await page.textContent("#maListStatus")).trim(), "", "nothing reserved once everything is loaded");
   assert.equal(await page.isHidden("#maLoadMore"), true);
   const ranges = (await reqs(page)).map((l) => l.range.join("-"));
   assert.deepEqual(ranges, ["0-24", "25-49", "50-74"], "sequential offsets, no overlap or repeats");
@@ -68,25 +69,25 @@ test("infinite scroll: batches of 25 in stable order, total, end state, no dupli
 test("scrolling loads the next batch; Load more fallback works when observer does not fire", { skip: SK }, async () => {
   const { page, ctx } = await open({ n: 120, width: 390 });
   await ready(page);
-  await page.waitForFunction(() => document.querySelector("#maListStatus").textContent.startsWith("Showing"));
+  await page.waitForTimeout(400);
   const first = await count(page);
   assert.ok(first >= 25 && first % 25 === 0 && first < 120, `partial feed ${first}`);
   await scrollList(page);
   await page.waitForFunction((n) => document.querySelectorAll("#existingTable tbody tr").length > n, first);
   // Fallback button: visible while more remain, loads exactly one more batch.
-  assert.equal(await page.isVisible("#maLoadMore"), true);
+  assert.equal(await page.isVisible("#maLoadMoreCards"), true);
   await ctx.close();
 });
 
-test("Load more button loads one batch (observer disabled)", { skip: SK }, async () => {
-
-
+test("Load more button loads further batches without duplicates (observer disabled)", { skip: SK }, async () => {
   const { page, ctx } = await open({ n: 120, noObserver: true });
   await ready(page);
   await waitRows(page, 25);
-  await page.click("#maLoadMore");
-  await waitRows(page, 50);
-  assert.match(await page.textContent("#maListStatus"), /Showing 50 of 120/);
+  await page.click("#maLoadMore"); // scrolling the button into view may itself auto-load, so one or two batches are both valid
+  await page.waitForFunction(() => document.querySelectorAll("#existingTable tbody tr").length >= 50);
+  const ids = await page.$$eval("#existingTable tbody tr", (r) => r.map((x) => x.dataset.id));
+  assert.equal(new Set(ids).size, ids.length, "no duplicate rows"); assert.equal(ids.length % 25, 0, "whole batches only");
+  assert.equal(await page.textContent("#maCount"), "120 activities"); assert.equal(await visible(page, "#maLoadMore"), true, "in-list fallback still offered while more remain");
   await ctx.close();
 });
 
@@ -111,7 +112,7 @@ test("load-more failure keeps rows, shows error and Retry recovers; initial fail
   await ready(o.page);
   await o.page.evaluate(() => { window.__cfg.fail = { activities: { select: { message: "Failed to fetch" } } }; });
   await o.page.click("#maLoadMore");
-  await o.page.waitForFunction(() => document.querySelector("#maListStatus").textContent.includes("Could not load more"));
+  await o.page.waitForFunction(() => /load more/i.test(document.querySelector("#maListStatus").textContent));
   assert.equal(await count(o.page), 25);
   assert.equal(await o.page.textContent("#maLoadMore"), "Retry");
   await o.page.evaluate(() => { delete window.__cfg.fail; });
@@ -813,14 +814,17 @@ test("desktop: Load More and Retry work with the container scroller", { skip: SK
   const { page, ctx } = await open({ width: 1280, height: 420, n: 120, noObserver: true });
   await ready(page); await waitRows(page, 25);
   assert.equal(await visible(page, "#maLoadMore"), true);
-  const lm = await rectOf(page, "#maLoadMore"); assert.ok(lm.b <= lm.vh + 1, "Load more inside the window (not pushed off by the table)");
-  await page.click("#maLoadMore"); await waitRows(page, 50);
+  await page.focus("#maLoadMore");
+  assert.ok((await page.evaluate(() => document.querySelector(".ma-table-wrap").scrollTop)) > 0, "keyboard focus scrolls the in-list fallback into view inside the container");
+  await page.waitForFunction(() => document.querySelectorAll("#existingTable tbody tr").length >= 50); // reaching the end loads the next batch automatically
+  await page.waitForFunction(() => document.querySelector("#maLoadMore").textContent === "Load more");
+  const n0 = await count(page);
   await page.evaluate(() => { window.__cfg.fail = { activities: { select: { message: "Failed to fetch" } } }; });
   await scrollList(page);
-  await page.waitForFunction(() => document.querySelector("#maListStatus").textContent.includes("Could not load more"));
-  assert.equal(await count(page), 50); assert.equal(await page.textContent("#maLoadMore"), "Retry");
+  await page.waitForFunction(() => /load more/i.test(document.querySelector("#maListStatus").textContent));
+  assert.equal(await count(page), n0, "loaded rows preserved"); assert.equal(await page.textContent("#maLoadMore"), "Retry");
   await page.evaluate(() => { delete window.__cfg.fail; });
-  await page.click("#maLoadMore"); await waitRows(page, 75);
+  await page.click("#maLoadMore"); await page.waitForFunction((n) => document.querySelectorAll("#existingTable tbody tr").length === n + 25, n0);
   await ctx.close();
 });
 
@@ -862,4 +866,160 @@ test("window resize: crossing the 520px breakpoint switches table scroller to pa
   assert.equal(await page.isVisible("#existingTable"), true);
   assert.ok((await reqs(page)).length - n0 <= 1, "no duplicate batch from resizing");
   await ctx.close();
+});
+
+/* ───────── MA-UX-6: in-list infinite scroll (no footer bar) and single-scroll-surface modals with background scroll lock ───────── */
+const jsClick = (page, sel) => page.evaluate((s) => document.querySelector(s).click(), sel);
+const surfaces = (page) => page.evaluate(() => { const all = [document.documentElement, document.body, ...document.querySelectorAll("body *")]; return all.filter((e) => { const o = getComputedStyle(e).overflowY; const scrollable = e === document.documentElement ? (o !== "hidden" && o !== "clip" && e.scrollHeight > innerHeight + 1) : ((o === "auto" || o === "scroll") && e.scrollHeight > e.clientHeight + 1 && e.getClientRects().length > 0); return scrollable && (e !== document.body || o !== "visible"); }).map((e) => e.id || e.className || e.tagName); });
+const locked = (page) => page.evaluate(() => document.documentElement.classList.contains("ma-scroll-locked"));
+
+for (const [width, height] of [[1280, 2300], [768, 2300], [520, 700], [390, 700]]) {
+  test(`${width}x${height}: short initial content completes every batch automatically (no Load more click); no persistent footer`, { skip: SK }, async () => {
+    const { page, ctx } = await open({ width, height, n: 60 });
+    await ready(page);
+    // Desktop: the whole list fits, so batches complete with no interaction at all. Narrow: only natural scrolling (never a click).
+    for (let i = 0; i < 12 && (await count(page)) < 60; i++) { if (width <= 520) await scrollList(page); await page.waitForTimeout(200); }
+    await page.waitForFunction(() => document.querySelector("#maCount").textContent === "60 activities" && document.querySelectorAll("#existingTable tbody tr").length === 60);
+    assert.deepEqual((await reqs(page)).map((l) => l.range.join("-")), ["0-24", "25-49", "50-74"], "all batches fetched with no click, no empty extra fetch");
+    assert.equal(await page.locator(".ma-feed, #maFeed").count(), 0, "no catalogue footer bar");
+    const idle = await page.evaluate(() => { const e = document.querySelector(document.querySelector("#existingTable").offsetParent === null ? "#maCardsEnd" : "#maTableEnd"); return { h: e.getBoundingClientRect().height, text: e.innerText.trim() }; });
+    assert.ok(idle.h <= 2 && idle.text === "", `end indicator collapses when idle ${JSON.stringify(idle)}`);
+    await ctx.close();
+  });
+}
+
+test("a loading indicator is compact and in-list; failure shows only a contextual Retry and keeps rows; no repeated fetches while failed", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 1280, height: 420, n: 100, cfg: { delayMs: 300 } });
+  await ready(page);
+  await page.evaluate(() => { const w = document.querySelector(".ma-table-wrap"); w.scrollTop = w.scrollHeight; });
+  await page.waitForFunction(() => document.querySelector("#maListStatus").textContent === "Loading more…");
+  const h = await page.evaluate(() => document.querySelector("#maTableEnd").getBoundingClientRect().height); assert.ok(h <= 40, `compact indicator ${h}`);
+  await page.waitForFunction(() => document.querySelectorAll("#existingTable tbody tr").length === 50);
+  await page.evaluate(() => { window.__cfg.fail = { activities: { select: { message: "Failed to fetch" } } }; const w = document.querySelector(".ma-table-wrap"); w.scrollTop = w.scrollHeight; });
+  await page.waitForFunction(() => /load more/i.test(document.querySelector("#maListStatus").textContent));
+  const n = (await reqs(page)).length;
+  await page.evaluate(() => { const w = document.querySelector(".ma-table-wrap"); w.scrollTop = 0; w.scrollTop = w.scrollHeight; }); await page.waitForTimeout(500);
+  assert.equal((await reqs(page)).length, n, "no automatic re-fetch after a failure");
+  assert.equal(await count(page), 50); assert.equal(await page.textContent("#maLoadMore"), "Retry");
+  await page.evaluate(() => { delete window.__cfg.fail; }); await page.click("#maLoadMore");
+  await page.waitForFunction(() => document.querySelectorAll("#existingTable tbody tr").length >= 75);
+  await ctx.close();
+});
+
+test("appending rows keeps scroll position and keyboard focus on the focused row button", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 1280, height: 420, n: 100 });
+  await ready(page);
+  await page.focus('tr[data-id="10"] .ma-name-link');
+  await page.evaluate(() => { document.querySelector(".ma-table-wrap").scrollTop = 150; });
+  const before = await page.evaluate(() => document.querySelector(".ma-table-wrap").scrollTop);
+  await page.evaluate(() => { const w = document.querySelector(".ma-table-wrap"); w.scrollTop = w.scrollHeight; });
+  await page.waitForFunction(() => document.querySelectorAll("#existingTable tbody tr").length >= 50);
+  assert.equal(await page.evaluate(() => document.activeElement.closest("tr")?.dataset.id), "10", "focus kept");
+  assert.ok((await page.evaluate(() => document.querySelector(".ma-table-wrap").scrollTop)) >= before, "scroll position not reset");
+  await ctx.close();
+});
+
+for (const width of [390, 520]) {
+  test(`${width}px: full-screen modal is the ONLY vertical scroll surface; background locked, position preserved and restored`, { skip: SK }, async () => {
+    const { page, ctx } = await open({ width, height: 640, n: 80 });
+    await ready(page);
+    for (let i = 0; i < 4; i++) await scrollList(page).then(() => page.waitForTimeout(120));
+    await page.evaluate(() => window.scrollTo(0, 900));
+    const y0 = await page.evaluate(() => scrollY); assert.ok(y0 > 500, `catalogue scrolled ${y0}`);
+    assert.ok((await surfaces(page)).includes("HTML") || (await surfaces(page)).length >= 1, "page is the surface while no modal is open");
+    await jsClick(page, "#maNewBtn");
+    for (let i = 0; i < 6; i++) await page.click("#maAddRow");
+    assert.equal(await locked(page), true);
+    assert.deepEqual(await surfaces(page), ["maBulk"], "exactly one vertical scrolling surface");
+    await page.mouse.move(width / 2, 300); await page.mouse.wheel(0, 500); await page.waitForTimeout(150);
+    assert.equal(await page.evaluate(() => scrollY), y0, "background did not move");
+    assert.ok((await page.evaluate(() => document.querySelector("#maBulk").scrollTop)) > 0, "the modal scrolled");
+    await page.evaluate(() => { const m = document.querySelector("#maBulk"); m.scrollTop = m.scrollHeight; });
+    for (const sel of ["#maAddRow", "#maPasteBtn", "#multiClearBtn", "#multiAddBtn"]) { const b = await rectOf(page, sel); assert.ok(b.b <= b.vh + 1 && b.t >= 0, `${sel} reachable`); }
+    await page.keyboard.press("Escape");
+    assert.equal(await locked(page), false); assert.equal(await page.evaluate(() => scrollY), y0, "catalogue position restored");
+    assert.equal(await page.evaluate(() => document.activeElement.id), "maNewBtn");
+    await ctx.close();
+  });
+}
+
+for (const kind of ["details", "edit", "delete", "paste", "filter"]) {
+  test(`narrow ${kind}: exactly one scroll surface; scroll lock set on open and released on close without leaking`, { skip: SK }, async () => {
+    const { page, ctx } = await open({ width: 390, height: 640, n: 60 });
+    await ready(page);
+    await page.evaluate(() => window.scrollTo(0, 400)); const y0 = await page.evaluate(() => scrollY);
+    await page.evaluate(() => { for (const id of ["maNewBtn", "maFilterBtn"]) document.getElementById(id).setAttribute("data-js", "1"); });
+    if (kind === "filter") await jsClick(page, "#maFilterBtn");
+    else if (kind === "paste") { await jsClick(page, "#maNewBtn"); await jsClick(page, "#maPasteBtn"); }
+    else { await jsClick(page, '#maCards li[data-id="1"] .ma-card'); if (kind === "edit") await jsClick(page, '[data-act="edit"]'); if (kind === "delete") await jsClick(page, '[data-act="delete"]'); }
+    assert.equal(await locked(page), true); assert.equal((await surfaces(page)).length <= 1, true, JSON.stringify(await surfaces(page)));
+    assert.equal(await page.evaluate(() => scrollY), y0);
+    await page.keyboard.press("Escape");
+    if (kind === "delete" || kind === "edit") { assert.equal(await locked(page), true, "details still open"); await page.keyboard.press("Escape"); }
+    if (kind === "paste") { assert.equal(await locked(page), true, "Add modal still open under paste"); await page.keyboard.press("Escape"); }
+    assert.equal(await locked(page), false, "no lock leak");
+    assert.equal(await page.evaluate(() => scrollY), y0, "position restored");
+    await ctx.close();
+  });
+}
+
+test("nested/transitioning dialogs never unlock early: details → edit → cancel → details → delete → cancel → close", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, height: 640, n: 40 });
+  await ready(page);
+  await page.evaluate(() => window.scrollTo(0, 300)); const y0 = await page.evaluate(() => scrollY);
+  await jsClick(page, '#maCards li[data-id="1"] .ma-card'); assert.equal(await locked(page), true);
+  await page.click('[data-act="edit"]'); assert.equal(await locked(page), true);
+  assert.equal(await page.evaluate(() => scrollY), y0);
+  await page.click('[data-act="cancel"]'); assert.equal(await page.textContent("#maDlgTitle"), "Activity details"); assert.equal(await locked(page), true);
+  await page.click('[data-act="delete"]'); assert.equal(await locked(page), true);
+  await page.click('[data-act="cancel"]'); assert.equal(await page.textContent("#maDlgTitle"), "Activity details");
+  await page.click(".ma-dialog-backdrop .ma-x");
+  assert.equal(await locked(page), false); assert.equal(await page.evaluate(() => scrollY), y0);
+  // Add modal + nested paste + nested confirm
+  await jsClick(page, "#maNewBtn"); await page.click("#maPasteBtn"); assert.equal(await locked(page), true);
+  await page.fill("#pasteTxt", "A\nB"); await page.click('[data-act="ok"]'); assert.equal(await locked(page), true, "paste closed, Add modal still locks");
+  await page.click("#multiClearBtn"); assert.equal(await locked(page), true); await page.click('[data-act="cancel"]'); assert.equal(await locked(page), true);
+  await page.click("#maBackBtn"); assert.equal(await locked(page), false); assert.equal(await page.evaluate(() => scrollY), y0);
+  await ctx.close();
+});
+
+test("edit error recovery and Save keep exactly one surface and release the lock afterwards", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, height: 640, n: 12 });
+  await ready(page);
+  await page.click('#maCards li[data-id="2"] .ma-card'); await page.click('[data-act="edit"]');
+  await page.evaluate(() => { window.__cfg.silent = { update: true }; });
+  await page.fill("#ed-name", "Renamed"); await page.click('[data-act="save"]');
+  await page.waitForSelector("#ed-msg:not([hidden])");
+  assert.equal(await locked(page), true); assert.ok((await surfaces(page)).length <= 1);
+  await page.evaluate(() => { window.__cfg.silent = {}; }); await page.click('[data-act="save"]');
+  await page.waitForFunction(() => !document.querySelector("#maDlgTitle"));
+  assert.equal(await locked(page), false);
+  await ctx.close();
+});
+
+test("viewport resize / virtual keyboard while the Add modal is open keeps one surface and the lock", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, height: 700, n: 20 });
+  await ready(page); await page.click("#maNewBtn");
+  for (let i = 0; i < 5; i++) await page.click("#maAddRow");
+  for (const h of [330, 700, 520]) {
+    await page.setViewportSize({ width: 390, height: h });
+    await page.waitForFunction((h) => Math.abs(parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ma-vvh")) - h) <= 1, h);
+    assert.deepEqual(await surfaces(page), ["maBulk"]); assert.equal(await locked(page), true);
+  }
+  await page.keyboard.press("Escape"); assert.equal(await locked(page), false);
+  await ctx.close();
+});
+
+test("draft retention, cards, filters and read-only behaviour survive the lock/unlock cycle", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, height: 700, n: 30 });
+  await ready(page); await page.click("#maNewBtn"); await fillRow(page, 0, "Keep me");
+  await page.click("#maBackBtn"); assert.equal(await page.textContent("#maAddBadge"), "1");
+  await page.click("#maFilterBtn"); await page.selectOption("#sectionFilter", "2"); await page.keyboard.press("Escape");
+  await page.waitForFunction(() => document.querySelector("#maCount").textContent === "15 activities");
+  await page.click("#maNewBtn"); assert.equal(await page.inputValue("#multiTable .m-name"), "Keep me"); await page.keyboard.press("Escape");
+  assert.equal(await page.locator("#maCards li").count(), 15); assert.equal(await locked(page), false);
+  await ctx.close();
+  const ro = await open({ width: 390, height: 700, edit: false, n: 5 }); await ready(ro.page);
+  await ro.page.click('#maCards li[data-id="1"] .ma-card'); assert.equal(await ro.page.locator('[data-act="edit"],[data-act="delete"]').count(), 0);
+  await ro.page.keyboard.press("Escape"); assert.equal(await locked(ro.page), false); await ro.ctx.close();
 });

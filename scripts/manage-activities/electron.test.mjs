@@ -162,3 +162,45 @@ for (const width of [390, 520]) {
     await page.close().catch(() => {});
   });
 }
+
+// MA-UX-6 — genuine Electron: automatic batches without a footer, and one scroll surface + background lock for full-screen modals.
+const surfacesE = (p) => p.evaluate(() => [document.documentElement, ...document.querySelectorAll("body *")].filter((e) => { const o = getComputedStyle(e).overflowY; return e === document.documentElement ? (o !== "hidden" && o !== "clip" && e.scrollHeight > innerHeight + 1) : ((o === "auto" || o === "scroll") && e.scrollHeight > e.clientHeight + 1 && e.getClientRects().length > 0); }).map((e) => e.id || e.className || e.tagName));
+for (const width of [390, 520, 768, 1280]) {
+  test(`Electron renderer ${width}px: all batches arrive by scrolling alone; no catalogue footer bar`, { skip: SK }, async () => {
+    const page = await openWindow({ width, n: 90 });
+    await page.waitForSelector("#existingTable tbody tr", { state: "attached", timeout: 20000 });
+    for (let i = 0; i < 14 && (await page.locator("#existingTable tbody tr").count()) < 90; i++) {
+      await page.evaluate(() => { const w = document.querySelector(".ma-table-wrap"); if (document.querySelector("#existingTable").offsetParent) w.scrollTop = w.scrollHeight; else window.scrollTo(0, document.body.scrollHeight); });
+      await page.waitForTimeout(200);
+    }
+    assert.equal(await page.locator("#existingTable tbody tr").count(), 90);
+    assert.equal(await page.locator("#maCards li").count(), 90);
+    assert.equal(await page.locator(".ma-feed").count(), 0);
+    assert.equal(await page.textContent("#maCount"), "90 activities");
+    await page.close().catch(() => {});
+  });
+}
+for (const width of [390, 520]) {
+  test(`Electron renderer ${width}px: Add modal is the only vertical scroll surface; background locked and its position restored`, { skip: SK }, async () => {
+    const page = await openWindow({ width, n: 80 });
+    await page.waitForSelector("#maCards li", { state: "attached", timeout: 20000 });
+    for (let i = 0; i < 4; i++) { await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await page.waitForTimeout(150); }
+    await page.evaluate(() => window.scrollTo(0, 900)); const y0 = await page.evaluate(() => scrollY);
+    assert.ok(y0 > 500);
+    assert.ok((await surfacesE(page)).includes("HTML"), "page is the surface before opening");
+    await page.evaluate(() => document.querySelector("#maNewBtn").click());
+    for (let i = 0; i < 6; i++) await page.click("#maAddRow");
+    assert.deepEqual(await surfacesE(page), ["maBulk"], "real Electron: exactly one vertical scroll surface");
+    assert.equal(await page.evaluate(() => document.documentElement.classList.contains("ma-scroll-locked")), true);
+    await page.mouse.move(width / 2, 300); await page.mouse.wheel(0, 600); await page.waitForTimeout(200);
+    assert.equal(await page.evaluate(() => scrollY), y0, "background did not scroll");
+    await page.evaluate(() => { const m = document.querySelector("#maBulk"); m.scrollTop = m.scrollHeight; });
+    for (const sel of ["#maAddRow", "#maPasteBtn", "#multiClearBtn", "#multiAddBtn"]) { const b = await page.evaluate((s) => { const r = document.querySelector(s).getBoundingClientRect(); return [r.top, r.bottom, r.left, r.right, innerHeight, document.documentElement.clientWidth]; }, sel); assert.ok(b[0] >= 0 && b[1] <= b[4] + 1 && b[2] >= -1 && b[3] <= b[5] + 1, `${sel} ${b}`); }
+    await page.click("#maPasteBtn"); assert.equal(await page.evaluate(() => document.documentElement.classList.contains("ma-scroll-locked")), true);
+    await page.keyboard.press("Escape");
+    assert.equal(await page.evaluate(() => document.documentElement.classList.contains("ma-scroll-locked")), true, "nested dialog closed; Add modal still locks");
+    await page.keyboard.press("Escape");
+    assert.deepEqual(await page.evaluate(() => [document.documentElement.classList.contains("ma-scroll-locked"), scrollY]), [false, y0]);
+    await page.close().catch(() => {});
+  });
+}

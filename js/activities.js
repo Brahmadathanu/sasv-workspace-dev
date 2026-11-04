@@ -52,14 +52,26 @@ function wireCues() {
   window.addEventListener("resize", refreshCues);
 }
 
+/* ───────── Background scroll lock (reference-counted so nested dialogs never unlock early or leak) ───────── */
+let lockCount = 0, lockY = 0;
+function lockScroll() {
+  if (lockCount++ === 0) { lockY = window.scrollY; document.documentElement.classList.add("ma-scroll-locked"); }
+  let released = false;
+  return () => {
+    if (released) return; released = true;
+    if (--lockCount === 0) { document.documentElement.classList.remove("ma-scroll-locked"); window.scrollTo(0, lockY); }
+  };
+}
+
 /* ───────── Layers (popover / Add modal): Esc, Tab trap, focus return; yield to dialogs stacked on top ───────── */
 const dialogOpen = () => $("maDialogHost").childElementCount > 0;
 const FOCUSABLE = "button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex='-1'])";
 function openLayer({ el, panel = el, opener, outsideCloses = false, onClose, focus }) {
   el.hidden = false;
+  const unlock = lockScroll();
   const close = (restore = true) => {
     document.removeEventListener("keydown", onKey, true); document.removeEventListener("mousedown", onDown, true);
-    el.hidden = true; onClose?.(); if (restore) opener?.focus?.();
+    el.hidden = true; unlock(); onClose?.(); if (restore) opener?.focus?.({ preventScroll: true });
   };
   const onKey = (e) => {
     if (dialogOpen()) return;
@@ -90,8 +102,9 @@ function openDialog({ title, bodyHtml, buttons, onMount, wide = false, closeX = 
       <div class="ma-modal-body">${bodyHtml}</div>
       <div class="ma-modal-footer ma-dialog-footer"><span></span><div class="ma-footer-actions">${buttons.map((b) => `<button type="button" class="btn ${b.cls || "ghost"}" data-act="${esc(b.id)}">${esc(b.label)}</button>`).join("")}</div></div></div>`;
     host.appendChild(back);
+    const unlock = lockScroll();
     const dlg = back.firstElementChild;
-    const close = (val) => { document.removeEventListener("keydown", onKey, true); back.remove(); opener?.focus?.(); resolve(val); };
+    const close = (val) => { document.removeEventListener("keydown", onKey, true); back.remove(); unlock(); opener?.focus?.({ preventScroll: true }); resolve(val); };
     const onKey = (e) => {
       if (host.lastElementChild !== back) return; // only the top-most dialog reacts
       if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close({ id: "cancel" }); return; }
@@ -174,16 +187,15 @@ function renderFeed(full = false) {
   empty.hidden = feed.items.length > 0 || !!feed.err;
   empty.textContent = feed.busy ? "Loading activities…" : (filtered ? "No activities match the current search or filters." : "No activities found.");
   $("maCount").textContent = feed.err?.phase === "initial" || (feed.busy && !feed.items.length) ? "" : `${feed.total} ${feed.total === 1 ? "activity" : "activities"}`;
-  const st = $("maListStatus"), more = $("maLoadMore");
-  if (feed.busy) st.textContent = feed.items.length ? "Loading more…" : "Loading…";
-  else if (feed.err?.phase === "more") st.textContent = `Could not load more. Showing ${feed.items.length} of ${feed.total}.`;
-  else if (feed.err) st.textContent = "Could not load activities. Check your connection and try again.";
-  else if (!feed.items.length) st.textContent = "";
-  else if (!hasMore()) st.textContent = `All ${feed.total} loaded.`;
-  else st.textContent = `Showing ${feed.items.length} of ${feed.total}`;
-  more.hidden = !(hasMore() || feed.err);
-  more.disabled = feed.busy; more.setAttribute("aria-busy", String(feed.busy));
-  more.textContent = feed.err ? "Retry" : "Load more";
+  // Compact in-list end-of-list indicator (no persistent bar): loading text, or a contextual Retry / "Load more" fallback.
+  const msg = feed.busy ? (feed.items.length ? "Loading more…" : "")
+    : feed.err?.phase === "more" ? "Couldn’t load more."
+    : feed.err ? "Could not load activities. Check your connection and try again." : "";
+  const showBtn = !feed.busy && (!!feed.err || hasMore());
+  for (const [sId, bId] of [["maListStatus", "maLoadMore"], ["maListStatusCards", "maLoadMoreCards"]]) {
+    $(sId).textContent = msg;
+    const more = $(bId); more.hidden = !showBtn; more.textContent = feed.err ? "Retry" : "Load more";
+  }
   refreshCues();
 }
 
@@ -194,17 +206,18 @@ const tableMode = () => $("existingTable").offsetParent !== null;
 const tableScroller = () => $("existingTable").closest(".ma-table-wrap");
 function nearEnd() {
   if (tableMode()) { const w = tableScroller(); return w.scrollHeight - w.scrollTop - w.clientHeight < 200; }
-  return $("maSentinel").getBoundingClientRect().top < window.innerHeight + 200;
+  return $("maCardsEnd").getBoundingClientRect().top < window.innerHeight + 200;
 }
 function checkSentinel() {
   if (!catalogueVisible() || feed.busy || feed.err || !hasMore()) return;
   if (nearEnd()) loadBatch();
 }
 function wireFeed() {
-  $("maLoadMore").onclick = () => { if (feed.err?.phase === "initial") loadBatch({ reset: true }); else { feed.err = null; loadBatch(); } };
+  const more = () => { if (feed.err?.phase === "initial") loadBatch({ reset: true }); else { feed.err = null; loadBatch(); } };
+  $("maLoadMore").onclick = more; $("maLoadMoreCards").onclick = more;
   if ("IntersectionObserver" in window) {
     observer = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) checkSentinel(); }, { rootMargin: "200px" });
-    observer.observe($("maSentinel"));
+    observer.observe($("maCardsEnd"));
   }
   tableScroller().addEventListener("scroll", checkSentinel, { passive: true });
   window.addEventListener("scroll", checkSentinel, { passive: true });
@@ -322,7 +335,7 @@ async function openEdit(row) {
 function focusRow(id) {
   const k = CSS.escape(String(id));
   const el = $("existingTable").offsetParent !== null ? document.querySelector(`#existingTable tr[data-id="${k}"] .ma-name-link`) : document.querySelector(`#maCards li[data-id="${k}"] .ma-card`);
-  el?.focus();
+  el?.focus({ preventScroll: true });
 }
 const firstActivityControl = () => ($("existingTable").offsetParent !== null ? document.querySelector("#existingTable .ma-name-link") : document.querySelector("#maCards .ma-card"));
 

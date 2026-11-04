@@ -116,8 +116,14 @@ tr.ma-row-failed { background: var(--sasv-surface-soft); }
 .ma-scroll.has-left::before, .ma-scroll.has-right::after { opacity: 1; }
 .ma-scroll-hint { margin: 6px 0 0; font-size: var(--sasv-text-sm); color: var(--sasv-text-muted); text-align: right; }
 .ma-empty { padding: 24px 12px; text-align: center; color: var(--sasv-text-muted); }
-.ma-feed { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; padding: 6px 12px; background: var(--sasv-surface-soft); border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-md); }
-.ma-feed #maSentinel { flex-basis: 100%; height: 1px; margin-top: -1px; }
+/* In-list end-of-list indicator (Stock & Purchase Explorer .spe-scroll-sentinel pattern): collapses to nothing when idle */
+.ma-end { display: flex; align-items: center; justify-content: center; min-height: 1px; font-size: var(--sasv-text-xs, 0.75rem); color: var(--sasv-text-muted); }
+.ma-end-inner { position: sticky; left: 0; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.ma-end-inner:has(.ma-end-status:not(:empty)), .ma-end-inner:has(.ma-more-btn:not([hidden])) { padding: 6px 4px; }
+.ma-more-btn { background: none; border: 0; padding: 4px 8px; font: inherit; font-weight: 600; color: var(--sasv-action-primary-active, var(--sasv-action-primary)); cursor: pointer; text-decoration: underline; min-height: 28px; }
+.ma-more-btn:focus-visible { outline: 2px solid var(--sasv-focus-ring); outline-offset: 2px; }
+.ma-end--cards { display: none; }
+@media (max-width: 520px) { .ma-end--cards { display: flex; } .ma-table-view .ma-end { display: none; } }
 
 /* Cards (Stock Checker .sc-result-card parity) — narrow screens only */
 .ma-cards { display: none; list-style: none; margin: 8px 0 0; padding: 0; flex-direction: column; gap: 8px; }
@@ -168,7 +174,7 @@ tr.ma-row-failed { background: var(--sasv-surface-soft); }
 /* MA-UX-5 desktop: viewport-constrained module. Header + toolbar stay put; the table container is the only vertical scroller. */
 @media (min-width: 521px) {
   body.sasv-manage-activities { height: 100dvh; display: flex; flex-direction: column; }
-  .ma-header, .ma-banner, .ma-toolbar, .ma-meta, .ma-feed { flex: 0 0 auto; }
+  .ma-header, .ma-banner, .ma-toolbar, .ma-meta { flex: 0 0 auto; }
   #maMain { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   #maCatalogue { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   .ma-table-view { flex: 1 1 auto; min-height: 180px; display: flex; flex-direction: column; }
@@ -176,7 +182,6 @@ tr.ma-row-failed { background: var(--sasv-surface-soft); }
   .ma-scroll-hint[data-for="existingTable"] { flex: 0 0 auto; }
   #existingTable { border-collapse: separate; border-spacing: 0; }
   #existingTable thead th { position: sticky; top: 0; z-index: 2; }
-  .ma-feed #maSentinel { display: none; }
 }
 
 /* MA-UX-5 narrow Add activities: one scroll region (the modal itself); sticky title/X; actions follow the last row */
@@ -189,3 +194,6 @@ tr.ma-row-failed { background: var(--sasv-surface-soft); }
   .ma-modal--add .ma-footer-actions .btn { flex: none; width: 100%; min-height: 40px; }
   .ma-modal--add #multiAddBtn { order: 5; }
 }
+
+/* MA-UX-6: background scroll lock while any layer is open (the open layer is the only vertical scroll surface) */
+html.ma-scroll-locked, html.ma-scroll-locked body { overflow: hidden !important; overscroll-behavior: none; }
