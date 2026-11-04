@@ -1,3 +1,5 @@
+> **Independent review checkpoint — 4 Nov 2026:** The APPLY and ROLLBACK versions were re-read on the draft branch: three function bodies matched pairwise with exactly one CCC-edit check added to each APPLY body; draft PR is one branch ahead of the merged programme baseline with exactly seven documentation/prepared files. A disposable Supabase branch was requested **without** a cost confirmation, and Supabase refused creation until an explicit cost-confirmation ID is supplied. **No branch was created, no SQL was executed and no role-level testing was performed.** Isolated SQL/permission tests remain BLOCKED until the owner confirms the applicable Supabase organization and quoted hourly cost. Do not treat this static review as production migration approval.
+
 # SEC-A1 — Material-review acceptance/closure RPC edit-gate correction (prepared, NOT APPLIED)
 
 **Prepared:** 4 November 2026 · **Status:** SERVER-CHANGE REVIEW GATE · **Live project:** `qhmoqtxpeasamtlxaoak`
