@@ -200,9 +200,11 @@ test("C9 characterisation: registry marks the legacy PPM lenses mrp-governance a
   assert.equal(csa.legacyLensId, "policy-manager", "CSA is reached through the policy-manager lens whose registry metadata says periodScoped:false");
 });
 
-test("test-only package: nothing under public/, supabase/ or sql/ differs from the base commit", async () => {
+test("test-only package: nothing under public/, supabase/ or sql/ changed over the immutable CL1 range (base..squash merge)", async () => {
   const { execFileSync } = await import("node:child_process");
   const git = (...a) => execFileSync("git", a, { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean);
-  const changed = [...git("diff", "--name-only", "195b13c4df32a5fdcf22ee304066e96c1b138481"), ...git("ls-files", "--others", "--exclude-standard")];
+  const CL1_MERGE = "22126c8"; // squash merge of PR #151; a fixed range so later packages cannot trip or hide in this guard
+  git("cat-file", "-e", `${CL1_MERGE}^{commit}`);
+  const changed = git("diff", "--name-only", "195b13c4df32a5fdcf22ee304066e96c1b138481", CL1_MERGE);
   assert.deepEqual(changed.filter((f) => /^(public|supabase|sql)\//.test(f) || /package(-lock)?\.json$/.test(f)), []);
 });
