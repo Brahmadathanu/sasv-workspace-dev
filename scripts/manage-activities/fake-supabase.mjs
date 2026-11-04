@@ -25,7 +25,6 @@ const likeRe = (p) => {
 /** cfg: { data, perms, fail:{table:{op:error}}, silent:{op:true} (RLS-style zero-row writes), inUse:Set(ids), log:[] } */
 export function createFake(cfg) {
   cfg.log ||= [];
-  const lookups = { sections: "sections", subsections: "subsections", areas: "areas", activity_kinds: "activity_kinds" };
   function from(table) {
     const st = { op: "select", filters: [], like: null, order: [], range: null, count: false, payload: null, wantRows: false, single: false };
     const decorate = (rows) => rows.map((r) => {
