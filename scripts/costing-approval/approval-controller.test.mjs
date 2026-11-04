@@ -147,6 +147,7 @@ function buildHarness({
   runRows = RUN_ROWS,
   toasts,
   canEdit = () => true,
+  omitCanEdit = false,
 } = {}) {
   // Avoid real intervals — countdown would keep node:test alive after the suite.
   const realSetInterval = globalThis.setInterval;
@@ -208,7 +209,7 @@ function buildHarness({
     },
     getActivePeriodStart: () => "2026-10-01",
     isControlCenterRoute: () => true,
-    canEdit,
+    ...(omitCanEdit ? {} : { canEdit }), // SEC-A2: omitted = the controller's own fail-closed default
     confirmFn:
       confirmFn ||
       (() => confirm),
@@ -508,6 +509,49 @@ test("SEC-A2: permission lost during pending preview clears the modal", async ()
     assert.equal(calls.filter((x) => x.name === RPC.preview).length, 1);
     assert.equal(ids.costingApprovalModal.hidden, true);
     assert.equal(ctrl._state.previewAckId, null);
+  } finally {
+    cleanup();
+  }
+});
+
+test("SEC-A2: permission revoked while the confirmation dialog is open sends no approve or finalise RPC", async () => {
+  for (const kind of ["approve", "finalize"]) {
+    let edit = true;
+    const { ctrl, calls, cleanup } = buildHarness({
+      canEdit: () => edit,
+      confirmFn: () => { edit = false; return true; }, // the user confirms, but the grant was lost meanwhile
+    });
+    try {
+      await ctrl.openPreviewForRun(151);
+      await ctrl.submitDecision(kind);
+      assert.equal(calls.filter((x) => x.name !== RPC.preview).length, 0, `${kind}: no write RPC after revocation`);
+      assert.equal(ctrl._state.inFlight, false, `${kind}: not left in flight`);
+    } finally {
+      cleanup();
+    }
+  }
+});
+
+test("SEC-A2: a controller built without a canEdit dependency is view-only (fail-closed default)", async () => {
+  const { ctrl, calls, ids, cleanup } = buildHarness({ omitCanEdit: true });
+  try {
+    await ctrl.reload();
+    assert.doesNotMatch(ids.casRunList.innerHTML, /data-cas-review/);
+    await ctrl.openPreviewForRun(151);
+    assert.equal(calls.length, 0);
+  } finally {
+    cleanup();
+  }
+});
+
+test("SEC-A2: view-only approve and finalise attempts each explain the denial and send nothing", async () => {
+  const toasts = [];
+  const { ctrl, calls, cleanup } = buildHarness({ canEdit: () => false, toasts });
+  try {
+    await ctrl.submitDecision("approve");
+    await ctrl.submitDecision("finalize");
+    assert.equal(toasts.filter((m) => /Approval actions require Costing Control Center edit permission/.test(m)).length, 2);
+    assert.equal(calls.length, 0);
   } finally {
     cleanup();
   }
