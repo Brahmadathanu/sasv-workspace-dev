@@ -1,0 +1,45 @@
+/* Manage Activities — module-specific layout only. Uses canonical SASV tokens; no new primitives. */
+.ma-shell { display: flex; flex-direction: column; gap: var(--sasv-space-4); }
+.ma-section-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sasv-space-3); margin-bottom: var(--sasv-space-3); }
+.ma-section-head .btn { margin-left: auto; }
+.ma-section-head .sasv-module-section-title { margin: 0; }
+.ma-toolbar { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--sasv-space-3); }
+.ma-search { flex: 1 1 auto; min-width: 0; }
+.ma-search input, .sasv-drawer select { width: 100%; box-sizing: border-box; }
+.ma-filter-btn { flex: 0 0 auto; display: inline-flex; align-items: center; gap: var(--sasv-space-2); }
+.ma-filter-btn.has-active { border-color: var(--sasv-action-primary); }
+.ma-feed { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sasv-space-3); margin-top: var(--sasv-space-3); padding: var(--sasv-space-2) var(--sasv-space-3); background: var(--sasv-surface-soft); border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-md); }
+.ma-feed #maSentinel { flex-basis: 100%; height: 1px; margin-top: -1px; }
+#existingTable tbody tr[data-id] { cursor: pointer; }
+#existingTable tbody tr[data-id]:hover { background: var(--sasv-surface-soft); }
+.ma-name-link { background: none; border: 0; padding: 0; font: inherit; color: var(--sasv-action-primary); text-align: left; cursor: pointer; text-decoration: underline; }
+.ma-name-link:focus-visible { outline: 2px solid var(--sasv-action-primary); outline-offset: 2px; }
+.ma-details { display: grid; grid-template-columns: max-content 1fr; gap: var(--sasv-space-2) var(--sasv-space-4); margin: 0; }
+.ma-details dt { color: var(--sasv-text-muted); } .ma-details dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 520px) { .sasv-drawer { width: 100vw; } }
+.ma-table-wrap { position: relative; overflow-x: auto; border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-md); background: var(--sasv-surface); margin-top: var(--sasv-space-3); }
+.ma-table-wrap:focus-visible { outline: 2px solid var(--sasv-action-primary); outline-offset: 2px; }
+.ma-table-wrap table { width: 100%; min-width: 720px; }
+#multiTable { min-width: 960px; }
+#multiTable input, #multiTable select { width: 100%; min-width: 96px; box-sizing: border-box; }
+#multiTable .m-dur { min-width: 72px; }
+.ma-num { text-align: right; white-space: nowrap; }
+.ma-row-actions { display: flex; gap: var(--sasv-space-2); justify-content: flex-end; white-space: nowrap; }
+.ma-banner { padding: var(--sasv-space-3) var(--sasv-space-4); border-radius: var(--sasv-radius-md); border: 1px solid var(--sasv-border); background: var(--sasv-surface-soft); color: var(--sasv-text); }
+.ma-banner.is-error { border-color: var(--sasv-danger, #b3261e); }
+.ma-banner.is-warn { border-color: var(--sasv-warning, #b26a00); }
+.ma-banner .btn { margin-left: var(--sasv-space-3); }
+.ma-empty { padding: var(--sasv-space-5) var(--sasv-space-4); text-align: center; color: var(--sasv-text-muted); }
+.ma-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sasv-space-2); margin-top: var(--sasv-space-3); }
+.ma-field-error { display: block; margin-top: 2px; font-size: var(--sasv-text-sm); color: var(--sasv-danger, #b3261e); }
+.ma-invalid { border-color: var(--sasv-danger, #b3261e) !important; }
+tr.ma-row-failed { background: var(--sasv-surface-soft); }
+.ma-row-msg { font-size: var(--sasv-text-sm); color: var(--sasv-danger, #b3261e); }
+.ma-form-grid { display: grid; gap: var(--sasv-space-3); grid-template-columns: 1fr; }
+.ma-form-grid input, .ma-form-grid select, .ma-form-grid textarea { width: 100%; box-sizing: border-box; }
+.ma-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (min-width: 640px) { .ma-form-grid { grid-template-columns: 1fr 1fr; } .ma-form-grid .ma-wide { grid-column: 1 / -1; } }
+@media (max-width: 520px) { .ma-section-head .btn { margin-left: 0; } .sasv-pager { justify-content: center; } }
+.ma-shell [hidden], #maMain[hidden] { display: none !important; }
+.ma-shell > *, #maMain, #maMain > section { min-width: 0; max-width: 100%; }
+#maDrawer[hidden], #maDrawerBackdrop[hidden], .ma-feed [hidden] { display: none !important; }

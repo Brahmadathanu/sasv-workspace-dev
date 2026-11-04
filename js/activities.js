@@ -1,414 +1,466 @@
 import { supabase } from "../public/shared/js/supabaseClient.js";
-import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
+import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
+import { iconHtml } from "../public/shared/js/ui-icons.js";
+import { mountModuleHome } from "../public/shared/js/sasv-module-chrome.js";
+import {
+  MODULE_ID, BATCH_SIZE, BULK_MAX_ROWS, formatDuration, activeFilterCount, mergeById,
+  createActivitiesService, loadAccess, validateBulk, validateActivity, isBlankDraft,
+} from "../public/shared/js/manage-activities-core.js";
 
-// DOM refs
-const sectionFilter = document.getElementById("sectionFilter");
-const subFilter = document.getElementById("subFilter");
-const areaFilter = document.getElementById("areaFilter");
-const nameFilter = document.getElementById("nameFilter");
-const clearBtn = document.getElementById("clearFilters");
-
-const existingTbody = document.querySelector("#existingTable tbody");
-const multiBody = document.querySelector("#multiTable tbody");
-const multiAddBtn = document.getElementById("multiAddBtn");
-const multiClearBtn = document.getElementById("multiClearBtn");
-
-// Dialog
-const dlgOv = document.getElementById("dialogOverlay");
-const dlgMsg = document.getElementById("dialogMessage");
-const btnYes = document.getElementById("btnYes");
-const btnNo = document.getElementById("btnNo");
-const btnOk = document.getElementById("btnOk");
-
-// Cache
+const $ = (id) => document.getElementById(id);
+const svc = createActivitiesService(supabase);
+const state = { access: { view: false, edit: false } };
+// Infinite-scroll feed. `gen` invalidates in-flight requests on reset; `busy` blocks concurrent batch loads.
+const feed = { items: [], total: 0, gen: 0, busy: false, err: null, rendered: 0 };
+let draftSeq = 0;
+let bulkRows = []; // [{key, name, section_id, sub_section_id, area_id, kind_id, duration_days, errors, msg}]
+let kinds = [];
 let sections = [];
 
-// Helpers
-function showAlert(msg) {
-  return new Promise((res) => {
-    dlgMsg.textContent = msg;
-    btnYes.style.display = "none";
-    btnNo.style.display = "none";
-    btnOk.style.display = "inline-block";
-    dlgOv.style.display = "flex";
-    btnOk.focus();
-    btnOk.onclick = () => {
-      dlgOv.style.display = "none";
-      res();
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const opts = (rows, v, t, ph, sel) =>
+  `<option value="">${esc(ph)}</option>` + rows.map((r) => `<option value="${esc(r[v])}"${String(r[v]) === String(sel ?? "") ? " selected" : ""}>${esc(r[t])}</option>`).join("");
+
+function setStatus(msg, kind = "", action = null) {
+  const b = $("maStatus");
+  if (!msg) { b.hidden = true; b.textContent = ""; return; }
+  b.hidden = false;
+  b.className = `ma-banner${kind ? ` is-${kind}` : ""}`;
+  b.setAttribute("role", kind === "error" ? "alert" : "status");
+  b.textContent = msg;
+  if (action) {
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.className = "btn ghost"; btn.textContent = action.label;
+    btn.onclick = action.run;
+    b.appendChild(btn);
+  }
+}
+
+/* ───────── Dialog (focus-trapped, Esc cancels, focus restored) ───────── */
+function openDialog({ title, bodyHtml, buttons, onMount, wide = false }) {
+  return new Promise((resolve) => {
+    const opener = document.activeElement;
+    const host = $("maDialogHost");
+    const back = document.createElement("div");
+    back.className = "sasv-modal-backdrop";
+    back.innerHTML = `<div class="sasv-modal${wide ? " sasv-modal--lg" : ""}" role="dialog" aria-modal="true" aria-labelledby="maDlgTitle">
+      <div class="modal-header"><h2 id="maDlgTitle" class="modal-title">${esc(title)}</h2></div>
+      <div class="modal-body">${bodyHtml}</div>
+      <div class="modal-footer">${buttons.map((b) => `<button type="button" class="btn ${b.cls || "ghost"}" data-act="${esc(b.id)}">${esc(b.label)}</button>`).join("")}</div></div>`;
+    host.appendChild(back);
+    const dlg = back.firstElementChild;
+    const close = (val) => { document.removeEventListener("keydown", onKey, true); back.remove(); opener?.focus?.(); resolve(val); };
+    const onKey = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close({ id: "cancel" }); return; }
+      if (e.key !== "Tab") return;
+      const f = [...dlg.querySelectorAll("button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled])")];
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
+    document.addEventListener("keydown", onKey, true);
+    const api = { dlg, close, setBusy(b) { dlg.querySelectorAll("button,input,select,textarea").forEach((x) => (x.disabled = b)); dlg.setAttribute("aria-busy", String(b)); } };
+    dlg.querySelectorAll("[data-act]").forEach((btn) => (btn.onclick = () => (buttons.find((x) => x.id === btn.dataset.act).run ? buttons.find((x) => x.id === btn.dataset.act).run(api) : close({ id: btn.dataset.act }))));
+    onMount?.(api);
+    (dlg.querySelector("[data-autofocus]") || dlg.querySelector("button.primary,button.danger") || dlg.querySelector("button"))?.focus();
   });
 }
 
-function askConfirm(msg) {
-  return new Promise((res) => {
-    dlgMsg.textContent = msg;
-    btnYes.style.display = "inline-block";
-    btnNo.style.display = "inline-block";
-    btnOk.style.display = "none";
-    dlgOv.style.display = "flex";
-    btnYes.onclick = () => {
-      dlgOv.style.display = "none";
-      res(true);
-    };
-    btnNo.onclick = () => {
-      dlgOv.style.display = "none";
-      res(false);
-    };
-  });
+const confirmDialog = (title, message, label = "Confirm", cls = "primary") =>
+  openDialog({ title, bodyHtml: `<p>${esc(message)}</p>`, buttons: [{ id: "cancel", label: "Cancel" }, { id: "ok", label, cls }] }).then((r) => r.id === "ok");
+const alertDialog = (title, message) => openDialog({ title, bodyHtml: `<p style="white-space:pre-line">${esc(message)}</p>`, buttons: [{ id: "ok", label: "OK", cls: "primary" }] });
+
+/* ───────── Listing (server-side infinite scroll, batches of BATCH_SIZE) ───────── */
+function filters() {
+  return {
+    search: $("nameFilter").value, sectionId: $("sectionFilter").value, subId: $("subFilter").value,
+    areaId: $("areaFilter").value, kindId: $("kindFilter").value,
+  };
+}
+const hasMore = () => feed.items.length < feed.total && !feed.exhausted;
+const catalogueVisible = () => !$("maCatalogue").hidden && !$("maMain").hidden;
+
+/** reset=true discards loaded rows and any in-flight request; otherwise loads the next batch. */
+async function loadBatch({ reset = false } = {}) {
+  if (reset) { feed.gen++; Object.assign(feed, { items: [], total: 0, busy: false, err: null, rendered: 0, exhausted: false }); renderFeed(true); }
+  else if (feed.busy || !hasMore() || feed.err) return;
+  const gen = feed.gen;
+  feed.busy = true; feed.err = null; renderFeed();
+  try {
+    const res = await svc.list({ ...filters(), offset: feed.items.length, pageSize: BATCH_SIZE });
+    if (gen !== feed.gen) return; // stale: a newer reset superseded this request
+    feed.items = mergeById(feed.items, res.rows);
+    feed.total = res.total;
+    if (res.rows.length === 0) feed.exhausted = true;
+  } catch (e) {
+    if (gen !== feed.gen) return;
+    console.error("[activities] list failed", e);
+    feed.err = { phase: feed.items.length ? "more" : "initial" };
+  } finally {
+    if (gen === feed.gen) { feed.busy = false; renderFeed(); queueMicrotask(checkSentinel); }
+  }
 }
 
-function populate(sel, rows, vKey, tKey, placeholder) {
-  sel.innerHTML = `<option value="">${placeholder}</option>`;
-  rows.forEach((r) => {
-    const o = document.createElement("option");
-    o.value = r[vKey];
-    o.textContent = r[tKey];
-    sel.appendChild(o);
-  });
+function rowHtml(r) {
+  return `<tr data-id="${esc(r.id)}">
+      <td><button type="button" class="ma-name-link" aria-haspopup="dialog">${esc(r.activity_name)}</button></td>
+      <td>${esc(r.sections?.section_name)}</td><td>${esc(r.subsections?.subsection_name)}</td>
+      <td>${esc(r.areas?.area_name)}</td><td>${esc(r.activity_kinds?.name)}</td><td class="ma-num">${esc(formatDuration(r.duration_days))}</td></tr>`;
 }
 
-async function loadSections() {
-  const { data, error } = await supabase
-    .from("sections")
-    .select("id,section_name")
-    .order("section_name", { ascending: true });
-  if (error) return console.error(error);
-  sections = data;
-  populate(sectionFilter, sections, "id", "section_name", "Sections");
-  // also populate every existing add-row .m-section
-  multiBody
-    .querySelectorAll(".m-section")
-    .forEach((sel) => populate(sel, sections, "id", "section_name", "Select…"));
+function renderFeed(full = false) {
+  const tb = $("existingTable").querySelector("tbody");
+  if (full || feed.rendered > feed.items.length) { tb.innerHTML = feed.items.map(rowHtml).join(""); }
+  else tb.insertAdjacentHTML("beforeend", feed.items.slice(feed.rendered).map(rowHtml).join(""));
+  feed.rendered = feed.items.length;
+  $("existingTable").setAttribute("aria-busy", String(feed.busy));
+  const f = filters(); const filtered = activeFilterCount(f) > 0 || f.search.trim();
+  const empty = $("maEmpty");
+  empty.hidden = feed.items.length > 0 || !!feed.err;
+  empty.textContent = feed.busy ? "Loading activities…" : (filtered ? "No activities match the current search or filters." : "No activities found.");
+  $("maCount").textContent = feed.err?.phase === "initial" || (feed.busy && !feed.items.length) ? "" : `${feed.total} ${feed.total === 1 ? "activity" : "activities"}`;
+  const st = $("maListStatus"), more = $("maLoadMore");
+  if (feed.busy) st.textContent = feed.items.length ? "Loading more…" : "Loading…";
+  else if (feed.err?.phase === "more") st.textContent = `Could not load more. Showing ${feed.items.length} of ${feed.total}.`;
+  else if (feed.err) st.textContent = "Could not load activities. Check your connection and try again.";
+  else if (!feed.items.length) st.textContent = "";
+  else if (!hasMore()) st.textContent = `All ${feed.total} loaded.`;
+  else st.textContent = `Showing ${feed.items.length} of ${feed.total}`;
+  more.hidden = !(hasMore() || feed.err);
+  more.disabled = feed.busy; more.setAttribute("aria-busy", String(feed.busy));
+  more.textContent = feed.err ? "Retry" : "Load more";
 }
 
-// Load sub-sections into any `<select>`
-async function loadSub(selectEl, secId, placeholder) {
-  selectEl.innerHTML = `<option value="">${placeholder}</option>`;
-  selectEl.disabled = !secId;
+let observer = null;
+function checkSentinel() {
+  if (!catalogueVisible() || feed.busy || feed.err || !hasMore()) return;
+  if ($("maSentinel").getBoundingClientRect().top < window.innerHeight + 200) loadBatch();
+}
+function wireFeed() {
+  $("maLoadMore").onclick = () => { if (feed.err?.phase === "initial") loadBatch({ reset: true }); else { feed.err = null; loadBatch(); } };
+  if ("IntersectionObserver" in window) {
+    observer = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) checkSentinel(); }, { rootMargin: "200px" });
+    observer.observe($("maSentinel"));
+  }
+  window.addEventListener("scroll", checkSentinel, { passive: true });
+  window.addEventListener("resize", checkSentinel);
+}
+
+/* ───────── Filters (drawer) ───────── */
+let searchTimer = null;
+const reload = () => { updateFilterIndicator(); return loadBatch({ reset: true }); };
+
+function updateFilterIndicator() {
+  const n = activeFilterCount(filters());
+  const b = $("maFilterBadge"), btn = $("maFilterBtn");
+  b.hidden = n === 0; b.textContent = String(n);
+  btn.classList.toggle("has-active", n > 0);
+  btn.setAttribute("aria-label", n ? `Filters, ${n} active` : "Filters");
+}
+
+async function fillSub(sel, secId, ph) {
+  sel.innerHTML = `<option value="">${ph}</option>`; sel.disabled = !secId;
   if (!secId) return;
-  const { data, error } = await supabase
-    .from("subsections")
-    .select("id,subsection_name")
-    .eq("section_id", secId)
-    .order("subsection_name", { ascending: true });
-  if (error) return console.error(error);
-  data.forEach((r) => {
-    const o = document.createElement("option");
-    o.value = r.id;
-    o.textContent = r.subsection_name;
-    selectEl.appendChild(o);
-  });
+  try { sel.innerHTML = opts(await svc.subsections(secId), "id", "subsection_name", ph); }
+  catch { setStatus("Could not load sub-sections.", "error"); }
+}
+async function fillArea(sel, secId, subId, ph) {
+  sel.innerHTML = `<option value="">${ph}</option>`; sel.disabled = !(secId && subId);
+  if (!(secId && subId)) return;
+  try { sel.innerHTML = opts(await svc.areas(secId, subId), "id", "area_name", ph); }
+  catch { setStatus("Could not load areas.", "error"); }
 }
 
-// Load areas
-async function loadArea(selectEl, secId, subId, placeholder) {
-  selectEl.innerHTML = `<option value="">${placeholder}</option>`;
-  selectEl.disabled = !(secId && subId);
-  if (!secId || !subId) return;
-  const { data, error } = await supabase
-    .from("areas")
-    .select("id,area_name")
-    .eq("section_id", secId)
-    .eq("subsection_id", subId)
-    .order("area_name", { ascending: true });
-  if (error) return console.error(error);
-  data.forEach((r) => {
-    const o = document.createElement("option");
-    o.value = r.id;
-    o.textContent = r.area_name;
-    selectEl.appendChild(o);
-  });
-}
-
-// Render existing activities
-async function renderExisting() {
-  existingTbody.innerHTML = "";
-  let q = supabase
-    .from("activities")
-    .select(
-      `
-      id,activity_name,duration_days,
-      sections(section_name),subsections(subsection_name),areas(area_name),
-      section_id,sub_section_id,area_id
-    `
-    )
-    .order("id", { ascending: false })
-    .limit(10);
-
-  if (sectionFilter.value) q = q.eq("section_id", sectionFilter.value);
-  if (subFilter.value) q = q.eq("sub_section_id", subFilter.value);
-  if (areaFilter.value) q = q.eq("area_id", areaFilter.value);
-  if (nameFilter.value.trim()) {
-    q = q.ilike("activity_name", `%${nameFilter.value.trim()}%`);
-  }
-
-  const { data, error } = await q;
-  if (error) return console.error(error);
-
-  existingTbody.innerHTML = data
-    .map(
-      (r) => `
-    <tr data-id="${r.id}" data-sec="${r.section_id}"
-        data-sub="${r.sub_section_id}" data-area="${r.area_id}">
-      <td>${r.activity_name}</td>
-      <td>${r.sections?.section_name || ""}</td>
-      <td>${r.subsections?.subsection_name || ""}</td>
-      <td>${r.areas?.area_name || ""}</td>
-      <td>${r.duration_days}</td>
-      <td>
-        <button class="action-link-btn edit-btn">Edit</button> |
-        <button class="action-link-btn delete-btn">Delete</button>
-      </td>
-    </tr>
-  `
-    )
-    .join("");
-}
-
-// Inline edit
-function startEdit(tr) {
-  const id = tr.dataset.id;
-  const old = tr.children[0].textContent;
-  const secId = tr.dataset.sec;
-  const subId = tr.dataset.sub;
-  const areaId = tr.dataset.area;
-  const dur = tr.children[4].textContent;
-
-  tr.innerHTML = `
-    <td><input class="edit-input name-in" value="${old}"></td>
-    <td><select class="edit-select sec-in"></select></td>
-    <td><select class="edit-select sub-in" disabled></select></td>
-    <td><select class="edit-select area-in" disabled></select></td>
-    <td><input type="number" class="edit-number dur-in" min="0" value="${dur}"></td>
-    <td>
-      <button class="action-link-btn save-btn">Save</button> |
-      <button class="action-link-btn cancel-btn">Cancel</button>
-    </td>`;
-
-  // populate the three selects
-  const secSel = tr.querySelector(".sec-in");
-  const subSel = tr.querySelector(".sub-in");
-  const areaSel = tr.querySelector(".area-in");
-
-  populate(secSel, sections, "id", "section_name", "Select…");
-  secSel.value = secId;
-  secSel.onchange = async () => {
-    await loadSub(subSel, secSel.value, "Select…");
-    areaSel.innerHTML = `<option value="">Select…</option>`;
-    areaSel.disabled = true;
+function openDrawer() {
+  const opener = $("maFilterBtn"), dr = $("maDrawer"), bd = $("maDrawerBackdrop");
+  dr.hidden = false; bd.hidden = false; opener.setAttribute("aria-expanded", "true");
+  const close = () => { document.removeEventListener("keydown", onKey, true); dr.hidden = true; bd.hidden = true; opener.setAttribute("aria-expanded", "false"); opener.focus(); };
+  const onKey = (e) => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); return; }
+    if (e.key !== "Tab") return;
+    const f = [...dr.querySelectorAll("button:not([disabled]),select:not([disabled])")];
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   };
+  document.addEventListener("keydown", onKey, true);
+  $("maDrawerClose").onclick = $("maDrawerDone").onclick = bd.onclick = close;
+  $("sectionFilter").focus();
+}
 
-  loadSub(subSel, secId, "Select…").then(() => {
-    subSel.value = subId;
-  });
-  subSel.onchange = async () => {
-    await loadArea(areaSel, secSel.value, subSel.value, "Select…");
+function wireFilters() {
+  $("maFilterIcon").innerHTML = iconHtml("filter", 16);
+  $("maFilterBtn").onclick = openDrawer;
+  $("nameFilter").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(reload, 250); });
+  $("nameFilter").addEventListener("keydown", (e) => { if (e.key === "Enter") { clearTimeout(searchTimer); reload(); } });
+  $("sectionFilter").onchange = async () => { await fillSub($("subFilter"), $("sectionFilter").value, "All sub-sections"); await fillArea($("areaFilter"), "", "", "All areas"); reload(); };
+  $("subFilter").onchange = async () => { await fillArea($("areaFilter"), $("sectionFilter").value, $("subFilter").value, "All areas"); reload(); };
+  $("areaFilter").onchange = reload;
+  $("kindFilter").onchange = reload;
+  $("clearFilters").onclick = async () => {
+    $("sectionFilter").value = ""; $("kindFilter").value = "";
+    await fillSub($("subFilter"), "", "All sub-sections"); await fillArea($("areaFilter"), "", "", "All areas");
+    reload();
   };
+  updateFilterIndicator();
+}
 
-  loadArea(areaSel, secId, subId, "Select…").then(() => {
-    areaSel.value = areaId;
+/* ───────── Edit dialog ───────── */
+const field = (id, label, control, err) => `<div class="sasv-field"><label for="${id}">${label}</label>${control}<span class="ma-field-error" data-err="${id}">${esc(err || "")}</span></div>`;
+
+function showErrors(root, errors, map) {
+  root.querySelectorAll("[data-err]").forEach((s) => (s.textContent = ""));
+  root.querySelectorAll(".ma-invalid").forEach((x) => { x.classList.remove("ma-invalid"); x.removeAttribute("aria-invalid"); });
+  let first = null;
+  for (const [k, m] of Object.entries(errors)) {
+    const el = root.querySelector(`#${map[k]}`); if (!el) continue;
+    el.classList.add("ma-invalid"); el.setAttribute("aria-invalid", "true");
+    const s = root.querySelector(`[data-err="${map[k]}"]`); if (s) s.textContent = m;
+    first ||= el;
+  }
+  first?.focus();
+}
+
+async function openEdit(row) {
+  if (!state.access.edit) return;
+  const F = { name: "ed-name", section_id: "ed-sec", sub_section_id: "ed-sub", area_id: "ed-area", kind_id: "ed-kind", duration_days: "ed-dur" };
+  const subs = await svc.subsections(row.section_id).catch(() => []);
+  const areas = await svc.areas(row.section_id, row.sub_section_id).catch(() => []);
+  const r = await openDialog({
+    title: "Edit activity", wide: true,
+    bodyHtml: `<div class="ma-form-grid">
+      <div class="ma-wide">${field("ed-name", "Activity name", `<input id="ed-name" data-autofocus value="${esc(row.activity_name)}" maxlength="200">`)}</div>
+      ${field("ed-sec", "Section", `<select id="ed-sec">${opts(sections, "id", "section_name", "Select…", row.section_id)}</select>`)}
+      ${field("ed-sub", "Sub-section", `<select id="ed-sub">${opts(subs, "id", "subsection_name", "Select…", row.sub_section_id)}</select>`)}
+      ${field("ed-area", "Area", `<select id="ed-area">${opts(areas, "id", "area_name", "Select…", row.area_id)}</select>`)}
+      ${field("ed-kind", "Kind", `<select id="ed-kind">${opts(kinds, "id", "name", "Select…", row.kind_id)}</select>`)}
+      ${field("ed-dur", "Duration (days)", `<input id="ed-dur" type="number" min="0" step="1" value="${esc(row.duration_days)}">`)}
+      </div><div class="ma-banner is-error" id="ed-msg" role="alert" hidden></div>`,
+    buttons: [
+      { id: "cancel", label: "Cancel" },
+      { id: "save", label: "Save changes", cls: "primary", run: async (api) => {
+        const q = (i) => api.dlg.querySelector(`#${i}`);
+        const draft = { name: q("ed-name").value, section_id: q("ed-sec").value, sub_section_id: q("ed-sub").value, area_id: q("ed-area").value, kind_id: q("ed-kind").value, duration_days: q("ed-dur").value };
+        const v = validateActivity(draft);
+        q("ed-msg").hidden = true;
+        if (!v.ok) { showErrors(api.dlg, v.errors, F); return; }
+        api.setBusy(true);
+        const res = await svc.update(row.id, draft);
+        api.setBusy(false);
+        if (!res.ok) { q("ed-msg").hidden = false; q("ed-msg").textContent = res.message; return; } // dialog stays open, input preserved
+        api.close({ id: "save" });
+        setStatus("Activity updated.");
+        reload().then(() => focusRow(row.id));
+      } },
+    ],
+    onMount: (api) => {
+      const q = (i) => api.dlg.querySelector(`#${i}`);
+      q("ed-sec").onchange = async () => { await fillSub(q("ed-sub"), q("ed-sec").value, "Select…"); await fillArea(q("ed-area"), "", "", "Select…"); };
+      q("ed-sub").onchange = () => fillArea(q("ed-area"), q("ed-sec").value, q("ed-sub").value, "Select…");
+      api.dlg.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); api.dlg.querySelector('[data-act="save"]').click(); } });
+    },
   });
-
-  tr.querySelector(".save-btn").onclick = () => saveEdit(tr, id);
-  tr.querySelector(".cancel-btn").onclick = () => renderExisting();
+  if (r.id === "cancel") openDetails(row); // back to the details view; Esc/Cancel never loses context
 }
 
-async function saveEdit(tr, id) {
-  const name = tr.querySelector(".name-in").value.trim();
-  const sec = tr.querySelector(".sec-in").value;
-  const sub = tr.querySelector(".sub-in").value;
-  const area = tr.querySelector(".area-in").value;
-  const dur = parseInt(tr.querySelector(".dur-in").value, 10);
+function focusRow(id) { document.querySelector(`#existingTable tr[data-id="${CSS.escape(String(id))}"] .ma-name-link`)?.focus(); }
 
-  if (!name || !sec || !sub || !area || isNaN(dur)) {
-    return showAlert("All fields required");
-  }
-  if (!(await askConfirm("Save changes?"))) return;
-
-  const { error } = await supabase
-    .from("activities")
-    .update({
-      activity_name: name,
-      section_id: sec,
-      sub_section_id: sub,
-      area_id: area,
-      duration_days: dur,
-    })
-    .eq("id", id);
-
-  if (error) {
-    console.error(error);
-    return showAlert("Update failed");
-  }
-  renderExisting();
-}
-
-async function onDelete(ev) {
-  const tr = ev.target.closest("tr");
-  if (!(await askConfirm("Delete this activity?"))) return;
-  const { error } = await supabase
-    .from("activities")
-    .delete()
-    .eq("id", tr.dataset.id);
-  if (error) {
-    console.error(error);
-    return showAlert("Delete failed");
-  }
-  renderExisting();
-}
-
-// Multi-row helpers
-function bindRow(r) {
-  r.querySelector(".row-add").onclick = onRowAdd;
-  r.querySelector(".row-remove").onclick = onRowRemove;
-  const sec = r.querySelector(".m-section");
-  const sub = r.querySelector(".m-sub");
-  const ar = r.querySelector(".m-area");
-  sec.onchange = async () => {
-    await loadSub(sub, sec.value, "Select…");
-    ar.innerHTML = `<option value="">Select…</option>`;
-    ar.disabled = true;
-  };
-  sub.onchange = async () => {
-    await loadArea(ar, sec.value, sub.value, "Select…");
-  };
-}
-
-function onRowAdd() {
-  const rows = Array.from(multiBody.rows);
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i];
-    if (
-      !r.querySelector(".m-name").value.trim() ||
-      !r.querySelector(".m-section").value ||
-      !r.querySelector(".m-sub").value ||
-      !r.querySelector(".m-area").value ||
-      !r.querySelector(".m-dur").value
-    ) {
-      return showAlert(`Row ${i + 1} incomplete`);
-    }
-  }
-  if (rows.length >= 10) return showAlert("Max 10 rows");
-  const clone = rows[0].cloneNode(true);
-  clone.querySelectorAll("input,select").forEach((i) => {
-    if (i.classList.contains("m-name")) i.value = "";
-    else if (i.classList.contains("m-dur")) i.value = "";
-    else {
-      i.selectedIndex = 0;
-      i.disabled =
-        i.classList.contains("m-sub") || i.classList.contains("m-area");
-    }
+/* ───────── Details dialog (row click / Enter / Space on the activity button) ───────── */
+async function openDetails(row) {
+  const edit = state.access.edit;
+  const dl = [["Activity", row.activity_name], ["Section", row.sections?.section_name], ["Sub-section", row.subsections?.subsection_name],
+    ["Area", row.areas?.area_name], ["Kind", row.activity_kinds?.name], ["Duration", formatDuration(row.duration_days)], ["ID", row.id]]
+    .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v ?? "—")}</dd>`).join("");
+  const r = await openDialog({
+    title: "Activity details", bodyHtml: `<dl class="ma-details">${dl}</dl>`,
+    buttons: [{ id: "cancel", label: "Close" }, ...(edit ? [{ id: "delete", label: "Delete", cls: "danger" }, { id: "edit", label: "Edit", cls: "primary" }] : [])],
   });
-  bindRow(clone);
-  multiBody.appendChild(clone);
-  clone.querySelector(".m-name").focus();
+  if (r.id === "edit") return openEdit(row);
+  if (r.id === "delete") return onDelete(row);
+  focusRow(row.id);
 }
 
-function onRowRemove(e) {
-  if (multiBody.rows.length > 1) {
-    e.target.closest("tr").remove();
-    multiBody.rows[0].querySelector(".m-name").focus();
-  }
+async function onDelete(row) {
+  if (!state.access.edit) return;
+  if (!(await confirmDialog("Delete activity", `Delete “${row.activity_name}”? This cannot be undone. Activities used by production routes cannot be deleted.`, "Delete", "danger"))) return openDetails(row);
+  const res = await svc.remove(row.id);
+  if (!res.ok) { await alertDialog("Delete failed", res.message); return openDetails(row); }
+  setStatus(`Deleted “${row.activity_name}”.`);
+  // Remove locally (offset = loaded count stays consistent) rather than resetting scroll position.
+  feed.items = feed.items.filter((x) => x.id !== row.id); feed.total = Math.max(0, feed.total - 1);
+  renderFeed(true);
+  document.querySelector("#existingTable .ma-name-link")?.focus() ?? $("nameFilter").focus();
+  checkSentinel();
 }
 
-function clearMulti() {
-  Array.from(multiBody.rows)
-    .slice(1)
-    .forEach((r) => r.remove());
-  const f = multiBody.rows[0];
-  f.querySelector(".m-name").value = "";
-  f.querySelector(".m-section").selectedIndex = 0;
-  f.querySelector(".m-sub").innerHTML = '<option value="">Select…</option>';
-  f.querySelector(".m-sub").disabled = true;
-  f.querySelector(".m-area").innerHTML = '<option value="">Select…</option>';
-  f.querySelector(".m-area").disabled = true;
-  f.querySelector(".m-dur").value = "";
-  f.querySelector(".m-name").focus();
-}
+/* ───────── Bulk creation ───────── */
+const blankRow = (seed = {}) => ({ key: ++draftSeq, name: "", section_id: seed.section_id || "", sub_section_id: seed.sub_section_id || "", area_id: seed.area_id || "", kind_id: seed.kind_id || "", duration_days: seed.duration_days ?? "", errors: {}, msg: "" });
 
-multiAddBtn.onclick = async () => {
-  const rows = Array.from(multiBody.rows);
-  const data = rows.map((r) => ({
-    name: r.querySelector(".m-name").value.trim(),
-    sec: r.querySelector(".m-section").value,
-    sub: r.querySelector(".m-sub").value,
-    area: r.querySelector(".m-area").value,
-    dur: parseInt(r.querySelector(".m-dur").value, 10),
+async function renderBulk() {
+  const tb = $("multiTable").querySelector("tbody");
+  const rows = await Promise.all(bulkRows.map(async (r, i) => {
+    const subs = await svc.subsections(r.section_id).catch(() => []);
+    const areas = await svc.areas(r.section_id, r.sub_section_id).catch(() => []);
+    const err = (k) => (r.errors[k] ? `<span class="ma-field-error">${esc(r.errors[k])}</span>` : "");
+    const cls = (c, k) => `class="${c}${r.errors[k] ? " ma-invalid" : ""}"${r.errors[k] ? ' aria-invalid="true"' : ""}`;
+    return `<tr data-key="${r.key}" class="${r.msg ? "ma-row-failed" : ""}">
+      <td>${i + 1}</td>
+      <td><input ${cls("m-name edit-input", "name")} value="${esc(r.name)}" aria-label="Row ${i + 1} activity name" maxlength="200">${err("name")}${r.msg ? `<div class="ma-row-msg" role="alert">${esc(r.msg)}</div>` : ""}</td>
+      <td><select ${cls("m-section edit-select", "section_id")} aria-label="Row ${i + 1} section">${opts(sections, "id", "section_name", "Select…", r.section_id)}</select>${err("section_id")}</td>
+      <td><select ${cls("m-sub edit-select", "sub_section_id")} aria-label="Row ${i + 1} sub-section"${r.section_id ? "" : " disabled"}>${opts(subs, "id", "subsection_name", "Select…", r.sub_section_id)}</select>${err("sub_section_id")}</td>
+      <td><select ${cls("m-area edit-select", "area_id")} aria-label="Row ${i + 1} area"${r.sub_section_id ? "" : " disabled"}>${opts(areas, "id", "area_name", "Select…", r.area_id)}</select>${err("area_id")}</td>
+      <td><select ${cls("m-kind edit-select", "kind_id")} aria-label="Row ${i + 1} kind">${opts(kinds, "id", "name", "Select…", r.kind_id)}</select>${err("kind_id")}</td>
+      <td><input ${cls("m-dur edit-number", "duration_days")} type="number" min="0" step="1" value="${esc(r.duration_days)}" aria-label="Row ${i + 1} duration in days">${err("duration_days")}</td>
+      <td><div class="ma-row-actions">
+        <button type="button" class="btn ghost row-dup" aria-label="Duplicate row ${i + 1}">Copy</button>
+        <button type="button" class="btn ghost row-remove" aria-label="Remove row ${i + 1}">Remove</button></div></td></tr>`;
   }));
-  for (let i = 0; i < data.length; i++) {
-    const { name, sec, sub, area, dur } = data[i];
-    if (!name || !sec || !sub || !area || isNaN(dur)) {
-      return showAlert(`Row ${i + 1} incomplete`);
+  tb.innerHTML = rows.join("");
+}
+
+function syncDraftsFromDom() {
+  $("multiTable").querySelectorAll("tbody tr").forEach((tr) => {
+    const r = bulkRows.find((x) => String(x.key) === tr.dataset.key); if (!r) return;
+    r.name = tr.querySelector(".m-name").value; r.section_id = tr.querySelector(".m-section").value;
+    r.sub_section_id = tr.querySelector(".m-sub").value; r.area_id = tr.querySelector(".m-area").value;
+    r.kind_id = tr.querySelector(".m-kind").value; r.duration_days = tr.querySelector(".m-dur").value;
+  });
+}
+
+async function addRow(seed) {
+  syncDraftsFromDom();
+  if (bulkRows.length >= BULK_MAX_ROWS) { setStatus(`At most ${BULK_MAX_ROWS} rows per batch.`, "warn"); return; }
+  bulkRows.push(blankRow(seed));
+  await renderBulk();
+  const names = $("multiTable").querySelectorAll(".m-name"); names[names.length - 1].focus();
+}
+
+function wireBulk() {
+  const tb = $("multiTable").querySelector("tbody");
+  tb.addEventListener("change", async (e) => {
+    const tr = e.target.closest("tr"); if (!tr) return;
+    syncDraftsFromDom();
+    const r = bulkRows.find((x) => String(x.key) === tr.dataset.key);
+    if (e.target.classList.contains("m-section")) { r.sub_section_id = ""; r.area_id = ""; }
+    if (e.target.classList.contains("m-sub")) r.area_id = "";
+    if (e.target.matches(".m-section,.m-sub")) { const k = e.target.className; await renderBulk(); $("multiTable").querySelector(`tr[data-key="${r.key}"] .${k.includes("m-section") ? "m-sub" : "m-area"}`)?.focus(); }
+  });
+  tb.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button"); if (!btn) return;
+    syncDraftsFromDom();
+    const tr = btn.closest("tr"); const idx = bulkRows.findIndex((x) => String(x.key) === tr.dataset.key);
+    if (btn.classList.contains("row-remove")) {
+      if (bulkRows.length > 1) bulkRows.splice(idx, 1); else bulkRows[0] = blankRow();
+      await renderBulk(); ($("multiTable").querySelectorAll(".m-name")[Math.max(0, idx - 1)])?.focus();
     }
-  }
-  if (!(await askConfirm(`Add ${data.length} activities?`))) return;
-  let added = 0,
-    failed = 0;
-  for (const d of data) {
-    const { error } = await supabase.from("activities").insert([
-      {
-        activity_name: d.name,
-        section_id: d.sec,
-        sub_section_id: d.sub,
-        area_id: d.area,
-        duration_days: d.dur,
-      },
-    ]);
-    error ? failed++ : added++;
-  }
-  await showAlert(`Added: ${added}\nFailed: ${failed}`);
-  clearMulti();
-  renderExisting();
-};
-
-// Clear filters
-clearBtn.onclick = () => {
-  sectionFilter.value = "";
-  subFilter.value = "";
-  areaFilter.value = "";
-  nameFilter.value = "";
-  subFilter.disabled = areaFilter.disabled = true;
-  populate(subFilter, [], "", "", "Sub-sections");
-  populate(areaFilter, [], "", "", "Areas");
-  renderExisting();
-};
-
-// Handlers for existing table
-existingTbody.onclick = (ev) => {
-  const btn = ev.target.closest("button");
-  if (!btn) return;
-  const tr = btn.closest("tr");
-  if (btn.classList.contains("edit-btn")) startEdit(tr);
-  if (btn.classList.contains("delete-btn")) onDelete(ev);
-};
-
-// Initialize
-window.addEventListener("DOMContentLoaded", async () => {
-  await loadSections();
-  bindRow(multiBody.rows[0]);
-  renderExisting();
-
-  // Filters cascade
-  sectionFilter.onchange = async () => {
-    await loadSub(subFilter, sectionFilter.value, "Sub-sections");
-    areaFilter.innerHTML = "<option>Areas</option>";
-    areaFilter.disabled = true;
-    renderExisting();
+    if (btn.classList.contains("row-dup")) {
+      if (bulkRows.length >= BULK_MAX_ROWS) return setStatus(`At most ${BULK_MAX_ROWS} rows per batch.`, "warn");
+      const s = bulkRows[idx]; bulkRows.splice(idx + 1, 0, { ...blankRow(s), name: s.name });
+      await renderBulk(); $("multiTable").querySelectorAll(".m-name")[idx + 1]?.focus();
+    }
+  });
+  $("maAddRow").onclick = () => { const last = bulkRows[bulkRows.length - 1]; syncDraftsFromDom(); addRow(last); };
+  $("multiClearBtn").onclick = async () => {
+    syncDraftsFromDom();
+    if (bulkRows.some((r) => !isBlankDraft(r)) && !(await confirmDialog("Clear all rows", "Discard everything entered in the new-activities table?", "Clear all", "danger"))) return;
+    bulkRows = [blankRow()]; $("maBulkSummary").textContent = ""; await renderBulk();
   };
-  subFilter.onchange = async () => {
-    await loadArea(areaFilter, sectionFilter.value, subFilter.value, "Areas");
-    renderExisting();
+  $("maPasteBtn").onclick = async () => {
+    syncDraftsFromDom();
+    let text = "";
+    const r = await openDialog({ title: "Paste activity names", bodyHtml: `<div class="sasv-field"><label for="pasteTxt">One activity name per line (max ${BULK_MAX_ROWS}). Section, sub-section, area, kind and days are copied from the last row.</label><textarea id="pasteTxt" rows="8" data-autofocus></textarea></div>`,
+      buttons: [{ id: "cancel", label: "Cancel" }, { id: "ok", label: "Add rows", cls: "primary", run: (api) => { text = api.dlg.querySelector("#pasteTxt").value; api.close({ id: "ok" }); } }] });
+    if (r.id !== "ok") return;
+    const names = text.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+    if (!names.length) return;
+    const seed = bulkRows[bulkRows.length - 1];
+    bulkRows = bulkRows.filter((x) => !isBlankDraft(x));
+    const room = BULK_MAX_ROWS - bulkRows.length;
+    names.slice(0, room).forEach((n) => bulkRows.push({ ...blankRow(seed), name: n }));
+    if (names.length > room) setStatus(`Only ${room} of ${names.length} names fit (limit ${BULK_MAX_ROWS} rows per batch).`, "warn");
+    await renderBulk();
   };
-  areaFilter.onchange = renderExisting;
-  nameFilter.oninput = renderExisting;
+  $("multiAddBtn").onclick = submitBulk;
+}
 
-  multiClearBtn.onclick = clearMulti;
+async function submitBulk() {
+  if (!state.access.edit) return;
+  syncDraftsFromDom();
+  const active = bulkRows.filter((r) => !isBlankDraft(r));
+  if (!active.length) { $("maBulkSummary").textContent = "Nothing to add."; return; }
+  const checks = validateBulk(active);
+  active.forEach((r, i) => { r.errors = checks[i].errors; r.msg = ""; });
+  if (checks.some((c) => !c.ok)) { await renderBulk(); $("maBulkSummary").textContent = "Fix the highlighted rows."; $("multiTable").querySelector(".ma-invalid")?.focus(); return; }
+  if (!(await confirmDialog("Add activities", `Add ${active.length} ${active.length === 1 ? "activity" : "activities"}?`, "Add"))) return;
+  const btn = $("multiAddBtn"); btn.disabled = true; btn.setAttribute("aria-busy", "true");
+  const out = await svc.bulkCreate(active);
+  btn.disabled = false; btn.removeAttribute("aria-busy");
+  const kept = [];
+  out.results.forEach((res, i) => { if (res.status !== "created") { active[i].msg = res.status === "failed" ? res.message : ""; kept.push(active[i]); } });
+  const created = out.results.filter((r) => r.status === "created").length;
+  bulkRows = kept.length ? kept : [blankRow()];
+  await renderBulk();
+  const failed = kept.length;
+  $("maBulkSummary").textContent = `Added ${created}; ${failed} need attention.`;
+  setStatus(failed ? `Added ${created} of ${active.length}. ${failed} row(s) were kept with their errors.` : `Added ${created} ${created === 1 ? "activity" : "activities"}.`, failed ? "warn" : "");
+  if (created) reload();
+}
 
-  const homeBtn = document.getElementById("homeBtn");
-  mountModuleHome(homeBtn);
-  if (homeBtn) {
-    homeBtn.addEventListener("click", () => {
-      window.location.assign("index.html");
-    });
+/* ───────── Init ───────── */
+function applyAccess() {
+  const { view, edit } = state.access;
+  $("maMain").hidden = !view;
+  $("maNewBtn").hidden = !edit;
+  if (view && !edit) setStatus("View only — you do not have permission to create, edit or delete activities.", "warn");
+}
+
+function showView(which) {
+  const bulk = which === "bulk";
+  $("maCatalogue").hidden = bulk; $("maBulk").hidden = !bulk;
+  const h = $(bulk ? "maBulkTitle" : "maListTitle");
+  h.focus();
+  if (bulk) $("multiTable").querySelector(".m-name")?.focus(); else checkSentinel();
+}
+
+async function init() {
+  mountModuleHome($("homeBtn"));
+  $("homeBtn").addEventListener("click", () => window.location.assign("index.html"));
+  setStatus("Loading…");
+  const boot = await bootstrapApp({ loginPage: "login.html" });
+  if (!boot.ok) { if (boot.reason !== "no-session") setStatus("Could not verify your session. Reload and try again.", "error", { label: "Retry", run: () => location.reload() }); return; }
+  state.access = await loadAccess(supabase, boot.session?.user?.id, MODULE_ID);
+  if (!state.access.view) {
+    setStatus(state.access.reason === "denied" ? "You do not have access to Manage Activities." : "Could not verify your permissions. Access is withheld until they can be confirmed.", "error",
+      state.access.reason === "denied" ? null : { label: "Retry", run: () => location.reload() });
+    applyAccess(); return;
   }
-});
+  setStatus("");
+  applyAccess();
+  try {
+    [sections, kinds] = await Promise.all([svc.sections(), svc.kinds()]);
+  } catch (e) {
+    console.error("[activities] lookup load failed", e);
+    setStatus("Could not load sections or kinds.", "error", { label: "Retry", run: () => location.reload() });
+    return;
+  }
+  $("sectionFilter").innerHTML = opts(sections, "id", "section_name", "All sections");
+  $("kindFilter").innerHTML = opts(kinds, "id", "name", "All kinds");
+  wireFilters();
+  wireFeed();
+  tableClicks();
+  if (state.access.edit) {
+    wireBulk(); bulkRows = [blankRow()]; await renderBulk();
+    $("maNewBtn").onclick = () => showView("bulk");
+    $("maBackBtn").onclick = () => { syncDraftsFromDom(); showView("catalogue"); };
+  }
+  await loadBatch({ reset: true });
+}
+
+function tableClicks() {
+  const open = (tr) => { const row = feed.items.find((r) => String(r.id) === tr?.dataset.id); if (row) openDetails(row); };
+  // Row click for pointers; the activity-name button is the keyboard / assistive-tech path (Enter and Space activate it natively).
+  $("existingTable").querySelector("tbody").addEventListener("click", (e) => open(e.target.closest("tr")));
+}
+
+init();
