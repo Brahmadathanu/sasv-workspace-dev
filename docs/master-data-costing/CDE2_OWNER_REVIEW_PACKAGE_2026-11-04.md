@@ -13,8 +13,8 @@ One read-only, versioned RPC, one SKU per call, name for review: `public.rpc_get
 
 Server must, before returning anything:
 1. Require the audited CCC **view** permission (`module:costing-control-center`); no `service_role` path from the browser; `EXECUTE` granted to `authenticated` only, revoked from `anon`/`public`.
-2. Validate that the run is a successful, immutable refresh run **of that period** and is one the run picker may offer (draft or newer than approved; selector to be confirmed against `v_costing_pricing_period_run_status`). Never "latest".
-3. Join on `period_start + refresh_run_id + valuation_date + sku_id` everywhere; fail closed on absent, multiple or inconsistent rows.
+2. Validate the run's period, status, valuation identity and eligibility entirely on the server against the **live canonical selection contract**. A recorded successful refresh and retained snapshot do not alone establish immutability, user authorisation or picker eligibility. Whether drafts 148/149 are eligible, whether the period must be open, and whether an approved run is always refused remain open owner/server decisions. Never silently substitute "latest".
+3. Validate and join on the complete run-scoped identity (`period_start`, `refresh_run_id`, `valuation_date`, `sku_id`) wherever the live data model supports those keys; the server session must establish authoritative foreign keys and uniqueness from real schema, not assume these literal columns exist in every snapshot. Fail closed on absent, multiple or inconsistent rows.
 4. Return **no monetary amount, rate, sales figure or PII**. Projection happens in SQL, not in the browser. No arbitrary `jsonb` pass-through of whole rows. No mutation, no acceptance side effect.
 5. Error text must not reveal whether an inaccessible run/SKU exists.
 
@@ -41,8 +41,8 @@ Anything absent must be `null`/omitted so the client shows UNKNOWN; **null is ne
 | ID | Decision | Recommendation |
 |---|---|---|
 | CDE2-D1 | Approve the *principle* of a single per-run, per-SKU, non-monetary, CCC-view read RPC (design only) | Approve; implementation needs a second, separate authorisation |
-| CDE2-D2 | Behaviour for an **approved** run | Client never requests it (Cost Sheet is governed-run pinned). Server should return `foreign-run`/`empty`, not data, so the two surfaces cannot disagree |
-| CDE2-D3 | Is the run-selector rule "draft or newer than approved" the right authorisation boundary, or must the server also restrict to the open period? | Server session to confirm against live run semantics, then owner decides |
+| CDE2-D2 | Behaviour for an **approved** run | Proposed: refuse for this draft-evidence RPC, since the Cost Sheet is governed-run pinned. Confirm error-envelope semantics (`foreign-run` versus `empty`) with the server owner; not an authorised implementation rule yet |
+| CDE2-D3 | Establish eligible period/run statuses and source immutability, including whether draft runs 148/149 are permitted, how open/closed periods behave and whether a successful run remains addressable after subsequent refreshes. Do not assume "draft or newer than approved" is an authorisation rule. | Server session to verify live canonical run-selector semantics and permissions; owner decides before SQL |
 | CDE2-D4 | Add `refreshed_at`, or drop the "Frozen" line | Add (non-sensitive) |
 | CDE2-D5 | Rate limit / audit logging of reads | Log caller and (period, run, SKU) in the existing audit pattern if one exists; do not invent a new table |
 
@@ -57,3 +57,7 @@ Positive: run 148 representative SKUs — a 52-case direct-labour foundation rev
 
 ## 7. Explicitly out of scope
 No change to approved-run pricing or the Cost Sheet; no new table; no direct browser access to `costing.*`; no run approval, no acceptance write, no flag activation, deployment, cache bump, Electron version or release.
+
+## 8. Server contract verification checkpoint (4 Nov clarification)
+
+Before any RPC implementation or permissions grant, the server owner must read back the current live schema, source key constraints, row version/refresh retention behaviour, run selection views and their effective access controls. Distinguish **retained historical data** from an immutable audited snapshot, and distinguish **successful draft execution** from a run that the client is authorised to inspect. Produce a precise period/run/SKU cross-run isolation matrix and show read-only evidence for permitted and refused examples, including runs 143/148/149 and fixed historical contexts 80/82 as applicable. The SQL projection must whitelist non-monetary fields at the server boundary. Only after an explicit owner decision on CDE2-D1–D5 may a separate, reviewed migration be proposed; this document itself approves no schema change or API exposure.
