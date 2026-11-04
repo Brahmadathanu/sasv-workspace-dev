@@ -149,7 +149,34 @@ export function isCw07LabelOnlyChange({ git, root, base, rel }) {
   return head.replace(/\r\n/g, "\n") === applyCw07Labels(before);
 }
 
-const withoutCw07LabelOnly = (paths, ctx) => paths.filter((rel) => !isCw07LabelOnlyChange({ ...ctx, rel }));
+// WP06-F8: exact, individually approved HTML insertions that the historical "Costing HTML unchanged" package tests
+// tolerate, in the same spirit as the CW-07 rename above: the head must equal the base text with EXACTLY this block
+// inserted once after the anchor, so any other change to the page is still detected. Each entry names the package.
+export const APPROVED_HTML_INSERTIONS = Object.freeze([
+  {
+    package: "WP06-F8",
+    rel: "public/shared/pricing-policy-manager.html",
+    after: "      #csaDefaultPolicyModal .sign-grid {\n        gap: 8px 12px;\n      }\n",
+    insert: "      /* WP06-F8: `.sign-grid label { display:flex }` out-specifies the UA [hidden] rule; keep the company-policy Region field hidden. */\n      #csaDefaultPolicyRegionWrap[hidden] {\n        display: none;\n      }\n",
+  },
+]);
+
+/** True when `rel` differs from `base` only by one approved HTML insertion (LF-normalised). */
+export function isApprovedHtmlInsertionOnly({ git, root, base, rel }) {
+  const { readHead, readBase } = makeReaders({ git, root, base });
+  const head = readHead(rel);
+  const before = readBase(rel);
+  if (head === null || before === null) return false;
+  const h = head.replace(/\r\n/g, "\n");
+  const b = before.replace(/\r\n/g, "\n");
+  return APPROVED_HTML_INSERTIONS.some((e) => {
+    if (e.rel !== rel || b.split(e.after).length !== 2) return false;
+    return h === b.replace(e.after, e.after + e.insert);
+  });
+}
+
+const withoutCw07LabelOnly = (paths, ctx) =>
+  paths.filter((rel) => !isCw07LabelOnlyChange({ ...ctx, rel }) && !isApprovedHtmlInsertionOnly({ ...ctx, rel }));
 
 /** One-call summary used by the package tests. */
 export function costingScopeReport({ git, root, base }) {
