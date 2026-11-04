@@ -1,3 +1,5 @@
+> **SEC-A1 follow-through (4 Nov):** A [prepared, unexecuted permission-gate correction package](SEC_A1_MATERIAL_REVIEW_PERMISSION_REMEDIATION_PLAN_2026-11-04.md) includes baseline source fingerprints, three exact-body CCC-edit changes, guarded apply/rollback SQL and isolated role-test requirements. Separate owner approval is required before any live migration; SEC-A2 remains unresolved and production-backed signed-in acceptance stays HOLD.
+
 # Production-backed view-only acceptance — server permission audit (4 Nov 2026)
 
 > **Status: HOLD for signed-in production-backed acceptance, especially all-ON testing.** This is a read-only, source-and-catalogue audit record, **not** a migration, security fix, test account approval, or WP closure. Source baseline: GitHub `main` `1e7766031bf3cf229ae2578f3944352baa89ec3c` after #169/#170. Live target: SASV Supabase project `qhmoqtxpeasamtlxaoak`. All catalogue and `prosrc` inspections were SELECT-only. No application RPC was invoked, no auth or grants changed, and no production/test data was modified.
