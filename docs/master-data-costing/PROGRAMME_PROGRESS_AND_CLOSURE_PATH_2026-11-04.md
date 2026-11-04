@@ -21,7 +21,7 @@
 Release target unchanged: complete WP00–WP12 first, then the full Electron release gate. Electron version `6.1.0`, service-worker cache `hub-cache-v390` — neither changed.
 
 **Active blockers**
-1. Owner signed-in ON/OFF acceptance for the eleven Costing flags (cannot be run in the cloud) — gates WP05, MDC-07, WP06 closure and WP12.
+1. Owner-authorised signed-in ON/OFF acceptance for the eleven Costing flags **on a client build containing the merged changes** — gates WP05, MDC-07, WP06 closure and WP12. Record tested source SHA, bundle/build and cache version and provenance. The published Electron v6.1.0 and current PWA v390 have not been updated for this integration wave; testing either older deployment cannot establish acceptance of the newly merged changes. Use an explicitly authorised isolated test/preview build with suitable roles, without publishing or changing production assets.
 2. Owner decisions: O-5 (D3, D5, D7, C9), O-8 (`COST_REVIEW_WORKBENCH` destination), O-2 / O-7 (WP08 / WP09), CDE-2 principle.
 3. Server-first items: protected draft-run read contract (CDE-2), run-selector contract for fixed runs 80/82 (C5/D5).
 4. No WP06 code PR remains open: #163 (F-8) is merged; stacked #157/#158/#159 were closed unmerged (superseded).
@@ -44,14 +44,14 @@ Still-open documentation PRs (all draft, none merged): #141, #142, #143, #145, #
 ## 3. WP05 — shortest safe path to formal closure
 Proposed closure conditions (from CL1 §5), status now:
 - (a) delivery packages merged — **DONE**.
-- (b) owner records the signed-in ON/OFF checklist (CL1 §4: eleven flags × six modules, lens/period switch, deep links, view-only role, no console error; role, date, browser, result). **Owner action; the only mandatory step.**
+- (b) owner records the signed-in ON/OFF checklist (CL1 §4: eleven flags × six modules, lens/period switch, deep links, view-only role, no console error; role, date, browser, result) **against an authorised test build proven to contain the merged head**, with source/build/cache provenance and all test flags restored OFF. This cannot be satisfied by an older deployed client.
 - (c) C6 / C9 / D3 decided *or explicitly parked*. Recommendation that needs no code:
   - C6 (`COST_REVIEW_WORKBENCH`/`COST_APPROVAL_WORKBENCH` unmapped): park; the honest "no dedicated screen" text stays; CDE-1a gives per-component links. CL2 is then optional and not a closure blocker.
   - C9 (`policy-manager.periodScoped:false` vs period-scoped CSA): park as a documented characterisation (pinned by CL1 tests).
   - D3 (CCC-edit can accept reviews without MCM-edit): owner policy decision, or park with the current behaviour recorded.
 - Tier-2 items D2/D4 and CDE-1b stay non-blocking.
 
-Result: WP05 can be closed with **one owner session (checklist + three park/decide answers) and a one-line Gate Status edit**; no further code is required.
+**Other residual evidence must be explicitly reconciled:** C5/D5 historical fixed runs 80/82 remain labelled and lack a server selector contract; S2 read-only printable Cost Sheet ↔ SKU detail parity and S9 dashboard KPI requery measurement require evidence or an explicit owner-approved deferral and future gate. Review the complete WP05 closure ledger (including relevant C1–C3 and rights conditions) before gate sign-off. **Candidate closure path:** one or more owner-authorised signed-in test sessions, recorded policy dispositions and a Gate Status edit **only if** each remaining item is either verified or deliberately deferred with owner rationale and a future gate. No further code is currently identified for the delivered Tier-1 fixes, but live acceptance may reveal defects.
 
 ## 4. WP06 — shortest safe path to formal closure
 Delivered: five-group projection, task-flow audit with F-1…F-6, CSA modal concurrency (G1d), default-policy revise modal tests (G1b) and in-flight fix (F-7), MRP proposal flow tests (G1c) and in-flight fix (F-9). Remaining:
@@ -61,7 +61,7 @@ Delivered: five-group projection, task-flow audit with F-1…F-6, CSA modal conc
 4. **Server questions** carried from the audit: whether integer units are required (F-4). Park unless the owner decides.
 5. Signed-in acceptance of the ten Pricing Policy workspaces — covered by the same checklist as §3(b), with the CSA and default-policy modals exercised read-only unless the owner chooses to make a real change.
 
-Result: WP06 closes after three owner answers (C9, D7, F-4) plus the signed-in checklist.
+**Scope of code completion:** the identified WP06 F-1/F-2/F-7/F-8/F-9 fixes are merged; this is not a guarantee that no further defects will emerge in populated-data or signed-in acceptance. **Candidate closure path:** document owner decisions or explicit deferrals for C9, D7 and F-4; verify read-only role behaviour and all ten workspaces on the tested merged build; reconcile other WP06 gate rows before owner sign-off.
 
 ## 5. Next bounded work (client, draft PRs, in this order)
 1. This documentation PR (reconciliation, closure path, CDE-2 owner package, owner acceptance record, §7 consolidation plan). The genuine blockers are owner acceptance and decisions, so no further audit or feature code is proposed.
@@ -93,3 +93,9 @@ Judged from PR descriptions and file lists (#148, #150 and the CDE-1a code were 
 | #164 | Manage Activities UX | Separate scope; untouched. |
 
 Proposed end state: merge #165, one trimmed #150, corrected #145 and #141; close #148, #147, #142 (and #143 unless kept as history); decide #114/#116/#119. Every merge or close is an owner decision.
+
+## 8. Acceptance provenance and deferred-issue governance (4 Nov correction)
+
+The signed-in owner record is a **test protocol, not authorisation to deploy**. Before a PASS is recorded, identify the exact Git source SHA, served JS/CSS asset or packaged installer identity, Electron/PWA and cache versions, role and environment. The isolated preview/test environment must be explicitly authorised by the owner and must contain the current integrated code. If the only available client is published Electron v6.1.0 or PWA cache v390 without the new source, record **NOT TESTED** for recently merged functionality. Local browser flags are temporary test inputs, not production activation. Use view-only credentials, avoid approve/lock/recalculate/save/accept operations, and restore and verify all eleven flags OFF afterward.
+
+A deferred issue is not a verified pass: the Gate Status record must identify the issue ID, observed current behaviour, reason for deferral, residual risk, named later work pack or server gate, and explicit owner acceptance. In particular, C5/D5 historical run 80/82 selection remains server-first; S2 printable cost-sheet parity and S9 KPI requery proof must be evidenced or formally deferred. This procedure does not itself close WP05, WP06, MDC-07 or WP12.
