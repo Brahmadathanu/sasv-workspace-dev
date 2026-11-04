@@ -71,6 +71,7 @@ import { isCostingNavGroupsV1Enabled } from "./costing-feature-flags.js";
 import { resolveNavGroups, renderGroupedNavHtml, renderGroupedSelectHtml } from "./costing-nav-groups.js";
 import { buildNavContextModel, costingNavContext, renderNavContextHtml } from "./costing-nav-context.js";
 import { CCC_DRAFT_SUMMARY_SELECT, createLatestOnlyLoader, createReviewWorklistRunStatusLoader, describeDashboardRunContext, describeKpiRunCaption, describeReviewWorklistRunContext, filterReviewWorklistRows, groupReviewWorklistRows, isReviewWorklistRunChoice, renderDashboardRunContextHtml, renderKpiRunCaptionHtml, renderReviewWorklistDrawerGroupHtml, renderReviewWorklistHtml, reviewWorklistRunChoices, reviewWorklistRunContext, sortReviewWorklistRows, summariseRunRows, validateReviewWorklistRunRows, REVIEW_WORKLIST_BY_RUN_VIEW, REVIEW_WORKLIST_RUN_STATUS_SELECT, REVIEW_WORKLIST_RUN_STATUS_VIEW } from "./costing-review-worklist.js";
+import { createDraftRunEvidenceLoader, mountDraftRunEvidenceSection } from "./costing-draft-run-evidence.js";
 import { activeSortState, applySortClick, ariaSortFor, columnHelpFor, isSortableColumn, neutraliseCsvRows, sortIndicatorFor, tableColumnsFor, tableColumnsForTable, withAccessors } from "./costing-table-tools.js";
 import {
   createQcActionQueueController,
@@ -6071,6 +6072,43 @@ function syncReviewWorklistDrawerGroup(groups, selectedKey) {
   section.innerHTML = renderReviewWorklistDrawerGroupHtml(groups, { selectedKey });
 }
 
+/**
+ * CDE-1a (flag COSTING_REVIEW_WORKLIST_V1 only): context for the draft-run component evidence section of the SKU
+ * drawer, or null. A run applies only when it is the non-approved run selected from the server-advertised choices.
+ */
+function draftRunEvidenceContext() {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return null;
+  const sel = reviewWorklistActiveRun();
+  const st = REVIEW_WORKLIST_RUN_STATUS?.state?.();
+  if (!sel || !st || st.status !== "ready" || st.periodStart !== ACTIVE_PERIOD_START) return null;
+  const choices = reviewWorklistRunChoices(st.row);
+  const choice = choices.find((c) => c.runId === String(sel.runId));
+  if (!choice || choice.kind === "approved") return null;
+  return { periodStart: ACTIVE_PERIOD_START, runId: choice.runId, runKind: choice.kind, allowedRunIds: choices.map((c) => c.runId) };
+}
+
+let DRAFT_RUN_EVIDENCE_LOADER = null;
+function mountDraftRunEvidenceInDrawer() {
+  if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return;
+  const getCurrentContext = () => {
+    const context = draftRunEvidenceContext();
+    return context && SELECTED_ROW ? { context, row: SELECTED_ROW } : null;
+  };
+  if (!getCurrentContext()) return;
+  DRAFT_RUN_EVIDENCE_LOADER ||= createDraftRunEvidenceLoader({ getCurrentContext });
+  drawerContent.querySelectorAll("[data-cde-host]").forEach((node) => node.remove());
+  const host = document.createElement("div");
+  host.setAttribute("data-cde-host", "1");
+  drawerContent.appendChild(host);
+  mountDraftRunEvidenceSection(host, {
+    loader: DRAFT_RUN_EVIDENCE_LOADER,
+    getCurrentContext,
+    showToast,
+    navigate: (target) =>
+      navigateToCostingRoute(target.moduleKey, target.navigateParams || { lens: target.lensId }, { newTab: target.newTab === true }),
+  });
+}
+
 function renderReviewWorklistPanel() {
   if (!(isCostingReviewWorklistV1Enabled() && CURRENT_LENS === "sku-control-status")) return;
   if (!workbenchSummary) return;
@@ -7785,6 +7823,7 @@ async function setDrawerTab(tabId) {
         SELECTED_ROW,
       );
       controlCenterCtrl.wireSkuControlDrawerActions(tabId, SELECTED_ROW);
+      mountDraftRunEvidenceInDrawer();
     } else if (CURRENT_LENS === "costing-review-workbench") {
       drawerContent.innerHTML = await controlCenterCtrl.renderWorkbenchDrawerTab(
         tabId,
