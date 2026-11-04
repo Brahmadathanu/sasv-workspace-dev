@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   createActivitiesService, validateActivity, validateBulk, classifyError, accessFromPermissions, loadAccess,
-  escapeLike, pagerState, PAGE_SIZES, MODULE_ID,
+  escapeLike, pagerState, formatDuration, activeFilterCount, mergeById, BATCH_SIZE, PAGE_SIZES, MODULE_ID,
 } from "../../public/shared/js/manage-activities-core.js";
 import { createFake, makeData, permList } from "./fake-supabase.mjs";
 
@@ -154,4 +154,19 @@ test("classifyError maps codes", () => {
   assert.equal(classifyError({ code: "23503" }, "create").kind, "invalid");
   assert.equal(classifyError({ message: "weird" }).kind, "unknown");
   assert.equal(classifyError(new TypeError("x")).kind, "network");
+});
+
+test("offset batches are contiguous, ordered and bounded by total", async () => {
+  const { svc, cfg } = mk();
+  assert.equal(BATCH_SIZE, 25);
+  const a = await svc.list({ offset: 0, pageSize: 25 }), b = await svc.list({ offset: 25, pageSize: 25 }), c = await svc.list({ offset: 50, pageSize: 25 }), d = await svc.list({ offset: 75, pageSize: 25 });
+  assert.deepEqual([a.rows.length, b.rows.length, c.rows.length, d.rows.length, d.total], [25, 25, 10, 0, 60]);
+  assert.equal(b.rows[0].activity_name, "Activity 026");
+  assert.deepEqual(cfg.log.at(-1).range, [75, 99]);
+});
+
+test("helpers: duration unit, active filter count, merge dedupes", () => {
+  assert.equal(formatDuration(1), "1 day"); assert.equal(formatDuration(0), "0 days"); assert.equal(formatDuration(12), "12 days");
+  assert.equal(activeFilterCount({ sectionId: "1", subId: "", kindId: "k", search: "x" }), 2);
+  assert.deepEqual(mergeById([{ id: 1 }, { id: 2 }], [{ id: 2 }, { id: 3 }]).map((r) => r.id), [1, 2, 3]);
 });

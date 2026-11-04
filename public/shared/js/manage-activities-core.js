@@ -5,6 +5,7 @@
 export const MODULE_ID = "manage-activities";
 export const PAGE_SIZES = [25, 50, 100];
 export const DEFAULT_PAGE_SIZE = 25;
+export const BATCH_SIZE = 25;
 export const BULK_MAX_ROWS = 25;
 export const NAME_MAX = 200;
 export const DURATION_MAX = 3650;
@@ -151,9 +152,10 @@ export function createActivitiesService(client) {
     },
 
     /** Paginated, filtered list. Returns { rows, total } or throws. */
-    async list({ page = 1, pageSize = DEFAULT_PAGE_SIZE, search = "", sectionId = "", subId = "", areaId = "", kindId = "" } = {}) {
+    async list({ offset = null, page = 1, pageSize = DEFAULT_PAGE_SIZE, search = "", sectionId = "", subId = "", areaId = "", kindId = "" } = {}) {
       const size = PAGE_SIZES.includes(Number(pageSize)) ? Number(pageSize) : DEFAULT_PAGE_SIZE;
       const p = Math.max(1, Math.floor(Number(page)) || 1);
+      const from = Number.isInteger(offset) && offset >= 0 ? offset : (p - 1) * size;
       let q = client.from("activities").select(LIST_SELECT, { count: "exact" });
       if (sectionId) q = q.eq("section_id", sectionId);
       if (subId) q = q.eq("sub_section_id", subId);
@@ -161,10 +163,10 @@ export function createActivitiesService(client) {
       if (kindId) q = q.eq("kind_id", kindId);
       const s = String(search ?? "").trim();
       if (s) q = q.ilike("activity_name", `%${escapeLike(s)}%`);
-      q = q.order("activity_name", { ascending: true }).order("id", { ascending: true }).range((p - 1) * size, p * size - 1);
+      q = q.order("activity_name", { ascending: true }).order("id", { ascending: true }).range(from, from + size - 1);
       const { data, error, count } = await q;
       if (error) throw Object.assign(new Error(error.message || "list failed"), { cause: error, code: error.code });
-      return { rows: data || [], total: typeof count === "number" ? count : (data || []).length, page: p, pageSize: size };
+      return { rows: data || [], total: typeof count === "number" ? count : from + (data || []).length, page: p, pageSize: size, offset: from };
     },
 
     /** Each write resolves to { ok:true, row } or { ok:false, kind, message }. Never throws. */
@@ -242,4 +244,16 @@ export function pagerState({ page, pageSize, total }) {
   const from = total === 0 ? 0 : (cur - 1) * pageSize + 1;
   const to = Math.min(total, cur * pageSize);
   return { page: cur, pages, from, to, hasPrev: cur > 1, hasNext: cur < pages };
+}
+
+/** "1 day" / "3 days" — duration always carries its unit. */
+export const formatDuration = (n) => `${n ?? 0} ${Number(n) === 1 ? "day" : "days"}`;
+
+/** Number of active catalogue filters (search text is not a drawer filter). */
+export const activeFilterCount = (f) => ["sectionId", "subId", "areaId", "kindId"].filter((k) => f?.[k]).length;
+
+/** Append a batch, dropping rows already loaded (offset paging can overlap after concurrent inserts). */
+export function mergeById(existing, incoming) {
+  const seen = new Set(existing.map((r) => String(r.id)));
+  return existing.concat(incoming.filter((r) => !seen.has(String(r.id))));
 }

@@ -37,6 +37,7 @@ export function createFake(cfg) {
         activity_kinds: d.activity_kinds.find((x) => x.id == r.kind_id) ? { name: d.activity_kinds.find((x) => x.id == r.kind_id).name, short_code: "" } : null };
     });
     async function run() {
+      if (cfg.delayMs && st.op === "select" && table === "activities") await new Promise((r) => setTimeout(r, cfg.delayMs));
       cfg.log.push({ table, op: st.op, filters: st.filters.slice(), like: st.like, range: st.range, payload: st.payload });
       const failure = cfg.fail?.[table]?.[st.op];
       if (failure) return typeof failure === "function" ? failure(st) : { data: null, error: failure };

@@ -1,14 +1,17 @@
 import { supabase } from "../public/shared/js/supabaseClient.js";
 import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
+import { iconHtml } from "../public/shared/js/ui-icons.js";
 import { mountModuleHome } from "../public/shared/js/sasv-module-chrome.js";
 import {
-  MODULE_ID, PAGE_SIZES, DEFAULT_PAGE_SIZE, BULK_MAX_ROWS,
-  createActivitiesService, loadAccess, validateBulk, validateActivity, isBlankDraft, pagerState,
+  MODULE_ID, BATCH_SIZE, BULK_MAX_ROWS, formatDuration, activeFilterCount, mergeById,
+  createActivitiesService, loadAccess, validateBulk, validateActivity, isBlankDraft,
 } from "../public/shared/js/manage-activities-core.js";
 
 const $ = (id) => document.getElementById(id);
 const svc = createActivitiesService(supabase);
-const state = { access: { view: false, edit: false }, page: 1, pageSize: DEFAULT_PAGE_SIZE, total: 0, rows: [], seq: 0, loading: false };
+const state = { access: { view: false, edit: false } };
+// Infinite-scroll feed. `gen` invalidates in-flight requests on reset; `busy` blocks concurrent batch loads.
+const feed = { items: [], total: 0, gen: 0, busy: false, err: null, rendered: 0 };
 let draftSeq = 0;
 let bulkRows = []; // [{key, name, section_id, sub_section_id, area_id, kind_id, duration_days, errors, msg}]
 let kinds = [];
@@ -68,60 +71,93 @@ const confirmDialog = (title, message, label = "Confirm", cls = "primary") =>
   openDialog({ title, bodyHtml: `<p>${esc(message)}</p>`, buttons: [{ id: "cancel", label: "Cancel" }, { id: "ok", label, cls }] }).then((r) => r.id === "ok");
 const alertDialog = (title, message) => openDialog({ title, bodyHtml: `<p style="white-space:pre-line">${esc(message)}</p>`, buttons: [{ id: "ok", label: "OK", cls: "primary" }] });
 
-/* ───────── Listing ───────── */
+/* ───────── Listing (server-side infinite scroll, batches of BATCH_SIZE) ───────── */
 function filters() {
   return {
     search: $("nameFilter").value, sectionId: $("sectionFilter").value, subId: $("subFilter").value,
     areaId: $("areaFilter").value, kindId: $("kindFilter").value,
   };
 }
+const hasMore = () => feed.items.length < feed.total && !feed.exhausted;
+const catalogueVisible = () => !$("maCatalogue").hidden && !$("maMain").hidden;
 
-async function refresh({ keepStatus = false } = {}) {
-  const seq = ++state.seq;
-  const tbl = $("existingTable");
-  state.loading = true; tbl.setAttribute("aria-busy", "true");
-  $("maEmpty").hidden = false; $("maEmpty").textContent = "Loading activities…";
-  if (!keepStatus) setStatus("");
+/** reset=true discards loaded rows and any in-flight request; otherwise loads the next batch. */
+async function loadBatch({ reset = false } = {}) {
+  if (reset) { feed.gen++; Object.assign(feed, { items: [], total: 0, busy: false, err: null, rendered: 0, exhausted: false }); renderFeed(true); }
+  else if (feed.busy || !hasMore() || feed.err) return;
+  const gen = feed.gen;
+  feed.busy = true; feed.err = null; renderFeed();
   try {
-    const res = await svc.list({ ...filters(), page: state.page, pageSize: state.pageSize });
-    if (seq !== state.seq) return; // stale response
-    // Page now past the end (e.g. after delete): step back once.
-    if (res.rows.length === 0 && res.total > 0 && state.page > 1) { state.page = pagerState({ page: state.page, pageSize: state.pageSize, total: res.total }).pages; return refresh({ keepStatus }); }
-    state.rows = res.rows; state.total = res.total;
-    renderRows();
+    const res = await svc.list({ ...filters(), offset: feed.items.length, pageSize: BATCH_SIZE });
+    if (gen !== feed.gen) return; // stale: a newer reset superseded this request
+    feed.items = mergeById(feed.items, res.rows);
+    feed.total = res.total;
+    if (res.rows.length === 0) feed.exhausted = true;
   } catch (e) {
-    if (seq !== state.seq) return;
+    if (gen !== feed.gen) return;
     console.error("[activities] list failed", e);
-    state.rows = []; state.total = 0; renderRows(true);
-    setStatus("Could not load activities. Check your connection and try again.", "error", { label: "Retry", run: () => refresh() });
+    feed.err = { phase: feed.items.length ? "more" : "initial" };
   } finally {
-    if (seq === state.seq) { state.loading = false; tbl.setAttribute("aria-busy", "false"); }
+    if (gen === feed.gen) { feed.busy = false; renderFeed(); queueMicrotask(checkSentinel); }
   }
 }
 
-function renderRows(failed = false) {
-  const edit = state.access.edit;
-  $("existingTable").querySelector("tbody").innerHTML = state.rows.map((r) => `
-    <tr data-id="${esc(r.id)}">
-      <td>${esc(r.activity_name)}</td><td>${esc(r.sections?.section_name)}</td><td>${esc(r.subsections?.subsection_name)}</td>
-      <td>${esc(r.areas?.area_name)}</td><td>${esc(r.activity_kinds?.name)}</td><td class="ma-num">${esc(r.duration_days)}</td>
-      ${edit ? `<td><div class="ma-row-actions">
-        <button type="button" class="btn ghost edit-btn" aria-label="Edit ${esc(r.activity_name)}">Edit</button>
-        <button type="button" class="btn danger delete-btn" aria-label="Delete ${esc(r.activity_name)}">Delete</button></div></td>` : ""}
-    </tr>`).join("");
-  const empty = $("maEmpty");
-  empty.hidden = state.rows.length > 0;
-  if (!state.rows.length) empty.textContent = failed ? "Activities could not be loaded." : (Object.values(filters()).some(Boolean) ? "No activities match the current filters." : "No activities found.");
-  const p = pagerState({ page: state.page, pageSize: state.pageSize, total: state.total });
-  $("maCount").textContent = `${state.total} ${state.total === 1 ? "activity" : "activities"}`;
-  $("maPagerInfo").textContent = state.total ? `Showing ${p.from}–${p.to} of ${state.total}` : "Showing 0";
-  $("maPageLabel").textContent = `Page ${p.page} of ${p.pages}`;
-  $("maPrev").disabled = !p.hasPrev; $("maNext").disabled = !p.hasNext;
+function rowHtml(r) {
+  return `<tr data-id="${esc(r.id)}">
+      <td><button type="button" class="ma-name-link" aria-haspopup="dialog">${esc(r.activity_name)}</button></td>
+      <td>${esc(r.sections?.section_name)}</td><td>${esc(r.subsections?.subsection_name)}</td>
+      <td>${esc(r.areas?.area_name)}</td><td>${esc(r.activity_kinds?.name)}</td><td class="ma-num">${esc(formatDuration(r.duration_days))}</td></tr>`;
 }
 
-/* ───────── Filters ───────── */
+function renderFeed(full = false) {
+  const tb = $("existingTable").querySelector("tbody");
+  if (full || feed.rendered > feed.items.length) { tb.innerHTML = feed.items.map(rowHtml).join(""); }
+  else tb.insertAdjacentHTML("beforeend", feed.items.slice(feed.rendered).map(rowHtml).join(""));
+  feed.rendered = feed.items.length;
+  $("existingTable").setAttribute("aria-busy", String(feed.busy));
+  const f = filters(); const filtered = activeFilterCount(f) > 0 || f.search.trim();
+  const empty = $("maEmpty");
+  empty.hidden = feed.items.length > 0 || !!feed.err;
+  empty.textContent = feed.busy ? "Loading activities…" : (filtered ? "No activities match the current search or filters." : "No activities found.");
+  $("maCount").textContent = feed.err?.phase === "initial" || (feed.busy && !feed.items.length) ? "" : `${feed.total} ${feed.total === 1 ? "activity" : "activities"}`;
+  const st = $("maListStatus"), more = $("maLoadMore");
+  if (feed.busy) st.textContent = feed.items.length ? "Loading more…" : "Loading…";
+  else if (feed.err?.phase === "more") st.textContent = `Could not load more. Showing ${feed.items.length} of ${feed.total}.`;
+  else if (feed.err) st.textContent = "Could not load activities. Check your connection and try again.";
+  else if (!feed.items.length) st.textContent = "";
+  else if (!hasMore()) st.textContent = `All ${feed.total} loaded.`;
+  else st.textContent = `Showing ${feed.items.length} of ${feed.total}`;
+  more.hidden = !(hasMore() || feed.err);
+  more.disabled = feed.busy; more.setAttribute("aria-busy", String(feed.busy));
+  more.textContent = feed.err ? "Retry" : "Load more";
+}
+
+let observer = null;
+function checkSentinel() {
+  if (!catalogueVisible() || feed.busy || feed.err || !hasMore()) return;
+  if ($("maSentinel").getBoundingClientRect().top < window.innerHeight + 200) loadBatch();
+}
+function wireFeed() {
+  $("maLoadMore").onclick = () => { if (feed.err?.phase === "initial") loadBatch({ reset: true }); else { feed.err = null; loadBatch(); } };
+  if ("IntersectionObserver" in window) {
+    observer = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) checkSentinel(); }, { rootMargin: "200px" });
+    observer.observe($("maSentinel"));
+  }
+  window.addEventListener("scroll", checkSentinel, { passive: true });
+  window.addEventListener("resize", checkSentinel);
+}
+
+/* ───────── Filters (drawer) ───────── */
 let searchTimer = null;
-const resetAndRefresh = () => { state.page = 1; refresh(); };
+const reload = () => { updateFilterIndicator(); return loadBatch({ reset: true }); };
+
+function updateFilterIndicator() {
+  const n = activeFilterCount(filters());
+  const b = $("maFilterBadge"), btn = $("maFilterBtn");
+  b.hidden = n === 0; b.textContent = String(n);
+  btn.classList.toggle("has-active", n > 0);
+  btn.setAttribute("aria-label", n ? `Filters, ${n} active` : "Filters");
+}
 
 async function fillSub(sel, secId, ph) {
   sel.innerHTML = `<option value="">${ph}</option>`; sel.disabled = !secId;
@@ -136,22 +172,38 @@ async function fillArea(sel, secId, subId, ph) {
   catch { setStatus("Could not load areas.", "error"); }
 }
 
-function wireFilters() {
-  $("nameFilter").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(resetAndRefresh, 250); });
-  $("nameFilter").addEventListener("keydown", (e) => { if (e.key === "Enter") { clearTimeout(searchTimer); resetAndRefresh(); } });
-  $("sectionFilter").onchange = async () => { await fillSub($("subFilter"), $("sectionFilter").value, "All sub-sections"); await fillArea($("areaFilter"), "", "", "All areas"); resetAndRefresh(); };
-  $("subFilter").onchange = async () => { await fillArea($("areaFilter"), $("sectionFilter").value, $("subFilter").value, "All areas"); resetAndRefresh(); };
-  $("areaFilter").onchange = resetAndRefresh;
-  $("kindFilter").onchange = resetAndRefresh;
-  $("clearFilters").onclick = async () => {
-    $("nameFilter").value = ""; $("sectionFilter").value = ""; $("kindFilter").value = "";
-    await fillSub($("subFilter"), "", "All sub-sections"); await fillArea($("areaFilter"), "", "", "All areas");
-    resetAndRefresh();
+function openDrawer() {
+  const opener = $("maFilterBtn"), dr = $("maDrawer"), bd = $("maDrawerBackdrop");
+  dr.hidden = false; bd.hidden = false; opener.setAttribute("aria-expanded", "true");
+  const close = () => { document.removeEventListener("keydown", onKey, true); dr.hidden = true; bd.hidden = true; opener.setAttribute("aria-expanded", "false"); opener.focus(); };
+  const onKey = (e) => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); return; }
+    if (e.key !== "Tab") return;
+    const f = [...dr.querySelectorAll("button:not([disabled]),select:not([disabled])")];
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   };
-  $("maPageSize").innerHTML = PAGE_SIZES.map((n) => `<option value="${n}">${n} / page</option>`).join("");
-  $("maPageSize").onchange = () => { state.pageSize = Number($("maPageSize").value); resetAndRefresh(); };
-  $("maPrev").onclick = () => { if (state.page > 1) { state.page--; refresh(); } };
-  $("maNext").onclick = () => { state.page++; refresh(); };
+  document.addEventListener("keydown", onKey, true);
+  $("maDrawerClose").onclick = $("maDrawerDone").onclick = bd.onclick = close;
+  $("sectionFilter").focus();
+}
+
+function wireFilters() {
+  $("maFilterIcon").innerHTML = iconHtml("filter", 16);
+  $("maFilterBtn").onclick = openDrawer;
+  $("nameFilter").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(reload, 250); });
+  $("nameFilter").addEventListener("keydown", (e) => { if (e.key === "Enter") { clearTimeout(searchTimer); reload(); } });
+  $("sectionFilter").onchange = async () => { await fillSub($("subFilter"), $("sectionFilter").value, "All sub-sections"); await fillArea($("areaFilter"), "", "", "All areas"); reload(); };
+  $("subFilter").onchange = async () => { await fillArea($("areaFilter"), $("sectionFilter").value, $("subFilter").value, "All areas"); reload(); };
+  $("areaFilter").onchange = reload;
+  $("kindFilter").onchange = reload;
+  $("clearFilters").onclick = async () => {
+    $("sectionFilter").value = ""; $("kindFilter").value = "";
+    await fillSub($("subFilter"), "", "All sub-sections"); await fillArea($("areaFilter"), "", "", "All areas");
+    reload();
+  };
+  updateFilterIndicator();
 }
 
 /* ───────── Edit dialog ───────── */
@@ -175,7 +227,7 @@ async function openEdit(row) {
   const F = { name: "ed-name", section_id: "ed-sec", sub_section_id: "ed-sub", area_id: "ed-area", kind_id: "ed-kind", duration_days: "ed-dur" };
   const subs = await svc.subsections(row.section_id).catch(() => []);
   const areas = await svc.areas(row.section_id, row.sub_section_id).catch(() => []);
-  await openDialog({
+  const r = await openDialog({
     title: "Edit activity", wide: true,
     bodyHtml: `<div class="ma-form-grid">
       <div class="ma-wide">${field("ed-name", "Activity name", `<input id="ed-name" data-autofocus value="${esc(row.activity_name)}" maxlength="200">`)}</div>
@@ -199,7 +251,7 @@ async function openEdit(row) {
         if (!res.ok) { q("ed-msg").hidden = false; q("ed-msg").textContent = res.message; return; } // dialog stays open, input preserved
         api.close({ id: "save" });
         setStatus("Activity updated.");
-        refresh({ keepStatus: true });
+        reload().then(() => focusRow(row.id));
       } },
     ],
     onMount: (api) => {
@@ -209,15 +261,37 @@ async function openEdit(row) {
       api.dlg.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); api.dlg.querySelector('[data-act="save"]').click(); } });
     },
   });
+  if (r.id === "cancel") openDetails(row); // back to the details view; Esc/Cancel never loses context
+}
+
+function focusRow(id) { document.querySelector(`#existingTable tr[data-id="${CSS.escape(String(id))}"] .ma-name-link`)?.focus(); }
+
+/* ───────── Details dialog (row click / Enter / Space on the activity button) ───────── */
+async function openDetails(row) {
+  const edit = state.access.edit;
+  const dl = [["Activity", row.activity_name], ["Section", row.sections?.section_name], ["Sub-section", row.subsections?.subsection_name],
+    ["Area", row.areas?.area_name], ["Kind", row.activity_kinds?.name], ["Duration", formatDuration(row.duration_days)], ["ID", row.id]]
+    .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v ?? "—")}</dd>`).join("");
+  const r = await openDialog({
+    title: "Activity details", bodyHtml: `<dl class="ma-details">${dl}</dl>`,
+    buttons: [{ id: "cancel", label: "Close" }, ...(edit ? [{ id: "delete", label: "Delete", cls: "danger" }, { id: "edit", label: "Edit", cls: "primary" }] : [])],
+  });
+  if (r.id === "edit") return openEdit(row);
+  if (r.id === "delete") return onDelete(row);
+  focusRow(row.id);
 }
 
 async function onDelete(row) {
   if (!state.access.edit) return;
-  if (!(await confirmDialog("Delete activity", `Delete “${row.activity_name}”? This cannot be undone. Activities used by production routes cannot be deleted.`, "Delete", "danger"))) return;
+  if (!(await confirmDialog("Delete activity", `Delete “${row.activity_name}”? This cannot be undone. Activities used by production routes cannot be deleted.`, "Delete", "danger"))) return openDetails(row);
   const res = await svc.remove(row.id);
-  if (!res.ok) { await alertDialog("Delete failed", res.message); return; }
+  if (!res.ok) { await alertDialog("Delete failed", res.message); return openDetails(row); }
   setStatus(`Deleted “${row.activity_name}”.`);
-  refresh({ keepStatus: true });
+  // Remove locally (offset = loaded count stays consistent) rather than resetting scroll position.
+  feed.items = feed.items.filter((x) => x.id !== row.id); feed.total = Math.max(0, feed.total - 1);
+  renderFeed(true);
+  document.querySelector("#existingTable .ma-name-link")?.focus() ?? $("nameFilter").focus();
+  checkSentinel();
 }
 
 /* ───────── Bulk creation ───────── */
@@ -330,16 +404,23 @@ async function submitBulk() {
   const failed = kept.length;
   $("maBulkSummary").textContent = `Added ${created}; ${failed} need attention.`;
   setStatus(failed ? `Added ${created} of ${active.length}. ${failed} row(s) were kept with their errors.` : `Added ${created} ${created === 1 ? "activity" : "activities"}.`, failed ? "warn" : "");
-  if (created) { state.page = 1; refresh({ keepStatus: true }); }
+  if (created) reload();
 }
 
 /* ───────── Init ───────── */
 function applyAccess() {
   const { view, edit } = state.access;
   $("maMain").hidden = !view;
-  $("maBulk").hidden = !edit;
-  document.querySelectorAll("[data-requires-edit]").forEach((el) => { if (el.id !== "maBulk") el.hidden = !edit; });
+  $("maNewBtn").hidden = !edit;
   if (view && !edit) setStatus("View only — you do not have permission to create, edit or delete activities.", "warn");
+}
+
+function showView(which) {
+  const bulk = which === "bulk";
+  $("maCatalogue").hidden = bulk; $("maBulk").hidden = !bulk;
+  const h = $(bulk ? "maBulkTitle" : "maListTitle");
+  h.focus();
+  if (bulk) $("multiTable").querySelector(".m-name")?.focus(); else checkSentinel();
 }
 
 async function init() {
@@ -366,18 +447,20 @@ async function init() {
   $("sectionFilter").innerHTML = opts(sections, "id", "section_name", "All sections");
   $("kindFilter").innerHTML = opts(kinds, "id", "name", "All kinds");
   wireFilters();
+  wireFeed();
   tableClicks();
-  if (state.access.edit) { wireBulk(); bulkRows = [blankRow()]; await renderBulk(); $("maNewBtn").onclick = () => { $("maBulk").scrollIntoView({ block: "start" }); $("multiTable").querySelector(".m-name")?.focus(); }; }
-  await refresh({ keepStatus: true });
+  if (state.access.edit) {
+    wireBulk(); bulkRows = [blankRow()]; await renderBulk();
+    $("maNewBtn").onclick = () => showView("bulk");
+    $("maBackBtn").onclick = () => { syncDraftsFromDom(); showView("catalogue"); };
+  }
+  await loadBatch({ reset: true });
 }
 
 function tableClicks() {
-  $("existingTable").querySelector("tbody").addEventListener("click", (e) => {
-    const btn = e.target.closest("button"); if (!btn) return;
-    const row = state.rows.find((r) => String(r.id) === btn.closest("tr").dataset.id); if (!row) return;
-    if (btn.classList.contains("edit-btn")) openEdit(row);
-    if (btn.classList.contains("delete-btn")) onDelete(row);
-  });
+  const open = (tr) => { const row = feed.items.find((r) => String(r.id) === tr?.dataset.id); if (row) openDetails(row); };
+  // Row click for pointers; the activity-name button is the keyboard / assistive-tech path (Enter and Space activate it natively).
+  $("existingTable").querySelector("tbody").addEventListener("click", (e) => open(e.target.closest("tr")));
 }
 
 init();
