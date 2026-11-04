@@ -137,7 +137,11 @@ export function createMrpApplicationHandlers(deps) {
   let mrpApplicationLineFiltersOpen = null;
   let mrpApplicationHeaderCache = null;
   let mrpApplicationModalReturnFocus = null;
+  // WP06-F9: a pending request belongs to the request, not to the modal. The saving flag survives close/reopen and is
+  // cleared only by the request that set it; `...Session` is a monotonic id bumped on every open and close, so a late
+  // completion can only close, reset or write an error into the modal session that started it.
   let mrpApplicationModalSaving = false;
+  let mrpApplicationModalSession = 0;
 
   const fmt = { text, formatOptionalMoney, statusChip };
 
@@ -1123,6 +1127,7 @@ export function createMrpApplicationHandlers(deps) {
     }
 
     mrpApplicationModalReturnFocus = document.activeElement;
+    ++mrpApplicationModalSession;
     setApplyError("");
 
     const toApply = mrpApplicationLinesRawRows.filter(isAwaitingApplyLine).length;
@@ -1154,7 +1159,7 @@ export function createMrpApplicationHandlers(deps) {
     dom.mrpApplicationApplyModal?.classList.add("hidden");
     dom.mrpApplicationApplyModal?.setAttribute("aria-hidden", "true");
     setApplyError("");
-    mrpApplicationModalSaving = false;
+    ++mrpApplicationModalSession; // ends the session; a pending apply keeps its saving flag
     if (mrpApplicationModalReturnFocus?.focus) {
       try {
         mrpApplicationModalReturnFocus.focus();
@@ -1176,6 +1181,7 @@ export function createMrpApplicationHandlers(deps) {
 
     const note = String(dom.mrpApplicationApplyNote?.value || "").trim();
     mrpApplicationModalSaving = true;
+    const session = mrpApplicationModalSession;
     if (dom.mrpApplicationApplySaveBtn) {
       dom.mrpApplicationApplySaveBtn.disabled = true;
     }
@@ -1205,7 +1211,7 @@ export function createMrpApplicationHandlers(deps) {
       if (error) throw error;
 
       const result = Array.isArray(data) ? data[0] : data;
-      closeApplyModal();
+      if (session === mrpApplicationModalSession) closeApplyModal();
       showToast(
         result?.proposal_number
           ? `Proposal ${result.proposal_number} applied to canonical MRP.`
@@ -1231,7 +1237,7 @@ export function createMrpApplicationHandlers(deps) {
     } catch (err) {
       handleError("Failed to apply Product MRP Proposal", err);
       const msg = err?.message || "Application failed.";
-      setApplyError(
+      if (session === mrpApplicationModalSession) setApplyError(
         `${msg} No partial application was retained. The proposal and canonical MRP remain unchanged unless the server reports otherwise.`,
       );
       // Reload in case server mutated unexpectedly (should not on rollback).

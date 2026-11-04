@@ -165,7 +165,11 @@ export function createMrpDecisionHandlers(deps) {
   /** @type {"APPROVED"|"REJECTED"|null} */
   let mrpDecisionModalDecision = null;
   let mrpDecisionModalReturnFocus = null;
+  // WP06-F9: a pending request belongs to the request, not to the modal. The saving flag survives close/reopen and is
+  // cleared only by the request that set it; `...Session` is a monotonic id bumped on every open and close, so a late
+  // completion can only close, reset or write an error into the modal session that started it.
   let mrpDecisionModalSaving = false;
+  let mrpDecisionModalSession = 0;
   /** After last pending is cleared, prefer showing all lines. */
   let preferAllLinesAfterComplete = false;
 
@@ -1218,6 +1222,7 @@ export function createMrpDecisionHandlers(deps) {
 
     mrpDecisionModalRow = row;
     mrpDecisionModalDecision = decision;
+    ++mrpDecisionModalSession;
     mrpDecisionModalReturnFocus = document.activeElement;
     setDecisionError("");
 
@@ -1273,7 +1278,7 @@ export function createMrpDecisionHandlers(deps) {
     setDecisionError("");
     mrpDecisionModalRow = null;
     mrpDecisionModalDecision = null;
-    mrpDecisionModalSaving = false;
+    ++mrpDecisionModalSession; // ends the session; a pending save keeps its saving flag
     if (mrpDecisionModalReturnFocus?.focus) {
       try {
         mrpDecisionModalReturnFocus.focus();
@@ -1311,6 +1316,7 @@ export function createMrpDecisionHandlers(deps) {
     }
 
     mrpDecisionModalSaving = true;
+    const session = mrpDecisionModalSession;
     if (dom.mrpDecisionLineModalSaveBtn) {
       dom.mrpDecisionLineModalSaveBtn.disabled = true;
     }
@@ -1328,7 +1334,7 @@ export function createMrpDecisionHandlers(deps) {
       });
       if (error) throw error;
 
-      closeDecisionModal();
+      if (session === mrpDecisionModalSession) closeDecisionModal();
       showToast(
         decision === "APPROVED"
           ? "Line approved for later canonical application."
@@ -1347,7 +1353,7 @@ export function createMrpDecisionHandlers(deps) {
       if (typeof reloadRows === "function") await reloadRows();
     } catch (err) {
       handleError("Failed to record proposal-line decision", err);
-      setDecisionError(err?.message || "Decision failed.");
+      if (session === mrpDecisionModalSession) setDecisionError(err?.message || "Decision failed.");
     } finally {
       mrpDecisionModalSaving = false;
       setLoadingMask(false);
