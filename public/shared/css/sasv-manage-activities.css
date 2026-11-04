@@ -3,8 +3,9 @@
 .ma-section-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sasv-space-3); margin-bottom: var(--sasv-space-3); }
 .ma-section-head .btn { margin-left: auto; }
 .ma-section-head .sasv-module-section-title { margin: 0; }
-.ma-toolbar { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--sasv-space-3); }
+.ma-toolbar { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sasv-space-3); }
 .ma-search { flex: 1 1 auto; min-width: 0; }
+.ma-search { margin: 0; }
 .ma-search input, .sasv-drawer select { width: 100%; box-sizing: border-box; }
 .ma-filter-btn { flex: 0 0 auto; display: inline-flex; align-items: center; gap: var(--sasv-space-2); }
 .ma-filter-btn.has-active { border-color: var(--sasv-action-primary); }
@@ -16,13 +17,17 @@
 .ma-name-link:focus-visible { outline: 2px solid var(--sasv-action-primary); outline-offset: 2px; }
 .ma-details { display: grid; grid-template-columns: max-content 1fr; gap: var(--sasv-space-2) var(--sasv-space-4); margin: 0; }
 .ma-details dt { color: var(--sasv-text-muted); } .ma-details dd { margin: 0; overflow-wrap: anywhere; }
-@media (max-width: 520px) { .sasv-drawer { width: 100vw; } }
+#maDrawer { width: min(420px, 100%); max-width: 100%; }
 .ma-table-wrap { position: relative; overflow-x: auto; border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-md); background: var(--sasv-surface); margin-top: var(--sasv-space-3); }
 .ma-table-wrap:focus-visible { outline: 2px solid var(--sasv-action-primary); outline-offset: 2px; }
 .ma-table-wrap table { width: 100%; min-width: 720px; }
-#multiTable { min-width: 960px; }
-#multiTable input, #multiTable select { width: 100%; min-width: 96px; box-sizing: border-box; }
-#multiTable .m-dur { min-width: 72px; }
+#multiTable { min-width: 1180px; table-layout: fixed; }
+#multiTable col.c-n { width: 44px; } #multiTable col.c-name { width: 260px; } #multiTable col.c-sec { width: 170px; }
+#multiTable col.c-sub { width: 200px; } #multiTable col.c-area { width: 190px; } #multiTable col.c-kind { width: 150px; }
+#multiTable col.c-dur { width: 110px; } #multiTable col.c-act { width: 190px; }
+#multiTable input, #multiTable select { width: 100%; box-sizing: border-box; text-overflow: ellipsis; }
+.ma-row-btn { min-height: var(--sasv-control-sm); padding: 0 10px; font-size: var(--sasv-text-sm); font-weight: var(--sasv-fw-semibold); }
+.ma-row-btn.ma-row-remove, .ma-row-btn.ma-row-remove:hover { color: var(--sasv-danger, #b3261e); background: transparent; border: 1px solid var(--sasv-control-border); width: auto; height: auto; font-size: var(--sasv-text-sm); }
 .ma-num { text-align: right; white-space: nowrap; }
 .ma-row-actions { display: flex; gap: var(--sasv-space-2); justify-content: flex-end; white-space: nowrap; }
 .ma-banner { padding: var(--sasv-space-3) var(--sasv-space-4); border-radius: var(--sasv-radius-md); border: 1px solid var(--sasv-border); background: var(--sasv-surface-soft); color: var(--sasv-text); }
@@ -43,3 +48,17 @@ tr.ma-row-failed { background: var(--sasv-surface-soft); }
 .ma-shell [hidden], #maMain[hidden] { display: none !important; }
 .ma-shell > *, #maMain, #maMain > section { min-width: 0; max-width: 100%; }
 #maDrawer[hidden], #maDrawerBackdrop[hidden], .ma-feed [hidden] { display: none !important; }
+
+/* Drawer: single compact column, no stretched rows */
+.sasv-drawer__body.ma-form-grid { grid-template-columns: 1fr; align-content: start; gap: var(--sasv-space-3); }
+.sasv-drawer__body .sasv-field { margin: 0; }
+/* Scroll cues: edge shadows appear only while the container can scroll that way; page itself never scrolls sideways */
+.ma-scroll { position: relative; }
+.ma-scroll::before, .ma-scroll::after { content: ""; position: absolute; top: 1px; bottom: 1px; width: 22px; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; z-index: 1; border-radius: inherit; }
+.ma-scroll::before { left: 1px; background: linear-gradient(to right, rgba(15, 40, 42, 0.22), transparent); }
+.ma-scroll::after { right: 1px; background: linear-gradient(to left, rgba(15, 40, 42, 0.22), transparent); }
+.ma-scroll.has-left::before, .ma-scroll.has-right::after { opacity: 1; }
+.ma-scroll-hint { margin: var(--sasv-space-2) 0 0; font-size: var(--sasv-text-sm); color: var(--sasv-text-muted); text-align: right; }
+.ma-scroll-hint[hidden] { display: none; }
+.ma-scroll .ma-table-wrap { margin-top: var(--sasv-space-3); }
+.ma-scroll { margin-top: 0; }

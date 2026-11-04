@@ -288,3 +288,102 @@ for (const [label, width] of [["390px", 390], ["desktop 1280px", 1280]]) {
     await ctx.close();
   });
 }
+
+/* ───────── MA-UX-2: 390px clipping regression, scroll cues, visual refinements ───────── */
+const rectOf = (page, sel) => page.evaluate((sel) => { const b = document.querySelector(sel).getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, h: b.height, vw: innerWidth, vh: innerHeight }; }, sel);
+const inside = (b, tol = 1) => b.l >= -tol && b.r <= b.vw + tol && b.w > 0 && b.h > 0;
+
+test("390px: Home, New activities, Filters and search are fully inside the viewport and keyboard-reachable", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, n: 30 });
+  await ready(page);
+  for (const sel of ["#homeBtn", "#maNewBtn", "#maFilterBtn", "#nameFilter"]) {
+    const b = await rectOf(page, sel);
+    assert.ok(inside(b), `${sel} within viewport: ${JSON.stringify(b)}`);
+  }
+  const seen = new Set();
+  await page.focus("#homeBtn");
+  for (let i = 0; i < 8; i++) { seen.add(await page.evaluate(() => document.activeElement.id)); await page.keyboard.press("Tab"); }
+  for (const id of ["homeBtn", "maNewBtn", "maFilterBtn", "nameFilter"]) assert.ok(seen.has(id), `${id} reachable by Tab`);
+  const ov = await page.evaluate(() => ["documentElement", "body"].map((k) => getComputedStyle(document[k]).overflowX).concat(getComputedStyle(document.querySelector(".ma-shell")).overflowX));
+  assert.ok(ov.every((v) => v !== "hidden"), `no overflow:hidden masking: ${ov}`);
+  await ctx.close();
+});
+
+test("390px: six-column table scrolls horizontally inside its container to the final column; cues and hint shown", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, n: 30 });
+  await ready(page);
+  const m = () => page.evaluate(() => { const w = document.querySelector("#existingTable").closest(".ma-table-wrap"); const last = document.querySelector("#existingTable thead th:last-child").getBoundingClientRect(); const wr = w.getBoundingClientRect(); return { sw: w.scrollWidth, cw: w.clientWidth, sl: w.scrollLeft, lastL: last.left, lastR: last.right, wl: wr.left, wr: wr.right, pageX: window.scrollX, doc: document.documentElement.scrollWidth, vw: innerWidth, cols: document.querySelectorAll("#existingTable thead th").length, tw: document.querySelector("#existingTable").getBoundingClientRect().width }; });
+  let a = await m();
+  assert.equal(a.cols, 6); assert.ok(a.tw >= 720, "table keeps readable width, not shrunk");
+  assert.ok(a.sw > a.cw, "container overflows internally");
+  assert.ok(a.lastR > a.wr, "final column initially off-screen");
+  assert.ok(await page.isVisible(".ma-scroll-hint[data-for=existingTable]"), "hint visible");
+  assert.ok(await page.evaluate(() => document.querySelector("#existingTable").closest(".ma-scroll").classList.contains("has-right")));
+  await page.focus(".ma-table-wrap"); for (let i = 0; i < 40; i++) await page.keyboard.press("ArrowRight");
+  await page.waitForFunction(() => { const w = document.querySelector(".ma-table-wrap"); return w.scrollLeft >= w.scrollWidth - w.clientWidth - 1; });
+  a = await m();
+  assert.ok(a.lastL >= a.wl - 1 && a.lastR <= a.wr + 1, `final column fully visible after scroll: ${JSON.stringify(a)}`);
+  assert.equal(a.pageX, 0, "page itself did not scroll sideways"); assert.ok(a.doc <= a.vw + 1);
+  assert.ok(await page.evaluate(() => document.querySelector("#existingTable").closest(".ma-scroll").classList.contains("has-left")));
+  assert.equal(await page.evaluate(() => document.querySelector("#existingTable").closest(".ma-scroll").classList.contains("has-right")), false, "right cue off at end");
+  await ctx.close();
+});
+
+test("desktop: table fits, no scroll hint", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 1280, n: 10 });
+  await ready(page);
+  assert.equal(await page.isVisible(".ma-scroll-hint[data-for=existingTable]"), false);
+  await ctx.close();
+});
+
+for (const w of [390, 1280]) {
+  test(`${w}px: drawer and dialogs stay inside the viewport; drawer has no stretched gaps`, { skip: SK }, async () => {
+    const { page, ctx } = await open({ width: w, n: 10 });
+    await ready(page);
+    await page.click("#maFilterBtn");
+    const d = await rectOf(page, "#maDrawer");
+    assert.ok(d.l >= -1 && d.r <= d.vw + 1 && d.t >= -1 && d.b <= d.vh + 1, `drawer ${JSON.stringify(d)}`);
+    const ys = await page.$$eval("#maDrawer .sasv-field", (f) => f.map((e) => e.getBoundingClientRect()));
+    for (let i = 1; i < ys.length; i++) assert.ok(ys[i].top - ys[i - 1].bottom < 40, "compact vertical rhythm");
+    for (let i = 0; i < 9; i++) await page.keyboard.press("Tab");
+    assert.ok(await page.evaluate(() => !!document.activeElement.closest("#maDrawer")), "drawer traps focus");
+    await page.keyboard.press("Escape");
+    await page.click('tr[data-id="1"] .ma-name-link');
+    let r = await rectOf(page, ".sasv-modal");
+    assert.ok(r.l >= -1 && r.r <= r.vw + 1 && r.b <= r.vh + 1, `details dialog ${JSON.stringify(r)}`);
+    await page.click('[data-act="edit"]');
+    r = await rectOf(page, ".sasv-modal");
+    assert.ok(r.l >= -1 && r.r <= r.vw + 1 && r.t >= -1, `edit dialog ${JSON.stringify(r)}`);
+    for (let i = 0; i < 12; i++) await page.keyboard.press("Tab");
+    assert.ok(await page.evaluate(() => !!document.activeElement.closest(".sasv-modal")), "edit dialog traps focus");
+    await ctx.close();
+  });
+}
+
+test("search + dialog inputs use canonical SASV control sizing and green focus ring (no orange outline)", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 1280, n: 5 });
+  await ready(page);
+  await page.focus("#nameFilter");
+  const s = await page.evaluate(() => { const c = getComputedStyle(document.querySelector("#nameFilter")); return { h: c.height, br: c.borderRadius, sh: c.boxShadow, ol: c.outlineStyle, btn: getComputedStyle(document.querySelector("#maFilterBtn")).height }; });
+  assert.equal(s.h, "36px"); assert.equal(s.br, "6px"); assert.notEqual(s.sh, "none"); assert.equal(s.ol, "none");
+  assert.equal(s.btn, "36px", "filter button and search share height");
+  await page.click('tr[data-id="1"] .ma-name-link'); await page.click('[data-act="edit"]');
+  await page.focus("#ed-name");
+  const e = await page.evaluate(() => { const c = getComputedStyle(document.querySelector("#ed-name")); return { sh: c.boxShadow, ol: c.outlineStyle, bc: c.borderColor }; });
+  assert.equal(e.ol, "none"); assert.match(e.sh, /20, 122, 108/, "SASV green focus ring"); assert.ok(!/245, 158, 11|255, 165|249, 115/.test(e.bc + e.sh), "no orange");
+  await ctx.close();
+});
+
+test("bulk: wide columns, row buttons not oversized, final column reachable by horizontal scroll at 390px", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, n: 5 });
+  await ready(page);
+  await page.click("#maNewBtn");
+  const dims = await page.evaluate(() => ({ name: document.querySelector(".m-name").getBoundingClientRect().width, sec: document.querySelector(".m-section").getBoundingClientRect().width, rm: document.querySelector(".ma-row-remove").getBoundingClientRect().height, rmw: document.querySelector(".ma-row-remove").getBoundingClientRect().width, fs: getComputedStyle(document.querySelector(".ma-row-remove")).fontSize }));
+  assert.ok(dims.name >= 200 && dims.sec >= 140, JSON.stringify(dims));
+  assert.ok(dims.rm <= 36 && dims.rmw <= 110 && parseFloat(dims.fs) <= 14, `Remove button sane: ${JSON.stringify(dims)}`);
+  await page.evaluate(() => { const w = document.querySelector("#multiTable").closest(".ma-table-wrap"); w.scrollLeft = w.scrollWidth; });
+  const r = await page.evaluate(() => { const w = document.querySelector("#multiTable").closest(".ma-table-wrap").getBoundingClientRect(); const b = document.querySelector(".ma-row-remove").getBoundingClientRect(); return { bl: b.left, br: b.right, wl: w.left, wr: w.right, x: scrollX, doc: document.documentElement.scrollWidth, vw: innerWidth }; });
+  assert.ok(r.bl >= r.wl - 1 && r.br <= r.wr + 1, `Remove reachable: ${JSON.stringify(r)}`);
+  assert.equal(r.x, 0); assert.ok(r.doc <= r.vw + 1);
+  await ctx.close();
+});

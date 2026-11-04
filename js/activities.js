@@ -36,6 +36,22 @@ function setStatus(msg, kind = "", action = null) {
   }
 }
 
+/* ───────── Horizontal-scroll cues (edge shadows + hint when a table container can scroll sideways) ───────── */
+function refreshCues() {
+  document.querySelectorAll(".ma-scroll").forEach((box) => {
+    const w = box.querySelector(".ma-table-wrap");
+    const max = w.scrollWidth - w.clientWidth;
+    const left = max > 1 && w.scrollLeft > 1, right = max > 1 && w.scrollLeft < max - 1;
+    box.classList.toggle("has-left", left); box.classList.toggle("has-right", right);
+    const hint = box.nextElementSibling;
+    if (hint?.classList.contains("ma-scroll-hint")) hint.hidden = !(max > 1) || box.offsetParent === null;
+  });
+}
+function wireCues() {
+  document.querySelectorAll(".ma-table-wrap").forEach((w) => { w.addEventListener("scroll", refreshCues, { passive: true }); if ("ResizeObserver" in window) { const ro = new ResizeObserver(refreshCues); ro.observe(w); ro.observe(w.firstElementChild); } });
+  window.addEventListener("resize", refreshCues);
+}
+
 /* ───────── Dialog (focus-trapped, Esc cancels, focus restored) ───────── */
 function openDialog({ title, bodyHtml, buttons, onMount, wide = false }) {
   return new Promise((resolve) => {
@@ -130,6 +146,7 @@ function renderFeed(full = false) {
   more.hidden = !(hasMore() || feed.err);
   more.disabled = feed.busy; more.setAttribute("aria-busy", String(feed.busy));
   more.textContent = feed.err ? "Retry" : "Load more";
+  refreshCues();
 }
 
 let observer = null;
@@ -230,12 +247,12 @@ async function openEdit(row) {
   const r = await openDialog({
     title: "Edit activity", wide: true,
     bodyHtml: `<div class="ma-form-grid">
-      <div class="ma-wide">${field("ed-name", "Activity name", `<input id="ed-name" data-autofocus value="${esc(row.activity_name)}" maxlength="200">`)}</div>
-      ${field("ed-sec", "Section", `<select id="ed-sec">${opts(sections, "id", "section_name", "Select…", row.section_id)}</select>`)}
-      ${field("ed-sub", "Sub-section", `<select id="ed-sub">${opts(subs, "id", "subsection_name", "Select…", row.sub_section_id)}</select>`)}
-      ${field("ed-area", "Area", `<select id="ed-area">${opts(areas, "id", "area_name", "Select…", row.area_id)}</select>`)}
-      ${field("ed-kind", "Kind", `<select id="ed-kind">${opts(kinds, "id", "name", "Select…", row.kind_id)}</select>`)}
-      ${field("ed-dur", "Duration (days)", `<input id="ed-dur" type="number" min="0" step="1" value="${esc(row.duration_days)}">`)}
+      <div class="ma-wide">${field("ed-name", "Activity name", `<input id="ed-name" class="sasv-control" data-autofocus value="${esc(row.activity_name)}" maxlength="200">`)}</div>
+      ${field("ed-sec", "Section", `<select id="ed-sec" class="sasv-control">${opts(sections, "id", "section_name", "Select…", row.section_id)}</select>`)}
+      ${field("ed-sub", "Sub-section", `<select id="ed-sub" class="sasv-control">${opts(subs, "id", "subsection_name", "Select…", row.sub_section_id)}</select>`)}
+      ${field("ed-area", "Area", `<select id="ed-area" class="sasv-control">${opts(areas, "id", "area_name", "Select…", row.area_id)}</select>`)}
+      ${field("ed-kind", "Kind", `<select id="ed-kind" class="sasv-control">${opts(kinds, "id", "name", "Select…", row.kind_id)}</select>`)}
+      ${field("ed-dur", "Duration (days)", `<input id="ed-dur" class="sasv-control" type="number" min="0" step="1" value="${esc(row.duration_days)}">`)}
       </div><div class="ma-banner is-error" id="ed-msg" role="alert" hidden></div>`,
     buttons: [
       { id: "cancel", label: "Cancel" },
@@ -313,10 +330,11 @@ async function renderBulk() {
       <td><select ${cls("m-kind edit-select", "kind_id")} aria-label="Row ${i + 1} kind">${opts(kinds, "id", "name", "Select…", r.kind_id)}</select>${err("kind_id")}</td>
       <td><input ${cls("m-dur edit-number", "duration_days")} type="number" min="0" step="1" value="${esc(r.duration_days)}" aria-label="Row ${i + 1} duration in days">${err("duration_days")}</td>
       <td><div class="ma-row-actions">
-        <button type="button" class="btn ghost row-dup" aria-label="Duplicate row ${i + 1}">Copy</button>
-        <button type="button" class="btn ghost row-remove" aria-label="Remove row ${i + 1}">Remove</button></div></td></tr>`;
+        <button type="button" class="btn ghost ma-row-btn ma-row-dup" aria-label="Duplicate row ${i + 1}">Copy</button>
+        <button type="button" class="btn ghost ma-row-btn ma-row-remove" aria-label="Remove row ${i + 1}">Remove</button></div></td></tr>`;
   }));
   tb.innerHTML = rows.join("");
+  refreshCues();
 }
 
 function syncDraftsFromDom() {
@@ -350,11 +368,11 @@ function wireBulk() {
     const btn = e.target.closest("button"); if (!btn) return;
     syncDraftsFromDom();
     const tr = btn.closest("tr"); const idx = bulkRows.findIndex((x) => String(x.key) === tr.dataset.key);
-    if (btn.classList.contains("row-remove")) {
+    if (btn.classList.contains("ma-row-remove")) {
       if (bulkRows.length > 1) bulkRows.splice(idx, 1); else bulkRows[0] = blankRow();
       await renderBulk(); ($("multiTable").querySelectorAll(".m-name")[Math.max(0, idx - 1)])?.focus();
     }
-    if (btn.classList.contains("row-dup")) {
+    if (btn.classList.contains("ma-row-dup")) {
       if (bulkRows.length >= BULK_MAX_ROWS) return setStatus(`At most ${BULK_MAX_ROWS} rows per batch.`, "warn");
       const s = bulkRows[idx]; bulkRows.splice(idx + 1, 0, { ...blankRow(s), name: s.name });
       await renderBulk(); $("multiTable").querySelectorAll(".m-name")[idx + 1]?.focus();
@@ -369,7 +387,7 @@ function wireBulk() {
   $("maPasteBtn").onclick = async () => {
     syncDraftsFromDom();
     let text = "";
-    const r = await openDialog({ title: "Paste activity names", bodyHtml: `<div class="sasv-field"><label for="pasteTxt">One activity name per line (max ${BULK_MAX_ROWS}). Section, sub-section, area, kind and days are copied from the last row.</label><textarea id="pasteTxt" rows="8" data-autofocus></textarea></div>`,
+    const r = await openDialog({ title: "Paste activity names", bodyHtml: `<div class="sasv-field"><label for="pasteTxt">One activity name per line (max ${BULK_MAX_ROWS}). Section, sub-section, area, kind and days are copied from the last row.</label><textarea id="pasteTxt" class="sasv-control" rows="8" data-autofocus></textarea></div>`,
       buttons: [{ id: "cancel", label: "Cancel" }, { id: "ok", label: "Add rows", cls: "primary", run: (api) => { text = api.dlg.querySelector("#pasteTxt").value; api.close({ id: "ok" }); } }] });
     if (r.id !== "ok") return;
     const names = text.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
@@ -420,6 +438,7 @@ function showView(which) {
   $("maCatalogue").hidden = bulk; $("maBulk").hidden = !bulk;
   const h = $(bulk ? "maBulkTitle" : "maListTitle");
   h.focus();
+  refreshCues();
   if (bulk) $("multiTable").querySelector(".m-name")?.focus(); else checkSentinel();
 }
 
@@ -448,6 +467,7 @@ async function init() {
   $("kindFilter").innerHTML = opts(kinds, "id", "name", "All kinds");
   wireFilters();
   wireFeed();
+  wireCues();
   tableClicks();
   if (state.access.edit) {
     wireBulk(); bulkRows = [blankRow()]; await renderBulk();
