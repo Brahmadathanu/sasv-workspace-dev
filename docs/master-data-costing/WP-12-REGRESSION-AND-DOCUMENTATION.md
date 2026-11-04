@@ -1,3 +1,5 @@
+> **Reconciled 4 Nov 2026 (newer than every banner below):** see [PROGRAMME_PROGRESS_AND_CLOSURE_PATH_2026-11-04.md](PROGRAMME_PROGRESS_AND_CLOSURE_PATH_2026-11-04.md) for the progress indicator, the doc-versus-`main` reconciliation (N1–N4/W6/U11, CL1, G1/G1b/G1c/G1d, F-7, F-9, WP12 sweep are merged) and the shortest path to formally close WP05 and WP06. Formal count is unchanged: 5 of 13 accepted; nothing is closed by documentation alone.
+
 # WP-12 — Regression, Live Proof and Governance Documentation
 
 ## Objective

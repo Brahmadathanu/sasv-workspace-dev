@@ -1,0 +1,75 @@
+# Programme progress indicator and WP05 / WP06 closure path — 4 Nov 2026
+
+**Authoritative as of GitHub `main` `5698ca6` (4 Nov 2026, after #160).** Read live SHAs from GitHub, not from older banners. This file reconciles the repository documentation with what is actually merged; it **closes nothing**. Formal closure is an owner decision. No code, flag, Supabase, deployment, cache, Electron or e-Aushadhi change is made by this file. e-Aushadhi WP-07 remains paused.
+
+## 1. Progress indicator
+
+**Formally closed: 5 of 13 substantive work packs** (WP00–WP04; plus the WP-1 control plane). Unchanged since 25 Oct — no work pack has been formally closed by the owner since.
+
+| WP | Formal status | Implementation (cloud-verifiable) | Remaining to close | Gate owner |
+|---|---|---|---|---|
+| WP-1, WP00–WP04 | **CLOSED** | complete | — | — |
+| WP05 Costing rationalisation | OPEN | Tier 1 delivered: P01 #132, P02 #131, N1–N4/W6 #133–#136/#139, U11 #144, A7 #146, CL1 #151, CDE-1a #149 | §3 | owner |
+| WP06 Pricing Policy Manager | OPEN | W6 five-group nav #139; G1 audit #152; G1b #154, G1c #155, G1d #153; F-7 #161, F-9 #162 | §4 | owner |
+| MDC-07 (Costing navigation) | OPEN | N1–N4, W6, U11 merged (it is the same delivery as WP05 Tier 1) | same signed-in checklist as WP05 | owner |
+| WP08 Master-data navigation | NOT STARTED (audit briefs only) | none in code | IA08-1 mapping, IA08-2 metadata proposal, IA08-3 cross-links | owner decision O-2 |
+| WP09 Launcher audit | NOT STARTED | none in code | IA09-1 hub search/collapse (needs O-7), IA09-2/3 | owner decision O-7 |
+| WP10 Creation safeguards | NOT STARTED | audit only (#145) | policy decision | owner |
+| WP11 UX consistency | PARTIAL | U11 label harmonisation merged | broader pass | — |
+| WP12 Regression / proof | PARTIAL | eleven-flag × six-module sweep #160 (mock); package suites | signed-in matrix, A14 installer proof, final run on final head | owner |
+
+Release target unchanged: complete WP00–WP12 first, then the full Electron release gate. Electron version `6.1.0`, service-worker cache `hub-cache-v390` — neither changed.
+
+**Active blockers**
+1. Owner signed-in ON/OFF acceptance for the eleven Costing flags (cannot be run in the cloud) — gates WP05, MDC-07, WP06 closure and WP12.
+2. Owner decisions: O-5 (D3, D5, D7, C9), O-8 (`COST_REVIEW_WORKBENCH` destination), O-2 / O-7 (WP08 / WP09), CDE-2 principle.
+3. Server-first items: protected draft-run read contract (CDE-2), run-selector contract for fixed runs 80/82 (C5/D5).
+4. Open draft PR #163 (WP06-F-8 CSS fix) awaiting its exact-head integration gate.
+
+**Next immediate milestone:** owner review of this closure path and of the CDE-2 package ([CDE2_OWNER_REVIEW_PACKAGE_2026-11-04.md](CDE2_OWNER_REVIEW_PACKAGE_2026-11-04.md)); in parallel, review/merge #163 after its gate.
+
+## 2. Documentation reconciliation (what older text says versus `main`)
+| Statement in older documents | Actual |
+|---|---|
+| `MASTER_PROGRAMME.md` "Active work pack: None… No package other than N1 is authorised"; "N2/N3/N4/W6/U11 not started" | N1–N4, W6, U11 are all merged (3–4 Nov). Banner in `MASTER_PROGRAMME.md` now points here. |
+| `WP05_CL1` §5 condition (a): "#149 and the CL1/G1 packages are reviewed and merged" | **Satisfied**: CL1 #151, G1 #152, CDE-1a #149 are merged. Conditions (b) and (c) remain. |
+| `WP-06` file shows only the 3 Nov W6 findings | G1/G1b/G1c/G1d/F-7/F-9 are merged on 4 Nov; F-8 is #163 (draft). Banner added. |
+| PR #145 §5 says nine flags | **Eleven** default-OFF Costing flags (corrected in #150/#160; the #160 sweep and CL1 test pin the number). |
+| #159 (F-8, stacked) | Superseded by clean #163; #158 (F-9, stacked) superseded by merged #162. Neither stacked PR should be merged. |
+| `WP12` status file "Baseline `43a93ef`" | Main has since gained #161, #162 (and #160 itself). |
+| Test totals | Per-PR figures (e.g. #162: LF/CRLF 798/798; #160: 733/733) were measured on different bases and **must not be added**. The main-head figure is in §6. |
+
+Still-open documentation PRs (all draft, none merged): #141, #142, #143, #145, #147, #148, #150 (evidence/briefs), #114, #116, #119 (older), #137 (storage retention), #118/#122 (e-Aushadhi, paused). They carry evidence the owner may wish to merge in one reconciliation pass; this file does not assume they are merged.
+
+## 3. WP05 — shortest safe path to formal closure
+Proposed closure conditions (from CL1 §5), status now:
+- (a) delivery packages merged — **DONE**.
+- (b) owner records the signed-in ON/OFF checklist (CL1 §4: eleven flags × six modules, lens/period switch, deep links, view-only role, no console error; role, date, browser, result). **Owner action; the only mandatory step.**
+- (c) C6 / C9 / D3 decided *or explicitly parked*. Recommendation that needs no code:
+  - C6 (`COST_REVIEW_WORKBENCH`/`COST_APPROVAL_WORKBENCH` unmapped): park; the honest "no dedicated screen" text stays; CDE-1a gives per-component links. CL2 is then optional and not a closure blocker.
+  - C9 (`policy-manager.periodScoped:false` vs period-scoped CSA): park as a documented characterisation (pinned by CL1 tests).
+  - D3 (CCC-edit can accept reviews without MCM-edit): owner policy decision, or park with the current behaviour recorded.
+- Tier-2 items D2/D4 and CDE-1b stay non-blocking.
+
+Result: WP05 can be closed with **one owner session (checklist + three park/decide answers) and a one-line Gate Status edit**; no further code is required.
+
+## 4. WP06 — shortest safe path to formal closure
+Delivered: five-group projection, task-flow audit with F-1…F-6, CSA modal concurrency (G1d), default-policy revise modal tests (G1b) and in-flight fix (F-7), MRP proposal flow tests (G1c) and in-flight fix (F-9). Remaining:
+1. **#163 (F-8)** — review and merge only after full-history LF + CRLF + real-Chromium results on that exact head (its own stated gate). Close #159 and #158 afterwards as superseded.
+2. **G2 / C9** — owner chooses option (a) *leave and document* (recommended; closes G2 by documentation) or (b) per-workspace scope metadata (shared registry, single writer, needs a registry-wide period test).
+3. **D7** (maker-checker on assumptions / default policy / MRP) — owner policy; if not decided, record as parked. Not a client defect.
+4. **Server questions** carried from the audit: whether integer units are required (F-4). Park unless the owner decides.
+5. Signed-in acceptance of the ten Pricing Policy workspaces — covered by the same checklist as §3(b), with the CSA and default-policy modals exercised read-only unless the owner chooses to make a real change.
+
+Result: WP06 closes after #163 is merged and three owner answers (C9, D7, F-4) plus the signed-in checklist.
+
+## 5. Next bounded work (client, draft PRs, in this order)
+1. This documentation PR (reconciliation + closure path + CDE-2 owner package).
+2. After owner answers: WP06-G2 documentation edit, or CL2 if O-8 names a destination.
+3. WP09 IA09-1 hub search/section collapse — presentation-only, behind a new default-OFF flag (the O-7 safe default), single writer on `utilities-hub/index.html` / `hub-auth.js`, never touching e-Aushadhi rows.
+4. WP08 IA08-1 repo-side half (page ↔ hub) can start; the registry-row half needs the O-2 export.
+5. CDE-1b only after CDE-2 is implemented and read back by the server session.
+6. WP12 final matrix on the final head (all eleven flags OFF/ON, LF + CRLF + Chromium) after the above.
+
+## 6. Baseline on current `main`
+See the PR body for the full-history LF and CRLF run on this exact branch. These docs add no code, so `main`'s test outcome is the baseline.
