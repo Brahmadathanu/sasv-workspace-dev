@@ -373,6 +373,12 @@ export function createCommercialSalesAssumptionHandlers(deps) {
   let defaultScopePreview = null;
   let defaultPreviewInFlight = false;
   let defaultPreviewTimer = null;
+  // WP06-F7: `defaultWriteInFlight` (above) belongs to the default-policy write request, not to the modal: it survives
+  // close/reopen and is cleared only when that request settles. `defaultModalSeq` identifies the opened revise modal
+  // (monotonic, never reused) and `defaultPreviewSeq` the latest preview request, so late answers of a closed session
+  // or of a superseded preview can never be rendered or acted on.
+  let defaultModalSeq = 0;
+  let defaultPreviewSeq = 0;
 
   function canEdit() {
     return (
@@ -1355,6 +1361,8 @@ export function createCommercialSalesAssumptionHandlers(deps) {
 
   async function refreshDefaultPolicyImpactPreview() {
     if (!defaultReviseTarget) {
+      ++defaultPreviewSeq; // invalidate any answer still in flight
+      defaultPreviewInFlight = false;
       renderDefaultImpactPreview(null);
       return;
     }
@@ -1364,6 +1372,8 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     ).trim();
     const units = Number(unitsRaw);
     if (!unitsRaw || !Number.isFinite(units) || units <= 0 || !effectiveFrom) {
+      ++defaultPreviewSeq; // inputs are no longer previewable: an older answer must not reappear
+      defaultPreviewInFlight = false;
       defaultScopePreview = null;
       renderDefaultImpactPreview(null);
       return;
@@ -1371,6 +1381,9 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     const kind =
       defaultReviseTarget.kind === "regional" ? "REGIONAL" : "COMPANY";
     const scope = selectedDefaultScope();
+    const previewSession = defaultModalSeq;
+    const previewId = ++defaultPreviewSeq;
+    const previewIsCurrent = () => previewSession === defaultModalSeq && previewId === defaultPreviewSeq;
     defaultPreviewInFlight = true;
     try {
       const { data, error } = await costingRpc(
@@ -1386,16 +1399,18 @@ export function createCommercialSalesAssumptionHandlers(deps) {
         },
       );
       if (error) throw error;
+      if (!previewIsCurrent()) return; // answer of a closed session or a superseded request
       defaultScopePreview = data;
       renderDefaultImpactPreview(data);
     } catch (err) {
+      if (!previewIsCurrent()) return;
       defaultScopePreview = null;
       renderDefaultImpactPreview(null);
       setDefaultModalError(
         err?.message || "Failed to preview scoped policy impact.",
       );
     } finally {
-      defaultPreviewInFlight = false;
+      if (previewId === defaultPreviewSeq) defaultPreviewInFlight = false;
     }
   }
 
@@ -1430,6 +1445,9 @@ export function createCommercialSalesAssumptionHandlers(deps) {
       scenarioCode: scenario,
       regionCode: kind === "regional" ? region : null,
     };
+    ++defaultModalSeq; // new, never reused session id
+    ++defaultPreviewSeq; // answers requested by an earlier session are void
+    defaultPreviewInFlight = false;
     defaultScopePreview = null;
     clearDefaultModalError();
     const title = $("csaDefaultPolicyTitle");
@@ -1687,7 +1705,10 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     modal.setAttribute("aria-hidden", "true");
     defaultReviseTarget = null;
     defaultScopePreview = null;
-    defaultWriteInFlight = false;
+    // defaultWriteInFlight is deliberately NOT cleared here: a pending write keeps blocking further writes.
+    ++defaultModalSeq;
+    ++defaultPreviewSeq;
+    defaultPreviewInFlight = false;
     if (defaultPreviewTimer) {
       clearTimeout(defaultPreviewTimer);
       defaultPreviewTimer = null;
@@ -1754,7 +1775,9 @@ export function createCommercialSalesAssumptionHandlers(deps) {
       return;
     }
 
+    const session = defaultModalSeq;
     await refreshDefaultPolicyImpactPreview();
+    if (session !== defaultModalSeq) return; // the user left this session while the commit-time preview was pending
     if (!defaultScopePreview?.commit_allowed) {
       setDefaultModalError(
         "Impact preview is incomplete or invalid. Fix validation errors before saving.",
@@ -1780,7 +1803,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
         },
       );
       if (error) throw error;
-      closeDefaultPolicyModal();
+      if (session === defaultModalSeq) closeDefaultPolicyModal();
       showToast(CSA_DEFAULT_POLICY_FUTURE_REFRESH_MESSAGE, "success", 6200);
       try {
         await loadDefaultPolicies();
@@ -1793,9 +1816,11 @@ export function createCommercialSalesAssumptionHandlers(deps) {
       }
     } catch (err) {
       handleError("Failed to save default sales allocation policy", err);
-      setDefaultModalError(
-        err?.message || err?.error_description || "Save failed.",
-      );
+      if (session === defaultModalSeq) {
+        setDefaultModalError(
+          err?.message || err?.error_description || "Save failed.",
+        );
+      }
     } finally {
       defaultWriteInFlight = false;
       setDefaultSaveEnabled(Boolean(defaultScopePreview?.commit_allowed));
