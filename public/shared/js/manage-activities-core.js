@@ -110,7 +110,7 @@ export function validateBulk(rows) {
     const k = nameKey(r?.name);
     if (k) seen.set(k, [...(seen.get(k) || []), i]);
   });
-  return rows.map((r, i) => {
+  return rows.map((r) => {
     const v = validateActivity(r);
     const errors = { ...v.errors };
     const k = nameKey(r?.name);
