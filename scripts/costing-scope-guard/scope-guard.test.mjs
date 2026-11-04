@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { costingScopeReport, costingCssScope, costingHtmlScope, sqlTouchesCosting } from "../lib/costing-scope-guard.mjs";
+import { costingScopeReport, costingCssScope, costingHtmlScope, sqlTouchesCosting, stripSqlComments } from "../lib/costing-scope-guard.mjs";
 
 const FILES = {
   "package.json": '{ "name": "fixture" }\n',
@@ -117,7 +117,7 @@ test("negative control: unstaged working-tree edit to a Costing page is detected
 });
 
 test("sqlTouchesCosting: Costing identifiers match; unrelated WP-07 and look-alike words do not", () => {
-  for (const sql of ["costing.x", "public.costing_refresh_run", "costing_cost_snapshot", "x_costing_y", "FN_COSTING_VIEW", "select * from \"costing\".t", "-- costing note"]) {
+  for (const sql of ["costing.x", "public.costing_refresh_run", "costing_cost_snapshot", "x_costing_y", "FN_COSTING_VIEW", "select * from \"costing\".t"]) {
     assert.equal(sqlTouchesCosting(sql), true, sql);
   }
   for (const sql of ["create table regulatory.eaushadhi_role (id int);", "alter table regulatory.source_composition_line add column a int;", "accosting", "costings", "costing2", "discosting_x", ""]) {
@@ -144,4 +144,93 @@ test("regression: real WP-07 migration in this repository is allowed, real Costi
   assert.equal(sqlTouchesCosting(read("20261024115131_wp07_ux1_roles_worklist.sql")), false);
   assert.equal(sqlTouchesCosting(read("20260802142952_grant_production_route_manager_to_costing_admin.sql")), true);
   assert.equal(sqlTouchesCosting(read("20260916142052_retire_obsolete_public_period_only_costing_review_writer.sql")), true);
+});
+
+// ---- 4 Nov 2026: SQL comments are not Costing changes; executable SQL, strings and history rules still are ------------
+test("comments: a migration that only mentions costing in -- or /* */ comments is not a Costing change", () => {
+  for (const sql of [
+    "-- costing note\nselect 1;",
+    "select 1; -- no changes to costing\n",
+    "/* costing */ select 1;",
+    "/* outer /* nested costing */ still comment costing */ select 1;",
+    "-- No changes to activity data, foreign keys, production routes, or costing.\nbegin;\ncreate policy p on public.activities for select using (true);\n",
+    "-- costing.x\n-- costing_admin\ndrop policy if exists a on public.activities;",
+  ]) assert.equal(sqlTouchesCosting(sql), false, sql);
+});
+
+test("comments: executable SQL, quoted identifiers, string literals and dollar-quoted bodies still match", () => {
+  for (const sql of [
+    "select 1; /* x */ grant select on t to costing_admin;",
+    "-- harmless\nalter table costing.t add column y int;",
+    "alter table /* c */ costing.t add column y int;",
+    'select 1 from "costing".t;',
+    "comment on table public.t is 'costing review';",
+    "insert into perms values ('module:costing-control-center');",
+    "insert into t values ('-- costing');",
+    "insert into t values ('/* costing */');",
+    "select 'it''s' , 'costing';",
+    "select E'\\' -- costing';",
+    "create function public.f() returns int language sql as $$ select 1 -- costing\n$$;",
+    "create function public.f() returns int language plpgsql as $body$ begin perform costing.f(); end $body$;",
+    "drop policy x on costing.cost_periods;",
+    "grant execute on function public.rpc_costing_health_check() to authenticated;",
+    "create schema costing;",
+  ]) assert.equal(sqlTouchesCosting(sql), true, sql);
+});
+
+test("comments: stripSqlComments keeps strings, identifiers and dollar quotes, drops only comments, and never swallows following code", () => {
+  assert.equal(stripSqlComments("a -- c\nb"), "a  \nb");
+  assert.equal(stripSqlComments("a /* c */ b"), "a   b");
+  assert.equal(stripSqlComments("'-- not a comment' x"), "'-- not a comment' x");
+  assert.equal(stripSqlComments('"a--b" x'), '"a--b" x');
+  assert.equal(stripSqlComments("$$ -- kept $$ x"), "$$ -- kept $$ x");
+  assert.equal(stripSqlComments("$t$ /* kept */ $t$ x"), "$t$ /* kept */ $t$ x");
+  assert.ok(stripSqlComments("/* open costing.x").indexOf("costing") === -1, "unterminated block comment hides only its own text");
+  assert.ok(stripSqlComments("select 'open costing.x").includes("costing"), "unterminated string is kept");
+  assert.equal(stripSqlComments(null), "");
+  assert.equal(stripSqlComments("a--b\r\nc"), "a \nc", "CRLF: the comment (its carriage return included) ends at the line feed; the next line is kept");
+});
+
+test("comments: CRLF sources are handled identically", () => {
+  assert.equal(sqlTouchesCosting("-- costing note\r\nselect 1;\r\n"), false);
+  assert.equal(sqlTouchesCosting("-- note\r\ngrant select on t to costing_admin;\r\n"), true);
+});
+
+test("comments: the real Manage Activities migration (#166) is allowed; its mention of costing is in a comment only", () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const f = "supabase/migrations/20261104131055_manage_activities_module_edit_rls_guard.sql";
+  const sql = fs.readFileSync(path.join(root, f), "utf8");
+  assert.match(sql, /costing/i, "fixture assumption: the file does mention costing");
+  assert.equal(sqlTouchesCosting(sql), false);
+});
+
+test("report level: comment-only mention is allowed; same text made executable, or hidden after a comment, is flagged", (t) => {
+  const ok = makeRepo(); t.after(ok.cleanup);
+  ok.write("supabase/migrations/20261104131055_unrelated.sql", "-- No changes to production routes, or costing.\nbegin;\ndrop policy if exists a on public.activities;\ncommit;\n");
+  assert.deepEqual(ok.report().supabase, []);
+  for (const [name, sql] of [
+    ["executable", "-- No changes to production routes.\nalter table costing.t add column y int;\n"],
+    ["after a block comment on one line", "/* note */ grant select on public.t to costing_admin;\n"],
+    ["comment-on text", "-- note\ncomment on table public.activities is 'feeds costing';\n"],
+    ["policy on costing table", "create policy p on costing.cost_periods for select using (true);\n"],
+    ["crlf executable", "-- note\r\nalter table costing.t add column y int;\r\n"],
+  ]) {
+    const repo = makeRepo(); t.after(repo.cleanup);
+    repo.write("supabase/migrations/20261104131056_x.sql", sql);
+    assert.ok(repo.report().supabase.some((v) => v.includes("added migration touches costing")), name);
+  }
+});
+
+test("report level: migration-history, config and out-of-migrations rules are unchanged by the comment rule", (t) => {
+  const cases = [
+    ["existing migration modified (comment only)", (r) => r.write("supabase/migrations/20260101000000_costing_base.sql", "-- reworded\ncreate table costing.t (id int);\n"), /^M supabase\/migrations\/20260101000000_costing_base\.sql/],
+    ["existing migration appended with a comment", (r) => r.write("supabase/migrations/20260101000000_costing_base.sql", FILES["supabase/migrations/20260101000000_costing_base.sql"] + "-- note\n"), /^M /],
+    ["config changed", (r) => r.write("supabase/config.toml", 'project_id = "x"\n'), /supabase\/config\.toml/],
+    ["function file added", (r) => r.write("supabase/functions/x/index.ts", "// costing\nexport {};\n"), /outside supabase\/migrations\//],
+  ];
+  for (const [name, apply, re] of cases) {
+    const repo = makeRepo(); t.after(repo.cleanup);
+    apply(repo);
+    assert.ok(repo.report().supabase.some((v) => re.test(v)), name);
+  }
 });
