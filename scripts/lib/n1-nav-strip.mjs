@@ -2,6 +2,8 @@
 // flag-OFF code stays provably untouched. N1 adds flag-gated navigation code to exactly those two files. This helper
 // removes precisely the N1 additions (and restores the one line N1 turned into a ternary) so those historical
 // comparisons keep checking everything else. Anything not matching the exact N1 text is left in place and still fails.
+import { stripCde1aShell } from "./cde1a-shell-strip.mjs";
+
 const must = (text, from, to) => {
   const i = text.indexOf(from);
   if (i === -1) return text; // not present (e.g. an older base): nothing to strip
@@ -11,7 +13,7 @@ const must = (text, from, to) => {
 };
 
 export function stripN1Shell(src) {
-  let t = src;
+  let t = stripCde1aShell(src); // CDE-1a additions removed first (see cde1a-shell-strip.mjs)
   t = t.replace('import { isCostingNavGroupsV1Enabled } from "./costing-feature-flags.js";\nimport { resolveNavGroups, renderGroupedNavHtml, renderGroupedSelectHtml } from "./costing-nav-groups.js";\nimport { buildNavContextModel, costingNavContext, renderNavContextHtml } from "./costing-nav-context.js";\n', "");
   t = must(t, "/**\n * N1: grouped navigation is active only when", "function renderLensPillButton(");
   t = t.replace(/    \} else if \(isNavGroupsActive\(\)\) \{\n(?:.*\n)*?(?=    \} else \{\n      lensPills\.innerHTML = activeSuites)/, "");
