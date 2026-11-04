@@ -164,16 +164,23 @@ export function createMrpProposalHandlers(deps) {
   let mrpProposalLineFiltersOpen = null;
   let mrpProposalHeaderCache = null;
   let mrpProposalGenerateReturnFocus = null;
+  // WP06-F9: a pending request belongs to the request, not to the modal. The saving flag survives close/reopen and is
+  // cleared only by the request that set it; `...Session` is a monotonic id bumped on every open and close, so a late
+  // completion can only close, reset or write an error into the modal session that started it.
   let mrpProposalGenerateSaving = false;
+  let mrpProposalGenerateSession = 0;
   let mrpProposalDerivationOptions = [];
   let mrpProposalAdjustRow = null;
   let mrpProposalAdjustReturnFocus = null;
   let mrpProposalAdjustSaving = false;
+  let mrpProposalAdjustSession = 0;
   let mrpProposalResetRow = null;
   let mrpProposalResetReturnFocus = null;
   let mrpProposalResetSaving = false;
+  let mrpProposalResetSession = 0;
   let mrpProposalSubmitReturnFocus = null;
   let mrpProposalSubmitSaving = false;
+  let mrpProposalSubmitSession = 0;
 
   function canEditPolicyActions() {
     return (
@@ -1411,6 +1418,7 @@ export function createMrpProposalHandlers(deps) {
   async function openGenerateModal() {
     if (!requireEditAccess("generate a Product MRP Proposal")) return;
     mrpProposalGenerateReturnFocus = document.activeElement;
+    ++mrpProposalGenerateSession;
     setGenerateError("");
     setLoadingMask(true, "Loading derivation policies...");
     try {
@@ -1438,7 +1446,7 @@ export function createMrpProposalHandlers(deps) {
     dom.mrpProposalGenerateModal?.classList.add("hidden");
     dom.mrpProposalGenerateModal?.setAttribute("aria-hidden", "true");
     setGenerateError("");
-    mrpProposalGenerateSaving = false;
+    ++mrpProposalGenerateSession; // ends the session; a pending save keeps its saving flag
     if (mrpProposalGenerateReturnFocus?.focus) {
       try {
         mrpProposalGenerateReturnFocus.focus();
@@ -1487,6 +1495,7 @@ export function createMrpProposalHandlers(deps) {
     }
 
     mrpProposalGenerateSaving = true;
+    const session = mrpProposalGenerateSession;
     if (dom.mrpProposalGenerateSaveBtn) dom.mrpProposalGenerateSaveBtn.disabled = true;
     setLoadingMask(true, "Generating Product MRP Proposal...");
     setGenerateError("");
@@ -1507,7 +1516,7 @@ export function createMrpProposalHandlers(deps) {
 
       const result = Array.isArray(data) ? data[0] : data;
       const newId = result?.proposal_id;
-      closeGenerateModal();
+      if (session === mrpProposalGenerateSession) closeGenerateModal();
       showToast(
         result?.proposal_number
           ? `Proposal ${result.proposal_number} generated.`
@@ -1522,7 +1531,7 @@ export function createMrpProposalHandlers(deps) {
       if (typeof reloadRows === "function") await reloadRows();
     } catch (err) {
       handleError("Failed to generate Product MRP Proposal", err);
-      setGenerateError(err?.message || "Generation failed.");
+      if (session === mrpProposalGenerateSession) setGenerateError(err?.message || "Generation failed.");
     } finally {
       mrpProposalGenerateSaving = false;
       setLoadingMask(false);
@@ -1588,6 +1597,7 @@ export function createMrpProposalHandlers(deps) {
       return;
     }
     mrpProposalAdjustRow = row;
+    ++mrpProposalAdjustSession;
     mrpProposalAdjustReturnFocus = document.activeElement;
     setAdjustError("");
 
@@ -1634,7 +1644,7 @@ export function createMrpProposalHandlers(deps) {
     dom.mrpProposalAdjustModal?.setAttribute("aria-hidden", "true");
     setAdjustError("");
     mrpProposalAdjustRow = null;
-    mrpProposalAdjustSaving = false;
+    ++mrpProposalAdjustSession; // ends the session; a pending save keeps its saving flag
     if (mrpProposalAdjustReturnFocus?.focus) {
       try {
         mrpProposalAdjustReturnFocus.focus();
@@ -1705,6 +1715,7 @@ export function createMrpProposalHandlers(deps) {
     }
 
     mrpProposalAdjustSaving = true;
+    const session = mrpProposalAdjustSession;
     if (dom.mrpProposalAdjustSaveBtn) dom.mrpProposalAdjustSaveBtn.disabled = true;
     setLoadingMask(true, "Adjusting proposal line...");
     setAdjustError("");
@@ -1715,12 +1726,12 @@ export function createMrpProposalHandlers(deps) {
         payload,
       );
       if (error) throw error;
-      closeAdjustModal();
+      if (session === mrpProposalAdjustSession) closeAdjustModal();
       showToast("Proposal line adjusted.", "success");
       if (typeof reloadRows === "function") await reloadRows();
     } catch (err) {
       handleError("Failed to adjust proposal line", err);
-      setAdjustError(err?.message || "Adjustment failed.");
+      if (session === mrpProposalAdjustSession) setAdjustError(err?.message || "Adjustment failed.");
     } finally {
       mrpProposalAdjustSaving = false;
       setLoadingMask(false);
@@ -1743,6 +1754,7 @@ export function createMrpProposalHandlers(deps) {
       return;
     }
     mrpProposalResetRow = row;
+    ++mrpProposalResetSession;
     mrpProposalResetReturnFocus = document.activeElement;
     setResetError("");
     if (dom.mrpProposalResetReason) dom.mrpProposalResetReason.value = "";
@@ -1759,7 +1771,7 @@ export function createMrpProposalHandlers(deps) {
     dom.mrpProposalResetModal?.setAttribute("aria-hidden", "true");
     setResetError("");
     mrpProposalResetRow = null;
-    mrpProposalResetSaving = false;
+    ++mrpProposalResetSession; // ends the session; a pending reset keeps its saving flag
     if (mrpProposalResetReturnFocus?.focus) {
       try {
         mrpProposalResetReturnFocus.focus();
@@ -1785,6 +1797,7 @@ export function createMrpProposalHandlers(deps) {
     }
 
     mrpProposalResetSaving = true;
+    const session = mrpProposalResetSession;
     if (dom.mrpProposalResetSaveBtn) dom.mrpProposalResetSaveBtn.disabled = true;
     setLoadingMask(true, "Resetting proposal line...");
     setResetError("");
@@ -1799,12 +1812,12 @@ export function createMrpProposalHandlers(deps) {
         p_reason: reason,
       });
       if (error) throw error;
-      closeResetModal();
+      if (session === mrpProposalResetSession) closeResetModal();
       showToast("Proposal line reset to calculated values.", "success");
       if (typeof reloadRows === "function") await reloadRows();
     } catch (err) {
       handleError("Failed to reset proposal line", err);
-      setResetError(err?.message || "Reset failed.");
+      if (session === mrpProposalResetSession) setResetError(err?.message || "Reset failed.");
     } finally {
       mrpProposalResetSaving = false;
       setLoadingMask(false);
@@ -1838,6 +1851,7 @@ export function createMrpProposalHandlers(deps) {
     }
 
     selectedMrpProposalId = id;
+    ++mrpProposalSubmitSession;
     mrpProposalSubmitReturnFocus = document.activeElement;
     setSubmitError("");
     if (dom.mrpProposalSubmitNote) dom.mrpProposalSubmitNote.value = "";
@@ -1853,7 +1867,7 @@ export function createMrpProposalHandlers(deps) {
     dom.mrpProposalSubmitModal?.classList.add("hidden");
     dom.mrpProposalSubmitModal?.setAttribute("aria-hidden", "true");
     setSubmitError("");
-    mrpProposalSubmitSaving = false;
+    ++mrpProposalSubmitSession; // ends the session; a pending submit keeps its saving flag
     if (mrpProposalSubmitReturnFocus?.focus) {
       try {
         mrpProposalSubmitReturnFocus.focus();
@@ -1879,6 +1893,7 @@ export function createMrpProposalHandlers(deps) {
     }
 
     mrpProposalSubmitSaving = true;
+    const session = mrpProposalSubmitSession;
     if (dom.mrpProposalSubmitSaveBtn) {
       dom.mrpProposalSubmitSaveBtn.disabled = true;
     }
@@ -1895,7 +1910,7 @@ export function createMrpProposalHandlers(deps) {
       );
       if (error) throw error;
       const result = Array.isArray(data) ? data[0] : data;
-      closeSubmitModal();
+      if (session === mrpProposalSubmitSession) closeSubmitModal();
       showToast(
         result?.status
           ? `Proposal submitted (${humanizeToken(result.status)}).`
@@ -1907,7 +1922,7 @@ export function createMrpProposalHandlers(deps) {
       if (typeof reloadRows === "function") await reloadRows();
     } catch (err) {
       handleError("Failed to submit Product MRP Proposal", err);
-      setSubmitError(err?.message || "Submission failed.");
+      if (session === mrpProposalSubmitSession) setSubmitError(err?.message || "Submission failed.");
     } finally {
       mrpProposalSubmitSaving = false;
       setLoadingMask(false);
