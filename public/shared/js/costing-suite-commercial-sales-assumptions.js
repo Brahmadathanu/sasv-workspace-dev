@@ -364,17 +364,17 @@ export function createCommercialSalesAssumptionHandlers(deps) {
   let historyLoading = false;
   let historyError = null;
   let writeInFlight = false;
-  // WP06-F7: the default-policy write belongs to the request, not to the modal. `defaultWriteInFlight` survives
-  // close/reopen and is cleared only when that request settles. `defaultModalSeq` identifies the opened revise
-  // modal (monotonic, never reused) and `defaultPreviewSeq` the latest preview request, so late answers of a closed
-  // session or of a superseded preview can never be rendered or acted on.
   let defaultWriteInFlight = false;
-  let defaultModalSeq = 0;
-  let defaultPreviewSeq = 0;
   let defaultReviseTarget = null;
   let defaultScopePreview = null;
   let defaultPreviewInFlight = false;
   let defaultPreviewTimer = null;
+  // WP06-F7: `defaultWriteInFlight` (above) belongs to the default-policy write request, not to the modal: it survives
+  // close/reopen and is cleared only when that request settles. `defaultModalSeq` identifies the opened revise modal
+  // (monotonic, never reused) and `defaultPreviewSeq` the latest preview request, so late answers of a closed session
+  // or of a superseded preview can never be rendered or acted on.
+  let defaultModalSeq = 0;
+  let defaultPreviewSeq = 0;
 
   function canEdit() {
     return (
