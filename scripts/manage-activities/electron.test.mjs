@@ -21,13 +21,15 @@ async function openWindow({ width, view = true, edit = true, n = 40 }) {
     app = await _electron.launch({ executablePath: exe, args: ["--no-sandbox", "--disable-gpu", "main.js"], cwd: root });
     const first = await app.firstWindow(); ctx = first.context();
     await ctx.route("https://esm.sh/**", (r) => r.fulfill({ contentType: "text/javascript", body: `import { createFake } from "${base}/scripts/manage-activities/fake-supabase.mjs"; export const createClient = () => createFake(window.__cfg);` }));
+    // One init script for the whole app; per-window fixture size/permissions come from the query string.
+    await ctx.addInitScript(() => {
+      if (!location.pathname.endsWith("manage-activities.html")) return;
+      const q = new URLSearchParams(location.search); const n = Number(q.get("n") || 40), view = q.get("view") !== "0", edit = q.get("edit") !== "0";
+      window.__pending = import("http://localhost:3000/scripts/manage-activities/fake-supabase.mjs").then((m) => { window.__cfg = { data: m.makeData(n), perms: { list: m.permList(view, edit), edit } }; });
+    });
     await ctx.route("**/js/activities.js", async (r) => { const resp = await r.fetch(); r.fulfill({ response: resp, body: "await window.__pending;\n" + (await resp.text()) }); });
   }
-  await ctx.addInitScript(({ view, edit, n }) => {
-    if (!location.pathname.endsWith("manage-activities.html")) return;
-    window.__pending = import("http://localhost:3000/scripts/manage-activities/fake-supabase.mjs").then((m) => { window.__cfg = { data: m.makeData(n), perms: { list: m.permList(view, edit), edit } }; });
-  }, { view, edit, n });
-  const [page] = await Promise.all([ctx.waitForEvent("page"), app.evaluate(({ BrowserWindow }, w) => { const win = new BrowserWindow({ width: w, height: 800, useContentSize: true, webPreferences: { contextIsolation: true } }); win.loadURL("http://localhost:3000/manage-activities.html"); }, width)]);
+  const [page] = await Promise.all([ctx.waitForEvent("page"), app.evaluate(({ BrowserWindow }, { w, q }) => { const win = new BrowserWindow({ width: w, height: 800, useContentSize: true, webPreferences: { contextIsolation: true } }); win.loadURL(`http://localhost:3000/manage-activities.html?n=${q.n}&view=${q.view}&edit=${q.edit}`); }, { w: width, q: { n, view: view ? 1 : 0, edit: edit ? 1 : 0 } })]);
   return page;
 }
 test.after(async () => { await app?.close(); });
@@ -93,8 +95,8 @@ for (const width of [390, 520, 768, 1280]) {
     const target = narrow ? '#maCards li[data-id="1"] .ma-card' : '#existingTable tr[data-id="1"] .ma-name-link';
     const geom = (sel) => page.evaluate((sel) => { const m = document.querySelector(sel); const r = m.getBoundingClientRect(); const hd = m.querySelector(".ma-modal-header,.ma-popover-header").getBoundingClientRect(); const ft = m.querySelector(".ma-modal-footer,.ma-popover-footer").getBoundingClientRect(); const body = m.querySelector(".ma-modal-body,.ma-popover-body"); return { l: r.left, t: r.top, w: r.width, h: r.height, vw: document.documentElement.clientWidth, vh: innerHeight, radius: getComputedStyle(m).borderTopLeftRadius, hdTop: hd.top, ftBottom: ft.bottom, ov: getComputedStyle(body).overflowY, x: !!m.querySelector(".ma-x svg"), over: document.documentElement.scrollWidth - innerWidth }; }, sel);
     const check = (g, label) => {
-      assert.ok(g.x, `${label} X`); assert.ok(g.over <= 1, `${label} overflow`); assert.ok(["auto", "scroll"].includes(g.ov));
-      if (narrow) { assert.ok(Math.abs(g.l) <= 1 && Math.abs(g.t) <= 1 && Math.abs(g.w - g.vw) <= 1 && Math.abs(g.h - g.vh) <= 1, `${label} fills viewport ${JSON.stringify(g)}`); assert.equal(g.radius, "0px"); assert.ok(g.hdTop <= 1 && Math.abs(g.ftBottom - g.vh) <= 1, `${label} pinned`); }
+      assert.ok(g.x, `${label} X`); assert.ok(g.over <= 1, `${label} overflow`); assert.ok(["auto", "scroll"].includes(g.ov) || (narrow && label === "add"));
+      if (narrow) { assert.ok(Math.abs(g.l) <= 1 && Math.abs(g.t) <= 1 && Math.abs(g.w - g.vw) <= 1 && Math.abs(g.h - g.vh) <= 1, `${label} fills viewport ${JSON.stringify(g)}`); assert.equal(g.radius, "0px"); assert.ok(g.hdTop <= 1, `${label} header`); if (label !== "add") assert.ok(Math.abs(g.ftBottom - g.vh) <= 1, `${label} pinned footer`); }
       else { assert.ok(g.l >= 0 && g.l + g.w <= g.vw + 1 && g.t >= 0 && g.t + g.h <= g.vh + 1, `${label} inside`); assert.notEqual(g.radius, "0px"); }
     };
     const D = ".ma-dialog-backdrop .ma-modal";
@@ -109,6 +111,53 @@ for (const width of [390, 520, 768, 1280]) {
     await page.click("#maPasteBtn"); check(await geom(D), "paste");
     await page.keyboard.press("Escape"); await page.keyboard.press("Escape");
     await page.click("#maFilterBtn"); check(await geom("#maDrawer"), "filter");
+    await page.keyboard.press("Escape");
+    await page.close().catch(() => {});
+  });
+}
+
+// MA-UX-5 — genuine Electron: desktop container scrolling and narrow single-scroll Add modal.
+for (const width of [768, 1280]) {
+  test(`Electron renderer ${width}px: page does not scroll; header/search fixed; sticky table header; list scrolls in its container`, { skip: SK }, async () => {
+    const page = await openWindow({ width, n: 120 });
+    await page.waitForSelector("#existingTable tbody tr", { state: "attached", timeout: 20000 });
+    const top = (s) => page.evaluate((s) => document.querySelector(s).getBoundingClientRect().top, s);
+    const before = [await top(".ma-page-title"), await top("#nameFilter"), await top("#maFilterBtn")];
+    const pg = () => page.evaluate(() => ({ v: document.documentElement.scrollHeight - innerHeight, h: document.documentElement.scrollWidth - innerWidth }));
+    let p = await pg(); assert.ok(p.v <= 1 && p.h <= 1, JSON.stringify(p));
+    for (let i = 0; i < 8; i++) { await page.evaluate(() => { const w = document.querySelector(".ma-table-wrap"); w.scrollTop = w.scrollHeight; }); await page.waitForTimeout(150); }
+    assert.equal(await page.locator("#existingTable tbody tr").count(), 120);
+    assert.deepEqual([await top(".ma-page-title"), await top("#nameFilter"), await top("#maFilterBtn")], before, "header and search did not move");
+    p = await pg(); assert.ok(p.v <= 1 && p.h <= 1 && (await page.evaluate(() => scrollY)) === 0);
+    const s = await page.evaluate(() => { const w = document.querySelector(".ma-table-wrap"); w.scrollTop = 500; const th = document.querySelector("#existingTable thead th").getBoundingClientRect(); return { dt: Math.abs(th.top - w.getBoundingClientRect().top), on: !!document.elementFromPoint(th.left + 20, th.top + th.height / 2)?.closest("thead") }; });
+    assert.ok(s.dt <= 2 && s.on, JSON.stringify(s));
+    await page.focus(".ma-table-wrap"); await page.keyboard.press("Home");
+    await page.click("#maFilterBtn");
+    const d = await page.evaluate(() => { const r = document.querySelector("#maDrawer").getBoundingClientRect(); return { inside: r.left >= 0 && r.right <= document.documentElement.clientWidth && r.bottom <= innerHeight, top: !!document.elementFromPoint(r.left + r.width / 2, r.top + 20)?.closest("#maDrawer") }; });
+    assert.ok(d.inside && d.top, JSON.stringify(d));
+    await page.keyboard.press("Escape");
+    await page.close().catch(() => {});
+  });
+}
+
+for (const width of [390, 520]) {
+  test(`Electron renderer ${width}px: Add modal has ONE vertical scroller; sticky X; actions follow the last row; fields reachable; no page overflow`, { skip: SK }, async () => {
+    const page = await openWindow({ width });
+    await page.waitForSelector("#existingTable tbody tr", { state: "attached", timeout: 20000 });
+    await page.click("#maNewBtn");
+    for (let i = 0; i < 8; i++) await page.click("#maAddRow");
+    const sc = await page.evaluate(() => [...document.querySelectorAll("#maBulk, #maBulk *")].filter((e) => { const o = getComputedStyle(e).overflowY; return (o === "auto" || o === "scroll") && e.scrollHeight > e.clientHeight + 1; }).map((e) => e.id || e.className));
+    assert.deepEqual(sc, ["maBulk"], "one vertical scroll region");
+    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector("#maBulk .ma-modal-footer")).position), "static");
+    await page.evaluate(() => { document.querySelector("#maBulk").scrollTop = 600; });
+    const mid = await page.evaluate(() => { const x = document.querySelector("#maBulk .ma-x").getBoundingClientRect(); return { top: x.top, w: x.width, hd: document.querySelector("#maBulk .ma-modal-header").getBoundingClientRect().top }; });
+    assert.ok(mid.top >= 0 && mid.w >= 36 && Math.abs(mid.hd) <= 1, JSON.stringify(mid));
+    await page.evaluate(() => { const m = document.querySelector("#maBulk"); m.scrollTop = m.scrollHeight; });
+    const e = await page.evaluate(() => { const r = (s) => { const b = document.querySelector(s).getBoundingClientRect(); return [b.top, b.bottom, b.left, b.right]; }; const rows = document.querySelectorAll("#multiTable tbody tr"); return { last: rows[rows.length - 1].getBoundingClientRect().bottom, a: r("#maAddRow"), p: r("#maPasteBtn"), c: r("#multiClearBtn"), g: r("#multiAddBtn"), vw: document.documentElement.clientWidth, vh: innerHeight, over: document.documentElement.scrollWidth - innerWidth }; });
+    assert.ok(e.last <= e.a[0] + 1 && e.a[1] <= e.p[0] + 1 && e.p[1] <= e.c[0] + 1 && e.c[1] <= e.g[0] + 1, "rows then Add row, Paste, Clear all, Add all");
+    for (const b of [e.a, e.p, e.c, e.g]) assert.ok(b[1] <= e.vh + 1 && b[2] >= -1 && b[3] <= e.vw + 1);
+    assert.ok(e.over <= 1);
+    for (const sel of ["#multiTable tbody tr:first-child .m-name", "#multiTable tbody tr:last-child .m-dur"]) { await page.focus(sel); const b = await page.evaluate((s) => { const r = document.querySelector(s).getBoundingClientRect(); return [r.top, r.bottom, r.left, r.right, document.querySelector("#maBulk .ma-modal-header").getBoundingClientRect().bottom]; }, sel); assert.ok(b[0] >= b[4] - 1 && b[1] <= e.vh + 1 && b[2] >= 0 && b[3] <= e.vw + 1, `${sel} ${b}`); assert.ok(await page.evaluate(() => !!document.activeElement.closest("#maBulk"))); }
     await page.keyboard.press("Escape");
     await page.close().catch(() => {});
   });

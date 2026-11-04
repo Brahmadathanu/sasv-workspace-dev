@@ -188,9 +188,17 @@ function renderFeed(full = false) {
 }
 
 let observer = null;
+// Desktop: the table container is the vertical scroller, so "near the end" is measured on it.
+// Narrow: the activity cards scroll with the page, so the sentinel below them is measured against the window.
+const tableMode = () => $("existingTable").offsetParent !== null;
+const tableScroller = () => $("existingTable").closest(".ma-table-wrap");
+function nearEnd() {
+  if (tableMode()) { const w = tableScroller(); return w.scrollHeight - w.scrollTop - w.clientHeight < 200; }
+  return $("maSentinel").getBoundingClientRect().top < window.innerHeight + 200;
+}
 function checkSentinel() {
   if (!catalogueVisible() || feed.busy || feed.err || !hasMore()) return;
-  if ($("maSentinel").getBoundingClientRect().top < window.innerHeight + 200) loadBatch();
+  if (nearEnd()) loadBatch();
 }
 function wireFeed() {
   $("maLoadMore").onclick = () => { if (feed.err?.phase === "initial") loadBatch({ reset: true }); else { feed.err = null; loadBatch(); } };
@@ -198,6 +206,7 @@ function wireFeed() {
     observer = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) checkSentinel(); }, { rootMargin: "200px" });
     observer.observe($("maSentinel"));
   }
+  tableScroller().addEventListener("scroll", checkSentinel, { passive: true });
   window.addEventListener("scroll", checkSentinel, { passive: true });
   window.addEventListener("resize", checkSentinel);
 }
