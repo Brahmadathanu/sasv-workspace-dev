@@ -287,3 +287,81 @@ test("source guard: exactly the same three write RPC names and no new RPC", () =
   const names = [...new Set([...SRC.matchAll(/costingRpc\(\s*"([a-z_]+)"/g)].map((m) => m[1]))].sort();
   assert.deepEqual(names, ["rpc_close_sku_sales_assumption", "rpc_get_regional_sales_allocation_default_policies", "rpc_get_sales_allocation_default_policies", "rpc_get_sku_sales_assumptions", "rpc_preview_sales_allocation_default_policy_scope", "rpc_set_sales_allocation_default_policies_scoped", "rpc_set_sku_sales_assumption"]);
 });
+
+// ---- review of #153: reopen while pending, completion after reopen, controls, async refresh isolation --------------
+const CTRL_IDS = ["csaAssumptionBasis", "csaAssumedUnits", "csaAssumedValue", "csaEffectiveFrom", "csaRemarks", "csaApprovalReference", "csaSetSaveBtn", "csaCloseEffectiveTo", "csaCloseRemarks", "csaCloseApprovalReference", "csaCloseSaveBtn"];
+const allDisabled = (s) => CTRL_IDS.map((id) => s.$(id).disabled);
+
+for (const [label, reopenSku] of [["same SKU", 41], ["different SKU", 42]]) {
+  test(`#153 review: reopen (${label}) while a write is pending -> all write controls stay disabled; after completion (success) every control is re-enabled and the new session can save`, async () => {
+    const s = setup({ history: { 41: [], 42: [] } });
+    await startPendingSet(s, 41);
+    assert.ok(allDisabled(s).every(Boolean), "disabled while pending");
+    s.h.closeManageModal();
+    assert.ok(allDisabled(s).every(Boolean), "closing keeps them disabled while the write is pending");
+    await s.h.openManageModal(SKU(reopenSku));
+    assert.ok(allDisabled(s).every(Boolean), "reopened session starts disabled while the write is pending");
+    s.gates.write[0]({ data: null, error: null });
+    await settle();
+    assert.ok(allDisabled(s).every((d) => d === false), "all eleven controls re-enabled after completion");
+    fill(s.$, SET);
+    await clickSave(s);
+    const w = writes(s.log);
+    assert.equal(w.length, 2);
+    assert.equal(w[1].payload.p_sku_id, reopenSku, "the new session writes for its own SKU");
+    s.gates.write[1]();
+    await settle();
+  });
+
+  test(`#153 review: reopen (${label}) while a write is pending -> completion by FAILURE also re-enables every control`, async () => {
+    const s = setup({ history: { 41: [], 42: [] } });
+    await startPendingSet(s, 41);
+    s.h.closeManageModal();
+    await s.h.openManageModal(SKU(reopenSku));
+    s.gates.write[0]({ data: null, error: { message: "denied" } });
+    await settle();
+    assert.ok(allDisabled(s).every((d) => d === false));
+    assert.equal(s.$("csaManageError").textContent, "");
+    assert.equal(s.log.masks.at(-1)[0], false, "loading mask cleared");
+  });
+}
+
+for (const order of ["stale-first", "new-first"]) {
+  test(`#153 review: the history refresh that follows a write cannot mutate a newer modal session (close/reopen during its await; ${order})`, async () => {
+    const s = setup({ history: { 41: [] } });
+    await startPendingSet(s, 41);
+    s.state.history = { 41: [OPEN] };            // what the old session's post-write refresh will read
+    s.state.historyGated = true;
+    s.gates.write[0]({ data: null, error: null });
+    await settle();                               // write done; refreshModalAfterWrite -> history read #A pending
+    assert.equal(s.gates.history.length, 1, "post-write refresh is waiting for its history answer");
+    s.h.closeManageModal();                       // close during the refresh's await
+    s.state.history = { 41: [] };                 // what the reopened session reads
+    const reopened = s.h.openManageModal(SKU(41));
+    await settle();
+    assert.equal(s.gates.history.length, 2);
+    const releaseStale = () => s.gates.history[0]();
+    const releaseNew = () => s.gates.history[1]();
+    if (order === "stale-first") { releaseStale(); await settle(); releaseNew(); } else { releaseNew(); await settle(); releaseStale(); }
+    await reopened;
+    await settle();
+    assert.equal(s.$("csaCloseSection").hidden, true, "no open assumption leaked from the stale refresh into the new session");
+    assert.equal(s.$("csaSetSaveBtn").textContent, "Save Assumption");
+    s.state.historyGated = false;
+    fill(s.$, { ...SET, csaEffectiveFrom: "2026-09-01" });
+    await clickSave(s);
+    assert.equal(writes(s.log).length, 2, "the new session validates against its own (empty) history");
+  });
+}
+
+test("#153 review: a write that completes while the modal is CLOSED (no reopen) does not reopen it, reset anything or read history", async () => {
+  const s = setup({ history: { 41: [] } });
+  await startPendingSet(s, 41);
+  s.h.closeManageModal();
+  const reads = histReads(s.log).length;
+  s.gates.write[0]({ data: null, error: null });
+  await settle();
+  assert.equal(s.$("csaManageModal").attrs["aria-hidden"], "true");
+  assert.equal(histReads(s.log).length, reads);
+  assert.ok(allDisabled(s).every((d) => d === false));
+});
