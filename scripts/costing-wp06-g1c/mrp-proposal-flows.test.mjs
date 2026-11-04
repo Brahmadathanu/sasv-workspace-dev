@@ -180,22 +180,6 @@ test("decide: RPC error keeps the modal open with the message and allows a retry
   assert.equal(writes(d.log).length, 1);
 });
 
-test("CHARACTERISATION F-9 (pins today's behaviour; flip when fixed): closing the decision modal while its save is pending clears the saving flag, so a second decision can be sent", async () => {
-  const s = decisionSetup();
-  await s.open(LINE(), "APPROVED");
-  s.dom.mrpDecisionLineModalReason.value = "first reason";
-  let release; s.state.gate = new Promise((r) => { release = r; });
-  await s.dom.mrpDecisionLineModalSaveBtn.fire("click");
-  await settle();
-  await s.dom.mrpDecisionLineModalCancelBtn.fire("click");   // user closes while pending
-  await s.open(LINE(), "APPROVED");
-  s.dom.mrpDecisionLineModalReason.value = "second reason";
-  await s.dom.mrpDecisionLineModalSaveBtn.fire("click");
-  await settle();
-  assert.equal(writes(s.log).length, 2, "today two decisions are in flight for the same line (the server is the authority; a fix must make this 1)");
-  release(); await settle();
-});
-
 // ================================ apply =============================================================================
 const HEADER = (extra = {}) => ({ proposal_id: 7, proposal_number: "MRP-7", status: "APPROVED", product_id: 3, product_name: "Prod", ...extra });
 const ALINE = (id, sku, extra = {}) => ({ proposal_line_id: id, proposal_id: 7, sku_id: sku, decision: "APPROVED", eligibility_status: "ELIGIBLE", applied_mrp_policy_id: null, ...extra });
@@ -289,20 +273,6 @@ test("apply: server error is shown with the no-partial-application notice, the r
   await d.dom.mrpApplicationApplySaveBtn.fire("click");
   await settle(); release(); await settle();
   assert.equal(writes(d.log).length, 1);
-});
-
-test("CHARACTERISATION F-9 (apply): closing the apply modal while the apply is pending clears the saving flag", async () => {
-  const s = await applySetup();
-  await s.openApply();
-  let release; s.state.gate = new Promise((r) => { release = r; });
-  await s.dom.mrpApplicationApplySaveBtn.fire("click");
-  await settle();
-  await s.dom.mrpApplicationApplyCancelBtn.fire("click");
-  await s.openApply();
-  await s.dom.mrpApplicationApplySaveBtn.fire("click");
-  await settle();
-  assert.equal(writes(s.log).length, 2, "today a second apply for the same proposal is sent (server is atomic/authoritative; a fix must make this 1)");
-  release(); await settle();
 });
 
 // ================================ proposals: generate / adjust / reset / submit =====================================
@@ -458,7 +428,7 @@ test("reset: exact RESET payload through rpc_adjust_product_mrp_proposal_line; r
 });
 
 // ================================ scope guards =====================================================================
-test("source: the four MRP modules call exactly the six documented MRP write RPCs (generate, adjust, submit, decide, apply) - no approve/finalise/supersede family, no direct table writes, one write per handler", () => {
+test("source: the four MRP modules call exactly the five documented MRP write RPCs (generate, adjust, submit, decide, apply) - no approve/finalise/supersede family, no direct table writes, one write per handler", () => {
   const all = ["costing-suite-mrp-proposals.js", "costing-suite-mrp-decisions.js", "costing-suite-mrp-application.js", "costing-suite-mrp-applied-history.js"].map((f) => [f, SRC(f)]);
   const names = new Set();
   for (const [f, src] of all) {
@@ -480,3 +450,141 @@ test("source (D7): no module reads the current user or compares the deciding use
     assert.doesNotMatch(src, /(submitted_by|decided_by|created_by)\s*(===|!==|==|!=)/, `${f}: submitter/decider are display fields only, never compared`);
   }
 });
+
+// ================================ F-9 (fixed): pending-request persistence and stale-session handling =================
+// For each of the six modals: a request that is still pending when the modal is closed (and possibly reopened) keeps
+// blocking further submissions, its late completion can never close/reset/show an error in another modal session,
+// and the correct controls are restored when it settles. RPC names, payloads and guards are unchanged (see above).
+const proposalWithDraft = () => proposalSetup({ derivation: DERIV, register: [DRAFT_ROW] });
+const fresh$ = () => installDocument();   // fresh drawer nodes so repeated wiring never accumulates listeners
+const MODALS = {
+  decide: {
+    rpc: "rpc_decide_product_mrp_proposal_line", modal: "mrpDecisionLineModal", err: "mrpDecisionLineModalError", save: "mrpDecisionLineModalSaveBtn", cancel: "mrpDecisionLineModalCancelBtn", field: "mrpDecisionLineModalReason",
+    async make() { const s = decisionSetup(); return { s, async open() { const $q = fresh$(); s.h.wireDrawerActions("line-decision", LINE()); await $q("[data-mrp-decision-drawer-approve]").fire("click"); }, async fill(v) { s.dom.mrpDecisionLineModalReason.value = v; } }; },
+  },
+  apply: {
+    rpc: "rpc_apply_product_mrp_proposal", modal: "mrpApplicationApplyModal", err: "mrpApplicationApplyError", save: "mrpApplicationApplySaveBtn", cancel: "mrpApplicationApplyCancelBtn", field: "mrpApplicationApplyNote",
+    async make() { const s = await applySetup(); return { s, async open() { await s.openApply(); }, async fill(v) { s.dom.mrpApplicationApplyNote.value = v; } }; },
+  },
+  generate: {
+    rpc: "rpc_generate_product_mrp_proposal", modal: "mrpProposalGenerateModal", err: "mrpProposalGenerateError", save: "mrpProposalGenerateSaveBtn", cancel: "mrpProposalGenerateCancelBtn", field: "mrpProposalGenerateReason",
+    async make() { const s = await proposalWithDraft(); return { s, async open() { await s.h.openGenerateModal(); }, async fill(v) { s.dom.mrpProposalGenerateProduct.value = "5"; s.dom.mrpProposalGenerateReason.value = v; } }; },
+  },
+  adjust: {
+    rpc: "rpc_adjust_product_mrp_proposal_line", modal: "mrpProposalAdjustModal", err: "mrpProposalAdjustError", save: "mrpProposalAdjustSaveBtn", cancel: "mrpProposalAdjustCancelBtn", field: "mrpProposalAdjustReason",
+    async make() { const s = await proposalWithDraft(); return { s, async open() { const $q = fresh$(); s.h.wireDrawerActions("line-identity", PLINE()); await $q("[data-mrp-proposal-drawer-adjust]").fire("click"); }, async fill(v) { s.dom.mrpProposalAdjustCalcMode.value = "AUTO"; s.dom.mrpProposalAdjustMrpIk.value = "120"; s.dom.mrpProposalAdjustReason.value = v; } }; },
+  },
+  reset: {
+    rpc: "rpc_adjust_product_mrp_proposal_line", modal: "mrpProposalResetModal", err: "mrpProposalResetError", save: "mrpProposalResetSaveBtn", cancel: "mrpProposalResetCancelBtn", field: "mrpProposalResetReason",
+    async make() { const s = await proposalWithDraft(); return { s, async open() { const $q = fresh$(); s.h.wireDrawerActions("line-identity", PLINE({ is_manually_adjusted: true })); await $q("[data-mrp-proposal-drawer-reset]").fire("click"); }, async fill(v) { s.dom.mrpProposalResetReason.value = v; } }; },
+  },
+  submit: {
+    rpc: "rpc_submit_product_mrp_proposal", modal: "mrpProposalSubmitModal", err: "mrpProposalSubmitError", save: "mrpProposalSubmitSaveBtn", cancel: "mrpProposalSubmitCancelBtn", field: "mrpProposalSubmitNote",
+    async make() { const s = await proposalWithDraft(); return { s, async open() { const $q = fresh$(); s.h.wireDrawerActions("proposal-summary", DRAFT_ROW); await $q("[data-mrp-proposal-drawer-submit]").fire("click"); }, async fill(v) { s.dom.mrpProposalSubmitNote.value = v; } }; },
+  },
+};
+const isHidden = (m, name) => m.s.dom[name].classList.contains("hidden");
+async function startPending(name) {
+  const D = MODALS[name];
+  const m = await D.make();
+  m.D = D;
+  await m.open();
+  assert.equal(isHidden(m, D.modal), false, `${name}: modal opened`);
+  await m.fill("first session value");
+  let release;
+  m.s.state.gate = new Promise((r) => { release = r; });
+  m.release = release;
+  await m.s.dom[D.save].fire("click");
+  await settle();
+  assert.equal(writes(m.s.log).filter((c) => c.name === D.rpc).length, 1, `${name}: first request is pending`);
+  assert.equal(m.s.dom[D.save].disabled, true, `${name}: Save disabled while pending`);
+  return m;
+}
+const count = (m) => writes(m.s.log).filter((c) => c.name === m.D.rpc).length;
+const submitAgain = async (m, value = "second session value") => { await m.fill(value); await m.s.dom[m.D.save].fire("click"); await settle(); };
+
+for (const name of Object.keys(MODALS)) {
+  test(`F-9 ${name}: pending request + close + reopen -> a second submission is NOT sent (guard, even if the button were enabled)`, async () => {
+    const m = await startPending(name);
+    await m.s.dom[m.D.cancel].fire("click");
+    await m.open();
+    assert.equal(isHidden(m, m.D.modal), false, "reopened");
+    await m.fill("second session value");
+    m.s.dom[m.D.save].disabled = false;                       // even if other code re-enabled the button
+    await m.s.dom[m.D.save].fire("click");
+    await settle();
+    assert.equal(count(m), 1);
+    m.release(); await settle();
+  });
+
+  test(`F-9 ${name}: late SUCCESS after reopen leaves the newer modal open, untouched and error-free; Save is restored and the new session can submit`, async () => {
+    const m = await startPending(name);
+    await m.s.dom[m.D.cancel].fire("click");
+    await m.open();
+    await m.fill("typed in the newer session");
+    m.release();
+    await settle();
+    assert.equal(isHidden(m, m.D.modal), false, "newer modal not closed by the old completion");
+    assert.equal(m.s.dom[m.D.field].value, "typed in the newer session", "newer form untouched");
+    assert.equal(m.s.dom[m.D.err].textContent, "");
+    assert.equal(m.s.dom[m.D.save].disabled, false, "controls restored for the current session");
+    assert.equal(m.s.log.toasts.filter((t) => t[1] === "success").length, 1, "success is still reported once");
+    m.s.state.gate = null;
+    await m.s.dom[m.D.save].fire("click");
+    await settle();
+    assert.equal(count(m), 2, "the new session can now submit");
+  });
+
+  test(`F-9 ${name}: late FAILURE after reopen is reported once (handleError) but never shown inside the newer modal; the newer session recovers`, async () => {
+    const m = await startPending(name);
+    await m.s.dom[m.D.cancel].fire("click");
+    await m.open();
+    await m.fill("typed in the newer session");
+    m.s.state.result = { data: null, error: { message: "boom from old request" } };
+    m.release();
+    await settle();
+    assert.equal(m.s.log.errors.length, 1);
+    assert.equal(m.s.dom[m.D.err].textContent, "", "no stale error text in the newer modal");
+    assert.equal(isHidden(m, m.D.modal), false);
+    assert.equal(m.s.dom[m.D.field].value, "typed in the newer session");
+    assert.equal(m.s.dom[m.D.save].disabled, false);
+    m.s.state.result = { data: null, error: null };
+    m.s.state.gate = null;
+    await m.s.dom[m.D.save].fire("click");
+    await settle();
+    assert.equal(count(m), 2);
+  });
+
+  test(`F-9 ${name}: pending request + close (no reopen) -> completion does not reopen or alter anything; a later modal starts clean and usable`, async () => {
+    const m = await startPending(name);
+    await m.s.dom[m.D.cancel].fire("click");
+    m.release();
+    await settle();
+    assert.equal(isHidden(m, m.D.modal), true);
+    assert.equal(m.s.dom[m.D.err].textContent, "");
+    m.s.state.gate = null;
+    await m.open();
+    assert.equal(m.s.dom[m.D.save].disabled, false);
+    await submitAgain(m, "fresh session");
+    assert.equal(count(m), 2);
+  });
+
+  test(`F-9 ${name}: ordinary same-session behaviour is unchanged (success closes the modal; failure keeps it open with the message and allows a retry)`, async () => {
+    const m = await startPending(name);
+    m.release();
+    await settle();
+    assert.equal(isHidden(m, m.D.modal), true, "success closes its own modal");
+    const f = await startPending(name);
+    f.s.state.result = { data: null, error: { message: "plain failure" } };
+    f.release();
+    await settle();
+    assert.equal(isHidden(f, f.D.modal), false);
+    assert.match(f.s.dom[f.D.err].textContent, /plain failure/);
+    assert.equal(f.s.dom[f.D.save].disabled, false);
+    f.s.state.result = { data: null, error: null };
+    f.s.state.gate = null;
+    await f.s.dom[f.D.save].fire("click");
+    await settle();
+    assert.equal(count(f), 2, "retry sends again");
+  });
+}
