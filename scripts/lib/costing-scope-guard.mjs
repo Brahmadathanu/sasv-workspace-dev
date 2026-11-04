@@ -10,7 +10,7 @@
 //             style contract: public/shared/css/style.css and its transitive @import chain.
 //   supabase  Existing files are immutable (any M/D/R/C/T of a file present at the base is a violation);
 //             anything changed outside supabase/migrations/ is a violation; an ADDED migration is a
-//             violation when its SQL mentions costing.
+//             violation when its executable SQL mentions costing (comments are ignored).
 //   package.json  Any change is a violation.
 //
 // Nothing here is Costing-specific logic; it only selects which changed paths count.
@@ -34,13 +34,67 @@ const COSTING_CSS_PATTERN = /(^|\/)[^/]*costing[^/]*\.css$/i;
 //   costing.sku_price (schema), public.costing_refresh_run, fn_costing_view_allowed, costing_admin (role),
 //   v_current_successful_costing_refresh_run, GRANT/POLICY/ALTER/DROP/COMMENT statements naming any of them.
 // Letters and digits on either side prevent matches inside other words ("accosting", "costings", "costing2").
-// SQL comments are scanned too on purpose: a migration that merely talks about costing is flagged for review
-// rather than silently allowed (conservative; real WP-07 migrations do not contain the word).
+// SQL COMMENTS (`-- ...` and `/* ... */`) are NOT scanned: an unrelated migration whose explanatory header says
+// "no changes to ... costing" is not a Costing change (see stripSqlComments; 4 Nov 2026, Manage Activities RLS
+// migration). Everything executable or stored IS still scanned: identifiers, quoted identifiers, string literals
+// (so `COMMENT ON ... IS 'costing ...'` and permission targets such as 'module:costing-...' match) and dollar-quoted
+// bodies (function bodies are kept verbatim, comments inside them included, because they are code).
 const COSTING_SQL_PATTERN = /(^|[^a-z0-9])costing(?![a-z0-9])/i;
+
+/**
+ * Returns `sql` with PostgreSQL comments replaced by a single space. Single-quoted strings (with '' and, after an
+ * E prefix, backslash escapes), double-quoted identifiers and dollar-quoted strings ($$..$$, $tag$..$tag$) are
+ * copied unchanged, so `--` or `/*` inside them is not treated as a comment. Block comments nest, as in PostgreSQL.
+ * An unterminated string or block comment runs to the end of the input (nothing after it is re-interpreted).
+ */
+export function stripSqlComments(sql) {
+  const src = String(sql || "");
+  let out = "";
+  let i = 0;
+  const n = src.length;
+  while (i < n) {
+    const c = src[i];
+    const d = src[i + 1];
+    if (c === "-" && d === "-") { // line comment up to (not including) the newline
+      while (i < n && src[i] !== "\n") i++;
+      out += " ";
+    } else if (c === "/" && d === "*") { // nested block comment
+      let depth = 1; i += 2;
+      while (i < n && depth > 0) {
+        if (src[i] === "/" && src[i + 1] === "*") { depth++; i += 2; }
+        else if (src[i] === "*" && src[i + 1] === "/") { depth--; i += 2; }
+        else i++;
+      }
+      out += " ";
+    } else if (c === "'") { // string literal; backslash escapes only after an E/e prefix
+      const escaped = /[eE]/.test(src[i - 1] || "") && !/[a-z0-9_]/i.test(src[i - 2] || "");
+      let j = i + 1;
+      while (j < n) {
+        if (escaped && src[j] === "\\") { j += 2; continue; }
+        if (src[j] === "'") { if (src[j + 1] === "'") { j += 2; continue; } j++; break; }
+        j++;
+      }
+      out += src.slice(i, j); i = j;
+    } else if (c === '"') { // quoted identifier
+      let j = i + 1;
+      while (j < n) { if (src[j] === '"') { if (src[j + 1] === '"') { j += 2; continue; } j++; break; } j++; }
+      out += src.slice(i, j); i = j;
+    } else if (c === "$") { // dollar-quoted string
+      const m = /^\$([A-Za-z_][A-Za-z0-9_]*)?\$/.exec(src.slice(i));
+      const prev = src[i - 1] || "";
+      if (m && !/[A-Za-z0-9_]/.test(prev)) {
+        const end = src.indexOf(m[0], i + m[0].length);
+        const j = end === -1 ? n : end + m[0].length;
+        out += src.slice(i, j); i = j;
+      } else { out += c; i++; }
+    } else { out += c; i++; }
+  }
+  return out;
+}
 
 /** True when migration SQL references Costing-owned database objects (schema, table, view, function, role). */
 export function sqlTouchesCosting(sql) {
-  return COSTING_SQL_PATTERN.test(String(sql || ""));
+  return COSTING_SQL_PATTERN.test(stripSqlComments(sql));
 }
 
 const lines = (text) => String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);
