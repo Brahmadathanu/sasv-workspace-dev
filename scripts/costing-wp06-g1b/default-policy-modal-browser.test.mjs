@@ -524,13 +524,25 @@ test("F-7 unchanged: ordinary same-session save, error, retry and double click s
   await context.close();
 });
 
-test("CHARACTERISATION F-8 (pins today's rendering; flip when the CSS is fixed): for a COMPANY policy the 'Region' field is marked hidden but still displays, because `.sign-grid label { display:flex }` overrides the [hidden] attribute", async (t) => {
+test("F-8 (fixed): the Region field is not rendered for a COMPANY policy (display none, zero box) and is rendered with its value for a REGIONAL policy", async (t) => {
   const e = await getEnv(t); if (!e) return;
   const { context, page } = await open(e);
   await openHub(page);
   await revise(page, "company", "NEW_SKU_EXISTING_PRODUCT");
-  const m = await page.locator("#csaDefaultPolicyRegionWrap").evaluate((n) => ({ hiddenProp: n.hidden, display: getComputedStyle(n).display }));
-  assert.equal(m.hiddenProp, true);
-  assert.notEqual(m.display, "none", "today: an empty read-only Region field is visible in the company modal (a fix must make this 'none')");
+  const company = await page.locator("#csaDefaultPolicyRegionWrap").evaluate((n) => { const r = n.getBoundingClientRect(); return { hiddenProp: n.hidden, display: getComputedStyle(n).display, w: r.width, h: r.height }; });
+  assert.equal(company.hiddenProp, true);
+  assert.equal(company.display, "none", "an empty read-only Region field must not be shown for a company policy");
+  assert.deepEqual([company.w, company.h], [0, 0]);
+  assert.equal(await page.locator("#csaDefaultPolicyRegionWrap").isVisible(), false);
+  await page.click("#csaDefaultPolicyCancelBtn");
+  await revise(page, "regional", "NO_POSITIVE_REGIONAL_HISTORY", "OK");
+  const regional = await page.locator("#csaDefaultPolicyRegionWrap").evaluate((n) => ({ hiddenProp: n.hidden, display: getComputedStyle(n).display }));
+  assert.equal(regional.hiddenProp, false);
+  assert.notEqual(regional.display, "none");
+  assert.equal(await page.locator("#csaDefaultPolicyRegionWrap").isVisible(), true);
+  assert.equal(await page.locator("#csaDefaultPolicyRegion").inputValue(), "Outside Kerala (OK)");
+  await page.click("#csaDefaultPolicyCancelBtn");
+  await revise(page, "company", "NEW_PRODUCT_NO_HISTORY");
+  assert.equal(await page.locator("#csaDefaultPolicyRegionWrap").isVisible(), false, "hidden again after a regional modal was shown");
   await context.close();
 });

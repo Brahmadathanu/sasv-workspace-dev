@@ -3278,6 +3278,10 @@
       #csaDefaultPolicyModal .sign-grid {
         gap: 8px 12px;
       }
+      /* WP06-F8: `.sign-grid label { display:flex }` out-specifies the UA [hidden] rule; keep the company-policy Region field hidden. */
+      #csaDefaultPolicyRegionWrap[hidden] {
+        display: none;
+      }
       #csaDefaultPolicyModal .sign-grid textarea {
         min-height: 56px;
       }
