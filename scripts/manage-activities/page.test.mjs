@@ -538,3 +538,190 @@ test("Add modal at 768/1280: wide table scrolls inside the modal body, final col
   assert.ok(dims.name >= 200 && dims.sec >= 140, JSON.stringify(dims));
   await ctx.close();
 });
+
+/* ───────── MA-UX-4: header description, full-screen narrow dialogs, detail typography ───────── */
+const openKind = async (page, kind, narrow) => {
+  const target = narrow ? '#maCards li[data-id="1"] .ma-card' : '#existingTable tr[data-id="1"] .ma-name-link';
+  switch (kind) {
+    case "details": await page.click(target); return ".ma-dialog-backdrop .ma-modal";
+    case "edit": await page.click(target); await page.click('[data-act="edit"]'); return ".ma-dialog-backdrop .ma-modal";
+    case "delete": await page.click(target); await page.click('[data-act="delete"]'); return ".ma-dialog-backdrop .ma-modal";
+    case "alert": await page.click(target); await page.click('[data-act="delete"]'); await page.click('[data-act="ok"]'); await page.waitForFunction(() => document.querySelector("#maDlgTitle")?.textContent === "Delete failed"); return ".ma-dialog-backdrop .ma-modal";
+    case "add": await page.click("#maNewBtn"); return "#maBulk";
+    case "paste": await page.click("#maNewBtn"); await page.click("#maPasteBtn"); return ".ma-dialog-backdrop .ma-modal";
+    case "filter": await page.click("#maFilterBtn"); return "#maDrawer";
+  }
+};
+const KINDS = ["details", "edit", "delete", "alert", "paste", "add", "filter"];
+const geom = (page, sel) => page.evaluate((sel) => {
+  const m = document.querySelector(sel); const r = m.getBoundingClientRect(); const cs = getComputedStyle(m);
+  const hd = m.querySelector(".ma-modal-header, .ma-popover-header").getBoundingClientRect();
+  const ft = m.querySelector(".ma-modal-footer, .ma-popover-footer").getBoundingClientRect();
+  const body = m.querySelector(".ma-modal-body, .ma-popover-body");
+  return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height, radius: cs.borderTopLeftRadius, vw: document.documentElement.clientWidth, vh: innerHeight, hdTop: hd.top, hdBottom: hd.bottom, ftTop: ft.top, ftBottom: ft.bottom, ov: getComputedStyle(body).overflowY, bodyOverflowX: body.scrollWidth - body.clientWidth, docOver: document.documentElement.scrollWidth - innerWidth, x: !!m.querySelector(".ma-x svg"), xLabel: m.querySelector(".ma-x")?.getAttribute("aria-label"), xw: m.querySelector(".ma-x")?.getBoundingClientRect().width };
+}, sel);
+
+for (const [label, width] of [["1280px", 1280], ["768px", 768]]) {
+  test(`header description shows below the title at ${label} with reference .page-sub typography and a compact header`, { skip: SK }, async () => {
+    const { page, ctx } = await open({ width, n: 3 });
+    await ready(page);
+    const h = await page.evaluate(() => { const s = document.querySelector(".ma-page-sub"); const c = getComputedStyle(s); const t = document.querySelector(".ma-page-title").getBoundingClientRect(); const sr = s.getBoundingClientRect(); const d = document.createElement("div"); d.style.color = "var(--sasv-text-muted)"; document.body.appendChild(d); const muted = getComputedStyle(d).color; d.remove(); return { text: s.textContent.trim(), vis: sr.height > 0, fs: c.fontSize, fw: c.fontWeight, lh: c.lineHeight, mt: c.marginTop, color: c.color, muted, below: sr.top >= t.bottom - 1 && sr.top - t.bottom <= 8, hdr: document.querySelector(".ma-header").getBoundingClientRect().height, homeTop: document.querySelector("#homeBtn").getBoundingClientRect().top, titleTop: t.top }; });
+    assert.equal(h.text, "Maintain production activities, classifications and standard durations.");
+    assert.ok(h.vis && h.below); assert.deepEqual([h.fs, h.fw, h.mt], ["13px", "400", "4px"]); assert.equal(h.color, h.muted);
+    assert.ok(h.hdr <= 72, `header height ${h.hdr}`); assert.ok(Math.abs(h.homeTop - h.titleTop) <= 4, "HOME aligned with title top");
+    await ctx.close();
+  });
+}
+for (const width of [520, 390]) {
+  test(`header description is hidden at ${width}px (as Stock Checker); title/HOME stay aligned`, { skip: SK }, async () => {
+    const { page, ctx } = await open({ width, n: 3 });
+    await ready(page);
+    assert.equal(await page.isVisible(".ma-page-sub"), false);
+    const r = await page.evaluate(() => ({ hdr: document.querySelector(".ma-header").getBoundingClientRect().height, home: document.querySelector("#homeBtn").getBoundingClientRect().right, vw: document.documentElement.clientWidth }));
+    assert.ok(r.hdr <= 56 && r.home <= r.vw + 1, JSON.stringify(r));
+    await ctx.close();
+  });
+}
+test("header description appears again just above the breakpoint (521px)", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 521, n: 3 }); await ready(page);
+  assert.equal(await page.isVisible(".ma-page-sub"), true); await ctx.close();
+});
+
+for (const width of [390, 520]) {
+  for (const kind of KINDS) {
+    test(`${width}px ${kind}: flat full-screen layer, fixed header, scrollable body, persistent footer, X close, no overflow`, { skip: SK }, async () => {
+      const { page, ctx } = await open({ width, height: 700, n: 6, cfg: { inUse: [1] } });
+      await ready(page);
+      const sel = await openKind(page, kind, true);
+      const g = await geom(page, sel);
+      assert.ok(Math.abs(g.l) <= 1 && Math.abs(g.t) <= 1 && Math.abs(g.w - g.vw) <= 1 && Math.abs(g.h - g.vh) <= 1, `fills viewport ${JSON.stringify(g)}`);
+      assert.equal(g.radius, "0px", "flat, not a floating card");
+      assert.ok(g.hdTop <= 1 && g.hdBottom < g.ftTop, "header pinned at top");
+      assert.ok(Math.abs(g.ftBottom - g.vh) <= 1, "footer pinned at bottom");
+      assert.ok(["auto", "scroll"].includes(g.ov), "body scrolls independently");
+      assert.ok(g.bodyOverflowX <= 1 && g.docOver <= 1, "no horizontal overflow");
+      assert.equal(g.x, true, "X icon"); assert.match(g.xLabel, /Close/); assert.ok(g.xw >= 36, "touch target kept");
+      // footer actions reachable and inside viewport
+      const btns = await page.$$eval(`${sel} .ma-modal-footer button, ${sel} .ma-popover-footer button`, (b) => b.map((x) => { const r = x.getBoundingClientRect(); return [r.left, r.right, r.bottom, r.height]; }));
+      assert.ok(btns.length > 0); for (const [l, r, b, h] of btns) assert.ok(l >= -1 && r <= g.vw + 1 && b <= g.vh + 1 && h >= 32, `footer button ${[l, r, b, h]}`);
+      await ctx.close();
+    });
+  }
+}
+for (const width of [768, 1280]) {
+  for (const kind of ["details", "edit", "delete", "alert", "paste", "add"]) {
+    test(`${width}px ${kind}: desktop dialog stays a floating, rounded card inside the viewport`, { skip: SK }, async () => {
+      const { page, ctx } = await open({ width, height: 800, n: 6, cfg: { inUse: [1] } });
+      await ready(page);
+      const sel = await openKind(page, kind, false);
+      const g = await geom(page, sel);
+      assert.ok(g.w < g.vw - 8 || kind === "add", `floating ${JSON.stringify(g)}`);
+      assert.notEqual(g.radius, "0px"); assert.ok(g.l >= 0 && g.r <= g.vw + 1 && g.t >= 0 && g.b <= g.vh + 1);
+      assert.ok(g.x, "X icon on desktop too");
+      await ctx.close();
+    });
+  }
+}
+
+test("narrow Add modal: body scrolls on its own and the last row is never hidden behind the footer", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, height: 640, n: 4 });
+  await ready(page); await page.click("#maNewBtn");
+  for (let i = 0; i < 6; i++) await page.click("#maAddRow");
+  const pre = await page.evaluate(() => ({ doc: document.documentElement.scrollTop, sh: document.querySelector("#maBulk .ma-modal-body").scrollHeight, ch: document.querySelector("#maBulk .ma-modal-body").clientHeight }));
+  assert.ok(pre.sh > pre.ch, "content taller than body");
+  await page.evaluate(() => { const b = document.querySelector("#maBulk .ma-modal-body"); b.scrollTop = b.scrollHeight; });
+  const r = await page.evaluate(() => { const rows = document.querySelectorAll("#multiTable tbody tr"); const last = rows[rows.length - 1].getBoundingClientRect(); const ft = document.querySelector("#maBulk .ma-modal-footer").getBoundingClientRect(); return { lastB: last.bottom, ftTop: ft.top, doc: document.documentElement.scrollTop }; });
+  assert.ok(r.lastB <= r.ftTop + 1, `last row clear of footer ${JSON.stringify(r)}`); assert.equal(r.doc, 0, "page behind did not scroll");
+  const remove = await rectOf(page, "#multiTable tbody tr:last-child .ma-row-remove"); assert.ok(remove.b <= (await rectOf(page, "#maBulk .ma-modal-footer")).t + 1);
+  await ctx.close();
+});
+
+test("narrow edit dialog with a short (keyboard-open) viewport keeps header and Save reachable; layer follows the visual viewport", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, height: 700, n: 3 });
+  await ready(page); await page.click('#maCards li[data-id="1"] .ma-card'); await page.click('[data-act="edit"]');
+  const v0 = await page.evaluate(() => [getComputedStyle(document.documentElement).getPropertyValue("--ma-vvh"), visualViewport.height]);
+  assert.equal(parseFloat(v0[0]), v0[1], "layer height tracks visualViewport");
+  await page.setViewportSize({ width: 390, height: 360 }); // approximates an open on-screen keyboard
+  await page.waitForFunction(() => Math.abs(parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ma-vvh")) - 360) <= 1);
+  await page.focus("#ed-dur");
+  const g = await geom(page, ".ma-dialog-backdrop .ma-modal");
+  assert.ok(Math.abs(g.h - 360) <= 1 && g.hdTop <= 1 && g.ftBottom <= 361, JSON.stringify(g));
+  await page.locator('[data-act="save"]').scrollIntoViewIfNeeded();
+  const s = await rectOf(page, '[data-act="save"]'); assert.ok(s.b <= 361 && s.t >= 0);
+  assert.equal(await page.evaluate(() => { const b = document.querySelector(".ma-dialog-backdrop .ma-modal-body"); return b.scrollHeight > b.clientHeight; }), true, "body scrolls independently");
+  await ctx.close();
+});
+
+test("delete confirmation is explicit: Escape/X/backdrop never delete; focus returns correctly", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 1280, n: 5 });
+  await ready(page);
+  const count = () => page.evaluate(() => window.__cfg.data.activities.length);
+  await page.click('tr[data-id="1"] .ma-name-link'); await page.click('[data-act="delete"]');
+  assert.equal(await page.textContent("#maDlgTitle"), "Delete activity");
+  await page.mouse.click(6, 6); // backdrop
+  assert.equal(await page.textContent("#maDlgTitle"), "Delete activity", "backdrop click ignored");
+  await page.keyboard.press("Escape");
+  assert.equal(await count(), 5, "Escape does not delete");
+  assert.equal(await page.textContent("#maDlgTitle"), "Activity details", "returns to details");
+  await page.click('[data-act="delete"]'); await page.click(".ma-dialog-backdrop .ma-x");
+  assert.equal(await count(), 5, "X does not delete");
+  assert.equal(await page.textContent("#maDlgTitle"), "Activity details");
+  await page.keyboard.press("Escape");
+  assert.equal(await page.evaluate(() => document.activeElement.closest("tr")?.dataset.id), "1", "focus restored to the row");
+  await ctx.close();
+});
+
+test("narrow: Escape closes the top dialog only; focus is restored to card, +, and filter buttons", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, height: 700, n: 4 });
+  await ready(page);
+  await page.click('#maCards li[data-id="2"] .ma-card'); await page.keyboard.press("Escape");
+  assert.equal(await page.evaluate(() => document.activeElement.closest("li")?.dataset.id), "2");
+  await page.click("#maNewBtn"); await page.click("#maPasteBtn"); await page.keyboard.press("Escape");
+  assert.equal(await visible(page, "#maBulk"), true, "Add modal still open under paste dialog");
+  assert.equal(await page.evaluate(() => document.activeElement.id), "maPasteBtn", "focus back on the Paste button");
+  await page.keyboard.press("Escape");
+  assert.equal(await page.evaluate(() => document.activeElement.id), "maNewBtn");
+  await page.click("#maFilterBtn"); await page.keyboard.press("Escape");
+  assert.equal(await page.evaluate(() => document.activeElement.id), "maFilterBtn");
+  await ctx.close();
+});
+
+for (const width of [390, 1280]) {
+  test(`${width}px details typography: tokens, hierarchy, legible values, touch targets kept`, { skip: SK }, async () => {
+    const { page, ctx } = await open({ width, height: 700, n: 3 });
+    await ready(page);
+    await page.click(width === 390 ? '#maCards li[data-id="1"] .ma-card' : '#existingTable tr[data-id="1"] .ma-name-link');
+    const t = await page.evaluate(() => { const g = (s) => { const c = getComputedStyle(document.querySelector(s)); return [c.fontSize, c.fontWeight]; }; const px = (s) => document.querySelector(s).getBoundingClientRect(); return { title: g(".ma-dialog-backdrop .ma-modal-title"), name: g(".ma-detail-name"), dt: g(".ma-detail-list dt"), dd: g(".ma-detail-list dd"), meta: g(".ma-detail-list dd:last-of-type"), nameW: px(".ma-detail-name").width, x: px(".ma-dialog-backdrop .ma-x").height, btn: [...document.querySelectorAll(".ma-dialog-backdrop .ma-footer-actions .btn")].map((b) => b.getBoundingClientRect().height), vw: document.documentElement.clientWidth, over: document.documentElement.scrollWidth - innerWidth, ddCol: getComputedStyle(document.querySelector(".ma-detail-list dd")).color, dtCol: getComputedStyle(document.querySelector(".ma-detail-list dt")).color }; });
+    assert.deepEqual(t.title, ["16px", "600"]); assert.deepEqual(t.name, ["16px", "600"]);
+    assert.deepEqual(t.dt, ["12px", "500"], "labels small, not bold"); assert.deepEqual(t.dd, ["13px", "400"], "values regular");
+    assert.deepEqual(t.meta, ["12px", "400"], "metadata (ID) smaller");
+    assert.notEqual(t.ddCol, t.dtCol, "label/value contrast hierarchy");
+    assert.ok(t.x >= 36 && t.btn.every((h) => h >= 36), `touch targets kept ${JSON.stringify([t.x, t.btn])}`); assert.ok(t.over <= 1);
+    const txt = await page.textContent(".ma-detail-list"); for (const v of ["Sec A", "Sub A1", "Area A1a", "Quality", "0 days"]) assert.ok(txt.includes(v) || txt.includes("Process"), v);
+    await ctx.close();
+  });
+}
+
+test("Add modal: desktop columns avoid truncation (no sideways scroll at 1280); mobile intro is concise, paste dialog keeps the full explanation", { skip: SK }, async () => {
+  let o = await open({ width: 1280, height: 800, n: 3 }); await ready(o.page); await o.page.click("#maNewBtn");
+  const d = await o.page.evaluate(() => { const w = document.querySelector("#multiTable").closest(".ma-table-wrap"); const clipped = ["m-name", "m-section", "m-sub", "m-area"].map((c) => { const e = document.querySelector("." + c); return [c, Math.round(e.getBoundingClientRect().width), e.tagName === "SELECT" ? e.selectedOptions[0].textContent : e.value]; }); return { fits: w.scrollWidth <= w.clientWidth + 1, clipped, help: document.querySelector("#maBulk .ma-help-more").offsetParent !== null }; });
+  assert.ok(d.fits, "table fits the desktop modal"); assert.ok(d.help, "full help on desktop");
+  const [name, sec, sub, area] = d.clipped.map((x) => x[1]); assert.ok(name >= 205 && sec >= 150 && sub >= 205 && area >= 185, JSON.stringify(d.clipped));
+  await o.ctx.close();
+  o = await open({ width: 390, height: 700, n: 3 }); await ready(o.page); await o.page.click("#maNewBtn");
+  const help = await o.page.innerText("#maBulk .ma-help"); assert.ok(help.length < 60 && !/inherit/i.test(help), help);
+  await o.page.click("#maPasteBtn"); assert.match(await o.page.innerText(".ma-dialog-backdrop .ma-help"), /inherit .*last row/i);
+  assert.match(await o.page.innerText(".ma-dialog-backdrop .ma-modal-body"), /one activity name per line/i);
+  await o.ctx.close();
+});
+
+test("harmonised modal padding: header 10/12, body 10/12/12, footer 8/12 across dialogs", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 1280, n: 3, cfg: { inUse: [1] } }); await ready(page);
+  const pads = async (sel) => page.evaluate((sel) => { const m = document.querySelector(sel); const p = (e) => { const c = getComputedStyle(m.querySelector(e)); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].join(" "); }; return [p(".ma-modal-header"), p(".ma-modal-body"), p(".ma-modal-footer")]; }, sel);
+  for (const kind of ["details", "edit", "add"]) {
+    const sel = await openKind(page, kind, false);
+    assert.deepEqual(await pads(sel), ["10px 12px 10px 12px", "10px 12px 12px 12px", "8px 12px 8px 12px"], kind);
+    await page.keyboard.press("Escape"); if (kind === "edit") await page.keyboard.press("Escape");
+  }
+  await ctx.close();
+});

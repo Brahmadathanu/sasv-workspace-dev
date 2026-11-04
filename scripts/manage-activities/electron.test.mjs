@@ -81,3 +81,35 @@ for (const width of [390, 520, 768, 1280]) {
     await page.close().catch(() => {});
   });
 }
+
+// MA-UX-4 — genuine-Electron checks: header description breakpoint and narrow full-screen dialogs.
+for (const width of [390, 520, 768, 1280]) {
+  test(`Electron renderer ${width}px: header description ${width <= 520 ? "hidden" : "shown"}; dialogs ${width <= 520 ? "full-screen" : "floating"} with pinned header/footer`, { skip: SK }, async () => {
+    const page = await openWindow({ width });
+    await page.waitForSelector("#existingTable tbody tr", { state: "attached", timeout: 20000 });
+    const narrow = width <= 520;
+    assert.equal(await page.isVisible(".ma-page-sub"), !narrow);
+    if (!narrow) assert.equal((await page.innerText(".ma-page-sub")).trim(), "Maintain production activities, classifications and standard durations.");
+    const target = narrow ? '#maCards li[data-id="1"] .ma-card' : '#existingTable tr[data-id="1"] .ma-name-link';
+    const geom = (sel) => page.evaluate((sel) => { const m = document.querySelector(sel); const r = m.getBoundingClientRect(); const hd = m.querySelector(".ma-modal-header,.ma-popover-header").getBoundingClientRect(); const ft = m.querySelector(".ma-modal-footer,.ma-popover-footer").getBoundingClientRect(); const body = m.querySelector(".ma-modal-body,.ma-popover-body"); return { l: r.left, t: r.top, w: r.width, h: r.height, vw: document.documentElement.clientWidth, vh: innerHeight, radius: getComputedStyle(m).borderTopLeftRadius, hdTop: hd.top, ftBottom: ft.bottom, ov: getComputedStyle(body).overflowY, x: !!m.querySelector(".ma-x svg"), over: document.documentElement.scrollWidth - innerWidth }; }, sel);
+    const check = (g, label) => {
+      assert.ok(g.x, `${label} X`); assert.ok(g.over <= 1, `${label} overflow`); assert.ok(["auto", "scroll"].includes(g.ov));
+      if (narrow) { assert.ok(Math.abs(g.l) <= 1 && Math.abs(g.t) <= 1 && Math.abs(g.w - g.vw) <= 1 && Math.abs(g.h - g.vh) <= 1, `${label} fills viewport ${JSON.stringify(g)}`); assert.equal(g.radius, "0px"); assert.ok(g.hdTop <= 1 && Math.abs(g.ftBottom - g.vh) <= 1, `${label} pinned`); }
+      else { assert.ok(g.l >= 0 && g.l + g.w <= g.vw + 1 && g.t >= 0 && g.t + g.h <= g.vh + 1, `${label} inside`); assert.notEqual(g.radius, "0px"); }
+    };
+    const D = ".ma-dialog-backdrop .ma-modal";
+    await page.click(target); check(await geom(D), "details");
+    await page.click('[data-act="edit"]'); check(await geom(D), "edit");
+    await page.keyboard.press("Escape"); await page.waitForSelector(".ma-detail-list");
+    await page.click('[data-act="delete"]'); check(await geom(D), "delete");
+    await page.keyboard.press("Escape");
+    assert.equal(await page.evaluate(() => window.__cfg.data.activities.length), 40, "Escape never deletes");
+    await page.keyboard.press("Escape");
+    await page.click("#maNewBtn"); check(await geom("#maBulk"), "add");
+    await page.click("#maPasteBtn"); check(await geom(D), "paste");
+    await page.keyboard.press("Escape"); await page.keyboard.press("Escape");
+    await page.click("#maFilterBtn"); check(await geom("#maDrawer"), "filter");
+    await page.keyboard.press("Escape");
+    await page.close().catch(() => {});
+  });
+}

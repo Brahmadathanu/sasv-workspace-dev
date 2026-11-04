@@ -112,8 +112,8 @@ function openDialog({ title, bodyHtml, buttons, onMount, wide = false, closeX = 
 }
 
 const confirmDialog = (title, message, label = "Confirm", cls = "primary") =>
-  openDialog({ title, bodyHtml: `<p>${esc(message)}</p>`, buttons: [{ id: "cancel", label: "Cancel" }, { id: "ok", label, cls }] }).then((r) => r.id === "ok");
-const alertDialog = (title, message) => openDialog({ title, bodyHtml: `<p style="white-space:pre-line">${esc(message)}</p>`, buttons: [{ id: "ok", label: "OK", cls: "primary" }] });
+  openDialog({ title, closeX: true, bodyHtml: `<p>${esc(message)}</p>`, buttons: [{ id: "cancel", label: "Cancel" }, { id: "ok", label, cls }] }).then((r) => r.id === "ok");
+const alertDialog = (title, message) => openDialog({ title, closeX: true, bodyHtml: `<p style="white-space:pre-line">${esc(message)}</p>`, buttons: [{ id: "ok", label: "OK", cls: "primary" }] });
 
 /* ───────── Listing (server-side infinite scroll, batches of BATCH_SIZE) ───────── */
 function filters() {
@@ -320,11 +320,11 @@ const firstActivityControl = () => ($("existingTable").offsetParent !== null ? d
 /* ───────── Details dialog (row click / Enter / Space on the activity button) ───────── */
 async function openDetails(row) {
   const edit = state.access.edit;
-  const dl = [["Activity", row.activity_name], ["Section", row.sections?.section_name], ["Sub-section", row.subsections?.subsection_name],
+  const dl = [["Section", row.sections?.section_name], ["Sub-section", row.subsections?.subsection_name],
     ["Area", row.areas?.area_name], ["Kind", row.activity_kinds?.name], ["Duration", formatDuration(row.duration_days)], ["ID", row.id]]
     .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v ?? "—")}</dd>`).join("");
   const r = await openDialog({
-    title: "Activity details", closeX: true, bodyHtml: `<dl class="ma-details">${dl}</dl>`,
+    title: "Activity details", closeX: true, bodyHtml: `<div class="ma-details"><p class="ma-detail-name">${esc(row.activity_name)}</p><dl class="ma-detail-list">${dl}</dl></div>`,
     buttons: [...(edit ? [{ id: "delete", label: "Delete", cls: "danger" }, { id: "edit", label: "Edit", cls: "primary" }] : [])],
   });
   if (r.id === "edit") return openEdit(row);
@@ -485,7 +485,17 @@ async function openAdd() {
 }
 function closeAdd() { addLayer?.close(); }
 
+// Keep full-screen layers inside the *visible* viewport when the on-screen keyboard is open.
+function syncVisualViewport() {
+  const vv = window.visualViewport; if (!vv) return;
+  const st = document.documentElement.style;
+  st.setProperty("--ma-vvh", `${vv.height}px`); st.setProperty("--ma-vvt", `${vv.offsetTop}px`);
+}
+window.visualViewport?.addEventListener("resize", syncVisualViewport);
+window.visualViewport?.addEventListener("scroll", syncVisualViewport);
+
 async function init() {
+  syncVisualViewport();
   mountModuleHome($("homeBtn"));
   $("homeBtn").addEventListener("click", () => window.location.assign("index.html"));
   setStatus("Loading…");
