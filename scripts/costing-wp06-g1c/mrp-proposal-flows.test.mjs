@@ -1,7 +1,7 @@
 // WP06-G1c: payload, validation and permission tests for the existing MRP proposal workflow in the Pricing Policy
 // Manager: generate -> adjust/reset -> submit -> decide (approve/reject) -> apply. Test-only; no source change.
 // The real handler factories are driven through their real event bindings with a mocked costingRpc and fake DOM.
-// GOVERNANCE (D7): these tests assert what the client sends today. They add no maker-checker, no identity check and
+// GOVERNANCE (D7, open owner decision): these tests record what the client sends TODAY and are not a policy statement. They add no maker-checker, no identity check and
 // no new approval rule; a test pins that no actor/submitter field is sent.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -82,6 +82,7 @@ function decisionSetup(opts = {}) {
 }
 const decide = async (s) => { await s.dom.mrpDecisionLineModalSaveBtn.fire("click"); await settle(); };
 
+// The three-key payload is the CURRENT contract; an owner-approved maker-checker change (D7) may extend it and must update this test explicitly.
 test("decide: approve sends exactly {p_proposal_line_id, p_decision, p_decision_reason}; reject likewise; no actor/submitter field (D7 unchanged)", async () => {
   for (const [decision, label, toast] of [["APPROVED", "Approve Line", "Line approved for later canonical application."], ["REJECTED", "Reject Line", "Line rejected."]]) {
     const s = decisionSetup();
@@ -443,7 +444,10 @@ test("source: the four MRP modules call exactly the five documented MRP write RP
   assert.doesNotMatch(body, /\.forEach\(|for \(|\.map\(/, "a decision is single-line, never a bulk loop");
 });
 
-test("source (D7): no module reads the current user or compares the deciding user with the submitter (submitted_by/decided_by are display-only) - the client sends the decision and reason only (policy unchanged)", () => {
+// D7 is an OPEN OWNER DECISION. This test records the CURRENT client state only (no current-user read, no
+// submitter/decider comparison). It is deliberately NOT a statement of policy: a future governed maker-checker
+// contract must update or replace it explicitly, together with the server contract, in the same package.
+test("source (D7, current state only - NOT a policy lock): no module reads the current user or compares the deciding user with the submitter (submitted_by/decided_by are display-only)", () => {
   for (const f of ["costing-suite-mrp-decisions.js", "costing-suite-mrp-proposals.js", "costing-suite-mrp-application.js"]) {
     const src = SRC(f);
     assert.doesNotMatch(src, /auth\.getUser|getSession|auth\.uid|currentUser|userEmail/i, `${f}: no current-user identity is read`);
