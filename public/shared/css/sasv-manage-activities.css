@@ -1,45 +1,199 @@
-/* Manage Activities — module-specific layout only. Uses canonical SASV tokens; no new primitives. */
-.ma-shell { display: flex; flex-direction: column; gap: var(--sasv-space-4); }
-.ma-section-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sasv-space-3); margin-bottom: var(--sasv-space-3); }
-.ma-section-head .btn { margin-left: auto; }
-.ma-section-head .sasv-module-section-title { margin: 0; }
-.ma-toolbar { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--sasv-space-3); }
-.ma-search { flex: 1 1 auto; min-width: 0; }
-.ma-search input, .sasv-drawer select { width: 100%; box-sizing: border-box; }
-.ma-filter-btn { flex: 0 0 auto; display: inline-flex; align-items: center; gap: var(--sasv-space-2); }
-.ma-filter-btn.has-active { border-color: var(--sasv-action-primary); }
-.ma-feed { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sasv-space-3); margin-top: var(--sasv-space-3); padding: var(--sasv-space-2) var(--sasv-space-3); background: var(--sasv-surface-soft); border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-md); }
-.ma-feed #maSentinel { flex-basis: 100%; height: 1px; margin-top: -1px; }
-#existingTable tbody tr[data-id] { cursor: pointer; }
-#existingTable tbody tr[data-id]:hover { background: var(--sasv-surface-soft); }
-.ma-name-link { background: none; border: 0; padding: 0; font: inherit; color: var(--sasv-action-primary); text-align: left; cursor: pointer; text-decoration: underline; }
-.ma-name-link:focus-visible { outline: 2px solid var(--sasv-action-primary); outline-offset: 2px; }
-.ma-details { display: grid; grid-template-columns: max-content 1fr; gap: var(--sasv-space-2) var(--sasv-space-4); margin: 0; }
-.ma-details dt { color: var(--sasv-text-muted); } .ma-details dd { margin: 0; overflow-wrap: anywhere; }
-@media (max-width: 520px) { .sasv-drawer { width: 100vw; } }
-.ma-table-wrap { position: relative; overflow-x: auto; border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-md); background: var(--sasv-surface); margin-top: var(--sasv-space-3); }
-.ma-table-wrap:focus-visible { outline: 2px solid var(--sasv-action-primary); outline-offset: 2px; }
-.ma-table-wrap table { width: 100%; min-width: 720px; }
-#multiTable { min-width: 960px; }
-#multiTable input, #multiTable select { width: 100%; min-width: 96px; box-sizing: border-box; }
-#multiTable .m-dur { min-width: 72px; }
-.ma-num { text-align: right; white-space: nowrap; }
-.ma-row-actions { display: flex; gap: var(--sasv-space-2); justify-content: flex-end; white-space: nowrap; }
-.ma-banner { padding: var(--sasv-space-3) var(--sasv-space-4); border-radius: var(--sasv-radius-md); border: 1px solid var(--sasv-border); background: var(--sasv-surface-soft); color: var(--sasv-text); }
+/* Manage Activities — module-scoped parity with Stock Checker / Stock & Purchase Explorer.
+   Tokens only; no global or shared-primitive changes. Narrow breakpoint (cards, full-screen layers) = 520px, as in the references. */
+body.sasv-manage-activities { margin: 0; padding: 20px; box-sizing: border-box; font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif); color: var(--sasv-text); background: var(--sasv-bg); }
+@media (max-width: 1080px) { body.sasv-manage-activities { padding: 10px; } }
+@media (max-width: 520px) { body.sasv-manage-activities { padding: 6px; } }
+body.sasv-manage-activities * { box-sizing: border-box; }
+.ma-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+body.sasv-manage-activities [hidden] { display: none !important; }
+
+/* Header (Stock Checker .sc-header) */
+.ma-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 0 0 12px; padding: 0 0 10px; border-bottom: 1px solid var(--sasv-divider); }
+.ma-header-copy { flex: 1 1 auto; min-width: 0; text-align: left; }
+.ma-page-title { text-align: left; margin: 0; padding: 0; font-size: 1.125rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.25; color: var(--sasv-text); }
+.ma-page-sub { margin: 4px 0 0; font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif); font-size: var(--sasv-text-sm, 0.8125rem); font-weight: 400; line-height: 1.4; color: var(--sasv-text-muted); }
+.ma-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: auto; }
+
+/* HOME — canonical amber tokens (as Stock & Purchase Explorer) */
+body.sasv-manage-activities #homeBtn.sasv-home-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: auto; white-space: nowrap; flex-shrink: 0; min-height: var(--sasv-control-md, 36px); padding: 6px 12px; border: 1px solid var(--sasv-action-home-border); border-radius: var(--sasv-radius-sm); background: var(--sasv-action-home-bg); color: var(--sasv-action-home); box-shadow: none; font-family: var(--sasv-font-sans); font-size: var(--sasv-text-sm, 0.8125rem); font-weight: 600; cursor: pointer; text-decoration: none; }
+body.sasv-manage-activities #homeBtn.sasv-home-btn:hover { background: var(--sasv-action-home-bg-hover); border-color: var(--sasv-action-home-bg-hover); color: var(--sasv-action-home-fg-hover); transform: translateY(-1px); box-shadow: var(--sasv-shadow-sm); }
+body.sasv-manage-activities #homeBtn.sasv-home-btn:focus-visible { outline: 2px solid var(--sasv-focus-ring); outline-offset: 2px; }
+body.sasv-manage-activities #homeBtn svg { width: 16px; height: 16px; flex-shrink: 0; stroke: currentColor; }
+@media (max-width: 520px) {
+  .ma-page-sub { display: none; }
+  .ma-page-title { font-size: 1.08rem; }
+  body.sasv-manage-activities #homeBtn.sasv-home-btn { padding: 6px; gap: 0; }
+  body.sasv-manage-activities #homeBtn .home-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+}
+
+.ma-banner { margin: 0 0 10px; padding: 10px 14px; border-radius: var(--sasv-radius-md); border: 1px solid var(--sasv-border); background: var(--sasv-surface-soft); color: var(--sasv-text); font-size: var(--sasv-text-sm); }
 .ma-banner.is-error { border-color: var(--sasv-danger, #b3261e); }
 .ma-banner.is-warn { border-color: var(--sasv-warning, #b26a00); }
-.ma-banner .btn { margin-left: var(--sasv-space-3); }
-.ma-empty { padding: var(--sasv-space-5) var(--sasv-space-4); text-align: center; color: var(--sasv-text-muted); }
-.ma-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sasv-space-2); margin-top: var(--sasv-space-3); }
+.ma-banner .btn { margin-left: 12px; }
+
+/* Toolbar: [filter icon] [search] [+ icon] */
+.ma-toolbar { position: relative; display: flex; align-items: center; gap: 8px; }
+.ma-icon-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: var(--sasv-control-md, 36px); min-width: var(--sasv-control-md, 36px); height: var(--sasv-control-md, 36px); padding: 6px; color: var(--sasv-text-secondary); background: var(--sasv-surface-soft); border: 1px solid var(--sasv-control-border); border-radius: var(--sasv-radius-sm); box-shadow: none; cursor: pointer; font: inherit; }
+.ma-icon-btn:hover { background: var(--sasv-selection-soft); color: var(--sasv-text); }
+.ma-icon-btn:focus-visible { outline: 2px solid var(--sasv-focus-ring); outline-offset: 2px; }
+.ma-icon-btn svg { width: 16px; height: 16px; }
+.ma-filter-btn.is-active, .ma-filter-btn[aria-expanded="true"] { color: var(--sasv-action-primary-active); background: var(--sasv-selection-soft); border-color: var(--sasv-action-primary-soft-border, var(--sasv-border)); }
+.ma-add-btn { color: var(--sasv-text-on-primary); background: var(--sasv-action-primary); border-color: var(--sasv-action-primary); }
+.ma-add-btn:hover { background: var(--sasv-action-primary-hover); color: var(--sasv-text-on-primary); }
+.ma-badge { position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--sasv-radius-pill); background: var(--sasv-action-primary); color: var(--sasv-text-on-primary); font-size: 0.6875rem; font-weight: 600; line-height: 16px; text-align: center; border: 1px solid var(--sasv-surface); }
+.ma-add-btn .ma-badge { background: var(--sasv-action-home-bg, #b26a00); color: var(--sasv-action-home, #fff); }
+
+/* Search — light-filled treatment as Stock & Purchase Explorer #search */
+.ma-search { flex: 1 1 auto; min-width: 0; margin: 0; }
+.ma-search input { width: 100%; min-height: var(--sasv-control-md, 36px); height: var(--sasv-control-md, 36px); padding: 6px 10px; font-family: var(--sasv-font-sans); font-size: var(--sasv-text-sm, 0.8125rem); font-weight: 400; color: var(--sasv-text); border: 1px solid var(--sasv-search-select-border, var(--sasv-control-border)); border-radius: var(--sasv-radius-sm); background: var(--sasv-search-select-bg, var(--sasv-control-bg)); box-shadow: none; }
+.ma-search input::placeholder { color: var(--sasv-text-muted); opacity: 1; }
+.ma-search input:focus { outline: 2px solid var(--sasv-focus-ring); outline-offset: 2px; border-color: var(--sasv-action-primary); box-shadow: none; }
+
+.ma-meta { margin: 8px 0; min-height: 22px; }
+
+/* Filter popover (desktop anchored; full-screen modal on narrow) */
+.ma-popover { position: absolute; top: calc(100% + 6px); left: 0; z-index: 80; display: flex; flex-direction: column; width: min(360px, 100%); max-height: min(70vh, calc(100vh - 140px)); background: var(--sasv-surface); border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-md, 8px); box-shadow: var(--sasv-shadow-md, 0 10px 30px rgba(0, 0, 0, 0.12)); overflow: hidden; }
+.ma-popover-header, .ma-modal-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--sasv-divider); background: var(--sasv-surface); flex-shrink: 0; }
+.ma-popover-title, .ma-modal-title { margin: 0; flex: 1; font-size: var(--sasv-text-lg, 1rem); font-weight: 600; line-height: 1.3; color: var(--sasv-text); }
+.ma-popover-body { display: grid; grid-template-columns: 1fr; align-content: start; gap: 12px; padding: 10px 12px 12px; overflow: auto; }
+.ma-popover-footer, .ma-modal-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--sasv-divider); background: var(--sasv-surface-soft); flex-shrink: 0; }
+.ma-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ma-field label { font-size: var(--sasv-text-xs, 0.75rem); font-weight: 600; color: var(--sasv-text-secondary); }
+.ma-field select, .ma-field input, .ma-field textarea { width: 100%; }
+@media (max-width: 520px) {
+  .ma-popover { position: fixed; inset: 0; z-index: 200; width: 100%; max-width: none; height: 100%; max-height: none; border: 0; border-radius: 0; }
+  .ma-popover-body { flex: 1 1 auto; min-height: 0; }
+}
+
+/* Modals (details/edit/confirm via openDialog, and Add activities) */
+.ma-backdrop, #maDialogHost .ma-dialog-backdrop { position: fixed; inset: 0; z-index: 150; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15, 40, 42, 0.42); }
+#maDialogHost .ma-dialog-backdrop { z-index: 300; }
+.ma-modal { display: flex; flex-direction: column; width: min(640px, 100%); max-height: min(86vh, 900px); background: var(--sasv-surface-elevated, var(--sasv-surface)); color: var(--sasv-text); border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-lg, 12px); box-shadow: var(--sasv-shadow-lg); overflow: hidden; }
+.ma-modal--lg { width: min(820px, 100%); }
+.ma-modal--add { width: min(1360px, 100%); }
+.ma-modal-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 10px 12px 12px; font-size: var(--sasv-text-sm, 0.8125rem); color: var(--sasv-text-secondary); }
+.ma-modal-footer { justify-content: space-between; }
+.ma-footer-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.ma-help { margin: 0 0 12px; font-size: var(--sasv-text-sm); color: var(--sasv-text-muted); }
+@media (max-width: 520px) {
+  /* Every dialog is a flat full-screen layer sized to the visible viewport (keyboard / safe-area aware). */
+  .ma-backdrop, #maDialogHost .ma-dialog-backdrop { top: var(--ma-vvt, 0px); bottom: auto; height: var(--ma-vvh, 100%); padding: 0; align-items: stretch; background: var(--sasv-surface); }
+  .ma-modal, .ma-modal--lg, .ma-modal--add { width: 100%; max-width: none; height: 100%; max-height: none; border: 0; border-radius: 0; box-shadow: none; }
+  .ma-modal-header { padding-top: max(10px, env(safe-area-inset-top)); }
+  .ma-modal-footer { flex-direction: column; align-items: stretch; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  .ma-footer-actions { justify-content: stretch; } .ma-footer-actions .btn { flex: 1 1 auto; }
+  .ma-help-more { display: none; }
+  .ma-popover { top: var(--ma-vvt, 0px); bottom: auto; height: var(--ma-vvh, 100%); inset: var(--ma-vvt, 0px) 0 auto 0; }
+}
+.ma-form-grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+.ma-form-grid input, .ma-form-grid select, .ma-form-grid textarea { width: 100%; }
+@media (min-width: 640px) { .ma-form-grid { grid-template-columns: 1fr 1fr; } .ma-form-grid .ma-wide { grid-column: 1 / -1; } }
+.ma-detail-name { margin: 0 0 10px; font-size: var(--sasv-text-lg, 1rem); font-weight: 600; line-height: 1.3; color: var(--sasv-text); overflow-wrap: anywhere; }
+.ma-detail-list { display: grid; grid-template-columns: minmax(84px, max-content) 1fr; gap: 6px 12px; margin: 0; }
+.ma-detail-list dt { font-size: var(--sasv-text-xs, 0.75rem); font-weight: 500; line-height: 1.5; color: var(--sasv-text-muted); }
+.ma-detail-list dd { margin: 0; font-size: var(--sasv-text-sm, 0.8125rem); font-weight: 400; line-height: 1.5; color: var(--sasv-text); overflow-wrap: anywhere; }
+.ma-detail-list dt:last-of-type, .ma-detail-list dd:last-of-type { font-size: var(--sasv-text-xs, 0.75rem); color: var(--sasv-text-muted); }
 .ma-field-error { display: block; margin-top: 2px; font-size: var(--sasv-text-sm); color: var(--sasv-danger, #b3261e); }
 .ma-invalid { border-color: var(--sasv-danger, #b3261e) !important; }
-tr.ma-row-failed { background: var(--sasv-surface-soft); }
 .ma-row-msg { font-size: var(--sasv-text-sm); color: var(--sasv-danger, #b3261e); }
-.ma-form-grid { display: grid; gap: var(--sasv-space-3); grid-template-columns: 1fr; }
-.ma-form-grid input, .ma-form-grid select, .ma-form-grid textarea { width: 100%; box-sizing: border-box; }
-.ma-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-@media (min-width: 640px) { .ma-form-grid { grid-template-columns: 1fr 1fr; } .ma-form-grid .ma-wide { grid-column: 1 / -1; } }
-@media (max-width: 520px) { .ma-section-head .btn { margin-left: 0; } .sasv-pager { justify-content: center; } }
-.ma-shell [hidden], #maMain[hidden] { display: none !important; }
-.ma-shell > *, #maMain, #maMain > section { min-width: 0; max-width: 100%; }
-#maDrawer[hidden], #maDrawerBackdrop[hidden], .ma-feed [hidden] { display: none !important; }
+tr.ma-row-failed { background: var(--sasv-surface-soft); }
+
+/* Tables */
+.ma-table-wrap { position: relative; overflow-x: auto; border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-md); background: var(--sasv-surface); }
+.ma-table-wrap:focus-visible { outline: 2px solid var(--sasv-focus-ring); outline-offset: 2px; }
+.ma-table-wrap table { width: 100%; min-width: 720px; border-collapse: collapse; }
+.ma-table-wrap th { text-align: left; padding: 5px 8px; font-size: var(--sasv-text-xs, 0.75rem); font-weight: 600; background: var(--sasv-surface-soft); border-bottom: 1px solid var(--sasv-divider); white-space: nowrap; }
+.ma-table-wrap td { padding: 6px 8px; font-size: var(--sasv-text-sm, 0.8125rem); border-bottom: 1px solid var(--sasv-divider); vertical-align: middle; }
+.ma-num { text-align: right; white-space: nowrap; }
+#existingTable tbody tr[data-id] { cursor: pointer; }
+#existingTable tbody tr[data-id]:hover { background: var(--sasv-selection-soft); }
+.ma-name-link { background: none; border: 0; padding: 0; font: inherit; color: var(--sasv-action-primary-active, var(--sasv-action-primary)); text-align: left; cursor: pointer; text-decoration: underline; }
+.ma-name-link:focus-visible { outline: 2px solid var(--sasv-focus-ring); outline-offset: 2px; }
+.ma-scroll { position: relative; }
+.ma-scroll::before, .ma-scroll::after { content: ""; position: absolute; top: 1px; bottom: 1px; width: 22px; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; z-index: 1; }
+.ma-scroll::before { left: 1px; background: linear-gradient(to right, rgba(15, 40, 42, 0.22), transparent); }
+.ma-scroll::after { right: 1px; background: linear-gradient(to left, rgba(15, 40, 42, 0.22), transparent); }
+.ma-scroll.has-left::before, .ma-scroll.has-right::after { opacity: 1; }
+.ma-scroll-hint { margin: 6px 0 0; font-size: var(--sasv-text-sm); color: var(--sasv-text-muted); text-align: right; }
+.ma-empty { padding: 24px 12px; text-align: center; color: var(--sasv-text-muted); }
+/* In-list end-of-list indicator (Stock & Purchase Explorer .spe-scroll-sentinel pattern): collapses to nothing when idle */
+.ma-end { display: flex; align-items: center; justify-content: center; min-height: 1px; font-size: var(--sasv-text-xs, 0.75rem); color: var(--sasv-text-muted); }
+.ma-end-inner { position: sticky; left: 0; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.ma-end-inner:has(.ma-end-status:not(:empty)), .ma-end-inner:has(.ma-more-btn:not([hidden])) { padding: 6px 4px; }
+.ma-more-btn { background: none; border: 0; padding: 4px 8px; font: inherit; font-weight: 600; color: var(--sasv-action-primary-active, var(--sasv-action-primary)); cursor: pointer; text-decoration: underline; min-height: 28px; }
+.ma-more-btn:focus-visible { outline: 2px solid var(--sasv-focus-ring); outline-offset: 2px; }
+.ma-end--cards { display: none; }
+@media (max-width: 520px) { .ma-end--cards { display: flex; } .ma-table-view .ma-end { display: none; } }
+
+/* Cards (Stock Checker .sc-result-card parity) — narrow screens only */
+.ma-cards { display: none; list-style: none; margin: 8px 0 0; padding: 0; flex-direction: column; gap: 8px; }
+.ma-card { position: relative; border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-md, 8px); background: var(--sasv-surface); padding: 8px 28px 8px 10px; cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; font-size: var(--sasv-text-sm, 0.8125rem); color: var(--sasv-text); transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease; }
+.ma-cards li:nth-child(even) .ma-card { background: var(--sasv-surface-soft); }
+.ma-card:hover { border-color: var(--sasv-action-primary-soft-border, var(--sasv-border)); background: var(--sasv-selection-soft); box-shadow: 0 1px 4px rgba(15, 23, 42, 0.07); }
+.ma-card:active { transform: scale(0.992); box-shadow: none; }
+.ma-card:focus-visible { outline: 2px solid var(--sasv-focus-ring); outline-offset: 2px; }
+.ma-card-chev { position: absolute; right: 8px; top: 11px; width: 16px; height: 16px; color: var(--sasv-text-muted); pointer-events: none; }
+.ma-card-chev svg { width: 16px; height: 16px; }
+.ma-card-line1 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; line-height: 1.35; min-width: 0; }
+.ma-card-name { flex: 1 1 auto; min-width: 0; font-weight: 600; word-break: break-word; }
+.ma-card-kind { font-size: var(--sasv-text-xs, 0.75rem); font-weight: 600; color: var(--sasv-text-secondary); white-space: nowrap; }
+.ma-card-path { margin-top: 4px; font-size: var(--sasv-text-xs, 0.75rem); line-height: 1.4; color: var(--sasv-text-secondary); word-break: break-word; }
+.ma-card-dur { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--sasv-divider); font-size: var(--sasv-text-xs, 0.75rem); font-variant-numeric: tabular-nums; color: var(--sasv-text-secondary); }
+.ma-card-dur strong { font-weight: 600; color: var(--sasv-text); }
+@media (max-width: 520px) {
+  .ma-cards { display: flex; }
+  .ma-table-view, .ma-table-view + .ma-scroll-hint { display: none !important; }
+}
+
+/* Add activities: wide columns scroll inside the modal body on wide layouts; stacked row cards on narrow */
+#multiTable { min-width: 1210px; table-layout: fixed; }
+#multiTable col.c-n { width: 34px; } #multiTable col.c-name { width: 230px; } #multiTable col.c-sec { width: 170px; }
+#multiTable col.c-sub { width: 230px; } #multiTable col.c-area { width: 210px; } #multiTable col.c-kind { width: 120px; }
+#multiTable col.c-dur { width: 76px; } #multiTable col.c-act { width: 140px; }
+#multiTable input, #multiTable select { width: 100%; text-overflow: ellipsis; }
+.ma-row-actions { display: flex; gap: 8px; justify-content: flex-end; white-space: nowrap; }
+.ma-row-btn { min-height: var(--sasv-control-sm); padding: 0 10px; font-size: var(--sasv-text-sm); font-weight: 600; }
+.ma-row-btn.ma-row-remove { color: var(--sasv-danger, #b3261e); }
+@media (max-width: 520px) {
+  .ma-bulk-scroll .ma-table-wrap { border: 0; background: transparent; overflow: visible; }
+  .ma-bulk-scroll::before, .ma-bulk-scroll::after, .ma-bulk-scroll + .ma-scroll-hint { display: none; }
+  #multiTable { min-width: 0; display: block; table-layout: auto; }
+  #multiTable colgroup, #multiTable thead { display: none; }
+  #multiTable tbody { display: block; }
+  #multiTable tr { display: block; margin: 0 0 12px; padding: 10px; border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-md); background: var(--sasv-surface); }
+  #multiTable td { display: block; padding: 4px 0; border: 0; }
+  #multiTable td[data-label]:not(.ma-rownum)::before { content: attr(data-label); display: block; margin-bottom: 2px; font-size: var(--sasv-text-xs); font-weight: 600; color: var(--sasv-text-secondary); }
+  #multiTable td.ma-rownum { font-weight: 600; color: var(--sasv-text-muted); }
+  #multiTable td.ma-rownum::before { display: inline; content: "Row "; margin: 0; font-size: inherit; color: inherit; }
+  #multiTable .ma-row-actions { justify-content: flex-start; padding-top: 6px; }
+}
+
+/* Utility: icon buttons in dialog headers */
+.ma-x { margin-left: auto; }
+
+/* MA-UX-5 desktop: viewport-constrained module. Header + toolbar stay put; the table container is the only vertical scroller. */
+@media (min-width: 521px) {
+  body.sasv-manage-activities { height: 100dvh; display: flex; flex-direction: column; }
+  .ma-header, .ma-banner, .ma-toolbar, .ma-meta { flex: 0 0 auto; }
+  #maMain { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  #maCatalogue { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .ma-table-view { flex: 1 1 auto; min-height: 180px; display: flex; flex-direction: column; }
+  .ma-table-view .ma-table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; }
+  .ma-scroll-hint[data-for="existingTable"] { flex: 0 0 auto; }
+  #existingTable { border-collapse: separate; border-spacing: 0; }
+  #existingTable thead th { position: sticky; top: 0; z-index: 2; }
+}
+
+/* MA-UX-5 narrow Add activities: one scroll region (the modal itself); sticky title/X; actions follow the last row */
+@media (max-width: 520px) {
+  .ma-modal--add { display: block; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scroll-padding-top: 64px; scroll-padding-bottom: 24px; -webkit-overflow-scrolling: touch; }
+  .ma-modal--add .ma-modal-header { position: sticky; top: 0; z-index: 5; background: var(--sasv-surface); }
+  .ma-modal--add .ma-modal-body { overflow: visible; flex: none; }
+  .ma-modal--add .ma-modal-footer { position: static; flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 12px max(24px, env(safe-area-inset-bottom)); border-top: 1px solid var(--sasv-divider); }
+  .ma-modal--add .ma-footer-actions { flex-direction: column; gap: 8px; align-items: stretch; }
+  .ma-modal--add .ma-footer-actions .btn { flex: none; width: 100%; min-height: 40px; }
+  .ma-modal--add #multiAddBtn { order: 5; }
+}
+
+/* MA-UX-6: background scroll lock while any layer is open (the open layer is the only vertical scroll surface) */
+html.ma-scroll-locked, html.ma-scroll-locked body { overflow: hidden !important; overscroll-behavior: none; }
