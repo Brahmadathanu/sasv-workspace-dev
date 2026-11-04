@@ -1,4 +1,6 @@
 # Programme progress indicator and WP05 / WP06 closure path — 4 Nov 2026
+> **New-chat continuation (4 Nov):** [CHAT_HANDOVER_2026-11-04.md](CHAT_HANDOVER_2026-11-04.md) is the concise execution handover with verified merge history, current draft PRs, pending policy decisions, and the next gated actions. Use it with fresh GitHub checks; it does not supersede the owner acceptance or CDE-2 contract details below.
+
 
 **Authoritative as of GitHub `main` `18cee239b3f03ed6d1a60c7fe19d7d885ee3ae35` (4 Nov 2026, after #163).** Read live SHAs from GitHub, not from older banners. This file reconciles the repository documentation with what is actually merged; it **closes nothing**. Formal closure is an owner decision. No code, flag, Supabase, deployment, cache, Electron or e-Aushadhi change is made by this file. e-Aushadhi WP-07 remains paused.
 
