@@ -1,3 +1,5 @@
+> **Later audited checkpoint — 4 Nov 2026, after #169/#170:** [PRODUCTION_READ_ONLY_ACCEPTANCE_SECURITY_AUDIT_2026-11-04.md](PRODUCTION_READ_ONLY_ACCEPTANCE_SECURITY_AUDIT_2026-11-04.md) records SELECT-only live RPC/permission findings. GitHub `main` now `1e776603`; #170 scope-guard repair and #169 WP12 console/RPC coverage are merged (reported 873/873 LF and CRLF on #169 final tested head). Older `main` / draft-PR counts below are dated evidence. **Formal ledger still 5/13 (38%); integrated feature wave 3/3. Signed-in WP05/WP06/MDC-07/WP12 acceptance is HOLD** pending server authorization correction and a genuine view-only account. No production write, flags, deployment, cache or Electron change.
+
 # Programme progress indicator and WP05 / WP06 closure path — 4 Nov 2026
 > **New-chat continuation (4 Nov):** [CHAT_HANDOVER_2026-11-04.md](CHAT_HANDOVER_2026-11-04.md) is the concise execution handover with verified merge history, current draft PRs, pending policy decisions, and the next gated actions. Use it with fresh GitHub checks; it does not supersede the owner acceptance or CDE-2 contract details below.
 
