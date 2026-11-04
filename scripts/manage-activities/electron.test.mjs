@@ -31,38 +31,53 @@ async function openWindow({ width, view = true, edit = true, n = 40 }) {
   return page;
 }
 test.after(async () => { await app?.close(); });
-const rect = (p, s) => p.evaluate((s) => { const b = document.querySelector(s).getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, h: b.height, vw: innerWidth, vh: innerHeight }; }, s);
+const rect = (p, s) => p.evaluate((s) => { const b = document.querySelector(s).getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, h: b.height, vw: document.documentElement.clientWidth, vh: innerHeight }; }, s);
 
-for (const width of [390, 1280]) {
-  test(`Electron renderer ${width}px: key controls visible, table reaches final column, dialogs inside viewport`, { skip: SK }, async () => {
+const inVp = (b, tol = 1) => b.l >= -tol && b.r <= b.vw + tol && b.t >= -tol && b.b <= b.vh + tol;
+for (const width of [390, 520, 768, 1280]) {
+  test(`Electron renderer ${width}px: ${width <= 520 ? "cards" : "table"}, controls, popover/modals inside viewport, keyboard`, { skip: SK }, async () => {
     const page = await openWindow({ width });
-    await page.waitForSelector("#existingTable tbody tr", { timeout: 20000 });
+    await page.waitForSelector("#existingTable tbody tr", { state: "attached", timeout: 20000 });
     assert.ok(/Electron/.test(await page.evaluate(() => navigator.userAgent)));
     assert.equal(await page.evaluate(() => innerWidth), width, "genuine window width");
     for (const s of ["#homeBtn", "#maNewBtn", "#maFilterBtn", "#nameFilter"]) { const b = await rect(page, s); assert.ok(b.l >= -1 && b.r <= b.vw + 1 && b.w > 0, `${s} ${JSON.stringify(b)}`); }
-    // keyboard: Tab reaches each control
+    const home = await page.evaluate(() => { const c = getComputedStyle(document.querySelector("#homeBtn")); const d = document.createElement("div"); d.style.background = "var(--sasv-action-home-bg)"; document.body.appendChild(d); const t = getComputedStyle(d).backgroundColor; d.remove(); return [c.backgroundColor, t]; });
+    assert.equal(home[0], home[1], "amber HOME token");
     const seen = new Set(); await page.focus("#homeBtn");
     for (let i = 0; i < 8; i++) { seen.add(await page.evaluate(() => document.activeElement.id)); await page.keyboard.press("Tab"); }
     for (const id of ["homeBtn", "maNewBtn", "maFilterBtn", "nameFilter"]) assert.ok(seen.has(id), id);
-    // horizontal scroll inside the container to the final column
-    await page.focus(".ma-table-wrap"); for (let i = 0; i < 40; i++) await page.keyboard.press("ArrowRight");
-    await page.waitForFunction(() => { const w = document.querySelector(".ma-table-wrap"); return w.scrollLeft >= w.scrollWidth - w.clientWidth - 1; }, null, { timeout: 5000 }).catch(() => {});
-    const t = await page.evaluate(() => { const w = document.querySelector(".ma-table-wrap").getBoundingClientRect(); const l = document.querySelector("#existingTable thead th:last-child").getBoundingClientRect(); return { lr: l.right, ll: l.left, wr: w.right, wl: w.left, x: scrollX, doc: document.documentElement.scrollWidth, vw: innerWidth }; });
-    assert.ok(t.ll >= t.wl - 1 && t.lr <= t.wr + 1, `final column visible ${JSON.stringify(t)}`);
-    assert.equal(t.x, 0); assert.ok(t.doc <= t.vw + 1);
-    // drawer + dialogs
+    const narrow = width <= 520;
+    assert.equal(await page.isVisible("#maCards"), narrow); assert.equal(await page.isVisible("#existingTable"), !narrow);
+    if (!narrow) {
+      await page.focus(".ma-table-wrap"); for (let i = 0; i < 40; i++) await page.keyboard.press("ArrowRight");
+      await page.waitForFunction(() => { const w = document.querySelector(".ma-table-wrap"); return w.scrollLeft >= w.scrollWidth - w.clientWidth - 1; }, null, { timeout: 5000 }).catch(() => {});
+      const t = await page.evaluate(() => { const w = document.querySelector(".ma-table-wrap").getBoundingClientRect(); const l = document.querySelector("#existingTable thead th:last-child").getBoundingClientRect(); return { lr: l.right, ll: l.left, wr: w.right, wl: w.left, x: scrollX, doc: document.documentElement.scrollWidth, vw: innerWidth }; });
+      assert.ok(t.ll >= t.wl - 1 && t.lr <= t.wr + 1, `final column visible ${JSON.stringify(t)}`);
+      assert.equal(t.x, 0); assert.ok(t.doc <= t.vw + 1);
+    } else {
+      await page.focus("#maCards .ma-card"); await page.keyboard.press("Enter");
+      await page.waitForSelector("#maDlgTitle"); assert.equal(await page.textContent("#maDlgTitle"), "Activity details");
+      assert.ok(inVp(await rect(page, ".ma-dialog-backdrop .ma-modal")));
+      await page.keyboard.press("Escape");
+    }
+    // filters: popover (desktop) / full-screen modal (narrow)
     await page.click("#maFilterBtn");
-    const d = await rect(page, "#maDrawer"); assert.ok(d.l >= -1 && d.r <= d.vw + 1 && d.b <= d.vh + 1, `drawer ${JSON.stringify(d)}`);
-    for (let i = 0; i < 9; i++) await page.keyboard.press("Tab");
+    const d = await rect(page, "#maDrawer"); assert.ok(inVp(d), `filters ${JSON.stringify(d)}`);
+    if (narrow) assert.ok(d.w >= d.vw - 1 && d.h >= d.vh - 1, "full-screen");
+    else { const fb = await rect(page, "#maFilterBtn"); assert.ok(Math.abs(d.l - fb.l) <= 2 && d.w <= 361, "anchored compact popover"); }
+    for (let i = 0; i < 10; i++) await page.keyboard.press("Tab");
     assert.ok(await page.evaluate(() => !!document.activeElement.closest("#maDrawer")));
     await page.keyboard.press("Escape");
-    await page.click('tr[data-id="1"] .ma-name-link');
-    let m = await rect(page, ".sasv-modal"); assert.ok(m.l >= -1 && m.r <= m.vw + 1 && m.b <= m.vh + 1, `details ${JSON.stringify(m)}`);
-    await page.click('[data-act="edit"]');
-    m = await rect(page, ".sasv-modal"); assert.ok(m.l >= -1 && m.r <= m.vw + 1, `edit ${JSON.stringify(m)}`);
-    for (let i = 0; i < 12; i++) await page.keyboard.press("Tab");
-    assert.ok(await page.evaluate(() => !!document.activeElement.closest(".sasv-modal")));
+    assert.equal(await page.isVisible("#maDrawer"), false);
+    // Add activities modal
+    await page.click("#maNewBtn");
+    const m = await rect(page, "#maBulk"); assert.ok(inVp(m), `add modal ${JSON.stringify(m)}`);
+    if (narrow) assert.ok(m.w >= m.vw - 1 && m.h >= m.vh - 1, "full-screen");
+    for (let i = 0; i < 40; i++) await page.keyboard.press("Tab");
+    assert.ok(await page.evaluate(() => !!document.activeElement.closest("#maBulk")));
+    for (const sel of ["#maAddRow", "#maPasteBtn", "#multiClearBtn", "#multiAddBtn"]) { const b = await rect(page, sel); assert.ok(b.b <= b.vh + 1 && b.r <= b.vw + 1 && b.l >= -1, `${sel} ${JSON.stringify(b)}`); }
     await page.keyboard.press("Escape");
+    assert.equal(await page.isVisible("#maBulk"), false);
     await page.close().catch(() => {});
   });
 }

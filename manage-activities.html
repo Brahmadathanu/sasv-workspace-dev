@@ -7,34 +7,60 @@
   <link rel="stylesheet" href="public/shared/css/style.css">
   <link rel="stylesheet" href="public/shared/css/sasv-manage-activities.css">
 </head>
-<body class="sasv-module" data-theme="system">
-  <div class="sasv-module-shell ma-shell">
-    <header class="sasv-module-header header-bar">
-      <div class="sasv-module-heading">
-        <h1 class="sasv-module-title">Manage Activities</h1>
+<body class="sasv-manage-activities" data-theme="system">
+  <header class="ma-header">
+    <div class="ma-header-copy">
+      <h1 class="sasv-module-title ma-page-title">Manage Activities</h1>
+    </div>
+    <div class="ma-header-actions">
+      <button type="button" id="homeBtn" class="sasv-home-btn" title="HOME" aria-label="HOME"></button>
+    </div>
+  </header>
+
+  <div id="maStatus" class="ma-banner" role="status" aria-live="polite" hidden></div>
+
+  <main id="maMain" hidden>
+    <section id="maCatalogue" aria-labelledby="maListTitle">
+      <h2 id="maListTitle" class="ma-sr" tabindex="-1">Activities</h2>
+
+      <div class="ma-toolbar" role="search">
+        <button type="button" id="maFilterBtn" class="ma-icon-btn ma-filter-btn" title="Filters" aria-label="Filters" aria-haspopup="dialog" aria-expanded="false" aria-controls="maDrawer">
+          <span id="maFilterIcon" aria-hidden="true"></span><span id="maFilterBadge" class="ma-badge" hidden></span>
+        </button>
+        <div class="ma-search">
+          <label for="nameFilter" class="ma-sr">Search activity name</label>
+          <input type="search" id="nameFilter" placeholder="Search activity name" autocomplete="off">
+        </div>
+        <button type="button" id="maNewBtn" class="ma-icon-btn ma-add-btn" title="Add activities" aria-label="Add activities" aria-haspopup="dialog" data-requires-edit>
+          <span id="maAddIcon" aria-hidden="true"></span><span id="maAddBadge" class="ma-badge" hidden></span>
+        </button>
+
+        <div id="maDrawer" class="ma-popover" role="dialog" aria-labelledby="maDrawerTitle" hidden>
+          <div class="ma-popover-header">
+            <h2 id="maDrawerTitle" class="ma-popover-title">Filters</h2>
+            <button type="button" id="maDrawerClose" class="ma-icon-btn ma-x" title="Close" aria-label="Close filters"></button>
+          </div>
+          <div class="ma-popover-body">
+            <div class="ma-field"><label for="sectionFilter">Section</label>
+              <select id="sectionFilter" class="sasv-control"><option value="">All sections</option></select></div>
+            <div class="ma-field"><label for="subFilter">Sub-section</label>
+              <select id="subFilter" class="sasv-control" disabled><option value="">All sub-sections</option></select></div>
+            <div class="ma-field"><label for="areaFilter">Area</label>
+              <select id="areaFilter" class="sasv-control" disabled><option value="">All areas</option></select></div>
+            <div class="ma-field"><label for="kindFilter">Kind</label>
+              <select id="kindFilter" class="sasv-control"><option value="">All kinds</option></select></div>
+          </div>
+          <div class="ma-popover-footer">
+            <button type="button" id="clearFilters" class="btn ghost">Clear all</button>
+            <button type="button" id="maDrawerDone" class="btn primary">Done</button>
+          </div>
+        </div>
       </div>
-      <button type="button" id="homeBtn" class="action-link" title="Home" aria-label="Home"></button>
-    </header>
 
-    <div id="maStatus" class="ma-banner" role="status" aria-live="polite" hidden></div>
+      <div class="ma-meta"><span id="maCount" class="sasv-chip sasv-chip--neutral" aria-live="polite"></span></div>
 
-    <main id="maMain" hidden>
-      <section id="maCatalogue" aria-labelledby="maListTitle">
-        <div class="ma-section-head">
-          <h2 id="maListTitle" class="sasv-module-section-title" tabindex="-1">Activities</h2>
-          <span id="maCount" class="sasv-chip sasv-chip--neutral" aria-live="polite"></span>
-          <button type="button" id="maNewBtn" class="btn primary" data-requires-edit>New activities</button>
-        </div>
-
-        <div class="sasv-toolbar ma-toolbar" role="search">
-          <button type="button" id="maFilterBtn" class="btn ghost ma-filter-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="maDrawer">
-            <span id="maFilterIcon" aria-hidden="true"></span> Filters <span id="maFilterBadge" class="sasv-chip sasv-chip--primary" hidden></span>
-          </button>
-          <div class="sasv-field ma-search"><label for="nameFilter" class="ma-sr">Search activity name</label>
-            <input type="search" id="nameFilter" class="sasv-control" placeholder="Search activity name" autocomplete="off"></div>
-        </div>
-
-        <div class="ma-scroll"><div class="ma-table-wrap" tabindex="0" role="region" aria-label="Activities table">
+      <div class="ma-scroll ma-table-view">
+        <div class="ma-table-wrap" tabindex="0" role="region" aria-label="Activities table">
           <table id="existingTable" aria-busy="false">
             <thead>
               <tr>
@@ -44,66 +70,57 @@
             </thead>
             <tbody></tbody>
           </table>
-        </div></div>
-        <p class="ma-scroll-hint" data-for="existingTable" hidden>Scroll sideways to see all columns →</p>
-        <p id="maEmpty" class="ma-empty" hidden></p>
-
-        <div class="ma-feed">
-          <span id="maListStatus" class="sasv-pager__info" role="status" aria-live="polite"></span>
-          <button type="button" id="maLoadMore" class="btn ghost" hidden>Load more</button>
-          <div id="maSentinel" aria-hidden="true"></div>
         </div>
-      </section>
+      </div>
+      <p class="ma-scroll-hint" data-for="existingTable" hidden>Scroll sideways to see all columns →</p>
 
-      <section id="maBulk" aria-labelledby="maBulkTitle" hidden>
-        <div class="ma-section-head">
-          <h2 id="maBulkTitle" class="sasv-module-section-title" tabindex="-1">Add new activities</h2>
-          <button type="button" id="maPasteBtn" class="btn ghost">Paste names…</button>
-          <button type="button" id="maBackBtn" class="btn ghost">Back to catalogue</button>
+      <ul id="maCards" class="ma-cards" role="list" aria-label="Activities"></ul>
+      <p id="maEmpty" class="ma-empty" hidden></p>
+
+      <div class="ma-feed">
+        <span id="maListStatus" class="sasv-pager__info" role="status" aria-live="polite"></span>
+        <button type="button" id="maLoadMore" class="btn ghost" hidden>Load more</button>
+        <div id="maSentinel" aria-hidden="true"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="maAddBackdrop" class="ma-backdrop" hidden>
+    <div id="maBulk" class="ma-modal ma-modal--add" role="dialog" aria-modal="true" aria-labelledby="maBulkTitle">
+      <div class="ma-modal-header">
+        <h2 id="maBulkTitle" class="ma-modal-title" tabindex="-1">Add activities</h2>
+        <button type="button" id="maBackBtn" class="ma-icon-btn ma-x" title="Close" aria-label="Close add activities"></button>
+      </div>
+      <div class="ma-modal-body">
+        <p class="ma-help">Drafts are kept if you close this window. Use <strong>Paste activity list</strong> to add many names at once; they inherit the classification of the last row, which you can then edit.</p>
+        <div class="ma-scroll ma-bulk-scroll">
+          <div class="ma-table-wrap" tabindex="0" role="region" aria-label="New activities table">
+            <table id="multiTable">
+              <colgroup><col class="c-n"><col class="c-name"><col class="c-sec"><col class="c-sub"><col class="c-area"><col class="c-kind"><col class="c-dur"><col class="c-act"></colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">#</th><th scope="col">Activity</th><th scope="col">Section</th>
+                  <th scope="col">Sub-section</th><th scope="col">Area</th><th scope="col">Kind</th>
+                  <th scope="col" class="ma-num">Duration (days)</th><th scope="col"><span class="ma-sr">Row actions</span></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
-        <div class="ma-scroll"><div class="ma-table-wrap" tabindex="0" role="region" aria-label="New activities table">
-          <table id="multiTable">
-            <colgroup><col class="c-n"><col class="c-name"><col class="c-sec"><col class="c-sub"><col class="c-area"><col class="c-kind"><col class="c-dur"><col class="c-act"></colgroup>
-            <thead>
-              <tr>
-                <th scope="col">#</th><th scope="col">Activity</th><th scope="col">Section</th>
-                <th scope="col">Sub-section</th><th scope="col">Area</th><th scope="col">Kind</th>
-                <th scope="col" class="ma-num">Duration (days)</th><th scope="col"><span class="ma-sr">Row actions</span></th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div></div>
         <p class="ma-scroll-hint" data-for="multiTable" hidden>Scroll sideways to see all columns →</p>
-        <div class="ma-actions">
+      </div>
+      <div class="ma-modal-footer">
+        <span id="maBulkSummary" class="sasv-pager__info" role="status" aria-live="polite"></span>
+        <div class="ma-footer-actions">
           <button type="button" id="maAddRow" class="btn ghost">Add row</button>
+          <button type="button" id="maPasteBtn" class="btn ghost">Paste activity list</button>
           <button type="button" id="multiClearBtn" class="btn ghost">Clear all</button>
           <button type="button" id="multiAddBtn" class="btn primary">Add all</button>
-          <span id="maBulkSummary" class="sasv-pager__info" role="status" aria-live="polite"></span>
         </div>
-      </section>
-    </main>
+      </div>
+    </div>
   </div>
-
-  <div id="maDrawerBackdrop" class="sasv-drawer-backdrop" hidden></div>
-  <aside id="maDrawer" class="sasv-drawer" role="dialog" aria-modal="true" aria-labelledby="maDrawerTitle" hidden>
-    <div class="sasv-drawer__header"><h2 id="maDrawerTitle" class="sasv-drawer__title">Filters</h2>
-      <button type="button" id="maDrawerClose" class="btn ghost" aria-label="Close filters">Close</button></div>
-    <div class="sasv-drawer__body ma-form-grid">
-      <div class="sasv-field"><label for="sectionFilter">Section</label>
-        <select id="sectionFilter" class="sasv-control"><option value="">All sections</option></select></div>
-      <div class="sasv-field"><label for="subFilter">Sub-section</label>
-        <select id="subFilter" class="sasv-control" disabled><option value="">All sub-sections</option></select></div>
-      <div class="sasv-field"><label for="areaFilter">Area</label>
-        <select id="areaFilter" class="sasv-control" disabled><option value="">All areas</option></select></div>
-      <div class="sasv-field"><label for="kindFilter">Kind</label>
-        <select id="kindFilter" class="sasv-control"><option value="">All kinds</option></select></div>
-    </div>
-    <div class="sasv-drawer__footer">
-      <button type="button" id="clearFilters" class="btn ghost">Clear all</button>
-      <button type="button" id="maDrawerDone" class="btn primary">Done</button>
-    </div>
-  </aside>
 
   <div id="maDialogHost"></div>
   <script type="module" src="js/activities.js"></script>

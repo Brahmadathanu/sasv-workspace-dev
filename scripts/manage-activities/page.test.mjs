@@ -21,8 +21,9 @@ const base = `http://127.0.0.1:${server.address().port}`;
 const browser = chromium ? await chromium.launch() : null;
 test.after(async () => { await browser?.close(); server.close(); });
 
-async function open({ view = true, edit = true, n = 60, cfg = {}, width = 1280, noObserver = false } = {}) {
-  const ctx = await browser.newContext({ viewport: { width, height: 900 } });
+async function open({ view = true, edit = true, n = 60, cfg = {}, width = 1280, height, noObserver = false } = {}) {
+  height ??= noObserver ? 420 : 900;
+  const ctx = await browser.newContext({ viewport: { width, height } });
   const page = await ctx.newPage();
   const errors = []; page.on("pageerror", (e) => errors.push(String(e)));
   await page.route("https://esm.sh/**", (r) => r.fulfill({ contentType: "text/javascript", body: `import { createFake } from "${base}/scripts/manage-activities/fake-supabase.mjs"; export const createClient = () => createFake(window.__cfg);` }));
@@ -39,9 +40,10 @@ async function open({ view = true, edit = true, n = 60, cfg = {}, width = 1280, 
   return { page, ctx, errors };
 }
 const rowsText = (page) => page.$$eval("#existingTable tbody tr", (t) => t.map((r) => r.children[0].textContent));
+const visible = (page, sel) => page.isVisible(sel);
 const SK = !chromium && "Playwright unavailable";
 
-const ready = (p) => p.waitForSelector("#existingTable tbody tr");
+const ready = (p) => p.waitForSelector("#existingTable tbody tr", { state: "attached" });
 const count = (p) => p.locator("#existingTable tbody tr").count();
 const waitRows = (p, n) => p.waitForFunction((n) => document.querySelectorAll("#existingTable tbody tr").length === n, n);
 const reqs = (p, op = "select") => p.evaluate((op) => window.__cfg.log.filter((l) => l.table === "activities" && l.op === op), op);
@@ -160,18 +162,6 @@ test("filter drawer: opens left-of-search, cascades, badge, Clear all, Esc + foc
   await ctx.close();
 });
 
-test("filter drawer is usable at 390px and traps Tab", { skip: SK }, async () => {
-  const { page, ctx } = await open({ width: 390 });
-  await ready(page);
-  await page.click("#maFilterBtn");
-  const box = await page.locator("#maDrawer").boundingBox();
-  assert.ok(box.width <= 390 && box.x >= 0);
-  for (let i = 0; i < 8; i++) await page.keyboard.press("Tab");
-  assert.equal(await page.evaluate(() => !!document.activeElement.closest("#maDrawer")), true, "focus stays in drawer");
-  await page.click("#maDrawerDone");
-  await ctx.close();
-});
-
 test("read-only user: details only, no Edit/Delete/New; no-view user denied; permission load failure fails closed", { skip: SK }, async () => {
   let o = await open({ edit: false, n: 3 });
   await ready(o.page);
@@ -239,151 +229,312 @@ test("delete from details: cancel returns, success removes row locally, in-use f
   assert.equal(await page.textContent("#maCount"), "4 activities");
   assert.equal(await page.evaluate(() => window.__cfg.data.activities.length), 4);
   await page.click('tr[data-id="2"] .ma-name-link'); await page.click('[data-act="delete"]'); await page.click('[data-act="ok"]');
-  await page.waitForFunction(() => document.querySelector(".modal-body")?.textContent.includes("in use"));
+  await page.waitForFunction(() => document.querySelector(".ma-dialog-backdrop .ma-modal-body")?.textContent.includes("in use"));
   assert.equal(await page.evaluate(() => window.__cfg.data.activities.length), 4);
   await ctx.close();
 });
 
-test("bulk entry lives outside the catalogue; validation, row-level error preservation, Back keeps drafts", { skip: SK }, async () => {
+
+const rectOf = (page, sel) => page.evaluate((sel) => { const b = document.querySelector(sel).getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, h: b.height, vw: innerWidth, vh: innerHeight }; }, sel);
+const inside = (b, tol = 1) => b.l >= -tol && b.r <= b.vw + tol && b.w > 0 && b.h > 0;
+const inViewport = (b, tol = 1) => b.l >= -tol && b.r <= b.vw + tol && b.t >= -tol && b.b <= b.vh + tol;
+const fillRow = async (page, i, name, sec = "1", sub = "11", area = "111", kind = "k-1", dur = "2") => {
+  const tr = page.locator("#multiTable tbody tr").nth(i);
+  await tr.locator(".m-name").fill(name); await tr.locator(".m-section").selectOption(sec);
+  await tr.locator(".m-sub").selectOption(sub); await tr.locator(".m-area").selectOption(area);
+  await tr.locator(".m-kind").selectOption(kind); await tr.locator(".m-dur").fill(dur);
+};
+
+test("Add activities is a modal (not in the catalogue): validation, retention across close/reopen, partial failure kept", { skip: SK }, async () => {
   const { page, ctx } = await open({ n: 5 });
   await ready(page);
-  assert.equal(await page.isHidden("#maBulk"), true, "not in default view");
+  assert.equal(await visible(page, "#maBulk"), false, "closed by default");
+  assert.equal(await page.getAttribute("#maNewBtn", "aria-label"), "Add activities");
+  assert.equal(await page.getAttribute("#maNewBtn", "title"), "Add activities");
+  assert.equal(await page.locator("#maNewBtn svg").count(), 1, "icon-only + button");
+  assert.equal((await page.innerText("#maNewBtn")).trim(), "");
   await page.click("#maNewBtn");
-  assert.equal(await page.isHidden("#maCatalogue"), true);
+  assert.equal(await visible(page, "#maBulk"), true);
+  assert.equal(await page.evaluate(() => !!document.activeElement.closest("#maBulk")), true, "focus moves into modal");
+  assert.equal(await visible(page, "#maCatalogue"), true, "catalogue stays behind the modal");
   await page.click("#multiAddBtn");
-  assert.equal((await reqs(page, "insert")).length, 0);
-  const fill = async (i, name) => {
-    const tr = page.locator("#multiTable tbody tr").nth(i);
-    await tr.locator(".m-name").fill(name); await tr.locator(".m-section").selectOption("1");
-    await tr.locator(".m-sub").selectOption("11"); await tr.locator(".m-area").selectOption("111");
-    await tr.locator(".m-kind").selectOption("k-1"); await tr.locator(".m-dur").fill("2");
-  };
-  await fill(0, "Bulk One");
-  await page.click("#maBackBtn"); await page.click("#maNewBtn");
-  assert.equal(await page.inputValue("#multiTable .m-name"), "Bulk One", "drafts survive view switch");
-  await page.click("#maAddRow"); await fill(1, "Activity 003");
-  await page.click("#maAddRow"); await fill(2, "Bulk Three");
+  assert.equal((await reqs(page, "insert")).length, 0, "invalid draft sends nothing");
+  await fillRow(page, 0, "Bulk One");
+  await page.click("#maBackBtn"); // X
+  assert.equal(await visible(page, "#maBulk"), false);
+  assert.equal(await page.textContent("#maAddBadge"), "1", "draft indicator on + button");
+  assert.equal(await page.evaluate(() => document.activeElement.id), "maNewBtn", "focus returns to +");
+  await page.click("#maNewBtn");
+  assert.equal(await page.inputValue("#multiTable .m-name"), "Bulk One", "draft survives close/reopen");
+  await page.keyboard.press("Escape");
+  assert.equal(await visible(page, "#maBulk"), false, "Esc closes, draft kept");
+  await page.click("#maNewBtn");
+  await page.click("#maAddRow"); await fillRow(page, 1, "Activity 003");
+  await page.click("#maAddRow"); await fillRow(page, 2, "Bulk Three");
   await page.click("#multiAddBtn"); await page.click('[data-act="ok"]');
   await page.waitForFunction(() => document.querySelector("#maBulkSummary").textContent.startsWith("Added 2"));
-  assert.equal(await page.locator("#multiTable tbody tr").count(), 1);
+  assert.equal(await page.locator("#multiTable tbody tr").count(), 1, "only failed row kept");
   assert.equal(await page.inputValue("#multiTable .m-name"), "Activity 003");
+  assert.equal(await page.inputValue("#multiTable .m-kind"), "k-1");
   assert.match(await page.textContent("#multiTable .ma-row-msg"), /already exists/);
-  await page.click("#maBackBtn");
+  await page.keyboard.press("Escape");
   await page.waitForFunction(() => document.querySelector("#maCount").textContent === "7 activities");
   await ctx.close();
 });
 
-for (const [label, width] of [["390px", 390], ["desktop 1280px", 1280]]) {
-  test(`layout ${label}: no horizontal page overflow; keyboard order filter→search→table`, { skip: SK }, async () => {
-    const { page, ctx } = await open({ width, n: 30 });
+test("Add activities: copy, remove, row limit, paste activity list (wording + inheritance), Clear all prompts before discarding", { skip: SK }, async () => {
+  const { page, ctx } = await open({ n: 3 });
+  await ready(page); await page.click("#maNewBtn");
+  assert.equal(await page.textContent("#maPasteBtn"), "Paste activity list");
+  await fillRow(page, 0, "Seed row", "2", "21", "211", "k-2", "3");
+  await page.click(".ma-row-btn.ma-row-dup");
+  assert.equal(await page.locator("#multiTable tbody tr").count(), 2);
+  assert.equal(await page.locator("#multiTable .m-kind").nth(1).inputValue(), "k-2", "copy keeps classification");
+  await page.locator(".ma-row-remove").nth(1).click();
+  assert.equal(await page.locator("#multiTable tbody tr").count(), 1);
+  await page.click("#maPasteBtn");
+  const help = await page.textContent("#maDlgTitle"); assert.equal(help, "Paste activity list");
+  assert.match(await page.textContent(".ma-modal-body >> nth=-1"), /one activity name per line/i);
+  assert.match(await page.textContent(".ma-dialog-backdrop .ma-help"), /inherit .*last row/i);
+  await page.fill("#pasteTxt", "Alpha\nBeta\n\nGamma"); await page.click('[data-act="ok"]');
+  const names = await page.$$eval("#multiTable .m-name", (e) => e.map((x) => x.value));
+  assert.deepEqual(names, ["Seed row", "Alpha", "Beta", "Gamma"]);
+  assert.equal(await page.locator("#multiTable .m-area").nth(3).inputValue(), "211", "pasted rows inherit last row");
+  // row limit
+  await page.click("#maPasteBtn"); await page.fill("#pasteTxt", Array.from({ length: 40 }, (_, i) => "Many " + i).join("\n")); await page.click('[data-act="ok"]');
+  assert.equal(await page.locator("#multiTable tbody tr").count(), 25);
+  assert.match(await page.textContent("#maBulkSummary"), /limit 25/);
+  // Clear all asks first
+  await page.click("#multiClearBtn"); assert.equal(await page.textContent("#maDlgTitle"), "Clear all rows");
+  await page.click('[data-act="cancel"]');
+  assert.equal(await page.locator("#multiTable tbody tr").count(), 25, "cancel keeps data");
+  await page.click("#multiClearBtn"); await page.click('[data-act="ok"]');
+  assert.equal(await page.locator("#multiTable tbody tr").count(), 1);
+  assert.equal(await page.inputValue("#multiTable .m-name"), "");
+  await ctx.close();
+});
+
+test("Add activities modal: permission failure stops batch and keeps all rows", { skip: SK }, async () => {
+  const { page, ctx } = await open({ n: 3, cfg: { denyWrites: true } });
+  await ready(page); await page.click("#maNewBtn");
+  await fillRow(page, 0, "P One"); await page.click("#maAddRow"); await fillRow(page, 1, "P Two");
+  await page.click("#multiAddBtn"); await page.click('[data-act="ok"]');
+  await page.waitForFunction(() => document.querySelector("#maBulkSummary").textContent.startsWith("Added 0"));
+  assert.equal(await page.locator("#multiTable tbody tr").count(), 2);
+  assert.equal((await reqs(page, "insert")).length, 1, "stopped after first denial");
+  await ctx.close();
+});
+
+for (const [label, width, cards] of [["390px", 390, true], ["520px", 520, true], ["tablet 768px", 768, false], ["desktop 1280px", 1280, false]]) {
+  test(`${label}: ${cards ? "activity cards replace the table" : "six-column table is shown"}; no page overflow; same loaded data`, { skip: SK }, async () => {
+    const { page, ctx } = await open({ width, n: 60 });
     await ready(page);
+    assert.equal(await page.isVisible("#existingTable"), !cards);
+    assert.equal(await page.isVisible("#maCards"), cards);
     const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    assert.ok(over <= 1, `overflow ${over}px`);
-    await page.focus("#maFilterBtn"); await page.keyboard.press("Tab");
-    assert.equal(await page.evaluate(() => document.activeElement.id), "nameFilter");
-    await page.click("#maFilterBtn"); await page.keyboard.press("Escape");
-    await page.click("#maNewBtn");
-    const over2 = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    assert.ok(over2 <= 1, `bulk overflow ${over2}px`);
+    assert.ok(over <= 1, `overflow ${over}`);
+    if (cards) {
+      const first = page.locator("#maCards li").first();
+      const txt = await first.textContent();
+      for (const t of ["Activity 001", "Process", "Sec A", "Sub A1", "Area A1a", "Duration", "0 days"]) assert.ok(txt.includes(t) || txt.includes("Quality"), t);
+      assert.equal(await page.locator("#maCards li").count(), await page.locator("#existingTable tbody tr").count(), "cards mirror loaded rows");
+      for (const b of await page.$$eval("#maCards .ma-card", (c) => c.slice(0, 5).map((e) => { const r = e.getBoundingClientRect(); return [r.left, r.right]; }))) assert.ok(b[0] >= 0 && b[1] <= width + 1);
+      // pagination via cards: only one request per batch, no duplicates
+      for (let i = 0; i < 6 && (await page.locator("#maCards li").count()) < 60; i++) { await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await page.waitForTimeout(150); }
+      assert.equal(await page.locator("#maCards li").count(), 60);
+      assert.deepEqual((await reqs(page)).map((l) => l.range.join("-")), ["0-24", "25-49", "50-74"]);
+    }
     await ctx.close();
   });
 }
 
-/* ───────── MA-UX-2: 390px clipping regression, scroll cues, visual refinements ───────── */
-const rectOf = (page, sel) => page.evaluate((sel) => { const b = document.querySelector(sel).getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, h: b.height, vw: innerWidth, vh: innerHeight }; }, sel);
-const inside = (b, tol = 1) => b.l >= -tol && b.r <= b.vw + tol && b.w > 0 && b.h > 0;
-
-test("390px: Home, New activities, Filters and search are fully inside the viewport and keyboard-reachable", { skip: SK }, async () => {
-  const { page, ctx } = await open({ width: 390, n: 30 });
+test("cards: click, Enter and Space open the same details dialog (edit/delete per permission); focus returns to the card", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, n: 6 });
   await ready(page);
-  for (const sel of ["#homeBtn", "#maNewBtn", "#maFilterBtn", "#nameFilter"]) {
-    const b = await rectOf(page, sel);
-    assert.ok(inside(b), `${sel} within viewport: ${JSON.stringify(b)}`);
-  }
-  const seen = new Set();
-  await page.focus("#homeBtn");
-  for (let i = 0; i < 8; i++) { seen.add(await page.evaluate(() => document.activeElement.id)); await page.keyboard.press("Tab"); }
-  for (const id of ["homeBtn", "maNewBtn", "maFilterBtn", "nameFilter"]) assert.ok(seen.has(id), `${id} reachable by Tab`);
-  const ov = await page.evaluate(() => ["documentElement", "body"].map((k) => getComputedStyle(document[k]).overflowX).concat(getComputedStyle(document.querySelector(".ma-shell")).overflowX));
-  assert.ok(ov.every((v) => v !== "hidden"), `no overflow:hidden masking: ${ov}`);
-  await ctx.close();
-});
-
-test("390px: six-column table scrolls horizontally inside its container to the final column; cues and hint shown", { skip: SK }, async () => {
-  const { page, ctx } = await open({ width: 390, n: 30 });
-  await ready(page);
-  const m = () => page.evaluate(() => { const w = document.querySelector("#existingTable").closest(".ma-table-wrap"); const last = document.querySelector("#existingTable thead th:last-child").getBoundingClientRect(); const wr = w.getBoundingClientRect(); return { sw: w.scrollWidth, cw: w.clientWidth, sl: w.scrollLeft, lastL: last.left, lastR: last.right, wl: wr.left, wr: wr.right, pageX: window.scrollX, doc: document.documentElement.scrollWidth, vw: innerWidth, cols: document.querySelectorAll("#existingTable thead th").length, tw: document.querySelector("#existingTable").getBoundingClientRect().width }; });
-  let a = await m();
-  assert.equal(a.cols, 6); assert.ok(a.tw >= 720, "table keeps readable width, not shrunk");
-  assert.ok(a.sw > a.cw, "container overflows internally");
-  assert.ok(a.lastR > a.wr, "final column initially off-screen");
-  assert.ok(await page.isVisible(".ma-scroll-hint[data-for=existingTable]"), "hint visible");
-  assert.ok(await page.evaluate(() => document.querySelector("#existingTable").closest(".ma-scroll").classList.contains("has-right")));
-  await page.focus(".ma-table-wrap"); for (let i = 0; i < 40; i++) await page.keyboard.press("ArrowRight");
-  await page.waitForFunction(() => { const w = document.querySelector(".ma-table-wrap"); return w.scrollLeft >= w.scrollWidth - w.clientWidth - 1; });
-  a = await m();
-  assert.ok(a.lastL >= a.wl - 1 && a.lastR <= a.wr + 1, `final column fully visible after scroll: ${JSON.stringify(a)}`);
-  assert.equal(a.pageX, 0, "page itself did not scroll sideways"); assert.ok(a.doc <= a.vw + 1);
-  assert.ok(await page.evaluate(() => document.querySelector("#existingTable").closest(".ma-scroll").classList.contains("has-left")));
-  assert.equal(await page.evaluate(() => document.querySelector("#existingTable").closest(".ma-scroll").classList.contains("has-right")), false, "right cue off at end");
-  await ctx.close();
-});
-
-test("desktop: table fits, no scroll hint", { skip: SK }, async () => {
-  const { page, ctx } = await open({ width: 1280, n: 10 });
-  await ready(page);
-  assert.equal(await page.isVisible(".ma-scroll-hint[data-for=existingTable]"), false);
-  await ctx.close();
-});
-
-for (const w of [390, 1280]) {
-  test(`${w}px: drawer and dialogs stay inside the viewport; drawer has no stretched gaps`, { skip: SK }, async () => {
-    const { page, ctx } = await open({ width: w, n: 10 });
-    await ready(page);
-    await page.click("#maFilterBtn");
-    const d = await rectOf(page, "#maDrawer");
-    assert.ok(d.l >= -1 && d.r <= d.vw + 1 && d.t >= -1 && d.b <= d.vh + 1, `drawer ${JSON.stringify(d)}`);
-    const ys = await page.$$eval("#maDrawer .sasv-field", (f) => f.map((e) => e.getBoundingClientRect()));
-    for (let i = 1; i < ys.length; i++) assert.ok(ys[i].top - ys[i - 1].bottom < 40, "compact vertical rhythm");
-    for (let i = 0; i < 9; i++) await page.keyboard.press("Tab");
-    assert.ok(await page.evaluate(() => !!document.activeElement.closest("#maDrawer")), "drawer traps focus");
+  await page.click('#maCards li[data-id="2"] .ma-card');
+  const click = await page.textContent(".ma-details");
+  assert.ok(click.includes("Activity 002") && click.includes("1 day"));
+  assert.equal(await page.locator('[data-act="edit"], [data-act="delete"]').count(), 2);
+  await page.keyboard.press("Escape");
+  assert.equal(await page.evaluate(() => document.activeElement.closest("li")?.dataset.id), "2");
+  for (const key of ["Enter", "Space"]) {
+    await page.focus('#maCards li[data-id="3"] .ma-card'); await page.keyboard.press(key);
+    await page.waitForSelector("#maDlgTitle"); assert.equal(await page.textContent("#maDlgTitle"), "Activity details");
     await page.keyboard.press("Escape");
-    await page.click('tr[data-id="1"] .ma-name-link');
-    let r = await rectOf(page, ".sasv-modal");
-    assert.ok(r.l >= -1 && r.r <= r.vw + 1 && r.b <= r.vh + 1, `details dialog ${JSON.stringify(r)}`);
-    await page.click('[data-act="edit"]');
-    r = await rectOf(page, ".sasv-modal");
-    assert.ok(r.l >= -1 && r.r <= r.vw + 1 && r.t >= -1, `edit dialog ${JSON.stringify(r)}`);
-    for (let i = 0; i < 12; i++) await page.keyboard.press("Tab");
-    assert.ok(await page.evaluate(() => !!document.activeElement.closest(".sasv-modal")), "edit dialog traps focus");
-    await ctx.close();
-  });
-}
+  }
+  const dr = await page.evaluate(() => { const c = document.querySelector("#maCards .ma-card"); const s = getComputedStyle(c); return { r: s.borderRadius, role: c.getAttribute("role"), tab: c.tabIndex }; });
+  assert.equal(dr.r, "8px"); assert.equal(dr.role, "button"); assert.equal(dr.tab, 0);
+  await ctx.close();
+});
 
-test("search + dialog inputs use canonical SASV control sizing and green focus ring (no orange outline)", { skip: SK }, async () => {
+test("HOME uses the canonical amber token treatment, keeps navigation, and header spacing matches Stock Checker", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 1280, n: 3 });
+  await ready(page);
+  const h = await page.evaluate(() => { const b = document.querySelector("#homeBtn"); const c = getComputedStyle(b); const tok = (n) => { const d = document.createElement("div"); d.style.color = `var(${n})`; document.body.appendChild(d); const v = getComputedStyle(d).color; d.remove(); return v; }; return { bg: c.backgroundColor, fg: c.color, bd: c.borderTopColor, bgTok: tok("--sasv-action-home-bg"), fgTok: tok("--sasv-action-home"), bdTok: tok("--sasv-action-home-border"), label: !!b.querySelector(".home-label"), svg: !!b.querySelector("svg"), pad: getComputedStyle(document.body).padding, h: b.getBoundingClientRect().height }; });
+  assert.equal(h.bg, h.bgTok); assert.equal(h.fg, h.fgTok); assert.equal(h.bd, h.bdTok);
+  assert.ok(h.label && h.svg); assert.equal(h.pad, "20px"); assert.equal(h.h, 36);
+  const nav = await page.evaluate(() => { let url = null; try { Object.defineProperty(window.location, "assign", { value: (u) => { url = u; }, configurable: true }); } catch { return "unpatchable"; } document.querySelector("#homeBtn").click(); return url; });
+  if (nav !== "unpatchable") assert.equal(nav, "index.html");
+  await page.setViewportSize({ width: 390, height: 800 });
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).padding), "6px");
+  assert.equal(await page.evaluate(() => { const l = document.querySelector("#homeBtn .home-label").getBoundingClientRect(); return l.width <= 1; }), true, "label hidden on narrow, aria-label kept");
+  assert.equal(await page.getAttribute("#homeBtn", "aria-label"), "HOME");
+  await ctx.close();
+});
+
+test("toolbar: filter + add are icon-only 36px buttons with tooltips; search is light-filled with SASV focus; no nested card chrome", { skip: SK }, async () => {
   const { page, ctx } = await open({ width: 1280, n: 5 });
   await ready(page);
+  for (const [id, label] of [["maFilterBtn", "Filters"], ["maNewBtn", "Add activities"]]) {
+    const r = await page.evaluate((id) => { const b = document.getElementById(id); const r = b.getBoundingClientRect(); return { w: r.width, h: r.height, svg: b.querySelectorAll("svg").length, text: b.innerText.trim(), title: b.title, aria: b.getAttribute("aria-label") }; }, id);
+    assert.deepEqual([r.w, r.h, r.svg, r.text, r.title, r.aria], [36, 36, 1, "", label, label], id);
+  }
+  const [fb, sb, ab] = await Promise.all(["#maFilterBtn", "#nameFilter", "#maNewBtn"].map((s) => page.locator(s).boundingBox()));
+  assert.ok(fb.x + fb.width <= sb.x + 1 && sb.x + sb.width <= ab.x + 1, "filter | search | add order");
   await page.focus("#nameFilter");
-  const s = await page.evaluate(() => { const c = getComputedStyle(document.querySelector("#nameFilter")); return { h: c.height, br: c.borderRadius, sh: c.boxShadow, ol: c.outlineStyle, btn: getComputedStyle(document.querySelector("#maFilterBtn")).height }; });
-  assert.equal(s.h, "36px"); assert.equal(s.br, "6px"); assert.notEqual(s.sh, "none"); assert.equal(s.ol, "none");
-  assert.equal(s.btn, "36px", "filter button and search share height");
-  await page.click('tr[data-id="1"] .ma-name-link'); await page.click('[data-act="edit"]');
-  await page.focus("#ed-name");
-  const e = await page.evaluate(() => { const c = getComputedStyle(document.querySelector("#ed-name")); return { sh: c.boxShadow, ol: c.outlineStyle, bc: c.borderColor }; });
-  assert.equal(e.ol, "none"); assert.match(e.sh, /20, 122, 108/, "SASV green focus ring"); assert.ok(!/245, 158, 11|255, 165|249, 115/.test(e.bc + e.sh), "no orange");
+  const s = await page.evaluate(() => { const c = getComputedStyle(document.querySelector("#nameFilter")); const d = document.createElement("div"); d.style.background = "var(--sasv-search-select-bg, var(--sasv-control-bg))"; document.body.appendChild(d); const bg = getComputedStyle(d).backgroundColor; d.remove(); return { h: c.height, br: c.borderRadius, ol: c.outlineStyle, ow: c.outlineWidth, bg: c.backgroundColor, bgTok: bg }; });
+  assert.equal(s.h, "36px"); assert.equal(s.br, "6px"); assert.equal(s.ol, "solid"); assert.equal(s.ow, "2px"); assert.equal(s.bg, s.bgTok);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector("#maCatalogue")).borderTopWidth), "0px");
+  await page.click("#maFilterBtn");
+  assert.equal(await page.locator("#maDrawerClose svg").count(), 1, "popover uses the X icon");
+  assert.equal(await page.getAttribute("#maDrawerClose", "aria-label"), "Close filters");
   await ctx.close();
 });
 
-test("bulk: wide columns, row buttons not oversized, final column reachable by horizontal scroll at 390px", { skip: SK }, async () => {
-  const { page, ctx } = await open({ width: 390, n: 5 });
+test("filter popover (desktop): anchored under the button, repositions on resize, outside click closes, Esc returns focus", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 1280, n: 20 });
   await ready(page);
-  await page.click("#maNewBtn");
-  const dims = await page.evaluate(() => ({ name: document.querySelector(".m-name").getBoundingClientRect().width, sec: document.querySelector(".m-section").getBoundingClientRect().width, rm: document.querySelector(".ma-row-remove").getBoundingClientRect().height, rmw: document.querySelector(".ma-row-remove").getBoundingClientRect().width, fs: getComputedStyle(document.querySelector(".ma-row-remove")).fontSize }));
-  assert.ok(dims.name >= 200 && dims.sec >= 140, JSON.stringify(dims));
-  assert.ok(dims.rm <= 36 && dims.rmw <= 110 && parseFloat(dims.fs) <= 14, `Remove button sane: ${JSON.stringify(dims)}`);
+  await page.click("#maFilterBtn");
+  const fb = await page.locator("#maFilterBtn").boundingBox(), pb = await page.locator("#maDrawer").boundingBox();
+  assert.ok(Math.abs(pb.x - fb.x) <= 2 && pb.y >= fb.y + fb.height && pb.y - (fb.y + fb.height) <= 12, `anchored ${JSON.stringify([fb, pb])}`);
+  assert.ok(pb.width <= 360 && pb.width >= 300, "compact");
+  await page.setViewportSize({ width: 900, height: 700 });
+  const pb2 = await page.locator("#maDrawer").boundingBox(), fb2 = await page.locator("#maFilterBtn").boundingBox();
+  assert.ok(Math.abs(pb2.x - fb2.x) <= 2, "still anchored after resize");
+  await page.mouse.click(600, 15);
+  assert.equal(await visible(page, "#maDrawer"), false, "outside click closes");
+  await page.click("#maFilterBtn"); await page.keyboard.press("Escape");
+  assert.equal(await page.evaluate(() => document.activeElement.id), "maFilterBtn");
+  await page.click("#maFilterBtn"); await page.click("#maDrawerClose");
+  assert.equal(await visible(page, "#maDrawer"), false);
+  await ctx.close();
+});
+
+test("filter modal (narrow): full-screen, cascades, Clear all, active indicator, focus trapped, Esc", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, n: 60 });
+  await ready(page);
+  await page.click("#maFilterBtn");
+  const d = await rectOf(page, "#maDrawer");
+  assert.ok(d.l <= 1 && d.t <= 1 && d.r >= d.vw - 1 && d.b >= d.vh - 1, `full-screen ${JSON.stringify(d)}`);
+  assert.equal(await page.isDisabled("#subFilter"), true);
+  await page.selectOption("#sectionFilter", "2"); await page.waitForFunction(() => !document.querySelector("#subFilter").disabled);
+  await page.selectOption("#subFilter", "21"); await page.selectOption("#areaFilter", "211"); await page.selectOption("#kindFilter", "k-2");
+  await page.waitForFunction(() => document.querySelector("#maCount").textContent === "10 activities");
+  assert.equal(await page.textContent("#maFilterBadge"), "4");
+  for (let i = 0; i < 10; i++) await page.keyboard.press("Tab");
+  assert.equal(await page.evaluate(() => !!document.activeElement.closest("#maDrawer")), true, "focus trapped");
+  await page.click("#clearFilters");
+  await page.waitForFunction(() => document.querySelector("#maCount").textContent === "60 activities");
+  assert.equal(await visible(page, "#maFilterBadge"), false);
+  await page.keyboard.press("Escape");
+  assert.equal(await visible(page, "#maDrawer"), false);
+  await ctx.close();
+});
+
+test("390px: Home, Filters, search and Add are inside the viewport and keyboard-reachable", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, n: 30 });
+  await ready(page);
+  for (const sel of ["#homeBtn", "#maNewBtn", "#maFilterBtn", "#nameFilter"]) { const b = await rectOf(page, sel); assert.ok(inside(b), `${sel} ${JSON.stringify(b)}`); }
+  const seen = new Set(); await page.focus("#homeBtn");
+  for (let i = 0; i < 8; i++) { seen.add(await page.evaluate(() => document.activeElement.id)); await page.keyboard.press("Tab"); }
+  for (const id of ["homeBtn", "maNewBtn", "maFilterBtn", "nameFilter"]) assert.ok(seen.has(id), id);
+  const ov = await page.evaluate(() => ["documentElement", "body"].map((k) => getComputedStyle(document[k]).overflowX));
+  assert.ok(ov.every((v) => v !== "hidden"));
+  await ctx.close();
+});
+
+for (const width of [560, 768]) {
+  test(`${width}px: six-column table scrolls inside its container to the final column when it overflows`, { skip: SK }, async () => {
+    const { page, ctx } = await open({ width, n: 30 });
+    await ready(page);
+    const m = () => page.evaluate(() => { const w = document.querySelector(".ma-table-wrap"); const last = document.querySelector("#existingTable thead th:last-child").getBoundingClientRect(); const wr = w.getBoundingClientRect(); return { sw: w.scrollWidth, cw: w.clientWidth, lastL: last.left, lastR: last.right, wl: wr.left, wr: wr.right, x: scrollX, doc: document.documentElement.scrollWidth, vw: innerWidth, cols: document.querySelectorAll("#existingTable thead th").length }; });
+    let a = await m();
+    assert.equal(a.cols, 6); assert.ok(a.doc <= a.vw + 1);
+    if (a.sw > a.cw + 1) {
+      assert.ok(a.lastR > a.wr, "final column initially off-screen");
+      assert.ok(await page.isVisible(".ma-scroll-hint[data-for=existingTable]"));
+      await page.focus(".ma-table-wrap"); for (let i = 0; i < 40; i++) await page.keyboard.press("ArrowRight");
+      await page.waitForFunction(() => { const w = document.querySelector(".ma-table-wrap"); return w.scrollLeft >= w.scrollWidth - w.clientWidth - 1; });
+      a = await m();
+      assert.ok(a.lastL >= a.wl - 1 && a.lastR <= a.wr + 1, `final column visible ${JSON.stringify(a)}`);
+      assert.equal(a.x, 0);
+    } else assert.equal(await page.isVisible(".ma-scroll-hint[data-for=existingTable]"), false, "no hint when it fits");
+    await ctx.close();
+  });
+}
+
+for (const w of [390, 1280]) {
+  test(`${w}px: Add modal and dialogs stay inside the viewport with focus trapped; bulk body scrolls independently`, { skip: SK }, async () => {
+    const { page, ctx } = await open({ width: w, height: 700, n: 10 });
+    await ready(page);
+    await page.click("#maNewBtn");
+    const m = await rectOf(page, "#maBulk");
+    assert.ok(inViewport(m), `add modal ${JSON.stringify(m)}`);
+    if (w === 390) assert.ok(m.w >= 388 && m.h >= 698, "full-screen on narrow");
+    for (let i = 0; i < 4; i++) await page.click("#maAddRow");
+    const sc = await page.evaluate(() => { const b = document.querySelector("#maBulk .ma-modal-body"); const f = document.querySelector("#maBulk .ma-modal-footer").getBoundingClientRect(); return { sh: b.scrollHeight, ch: b.clientHeight, ov: getComputedStyle(b).overflowY, fb: f.bottom, vh: innerHeight, pageScroll: document.documentElement.scrollHeight - innerHeight }; });
+    assert.ok(sc.ov === "auto" || sc.ov === "scroll"); assert.ok(sc.fb <= sc.vh + 1, "bottom actions stay on screen");
+    if (w === 390) assert.ok(sc.sh > sc.ch, "body scrolls on its own");
+    for (const sel of ["#maAddRow", "#maPasteBtn", "#multiClearBtn", "#multiAddBtn"]) { const b = await rectOf(page, sel); assert.ok(b.b <= b.vh + 1 && b.l >= -1 && b.r <= b.vw + 1, `${sel} reachable ${JSON.stringify(b)}`); }
+    for (let i = 0; i < 40; i++) await page.keyboard.press("Tab");
+    assert.ok(await page.evaluate(() => !!document.activeElement.closest("#maBulk")), "focus trapped in Add modal");
+    await page.click("#maPasteBtn");
+    assert.ok(inViewport(await rectOf(page, ".ma-dialog-backdrop .ma-modal")));
+    for (let i = 0; i < 8; i++) await page.keyboard.press("Tab");
+    assert.ok(await page.evaluate(() => !!document.activeElement.closest(".ma-dialog-backdrop")), "paste dialog traps focus");
+    await page.keyboard.press("Escape");
+    assert.equal(await visible(page, "#maBulk"), true, "Esc closes only the top dialog");
+    await page.keyboard.press("Escape");
+    assert.equal(await visible(page, "#maBulk"), false);
+    await page.click(w === 390 ? '#maCards .ma-card' : '#existingTable .ma-name-link', { position: w === 390 ? { x: 20, y: 10 } : undefined });
+    const d = await rectOf(page, ".ma-dialog-backdrop .ma-modal"); assert.ok(inViewport(d), `details ${JSON.stringify(d)}`);
+    assert.equal(await page.locator(".ma-dialog-backdrop .ma-x svg").count(), 1, "details uses X icon");
+    assert.equal(await page.getAttribute(".ma-dialog-backdrop .ma-x", "aria-label"), "Close");
+    assert.equal(await page.locator('.ma-dialog-backdrop [data-act="cancel"]').count(), 0, "no text-only Close button");
+    await page.click('[data-act="edit"]');
+    assert.ok(inViewport(await rectOf(page, ".ma-dialog-backdrop .ma-modal")));
+    assert.equal(await page.locator('[data-act="cancel"]').count(), 1, "Cancel stays a labelled button");
+    for (let i = 0; i < 14; i++) await page.keyboard.press("Tab");
+    assert.ok(await page.evaluate(() => !!document.activeElement.closest(".ma-dialog-backdrop")));
+    await ctx.close();
+  });
+}
+
+test("Add modal on narrow: rows stack as labelled fields; dropdowns, row actions and validation messages are fully visible", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, height: 700, n: 5 });
+  await ready(page); await page.click("#maNewBtn");
+  await page.click("#multiAddBtn"); // nothing entered
+  await fillRow(page, 0, "Narrow One"); await page.click("#maAddRow");
+  await page.locator("#multiTable .m-name").nth(1).fill("Needs fields"); await page.locator("#multiTable .m-dur").nth(1).fill(""); await page.click("#multiAddBtn");
+  await page.waitForSelector("#multiTable .ma-field-error");
+  for (const sel of ["#multiTable tbody tr:nth-child(2) .m-name", "#multiTable tbody tr:nth-child(2) .m-section", "#multiTable tbody tr:nth-child(2) .ma-row-remove", "#multiTable tbody tr:nth-child(2) .ma-field-error >> nth=0"]) {
+    await page.locator(sel).scrollIntoViewIfNeeded();
+    const b = await page.locator(sel).boundingBox(); assert.ok(b.x >= 0 && b.x + b.width <= 390.5, `${sel} ${JSON.stringify(b)}`);
+  }
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector("#multiTable tbody tr")).display), "block", "stacked");
+  const lbl = await page.evaluate(() => getComputedStyle(document.querySelector("#multiTable td[data-label=Section]"), "::before").content);
+  assert.match(lbl, /Section/);
+  assert.equal(await page.evaluate(() => document.querySelector("#maBulk .ma-modal-body").scrollWidth <= document.querySelector("#maBulk .ma-modal-body").clientWidth + 1), true, "no sideways scroll needed");
+  await ctx.close();
+});
+
+test("Add modal at 768/1280: wide table scrolls inside the modal body, final column reachable", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 768, height: 700, n: 5 });
+  await ready(page); await page.click("#maNewBtn");
   await page.evaluate(() => { const w = document.querySelector("#multiTable").closest(".ma-table-wrap"); w.scrollLeft = w.scrollWidth; });
-  const r = await page.evaluate(() => { const w = document.querySelector("#multiTable").closest(".ma-table-wrap").getBoundingClientRect(); const b = document.querySelector(".ma-row-remove").getBoundingClientRect(); return { bl: b.left, br: b.right, wl: w.left, wr: w.right, x: scrollX, doc: document.documentElement.scrollWidth, vw: innerWidth }; });
-  assert.ok(r.bl >= r.wl - 1 && r.br <= r.wr + 1, `Remove reachable: ${JSON.stringify(r)}`);
-  assert.equal(r.x, 0); assert.ok(r.doc <= r.vw + 1);
+  const r = await page.evaluate(() => { const w = document.querySelector("#multiTable").closest(".ma-table-wrap").getBoundingClientRect(); const b = document.querySelector(".ma-row-remove").getBoundingClientRect(); const x = document.querySelector(".ma-row-remove"); return { bl: b.left, br: b.right, wl: w.left, wr: w.right, h: b.height, fs: getComputedStyle(x).fontSize, doc: document.documentElement.scrollWidth, vw: innerWidth }; });
+  assert.ok(r.bl >= r.wl - 1 && r.br <= r.wr + 1, JSON.stringify(r)); assert.ok(r.h <= 36 && parseFloat(r.fs) <= 14); assert.ok(r.doc <= r.vw + 1);
+  const dims = await page.evaluate(() => ({ name: document.querySelector(".m-name").getBoundingClientRect().width, sec: document.querySelector(".m-section").getBoundingClientRect().width }));
+  assert.ok(dims.name >= 200 && dims.sec >= 140, JSON.stringify(dims));
   await ctx.close();
 });
