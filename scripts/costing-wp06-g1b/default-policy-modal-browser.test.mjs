@@ -54,8 +54,12 @@ export function createClient() {
       let data = [];
       if (name === "get_user_permissions") data = ["module:costing-control-center","module:material-cost-manager","module:cost-build-manager","module:pricing-policy-manager","module:cost-sheet-review","module:production-route-manager"].map((target) => ({ target, can_view: true, can_edit: window.__canEdit === true }));
       else if (window.__h[name]) data = window.__h[name](args ?? {});
-      const finish = (d) => (d && d.__error ? { data: null, error: { message: d.__error } } : { data: d, error: null });
-      const gate = name === "rpc_set_sales_allocation_default_policies_scoped" ? window.__saveGate : null;
+      const finish = (d) => {
+        if (name === "rpc_set_sales_allocation_default_policies_scoped" && window.__saveError) return { data: null, error: { message: window.__saveError } }; // decided when the answer arrives
+        return d && d.__error ? { data: null, error: { message: d.__error } } : { data: d, error: null };
+      };
+      const previewHold = name === "rpc_preview_sales_allocation_default_policy_scope" ? (window.__previewQueue || []).shift() : null;
+      const gate = name === "rpc_set_sales_allocation_default_policies_scoped" ? window.__saveGate : (previewHold || null);
       const p = gate ? gate.then(() => finish(data)) : Promise.resolve(finish(data));
       const q = { then: (a, b) => p.then(a, b), catch: (b) => p.catch(b), range: () => q, select: () => q, single: () => q, maybeSingle: () => q };
       return q;
@@ -351,25 +355,172 @@ test("only the documented RPC families are used in these flows: reads, one previ
   await context.close();
 });
 
-test("CHARACTERISATION F-7 (pins today's behaviour; flip when fixed): closing the revise modal while its save is pending clears the in-flight flag, so a second save can be sent for the same target", async (t) => {
+// ---- F-7 (fixed): pending-write persistence and stale-session handling of the default-policy revise modal ----------
+const previewCount = (page) => page.evaluate(() => window.__mock.rpc.filter((c) => c.name === "rpc_preview_sales_allocation_default_policy_scope").length);
+async function typeValid(page, { units, from = "2026-11-01", reason = "Owner approved revision" }) {
+  const before = await previewCount(page);
+  await page.fill("#csaDefaultPolicyUnits", units);
+  await page.fill("#csaDefaultPolicyEffectiveFrom", from);
+  await page.fill("#csaDefaultPolicyReason", reason);
+  await page.waitForFunction((n) => window.__mock.rpc.filter((c) => c.name === "rpc_preview_sales_allocation_default_policy_scope").length > n, before, { timeout: 4000 });
+  await page.waitForTimeout(200);
+}
+const holdNextSave = (page) => page.evaluate(() => { window.__saveGate = new Promise((r) => { window.__releaseSave = r; }); });
+const saveCalls = (page) => rpcs(page, SAVE);
+async function startPendingCompanySave(page, units = "40") {
+  await openHub(page);
+  await revise(page, "company", "NEW_SKU_EXISTING_PRODUCT");
+  await typeValid(page, { units });
+  await holdNextSave(page);
+  await page.click("#csaDefaultPolicySaveBtn");
+  await page.waitForFunction(() => window.__mock.rpc.some((c) => c.name === "rpc_set_sales_allocation_default_policies_scoped"));
+}
+
+test("F-7 pending save + close + reopen the SAME target: Save stays disabled even with a valid preview, a forced click sends nothing, and exactly one write exists", async (t) => {
+  const e = await getEnv(t); if (!e) return;
+  const { context, page } = await open(e);
+  await startPendingCompanySave(page);
+  await page.click("#csaDefaultPolicyCancelBtn");
+  await revise(page, "company", "NEW_SKU_EXISTING_PRODUCT");
+  await typeValid(page, { units: "41" });
+  assert.equal(await page.locator("#csaDefaultPolicySaveBtn").isDisabled(), true, "valid preview but a write is still pending");
+  await page.evaluate(() => document.getElementById("csaDefaultPolicySaveBtn").click());   // forced click on a disabled button
+  await page.evaluate(() => { const b = document.getElementById("csaDefaultPolicySaveBtn"); b.disabled = false; b.click(); }); // even if the button were enabled by other code
+  await page.waitForTimeout(400);
+  assert.equal((await saveCalls(page)).length, 1, "the in-flight guard, not only the button state, blocks the second write");
+  await page.evaluate(() => window.__releaseSave());
+  await context.close();
+});
+
+test("F-7 pending save + close + open a DIFFERENT target: its Save is disabled; when the first write succeeds the NEWER modal is left open, untouched and error-free, and its Save is enabled again (valid preview)", async (t) => {
+  const e = await getEnv(t); if (!e) return;
+  const { context, page } = await open(e);
+  await startPendingCompanySave(page);
+  await page.click("#csaDefaultPolicyCancelBtn");
+  await revise(page, "regional", "NO_POSITIVE_REGIONAL_HISTORY", "OK");
+  await typeValid(page, { units: "18", reason: "typed for the OK region" });
+  assert.equal(await page.locator("#csaDefaultPolicySaveBtn").isDisabled(), true);
+  const readsBefore = (await rpcs(page, "rpc_get_sales_allocation_default_policies")).length;
+  await page.evaluate(() => window.__releaseSave());
+  await page.waitForTimeout(600);
+  assert.equal(await page.locator("#csaDefaultPolicyModal:not(.hidden)").count(), 1, "the newer modal was not closed by the old completion");
+  assert.equal(await page.locator("#csaDefaultPolicyUnits").inputValue(), "18");
+  assert.equal(await page.locator("#csaDefaultPolicyReason").inputValue(), "typed for the OK region");
+  assert.match(await page.locator("#csaDefaultPolicyTitle").innerText(), /Outside Kerala \(OK\)/);
+  assert.equal((await page.locator("#csaDefaultPolicyError").innerText()).trim(), "");
+  assert.match(await page.locator("#csaDefaultPolicyImpactPreview").innerText(), /Impact preview/, "newer preview kept");
+  assert.equal(await page.locator("#csaDefaultPolicySaveBtn").isDisabled(), false, "controls restored for the current session after completion");
+  assert.ok((await rpcs(page, "rpc_get_sales_allocation_default_policies")).length > readsBefore, "policy data is still re-read after the successful write");
+  assert.equal((await saveCalls(page)).length, 1);
+  await page.click("#csaDefaultPolicySaveBtn");
+  await page.waitForSelector("#csaDefaultPolicyModal.hidden", { state: "attached" });
+  const saves = await saveCalls(page);
+  assert.equal(saves.length, 2);
+  assert.equal(saves[1].args.p_anchor_kind, "REGIONAL");
+  assert.equal(saves[1].args.p_region_code, "OK");
+  assert.equal(saves[1].args.p_default_sales_units, 18);
+  await context.close();
+});
+
+test("F-7 late FAILURE of the old write is never shown inside the newer modal; the newer session recovers and can save", async (t) => {
+  const e = await getEnv(t); if (!e) return;
+  const { context, page } = await open(e);
+  await startPendingCompanySave(page);
+  await page.click("#csaDefaultPolicyCancelBtn");
+  await revise(page, "company", "NEW_PRODUCT_NO_HISTORY");
+  await typeValid(page, { units: "33" });
+  await page.evaluate(() => { window.__saveError = "approval_reference required by policy"; window.__releaseSave(); });
+  await page.waitForTimeout(600);
+  assert.equal((await page.locator("#csaDefaultPolicyError").innerText()).trim(), "", "no stale error text in the newer modal");
+  assert.equal(await page.locator("#csaDefaultPolicyModal:not(.hidden)").count(), 1);
+  assert.equal(await page.locator("#csaDefaultPolicyUnits").inputValue(), "33");
+  assert.equal(await page.locator("#csaDefaultPolicySaveBtn").isDisabled(), false, "flag cleared by the failed request, Save usable");
+  await page.evaluate(() => { window.__saveError = null; window.__saveGate = null; });
+  await page.click("#csaDefaultPolicySaveBtn");
+  await page.waitForSelector("#csaDefaultPolicyModal.hidden", { state: "attached" });
+  const saves = await saveCalls(page);
+  assert.equal(saves.length, 2);
+  assert.equal(saves[1].args.p_scenario_code, "NEW_PRODUCT_NO_HISTORY");
+  await context.close();
+});
+
+test("F-7 pending save + close (no reopen): completion closes nothing else, re-reads policies, leaves the hub usable and a later modal starts clean", async (t) => {
+  const e = await getEnv(t); if (!e) return;
+  const { context, page } = await open(e);
+  await startPendingCompanySave(page);
+  await page.click("#csaDefaultPolicyCancelBtn");
+  await page.evaluate(() => window.__releaseSave());
+  await page.waitForTimeout(500);
+  assert.equal(await page.locator("#csaDefaultsHubModal.hidden").count(), 0, "hub stays open");
+  await revise(page, "company", "NEW_SKU_EXISTING_PRODUCT");
+  assert.equal(await page.locator("#csaDefaultPolicyUnits").inputValue(), "");
+  assert.equal(await page.locator("#csaDefaultPolicySaveBtn").isDisabled(), true, "no preview yet");
+  await typeValid(page, { units: "42" });
+  assert.equal(await page.locator("#csaDefaultPolicySaveBtn").isDisabled(), false, "write settled, new session can save");
+  await context.close();
+});
+
+test("F-7 a preview answer that belongs to a CLOSED session is not rendered into the newer modal", async (t) => {
   const e = await getEnv(t); if (!e) return;
   const { context, page } = await open(e);
   await openHub(page);
   await revise(page, "company", "NEW_SKU_EXISTING_PRODUCT");
-  await fillAndPreview(page);
-  await page.evaluate(() => { window.__saveGate = new Promise((r) => { window.__releaseSave = r; }); });
-  await page.click("#csaDefaultPolicySaveBtn");
-  await page.waitForFunction(() => window.__mock.rpc.some((c) => c.name === "rpc_set_sales_allocation_default_policies_scoped"));
-  await page.click("#csaDefaultPolicyCancelBtn");            // user closes while the first write is still pending
-  await revise(page, "company", "NEW_SKU_EXISTING_PRODUCT");
-  await fillAndPreview(page, { units: "41" });
-  await page.waitForTimeout(300);
-  await page.click("#csaDefaultPolicySaveBtn");
+  await page.evaluate(() => { window.__previewQueue = [new Promise((r) => { window.__releaseStalePreview = r; })]; });
+  const before = await previewCount(page);
+  await page.fill("#csaDefaultPolicyUnits", "77");
+  await page.fill("#csaDefaultPolicyEffectiveFrom", "2026-11-01");
+  await page.waitForFunction((n) => window.__mock.rpc.filter((c) => c.name === "rpc_preview_sales_allocation_default_policy_scope").length > n, before);
+  await page.click("#csaDefaultPolicyCancelBtn");                      // close while that preview is still pending
+  await revise(page, "regional", "NO_POSITIVE_REGIONAL_HISTORY", "IK");
+  assert.equal(await page.locator("#csaDefaultPolicyImpactPreview").isHidden(), true);
+  await page.evaluate(() => window.__releaseStalePreview());
   await page.waitForTimeout(500);
-  const saves = await rpcs(page, SAVE);
-  assert.equal(saves.length, 2, "today: two writes are in flight (finding F-7; a fix must make this 1)");
-  assert.notEqual(saves[0].args.p_default_sales_units, saves[1].args.p_default_sales_units);
-  await page.evaluate(() => window.__releaseSave());
+  assert.equal(await page.locator("#csaDefaultPolicyImpactPreview").isHidden(), true, "stale preview (company, 77 units) is not shown in the IK modal");
+  assert.equal(await page.locator("#csaDefaultPolicySaveBtn").isDisabled(), true, "stale commit_allowed must not enable Save");
+  await typeValid(page, { units: "9" });
+  const shown = await page.locator("#csaDefaultPolicyImpactPreview").innerText();
+  assert.match(shown, /Inside Kerala|IK/);
+  assert.doesNotMatch(shown, /\b77\b/);
+  await context.close();
+});
+
+test("F-7 save that is waiting for its commit-time preview: if the user leaves the session meanwhile, NO write is sent for the old target", async (t) => {
+  const e = await getEnv(t); if (!e) return;
+  const { context, page } = await open(e);
+  await openHub(page);
+  await revise(page, "company", "NEW_SKU_EXISTING_PRODUCT");
+  await typeValid(page, { units: "40" });
+  await page.evaluate(() => { window.__previewQueue = [new Promise((r) => { window.__releaseCommitPreview = r; })]; });
+  await page.click("#csaDefaultPolicySaveBtn");                         // save -> waits for the commit-time re-preview
+  await page.waitForTimeout(300);
+  await page.click("#csaDefaultPolicyCancelBtn");
+  await revise(page, "company", "NEW_PRODUCT_NO_HISTORY");
+  await typeValid(page, { units: "55" });                                // the newer session has a valid, commit_allowed preview
+  await page.evaluate(() => window.__releaseCommitPreview());
+  await page.waitForTimeout(600);
+  assert.equal((await saveCalls(page)).length, 0, "the abandoned save must not fire (it would write the OLD target on the NEW session's preview)");
+  assert.equal(await page.locator("#csaDefaultPolicyModal:not(.hidden)").count(), 1, "newer modal untouched");
+  assert.equal(await page.locator("#csaDefaultPolicyUnits").inputValue(), "55");
+  await context.close();
+});
+
+test("F-7 unchanged: ordinary same-session save, error, retry and double click still behave as before (payload, closing, controls)", async (t) => {
+  const e = await getEnv(t); if (!e) return;
+  const { context, page } = await open(e);
+  await openHub(page);
+  await revise(page, "company", "NEW_SKU_EXISTING_PRODUCT");
+  await typeValid(page, { units: "40" });
+  await page.evaluate(() => { window.__saveError = "approval_reference required by policy"; });
+  await page.click("#csaDefaultPolicySaveBtn");
+  await page.waitForFunction(() => document.getElementById("csaDefaultPolicyError")?.textContent?.includes("approval_reference required"));
+  assert.equal(await page.locator("#csaDefaultPolicySaveBtn").isDisabled(), false);
+  assert.equal(await page.locator("#csaDefaultPolicyModal:not(.hidden)").count(), 1);
+  await page.evaluate(() => { window.__saveError = null; });
+  await page.click("#csaDefaultPolicySaveBtn");
+  await page.waitForSelector("#csaDefaultPolicyModal.hidden", { state: "attached" });
+  const saves = await saveCalls(page);
+  assert.equal(saves.length, 2);
+  assert.deepEqual(saves[1].args, { p_anchor_kind: "COMPANY", p_scenario_code: "NEW_SKU_EXISTING_PRODUCT", p_region_code: null, p_scope: "THIS_POLICY", p_default_sales_units: 40, p_effective_from: "2026-11-01", p_reason: "Owner approved revision", p_approval_reference: null });
   await context.close();
 });
 
