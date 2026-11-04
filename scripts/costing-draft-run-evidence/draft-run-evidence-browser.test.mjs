@@ -287,3 +287,79 @@ for (const width of [360, 1280]) {
     await context.close();
   });
 }
+
+test("close -> reopen the SAME SKU while a request is in flight: the old answer never appears; the reopened drawer is a clean session", async (t) => {
+  const e = await getEnv(t); if (!e) return;
+  const { context, page, errors } = await open(e);
+  await pickDraft(page);
+  await openRow(page, "Product 11");
+  await page.evaluate(async () => {
+    const m = await import("/shared/js/costing-draft-run-evidence.js");
+    window.__calls = []; window.__releases = [];
+    m.setDraftRunEvidenceProvider({ readSkuEvidence: (req) => { window.__calls.push(req); const n = window.__calls.length; return new Promise((r) => { window.__releases.push(() => r({ status: "ok", record: { period_start: req.periodStart, refresh_run_id: Number(req.runId), sku_id: Number(req.skuId), direct_labour_allocation_status: "REVIEW_REQUIRED", allocation_reason_code: `SESSION_${n}_MARKER` } })); }); } });
+  });
+  await reopen(page, "Product 11");
+  await expandAndLoad(page);
+  await page.waitForSelector('[data-cde-state="loading"]');
+  await closeDrawer(page);                    // close while the request is in flight
+  await openRow(page, "Product 11");          // reopen the very same SKU (same period/run/sku identity)
+  assert.equal(await page.locator("[data-cde-section]").getAttribute("data-cde-state"), "not-requested", "clean session");
+  await page.evaluate(() => window.__releases[0]()); // the old session's answer arrives now
+  await page.waitForTimeout(400);
+  assert.equal(await page.locator("[data-cde-section]").getAttribute("data-cde-state"), "not-requested", "old answer discarded");
+  assert.doesNotMatch(await page.locator("#drawerContent").innerText(), /SESSION_1_MARKER/);
+  // a deliberate load in the new session shows only the new answer
+  await expandAndLoad(page);
+  await page.waitForSelector('[data-cde-state="loading"]');
+  await page.evaluate(() => window.__releases[1]());
+  await page.waitForSelector('[data-cde-state="ok"]');
+  const text = await page.locator("#drawerContent").innerText();
+  assert.match(text, /SESSION_2_MARKER/);
+  assert.doesNotMatch(text, /SESSION_1_MARKER/);
+  assert.equal(await page.evaluate(() => window.__calls.length), 2);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test("close -> reopen after a resolved answer: cached evidence is not carried into the new drawer session; no automatic re-request", async (t) => {
+  const e = await getEnv(t); if (!e) return;
+  const { context, page } = await open(e);
+  await pickDraft(page);
+  await openRow(page, "Product 11");
+  await setProvider(page, `return Promise.resolve({ status: "ok", record: { period_start: req.periodStart, refresh_run_id: Number(req.runId), sku_id: Number(req.skuId), direct_labour_allocation_status: "REVIEW_REQUIRED", allocation_reason_code: "RESOLVED_MARKER" } });`);
+  await reopen(page, "Product 11");
+  await expandAndLoad(page);
+  await page.waitForSelector('[data-cde-state="ok"]');
+  assert.match(await page.locator("#drawerContent").innerText(), /RESOLVED_MARKER/);
+  await reopen(page, "Product 11");
+  assert.equal(await page.locator("[data-cde-section]").getAttribute("data-cde-state"), "not-requested");
+  assert.doesNotMatch(await page.locator("#drawerContent").innerText(), /RESOLVED_MARKER/);
+  assert.equal(await page.evaluate(() => window.__calls.length), 1, "no automatic re-request");
+  await context.close();
+});
+
+test("switching drawer tabs inside the same open drawer keeps the in-flight session and its result", async (t) => {
+  const e = await getEnv(t); if (!e) return;
+  const { context, page } = await open(e);
+  await pickDraft(page);
+  await openRow(page, "Product 11");
+  await page.evaluate(async () => {
+    const m = await import("/shared/js/costing-draft-run-evidence.js");
+    window.__calls = []; window.__release = null;
+    m.setDraftRunEvidenceProvider({ readSkuEvidence: (req) => { window.__calls.push(req); return new Promise((r) => { window.__release = () => r({ status: "ok", record: { period_start: req.periodStart, refresh_run_id: Number(req.runId), sku_id: Number(req.skuId), direct_labour_allocation_status: "REVIEW_REQUIRED", allocation_reason_code: "TAB_MARKER" } }); }); } });
+  });
+  await reopen(page, "Product 11");
+  await expandAndLoad(page);
+  await page.waitForSelector('[data-cde-state="loading"]');
+  const tabs = page.locator("#drawerTabs .tab");
+  if ((await tabs.count()) > 1) {
+    await tabs.nth(1).click();
+    await page.waitForTimeout(300);
+    await tabs.nth(0).click();
+    await page.waitForTimeout(300);
+  }
+  await page.evaluate(() => window.__release());
+  await page.waitForSelector('[data-cde-state="ok"]');
+  assert.match(await page.locator("#drawerContent").innerText(), /TAB_MARKER/);
+  await context.close();
+});

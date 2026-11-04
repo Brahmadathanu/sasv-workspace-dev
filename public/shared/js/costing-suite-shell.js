@@ -7925,6 +7925,7 @@ function openDetails(row, preferredTab) {
   ) {
     DETAILS_RETURN_FOCUS = searchBox;
   }
+  DRAFT_RUN_EVIDENCE_LOADER?.reset(); // CDE-1a: a newly opened drawer is a new evidence session
   SELECTED_ROW = row;
   if (!detailsModal) return;
   const title = $("drawerTitle");
@@ -8089,6 +8090,7 @@ function closeDetails() {
   }
 
   SELECTED_ROW = null;
+  DRAFT_RUN_EVIDENCE_LOADER?.reset(); // CDE-1a: closing the drawer ends the evidence session
   detailsModal.classList.add("hidden");
   detailsModal.setAttribute("aria-hidden", "true");
 

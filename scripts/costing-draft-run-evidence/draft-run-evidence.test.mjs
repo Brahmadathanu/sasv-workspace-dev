@@ -403,3 +403,111 @@ test("no new tab, module, route or HTML: costing html files, registry, route con
     .concat(execFileSync("git", ["ls-files", "--others", "--exclude-standard"], { encoding: "utf8", cwd: root }).split("\n").filter(Boolean));
   assert.deepEqual(names.filter((f) => /\.html$|sw\.js$|package(-lock)?\.json$|^supabase\/|^sql\/|costing-suite-registry|costing-route-config|costing-feature-flags|costing-review-worklist\.js|costing-status-labels/.test(f)), []);
 });
+
+// ---- drawer lifecycle (review of PR #149): close/reopen of the SAME SKU must start a new evidence session ----------
+test("close -> reopen of the same SKU before the answer arrives: the old answer is discarded (identity alone is not a session)", async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const p = provider(() => ({ status: "ok", record: { ...FIX.labourBasisOk, allocation_reason_code: "OLD_SESSION_MARKER" } }), { delay: () => gate });
+  const request = reqOf(FIX.labourBasisOk);
+  const h = loaderWith(p, { context: CONTEXT, row: rowFor(FIX.labourBasisOk) });
+  const pending = h.loader.load(request);
+  assert.equal(h.loader.stateFor(request).status, S.LOADING);
+  h.setCurrent(null);                 // drawer closes (SELECTED_ROW = null)
+  h.loader.reset();                   // shell: closeDetails -> session ends
+  h.setCurrent({ context: CONTEXT, row: rowFor(FIX.labourBasisOk) }); // reopened for the very same period/run/SKU
+  assert.equal(h.loader.stateFor(request).status, S.NOT_REQUESTED, "reopened drawer starts clean");
+  release();
+  await pending;
+  assert.equal(h.loader.stateFor(request).status, S.NOT_REQUESTED, "old answer not shown although identity matches again");
+  assert.ok(!h.changes.some(([, st]) => st === S.OK), "no ok notification for the old session");
+  assert.equal(p.calls.length, 1);
+});
+
+test("without the session reset the same race WOULD show the old answer (guards the test itself against being vacuous)", async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const p = provider(() => ({ status: "ok", record: FIX.labourBasisOk }), { delay: () => gate });
+  const request = reqOf(FIX.labourBasisOk);
+  const h = loaderWith(p, { context: CONTEXT, row: rowFor(FIX.labourBasisOk) });
+  const pending = h.loader.load(request);
+  h.setCurrent(null);
+  h.setCurrent({ context: CONTEXT, row: rowFor(FIX.labourBasisOk) }); // reopen, but NO reset()
+  release();
+  await pending;
+  assert.equal(h.loader.stateFor(request).status, S.OK, "identity-only validation cannot tell sessions apart; the reset is what protects");
+});
+
+test("close -> reopen with an already resolved answer: cached state is cleared; a fresh explicit load is required", async () => {
+  const p = provider(() => ({ status: "ok", record: FIX.labourBasisOk }));
+  const request = reqOf(FIX.labourBasisOk);
+  const h = loaderWith(p, { context: CONTEXT, row: rowFor(FIX.labourBasisOk) });
+  await h.loader.load(request);
+  assert.equal(h.loader.stateFor(request).status, S.OK);
+  h.loader.reset(); // drawer closed
+  assert.equal(h.loader.stateFor(request).status, S.NOT_REQUESTED);
+  assert.equal(p.calls.length, 1, "no automatic re-request");
+  await h.loader.load(request);
+  assert.equal(h.loader.stateFor(request).status, S.OK);
+  assert.equal(p.calls.length, 2);
+});
+
+test("reset during flight then a NEW load of the same key: only the new answer is applied", async () => {
+  const gates = [];
+  const p = provider((req) => ({ status: "ok", record: { ...FIX.labourBasisOk, allocation_reason_code: `MARKER_${p.calls.length}` } }), { delay: () => new Promise((r) => gates.push(r)) });
+  const request = reqOf(FIX.labourBasisOk);
+  const h = loaderWith(p, { context: CONTEXT, row: rowFor(FIX.labourBasisOk) });
+  const first = h.loader.load(request);
+  h.loader.reset();
+  const second = h.loader.load(request);
+  gates[0](); await first;
+  assert.equal(h.loader.stateFor(request).status, S.LOADING, "old answer did not complete the new load");
+  gates[1](); await second;
+  const s = h.loader.stateFor(request);
+  assert.equal(s.status, S.OK);
+  assert.equal(s.record.allocation_reason_code, "MARKER_2");
+});
+
+test("shell lifecycle wiring: the session is reset when the drawer opens and when it closes, optional-chained so flag OFF never instantiates the loader", () => {
+  const open = SHELL.slice(SHELL.indexOf("function openDetails(row, preferredTab) {"));
+  const openHead = open.slice(0, open.indexOf('const title = $("drawerTitle");'));
+  assert.match(openHead, /  DRAFT_RUN_EVIDENCE_LOADER\?\.reset\(\);[^\n]*\n  SELECTED_ROW = row;\n  if \(!detailsModal\) return;\n/);
+  const closeIdx = SHELL.indexOf('  SELECTED_ROW = null;\n  DRAFT_RUN_EVIDENCE_LOADER?.reset();');
+  assert.ok(closeIdx > 0, "close path resets the session");
+  assert.match(SHELL.slice(closeIdx, closeIdx + 260), /DRAFT_RUN_EVIDENCE_LOADER\?\.reset\(\);[^\n]*\n  detailsModal\.classList\.add\("hidden"\);/);
+  assert.equal(SHELL.split("DRAFT_RUN_EVIDENCE_LOADER?.reset()").length - 1, 2, "exactly the open and close resets");
+  assert.equal(SHELL.split("DRAFT_RUN_EVIDENCE_LOADER ||=").length - 1, 1, "single lazy creation, only inside the gated mount");
+  assert.match(SHELL, /^let DRAFT_RUN_EVIDENCE_LOADER = null;$/m);
+});
+
+// ---- strip helper strictness (cannot over-strip) -----------------------------------------------------------------
+test("strip helper: duplicated or missing anchors, or extra code inside the block, are left in place (never over-strip)", async () => {
+  const { CDE1A_SHELL_BLOCK_SHA256 } = await import("../lib/cde1a-shell-strip.mjs");
+  assert.match(CDE1A_SHELL_BLOCK_SHA256, /^[0-9a-f]{64}$/);
+  const call = "      mountDraftRunEvidenceInDrawer();\n";
+  const resetOpen = "  DRAFT_RUN_EVIDENCE_LOADER?.reset(); // CDE-1a: a newly opened drawer is a new evidence session\n";
+  const endAnchor = "function renderReviewWorklistPanel() {";
+  const importLine = 'import { createDraftRunEvidenceLoader, mountDraftRunEvidenceSection } from "./costing-draft-run-evidence.js";\n';
+  const base = stripCde1aShell(SHELL);
+  const tampers = {
+    "duplicated call line": SHELL.replace(call, call + call),
+    "duplicated open reset": SHELL.replace(resetOpen, resetOpen + resetOpen),
+    "duplicated import": SHELL.replace(importLine, importLine + importLine),
+    "duplicated block end anchor": SHELL.replace(endAnchor, `${endAnchor}\n}\n${endAnchor}`),
+    "extra code inside block": SHELL.replace("let DRAFT_RUN_EVIDENCE_LOADER = null;", "let DRAFT_RUN_EVIDENCE_LOADER = null;\nlet SNEAKY_EXTRA = 1;"),
+    "altered code inside block": SHELL.replace("choice.kind === \"approved\") return null", "choice.kind === \"approvedX\") return null"),
+    "missing block end anchor": SHELL.replace(endAnchor, "function renderReviewWorklistPanelX() {"),
+    "extra code smuggled between block and anchor": SHELL.replace(endAnchor, `const SNEAKY = 2;\n${endAnchor}`),
+  };
+  for (const [label, text] of Object.entries(tampers)) {
+    const out = stripCde1aShell(text);
+    assert.notEqual(out, base, label);
+    assert.notEqual(out, execFileSync("git", ["show", `${BASE}:public/shared/js/costing-suite-shell.js`], { encoding: "utf8", cwd: root }).replace(/\r\n/g, "\n"), `${label}: historical comparison must still fail`);
+  }
+  assert.ok(stripCde1aShell(tampers["extra code inside block"]).includes("SNEAKY_EXTRA"), "extra code survives stripping");
+  assert.ok(stripCde1aShell(tampers["extra code smuggled between block and anchor"]).includes("SNEAKY"));
+  assert.ok(stripCde1aShell(tampers["altered code inside block"]).includes("approvedX"));
+  // neighbouring (non-CDE) shell code is never removed by a successful strip
+  const baseText = execFileSync("git", ["show", `${BASE}:public/shared/js/costing-suite-shell.js`], { encoding: "utf8", cwd: root }).replace(/\r\n/g, "\n");
+  assert.equal(stripCde1aShell(SHELL).length, baseText.length);
+});

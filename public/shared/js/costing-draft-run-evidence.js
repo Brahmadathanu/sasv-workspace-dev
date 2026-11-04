@@ -117,6 +117,7 @@ export function createDraftRunEvidenceLoader({ getCurrentContext, getProvider = 
   const states = new Map();
   let generation = 0;
   let notify = onChange;
+  const ui = { open: false }; // section expand state belongs to the drawer session (cleared by reset)
   const currentRequest = () => {
     const cur = typeof getCurrentContext === "function" ? getCurrentContext() : null;
     return cur ? resolveDraftEvidenceRequest(cur.context, cur.row) : null;
@@ -157,8 +158,9 @@ export function createDraftRunEvidenceLoader({ getCurrentContext, getProvider = 
       if (status === "foreign-run") return set(request.key, { status: DRAFT_EVIDENCE_STATUS.FOREIGN_RUN });
       return set(request.key, { status: DRAFT_EVIDENCE_STATUS.ERROR, error: String(answer?.error || "Evidence could not be read.") });
     },
+    ui,
     setOnChange(fn) { notify = typeof fn === "function" ? fn : () => {}; },
-    reset() { generation += 1; states.clear(); },
+    reset() { generation += 1; states.clear(); ui.open = false; },
   };
 }
 
@@ -306,16 +308,15 @@ function ensureStyle() {
 export function mountDraftRunEvidenceSection(host, { loader, getCurrentContext, navigate, showToast }) {
   if (!host) return null;
   ensureStyle();
-  let open = false;
   loader.setOnChange(() => { if (host.isConnected) paint(); });
   const paint = () => {
     const cur = typeof getCurrentContext === "function" ? getCurrentContext() : null;
     const request = cur ? resolveDraftEvidenceRequest(cur.context, cur.row) : null;
     if (!request) { host.innerHTML = ""; return; }
-    host.innerHTML = renderDraftRunEvidenceHtml({ state: loader.stateFor(request), request, row: cur.row, open });
+    host.innerHTML = renderDraftRunEvidenceHtml({ state: loader.stateFor(request), request, row: cur.row, open: loader.ui.open });
     const details = host.querySelector("[data-cde-section]");
-    details?.addEventListener("toggle", () => { open = details.open; });
-    host.querySelector("[data-cde-load]")?.addEventListener("click", () => { open = true; loader.load(request); });
+    details?.addEventListener("toggle", () => { loader.ui.open = details.open; });
+    host.querySelector("[data-cde-load]")?.addEventListener("click", () => { loader.ui.open = true; loader.load(request); });
     host.querySelectorAll("[data-cde-nav]").forEach((btn) =>
       btn.addEventListener("click", (event) => {
         event.preventDefault();
