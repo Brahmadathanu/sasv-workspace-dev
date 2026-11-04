@@ -363,7 +363,11 @@ export function createCommercialSalesAssumptionHandlers(deps) {
   let historyRows = [];
   let historyLoading = false;
   let historyError = null;
+  // WP06-G1d: a write that is pending belongs to the request, not to the modal. The flag therefore survives
+  // close/reopen and is cleared only when that request settles. Each opened modal gets a new, never reused,
+  // monotonic session id (the clock is not an identity: two opens in one millisecond must differ).
   let writeInFlight = false;
+  let manageSessionSeq = 0;
   let defaultWriteInFlight = false;
   let defaultReviseTarget = null;
   let defaultScopePreview = null;
@@ -1022,7 +1026,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
       workspaceId: COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID,
       periodStart: String(periodStart),
       skuId: row.sku_id,
-      token: Date.now(),
+      token: ++manageSessionSeq,
       row,
     };
     historyRows = [];
@@ -1046,8 +1050,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     modal.setAttribute("aria-hidden", "true");
     modalSnapshot = null;
     historyRows = [];
-    writeInFlight = false;
-    setWriteControlsDisabled(false);
+    setWriteControlsDisabled(writeInFlight);
     clearModalError();
   }
 
@@ -1151,6 +1154,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     }
 
     writeInFlight = true;
+    const session = modalSnapshot.token; // WP06-G1d: completion may only touch the session that started it
     setWriteControlsDisabled(true);
     setLoadingMask(true, "Saving SKU sales assumption...");
     try {
@@ -1166,13 +1170,17 @@ export function createCommercialSalesAssumptionHandlers(deps) {
       });
       if (error) throw error;
       showToast(CSA_FUTURE_REFRESH_MESSAGE, "success", 6200);
-      resetSetForm();
-      await refreshModalAfterWrite();
+      if (modalSnapshot?.token === session) {
+        resetSetForm();
+        await refreshModalAfterWrite();
+      }
     } catch (err) {
       handleError("Failed to save SKU sales assumption", err);
-      setModalError(
-        err?.message || err?.error_description || "Save failed.",
-      );
+      if (modalSnapshot?.token === session) {
+        setModalError(
+          err?.message || err?.error_description || "Save failed.",
+        );
+      }
     } finally {
       writeInFlight = false;
       setWriteControlsDisabled(false);
@@ -1213,6 +1221,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     }
 
     writeInFlight = true;
+    const session = modalSnapshot.token; // WP06-G1d: completion may only touch the session that started it
     setWriteControlsDisabled(true);
     setLoadingMask(true, "Closing SKU sales assumption...");
     try {
@@ -1225,13 +1234,17 @@ export function createCommercialSalesAssumptionHandlers(deps) {
       });
       if (error) throw error;
       showToast(CSA_FUTURE_REFRESH_MESSAGE, "success", 6200);
-      resetSetForm();
-      await refreshModalAfterWrite();
+      if (modalSnapshot?.token === session) {
+        resetSetForm();
+        await refreshModalAfterWrite();
+      }
     } catch (err) {
       handleError("Failed to close SKU sales assumption", err);
-      setModalError(
-        err?.message || err?.error_description || "Close failed.",
-      );
+      if (modalSnapshot?.token === session) {
+        setModalError(
+          err?.message || err?.error_description || "Close failed.",
+        );
+      }
     } finally {
       writeInFlight = false;
       setWriteControlsDisabled(false);
