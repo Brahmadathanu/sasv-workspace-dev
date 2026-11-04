@@ -15,6 +15,7 @@ const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\
 const MOD = read("public/shared/js/costing-draft-run-evidence.js");
 const SHELL = read("public/shared/js/costing-suite-shell.js");
 const BASE = "195b13c4df32a5fdcf22ee304066e96c1b138481";
+const CDE1A_MERGE = "43a93ef9fbbaa8aeb41da2d0a9f0868d18fded20"; // squash merge of PR #149
 const S = ev.DRAFT_EVIDENCE_STATUS;
 
 const PERIOD = "2026-10-01";
@@ -392,15 +393,17 @@ test("flag-OFF parity: removing exactly the CDE-1a text restores the pre-CDE she
   assert.equal(stripCde1aShell(base), base, "idempotent on the pre-CDE text");
   assert.notEqual(stripCde1aShell(SHELL.replace("let ROWS_LOAD_GENERATION = 0;", "let ROWS_LOAD_GENERATION = 1;")), base, "other edits are not masked");
   assert.notEqual(stripCde1aShell(SHELL.replace("      mountDraftRunEvidenceInDrawer();\n", "      mountDraftRunEvidenceInDrawer();\n      void 0;\n")), base);
-  // only the shell and the new files differ from the base among public/ sources
-  const changed = execFileSync("git", ["diff", "--name-only", BASE], { encoding: "utf8", cwd: root }).split("\n").filter((f) => f.startsWith("public/"));
-  const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard"], { encoding: "utf8", cwd: root }).split("\n").filter((f) => f.startsWith("public/"));
-  assert.deepEqual([...new Set([...changed, ...untracked])].sort(), ["public/shared/js/costing-draft-run-evidence.js", "public/shared/js/costing-suite-shell.js"]);
+  // Only the shell and the new module differ among public/ sources over the IMMUTABLE CDE-1a range (base..squash merge).
+  // A fixed range, not the working tree, so later packages that legitimately change other files cannot trip this guard
+  // and unrelated edits cannot hide in it (any commit missing from history fails loudly).
+  execFileSync("git", ["cat-file", "-e", `${CDE1A_MERGE}^{commit}`], { cwd: root });
+  const changed = execFileSync("git", ["diff", "--name-only", BASE, CDE1A_MERGE], { encoding: "utf8", cwd: root }).split("\n").filter((f) => f.startsWith("public/"));
+  assert.deepEqual([...new Set(changed)].sort(), ["public/shared/js/costing-draft-run-evidence.js", "public/shared/js/costing-suite-shell.js"]);
 });
 
 test("no new tab, module, route or HTML: costing html files, registry, route config, flags and service worker are untouched", () => {
-  const names = execFileSync("git", ["diff", "--name-only", BASE], { encoding: "utf8", cwd: root }).split("\n").filter(Boolean)
-    .concat(execFileSync("git", ["ls-files", "--others", "--exclude-standard"], { encoding: "utf8", cwd: root }).split("\n").filter(Boolean));
+  execFileSync("git", ["cat-file", "-e", `${CDE1A_MERGE}^{commit}`], { cwd: root });
+  const names = execFileSync("git", ["diff", "--name-only", BASE, CDE1A_MERGE], { encoding: "utf8", cwd: root }).split("\n").filter(Boolean);
   assert.deepEqual(names.filter((f) => /\.html$|sw\.js$|package(-lock)?\.json$|^supabase\/|^sql\/|costing-suite-registry|costing-route-config|costing-feature-flags|costing-review-worklist\.js|costing-status-labels/.test(f)), []);
 });
 
