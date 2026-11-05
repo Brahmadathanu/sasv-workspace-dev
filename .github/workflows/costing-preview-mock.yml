@@ -1,0 +1,44 @@
+name: Costing preview mock acceptance (isolated)
+on:
+  push:
+    branches:
+      - preview/costing-wp05-wp06-wp12-20261105
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: costing-preview-mock-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  mock-acceptance:
+    if: github.ref == 'refs/heads/preview/costing-wp05-wp06-wp12-20261105'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "true"
+    steps:
+      - name: Checkout exact preview commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install lockfile dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify immutable source and eleven Costing flags
+        run: node scripts/costing-preview/verify-source-and-flags.mjs "${{ github.sha }}"
+      - name: Install isolated Chromium browser
+        run: npx playwright install --with-deps chromium
+      - name: Run six-module inert-backend flag and console tests
+        run: node --test scripts/costing-wp12-flag-sweep/flag-sweep-browser.test.mjs scripts/costing-wp12-flag-sweep/console-rpc-allowlist.test.mjs
+      - name: Record exact test commit
+        if: always()
+        run: |
+          echo "Preview commit: ${GITHUB_SHA}"
+          echo "This workflow does not deploy, use Supabase credentials, or change production flags."
