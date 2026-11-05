@@ -18,6 +18,9 @@ BEGIN
   THEN
     RAISE EXCEPTION 'CSR governed comparison view contract drift; do not install';
   END IF;
+  IF to_regprocedure('public.rpc_get_cost_sheet_sku_monthly_comparison_scoped(date,integer)') IS NOT NULL THEN
+    RAISE EXCEPTION 'CSR scoped RPC already exists; independent reconciliation required';
+  END IF;
 END;
 $csr_contract$;
 
