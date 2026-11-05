@@ -8,6 +8,19 @@
 --
 -- NOTE: RETURNS SETOF original governed view row type; rebuild/drop risks must be
 -- assessed if the existing view changes. This is a design proposal, not a stable API.
+-- If this design is later independently approved as a migration, create + permissions
+-- must commit atomically to avoid a transient PUBLIC execute window.
+BEGIN;
+DO $csr_contract$
+BEGIN
+  IF md5(pg_get_viewdef('costing.v_cost_sheet_snapshot_sku_monthly_comparison_governed'::regclass))
+      <> '63adf7946b8d7f99a01a05e5e54d00be'
+  THEN
+    RAISE EXCEPTION 'CSR governed comparison view contract drift; do not install';
+  END IF;
+END;
+$csr_contract$;
+
 CREATE OR REPLACE FUNCTION public.rpc_get_cost_sheet_sku_monthly_comparison_scoped(
     p_period_start date,
     p_limit integer DEFAULT 2000
@@ -214,3 +227,5 @@ $csr$;
 REVOKE ALL ON FUNCTION public.rpc_get_cost_sheet_sku_monthly_comparison_scoped(date,integer) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.rpc_get_cost_sheet_sku_monthly_comparison_scoped(date,integer) FROM anon;
 GRANT EXECUTE ON FUNCTION public.rpc_get_cost_sheet_sku_monthly_comparison_scoped(date,integer) TO authenticated;
+
+COMMIT;
