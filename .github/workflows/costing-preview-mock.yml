@@ -39,6 +39,8 @@ jobs:
         run: node -e "if (!require('playwright').chromium) process.exit(1)"
       - name: Install isolated Chromium browser
         run: npx playwright install --with-deps chromium
+      - name: Test local-only preview server rejects writes, backend routes and proxying
+        run: node --test scripts/costing-preview/read-only-loopback-server.test.mjs
       - name: Run six-module inert-backend tests with zero skips required
         run: |
           node --test scripts/costing-wp12-flag-sweep/flag-sweep-browser.test.mjs scripts/costing-wp12-flag-sweep/console-rpc-allowlist.test.mjs | tee costing-preview-test-results.tap
