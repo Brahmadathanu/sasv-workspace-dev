@@ -1,3 +1,5 @@
+> **Owner PWA retest — 5 Nov 2026 (latest):** After PR [#178](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/178) squash-merged to `main` `756c8ccf37c754733ee569e9e6373ee6747bf0b5`, the owner reported **Production Route Manager → Cost Centres screen test PASSED** using the existing Costing-scoped view-only account. This is owner-reported confirmation of successful post-fix screen access, superseding the prior pre-fix failure and draft status in dated records below. It is **not** a separate authenticated server write-denial test; no network trace or post-fix screenshot was supplied for independent verification. November Readiness build absence and two CSR 57014 read timeouts remain open; formal closure stays **5/13 (38%)**. No flag, deploy, Supabase, cache or Electron change is implied.
+
 # Six-module authenticated PWA owner acceptance — initial observations and follow-up (5 November 2026)
 
 **Status: navigation verified 6/6; screen-level read-only acceptance PARTIAL. Two distinct dependencies identified. This record belongs to the existing unified Costing Suite workflow. Formal closure remains 5/13 (38%).**
