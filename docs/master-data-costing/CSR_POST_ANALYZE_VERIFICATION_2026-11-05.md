@@ -1,3 +1,5 @@
+> **CSR owner PWA read retest (5 Nov):** PASS reported for Nov Printable Cost Sheet, Nov Monthly Comparison and Oct Monthly Comparison. Three-check acceptance sub-gate met; no direct latency measurements, no formal work-pack closure (still 5/13). See [acceptance record](CSR_OWNER_READ_RETEST_ACCEPTANCE_2026-11-05.md).
+
 # Cost Sheet Review — Approved Snapshot Statistics Maintenance and Verification
 
 **Date:** 5 November 2026 (IST)  
