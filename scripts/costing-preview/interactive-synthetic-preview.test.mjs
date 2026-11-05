@@ -84,3 +84,35 @@ test("every preview client module is local and real Supabase origin/key never ap
   assert.match(js, /SYNTHETIC_PREVIEW_WRITE_DENIED/);
   assert.equal((await fetch(base + "/sw.js")).status, 403);
 });
+
+
+test("launcher opens six modules and restores eleven flags OFF after each preset", async () => {
+  const context = await browser.newContext({ serviceWorkers: "block" });
+  const page = await context.newPage();
+  const r = await page.goto(base + "/__preview/", { waitUntil: "domcontentloaded" });
+  assert.equal(r.status(), 200);
+  assert.equal(await page.locator("nav a").count(), 6);
+  assert.equal(await page.locator(".flags input[type=checkbox]").count(), 11);
+  assert.match(await page.locator("#state").innerText(), /0 \/ 11/);
+  await page.getByRole("button", { name: "Navigation only" }).click();
+  assert.match(await page.locator("#state").innerText(), /1 \/ 11/);
+  const navOnly = await page.evaluate(() => ({
+    navigation: localStorage.getItem("COSTING_NAV_GROUPS_V1"),
+    approval: localStorage.getItem("COSTING_APPROVAL_SCREEN_V1"),
+  }));
+  assert.equal(navOnly.navigation, "1");
+  assert.equal(navOnly.approval, null);
+  await page.getByRole("button", { name: "All eleven ON" }).click();
+  assert.match(await page.locator("#state").innerText(), /11 \/ 11/);
+  await page.locator('nav a[href="/shared/cost-sheet-review.html"]').click();
+  await page.waitForURL(/cost-sheet-review\.html/);
+  assert.match(await page.locator("#synthetic-preview-banner").innerText(), /NO REAL DATA/);
+  assert.equal(await page.evaluate(() => localStorage.getItem("COSTING_NAV_GROUPS_V1")), "1");
+  await page.goto(base + "/__preview/");
+  await page.getByRole("button", { name: "Reset / restore OFF" }).click();
+  assert.match(await page.locator("#state").innerText(), /0 \/ 11/);
+  assert.deepEqual(await page.evaluate(() => [
+    "COSTING_NAV_GROUPS_V1", "COSTING_APPROVAL_SCREEN_V1", "COSTING_LOCK_SCREEN_V1"
+  ].map(k => localStorage.getItem(k))), [null, null, null]);
+  await context.close();
+});
