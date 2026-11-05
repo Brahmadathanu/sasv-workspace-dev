@@ -269,3 +269,32 @@ test("served shim contains no real Supabase origin, key or JWT; fixture ids stay
   const html = await (await fetch(base + "/__preview/")).text();
   assert.doesNotMatch(html, /supabase\.(co|in)|eyJ[A-Za-z0-9_-]{20,}/);
 });
+
+test("every RPC name found in the six-module client source fails closed (only get_user_permissions may succeed)", async () => {
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const { resolve, dirname } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const dir = resolve(dirname(fileURLToPath(import.meta.url)), "../../public/shared/js");
+  const names = new Set();
+  for (const file of readdirSync(dir).filter((f) => /^(costing-|cost-).*\.js$|production-route/.test(f))) {
+    for (const m of readFileSync(resolve(dir, file), "utf8").matchAll(/\brpc_[a-z0-9_]+\b/g)) names.add(m[0]);
+  }
+  names.delete("rpc_error"); names.delete("rpc_name");
+  assert.ok(names.size > 100, "expected the full RPC inventory, saw " + names.size);
+  const { context } = await openContext();
+  const page = await context.newPage();
+  await page.goto(base + "/shared/cost-sheet-review.html");
+  const outcomes = await page.evaluate(async (list) => {
+    const { supabase } = await import("/shared/js/supabaseClient.js");
+    const out = {};
+    for (const name of list) { const r = await supabase.rpc(name, {}); out[name] = r.error?.code ?? "SUCCEEDED"; }
+    return out;
+  }, [...names]);
+  const succeeded = Object.entries(outcomes).filter(([, code]) => code === "SUCCEEDED");
+  assert.deepEqual(succeeded, [], "no source-referenced RPC may succeed in the synthetic client");
+  const allowed = new Set(["SYNTHETIC_PREVIEW_WRITE_DENIED", "SYNTHETIC_PREVIEW_UNSUPPORTED_OFFLINE"]);
+  assert.ok(Object.values(outcomes).every((c) => allowed.has(c)));
+  const denied = Object.values(outcomes).filter((c) => c === "SYNTHETIC_PREVIEW_WRITE_DENIED").length;
+  assert.ok(denied >= 80, "mutating RPCs should be classified as denied writes, saw " + denied);
+  await context.close();
+});

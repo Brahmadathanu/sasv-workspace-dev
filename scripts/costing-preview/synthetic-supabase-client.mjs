@@ -136,7 +136,7 @@ const unsupported = (operation) => {
 };
 // Read-shaped names are never "denied writes": without a fixture they are UNSUPPORTED offline.
 const READ_SHAPED = /^(rpc_)?(get|list|preview|validate|explain|export)_/i;
-const MUTATING_NAME = /(^|_)(create|update|upsert|delete|submit|approve|accept|close|supersede|clone|set|apply|archive|retire|import|map|unmap|inactivate|reactivate|deactivate|cancel|correct|request|refresh|recalc|recalculation|finali[sz]e|lock|decide|generate|adjust|run|start|trigger|save|register|insert|remove|reject|reopen|release|publish|post)(_|$)/i;
+const MUTATING_NAME = /(^|_)(create|update|upsert|delete|submit|approve|accept|close|supersede|clone|set|apply|archive|retire|import|map|unmap|inactivate|reactivate|deactivate|cancel|correct|request|refresh|recalc|recalculation|finali[sz]e|lock|decide|generate|adjust|run|start|trigger|save|register|insert|remove|reject|reopen|release|publish|post|authori[sz]e)(_|$)/i;
 function query(table) {
   const conditions = [];
   let single = false;
