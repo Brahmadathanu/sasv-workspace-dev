@@ -3,6 +3,7 @@
 // removes precisely the N1 additions (and restores the one line N1 turned into a ternary) so those historical
 // comparisons keep checking everything else. Anything not matching the exact N1 text is left in place and still fails.
 import { stripCde1aShell } from "./cde1a-shell-strip.mjs";
+import { stripSecA2Shell, stripSecA2Approval } from "./sec-a2-strip.mjs";
 
 const must = (text, from, to) => {
   const i = text.indexOf(from);
@@ -13,7 +14,7 @@ const must = (text, from, to) => {
 };
 
 export function stripN1Shell(src) {
-  let t = stripCde1aShell(src); // CDE-1a additions removed first (see cde1a-shell-strip.mjs)
+  let t = stripCde1aShell(stripSecA2Shell(src)); // SEC-A2 line (sec-a2-strip.mjs) and CDE-1a additions removed first (cde1a-shell-strip.mjs)
   t = t.replace('import { isCostingNavGroupsV1Enabled } from "./costing-feature-flags.js";\nimport { resolveNavGroups, renderGroupedNavHtml, renderGroupedSelectHtml } from "./costing-nav-groups.js";\nimport { buildNavContextModel, costingNavContext, renderNavContextHtml } from "./costing-nav-context.js";\n', "");
   t = must(t, "/**\n * N1: grouped navigation is active only when", "function renderLensPillButton(");
   t = t.replace(/    \} else if \(isNavGroupsActive\(\)\) \{\n(?:.*\n)*?(?=    \} else \{\n      lensPills\.innerHTML = activeSuites)/, "");
@@ -33,5 +34,6 @@ export function stripN1Flags(src) {
 export function stripN1(rel, text) {
   if (rel.endsWith("public/shared/js/costing-suite-shell.js")) return stripN1Shell(text);
   if (rel.endsWith("public/shared/js/costing-feature-flags.js")) return stripN1Flags(text);
+  if (rel.endsWith("public/shared/js/costing-approval-screen.js")) return stripSecA2Approval(text); // SEC-A2 CCC-edit gate (sec-a2-strip.mjs)
   return text;
 }

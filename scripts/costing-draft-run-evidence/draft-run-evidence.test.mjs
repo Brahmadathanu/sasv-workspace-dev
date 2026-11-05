@@ -8,12 +8,14 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import * as ev from "../../public/shared/js/costing-draft-run-evidence.js";
 import { stripCde1aShell } from "../lib/cde1a-shell-strip.mjs";
+import { stripSecA2Shell } from "../lib/sec-a2-strip.mjs";
 import { stripN1Shell } from "../lib/n1-nav-strip.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
 const MOD = read("public/shared/js/costing-draft-run-evidence.js");
-const SHELL = read("public/shared/js/costing-suite-shell.js");
+// SEC-A2: the one injected permission line is removed first (scripts/lib/sec-a2-strip.mjs) so this test keeps pinning the CDE-1a text only.
+const SHELL = stripSecA2Shell(read("public/shared/js/costing-suite-shell.js"));
 const BASE = "195b13c4df32a5fdcf22ee304066e96c1b138481";
 const CDE1A_MERGE = "43a93ef9fbbaa8aeb41da2d0a9f0868d18fded20"; // squash merge of PR #149
 const S = ev.DRAFT_EVIDENCE_STATUS;

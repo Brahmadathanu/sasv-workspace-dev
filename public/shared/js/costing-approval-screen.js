@@ -135,6 +135,7 @@ export function createCostingApprovalScreenController(deps) {
     showToast,
     getActivePeriodStart,
     isControlCenterRoute,
+    canEdit = () => false,
     formatMoney = formatInr,
     confirmFn = (...args) => globalThis.confirm?.(...args),
     doc = globalThis.document,
@@ -182,6 +183,7 @@ export function createCostingApprovalScreenController(deps) {
   }
 
   function canSubmitApprove() {
+    if (canEdit() !== true) return false;
     const preview = state.preview;
     if (!preview || !state.previewAckId) return false;
     if (state.previewExpired) return false;
@@ -329,9 +331,11 @@ export function createCostingApprovalScreenController(deps) {
         const label = pickRunDisplayLabel(row) || status;
         const pricing = pickPricingUseLabel(row);
         const draft = isDraftRunRow(row);
-        const reviewBtn = draft
+        const reviewBtn = draft && canEdit() === true
           ? `<button type="button" class="cas-action" data-cas-review="${escapeHtml(String(id))}">Review for approval</button>`
-          : "";
+          : draft
+            ? `<span class="cas-muted">View only — approval requires Costing Control Center edit permission.</span>`
+            : "";
         const superseded =
           row.superseded_by_run_id != null
             ? `<span class="cas-chip">by run ${escapeHtml(String(row.superseded_by_run_id))}</span>`
@@ -404,6 +408,11 @@ export function createCostingApprovalScreenController(deps) {
   }
 
   async function openPreviewForRun(runId) {
+    // SEC-A2: preview creates a server acknowledgement; never call it for view-only users.
+    if (canEdit() !== true) {
+      showToast?.("Approval preview requires Costing Control Center edit permission.", "warn");
+      return;
+    }
     // Preview is intentionally only reachable from Review / Open preview again clicks.
     const numericId = Number(runId);
     if (!Number.isFinite(numericId)) return;
@@ -433,6 +442,10 @@ export function createCostingApprovalScreenController(deps) {
         p_refresh_run_id: numericId,
       });
       if (error) throw error;
+      if (canEdit() !== true) {
+        closeModal();
+        return;
+      }
       const preview = unwrapRpcJson(data);
       if (!preview || preview.preview_ack_id == null) {
         throw new Error("Preview did not return an acknowledgement.");
@@ -583,6 +596,10 @@ export function createCostingApprovalScreenController(deps) {
   }
 
   async function submitDecision(kind) {
+    if (canEdit() !== true) {
+      showToast?.("Approval actions require Costing Control Center edit permission.", "warn");
+      return;
+    }
     if (state.inFlight) return;
     const preview = state.preview;
     if (!preview || state.previewAckId == null || state.selectedRunId == null) {
@@ -613,6 +630,7 @@ export function createCostingApprovalScreenController(deps) {
           ? `Approve run ${state.selectedRunId} and supersede run ${preview.current_approved_run}?`
           : `Approve run ${state.selectedRunId}?`;
     if (!confirmFn(confirmText)) return;
+    if (canEdit() !== true) return;
 
     setInFlight(true);
     const errHost = $("casFormError", doc);

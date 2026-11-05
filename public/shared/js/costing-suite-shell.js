@@ -9706,6 +9706,7 @@ const costingApprovalScreenCtrl = isCostingApprovalScreenV1Enabled()
       supabase,
       costingRpc,
       showToast,
+      canEdit: () => PERM_CONTROL_CENTER_EDIT === true,
       formatMoney,
       getActivePeriodStart: () => ACTIVE_PERIOD_START,
       isControlCenterRoute: () =>
