@@ -61,6 +61,10 @@ export async function createReadOnlyLoopbackServer({ root = DEFAULT_ROOT } = {})
         signedInAcceptance: "NOT_TESTED",
       }), { "content-type": "application/json; charset=utf-8" });
     }
+    if (pathname === "/__preview/" || pathname === "/__preview") {
+      const launcher = await readFile(resolve(here, "synthetic-launcher.html"));
+      return reply(res, 200, method === "HEAD" ? "" : launcher, { "content-type": "text/html; charset=utf-8" });
+    }
     if (pathname === "/shared/js/supabaseClient.js") {
       const synthetic = await readFile(resolve(here, "synthetic-supabase-client.mjs"));
       return reply(res, 200, method === "HEAD" ? "" : synthetic, { "content-type": "text/javascript; charset=utf-8" });
@@ -94,6 +98,6 @@ export async function createReadOnlyLoopbackServer({ root = DEFAULT_ROOT } = {})
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const server = await createReadOnlyLoopbackServer();
-  process.stdout.write("LOCAL ONLY: http://127.0.0.1:" + server.address().port + "/shared/costing-control-center.html\n");
+  process.stdout.write("LOCAL ONLY: http://127.0.0.1:" + server.address().port + "/__preview/\n");
   process.stdout.write("Synthetic preview; backend DISCONNECTED, fake view-only authentication, no real signed-in acceptance.\n");
 }
