@@ -66,6 +66,7 @@ function text(value, fallback = "—") {
 
 export function createProductionCostCentresController(deps = {}) {
   const {
+    invoke,
     governed,
     showToast,
     canEdit = () => false,
@@ -499,7 +500,7 @@ export function createProductionCostCentresController(deps = {}) {
   async function load({ search = getSearch() } = {}) {
     state.loadError = null;
     state.loading = true;
-    const response = await governed(
+    const response = await invoke(
       RPC.list,
       buildProductionCostCentresRpcArgs({
         as_of_date: getAsOfDate(),
@@ -870,7 +871,7 @@ export function createProductionCostCentresController(deps = {}) {
     let centre = row;
     const id = normalizePrmIntegerId(row.cost_centre_id);
     if (id != null) {
-      const detail = await governed(
+      const detail = await invoke(
         RPC.detail,
         buildProductionCostCentreDetailRpcArgs({ cost_centre_id: id }),
         "Unable to load Cost Centre detail.",
