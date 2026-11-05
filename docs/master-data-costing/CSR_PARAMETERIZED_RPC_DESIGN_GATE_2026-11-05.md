@@ -1,3 +1,5 @@
+> **Independent review addendum (5 Nov 2026):** [Full-column EXPLAIN and review evidence](CSR_PARAMETERIZED_RPC_INDEPENDENT_REVIEW_2026-11-05.md) confirms that the *entire draft SELECT body* plans for Nov 2026 after literal parameter substitution (baseline full 63-column planner cost 8097.81; scoped 2563.31). This **does not compile the PL/pgSQL function**, establish RETURN SETOF column-type equivalence, execute data comparisons or prove security. A fail-closed precondition now rejects an already existing target RPC signature, alongside live source-view MD5 drift. Draft remains NONDEPLOYABLE; formal closure 5/13.
+
 # CSR governed monthly SKU comparison — parameterised secure read design (5 November 2026)
 
 **Status: ISOLATED NONDEPLOYABLE DESIGN; source transformations checked statically, but not SQL-compiled, parity-tested, benchmarked, role-tested or deployed. Formal Costing closure remains 5/13 (38%).**
