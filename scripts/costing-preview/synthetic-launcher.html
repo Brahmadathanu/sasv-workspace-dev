@@ -21,6 +21,9 @@ button:hover{background:#eaf0f9}button:focus-visible,a:focus-visible,input:focus
 input{width:18px;height:18px;flex:none}
 #state{font-weight:700;font-variant-numeric:tabular-nums}
 small{color:#4b5e76}
+#oplog{max-height:260px;overflow:auto;font:12px ui-monospace,monospace;padding-left:28px;margin:0}
+#oplog li.DENIED{color:#8a1c0f;font-weight:700}#oplog li.UNSUPPORTED{color:#7a5200}
+@media(max-width:480px){body{padding:12px}.tools button{flex:1 1 45%}}
 </style>
 </head>
 <body>
@@ -49,6 +52,17 @@ small{color:#4b5e76}
 </div>
 <p id="state" role="status">Loading flags…</p>
 <div id="flags" class="flags"></div>
+</section>
+<section class="card" aria-labelledby="logTitle">
+<h2 id="logTitle">Read-only operation log</h2>
+<p class="note">Mocked requests made by the module pages in this browser tab, and mutation attempts that were denied. No secrets or payload values are recorded, only operation names. Cleared by Reset.</p>
+<div class="tools"><button type="button" id="refreshLog">Refresh log</button><button type="button" id="clearLog">Clear log</button></div>
+<p id="logSummary" role="status">Log empty.</p>
+<ol id="oplog" aria-label="Operation log"></ol>
+</section>
+<section class="card" aria-labelledby="offlineTitle">
+<h2 id="offlineTitle">Why a module may look empty</h2>
+<p class="note">Only a few fictional reads exist (permissions, three SKU status cases, two run-status rows). Every other read is answered with <code>SYNTHETIC_PREVIEW_UNSUPPORTED_OFFLINE</code> and listed above as UNSUPPORTED: that module section cannot populate offline. Nothing falls back to real data, and every mutation is denied.</p>
 </section>
 <section class="card">
 <h2>Scope of this test</h2>
@@ -85,13 +99,38 @@ const render = () => {
 };
 document.querySelectorAll("[data-preset]").forEach(button => button.addEventListener("click", () => {
   const preset = button.getAttribute("data-preset");
+  if (preset === "reset") {
+    for (const key of Object.keys(localStorage)) if (key.startsWith("COSTING_")) localStorage.removeItem(key);
+  }
   for (const flag of FLAGS) {
     if (preset === "on" || (preset === "nav" && flag === "COSTING_NAV_GROUPS_V1")) localStorage.setItem(flag,"1");
     else localStorage.removeItem(flag);
   }
   render();
 }));
+const OPLOG_KEY = "__costingSyntheticPreviewLog";
+const renderLog = () => {
+  let entries = [];
+  try { entries = JSON.parse(sessionStorage.getItem(OPLOG_KEY) || "[]"); } catch { entries = []; }
+  const list = document.getElementById("oplog");
+  list.replaceChildren();
+  for (const entry of entries) {
+    const li = document.createElement("li");
+    li.className = String(entry.kind);
+    li.textContent = entry.t + " " + entry.kind + " " + entry.op;
+    list.append(li);
+  }
+  const count = (kind) => entries.filter(e => e.kind === kind).length;
+  document.getElementById("logSummary").textContent = entries.length
+    ? count("READ") + " read · " + count("DENIED") + " denied mutation · " + count("UNSUPPORTED") + " unsupported offline"
+    : "Log empty.";
+};
+const clearLog = () => { try { sessionStorage.removeItem(OPLOG_KEY); } catch {} renderLog(); };
+document.getElementById("refreshLog").addEventListener("click", renderLog);
+document.getElementById("clearLog").addEventListener("click", clearLog);
+document.querySelector('[data-preset="reset"]').addEventListener("click", clearLog);
 render();
+renderLog();
 </script>
 </body>
 </html>
