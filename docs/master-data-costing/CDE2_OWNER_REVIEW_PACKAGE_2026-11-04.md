@@ -1,3 +1,5 @@
+> **Live-source audit addendum — 5 Nov 2026:** The proposed CDE-2 projection has now been reconciled to the actual run-scoped table columns, unique indexes, source privileges and 628-SKU coverage for runs 148/149. **Server eligibility, text redaction and owner decisions remain open.** See [live source-contract audit](CDE2_LIVE_SOURCE_CONTRACT_AUDIT_2026-11-05.md). The 4 Nov statements below remain a historical design proposal, not implementation approval.
+
 # CDE-2 — protected draft-run component evidence read contract: owner-review package — 4 Nov 2026
 
 **Status: PROPOSAL FOR OWNER REVIEW. Documentation only.** No SQL, RPC, grant, migration, provider adapter, flag, Supabase read or write is created or authorised by this file. It does not approve CDE-1b or CDE-3.
