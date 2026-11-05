@@ -17,7 +17,9 @@ const MIME = {
   ".woff2": "font/woff2",
 };
 const BLOCKED_PREFIXES = ["/rest/", "/rest/v1", "/auth/", "/auth/v1", "/rpc/", "/functions/", "/storage/", "/realtime/", "/pg/", "/api/"];
-const HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+const LOOPBACK_NAMES = ["127.0.0.1", "localhost"];
+const ALLOWED_HOST_HEADERS = (port) => new Set(LOOPBACK_NAMES.map((name) => name + ":" + port));
+const ALLOWED_ORIGINS = (port) => new Set(LOOPBACK_NAMES.map((name) => "http://" + name + ":" + port));
 const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'none'; worker-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 
 function reply(res, code, body = "", headers = {}) {
@@ -37,8 +39,14 @@ export async function createReadOnlyLoopbackServer({ root = DEFAULT_ROOT } = {})
     // Never act as an HTTP proxy, never accept incoming cross-site requests.
     const method = req.method ?? "";
     if (!["GET", "HEAD"].includes(method)) return reply(res, 405, "read-only preview: method denied", { allow: "GET, HEAD" });
-    const host = (req.headers.host ?? "").split(":")[0].toLowerCase();
-    if (!HOSTS.has(host)) return reply(res, 403, "loopback host required");
+    const port = server.address()?.port;
+    const hostHeader = String(req.headers.host ?? "").toLowerCase();
+    if (!ALLOWED_HOST_HEADERS(port).has(hostHeader)) return reply(res, 403, "loopback host required");
+    // Opaque / cross-origin browsers requests are refused outright (DNS-rebinding and drive-by defence).
+    const origin = req.headers.origin;
+    if (origin !== undefined && !ALLOWED_ORIGINS(port).has(String(origin).toLowerCase())) return reply(res, 403, "cross-origin request forbidden");
+    const site = req.headers["sec-fetch-site"];
+    if (site !== undefined && !["same-origin", "none"].includes(String(site))) return reply(res, 403, "cross-site request forbidden");
     const target = req.url ?? "";
     if (/^https?:\/\//i.test(target) || target.startsWith("//")) return reply(res, 403, "proxy request forbidden");
     let uri;
