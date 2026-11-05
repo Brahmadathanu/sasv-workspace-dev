@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SASV Costing — Synthetic Preview</title>
+<style>
+:root{font:16px system-ui,-apple-system,Segoe UI,sans-serif;color:#162236;background:#f4f6f9}
+*{box-sizing:border-box}body{max-width:1100px;margin:auto;padding:24px}
+h1{font-size:1.8rem;margin:.3rem 0}.note{color:#4a5b70;line-height:1.5}
+.banner{padding:14px;background:#622118;color:#fff;font-weight:700;border-radius:10px;margin-bottom:20px}
+.card{background:white;border:1px solid #d9e0e9;border-radius:12px;padding:20px;margin-top:18px}
+nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+nav a{display:block;padding:14px;border:1px solid #cbd5e1;border-radius:9px;color:#174d8b;text-decoration:none;font-weight:600}
+nav a:hover,nav a:focus-visible{background:#eef5ff}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+button{border:1px solid #8898b0;background:#f8fafc;border-radius:7px;padding:10px 14px;cursor:pointer;font:inherit}
+button:hover{background:#eaf0f9}button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid #4786dc;outline-offset:2px}
+.flags{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:9px}
+.flags label{display:flex;align-items:center;gap:8px;word-break:break-word;font-size:.82rem;padding:8px;border:1px solid #e0e6ec;border-radius:7px}
+input{width:18px;height:18px;flex:none}
+#state{font-weight:700;font-variant-numeric:tabular-nums}
+small{color:#4b5e76}
+</style>
+</head>
+<body>
+<div class="banner" role="alert">SYNTHETIC COSTING PREVIEW · NO REAL LOGIN · NO PRODUCTION DATA · NO WRITES</div>
+<h1>SASV Costing Suite · Isolated Preview</h1>
+<p class="note">This is a localhost-only demonstration. The six real module pages are served with a synthetic, view-only Supabase replacement. All operational actions are disabled. Results here must never be accepted as signed-in production test evidence.</p>
+<section class="card" aria-labelledby="modulesTitle">
+<h2 id="modulesTitle">Open a Costing module</h2>
+<nav>
+<a href="/shared/costing-control-center.html">Costing Control Center</a>
+<a href="/shared/material-cost-manager.html">Material Cost Manager</a>
+<a href="/shared/cost-build-manager.html">Cost Build Manager</a>
+<a href="/shared/pricing-policy-manager.html">Pricing Policy Manager</a>
+<a href="/shared/cost-sheet-review.html">Cost Sheet Review</a>
+<a href="/shared/production-route-manager.html">Production Route Manager</a>
+</nav>
+</section>
+<section class="card" aria-labelledby="flagsTitle">
+<h2 id="flagsTitle">Costing feature flags (local browser only)</h2>
+<p class="note">Changes apply to the six pages at this localhost origin. Return here after a module walkthrough, or use the browser Back button.</p>
+<div class="tools">
+<button type="button" data-preset="off">All OFF</button>
+<button type="button" data-preset="nav">Navigation only</button>
+<button type="button" data-preset="on">All eleven ON</button>
+<button type="button" data-preset="reset">Reset / restore OFF</button>
+</div>
+<p id="state" role="status">Loading flags…</p>
+<div id="flags" class="flags"></div>
+</section>
+<section class="card">
+<h2>Scope of this test</h2>
+<p class="note">The simulated identity has six module view permissions and zero edit permissions. Two fictional SKUs exist solely to demonstrate status data. There are no real records, approvals, costing refreshes or network connections to Supabase.</p>
+<small>Acceptance status: MOCK PREVIEW ONLY — real authenticated and populated-data gates remain OPEN.</small>
+</section>
+<script>
+"use strict";
+const FLAGS = [
+"COSTING_RECALC_WITH_DATE_V1", "COSTING_APPROVAL_SCREEN_V1", "COSTING_LOCK_SCREEN_V1",
+"COSTING_RUN_STATUS_V1", "COSTING_UX_CONSISTENCY_V1", "COSTING_DIALOGS_V1",
+"COSTING_TABLE_TOOLS_V1", "COSTING_REVIEW_WORKLIST_V1", "COSTING_NAV_GROUPS_V1",
+"COSTING_PRM_CORRECTIONS_V1", "COSTING_PRM_NAV_CONTEXT_V1"
+];
+const root = document.getElementById("flags");
+const render = () => {
+  root.replaceChildren();
+  for (const flag of FLAGS) {
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox"; checkbox.value = flag;
+    checkbox.checked = localStorage.getItem(flag) === "1";
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) localStorage.setItem(flag,"1");
+      else localStorage.removeItem(flag);
+      render();
+    });
+    const text = document.createElement("span"); text.textContent = flag;
+    label.append(checkbox,text);
+    root.append(label);
+  }
+  const on = FLAGS.filter(f => localStorage.getItem(f) === "1");
+  document.getElementById("state").textContent = on.length + " / 11 preview flags ON";
+};
+document.querySelectorAll("[data-preset]").forEach(button => button.addEventListener("click", () => {
+  const preset = button.getAttribute("data-preset");
+  for (const flag of FLAGS) {
+    if (preset === "on" || (preset === "nav" && flag === "COSTING_NAV_GROUPS_V1")) localStorage.setItem(flag,"1");
+    else localStorage.removeItem(flag);
+  }
+  render();
+}));
+render();
+</script>
+</body>
+</html>
