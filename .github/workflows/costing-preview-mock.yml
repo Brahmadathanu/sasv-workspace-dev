@@ -58,16 +58,16 @@ jobs:
           node -e "console.log('playwright '+require('playwright/package.json').version)"
       - name: Transport security and negative tests (loopback, Host/Origin, proxy, traversal, symlink)
         run: |
-          node --test scripts/costing-preview/read-only-loopback-server.test.mjs scripts/costing-preview/transport-negative.test.mjs | tee transport.tap
-          node scripts/costing-preview/assert-tap.mjs transport.tap 19
+          node --test scripts/costing-preview/read-only-loopback-server.test.mjs scripts/costing-preview/transport-negative.test.mjs | tee "$RUNNER_TEMP/transport.tap"
+          node scripts/costing-preview/assert-tap.mjs "$RUNNER_TEMP/transport.tap" 19
       - name: Interactive synthetic preview and Wave A hardening tests in real Chromium (zero skips)
         run: |
-          node --test scripts/costing-preview/interactive-synthetic-preview.test.mjs scripts/costing-preview/wave-a-synthetic-hardening.test.mjs | tee interactive.tap
-          node scripts/costing-preview/assert-tap.mjs interactive.tap 16
+          node --test scripts/costing-preview/interactive-synthetic-preview.test.mjs scripts/costing-preview/wave-a-synthetic-hardening.test.mjs | tee "$RUNNER_TEMP/interactive.tap"
+          node scripts/costing-preview/assert-tap.mjs "$RUNNER_TEMP/interactive.tap" 16
       - name: Six-module inert-backend mock suite (zero skips, no console/RPC exceptions)
         run: |
-          node --test scripts/costing-wp12-flag-sweep/flag-sweep-browser.test.mjs scripts/costing-wp12-flag-sweep/console-rpc-allowlist.test.mjs | tee sweep.tap
-          node scripts/costing-preview/assert-tap.mjs sweep.tap 29
+          node --test scripts/costing-wp12-flag-sweep/flag-sweep-browser.test.mjs scripts/costing-wp12-flag-sweep/console-rpc-allowlist.test.mjs | tee "$RUNNER_TEMP/sweep.tap"
+          node scripts/costing-preview/assert-tap.mjs "$RUNNER_TEMP/sweep.tap" 29
       - name: Windows-style CRLF clean-clone validation (all suites again)
         run: node scripts/costing-preview/crlf-clone-validation.mjs --full
       - name: Summary
