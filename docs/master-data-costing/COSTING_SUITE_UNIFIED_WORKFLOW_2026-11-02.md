@@ -100,3 +100,7 @@
 ## Next-chat starting instruction
 
 Read **this file**, `docs/master-data-costing/MASTER_PROGRAMME.md`, `WP-05-COSTING-SUITE-RATIONALISATION.md`, `WP-07-COSTING-NAVIGATION.md`, `REMAINING_WORK_2026-11-01.md`, `docs/costing-pipeline-independent-audit/audit-2026-10-25/C_client_ux_audit_and_backlog.md`, and **current GitHub main**. *(3 Nov: PR #129 is merged and WP05 inventory/design are done; start from the 3 Nov reconciliation above and the WP-07 document.)* ~~Begin WP05 current-lens inventory and consolidation design immediately~~ — complete for the audit phase. Keep cadence and evidence-based progress, not a made-up 3/10 metric.
+
+## 6 Nov 2026 — synthetic preview bulk Wave A/B/C (worker evidence, branch-only)
+
+Issue [#196](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/196); draft PR targets `preview/costing-wp05-wp06-wp12-20261105`, not `main`. Deny-by-default synthetic client with explicit fixtures and operation log, negative transport tests, LF + CRLF Chromium suites with zero skips. Details, threat model and owner PC checklist: [WP12_PREVIEW_BULK_WAVE_ABC_HANDBACK_2026-11-06.md](WP12_PREVIEW_BULK_WAVE_ABC_HANDBACK_2026-11-06.md). **No owner acceptance, no formal closure (still 5/13), no real-auth or populated-data proof, no production change.**

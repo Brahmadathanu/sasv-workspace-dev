@@ -17,6 +17,8 @@ const parent = mkdtempSync(join(tmpdir(), "costing-crlf-"));
 const clone = join(parent, "clone");
 try {
   git(repo, "clone", "--quiet", "--no-hardlinks", "-c", "core.autocrlf=true", "file://" + repo, clone);
+  // A pull_request head SHA may not be reachable from any branch; fetch it explicitly.
+  git(clone, "fetch", "--quiet", "file://" + repo, sha);
   git(clone, "-c", "advice.detachedHead=false", "checkout", "--quiet", "--detach", sha);
   assert.equal(git(clone, "rev-parse", "HEAD"), sha);
   // Prove the working tree really is CRLF, otherwise this validation would be meaningless.
