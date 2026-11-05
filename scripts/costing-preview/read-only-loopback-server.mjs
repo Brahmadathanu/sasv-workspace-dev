@@ -18,7 +18,7 @@ const MIME = {
 };
 const BLOCKED_PREFIXES = ["/rest/", "/rest/v1", "/auth/", "/auth/v1", "/rpc/", "/functions/", "/storage/", "/realtime/", "/pg/", "/api/"];
 const HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
-const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
+const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'none'; worker-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 
 function reply(res, code, body = "", headers = {}) {
   res.writeHead(code, {
@@ -51,14 +51,19 @@ export async function createReadOnlyLoopbackServer({ root = DEFAULT_ROOT } = {})
     if (pathname.includes("\0") || pathname.includes("\\") || pathname.split("/").includes("..")) {
       return reply(res, 403, "invalid static path");
     }
+    if (pathname === "/sw.js" || pathname === "/service-worker.js") return reply(res, 403, "preview service workers forbidden");
     if (pathname === "/__preview/status") {
       return reply(res, 200, method === "HEAD" ? "" : JSON.stringify({
-        kind: "LOCAL_ONLY_INERT_STATIC_PREVIEW",
+        kind: "LOCAL_ONLY_SYNTHETIC_PREVIEW",
         backend: "DISCONNECTED",
         realAuthentication: false,
         readWrites: "NOT_AVAILABLE",
         signedInAcceptance: "NOT_TESTED",
       }), { "content-type": "application/json; charset=utf-8" });
+    }
+    if (pathname === "/shared/js/supabaseClient.js") {
+      const synthetic = await readFile(resolve(here, "synthetic-supabase-client.mjs"));
+      return reply(res, 200, method === "HEAD" ? "" : synthetic, { "content-type": "text/javascript; charset=utf-8" });
     }
     const candidate = resolve(publicRoot, "." + pathname);
     if (candidate !== publicRoot && !candidate.startsWith(publicRoot + sep)) return reply(res, 403, "outside preview root");
@@ -69,7 +74,13 @@ export async function createReadOnlyLoopbackServer({ root = DEFAULT_ROOT } = {})
       if (!info.isFile()) return reply(res, 404, "not found");
       const type = MIME[extname(real).toLowerCase()];
       if (!type) return reply(res, 403, "unlisted static file type");
-      const bytes = method === "HEAD" ? "" : await readFile(real);
+      let bytes = method === "HEAD" ? "" : await readFile(real);
+      // Only the six Costing module pages receive an explicit synthetic-preview label.
+      if (method === "GET" && type.startsWith("text/html") &&
+          /^\/shared\/(costing-control-center|material-cost-manager|cost-build-manager|pricing-policy-manager|cost-sheet-review|production-route-manager)\.html$/.test(pathname)) {
+        const notice = '<div id="synthetic-preview-banner" role="status" style="position:fixed;z-index:2147483647;top:0;left:0;right:0;padding:5px 12px;background:#622118;color:#fff;font:700 13px system-ui;text-align:center;pointer-events:none">SYNTHETIC COSTING PREVIEW — NO REAL DATA · NO REAL LOGIN · ALL WRITES DISABLED</div>';
+        bytes = Buffer.from(bytes.toString("utf8").replace(/(<body[^>]*>)/i, "$1" + notice));
+      }
       return reply(res, 200, bytes, { "content-type": type });
     } catch {
       return reply(res, 404, "not found");
@@ -84,5 +95,5 @@ export async function createReadOnlyLoopbackServer({ root = DEFAULT_ROOT } = {})
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const server = await createReadOnlyLoopbackServer();
   process.stdout.write("LOCAL ONLY: http://127.0.0.1:" + server.address().port + "/shared/costing-control-center.html\n");
-  process.stdout.write("Static preview only; backend DISCONNECTED, real signed-in acceptance NOT TESTED.\n");
+  process.stdout.write("Synthetic preview; backend DISCONNECTED, fake view-only authentication, no real signed-in acceptance.\n");
 }
