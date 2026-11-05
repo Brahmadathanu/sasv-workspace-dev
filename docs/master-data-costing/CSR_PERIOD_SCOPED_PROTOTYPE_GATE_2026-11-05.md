@@ -1,3 +1,5 @@
+> **CSR parameterised read RPC design — 5 Nov 2026 (newest):** A full-column, parameterised **design-only** SQL RPC based on the unchanged governed monthly SKU comparison view is drafted with first-of-month validation, 1..2000 result cap, current/prior-month/prior-year pivot prefilter and explicit signed-in CCC view permission. Transactional DDL/REVOKE/GRANT and source hash guard are included for security review. **NOT compiled, deployed, permission-tested, parity-tested or benchmarked**; no Supabase or client changes. See [security/contract design](CSR_PARAMETERIZED_RPC_DESIGN_GATE_2026-11-05.md). Planner-only fixed-period evidence remains 8097.18→2562.75 cost units, not runtime. Formal work-pack closure **5/13 (38%)**.
+
 # Cost Sheet Review — period-scoped comparison prototype gate (5 November 2026)
 
 **STATUS: SQL SELECT CANDIDATE + EXPLAIN-ONLY PLAN EVIDENCE COMPLETE; semantic parity, runtime and security gates OPEN. Formal Costing work-pack closure remains 5/13 (38%).**
