@@ -2036,6 +2036,7 @@ export function createProductionRouteController(deps = {}) {
   }
 
   costCentres = createProductionCostCentresController({
+    invoke,
     governed,
     showToast,
     canEdit,
