@@ -33,29 +33,17 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify immutable source and eleven Costing flags
         run: node scripts/costing-preview/verify-source-and-flags.mjs "${{ github.sha }}"
-      - name: Install pinned Playwright harness (not a project dependency change)
+      - name: Install pinned Playwright harness
         run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
       - name: Fail closed if Playwright is unavailable
         run: node -e "if (!require('playwright').chromium) process.exit(1)"
       - name: Install isolated Chromium browser
         run: npx playwright install --with-deps chromium
-      - name: Run six-module inert-backend flag and console tests
+      - name: Run six-module inert-backend tests with zero skips required
         run: |
           node --test scripts/costing-wp12-flag-sweep/flag-sweep-browser.test.mjs scripts/costing-wp12-flag-sweep/console-rpc-allowlist.test.mjs | tee costing-preview-test-results.tap
-          grep -q '^# fail 0
-      - name: Record exact test commit
-        if: always()
-        run: |
-          echo "Preview commit: ${GITHUB_SHA}"
-          echo "This workflow does not deploy, use Supabase credentials, or change production flags."
- costing-preview-test-results.tap
-          grep -q '^# skipped 0
-      - name: Record exact test commit
-        if: always()
-        run: |
-          echo "Preview commit: ${GITHUB_SHA}"
-          echo "This workflow does not deploy, use Supabase credentials, or change production flags."
- costing-preview-test-results.tap
+          grep -q '^# fail 0$' costing-preview-test-results.tap
+          grep -q '^# skipped 0$' costing-preview-test-results.tap
       - name: Record exact test commit
         if: always()
         run: |
