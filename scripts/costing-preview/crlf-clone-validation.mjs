@@ -23,7 +23,6 @@ try {
   const probe = readFileSync(join(clone, "scripts/costing-preview/synthetic-launcher.html"), "utf8");
   assert.ok(probe.includes("\r\n") && !/[^\r]\n/.test(probe), "clone is not CRLF; autocrlf did not apply");
   assert.equal(git(clone, "status", "--porcelain"), "", "CRLF clone must be clean under autocrlf");
-  if (existsSync(join(repo, "node_modules"))) symlinkSync(join(repo, "node_modules"), join(clone, "node_modules"), "dir");
   const run = (label, args) => {
     const r = spawnSync(process.execPath, args, { cwd: clone, encoding: "utf8", env: { ...process.env, CI: "true" } });
     const out = r.stdout + r.stderr;
@@ -35,6 +34,8 @@ try {
   const verifier = spawnSync(process.execPath, ["scripts/costing-preview/verify-source-and-flags.mjs", sha], { cwd: clone, encoding: "utf8" });
   assert.equal(verifier.status, 0, "verifier failed on CRLF checkout:\n" + verifier.stderr);
   process.stdout.write("CRLF verifier: SOURCE_AND_TEST_CONTRACT_VERIFIED_ONLY at " + sha + "\n");
+  // Linked only AFTER the clean-tree verifier, which refuses uncommitted files.
+  if (existsSync(join(repo, "node_modules"))) symlinkSync(join(repo, "node_modules"), join(clone, "node_modules"), "dir");
   const suites = [
     ["CRLF transport", ["--test", "scripts/costing-preview/read-only-loopback-server.test.mjs", "scripts/costing-preview/transport-negative.test.mjs"]],
     ["CRLF interactive+hardening", ["--test", "scripts/costing-preview/interactive-synthetic-preview.test.mjs", "scripts/costing-preview/wave-a-synthetic-hardening.test.mjs"]],
