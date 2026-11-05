@@ -1,3 +1,5 @@
+> **WP12 disconnected preview safety proof — 5 Nov 2026:** GitHub Actions [run #42042694501](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/42042694501) on preview commit `278484e9eabd50c4a5093ef91911df31fbc0d26f` passed **7/7 loopback static transport security tests** and **29/29 six-module mock Chromium tests**, zero failed or skipped. Loopback server permits static files only, rejects write methods/backend/proxy paths, and sets CSP `connect-src 'none'`. It is **not a live authenticated or functional standalone preview**, and browser mock suites use a separate inert stub. See [local preview safety proof](WP12_LOCAL_ONLY_PREVIEW_SECURITY_PROOF_2026-11-05.md). Owner signed-in ON/OFF and actual isolated backend still OPEN; formal 5/13 unchanged.
+
 # Costing preview branch — independently verified GitHub Actions mock Chromium sweep
 **Observed 5 November 2026 · status:** successful **29/29, zero skips** for isolated inert-backend browser suite; authenticated live-server acceptance remains OPEN. Formal closure 5/13 (38%).
 
