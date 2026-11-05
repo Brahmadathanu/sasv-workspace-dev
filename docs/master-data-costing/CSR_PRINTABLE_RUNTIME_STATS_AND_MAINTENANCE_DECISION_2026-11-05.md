@@ -1,3 +1,5 @@
+> **CSR snapshot planner statistics maintenance — 5 Nov 2026 (newest):** Following owner “proceed” and quiet-activity preflight, executed *only* `ANALYZE costing.cost_sheet_line_monthly_snapshot` in production. Verified `last_analyze=2026-11-05 10:19:13 UTC`, `analyze_count=1`, zero changes since analyze, Nov 2026 present in sampled periods. Exact EXPLAIN plans: printable Nov cost **88.42→137.34**, estimated rows **1→91**; monthly comparison Oct/Nov **8097.81→6893.40**. Planner changes are **not** runtime success evidence. Governed selections unchanged (Sep 122 APPROVED, Oct 143 APPROVED, Nov 149 LATEST_SUCCESS). See [maintenance and verification record](CSR_POST_ANALYZE_VERIFICATION_2026-11-05.md). Authenticated PWA performance retest PENDING; no business data, view/function, grants, code or release changes; formal closure **5/13 (38%)**.
+
 # Cost Sheet Review — printable summary completed-call statistics and maintenance decision
 **Date:** 5 November 2026  
 **Status:** READ-ONLY RUNTIME EVIDENCE CHECKPOINT COMPLETE; maintenance NOT authorised or executed; formal Costing closure 5/13 (38%).
