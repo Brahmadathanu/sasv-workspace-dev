@@ -93,4 +93,4 @@ Final commit SHA, workflow run URL and CI totals for the PR head are recorded in
 
 ## 7. CI record
 
-_Filled after the workflow completes on the final head (see PR)._
+Green GitHub Actions run (PR event, read-only token, no secrets): https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/42053762200 at **`8ecf66133ae428bcb694a000496ec1584ab3a759`** — Node 22.23.4, Playwright 1.62.1, Chromium installed by the pinned Playwright; every step succeeded: exact-SHA verifier, transport 19, interactive+hardening 16, six-module mock 29 (asserted zero fail/skip by `assert-tap.mjs`), CRLF clean-clone rerun of all 64. Earlier run 14 (`576ce2f`) failed only the CRLF step because CI TAP files dirtied the checkout; fixed in `8ecf661`. Commits after `8ecf661` are documentation-only (this section); the PR checks show their runs.
