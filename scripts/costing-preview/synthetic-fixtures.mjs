@@ -15,15 +15,15 @@ const TS = "2026-11-02T04:30:00Z";
 const by = "synthetic-preview";
 
 export const PRODUCTS = Object.freeze([
-  { product_id: 9001, product_name: SYNTHETIC + " Sample Oil", category_name: SYNTHETIC + " Category A", subcategory_name: SYNTHETIC + " Subcategory A1", group_name: SYNTHETIC + " Group A", sub_group_name: SYNTHETIC + " Subgroup A1" },
-  { product_id: 9002, product_name: SYNTHETIC + " Sample Powder", category_name: SYNTHETIC + " Category B", subcategory_name: SYNTHETIC + " Subcategory B1", group_name: SYNTHETIC + " Group B", sub_group_name: SYNTHETIC + " Subgroup B1" },
-  { product_id: 9003, product_name: SYNTHETIC + " Sample Tablet", category_name: SYNTHETIC + " Category B", subcategory_name: SYNTHETIC + " Subcategory B1", group_name: SYNTHETIC + " Group B", sub_group_name: SYNTHETIC + " Subgroup B2" },
+  { product_id: 900101, product_name: SYNTHETIC + " Sample Oil", category_name: SYNTHETIC + " Category A", subcategory_name: SYNTHETIC + " Subcategory A1", group_name: SYNTHETIC + " Group A", sub_group_name: SYNTHETIC + " Subgroup A1" },
+  { product_id: 900102, product_name: SYNTHETIC + " Sample Powder", category_name: SYNTHETIC + " Category B", subcategory_name: SYNTHETIC + " Subcategory B1", group_name: SYNTHETIC + " Group B", sub_group_name: SYNTHETIC + " Subgroup B1" },
+  { product_id: 900103, product_name: SYNTHETIC + " Sample Tablet", category_name: SYNTHETIC + " Category B", subcategory_name: SYNTHETIC + " Subcategory B1", group_name: SYNTHETIC + " Group B", sub_group_name: SYNTHETIC + " Subgroup B2" },
 ]);
 // outcome: READY | REVIEW_REQUIRED | BLOCKED. Money-like values are round placeholders.
 export const SKUS = Object.freeze([
-  { sku_id: 900001, product_id: 9001, pack_size: 200, pack_uom: "mL", outcome: "READY", control: "READY", severity: "INFO", mat: "READY", mrp_ik: 200, mrp_ok: 220, cost: 100 },
-  { sku_id: 900002, product_id: 9002, pack_size: 100, pack_uom: "g", outcome: "REVIEW_REQUIRED", control: "MATERIAL_REVIEW_REQUIRED", severity: "REVIEW", mat: "REVIEW_REQUIRED", mrp_ik: 300, mrp_ok: 330, cost: 150 },
-  { sku_id: 900003, product_id: 9003, pack_size: 60, pack_uom: "nos", outcome: "BLOCKED", control: "MATERIAL_COST_BLOCKED", severity: "BLOCKER", mat: "BLOCKED", mrp_ik: 400, mrp_ok: 440, cost: 0 },
+  { sku_id: 900001, product_id: 900101, pack_size: 200, pack_uom: "mL", outcome: "READY", control: "READY", severity: "INFO", mat: "READY", mrp_ik: 200, mrp_ok: 220, cost: 100 },
+  { sku_id: 900002, product_id: 900102, pack_size: 100, pack_uom: "g", outcome: "REVIEW_REQUIRED", control: "MATERIAL_REVIEW_REQUIRED", severity: "REVIEW", mat: "REVIEW_REQUIRED", mrp_ik: 300, mrp_ok: 330, cost: 150 },
+  { sku_id: 900003, product_id: 900103, pack_size: 60, pack_uom: "nos", outcome: "BLOCKED", control: "MATERIAL_COST_BLOCKED", severity: "BLOCKER", mat: "BLOCKED", mrp_ik: 400, mrp_ok: 440, cost: 0 },
 ]);
 const prod = (id) => PRODUCTS.find((p) => p.product_id === id);
 const label = (s) => SYNTHETIC + " " + prod(s.product_id).product_name.replace(SYNTHETIC + " ", "") + " " + s.pack_size + s.pack_uom;
@@ -61,6 +61,15 @@ export const RUN_ROWS = [
     official_valuation_date: null, latest_draft_run_id: 900002, latest_draft_valuation_date: VAL, approved_run_valuation_date: null },
 ];
 
+// Columns = the client's explicit select list in costing-approval-screen.js (no generated type exists).
+const runDisplay = (id, period, val, overall, designation, display, inUse, label) => ({ refresh_run_id: id, period_start: period, valuation_date: val, overall_status: overall, source_trigger: "MANUAL",
+  requested_at: TS, finished_at: TS, stored_designation: designation, display_status: display, in_use_for_pricing: inUse, pricing_use_label: SYNTHETIC + " fixture - not an official run",
+  superseded_by_run_id: null, designated_at: designation ? TS : null, designated_by: designation ? by : null, designation_reason: designation ? SYNTHETIC + " fixture" : null, display_label: label });
+export const RUN_DISPLAY_ROWS = [
+  runDisplay(900001, PRIOR, "2026-10-31", "SUCCESS", "APPROVED", "APPROVED", true, SYNTHETIC + " Approved run 900001"),
+  runDisplay(900002, P, VAL, "FAILED", null, "FAILED", false, SYNTHETIC + " Run 900002 FAILED - not approved"),
+];
+
 // ---- dashboard / KPI / integrity ----
 const dash = (period, run, status, ready, review, blocked, valuation) => ({
   period_start: period, refresh_run_id: run, valuation_date: valuation, overall_control_status: status,
@@ -93,12 +102,12 @@ export const MATERIAL_ACTION_ROWS = [
     action_severity: "BLOCKER", action_required_summary: SYNTHETIC + " fixture: selected rate missing", action_note_summary: SYNTHETIC + " fixture", issue_codes: "MISSING_MATERIAL_RATE", warning_codes: null,
     affected_sku_count: 1, affected_product_count: 1, affected_line_count: 1, approval_blocking_sku_count: 1, approval_blocking_line_count: 1, review_sku_count: 0, review_line_count: 0,
     has_missing_selected_rate: true, has_missing_rate_source: true, has_optional_lines: false, material_line_statuses: "BLOCKED", bom_sources: "RM_BOM",
-    recommended_ui_route: "MATERIAL_RATE_REVIEW", sample_product_name: prod(9003).product_name, sample_sku_id: 900003, snapshot_refreshed_at: TS, latest_rate_date: null, oldest_rate_date: null },
+    recommended_ui_route: "MATERIAL_RATE_REVIEW", sample_product_name: prod(900103).product_name, sample_sku_id: 900003, snapshot_refreshed_at: TS, latest_rate_date: null, oldest_rate_date: null },
   { period_start: P, refresh_run_id: 900002, valuation_date: VAL, material_area: "PM", stock_item_id: 900002, stock_item_code: "SYN-PM-900002", stock_item_name: SYNTHETIC + " Sample Bottle",
     action_severity: "REVIEW", action_required_summary: SYNTHETIC + " fixture: manual rate in use", action_note_summary: SYNTHETIC + " fixture", issue_codes: "MANUAL_RATE_USED", warning_codes: null,
     affected_sku_count: 1, affected_product_count: 1, affected_line_count: 1, approval_blocking_sku_count: 0, approval_blocking_line_count: 0, review_sku_count: 1, review_line_count: 1,
     has_missing_selected_rate: false, has_missing_rate_source: false, has_optional_lines: false, material_line_statuses: "REVIEW_REQUIRED", bom_sources: "PM_BOM",
-    recommended_ui_route: "MATERIAL_REVIEW", sample_product_name: prod(9002).product_name, sample_sku_id: 900002, snapshot_refreshed_at: TS, latest_rate_date: "2026-10-15", oldest_rate_date: "2026-10-15" },
+    recommended_ui_route: "MATERIAL_REVIEW", sample_product_name: prod(900102).product_name, sample_sku_id: 900002, snapshot_refreshed_at: TS, latest_rate_date: "2026-10-15", oldest_rate_date: "2026-10-15" },
 ];
 export const ACCEPTANCE_ROWS = [
   { acceptance_id: 900001, period_start: P, material_area: "PM", stock_item_id: 900002, stock_item_code: "SYN-PM-900002", stock_item_name: SYNTHETIC + " Sample Bottle",
@@ -107,7 +116,16 @@ export const ACCEPTANCE_ROWS = [
     affected_sku_count: 1, affected_product_count: 1, affected_line_count: 1, review_sku_count: 1, review_line_count: 1, approval_blocking_sku_count: 0, approval_blocking_line_count: 0,
     current_queue_row_exists: true, current_queue_affected_sku_count: 1, issue_codes: "MANUAL_RATE_USED", material_line_statuses: "REVIEW_REQUIRED", bom_sources: "PM_BOM" },
 ];
-export const MANUAL_RATE_QUEUE_ROWS = MATERIAL_ACTION_ROWS; // the same fictional material issues, shown as manual-rate work items
+export const MANUAL_RATE_QUEUE_ROWS = [
+  { period_start: P, stock_item_id: 900001, stock_item_code: "SYN-RM-900001", stock_item_name: SYNTHETIC + " Sample Herb Extract", manager_action_code: "ADD_MANUAL_RATE", action_source: "COSTING_QUEUE",
+    material_issue_code: "MISSING_MATERIAL_RATE", material_line_status: "BLOCKED", bom_source: "RM_BOM", affected_sku_count: 1, affected_product_count: 1, affected_line_count: 1, priority_sort: 1,
+    recommended_action: SYNTHETIC + " fixture: record an approved rate", selected_rate: null, rate_source: null, rate_date: null, latest_purchase_rate: null, latest_purchase_date: null,
+    manual_rate_id: null, manual_rate_status: null, manual_rate_value: null, newer_purchase_rate_available: false, manual_rate_overrides_purchase_rate: false, snapshot_refreshed_at: TS },
+  { period_start: P, stock_item_id: 900002, stock_item_code: "SYN-PM-900002", stock_item_name: SYNTHETIC + " Sample Bottle", manager_action_code: "REVIEW_MANUAL_RATE", action_source: "COSTING_QUEUE",
+    material_issue_code: "MANUAL_RATE_USED", material_line_status: "REVIEW_REQUIRED", bom_source: "PM_BOM", affected_sku_count: 1, affected_product_count: 1, affected_line_count: 1, priority_sort: 2,
+    recommended_action: SYNTHETIC + " fixture: confirm the manual rate", selected_rate: 50, rate_source: "MANUAL", rate_date: "2026-10-15", latest_purchase_rate: null, latest_purchase_date: null,
+    manual_rate_id: 900001, manual_rate_status: "ACTIVE", manual_rate_value: 50, newer_purchase_rate_available: false, manual_rate_overrides_purchase_rate: false, snapshot_refreshed_at: TS },
+];
 
 // ---- cost sheet review ----
 export const SKU_SELECTOR_ROWS = SKUS.map((s) => ({
@@ -167,7 +185,7 @@ export const SKU_OVERVIEW_ROWS = SKUS.map((s) => ({ sku_id: s.sku_id, product_id
   ik_discount_percent: 10, ok_discount_percent: 5, ik_selected_scheme_id: s.outcome === "READY" ? 900001 : null, ik_selected_scheme_name: s.outcome === "READY" ? SYNTHETIC + " Buy 10 Get 1" : null,
   ik_scheme_policy_active: s.outcome === "READY", ik_policy_source: s.outcome === "READY" ? "DIRECT_SKU" : "NONE", ik_policy_source_label: s.outcome === "READY" ? SYNTHETIC + " SKU rule" : SYNTHETIC + " no scheme",
   ok_selected_scheme_id: null, ok_selected_scheme_name: null, ok_scheme_policy_active: false, ok_policy_source: "NONE", ok_policy_source_label: SYNTHETIC + " no scheme", refreshed_at: TS }));
-export const DERIVATION_CURRENT_ROWS = [{ derivation_policy_id: 900001, product_id: 9001, product_name: prod(9001).product_name, product_status: "ACTIVE", product_base_uom: "mL",
+export const DERIVATION_CURRENT_ROWS = [{ derivation_policy_id: 900001, product_id: 900101, product_name: prod(900101).product_name, product_status: "ACTIVE", product_base_uom: "mL",
   status: "ACTIVE", effective_from: "2026-04-01", effective_to: null, reference_sku_id: 900001, reference_pack_size: 200, reference_pack_uom: "mL", reference_mrp_ik: 200, reference_mrp_ok: 220,
   reference_ok_pct: 10, smaller_pack_adjustment_pct: 5, larger_pack_adjustment_pct: -5, ceiling_increment: 1, reference_selection_source: "MANUAL", source_type: "MANUAL", source_quality: "CONFIRMED",
   reason: SYNTHETIC + " fixture", approval_reference: "SYNTHETIC-REF-900001", created_at: TS, created_by: by, confirmed_at: TS, confirmed_by: by }];
@@ -175,7 +193,7 @@ export const REFERENCE_READINESS_ROWS = PRODUCTS.map((p, i) => ({ product_id: p.
   readiness_status: i === 0 ? "READY" : "BLOCKED", blocker_code: i === 0 ? null : "NO_REFERENCE_PACK", derivation_policy_status: i === 0 ? "ACTIVE" : null, current_derivation_policy_id: i === 0 ? 900001 : null,
   active_non_sample_sku_count: 1, priced_active_non_sample_sku_count: 1, reference_selection_source: "MANUAL", source_type: "MANUAL", source_quality: "CONFIRMED",
   current_reference_sku_id: SKUS[i].sku_id, current_reference_pack_size: SKUS[i].pack_size, current_reference_pack_uom: SKUS[i].pack_uom, current_reference_mrp_ik: SKUS[i].mrp_ik, current_reference_mrp_ok: SKUS[i].mrp_ok }));
-const proposal = (id, status, n) => ({ proposal_id: id, proposal_number: "SYN-PROP-" + id, status, product_id: 9001, product_name: prod(9001).product_name, product_status: "ACTIVE", product_base_uom: "mL",
+const proposal = (id, status, n) => ({ proposal_id: id, proposal_number: "SYN-PROP-" + id, status, product_id: 900101, product_name: prod(900101).product_name, product_status: "ACTIVE", product_base_uom: "mL",
   proposed_effective_from: "2026-12-01", derivation_policy_id: 900001, reference_sku_id: 900001, reference_pack_size: 200, reference_pack_uom: "mL", reference_mrp_ik: 200, reference_mrp_ok: 220,
   total_line_count: n, eligible_line_count: n, pending_line_count: status === "SUBMITTED" ? n : 0, approved_line_count: status === "APPROVED" || status === "APPLIED" ? n : 0, rejected_line_count: 0,
   blocked_line_count: 0, warning_line_count: 0, changed_mrp_line_count: n, no_change_line_count: 0, manually_adjusted_line_count: 0, review_summary_status: status,
@@ -193,7 +211,7 @@ export const SCHEME_MASTER_ROWS = [
     deactivated_at: TS, deactivated_by: by, deactivation_reason: SYNTHETIC + " fixture" },
 ];
 export const SCHEME_RULE_ROWS = [
-  { policy_rule_id: 900001, policy_scope: "SKU", scope_id: 900001, scope_name: label(SKUS[0]), sku_id: 900001, product_id: 9001, product_name: prod(9001).product_name, pack_size: 200, pack_uom: "mL",
+  { policy_rule_id: 900001, policy_scope: "SKU", scope_id: 900001, scope_name: label(SKUS[0]), sku_id: 900001, product_id: 900101, product_name: prod(900101).product_name, pack_size: 200, pack_uom: "mL",
     region_code: "IK", scheme_id: 900001, scheme_name: SYNTHETIC + " Buy 10 Get 1", paid_qty: 10, free_qty: 1, apply_mode: "ADD_IF_MISSING", is_active: true, rule_status: "ACTIVE",
     effective_from: "2026-04-01", effective_to: null, remarks: SYNTHETIC + " fixture", created_at: TS, created_by: by },
   { policy_rule_id: 900002, policy_scope: "PRODUCT_GROUP", scope_id: 900001, scope_name: SYNTHETIC + " Group B", product_group_id: 900001, group_name: SYNTHETIC + " Group B", region_code: "OK",
@@ -260,16 +278,16 @@ export const READINESS_GAPS = (args = {}) => ({ assessment_kind: "PRODUCT_MEMBER
 // ---- QC / Materials-Stores action queues: [{ row_data, total_count }] (types) with row fields read by the controllers ----
 const queueEnvelope = (rows) => rows.map((row) => ({ row_data: row, total_count: rows.length }));
 export const QC_QUEUE = queueEnvelope([
-  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, product_id: 9003, product_name: prod(9003).product_name, action_code: "BLOCKED_MISSING_FG_PROTOCOL_MAPPING",
+  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, product_id: 900103, product_name: prod(900103).product_name, action_code: "BLOCKED_MISSING_FG_PROTOCOL_MAPPING",
     action_severity: "BLOCKER", recommended_action: SYNTHETIC + " fixture: map an FG protocol", action_note: SYNTHETIC + " fixture", allocation_status: "BLOCKED", snapshot_refreshed_at: TS },
-  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, product_id: 9002, product_name: prod(9002).product_name, action_code: "REVIEW_REQUIRED_QC_ABSORPTION_BASIS",
+  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, product_id: 900102, product_name: prod(900102).product_name, action_code: "REVIEW_REQUIRED_QC_ABSORPTION_BASIS",
     action_severity: "REVIEW", recommended_action: SYNTHETIC + " fixture: review absorption basis", action_note: SYNTHETIC + " fixture", allocation_status: "REVIEW_REQUIRED", snapshot_refreshed_at: TS },
 ]);
 export const MATERIALS_STORES_QUEUE = queueEnvelope([
-  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, sku_id: 900003, product_id: 9003, product_name: prod(9003).product_name, pack_size: 60, pack_uom: "nos",
+  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, sku_id: 900003, product_id: 900103, product_name: prod(900103).product_name, pack_size: 60, pack_uom: "nos",
     action_code: "BLOCKED_NO_RM_OR_PM_STANDARD_EVIDENCE", action_severity: "BLOCKER", recommended_action: SYNTHETIC + " fixture: add standard evidence", action_note: SYNTHETIC + " fixture",
     allocation_status: "BLOCKED", recommended_ui_route: "MATERIAL_RATE_REVIEW" },
-  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, sku_id: 900002, product_id: 9002, product_name: prod(9002).product_name, pack_size: 100, pack_uom: "g",
+  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, sku_id: 900002, product_id: 900102, product_name: prod(900102).product_name, pack_size: 100, pack_uom: "g",
     action_code: "REVIEW_MONTHLY_ALLOCATION_BASIS", action_severity: "REVIEW", recommended_action: SYNTHETIC + " fixture: review allocation basis", action_note: SYNTHETIC + " fixture",
     allocation_status: "REVIEW_REQUIRED", recommended_ui_route: "COST_BUILD_REVIEW" },
 ]);
@@ -312,9 +330,9 @@ const readinessRow = (p, i) => ({ product_id: p.product_id, product_name: p.prod
 export const PRM_READINESS = { rows: PRODUCTS.map(readinessRow), total_count: 3,
   status_counts: { READY: 1, REVIEW_REQUIRED_MONTHLY_QUANTITY_DRIVER: 1, BLOCKED_NO_APPROVED_ROUTE_FAMILY_ROUTE: 1 }, as_of_date: VAL };
 export const PRM_ASSIGNMENTS = { rows: [
-  { assignment_id: 900001, status: "APPROVED", product_id: 9001, product_name: prod(9001).product_name, product_group_id: 900001, product_group_name: GROUPS[0].product_group_name,
+  { assignment_id: 900001, status: "APPROVED", product_id: 900101, product_name: prod(900101).product_name, product_group_id: 900001, product_group_name: GROUPS[0].product_group_name,
     route_family_id: 900001, route_family_name: FAMILIES[0].route_family_name, route_family_code: FAMILIES[0].route_family_code, assignment_basis: "SYNTHETIC_FIXTURE", effective_from: "2026-04-01", approval_reference: "SYNTHETIC-REF-1" },
-  { assignment_id: 900002, status: "DRAFT", product_id: 9002, product_name: prod(9002).product_name, product_group_id: 900002, product_group_name: GROUPS[1].product_group_name,
+  { assignment_id: 900002, status: "DRAFT", product_id: 900102, product_name: prod(900102).product_name, product_group_id: 900002, product_group_name: GROUPS[1].product_group_name,
     route_family_id: 900002, route_family_name: FAMILIES[1].route_family_name, route_family_code: FAMILIES[1].route_family_code, assignment_basis: "SYNTHETIC_FIXTURE", effective_from: "2026-12-01" },
 ], total_count: 2, status_counts: { APPROVED: 1, DRAFT: 1 } };
 export const PRM_SUBGROUP_MAPPINGS = { rows: SUBGROUPS.map((sg, i) => ({ mapping_id: 900001 + i, status: i < 2 ? "APPROVED" : "DRAFT", product_subgroup_id: sg.product_subgroup_id,
@@ -354,3 +372,46 @@ export const MANUAL_RATE_HISTORY = MANUAL_RATE_REGISTER.map(({ manual_rate_id, s
 export const MANUAL_RATE_REVIEW = MANUAL_RATE_REGISTER.map((r) => ({ manual_rate_id: r.manual_rate_id, stock_item_id: r.stock_item_id, stock_item_code: r.stock_item_code, stock_item_name: r.stock_item_name,
   manual_rate_status: r.status, manual_rate_value: r.rate_value, manual_rate_effective_from: r.effective_from, manual_rate_effective_to: null, manual_rate_reason: r.reason,
   manual_rate_overrides_purchase_rate: false, newer_purchase_rate_available: false, review_message: r.review_message, manual_rate_created_at: TS, manual_rate_last_updated_at: TS }));
+
+// ---- table/view name -> rows served by the synthetic client (exact match only) ----
+export const TABLE_FIXTURES = Object.freeze({
+  v_costing_pricing_sku_control_status_snapshot: SKU_STATUS_ROWS,
+  v_costing_pricing_period_run_status: RUN_ROWS,
+  v_costing_pricing_run_display_status: RUN_DISPLAY_ROWS,
+  v_costing_pricing_control_dashboard_snapshot: DASHBOARD_ROWS,
+  v_costing_pricing_business_kpi_summary: KPI_ROWS,
+  v_costing_pricing_control_integrity_audit_snapshot: INTEGRITY_ROWS,
+  v_costing_pricing_material_action_queue_snapshot: MATERIAL_ACTION_ROWS,
+  v_costing_material_review_acceptance_register: ACCEPTANCE_ROWS,
+  v_costing_manual_rate_manager_action_queue: MANUAL_RATE_QUEUE_ROWS,
+  v_costing_pricing_sku_selector: SKU_SELECTOR_ROWS,
+  v_costing_pricing_sku_detailed_cost_sheet: DETAILED_COST_SHEET_ROWS,
+  v_costing_pricing_printable_cost_sheet_product_summary: PRINTABLE_SUMMARY_ROWS,
+  v_cost_sheet_snapshot_sku_monthly_comparison_governed: COMPARISON_ROWS,
+  v_costing_pricing_sku_scheme_comparison: SCHEME_COMPARISON_ROWS,
+  v_sku_mrp_current: SKU_MRP_CURRENT_ROWS,
+  v_costing_policy_manager_sku_overview: SKU_OVERVIEW_ROWS,
+  v_product_mrp_derivation_current: DERIVATION_CURRENT_ROWS,
+  v_product_mrp_reference_readiness: REFERENCE_READINESS_ROWS,
+  v_product_mrp_proposal_register: PROPOSAL_REGISTER_ROWS,
+  v_costing_scheme_master_register: SCHEME_MASTER_ROWS,
+  v_costing_scheme_policy_rule_register: SCHEME_RULE_ROWS,
+  v_costing_pricing_commercial_sales_basis: COMMERCIAL_BASIS_ROWS,
+  v_costing_unclassified_staff_for_costing: UNCLASSIFIED_STAFF_ROWS,
+  v_costing_manual_provision_pool_options: PROVISION_POOL_OPTIONS,
+  v_costing_manual_provision_type_options: PROVISION_TYPE_OPTIONS,
+  v_costing_manual_cost_pool_provision_register: PROVISION_REGISTER_ROWS,
+  v_costing_cost_pool_monthly_summary: POOL_SUMMARY_ROWS,
+  v_costing_policy_manager_scheme_options: SCHEME_MASTER_ROWS.filter((r) => r.is_active).map(({ scheme_id, scheme_name, paid_qty, free_qty, is_active, remarks }) => ({ scheme_id, scheme_name, paid_qty, free_qty, is_active, remarks })),
+  v_costing_scheme_policy_scope_options: SKU_STATUS_ROWS.map((r) => ({ policy_scope: "SKU", scope_id: r.sku_id, scope_key: "SKU:" + r.sku_id, scope_name: r.product_name,
+    display_name: r.product_name + " " + r.pack_size + r.pack_uom, sku_id: r.sku_id, product_id: r.product_id, product_name: r.product_name })),
+  v_costing_expense_allocation_pool_options: EXPENSE_POOL_OPTIONS,
+  v_costing_staff_costing_class_options: STAFF_CLASS_OPTIONS,
+  v_costing_unmapped_expense_heads_for_mapping: UNMAPPED_EXPENSE_HEADS,
+  v_costing_expense_head_mapping_register: EXPENSE_MAPPING_REGISTER,
+  v_costing_staff_classification_register: STAFF_CLASSIFICATION_REGISTER,
+  v_costing_staff_cost_pool_summary: STAFF_POOL_SUMMARY,
+  v_costing_material_manual_rate_register: MANUAL_RATE_REGISTER,
+  v_costing_material_manual_rate_history: MANUAL_RATE_HISTORY,
+  v_costing_material_manual_rate_review: MANUAL_RATE_REVIEW,
+});

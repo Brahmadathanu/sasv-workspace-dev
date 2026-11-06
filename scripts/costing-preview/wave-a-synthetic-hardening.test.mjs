@@ -108,7 +108,7 @@ test("synthetic READY / REVIEW / BLOCKED status and two run states are visibly r
   assert.match(text, /SYNTHETIC Run 900002 FAILED/);
   const data = await page.evaluate(async () => {
     const { supabase } = await import("/shared/js/supabaseClient.js");
-    const sku = await supabase.from("sku_costing_control_status_snapshot").select("*");
+    const sku = await supabase.from("v_costing_pricing_sku_control_status_snapshot").select("*");
     const runs = await supabase.from("v_costing_pricing_period_run_status").select("*");
     return { sku: sku.data, runs: runs.data };
   });
