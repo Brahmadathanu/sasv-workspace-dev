@@ -34,15 +34,17 @@ export async function auditAll({ base, browser, flags: flagList = flags, width: 
     ]);
     const seen = new Set();
     // The first lens renders on load; visit it by id like every other target.
+    let first = true;
     for (const target of targets) {
       if (seen.has(target.id)) continue; seen.add(target.id);
-      const before = await page.evaluate(() => ({
+      const before = first ? { rpc: 0, from: 0, unsupported: 0, denied: 0 } : await page.evaluate(() => ({
         rpc: window.__costingSyntheticPreview.rpc.length, from: window.__costingSyntheticPreview.from.length,
         unsupported: window.__costingSyntheticPreview.unsupported.length, denied: window.__costingSyntheticPreview.deniedWrites.length,
       }));
       const selector = target.kind === "lens" ? 'button[data-lens="' + target.id + '"]' : 'button[data-pricing-policy-workspace="' + target.id + '"]';
       await page.locator(selector).first().click();
       await page.waitForTimeout(1300);
+      first = false;
       const state = await page.evaluate((prior) => {
         const log = window.__costingSyntheticPreview;
         const root = document.querySelector("main, #app, .content, body");

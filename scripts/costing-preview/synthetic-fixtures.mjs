@@ -229,3 +229,98 @@ export const VALUATION_CONTEXT = (period) => [{
   remarks: SYNTHETIC + " fixture" }];
 export const SALES_ALLOCATION_POLICIES = [{ policy_id: 900001, scenario_code: "BASE", default_sales_units: 1000, effective_from: "2026-04-01", effective_to: null, status: "ACTIVE",
   reason: SYNTHETIC + " fixture", approval_reference: null, created_at: TS, created_by: by, previous_policy_id: null }];
+
+// ---- readiness (envelope shapes proven by scripts/wp04-readiness-client-contract-smoke.mjs validPortfolioPayload) ----
+export const READINESS_PERIODS = { observed_at: TS, rows: [{ period_start: P, valuation_date: VAL }, { period_start: PRIOR, valuation_date: "2026-10-31" }],
+  limit: 24, returned_count: 2, has_more: false, next_before_period_start: null };
+const assessment = (s) => ({
+  context: { context_type: "LIVE_AS_OF", sku_id: s.sku_id, product_id: s.product_id, period_start: P, valuation_date: VAL, refresh_run_id: null, context_integrity_status: "LIVE_GOVERNED_PERIOD" },
+  lifecycle: { product_status: "Active", sku_is_active: true, sku_is_sample: false },
+  identity: { product_name: prod(s.product_id).product_name, pack_size: s.pack_size, pack_uom: s.pack_uom },
+  summary: { product_master_foundation_status: "RESOLVED", sku_master_foundation_status: "RESOLVED",
+    costing_foundation_status: s.outcome === "BLOCKED" ? "UNRESOLVED" : "RESOLVED", evidence_quality_status: s.outcome === "READY" ? "RESOLVED" : "UNKNOWN",
+    costing_outcome_status: s.outcome === "READY" ? "RESOLVED" : "UNKNOWN", overall_severity: s.outcome === "READY" ? "READY" : s.outcome === "BLOCKED" ? "BLOCKER" : "REVIEW_REQUIRED" },
+  dependencies: [], shared_issues: [], downstream_control: null,
+});
+export const READINESS_PORTFOLIO = (args = {}) => ({
+  context: { context_type: "LIVE_AS_OF", requested_period_start: args.p_period_start ?? P, period_start: args.p_period_start ?? P, valuation_date: VAL, refresh_run_id: null,
+    evidence_refresh_run_id: 900002, context_integrity_status: "LIVE_GOVERNED_PERIOD" },
+  observed_at: TS, population_scope: args.p_population_scope ?? "OPERATIONAL",
+  filters: { overall_severities: null, dependency_codes: null, owner_modules: null, route_codes: null, search: args.p_search ?? null },
+  filter_options: { overall_severities: ["READY", "REVIEW_REQUIRED", "BLOCKER", "UNKNOWN"], dependency_codes: [], owner_modules: [], route_codes: [] },
+  after_sku_id: args.p_after_sku_id ?? null, limit: args.p_limit ?? 50,
+  statistics: { population_sku_count: 3, overall_severity_counts: { READY: 1, REVIEW_REQUIRED: 1, BLOCKER: 1, UNKNOWN: 0 },
+    unresolved_dependency_counts: [], unresolved_owner_counts: [], unresolved_route_counts: [], unresolved_shared_issue_counts: [], regional_marketing_counts: [] },
+  matched_count: 3, returned_count: 3, rows: SKUS.map(assessment), has_more: false, next_after_sku_id: null,
+});
+export const READINESS_GAPS = (args = {}) => ({ assessment_kind: "PRODUCT_MEMBERSHIP_GAPS", observed_at: TS, product_scope: args.p_product_scope ?? "ACTIVE_PRODUCTS",
+  gap_kind: args.p_gap_kind ?? "NO_SKU", rows: [], statistics: { product_count: 3, no_sku_count: 0, active_without_active_sku_count: 0 }, limit: 25, matched_count: 0,
+  returned_count: 0, has_more: false, next_after_product_id: null });
+
+// ---- QC / Materials-Stores action queues: [{ row_data, total_count }] (types) with row fields read by the controllers ----
+const queueEnvelope = (rows) => rows.map((row) => ({ row_data: row, total_count: rows.length }));
+export const QC_QUEUE = queueEnvelope([
+  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, product_id: 9003, product_name: prod(9003).product_name, action_code: "BLOCKED_MISSING_FG_PROTOCOL_MAPPING",
+    action_severity: "BLOCKER", recommended_action: SYNTHETIC + " fixture: map an FG protocol", action_note: SYNTHETIC + " fixture", allocation_status: "BLOCKED", snapshot_refreshed_at: TS },
+  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, product_id: 9002, product_name: prod(9002).product_name, action_code: "REVIEW_REQUIRED_QC_ABSORPTION_BASIS",
+    action_severity: "REVIEW", recommended_action: SYNTHETIC + " fixture: review absorption basis", action_note: SYNTHETIC + " fixture", allocation_status: "REVIEW_REQUIRED", snapshot_refreshed_at: TS },
+]);
+export const MATERIALS_STORES_QUEUE = queueEnvelope([
+  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, sku_id: 900003, product_id: 9003, product_name: prod(9003).product_name, pack_size: 60, pack_uom: "nos",
+    action_code: "BLOCKED_NO_RM_OR_PM_STANDARD_EVIDENCE", action_severity: "BLOCKER", recommended_action: SYNTHETIC + " fixture: add standard evidence", action_note: SYNTHETIC + " fixture",
+    allocation_status: "BLOCKED", recommended_ui_route: "MATERIAL_RATE_REVIEW" },
+  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, sku_id: 900002, product_id: 9002, product_name: prod(9002).product_name, pack_size: 100, pack_uom: "g",
+    action_code: "REVIEW_MONTHLY_ALLOCATION_BASIS", action_severity: "REVIEW", recommended_action: SYNTHETIC + " fixture: review allocation basis", action_note: SYNTHETIC + " fixture",
+    allocation_status: "REVIEW_REQUIRED", recommended_ui_route: "COST_BUILD_REVIEW" },
+]);
+
+// ---- cost build ----
+export const DRIVER_REGISTRY = [
+  ["DIRECT_LABOUR", "Direct Labour", "REVIEW_REQUIRED"], ["PRODUCTION_OVERHEAD", "Production Overhead", "APPROVED"], ["QUALITY_CONTROL_OVERHEAD", "Quality Control Overhead", null],
+  ["MATERIALS_STORES_OVERHEAD", "Materials / Stores Overhead", null], ["ADMIN_OVERHEAD", "Administrative Overhead", "REVIEW_REQUIRED"],
+  ["FINANCE_ADMIN_OVERHEAD", "Finance/Admin Overhead", "REVIEW_REQUIRED"], ["MARKETING_EXPENSE", "Marketing Expense", null],
+].map(([code, name, life], i) => ({ cost_element_code: code, cost_element_label: name, sort_order: i + 1, lifecycle_status: life, is_registered: life !== null }));
+export const PROVISION_REGISTER_ROWS = [
+  { provision_id: 900001, provision_key: "SYN-PROV-900001", provision_label: SYNTHETIC + " Sample provision", provision_type: "MANUAL_PROVISION", provision_type_label: "Manual provision",
+    allocation_pool: "PRODUCTION_OVERHEAD", allocation_pool_label: "Production Overhead", period_start: P, provision_amount: 1000, provision_status: "ACTIVE", is_active: true,
+    provision_note: SYNTHETIC + " fixture", remarks: SYNTHETIC + " fixture", source_reference: "SYNTHETIC-REF", created_at: TS, updated_at: TS },
+];
+export const POOL_SUMMARY_ROWS = [
+  { period_start: P, allocation_pool: "PRODUCTION_OVERHEAD", allocation_pool_label: "Production Overhead", pool_status: "READY", pool_source_type: "MIXED",
+    staff_pool_amount: 2000, expense_provision_amount: 500, manual_provision_amount: 1000, total_pool_amount: 3500 },
+  { period_start: P, allocation_pool: "QUALITY_CONTROL", allocation_pool_label: "Quality Control", pool_status: "REVIEW_REQUIRED", pool_source_type: "STAFF",
+    staff_pool_amount: 800, expense_provision_amount: 0, manual_provision_amount: 0, total_pool_amount: 800 },
+];
+export const REGIONAL_SALES_POLICIES = ["IK", "OK"].map((region, i) => ({ policy_id: 900101 + i, region_code: region, scenario_code: "BASE", default_sales_units: 500, effective_from: "2026-04-01",
+  effective_to: null, status: "ACTIVE", reason: SYNTHETIC + " fixture", approval_reference: null, created_at: TS, created_by: by, previous_policy_id: null }));
+
+// ---- production route manager (envelopes proven by costing-suite-production-route-helpers.js normalisers) ----
+const FAMILIES = [{ route_family_id: 900001, route_family_code: "SYN-FAM-A", route_family_name: SYNTHETIC + " Route Family A", status: "APPROVED", is_active: true },
+  { route_family_id: 900002, route_family_code: "SYN-FAM-B", route_family_name: SYNTHETIC + " Route Family B", status: "APPROVED", is_active: true }];
+const GROUPS = [{ product_group_id: 900001, product_group_name: SYNTHETIC + " Group A", group_name: SYNTHETIC + " Group A" }, { product_group_id: 900002, product_group_name: SYNTHETIC + " Group B", group_name: SYNTHETIC + " Group B" }];
+const SUBGROUPS = [{ product_subgroup_id: 900001, product_subgroup_name: SYNTHETIC + " Subgroup A1", product_group_id: 900001 }, { product_subgroup_id: 900002, product_subgroup_name: SYNTHETIC + " Subgroup B1", product_group_id: 900002 },
+  { product_subgroup_id: 900003, product_subgroup_name: SYNTHETIC + " Subgroup B2", product_group_id: 900002 }];
+export const PRM_COST_CENTRES = Array.from({ length: 3 }, (_, i) => ({ cost_centre_id: 900001 + i, code: "SYN-CC-" + (i + 1), cost_centre_name: SYNTHETIC + " Cost Centre " + (i + 1), status: "APPROVED",
+  pool_scope: "SHARED_ROUTE", default_resource_class_code: "LABOUR", default_resource_class_label: "Labour" }));
+export const PRM_MASTER_OPTIONS = { as_of_date: VAL, product_groups: GROUPS, product_subgroups: SUBGROUPS,
+  products: PRODUCTS.map((p, i) => ({ product_id: p.product_id, product_name: p.product_name, product_group_id: GROUPS[i === 0 ? 0 : 1].product_group_id, product_subgroup_id: SUBGROUPS[i].product_subgroup_id })),
+  route_families: FAMILIES, route_family_mappings: [], route_family_subgroup_mappings: [], approved_route_family_routes: [], batch_size_references: [], behaviours: [], resource_classes: [],
+  cost_centres: PRM_COST_CENTRES, activities: [], sections: [], subsections: [], areas: [], plants: [] };
+const readinessRow = (p, i) => ({ product_id: p.product_id, product_name: p.product_name, product_group_id: GROUPS[i === 0 ? 0 : 1].product_group_id, product_group_name: GROUPS[i === 0 ? 0 : 1].product_group_name,
+  route_family_id: FAMILIES[i === 0 ? 0 : 1].route_family_id, route_family_name: FAMILIES[i === 0 ? 0 : 1].route_family_name, route_family_code: FAMILIES[i === 0 ? 0 : 1].route_family_code,
+  readiness_status: ["READY", "REVIEW_REQUIRED_MONTHLY_QUANTITY_DRIVER", "BLOCKED_NO_APPROVED_ROUTE_FAMILY_ROUTE"][i] });
+export const PRM_READINESS = { rows: PRODUCTS.map(readinessRow), total_count: 3,
+  status_counts: { READY: 1, REVIEW_REQUIRED_MONTHLY_QUANTITY_DRIVER: 1, BLOCKED_NO_APPROVED_ROUTE_FAMILY_ROUTE: 1 }, as_of_date: VAL };
+export const PRM_ASSIGNMENTS = { rows: [
+  { assignment_id: 900001, status: "APPROVED", product_id: 9001, product_name: prod(9001).product_name, product_group_id: 900001, product_group_name: GROUPS[0].product_group_name,
+    route_family_id: 900001, route_family_name: FAMILIES[0].route_family_name, route_family_code: FAMILIES[0].route_family_code, assignment_basis: "SYNTHETIC_FIXTURE", effective_from: "2026-04-01", approval_reference: "SYNTHETIC-REF-1" },
+  { assignment_id: 900002, status: "DRAFT", product_id: 9002, product_name: prod(9002).product_name, product_group_id: 900002, product_group_name: GROUPS[1].product_group_name,
+    route_family_id: 900002, route_family_name: FAMILIES[1].route_family_name, route_family_code: FAMILIES[1].route_family_code, assignment_basis: "SYNTHETIC_FIXTURE", effective_from: "2026-12-01" },
+], total_count: 2, status_counts: { APPROVED: 1, DRAFT: 1 } };
+export const PRM_SUBGROUP_MAPPINGS = { rows: SUBGROUPS.map((sg, i) => ({ mapping_id: 900001 + i, status: i < 2 ? "APPROVED" : "DRAFT", product_subgroup_id: sg.product_subgroup_id,
+  product_subgroup_name: sg.product_subgroup_name, product_group_id: sg.product_group_id, product_group_name: GROUPS.find((g) => g.product_group_id === sg.product_group_id).product_group_name,
+  route_family_id: FAMILIES[i === 0 ? 0 : 1].route_family_id, route_family_name: FAMILIES[i === 0 ? 0 : 1].route_family_name, route_family_code: FAMILIES[i === 0 ? 0 : 1].route_family_code,
+  mapping_basis: "SYNTHETIC_FIXTURE", effective_from: "2026-04-01", approval_reference: i < 2 ? "SYNTHETIC-REF-" + (i + 1) : null })), total_count: 3, status_counts: { APPROVED: 2, DRAFT: 1 } };
+export const PRM_ARCHIVED = { rows: [{ entity_type: "ROUTE_FAMILY", entity_id: 900009, name: SYNTHETIC + " Retired Route Family", code: "SYN-FAM-OLD", original_status: "APPROVED", status: "ARCHIVED",
+  effective_from: "2025-04-01", effective_to: "2026-03-31", archived_at: TS, archived_by: by, archive_reason: SYNTHETIC + " fixture" }], total_count: 1 };
+export const PRM_COST_CENTRE_LIST = { rows: PRM_COST_CENTRES, total_count: 3 };

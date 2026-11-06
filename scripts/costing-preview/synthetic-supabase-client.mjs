@@ -46,6 +46,8 @@ const TABLE_FIXTURES = Object.freeze({
   v_costing_unclassified_staff_for_costing: F.UNCLASSIFIED_STAFF_ROWS,
   v_costing_manual_provision_pool_options: F.PROVISION_POOL_OPTIONS,
   v_costing_manual_provision_type_options: F.PROVISION_TYPE_OPTIONS,
+  v_costing_manual_cost_pool_provision_register: F.PROVISION_REGISTER_ROWS,
+  v_costing_cost_pool_monthly_summary: F.POOL_SUMMARY_ROWS,
   v_costing_policy_manager_scheme_options: F.SCHEME_MASTER_ROWS.filter((r) => r.is_active).map(({ scheme_id, scheme_name, paid_qty, free_qty, is_active, remarks }) => ({ scheme_id, scheme_name, paid_qty, free_qty, is_active, remarks })),
   v_costing_scheme_policy_scope_options: F.SKU_STATUS_ROWS.map((r) => ({ policy_scope: "SKU", scope_id: r.sku_id, scope_key: "SKU:" + r.sku_id, scope_name: r.product_name,
     display_name: r.product_name + " " + r.pack_size + r.pack_uom, sku_id: r.sku_id, product_id: r.product_id, product_name: r.product_name })),
@@ -59,6 +61,19 @@ const RPC_FIXTURES = Object.freeze({
   get_user_permissions: () => TARGETS.map((target) => ({ target, can_view: true, can_edit: CLAIM_EDIT })),
   rpc_get_cost_period_valuation_context: (args) => F.VALUATION_CONTEXT(String(args?.p_period_start ?? "2026-11-01")),
   rpc_get_sales_allocation_default_policies: () => F.SALES_ALLOCATION_POLICIES,
+  rpc_get_regional_sales_allocation_default_policies: () => F.REGIONAL_SALES_POLICIES,
+  rpc_get_readiness_governed_periods: () => F.READINESS_PERIODS,
+  rpc_get_product_sku_readiness_portfolio: (args) => F.READINESS_PORTFOLIO(args),
+  rpc_get_readiness_product_gaps: (args) => F.READINESS_GAPS(args),
+  rpc_get_qc_action_queue: () => F.QC_QUEUE,
+  rpc_get_materials_stores_action_queue: () => F.MATERIALS_STORES_QUEUE,
+  rpc_get_cost_driver_policy_registry: () => F.DRIVER_REGISTRY,
+  rpc_get_production_route_master_options: () => F.PRM_MASTER_OPTIONS,
+  rpc_get_production_route_manager_readiness: () => F.PRM_READINESS,
+  rpc_get_production_route_manager_product_assignments: () => F.PRM_ASSIGNMENTS,
+  rpc_get_production_route_manager_subgroup_mappings: () => F.PRM_SUBGROUP_MAPPINGS,
+  rpc_get_archived_production_route_architecture: () => F.PRM_ARCHIVED,
+  rpc_get_production_cost_centres: () => F.PRM_COST_CENTRE_LIST,
 });
 
 const KEY = "__costingSyntheticPreviewLog";
