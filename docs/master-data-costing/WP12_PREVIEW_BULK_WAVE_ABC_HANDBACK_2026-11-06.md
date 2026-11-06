@@ -264,4 +264,19 @@ Green GitHub Actions run (PR event, read-only token, no secrets): https://github
 
 ## 8. Revision evidence (R1–R4)
 
-_Filled after CI completes on the final head (see PR #197)._
+Source head tested: **`c7669b2b04f853aa01755e5db828deb190a01fca`** (worker branch `claude/costing-preview-bulk-20261106`, base preview branch unchanged at `7c028d0557fe4e14af11f59b1961d684f05cdcd0`; `main` untouched).
+
+| Evidence | Result |
+|---|---|
+| GitHub Actions, `push` event | https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/42188930505 — success |
+| GitHub Actions, `pull_request` event (draft PR #197 → preview branch) | https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/42188937719 — success |
+| Toolchain | Node 22.23.4, Playwright 1.62.1 (asserted), Chromium installed by Playwright, ubuntu-24.04, `contents: read`, no secrets |
+| Transport + negative + fixture-contract | 24 / 24, 0 skipped |
+| Interactive + Wave A hardening (Chromium) | 16 / 16, 0 skipped |
+| Lens coverage + functional workspaces + accessibility (Chromium) | 21 / 21, 0 skipped |
+| Six-module mock regression | 29 / 29, 0 skipped |
+| **LF total** | **90 / 90, 0 failed, 0 skipped** (each step also asserted by `assert-tap.mjs` minimum counts) |
+| CRLF clean-clone rerun of every suite (`core.autocrlf=true`) | 90 / 90, 0 skipped (local run at `9760991`, and again in CI step "Windows-style CRLF clean-clone validation") |
+| Exact-SHA clean-tree verifier | passed in CI and in the CRLF clone |
+
+Commits after `c7669b2` change this file only. The Linux CRLF clone is not a Windows runtime, and Chromium runs against the synthetic client: neither establishes real authenticated, populated-data or Electron A14 acceptance.
