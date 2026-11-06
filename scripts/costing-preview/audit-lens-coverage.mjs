@@ -41,11 +41,14 @@ export async function auditAll({ base, browser, flags: flagList = flags, width: 
         rpc: window.__costingSyntheticPreview.rpc.length, from: window.__costingSyntheticPreview.from.length,
         unsupported: window.__costingSyntheticPreview.unsupported.length, denied: window.__costingSyntheticPreview.deniedWrites.length,
       }));
+      // Toasts from the previous lens must not be attributed to this one.
+      await page.evaluate(() => document.querySelectorAll('[class*="toast" i], [role="alert"]').forEach((el) => { if (!el.closest("#synthetic-preview-banner")) el.remove(); }));
       const selector = target.kind === "lens" ? 'button[data-lens="' + target.id + '"]' : 'button[data-pricing-policy-workspace="' + target.id + '"]';
       const viaSelect = page.locator('option[value="' + target.id + '"]');
-      if (!(await page.locator(selector).first().isVisible()) && (await viaSelect.count()) > 0) {
+      const visibleSelect = page.locator("select:visible").filter({ has: viaSelect });
+      if (!(await page.locator(selector).first().isVisible()) && (await visibleSelect.count()) > 0) {
         // Mobile layout: the lens/workspace picker is a <select>.
-        await page.locator("select:visible").filter({ has: viaSelect }).first().selectOption(target.id);
+        await visibleSelect.first().selectOption(target.id);
       } else if (!(await page.locator(selector).first().isVisible())) {
         results.push({ module, ...target, hiddenInNav: await page.locator(selector).first().getAttribute("data-nav-hidden"), reads: [], unsupported: [], deniedWrites: 0, failureBanner: null, tableCount: 0, dataRows: 0 });
         continue;
@@ -70,7 +73,7 @@ export async function auditAll({ base, browser, flags: flagList = flags, width: 
           emptyStateText: (text.match(/(No [a-z /-]{3,40} (found|available|to show)|Nothing to show)/i) || [null])[0],
           overflowPx: document.documentElement.scrollWidth - document.documentElement.clientWidth,
           charCount: text.length,
-          syntheticTextCount: (text.replace(/SYNTHETIC COSTING PREVIEW[^·]*·[^·]*·[^·]*/i, "").match(/SYNTHETIC/g) || []).length,
+          syntheticTextCount: (() => { const clone = document.body.cloneNode(true); clone.querySelector("#synthetic-preview-banner")?.remove(); return ((clone.innerText || clone.textContent || "").match(/SYNTHETIC/g) || []).length; })(),
         };
       }, before);
       if (shotsDir) await page.screenshot({ path: shotsDir + "/" + module + "__" + target.id + "__" + viewport + ".png", fullPage: false });
