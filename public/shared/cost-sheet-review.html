@@ -1403,6 +1403,14 @@
         font-family: Arial, Helvetica, sans-serif;
         box-sizing: border-box;
       }
+      /* CS-A4-LEFT-CLIP: a flex-centred 210mm sheet overflows to the unscrollable left in a narrower container. margin:auto centres when there is room and collapses to 0 when not. */
+      .cost-sheet-a4-wrap {
+        justify-content: flex-start;
+      }
+      .cost-sheet-a4 {
+        flex: none;
+        margin: 0 auto;
+      }
       .cost-sheet-a4 *,
       .cost-sheet-a4 table,
       .cost-sheet-a4 td,

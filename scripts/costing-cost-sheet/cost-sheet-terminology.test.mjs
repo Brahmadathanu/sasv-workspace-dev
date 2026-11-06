@@ -8,7 +8,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { COSTING_ROUTE_CONFIG } from "../../public/shared/js/costing-route-config.js";
 import { COSTING_SUITE_MODULES } from "../../public/shared/js/costing-suite-registry.js";
-import { CW07_LABEL_CHANGES, applyCw07Labels, isCw07LabelOnlyChange } from "../lib/costing-scope-guard.mjs";
+import { CW07_LABEL_CHANGES, applyCw07Labels, applyApprovedHtmlInsertions, isCw07LabelOnlyChange } from "../lib/costing-scope-guard.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
@@ -63,7 +63,8 @@ test("identifiers are untouched: module key, permission target, suite id, route 
 
 test("diff against the baseline is exactly the label rename (nothing else changed in these files)", () => {
   for (const rel of ["public/shared/js/costing-route-config.js", "public/shared/js/costing-suite-registry.js", "public/shared/js/costing-suite-cost-sheet.js", HTML]) {
-    assert.equal(read(rel), applyCw07Labels(showBase(rel)), rel);
+    // Later, individually approved CSS-only insertions (scope guard APPROVED_HTML_INSERTIONS) are the only other difference tolerated.
+    assert.equal(read(rel), applyApprovedHtmlInsertions(rel, applyCw07Labels(showBase(rel))), rel);
   }
   // MDC-07 N1 (flag-gated navigation) is the only later package allowed to edit the shell: every line of the
   // label-renamed baseline must still appear, in order, in the current shell, except the single flat
