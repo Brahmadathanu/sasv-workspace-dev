@@ -143,12 +143,59 @@ export const DETAILED_COST_SHEET_ROWS = SKUS.map((s) => ({
   mrp_ik: s.mrp_ik, mrp_ok: s.mrp_ok, gst_percent: 5, contingency_percent: 2,
   ik_selling_price: s.outcome === "BLOCKED" ? null : s.mrp_ik, ok_selling_price: s.outcome === "BLOCKED" ? null : s.mrp_ok, refreshed_at: TS,
 }));
+// ---- printable cost sheet: LINE level (view public.v_costing_pricing_printable_cost_sheet_lines; columns per types/supabase.ts Row) ----
+// Every line is derived from the SAME per-SKU numbers as DETAILED_COST_SHEET_ROWS, so the two views reconcile (asserted in tests).
+// Section codes and labels are the ones the real client renders (A_COP, B_INTERNAL_COST, C_IK_PRICING, D_OK_PRICING, Z_STATUS).
+// Deliberately NOT fixtured: net realisation, scheme deductions and profit lines. IK/OK selling-price semantics (pre- vs post-discount) are an
+// open source-contract question, so pricing sections carry the policy MRP only and say so in text.
+// `state` is internal bookkeeping (stripped from the served row) used to derive the product-summary line counts.
+const SEC = { A: ["A_COP", "A. Cost of Production"], B: ["B_INTERNAL_COST", "B. Internal Cost"], C: ["C_IK_PRICING", "C. Inside Kerala Pricing"], D: ["D_OK_PRICING", "D. Outside Kerala Pricing"], Z: ["Z_STATUS", "Status"] };
+const lineSpecs = (s) => {
+  const blocked = s.outcome === "BLOCKED", review = s.outcome === "REVIEW_REQUIRED";
+  const rm = s.cost - 20, pm = 20, st = (affected) => (blocked && affected ? "BLOCKED" : review && affected ? "REVIEW_REQUIRED" : "READY");
+  // A blocked SKU has no cost at all in the SKU detail view (direct labour included), so every cost line is null there; the client renders null currency as "--".
+  const cur = (n, affected = true) => ({ type: "currency", num: blocked ? null : n, text: null, state: blocked ? "BLOCKED" : st(affected) });
+  return [
+    ["A", 10, "Raw Material Cost (RM)", "Sum of RM BOM lines at the selected rate", cur(rm)],
+    ["A", 20, "Packing Material Cost (PM)", "Sum of PM BOM lines at the selected rate", { ...cur(pm), state: blocked ? "BLOCKED" : "READY" }],
+    ["A", 30, "Total Material Cost", "RM + PM", cur(s.cost)],
+    ["A", 40, "Direct Labour (DL)", "Governed direct-labour allocation", cur(10, false)],
+    ["A", 50, "Prime Cost", "Material + Direct Labour", cur(s.cost + 10)],
+    ["A", 60, "Manufacturing Overhead", "Governed overhead allocation", cur(10, false)],
+    ["A", 70, "Manufacturing COP", "Prime Cost + Manufacturing Overhead", cur(s.cost + 20)],
+    ["B", 10, "Manufacturing COP", "From section A", cur(s.cost + 20)],
+    ["B", 20, "Internal Cost Allocation", "Governed internal cost allocation", cur(10, false)],
+    ["B", 30, "Internal Loaded Cost", "Manufacturing COP + Internal Cost Allocation", cur(s.cost + 30)],
+    ["C", 10, "MRP (Inside Kerala)", "Policy MRP", { type: "currency", num: s.mrp_ik, text: null, state: "READY" }],
+    ["C", 20, "Net Sales Realisation", "Not fixtured: pre- vs post-discount price semantics are an open source-contract question", { type: "text", num: null, text: "Not available in synthetic preview", state: "READY" }],
+    ["D", 10, "MRP (Outside Kerala)", "Policy MRP", { type: "currency", num: s.mrp_ok, text: null, state: "READY" }],
+    ["D", 20, "Net Sales Realisation", "Not fixtured: pre- vs post-discount price semantics are an open source-contract question", { type: "text", num: null, text: "Not available in synthetic preview", state: "READY" }],
+  ];
+};
+const printableLinesFor = (s) => {
+  const base = { period_start: P, refresh_run_id: 900004, valuation_date: VAL, product_id: s.product_id, product_name: prod(s.product_id).product_name, category_name: prod(s.product_id).category_name,
+    subcategory_name: prod(s.product_id).subcategory_name, group_name: prod(s.product_id).group_name, sub_group_name: prod(s.product_id).sub_group_name,
+    product_hierarchy: [prod(s.product_id).category_name, prod(s.product_id).group_name].join(" > "), sku_id: s.sku_id, sku_column_label: label(s), pack_size: s.pack_size, pack_uom: s.pack_uom,
+    cost_sheet_status: bridge(s), cost_sheet_note: SYNTHETIC + " fixture", refreshed_at: TS, material_cost_snapshot_id: null,
+    ik_policy_resolution_status: null, ok_policy_resolution_status: null, ik_scheme_viability_snapshot_id: null, ok_scheme_viability_snapshot_id: null,
+    ik_selected_scheme_policy_context_id: null, ok_selected_scheme_policy_context_id: null };
+  const lines = lineSpecs(s).map(([sec, order, lineLabel, basis, v]) => ({ ...base, section_code: SEC[sec][0], section_title: SEC[sec][1], line_order: order, line_label: lineLabel,
+    line_description: SYNTHETIC + " " + lineLabel, calculation_basis: basis, source_note: SYNTHETIC + " fixture", value_type: v.type, value_numeric: v.num, value_text: v.text, state: v.state }));
+  lines.push({ ...base, section_code: SEC.Z[0], section_title: SEC.Z[1], line_order: 900, line_label: "Cost Sheet Status", line_description: null, calculation_basis: null, source_note: null,
+    value_type: "text", value_numeric: null, value_text: bridge(s), state: "STATUS" });
+  return lines;
+};
+const ALL_PRINTABLE = SKUS.flatMap(printableLinesFor);
+export const PRINTABLE_LINES_ROWS = ALL_PRINTABLE.map(({ state, ...row }) => row);
+export const PRINTABLE_LINE_STATES = ALL_PRINTABLE.map((r) => ({ sku_id: r.sku_id, section_code: r.section_code, state: r.state }));
+const countState = (skuId, st) => ALL_PRINTABLE.filter((r) => r.sku_id === skuId && r.section_code !== "Z_STATUS" && r.state === st).length;
 export const PRINTABLE_SUMMARY_ROWS = PRODUCTS.map((p) => {
   const mine = SKUS.filter((s) => s.product_id === p.product_id);
+  const id = mine[0].sku_id;
   return { period_start: P, refresh_run_id: 900004, valuation_date: VAL, product_id: p.product_id, product_name: p.product_name, category_name: p.category_name, subcategory_name: p.subcategory_name,
     group_name: p.group_name, sub_group_name: p.sub_group_name, product_hierarchy: [p.category_name, p.group_name].join(" > "), sku_count: mine.length,
-    sku_column_labels: mine.map(label).join(" | "), line_count: 20, ready_line_count: mine[0].outcome === "READY" ? 20 : mine[0].outcome === "BLOCKED" ? 12 : 18,
-    review_required_line_count: mine[0].outcome === "REVIEW_REQUIRED" ? 2 : 0, blocked_line_count: mine[0].outcome === "BLOCKED" ? 8 : 0,
+    sku_column_labels: mine.map(label).join(" | "), line_count: ALL_PRINTABLE.filter((r) => r.sku_id === id && r.section_code !== "Z_STATUS").length,
+    ready_line_count: countState(id, "READY"), review_required_line_count: countState(id, "REVIEW_REQUIRED"), blocked_line_count: countState(id, "BLOCKED"),
     cost_sheet_status: bridge(mine[0]), cost_sheet_note: SYNTHETIC + " fixture", refreshed_at: TS, snapshot_refreshed_at: TS };
 });
 // Defined by migration 20261019014458_w1_approved_run_feed_and_labels.sql (public wrapper column list).
@@ -404,6 +451,7 @@ export const TABLE_FIXTURES = Object.freeze({
   v_costing_pricing_sku_selector: SKU_SELECTOR_ROWS,
   v_costing_pricing_sku_detailed_cost_sheet: DETAILED_COST_SHEET_ROWS,
   v_costing_pricing_printable_cost_sheet_product_summary: PRINTABLE_SUMMARY_ROWS,
+  v_costing_pricing_printable_cost_sheet_lines: PRINTABLE_LINES_ROWS,
   v_cost_sheet_snapshot_sku_monthly_comparison_governed: COMPARISON_ROWS,
   v_costing_pricing_sku_scheme_comparison: SCHEME_COMPARISON_ROWS,
   v_sku_mrp_current: SKU_MRP_CURRENT_ROWS,

@@ -68,6 +68,10 @@ jobs:
         run: |
           node --test scripts/costing-preview/lens-coverage.test.mjs scripts/costing-preview/functional-workspaces.test.mjs scripts/costing-preview/accessibility.test.mjs | tee "$RUNNER_TEMP/coverage.tap"
           node scripts/costing-preview/assert-tap.mjs "$RUNNER_TEMP/coverage.tap" 21
+      - name: Printable line-level Cost Sheet (real A4 modal, reconciliation, 1280/768/390, flags OFF/ON; zero skips)
+        run: |
+          node --test scripts/costing-preview/printable-cost-sheet-lines.test.mjs | tee "$RUNNER_TEMP/printable.tap"
+          node scripts/costing-preview/assert-tap.mjs "$RUNNER_TEMP/printable.tap" 6
       - name: Six-module inert-backend mock suite (zero skips, no console/RPC exceptions)
         run: |
           node --test scripts/costing-wp12-flag-sweep/flag-sweep-browser.test.mjs scripts/costing-wp12-flag-sweep/console-rpc-allowlist.test.mjs | tee "$RUNNER_TEMP/sweep.tap"
