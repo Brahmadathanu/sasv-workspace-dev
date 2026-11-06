@@ -104,3 +104,28 @@ test("scheme margin bands never claim HEALTHY when net realisation or computed m
     }
   }
 });
+
+
+test("governed snapshot provenance excludes failed run attempts and uses a successful run for each month", () => {
+  const successful = new Map(F.RUN_DISPLAY_ROWS.filter(r => r.overall_status === "SUCCESS")
+    .map(r => [r.refresh_run_id, r]));
+  const failed = new Set(F.RUN_DISPLAY_ROWS.filter(r => r.overall_status === "FAILED")
+    .map(r => r.refresh_run_id));
+  const nov = F.RUN_ROWS.find(r => r.period_start === "2026-11-01");
+  assert.equal(nov.display_state, "DRAFT");
+  assert.equal(nov.displayed_run_id, 900004);
+  assert.equal(nov.active_run_id, null, "FAILED is not an active QUEUED/RUNNING attempt");
+  assert.ok(failed.has(900005), "later failed run exists as a separate nonselected attempt");
+  for (const row of F.COMPARISON_ROWS) {
+    const selected = successful.get(row.snapshot_refresh_run_id);
+    assert.ok(selected, "no selected cost comparison can originate from FAILED refresh run " + row.snapshot_refresh_run_id);
+    assert.equal(selected.period_start, row.snapshot_period_start, "run and snapshot month must match");
+    assert.equal(row.snapshot_selection_basis, "LATEST_DRAFT", "selected November snapshot must be an unapproved successful draft");
+  }
+  for (const row of [...F.DETAILED_COST_SHEET_ROWS, ...F.SCHEME_COMPARISON_ROWS, ...F.SKU_STATUS_ROWS]) {
+    const source = successful.get(row.refresh_run_id);
+    assert.ok(source, "no displayed synthetic cost row may originate from a FAILED run: " + row.refresh_run_id);
+    assert.equal(source.period_start, row.period_start);
+  }
+  assert.ok(!F.COMPARISON_ROWS.some(row => failed.has(row.snapshot_refresh_run_id)));
+});
