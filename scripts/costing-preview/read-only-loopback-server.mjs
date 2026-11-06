@@ -77,6 +77,10 @@ export async function createReadOnlyLoopbackServer({ root = DEFAULT_ROOT } = {})
       const synthetic = await readFile(resolve(here, "synthetic-supabase-client.mjs"));
       return reply(res, 200, method === "HEAD" ? "" : synthetic, { "content-type": "text/javascript; charset=utf-8" });
     }
+    if (pathname === "/shared/js/synthetic-fixtures.mjs") {
+      const fixtures = await readFile(resolve(here, "synthetic-fixtures.mjs"));
+      return reply(res, 200, method === "HEAD" ? "" : fixtures, { "content-type": "text/javascript; charset=utf-8" });
+    }
     const candidate = resolve(publicRoot, "." + pathname);
     if (candidate !== publicRoot && !candidate.startsWith(publicRoot + sep)) return reply(res, 403, "outside preview root");
     try {

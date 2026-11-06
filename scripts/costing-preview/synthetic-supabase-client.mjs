@@ -14,92 +14,51 @@ const TARGETS = Object.freeze([
 ]);
 const USER = Object.freeze({ id: "00000000-0000-4000-8000-000000000000", email: "synthetic-preview@example.invalid" });
 const SESSION = Object.freeze({ access_token: "SYNTHETIC-NOT-A-CREDENTIAL", user: USER });
-const LABEL = "SYNTHETIC";
-
-// Fictional SKU status cases. These are display fixtures only, never official costing values.
-const sku = (sku_id, product_id, name, pack_size, pack_uom, status, severity, material) => Object.freeze({
-  sku_id, product_id, product_name: LABEL + " " + name, pack_size, pack_uom,
-  period_start: "2026-11-01", refresh_run_id: 900002, valuation_date: "2026-11-02",
-  first_control_status: status, control_severity: severity, material_costing_status: material,
-  synthetic: true,
-});
-const TEST_SKUS = Object.freeze([
-  sku(900001, 9001, "Sample Oil", 200, "mL", "READY", "INFO", "READY"),
-  sku(900002, 9002, "Sample Powder", 100, "g", "REVIEW_REQUIRED", "REVIEW", "READY"),
-  sku(900003, 9003, "Sample Tablet", 60, "nos", "BLOCKED", "BLOCKER", "BLOCKED"),
-]);
-// Two fictional run states: an approved October run and a FAILED November draft.
-const RUN_ROWS = Object.freeze([
-  Object.freeze({
-    period_start: "2026-10-01", display_state: "APPROVED", display_label: LABEL + " Approved run 900001",
-    display_label_v2: LABEL + " Approved run 900001", pricing_use_label: LABEL + " fixture - not an official run",
-    displayed_run_id: 900001, approved_run_id: 900001, approved_at: "2026-10-31T10:00:00Z", approved_by: "synthetic-preview",
-    newer_draft_run_id: null, active_run_id: null, active_run_status: null,
-    official_valuation_date: "2026-10-31", latest_draft_valuation_date: null, latest_draft_run_id: null,
-    approved_run_valuation_date: "2026-10-31", newer_draft_count: 0, superseded_run_count: 0,
-  }),
-  Object.freeze({
-    period_start: "2026-11-01", display_state: "NO_SUCCESSFUL_RUN", display_label: LABEL + " Run 900002 FAILED - not approved",
-    display_label_v2: LABEL + " Run 900002 FAILED - not approved", pricing_use_label: LABEL + " fixture - not an official run",
-    displayed_run_id: null, approved_run_id: null, approved_at: null, approved_by: null,
-    newer_draft_run_id: null, active_run_id: 900002, active_run_status: "FAILED",
-    official_valuation_date: null, latest_draft_valuation_date: "2026-11-02", latest_draft_run_id: 900002,
-    approved_run_valuation_date: null, newer_draft_count: 0, superseded_run_count: 0,
-  }),
-]);
-
-const dashboard = (period_start, run, status, ready, review, blocked) => Object.freeze({
-  period_start, refresh_run_id: run, valuation_date: period_start === "2026-10-01" ? "2026-10-31" : "2026-11-02",
-  overall_control_status: status, overall_control_note: LABEL + " fixture - fictional counts, not official costing",
-  ready_sku_count: ready, review_required_sku_count: review, blocked_sku_count: blocked, total_sku_count: ready + review + blocked,
-  generated_at: period_start + "T00:00:00Z", snapshot_refreshed_at: period_start + "T00:00:00Z",
-  material_cost_blocked_sku_count: blocked, material_review_required_sku_count: review,
-  rm_blocker_item_count: blocked, rm_review_item_count: review, pm_blocker_item_count: 0, pm_review_item_count: 0,
-  top_rm_blocker_stock_item_name: blocked ? LABEL + " Sample Herb Extract" : null,
-  top_rm_review_stock_item_name: review ? LABEL + " Sample Excipient" : null,
-});
-const DASHBOARD_ROWS = Object.freeze([
-  dashboard("2026-11-01", 900002, "BLOCKED", 1, 1, 1),
-  dashboard("2026-10-01", 900001, "READY", 3, 0, 0),
-]);
-const KPI_ROWS = Object.freeze([
-  Object.freeze({ period_start: "2026-11-01", costing_ready_sku_count: 1, costing_review_sku_count: 1, costing_blocked_sku_count: 1,
-    latest_refresh_status: "FAILED", latest_refresh_scope: LABEL + " fixture", latest_refresh_finished_at: "2026-11-02T00:00:00Z",
-    total_pricing_sku_count: 3, workbench_blocked_item_count: 1, workbench_review_item_count: 1, workbench_issue_line_count: 2 }),
-  Object.freeze({ period_start: "2026-10-01", costing_ready_sku_count: 3, costing_review_sku_count: 0, costing_blocked_sku_count: 0,
-    latest_refresh_status: "SUCCEEDED", latest_refresh_scope: LABEL + " fixture", latest_refresh_finished_at: "2026-10-31T00:00:00Z",
-    total_pricing_sku_count: 3, workbench_blocked_item_count: 0, workbench_review_item_count: 0, workbench_issue_line_count: 0 }),
-]);
-const SCHEME_OPTIONS = Object.freeze([
-  Object.freeze({ scheme_id: 900001, scheme_name: LABEL + " Buy 10 Get 1", paid_qty: 10, free_qty: 1, is_active: true, remarks: LABEL + " fixture" }),
-]);
-const SCOPE_OPTIONS = Object.freeze(TEST_SKUS.map((row) => Object.freeze({
-  policy_scope: "SKU", scope_id: row.sku_id, scope_key: "SKU:" + row.sku_id, scope_name: row.product_name,
-  display_name: row.product_name + " " + row.pack_size + row.pack_uom, sku_id: row.sku_id, product_id: row.product_id,
-  product_name: row.product_name, category_name: LABEL + " Category", group_name: LABEL + " Group",
-})));
+import * as F from "/shared/js/synthetic-fixtures.mjs";
+const TEST_SKUS = F.SKU_STATUS_ROWS;
+const RUN_ROWS = F.RUN_ROWS;
 // Explicit per-read fixtures. A table name is matched EXACTLY (optionally schema-qualified).
+// Contract evidence for every column is asserted in scripts/costing-preview/synthetic-fixtures.test.mjs.
 const TABLE_FIXTURES = Object.freeze({
-  sku_costing_control_status_snapshot: TEST_SKUS,
-  v_costing_pricing_period_run_status: RUN_ROWS,
-  v_costing_pricing_control_dashboard_snapshot: DASHBOARD_ROWS,
-  v_costing_pricing_business_kpi_summary: KPI_ROWS,
-  v_costing_policy_manager_scheme_options: SCHEME_OPTIONS,
-  v_costing_scheme_policy_scope_options: SCOPE_OPTIONS,
-  v_costing_pricing_run_display_status: RUN_ROWS,
-  v_costing_pricing_sku_selector: TEST_SKUS,
-  // Named, deliberately EMPTY option lists / queues: each is an explicit "no synthetic rows" state,
-  // not a claim that the real object is empty or that it exists with this shape.
+  sku_costing_control_status_snapshot: F.SKU_STATUS_ROWS,
+  v_costing_pricing_sku_control_status_snapshot: F.SKU_STATUS_ROWS,
+  v_costing_pricing_period_run_status: F.RUN_ROWS,
+  v_costing_pricing_run_display_status: F.RUN_ROWS,
+  v_costing_pricing_control_dashboard_snapshot: F.DASHBOARD_ROWS,
+  v_costing_pricing_business_kpi_summary: F.KPI_ROWS,
+  v_costing_pricing_control_integrity_audit_snapshot: F.INTEGRITY_ROWS,
+  v_costing_pricing_material_action_queue_snapshot: F.MATERIAL_ACTION_ROWS,
+  v_costing_material_review_acceptance_register: F.ACCEPTANCE_ROWS,
+  v_costing_manual_rate_manager_action_queue: F.MANUAL_RATE_QUEUE_ROWS,
+  v_costing_pricing_sku_selector: F.SKU_SELECTOR_ROWS,
+  v_costing_pricing_sku_detailed_cost_sheet: F.DETAILED_COST_SHEET_ROWS,
+  v_costing_pricing_printable_cost_sheet_product_summary: F.PRINTABLE_SUMMARY_ROWS,
+  v_cost_sheet_snapshot_sku_monthly_comparison_governed: F.COMPARISON_ROWS,
+  v_costing_pricing_sku_scheme_comparison: F.SCHEME_COMPARISON_ROWS,
+  v_sku_mrp_current: F.SKU_MRP_CURRENT_ROWS,
+  v_costing_policy_manager_sku_overview: F.SKU_OVERVIEW_ROWS,
+  v_product_mrp_derivation_current: F.DERIVATION_CURRENT_ROWS,
+  v_product_mrp_reference_readiness: F.REFERENCE_READINESS_ROWS,
+  v_product_mrp_proposal_register: F.PROPOSAL_REGISTER_ROWS,
+  v_costing_scheme_master_register: F.SCHEME_MASTER_ROWS,
+  v_costing_scheme_policy_rule_register: F.SCHEME_RULE_ROWS,
+  v_costing_pricing_commercial_sales_basis: F.COMMERCIAL_BASIS_ROWS,
+  v_costing_unclassified_staff_for_costing: F.UNCLASSIFIED_STAFF_ROWS,
+  v_costing_manual_provision_pool_options: F.PROVISION_POOL_OPTIONS,
+  v_costing_manual_provision_type_options: F.PROVISION_TYPE_OPTIONS,
+  v_costing_policy_manager_scheme_options: F.SCHEME_MASTER_ROWS.filter((r) => r.is_active).map(({ scheme_id, scheme_name, paid_qty, free_qty, is_active, remarks }) => ({ scheme_id, scheme_name, paid_qty, free_qty, is_active, remarks })),
+  v_costing_scheme_policy_scope_options: F.SKU_STATUS_ROWS.map((r) => ({ policy_scope: "SKU", scope_id: r.sku_id, scope_key: "SKU:" + r.sku_id, scope_name: r.product_name,
+    display_name: r.product_name + " " + r.pack_size + r.pack_uom, sku_id: r.sku_id, product_id: r.product_id, product_name: r.product_name })),
+  // Named, deliberately EMPTY option lists: explicit "no synthetic rows", not a claim about the real object.
   v_costing_expense_allocation_pool_options: Object.freeze([]),
   v_costing_staff_costing_class_options: Object.freeze([]),
-  v_costing_manual_rate_manager_action_queue: Object.freeze([]),
   v_costing_unmapped_expense_heads_for_mapping: Object.freeze([]),
-  v_costing_policy_manager_sku_overview: Object.freeze([]),
-  v_costing_pricing_control_integrity_audit_snapshot: Object.freeze([]),
 });
 // Explicit read RPCs with fixtures. Anything else is UNSUPPORTED, never silent success.
 const RPC_FIXTURES = Object.freeze({
   get_user_permissions: () => TARGETS.map((target) => ({ target, can_view: true, can_edit: CLAIM_EDIT })),
+  rpc_get_cost_period_valuation_context: (args) => F.VALUATION_CONTEXT(String(args?.p_period_start ?? "2026-11-01")),
+  rpc_get_sales_allocation_default_policies: () => F.SALES_ALLOCATION_POLICIES,
 });
 
 const KEY = "__costingSyntheticPreviewLog";
@@ -116,7 +75,7 @@ try {
   if (Array.isArray(prior)) memory.push(...prior.slice(-MAX));
 } catch { /* ignore */ }
 
-const LOG = { claimsEdit: CLAIM_EDIT, rpc: [], from: [], deniedWrites: [], unsupported: [], syntheticSkus: TEST_SKUS, syntheticRuns: RUN_ROWS };
+const LOG = { selects: {}, claimsEdit: CLAIM_EDIT, rpc: [], from: [], deniedWrites: [], unsupported: [], syntheticSkus: TEST_SKUS, syntheticRuns: RUN_ROWS };
 try {
   Object.defineProperty(window, "__costingSyntheticPreview", { value: LOG, configurable: false, writable: false });
 } catch { /* browser may already have fixture diagnostics */ }
@@ -155,7 +114,7 @@ function query(table) {
   };
   const promise = () => Promise.resolve(data());
   const obj = {
-    select: () => obj, eq: (column, value) => { conditions.push([column, value]); return obj; },
+    select: (columns) => { (LOG.selects[key] ??= new Set()).add(String(columns ?? "*")); return obj; }, eq: (column, value) => { conditions.push([column, value]); return obj; },
     in: (column, values) => { conditions.push([column, (values ?? [])[0]]); return obj; },
     gte: () => obj, lte: () => obj, gt: () => obj, lt: () => obj, neq: () => obj, is: () => obj, not: () => obj,
     order: () => obj, limit: (num) => { maximum = Math.max(0, Number(num) || 0); return obj; },
