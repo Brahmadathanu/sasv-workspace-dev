@@ -26,20 +26,14 @@ begin
 end $$;
 
 create table costing.costing_refresh_run (id bigint primary key, period_start date not null, valuation_date date, overall_status text not null,
-  valuation_context_source text, requested_at timestamptz, finished_at timestamptz, current_stage_code text);
-create table costing.cost_periods (period_start date primary key, status text not null, valuation_date date);
-create table costing.run_designation_stub (refresh_run_id bigint, designation text);
-create view costing.v_costing_run_effective_designation as select refresh_run_id, designation from costing.run_designation_stub;
--- Same "latest successful run per period" logic as costing.v_costing_period_run_status (migration 20261019014458, latest_success CTE).
--- Also exposes approved_run_id (live: the APPROVED run when it is the period's displayed pointer; here: the period's APPROVED-designated successful run).
-create view costing.v_costing_period_run_status as
-  select p.period_start, ls.id as latest_success_run_id, ls.finished_at as latest_success_finished_at, ap.id as approved_run_id
-    from (select distinct period_start from costing.costing_refresh_run) p
-    left join lateral (select r.id, r.finished_at from costing.costing_refresh_run r where r.period_start = p.period_start and r.overall_status = 'SUCCESS'
-                        and r.valuation_context_source = 'CAPTURED_AT_REQUEST' order by r.finished_at desc nulls last, r.id desc limit 1) ls on true
-    left join lateral (select r.id from costing.costing_refresh_run r join costing.run_designation_stub d on d.refresh_run_id = r.id and d.designation = 'APPROVED'
-                        where r.period_start = p.period_start and r.overall_status = 'SUCCESS' order by r.finished_at desc nulls last, r.id desc limit 1) ap on true;
-
+  valuation_context_source text, source_trigger text, requested_scope text, requested_at timestamptz, started_at timestamptz, finished_at timestamptz, current_stage_code text);
+create table costing.cost_periods (period_start date primary key, status text not null, valuation_date date, valuation_date_status text);
+-- Columns as in migration 20261015165757 (AU-2); the fingerprint FK is dropped.
+create table costing.costing_run_designation (id bigint generated always as identity primary key, refresh_run_id bigint not null references costing.costing_refresh_run(id),
+  period_start date not null, designation text not null check (designation in ('REFERENCE','APPROVED','REVOKED')), designated_by text not null, designated_by_uid uuid,
+  designated_at timestamptz not null default now(), reason text not null check (length(btrim(reason)) >= 10), fingerprint_id bigint);
+-- The governed views are NOT stubbed: scripts/cde2-sql-candidate/real-ddl.mjs extracts the REAL definitions of costing.v_costing_run_effective_designation (AU-2),
+-- costing.v_current_successful_costing_refresh_run (AU-2) and costing.v_costing_period_run_status (W1, md5-pinned by W2) from supabase/migrations and loads them here.
 -- Five snapshot sources. Column names per the 5 Nov live audit; money/free-text columns added deliberately.
 create table costing.sku_prime_cost_snapshot (period_start date not null, valuation_date date not null, refresh_run_id bigint not null, sku_id bigint not null,
   material_costing_status text, internal_material_conversion_status text, refreshed_at timestamptz, material_cost_per_sku numeric, prime_cost_per_sku numeric);

@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findPgBin, startCluster } from "./pg-isolated.mjs";
+import { realGovernedViewsSql, LIVE_W1_VIEW_MD5 } from "./real-ddl.mjs";
 import { createDraftRunEvidenceRpcProvider, findEvidenceContractViolation } from "../../public/shared/js/costing-draft-run-evidence-provider.js";
 import * as ev from "../../public/shared/js/costing-draft-run-evidence.js";
 
@@ -88,7 +89,7 @@ test.before(() => {
   const stub = read(path.join(dir, "test/00_stub_schema.sql")), fix = read(path.join(dir, "test/01_fixtures.sql"));
   for (const db of ["closed", "open"]) {
     cluster.createDb(db);
-    cluster.run(db, stub); cluster.run(db, fix);
+    cluster.run(db, stub); cluster.run(db, realGovernedViewsSql(root)); cluster.run(db, fix);
   }
   cluster.privBefore = cluster.run("open", "select grantee, table_schema||'.'||table_name, privilege_type from information_schema.table_privileges where grantee in ('anon','authenticated','public') order by 1,2,3").out;
   cluster.run("closed", SQL);                                         // exactly as shipped (gate false)
@@ -106,6 +107,7 @@ const call = (db, args, { uid = U.view, role = "authenticated", pre = "", post =
 };
 const ok = (db, args, o) => { const r = call(db, args, o); assert.equal(r.status, 0, r.err); return r.line; };
 const rec = (db, args, o) => JSON.parse(ok(db, args, o));
+const des = (run, period, kind) => `insert into costing.costing_run_designation (refresh_run_id, period_start, designation, designated_by, reason, designated_at) values (${run}, '${period}', '${kind}', 'test', 'synthetic designation', clock_timestamp())`;
 const mut = (sql, args, o = {}) => ok("open", args, { ...o, pre: `begin;\n${sql};\n`, post: "rollback;" });
 
 pgtest("as shipped (D3 gate false): every request, including a perfectly eligible one, returns the single denial envelope", () => {
@@ -143,36 +145,44 @@ pgtest("indistinguishable denial: missing / wrong-period / approved / failed / n
   for (const [label, uid] of [["no permission row", U.none], ["edit without view", U.noview], ["other module only", U.other], ["no jwt subject", ""]]) assert.equal(ok("open", ["2026-10-01", 148, 41], { uid }), DENY, label);
   assert.equal(rec("open", ["2026-12-01", 156, 41]).status, "ok", "the selected (latest) run of a period is eligible once D3 is decided");
 });
+pgtest("realistic DDL: the governed views are the REAL migration definitions (the W1 view is byte-identical to the live one by md5) and behave as the scope rule assumes", () => {
+  assert.equal(cluster.run("open", "select md5(pg_get_viewdef('costing.v_costing_period_run_status'::regclass))").out, LIVE_W1_VIEW_MD5, "isolated W1 view == live W1 view (md5 pinned by migration 20261019053600)");
+  const rows = cluster.run("open", "select period_start||':'||coalesce(latest_success_run_id::text,'-')||':'||coalesce(approved_run_id::text,'-') from costing.v_costing_period_run_status where period_start between '2026-07-01' and '2026-12-01' order by period_start").out.split("\n");
+  assert.deepEqual(rows, ["2026-07-01:80:-", "2026-08-01:82:-", "2026-09-01:122:122", "2026-10-01:148:143", "2026-11-01:149:-", "2026-12-01:156:-"]);
+  // AU-2 "latest designation row wins": a later REVOKED row removes the approval, in the real view as well as in the scope floor.
+  assert.equal(cluster.run("open", `begin; ${des(143, "2026-10-01", "REVOKED")}; select coalesce(approved_run_id::text,'-') from costing.v_costing_period_run_status where period_start = '2026-10-01'; rollback;`).out.split("\n").pop(), "-");
+});
 pgtest("R3 review scope (derived from governed state, no run id, no calendar date): 148/149 reviewable, historical 80/82 not, and the scope moves with approvals", () => {
   assert.equal(rec("open", ["2026-10-01", 148, 41]).status, "ok", "newer draft of the latest approved period (Oct)");
   assert.equal(rec("open", ["2026-11-01", 149, 41]).status, "ok", "draft of a period after the latest approved period");
   assert.equal(ok("open", ["2026-07-01", 80, 41]), DENY); assert.equal(ok("open", ["2026-08-01", 82, 41]), DENY);
   // Approve November: the floor advances to Nov, so Oct's draft 148 leaves scope, 149 is now approved (excluded), Dec's 156 stays in scope.
-  const approveNov = "insert into costing.run_designation_stub values (149, 'APPROVED')";
+  const approveNov = des(149, "2026-11-01", "APPROVED");
   assert.equal(mut(approveNov, ["2026-10-01", 148, 41]), DENY, "148 drops out once a later period is approved");
   assert.equal(mut(approveNov, ["2026-11-01", 149, 41]), DENY, "approved 149 is never served as a draft");
   assert.equal(JSON.parse(mut(approveNov, ["2026-12-01", 156, 41])).status, "ok");
   // Approving a HISTORICAL run does not widen the scope: the floor is the LATEST approved period.
-  assert.equal(mut("insert into costing.run_designation_stub values (82, 'APPROVED')", ["2026-07-01", 80, 41]), DENY);
-  assert.equal(JSON.parse(mut("insert into costing.run_designation_stub values (82, 'APPROVED')", ["2026-10-01", 148, 41])).status, "ok");
+  assert.equal(mut(des(82, "2026-08-01", "APPROVED"), ["2026-07-01", 80, 41]), DENY);
+  assert.equal(JSON.parse(mut(des(82, "2026-08-01", "APPROVED"), ["2026-10-01", 148, 41])).status, "ok");
   // Revoking the October approval moves the floor back to September: 148 stays in scope, 80/82 stay out.
-  const revokeOct = "delete from costing.run_designation_stub where refresh_run_id = 143";
+  const revokeOct = des(143, "2026-10-01", "REVOKED");
   assert.equal(JSON.parse(mut(revokeOct, ["2026-10-01", 148, 41])).status, "ok");
   assert.equal(mut(revokeOct, ["2026-08-01", 82, 41]), DENY);
   // No approved run anywhere: the scope is empty (fail closed), not "everything".
-  const noApproval = "delete from costing.run_designation_stub where designation = 'APPROVED'";
+  const noApproval = des(122, "2026-09-01", "REVOKED") + ";\n" + des(143, "2026-10-01", "REVOKED");
   for (const args of [["2026-10-01", 148, 41], ["2026-11-01", 149, 41], ["2026-07-01", 80, 41]]) assert.equal(mut(noApproval, args), DENY, "no approved period: " + args);
   // Still the period's latest successful run only: a newer success supersedes 149.
   assert.equal(mut("insert into costing.costing_refresh_run (id, period_start, valuation_date, overall_status, valuation_context_source, finished_at) values (190,'2026-11-01','2026-11-02','SUCCESS','CAPTURED_AT_REQUEST','2026-11-06 00:00+00')", ["2026-11-01", 149, 41]), DENY);
 });
-pgtest("role contexts: CCC view and CCC edit are served identically; anon cannot execute; EXECUTE under Supabase-style default privileges is exactly authenticated + service_role", () => {
+pgtest("role contexts: CCC view and CCC edit are served identically; anon cannot execute; EXECUTE under Supabase-style default privileges is exactly authenticated (D10: service_role revoked)", () => {
   assert.deepEqual(rec("open", ["2026-10-01", 148, 41], { uid: U.view }), rec("open", ["2026-10-01", 148, 41], { uid: U.edit }));
   const anon = call("open", ["2026-10-01", 148, 41], { role: "anon", uid: "" });
   assert.notEqual(anon.status, 0); assert.match(anon.err, /permission denied for function/);
   const priv = (r) => cluster.run("open", `select has_function_privilege('${r}','${FN}(date,bigint,bigint)','execute')`).out;
-  assert.deepEqual(["anon", "authenticated", "service_role"].map(priv), ["f", "t", "t"], "default privileges had granted all three; the candidate revokes anon (and public) only");
-  assert.equal(cluster.run("open", `select coalesce(string_agg(distinct a.grantee::regrole::text, ','), 'null') from pg_proc p cross join lateral aclexplode(p.proacl) a where p.oid = '${FN}(date,bigint,bigint)'::regprocedure`).out.split(",").sort().join(","), "authenticated,postgres,service_role");
-  assert.equal(ok("open", ["2026-10-01", 148, 41], { role: "service_role", uid: "" }), DENY, "service_role holds EXECUTE but carries no end-user subject, so require_permission denies it (D10)");
+  assert.deepEqual(["anon", "authenticated", "service_role"].map(priv), ["f", "t", "f"], "default privileges had granted all three; the candidate revokes public, anon and service_role");
+  assert.equal(cluster.run("open", `select coalesce(string_agg(distinct a.grantee::regrole::text, ','), 'null') from pg_proc p cross join lateral aclexplode(p.proacl) a where p.oid = '${FN}(date,bigint,bigint)'::regprocedure`).out.split(",").sort().join(","), "authenticated,postgres");
+  const svc = call("open", ["2026-10-01", 148, 41], { role: "service_role", uid: "" });
+  assert.notEqual(svc.status, 0); assert.match(svc.err, /permission denied for function/, "D10: service_role cannot execute at all");
 });
 pgtest("R4 logging feasibility (probe only, not part of the candidate): RAISE LOG works in a STABLE function, reaches the server log, and is NOT sent to the client", () => {
   cluster.createDb("logprobe");
@@ -224,7 +234,7 @@ pgtest("source integrity: duplicate, missing, mismatched-identity, parity-breaki
   assert.equal(mut(`update costing.cost_periods set status = 'CLOSED' where period_start = '2026-10-01'`, ["2026-10-01", 148, 41]), DENY, "closed period");
   assert.equal(mut(`update costing.costing_refresh_run set finished_at = null where id = 148`, ["2026-10-01", 148, 41]), DENY, "no finish time");
   assert.equal(mut(`update costing.costing_refresh_run set valuation_context_source = 'USER_SUPPLIED' where id = 148`, ["2026-10-01", 148, 41]), DENY, "context not captured at request");
-  assert.equal(mut(`insert into costing.run_designation_stub values (148, 'APPROVED')`, ["2026-10-01", 148, 41]), DENY, "148 designated approved");
+  assert.equal(mut(des(148, "2026-10-01", "APPROVED"), ["2026-10-01", 148, 41]), DENY, "148 designated approved");
   assert.equal(mut(`update costing.costing_refresh_run set overall_status = 'RUNNING' where id = 148`, ["2026-10-01", 148, 41]), DENY, "not SUCCESS");
 });
 pgtest("free text and codes: notes never returned; a value that is not a machine code becomes null (UNKNOWN), never text", () => {
@@ -251,6 +261,7 @@ pgtest("immutability probe (isolated): the repo's CURRENT control-snapshot TRIGG
   assert.ok(fnText.length > 500 && !/overall_status/.test(fnText), "latest guard text never consults the run's overall_status");
   cluster.createDb("guard");
   cluster.run("guard", read(path.join(dir, "test/00_stub_schema.sql")));
+  cluster.run("guard", realGovernedViewsSql(root));
   cluster.run("guard", read(path.join(dir, "test/01_fixtures.sql")));
   cluster.run("guard", `${fnText}\ncreate trigger a_stage05_exact_write_guard before insert or update or delete on costing.sku_costing_control_status_snapshot for each row execute function costing.fn_guard_stage05_exact_snapshot_write();`);
   const upd = "update costing.sku_costing_control_status_snapshot set first_control_status = 'TAMPERED' where refresh_run_id = 148 and sku_id = 41";

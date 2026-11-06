@@ -3,6 +3,8 @@
 **Status: UNAPPLIED CANDIDATE. Not a migration, not in `supabase/migrations/`, never executed against production or Supabase, no grant, no CDE-1b wiring, no change to costing-run governance. Formal closure remains 5/13.**
 It replaces the proposal in `CDE2_RPC_PROPOSED_SQL_FOR_SERVER_REVIEW_2026-11-06.md` (merged #201, "not executable as written" per merged #203) and responds to #203 and draft #204. Files: `cde2-sql-candidate/rpc_get_costing_draft_component_evidence_v1.candidate.sql`, `cde2-sql-candidate/test/*.sql`, `scripts/cde2-sql-candidate/`.
 
+**Superseded for decisions and plans by [CDE2_FINAL_REVIEW_PACKAGE_2026-11-06.md](CDE2_FINAL_REVIEW_PACKAGE_2026-11-06.md) (revision 3: D10 `service_role` revoked, real governed-view DDL, Chromium and timing evidence, 23 mutation checks).** This file keeps the investigation detail.
+
 **Revision 2 (6 Nov, after the owner-side read-back comment on #205):** R1 explicit null-timestamp denial, R2 writer-path investigation, R3 derived review-scope mechanism (D3 still disabled), R4 logging and EXECUTE review. Sections 1-5 below are updated; the original investigation text was superseded where it conflicts.
 
 ## 1. #203 blockers and how the candidate answers each
@@ -81,7 +83,7 @@ Limits: the stub is my reading of the 5/6 Nov audits, not live DDL; `require_per
 | D7 | missing IK/OK region: deny or UNKNOWN | deny |
 | D8 | single `empty` envelope | as drafted |
 | D9 | keep the timestamp-integrity check (now including null denial) | keep; read-back E for every admitted run |
-| **D10** | EXECUTE: keep `service_role` (current), or revoke it too | undecided; denied at runtime either way |
+| **D10** | EXECUTE for `service_role` | **revoked in revision 3** (owner-recommended default); live default ACLs must be re-verified after any apply |
 
 ## 6. Not done / not claimed
 No SQL against production, no migration, no grant, no wiring, no change to run governance, no WP closed. The candidate is **unreviewed by the server owner and unproven on live data**; the isolated schema is a stub, `require_permission` is a stub, and no real JWT/PostgREST/RLS path or timing analysis was run. CDE-1b stays unconnected.

@@ -164,6 +164,7 @@ $fn$;
 
 revoke all on function public.rpc_get_costing_draft_component_evidence_v1(date, bigint, bigint) from public;
 revoke all on function public.rpc_get_costing_draft_component_evidence_v1(date, bigint, bigint) from anon;
+revoke all on function public.rpc_get_costing_draft_component_evidence_v1(date, bigint, bigint) from service_role;   -- D10 recommended default: browser-only RPC; live default ACLs auto-grant anon/authenticated/service_role
 grant execute on function public.rpc_get_costing_draft_component_evidence_v1(date, bigint, bigint) to authenticated;
--- No table grants, no policy, no trigger, no other object is created or altered by this file.
+-- Net EXECUTE after this file: authenticated + the owner (postgres). No table grants, no policy, no trigger, no other object is created or altered by this file.
 -- Rollback (complete): drop function public.rpc_get_costing_draft_component_evidence_v1(date, bigint, bigint);

@@ -1,0 +1,65 @@
+# WP05 / WP06 / WP12 — authenticated acceptance execution package — 6 Nov 2026
+
+**PREPARED, NOT EXECUTED. Nobody signed in to production to produce this. No account, grant, flag, deployment, cache or build was created or changed.** It is the executable form of `OWNER_ACCEPTANCE_RECORD_2026-11-04.md` plus the read-only route in the WP12 preview handback (R.7) and the CDE-2 acceptance rules. Formal closure remains 5/13; filling this in closes nothing by itself. **Until it is executed by the account holder, every signed-in row is NOT TESTED.**
+
+## 0. Hard rules
+1. **Never use the existing Costing test login for acceptance.** It is Costing-view-only but also holds 52 unrelated edit grants, so it cannot show "cannot write". Use only the identities in §1.
+2. A signed-in session against any build is a **production read** (every build talks to the production Supabase project). Read-only discipline is therefore the control, not isolation.
+3. **Forbidden actions** (stop and report if any is triggered): Preview, Approve, Finalise, Lock, Refresh, Recalculate, Request draft, Save, Create, Apply, Decide, Accept, Close, Supersede, Revoke; any request to an RPC name on the MUTATING (88) or UNKNOWN (6) lists from `node scripts/costing-preview/rpc-inventory.mjs`.
+4. A screen that merely opens, an empty table, an offline message or a restriction notice is **not a pass**.
+5. All flag overrides are temporary browser values (`localStorage`, key = flag name, value `"1"`); restore and verify OFF at the end.
+
+## 1. Restricted test identities (the owner creates them; granting permissions is a governance act I did not perform)
+| ID | Grants | Purpose | Must satisfy |
+|---|---|---|---|
+| **ID-V** | the six Costing module targets `can_view=true`, `can_edit=false`; **no other grant of any kind, zero edit grants anywhere** | the acceptance identity for every read check | verify with the canonical permission view before use and attach the output |
+| ID-E (optional) | CCC view + edit, all else as ID-V | only to see that edit controls appear for an editor (visual, never pressed) | never used to prove denial |
+| ID-N | no Costing grants | module hidden / denied; CDE-2 denial envelope | |
+| ID-X | CCC `can_edit=true`, `can_view=false` | negative: edit-without-view is denied | |
+| ID-O | `module:cost-sheet-review` only | negative: other-module-only | |
+Targets: `module:costing-control-center`, `material-cost-manager`, `cost-build-manager`, `pricing-policy-manager`, `cost-sheet-review`, `production-route-manager`. Server-side denial proofs for SEC-A1/SEC-A2 stay NOT TESTED until a separately approved no-side-effect plan exists; do not call writers to prove denial.
+
+## 2. Integrated build identification (record before any functional row)
+Required: tested **git SHA**, deployment identifier, client (PWA/Electron), **service-worker cache name** (`public/sw.js` line 2; at `main` `968e835`: `hub-cache-v390`), and the digest result below. Production Electron v6.1.0 / PWA v390 does not contain the merged 3-6 Nov work unless built from it: if identity cannot be shown, write **NOT TESTED: BUILD NOT VERIFIED**.
+- **Candidate builds:** Netlify automatically builds a deploy preview per PR (`main` + that PR). After the owner merges the PRs that should be tested, a deploy preview or release of `main` at the exact SHA is the integrated build. A preview URL is a candidate only until §2 passes and the owner authorises its use.
+- **Digest check (new, unauthenticated GETs only):**
+  `node scripts/costing-acceptance/verify-served-assets.mjs <base-url> <git-sha> --json provenance.json` hashes ≥ 60 served Costing pages, modules and `sw.js` against the commit (line endings ignored) and exits non-zero on any mismatch; attach `provenance.json`. Self-tested against a local server (faithful build, one changed byte, missing file, CRLF-only difference). **It has not been run against a real deployment: this session's network policy returns 403 for `*.netlify.app`, which I did not work around.**
+
+## 3. Flag matrix (eleven default-OFF flags)
+`COSTING_RECALC_WITH_DATE_V1`, `COSTING_APPROVAL_SCREEN_V1`, `COSTING_LOCK_SCREEN_V1`, `COSTING_RUN_STATUS_V1`, `COSTING_UX_CONSISTENCY_V1`, `COSTING_DIALOGS_V1`, `COSTING_TABLE_TOOLS_V1`, `COSTING_REVIEW_WORKLIST_V1`, `COSTING_NAV_GROUPS_V1`, `COSTING_PRM_CORRECTIONS_V1`, `COSTING_PRM_NAV_CONTEXT_V1`.
+Run each module under: **(a) all OFF**, **(b) `COSTING_NAV_GROUPS_V1` alone**, **(c) `COSTING_REVIEW_WORKLIST_V1` alone** (CCC SKU Control Status; the CDE-2 surface), **(d) all eleven ON**, then, if time allows, each remaining flag alone (owner record Matrix B). Record P / F / NA / NT per cell with evidence. For `COSTING_RECALC_WITH_DATE_V1`, `COSTING_APPROVAL_SCREEN_V1` and `COSTING_LOCK_SCREEN_V1` observe presence/absence of controls only; **never press them**.
+
+## 4. Six-module checklist (40 lenses/workspaces; same list as the synthetic coverage manifest)
+For each: opens without console error; lens/workspace switch; **period switch (Nov 2026 ↔ Oct 2026)**; deep link (`?lens=` / `?workspace=`); ID-V shows no write control; record period, run label, valuation date, row count, red messages, network request count; screenshots at **1280 px and 390 px**.
+| Module | Lenses / workspaces |
+|---|---|
+| Costing Control Center (4) | Dashboard · Control Workbench · SKU Control Status · Readiness |
+| Material Cost Manager (3) | Manual Rate Manager · RM Cost Trace · PM Cost Trace (**RESTRICTED expected** for ID-V: restriction is the correct result, not a pass of the trace) |
+| Cost Build Manager (4) | Cost Governance · Staff Governance · Manual Provisions · Driver Governance |
+| Pricing Policy Manager (10) | SKU MRP Policies · Product Derivation Policies · MRP Proposals · Proposal Decisions · Approved for Application · Applied Proposal History · SKU Policy Overview · Scheme Master · Scheme Rule Register · Commercial Sales Assumptions (CSA and default-policy modals opened read-only) |
+| Cost Sheet Review (6) | SKU Cost Details · Cost Sheet (printable; open the line-level A4 sheet; at 390 px confirm the component column is reachable) · Cost Comparison · Scheme Comparison · QC Action Queue · Materials/Stores Action Queue |
+| Production Route Manager (13) | Route Readiness · Product Assignments · Subgroup Mappings · Workload Preview · Manufacturing Route Families · Mapping Review · Foundation Review · Cost Centres (view-only list and detail must work) · Route Family Route Editor · Product Route Editor · Historical Evidence Review · Effective Route Viewer · Archived Routes |
+
+## 5. Real-data verification (what synthetic tests cannot show)
+| Check | Expectation to record (do not assume) |
+|---|---|
+| Run labels and pointers | October shows **Approved 143 with newer DRAFT 148**; November shows **DRAFT 149** (unapproved, not for pricing); failed run 150 is never selected; valuation dates visible (Oct 31, Nov 2). Compare with `v_costing_pricing_period_run_status` via the screen, not SQL |
+| Counts | CCC Dashboard KPIs against the SKU Control Status rows for the same run (record READY / REVIEW / BLOCKED; do not compare against remembered figures) |
+| Readiness (November) | `READINESS_BUILD_ABSENT` is the known state; record it, do not "fix" it; no readiness build is to be triggered |
+| CSR reads | printable summary and monthly comparison for Nov and Oct load without a 57014 timeout (owner PASS on 5 Nov was functional, not timed); record load time observed |
+| **S2** | printable Cost Sheet ↔ SKU detail parity for at least three real SKUs (one READY, one REVIEW, SKU 105 BLOCKED): same loaded cost, status and run |
+| **S9** | dashboard KPI re-query after period switch matches the period shown |
+| Historical runs | C5/D5: fixed runs 80/82 remain labelled and have no selector; record, do not attempt |
+| CDE-2 (only after migration + wiring) | see `CDE2_FINAL_REVIEW_PACKAGE_2026-11-06.md` §9 |
+
+## 6. Permission and denial checks (UI/network only; no writer calls)
+ID-V: no Approve / Preview / Refresh / Lock / Save controls anywhere; CCC shows the view-only explanation; direct deep links to every lens work read-only. ID-N: the six modules are hidden or denied; no data tables render. ID-X and ID-O: no CCC data. For every session, filter DevTools Network by `rpc_` and export the request-name list: **zero** names on the MUTATING/UNKNOWN lists.
+
+## 7. Evidence to collect (folder `acceptance-<date>/`, never committed with credentials or tokens)
+`provenance.json`; permission-view output for each identity; the Network name list per session; per lens: screenshots `<module>-<lens>-<flags>-1280.png` and `-390.png`; the filled owner record Matrices A and B; console-error log; a flag-restoration screenshot (all eleven OFF); defect list with severity. Redact personal data; no passwords or tokens in any file.
+
+## 8. Owner sign-off criteria
+A work pack may be proposed for closure only if **all** hold: build identity verified (§2) and the owner authorised that build; ID-V used and verified; all 40 lenses recorded with P/F/NA/NT and no unexplained F; §5 real-data rows recorded; zero mutating requests; flags restored OFF with evidence; each deferred issue carries ID, behaviour, reason, residual risk, named later milestone and owner acceptance (`PARKED_BACKLOG.md`). WP05 and WP06 also need the C6/C9/D3/D7 dispositions (decide or park); WP12 additionally needs the Windows A14 installer proof and a final run on the final head. **Formal closure is an owner act in each work pack's Gate Status.**
+
+## 9. Current blockers to executing this package
+1. ID-V and the other identities do not exist (owner action). 2. No build has been authorised and digest-verified. 3. CDE-2 is not applied or wired (§9 of the CDE-2 package). 4. The network policy of the automation environment blocks Netlify, so the digest script must be run by the owner or from an environment that may reach the deployment.
