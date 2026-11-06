@@ -56,7 +56,8 @@ test("all ids are far outside real ranges and every human label is SYNTHETIC", (
 test("scenario set covers READY, REVIEW_REQUIRED and BLOCKED outcomes plus an approved and a FAILED run", () => {
   assert.deepEqual(SKUS.map((s) => s.outcome), ["READY", "REVIEW_REQUIRED", "BLOCKED"]);
   assert.equal(PRODUCTS.length, 3);
-  assert.deepEqual(F.RUN_ROWS.map((r) => r.active_run_status ?? r.display_state), ["APPROVED", "FAILED"]);
+  assert.deepEqual(F.RUN_ROWS.map((r) => r.display_state), ["APPROVED", "DRAFT"]);
+  assert.ok(F.RUN_DISPLAY_ROWS.some(r => r.refresh_run_id === 900005 && r.overall_status === "FAILED"), "failed November attempt remains visible but not selected");
   assert.ok(F.COMPARISON_ROWS.some((r) => r.manufacturing_cop === null), "blocked SKU must not receive a cost");
 });
 
