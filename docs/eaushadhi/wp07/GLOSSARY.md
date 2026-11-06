@@ -1,0 +1,28 @@
+# WP-07 glossary (1 Nov 2026)
+
+- **Owner** — Dr. Brahmadathan U. Approves every production/server change, every merge to main, every native portal Save. Not a coder: give short look-only checklists (Windows, Edge, 125% scaling).
+- **Orchestrator / server worker** — ChatGPT (ADR-15). Plans packages, audits Claude reports/PRs, keeps docs current, and does Supabase server work only after owner approval.
+- **Client worker** — Claude Code cloud sessions (ADR-15). Does all client coding as bulk packages. Earlier client workers: Cursor (to 29 Oct and interim 31 Oct), Codex (29–31 Oct) — both retired from the default flow.
+- **Jarvis** — the Grok Bot e-Aushadhi assistant; audit/plan/status support.
+- **Costing orchestration** — the costing suite's coordinator, now ChatGPT (formerly the Aryabhatta agent). Coordinates `hub-cache` numbers on main.
+- **Bulk package / bundle** — one self-contained brief → one Claude Code session → one draft PR covering several related items, with self-checks. See [CLAUDE_CODE_BUNDLES.md](CLAUDE_CODE_BUNDLES.md).
+- **Verifier** — role (`regulatory.eaushadhi_role_grant`) that checks a step and **saves it for review**.
+- **Approver** — role that approves a step a *different* person saved for review; also switches the portal entry gate and is required to replace or add a source wording (UX-9).
+- **Four-eyes (two-person rule)** — the saver can never approve their own step; enforced server-side by triggers using `saved_for_review_by` (ADR-02, ADR-06).
+- **Stage** — one of the eight review steps of a product (stage pills on the worklist dialog); state read via `rpc_eaushadhi_stage_review_state_v1` (ADR-03).
+- **PKG1** — portal option capture/load (569 options, six Product Types), `20261029144643` (ADR-09).
+- **PKG2** — correction-note separator fix, `20261029141456`.
+- **PKG3a gate** — two-person portal entry gate `20261029141512` (ADR-08): an Approver switches entry on per product; a native portal Save needs strict two-person authorization. **Only Product 262 is enabled.**
+- **Product 262** — Karpooradi Thailam; the one product verified end to end on the portal (Product Details and Composition `PORTAL_VERIFIED`); kept locked/read-only as the reference product.
+- **Portal final Submit** — the e-Aushadhi portal's final submission; **permanently excluded** from automation.
+- **Native portal Save** — the portal's own Save button; each one needs explicit owner authorization.
+- **Source line** — a row in `regulatory.source_composition_line` (ingredient as imported). Corrected in place with an audit trigger (no overlay table).
+- **Source reference / wording** — `raw_reference_text` on a source line (e.g. "Sahasrayōgam - Sujanapriya"). Mapped wording → alias → reference work → portal option (ADR-12), not per product.
+- **Bulk source reference (UX-9)** — "Set source reference": fill/replace the wording on many lines at once via `rpc_eaushadhi_set_source_reference_bulk_v1` after a preview; audited, idempotent, all-or-nothing (ADR-13).
+- **Blank reference** — a line with no wording. Clearing a wording is refused (`BLANK_REFERENCE_NOT_ALLOWED`) until the portal blank-reference question is answered.
+- **Correct source** — governed single-line correction; refuses VERIFIED lines and approved formulations (reopen first).
+- **Reopen** — return a VERIFIED line to PENDING so it can be corrected.
+- **B2 worker unlock** — letting the portal worker run beyond Product 262; ON HOLD.
+- **Smoke** — `scripts/eaushadhi-*-smoke.mjs` headless checks; pass counts may only grow.
+- **hub-cache-vN** — service-worker cache version in `public/sw.js`; one number per merge to main; pins in four e-Aushadhi QC smokes change by version string only.
+- **`.ea-btn`** — the scoped e-Aushadhi button system (primary, soft, …) introduced in UX-9.1.
