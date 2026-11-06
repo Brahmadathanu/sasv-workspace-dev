@@ -41,6 +41,7 @@ try {
   const suites = [
     ["CRLF transport", ["--test", "scripts/costing-preview/read-only-loopback-server.test.mjs", "scripts/costing-preview/transport-negative.test.mjs", "scripts/costing-preview/synthetic-fixtures.test.mjs"]],
     ["CRLF interactive+hardening", ["--test", "scripts/costing-preview/interactive-synthetic-preview.test.mjs", "scripts/costing-preview/wave-a-synthetic-hardening.test.mjs"]],
+    ["CRLF printable cost sheet lines", ["--test", "scripts/costing-preview/printable-cost-sheet-lines.test.mjs"]],
     ["CRLF coverage+functional+a11y", ["--test", "scripts/costing-preview/lens-coverage.test.mjs", "scripts/costing-preview/functional-workspaces.test.mjs", "scripts/costing-preview/accessibility.test.mjs"]],
   ];
   if (full) suites.push(["CRLF six-module mock", ["--test", "scripts/costing-wp12-flag-sweep/flag-sweep-browser.test.mjs", "scripts/costing-wp12-flag-sweep/console-rpc-allowlist.test.mjs"]]);
