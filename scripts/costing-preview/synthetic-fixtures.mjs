@@ -67,7 +67,7 @@ const runDisplay = (id, period, val, overall, designation, display, inUse, label
   superseded_by_run_id: null, designated_at: designation ? TS : null, designated_by: designation ? by : null, designation_reason: designation ? SYNTHETIC + " fixture" : null, display_label: label });
 export const RUN_DISPLAY_ROWS = [
   runDisplay(900001, PRIOR, "2026-10-31", "SUCCESS", "APPROVED", "APPROVED", true, SYNTHETIC + " Approved run 900001"),
-  runDisplay(900004, P, VAL, "SUCCESS", null, "DRAFT", true, SYNTHETIC + " DRAFT run 900004 - not approved"),
+  runDisplay(900004, P, VAL, "SUCCESS", null, "DRAFT", false, SYNTHETIC + " DRAFT run 900004 - not approved"),
   runDisplay(900005, P, VAL, "FAILED", null, "FAILED", false, SYNTHETIC + " Run 900005 FAILED - not approved"),
 ];
 
