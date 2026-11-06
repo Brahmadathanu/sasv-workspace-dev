@@ -25,7 +25,7 @@ jobs:
       github.ref == 'refs/heads/preview/costing-wp05-wp06-wp12-20261105' ||
       github.ref == 'refs/heads/claude/costing-preview-bulk-20261106'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       CI: "true"
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -58,12 +58,16 @@ jobs:
           node -e "console.log('playwright '+require('playwright/package.json').version)"
       - name: Transport security and negative tests (loopback, Host/Origin, proxy, traversal, symlink)
         run: |
-          node --test scripts/costing-preview/read-only-loopback-server.test.mjs scripts/costing-preview/transport-negative.test.mjs | tee "$RUNNER_TEMP/transport.tap"
-          node scripts/costing-preview/assert-tap.mjs "$RUNNER_TEMP/transport.tap" 19
+          node --test scripts/costing-preview/read-only-loopback-server.test.mjs scripts/costing-preview/transport-negative.test.mjs scripts/costing-preview/synthetic-fixtures.test.mjs | tee "$RUNNER_TEMP/transport.tap"
+          node scripts/costing-preview/assert-tap.mjs "$RUNNER_TEMP/transport.tap" 24
       - name: Interactive synthetic preview and Wave A hardening tests in real Chromium (zero skips)
         run: |
           node --test scripts/costing-preview/interactive-synthetic-preview.test.mjs scripts/costing-preview/wave-a-synthetic-hardening.test.mjs | tee "$RUNNER_TEMP/interactive.tap"
           node scripts/costing-preview/assert-tap.mjs "$RUNNER_TEMP/interactive.tap" 16
+      - name: Lens coverage, functional workspace and accessibility gates in real Chromium (zero skips)
+        run: |
+          node --test scripts/costing-preview/lens-coverage.test.mjs scripts/costing-preview/functional-workspaces.test.mjs scripts/costing-preview/accessibility.test.mjs | tee "$RUNNER_TEMP/coverage.tap"
+          node scripts/costing-preview/assert-tap.mjs "$RUNNER_TEMP/coverage.tap" 21
       - name: Six-module inert-backend mock suite (zero skips, no console/RPC exceptions)
         run: |
           node --test scripts/costing-wp12-flag-sweep/flag-sweep-browser.test.mjs scripts/costing-wp12-flag-sweep/console-rpc-allowlist.test.mjs | tee "$RUNNER_TEMP/sweep.tap"

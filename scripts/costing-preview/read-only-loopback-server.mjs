@@ -94,7 +94,7 @@ export async function createReadOnlyLoopbackServer({ root = DEFAULT_ROOT } = {})
       // Only the six Costing module pages receive an explicit synthetic-preview label.
       if (method === "GET" && type.startsWith("text/html") &&
           /^\/shared\/(costing-control-center|material-cost-manager|cost-build-manager|pricing-policy-manager|cost-sheet-review|production-route-manager)\.html$/.test(pathname)) {
-        const notice = '<div id="synthetic-preview-banner" role="status" style="position:fixed;z-index:2147483647;top:0;left:0;right:0;padding:5px 12px;background:#622118;color:#fff;font:700 13px system-ui;text-align:center;pointer-events:none">SYNTHETIC COSTING PREVIEW — NO REAL DATA · NO REAL LOGIN · ALL WRITES DISABLED</div>';
+        const notice = '<div id="synthetic-preview-banner" role="status" style="position:sticky;z-index:2147483647;top:0;left:0;right:0;padding:5px 12px;background:#622118;color:#fff;font:700 13px system-ui;text-align:center;pointer-events:none">SYNTHETIC COSTING PREVIEW — NO REAL DATA · NO REAL LOGIN · ALL WRITES DISABLED</div>';
         bytes = Buffer.from(bytes.toString("utf8").replace(/(<body[^>]*>)/i, "$1" + notice));
       }
       return reply(res, 200, bytes, { "content-type": type });

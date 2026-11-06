@@ -161,6 +161,10 @@ const compare = (s) => {
     selling_price_ik: blocked ? null : s.mrp_ik, selling_price_ok: blocked ? null : s.mrp_ok, cost_sheet_status: bridge(s), cost_sheet_note: SYNTHETIC + " fixture", snapshot_refreshed_at: TS,
     previous_month_period_start: PRIOR, previous_month_manufacturing_cop: blocked ? null : cop - 5, previous_month_internal_loaded_cost: blocked ? null : loaded - 5,
     manufacturing_cop_mom_change: blocked ? null : 5, internal_loaded_cost_mom_change: blocked ? null : 5,
+    manufacturing_cop_mom_change_percent: blocked ? null : Math.round((5 / (cop - 5)) * 10000) / 100, internal_loaded_cost_mom_change_percent: blocked ? null : Math.round((5 / (loaded - 5)) * 10000) / 100,
+    profit_value_ik: blocked ? null : s.mrp_ik - loaded, profit_value_ok: blocked ? null : s.mrp_ok - loaded,
+    previous_month_selling_price_ik: blocked ? null : s.mrp_ik, previous_month_selling_price_ok: blocked ? null : s.mrp_ok,
+    previous_month_profit_value_ik: blocked ? null : s.mrp_ik - loaded + 5, previous_month_profit_value_ok: blocked ? null : s.mrp_ok - loaded + 5, profit_value_ik_mom_change: blocked ? null : -5, profit_value_ok_mom_change: blocked ? null : -5,
     snapshot_refresh_run_id: 900002, snapshot_selection_basis: "LATEST_DRAFT", snapshot_run_label: SYNTHETIC + " Draft run 900002 (FAILED fixture)",
     previous_month_refresh_run_id: 900001, previous_month_selection_basis: "APPROVED" };
 };
