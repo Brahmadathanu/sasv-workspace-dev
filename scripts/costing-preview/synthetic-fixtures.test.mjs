@@ -71,3 +71,35 @@ test("coverage manifest declares exactly the real lens/workspace inventory and n
     else assert.ok(c.blocker || c.status === "RESTRICTED", c.id + " non-populated lens must state its blocker");
   }
 });
+
+
+test("same-period SKU loaded cost and selling price agree across selector, detailed and comparison views", () => {
+  const bySku = (rows) => new Map(rows.map(r => [r.sku_id, r]));
+  const selector = bySku(F.SKU_SELECTOR_ROWS);
+  const details = bySku(F.DETAILED_COST_SHEET_ROWS);
+  const comparison = bySku(F.COMPARISON_ROWS);
+  for (const sku of SKUS) {
+    const a = selector.get(sku.sku_id), b = details.get(sku.sku_id), c = comparison.get(sku.sku_id);
+    assert.ok(a && b && c, "missing synthetic SKU " + sku.sku_id);
+    assert.equal(a.period_start, b.period_start);
+    assert.equal(b.period_start, c.snapshot_period_start);
+    assert.equal(a.internal_loaded_cost_per_sku, b.internal_loaded_cost_per_sku, "selector/detail " + sku.sku_id);
+    assert.equal(b.internal_loaded_cost_per_sku, c.internal_loaded_cost, "detail/comparison " + sku.sku_id);
+    assert.equal(a.ik_selling_price, b.ik_selling_price, "IK selling price " + sku.sku_id);
+    assert.equal(a.ok_selling_price, b.ok_selling_price, "OK selling price " + sku.sku_id);
+    assert.equal(a.ik_selling_price, c.selling_price_ik, "comparison IK " + sku.sku_id);
+    assert.equal(a.ok_selling_price, c.selling_price_ok, "comparison OK " + sku.sku_id);
+  }
+});
+
+test("scheme margin bands never claim HEALTHY when net realisation or computed margin is absent", () => {
+  for (const row of F.SCHEME_COMPARISON_ROWS) {
+    for (const region of ["ik", "ok"]) {
+      if (row[region + "_net_sales_realisation"] == null ||
+          row[region + "_margin_percent_after_scheme"] == null) {
+        assert.ok(!["HEALTHY", "PROFITABLE", "PASS"].includes(row[region + "_scheme_margin_band"]),
+          "unsupported " + region.toUpperCase() + " viability claim for SKU " + row.sku_id);
+      }
+    }
+  }
+});
