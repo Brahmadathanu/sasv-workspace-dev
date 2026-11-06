@@ -51,10 +51,15 @@ const TABLE_FIXTURES = Object.freeze({
   v_costing_policy_manager_scheme_options: F.SCHEME_MASTER_ROWS.filter((r) => r.is_active).map(({ scheme_id, scheme_name, paid_qty, free_qty, is_active, remarks }) => ({ scheme_id, scheme_name, paid_qty, free_qty, is_active, remarks })),
   v_costing_scheme_policy_scope_options: F.SKU_STATUS_ROWS.map((r) => ({ policy_scope: "SKU", scope_id: r.sku_id, scope_key: "SKU:" + r.sku_id, scope_name: r.product_name,
     display_name: r.product_name + " " + r.pack_size + r.pack_uom, sku_id: r.sku_id, product_id: r.product_id, product_name: r.product_name })),
-  // Named, deliberately EMPTY option lists: explicit "no synthetic rows", not a claim about the real object.
-  v_costing_expense_allocation_pool_options: Object.freeze([]),
-  v_costing_staff_costing_class_options: Object.freeze([]),
-  v_costing_unmapped_expense_heads_for_mapping: Object.freeze([]),
+  v_costing_expense_allocation_pool_options: F.EXPENSE_POOL_OPTIONS,
+  v_costing_staff_costing_class_options: F.STAFF_CLASS_OPTIONS,
+  v_costing_unmapped_expense_heads_for_mapping: F.UNMAPPED_EXPENSE_HEADS,
+  v_costing_expense_head_mapping_register: F.EXPENSE_MAPPING_REGISTER,
+  v_costing_staff_classification_register: F.STAFF_CLASSIFICATION_REGISTER,
+  v_costing_staff_cost_pool_summary: F.STAFF_POOL_SUMMARY,
+  v_costing_material_manual_rate_register: F.MANUAL_RATE_REGISTER,
+  v_costing_material_manual_rate_history: F.MANUAL_RATE_HISTORY,
+  v_costing_material_manual_rate_review: F.MANUAL_RATE_REVIEW,
 });
 // Explicit read RPCs with fixtures. Anything else is UNSUPPORTED, never silent success.
 const RPC_FIXTURES = Object.freeze({

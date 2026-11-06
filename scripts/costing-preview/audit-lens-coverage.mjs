@@ -42,7 +42,15 @@ export async function auditAll({ base, browser, flags: flagList = flags, width: 
         unsupported: window.__costingSyntheticPreview.unsupported.length, denied: window.__costingSyntheticPreview.deniedWrites.length,
       }));
       const selector = target.kind === "lens" ? 'button[data-lens="' + target.id + '"]' : 'button[data-pricing-policy-workspace="' + target.id + '"]';
-      await page.locator(selector).first().click();
+      const viaSelect = page.locator('option[value="' + target.id + '"]');
+      if (!(await page.locator(selector).first().isVisible()) && (await viaSelect.count()) > 0) {
+        // Mobile layout: the lens/workspace picker is a <select>.
+        await page.locator("select:visible").filter({ has: viaSelect }).first().selectOption(target.id);
+      } else if (!(await page.locator(selector).first().isVisible())) {
+        results.push({ module, ...target, hiddenInNav: await page.locator(selector).first().getAttribute("data-nav-hidden"), reads: [], unsupported: [], deniedWrites: 0, failureBanner: null, tableCount: 0, dataRows: 0 });
+        continue;
+      }
+      else await page.locator(selector).first().click();
       await page.waitForTimeout(1300);
       first = false;
       const state = await page.evaluate((prior) => {
@@ -51,16 +59,18 @@ export async function auditAll({ base, browser, flags: flagList = flags, width: 
         const text = (root?.innerText || "").replace(/\s+/g, " ");
         const visible = (el) => el.offsetParent !== null;
         const tables = [...document.querySelectorAll("table")].filter(visible);
-        const rowCounts = tables.map((t) => t.querySelectorAll("tbody tr").length);
+        const realRows = (t) => [...t.querySelectorAll("tbody tr")].filter((tr) => tr.querySelectorAll("td").length > 1 && !/^\s*(No |0 rows|Loading)/i.test(tr.innerText));
+        const rowCounts = tables.map((t) => realRows(t).length);
         return {
           reads: [...log.from.slice(prior.from).map((t) => "from:" + t), ...log.rpc.slice(prior.rpc).map((r) => "rpc:" + r.name)],
           unsupported: log.unsupported.slice(prior.unsupported),
           deniedWrites: log.denied?.length ?? log.deniedWrites.slice(prior.denied),
-          failureBanner: (text.match(/(Failed to load[^.]*\.?[^.]*\.?|No synthetic fixture[^.]*\.|Unavailable[^.]*\.|Restricted[^.]*\.|Initialization error[^.]*\.)/i) || [null])[0],
+          failureBanner: (text.match(/(Failed to load[^.]{0,100}\.?|(?:This operation|No synthetic fixture)[^.]{0,120}offline\.|Restricted [A-Z]{2} contribution detail|Initialization error[^.]{0,80})/i) || [null])[0],
           tableCount: tables.length, dataRows: rowCounts.reduce((a, b) => a + b, 0),
           emptyStateText: (text.match(/(No [a-z /-]{3,40} (found|available|to show)|Nothing to show)/i) || [null])[0],
           overflowPx: document.documentElement.scrollWidth - document.documentElement.clientWidth,
           charCount: text.length,
+          syntheticTextCount: (text.replace(/SYNTHETIC COSTING PREVIEW[^·]*·[^·]*·[^·]*/i, "").match(/SYNTHETIC/g) || []).length,
         };
       }, before);
       if (shotsDir) await page.screenshot({ path: shotsDir + "/" + module + "__" + target.id + "__" + viewport + ".png", fullPage: false });

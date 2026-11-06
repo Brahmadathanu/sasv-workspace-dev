@@ -102,7 +102,7 @@ export const MATERIAL_ACTION_ROWS = [
 ];
 export const ACCEPTANCE_ROWS = [
   { acceptance_id: 900001, period_start: P, material_area: "PM", stock_item_id: 900002, stock_item_code: "SYN-PM-900002", stock_item_name: SYNTHETIC + " Sample Bottle",
-    acceptance_status: "ACCEPTED", acceptance_register_status: "ACTIVE", acceptance_scope: "PERIOD", acceptance_reason: SYNTHETIC + " fixture reason", acceptance_note: SYNTHETIC + " fixture note",
+    acceptance_status: "ACTIVE", acceptance_register_status: "ACTIVE_MATCHED", acceptance_scope: "PERIOD", acceptance_reason: SYNTHETIC + " fixture reason", acceptance_note: SYNTHETIC + " fixture note",
     accepted_by: by, accepted_by_email: "synthetic-preview@example.invalid", accepted_at: TS, created_at: TS, updated_at: TS, action_severity: "REVIEW", current_queue_action_severity: "REVIEW",
     affected_sku_count: 1, affected_product_count: 1, affected_line_count: 1, review_sku_count: 1, review_line_count: 1, approval_blocking_sku_count: 0, approval_blocking_line_count: 0,
     current_queue_row_exists: true, current_queue_affected_sku_count: 1, issue_codes: "MANUAL_RATE_USED", material_line_statuses: "REVIEW_REQUIRED", bom_sources: "PM_BOM" },
@@ -194,10 +194,10 @@ export const SCHEME_MASTER_ROWS = [
 ];
 export const SCHEME_RULE_ROWS = [
   { policy_rule_id: 900001, policy_scope: "SKU", scope_id: 900001, scope_name: label(SKUS[0]), sku_id: 900001, product_id: 9001, product_name: prod(9001).product_name, pack_size: 200, pack_uom: "mL",
-    region_code: "IK", scheme_id: 900001, scheme_name: SYNTHETIC + " Buy 10 Get 1", paid_qty: 10, free_qty: 1, apply_mode: "ADD_IF_MISSING", is_active: true, rule_status: "CURRENT",
+    region_code: "IK", scheme_id: 900001, scheme_name: SYNTHETIC + " Buy 10 Get 1", paid_qty: 10, free_qty: 1, apply_mode: "ADD_IF_MISSING", is_active: true, rule_status: "ACTIVE",
     effective_from: "2026-04-01", effective_to: null, remarks: SYNTHETIC + " fixture", created_at: TS, created_by: by },
   { policy_rule_id: 900002, policy_scope: "PRODUCT_GROUP", scope_id: 900001, scope_name: SYNTHETIC + " Group B", product_group_id: 900001, group_name: SYNTHETIC + " Group B", region_code: "OK",
-    scheme_id: 900001, scheme_name: SYNTHETIC + " Buy 10 Get 1", paid_qty: 10, free_qty: 1, apply_mode: "ADD_IF_MISSING", is_active: false, rule_status: "HISTORY",
+    scheme_id: 900001, scheme_name: SYNTHETIC + " Buy 10 Get 1", paid_qty: 10, free_qty: 1, apply_mode: "ADD_IF_MISSING", is_active: false, rule_status: "CLOSED",
     effective_from: "2026-01-01", effective_to: "2026-03-31", remarks: SYNTHETIC + " fixture", created_at: TS, created_by: by },
 ];
 export const COMMERCIAL_BASIS_ROWS = SKUS.map((s) => ({ period_start: P, sku_id: s.sku_id, product_id: s.product_id, product_name: prod(s.product_id).product_name, pack_size: s.pack_size, pack_uom: s.pack_uom,
@@ -323,4 +323,34 @@ export const PRM_SUBGROUP_MAPPINGS = { rows: SUBGROUPS.map((sg, i) => ({ mapping
   mapping_basis: "SYNTHETIC_FIXTURE", effective_from: "2026-04-01", approval_reference: i < 2 ? "SYNTHETIC-REF-" + (i + 1) : null })), total_count: 3, status_counts: { APPROVED: 2, DRAFT: 1 } };
 export const PRM_ARCHIVED = { rows: [{ entity_type: "ROUTE_FAMILY", entity_id: 900009, name: SYNTHETIC + " Retired Route Family", code: "SYN-FAM-OLD", original_status: "APPROVED", status: "ARCHIVED",
   effective_from: "2025-04-01", effective_to: "2026-03-31", archived_at: TS, archived_by: by, archive_reason: SYNTHETIC + " fixture" }], total_count: 1 };
-export const PRM_COST_CENTRE_LIST = { rows: PRM_COST_CENTRES, total_count: 3 };
+export const PRM_COST_CENTRE_LIST = { as_of_date: VAL, cost_centres: PRM_COST_CENTRES.map((c, i) => ({ ...c, cost_centre_code: c.code, cost_centre_type: ["EQUIPMENT_CENTRED", "PROCESS_AREA_CENTRED", "SERVICE_CENTRED"][i],
+  effective_from: "2026-04-01", effective_to: null, description: SYNTHETIC + " fixture" })) };
+
+// ---- cost governance / staff / manual-rate registers (columns per types/supabase.ts; vocab limited to values the client tests) ----
+export const EXPENSE_POOL_OPTIONS = [
+  { allocation_pool: "PRODUCTION_OVERHEAD", allocation_pool_label: "Production Overhead", include_in_costing_default: true, pool_note: SYNTHETIC + " fixture", sort_order: 1 },
+  { allocation_pool: "QUALITY_CONTROL", allocation_pool_label: "Quality Control", include_in_costing_default: true, pool_note: SYNTHETIC + " fixture", sort_order: 2 },
+  { allocation_pool: "MARKETING", allocation_pool_label: "Marketing", include_in_costing_default: true, pool_note: SYNTHETIC + " fixture", sort_order: 3 },
+];
+export const STAFF_CLASS_OPTIONS = [
+  { costing_class: "DIRECT_LABOUR", costing_class_label: "Direct Labour", default_allocation_pool: "PRODUCTION_OVERHEAD", class_note: SYNTHETIC + " fixture", sort_order: 1 },
+  { costing_class: "QUALITY_CONTROL", costing_class_label: "Quality Control", default_allocation_pool: "QUALITY_CONTROL", class_note: SYNTHETIC + " fixture", sort_order: 2 },
+];
+export const UNMAPPED_EXPENSE_HEADS = [1, 2, 3].map((n) => ({ head_name: SYNTHETIC + " Expense Head " + n, expense_group: SYNTHETIC + " Expense Group " + (n % 2 + 1),
+  first_seen_date: "2026-09-01", latest_seen_date: P, snapshot_count: n, max_seen_value: 1000 * n, suggested_review_note: SYNTHETIC + " fixture" }));
+export const EXPENSE_MAPPING_REGISTER = [1, 2].map((n) => ({ id: 900000 + n, head_name: SYNTHETIC + " Mapped Head " + n, expense_group: SYNTHETIC + " Expense Group " + n,
+  allocation_pool: EXPENSE_POOL_OPTIONS[n - 1].allocation_pool, allocation_pool_label: EXPENSE_POOL_OPTIONS[n - 1].allocation_pool_label, include_in_costing: n === 1, is_active: true,
+  mapping_status: "ACTIVE", first_seen_date: "2026-04-01", latest_seen_date: P, snapshot_count: 6, max_seen_value: 1000 * n, remarks: SYNTHETIC + " fixture", created_at: TS, updated_at: TS }));
+export const STAFF_CLASSIFICATION_REGISTER = [{ classification_id: 900001, staff_id: 900003, employee_code: "SYN-E900003", staff_display_name: SYNTHETIC + " Staff Member C", designation: SYNTHETIC + " Technician",
+  staff_is_active: true, costing_class: "DIRECT_LABOUR", costing_class_label: "Direct Labour", allocation_pool: "PRODUCTION_OVERHEAD", classification_status: "ACTIVE", classification_is_active: true,
+  effective_from: "2026-04-01", effective_to: null, classification_note: SYNTHETIC + " fixture" }];
+export const STAFF_POOL_SUMMARY = [{ period_start: P, allocation_pool: "PRODUCTION_OVERHEAD", costing_class: "DIRECT_LABOUR", costing_class_label: "Direct Labour", staff_count: 1, pool_amount: 2000, pool_status: "READY", staff_details: null }];
+const manualRate = (n, item, code) => ({ manual_rate_id: 900000 + n, stock_item_id: 900000 + n, stock_item_code: code, stock_item_name: item, status: "ACTIVE", register_status: "ACTIVE_MATCHED", rate_origin: "MANUAL_ENTRY",
+  rate_value: 50 * n, effective_from: "2026-10-01", effective_to: null, reason: SYNTHETIC + " fixture reason", created_at: TS, created_by: by, last_updated_at: TS, last_updated_by: by,
+  manual_rate_overrides_purchase_rate: false, newer_purchase_rate_available: false, review_message: SYNTHETIC + " fixture" });
+export const MANUAL_RATE_REGISTER = [manualRate(1, SYNTHETIC + " Sample Bottle", "SYN-PM-900002"), manualRate(2, SYNTHETIC + " Sample Excipient", "SYN-RM-900002")];
+export const MANUAL_RATE_HISTORY = MANUAL_RATE_REGISTER.map(({ manual_rate_id, stock_item_id, stock_item_code, stock_item_name, status, rate_origin, rate_value, effective_from, effective_to, reason, created_at, created_by, last_updated_at, last_updated_by }) =>
+  ({ manual_rate_id, stock_item_id, stock_item_code, stock_item_name, status, rate_origin, rate_value, effective_from, effective_to, reason, created_at, created_by, last_updated_at, last_updated_by }));
+export const MANUAL_RATE_REVIEW = MANUAL_RATE_REGISTER.map((r) => ({ manual_rate_id: r.manual_rate_id, stock_item_id: r.stock_item_id, stock_item_code: r.stock_item_code, stock_item_name: r.stock_item_name,
+  manual_rate_status: r.status, manual_rate_value: r.rate_value, manual_rate_effective_from: r.effective_from, manual_rate_effective_to: null, manual_rate_reason: r.reason,
+  manual_rate_overrides_purchase_rate: false, newer_purchase_rate_available: false, review_message: r.review_message, manual_rate_created_at: TS, manual_rate_last_updated_at: TS }));
