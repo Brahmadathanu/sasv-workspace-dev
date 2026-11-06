@@ -17,7 +17,9 @@ const MIME = {
   ".woff2": "font/woff2",
 };
 const BLOCKED_PREFIXES = ["/rest/", "/rest/v1", "/auth/", "/auth/v1", "/rpc/", "/functions/", "/storage/", "/realtime/", "/pg/", "/api/"];
-const HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+const LOOPBACK_NAMES = ["127.0.0.1", "localhost"];
+const ALLOWED_HOST_HEADERS = (port) => new Set(LOOPBACK_NAMES.map((name) => name + ":" + port));
+const ALLOWED_ORIGINS = (port) => new Set(LOOPBACK_NAMES.map((name) => "http://" + name + ":" + port));
 const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'none'; worker-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 
 function reply(res, code, body = "", headers = {}) {
@@ -37,8 +39,14 @@ export async function createReadOnlyLoopbackServer({ root = DEFAULT_ROOT } = {})
     // Never act as an HTTP proxy, never accept incoming cross-site requests.
     const method = req.method ?? "";
     if (!["GET", "HEAD"].includes(method)) return reply(res, 405, "read-only preview: method denied", { allow: "GET, HEAD" });
-    const host = (req.headers.host ?? "").split(":")[0].toLowerCase();
-    if (!HOSTS.has(host)) return reply(res, 403, "loopback host required");
+    const port = server.address()?.port;
+    const hostHeader = String(req.headers.host ?? "").toLowerCase();
+    if (!ALLOWED_HOST_HEADERS(port).has(hostHeader)) return reply(res, 403, "loopback host required");
+    // Opaque / cross-origin browsers requests are refused outright (DNS-rebinding and drive-by defence).
+    const origin = req.headers.origin;
+    if (origin !== undefined && !ALLOWED_ORIGINS(port).has(String(origin).toLowerCase())) return reply(res, 403, "cross-origin request forbidden");
+    const site = req.headers["sec-fetch-site"];
+    if (site !== undefined && !["same-origin", "none"].includes(String(site))) return reply(res, 403, "cross-site request forbidden");
     const target = req.url ?? "";
     if (/^https?:\/\//i.test(target) || target.startsWith("//")) return reply(res, 403, "proxy request forbidden");
     let uri;
@@ -69,6 +77,10 @@ export async function createReadOnlyLoopbackServer({ root = DEFAULT_ROOT } = {})
       const synthetic = await readFile(resolve(here, "synthetic-supabase-client.mjs"));
       return reply(res, 200, method === "HEAD" ? "" : synthetic, { "content-type": "text/javascript; charset=utf-8" });
     }
+    if (pathname === "/shared/js/synthetic-fixtures.mjs") {
+      const fixtures = await readFile(resolve(here, "synthetic-fixtures.mjs"));
+      return reply(res, 200, method === "HEAD" ? "" : fixtures, { "content-type": "text/javascript; charset=utf-8" });
+    }
     const candidate = resolve(publicRoot, "." + pathname);
     if (candidate !== publicRoot && !candidate.startsWith(publicRoot + sep)) return reply(res, 403, "outside preview root");
     try {
@@ -82,7 +94,7 @@ export async function createReadOnlyLoopbackServer({ root = DEFAULT_ROOT } = {})
       // Only the six Costing module pages receive an explicit synthetic-preview label.
       if (method === "GET" && type.startsWith("text/html") &&
           /^\/shared\/(costing-control-center|material-cost-manager|cost-build-manager|pricing-policy-manager|cost-sheet-review|production-route-manager)\.html$/.test(pathname)) {
-        const notice = '<div id="synthetic-preview-banner" role="status" style="position:fixed;z-index:2147483647;top:0;left:0;right:0;padding:5px 12px;background:#622118;color:#fff;font:700 13px system-ui;text-align:center;pointer-events:none">SYNTHETIC COSTING PREVIEW — NO REAL DATA · NO REAL LOGIN · ALL WRITES DISABLED</div>';
+        const notice = '<div id="synthetic-preview-banner" role="status" style="position:sticky;z-index:2147483647;top:0;left:0;right:0;padding:5px 12px;background:#622118;color:#fff;font:700 13px system-ui;text-align:center;pointer-events:none">SYNTHETIC COSTING PREVIEW — NO REAL DATA · NO REAL LOGIN · ALL WRITES DISABLED</div>';
         bytes = Buffer.from(bytes.toString("utf8").replace(/(<body[^>]*>)/i, "$1" + notice));
       }
       return reply(res, 200, bytes, { "content-type": type });

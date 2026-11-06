@@ -52,7 +52,7 @@ test("six real Costing HTML pages show synthetic banner and load replacement vie
     assert.ok(state.permissions.every(r => r.can_view === true && r.can_edit === false), name);
     assert.equal(state.deniedRpcCode, "SYNTHETIC_PREVIEW_WRITE_DENIED", name);
     assert.equal(state.deniedTableCode, "SYNTHETIC_PREVIEW_WRITE_DENIED", name);
-    assert.equal(state.fixtureCount, 2, name);
+    assert.equal(state.fixtureCount, 3, name);
     // Any external attempt is prevented by the CSP and must not complete.
     assert.ok(attempted.every(x => !x.includes(".supabase.co")), name + ": unexpected real Supabase request");
     await context.close();
@@ -65,14 +65,15 @@ test("synthetic sample rows are returned only from the fake status snapshot, nev
   await page.goto(base + "/shared/cost-sheet-review.html", { waitUntil: "domcontentloaded" });
   const r = await page.evaluate(async () => {
     const { supabase } = await import("/shared/js/supabaseClient.js");
-    const samples = await supabase.from("sku_costing_control_status_snapshot").select("sku_id,product_name");
+    const samples = await supabase.from("v_costing_pricing_sku_control_status_snapshot").select("sku_id,product_name");
     const protectedRead = await supabase.from("costing.sku_prime_cost_snapshot").select("*");
-    return { rows: samples.data, protectedRead: protectedRead.data };
+    return { rows: samples.data, protectedRead: protectedRead.data, protectedCode: protectedRead.error?.code };
   });
-  assert.equal(r.rows.length, 2);
+  assert.equal(r.rows.length, 3);
   assert.ok(r.rows.every(x => x.product_name.startsWith("SYNTHETIC")));
-  assert.deepEqual(r.protectedRead, []);
-  assert.equal((await fetch(base + "/rest/v1/sku_costing_control_status_snapshot")).status, 403);
+  assert.equal(r.protectedRead, null);
+  assert.equal(r.protectedCode, "SYNTHETIC_PREVIEW_UNSUPPORTED_OFFLINE");
+  assert.equal((await fetch(base + "/rest/v1/v_costing_pricing_sku_control_status_snapshot")).status, 403);
   await context.close();
 });
 

@@ -1,6 +1,11 @@
 name: Costing preview mock acceptance (isolated)
+# Branch-only. No secrets, no deployment, read-only token, no Supabase. See issue #196.
 on:
   push:
+    branches:
+      - preview/costing-wp05-wp06-wp12-20261105
+      - claude/costing-preview-bulk-20261106
+  pull_request:
     branches:
       - preview/costing-wp05-wp06-wp12-20261105
   workflow_dispatch:
@@ -9,47 +14,73 @@ permissions:
   contents: read
 
 concurrency:
-  group: costing-preview-mock-${{ github.ref }}
+  group: costing-preview-mock-${{ github.event.pull_request.head.sha || github.ref }}
   cancel-in-progress: false
 
 jobs:
   mock-acceptance:
-    if: github.ref == 'refs/heads/preview/costing-wp05-wp06-wp12-20261105'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/preview/costing-wp05-wp06-wp12-20261105' ||
+      github.ref == 'refs/heads/claude/costing-preview-bulk-20261106'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     env:
       CI: "true"
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
-      - name: Checkout exact preview commit
+      - name: Checkout exact commit under test (full history for CRLF clone)
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
           persist-credentials: false
-      - name: Set up Node.js 22
+      - name: Set up Node.js (pinned)
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "22.23.4"
           cache: npm
       - name: Install lockfile dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Verify immutable source and eleven Costing flags
-        run: node scripts/costing-preview/verify-source-and-flags.mjs "${{ github.sha }}"
+      - name: Verify immutable source and eleven Costing flags (exact SHA, clean tree)
+        run: node scripts/costing-preview/verify-source-and-flags.mjs "$SOURCE_SHA"
       - name: Install pinned Playwright harness
         run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
-      - name: Fail closed if Playwright is unavailable
-        run: node -e "if (!require('playwright').chromium) process.exit(1)"
+      - name: Fail closed if Playwright is unavailable or not the pinned version
+        run: node -e "const p=require('playwright/package.json'); if(!require('playwright').chromium||p.version!=='1.62.1') process.exit(1)"
       - name: Install isolated Chromium browser
         run: npx playwright install --with-deps chromium
-      - name: Test local-only preview server rejects writes, backend routes and proxying
-        run: node --test scripts/costing-preview/read-only-loopback-server.test.mjs
-      - name: Test real six-page interactive synthetic preview in Chromium
-        run: node --test scripts/costing-preview/interactive-synthetic-preview.test.mjs
-      - name: Run six-module inert-backend tests with zero skips required
+      - name: Record tool versions
         run: |
-          node --test scripts/costing-wp12-flag-sweep/flag-sweep-browser.test.mjs scripts/costing-wp12-flag-sweep/console-rpc-allowlist.test.mjs | tee costing-preview-test-results.tap
-          grep -q '^# fail 0$' costing-preview-test-results.tap
-          grep -q '^# skipped 0$' costing-preview-test-results.tap
-      - name: Record exact test commit
+          echo "node $(node -v)"; echo "npm $(npm -v)"
+          node -e "const {chromium}=require('playwright');chromium.launch({args:['--no-sandbox']}).then(async b=>{console.log('chromium '+b.version());await b.close()})"
+          node -e "console.log('playwright '+require('playwright/package.json').version)"
+      - name: Transport security and negative tests (loopback, Host/Origin, proxy, traversal, symlink)
+        run: |
+          node --test scripts/costing-preview/read-only-loopback-server.test.mjs scripts/costing-preview/transport-negative.test.mjs scripts/costing-preview/synthetic-fixtures.test.mjs | tee "$RUNNER_TEMP/transport.tap"
+          node scripts/costing-preview/assert-tap.mjs "$RUNNER_TEMP/transport.tap" 24
+      - name: Interactive synthetic preview and Wave A hardening tests in real Chromium (zero skips)
+        run: |
+          node --test scripts/costing-preview/interactive-synthetic-preview.test.mjs scripts/costing-preview/wave-a-synthetic-hardening.test.mjs | tee "$RUNNER_TEMP/interactive.tap"
+          node scripts/costing-preview/assert-tap.mjs "$RUNNER_TEMP/interactive.tap" 16
+      - name: Lens coverage, functional workspace and accessibility gates in real Chromium (zero skips)
+        run: |
+          node --test scripts/costing-preview/lens-coverage.test.mjs scripts/costing-preview/functional-workspaces.test.mjs scripts/costing-preview/accessibility.test.mjs | tee "$RUNNER_TEMP/coverage.tap"
+          node scripts/costing-preview/assert-tap.mjs "$RUNNER_TEMP/coverage.tap" 21
+      - name: Six-module inert-backend mock suite (zero skips, no console/RPC exceptions)
+        run: |
+          node --test scripts/costing-wp12-flag-sweep/flag-sweep-browser.test.mjs scripts/costing-wp12-flag-sweep/console-rpc-allowlist.test.mjs | tee "$RUNNER_TEMP/sweep.tap"
+          node scripts/costing-preview/assert-tap.mjs "$RUNNER_TEMP/sweep.tap" 29
+      - name: Windows-style CRLF clean-clone validation (all suites again)
+        run: node scripts/costing-preview/crlf-clone-validation.mjs --full
+      - name: Summary
         if: always()
         run: |
-          echo "Preview commit: ${GITHUB_SHA}"
-          echo "This workflow does not deploy, use Supabase credentials, or change production flags."
+          {
+            echo "### Costing preview mock acceptance"
+            echo "- Commit under test: \`${SOURCE_SHA}\`"
+            echo "- Event: ${GITHUB_EVENT_NAME}"
+            echo "- Scope: synthetic mock only. No deployment, no secrets, no Supabase, no production flags."
+            echo "- Real authenticated acceptance: NOT TESTED"
+          } >> "$GITHUB_STEP_SUMMARY"

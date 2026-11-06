@@ -152,3 +152,7 @@ ChatGPT owns server planning/review, direct implementation and live verification
 Routine bounded client work uses the repository autonomous gate model: ChatGPT freezes one complete work package; Cursor/Codex autonomously analyze, implement, test, self-review, fix, commit and push on an isolated task branch/worktree; ChatGPT audits the pushed GitHub implementation and may request one consolidated correction pass before explicit merge approval.
 
 High-risk work retains a separate Plan → ChatGPT review → Implementation gate. Existing WP-specific plan gates remain valid when they involve architecture, authorization/permissions, database/schema/RPC contracts, production-data mutation risk, destructive operations, major cross-module refactoring, unclear business rules, or security-sensitive behavior.
+
+## 6 Nov 2026 — synthetic preview bulk Wave A/B/C (worker evidence, branch-only)
+
+Issue [#196](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/196); draft PR targets `preview/costing-wp05-wp06-wp12-20261105`, not `main`. Deny-by-default synthetic client with explicit fixtures and operation log, negative transport tests, LF + CRLF Chromium suites with zero skips. Details, threat model and owner PC checklist: [WP12_PREVIEW_BULK_WAVE_ABC_HANDBACK_2026-11-06.md](WP12_PREVIEW_BULK_WAVE_ABC_HANDBACK_2026-11-06.md). **No owner acceptance, no formal closure (still 5/13), no real-auth or populated-data proof, no production change.**
