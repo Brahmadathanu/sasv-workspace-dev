@@ -112,7 +112,7 @@ test("synthetic READY / REVIEW / BLOCKED status and two run states are visibly r
     const runs = await supabase.from("v_costing_pricing_period_run_status").select("*");
     return { sku: sku.data, runs: runs.data };
   });
-  assert.deepEqual(data.sku.map((r) => r.first_control_status), ["READY", "REVIEW_REQUIRED", "BLOCKED"]);
+  assert.deepEqual(data.sku.map((r) => r.first_control_status), ["READY", "MATERIAL_REVIEW_REQUIRED", "MATERIAL_COST_BLOCKED"]);
   assert.ok(data.sku.every((r) => r.sku_id >= 900000 && r.product_name.startsWith("SYNTHETIC") && r.synthetic === true));
   assert.deepEqual(data.runs.map((r) => r.active_run_status ?? "APPROVED"), ["APPROVED", "FAILED"]);
   assert.ok(data.runs.every((r) => /^SYNTHETIC/.test(r.display_label)));
@@ -270,7 +270,7 @@ test("served shim contains no real Supabase origin, key or JWT; fixture ids stay
   assert.doesNotMatch(html, /supabase\.(co|in)|eyJ[A-Za-z0-9_-]{20,}/);
 });
 
-test("every RPC name found in the six-module client source fails closed (only get_user_permissions may succeed)", async () => {
+test("every RPC name found in the six-module client source fails closed unless it is an explicit rpc_get_* read fixture", async () => {
   const { readdirSync, readFileSync } = await import("node:fs");
   const { resolve, dirname } = await import("node:path");
   const { fileURLToPath } = await import("node:url");
@@ -290,10 +290,14 @@ test("every RPC name found in the six-module client source fails closed (only ge
     for (const name of list) { const r = await supabase.rpc(name, {}); out[name] = r.error?.code ?? "SUCCEEDED"; }
     return out;
   }, [...names]);
-  const succeeded = Object.entries(outcomes).filter(([, code]) => code === "SUCCEEDED");
-  assert.deepEqual(succeeded, [], "no source-referenced RPC may succeed in the synthetic client");
+  const succeeded = Object.entries(outcomes).filter(([, code]) => code === "SUCCEEDED").map(([name]) => name);
+  // Only explicit READ fixtures may succeed: every success must be a read-shaped name.
+  assert.deepEqual(succeeded.filter((name) => !/^rpc_get_/.test(name)), [], "only rpc_get_* read fixtures may succeed");
+  const mutating = Object.entries(outcomes).filter(([name]) => /(^|_)(create|update|upsert|delete|submit|approve|supersede|set|apply|request|refresh|lock|decide|adjust|generate|close)(_|$)/.test(name));
+  assert.ok(mutating.length >= 60, "expected a large mutating inventory, saw " + mutating.length);
+  assert.deepEqual(mutating.filter(([, code]) => code === "SUCCEEDED"), [], "no mutating RPC may ever succeed");
   const allowed = new Set(["SYNTHETIC_PREVIEW_WRITE_DENIED", "SYNTHETIC_PREVIEW_UNSUPPORTED_OFFLINE"]);
-  assert.ok(Object.values(outcomes).every((c) => allowed.has(c)));
+  assert.ok(Object.entries(outcomes).every(([name, c]) => allowed.has(c) || (c === "SUCCEEDED" && /^rpc_get_/.test(name))));
   const denied = Object.values(outcomes).filter((c) => c === "SYNTHETIC_PREVIEW_WRITE_DENIED").length;
   assert.ok(denied >= 80, "mutating RPCs should be classified as denied writes, saw " + denied);
   await context.close();
