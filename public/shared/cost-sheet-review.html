@@ -1390,14 +1390,10 @@
         background: #f3f4f6;
         padding: 18px;
         display: flex;
-        justify-content: flex-start;
+        justify-content: center;
         align-items: flex-start;
       }
       .cost-sheet-a4 {
-        /* margin:auto centres the sheet when there is room and collapses to 0 when it overflows, so the left edge stays
-           scrollable (justify-content:center would push the overflow to the unreachable left side). */
-        flex: none;
-        margin: 0 auto;
         width: 210mm;
         min-height: 297mm;
         background: #fff;
@@ -1406,6 +1402,14 @@
         box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
         font-family: Arial, Helvetica, sans-serif;
         box-sizing: border-box;
+      }
+      /* CS-A4-LEFT-CLIP: a flex-centred 210mm sheet overflows to the unscrollable left in a narrower container. margin:auto centres when there is room and collapses to 0 when not. */
+      .cost-sheet-a4-wrap {
+        justify-content: flex-start;
+      }
+      .cost-sheet-a4 {
+        flex: none;
+        margin: 0 auto;
       }
       .cost-sheet-a4 *,
       .cost-sheet-a4 table,

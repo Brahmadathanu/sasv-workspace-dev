@@ -213,7 +213,20 @@ export const APPROVED_HTML_INSERTIONS = Object.freeze([
     after: "      #csaDefaultPolicyModal .sign-grid {\n        gap: 8px 12px;\n      }\n",
     insert: "      /* WP06-F8: `.sign-grid label { display:flex }` out-specifies the UA [hidden] rule; keep the company-policy Region field hidden. */\n      #csaDefaultPolicyRegionWrap[hidden] {\n        display: none;\n      }\n",
   },
+  {
+    package: "CS-A4-LEFT-CLIP",
+    rel: "public/shared/cost-sheet-review.html",
+    after: "      .cost-sheet-a4 {\n        width: 210mm;\n        min-height: 297mm;\n        background: #fff;\n        color: #111827;\n        padding: 10mm 12mm 11mm;\n        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);\n        font-family: Arial, Helvetica, sans-serif;\n        box-sizing: border-box;\n      }\n",
+    insert: "      /* CS-A4-LEFT-CLIP: a flex-centred 210mm sheet overflows to the unscrollable left in a narrower container. margin:auto centres when there is room and collapses to 0 when not. */\n      .cost-sheet-a4-wrap {\n        justify-content: flex-start;\n      }\n      .cost-sheet-a4 {\n        flex: none;\n        margin: 0 auto;\n      }\n",
+  },
 ]);
+
+/** Text with every approved insertion for `rel` applied once (anchor must be unique, otherwise unchanged). LF-normalised. */
+export function applyApprovedHtmlInsertions(rel, text) {
+  let out = String(text ?? "").replace(/\r\n/g, "\n");
+  for (const e of APPROVED_HTML_INSERTIONS) if (e.rel === rel && out.split(e.after).length === 2) out = out.replace(e.after, e.after + e.insert);
+  return out;
+}
 
 /** True when `rel` differs from `base` only by one approved HTML insertion (LF-normalised). */
 export function isApprovedHtmlInsertionOnly({ git, root, base, rel }) {
@@ -222,7 +235,9 @@ export function isApprovedHtmlInsertionOnly({ git, root, base, rel }) {
   const before = readBase(rel);
   if (head === null || before === null) return false;
   const h = head.replace(/\r\n/g, "\n");
-  const b = before.replace(/\r\n/g, "\n");
+  // The CW-07 label rename is already merged on main, so the comparison base is the historical text WITH that rename applied
+  // (identity for pages that contain none of its strings); the approved block must be the only other difference.
+  const b = applyCw07Labels(before);
   return APPROVED_HTML_INSERTIONS.some((e) => {
     if (e.rel !== rel || b.split(e.after).length !== 2) return false;
     return h === b.replace(e.after, e.after + e.insert);
