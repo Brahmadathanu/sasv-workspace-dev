@@ -61,7 +61,7 @@ test("Dashboard KPIs and valuation date follow the selected period (Nov FAILED d
   let text = await body(page);
   assert.match(text, /COSTING READINESS\s*1 \/ 3/i);
   assert.match(text, /Valuation\s*2 Nov 2026/i, "Nov valuation date must be shown, not 'unavailable'");
-  assert.match(text, /SYNTHETIC Run 900002 FAILED/);
+  assert.match(text, /SYNTHETIC DRAFT run 900004 - not approved/);
   await page.selectOption("#costingPeriodSelect", "2026-10-01");
   await page.waitForTimeout(1500);
   text = await body(page);
