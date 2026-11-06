@@ -50,6 +50,7 @@ small{color:#4b5e76}
 <button type="button" data-preset="on">All eleven ON</button>
 <button type="button" data-preset="reset">Reset / restore OFF</button>
 </div>
+<p class="note"><strong>What “Navigation only” does:</strong> it switches on <code>COSTING_NAV_GROUPS_V1</code>, a presentation-only flag. Lens buttons are grouped under labels (for example OVERVIEW / WORKBENCH / SKU REVIEW), a breadcrumb with context chips appears (for example “Governed period” and “Run-scoped · frozen data of the governed costing run”), and lenses your role cannot use (RM / PM Cost Trace) are hidden instead of shown with a restriction notice. Data, permissions and RPCs are unchanged. Pricing Policy Manager is unaffected (it has its own workspace navigation).</p>
 <p id="state" role="status">Loading flags…</p>
 <div id="flags" class="flags"></div>
 </section>
@@ -62,11 +63,11 @@ small{color:#4b5e76}
 </section>
 <section class="card" aria-labelledby="offlineTitle">
 <h2 id="offlineTitle">Why a module may look empty</h2>
-<p class="note">Only a few fictional reads exist (permissions, three SKU status cases, two run-status rows). Every other read is answered with <code>SYNTHETIC_PREVIEW_UNSUPPORTED_OFFLINE</code> and listed above as UNSUPPORTED: that module section cannot populate offline. Nothing falls back to real data, and every mutation is denied.</p>
+<p class="note">31 of the 40 lenses and workspaces are populated from contract-evidenced fictional fixtures. The rest are shown honestly: <strong>Workload Preview, Mapping Review, Foundation Review</strong> (Production Route Manager) have no safe payload contract and display <code>SYNTHETIC_PREVIEW_UNSUPPORTED_OFFLINE</code>; the four Production Route editors and viewers need a selected route or product whose detail read is not fixtured; the RM / PM Cost Trace lenses are restricted by a server role. None of these is a functional pass. Nothing falls back to real data, and every mutation is denied. Full matrix: <code>docs/master-data-costing/WP12_PREVIEW_BULK_WAVE_ABC_HANDBACK_2026-11-06.md</code>.</p>
 </section>
 <section class="card">
 <h2>Scope of this test</h2>
-<p class="note">The simulated identity has six module view permissions and zero edit permissions. Two fictional SKUs exist solely to demonstrate status data. There are no real records, approvals, costing refreshes or network connections to Supabase.</p>
+<p class="note">The simulated identity has six module view permissions and zero edit permissions. Three fictional SKUs (READY, REVIEW_REQUIRED, BLOCKED) and two fictional runs (one approved, one FAILED) exist solely to demonstrate status data. There are no real records, approvals, costing refreshes or network connections to Supabase.</p>
 <small>Acceptance status: MOCK PREVIEW ONLY — real authenticated and populated-data gates remain OPEN.</small>
 </section>
 <script>
