@@ -17,12 +17,10 @@ set search_path = pg_catalog, public, costing          -- [VERIFY] match the rep
 as $$
 declare
   v_eligible boolean := false;   -- D2/D3 OWNER DECISION. Until decided this stays false => only 'forbidden' can be returned.
-  v_run      costing.costing_refresh_run%rowtype;
-  v_ctl      costing.sku_costing_control_status_snapshot%rowtype;
-  v_dl       costing.sku_direct_labour_allocation_snapshot%rowtype;
-  v_prime    costing.sku_prime_cost_snapshot%rowtype;
-  v_conv     costing.sku_internal_material_conversion_snapshot%rowtype;
-  v_ik jsonb; v_ok jsonb;
+  v_valuation_date date;
+  v_ctl record; v_dl record; v_prime record;       -- explicit column lists below; never SELECT * from a table that also carries money
+  v_conv_present boolean;
+  v_ik jsonb; v_ok jsonb; v_n int;
 begin
   -- 1. Permission: canonical CCC VIEW. [VERIFY] the exact helper name/signature (the 5 Nov audit only says live require_permission checks can_view).
   perform public.require_permission('module:costing-control-center', 'view');
@@ -34,27 +32,37 @@ begin
     return jsonb_build_object('status', 'empty');
   end if;
 
-  -- 3. Run identity, exact. Never substitute "latest". [VERIFY] column names on costing_refresh_run.
-  select * into v_run from costing.costing_refresh_run
+  -- 3+4. Run identity (exact, never "latest") and eligibility (D2 approved-run behaviour, D3 statuses/periods; FAILED run 150 must never qualify).
+  --    A missing run, a run of another period AND an ineligible run all return the SAME envelope, so a CCC-view user cannot use the
+  --    function to learn whether a run exists (contract rule 5). [VERIFY] column names on costing_refresh_run.
+  select valuation_date into v_valuation_date from costing.costing_refresh_run
    where refresh_run_id = p_refresh_run_id and period_start = p_period_start;
+  --    v_eligible := found and <predicate decided by owner>;   -- intentionally NOT implemented in this proposal
+  if not v_eligible or v_valuation_date is null then return jsonb_build_object('status', 'forbidden'); end if;
+
+  -- 5. Sources, each joined on the FULL identity actually present in that table (uniqueness per the 5 Nov audit; legacy NULL-run rows are
+  --    excluded by the refresh_run_id equality). Explicit columns only.
+  select first_control_status, control_severity, control_note into v_ctl from costing.sku_costing_control_status_snapshot
+   where period_start = p_period_start and refresh_run_id = p_refresh_run_id and valuation_date = v_valuation_date and sku_id = p_sku_id;
   if not found then return jsonb_build_object('status', 'empty'); end if;
+  select direct_labour_allocation_status, allocation_reason_code, allocation_basis_status, allocation_resolution_status,
+         allocation_resolution_note, direct_labour_component_model_code into v_dl
+    from costing.sku_direct_labour_allocation_snapshot where refresh_run_id = p_refresh_run_id and sku_id = p_sku_id;
+  if not found then return jsonb_build_object('status', 'empty'); end if;
+  select material_costing_status, internal_material_conversion_status, refreshed_at into v_prime
+    from costing.sku_prime_cost_snapshot where refresh_run_id = p_refresh_run_id and sku_id = p_sku_id;
+  if not found then return jsonb_build_object('status', 'empty'); end if;
+  -- The separate conversion snapshot is only required to exist here (its own column is conversion_status; the client field is read from
+  -- the prime snapshot). [VERIFY] keep this presence check, or drop it, once the authoritative source is chosen.
+  select exists (select 1 from costing.sku_internal_material_conversion_snapshot where refresh_run_id = p_refresh_run_id and sku_id = p_sku_id) into v_conv_present;
+  if not v_conv_present then return jsonb_build_object('status', 'empty'); end if;
+  -- Past this point the run is eligible, so "no row" can only mean the SKU has no evidence in an eligible run.
 
-  -- 4. Eligibility (D2 approved-run behaviour, D3 which statuses/periods, FAILED run 150 must never qualify).
-  --    v_eligible := <predicate decided by owner>;   -- intentionally NOT implemented in this proposal
-  if not v_eligible then return jsonb_build_object('status', 'forbidden'); end if;
-
-  -- 5. Sources, each joined on the FULL identity actually present in that table (uniqueness per the 5 Nov audit).
-  select * into v_ctl   from costing.sku_costing_control_status_snapshot
-   where period_start = p_period_start and refresh_run_id = p_refresh_run_id and valuation_date = v_run.valuation_date and sku_id = p_sku_id;
-  select * into v_dl    from costing.sku_direct_labour_allocation_snapshot  where refresh_run_id = p_refresh_run_id and sku_id = p_sku_id;
-  select * into v_prime from costing.sku_prime_cost_snapshot                where refresh_run_id = p_refresh_run_id and sku_id = p_sku_id;
-  select * into v_conv  from costing.sku_internal_material_conversion_snapshot where refresh_run_id = p_refresh_run_id and sku_id = p_sku_id;
-  -- Fail closed on any missing required source (never partial-as-READY): the client shows missing as UNKNOWN.
-  if v_ctl.sku_id is null or v_dl.sku_id is null or v_prime.sku_id is null or v_conv.sku_id is null then
-    return jsonb_build_object('status', 'empty');
-  end if;
-
-  -- 6. Regional: exactly one row per permitted region, TEXT COLUMNS ONLY (no amounts). Absent region => key omitted => UNKNOWN.
+  -- 6. Regional: at most one row per region (unique per the audit; enforced again here so a duplicate fails closed instead of picking one),
+  --    TEXT COLUMNS ONLY (no amounts). Absent region => key omitted => UNKNOWN in the client.
+  select count(*) into v_n from costing.sku_regional_marketing_expense_allocation_snapshot
+   where refresh_run_id = p_refresh_run_id and sku_id = p_sku_id and region_code in ('IK', 'OK') group by region_code having count(*) > 1;
+  if found then return jsonb_build_object('status', 'error'); end if;
   select jsonb_build_object('regional_basis_source', regional_basis_source, 'regional_basis_status', regional_basis_status,
                             'marketing_expense_allocation_status', marketing_expense_allocation_status, 'note', regional_basis_note)
     into v_ik from costing.sku_regional_marketing_expense_allocation_snapshot
@@ -67,7 +75,7 @@ begin
   -- 7. Projection IN SQL. Explicit whitelist; no row_to_json, no SELECT * passthrough, no numeric except identity.
   return jsonb_build_object('status', 'ok', 'record', jsonb_build_object(
     'period_start', p_period_start, 'refresh_run_id', p_refresh_run_id, 'sku_id', p_sku_id,
-    'valuation_date', v_run.valuation_date,
+    'valuation_date', v_valuation_date,
     'refreshed_at', v_prime.refreshed_at,                                   -- D4: precedence to be decided
     'material_costing_status', v_prime.material_costing_status,             -- [VERIFY] authoritative source vs control snapshot
     'direct_labour_allocation_status', v_dl.direct_labour_allocation_status,
@@ -87,6 +95,21 @@ revoke all on function public.rpc_get_costing_draft_component_evidence_v1(date, 
 grant execute on function public.rpc_get_costing_draft_component_evidence_v1(date, bigint, bigint) to authenticated;
 -- Rollback (complete): drop function public.rpc_get_costing_draft_component_evidence_v1(date, bigint, bigint);
 ```
+
+## Review against the 5 Nov live-source audit (6 Nov, updated)
+| Audit statement | Draft | Result |
+|---|---|---|
+| Exact identity tuple, no latest-run substitution | run looked up by `(refresh_run_id, period_start)`; control snapshot also by `valuation_date` | matches |
+| Per-source uniqueness: prime/DL/conversion `(refresh_run_id, sku_id)`; control `(period_start, valuation_date, refresh_run_id, sku_id)`; regional `(refresh_run_id, sku_id, region_code)` | every join uses the full key present in that table; NULL-run legacy rows excluded | matches |
+| Explicit whitelist, no `SELECT *`, no whole-row JSON | **first draft used `select *` / `%rowtype` over tables that carry money (not returned, but against the principle); now explicit column lists** | corrected |
+| Errors must not reveal whether an inaccessible run/SKU exists (contract rule 5) | **first draft answered `empty` for a missing run and `forbidden` for an ineligible one, an existence oracle for any CCC-view user; now one `forbidden` envelope for missing, wrong-period and ineligible runs** | corrected |
+| Exactly one IK and one OK row, fail closed otherwise | non-strict `select into` would silently pick a row; now a duplicate returns `error` | corrected |
+| `control_note AS blocker_note`, `regional_basis_note AS note` explicit renames | as drafted | matches; free-text screening still open |
+| `material_costing_status` / `internal_material_conversion_status`: choose one authoritative source | read from the prime snapshot; conversion snapshot only checked for presence | **open choice, [VERIFY]** |
+| `refreshed_at` precedence (D4) | prime snapshot's `refreshed_at` | **open, D4** |
+| Source privileges: prime and regional have no authenticated SELECT; no new direct grants | SECURITY DEFINER function only; no table grants | matches |
+| Eligibility, approved-run behaviour, FAILED run 150 | not implemented: `v_eligible := false` | **open, D2/D3: no positive answer is possible** |
+| Audit/read throttling (D5) | not implemented; do not invent a table | **open, D5** |
 
 ## Known gaps a reviewer must close (none are resolved here)
 1. D1–D5 owner decisions (D3 is the one that gates any positive answer).
