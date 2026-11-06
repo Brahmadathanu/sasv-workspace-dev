@@ -359,6 +359,8 @@ export const UNMAPPED_EXPENSE_HEADS = [1, 2, 3].map((n) => ({ head_name: SYNTHET
 export const EXPENSE_MAPPING_REGISTER = [1, 2].map((n) => ({ id: 900000 + n, head_name: SYNTHETIC + " Mapped Head " + n, expense_group: SYNTHETIC + " Expense Group " + n,
   allocation_pool: EXPENSE_POOL_OPTIONS[n - 1].allocation_pool, allocation_pool_label: EXPENSE_POOL_OPTIONS[n - 1].allocation_pool_label, include_in_costing: n === 1, is_active: true,
   mapping_status: "ACTIVE", first_seen_date: "2026-04-01", latest_seen_date: P, snapshot_count: 6, max_seen_value: 1000 * n, remarks: SYNTHETIC + " fixture", created_at: TS, updated_at: TS }));
+EXPENSE_MAPPING_REGISTER.push({ id: 900003, head_name: SYNTHETIC + " Excluded Head 3", expense_group: SYNTHETIC + " Expense Group 3", allocation_pool: "EXCLUDED", allocation_pool_label: "Excluded",
+  include_in_costing: false, is_active: true, mapping_status: "EXCLUDED", first_seen_date: "2026-04-01", latest_seen_date: P, snapshot_count: 2, max_seen_value: 100, remarks: SYNTHETIC + " fixture", created_at: TS, updated_at: TS });
 export const STAFF_CLASSIFICATION_REGISTER = [{ classification_id: 900001, staff_id: 900003, employee_code: "SYN-E900003", staff_display_name: SYNTHETIC + " Staff Member C", designation: SYNTHETIC + " Technician",
   staff_is_active: true, costing_class: "DIRECT_LABOUR", costing_class_label: "Direct Labour", allocation_pool: "PRODUCTION_OVERHEAD", classification_status: "ACTIVE", classification_is_active: true,
   effective_from: "2026-04-01", effective_to: null, classification_note: SYNTHETIC + " fixture" }];
@@ -373,9 +375,19 @@ export const MANUAL_RATE_REVIEW = MANUAL_RATE_REGISTER.map((r) => ({ manual_rate
   manual_rate_status: r.status, manual_rate_value: r.rate_value, manual_rate_effective_from: r.effective_from, manual_rate_effective_to: null, manual_rate_reason: r.reason,
   manual_rate_overrides_purchase_rate: false, newer_purchase_rate_available: false, review_message: r.review_message, manual_rate_created_at: TS, manual_rate_last_updated_at: TS }));
 
+
+// Selected-SKU diagnosis drawer (shell fetch of v_costing_pricing_sku_status_diagnosis; columns per types/supabase.ts).
+export const SKU_DIAGNOSIS_ROWS = SKUS.map((s) => ({ period_start: P, sku_id: s.sku_id, product_id: s.product_id, product_name: prod(s.product_id).product_name, sku_display_name: label(s),
+  pack_size: s.pack_size, pack_uom: s.pack_uom, mrp_ik: s.mrp_ik, mrp_ok: s.mrp_ok, material_costing_status: s.mat, rm_costing_status: s.mat, pm_costing_status: s.outcome === "BLOCKED" ? "BLOCKED" : "READY",
+  internal_loaded_cost_status: bridge(s), pricing_bridge_status: bridge(s), final_action_status: bridge(s), primary_diagnostic_code: s.control, primary_diagnostic_layer: "MATERIAL",
+  primary_diagnostic_note: SYNTHETIC + " fixture: " + s.control.toLowerCase().replace(/_/g, " "), material_costing_note: SYNTHETIC + " fixture", recommended_action: s.outcome === "READY" ? null : SYNTHETIC + " fixture action",
+  rm_blocking_line_count: s.outcome === "BLOCKED" ? 1 : 0, pm_blocking_line_count: 0, scheme_row_count: 1,
+  internal_loaded_cost_per_sku: s.outcome === "BLOCKED" ? null : s.cost + 30, manufacturing_cop_per_sku: s.outcome === "BLOCKED" ? null : s.cost + 20 }));
+
 // ---- table/view name -> rows served by the synthetic client (exact match only) ----
 export const TABLE_FIXTURES = Object.freeze({
   v_costing_pricing_sku_control_status_snapshot: SKU_STATUS_ROWS,
+  v_costing_pricing_sku_status_diagnosis: SKU_DIAGNOSIS_ROWS,
   v_costing_pricing_period_run_status: RUN_ROWS,
   v_costing_pricing_run_display_status: RUN_DISPLAY_ROWS,
   v_costing_pricing_control_dashboard_snapshot: DASHBOARD_ROWS,
