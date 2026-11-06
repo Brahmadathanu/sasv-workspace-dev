@@ -34,3 +34,16 @@ No work pack is closed. No real authenticated, populated-production-data, Window
 2. #199 (preview tooling only; stacks on the preview branch).
 3. #201 (nothing connects it; the SQL proposal is for the server session, not for application).
 No PR should be merged without the owner's separate approval; none was merged here.
+
+## 6. Authenticated acceptance pathway (preparation only; nothing here is executed or authorised)
+Uses the existing read-only route (WP12 handback R.7) and the [owner acceptance record](OWNER_ACCEPTANCE_RECORD_2026-11-04.md); it adds no new audit.
+
+| Step | Status |
+|---|---|
+| Candidate integrated build | Netlify automatically built deploy previews for #200 and #201 (bot comments on those PRs). Each is `main` `12d61d5` plus that PR, so it contains all merged work, which a normal production deploy of v390 does not. **Unverified:** nobody has loaded it, recorded the served asset digest, or confirmed it is acceptable to use. It is a candidate, not an authorised test build |
+| Backend exposure | A deploy preview talks to the **production** Supabase project. A signed-in session is therefore a production read; the route forbids Preview, Approve, Finalise, Refresh, Recalculate, Lock, Accept, Close, Save, Create, Request draft, Apply and Decide. No no-write backend exists |
+| Identity | The existing Costing test login is Costing-scoped view-only (6 grants `can_view` only) but also holds 52 unrelated edit grants. It must never be used to claim "cannot write anywhere" |
+| Owner actions needed before any PASS can be recorded | (1) authorise one named build and record source SHA + served asset digest + cache note; (2) authorise the production-read session by the account holder; (3) account holder runs handback R.7 steps 1-6 flag-OFF then Navigation-only, with `scripts/costing-preview/rpc-inventory.mjs` and the Network `rpc_` filter, and restores all flags OFF; (4) decide whether #200 should be in the tested build (it changes what a phone shows for the printable sheet) |
+| Not testable even then | CDE-2 panel (RPC absent), SEC-A1/A2 denial proofs (need a no-side-effect plan), November readiness (`READINESS_BUILD_ABSENT`), Windows A14 installer |
+
+A PASS cannot be recorded for any WP until these are done by the owner. Until then the honest status of every signed-in row is **NOT TESTED**.
