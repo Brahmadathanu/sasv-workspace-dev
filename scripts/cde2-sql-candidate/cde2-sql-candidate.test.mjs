@@ -48,6 +48,36 @@ test("static: every source join carries the full identity and exactly-one cardin
   }
 });
 
+test("static R2: the repository facts the writer-path analysis rests on (a failure here means the analysis in the review document must be redone)", () => {
+  const mig = (f) => read(path.join(root, "supabase/migrations", f));
+  const dl = mig("20261022082537_g0_step112_joint_process_dual_pool_refresh_audit_20261022.sql");
+  // Direct labour: the component-split writer accepts a RUNNING stage-03 run OR an already-successful run, but refuses if ANY DL row exists for the run.
+  assert.match(dl, /v_run\.overall_status='SUCCESS'\s+or \(\s+v_run\.overall_status='RUNNING'/);
+  assert.match(dl, /exists\(select 1 from costing\.sku_direct_labour_allocation_snapshot where refresh_run_id=p_refresh_run_id\)\s+or exists\(select 1 from costing\.sku_packing_labour_workload_snapshot[^)]*\)\s+then\s+raise exception 'Direct Labour snapshots already exist for refresh run % and are immutable'/);
+  // Direct-labour writers and their callers are owner-only (S2A execution-boundary hardening).
+  const s2a = mig("20260916121652_costing_suite_s2a_execution_boundary_hardening.sql");
+  for (const f of ["rpc_refresh_sku_direct_labour_component_split_snapshot", "rpc_refresh_sku_direct_labour_legacy_snapshot", "rpc_refresh_sku_direct_labour_allocation_snapshot"]) {
+    assert.match(s2a, new RegExp(`revoke all on function costing\\.${f}\\(date,date,bigint\\) from public,anon,authenticated,service_role;`));
+    assert.match(s2a, new RegExp(`grant execute on function costing\\.${f}\\(date,date,bigint\\) to postgres;`));
+  }
+  // Control: the trigger checks session context only, but the WRITER was patched to require RUNNING + stage 05 before it sets that context.
+  const ctl = mig("20260915025638_optimize_stage05_sku_control_context_validation_once.sql");
+  assert.match(ctl, /rpc_refresh_exact_sku_control_snapshot/); assert.match(ctl, /v_run\.overall_status is distinct from 'RUNNING'\s+or v_run\.current_stage_code is distinct from '05_CONTROL_MAINTENANCE'/);
+  assert.match(ctl, /Expected exactly one Stage05 context-setting block/);
+  // No repo migration grants or revokes EXECUTE on the control writer: its live ACL is a read-back item, not a finding.
+  const all = fs.readdirSync(path.join(root, "supabase/migrations")).map((f) => mig(f)).join("\n");
+  assert.doesNotMatch(all, /(grant|revoke)[^;]*rpc_refresh_exact_sku_control_snapshot/i);
+  // No repo function UPDATEs costing_refresh_run.overall_status (the run engine pre-dates the repo): re-opening a SUCCESS run is a read-back item.
+  assert.doesNotMatch(all, /update\s+costing\.costing_refresh_run\s+set[^;]*overall_status/i);
+});
+
+test("static: the live read-back pack is SELECT-only (no write, DDL, grant or function call that mutates)", () => {
+  const rb = code(read(path.join(dir, "readback/live_readback_selects.sql")));
+  assert.ok(rb.length > 1500);
+  assert.doesNotMatch(rb, /\b(insert\s+into|update\s+\w|delete\s+from|truncate|create\s+(or|table|function|view|index)|alter\s+(table|function|role|default)|drop\s|grant\s|revoke\s|call\s|set_config|pg_terminate|pg_cancel)/i);
+  for (const stmt of rb.split(";").map((x) => x.trim()).filter(Boolean)) assert.match(stmt, /^select\b/i, "every statement is a SELECT: " + stmt.slice(0, 60));
+});
+
 // ------------------------------------------------------------------ isolated PostgreSQL
 const bin = findPgBin();
 let cluster;
@@ -108,21 +138,52 @@ pgtest("indistinguishable denial: missing / wrong-period / approved / failed / n
     ["missing run", ["2026-10-01", 999999, 41]], ["wrong period", ["2026-11-01", 148, 41]], ["approved 143", ["2026-10-01", 143, 41]], ["failed 150", ["2026-11-01", 150, 41]],
     ["approved+closed 122", ["2026-09-01", 122, 41]], ["superseded 155", ["2026-12-01", 155, 41]], ["revoked 160", ["2027-01-01", 160, 41]], ["reference 161", ["2027-02-01", 161, 41]],
     ["wrong context 170", ["2027-02-01", 170, 41]], ["missing SKU", ["2026-10-01", 148, 999999]], ["null period", [null, 148, 41]], ["null run", ["2026-10-01", null, 41]], ["null sku", ["2026-10-01", 148, null]],
-    ["negative run", ["2026-10-01", -1, 41]], ["zero sku", ["2026-10-01", 148, 0]], ["mid-month", ["2026-10-15", 148, 41]]];
+    ["historical draft 80 (before the latest approved period)", ["2026-07-01", 80, 41]], ["historical draft 82", ["2026-08-01", 82, 41]], ["negative run", ["2026-10-01", -1, 41]], ["zero sku", ["2026-10-01", 148, 0]], ["mid-month", ["2026-10-15", 148, 41]]];
   for (const [label, args] of denied) assert.equal(ok("open", args), DENY, label);
   for (const [label, uid] of [["no permission row", U.none], ["edit without view", U.noview], ["other module only", U.other], ["no jwt subject", ""]]) assert.equal(ok("open", ["2026-10-01", 148, 41], { uid }), DENY, label);
   assert.equal(rec("open", ["2026-12-01", 156, 41]).status, "ok", "the selected (latest) run of a period is eligible once D3 is decided");
 });
-pgtest("KNOWN D3 GAP (documented, not fixed here): the structural predicate alone admits retained old OPEN drafts 80 and 82", () => {
-  assert.equal(rec("open", ["2026-07-01", 80, 41]).status, "ok");
-  assert.equal(rec("open", ["2026-08-01", 82, 41]).status, "ok");
-  // Excluding them needs an owner policy (a review window or an explicit register): there is no such register in the repository.
+pgtest("R3 review scope (derived from governed state, no run id, no calendar date): 148/149 reviewable, historical 80/82 not, and the scope moves with approvals", () => {
+  assert.equal(rec("open", ["2026-10-01", 148, 41]).status, "ok", "newer draft of the latest approved period (Oct)");
+  assert.equal(rec("open", ["2026-11-01", 149, 41]).status, "ok", "draft of a period after the latest approved period");
+  assert.equal(ok("open", ["2026-07-01", 80, 41]), DENY); assert.equal(ok("open", ["2026-08-01", 82, 41]), DENY);
+  // Approve November: the floor advances to Nov, so Oct's draft 148 leaves scope, 149 is now approved (excluded), Dec's 156 stays in scope.
+  const approveNov = "insert into costing.run_designation_stub values (149, 'APPROVED')";
+  assert.equal(mut(approveNov, ["2026-10-01", 148, 41]), DENY, "148 drops out once a later period is approved");
+  assert.equal(mut(approveNov, ["2026-11-01", 149, 41]), DENY, "approved 149 is never served as a draft");
+  assert.equal(JSON.parse(mut(approveNov, ["2026-12-01", 156, 41])).status, "ok");
+  // Approving a HISTORICAL run does not widen the scope: the floor is the LATEST approved period.
+  assert.equal(mut("insert into costing.run_designation_stub values (82, 'APPROVED')", ["2026-07-01", 80, 41]), DENY);
+  assert.equal(JSON.parse(mut("insert into costing.run_designation_stub values (82, 'APPROVED')", ["2026-10-01", 148, 41])).status, "ok");
+  // Revoking the October approval moves the floor back to September: 148 stays in scope, 80/82 stay out.
+  const revokeOct = "delete from costing.run_designation_stub where refresh_run_id = 143";
+  assert.equal(JSON.parse(mut(revokeOct, ["2026-10-01", 148, 41])).status, "ok");
+  assert.equal(mut(revokeOct, ["2026-08-01", 82, 41]), DENY);
+  // No approved run anywhere: the scope is empty (fail closed), not "everything".
+  const noApproval = "delete from costing.run_designation_stub where designation = 'APPROVED'";
+  for (const args of [["2026-10-01", 148, 41], ["2026-11-01", 149, 41], ["2026-07-01", 80, 41]]) assert.equal(mut(noApproval, args), DENY, "no approved period: " + args);
+  // Still the period's latest successful run only: a newer success supersedes 149.
+  assert.equal(mut("insert into costing.costing_refresh_run (id, period_start, valuation_date, overall_status, valuation_context_source, finished_at) values (190,'2026-11-01','2026-11-02','SUCCESS','CAPTURED_AT_REQUEST','2026-11-06 00:00+00')", ["2026-11-01", 149, 41]), DENY);
 });
-pgtest("role contexts: CCC view and CCC edit are served (same data, no write side effect); anon cannot execute at all", () => {
+pgtest("role contexts: CCC view and CCC edit are served identically; anon cannot execute; EXECUTE under Supabase-style default privileges is exactly authenticated + service_role", () => {
   assert.deepEqual(rec("open", ["2026-10-01", 148, 41], { uid: U.view }), rec("open", ["2026-10-01", 148, 41], { uid: U.edit }));
   const anon = call("open", ["2026-10-01", 148, 41], { role: "anon", uid: "" });
   assert.notEqual(anon.status, 0); assert.match(anon.err, /permission denied for function/);
-  assert.equal(cluster.run("open", `select has_function_privilege('anon','${FN}(date,bigint,bigint)','execute'), has_function_privilege('authenticated','${FN}(date,bigint,bigint)','execute'), has_function_privilege('public','${FN}(date,bigint,bigint)','execute')`).out, "f|t|t".replace("t|t", "t|f"));
+  const priv = (r) => cluster.run("open", `select has_function_privilege('${r}','${FN}(date,bigint,bigint)','execute')`).out;
+  assert.deepEqual(["anon", "authenticated", "service_role"].map(priv), ["f", "t", "t"], "default privileges had granted all three; the candidate revokes anon (and public) only");
+  assert.equal(cluster.run("open", `select coalesce(string_agg(distinct a.grantee::regrole::text, ','), 'null') from pg_proc p cross join lateral aclexplode(p.proacl) a where p.oid = '${FN}(date,bigint,bigint)'::regprocedure`).out.split(",").sort().join(","), "authenticated,postgres,service_role");
+  assert.equal(ok("open", ["2026-10-01", 148, 41], { role: "service_role", uid: "" }), DENY, "service_role holds EXECUTE but carries no end-user subject, so require_permission denies it (D10)");
+});
+pgtest("R4 logging feasibility (probe only, not part of the candidate): RAISE LOG works in a STABLE function, reaches the server log, and is NOT sent to the client", () => {
+  cluster.createDb("logprobe");
+  cluster.run("logprobe", read(path.join(dir, "test/00_stub_schema.sql")));
+  cluster.run("logprobe", `create function public.zz_probe(p int) returns jsonb language plpgsql stable security definer set search_path = pg_catalog, pg_temp as $$ begin raise log 'CDE2PROBE caller=% outcome=%', auth.uid(), p; return '{"status": "empty"}'::jsonb; end $$;
+    grant execute on function public.zz_probe(int) to authenticated;`);
+  const r = cluster.run("logprobe", `begin read only;\nset role authenticated;\nselect set_config('request.jwt.claim.sub','${U.view}',false);\nselect public.zz_probe(7);\ncommit;`.replace(/\\n/g, "\n"), { allowError: true });
+  assert.equal(r.status, 0, r.err);
+  assert.ok(!/CDE2PROBE/.test(r.out + r.err), "client never sees the log line (client_min_messages default)");
+  const log = fs.readFileSync(path.join(cluster.dir, "log"), "utf8");
+  assert.match(log, new RegExp("LOG:  CDE2PROBE caller=" + U.view + " outcome=7"), "the server log has caller and outcome");
 });
 pgtest("function properties: SECURITY DEFINER, STABLE, fixed search_path; creating it granted no table privilege; runs in a READ ONLY transaction; writes nothing", () => {
   assert.equal(cluster.run("open", `select prosecdef, provolatile, proconfig::text from pg_proc where oid = '${FN}(date,bigint,bigint)'::regprocedure`).out, "t|s|{\"search_path=pg_catalog, pg_temp\"}");
@@ -151,6 +212,14 @@ pgtest("source integrity: duplicate, missing, mismatched-identity, parity-breaki
   for (const [t, c] of [["sku_prime_cost_snapshot", "refreshed_at"], ["sku_direct_labour_allocation_snapshot", "refreshed_at"], ["sku_costing_control_status_snapshot", "snapshot_refreshed_at"]])
     assert.equal(mut(`update costing.${t} set ${c} = '2026-11-05 00:00+00' where refresh_run_id = 148 and sku_id = 41`, ["2026-10-01", 148, 41]), DENY, "rewritten after finish " + t);
   assert.equal(mut(`update ${reg} set refreshed_at = '2026-11-05 00:00+00' where refresh_run_id = 148 and sku_id = 41 and region_code = 'OK'`, ["2026-10-01", 148, 41]), DENY, "regional rewritten after finish");
+  // R1: a MISSING stage timestamp is refused explicitly (a NULL comparison would otherwise pass silently).
+  for (const [t, c] of [["sku_prime_cost_snapshot", "refreshed_at"], ["sku_direct_labour_allocation_snapshot", "refreshed_at"], ["sku_costing_control_status_snapshot", "snapshot_refreshed_at"]])
+    assert.equal(mut(`update costing.${t} set ${c} = null where refresh_run_id = 148 and sku_id = 41`, ["2026-10-01", 148, 41]), DENY, "null stage timestamp " + t);
+  for (const region of ["IK", "OK"])
+    assert.equal(mut(`update ${reg} set refreshed_at = null where refresh_run_id = 148 and sku_id = 41 and region_code = '${region}'`, ["2026-10-01", 148, 41]), DENY, "null regional timestamp " + region);
+  assert.equal(mut(`update costing.sku_prime_cost_snapshot set refreshed_at = null where refresh_run_id = 148 and sku_id = 41`, ["2026-10-01", 148, 41]), mut(`delete from costing.sku_prime_cost_snapshot where refresh_run_id = 148 and sku_id = 41`, ["2026-10-01", 148, 41]), "null-timestamp denial is byte-identical to a missing-row denial");
+  // A different SKU of the same run keeps working: the denial is per-SKU, identity protections unchanged.
+  assert.equal(JSON.parse(mut(`update costing.sku_prime_cost_snapshot set refreshed_at = null where refresh_run_id = 148 and sku_id = 41`, ["2026-10-01", 148, 42])).status, "ok");
   assert.equal(mut(`alter table costing.sku_direct_labour_allocation_snapshot rename column allocation_basis_status to x`, ["2026-10-01", 148, 41]), DENY, "internal error is swallowed, not leaked");
   assert.equal(mut(`update costing.cost_periods set status = 'CLOSED' where period_start = '2026-10-01'`, ["2026-10-01", 148, 41]), DENY, "closed period");
   assert.equal(mut(`update costing.costing_refresh_run set finished_at = null where id = 148`, ["2026-10-01", 148, 41]), DENY, "no finish time");
@@ -176,7 +245,7 @@ pgtest("contract cross-check: the real CDE-1b adapter and CDE-1a loader accept t
   assert.equal(loader.stateFor(req).record.refreshed_at, "2026-11-04T21:05:00Z");
   assert.equal((await provider.readSkuEvidence({ periodStart: "2026-10-01", runId: "143", skuId: "41" })).status, "empty");
 });
-pgtest("immutability probe (isolated): the repo's CURRENT stage-05 control guard is a session-context check, not a run-status check", () => {
+pgtest("immutability probe (isolated): the repo's CURRENT control-snapshot TRIGGER checks session context only (run status is enforced by the writer, not the trigger)", () => {
   const mig = read(path.join(root, "supabase/migrations/20260915025638_optimize_stage05_sku_control_context_validation_once.sql"));
   const fnText = mig.slice(mig.indexOf("create or replace function costing.fn_guard_stage05_exact_snapshot_write()"), mig.indexOf("$function$;", mig.indexOf("as $function$")) + "$function$;".length);
   assert.ok(fnText.length > 500 && !/overall_status/.test(fnText), "latest guard text never consults the run's overall_status");

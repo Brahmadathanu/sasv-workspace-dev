@@ -22,7 +22,7 @@ declare
   v_deny   constant jsonb := '{"status":"empty"}'::jsonb;
   v_code   constant text  := '^[A-Z][A-Z0-9_]{0,79}$';   -- machine codes only; anything else is returned as null (UNKNOWN), never as text
   v_d3_decided boolean := false;                          -- D3 OWNER GATE. Must stay false until the owner decides D3 and a migration is separately authorised.
-  v_run record; v_n int;
+  v_run record; v_n int; v_scope_floor date;
   v_prime record; v_ctl record; v_dl record; v_conv record; v_ik record; v_ok record;
 begin
   begin
@@ -57,12 +57,19 @@ begin
     if not exists (select 1 from costing.cost_periods cp where cp.period_start = v_run.period_start and cp.status = 'OPEN') then
       return v_deny;
     end if;
-    --    c) the run is the draft the governed period status currently surfaces for review (latest successful run of the period).
-    --       NOTE: this alone also admits retained old drafts such as 80/82 while their periods are OPEN. Excluding them is part of D3.
+    --    c) ACTIVE DRAFT-REVIEW SCOPE (proposal for D3a/D3c; the gate below keeps it disabled).
+    --       Derived only from governed state, with no run id and no calendar date in the rule:
+    --         * the run is the period's latest successful run (the draft the canonical period status currently surfaces), AND
+    --         * its period is not earlier than the latest period that has an APPROVED run.
+    --       Effect: drafts of the approved period and of any later period are reviewable; retained drafts of periods that PRE-DATE the latest approved
+    --       period (for example 80 and 82) fall out. The scope advances by itself when a later period is approved. If no period has an approved run
+    --       the scope is empty (deny). Alternative if the owner wants manual control: an explicit register (see the review document, option B).
     if not exists (select 1 from costing.v_costing_period_run_status s
                     where s.period_start = v_run.period_start and s.latest_success_run_id = v_run.id) then
       return v_deny;
     end if;
+    select max(s.period_start) into v_scope_floor from costing.v_costing_period_run_status s where s.approved_run_id is not null;
+    if v_scope_floor is null or v_run.period_start < v_scope_floor then return v_deny; end if;
     --    d) OWNER GATE
     if not v_d3_decided then return v_deny; end if;
 
@@ -109,8 +116,13 @@ begin
     if v_prime.material_costing_status is distinct from v_ctl.material_costing_status then return v_deny; end if;
     if v_prime.internal_material_conversion_status is distinct from v_conv.conversion_status then return v_deny; end if;
 
-    -- 7. Integrity defence-in-depth (NOT proof of immutability; see the audit): every stage timestamp must precede the run's frozen finish time.
-    --    A row rewritten after the run finished is refused. [VERIFY] holds for all rows of every eligible run before relying on it.
+    -- 7. Integrity defence-in-depth (NOT proof of immutability; see the review): every stage timestamp must be PRESENT and must not be later
+    --    than the run's frozen finish time. A missing timestamp is refused explicitly (a NULL makes "ts > finished_at" NULL, which would otherwise
+    --    pass silently), and so is a row rewritten or back-filled after the run finished. [VERIFY] holds for all rows of every eligible run.
+    if v_prime.refreshed_at is null or v_ctl.snapshot_refreshed_at is null or v_dl.refreshed_at is null
+       or v_ik.refreshed_at is null or v_ok.refreshed_at is null then
+      return v_deny;
+    end if;
     if v_prime.refreshed_at > v_run.finished_at or v_ctl.snapshot_refreshed_at > v_run.finished_at or v_dl.refreshed_at > v_run.finished_at
        or v_ik.refreshed_at > v_run.finished_at or v_ok.refreshed_at > v_run.finished_at then
       return v_deny;
