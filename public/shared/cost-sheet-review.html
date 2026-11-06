@@ -1390,10 +1390,14 @@
         background: #f3f4f6;
         padding: 18px;
         display: flex;
-        justify-content: center;
+        justify-content: flex-start;
         align-items: flex-start;
       }
       .cost-sheet-a4 {
+        /* margin:auto centres the sheet when there is room and collapses to 0 when it overflows, so the left edge stays
+           scrollable (justify-content:center would push the overflow to the unreachable left side). */
+        flex: none;
+        margin: 0 auto;
         width: 210mm;
         min-height: 297mm;
         background: #fff;
