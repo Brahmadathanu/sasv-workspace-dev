@@ -105,7 +105,7 @@ test("synthetic READY / REVIEW / BLOCKED status and two run states are visibly r
   assert.match(text, /Costing Readiness\s*1 \/ 3/i);
   assert.match(text, /Costing Blocked\s*1/i);
   assert.match(text, /Costing Review\s*1/i);
-  assert.match(text, /SYNTHETIC Run 900002 FAILED/);
+  assert.match(text, /SYNTHETIC DRAFT run 900004 - not approved/);
   const data = await page.evaluate(async () => {
     const { supabase } = await import("/shared/js/supabaseClient.js");
     const sku = await supabase.from("v_costing_pricing_sku_control_status_snapshot").select("*");
@@ -114,7 +114,7 @@ test("synthetic READY / REVIEW / BLOCKED status and two run states are visibly r
   });
   assert.deepEqual(data.sku.map((r) => r.first_control_status), ["READY", "MATERIAL_REVIEW_REQUIRED", "MATERIAL_COST_BLOCKED"]);
   assert.ok(data.sku.every((r) => r.sku_id >= 900000 && r.product_name.startsWith("SYNTHETIC") && r.synthetic === true));
-  assert.deepEqual(data.runs.map((r) => r.active_run_status ?? "APPROVED"), ["APPROVED", "FAILED"]);
+  assert.deepEqual(data.runs.map((r) => r.display_state), ["APPROVED", "DRAFT"]);
   assert.ok(data.runs.every((r) => /^SYNTHETIC/.test(r.display_label)));
   await context.close();
 });
@@ -239,7 +239,7 @@ test("approve / lock actions reached through the page client are denied (no exec
   assert.equal(out.lock, "SYNTHETIC_PREVIEW_WRITE_DENIED");
   assert.equal(out.table, "SYNTHETIC_PREVIEW_WRITE_DENIED");
   assert.equal(out.after.length, 1);
-  assert.equal(out.after[0].display_state, "NO_SUCCESSFUL_RUN", "fixture must be unchanged");
+  assert.equal(out.after[0].display_state, "DRAFT", "fixture must be unchanged");
   await context.close();
 });
 
