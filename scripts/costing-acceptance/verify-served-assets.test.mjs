@@ -35,9 +35,9 @@ test("a faithful build is reported byte-identical for every Costing asset, and t
 });
 test("one changed byte, one missing file, and a CRLF-only difference: tampering is detected, line endings are ignored", async () => {
   const f = path.join(dir, "public/shared/js/costing-feature-flags.js"); const orig = fs.readFileSync(f);
-  fs.writeFileSync(f, Buffer.concat([orig, Buffer.from("\n// tampered\n")]));
+  fs.writeFileSync(f, Buffer.concat([orig, Buffer.from("\n// tampered\n")]));  // (git archive may already have applied CRLF conversion in a CRLF clone; normalise before comparing)
   let r = await run(); assert.notEqual(r.status, 0); assert.match(r.stdout, /MISMATCH 200 public\/shared\/js\/costing-feature-flags\.js/);
-  fs.writeFileSync(f, Buffer.from(orig.toString("utf8").replace(/\n/g, "\r\n"))); r = await run(); assert.equal(r.status, 0, "CRLF-only difference is not a mismatch");
+  fs.writeFileSync(f, Buffer.from(orig.toString("utf8").replace(/\r\n/g, "\n").replace(/\n/g, "\r\n"))); r = await run(); assert.equal(r.status, 0, "CRLF-only difference is not a mismatch");
   fs.rmSync(f); r = await run(); assert.notEqual(r.status, 0); assert.match(r.stdout, /MISMATCH 404 public\/shared\/js\/costing-feature-flags\.js/);
   fs.writeFileSync(f, orig);
 });
