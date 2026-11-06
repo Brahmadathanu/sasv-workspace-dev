@@ -116,6 +116,8 @@ test("governed snapshot provenance excludes failed run attempts and uses a succe
   assert.equal(nov.displayed_run_id, 900004);
   assert.equal(nov.active_run_id, null, "FAILED is not an active QUEUED/RUNNING attempt");
   assert.ok(failed.has(900005), "later failed run exists as a separate nonselected attempt");
+  assert.equal(F.RUN_DISPLAY_ROWS.find(r => r.refresh_run_id === 900004)?.in_use_for_pricing, false,
+    "successful but unapproved draft cannot claim official pricing eligibility");
   for (const row of F.COMPARISON_ROWS) {
     const selected = successful.get(row.snapshot_refresh_run_id);
     assert.ok(selected, "no selected cost comparison can originate from FAILED refresh run " + row.snapshot_refresh_run_id);
