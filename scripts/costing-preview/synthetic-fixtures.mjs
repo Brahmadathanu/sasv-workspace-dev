@@ -6,7 +6,7 @@
 //   * every number is a round fictional placeholder, NOT a costing result and NOT derived from production data;
 //   * status vocabulary is limited to codes the client already renders (costing-status-labels.js, helpers/smokes).
 // Scenario set: three fictional SKUs of two fictional products with READY / REVIEW_REQUIRED / BLOCKED outcomes,
-// one approved October run (900001) and one FAILED November draft run (900002).
+// an approved October run (900001), a successful NOT APPROVED November draft (900004), and a later FAILED attempt (900005) that never supplies cost snapshots.
 export const SYNTHETIC = "SYNTHETIC";
 const P = "2026-11-01"; // governed (current) period
 const PRIOR = "2026-10-01";
@@ -31,7 +31,7 @@ const bridge = (s) => (s.outcome === "READY" ? "READY" : s.outcome === "BLOCKED"
 
 // ---- control status per SKU (existing + typed snapshot views) ----
 const skuStatusRow = (s) => ({
-  period_start: P, refresh_run_id: 900002, valuation_date: VAL, sku_id: s.sku_id, product_id: s.product_id,
+  period_start: P, refresh_run_id: 900004, valuation_date: VAL, sku_id: s.sku_id, product_id: s.product_id,
   product_name: prod(s.product_id).product_name, pack_size: s.pack_size, pack_uom: s.pack_uom,
   first_control_status: s.control, control_severity: s.severity, material_costing_status: s.mat,
   control_note: s.outcome === "READY" ? SYNTHETIC + " fixture: no blocker" : SYNTHETIC + " fixture: " + s.control.toLowerCase().replace(/_/g, " "),
@@ -50,15 +50,15 @@ const skuStatusRow = (s) => ({
 });
 export const SKU_STATUS_ROWS = SKUS.map(skuStatusRow);
 
-// ---- run / period status (two runs: approved Oct, FAILED Nov) ----
+// ---- governed period selection: Oct APPROVED, Nov successful draft (latest failed attempt separate) ----
 const runBase = { newer_draft_run_id: null, active_run_id: null, active_run_status: null, latest_draft_run_id: null, latest_draft_valuation_date: null,
   newer_draft_count: 0, superseded_run_count: 0, pricing_use_label: SYNTHETIC + " fixture - not an official run" };
 export const RUN_ROWS = [
   { ...runBase, period_start: PRIOR, display_state: "APPROVED", display_label: SYNTHETIC + " Approved run 900001", display_label_v2: SYNTHETIC + " Approved run 900001",
     displayed_run_id: 900001, approved_run_id: 900001, approved_at: "2026-10-31T10:00:00Z", approved_by: by, official_valuation_date: "2026-10-31", approved_run_valuation_date: "2026-10-31" },
-  { ...runBase, period_start: P, display_state: "NO_SUCCESSFUL_RUN", display_label: SYNTHETIC + " Run 900002 FAILED - not approved", display_label_v2: SYNTHETIC + " Run 900002 FAILED - not approved",
-    displayed_run_id: null, approved_run_id: null, approved_at: null, approved_by: null, active_run_id: 900002, active_run_status: "FAILED",
-    official_valuation_date: null, latest_draft_run_id: 900002, latest_draft_valuation_date: VAL, approved_run_valuation_date: null },
+  { ...runBase, period_start: P, display_state: "DRAFT", display_label: SYNTHETIC + " DRAFT run 900004 - not approved", display_label_v2: SYNTHETIC + " DRAFT run 900004 - not approved",
+    displayed_run_id: 900004, approved_run_id: null, approved_at: null, approved_by: null, active_run_id: null, active_run_status: null,
+    official_valuation_date: null, latest_draft_run_id: 900004, latest_draft_valuation_date: VAL, approved_run_valuation_date: null },
 ];
 
 // Columns = the client's explicit select list in costing-approval-screen.js (no generated type exists).
@@ -67,7 +67,8 @@ const runDisplay = (id, period, val, overall, designation, display, inUse, label
   superseded_by_run_id: null, designated_at: designation ? TS : null, designated_by: designation ? by : null, designation_reason: designation ? SYNTHETIC + " fixture" : null, display_label: label });
 export const RUN_DISPLAY_ROWS = [
   runDisplay(900001, PRIOR, "2026-10-31", "SUCCESS", "APPROVED", "APPROVED", true, SYNTHETIC + " Approved run 900001"),
-  runDisplay(900002, P, VAL, "FAILED", null, "FAILED", false, SYNTHETIC + " Run 900002 FAILED - not approved"),
+  runDisplay(900004, P, VAL, "SUCCESS", null, "DRAFT", true, SYNTHETIC + " DRAFT run 900004 - not approved"),
+  runDisplay(900005, P, VAL, "FAILED", null, "FAILED", false, SYNTHETIC + " Run 900005 FAILED - not approved"),
 ];
 
 // ---- dashboard / KPI / integrity ----
@@ -82,7 +83,7 @@ const dash = (period, run, status, ready, review, blocked, valuation) => ({
   top_rm_blocker_stock_item_name: blocked ? SYNTHETIC + " Sample Herb Extract" : null, top_rm_blocker_stock_item_code: blocked ? "SYN-RM-900001" : null, top_rm_blocker_stock_item_id: blocked ? 900001 : null,
   top_rm_review_stock_item_name: review ? SYNTHETIC + " Sample Excipient" : null, top_rm_review_stock_item_code: review ? "SYN-RM-900002" : null, top_rm_review_stock_item_id: review ? 900002 : null,
 });
-export const DASHBOARD_ROWS = [dash(P, 900002, "BLOCKED", 1, 1, 1, VAL), dash(PRIOR, 900001, "READY", 3, 0, 0, "2026-10-31")];
+export const DASHBOARD_ROWS = [dash(P, 900004, "BLOCKED", 1, 1, 1, VAL), dash(PRIOR, 900001, "READY", 3, 0, 0, "2026-10-31")];
 export const KPI_ROWS = [
   { period_start: P, costing_ready_sku_count: 1, costing_review_sku_count: 1, costing_blocked_sku_count: 1, latest_refresh_status: "FAILED", latest_refresh_scope: SYNTHETIC + " fixture",
     latest_refresh_finished_at: TS, total_pricing_sku_count: 3, selling_policy_complete_count: 2, selling_policy_missing_count: 1, scheme_policy_complete_count: 1, scheme_policy_missing_count: 2,
@@ -92,18 +93,18 @@ export const KPI_ROWS = [
     scheme_blocked_row_count: 0, scheme_review_row_count: 0, scheme_calculation_row_count: 3, selling_price_row_count: 3, workbench_blocked_item_count: 0, workbench_review_item_count: 0, workbench_issue_line_count: 0 },
 ];
 export const INTEGRITY_ROWS = [
-  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, check_code: "SYNTHETIC_SKU_COUNT_MATCH", check_status: "PASS", observed_count: 3, expected_rule: SYNTHETIC + " fixture rule", diagnostic_note: SYNTHETIC + " fixture check", snapshot_refreshed_at: TS },
-  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, check_code: "SYNTHETIC_MATERIAL_RATES_PRESENT", check_status: "FAIL", observed_count: 1, expected_rule: SYNTHETIC + " fixture rule", diagnostic_note: SYNTHETIC + " fixture: one blocked material", snapshot_refreshed_at: TS },
+  { period_start: P, refresh_run_id: 900004, valuation_date: VAL, check_code: "SYNTHETIC_SKU_COUNT_MATCH", check_status: "PASS", observed_count: 3, expected_rule: SYNTHETIC + " fixture rule", diagnostic_note: SYNTHETIC + " fixture check", snapshot_refreshed_at: TS },
+  { period_start: P, refresh_run_id: 900004, valuation_date: VAL, check_code: "SYNTHETIC_MATERIAL_RATES_PRESENT", check_status: "FAIL", observed_count: 1, expected_rule: SYNTHETIC + " fixture rule", diagnostic_note: SYNTHETIC + " fixture: one blocked material", snapshot_refreshed_at: TS },
 ];
 
 // ---- material review ----
 export const MATERIAL_ACTION_ROWS = [
-  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, material_area: "RM", stock_item_id: 900001, stock_item_code: "SYN-RM-900001", stock_item_name: SYNTHETIC + " Sample Herb Extract",
+  { period_start: P, refresh_run_id: 900004, valuation_date: VAL, material_area: "RM", stock_item_id: 900001, stock_item_code: "SYN-RM-900001", stock_item_name: SYNTHETIC + " Sample Herb Extract",
     action_severity: "BLOCKER", action_required_summary: SYNTHETIC + " fixture: selected rate missing", action_note_summary: SYNTHETIC + " fixture", issue_codes: "MISSING_MATERIAL_RATE", warning_codes: null,
     affected_sku_count: 1, affected_product_count: 1, affected_line_count: 1, approval_blocking_sku_count: 1, approval_blocking_line_count: 1, review_sku_count: 0, review_line_count: 0,
     has_missing_selected_rate: true, has_missing_rate_source: true, has_optional_lines: false, material_line_statuses: "BLOCKED", bom_sources: "RM_BOM",
     recommended_ui_route: "MATERIAL_RATE_REVIEW", sample_product_name: prod(900103).product_name, sample_sku_id: 900003, snapshot_refreshed_at: TS, latest_rate_date: null, oldest_rate_date: null },
-  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, material_area: "PM", stock_item_id: 900002, stock_item_code: "SYN-PM-900002", stock_item_name: SYNTHETIC + " Sample Bottle",
+  { period_start: P, refresh_run_id: 900004, valuation_date: VAL, material_area: "PM", stock_item_id: 900002, stock_item_code: "SYN-PM-900002", stock_item_name: SYNTHETIC + " Sample Bottle",
     action_severity: "REVIEW", action_required_summary: SYNTHETIC + " fixture: manual rate in use", action_note_summary: SYNTHETIC + " fixture", issue_codes: "MANUAL_RATE_USED", warning_codes: null,
     affected_sku_count: 1, affected_product_count: 1, affected_line_count: 1, approval_blocking_sku_count: 0, approval_blocking_line_count: 0, review_sku_count: 1, review_line_count: 1,
     has_missing_selected_rate: false, has_missing_rate_source: false, has_optional_lines: false, material_line_statuses: "REVIEW_REQUIRED", bom_sources: "PM_BOM",
@@ -135,7 +136,7 @@ export const SKU_SELECTOR_ROWS = SKUS.map((s) => ({
   internal_loaded_cost_per_sku: s.outcome === "BLOCKED" ? null : s.cost + 30, pricing_cost_per_sku: s.outcome === "BLOCKED" ? null : s.cost + 30, refreshed_at: TS,
 }));
 export const DETAILED_COST_SHEET_ROWS = SKUS.map((s) => ({
-  period_start: P, refresh_run_id: 900002, valuation_date: VAL, sku_id: s.sku_id, product_id: s.product_id, product_name: prod(s.product_id).product_name, pack_size: s.pack_size, pack_uom: s.pack_uom,
+  period_start: P, refresh_run_id: 900004, valuation_date: VAL, sku_id: s.sku_id, product_id: s.product_id, product_name: prod(s.product_id).product_name, pack_size: s.pack_size, pack_uom: s.pack_uom,
   cost_sheet_status: bridge(s), cost_sheet_note: SYNTHETIC + " fixture", pricing_bridge_status: bridge(s), selling_price_bridge_status: bridge(s), internal_loaded_cost_status: bridge(s),
   material_cost_per_sku: s.outcome === "BLOCKED" ? null : s.cost, direct_labour_cost_per_sku: s.outcome === "BLOCKED" ? null : 10, prime_cost_per_sku: s.outcome === "BLOCKED" ? null : s.cost + 10,
   manufacturing_cop_per_sku: s.outcome === "BLOCKED" ? null : s.cost + 20, internal_loaded_cost_per_sku: s.outcome === "BLOCKED" ? null : s.cost + 30, pricing_cost_per_sku: s.outcome === "BLOCKED" ? null : s.cost + 30,
@@ -144,7 +145,7 @@ export const DETAILED_COST_SHEET_ROWS = SKUS.map((s) => ({
 }));
 export const PRINTABLE_SUMMARY_ROWS = PRODUCTS.map((p) => {
   const mine = SKUS.filter((s) => s.product_id === p.product_id);
-  return { period_start: P, refresh_run_id: 900002, valuation_date: VAL, product_id: p.product_id, product_name: p.product_name, category_name: p.category_name, subcategory_name: p.subcategory_name,
+  return { period_start: P, refresh_run_id: 900004, valuation_date: VAL, product_id: p.product_id, product_name: p.product_name, category_name: p.category_name, subcategory_name: p.subcategory_name,
     group_name: p.group_name, sub_group_name: p.sub_group_name, product_hierarchy: [p.category_name, p.group_name].join(" > "), sku_count: mine.length,
     sku_column_labels: mine.map(label).join(" | "), line_count: 20, ready_line_count: mine[0].outcome === "READY" ? 20 : mine[0].outcome === "BLOCKED" ? 12 : 18,
     review_required_line_count: mine[0].outcome === "REVIEW_REQUIRED" ? 2 : 0, blocked_line_count: mine[0].outcome === "BLOCKED" ? 8 : 0,
@@ -165,12 +166,12 @@ const compare = (s) => {
     profit_value_ik: blocked ? null : s.mrp_ik - loaded, profit_value_ok: blocked ? null : s.mrp_ok - loaded,
     previous_month_selling_price_ik: blocked ? null : s.mrp_ik, previous_month_selling_price_ok: blocked ? null : s.mrp_ok,
     previous_month_profit_value_ik: blocked ? null : s.mrp_ik - loaded + 5, previous_month_profit_value_ok: blocked ? null : s.mrp_ok - loaded + 5, profit_value_ik_mom_change: blocked ? null : -5, profit_value_ok_mom_change: blocked ? null : -5,
-    snapshot_refresh_run_id: 900002, snapshot_selection_basis: "LATEST_DRAFT", snapshot_run_label: SYNTHETIC + " Draft run 900002 (FAILED fixture)",
+    snapshot_refresh_run_id: 900004, snapshot_selection_basis: "LATEST_DRAFT", snapshot_run_label: SYNTHETIC + " DRAFT run 900004 - not approved",
     previous_month_refresh_run_id: 900001, previous_month_selection_basis: "APPROVED" };
 };
 export const COMPARISON_ROWS = SKUS.map(compare);
 export const SCHEME_COMPARISON_ROWS = SKUS.map((s) => ({
-  period_start: P, refresh_run_id: 900002, valuation_date: VAL, sku_id: s.sku_id, product_id: s.product_id, product_name: prod(s.product_id).product_name, sku_display_name: label(s),
+  period_start: P, refresh_run_id: 900004, valuation_date: VAL, sku_id: s.sku_id, product_id: s.product_id, product_name: prod(s.product_id).product_name, sku_display_name: label(s),
   pack_size: s.pack_size, pack_uom: s.pack_uom, scheme_id: 900001, scheme_name: SYNTHETIC + " Buy 10 Get 1", paid_qty: 10, free_qty: 1, total_qty: 11,
   scheme_context_source: "DIRECT_POLICY", scheme_is_system_defined: false, scheme_viability_status: s.outcome === "READY" ? "READY" : s.outcome === "BLOCKED" ? "BLOCKED" : "REVIEW_REQUIRED",
   scheme_viability_note: SYNTHETIC + " fixture", ik_selling_price: s.outcome === "BLOCKED" ? null : s.mrp_ik, ok_selling_price: s.outcome === "BLOCKED" ? null : s.mrp_ok,
@@ -266,7 +267,7 @@ const assessment = (s) => ({
 });
 export const READINESS_PORTFOLIO = (args = {}) => ({
   context: { context_type: "LIVE_AS_OF", requested_period_start: args.p_period_start ?? P, period_start: args.p_period_start ?? P, valuation_date: VAL, refresh_run_id: null,
-    evidence_refresh_run_id: 900002, context_integrity_status: "LIVE_GOVERNED_PERIOD" },
+    evidence_refresh_run_id: 900004, context_integrity_status: "LIVE_GOVERNED_PERIOD" },
   observed_at: TS, population_scope: args.p_population_scope ?? "OPERATIONAL",
   filters: { overall_severities: null, dependency_codes: null, owner_modules: null, route_codes: null, search: args.p_search ?? null },
   filter_options: { overall_severities: ["READY", "REVIEW_REQUIRED", "BLOCKER", "UNKNOWN"], dependency_codes: [], owner_modules: [], route_codes: [] },
@@ -282,16 +283,16 @@ export const READINESS_GAPS = (args = {}) => ({ assessment_kind: "PRODUCT_MEMBER
 // ---- QC / Materials-Stores action queues: [{ row_data, total_count }] (types) with row fields read by the controllers ----
 const queueEnvelope = (rows) => rows.map((row) => ({ row_data: row, total_count: rows.length }));
 export const QC_QUEUE = queueEnvelope([
-  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, product_id: 900103, product_name: prod(900103).product_name, action_code: "BLOCKED_MISSING_FG_PROTOCOL_MAPPING",
+  { period_start: P, refresh_run_id: 900004, valuation_date: VAL, product_id: 900103, product_name: prod(900103).product_name, action_code: "BLOCKED_MISSING_FG_PROTOCOL_MAPPING",
     action_severity: "BLOCKER", recommended_action: SYNTHETIC + " fixture: map an FG protocol", action_note: SYNTHETIC + " fixture", allocation_status: "BLOCKED", snapshot_refreshed_at: TS },
-  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, product_id: 900102, product_name: prod(900102).product_name, action_code: "REVIEW_REQUIRED_QC_ABSORPTION_BASIS",
+  { period_start: P, refresh_run_id: 900004, valuation_date: VAL, product_id: 900102, product_name: prod(900102).product_name, action_code: "REVIEW_REQUIRED_QC_ABSORPTION_BASIS",
     action_severity: "REVIEW", recommended_action: SYNTHETIC + " fixture: review absorption basis", action_note: SYNTHETIC + " fixture", allocation_status: "REVIEW_REQUIRED", snapshot_refreshed_at: TS },
 ]);
 export const MATERIALS_STORES_QUEUE = queueEnvelope([
-  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, sku_id: 900003, product_id: 900103, product_name: prod(900103).product_name, pack_size: 60, pack_uom: "nos",
+  { period_start: P, refresh_run_id: 900004, valuation_date: VAL, sku_id: 900003, product_id: 900103, product_name: prod(900103).product_name, pack_size: 60, pack_uom: "nos",
     action_code: "BLOCKED_NO_RM_OR_PM_STANDARD_EVIDENCE", action_severity: "BLOCKER", recommended_action: SYNTHETIC + " fixture: add standard evidence", action_note: SYNTHETIC + " fixture",
     allocation_status: "BLOCKED", recommended_ui_route: "MATERIAL_RATE_REVIEW" },
-  { period_start: P, refresh_run_id: 900002, valuation_date: VAL, sku_id: 900002, product_id: 900102, product_name: prod(900102).product_name, pack_size: 100, pack_uom: "g",
+  { period_start: P, refresh_run_id: 900004, valuation_date: VAL, sku_id: 900002, product_id: 900102, product_name: prod(900102).product_name, pack_size: 100, pack_uom: "g",
     action_code: "REVIEW_MONTHLY_ALLOCATION_BASIS", action_severity: "REVIEW", recommended_action: SYNTHETIC + " fixture: review allocation basis", action_note: SYNTHETIC + " fixture",
     allocation_status: "REVIEW_REQUIRED", recommended_ui_route: "COST_BUILD_REVIEW" },
 ]);
