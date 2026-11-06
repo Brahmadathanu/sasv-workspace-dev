@@ -132,7 +132,7 @@ export const SKU_SELECTOR_ROWS = SKUS.map((s) => ({
   period_start: P, sku_id: s.sku_id, product_id: s.product_id, product_name: prod(s.product_id).product_name, sku_display_name: label(s), pack_size: s.pack_size, pack_uom: s.pack_uom,
   cost_sheet_status: bridge(s), cost_sheet_note: SYNTHETIC + " fixture", mrp_ik: s.mrp_ik, mrp_ok: s.mrp_ok,
   ik_selling_price: s.outcome === "BLOCKED" ? null : s.mrp_ik, ok_selling_price: s.outcome === "BLOCKED" ? null : s.mrp_ok,
-  internal_loaded_cost_per_sku: s.outcome === "BLOCKED" ? null : s.cost, pricing_cost_per_sku: s.outcome === "BLOCKED" ? null : s.cost, refreshed_at: TS,
+  internal_loaded_cost_per_sku: s.outcome === "BLOCKED" ? null : s.cost + 30, pricing_cost_per_sku: s.outcome === "BLOCKED" ? null : s.cost + 30, refreshed_at: TS,
 }));
 export const DETAILED_COST_SHEET_ROWS = SKUS.map((s) => ({
   period_start: P, refresh_run_id: 900002, valuation_date: VAL, sku_id: s.sku_id, product_id: s.product_id, product_name: prod(s.product_id).product_name, pack_size: s.pack_size, pack_uom: s.pack_uom,
@@ -174,7 +174,7 @@ export const SCHEME_COMPARISON_ROWS = SKUS.map((s) => ({
   pack_size: s.pack_size, pack_uom: s.pack_uom, scheme_id: 900001, scheme_name: SYNTHETIC + " Buy 10 Get 1", paid_qty: 10, free_qty: 1, total_qty: 11,
   scheme_context_source: "DIRECT_POLICY", scheme_is_system_defined: false, scheme_viability_status: s.outcome === "READY" ? "READY" : s.outcome === "BLOCKED" ? "BLOCKED" : "REVIEW_REQUIRED",
   scheme_viability_note: SYNTHETIC + " fixture", ik_selling_price: s.outcome === "BLOCKED" ? null : s.mrp_ik, ok_selling_price: s.outcome === "BLOCKED" ? null : s.mrp_ok,
-  internal_loaded_cost_per_sku: s.outcome === "BLOCKED" ? null : s.cost + 30, ik_scheme_margin_band: s.outcome === "READY" ? "HEALTHY" : null, ok_scheme_margin_band: s.outcome === "READY" ? "HEALTHY" : null,
+  internal_loaded_cost_per_sku: s.outcome === "BLOCKED" ? null : s.cost + 30, ik_scheme_margin_band: null, ok_scheme_margin_band: null, // no synthetic net-realisation/margin proof: never claim HEALTHY
   refreshed_at: TS,
 }));
 
