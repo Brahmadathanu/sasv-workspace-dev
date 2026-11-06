@@ -1,0 +1,36 @@
+# Costing Suite programme — completion matrix — 6 Nov 2026
+
+**Documentation only. Closes nothing. Formal closure remains 5/13 (38%).** Reconciled against `main` `12d61d5` and the preview branch `preview/costing-wp05-wp06-wp12-20261105` `163a9bb` (not a broad re-audit: it uses the four authoritative documents, the 6 Nov WP12 handback, PR #197/#198 and the open PR list). No Supabase write, costing refresh, run approval, flag activation, PWA deployment, Electron release or e-Aushadhi change was made by the work listed here. Synthetic tests below are **not** real authenticated acceptance.
+
+## 1. Matrix
+
+| Area | State | Evidence / where |
+|---|---|---|
+| **Completed and independently verified** | WP-1, WP00–WP04 formally CLOSED (5/13). Merged client packages: N1–N4/W6/U11, A7, CL1, CDE-1a (#149), P01/P02, G1/G1b–G1d, F7–F9, SEC-A2 client (#174), PRM Cost Centres view-only fix (#178). Server: SEC-A1/SEC-A2 live (source hashes verified); six-module `min_nav_mode` correction; CSR snapshot ANALYZE (owner CSR three-read retest PASS, not a timed benchmark) | `PROGRAMME_PROGRESS_AND_CLOSURE_PATH_2026-11-04.md` and its dated banners |
+| **Implemented, awaiting acceptance** | WP12 synthetic preview (6 modules, 11 flags, 31/40 lenses populated; preview branch only, 93/93 LF+CRLF per CI #42219549331). This session: line-level printable Cost Sheet in the preview (draft PR [#199](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/199) → preview branch). WP05/WP06/MDC-07 signed-in acceptance record is still blank | handback R.0–R.9; PR #199 |
+| **Defect found and fixed this session** | **CS-A4-LEFT-CLIP**: the 210mm printable sheet overflowed to the unscrollable left at ≤768px (component-label column unreachable on phones/portrait tablets). Draft PR [#200](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/200) to `main` with a regression test that fails on the old CSS (a4.left −202px at 390px). Before/after screenshots: `assets/cs-a4-left-clip-2026-11-06/` | see §3 |
+| **Missing client functionality** | (a) Line traceability / Explain drawer fixtures in preview; (b) multi-SKU printable columns in preview; (c) PRM Workload Preview, Mapping Review, Foundation Review (no payload contract: not invented); (d) PRM editors needing a selection + detail RPC fixtures; (e) CDE-1b is built but **unconnected** (needs server RPC); (f) CDE-3 regional review acceptance UI (owner decision); (g) WP08 IA08-1 repo half; WP09 IA09-1 held for O-7; WP10 policy; WP11 broader pass | handback R.6; closure path §5 |
+| **Missing server contracts** | CDE-2 RPC (D1–D5 undecided; SQL proposal drafted, inert); run selector for fixed runs 80/82 (C5/D5); CSR parameterised read RPC (design only; October planner +1.7% regression, not approved); WP08 registry metadata (O-2 export); November readiness build absent (`READINESS_BUILD_ABSENT`) | CDE2 package + live audit; CSR docs |
+| **Remaining tests** | Signed-in 11-flag × 6-module ON/OFF on an authorised integrated build with source SHA + asset digest; authenticated read-only route (handback R.7); SEC-A1/A2 server deny-path proof (needs a no-side-effect plan); Windows A14 installer proof; S2 printable ↔ SKU detail parity and S9 KPI requery on real data; final regression on the final head | owner record; WP12 files |
+| **Owner acceptance required** | Fill `OWNER_ACCEPTANCE_RECORD_2026-11-04.md`; decide O-2, O-5 (D3, D5, D7, C9), O-7, O-8, CDE2-D1…D5; visual approval of CBM/PRM screens (the 17 uploaded screenshots do not cover them) | owner record §§1–5 |
+| **Dependencies / blockers** | Isolated, authorised, no-write backend or the real read route (the test identity has 52 unrelated edit grants, so it is Costing-scoped view-only only); run 150 FAILED must not be retried/approved; no PWA/Electron release before WP00–WP12 complete | run-150 record; handback R.7 |
+
+## 2. This session's deliverables (all draft, none merged)
+
+| PR | Target | Contents | Evidence |
+|---|---|---|---|
+| [#199](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/199) | preview branch | Line-level printable Cost Sheet fixtures, 6 tests, CI step, screenshots; records CS-A4-LEFT-CLIP | LF 70/70 + sweep 29/29; CRLF clean clone 99/99; 0 skipped |
+| [#200](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/200) | `main` | CS-A4-LEFT-CLIP: one scope-guard-approved CSS insertion + exactness tests + regression test | LF and CRLF-clone full suites 999 / 981 pass / 0 fail / 18 baseline skips (baseline 991/973/0/18) |
+| [#201](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/201) | `main` | CDE-1b: inert fail-closed RPC adapter (unconnected, guard-tested) + CDE-2 SQL proposal for server review | LF full suite 999 / 981 / 0 / 18; CRLF clone on the evidence directory only (50/50) |
+
+## 3. How the defect was found
+The text assertions of the new test passed while the screenshots showed the sheet clipped on a phone. Measured: `.cost-sheet-a4-wrap{display:flex;justify-content:center}` with a 794px child in a 360px container puts the child at left −202px (unscrollable). The first fix edited existing CSS and tripped six historical package guard tests (0-failure baseline → 6 failures); it was redone as an individually approved insertion using the repo's own `APPROVED_HTML_INSERTIONS` mechanism rather than loosening those guards.
+
+## 4. Not claimed
+No work pack is closed. No real authenticated, populated-production-data, Windows, PWA or Electron proof exists for anything above. The 18 baseline Electron skips on `main` are skips, not passes.
+
+## 5. Suggested review order
+1. #200 (small, self-contained production CSS fix; owner decides whether and when it ships, since it needs a normal PWA/cache decision).
+2. #199 (preview tooling only; stacks on the preview branch).
+3. #201 (nothing connects it; the SQL proposal is for the server session, not for application).
+No PR should be merged without the owner's separate approval; none was merged here.
