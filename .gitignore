@@ -56,3 +56,8 @@ Thumbs.db
 # Coverage reports (if you ever add tests)
 coverage/
 .temp/
+
+# acceptance-runner evidence and session files (never commit)
+acceptance-*/
+*.storage-state.json
+*.storage.json
