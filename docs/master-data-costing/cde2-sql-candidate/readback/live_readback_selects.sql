@@ -41,3 +41,13 @@ select max(period_start) as scope_floor from costing.v_costing_period_run_status
 -- F. Logging options available on the live server (R4 / D5).
 select name, setting from pg_settings where name in ('log_min_messages','client_min_messages','log_statement','log_min_duration_statement','track_functions');
 select extname from pg_extension where extname in ('pg_stat_statements','pgaudit');
+
+-- G. Issue #206 acceptance-runner findings (SELECT-only; not run by the author).
+-- G1. rpc_costing_health_check: the app lists it as FORBIDDEN on the approval screen but as a documented READ on the run-status screen. Is it read-only?
+select n.nspname, p.proname, p.prosecdef, p.provolatile, p.proacl::text as acl,
+       (p.prosrc ~* '\m(insert\s+into|update\s+[a-z_."]+\s+set|delete\s+from|truncate|set_config|perform\s+pg_)') as body_looks_like_it_writes, md5(p.prosrc) as src_md5
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace where p.proname = 'rpc_costing_health_check';
+-- G2. Lock RPCs behind the "Close quarter (lock months)" button: do they enforce CCC edit server-side?
+select n.nspname, p.proname, p.prosecdef, p.proacl::text as acl,
+       (p.prosrc ~* 'require_permission\s*\(\s*''module:costing-control-center''\s*,\s*true') as requires_ccc_edit
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace where p.proname in ('rpc_costing_lock_periods_for_close', 'rpc_costing_lock_period');
