@@ -2997,3 +2997,14 @@ body.sasv-costing .cp-context-chip-basis-live-as-of {
   border-color: var(--sasv-action-primary-soft-border);
   background: var(--sasv-selection-soft);
 }
+
+/* Issue #208: Exact Material Evidence (and affected-lines) tables render nine columns inside a drawer whose body is overflow-x:hidden on
+   phones. The wrapper emitted by renderDenseMaterialEvidenceTable() had no styles, so the columns after Area were clipped and unreachable.
+   Make the wrapper itself the horizontal scroll container. The table keeps its natural width; nothing else in the drawer changes. */
+body.sasv-costing .cp-evidence-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
