@@ -72,8 +72,16 @@ test("static R2: the repository facts the writer-path analysis rests on (a failu
   assert.doesNotMatch(all, /update\s+costing\.costing_refresh_run\s+set[^;]*overall_status/i);
 });
 
+test("static: the SELECT-only guard is itself sensitive: a write outside a string literal is caught, the same words inside a literal are not", () => {
+  const strip = (t) => t.replace(/'(?:[^']|'')*'/g, "''");
+  const bad = /\b(insert\s+into|update\s+\w|delete\s+from|truncate|set_config)/i;
+  assert.match(strip("select 1; update costing.x set y = 1;"), bad); assert.match(strip("select set_config('a','b',false)"), bad);
+  assert.doesNotMatch(strip("select 'insert into x' as w"), bad);
+});
 test("static: the live read-back pack is SELECT-only (no write, DDL, grant or function call that mutates)", () => {
-  const rb = code(read(path.join(dir, "readback/live_readback_selects.sql")));
+  // Quoted string literals are DATA (e.g. the regex used to inspect function bodies), not statements: strip them before looking for write keywords.
+  const stripLiterals = (t) => t.replace(/'(?:[^']|'')*'/g, "''");
+  const rb = stripLiterals(code(read(path.join(dir, "readback/live_readback_selects.sql"))));
   assert.ok(rb.length > 1500);
   assert.doesNotMatch(rb, /\b(insert\s+into|update\s+\w|delete\s+from|truncate|create\s+(or|table|function|view|index)|alter\s+(table|function|role|default)|drop\s|grant\s|revoke\s|call\s|set_config|pg_terminate|pg_cancel)/i);
   for (const stmt of rb.split(";").map((x) => x.trim()).filter(Boolean)) assert.match(stmt, /^select\b/i, "every statement is a SELECT: " + stmt.slice(0, 60));
