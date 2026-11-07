@@ -130,6 +130,6 @@ test("accessibility: html lang, module heading, labelled header actions and a la
   assert.match(shell, /ACTIVE_ROUTE_CONFIG\.title|routeConfig\.title|\.title/);
 });
 
-test("service worker cache stays hub-cache-v390 (CW-07 never bumps the cache)", () => {
-  assert.match(read("public/sw.js"), /const CACHE_NAME = "hub-cache-v390"/);
+test("service worker cache is the current release hub-cache-v391 (CW-07 itself never bumped the cache; v390 predates it)", () => {
+  assert.match(read("public/sw.js"), /const CACHE_NAME = "hub-cache-v391"/);
 });

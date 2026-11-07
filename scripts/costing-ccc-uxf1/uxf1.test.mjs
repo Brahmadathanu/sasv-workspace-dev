@@ -531,11 +531,13 @@ test("scope: no supabase/, migration, controller, protected-screen, HTML or cach
   // MDC-07 N1: costing-feature-flags.js may only be appended to (the COSTING_NAV_GROUPS_V1 flag); nothing existing changes.
   const flagsRel = "public/shared/js/costing-feature-flags.js";
   assert.ok(read(flagsRel).startsWith(readBase(flagsRel)), "feature flags: existing content unchanged (append-only)");
-  // This package changes only the service-worker cache line from v389 to v390.
+  // UX-F1 changed only the service-worker cache line (v389 to v390); #208 later advanced it to v391 without touching anything else here.
   const swChanged = git("diff", "-U0", BASE, "--", "public/sw.js").split("\n").filter((l) => /^[+-][^+-]/.test(l));
   // BASE is the historical v388 UX-F1 base, so the diff is -v388 / +v390 (WP-07's v389 sits in between).
-  assert.ok(swChanged.every((l) => /^[+-]const CACHE_NAME = "hub-cache-v(?:388|389|390)";/.test(l)), "no UX-F1 cache allocation: " + swChanged.join(" | "));
-  assert.ok(swChanged.some((l) => /^\+const CACHE_NAME = "hub-cache-v390";/.test(l)), "release cache line is v390: " + swChanged.join(" | "));
+  assert.ok(swChanged.every((l) => /^[+-]const CACHE_NAME = "hub-cache-v(?:388|389|390|391)";/.test(l)), "no UX-F1 cache allocation: " + swChanged.join(" | "));
+  // Historical contract: UX-F1 released as v390. The current release line is now v391 (#208 mobile Evidence CSS); v390 must still be in sw.js history.
+  assert.ok(swChanged.some((l) => /^\+const CACHE_NAME = "hub-cache-v391";/.test(l)), "current release cache line is v391: " + swChanged.join(" | "));
+  assert.ok(git("log", "--format=%H", "-S", "hub-cache-v390", "--", "public/sw.js").trim().length > 0, "the v390 UX-F1 release line remains in sw.js history");
   assert.ok(!swChanged.some((l) => /^\+const CACHE_NAME = "hub-cache-v38[89]";/.test(l)), "no stale cache line added: " + swChanged.join(" | "));
   const css = read("public/shared/css/sasv-costing.css");
   const cssBase = readBase("public/shared/css/sasv-costing.css");
