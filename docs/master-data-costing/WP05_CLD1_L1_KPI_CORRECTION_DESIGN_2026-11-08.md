@@ -83,14 +83,26 @@ WHERE refresh_run_id IN (143, 149)
 GROUP BY 1,2 ORDER BY 1,2;
 
 -- R4: per-run population vs current projection (aggregates only)
-SELECT 'run143' AS k, count(*) FROM costing.sku_pricing_bridge_snapshot WHERE refresh_run_id = 143
-UNION ALL SELECT 'run149', count(*) FROM costing.sku_pricing_bridge_snapshot WHERE refresh_run_id = 149
-UNION ALL SELECT 'policy_now', count(*) FROM public.v_costing_policy_manager_sku_overview;
+SELECT period_start, valuation_date, refresh_run_id,
+       count(*) AS snapshot_rows, count(DISTINCT sku_id) AS distinct_skus
+FROM costing.sku_pricing_bridge_snapshot
+WHERE (period_start = DATE '2026-10-01' AND refresh_run_id = 143)
+   OR (period_start = DATE '2026-11-01' AND refresh_run_id = 149)
+GROUP BY period_start, valuation_date, refresh_run_id ORDER BY period_start;
+-- Separate current-policy population count; not assumed identical to per-run SKU grain:
+SELECT count(*) AS policy_now_rows FROM public.v_costing_policy_manager_sku_overview;
 
--- R5: more than one run per period in the workbench summary snapshot?
-SELECT period_start, count(*) FROM public.v_costing_pricing_review_workbench_summary_snapshot GROUP BY 1 ORDER BY 1 DESC LIMIT 12;
+-- R5: first inspect whether this public view exposes valuation_date/refresh_run_id.
+SELECT column_name, data_type FROM information_schema.columns
+WHERE table_schema='public'
+  AND table_name='v_costing_pricing_review_workbench_summary_snapshot'
+ORDER BY ordinal_position;
+-- If run keys exist, a separately reviewed query can group by period_start,
+-- valuation_date, refresh_run_id and count distinct runs per period.
+-- If they do NOT exist, this view alone cannot prove or disprove run-mixing;
+-- inspect its live definition and the underlying run-scoped source instead.
 ```
-Notes: R3/R4 filter on run IDs observed in PAR1; scheme-snapshot value-domain readback cannot be written until R2 returns column names. All five are read-only catalogue/aggregate selects, but a view over `public.*` still needs a permitted role; run only through an owner-approved route, never via a mutating RPC.
+Notes: R3/R4 filter on run IDs observed in PAR1; R4 assumes the evidenced `sku_id` column and must compare distinct-SKU grain and exact valuation tuple before inferring parity. R5 is deliberately a **column probe**, not yet a multi-run determination. If the view lacks run keys, inspecting its definition and underlying sources requires an additional separately approved SELECT-only readback. Scheme-snapshot value-domain readback cannot be written until R2 returns column names. All five are read-only catalogue/aggregate selects, but a view over `public.*` still needs a permitted role; run only through an owner-approved route, never via a mutating RPC.
 
 ## 8. Blocking dependencies / owner decisions
 1. Owner choice Option 1 / 2 / 3 and meaning of "coverage" (as-of-run-frozen vs as-of-now).
