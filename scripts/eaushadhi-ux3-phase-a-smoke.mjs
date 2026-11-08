@@ -297,7 +297,7 @@ check(
     && gateOff.showSaveUi === false,
   "model never exposes Save, Submit, Authorize, or typed confirmation in B1",
 );
-check(/hub-cache-v391/.test(sw) && !/hub-cache-v392/.test(sw), "cache is the owner-authorised v391 release (#208); no further bump");
+check(/hub-cache-v392/.test(sw) && sw.includes("v391 was Costing #208"), "cache is the owner-authorised v392 release (LOCK-P01, #212); v391 (#208) kept in history; no e-Aushadhi cache change");
 
 console.log(`UX-3 smoke checks: ${passed} passed, ${failed} failed`);
 if (failed) {

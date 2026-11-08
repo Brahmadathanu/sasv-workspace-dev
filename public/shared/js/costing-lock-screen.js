@@ -90,8 +90,11 @@ export function createCostingLockScreenController(deps) {
     costingRpc,
     showToast,
     isControlCenterRoute,
+    // LOCK-P01 (SEC-A2 parity): fail closed. Without an explicit edit-permission callback the lock UI never mounts or acts.
+    canEdit = () => false,
     doc = globalThis.document,
   } = deps;
+  const VIEW_ONLY_TEXT = "Closing periods requires Costing Control Center edit permission.";
   const state = {
     mounted: false,
     inFlight: false,
@@ -256,7 +259,13 @@ export function createCostingLockScreenController(deps) {
     );
   }
 
+  function denyViewOnly() {
+    showToast?.(VIEW_ONLY_TEXT, "warn");
+    return false;
+  }
+
   function openBatch(periodStarts = selectedFromPanel()) {
+    if (canEdit() !== true) return denyViewOnly();
     if (!periodStarts.length) {
       showToast?.("Choose at least one month.", "warn");
       return false;
@@ -266,6 +275,7 @@ export function createCostingLockScreenController(deps) {
   }
 
   function openSingle(periodStart) {
+    if (canEdit() !== true) return denyViewOnly();
     if (!periodStart) return false;
     renderDialog("single", [String(periodStart)]);
     return true;
@@ -288,6 +298,10 @@ export function createCostingLockScreenController(deps) {
 
   async function submit() {
     if (state.inFlight || state.succeeded || !state.mode) return;
+    if (canEdit() !== true) {
+      denyViewOnly();
+      return;
+    }
     const reason = $("clsReason", doc)?.value || "";
     const reference = $("clsApprovalReference", doc)?.value || "";
     const isBatch = state.mode === "batch";
@@ -356,6 +370,11 @@ export function createCostingLockScreenController(deps) {
 
   function mount() {
     if (!isControlCenterRoute?.()) {
+      onRouteExit();
+      return;
+    }
+    // View-only users get no lock panel, no controls and no period fetch for it (the server still enforces edit permission).
+    if (canEdit() !== true) {
       onRouteExit();
       return;
     }

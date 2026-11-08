@@ -37,7 +37,7 @@ function node(id, extras = {}) {
   };
 }
 
-function harness({ rpcImpl, showToast } = {}) {
+function harness({ rpcImpl, showToast, canEdit = true } = {}) {
   const ids = Object.fromEntries([
     "costingLockPanel", "costingLockDialog", "clsPeriodList", "clsCloseQuarterBtn", "clsDialogTitle", "clsDialogIntro",
     "clsSelectedPeriods", "clsLockForm", "clsReason", "clsApprovalReference", "clsFormError", "clsResult",
@@ -64,7 +64,7 @@ function harness({ rpcImpl, showToast } = {}) {
   const originalFrom = supabase.from;
   supabase.from = (...args) => { loads += 1; return originalFrom(...args); };
   const ctrl = createCostingLockScreenController({
-    supabase, doc, isControlCenterRoute: () => true, showToast: showToast || (() => {}),
+    supabase, doc, isControlCenterRoute: () => true, canEdit: () => canEdit, showToast: showToast || (() => {}),
     costingRpc: async (name, params) => {
       calls.push({ name, params });
       if (rpcImpl) return rpcImpl(name, params);
@@ -102,6 +102,7 @@ function markupHarness({ withRunStatus = true } = {}) {
     supabase,
     doc,
     isControlCenterRoute: () => true,
+    canEdit: () => true,
     showToast() {},
     costingRpc: async () => ({ data: null, error: null }),
   });
@@ -144,7 +145,7 @@ test("successful lock keeps Submit disabled until either dialog mode is reopened
 test("a successful retry clears the previous attempt error", async () => { let attempt = 0; const h = harness({ rpcImpl: async () => (++attempt === 1 ? { data: null, error: { message: "W2_ACTIVE_RUN: wait" } } : { data: { period_start: "2026-09-01", approved_run: 122, official_valuation_date: "2026-09-30", audit_id: 1 }, error: null }) }); h.ctrl.openSingle("2026-09-01"); await h.ctrl.submit(); assert.equal(h.ids.clsFormError.hidden, false); await h.ctrl.submit(); assert.equal(h.ids.clsFormError.hidden, true); assert.equal(h.ids.clsFormError.textContent, ""); assert.equal(h.ids.clsResult.hidden, false); });
 test("lock panel inserts before the run-status panel when available", () => { const h = markupHarness(); h.ctrl.mount(); assert.deepEqual(h.inserts[0] && { id: h.inserts[0].id, position: h.inserts[0].position }, { id: "costingRunStatusPanel", position: "beforebegin" }); assert.match(h.inserts[0].markup, /id="costingLockPanel"/); });
 test("lock panel falls back to after the approval panel", () => { const h = markupHarness({ withRunStatus: false }); h.ctrl.mount(); assert.deepEqual(h.inserts[0] && { id: h.inserts[0].id, position: h.inserts[0].position }, { id: "costingApprovalPanel", position: "afterend" }); assert.match(h.inserts[0].markup, /id="costingLockPanel"/); });
-test("source contains no Date arithmetic or owner call and preserves OFF safety contracts", () => { const src = read("public/shared/js/costing-lock-screen.js"); assert.doesNotMatch(src, /new Date|Date\.now|get.*owner|is.*owner/i); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.batch)); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.single)); const sw = read("public/sw.js"); assert.match(sw, /hub-cache-v391/); const html = read("public/shared/costing-control-center.html"); assert.doesNotMatch(html, /costingLockPanel|costingLockDialog/); const shell = read("public/shared/js/costing-suite-shell.js"); assert.match(shell, /const costingLockScreenCtrl = isCostingLockScreenV1Enabled\(\)/); });
+test("source contains no Date arithmetic or owner call and preserves OFF safety contracts", () => { const src = read("public/shared/js/costing-lock-screen.js"); assert.doesNotMatch(src, /new Date|Date\.now|get.*owner|is.*owner/i); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.batch)); assert.ok(FORBIDDEN_RPCS.includes(LOCK_RPC.single)); const sw = read("public/sw.js"); assert.match(sw, /hub-cache-v392/); const html = read("public/shared/costing-control-center.html"); assert.doesNotMatch(html, /costingLockPanel|costingLockDialog/); const shell = read("public/shared/js/costing-suite-shell.js"); assert.match(shell, /const costingLockScreenCtrl = isCostingLockScreenV1Enabled\(\)/); });
 
 // L1: a period-list refresh failure after a successful lock is not reported as a lock failure.
 test("a status refresh failure after a successful lock is not shown as a lock error", async () => {
@@ -205,4 +206,40 @@ test("successful batch lock keeps Submit disabled and a second submit sends noth
   assert.equal(h.calls.length, 1);
   h.ctrl.openSingle("2026-09-01");
   assert.equal(h.ids.clsSubmitBtn.disabled, false);
+});
+
+// LOCK-P01 (SEC-A2 parity): a view-only user must get no lock UI and no lock RPC, whatever the flag state.
+const viewOnlyHarness = (extra = {}) => { const toasts = []; const h = harness({ canEdit: false, showToast: (m, k) => toasts.push([m, k]), ...extra }); return { ...h, toasts }; };
+test("view-only: mount shows no lock panel, builds no markup and fetches no periods", () => {
+  const h = viewOnlyHarness(); h.ctrl.mount();
+  assert.equal(h.ids.costingLockPanel.hidden, true); assert.equal(h.ids.costingLockPanel.attrs["aria-hidden"], "true"); assert.equal(h.queries.length, 0); assert.equal(h.loads, 0);
+});
+test("view-only: markup is never inserted into the page", () => {
+  const m = markupHarness(); const ctrl = createCostingLockScreenController({ supabase: { from() { throw new Error("no fetch"); } }, doc: { body: { insertAdjacentHTML() { m.inserts.push("body"); } }, getElementById: () => null }, isControlCenterRoute: () => true, canEdit: () => false, showToast() {}, costingRpc: async () => { throw new Error("no rpc"); } });
+  ctrl.mount(); assert.equal(m.inserts.length, 0);
+});
+test("view-only: openBatch, openSingle and submit refuse, warn once each and call no RPC", async () => {
+  const h = viewOnlyHarness();
+  assert.equal(h.ctrl.openBatch(["2026-09-01"]), false); assert.equal(h.ctrl.openSingle("2026-09-01"), false);
+  h.ctrl._state.mode = "single"; h.ctrl._state.selectedPeriodStarts = ["2026-09-01"]; await h.ctrl.submit();
+  assert.equal(h.calls.length, 0, "no lock RPC"); assert.equal(h.ids.costingLockDialog.hidden, true, "dialog never opened");
+  assert.equal(h.toasts.length, 3); assert.ok(h.toasts.every(([m, k]) => /edit permission/.test(m) && k === "warn"));
+});
+test("view-only is strict: only an explicit true enables the lock UI", () => {
+  for (const value of [null, 0, 1, "true", "1", {}]) {
+    const h = harness({ canEdit: value }); h.ctrl.mount(); assert.equal(h.ids.costingLockPanel.hidden, true, String(value)); assert.equal(h.ctrl.openSingle("2026-09-01"), false);
+  }
+});
+test("fail-closed default: a controller built without a canEdit callback never mounts or acts", async () => {
+  const calls = []; const ids = { costingLockPanel: node("costingLockPanel", { hidden: true }) };
+  const ctrl = createCostingLockScreenController({ supabase: { from() { throw new Error("no fetch"); } }, doc: { getElementById: (id) => ids[id] || null, querySelectorAll: () => [] }, isControlCenterRoute: () => true, showToast() {}, costingRpc: async (...a) => { calls.push(a); return { data: null, error: null }; } });
+  ctrl.mount(); assert.equal(ctrl.openBatch(["2026-09-01"]), false); assert.equal(ctrl.openSingle("2026-09-01"), false); await ctrl.submit(); assert.equal(calls.length, 0);
+});
+test("editor behaviour is unchanged: with edit permission the panel mounts and the single dialog opens", async () => {
+  const h = harness({ canEdit: true }); h.ctrl.mount(); await h.ctrl.reload(); assert.equal(h.ids.costingLockPanel.hidden, false); assert.equal(h.ctrl.openSingle("2026-09-01"), true); assert.equal(h.ids.costingLockDialog.hidden, false);
+});
+test("shell wires the same CCC edit permission to the lock controller as to the approval controller", () => {
+  const shell = read("public/shared/js/costing-suite-shell.js");
+  const lock = /function canEditLockScreen\(\) \{\s*return PERM_CONTROL_CENTER_EDIT === true;\s*\}[\s\S]*?createCostingLockScreenController\(\{[^}]*?canEdit: canEditLockScreen/;
+  assert.match(shell, lock); assert.match(shell, /createCostingApprovalScreenController\(\{[^}]*?canEdit: \(\) => PERM_CONTROL_CENTER_EDIT === true/s);
 });

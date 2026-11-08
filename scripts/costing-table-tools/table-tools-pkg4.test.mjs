@@ -15,6 +15,7 @@ import { readSourceLf } from "../lib/read-source-lf.mjs";
 import { stripN1 } from "../lib/n1-nav-strip.mjs";
 import { stripN2 } from "../lib/n2-nav-strip.mjs";
 import { stripW6 } from "../lib/w6-nav-strip.mjs";
+import { stripLockP01Controller } from "../lib/sec-a2-strip.mjs";
 
 const { COLUMN_HELP, csvCell, isSortableColumn, sortRowsBy, tableColumnsForTable } = tools;
 
@@ -420,16 +421,12 @@ test("pkg4 unsortable columns key null; table-tools diff is only the three entri
   assert.equal((addedTools.match(/Object\.freeze\(\[/g) || []).length, 3);
   const baseMod = await import(`data:text/javascript;base64,${Buffer.from(baseTools).toString("base64")}`);
   assert.deepEqual(plain(COLUMN_HELP), plain(baseMod.COLUMN_HELP));
-  // costing-lock-screen.js: exactly the L1 hunk.
-  const lockDiff = git("diff", "-U0", BASE, "--", LOCK).split("\n").filter((l) => /^[-+](?![-+])/.test(l));
-  assert.deepEqual(lockDiff, [
-    "-      await reload();",
-    "+      try {",
-    "+        await reload();",
-    "+      } catch {",
-    '+        showToast?.("Period lock recorded, but the period list could not refresh. Reload the page to see it.", "error");',
-    "+      }",
-  ]);
+  // costing-lock-screen.js: exactly the L1 hunk. LOCK-P01 (issue #211) later added the CCC-edit guard; that text is reversed by its own strict strip helper first.
+  const L1_BEFORE = "      await reload();\n";
+  const L1_AFTER = "      try {\n        await reload();\n      } catch {\n        showToast?.(\"Period lock recorded, but the period list could not refresh. Reload the page to see it.\", \"error\");\n      }\n";
+  const baseLock = readBase(LOCK);
+  assert.equal(baseLock.split(L1_BEFORE).length, 2, "L1 anchor occurs once in the base");
+  assert.equal(stripLockP01Controller(read(LOCK)), baseLock.replace(L1_BEFORE, () => L1_AFTER));
   // Shell (feature-scoped, C1): cw05TabTableId() equals its base text plus exactly the pkg 4 additions;
   // the lock wiring is untouched. Other shell features are checked by their own suites.
   const PKG4_SHELL_ADDITIONS = [
@@ -478,6 +475,6 @@ test("pkg4 unsortable columns key null; table-tools diff is only the three entri
 test("pkg4 sw.js line 2 is the current v391 line (v390 UX-F1 release is kept in its comment)", () => {
   assert.equal(
     read("public/sw.js").split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v391"; // Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)',
+    'const CACHE_NAME = "hub-cache-v392"; // Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)',
   );
 });

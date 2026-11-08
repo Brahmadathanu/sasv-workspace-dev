@@ -9714,11 +9714,17 @@ const costingApprovalScreenCtrl = isCostingApprovalScreenV1Enabled()
     })
   : null;
 
+// LOCK-P01: same Costing Control Center edit permission the approval screen uses (SEC-A2); the lock controller also fails closed without it.
+function canEditLockScreen() {
+  return PERM_CONTROL_CENTER_EDIT === true;
+}
+
 const costingLockScreenCtrl = isCostingLockScreenV1Enabled()
   ? createCostingLockScreenController({
       supabase,
       costingRpc,
       showToast,
+      canEdit: canEditLockScreen,
       isControlCenterRoute: () =>
         ACTIVE_ROUTE_CONFIG?.moduleKey === "costing-control-center",
     })

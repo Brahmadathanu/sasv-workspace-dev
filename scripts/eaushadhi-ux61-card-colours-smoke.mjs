@@ -21,7 +21,7 @@ const detailsOf = (source) => source.slice(source.indexOf('function renderDetail
 check(detailsOf(withoutTint).replace(/\r\n/g, '\n') === detailsOf(baseline('public/shared/js/eaushadhi-review-control.js')), 'only the two approved card class expressions changed in Details; its behaviour is preserved');
 const cardCss = css.split('/* UX-6.2:')[0].trimEnd();
 check(cardCss.includes('.section-card.is-locked') && cardCss.includes('.reference-mapping-block') && cardCss.includes('.readiness-banner'), 'is-locked, reference-mapping and Readiness colour contracts remain present');
-check(read('public/sw.js').includes('hub-cache-v391'), 'cache is the current v391 release');
+check(read('public/sw.js').includes('hub-cache-v392'), 'cache is the current v391 release');
 // Reuse the existing layout fixture, executing the actual production renderer
 // and portalTextEntryLocked predicate with explicit review/workflow states.
 const layout = read('scripts/eaushadhi-ux6-layout-smoke.mjs');
