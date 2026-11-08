@@ -52,3 +52,7 @@ Shared authenticated acceptance contract §8 with **8 Nov A1 amendment**: the *g
 ## 6. Addendum — WP05-AE1 evidence reconciliation (8 November 2026)
 
 [WP05_AE1_AUTHENTICATED_EVIDENCE_RECONCILIATION_2026-11-08.md](WP05_AE1_AUTHENTICATED_EVIDENCE_RECONCILIATION_2026-11-08.md) reconciles the 40-lens and 11-flag evidence from repository records only (local D: reports were not accessible and not credited). Result: 40 rows = 13 P / 4 F (historical, owner-reported recovery) / 2 NA / 21 NT (15 possibly creditable from the inaccessible D: report, 6 independently missing/blocked; Staff Governance and Route Family Route Editor reclassified NT/PARTIAL after review R1–R2); flags: one with PPM-only authenticated ON evidence, one with a single focused run, nine with none. **W5-04, W5-05, W5-06 remain as above. WP05 remains OPEN; programme remains 6/13.** No scope amendment or owner decision is recorded by AE1.
+
+## 7. Addendum — WP05-PAR1 S2/S9 parity preflight (8 November 2026)
+
+[WP05_PAR1_S2_S9_REAL_DATA_PARITY_2026-11-08.md](WP05_PAR1_S2_S9_REAL_DATA_PARITY_2026-11-08.md): source preflight complete, no S2/S9 RPC blocker; live parity **NOT TESTED** (no ID-V signed-in context available). W5-05 stays PARTIAL; WP05 remains OPEN; programme remains 6/13.
