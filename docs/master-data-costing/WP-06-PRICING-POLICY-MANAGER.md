@@ -78,3 +78,18 @@ All work-pack objectives and required verification gates pass; documentation and
 
 ## Final handover
 Not started.
+
+
+## Owner-approved WP06 acceptance reconciliation — 8 November 2026 (supersedes older unsatisfied-gate narration)
+
+**Scope and build:** owner approved G-SCOPE A1 amendment to the shared acceptance contract §8 (bounded ten-workspace PPM-only, NAV_GROUPS OFF/ON, ID-V; wider 40-lens/11-flag and negative identity obligations retained for WP05/WP12). Owner accepted G-BUILD ID-V baseline: hosted `main@883a9f1c` / `hub-cache-v392`, asset parity **72/72** and documented source parity. Not a production flag-rollout decision.
+
+**Evidence reconciliation:** earlier authenticated ID-V browser-local NAV_GROUPS ON passed **20/20 deep links** at 1280/390, **6/6 legacy/default links**, five-group labels/order, no delivered mutating requests, 9/10 workspaces clean at both widths. Historic Scheme Master **F at 1280 ON and OFF (HTTP500 57014)** is preserved, **P at 390 with seven schemes**. Subsequently, the owner authorised and manually applied `CREATE INDEX CONCURRENTLY` on `costing.sku_scheme_viability_snapshot(scheme_id,period_start)`; independent catalog verified valid/ready, 1624 kB, unchanged view fingerprint. Post-change owner desktop reported **seven schemes loaded** followed by **three consecutive refreshes PASS**. These are owner-reported smoke/recovery checks (no timed network captures), not a repeat of the complete 1280/390 restricted-ID-V automated matrix; optimizer still chose old period/status index in safe EXPLAIN. Historical F and issue #224 remain visible under monitoring, not rewritten as clean original tests.
+
+**Commercial Sales Assumptions:** owner reported signed-in page PASS, existing-policy Revise dialog PASS, COMPANY/REGIONAL IK/OK scope controls visible PASS, Cancel without save PASS. No write attempted. Thus previous 'modals NT' is superseded for the visual/open/cancel scope; no independent network proof asserted.
+
+**Decisions:** G-SCOPE/G-BUILD **APPROVED**; C9/D7/F-4/C6/O-8/D3 **OWNER-ACCEPTED DEFERRALS**; intermittent Scheme Master 57014 **accepted as bounded residual/monitoring**, not permanently resolved. Deferred behaviour, reason, risk, milestone and named responsible authority are registered in `PARKED_BACKLOG.md`. SEC-A1/A2 and negative identities remain UNTESTED, transferred to WP05/WP12 (not waived).
+
+**Gate ledger at 8 Nov 2026:** client implementation/tests PASS; restricted identity/build PASS for pinned evidence; NAV_GROUPS ON/OFF+restoration PASS; 9/10 earlier clean automated desktop/narrow workspaces with Scheme Master later owner recovery PASS; CSA modal owner visual PASS; deferral decisions and amendment APPROVED/RECORDED. **The post-index intermittent reliability / historical 1280 F has a bounded risk-accepted disposition rather than an unqualified original P.** No unapproved live writer testing is implied.
+
+**Formal Gate Status: OPEN — awaiting explicit final owner WP06 work-pack sign-off.** The instruction to document decisions and reconcile does **not** itself declare the final handover completed. Maintain programme count **5/13** until final Gate Status is separately approved. Do not tick '[ ] Final handover' yet. Server DDL noted here is a prior owner-authorised action, not a new migration request.
