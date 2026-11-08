@@ -73,3 +73,6 @@ These measurements were made by the owner-side reviewer **after** the original m
 **Drive health:** the operator reported C: at 0 GB free, with no files deleted. Longer local Chromium/temp-based testing must not resume until disk capacity is addressed safely. No automatic cleanup or deletion is authorised; D: remains available for redacted evidence.
 
 **Status:** source counts strengthen the evidence but leave authenticated selector/sub-tab paths NOT TESTED. Formal Costing Suite closure remains **5/13**.
+
+## 7. Addendum: supervised ID-V selector and sub-tab acceptance (8 November 2026)
+Authenticated, read-only, on `main@51cd26f3`/`hub-cache-v392`: staff classification register (164) and pool summary, manual provisions monthly impact and July period, PPM default proposal filter ("Pending decisions" only), Route Family selection, Route Readiness handoff, Effective Route Viewer product selection and the commercial-sales-assumptions period switch were all observed. One non-read RPC attempt (`rpc_preview_route_family_route_steps`) was blocked by the guard before leaving the browser. Details: [IDV_SELECTOR_SUBTAB_ACCEPTANCE_2026-11-08.md](IDV_SELECTOR_SUBTAB_ACCEPTANCE_2026-11-08.md). Formal status unchanged at 5/13.
