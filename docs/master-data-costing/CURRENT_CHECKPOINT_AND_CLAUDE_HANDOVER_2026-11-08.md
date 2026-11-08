@@ -39,3 +39,7 @@
 ## 5. Follow-up evidence — Staff Pool + Route Family preview contract (8 Nov 2026)
 
 [Staff pool and route preview audit](STAFF_POOL_AND_ROUTE_PREVIEW_CONTRACT_REVIEW_2026-11-08.md) independently reconciles **7** Staff Pool Summary rows displayed for November against **42** unfiltered rows (7 for each June–November month): this is **RESOLVED, period-scoped, PASS for the tested period**. It also inspects the *unexecuted* `rpc_preview_route_family_route_steps` server wrapper, `require_permission` and direct `costing.fn_preview_route_family_route_steps` callee: view-authorised and no DML in inspected path; however the ID-V network guard blocked the client-initiated request, so **no end-to-end ID-V preview PASS is claimed**. Leave read-only harness allowlist unchanged until separately reviewed one-name exception and owner approval. Formal work-package closure stays 5/13.
+
+## 6. CSR recheck and the first formal closure campaign (8 Nov 2026)
+
+[CSR_PLAN_RECHECK_AND_FIRST_CLOSURE_GATE_2026-11-08.md](CSR_PLAN_RECHECK_AND_FIRST_CLOSURE_GATE_2026-11-08.md) logs nonexecuting live EXPLAIN costs (printable 137.34; monthly comparison 6893.40, **not timings**) and nominates WP06 for a **mandatory-gate audit**, not automatic closure. Recent hosted ID-V evidence must count toward §8 criteria while outstanding C9/D7/flag decisions and formal Gate Status remain unpassed. Costing Suite formal total stays 5/13 until owner accepts an evidenced complete WP gate. No new SQL, flag, deployment or work-pack closure is implied.
