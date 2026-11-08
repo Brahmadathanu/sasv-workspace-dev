@@ -63,3 +63,7 @@ Shared authenticated acceptance contract §8 with **8 Nov A1 amendment**: the *g
 ## 8. Addendum — owner-confirmed ID-V credential and session cleanup (8 November 2026)
 
 PAR1 §8.8 records the owner-confirmed password rotation and Utilities Hub global sign-out following the completed read-only acceptance run. The temporary storage-state file was deleted and its absence verified. Supabase dashboard **Last sign-in: 8 November 2026, 23:28 IST** is contextual only, not proof of refresh-token revocation. **The sign-out action is owner-confirmed; token revocation has not been independently tested.** This does not satisfy W5-06 negative-identity/server-denial obligations or close WP05. Programme remains **6/13**.
+
+## 9. Addendum — WP05-CLD1 offline closure-acceleration documents (8 November 2026) — PROPOSAL / NOT EXECUTED
+
+Static, repository-only design and decision documents (no SQL, production, auth, code, flag or deployment action): [L1 KPI correction design](WP05_CLD1_L1_KPI_CORRECTION_DESIGN_2026-11-08.md), [security/RPC static audit](WP05_CLD1_SECURITY_RPC_STATIC_AUDIT_2026-11-08.md), [residual reconciliation and owner decision queue](WP05_CLD1_RESIDUAL_RECONCILIATION_AND_OWNER_DECISIONS_2026-11-08.md) (includes an optional **B1 decision template, not approved**). No gate status, owner approval or ledger count in this audit is changed. **WP05 remains OPEN; programme remains 6/13.**
