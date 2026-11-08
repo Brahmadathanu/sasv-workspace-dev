@@ -1,6 +1,6 @@
 # WP05-PAR1 — S2 / S9-PARITY real-data parity record (8 November 2026)
 
-**Status: PREFLIGHT COMPLETE; LIVE PARITY NOT TESTED (`AUTHENTICATED_CONTEXT_NOT_AVAILABLE`).** WP05 OPEN; programme **6/13**. AE1's accepted classification (**13 P / 4 historical F / 2 NA / 21 NT**) is unchanged. This record does not propose 7/13 or any B1 scope decision.
+**Status: PREFLIGHT COMPLETE; LIVE READ-ONLY PARITY EXECUTED 8 November 2026 (section 8): S2 PASS on two SKUs and PARTIAL on the BLOCKER SKU (costs NULL by design); S9-PARITY PASS for November and October.** WP05 remains OPEN; programme **6/13**. AE1's accepted classification (**13 P / 4 historical F / 2 NA / 21 NT**) is unchanged. This record does not propose 7/13 or any B1 scope decision. Sections 0 to 6 are the original preflight record and still describe the state before the live run (they say NOT TESTED); **section 8 supersedes them for results**.
 
 Tracking: issue #234, assignment "WP05-PAR1 S2/S9". Base: `origin/main` = `5a79b94a529d958fba445c0a3ae3bbb8a596d497`, in a fresh worktree on branch `claude/wp05-par1-s2-s9-read-parity`; the owner's WP06 and AE2 checkouts were not touched.
 
@@ -153,3 +153,60 @@ Testability from source: **comparable at SKU grain** (1.3 item 1), with a status
 ## 7. Declarations
 
 No production SQL, Supabase query, RPC call, browser automation, authenticated request, business-data write, feature-flag change, application-code edit, migration, test run, deployment, cache change, dependency install or C:/D: cleanup was performed. No secret, token, session file or screenshot was opened, copied or committed. Local D: access was read-only and limited to `report.json` metadata plus filenames and sizes. **WP05 remains OPEN; programme completion stays 6/13.**
+
+## 8. Live read-only execution (8 November 2026)
+
+Evidence for the owner's acceptance record. It is not sign-off and closes no work pack. Absolute cost values, user identifiers, hashes and session material are **not** in this document; the numbers are in a local report outside the repository.
+
+### 8.1 Build and identity gates (both passed before any S2/S9 read)
+
+| Gate | Result |
+|---|---|
+| Hosted build | `verify-served-assets.mjs` on `https://sasv-utilities-hub.netlify.app`: **VERIFIED [HOSTED], 72/72 Costing assets match**, served cache `hub-cache-v392`, bundle digest prefix `eee101ce729da672`. Two HTML files matched only after removing the documented `NETLIFY_INJECTED_BANNER_V1` comment. |
+| Commit under test | Recorded as `fb535de9be9e39099e831fa34d4a023b2bcc532e` (`origin/main` at the run). **Caveat:** `5ed0d6dc` and `bc40689a` give an identical VERIFIED result because their Costing assets are byte-identical, so the deployed commit cannot be told apart from the assets alone. The evidence is bound to the served Costing bytes, not to a unique SHA. |
+| Identity | ID-V session permission read: **six Costing view grants, zero edit grants, no other grants**; rows identical to the owner's canonical extract; **user hash agrees** with the extract. |
+| Process note | The first canonical extract belonged to a different user than the signed-in account (rows identical, user hash different); the validator correctly refused. The owner rebuilt the extract from the Auth account record with a SELECT-only procedure, the previous extract was kept as a protected backup, and the unchanged validator then passed. No comparison was weakened. |
+
+### 8.2 Method and guard
+
+Periods Nov 2026 and Oct 2026; **all eleven `COSTING_*_V1` flags OFF** (browser overrides removed in every context). Every request went through the runner's `classifyRequest` guard: only REST GET on views and the read RPCs `get_user_permissions` and `rpc_get_cost_period_valuation_context` were issued; **no request was blocked and no write or non-read RPC was attempted**. Numbers were read through the app's own client from the documented views (the views the surfaces read, paged at 1000), and the surfaces were observed in a browser at 1280 px and 390 px. The SKU Control lens pages at 50 rows and shows no population total in its page text, so the lens population was taken from the same view read the lens performs. No individual SKU was clicked through in the UI. The full acceptance crawler was not run.
+
+### 8.3 S2: Printable Cost Sheet vs SKU Cost Details (November 2026)
+
+SKU choice: lowest SKU id in each control class. Redacted index only.
+
+| SKU | Control class / status (control, detail, printable agree) | Run / valuation date / pack, printable vs detail | Internal Loaded Cost | Manufacturing COP | Total Material Cost | MRP: Inside Kerala | Result |
+|---|---|---|---|---|---|---|---|
+| S2-A | READY / READY | run 149 / 2026-11-02, identical | MATCH (delta 0) | MATCH (delta 0) | MATCH (delta 0; equals control view) | MATCH | **PASS** |
+| S2-B | REVIEW_REQUIRED / REVIEW_REQUIRED | run 149 / 2026-11-02, identical | MATCH (delta 0) | MATCH (delta 0) | MATCH (delta 0; equals control view) | MATCH | **PASS** |
+| S2-C | BLOCKER / BLOCKED (SKU 105, the only blocker in the population) | run 149 / 2026-11-02, identical | NOT COMPARABLE (NULL both sides) | NOT COMPARABLE (NULL both) | NOT COMPARABLE (NULL both) | MATCH | **PARTIAL** (status, run, valuation date and MRP agree; blocked costs are NULL by design) |
+
+The composite-status caveat (finding P2) produced no difference: all three surfaces carried the same status word for each SKU. Printable scheme-policy resolution was `RESOLVED_POLICY` for S2-A and S2-B and `DEFAULT_NO_SCHEME` for S2-C. SKU 105 is confirmed BLOCKER at run 149.
+
+### 8.4 S9-PARITY: CCC Dashboard vs SKU Control Status
+
+| Period | Run / valuation date | Dashboard READY / REVIEW / BLOCKED / total | SKU Control READY / REVIEW_REQUIRED / BLOCKER / total | Result |
+|---|---|---|---|---|
+| November 2026 | draft run 149 / 2026-11-02 on both | 121 / 506 / 1 / 628 | 121 / 506 / 1 / 628 (628 distinct SKUs) | **PASS** |
+| October 2026 | approved run 143 / 2026-10-22 on both (label: newer DRAFT run 148 not approved) | 627 / 0 / 0 / 627 | 627 / 0 / 0 / 627 (627 distinct SKUs) | **PASS** |
+
+- The dashboard used the **control snapshot row** (present for both periods). The business KPI summary row was also present and equal, so no fallback substitution occurred (finding P4 resolved for these periods).
+- Run 150 appeared nowhere. Run labels were identical on the dashboard and the SKU Control lens at both widths.
+- The KPI strip at 1280 px and 390 px matched the data for both periods (Costing Readiness 121 / 628 and 627 / 627; Blocked 1 and 0; Review 506 and 0). No horizontal overflow on the dashboard, SKU Control lens, SKU Cost Details or Printable lens at either width.
+- Population wording: 628 (Nov) and 627 (Oct) are run-scoped SKU control populations. They are not the 603 operational readiness population and were not equated with it. The 121 READY in section 2's historical figures is a coincidence of values across different populations, not evidence for either.
+
+### 8.5 New observations (not S2/S9 failures)
+
+| # | Observation | Severity | Next proof |
+|---|---|---|---|
+| L1 | The October dashboard strip shows **Selling Policy Coverage 628 / 627** (numerator above denominator). The numerator comes from the business KPI summary and the denominator from the control snapshot. Not explained from the repository. | Low-Medium (display / definition) | Owner or reviewer reads the October `selling_policy_complete_count` source and decides whether the two should agree. |
+| L2 | The deployed commit is not uniquely identifiable from Costing assets (section 8.1). | Informational | Netlify deploy record, if a unique SHA is needed. |
+| L3 | The SKU Control lens shows 50 rows per page without a visible population total. | Informational | None for this gate. |
+
+### 8.6 Effect on the gate
+
+Evidence only. The S2 and S9-PARITY rows now have observed results (S2 PASS on two SKUs and PARTIAL on the BLOCKER SKU; S9-PARITY PASS for two periods), bounded to one build and one view-only identity. WP05 remains **OPEN**; programme completion stays **6/13**; no count or B1 decision changes. Closure is the owner's act.
+
+### 8.7 Declarations
+
+No production SQL by this work (the owner separately ran a SELECT-only identity extract), no write, flag change, application-code edit, preview, save, refresh, approve, lock, deployment or permission change. No credential, token, UUID, hash or session content is in this document or the PR. The temporary session file is to be disposed of by the operator procedure and the ID-V password rotated.
