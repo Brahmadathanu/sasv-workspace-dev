@@ -16,8 +16,8 @@ test("#208 CSS fix is present and the cache generation is at least v391 (coupled
   assert.ok(generation(sw) >= 391, "CSS fix without a cache advance would stay hidden behind the cache-first v390 CSS");
 });
 
-test("sw.js line 2 is exactly the v391 release line and keeps the v390/v389 history in its comment", () => {
-  assert.equal(sw.split("\n")[1], 'const CACHE_NAME = "hub-cache-v391"; // Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)');
+test("sw.js line 2 is exactly the v392 release line and keeps the v391/v390/v389 history in its comment", () => {
+  assert.equal(sw.split("\n")[1], 'const CACHE_NAME = "hub-cache-v392"; // Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)');
   assert.equal((sw.match(/const CACHE_NAME\b/g) ?? []).length, 1, "exactly one cache declaration");
 });
 
@@ -35,4 +35,16 @@ test("#208 CSS block is a single scoped append with no !important", () => {
   assert.equal((css.match(/Issue #208:/g) ?? []).length, 1);
   assert.doesNotMatch(block, /!important/);
   for (const sel of block.match(/^[^\s/}{][^{]*(?=\{)/gm) ?? []) assert.match(sel.trim(), /^body\.sasv-costing /);
+});
+
+test("#212 LOCK-P01 lock-screen edit guard ships with a cache advance (coupled release): static JS is cache-first, so v391 clients would keep the unguarded shell", () => {
+  const shell = read("public/shared/js/costing-suite-shell.js"), lock = read("public/shared/js/costing-lock-screen.js");
+  assert.match(shell, /canEdit: canEditLockScreen/); assert.match(lock, /canEdit = \(\) => false/);
+  assert.ok(generation(sw) >= 392, "the guard without a cache advance past v391 would stay hidden behind the cached v391 shell");
+  assert.match(sw.split("\n")[1], /v391 was Costing #208/, "v391 history is kept in the cache-line comment");
+});
+test("#212 the lock-screen feature flag is still default OFF: this release changes no flag default", () => {
+  const flags = read("public/shared/js/costing-feature-flags.js");
+  assert.match(flags, /COSTING_LOCK_SCREEN_V1/);
+  assert.match(flags, /export function isCostingLockScreenV1Enabled\([^)]*\)\s*\{[\s\S]*?=== "1"/);
 });
