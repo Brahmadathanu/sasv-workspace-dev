@@ -1,3 +1,5 @@
+> **FINAL OWNER DECISION — 8 NOVEMBER 2026:** The owner subsequently gave an **explicit separate final WP06 acceptance and closure approval** after all approved dispositions, A1 and residual-risk reconciliation were merged in PR #231. WP06 is **FORMALLY CLOSED**, programme **6/13**; older 'pending' and 5/13 statements below are historical. Scope is bounded to the ten PPM workspaces, with historical Scheme Master 57014 monitored under #224 and full WP05/WP12 obligations retained. See `WP-06-PRICING-POLICY-MANAGER.md`.
+
 # WP06 owner-decision package for first formal 6/13 gate — 8 November 2026
 
 **Prepared for owner consideration only. No options below are approved merely by being listed here.** Formal costing programme **5/13** until a complete work-pack gate and owner signature. Sources: [WP06 ledger](WP06_FORMAL_CLOSURE_GATE_LEDGER_2026-11-08.md), [WP06 ID-V ON/OFF acceptance](WP06_IDV_NAV_GROUPS_ON_OFF_ACCEPTANCE_2026-11-08.md), [original owner record](OWNER_ACCEPTANCE_RECORD_2026-11-04.md) §4–6, [shared acceptance contract](WP05_WP06_WP12_AUTHENTICATED_ACCEPTANCE_EXECUTION_PACKAGE_2026-11-06.md) §8.
