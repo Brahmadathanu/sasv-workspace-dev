@@ -23,6 +23,36 @@ const sha256 = (buf) => crypto.createHash("sha256").update(buf).digest("hex");
 const normalise = (rel, buf) => (TEXT_EXT.test(rel) ? Buffer.from(buf.toString("utf8").replace(/\r\n/g, "\n")) : buf);   // LF/CRLF is not identity; binary bytes are
 
 export const normaliseForTest = (rel, buf) => normalise(rel, buf);
+
+// ── Documented, fail-closed normalisation NETLIFY_INJECTED_BANNER_V1 ───────────────────────────────────────────────────────────────────────────────
+// Netlify edge post-processing inserts ONE fixed 3-line HTML comment immediately after the <meta charset> element of some served .html files
+// (observed 2026-11-08 for cost-build-manager.html and costing-control-center.html; it is absent from git and from netlify.toml). It is inert (no script/tag).
+// This is NOT a generic comment-stripping rule. A served HTML file is accepted this way ONLY IF all of these hold; otherwise the plain hash comparison stands:
+//   1. the file is .html and its LF-normalised hash does not already match the git blob;
+//   2. the served text contains exactly one `<meta charset="UTF-8" />` line;
+//   3. that line is followed IMMEDIATELY by the exact literal banner below, byte for byte (campaign id included), and the banner occurs exactly once;
+//   4. after removing exactly that one literal, the SHA-256 equals the git blob's (LF-normalised) SHA-256.
+// Anything else (changed text, duplicated or relocated banner, altered banner, extra content, non-HTML asset) remains a CONTENT_DIFFERS mismatch.
+// If Netlify changes the banner text, verification fails closed until this constant is reviewed and updated.
+export const NETLIFY_BANNER_ID = "NETLIFY_INJECTED_BANNER_V1";
+export const NETLIFY_BANNER = [
+  "<!-- This site is hosted on Netlify. Anyone can build and deploy a site",
+  "     like this one for free: https://netlify.new/?utm_campaign=loops&utm_source=ai-legible&utm_medium=owned&utm_content=comment&utm_id=d8ee0b4c-1a12-4efd-b47c-7ced60eadcac",
+  "     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->",
+].join("\n") + "\n";
+const CHARSET_LINE = '<meta charset="UTF-8" />\n';
+/** Returns the LF-normalised bytes with the single recognised banner removed, or null if the exact structure is not present. Pure; never guesses. */
+export function stripNetlifyBanner(rel, servedNormalised) {
+  if (!/\.html$/i.test(rel)) return null;
+  const text = servedNormalised.toString("utf8");
+  const at = text.indexOf(CHARSET_LINE);
+  if (at < 0 || text.indexOf(CHARSET_LINE, at + 1) >= 0) return null;
+  const start = at + CHARSET_LINE.length;
+  if (!text.startsWith(NETLIFY_BANNER, start)) return null;
+  const end = start + NETLIFY_BANNER.length;
+  if (text.indexOf(NETLIFY_BANNER) !== start || text.indexOf(NETLIFY_BANNER, end) >= 0) return null;
+  return Buffer.from(text.slice(0, start) + text.slice(end));
+}
 function git(args, cwd) { return execFileSync("git", args, { cwd, maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] }); }
 
 /** The asset set is derived from the six Costing pages themselves (their local scripts and stylesheets) plus the Costing module code and sw.js. */
@@ -83,7 +113,7 @@ export function verifyServedAssets({ base, sha, expectCache = null, allowLocalSe
   const assets = costingAssetList(sha, cwd);
   if (assets.length < 20) return fail(EXIT.USAGE, "USAGE", `unexpectedly few Costing assets for ${sha}: ${assets.length}`);
   const rows = []; const expectedLines = []; const servedLines = [];
-  let unreachable = 0, access = 0, mismatches = 0;
+  let unreachable = 0, access = 0, mismatches = 0; const normalised = [];
   for (const rel of assets) {
     const want = sha256(normalise(rel, git(["show", `${sha}:${rel}`], cwd)));
     expectedLines.push(`${rel}\t${want}`);
@@ -97,14 +127,23 @@ export function verifyServedAssets({ base, sha, expectCache = null, allowLocalSe
     else {
       const ctype = /content-type:\s*([^\r\n;]+)/i.exec(r.headers)?.[1]?.toLowerCase() ?? "";
       if (/\.(js|mjs|css)$/.test(rel) && /text\/html/.test(ctype)) { row.failure = "HTML_FALLBACK_FOR_ASSET"; mismatches++; }
-      else { row.served_sha256 = sha256(normalise(rel, r.body)); if (row.served_sha256 !== want) { row.failure = "CONTENT_DIFFERS"; row.detail = TEXT_EXT.test(rel) ? "text differs (line endings ignored)" : "binary bytes differ"; mismatches++; } if (rel === "public/sw.js") row.served_cache_name = cacheNameOf(r.body.toString("utf8")); }
+      else {
+        const servedNorm = normalise(rel, r.body); row.served_sha256 = sha256(servedNorm);
+        if (row.served_sha256 !== want) {
+          const stripped = stripNetlifyBanner(rel, servedNorm);
+          if (stripped && sha256(stripped) === want) {
+            Object.assign(row, { served_raw_sha256: row.served_sha256, served_normalised_sha256: sha256(stripped), git_blob_sha256: sha256(git(["show", `${sha}:${rel}`], cwd)), normalisation: NETLIFY_BANNER_ID });
+            row.served_sha256 = row.served_normalised_sha256; normalised.push({ path: rel, normalisation: NETLIFY_BANNER_ID });
+          }
+        }
+        if (row.served_sha256 !== want) { row.failure = "CONTENT_DIFFERS"; row.detail = TEXT_EXT.test(rel) ? "text differs (line endings ignored)" : "binary bytes differ"; mismatches++; } if (rel === "public/sw.js") row.served_cache_name = cacheNameOf(r.body.toString("utf8")); }
     }
     servedLines.push(`${rel}\t${row.served_sha256 ?? "-"}`); rows.push(row);
   }
   const sw = rows.find((x) => x.path === "public/sw.js");
   const expectedCache = cacheNameOf(git(["show", `${sha}:public/sw.js`], cwd).toString("utf8"));
   Object.assign(report, { files: rows.length, mismatches, unreachable, access_problems: access, expected_cache_name: expectedCache, served_cache_name: sw?.served_cache_name ?? null,
-    expected_bundle_digest: sha256(expectedLines.join("\n")), served_bundle_digest: sha256(servedLines.join("\n")), rows });
+    normalisations_applied: normalised, expected_bundle_digest: sha256(expectedLines.join("\n")), served_bundle_digest: sha256(servedLines.join("\n")), rows });
   if (expectCache && expectedCache !== expectCache) report.reasons.push(`commit cache name ${expectedCache} is not the expected ${expectCache}`);
   if (unreachable === rows.length) { report.exit_code = EXIT.NOT_VERIFIED; report.verdict = "NOT_VERIFIED"; report.reasons.push("target unreachable: no evidence either way"); return report; }
   if (unreachable + access > 0 && mismatches === 0) { report.exit_code = EXIT.NOT_VERIFIED; report.verdict = "NOT_VERIFIED"; report.reasons.push(`${unreachable} unreachable, ${access} access-denied/redirected: build identity not established`); return report; }
@@ -115,6 +154,7 @@ export function verifyServedAssets({ base, sha, expectCache = null, allowLocalSe
     if (mismatches + unreachable + access > 0) report.reasons.push(`${mismatches + unreachable + access} of ${rows.length} assets do not match`);
     return report;
   }
+  if (normalised.length) report.reasons.push(`${normalised.length} HTML file(s) verified after removing the documented ${NETLIFY_BANNER_ID} comment (raw and normalised hashes recorded per row)`);
   report.exit_code = EXIT.OK; report.verdict = "VERIFIED"; return report;
 }
 

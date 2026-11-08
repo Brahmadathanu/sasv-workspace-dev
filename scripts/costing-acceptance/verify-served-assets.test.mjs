@@ -1,13 +1,14 @@
 // Build-identification script: faithful build, every failure mode, spoof guards. Local servers only: no network, no Netlify, no login.
 import test from "node:test";
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import http from "node:http";
 import { execFileSync, execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { verifyServedAssets, normaliseForTest, EXIT } from "./verify-served-assets.mjs";
+import { verifyServedAssets, normaliseForTest, stripNetlifyBanner, NETLIFY_BANNER, NETLIFY_BANNER_ID, EXIT } from "./verify-served-assets.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const script = path.join(root, "scripts/costing-acceptance/verify-served-assets.mjs");
@@ -28,6 +29,7 @@ test.before(async () => {
       if (mode.htmlFallback) { res.writeHead(200, { "content-type": "text/html" }); return res.end("<html>app shell</html>"); }
       res.statusCode = 404; return res.end("nf");
     }
+    if (mode.override?.[rel] != null) { res.setHeader("content-type", rel.endsWith(".html") ? "text/html" : "text/javascript"); return res.end(mode.override[rel]); }
     res.setHeader("content-type", rel.endsWith(".html") ? "text/html" : rel.endsWith(".css") ? "text/css" : "text/javascript"); res.end(fs.readFileSync(f));
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r)); base = "http://127.0.0.1:" + server.address().port;
@@ -84,4 +86,66 @@ test("normal LF/CRLF divergence is NOT a mismatch; transient 503 responses are r
   const a = Buffer.from([1, 2, 13, 10, 3]), b = Buffer.from([1, 2, 10, 3]);
   assert.notDeepEqual(normaliseForTest("public/x.png", a), normaliseForTest("public/x.png", b), "binary: CRLF bytes are content");
   assert.deepEqual(normaliseForTest("public/x.js", Buffer.from("a\r\nb")), normaliseForTest("public/x.js", Buffer.from("a\nb")), "text: line endings are not content");
+});
+
+// ── NETLIFY_INJECTED_BANNER_V1: positive and negative regression tests ─────────────────────────────────────────────────────────────────────────────
+const PAGE_A = "public/shared/cost-build-manager.html", PAGE_B = "public/shared/costing-control-center.html";
+const CHARSET = '<meta charset="UTF-8" />\n';
+const gitText = (rel) => fs.readFileSync(path.join(dir, rel), "utf8").replace(/\r\n/g, "\n");
+const withBanner = (rel, banner = NETLIFY_BANNER) => { const t = gitText(rel); const i = t.indexOf(CHARSET) + CHARSET.length; return t.slice(0, i) + banner + t.slice(i); };
+const served = (o) => ({ override: Object.fromEntries(Object.entries(o).map(([rel, body]) => ["/" + rel.replace(/^public\//, ""), body])) });
+const failureOf = (r, rel) => r.report.rows.find((x) => x.path === rel).failure;
+
+test("banner: the exact observed Netlify comment after the charset meta on both pages is VERIFIED, with raw, normalised and git hashes recorded and the transformation named", async () => {
+  mode = served({ [PAGE_A]: withBanner(PAGE_A), [PAGE_B]: withBanner(PAGE_B).replace(/\n/g, "\r\n") });   // also tolerates CRLF on the wire
+  const r = await run(); assert.equal(r.status, EXIT.OK, r.stdout); assert.equal(r.report.verdict, "VERIFIED"); assert.equal(r.report.mismatches, 0);
+  assert.deepEqual(r.report.normalisations_applied.map((x) => x.path).sort(), [PAGE_A, PAGE_B]);
+  for (const rel of [PAGE_A, PAGE_B]) {
+    const row = r.report.rows.find((x) => x.path === rel);
+    assert.equal(row.normalisation, NETLIFY_BANNER_ID); assert.notEqual(row.served_raw_sha256, row.served_normalised_sha256);
+    assert.equal(row.served_normalised_sha256, row.expected_sha256); assert.equal(row.served_sha256, row.expected_sha256);
+    const gitBytes = execFileSync("git", ["show", `${sha}:${rel}`], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
+    assert.equal(row.git_blob_sha256, crypto.createHash("sha256").update(gitBytes).digest("hex"));
+  }
+  assert.match(r.report.reasons.join(), /NETLIFY_INJECTED_BANNER_V1/); assert.equal(r.report.served_bundle_digest, r.report.expected_bundle_digest);
+});
+test("banner: untouched pages record no normalisation", async () => {
+  const r = await run(); assert.equal(r.status, EXIT.OK); assert.deepEqual(r.report.normalisations_applied, []); assert.ok(r.report.rows.every((x) => x.normalisation === undefined));
+});
+test("banner: the banner cannot hide a real change (changed script, added script, removed content, changed markup)", async () => {
+  for (const mutate of [(t) => t + "\n<script>fetch('/x')</script>\n", (t) => t.replace("<title>", "<title>X"), (t) => t.slice(0, -200), (t) => t.replace(/<button/, "<button data-x")]) {
+    mode = served({ [PAGE_A]: mutate(withBanner(PAGE_A)) }); const r = await run(); assert.equal(r.status, EXIT.MISMATCH, mutate.toString()); assert.equal(failureOf(r, PAGE_A), "CONTENT_DIFFERS");
+    assert.equal(r.report.rows.find((x) => x.path === PAGE_A).normalisation, undefined);
+  }
+});
+test("banner: a duplicated, relocated, altered, extended or indented banner is a MISMATCH", async () => {
+  const t = gitText(PAGE_A), at = t.indexOf(CHARSET) + CHARSET.length, B = NETLIFY_BANNER;
+  const cases = {
+    duplicated: t.slice(0, at) + B + B + t.slice(at),
+    "relocated after <title>": (() => { const i = t.indexOf("</title>\n") + 9; return t.slice(0, i) + B + t.slice(i); })(),
+    "relocated to end of file": t + B,
+    "separated by a blank line": t.slice(0, at) + "\n" + B + t.slice(at),
+    "altered campaign id": withBanner(PAGE_A, B.replace("d8ee0b4c", "deadbeef")),
+    "altered wording": withBanner(PAGE_A, B.replace("hosted on Netlify", "hosted on Evil")),
+    "extra comment line": withBanner(PAGE_A, B.replace(" -->", "\n     extra -->")),
+    "extra trailing content": withBanner(PAGE_A, B + "<!-- another -->\n"),
+    "generic other comment": withBanner(PAGE_A, "<!-- anything at all -->\n"),
+    "indented banner": withBanner(PAGE_A, B.split("\n").map((l) => (l ? "  " + l : l)).join("\n")),
+    "banner plus a second charset meta": withBanner(PAGE_A).replace("<title>", CHARSET + "<title>"),
+  };
+  for (const [name, body] of Object.entries(cases)) { mode = served({ [PAGE_A]: body }); const r = await run(); assert.equal(r.status, EXIT.MISMATCH, name); assert.equal(failureOf(r, PAGE_A), "CONTENT_DIFFERS", name); assert.deepEqual(r.report.normalisations_applied, [], name); }
+});
+test("banner: never applied to non-HTML assets (script, stylesheet, service worker), even with the exact banner text", async () => {
+  for (const rel of [CHANGED, "public/sw.js"]) {
+    const orig = fs.readFileSync(path.join(dir, rel), "utf8"); mode = served({ [rel]: NETLIFY_BANNER + orig }); const r = await run();
+    assert.equal(r.status, EXIT.MISMATCH, rel); assert.equal(failureOf(r, rel), "CONTENT_DIFFERS");
+  }
+});
+test("banner: stripNetlifyBanner is pure and strict (unit level)", () => {
+  const html = "<head>\n    <meta charset=\"UTF-8\" />\n" + NETLIFY_BANNER + "<title>t</title>\n";
+  assert.equal(stripNetlifyBanner("a.html", Buffer.from(html)).toString(), "<head>\n    <meta charset=\"UTF-8\" />\n<title>t</title>\n");
+  assert.equal(stripNetlifyBanner("a.js", Buffer.from(html)), null);
+  assert.equal(stripNetlifyBanner("a.html", Buffer.from(html.replace(NETLIFY_BANNER, ""))), null, "no banner: nothing to strip");
+  assert.equal(stripNetlifyBanner("a.html", Buffer.from(html.replace(CHARSET.trim(), '<meta charset="utf-8" />'))), null, "no exact charset anchor");
+  assert.equal(stripNetlifyBanner("a.html", Buffer.from(html + NETLIFY_BANNER)), null, "second occurrence");
 });
