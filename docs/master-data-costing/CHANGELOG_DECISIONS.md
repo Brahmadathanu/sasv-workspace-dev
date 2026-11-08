@@ -1,3 +1,5 @@
+> **8 November 2026 current-state entry:** The Scheme Master LATERAL view migration (live version 20261108082334) and November readiness portfolio build #6 are **already owner-authorised, applied and verified**, including targeted real ID-V browser evidence. Their review records are in issue #211; migration reconciliation is #214, 14-lens evidence matrix is #215. Remaining work and fresh Claude-session orientation: [CURRENT_CHECKPOINT_AND_CLAUDE_HANDOVER_2026-11-08.md](CURRENT_CHECKPOINT_AND_CLAUDE_HANDOVER_2026-11-08.md). These are factual state updates, **not a new authorisation or formal work-pack closure** (5/13 unchanged). The older dated decisions below remain authoritative for their historical scope.
+
 # Changelog / Decisions
 
 ## 2026-09-27 — DEC-001 — WP-1
