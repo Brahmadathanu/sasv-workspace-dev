@@ -201,3 +201,5 @@ D3 least-privilege semantics · C6/O-8 route · C5/D5 fixed run 80/82 · S2/S9 t
 ## 6. Statement
 
 AE1 is a reconciliation only. WP05 remains **OPEN**; programme remains **6/13**; no owner approval, B1 amendment, WP05 sign-off or progress increment is recorded or implied. No local evidence file was read, modified or deleted. No database, code, flag, permission, deployment, cache or Electron change was made.
+
+**Addendum (2026-11-08, AE2):** a separate, UNAPPROVED proposal for crediting the 15 C-D rows from the local D: report is in `WP05_AE2_LOCAL_EVIDENCE_CREDIT_PROPOSAL_2026-11-08.md`. The AE1 facts and the 13/4/2/21 counts above are unchanged and remain authoritative; the proposal's `RD-v391/OFF` label is limited render/data-presence sub-evidence, not full P. That document's section 3 also records newly found, historically limited v391 NAV_ONLY, ALL_ON and WORKLIST_ONLY observations (default lenses only, including the LOCK-P01 failure at v391) that supplement, and do not supersede, the v392 flag matrix in section 2; `flags_restored=true` there is run-wide only, with no separate restoration screenshot.
