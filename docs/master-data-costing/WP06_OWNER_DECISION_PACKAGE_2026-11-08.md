@@ -34,3 +34,20 @@
 4. Reconcile actual PPM 10-workspace P/F/NA/NT results and outstanding broader §8 obligations, then *only after full criteria* record dated owner acceptance and formal WP06 Gate Status in `WP-06-PRICING-POLICY-MANAGER.md`.
 
 **No production SQL/permissions/flags/deploy/refresh approved by this document. No work-pack is closed.**
+
+
+## D. Owner decisions and subsequent evidence — superseding addendum, 8 November 2026
+
+**Owner approved** the recommended dispositions **G-SCOPE, G-BUILD, C9, D7, F-4, C6/O-8, D3 and Scheme Master** in the conversation on 8 Nov 2026, explicitly instructing the repository acceptance-contract amendment, deferred risk registration and formal reconciliation. Earlier `PENDING` cells in §B are historical and **superseded for these named decisions**, not a present refusal or missing approval. Other-identity/writer-denial tests were *not* separately approved for production invocation; A1 moves them to WP05/WP12, not a PASS.
+
+- **G-SCOPE — APPROVED:** A1 to shared §8: WP06 bounded to the ten PPM workspaces under NAV_GROUPS OFF/ON and restricted ID-V; cross-module 40-lens/11-flag and negative identity tests retained under WP05/WP12.
+- **G-BUILD — APPROVED:** served `main@883a9f1c`, cache v392, verified 72/72 assets accepted as the ID-V test evidence baseline, not production rollout.
+- **C9 — DEFER:** keep PPM registry periodScoped false and independent CSA picker, revisit shared registry.
+- **D7 — DEFER:** maker-checker policy decision; no write/approval-authority change.
+- **F-4 — DEFER:** server-authoritative integer-unit decision; no client validation change.
+- **C6/O-8 — DEFER:** unmapped review/approval workbench routes; do not invent destinations.
+- **D3 — DEFER:** CCC-edit/MCM-edit cross-module review acceptance semantics to WP05 security.
+- **Scheme Master — RISK-ACCEPTED FOR BOUNDED WP06 FUNCTIONAL ACCEPTANCE, MONITOR:** approved concurrent `(scheme_id,period_start)` index installed and validated live, **1624 kB**, valid/ready. Owner observed initial seven schemes plus **3/3 desktop refresh PASS**, after the earlier 1280px ON/OFF 500/57014 failures. Do not erase earlier F or claim measured DB speedup: the post-build safe planner still preferred the older period/status index. Keep #224 under monitoring.
+- **CSA modal — EVIDENCED BY OWNER:** page PASS, Revise dialog PASS, COMPANY/REGIONAL IK/OK scope controls PASS, Cancel without save PASS. This is an owner-reported visual/open/cancel test, not an independent network trace or server-side write-denial proof.
+
+**Formal closure:** bounded WP06 functional acceptance can be considered, but the initial failed ID-V 1280 run remains recorded and later owner observations lack exact served-build/HTTP timing capture. The owner's approval of the dispositions is **not a separate explicit final Gate Status signature**. Reconcile in `WP-06-PRICING-POLICY-MANAGER.md`; keep programme **5/13** pending its final sign-off record. No SQL, user/permission change, flag rollout or new client deployment is authorised by this addendum.
