@@ -1,5 +1,9 @@
 -- Costing Scheme Master register: replace the three correlated viability subqueries by ONE per-scheme LATERAL aggregate (issue #211 B, review PR #213).
--- PREPARED, NOT APPLIED. When applied to live Supabase, change this line to "Applied to live Supabase as migration <version>" in a follow-up commit.
+-- Applied to live Supabase as migration 20261108082334 (costing_scheme_master_register_viability_lateral) on 8 Nov 2026, with the owner's explicit approval, through apply_migration.
+-- ALREADY APPLIED: do NOT re-run this file or use supabase db push. A second run fails closed by design (the pre-change fingerprint no longer matches).
+-- Reconciliation: this file was first prepared as 20261108132312_costing_scheme_master_register_viability_lateral.sql (PR #214 head a3db84d5); Supabase assigned history version 20261108082334, so the file was renamed.
+--   Only these comment lines changed. The executable DO statement below is byte-identical to the one applied (sha256 pinned in the migration test).
+-- Live post-apply fingerprint: md5(pg_get_viewdef('public.v_costing_scheme_master_register'::regclass, true)) = 8fdc0306bd2f1efbe0638c7c13ba4dda (pre-change was a9f6a128427a704e9bea97fc01e7b5f3).
 -- Source: reviewed candidate docs/master-data-costing/scheme-master-perf-candidate/scheme_master_register_viability_lateral.candidate.sql at commit
 --   e73e9e2bd716c7e01ae7fef05b31797a615abe7f (PR #213). The statement below is that candidate's DO block, BYTE FOR BYTE (sha256 pinned in the migration test).
 -- Live pre-change fingerprint (captured independently by the reviewer): md5(pg_get_viewdef('public.v_costing_scheme_master_register'::regclass, true)) = a9f6a128427a704e9bea97fc01e7b5f3.
@@ -8,7 +12,7 @@
 --   (same column names and types, reloptions, ACL; gate present; one lateral viability reference). Any failure raises and rolls everything back.
 -- Unchanged: security_invoker=true, fn_costing_view_allowed() gate, the 34-column contract, grants (CREATE OR REPLACE VIEW keeps them), indexes, RLS, client code, flags.
 -- Measured live (read-only, issue #211): warm 231.433 ms -> 124.916 ms, shared hits 206,906 -> 102,883; all 34 columns / 7 rows identical.
--- Rollback (recovery only, not a forward migration): supabase/rollback-evidence/20261108132312_costing_scheme_master_register_viability_lateral_pre.sql
+-- Rollback (recovery only, not a forward migration): supabase/rollback-evidence/20261108082334_costing_scheme_master_register_viability_lateral_pre.sql
 -- Runbook and read-only pre/post verification: docs/master-data-costing/scheme-master-register-migration/
 do $apply$
 declare

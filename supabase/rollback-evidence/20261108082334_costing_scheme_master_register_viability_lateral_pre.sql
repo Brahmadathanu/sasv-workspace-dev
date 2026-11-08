@@ -1,8 +1,8 @@
 -- Recovery only. Do not apply as a forward migration.
 -- Restores the pre-change (TB2) definition of public.v_costing_scheme_master_register, byte for byte the text of
---   supabase/migrations/20261019134900_tb2_costing_view_permission_gate.sql. Run only if 20261108132312_costing_scheme_master_register_viability_lateral.sql was applied and the view
+--   supabase/migrations/20261019134900_tb2_costing_view_permission_gate.sql. Run only if 20261108082334_costing_scheme_master_register_viability_lateral.sql (APPLIED 8 Nov 2026) and the view
 --   then measures worse or behaves differently. CREATE OR REPLACE VIEW with identical columns keeps ACL, reloptions and dependants.
--- After running, md5(pg_get_viewdef('public.v_costing_scheme_master_register'::regclass, true)) must again equal a9f6a128427a704e9bea97fc01e7b5f3.
+-- After running, md5(pg_get_viewdef('public.v_costing_scheme_master_register'::regclass, true)) must again equal a9f6a128427a704e9bea97fc01e7b5f3 (live post-apply value before any rollback: 8fdc0306bd2f1efbe0638c7c13ba4dda).
 -- This file is deliberately single-statement (atomic under any runner).
 create or replace view public.v_costing_scheme_master_register with (security_invoker=true) as
 select q.* from (

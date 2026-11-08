@@ -165,14 +165,14 @@ export function changedInScope({ git, base, scope }) {
 // any edit, rename or second Costing migration is still reported. Each entry names the package and the review that approved it. Existing files stay immutable.
 export const APPROVED_COSTING_SUPABASE_FILES = Object.freeze([
   {
-    package: "SCHEME-MASTER-LATERAL (issue #211 B, PR #213)",
-    rel: "supabase/migrations/20261108132312_costing_scheme_master_register_viability_lateral.sql",
-    sha256: "fbfdce83fe3b37fea93d76291607cb8f28dbdd614e9f3233b6eaa4eb6f57fe6e",
+    package: "SCHEME-MASTER-LATERAL (issue #211 B, PR #213/#214; applied live as 20261108082334)",
+    rel: "supabase/migrations/20261108082334_costing_scheme_master_register_viability_lateral.sql",
+    sha256: "af3e1a7fac45c5e5c6a8c47e0faf404da0bb9a1bbc28944e61461c05b82be9b3",
   },
   {
     package: "SCHEME-MASTER-LATERAL (issue #211 B, PR #213): recovery-only rollback evidence",
-    rel: "supabase/rollback-evidence/20261108132312_costing_scheme_master_register_viability_lateral_pre.sql",
-    sha256: "1064aa64dbc977b043e930ce6c62af439330085d65f86a77a4ea02d8eb58cd10",
+    rel: "supabase/rollback-evidence/20261108082334_costing_scheme_master_register_viability_lateral_pre.sql",
+    sha256: "9d28806b3a4d28e747813fd265ee88a6509acfb90a5a6c4ae5e571d01283495f",
   },
 ]);
 

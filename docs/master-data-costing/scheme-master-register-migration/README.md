@@ -1,12 +1,32 @@
-# Scheme Master register migration (PREPARED, NOT APPLIED)
+# Scheme Master register migration (APPLIED LIVE 8 Nov 2026 as 20261108082334)
 
-Issue #211 section B; reviewed candidate: PR #213 (commit `e73e9e2bd716c7e01ae7fef05b31797a615abe7f`). **This branch adds a migration file but nothing has been applied, merged, deployed or changed in Supabase.** Applying it needs a separate owner approval after PR #213 and this PR are reviewed. Formal status stays 5/13.
+Issue #211 section B; reviewed candidate: PR #213 (commit `e73e9e2bd716c7e01ae7fef05b31797a615abe7f`); draft PR #214.
+
+## STATUS: APPLIED (owner-approved, 8 Nov 2026)
+Applied to Supabase project `qhmoqtxpeasamtlxaoak` through `apply_migration` with the owner's explicit approval, using the exact executable SQL of PR #214 head `a3db84d5b2b02306c33a3dc7394244121977fc37`. **Live migration-history version: `20261108082334`, name `costing_scheme_master_register_viability_lateral`.** **Do not re-run it and do not use `supabase db push`**: a second run fails closed (the pre-change fingerprint no longer matches).
+
+Independent evidence recorded in issue #211 (read-only, by the reviewer):
+| Check | Result |
+|---|---|
+| Pre-apply (immediately before) | md5 `a9f6a128427a704e9bea97fc01e7b5f3`, 34 columns, owner postgres, ACL `{postgres=arwdDxtm/postgres,authenticated=r/postgres}`, `security_invoker=true`, 3 viability references, 7 rows; target version absent |
+| Post-apply definition | **new fingerprint `8fdc0306bd2f1efbe0638c7c13ba4dda`**, exactly 34 columns, owner and ACL unchanged, `security_invoker=true`, `fn_costing_view_allowed` present, **1** viability reference with LATERAL, 7 rows |
+| Independent recomputation of the three changed columns | `count_ok`, `periods_ok`, `latest_ok` true for all 7 schemes; the empty scheme keeps 0 / 0 / NULL |
+| Negative database-role checks | `SET LOCAL ROLE anon` denied (SQLSTATE 42501); `SET LOCAL ROLE authenticated` without identity: 0 rows (role-level checks, not an ID-V session) |
+| Post-apply EXPLAIN ANALYZE (`ORDER BY scheme_name LIMIT 1000`) | 272.464, 128.035, 128.333 ms; shared hits 103,374 each (pre-apply latest: 848.778 ms / 206,905 hits; earlier 231 ms, 1403 ms and one 4.5 s timeout). Cold-start timeout elimination is **not guaranteed** |
+
+### Reconciliation (this PR)
+The file was prepared as `20261108132312_costing_scheme_master_register_viability_lateral.sql` but Supabase assigned history version `20261108082334`. The repository file and the recovery file were renamed to the live version, the two hash pins in `scripts/lib/costing-scope-guard.mjs` were recomputed, and only the **comment header** of the migration and rollback files changed. The executable `DO` statement is byte-identical to what was applied (sha256 `588385052871d3c2c6ebae6956e73a64b1e4e5e8948d00f888ec20dd864dcfc6`, pinned in the test and equal to the PR #213 blob). The recovery file's SQL body is unchanged. Nothing was re-run.
+
+### Post-application ID-V browser check (8 Nov 2026, real session, existing live view)
+See the section "Post-application ID-V check" at the end of this file.
+
+## History (the original change description follows; it describes the state before the apply)
 
 ## What is in this change
 | File | Purpose |
 |---|---|
-| `supabase/migrations/20261108132312_costing_scheme_master_register_viability_lateral.sql` | the migration: the reviewed, fingerprinted candidate `DO` block copied **byte for byte** (sha256 pinned in the test), under a header marked "PREPARED, NOT APPLIED" |
-| `supabase/rollback-evidence/20261108132312_costing_scheme_master_register_viability_lateral_pre.sql` | recovery only (repo convention): the exact pre-change TB2 definition |
+| `supabase/migrations/20261108082334_costing_scheme_master_register_viability_lateral.sql` | the migration: the reviewed, fingerprinted candidate `DO` block copied **byte for byte** (sha256 pinned in the test), under a header marked "PREPARED, NOT APPLIED" |
+| `supabase/rollback-evidence/20261108082334_costing_scheme_master_register_viability_lateral_pre.sql` | recovery only (repo convention): the exact pre-change TB2 definition |
 | `docs/master-data-costing/scheme-master-register-migration/pre_apply_verification.sql`, `post_apply_verification.sql` | read-only verification before and after the apply |
 | `scripts/lib/costing-scope-guard.mjs` | one narrow, content-hash-pinned approval for exactly this migration (see below) |
 | `scripts/scheme-master-migration/scheme-master-migration.test.mjs`, `scripts/costing-scope-guard/scope-guard.test.mjs` | static, migration-scope and regression tests |
@@ -30,3 +50,15 @@ Historical Costing package tests (`uxf1`, `review-worklist`) assert "no Costing 
 
 ## Not proven here
 No SQL was executed (no PostgreSQL available to the author). The `DO` block has been reviewed statically and the SELECT it wraps was independently shown to match the live view on all 34 columns and 7 rows; its precondition/postcondition logic and the cold-start timeout behaviour are verified only by the owner's pre/post runs. The targeted ID-V browser check of the **existing** view (6 loads, 7 rows, 0 errors, first-byte 283 to 1125 ms) is a baseline, not evidence about the candidate.
+
+## Post-application ID-V check (8 Nov 2026, real supervised ID-V session, hosted `main@83b217be`, existing build verified 72/72 at cache v392)
+Pricing Policy Manager -> Scheme Master, 3 fresh-context loads at 1280 px and 3 at 390 px, read-only (every request passed the repository's read-only allow-list; no clicks, no typing). Identity proven (6 view grants, 0 edit grants). Redacted report and screenshots are kept outside the repository.
+| Metric | Pre-change baseline (earlier the same day) | Post-apply |
+|---|---|---|
+| `v_costing_scheme_master_register` requests | 6/6 HTTP 200 | **6/6 HTTP 200** |
+| Rows / columns | 7 rows, all 34 expected columns | **7 rows, all 34 expected columns, no extras** (every load) |
+| HTTP 500 / statement timeout | none seen (one 57014 seen once earlier in the acceptance run) | **none** |
+| Console errors, page errors, HTTP >= 400, failed requests, error banners | 0 | **0** |
+| Write or other non-read requests | 0 | **0** (9 request types, all reads) |
+| View time to first byte | 1125 ms (first, cold), then 283 to 316 ms | 1630 ms (first load after idle, cold), then **173 to 196 ms** |
+Reading: the optimised view serves ID-V correctly (7 rows, 34 columns) at both widths with no errors, and warm requests are faster than the pre-change baseline. The first request after an idle period was slower than before in this single sample (1630 ms vs 1125 ms); cold-start latency is **not** shown to be improved and the original intermittent timeout is neither reproduced nor proven eliminated (single cold sample each). Time to first byte only (body-complete timing was not captured).

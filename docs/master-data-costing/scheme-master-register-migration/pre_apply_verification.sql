@@ -1,5 +1,5 @@
--- Scheme Master register migration (issue #211 B / PR #213): PRE-APPLY verification. READ-ONLY (begin read only ... rollback). NOT run by the author.
--- Run immediately before applying supabase/migrations/20261108132312_costing_scheme_master_register_viability_lateral.sql. SAVE the output: block P2 is the "before" snapshot
+-- Scheme Master register migration (issue #211 B / PR #213): PRE-APPLY verification (HISTORICAL: the migration is already APPLIED; after the apply P1 is expected to FAIL by design, use post_apply_verification.sql). READ-ONLY (begin read only ... rollback). NOT run by the author.
+-- Run immediately before applying supabase/migrations/20261108082334_costing_scheme_master_register_viability_lateral.sql. SAVE the output: block P2 is the "before" snapshot
 -- that post_apply_verification.sql must reproduce. Every expectation below must hold; if one does not, STOP (the migration's own precondition would also refuse).
 
 begin read only;

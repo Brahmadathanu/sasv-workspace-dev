@@ -1,10 +1,11 @@
 -- Scheme Master register migration (issue #211 B / PR #213): POST-APPLY verification. READ-ONLY (begin read only ... rollback). NOT run by the author.
+-- HISTORICAL/RE-RUNNABLE: the migration was APPLIED on 8 Nov 2026 (live version 20261108082334); this file is safe to re-run read-only at any time to re-verify the live view.
 -- Run right after the owner-approved apply. Compare with the "before" snapshot saved from pre_apply_verification.sql (block P2). If any expectation fails: run the rollback
--- (supabase/rollback-evidence/20261108132312_costing_scheme_master_register_viability_lateral_pre.sql) and re-review.
+-- (supabase/rollback-evidence/20261108082334_costing_scheme_master_register_viability_lateral_pre.sql) and re-review.
 
 begin read only;
--- Q1. Definition changed exactly as intended. expect: fingerprint_changed = true (no longer a9f6...), options_exact = true, columns = 34, viability_references = 1, lateral = true, gate_present = true
-select md5(pg_get_viewdef(c.oid, true)) as viewdef_md5, md5(pg_get_viewdef(c.oid, true)) <> 'a9f6a128427a704e9bea97fc01e7b5f3' as fingerprint_changed,
+-- Q1. Definition changed exactly as intended. expect: viewdef_md5 = 8fdc0306bd2f1efbe0638c7c13ba4dda (fingerprint_post_apply = true), fingerprint_changed = true (no longer a9f6...), options_exact = true, columns = 34, viability_references = 1, lateral = true, gate_present = true
+select md5(pg_get_viewdef(c.oid, true)) as viewdef_md5, md5(pg_get_viewdef(c.oid, true)) = '8fdc0306bd2f1efbe0638c7c13ba4dda' as fingerprint_post_apply, md5(pg_get_viewdef(c.oid, true)) <> 'a9f6a128427a704e9bea97fc01e7b5f3' as fingerprint_changed,
        c.reloptions is not distinct from array['security_invoker=true']::text[] as options_exact,
        (select count(*) from pg_attribute a where a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped) as columns,
        (select count(*) from regexp_matches(pg_get_viewdef(c.oid, true), 'sku_scheme_viability_snapshot', 'g')) as viability_references,
