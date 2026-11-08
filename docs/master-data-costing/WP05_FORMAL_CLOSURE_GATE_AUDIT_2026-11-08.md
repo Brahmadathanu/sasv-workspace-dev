@@ -58,3 +58,8 @@ Shared authenticated acceptance contract §8 with **8 Nov A1 amendment**: the *g
 [WP05_PAR1_S2_S9_REAL_DATA_PARITY_2026-11-08.md](WP05_PAR1_S2_S9_REAL_DATA_PARITY_2026-11-08.md): source preflight complete, no S2/S9 RPC blocker; live parity **NOT TESTED** (no ID-V signed-in context available). W5-05 stays PARTIAL; WP05 remains OPEN; programme remains 6/13.
 
 **Update (8 November 2026, live read-only run):** the PAR1 record section 8 now holds observed results: S2 PASS (two SKUs) and PARTIAL (BLOCKER SKU, costs NULL by design); S9-PARITY PASS for Nov and Oct 2026, on a verified hosted build and a proven view-only ID-V. Evidence only; W5-05 stays PARTIAL pending owner review; WP05 remains OPEN; programme remains 6/13. Finding L1 (Selling/Scheme Policy coverage population scope, historical periods) is recorded in section 8.5.1 of that record as a repository-confirmed defect with live verification pending; it does not invalidate the S9 Readiness/Review/Blocked parity. ID-V password rotation and session revocation remain pending.
+
+
+## 8. Addendum — owner-confirmed ID-V credential and session cleanup (8 November 2026)
+
+PAR1 §8.8 records the owner-confirmed password rotation and Utilities Hub global sign-out following the completed read-only acceptance run. The temporary storage-state file was deleted and its absence verified. Supabase dashboard **Last sign-in: 8 November 2026, 23:28 IST** is contextual only, not proof of refresh-token revocation. **The sign-out action is owner-confirmed; token revocation has not been independently tested.** This does not satisfy W5-06 negative-identity/server-denial obligations or close WP05. Programme remains **6/13**.

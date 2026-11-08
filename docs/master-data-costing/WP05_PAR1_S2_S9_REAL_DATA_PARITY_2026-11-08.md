@@ -224,3 +224,12 @@ Evidence only. The S2 and S9-PARITY rows now have observed results (S2 PASS on t
 No production SQL by this work (the owner separately ran a SELECT-only identity extract), no write, flag change, application-code edit, preview, save, refresh, approve, lock, deployment or permission change. No credential, token, UUID, hash or session content is in this document or the PR.
 
 **Security cleanup status (8 November 2026).** The temporary session file was removed with **ordinary file deletion** (not a secure overwrite) and its absence was confirmed afterwards; its contents were never opened. **ID-V password rotation and session revocation remain pending** (owner action). Because a replayable refresh token may exist in recoverable bytes of the deleted file, rotation alone is not sufficient: existing sessions should also be revoked. The canonical extract, its protected backup and this evidence were preserved.
+
+
+### 8.8 ID-V security follow-up — owner confirmation (8 November 2026)
+
+**Post-run update; supersedes the pending status in §8.7, which records the state at initial evidence publication.** The operator confirmed that the temporary Playwright session file `par1-id-v.storage.json` was removed by **ordinary deletion**, and a subsequent filesystem check found it absent. A bounded filename search also found no further storage-state files in the checked D: paths; this is not a forensic secure-erasure guarantee.
+
+**Owner-reported on 8 November 2026:** ID-V password rotation completed; the account holder subsequently signed in using the new password and performed the SASV Utilities Hub global sign-out. The owner confirmed sign-out completion. The Supabase dashboard's **Last sign-in** field showed **8 November 2026, 23:28 IST**; this records a sign-in, **not** a sign-out, refresh-token revocation or proof of invalidation. No deleted-token replay, admin-session inspection or independent revocation test was conducted. Accordingly, rotation and global sign-out are **owner-confirmed completed actions**, while token-revocation outcome is **not independently verified**. Previously issued JWT access tokens may remain valid until expiry under the Auth contract.
+
+The canonical permission extract, protected backup, local SQL/builder helpers, and read-only evidence were retained. No ID-V permission changes or account disabling occurred. WP05 OPEN; programme 6/13. This owner confirmation is an authentication-cleanup record, **not** negative-identity/server-denial acceptance evidence for W5-06.
