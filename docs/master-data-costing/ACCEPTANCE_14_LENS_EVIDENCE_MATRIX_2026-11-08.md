@@ -55,3 +55,21 @@ The current read-only runner cannot perform step 2 (it never clicks or selects);
 - Request counts in `report.json` are aggregated per run, so view/RPC names are attributed to a lens from the client source plus the lens's observed behaviour, not from a per-lens trace. Rows 6-7 share one loader.
 - "Probably expected empty" rows rest on the UI's explicit empty message and on consistent adjacent evidence; none was verified against a source count here (no database access).
 - Screenshots and the raw report stay outside the repository (possible real data). Nothing here changes the 5/13 status, a flag, a permission or any data.
+
+
+## 6. Independent live SELECT-only source-count follow-up (8 November 2026)
+
+These measurements were made by the owner-side reviewer **after** the original matrix was written, using live SQL SELECT only. They supplement the original screenshot classifications and do not retroactively convert an untested ID-V workflow into a browser PASS.
+
+| Matrix lens | Source-count check | Interpretation / remaining gate |
+|---|---|---|
+| CBM staff-governance | `public.v_costing_unclassified_staff_for_costing` **0** rows; `public.v_costing_staff_classification_register` **164**; `public.v_costing_staff_cost_pool_summary` **42** | The default unclassified queue is confirmed genuinely empty; the other staff sub-tabs should show data when selected; browser sub-tab acceptance remains pending |
+| CBM manual-provisions | `public.v_costing_manual_cost_pool_provision_register` **2** total, one ACTIVE each in **June 2026** and **July 2026**; **0 in November and October**. `public.v_costing_cost_pool_monthly_summary` **60** rows overall | The November default register is confirmed empty by period, not an error; choosing October would also show no provision rows. For populated provision acceptance, select June or July only if available in the governed picker; monthly impact is separately populated and remains a browser sub-tab check |
+| PPM proposal-decisions / approved-for-application | `public.v_product_mrp_proposal_register` **1** total, status **APPLIED**, review summary **MIXED_DECISION** | Current source has **0 pending decision** and **0 awaiting application** proposals, so both empty queues are consistent with backend state. Active filter badge **1** remains unexamined; verify the filter before fully closing UI acceptance |
+| PPM scheme-rule-register | `public.v_costing_scheme_policy_rule_register` **0** | Confirms original empty-source finding |
+| PRM mapping / foundation | No additional RPC invocation in this follow-up | Remain provisionally empty for their exact-run context; cannot claim count confirmation for other contexts |
+| PRM historical-candidate-review | All three `public.rpc_preview_route_family_candidate`, `public.rpc_preview_product_process_route_candidate`, and `public.rpc_preview_product_route_delta_candidate` are **VOLATILE** (`pg_proc.provolatile='v'`), **SECURITY DEFINER**, and contain statements matching broad potential-side-effect keywords | This check does **not** establish DML or side effects, but it rules out assuming side-effect-free from the function metadata. Do not allowlist or invoke the preview functions under ID-V read-only acceptance until the full bodies and called functions are independently audited and an explicit safe test is approved |
+
+**Drive health:** the operator reported C: at 0 GB free, with no files deleted. Longer local Chromium/temp-based testing must not resume until disk capacity is addressed safely. No automatic cleanup or deletion is authorised; D: remains available for redacted evidence.
+
+**Status:** source counts strengthen the evidence but leave authenticated selector/sub-tab paths NOT TESTED. Formal Costing Suite closure remains **5/13**.
