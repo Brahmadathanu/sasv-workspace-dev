@@ -20,7 +20,7 @@
 do $apply$
 declare
   c_view constant regclass := 'public.v_costing_scheme_master_register'::regclass;
-  c_expected_md5 constant text := 'UNRECORDED';
+  c_expected_md5 constant text := 'a9f6a128427a704e9bea97fc01e7b5f3';
   c_expected_cols constant text[] := array['scheme_id', 'scheme_name', 'paid_qty', 'free_qty', 'total_qty', 'free_per_paid_ratio', 'effective_free_discount_percent', 'is_active', 'is_system_defined', 'remarks', 'approval_reference', 'direct_policy_count', 'active_direct_policy_count', 'hierarchy_rule_count', 'active_hierarchy_rule_count', 'replacement_reference_count', 'active_replacement_reference_count', 'viability_snapshot_count', 'viability_snapshot_period_count', 'latest_viability_snapshot_period', 'can_edit_metadata', 'can_deactivate', 'can_reactivate', 'created_at', 'created_by', 'updated_at', 'updated_by', 'metadata_update_reason', 'deactivated_at', 'deactivated_by', 'deactivation_reason', 'reactivated_at', 'reactivated_by', 'reactivation_reason'];
   v_cols text[]; v_types text[]; v_opts text[]; v_acl text; v_def text;
   v_cols2 text[]; v_types2 text[]; v_opts2 text[]; v_acl2 text; v_def2 text;
