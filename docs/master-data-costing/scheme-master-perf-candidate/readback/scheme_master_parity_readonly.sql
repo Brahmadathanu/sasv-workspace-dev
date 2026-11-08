@@ -9,6 +9,14 @@
 
 -- 0. Catalog snapshot of the live view (run BEFORE and again AFTER any future apply; ACL/options/dependants must be identical).
 begin read only;
+-- 0a. FINGERPRINT CAPTURE (gate: record it before the candidate can run). The reviewer copies viewdef_md5 verbatim into
+--     docs/master-data-costing/scheme-master-perf-candidate/expected_pre_change_viewdef.md5 (one lowercase 32-hex line) and re-runs "node scripts/scheme-master-perf-candidate/build.mjs --write".
+--     The candidate compares md5(pg_get_viewdef(view, true)) with it, so ANY change to an expression, the gate or the column list since this review invalidates the fingerprint.
+--     Keep viewdef_text with the review record so the fingerprint can be audited. columns_match / options_exact must both be true.
+select md5(pg_get_viewdef(c.oid, true)) as viewdef_md5, pg_get_viewdef(c.oid, true) as viewdef_text,
+       (select array_agg(a.attname::text order by a.attnum) from pg_attribute a where a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped) = array['scheme_id', 'scheme_name', 'paid_qty', 'free_qty', 'total_qty', 'free_per_paid_ratio', 'effective_free_discount_percent', 'is_active', 'is_system_defined', 'remarks', 'approval_reference', 'direct_policy_count', 'active_direct_policy_count', 'hierarchy_rule_count', 'active_hierarchy_rule_count', 'replacement_reference_count', 'active_replacement_reference_count', 'viability_snapshot_count', 'viability_snapshot_period_count', 'latest_viability_snapshot_period', 'can_edit_metadata', 'can_deactivate', 'can_reactivate', 'created_at', 'created_by', 'updated_at', 'updated_by', 'metadata_update_reason', 'deactivated_at', 'deactivated_by', 'deactivation_reason', 'reactivated_at', 'reactivated_by', 'reactivation_reason'] as columns_match,
+       c.reloptions is not distinct from array['security_invoker=true']::text[] as options_exact
+  from pg_class c where c.oid = 'public.v_costing_scheme_master_register'::regclass;
 select c.relname, c.relkind, c.reloptions, c.relacl::text as acl, pg_get_userbyid(c.relowner) as owner, md5(pg_get_viewdef(c.oid, true)) as viewdef_md5
   from pg_class c where c.oid = 'public.v_costing_scheme_master_register'::regclass;
 select a.attnum, a.attname, format_type(a.atttypid, a.atttypmod) as type, a.attnotnull

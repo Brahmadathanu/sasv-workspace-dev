@@ -11,7 +11,7 @@ Issue #211 section B. **Candidate only: nothing in this folder is a migration, n
 | **Per-scheme `LEFT JOIN LATERAL` (this candidate)** | **124.916 ms** | **102,883** | about 46% less time, about 50% fewer buffers |
 | Global `GROUP BY scheme_id` | 2,941.849 ms | 101,396 (+4.9 MB temp sort) | slower; **not used** |
 
-Parity measured so far: all 7 scheme rows identical on the 3 changed columns (`EXCEPT ALL` both ways = 0). That is 3-column parity only; this package supplies the rest.
+Parity measured so far: all 7 scheme rows identical on the 3 changed columns (`EXCEPT ALL` both ways = 0); and, in the independent review of PR #213 (head 3b4c0dc2, privileged read-only role), the exact candidate SELECT matched the live view on **all 34 columns, 7 rows vs 7 rows, 0 differences in either direction**. Permission-role parity (ID-V / no-permission / anon), repeated cold and warm timings and the exact-definition fingerprint are still pending; this package supplies them.
 
 ## What the candidate changes (and what it does not)
 Four exact substitutions on the TB2 text, each required to match exactly once (generation fails closed otherwise):
@@ -28,13 +28,24 @@ The earlier file (`CANDIDATE_scheme_master_register_lateral_NOT_APPLIED.sql`, ke
 ## Files
 | File | Purpose |
 |---|---|
-| `scheme_master_register_viability_lateral.candidate.sql` | the change: precondition `DO` block (34 columns, `security_invoker=true`, gate present, exactly 3 viability references = pre-change shape) then one `CREATE OR REPLACE VIEW` |
+| `scheme_master_register_viability_lateral.candidate.sql` | the change, as **ONE atomic `DO` statement**: exact-definition precondition, then the `CREATE OR REPLACE VIEW` (via `EXECUTE`), then post-conditions (see "Exact-definition fingerprint and atomic apply") |
+| `expected_pre_change_viewdef.md5` | **not yet recorded.** One lowercase 32-hex line: `md5(pg_get_viewdef('public.v_costing_scheme_master_register'::regclass, true))` read from the live catalog by the reviewer (parity package block 0a). Until it exists the candidate carries the `UNRECORDED` sentinel and refuses to run |
 | `scheme_master_register_rollback_tb2.sql` | exact TB2 definition, byte-for-byte rollback |
 | `readback/scheme_master_parity_readonly.sql` | read-only parity and measurement package (below). Every block is `begin read only ... rollback` |
 | `readback/scheme_master_rehearsal_rollback_txn.sql` | OPTIONAL: replaces the view inside a transaction that always rolls back; **not read-only** (brief ACCESS EXCLUSIVE lock), needs explicit approval |
 
+## Exact-definition fingerprint and atomic apply (review requirements, independent review of 3b4c0dc2)
+Counting columns and references cannot detect a changed unrelated expression or an altered permission predicate, so the candidate now verifies the **exact** pre-change definition:
+- **Fingerprint.** `md5(pg_get_viewdef(view, true))` of the live view must equal the value recorded in `expected_pre_change_viewdef.md5`. It can only be produced by the live catalog (PostgreSQL's canonical deparse differs from the TB2 source text), so the reviewer records it from block 0a, keeps `viewdef_text` with the review record, and re-runs `node scripts/scheme-master-perf-candidate/build.mjs --write`, which embeds it. Deliberate normalisation: **none**, the md5 is over the exact `pg_get_viewdef(oid, true)` text, so any change at all to an expression, the gate or the column list invalidates it and the apply stops.
+- **UNRECORDED sentinel.** While no fingerprint is recorded (the state of this PR) the committed candidate contains `UNRECORDED` and its first check raises, so it cannot be applied by accident.
+- **Also checked before the replace:** the 34 column names in order (not just the count), `reloptions` **exactly** `{security_invoker=true}` (not merely containing it), the gate text, and exactly 3 viability references (independent sanity check in case the wrong fingerprint is recorded).
+- **ONE atomic statement.** The check, the `CREATE OR REPLACE VIEW` (passed to `EXECUTE`) and the post-conditions are a single `DO` block, so they run in one transaction under any runner (psql, migration CLI, SQL API) and can never be separated; any `RAISE` rolls everything back. There is deliberately no `BEGIN/COMMIT` (not needed, and some runners wrap their own) and **no LOCK TABLE** (LOCK on a view recurses into every base table and would block unrelated reads; the replace itself takes the view's own lock).
+- **Post-conditions in the same statement:** same column names **and types**, same `reloptions`, same ACL (grants), gate still present, exactly one viability reference and a `LATERAL` join; otherwise it rolls back.
+- **Preserved:** `security_invoker=true`, the `fn_costing_view_allowed()` gate, all 34 columns, grants (not touched), and the rollback file (unchanged TB2 text).
+- The optional rehearsal now inlines the exact same `DO` block (no psql `\i`), so it works through the SQL API; it also ends in ROLLBACK.
+
 ## Read-only parity package (owner-run; nothing here writes)
-0. Catalog snapshot before/after: view ACL, `reloptions`, owner, definition md5, the 34 columns with `format_type`, `has_table_privilege` for anon/authenticated/service_role, dependants (`pg_depend`).
+0. Catalog snapshot before/after: **0a fingerprint capture** (`viewdef_md5`, `viewdef_text`, `columns_match`, `options_exact`), view ACL, `reloptions`, owner, definition md5, the 34 columns with `format_type`, `has_table_privilege` for anon/authenticated/service_role, dependants (`pg_depend`).
 1. Cardinality plus **all 34 columns** two-way `EXCEPT ALL` (NULLs compare equal) between the live view and the inlined candidate body. Expect `7 / 7 / 0 / 0`.
 2. Per-column `pg_typeof` parity; ordered-fetch parity (`array_agg(scheme_id order by scheme_name, scheme_id)`); per-scheme comparison of the three changed columns; independent recomputation from the base table; schemes without snapshots.
 3. Permission semantics under `SET LOCAL ROLE authenticated` with ID-V's claims (expect 7 / 7 / 0 / 0), a user with no Costing permission (expect 0 / 0), and anon (`has_table_privilege` unchanged). Replace the two `<..._UUID>` placeholders.
@@ -43,14 +54,15 @@ The earlier file (`CANDIDATE_scheme_master_register_lateral_NOT_APPLIED.sql`, ke
 The candidate body inlined in the package is test-checked to be byte-identical to the candidate view, and it runs with the caller's privileges and RLS exactly as the `security_invoker` view would.
 
 ## Approval gates before any apply (all required; none done yet)
+0. **Record the fingerprint** (block 0a) into `expected_pre_change_viewdef.md5`, regenerate, and have the reviewer confirm `columns_match` and `options_exact` are true. Without this the candidate cannot run.
 1. Owner runs the parity package: block 1/2 results show **0 differences, same column types, same order**, block 3 shows identical permission semantics, block 0 saved as the "before" snapshot.
 2. Block 4 measurements repeated (3x, cold if possible) confirm the candidate is not slower and drops the buffer count; record the numbers in #211.
 3. Optional rehearsal (`readback/...rehearsal...`) in a quiet moment, if the owner wants proof on the real replaced view.
-4. Owner approves applying; the apply is performed by the owner/ChatGPT release process, **not** by this repository change. At that time copy the candidate file into `supabase/migrations/<timestamp>_costing_scheme_master_register_viability_lateral.sql` in a separate reviewed PR (it is deliberately not a migration now: an added Costing migration would also trip the historical Costing scope-guard tests).
+4. Owner approves applying; the apply is performed by the owner/ChatGPT release process, **not** by this repository change. At that time copy the candidate file into `supabase/migrations/<timestamp>_costing_scheme_master_register_viability_lateral.sql` in a separate reviewed PR (the single DO statement, unchanged) (it is deliberately not a migration now: an added Costing migration would also trip the historical Costing scope-guard tests).
 5. After apply: re-run block 0 (ACL/options/columns must equal "before") and block 1; hit the Scheme Master tab as ID-V.
 
 ## Rollback
-Run `scheme_master_register_rollback_tb2.sql` (idempotent, same columns, keeps grants and dependants). The precondition block makes the candidate refuse to run twice or against a drifted view, so a failed precondition means "do not apply; re-review", not "force".
+Run `scheme_master_register_rollback_tb2.sql` (idempotent, same columns, keeps grants and dependants). The fingerprint precondition makes the candidate refuse to run twice or against a drifted view, so a failed precondition means "do not apply; re-review", not "force".
 
 ## Not proven by this change
 That the cold-start timeout is eliminated (only the warm cost is roughly halved; cold behaviour depends on cache and IO; the first live call after a long idle may still be slow, so the 8 s limit should be re-measured after apply). That no other view depends on these three columns (block 0 lists dependants). PostgreSQL-backed behavioural tests were not run here (no PostgreSQL binaries on the author's machine, and no database access); the static tests prove construction and the SQL package proves behaviour when the owner runs it. Formal status stays 5/13.

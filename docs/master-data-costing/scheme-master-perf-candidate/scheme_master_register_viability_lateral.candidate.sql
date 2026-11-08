@@ -6,24 +6,39 @@
 --   LEFT JOIN LATERAL aggregate per scheme row. The 31 other columns, all names, order, types, NULL handling, security_invoker=true and the outer
 --   "where (select public.fn_costing_view_allowed())" gate are textually unchanged. No ORDER BY is added (the client orders by scheme_name).
 -- WHY THIS SHAPE: measured live, SELECT-only (issue #211, 8 Nov 2026): baseline warm 231.433 ms (206,906 shared hits), this shape 124.916 ms (102,883 hits),
---   all 7 scheme rows identical on the 3 changed columns; the global GROUP BY alternative was slower (2,941.849 ms, temp sort) and is NOT used.
+--   independently confirmed live: all 34 columns, 7 rows, zero differences either way. The global GROUP BY alternative was slower (2,941.849 ms) and is NOT used.
 -- NOT CHANGED: grants (CREATE OR REPLACE VIEW keeps ACL and reloptions), the table, indexes, RLS, any RPC, any client code, any flag.
--- APPLY ONLY after the owner's approval gates in README.md (all-column parity, grant/permission parity, plan timing, backup of the TB2 definition).
--- ROLLBACK: scheme_master_register_rollback_tb2.sql (restores the TB2 text byte for byte).
+-- APPLY ONLY after the owner's approval gates in README.md. ROLLBACK: scheme_master_register_rollback_tb2.sql (restores the TB2 text byte for byte).
 --
--- Precondition: fail closed if the live view is not exactly the expected pre-change shape (drift would mean this candidate was reviewed against different SQL).
-do $pre$
-declare v_def text; v_opts text[]; v_cols int;
+-- ATOMIC AND FAIL-CLOSED: the whole procedure is ONE statement (a single DO block). It therefore runs in one transaction under any runner (psql, migration CLI,
+--   SQL API): the definition check, the CREATE OR REPLACE VIEW and the post-conditions can never be separated, and any RAISE rolls everything back. No BEGIN/COMMIT is
+--   needed or used, and no LOCK TABLE is taken on purpose (LOCK on a view recurses into every base table and would block reads of unrelated tables).
+-- BEFORE: the live view must match the reviewed pre-change view EXACTLY: the same 34 column names in order, reloptions exactly {security_invoker=true},
+--   md5(pg_get_viewdef(view, true)) equal to the fingerprint recorded from the live catalog by the reviewer (any changed expression or permission predicate changes it),
+--   plus the gate text and exactly 3 viability references as an independent sanity check. If the fingerprint is not recorded the block refuses to run.
+-- AFTER (inside the same statement): same column names and types, same reloptions, same ACL, gate still present, exactly 1 viability reference and a LATERAL join.
+do $apply$
+declare
+  c_view constant regclass := 'public.v_costing_scheme_master_register'::regclass;
+  c_expected_md5 constant text := 'UNRECORDED';
+  c_expected_cols constant text[] := array['scheme_id', 'scheme_name', 'paid_qty', 'free_qty', 'total_qty', 'free_per_paid_ratio', 'effective_free_discount_percent', 'is_active', 'is_system_defined', 'remarks', 'approval_reference', 'direct_policy_count', 'active_direct_policy_count', 'hierarchy_rule_count', 'active_hierarchy_rule_count', 'replacement_reference_count', 'active_replacement_reference_count', 'viability_snapshot_count', 'viability_snapshot_period_count', 'latest_viability_snapshot_period', 'can_edit_metadata', 'can_deactivate', 'can_reactivate', 'created_at', 'created_by', 'updated_at', 'updated_by', 'metadata_update_reason', 'deactivated_at', 'deactivated_by', 'deactivation_reason', 'reactivated_at', 'reactivated_by', 'reactivation_reason'];
+  v_cols text[]; v_types text[]; v_opts text[]; v_acl text; v_def text;
+  v_cols2 text[]; v_types2 text[]; v_opts2 text[]; v_acl2 text; v_def2 text;
 begin
-  select pg_get_viewdef('public.v_costing_scheme_master_register'::regclass, true), c.reloptions into v_def, v_opts from pg_class c where c.oid = 'public.v_costing_scheme_master_register'::regclass;
-  select count(*) into v_cols from pg_attribute where attrelid = 'public.v_costing_scheme_master_register'::regclass and attnum > 0 and not attisdropped;
-  if v_cols <> 34 then raise exception 'scheme-master candidate precondition: expected 34 columns, found %', v_cols; end if;
-  if v_opts is null or not (v_opts @> array['security_invoker=true']) then raise exception 'scheme-master candidate precondition: security_invoker=true missing'; end if;
+  if c_expected_md5 !~ '^[0-9a-f]{32}$' then
+    raise exception 'scheme-master candidate: pre-change definition fingerprint is not recorded (expected_pre_change_viewdef.md5); refusing to run';
+  end if;
+  select array_agg(a.attname::text order by a.attnum), array_agg(format_type(a.atttypid, a.atttypmod) order by a.attnum) into v_cols, v_types
+    from pg_attribute a where a.attrelid = c_view and a.attnum > 0 and not a.attisdropped;
+  select c.reloptions, c.relacl::text into v_opts, v_acl from pg_class c where c.oid = c_view;
+  v_def := pg_get_viewdef(c_view, true);
+  if v_cols is distinct from c_expected_cols then raise exception 'scheme-master candidate precondition: output columns differ from the reviewed 34-column contract'; end if;
+  if v_opts is distinct from array['security_invoker=true']::text[] then raise exception 'scheme-master candidate precondition: reloptions must be exactly {security_invoker=true}, found %', v_opts; end if;
+  if md5(v_def) <> c_expected_md5 then raise exception 'scheme-master candidate precondition: live definition differs from the reviewed pre-change definition (md5 %, expected %)', md5(v_def), c_expected_md5; end if;
   if v_def !~ 'fn_costing_view_allowed' then raise exception 'scheme-master candidate precondition: permission gate missing'; end if;
   if (select count(*) from regexp_matches(v_def, 'sku_scheme_viability_snapshot', 'g')) <> 3 then raise exception 'scheme-master candidate precondition: expected exactly 3 viability snapshot references (pre-change shape)'; end if;
-end
-$pre$;
 
+  execute $view$
 create or replace view public.v_costing_scheme_master_register with (security_invoker=true) as
 select q.* from (
 SELECT id AS scheme_id,
@@ -94,3 +109,16 @@ SELECT id AS scheme_id,
    ) viab ON true
 ) q
 where (select public.fn_costing_view_allowed());
+$view$;
+
+  select array_agg(a.attname::text order by a.attnum), array_agg(format_type(a.atttypid, a.atttypmod) order by a.attnum) into v_cols2, v_types2
+    from pg_attribute a where a.attrelid = c_view and a.attnum > 0 and not a.attisdropped;
+  select c.reloptions, c.relacl::text into v_opts2, v_acl2 from pg_class c where c.oid = c_view;
+  v_def2 := pg_get_viewdef(c_view, true);
+  if v_cols2 is distinct from v_cols or v_types2 is distinct from v_types then raise exception 'scheme-master candidate postcondition: column names or types changed'; end if;
+  if v_opts2 is distinct from v_opts then raise exception 'scheme-master candidate postcondition: reloptions changed'; end if;
+  if v_acl2 is distinct from v_acl then raise exception 'scheme-master candidate postcondition: ACL changed'; end if;
+  if v_def2 !~ 'fn_costing_view_allowed' then raise exception 'scheme-master candidate postcondition: permission gate missing'; end if;
+  if (select count(*) from regexp_matches(v_def2, 'sku_scheme_viability_snapshot', 'g')) <> 1 or v_def2 !~* 'LATERAL' then raise exception 'scheme-master candidate postcondition: expected one lateral viability aggregate'; end if;
+end
+$apply$;

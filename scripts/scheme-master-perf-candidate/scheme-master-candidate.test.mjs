@@ -5,8 +5,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  root, OUT_DIR, TB2_MIGRATION, VIEW, VIEW_HEAD, COLUMNS, CHANGED_COLUMNS, SUBSTITUTIONS, FILES,
-  readTb2ViewSql, buildCandidateViewSql, viewBody,
+  root, OUT_DIR, TB2_MIGRATION, VIEW, VIEW_HEAD, COLUMNS, CHANGED_COLUMNS, SUBSTITUTIONS, FILES, FINGERPRINT_FILE, FINGERPRINT_UNRECORDED,
+  readTb2ViewSql, buildCandidateViewSql, viewBody, candidateSql, rehearsalSql, readFingerprint,
 } from "./build.mjs";
 
 const lf = (t) => t.replace(/\r\n/g, "\n");
@@ -61,15 +61,44 @@ test("security and ordering contracts are untouched: security_invoker, the one p
   assert.match(code(CAND_VIEW), /select q\.\* from \(/);
 });
 
-test("candidate file: precondition DO block fails closed and is read-only; then exactly one CREATE OR REPLACE VIEW; no grants, no DDL beyond the view, no DML", () => {
+test("candidate file is ONE atomic DO statement: exact-definition precondition, the CREATE OR REPLACE VIEW and post-conditions share it; nothing outside it; no grants, DML, lock or transaction control", () => {
   const sql = read("scheme_master_register_viability_lateral.candidate.sql"), c = code(sql);
-  assert.equal((c.match(/create or replace view/gi) ?? []).length, 1);
-  assert.equal((c.match(/\$pre\$/g) ?? []).length, 2);
-  assert.equal((c.match(/raise exception/g) ?? []).length, 4, "column count, security_invoker, gate, three-reference shape");
-  assert.match(c, /<> 34 then raise/); assert.match(c, /security_invoker=true/); assert.match(c, /fn_costing_view_allowed/); assert.match(c, /<> 3 then raise/);
-  assert.doesNotMatch(c, DML_DDL); assert.doesNotMatch(c, /\bcommit\b|\bbegin\s*;/i);
-  assert.ok(c.indexOf("$pre$;") < c.indexOf("create or replace view"), "precondition runs before the replace");
+  assert.equal((c.match(/\bdo \$apply\$/g) ?? []).length, 1); assert.equal((c.match(/\$apply\$;/g) ?? []).length, 1);
+  const open = c.indexOf("do $apply$"), close = c.indexOf("$apply$;") + "$apply$;".length;
+  assert.equal(c.slice(0, open).trim(), "", "no executable statement before the DO block");
+  assert.equal(c.slice(close).trim(), "", "no executable statement after the DO block");
+  const inner = c.slice(open, close);
+  assert.equal((inner.match(/create or replace view/gi) ?? []).length, 1, "the replace is inside the same statement as the checks");
+  assert.ok(inner.indexOf("raise exception 'scheme-master candidate precondition") < inner.indexOf("execute $view$"), "preconditions run before the replace");
+  assert.ok(inner.indexOf("execute $view$") < inner.indexOf("scheme-master candidate postcondition"), "post-conditions run after it");
+  assert.doesNotMatch(c, DML_DDL); assert.doesNotMatch(c, /\bcommit\b|\bbegin\b(?!\s*\n\s*if)|\brollback\b|\block\s+table\b|\bset\s+(local|session)\b|\bsavepoint\b|\bpg_sleep\b/i);
+  const m = /execute \$view\$\n([\s\S]*?)\n\$view\$;/.exec(inner); assert.ok(m, "view text is passed to EXECUTE");
+  assert.equal(m[1], CAND_VIEW, "the executed view is exactly the reviewed candidate view text");
   assert.match(sql, /NOT APPLIED/); assert.match(sql, /scheme_master_register_rollback_tb2\.sql/);
+});
+
+test("exact pre-change definition check: 34 column names in order, reloptions EXACTLY {security_invoker=true}, md5 of pg_get_viewdef(view, true) equals the recorded fingerprint, gate text, 3 references", () => {
+  const FP = "0123456789abcdef0123456789abcdef";
+  const c = code(candidateSql(FP));
+  assert.ok(c.includes("c_expected_md5 constant text := '" + FP + "';")); assert.ok(!c.includes(FINGERPRINT_UNRECORDED));
+  assert.match(c, /v_def := pg_get_viewdef\(c_view, true\);/); assert.match(c, /md5\(v_def\) <> c_expected_md5 then raise exception/);
+  assert.match(c, /v_cols is distinct from c_expected_cols then raise/);
+  assert.ok(c.includes("c_expected_cols constant text[] := array[" + COLUMNS.map((x) => "'" + x + "'").join(", ") + "];"), "all 34 names in order");
+  assert.match(c, /v_opts is distinct from array\['security_invoker=true'\]::text\[\] then raise/);
+  assert.match(c, /v_def !~ 'fn_costing_view_allowed' then raise/); assert.match(c, /<> 3 then raise/);
+  assert.match(c, /v_cols2 is distinct from v_cols or v_types2 is distinct from v_types then raise/); assert.match(c, /v_opts2 is distinct from v_opts then raise/); assert.match(c, /v_acl2 is distinct from v_acl then raise/);
+  assert.match(c, /<> 1 or v_def2 !~\* 'LATERAL' then raise/);
+  assert.equal((c.match(/raise exception/g) ?? []).length, 11, "1 fingerprint-unrecorded + 5 pre + 5 post conditions");
+});
+
+test("fail closed until the live fingerprint is recorded: the committed candidate carries the UNRECORDED sentinel exactly when no fingerprint file exists, and the sentinel can never satisfy the 32-hex guard", () => {
+  const file = path.join(dir, FINGERPRINT_FILE), fp = readFingerprint();
+  const committed = read("scheme_master_register_viability_lateral.candidate.sql");
+  if (!fs.existsSync(file)) { assert.equal(fp, null); assert.match(committed, /c_expected_md5 constant text := 'UNRECORDED';/); }
+  else { assert.match(fp, /^[0-9a-f]{32}$/); assert.ok(committed.includes("c_expected_md5 constant text := '" + fp + "';")); assert.ok(!committed.includes("'UNRECORDED'")); }
+  assert.ok(!/^[0-9a-f]{32}$/.test(FINGERPRINT_UNRECORDED));
+  assert.match(code(candidateSql(null)), /c_expected_md5 !~ '\^\[0-9a-f\]\{32\}\$' then\s+raise exception 'scheme-master candidate: pre-change definition fingerprint is not recorded/);
+  for (const bad of ["ABCDEF0123456789abcdef0123456789", "0123456789abcdef0123456789abcde", "x"]) assert.ok(!/^[0-9a-f]{32}$/.test(bad));
 });
 
 test("rollback file restores the TB2 definition byte for byte", () => {
@@ -109,11 +138,14 @@ test("inlined candidate in the parity package is byte-identical to the candidate
   const n = sql.split(`with cand as (\n${inl}\n)`).length - 1; assert.ok(n >= 6, `inlined ${n} times`);
 });
 
-test("rehearsal file is explicitly NOT read-only and can never commit: BEGIN ... ROLLBACK, no COMMIT, ACL/options captured and compared", () => {
+test("rehearsal file is explicitly NOT read-only, never commits, needs no psql meta-command, and inlines the exact candidate block", () => {
   const sql = read("readback/scheme_master_rehearsal_rollback_txn.sql"), c = code(sql);
   assert.equal((c.match(/^begin;/gm) ?? []).length, 1); assert.equal((c.match(/^rollback;/gm) ?? []).length, 1); assert.doesNotMatch(c, /\bcommit\s*;/i);
-  assert.ok(c.trimEnd().endsWith("rollback;")); assert.match(sql, /NOT read-only/); assert.match(c, /\\i \.\.\/scheme_master_register_viability_lateral\.candidate\.sql/);
+  assert.ok(c.trimEnd().endsWith("rollback;")); assert.match(sql, /NOT read-only/); assert.doesNotMatch(sql, /^\\i\s/m, "no psql meta-command: runs through the SQL API too");
   assert.match(c, /acl_unchanged/); assert.match(c, /options_unchanged/); assert.match(c, /create temp table _baseline on commit drop/);
+  const full = candidateSql(), block = full.slice(full.indexOf("do $apply$"));
+  assert.ok(sql.includes(block), "the inlined block is byte-identical to the candidate DO statement");
+  assert.equal(rehearsalSql(), lf(rehearsalSql()));
 });
 
 test("fail closed generator: a missing, duplicated or altered substituted region aborts generation instead of producing partial SQL", () => {
@@ -132,4 +164,18 @@ test("this is a candidate, not a migration: nothing under supabase/ mentions it,
 test("client contract is unchanged: the Scheme Master tab still reads select(*) from the view ordered by scheme_name", () => {
   const src = lf(fs.readFileSync(path.join(root, "public/shared/js/costing-suite-pricing-policy.js"), "utf8"));
   assert.match(src, /costingFrom\("v_costing_scheme_master_register"\)\s*\.select\("\*"\)\s*\.order\("scheme_name", \{ ascending: true \}\)/);
+});
+
+test("parity package block 0a captures the fingerprint: md5 and text of pg_get_viewdef(view, true), exact column list and exact options, with the recording instructions", () => {
+  const sql = read("readback/scheme_master_parity_readonly.sql");
+  assert.match(sql, /md5\(pg_get_viewdef\(c\.oid, true\)\) as viewdef_md5, pg_get_viewdef\(c\.oid, true\) as viewdef_text/);
+  assert.match(sql, /columns_match/); assert.match(sql, /options_exact/); assert.ok(sql.includes(FINGERPRINT_FILE));
+  assert.ok(sql.includes("array[" + COLUMNS.map((x) => "'" + x + "'").join(", ") + "]"));
+});
+
+test("preserved contracts: rollback unchanged (TB2 text), candidate keeps security_invoker/gate/columns, and the README documents the fingerprint gate and atomic apply", () => {
+  const readme = read("README.md");
+  for (const k of ["fingerprint", "ONE atomic", FINGERPRINT_FILE, "pg_get_viewdef", "no LOCK", "UNRECORDED"]) assert.ok(new RegExp(k, "i").test(readme), k);
+  assert.ok(read("scheme_master_register_rollback_tb2.sql").endsWith(TB2 + "\n"));
+  assert.ok(CAND_VIEW.startsWith(VIEW_HEAD) && CAND_VIEW.endsWith("where (select public.fn_costing_view_allowed());"));
 });
