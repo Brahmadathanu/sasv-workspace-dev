@@ -234,3 +234,44 @@ test("report level: migration-history, config and out-of-migrations rules are un
     assert.ok(repo.report().supabase.some((v) => re.test(v)), name);
   }
 });
+
+// ---- APPROVED_COSTING_SUPABASE_FILES: exact, content-hash-pinned added files (Scheme Master migration, issue #211 B) ----
+import crypto from "node:crypto";
+const hashLf = (t) => crypto.createHash("sha256").update(String(t).replace(/\r\n/g, "\n")).digest("hex");
+const MIG_REL = "supabase/migrations/20261101000009_approved_costing_view.sql", MIG_SQL = "create or replace view public.v_x as select 1 from costing.t;\n";
+const ROLL_REL = "supabase/rollback-evidence/20261101000009_approved_costing_view_pre.sql";
+const approvedList = [{ package: "fixture", rel: MIG_REL, sha256: hashLf(MIG_SQL) }, { package: "fixture rollback", rel: ROLL_REL, sha256: hashLf(MIG_SQL + "-- rollback\n") }];
+
+test("approved Costing migration: the exact pinned content at the exact path is tolerated (LF or CRLF), including its recovery-only rollback file outside supabase/migrations", (t) => {
+  const repo = makeRepo(); t.after(repo.cleanup);
+  repo.write(MIG_REL, MIG_SQL.replace(/\n/g, "\r\n")); repo.write(ROLL_REL, MIG_SQL + "-- rollback\n");
+  const r = costingScopeReport({ git: repo.git, root: repo.dir, base: repo.base, approvedSupabase: approvedList });
+  assert.deepEqual(r.supabase, [], JSON.stringify(r.supabase));
+});
+
+test("approved Costing migration negatives: edited content, renamed path, a second Costing migration, an unapproved rollback file and the default (empty-for-fixtures) list are all still violations", (t) => {
+  const edit = makeRepo(); t.after(edit.cleanup);
+  edit.write(MIG_REL, MIG_SQL.replace("select 1", "select 2"));
+  assert.ok(costingScopeReport({ git: edit.git, root: edit.dir, base: edit.base, approvedSupabase: approvedList }).supabase.some((v) => v.includes(MIG_REL)), "edited content");
+  const ren = makeRepo(); t.after(ren.cleanup);
+  ren.write("supabase/migrations/20261101000010_renamed.sql", MIG_SQL);
+  assert.ok(costingScopeReport({ git: ren.git, root: ren.dir, base: ren.base, approvedSupabase: approvedList }).supabase.some((v) => v.includes("renamed")), "renamed path");
+  const two = makeRepo(); t.after(two.cleanup);
+  two.write(MIG_REL, MIG_SQL); two.write("supabase/migrations/20261101000011_second.sql", "alter table costing.t add column z int;\n");
+  const tw = costingScopeReport({ git: two.git, root: two.dir, base: two.base, approvedSupabase: approvedList }).supabase;
+  assert.equal(tw.length, 1); assert.ok(tw[0].includes("second"), "only the unlisted second migration is reported");
+  const roll = makeRepo(); t.after(roll.cleanup);
+  roll.write(ROLL_REL, MIG_SQL + "-- different\n");
+  assert.ok(costingScopeReport({ git: roll.git, root: roll.dir, base: roll.base, approvedSupabase: approvedList }).supabase.some((v) => v.includes("outside supabase/migrations")), "edited rollback file");
+  const def = makeRepo(); t.after(def.cleanup);
+  def.write(MIG_REL, MIG_SQL);
+  assert.ok(def.report().supabase.some((v) => v.includes(MIG_REL)), "fixture file is not in the real approved list");
+});
+
+test("approval cannot launder an existing-file change: a modified or deleted existing migration stays a violation even if its new hash is listed", (t) => {
+  const repo = makeRepo(); t.after(repo.cleanup);
+  const rel = "supabase/migrations/20260101000000_costing_base.sql", changed = "create table costing.t (id bigint);\n";
+  repo.write(rel, changed);
+  const r = costingScopeReport({ git: repo.git, root: repo.dir, base: repo.base, approvedSupabase: [{ package: "fixture", rel, sha256: hashLf(changed) }] });
+  assert.ok(r.supabase.some((v) => v.startsWith("M supabase/migrations/20260101000000_costing_base.sql")));
+});

@@ -10,11 +10,13 @@
 //             style contract: public/shared/css/style.css and its transitive @import chain.
 //   supabase  Existing files are immutable (any M/D/R/C/T of a file present at the base is a violation);
 //             anything changed outside supabase/migrations/ is a violation; an ADDED migration is a
-//             violation when its executable SQL mentions costing (comments are ignored).
+//             violation when its executable SQL mentions costing (comments are ignored), except the exact
+//             content-hash-pinned files listed in APPROVED_COSTING_SUPABASE_FILES.
 //   package.json  Any change is a violation.
 //
 // Nothing here is Costing-specific logic; it only selects which changed paths count.
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -158,12 +160,31 @@ export function changedInScope({ git, base, scope }) {
   return lines(git("diff", "--name-only", base, "--", ...scope)).sort();
 }
 
+// Exact, individually approved ADDED supabase files that the historical "no Costing supabase change" package tests tolerate, in the same spirit as
+// APPROVED_HTML_INSERTIONS: a file is tolerated only when it is ADDED, its path is listed AND the sha256 of its LF-normalised content equals the pinned value, so
+// any edit, rename or second Costing migration is still reported. Each entry names the package and the review that approved it. Existing files stay immutable.
+export const APPROVED_COSTING_SUPABASE_FILES = Object.freeze([
+  {
+    package: "SCHEME-MASTER-LATERAL (issue #211 B, PR #213/#214; applied live as 20261108082334)",
+    rel: "supabase/migrations/20261108082334_costing_scheme_master_register_viability_lateral.sql",
+    sha256: "af3e1a7fac45c5e5c6a8c47e0faf404da0bb9a1bbc28944e61461c05b82be9b3",
+  },
+  {
+    package: "SCHEME-MASTER-LATERAL (issue #211 B, PR #213): recovery-only rollback evidence",
+    rel: "supabase/rollback-evidence/20261108082334_costing_scheme_master_register_viability_lateral_pre.sql",
+    sha256: "9d28806b3a4d28e747813fd265ee88a6509acfb90a5a6c4ae5e571d01283495f",
+  },
+]);
+
+const sha256Lf = (text) => crypto.createHash("sha256").update(String(text).replace(/\r\n/g, "\n")).digest("hex");
+
 /** Supabase changes that touch Costing or rewrite history. Returns human-readable violation strings. */
-export function supabaseCostingViolations({ git, root, base }) {
+export function supabaseCostingViolations({ git, root, base, approved = APPROVED_COSTING_SUPABASE_FILES }) {
   const { readHead } = makeReaders({ git, root, base });
   const out = [];
   for (const row of lines(git("diff", "--name-status", "--no-renames", base, "--", "supabase/"))) {
     const [status, file] = row.split(/\t/);
+    if (status === "A" && approved.some((e) => e.rel === file && readHead(file) !== null && sha256Lf(readHead(file)) === e.sha256)) continue;
     if (status !== "A") { out.push(`${status} ${file}: existing supabase/ files are immutable for Costing packages`); continue; }
     if (!file.startsWith("supabase/migrations/")) { out.push(`A ${file}: change outside supabase/migrations/`); continue; }
     const sql = readHead(file) || "";
@@ -248,7 +269,7 @@ const withoutCw07LabelOnly = (paths, ctx) =>
   paths.filter((rel) => !isCw07LabelOnlyChange({ ...ctx, rel }) && !isApprovedHtmlInsertionOnly({ ...ctx, rel }));
 
 /** One-call summary used by the package tests. */
-export function costingScopeReport({ git, root, base }) {
+export function costingScopeReport({ git, root, base, approvedSupabase = APPROVED_COSTING_SUPABASE_FILES }) {
   const htmlScope = costingHtmlScope({ git, base });
   const cssScope = costingCssScope({ git, root, base });
   const ctx = { git, root, base };
@@ -257,7 +278,7 @@ export function costingScopeReport({ git, root, base }) {
     cssScope,
     html: withoutCw07LabelOnly(changedInScope({ git, base, scope: htmlScope }), ctx),
     css: changedInScope({ git, base, scope: cssScope }),
-    supabase: supabaseCostingViolations({ git, root, base }),
+    supabase: supabaseCostingViolations({ git, root, base, approved: approvedSupabase }),
     packageJson: changedInScope({ git, base, scope: ["package.json"] }),
   };
 }
