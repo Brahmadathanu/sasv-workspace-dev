@@ -10322,19 +10322,44 @@ async function afterVwlSplitActionSuccess(message) {
   }
 }
 
-async function refreshVwlSplitLookup() {
+// Latest-wins guard for Vendor-wise Buying List loads (PEC-VWL-R1).
+let vwlLoadSeq = 0;
+let vwlLoadAbort = null;
+
+function withVwlAbortSignal(query, signal) {
+  return signal && typeof query?.abortSignal === "function"
+    ? query.abortSignal(signal)
+    : query;
+}
+
+// Returns true when the lookup was applied, false when it failed or was
+// superseded. A failure is flagged (never silently presented as "no splits").
+async function refreshVwlSplitLookup({
+  signal = null,
+  params = null,
+  isCurrent = () => true,
+} = {}) {
   try {
-    const { data, error } = await supabase.rpc(
-      "proc_vendorwise_buylist_split_items",
-      buildVwlRpcFilterParams(),
+    const { data, error } = await withVwlAbortSignal(
+      supabase.rpc(
+        "proc_vendorwise_buylist_split_items",
+        params || buildVwlRpcFilterParams(),
+      ),
+      signal,
     );
     if (error) throw error;
+    if (!isCurrent()) return false;
     state.vwl.splitRows = data || [];
     state.vwl.splitLookup = buildVwlSplitLookup(state.vwl.splitRows);
+    state.vwl.splitLookupFailed = false;
+    return true;
   } catch (e) {
+    if (!isCurrent()) return false;
     console.warn("Failed to load split-vendor lookup", e);
     state.vwl.splitRows = [];
     state.vwl.splitLookup = {};
+    state.vwl.splitLookupFailed = true;
+    return false;
   }
 }
 
@@ -10776,10 +10801,16 @@ function sortVendorBuylistRows(rows) {
   });
 }
 
-async function fetchVendorBuylistFilteredRows() {
-  const { data, error } = await supabase.rpc(
-    "proc_vendorwise_buylist_filtered",
-    buildVwlRpcFilterParams(),
+async function fetchVendorBuylistFilteredRows({
+  signal = null,
+  params = null,
+} = {}) {
+  const { data, error } = await withVwlAbortSignal(
+    supabase.rpc(
+      "proc_vendorwise_buylist_filtered",
+      params || buildVwlRpcFilterParams(),
+    ),
+    signal,
   );
 
   if (error) throw error;
@@ -10788,16 +10819,46 @@ async function fetchVendorBuylistFilteredRows() {
 }
 
 async function loadVendorBuylist() {
+  // Latest call wins: supersede (abort) any in-flight load so typing cannot
+  // accumulate requests or let an older response overwrite a newer one.
+  const seq = ++vwlLoadSeq;
+  vwlLoadAbort?.abort();
+  const ctrl =
+    typeof AbortController === "function" ? new AbortController() : null;
+  vwlLoadAbort = ctrl;
+  const signal = ctrl?.signal || null;
+  const isCurrent = () => seq === vwlLoadSeq;
+
   showLoadingMask();
   try {
     if (!state.vwlMaterialClassOptions?.length) {
       await loadVendorBuylistFilterOptions();
+      if (!isCurrent()) return;
     }
 
-    const [rawRows] = await Promise.all([
-      fetchVendorBuylistFilteredRows(),
-      refreshVwlSplitLookup(),
-    ]);
+    const params = buildVwlRpcFilterParams();
+    const splitPromise = refreshVwlSplitLookup({ signal, params, isCurrent });
+    const rawRows = await fetchVendorBuylistFilteredRows({ signal, params });
+    if (!isCurrent()) return;
+
+    // The split lookup only gates rendering when "split only" is active;
+    // otherwise the list renders now and split markers follow.
+    if (state.vwlFilters.splitOnly) {
+      await splitPromise;
+      if (!isCurrent()) return;
+      if (state.vwl.splitLookupFailed) {
+        throw new Error(
+          "Split-vendor information could not be loaded; cannot apply 'split only'.",
+        );
+      }
+    } else {
+      splitPromise.then((applied) => {
+        if (!isCurrent()) return;
+        if (applied) renderVendorBuylistTable();
+        else if (state.vwl.splitLookupFailed)
+          toast("Split-vendor markers are unavailable right now.", "error");
+      });
+    }
 
     let rows = sortVendorBuylistRows(rawRows);
     populateVwlOperationalVendorFilter(rows);
@@ -10827,13 +10888,17 @@ async function loadVendorBuylist() {
     updateVendorBuylistPager();
     syncVwlFilterBadge();
   } catch (e) {
+    if (!isCurrent()) return; // superseded or aborted: not a failure
     toastError("Failed to load vendor-wise list", e);
     state.vwl.totalCount = 0;
+    state.vwl.rows = [];
     const tbody = qs("vwlTbody");
     if (tbody)
       tbody.innerHTML =
-        '<tr><td colspan="7" class="muted">Failed to load.</td></tr>';
+        '<tr><td colspan="7" class="muted">Failed to load. Change the search or filters, or reopen the tab, to retry.</td></tr>';
+    updateVendorBuylistPager();
   } finally {
+    if (vwlLoadAbort === ctrl) vwlLoadAbort = null;
     hideLoadingMask();
   }
 }
