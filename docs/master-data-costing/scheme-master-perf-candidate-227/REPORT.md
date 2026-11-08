@@ -44,3 +44,25 @@ Smallest safe correction = **one additive index**, view untouched: `candidate_in
 
 ## 7. Reproduce
 `initdb` scratch cluster → `01_isolated_fixture.sql` → create `v_base` from the applied migration body (sed rename) → `02_…` for variants → `create index … (scheme_id, period_start)` → `03_bench.sh <socketdir> <view>`.
+
+
+## 8. Independent live preflight addendum — ChatGPT (8 Nov 2026)
+
+The Supabase live catalog was checked READ-ONLY after the isolated experiment. **The index was NOT created.**
+
+| Live item | Measured catalog/statistic |
+|---|---|
+| Estimated live snapshot tuples | 231,340 |
+| Live heap / total relation size | **343 MB / 446 MB** (synthetic heap 106 MB) |
+| Live relpages / relallvisible | **43,964 / 29,212 = 66.4% all-visible** |
+| Estimated dead tuples | **41,550** |
+| Last autovacuum | **2026-10-20 17:25:30 UTC** |
+| Last regular ANALYZE | **2026-11-01 21:00:09 UTC** |
+| Existing scheme-only index | Present |
+| Proposed (scheme_id, period_start) index | **Absent** |
+
+**Risk interpretation:** the covering index is plausible but the synthetic fixture had different heap width and visibility conditions. About one-third of live heap pages are not all-visible; index-only scans on those pages may still require heap visits. The last autovacuum is relatively old, and estimated dead tuples warrant an independent, non-destructive maintenance plan. **ANALYZE only updates planner statistics; it does not set all-visible visibility-map bits.** Only VACUUM can advance those marks, subject to transaction visibility and vacuum safety. Do not bundle VACUUM or ANALYZE with index creation as implicitly approved operations.
+
+**Operational gate:** `CREATE INDEX CONCURRENTLY IF NOT EXISTS` can silently leave an invalid matching-name index uncorrected. The appended read-only catalog query checks both `indisvalid` and `indisready`; require zero rows preflight and one valid/ready correct-definition row postflight. Index build can wait on old transactions and create I/O/replication load even while allowing writes. Production maintenance window, lock/replication monitoring, visibility-map policy, and rollback decision remain owner-controlled.
+
+**Status unchanged:** review-only candidate, **not production-approved or physically cold-path proven**; WP06 completion still 5/13.
