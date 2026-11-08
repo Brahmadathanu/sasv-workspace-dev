@@ -1,3 +1,5 @@
+> **AUTHORITATIVE OWNER CLOSURE — 8 NOVEMBER 2026:** WP06 **FORMALLY CLOSED**, final owner sign-off explicitly received after PR #231 reconciliation. Formal Costing Suite workpacks **6/13 (46.2%)**. Acceptance is restricted to WP06 ten PPM workspaces by A1. Historical 57014 and all deferrals are preserved; WP05/WP12 security, full flag matrix and rollout remain OPEN. Earlier date-stamped status statements below are historical, not the current gate.
+
 > **Current WP06 acceptance checkpoint — 4 Nov 2026:** W6/G1/G1b/G1c/G1d/F-7/F-8/F-9 integration and mock regressions are merged; WP06 remains **OPEN**. The planned owner read-only test still needs authenticated six-module view-only credentials and server safety clearance; the client local origin is not a database sandbox. See [PROGRAMME_PROGRESS_AND_CLOSURE_PATH_2026-11-04.md](PROGRAMME_PROGRESS_AND_CLOSURE_PATH_2026-11-04.md), [OWNER_ACCEPTANCE_RECORD_2026-11-04.md](OWNER_ACCEPTANCE_RECORD_2026-11-04.md) and [PRODUCTION_READ_ONLY_ACCEPTANCE_SECURITY_AUDIT_2026-11-04.md](PRODUCTION_READ_ONLY_ACCEPTANCE_SECURITY_AUDIT_2026-11-04.md). No formal approval of D7/C9/F-4 or flag rollout is implied.
 
 > **Reconciled 4 Nov 2026 (newer than every banner below):** see [PROGRAMME_PROGRESS_AND_CLOSURE_PATH_2026-11-04.md](PROGRAMME_PROGRESS_AND_CLOSURE_PATH_2026-11-04.md) for the progress indicator, the doc-versus-`main` reconciliation (N1–N4/W6/U11, CL1, G1/G1b/G1c/G1d, F-7, F-9, WP12 sweep are merged) and the shortest path to formally close WP05 and WP06. Formal count is unchanged: 5 of 13 accepted; nothing is closed by documentation alone.
@@ -41,13 +43,13 @@ W6 design audit completed 3 Nov 2026. The existing Pricing Policy Manager contro
 - [x] W6 focused verification (13 unit + 10 Chromium tests)
 - [x] W6 independent review and owner merge approval
 - [x] W6 squash merge and exact tested-tree equivalence proof; fresh post-merge execution not performed
-- [ ] Final handover
+- [x] Final handover — owner-approved bounded WP06 closure, 8 Nov 2026
 
 ## Current Gate
-`WP06-W6 — integrated on main; wider WP06 business simplification and live acceptance remain open`
+`WP06 — FORMALLY CLOSED 8 Nov 2026 by owner; bounded PPM acceptance per A1, deferrals retained`
 
 ## Gate Status
-[x] W6 NAVIGATION PACKAGE MERGED (#139, `d395d7e`); [~] wider WP06 work pack remains open
+[x] WP06 FORMALLY CLOSED — owner final acceptance 8 Nov 2026; W6 NAVIGATION PACKAGE MERGED (#139, `d395d7e`); scope A1 and parked risks explicitly accepted
 
 ## Required to close
 W6 must implement the approved five-group presentation without violating compatibility, pass LF/CRLF and Chromium regression, undergo independent audit and obtain explicit owner merge approval. The wider WP06 work pack is not automatically closed.
@@ -77,7 +79,7 @@ C9 shared-registry `policy-manager.periodScoped:false` versus the period-scoped 
 All work-pack objectives and required verification gates pass; documentation and handover are current.
 
 ## Final handover
-Not started.
+**COMPLETED — owner final WP06 formal acceptance, 8 November 2026.** Scope: ten PPM workspaces, verified ID-V v392 baseline and NAV_GROUPS OFF/ON; W6/G1/F7–F9 integrated. Historical 1280 Scheme Master 57014 remains recorded; owner accepted bounded residual after post-index seven-row load and 3/3 refresh passes; issue #224 stays monitored. CSA COMPANY/REGIONAL IK/OK Revise dialog 4/4 view-only open/cancel PASS. All deferred issues tracked in PARKED_BACKLOG (C9/D7/F-4/C6/O-8/D3/G-SCOPE/negative identities); shared §8 Amendment A1 carries non-PPM acceptance to WP05/WP12, not waived. No rollout, flag activation, new production writer test, cache bump or deployment. Formal programme advances from 5/13 to **6/13** solely by the owner's explicit final sign-off.
 
 
 ## Owner-approved WP06 acceptance reconciliation — 8 November 2026 (supersedes older unsatisfied-gate narration)
@@ -92,4 +94,4 @@ Not started.
 
 **Gate ledger at 8 Nov 2026:** client implementation/tests PASS; restricted identity/build PASS for pinned evidence; NAV_GROUPS ON/OFF+restoration PASS; 9/10 earlier clean automated desktop/narrow workspaces with Scheme Master later owner recovery PASS; CSA modal owner visual PASS; deferral decisions and amendment APPROVED/RECORDED. **The post-index intermittent reliability / historical 1280 F has a bounded risk-accepted disposition rather than an unqualified original P.** No unapproved live writer testing is implied.
 
-**Formal Gate Status: OPEN — awaiting explicit final owner WP06 work-pack sign-off.** The instruction to document decisions and reconcile does **not** itself declare the final handover completed. Maintain programme count **5/13** until final Gate Status is separately approved. Do not tick '[ ] Final handover' yet. Server DDL noted here is a prior owner-authorised action, not a new migration request.
+**Superseded 8 November 2026 by the owner's separate explicit WP06 final sign-off.** Gate Status: **FORMALLY CLOSED** with documented Scheme Master monitoring risk and approved deferrals; programme now **6/13**. Server DDL above refers only to the previously authorised index build.
