@@ -1,6 +1,6 @@
 # WP05-AE2 — Local D: evidence-credit proposal (8 November 2026)
 
-**Status: PROPOSAL ONLY — UNAPPROVED. WP05 OPEN. Programme 6/13 (46.2%) unchanged. WP06 remains formally closed.** Documentation-only extraction for issue #234 (WP05-AE2 handoff). It records what the owner's already-generated local run report contains for the 15 AE1 "C-D" NT rows, and **proposes** delta classifications. It changes no AE1 fact, approves nothing, records no owner decision, makes no B1 decision and does not edit the WP05 gate status.
+**Status: PROPOSAL ONLY — UNAPPROVED. WP05 OPEN. Programme 6/13 (46.2%) unchanged. WP06 remains formally closed.** Documentation-only extraction for issue #234 (WP05-AE2 handoff). It records what the owner's already-generated local run report contains for the 15 AE1 "C-D" NT rows, and **proposes** delta classifications. **Vocabulary (review R2):** the classification used below, `RD-v391/OFF`, is a *limited render/data-presence sub-evidence label at v391 with flags OFF*. It is **not** a full WP05 acceptance `P`. The AE1 counts **13 P / 4 F / 2 NA / 21 NT remain authoritative.** It changes no AE1 fact, approves nothing, records no owner decision, makes no B1 decision and does not edit the WP05 gate status.
 
 **No production interaction.** No SQL, Supabase, browser/Playwright, RPC, network call to the application, flag, permission, deployment, code, script or test was run. Method: read-only file reads on the local Windows D: drive plus `git` against `origin/main` `2d6e69bc74f1587b96a539530d4accde688a5128` (AE1 merged, PR #235).
 
@@ -15,13 +15,15 @@
 | Secret / sensitive material | **No authentication, session, cookie, token or credential file was opened. No screenshot (PNG) was opened, viewed or copied; `shots/` was listed by filename and size only.** The `acceptance-secrets` folder was not opened or listed. Nothing was copied out of D: (only derived numbers are quoted here). |
 | Reproducibility | `report.json` is **not in Git**. File/line/key references below point to the pretty-printed local file (7,374 lines); an independent reviewer needs the owner's copy to re-verify them. `L<n>` = line of the observation's `"lens"` key; `obs[i]` = index in `observations[]` (0–118). |
 | Other run folders | `run-selector-20261108`, `run-navgroups-20261108`, `run-readiness-nov2026-20261108`, `run-scheme-master-*`, `run-lock-p01-20261108`: inventoried by name only. They cover AE1's already-credited rows (selector/PPM/readiness/lock) and were not needed for the 15 C-D rows. |
-| Runner definition used | `scripts/costing-acceptance/acceptance-runner.mjs` on `origin/main` (read via git). The report's runner commit is `0d30610` (per the consolidated report); **the file on `main` may differ from it**, so semantics below are "as in the `main` version", not verified against `0d30610`. |
+| Runner definition used | `scripts/costing-acceptance/acceptance-runner.mjs` on `origin/main`, read via git. **Provenance (repository-only check, nothing executed):** the consolidated report names runner source commit `0d30610` (secondhand; `report.json` itself records only the deployment SHA `9661c169`). `git log 0d30610..origin/main -- scripts/costing-acceptance/acceptance-runner.mjs` is empty and `git diff --stat` for that file is empty, so the committed file on `main` is identical to the file at `0d30610`. This does **not** prove the executed runner equalled the committed file (uncommitted local edits or patched copies cannot be excluded; D: holds several patch scripts, not read). |
 
 ### 0.1 What the recorded fields actually mean (so nothing is over-read)
 
+> **Provenance qualifier (R3).** Claim semantics below come from the committed runner (identical to `0d30610` in the repository, but not confirmed as what actually executed). Until the runner-at-execution is confirmed, every `claims.* = PASS` is a **recorded claim with partial interpretation**, not an independently validated acceptance criterion. `claims.render` in particular is **not** a substitute for measured per-lens HTTP health.
+
 - **`rows`** = number of `table tbody tr` elements with more than one cell, excluding rows starting "No …/0 rows/Loading". It proves *a table with data rows rendered*; it is **not** a total count, not a source-count match, and values such as 25 or 50 may be page-size caps (not determined).
 - **`claims.data = PASS`** = `rows > 0` only. It is **not** a correctness check. Empty tables are `NOT TESTED (no rows)` and are not passes.
-- **`claims.render = PASS`** = module chrome became ready, no horizontal overflow (≤1 px), **and no `console.error`/page error** during the observation. This is the only HTTP-health signal: a failing resource load would appear as a console error (as it did for readiness and scheme-master). **A per-lens HTTP status is NOT RECORDED.**
+- **`claims.render = PASS`** = module chrome became ready, no horizontal overflow (≤1 px), **and no `console.error`/page error** during the observation. It is an indirect indicator only (a failing resource load appeared as a console error for readiness and scheme-master), not measured HTTP health. **A per-lens HTTP status is NOT RECORDED.**
 - **`claims.security = PASS`** = no new guard violation for that observation **and no enabled+visible control matching the forbidden-verb pattern**. Per-lens request attribution is **NOT RECORDED**; the request guard result is run-wide: `violations 0`, `blocked 0`.
 - **`period`** is the value of the period selector on the page. Where the runner log says the requested period was "not selectable", that observation shows the default period, **not** a period switch.
 
@@ -65,59 +67,61 @@ Observation counts, for traceability: 30 OFF observations (15 lenses × 2 widths
 
 ## 2. Proposed delta classification (UNAPPROVED)
 
-Proposed status vocabulary: **P-v391/OFF** = the lens met AE1's definition of P ("independently captured ID-V authenticated observation at the stated build") **at v391, flags OFF, 1280+390 px, render/data-presence scope only**. It is **not** a build-parity claim for v392, not a correctness/source-count match, and not a functional/interaction pass.
+Proposed label: **`RD-v391/OFF`** = *limited render/data-presence sub-evidence*: an ID-V observation at **v391, flags OFF, 1280+390 px** with data rows, no console error, no overflow and no enabled write control. It is **not** a full WP05 acceptance `P`: this run has no per-lens HTTP status, no per-lens request attribution, no correctness/source-count comparison and no v392 parity. Whether any `RD` row is ever counted as `P` is an owner decision; AE1's 13/4/2/21 stands.
 
 | AE1 row | Lens | Proposed | Basis | Exact remaining gap (not closed by this evidence) |
 |---:|---|---|---|---|
-| 1 | `dashboard` | **P-v391/OFF** | Both widths ready, 1 data row, 0 errors, 0 overflow, 0 enabled write controls. Run labels observed for Nov (149) and Oct (143, with newer draft 148); the Nov label is not run 150. | **S9 KPI ↔ SKU Control Status parity: NOT tested** (a label is not a KPI value). Oct period-switch observed at 1280 only. v392 not observed. Note: the same lens at `ALL_ON` produced a security FAIL (§3) — separate flag-state history, retained, not erased by this row. |
-| 2 | `costing-review-workbench` | **P-v391/OFF** | 50 rows both widths, clean. | v392; correctness of rows unverified; no run label logged; period switch for this lens not recorded. |
-| 3 | `sku-control-status` | **P-v391/OFF** | 50 rows both widths, clean; run label draft 149. | S9 parity; v392; correctness. |
-| 5 | `manual-rate-manager` | **P-v391/OFF** | 25 rows both widths, clean. | Period not selectable (AE1: picker disabled by design; not a test). Rows may be a cap. v392. |
-| 8 | `cost-governance` | **P-v391/OFF** | Single data row both widths, clean. | Period switch not recorded (not selectable); pool-summary period switch (AE1 row 8 gap) untested; 1 row means a minimal table, correctness unverified. v392. |
-| 11 | `driver-governance` | **P-v391/OFF** | 7 rows both widths, clean. | Correctness unverified; v392. |
-| 22 | `sku-cost-sheet` | **P-v391/OFF** | 25 rows both widths, clean; Nov draft 149 and Oct approved 143 labels observed (Oct at 1280 only). | **S2 printable ↔ SKU detail parity for three real SKUs: NOT tested.** v392. |
-| 25 | `scheme-comparison` | **P-v391/OFF** | 25 rows both widths, clean. | v392; correctness; no ID-V recheck at v392. |
-| 26 | `qc-action-queue` | **P-v391/OFF** | 25 rows both widths, clean. | as row 25 |
-| 27 | `materials-stores-action-queue` | **P-v391/OFF** | 25 rows both widths, clean. | as row 25 |
-| 29 | `product-route-assignments` | **P-v391/OFF** | 25 rows both widths, clean, no write controls found. | v392; correctness. |
-| 30 | `product-subgroup-mappings` | **P-v391/OFF** | 16 rows both widths, clean. | as row 29 |
-| 31 | `shared-workload-preview` | **P-v391/OFF — with an explicit caveat** | 50 rows, clean, run-wide guard 0 violations/0 blocked, so no non-read request reached the backend during the run. | **The lens name implies a preview.** Per-lens request attribution is not recorded, so the read-only status of the RPC set this lens uses is **unconfirmed** by this evidence (AE1 row 31 "RPC classification" gap stays open). The owner may prefer to keep this row NT until that is classified. |
-| 32 | `route-families` | **P-v391/OFF** | 87 rows both widths, clean. | v392; correctness. |
-| 40 | `archived-routes` | **P-v391/OFF** | 25 rows both widths, clean. | v392; correctness. |
+| 1 | `dashboard` | **RD-v391/OFF** | Both widths ready, 1 data row, 0 errors, 0 overflow, 0 enabled write controls. Run labels observed for Nov (149) and Oct (143, with newer draft 148); the Nov label is not run 150. | **S9 KPI ↔ SKU Control Status parity: NOT tested** (a label is not a KPI value). Oct period-switch observed at 1280 only. v392 not observed. Note: the same lens at `ALL_ON` produced a security FAIL (§3) — separate flag-state history, retained, not erased by this row. |
+| 2 | `costing-review-workbench` | **RD-v391/OFF** | 50 rows both widths, clean. | v392; correctness of rows unverified; no run label logged; period switch for this lens not recorded. |
+| 3 | `sku-control-status` | **RD-v391/OFF** | 50 rows both widths, clean; run label draft 149. | S9 parity; v392; correctness. |
+| 5 | `manual-rate-manager` | **RD-v391/OFF** | 25 rows both widths, clean. | Period not selectable (AE1: picker disabled by design; not a test). Rows may be a cap. v392. |
+| 8 | `cost-governance` | **RD-v391/OFF** | Single data row both widths, clean. | Period switch not recorded (not selectable); pool-summary period switch (AE1 row 8 gap) untested; 1 row means a minimal table, correctness unverified. v392. |
+| 11 | `driver-governance` | **RD-v391/OFF** | 7 rows both widths, clean. | Correctness unverified; v392. |
+| 22 | `sku-cost-sheet` | **RD-v391/OFF** | 25 rows both widths, clean; Nov draft 149 and Oct approved 143 labels observed (Oct at 1280 only). | **S2 printable ↔ SKU detail parity for three real SKUs: NOT tested.** v392. |
+| 25 | `scheme-comparison` | **RD-v391/OFF** | 25 rows both widths, clean. | v392; correctness; no ID-V recheck at v392. |
+| 26 | `qc-action-queue` | **RD-v391/OFF** | 25 rows both widths, clean. | as row 25 |
+| 27 | `materials-stores-action-queue` | **RD-v391/OFF** | 25 rows both widths, clean. | as row 25 |
+| 29 | `product-route-assignments` | **RD-v391/OFF** | 25 rows both widths, clean, no write controls found. | v392; correctness. |
+| 30 | `product-subgroup-mappings` | **RD-v391/OFF** | 16 rows both widths, clean. | as row 29 |
+| 31 | `shared-workload-preview` | **NT retained — pending RPC classification** (render observation is sub-evidence only) | 50 rows both widths, 0 console errors, 0 overflow. Run-wide guard 0 violations / 0 blocked shows only that the crawler delivered no *known disallowed* request, not that every RPC or callee this lens reaches is side-effect-free. | **Exact RPCs and callees used by this lens are unaudited and per-lens request attribution is NOT RECORDED.** Stays NT for clean read-only acceptance until they are audited (AE1 row 31 gap). No credit proposed. |
+| 32 | `route-families` | **RD-v391/OFF** | 87 rows both widths, clean. | v392; correctness. |
+| 40 | `archived-routes` | **RD-v391/OFF** | 25 rows both widths, clean. | v392; correctness. |
 
-**How many of the 15 had adequate local evidence:** 15 of 15 have a complete OFF pair (1280 + 390) with data rows, no console errors, no overflow and no enabled write control. 14 are proposed without reservation; **1 (`shared-workload-preview`) carries a caveat** that the owner may decide keeps it NT. **How many would remain NT under the proposal:** 0 of the 15 (6 other NT rows are untouched; see §4).
+**Local evidence adequacy:** 15 of 15 have a complete OFF pair (1280 + 390) with data rows, no console errors, no overflow and no enabled write control. **14 are proposed as limited `RD-v391/OFF` sub-evidence; 1 (`shared-workload-preview`) stays NT** pending RPC classification. So **1 of the 15 remains NT**, plus the 6 other NT rows untouched (§4). None of the 14 is proposed as a full `P`.
 
 ### 2.1 What was explicitly **not** concluded
 
 - No row is treated as P merely because it has `rows > 0` at v392 — no v392 observation exists in this run for any of the 15.
 - The 119-observation aggregate is not used as a per-lens PASS.
-- Restricted/empty/guard-blocked cases: none of the 15 was restricted, empty or guard-blocked (all `rows > 0`, `restricted 0`). The ones that **were** empty in this run (rm/pm trace, staff-governance, manual-provisions, route-family review lenses, product/historical route editors, effective-route-viewer, etc.) are **not** touched by this proposal and keep their AE1 status.
+- Restricted/empty/guard-blocked cases: none of the 15 was restricted, empty or guard-blocked (all `rows > 0`, `restricted 0`); "guard-blocked 0" is run-wide and is not per-lens request proof. The ones that **were** empty in this run (rm/pm trace, staff-governance, manual-provisions, route-family review lenses, product/historical route editors, effective-route-viewer, etc.) are **not** touched by this proposal and keep their AE1 status.
 - No actual product/SKU/person names, costs, headers, authorisation payloads or raw URLs were read or are quoted.
 
 ## 3. Additional observed states (flag-matrix input; separate from lens credit)
 
-These are D: observations at v391 that AE1 §2 treated as absent. They are listed for owner review; **nothing here changes any AE1 flag row**.
+These are **newly found, historically limited v391 records** from D: that AE1 could not see (it marked D: `SOURCE_NOT_ACCESSIBLE`). They **supplement, and do not supersede, the v392 flag matrix** in AE1 §2; AE1's "none"/"not run" wording reflects only the evidence AE1 could read, not an absolute absence. They cover indicated lenses only (default lens per module; `sku-control-status` for the worklist flag). **Nothing here changes any AE1 flag row.**
 
 | State | Observed (v391, ID-V, 1280+390) | Scope limit |
 |---|---|---|
 | `NAV_ONLY` (`COSTING_NAV_GROUPS_V1` alone, obs93–104) | 12 observations = **default lens of all six modules** × 2 widths; each `flags_read_back` = 1; all claims PASS; 0 console errors; 0 overflow. | Default lens of each module only; grouped-markup behaviour of other lenses and v392 not observed. AE1 row 9 listed CCC/MCM/CBM/CSR/PRM as missing; this run would add **default-lens render/data-presence** observations for them at v391 only. PPM already has a stronger v392 record. |
-| `ALL_ON` (all eleven flags, obs105–116) | 12 observations = default lens of the six modules × 2 widths; `flags_read_back` = 11. **11 of 12 all claims PASS. `costing-control-center · dashboard` at both widths: `claims.security = FAIL`** — 8 enabled+visible write-control matches (finding type `WRITE_CONTROL_ENABLED`, "Lock a single month (authorised exception)" ×5 recorded per width). Controls were observed, never clicked; guard violations 0. | This is the LOCK-P01 history (AE1 §2 row 3, fixed in #212 and re-observed in a focused v392 ID-V run). It is a **retained failure at v391**, not overwritten. Default lens only; all other lenses stayed OFF. Combination (d) "all eleven ON" would gain a **v391 default-lens-only** observation, with that FAIL. |
+| `ALL_ON` (all eleven flags, obs105–116) | 12 observations = default lens of the six modules × 2 widths; `flags_read_back` = 11 in each. **Corrected count (R1, re-verified against `report.json` obs105–116): 10 of 12 have all six claims PASS; 2 of 12 failed — obs105 (`costing-control-center · dashboard`, 1280) and obs106 (same, 390), each with `claims.security = FAIL` only.** The other ten (MCM, CBM, PPM default, CSR, PRM `route-readiness`, each at both widths) have no failing claim. Per failing observation: 16 write-verb control matches, of which **8 were enabled and visible**; those 8 are **2 distinct labels** — "Lock a single month (authorised exception)" **7 times** and "Close quarter (lock months)" **1 time** — i.e. repeated matches, not 8 different controls. The `findings` list holds 2 `WRITE_CONTROL_ENABLED` entries (one per width) whose `controls` array is truncated to the first 5 matches, which is why the run report text shows five. Controls were observed, never clicked; run-wide guard violations 0. | This is the **LOCK-P01 history** at v391 (AE1 §2 row 3). It is kept **separate from the later fix**: #212 and a focused v392 ID-V run (AE1 §2 row 3) are a different build and evidence set; they do not erase this v391 failure, and this failure does not describe v392. Default lens only; all other lenses stayed OFF. Combination (d) "all eleven ON" gains a **v391 default-lens-only** record containing that FAIL; it proves nothing for any other lens under all flags ON. |
 | `WORKLIST_ONLY` (`COSTING_REVIEW_WORKLIST_V1` alone, obs117–118) | `costing-control-center · sku-control-status` at 1280 and 390: 50 rows, `flags_read_back` 1, all claims PASS, 0 errors. | AE1 §2 flag 8 / combination (c) said "not run". This is a v391 render/data-presence observation of (c) on that one lens; **S9 interplay is still untested**; REVIEW_WORKLIST ON proof elsewhere none. |
 
-Flag restoration: the run header records `flags_restored = true` (read-back). There is no separate all-eleven-OFF restoration capture in the 15-row data.
+Flag restoration: `flags_restored = true` is a **run-wide** header value only (read-back at run end). There is no per-state restoration capture and no separate screenshot of restoration; the 15-row data adds none.
 
-## 4. Reconciliation of aggregate totals — **UNAPPROVED**
+## 4. Hypothetical scoped-credit arithmetic — **UNAPPROVED**
+
+> This section is **arithmetic only**. It is not an owner-ready choice to approve rows as full `P`, and not a recommendation. "P" in scenarios A/B means *hypothetically counting `RD-v391/OFF` rows as P*; that equivalence is exactly what the owner would have to decide, and it has **not** been decided. AE1's **13/4/2/21 is authoritative**.
 
 Preserved AE1 baseline (unchanged, authoritative until the owner decides): **13 P / 4 F / 2 NA / 21 NT = 40**; NT = 15 C-D + 6 genuinely missing/blocked.
 
 | Scenario | P | F | NA | NT | Σ | Remark |
 |---|---:|---:|---:|---:|---:|---|
 | **AE1 baseline (accepted)** | 13 | 4 | 2 | 21 | 40 | unchanged |
-| **A — all 15 credited at P-v391/OFF** (proposal) | 28 | 4 | 2 | 6 | 40 | 13+15 = 28; NT 21−15 = 6 |
-| **B — A, but `shared-workload-preview` held NT** | 27 | 4 | 2 | 7 | 40 | caveat in §2 row 31 |
+| **A — hypothetical: all 15 counted** (upper bound only; conflicts with §2 row 31) | 28 | 4 | 2 | 6 | 40 | 13+15 = 28; NT 21−15 = 6 |
+| **B — hypothetical: 14 counted, `shared-workload-preview` held NT** (consistent with §2) | 27 | 4 | 2 | 7 | 40 | 13+14 = 27; NT 21−14 = 7 |
 | **C — owner requires v392 evidence for the three shell-differing files** | 13 | 4 | 2 | 21 | 40 | v391 not accepted for any row; baseline stands |
 
-Check: A 28+4+2+6 = 40; B 27+4+2+7 = 40; C 13+4+2+21 = 40. Of the 28 P in A, 13 are as in AE1 (v392 or ID-V captured), **15 would be P at v391/OFF only**. The 6 remaining NT in A are unchanged AE1 rows: `staff-governance` (7 vs 42 reconciliation), `route-family-route-editor` (F1 unaudited), `product-route-editor`, `historical-candidate-review`, `route-family-mapping-review`, `route-family-foundation-review`. The 4 F (`scheme-master`, `printable-cost-sheet`, `cost-comparison`, `production-cost-centres`) and the 2 NA (`rm-cost-trace`, `pm-cost-trace`) are untouched. These totals are arithmetic only: they are not a recommendation, are not approved, and **do not change the programme total (6/13) or WP05's OPEN status**; a lens-ledger total of 28/40 is not the 40-lens/11-flag contract being met (11-flag, negative-identity, S2/S9 and server-denial obligations remain open).
+Check: A 28+4+2+6 = 40; B 27+4+2+7 = 40; C 13+4+2+21 = 40. In B, 13 of the 27 are AE1's P rows and **14 would be limited v391/OFF sub-evidence only**. The 7 NT in B are `shared-workload-preview` plus the six unchanged AE1 rows (the only NT rows in A): `staff-governance` (7 vs 42 reconciliation), `route-family-route-editor` (F1 unaudited), `product-route-editor`, `historical-candidate-review`, `route-family-mapping-review`, `route-family-foundation-review`. The 4 F (`scheme-master`, `printable-cost-sheet`, `cost-comparison`, `production-cost-centres`) and the 2 NA (`rm-cost-trace`, `pm-cost-trace`) are untouched. These totals are arithmetic only: they are not a recommendation, are not approved, and **do not change the programme total (6/13) or WP05's OPEN status**; a hypothetical total of 27 or 28 of 40 is not the 40-lens/11-flag contract being met (11-flag, negative-identity, S2/S9 and server-denial obligations remain open).
 
 ## 5. Exact remaining gaps (unchanged by this evidence)
 
@@ -131,6 +135,7 @@ Check: A 28+4+2+6 = 40; B 27+4+2+7 = 40; C 13+4+2+21 = 40. Of the 28 P in A, 13 
 
 ## 6. Statement
 
+- For this revision only the ALL_ON obs105–116 control/claim fields were re-read from `report.json`; no screenshot or secret file was opened.
 - **No secret file, session/auth file, cookie, token or screenshot was inspected, opened, copied or committed.** Screenshots were listed by filename and size only. `identity.user_ref` and page headings were not read.
 - No SQL, Supabase, browser, RPC, network call to the application, feature flag, permission, deployment, code, script, test execution, cleanup of C: or D:, or dependency installation was performed.
-- Nothing here is owner-approved. No B1 decision, no edit to the WP05 gate status, no change to AE1's accepted facts. **WP05 remains OPEN; programme remains 6/13.**
+- Nothing here is owner-approved; `RD-v391/OFF` is limited sub-evidence, not full acceptance. No B1 decision, no edit to the WP05 gate status, no change to AE1's accepted facts. **WP05 remains OPEN; programme remains 6/13.**
