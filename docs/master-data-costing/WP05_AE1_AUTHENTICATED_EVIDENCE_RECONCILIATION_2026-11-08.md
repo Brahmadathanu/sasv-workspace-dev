@@ -37,7 +37,7 @@
 - **H** = historical result, retained, never overwritten.
 - **C-D** = potentially creditable from the inaccessible D: report; **not credited here**.
 
-Status meanings: **P** = proved by A (or A+S) for that lens at the stated build; **F** = last independently captured observation was a failure (history retained even if later recovered); **NA** = restricted by design, so neither a passed data path nor a failure; **NT** = not independently proved by evidence available to the repository.
+Status meanings: **P** = proved by A (or A+S) for that lens at the stated build; **F** = last independently captured observation was a failure (history retained even if later recovered); **NA** = restricted by design, so neither a passed data path nor a failure; **NT** = not independently proved by evidence available to the repository; **NT / PARTIAL** = NT overall, with named sub-evidence that did pass (retained in the reason column, not counted as a lens pass). A generic aggregate such as the 119-observation run is not per-lens PASS evidence absent its per-lens record.
 
 ## 1. 40-lens P/F/NA/NT ledger
 
@@ -65,7 +65,7 @@ Common recorded dimensions unless a row says otherwise: ID-V rows were observed 
 | # | Lens id | Source evidence | Identity / build | Width · flags · period | Status | Reason | Unresolved |
 |---|---|---|---|---|---|---|---|
 | 8 | `cost-governance` | O: 5 Nov ("tables loaded"); period switch skipped by design (matrix §3) | non-ID-V / v391 | OFF | **NT** | Default-lens result not in Git. C-D. | ID-V observation; pool-summary period switch |
-| 9 | `staff-governance` | A: selector run rows 1–3 (default queue 0 rows; register 164; pool summary 7 rows); S: 0 / 164 / 42 | ID-V `51cd26f3`/v392, 72/72 | 1280+390 · OFF · default context 2026-11-01 | **P** | Queue and register match source. | **Pool summary shows 7 vs 42 source rows: unreconciled** (period/filter/other not established) |
+| 9 | `staff-governance` | A: selector run rows 1–3 (default queue 0 rows; register 164; pool summary 7 rows); S: 0 / 164 / 42 | ID-V `51cd26f3`/v392, 72/72 | 1280+390 · OFF · default context 2026-11-01 | **NT / PARTIAL** (review R1) | Sub-tabs independently passed: default review queue 0 rows (S: 0) and classification register 164 rows (S: 164). **Staff pool summary: PASS for rendering only, UNRESOLVED** (selector report row 3 / §2A): 7 UI rows vs 42 source rows. Not counted as a fully accepted lens. No cause (pagination, period, filter or other) is inferred. | Bounded period/filter/source-count reconciliation of the pool summary |
 | 10 | `manual-provisions` | A: selector rows 4–6, 8 (Nov 0, Oct 0, Jul 1, monthly impact 7); S: Nov/Oct 0, Jun 1, Jul 1 | as row 9 | 1280+390 · OFF · Nov/Oct/Jul 2026 | **P** | Observations match source. | June 2026 absent from the picker (NOT TESTABLE); whether intended is unasked |
 | 11 | `driver-governance` | none specific (generic O: "tables loaded") | — | — | **NT** | No lens-specific evidence in Git. C-D. | ID-V observation |
 
@@ -82,7 +82,7 @@ OFF credited from `run-20261108` (v391) and selector run (v392) as stated in WP0
 | 16 | `proposal-decisions` | A + S (empty; register 1 APPLIED; default filter = "Pending decisions" only) | as above | **P** | Empty is benign and source-confirmed. | — |
 | 17 | `approved-for-application` | A + S (empty; consistent) | as above | **P** | as row 16 | — |
 | 18 | `applied-proposal-history` | A (1 row) | as above | **P** | — | — |
-| 19 | `scheme-master` | H/A: 1280 px **FAIL** OFF (v391, 2 console errors, 0 rows) and ON (v392, HTTP 500 / `57014`, 0 rows); 390 px P (7 rows). O: after covering index (valid/ready 1624 kB) owner saw 7 schemes + 3/3 desktop refresh PASS | 1280 **F**, 390 P · OFF and ON | **F** (historical, retained) | **Never overwritten.** Owner-reported recovery is a separate, non-captured entry: no timed network trace; **no causal index speed gain claimed.** Issue #224 stays OPEN / MONITOR. | Representative time-stamped traces if recurrence is to be excluded |
+| 19 | `scheme-master` | H/A: 1280 px **FAIL** OFF (v391, 2 console errors, 0 rows) and ON (v392, HTTP 500 / `57014`, 0 rows); 390 px P (7 rows). O: after covering index (valid/ready 1624 kB) owner saw 7 schemes + 3/3 desktop refresh PASS | 1280 **F**, 390 P · OFF and ON | **F** (historical, retained) | **Never overwritten.** Owner-reported recovery (7 schemes + 3/3 desktop refresh, post-index) is a separate, non-captured entry; there is **no independently timed ID-V recovery claim for WP05**: no timed network trace; **no causal index speed gain claimed.** Issue #224 stays OPEN / MONITOR. | Representative time-stamped traces if recurrence is to be excluded |
 | 20 | `scheme-rule-register` | A + S (0 rows; live count 0) | as above | **P** | Expected-empty, confirmed. | — |
 | 21 | `commercial-sales-assumptions` | A: Nov→Oct period switch via Filters drawer, 628 rows, no error; O: Revise COMPANY/REGIONAL IK/OK open/cancel **4/4 PASS** | as above · Oct/Nov 2026 | **P** | Data/period captured; the modal check is owner-reported only (WP06 ledger: modals NT in capture). | Captured (non-owner) modal observation |
 
@@ -111,7 +111,7 @@ PRM has no period-scoped lens; the period-switch skips are "not applicable by de
 | 33 | `route-family-mapping-review` | A: matrix row 9 (explicit zeros; Frozen Run 82, Aug 2026) | ID-V v391 | **NT** | Rendered without error but empty display not confirmed against source; fixed run 80/82 context only (C5/D5). | Exact-run RPC confirmation by owner |
 | 34 | `route-family-foundation-review` | A: matrix row 10 | ID-V v391 | **NT** | as row 33 | as row 33 |
 | 35 | `production-cost-centres` | H/O: 5 Nov owner screenshot "Unknown RPC error" (client defect, `governed` on read RPCs). Fix #178 `756c8ccf`; O: owner Cost Centres screen test **PASS** | non-ID-V PWA | **F** (historical, retained) | Recovery is owner-reported with no trace/screenshot; not an ID-V or denial test. | ID-V list+detail observation at v392 |
-| 36 | `route-family-route-editor` | A: selector row 11 (88 families, history, approved route detail 10 steps) | ID-V `51cd26f3`/v392 | **P** | Read path only. **Finding F1:** "Open current approved route" fires `rpc_preview_route_family_route_steps`; the guard aborted it in the browser. Recorded as "completed with 1 blocked non-read attempt", not a clean run. | Audit of that RPC body (owner/independent); it must not be allow-listed meanwhile |
+| 36 | `route-family-route-editor` | A: selector row 11 (88 families, history, approved route detail 10 steps) | ID-V `51cd26f3`/v392 | **NT / PARTIAL** (review R2) | Nested evidence: **read-only history/detail PASS** (family selection loaded history via `rpc_get_route_family_route_history`; route detail with 10 steps via `rpc_get_route_family_route_detail`). **Finding F1 remains blocked/unaudited:** clicking "Open current approved route" attempted `rpc_preview_route_family_route_steps`, aborted by the request guard at both widths before reaching the backend; its side effects have not been audited. Recorded as "completed with 1 blocked non-read attempt", not a clean complete acceptance. | Independent audit of that RPC body. It must never be allow-listed or invoked on production to obtain a pass |
 | 37 | `product-route-editor` | A: selector row 12 PARTIAL (handoff worked; no Product-specific version for sampled product) | ID-V v392 | **NT** | Opening an existing Product-specific version not reached. | Product with a version |
 | 38 | `historical-candidate-review` | S: three `rpc_preview_*` functions VOLATILE SECURITY DEFINER; not in read-only allow-list | — | **NT** | Not testable under read-only rules until bodies are independently audited. | Owner-approved no-side-effect plan |
 | 39 | `effective-route-viewer` | A: selector row 13 (593 options, 8-row route, histories) | ID-V v392 | **P** | — | — |
@@ -123,13 +123,13 @@ PRM has no period-scoped lens; the period-switch skips are "not applicable by de
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Costing Control Center | 4 | 1 | 0 | 0 | 3 | 3 | 0 |
 | Material Cost Manager | 3 | 0 | 0 | 2 | 1 | 1 | 0 |
-| Cost Build Manager | 4 | 2 | 0 | 0 | 2 | 2 | 0 |
+| Cost Build Manager | 4 | 1 | 0 | 0 | 3 | 2 | 1 |
 | Pricing Policy Manager | 10 | 9 | 1 | 0 | 0 | 0 | 0 |
 | Cost Sheet Review | 6 | 0 | 2 | 0 | 4 | 4 | 0 |
-| Production Route Manager | 13 | 3 | 1 | 0 | 9 | 5 | 4 |
-| **Total** | **40** | **15** | **4** | **2** | **19** | **15** | **4** |
+| Production Route Manager | 13 | 2 | 1 | 0 | 10 | 5 | 5 |
+| **Total** | **40** | **13** | **4** | **2** | **21** | **15** | **6** |
 
-Of the 4 F: all are **historical failures with owner-reported (non-captured) recovery**: `scheme-master`, `printable-cost-sheet`, `cost-comparison`, `production-cost-centres`. None has an independently captured later pass. Of the 15 P: all rest on captured ID-V evidence as transcribed in repository documents (the PPM OFF observations are second-hand credit via the WP06 ON/OFF record); `commercial-sales-assumptions` additionally carries an owner-only modal check. **C-D count is an upper bound of what the inaccessible report might credit, not a claim that it does.**
+Of the 4 F: all are **historical failures with owner-reported (non-captured) recovery**: `scheme-master`, `printable-cost-sheet`, `cost-comparison`, `production-cost-centres`. None has an independently captured later pass. The 6 genuinely missing/blocked NT rows are the four original ones (`product-route-editor`, `historical-candidate-review`, `route-family-mapping-review`, `route-family-foundation-review`) plus `staff-governance` (pool-summary reconciliation) and `route-family-route-editor` (F1 unaudited). Revised from 15 P / 4 F / 2 NA / 19 NT after review R1–R3; 15 + 6 = 21 NT; 13 + 4 + 2 + 21 = 40. Of the 13 P: all rest on captured ID-V evidence as transcribed in repository documents (the PPM OFF observations are second-hand credit via the WP06 ON/OFF record); `commercial-sales-assumptions` additionally carries an owner-only modal check. **C-D count is an upper bound of what the inaccessible report might credit, not a claim that it does.**
 
 ## 2. Eleven-flag matrix
 
@@ -165,7 +165,7 @@ Combination status against package §3: **(a) all OFF** — evidenced ID-V six m
 ## 4. Delta-only action list (smallest missing proof; nothing here is authorised)
 
 **Untested evidence (needs a separately approved brief — AE1 does not start them):**
-1. **UI-read batch (ID-V, v392, no write controls):** only the **4 genuinely missing** lenses need new design (`product-route-editor` version open, `historical-candidate-review`, `route-family-mapping-review` / `route-family-foundation-review` exact-run confirmation). Before any browser time, **owner copy of the D: per-lens table** could credit up to 15 NT rows for free; retrieve it first.
+1. **UI-read batch (ID-V, v392, no write controls):** only the **6 genuinely missing/blocked** lenses need new design (`product-route-editor` version open, `historical-candidate-review`, `route-family-mapping-review` / `route-family-foundation-review` exact-run confirmation, `staff-governance` pool-summary 7-vs-42 reconciliation, `route-family-route-editor` after the F1 RPC audit). Before any browser time, **owner copy of the D: per-lens table** could credit up to 15 NT rows for free; retrieve it first.
 2. **Remaining ID-V reads without prior evidence if D: yields nothing:** the 15 C-D rows, one supervised pass at 1280/390.
 3. **S2:** printable Cost Sheet ↔ SKU Cost Details for three real SKUs (READY, REVIEW, BLOCKED) — same run, loaded cost, status. Record actual values, not remembered ones. 5 Nov dashboard values (121/628 ready, 506 review, 1 blocked) and the 603-SKU operational readiness split (121/479/3) are **different surfaces and are not a parity result**.
 4. **S9:** CCC dashboard KPI ↔ SKU Control Status after Nov↔Oct switch; confirm the run pointer is not failed run 150. *Terminology note:* WP05-A5 lists "S9" as KPI-strip reload performance; the gate audit/package use "S9" for KPI parity. AE1 follows the gate audit.
