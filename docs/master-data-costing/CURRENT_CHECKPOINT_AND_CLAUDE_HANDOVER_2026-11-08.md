@@ -35,3 +35,7 @@
 - [Programme completion matrix](PROGRAMME_COMPLETION_MATRIX_2026-11-06.md): formal work-pack matrix; old opening status is historical until augmented with this checkpoint.
 
 **Safety:** nothing in this checkpoint approves a new readiness build, costing run, production write/DDL, flag activation, Netlify release, Electron publishing, or permission change.
+
+## 5. Follow-up evidence — Staff Pool + Route Family preview contract (8 Nov 2026)
+
+[Staff pool and route preview audit](STAFF_POOL_AND_ROUTE_PREVIEW_CONTRACT_REVIEW_2026-11-08.md) independently reconciles **7** Staff Pool Summary rows displayed for November against **42** unfiltered rows (7 for each June–November month): this is **RESOLVED, period-scoped, PASS for the tested period**. It also inspects the *unexecuted* `rpc_preview_route_family_route_steps` server wrapper, `require_permission` and direct `costing.fn_preview_route_family_route_steps` callee: view-authorised and no DML in inspected path; however the ID-V network guard blocked the client-initiated request, so **no end-to-end ID-V preview PASS is claimed**. Leave read-only harness allowlist unchanged until separately reviewed one-name exception and owner approval. Formal work-package closure stays 5/13.
