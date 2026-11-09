@@ -25,13 +25,12 @@
 --  * Idempotent path: an already-guarded function is accepted ONLY if removing the exact guard text restores the verified
 --    original full-definition md5 AND re-applying the deterministic patch to that original reproduces the live body
 --    byte for byte (so the guard is the expected first statement and nothing else differs). Otherwise abort.
---  * Shape: only an optional plain DECLARE section may precede the main BEGIN; comments, quotes, dollar quotes or labels
---    there abort (a regexp is not a PL/pgSQL parser, so unknown shapes are refused rather than guessed).
---    The ONE controlled exception is the live declaration: the three exact quoted empty-string initialisers
---    (v_costing_class / v_allocation_pool / v_remarks := ... nullif(trim(p_...), '')) are tolerated, each required exactly
---    once, and ONLY when the body length (4288) and first-BEGIN position (508) match the independently verified live
---    values AND the full-definition md5 has already been verified. After stripping those three statements the remainder
---    is still checked for comments, quotes, dollar quotes and labels. CRLF is handled (whitespace classes).
+--  * Shape: the declaration section before the main BEGIN is validated by an EXACT PREFIX proof, not by regexp exceptions:
+--    every byte before the first BEGIN match must equal the independently verified live prefix (length 507, md5
+--    22d200f39da7adbe3fc92a1caa32ac66; CRLF; contains quoted initialisers incl. date_trunc('month', current_date)),
+--    and the full-definition md5 must already have matched. Any difference falls to the strict generic check, which
+--    rejects comments, quotes, dollar quotes and labels before BEGIN (so there are no per-initialiser exceptions).
+--    A regexp is not a PL/pgSQL parser; unknown shapes are refused rather than guessed.
 --  * After execution: full definition minus the guard must again hash to the verified original; signature, return type,
 --    volatility, SECURITY DEFINER, config (search_path), ACL, owner, language, OID, and the wrapper full definition hash
 --    are unchanged. Any failure rolls the single transaction back.
@@ -39,42 +38,33 @@
 -- Rollback (a SECURITY REGRESSION, containment-first policy applies): docs/master-data-costing/prepared/WP05_W506_SEC_FIX_01_ROLLBACK.sql (not executed).
 begin;
 
-create function pg_temp.w506_guard_patch(p_src text, p_expect_len int, p_expect_begin int) returns text
+create function pg_temp.w506_guard_patch(p_src text, p_prefix_len int, p_prefix_md5 text) returns text
 language plpgsql set search_path = pg_catalog, pg_temp as $f$
 declare
   c_guard  constant text := 'perform public.require_permission(''module:cost-build-manager'', true);';
   c_insert constant text := E'\n  ' || c_guard || E'\n';
   c_begin_re constant text := '(^|[^[:alnum:]_])(begin)([[:space:]])';
-  v_pos int; v_before text; v_out text; v_check text; v_re text;
-  -- The ONLY quote characters tolerated before the main BEGIN: the three exact empty-string initialisers observed in the
-  -- live declaration (independent SELECT-only review, 9 Nov 2026), whitespace-flexible, each required exactly once, and
-  -- only when the body length and BEGIN position match the verified live values passed in by the caller (the caller
-  -- itself has already verified the full-definition md5).
-  c_live_decls constant text[] := array[
-    'v_costing_class[[:space:]]+text[[:space:]]*:=[[:space:]]*upper\([[:space:]]*nullif\([[:space:]]*trim\([[:space:]]*p_costing_class[[:space:]]*\)[[:space:]]*,[[:space:]]*''''[[:space:]]*\)[[:space:]]*\)[[:space:]]*;',
-    'v_allocation_pool[[:space:]]+text[[:space:]]*:=[[:space:]]*upper\([[:space:]]*nullif\([[:space:]]*trim\([[:space:]]*p_allocation_pool[[:space:]]*\)[[:space:]]*,[[:space:]]*''''[[:space:]]*\)[[:space:]]*\)[[:space:]]*;',
-    'v_remarks[[:space:]]+text[[:space:]]*:=[[:space:]]*nullif\([[:space:]]*trim\([[:space:]]*p_remarks[[:space:]]*\)[[:space:]]*,[[:space:]]*''''[[:space:]]*\)[[:space:]]*;'];
+  v_pos int; v_before text; v_out text;
 begin
   v_pos := regexp_instr(p_src, c_begin_re, 1, 1, 0, 'i');
   if v_pos = 0 then
     raise exception 'W506-SEC-FIX-01 aborted: no BEGIN followed by whitespace found in function body';
   end if;
   v_before := substr(p_src, 1, v_pos - 1);
-  -- only an optional plain DECLARE section may precede the main BEGIN: no comments, quotes, dollar quotes or labels
-  if not (v_before ~* '^[[:space:]]*$' or v_before ~* '^[[:space:]]*declare[[:space:]]') then
-    raise exception 'W506-SEC-FIX-01 aborted: unexpected text before the first BEGIN (label or other construct); refusing to guess';
-  end if;
-  v_check := v_before;
-  if length(p_src) = p_expect_len and v_pos = p_expect_begin then
-    foreach v_re in array c_live_decls loop
-      if (select count(*) from regexp_matches(v_check, v_re, 'gi')) <> 1 then
-        raise exception 'W506-SEC-FIX-01 aborted: expected live declaration initialiser not found exactly once before the first BEGIN';
-      end if;
-      v_check := regexp_replace(v_check, v_re, ' ', 'i');
-    end loop;
-  end if;
-  if v_check ~ '(--|/\*|\$|<<|'')' then
-    raise exception 'W506-SEC-FIX-01 aborted: comment, quote or label before the first BEGIN; refusing to guess';
+  if p_prefix_len is not null and v_pos = p_prefix_len + 1 and md5(substr(p_src, 1, p_prefix_len)) = p_prefix_md5 then
+    -- The ENTIRE declaration prefix (every byte before the first BEGIN match) equals the independently verified live
+    -- prefix (length and md5 supplied by the caller, which has already verified the full-definition md5). No individual
+    -- quote/comment exceptions exist: any difference falls through to the strict generic check below.
+    null;
+  else
+    -- generic strict path: only an optional plain DECLARE section may precede the main BEGIN: no comments, quotes,
+    -- dollar quotes or labels
+    if not (v_before ~* '^[[:space:]]*$' or v_before ~* '^[[:space:]]*declare[[:space:]]') then
+      raise exception 'W506-SEC-FIX-01 aborted: unexpected text before the first BEGIN (label or other construct); refusing to guess';
+    end if;
+    if v_before ~ '(--|/\*|\$|<<|'')' then
+      raise exception 'W506-SEC-FIX-01 aborted: comment, quote or label before the first BEGIN; refusing to guess';
+    end if;
   end if;
   v_out := regexp_replace(p_src, c_begin_re, '\1\2' || c_insert || '\3', 'i');   -- no g flag: first match only
   if length(v_out) - length(p_src) <> length(c_insert) or replace(v_out, c_insert, '') <> p_src then
@@ -88,8 +78,10 @@ do $migration$
 declare
   c_internal_def_fp constant text := '553d103a5afedda3191c1aa62c33be7c';
   c_wrapper_def_fp  constant text := '6ba709477ecc7755fb6005b6e2203a2b';
-  c_live_src_len    constant int  := 4288;   -- length(prosrc) of the verified live internal function
-  c_live_begin_pos  constant int  := 508;    -- regexp position of its first BEGIN under the helper's pattern
+  -- Exact live declaration prefix = substr(prosrc, 1, 507) (CRLF; leading CRLF through the CR preceding the LF that the
+  -- BEGIN pattern consumes), md5 verified independently on 9 Nov 2026; the first BEGIN match therefore starts at 508.
+  c_live_prefix_len constant int  := 507;
+  c_live_prefix_md5 constant text := '22d200f39da7adbe3fc92a1caa32ac66';
   c_guard  constant text := 'perform public.require_permission(''module:cost-build-manager'', true);';
   c_insert constant text := E'\n  ' || c_guard || E'\n';
   v_oid oid; v_wrap oid; v_n int;
@@ -133,7 +125,7 @@ begin
     if md5(v_orig_def) <> c_internal_def_fp then
       raise exception 'W506-SEC-FIX-01 aborted: removing the guard does not restore the verified original definition (drift)';
     end if;
-    if pg_temp.w506_guard_patch(v_orig_src, c_live_src_len, c_live_begin_pos) <> v_src then
+    if pg_temp.w506_guard_patch(v_orig_src, c_live_prefix_len, c_live_prefix_md5) <> v_src then
       raise exception 'W506-SEC-FIX-01 aborted: existing guard is not the expected first-statement insertion';
     end if;
     raise notice 'W506-SEC-FIX-01: internal function verified as already guarded (original + exact insertion); nothing to do';
@@ -144,7 +136,7 @@ begin
   if v_src ~* 'require_permission' then
     raise exception 'W506-SEC-FIX-01 aborted: unexpected require_permission reference in fingerprint-matched body';
   end if;
-  v_patched := pg_temp.w506_guard_patch(v_src, c_live_src_len, c_live_begin_pos);
+  v_patched := pg_temp.w506_guard_patch(v_src, c_live_prefix_len, c_live_prefix_md5);
   v_new_def := replace(v_def, v_src, v_patched);
   if replace(v_new_def, c_insert, '') <> v_def then
     raise exception 'W506-SEC-FIX-01 aborted: patched definition minus guard does not equal the live definition';

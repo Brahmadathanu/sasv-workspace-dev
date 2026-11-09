@@ -32,32 +32,54 @@ create table costing.staff_costing_classification(
   staff_id bigint primary key, costing_class text not null, allocation_pool text not null,
   effective_from date not null, allocation_weight numeric not null, remarks text not null, updated_n int not null default 0);
 
--- SYNTHETIC "pre-fix" internal writer: SECURITY DEFINER, VOLATILE, fixed search_path, no permission guard,
--- DECLARE section, validation before writes, UPDATE then INSERT (shape only).
-create or replace function costing.rpc_set_staff_costing_classification(
-  p_staff_id bigint, p_costing_class text, p_allocation_pool text, p_effective_from date,
-  p_allocation_weight numeric, p_remarks text) returns jsonb
-language plpgsql security definer set search_path = costing, public, pg_temp as $fn$
+-- SYNTHETIC "pre-fix" internal writer: SECURITY DEFINER, VOLATILE, fixed search_path, no permission guard.
+-- The declaration prefix is the EXACT live prefix reported by the independent SELECT-only review (CRLF line endings, 507
+-- bytes before the BEGIN-pattern match; md5 22d200f39da7adbe3fc92a1caa32ac66); the rest of the body is synthetic
+-- (validation, update-or-insert) and is also CRLF. The fixture asserts the prefix length and md5 and aborts otherwise.
+do $mk$
 declare
+  v_body text := replace($body$
+declare
+  v_staff_id bigint := p_staff_id;
   v_costing_class text := upper(nullif(trim(p_costing_class), ''));
   v_allocation_pool text := upper(nullif(trim(p_allocation_pool), ''));
+  v_effective_from date := coalesce(p_effective_from, date_trunc('month', current_date)::date);
+  v_allocation_weight numeric := coalesce(p_allocation_weight, 1);
   v_remarks text := nullif(trim(p_remarks), '');
-  v_updated int;
+  v_default_pool text;
+  v_existing_id bigint;
+  v_existing_effective_from date;
+  v_new_id bigint;
 begin
-  if p_staff_id is null then raise exception 'staff id required'; end if;
+  if v_staff_id is null then raise exception 'staff id required'; end if;
   if v_costing_class is null then raise exception 'costing class required'; end if;
-  update costing.staff_costing_classification
-     set costing_class = v_costing_class, allocation_pool = v_allocation_pool, effective_from = p_effective_from,
-         allocation_weight = p_allocation_weight, remarks = v_remarks, updated_n = updated_n + 1
-   where staff_id = p_staff_id;
-  get diagnostics v_updated = row_count;
-  if v_updated = 0 then
+  v_default_pool := v_allocation_pool;
+  select c.staff_id, c.effective_from into v_existing_id, v_existing_effective_from
+    from costing.staff_costing_classification c where c.staff_id = v_staff_id;
+  if v_existing_id is not null then
+    update costing.staff_costing_classification
+       set costing_class = v_costing_class, allocation_pool = coalesce(v_allocation_pool, v_default_pool),
+           effective_from = v_effective_from, allocation_weight = v_allocation_weight, remarks = v_remarks,
+           updated_n = updated_n + 1
+     where staff_id = v_staff_id;
+  else
     insert into costing.staff_costing_classification(staff_id, costing_class, allocation_pool, effective_from, allocation_weight, remarks)
-    values (p_staff_id, v_costing_class, v_allocation_pool, p_effective_from, p_allocation_weight, v_remarks);
+    values (v_staff_id, v_costing_class, v_allocation_pool, v_effective_from, v_allocation_weight, v_remarks)
+    returning staff_id into v_new_id;
   end if;
-  return jsonb_build_object('staff_id', p_staff_id, 'ok', true);
+  return jsonb_build_object('staff_id', v_staff_id, 'ok', true);
 end
-$fn$;
+$body$, E'\n', E'\r\n');
+begin
+  if length(substr(v_body, 1, 507)) <> 507 or md5(substr(v_body, 1, 507)) <> '22d200f39da7adbe3fc92a1caa32ac66' then
+    raise exception 'fixture prefix is not the verified live prefix (len %, md5 %)', length(substr(v_body, 1, 507)), md5(substr(v_body, 1, 507));
+  end if;
+  execute 'create or replace function costing.rpc_set_staff_costing_classification(
+    p_staff_id bigint, p_costing_class text, p_allocation_pool text, p_effective_from date,
+    p_allocation_weight numeric, p_remarks text) returns jsonb
+    language plpgsql security definer set search_path = costing, public, pg_temp as $fn$' || v_body || '$fn$';
+end
+$mk$;
 
 -- Public wrapper: SQL language, SECURITY DEFINER, delegates (shape recorded in issue #234).
 create or replace function public.rpc_set_staff_costing_classification(

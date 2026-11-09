@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { createHash } from "node:crypto";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const MIG_NAME = "20261109040000_wp05_w506_sec_fix_01_staff_classification_writer_guard.sql";
@@ -51,7 +52,7 @@ test("idempotent path verifies original+insertion (no early return on guard text
   const idx = c.indexOf("verified as already guarded");
   const before = c.slice(0, idx);
   assert.ok(before.includes("md5(v_orig_def) <> c_internal_def_fp"));
-  assert.ok(before.includes("pg_temp.w506_guard_patch(v_orig_src, c_live_src_len, c_live_begin_pos) <> v_src"));
+  assert.ok(before.includes("pg_temp.w506_guard_patch(v_orig_src, c_live_prefix_len, c_live_prefix_md5) <> v_src"));
   assert.ok(!/if position\(c_guard in v_src\) > 0/.test(c));
 });
 test("post-install proof: definition minus guard hashes to original; wrapper hash re-checked", () => {
@@ -78,7 +79,7 @@ test("rollback: identical patch helper, owner emergency interlock, exact-origina
   assert.ok(rb.includes("Containment-first"));
   assert.ok(rb.includes("w506.rollback_owner_emergency_approval"));
   assert.ok(rb.includes(INTERNAL_DEF_FP) && rb.includes(WRAPPER_DEF_FP));
-  for (const frag of ["md5(v_orig_def) <> c_internal_def_fp", "w506_guard_patch(v_orig_src, c_live_src_len, c_live_begin_pos) <> v_src", "public wrapper definition differs"])
+  for (const frag of ["md5(v_orig_def) <> c_internal_def_fp", "w506_guard_patch(v_orig_src, c_live_prefix_len, c_live_prefix_md5) <> v_src", "public wrapper definition differs"])
     assert.ok(rb.includes(frag), `rollback missing: ${frag}`);
   assert.ok(!/\bgrant\b|\brevoke\b|\bdrop\b/i.test(code(rb)));
 });
@@ -96,33 +97,41 @@ test("local runner safety: socket-only host, disposable-cluster marker, unique s
   assert.match(runner, /\[ "\$CREATED" = 1 \]/);
 });
 
-test("live declaration allowance: exact three initialisers, anchored to verified body length and BEGIN position, fingerprint-gated", () => {
+test("exact live declaration-prefix proof (no per-initialiser quote exceptions)", () => {
   const f = fnBlock(mig);
-  assert.ok(f.includes("p_expect_len int, p_expect_begin int"));
-  assert.ok(f.includes("length(p_src) = p_expect_len and v_pos = p_expect_begin"));
-  // exactly three allowed initialisers, naming exactly the live variables and parameters
-  const decls = f.match(/'(v_costing_class|v_allocation_pool|v_remarks)\[\[:space:\]\]\+text/g) || [];
-  assert.deepEqual(decls, ["'v_costing_class[[:space:]]+text", "'v_allocation_pool[[:space:]]+text", "'v_remarks[[:space:]]+text"]);
-  for (const frag of ["p_costing_class", "p_allocation_pool", "p_remarks", "not found exactly once before the first BEGIN"]) assert.ok(f.includes(frag));
-  // quote/comment/label/dollar rejection still applied to the remainder after the three are stripped
-  assert.ok(f.includes("v_check := regexp_replace(v_check, v_re, ' ', 'i')"));
-  assert.ok(f.includes("if v_check ~ '(--|/\\*|\\$|<<|'')'"));
-  // anchors are the independently verified live values and appear in both migration and rollback
+  assert.ok(f.includes("p_prefix_len int, p_prefix_md5 text"));
+  assert.ok(f.includes("v_pos = p_prefix_len + 1 and md5(substr(p_src, 1, p_prefix_len)) = p_prefix_md5"));
+  // no individual initialiser allowances survive
+  for (const bad of ["c_live_decls", "v_costing_class", "v_allocation_pool", "v_remarks", "regexp_matches", "foreach"])
+    assert.ok(!f.includes(bad), `helper must not contain ${bad}`);
+  // generic strict path still rejects comments/quotes/dollar quotes/labels and unexpected leading text
+  assert.ok(f.includes("if v_before ~ '(--|/\\*|\\$|<<|'')'"));
+  assert.ok(f.includes("unexpected text before the first BEGIN"));
+  // verified live values appear in migration and rollback
   for (const text of [mig, rb]) {
-    assert.match(text, /c_live_src_len\s+constant int\s+:= 4288;/);
-    assert.match(text, /c_live_begin_pos\s+constant int\s+:= 508;/);
-    assert.ok(text.includes("w506_guard_patch(v_src, c_live_src_len, c_live_begin_pos)") || text.includes("w506_guard_patch(v_orig_src, c_live_src_len, c_live_begin_pos)"));
+    assert.match(text, /c_live_prefix_len\s+constant int\s+:= 507;/);
+    assert.match(text, /c_live_prefix_md5\s+constant text\s+:= '22d200f39da7adbe3fc92a1caa32ac66';/);
+    assert.ok(text.includes("w506_guard_patch(v_src, c_live_prefix_len, c_live_prefix_md5)") || text.includes("w506_guard_patch(v_orig_src, c_live_prefix_len, c_live_prefix_md5)"));
   }
-  // the helper is only called after the full-definition fingerprint has been established (preimage md5 or original-restored md5)
+  // helper only called after the full-definition fingerprint has been established
   const c = code(mig);
   assert.ok(c.indexOf("md5(v_orig_def) <> c_internal_def_fp") < c.indexOf("w506_guard_patch(v_orig_src"));
   assert.ok(c.indexOf("if md5(v_def) <> c_internal_def_fp then") < c.indexOf("v_patched := pg_temp.w506_guard_patch"));
 });
-test("local fixture reproduces the live quoted empty-string initialisers", () => {
+test("live prefix reconstructs to length 507 and md5 22d200f3... (CRLF; trailing LF belongs to the BEGIN separator)", () => {
+  const lines = ["declare", "  v_staff_id bigint := p_staff_id;",
+    "  v_costing_class text := upper(nullif(trim(p_costing_class), ''));",
+    "  v_allocation_pool text := upper(nullif(trim(p_allocation_pool), ''));",
+    "  v_effective_from date := coalesce(p_effective_from, date_trunc('month', current_date)::date);",
+    "  v_allocation_weight numeric := coalesce(p_allocation_weight, 1);",
+    "  v_remarks text := nullif(trim(p_remarks), '');",
+    "  v_default_pool text;", "  v_existing_id bigint;", "  v_existing_effective_from date;", "  v_new_id bigint;"];
+  const full = "\r\n" + lines.join("\r\n") + "\r\n";       // 508 bytes: ends CRLF, the LF is consumed by the BEGIN match
+  const prefix = full.slice(0, -1);                              // 507 bytes: ends with CR
+  assert.equal(Buffer.byteLength(prefix), 507);
+  assert.equal(createHash("md5").update(prefix).digest("hex"), "22d200f39da7adbe3fc92a1caa32ac66");
   const fx = rd("supabase/tests/w506_sec_fix_01/fixture.sql");
-  for (const l of ["v_costing_class text := upper(nullif(trim(p_costing_class), ''));",
-                   "v_allocation_pool text := upper(nullif(trim(p_allocation_pool), ''));",
-                   "v_remarks text := nullif(trim(p_remarks), '');"]) assert.ok(fx.includes(l), l);
-  const body = fx.slice(fx.indexOf("$fn$;") - 1500, fx.indexOf("$fn$;"));
-  assert.ok(!/--/.test(body.slice(body.indexOf("declare"), body.indexOf("begin"))), "no comment inside the fixture DECLARE section");
+  for (const l of lines) assert.ok(fx.includes(l), `fixture missing prefix line: ${l}`);
+  assert.ok(fx.includes("22d200f39da7adbe3fc92a1caa32ac66") && fx.includes("<> 507"));
+  assert.ok(fx.includes("E'\\n', E'\\r\\n'"), "fixture converts the body to CRLF");
 });
