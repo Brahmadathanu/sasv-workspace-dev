@@ -76,3 +76,8 @@ Static, repository-only design and decision documents (no SQL, production, auth,
 ## 11. Addendum — WP05-CLD3 static trace and decision matrix (9 November 2026) — PROPOSAL / NOT EXECUTED
 
 [WP05_CLD3_STATIC_TRACE_2026-11-09.md](WP05_CLD3_STATIC_TRACE_2026-11-09.md) (scheme-policy semantics incl. a run-scoped selected-scheme snapshot, preview/`rpc_get_*` call trees, PRM run-82 zero-row predicates, proposed SELECT-only readbacks) and [WP05_CLD3_OWNER_DECISION_MATRIX_2026-11-09.md](WP05_CLD3_OWNER_DECISION_MATRIX_2026-11-09.md). Repository-only; no SQL, production, auth, code, flag or deployment action. No gate status, owner approval or ledger count is changed; B1 not approved; shared §8 remains binding. **WP05 remains OPEN; programme remains 6/13.**
+
+
+## 12. Addendum — CLD3 live selected-scheme readback (9 November 2026)
+
+[WP05_CLD3_LIVE_SELECTED_SCHEME_READBACK_2026-11-09.md](WP05_CLD3_LIVE_SELECTED_SCHEME_READBACK_2026-11-09.md) documents SELECT-only verification of selected scheme resolution by frozen run: bilateral RESOLVED **600/627** (Oct 143), **601/628** (Nov 149), **601/629** (Nov 151), with exactly one IK+OK row per SKU in all three. Current-policy 601/629 parity supports S-A as a candidate, not an approved KPI correction. F1 live wrapper/internal metadata confirmed without execution; no runner allowlist expansion or negative-identity PASS. **WP05 OPEN, 6/13; no gate promotion or B1 approval.**
