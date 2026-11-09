@@ -29,6 +29,20 @@ test("fail closed: the four owner-readback fingerprints are unfilled placeholder
     assert.ok(t.includes("!~ '^[0-9a-f]{32}$'"));
   }
 });
+test("exact PG17 schema-only fixture is recorded with the three live view fingerprints", () => {
+  const fixture = rd("supabase/tests/w506_conf/live_view_definitions_pg17_20261109.sql");
+  assert.ok(fixture.includes("no individual staff, salary or other row data included"));
+  const expected = [
+    ["v_costing_staff_classification_register", "2447f6b30fdc11e5e5dac487619b9142"],
+    ["v_costing_staff_cost_pool_summary", "80d1a1a4f2e3add5eae58acac99e14fd"],
+    ["v_costing_unclassified_staff_for_costing", "659a7d0e992a7bae23b4b0409d33a161"],
+  ];
+  for (const [view, hash] of expected) {
+    assert.ok(fixture.includes(`-- ${view}: ${hash}`));
+    assert.ok(fixture.includes(`create or replace view public.${view} as`));
+  }
+  assert.equal((fixture.match(/create or replace view public\\.v_costing_/g) || []).length, 3);
+});
 test("runner-compatible framing: no top-level transaction control; exactly one DO statement per file", () => {
   for (const t of [mig, rb]) {
     assert.ok(!/^\s*(begin|commit|rollback|start\s+transaction|savepoint\b[^;]*)\s*;/im.test(code(t)));
