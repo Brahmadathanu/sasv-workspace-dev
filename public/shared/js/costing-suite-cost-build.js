@@ -568,8 +568,11 @@ export function createCostBuildController(deps) {
     );
   }
 
-  /** Drop any in-memory staff classification edit state (call on permission loss / sign-out). */
+  /** Revoke displayed edit access and discard any retained personnel edit state. */
   function purgeStaffGovernanceState() {
+    if (staffClassificationEditModal && !staffClassificationEditModal.classList.contains("hidden")) {
+      closeStaffClassificationEditModal();
+    }
     staffClassificationEditRow = null;
     staffClassificationReturnFocus = null;
   }
