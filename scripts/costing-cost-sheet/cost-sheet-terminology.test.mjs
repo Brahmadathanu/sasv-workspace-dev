@@ -8,6 +8,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { COSTING_ROUTE_CONFIG } from "../../public/shared/js/costing-route-config.js";
 import { COSTING_SUITE_MODULES } from "../../public/shared/js/costing-suite-registry.js";
+import { unPersonnel } from "../costing-w506-conf-client/unpersonnel.mjs";
 import { CW07_LABEL_CHANGES, applyCw07Labels, applyApprovedHtmlInsertions, isCw07LabelOnlyChange } from "../lib/costing-scope-guard.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -71,7 +72,7 @@ test("diff against the baseline is exactly the label rename (nothing else change
   // `lensSelect.innerHTML = activeSuites` line that N1 turns into a flag-gated ternary. N1 otherwise only adds lines.
   const shellRel = "public/shared/js/costing-suite-shell.js";
   const baseLines = applyCw07Labels(showBase(shellRel)).split("\n");
-  const nowLines = read(shellRel).split("\n");
+  const nowLines = unPersonnel(shellRel, read(shellRel)).split("\n"); // WP05-W506 personnel gate additions restored to the original lines
   const REPLACED_BY_N1 = "      lensSelect.innerHTML = activeSuites";
   let at = 0;
   const missing = [];
