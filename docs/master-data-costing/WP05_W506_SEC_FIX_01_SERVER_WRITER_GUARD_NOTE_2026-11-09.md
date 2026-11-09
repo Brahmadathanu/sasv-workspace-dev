@@ -138,3 +138,7 @@ Expected operational regression: none for the attested editor. Non-editors who c
 - NOT TESTED: PG17.4, live `require_permission` execution, real authenticated PostgREST behaviour, real RLS/view logic.
 
 No code or migration correction was required.
+
+
+### 7e. Runner-compatible framing (revision after the Supabase embedded-transaction advisory)
+The migration and rollback no longer contain top-level `BEGIN`/`COMMIT` (the runner owns any enclosing transaction and the history row). All persistent change is in one `DO` statement (atomic by itself); the `pg_temp` helper is `CREATE OR REPLACE`d; the DO block aborts before any change if the helper is not visible on its connection (runner split across connections). Guards, fingerprints, 507-byte prefix proof, drift/metadata checks and the rollback interlock are unchanged. Re-run on PostgreSQL 16.15: static 17/17; live-equivalent runner 32 checks (26 + simulated-runner L7a-f) / 0 fail with matrix 21/21; synthetic runner 44/0 with matrix 18/18. The real Supabase runner semantics were not available and are NOT established; PostgreSQL 17.4 remains NOT TESTED (owner Path B).
