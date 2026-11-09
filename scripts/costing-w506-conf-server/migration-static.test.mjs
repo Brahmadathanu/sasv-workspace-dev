@@ -35,6 +35,20 @@ test("runner-compatible framing: no top-level transaction control; exactly one D
     assert.equal((code(t).match(/^do \$(migration|rollback)\$/gm) || []).length, 1);
   }
 });
+test("helper creation, comment, ACL and view changes share one atomic DO", () => {
+  const doStart = mig.indexOf("do $migration$");
+  const begin = mig.indexOf("\\nbegin\\n", doStart);
+  const placeholderCheck = mig.indexOf("live fingerprints have not been filled in from the owner readback", begin);
+  const helper = mig.indexOf("execute $helper_ddl$", begin);
+  const comment = mig.indexOf("execute $comment_ddl$", begin);
+  const revoke = mig.indexOf("execute 'revoke all on function", begin);
+  const grant = mig.indexOf("execute 'grant execute on function", begin);
+  const viewLoop = mig.indexOf("for v_i in 1 .. array_length(v_views, 1) loop", begin);
+  assert.ok(doStart >= 0 && begin > doStart && placeholderCheck > begin);
+  assert.ok(helper > placeholderCheck && comment > helper && revoke > comment && grant > revoke && viewLoop > grant);
+  assert.ok(!mig.slice(0, doStart).includes("create or replace function public.fn_costing_personnel_view_allowed"));
+  assert.ok(mig.includes("$helper_ddl$;") && mig.includes("$comment_ddl$;"));
+});
 test("policy: personnel gate = postgres/service_role OR CBM view AND edit; no identity hard-coded; no service-role bypass beyond the existing pattern", () => {
   const f = mig.match(/create or replace function public\.fn_costing_personnel_view_allowed\(\)[\s\S]*?\$f\$;/)[0];
   assert.ok(f.includes("current_user = any (array['postgres','service_role']::name[])"));
