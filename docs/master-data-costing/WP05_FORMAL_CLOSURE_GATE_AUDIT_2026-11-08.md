@@ -67,3 +67,8 @@ PAR1 §8.8 records the owner-confirmed password rotation and Utilities Hub globa
 ## 9. Addendum — WP05-CLD1 offline closure-acceleration documents (8 November 2026) — PROPOSAL / NOT EXECUTED
 
 Static, repository-only design and decision documents (no SQL, production, auth, code, flag or deployment action): [L1 KPI correction design](WP05_CLD1_L1_KPI_CORRECTION_DESIGN_2026-11-08.md), [security/RPC static audit](WP05_CLD1_SECURITY_RPC_STATIC_AUDIT_2026-11-08.md), [residual reconciliation and owner decision queue](WP05_CLD1_RESIDUAL_RECONCILIATION_AND_OWNER_DECISIONS_2026-11-08.md) (includes an optional **B1 decision template, not approved**). No gate status, owner approval or ledger count in this audit is changed. **WP05 remains OPEN; programme remains 6/13.**
+
+
+## 10. Addendum — WP05-CLD2 live SELECT-only readback (9 November 2026)
+
+[WP05_CLD2_LIVE_CATALOGUE_READBACK_2026-11-09.md](WP05_CLD2_LIVE_CATALOGUE_READBACK_2026-11-09.md) confirms live L1 CROSS JOIN scope mismatch, frozen snapshot columns and 143/149/151 data grain, live PRM F1/SEC permission-gate definitions, and run-82 workload count 495. **No RPC executed and no DML.** L1 scheme bilateral-selection semantics and preview callees remain unresolved; security negative-identity behaviour not tested. PAR1 run 149 remains historical; current-successful Nov run 151 was selected on 9 November. **WP05 OPEN; 6/13; no gate/owner decision promotion.**
