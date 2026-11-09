@@ -144,6 +144,23 @@ test("shell wiring: personnel gate = CBM route + view AND edit + no permission-l
   assert.ok(ex.slice(0, 500).includes('CURRENT_LENS === "staff-governance"') && ex.slice(0, 600).includes("return;") && ex.slice(0, 800).includes("void exportActiveViewCsv();"));
 });
 
+test("late personnel response is re-authorised before staff rows reach table state or rendering", () => {
+  const sh = rd("public/shared/js/costing-suite-shell.js");
+  const start = sh.indexOf('if (CURRENT_LENS === "staff-governance") {\\n      const rows = await costBuildCtrl.loadStaffGovernanceRows');
+  assert.ok(start > 0, "staff loading branch present");
+  const end = sh.indexOf("LAST_REFRESH_TIME = new Date();", start);
+  const block = sh.slice(start, end);
+  const gate = block.indexOf("const restrictedNotice = costBuildCtrl.getStaffGovernanceRestrictionNotice();");
+  const restricted = block.indexOf("if (restrictedNotice)", gate);
+  const permitted = block.indexOf("} else {", restricted);
+  const assignment = block.indexOf("ALL_ROWS = rows;", permitted);
+  assert.ok(gate > 0 && restricted > gate && permitted > restricted && assignment > permitted,
+    "response gate must run before assigning any fetched personnel rows");
+  assert.equal(block.slice(0, gate).includes("ALL_ROWS = rows;"), false, "no speculative render before permission check");
+  assert.ok(block.slice(restricted, permitted).includes("ALL_ROWS = [];"));
+  assert.ok(block.slice(restricted, permitted).includes("VIEW = [];"));
+  assert.ok(block.slice(restricted, permitted).includes("purgeStaffGovernanceState()"));
+});
 test("service worker never caches Supabase data responses; cache generation advanced so clients receive the gated JS", () => {
   const sw = rd("public/sw.js");
   assert.match(sw, /supabase\|\\\/\(rest\|realtime\|storage\|auth\)/);
