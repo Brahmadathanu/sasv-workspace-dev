@@ -3,6 +3,22 @@
 **Status: DOCUMENTATION ONLY. Nothing applied, merged or deployed. W5-06 OPEN; WP05 OPEN; programme 6/13.** The owner accepted Path B and stated the operational caller policy in a subsequent decision on 9 November 2026; neither decision authorises production execution, rollback, grant changes or release.
 
 
+
+## Production release execution addendum — 9 November 2026 (authorised controlled Save→Close)
+
+**Status: BOTH SERVER GUARDS NOW INSTALLED, PostgreSQL 17.4.** Owner "go ahead" after review of the controlled two-migration release; Supabase `apply_migration` used exactly once per source file (Save first, verified, then Close). The response from each apply call was `success: true`. The earlier draft-only and NOT TESTED status sections below remain historical pre-release evidence; this addendum supersedes them **for actual server deployment**, not for authenticated PostgREST acceptance or formal WP05 closure.
+
+| Operation | Reviewed source head | Production history version and name | Post-install internal MD5 |
+|---|---|---|---|
+| Save / #254 | `e2091c9`, blob `23dd5039513e946651b9f1e8134d3db4ac2675a6` | `20261109105557`, `wp05_w506_sec_fix_01_staff_classification_writer_guard` | `f5ab34726e263860e479d8597ed322da` |
+| Close / #255 | `c1d9749`, blob `98dfaee8fb45d31039bd1448b50e34e7e32b9008` | `20261109105717`, `wp05_w506_sec_fix_02_staff_classification_close_writer_guard` | `81bfc97789ac1c1ea811c4fd2abc3baf` |
+
+After **each** apply, read-only checks confirmed one exact first-statement CBM View+Edit guard; deleting its exact insertion yields the original full-definition MD5. Internal function owner, ACL, volatility, definer and `search_path` retained. Both public wrappers and `public.require_permission` unchanged. Both migration-history rows were present, correctly named and ordered; no missing-history condition occurred.
+
+**No-JWT live negative tests (safe NULL-ID calls):** A DB session with `auth.uid() IS NULL` called each public classification RPC using NULL IDs. Both raised `P0001 Not authenticated` from `public.require_permission` at the newly guarded first statement. Staff classification remained 164 rows and `max(updated_at)` remained `2026-10-16 03:17:31.055173+00` after the tests. **Authenticated view-only and genuine owner-positive PostgREST acceptance remain NOT TESTED.** The isolated PostgreSQL 17.4 test-suite waiver (Path B) was accepted, but the two production 17.4 function replacements have now actually succeeded.
+
+**Remaining action:** GitHub draft migration filenames contain the source placeholders `20261109040000` and `20261109050000`. Align each branch before merge by byte-identical renames to its server-assigned version `20261109105557` and `20261109105717`, with unchanged SQL contents and migration-test references updated; re-review checksums and CI. **Do not re-execute the migrations, change production history, run `db push` or claim WP05/W5-06 closed.** Complete authenticated PostgREST role matrix and separate privacy/client edit gating; owner review of PR merges and programme closure still required. Formal programme remains **6/13**.
+
 ## Owner disposition and operational preflight addendum — 9 November 2026
 
 **Owner-approved policy (not deployment authorisation):**
