@@ -135,3 +135,31 @@ test("live prefix reconstructs to length 507 and md5 22d200f3... (CRLF; trailing
   assert.ok(fx.includes("22d200f39da7adbe3fc92a1caa32ac66") && fx.includes("<> 507"));
   assert.ok(fx.includes("E'\\n', E'\\r\\n'"), "fixture converts the body to CRLF");
 });
+
+const live = rd("supabase/tests/w506_sec_fix_01/run_live_equivalent.sh");
+const snap = rd("supabase/tests/w506_sec_fix_01/live_definition_snapshot_20261109.sql");
+const nc = (t) => t.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n");
+test("live-equivalent runner: no substitution of fingerprints/constants, unchanged migration/rollback/snapshot files", () => {
+  const c = nc(live);
+  assert.ok(!/\bsed\b/.test(c), "no sed anywhere in the live-equivalent runner");
+  assert.ok(!/553d103a5afedda3191c1aa62c33be7c\/|6ba709477ecc7755fb6005b6e2203a2b\//.test(c), "no s/// substitution of fingerprints");
+  assert.ok(c.includes('q -f "$MIG"') && c.includes('cat "$RB"') && c.includes('-v W506_LOCAL_ONLY=1 -f "$SNAP"'));
+  for (const fp of [INTERNAL_DEF_FP, WRAPPER_DEF_FP, "22d200f39da7adbe3fc92a1caa32ac66"]) assert.ok(live.includes(fp));
+  assert.ok(live.includes("STOP"), "stops on definition drift");
+});
+test("live-equivalent runner: same disposable-cluster interlocks as the synthetic runner", () => {
+  const c = nc(live);
+  assert.ok(c.includes('case "${PGHOST:-}" in /*)') && c.includes("w506-disposable-") && c.includes("rolsuper"));
+  assert.ok(c.includes("mktemp -d") && c.includes("trap cleanup EXIT") && c.includes("w506_live_$(date +%s)_$$"));
+  assert.ok(!/drop database if exists/i.test(c));
+});
+test("snapshot: kept out of supabase/migrations, carries its own local-only interlock, contains unguarded originals only", () => {
+  assert.ok(!readdirSync(join(root, "supabase/migrations")).some((n) => /live_definition_snapshot/i.test(n)));
+  assert.ok(snap.includes("W506_LOCAL_ONLY") && snap.includes("\\quit 3"));
+  assert.ok(!/require_permission/.test(snap), "snapshot is the UNGUARDED original");
+  assert.ok(snap.includes(INTERNAL_DEF_FP) && snap.includes(WRAPPER_DEF_FP));
+});
+test("live scaffold uses synthetic rows/dependencies only", () => {
+  const sc = rd("supabase/tests/w506_sec_fix_01/live_scaffold.sql");
+  assert.ok(sc.includes("SYNTHETIC") && sc.includes("SYN-001") && !/pg_dump|copy /i.test(sc));
+});
