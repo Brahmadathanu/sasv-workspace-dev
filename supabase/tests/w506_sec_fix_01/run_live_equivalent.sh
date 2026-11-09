@@ -115,5 +115,24 @@ OUT=$(rbrun "$ACK"); [ "$(IFP)" = "$DR" ] && echo "$OUT" | grep -qE "drift|guard
 fresh; q -f "$MIG" >/dev/null; mutate "$WRP" "replace(d, 'select *', 'select * /* altered */')"; G2=$(IFP)
 OUT=$(rbrun "$ACK"); [ "$(IFP)" = "$G2" ] && echo "$OUT" | grep -q "wrapper" && ok "L6g rollback aborts on an altered wrapper" || bad "L6g" "$OUT"
 
+# ---------------------------------------------------------------- L7 migration-runner compatibility. SIMULATED runners only:
+# the real Supabase migration runner / MCP apply_migration is NOT available here and its semantics are NOT established.
+fresh; q -c "drop table if exists public.mig_history_sim; create table public.mig_history_sim(v text)" >/dev/null
+HIST() { q -c "select count(*) from public.mig_history_sim"; }
+{ echo "begin;"; cat "$MIG"; echo "insert into public.mig_history_sim values ('v');"; echo "commit;"; } > "$TMP/r1.sql"
+q -f "$TMP/r1.sql" >/dev/null 2>&1; [ "$(IFP)" != "$EXP_INT" ] && [ "$(HIST)" = 1 ] && ok "L7a runner-supplied ONE transaction on ONE connection: DDL and history row commit together" || bad "L7a" "$(IFP) hist=$(HIST)"
+fresh; q -c "drop table if exists public.mig_history_sim; create table public.mig_history_sim(v text)" >/dev/null
+{ echo "begin;"; cat "$MIG"; echo "select 1/0;"; echo "insert into public.mig_history_sim values ('v');"; echo "commit;"; } > "$TMP/r2.sql"
+q -f "$TMP/r2.sql" >/dev/null 2>&1; [ "$(IFP)" = "$EXP_INT" ] && [ "$(HIST)" = 0 ] && ok "L7b error AFTER the function replacement inside the runner transaction: function restored to the verified original, no history row" || bad "L7b" "$(IFP) hist=$(HIST)"
+fresh; q -c "drop table if exists public.mig_history_sim; create table public.mig_history_sim(v text)" >/dev/null
+{ echo "begin;"; echo "begin;"; cat "$MIG"; echo "commit;"; echo "select 1/0;"; echo "insert into public.mig_history_sim values ('v');"; echo "commit;"; } > "$TMP/r3.sql"
+q -f "$TMP/r3.sql" >/dev/null 2>&1; [ "$(IFP)" != "$EXP_INT" ] && [ "$(HIST)" = 0 ] && ok "L7c HAZARD REPRODUCED for the OLD framing (embedded BEGIN/COMMIT inside a runner transaction): DDL committed, error afterwards, NO history row" || bad "L7c" "$(IFP) hist=$(HIST)"
+fresh; q -c "drop table if exists public.mig_history_sim; create table public.mig_history_sim(v text)" >/dev/null
+q -c "$(cat "$MIG"; echo "select 1/0;")" >/dev/null 2>&1; [ "$(IFP)" = "$EXP_INT" ] && ok "L7d runner sending the whole file as one multi-statement simple query (no BEGIN): implicit single transaction, later error rolls the DDL back" || bad "L7d" "$(IFP)"
+fresh
+awk '/^do \$migration\$/{f=1} f' "$MIG" > "$TMP/r4.sql"
+OUT=$(q -f "$TMP/r4.sql" 2>&1); [ $? -ne 0 ] && echo "$OUT" | grep -q "temporary patch helper is not visible" && [ "$(IFP)" = "$EXP_INT" ] && ok "L7e DO block on a connection WITHOUT the helper (runner splitting across connections): aborts before any change" || bad "L7e" "$OUT"
+fresh; q -f "$MIG" >/dev/null 2>&1; G7=$(IFP); q -f "$MIG" >/dev/null 2>&1; q -f "$MIG" >/dev/null 2>&1; [ "$(IFP)" = "$G7" ] && ok "L7f repeated application in one session (helper already present: CREATE OR REPLACE) stays an idempotent no-op" || bad "L7f" ""
+
 echo "SUMMARY: $NPASS passed, $NFAIL failed (live-equivalent runner checks; the role/behaviour matrix is reported separately as SQL rows)"
 [ $FAIL -eq 0 ] && echo "ALL LIVE-EQUIVALENT CHECKS PASSED" || echo "SOME CHECKS FAILED"; exit $FAIL

@@ -16,16 +16,22 @@ const runner = rd("supabase/tests/w506_sec_fix_01/run_local.sh");
 const code = (s) => s.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
 const INTERNAL_DEF_FP = "553d103a5afedda3191c1aa62c33be7c";
 const WRAPPER_DEF_FP = "6ba709477ecc7755fb6005b6e2203a2b";
-const fnBlock = (s) => s.match(/create function pg_temp\.w506_guard_patch[\s\S]*?\$f\$;/)?.[0];
+const fnBlock = (s) => s.match(/create or replace function pg_temp\.w506_guard_patch[\s\S]*?\$f\$;/)?.[0];
 
 test("migration version sorts after every other migration and is unique", () => {
   const names = readdirSync(join(root, "supabase/migrations")).filter((n) => n.endsWith(".sql")).sort();
   assert.equal(names[names.length - 1], MIG_NAME);
   assert.equal(names.filter((n) => n.startsWith(MIG_NAME.slice(0, 14))).length, 1);
 });
-test("single transaction", () => {
-  assert.match(code(mig), /^\s*begin;/m);
-  assert.match(code(mig), /^\s*commit;\s*$/m);
+test("runner-compatible framing: NO top-level transaction control; one persistent-change DO statement; helper visibility check", () => {
+  for (const t of [mig, rb]) {
+    assert.ok(!/^\s*(begin|commit|rollback|start\s+transaction|savepoint\b[^;]*)\s*;/im.test(code(t)), "no top-level transaction statements");
+    assert.equal((code(t).match(/^do \$(migration|rollback)\$/gm) || []).length, 1, "exactly one DO statement");
+    assert.ok(t.includes("temporary patch helper is not visible on this connection"));
+    assert.ok(t.includes("to_regprocedure('pg_temp.w506_guard_patch(text,integer,text)') is null"));
+    assert.ok(t.includes("Transaction management: this file deliberately contains NO top-level BEGIN/COMMIT"));
+  }
+  assert.equal((code(mig).match(/\bexecute v_new_def\b/g) || []).length, 1);
 });
 test("exact guard statement: CBM module, can_edit required, schema-qualified", () => {
   assert.ok(mig.includes("perform public.require_permission(''module:cost-build-manager'', true);"));
@@ -70,7 +76,7 @@ test("no privilege/ownership changes; only the temp helper function is created; 
   for (const bad of [/\bgrant\b/, /\brevoke\b/, /\bdrop\b/, /\balter\b/, /update\s+costing\./, /insert\s+into\s+costing\./])
     assert.ok(!bad.test(c), `forbidden construct ${bad}`);
   const creates = c.match(/create\s+(or\s+replace\s+)?function\s+[\w.]+/g) || [];
-  assert.deepEqual(creates, ["create function pg_temp.w506_guard_patch"]);
+  assert.deepEqual(creates, ["create or replace function pg_temp.w506_guard_patch"]);
   assert.equal((c.match(/\bexecute v_new_def\b/g) || []).length, 1);
 });
 test("rollback: identical patch helper, owner emergency interlock, exact-original proof, wrapper check, security-regression warning", () => {
