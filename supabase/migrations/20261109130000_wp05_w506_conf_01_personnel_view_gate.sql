@@ -55,7 +55,8 @@ begin
               and public.app_has_permission('module:cost-build-manager','edit'))
     $f$;
   $helper_ddl$;
-  execute 'comment on function public.fn_costing_personnel_view_allowed() is   'WP05-W506-CONF-01: row/column gate for individual staff and salary data (temporary: Cost Build Manager view AND edit)';';
+  execute $comment_ddl$comment on function public.fn_costing_personnel_view_allowed() is
+  'WP05-W506-CONF-01: row/column gate for individual staff and salary data (temporary: Cost Build Manager view AND edit)';$comment_ddl$;
   execute 'revoke all on function public.fn_costing_personnel_view_allowed() from public, anon;';
   execute 'grant execute on function public.fn_costing_personnel_view_allowed() to authenticated, service_role;';
 
