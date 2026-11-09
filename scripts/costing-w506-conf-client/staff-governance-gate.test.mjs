@@ -146,7 +146,7 @@ test("shell wiring: personnel gate = CBM route + view AND edit + no permission-l
 
 test("late personnel response is re-authorised before staff rows reach table state or rendering", () => {
   const sh = rd("public/shared/js/costing-suite-shell.js");
-  const start = sh.indexOf('if (CURRENT_LENS === "staff-governance") {\\n      const rows = await costBuildCtrl.loadStaffGovernanceRows');
+  const start = sh.indexOf('if (CURRENT_LENS === "staff-governance") {\n      const rows = await costBuildCtrl.loadStaffGovernanceRows');
   assert.ok(start > 0, "staff loading branch present");
   const end = sh.indexOf("LAST_REFRESH_TIME = new Date();", start);
   const block = sh.slice(start, end);
