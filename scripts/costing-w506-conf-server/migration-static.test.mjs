@@ -15,18 +15,27 @@ const runner = rd("supabase/tests/w506_conf/run_view_gate_test.sh");
 const matrix = rd("supabase/tests/w506_conf/matrix.sql");
 const scaffold = rd("supabase/tests/w506_conf/scaffold.sql");
 const code = (s) => s.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
-const PLACEHOLDERS = ["REGISTER", "REVIEW", "POOL", "GATE_FN"].map((k) => `<<W506_CONF_FP_${k}>>`);
+const PINNED = Object.freeze({
+  REGISTER: "2447f6b30fdc11e5e5dac487619b9142",
+  REVIEW: "659a7d0e992a7bae23b4b0409d33a161",
+  POOL: "80d1a1a4f2e3add5eae58acac99e14fd",
+  GATE_FN: "a5c51f50421d35a7207878c237fff273",
+});
 
 test("migration version is unique and sorts after every other migration", () => {
   const names = readdirSync(join(root, "supabase/migrations")).filter((n) => n.endsWith(".sql")).sort();
   assert.equal(names[names.length - 1], NAME);
   assert.equal(names.filter((n) => n.startsWith(NAME.slice(0, 14))).length, 1);
 });
-test("fail closed: the four owner-readback fingerprints are unfilled placeholders and the DO block aborts on them", () => {
-  for (const t of [mig, rb]) {
-    for (const p of PLACEHOLDERS) assert.equal(t.split(p).length, 2, `${p} exactly once`);
-    assert.ok(t.includes("live fingerprints have not been filled in from the owner readback"));
-    assert.ok(t.includes("!~ '^[0-9a-f]{32}$'"));
+test("pinned release fingerprints exactly equal the live verified baseline in migration and rollback", () => {
+  for (const source of [mig, rb]) {
+    for (const [key, value] of Object.entries(PINNED)) {
+      const prefix = { REGISTER: "c_fp_register", REVIEW: "c_fp_review", POOL: "c_fp_pool", GATE_FN: "c_fp_gate_fn" }[key];
+      assert.ok(new RegExp(prefix + "\\s+constant text := '" + value + "'").test(source),
+        `missing pinned ${key}`);
+      assert.ok(!source.includes(`<<W506_CONF_FP_${key}>>`), `unfilled ${key} placeholder`);
+    }
+    assert.ok(source.includes("!~ '^[0-9a-f]{32}$'"), "fail-closed format interlock remains");
   }
 });
 test("exact PG17 schema-only fixture is recorded with the three live view fingerprints", () => {
@@ -52,7 +61,7 @@ test("runner-compatible framing: no top-level transaction control; exactly one D
 test("helper creation, comment, ACL and view changes share one atomic DO", () => {
   const doStart = mig.indexOf("do $migration$");
   const begin = mig.indexOf("\nbegin\n", doStart);
-  const placeholderCheck = mig.indexOf("live fingerprints have not been filled in from the owner readback", begin);
+  const placeholderCheck = mig.indexOf("fingerprint constants invalid (must be 32 lowercase hexadecimal characters)", begin);
   const helper = mig.indexOf("execute $helper_ddl$", begin);
   const comment = mig.indexOf("execute $comment_ddl$", begin);
   const revoke = mig.indexOf("execute 'revoke all on function", begin);
@@ -107,13 +116,14 @@ test("TB2 migration (source of the repo-recorded definitions) is referenced, not
   assert.ok(runner.includes("20261019134900_tb2_costing_view_permission_gate.sql"));
   assert.ok(readdirSync(join(root, "supabase/migrations")).includes("20261019134900_tb2_costing_view_permission_gate.sql"));
 });
-test("runner: socket-only host, disposable-cluster marker, superuser, unique scratch DB, mktemp+trap; substitutes only the 4 placeholders in scratch copies", () => {
+test("runner: socket-only host, disposable-cluster marker, superuser, unique scratch DB, mktemp+trap; substitutes only the 4 pinned fingerprints in scratch copies", () => {
   const c = runner.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n");
   assert.ok(c.includes('case "${PGHOST:-}" in /*)') && c.includes("w506-disposable-") && c.includes("rolsuper"));
   assert.ok(c.includes("mktemp -d") && c.includes("trap cleanup EXIT") && c.includes("w506_conf_$(date +%s)_$$"));
   assert.ok(!/drop database if exists/i.test(c));
-  const subs = c.match(/s\/<<W506_CONF_FP_[A-Z_]+>>\//g) || [];
-  assert.equal(subs.length, 4);
+  for (const fp of Object.values(PINNED)) {
+    assert.ok(c.includes(`s/${fp}/`), `scratch runner must substitute pinned ${fp}`);
+  }
   assert.ok(c.includes('"${f%%:*}" > "${f##*:}"'), "scratch copies only; committed files never modified");
 });
 test("atomicity runner injects helper and first-view failures and checks absence of partial state", () => {
