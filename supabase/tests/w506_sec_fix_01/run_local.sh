@@ -12,7 +12,7 @@
 #  * All temp files live in one mktemp -d directory removed on exit.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../../.." && pwd)"
-MIG="$ROOT/supabase/migrations/20261109040000_wp05_w506_sec_fix_01_staff_classification_writer_guard.sql"
+MIG="$ROOT/supabase/migrations/20261109105557_wp05_w506_sec_fix_01_staff_classification_writer_guard.sql"
 RB="$ROOT/docs/master-data-costing/prepared/WP05_W506_SEC_FIX_01_ROLLBACK.sql"
 ACK='I-HAVE-OWNER-EMERGENCY-APPROVAL-AND-AN-ALTERNATIVE-CONTROL'
 case "${PGHOST:-}" in /*) ;; *) echo "refusing: PGHOST must be an absolute unix-socket directory"; exit 2;; esac
