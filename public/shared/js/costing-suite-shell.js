@@ -3457,6 +3457,15 @@ function getCurrentMonthStart() {
 }
 
 async function loadPermissions(sessionUserId) {
+  // On auth/permission refresh, remove any previously displayed personnel data before
+  // awaiting the permission RPC. Invalidate outstanding row loads as well.
+  if (CURRENT_LENS === "staff-governance") {
+    ++ROWS_LOAD_GENERATION;
+    ALL_ROWS = [];
+    VIEW = [];
+    costBuildCtrl.purgeStaffGovernanceState();
+    if (tableBody) tableBody.replaceChildren();
+  }
   // Fail closed before resolution — never retain prior/optimistic grants.
   PERM_CAN_VIEW = false;
   PERM_CAN_EDIT = false;
