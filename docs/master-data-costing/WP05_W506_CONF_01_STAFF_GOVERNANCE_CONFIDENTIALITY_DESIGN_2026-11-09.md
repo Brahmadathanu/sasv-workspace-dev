@@ -34,6 +34,10 @@ This is **policy approval**, not a claim the server and client enforcement alrea
 
 Read-only PostgreSQL 17.4 `pg_get_viewdef(oid)` output for all three views has been committed as **schema-only** `supabase/tests/w506_conf/live_view_definitions_pg17_20261109.sql`. It contains **no staff or salary rows**. The captured fingerprints are register `2447f6b30fdc11e5e5dac487619b9142`, pool `80d1a1a4f2e3add5eae58acac99e14fd`, and unclassified `659a7d0e992a7bae23b4b0409d33a161`. The fixture is **not yet exercised** in a disposable database and may re-render differently on PostgreSQL 16.15; verify the parsed fingerprint before treating it as exact. Continue to keep the migration's four placeholder hashes fail-closed until execution and failure-atomicity checks pass. This is a test fixture, not production DDL or a data export.
 
+## Disposable migration atomicity test cases added — 9 November 2026
+
+The `supabase/tests/w506_conf/run_view_gate_test.sh` runner now includes **P8a/P8b/P8c**: a forced exception after helper creation, a forced exception immediately after first-view replacement, and a normal retry after both failures. Each failure case checks that the helper no longer exists and that original view definitions and metadata remain unchanged. Injected SQL is produced only in `$TMP` scratch copies; production and committed migration text are not altered. The static suite now asserts that this injection coverage remains present. These additions are **not yet executed** against PostgreSQL, and require confirmation under a disposable cluster. If injection or parser tests fail, stop without production DDL. The four migration fingerprint placeholders remain in place and operational execution is unapproved.
+
 ## 1. Consumer inventory (repository level; bounded)
 
 | Consumer | What it reads | Finding |
