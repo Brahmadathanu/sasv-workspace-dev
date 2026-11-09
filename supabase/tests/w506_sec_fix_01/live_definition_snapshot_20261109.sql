@@ -8,9 +8,14 @@
 -- Requires synthetic hr.staff, costing.staff_costing_classification, and public option/register view fixtures.
 -- The psql invocation must define W506_LOCAL_ONLY=1; on any other invocation, exit without applying SQL.
 \if :{?W506_LOCAL_ONLY}
+  \if :W506_LOCAL_ONLY
+  \else
+    \echo W506 LOCAL FIXTURE REFUSED: W506_LOCAL_ONLY must be true.
+    \quit 3
+  \endif
 \else
-\echo W506 LOCAL FIXTURE REFUSED: invoke only in disposable cluster with -v W506_LOCAL_ONLY=1.
-\quit 3
+  \echo W506 LOCAL FIXTURE REFUSED: invoke only in disposable cluster with -v W506_LOCAL_ONLY=1.
+  \quit 3
 \endif
 
 CREATE OR REPLACE FUNCTION costing.rpc_set_staff_costing_classification(p_staff_id bigint, p_costing_class text, p_allocation_pool text DEFAULT NULL::text, p_effective_from date DEFAULT NULL::date, p_allocation_weight numeric DEFAULT 1, p_remarks text DEFAULT NULL::text)
