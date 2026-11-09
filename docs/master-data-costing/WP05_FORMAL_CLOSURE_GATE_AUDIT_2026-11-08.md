@@ -106,3 +106,8 @@ The owner explicitly agreed to three recommendations in chat: **[D1](WP05_OWNER_
 ## 17. Addendum — 49-view column sensitivity and consumer inventory (9 November 2026)
 
 [WP05_W506_49_VIEW_COLUMN_SENSITIVITY_CONSUMER_INVENTORY_2026-11-09.md](WP05_W506_49_VIEW_COLUMN_SENSITIVITY_CONSUMER_INVENTORY_2026-11-09.md) records metadata-only column review for all **49** shared-helper costing views, plus repository-backed and provisional client ownership. Individual salary fields (`basic_salary`, allowances, total salary) and `staff_details` in CBM staff views are verified **column names**, not queried values; provider-rate, trace, actor-audit views need scoped business policy decisions. **No per-view hardening yet approved and no access changes applied.** W5-06 OPEN, WP05 OPEN, 6/13; B1 draft only.
+
+
+## 18. Addendum — sensitive client payload and minimum-column design (9 November 2026)
+
+[WP05_W506_SENSITIVE_CLIENT_MINIMUM_COLUMNS_DESIGN_2026-11-09.md](WP05_W506_SENSITIVE_CLIENT_MINIMUM_COLUMNS_DESIGN_2026-11-09.md) confirms Staff Governance's three `select('*')` client reads fetch person-level salary components or nested `staff_details` beyond visible table columns; total salary cost **is** displayed, and edit/export dependencies remain unverified. Proposes explicit projections only after full consumer tracing, and separately governed per-view server permission roles; client projection alone is **not** authorization. No code/SQL/grants changed. W5-06 OPEN; B1 not approved; WP05 OPEN, 6/13.
