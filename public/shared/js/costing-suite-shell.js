@@ -4833,15 +4833,18 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     if (CURRENT_LENS === "staff-governance") {
       const rows = await costBuildCtrl.loadStaffGovernanceRows(ACTIVE_PERIOD_START);
       if (!isRowsLoadCurrent(loadGeneration)) return;
-      ALL_ROWS = rows;
-      applyFilters();
+      // Recheck after the await: a permission refresh or sign-out may have revoked access
+      // while a staff query was in flight. Never assign or render that stale response.
       const restrictedNotice = costBuildCtrl.getStaffGovernanceRestrictionNotice();
       if (restrictedNotice) {
-        // No personnel access: nothing was requested; drop any previous rows/edit state from memory.
         ALL_ROWS = [];
         VIEW = [];
         costBuildCtrl.purgeStaffGovernanceState();
+        applyFilters();
         setStatus(restrictedNotice, "warning");
+      } else {
+        ALL_ROWS = rows;
+        applyFilters();
       }
       LAST_REFRESH_TIME = new Date();
       updateFreshnessIndicator();
