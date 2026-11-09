@@ -41,7 +41,7 @@ test("exact PG17 schema-only fixture is recorded with the three live view finger
     assert.ok(fixture.includes(`-- ${view}: ${hash}`));
     assert.ok(fixture.includes(`create or replace view public.${view} as`));
   }
-  assert.equal((fixture.match(/create or replace view public\\.v_costing_/g) || []).length, 3);
+  assert.equal((fixture.match(/create or replace view public\.v_costing_/g) || []).length, 3);
 });
 test("runner-compatible framing: no top-level transaction control; exactly one DO statement per file", () => {
   for (const t of [mig, rb]) {

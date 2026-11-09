@@ -29,11 +29,18 @@ META() { q -c "select string_agg(c.oid||'|'||c.relowner::regrole||'|'||coalesce(
 build() {
   q -c "drop schema if exists costing cascade; drop schema if exists hr cascade; drop schema if exists t cascade; drop view if exists public.$V2, public.$V1, public.$V3, public.v_costing_staff_costing_class_options; drop table if exists public.user_permissions_canonical, public.mig_history_sim; drop function if exists public.fn_costing_personnel_view_allowed(), public.fn_costing_view_allowed(), public.app_has_permission(text,text), public.t_definer_probe()" >/dev/null 2>&1
   q -f "$HERE/scaffold.sql" >/dev/null || { echo "scaffold failed"; exit 2; }
-  awk '/^create or replace view public\.(v_costing_staff_classification_register|v_costing_staff_cost_pool_summary|v_costing_unclassified_staff_for_costing) as/{f=1} f{print} /^where \(select public\.fn_costing_view_allowed\(\)\);/{f=0}' "$TB2" > "$TMP/views.sql"
-  q -f "$TMP/views.sql" >/dev/null || { echo "TB2 view extraction/creation failed"; exit 2; }
+  if [ "${FIXTURE_MODE:-0}" = 1 ]; then
+    q -f "$HERE/live_view_definitions_pg17_20261109.sql" >/dev/null || { echo "PG17 fixture view creation failed"; exit 2; }
+  else
+    awk '/^create or replace view public\.(v_costing_staff_classification_register|v_costing_staff_cost_pool_summary|v_costing_unclassified_staff_for_costing) as/{f=1} f{print} /^where \(select public\.fn_costing_view_allowed\(\)\);/{f=0}' "$TB2" > "$TMP/views.sql"
+    q -f "$TMP/views.sql" >/dev/null || { echo "TB2 view extraction/creation failed"; exit 2; }
+  fi
   q -c "grant select on public.$V1, public.$V2, public.$V3 to authenticated, service_role; create table public.mig_history_sim(v text)" >/dev/null
   GATEFP=$(q -c "select md5(pg_get_functiondef('public.fn_costing_view_allowed()'::regprocedure))")
   FP1=$(VD $V1); FP2=$(VD $V2); FP3=$(VD $V3)
+  if [ "${FIXTURE_MODE:-0}" = 1 ]; then  # use the RECORDED live PG17.4 fingerprints (not the locally computed ones)
+    FP1=$(grep -E "^-- $V1: " "$HERE/live_view_definitions_pg17_20261109.sql" | sed -E 's/.*: //'); FP2=$(grep -E "^-- $V2: " "$HERE/live_view_definitions_pg17_20261109.sql" | sed -E 's/.*: //'); FP3=$(grep -E "^-- $V3: " "$HERE/live_view_definitions_pg17_20261109.sql" | sed -E 's/.*: //')
+  fi
   for f in "$MIG:$TMP/mig.sql" "$RB:$TMP/rb.sql"; do
     sed -e "s/<<W506_CONF_FP_REGISTER>>/$FP1/; s/<<W506_CONF_FP_REVIEW>>/$FP2/; s/<<W506_CONF_FP_POOL>>/$FP3/; s/<<W506_CONF_FP_GATE_FN>>/$GATEFP/" "${f%%:*}" > "${f##*:}"
   done
@@ -130,5 +137,16 @@ if [ $? -eq 0 ] && [ "$(ALLV)" != "$ORIG" ] && [ "$(q -c "select to_regprocedure
 else
   bad "P8c recovery" "$OUT"
 fi
+# ---- P9 captured live PostgreSQL 17.4 view-definition fixture (schema-only; see live_view_definitions_pg17_20261109.sql)
+FIXTURE_MODE=1; build
+LIVE1=$(grep -E "^-- $V1: " "$HERE/live_view_definitions_pg17_20261109.sql" | sed -E 's/.*: //'); LIVE2=$(grep -E "^-- $V2: " "$HERE/live_view_definitions_pg17_20261109.sql" | sed -E 's/.*: //'); LIVE3=$(grep -E "^-- $V3: " "$HERE/live_view_definitions_pg17_20261109.sql" | sed -E 's/.*: //')
+[ "$(VD $V1)/$(VD $V2)/$(VD $V3)" = "$LIVE1/$LIVE2/$LIVE3" ] && ok "P9a live-17.4 fixture recreated on this server deparses to the three recorded live md5 fingerprints (no deparse mismatch)" || bad "P9a deparse parity" "$(VD $V1)/$(VD $V2)/$(VD $V3) vs $LIVE1/$LIVE2/$LIVE3"
+M0=$(META); FORIG=$(ALLV)
+OUT=$(q -f "$TMP/mig.sql" 2>&1) && [ "$(ALLV)" != "$FORIG" ] && ok "P9b unmodified migration (live view fingerprints filled) applies to the live-17.4 view definitions" || bad "P9b" "$OUT"
+[ "$(META)" = "$M0" ] && ok "P9c columns/owner/ACL/reloptions unchanged on the fixture views" || bad "P9c" ""
+FP9=$(ALLV); OUT=$(q -f "$TMP/mig.sql" 2>&1); [ "$(ALLV)" = "$FP9" ] && [ "$(echo "$OUT" | grep -c 'already patched')" = 3 ] && ok "P9d idempotent on the fixture views" || bad "P9d" "$OUT"
+q -f "$HERE/matrix.sql" > "$TMP/matrix9.out" 2>&1; grep -q "FAILURES=0 OF" "$TMP/matrix9.out" && ok "P9e identity matrix on the live-17.4 definitions: $(grep -o 'FAILURES=0 OF [0-9]*' "$TMP/matrix9.out") rows PASS" || bad "P9e matrix" "$(grep -E '\|FAIL\|' "$TMP/matrix9.out" | head -3)"
+OUT=$(rbrun "$ACK") && [ "$(ALLV)" = "$FORIG" ] && ok "P9f rollback restores the exact live-17.4 definitions (recorded fingerprints)" || bad "P9f" "$OUT"
+FIXTURE_MODE=0
 echo "SUMMARY: $N passed, $X failed (runner checks; identity matrix reported separately as SQL rows)"
 [ $X -eq 0 ] && echo "ALL CHECKS PASSED" || echo "SOME CHECKS FAILED"; exit $X
