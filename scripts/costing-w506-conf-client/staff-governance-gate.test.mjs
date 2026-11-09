@@ -161,6 +161,22 @@ test("late personnel response is re-authorised before staff rows reach table sta
   assert.ok(block.slice(restricted, permitted).includes("VIEW = [];"));
   assert.ok(block.slice(restricted, permitted).includes("purgeStaffGovernanceState()"));
 });
+test("permission refresh invalidates outstanding staff responses and clears visible staff state", () => {
+  const sh = rd("public/shared/js/costing-suite-shell.js");
+  const start = sh.indexOf("async function loadPermissions(sessionUserId) {");
+  const reset = sh.indexOf("PERM_CAN_VIEW = false;", start);
+  const pre = sh.slice(start, reset);
+  assert.ok(pre.includes('CURRENT_LENS === "staff-governance"'));
+  for (const token of ["++ROWS_LOAD_GENERATION", "ALL_ROWS = []", "VIEW = []",
+    "purgeStaffGovernanceState()", "tableBody.replaceChildren()"]) {
+    assert.ok(pre.includes(token), `permission refresh must clear: ${token}`);
+  }
+  const cb = rd("public/shared/js/costing-suite-cost-build.js");
+  const purgeStart = cb.indexOf("function purgeStaffGovernanceState()");
+  const purgeBody = cb.slice(purgeStart, cb.indexOf("\n  function syncManualProvisionLayout()", purgeStart));
+  assert.ok(purgeBody.includes("closeStaffClassificationEditModal()"), "open edit modal must close on permission loss");
+  assert.ok(purgeBody.includes("staffClassificationEditRow = null;"));
+});
 test("service worker never caches Supabase data responses; cache generation advanced so clients receive the gated JS", () => {
   const sw = rd("public/sw.js");
   assert.match(sw, /supabase\|\\\/\(rest\|realtime\|storage\|auth\)/);
