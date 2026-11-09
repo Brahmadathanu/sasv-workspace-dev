@@ -116,3 +116,12 @@ The owner explicitly agreed to three recommendations in chat: **[D1](WP05_OWNER_
 ## 19. Addendum — personnel-costing dedicated-role direction (9 November 2026)
 
 The owner accepted the recommendation that identifiable staff remuneration requires additional, dedicated personnel-costing permission beyond generic CBM view, while legitimate nonidentifying pool aggregates should remain available. [Policy/trace record](WP05_W506_PERSONNEL_COSTING_POLICY_APPROVAL_AND_CLIENT_TRACE_2026-11-09.md) documents the approval **in principle**, exact Staff Governance client read/edit dependencies, and the separate identity/permission/design/implementation gates. **No permission identifier, assignee, client or server modification, security execution, B1 amendment or production rollout was approved or performed.** W5-06 OPEN, WP05 OPEN, programme 6/13.
+
+## Addendum — WP05-W506-CLIENT-01 Staff Governance client dependency matrix (9 November 2026) — PROPOSAL / NOT EXECUTED
+
+[WP05_W506_CLIENT_01_STAFF_GOVERNANCE_DEPENDENCY_MATRIX_AND_TEST_DESIGN_2026-11-09.md](WP05_W506_CLIENT_01_STAFF_GOVERNANCE_DEPENDENCY_MATRIX_AND_TEST_DESIGN_2026-11-09.md): static client trace, proposed minimum projections, restricted-UI sketches and a specified (unexecuted) mock-level regression plan. Client-only analysis; no server access-control, permission, code, SQL or deployment action. No gate status, owner approval or ledger count changes. **WP05 remains OPEN; W5-06 remains OPEN; programme remains 6/13.**
+
+
+## Addendum — W5-06 independently verified staff writer guard omission (9 November 2026)
+
+The [W506-CLIENT-01 dependency matrix](WP05_W506_CLIENT_01_STAFF_GOVERNANCE_DEPENDENCY_MATRIX_AND_TEST_DESIGN_2026-11-09.md) now includes an **independent SELECT-only live catalogue addendum**: `public.rpc_set_staff_costing_classification` grants authenticated EXECUTE and directly delegates to the internal SECURITY DEFINER implementation, which contains **no canonical application permission check** before staff classification UPDATE/INSERT. This is **CONFIRMED missing server guard / HIGH-priority security design defect**, **NOT** a demonstrated successful restricted-user write (no RPC executed). The earlier client-only `UNKNOWN` for server writer guard is superseded by this catalogue evidence. No security PASS or gate promotion; W5-06 OPEN, WP05 OPEN 6/13. Corrective migration and production rollout require separate owner authorisation.
