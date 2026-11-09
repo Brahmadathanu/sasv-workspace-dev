@@ -3356,6 +3356,20 @@ function personnelAccessAllowed() {
   );
 }
 
+/** WP05-W506: on sign-out (any tab, token revocation) drop grants, in-flight loads and any displayed staff/salary rows. */
+function purgePersonnelOnSignOut() {
+  ++ROWS_LOAD_GENERATION;
+  PERM_CAN_VIEW = false;
+  PERM_CAN_EDIT = false;
+  if (CURRENT_LENS === "staff-governance") {
+    ALL_ROWS = [];
+    VIEW = [];
+    costBuildCtrl.purgeStaffGovernanceState();
+    if (tableBody) tableBody.replaceChildren();
+    setStatus(costBuildCtrl.getStaffGovernanceRestrictionNotice() || "Signed out.", "warning");
+  }
+}
+
 function setStatus(message, type = "info") {
   if (!statusArea) return;
   const colors = {
@@ -10080,6 +10094,10 @@ exportBtn?.addEventListener("click", () => {
     return;
   }
   void exportActiveViewCsv();
+});
+// WP05-W506: sign-out must not leave staff/salary rows on screen (no other costing listener exists).
+supabase.auth.onAuthStateChange((event) => {
+  if (event === "SIGNED_OUT") purgePersonnelOnSignOut();
 });
 $("homeBtn")?.addEventListener("click", () => Platform.goHome());
 searchBox?.addEventListener("input", () => {

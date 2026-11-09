@@ -1,7 +1,7 @@
 // CW-05 package 2: table tools for scheme comparison, control centre
 // (workbench, sku-control-status), driver governance, plus cost-sheet sort keys
 // and the scoped sort-button CSS. node:test only, no deps, no network.
-import { PERSONNEL_SHELL_BLOCKS } from "../costing-w506-conf-client/personnel-shell-blocks.mjs";
+import { PERSONNEL_SHELL_EDITS } from "../costing-w506-conf-client/personnel-shell-blocks.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -329,9 +329,9 @@ test("pkg2 flag OFF: legacy templates intact; shell equals base apart from gated
   assert.match(stripped, REVIEW_WORKLIST_FN_RE);
   stripped = stripped.replace(REVIEW_WORKLIST_FN_RE, "");
   // WP05-W506 personnel-confidentiality client gate: pure insertions, each stripped exactly once.
-  for (const b of PERSONNEL_SHELL_BLOCKS) {
-    assert.equal(stripped.split(b).length, 2, "personnel block");
-    stripped = stripped.replace(b, "");
+  for (const [h, o] of PERSONNEL_SHELL_EDITS) {
+    assert.equal(stripped.split(h).length, 2, "personnel edit");
+    stripped = stripped.replace(h, o);
   }
   const dropRenderer = (s) =>
     s

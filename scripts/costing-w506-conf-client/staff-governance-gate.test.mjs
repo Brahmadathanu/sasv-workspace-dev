@@ -75,7 +75,7 @@ test("projections never request salary components, staff_details or *", () => {
   }
   assert.ok(!cb.STAFF_GOVERNANCE_COLUMNS.pool.includes("salary"), "pool projection is aggregates only");
   const src = rd("public/shared/js/costing-suite-cost-build.js");
-  const loader = src.slice(src.indexOf("async function loadStaffGovernanceRows"), src.indexOf("/** Drop any in-memory staff"));
+  const loader = src.slice(src.indexOf("async function loadStaffGovernanceRows"), src.indexOf("/** Revoke displayed edit access"));
   assert.ok(!loader.includes('select("*")'), "Staff Governance loader must not use select('*')");
 });
 
