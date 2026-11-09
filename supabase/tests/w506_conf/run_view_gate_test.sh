@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # WP05-W506-CONF-01 -- isolated verification of the personnel-confidentiality view gate. SYNTHETIC dependencies only.
 # Never run against production, Supabase, or any shared database. The three views are created from the repository's TB2 migration
-# text (supabase/migrations/20261019134900_*); the migration under test carries 4 readback PLACEHOLDERS which this runner fills with
+# text (supabase/migrations/20261019134900_*); the migration under test carries 4 pinned live fingerprints which this runner replaces with
 # the md5s of the scaffold's own definitions in a SCRATCH COPY (the only substitution; the committed files are never modified).
 # This proves the mechanics on the repo-recorded definitions; it does NOT prove the live definitions match -- that needs the owner readback.
 # Interlocks: absolute unix-socket PGHOST; data_directory basename w506-disposable-*; superuser; unique scratch DB dropped on exit.
@@ -42,7 +42,7 @@ build() {
     FP1=$(grep -E "^-- $V1: " "$HERE/live_view_definitions_pg17_20261109.sql" | sed -E 's/.*: //'); FP2=$(grep -E "^-- $V2: " "$HERE/live_view_definitions_pg17_20261109.sql" | sed -E 's/.*: //'); FP3=$(grep -E "^-- $V3: " "$HERE/live_view_definitions_pg17_20261109.sql" | sed -E 's/.*: //')
   fi
   for f in "$MIG:$TMP/mig.sql" "$RB:$TMP/rb.sql"; do
-    sed -e "s/<<W506_CONF_FP_REGISTER>>/$FP1/; s/<<W506_CONF_FP_REVIEW>>/$FP2/; s/<<W506_CONF_FP_POOL>>/$FP3/; s/<<W506_CONF_FP_GATE_FN>>/$GATEFP/" "${f%%:*}" > "${f##*:}"
+    sed -e "s/2447f6b30fdc11e5e5dac487619b9142/$FP1/; s/659a7d0e992a7bae23b4b0409d33a161/$FP2/; s/80d1a1a4f2e3add5eae58acac99e14fd/$FP3/; s/a5c51f50421d35a7207878c237fff273/$GATEFP/" "${f%%:*}" > "${f##*:}"
   done
 }
 rbrun() { { echo "set w506.personnel_gate_rollback_owner_emergency_approval = '$1';"; cat "$TMP/rb.sql"; } > "$TMP/rbx.sql"; q -f "$TMP/rbx.sql" 2>&1; }
@@ -52,8 +52,15 @@ echo "SERVER: $(q -c "select version()")"
 echo "FILES : migration sha256=$(sha256sum "$MIG" | cut -c1-16)  rollback sha256=$(sha256sum "$RB" | cut -c1-16)  tb2 sha256=$(sha256sum "$TB2" | cut -c1-16)"
 build
 ORIG=$(ALLV); M0=$(META)
-# ---- P0 committed (placeholder) migration is inert
-OUT=$(q -f "$MIG" 2>&1); { [ $? -ne 0 ] && echo "$OUT" | grep -q "placeholders present" && [ "$(ALLV)" = "$ORIG" ]; } && ok "P0 committed migration with unfilled readback placeholders aborts before any view change (fail closed)" || bad "P0" "$OUT"
+# ---- P0 negative test: deliberately corrupt the pinned register fingerprint in a SCRATCH COPY.
+# This must fail before any persistent helper/view change; do not execute the pinned file on synthetic TB2 where it could succeed.
+sed 's/2447f6b30fdc11e5e5dac487619b9142/00000000000000000000000000000000/' "$MIG" > "$TMP/mig_wrong_pin.sql"
+OUT=$(q -f "$TMP/mig_wrong_pin.sql" 2>&1)
+if [ $? -ne 0 ] && [ "$(ALLV)" = "$ORIG" ] && [ "$(q -c "select to_regprocedure('public.fn_costing_personnel_view_allowed()') is null")" = t ]; then
+  ok "P0 wrong pinned register fingerprint aborts atomically before any persistent change"
+else
+  bad "P0 wrong pinned fingerprint interlock" "$OUT"
+fi
 # ---- P1 baseline exposure on the repo-recorded definitions
 q -c "insert into public.user_permissions_canonical values ('00000000-0000-0000-0000-0000000000e1','module:cost-sheet-review',true,false) on conflict do nothing" >/dev/null
 R=$(q <<'SQL' 2>&1 | tail -1
@@ -63,7 +70,7 @@ SQL
 )
 [ "$R" = "2/1" ] && ok "P1 baseline (TB2 definitions): a Cost-Sheet-Review-only user reads individual salary rows and staff_details -> finding reproduced" || bad "P1 baseline" "$R"
 q -c "delete from public.user_permissions_canonical" >/dev/null
-# ---- P2 apply (scratch copy with the 4 readback placeholders filled)
+# ---- P2 apply (scratch copy with the four pinned hashes substituted for synthetic scaffold fingerprints)
 OUT=$(q -f "$TMP/mig.sql" 2>&1) && ok "P2 migration applies to the repo-recorded view definitions" || bad "P2 apply" "$OUT"
 PATCHED=$(ALLV); [ "$PATCHED" != "$ORIG" ] && ok "P2b all three view definitions changed" || bad "P2b" ""
 [ "$(META)" = "$M0" ] && ok "P2c columns (names/types/order), owner, ACL and reloptions of all three views unchanged" || bad "P2c" "$(META)"
