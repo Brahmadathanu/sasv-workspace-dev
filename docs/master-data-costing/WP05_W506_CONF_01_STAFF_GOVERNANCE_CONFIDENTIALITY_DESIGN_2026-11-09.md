@@ -2,6 +2,16 @@
 
 **DRAFT / NOT APPLIED / NOT DEPLOYED.** Issue #234. Save/Close writer guards (#254/#255) are deployed and are not touched. No production SQL, grant, migration replay, merge, deployment or salary-row export was performed. W5-06 OPEN; WP05 OPEN; programme 6/13. Companion PRs: **server** (this PR: migration, rollback, tests, this document) and **client** (`claude/wp05-w506-conf-client-gate`).
 
+## Owner policy disposition — 9 November 2026
+
+**APPROVED INTERIM ACCESS POLICY, SUBJECT TO VERIFICATION AND CONTROLLED RELEASE.** The owner accepted Option A: individual staff identities and salary details in Staff Governance require **Cost Build Manager View AND Edit**. A CBM View-only user must not receive individual staff data; the two currently view-only accounts retain legitimate aggregate pool reporting. The authorised editor retains visible `total_salary_cost` for costing work. In the pool-summary response, aggregated counts/amounts/status remain available through the existing broad costing view gate, but `staff_details` is masked for unauthorised users while preserving the column contract. The dedicated, independently administered personnel-costing View/Edit permission remains a planned least-privilege replacement rather than an immediately provisioned role.
+
+This is **policy approval**, not a claim the server and client enforcement already works: #257 and #258 remain drafts. Production application, frontend deployment, test-identity access and grants require the separately reviewed execution procedure. Do not modify actual salaries, permissions or employee assignments during acceptance. The original Save and Close writer guards remain authoritative and unchanged. WP05/W5-06 remain OPEN; programme 6/13.
+
+**Owner-side read-only baseline:** PostgreSQL 17.4 default `pg_get_viewdef(oid)` fingerprints: register `2447f6b30fdc11e5e5dac487619b9142`; unclassified `659a7d0e992a7bae23b4b0409d33a161`; pool `80d1a1a4f2e3add5eae58acac99e14fd`. Existing broad permission helper `md5(pg_get_functiondef)` = `a5c51f50421d35a7207878c237fff273`; `app_has_permission` = `7b4c99b7d4a698237806b2ca10fe24af`. The three broad-gate anchors and the pool `p.staff_details` anchor each occur exactly once. `app_has_permission_core` checks canonical `can_view` and `can_edit`. Two guarded writer functions reference the register; unclassified view depends on register; no cron command text references the three views. These findings are not signed-in acceptance evidence and do not exclude external BI consumers.
+
+**Pre-release STOP requirements:** replay the `CREATE OR REPLACE VIEW` transformation against the exact production 17.4-deparsed fixtures in a disposable environment and verify the post-render equality/metadata; prove failure handling when function creation precedes the DO block (either complete runner transaction or defensible one-DO redesign); recheck live fingerprints just before any apply; preserve server-first authority and client-first rollout sequencing; authenticated PostgREST restricted/positive matrix and read-only browser checks before closing confidentiality. Do not fill placeholder hashes and apply on the basis of the current synthetic tests alone.
+
 ## 1. Consumer inventory (repository level; bounded)
 
 | Consumer | What it reads | Finding |
