@@ -15,11 +15,11 @@
 
 do $rollback$
 declare
-  -- OWNER READBACK REQUIRED (SELECT-only): md5(pg_get_viewdef(oid)) of each view and md5(pg_get_functiondef(oid)) of the gate function.
-  c_fp_register constant text := '<<W506_CONF_FP_REGISTER>>';
-  c_fp_review   constant text := '<<W506_CONF_FP_REVIEW>>';
-  c_fp_pool     constant text := '<<W506_CONF_FP_POOL>>';
-  c_fp_gate_fn  constant text := '<<W506_CONF_FP_GATE_FN>>';
+  -- PINNED OWNER READBACK (SELECT-only, 2026-11-09): default md5(pg_get_viewdef(oid)) of three views and md5(pg_get_functiondef(oid)) of the broad gate function. STOP on drift.
+  c_fp_register constant text := '2447f6b30fdc11e5e5dac487619b9142';
+  c_fp_review   constant text := '659a7d0e992a7bae23b4b0409d33a161';
+  c_fp_pool     constant text := '80d1a1a4f2e3add5eae58acac99e14fd';
+  c_fp_gate_fn  constant text := 'a5c51f50421d35a7207878c237fff273';
   c_old_gate    constant text := 'fn_costing_view_allowed()';
   c_new_gate    constant text := 'fn_costing_personnel_view_allowed()';
   -- pool view: exact rendered select-list line of the nested column, and its rendered replacement (CASE keeps name/type/order)
@@ -30,7 +30,7 @@ declare
   v_pre record; v_post record; v_type text; v_with text; v_i int;
 begin
   if c_fp_register !~ '^[0-9a-f]{32}$' or c_fp_review !~ '^[0-9a-f]{32}$' or c_fp_pool !~ '^[0-9a-f]{32}$' or c_fp_gate_fn !~ '^[0-9a-f]{32}$' then
-    raise exception 'W506-CONF-01 rollback aborted: live fingerprints have not been filled in from the owner readback (placeholders present)';
+    raise exception 'W506-CONF-01 rollback aborted: fingerprint constants invalid (must be 32 lowercase hexadecimal characters)';
   end if;
   perform set_config('search_path', 'public, pg_temp', true);
   v_fps := array[c_fp_register, c_fp_review, c_fp_pool];
