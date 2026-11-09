@@ -37,7 +37,7 @@ test("runner-compatible framing: no top-level transaction control; exactly one D
 });
 test("helper creation, comment, ACL and view changes share one atomic DO", () => {
   const doStart = mig.indexOf("do $migration$");
-  const begin = mig.indexOf("\\nbegin\\n", doStart);
+  const begin = mig.indexOf("\nbegin\n", doStart);
   const placeholderCheck = mig.indexOf("live fingerprints have not been filled in from the owner readback", begin);
   const helper = mig.indexOf("execute $helper_ddl$", begin);
   const comment = mig.indexOf("execute $comment_ddl$", begin);
