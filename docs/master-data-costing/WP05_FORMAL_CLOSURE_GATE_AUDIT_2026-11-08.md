@@ -81,3 +81,8 @@ Static, repository-only design and decision documents (no SQL, production, auth,
 ## 12. Addendum — CLD3 live selected-scheme readback (9 November 2026)
 
 [WP05_CLD3_LIVE_SELECTED_SCHEME_READBACK_2026-11-09.md](WP05_CLD3_LIVE_SELECTED_SCHEME_READBACK_2026-11-09.md) documents SELECT-only verification of selected scheme resolution by frozen run: bilateral RESOLVED **600/627** (Oct 143), **601/628** (Nov 149), **601/629** (Nov 151), with exactly one IK+OK row per SKU in all three. Current-policy 601/629 parity supports S-A as a candidate, not an approved KPI correction. F1 live wrapper/internal metadata confirmed without execution; no runner allowlist expansion or negative-identity PASS. **WP05 OPEN, 6/13; no gate promotion or B1 approval.**
+
+
+## 13. Addendum — WP05 owner decision-ready closure path (9 November 2026) — PROPOSAL / NOT APPROVED
+
+[WP05_OWNER_DECISION_READY_CLOSURE_PATH_2026-11-09.md](WP05_OWNER_DECISION_READY_CLOSURE_PATH_2026-11-09.md) reconciles W5-01…10, PAR1 S2/S9, live CLD2/CLD3 findings, security and flag obligations, and recommends considering only the narrow B1-T2/T3 transfer to WP12 first (T1 zero rows without enumerated receiver). Original §8 remains binding; all owner rulings PENDING, no evidence class or gate promoted. **WP05 OPEN, programme 6/13.**
