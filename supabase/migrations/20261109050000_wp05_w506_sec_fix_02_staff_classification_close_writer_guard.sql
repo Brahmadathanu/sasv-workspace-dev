@@ -26,9 +26,13 @@
 -- the original and that signature, return type, volatility, SECURITY DEFINER, config, ACL, owner, language, OID and the wrapper
 -- definition are unchanged. No GRANT / REVOKE / DROP / wrapper change.
 -- Rollback (a SECURITY REGRESSION, containment-first): docs/master-data-costing/prepared/WP05_W506_SEC_FIX_02_ROLLBACK.sql (not executed).
-begin;
 
-create function pg_temp.w506_close_guard_patch(p_src text, p_prefix_len int, p_prefix_md5 text) returns text
+-- Transaction management: this file deliberately contains NO top-level BEGIN/COMMIT (embedded transaction control can
+-- make a runner's own transaction/history handling unreliable). The migration runner owns any enclosing transaction and
+-- the migration-history row. Every persistent change happens inside the single DO statement below, which is atomic by
+-- itself; the only other object is a session-local pg_temp helper, and the DO block aborts before any change if that
+-- helper is not visible on its connection.
+create or replace function pg_temp.w506_close_guard_patch(p_src text, p_prefix_len int, p_prefix_md5 text) returns text
 language plpgsql set search_path = pg_catalog, pg_temp as $f$
 declare
   c_guard  constant text := 'perform public.require_permission(''module:cost-build-manager'', true);';
@@ -78,6 +82,11 @@ declare
   v_def text; v_src text; v_patched text; v_new_def text; v_live_def text; v_orig_def text; v_orig_src text;
   v_pre record; v_post record; v_wrap_pre text;
 begin
+  -- Connection check: the temp helper above must be visible to this DO block (same session). If a runner executed the
+  -- statements on different connections this aborts BEFORE any change.
+  if to_regprocedure('pg_temp.w506_close_guard_patch(text,integer,text)') is null then
+    raise exception 'W506-SEC-FIX-02 aborted: temporary patch helper is not visible on this connection (the runner split the file across connections); nothing was changed';
+  end if;
   -- 1. exact targets
   v_oid  := to_regprocedure('costing.rpc_close_staff_costing_classification(bigint,date,text)');
   v_wrap := to_regprocedure('public.rpc_close_staff_costing_classification(bigint,date,text)');
@@ -163,5 +172,3 @@ begin
   end if;
 end
 $migration$;
-
-commit;
