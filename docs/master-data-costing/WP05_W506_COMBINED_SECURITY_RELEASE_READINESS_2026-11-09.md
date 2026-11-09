@@ -1,6 +1,22 @@
 # WP05-W506 — Combined Staff Governance security release readiness (9 November 2026)
 
-**Status: DOCUMENTATION ONLY. Nothing applied, merged or deployed. W5-06 OPEN; WP05 OPEN; programme 6/13.** No production access, DDL/DML, mutation RPC, grant/role change, rollback, or acceptance of any gap on the owner's behalf.
+**Status: DOCUMENTATION ONLY. Nothing applied, merged or deployed. W5-06 OPEN; WP05 OPEN; programme 6/13.** The owner accepted Path B and stated the operational caller policy in a subsequent decision on 9 November 2026; neither decision authorises production execution, rollback, grant changes or release.
+
+
+## Owner disposition and operational preflight addendum — 9 November 2026
+
+**Owner-approved policy (not deployment authorisation):**
+- **R1 / Path B accepted.** The owner accepts the residual risk of not running the unchanged Save+Close suites on isolated PostgreSQL 17.4, on the strength of the recorded 16.15 exact-source and combined-sequence results, subject to the controlled rollout gates. PostgreSQL 17.4 migration execution remains **NOT TESTED**; never report it as PASS.
+- **R6 / intended operational use confirmed.** Staff Governance classification changes are ordinarily made **through the SASV application**. Deliberately necessary **governed backend changes** remain an exceptional administrative route. This is a qualified operating-model attestation, **not** an absolute statement that all possible external/dynamic callers have been inventoried or that backend work is prohibited. Such exceptional backend procedures must be separately reviewed/authorised; a JWT-less `service_role` RPC invocation will be denied after the proposed guard. No automatic bypass, service credential exemption or grant widening is authorised.
+- This owner confirmation satisfies the requested operating-model declaration to the extent of the owner's knowledge and existing scan evidence. **Unknown future, third-party or undocumented dynamic callers remain a residual risk**, rather than being asserted absent.
+
+**Fresh owner-side read-only preflight evidence:**
+- Production server PostgreSQL 17.4; all four Save/Close function full-definition MD5s, owners, ACLs and `proconfig` matched original baselines in the preceding independent readback. The current exact hashes are listed in §§1 and 7; **repeat the readback immediately before any eventual production execution**.
+- Live `supabase_migrations.schema_migrations` / connected `list_migrations` results end at version `20261108165005` (`pec_vwl_r2_direct_indent_origin_lookup`) at this preflight. The proposed `20261109040000` and `20261109050000` migrations were not recorded. **Recheck for newer changes at execution time.**
+- Bounded SELECT-only scan for both Save and Close: zero other `pg_proc.prosrc` references outside their respective wrappers, zero matching `cron.job.command` text, zero direct user triggers. This does not inspect all external or dynamic callers.
+- Supabase's connected migration interface accepts a migration name and SQL body. This does **not prove** it will preserve a source filename version, nor that it tolerates the migration files' embedded `BEGIN/COMMIT` when wrapped in an executor transaction. No migration was submitted. **Executor/tool compatibility remains an unresolved STOP gate**, requiring a separately approved nonproduction-equivalent check or an exact, reviewed execution strategy before production approval. Record tool, applied name/version, source file hash, execution outcome and migration-history row; do not use `supabase db push`.
+
+**Approved direction for the release plan, not permission to execute:** Prepare a sequential **Save then Close** controlled rollout with inter-step read-only checks, stop/fix-forward on partial failure and no routine rollback. Release authorisation, executor, maintenance window, migration-tool compatibility, optional containment actions and controlled post-deploy deny-path testing all remain **separate explicit decisions**. The client confidentiality workstream and formal W5-06/WP05 acceptance remain OPEN.
 
 ## 1. PR heads and states
 
@@ -48,12 +64,12 @@ State: Save guarded; Close unguarded (still callable by any authenticated user v
 
 | # | Risk | Evidence | Class |
 |---|---|---|---|
-| R1 | PostgreSQL 17.4 not execution-tested | 16.15 only; no approved 17.4 environment (docker without daemon, no other server binary; third-party binary execution denied) | **BLOCKING** until Path A or Path B (§5) |
+| R1 | PostgreSQL 17.4 not execution-tested | 16.15 only; no approved 17.4 environment | **Owner accepted Path B** as documented exception; PG17.4 remains NOT TESTED |
 | R2 | 16.15 exact-source verification limits | Exact live definitions, 4 fingerprints, synthetic dependencies, test-double helper, different server version | Conditionally acceptable (strong evidence of logic; not a production test) |
 | R3 | Real `require_permission` and PostgREST behaviour | Live helper read by definition (md5 `d4921dbc…`), not executed; PostgREST/RLS not exercised | **NOT TESTED**; conditionally acceptable only with post-deploy authorised denial tests |
 | R4 | Authenticated view-only / unauthorised access | Denied in 16.15 matrices (44 distinct denial/permit rows across both writers) | Resolved for logic in isolation; production behaviour NOT TESTED (see R3) |
 | R5 | Existing CBM View+Edit users | 1 View+Edit, 2 View-only (owner aggregate); sole editor attested as intended | Resolved for present operation; breadth of CBM rights noted |
-| R6 | Unknown external / non-JWT callers | Repo: Save has one signed-in browser call site, Close none; owner readbacks (34 cron jobs, function bodies, triggers, 3 Edge Functions) found no references; external/dynamic callers not excluded | **BLOCKING** until attestation (§6) |
+| R6 | Unknown external / non-JWT callers | Owner confirms app-only ordinary updates, plus exceptional governed backend procedure; bounded repo/live scans identify no routine non-JWT callers; unknown external/dynamic calls cannot be excluded | **Operating model attested; residual discovery risk retained**; no bypass |
 | R7 | Partial deployment (non-atomic) | Executed in §2 | Conditionally acceptable with STOP rules and forward-correction plan |
 | R8 | Function-definition drift between readback and apply | Fail-closed aborts executed for both | Resolved by design; requires fresh readback at apply |
 | R9 | Independent emergency rollbacks reopen holes | Executed independence in §2 | Conditionally acceptable: containment-first, owner-interlocked |
@@ -66,16 +82,11 @@ State: Save guarded; Close unguarded (still callable by any authenticated user v
 **Residual risks specific to testing on 16 instead of 17.4 (unexercised):** PL/pgSQL compilation/validation of the guarded bodies on 17; planner/executor behaviour of the unchanged wrapper SQL bodies; privilege/search_path semantics for SECURITY DEFINER under 17 defaults; any version-specific catalogue rendering not covered by the four fingerprints; behaviour of the real extensions/roles present in production. These are **unobserved**, not known failures.
 - **Path A — Verified release:** an approved disposable PostgreSQL 17.4 (same minor) runs the *unchanged* suites: `run_live_equivalent.sh` for #254 (26 checks + 21-row matrix) and #255 (26 checks + 23-row matrix), plus the combined sequence scenarios in §2, on a cluster whose data directory is named `w506-disposable-*`. Record `select version()`, commit SHAs and outputs. Closes R1 as PASS.
 - **Path B — Explicit risk-accepted release:** the owner separately and in writing accepts the absence of 17.4 isolated testing after reviewing R1–R3 and the controls in §7–§8 (maintenance window, fresh fingerprints, post-deploy denial test, containment plan). This is a **governance exception, not compatibility evidence**; R1 stays "not tested".
-Neither path is assumed approved.
+**Owner decision:** Path B has been accepted as a documented version-test exception. Path A is not being pursued for this release unless new conflicting evidence requires reassessment. Neither choice is permission to deploy.
 
 ## 6. External-caller attestation (for the owner)
 Reconciliation: repo — Save: one browser client call (`costing-suite-cost-build.js` → `costingRpc` → signed-in Supabase client, JWT user); Close: none (generated types only); scripts/workflows/Edge Function sources in repo: none. Production read-only inventory (owner): 34 cron command strings, function bodies, trigger definitions and 3 deployed Edge Functions: 0 references (Close-specific wording in those scans should be confirmed). Both public wrappers retain `service_role` EXECUTE, but both guards need a real application user with CBM View+Edit, so any service-role/JWT-less caller **will fail**.
-**Attestation to sign (owner or integration owner):**
-1. No external integration, script, scheduled job, Edge Function, BI/ETL tool, admin tool or manual SQL procedure calls `public.rpc_set_staff_costing_classification` or `public.rpc_close_staff_costing_classification` with the service-role key or without a user JWT.
-2. Any such caller found is listed with owner, purpose, frequency and replacement plan — **no bypass is added**.
-3. Staff Governance classification is changed only by the attested editor (via the web app).
-4. Close is not used operationally (no UI); if it is used through another path, name it.
-Signed/dated: ____ (until signed, R6 stays BLOCKING).
+**Owner operational attestation (9 November 2026, recorded in PR discussion):** Staff Governance classification changes are ordinarily made through the SASV application; explicitly necessary **governed backend changes** remain possible. This is not an unconditional no-external-caller assertion and is not a blanket waiver for direct SQL or service-role RPCs. The bounded technical scan disclosed no regular background integration. An exceptional backend operation must be individually reviewed, authorised and audited, with its own execution path. Any new non-JWT caller must be classified with owner/purpose/frequency before a related integration is activated. Do not introduce a guard bypass.
 
 ## 7. Controlled rollout checklist (STOP = halt, record, do not continue)
 **Before.** (1) Written owner approval of the release and of Path A or Path B. (2) Fresh read-only readback of the four full-definition md5s — STOP on any difference from `553d103a…/6ba70947…/1c9884c0…/a8254681…` (also helper `d4921dbc…`). (3) Compare owner, ACL, `proconfig`, signature, volatility for all four against the baseline — STOP on difference. (4) Confirm CBM grant counts unchanged (1 View+Edit) and the editor is reachable. (5) Confirm migration sequencing/history method; executor knows `db push` is not used; version recorded. (6) Maintenance window, short `lock_timeout`, executor and observer named. (7) Containment plan approved in principle (§8). (8) Attestation §6 signed. (9) PR heads still `ba8d3b1` / `522e602` (STOP if changed).
@@ -93,8 +104,8 @@ Signed/dated: ____ (until signed, R6 stays BLOCKING).
 Rollbacks (`WP05_W506_SEC_FIX_01_ROLLBACK.sql`, `…_02_ROLLBACK.sql`) are security regressions, fail closed on drift, and are separately interlocked; executed independence is in §2.
 
 ## 9. Owner decisions still required
-1. Path A (approved 17.4 environment) **or** Path B (written risk acceptance).
-2. Sign the external-caller attestation (§6).
+1. **DECIDED:** Path B accepted; PostgreSQL 17.4 remains NOT TESTED. Reconsider only if contradictory evidence arises.
+2. **DECIDED:** Owner confirms ordinary SASV application use with deliberately required governed backend exceptions; unknown external/dynamic callers remain a residual risk (§6).
 3. Authorise the release (production execution is a separate decision), the maintenance window and executor.
 4. Approve the containment options in principle (e.g. whether a temporary Close-wrapper restriction is acceptable if Close fails).
 5. Approve the post-deploy denial-test procedure and identities.
@@ -103,4 +114,4 @@ Rollbacks (`WP05_W506_SEC_FIX_01_ROLLBACK.sql`, `…_02_ROLLBACK.sql`) are secur
 8. Separate workstreams: client Edit-control gating and salary-data exposure; dedicated personnel-costing permission.
 
 ## 10. Final recommendation
-**BLOCKED for production execution, READY FOR OWNER DECISION on the two gates.** Blocking items: R1 (PostgreSQL 17.4 — needs Path A or an explicit Path B decision) and R6 (external-caller attestation). Everything else is resolved or conditionally acceptable under the §7 controls. The code, fingerprints, sequencing and partial-failure behaviour are verified to the extent possible on PostgreSQL 16.15; production behaviour (real helper, PostgREST, 17.4) is NOT TESTED. Programme count 6/13; W5-06 and WP05 remain OPEN.
+**POLICY GATES RESOLVED; PRODUCTION EXECUTION STILL NOT AUTHORISED.** R1 accepted under Path B and R6 operating model attested with residual unknown-caller risk. The mandatory migration-tool/transaction and version-history preflight, fresh hashes, approved execution/containment/denial-test plan, executor, maintenance window and separate owner release authorisation remain open. The code, fingerprints, sequencing and partial-failure behaviour are verified to the extent possible on PostgreSQL 16.15; production behaviour (real helper, PostgREST, 17.4) is NOT TESTED. Programme count 6/13; W5-06 and WP05 remain OPEN.
