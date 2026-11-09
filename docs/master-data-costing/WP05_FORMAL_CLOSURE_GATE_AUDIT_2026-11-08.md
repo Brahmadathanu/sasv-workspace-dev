@@ -101,3 +101,8 @@ The owner explicitly agreed to three recommendations in chat: **[D1](WP05_OWNER_
 ## 16. Addendum — W5-06 shared-view authority and negative-identity expectation matrix (9 November 2026)
 
 [WP05_W506_SHARED_VIEW_AUTHORITY_AND_IDENTITY_MATRIX_2026-11-09.md](WP05_W506_SHARED_VIEW_AUTHORITY_AND_IDENTITY_MATRIX_2026-11-09.md) records SELECT-only metadata: **49 shared-helper gated costing views; 48 with PostgreSQL authenticated SELECT, zero with anon SELECT**, including four staff/personnel-related view names for sensitivity review; one RM-line trace view lacks authenticated SELECT. Separately, `authenticated` has costing-schema USAGE plus EXECUTE on the guarded internal-source acceptance function, without any observed bypass. The live shared helper is any-one-of-four module view grants; ID-O therefore cannot be presumed universally denied on all cross-module view reads. **No view rows, RPC or negative identity executed.** Correct per-view/role policy remains owner-decision pending; W5-06 OPEN, B1 draft only, WP05 OPEN, 6/13.
+
+
+## 17. Addendum — 49-view column sensitivity and consumer inventory (9 November 2026)
+
+[WP05_W506_49_VIEW_COLUMN_SENSITIVITY_CONSUMER_INVENTORY_2026-11-09.md](WP05_W506_49_VIEW_COLUMN_SENSITIVITY_CONSUMER_INVENTORY_2026-11-09.md) records metadata-only column review for all **49** shared-helper costing views, plus repository-backed and provisional client ownership. Individual salary fields (`basic_salary`, allowances, total salary) and `staff_details` in CBM staff views are verified **column names**, not queried values; provider-rate, trace, actor-audit views need scoped business policy decisions. **No per-view hardening yet approved and no access changes applied.** W5-06 OPEN, WP05 OPEN, 6/13; B1 draft only.
