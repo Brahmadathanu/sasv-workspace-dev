@@ -1,0 +1,34 @@
+# WP05-W506-SEC-FIX-02 — Staff Governance CLOSE writer server-authorisation guard (9 November 2026)
+
+**Status: DRAFT COMPANION PR — MIGRATION NOT APPLIED.** W5-06 OPEN; WP05 OPEN; programme 6/13. No production access, no snapshot/migration executed against production, no writer call, no grant/role/flag change, no merge, no deploy, no service-role bypass.
+
+## 1. Finding
+Independent SELECT-only readback of production PostgreSQL 17.4 (owner-side worker, commit `84e87dc`): `costing.rpc_close_staff_costing_classification(bigint,date,text)` is SECURITY DEFINER, updates `costing.staff_costing_classification` (`effective_to`, `is_active`, `remarks`, `updated_at`) and has **no** `require_permission` / `auth.uid()` guard. The public SECURITY DEFINER wrapper of the same name is executable by `authenticated` and `service_role`. Not a demonstrated exploit. The G0 advisor summary had already flagged the wrapper as executable by `authenticated`.
+
+| Object | Full-definition md5 | prosrc md5 (info) |
+|---|---|---|
+| internal | `1c9884c0ca0321eda6055feaa6bd64de` (2,156 chars; prosrc 1,589) | `82f1b8b699f078505f1fd7211d9d2741` |
+| wrapper | `a8254681b64a6e78b59f1d2b00d9a7df` | `af0b4c4dfb69a6349a6e88ec433f2af9` |
+
+Declaration prefix: `substr(prosrc,1,174)`, CRLF, md5 `255b487148e29e51fa841048e8d248c9`, first BEGIN match at 175. Owner `postgres`; internal ACL `{postgres=X/postgres}`, `search_path=costing, public, hr`; wrapper ACL `{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}`, `search_path=public, costing, hr`.
+
+## 2. Change
+`supabase/migrations/20261109105717_wp05_w506_sec_fix_02_staff_classification_close_writer_guard.sql` inserts `perform public.require_permission('module:cost-build-manager', true);` as the first executable statement of the **internal** function (same temporary CBM view+edit policy as PR #254; no identity hard-coded). The wrapper is not modified. Architecture is identical to PR #254: full-definition md5 preconditions for both functions, exact 174-byte prefix proof, single pure insertion, fail-closed idempotency (original + exact insertion only), post-install proof (definition minus guard = original; OID/owner/ACL/config/volatility/signature/wrapper unchanged). Rollback `docs/master-data-costing/prepared/WP05_W506_SEC_FIX_02_ROLLBACK.sql` is a security regression, containment-first, with its **own** interlock setting `w506.close_rollback_owner_emergency_approval` (so approving the Save rollback does not authorise the Close rollback).
+
+**Runner-compatible framing (revision after the Supabase embedded-transaction advisory).** The migration and rollback contain no top-level `BEGIN`/`COMMIT`; the runner owns any enclosing transaction and the history row. All persistent change is in one `DO` statement (atomic by itself); the `pg_temp` helper is `CREATE OR REPLACE`d and the DO block aborts before any change if the helper is not visible on its connection. Simulated-runner results (L7a–f, 16.15): see the combined readiness document; the real Supabase runner semantics were not available and are NOT established.
+
+## 3. Callers (repository level; bounded)
+`rpc_close_staff_costing_classification` appears only in the generated `public/shared/js/types/supabase.ts`. **No client call site**, script, workflow or Edge Function in the repository (the Staff Governance UI exposes Save only). Owner readbacks for PR #254 (34 cron jobs, function bodies, triggers, 3 Edge Functions) found no writer references; Close-specific references in those sources were not re-read here. Classification: no known caller; any `service_role`/JWT-less or external caller would be denied after the fix (unknown, needs the same attestation as PR #254). Expected operational regression: none known; the CBM editor loses nothing.
+
+## 4. Verification (PostgreSQL 16.15 disposable cluster; PostgreSQL 17.4 NOT TESTED)
+Snapshot `supabase/tests/w506_sec_fix_02/live_close_definition_snapshot_20261109.sql` used **unmodified** (blob from `84e87dc`) over synthetic dependencies (`live_scaffold.sql`; synthetic `SYN-*` rows; `require_permission`/`auth.uid` test doubles). Snapshot fingerprints were verified in the isolated server before any modification: internal `1c9884c0…`, wrapper `a8254681…`, prosrc md5s, 174/`255b4871…`/175, CRLF.
+
+- `node --test scripts/costing-w506-sec-fix-02/migration-static.test.mjs` → **13 pass / 0 fail**.
+- `PGHOST=<socket> … supabase/tests/w506_sec_fix_02/run_live_equivalent.sh` (cluster `w506-disposable-close`, no sed/constant substitution) → **26 runner checks pass / 0 fail**, plus matrix **23/23 SQL rows PASS**: wrapper denied (no grants, other-module, view-only, edit-without-view, edit-on-other-module, unauthenticated, JWT-less `service_role`-style) before any lookup/validation/write with the table unchanged; privileged direct internal calls denied; `authenticated` cannot execute the internal function; CBM view+edit closes a row (effective_to set, remarks updated or kept, `is_active` kept true, default `current_date`) and reaches the real validations; wrapper returns the 12-column row; guard precedes validation and the UPDATE.
+- Migration applies unchanged; second application is an idempotent no-op; drift aborts (extra statement, altered wrapper, one-byte prefix change, one-byte later change); rollback aborts without interlock, restores `1c9884c0…` with metadata equal, second rollback no-op, re-apply reproduces the guarded definition, aborts on drifted guarded body and altered wrapper.
+
+Limits: synthetic register view/table (no RLS, triggers, constraints); test-double helper (live helper md5 `d4921dbc…` not installed); no PostgREST; no real grantees; different server version (17.4 untested). Restricted-user behaviour on the real system remains NOT TESTED.
+
+## 5. Dependency on PR #254 and combined release sequence
+The two PRs are **code-independent** (different functions, separate fingerprints, separate rollback interlocks, no shared migration objects) but are **one security objective**: releasing only one leaves the other classification writer open to any authenticated user. They share the same open gates: PostgreSQL 17.4 disposition, external/non-JWT caller attestation, editor policy (resolved: sole CBM view+edit account), and a maintenance window.
+Recommended sequence: (1) owner closes the 17.4 and caller gates once for both writers; (2) fresh read-only readback of all four definition hashes, ACLs, owner and `proconfig`; (3) **completed 9 November 2026:** Save migration `20261109105557` (PR #254) followed by Close migration `20261109105717` (this PR), as recorded in the live migration history; (4) read-only catalogue verification (definition minus guard = original for both; wrappers unchanged); (5) prefer containment over either rollback. Neither PR closes W5-06 (client salary exposure, dedicated personnel-costing permission remain separate).

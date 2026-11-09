@@ -36,3 +36,13 @@ Each listed named function was inspected as a distinct exact signature. `provola
 - F1 and other previews' safety; neither they nor any writer were executed.
 
 **Gate classification: W5-06 stays OPEN.** This targeted readback contributes `CATALOGUE_OBSERVED` for the named functions only. Original shared §8 and pending B1 approval unchanged. AE1 remains 13 P / 4 historical F / 2 NA / 21 NT; WP05 OPEN, programme 6/13.
+
+
+## Addendum — Staff Governance classification writers (9 November 2026)
+
+| Writer | State | PR | Server guard |
+|---|---|---|---|
+| `costing.rpc_set_staff_costing_classification` (Save) | unguarded SECURITY DEFINER; wrapper executable by `authenticated`, `service_role` | #254 (draft, unapplied) | proposed: CBM view+edit |
+| `costing.rpc_close_staff_costing_classification` (Close) | unguarded SECURITY DEFINER (owner 17.4 readback; md5 `1c9884c0…`, wrapper `a8254681…`); no client call site in repo | companion WP05-W506-SEC-FIX-02 (draft, unapplied) | proposed: same CBM view+edit |
+
+The two fixes are code-independent but must be released together; see `WP05_W506_SEC_FIX_02_CLOSE_WRITER_GUARD_NOTE_2026-11-09.md` §5. PostgreSQL 17.4 execution: NOT TESTED. W5-06 OPEN; WP05 OPEN; programme 6/13.
