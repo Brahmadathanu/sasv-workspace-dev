@@ -12,6 +12,17 @@ Among **63** `public` views/materialised views in the namespace-and-name-filter 
 
 **Governance implication, not a proven breach:** if the helper is the controlling condition and the caller has sufficient privileges for the target view, a single CSR/CCC/CBM/MCM view grant can satisfy the shared helper even for a differently named costing module's view. In particular, classification/salary-sensitive projections require an explicit business-need and least-privilege assessment. No personal, salary or row-level data were queried here.
 
+### 1.1 Named view inventory — preliminary review buckets only
+
+A second SELECT-only catalogue read returned the **exact 49 helper-gated names** and their current role-SELECT flag and `security_invoker` reloptions. The following **name-based buckets are review priorities, not authoritative sensitivity/role classifications**. No view rows were queried.
+
+- **Staff / personnel review (4):** `v_costing_staff_classification_register`, `v_costing_staff_cost_pool_summary`, `v_costing_staff_costing_class_options`, `v_costing_unclassified_staff_for_costing`. All four have authenticated SELECT at role level. Particular attention: classification/payroll-related columns must be inventoried before any claim that CSR-only view should legitimately read them.
+- **Cost-sheet/detail/trace review (7):** `v_cost_sheet_snapshot_sku_monthly_comparison`, `v_costing_pricing_cost_sheet_line_traceability`, `v_costing_pricing_cost_sheet_rm_line_traceability`, `v_costing_pricing_material_rate_issue_lines`, `v_costing_pricing_printable_cost_sheet_lines`, `v_costing_pricing_printable_cost_sheet_product_summary`, `v_costing_pricing_sku_detailed_cost_sheet`. The RM-line trace view is the **only** helper-gated view without authenticated SELECT; another trace view does have role-level SELECT, which is not proof of effective access.
+- **Pricing/policy review (12):** `v_costing_policy_manager_scheme_options`, `v_costing_policy_manager_scheme_policy_history`, `v_costing_policy_manager_selling_policy_history`, `v_costing_policy_manager_sku_overview`, `v_costing_pricing_commercial_sales_basis`, `v_costing_pricing_selected_scheme_policy`, `v_costing_pricing_sku_scheme_comparison`, `v_costing_scheme_master_audit`, `v_costing_scheme_master_register`, `v_costing_scheme_policy_rule_register`, `v_costing_scheme_policy_scope_options`, `v_costing_scheme_policy_selected_overview`.
+- **Other costing/control/material workbench review (26):** remaining 26 named views include cost pools, manual rates, material review acceptance, costing dashboard, readiness/status and review queues; their individual columns and ownership remain to be classified before changing the gate.
+
+**Observed group totals: 4 + 7 + 12 + 26 = 49.** In this catalogue read, all but RM-line trace have role-level authenticated SELECT. Twelve of the 49 are `security_invoker=true`; any permission matrix must consider their underlying table access. A string/name bucket is not a replacement for column-level inspection and policy-owner sign-off.
+
 ## 2. Internal-source review writer ACL
 
 At readback:
@@ -47,7 +58,7 @@ These are **logical implications of the *inspected* definitions**, not observed 
 
 ## 5. Smallest next verification — separate permission required before behavioural tests
 
-A. **Repository/catalogue only:** enumerate all 49 exact view names and corresponding target module, data sensitivity, SELECT grants, `security_invoker`, secondary guards, underlying relation/RLS expectations, known UI consumers and necessary operational roles. Reconcile trace-role exceptions. Examine actual SQL function dependencies on internal source accept RPC and list alternative call paths before considering any revocation.
+A. **Repository/catalogue only:** complete the view-by-view matrix using the **49-name catalogue inventory above**, recording corresponding target module, actual columns and data sensitivity, SELECT grants, `security_invoker`, secondary guards, underlying relation/RLS expectations, known UI consumers and necessary operational roles. Reconcile trace-role exceptions. Examine actual SQL function dependencies on internal source accept RPC and list alternative call paths before considering any revocation.
 
 B. **Identity read-only behaviour, later and only with explicit owner approval:** use existing ID-N, ID-X, ID-O (no new user or grant changes) on a source-verified build, with an *exact, individually audited* set of safe view reads, and record expected versus actual server codes without accessing sensitive records. For ID-O, separate CCC-specific `require_permission` contracts from shared view-helper contracts. **No preview, accept, close, approve, refresh or other writer RPCs**, even to elicit an expected denial; no token capture or replay.
 
