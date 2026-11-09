@@ -111,3 +111,8 @@ The owner explicitly agreed to three recommendations in chat: **[D1](WP05_OWNER_
 ## 18. Addendum — sensitive client payload and minimum-column design (9 November 2026)
 
 [WP05_W506_SENSITIVE_CLIENT_MINIMUM_COLUMNS_DESIGN_2026-11-09.md](WP05_W506_SENSITIVE_CLIENT_MINIMUM_COLUMNS_DESIGN_2026-11-09.md) confirms Staff Governance's three `select('*')` client reads fetch person-level salary components or nested `staff_details` beyond visible table columns; total salary cost **is** displayed, and edit/export dependencies remain unverified. Proposes explicit projections only after full consumer tracing, and separately governed per-view server permission roles; client projection alone is **not** authorization. No code/SQL/grants changed. W5-06 OPEN; B1 not approved; WP05 OPEN, 6/13.
+
+
+## 19. Addendum — personnel-costing dedicated-role direction (9 November 2026)
+
+The owner accepted the recommendation that identifiable staff remuneration requires additional, dedicated personnel-costing permission beyond generic CBM view, while legitimate nonidentifying pool aggregates should remain available. [Policy/trace record](WP05_W506_PERSONNEL_COSTING_POLICY_APPROVAL_AND_CLIENT_TRACE_2026-11-09.md) documents the approval **in principle**, exact Staff Governance client read/edit dependencies, and the separate identity/permission/design/implementation gates. **No permission identifier, assignee, client or server modification, security execution, B1 amendment or production rollout was approved or performed.** W5-06 OPEN, WP05 OPEN, programme 6/13.
