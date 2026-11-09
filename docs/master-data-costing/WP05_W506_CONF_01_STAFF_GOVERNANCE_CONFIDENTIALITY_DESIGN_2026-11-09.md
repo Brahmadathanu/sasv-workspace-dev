@@ -53,6 +53,12 @@ After Claude's isolated verification at server PR #257 `ee900cfb` and client PR 
 
 **Isolated tests reported by Claude:** server static 15/15, disposable PostgreSQL 16.15 runner 30/30 + identity matrix 14/14, including exact live 17.4 view-definition replay and fail-atomicity tests; client focused 22/22 + dynamic 11/11; other existing main-branch test failures unchanged. These are worker-reported results, with GitHub PR heads independently verified. Browser/costing-responsive and PostgreSQL 17.4 execution not done.
 
+## Pinned migration candidate — 9 November 2026 (NOT DEPLOYED)
+
+All four owner-verified, SELECT-only production definition MD5 fingerprints have now been substituted into the draft **migration and emergency rollback**. The disposable runner substitutes them back to scratch-cluster definition hashes **only in temporary copies**, and its P0 gate test intentionally corrupts a scratch fingerprint to prove fail-closed drift rejection; the static suite now checks the exact four pinned constants rather than expecting unfilled placeholders. Four-way source consistency was checked against GitHub. **This is a release-candidate preparation change; executable static, PostgreSQL and client regression tests must be rerun on the new branch head before promotion.** Prior 15/15, 30/30, 14/14 and 22/22+11/11 test results apply to the **preceding unpinned heads**, not automatically to this new pinned branch.
+
+Never execute the committed migration against synthetic TB2 data or an outdated production definition. Before production apply, recheck all four live hashes and verify authorised client release, an approved deployment plan, signed-in PostgREST test identities and a stop/containment plan. The rollback reopens personnel data exposure and therefore requires its independent emergency interlock and alternate protective control. The migration is now **technically executable** if hashes match, so neither a GitHub merge nor `apply_migration` is approved solely because values are pinned. W5-06 and WP05 remain OPEN.
+
 ## 1. Consumer inventory (repository level; bounded)
 
 | Consumer | What it reads | Finding |
