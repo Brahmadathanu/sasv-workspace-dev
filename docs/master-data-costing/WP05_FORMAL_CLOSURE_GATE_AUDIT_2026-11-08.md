@@ -72,3 +72,7 @@ Static, repository-only design and decision documents (no SQL, production, auth,
 ## 10. Addendum — WP05-CLD2 live SELECT-only readback (9 November 2026)
 
 [WP05_CLD2_LIVE_CATALOGUE_READBACK_2026-11-09.md](WP05_CLD2_LIVE_CATALOGUE_READBACK_2026-11-09.md) confirms live L1 CROSS JOIN scope mismatch, frozen snapshot columns and 143/149/151 data grain, live PRM F1/SEC permission-gate definitions, and run-82 workload count 495. **No RPC executed and no DML.** L1 scheme bilateral-selection semantics and preview callees remain unresolved; security negative-identity behaviour not tested. PAR1 run 149 remains historical; current-successful Nov run 151 was selected on 9 November. **WP05 OPEN; 6/13; no gate/owner decision promotion.**
+
+## 11. Addendum — WP05-CLD3 static trace and decision matrix (9 November 2026) — PROPOSAL / NOT EXECUTED
+
+[WP05_CLD3_STATIC_TRACE_2026-11-09.md](WP05_CLD3_STATIC_TRACE_2026-11-09.md) (scheme-policy semantics incl. a run-scoped selected-scheme snapshot, preview/`rpc_get_*` call trees, PRM run-82 zero-row predicates, proposed SELECT-only readbacks) and [WP05_CLD3_OWNER_DECISION_MATRIX_2026-11-09.md](WP05_CLD3_OWNER_DECISION_MATRIX_2026-11-09.md). Repository-only; no SQL, production, auth, code, flag or deployment action. No gate status, owner approval or ledger count is changed; B1 not approved; shared §8 remains binding. **WP05 remains OPEN; programme remains 6/13.**
