@@ -3,115 +3,128 @@
 -- production is a separate, explicit owner decision (see docs/master-data-costing/WP05_W506_SEC_FIX_01_*.md).
 --
 -- Finding (live SELECT-only catalogue review recorded in issue #234, 9 Nov 2026):
---   costing.rpc_set_staff_costing_classification(...) is SECURITY DEFINER, VOLATILE, UPDATEs/INSERTs
---   costing.staff_costing_classification and contains NO require_permission / auth.uid() guard.
---   It is reachable by every authenticated user through the SECURITY DEFINER public wrapper
---   public.rpc_set_staff_costing_classification(bigint,text,text,date,numeric,text)  (SQL body, md5 6ba709477ecc7755fb6005b6e2203a2b).
+--   costing.rpc_set_staff_costing_classification(bigint,text,text,date,numeric,text) is SECURITY DEFINER, VOLATILE,
+--   UPDATEs/INSERTs costing.staff_costing_classification and contains NO require_permission / auth.uid() guard.
+--   It is reachable by every authenticated user through the SECURITY DEFINER wrapper
+--   public.rpc_set_staff_costing_classification(bigint,text,text,date,numeric,text).
 --
--- Fix (minimum): make the FIRST statement after the main BEGIN of the INTERNAL function
---   PERFORM public.require_permission('module:cost-build-manager', true);
--- (can_view AND can_edit). The public wrapper is NOT modified: it delegates to the internal function, so
--- every path is guarded, and re-writing a live SQL wrapper would add drift surface without extra protection.
+-- Fix (minimum): make the FIRST executable statement after the main BEGIN of the INTERNAL function
+--   PERFORM public.require_permission('module:cost-build-manager', true);        -- can_view AND can_edit
+-- The public wrapper is NOT modified; it must, however, be byte-identical (full definition) to the reviewed live
+-- wrapper or this migration aborts, because the delegation path is a precondition of the fix.
 --
--- Safety design:
---  * The live definition is read with pg_get_functiondef(); this file contains NO copy of the function body.
---  * Fail closed unless the live function matches the recorded fingerprint (md5 of prosrc OR of the full
---    pg_get_functiondef text -- the issue record does not say which form was used), or is already guarded.
---  * The patch is a single, regexp-located insertion; the result is re-verified (guard present exactly once,
---    before any write token) and every catalogue property the migration must not change (signature, return
---    type, volatility, SECURITY DEFINER, config incl. search_path, ACL, owner, language) is compared before/after.
---  * No GRANT / REVOKE / DROP / wrapper change. CREATE OR REPLACE keeps the function OID and ACL.
---  * Whole file is one transaction; any assertion failure rolls everything back.
--- Rollback: docs/master-data-costing/prepared/WP05_W506_SEC_FIX_01_ROLLBACK.sql (not executed).
+-- Verified live fingerprints (independent review, 9 Nov 2026, md5 of pg_get_functiondef(oid) -- FULL DEFINITION ONLY):
+--   internal  553d103a5afedda3191c1aa62c33be7c   (prosrc md5 d80f2103c83428083e2d1902837317e6 is informational only)
+--   wrapper   6ba709477ecc7755fb6005b6e2203a2b   (prosrc md5 2878e20495d1be6baabd980feecb8918 is informational only)
+--
+-- Fail-closed design:
+--  * Exact regprocedure lookups, exactly one overload of the internal name, no name-only matching.
+--  * Wrapper full-definition md5 must equal the verified value (EXCEPTION, not a warning).
+--  * Preimage path: internal full-definition md5 must equal the verified value; the body is patched by ONE pure
+--    insertion (pg_temp.w506_guard_patch); the result is re-verified.
+--  * Idempotent path: an already-guarded function is accepted ONLY if removing the exact guard text restores the verified
+--    original full-definition md5 AND re-applying the deterministic patch to that original reproduces the live body
+--    byte for byte (so the guard is the expected first statement and nothing else differs). Otherwise abort.
+--  * Shape: only an optional plain DECLARE section may precede the main BEGIN; comments, quotes, dollar quotes or labels
+--    there abort (a regexp is not a PL/pgSQL parser, so unknown shapes are refused rather than guessed).
+--  * After execution: full definition minus the guard must again hash to the verified original; signature, return type,
+--    volatility, SECURITY DEFINER, config (search_path), ACL, owner, language, OID, and the wrapper full definition hash
+--    are unchanged. Any failure rolls the single transaction back.
+--  * No GRANT / REVOKE / DROP / wrapper change.
+-- Rollback (a SECURITY REGRESSION, containment-first policy applies): docs/master-data-costing/prepared/WP05_W506_SEC_FIX_01_ROLLBACK.sql (not executed).
 begin;
+
+create function pg_temp.w506_guard_patch(p_src text) returns text
+language plpgsql set search_path = pg_catalog, pg_temp as $f$
+declare
+  c_guard  constant text := 'perform public.require_permission(''module:cost-build-manager'', true);';
+  c_insert constant text := E'\n  ' || c_guard || E'\n';
+  c_begin_re constant text := '(^|[^[:alnum:]_])(begin)([[:space:]])';
+  v_pos int; v_before text; v_out text;
+begin
+  v_pos := regexp_instr(p_src, c_begin_re, 1, 1, 0, 'i');
+  if v_pos = 0 then
+    raise exception 'W506-SEC-FIX-01 aborted: no BEGIN followed by whitespace found in function body';
+  end if;
+  v_before := substr(p_src, 1, v_pos - 1);
+  -- only an optional plain DECLARE section may precede the main BEGIN: no comments, quotes, dollar quotes or labels
+  if not (v_before ~* '^[[:space:]]*$' or v_before ~* '^[[:space:]]*declare[[:space:]]') then
+    raise exception 'W506-SEC-FIX-01 aborted: unexpected text before the first BEGIN (label or other construct); refusing to guess';
+  end if;
+  if v_before ~ '(--|/\*|\$|<<|'')' then
+    raise exception 'W506-SEC-FIX-01 aborted: comment, quote or label before the first BEGIN; refusing to guess';
+  end if;
+  v_out := regexp_replace(p_src, c_begin_re, '\1\2' || c_insert || '\3', 'i');   -- no g flag: first match only
+  if length(v_out) - length(p_src) <> length(c_insert) or replace(v_out, c_insert, '') <> p_src then
+    raise exception 'W506-SEC-FIX-01 aborted: patch is not a single pure insertion';
+  end if;
+  return v_out;
+end
+$f$;
 
 do $migration$
 declare
-  c_internal_fp constant text := '553d103a5afedda3191c1aa62c33be7c';
-  c_wrapper_fp  constant text := '6ba709477ecc7755fb6005b6e2203a2b';
-  c_guard       constant text := 'perform public.require_permission(''module:cost-build-manager'', true);';
-  c_insert      constant text := E'\n  ' || c_guard || E'\n';
-  c_begin_re    constant text := '(^|[^[:alnum:]_])(begin)([^[:alnum:]_]|$)';
-  c_write_re    constant text := '(insert[[:space:]]+into|update[[:space:]]|delete[[:space:]]+from)';
-  v_oid oid;  v_wrap oid;
-  v_def text; v_src text; v_patched text; v_new_def text;
-  v_pre record; v_post record;
-  v_pos int;  v_before text;  v_n int;
+  c_internal_def_fp constant text := '553d103a5afedda3191c1aa62c33be7c';
+  c_wrapper_def_fp  constant text := '6ba709477ecc7755fb6005b6e2203a2b';
+  c_guard  constant text := 'perform public.require_permission(''module:cost-build-manager'', true);';
+  c_insert constant text := E'\n  ' || c_guard || E'\n';
+  v_oid oid; v_wrap oid; v_n int;
+  v_def text; v_src text; v_patched text; v_new_def text; v_live_def text; v_orig_def text; v_orig_src text;
+  v_pre record; v_post record; v_wrap_pre text;
 begin
-  -- 1. exactly one internal function, exactly one public wrapper with the expected signature
-  select count(*), min(p.oid) into v_n, v_oid
-  from pg_proc p where p.pronamespace = 'costing'::regnamespace and p.proname = 'rpc_set_staff_costing_classification';
-  if v_n <> 1 then
-    raise exception 'W506-SEC-FIX-01 aborted: expected exactly one costing.rpc_set_staff_costing_classification, found %', v_n;
-  end if;
+  -- 1. exact targets
+  v_oid  := to_regprocedure('costing.rpc_set_staff_costing_classification(bigint,text,text,date,numeric,text)');
   v_wrap := to_regprocedure('public.rpc_set_staff_costing_classification(bigint,text,text,date,numeric,text)');
-  if v_wrap is null then
-    raise exception 'W506-SEC-FIX-01 aborted: public wrapper signature not found';
+  if v_oid is null or v_wrap is null then
+    raise exception 'W506-SEC-FIX-01 aborted: internal or public wrapper signature not found';
   end if;
-  -- the wrapper must still delegate to the internal function and must not be changed here
-  if position('costing.rpc_set_staff_costing_classification' in pg_get_functiondef(v_wrap)) = 0 then
-    raise exception 'W506-SEC-FIX-01 aborted: public wrapper no longer delegates to the internal function (drift)';
-  end if;
-  if md5((select prosrc from pg_proc where oid = v_wrap)) <> c_wrapper_fp and md5(pg_get_functiondef(v_wrap)) <> c_wrapper_fp then
-    raise warning 'W506-SEC-FIX-01: public wrapper fingerprint differs from the recorded value (wrapper is not modified by this migration)';
+  select count(*) into v_n from pg_proc p
+   where p.pronamespace = 'costing'::regnamespace and p.proname = 'rpc_set_staff_costing_classification';
+  if v_n <> 1 then
+    raise exception 'W506-SEC-FIX-01 aborted: expected exactly one costing.rpc_set_staff_costing_classification overload, found %', v_n;
   end if;
 
-  select p.prosrc into v_src from pg_proc p where p.oid = v_oid;
+  -- 2. wrapper must be exactly the verified definition (fail closed; substring checks are not sufficient)
+  v_wrap_pre := pg_get_functiondef(v_wrap);
+  if md5(v_wrap_pre) <> c_wrapper_def_fp then
+    raise exception 'W506-SEC-FIX-01 aborted: public wrapper full-definition md5 % differs from verified %', md5(v_wrap_pre), c_wrapper_def_fp;
+  end if;
+
   v_def := pg_get_functiondef(v_oid);
+  select p.prosrc into v_src from pg_proc p where p.oid = v_oid;
+  if (length(v_def) - length(replace(v_def, v_src, ''))) <> length(v_src) then
+    raise exception 'W506-SEC-FIX-01 aborted: live body text does not occur exactly once in its definition';
+  end if;
 
-  -- 2. idempotency: already guarded -> verify placement and stop
-  if position(c_guard in v_src) > 0 then
-    v_pos := position(c_guard in v_src);
-    if (length(v_src) - length(replace(v_src, c_guard, ''))) <> length(c_guard) then
-      raise exception 'W506-SEC-FIX-01 aborted: guard statement present more than once';
+  -- 3. choose path by the FULL-DEFINITION fingerprint only
+  if md5(v_def) <> c_internal_def_fp then
+    -- 3a. possibly already fixed: must be exactly (verified original + the single deterministic insertion)
+    if position(c_insert in v_def) = 0
+       or (length(v_def) - length(replace(v_def, c_insert, ''))) <> length(c_insert)
+       or (length(v_src) - length(replace(v_src, c_insert, ''))) <> length(c_insert) then
+      raise exception 'W506-SEC-FIX-01 aborted: live definition md5 % is neither the verified original nor a verified guarded form', md5(v_def);
     end if;
-    v_before := substr(v_src, 1, v_pos - 1);
-    if v_before ~* c_write_re then
-      raise exception 'W506-SEC-FIX-01 aborted: existing guard is placed after a write token';
+    v_orig_def := replace(v_def, c_insert, '');
+    v_orig_src := replace(v_src, c_insert, '');
+    if md5(v_orig_def) <> c_internal_def_fp then
+      raise exception 'W506-SEC-FIX-01 aborted: removing the guard does not restore the verified original definition (drift)';
     end if;
-    raise notice 'W506-SEC-FIX-01: internal function already guarded; nothing to do';
+    if pg_temp.w506_guard_patch(v_orig_src) <> v_src then
+      raise exception 'W506-SEC-FIX-01 aborted: existing guard is not the expected first-statement insertion';
+    end if;
+    raise notice 'W506-SEC-FIX-01: internal function verified as already guarded (original + exact insertion); nothing to do';
     return;
   end if;
 
-  -- 3. fingerprint precondition (fail closed on live drift)
-  if md5(v_src) <> c_internal_fp and md5(v_def) <> c_internal_fp then
-    raise exception 'W506-SEC-FIX-01 aborted: live costing.rpc_set_staff_costing_classification fingerprint (src %, def %) does not match the recorded %',
-      md5(v_src), md5(v_def), c_internal_fp;
-  end if;
+  -- 4. preimage path: single verified insertion
   if v_src ~* 'require_permission' then
-    raise exception 'W506-SEC-FIX-01 aborted: unexpected existing require_permission reference in fingerprint-matched body';
+    raise exception 'W506-SEC-FIX-01 aborted: unexpected require_permission reference in fingerprint-matched body';
   end if;
-
-  -- 4. locate the main BEGIN (first block keyword) and sanity-check the declaration section before it
-  if v_src !~* c_begin_re then
-    raise exception 'W506-SEC-FIX-01 aborted: no BEGIN found in function body';
-  end if;
-  v_pos := regexp_instr(v_src, c_begin_re, 1, 1, 0, 'i');
-  v_before := substr(v_src, 1, v_pos + 1);           -- up to and including the char that precedes/at BEGIN
-  if v_before ~ '(--|/\*)' or (length(v_before) - length(replace(v_before, '''', ''))) % 2 <> 0 then
-    raise exception 'W506-SEC-FIX-01 aborted: comment or unbalanced quote before the first BEGIN; refusing to guess';
-  end if;
-
-  -- 5. single insertion: guard becomes the first statement after the first BEGIN
-  v_patched := regexp_replace(v_src, c_begin_re, '\1\2' || c_insert || '\3', 'i');   -- no 'g' flag: first match only
-  if (length(v_patched) - length(v_src)) <> length(c_insert) then
-    raise exception 'W506-SEC-FIX-01 aborted: patch changed the body by an unexpected length';
-  end if;
-  if (length(v_patched) - length(replace(v_patched, c_guard, ''))) <> length(c_guard) then
-    raise exception 'W506-SEC-FIX-01 aborted: guard must appear exactly once after patch';
-  end if;
-  if substr(v_patched, 1, position(c_guard in v_patched) - 1) ~* c_write_re then
-    raise exception 'W506-SEC-FIX-01 aborted: a write token precedes the guard';
-  end if;
-  if replace(v_patched, c_insert, '') <> v_src then
-    raise exception 'W506-SEC-FIX-01 aborted: removing the inserted guard does not restore the original body';
-  end if;
-
-  -- 6. rebuild the full definition from the LIVE definition text (keeps language, SECURITY DEFINER, SET clauses, return type)
-  if (length(v_def) - length(replace(v_def, v_src, ''))) <> length(v_src) then
-    raise exception 'W506-SEC-FIX-01 aborted: live body text does not occur exactly once in pg_get_functiondef output';
-  end if;
+  v_patched := pg_temp.w506_guard_patch(v_src);
   v_new_def := replace(v_def, v_src, v_patched);
+  if replace(v_new_def, c_insert, '') <> v_def then
+    raise exception 'W506-SEC-FIX-01 aborted: patched definition minus guard does not equal the live definition';
+  end if;
 
   select p.proargtypes::text a, p.prorettype r, p.proretset s, p.provolatile v, p.prosecdef d, p.proconfig c, p.proacl l,
          p.proowner o, p.prolang g, p.proisstrict t, p.proparallel pl, p.proleakproof k, p.prokind kd, p.pronargdefaults nd
@@ -131,8 +144,16 @@ begin
      or v_pre.kd is distinct from v_post.kd or v_pre.nd is distinct from v_post.nd then
     raise exception 'W506-SEC-FIX-01 aborted: function properties (signature/return/volatility/definer/config/ACL/owner) changed unexpectedly';
   end if;
+  v_live_def := pg_get_functiondef(v_oid);
+  if md5(replace(v_live_def, c_insert, '')) <> c_internal_def_fp
+     or (length(v_live_def) - length(replace(v_live_def, c_insert, ''))) <> length(c_insert) then
+    raise exception 'W506-SEC-FIX-01 aborted: installed definition minus the guard does not hash to the verified original';
+  end if;
   if (select prosrc from pg_proc where oid = v_oid) <> v_patched then
     raise exception 'W506-SEC-FIX-01 aborted: installed body differs from the verified patched body';
+  end if;
+  if md5(pg_get_functiondef(v_wrap)) <> c_wrapper_def_fp then
+    raise exception 'W506-SEC-FIX-01 aborted: wrapper definition changed during migration';
   end if;
 end
 $migration$;

@@ -29,7 +29,7 @@ declare s0 text := t.state(); r text; s1 text;
 begin
   r := t.attempt(p_path, p_uid, p_class, p_role); s1 := t.state();
   insert into t.result(test, outcome, detail) values (p_name,
-    case when r like 'ERR:42501:%' and s0 = s1 then 'PASS' else 'FAIL' end, r || ' | table unchanged=' || (s0 = s1));
+    case when r like 'ERR:%' and r !~ 'costing class required|staff id required' and s0 = s1 then 'PASS' else 'FAIL' end, r || ' | table unchanged=' || (s0 = s1));
 end $$;
 
 -- 1. denial matrix through the PUBLIC wrapper (authenticated) -- no write may occur
@@ -48,7 +48,7 @@ call t.expect_denied('internal direct, privileged role, unauthenticated','intern
 -- 4. internal function stays non-executable by authenticated (privilege error, still no write)
 do $$ declare s0 text := t.state(); r text := t.attempt('internal','00000000-0000-0000-0000-0000000000c1','OPERATIONS','authenticated');
 begin insert into t.result(test,outcome,detail) values ('internal direct as authenticated (ACL unchanged)',
-  case when r like 'ERR:42501:%' and s0 = t.state() then 'PASS' else 'FAIL' end, r); end $$;
+  case when r like 'ERR:%' and r !~ 'costing class required' and s0 = t.state() then 'PASS' else 'FAIL' end, r); end $$;
 
 -- 5. positive: CBM view+edit through wrapper and via privileged internal call
 do $$ declare r text; begin

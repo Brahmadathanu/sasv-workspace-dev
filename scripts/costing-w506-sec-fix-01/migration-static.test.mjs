@@ -1,4 +1,5 @@
-// WP05-W506-SEC-FIX-01 -- static (no database) checks of the proposed migration and rollback. Run: node --test scripts/costing-w506-sec-fix-01/migration-static.test.mjs
+// WP05-W506-SEC-FIX-01 -- static (no database) checks of the proposed migration, rollback and local runner.
+// Run: node --test scripts/costing-w506-sec-fix-01/migration-static.test.mjs
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
@@ -7,9 +8,14 @@ import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const MIG_NAME = "20261109040000_wp05_w506_sec_fix_01_staff_classification_writer_guard.sql";
-const mig = readFileSync(join(root, "supabase/migrations", MIG_NAME), "utf8");
-const rb = readFileSync(join(root, "docs/master-data-costing/prepared/WP05_W506_SEC_FIX_01_ROLLBACK.sql"), "utf8");
+const rd = (p) => readFileSync(join(root, p), "utf8");
+const mig = rd(`supabase/migrations/${MIG_NAME}`);
+const rb = rd("docs/master-data-costing/prepared/WP05_W506_SEC_FIX_01_ROLLBACK.sql");
+const runner = rd("supabase/tests/w506_sec_fix_01/run_local.sh");
 const code = (s) => s.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
+const INTERNAL_DEF_FP = "553d103a5afedda3191c1aa62c33be7c";
+const WRAPPER_DEF_FP = "6ba709477ecc7755fb6005b6e2203a2b";
+const fnBlock = (s) => s.match(/create function pg_temp\.w506_guard_patch[\s\S]*?\$f\$;/)?.[0];
 
 test("migration version sorts after every other migration and is unique", () => {
   const names = readdirSync(join(root, "supabase/migrations")).filter((n) => n.endsWith(".sql")).sort();
@@ -17,38 +23,75 @@ test("migration version sorts after every other migration and is unique", () => 
   assert.equal(names.filter((n) => n.startsWith(MIG_NAME.slice(0, 14))).length, 1);
 });
 test("single transaction", () => {
-  const c = code(mig);
-  assert.match(c, /^\s*begin;/m);
-  assert.match(c, /^\s*commit;\s*$/m);
+  assert.match(code(mig), /^\s*begin;/m);
+  assert.match(code(mig), /^\s*commit;\s*$/m);
 });
 test("exact guard statement: CBM module, can_edit required, schema-qualified", () => {
   assert.ok(mig.includes("perform public.require_permission(''module:cost-build-manager'', true);"));
   assert.ok(!/require_permission\([^)]*false/i.test(code(mig)));
 });
-test("fingerprints recorded in the issue are present for internal function and wrapper", () => {
-  assert.ok(mig.includes("553d103a5afedda3191c1aa62c33be7c"));
-  assert.ok(mig.includes("6ba709477ecc7755fb6005b6e2203a2b"));
-  assert.ok(rb.includes("553d103a5afedda3191c1aa62c33be7c"));
-});
-test("fail-closed assertions present", () => {
-  for (const frag of ["fingerprint", "exactly one", "no BEGIN", "write token", "properties", "already guarded"])
-    assert.ok(mig.includes(frag), `missing assertion text: ${frag}`);
-});
-test("no privilege, ownership, schema or wrapper changes, no function body copy", () => {
-  const c = code(mig).toLowerCase();
-  for (const bad of [/\bgrant\b/, /\brevoke\b/, /\bdrop\b/, /\balter\b/, /create\s+(or\s+replace\s+)?function/, /update\s+costing\./, /insert\s+into\s+costing\./])
-    assert.ok(!bad.test(c), `forbidden construct ${bad}`);
-  assert.ok(!c.includes("staff_costing_classification set"), "must not embed the writer body");
-});
-test("public wrapper is only read, never rebuilt", () => {
+test("preconditions use FULL-DEFINITION md5 only (no prosrc alternative) for internal and wrapper", () => {
+  assert.ok(mig.includes(`c_internal_def_fp constant text := '${INTERNAL_DEF_FP}'`));
+  assert.ok(mig.includes(`c_wrapper_def_fp  constant text := '${WRAPPER_DEF_FP}'`));
   const c = code(mig);
-  assert.ok(!/execute\s+[^;]*wrapper/i.test(c));
+  assert.ok(!/md5\(\s*v_src\s*\)\s*<>|md5\(\s*\(?select prosrc/i.test(c), "no md5(prosrc) precondition");
+  assert.ok(!/ or md5\(/i.test(c), "no OR-of-fingerprints branch");
+  assert.ok(!/prosrc md5|md5\(prosrc\)\s*=\s*'/i.test(c));
+});
+test("wrapper mismatch is an EXCEPTION, never a warning; exact regprocedure lookups; single overload", () => {
+  const c = code(mig);
+  assert.ok(!/raise warning/i.test(c));
+  assert.match(c, /md5\(v_wrap_pre\) <> c_wrapper_def_fp then\s+raise exception/);
+  assert.ok(c.includes("to_regprocedure('costing.rpc_set_staff_costing_classification(bigint,text,text,date,numeric,text)')"));
+  assert.ok(c.includes("to_regprocedure('public.rpc_set_staff_costing_classification(bigint,text,text,date,numeric,text)')"));
+  assert.match(c, /v_n <> 1 then/);
+});
+test("idempotent path verifies original+insertion (no early return on guard text alone)", () => {
+  const c = code(mig);
+  const idx = c.indexOf("verified as already guarded");
+  const before = c.slice(0, idx);
+  assert.ok(before.includes("md5(v_orig_def) <> c_internal_def_fp"));
+  assert.ok(before.includes("pg_temp.w506_guard_patch(v_orig_src) <> v_src"));
+  assert.ok(!/if position\(c_guard in v_src\) > 0/.test(c));
+});
+test("post-install proof: definition minus guard hashes to original; wrapper hash re-checked", () => {
+  assert.ok(mig.includes("installed definition minus the guard does not hash to the verified original"));
+  assert.ok(mig.includes("wrapper definition changed during migration"));
+});
+test("shape validation present (DECLARE-only prefix, no comments/quotes/labels, single pure insertion)", () => {
+  const f = fnBlock(mig);
+  assert.ok(f, "patch function present");
+  for (const frag of ["no BEGIN followed by whitespace", "comment, quote or label", "unexpected text before the first BEGIN", "single pure insertion"])
+    assert.ok(f.includes(frag), `missing: ${frag}`);
+});
+test("no privilege/ownership changes; only the temp helper function is created; no function body copied", () => {
+  const c = code(mig).toLowerCase();
+  for (const bad of [/\bgrant\b/, /\brevoke\b/, /\bdrop\b/, /\balter\b/, /update\s+costing\./, /insert\s+into\s+costing\./])
+    assert.ok(!bad.test(c), `forbidden construct ${bad}`);
+  const creates = c.match(/create\s+(or\s+replace\s+)?function\s+[\w.]+/g) || [];
+  assert.deepEqual(creates, ["create function pg_temp.w506_guard_patch"]);
   assert.equal((c.match(/\bexecute v_new_def\b/g) || []).length, 1);
 });
-test("rollback removes exactly the inserted text and re-checks the fingerprint", () => {
-  assert.ok(rb.includes("perform public.require_permission(''module:cost-build-manager'', true);"));
-  assert.ok(rb.includes("recorded pre-fix fingerprint"));
-  assert.match(code(rb), /^\s*begin;/m);
-  assert.match(code(rb), /^\s*commit;\s*$/m);
+test("rollback: identical patch helper, owner emergency interlock, exact-original proof, wrapper check, security-regression warning", () => {
+  assert.equal(fnBlock(rb), fnBlock(mig), "patch helper must be byte-identical in migration and rollback");
+  assert.ok(rb.includes("SECURITY REGRESSION"));
+  assert.ok(rb.includes("Containment-first"));
+  assert.ok(rb.includes("w506.rollback_owner_emergency_approval"));
+  assert.ok(rb.includes(INTERNAL_DEF_FP) && rb.includes(WRAPPER_DEF_FP));
+  for (const frag of ["md5(v_orig_def) <> c_internal_def_fp", "w506_guard_patch(v_orig_src) <> v_src", "public wrapper definition differs"])
+    assert.ok(rb.includes(frag), `rollback missing: ${frag}`);
   assert.ok(!/\bgrant\b|\brevoke\b|\bdrop\b/i.test(code(rb)));
+});
+test("local runner safety: socket-only host, disposable-cluster marker, unique scratch DB, no DROP IF EXISTS, mktemp + trap", () => {
+  assert.ok(runner.includes('case "${PGHOST:-}" in /*)'));
+  assert.ok(runner.includes("w506-disposable-"));
+  assert.ok(runner.includes("rolsuper"));
+  assert.ok(runner.includes('mktemp -d'));
+  assert.ok(runner.includes("trap cleanup EXIT"));
+  assert.ok(runner.includes("w506_scratch_$(date +%s)_$$"));
+  assert.ok(!/drop database if exists/i.test(runner.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n")));
+  assert.ok(!/localhost|127\.0\.0\.1/.test(runner.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n")));
+  assert.ok(!/\/tmp\/w506_/.test(runner), "no fixed /tmp file names");
+  assert.match(runner, /CREATED=1/);
+  assert.match(runner, /\[ "\$CREATED" = 1 \]/);
 });

@@ -4,6 +4,7 @@
 -- from this fixture prove the migration's mechanics and the guard's ordering, not live behaviour.
 \set ON_ERROR_STOP on
 set client_min_messages = warning;
+-- NOTE: the live helper's denial exception text/SQLSTATE is not assumed; tests only require a non-validation error and no write.
 do $$ begin
   if not exists (select 1 from pg_roles where rolname='anon') then create role anon nologin; end if;
   if not exists (select 1 from pg_roles where rolname='authenticated') then create role authenticated nologin; end if;
@@ -26,6 +27,7 @@ begin
   end if;
 end $$;
 
+drop table if exists costing.staff_costing_classification cascade;
 create table costing.staff_costing_classification(
   staff_id bigint primary key, costing_class text not null, allocation_pool text not null,
   effective_from date not null, allocation_weight numeric not null, remarks text not null, updated_n int not null default 0);
@@ -71,6 +73,7 @@ grant usage on schema auth to authenticated;
 grant execute on function auth.uid() to authenticated;
 
 -- Synthetic identities (random fixed uuids; no real accounts)
+truncate public.user_permissions_canonical;
 insert into public.user_permissions_canonical values
  ('00000000-0000-0000-0000-0000000000c1', 'module:cost-build-manager',      true,  true),   -- CBM view+edit  (must be ALLOWED)
  ('00000000-0000-0000-0000-0000000000b1', 'module:cost-build-manager',      true,  false),  -- ID-V / CBM view-only
