@@ -10,8 +10,8 @@ P="psql -X -q -v ON_ERROR_STOP=1 -At"
 DD=$($P -d postgres -c "show data_directory" 2>/dev/null) || { echo "cannot connect"; exit 2; }
 case "$(basename "$DD")" in w506-disposable-*) ;; *) echo "refusing: not a w506-disposable-* cluster"; exit 2;; esac
 [ "$($P -d postgres -c "select rolsuper from pg_roles where rolname=current_user")" = "t" ] || { echo "refusing: need superuser"; exit 2; }
-SM=$SAVE_DIR/supabase/migrations/20261109040000_wp05_w506_sec_fix_01_staff_classification_writer_guard.sql
-CM=$CLOSE_DIR/supabase/migrations/20261109050000_wp05_w506_sec_fix_02_staff_classification_close_writer_guard.sql
+SM=$SAVE_DIR/supabase/migrations/20261109105557_wp05_w506_sec_fix_01_staff_classification_writer_guard.sql
+CM=$CLOSE_DIR/supabase/migrations/20261109105717_wp05_w506_sec_fix_02_staff_classification_close_writer_guard.sql
 SR=$SAVE_DIR/docs/master-data-costing/prepared/WP05_W506_SEC_FIX_01_ROLLBACK.sql
 CR=$CLOSE_DIR/docs/master-data-costing/prepared/WP05_W506_SEC_FIX_02_ROLLBACK.sql
 SC=$SAVE_DIR/supabase/tests/w506_sec_fix_01/live_scaffold.sql
