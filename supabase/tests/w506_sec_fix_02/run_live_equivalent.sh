@@ -12,7 +12,7 @@
 # (refuses on collision) and only that database is dropped, only if this invocation created it; mktemp -d + trap.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../../.." && pwd)"
-MIG="$ROOT/supabase/migrations/20261109050000_wp05_w506_sec_fix_02_staff_classification_close_writer_guard.sql"
+MIG="$ROOT/supabase/migrations/20261109105717_wp05_w506_sec_fix_02_staff_classification_close_writer_guard.sql"
 RB="$ROOT/docs/master-data-costing/prepared/WP05_W506_SEC_FIX_02_ROLLBACK.sql"
 SNAP="$HERE/live_close_definition_snapshot_20261109.sql"
 ACK='I-HAVE-OWNER-EMERGENCY-APPROVAL-AND-AN-ALTERNATIVE-CONTROL'
