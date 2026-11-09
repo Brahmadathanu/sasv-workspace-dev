@@ -18,6 +18,16 @@
 
 **Approved direction for the release plan, not permission to execute:** Prepare a sequential **Save then Close** controlled rollout with inter-step read-only checks, stop/fix-forward on partial failure and no routine rollback. Release authorisation, executor, maintenance window, migration-tool compatibility, optional containment actions and controlled post-deploy deny-path testing all remain **separate explicit decisions**. The client confidentiality workstream and formal W5-06/WP05 acceptance remain OPEN.
 
+## Execution-tool compatibility finding — 9 November 2026 (blocking preflight)
+
+**Newly discovered upstream Supabase warning:** Embedding top-level `BEGIN`/`COMMIT` in SQL submitted to a migration runner that already wraps the operation can cause an inner COMMIT to persist changes while a subsequent error prevents the runner from recording its migration-history row. Supabase specifically recommends leaving transaction management to that runner. Source: https://supabase.com/kb/troubleshooting/partial-migrations-and-schema-inconsistencies-from-embedded-transactions . The previously recorded in-file transaction precedent does **not** establish safety for these two files.
+
+Both draft migration files currently include `begin;`/`commit;`. **No approval to submit those unchanged files via `apply_migration` or an equivalent auto-transaction migration runner.** Owner Path B approval is limited to the untested PostgreSQL 17.4 execution compatibility; it does not waive transaction/history integrity.
+
+**Additional version-history issue:** Current connected Supabase MCP `apply_migration` accepts `name` and `query`, not a caller-specified migration version. Supabase MCP issue https://github.com/supabase/mcp/issues/241 reports server-generated migration timestamps that differ from repository filenames. This repository's AU2 guidance disallows unreviewed `supabase db push`. A concrete version-alignment/recording procedure is still required, not simply noting generated versions.
+
+**Required remediation before execution:** Have the code worker propose minimal changes to both draft migration files, removing top-level transaction control only when the selected runner is proved to wrap **all** file statements on **one connection within one transaction** (needed for `pg_temp` helper visibility). Update the static tests expecting the old framing. In an isolated PostgreSQL 16.15 runner-equivalent harness, test ordinary Save→Close, idempotency, error injection after the function CREATE and before history recording (prove both DDL and history roll back), function fingerprint preservation and history-name/version mapping. No uncontrolled changes to the guard, target, wrappers, ACLs, rollback policy or existing production schema. If runner/connection/transaction semantics cannot be verified, **STOP**; choose a separately reviewed execution alternative. PRs #254 and #255 remain draft, production BLOCKED.
+
 ## 1. PR heads and states
 
 | PR | Purpose | Head | State |
@@ -74,7 +84,7 @@ State: Save guarded; Close unguarded (still callable by any authenticated user v
 | R8 | Function-definition drift between readback and apply | Fail-closed aborts executed for both | Resolved by design; requires fresh readback at apply |
 | R9 | Independent emergency rollbacks reopen holes | Executed independence in §2 | Conditionally acceptable: containment-first, owner-interlocked |
 | R10 | Client Edit controls shown without edit check; salary exposure (CSV, `select('*')`, `total_salary_cost`) | Source inspection; separate workstream | Not addressed by these PRs; does **not block** these guards but blocks any privacy claim and W5-06 closure |
-| R11 | Migration tooling/history (version assignment, `db push` unusable, inner begin/commit) | Repo records only | Conditionally acceptable; executor must record assigned versions |
+| R11 | Migration-tool transactions and version history | Supabase advisory warns embedded BEGIN/COMMIT may commit DDL before migration history; MCP-generated version may differ from filename | **BLOCKING** until runner-compatible migration revision, isolated failure/rollback proof and version-history method |
 | R12 | Lock contention at CREATE OR REPLACE | Not measured | Conditionally acceptable with `lock_timeout` and a maintenance window |
 
 ## 5. PostgreSQL 17.4 disposition
@@ -114,4 +124,4 @@ Rollbacks (`WP05_W506_SEC_FIX_01_ROLLBACK.sql`, `…_02_ROLLBACK.sql`) are secur
 8. Separate workstreams: client Edit-control gating and salary-data exposure; dedicated personnel-costing permission.
 
 ## 10. Final recommendation
-**POLICY GATES RESOLVED; PRODUCTION EXECUTION STILL NOT AUTHORISED.** R1 accepted under Path B and R6 operating model attested with residual unknown-caller risk. The mandatory migration-tool/transaction and version-history preflight, fresh hashes, approved execution/containment/denial-test plan, executor, maintenance window and separate owner release authorisation remain open. The code, fingerprints, sequencing and partial-failure behaviour are verified to the extent possible on PostgreSQL 16.15; production behaviour (real helper, PostgREST, 17.4) is NOT TESTED. Programme count 6/13; W5-06 and WP05 remain OPEN.
+**POLICY GATES RESOLVED; PRODUCTION EXECUTION BLOCKED BY RUNNER TRANSACTION/HISTORY COMPATIBILITY (R11).** R1 accepted under Path B and R6 operating model attested with residual unknown-caller risk. The mandatory migration-tool/transaction and version-history preflight, fresh hashes, approved execution/containment/denial-test plan, executor, maintenance window and separate owner release authorisation remain open. The code, fingerprints, sequencing and partial-failure behaviour are verified to the extent possible on PostgreSQL 16.15; production behaviour (real helper, PostgREST, 17.4) is NOT TESTED. Programme count 6/13; W5-06 and WP05 remain OPEN.
