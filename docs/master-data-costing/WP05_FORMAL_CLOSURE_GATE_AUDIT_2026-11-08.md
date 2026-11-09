@@ -86,3 +86,8 @@ Static, repository-only design and decision documents (no SQL, production, auth,
 ## 13. Addendum — WP05 owner decision-ready closure path (9 November 2026) — PROPOSAL / NOT APPROVED
 
 [WP05_OWNER_DECISION_READY_CLOSURE_PATH_2026-11-09.md](WP05_OWNER_DECISION_READY_CLOSURE_PATH_2026-11-09.md) reconciles W5-01…10, PAR1 S2/S9, live CLD2/CLD3 findings, security and flag obligations, and recommends considering only the narrow B1-T2/T3 transfer to WP12 first (T1 zero rows without enumerated receiver). Original §8 remains binding; all owner rulings PENDING, no evidence class or gate promoted. **WP05 OPEN, programme 6/13.**
+
+
+## 14. Addendum — owner decisions D1–D3 and pending B1/security plans (9 November 2026)
+
+The owner explicitly agreed to three recommendations in chat: **[D1](WP05_OWNER_DECISIONS_2026-11-09.md)** to prepare narrow Option B (B1 final text remains **NOT APPROVED**), **D2** to accept bounded S2/S9 factual parity evidence with BLOCKER SKU 105 remaining PARTIAL, and **D3** to prepare—but **NOT execute**—a no-side-effect negative-identity/SEC plan. Drafts: [B1 amendment for review](WP05_B1_NARROW_AMENDMENT_DRAFT_2026-11-09.md) and [security verification plan](WP05_NO_SIDE_EFFECT_SECURITY_PLAN_DRAFT_2026-11-09.md). The original §8 remains binding. S2/S9 sub-obligation owner-accepted; W5-05 as a whole remains PARTIAL pending full gate reconciliation. **No security behavioural evidence credited, B1 transfer effected, or WP05 gate status promoted. WP05 OPEN, 6/13; AE1 unchanged.**
