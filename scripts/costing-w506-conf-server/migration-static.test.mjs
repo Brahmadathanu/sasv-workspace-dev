@@ -116,6 +116,17 @@ test("runner: socket-only host, disposable-cluster marker, superuser, unique scr
   assert.equal(subs.length, 4);
   assert.ok(c.includes('"${f%%:*}" > "${f##*:}"'), "scratch copies only; committed files never modified");
 });
+test("atomicity runner injects helper and first-view failures and checks absence of partial state", () => {
+  for (const marker of [
+    "W506_TEST_ABORT_AFTER_HELPER", "W506_TEST_ABORT_AFTER_VIEW1",
+    "to_regprocedure('public.fn_costing_personnel_view_allowed()') is null",
+    "P8a forced exception after helper", "P8b forced exception after first view",
+    "P8c normal apply succeeds after both atomicity failures",
+  ]) assert.ok(runner.includes(marker), `missing atomicity marker: ${marker}`);
+  assert.ok(runner.includes('"$TMP/inject_helper.sql"'));
+  assert.ok(runner.includes('"$TMP/inject_view1.sql"'));
+  assert.ok(runner.includes('python3 - "$TMP/mig.sql"'), "failure injections only target scratch copies");
+});
 test("identity matrix covers: no grants, unauthenticated, other-module viewers, CBM view-only, edit-without-view, editor, postgres, service_role, anon, definer writer pattern", () => {
   for (const frag of ["ID-N no grants", "unauthenticated", "CSR view-only", "MCM view-only", "CCC view+edit", "CBM view-only", "CBM edit without view", "CBM view+edit (authorised editor)", "postgres", "service_role", "anon role", "definer-owned function"])
     assert.ok(matrix.includes(frag), frag);
