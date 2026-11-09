@@ -87,5 +87,39 @@ q -f "$TMP/r.sql" >/dev/null 2>&1; [ "$(ALLV)" = "$ORIG" ] && [ "$(q -c 'select 
 { echo "begin;"; cat "$TMP/mig.sql"; echo "insert into public.mig_history_sim values ('v');"; echo "commit;"; } > "$TMP/r2.sql"
 q -f "$TMP/r2.sql" >/dev/null 2>&1; [ "$(ALLV)" != "$ORIG" ] && [ "$(q -c 'select count(*) from public.mig_history_sim')" = 1 ] && ok "P7b runner transaction: views and history row commit together" || bad "P7b" ""
 build; q -c "$(cat "$TMP/mig.sql"; echo "select 1/0;")" >/dev/null 2>&1; [ "$(ALLV)" = "$ORIG" ] && ok "P7c whole file as one multi-statement simple query with a later error: implicit transaction rolls everything back" || bad "P7c" ""
+# ---- P8 failure injection inside the SAME atomic DO: helper and all view changes must roll back.
+# Only scratch copies of the migration are altered; production/committed SQL untouched.
+build; ORIG=$(ALLV); M0=$(META)
+python3 - "$TMP/mig.sql" "$TMP/inject_helper.sql" "$TMP/inject_view1.sql" <<'PY'
+import pathlib, sys
+src = pathlib.Path(sys.argv[1]).read_text()
+helper_anchor = "  for v_i in 1 .. array_length(v_views, 1) loop"
+assert src.count(helper_anchor) == 1
+view_anchor = "  end loop;\nend\n$migration$;"
+assert src.count(view_anchor) == 1
+pathlib.Path(sys.argv[2]).write_text(src.replace(helper_anchor,
+    "  raise exception 'W506_TEST_ABORT_AFTER_HELPER';\n" + helper_anchor, 1))
+pathlib.Path(sys.argv[3]).write_text(src.replace(view_anchor,
+    "    if v_i = 1 then raise exception 'W506_TEST_ABORT_AFTER_VIEW1'; end if;\n" + view_anchor, 1))
+PY
+OUT=$(q -f "$TMP/inject_helper.sql" 2>&1)
+if echo "$OUT" | grep -q W506_TEST_ABORT_AFTER_HELPER && [ "$(ALLV)" = "$ORIG" ] && [ "$(META)" = "$M0" ] && [ "$(q -c "select to_regprocedure('public.fn_costing_personnel_view_allowed()') is null")" = t ]; then
+  ok "P8a forced exception after helper CREATE/ACL leaves no helper and no view/metadata change"
+else
+  bad "P8a helper atomicity" "$OUT"
+fi
+OUT=$(q -f "$TMP/inject_view1.sql" 2>&1)
+if echo "$OUT" | grep -q W506_TEST_ABORT_AFTER_VIEW1 && [ "$(ALLV)" = "$ORIG" ] && [ "$(META)" = "$M0" ] && [ "$(q -c "select to_regprocedure('public.fn_costing_personnel_view_allowed()') is null")" = t ]; then
+  ok "P8b forced exception after first view replacement leaves no helper and no view/metadata change"
+else
+  bad "P8b first-view atomicity" "$OUT"
+fi
+# Reapply ordinary migration after both induced failures, proving failed attempts leave a clean baseline.
+OUT=$(q -f "$TMP/mig.sql" 2>&1)
+if [ $? -eq 0 ] && [ "$(ALLV)" != "$ORIG" ] && [ "$(q -c "select to_regprocedure('public.fn_costing_personnel_view_allowed()') is not null")" = t ]; then
+  ok "P8c normal apply succeeds after both atomicity failures"
+else
+  bad "P8c recovery" "$OUT"
+fi
 echo "SUMMARY: $N passed, $X failed (runner checks; identity matrix reported separately as SQL rows)"
 [ $X -eq 0 ] && echo "ALL CHECKS PASSED" || echo "SOME CHECKS FAILED"; exit $X
