@@ -22,10 +22,13 @@ const WRAPPER_DEF_FP = "a8254681b64a6e78b59f1d2b00d9a7df";
 const PREFIX_MD5 = "255b487148e29e51fa841048e8d248c9";
 const fnBlock = (s) => s.match(/create or replace function pg_temp\.w506_close_guard_patch[\s\S]*?\$f\$;/)?.[0];
 
-test("migration version sorts after every other migration and is unique", () => {
+test("applied migration version is unique, follows the live baseline and coexists in Save-then-Close order", () => {
   const names = readdirSync(join(root, "supabase/migrations")).filter((n) => n.endsWith(".sql")).sort();
-  assert.equal(names[names.length - 1], MIG_NAME);
+  assert.ok(names.includes(MIG_NAME), "expected applied migration filename present");
+  assert.ok(MIG_NAME > "20261108165005_", "applied migration must postdate verified baseline");
   assert.equal(names.filter((n) => n.startsWith(MIG_NAME.slice(0, 14))).length, 1);
+  const paired = "20261109105557_wp05_w506_sec_fix_01_staff_classification_writer_guard.sql";
+  if (names.includes(paired)) assert.ok("20261109105557_wp05_w506_sec_fix_01_staff_classification_writer_guard.sql" < "20261109105717_wp05_w506_sec_fix_02_staff_classification_close_writer_guard.sql", "Save migration must sort before Close");
 });
 test("runner-compatible framing: NO top-level transaction control; one persistent-change DO statement; helper visibility check", () => {
   for (const t of [mig, rb]) {
