@@ -27,6 +27,11 @@
 --    byte for byte (so the guard is the expected first statement and nothing else differs). Otherwise abort.
 --  * Shape: only an optional plain DECLARE section may precede the main BEGIN; comments, quotes, dollar quotes or labels
 --    there abort (a regexp is not a PL/pgSQL parser, so unknown shapes are refused rather than guessed).
+--    The ONE controlled exception is the live declaration: the three exact quoted empty-string initialisers
+--    (v_costing_class / v_allocation_pool / v_remarks := ... nullif(trim(p_...), '')) are tolerated, each required exactly
+--    once, and ONLY when the body length (4288) and first-BEGIN position (508) match the independently verified live
+--    values AND the full-definition md5 has already been verified. After stripping those three statements the remainder
+--    is still checked for comments, quotes, dollar quotes and labels. CRLF is handled (whitespace classes).
 --  * After execution: full definition minus the guard must again hash to the verified original; signature, return type,
 --    volatility, SECURITY DEFINER, config (search_path), ACL, owner, language, OID, and the wrapper full definition hash
 --    are unchanged. Any failure rolls the single transaction back.
@@ -34,13 +39,21 @@
 -- Rollback (a SECURITY REGRESSION, containment-first policy applies): docs/master-data-costing/prepared/WP05_W506_SEC_FIX_01_ROLLBACK.sql (not executed).
 begin;
 
-create function pg_temp.w506_guard_patch(p_src text) returns text
+create function pg_temp.w506_guard_patch(p_src text, p_expect_len int, p_expect_begin int) returns text
 language plpgsql set search_path = pg_catalog, pg_temp as $f$
 declare
   c_guard  constant text := 'perform public.require_permission(''module:cost-build-manager'', true);';
   c_insert constant text := E'\n  ' || c_guard || E'\n';
   c_begin_re constant text := '(^|[^[:alnum:]_])(begin)([[:space:]])';
-  v_pos int; v_before text; v_out text;
+  v_pos int; v_before text; v_out text; v_check text; v_re text;
+  -- The ONLY quote characters tolerated before the main BEGIN: the three exact empty-string initialisers observed in the
+  -- live declaration (independent SELECT-only review, 9 Nov 2026), whitespace-flexible, each required exactly once, and
+  -- only when the body length and BEGIN position match the verified live values passed in by the caller (the caller
+  -- itself has already verified the full-definition md5).
+  c_live_decls constant text[] := array[
+    'v_costing_class[[:space:]]+text[[:space:]]*:=[[:space:]]*upper\([[:space:]]*nullif\([[:space:]]*trim\([[:space:]]*p_costing_class[[:space:]]*\)[[:space:]]*,[[:space:]]*''''[[:space:]]*\)[[:space:]]*\)[[:space:]]*;',
+    'v_allocation_pool[[:space:]]+text[[:space:]]*:=[[:space:]]*upper\([[:space:]]*nullif\([[:space:]]*trim\([[:space:]]*p_allocation_pool[[:space:]]*\)[[:space:]]*,[[:space:]]*''''[[:space:]]*\)[[:space:]]*\)[[:space:]]*;',
+    'v_remarks[[:space:]]+text[[:space:]]*:=[[:space:]]*nullif\([[:space:]]*trim\([[:space:]]*p_remarks[[:space:]]*\)[[:space:]]*,[[:space:]]*''''[[:space:]]*\)[[:space:]]*;'];
 begin
   v_pos := regexp_instr(p_src, c_begin_re, 1, 1, 0, 'i');
   if v_pos = 0 then
@@ -51,7 +64,16 @@ begin
   if not (v_before ~* '^[[:space:]]*$' or v_before ~* '^[[:space:]]*declare[[:space:]]') then
     raise exception 'W506-SEC-FIX-01 aborted: unexpected text before the first BEGIN (label or other construct); refusing to guess';
   end if;
-  if v_before ~ '(--|/\*|\$|<<|'')' then
+  v_check := v_before;
+  if length(p_src) = p_expect_len and v_pos = p_expect_begin then
+    foreach v_re in array c_live_decls loop
+      if (select count(*) from regexp_matches(v_check, v_re, 'gi')) <> 1 then
+        raise exception 'W506-SEC-FIX-01 aborted: expected live declaration initialiser not found exactly once before the first BEGIN';
+      end if;
+      v_check := regexp_replace(v_check, v_re, ' ', 'i');
+    end loop;
+  end if;
+  if v_check ~ '(--|/\*|\$|<<|'')' then
     raise exception 'W506-SEC-FIX-01 aborted: comment, quote or label before the first BEGIN; refusing to guess';
   end if;
   v_out := regexp_replace(p_src, c_begin_re, '\1\2' || c_insert || '\3', 'i');   -- no g flag: first match only
@@ -66,6 +88,8 @@ do $migration$
 declare
   c_internal_def_fp constant text := '553d103a5afedda3191c1aa62c33be7c';
   c_wrapper_def_fp  constant text := '6ba709477ecc7755fb6005b6e2203a2b';
+  c_live_src_len    constant int  := 4288;   -- length(prosrc) of the verified live internal function
+  c_live_begin_pos  constant int  := 508;    -- regexp position of its first BEGIN under the helper's pattern
   c_guard  constant text := 'perform public.require_permission(''module:cost-build-manager'', true);';
   c_insert constant text := E'\n  ' || c_guard || E'\n';
   v_oid oid; v_wrap oid; v_n int;
@@ -109,7 +133,7 @@ begin
     if md5(v_orig_def) <> c_internal_def_fp then
       raise exception 'W506-SEC-FIX-01 aborted: removing the guard does not restore the verified original definition (drift)';
     end if;
-    if pg_temp.w506_guard_patch(v_orig_src) <> v_src then
+    if pg_temp.w506_guard_patch(v_orig_src, c_live_src_len, c_live_begin_pos) <> v_src then
       raise exception 'W506-SEC-FIX-01 aborted: existing guard is not the expected first-statement insertion';
     end if;
     raise notice 'W506-SEC-FIX-01: internal function verified as already guarded (original + exact insertion); nothing to do';
@@ -120,7 +144,7 @@ begin
   if v_src ~* 'require_permission' then
     raise exception 'W506-SEC-FIX-01 aborted: unexpected require_permission reference in fingerprint-matched body';
   end if;
-  v_patched := pg_temp.w506_guard_patch(v_src);
+  v_patched := pg_temp.w506_guard_patch(v_src, c_live_src_len, c_live_begin_pos);
   v_new_def := replace(v_def, v_src, v_patched);
   if replace(v_new_def, c_insert, '') <> v_def then
     raise exception 'W506-SEC-FIX-01 aborted: patched definition minus guard does not equal the live definition';

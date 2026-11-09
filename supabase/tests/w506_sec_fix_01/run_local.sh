@@ -40,10 +40,15 @@ CATALOG() { q -c "select p.oid, p.proowner, p.proacl, p.proconfig, p.provolatile
 reset() { q -f "$HERE/fixture.sql" >/dev/null || { echo "fixture failed"; exit 2; }; }
 # test-only: replace the two recorded LIVE fingerprints by the current synthetic definitions' fingerprints (scratch copies)
 mkmig() {
-  local i w; i=$(INT_FP); w=$(WRP_FP)
-  sed -e "s/553d103a5afedda3191c1aa62c33be7c/$i/g" -e "s/6ba709477ecc7755fb6005b6e2203a2b/$w/g" "$MIG" > "$TMP/mig.sql"
-  sed -e "s/553d103a5afedda3191c1aa62c33be7c/$i/g" -e "s/6ba709477ecc7755fb6005b6e2203a2b/$w/g" "$RB"  > "$TMP/rb.sql"
-  grep -q "$i" "$TMP/mig.sql" && grep -q "$w" "$TMP/mig.sql" || { echo "substitution failed"; exit 2; }
+  local i w len pos; i=$(INT_FP); w=$(WRP_FP)
+  len=$(q -c "select length(prosrc) from pg_proc where oid=$INT")
+  pos=$(q -c "select regexp_instr(prosrc,'(^|[^[:alnum:]_])(begin)([[:space:]])',1,1,0,'i') from pg_proc where oid=$INT")
+  for f in "$MIG:mig" "$RB:rb"; do
+    sed -e "s/553d103a5afedda3191c1aa62c33be7c/$i/g" -e "s/6ba709477ecc7755fb6005b6e2203a2b/$w/g" \
+        -e "s/constant int  := 4288;/constant int  := $len;/" -e "s/constant int  := 508; /constant int  := $pos; /" "${f%%:*}" > "$TMP/${f##*:}.sql"
+  done
+  LIVE_LEN=$len; LIVE_POS=$pos
+  grep -q "$i" "$TMP/mig.sql" && grep -q "$w" "$TMP/mig.sql" && grep -q ":= $len;" "$TMP/mig.sql" && grep -q ":= $pos; " "$TMP/mig.sql" || { echo "substitution failed"; exit 2; }
 }
 rbrun() { { echo "set w506.rollback_owner_emergency_approval = '$1';"; cat "$TMP/rb.sql"; } > "$TMP/rbx.sql"; q -f "$TMP/rbx.sql" 2>&1; }
 # expect_abort <name> <sqlfile> <message pattern>: nonzero exit, expected message, internal+wrapper definitions unchanged
@@ -53,7 +58,7 @@ expect_abort() {
   if [ $rc -ne 0 ] && echo "$out" | grep -qE "$3" && [ "$a" = "$b" ] && [ "$c" = "$d" ]; then ok "$1"; else bad "$1" "rc=$rc :: $(echo "$out" | head -3)"; fi
 }
 # mutate the internal function via its own definition text (synthetic variants)
-mutate_internal() { q -c "do \$m\$ declare d text := pg_get_functiondef($INT); begin execute $1; end \$m\$" >/dev/null; }
+mutate_internal() { q -c "do \$m\$ declare d text := pg_get_functiondef($INT); begin execute $1; end \$m\$" >/dev/null 2>"$TMP/mut.err" || bad "mutation itself failed (test bug): $1" "$(head -2 "$TMP/mut.err")"; }
 
 # ---------------------------------------------------------------- S0 baseline / S1 unmodified migration
 reset
@@ -117,6 +122,26 @@ shape_abort  "S7c comment inside the DECLARE section -> abort" "replace(d, 'v_up
 shape_abort  "S7d label before the block -> abort" "replace(d, 'declare', E'<<blk>>\ndeclare')" "comment, quote or label|unexpected text"
 shape_abort  "S7e quoted default in DECLARE -> abort (refuse to guess)" "replace(d, 'v_updated int;', E'v_updated int; v_s text := ''x'';')" "comment, quote or label|unexpected text"
 shape_abort  "S7f comment before DECLARE -> abort" "replace(d, 'declare', E'-- c\ndeclare')" "unexpected text before the first BEGIN|comment, quote or label"
+
+# ---------------------------------------------------------------- S7g.. live-declaration allowance (fingerprint + anchors + exact initialisers)
+shape_abort  "S7g extra quoted initialiser beyond the three live ones -> abort" "replace(d, 'v_updated int;', E'v_updated int; v_x text := '''';')" "comment, quote or label"
+shape_abort  "S7h one live initialiser altered (non-empty literal) -> abort" "replace(d, 'p_costing_class), '''')', 'p_costing_class), ''x'')')" "not found exactly once|comment, quote or label"
+shape_abort  "S7i one live initialiser missing -> abort" "replace(d, E'  v_remarks text := nullif(trim(p_remarks), '''');\n', '')" "not found exactly once|comment, quote or label"
+shape_abort  "S7j live initialiser renamed (variable renamed throughout) -> abort" "replace(d, 'v_remarks', 'v_notes')" "not found exactly once|comment, quote or label"
+shape_abort  "S7k comment appended to a live initialiser line -> abort" "replace(d, 'p_remarks), '''');', 'p_remarks), ''''); -- c')" "comment, quote or label"
+shape_abort  "S7l label with the live initialisers present -> abort" "replace(d, 'declare', E'<<blk>>\ndeclare')" "comment, quote or label|unexpected text"
+shape_accept "S7m CRLF with the live quoted initialisers: accepted, guard first" "replace(d, E'\n', E'\r\n')"
+# anchors: without matching body length / BEGIN position the quote allowance is NOT available
+reset; mkmig; sed "s/constant int  := $LIVE_LEN;/constant int  := $((LIVE_LEN+1));/" "$TMP/mig.sql" > "$TMP/mig_badlen.sql"
+expect_abort "S7n allowance unavailable when body length anchor differs -> abort" "$TMP/mig_badlen.sql" "comment, quote or label"
+sed "s/constant int  := $LIVE_POS; /constant int  := $((LIVE_POS+1)); /" "$TMP/mig.sql" > "$TMP/mig_badpos.sql"
+expect_abort "S7o allowance unavailable when BEGIN position anchor differs -> abort" "$TMP/mig_badpos.sql" "comment, quote or label"
+# the allowance is only reachable after the full-definition md5 check: a fingerprint mismatch aborts before any shape logic
+sed "s/$(INT_FP)/00000000000000000000000000000000/g" "$TMP/mig.sql" > "$TMP/mig_badfp.sql"
+expect_abort "S7p fingerprint mismatch aborts before the shape allowance" "$TMP/mig_badfp.sql" "neither the verified original"
+# guard precedes the live-style validation; initialisers retained
+reset; mkmig; q -f "$TMP/mig.sql" >/dev/null
+if q -c "select position('perform public.require_permission' in prosrc) between position('begin' in prosrc) and position('staff id required' in prosrc) and prosrc like '%v_costing_class text := upper(nullif(trim(p_costing_class), ''''));%' and prosrc like '%v_remarks text := nullif(trim(p_remarks), '''');%' from pg_proc where oid=$INT" | grep -q t; then ok "S7q guarded body keeps the live initialisers and the guard precedes validation and writes"; else bad "S7q" ""; fi
 
 # ---------------------------------------------------------------- S8 rollback validation
 reset; mkmig; q -f "$TMP/mig.sql" >/dev/null; GUARDED_DEF=$(INT_FP)

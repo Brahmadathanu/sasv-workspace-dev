@@ -39,18 +39,21 @@ create or replace function costing.rpc_set_staff_costing_classification(
   p_allocation_weight numeric, p_remarks text) returns jsonb
 language plpgsql security definer set search_path = costing, public, pg_temp as $fn$
 declare
+  v_costing_class text := upper(nullif(trim(p_costing_class), ''));
+  v_allocation_pool text := upper(nullif(trim(p_allocation_pool), ''));
+  v_remarks text := nullif(trim(p_remarks), '');
   v_updated int;
 begin
   if p_staff_id is null then raise exception 'staff id required'; end if;
-  if nullif(btrim(p_costing_class), '') is null then raise exception 'costing class required'; end if;
+  if v_costing_class is null then raise exception 'costing class required'; end if;
   update costing.staff_costing_classification
-     set costing_class = p_costing_class, allocation_pool = p_allocation_pool, effective_from = p_effective_from,
-         allocation_weight = p_allocation_weight, remarks = p_remarks, updated_n = updated_n + 1
+     set costing_class = v_costing_class, allocation_pool = v_allocation_pool, effective_from = p_effective_from,
+         allocation_weight = p_allocation_weight, remarks = v_remarks, updated_n = updated_n + 1
    where staff_id = p_staff_id;
   get diagnostics v_updated = row_count;
   if v_updated = 0 then
     insert into costing.staff_costing_classification(staff_id, costing_class, allocation_pool, effective_from, allocation_weight, remarks)
-    values (p_staff_id, p_costing_class, p_allocation_pool, p_effective_from, p_allocation_weight, p_remarks);
+    values (p_staff_id, v_costing_class, v_allocation_pool, p_effective_from, p_allocation_weight, v_remarks);
   end if;
   return jsonb_build_object('staff_id', p_staff_id, 'ok', true);
 end

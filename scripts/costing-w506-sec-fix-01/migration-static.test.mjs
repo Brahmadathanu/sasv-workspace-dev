@@ -51,7 +51,7 @@ test("idempotent path verifies original+insertion (no early return on guard text
   const idx = c.indexOf("verified as already guarded");
   const before = c.slice(0, idx);
   assert.ok(before.includes("md5(v_orig_def) <> c_internal_def_fp"));
-  assert.ok(before.includes("pg_temp.w506_guard_patch(v_orig_src) <> v_src"));
+  assert.ok(before.includes("pg_temp.w506_guard_patch(v_orig_src, c_live_src_len, c_live_begin_pos) <> v_src"));
   assert.ok(!/if position\(c_guard in v_src\) > 0/.test(c));
 });
 test("post-install proof: definition minus guard hashes to original; wrapper hash re-checked", () => {
@@ -78,7 +78,7 @@ test("rollback: identical patch helper, owner emergency interlock, exact-origina
   assert.ok(rb.includes("Containment-first"));
   assert.ok(rb.includes("w506.rollback_owner_emergency_approval"));
   assert.ok(rb.includes(INTERNAL_DEF_FP) && rb.includes(WRAPPER_DEF_FP));
-  for (const frag of ["md5(v_orig_def) <> c_internal_def_fp", "w506_guard_patch(v_orig_src) <> v_src", "public wrapper definition differs"])
+  for (const frag of ["md5(v_orig_def) <> c_internal_def_fp", "w506_guard_patch(v_orig_src, c_live_src_len, c_live_begin_pos) <> v_src", "public wrapper definition differs"])
     assert.ok(rb.includes(frag), `rollback missing: ${frag}`);
   assert.ok(!/\bgrant\b|\brevoke\b|\bdrop\b/i.test(code(rb)));
 });
@@ -94,4 +94,35 @@ test("local runner safety: socket-only host, disposable-cluster marker, unique s
   assert.ok(!/\/tmp\/w506_/.test(runner), "no fixed /tmp file names");
   assert.match(runner, /CREATED=1/);
   assert.match(runner, /\[ "\$CREATED" = 1 \]/);
+});
+
+test("live declaration allowance: exact three initialisers, anchored to verified body length and BEGIN position, fingerprint-gated", () => {
+  const f = fnBlock(mig);
+  assert.ok(f.includes("p_expect_len int, p_expect_begin int"));
+  assert.ok(f.includes("length(p_src) = p_expect_len and v_pos = p_expect_begin"));
+  // exactly three allowed initialisers, naming exactly the live variables and parameters
+  const decls = f.match(/'(v_costing_class|v_allocation_pool|v_remarks)\[\[:space:\]\]\+text/g) || [];
+  assert.deepEqual(decls, ["'v_costing_class[[:space:]]+text", "'v_allocation_pool[[:space:]]+text", "'v_remarks[[:space:]]+text"]);
+  for (const frag of ["p_costing_class", "p_allocation_pool", "p_remarks", "not found exactly once before the first BEGIN"]) assert.ok(f.includes(frag));
+  // quote/comment/label/dollar rejection still applied to the remainder after the three are stripped
+  assert.ok(f.includes("v_check := regexp_replace(v_check, v_re, ' ', 'i')"));
+  assert.ok(f.includes("if v_check ~ '(--|/\\*|\\$|<<|'')'"));
+  // anchors are the independently verified live values and appear in both migration and rollback
+  for (const text of [mig, rb]) {
+    assert.match(text, /c_live_src_len\s+constant int\s+:= 4288;/);
+    assert.match(text, /c_live_begin_pos\s+constant int\s+:= 508;/);
+    assert.ok(text.includes("w506_guard_patch(v_src, c_live_src_len, c_live_begin_pos)") || text.includes("w506_guard_patch(v_orig_src, c_live_src_len, c_live_begin_pos)"));
+  }
+  // the helper is only called after the full-definition fingerprint has been established (preimage md5 or original-restored md5)
+  const c = code(mig);
+  assert.ok(c.indexOf("md5(v_orig_def) <> c_internal_def_fp") < c.indexOf("w506_guard_patch(v_orig_src"));
+  assert.ok(c.indexOf("if md5(v_def) <> c_internal_def_fp then") < c.indexOf("v_patched := pg_temp.w506_guard_patch"));
+});
+test("local fixture reproduces the live quoted empty-string initialisers", () => {
+  const fx = rd("supabase/tests/w506_sec_fix_01/fixture.sql");
+  for (const l of ["v_costing_class text := upper(nullif(trim(p_costing_class), ''));",
+                   "v_allocation_pool text := upper(nullif(trim(p_allocation_pool), ''));",
+                   "v_remarks text := nullif(trim(p_remarks), '');"]) assert.ok(fx.includes(l), l);
+  const body = fx.slice(fx.indexOf("$fn$;") - 1500, fx.indexOf("$fn$;"));
+  assert.ok(!/--/.test(body.slice(body.indexOf("declare"), body.indexOf("begin"))), "no comment inside the fixture DECLARE section");
 });
