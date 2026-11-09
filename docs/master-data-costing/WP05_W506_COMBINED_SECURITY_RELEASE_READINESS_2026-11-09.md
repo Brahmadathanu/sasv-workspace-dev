@@ -1,5 +1,8 @@
 # WP05-W506 — Combined Staff Governance security release readiness (9 November 2026)
 
+> **CURRENT AUTHORITATIVE STATUS — 9 November 2026 (supersedes historical pre-release sections below).** Both Save and Close permission guards are **LIVE** on production PostgreSQL 17.4, applied in order via Supabase migrations **20261109105557** and **20261109105717**; the full-function, wrapper, ownership and history readbacks passed. Owner Path B was accepted for missing isolated 17.4 test-suite execution. Live no-JWT denial succeeded for both writers; genuine signed-in view-only/unauthorised and editor-positive **PostgREST acceptance remains outstanding**. After filename reconciliation, the separate static/live-equivalent suites and combined runner **all passed (0 failures) on disposable PostgreSQL 16.15**, as reported by Claude. Git migration blobs remain unchanged. This document retains its earlier *historical* plans and risk register for audit only; they are not instructions to reapply these migrations. WP05/W5-06 OPEN; formal work-pack closure **6/13**.
+
+
 **Status: DOCUMENTATION ONLY. Nothing applied, merged or deployed. W5-06 OPEN; WP05 OPEN; programme 6/13.** The owner accepted Path B and stated the operational caller policy in a subsequent decision on 9 November 2026; neither decision authorises production execution, rollback, grant changes or release.
 
 
@@ -13,7 +16,7 @@ The production migration names and version rows recorded by Supabase have been r
 | #254 Save | `supabase/migrations/20261109105557_wp05_w506_sec_fix_01_staff_classification_writer_guard.sql` | `23dd5039513e946651b9f1e8134d3db4ac2675a6` |
 | #255 Close | `supabase/migrations/20261109105717_wp05_w506_sec_fix_02_staff_classification_close_writer_guard.sql` | `98dfaee8fb45d31039bd1448b50e34e7e32b9008` |
 
-The corresponding static tests, individual live-equivalent runner paths and combined `run_combined_sequence.sh` were updated to the applied filenames. The original filenames `20261109040000` / `20261109050000` appearing in earlier chronological notes are **historical draft placeholders only**, not unapplied migration files to run. This reconciliation has **not yet been re-executed** under the test runners; only path references were changed. Do not merge until those filename-sensitive tests and the GitHub checks are revalidated. In particular, do not run `supabase db push` or repeat the already-applied migrations.
+The corresponding static tests, individual live-equivalent runner paths and combined `run_combined_sequence.sh` were updated to the applied filenames. The original filenames `20261109040000` / `20261109050000` appearing in earlier chronological notes are **historical draft placeholders only**, not unapplied migration files to run. **After this note was initially written, the full filename-reconciled test matrix was re-executed successfully on PostgreSQL 16.15 (0 failures); GitHub Netlify checks for all three PR heads also succeeded.** In particular, do not run `supabase db push` or repeat the already-applied migrations.
 
 The server guards are live, but genuine signed-in noneditor/view-only and owner-positive PostgREST acceptance plus client Edit-control and salary exposure remediation remain separate tasks. Formal WP05/W5-06 closure is still pending; programme 6/13.
 
@@ -30,7 +33,7 @@ After **each** apply, read-only checks confirmed one exact first-statement CBM V
 
 **No-JWT live negative tests (safe NULL-ID calls):** A DB session with `auth.uid() IS NULL` called each public classification RPC using NULL IDs. Both raised `P0001 Not authenticated` from `public.require_permission` at the newly guarded first statement. Staff classification remained 164 rows and `max(updated_at)` remained `2026-10-16 03:17:31.055173+00` after the tests. **Authenticated view-only and genuine owner-positive PostgREST acceptance remain NOT TESTED.** The isolated PostgreSQL 17.4 test-suite waiver (Path B) was accepted, but the two production 17.4 function replacements have now actually succeeded.
 
-**Remaining action:** GitHub draft migration filenames contain the source placeholders `20261109040000` and `20261109050000`. Align each branch before merge by byte-identical renames to its server-assigned version `20261109105557` and `20261109105717`, with unchanged SQL contents and migration-test references updated; re-review checksums and CI. **Do not re-execute the migrations, change production history, run `db push` or claim WP05/W5-06 closed.** Complete authenticated PostgREST role matrix and separate privacy/client edit gating; owner review of PR merges and programme closure still required. Formal programme remains **6/13**.
+**Reconciliation completed after deployment:** the draft source placeholders `20261109040000` and `20261109050000` were replaced with live-assigned filenames `20261109105557` and `20261109105717`, preserving exact migration SQL Git blobs. Tests were rerun and CI checked. **Do not re-execute the migrations, change production history, run `db push` or claim WP05/W5-06 closed.** Complete authenticated PostgREST role matrix and separate privacy/client edit gating; owner review of PR merges and programme closure still required. Formal programme remains **6/13**.
 
 ## Owner disposition and operational preflight addendum — 9 November 2026
 
@@ -56,6 +59,10 @@ Both draft migration files currently include `begin;`/`commit;`. **No approval t
 **Additional version-history issue:** Current connected Supabase MCP `apply_migration` accepts `name` and `query`, not a caller-specified migration version. Supabase MCP issue https://github.com/supabase/mcp/issues/241 reports server-generated migration timestamps that differ from repository filenames. This repository's AU2 guidance disallows unreviewed `supabase db push`. A concrete version-alignment/recording procedure is still required, not simply noting generated versions.
 
 **Required remediation before execution (addressed in §11):** Have the code worker propose minimal changes to both draft migration files, removing top-level transaction control only when the selected runner is proved to wrap **all** file statements on **one connection within one transaction** (needed for `pg_temp` helper visibility). Update the static tests expecting the old framing. In an isolated PostgreSQL 16.15 runner-equivalent harness, test ordinary Save→Close, idempotency, error injection after the function CREATE and before history recording (prove both DDL and history roll back), function fingerprint preservation and history-name/version mapping. No uncontrolled changes to the guard, target, wrappers, ACLs, rollback policy or existing production schema. If runner/connection/transaction semantics cannot be verified, **STOP**; choose a separately reviewed execution alternative. PRs #254 and #255 remain draft, production BLOCKED.
+
+
+
+**Audit chronology note (added after release):** The statuses, proposed file versions, and phrases "NOT AUTHORISED"/"unapplied" in §§1–11 below describe the *pre-deployment* stages. They are superseded for current operational status by the authoritative summary above and the production execution/reconciliation addenda. The original test outcomes and risk reasoning are retained for traceability; they must not be interpreted as instructions to execute those versions again.
 
 ## 1. PR heads and states
 
