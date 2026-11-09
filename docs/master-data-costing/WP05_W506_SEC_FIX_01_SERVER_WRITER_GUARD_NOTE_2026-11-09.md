@@ -48,7 +48,7 @@ Literal result: **26 live-equivalent runner checks passed / 0 failed, plus the r
 **Fixture substitutions and resulting limits (recorded, not hidden):** dependencies are synthetic stand-ins (tables/views with only the referenced columns; the register view is a trivial join, so the live view's real logic, RLS, triggers, constraints and column nullability are **not** reproduced); `public.require_permission`/`auth.uid` are test doubles (live helper md5 `d4921dbc…`, not installed; its real denial text/SQLSTATE is not assumed beyond "an error that is not a validation error"); owner/role model is a local superuser rather than the production `postgres` role; ACL reproduced by explicit GRANT/REVOKE; no PostgREST/RLS layer; no real CBM grantees. `server_version` differs from production (B1). Restricted-user behaviour on the real system remains **NOT TESTED**.
 
 ## 4. Unverified assumptions / blockers
-1. The live prefix is exactly the independently supplied 507 bytes (md5 `22d200f3…`); any difference aborts safely. The remaining 3,781 body characters are covered only by the full-definition md5, not by structural tests; the live-definition-equivalent isolated test is still required.
+1. **PG16.15 FULL-SOURCE ISOLATED TEST PASS (Claude report; §3b).** The byte-exact 507-character live prefix (`22d200f3…`) and complete original 4,288-character internal body were installed without changing definition fingerprints, and the unchanged migration compiled and passed the specified synthetic identity/rollback tests. **PG17.4 SAME TEST NOT RUN**; production database version is 17.4. Dependency relations, helper and identity context remain synthetic, so this is not a production authorisation test.
 2. `pg_get_functiondef` text is stable between the reviewer's readback and the apply server (same server/version assumed).
 3. Whether every legitimate staff-classification editor holds `module:cost-build-manager` view+edit.
 4. Migration runner has privilege to `CREATE OR REPLACE` the `costing` function.
@@ -56,16 +56,30 @@ Literal result: **26 live-equivalent runner checks passed / 0 failed, plus the r
 
 ## 5. Roll-out prerequisites (separate owner approval; nothing applied)
 1. Fresh read-only readback of both full-definition hashes, ACL, owner and `proconfig` immediately before apply.
-2. Separately authorised, isolated **live-definition-equivalent** test (the exact live definition text on a non-production database) before final rollout.
+2. Full-definition-equivalent isolated test is **complete on PostgreSQL 16.15 (§3b), not on production-version PostgreSQL 17.4**. Obtain an approved disposable PG17.4 execution environment and rerun the unchanged live-equivalent test, or obtain a separately documented owner risk-acceptance decision; do not bypass the denial of third-party downloaded binaries.
 3. Exhaustive caller scan (triggers, jobs, dynamic SQL, clients); explicit decision for any non-JWT caller.
 4. Enumerate current CBM view+edit holders; no blanket revoke.
 5. Maintenance-window apply, then post-apply catalogue verification (fingerprint minus guard, ACL, wrapper hash).
 6. Prefer containment/forward fix over the rollback script, which reopens the finding.
 
 ## 5b. Remaining blockers after the live-equivalent run
-- **B1 — PostgreSQL 17.4 not exercised.** Only PostgreSQL 16.15 is installed in this environment (PGDG repositories unreachable). I located a 17.4.0 binary distribution on Maven Central (`io.zonky.test.postgres:embedded-postgres-binaries-linux-amd64:17.4.0`, sha1 verified), but the harness classifier **denied unpacking and executing a third-party downloaded binary**, so I did not run it and removed the download. To close B1 the owner can either authorise that specific artifact (sha1 check, disposable cluster only) or provide an approved PostgreSQL 17.4 environment/binary; the runner needs no change (`run_live_equivalent.sh` works on any `w506-disposable-*` cluster).
+- **B1 — PostgreSQL 17.4 not exercised.** PostgreSQL 16.15 full-source tests passed, but production is 17.4. The attempt to use a downloaded third-party PostgreSQL 17.4 binary was blocked by the execution security controls; **do not bypass or retry that restricted path**. Use an independently approved PostgreSQL 17.4 installation/isolated execution environment if available, or explicitly document the owner decision to accept this remaining version-specific test gap. The existing runner is designed for disposable clusters only.
 - **B2 — CBM editor cohort and non-JWT callers** unchanged: 1 distinct CBM view+edit grant (owner aggregate), real operators unconfirmed; `service_role` may execute the wrapper and would be denied after the fix; bounded scans are not exhaustive (dynamic SQL, edge functions, external services).
-- **B3 — real-system restricted-user behaviour, PostgREST exposure and the production `require_permission` text** remain untested/unverified.
+- **B3 — real-system restricted-user behaviour and PostgREST exposure remain untested.** Independent SELECT-only readback confirms live `public.require_permission(text,boolean)` full-definition MD5 `d4921dbcd3029e00eef14c4bfd159e22` and exact fail-closed semantics: `auth.uid() IS NOT NULL` plus a canonical `user_permissions_canonical` row with the requested target, `can_view = true`, and `can_edit = true` for an edit request. The **live permission helper has been verified by definition inspection**, not by impersonating or executing a production write.
 
 ## 6. Still open (separate governed workstreams)
 Client Edit/Review controls are rendered without an edit check (`costing-suite-cost-build.js:1203-1214, 1239-1250`); generic CSV export and `select('*')` still expose all returned salary columns; `total_salary_cost` is rendered; the three Staff Governance views remain readable by the shared view helper; the dedicated personnel-costing permission is undefined; no negative-identity behavioural evidence on the live system. **W5-06 OPEN; WP05 OPEN; 6/13.**
+
+
+## 7. Owner decision register — remaining operational release gates (9 November 2026)
+
+**No production authorisation implied by this section.** The remaining decisions are bounded to this one staff-classification writer fix, not the wider shared salary-view redesign.
+
+| Decision | Current evidence | Release gate |
+|---|---|---|
+| Compatible with production PostgreSQL 17.4 | Exact full-definition test PASS on isolated PG16.15; production 17.4; no approved PG17.4 execution available | Prefer authorised PG17.4 isolated rerun. If unavailable, explicit owner decision acknowledging version-specific residual risk; no claim of PG17 PASS |
+| Legitimate Staff Governance editor retains access | Canonical CBM permissions: **1** view+edit grant, **2** view-only grants; counts only, no identities retrieved | Operational owner validates that intended editor/duty cohort is the single edit-granted account (or proposes separately authorised correction) |
+| Automation/service compatibility | Public RPC ACL includes `authenticated` and `service_role`; 34 cron jobs, 0 literal writer references, 0 other function bodies or trigger definitions naming writer; dynamic/external callers not excluded | Operational application/Edge Function maintainers confirm no necessary JWT-less caller; document any exceptions without bypassing the check |
+| Actual production security behaviour | No production writer or restricted identity tests authorised; live `require_permission` text read-only verified | Separate owner authorisation for controlled rollout and post-deployment read-only catalogue verification; behavioural W5-06 gate remains OPEN |
+
+**Decision requested from owner at release stage:** approve the versioned security migration only after the above release gates have a signed/evidenced disposition. No emergency rollback without protective containment; no client salary-privacy claim from this patch.
