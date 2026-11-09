@@ -127,7 +127,7 @@ Rollbacks (`WP05_W506_SEC_FIX_01_ROLLBACK.sql`, `…_02_ROLLBACK.sql`) are secur
 
 **Source of the concern.** The Supabase advisory (https://supabase.com/kb/troubleshooting/partial-migrations-and-schema-inconsistencies-from-embedded-transactions) could **not be fetched from this session** (supabase.com is outside the session's network allowlist); this section relies on the owner's summary quoted above, not on the page text. The mechanism it describes is, however, reproduced and tested below on PostgreSQL 16.15.
 
-**11.1 Repository conventions.** About a third of the existing migrations carry top-level `begin;/commit;` (e.g. `20261104131055_…`, `20261026022352_…`, `20261024111733_…`); many do not. No repository rule mandates either form. For these security migrations the runner-neutral form is safer.
+**11.1 Repository conventions.** 52 of the 606 migrations on `main` carry a top-level `begin;` (e.g. `20261104131055_…`, `20261026022352_…`, `20261024111733_…`); the other 554 do not. No repository rule mandates either form. For these security migrations the runner-neutral form is safer.
 
 **11.2 Revision (minimal; guards, full-definition fingerprints, declaration-prefix proof, drift/metadata checks, rollback interlocks unchanged).** In both migrations and both rollbacks: top-level `begin;`/`commit;` removed; the `pg_temp` helper is `CREATE OR REPLACE` (retry in a reused session); the DO block begins with a fail-closed check that the temp helper is visible on its connection (otherwise it aborts before any change); header documents the transaction model. **All persistent change is one `DO` statement, atomic in itself** (replacement + all post-checks); the only other object is session-local.
 
