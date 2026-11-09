@@ -92,3 +92,17 @@ Client Edit/Review controls are rendered without an edit check (`costing-suite-c
 **Release status unchanged:** no permission grants, classifications, authentication accounts, migrations, RPC writers, code deployment or production schema changes performed. PR #254 DRAFT, W5-06 OPEN, WP05 OPEN, 6/13.
 
 **Decision requested from owner at release stage:** approve the versioned security migration only after the above release gates have a signed/evidenced disposition. No emergency rollback without protective containment; no client salary-privacy claim from this patch.
+
+### 7b. Final decision-preparation check — 9 November 2026
+
+- **Editor account administrative role evidence:** a read-only join from the sole CBM view+edit grantee into canonical permissions confirms that same account also holds `module:admin-console` and `module:hub-admin` view+edit. This is consistent with an administrative duty profile, **not** proof of who is officially responsible for staff-classification editing. Neither the account identifier nor its email/name has been included here.
+- **Operational use:** `costing.staff_costing_classification` contains **7 rows with `updated_at` in the trailing 90 days**. This demonstrates recent classification-record activity but does not identify the actor or prove the application RPC was used.
+- **PostgreSQL version disposition:** an inspection of the coordinator's local environment found `pg_config` advertising 17.11 but **no PostgreSQL server executable** available for an isolated instance; this is neither PostgreSQL 17.4 nor an actual PG17 test. The requested same-minor 17.4 test remains NOT TESTED. No third-party runtime execution bypass is authorised.
+
+**Owner decisions still explicitly pending** (do not infer approval from “go ahead”):
+
+1. **Operator attestation:** the person authorised to manage Staff Governance confirms that the one CBM view+edit account is the intended editor, or provides a proposed grant mapping to be reviewed separately. A broad admin grant is not an attestation.
+2. **External caller attestation:** the operational app/integration owner confirms no required non-JWT caller of this exact writer; direct scans covered repo code, database functions/triggers/cron and three deployed Edge Functions but not third-party callers or dynamic SQL.
+3. **Version-risk disposition:** owner chooses either an approved disposable PostgreSQL 17.4 test or explicitly accepts the PG17.4 execution gap while considering the exact-function PG16.15 tests plus live PG17.4 fingerprint parity. This risk acceptance, if chosen, is not production deployment approval.
+
+**Disposition:** READY FOR OWNER DECISION, NOT READY FOR AUTOMATIC PRODUCTION APPLY; PR #254 must remain DRAFT/UNMERGED/UNAPPLIED pending those decisions and separate release authorisation.
