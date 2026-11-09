@@ -96,3 +96,8 @@ The owner explicitly agreed to three recommendations in chat: **[D1](WP05_OWNER_
 ## 15. Addendum — targeted W5-06 security catalogue readback (9 November 2026)
 
 [WP05_W506_TARGETED_SECURITY_CATALOGUE_2026-11-09.md](WP05_W506_TARGETED_SECURITY_CATALOGUE_2026-11-09.md) records **SELECT-only** live public-wrapper and internal-delegate signatures/ACLs, CCC-edit guards, and confirmation that `rpc_costing_preview_approval_impact` writes an acknowledgement. No RPC or identity-based denial test was executed. A direct `authenticated` EXECUTE grant on one internal-source material-review function is flagged for governance review, not described as a demonstrated bypass. **W5-06 remains OPEN**, B1 pending, WP05 OPEN, programme 6/13.
+
+
+## 16. Addendum — W5-06 shared-view authority and negative-identity expectation matrix (9 November 2026)
+
+[WP05_W506_SHARED_VIEW_AUTHORITY_AND_IDENTITY_MATRIX_2026-11-09.md](WP05_W506_SHARED_VIEW_AUTHORITY_AND_IDENTITY_MATRIX_2026-11-09.md) records SELECT-only metadata: **49 shared-helper gated costing views; 48 with PostgreSQL authenticated SELECT, zero with anon SELECT**, including four staff/personnel-related view names for sensitivity review; one RM-line trace view lacks authenticated SELECT. Separately, `authenticated` has costing-schema USAGE plus EXECUTE on the guarded internal-source acceptance function, without any observed bypass. The live shared helper is any-one-of-four module view grants; ID-O therefore cannot be presumed universally denied on all cross-module view reads. **No view rows, RPC or negative identity executed.** Correct per-view/role policy remains owner-decision pending; W5-06 OPEN, B1 draft only, WP05 OPEN, 6/13.
