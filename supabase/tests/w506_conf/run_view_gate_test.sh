@@ -90,17 +90,20 @@ build; q -c "$(cat "$TMP/mig.sql"; echo "select 1/0;")" >/dev/null 2>&1; [ "$(AL
 # ---- P8 failure injection inside the SAME atomic DO: helper and all view changes must roll back.
 # Only scratch copies of the migration are altered; production/committed SQL untouched.
 build; ORIG=$(ALLV); M0=$(META)
-python3 - "$TMP/mig.sql" "$TMP/inject_helper.sql" "$TMP/inject_view1.sql" <<'PY'
+python3 - "$TMP/mig.sql" "$TMP/inject_helper.sql" "$TMP/inject_view1.sql" "$TMP/inject_view2.sql" <<'PY'
 import pathlib, sys
 src = pathlib.Path(sys.argv[1]).read_text()
 helper_anchor = "  for v_i in 1 .. array_length(v_views, 1) loop"
-assert src.count(helper_anchor) == 1
-view_anchor = "  end loop;\nend\n$migration$;"
-assert src.count(view_anchor) == 1
+view_anchor = "    execute format('create or replace view public.%I%s as %s', v_name, v_with, v_new);"
+assert src.count(helper_anchor) == 1, "helper injection anchor must be unique"
+assert src.count(view_anchor) == 1, "view CREATE anchor must be unique"
 pathlib.Path(sys.argv[2]).write_text(src.replace(helper_anchor,
     "  raise exception 'W506_TEST_ABORT_AFTER_HELPER';\n" + helper_anchor, 1))
-pathlib.Path(sys.argv[3]).write_text(src.replace(view_anchor,
-    "    if v_i = 1 then raise exception 'W506_TEST_ABORT_AFTER_VIEW1'; end if;\n" + view_anchor, 1))
+for path, view_i in [(sys.argv[3], 1), (sys.argv[4], 2)]:
+    injection = ("\n    if v_i = " + str(view_i) +
+                 " then raise exception 'W506_TEST_ABORT_AFTER_VIEW" + str(view_i) +
+                 "'; end if;")
+    pathlib.Path(path).write_text(src.replace(view_anchor, view_anchor + injection, 1))
 PY
 OUT=$(q -f "$TMP/inject_helper.sql" 2>&1)
 if echo "$OUT" | grep -q W506_TEST_ABORT_AFTER_HELPER && [ "$(ALLV)" = "$ORIG" ] && [ "$(META)" = "$M0" ] && [ "$(q -c "select to_regprocedure('public.fn_costing_personnel_view_allowed()') is null")" = t ]; then
@@ -110,14 +113,20 @@ else
 fi
 OUT=$(q -f "$TMP/inject_view1.sql" 2>&1)
 if echo "$OUT" | grep -q W506_TEST_ABORT_AFTER_VIEW1 && [ "$(ALLV)" = "$ORIG" ] && [ "$(META)" = "$M0" ] && [ "$(q -c "select to_regprocedure('public.fn_costing_personnel_view_allowed()') is null")" = t ]; then
-  ok "P8b forced exception after first view replacement leaves no helper and no view/metadata change"
+  ok "P8b forced exception immediately after first view replacement leaves no helper and no view/metadata change"
 else
   bad "P8b first-view atomicity" "$OUT"
 fi
-# Reapply ordinary migration after both induced failures, proving failed attempts leave a clean baseline.
+OUT=$(q -f "$TMP/inject_view2.sql" 2>&1)
+if echo "$OUT" | grep -q W506_TEST_ABORT_AFTER_VIEW2 && [ "$(ALLV)" = "$ORIG" ] && [ "$(META)" = "$M0" ] && [ "$(q -c "select to_regprocedure('public.fn_costing_personnel_view_allowed()') is null")" = t ]; then
+  ok "P8c forced exception immediately after second view replacement leaves no helper and no view/metadata change"
+else
+  bad "P8c second-view atomicity" "$OUT"
+fi
+# Reapply ordinary migration after all three induced failures, proving failed attempts leave a clean baseline.
 OUT=$(q -f "$TMP/mig.sql" 2>&1)
 if [ $? -eq 0 ] && [ "$(ALLV)" != "$ORIG" ] && [ "$(q -c "select to_regprocedure('public.fn_costing_personnel_view_allowed()') is not null")" = t ]; then
-  ok "P8c normal apply succeeds after both atomicity failures"
+  ok "P8d normal apply succeeds after all three atomicity failures"
 else
   bad "P8c recovery" "$OUT"
 fi
