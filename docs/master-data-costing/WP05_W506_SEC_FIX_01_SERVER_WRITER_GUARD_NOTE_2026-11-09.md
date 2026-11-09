@@ -110,3 +110,31 @@ Client Edit/Review controls are rendered without an edit check (`costing-suite-c
 ### 7c. Owner-authorised temporary editor policy (9 November 2026)
 
 **Approved for current operation:** the sole existing CBM view+edit account is the intended Staff Governance classification editor for now. Future personnel may be approved through a separate governed permission decision. This approval relates **only to editor assignment**, not to expanding CBM grants, releasing the server migration or accepting a version-test gap. The proposed migration continues to check live canonical CBM view+edit permissions rather than hard-coding an identity. As a result, no function-code change is required for a newly authorised CBM editor, but that role also carries wider CBM rights; a future dedicated personnel-costing control remains the preferred least-privilege architecture.
+
+### 7d. Execution-package verification (Claude Code worker, 9 November 2026, head f817375)
+
+No production access used; no DDL/DML, grants, roles, flags or deploys. Owner editor decision (7c) and programme count (6/13; WP05 and W5-06 OPEN) unchanged.
+
+**PostgreSQL 17.4 (Task A): NOT TESTED — blocker B1 stands.** Environment inspection: only `/usr/lib/postgresql/16` (psql/server 16.15) is installed; `docker` CLI present but no daemon/socket; no podman; no other `pg_ctl`/`postgres`; no approved disposable 17.x service. No third-party binary was downloaded or executed and no PG16 result is presented as PG17. The unchanged runner (`run_live_equivalent.sh`) remains ready for any `w506-disposable-*` 17.4 cluster. Existing PG16.15 results were not re-run (no repository change since they were recorded).
+
+**Static suite re-run at head f817375:** `node --test scripts/costing-w506-sec-fix-01/migration-static.test.mjs` → 17 pass / 0 fail.
+
+**External caller inventory (Task B, repository-level; bounded, not exhaustive):**
+
+| Caller | Evidence | Class |
+|---|---|---|
+| Staff Governance edit modal save, `public/shared/js/costing-suite-cost-build.js:1990` via `costingRpc` (`costing-suite-shell.js:2479`, plain `supabase.rpc` on the signed-in browser client) | Only client call site of the writer; entry via row Edit action (:1433) | Authenticated; succeeds only for CBM view+edit (the single owner-attested editor). Any other signed-in user will now get a permission error from `handleError` (toast), no write. Intended behaviour. |
+| `public/shared/js/types/supabase.ts:44457` | Generated type only | Not a caller |
+| `supabase/functions/` | Only `eaushadhi-qc-report-verify`; 0 references | None |
+| Repo scripts, `.github` workflows, other JS/HTML/MJS | 0 references outside docs/tests/migration | None found |
+| Cron (34 jobs), function bodies, triggers, 3 deployed Edge Functions | Owner SELECT-only readbacks (7/7a), not re-performed | None found; external/dynamic callers UNKNOWN |
+| `service_role` / JWT-less callers | Wrapper keeps `service_role` EXECUTE, but `require_permission` needs `auth.uid()`; guard denies | No known caller; any would regress. Attestation (item 2) still required. |
+
+Expected operational regression: none for the attested editor. Non-editors who can see the Edit control (client renders it without an edit check, §6) will receive an error toast instead of silently succeeding. Narrowest remedy for any discovered legitimate non-JWT caller: separate owner-approved dedicated path; no service-role bypass is introduced here. Note: `rpc_close_staff_costing_classification` appears in generated types only; its definition/guard status is not in this repository and was not assessed (recommend separate read-only catalogue check).
+
+**Review (Task C), by evidence type:**
+- Execution evidence (PG16.15, previously recorded): View+Edit both required (view-only and edit-without-view denied); denial precedes validation/lookup/writes; editor behaviour preserved; metadata and wrapper unchanged; drift aborts; rollback interlock.
+- Source inspection (this review): no identity hard-coded (permission target string only); guard is first statement after `BEGIN`; migration/rollback contain no salary data; test data are synthetic `SYN-*` rows.
+- NOT TESTED: PG17.4, live `require_permission` execution, real authenticated PostgREST behaviour, real RLS/view logic.
+
+No code or migration correction was required.
