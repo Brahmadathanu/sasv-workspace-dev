@@ -1,4 +1,5 @@
 // MDC-07 / N2 — Material Cost and Cost Build navigation refinement: pure/source tests (no browser).
+import { unPersonnel } from "../costing-w506-conf-client/unpersonnel.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -14,7 +15,7 @@ const { CBM_NAV_SCOPE_NOTES, renderCostBuildNavScopeHtml } = await loadControlle
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const JS = "public/shared/js";
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
+const read = (rel) => unPersonnel(rel, fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n"));
 const N1_HEAD = "85a163f2bc36476953939bfb637b81f632d6b9b9";
 const base = (rel) => execFileSync("git", ["show", `${N1_HEAD}:${rel}`], { cwd: root, encoding: "utf8" }).replace(/\r\n/g, "\n");
 const ON = { navGroupsEnabled: true };

@@ -106,7 +106,7 @@ test("scope guard: the two new supabase files are approved by exact path and con
 });
 
 test("no client, flag or production-code change: this change adds no file under public/ and does not touch the service worker", () => {
-  const sw = read("public/sw.js"); assert.match(sw, /const CACHE_NAME = "hub-cache-v392"/);
+  const sw = read("public/sw.js"); assert.match(sw, /const CACHE_NAME = "hub-cache-v393"/);
   const flags = read("public/shared/js/costing-feature-flags.js"); assert.match(flags, /export function isCostingLockScreenV1Enabled/);
   const client = read("public/shared/js/costing-suite-pricing-policy.js"); assert.match(client, /costingFrom\("v_costing_scheme_master_register"\)\s*\.select\("\*"\)\s*\.order\("scheme_name", \{ ascending: true \}\)/);
 });

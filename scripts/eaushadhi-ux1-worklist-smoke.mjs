@@ -316,7 +316,7 @@ const contract = read("electron/eaushadhi-worker/qc-register-portal-contract.js"
 const executor = read("electron/eaushadhi-worker/qc-prep-run-executor.js");
 check(html.includes(WORKLIST_FALLBACK_TEXT) && html.includes('id="worklistRefresh"'), "error fallback banner and Refresh");
 check(api.includes("fetchWorklist") && api.includes("rpc_eaushadhi_worklist_v1") && api.includes("fetchMyRoles") && api.includes("rpc_eaushadhi_my_roles_v1"), "worklist and roles fetches");
-check(/const CACHE_NAME = "hub-cache-v392"/.test(sw) && sw.includes("v390 was Costing UX-F1") && sw.includes("v389 was WP-07 e-Aushadhi review UX"), "cache v391 (v390 UX-F1, v389 WP-07 kept in the comment)");
+check(/const CACHE_NAME = "hub-cache-v393"/.test(sw) && sw.includes("v390 was Costing UX-F1") && sw.includes("v389 was WP-07 e-Aushadhi review UX"), "cache v391 (v390 UX-F1, v389 WP-07 kept in the comment)");
 check(control.includes("UI build UX-1") && control.includes('data-build="UX-1"') && control.includes("createDocumentFragment"), "marker UX-1 and one fragment");
 check(/const NATIVE_SAVE_AUTHORIZED = false/.test(contract), "build flag stays off");
 check(executor.includes("ALREADY_CLICKED") && control.includes('typed.value === "SAVE 262"'), "SAVE phrase and ALREADY_CLICKED remain");

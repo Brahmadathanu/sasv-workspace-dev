@@ -3346,6 +3346,16 @@ function issueCodeLabel(code) {
   return String(code).replace(/_/g, " ");
 }
 
+/** WP05-W506: temporary personnel-confidentiality boundary = Cost Build Manager view AND edit (fail closed). */
+function personnelAccessAllowed() {
+  return (
+    PERMISSIONS_LOAD_ERROR !== true &&
+    ACTIVE_ROUTE_CONFIG?.permissionTarget === "module:cost-build-manager" &&
+    PERM_CAN_VIEW === true &&
+    PERM_CAN_EDIT === true
+  );
+}
+
 function setStatus(message, type = "info") {
   if (!statusArea) return;
   const colors = {
@@ -4825,6 +4835,14 @@ async function loadRowsForLens({ preservePage = false } = {}) {
       if (!isRowsLoadCurrent(loadGeneration)) return;
       ALL_ROWS = rows;
       applyFilters();
+      const restrictedNotice = costBuildCtrl.getStaffGovernanceRestrictionNotice();
+      if (restrictedNotice) {
+        // No personnel access: nothing was requested; drop any previous rows/edit state from memory.
+        ALL_ROWS = [];
+        VIEW = [];
+        costBuildCtrl.purgeStaffGovernanceState();
+        setStatus(restrictedNotice, "warning");
+      }
       LAST_REFRESH_TIME = new Date();
       updateFreshnessIndicator();
       return;
@@ -9609,6 +9627,9 @@ const costBuildCtrl = createCostBuildController({
     VIEW = view;
     if (currentPage != null) CURRENT_PAGE = currentPage;
   },
+  // WP05-W506: individual staff/salary data requires CBM view AND edit (matches the server gate); fail closed.
+  canViewPersonnel: () => personnelAccessAllowed(),
+  canEditPersonnel: () => personnelAccessAllowed(),
 });
 
 const driverGovernanceCtrl = createDriverGovernanceController({
@@ -10038,6 +10059,14 @@ costingPeriodSelect?.addEventListener("change", () => {
   setActiveCostingPeriod(costingPeriodSelect.value);
 });
 exportBtn?.addEventListener("click", () => {
+  // WP05-W506: no CSV export of individual staff/salary rows without personnel access.
+  if (
+    CURRENT_LENS === "staff-governance" &&
+    costBuildCtrl.getStaffGovernanceRestrictionNotice()
+  ) {
+    showToast("Staff data export requires Cost Build Manager view and edit permission.", "error");
+    return;
+  }
   void exportActiveViewCsv();
 });
 $("homeBtn")?.addEventListener("click", () => Platform.goHome());

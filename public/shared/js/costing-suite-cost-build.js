@@ -1,6 +1,19 @@
 import { isCostingNavGroupsV1Enabled } from "./costing-feature-flags.js";
 import { getNavGroupForLens } from "./costing-nav-groups.js";
 
+// WP05-W506 personnel confidentiality (client defence-in-depth; the server view gate is the authority).
+// Explicit column projections: individual salary components (basic/allowance/employer/other), nested
+// `staff_details` and every unused column are NEVER requested. `select("*")` must not be used for these views.
+export const STAFF_GOVERNANCE_COLUMNS = Object.freeze({
+  register:
+    "staff_id,employee_code,staff_display_name,designation,classification_status,classification_note,classification_id,total_salary_cost,costing_class,costing_class_label,allocation_pool,effective_from,allocation_weight,remarks",
+  review:
+    "staff_id,employee_code,staff_display_name,designation,classification_status,classification_note,classification_id,latest_salary_period_start,total_salary_cost,costing_class,costing_class_label,allocation_pool,effective_from,allocation_weight,remarks,salary_source_note",
+  pool: "period_start,allocation_pool,costing_class,costing_class_label,staff_count,pool_amount,pool_status",
+});
+export const STAFF_GOVERNANCE_RESTRICTED_NOTICE =
+  "Individual staff and salary data requires Cost Build Manager view and edit permission. Aggregate pool totals remain available on the Staff Pool Summary tab.";
+
 export const COST_BUILD_LENS_IDS = [
   "cost-governance",
   "staff-governance",
@@ -255,6 +268,9 @@ export function createCostBuildController(deps) {
     setRowsAndView,
     closeDetails,
     getActivePeriodStart,
+    // Fail closed: personnel (individual staff/salary) access must be granted explicitly by the shell.
+    canViewPersonnel = () => false,
+    canEditPersonnel = () => false,
   } = deps;
 
   const {
@@ -491,23 +507,35 @@ export function createCostBuildController(deps) {
     return rows;
   }
 
-  async function loadStaffGovernanceRows(activePeriodStart) {
-    if (staffGovernanceTab === "staff-register") {
-      return fetchAllRows(
-        () =>
-          costingFrom("v_costing_staff_classification_register")
-            .select("*")
-            .order("classification_status", { ascending: true })
-            .order("employee_code", { ascending: true }),
-        1000,
-      );
+  function personnelViewAllowed() {
+    try {
+      return canViewPersonnel() === true;
+    } catch {
+      return false;
     }
+  }
 
+  function personnelEditAllowed() {
+    try {
+      return canEditPersonnel() === true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Non-empty when the active Staff Governance tab holds individual staff/salary data the caller may not see. */
+  function getStaffGovernanceRestrictionNotice() {
+    if (getCurrentLens() !== "staff-governance") return "";
+    if (staffGovernanceTab === "staff-pool-summary") return "";
+    return personnelViewAllowed() ? "" : STAFF_GOVERNANCE_RESTRICTED_NOTICE;
+  }
+
+  async function loadStaffGovernanceRows(activePeriodStart) {
     if (staffGovernanceTab === "staff-pool-summary") {
       return fetchAllRows(
         () =>
           costingFrom("v_costing_staff_cost_pool_summary")
-            .select("*")
+            .select(STAFF_GOVERNANCE_COLUMNS.pool)
             .eq("period_start", activePeriodStart)
             .order("allocation_pool", { ascending: true })
             .order("costing_class", { ascending: true }),
@@ -515,15 +543,35 @@ export function createCostBuildController(deps) {
       );
     }
 
+    // Individual staff / salary tabs: no request at all unless personnel access is granted.
+    if (!personnelViewAllowed()) return [];
+
+    if (staffGovernanceTab === "staff-register") {
+      return fetchAllRows(
+        () =>
+          costingFrom("v_costing_staff_classification_register")
+            .select(STAFF_GOVERNANCE_COLUMNS.register)
+            .order("classification_status", { ascending: true })
+            .order("employee_code", { ascending: true }),
+        1000,
+      );
+    }
+
     return fetchAllRows(
       () =>
         costingFrom("v_costing_unclassified_staff_for_costing")
-          .select("*")
+          .select(STAFF_GOVERNANCE_COLUMNS.review)
           .order("classification_status", { ascending: true })
           .order("total_salary_cost", { ascending: true })
           .order("employee_code", { ascending: true }),
       1000,
     );
+  }
+
+  /** Drop any in-memory staff classification edit state (call on permission loss / sign-out). */
+  function purgeStaffGovernanceState() {
+    staffClassificationEditRow = null;
+    staffClassificationReturnFocus = null;
   }
 
   function syncManualProvisionLayout() {
@@ -1203,8 +1251,9 @@ export function createCostBuildController(deps) {
         <td>${formatDate(row.effective_from)}</td>
         <td class="c-right">${formatNumber(row.allocation_weight)}</td>
         <td>${text(row.remarks || "--")}</td>
-        <td class="c-center">
-          <button
+        <td class="c-center">${
+          personnelEditAllowed()
+            ? `<button
             type="button"
             class="icon-btn"
             data-edit-staff-classification-index="${rowIndex}"
@@ -1212,8 +1261,9 @@ export function createCostBuildController(deps) {
             aria-label="Edit Staff Classification"
           >
             Edit
-          </button>
-        </td>
+          </button>`
+            : '<span class="cp-muted-text">View only</span>'
+        }</td>
       </tr>`;
       }
 
@@ -1238,8 +1288,9 @@ export function createCostBuildController(deps) {
       <td>${text(row.costing_class_label || row.costing_class || "--")}</td>
       <td>${text(row.allocation_pool || "--")}</td>
       <td>${text(row.classification_note || row.salary_source_note || "--")}</td>
-      <td class="c-center">
-        <button
+      <td class="c-center">${
+        personnelEditAllowed()
+          ? `<button
           type="button"
           class="icon-btn"
           data-edit-staff-classification-index="${rowIndex}"
@@ -1247,8 +1298,9 @@ export function createCostBuildController(deps) {
           aria-label="Review / Edit Staff Classification"
         >
           Review / Edit
-        </button>
-      </td>
+        </button>`
+          : '<span class="cp-muted-text">View only</span>'
+      }</td>
     </tr>`;
     }
 
@@ -1423,6 +1475,7 @@ export function createCostBuildController(deps) {
   }
 
   function wireStaffGovernanceTableActions(tableBody, getViewRow) {
+    if (!personnelEditAllowed()) return;
     tableBody
       .querySelectorAll("[data-edit-staff-classification-index]")
       .forEach((btn) => {
@@ -1863,6 +1916,10 @@ export function createCostBuildController(deps) {
 
   function openStaffClassificationEditModal(row) {
     if (!row || !staffClassificationEditModal) return;
+    if (!personnelEditAllowed()) {
+      showToast("You do not have permission to edit staff classifications.", "error");
+      return;
+    }
 
     staffClassificationEditRow = row;
     staffClassificationReturnFocus = document.activeElement;
@@ -1936,6 +1993,10 @@ export function createCostBuildController(deps) {
   }
 
   async function saveStaffClassificationEdit() {
+    if (!personnelEditAllowed()) {
+      showToast("You do not have permission to edit staff classifications.", "error");
+      return;
+    }
     const row = staffClassificationEditRow;
     if (!row?.staff_id) {
       showToast("Staff ID missing for selected row.", "error");
@@ -2236,6 +2297,8 @@ export function createCostBuildController(deps) {
     setManualProvisionPeriodFilter,
     loadCostGovernanceRows,
     loadStaffGovernanceRows,
+    getStaffGovernanceRestrictionNotice,
+    purgeStaffGovernanceState,
     loadManualProvisionLensData,
     getTableHeaders,
     getTableAlignments,
