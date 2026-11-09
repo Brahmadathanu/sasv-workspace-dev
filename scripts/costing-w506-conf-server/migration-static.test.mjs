@@ -118,13 +118,15 @@ test("runner: socket-only host, disposable-cluster marker, superuser, unique scr
 });
 test("atomicity runner injects helper and first-view failures and checks absence of partial state", () => {
   for (const marker of [
-    "W506_TEST_ABORT_AFTER_HELPER", "W506_TEST_ABORT_AFTER_VIEW1",
+    "W506_TEST_ABORT_AFTER_HELPER", "W506_TEST_ABORT_AFTER_VIEW1", "W506_TEST_ABORT_AFTER_VIEW2",
     "to_regprocedure('public.fn_costing_personnel_view_allowed()') is null",
-    "P8a forced exception after helper", "P8b forced exception after first view",
-    "P8c normal apply succeeds after both atomicity failures",
+    "P8a forced exception after helper", "P8b forced exception immediately after first view",
+    "P8c forced exception immediately after second view",
+    "P8d normal apply succeeds after all three atomicity failures",
   ]) assert.ok(runner.includes(marker), `missing atomicity marker: ${marker}`);
   assert.ok(runner.includes('"$TMP/inject_helper.sql"'));
   assert.ok(runner.includes('"$TMP/inject_view1.sql"'));
+  assert.ok(runner.includes('"$TMP/inject_view2.sql"'));
   assert.ok(runner.includes('python3 - "$TMP/mig.sql"'), "failure injections only target scratch copies");
 });
 test("identity matrix covers: no grants, unauthenticated, other-module viewers, CBM view-only, edit-without-view, editor, postgres, service_role, anon, definer writer pattern", () => {
