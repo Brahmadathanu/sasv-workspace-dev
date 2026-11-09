@@ -4,6 +4,19 @@
 
 
 
+## Repository migration-history reconciliation — 9 November 2026
+
+The production migration names and version rows recorded by Supabase have been reconciled in the **draft PR branches only**. File contents are byte-identical to the SQL actually applied, verified by equal Git blob SHA before deletion of the former path. There was **no re-application, DDL/DML, or manual modification of live migration history**.
+
+| PR | Correct filename on draft branch | SQL Git blob SHA |
+|---|---|---|
+| #254 Save | `supabase/migrations/20261109105557_wp05_w506_sec_fix_01_staff_classification_writer_guard.sql` | `23dd5039513e946651b9f1e8134d3db4ac2675a6` |
+| #255 Close | `supabase/migrations/20261109105717_wp05_w506_sec_fix_02_staff_classification_close_writer_guard.sql` | `98dfaee8fb45d31039bd1448b50e34e7e32b9008` |
+
+The corresponding static tests, individual live-equivalent runner paths and combined `run_combined_sequence.sh` were updated to the applied filenames. The original filenames `20261109040000` / `20261109050000` appearing in earlier chronological notes are **historical draft placeholders only**, not unapplied migration files to run. This reconciliation has **not yet been re-executed** under the test runners; only path references were changed. Do not merge until those filename-sensitive tests and the GitHub checks are revalidated. In particular, do not run `supabase db push` or repeat the already-applied migrations.
+
+The server guards are live, but genuine signed-in noneditor/view-only and owner-positive PostgREST acceptance plus client Edit-control and salary exposure remediation remain separate tasks. Formal WP05/W5-06 closure is still pending; programme 6/13.
+
 ## Production release execution addendum — 9 November 2026 (authorised controlled Save→Close)
 
 **Status: BOTH SERVER GUARDS NOW INSTALLED, PostgreSQL 17.4.** Owner "go ahead" after review of the controlled two-migration release; Supabase `apply_migration` used exactly once per source file (Save first, verified, then Close). The response from each apply call was `success: true`. The earlier draft-only and NOT TESTED status sections below remain historical pre-release evidence; this addendum supersedes them **for actual server deployment**, not for authenticated PostgREST acceptance or formal WP05 closure.
