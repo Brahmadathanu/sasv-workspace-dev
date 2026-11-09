@@ -38,6 +38,21 @@ Read-only PostgreSQL 17.4 `pg_get_viewdef(oid)` output for all three views has b
 
 The `supabase/tests/w506_conf/run_view_gate_test.sh` runner now includes **P8a/P8b/P8c/P8d**: forced exceptions after helper creation, immediately after the first and second view replacements **inside the loop**, followed by a clean retry after all three failures. Each injected failure checks that the helper no longer exists and that original view definitions and metadata remain unchanged. Injected SQL is produced only in `$TMP` scratch copies; production and committed migration text are not altered. The static suite now asserts that this injection coverage remains present. These additions are **not yet executed** against PostgreSQL, and require confirmation under a disposable cluster. If injection or parser tests fail, stop without production DDL. The four migration fingerprint placeholders remain in place and operational execution is unapproved.
 
+## Release verification checkpoint — 9 November 2026 (independent production readback)
+
+After Claude's isolated verification at server PR #257 `ee900cfb` and client PR #258 `b590362c`, an independent **SELECT-only live readback** rechecked all four fingerprints on the production database. All values remain unchanged:
+
+| Exact PostgreSQL expression | Verified MD5 |
+|---|---|
+| `pg_get_viewdef('public.v_costing_staff_classification_register'::regclass)` | `2447f6b30fdc11e5e5dac487619b9142` |
+| `pg_get_viewdef('public.v_costing_unclassified_staff_for_costing'::regclass)` | `659a7d0e992a7bae23b4b0409d33a161` |
+| `pg_get_viewdef('public.v_costing_staff_cost_pool_summary'::regclass)` | `80d1a1a4f2e3add5eae58acac99e14fd` |
+| `pg_get_functiondef('public.fn_costing_view_allowed()'::regprocedure)` | `a5c51f50421d35a7207878c237fff273` |
+
+**Key distinction:** these production readback values close the missing *source fingerprint* evidence gap, but are not a successful production migration or authenticated access test. The draft SQL and rollback deliberately retain placeholders while the draft static/runner tests assert placeholder fail-closed behavior. Before any deployment, form a **separately reviewed, fully pinned release candidate**, modify associated tests to assert the exact authorized hashes and drift/failure handling, rerun those tests, and recheck production source hashes immediately before execution. Never hand-edit only the migration while leaving its static and runner tests expecting placeholders. Do not rerun Save/Close migrations. PostgreSQL 17.4 direct execution, real signed-in PostgREST and browser acceptance remain outstanding; external BI consumers require notification/review. **No production change or deployment authorised by this note.**
+
+**Isolated tests reported by Claude:** server static 15/15, disposable PostgreSQL 16.15 runner 30/30 + identity matrix 14/14, including exact live 17.4 view-definition replay and fail-atomicity tests; client focused 22/22 + dynamic 11/11; other existing main-branch test failures unchanged. These are worker-reported results, with GitHub PR heads independently verified. Browser/costing-responsive and PostgreSQL 17.4 execution not done.
+
 ## 1. Consumer inventory (repository level; bounded)
 
 | Consumer | What it reads | Finding |
