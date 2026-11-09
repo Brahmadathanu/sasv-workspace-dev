@@ -15,8 +15,7 @@
 -- Not changed: any GRANT/REVOKE on the views, fn_costing_view_allowed(), the Save/Close functions and wrappers, any table/RLS.
 --
 -- Transaction management: no top-level BEGIN/COMMIT (the runner owns any enclosing transaction and the history row). Every persistent
--- change to the views happens inside the single DO statement below (atomic by itself). The new helper function is additive and harmless
--- if the DO block later aborts.
+-- change (helper creation, grants and views) happens inside the single DO statement below. A failed DO rolls back all changes.
 --
 -- Fail-closed design:
 --  * Exact full-definition md5 (pg_get_viewdef) of each target view AND of fn_costing_view_allowed() must equal an owner-readback value;
@@ -26,16 +25,6 @@
 --  * Idempotent: an already-patched view is accepted only if reversing the substitution restores the verified original fingerprint.
 -- Rollback (a SECURITY REGRESSION, containment-first): docs/master-data-costing/prepared/WP05_W506_CONF_01_ROLLBACK.sql (not executed).
 
-create or replace function public.fn_costing_personnel_view_allowed()
-returns boolean language sql stable security invoker set search_path = public, pg_temp as $f$
-  select current_user = any (array['postgres','service_role']::name[])
-      or (public.app_has_permission('module:cost-build-manager','view')
-          and public.app_has_permission('module:cost-build-manager','edit'))
-$f$;
-comment on function public.fn_costing_personnel_view_allowed() is
-  'WP05-W506-CONF-01: row/column gate for individual staff and salary data (temporary: Cost Build Manager view AND edit)';
-revoke all on function public.fn_costing_personnel_view_allowed() from public, anon;
-grant execute on function public.fn_costing_personnel_view_allowed() to authenticated, service_role;
 
 do $migration$
 declare
@@ -56,6 +45,20 @@ begin
   if c_fp_register !~ '^[0-9a-f]{32}$' or c_fp_review !~ '^[0-9a-f]{32}$' or c_fp_pool !~ '^[0-9a-f]{32}$' or c_fp_gate_fn !~ '^[0-9a-f]{32}$' then
     raise exception 'W506-CONF-01 aborted: live fingerprints have not been filled in from the owner readback (placeholders present)';
   end if;
+  -- This DO owns all persistent changes: helper creation, comment/ACL and all three view replacements.
+  -- A failure at any later step rolls back the helper as well, even with per-statement autocommit.
+  execute $helper_ddl$
+    create or replace function public.fn_costing_personnel_view_allowed()
+    returns boolean language sql stable security invoker set search_path = public, pg_temp as $f$
+      select current_user = any (array['postgres','service_role']::name[])
+          or (public.app_has_permission('module:cost-build-manager','view')
+              and public.app_has_permission('module:cost-build-manager','edit'))
+    $f$;
+  $helper_ddl$;
+  execute 'comment on function public.fn_costing_personnel_view_allowed() is   'WP05-W506-CONF-01: row/column gate for individual staff and salary data (temporary: Cost Build Manager view AND edit)';';
+  execute 'revoke all on function public.fn_costing_personnel_view_allowed() from public, anon;';
+  execute 'grant execute on function public.fn_costing_personnel_view_allowed() to authenticated, service_role;';
+
   perform set_config('search_path', 'public, pg_temp', true);
   v_fps := array[c_fp_register, c_fp_review, c_fp_pool];
 
