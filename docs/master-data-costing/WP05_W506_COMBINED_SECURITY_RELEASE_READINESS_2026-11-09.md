@@ -1,0 +1,184 @@
+# WP05-W506 — Combined Staff Governance security release readiness (9 November 2026)
+
+> **CURRENT AUTHORITATIVE STATUS — 9 November 2026 (supersedes historical pre-release sections below).** Both Save and Close permission guards are **LIVE** on production PostgreSQL 17.4, applied in order via Supabase migrations **20261109105557** and **20261109105717**; the full-function, wrapper, ownership and history readbacks passed. Owner Path B was accepted for missing isolated 17.4 test-suite execution. Live no-JWT denial succeeded for both writers; genuine signed-in view-only/unauthorised and editor-positive **PostgREST acceptance remains outstanding**. After filename reconciliation, the separate static/live-equivalent suites and combined runner **all passed (0 failures) on disposable PostgreSQL 16.15**, as reported by Claude. Git migration blobs remain unchanged. This document retains its earlier *historical* plans and risk register for audit only; they are not instructions to reapply these migrations. WP05/W5-06 OPEN; formal work-pack closure **6/13**.
+
+
+**Status: DOCUMENTATION ONLY. Nothing applied, merged or deployed. W5-06 OPEN; WP05 OPEN; programme 6/13.** The owner accepted Path B and stated the operational caller policy in a subsequent decision on 9 November 2026; neither decision authorises production execution, rollback, grant changes or release.
+
+
+
+## Repository migration-history reconciliation — 9 November 2026
+
+The production migration names and version rows recorded by Supabase have been reconciled in the **draft PR branches only**. File contents are byte-identical to the SQL actually applied, verified by equal Git blob SHA before deletion of the former path. There was **no re-application, DDL/DML, or manual modification of live migration history**.
+
+| PR | Correct filename on draft branch | SQL Git blob SHA |
+|---|---|---|
+| #254 Save | `supabase/migrations/20261109105557_wp05_w506_sec_fix_01_staff_classification_writer_guard.sql` | `23dd5039513e946651b9f1e8134d3db4ac2675a6` |
+| #255 Close | `supabase/migrations/20261109105717_wp05_w506_sec_fix_02_staff_classification_close_writer_guard.sql` | `98dfaee8fb45d31039bd1448b50e34e7e32b9008` |
+
+The corresponding static tests, individual live-equivalent runner paths and combined `run_combined_sequence.sh` were updated to the applied filenames. The original filenames `20261109040000` / `20261109050000` appearing in earlier chronological notes are **historical draft placeholders only**, not unapplied migration files to run. **After this note was initially written, the full filename-reconciled test matrix was re-executed successfully on PostgreSQL 16.15 (0 failures); GitHub Netlify checks for all three PR heads also succeeded.** In particular, do not run `supabase db push` or repeat the already-applied migrations.
+
+The server guards are live, but genuine signed-in noneditor/view-only and owner-positive PostgREST acceptance plus client Edit-control and salary exposure remediation remain separate tasks. Formal WP05/W5-06 closure is still pending; programme 6/13.
+
+## Production release execution addendum — 9 November 2026 (authorised controlled Save→Close)
+
+**Status: BOTH SERVER GUARDS NOW INSTALLED, PostgreSQL 17.4.** Owner "go ahead" after review of the controlled two-migration release; Supabase `apply_migration` used exactly once per source file (Save first, verified, then Close). The response from each apply call was `success: true`. The earlier draft-only and NOT TESTED status sections below remain historical pre-release evidence; this addendum supersedes them **for actual server deployment**, not for authenticated PostgREST acceptance or formal WP05 closure.
+
+| Operation | Reviewed source head | Production history version and name | Post-install internal MD5 |
+|---|---|---|---|
+| Save / #254 | `e2091c9`, blob `23dd5039513e946651b9f1e8134d3db4ac2675a6` | `20261109105557`, `wp05_w506_sec_fix_01_staff_classification_writer_guard` | `f5ab34726e263860e479d8597ed322da` |
+| Close / #255 | `c1d9749`, blob `98dfaee8fb45d31039bd1448b50e34e7e32b9008` | `20261109105717`, `wp05_w506_sec_fix_02_staff_classification_close_writer_guard` | `81bfc97789ac1c1ea811c4fd2abc3baf` |
+
+After **each** apply, read-only checks confirmed one exact first-statement CBM View+Edit guard; deleting its exact insertion yields the original full-definition MD5. Internal function owner, ACL, volatility, definer and `search_path` retained. Both public wrappers and `public.require_permission` unchanged. Both migration-history rows were present, correctly named and ordered; no missing-history condition occurred.
+
+**No-JWT live negative tests (safe NULL-ID calls):** A DB session with `auth.uid() IS NULL` called each public classification RPC using NULL IDs. Both raised `P0001 Not authenticated` from `public.require_permission` at the newly guarded first statement. Staff classification remained 164 rows and `max(updated_at)` remained `2026-10-16 03:17:31.055173+00` after the tests. **Authenticated view-only and genuine owner-positive PostgREST acceptance remain NOT TESTED.** The isolated PostgreSQL 17.4 test-suite waiver (Path B) was accepted, but the two production 17.4 function replacements have now actually succeeded.
+
+**Reconciliation completed after deployment:** the draft source placeholders `20261109040000` and `20261109050000` were replaced with live-assigned filenames `20261109105557` and `20261109105717`, preserving exact migration SQL Git blobs. Tests were rerun and CI checked. **Do not re-execute the migrations, change production history, run `db push` or claim WP05/W5-06 closed.** Complete authenticated PostgREST role matrix and separate privacy/client edit gating; owner review of PR merges and programme closure still required. Formal programme remains **6/13**.
+
+## Owner disposition and operational preflight addendum — 9 November 2026
+
+**Owner-approved policy (not deployment authorisation):**
+- **R1 / Path B accepted.** The owner accepts the residual risk of not running the unchanged Save+Close suites on isolated PostgreSQL 17.4, on the strength of the recorded 16.15 exact-source and combined-sequence results, subject to the controlled rollout gates. PostgreSQL 17.4 migration execution remains **NOT TESTED**; never report it as PASS.
+- **R6 / intended operational use confirmed.** Staff Governance classification changes are ordinarily made **through the SASV application**. Deliberately necessary **governed backend changes** remain an exceptional administrative route. This is a qualified operating-model attestation, **not** an absolute statement that all possible external/dynamic callers have been inventoried or that backend work is prohibited. Such exceptional backend procedures must be separately reviewed/authorised; a JWT-less `service_role` RPC invocation will be denied after the proposed guard. No automatic bypass, service credential exemption or grant widening is authorised.
+- This owner confirmation satisfies the requested operating-model declaration to the extent of the owner's knowledge and existing scan evidence. **Unknown future, third-party or undocumented dynamic callers remain a residual risk**, rather than being asserted absent.
+
+**Fresh owner-side read-only preflight evidence:**
+- Production server PostgreSQL 17.4; all four Save/Close function full-definition MD5s, owners, ACLs and `proconfig` matched original baselines in the preceding independent readback. The current exact hashes are listed in §§1 and 7; **repeat the readback immediately before any eventual production execution**.
+- Live `supabase_migrations.schema_migrations` / connected `list_migrations` results end at version `20261108165005` (`pec_vwl_r2_direct_indent_origin_lookup`) at this preflight. The proposed `20261109040000` and `20261109050000` migrations were not recorded. **Recheck for newer changes at execution time.**
+- Bounded SELECT-only scan for both Save and Close: zero other `pg_proc.prosrc` references outside their respective wrappers, zero matching `cron.job.command` text, zero direct user triggers. This does not inspect all external or dynamic callers.
+- Supabase's connected migration interface accepts a migration name and SQL body. This does **not prove** it will preserve a source filename version, nor that it tolerates the migration files' embedded `BEGIN/COMMIT` when wrapped in an executor transaction. No migration was submitted. **Executor/tool compatibility remains an unresolved STOP gate**, requiring a separately approved nonproduction-equivalent check or an exact, reviewed execution strategy before production approval. Record tool, applied name/version, source file hash, execution outcome and migration-history row; do not use `supabase db push`.
+
+**Approved direction for the release plan, not permission to execute:** Prepare a sequential **Save then Close** controlled rollout with inter-step read-only checks, stop/fix-forward on partial failure and no routine rollback. Release authorisation, executor, maintenance window, migration-tool compatibility, optional containment actions and controlled post-deploy deny-path testing all remain **separate explicit decisions**. The client confidentiality workstream and formal W5-06/WP05 acceptance remain OPEN.
+
+## Execution-tool compatibility finding — 9 November 2026 (blocking preflight)
+
+**Newly discovered upstream Supabase warning:** Embedding top-level `BEGIN`/`COMMIT` in SQL submitted to a migration runner that already wraps the operation can cause an inner COMMIT to persist changes while a subsequent error prevents the runner from recording its migration-history row. Supabase specifically recommends leaving transaction management to that runner. Source: https://supabase.com/kb/troubleshooting/partial-migrations-and-schema-inconsistencies-from-embedded-transactions . The previously recorded in-file transaction precedent does **not** establish safety for these two files.
+
+Both draft migration files currently include `begin;`/`commit;`. **No approval to submit those unchanged files via `apply_migration` or an equivalent auto-transaction migration runner.** Owner Path B approval is limited to the untested PostgreSQL 17.4 execution compatibility; it does not waive transaction/history integrity.
+
+**Additional version-history issue:** Current connected Supabase MCP `apply_migration` accepts `name` and `query`, not a caller-specified migration version. Supabase MCP issue https://github.com/supabase/mcp/issues/241 reports server-generated migration timestamps that differ from repository filenames. This repository's AU2 guidance disallows unreviewed `supabase db push`. A concrete version-alignment/recording procedure is still required, not simply noting generated versions.
+
+**Required remediation before execution (addressed in §11):** Have the code worker propose minimal changes to both draft migration files, removing top-level transaction control only when the selected runner is proved to wrap **all** file statements on **one connection within one transaction** (needed for `pg_temp` helper visibility). Update the static tests expecting the old framing. In an isolated PostgreSQL 16.15 runner-equivalent harness, test ordinary Save→Close, idempotency, error injection after the function CREATE and before history recording (prove both DDL and history roll back), function fingerprint preservation and history-name/version mapping. No uncontrolled changes to the guard, target, wrappers, ACLs, rollback policy or existing production schema. If runner/connection/transaction semantics cannot be verified, **STOP**; choose a separately reviewed execution alternative. PRs #254 and #255 remain draft, production BLOCKED.
+
+
+
+**Audit chronology note (added after release):** The statuses, proposed file versions, and phrases "NOT AUTHORISED"/"unapplied" in §§1–11 below describe the *pre-deployment* stages. They are superseded for current operational status by the authoritative summary above and the production execution/reconciliation addenda. The original test outcomes and risk reasoning are retained for traceability; they must not be interpreted as instructions to execute those versions again.
+
+## 1. PR heads and states
+
+| PR | Purpose | Head | State |
+|---|---|---|---|
+| #254 | Save writer guard `costing.rpc_set_staff_costing_classification` (migration `20261109040000`) | `e2091c9` (runner-compatible revision; was `ba8d3b1`) | open, DRAFT, unmerged, unapplied |
+| #255 | Close writer guard `costing.rpc_close_staff_costing_classification` (migration `20261109050000`) | `c1d9749` (runner-compatible revision; was `522e602`) | open, DRAFT, unmerged, unapplied |
+
+Both target `main` (`a779161`). Both are untouched by this document. (#254's description still cites an earlier head `4768d36` in one heading; the code/test content is current.) Policy in both: `require_permission('module:cost-build-manager', true)` (View **and** Edit) as the first statement of the internal function; wrappers unchanged; no identity hard-coded; no service-role bypass. Owner policy: one intended Staff Governance editor for now; delegation later, preferably via a dedicated personnel-costing permission.
+
+## 2. Combined migration verification
+
+**Static review (source inspection).**
+- Ordering: `20261109040000` (Save) < `20261109050000` (Close), both later than the last `main` migration (`20261108165005`); unique versions; no overlap in files. Branches are independent, so merge order does not change filename order. Both PRs append to different places in docs (#255 appends an addendum to the targeted catalogue; this PR inserts its link near the top to avoid a textual conflict).
+- Independence: different functions/signatures, different fingerprints (Save `553d103a…`/`6ba70947…`; Close `1c9884c0…`/`a8254681…`), different temp helpers (`pg_temp.w506_guard_patch` vs `pg_temp.w506_close_guard_patch`), different rollback interlock settings (`w506.rollback_owner_emergency_approval` vs `w506.close_rollback_owner_emergency_approval`). No shared objects, no cross-reference (`rpc_set_` absent from the Close files).
+- Privilege: neither migration contains GRANT/REVOKE/DROP/ALTER or wrapper edits; guard requires `auth.uid()` plus canonical View+Edit, so `service_role`/JWT-less callers are denied by design (no bypass).
+- **Transactions are separate.** *(Superseded by §11: the revised files contain no top-level `begin/commit`.)* Applying two files is still **not atomic** unless a runner is deliberately given both in one transaction (§11, C12/C13). (A precedent for in-file `begin/commit` exists: `20261104131055_…`.)
+- **Deployment tooling (documented repo history, not tested here):** earlier live applies used Supabase MCP `apply_migration` or the SQL editor (CI-033 record; AU2 runbook), which may assign a server-side version rather than the filename version, and AU2 states **do not use `supabase db push`** because repo and live history are not reconciled. The executor must therefore apply the reviewed file bytes exactly, record the assigned version, and not rely on `db push`. Whether the chosen tool tolerates an inner `begin/commit` is **NOT TESTED**; precedent only. Neither file sets `lock_timeout`; the executor should set a short session `lock_timeout` before running (outside the files; files stay unmodified).
+
+**Executed combined evidence (new; PostgreSQL 16.15 disposable cluster, exact live snapshots of all four functions over synthetic dependencies, unchanged migration/rollback files; scratch script not committed): 24 checks passed / 0 failed.**
+
+| Scenario | Result |
+|---|---|
+| Baseline | all four original fingerprints reproduced; no-grant user can call both writers (finding reproduced) |
+| Save then Close | each applies; interim state after Save only = Save denied, **Close still open**; final: no-grant denied on both, CBM View+Edit allowed on both; wrappers unchanged; owner/ACL/config/signature/OID of all four unchanged; re-applying both is a no-op |
+| Reverse order | byte-identical guarded definitions (no cross-dependency) |
+| Partial failure (Close wrapper drift after Save commits) | Close aborts fail-closed ("wrapper full-definition md5"); Save stays guarded and committed; Close internal untouched; Close writer remains open to a no-grant user (residual exposure confirmed) |
+| Forward correction | after the verified wrapper is restored, re-running **only** Close succeeds; end state identical to the clean sequence; Save not re-touched |
+| Independent rollbacks | Save interlock does not authorise Close rollback and vice versa; Save-only rollback reopens only Save and leaves Close guarded; re-applying Save restores the combined state |
+| Optional single-transaction variant (scratch concatenation, not a proposed file) | Close failure leaves **both** unguarded (all-or-nothing); on a clean state yields identical guarded definitions |
+
+Already-guarded handling: each migration treats an exact original+insertion as a verified no-op, aborts on any other drift (per the #254/#255 suites and S1h above).
+
+**Atomic-installation option (documented, not recommended by default).** A single combined file would give all-or-nothing, but: it would be a third, new artefact needing its own review/history entry; it would not preserve the approved per-PR migration files; and an all-or-nothing failure leaves *both* writers open, which is the worse security state than a Save-only success. Choose it only if the owner values symmetry over earlier closure of the Save hole. The approved files and migration history are not altered by this document.
+
+## 3. Partial-failure analysis (Save commits, Close fails)
+State: Save guarded; Close unguarded (still callable by any authenticated user via wrapper). Safest response, in order:
+1. **STOP**, record the exact error text and `md5(pg_get_functiondef)` of all four functions; do not retry blindly.
+2. **Do not roll Save back** — that reopens a second hole for symmetry. 
+3. Diagnose with read-only catalogue queries (drift in Close internal vs wrapper; lock timeout; privilege). Fix forward: if the cause is transient (lock/timeout) re-run Close; if drift, re-read the live definition and issue a reviewed corrected companion migration (new fingerprints), never edit the approved file in place.
+4. If forward correction cannot be done promptly, the owner may **separately approve** a temporary containment of the Close wrapper (e.g. restricting its EXECUTE) after an impact evaluation (it has no known repo caller; the Staff Governance UI uses Save only). Not authorised here.
+5. Record the interval of exposure and the outcome.
+
+## 4. Risk register
+
+| # | Risk | Evidence | Class |
+|---|---|---|---|
+| R1 | PostgreSQL 17.4 not execution-tested | 16.15 only; no approved 17.4 environment | **Owner accepted Path B** as documented exception; PG17.4 remains NOT TESTED |
+| R2 | 16.15 exact-source verification limits | Exact live definitions, 4 fingerprints, synthetic dependencies, test-double helper, different server version | Conditionally acceptable (strong evidence of logic; not a production test) |
+| R3 | Real `require_permission` and PostgREST behaviour | Live helper read by definition (md5 `d4921dbc…`), not executed; PostgREST/RLS not exercised | **NOT TESTED**; conditionally acceptable only with post-deploy authorised denial tests |
+| R4 | Authenticated view-only / unauthorised access | Denied in 16.15 matrices (44 distinct denial/permit rows across both writers) | Resolved for logic in isolation; production behaviour NOT TESTED (see R3) |
+| R5 | Existing CBM View+Edit users | 1 View+Edit, 2 View-only (owner aggregate); sole editor attested as intended | Resolved for present operation; breadth of CBM rights noted |
+| R6 | Unknown external / non-JWT callers | Owner confirms app-only ordinary updates, plus exceptional governed backend procedure; bounded repo/live scans identify no routine non-JWT callers; unknown external/dynamic calls cannot be excluded | **Operating model attested; residual discovery risk retained**; no bypass |
+| R7 | Partial deployment (non-atomic) | Executed in §2 | Conditionally acceptable with STOP rules and forward-correction plan |
+| R8 | Function-definition drift between readback and apply | Fail-closed aborts executed for both | Resolved by design; requires fresh readback at apply |
+| R9 | Independent emergency rollbacks reopen holes | Executed independence in §2 | Conditionally acceptable: containment-first, owner-interlocked |
+| R10 | Client Edit controls shown without edit check; salary exposure (CSV, `select('*')`, `total_salary_cost`) | Source inspection; separate workstream | Not addressed by these PRs; does **not block** these guards but blocks any privacy claim and W5-06 closure |
+| R11 | Migration-tool transactions and version history | Embedded BEGIN/COMMIT removed from both migrations and rollbacks (§11); simulated-runner proof incl. hazard reproduction; real Supabase runner semantics NOT established; version recorded after apply by server assignment (§11.4) | **Conditionally acceptable**: code-side blocker resolved; residual = real-runner history row, verified read-only after each apply with a STOP gate |
+| R12 | Lock contention at CREATE OR REPLACE | Not measured | Conditionally acceptable with `lock_timeout` and a maintenance window |
+
+## 5. PostgreSQL 17.4 disposition
+**Evidence for parity:** all four production 17.4 `pg_get_functiondef` fingerprints equal those produced by 16.15 from the committed definitions, so the text the migrations compare against is rendered identically; the migrations use long-stable features only (`to_regprocedure`, `pg_get_functiondef`, `regexp_instr`/`regexp_replace`, `md5`, `replace`, `EXECUTE` of `CREATE OR REPLACE FUNCTION` in a DO block). I identified no specific 17 incompatibility.
+**Residual risks specific to testing on 16 instead of 17.4 (unexercised):** PL/pgSQL compilation/validation of the guarded bodies on 17; planner/executor behaviour of the unchanged wrapper SQL bodies; privilege/search_path semantics for SECURITY DEFINER under 17 defaults; any version-specific catalogue rendering not covered by the four fingerprints; behaviour of the real extensions/roles present in production. These are **unobserved**, not known failures.
+- **Path A — Verified release:** an approved disposable PostgreSQL 17.4 (same minor) runs the *unchanged* suites: `run_live_equivalent.sh` for #254 (26 checks + 21-row matrix) and #255 (26 checks + 23-row matrix), plus the combined sequence scenarios in §2, on a cluster whose data directory is named `w506-disposable-*`. Record `select version()`, commit SHAs and outputs. Closes R1 as PASS.
+- **Path B — Explicit risk-accepted release:** the owner separately and in writing accepts the absence of 17.4 isolated testing after reviewing R1–R3 and the controls in §7–§8 (maintenance window, fresh fingerprints, post-deploy denial test, containment plan). This is a **governance exception, not compatibility evidence**; R1 stays "not tested".
+**Owner decision:** Path B has been accepted as a documented version-test exception. Path A is not being pursued for this release unless new conflicting evidence requires reassessment. Neither choice is permission to deploy.
+
+## 6. External-caller attestation (for the owner)
+Reconciliation: repo — Save: one browser client call (`costing-suite-cost-build.js` → `costingRpc` → signed-in Supabase client, JWT user); Close: none (generated types only); scripts/workflows/Edge Function sources in repo: none. Production read-only inventory (owner): 34 cron command strings, function bodies, trigger definitions and 3 deployed Edge Functions: 0 references (Close-specific wording in those scans should be confirmed). Both public wrappers retain `service_role` EXECUTE, but both guards need a real application user with CBM View+Edit, so any service-role/JWT-less caller **will fail**.
+**Owner operational attestation (9 November 2026, recorded in PR discussion):** Staff Governance classification changes are ordinarily made through the SASV application; explicitly necessary **governed backend changes** remain possible. This is not an unconditional no-external-caller assertion and is not a blanket waiver for direct SQL or service-role RPCs. The bounded technical scan disclosed no regular background integration. An exceptional backend operation must be individually reviewed, authorised and audited, with its own execution path. Any new non-JWT caller must be classified with owner/purpose/frequency before a related integration is activated. Do not introduce a guard bypass.
+
+## 7. Controlled rollout checklist (STOP = halt, record, do not continue)
+**Before.** (1) Written owner approval of the release and of Path A or Path B. (2) Fresh read-only readback of the four full-definition md5s — STOP on any difference from `553d103a…/6ba70947…/1c9884c0…/a8254681…` (also helper `d4921dbc…`). (3) Compare owner, ACL, `proconfig`, signature, volatility for all four against the baseline — STOP on difference. (4) Confirm CBM grant counts unchanged (1 View+Edit) and the editor is reachable. (5) Confirm migration sequencing/history method; executor knows `db push` is not used; version recorded. (6) Maintenance window, short `lock_timeout`, executor and observer named. (7) Containment plan approved in principle (§8). (8) Attestation §6 signed. (9) PR heads still `ba8d3b1` / `522e602` (STOP if changed).
+**During.** (1) Apply Save file exactly as reviewed. STOP if any error. (2) Read-only: Save internal = original + exact guard (definition minus guard = `553d103a…`), wrapper still `6ba70947…`, metadata equal — STOP on mismatch. (3) Apply Close file exactly as reviewed; STOP on error and follow §3. (4) Read-only: Close internal minus guard = `1c9884c0…`, wrapper `a8254681…`. (5) Record exact outputs and timestamps; never continue after a mismatch.
+**After — safe catalogue checks (read-only):** guard text present exactly once as first statement in both internals; all four md5/ACL/owner/config as expected; no other function changed; `authenticated` cannot EXECUTE either internal. **Functional tests (could mutate real records) — only under separately approved procedures:** denial tests with a non-editor and a view-only identity (denied calls cannot write because the guard precedes writes, but still require approval); **no positive test writes** against real classification records; if the editor path must be confirmed, use only an owner-approved, reversible, audited action or a staging copy. Confirm afterwards that `costing.staff_costing_classification` row counts/`updated_at` max are unchanged (read-only). Then monitor logs for permission errors from unexpected callers and capture final evidence.
+
+## 8. Emergency and recovery (containment first; any containment needs separate owner approval and impact evaluation)
+| Situation | Response |
+|---|---|
+| Save succeeds, Close fails | §3: stop, forward-correct Close; no Save rollback; optional approved temporary containment of the Close wrapper |
+| Both installed but the legitimate editor is rejected | First verify the editor still holds CBM View **and** Edit and that the helper behaves (read-only). Fix by restoring the *grant* through governed access administration, not by removing the guard. A rollback is last resort, per function, with its own interlock and an alternative control in place |
+| Unexpected service-caller failures | Identify the caller; provide a user-JWT path or an owner-approved dedicated control; no service-role bypass; rollback not routine |
+| Unexpected behaviour in authenticated testing | Stop testing; read-only catalogue check; do not repeat on real records; escalate to the owner |
+| Post-deploy fingerprint mismatch | Treat as drift/tampering: read-only investigation, compare to expected guarded forms, forward-correct with a reviewed migration; do not auto-roll back |
+Rollbacks (`WP05_W506_SEC_FIX_01_ROLLBACK.sql`, `…_02_ROLLBACK.sql`) are security regressions, fail closed on drift, and are separately interlocked; executed independence is in §2.
+
+## 9. Owner decisions still required
+1. **DECIDED:** Path B accepted; PostgreSQL 17.4 remains NOT TESTED. Reconsider only if contradictory evidence arises.
+2. **DECIDED:** Owner confirms ordinary SASV application use with deliberately required governed backend exceptions; unknown external/dynamic callers remain a residual risk (§6).
+3. Authorise the release (production execution is a separate decision), the maintenance window and executor.
+4. Approve the containment options in principle (e.g. whether a temporary Close-wrapper restriction is acceptable if Close fails).
+5. Approve the post-deploy denial-test procedure and identities.
+6. Decide Save-then-Close non-atomic installation (recommended) versus a reviewed atomic combined file (§2).
+7. Confirm the migration-apply tool and how versions will be recorded.
+8. Separate workstreams: client Edit-control gating and salary-data exposure; dedicated personnel-costing permission.
+
+## 11. Runner-compatibility resolution (PR #254 `e2091c9`, PR #255 `c1d9749`; this PR)
+
+**Source of the concern.** The Supabase advisory (https://supabase.com/kb/troubleshooting/partial-migrations-and-schema-inconsistencies-from-embedded-transactions) could **not be fetched from this session** (supabase.com is outside the session's network allowlist); this section relies on the owner's summary quoted above, not on the page text. The mechanism it describes is, however, reproduced and tested below on PostgreSQL 16.15.
+
+**11.1 Repository conventions.** 52 of the 606 migrations on `main` carry a top-level `begin;` (e.g. `20261104131055_…`, `20261026022352_…`, `20261024111733_…`); the other 554 do not. No repository rule mandates either form. For these security migrations the runner-neutral form is safer.
+
+**11.2 Revision (minimal; guards, full-definition fingerprints, declaration-prefix proof, drift/metadata checks, rollback interlocks unchanged).** In both migrations and both rollbacks: top-level `begin;`/`commit;` removed; the `pg_temp` helper is `CREATE OR REPLACE` (retry in a reused session); the DO block begins with a fail-closed check that the temp helper is visible on its connection (otherwise it aborts before any change); header documents the transaction model. **All persistent change is one `DO` statement, atomic in itself** (replacement + all post-checks); the only other object is session-local.
+
+**11.3 Executed evidence (PostgreSQL 16.15, exact live definitions, synthetic dependencies; runners simulated with psql).**
+- Static: #254 17/17, #255 13/13 (framing test replaced: no top-level transaction control, exactly one DO, helper check).
+- Live-equivalent runners: #254 **32 checks / 0 fail** + matrix 21/21; #255 **32 checks / 0 fail** + matrix 23/23 (26 previous + L7a–f). Synthetic runner (#254): 44/0 + 18/18.
+- L7a runner-supplied single transaction on one connection: DDL and history row commit together. L7b error after the function replacement inside that transaction: function back to the verified original, no history row. **L7c hazard reproduced for the OLD framing** (embedded commit inside a runner transaction): DDL committed, a later error, no history row. L7d whole file as one multi-statement simple query: implicit single transaction, later error rolls back. L7e DO block on a connection without the helper (runner splitting across connections): aborts before any change. L7f repeated application in one session: idempotent no-op.
+- Combined `supabase/tests/w506_combined/run_combined_sequence.sh` (this PR; needs checkouts of both PRs): **19 checks / 0 fail** — Save then Close each in a simulated one-transaction runner with a history row; Save-only interim exposure; wrappers/metadata unchanged; reverse order identical; Close failure after Save (fail-closed abort, Save + its history row kept, Close history absent); forward correction re-running only Close; error after the Close replacement leaves no Close history and Close original; optionally both unmodified files in one runner transaction (works; all-or-nothing, Close drift then leaves **both** unguarded); independent rollback interlocks.
+- Not established: the real Supabase migration runner / MCP `apply_migration` semantics (single connection? transaction? history insertion). The safety argument above does not depend on them: under single-transaction, simple-query, per-statement-autocommit or split-connection runners the DDL is atomic or aborts unchanged (L7a–e).
+
+**11.4 Selected execution method and version recording (proposal for owner approval; nothing executed).**
+1. Execute each reviewed file's exact bytes (verify sha256 against the PR head) with Supabase MCP `apply_migration`, **one call per migration**, Save first, then the §7 read-only checks, then Close. Provide only `name` (e.g. `wp05_w506_sec_fix_01_staff_classification_writer_guard`) and the SQL; the executor sets `lock_timeout` in its own session if the tool allows, never by editing the files. No `supabase db push`; no manual history inserts or repair.
+2. The server assigns the version. After each call, read `supabase_migrations.schema_migrations` (read-only): STOP unless exactly one new row exists, its name matches, and its version is later than the previous row (and for Close, later than Save's). If the DDL is guarded but **no history row exists**, STOP (this is the hazard the revision removes; do not repair history uncontrolled; escalate).
+3. Record the assigned versions in a follow-up reviewed repo change that renames each file to its assigned version (`git mv`, content byte-identical, sha256 shown equal). Precedent: CI-033 (`20261024111733_…` applied via MCP; the filename carries the server-assigned version). The `0409…` timestamps are placeholders until then; `main`'s last migration `20261108165005` matches the live list so no collision exists.
+4. If the owner prefers a tool that preserves filename versions, that is a separate decision; unreviewed `db push` remains prohibited by the AU2 guidance.
+
+## 10. Final recommendation
+**NOT AUTHORISED; READY FOR OWNER RELEASE DECISION ON THE REVISED FILES.** R11's code-side blocker is resolved by the runner-compatible revisions (PR #254 `e2091c9`, PR #255 `c1d9749`; 16.15 simulated-runner proof, §11). R1 is accepted under Path B (PostgreSQL 17.4 NOT TESTED) and R6 is an attested operating model with residual unknown-caller risk. Still required: owner review of the revised files, approval of the §11.4 method, fresh hashes and `schema_migrations` readback immediately before execution, executor, maintenance window, containment and denial-test plans, and separate release authorisation. The real Supabase runner behaviour is NOT established; PostgreSQL 17.4 execution, real `require_permission`/PostgREST behaviour are NOT TESTED. Programme count 6/13; W5-06 and WP05 remain OPEN.
