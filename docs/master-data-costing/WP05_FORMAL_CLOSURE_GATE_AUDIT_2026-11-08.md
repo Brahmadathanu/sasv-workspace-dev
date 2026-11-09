@@ -91,3 +91,8 @@ Static, repository-only design and decision documents (no SQL, production, auth,
 ## 14. Addendum — owner decisions D1–D3 and pending B1/security plans (9 November 2026)
 
 The owner explicitly agreed to three recommendations in chat: **[D1](WP05_OWNER_DECISIONS_2026-11-09.md)** to prepare narrow Option B (B1 final text remains **NOT APPROVED**), **D2** to accept bounded S2/S9 factual parity evidence with BLOCKER SKU 105 remaining PARTIAL, and **D3** to prepare—but **NOT execute**—a no-side-effect negative-identity/SEC plan. Drafts: [B1 amendment for review](WP05_B1_NARROW_AMENDMENT_DRAFT_2026-11-09.md) and [security verification plan](WP05_NO_SIDE_EFFECT_SECURITY_PLAN_DRAFT_2026-11-09.md). The original §8 remains binding. S2/S9 sub-obligation owner-accepted; W5-05 as a whole remains PARTIAL pending full gate reconciliation. **No security behavioural evidence credited, B1 transfer effected, or WP05 gate status promoted. WP05 OPEN, 6/13; AE1 unchanged.**
+
+
+## 15. Addendum — targeted W5-06 security catalogue readback (9 November 2026)
+
+[WP05_W506_TARGETED_SECURITY_CATALOGUE_2026-11-09.md](WP05_W506_TARGETED_SECURITY_CATALOGUE_2026-11-09.md) records **SELECT-only** live public-wrapper and internal-delegate signatures/ACLs, CCC-edit guards, and confirmation that `rpc_costing_preview_approval_impact` writes an acknowledgement. No RPC or identity-based denial test was executed. A direct `authenticated` EXECUTE grant on one internal-source material-review function is flagged for governance review, not described as a demonstrated bypass. **W5-06 remains OPEN**, B1 pending, WP05 OPEN, programme 6/13.
