@@ -1,8 +1,8 @@
 # WP05 W5-06 CONF-01 — Production release and acceptance evidence
 
 **Date:** 10 November 2026  
-**Status:** DEPLOYED; database/costing-permission acceptance verified; signed-in PostgREST and browser acceptance PENDING.  
-**Governance:** WP05 formal closure remains **6/13**, W5-06 OPEN pending remaining acceptance; do not claim formal closure.  
+**Status:** DEPLOYED; live signed-in CBM acceptance and restricted-action browser inspection operator-reported PASS; W5-06 confidentiality gate OWNER ACCEPTED WITH DOCUMENTED RESIDUALS.  
+**Governance:** W5-06 scoped confidentiality release disposition recorded as accepted on 10 November 2026. The broader parent WP05 remains OPEN at **6/13** formal programme closures; this does not approve the full 40-lens/11-flag contract.  
 **Policy:** Individual Staff Governance details require `module:cost-build-manager` both `view` AND `edit`; authorised editor retains the required total salary cost; the broad costing permission continues to provide aggregate pool figures, with nested `staff_details` masked to other viewers.
 
 ## Changes released
@@ -66,7 +66,7 @@ The final UI inspection (operator-reported) found: restriction notice present on
 
 The owner explicitly confirmed **no known external BI or independently hosted applications** depend on the three protected views, and approved the proposed residual acceptance: CSR-only remains **NOT TESTED** (no eligible live identity) with deferred validation; export-button hardening [#262](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/262) is non-blocking; and direct production unauthorised Save/Close testing remains out of scope in favour of deployed server guards, isolated negative tests and read-only UI evidence. See [owner decision record](WP05_W506_CONF_01_OWNER_RESIDUAL_DISPOSITION_2026-11-10.md).
 
-**Not yet confirmed:** whether all test sessions were actually signed out or revoked. Deleting local session/proof files and closing the Claude terminal do not themselves establish Auth session invalidation. This outstanding procedural confirmation is distinct from accepted D1–D4. No all-device logout, session deletion, or user-permission change is authorised by these approvals.
+**Later operator confirmation:** the owner stated on 10 November 2026 that no application remains running with their account signed in. Local session/proof files and test terminal were already cleared. This confirms the operator's application sign-in state, **not** Supabase-side JWT/refresh-token revocation. No all-device logout, session deletion, or user-permission change was performed.
 
 ## Remaining W5-06 closure requirements
 
@@ -76,4 +76,4 @@ The owner explicitly confirmed **no known external BI or independently hosted ap
 4. **Export UX:** Track a separate client hardening issue for disabled/hidden export on restricted individual tabs. No observed leak; do not conflate this follow-up with a production confidentiality regression.
 5. **Session and evidence hygiene:** Operator reports temporary session/proof files were deleted; session revocation must be confirmed according to existing SASV policies. Keep the five redacted reports in restricted owner storage, not public source control. Existing mock-backed sign-out/dynamic permission-revocation tests do not constitute fresh live sign-out acceptance.
 
-**W5-06 formal state: OPEN; WP05 closure stays 6/13 until the owner resolves the CSR-only gap, external consumer scope and remaining acceptance governance.**
+**Final 10 November 2026 disposition:** W5-06 confidentiality release gate **ACCEPTED WITH DOCUMENTED RESIDUALS** by the owner: CSR-only live identity remains NOT TESTED/deferred; no known external BI dependency confirmed; export-button UX deferred to #262; production unauthorised Save/Close deliberately not executed; operator confirms no apps remain signed in, though server token revocation was not proven. The numbered requirements immediately above describe the original acceptance gaps and their disposition, not unresolved owner decisions. **Parent WP05 stays OPEN; formal programme closure remains 6/13.**
