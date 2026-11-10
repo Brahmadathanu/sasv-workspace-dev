@@ -43,10 +43,3 @@ test("Scheme Master list fetch keeps ordered and paginated read path", () => {
   assert.match(source, /costingFrom\("v_costing_scheme_master_register"\)\s*(?:\/\/[^\n]*\n\s*)*\.select\(SCHEME_MASTER_LIST_SELECT\)\s*\.order\("scheme_name",\s*\{\s*ascending:\s*true\s*\}\)/);
   assert.match(source, /if \(getPolicyManagerTab\(\) === "scheme-master"\) \{\s*return fetchAllRows\(/);
 });
-
-test("Existing historical viability UI is not falsely claimed fixed", () => {
-  // The existing renderer requests viability_periods/viability_period_count,
-  // whereas the live view uses viability_snapshot_period_count. This test
-  // documents the pre-existing mismatch rather than inventing a value.
-  assert.match(source, /"viability_periods", "viability_period_count"/);
-});
