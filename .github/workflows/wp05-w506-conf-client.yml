@@ -1,0 +1,37 @@
+name: WP05 W5-06 confidentiality client verification
+
+on:
+  pull_request:
+    paths:
+      - "public/shared/js/costing-suite-cost-build.js"
+      - "public/shared/js/costing-suite-shell.js"
+      - "public/sw.js"
+      - "scripts/costing-w506-conf-client/**"
+      - ".github/workflows/wp05-w506-conf-client.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  focused-confidentiality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout proposed PR source
+        uses: actions/checkout@v4
+
+      - name: Configure Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Verify projected queries, access control, export and cache
+        run: node --test scripts/costing-w506-conf-client/staff-governance-gate.test.mjs
+
+      - name: Verify dynamic permission change, late-result and sign-out behaviour
+        run: node --test scripts/costing-w506-conf-client/staff-governance-dynamic.test.mjs
+
+      - name: Confirm client-only tests had no production credentials
+        if: always()
+        run: echo "No production secrets, permissions, database connection or salary records used."
