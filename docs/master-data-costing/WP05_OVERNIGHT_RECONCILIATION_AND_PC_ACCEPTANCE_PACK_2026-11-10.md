@@ -150,7 +150,7 @@ Environment: Node **v22.23.4**, Linux container, repository at `85eae297` (full 
 | `scripts/costing-wp05-overnight/scheme-master-contract.test.mjs` (new) | n/a | 6/6 |
 | wp05-closure 13 · sec-fix-01 17 · sec-fix-02 13 · conf-server 15 · conf-client gate 22 + dynamic 11 · conf-acceptance 9 · approval-controller 16 · acceptance-lib 8 · cache-bump 6 · lens-evidence-matrix 6 · verify-served-assets 14 · evidence-table-scroll 3 · console-rpc-allowlist 8 | all pass | unchanged |
 
-Skips: none in any suite. CRLF: not applicable (no CRLF files touched). All suites ran locally; **hosted GitHub runs for PR-B are not verified** at the time of writing.
+Skips: none in any suite. CRLF: not applicable (no CRLF files touched). All suites above ran locally. **GitHub-hosted:** on PR-B #268 head `6ca7badf` both workflows completed **success** (`offline-regression` run 42877925020, `static-projection-and-ppm` run 42877924877) — the first hosted executions of these tests, now possible because the invalid YAML was fixed. The hosted runs cover only the non-browser subset in the workflow files (not the Chromium runner test).
 
 **Findings (each fixed test-only/CI-only in PR-B, reviewer should confirm the reading):**
 
@@ -198,7 +198,7 @@ Evidence classes: **STATIC** = migration/source text test; **MOCK** = client con
 | L1 post-fix period-switch display | **NOT TESTED** |
 | ID-N / ID-X / ID-O / server-denial behaviour | **NOT TESTED** |
 | Four historical F | **retained**; later recoveries scoped, untimed |
-| GitHub-hosted CI for PR-B/PR-C heads | verify on the PR checks tab (workflow was previously unparseable) |
+| GitHub-hosted CI | PR-B head `6ca7badf`: both offline workflows **success**; docs-only PR-A/PR-C trigger no test workflow. Chromium runner test is local only |
 | ESLint | **NOT RUN** (dependencies missing) |
 
 ---
