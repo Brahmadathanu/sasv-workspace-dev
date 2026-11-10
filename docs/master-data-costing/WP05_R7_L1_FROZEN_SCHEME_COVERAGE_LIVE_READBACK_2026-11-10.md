@@ -53,3 +53,19 @@ Current `public/shared/js/costing-suite-control-center.js` renders the business 
 For **a future, explicitly authorised run-frozen scheme coverage implementation**, acceptance expected values from actual snapshot evidence are: **run 143 = 600/627**, **run 149 = 601/628**, **run 151 = 601/629**. A current-as-of-only KPI may continue to be offered separately if labelled as such, but it must not be pasted over run-specific denominator and presented as historical coverage. The separate Selling Policy Coverage numerator has a similar run-scoping issue, **not solved by S-A**; a complete L1 fix must investigate selling price policy's historical source independently rather than silently assume selected-scheme snapshot solves both.
 
 No application or database correction was made. A server-side feed and any UI labelling changes need a design review, approved migration, and isolated positive historical/current-run test matrix.
+
+## R7B — separate selling-policy coverage source resolved (live SELECT-only follow-up)
+
+The historical **Selling Policy Coverage** numerator was independently checked in the exact run-frozen `costing.sku_selling_price_bridge_snapshot`, grouped by `refresh_run_id`, `policy_resolution_status` and `selling_price_policy_id IS NOT NULL` without reading individual SKU records.
+
+| Run | Frozen SKUs | `selling_price_policy_id` present | `policy_resolution_status='RESOLVED'` | Frozen selling-policy coverage |
+|---|---:|---:|---:|---:|
+| 143 | 627 | 627 | 627 | **627/627** |
+| 149 | 628 | 628 | 628 | **628/628** |
+| 151 | 629 | 629 | 629 | **629/629** |
+
+This counts **selling policy resolution**, NOT selling-price bridge `READY` state (different business measure). The bridge's `READY` flags differ for November and should not be substituted for coverage.
+
+Actual live `public.v_costing_pricing_business_kpi_summary` returned the **same current-as-of numerators for two period rows**: Oct 2026 `scheme_policy_complete/missing=601/28`, `selling_policy_complete/missing=627/2`; Nov 2026 **identical 601/28 and 627/2**. These figures demonstrably differ from the matching run-frozen October numerator (**600 scheme / 627 selling**) and run-frozen Nov 151 selling coverage (**629 selling**). The historical-Oct selling numerator 627 happens to coincide with its frozen 627 but is still sourced from the **current** overview, not the frozen run; it cannot be trusted on that coincidence. Current snapshots therefore show **both** L1 business KPIs are cross-period-sourced, not merely ambiguously labelled.
+
+**Proposed combined L1 correction acceptance values** when the selected period/run uses frozen snapshots: Oct approved 143 **selling 627/627, explicit bilateral scheme 600/627**; Nov historical 149 **selling 628/628, explicit bilateral scheme 601/628**; Nov 151 **selling 629/629, explicit bilateral scheme 601/629**. Denominators must come from the selected run's pricing-bridge SKU population. Unresolved: exact policy/metric label choice, live-as-of companion KPI choice, authoritative client/server contract when switching periods. **No live correction deployed; separate owner design/implementation approval required.**
