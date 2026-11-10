@@ -1,7 +1,7 @@
 # WP05 W5-06 — owner residual decision and security sign-off record
 
 **Prepared:** 10 November 2026  
-**Status: OWNER DECISION REQUESTED — NOT APPROVED.** This is a governance proposal, **not** permission to close W5-06, alter production permissions, or reduce the wider WP05 acceptance contract. The formal programme remains 6/13 until the applicable work-pack gates are approved.
+**Status: OWNER APPROVED D1–D4 on 10 November 2026; SESSION HYGIENE D5 STILL AWAITING CONFIRMATION.** This record acknowledges the owner's explicit residual acceptance and external-consumer declaration. It does **not** certify untested identities, authorise changing production permissions, or reduce the wider WP05 acceptance contract. Formal programme closure remains 6/13.
 
 ## Verified baseline and evidence classes
 
@@ -20,25 +20,25 @@
 
 **Recommended disposition:** Accept the **bounded, documented test gap for this W5-06 confidentiality release**, not a blanket waiver of the original WP05 negative-identity matrix. Reasons: no eligible operational CSR-only account; implemented server checks deny personnel access unless CBM View AND Edit; genuine view-only identities and editor succeeded; isolated negative identity tests passed. Scope of residual uncertainty: a genuine live CSR-only session has not been demonstrated. If a CSR-only identity becomes available, run the exact same `--role csr-view` read-only acceptance at the next suitable controlled test window. Do not grant/revoke operational permissions merely to simulate this category.
 
-**Approval needed:** Owner explicitly approves **CSR-only NOT TESTED as a deferred verification** under the evidence above, with a future regression check. Without approval, this remains an open blocker.
+**Owner decision — APPROVED 10 November 2026:** Accept CSR-only as **NOT TESTED / deferred verification**, not PASS, for this particular confidentiality release. If a legitimate CSR-only identity becomes available, perform the read-only role acceptance then. This does not waive any wider WP05 negative-identity obligations.
 
 ### D2 — Outside-hosted consumer declaration
 
 **Recommended disposition:** Owner confirms either (A) there is **no known** outside-repository BI, independently hosted integration, API script or reporting tool that directly reads these three protected Staff Governance views / staff_details, after checking with relevant IT/BI owners; **or** (B) identifies integrations that require a separate compatibility assessment. Repository + live database/Edge Function scans do not establish option A on their own.
 
-**Approval needed:** Explicit owner declaration of A or inventory details for B; do not assert absence without evidence.
+**Owner declaration — CONFIRMED 10 November 2026:** No **known** external BI or independently hosted applications depend on the protected views. This is an owner-knowledge declaration, not technical proof that none could exist, and it does not supersede future integration review.
 
 ### D3 — Export-button UX hardening
 
 **Recommended disposition:** Keep issue #262 OPEN as non-blocking client hardening, **provided** the W5-06 confidentiality policy remains enforced on the server and no leakage was observed. UI button remains enabled on restricted staff tabs; no production export was tested. Hide/disable it later, with role-revocation and pool-summary regression coverage.
 
-**Approval needed:** Owner accepts this specific non-blocking UX issue for W5-06 confidentiality release; issue #262 remains independently tracked.
+**Owner decision — APPROVED 10 November 2026:** The restricted-tab Export button hardening is a non-blocking, separately tracked client improvement under #262. No actual staff-data export was attempted and no leak was observed.
 
 ### D4 — Save/Close proof boundary
 
 **Recommended disposition:** Credit applied writer guards, source checks and isolated negative-denial tests; do **not** issue a production write merely to demonstrate denial. The UI inspection confirmed zero edit controls and hidden modals for view-only. Production invocation denial is untested and remains identified as such; a disposable authenticated test environment is the right place for further direct writer tests.
 
-**Approval needed:** Owner accepts this negative-test boundary for **this release**, without certifying that a production unauthorised Save/Close call was made.
+**Owner decision — APPROVED 10 November 2026:** Accept isolated server denial tests, deployed writer guards and non-mutating UI evidence for this release; production unauthorised Save/Close invocation remains NOT TESTED. No production write is authorised.
 
 ### D5 — Session and evidence hygiene
 
@@ -48,6 +48,6 @@
 
 ## Gate and work-pack accounting
 
-- All decisions D1–D5 are **PENDING** until the owner explicitly responds. This document is a proposed sign-off record, not pre-approval.
+- **D1–D4 accepted by the owner on 10 November 2026:** the CSR-only live test is explicitly NOT TESTED/deferred; the owner confirms no known external BI/independent-app dependency; issue #262 is non-blocking hardening; production writer invocation remains untested, with isolated/server guard evidence accepted. **D5 (test-session sign-out or revocation confirmation) remains PENDING**. The owner's response did not confirm that any login was signed out or revoked.
 - Even after W5-06 security release risk acceptance, the broader WP05 W5-03..W5-10 work-pack matrix and any owner-approved change to the 40-lens / 11-feature-flag acceptance contract must still be satisfied. **Do not convert 6/13 to 7/13 based only on W5-06**, and do not mark the parent WP05 closed on the strength of this record alone.
 - References: [#234](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/234), [acceptance record](WP05_W506_CONF_01_PRODUCTION_ACCEPTANCE_2026-11-10.md), [authenticated runner](WP05_W506_SIGNED_IN_ACCEPTANCE_RUNBOOK_2026-11-10.md), [export hardening #262](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/262), and [WP05 closure gate audit](WP05_FORMAL_CLOSURE_GATE_AUDIT_2026-11-08.md).
