@@ -44,7 +44,9 @@ test("no UI personnel calls by restricted users", () => {
 test("explicit selected columns only; no salary or nested detail transfer", () => {
   const root = "https://qhmoqtxpeasamtlxaoak.supabase.co/rest/v1/v_costing_staff_cost_pool_summary?select=";
   assert.equal(evaluateUiRequests("cbm-view",[root+"period_start,staff_count,pool_amount"]),true);
-  for(const col of ["*","staff_details","total_salary_cost","allowance_amount"]) assert.equal(evaluateUiRequests("cbm-editor",[root+col]),false);
+  for(const col of ["*","staff_details","basic_salary","allowance_amount","employer_contribution","other_salary_cost"]) assert.equal(evaluateUiRequests("cbm-editor",[root+col]),false);
+  assert.equal(evaluateUiRequests("cbm-editor",[root+"total_salary_cost"]),true);
+  assert.equal(evaluateUiRequests("cbm-view",[root+"total_salary_cost"]),false);
 });
 test("unrelated backend paths and third-party URLs are not permitted", () => {
   assert.equal(evaluateUiRequests("cbm-editor",["https://malicious.invalid/rest/v1/v_costing_staff_cost_pool_summary?select=period_start"]),false);
