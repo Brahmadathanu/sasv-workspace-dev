@@ -51,8 +51,9 @@ export function evaluateUiRequests(role, urls) {
     if (role !== "cbm-editor" && VIEWS.includes(name)) return false;
     const select = u.searchParams.get("select");
     if (select === null || select.includes("*")) return false;
-    // Client must not download salary components for either role, even when editor can see rendered aggregates.
-    if (/salary|staff_details|allowance_amount|employer_contribution|salary_source_note/i.test(select)) return false;
+    // Approved editor may request loaded total_salary_cost and salary_source_note; component salaries and nested details remain prohibited.
+    if (/basic_salary|allowance_amount|employer_contribution|other_salary_cost|staff_details/i.test(select)) return false;
+    if (role !== "cbm-editor" && /total_salary_cost|salary_source_note/i.test(select)) return false;
     return true;
   });
 }
@@ -103,11 +104,13 @@ export async function run(o, dependencies = {}) {
       return route.continue();
     });
     const page = await ctx.newPage();
-    await page.goto(BASE + "/shared/cost-build-manager.html?lens=staff-governance",
-      { waitUntil: "domcontentloaded", timeout: 45000 });
+    const isCsr = o.role === "csr-view";
+    const pageRoute = isCsr ? "/shared/cost-sheet-review.html" : "/shared/cost-build-manager.html?lens=staff-governance";
+    await page.goto(BASE + pageRoute, { waitUntil: "domcontentloaded", timeout: 45000 });
     await page.waitForTimeout(2200);
-    const hasPage = await page.evaluate(() => document.body.textContent.includes("Staff Governance"));
-    result.checks.staff_governance_ui_visible = hasPage;
+    const hasPage = await page.evaluate(expected => document.body.textContent.includes(expected),
+      isCsr ? "Cost Sheet Review" : "Staff Governance");
+    result.checks.authorised_module_ui_visible = hasPage;
     phase = "probe";
     const proof = await page.evaluate(async () => {
       const m = await import("/shared/js/supabaseClient.js");
