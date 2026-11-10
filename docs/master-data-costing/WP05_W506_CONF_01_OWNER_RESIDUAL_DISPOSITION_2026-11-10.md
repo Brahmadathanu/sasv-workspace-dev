@@ -1,7 +1,7 @@
 # WP05 W5-06 — owner residual decision and security sign-off record
 
 **Prepared:** 10 November 2026  
-**Status: OWNER APPROVED D1–D4 on 10 November 2026; SESSION HYGIENE D5 STILL AWAITING CONFIRMATION.** This record acknowledges the owner's explicit residual acceptance and external-consumer declaration. It does **not** certify untested identities, authorise changing production permissions, or reduce the wider WP05 acceptance contract. Formal programme closure remains 6/13.
+**Status: W5-06 CONFIDENTIALITY RELEASE GATE — OWNER ACCEPTED WITH DOCUMENTED RESIDUALS (10 November 2026).** D1–D4 were explicitly approved; D5 operator sign-out confirmation was subsequently provided. This closes the W5-06-specific confidentiality release acceptance, **not** untested CSR-only acceptance, server-side token-revocation proof, or the wider WP05 work package. Formal programme closure remains **6/13**.
 
 ## Verified baseline and evidence classes
 
@@ -44,10 +44,11 @@
 
 **Required:** Operator confirms authenticated test identities have been signed out/revoked according to existing SASV policy; deleting `*.storage.json` and `*.proof.json` only removes local copies and does **not** itself revoke issued session tokens. Avoid forced all-device logouts for a working editor account without a separate decision. Five redacted reports remain in restricted owner custody; no tokens, UUIDs, personnel names, or salary rows should be committed.
 
-**Evidence needed:** Non-sensitive confirmation from operator of the applicable sign-out/revocation actions; do not record session identifiers or JWT.
+**Operator confirmation — received 10 November 2026:** “yes none of the applications are running with me signed in”. The operator confirms no application remains open in a signed-in state after testing, and earlier confirmed closing terminal c2 and removing private session/proof files. **Limit:** This is an operator statement about current application sign-in state, not a server-verified JWT/refresh-token revocation or all-device logout. Do not infer that every previously issued token was invalidated. No session records were modified in this workflow. Treat proactive server-side revocation as a separate account-security action if the organisation requires it.
 
 ## Gate and work-pack accounting
 
-- **D1–D4 accepted by the owner on 10 November 2026:** the CSR-only live test is explicitly NOT TESTED/deferred; the owner confirms no known external BI/independent-app dependency; issue #262 is non-blocking hardening; production writer invocation remains untested, with isolated/server guard evidence accepted. **D5 (test-session sign-out or revocation confirmation) remains PENDING**. The owner's response did not confirm that any login was signed out or revoked.
+- **D1–D4 accepted by the owner on 10 November 2026:** the CSR-only live test is explicitly NOT TESTED/deferred; the owner confirms no known external BI/independent-app dependency; issue #262 is non-blocking hardening; production writer invocation remains untested, with isolated/server guard evidence accepted. **D5 operator application sign-out confirmation received**. Token invalidation/revocation was not independently tested; do not claim a server-revocation PASS.
+- **W5-06 disposition:** confidentiality implementation and its scoped live acceptance are ACCEPTED WITH DOCUMENTED RESIDUALS. CSR-only remains NOT TESTED/deferred; export hardening remains issue #262; untrusted Save/Close production calls remain untested. The owner declaration about outside integrations is knowledge-scoped. This acceptance does not silently waive the wider WP05 §8 negative-identity or 40-lens/11-flag contract.
 - Even after W5-06 security release risk acceptance, the broader WP05 W5-03..W5-10 work-pack matrix and any owner-approved change to the 40-lens / 11-feature-flag acceptance contract must still be satisfied. **Do not convert 6/13 to 7/13 based only on W5-06**, and do not mark the parent WP05 closed on the strength of this record alone.
 - References: [#234](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/234), [acceptance record](WP05_W506_CONF_01_PRODUCTION_ACCEPTANCE_2026-11-10.md), [authenticated runner](WP05_W506_SIGNED_IN_ACCEPTANCE_RUNBOOK_2026-11-10.md), [export hardening #262](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/262), and [WP05 closure gate audit](WP05_FORMAL_CLOSURE_GATE_AUDIT_2026-11-08.md).
