@@ -19,21 +19,23 @@ const expectedColumns = [
 ];
 
 test("Scheme Master list uses the exact 31-column server projection", () => {
-  const match = source.match(/const SCHEME_MASTER_LIST_SELECT\s*=\s*"([^"]+)";/);
+  const match = source.match(/const SCHEME_MASTER_LIST_SELECT\\s*=\\s*\\[([\\s\\S]*?)\\]\\.join\\(","\\);/);
   assert.ok(match, "Scheme Master projection constant missing");
-  assert.deepEqual(match[1].split(","), expectedColumns);
-  assert.equal(new Set(match[1].split(",")).size, expectedColumns.length);
+  const selected = [...match[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(selected, expectedColumns);
+  assert.equal(new Set(selected).size, expectedColumns.length);
 });
 
 test("Scheme Master list skips the three costly viability aggregates", () => {
-  const match = source.match(/const SCHEME_MASTER_LIST_SELECT\s*=\s*"([^"]+)";/);
+  const match = source.match(/const SCHEME_MASTER_LIST_SELECT\\s*=\\s*\\[([\\s\\S]*?)\\]\\.join\\(","\\);/);
   assert.ok(match);
+  const selected = [...match[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
   for (const field of [
     "viability_snapshot_count",
     "viability_snapshot_period_count",
     "latest_viability_snapshot_period",
   ]) {
-    assert.ok(!match[1].split(",").includes(field), field);
+    assert.ok(!selected.includes(field), field);
   }
 });
 
