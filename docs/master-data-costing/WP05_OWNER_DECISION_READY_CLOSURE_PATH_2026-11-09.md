@@ -1,3 +1,5 @@
+> **SUPERSEDING OWNER APPROVAL — 10 NOV 2026:** The Option B B1 draft below is now APPROVED and EFFECTIVE for *B1-T2/T3 only*, B1-T1=zero, with explicit [WP12 receipt](WP-12-REGRESSION-AND-DOCUMENTATION.md) and [shared §11 amendment](WP05_WP06_WP12_AUTHENTICATED_ACCEPTANCE_EXECUTION_PACKAGE_2026-11-06.md). The remaining owner decisions on W5-03/04/06/08/09 are not waived; prior 9 Nov proposal/pending wording is historical. W5-06 Staff Governance release accepted 10 Nov with residuals, distinct from parent security breadth. WP05 OPEN, 6/13.
+
 # WP05 — owner decision-ready closure path (9 November 2026)
 
 **STATUS: PROPOSAL ONLY — NOT APPROVED / NOT EXECUTED. WP05 OPEN; programme 6/13.** This note reconciles the original acceptance contract, merged AE1/AE2/PAR1 and CLD1–CLD3 evidence, and owner-approved WP06 amendment A1. It is a decision aid, **not** WP05 sign-off, B1 approval, a new lens PASS, or authorisation to execute security tests, preview RPCs, SQL writes, migrations, flags or releases. Authority: tracking issue #234 and `WP05_WP06_WP12_AUTHENTICATED_ACCEPTANCE_EXECUTION_PACKAGE_2026-11-06.md` §§3–10.
