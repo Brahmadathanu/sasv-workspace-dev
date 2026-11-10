@@ -44,3 +44,16 @@ On branch `fix/wp05-scheme-master-list-projection-r12` only:
 ## Status
 
 **DRAFT, not deployed; Scheme Master original 1280 px F remains historic F, broader WP05 OPEN and formal 6/13.** No production change was performed. Owner approved R9 SEC/PRM *policy directions*, not an unconditional new Scheme Master release. This PR requires code review, smoke testing and final merge/release authority.
+
+## PR #263 review update — focused CI gate added (10 Nov)
+
+After source audit, the client-only change remains limited to one Scheme Master list read. Latest branch review via GitHub source extraction independently confirmed:
+- exactly **31 unique** projected columns, equal to the expected list in the test;
+- no included viability snapshot aggregate columns;
+- preserved `scheme_name ASC` and `fetchAllRows(...,1000)`;
+- original client `Viability Periods` alias mismatch still documented, not treated as a passing functional feature.
+- a regression test that would permanently *require the pre-existing alias bug* was removed, so future correction will not be blocked by the test.
+
+Added `.github/workflows/wp05-scheme-master-list.yml` on the **PR branch**: Node 22, `node --test scripts/scheme-master-list-projection.test.mjs`, then `node --test scripts/costing-w6-pricing-nav/w6.test.mjs`. The GitHub workflow check **has not returned a completed run** at this readback. V8 source assertions are static code review, **not Node test execution**. Do not merge, deploy or call the visual/role tests PASS until actual CI and/or operator evidence arrives. Branch contains only client projection, its test, this doc and narrow CI workflow.
+
+**Post-CI gate:** verify action logs, any Netlify preview as applicable, and preserve 34-column server view/7-scheme semantics. The owner requested to proceed with the fix, but that is not evidence that an unexecuted CI test passed. No production SQL change, feature flag, cache bump or Electron release was made.
