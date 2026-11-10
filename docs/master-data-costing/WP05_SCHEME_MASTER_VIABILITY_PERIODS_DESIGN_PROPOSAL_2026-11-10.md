@@ -34,9 +34,9 @@
 
 The three server fields are *different quantities*:
 
-- `viability_snapshot_count` — number of snapshot **rows** (SKU × period × region grain), large and not a "period" count.
-- `viability_snapshot_period_count` — number of **distinct periods** with any snapshot. This is the only candidate that matches the label "Viability Periods".
-- `latest_viability_snapshot_period` — most recent period date.
+- `viability_snapshot_count` — `count(*)` of `costing.sku_scheme_viability_snapshot` rows for the scheme (a **row** count, not a period count; row grain not re-verified here).
+- `viability_snapshot_period_count` — `count(DISTINCT period_start)` for the scheme. This is the only candidate that matches the label "Viability Periods".
+- `latest_viability_snapshot_period` — `max(period_start)`.
 
 **Q-VP-1:** does "Viability Periods" mean (i) count of distinct periods with snapshots, (ii) latest period, or (iii) both (two cells)? **Q-VP-2:** is an approximate/stale value acceptable, or must it be live at drawer-open time? Neither can be inferred from code.
 
