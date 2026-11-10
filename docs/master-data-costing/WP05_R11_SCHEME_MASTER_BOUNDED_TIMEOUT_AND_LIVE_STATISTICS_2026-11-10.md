@@ -64,3 +64,17 @@ The accumulated mean < 1s but max > 7s is compatible with a **variable-latency/c
 4. Complete owner bounded risk disposition for the other three historic Fail lenses and downstream WP05 gate—no broad suite rerun unless required by a new defect.
 
 **No app, SQL schema/index, role, feature flag or release change in R11.** The one production SQL read attempt returned a genuine 57014 under the 5s limit, after which the test stopped. Root-cause correction and authenticated UI acceptance remain OPEN.
+
+## Additional EXPLAIN-only discriminators — no live rows executed
+
+Three further **EXPLAIN WITHOUT ANALYZE** checks used the `scheme_id=1` sample planner predicate on the same snapshot table:
+
+| Planner-only variant | Estimated total cost | Chosen index |
+|---|---:|---|
+| `SELECT period_start ... WHERE scheme_id=1 ORDER BY period_start` | 9,258.21 | **old period/status** |
+| `count/count-distinct/max` from an ordered subquery | 9,559.05 | **old period/status** |
+| Same aggregate with `ORDER BY ... OFFSET 0` subquery barrier | 9,559.05 | **old period/status** |
+
+Hence merely adding `ORDER BY period_start` or `OFFSET 0` **does not** induce use of the covering scheme/period index. No rewrite of the production 34-column view is justified by these cost-only plans.
+
+The new and old indexes both have `indisvalid=true`, `indisready=true`, `indislive=true`, `indcheckxmin=false`, and catalog `reltuples=236134`. The new covering index has 219 estimated pages versus 630 for the older period/status index, but size alone does not determine planner choice. No evidence of index invalidity or a stale `reltuples=0` catalog entry; root cause remains open. Do not force the planner, assume a bug, or repeat timed-out full-view SELECTs on production without a new bounded operator procedure.
