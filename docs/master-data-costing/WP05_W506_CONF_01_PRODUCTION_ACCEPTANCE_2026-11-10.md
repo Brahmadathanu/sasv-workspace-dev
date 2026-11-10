@@ -62,6 +62,12 @@ The final UI inspection (operator-reported) found: restriction notice present on
 
 **Export hardening observation:** the export button remained visible and enabled on all three tabs, independent of personnel access. In the restricted individual tabs, the current client holds zero rows and the observed source behaviour is to show a `No rows to export` toast; the pool tab holds only aggregate rows. No confidential data leak was observed, but the UX should hide or disable export on restricted individual tabs as a separate, reviewed, client-side hardening improvement. **No export action was clicked and the claimed toast outcome is from code inspection, not execution.**
 
+## Owner residual decisions — 10 November 2026
+
+The owner explicitly confirmed **no known external BI or independently hosted applications** depend on the three protected views, and approved the proposed residual acceptance: CSR-only remains **NOT TESTED** (no eligible live identity) with deferred validation; export-button hardening [#262](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/262) is non-blocking; and direct production unauthorised Save/Close testing remains out of scope in favour of deployed server guards, isolated negative tests and read-only UI evidence. See [owner decision record](WP05_W506_CONF_01_OWNER_RESIDUAL_DISPOSITION_2026-11-10.md).
+
+**Not yet confirmed:** whether all test sessions were actually signed out or revoked. Deleting local session/proof files and closing the Claude terminal do not themselves establish Auth session invalidation. This outstanding procedural confirmation is distinct from accepted D1–D4. No all-device logout, session deletion, or user-permission change is authorised by these approvals.
+
 ## Remaining W5-06 closure requirements
 
 1. **CSR-only identity gap:** The genuine CSR-only role cannot be marked PASS. Obtain a properly governed identity later, or require an explicit owner-approved exception documenting that this role was not live-tested, supported by separate negative SQL/CI permission tests. Do not change an operational account's permissions solely to create test evidence.
