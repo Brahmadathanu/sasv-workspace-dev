@@ -15,8 +15,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Checkout proposed source
+      - name: Checkout proposed source (full history: W6 pins historical commits)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Node 22
         uses: actions/setup-node@v4
         with:
@@ -26,4 +28,4 @@ jobs:
       - name: PPM navigation and workspace regression
         run: node --test scripts/costing-w6-pricing-nav/w6.test.mjs
       - name: No production dependencies
-        run: echo "Static tests only: no database, browser session, credentials or deployment."
+        run: echo "Static tests only - no database, browser session, credentials or deployment."
