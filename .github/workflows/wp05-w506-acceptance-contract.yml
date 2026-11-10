@@ -1,0 +1,23 @@
+name: WP05 W506 signed-in acceptance contract (no credentials)
+
+on:
+  pull_request:
+    paths:
+      - "scripts/costing-w506-conf-acceptance/**"
+      - "docs/master-data-costing/WP05_W506_SIGNED_IN_ACCEPTANCE_RUNBOOK_2026-11-10.md"
+      - ".github/workflows/wp05-w506-acceptance-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pure-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run permission and no-sensitive-network acceptance contracts
+        run: node --test scripts/costing-w506-conf-acceptance/live-staff-governance-acceptance.test.mjs
+      - name: Confirm no session or production credentials used
+        run: echo "Only pure contract tests. Authenticated production acceptance requires supervised operator session."
