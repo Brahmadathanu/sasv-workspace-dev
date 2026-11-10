@@ -4,7 +4,7 @@
 
 Authority read first: [B1 retained gate ledger](WP05_B1_RETAINED_GATE_EXECUTION_LEDGER_2026-11-10.md) (latest chronology, appended checkpoint below), [formal gate audit](WP05_FORMAL_CLOSURE_GATE_AUDIT_2026-11-08.md), [owner decisions D1–D3](WP05_OWNER_DECISIONS_2026-11-09.md), [R9 policy directions](WP05_R9_OWNER_POLICY_DIRECTIONS_ACCEPTED_2026-11-10.md), [B1 §11](WP05_WP06_WP12_AUTHENTICATED_ACCEPTANCE_EXECUTION_PACKAGE_2026-11-06.md), [PAR1](WP05_PAR1_S2_S9_REAL_DATA_PARITY_2026-11-08.md), [L1 gate](WP05_L1_SCOPED_KPI_CORRECTION_IMPLEMENTATION_GATE_2026-11-10.md), [PWA post-merge acceptance §G](WP05_SCHEME_MASTER_PWA_POST_MERGE_ACCEPTANCE_2026-11-10.md). Where older documents describe #263 as DRAFT or #266 as pending, the dated chronology and superseding banners govern; no historical text was rewritten.
 
-**Delivery:** PR-A (this document + ledger checkpoint + workpack pointer, docs only), PR-B [#268](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/268) (tests/CI only), PR-C (Viability Periods proposal, docs only). Exact SHAs are in the issue #267 handover. **None is merged.**
+**Delivery:** PR-A [#269](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/269) (this document + ledger checkpoint + workpack pointer, docs only), PR-B [#268](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/268) (tests/CI only), PR-C [#270](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/270) (Viability Periods proposal, docs only). Exact SHAs are in the issue #267 handover. **None is merged.**
 
 ---
 
