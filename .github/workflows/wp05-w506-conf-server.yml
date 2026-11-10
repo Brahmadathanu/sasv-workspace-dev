@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
     env:
       PGPORT: "55432"
-      PGUSER: "w506_ci"
+      PGUSER: "postgres"
     steps:
       - name: Checkout proposed PR source
         uses: actions/checkout@v4
