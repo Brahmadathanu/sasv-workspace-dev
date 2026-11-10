@@ -181,8 +181,15 @@ const baselinePpm = () => gitOrFail("show", `${MAIN_BASE}:${PPM_REL}`).replace(/
 
 test("strip helper: removing the W6 additions from the controller reproduces the pre-W6 file exactly", () => {
   assert.notEqual(readPpm(), baselinePpm(), "W6 really changes the controller");
-  assert.equal(stripW6PricingPolicy(readPpm()), baselinePpm());
-  assert.equal(stripW6(PPM_REL, readPpm()), baselinePpm());
+  // Frozen history: the controller's only sanctioned post-W6 change is PR #263 (31-column Scheme Master list projection).
+  // The original pin (stripped W6 text == pre-W6 baseline) is kept exactly, but evaluated at the last pre-#263 revision;
+  // the current controller is pinned to the #263 revision. Any later controller edit still fails here and must be reviewed (#264).
+  const PRE_263 = "cf41740ec054dac7cabd1df343eb4b0b67d5bd60^";
+  const POST_263 = "cf41740ec054dac7cabd1df343eb4b0b67d5bd60";
+  const at = (rev) => gitOrFail("show", `${rev}:${PPM_REL}`).replace(/\r\n/g, "\n");
+  assert.equal(stripW6PricingPolicy(at(PRE_263)), baselinePpm());
+  assert.equal(stripW6PricingPolicy(readPpm()), stripW6PricingPolicy(at(POST_263)));
+  assert.equal(stripW6(PPM_REL, readPpm()), stripW6PricingPolicy(at(POST_263)));
   assert.equal(stripW6PricingPolicy(baselinePpm()), baselinePpm(), "idempotent on the pre-W6 text");
   assert.equal(stripW6("public/shared/js/costing-suite-cost-build.js", "x"), "x", "other files are never touched");
 });
