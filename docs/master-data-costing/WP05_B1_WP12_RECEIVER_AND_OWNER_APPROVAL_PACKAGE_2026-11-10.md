@@ -1,3 +1,5 @@
+> **OWNER APPROVAL — 10 NOVEMBER 2026:** The owner expressly approved B1-T2/T3 and the WP12 receiving commitment, with B1-T1=zero. This proposal is now **EFFECTIVE** through [binding shared package §11](WP05_WP06_WP12_AUTHENTICATED_ACCEPTANCE_EXECUTION_PACKAGE_2026-11-06.md) and [WP12 receiving workpack](WP-12-REGRESSION-AND-DOCUMENTATION.md). The historical draft statements below describe the proposal *before* approval. Transfer is of **responsibility, not actual test PASS**, and neither release nor WP05 formal closure has been authorised.
+
 # WP05 B1 — WP12 receiver and owner approval package
 
 **Prepared:** 10 November 2026. **Status: DRAFT — NOT ADOPTED.** Existing WP05 original shared §8 40-lens / eleven-flag acceptance contract remains binding unless the owner expressly approves B1 and the receiving WP12 commitment. Owner's 9 November D1 authorised drafting the narrow Option B approach, **not execution or adoption**. There are no production operations in this package.
