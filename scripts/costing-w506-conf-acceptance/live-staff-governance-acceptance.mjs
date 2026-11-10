@@ -72,6 +72,7 @@ export async function run(o, dependencies = {}) {
     if (o.out && outsideRepo(o.out)) {
       fs.mkdirSync(path.dirname(path.resolve(o.out)), { recursive: true });
       fs.writeFileSync(o.out, JSON.stringify(result, null, 2) + "\n", { mode: 0o600 });
+      if (process.platform !== "win32") fs.chmodSync(o.out, 0o600);
     }
     return code;
   };
@@ -111,6 +112,19 @@ export async function run(o, dependencies = {}) {
     const hasPage = await page.evaluate(expected => document.body.textContent.includes(expected),
       isCsr ? "Cost Sheet Review" : "Staff Governance");
     result.checks.authorised_module_ui_visible = hasPage;
+    // Only these three documented navigation tabs are clicked; no Edit, Save, Close, or Export action.
+    // The existing network allow-list independently aborts any attempted write during tab navigation.
+    if (!isCsr && hasPage) {
+      for (const tab of ["staff-review", "staff-register", "staff-pool-summary"]) {
+        const selector = '[data-staff-governance-tab="' + tab + '"]';
+        await page.locator(selector).waitFor({ state: "visible", timeout: 8000 });
+        await page.locator(selector).click();
+        await page.waitForTimeout(950);
+      }
+      result.checks.read_only_tabs_visited = true;
+    } else {
+      result.checks.read_only_tabs_visited = isCsr;
+    }
     phase = "probe";
     const proof = await page.evaluate(async () => {
       const m = await import("/shared/js/supabaseClient.js");
