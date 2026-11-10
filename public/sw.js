@@ -87,11 +87,14 @@ self.addEventListener("fetch", (event) => {
   }
 
   // PRM editor scripts must not stay cache-first — step-table paint depends on
-  // the current post-mutation refresh path.
+  // the current post-mutation refresh path. The Pricing Policy module is a
+  // static child import of costing-suite-shell.js, so it needs the same
+  // network-first (offline cache fallback) treatment (#264).
   if (
     /costing-suite-production-route/.test(url.pathname) ||
     /costing-suite-shell\.js$/.test(url.pathname) ||
     /costing-suite-readiness\.js$/.test(url.pathname) ||
+    /costing-suite-pricing-policy\.js$/.test(url.pathname) ||
     /\/shared\/js\/eaushadhi-review-.*\.js$/.test(url.pathname) ||
     /\/shared\/js\/eaushadhi-.*\.js$/.test(url.pathname) ||
     /\/shared\/css\/sasv-eaushadhi-review\.css$/.test(url.pathname)
