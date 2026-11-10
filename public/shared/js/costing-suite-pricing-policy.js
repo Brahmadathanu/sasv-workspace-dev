@@ -5931,8 +5931,39 @@ export function createPricingPolicyController(deps) {
     }
   }
 
-const SCHEME_MASTER_LIST_SELECT =
-  "scheme_id,scheme_name,paid_qty,free_qty,total_qty,free_per_paid_ratio,effective_free_discount_percent,is_active,is_system_defined,remarks,approval_reference,direct_policy_count,active_direct_policy_count,hierarchy_rule_count,active_hierarchy_rule_count,replacement_reference_count,active_replacement_reference_count,can_edit_metadata,can_deactivate,can_reactivate,created_at,created_by,updated_at,updated_by,metadata_update_reason,deactivated_at,deactivated_by,deactivation_reason,reactivated_at,reactivated_by,reactivation_reason";
+  const SCHEME_MASTER_LIST_SELECT = [
+    "scheme_id",
+    "scheme_name",
+    "paid_qty",
+    "free_qty",
+    "total_qty",
+    "free_per_paid_ratio",
+    "effective_free_discount_percent",
+    "is_active",
+    "is_system_defined",
+    "remarks",
+    "approval_reference",
+    "direct_policy_count",
+    "active_direct_policy_count",
+    "hierarchy_rule_count",
+    "active_hierarchy_rule_count",
+    "replacement_reference_count",
+    "active_replacement_reference_count",
+    "can_edit_metadata",
+    "can_deactivate",
+    "can_reactivate",
+    "created_at",
+    "created_by",
+    "updated_at",
+    "updated_by",
+    "metadata_update_reason",
+    "deactivated_at",
+    "deactivated_by",
+    "deactivation_reason",
+    "reactivated_at",
+    "reactivated_by",
+    "reactivation_reason",
+  ].join(",");
 
   async function loadPolicyManagerRows() {
     if (getPolicyManagerTab() === "scheme-master") {
