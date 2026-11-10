@@ -25,3 +25,11 @@
 ## No-action boundary
 
 This checklist does not authorise code changes, role grants, RLS, SQL writes, account provisioning, preview/refresh writer calls, global feature toggles, test login, Electron packaging/deployment or formal WP05 closure. Programme remains **6/13**.
+
+## R7 evidence addendum — explicit L1 decision now data-supported (10 November 2026)
+
+[Run-frozen selected scheme live readback](WP05_R7_L1_FROZEN_SCHEME_COVERAGE_LIVE_READBACK_2026-11-10.md) shows frozen bilateral `RESOLVED_POLICY` on runs **143/149/151 = 600/627, 601/628, 601/629**; frozen `DEFAULT_NO_SCHEME` counts **27/27/28**, complete IK+OK source rows for every SKU, and **0/629** mismatch between run 151 `RESOLVED_POLICY` and the current overview's 601-complete/28-missing Boolean. This supersedes the prior *definition-unknown* characterization of the historical **scheme** numerator with empirical evidence, but **does not correct the production L1 KPI**.
+
+**Q-L1-SCHEME — owner approval requested, NOT YET GRANTED:** Adopt **S-A** as the *run-frozen explicit scheme-policy coverage* definition (both IK/OK rows with `RESOLVED_POLICY`, one row per SKU-region, same run key and run-scoped denominator). Label separate **regional snapshot completeness** and **default/no-scheme** status. Avoid replacing genuine current-as-of coverage unless its label reflects that as-of scope. Audit sales/selling-policy coverage source independently; **do not reuse the scheme-snapshot denominator/numerator as a substitute for selling price policy historical proof**. Implementation should be a distinct migration/client task with exact dates/run regression and owner approval, not a blanket dashboard rewrite.
+
+**Potential WP05 closure impact:** unlike optional `select('*')` hardening, this is a **confirmed source-level cross-period KPI correctness issue** when the historical denominator and latest policy numerator differ, so keep W5-08/L1 open until an approved correction or an explicit, risk-bounded owner disposition. The resolved scheme numerator does not justify dropping four historical FAIL or all 21 NT lens statuses.
