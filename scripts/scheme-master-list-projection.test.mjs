@@ -19,7 +19,7 @@ const expectedColumns = [
 ];
 
 test("Scheme Master list uses the exact 31-column server projection", () => {
-  const match = source.match(/const SCHEME_MASTER_LIST_SELECT\\s*=\\s*\\[([\\s\\S]*?)\\]\\.join\\(","\\);/);
+  const match = source.match(/const SCHEME_MASTER_LIST_SELECT\s*=\s*\[([\s\S]*?)\]\.join\(","\);/);
   assert.ok(match, "Scheme Master projection constant missing");
   const selected = [...match[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
   assert.deepEqual(selected, expectedColumns);
@@ -27,7 +27,7 @@ test("Scheme Master list uses the exact 31-column server projection", () => {
 });
 
 test("Scheme Master list skips the three costly viability aggregates", () => {
-  const match = source.match(/const SCHEME_MASTER_LIST_SELECT\\s*=\\s*\\[([\\s\\S]*?)\\]\\.join\\(","\\);/);
+  const match = source.match(/const SCHEME_MASTER_LIST_SELECT\s*=\s*\[([\s\S]*?)\]\.join\(","\);/);
   assert.ok(match);
   const selected = [...match[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
   for (const field of [
