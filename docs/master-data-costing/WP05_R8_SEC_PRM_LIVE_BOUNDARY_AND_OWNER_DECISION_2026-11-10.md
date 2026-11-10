@@ -1,3 +1,5 @@
+> **SUPERSEDING OWNER DECISION — 10 NOV 2026:** All five R8 recommendations **Q-PRM/Q-ID/Q-VIEW/Q-F1/Q-D3 were expressly APPROVED AS POLICY DIRECTIONS**. Their precise scope and non-authorisations are in [R9 approved policy record](WP05_R9_OWNER_POLICY_DIRECTIONS_ACCEPTED_2026-11-10.md). Older “pending” language below is historical. No production privilege/flag change, preview execution or authenticated negative-user test is authorised by this policy approval. WP05 OPEN, 6/13. [Four historical F reconciliation](WP05_R9_HISTORICAL_F_RECOVERY_RECONCILIATION_2026-11-10.md).
+
 # WP05 R8 — SEC-A1/A2 live boundary, PRM F1 and closure decision
 
 **Date:** 10 November 2026. **Status: READ-ONLY CATALOGUE + CLIENT SOURCE RECONCILIATION; OWNER POLICY DECISIONS PENDING.** Workpack WP05 OPEN; programme 6/13. The 10 November Q-L1 server fix remains verified; do not reopen it. Staff Governance W5-06 confidentiality release was owner-accepted with bounded residuals; other WP05 negative identity/security work remains a separate gate.
