@@ -57,3 +57,16 @@
 ## Authorisation boundary
 
 This ledger is **documentation only**. No SQL DML, schema change, user/account modification, direct production writer denial, feature flag activation, Electron installer/release or deployment is authorised. Owner approval is needed for materially different acceptance contracts or intrusive tests.
+
+## R1 evidence finding 01 — exact served-tree drift from v392 baseline (10 Nov 2026)
+
+**Method:** GitHub commit comparison `883a9f1c...main` after B1 documentation applied. Compared **55 commits**; 125 changed repository files were returned, of which exactly **four** were beneath served `public/`:
+
+| Served path | Changes | Initial classification |
+|---|---:|---|
+| `public/shared/js/costing-suite-cost-build.js` | 86 additions, 20 deletions | **W5-06 confidentiality gate/client projection and personnel edit work; high relevance to CBM staff** |
+| `public/shared/js/costing-suite-shell.js` | 61 additions, 2 deletions | **Cross-module shell/view state and permission cache; requires source-diff inspection** |
+| `public/shared/js/procurement-execution-console.js` | 78 additions, 13 deletions | **Outside six-module WP05 costing acceptance**, but may affect shared release asset provenance |
+| `public/sw.js` | 1 addition, 1 deletion | Cache version change; affects which deployed source is served |
+
+**Conclusion:** Historic v392 72/72 asset-parity evidence applies to the **then tested v392 source**, but cannot be asserted unchanged for current `main` or v393, because at least three served JavaScript sources and service worker differ. The W5-06 authenticated v393 run proved its **bounded Staff Governance and permission behaviour**, not automatically the whole original 40-lens suite. No re-login or network request was performed for this source comparison. Follow-up R1: inspect shell diff and identify whether WP05-specific regressions need focused read-only acceptance; preserve prior trusted v392 evidence for unaffected modules where dependency boundaries are actually verified, not assumed.
