@@ -42,3 +42,10 @@ Attempts to retrieve both `https://sasv-utilities-hub.netlify.app/sw.js` and `ht
 ## E. Sign-off
 
 **Merge status: complete. PWA source-host and old-install activation: NOT VERIFIED. Genuine signed-in desktop performance: NOT TESTED after merged fix.** No production database query/write, permission change, feature flag, release or deployment action was made in this acceptance reconciliation. Issue #264 stays scoped to served PWA acceptance. Issue #224 historical 57014 stays OPEN. WP05 retained gate and master programme remain 6/13.
+
+
+## F. Owner-reported installed-PWA functional smoke — 10 November 2026 IST
+
+Following PR #263 and PR #265 merge, the owner was asked to open the installed PWA online and confirm **Pricing Policy Manager → Scheme Master** loaded the expected seven schemes without an error or prolonged spinner. The owner replied in the follow-on costing-suite conversation: **“Yes that’s confirmed on pwa.”** Record this as **OWNER-ATTESTED LIMITED FUNCTIONAL SMOKE: PASS**, not independently captured authenticated request or delivered-asset verification. The report does not establish the actual served JS SHA, activated service-worker update generation, exact device/build or response latency, older-cache-to-fresh-cache upgrade, or 1280 px desktop reliability. No credentials or screenshots collected.
+
+Issue [#264](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/264) records this owner report. Keep historic AE1 #19 F and issue #224 open, with a distinct post-fix functional observation. C2 served-asset identity and C3 signed-in desktop GET (31 fields, 1280px, timeout/57014 evidence) remain mandatory. WP05 **OPEN**, formal programme **6/13**; do not release Electron, alter database permissions, flags, cache version, or silently correct Viability Periods on the basis of this smoke.
