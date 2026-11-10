@@ -1,0 +1,41 @@
+name: WP05 offline costing regression (no production access)
+on:
+  pull_request:
+    paths:
+      - "scripts/costing-wp05-overnight/**"
+      - "scripts/costing-nav-groups/nav-groups.test.mjs"
+      - "scripts/costing-acceptance/acceptance-runner.test.mjs"
+      - "public/shared/css/sasv-costing.css"
+      - "public/shared/js/costing-suite-pricing-policy.js"
+      - "public/sw.js"
+      - ".github/workflows/wp05-overnight-offline.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout with full history (W6 and N1 tests read pinned historical commits)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Scheme Master read contract and Viability Periods characterisation
+        run: node --test scripts/costing-wp05-overnight/scheme-master-contract.test.mjs
+      - name: Scheme Master 31-column projection
+        run: node --test scripts/scheme-master-list-projection.test.mjs
+      - name: Service worker freshness (mocked, v393)
+        run: node --test scripts/costing-sw-freshness/pricing-policy-sw.test.mjs
+      - name: Grouped navigation N1 and PRM integration
+        run: node --test scripts/costing-nav-groups/nav-groups.test.mjs scripts/costing-nav-groups/nav-groups-prm-integration.test.mjs
+      - name: PPM navigation W6
+        run: node --test scripts/costing-w6-pricing-nav/w6.test.mjs
+      - name: Static tests only
+        run: echo "No database, browser session, credentials, deployment or Netlify access."
