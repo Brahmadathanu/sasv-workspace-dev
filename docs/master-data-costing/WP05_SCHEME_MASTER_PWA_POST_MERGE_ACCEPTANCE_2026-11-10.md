@@ -49,3 +49,22 @@ Attempts to retrieve both `https://sasv-utilities-hub.netlify.app/sw.js` and `ht
 Following PR #263 and PR #265 merge, the owner was asked to open the installed PWA online and confirm **Pricing Policy Manager → Scheme Master** loaded the expected seven schemes without an error or prolonged spinner. The owner replied in the follow-on costing-suite conversation: **“Yes that’s confirmed on pwa.”** Record this as **OWNER-ATTESTED LIMITED FUNCTIONAL SMOKE: PASS**, not independently captured authenticated request or delivered-asset verification. The report does not establish the actual served JS SHA, activated service-worker update generation, exact device/build or response latency, older-cache-to-fresh-cache upgrade, or 1280 px desktop reliability. No credentials or screenshots collected.
 
 Issue [#264](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/264) records this owner report. Keep historic AE1 #19 F and issue #224 open, with a distinct post-fix functional observation. C2 served-asset identity and C3 signed-in desktop GET (31 fields, 1280px, timeout/57014 evidence) remain mandatory. WP05 **OPEN**, formal programme **6/13**; do not release Electron, alter database permissions, flags, cache version, or silently correct Viability Periods on the basis of this smoke.
+
+## G. Claude Code execution pass — evidence matrix (10 November 2026, issue #264 delegated brief)
+
+Base: `main` at `e8bb468`. No Supabase, flag, Netlify, cache-version or Electron action was taken.
+
+| Gate | Status | Evidence |
+|---|---|---|
+| Source: 31-column `SCHEME_MASTER_LIST_SELECT`, no Scheme Master `select("*")` | VERIFIED (source only) | `public/shared/js/costing-suite-pricing-policy.js` on `e8bb468`; `node --test scripts/scheme-master-list-projection.test.mjs` |
+| Source: `sw.js` is `hub-cache-v393` with PPM module network-first + cache fallback | VERIFIED (source only) | `node --test scripts/costing-sw-freshness/pricing-policy-sw.test.mjs` (mocked vm SW: old→new→offline, no-cache offline, scope, LF/CRLF) |
+| Netlify published deploy SHA / served `/sw.js` and PPM module bytes | **BLOCKED** | Sandbox proxy returned HTTP 403 (CONNECT tunnel failed) for `sasv-utilities-hub.netlify.app`; the host was then added to the environment allowlist, but the follow-up fetch was denied by the session permission classifier, so no request reached the host. Environment/permission limit, not an HTTP result from Netlify. `verify-served-assets.mjs` NOT RUN. Source was not substituted for deployed bytes. |
+| Old installed-PWA SW upgrade (real browser, real old cache) | NOT VERIFIED | No old-cache fixture/browser available; mocked SW only. |
+| Authenticated ID-V 1280/390 px GET-only Scheme Master (31 fields, status, timing, 57014) | NOT TESTED | No authorised session; no credentials requested. |
+| Owner PWA smoke (seven rows) | OWNER-ATTESTED, limited | Section F; unchanged. |
+| W6 #10–13 | Diagnosed; test-only repair in this PR | See below. |
+| Viability Periods mismatch | Unchanged backlog | Not touched. |
+
+### W6 #10–13 root cause (corrects earlier wording)
+`#10/#11/#13` failed in the cloud checkout only because the clone was **shallow** (`git cat-file` for pin commit `2ce8af0` failed; the test itself says to run `git fetch --unshallow`). With full history W6 is **12 pass / 1 fail**; only **#12** is a real pin drift: it compared the current PPM controller (stripped of W6) with the pre-W6 baseline `2ce8af0`, but PR #263 (`cf41740e`) is the only later controller change (`git log 2ce8af0..HEAD` on that file = `d395d7e8` W6 and `cf41740e`).
+Test-only repair: keep the original pin evaluated at `cf41740e^`, and pin the current controller to `cf41740e`. Full-history result: **13/13**. Negative check: appending one line to the controller makes #12 fail (12/13), so unreviewed controller edits are still rejected. CI and other clones need full history (`fetch-depth: 0`) for this test.
