@@ -1,3 +1,5 @@
+> **SUPERSEDING DECISION — 10 NOV 2026:** Owner explicitly APPROVED final B1-T2/T3 transfer and the WP12 receiver, T1=zero. The 9 Nov D1 status `APPROVED_IN_PRINCIPLE / B1_CONTRACT_PENDING` below is historical; B1 now EFFECTIVE in [shared package §11](WP05_WP06_WP12_AUTHENTICATED_ACCEPTANCE_EXECUTION_PACKAGE_2026-11-06.md). WP05 still OPEN; formal 6/13. W5-06 Staff Governance confidentiality subgate independently accepted with residuals, not all SEC obligations.
+
 # WP05 — Owner decisions D1–D3 (9 November 2026)
 
 **OWNER-CONFIRMED DECISIONS; LIMITED AUTHORITY.** On 9 November 2026 the SASV Costing Suite owner wrote: “I agree with your recommendations for Decisions 1, 2 and 3.” This record translates those three decisions exactly as presented, without inferring any additional approval. WP05 remains **OPEN**, programme **6/13**. No acceptance-matrix reclassification or broader security sign-off is implied.
