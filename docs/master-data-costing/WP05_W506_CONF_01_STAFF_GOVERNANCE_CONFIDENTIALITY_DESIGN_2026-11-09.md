@@ -1,6 +1,6 @@
 # WP05 W5-06 — Staff Governance confidentiality: combined security design (9 November 2026)
 
-**DRAFT / NOT APPLIED / NOT DEPLOYED.** Issue #234. Save/Close writer guards (#254/#255) are deployed and are not touched. No production SQL, grant, migration replay, merge, deployment or salary-row export was performed. W5-06 OPEN; WP05 OPEN; programme 6/13. Companion PRs: **server** (this PR: migration, rollback, tests, this document) and **client** (`claude/wp05-w506-conf-client-gate`).
+**HISTORICAL DESIGN — DEPLOYED 10 NOVEMBER 2026.** The earlier draft status and test counts below describe pre-release preparation and are retained as historical evidence. The authoritative live deployment and acceptance record is [WP05_W506_CONF_01_PRODUCTION_ACCEPTANCE_2026-11-10.md](WP05_W506_CONF_01_PRODUCTION_ACCEPTANCE_2026-11-10.md). Client #258 and server #257 are merged; confidentiality migration applied in production. See [issue #259](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/259) for migration-version reconciliation. **W5-06 remains OPEN; formal WP05 closure 6/13**, pending authenticated PostgREST/browser acceptance and external-consumer review. Existing Save/Close guards remain untouched. Companion PRs: **server** (this PR: migration, rollback, tests, this document) and **client** (`claude/wp05-w506-conf-client-gate`).
 
 ## Owner policy disposition — 9 November 2026
 
