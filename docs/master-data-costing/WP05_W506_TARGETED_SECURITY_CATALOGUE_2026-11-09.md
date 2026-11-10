@@ -1,6 +1,8 @@
 # WP05 W5-06 — targeted SEC-A1/A2 catalogue verification (9 November 2026)
 
 **Status: SELECT-ONLY METADATA EVIDENCE; NO AUTHENTICATED NEGATIVE-IDENTITY BEHAVIOURAL TEST.** This follows the owner's approval of drafting a narrowly scoped no-side-effect security plan and the subsequent direction to proceed *targeted*. Only existing live `pg_proc` metadata and `pg_get_functiondef` text were read from project `qhmoqtxpeasamtlxaoak`. No application RPC/function was executed, no data/user/permission/flag changed, and no credentials, tokens or identifiers were collected. WP05 OPEN, programme 6/13, W5-06 OPEN.
+> Staff Governance confidentiality (salary views and client controls; draft, not applied): [`WP05_W506_CONF_01_STAFF_GOVERNANCE_CONFIDENTIALITY_DESIGN_2026-11-09.md`](WP05_W506_CONF_01_STAFF_GOVERNANCE_CONFIDENTIALITY_DESIGN_2026-11-09.md).
+
 > Combined Staff Governance writer-guard release readiness (PR #254 + #255; risk register, PostgreSQL 17.4 paths, rollout checklist): [`WP05_W506_COMBINED_SECURITY_RELEASE_READINESS_2026-11-09.md`](WP05_W506_COMBINED_SECURITY_RELEASE_READINESS_2026-11-09.md).
 
 

@@ -1,0 +1,74 @@
+name: WP05 W5-06 confidentiality server verification
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/20261109130000_wp05_w506_conf_01_personnel_view_gate.sql"
+      - "supabase/tests/w506_conf/**"
+      - "scripts/costing-w506-conf-server/**"
+      - "docs/master-data-costing/prepared/WP05_W506_CONF_01_ROLLBACK.sql"
+      - ".github/workflows/wp05-w506-conf-server.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-client-publication:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Verify published production client (read-only public static assets)
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://sasv-utilities-hub.netlify.app"
+          T="$(mktemp -d)"
+          trap 'rm -rf "$T"' EXIT
+          curl -fLsS --retry 2 --retry-delay 2 --max-time 20 \
+            -H 'Cache-Control: no-cache' "$BASE/sw.js?w506_verify=20261110" -o "$T/sw.js"
+          curl -fLsS --retry 2 --retry-delay 2 --max-time 20 \
+            -H 'Cache-Control: no-cache' "$BASE/shared/js/costing-suite-shell.js?w506_verify=20261110" -o "$T/shell.js"
+          grep -q 'hub-cache-v393' "$T/sw.js" || { echo 'STOP: production cache v393 not published'; exit 1; }
+          grep -q 'function personnelAccessAllowed()' "$T/shell.js" || { echo 'STOP: personnel gate missing from live client'; exit 1; }
+          grep -q 'purgePersonnelOnSignOut' "$T/shell.js" || { echo 'STOP: signed-out data purge missing from live client'; exit 1; }
+          echo 'PASS: published client contains cache v393, personnel gate and sign-out purge'
+          echo 'This check does not exercise authenticated PostgREST or browser acceptance.'
+
+  isolated-verification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PGPORT: "55432"
+      PGUSER: "postgres"
+    steps:
+      - name: Checkout proposed PR source
+        uses: actions/checkout@v4
+
+      - name: Node static confidentiality checks
+        run: node --test scripts/costing-w506-conf-server/migration-static.test.mjs
+
+      - name: Install PostgreSQL 16 test binaries
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql-16
+
+      - name: Run disposable local PostgreSQL 16 confidentiality matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN=/usr/lib/postgresql/16/bin
+          DATA="$RUNNER_TEMP/w506-disposable-github-actions"
+          SOCK="$RUNNER_TEMP/w506-test-socket"
+          mkdir -p "$SOCK"
+          "$BIN/initdb" -D "$DATA" -A trust -U "$PGUSER" --no-instructions
+          stop_pg() { "$BIN/pg_ctl" -D "$DATA" -m immediate stop >/dev/null 2>&1 || true; }
+          trap stop_pg EXIT
+          "$BIN/pg_ctl" -D "$DATA" -o "-k $SOCK -p $PGPORT -c listen_addresses=''" -w start
+          export PATH="$BIN:$PATH"
+          export PGHOST="$SOCK"
+          bash supabase/tests/w506_conf/run_view_gate_test.sh
+
+      - name: Verify no production credentials were required
+        if: always()
+        run: echo "Disposable local fixture only; no production database credentials supplied."

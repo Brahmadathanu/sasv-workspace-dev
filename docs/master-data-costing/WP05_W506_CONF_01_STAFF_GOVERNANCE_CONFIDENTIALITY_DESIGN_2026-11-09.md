@@ -1,0 +1,121 @@
+# WP05 W5-06 — Staff Governance confidentiality: combined security design (9 November 2026)
+
+**DRAFT / NOT APPLIED / NOT DEPLOYED.** Issue #234. Save/Close writer guards (#254/#255) are deployed and are not touched. No production SQL, grant, migration replay, merge, deployment or salary-row export was performed. W5-06 OPEN; WP05 OPEN; programme 6/13. Companion PRs: **server** (this PR: migration, rollback, tests, this document) and **client** (`claude/wp05-w506-conf-client-gate`).
+
+## Owner policy disposition — 9 November 2026
+
+**APPROVED INTERIM ACCESS POLICY, SUBJECT TO VERIFICATION AND CONTROLLED RELEASE.** The owner accepted Option A: individual staff identities and salary details in Staff Governance require **Cost Build Manager View AND Edit**. A CBM View-only user must not receive individual staff data; the two currently view-only accounts retain legitimate aggregate pool reporting. The authorised editor retains visible `total_salary_cost` for costing work. In the pool-summary response, aggregated counts/amounts/status remain available through the existing broad costing view gate, but `staff_details` is masked for unauthorised users while preserving the column contract. The dedicated, independently administered personnel-costing View/Edit permission remains a planned least-privilege replacement rather than an immediately provisioned role.
+
+This is **policy approval**, not a claim the server and client enforcement already works: #257 and #258 remain drafts. Production application, frontend deployment, test-identity access and grants require the separately reviewed execution procedure. Do not modify actual salaries, permissions or employee assignments during acceptance. The original Save and Close writer guards remain authoritative and unchanged. WP05/W5-06 remain OPEN; programme 6/13.
+
+**Owner-side read-only baseline:** PostgreSQL 17.4 default `pg_get_viewdef(oid)` fingerprints: register `2447f6b30fdc11e5e5dac487619b9142`; unclassified `659a7d0e992a7bae23b4b0409d33a161`; pool `80d1a1a4f2e3add5eae58acac99e14fd`. Existing broad permission helper `md5(pg_get_functiondef)` = `a5c51f50421d35a7207878c237fff273`; `app_has_permission` = `7b4c99b7d4a698237806b2ca10fe24af`. The three broad-gate anchors and the pool `p.staff_details` anchor each occur exactly once. `app_has_permission_core` checks canonical `can_view` and `can_edit`. Two guarded writer functions reference the register; unclassified view depends on register; no cron command text references the three views. These findings are not signed-in acceptance evidence and do not exclude external BI consumers.
+
+**Pre-release STOP requirements:** replay the `CREATE OR REPLACE VIEW` transformation against the exact production 17.4-deparsed fixtures in a disposable environment and verify the post-render equality/metadata; prove failure handling when function creation precedes the DO block (either complete runner transaction or defensible one-DO redesign); recheck live fingerprints just before any apply; preserve server-first authority and client-first rollout sequencing; authenticated PostgREST restricted/positive matrix and read-only browser checks before closing confidentiality. Do not fill placeholder hashes and apply on the basis of the current synthetic tests alone.
+
+## Draft atomicity correction — 9 November 2026
+
+**Repository-only revision, not yet exercised against PostgreSQL:** The new personnel gate helper's `CREATE OR REPLACE FUNCTION`, description and grants were moved from standalone top-level statements into dynamic SQL **inside the same `DO $migration# WP05 W5-06 — Staff Governance confidentiality: combined security design (9 November 2026)
+
+**DRAFT / NOT APPLIED / NOT DEPLOYED.** Issue #234. Save/Close writer guards (#254/#255) are deployed and are not touched. No production SQL, grant, migration replay, merge, deployment or salary-row export was performed. W5-06 OPEN; WP05 OPEN; programme 6/13. Companion PRs: **server** (this PR: migration, rollback, tests, this document) and **client** (`claude/wp05-w506-conf-client-gate`).
+
+## Owner policy disposition — 9 November 2026
+
+**APPROVED INTERIM ACCESS POLICY, SUBJECT TO VERIFICATION AND CONTROLLED RELEASE.** The owner accepted Option A: individual staff identities and salary details in Staff Governance require **Cost Build Manager View AND Edit**. A CBM View-only user must not receive individual staff data; the two currently view-only accounts retain legitimate aggregate pool reporting. The authorised editor retains visible `total_salary_cost` for costing work. In the pool-summary response, aggregated counts/amounts/status remain available through the existing broad costing view gate, but `staff_details` is masked for unauthorised users while preserving the column contract. The dedicated, independently administered personnel-costing View/Edit permission remains a planned least-privilege replacement rather than an immediately provisioned role.
+
+This is **policy approval**, not a claim the server and client enforcement already works: #257 and #258 remain drafts. Production application, frontend deployment, test-identity access and grants require the separately reviewed execution procedure. Do not modify actual salaries, permissions or employee assignments during acceptance. The original Save and Close writer guards remain authoritative and unchanged. WP05/W5-06 remain OPEN; programme 6/13.
+
+**Owner-side read-only baseline:** PostgreSQL 17.4 default `pg_get_viewdef(oid)` fingerprints: register `2447f6b30fdc11e5e5dac487619b9142`; unclassified `659a7d0e992a7bae23b4b0409d33a161`; pool `80d1a1a4f2e3add5eae58acac99e14fd`. Existing broad permission helper `md5(pg_get_functiondef)` = `a5c51f50421d35a7207878c237fff273`; `app_has_permission` = `7b4c99b7d4a698237806b2ca10fe24af`. The three broad-gate anchors and the pool `p.staff_details` anchor each occur exactly once. `app_has_permission_core` checks canonical `can_view` and `can_edit`. Two guarded writer functions reference the register; unclassified view depends on register; no cron command text references the three views. These findings are not signed-in acceptance evidence and do not exclude external BI consumers.
+
+**Pre-release STOP requirements:** replay the `CREATE OR REPLACE VIEW` transformation against the exact production 17.4-deparsed fixtures in a disposable environment and verify the post-render equality/metadata; prove failure handling when function creation precedes the DO block (either complete runner transaction or defensible one-DO redesign); recheck live fingerprints just before any apply; preserve server-first authority and client-first rollout sequencing; authenticated PostgREST restricted/positive matrix and read-only browser checks before closing confidentiality. Do not fill placeholder hashes and apply on the basis of the current synthetic tests alone.
+
+** as the three view replacements. The four fingerprint placeholder checks run first. Thus a failure inside the DO should roll back both helper creation and all view changes, even if the migration runner commits SQL statements individually. A static test asserts helper/view ordering and the absence of top-level helper creation. This structural correction still requires **disposable PostgreSQL execution**, including failure injection and exact live-view deparse fixtures; do not infer a passing suite or authorise production application from source review alone. The separately prepared rollback remains emergency-only.
+
+## Exact live-view fixture retained — 9 November 2026
+
+Read-only PostgreSQL 17.4 `pg_get_viewdef(oid)` output for all three views has been committed as **schema-only** `supabase/tests/w506_conf/live_view_definitions_pg17_20261109.sql`. It contains **no staff or salary rows**. The captured fingerprints are register `2447f6b30fdc11e5e5dac487619b9142`, pool `80d1a1a4f2e3add5eae58acac99e14fd`, and unclassified `659a7d0e992a7bae23b4b0409d33a161`. The fixture is **not yet exercised** in a disposable database and may re-render differently on PostgreSQL 16.15; verify the parsed fingerprint before treating it as exact. Continue to keep the migration's four placeholder hashes fail-closed until execution and failure-atomicity checks pass. This is a test fixture, not production DDL or a data export.
+
+## Disposable migration atomicity test cases added — 9 November 2026
+
+The `supabase/tests/w506_conf/run_view_gate_test.sh` runner now includes **P8a/P8b/P8c/P8d**: forced exceptions after helper creation, immediately after the first and second view replacements **inside the loop**, followed by a clean retry after all three failures. Each injected failure checks that the helper no longer exists and that original view definitions and metadata remain unchanged. Injected SQL is produced only in `$TMP` scratch copies; production and committed migration text are not altered. The static suite now asserts that this injection coverage remains present. These additions are **not yet executed** against PostgreSQL, and require confirmation under a disposable cluster. If injection or parser tests fail, stop without production DDL. The four migration fingerprint placeholders remain in place and operational execution is unapproved.
+
+## Release verification checkpoint — 9 November 2026 (independent production readback)
+
+After Claude's isolated verification at server PR #257 `ee900cfb` and client PR #258 `b590362c`, an independent **SELECT-only live readback** rechecked all four fingerprints on the production database. All values remain unchanged:
+
+| Exact PostgreSQL expression | Verified MD5 |
+|---|---|
+| `pg_get_viewdef('public.v_costing_staff_classification_register'::regclass)` | `2447f6b30fdc11e5e5dac487619b9142` |
+| `pg_get_viewdef('public.v_costing_unclassified_staff_for_costing'::regclass)` | `659a7d0e992a7bae23b4b0409d33a161` |
+| `pg_get_viewdef('public.v_costing_staff_cost_pool_summary'::regclass)` | `80d1a1a4f2e3add5eae58acac99e14fd` |
+| `pg_get_functiondef('public.fn_costing_view_allowed()'::regprocedure)` | `a5c51f50421d35a7207878c237fff273` |
+
+**Key distinction:** these production readback values close the missing *source fingerprint* evidence gap, but are not a successful production migration or authenticated access test. The draft SQL and rollback deliberately retain placeholders while the draft static/runner tests assert placeholder fail-closed behavior. Before any deployment, form a **separately reviewed, fully pinned release candidate**, modify associated tests to assert the exact authorized hashes and drift/failure handling, rerun those tests, and recheck production source hashes immediately before execution. Never hand-edit only the migration while leaving its static and runner tests expecting placeholders. Do not rerun Save/Close migrations. PostgreSQL 17.4 direct execution, real signed-in PostgREST and browser acceptance remain outstanding; external BI consumers require notification/review. **No production change or deployment authorised by this note.**
+
+**Isolated tests reported by Claude:** server static 15/15, disposable PostgreSQL 16.15 runner 30/30 + identity matrix 14/14, including exact live 17.4 view-definition replay and fail-atomicity tests; client focused 22/22 + dynamic 11/11; other existing main-branch test failures unchanged. These are worker-reported results, with GitHub PR heads independently verified. Browser/costing-responsive and PostgreSQL 17.4 execution not done.
+
+## Pinned migration candidate — 9 November 2026 (NOT DEPLOYED)
+
+All four owner-verified, SELECT-only production definition MD5 fingerprints have now been substituted into the draft **migration and emergency rollback**. The disposable runner substitutes them back to scratch-cluster definition hashes **only in temporary copies**, and its P0 gate test intentionally corrupts a scratch fingerprint to prove fail-closed drift rejection; the static suite now checks the exact four pinned constants rather than expecting unfilled placeholders. Four-way source consistency was checked against GitHub. **This is a release-candidate preparation change; executable static, PostgreSQL and client regression tests must be rerun on the new branch head before promotion.** Prior 15/15, 30/30, 14/14 and 22/22+11/11 test results apply to the **preceding unpinned heads**, not automatically to this new pinned branch.
+
+Never execute the committed migration against synthetic TB2 data or an outdated production definition. Before production apply, recheck all four live hashes and verify authorised client release, an approved deployment plan, signed-in PostgREST test identities and a stop/containment plan. The rollback reopens personnel data exposure and therefore requires its independent emergency interlock and alternate protective control. The migration is now **technically executable** if hashes match, so neither a GitHub merge nor `apply_migration` is approved solely because values are pinned. W5-06 and WP05 remain OPEN.
+
+## 1. Consumer inventory (repository level; bounded)
+
+| Consumer | What it reads | Finding |
+|---|---|---|
+| `costing-suite-cost-build.js` `loadStaffGovernanceRows` | register, unclassified-staff and pool-summary views, `select('*')` | Fetches all columns incl. `basic_salary`, `allowance_amount`, `employer_contribution`, `other_salary_cost`, `staff_details`; none of these five is rendered. Fixed in the client PR (explicit projections, no request without access). |
+| `costing-suite-shell.js` | `VIEW_BY_LENS["staff-governance"]`, `loadRowsForLens`, generic CSV `exportCsvForRows(VIEW)`, `renderTable`, edit wiring | Export writes every key of the loaded rows; edit buttons rendered for any viewer; no personnel permission concept. Fixed in the client PR. |
+| CBM edit modal / `saveStaffClassificationEdit` → Save wrapper | row fields `staff_id, employee_code, designation, costing_class, effective_from, allocation_weight, remarks, classification_note` | Needs no salary component. Server writer is already guarded (#254). |
+| Close writer `rpc_close_staff_costing_classification` | `return query select … from v_costing_staff_classification_register` inside a SECURITY DEFINER function (owner = postgres) | Unaffected: `current_user` is the owner, which the gate admits (matrix row "definer-owned function"). No client call site. |
+| `v_costing_unclassified_staff_for_costing` | reads the register view | Inherits the register gate; gated again by the same personnel function. |
+| Repository scripts / workflows / Edge Functions / types | none besides generated `supabase.ts` | No other repo consumer. |
+| Production: DB functions, triggers, cron (34), 3 Edge Functions | owner readbacks for #254/#255 found no writer references; **no consumer scan for the three *views*** beyond the repo was performed | **UNKNOWN** — owner readback item R-A below. External BI/PostgREST users of these views cannot be excluded. |
+
+## 2. Permission boundary — options
+
+| Option | Effect | Assessment |
+|---|---|---|
+| **A. Temporary: Cost Build Manager VIEW AND EDIT** (recommended now) | Individual staff/salary rows only for the attested sole editor; same policy as the deployed Save/Close guards; one gate function, so a later dedicated permission is a one-function change | Smallest change that closes the exposure; CBM view-only users (2 accounts) lose the individual tabs (they keep aggregate pool totals). Couples pay visibility to broad CBM edit rights — acknowledged. |
+| **B. Dedicated personnel-costing permission** (target) | e.g. `role:personnel-costing-view` / `-edit` (naming follows the `role:material-cost-rm-trace` precedent), granted explicitly | Preferred least-privilege design; needs permission provisioning, an access-admin decision and a client permission mapping; not built here. Migration path: replace the body of `fn_costing_personnel_view_allowed()` and the client `personnelAccessAllowed()`; nothing else changes. |
+| C. CBM VIEW only | Keeps view-only colleagues | Rejected: preserves broad salary visibility. |
+| D. Leave broad gate, hide in UI | — | Rejected: UI hiding is not authorisation (PostgREST reads the view directly). |
+
+**Aggregate reporting is preserved:** the pool-summary view keeps the broad `fn_costing_view_allowed()` row gate (amounts, counts, status); only the nested identifying `staff_details` column is NULLed for non-personnel callers (same name/type/order, so no consumer breaks).
+`total_salary_cost` stays visible to the authorised editor (the existing screens display it); decide in §7 whether it should be dropped for editors too.
+
+## 3. Server remedy (draft migration `20261109130000_wp05_w506_conf_01_personnel_view_gate.sql`, rollback in `docs/master-data-costing/prepared/`)
+- New `public.fn_costing_personnel_view_allowed()` (security invoker, stable): `postgres/service_role` OR CBM view AND edit (via `app_has_permission`, the helper the TB2 gate already uses; `'edit'` is already used by four repo migrations).
+- Register and unclassified-staff views: row gate switched to the personnel function. Pool view: `staff_details` masked via `CASE`.
+- No GRANT/REVOKE on the views, no change to `fn_costing_view_allowed()` (shared by 46 other views), no table/RLS change, wrappers/writers untouched.
+- **Fail-closed and exact-definition:** four full-definition md5 fingerprints (3 views + gate function) are **placeholders that abort the migration until filled from an owner SELECT-only readback**; exact-once textual anchors on the live `pg_get_viewdef`; installed definition must equal the verified original plus the single change; columns/types/order, owner, ACL, reloptions unchanged; idempotent only if reversing the change restores the verified original; one DO statement, no top-level BEGIN/COMMIT (runner-compatible, see #256 §11).
+- Rollback = security regression, own interlock `w506.personnel_gate_rollback_owner_emergency_approval`, containment-first, same drift proofs; helper function left in place.
+
+**Owner readback needed before this can be applied (SELECT-only; nothing executed here):** (R-A) for each of the three views: `md5(pg_get_viewdef(oid))`, the `pg_get_viewdef` text (to confirm the anchors: `fn_costing_view_allowed()` once; pool: the line `            p.staff_details,`), `relowner`, `relacl`, `reloptions`, and `pg_depend` dependents; (R-B) `md5(pg_get_functiondef)` of `fn_costing_view_allowed()` and the definition of `app_has_permission(text,text)` (confirm `'edit'` semantics and its canonical source); (R-C) consumers of the three views in function bodies, other views, triggers, cron and Edge Functions; (R-D) PostgreSQL 17.4 rendering of the same definitions (anchors were derived from 16.15 deparsing of the repo-recorded TB2 text).
+
+## 4. Client remedy (client PR)
+Explicit column projections (no `*`; no salary components, no `staff_details`); **no network request** for register/review tabs without personnel access (CBM view AND edit, CBM route, no permission-load error — fail closed); restricted notice + in-memory purge when denied (also covers deep links such as `?lens=staff-governance`, since the loader decides at load time); Edit/Review buttons rendered and wired only for the authorised editor, modal and save re-check; CSV export blocked for restricted staff tabs (and the exported rows can contain only projected columns); `sw.js` cache generation advanced (v393) so clients receive the JS (the service worker never caches Supabase responses; 25 pinned tests updated for the bump; frozen-diff shell/controller tests extended with the exact insertions).
+
+## 5. Test evidence (nothing run against production)
+| Suite | Result |
+|---|---|
+| Server static `node --test scripts/costing-w506-conf-server/migration-static.test.mjs` | 12/12 |
+| Server runner `supabase/tests/w506_conf/run_view_gate_test.sh` (PostgreSQL 16.15 disposable, repo-recorded TB2 view text, synthetic rows) | 20 checks pass / 0 fail; identity matrix 14/14 |
+| Client `node --test scripts/costing-w506-conf-client/staff-governance-gate.test.mjs` | 20/20 |
+| Table-tools / cache-coupling suites touched by the bump | see client PR description (pre-existing failures identified against `main`) |
+Matrix identities: no grants, unauthenticated, CSR-only, MCM-only, CCC view+edit, CBM view-only, CBM edit-without-view, CBM view+edit, postgres, service_role, anon, definer-owned writer pattern. Baseline reproduced: a CSR-only user reads individual salary rows and `staff_details` on the TB2 definitions.
+**Limits:** synthetic dependencies; `app_has_permission`/`auth.uid` are test doubles; the three views come from the repo's TB2 text, **not** the live definitions (fingerprints must come from the readback); PostgreSQL 17.4 and real PostgREST behaviour NOT TESTED.
+
+## 6. Safe authenticated PostgREST acceptance procedure (read-only; separately authorised; no salary/classification record is modified or exported)
+Preconditions: owner approves the run; test identities already hold their intended grants (no grant changes): ID-N, a CSR-only user, a CBM view-only user, the CBM view+edit editor. Use their own session JWTs (never the service key). Only `HEAD`/`GET` against the three views, never `POST/PATCH/DELETE` and never an RPC.
+1. For each identity and each view send `HEAD /rest/v1/<view>?select=staff_id` (or `period_start` for the pool view) with `Prefer: count=exact`; record **only status and the `Content-Range` count** (no body).
+   Expected: register/review → ID-N 0, CSR-only 0, CBM view-only 0, editor = the live row counts (owner-known aggregates); pool → ID-N 0, others ≥1.
+2. Masking check: as a restricted identity `GET /rest/v1/v_costing_staff_cost_pool_summary?select=staff_details&limit=1` must return `null` values; as the editor use `HEAD …?staff_details=not.is.null` with `count=exact` (count only; never read the column).
+3. `anon` (no JWT): `HEAD` each view → 401/permission denied.
+4. Browser (read-only clicks): for each identity open Cost Build Manager → Staff Governance; in DevTools confirm the Staff Review/Register tabs issue **no** request when restricted and the editor's requests carry the explicit `select=` list without salary components/`staff_details`; Edit buttons absent when restricted; Export shows the permission toast. **Do not click Save/Close.**
+5. Evidence: store status codes, counts, and screenshots with salary cells masked/cropped; no response bodies containing salary or staff names.
+6. Post-run: read-only check that `costing.staff_costing_classification` `max(updated_at)` and row count are unchanged.
+STOP on any unexpected non-zero count for a restricted identity, any 5xx, or any request that would write.
+
+## 7. Release order and decisions
+Recommended order (each step separately authorised): (1) owner readback R-A…R-D → fill the four fingerprints in a reviewed commit; (2) deploy the **client** PR (it is safe with the current server: authorised editor unchanged, restricted users stop requesting individual rows); (3) apply the **server** migration with the #256 §11.4 method (one `apply_migration` call, read-only history/definition check, STOP gates); (4) run §6; (5) monitor. Rollbacks are security regressions (containment first).
+**Decisions needed from the owner:** (a) approve Option A (temporary CBM view+edit) as the personnel boundary now, and whether CBM view-only users may keep individual rows (not recommended); (b) approve the dedicated personnel-costing permission as the next workstream and its target names; (c) should `total_salary_cost` be hidden even for the editor, or is it required on screen; (d) approve masking `staff_details` for non-personnel (vs removing the column); (e) authorise the SELECT-only readbacks R-A…R-D, including consumer scans of the three views (BI/external); (f) authorise the §6 PostgREST acceptance run and name the test identities; (g) release order and window; (h) confirm that no non-editor workflow depends on the individual tabs (2 CBM view-only accounts).
