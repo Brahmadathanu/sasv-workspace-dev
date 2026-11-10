@@ -14,6 +14,27 @@ permissions:
   contents: read
 
 jobs:
+  live-client-publication:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Verify published production client (read-only public static assets)
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://sasv-utilities-hub.netlify.app"
+          T="$(mktemp -d)"
+          trap 'rm -rf "$T"' EXIT
+          curl -fLsS --retry 2 --retry-delay 2 --max-time 20 \
+            -H 'Cache-Control: no-cache' "$BASE/sw.js?w506_verify=20261110" -o "$T/sw.js"
+          curl -fLsS --retry 2 --retry-delay 2 --max-time 20 \
+            -H 'Cache-Control: no-cache' "$BASE/shared/js/costing-suite-shell.js?w506_verify=20261110" -o "$T/shell.js"
+          grep -q 'hub-cache-v393' "$T/sw.js" || { echo 'STOP: production cache v393 not published'; exit 1; }
+          grep -q 'function personnelAccessAllowed()' "$T/shell.js" || { echo 'STOP: personnel gate missing from live client'; exit 1; }
+          grep -q 'purgePersonnelOnSignOut' "$T/shell.js" || { echo 'STOP: signed-out data purge missing from live client'; exit 1; }
+          echo 'PASS: published client contains cache v393, personnel gate and sign-out purge'
+          echo 'This check does not exercise authenticated PostgREST or browser acceptance.'
+
   isolated-verification:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
