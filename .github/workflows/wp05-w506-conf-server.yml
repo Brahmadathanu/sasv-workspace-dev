@@ -3,7 +3,7 @@ name: WP05 W5-06 confidentiality server verification
 on:
   pull_request:
     paths:
-      - "supabase/migrations/20261109130000_wp05_w506_conf_01_personnel_view_gate.sql"
+      - "supabase/migrations/20261110071308_wp05_w506_conf_01_personnel_view_gate.sql"
       - "supabase/tests/w506_conf/**"
       - "scripts/costing-w506-conf-server/**"
       - "docs/master-data-costing/prepared/WP05_W506_CONF_01_ROLLBACK.sql"
