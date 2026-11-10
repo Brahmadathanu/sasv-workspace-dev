@@ -1,0 +1,29 @@
+name: WP05 Scheme Master list projection and PPM regression
+on:
+  pull_request:
+    paths:
+      - "public/shared/js/costing-suite-pricing-policy.js"
+      - "scripts/scheme-master-list-projection.test.mjs"
+      - ".github/workflows/wp05-scheme-master-list.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-projection-and-ppm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout proposed source
+        uses: actions/checkout@v4
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Scheme Master narrow projection contract
+        run: node --test scripts/scheme-master-list-projection.test.mjs
+      - name: PPM navigation and workspace regression
+        run: node --test scripts/costing-w6-pricing-nav/w6.test.mjs
+      - name: No production dependencies
+        run: echo "Static tests only: no database, browser session, credentials or deployment."
