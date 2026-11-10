@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const NAME = "20261109130000_wp05_w506_conf_01_personnel_view_gate.sql";
+const NAME = "20261110071308_wp05_w506_conf_01_personnel_view_gate.sql";
 const rd = (p) => readFileSync(join(root, p), "utf8");
 const mig = rd(`supabase/migrations/${NAME}`);
 const rb = rd("docs/master-data-costing/prepared/WP05_W506_CONF_01_ROLLBACK.sql");
