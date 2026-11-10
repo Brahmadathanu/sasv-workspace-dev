@@ -7,7 +7,7 @@
 # Interlocks: absolute unix-socket PGHOST; data_directory basename w506-disposable-*; superuser; unique scratch DB dropped on exit.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../../.." && pwd)"
-MIG="$ROOT/supabase/migrations/20261109130000_wp05_w506_conf_01_personnel_view_gate.sql"
+MIG="$ROOT/supabase/migrations/20261110071308_wp05_w506_conf_01_personnel_view_gate.sql"
 RB="$ROOT/docs/master-data-costing/prepared/WP05_W506_CONF_01_ROLLBACK.sql"
 TB2="$ROOT/supabase/migrations/20261019134900_tb2_costing_view_permission_gate.sql"
 ACK='I-HAVE-OWNER-EMERGENCY-APPROVAL-AND-AN-ALTERNATIVE-CONTROL'
