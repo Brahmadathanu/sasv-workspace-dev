@@ -1,3 +1,5 @@
+> **SUPERSEDING 10 NOV 2026 SCOPE UPDATE:** Owner expressly approved B1-T2 and B1-T3 transfer to [WP12 receiving gate](WP-12-REGRESSION-AND-DOCUMENTATION.md), with B1-T1=zero; [binding amendment §11](WP05_WP06_WP12_AUTHENTICATED_ACCEPTANCE_EXECUTION_PACKAGE_2026-11-06.md). Accordingly, the original 11-flag *integrated combination* and *final release six-module compatibility* obligations are WP12-owned, while WP05 retains individual 40-lens statuses, module-specific failures, privilege-sensitive checks, SEC identity/denial, D3/F1/C5/D5/L1, S2/S9 and explicit owner sign-off. W5-06 Staff Governance confidentiality release subgate is accepted with bounded residuals; wider W5-06 ID-N/ID-X/ID-O / SEC and view breadth remain OPEN. The older pending-B1 and old W5-06 wording below are historical. WP05 formal closure stays 6/13.
+
 # WP05 formal closure gate audit — 8 November 2026
 
 **Status: WP05 OPEN; programme 6/13 (46.2%).** This is a documentation-only reconciliation of the existing WP05 evidence and owner-approved WP06 closure. It does not narrow WP05's acceptance contract, authorise production writes or itself close WP05.
