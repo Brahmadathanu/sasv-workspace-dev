@@ -49,3 +49,16 @@ The SASV Costing Suite final approval authority approved these named disposition
 | **WP06-SEC-NEGATIVE** | ID-V 6-view/0-edit client guard and observed no writer requests; ID-N/ID-X/ID-O plus server-deny SEC-A1/A2 not carried out in production | Unapproved writer calls are unsafe for negative security testing | No independent server-side denial proof; cross-module authorisation errors may be undiscovered | WP05 security gate and WP12 integrated identity matrix, using no-side-effect approved plan; SASV Costing Suite owner |
 
 Evidence: `WP06_IDV_NAV_GROUPS_ON_OFF_ACCEPTANCE_2026-11-08.md`, owner reports posted to GitHub issues #220, #222 and #224 on 8 Nov; `SCHEME_MASTER_PRODUCTION_INDEX_EXECUTION_GATE_2026-11-08.md`; approved A1 in shared acceptance package. No production work authorised by backlog entries.
+
+## WP12 B1 receiving acceptance — owner approved 10 Nov 2026
+
+These are **accepted WP12 receiving obligations, not deferred defects or completed tests**. Owner approved B1-T2/T3 on 10 Nov; [binding shared §11](WP05_WP06_WP12_AUTHENTICATED_ACCEPTANCE_EXECUTION_PACKAGE_2026-11-06.md); [WP12 workpack receipt](WP-12-REGRESSION-AND-DOCUMENTATION.md). B1-T1 transfers **zero** individual lens cases. Milestone for all items: **WP12 final integrated acceptance before rollout**; owner: Costing Suite owner / WP12 release acceptance; missing observations remain NT, historical F remain F until recovered.
+
+| ID | WP12-owned subject | Evidence/stop rule | State |
+|---|---|---|---|
+| B1-T2-1 | Eleven flag OFF/ON matrix including ALL_ON and restore OFF | Final build, desktop/mobile, explicit flags, console and allowed network requests, historical failures recorded | ACCEPTED RECEIPT / TEST PENDING |
+| B1-T2-2 | CCC, MCM, CBM, PPM, CSR, PRM cross-module flag interactions | Real signed-in role/route/flag evidence and zero mutating requests | ACCEPTED RECEIPT / TEST PENDING |
+| B1-T3-1 | Cross-module direct/legacy/deep-link/menu/back navigation | 1280/390 proof, known missing C6/O-8 destinations not invented | ACCEPTED RECEIPT / TEST PENDING |
+| B1-T3-2 | Release-candidate responsive/Electron Windows A14 acceptance | Approved final client/installer evidence only if rollout separately authorised | ACCEPTED RECEIPT / TEST PENDING |
+
+**WP05 retained:** all 40 individual lens observations, failed/untested cases, negative identity and SEC view-gate, C5/D5/D3/F1/L1, S2/S9 evidence limitations, privilege-sensitive flags and final WP05 Gate Status. W5-06 confidentiality *subgate* owner-accepted with scoped residuals; wider WP05 security remains separately gated. No programme workpack completion increment on this receipt.
