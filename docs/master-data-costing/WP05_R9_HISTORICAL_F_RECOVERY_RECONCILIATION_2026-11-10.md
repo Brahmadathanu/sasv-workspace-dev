@@ -1,3 +1,5 @@
+> **R10 PLANNER CHECK — 10 NOV 2026:** Although newer Scheme Master covering index exists, live no-ANALYZE `EXPLAIN` uses older `idx_sku_scheme_snapshot_period_status` (full view estimated cost 44,021.28; single-scheme aggregate also older index); current `idx_scan=0` on new index. Hence #19 remains historical F with unresolved intermittent cold-path recurrence; no further DDL automatically justified. [R10 full record](WP05_R10_SCHEME_MASTER_LIVE_PLANNER_INDEX_CHOICE_2026-11-10.md). WP05 6/13.
+
 # WP05 R9 — Four historical failing lens recoveries: current evidence and next proof
 
 **Date:** 10 November 2026. **Status: HISTORICAL FAILURE LEDGER RECONCILED, NO WHOLE-LENS PASS PROMOTION.** The five Q-PRM/Q-ID/Q-VIEW/Q-F1/Q-D3 policy directions are **owner-approved in [R9 policy decision](WP05_R9_OWNER_POLICY_DIRECTIONS_ACCEPTED_2026-11-10.md)**. This reconciliation does not authorise a production test or data/permission modification. WP05 OPEN, formal 6/13.
