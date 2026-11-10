@@ -108,3 +108,19 @@
 Sources: [original 49-view inventory](WP05_W506_49_VIEW_COLUMN_SENSITIVITY_CONSUMER_INVENTORY_2026-11-09.md), [R2 live readback](WP05_R2_LIVE_PRM_F1_DEFINITION_AND_SHARED_VIEW_READBACK_2026-11-10.md), [R2 priority consumers](WP05_R2_NINE_SENSITIVE_VIEW_CLIENT_CONSUMER_READBACK_2026-11-10.md), [approved Staff Governance residual record](WP05_W506_CONF_01_OWNER_RESIDUAL_DISPOSITION_2026-11-10.md), [B1 retained-gate ledger](WP05_B1_RETAINED_GATE_EXECUTION_LEDGER_2026-11-10.md).
 
 **This design does not change WP05's 40-lens evidence (13 P / 4 historic F / 2 restricted NA / 21 NT), W5-06 scoped personnel acceptance, or programme 6/13.**
+
+## Focused phase-A call-site verification (same review, current `main`)
+
+Direct client reads confirm the following P1 cases without executing a query. These call sites are **verified**, whereas other rows above still contain proposed consumer mappings.
+
+| View | Actual read form | Implication before implementation |
+|---|---|---|
+| `v_costing_pricing_cost_sheet_line_traceability` | `costing-suite-cost-sheet.js`: `TRACEABILITY_VIEW` uses an explicit 29-field comma-joined projection, including `trace_formula`, `trace_source_snapshot`, `evidence_json` and `drill_filter_json`, filtered by period, valuation date, refresh run, product, SKU and line label | Not `select('*')`; nevertheless evidence JSON and trace source still traverse the client. Authorised reader granularity must be decided before reducing fields |
+| `v_costing_pricing_printable_cost_sheet_lines` | `costing-suite-cost-sheet.js`: `PRINTABLE_LINES_VIEW` uses `select('*')` with exact period, valuation date, run and product filters | Preserve printable cost sheet columns; derive its rendering/CSV dependencies before field reduction |
+| `v_costing_pricing_printable_cost_sheet_product_summary` | Same file: `PRINTABLE_PRODUCT_SUMMARY_VIEW` uses `select('*')` with period and pagination, then product sorting | Performance/57014 historical context is separate; source-only field changes require explicit compatibility proof |
+| `v_costing_material_manual_rate_history` | `costing-suite-material-cost.js`: two `select('*')` paths (one per stock item limited to 100, one register/history pagination) | Rate source/vendor history may be transmitted; preserve authorized rate-review operations |
+| `v_costing_material_manual_rate_register` | Same file: one `select('*')` for manager register | Explicit vendor-origin sensitivity policy necessary |
+| `v_costing_material_review_acceptance_register` | Same file: `select('*')` filtered by period | Preserve acceptance audit while minimizing actor/notes where not rendered |
+| `v_costing_scheme_master_audit` | `costing-suite-pricing-policy.js`: `select('*')` per scheme ID, latest 200 rows | Preserve scheme audit content for legitimate PPM audit consumers |
+
+**Status of remaining P1 mapping:** `v_cost_sheet_snapshot_sku_monthly_comparison`, `v_costing_pricing_sku_detailed_cost_sheet`, and the grant-restricted `v_costing_pricing_cost_sheet_rm_line_traceability` require separate exact direct/indirect consumer resolution. Absence of an exact string in the inspected client modules is not proof of no consumers. No client/SQL changes are authorised.
