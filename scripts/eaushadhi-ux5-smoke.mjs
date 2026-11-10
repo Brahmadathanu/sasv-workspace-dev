@@ -54,7 +54,7 @@ check(
   "Goal 1 verified sections revert edits in event handlers",
 );
 check(!control.includes("hub-cache-v377"), "Goal 1 does not bump cache past v376 in control");
-check(/hub-cache-v392/.test(sw) && sw.includes("v391 was Costing #208"), "cache is the owner-authorised v392 release (LOCK-P01, #212); v391 (#208) kept in history; no e-Aushadhi cache change");
+check(/hub-cache-v393/.test(sw) && sw.includes("v391 was Costing #208"), "cache is the owner-authorised v392 release (LOCK-P01, #212); v391 (#208) kept in history; no e-Aushadhi cache change");
 
 // --- Goal 2: in-page leave confirm ---
 check(!control.includes("window.confirm("), "Goal 2 removes native window.confirm");

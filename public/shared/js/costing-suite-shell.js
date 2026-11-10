@@ -3346,6 +3346,30 @@ function issueCodeLabel(code) {
   return String(code).replace(/_/g, " ");
 }
 
+/** WP05-W506: temporary personnel-confidentiality boundary = Cost Build Manager view AND edit (fail closed). */
+function personnelAccessAllowed() {
+  return (
+    PERMISSIONS_LOAD_ERROR !== true &&
+    ACTIVE_ROUTE_CONFIG?.permissionTarget === "module:cost-build-manager" &&
+    PERM_CAN_VIEW === true &&
+    PERM_CAN_EDIT === true
+  );
+}
+
+/** WP05-W506: on sign-out (any tab, token revocation) drop grants, in-flight loads and any displayed staff/salary rows. */
+function purgePersonnelOnSignOut() {
+  ++ROWS_LOAD_GENERATION;
+  PERM_CAN_VIEW = false;
+  PERM_CAN_EDIT = false;
+  if (CURRENT_LENS === "staff-governance") {
+    ALL_ROWS = [];
+    VIEW = [];
+    costBuildCtrl.purgeStaffGovernanceState();
+    if (tableBody) tableBody.replaceChildren();
+    setStatus(costBuildCtrl.getStaffGovernanceRestrictionNotice() || "Signed out.", "warning");
+  }
+}
+
 function setStatus(message, type = "info") {
   if (!statusArea) return;
   const colors = {
@@ -3447,6 +3471,15 @@ function getCurrentMonthStart() {
 }
 
 async function loadPermissions(sessionUserId) {
+  // On auth/permission refresh, remove any previously displayed personnel data before
+  // awaiting the permission RPC. Invalidate outstanding row loads as well.
+  if (CURRENT_LENS === "staff-governance") {
+    ++ROWS_LOAD_GENERATION;
+    ALL_ROWS = [];
+    VIEW = [];
+    costBuildCtrl.purgeStaffGovernanceState();
+    if (tableBody) tableBody.replaceChildren();
+  }
   // Fail closed before resolution — never retain prior/optimistic grants.
   PERM_CAN_VIEW = false;
   PERM_CAN_EDIT = false;
@@ -4823,8 +4856,19 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     if (CURRENT_LENS === "staff-governance") {
       const rows = await costBuildCtrl.loadStaffGovernanceRows(ACTIVE_PERIOD_START);
       if (!isRowsLoadCurrent(loadGeneration)) return;
-      ALL_ROWS = rows;
-      applyFilters();
+      // Recheck after the await: a permission refresh or sign-out may have revoked access
+      // while a staff query was in flight. Never assign or render that stale response.
+      const restrictedNotice = costBuildCtrl.getStaffGovernanceRestrictionNotice();
+      if (restrictedNotice) {
+        ALL_ROWS = [];
+        VIEW = [];
+        costBuildCtrl.purgeStaffGovernanceState();
+        applyFilters();
+        setStatus(restrictedNotice, "warning");
+      } else {
+        ALL_ROWS = rows;
+        applyFilters();
+      }
       LAST_REFRESH_TIME = new Date();
       updateFreshnessIndicator();
       return;
@@ -9609,6 +9653,9 @@ const costBuildCtrl = createCostBuildController({
     VIEW = view;
     if (currentPage != null) CURRENT_PAGE = currentPage;
   },
+  // WP05-W506: individual staff/salary data requires CBM view AND edit (matches the server gate); fail closed.
+  canViewPersonnel: () => personnelAccessAllowed(),
+  canEditPersonnel: () => personnelAccessAllowed(),
 });
 
 const driverGovernanceCtrl = createDriverGovernanceController({
@@ -10038,7 +10085,19 @@ costingPeriodSelect?.addEventListener("change", () => {
   setActiveCostingPeriod(costingPeriodSelect.value);
 });
 exportBtn?.addEventListener("click", () => {
+  // WP05-W506: no CSV export of individual staff/salary rows without personnel access.
+  if (
+    CURRENT_LENS === "staff-governance" &&
+    costBuildCtrl.getStaffGovernanceRestrictionNotice()
+  ) {
+    showToast("Staff data export requires Cost Build Manager view and edit permission.", "error");
+    return;
+  }
   void exportActiveViewCsv();
+});
+// WP05-W506: sign-out must not leave staff/salary rows on screen (no other costing listener exists).
+supabase.auth.onAuthStateChange((event) => {
+  if (event === "SIGNED_OUT") purgePersonnelOnSignOut();
 });
 $("homeBtn")?.addEventListener("click", () => Platform.goHome());
 searchBox?.addEventListener("input", () => {

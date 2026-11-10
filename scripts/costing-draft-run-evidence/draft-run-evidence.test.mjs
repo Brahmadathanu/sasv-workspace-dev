@@ -1,5 +1,6 @@
 // CDE-1a: draft-run component evidence section (pure logic, loader, renderer, shell wiring, safety guards).
 // Mock-backed: all fixtures live in this test file; the production module contains none. No network / Supabase.
+import { unPersonnel } from "../costing-w506-conf-client/unpersonnel.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -12,7 +13,7 @@ import { stripSecA2Shell } from "../lib/sec-a2-strip.mjs";
 import { stripN1Shell } from "../lib/n1-nav-strip.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
+const read = (rel) => unPersonnel(rel, fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n"));
 const MOD = read("public/shared/js/costing-draft-run-evidence.js");
 // SEC-A2: the one injected permission line is removed first (scripts/lib/sec-a2-strip.mjs) so this test keeps pinning the CDE-1a text only.
 const SHELL = stripSecA2Shell(read("public/shared/js/costing-suite-shell.js"));

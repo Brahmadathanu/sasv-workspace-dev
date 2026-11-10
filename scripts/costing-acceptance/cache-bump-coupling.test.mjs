@@ -16,8 +16,8 @@ test("#208 CSS fix is present and the cache generation is at least v391 (coupled
   assert.ok(generation(sw) >= 391, "CSS fix without a cache advance would stay hidden behind the cache-first v390 CSS");
 });
 
-test("sw.js line 2 is exactly the v392 release line and keeps the v391/v390/v389 history in its comment", () => {
-  assert.equal(sw.split("\n")[1], 'const CACHE_NAME = "hub-cache-v392"; // Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)');
+test("sw.js line 2 is exactly the v393 release line and keeps the v392/v391/v390/v389 history in its comment", () => {
+  assert.equal(sw.split("\n")[1], 'const CACHE_NAME = "hub-cache-v393"; // WP05-W506 Staff Governance personnel-confidentiality client gate (explicit projections, edit gating); v392 was Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)');
   assert.equal((sw.match(/const CACHE_NAME\b/g) ?? []).length, 1, "exactly one cache declaration");
 });
 

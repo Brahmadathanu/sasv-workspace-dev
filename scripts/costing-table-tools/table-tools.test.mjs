@@ -1,3 +1,4 @@
+import { PERSONNEL_SHELL_EDITS } from "../costing-w506-conf-client/personnel-shell-blocks.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -181,6 +182,11 @@ function stripCw05(src) {
     remove(w, "review worklist block");
   }
   remove(REVIEW_WORKLIST_FN_RE, "review worklist helpers");
+  // WP05-W506 personnel-confidentiality client gate: pure insertions, each stripped exactly once.
+  for (const [h, o] of PERSONNEL_SHELL_EDITS) {
+    assert.equal(out.split(h).length, 2, "personnel edit");
+    out = out.replace(h, o);
+  }
   return out;
 }
 
@@ -483,12 +489,12 @@ test("row-click index resolves to the sorted row after a header sort", () => {
 });
 
 // 10. Cache pin
-test("service worker cache is hub-cache-v392 (v390 retained in the comment)", () => {
+test("service worker cache is hub-cache-v393 (v390 retained in the comment)", () => {
   const sw = read("public/sw.js");
-  assert.match(sw, /const CACHE_NAME = "hub-cache-v392"/);
+  assert.match(sw, /const CACHE_NAME = "hub-cache-v393"/);
   assert.equal(
     sw.split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v392"; // Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)',
+    'const CACHE_NAME = "hub-cache-v393"; // WP05-W506 Staff Governance personnel-confidentiality client gate (explicit projections, edit gating); v392 was Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)',
   );
 });
 

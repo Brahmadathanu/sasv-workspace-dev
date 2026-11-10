@@ -1,6 +1,7 @@
 // CW-05 package 3: table tools for read-only tabs of pricing policy, cost build
 // and material, plus SKU/Pack sort on sku-control-status. node:test only, no
 // deps, no network. Same sandbox approach as the pkg 2 tests.
+import { PERSONNEL_SHELL_EDITS, PERSONNEL_COSTBUILD_EDITS } from "../costing-w506-conf-client/personnel-shell-blocks.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -396,6 +397,11 @@ test("pkg3 flag OFF: legacy templates verbatim; shell equals base apart from gat
   }
   assert.match(stripped, REVIEW_WORKLIST_FN_RE);
   stripped = stripped.replace(REVIEW_WORKLIST_FN_RE, "");
+  // WP05-W506 personnel-confidentiality client gate: pure insertions, each stripped exactly once.
+  for (const [h, o] of PERSONNEL_SHELL_EDITS) {
+    assert.equal(stripped.split(h).length, 2, "personnel edit");
+    stripped = stripped.replace(h, o);
+  }
   const dropCw05 = (s) =>
     s
       .replace(/\n\/\*\*\n \* CW-05 \(COSTING_TABLE_TOOLS_V1 ON only\): header[\s\S]*?\n}\n(?=\nfunction productSkuLabel)/, "")
@@ -637,7 +643,8 @@ test("pkg3 COLUMN_HELP unchanged; module safety; FORBIDDEN_RPCS identical; no CS
     const rel = `${JS}/costing-suite-${f}.js`;
     // MDC-07 N2: the two Costing controllers may carry only the flag-gated N2 additions (scripts/lib/n2-nav-strip.mjs).
     // MDC-07 W6: the PPM controller may carry only the flag-gated W6 five-group projection (scripts/lib/w6-nav-strip.mjs).
-    if (f === "cost-build" || f === "material-cost" || f === "pricing-policy") assert.equal(stripW6(rel, stripN2(rel, read(rel))), git("show", `${PKG3_BASE}:${rel}`).replace(/\r\n/g, "\n"), f);
+    const unPersonnel = (src) => (f === "cost-build" ? PERSONNEL_COSTBUILD_EDITS.reduce((t, [h, o]) => { assert.equal(t.split(h).length, 2, "personnel cost-build edit"); return t.replace(h, o); }, src) : src); // WP05-W506 personnel gate
+    if (f === "cost-build" || f === "material-cost" || f === "pricing-policy") assert.equal(stripW6(rel, stripN2(rel, unPersonnel(read(rel)))), git("show", `${PKG3_BASE}:${rel}`).replace(/\r\n/g, "\n"), f);
     else assert.equal(git("diff", PKG3_BASE, "--", rel), "", f);
   }
 });
@@ -646,6 +653,6 @@ test("pkg3 COLUMN_HELP unchanged; module safety; FORBIDDEN_RPCS identical; no CS
 test("pkg3 sw.js line 2 is the current v391 line (v390 UX-F1 release is kept in its comment)", () => {
   assert.equal(
     read("public/sw.js").split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v392"; // Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)',
+    'const CACHE_NAME = "hub-cache-v393"; // WP05-W506 Staff Governance personnel-confidentiality client gate (explicit projections, edit gating); v392 was Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)',
   );
 });

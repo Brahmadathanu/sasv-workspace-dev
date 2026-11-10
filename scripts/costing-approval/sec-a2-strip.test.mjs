@@ -1,5 +1,6 @@
 // SEC-A2 historical-guard helper (scripts/lib/sec-a2-strip.mjs): it must reverse exactly the SEC-A2 text and nothing else.
 // Base text is the immutable commit before SEC-A2 (main after #173). Needs full git history, like the other base-pinned tests.
+import { unPersonnel } from "../costing-w506-conf-client/unpersonnel.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -14,7 +15,7 @@ const PRE_SEC_A2 = "735ea40c9a372c65016e197b6bbacb9c1b689b15";
 const APPROVAL = "public/shared/js/costing-approval-screen.js";
 const SHELL = "public/shared/js/costing-suite-shell.js";
 const lf = (t) => t.replace(/\r\n/g, "\n");
-const head = (rel) => lf(fs.readFileSync(path.join(root, rel), "utf8"));
+const head = (rel) => unPersonnel(rel, lf(fs.readFileSync(path.join(root, rel), "utf8")));
 const base = (rel) => lf(execFileSync("git", ["show", `${PRE_SEC_A2}:${rel}`], { encoding: "utf8", cwd: root, maxBuffer: 64 * 1024 * 1024 }));
 
 test("approval screen: stripping the seven SEC-A2 hunks restores the pre-SEC-A2 file exactly", () => {

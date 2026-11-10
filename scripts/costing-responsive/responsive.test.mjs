@@ -1,6 +1,7 @@
 // CW-13: responsive hardening for the six Costing suite pages.
 // Static CSS contract tests always run. Browser checks need Playwright (chromium) and are skipped, not failed,
 // when it is unavailable; set COSTING_RESPONSIVE_SKIP=1 to skip them explicitly. No network, no Supabase.
+import { unPersonnel } from "../costing-w506-conf-client/unpersonnel.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -15,7 +16,7 @@ import { applyCw07Labels } from "../lib/costing-scope-guard.mjs";
 import { applyRunStatusDataset } from "../../public/shared/js/costing-run-status-badge.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
+const read = (rel) => unPersonnel(rel, fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n"));
 const SKIP_BROWSER = process.env.COSTING_RESPONSIVE_SKIP === "1";
 const css = read("public/shared/css/sasv-costing.css");
 const block = css.slice(css.indexOf("CW-13: responsive hardening"));

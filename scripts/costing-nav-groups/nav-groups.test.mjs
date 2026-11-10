@@ -1,4 +1,5 @@
 // MDC-07 / N1 unit + source-contract tests (node:test only; no network, no Supabase).
+import { unPersonnel } from "../costing-w506-conf-client/unpersonnel.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -24,7 +25,7 @@ import {
 import { buildNavContextModel, createNavContextStore, renderNavContextHtml } from "../../public/shared/js/costing-nav-context.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
+const read = (rel) => unPersonnel(rel, fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n"));
 const SHELL = read("public/shared/js/costing-suite-shell.js");
 const store = (v) => ({ getItem: (k) => (k === COSTING_NAV_GROUPS_V1 ? v : null) });
 
@@ -278,7 +279,7 @@ test("readSourceLf only normalises line endings: N1 additions stay visible to no
 });
 
 test("legacy comparison strip removes exactly the N1 additions: stripped sources equal the pre-N1 baseline", () => {
-  assert.equal(stripN1Shell(readSourceLf(root, SHELL_REL)), baseText(SHELL_REL).split("\n").join("\n"), "shell == pre-N1 shell");
+  assert.equal(stripN1Shell(unPersonnel(SHELL_REL, readSourceLf(root, SHELL_REL))), baseText(SHELL_REL).split("\n").join("\n"), "shell == pre-N1 shell");
   assert.equal(stripN1Flags(readSourceLf(root, FLAGS_REL)), baseText(FLAGS_REL), "flags == pre-N1 flags");
   assert.equal(stripN1("public/shared/js/costing-suite-registry.js", "x"), "x", "other files untouched");
   assert.equal(stripN1(SHELL_REL, "no n1 here\n"), "no n1 here\n");
