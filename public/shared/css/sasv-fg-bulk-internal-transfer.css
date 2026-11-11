@@ -390,3 +390,44 @@ body.sasv-fg-bit .modal-msg .msg-info { color: var(--sasv-info); background: var
 @media (prefers-reduced-motion: reduce) {
   body.sasv-fg-bit #homeBtn.sasv-home-btn:hover { transform: none; }
 }
+
+/* FG-BIT-UX-1 owner acceptance: clear narrow guidance affordance. */
+body.sasv-fg-bit .guidance-chevron {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 1.15em;
+  line-height: 1;
+  transition: transform 140ms ease;
+}
+body.sasv-fg-bit .guidance.is-open .guidance-chevron { transform: rotate(180deg); }
+
+/* Three-column desktop: all card shells reach the height of the tallest. */
+@media (min-width: 1001px) {
+  body.sasv-fg-bit .modal-cards { align-items: stretch; }
+  body.sasv-fg-bit .modal-cards > .mcard { height: 100%; }
+}
+
+/* Match native date/number/select control typography at narrow widths.
+   The 16px font keeps iOS from zooming the page on field focus. */
+@media (max-width: 760px) {
+  body.sasv-fg-bit .fgroup input,
+  body.sasv-fg-bit .fgroup select,
+  body.sasv-fg-bit .fgroup textarea {
+    font-size: 1rem;
+    line-height: 1.4;
+  }
+  body.sasv-fg-bit .fgroup input[type="date"] {
+    appearance: auto;
+    min-height: 40px;
+  }
+}
+
+/* Disabled while mandatory transfer details are incomplete. */
+body.sasv-fg-bit #submitBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.sasv-fg-bit .guidance-chevron { transition: none; }
+}
