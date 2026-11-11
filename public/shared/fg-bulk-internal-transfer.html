@@ -65,7 +65,7 @@
           aria-expanded="false"
           aria-controls="guidanceBody"
         >
-          Guidance
+          <span>Guidance</span><span class="guidance-chevron" aria-hidden="true">⌄</span>
         </button>
         <div class="guidance-body" id="guidanceBody">
           <strong>Guidance:</strong> Use this module only to physically relocate
@@ -303,6 +303,8 @@
           <button
             type="submit"
             id="submitBtn"
+            disabled
+            title="Complete the required transfer fields to enable posting"
             form="transferForm"
             class="btn btn-primary"
           >
