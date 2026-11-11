@@ -60,3 +60,19 @@ G0 active, 0/6 verified. This is a reviewed proposal candidate only. No SQL appl
 - **Runtime BLOCKED**: this execution host has no PostgreSQL binaries; package-source refresh timed out. The linked Supabase production project has no development branches. Do not substitute a production transaction for isolated fixture tests. No branch was created that might incur hourly charges. PostgreSQL 17.4 DDL installation, auth permutations, concurrent workers, trigger audit fidelity and rollback remain **unverified**.
 - S1 next exact step: run the candidate in an isolated PG 17.4 fixture database with module permission fixtures, then review results and create an approved migration PR. Do **not** apply the `docs/` candidate or move it directly to production migrations beforehand.
 - S2 next scoped client operation: use existing `proc_pec_indent_lines` and `openVendorModal` from Indents line view; do not synthesise missing L1/L2/L3 ranked candidates. Before saving, server still validates active vendor and reason/rate. Client must reload the indent line before showing post-save state; avoid blocking it behind a slow Action Queue refresh.
+
+## H. Isolated PostgreSQL S1 fixture and C2 client handoff — 2026-11-11
+
+The S1 verification package now contains:
+- `scripts/pec-erp-s1/fixture.sql` — **synthetic** schema, auth role/permission stub, auditable indent headers/lines, active PR links and vendor decisions. Does **not** contain user or production data.
+- `scripts/pec-erp-s1/verify.mjs` — uses the existing repo ephemeral Unix-socket PostgreSQL harness (`scripts/cde2-sql-candidate/pg-isolated.mjs`), creates a new isolated database, installs the exact review-only SQL candidate, tests real RPC calls under isolated `authenticated`/`anon` roles and checks denials. Requires **exact PostgreSQL 17.4**, otherwise exits **2 / fail closed**. A green run would be *synthetic fixtures only*, not signed-in production acceptance.
+- `scripts/pec-erp-s1-contract-smoke.mjs` — static candidate contract smoke, explicitly not a database test.
+
+**Execution command (isolated host with PostgreSQL 17.4):**
+`node scripts/pec-erp-s1/verify.mjs`.
+
+**Verification status in this environment:** PostgreSQL binaries are absent; the executable SQL runtime suite has **NOT RUN**. The independent source-invariant check previously returned 16/16 PASS. The fixture/runner were reviewed for coverage but have **not** produced a runtime PASS. Existing package-source access limitations remain. Before accepting G2, install/run exact PostgreSQL 17.4 and exercise concurrent sessions plus the actual server lifecycle audit implementation (the fixture uses an explicit representative trigger stub), then perform live schema parity/security read-back.
+
+**C2 client direction:** [issue #294](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/294) now contains exact autonomous client handoff: use current `proc_pec_indent_lines` line values, open existing `openVendorModal` with no fabricated L1–L3 data, permit manual active vendor search in draft status, save through existing `proc_indent_set_vendor_selection`, refresh indent line first rather than waiting for Action Queue publication, preserve role and reason checks. This requires **no new server writer** to make immediate manual draft selection reachable. No client C2 PR has been created by ChatGPT.
+
+**Release:** #291 remains unmerged with fresh-asset and signed-in gates; no changes to production SQL, worker, approvals or datasets.
