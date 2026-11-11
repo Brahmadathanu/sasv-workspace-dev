@@ -463,3 +463,40 @@ test("PWA-published route loads the real transfer form and HOME returns to Hub",
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test("owner acceptance: guidance chevron advertises expandability", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, height: 844 });
+  const chevron = page.locator(".guidance-chevron");
+  assert.equal(await chevron.isVisible(), true);
+  assert.equal(await page.getAttribute("#guidanceToggle", "aria-expanded"), "false");
+  await page.click("#guidanceToggle");
+  assert.equal(await page.getAttribute("#guidanceToggle", "aria-expanded"), "true");
+  assert.equal(await page.isVisible("#guidanceBody"), true);
+  await ctx.close();
+});
+
+test("owner acceptance: automatic paging hides routine Load more fallback", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 1100, height: 700 });
+  assert.equal(await page.isVisible("#sourceLoadMore"), false, "automatic mode does not present a routine button");
+  await page.evaluate(() => document.querySelector(".source-table-wrap").scrollTop = 100000);
+  await page.waitForFunction(() => document.querySelectorAll("#sourceTbody tr[data-idx]").length >= 100);
+  assert.equal(await page.isVisible("#sourceLoadMore"), false);
+  await ctx.close();
+});
+
+test("owner acceptance: three modal cards have equal desktop outer heights", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 1440, height: 900 });
+  await page.click("#sourceTbody tr[data-idx='1']");
+  const sizes = await page.locator(".modal-cards > .mcard").evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().height));
+  assert.equal(sizes.length, 3);
+  assert.ok(Math.max(...sizes) - Math.min(...sizes) < 1, JSON.stringify(sizes));
+  await ctx.close();
+});
+
+test("Electron compatibility entry preserves item, bn and hash in canonical route", { skip: SK }, async () => {
+  const { page, ctx } = await open();
+  await page.goto(`${base}/fg-bulk-internal-transfer.html?item=Test%20Item&bn=0111#entry`);
+  await page.waitForURL("**/public/shared/fg-bulk-internal-transfer.html?item=Test%20Item&bn=0111#entry");
+  assert.equal(await page.locator("h1").textContent(), "FG Bulk Internal Transfer");
+  await ctx.close();
+});
