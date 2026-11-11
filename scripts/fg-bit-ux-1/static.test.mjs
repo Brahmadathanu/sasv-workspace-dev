@@ -32,7 +32,7 @@ test("page: every element id used by the script still exists (IDs preserved)", (
 test("home: canonical helper class, accessible name, target unchanged", () => {
   assert.match(html, /id="homeBtn"[^>]*class="sasv-home-btn"|class="sasv-home-btn"[^>]*id="homeBtn"|id="homeBtn"\s+type="button"\s+class="sasv-home-btn"/);
   assert.match(js, /mountModuleHome\(els\.homeBtn\)/);
-  assert.match(js, /: "index\\.html"/);
+  assert.ok(js.includes(': "index.html"'), "Electron Home fallback preserved");
 });
 test("css: scoped to body.sasv-fg-bit, tokens only, no raw hex, no global selectors", () => {
   const stripped = css.replace(/\/\*[\s\S]*?\*\//g, "");
