@@ -38,7 +38,7 @@ export async function open({ cfg = {}, width = 1280, height = 800, ctxOpts = {} 
     blocked.push(u); return r.abort();
   });
   await page.addInitScript(({ cfg }) => { window.__cfg = cfg; }, { cfg });
-  await page.goto(`${base}/fg-bulk-internal-transfer.html`);
+  await page.goto(`${base}/shared/fg-bulk-internal-transfer.html`);
   await page.waitForSelector("#sourceTbody tr[data-idx]");
   return { page, ctx, errors, blocked };
 }
@@ -100,7 +100,7 @@ test("source list error and empty-filter states are readable (no rows, no crash)
     const errors = []; page.on("pageerror", (e) => errors.push(String(e)));
     await page.route("**/*", (r) => { const u = r.request().url(); if (u.startsWith(base)) return r.fallback(); if (u.startsWith("https://esm.sh/")) return r.fulfill({ contentType: "text/javascript", body: `import { createFake } from "${base}/scripts/fg-bit-ux-1/fake-supabase.mjs"; export const createClient = () => createFake(window.__cfg);` }); return r.abort(); });
     await page.addInitScript((c) => { window.__cfg = c; }, cfg);
-    await page.goto(`${base}/fg-bulk-internal-transfer.html`);
+    await page.goto(`${base}/shared/fg-bulk-internal-transfer.html`);
     await page.waitForSelector("#sourceTbody .empty-row");
     assert.match(await page.textContent("#sourceTbody"), re);
     assert.deepEqual(errors, []);
@@ -177,22 +177,34 @@ test("destination cascade, posting summary reaction, reset", { skip: SK }, async
   await ctx.close();
 });
 
-test("validation errors announce via alert and never post", { skip: SK }, async () => {
+test("Submit stays disabled until mandatory fields pass all local readiness rules", { skip: SK }, async () => {
   const { page, ctx } = await open();
   await page.click("#sourceTbody tr[data-idx='1'] td.col-item");
-  await page.click("#submitBtn");
-  assert.match(await page.textContent("#modalMsgArea"), /quantity must be greater than zero/i);
-  assert.equal(await page.locator("#modalMsgArea [role=alert]").count(), 1);
-  await page.fill("#transferQty", "99999"); await page.click("#submitBtn");
-  assert.match(await page.textContent("#modalMsgArea"), /cannot exceed/i);
-  await page.fill("#transferQty", "5"); await page.click("#submitBtn");
-  assert.match(await page.textContent("#modalMsgArea"), /section is required/i);
-  await page.selectOption("#dstSection", "1"); await page.selectOption("#dstSubsection", "11"); await page.selectOption("#dstArea", "101");
+  assert.equal(await page.$eval("#submitBtn", e => e.disabled), true, "initially disabled");
+  await page.fill("#transferQty", "99999");
+  assert.equal(await page.$eval("#submitBtn", e => e.disabled), true, "too large");
+  await page.fill("#transferQty", "5");
+  assert.equal(await page.$eval("#submitBtn", e => e.disabled), true, "no destination");
+  await page.selectOption("#dstSection", "1");
+  await page.selectOption("#dstSubsection", "11");
+  await page.selectOption("#dstArea", "101");
   await page.waitForFunction(() => document.querySelectorAll("#dstPlant option").length > 1);
   await page.selectOption("#dstPlant", "1001");
-  await page.click("#submitBtn");
-  assert.match(await page.textContent("#modalMsgArea"), /must differ/i);
+  assert.equal(await page.$eval("#submitBtn", e => e.disabled), true, "same location");
   assert.equal((await log(page, POST)).length, 0);
+  await page.selectOption("#dstSection", "2");
+  await page.selectOption("#dstArea", "201");
+  await page.waitForFunction(() => document.querySelectorAll("#dstPlant option").length > 1);
+  await page.selectOption("#dstPlant", "2001");
+  assert.equal(await page.$eval("#submitBtn", e => e.disabled), false, "valid destination");
+  await page.fill("#transferQty", "0");
+  assert.equal(await page.$eval("#submitBtn", e => e.disabled), true, "zero quantity");
+  await page.fill("#transferQty", "5");
+  assert.equal(await page.$eval("#submitBtn", e => e.disabled), false, "restored");
+  await page.fill("#transferDate", "");
+  assert.equal(await page.$eval("#submitBtn", e => e.disabled), true, "missing date");
+  await page.click("#resetBtn");
+  assert.equal(await page.$eval("#submitBtn", e => e.disabled), true, "reset");
   await ctx.close();
 });
 
@@ -209,7 +221,7 @@ test("post success (source remains): payload exact, modal stays, balance refresh
   assert.equal(posts[0].args.p_source_work_log_id, null);
   assert.equal(await modalHidden(page), false);
   assert.match(await page.textContent("#selectedSourceBody"), /91/);
-  assert.equal(await page.$eval("#submitBtn", (b) => b.disabled), false);
+  assert.equal(await page.$eval("#submitBtn", (b) => b.disabled), true, "must be disabled again after post");
   assert.equal(await page.inputValue("#transferQty"), "");
   assert.equal(await page.evaluate(() => document.getElementById("transferModal").contains(document.activeElement)), true);
   await ctx.close();
@@ -342,10 +354,10 @@ test("phone card list: rows are cards, selected state visible, no h-overflow; HO
   await ctx.close();
 });
 
-test("HOME navigates to index.html (target unchanged)", { skip: SK }, async () => {
+test("PWA HOME navigates to Utilities Hub", { skip: SK }, async () => {
   const { page, ctx } = await open();
-  await page.route("**/index.html", (r) => r.fulfill({ contentType: "text/html", body: "<title>home</title>" }));
-  await Promise.all([page.waitForURL("**/index.html"), page.click("#homeBtn")]);
+  await page.route("**/utilities-hub/index.html", (r) => r.fulfill({ contentType: "text/html", body: "<title>home</title>" }));
+  await Promise.all([page.waitForURL("**/utilities-hub/index.html"), page.click("#homeBtn")]);
   await ctx.close();
 });
 
@@ -374,8 +386,7 @@ test("320px short viewport: only .modal-body scrolls (wheel moves it, nothing el
 test("390x340 footer is really usable: real clicks on Reset/Cancel/Submit, message not covering last field", { skip: SK }, async () => {
   const { page, ctx } = await open({ width: 390, height: 340 });
   await page.click("#sourceTbody tr[data-idx='1']");
-  await page.click("#submitBtn"); // validation error appears in the footer
-  assert.equal(await page.locator("#modalMsgArea [role=alert]").isVisible(), true);
+  assert.equal(await page.$eval("#submitBtn", b => b.disabled), true, "incomplete form cannot submit");
   await page.locator("#remarks").scrollIntoViewIfNeeded();
   const g = await page.evaluate(() => { const r = document.querySelector("#remarks").getBoundingClientRect(), f = document.querySelector(".modal-footer").getBoundingClientRect(), b = document.querySelector(".modal-body").getBoundingClientRect(); return { remarksBottom: r.bottom, footTop: f.top, bodyBottom: b.bottom, footH: f.height, vh: innerHeight }; });
   assert.ok(g.remarksBottom <= g.footTop + 0.5, `last field not covered ${JSON.stringify(g)}`);
