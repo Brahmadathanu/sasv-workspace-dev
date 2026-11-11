@@ -97,7 +97,11 @@ self.addEventListener("fetch", (event) => {
     /costing-suite-pricing-policy\.js$/.test(url.pathname) ||
     /\/shared\/js\/eaushadhi-review-.*\.js$/.test(url.pathname) ||
     /\/shared\/js\/eaushadhi-.*\.js$/.test(url.pathname) ||
-    /\/shared\/css\/sasv-eaushadhi-review\.css$/.test(url.pathname)
+    /\/shared\/css\/sasv-eaushadhi-review\.css$/.test(url.pathname) ||
+    // FG-BIT-UX-1: the page HTML is network-first, so its script/stylesheet must
+    // be too, otherwise an installed PWA pairs new HTML with stale cached JS.
+    /\/shared\/js\/fg-bulk-internal-transfer\.js$/.test(url.pathname) ||
+    /\/shared\/css\/sasv-fg-bulk-internal-transfer\.css$/.test(url.pathname)
   ) {
     event.respondWith(
       (async () => {

@@ -1,0 +1,212 @@
+{
+  "fgBit-desktop": {
+    "body": {
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "backgroundColor": "rgb(244, 247, 248)",
+      "color": "rgb(21, 37, 40)",
+      "paddingTop": "20px",
+      "box": "1440x900"
+    },
+    "h1": {
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "fontSize": "18px",
+      "fontWeight": "600",
+      "color": "rgb(21, 37, 40)",
+      "letterSpacing": "-0.18px",
+      "box": "1299x23"
+    },
+    "home": {
+      "backgroundColor": "rgb(213, 239, 233)",
+      "color": "rgb(13, 77, 70)",
+      "borderTopColor": "rgba(20, 122, 108, 0.28)",
+      "borderRadius": "6px",
+      "fontSize": "13px",
+      "fontWeight": "600",
+      "minHeight": "36px",
+      "box": "89x36"
+    },
+    "search": {
+      "backgroundColor": "rgb(238, 248, 246)",
+      "borderTopColor": "rgba(20, 122, 108, 0.28)",
+      "borderRadius": "6px",
+      "fontSize": "13px",
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "box": "1152x36"
+    }
+  },
+  "fgBit-phone": {
+    "body": {
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "backgroundColor": "rgb(244, 247, 248)",
+      "color": "rgb(21, 37, 40)",
+      "paddingTop": "6px",
+      "box": "390x844"
+    },
+    "h1": {
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "fontSize": "17.28px",
+      "fontWeight": "600",
+      "color": "rgb(21, 37, 40)",
+      "letterSpacing": "-0.1728px",
+      "box": "330x22"
+    },
+    "home": {
+      "backgroundColor": "rgb(213, 239, 233)",
+      "color": "rgb(13, 77, 70)",
+      "borderTopColor": "rgba(20, 122, 108, 0.28)",
+      "borderRadius": "6px",
+      "fontSize": "13px",
+      "fontWeight": "600",
+      "minHeight": "36px",
+      "box": "36x36"
+    },
+    "search": {
+      "backgroundColor": "rgb(238, 248, 246)",
+      "borderTopColor": "rgba(20, 122, 108, 0.28)",
+      "borderRadius": "6px",
+      "fontSize": "13px",
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "box": "378x36"
+    }
+  },
+  "stockChecker-desktop": {
+    "body": {
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "backgroundColor": "rgb(244, 247, 248)",
+      "color": "rgb(21, 37, 40)",
+      "paddingTop": "20px",
+      "box": "1440x313"
+    },
+    "h1": {
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "fontSize": "18px",
+      "fontWeight": "600",
+      "color": "rgb(21, 37, 40)",
+      "letterSpacing": "-0.18px",
+      "box": "1036x23"
+    },
+    "home": {
+      "backgroundColor": "rgb(213, 239, 233)",
+      "color": "rgb(13, 77, 70)",
+      "borderTopColor": "rgba(20, 122, 108, 0.28)",
+      "borderRadius": "6px",
+      "fontSize": "13px",
+      "fontWeight": "600",
+      "minHeight": "36px",
+      "box": "67x36"
+    },
+    "search": {
+      "backgroundColor": "rgb(238, 248, 246)",
+      "borderTopColor": "rgba(20, 122, 108, 0.28)",
+      "borderRadius": "6px",
+      "fontSize": "14px",
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "box": "956x38"
+    }
+  },
+  "stockChecker-phone": {
+    "body": {
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "backgroundColor": "rgb(244, 247, 248)",
+      "color": "rgb(21, 37, 40)",
+      "paddingTop": "6px",
+      "box": "390x291"
+    },
+    "h1": {
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "fontSize": "17.28px",
+      "fontWeight": "600",
+      "color": "rgb(21, 37, 40)",
+      "letterSpacing": "-0.1728px",
+      "box": "141x22"
+    },
+    "home": {
+      "backgroundColor": "rgb(213, 239, 233)",
+      "color": "rgb(13, 77, 70)",
+      "borderTopColor": "rgba(20, 122, 108, 0.28)",
+      "borderRadius": "6px",
+      "fontSize": "13px",
+      "fontWeight": "600",
+      "minHeight": "36px",
+      "box": "14x36"
+    },
+    "search": {
+      "backgroundColor": "rgb(238, 248, 246)",
+      "borderTopColor": "rgba(20, 122, 108, 0.28)",
+      "borderRadius": "6px",
+      "fontSize": "14px",
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "box": "238x38"
+    }
+  },
+  "stockPurchaseExplorer-desktop": {
+    "body": {
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "backgroundColor": "rgb(244, 247, 248)",
+      "color": "rgb(21, 37, 40)",
+      "paddingTop": "20px",
+      "box": "1440x900"
+    },
+    "h1": {
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "fontSize": "18px",
+      "fontWeight": "600",
+      "color": "rgb(21, 37, 40)",
+      "letterSpacing": "normal",
+      "box": "229x23"
+    },
+    "home": {
+      "backgroundColor": "rgb(213, 239, 233)",
+      "color": "rgb(13, 77, 70)",
+      "borderTopColor": "rgba(20, 122, 108, 0.28)",
+      "borderRadius": "6px",
+      "fontSize": "13px",
+      "fontWeight": "600",
+      "minHeight": "36px",
+      "box": "89x36"
+    },
+    "search": {
+      "backgroundColor": "rgb(238, 248, 246)",
+      "borderTopColor": "rgba(20, 122, 108, 0.28)",
+      "borderRadius": "6px",
+      "fontSize": "13px",
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "box": "1298x36"
+    }
+  },
+  "stockPurchaseExplorer-phone": {
+    "body": {
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "backgroundColor": "rgb(244, 247, 248)",
+      "color": "rgb(21, 37, 40)",
+      "paddingTop": "12px",
+      "box": "390x844"
+    },
+    "h1": {
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "fontSize": "18px",
+      "fontWeight": "600",
+      "color": "rgb(21, 37, 40)",
+      "letterSpacing": "normal",
+      "box": "229x23"
+    },
+    "home": {
+      "backgroundColor": "rgb(213, 239, 233)",
+      "color": "rgb(13, 77, 70)",
+      "borderTopColor": "rgba(20, 122, 108, 0.28)",
+      "borderRadius": "6px",
+      "fontSize": "13px",
+      "fontWeight": "600",
+      "minHeight": "36px",
+      "box": "30x36"
+    },
+    "search": {
+      "backgroundColor": "rgb(238, 248, 246)",
+      "borderTopColor": "rgba(20, 122, 108, 0.28)",
+      "borderRadius": "6px",
+      "fontSize": "13px",
+      "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+      "box": "268x36"
+    }
+  }
+}

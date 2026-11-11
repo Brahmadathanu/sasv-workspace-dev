@@ -1,0 +1,48 @@
+name: FG-BIT-UX-1 acceptance
+on:
+  pull_request:
+    paths:
+      - 'fg-bulk-internal-transfer.html'
+      - 'public/shared/fg-bulk-internal-transfer.html'
+      - 'public/shared/js/fg-bulk-internal-transfer.js'
+      - 'public/shared/css/sasv-fg-bulk-internal-transfer.css'
+      - 'public/sw.js'
+      - 'scripts/fg-bit-ux-1/**'
+      - '.github/workflows/fg-bit-ux-1-acceptance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fg-bit-verification:
+    name: FG-BIT tests and ESLint (Node 22 / Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+      - name: Install test-only Chromium driver
+        timeout-minutes: 6
+        run: |
+          npm install --no-save --no-package-lock --ignore-scripts --prefer-offline playwright@1.62.1
+          npx playwright install chromium
+      - name: Verify test infrastructure is available
+        run: node -e "const p=require('playwright'); if (!p.chromium) process.exit(1)"
+      - name: ESLint changed code and tests
+        run: npx eslint public/shared/js/fg-bulk-internal-transfer.js public/sw.js scripts/fg-bit-ux-1/*.mjs
+      - name: FG-BIT full test suite
+        run: |
+          node --test scripts/fg-bit-ux-1/*.test.mjs | tee /tmp/fg-bit-results.txt
+          if grep -Eq '^# skipped [1-9]' /tmp/fg-bit-results.txt; then
+            echo 'FG-BIT tests skipped; acceptance gate cannot pass'
+            exit 1
+          fi
+        shell: bash
+      - name: Adjacent regression tests
+        run: node --test scripts/manage-activities/*.test.mjs scripts/costing-sw-freshness/*.mjs

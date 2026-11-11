@@ -1,0 +1,527 @@
+/* FG Bulk Internal Transfer — module-scoped SASV parity layer (FG-BIT-UX-1).
+   Scoped to body.sasv-fg-bit; semantic tokens only (no raw hex, no global or
+   shared-primitive edits). Reference modules: Stock Checker, Stock & Purchase
+   Explorer, Manage Activities. Narrow breakpoint = 520px as in the references.
+   Class names used by fg-bulk-internal-transfer.js are intentionally unchanged. */
+
+body.sasv-fg-bit {
+  margin: 0;
+  padding: var(--sasv-module-page-padding, 20px);
+  box-sizing: border-box;
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  font-size: var(--sasv-text-md, 0.875rem);
+  line-height: var(--sasv-lh-normal, 1.45);
+  color: var(--sasv-text);
+  background: var(--sasv-bg);
+  /* Fill-height shell: the source list scrolls internally. 100vh fallback
+     first, then dvh so mobile browser chrome does not clip the card. */
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+@media (max-width: 1080px) {
+  body.sasv-fg-bit { padding: var(--sasv-module-page-padding-md, 10px); }
+}
+@media (max-width: 520px) {
+  body.sasv-fg-bit { padding: var(--sasv-module-page-padding-sm, 6px); }
+}
+body.sasv-fg-bit * { box-sizing: border-box; }
+body.sasv-fg-bit [hidden] { display: none !important; }
+body.sasv-fg-bit.fgbit-modal-open { overflow: hidden; }
+
+.fgbit-sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* ── Header (Stock Checker .sc-header / Manage Activities .ma-header) ── */
+body.sasv-fg-bit .fgbit-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  margin: 0 0 12px; padding: 0 0 10px; flex-shrink: 0;
+  border-bottom: 1px solid var(--sasv-divider);
+}
+.fgbit-header-copy { flex: 1 1 auto; min-width: 0; text-align: left; }
+body.sasv-fg-bit .fgbit-title {
+  margin: 0; padding: 0; text-align: left;
+  font-size: 1.125rem; font-weight: var(--sasv-fw-semibold, 600);
+  letter-spacing: -0.01em; line-height: 1.25; color: var(--sasv-text);
+}
+body.sasv-fg-bit .fgbit-sub {
+  margin: 4px 0 0; font-size: var(--sasv-text-sm, 0.8125rem); font-weight: 400;
+  line-height: 1.4; color: var(--sasv-text-muted);
+}
+.fgbit-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: auto; }
+
+/* HOME — canonical tokens (as Manage Activities / Stock & Purchase Explorer) */
+body.sasv-fg-bit #homeBtn.sasv-home-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: auto; white-space: nowrap; flex-shrink: 0;
+  min-height: var(--sasv-control-md, 36px); padding: 6px 12px;
+  border: 1px solid var(--sasv-action-home-border); border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-action-home-bg); color: var(--sasv-action-home);
+  box-shadow: none; font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm, 0.8125rem); font-weight: var(--sasv-fw-semibold, 600);
+  cursor: pointer;
+}
+body.sasv-fg-bit #homeBtn.sasv-home-btn:hover {
+  background: var(--sasv-action-home-bg-hover); border-color: var(--sasv-action-home-bg-hover);
+  color: var(--sasv-action-home-fg-hover); transform: translateY(-1px); box-shadow: var(--sasv-shadow-sm);
+}
+body.sasv-fg-bit #homeBtn.sasv-home-btn:focus-visible { outline: 2px solid var(--sasv-focus-ring); outline-offset: 2px; }
+body.sasv-fg-bit #homeBtn svg { width: 16px; height: 16px; flex-shrink: 0; stroke: currentColor; }
+
+/* ── Main panel: flex-fill so the source card consumes remaining height ── */
+body.sasv-fg-bit main.panel {
+  display: flex; flex-direction: column; gap: 10px; flex: 1 1 auto; min-height: 0;
+  margin: 0; padding: 0; background: transparent; border: 0; box-shadow: none;
+}
+
+/* ── Guidance strip (warning tokens) ── */
+body.sasv-fg-bit .guidance {
+  margin: 0; padding: 8px 12px; flex-shrink: 0;
+  background: var(--sasv-warning-bg); border: 1px solid var(--sasv-warning-border);
+  border-radius: var(--sasv-radius-md); color: var(--sasv-warning);
+  font-size: var(--sasv-text-sm, 0.8125rem); line-height: 1.45;
+}
+body.sasv-fg-bit .guidance strong { color: inherit; }
+body.sasv-fg-bit .guidance-toggle {
+  display: none; background: none; border: 0; padding: 0; cursor: pointer;
+  color: inherit; font: inherit; font-weight: var(--sasv-fw-bold, 700);
+  min-height: 32px;
+}
+body.sasv-fg-bit .guidance-toggle:focus-visible { outline: 2px solid var(--sasv-focus-ring); outline-offset: 2px; border-radius: var(--sasv-radius-sm); }
+
+/* ── Filters (light-filled search treatment as Stock & Purchase Explorer) ── */
+body.sasv-fg-bit .filters-row { display: flex; gap: 8px; align-items: center; margin: 0; flex-shrink: 0; }
+body.sasv-fg-bit .filter-input-wrap { position: relative; display: flex; align-items: center; min-width: 0; }
+body.sasv-fg-bit .filter-item { flex: 1 1 auto; }
+body.sasv-fg-bit .filter-batch { flex: 0 1 240px; width: 240px; }
+body.sasv-fg-bit .filter-input-wrap input {
+  width: 100%; min-height: var(--sasv-control-md, 36px); height: var(--sasv-control-md, 36px);
+  padding: 6px 34px 6px 10px; font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm, 0.8125rem); color: var(--sasv-text);
+  border: 1px solid var(--sasv-search-select-border, var(--sasv-control-border));
+  border-radius: var(--sasv-radius-sm); background: var(--sasv-search-select-bg, var(--sasv-control-bg));
+  box-shadow: none;
+}
+body.sasv-fg-bit .filter-input-wrap input::placeholder { color: var(--sasv-text-muted); opacity: 1; }
+body.sasv-fg-bit .filter-input-wrap input:focus {
+  outline: 2px solid var(--sasv-focus-ring); outline-offset: 2px;
+  border-color: var(--sasv-action-primary); box-shadow: none;
+}
+body.sasv-fg-bit .input-clear-btn {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;
+  border: 0; background: transparent; color: var(--sasv-text-muted);
+  font-size: 1.125rem; line-height: 1; cursor: pointer; border-radius: var(--sasv-radius-sm);
+  min-height: 0; box-shadow: none;
+}
+body.sasv-fg-bit .input-clear-btn:hover { background: var(--sasv-selection-soft); color: var(--sasv-text); transform: translateY(-50%); }
+body.sasv-fg-bit .input-clear-btn:focus-visible { outline: 2px solid var(--sasv-focus-ring); outline-offset: 1px; }
+
+/* ── Source card + table ── */
+body.sasv-fg-bit .source-card {
+  display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden;
+  background: var(--sasv-surface); border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md); box-shadow: var(--sasv-shadow-sm);
+}
+body.sasv-fg-bit .source-card-hdr {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0;
+  padding: 8px 12px; background: var(--sasv-surface-soft); border-bottom: 1px solid var(--sasv-divider);
+  font-size: var(--sasv-text-xs, 0.75rem); font-weight: var(--sasv-fw-semibold, 600);
+  color: var(--sasv-text-secondary);
+}
+body.sasv-fg-bit .source-card-title { min-width: 0; }
+body.sasv-fg-bit .row-count { margin: 0; padding: 0; font-weight: 400; color: var(--sasv-text-muted); white-space: nowrap; }
+body.sasv-fg-bit .source-table-wrap {
+  flex: 1 1 auto; min-height: 200px; overflow: auto; overscroll-behavior: contain;
+}
+body.sasv-fg-bit .source-table-wrap:focus-visible { outline: 2px solid var(--sasv-focus-ring); outline-offset: -2px; }
+body.sasv-fg-bit .source-table {
+  width: 100%; min-width: 100%; border-collapse: collapse; table-layout: auto;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+}
+@media (min-width: 521px) {
+  body.sasv-fg-bit .source-table th.col-batch, body.sasv-fg-bit .source-table td.col-batch,
+  body.sasv-fg-bit .source-table th.col-num, body.sasv-fg-bit .source-table td.col-num,
+  body.sasv-fg-bit .source-table th.col-plant, body.sasv-fg-bit .source-table td.col-plant { width: 1%; white-space: nowrap; }
+  body.sasv-fg-bit .source-table th.col-item, body.sasv-fg-bit .source-table td.col-item { min-width: 140px; max-width: 320px; }
+  body.sasv-fg-bit .source-table th.col-section, body.sasv-fg-bit .source-table td.col-section,
+  body.sasv-fg-bit .source-table th.col-subsection, body.sasv-fg-bit .source-table td.col-subsection,
+  body.sasv-fg-bit .source-table th.col-area, body.sasv-fg-bit .source-table td.col-area { min-width: 90px; max-width: 220px; }
+}
+body.sasv-fg-bit .source-table thead th {
+  position: sticky; top: 0; z-index: var(--sasv-z-base, 1); padding: 8px 10px; text-align: left; white-space: nowrap;
+  background: var(--sasv-surface-soft); color: var(--sasv-text-secondary);
+  font-size: var(--sasv-text-xs, 0.75rem); font-weight: var(--sasv-fw-semibold, 600);
+  border-bottom: 1px solid var(--sasv-border-strong);
+}
+body.sasv-fg-bit .source-table thead th.col-num { text-align: right; }
+body.sasv-fg-bit .source-table tbody tr { cursor: pointer; border-bottom: 1px solid var(--sasv-divider); }
+body.sasv-fg-bit .source-table tbody tr:nth-child(even) { background: var(--sasv-surface-soft); }
+body.sasv-fg-bit .source-table tbody tr:hover { background: var(--sasv-action-secondary-hover); }
+body.sasv-fg-bit .source-table tbody tr.row-selected { background: var(--sasv-selection-soft); }
+body.sasv-fg-bit .source-table tbody tr:focus-visible { outline: 2px solid var(--sasv-focus-ring-strong-raw); outline-offset: -2px; }
+body.sasv-fg-bit .source-table tbody td {
+  padding: 7px 10px; color: var(--sasv-text); line-height: 1.35;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+body.sasv-fg-bit .source-table tbody td.col-num {
+  text-align: right; font-variant-numeric: tabular-nums; font-weight: var(--sasv-fw-medium, 500);
+  color: var(--sasv-success);
+}
+body.sasv-fg-bit .src-mobile-line { display: none; }
+body.sasv-fg-bit .source-table .empty-row { cursor: default; }
+body.sasv-fg-bit .source-table .empty-row td {
+  text-align: center; padding: 32px 12px; color: var(--sasv-text-muted); white-space: normal;
+}
+body.sasv-fg-bit .source-table .empty-row:hover { background: transparent; }
+
+body.sasv-fg-bit .source-footer {
+  display: flex; align-items: center; justify-content: center; gap: 12px; flex-shrink: 0;
+  padding: 8px 12px; border-top: 1px solid var(--sasv-divider); background: var(--sasv-surface-soft);
+}
+body.sasv-fg-bit .source-footer-status { font-size: var(--sasv-text-xs, 0.75rem); color: var(--sasv-text-muted); }
+body.sasv-fg-bit .source-sentinel { height: 1px; width: 100%; }
+
+/* ── Modal overlay + panel ── */
+body.sasv-fg-bit .modal-overlay {
+  position: fixed; inset: 0; z-index: var(--sasv-z-modal, 1100);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: rgba(15, 40, 42, 0.42);
+  overflow: hidden; /* scroll lives in .modal-body only */
+}
+body.sasv-fg-bit .modal-box {
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+  width: 100%; max-width: 1080px;
+  max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px);
+  background: var(--sasv-surface); color: var(--sasv-text);
+  border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-lg);
+  box-shadow: var(--sasv-shadow-lg); overflow: hidden;
+}
+body.sasv-fg-bit .modal-hdr {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px; background: var(--sasv-surface); border-bottom: 1px solid var(--sasv-divider);
+}
+body.sasv-fg-bit .modal-hdr-text { min-width: 0; }
+body.sasv-fg-bit .modal-hdr-text h2 {
+  margin: 0; font-size: var(--sasv-text-lg, 1rem); font-weight: var(--sasv-fw-semibold, 600);
+  line-height: 1.3; color: var(--sasv-text);
+}
+body.sasv-fg-bit .modal-hdr-sub { margin-top: 2px; font-size: var(--sasv-text-sm, 0.8125rem); color: var(--sasv-text-muted); }
+body.sasv-fg-bit .modal-close {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: var(--sasv-control-md, 36px); height: var(--sasv-control-md, 36px); min-height: 0; padding: 0;
+  background: var(--sasv-surface-soft); border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm); color: var(--sasv-text-secondary);
+  font-size: 1.25rem; line-height: 1; cursor: pointer; box-shadow: none;
+}
+body.sasv-fg-bit .modal-close:hover { background: var(--sasv-selection-soft); color: var(--sasv-text); transform: none; }
+body.sasv-fg-bit .modal-close:focus-visible { outline: 2px solid var(--sasv-focus-ring); outline-offset: 2px; }
+body.sasv-fg-bit .modal-close svg { width: 16px; height: 16px; }
+
+body.sasv-fg-bit .modal-body {
+  min-height: 0; padding: 16px; overflow-y: auto; overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+/* Desktop: source (compact) | entry (primary, widest) | summary (compact) */
+body.sasv-fg-bit .modal-cards {
+  display: grid; gap: 12px; align-items: start;
+  grid-template-columns: minmax(200px, 0.8fr) minmax(340px, 1.7fr) minmax(200px, 0.9fr);
+}
+/* Intermediate: entry gets the full left side; source + summary stack right */
+@media (max-width: 1000px) {
+  body.sasv-fg-bit .modal-cards {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    grid-template-areas: "entry source" "entry summary";
+  }
+  body.sasv-fg-bit .mcard-source { grid-area: source; }
+  body.sasv-fg-bit .mcard-entry { grid-area: entry; }
+  body.sasv-fg-bit .mcard-summary { grid-area: summary; }
+}
+/* Narrow: single column — source, entry, summary in reading/DOM order */
+@media (max-width: 760px) {
+  body.sasv-fg-bit .modal-cards { grid-template-columns: minmax(0, 1fr); grid-template-areas: none; }
+  body.sasv-fg-bit .mcard-source, body.sasv-fg-bit .mcard-entry, body.sasv-fg-bit .mcard-summary { grid-area: auto; }
+}
+
+/* ── Cards: one neutral surface hierarchy; entry card carries the accent ── */
+body.sasv-fg-bit .mcard {
+  min-width: 0; display: flex; flex-direction: column; overflow: visible;
+  background: var(--sasv-surface-soft); border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-md);
+}
+body.sasv-fg-bit .mcard-entry { background: var(--sasv-surface); border-color: var(--sasv-action-primary-soft-border); }
+body.sasv-fg-bit .mcard-title {
+  margin: 0; padding: 8px 12px; border-bottom: 1px solid var(--sasv-divider);
+  border-radius: var(--sasv-radius-md) var(--sasv-radius-md) 0 0;
+  font-size: var(--sasv-text-xs, 0.75rem); font-weight: var(--sasv-fw-semibold, 600);
+  letter-spacing: 0.02em; text-transform: uppercase; color: var(--sasv-text-secondary);
+}
+body.sasv-fg-bit .mcard-entry .mcard-title { color: var(--sasv-action-primary-active); background: var(--sasv-action-primary-soft); }
+body.sasv-fg-bit .mcard-body { padding: 12px; font-size: var(--sasv-text-md, 0.875rem); overflow: visible; }
+
+body.sasv-fg-bit .src-rows, body.sasv-fg-bit .sum-rows { display: flex; flex-direction: column; gap: 8px; }
+body.sasv-fg-bit .src-field, body.sasv-fg-bit .sum-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+body.sasv-fg-bit .src-lbl, body.sasv-fg-bit .sum-lbl {
+  font-size: var(--sasv-text-xs, 0.75rem); font-weight: var(--sasv-fw-semibold, 600); color: var(--sasv-text-muted);
+}
+body.sasv-fg-bit .src-val, body.sasv-fg-bit .sum-val {
+  color: var(--sasv-text); line-height: 1.35; overflow-wrap: anywhere;
+}
+body.sasv-fg-bit .src-val { font-weight: var(--sasv-fw-medium, 500); }
+body.sasv-fg-bit .src-val.prominent { font-weight: var(--sasv-fw-bold, 700); }
+body.sasv-fg-bit .src-val.available, body.sasv-fg-bit .sum-val.qty { font-size: var(--sasv-text-lg, 1rem); font-weight: var(--sasv-fw-bold, 700); color: var(--sasv-success); }
+body.sasv-fg-bit .sum-val.accent { color: var(--sasv-action-primary-active); font-weight: var(--sasv-fw-semibold, 600); }
+body.sasv-fg-bit .sum-val-sub { font-size: var(--sasv-text-xs, 0.75rem); color: var(--sasv-text-muted); }
+body.sasv-fg-bit .src-divider, body.sasv-fg-bit .sum-divider { border: 0; border-top: 1px solid var(--sasv-divider); margin: 2px 0; width: 100%; }
+body.sasv-fg-bit .muted-text { color: var(--sasv-text-muted); font-style: italic; font-size: var(--sasv-text-sm, 0.8125rem); }
+
+/* ── Entry form ── */
+body.sasv-fg-bit .form-stack { display: flex; flex-direction: column; gap: 12px; }
+body.sasv-fg-bit .form-row-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+body.sasv-fg-bit .fgroup { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+body.sasv-fg-bit .fgroup label { font-size: var(--sasv-text-xs, 0.75rem); font-weight: var(--sasv-fw-semibold, 600); color: var(--sasv-text-secondary); }
+body.sasv-fg-bit .opt-note { font-weight: 400; color: var(--sasv-text-muted); }
+body.sasv-fg-bit .fgroup input, body.sasv-fg-bit .fgroup select, body.sasv-fg-bit .fgroup textarea {
+  width: 100%; min-width: 0; min-height: var(--sasv-control-md, 36px); padding: 6px 10px;
+  font-family: var(--sasv-font-sans); font-size: var(--sasv-text-sm, 0.8125rem); color: var(--sasv-text);
+  background: var(--sasv-control-bg); border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm); box-shadow: none;
+}
+body.sasv-fg-bit .fgroup select { text-overflow: ellipsis; }
+body.sasv-fg-bit .fgroup input:focus, body.sasv-fg-bit .fgroup select:focus, body.sasv-fg-bit .fgroup textarea:focus {
+  outline: 2px solid var(--sasv-focus-ring); outline-offset: 2px; border-color: var(--sasv-control-border-focus);
+}
+body.sasv-fg-bit .fgroup select:disabled { background: var(--sasv-surface-soft); color: var(--sasv-text-muted); cursor: not-allowed; }
+body.sasv-fg-bit .fgroup textarea { resize: vertical; min-height: 56px; }
+body.sasv-fg-bit .dst-fieldset { margin: 0; padding: 10px 0 0; border: 0; border-top: 1px solid var(--sasv-divider); min-width: 0; }
+body.sasv-fg-bit .dst-legend {
+  padding: 0 8px 0 0; font-size: var(--sasv-text-xs, 0.75rem); font-weight: var(--sasv-fw-semibold, 600);
+  color: var(--sasv-text-secondary);
+}
+body.sasv-fg-bit .dst-fieldset > .form-stack { margin-top: 8px; }
+
+/* ── Footer action bar ── */
+body.sasv-fg-bit .modal-footer {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 16px;
+  background: var(--sasv-surface-soft); border-top: 1px solid var(--sasv-divider);
+}
+body.sasv-fg-bit .fgbit-footer-spacer { flex: 1 1 0; }
+body.sasv-fg-bit .modal-msg { flex: 1 0 100%; order: -1; font-size: var(--sasv-text-sm, 0.8125rem); max-height: 6.5em; overflow-y: auto; }
+body.sasv-fg-bit .modal-msg:empty { display: none; }
+body.sasv-fg-bit .modal-msg .msg-success, body.sasv-fg-bit .modal-msg .msg-error, body.sasv-fg-bit .modal-msg .msg-info {
+  display: block; padding: 6px 10px; border: 1px solid; border-radius: var(--sasv-radius-sm); font-weight: var(--sasv-fw-medium, 500);
+  overflow-wrap: anywhere;
+}
+body.sasv-fg-bit .modal-msg .msg-success { color: var(--sasv-success); background: var(--sasv-success-bg); border-color: var(--sasv-success-border); }
+body.sasv-fg-bit .modal-msg .msg-error { color: var(--sasv-danger); background: var(--sasv-danger-bg); border-color: var(--sasv-danger-border); }
+body.sasv-fg-bit .modal-msg .msg-info { color: var(--sasv-info); background: var(--sasv-info-bg); border-color: var(--sasv-info-border); }
+
+/* ── Narrow phones (<=520px): card list + full-screen modal workspace ── */
+@media (max-width: 520px) {
+  body.sasv-fg-bit .fgbit-title { font-size: 1.08rem; }
+  body.sasv-fg-bit .fgbit-sub, body.sasv-fg-bit .source-card-title { display: none; }
+  body.sasv-fg-bit #homeBtn.sasv-home-btn { padding: 6px; gap: 0; min-width: var(--sasv-control-md, 36px); }
+  body.sasv-fg-bit #homeBtn .home-label {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0, 0, 0, 0); white-space: nowrap;
+  }
+  body.sasv-fg-bit .filters-row { flex-direction: column; align-items: stretch; gap: 6px; }
+  body.sasv-fg-bit .filter-batch { flex: 1 1 auto; width: 100%; }
+  body.sasv-fg-bit .guidance { padding: 4px 10px; }
+  body.sasv-fg-bit .guidance-toggle { display: inline-flex; align-items: center; }
+  body.sasv-fg-bit .guidance-body { display: none; }
+  body.sasv-fg-bit .guidance.is-open .guidance-body { display: block; margin: 4px 0 6px; }
+  body.sasv-fg-bit .source-table-wrap { padding: 8px; min-height: 160px; }
+
+  body.sasv-fg-bit .source-table, body.sasv-fg-bit .source-table tbody { display: block; width: 100%; min-width: 0; }
+  body.sasv-fg-bit .source-table thead { display: none; }
+  body.sasv-fg-bit .source-table tbody tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px;
+    padding: 10px 12px; margin: 0 0 8px; border: 1px solid var(--sasv-border);
+    border-radius: var(--sasv-radius-md); background: var(--sasv-surface); box-shadow: var(--sasv-shadow-sm);
+  }
+  body.sasv-fg-bit .source-table tbody tr:nth-child(even) { background: var(--sasv-surface-soft); }
+  body.sasv-fg-bit .source-table tbody tr.row-selected,
+  body.sasv-fg-bit .source-table tbody tr:nth-child(even).row-selected {
+    background: var(--sasv-selection-soft); border-color: var(--sasv-action-primary-soft-border);
+  }
+  body.sasv-fg-bit .source-table tbody td { display: block; padding: 0; white-space: normal; overflow: visible; text-overflow: clip; }
+  body.sasv-fg-bit .source-table tbody td.col-section, body.sasv-fg-bit .source-table tbody td.col-subsection,
+  body.sasv-fg-bit .source-table tbody td.col-area, body.sasv-fg-bit .source-table tbody td.col-plant { display: none; }
+  body.sasv-fg-bit .source-table tbody td.col-item { grid-column: 1; grid-row: 1; font-weight: var(--sasv-fw-bold, 700); overflow-wrap: anywhere; }
+  body.sasv-fg-bit .source-table tbody td.col-num { grid-column: 2; grid-row: 1; text-align: right; font-weight: var(--sasv-fw-bold, 700); white-space: nowrap; }
+  body.sasv-fg-bit .source-table tbody td.col-batch { grid-column: 1 / -1; grid-row: 2; font-size: var(--sasv-text-xs, 0.75rem); color: var(--sasv-text-secondary); }
+  body.sasv-fg-bit .src-mobile-line {
+    display: block; grid-column: 1 / -1; margin-top: 2px; font-size: var(--sasv-text-xs, 0.75rem); color: var(--sasv-text-muted);
+  }
+  body.sasv-fg-bit .source-table .empty-row { display: block; border: 0; box-shadow: none; background: transparent; padding: 0; }
+
+  /* Full-screen workspace: header / scrolling body / action bar */
+  body.sasv-fg-bit .modal-overlay { padding: 0; align-items: stretch; }
+  body.sasv-fg-bit .modal-box {
+    max-width: none; height: 100vh; height: 100dvh; max-height: none; border: 0; border-radius: 0;
+  }
+  body.sasv-fg-bit .modal-hdr { padding: calc(10px + env(safe-area-inset-top, 0px)) calc(12px + env(safe-area-inset-right, 0px)) 10px calc(12px + env(safe-area-inset-left, 0px)); }
+  body.sasv-fg-bit .modal-body { padding: 12px calc(12px + env(safe-area-inset-right, 0px)) 12px calc(12px + env(safe-area-inset-left, 0px)); }
+  body.sasv-fg-bit .form-row-2 { grid-template-columns: minmax(0, 1fr); }
+  body.sasv-fg-bit .fgroup input, body.sasv-fg-bit .fgroup select, body.sasv-fg-bit .fgroup textarea { font-size: 1rem; } /* avoids iOS focus zoom */
+  body.sasv-fg-bit .modal-footer {
+    padding: 8px calc(12px + env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) calc(12px + env(safe-area-inset-left, 0px));
+  }
+  body.sasv-fg-bit .fgbit-footer-spacer { display: none; }
+  body.sasv-fg-bit .modal-footer .btn { flex: 1 1 0; min-height: var(--sasv-control-lg, 40px); }
+  body.sasv-fg-bit #submitBtn { flex: 2 1 0; order: 3; }
+  body.sasv-fg-bit #cancelBtn { order: 2; }
+  body.sasv-fg-bit #resetBtn { order: 1; }
+}
+
+/* Short landscape / short desktop windows: tighter chrome, body keeps the scroll */
+@media (max-height: 520px) {
+  body.sasv-fg-bit .modal-overlay { padding: 0; }
+  body.sasv-fg-bit .modal-box { max-height: 100vh; max-height: 100dvh; border-radius: 0; }
+  body.sasv-fg-bit .modal-hdr { padding-top: 8px; padding-bottom: 8px; }
+  body.sasv-fg-bit .modal-hdr-sub { display: none; }
+  body.sasv-fg-bit .modal-footer { padding-top: 6px; padding-bottom: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.sasv-fg-bit #homeBtn.sasv-home-btn:hover { transform: none; }
+}
+
+/* FG-BIT-UX-1 owner acceptance: clear narrow guidance affordance. */
+body.sasv-fg-bit .guidance-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  color: var(--sasv-warning);
+  transition: transform 160ms ease;
+}
+body.sasv-fg-bit .guidance-indicator svg { width: 20px; height: 20px; }
+body.sasv-fg-bit .guidance.is-open .guidance-indicator { transform: rotate(180deg); }
+@media (max-width: 520px) {
+  body.sasv-fg-bit .guidance-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+    gap: 12px;
+  }
+}
+
+/* Three-column desktop: all card shells reach the height of the tallest. */
+@media (min-width: 1001px) {
+  body.sasv-fg-bit .modal-cards { align-items: stretch; }
+  body.sasv-fg-bit .modal-cards > .mcard { height: 100%; }
+}
+
+/* Consistent field hierarchy: compact on desktop, clear and touch-safe on
+   narrow screens. The CSS input font stays >=16px on mobile to prevent
+   Safari/iOS focus zoom; surrounding labels are brought into proportion. */
+body.sasv-fg-bit .fgroup label {
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  line-height: 1.35;
+}
+body.sasv-fg-bit .fgroup input,
+body.sasv-fg-bit .fgroup select,
+body.sasv-fg-bit .fgroup textarea {
+  font-size: var(--sasv-text-md, 0.875rem);
+  line-height: 1.35;
+}
+body.sasv-fg-bit .fgroup input[type="date"] {
+  color-scheme: light;
+}
+body.sasv-fg-bit .fgroup input[type="date"]::-webkit-datetime-edit {
+  font: inherit;
+  line-height: inherit;
+}
+@media (max-width: 760px) {
+  body.sasv-fg-bit .form-stack { gap: 10px; }
+  body.sasv-fg-bit .fgroup { gap: 5px; }
+  body.sasv-fg-bit .fgroup label {
+    font-size: 0.875rem;
+    line-height: 1.3;
+  }
+  body.sasv-fg-bit .fgroup input,
+  body.sasv-fg-bit .fgroup select,
+  body.sasv-fg-bit .fgroup textarea {
+    /* 16px is deliberate: smaller text triggers auto-zoom on iOS Safari. */
+    font-size: 16px;
+    line-height: 1.25;
+    min-height: 42px;
+    padding: 8px 10px;
+    font-weight: 400;
+    letter-spacing: normal;
+  }
+  body.sasv-fg-bit .fgroup input[type="date"] {
+    appearance: auto;
+    -webkit-appearance: auto;
+    min-height: 42px;
+    padding-right: 8px;
+  }
+  body.sasv-fg-bit .fgroup input[type="date"]::-webkit-datetime-edit,
+  body.sasv-fg-bit .fgroup input[type="date"]::-webkit-date-and-time-value {
+    font: inherit;
+    font-size: 16px;
+    line-height: 1.25;
+    letter-spacing: normal;
+  }
+  body.sasv-fg-bit .dst-legend {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+  }
+  body.sasv-fg-bit .mcard-body { font-size: 0.875rem; }
+}
+
+
+/* Screenshot acceptance: narrow Chromium fields match surrounding 14px typography.
+   iOS Safari alone retains 16px to prevent automatic zoom on focus. */
+body.sasv-fg-bit { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+@media (max-width: 760px) {
+  body.sasv-fg-bit .fgroup label,
+  body.sasv-fg-bit .fgroup input,
+  body.sasv-fg-bit .fgroup select,
+  body.sasv-fg-bit .fgroup textarea {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+  body.sasv-fg-bit .fgroup input,
+  body.sasv-fg-bit .fgroup select,
+  body.sasv-fg-bit .fgroup textarea {
+    min-height: 40px;
+    padding: 7px 10px;
+  }
+  body.sasv-fg-bit .fgroup input[type="date"]::-webkit-datetime-edit,
+  body.sasv-fg-bit .fgroup input[type="date"]::-webkit-date-and-time-value {
+    font: inherit;
+    font-size: 14px;
+    line-height: 1.35;
+  }
+}
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 760px) {
+    body.sasv-fg-bit .fgroup input,
+    body.sasv-fg-bit .fgroup select,
+    body.sasv-fg-bit .fgroup textarea,
+    body.sasv-fg-bit .fgroup input[type="date"]::-webkit-datetime-edit,
+    body.sasv-fg-bit .fgroup input[type="date"]::-webkit-date-and-time-value { font-size: 16px; }
+    body.sasv-fg-bit .fgroup label { font-size: 15px; }
+  }
+}
+
+/* Disabled while mandatory transfer details are incomplete. */
+body.sasv-fg-bit #submitBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.sasv-fg-bit .guidance-indicator { transition: none; }
+}

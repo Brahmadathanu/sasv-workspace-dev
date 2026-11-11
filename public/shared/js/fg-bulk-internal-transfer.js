@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient.js";
+import { mountModuleHome, mountModuleIcon } from "./sasv-module-chrome.js";
 
 // FG Bulk Internal Transfer - modal-driven ERP UX
 // DB / RPC contract preserved exactly.
@@ -13,9 +14,14 @@ const state = {
   sourceTotalRows: 0,
   sourceOffset: 0,
   sourceHasMore: true,
+  sourceLoadError: false,
   sourceIsLoading: false,
   sourceQueryVersion: 0,
   selectedSourceIdentity: null,
+  // Modal lifecycle (FG-BIT-UX-1): posting guard + focus return target
+  isPosting: false,
+  openerIdx: null,
+  openerKey: null,
 };
 
 // Debounce handle for filter inputs
@@ -85,6 +91,7 @@ function showMessage(type, text) {
         ? "msg-error"
         : "msg-info";
   span.textContent = text;
+  if (type === "error") span.setAttribute("role", "alert");
   els.modalMsgArea.appendChild(span);
 }
 
@@ -109,7 +116,9 @@ function fmtQty(v) {
 async function requireSession() {
   const { data: { session } = {} } = await supabase.auth.getSession();
   if (!session) {
-    window.location.href = "login.html";
+    window.location.href = window.location.protocol === "file:"
+      ? "../../login.html"
+      : "/utilities-hub/index.html";
     throw new Error("No session");
   }
   return session;
@@ -128,6 +137,7 @@ async function loadSourceStock({ reset = false } = {}) {
     state.sourceRows = [];
     state.sourceOffset = 0;
     state.sourceHasMore = true;
+    state.sourceLoadError = false;
   }
 
   state.sourceIsLoading = true;
@@ -166,6 +176,7 @@ async function loadSourceStock({ reset = false } = {}) {
   state.sourceIsLoading = false;
 
   if (error) {
+    state.sourceLoadError = true;
     console.error("loadSourceStock:", error);
     // Preserve any rows already loaded; only show a hard error when empty.
     if (!state.sourceRows.length) {
@@ -177,6 +188,7 @@ async function loadSourceStock({ reset = false } = {}) {
     return;
   }
 
+  state.sourceLoadError = false;
   const rows = Array.isArray(data) ? data : [];
 
   if (reset) {
@@ -300,7 +312,7 @@ function onSourceFilterChanged() {
 function renderSourceFooter() {
   const loaded = state.sourceRows.length;
   const loadingMore = state.sourceIsLoading && loaded > 0;
-  const showLoadMore = state.sourceHasMore && !state.sourceIsLoading && loaded > 0;
+  const showLoadMore = state.sourceHasMore && !state.sourceIsLoading && loaded > 0 && (!sourceObserver || state.sourceLoadError);
 
   if (els.sourceFooterStatus) {
     els.sourceFooterStatus.textContent = loadingMore ? "Loading more…" : "";
@@ -367,14 +379,19 @@ function maybeAutoLoadMore() {
 }
 
 function setupSourceInfiniteObserver() {
-  if (!els.sourceSentinel || !els.sourceTableWrap) return;
+  if (!els.sourceSentinel || !els.sourceTableWrap || typeof IntersectionObserver === "undefined") {
+    sourceObserver = null;
+    renderSourceFooter(); // accessible fallback when auto-paging is unavailable
+    return;
+  }
   if (sourceObserver) sourceObserver.disconnect();
 
   sourceObserver = new IntersectionObserver(
     (entries) => {
       const first = entries && entries[0];
       if (!first || !first.isIntersecting) return;
-      if (state.sourceIsLoading || !state.sourceHasMore) return;
+      // After an auto-load error, pause observer retries until the user chooses recovery.
+      if (state.sourceIsLoading || !state.sourceHasMore || state.sourceLoadError) return;
       loadSourceStock({ reset: false });
     },
     {
@@ -385,6 +402,7 @@ function setupSourceInfiniteObserver() {
   );
 
   sourceObserver.observe(els.sourceSentinel);
+  renderSourceFooter(); // hide manual fallback when automatic paging is working
 }
 
 // Combine section / sub-section / area into one readable Location label.
@@ -424,7 +442,7 @@ function renderSourceTable() {
       const available = formatAvailable(r);
       // Secondary line for the <=520px card layout only.
       const mobileLine = `${escapeHtml(formatLocationLabel(r))} · ${plant}`;
-      return `<tr data-idx="${idx}" class="${sel}">
+      return `<tr data-idx="${idx}" class="${sel}" tabindex="0">
         <td class="col-item" title="${item}">${item}</td>
         <td class="col-batch" title="${batch}">${batch}</td>
         <td class="col-num">${available}</td>
@@ -448,7 +466,18 @@ function handleSourceRowClick(ev) {
   if (!tr) return;
   const idx = Number(tr.dataset.idx);
   const row = state.sourceRows[idx];
-  if (row) openTransferModal(row);
+  if (row) openTransferModal(row, idx);
+}
+
+// Keyboard activation for source rows (Enter / Space).
+function handleSourceRowKeydown(ev) {
+  if (ev.key !== "Enter" && ev.key !== " ") return;
+  const tr = ev.target.closest && ev.target.closest("tr[data-idx]");
+  if (!tr || ev.target !== tr) return;
+  ev.preventDefault();
+  const idx = Number(tr.dataset.idx);
+  const row = state.sourceRows[idx];
+  if (row) openTransferModal(row, idx);
 }
 
 /* -- Selection & modal ------------------------------------- */
@@ -467,20 +496,88 @@ function clearSelectedSource() {
   renderSourceTable();
 }
 
-function openTransferModal(row) {
+function openTransferModal(row, idx = null) {
+  state.openerIdx = Number.isInteger(idx) ? idx : null;
+  state.openerKey = row.source_key ?? null;
   selectSourceRow(row);
   populateSelectedSourceCard(row);
   resetTransferForm();
   clearMessage();
   els.transferModal.removeAttribute("hidden");
-  // Defer focus so the modal is visible first
-  setTimeout(() => els.transferDate && els.transferDate.focus(), 60);
+  setBackgroundInert(true);
+  // Initial focus: first field, applied synchronously once the dialog is shown.
+  if (els.transferDate) els.transferDate.focus();
+}
+
+// Background (header + main) is inert while the modal is open so focus and
+// pointer interaction cannot reach the page behind it.
+function setBackgroundInert(on) {
+  document.body.classList.toggle("fgbit-modal-open", on);
+  document.querySelectorAll("body > header, body > main").forEach((el) => {
+    if (on) el.setAttribute("inert", "");
+    else el.removeAttribute("inert");
+  });
+}
+
+// Return focus to the originating row; if the list was refreshed and the row
+// is gone, fall back deterministically to the source list scroll region.
+function restoreOpenerFocus() {
+  const { openerIdx, openerKey } = state;
+  state.openerIdx = null;
+  state.openerKey = null;
+  let target = null;
+  if (openerKey !== null && els.sourceTbody) {
+    const rows = els.sourceTbody.querySelectorAll("tr[data-idx]");
+    for (const tr of rows) {
+      const r = state.sourceRows[Number(tr.dataset.idx)];
+      if (r && (r.source_key ?? null) === openerKey) {
+        target = tr;
+        break;
+      }
+    }
+  }
+  if (!target) target = els.sourceTableWrap || els.filterItem;
+  if (target && target.focus) target.focus({ preventScroll: false });
+  return openerIdx;
+}
+
+// User-initiated close (Esc / backdrop / X / Cancel). Ignored while posting so
+// an in-flight transfer cannot be orphaned or double-submitted.
+function requestCloseTransferModal() {
+  if (state.isPosting) return;
+  closeTransferModal();
 }
 
 function closeTransferModal() {
   els.transferModal.setAttribute("hidden", "");
+  setBackgroundInert(false);
   clearMessage();
   clearSelectedSource(); // closing clears selection highlight per requirement
+  restoreOpenerFocus();
+}
+
+// Keep Tab / Shift+Tab inside the dialog.
+function trapModalTab(e) {
+  if (e.key !== "Tab" || els.transferModal.hasAttribute("hidden")) return;
+  const focusables = Array.from(
+    els.transferModal.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((el) => !el.disabled && !el.hidden && el.getClientRects().length);
+  if (!focusables.length) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  const active = document.activeElement;
+  if (!els.transferModal.contains(active)) {
+    e.preventDefault();
+    first.focus();
+  } else if (e.shiftKey && active === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault();
+    first.focus();
+  }
 }
 
 function populateSelectedSourceCard(row) {
@@ -541,7 +638,7 @@ function populateDestinationSections() {
 
 function populateDestinationSubsections(sectionId) {
   const sel = els.dstSubsection;
-  sel.innerHTML = '<option value="">- None / Not applicable -</option>';
+  sel.innerHTML = '<option value="">- Select Sub-section -</option>';
   const subs = state.masters.subsections.filter(
     (s) => String(s.section_id) === String(sectionId),
   );
@@ -556,6 +653,7 @@ function populateDestinationSubsections(sectionId) {
     o.textContent = s.subsection_name;
     sel.appendChild(o);
   });
+  syncSubmitReadiness();
 }
 
 function populateDestinationAreas(sectionId, subsectionId) {
@@ -564,17 +662,13 @@ function populateDestinationAreas(sectionId, subsectionId) {
   sel.disabled = true;
   if (!sectionId) return;
 
-  // When a subsection is selected, narrow to matching areas.
-  // When no subsection is selected, show all areas for the section to avoid
-  // incorrectly hiding areas that are valid without a subsection context.
-  let areas = state.masters.areas.filter(
-    (a) => String(a.section_id) === String(sectionId),
+  // Governed master hierarchy: every area belongs to a subsection.
+  // No cross-subsection area selection is permitted.
+  if (!subsectionId) return;
+  const areas = state.masters.areas.filter(
+    (a) => String(a.section_id) === String(sectionId) &&
+      String(a.subsection_id) === String(subsectionId),
   );
-  if (subsectionId) {
-    areas = areas.filter(
-      (a) => String(a.subsection_id) === String(subsectionId),
-    );
-  }
   if (!areas.length) return;
 
   sel.disabled = false;
@@ -588,9 +682,9 @@ function populateDestinationAreas(sectionId, subsectionId) {
 
 async function populateDestinationPlants(sectionId, subsectionId, areaId) {
   const sel = els.dstPlant;
-  sel.innerHTML = '<option value="">- Select Plant -</option>';
+  sel.innerHTML = '<option value="">- No plant / area-level -</option>';
   sel.disabled = true;
-  if (!sectionId || !areaId) return;
+  if (!sectionId || !areaId) { syncSubmitReadiness(); return; }
 
   let q = supabase
     .from("plant_machinery")
@@ -608,9 +702,13 @@ async function populateDestinationPlants(sectionId, subsectionId, areaId) {
   const { data, error } = await q.order("plant_name");
   if (error) {
     console.error("populateDestinationPlants:", error);
+    syncSubmitReadiness();
     return;
   }
-  if (!data || !data.length) return;
+  if (!data || !data.length) {
+    syncSubmitReadiness();
+    return;
+  }
 
   sel.disabled = false;
   data.forEach((p) => {
@@ -624,7 +722,7 @@ async function populateDestinationPlants(sectionId, subsectionId, areaId) {
 function resetDestinationControls(level) {
   if (level === "section") {
     els.dstSubsection.innerHTML =
-      '<option value="">- None / Not applicable -</option>';
+      '<option value="">- Select Sub-section -</option>';
     els.dstSubsection.disabled = true;
   }
   if (level === "section" || level === "subsection") {
@@ -632,7 +730,7 @@ function resetDestinationControls(level) {
     els.dstArea.disabled = true;
   }
   if (level === "section" || level === "subsection" || level === "area") {
-    els.dstPlant.innerHTML = '<option value="">- Select Plant -</option>';
+    els.dstPlant.innerHTML = '<option value="">- No plant / area-level -</option>';
     els.dstPlant.disabled = true;
   }
 }
@@ -643,7 +741,14 @@ function getSelectText(sel) {
   return opt && opt.value ? opt.text : "";
 }
 
+function formatSummaryDate(isoDate) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate || "")) return "—";
+  const [year, month, day] = isoDate.split("-");
+  return `${day}-${month}-${year}`;
+}
+
 function syncPostingSummary() {
+  syncSubmitReadiness();
   const s = state.selectedRow;
   if (!s) {
     els.postingSummaryBody.innerHTML =
@@ -656,14 +761,14 @@ function syncPostingSummary() {
     s.subsection_name,
     s.area_name,
     s.plant_name,
-  ].filter(Boolean);
+  ].filter((value) => value && String(value).trim() !== "-");
 
   const toParts = [
     getSelectText(els.dstSection),
     getSelectText(els.dstSubsection),
     getSelectText(els.dstArea),
     getSelectText(els.dstPlant),
-  ].filter(Boolean);
+  ].filter((value) => value && String(value).trim() !== "-");
 
   const qty = els.transferQty.value;
   const date = els.transferDate.value;
@@ -673,35 +778,57 @@ function syncPostingSummary() {
     <div class="sum-item">
       <span class="sum-lbl">Item / Batch</span>
       <span class="sum-val accent">${escapeHtml(s.item)}</span>
-      <span class="sum-val" style="font-size:0.78rem;color:#6b7280">${escapeHtml(s.batch_number)}</span>
+      <span class="sum-val sum-val-sub">${escapeHtml(s.batch_number)}</span>
     </div>
     <hr class="sum-divider" />
     <div class="sum-item">
       <span class="sum-lbl">Transfer Date</span>
-      <span class="sum-val">${escapeHtml(date) || "-"}</span>
+      <span class="sum-val">${formatSummaryDate(date)}</span>
     </div>
     <div class="sum-item">
       <span class="sum-lbl">Quantity</span>
-      <span class="sum-val qty">${escapeHtml(qty) || "-"} ${escapeHtml(s.uom)}</span>
+      <span class="sum-val qty">${qty ? `${escapeHtml(qty)} ${escapeHtml(s.uom)}` : "—"}</span>
     </div>
     <hr class="sum-divider" />
     <div class="sum-item">
       <span class="sum-lbl">From</span>
-      <span class="sum-val">${fromParts.map(escapeHtml).join(" > ") || "-"}</span>
+      <span class="sum-val">${fromParts.map(escapeHtml).join(" › ") || "—"}</span>
     </div>
     <div class="sum-item">
       <span class="sum-lbl">To</span>
-      <span class="sum-val">${toParts.map(escapeHtml).join(" > ") || "-"}</span>
+      <span class="sum-val">${toParts.map(escapeHtml).join(" › ") || "—"}</span>
     </div>
     ${
       remarks
         ? `<hr class="sum-divider" />
     <div class="sum-item">
       <span class="sum-lbl">Remarks</span>
-      <span class="sum-val" style="font-size:0.82rem">${escapeHtml(remarks)}</span>
+      <span class="sum-val">${escapeHtml(remarks)}</span>
     </div>`
         : ""
     }`;
+}
+
+/* UI-only readiness: preserve the authoritative submit-time validation and RPC. */
+function isTransferReady() {
+  const source = state.selectedRow;
+  if (!source || !els.transferDate.value || !els.dstSection.value ||
+      !els.dstSubsection.value || !els.dstArea.value) return false;
+  const area = state.masters.areas.find(a => String(a.id) === String(els.dstArea.value));
+  if (!area || String(area.section_id) !== String(els.dstSection.value) ||
+      String(area.subsection_id) !== String(els.dstSubsection.value)) return false;
+  const qty = Number(els.transferQty.value);
+  const available = Number(source.qty_base ?? source.qty ?? 0);
+  if (!els.transferQty.value || !Number.isFinite(qty) || qty <= 0 || qty > available) return false;
+  const sameLocation =
+    String(source.section_id ?? "") === String(els.dstSection.value ?? "") &&
+    String(source.subsection_id ?? "") === String(els.dstSubsection.value ?? "") &&
+    String(source.area_id ?? "") === String(els.dstArea.value ?? "") &&
+    String(source.plant_id ?? "") === String(els.dstPlant.value ?? "");
+  return !sameLocation;
+}
+function syncSubmitReadiness() {
+  if (els.submitBtn) els.submitBtn.disabled = state.isPosting || !isTransferReady();
 }
 
 /* -- Validation -------------------------------------------- */
@@ -737,14 +864,23 @@ function validateTransferForm() {
     els.dstSection.focus();
     return false;
   }
+  if (!els.dstSubsection.value) {
+    showMessage("error", "Destination sub-section is required.");
+    els.dstSubsection.focus();
+    return false;
+  }
   if (!els.dstArea.value) {
     showMessage("error", "Destination area is required.");
     els.dstArea.focus();
     return false;
   }
-  if (!els.dstPlant.value) {
-    showMessage("error", "Destination plant is required.");
-    els.dstPlant.focus();
+  // Plant / Machinery is an optional, more granular location inside an area.
+  // The governed area-subsection relationship is mandatory.
+  const area = state.masters.areas.find(a => String(a.id) === String(els.dstArea.value));
+  if (!area || String(area.section_id) !== String(els.dstSection.value) ||
+      String(area.subsection_id) !== String(els.dstSubsection.value)) {
+    showMessage("error", "Destination area must belong to the selected sub-section.");
+    els.dstArea.focus();
     return false;
   }
 
@@ -792,14 +928,27 @@ function buildRpcPayload() {
 
 /* -- Submit ------------------------------------------------ */
 function setBusyState(isBusy) {
-  els.submitBtn.disabled = isBusy;
+  state.isPosting = isBusy;
+  els.transferModal.setAttribute("aria-busy", isBusy ? "true" : "false");
+  els.submitBtn.disabled = isBusy || !isTransferReady();
   els.resetBtn.disabled = isBusy;
   els.cancelBtn.disabled = isBusy;
   els.submitBtn.textContent = isBusy ? "Posting..." : "Submit Transfer";
+  // A disabled control drops focus; keep it inside the dialog once re-enabled.
+  if (
+    !isBusy &&
+    !els.transferModal.hasAttribute("hidden") &&
+    !els.transferModal.contains(document.activeElement)
+  ) {
+    // A successful partial post clears quantity and disables Submit. Focus
+    // an enabled field rather than trying to focus the disabled action.
+    (els.submitBtn.disabled ? els.transferQty : els.submitBtn).focus();
+  }
 }
 
 async function submitTransfer(ev) {
   ev.preventDefault();
+  if (state.isPosting) return; // non-reentrant while a post is in flight
   clearMessage();
   if (!validateTransferForm()) return;
 
@@ -879,11 +1028,22 @@ async function initPage() {
 
   await Promise.all([loadSourceStock({ reset: true }), loadMasterData()]);
 
+  // Canonical chrome: HOME icon + label and Close icon (idempotent re-mount;
+  // the page also ships equivalent static markup).
+  mountModuleHome(els.homeBtn);
+  mountModuleIcon(els.modalCloseBtn, "close");
+  els.modalCloseBtn.setAttribute("aria-label", "Close");
+
   // Home button navigation (if present)
   if (els.homeBtn)
     els.homeBtn.addEventListener(
       "click",
-      () => (window.location.href = "index.html"),
+      () => {
+        // Both clients render the same shared HTML; navigation depends on runtime.
+        window.location.href = window.location.protocol === "file:"
+          ? "../../index.html"
+          : "/utilities-hub/index.html";
+      },
     );
 
   // Collapsible guidance toggle (only visible on narrow screens via CSS)
@@ -932,6 +1092,7 @@ async function initPage() {
 
   // Source table row click
   els.sourceTbody.addEventListener("click", handleSourceRowClick);
+  els.sourceTbody.addEventListener("keydown", handleSourceRowKeydown);
 
   // Destination dropdown cascade
   els.dstSection.addEventListener("change", (e) => {
@@ -942,7 +1103,7 @@ async function initPage() {
       return;
     }
     populateDestinationSubsections(sec);
-    populateDestinationAreas(sec, "");
+    // Area options follow a selected governed subsection.
     syncPostingSummary();
   });
 
@@ -986,8 +1147,8 @@ async function initPage() {
   });
 
   // Cancel / close modal
-  els.cancelBtn.addEventListener("click", closeTransferModal);
-  els.modalCloseBtn.addEventListener("click", closeTransferModal);
+  els.cancelBtn.addEventListener("click", requestCloseTransferModal);
+  els.modalCloseBtn.addEventListener("click", requestCloseTransferModal);
 
   // Escape handling (capture phase so it fires before native input handling,
   // e.g. the date field, and does not depend on event bubbling).
@@ -995,11 +1156,15 @@ async function initPage() {
   document.addEventListener(
     "keydown",
     (e) => {
+      if (e.key === "Tab") {
+        trapModalTab(e);
+        return;
+      }
       if (e.key !== "Escape") return;
       if (!els.transferModal.hasAttribute("hidden")) {
         e.preventDefault();
         e.stopPropagation();
-        closeTransferModal();
+        requestCloseTransferModal();
         return;
       }
       const active = document.activeElement;
@@ -1015,7 +1180,7 @@ async function initPage() {
 
   // Backdrop click - click directly on overlay (not modal-box) closes it
   els.transferModal.addEventListener("click", (e) => {
-    if (e.target === els.transferModal) closeTransferModal();
+    if (e.target === els.transferModal) requestCloseTransferModal();
   });
 }
 

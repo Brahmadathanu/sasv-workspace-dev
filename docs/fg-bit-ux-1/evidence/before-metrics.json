@@ -1,0 +1,78 @@
+{
+  "label": "before",
+  "shots": [
+    "before-desktop-page.png",
+    "before-desktop-modal.png",
+    "before-desktop-modal-validation-error.png",
+    "before-desktop-modal-scrolled.png",
+    "before-phone-page.png",
+    "before-phone-modal.png",
+    "before-phone-modal-validation-error.png",
+    "before-phone-modal-scrolled.png",
+    "before-modal-1024x768.png",
+    "before-modal-768x1024.png",
+    "before-modal-844x390.png"
+  ],
+  "computed": {
+    "desktop": {
+      "body": {
+        "fontFamily": "Arial, sans-serif",
+        "backgroundColor": "rgb(244, 247, 248)",
+        "color": "rgb(21, 37, 40)",
+        "paddingTop": "20px"
+      },
+      "title": {
+        "fontFamily": "Arial, sans-serif",
+        "fontSize": "32px",
+        "fontWeight": "700",
+        "color": "rgb(20, 122, 108)"
+      },
+      "home": {
+        "backgroundColor": "rgb(254, 215, 170)",
+        "color": "rgb(154, 52, 18)",
+        "borderTopColor": "rgb(253, 186, 116)",
+        "borderRadius": "6px",
+        "fontSize": "14px",
+        "fontWeight": "500",
+        "minHeight": "36px"
+      },
+      "search": {
+        "backgroundColor": "rgb(232, 242, 253)",
+        "borderTopColor": "rgb(207, 227, 247)",
+        "borderRadius": "6px",
+        "fontSize": "14px",
+        "height": "34px",
+        "fontFamily": "Arial"
+      },
+      "th": {
+        "backgroundColor": "rgb(249, 250, 251)",
+        "fontSize": "11.2px",
+        "fontWeight": "700",
+        "textTransform": "uppercase"
+      }
+    },
+    "manageActivitiesRef": {
+      "body": {
+        "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+        "backgroundColor": "rgb(244, 247, 248)",
+        "color": "rgb(21, 37, 40)",
+        "paddingTop": "20px"
+      },
+      "title": {
+        "fontFamily": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+        "fontSize": "18px",
+        "fontWeight": "600",
+        "color": "rgb(21, 37, 40)"
+      },
+      "home": {
+        "backgroundColor": "rgb(213, 239, 233)",
+        "color": "rgb(13, 77, 70)",
+        "borderTopColor": "rgba(20, 122, 108, 0.28)",
+        "borderRadius": "6px",
+        "fontSize": "13px",
+        "fontWeight": "600",
+        "minHeight": "36px"
+      }
+    }
+  }
+}
