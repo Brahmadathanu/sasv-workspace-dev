@@ -1,3 +1,5 @@
+> **R23 CONTINUATION — 11 NOV 2026:** [Permission-chain and PPM Scheme audit structural risk](WP05_R23_D2_ROLE_DEPENDENCY_AND_PPM_AUDIT_RISK_2026-11-11.md) now traces live helper→`app_has_permission`→`app_has_permission_core` and direct base-relation grants/RLS from metadata only. Synthetic outer-helper oracles are **source deductions, NOT real signed-in tests**. PPM audit's non-invoker/no-base-table-RLS/four-module-only check is a potential material role-policy mismatch, effective-user outcome still NT. No automatic remediation or W5-06 promotion.
+
 # WP05 R22 — D-2 six-view live metadata and static consumer contract (11 November 2026)
 
 **Scope:** owner-approved R20 D-2 / R21 subset, [issue #297](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/297). This is additive **read-only live catalogue + current client-source verification**, not signed-in row access, privilege correction or W5-06 acceptance. Parent WP05 OPEN, formal 6/13. No Supabase write, production row SELECT, role grant/change, user impersonation, writer RPC, flag or deploy. R21 remains binding for D-1/D-2/D-4 owner approvals.
