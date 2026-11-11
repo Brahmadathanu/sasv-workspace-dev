@@ -88,3 +88,11 @@ test("canonical page is shared by Electron and PWA", () => {
   assert.match(js, /Destination sub-section is required/);
   assert.doesNotMatch(js, /Destination plant is required/);
 });
+
+test("narrow typography has a compact Chromium rule and an iOS-only focus-zoom safeguard", () => {
+  assert.match(css, /@media \(max-width: 760px\)/);
+  assert.match(css, /font-size: 14px/);
+  assert.match(css, /@supports \(-webkit-touch-callout: none\)/);
+  assert.match(css, /font-size: 16px/);
+  assert.match(css, /text-size-adjust: 100%/);
+});
