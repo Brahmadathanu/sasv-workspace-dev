@@ -4,7 +4,7 @@ export const MIN_SAMPLES_FOR_P95 = 20;      // nearest-rank p95 of n<20 is just 
 export const MAX_SAMPLES_TOTAL = 1000;
 export const MAX_EXECUTE_SAMPLES = 30;      // hard bound for any harness-driven run
 export const REQUIRED_PERIODS = ["2026-11-01", "2026-10-01", "2026-09-01"];
-export const DEFAULT_OCT_TOLERANCE = 0.05;  // ASSUMPTION pending owner decision: candidate Oct p95 may exceed baseline Oct p95 by at most 5%
+export const DEFAULT_OCT_TOLERANCE = null;  // No owner-approved October non-regression tolerance exists: require explicit policy
 const SENSITIVE_KEY = /jwt|token|authori[sz]ation|api[-_]?key|apikey|password|passwd|secret|cookie|email|bearer|session/i;
 const JWT_LIKE = /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}\./;
 const ALLOWED_TOP = new Set(["schema", "unit", "environment", "samples"]);
@@ -57,6 +57,7 @@ export function summarise(msList) {
  * "HOLD" or "CANDIDATE_FOR_OWNER_REVIEW" -- this harness never declares PASS.
  */
 export function analyse(doc, { variant = "candidate", octoberTolerance = DEFAULT_OCT_TOLERANCE, targetMs = TARGET_MS } = {}) {
+  if (octoberTolerance !== null && !(typeof octoberTolerance === "number" && Number.isFinite(octoberTolerance) && octoberTolerance >= 0 && octoberTolerance <= 1)) throw new Error("October tolerance must be a finite fraction between 0 and 1 or null");
   const samples = normaliseSamples(doc);
   const groups = new Map();
   for (const s of samples) {
@@ -80,11 +81,12 @@ export function analyse(doc, { variant = "candidate", octoberTolerance = DEFAULT
   const octoberNonRegression = ["cold", "warm"].map((t) => {
     const b = find("baseline", oct, t), c = find("candidate", oct, t);
     if (!b || !c || !b.p95Valid || !c.p95Valid) return { temperature: t, status: "UNPROVEN", reason: "baseline and candidate October p95 samples both required" };
+    if (octoberTolerance === null) return { temperature: t, status: "POLICY_UNSET", reason: "owner-approved October non-regression tolerance is not configured" };
     const limit = b.p95 * (1 + octoberTolerance);
     return { temperature: t, status: c.p95 <= limit ? "NO_REGRESSION_ON_SAMPLE" : "REGRESSION", baselineP95: b.p95, candidateP95: c.p95, limit, tolerance: octoberTolerance };
   });
   for (const o of octoberNonRegression) if (o.status !== "NO_REGRESSION_ON_SAMPLE") blockers.push(`October non-regression ${o.temperature}: ${o.status}`);
   return { targetMs, minSamplesForP95: MIN_SAMPLES_FOR_P95, unitNormalisedTo: "ms", groups: rows, octoberNonRegression, blockers,
     timingGate: blockers.length ? "HOLD" : "CANDIDATE_FOR_OWNER_REVIEW",
-    note: "Informational only. This harness never declares a timing PASS; the owner records any PASS from genuine authorised samples." };
+    note: "Informational only. At least 20 samples per cell is this harness\u0027 provisional reporting convention, not an approved WP05 requirement. October tolerance must be owner-specified. This harness never declares a timing PASS." };
 }
