@@ -14,6 +14,7 @@ const state = {
   sourceTotalRows: 0,
   sourceOffset: 0,
   sourceHasMore: true,
+  sourceLoadError: false,
   sourceIsLoading: false,
   sourceQueryVersion: 0,
   selectedSourceIdentity: null,
@@ -115,9 +116,9 @@ function fmtQty(v) {
 async function requireSession() {
   const { data: { session } = {} } = await supabase.auth.getSession();
   if (!session) {
-    window.location.href = window.location.pathname.startsWith("/shared/")
-      ? "/utilities-hub/index.html"
-      : "login.html";
+    window.location.href = window.location.protocol === "file:"
+      ? "../../login.html"
+      : "/utilities-hub/index.html";
     throw new Error("No session");
   }
   return session;
@@ -136,6 +137,7 @@ async function loadSourceStock({ reset = false } = {}) {
     state.sourceRows = [];
     state.sourceOffset = 0;
     state.sourceHasMore = true;
+    state.sourceLoadError = false;
   }
 
   state.sourceIsLoading = true;
@@ -174,6 +176,7 @@ async function loadSourceStock({ reset = false } = {}) {
   state.sourceIsLoading = false;
 
   if (error) {
+    state.sourceLoadError = true;
     console.error("loadSourceStock:", error);
     // Preserve any rows already loaded; only show a hard error when empty.
     if (!state.sourceRows.length) {
@@ -185,6 +188,7 @@ async function loadSourceStock({ reset = false } = {}) {
     return;
   }
 
+  state.sourceLoadError = false;
   const rows = Array.isArray(data) ? data : [];
 
   if (reset) {
@@ -308,7 +312,7 @@ function onSourceFilterChanged() {
 function renderSourceFooter() {
   const loaded = state.sourceRows.length;
   const loadingMore = state.sourceIsLoading && loaded > 0;
-  const showLoadMore = state.sourceHasMore && !state.sourceIsLoading && loaded > 0;
+  const showLoadMore = state.sourceHasMore && !state.sourceIsLoading && loaded > 0 && (!sourceObserver || state.sourceLoadError);
 
   if (els.sourceFooterStatus) {
     els.sourceFooterStatus.textContent = loadingMore ? "Loading more…" : "";
@@ -375,7 +379,11 @@ function maybeAutoLoadMore() {
 }
 
 function setupSourceInfiniteObserver() {
-  if (!els.sourceSentinel || !els.sourceTableWrap) return;
+  if (!els.sourceSentinel || !els.sourceTableWrap || typeof IntersectionObserver === "undefined") {
+    sourceObserver = null;
+    renderSourceFooter(); // accessible fallback when auto-paging is unavailable
+    return;
+  }
   if (sourceObserver) sourceObserver.disconnect();
 
   sourceObserver = new IntersectionObserver(
@@ -393,6 +401,7 @@ function setupSourceInfiniteObserver() {
   );
 
   sourceObserver.observe(els.sourceSentinel);
+  renderSourceFooter(); // hide manual fallback when automatic paging is working
 }
 
 // Combine section / sub-section / area into one readable Location label.
@@ -643,6 +652,7 @@ function populateDestinationSubsections(sectionId) {
     o.textContent = s.subsection_name;
     sel.appendChild(o);
   });
+  syncSubmitReadiness();
 }
 
 function populateDestinationAreas(sectionId, subsectionId) {
@@ -677,7 +687,7 @@ async function populateDestinationPlants(sectionId, subsectionId, areaId) {
   const sel = els.dstPlant;
   sel.innerHTML = '<option value="">- Select Plant -</option>';
   sel.disabled = true;
-  if (!sectionId || !areaId) return;
+  if (!sectionId || !areaId) { syncSubmitReadiness(); return; }
 
   let q = supabase
     .from("plant_machinery")
@@ -695,9 +705,13 @@ async function populateDestinationPlants(sectionId, subsectionId, areaId) {
   const { data, error } = await q.order("plant_name");
   if (error) {
     console.error("populateDestinationPlants:", error);
+    syncSubmitReadiness();
     return;
   }
-  if (!data || !data.length) return;
+  if (!data || !data.length) {
+    syncSubmitReadiness();
+    return;
+  }
 
   sel.disabled = false;
   data.forEach((p) => {
@@ -731,6 +745,7 @@ function getSelectText(sel) {
 }
 
 function syncPostingSummary() {
+  syncSubmitReadiness();
   const s = state.selectedRow;
   if (!s) {
     els.postingSummaryBody.innerHTML =
@@ -789,6 +804,25 @@ function syncPostingSummary() {
     </div>`
         : ""
     }`;
+}
+
+/* UI-only readiness: preserve the authoritative submit-time validation and RPC. */
+function isTransferReady() {
+  const source = state.selectedRow;
+  if (!source || !els.transferDate.value || !els.dstSection.value ||
+      !els.dstArea.value || !els.dstPlant.value || els.dstPlant.disabled) return false;
+  const qty = Number(els.transferQty.value);
+  const available = Number(source.qty_base ?? source.qty ?? 0);
+  if (!els.transferQty.value || !Number.isFinite(qty) || qty <= 0 || qty > available) return false;
+  const sameLocation =
+    String(source.section_id ?? "") === String(els.dstSection.value ?? "") &&
+    String(source.subsection_id ?? "") === String(els.dstSubsection.value ?? "") &&
+    String(source.area_id ?? "") === String(els.dstArea.value ?? "") &&
+    String(source.plant_id ?? "") === String(els.dstPlant.value ?? "");
+  return !sameLocation;
+}
+function syncSubmitReadiness() {
+  if (els.submitBtn) els.submitBtn.disabled = state.isPosting || !isTransferReady();
 }
 
 /* -- Validation -------------------------------------------- */
@@ -881,7 +915,7 @@ function buildRpcPayload() {
 function setBusyState(isBusy) {
   state.isPosting = isBusy;
   els.transferModal.setAttribute("aria-busy", isBusy ? "true" : "false");
-  els.submitBtn.disabled = isBusy;
+  els.submitBtn.disabled = isBusy || !isTransferReady();
   els.resetBtn.disabled = isBusy;
   els.cancelBtn.disabled = isBusy;
   els.submitBtn.textContent = isBusy ? "Posting..." : "Submit Transfer";
@@ -988,10 +1022,10 @@ async function initPage() {
     els.homeBtn.addEventListener(
       "click",
       () => {
-        // PWA pages are served from /shared/; Electron retains its root page.
-        window.location.href = window.location.pathname.startsWith("/shared/")
-          ? "/utilities-hub/index.html"
-          : "index.html";
+        // Both clients render the same shared HTML; navigation depends on runtime.
+        window.location.href = window.location.protocol === "file:"
+          ? "../../index.html"
+          : "/utilities-hub/index.html";
       },
     );
 
