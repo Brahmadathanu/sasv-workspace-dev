@@ -83,3 +83,16 @@ The S1 verification package now contains:
 - The existing project's PostgreSQL infrastructure is not used for tests; Supabase has no registered development branch. No production tables, RPCs or cron records were changed.
 - C2 prompt issued for [issue #294](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/294): independent branch/PR, existing shared Indents modal -> existing vendor selection modal and `proc_indent_set_vendor_selection`; no SQL, SW, app version, merge or deployment. The owner must invoke Claude Code with the prompt; a GitHub issue/comment does not start Claude automatically.
 - C1 PR #291 remains unmerged. Any C2 branch stacking must explicitly declare its C1 base and avoid duplicate shared-css commits.
+
+## J. S3 read-contract inventory — 2026-11-11
+
+Live read-only RPC definitions show all four main header/excess read functions already enforce `require_permission('module:procurement-execution-console', false)`, return `SETOF` their respective views, and apply deterministic database ordering:
+- `proc_pec_pr_headers()`: `updated_at DESC NULLS LAST, pr_id DESC`.
+- `proc_pec_indent_headers()`: `updated_at DESC NULLS LAST, indent_id DESC`.
+- `proc_pec_purchase_excess()`: `voucher_date DESC NULLS LAST, purchase_fact_id DESC`.
+- `proc_pec_excess_acceptance_audit()`: `accepted_at DESC NULLS LAST, acceptance_id DESC`.
+- `proc_vendorwise_buylist_filtered(material_class_id, rm_scope, rate_status, assignment_status, q)`: forwards to its existing filtered internal function; visible external signature has **no paging args**.
+
+**Compatibility warning:** current client header lists apply additional client filters and sorting (e.g. PR/indent by numeric descending ID) after fetching all records, while the database's old RPC ordering is updated_at descending. A paged replacement must explicitly match *visible client order and filtering*, not merely `LIMIT/OFFSET` the old RPC. Otherwise earlier/later pages can omit or duplicate visible rows. Exports must preserve full filtered datasets, not only rendered pages.
+
+**S3 plan**: build read-only paged RPCs with the same permission requirement, server-side filters and exact UI sorting; reconcile sort/tie-breaker and search semantics against live client before migration. Test page-concatenation parity, total_count, stable pagination under inserts/updates, read-only authorization and export coverage. This is only an inventory; no S3 SQL or deployment performed.
