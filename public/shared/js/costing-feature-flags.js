@@ -94,3 +94,16 @@ export function isCostingNavGroupsV1Enabled(storage = globalThis.localStorage) {
     return false;
   }
 }
+
+// #273 / WP05: Cost Comparison reads the period-scoped RPC instead of the governed view. Default OFF; only the exact value "1" enables it.
+// Server function is PREPARED, NOT APPLIED, and this flag must stay OFF until the owner approves application and enablement.
+// Rollback: localStorage.removeItem("COSTING_CSR_SCOPED_COMPARISON_RPC_V1"); location.reload();  (restores the original view read)
+export const COSTING_CSR_SCOPED_COMPARISON_RPC_V1 = "COSTING_CSR_SCOPED_COMPARISON_RPC_V1";
+
+export function isCostingCsrScopedComparisonRpcV1Enabled(storage = globalThis.localStorage) {
+  try {
+    return storage?.getItem?.(COSTING_CSR_SCOPED_COMPARISON_RPC_V1) === "1";
+  } catch {
+    return false;
+  }
+}

@@ -1,4 +1,5 @@
 import { PERSONNEL_SHELL_EDITS } from "../costing-w506-conf-client/personnel-shell-blocks.mjs";
+import { SCOPED_COMPARISON_SHELL_EDITS } from "../csr-scoped-rpc-client/shell-edits.mjs"; // #273
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -183,7 +184,7 @@ function stripCw05(src) {
   }
   remove(REVIEW_WORKLIST_FN_RE, "review worklist helpers");
   // WP05-W506 personnel-confidentiality client gate: pure insertions, each stripped exactly once.
-  for (const [h, o] of PERSONNEL_SHELL_EDITS) {
+  for (const [h, o] of [...PERSONNEL_SHELL_EDITS, ...SCOPED_COMPARISON_SHELL_EDITS]) {
     assert.equal(out.split(h).length, 2, "personnel edit");
     out = out.replace(h, o);
   }

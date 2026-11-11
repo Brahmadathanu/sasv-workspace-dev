@@ -67,6 +67,8 @@ import { createCostingLockScreenController } from "./costing-lock-screen.js";
 import { createCostingRunStatusScreenController } from "./costing-run-status-screen.js";
 import { isCostingTableToolsV1Enabled } from "./costing-feature-flags.js";
 import { isCostingReviewWorklistV1Enabled } from "./costing-feature-flags.js";
+import { isCostingCsrScopedComparisonRpcV1Enabled } from "./costing-feature-flags.js";
+import { readCostComparisonRows } from "./costing-cost-comparison-read.js";
 import { isCostingNavGroupsV1Enabled } from "./costing-feature-flags.js";
 import { resolveNavGroups, renderGroupedNavHtml, renderGroupedSelectHtml } from "./costing-nav-groups.js";
 import { buildNavContextModel, costingNavContext, renderNavContextHtml } from "./costing-nav-context.js";
@@ -4912,6 +4914,28 @@ async function loadRowsForLens({ preservePage = false } = {}) {
       applyFilters();
       LAST_REFRESH_TIME = new Date();
       updateFreshnessIndicator();
+      return;
+    }
+
+    // #273: flag-gated scoped read (default OFF). Flag OFF falls through to the original view read below, untouched.
+    if (CURRENT_LENS === "cost-comparison" && isCostingCsrScopedComparisonRpcV1Enabled()) {
+      const { rows, truncated, refreshedAt } = await readCostComparisonRows({
+        supabase,
+        periodStart: ACTIVE_PERIOD_START,
+        scopedRpcEnabled: true,
+      });
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      ALL_ROWS = rows;
+      applyFilters();
+      LAST_REFRESH_TIME = refreshedAt;
+      updateFreshnessIndicator();
+      if (truncated) {
+        showToast(
+          "Cost comparison reached the 2000-row limit; some rows may not be shown.",
+          "warning",
+          6000,
+        );
+      }
       return;
     }
 

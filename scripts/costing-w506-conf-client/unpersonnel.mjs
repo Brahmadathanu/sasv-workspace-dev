@@ -2,12 +2,13 @@
 // It removes exactly the personnel-confidentiality additions (see personnel-shell-blocks.mjs) so those tests keep proving that
 // NOTHING ELSE in those files changed. A missing or duplicated addition throws (the additions must be present exactly once).
 import { PERSONNEL_SHELL_EDITS, PERSONNEL_COSTBUILD_EDITS } from "./personnel-shell-blocks.mjs";
+import { SCOPED_COMPARISON_SHELL_EDITS } from "../csr-scoped-rpc-client/shell-edits.mjs"; // #273
 
 export function unPersonnel(rel, text) {
   const lf = text.replace(/\r\n/g, "\n");
   if (rel.endsWith("costing-suite-shell.js")) {
-    return PERSONNEL_SHELL_EDITS.reduce((t, [h, o]) => {
-      if (t.split(h).length !== 2) throw new Error("personnel shell edit not present exactly once");
+    return [...PERSONNEL_SHELL_EDITS, ...SCOPED_COMPARISON_SHELL_EDITS].reduce((t, [h, o]) => {
+      if (t.split(h).length !== 2) throw new Error("personnel/scoped-comparison shell edit not present exactly once");
       return t.replace(h, o);
     }, lf);
   }
