@@ -182,3 +182,13 @@ Owner explicitly approved [PR #265](https://github.com/Brahmadathanu/sasv-worksp
 ## Claude Code delegated acceptance pass (#264) — 10 November 2026
 
 Matrix and W6 root cause: section G of [the post-merge acceptance record](WP05_SCHEME_MASTER_PWA_POST_MERGE_ACCEPTANCE_2026-11-10.md). Hosted Netlify bytes/deploy SHA **BLOCKED** (sandbox proxy 403; follow-up fetch denied by permission classifier; no HTTP result from Netlify); old-PWA SW upgrade **NOT VERIFIED**; authenticated 1280/390 px read **NOT TESTED**; W6 #10/#11/#13 were shallow-clone artefacts and #12 a pin drift from PR #263, repaired test-only (13/13 with full history). Historical #19 F, #224 and WP05 (6/13) unchanged. No cache bump, flag, SQL, deploy or Electron action.
+
+## Overnight bulk wave checkpoint (issue #267) — 10/11 November 2026
+
+Appended, not a rewrite of any entry above. Canonical record: [WP05 overnight reconciliation and PC acceptance pack](WP05_OVERNIGHT_RECONCILIATION_AND_PC_ACCEPTANCE_PACK_2026-11-10.md) (base `main` `85eae297`). **No gate promoted; WP05 OPEN; programme 6/13; AE1 13 P / 4 F / 2 NA / 21 NT unchanged; #224 and #264 open.**
+
+- **W5-03:** drift since the 8 Nov v392 baseline is five served files in four commits; for the six Costing modules it is confined to Staff Governance/shell staff paths (`47170b5d`, v393), the Scheme Master list read (`cf41740e`) and PPM network-first caching (`ff2e79bb`, cache name unchanged). Owner ruling **Q-BUILD** requested.
+- **W5-05:** S2/S9 owner-accepted bounded (D2); L1 server fix verified live; no further textual W5-05 criterion found; post-fix L1 period-switch display **NOT TESTED**. Owner ruling **Q-W505** requested.
+- **Correction to the PR #263 entries above:** `.github/workflows/wp05-scheme-master-list.yml` was invalid YAML, so "no workflow runs" really meant zero-job startup failures; the Node tests it describes never ran in CI. Fixed in test/CI PR [#268](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/268) (not merged).
+- **Offline tests (Node v22.23.4, full history):** N1 nav-groups failed 23/24 and the acceptance-runner self-test failed 1 of 12 on unmodified `main`, both stale test expectations (repaired test-only in #268; 24/24 and 13/13). W6 13/13, Scheme Master projection 3/3, mocked SW 8/8. ESLint NOT RUN. Source/mock tests are **not** server-role denial evidence.
+- **Not done / blocked:** hosted Netlify asset SHA and old-PWA SW upgrade (BLOCKED/NOT VERIFIED), authenticated 1280/390 px reads, ID-N/ID-X/ID-O, isolated SQL runners (tooling blocker). Daytime operator checklist: pack §6.
