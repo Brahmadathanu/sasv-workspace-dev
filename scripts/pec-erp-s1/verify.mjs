@@ -81,6 +81,24 @@ try {
     denied("no-op date refused", date(1, "'2026-11-11'::date"), /date unchanged/i);
     denied("no-op quantity refused", qty(11, "10", "10"), /quantity unchanged/i);
 
+    // Two consecutive operators with the same fetched revision: the first
+    // commits; the second must fail on the changed canonical header revision.
+    // This is a deterministic stale-writer check, not simultaneous concurrency.
+    const winner = cluster.run("s1", `BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','${UID}',true);
+SELECT set_config('pec.fixture.edit','yes',true);
+SELECT ${qty(11, "10", "12")};
+COMMIT;`, { allowError: true });
+    assert.equal(winner.status, 0, "first committed writer: " + winner.err);
+    passed++; console.log("PASS first operator committed quantity change");
+    denied("stale second operator refused after first commit",
+      qty(11, "10", "14"), /changed since it was opened/i);
+    const retained = cluster.run("s1",
+      "select requested_qty from public.proc_indent_line where indent_line_id=11;").out;
+    assert.equal(retained, "12", "second operator must not overwrite committed quantity");
+    passed++; console.log("PASS first quantity remains authoritative");
+
     // Audit trigger and reason both present before the save transaction rolls back.
     const audit = call(`(select count(*) from public.pec_fixture_audit where event_type='INDENT_DRAFT_DATE_REASON')`, {
       extra: `SELECT public.proc_indent_update_manual_draft_date(1,${REV},'2026-11-12'::date,'explicit date reason'); RESET ROLE;`
