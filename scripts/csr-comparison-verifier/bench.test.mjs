@@ -50,6 +50,8 @@ test("gate logic: HOLD without enough samples; cold/warm separate; never emits P
   const base = [];
   for (const t of ["cold", "warm"]) base.push(...mk("baseline", "2026-10-01", t, Array.from({ length: 20 }, (_, i) => 3500 + i * 10)));
   r = analyse(doc([...cand, ...base]));
+  assert.equal(r.timingGate, "HOLD"); assert.ok(r.octoberNonRegression.every((o) => o.status === "POLICY_UNSET"));
+  r = analyse(doc([...cand, ...base]), { octoberTolerance: 0.05 });
   assert.equal(r.timingGate, "CANDIDATE_FOR_OWNER_REVIEW"); assert.notEqual(r.timingGate, "PASS");
   assert.deepEqual(r.groups.filter((g) => g.variant === "candidate").map((g) => g.temperature).sort().slice(0, 2), ["cold", "cold"]);
   // 5 samples only => p95 not computed
@@ -61,8 +63,17 @@ test("gate logic: HOLD without enough samples; cold/warm separate; never emits P
   assert.equal(r.timingGate, "HOLD"); assert.ok(r.blockers.some((b) => /2026-11-01 warm: TARGET_NOT_MET/.test(b)));
   // October regression: candidate slower than baseline beyond tolerance
   const octBad = [...cand.filter((s) => s.period !== "2026-10-01"), ...mk("candidate", "2026-10-01", "cold", Array(20).fill(3900)), ...mk("candidate", "2026-10-01", "warm", Array(20).fill(3900)), ...mk("baseline", "2026-10-01", "cold", Array(20).fill(3000)), ...mk("baseline", "2026-10-01", "warm", Array(20).fill(3000))];
-  r = analyse(doc(octBad));
+  r = analyse(doc(octBad), { octoberTolerance: 0.05 });
   assert.equal(r.octoberNonRegression[0].status, "REGRESSION");
+});
+
+test("October tolerance is intentionally unset; invalid/implicit policy cannot release timing", () => {
+  const samples = [...mk("baseline", "2026-10-01", "warm", Array(20).fill(3000)), ...mk("candidate", "2026-10-01", "warm", Array(20).fill(3100))];
+  const r = analyse(doc(samples));
+  assert.equal(r.octoberNonRegression.find((x) => x.temperature === "warm").status, "POLICY_UNSET");
+  assert.equal(r.timingGate, "HOLD");
+  assert.throws(() => analyse(doc(samples), { octoberTolerance: -0.01 }), /October tolerance/);
+  assert.throws(() => analyse(doc(samples), { octoberTolerance: NaN }), /October tolerance/);
 });
 
 test("the real owner observation (Nov 5.75 / Oct 4.08 / Sep 4.37, assumed seconds, n=1 each) stays HOLD with no p95", () => {
