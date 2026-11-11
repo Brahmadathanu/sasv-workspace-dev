@@ -89,14 +89,17 @@ test("service worker: the shell script is network-first with offline cache fallb
   assert.equal((await h.run(ORIGIN + P)).body, "NEW", "offline serves the last fetched copy");
 });
 
-test("FINDING F-1 (recorded, not fixed here): the shell's static children costing-cost-comparison-read.js and costing-feature-flags.js are CACHE-FIRST", async () => {
-  // Same class as #264 (pricing-policy). A later edit to either module would be shadowed by a stale cached copy in an installed PWA
-  // until the cache version is bumped. The owner decides whether to extend the network-first list; no client change in this package.
+test("FIXED F-1 (#289): Cost Comparison child modules are network-first with offline cache fallback", async () => {
   for (const P of ["/shared/js/costing-cost-comparison-read.js", "/shared/js/costing-feature-flags.js"]) {
     const h = loadSw(); h.store.set(ORIGIN + P, "OLD"); h.net.files[P] = "NEW";
-    assert.equal((await h.run(ORIGIN + P)).body, "OLD", `${P}: if this now returns NEW, F-1 was fixed; update R19`);
+    assert.equal((await h.run(ORIGIN + P)).body, "NEW", `${P} must fetch current JS online`);
+    h.net.online = false;
+    assert.equal((await h.run(ORIGIN + P)).body, "NEW", `${P} must use updated cached JS offline`);
   }
-  assert.match(raw("public/sw.js"), /const CACHE_NAME = "hub-cache-v393"/, "no cache-version bump in this package");
+  const h = loadSw(), P = "/shared/js/unrelated-static-file.js";
+  h.store.set(ORIGIN + P, "OLD"); h.net.files[P] = "NEW";
+  assert.equal((await h.run(ORIGIN + P)).body, "OLD", "unrelated static JS remains cache-first");
+  assert.match(raw("public/sw.js"), /const CACHE_NAME = "hub-cache-v393"/, "no cache-version bump");
 });
 
 test("line endings: the client files in the Cost Comparison path are consistently LF or CRLF, and new verifier files are LF", () => {
