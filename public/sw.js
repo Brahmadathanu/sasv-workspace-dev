@@ -95,6 +95,10 @@ self.addEventListener("fetch", (event) => {
     /costing-suite-shell\.js$/.test(url.pathname) ||
     /costing-suite-readiness\.js$/.test(url.pathname) ||
     /costing-suite-pricing-policy\.js$/.test(url.pathname) ||
+    // #289: these Cost Comparison child imports must track the network-first shell
+    // so installed PWAs do not keep an older RPC reader or flag contract.
+    /\/shared\/js\/costing-cost-comparison-read\.js$/.test(url.pathname) ||
+    /\/shared\/js\/costing-feature-flags\.js$/.test(url.pathname) ||
     /\/shared\/js\/eaushadhi-review-.*\.js$/.test(url.pathname) ||
     /\/shared\/js\/eaushadhi-.*\.js$/.test(url.pathname) ||
     /\/shared\/css\/sasv-eaushadhi-review\.css$/.test(url.pathname) ||
