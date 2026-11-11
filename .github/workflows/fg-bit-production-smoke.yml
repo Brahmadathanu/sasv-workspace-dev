@@ -1,0 +1,40 @@
+name: FG-BIT production PWA publication smoke
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/shared/fg-bulk-internal-transfer.html'
+      - 'public/shared/js/fg-bulk-internal-transfer.js'
+      - 'public/shared/css/sasv-fg-bulk-internal-transfer.css'
+      - '.github/workflows/fg-bit-production-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-production-pwa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Confirm production HTML, JS and CSS are published
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://sasv-utilities-hub.netlify.app/shared"
+          for attempt in $(seq 1 24); do
+            echo "Production publication check $attempt/24"
+            if curl -fsSL --max-time 20 "$base/fg-bulk-internal-transfer.html" -o /tmp/fgbit.html &&
+               curl -fsSL --max-time 20 "$base/js/fg-bulk-internal-transfer.js" -o /tmp/fgbit.js &&
+               curl -fsSL --max-time 20 "$base/css/sasv-fg-bulk-internal-transfer.css" -o /tmp/fgbit.css &&
+               grep -q 'id="transferForm"' /tmp/fgbit.html &&
+               grep -q 'guidance-indicator' /tmp/fgbit.html &&
+               grep -q 'function isTransferReady' /tmp/fgbit.js &&
+               grep -q 'fgroup input' /tmp/fgbit.css; then
+              echo "PASS: Production PWA canonical module and shared assets published"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::Production FG-BIT page or required assets not confirmed"
+          exit 1
