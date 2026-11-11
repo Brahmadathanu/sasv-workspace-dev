@@ -37,3 +37,6 @@ Record timestamp, decision ID, motivating evidence, alternatives, user authoriza
 
 ## 2026-10-10 — Purchase Requisition PDF continuation header
 - **DEC-016 (APPROVED):** The user (operator) approved a bounded follow-on enhancement to the Purchase Requisition PDF — repeating continuation header on pages 2+ (Dept/Unit | Location | Req No & Date), double-footer fix, sw v345. It does not reopen WP01. WP02 stays NOT OPEN; the item is tracked as WP02-A and closes on reviewed merge plus an operator multi-page export check in Electron and PWA.
+
+## 2026-11-11 — PEC-ERP-C1 client modernisation (candidate, unmerged)
+- **PROPOSAL (not an approval):** Client-only UI/UX alignment to the SASV design system via `sasv-procurement-execution-console.css`; no business-rule, SQL, SW or version change. Server-dependent items (paged reads, indent-date confirmation, draft edit, immediate mapping, replenishment) are listed in `ERP_C1_CLIENT_MODERNISATION_20261111.md` §4 and remain DEFER pending ChatGPT/server contracts and owner approval.

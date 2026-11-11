@@ -1,0 +1,628 @@
+/**
+ * PEC-ERP-C1 — Procurement Execution Console SASV Workspace specialisation.
+ *
+ * Scope: body.sasv-pec only. Loaded AFTER the module's inline legacy styles so
+ * that semantic-token rules win the cascade (same pattern as
+ * sasv-stock-checker.css). Presentation only: no DOM ids, data attributes or
+ * business behaviour are changed here.
+ *
+ * Single shared source: this file is served from /shared/css/ to both the PWA
+ * and Electron; it must never be copied to a platform-specific location.
+ */
+
+/* ── 1. Page root, typography, local aliases ─────────────────────────────── */
+body.sasv-pec {
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  font-size: var(--sasv-text-md, 0.875rem);
+  color: var(--sasv-text);
+  background: var(--sasv-bg);
+  --border: var(--sasv-divider);
+  --primary: var(--sasv-action-primary);
+  --muted: var(--sasv-text-muted);
+  --erp-accent: var(--sasv-action-primary);
+  --erp-text: var(--sasv-text);
+  --erp-muted: var(--sasv-text-muted);
+  --erp-border: var(--sasv-divider);
+  --btn-bg: var(--sasv-surface-soft);
+  --btn-bg-hover: var(--sasv-action-secondary-hover);
+  --btn-border: var(--sasv-control-border);
+  --btn-border-strong: var(--sasv-control-border-hover);
+  --btn-primary-bg: var(--sasv-action-primary-soft);
+  --btn-primary-bg-hover: var(--sasv-action-primary-soft);
+  --btn-primary-border: var(--sasv-action-primary-soft-border);
+  --btn-danger-bg: var(--sasv-danger-bg);
+  --btn-danger-bg-hover: var(--sasv-danger-bg);
+  --btn-danger-border: var(--sasv-danger-border);
+  --panel-bg: var(--sasv-surface);
+}
+
+body.sasv-pec input,
+body.sasv-pec select,
+body.sasv-pec textarea,
+body.sasv-pec button {
+  font-family: inherit;
+}
+
+/* `hidden` must always win over component display rules (e.g. .page-shell
+   display:flex previously kept the panel visible for unauthorised users). */
+body.sasv-pec [hidden] {
+  display: none !important;
+}
+
+/* ── 2. Canonical header (title, subtitle, HOME) ─────────────────────────── */
+body.sasv-pec .header-card.pec-header-card {
+  padding: 0 !important;
+  margin: 0 0 12px;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none;
+}
+
+body.sasv-pec .page-header.pec-header {
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+}
+
+body.sasv-pec .pec-header-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+body.sasv-pec .page-header h1,
+body.sasv-pec .sasv-module-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: var(--sasv-fw-semibold, 600);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--sasv-text);
+}
+
+body.sasv-pec .page-sub {
+  margin: 4px 0 0;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: var(--sasv-fw-regular, 400);
+  line-height: 1.4;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-pec .pec-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+body.sasv-pec .header-utils {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* HOME: canonical Stock Checker / FG-BIT parity */
+body.sasv-pec #homeBtn.sasv-home-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  min-width: auto;
+  height: auto;
+  min-height: var(--sasv-control-md, 36px);
+  padding: 6px 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border-radius: var(--sasv-radius-sm, 6px);
+  border: 1px solid var(--sasv-action-home-border);
+  background: var(--sasv-action-home-bg);
+  color: var(--sasv-action-home);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: var(--sasv-fw-semibold, 600);
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: none;
+}
+body.sasv-pec #homeBtn.sasv-home-btn:hover {
+  background: var(--sasv-action-home-bg-hover);
+  border-color: var(--sasv-action-home-bg-hover);
+  color: var(--sasv-action-home-fg-hover);
+}
+body.sasv-pec #homeBtn .home-label {
+  display: inline;
+}
+
+/* ── 3. Buttons: icon + label on wide, icon-only on narrow ───────────────── */
+body.sasv-pec .icon-btn,
+body.sasv-pec .modal-close-btn,
+body.sasv-pec .pec-filter-btn {
+  box-sizing: border-box;
+  min-width: var(--sasv-control-md, 36px);
+  height: var(--sasv-control-md, 36px);
+  border-radius: var(--sasv-radius-sm, 6px);
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: var(--sasv-fw-semibold, 600);
+  line-height: 1.2;
+  cursor: pointer;
+}
+body.sasv-pec .icon-btn {
+  width: var(--sasv-control-md, 36px);
+}
+body.sasv-pec .icon-btn:hover,
+body.sasv-pec .pec-filter-btn:hover {
+  background: var(--sasv-action-secondary-hover);
+  border-color: var(--sasv-control-border-hover);
+}
+body.sasv-pec .icon-btn.primary {
+  background: var(--sasv-action-primary-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  color: var(--sasv-action-primary-active);
+}
+body.sasv-pec .icon-btn.primary:hover {
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+}
+body.sasv-pec .icon-btn.danger {
+  background: var(--sasv-danger-bg);
+  border-color: var(--sasv-danger-border);
+  color: var(--sasv-danger);
+}
+body.sasv-pec .icon-btn.danger:hover {
+  background: var(--sasv-danger);
+  border-color: var(--sasv-danger);
+  color: var(--sasv-text-on-primary);
+}
+body.sasv-pec .icon-btn.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+body.sasv-pec .icon-btn.ghost:hover {
+  background: var(--sasv-action-secondary-hover);
+  border-color: var(--sasv-control-border);
+}
+body.sasv-pec .icon-btn.audit-btn {
+  background: var(--sasv-warning-bg);
+  border-color: var(--sasv-warning-border);
+  color: var(--sasv-warning);
+}
+body.sasv-pec .icon-btn.audit-btn:hover {
+  background: var(--sasv-warning-bg);
+  border-color: var(--sasv-warning);
+  color: var(--sasv-warning);
+}
+body.sasv-pec .modal-close-btn {
+  background: transparent;
+  border-color: transparent;
+  color: var(--sasv-text-muted);
+}
+body.sasv-pec .modal-close-btn:hover {
+  background: var(--sasv-action-secondary-hover);
+  border-color: var(--sasv-control-border);
+  color: var(--sasv-text);
+}
+body.sasv-pec .icon-btn:disabled {
+  opacity: 0.5;
+}
+
+/* Visible label (injected by applyResponsiveActionLabels in the module JS) */
+body.sasv-pec .pec-action-label {
+  display: inline;
+  white-space: nowrap;
+}
+body.sasv-pec .icon-btn.has-action-label,
+body.sasv-pec .pec-filter-btn.has-action-label {
+  width: auto;
+  padding: 0 12px;
+  gap: 6px;
+}
+body.sasv-pec .icon-btn svg,
+body.sasv-pec .pec-filter-btn svg {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 820px) {
+  body.sasv-pec .pec-action-label {
+    display: none;
+  }
+  body.sasv-pec .icon-btn.has-action-label,
+  body.sasv-pec .pec-filter-btn.has-action-label {
+    width: var(--sasv-control-md, 36px);
+    padding: 0;
+    gap: 0;
+  }
+  /* Detail-drawer actions keep their written labels (long, wrap-friendly) */
+  body.sasv-pec .detail-action-buttons .icon-btn.with-label,
+  body.sasv-pec .detail-action-buttons .icon-btn.has-action-label {
+    width: auto;
+    padding: 0 10px;
+  }
+}
+
+/* ── 4. Focus visibility (keyboard) ──────────────────────────────────────── */
+body.sasv-pec :is(button, a, input, select, textarea, [tabindex]):focus-visible,
+body.sasv-pec .tab-btn:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+body.sasv-pec .tab-btn:focus {
+  box-shadow: none;
+}
+
+/* ── 5. Lens navigation (tabs) ───────────────────────────────────────────── */
+body.sasv-pec .tabs-card {
+  margin-top: 0;
+  padding: 8px;
+  border-radius: var(--sasv-radius-md, 8px);
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-divider);
+}
+body.sasv-pec .tabs {
+  background: var(--sasv-surface-soft);
+  border: 1px solid var(--sasv-divider);
+  border-radius: var(--sasv-radius-md, 8px);
+}
+body.sasv-pec .tab-btn {
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: var(--sasv-fw-semibold, 600);
+  color: var(--sasv-text-secondary);
+  border-radius: var(--sasv-radius-sm, 6px);
+  min-height: var(--sasv-control-md, 36px);
+}
+body.sasv-pec .tab-btn:hover {
+  color: var(--sasv-text);
+  background: var(--sasv-action-secondary-hover);
+  border-color: var(--sasv-action-primary-soft-border);
+}
+body.sasv-pec .tab-btn.active,
+body.sasv-pec .tab-btn[aria-selected="true"] {
+  color: var(--sasv-text-on-primary);
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  box-shadow: var(--sasv-shadow-sm);
+}
+body.sasv-pec .tab-select {
+  min-height: var(--sasv-control-lg, 40px);
+  border-color: var(--sasv-action-primary);
+  background: var(--sasv-action-primary-soft);
+  color: var(--sasv-text);
+  font-size: var(--sasv-text-md, 0.875rem);
+  font-weight: var(--sasv-fw-semibold, 600);
+}
+
+/* ── 6. Cards, section titles, toolbars, search ──────────────────────────── */
+body.sasv-pec .card {
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-divider);
+  border-radius: var(--sasv-radius-md, 8px);
+  box-shadow: var(--sasv-shadow-sm);
+}
+body.sasv-pec .table-topbar h2,
+body.sasv-pec .section-title,
+body.sasv-pec .card h2 {
+  margin: 0;
+  font-size: var(--sasv-text-lg, 1rem);
+  font-weight: var(--sasv-fw-semibold, 600);
+  color: var(--sasv-text);
+  line-height: 1.3;
+}
+body.sasv-pec .pec-section-note {
+  margin: 2px 0 0;
+  font-size: var(--sasv-text-xs, 0.75rem);
+  line-height: 1.4;
+  color: var(--sasv-text-muted);
+}
+body.sasv-pec .table-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+body.sasv-pec .table-topbar > div:first-child {
+  min-width: 0;
+}
+body.sasv-pec .pager-mini {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+}
+body.sasv-pec .pec-search-card {
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-divider);
+  border-radius: var(--sasv-radius-md, 8px);
+}
+body.sasv-pec .pec-search-input,
+body.sasv-pec .pec-filter-select,
+body.sasv-pec .pec-filter-input,
+body.sasv-pec .modal input,
+body.sasv-pec .modal select,
+body.sasv-pec .modal textarea {
+  font-size: var(--sasv-text-md, 0.875rem);
+  color: var(--sasv-text);
+  background: var(--sasv-control-bg);
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm, 6px);
+}
+body.sasv-pec .pec-search-input:focus,
+body.sasv-pec .pec-filter-select:focus,
+body.sasv-pec .pec-filter-input:focus,
+body.sasv-pec .modal input:focus,
+body.sasv-pec .modal select:focus,
+body.sasv-pec .modal textarea:focus {
+  border-color: var(--sasv-control-border-focus);
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 0;
+  box-shadow: none;
+}
+body.sasv-pec .pec-filter-drawer {
+  background: var(--sasv-surface-elevated);
+  border: 1px solid var(--sasv-divider);
+  border-radius: var(--sasv-radius-md, 8px);
+  box-shadow: var(--sasv-shadow-lg);
+  max-width: calc(100vw - 16px);
+}
+body.sasv-pec .pec-filter-btn--active {
+  border-color: var(--sasv-action-primary);
+  background: var(--sasv-action-primary-soft);
+  color: var(--sasv-action-primary-active);
+}
+body.sasv-pec .pec-filter-badge {
+  background: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+}
+body.sasv-pec .export-dropdown {
+  background: var(--sasv-surface-elevated);
+  border: 1px solid var(--sasv-divider);
+  border-radius: var(--sasv-radius-md, 8px);
+  box-shadow: var(--sasv-shadow-lg);
+}
+body.sasv-pec .export-dropdown button {
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  color: var(--sasv-text);
+}
+body.sasv-pec .export-dropdown button:hover {
+  background: var(--sasv-action-secondary-hover);
+  color: var(--sasv-action-primary-active);
+}
+
+/* ── 7. Tables ───────────────────────────────────────────────────────────── */
+body.sasv-pec .table-scroll {
+  overflow: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+body.sasv-pec table {
+  font-size: var(--sasv-text-sm, 0.8125rem);
+}
+body.sasv-pec th {
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: var(--sasv-fw-semibold, 600);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--sasv-text-secondary);
+  background: var(--sasv-surface-soft);
+  border-bottom: 1px solid var(--sasv-border);
+  white-space: nowrap;
+}
+body.sasv-pec td {
+  color: var(--sasv-text);
+  border-bottom: 1px solid var(--sasv-divider);
+  overflow-wrap: anywhere;
+}
+/* Global style.css forces td nowrap; long item/vendor names must wrap, while
+   dates and numbers stay on one line. */
+body.sasv-pec td {
+  white-space: normal;
+  min-width: 0;
+}
+body.sasv-pec td.num,
+body.sasv-pec td.pec-date-cell {
+  white-space: nowrap;
+}
+body.sasv-pec tbody tr:hover td {
+  background: var(--sasv-surface-soft);
+}
+body.sasv-pec .muted {
+  color: var(--sasv-text-muted);
+}
+/* Empty / error / loading rows (rendered by renderTableStateRow) */
+body.sasv-pec td.pec-table-state {
+  padding: 20px 12px;
+  text-align: center;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  color: var(--sasv-text-muted);
+}
+body.sasv-pec td.pec-table-state.is-error {
+  color: var(--sasv-danger);
+  background: var(--sasv-danger-bg);
+}
+body.sasv-pec td.pec-table-state .pec-table-state-title {
+  display: block;
+  font-weight: var(--sasv-fw-semibold, 600);
+  color: inherit;
+}
+body.sasv-pec tr.pec-table-state-row:hover td {
+  background: inherit;
+}
+body.sasv-pec .pec-date-cell {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+body.sasv-pec td.num,
+body.sasv-pec th.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 8. Status pills (semantic colours) ──────────────────────────────────── */
+body.sasv-pec .pill {
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: var(--sasv-fw-semibold, 600);
+  border-radius: var(--sasv-radius-pill, 999px);
+}
+body.sasv-pec .pill-info {
+  background: var(--sasv-info-bg);
+  color: var(--sasv-info);
+  border-color: var(--sasv-info-border);
+}
+body.sasv-pec .pill-success {
+  background: var(--sasv-success-bg);
+  color: var(--sasv-success);
+  border-color: var(--sasv-success-border);
+}
+body.sasv-pec .pill-warning {
+  background: var(--sasv-warning-bg);
+  color: var(--sasv-warning);
+  border-color: var(--sasv-warning-border);
+}
+body.sasv-pec .pill-danger {
+  background: var(--sasv-danger-bg);
+  color: var(--sasv-danger);
+  border-color: var(--sasv-danger-border);
+}
+
+/* ── 9. Modals and drawers ───────────────────────────────────────────────── */
+body.sasv-pec .modal {
+  background: var(--sasv-surface-elevated);
+  color: var(--sasv-text);
+  border: 1px solid var(--sasv-divider);
+  border-radius: var(--sasv-radius-lg, 12px);
+  box-shadow: var(--sasv-shadow-lg);
+  max-width: calc(100vw - 16px);
+}
+body.sasv-pec .modal h3 {
+  font-size: var(--sasv-text-lg, 1rem);
+  font-weight: var(--sasv-fw-semibold, 600);
+  color: var(--sasv-text);
+}
+body.sasv-pec .modal label {
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: var(--sasv-fw-medium, 500);
+  color: var(--sasv-text-secondary);
+}
+body.sasv-pec .modal .actions button,
+body.sasv-pec .actions button {
+  min-height: var(--sasv-control-md, 36px);
+  border-radius: var(--sasv-radius-sm, 6px);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: var(--sasv-fw-semibold, 600);
+}
+body.sasv-pec .actions button:last-child,
+body.sasv-pec .actions button.primary {
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+}
+body.sasv-pec .actions button:last-child:hover:not(:disabled),
+body.sasv-pec .actions button.primary:hover:not(:disabled) {
+  background: var(--sasv-action-primary-hover);
+  border-color: var(--sasv-action-primary-hover);
+}
+body.sasv-pec .actions button.danger,
+body.sasv-pec #btnHardDeleteConfirm {
+  background: var(--sasv-danger);
+  border-color: var(--sasv-danger);
+  color: var(--sasv-text-on-primary);
+}
+body.sasv-pec .modal-header {
+  border-bottom: 1px solid var(--sasv-divider);
+}
+
+/* ── 10. Status area, banners, overlays ──────────────────────────────────── */
+body.sasv-pec .status-area {
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  border-radius: var(--sasv-radius-md, 8px);
+}
+body.sasv-pec .status-area.error {
+  background: var(--sasv-danger-bg);
+  color: var(--sasv-danger);
+  border: 1px solid var(--sasv-danger-border);
+}
+body.sasv-pec .view-only-banner {
+  background: var(--sasv-info-bg);
+  color: var(--sasv-info);
+  border: 1px solid var(--sasv-info-border);
+  border-radius: var(--sasv-radius-md, 8px);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+}
+body.sasv-pec .pec-refresh-card {
+  background: var(--sasv-surface-elevated);
+  border: 1px solid var(--sasv-divider);
+  border-radius: var(--sasv-radius-lg, 12px);
+  box-shadow: var(--sasv-shadow-lg);
+}
+body.sasv-pec .pec-refresh-title {
+  font-weight: var(--sasv-fw-semibold, 600);
+  color: var(--sasv-text);
+}
+body.sasv-pec .pec-refresh-subtitle,
+body.sasv-pec .pec-refresh-message {
+  color: var(--sasv-text-muted);
+}
+body.sasv-pec .pec-vendor-mapping-note {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--sasv-radius-sm, 6px);
+  border: 1px solid var(--sasv-info-border);
+  background: var(--sasv-info-bg);
+  color: var(--sasv-info);
+  font-size: var(--sasv-text-xs, 0.75rem);
+  line-height: 1.4;
+}
+
+/* ── 11. Responsive geometry ─────────────────────────────────────────────── */
+body.sasv-pec {
+  padding: 20px;
+}
+@media (max-width: 1080px) {
+  body.sasv-pec {
+    padding: 10px;
+  }
+}
+@media (max-width: 520px) {
+  body.sasv-pec {
+    padding: 6px;
+  }
+  body.sasv-pec .page-sub {
+    display: none;
+  }
+  body.sasv-pec .page-header h1 {
+    font-size: 1.08rem;
+    line-height: 1.25;
+  }
+  body.sasv-pec #homeBtn .home-label {
+    display: none;
+  }
+  body.sasv-pec .pec-header-actions,
+  body.sasv-pec .header-utils {
+    gap: 6px;
+  }
+  body.sasv-pec #homeBtn.sasv-home-btn {
+    padding: 6px 10px;
+  }
+}
+@media (max-width: 680px) {
+  body.sasv-pec .modal {
+    max-height: calc(100vh - 24px);
+  }
+  body.sasv-pec .modal-body {
+    overflow: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.sasv-pec * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

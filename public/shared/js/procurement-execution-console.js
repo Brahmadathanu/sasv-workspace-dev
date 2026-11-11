@@ -1,6 +1,7 @@
 // public/shared/js/procurement-execution-console.js
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import { mountModuleHome } from "./sasv-module-chrome.js";
 
 // ─── Module access (direct URL + read-only) ─────────────────────────────────
 const MODULE_ID = "procurement-execution-console";
@@ -453,6 +454,110 @@ function ensureIconBtnA11y(id, label) {
   if (!el.getAttribute("title")) el.setAttribute("title", label);
 }
 
+// ─── PEC-ERP-C1: shared presentation helpers (no business logic) ────────────
+
+/**
+ * Render a single full-width status row (empty / error / loading) into a
+ * table body. Presentation only; callers decide when to use it.
+ * @param {HTMLElement|null} tbody
+ * @param {number} colspan
+ * @param {"empty"|"error"|"loading"} kind
+ * @param {string} title
+ * @param {string} [detail]
+ */
+function renderTableStateRow(tbody, colspan, kind, title, detail = "") {
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  const tr = document.createElement("tr");
+  tr.className = "pec-table-state-row";
+  const td = document.createElement("td");
+  td.colSpan = colspan;
+  td.className = `pec-table-state is-${kind}`;
+  td.setAttribute("role", kind === "error" ? "alert" : "status");
+  const t = document.createElement("span");
+  t.className = "pec-table-state-title";
+  t.textContent = title;
+  td.appendChild(t);
+  if (detail) {
+    const d = document.createElement("span");
+    d.textContent = detail;
+    td.appendChild(d);
+  }
+  tr.appendChild(td);
+  tbody.appendChild(tr);
+}
+
+/**
+ * Wide screens: show a visible text label beside the icon on action buttons.
+ * Narrow screens: CSS hides the label; aria-label/title remain for a11y.
+ * Skips pager, clear and close controls, which are icon-only by SASV design.
+ */
+const PEC_ICON_ONLY_IDS = new Set(["workflowGuideBtn"]);
+function applyResponsiveActionLabels(root = document) {
+  const skip = /(Prev|Next|Clear|Close)/;
+  root
+    .querySelectorAll(".icon-btn, .pec-filter-btn")
+    .forEach((btn) => {
+      if (!(btn instanceof HTMLElement)) return;
+      if (btn.classList.contains("modal-close-btn")) return;
+      if (btn.classList.contains("with-label")) return;
+      if (btn.querySelector(".pec-action-label, .btn-label")) return;
+      if (PEC_ICON_ONLY_IDS.has(btn.id)) return;
+      if (skip.test(btn.id || "")) return;
+      const label = (
+        btn.getAttribute("aria-label") ||
+        btn.getAttribute("title") ||
+        ""
+      ).trim();
+      if (!label || /page$/i.test(label) || /^clear\b/i.test(label)) return;
+      const span = document.createElement("span");
+      span.className = "pec-action-label";
+      span.textContent = label;
+      btn.appendChild(span);
+      btn.classList.add("has-action-label");
+    });
+}
+
+/** WAI-ARIA tabs wiring for the five lenses (roles, selection, arrow keys). */
+function applyTabAria(activeTab) {
+  const tabs = Array.from(document.querySelectorAll(".tabs .tab-btn[data-tab]"));
+  tabs.forEach((b) => {
+    b.setAttribute("role", "tab");
+    b.setAttribute("type", "button");
+    b.setAttribute("aria-controls", `tab-${b.dataset.tab}`);
+    if (!b.id) b.id = `tabbtn-${b.dataset.tab}`;
+    const on = b.dataset.tab === activeTab;
+    b.setAttribute("aria-selected", on ? "true" : "false");
+    b.tabIndex = on ? 0 : -1;
+  });
+  document.querySelectorAll(".tab-panel").forEach((p) => {
+    p.setAttribute("role", "tabpanel");
+    const btn = document.getElementById(`tabbtn-${p.id.replace(/^tab-/, "")}`);
+    if (btn) p.setAttribute("aria-labelledby", btn.id);
+  });
+}
+
+function wireTabKeyboard() {
+  const list = document.querySelector(".tabs");
+  if (!list || list.dataset.pecKeys === "1") return;
+  list.dataset.pecKeys = "1";
+  list.addEventListener("keydown", (e) => {
+    const keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
+    if (!keys.includes(e.key)) return;
+    const tabs = Array.from(list.querySelectorAll(".tab-btn[data-tab]"));
+    const i = tabs.indexOf(document.activeElement);
+    if (i < 0) return;
+    e.preventDefault();
+    let n = i;
+    if (e.key === "ArrowRight") n = (i + 1) % tabs.length;
+    if (e.key === "ArrowLeft") n = (i - 1 + tabs.length) % tabs.length;
+    if (e.key === "Home") n = 0;
+    if (e.key === "End") n = tabs.length - 1;
+    tabs[n].focus();
+    tabs[n].click();
+  });
+}
+
 // ─── Icon helper ─────────────────────────────────────────────────────────────
 const _svgPaths = {
   plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
@@ -527,6 +632,7 @@ function setTab(tab) {
     .querySelectorAll(".tab-panel")
     .forEach((p) => p.classList.remove("active"));
   qs(`tab-${tab}`).classList.add("active");
+  applyTabAria(tab);
   // lazy-load tab data on each visit
   if (tab === "action")
     loadActionQueue({ refreshIndentOptions: !aqIndentOptionsLoaded });
@@ -1703,6 +1809,7 @@ function openDetailModal(row) {
       ["Priority Score", row.priority_score_system],
       ["MOS (months)", row.mos_months],
       ["Lead Time (days)", row.lead_time_days],
+      ["Indent Date", row.indent_date],
       ["Approved Date", row.approved_date],
       ["Status", row.status],
     ].filter(([, v]) => v !== undefined && v !== null && v !== ""),
@@ -1896,6 +2003,24 @@ async function jumpToIndent(indentId) {
 function renderRows() {
   const tbody = qs("aqTbody");
   tbody.innerHTML = "";
+
+  if (!state.rows.length && aqLoadFailed && !aqLoading) {
+    renderTableStateRow(
+      tbody,
+      7,
+      "error",
+      "Action Queue could not be loaded.",
+      "Change the search or filters, or reopen this tab, to retry.",
+    );
+  } else if (!state.rows.length && state.actionLoaded && !aqLoading) {
+    renderTableStateRow(
+      tbody,
+      7,
+      "empty",
+      "No action-queue lines match the current filters.",
+      "Clear filters, or refresh procurement snapshots if vendor candidates for a new indent are not listed yet.",
+    );
+  }
 
   for (const row of state.rows) {
     const vendorCell = renderActionQueueVendorCell(row);
@@ -2091,6 +2216,8 @@ function restoreActionQueueSearchFocus(snapshot) {
   }
 }
 
+let aqLoadFailed = false;
+
 async function loadActionQueue(options = {}) {
   const {
     reset = true,
@@ -2149,6 +2276,7 @@ async function loadActionQueue(options = {}) {
     if (error) {
       console.error(error);
       toast(`Failed to load Action Queue: ${error.message}`, "error");
+      aqLoadFailed = !isAppend;
       return;
     }
 
@@ -2164,6 +2292,7 @@ async function loadActionQueue(options = {}) {
     aqOffset = aqRows.length;
     state.rows = aqRows;
     state.actionLoaded = true;
+    aqLoadFailed = false;
     renderRows();
     restoreActionQueueSearchFocus(focusSnapshot);
   } finally {
@@ -3422,6 +3551,7 @@ function renderIndentModalHeader(indent) {
   qs("indentViewStatus").textContent = indent.status ?? "";
   setPillVariant(qs("indentViewStatus"), statusPillClass(indent.status));
   const metaParts = [];
+  if (indent.indent_date) metaParts.push(`Indent date: ${indent.indent_date}`);
   if (indent.approved_date) metaParts.push(`Approved: ${indent.approved_date}`);
   if (indent.material_class_code)
     metaParts.push(`Class: ${displayMaterialClassCode(indent.material_class_code)}`);
@@ -4299,9 +4429,31 @@ async function loadIndentLines(indentId) {
   updateExportButtonStates();
 }
 
+// PEC-ERP-C1: show a separate "Indent Date" column only when the governed read
+// contract (proc_pec_indent_headers) actually supplies `indent_date`. No value
+// is ever inferred from approved_date or any other field.
+function indentRowsProvideIndentDate(rows) {
+  return (rows || []).some(
+    (r) => r && Object.prototype.hasOwnProperty.call(r, "indent_date"),
+  );
+}
+
 function renderIndents() {
   const tbody = qs("iTbody");
   tbody.innerHTML = "";
+  const showIndentDate = indentRowsProvideIndentDate(state.indentsRows);
+  const dateTh = qs("iThIndentDate");
+  if (dateTh) dateTh.hidden = !showIndentDate;
+  const indentColCount = showIndentDate ? 7 : 6;
+  if (!state.indentsRows.length) {
+    renderTableStateRow(
+      tbody,
+      indentColCount,
+      "empty",
+      "No indents match the current filters.",
+      "Clear the search or filters to see all indents.",
+    );
+  }
   for (const row of state.indentsRows) {
     const tr = document.createElement("tr");
     tr.style.cursor = "pointer";
@@ -4311,7 +4463,8 @@ function renderIndents() {
     tr.innerHTML = `
       <td>${esc(String(row.indent_id ?? ""))}</td>
       <td>${esc(row.indent_number ?? "")}</td>
-      <td>${esc(row.approved_date ?? "")}</td>
+      ${showIndentDate ? `<td class="pec-date-cell">${esc(row.indent_date ?? "")}</td>` : ""}
+      <td class="pec-date-cell">${esc(row.approved_date ?? "")}</td>
       <td><span class="pill ${statusPillClass(row.status)}">${esc(row.status ?? "")}</span></td>
       <td>${esc(displayMaterialClassCode(row.material_class_code ?? ""))}</td>
       <td>${fmt(row.line_count ?? "")}</td>
@@ -4346,6 +4499,13 @@ async function loadIndents() {
       rows = await rpcPecIndentHeaders();
     } catch (error) {
       toast(`Failed to load indents: ${error.message}`, "error");
+      renderTableStateRow(
+        qs("iTbody"),
+        qs("iThIndentDate")?.hidden === false ? 7 : 6,
+        "error",
+        "Indents could not be loaded.",
+        "Change the search or filters, or reopen this tab, to retry.",
+      );
       return;
     }
     rows = (rows || []).filter((r) => {
@@ -6099,7 +6259,10 @@ async function saveCreateIndent() {
     toast(`Create indent failed: ${error.message}`, "error");
     return;
   }
-  toast("Indent created.", "success");
+  toast(
+    "Indent created. Vendor candidates and priority labels for its lines appear in Action Queue only after the next procurement snapshot refresh.",
+    "success",
+  );
   closeCreateIndentModal();
   state.indentsPage = 0;
   await loadIndents();
@@ -6178,7 +6341,10 @@ async function saveIndentFromPr() {
     toast(`Create from PR failed: ${error.message}`, "error");
     return;
   }
-  toast("Indent created from PR.", "success");
+  toast(
+    "Indent created from PR. Vendor candidates and priority labels for its lines appear in Action Queue only after the next procurement snapshot refresh.",
+    "success",
+  );
   closeIndentFromPrModal();
   if (qs("prViewModalBackdrop")?.classList.contains("show")) {
     closePrViewModal();
@@ -6871,6 +7037,15 @@ async function saveIndentAddLine() {
 function renderPrHeaders() {
   const tbody = qs("prTbody");
   tbody.innerHTML = "";
+  if (!state.prRows.length) {
+    renderTableStateRow(
+      tbody,
+      7,
+      "empty",
+      "No purchase requisitions match the current filters.",
+      "Clear the search or filters, or generate a draft PR.",
+    );
+  }
   for (const row of state.prRows) {
     const tr = document.createElement("tr");
     tr.style.cursor = "pointer";
@@ -6918,6 +7093,13 @@ async function loadPrHeaders() {
       rows = await rpcPecPrHeaders();
     } catch (error) {
       toast(`Failed to load PRs: ${error.message}`, "error");
+      renderTableStateRow(
+        qs("prTbody"),
+        7,
+        "error",
+        "Purchase requisitions could not be loaded.",
+        "Change the search or filters, or reopen this tab, to retry.",
+      );
       return;
     }
     rows = (rows || []).filter((r) => {
@@ -8291,6 +8473,15 @@ function wirePrControls() {
 function renderExcess() {
   const tbody = qs("eTbody");
   tbody.innerHTML = "";
+  if (!state.excessRows.length) {
+    renderTableStateRow(
+      tbody,
+      8,
+      "empty",
+      "No excess purchases match the current filters.",
+      "Widen the date range or clear filters.",
+    );
+  }
   for (const row of state.excessRows) {
     const tr = document.createElement("tr");
     tr.classList.add("clickable-row");
@@ -8461,6 +8652,13 @@ async function loadExcess() {
       rows = await rpcPecPurchaseExcess();
     } catch (error) {
       toast(`Failed to load excess purchases: ${error.message}`, "error");
+      renderTableStateRow(
+        qs("eTbody"),
+        8,
+        "error",
+        "Excess purchases could not be loaded.",
+        "Change the search or filters, or reopen this tab, to retry.",
+      );
       return;
     }
 
@@ -8525,6 +8723,9 @@ async function loadExcess() {
 function renderExcessAudit() {
   const tbody = qs("eAuditTbody");
   tbody.innerHTML = "";
+  if (!state.excessAuditRows.length) {
+    renderTableStateRow(tbody, 5, "empty", "No excess acceptances recorded.");
+  }
   for (const row of state.excessAuditRows) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -8546,6 +8747,13 @@ async function loadExcessAuditPaged() {
     rows = await rpcPecExcessAcceptanceAudit();
   } catch (error) {
     toast(`Failed to load acceptance audit: ${error.message}`, "error");
+    renderTableStateRow(
+      qs("eAuditTbody"),
+      5,
+      "error",
+      "Acceptance audit could not be loaded.",
+      "Close and reopen the audit to retry.",
+    );
     return;
   }
   rows = [...(rows || [])].sort((a, b) =>
@@ -11709,6 +11917,7 @@ function wireVendorBuylistControls() {
 
   applyPermissionUi();
 
+  mountModuleHome(document.getElementById("homeBtn"));
   document
     .getElementById("homeBtn")
     ?.addEventListener("click", () => Platform.goHome());
@@ -11739,6 +11948,8 @@ function wireVendorBuylistControls() {
   wireGlobalHeaderControls();
   wireProcurementSnapshotRefreshButton();
   wireTabs();
+  wireTabKeyboard();
+  applyResponsiveActionLabels();
   wireStockItemPicker();
   wireAddPrLineItemSearch();
   wireAddIndentLineItemSearch();

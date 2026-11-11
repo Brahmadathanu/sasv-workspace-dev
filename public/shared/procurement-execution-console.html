@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en-GB" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -1885,21 +1885,15 @@
         }
       }
     </style>
+    <!-- PEC-ERP-C1: SASV Workspace specialisation after inline legacy styles so token rules win the cascade -->
+    <link rel="stylesheet" href="../shared/css/sasv-procurement-execution-console.css" />
   </head>
 
-  <body data-theme="system">
-    <div
-      class="header-card"
-      style="
-        padding: 12px;
-        background: transparent;
-        border: none;
-        border-radius: 0;
-      "
-    >
-      <div class="page-header">
-        <div>
-          <h1>Procurement Execution Console</h1>
+  <body class="sasv-pec" data-theme="system">
+    <div class="header-card pec-header-card">
+      <div class="page-header pec-header">
+        <div class="pec-header-copy">
+          <h1 class="sasv-module-title">Procurement Execution Console</h1>
           <div class="page-sub" id="subtitle">
             End-to-end procurement cockpit: PR → Indent execution, priority
             queue, vendor sourcing, FIFO allocation, and overshoot control
@@ -1909,7 +1903,7 @@
             <div class="controls"></div>
           </div>
         </div>
-        <div style="display: flex; align-items: stretch; gap: 8px">
+        <div class="pec-header-actions">
           <div class="header-utils">
             <button
               id="workflowGuideBtn"
@@ -1964,9 +1958,9 @@
             <button
               id="homeBtn"
               type="button"
-              title="Home"
-              aria-label="Home"
-              class="icon-btn ghost with-label"
+              title="HOME"
+              aria-label="HOME"
+              class="sasv-home-btn"
             >
               <svg
                 width="16"
@@ -2046,7 +2040,7 @@
             />
           </svg>
         </div>
-        <div class="tabs" role="tablist" aria-label="Procurement tabs">
+        <div class="tabs" role="tablist" aria-label="Procurement lenses">
           <button class="tab-btn active" data-tab="pr">PR Workbench</button>
           <button class="tab-btn" data-tab="indents">Indents</button>
           <button
@@ -2639,6 +2633,7 @@
                   <tr>
                     <th>Indent ID</th>
                     <th>Indent Number</th>
+                    <th id="iThIndentDate" hidden>Indent Date</th>
                     <th>Approved Date</th>
                     <th>Status</th>
                     <th>Class</th>
@@ -3095,7 +3090,14 @@
           </div>
           <div class="card" style="margin-bottom: 12px">
             <div class="table-topbar">
-              <h2 style="margin: 0">Excess Purchases</h2>
+              <div>
+                <h2 style="margin: 0">Excess Purchases</h2>
+                <p class="pec-section-note">
+                  Purchases received beyond their allocated indent quantity.
+                  Open a row to accept the excess with a reason; every
+                  acceptance is recorded in the Acceptance Audit.
+                </p>
+              </div>
               <div class="pager-mini">
                 <button
                   id="eAuditBtn"
