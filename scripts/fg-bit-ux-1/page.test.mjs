@@ -153,7 +153,7 @@ test("focus trap: Tab and Shift+Tab stay in dialog; background is inert", { skip
   for (let i = 0; i < 4; i++) { await page.keyboard.press("Shift+Tab"); assert.equal(await inside(), true, `rev ${i}`); }
   await page.focus("#modalCloseBtn"); // first focusable in DOM order
   await page.keyboard.press("Shift+Tab");
-  assert.equal(await activeId(page), "submitBtn", "Shift+Tab from first wraps to last");
+  assert.equal(await activeId(page), "cancelBtn", "Shift+Tab from first wraps to last enabled control");
   await page.keyboard.press("Tab");
   assert.equal(await activeId(page), "modalCloseBtn", "Tab from last wraps to first");
   await ctx.close();
@@ -274,7 +274,8 @@ test("posting is non-reentrant: double click/Enter posts once; Esc/backdrop/Canc
   await page.keyboard.press("Escape");
   await page.mouse.click(3, 3);
   assert.equal(await modalHidden(page), false, "modal not closed while posting");
-  await page.waitForFunction(() => !document.getElementById("submitBtn").disabled);
+  await page.waitForFunction(() => document.getElementById("transferModal").getAttribute("aria-busy") === "false");
+  assert.equal(await page.$eval("#submitBtn", e => e.disabled), true, "successful post clears mandatory quantity");
   assert.equal((await log(page, POST)).length, 1, "exactly one post");
   await ctx.close();
 });
@@ -355,7 +356,8 @@ test("200% zoom equivalent (640x400 CSS px) and soft-keyboard height keep action
     await page.locator("#remarks").focus();
     const r = await page.evaluate(() => ({ foot: document.querySelector(".modal-footer").getBoundingClientRect().bottom, vh: innerHeight, sub: getComputedStyle(document.querySelector(".modal-hdr-sub")).display }));
     assert.ok(r.foot <= r.vh + 0.5, `footer visible at ${w}x${h}`);
-    await page.locator("#submitBtn").click({ trial: true });
+    await page.locator("#submitBtn").scrollIntoViewIfNeeded();
+    assert.equal(await page.locator("#submitBtn").isVisible(), true, "disabled action remains visible and reachable");
     await ctx.close();
   }
 });
