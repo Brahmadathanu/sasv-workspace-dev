@@ -46,3 +46,14 @@ Independent source-invariant inspection: **14/14 PASS**. This is not SQL compila
 Read-only live *existing view* test, **not the candidate RPC**: between `2026-10-12` and `2026-11-11`, date-window count = 169; additionally filtering material class RM and quantity ≥1 gives 161 rows / 161 distinct fact IDs, first 30 and second 30 and remainder 101 under proposed stable sort. Another case (name/code contains 'oil' alongside those filters) returns zero, useful for no-results coverage. These read-only results do not prove installed candidate parity, query latency or UI behaviour.
 
 **STOP before migration:** isolated PG17.4 installation and role tests; stable keyset/offset strategy under concurrent ingestion; count and ordering parity over 13k historical rows and varied dates; client incremental paging and full exports; owner review; PWA asset freshness; authenticated acceptance. G0 active, 0/6 formal gates verified.
+
+## 7. Isolated runtime test package (authored, not executed)
+
+- `scripts/pec-erp-s3/fixture.sql`: synthetic `v_proc_purchase_excess_console` source contract, 65 generated records with quantity/date ties, mixed case names, code searches, blank/NULL vendors, literal `%` and `_`, and PLM/PM cases; synthetic permission stub. **Not** the live view definition or production records.
+- `scripts/pec-erp-s3/verify.mjs`: uses existing repository ephemeral PostgreSQL Unix-socket harness. Demands **exact PostgreSQL 17.4**; missing/mismatched version exits **2**. Installs the review-only candidate inside throwaway database, calls it as `authenticated` and `anon`, checks ACL, denied view, filters, full count, stable page concatenation against independent SQL oracle, invalid parameters, and out-of-range pages.
+- Run on an appropriate isolated host: `node scripts/pec-erp-s3/verify.mjs`.
+- **STATUS: AUTHORED / NOT EXECUTED.** No PostgreSQL 17.4 runtime in the current environment. Do not mark G2 or successful runtime parity based on source checks. Fixture tests do not substitute for exact live view-schema parity, historical 13,297-row performance, consistent keyset semantics during new voucher ingestion, or signed-in UI acceptance.
+
+## 8. C2 independent review dependency
+
+Claude submitted stacked C2 [PR #301](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/301) against main. Exact compare from C1 branch `2182bcc` to C2 head shows **one C2 commit**, but main-relative PR diff includes C1. Independent live schema inspection confirms `v_proc_indent_lines_console_ordered` contains `recommended_vendor_id/name/rate`, `selected_vendor_id/name/rate`, `resolved_vendor_id/name/rate`, and line ordering fields, resolving Claude's live contract uncertainty. Independent comments to #301 request a no-access fixture case, stale-loading-indicator check, and visible line-refresh failure/retry handling before accepting C2. C1/SW and authenticated acceptance remain DEFER. No merge.
