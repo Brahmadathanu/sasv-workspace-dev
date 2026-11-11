@@ -540,7 +540,10 @@ test("responsive typography: field hierarchy stays proportionate at desktop and 
     assert.ok(metrics.fz[0] - metrics.label <= 3, "input text must not dwarf labels");
     assert.ok(metrics.heights.every(h => h >= 34), "usable field heights");
     assert.ok(metrics.modalWidth <= metrics.pageWidth + 1, "modal stays within viewport");
-    if (width <= 760) assert.ok(metrics.fz[0] >= 16, "iOS mobile zoom prevention");
+    if (width <= 760) {
+      assert.equal(metrics.fz[0], 14, "Chromium narrow controls should not be oversized");
+      assert.equal(metrics.label, 14, "field text and label in balance");
+    }
     await ctx.close();
   }
 });
