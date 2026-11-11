@@ -83,6 +83,8 @@ test("canonical page is shared by Electron and PWA", () => {
   assert.ok(js.includes(': "../../index.html"'));
   assert.ok(js.includes(': "../../login.html"'));
   assert.ok(js.includes('"/utilities-hub/index.html"'));
-  assert.match(html, /guidance-chevron/);
+  assert.match(html, /guidance-indicator/);
   assert.match(js, /function isTransferReady\(/);
+  assert.match(js, /Destination sub-section is required/);
+  assert.doesNotMatch(js, /Destination plant is required/);
 });
