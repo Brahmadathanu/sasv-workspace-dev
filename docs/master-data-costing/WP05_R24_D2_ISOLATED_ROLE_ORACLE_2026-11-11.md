@@ -1,3 +1,5 @@
+> **R25 SUBSEQUENT SIX-VIEW FIELD CONTRACT — 11 NOV 2026:** [Read-only render/request reconciliation](WP05_R25_D2_SENSITIVE_FIELD_RENDER_AND_AUDIT_ACTOR_CONTRACT_2026-11-11.md) identifies what vendor-source, audit, trace and SKU detail fields the client actually uses, and confirms a Scheme Master History Actor source-name discrepancy (tracked #303). This is distinct from effective signed-in permission evidence, which remains NOT TESTED; W5-06 OPEN, 6/13.
+
 # WP05 R24 — isolated D-2 role-oracle fixture (11 November 2026)
 
 **Scoped test package, not an authenticated permission acceptance.** Issue #297, R21/R22/R23. The owner chose the D-2 closure-critical subset but has **not** approved a new PPM audit reader policy or production security change. W5-06 OPEN; WP05 OPEN, formal programme 6/13.
