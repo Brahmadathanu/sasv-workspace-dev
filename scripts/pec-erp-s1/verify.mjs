@@ -83,7 +83,7 @@ try {
 
     // Audit trigger and reason both present before the save transaction rolls back.
     const audit = call(`(select count(*) from public.pec_fixture_audit where event_type='INDENT_DRAFT_DATE_REASON')`, {
-      extra: `SELECT public.proc_indent_update_manual_draft_date(1,${REV},'2026-11-12'::date,'explicit date reason');`
+      extra: `SELECT public.proc_indent_update_manual_draft_date(1,${REV},'2026-11-12'::date,'explicit date reason'); RESET ROLE;`
     });
     assert.equal(audit.status, 0, audit.err);
     assert.match(audit.out, /1\s*$/);
