@@ -390,7 +390,8 @@ function setupSourceInfiniteObserver() {
     (entries) => {
       const first = entries && entries[0];
       if (!first || !first.isIntersecting) return;
-      if (state.sourceIsLoading || !state.sourceHasMore) return;
+      // After an auto-load error, pause observer retries until the user chooses recovery.
+      if (state.sourceIsLoading || !state.sourceHasMore || state.sourceLoadError) return;
       loadSourceStock({ reset: false });
     },
     {
