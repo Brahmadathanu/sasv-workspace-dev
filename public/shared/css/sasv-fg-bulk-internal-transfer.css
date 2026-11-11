@@ -392,14 +392,29 @@ body.sasv-fg-bit .modal-msg .msg-info { color: var(--sasv-info); background: var
 }
 
 /* FG-BIT-UX-1 owner acceptance: clear narrow guidance affordance. */
-body.sasv-fg-bit .guidance-chevron {
-  display: inline-block;
-  margin-left: 8px;
-  font-size: 1.15em;
-  line-height: 1;
-  transition: transform 140ms ease;
+body.sasv-fg-bit .guidance-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  color: var(--sasv-warning);
+  transition: transform 160ms ease;
 }
-body.sasv-fg-bit .guidance.is-open .guidance-chevron { transform: rotate(180deg); }
+body.sasv-fg-bit .guidance-indicator svg { width: 20px; height: 20px; }
+body.sasv-fg-bit .guidance.is-open .guidance-indicator { transform: rotate(180deg); }
+@media (max-width: 520px) {
+  body.sasv-fg-bit .guidance-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+    gap: 12px;
+  }
+}
 
 /* Three-column desktop: all card shells reach the height of the tallest. */
 @media (min-width: 1001px) {
@@ -429,5 +444,5 @@ body.sasv-fg-bit #submitBtn:disabled {
   box-shadow: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  body.sasv-fg-bit .guidance-chevron { transition: none; }
+  body.sasv-fg-bit .guidance-indicator { transition: none; }
 }
