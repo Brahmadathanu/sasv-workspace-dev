@@ -1,16 +1,21 @@
 // In-memory Supabase fake for FG-BIT-UX-1 tests. No network, no production access.
 // Serves the exact RPC/table names used by fg-bulk-internal-transfer.js and logs every call.
 export const SECTIONS = [{ id: 1, section_name: "Bulk Store" }, { id: 2, section_name: "Packing" }];
-export const SUBS = [{ id: 11, subsection_name: "Cold Bay", section_id: 1 }];
+export const SUBS = [
+  { id: 11, subsection_name: "Cold Bay", section_id: 1 },
+  { id: 12, subsection_name: "Warm Bay", section_id: 1 },
+  { id: 21, subsection_name: "Packing Bay", section_id: 2 },
+];
 export const AREAS = [
   { id: 101, area_name: "Aisle A", section_id: 1, subsection_id: 11 },
-  { id: 102, area_name: "Aisle B", section_id: 1, subsection_id: null },
-  { id: 201, area_name: "Line 1", section_id: 2, subsection_id: null },
+  { id: 102, area_name: "Aisle B", section_id: 1, subsection_id: 12 },
+  { id: 201, area_name: "Line 1", section_id: 2, subsection_id: 21 },
+  { id: 202, area_name: "Storage Shelf (no plant)", section_id: 2, subsection_id: 21 },
 ];
 export const PLANTS = [
   { id: 1001, plant_name: "Tank T1", section_id: 1, area_id: 101, subsection_id: 11 },
-  { id: 1002, plant_name: "Tank T2", section_id: 1, area_id: 102, subsection_id: null },
-  { id: 2001, plant_name: "Filler F1", section_id: 2, area_id: 201, subsection_id: null },
+  { id: 1002, plant_name: "Tank T2", section_id: 1, area_id: 102, subsection_id: 12 },
+  { id: 2001, plant_name: "Filler F1", section_id: 2, area_id: 201, subsection_id: 21 },
 ];
 
 export function makeRows(n = 120) {
