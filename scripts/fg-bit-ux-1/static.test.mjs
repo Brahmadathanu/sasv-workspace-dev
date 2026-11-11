@@ -6,17 +6,18 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (r) => fs.readFileSync(path.join(root, r), "utf8").replace(/\r\n/g, "\n");
-const html = read("fg-bulk-internal-transfer.html");
+const html = read("public/shared/fg-bulk-internal-transfer.html");
+const shim = read("fg-bulk-internal-transfer.html");
 const css = read("public/shared/css/sasv-fg-bulk-internal-transfer.css");
 const js = read("public/shared/js/fg-bulk-internal-transfer.js");
 
 test("page: theme attr, body class, stylesheet order, relative (Electron-safe) asset paths", () => {
   assert.match(html, /<html[^>]*data-sasv-theme="sasv-core"/);
   assert.match(html, /<body class="sasv-fg-bit"/);
-  const a = html.indexOf('href="public/shared/css/style.css"');
-  const b = html.indexOf('href="public/shared/css/sasv-fg-bulk-internal-transfer.css"');
+  const a = html.indexOf('href="css/style.css"');
+  const b = html.indexOf('href="css/sasv-fg-bulk-internal-transfer.css"');
   assert.ok(a > 0 && b > a, "module CSS loads after shared style.css");
-  assert.match(html, /src="public\/shared\/js\/fg-bulk-internal-transfer\.js"/);
+  assert.match(html, /src="js\/fg-bulk-internal-transfer\.js"/);
   assert.doesNotMatch(html, /(?:href|src)="\//, "no root-absolute URLs");
   assert.doesNotMatch(html, /<style[\s>]/, "no inline <style> block");
   assert.doesNotMatch(html, /style="/, "no inline style attributes");
@@ -32,7 +33,7 @@ test("page: every element id used by the script still exists (IDs preserved)", (
 test("home: canonical helper class, accessible name, target unchanged", () => {
   assert.match(html, /id="homeBtn"[^>]*class="sasv-home-btn"|class="sasv-home-btn"[^>]*id="homeBtn"|id="homeBtn"\s+type="button"\s+class="sasv-home-btn"/);
   assert.match(js, /mountModuleHome\(els\.homeBtn\)/);
-  assert.ok(js.includes(': "index.html"'), "Electron Home fallback preserved");
+  assert.ok(js.includes(': "../../index.html"'), "Electron Home fallback preserved");
 });
 test("css: scoped to body.sasv-fg-bit, tokens only, no raw hex, no global selectors", () => {
   const stripped = css.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -66,18 +67,22 @@ test("scope: SW cache pin unchanged; FG-BIT script/CSS use the existing network-
   // Runtime behaviour is covered by sw-freshness.test.mjs.
 });
 
-test("PWA route publishes the same module with correct relative assets and navigation", () => {
-  const pwa = read("public/shared/fg-bulk-internal-transfer.html");
-  assert.match(pwa, /data-sasv-theme="sasv-core"/);
-  for (const id of [...html.matchAll(/id="([^"]+)"/g)].map(m => m[1])) {
-    assert.match(pwa, new RegExp('id="' + id + '"'), id);
-  }
-  for (const asset of ['css/style.css', 'css/sasv-fg-bulk-internal-transfer.css', 'js/fg-bulk-internal-transfer.js']) {
-    assert.ok(pwa.includes('="' + asset + '"'), asset);
+test("Electron root file is only a deep-link preserving compatibility shim", () => {
+  assert.ok(shim.length < 1500, "no duplicate module document");
+  assert.ok(shim.includes('public/shared/fg-bulk-internal-transfer.html'));
+  assert.ok(shim.includes("target.search = location.search"));
+  assert.ok(shim.includes("target.hash = location.hash"));
+  assert.doesNotMatch(shim, /id="transferForm"/);
+});
+test("canonical page is shared by Electron and PWA", () => {
+  for (const asset of ["css/style.css", "css/sasv-fg-bulk-internal-transfer.css", "js/fg-bulk-internal-transfer.js"]) {
+    assert.ok(html.includes('="' + asset + '"'), asset);
     assert.ok(fs.existsSync(path.join(root, "public/shared", asset)), asset);
   }
-  assert.doesNotMatch(pwa, /(?:href|src)="public\//);
-  assert.match(js, /window\.location\.pathname\.startsWith\("\/shared\/"\)/);
-  assert.match(js, /"\/utilities-hub\/index\.html"/);
-  assert.ok(js.includes(': "login.html"'), "Electron login fallback preserved");
+  assert.ok(js.includes('window.location.protocol === "file:"'));
+  assert.ok(js.includes(': "../../index.html"'));
+  assert.ok(js.includes(': "../../login.html"'));
+  assert.ok(js.includes('"/utilities-hub/index.html"'));
+  assert.match(html, /guidance-chevron/);
+  assert.match(js, /function isTransferReady\(/);
 });
