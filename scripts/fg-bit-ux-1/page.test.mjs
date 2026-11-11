@@ -14,7 +14,9 @@ try { chromium = createRequire(import.meta.url)("playwright").chromium; } catch 
 const SK = !chromium && "Playwright unavailable";
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".woff2": "font/woff2", ".svg": "image/svg+xml" };
 const server = http.createServer((req, res) => {
-  const f = path.join(root, decodeURIComponent(req.url.split("?")[0]));
+  const requestPath = decodeURIComponent(req.url.split("?")[0]);
+  const filePath = /^\/(shared|utilities-hub|sw\.js)(\/|$)/.test(requestPath) ? `public${requestPath}` : requestPath;
+  const f = path.join(root, filePath);
   if (!f.startsWith(root) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404).end(); return; }
   res.writeHead(200, { "content-type": MIME[path.extname(f)] || "application/octet-stream" }).end(fs.readFileSync(f));
 });
@@ -440,11 +442,13 @@ test("PWA-published route loads the real transfer form and HOME returns to Hub",
     return route.abort();
   });
   await page.addInitScript(() => { window.__cfg = {}; });
-  await page.goto(`${base}/public/shared/fg-bulk-internal-transfer.html`);
+  await page.goto(`${base}/shared/fg-bulk-internal-transfer.html`);
   await page.waitForSelector("#sourceTbody tr[data-idx]");
   await page.click("#sourceTbody tr[data-idx='1']");
   assert.equal(await page.isVisible("#transferDate"), true);
   await page.click("#cancelBtn");
+  await page.route("**/utilities-hub/index.html", route => route.fulfill({ contentType: "text/html", body: "<title>PWA Hub</title>" }));
+  await Promise.all([page.waitForURL("**/utilities-hub/index.html"), page.click("#homeBtn")]);
   assert.deepEqual(errors, []);
   await ctx.close();
 });
