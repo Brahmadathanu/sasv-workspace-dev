@@ -2,6 +2,7 @@
 // and material, plus SKU/Pack sort on sku-control-status. node:test only, no
 // deps, no network. Same sandbox approach as the pkg 2 tests.
 import { PERSONNEL_SHELL_EDITS, PERSONNEL_COSTBUILD_EDITS } from "../costing-w506-conf-client/personnel-shell-blocks.mjs";
+import { SCOPED_COMPARISON_SHELL_EDITS } from "../csr-scoped-rpc-client/shell-edits.mjs"; // #273
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -398,7 +399,7 @@ test("pkg3 flag OFF: legacy templates verbatim; shell equals base apart from gat
   assert.match(stripped, REVIEW_WORKLIST_FN_RE);
   stripped = stripped.replace(REVIEW_WORKLIST_FN_RE, "");
   // WP05-W506 personnel-confidentiality client gate: pure insertions, each stripped exactly once.
-  for (const [h, o] of PERSONNEL_SHELL_EDITS) {
+  for (const [h, o] of [...PERSONNEL_SHELL_EDITS, ...SCOPED_COMPARISON_SHELL_EDITS]) {
     assert.equal(stripped.split(h).length, 2, "personnel edit");
     stripped = stripped.replace(h, o);
   }
