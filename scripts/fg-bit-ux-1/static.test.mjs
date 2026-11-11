@@ -79,4 +79,5 @@ test("PWA route publishes the same module with correct relative assets and navig
   assert.doesNotMatch(pwa, /(?:href|src)="public\//);
   assert.match(js, /window\.location\.pathname\.startsWith\("\/shared\/"\)/);
   assert.match(js, /"\/utilities-hub\/index\.html"/);
+  assert.ok(js.includes(': "login.html"'), "Electron login fallback preserved");
 });
