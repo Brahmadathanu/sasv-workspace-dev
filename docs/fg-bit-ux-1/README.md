@@ -1,12 +1,12 @@
 # FG-BIT-UX-1 — FG Bulk Internal Transfer UI/UX modernization
 
 Client-only. Base `origin/main` = `b9915b82d6ab818e9f66eb2ab95ca36d08b55bd6`. Branch `feat/fg-bit-ux-1-modernization`.
-Not merged, not deployed. No server, Supabase, shared CSS/JS or Electron changes. `public/sw.js` has one targeted rule added (review round 2, see below); cache name unchanged.
+Not merged to main or deployed to production. No server, Supabase, shared global CSS/JS or Electron packaging changes. `public/sw.js` has one targeted rule added (review round 2, see below); cache name unchanged.
 
 ## Files
 | File | Change |
 |---|---|
-| `fg-bulk-internal-transfer.html` | theme attr, body scope class, inline `<style>` and style attrs removed, semantic regions/ARIA, canonical Home markup, shared `.btn` buttons, footer reordered (Reset / Cancel / Submit), all IDs kept |
+| `public/shared/fg-bulk-internal-transfer.html` | **single canonical HTML** for PWA and Electron: SASV theme, modal, form, guidance and actions |\n| `fg-bulk-internal-transfer.html` | **compatibility redirect only**, preserving `item`, `bn` and hash for existing Electron deep links |
 | `public/shared/css/sasv-fg-bulk-internal-transfer.css` | new, scoped to `body.sasv-fg-bit`, tokens only |
 | `public/shared/js/fg-bulk-internal-transfer.js` | `mountModuleHome`/close icon, modal lifecycle (focus, trap, inert, restore), row keyboard activation, busy guards. No RPC/date/qty/state-machine change |
 | `scripts/fg-bit-ux-1/*` | static + mocked-browser tests, fake Supabase, evidence capture script |
@@ -16,7 +16,7 @@ Not merged, not deployed. No server, Supabase, shared CSS/JS or Electron changes
 | # | Finding (verified on base by rendering) | Fix |
 |---|---|---|
 | 1 | No `data-sasv-theme`; Arial, 32px h1, hardcoded colours | theme attr + Inter tokens; h1 18px/600 (matches Manage Activities computed values) |
-| 2 | Bespoke orange `#homeBtn` with `!important` | `sasv-home-btn` + `mountModuleHome`; target `index.html` unchanged |
+| 2 | Bespoke orange `#homeBtn` with `!important` | `sasv-home-btn` + `mountModuleHome`; Electron target now `../../index.html` from canonical shared page; PWA target `/utilities-hub/index.html` |
 | 3 | Modal 240px/1fr/230px grid, 900px collapse; overlay, body and card bodies each scrollable | 3-col (>1000px) → 2-col (≤1000) → 1-col (≤760); `.modal-body` is the only scroll owner; overlay hidden, cards visible |
 | 4 | Footer `position: sticky` inside scroller at ≤520px; message inline with buttons | modal is a grid (header / body / footer); footer never overlaps body; message is full-width row above actions; safe-area insets |
 | 5 | `setTimeout(...,60)` focus; no focus restore; no trap | immediate focus on date; Tab/Shift+Tab trap; background `inert`; focus returns to originating row, else the source list region |
@@ -56,6 +56,18 @@ Stubbed data means the references show empty states; table/row visuals were not 
 - Post exhaustion: modal hidden, `inert`/scroll-lock removed, focus on list region, count 50 of 119, row gone, Tab moves into the page, list scrolls, Enter reopens a row.
 - Dropped one planned test (opener removed before close) because closing re-renders the list from state, so the row reappears by design; the exhaustion test covers the real fallback.
 
+## Owner acceptance round 3 — pending rerun at current head
+- Source of truth: canonical `public/shared/fg-bulk-internal-transfer.html`, shared JS `public/shared/js/fg-bulk-internal-transfer.js`, module-scoped CSS. Root page is a small Electron legacy compatibility redirect, not a second full application.
+- Electron legacy query parameters (`item`, `bn`) and hash are carried into the canonical shared path; Electron Home/login use `../../index.html` and `../../login.html` from the shared file path, while hosted PWA routes to the Utilities Hub.
+- Guidance now shows a chevron on narrow screens; expanded state visibly changes.
+- Load more remains only for unsupported IntersectionObserver or recoverable paging failures; normal auto-paging hides the manual button.
+- Wide three-column modal cards stretch to equal outer heights; stacked layouts retain natural height.
+- Narrow date/number/select controls use consistent 16px text to avoid mobile input zoom.
+- Submit starts disabled, remains disabled until valid required fields are entered, becomes disabled again after reset/partial post; server validation and RPC contracts remain unchanged.
+- New regression assertions cover canonical HTML, redirect query preservation, visual card height, guidance affordance, normal invisible paging fallback and Submit readiness.
+- **Evidence caveat:** Previous 49-pass/ESLint results below belong to the earlier head `44cde3e7`; the above owner-round-3 changes have **not been independently executed/revalidated** in this GitHub-only session. Rerun and attach current-head results before merge.
+- Final owner review is still required on the current Netlify preview. Live PWA module registry activation is deferred until the validated canonical page is merged and served in production.
+
 ## Tests (Node 22.23.4, Playwright Chromium, Linux, in-memory fake, no network)
 ```
 node --test scripts/fg-bit-ux-1/*.test.mjs      # 49 pass / 0 fail / 0 skipped (7 static + 31 browser + 11 SW); 3 consecutive runs stable
@@ -77,7 +89,7 @@ Gate coverage (viewport matrix here is from round 1): A contract — static test
 - Post success (remains / exhausted), RPC error, network failure, no duplicate post ✔ tested
 
 ## PWA / Electron / cache freshness
-- URLs, query params and `index.html` Home target unchanged; relative asset paths (`public/shared/...`) as before; no root-absolute URLs (static test). Callers `add-log-entry.html`, `edit-log-entry.html`, `js/update-log-status.js` untouched.
+- The root Electron entry is a backward-compatible redirect into the shared canonical HTML; query params and hash are preserved. Relative assets are resolved from `public/shared/` in Electron and `/shared/` in the hosted PWA. Callers `add-log-entry.html`, `edit-log-entry.html`, `js/update-log-status.js` untouched.
 - Freshness: resolved by the targeted SW rule above (no version bump). Older installed clients still need one online visit to receive the new `sw.js` itself (HTML is network-first, so they get it).
 - Native Electron and a hosted PWA were **not** tested (unavailable). Electron picks this up in the next packaged release.
 
@@ -87,7 +99,7 @@ Gate coverage (viewport matrix here is from round 1): A contract — static test
 - Dark theme: none exists in shared architecture; not added.
 - Cross-browser: Chromium only. `inert` relies on Chromium 102+/Safari 15.5+/Firefox 112+.
 - Screenshots use synthetic data; the fake is not production.
-- Reference comparison is by computed styles + Manage Activities render; Stock Checker / Stock & Purchase Explorer were compared by shared tokens, not rendered.
+- Earlier reference screenshots include stubbed renders of Stock Checker and Stock & Purchase Explorer; new owner-round-3 visual changes still require recapture.
 
 ## Rollback
 `git revert <merge-sha>` (UI/SW-rule only; no data or schema impact). After a revert the SW rule disappears too, so installed clients may hold the cached new JS under cache-first until a version bump; the old HTML would not be compatible-checked. Prefer reverting together with an owner-approved cache bump.
