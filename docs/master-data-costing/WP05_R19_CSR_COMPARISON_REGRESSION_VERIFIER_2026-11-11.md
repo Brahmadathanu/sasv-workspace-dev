@@ -44,7 +44,7 @@ Fixture coverage: Nov/Oct/Sep 2026; seven synthetic periods (Jan–Jul 2026, inc
 
 * **DRY_RUN by default.** `bench.mjs fixture` prints a plan. It executes only with `--execute` **and** `BENCH_CONFIRM=FIXTURE_ONLY_NOT_PRODUCTION`, with `--samples` bounded to 1–30, against the local throwaway cluster only; output is labelled `FIXTURE_NOT_PRODUCTION`, warm only. There is no code path to a remote host and no credential input; a test asserts the sources contain no network client, URL or key variable.
 * **`bench.mjs ingest <file>`** analyses genuinely collected browser/edge timings (schema `csr-timing-samples/v1`). Unit (`ms`|`s`) is **mandatory** — the 5.75/4.08/4.37 ambiguity in R17 cannot recur silently. Inputs containing JWT-like values or token/cookie/email/authorization-style keys are rejected; unknown keys are rejected.
-* **Statistics:** nearest-rank p50/p95; **p95 is withheld below 20 samples per cell**; cold and warm are separate cells; 4000 ms target per cell; October non-regression compares candidate vs baseline p95 per temperature with a tolerance that defaults to 5% — **an assumption for the owner to confirm or replace**.
+* **Statistics:** nearest-rank p50/p95; **p95 is withheld below 20 samples per cell**; cold and warm are separate cells; 4000 ms target per cell; October non-regression compares candidate vs baseline p95 per temperature, but the **tolerance defaults to UNSET**, requiring an explicit owner-approved `--oct-tolerance` fraction. The harness returns `POLICY_UNSET`/HOLD until one is supplied. The 20-sample p95 display threshold is a **provisional reporting convention**, not an approved WP05 gate requirement.
 * **The harness never prints PASS.** Overall result is `HOLD` or `CANDIDATE_FOR_OWNER_REVIEW`; the owner records any timing PASS from genuine authorised samples. A test feeds the owner's real Nov 5.75 / Oct 4.08 / Sep 4.37 observations (as seconds, n=1) and confirms `HOLD`, no p95.
 
 ## 4. Client and service-worker verification (no client change)
@@ -78,7 +78,7 @@ Fixture coverage: Nov/Oct/Sep 2026; seven synthetic periods (Jan–Jul 2026, inc
 | Tie at cap boundary | Low / Medium | F-3 | confirm uniqueness of `(product_name, sku_column_label)` read-only before relying on either order |
 | Stale cached client modules | Low / Medium | F-1 recorded | owner decision on SW list / cache bump |
 | Fixture mistaken for production proof | Medium / High | labelled `FIXTURE_NOT_PRODUCTION`; never prints PASS | — |
-| Percentile claimed from few samples | Medium / Medium | p95 withheld < 20 | collect ≥ 20 cold + ≥ 20 warm per period, both variants, with unit |
+| Percentile claimed from few samples | Medium / Medium | p95 withheld < 20 | agree on representative sampling methodology first, then collect owner-approved cold/warm measurements with units |
 
 ## 6. Gate truth after this package
 
