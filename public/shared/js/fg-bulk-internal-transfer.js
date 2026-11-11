@@ -741,6 +741,12 @@ function getSelectText(sel) {
   return opt && opt.value ? opt.text : "";
 }
 
+function formatSummaryDate(isoDate) {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(isoDate || "")) return "—";
+  const [year, month, day] = isoDate.split("-");
+  return `${day}-${month}-${year}`;
+}
+
 function syncPostingSummary() {
   syncSubmitReadiness();
   const s = state.selectedRow;
@@ -755,14 +761,14 @@ function syncPostingSummary() {
     s.subsection_name,
     s.area_name,
     s.plant_name,
-  ].filter(Boolean);
+  ].filter((value) => value && String(value).trim() !== "-");
 
   const toParts = [
     getSelectText(els.dstSection),
     getSelectText(els.dstSubsection),
     getSelectText(els.dstArea),
     getSelectText(els.dstPlant),
-  ].filter(Boolean);
+  ].filter((value) => value && String(value).trim() !== "-");
 
   const qty = els.transferQty.value;
   const date = els.transferDate.value;
@@ -777,20 +783,20 @@ function syncPostingSummary() {
     <hr class="sum-divider" />
     <div class="sum-item">
       <span class="sum-lbl">Transfer Date</span>
-      <span class="sum-val">${escapeHtml(date) || "-"}</span>
+      <span class="sum-val">${formatSummaryDate(date)}</span>
     </div>
     <div class="sum-item">
       <span class="sum-lbl">Quantity</span>
-      <span class="sum-val qty">${escapeHtml(qty) || "-"} ${escapeHtml(s.uom)}</span>
+      <span class="sum-val qty">${qty ? `${escapeHtml(qty)} ${escapeHtml(s.uom)}` : "—"}</span>
     </div>
     <hr class="sum-divider" />
     <div class="sum-item">
       <span class="sum-lbl">From</span>
-      <span class="sum-val">${fromParts.map(escapeHtml).join(" > ") || "-"}</span>
+      <span class="sum-val">${fromParts.map(escapeHtml).join(" › ") || "—"}</span>
     </div>
     <div class="sum-item">
       <span class="sum-lbl">To</span>
-      <span class="sum-val">${toParts.map(escapeHtml).join(" > ") || "-"}</span>
+      <span class="sum-val">${toParts.map(escapeHtml).join(" › ") || "—"}</span>
     </div>
     ${
       remarks
