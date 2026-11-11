@@ -65,3 +65,18 @@ test("scope: SW cache pin unchanged; FG-BIT script/CSS use the existing network-
   assert.match(sw, /sasv-fg-bulk-internal-transfer\\\.css\$\/\.test\(url\.pathname\)/);
   // Runtime behaviour is covered by sw-freshness.test.mjs.
 });
+
+test("PWA route publishes the same module with correct relative assets and navigation", () => {
+  const pwa = read("public/shared/fg-bulk-internal-transfer.html");
+  assert.match(pwa, /data-sasv-theme="sasv-core"/);
+  for (const id of [...html.matchAll(/id="([^"]+)"/g)].map(m => m[1])) {
+    assert.match(pwa, new RegExp('id="' + id + '"'), id);
+  }
+  for (const asset of ['css/style.css', 'css/sasv-fg-bulk-internal-transfer.css', 'js/fg-bulk-internal-transfer.js']) {
+    assert.ok(pwa.includes('="' + asset + '"'), asset);
+    assert.ok(fs.existsSync(path.join(root, "public/shared", asset)), asset);
+  }
+  assert.doesNotMatch(pwa, /(?:href|src)="public\//);
+  assert.match(js, /window\.location\.pathname\.startsWith\("\/shared\/"\)/);
+  assert.match(js, /"\/utilities-hub\/index\.html"/);
+});
