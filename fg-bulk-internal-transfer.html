@@ -1,920 +1,63 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-sasv-theme="sasv-core">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <title>FG Bulk Internal Transfer</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
-    <style>
-      /* Page-level spacing to match update-log-status.
-         Height-bound flex shell (scoped to this page only) so the source
-         list scrolls internally instead of growing the page. Body keeps
-         overflow-y:auto (not hidden) so short viewports can still scroll. */
-      body {
-        background: var(--bg-color);
-        color: var(--text-color);
-        font-family: Arial, sans-serif;
-        /* Use padding (inside the border-box) rather than margin so the
-           100vh flex shell does not overflow the viewport by the margin
-           amount — that was the persistent page-level scrollbar cause. */
-        margin: 0;
-        padding: 20px;
-        height: 100vh;
-        box-sizing: border-box;
-        transition:
-          background 0.3s,
-          color 0.3s;
-        display: flex;
-        flex-direction: column;
-        overflow-y: auto;
-      }
-      .header {
-        flex-shrink: 0;
-      }
-
-      /* ── Page description ─────────────────────────────────── */
-      .page-desc {
-        margin: 12px 0 28px;
-        font-size: 0.9rem;
-        line-height: 2.5;
-        color: #6b7280;
-      }
-
-      /* ── Guidance strip ───────────────────────────────────── */
-      .guidance {
-        background: #fffbeb;
-        border: 1px solid #fcd34d;
-        border-radius: 6px;
-        padding: 10px 16px;
-        font-size: 0.84rem;
-        color: #92400e;
-        margin-bottom: 18px;
-        line-height: 1.5;
-      }
-      .guidance strong {
-        color: #78350f;
-      }
-
-      /* ── Filters ──────────────────────────────────────────── */
-      .filters-row {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-        margin-bottom: 14px;
-      }
-      /* Search field wrapper hosts the input + inline clear button.
-         Soft light fill + focus ring follow Stock & Purchase Explorer /
-         costing-control-center patterns. */
-      .filter-input-wrap {
-        position: relative;
-        display: flex;
-        align-items: center;
-      }
-      .filter-input-wrap input {
-        padding: 8px 34px 8px 10px; /* right room for the × button */
-        font-size: 0.875rem;
-        border: 1px solid #cfe3f7;
-        border-radius: 6px;
-        background: #e8f2fd; /* light blue fill */
-        box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.03);
-        width: 100%;
-        box-sizing: border-box;
-      }
-      .filter-input-wrap input::placeholder {
-        color: #9ca3af;
-      }
-      .filter-input-wrap input:focus {
-        outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
-      }
-      .filter-item {
-        flex: 1;
-      }
-      .filter-batch {
-        width: 220px;
-      }
-      /* Inline clear × button (hidden until the field has text) */
-      .input-clear-btn {
-        position: absolute;
-        right: 6px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 22px;
-        height: 22px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: none;
-        background: transparent;
-        color: #6b7280;
-        font-size: 1.05rem;
-        line-height: 1;
-        cursor: pointer;
-        border-radius: 4px;
-        padding: 0;
-      }
-      .input-clear-btn:hover {
-        background: rgba(15, 23, 42, 0.06);
-        color: #111827;
-      }
-      .input-clear-btn[hidden] {
-        display: none;
-      }
-
-      /* ── Source card ──────────────────────────────────────── */
-      .source-card {
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        overflow: hidden;
-        background: #fff;
-        display: flex;
-        flex-direction: column;
-        flex: 1 1 auto;
-        min-height: 0; /* allow internal scroll instead of page growth */
-      }
-      .source-card-hdr {
-        padding: 11px 16px;
-        background: #f3f4f6;
-        border-bottom: 1px solid #d1d5db;
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: #374151;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-shrink: 0;
-      }
-      .source-table-wrap {
-        /* The flex chain (body 100vh → panel → card → wrap) sizes this to the
-           remaining viewport height, so the list fills the available space and
-           scrolls internally. min-height keeps it usable on short viewports
-           (the page can scroll via body overflow-y in that case). No fixed
-           max-height cap, otherwise leftover space pools under the card. */
-        overflow-y: auto;
-        overflow-x: auto;
-        flex: 1 1 auto;
-        min-height: 200px;
-      }
-
-      /* Panel is a flex column so the source card can fill remaining height.
-         Override the shared .panel bottom margin (32px) — otherwise it leaves
-         dead space below the card once the panel becomes the flex-fill item. */
-      main.panel {
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-        flex: 1 1 auto;
-        min-height: 0;
-        margin-bottom: 0;
-      }
-
-      /* ── Source table ─────────────────────────────────────── */
-      /* Auto layout so columns size intelligently to their content: narrow
-         columns (Batch/Available/Plant) shrink, while Item and the location
-         columns absorb remaining width and ellipsize long text. min-width
-         keeps the table filling the card when content is short. */
-      .source-table {
-        width: 100%;
-        min-width: 100%;
-        border-collapse: collapse;
-        font-size: 0.8rem;
-        table-layout: auto;
-      }
-      /* Column sizing applies only to the desktop/tablet table (>520px); the
-         <=520px card layout switches cells to display:block and is untouched. */
-      @media (min-width: 521px) {
-        /* Shrink-to-content columns: only as wide as their predictable text */
-        .source-table th.col-batch,
-        .source-table td.col-batch,
-        .source-table th.col-num,
-        .source-table td.col-num,
-        .source-table th.col-plant,
-        .source-table td.col-plant {
-          width: 1%;
-          white-space: nowrap;
-        }
-        /* Flexible text columns: modest minimums, ellipsize overflow */
-        .source-table th.col-item,
-        .source-table td.col-item {
-          min-width: 120px;
-        }
-        .source-table th.col-section,
-        .source-table td.col-section,
-        .source-table th.col-subsection,
-        .source-table td.col-subsection,
-        .source-table th.col-area,
-        .source-table td.col-area {
-          min-width: 80px;
-        }
-      }
-      .source-table thead th {
-        position: sticky;
-        top: 0;
-        z-index: 2;
-        background: #f9fafb;
-        padding: 7px 8px;
-        text-align: left;
-        font-size: 0.7rem;
-        font-weight: 700;
-        color: #4b5563;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        border-bottom: 2px solid #d1d5db;
-        white-space: nowrap;
-      }
-      .source-table thead th.col-num {
-        text-align: right;
-      }
-      .source-table tbody tr {
-        cursor: pointer;
-        border-bottom: 1px solid #f3f4f6;
-        transition: background 0.1s;
-      }
-      /* Zebra striping: subtle ERP-style alternate row background */
-      .source-table tbody tr:nth-child(even) {
-        background: #fbfdff;
-      }
-      .source-table tbody tr:last-child {
-        border-bottom: none;
-      }
-      .source-table tbody tr:hover {
-        background: #eff6ff;
-      }
-      .source-table tbody tr.row-selected {
-        background: #dbeafe;
-      }
-      .source-table tbody td {
-        padding: 6px 8px;
-        color: #111827;
-        line-height: 1.35;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .source-table tbody td.col-num {
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-        font-weight: 500;
-        color: #065f46;
-        white-space: nowrap;
-      }
-      /* Mobile-only helper cells are hidden on desktop */
-      .src-mobile-meta,
-      .src-mobile-line {
-        display: none;
-      }
-      .source-table .empty-row td {
-        text-align: center;
-        padding: 32px;
-        color: #9ca3af;
-        cursor: default;
-        font-style: italic;
-      }
-      .source-table .empty-row:hover {
-        background: transparent;
-      }
-
-      /* ── Row count ────────────────────────────────────────── */
-      .row-count {
-        font-size: 0.78rem;
-        color: #9ca3af;
-        margin: 0;
-        padding: 0 2px;
-      }
-
-      /* ── Source list footer (infinite scroll) ─────────────── */
-      .source-footer {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        padding: 10px 16px;
-        border-top: 1px solid #d1d5db;
-        background: #f9fafb;
-        min-height: 20px;
-        flex-shrink: 0;
-      }
-      /* Footer is hidden at rest; shown only when loading more, when the
-         Load more fallback is needed, or when a retry action is required. */
-      .source-footer[hidden] {
-        display: none;
-      }
-      .source-footer-status {
-        font-size: 0.78rem;
-        color: #6b7280;
-      }
-      .source-footer .btn[hidden] {
-        display: none;
-      }
-      /* Sentinel is a zero-height marker used by IntersectionObserver */
-      .source-sentinel {
-        height: 1px;
-        width: 100%;
-      }
-
-      /* ── Modal overlay ────────────────────────────────────── */
-      .modal-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 23, 42, 0.55);
-        display: flex;
-        align-items: flex-start;
-        justify-content: center;
-        padding: 28px 16px;
-        z-index: 900;
-        overflow-y: auto;
-      }
-      .modal-overlay[hidden] {
-        display: none;
-      }
-      .modal-box {
-        background: #fff;
-        border-radius: 10px;
-        box-shadow:
-          0 8px 30px rgba(0, 0, 0, 0.18),
-          0 2px 8px rgba(0, 0, 0, 0.08);
-        width: 100%;
-        max-width: 1100px;
-        display: flex;
-        flex-direction: column;
-        max-height: calc(100vh - 56px);
-        overflow: hidden;
-      }
-
-      /* ── Modal header ─────────────────────────────────────── */
-      .modal-hdr {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 16px 24px;
-        border-bottom: 1px solid #e5e7eb;
-        background: #f9fafb;
-        flex-shrink: 0;
-      }
-      .modal-hdr-text h2 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 700;
-        color: #111827;
-      }
-      .modal-hdr-sub {
-        font-size: 0.8rem;
-        color: #6b7280;
-        margin-top: 2px;
-      }
-      .modal-close {
-        background: none;
-        border: 1px solid #d1d5db;
-        border-radius: 5px;
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-        color: #6b7280;
-        cursor: pointer;
-        flex-shrink: 0;
-        line-height: 1;
-      }
-      .modal-close:hover {
-        background: #fee2e2;
-        border-color: #fca5a5;
-        color: #b91c1c;
-      }
-
-      /* ── Modal body ───────────────────────────────────────── */
-      .modal-body {
-        padding: 20px 24px;
-        overflow-y: auto;
-        flex: 1;
-      }
-      .modal-cards {
-        display: grid;
-        grid-template-columns: 240px 1fr 230px;
-        gap: 16px;
-        align-items: stretch; /* all cards grow to the same row height */
-      }
-
-      /* ── Modal cards ──────────────────────────────────────── */
-      .mcard {
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column; /* title pinned top, body fills rest */
-        background: #f8fafc; /* subtle off-white for all cards */
-      }
-      /* Per-card light tints */
-      .mcard:nth-child(1) {
-        background: #f5f3ff;
-        border-color: #ddd6fe;
-      } /* indigo tint – Selected Source */
-      .mcard:nth-child(2) {
-        background: #f0f9ff;
-        border-color: #bae6fd;
-      } /* sky tint – Transfer Entry */
-      .mcard:nth-child(3) {
-        background: #f0fdf4;
-        border-color: #bbf7d0;
-      } /* green tint – Posting Summary */
-      .mcard-title {
-        padding: 10px 16px;
-        background: rgba(255, 255, 255, 0.55);
-        border-bottom: 2px solid #e5e7eb;
-        font-size: 0.7rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.07em;
-        color: #374151;
-        flex-shrink: 0;
-      }
-      /* Accent left border per card position to distinguish them */
-      .mcard:nth-child(1) .mcard-title {
-        border-left: 3px solid #6366f1;
-      }
-      .mcard:nth-child(2) .mcard-title {
-        border-left: 3px solid #0284c7;
-      }
-      .mcard:nth-child(3) .mcard-title {
-        border-left: 3px solid #059669;
-      }
-      .mcard-body {
-        padding: 16px;
-        font-size: 0.875rem;
-        flex: 1; /* fills remaining card height */
-        overflow-y: auto; /* scroll if content overflows */
-        background: transparent;
-      }
-
-      /* ── Source info card ─────────────────────────────────── */
-      .src-rows {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-      .src-field {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-      .src-lbl {
-        font-size: 0.68rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #9ca3af;
-      }
-      .src-val {
-        font-size: 0.875rem;
-        color: #111827;
-        font-weight: 500;
-      }
-      .src-val.prominent {
-        font-size: 0.95rem;
-        font-weight: 700;
-      }
-      .src-val.available {
-        font-size: 1rem;
-        font-weight: 700;
-        color: #065f46;
-      }
-      .src-divider {
-        border: none;
-        border-top: 1px solid #f3f4f6;
-        margin: 2px 0;
-      }
-
-      /* ── Transfer entry form ──────────────────────────────── */
-      .form-stack {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-      .form-row-2 {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-      }
-      .fgroup {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-      .fgroup label {
-        font-size: 0.72rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #374151;
-      }
-      .opt-note {
-        font-weight: 400;
-        text-transform: none;
-        color: #9ca3af;
-        letter-spacing: 0;
-      }
-      .fgroup input,
-      .fgroup select,
-      .fgroup textarea {
-        padding: 7px 10px;
-        font-size: 0.875rem;
-        border: 1px solid #d1d5db;
-        border-radius: 4px;
-        background: #fff;
-        width: 100%;
-        box-sizing: border-box;
-      }
-      .fgroup input:focus,
-      .fgroup select:focus,
-      .fgroup textarea:focus {
-        outline: 2px solid #3b82f6;
-        outline-offset: -1px;
-      }
-      .fgroup select:disabled {
-        background: #f9fafb;
-        color: #9ca3af;
-        cursor: not-allowed;
-      }
-      .fgroup textarea {
-        resize: vertical;
-        min-height: 52px;
-      }
-      .dst-legend {
-        font-size: 0.7rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #6b7280;
-        margin: 0 0 8px;
-        padding: 8px 0 0;
-        border-top: 1px solid #f3f4f6;
-      }
-
-      /* ── Posting summary card ─────────────────────────────── */
-      .sum-rows {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-      .sum-item {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-      .sum-lbl {
-        font-size: 0.68rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #9ca3af;
-      }
-      .sum-val {
-        font-size: 0.84rem;
-        color: #111827;
-        line-height: 1.35;
-      }
-      .sum-val.accent {
-        color: #1d4ed8;
-        font-weight: 600;
-      }
-      .sum-val.qty {
-        font-size: 1rem;
-        font-weight: 700;
-        color: #065f46;
-      }
-      .sum-divider {
-        border: none;
-        border-top: 1px solid #f3f4f6;
-        margin: 0;
-      }
-      .muted-text {
-        color: #9ca3af;
-        font-style: italic;
-        font-size: 0.84rem;
-      }
-
-      /* ── Modal footer ─────────────────────────────────────── */
-      .modal-footer {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 14px 24px;
-        border-top: 1px solid #e5e7eb;
-        background: #f9fafb;
-        flex-shrink: 0;
-      }
-      .modal-msg {
-        flex: 1;
-        font-size: 0.875rem;
-      }
-      .modal-msg .msg-success {
-        color: #065f46;
-        background: #d1fae5;
-        padding: 6px 12px;
-        border-radius: 4px;
-        display: inline-block;
-        font-weight: 500;
-      }
-      .modal-msg .msg-error {
-        color: #991b1b;
-        background: #fee2e2;
-        padding: 6px 12px;
-        border-radius: 4px;
-        display: inline-block;
-        font-weight: 500;
-      }
-      .modal-msg .msg-info {
-        color: #1e40af;
-        background: #dbeafe;
-        padding: 6px 12px;
-        border-radius: 4px;
-        display: inline-block;
-      }
-      /* Buttons */
-      .action-link {
-        background: none;
-        border: none;
-        color: #1d4ed8;
-        cursor: pointer;
-        padding: 6px 8px;
-        border-radius: 6px;
-        font-weight: 600;
-      }
-      .action-link:hover {
-        background: rgba(59, 130, 246, 0.08);
-      }
-
-      #submitBtn {
-        background: #1d4ed8;
-        color: #ffffff;
-        border: 1px solid #1d4ed8;
-        padding: 8px 14px;
-        border-radius: 8px;
-        font-weight: 700;
-        cursor: pointer;
-      }
-      #submitBtn:hover {
-        background: #154fad;
-        border-color: #154fad;
-      }
-      #submitBtn[disabled] {
-        opacity: 0.6;
-        cursor: wait;
-      }
-
-      /* Secondary buttons in modal footer */
-      #resetBtn,
-      #cancelBtn {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        padding: 8px 12px;
-        border-radius: 8px;
-        color: #374151;
-        cursor: pointer;
-        font-weight: 600;
-      }
-      #resetBtn:hover,
-      #cancelBtn:hover {
-        background: #f3f4f6;
-      }
-      /* HOME button (from update-log-status) */
-      #homeBtn {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        border: 1px solid #fdba74 !important;
-        border-radius: 6px;
-        background: #fed7aa !important;
-        color: #9a3412 !important;
-        cursor: pointer;
-        font-size: 0.875rem;
-        font-family: inherit;
-        font-weight: 500;
-        transition: all 0.2s;
-      }
-      #homeBtn:hover {
-        background: #fdba74 !important;
-        border-color: #fb923c !important;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-      #homeBtn svg {
-        flex-shrink: 0;
-      }
-
-      /* ── Responsive: modal stacking on narrow screens ─────── */
-      @media (max-width: 900px) {
-        .modal-cards {
-          grid-template-columns: 1fr;
-        }
-      }
-      /* Guidance toggle is desktop-hidden; guidance body always visible >520px */
-      .guidance-toggle {
-        display: none;
-        background: none;
-        border: none;
-        padding: 0;
-        cursor: pointer;
-        font-weight: 700;
-        color: #78350f;
-        font-size: 0.84rem;
-      }
-
-      /* ── Narrow screens (phones) ──────────────────────────── */
-      @media (max-width: 520px) {
-        /* Keep padding (not margin) so the 100vh flex shell doesn't overflow */
-        body {
-          padding: 12px;
-        }
-        /* The description normally spaces the header from the panel; it is
-           hidden here, so add explicit separation to avoid the panel/card
-           touching the title and home button. */
-        .header {
-          margin-bottom: 14px;
-        }
-        /* Compact header + collapsible guidance */
-        .header h1 {
-          font-size: 1.15rem;
-        }
-        .page-desc {
-          display: none;
-        }
-        /* Home button becomes an icon-only square */
-        .home-label {
-          display: none;
-        }
-        #homeBtn {
-          padding: 8px;
-        }
-        /* Hide the verbose source-card title; keep the row count */
-        .source-card-title {
-          display: none;
-        }
-        .guidance {
-          margin-bottom: 10px;
-          padding: 6px 10px;
-        }
-        .guidance-toggle {
-          display: inline-flex;
-        }
-        .guidance-body {
-          display: none;
-        }
-        .guidance.is-open .guidance-body {
-          display: block;
-          margin-top: 8px;
-        }
-
-        /* Modal near full-viewport */
-        .modal-overlay {
-          padding: 0;
-          align-items: stretch;
-        }
-        .modal-box {
-          max-width: 100%;
-          max-height: 100vh;
-          border-radius: 0;
-        }
-        .form-row-2 {
-          grid-template-columns: 1fr;
-        }
-        /* Keep action buttons reachable at the bottom of the modal */
-        .modal-footer {
-          position: sticky;
-          bottom: 0;
-          flex-wrap: wrap;
-        }
-        /* Prevent long source/destination text from overflowing */
-        .src-val,
-        .sum-val {
-          word-break: break-word;
-        }
-
-        /* Source table becomes a stack of selectable cards */
-        .source-table,
-        .source-table tbody {
-          display: block;
-          width: 100%;
-        }
-        .source-table thead {
-          display: none;
-        }
-        .source-table tbody tr {
-          display: grid;
-          grid-template-columns: 1fr auto;
-          gap: 2px 10px;
-          padding: 10px 12px;
-          border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          margin: 0 0 8px;
-          background: #fff;
-          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
-          white-space: normal;
-        }
-        /* Alternating card fill for easier row scanning */
-        .source-table tbody tr:nth-child(odd) {
-          background: #fff;
-        }
-        .source-table tbody tr:nth-child(even) {
-          background: #f5f8fc;
-        }
-        /* Selected state wins over the zebra fill */
-        .source-table tbody tr.row-selected,
-        .source-table tbody tr:nth-child(even).row-selected {
-          border-color: #93c5fd;
-          background: #eff6ff;
-        }
-        .source-table tbody td {
-          display: block;
-          padding: 0;
-          white-space: normal;
-          overflow: visible;
-          text-overflow: clip;
-        }
-        /* Hide the desktop location/plant cells; use the compact meta line */
-        .source-table tbody td.col-section,
-        .source-table tbody td.col-subsection,
-        .source-table tbody td.col-area,
-        .source-table tbody td.col-plant {
-          display: none;
-        }
-        .source-table tbody td.col-item {
-          grid-column: 1;
-          grid-row: 1;
-          font-weight: 700;
-          font-size: 0.95rem;
-        }
-        .source-table tbody td.col-num {
-          grid-column: 2;
-          grid-row: 1;
-          text-align: right;
-          font-weight: 700;
-          font-size: 0.95rem;
-        }
-        .source-table tbody td.col-batch {
-          grid-column: 1 / -1;
-          grid-row: 2;
-          font-size: 0.8rem;
-          color: #374151;
-        }
-        .src-mobile-line {
-          display: block;
-          grid-column: 1 / -1;
-          font-size: 0.78rem;
-          color: #6b7280;
-          margin-top: 2px;
-        }
-        .source-table .empty-row td {
-          grid-column: 1 / -1;
-          text-align: center;
-        }
-      }
-    </style>
+    <!-- Module-scoped parity layer (FG-BIT-UX-1). Loaded after shared styles. -->
+    <link
+      rel="stylesheet"
+      href="public/shared/css/sasv-fg-bulk-internal-transfer.css"
+    />
   </head>
-  <body>
+  <body class="sasv-fg-bit">
     <!-- ── Page Header ──────────────────────────────────────── -->
-    <div class="header">
-      <div
-        style="
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 12px;
-        "
-      >
-        <div>
-          <h1 style="margin: 0">FG Bulk Internal Transfer</h1>
-          <p class="page-desc" style="margin: 4px 0 0">
-            Move finished-goods bulk stock between storage locations without
-            modifying the original work-log record.
-          </p>
-        </div>
-        <button id="homeBtn" aria-label="Home">
+    <header class="header fgbit-header">
+      <div class="fgbit-header-copy">
+        <h1 class="fgbit-title">FG Bulk Internal Transfer</h1>
+        <p class="page-desc fgbit-sub">
+          Move finished-goods bulk stock between storage locations without
+          modifying the original work-log record.
+        </p>
+      </div>
+      <div class="fgbit-header-actions">
+        <!-- Static icon + label is the canonical mountModuleHome() output; the
+             page script re-mounts it idempotently. Keeping it static means the
+             control is correct even before/without the module script. -->
+        <button
+          id="homeBtn"
+          type="button"
+          class="sasv-home-btn"
+          title="HOME"
+          aria-label="HOME"
+        >
           <svg
+            class="sasv-icon"
             width="16"
             height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
           >
-            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9,22 9,12 15,12 15,22" />
+            <path d="M3 10.5 12 3l9 7.5" />
+            <path d="M5 10v10h14V10" />
           </svg>
           <span class="home-label">HOME</span>
         </button>
       </div>
-    </div>
+    </header>
 
-    <main class="panel">
+    <main class="panel fgbit-main">
       <!-- Guidance Strip (collapsible on narrow screens) -->
-      <div class="guidance" id="guidance">
+      <div class="guidance fgbit-guidance" id="guidance">
         <button
           type="button"
           id="guidanceToggle"
@@ -932,12 +75,13 @@
       </div>
 
       <!-- Filters Row -->
-      <div class="filters-row">
+      <div class="filters-row fgbit-filters">
         <div class="filter-input-wrap filter-item">
           <input
             id="filterItem"
             type="text"
             placeholder="Search item…"
+            aria-label="Search item"
             autocomplete="off"
           />
           <button
@@ -956,6 +100,7 @@
             id="filterBatch"
             type="text"
             placeholder="Search batch…"
+            aria-label="Search batch"
             autocomplete="off"
           />
           <button
@@ -972,25 +117,28 @@
       </div>
 
       <!-- Source Stock Table -->
-      <div class="source-card">
+      <section class="source-card" aria-label="FG bulk stock by location">
         <div class="source-card-hdr">
           <div class="source-card-title">
-            FG Bulk Stock — Available by Location &nbsp;·&nbsp; Click a row to
+            FG Bulk Stock — Available by Location &nbsp;·&nbsp; Select a row to
             open transfer entry
           </div>
-          <div id="rowCount" class="row-count"></div>
+          <div id="rowCount" class="row-count" role="status" aria-live="polite"></div>
         </div>
-        <div class="source-table-wrap">
+        <div class="source-table-wrap" tabindex="-1">
           <table class="source-table">
+            <caption class="fgbit-sr">
+              FG bulk stock available by location
+            </caption>
             <thead>
               <tr>
-                <th class="col-item">Item</th>
-                <th class="col-batch">Batch</th>
-                <th class="col-num">Available</th>
-                <th class="col-section">Section</th>
-                <th class="col-subsection">Sub-section</th>
-                <th class="col-area">Area</th>
-                <th class="col-plant">Plant</th>
+                <th scope="col" class="col-item">Item</th>
+                <th scope="col" class="col-batch">Batch</th>
+                <th scope="col" class="col-num">Available</th>
+                <th scope="col" class="col-section">Section</th>
+                <th scope="col" class="col-subsection">Sub-section</th>
+                <th scope="col" class="col-area">Area</th>
+                <th scope="col" class="col-plant">Plant</th>
               </tr>
             </thead>
             <tbody id="sourceTbody"></tbody>
@@ -1006,7 +154,7 @@
             Load more
           </button>
         </div>
-      </div>
+      </section>
     </main>
 
     <!-- ── Transfer Modal ───────────────────────────────────── -->
@@ -1017,6 +165,7 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="modalTitle"
+      aria-describedby="modalSubtitle"
     >
       <div class="modal-box">
         <!-- Modal Header -->
@@ -1038,22 +187,28 @@
           </button>
         </div>
 
-        <!-- Modal Body -->
+        <!-- Modal Body: the single scroll owner of the dialog -->
         <div class="modal-body">
           <div class="modal-cards">
             <!-- Card 1: Selected Source -->
-            <div class="mcard">
-              <div class="mcard-title">Selected Source</div>
+            <section
+              class="mcard mcard-source"
+              aria-labelledby="mcardSourceTitle"
+            >
+              <h3 class="mcard-title" id="mcardSourceTitle">Selected Source</h3>
               <div class="mcard-body">
                 <div id="selectedSourceBody" class="src-rows">
                   <span class="muted-text">No source selected.</span>
                 </div>
               </div>
-            </div>
+            </section>
 
             <!-- Card 2: Transfer Entry -->
-            <div class="mcard">
-              <div class="mcard-title">Transfer Entry</div>
+            <section
+              class="mcard mcard-entry"
+              aria-labelledby="mcardEntryTitle"
+            >
+              <h3 class="mcard-title" id="mcardEntryTitle">Transfer Entry</h3>
               <div class="mcard-body">
                 <form id="transferForm" novalidate>
                   <div class="form-stack">
@@ -1070,13 +225,14 @@
                           step="any"
                           min="0.001"
                           required
+                          inputmode="decimal"
                           placeholder="0.000"
                         />
                       </div>
                     </div>
 
-                    <div>
-                      <div class="dst-legend">Destination Location</div>
+                    <fieldset class="dst-fieldset">
+                      <legend class="dst-legend">Destination Location</legend>
                       <div class="form-stack">
                         <div class="form-row-2">
                           <div class="fgroup">
@@ -1102,7 +258,7 @@
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </fieldset>
 
                     <div class="fgroup">
                       <label for="remarks"
@@ -1113,32 +269,45 @@
                   </div>
                 </form>
               </div>
-            </div>
+            </section>
 
             <!-- Card 3: Posting Summary -->
-            <div class="mcard">
-              <div class="mcard-title">Posting Summary</div>
+            <section
+              class="mcard mcard-summary"
+              aria-labelledby="mcardSummaryTitle"
+            >
+              <h3 class="mcard-title" id="mcardSummaryTitle">Posting Summary</h3>
               <div class="mcard-body">
-                <div id="postingSummaryBody" class="sum-rows">
+                <div id="postingSummaryBody" class="sum-rows" aria-live="polite">
                   <span class="muted-text"
                     >Fill in transfer details to preview.</span
                   >
                 </div>
               </div>
-            </div>
+            </section>
           </div>
         </div>
 
-        <!-- Modal Footer / Action Bar -->
+        <!-- Modal Footer / Action Bar (grid row, never overlaps the body) -->
         <div class="modal-footer">
-          <button type="submit" id="submitBtn" form="transferForm">
+          <div
+            id="modalMsgArea"
+            class="modal-msg"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          ></div>
+          <button type="button" id="resetBtn" class="btn ghost">Reset</button>
+          <span class="fgbit-footer-spacer" aria-hidden="true"></span>
+          <button type="button" id="cancelBtn" class="btn">Cancel</button>
+          <button
+            type="submit"
+            id="submitBtn"
+            form="transferForm"
+            class="btn btn-primary"
+          >
             Submit Transfer
           </button>
-          <button type="button" id="resetBtn" class="action-link">Reset</button>
-          <button type="button" id="cancelBtn" class="action-link">
-            Cancel
-          </button>
-          <div id="modalMsgArea" class="modal-msg"></div>
         </div>
       </div>
     </div>

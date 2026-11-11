@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient.js";
+import { mountModuleHome, mountModuleIcon } from "./sasv-module-chrome.js";
 
 // FG Bulk Internal Transfer - modal-driven ERP UX
 // DB / RPC contract preserved exactly.
@@ -16,6 +17,10 @@ const state = {
   sourceIsLoading: false,
   sourceQueryVersion: 0,
   selectedSourceIdentity: null,
+  // Modal lifecycle (FG-BIT-UX-1): posting guard + focus return target
+  isPosting: false,
+  openerIdx: null,
+  openerKey: null,
 };
 
 // Debounce handle for filter inputs
@@ -85,6 +90,7 @@ function showMessage(type, text) {
         ? "msg-error"
         : "msg-info";
   span.textContent = text;
+  if (type === "error") span.setAttribute("role", "alert");
   els.modalMsgArea.appendChild(span);
 }
 
@@ -424,7 +430,7 @@ function renderSourceTable() {
       const available = formatAvailable(r);
       // Secondary line for the <=520px card layout only.
       const mobileLine = `${escapeHtml(formatLocationLabel(r))} · ${plant}`;
-      return `<tr data-idx="${idx}" class="${sel}">
+      return `<tr data-idx="${idx}" class="${sel}" tabindex="0">
         <td class="col-item" title="${item}">${item}</td>
         <td class="col-batch" title="${batch}">${batch}</td>
         <td class="col-num">${available}</td>
@@ -448,7 +454,18 @@ function handleSourceRowClick(ev) {
   if (!tr) return;
   const idx = Number(tr.dataset.idx);
   const row = state.sourceRows[idx];
-  if (row) openTransferModal(row);
+  if (row) openTransferModal(row, idx);
+}
+
+// Keyboard activation for source rows (Enter / Space).
+function handleSourceRowKeydown(ev) {
+  if (ev.key !== "Enter" && ev.key !== " ") return;
+  const tr = ev.target.closest && ev.target.closest("tr[data-idx]");
+  if (!tr || ev.target !== tr) return;
+  ev.preventDefault();
+  const idx = Number(tr.dataset.idx);
+  const row = state.sourceRows[idx];
+  if (row) openTransferModal(row, idx);
 }
 
 /* -- Selection & modal ------------------------------------- */
@@ -467,20 +484,88 @@ function clearSelectedSource() {
   renderSourceTable();
 }
 
-function openTransferModal(row) {
+function openTransferModal(row, idx = null) {
+  state.openerIdx = Number.isInteger(idx) ? idx : null;
+  state.openerKey = row.source_key ?? null;
   selectSourceRow(row);
   populateSelectedSourceCard(row);
   resetTransferForm();
   clearMessage();
   els.transferModal.removeAttribute("hidden");
-  // Defer focus so the modal is visible first
-  setTimeout(() => els.transferDate && els.transferDate.focus(), 60);
+  setBackgroundInert(true);
+  // Initial focus: first field, applied synchronously once the dialog is shown.
+  if (els.transferDate) els.transferDate.focus();
+}
+
+// Background (header + main) is inert while the modal is open so focus and
+// pointer interaction cannot reach the page behind it.
+function setBackgroundInert(on) {
+  document.body.classList.toggle("fgbit-modal-open", on);
+  document.querySelectorAll("body > header, body > main").forEach((el) => {
+    if (on) el.setAttribute("inert", "");
+    else el.removeAttribute("inert");
+  });
+}
+
+// Return focus to the originating row; if the list was refreshed and the row
+// is gone, fall back deterministically to the source list scroll region.
+function restoreOpenerFocus() {
+  const { openerIdx, openerKey } = state;
+  state.openerIdx = null;
+  state.openerKey = null;
+  let target = null;
+  if (openerKey !== null && els.sourceTbody) {
+    const rows = els.sourceTbody.querySelectorAll("tr[data-idx]");
+    for (const tr of rows) {
+      const r = state.sourceRows[Number(tr.dataset.idx)];
+      if (r && (r.source_key ?? null) === openerKey) {
+        target = tr;
+        break;
+      }
+    }
+  }
+  if (!target) target = els.sourceTableWrap || els.filterItem;
+  if (target && target.focus) target.focus({ preventScroll: false });
+  return openerIdx;
+}
+
+// User-initiated close (Esc / backdrop / X / Cancel). Ignored while posting so
+// an in-flight transfer cannot be orphaned or double-submitted.
+function requestCloseTransferModal() {
+  if (state.isPosting) return;
+  closeTransferModal();
 }
 
 function closeTransferModal() {
   els.transferModal.setAttribute("hidden", "");
+  setBackgroundInert(false);
   clearMessage();
   clearSelectedSource(); // closing clears selection highlight per requirement
+  restoreOpenerFocus();
+}
+
+// Keep Tab / Shift+Tab inside the dialog.
+function trapModalTab(e) {
+  if (e.key !== "Tab" || els.transferModal.hasAttribute("hidden")) return;
+  const focusables = Array.from(
+    els.transferModal.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((el) => !el.disabled && !el.hidden && el.getClientRects().length);
+  if (!focusables.length) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  const active = document.activeElement;
+  if (!els.transferModal.contains(active)) {
+    e.preventDefault();
+    first.focus();
+  } else if (e.shiftKey && active === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault();
+    first.focus();
+  }
 }
 
 function populateSelectedSourceCard(row) {
@@ -673,7 +758,7 @@ function syncPostingSummary() {
     <div class="sum-item">
       <span class="sum-lbl">Item / Batch</span>
       <span class="sum-val accent">${escapeHtml(s.item)}</span>
-      <span class="sum-val" style="font-size:0.78rem;color:#6b7280">${escapeHtml(s.batch_number)}</span>
+      <span class="sum-val sum-val-sub">${escapeHtml(s.batch_number)}</span>
     </div>
     <hr class="sum-divider" />
     <div class="sum-item">
@@ -698,7 +783,7 @@ function syncPostingSummary() {
         ? `<hr class="sum-divider" />
     <div class="sum-item">
       <span class="sum-lbl">Remarks</span>
-      <span class="sum-val" style="font-size:0.82rem">${escapeHtml(remarks)}</span>
+      <span class="sum-val">${escapeHtml(remarks)}</span>
     </div>`
         : ""
     }`;
@@ -792,14 +877,25 @@ function buildRpcPayload() {
 
 /* -- Submit ------------------------------------------------ */
 function setBusyState(isBusy) {
+  state.isPosting = isBusy;
+  els.transferModal.setAttribute("aria-busy", isBusy ? "true" : "false");
   els.submitBtn.disabled = isBusy;
   els.resetBtn.disabled = isBusy;
   els.cancelBtn.disabled = isBusy;
   els.submitBtn.textContent = isBusy ? "Posting..." : "Submit Transfer";
+  // A disabled control drops focus; keep it inside the dialog once re-enabled.
+  if (
+    !isBusy &&
+    !els.transferModal.hasAttribute("hidden") &&
+    !els.transferModal.contains(document.activeElement)
+  ) {
+    els.submitBtn.focus();
+  }
 }
 
 async function submitTransfer(ev) {
   ev.preventDefault();
+  if (state.isPosting) return; // non-reentrant while a post is in flight
   clearMessage();
   if (!validateTransferForm()) return;
 
@@ -879,6 +975,12 @@ async function initPage() {
 
   await Promise.all([loadSourceStock({ reset: true }), loadMasterData()]);
 
+  // Canonical chrome: HOME icon + label and Close icon (idempotent re-mount;
+  // the page also ships equivalent static markup).
+  mountModuleHome(els.homeBtn);
+  mountModuleIcon(els.modalCloseBtn, "close");
+  els.modalCloseBtn.setAttribute("aria-label", "Close");
+
   // Home button navigation (if present)
   if (els.homeBtn)
     els.homeBtn.addEventListener(
@@ -932,6 +1034,7 @@ async function initPage() {
 
   // Source table row click
   els.sourceTbody.addEventListener("click", handleSourceRowClick);
+  els.sourceTbody.addEventListener("keydown", handleSourceRowKeydown);
 
   // Destination dropdown cascade
   els.dstSection.addEventListener("change", (e) => {
@@ -986,8 +1089,8 @@ async function initPage() {
   });
 
   // Cancel / close modal
-  els.cancelBtn.addEventListener("click", closeTransferModal);
-  els.modalCloseBtn.addEventListener("click", closeTransferModal);
+  els.cancelBtn.addEventListener("click", requestCloseTransferModal);
+  els.modalCloseBtn.addEventListener("click", requestCloseTransferModal);
 
   // Escape handling (capture phase so it fires before native input handling,
   // e.g. the date field, and does not depend on event bubbling).
@@ -995,11 +1098,15 @@ async function initPage() {
   document.addEventListener(
     "keydown",
     (e) => {
+      if (e.key === "Tab") {
+        trapModalTab(e);
+        return;
+      }
       if (e.key !== "Escape") return;
       if (!els.transferModal.hasAttribute("hidden")) {
         e.preventDefault();
         e.stopPropagation();
-        closeTransferModal();
+        requestCloseTransferModal();
         return;
       }
       const active = document.activeElement;
@@ -1015,7 +1122,7 @@ async function initPage() {
 
   // Backdrop click - click directly on overlay (not modal-box) closes it
   els.transferModal.addEventListener("click", (e) => {
-    if (e.target === els.transferModal) closeTransferModal();
+    if (e.target === els.transferModal) requestCloseTransferModal();
   });
 }
 
