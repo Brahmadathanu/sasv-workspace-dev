@@ -65,7 +65,13 @@
           aria-expanded="false"
           aria-controls="guidanceBody"
         >
-          <span>Guidance</span><span class="guidance-chevron" aria-hidden="true">⌄</span>
+          <span>Guidance</span>
+          <span class="guidance-indicator" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m5.5 7.5 6.5 6 6.5-6" />
+              <path d="m5.5 13 6.5 6 6.5-6" />
+            </svg>
+          </span>
         </button>
         <div class="guidance-body" id="guidanceBody">
           <strong>Guidance:</strong> Use this module only to physically relocate
@@ -240,11 +246,8 @@
                             <select id="dstSection" required></select>
                           </div>
                           <div class="fgroup">
-                            <label for="dstSubsection"
-                              >Sub-section
-                              <span class="opt-note">(optional)</span></label
-                            >
-                            <select id="dstSubsection"></select>
+                            <label for="dstSubsection">Sub-section</label>
+                            <select id="dstSubsection" required></select>
                           </div>
                         </div>
                         <div class="form-row-2">
@@ -253,7 +256,7 @@
                             <select id="dstArea" required></select>
                           </div>
                           <div class="fgroup">
-                            <label for="dstPlant">Plant / Machinery</label>
+                            <label for="dstPlant">Plant / Machinery <span class="opt-note">(if applicable)</span></label>
                             <select id="dstPlant" required></select>
                           </div>
                         </div>
