@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en" data-sasv-theme="sasv-core">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>FG Bulk Internal Transfer</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <!-- Module-scoped parity layer (FG-BIT-UX-1). Loaded after shared styles. -->
+    <link
+      rel="stylesheet"
+      href="css/sasv-fg-bulk-internal-transfer.css"
+    />
+  </head>
+  <body class="sasv-fg-bit">
+    <!-- ── Page Header ──────────────────────────────────────── -->
+    <header class="header fgbit-header">
+      <div class="fgbit-header-copy">
+        <h1 class="fgbit-title">FG Bulk Internal Transfer</h1>
+        <p class="page-desc fgbit-sub">
+          Move finished-goods bulk stock between storage locations without
+          modifying the original work-log record.
+        </p>
+      </div>
+      <div class="fgbit-header-actions">
+        <!-- Static icon + label is the canonical mountModuleHome() output; the
+             page script re-mounts it idempotently. Keeping it static means the
+             control is correct even before/without the module script. -->
+        <button
+          id="homeBtn"
+          type="button"
+          class="sasv-home-btn"
+          title="HOME"
+          aria-label="HOME"
+        >
+          <svg
+            class="sasv-icon"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M3 10.5 12 3l9 7.5" />
+            <path d="M5 10v10h14V10" />
+          </svg>
+          <span class="home-label">HOME</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="panel fgbit-main">
+      <!-- Guidance Strip (collapsible on narrow screens) -->
+      <div class="guidance fgbit-guidance" id="guidance">
+        <button
+          type="button"
+          id="guidanceToggle"
+          class="guidance-toggle"
+          aria-expanded="false"
+          aria-controls="guidanceBody"
+        >
+          Guidance
+        </button>
+        <div class="guidance-body" id="guidanceBody">
+          <strong>Guidance:</strong> Use this module only to physically relocate
+          FG bulk stock. Do <em>not</em> edit the original FG Bulk Storage
+          work-log entry to change the storage location.
+        </div>
+      </div>
+
+      <!-- Filters Row -->
+      <div class="filters-row fgbit-filters">
+        <div class="filter-input-wrap filter-item">
+          <input
+            id="filterItem"
+            type="text"
+            placeholder="Search item…"
+            aria-label="Search item"
+            autocomplete="off"
+          />
+          <button
+            id="filterItemClear"
+            type="button"
+            class="input-clear-btn"
+            aria-label="Clear item search"
+            title="Clear"
+            hidden
+          >
+            ×
+          </button>
+        </div>
+        <div class="filter-input-wrap filter-batch">
+          <input
+            id="filterBatch"
+            type="text"
+            placeholder="Search batch…"
+            aria-label="Search batch"
+            autocomplete="off"
+          />
+          <button
+            id="filterBatchClear"
+            type="button"
+            class="input-clear-btn"
+            aria-label="Clear batch search"
+            title="Clear"
+            hidden
+          >
+            ×
+          </button>
+        </div>
+      </div>
+
+      <!-- Source Stock Table -->
+      <section class="source-card" aria-label="FG bulk stock by location">
+        <div class="source-card-hdr">
+          <div class="source-card-title">
+            FG Bulk Stock — Available by Location &nbsp;·&nbsp; Select a row to
+            open transfer entry
+          </div>
+          <div id="rowCount" class="row-count" role="status" aria-live="polite"></div>
+        </div>
+        <div class="source-table-wrap" tabindex="-1">
+          <table class="source-table">
+            <caption class="fgbit-sr">
+              FG bulk stock available by location
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col" class="col-item">Item</th>
+                <th scope="col" class="col-batch">Batch</th>
+                <th scope="col" class="col-num">Available</th>
+                <th scope="col" class="col-section">Section</th>
+                <th scope="col" class="col-subsection">Sub-section</th>
+                <th scope="col" class="col-area">Area</th>
+                <th scope="col" class="col-plant">Plant</th>
+              </tr>
+            </thead>
+            <tbody id="sourceTbody"></tbody>
+          </table>
+          <!-- Infinite-scroll sentinel (observed inside the scroll area) -->
+          <div id="sourceSentinel" class="source-sentinel" aria-hidden="true"></div>
+        </div>
+
+        <!-- Source list footer: bottom loading / end / load-more -->
+        <div class="source-footer" id="sourceFooter">
+          <span id="sourceFooterStatus" class="source-footer-status"></span>
+          <button id="sourceLoadMore" type="button" class="btn" hidden>
+            Load more
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- ── Transfer Modal ───────────────────────────────────── -->
+    <div
+      id="transferModal"
+      class="modal-overlay"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modalTitle"
+      aria-describedby="modalSubtitle"
+    >
+      <div class="modal-box">
+        <!-- Modal Header -->
+        <div class="modal-hdr">
+          <div class="modal-hdr-text">
+            <h2 id="modalTitle">Transfer Entry</h2>
+            <div id="modalSubtitle" class="modal-hdr-sub">
+              Review the selected source, enter transfer details, and submit.
+            </div>
+          </div>
+          <button
+            type="button"
+            id="modalCloseBtn"
+            class="modal-close"
+            title="Close (Esc)"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <!-- Modal Body: the single scroll owner of the dialog -->
+        <div class="modal-body">
+          <div class="modal-cards">
+            <!-- Card 1: Selected Source -->
+            <section
+              class="mcard mcard-source"
+              aria-labelledby="mcardSourceTitle"
+            >
+              <h3 class="mcard-title" id="mcardSourceTitle">Selected Source</h3>
+              <div class="mcard-body">
+                <div id="selectedSourceBody" class="src-rows">
+                  <span class="muted-text">No source selected.</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- Card 2: Transfer Entry -->
+            <section
+              class="mcard mcard-entry"
+              aria-labelledby="mcardEntryTitle"
+            >
+              <h3 class="mcard-title" id="mcardEntryTitle">Transfer Entry</h3>
+              <div class="mcard-body">
+                <form id="transferForm" novalidate>
+                  <div class="form-stack">
+                    <div class="form-row-2">
+                      <div class="fgroup">
+                        <label for="transferDate">Transfer Date</label>
+                        <input type="date" id="transferDate" required />
+                      </div>
+                      <div class="fgroup">
+                        <label for="transferQty">Quantity</label>
+                        <input
+                          type="number"
+                          id="transferQty"
+                          step="any"
+                          min="0.001"
+                          required
+                          inputmode="decimal"
+                          placeholder="0.000"
+                        />
+                      </div>
+                    </div>
+
+                    <fieldset class="dst-fieldset">
+                      <legend class="dst-legend">Destination Location</legend>
+                      <div class="form-stack">
+                        <div class="form-row-2">
+                          <div class="fgroup">
+                            <label for="dstSection">Section</label>
+                            <select id="dstSection" required></select>
+                          </div>
+                          <div class="fgroup">
+                            <label for="dstSubsection"
+                              >Sub-section
+                              <span class="opt-note">(optional)</span></label
+                            >
+                            <select id="dstSubsection"></select>
+                          </div>
+                        </div>
+                        <div class="form-row-2">
+                          <div class="fgroup">
+                            <label for="dstArea">Area</label>
+                            <select id="dstArea" required></select>
+                          </div>
+                          <div class="fgroup">
+                            <label for="dstPlant">Plant / Machinery</label>
+                            <select id="dstPlant" required></select>
+                          </div>
+                        </div>
+                      </div>
+                    </fieldset>
+
+                    <div class="fgroup">
+                      <label for="remarks"
+                        >Remarks <span class="opt-note">(optional)</span></label
+                      >
+                      <textarea id="remarks" rows="2"></textarea>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </section>
+
+            <!-- Card 3: Posting Summary -->
+            <section
+              class="mcard mcard-summary"
+              aria-labelledby="mcardSummaryTitle"
+            >
+              <h3 class="mcard-title" id="mcardSummaryTitle">Posting Summary</h3>
+              <div class="mcard-body">
+                <div id="postingSummaryBody" class="sum-rows" aria-live="polite">
+                  <span class="muted-text"
+                    >Fill in transfer details to preview.</span
+                  >
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- Modal Footer / Action Bar (grid row, never overlaps the body) -->
+        <div class="modal-footer">
+          <div
+            id="modalMsgArea"
+            class="modal-msg"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          ></div>
+          <button type="button" id="resetBtn" class="btn ghost">Reset</button>
+          <span class="fgbit-footer-spacer" aria-hidden="true"></span>
+          <button type="button" id="cancelBtn" class="btn">Cancel</button>
+          <button
+            type="submit"
+            id="submitBtn"
+            form="transferForm"
+            class="btn btn-primary"
+          >
+            Submit Transfer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script
+      type="module"
+      src="js/fg-bulk-internal-transfer.js"
+    ></script>
+  </body>
+</html>
