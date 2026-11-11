@@ -1,4 +1,5 @@
--- PREPARED, NOT EXECUTED (#273). READ-ONLY production gates to run BEFORE any owner-approved application.
+-- PREPARED (#273). G1-G6 and the G8 plain EXPLAIN pairs were EXECUTED READ-ONLY by the independent reviewer on 11 Nov 2026
+-- (results recorded in WP05_R14); this file was not run by Claude. READ-ONLY production gates to run BEFORE any owner-approved application.
 -- Catalogue reads and plain EXPLAIN only. NO "EXPLAIN ANALYZE", no function/view execution, no writes.
 -- Run in a read-only session:  BEGIN READ ONLY; ...; ROLLBACK;
 -- The three EXPLAIN pairs (Sep/Oct/Nov) come from:  node scripts/csr-scoped-rpc-server/gen_explain_gates.mjs
@@ -26,6 +27,9 @@ SELECT c.oid::regclass, pg_get_userbyid(c.relowner) AS owner, c.relkind, c.relro
        'costing.v_cost_sheet_snapshot_sku_monthly_comparison_governed'::regclass,
        'public.v_cost_sheet_snapshot_sku_monthly_comparison_governed'::regclass);
 SELECT * FROM pg_policies WHERE schemaname='costing' AND tablename='cost_sheet_line_monthly_snapshot';
+
+-- G4b view reloptions: is the public wrapper security_invoker? (inference in R14: it is a plain postgres-owned view)
+SELECT c.oid::regclass, c.reloptions FROM pg_class c WHERE c.oid IN ('public.v_cost_sheet_snapshot_sku_monthly_comparison_governed'::regclass,'costing.v_cost_sheet_snapshot_sku_monthly_comparison_governed'::regclass);
 
 -- G5 column contract: exactly 63 columns on both views (expect 63, 63)
 SELECT 'internal', count(*) FROM pg_attribute WHERE attrelid='costing.v_cost_sheet_snapshot_sku_monthly_comparison_governed'::regclass AND attnum>0 AND NOT attisdropped
