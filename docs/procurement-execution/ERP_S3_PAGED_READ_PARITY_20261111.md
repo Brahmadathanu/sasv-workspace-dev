@@ -34,3 +34,15 @@ Sorting must be applied AFTER all filters and BEFORE OFFSET/LIMIT. Total is the 
 Initial milestone: *S3-E* (Excess) server read contract + separate client adapter PR. PR and indent header paging can follow after the contract proves stable, but given 7/41 live rows this is not a performance emergency. Vendor-wise paging is a separate workpack because the split lookup and vendor grouping are correctness-sensitive. Do not merge C1 #291 / C2 #294 as a prerequisite without owner review. PWA PEC JS/CSS cache policy remains separate release gate.
 
 **Gate:** G0 active, 0/6 formal verified. Read-only evidence gathered; no SQL/grants/service worker/production-data changes.
+
+## 6. S3-E review-only SQL candidate and initial validation checkpoint
+
+Created `ERP_S3_EXCESS_PAGED_SQL_CANDIDATE_20261111.sql` and `scripts/pec-erp-s3-excess-contract-smoke.mjs` on PR #287. Candidate is a **new** `proc_pec_purchase_excess_paged` read-only `STABLE SECURITY DEFINER` endpoint, preserving the existing `proc_pec_purchase_excess`. It uses `require_permission(...,false)`, explicit `PUBLIC/anon` EXECUTE revocation, a 1..200 page limit, nonnegative offset and full filtered `total_count` returned even for empty/out-of-range pages. Payload is `{rows,total_count,limit,offset}`. No client has been changed to call it.
+
+Client filter parity encoded in SQL: case-insensitive **literal substring** rather than ILIKE wildcard treatment; `PLM` alias canonicalised as `PM`, inclusive date bounds, nonpositive min-qty treated as absent, item-name-or-code matching, NULL/empty vendor unmapped detection, stable descending quantity/date/fact ID ordering. Potential client-to-SQL locale/collation differences are a runtime parity check, not presumed resolved.
+
+Independent source-invariant inspection: **14/14 PASS**. This is not SQL compilation, installation, role execution or SQL fixture parity. No local `psql`/PostgreSQL binaries available for actual installation tests; no production RPC deployment. A separate script was committed for reproducible source assertions but not run from a full repository checkout in this session.
+
+Read-only live *existing view* test, **not the candidate RPC**: between `2026-10-12` and `2026-11-11`, date-window count = 169; additionally filtering material class RM and quantity ≥1 gives 161 rows / 161 distinct fact IDs, first 30 and second 30 and remainder 101 under proposed stable sort. Another case (name/code contains 'oil' alongside those filters) returns zero, useful for no-results coverage. These read-only results do not prove installed candidate parity, query latency or UI behaviour.
+
+**STOP before migration:** isolated PG17.4 installation and role tests; stable keyset/offset strategy under concurrent ingestion; count and ordering parity over 13k historical rows and varied dates; client incremental paging and full exports; owner review; PWA asset freshness; authenticated acceptance. G0 active, 0/6 formal gates verified.
