@@ -14,10 +14,10 @@ const opt = (n, d) => { const i = rest.indexOf(n); return i >= 0 ? rest[i + 1] :
 const fail = (m, code = 2) => { console.error(m); process.exit(code); };
 
 if (mode === "ingest") {
-  const file = rest.find((a) => !a.startsWith("--"));
-  if (!file) fail("usage: bench.mjs ingest <samples.json> [--variant candidate] [--oct-tolerance 0.05]");
+  const file = rest[0] && !rest[0].startsWith("--") ? rest[0] : null;
+  if (!file) fail("usage: bench.mjs ingest <samples.json> [--variant candidate] [--oct-tolerance 0.05] (explicit owner policy only)");
   let report;
-  try { report = analyse(JSON.parse(readFileSync(resolve(file), "utf8")), { variant: opt("--variant", "candidate"), octoberTolerance: Number(opt("--oct-tolerance", DEFAULT_OCT_TOLERANCE)) }); }
+  try { report = analyse(JSON.parse(readFileSync(resolve(file), "utf8")), { variant: opt("--variant", "candidate"), octoberTolerance: rest.includes("--oct-tolerance") ? Number(opt("--oct-tolerance", undefined)) : DEFAULT_OCT_TOLERANCE }); }
   catch (e) { fail(`rejected input: ${e.message}`); }
   console.log(JSON.stringify(report, null, 2));
   process.exit(report.timingGate === "HOLD" ? 1 : 0);
