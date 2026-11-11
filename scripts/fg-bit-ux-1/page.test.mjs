@@ -50,6 +50,7 @@ const activeId = (p) => p.evaluate(() => document.activeElement?.id || document.
 async function fillValid(page, qty = "10") {
   await page.fill("#transferQty", qty);
   await page.selectOption("#dstSection", "2");
+  await page.selectOption("#dstSubsection", "21");
   await page.selectOption("#dstArea", "201");
   await page.waitForFunction(() => document.querySelectorAll("#dstPlant option").length > 1);
   await page.selectOption("#dstPlant", "2001");
@@ -164,12 +165,12 @@ test("destination cascade, posting summary reaction, reset", { skip: SK }, async
   assert.equal(await page.$eval("#dstSubsection", (s) => s.disabled), true);
   await page.selectOption("#dstSection", "1");
   assert.equal(await page.$eval("#dstSubsection", (s) => s.disabled), false);
-  assert.equal(await page.$$eval("#dstArea option", (o) => o.length), 3, "all section areas when no subsection");
+  assert.equal(await page.$eval("#dstArea", el => el.disabled), true, "area unavailable until subsection selected");
   await page.selectOption("#dstSubsection", "11");
   assert.equal(await page.$$eval("#dstArea option", (o) => o.length), 2, "narrowed by subsection");
   await fillValid(page);
   const sum = await page.textContent("#postingSummaryBody");
-  assert.match(sum, /Packing > Line 1 > Filler F1/); assert.match(sum, /10 L/);
+  assert.match(sum, /Packing > Packing Bay > Line 1 > Filler F1/); assert.match(sum, /10 L/);
   await page.click("#resetBtn");
   assert.equal(await page.inputValue("#transferQty"), "");
   assert.equal(await page.inputValue("#dstSection"), "");
@@ -193,6 +194,7 @@ test("Submit stays disabled until mandatory fields pass all local readiness rule
   assert.equal(await page.$eval("#submitBtn", e => e.disabled), true, "same location");
   assert.equal((await log(page, POST)).length, 0);
   await page.selectOption("#dstSection", "2");
+  await page.selectOption("#dstSubsection", "21");
   await page.selectOption("#dstArea", "201");
   await page.waitForFunction(() => document.querySelectorAll("#dstPlant option").length > 1);
   await page.selectOption("#dstPlant", "2001");
@@ -205,6 +207,28 @@ test("Submit stays disabled until mandatory fields pass all local readiness rule
   assert.equal(await page.$eval("#submitBtn", e => e.disabled), true, "missing date");
   await page.click("#resetBtn");
   assert.equal(await page.$eval("#submitBtn", e => e.disabled), true, "reset");
+  await ctx.close();
+});
+
+
+test("governed destination: valid area without plant enables posting and RPC passes null plant", { skip: SK }, async () => {
+  const { page, ctx } = await open();
+  await page.click("#sourceTbody tr[data-idx='1'] td.col-item");
+  await page.fill("#transferQty", "5");
+  await page.selectOption("#dstSection", "2");
+  assert.equal(await page.$eval("#dstArea", e => e.disabled), true, "choose subsection first");
+  await page.selectOption("#dstSubsection", "21");
+  await page.selectOption("#dstArea", "202"); // has no plant/machinery master rows
+  await page.waitForFunction(() => document.querySelector("#dstPlant").disabled);
+  assert.equal(await page.inputValue("#dstPlant"), "");
+  assert.equal(await page.$eval("#submitBtn", e => e.disabled), false, "area-level transfer valid");
+  await page.click("#submitBtn");
+  await page.waitForFunction(() => /posted successfully/i.test(document.querySelector("#modalMsgArea").textContent));
+  const posts = await log(page, POST);
+  assert.equal(posts.length, 1);
+  assert.equal(posts[0].args.p_to_subsection_id, 21);
+  assert.equal(posts[0].args.p_to_area_id, 202);
+  assert.equal(posts[0].args.p_to_plant_id, null);
   await ctx.close();
 });
 
@@ -466,7 +490,7 @@ test("PWA-published route loads the real transfer form and HOME returns to Hub",
 
 test("owner acceptance: guidance chevron advertises expandability", { skip: SK }, async () => {
   const { page, ctx } = await open({ width: 390, height: 844 });
-  const chevron = page.locator(".guidance-chevron");
+  const chevron = page.locator(".guidance-indicator");
   assert.equal(await chevron.isVisible(), true);
   assert.equal(await page.getAttribute("#guidanceToggle", "aria-expanded"), "false");
   await page.click("#guidanceToggle");
