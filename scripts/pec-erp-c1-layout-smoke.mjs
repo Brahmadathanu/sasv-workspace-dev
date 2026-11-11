@@ -152,6 +152,38 @@ for (const vp of VIEWPORTS) {
   await ctx.close();
 }
 
+// Dynamically created / re-rendered buttons (indent modal status actions) get labels
+for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
+  const { ctx, page } = await open({ role: "edit", indentDate: true }, vp);
+  const tag = `[${vp.name}]`;
+  if (vp.width <= 520) await page.selectOption("#procTabSelect", "indents"); else await page.click('.tabs .tab-btn[data-tab="indents"]');
+  await page.waitForTimeout(400);
+  await page.click("#iTbody tr:nth-child(2)"); // approved indent
+  await page.waitForTimeout(700);
+  const r = await page.evaluate(() => {
+    const modal = document.getElementById("indentViewModalBackdrop");
+    const btns = [...modal.querySelectorAll(".icon-btn")].filter((b) => b.offsetParent !== null);
+    const withLabel = btns.filter((b) => b.querySelector(".pec-action-label") && getComputedStyle(b.querySelector(".pec-action-label")).display !== "none");
+    const dyn = btns.filter((b) => b.classList.contains("status-action"));
+    const dynLabelled = dyn.filter((b) => b.querySelector(".pec-action-label"));
+    return { total: btns.length, visibleLabels: withLabel.length, dyn: dyn.length, dynLabelled: dynLabelled.length };
+  });
+  check(r.dyn === r.dynLabelled, `${tag} dynamic status actions all carry a label node (${r.dynLabelled}/${r.dyn})`);
+  check(vp.width > 820 ? r.visibleLabels > 0 : r.visibleLabels === 0, `${tag} modal action labels ${vp.width > 820 ? "visible" : "hidden"} (${r.visibleLabels}/${r.total})`);
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-indent-modal.png`) });
+  await ctx.close();
+}
+
+// Empty-state colspan equals visible header count (conditional date column)
+{
+  const { ctx, page } = await open({ role: "edit", empty: true, indentDate: true }, VIEWPORTS[0]);
+  await page.click('.tabs .tab-btn[data-tab="indents"]');
+  await page.waitForTimeout(400);
+  const r = await page.evaluate(() => ({ th: [...document.querySelectorAll("#tab-indents thead th")].filter((e) => !e.hidden).length, span: document.querySelector("#iTbody td.pec-table-state")?.colSpan }));
+  check(r.th === r.span, `indents empty-state colspan ${r.span} matches visible headers ${r.th}`);
+  await ctx.close();
+}
+
 // Indent date absent -> column hidden, never invented
 {
   const { ctx, page } = await open({ role: "view" }, VIEWPORTS[0]);

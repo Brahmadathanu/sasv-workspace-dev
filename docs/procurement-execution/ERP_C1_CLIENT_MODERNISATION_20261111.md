@@ -30,9 +30,10 @@ Legend — PASS: verified by an automated test in this PR against **synthetic fi
 | Tables (PR, Indents, Action Queue, VWL, Excess, Audit, line tables) | Inconsistent header styling; long text clipped by global nowrap | Token header/divider styles, wrapping data cells, tabular numerals, scroll containers retained | screenshots, layout smoke | PASS |
 | Empty / error states | Toast only (PR, Indents, Action Queue, Excess, Audit) | Inline `role=status`/`alert` state rows; AQ error not wiped by final render | layout smoke (empty + error scenarios) | PASS |
 | Loading states | Existing masks/aria-busy | Retained unchanged | existing behaviour | PASS (retained) |
-| Indent vs Approved date | Only `approved_date` shown | Separate `Indent Date` column/meta/detail row **only when `indent_date` is present in the read result**; never derived from `approved_date` | layout smoke (present and absent) | PASS (UI); **DEFER** live-contract confirmation (§4) |
+| Indent vs Approved date | Only `approved_date` shown | Separate `Indent Date` column/meta/detail row **only when `indent_date` is present in the read result**; never derived from `approved_date` | layout smoke (present and absent); live contract confirmed by server audit (PR comment 2026-11-11) | PASS |
 | Excess & Overshoot wording | Heading only | Subtitle derived from current code semantics (excess purchase → accept with reason → Acceptance Audit). Tab name unchanged | review | PASS |
-| New-indent vendor readiness | Silent | Create-success toasts and AQ empty state state that vendor candidates/priority labels depend on the next snapshot refresh; no retry or faux availability | static review | PASS (text only) |
+| New-indent vendor readiness | Silent | Create-success toasts and AQ empty state say that **Action Queue recommendations and the Vendor-wise Buying List are published-snapshot based** and may not show new lines yet; they explicitly state manual vendor selection is not affected (per server delta: manual selection is allowed on draft/approved/issued). No retry, polling or faux availability | static review | PASS (text only) |
+| Dynamic / re-rendered buttons (indent status actions, modal upgrades) | Labels injected once at boot would miss them or be wiped by `toIconBtn` | Coalesced `MutationObserver` re-applies labels (idempotent); long tooltips shortened for the visible label (e.g. `Close Strict`) | layout smoke: modal status actions labelled wide / hidden narrow | PASS (indent modal); other modals covered by the same observer, not individually screenshotted |
 | Modals/dialogs (≈30) | Mixed fonts/colours | Token typography, buttons, radius, max-width, close buttons 36px | static + screenshots of host pages; modals **not individually screenshotted** | PASS (tokens) / DEFER per-modal visual sign-off |
 | Read-only role | Banner present | Verified banner visible, edit actions gated by existing code | layout smoke | PASS |
 | Unauthorised role | Panel stayed visible (bug) | `[hidden]` rule fix | layout smoke | PASS |
@@ -52,16 +53,19 @@ Faking infinite scroll over fully-fetched sets was deliberately not done.
 
 ## 4. Server contracts / confirmations needed (for ChatGPT)
 1. **Paged read RPCs** with deterministic keyset order and `total_count`: `proc_pec_indent_headers` (order `indent_id desc`, filters status/class/search), `proc_pec_pr_headers` (`pr_id desc`), `proc_pec_purchase_excess` (`net_unallocated_qty desc, voucher_date desc, purchase_fact_id desc`, plus the date/min-qty/item/unmapped filters currently applied client-side), `proc_pec_excess_acceptance_audit` (`accepted_at desc`), and `proc_vendorwise_buylist_filtered` (stable vendor-group ordering with cursor; client currently sorts across the whole set, including the split-only/vendor-key filters).
-2. **Indent date:** confirm `v_proc_indent_console` (via `proc_pec_indent_headers`) and the Action Queue `row_data` expose `indent_date` distinct from `approved_date`. The client renders it only if the key exists. The view definition is not in `supabase/migrations`, so this could not be verified offline.
+2. **Indent date:** CONFIRMED by the server audit — `proc_pec_indent_headers()` returns `v_proc_indent_console`, which exposes `indent_date` and `approved_date`. Still to confirm: whether Action Queue `row_data` carries it (the detail row renders it only if present).
 3. **Draft manual-indent qty/date edit:** needs a new RPC (draft-only; rejects PR-linked and non-draft indents server-side; preserves canonical `indent_line_sort_no`/insertion order; returns updated line). Client UI proposal: inline numeric/date editors on draft manual lines in the indent modal with the same pattern as PR manual delta (disabled for PR-linked/non-draft, optimistic lock, single in-flight submit). **Nothing is wired**; the static smoke asserts no such RPC is referenced.
 4. **Immediate vendor mapping for new indents:** needs a contract stating when candidates are available (synchronous vs snapshot). Until then the UI only states the snapshot dependency.
 5. **Hybrid replenishment / snapshot-generation changes:** no client work done.
+
+## 4b. Release gate — PWA cache policy (NOT changed in this PR)
+Independent audit finding: `public/sw.js` (v393) serves navigations network-first, but `/shared/js/procurement-execution-console.js` and the new `/shared/css/sasv-procurement-execution-console.css` fall under the generic static cache-first path, so an installed PWA could pair fresh HTML with cached old JS/CSS. C1 deliberately does **not** edit `sw.js` or bump the cache version. A separately reviewed change is required for a network-first-with-fallback policy limited to these exact PEC assets, with mocked online/offline SW tests and installed-PWA verification after an approved merge. **PWA immediate-update parity must not be claimed until then.**
 
 ## 5. Tests (exact commands and results, 2026-11-11)
 | Command | Result |
 |---|---|
 | `node scripts/pec-erp-c1-static-smoke.mjs` | PASS (15 checks) |
-| `node scripts/pec-erp-c1-layout-smoke.mjs --shots docs/procurement-execution/evidence/pec-erp-c1` | PASS (113 checks: 3 viewports × 5 lenses, keyboard, indent-date present/absent, read-only, empty, error, unauthorised) |
+| `node scripts/pec-erp-c1-layout-smoke.mjs --shots docs/procurement-execution/evidence/pec-erp-c1` | PASS (118 checks: 3 viewports × 5 lenses, keyboard, indent-date present/absent, read-only, empty/error incl. colspan vs visible headers, dynamic modal buttons, unauthorised) |
 | `node scripts/pec-wp01-indent-serial-smoke.mjs` | PASS |
 | `node scripts/pec-vwl-search-reliability-smoke.mjs` | PASS (31 checks) |
 | `node scripts/pec-pr-scope-smoke.mjs` | OK |
@@ -83,6 +87,8 @@ The layout smoke runs the real module and HTML in Chromium; only `js/supabaseCli
 | Draft-edit, hybrid replenishment, immediate mapping | DEFER (server) |
 | No SQL/RLS/migration/SW/Electron change | PASS (static smoke) |
 | Signed-in operator acceptance in PWA and Electron | **DEFER — not claimed** |
+| PWA asset cache policy for PEC JS/CSS | **DEFER — release blocker, separate PR** |
+| PR PDF runtime path | **Not verified** (jsPDF skipped in test environment) |
 | Per-modal visual sign-off with real data | DEFER |
 
 ## 7. Risks

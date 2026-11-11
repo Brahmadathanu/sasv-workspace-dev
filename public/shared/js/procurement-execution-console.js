@@ -494,7 +494,7 @@ function renderTableStateRow(tbody, colspan, kind, title, detail = "") {
  */
 const PEC_ICON_ONLY_IDS = new Set(["workflowGuideBtn"]);
 function applyResponsiveActionLabels(root = document) {
-  const skip = /(Prev|Next|Clear|Close)/;
+  const skip = /(Prev|Next)$/;
   root
     .querySelectorAll(".icon-btn, .pec-filter-btn")
     .forEach((btn) => {
@@ -504,11 +504,16 @@ function applyResponsiveActionLabels(root = document) {
       if (btn.querySelector(".pec-action-label, .btn-label")) return;
       if (PEC_ICON_ONLY_IDS.has(btn.id)) return;
       if (skip.test(btn.id || "")) return;
+      // Prefer the short tooltip text over a longer descriptive aria-label.
+      // Visible label drops explanatory parentheticals kept in the tooltip,
+      // e.g. "Close Strict (only if fully satisfied)" -> "Close Strict".
       const label = (
-        btn.getAttribute("aria-label") ||
         btn.getAttribute("title") ||
+        btn.getAttribute("aria-label") ||
         ""
-      ).trim();
+      )
+        .replace(/\s*\(.*\)\s*$/, "")
+        .trim();
       if (!label || /page$/i.test(label) || /^clear\b/i.test(label)) return;
       const span = document.createElement("span");
       span.className = "pec-action-label";
@@ -516,6 +521,24 @@ function applyResponsiveActionLabels(root = document) {
       btn.appendChild(span);
       btn.classList.add("has-action-label");
     });
+}
+
+/**
+ * Buttons are also created/re-rendered after boot (status actions, modal
+ * button upgrades via toIconBtn). Re-apply labels (idempotent) after DOM
+ * changes, coalesced to one pass per animation frame.
+ */
+function observeResponsiveActionLabels() {
+  if (typeof MutationObserver !== "function" || !document.body) return;
+  let queued = false;
+  new MutationObserver(() => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      applyResponsiveActionLabels();
+    });
+  }).observe(document.body, { childList: true, subtree: true });
 }
 
 /** WAI-ARIA tabs wiring for the five lenses (roles, selection, arrow keys). */
@@ -2018,7 +2041,7 @@ function renderRows() {
       7,
       "empty",
       "No action-queue lines match the current filters.",
-      "Clear filters, or refresh procurement snapshots if vendor candidates for a new indent are not listed yet.",
+      "Clear filters. Lines of a new indent can take a few minutes to appear because this queue is built from published snapshots.",
     );
   }
 
@@ -6260,7 +6283,7 @@ async function saveCreateIndent() {
     return;
   }
   toast(
-    "Indent created. Vendor candidates and priority labels for its lines appear in Action Queue only after the next procurement snapshot refresh.",
+    "Indent created. Action Queue recommendations and the Vendor-wise Buying List are built from published snapshots and may not show its lines yet. Manual vendor selection is not affected.",
     "success",
   );
   closeCreateIndentModal();
@@ -6342,7 +6365,7 @@ async function saveIndentFromPr() {
     return;
   }
   toast(
-    "Indent created from PR. Vendor candidates and priority labels for its lines appear in Action Queue only after the next procurement snapshot refresh.",
+    "Indent created from PR. Action Queue recommendations and the Vendor-wise Buying List are built from published snapshots and may not show its lines yet. Manual vendor selection is not affected.",
     "success",
   );
   closeIndentFromPrModal();
@@ -11950,6 +11973,7 @@ function wireVendorBuylistControls() {
   wireTabs();
   wireTabKeyboard();
   applyResponsiveActionLabels();
+  observeResponsiveActionLabels();
   wireStockItemPicker();
   wireAddPrLineItemSearch();
   wireAddIndentLineItemSearch();
