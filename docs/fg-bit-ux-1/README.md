@@ -56,6 +56,9 @@ Stubbed data means the references show empty states; table/row visuals were not 
 - Post exhaustion: modal hidden, `inert`/scroll-lock removed, focus on list region, count 50 of 119, row gone, Tab moves into the page, list scrolls, Enter reopens a row.
 - Dropped one planned test (opener removed before close) because closing re-renders the list from state, so the row reappears by design; the exhaustion test covers the real fallback.
 
+## Narrow-screen typography correction — repeated owner screenshot
+The previous mobile fix was insufficient: CSS deliberately kept 16px input/select/date text against 14px labels across **all** narrow browsers. In a browser at a reduced viewport, this made date/select values visibly oversized. The follow-up correction now enforces 14px control/label parity at <=760 CSS px in Chromium/Android and prevents automatic text-size adjustment; only iOS Safari gets 16px controls (15px labels) to prevent its automatic focus zoom. The test contract for Chromium narrow viewports was updated from '>=16px' to **exactly 14px** for controls and labels. Real mobile rendering has not been rerun in this GitHub-only session. Capture pixel/computed-style evidence before requesting another owner review.
+
 ## Responsive typography refinement — owner screenshot check (11 Nov)
 - Compared desktop and narrow-screen modal screenshots: native date/select/number values appeared disproportionately large against labels on narrow screens. Revised control typography as one hierarchy: desktop controls 14px, labels 13px; narrow controls 16px, labels 14px, consistent line-height/min-height and native date segment alignment. The 16px mobile floor is intentional to avoid iOS focus zoom.
 - Corrected the `Plant / Machinery` HTML select to be semantically optional (removed lingering `required` attribute); governed `Section → Sub-section → Area` hierarchy remains required.
