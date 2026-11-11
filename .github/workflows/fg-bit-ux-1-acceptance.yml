@@ -18,7 +18,7 @@ jobs:
   fg-bit-verification:
     name: FG-BIT tests and ESLint (Node 22 / Chromium)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,9 +28,10 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --ignore-scripts
       - name: Install test-only Chromium driver
+        timeout-minutes: 6
         run: |
-          npm install --no-save --no-package-lock --ignore-scripts playwright@1.62.1
-          npx playwright install --with-deps chromium
+          npm install --no-save --no-package-lock --ignore-scripts --prefer-offline playwright@1.62.1
+          npx playwright install chromium
       - name: Verify test infrastructure is available
         run: node -e "const p=require('playwright'); if (!p.chromium) process.exit(1)"
       - name: ESLint changed code and tests
