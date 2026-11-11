@@ -36,3 +36,8 @@ The subset is a **testing/contract shortlist**, not six proven leaks nor an inst
 - W5-06: SEC-A1/A2 bounded evidence **owner accepted**, direct writer denial **NOT TESTED**; six-view D-2 **catalogue check COMPLETE**, role/consumer contract and safe tests **OPEN**; scoped CCC read identity and Staff Governance accepted subgates unchanged. W5-06 parent **OPEN**.
 - W5-09: D-1 future isolated nonproduction verification and D-4 performance work now explicit governed residuals; D-2 six-view obligation is **closure-critical**, not a blanket deferral. Formal deferral ownership/milestone register for other items still pending owner signature.
 - W5-10 **OPEN** and overall **6/13**. No WP12-owned integrated 11-flag or Electron acceptance claimed.
+
+
+## R22 subsequent bounded D-2 progress (11 November 2026)
+
+[Live metadata and exact current source contract](WP05_R22_D2_SIX_VIEW_CONSUMER_AND_CATALOG_CONTRACT_2026-11-11.md): six of six shared-helper references confirmed from live view definitions and shared permission function; source call sites traced for six (including both rate-history retrieval paths). **Important role-contract ambiguity:** PPM Scheme Master audit references the CCC/CBM/CSR/MCM shared helper, which does not name PPM. This is a **potential permission-design mismatch**, neither a confirmed PPM denial nor a proven cross-role disclosure. Effective-role tests are NOT TESTED. W5-06 parent OPEN, programme 6/13; #297 retains remaining work.
