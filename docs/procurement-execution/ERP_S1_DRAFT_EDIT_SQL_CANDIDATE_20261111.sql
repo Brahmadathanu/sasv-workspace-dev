@@ -4,7 +4,8 @@
 -- STOP: proc_indent_next_number embeds YYYY-MM in IND numbers. Cross-month
 -- draft date edits must not run until owner decides whether to retain the
 -- original immutable identifier or enforce same-month edits / renumber safely.
--- This candidate currently permits cross-month edits and is NOT deployable as-is.
+-- Fail-closed interim rule below prohibits cross-month changes for generated-format
+-- IDs. Owner may revise this policy after G1, never silently renumber identifiers.
 -- New endpoints only. Leaves proc_indent_add_line and all historical rows unchanged.
 --
 -- Entry point 1: proc_indent_update_manual_draft_qty
@@ -128,6 +129,13 @@ BEGIN
     IF v_h.updated_at IS DISTINCT FROM p_expected_indent_updated_at THEN
         RAISE EXCEPTION 'Indent changed since it was opened; reload before editing';
     END IF;
+    -- Date-coded IDs are immutable references. Protect against creating an
+    -- IND/YYYY-MM/... identifier/date mismatch until the owner approves a
+    -- deliberate historical correction policy. Numeric legacy IDs unaffected.
+    IF v_h.indent_number ~ '^IND/[0-9]{4}-[0-9]{2}/'
+       AND substring(v_h.indent_number from 5 for 7) <> to_char(p_new_indent_date, 'YYYY-MM') THEN
+        RAISE EXCEPTION 'Date-coded indent number belongs to another month; correction policy approval required';
+    END IF;
     IF p_new_indent_date = v_h.indent_date THEN RAISE EXCEPTION 'Indent date unchanged'; END IF;
     v_updated_at := GREATEST(clock_timestamp(), v_h.updated_at + interval '1 microsecond');
     UPDATE public.proc_indent_header h
@@ -167,4 +175,5 @@ GRANT EXECUTE ON FUNCTION public.proc_indent_update_manual_draft_date(bigint,tim
 -- 08 Legacy add-line RPC, ordering, serials, existing exports unchanged.
 -- 09 Lifecycle trigger and date-reason event capture actor, old/new, reason.
 -- 10 No snapshot refresh request is added for draft-only edits.
--- 11 Rollback: DROP these two new functions after confirming no client callers.
+-- 11 Date-coded indent month mismatch rejected, numeric legacy ID unaffected.
+-- 12 Rollback: DROP these two new functions after confirming no client callers.
