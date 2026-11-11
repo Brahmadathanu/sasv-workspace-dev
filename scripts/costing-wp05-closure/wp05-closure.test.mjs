@@ -31,16 +31,17 @@ const FLAGS = [
   ["COSTING_NAV_GROUPS_V1", flags.isCostingNavGroupsV1Enabled],
   ["COSTING_PRM_CORRECTIONS_V1", prmCorr.isCostingPrmCorrectionsV1Enabled],
   ["COSTING_PRM_NAV_CONTEXT_V1", prmNav.isCostingPrmNavContextV1Enabled],
+  ["COSTING_CSR_SCOPED_COMPARISON_RPC_V1", flags.isCostingCsrScopedComparisonRpcV1Enabled], // #273: twelfth flag, default OFF, server function not applied
 ];
 const only = (name) => ({ getItem: (k) => (k === name ? "1" : null) });
 
-test("inventory: exactly the eleven known COSTING_*_V1 flags exist in public/shared/js (a twelfth must extend this matrix)", () => {
+test("inventory: exactly the twelve known COSTING_*_V1 flags exist in public/shared/js (a thirteenth must extend this matrix)", () => {
   const found = new Set();
   for (const f of fs.readdirSync(JS).filter((n) => n.endsWith(".js"))) {
     for (const m of fs.readFileSync(path.join(JS, f), "utf8").matchAll(/["'`](COSTING_[A-Z0-9_]+_V\d+)["'`]/g)) found.add(m[1]);
   }
   assert.deepEqual([...found].sort(), FLAGS.map(([n]) => n).sort());
-  assert.equal(FLAGS.length, 11);
+  assert.equal(FLAGS.length, 12);
 });
 
 test("every flag: default OFF and ON only for the exact string '1' (all other values, missing storage and throwing storage are OFF)", () => {
