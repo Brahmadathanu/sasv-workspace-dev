@@ -1,3 +1,5 @@
+> **R24 ISOLATED ROLE MODEL — 11 NOV 2026:** [Synthetic role-oracle tests and evidence limits](WP05_R24_D2_ISOLATED_ROLE_ORACLE_2026-11-11.md); 6/6 equivalent local Node 22 assertions pass on source-derived outer helper decisions. **Not signed-in proof and not owner approval of PPM-only policy.** W5-06 OPEN.
+
 # WP05 R23 — six-view permission dependency and PPM audit structural risk (11 November 2026)
 
 **Follow-up to R22 / issue #297, source-and-catalogue only.** No production view-row query, authenticated user impersonation, permission change, writer RPC, PWA flag or deployment. **Effective signed-in role behaviour remains NOT TESTED.** Owner R20 D-2 selected a closure-critical subset; this document does not approve a remediation or mark W5-06 PASS. WP05 OPEN, programme 6/13.
