@@ -56,6 +56,13 @@ Stubbed data means the references show empty states; table/row visuals were not 
 - Post exhaustion: modal hidden, `inert`/scroll-lock removed, focus on list region, count 50 of 119, row gone, Tab moves into the page, list scrolls, Enter reopens a row.
 - Dropped one planned test (opener removed before close) because closing re-renders the list from state, so the row reappears by design; the exhaustion test covers the real fallback.
 
+## Responsive typography refinement — owner screenshot check (11 Nov)
+- Compared desktop and narrow-screen modal screenshots: native date/select/number values appeared disproportionately large against labels on narrow screens. Revised control typography as one hierarchy: desktop controls 14px, labels 13px; narrow controls 16px, labels 14px, consistent line-height/min-height and native date segment alignment. The 16px mobile floor is intentional to avoid iOS focus zoom.
+- Corrected the `Plant / Machinery` HTML select to be semantically optional (removed lingering `required` attribute); governed `Section → Sub-section → Area` hierarchy remains required.
+- Posting Summary now uses a human-readable day-month-year date, suppresses orphaned units for blank quantities, and omits placeholder '-' segments in locations; **RPC date and payload unchanged**.
+- Added browser tests for typography across 1440, 768, 390, 320 CSS-pixel widths and for summary formatting.
+- **Not yet independently executed:** new visual browser tests/ESLint at this commit; retain draft/merge hold until latest-head checks are recorded.
+
 ## Classification governance correction — owner second hands-on inspection
 Verified in live Supabase (read-only): `areas` has 88 records, **all 88 have non-null `subsection_id`**; `plant_machinery` occurs in only 25 distinct areas, leaving 63 areas without assigned plants. The posting wrapper `rpc_create_fg_bulk_internal_transfer` forwards nullable `p_to_plant_id` to its core; the core does not require a plant ID.
 - Destination hierarchy for this live master: Section → Sub-section → Area (all required). Area options do not appear until the chosen subsection, and a selected area must belong to that subsection. The misleading "(optional)" label was removed from Sub-section.
