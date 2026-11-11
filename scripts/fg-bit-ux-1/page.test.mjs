@@ -170,7 +170,7 @@ test("destination cascade, posting summary reaction, reset", { skip: SK }, async
   assert.equal(await page.$$eval("#dstArea option", (o) => o.length), 2, "narrowed by subsection");
   await fillValid(page);
   const sum = await page.textContent("#postingSummaryBody");
-  assert.match(sum, /Packing > Packing Bay > Line 1 > Filler F1/); assert.match(sum, /10 L/);
+  assert.match(sum, /Packing › Packing Bay › Line 1 › Filler F1/); assert.match(sum, /10 L/);
   await page.click("#resetBtn");
   assert.equal(await page.inputValue("#transferQty"), "");
   assert.equal(await page.inputValue("#dstSection"), "");
@@ -522,5 +522,41 @@ test("Electron compatibility entry preserves item, bn and hash in canonical rout
   await page.goto(`${base}/fg-bulk-internal-transfer.html?item=Test%20Item&bn=0111#entry`);
   await page.waitForURL("**/public/shared/fg-bulk-internal-transfer.html?item=Test%20Item&bn=0111#entry");
   assert.equal(await page.locator("h1").textContent(), "FG Bulk Internal Transfer");
+  await ctx.close();
+});
+
+test("responsive typography: field hierarchy stays proportionate at desktop and narrow widths", { skip: SK }, async () => {
+  for (const width of [1440, 768, 390, 320]) {
+    const { page, ctx } = await open({ width, height: 800 });
+    await page.click("#sourceTbody tr[data-idx='1']");
+    const metrics = await page.evaluate(() => {
+      const css = (sel) => getComputedStyle(document.querySelector(sel));
+      const fields = ["#transferDate", "#transferQty", "#dstSection", "#dstSubsection", "#dstArea", "#dstPlant", "#remarks"];
+      const fz = fields.map(id => parseFloat(css(id).fontSize));
+      const heights = fields.map(id => document.querySelector(id).getBoundingClientRect().height);
+      return { label: parseFloat(css('label[for="transferDate"]').fontSize), fz, heights, modalWidth: document.querySelector(".modal-box").getBoundingClientRect().width, pageWidth: innerWidth };
+    });
+    assert.ok(metrics.fz.every(n => Math.abs(n - metrics.fz[0]) <= 0.2), JSON.stringify({ width, metrics }));
+    assert.ok(metrics.fz[0] - metrics.label <= 3, "input text must not dwarf labels");
+    assert.ok(metrics.heights.every(h => h >= 34), "usable field heights");
+    assert.ok(metrics.modalWidth <= metrics.pageWidth + 1, "modal stays within viewport");
+    if (width <= 760) assert.ok(metrics.fz[0] >= 16, "iOS mobile zoom prevention");
+    await ctx.close();
+  }
+});
+
+test("posting summary uses readable date, clean blank quantity and location separators", { skip: SK }, async () => {
+  const { page, ctx } = await open();
+  await page.click("#sourceTbody tr[data-idx='1']");
+  const initial = await page.textContent("#postingSummaryBody");
+  assert.doesNotMatch(initial, /- L| > -| - >/);
+  assert.match(initial, /—/);
+  const date = await page.inputValue("#transferDate");
+  const [year, month, day] = date.split("-");
+  assert.ok(initial.includes(`${day}-${month}-${year}`), "summary date matches input display order");
+  await fillValid(page, "5");
+  const ready = await page.textContent("#postingSummaryBody");
+  assert.match(ready, /Packing › Packing Bay › Line 1 › Filler F1/);
+  assert.match(ready, /5 L/);
   await ctx.close();
 });
