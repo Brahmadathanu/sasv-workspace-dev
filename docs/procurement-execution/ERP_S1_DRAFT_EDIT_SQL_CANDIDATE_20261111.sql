@@ -1,6 +1,10 @@
 -- PEC-ERP-S1: REVIEW-ONLY SQL CANDIDATE (2026-11-11)
 -- NOT a Supabase migration. DO NOT RUN on production.
 -- Gate: owner-approved G1 contract + isolated PG 17.4 test matrix + exact migration creation.
+-- STOP: proc_indent_next_number embeds YYYY-MM in IND numbers. Cross-month
+-- draft date edits must not run until owner decides whether to retain the
+-- original immutable identifier or enforce same-month edits / renumber safely.
+-- This candidate currently permits cross-month edits and is NOT deployable as-is.
 -- New endpoints only. Leaves proc_indent_add_line and all historical rows unchanged.
 --
 -- Entry point 1: proc_indent_update_manual_draft_qty
