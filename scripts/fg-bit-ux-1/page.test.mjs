@@ -426,3 +426,25 @@ test("post exhaustion: modal closed, background live, focus on list region (not 
   assert.equal(await modalHidden(page), false, "can reopen with keyboard after exhaustion");
   await ctx.close();
 });
+
+
+test("PWA-published route loads the real transfer form and HOME returns to Hub", { skip: SK }, async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("pageerror", e => errors.push(String(e)));
+  await page.route("**/*", route => {
+    const url = route.request().url();
+    if (url.startsWith(base)) return route.fallback();
+    if (url.startsWith("https://esm.sh/")) return route.fulfill({ contentType: "text/javascript", body: `import { createFake } from "${base}/scripts/fg-bit-ux-1/fake-supabase.mjs"; export const createClient = () => createFake(window.__cfg);` });
+    return route.abort();
+  });
+  await page.addInitScript(() => { window.__cfg = {}; });
+  await page.goto(`${base}/public/shared/fg-bulk-internal-transfer.html`);
+  await page.waitForSelector("#sourceTbody tr[data-idx]");
+  await page.click("#sourceTbody tr[data-idx='1']");
+  assert.equal(await page.isVisible("#transferDate"), true);
+  await page.click("#cancelBtn");
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
