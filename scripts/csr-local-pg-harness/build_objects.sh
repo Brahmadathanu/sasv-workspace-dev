@@ -16,6 +16,7 @@ c=t.index('create or replace view public.v_cost_sheet_snapshot_sku_monthly_compa
 d=t.index(';\n',c)+2
 print(t[c:d])
 PY
+[ "${1:-}" = "views-only" ] && exit 0
 # RPC: drop transaction wrapper, hash guard DO block and grants; keep function verbatim
 python3 - "$RPC" <<'PY'
 import sys
