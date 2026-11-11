@@ -10,7 +10,8 @@
 3. [WP01_TRACEABILITY_ACCESS_CORRECTION.md](WP01_TRACEABILITY_ACCESS_CORRECTION.md) — current evidence, bounded corrections and acceptance matrix.
 4. [CHANGELOG_DECISIONS.md](CHANGELOG_DECISIONS.md) — durable business decisions and proposals.
 5. [ERP_C1_CLIENT_MODERNISATION_20261111.md](ERP_C1_CLIENT_MODERNISATION_20261111.md) — PEC-ERP-C1 client UI/UX modernisation: audit matrix, tests, server dependencies.
-6. [WORKPACK_HANDOVER_TEMPLATE.md](WORKPACK_HANDOVER_TEMPLATE.md) — complete continuity record when changing chat or executor.
+6. [ERP_C2_IMMEDIATE_VENDOR_SELECTION_20261111.md](ERP_C2_IMMEDIATE_VENDOR_SELECTION_20261111.md) — PEC-ERP-C2 immediate vendor selection from Indents.
+7. [WORKPACK_HANDOVER_TEMPLATE.md](WORKPACK_HANDOVER_TEMPLATE.md) — complete continuity record when changing chat or executor.
 
 ## Authority hierarchy
 Live Supabase state = server truth; current GitHub main = repository truth; approved programme/WP documentation = workflow and decision truth; conversations = supporting evidence. A document drafted in a feature branch is **not** an approval to mutate production.

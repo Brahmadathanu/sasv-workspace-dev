@@ -37,6 +37,10 @@ if (mainJs) {
 }
 ok(!/proc_indent_(update|edit|set)_(draft|line)[a-z_]*|proc_pr_replenish|hybrid_replenish/.test(js), "no draft-edit / replenishment RPC wired (server contract pending)");
 
+// PEC-ERP-C2: single vendor-selection writer, reused from the indent modal
+ok((js.match(/rpc\("proc_indent_set_vendor_selection"/g) || []).length === 1, "exactly one proc_indent_set_vendor_selection call site (no duplicate implementation)");
+ok(/origin === "indent"/.test(js) && /indentAllowsVendorSelection/.test(js), "indent-origin eligibility guard present");
+
 // Protected paths untouched
 if (mainJs) {
   const changed = sh("git diff --name-only origin/main...HEAD; git diff --name-only; git ls-files --others --exclude-standard").split("\n").filter(Boolean);

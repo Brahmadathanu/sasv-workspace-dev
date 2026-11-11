@@ -380,6 +380,8 @@ state.vendorModal = state.vendorModal || {
   searchRows: [],
   searchRequestSeq: 0,
   searchDebounceTimer: null,
+  origin: "action-queue", // "action-queue" | "indent" (PEC-ERP-C2)
+  saving: false,
 };
 
 let vwlSplitActionConfirmResolve = null;
@@ -3004,10 +3006,88 @@ function scheduleVendorModalSearch(query) {
   }, 300);
 }
 
-function openVendorModal(row) {
+// ─── PEC-ERP-C2: immediate vendor selection from the Indents modal ──────────
+// Reuses the existing vendor modal and proc_indent_set_vendor_selection. The
+// modal row is the live proc_pec_indent_lines row plus parent-indent context.
+// Eligibility mirrors the server (draft/approved/issued, PEC Edit); closed and
+// cancelled indents never expose the action.
+function indentAllowsVendorSelection(indent) {
+  const status = String(indent?.status || "").toLowerCase();
+  return status === "draft" || status === "approved" || status === "issued";
+}
+
+function canSelectVendorForIndent(indent) {
+  return canWriteModule() && indentAllowsVendorSelection(indent);
+}
+
+function updateIndentVendorSelectAction() {
+  const btn = qs("iBtnSelectVendor");
+  if (!btn) return;
+  const eligible = canSelectVendorForIndent(state.selectedIndent);
+  btn.hidden = !eligible;
+  // Stays enabled without a selected line so the action is discoverable;
+  // activating it then explains "Select a line first".
+  btn.disabled = !eligible || Boolean(state.vendorModal?.saving);
+  btn.setAttribute("aria-disabled", String(btn.disabled));
+}
+
+function buildVendorModalRowFromIndentLine(line, indent) {
+  return {
+    ...line,
+    indent_id: line.indent_id ?? indent.indent_id,
+    indent_number: line.indent_number ?? indent.indent_number,
+    indent_status: indent.status,
+  };
+}
+
+function openVendorSelectionForSelectedIndentLine() {
+  if (!canPerformEditAction("Select vendor")) return;
+  const indent = state.selectedIndent;
+  const line = state.selectedIndentLine;
+  if (!indentAllowsVendorSelection(indent)) {
+    toast(
+      "Vendor selection is available only for draft, approved or issued indents.",
+      "error",
+    );
+    return;
+  }
+  if (!line?.indent_line_id) {
+    toast("Select a line first.", "error");
+    return;
+  }
+  openVendorModal(buildVendorModalRowFromIndentLine(line, indent), {
+    origin: "indent",
+  });
+}
+
+async function refreshIndentAfterVendorSelection(indentLineId) {
+  const indentId = state.currentIndentId;
+  if (!indentId) return;
+  await loadIndentLines(indentId, {
+    preserveView: true,
+    selectLineId: indentLineId,
+  });
+  try {
+    const headers = await rpcPecIndentHeaders();
+    const fresh = (headers || []).find(
+      (r) => Number(r.indent_id) === Number(indentId),
+    );
+    if (fresh && state.currentIndentId === indentId) {
+      state.selectedIndent = fresh;
+      renderIndentModalHeader(fresh);
+      updateIndentVendorSelectAction();
+    }
+  } catch {
+    // Header refresh is best-effort; lines are already current.
+  }
+}
+
+function openVendorModal(row, { origin = "action-queue" } = {}) {
   if (!canPerformEditAction("Select vendor")) return;
 
   const modal = state.vendorModal;
+  if (modal.saving) return;
+  modal.origin = origin;
   modal.row = row;
   modal.selectedVendorId = null;
   modal.selectedVendorName = "";
@@ -3016,6 +3096,31 @@ function openVendorModal(row) {
   modal.searchRequestSeq = 0;
 
   modal.suggestedVendors = buildSuggestedVendorsFromRow(row);
+  if (origin === "indent") {
+    // PEC-ERP-C2: the live indent-line read may carry the server's current
+    // recommendation. Show exactly that (no L1-L3 or rates are synthesised).
+    const recId = normalizeVendorId(row?.recommended_vendor_id);
+    if (recId && !modal.suggestedVendors.some((v) => v.vendor_id === recId)) {
+      modal.suggestedVendors.push({
+        vendor_id: recId,
+        display_name: String(row.recommended_vendor_name || `Vendor #${recId}`),
+        rate:
+          row.recommended_rate == null || row.recommended_rate === ""
+            ? null
+            : row.recommended_rate,
+        tag: "Recommended",
+        evidenceText: "",
+      });
+    }
+  }
+  const emptyNote = qs("vendorSuggestedEmpty");
+  if (emptyNote) {
+    emptyNote.textContent =
+      origin === "indent"
+        ? "No recommendation is available for this line yet. Search for an active vendor below; a reason is required for a manual assignment."
+        : "No suggested vendors for this item. Search for an active vendor below.";
+  }
+  setVendorSaveBusy(false);
   modal.suggestedVendorIds = new Set(
     modal.suggestedVendors.map((v) => v.vendor_id),
   );
@@ -3079,8 +3184,13 @@ function openVendorModal(row) {
   requestAnimationFrame(() => qs("aqVendorSearchInput")?.focus());
 }
 
-function closeVendorModal() {
+function closeVendorModal({ force = false } = {}) {
   const modal = state.vendorModal;
+  if (modal?.saving && !force) return; // never drop an in-flight save
+  const returnFocus =
+    modal?.origin === "indent"
+      ? [qs("iBtnSelectVendor"), qs("iLinesTbody")]
+      : [qs("btnDetailSelectVendor"), qs("fSearch")];
   if (modal?.searchDebounceTimer) {
     clearTimeout(modal.searchDebounceTimer);
     modal.searchDebounceTimer = null;
@@ -3095,10 +3205,23 @@ function closeVendorModal() {
   modal.suggestedVendorIds = new Set();
 
   const backdrop = qs("vendorModalBackdrop");
-  hideModalBackdrop(backdrop, [qs("btnDetailSelectVendor"), qs("fSearch")]);
+  hideModalBackdrop(backdrop, returnFocus);
+}
+
+function setVendorSaveBusy(busy) {
+  const btn = qs("btnVendorSave");
+  if (!btn) return;
+  btn.dataset.busy = busy ? "true" : "false";
+  btn.setAttribute("aria-busy", busy ? "true" : "false");
+  if (busy) {
+    btn.disabled = true;
+  } else {
+    btn.disabled = false;
+  }
 }
 
 async function saveVendorSelection() {
+  if (state.vendorModal?.saving) return; // duplicate-submit guard
   if (!canPerformEditAction("Save vendor selection")) return;
 
   const modal = state.vendorModal;
@@ -3129,23 +3252,58 @@ async function saveVendorSelection() {
     return;
   }
 
-  const { error } = await supabase.rpc("proc_indent_set_vendor_selection", {
-    p_indent_line_id: row.indent_line_id,
-    p_selected_vendor_id: vendorId,
-    p_selected_rate: rate,
-    p_reason: reason,
-  });
+  const fromIndent = modal.origin === "indent";
+  if (fromIndent) {
+    // Client-side mirror of the server rule (defence in depth; server decides).
+    const indent = state.selectedIndent;
+    if (
+      !indentAllowsVendorSelection(indent) ||
+      Number(indent?.indent_id) !== Number(row.indent_id)
+    ) {
+      toast(
+        "Vendor selection is available only for draft, approved or issued indents.",
+        "error",
+      );
+      return;
+    }
+  }
+
+  modal.saving = true;
+  setVendorSaveBusy(true);
+  let error = null;
+  try {
+    ({ error } = await supabase.rpc("proc_indent_set_vendor_selection", {
+      p_indent_line_id: row.indent_line_id,
+      p_selected_vendor_id: vendorId,
+      p_selected_rate: rate,
+      p_reason: reason,
+    }));
+  } catch (e) {
+    error = e;
+  } finally {
+    modal.saving = false;
+    setVendorSaveBusy(false);
+  }
 
   if (error) {
     toast(mapVendorSelectionError(error), "error");
     return;
   }
 
-  closeVendorModal();
+  closeVendorModal({ force: true });
   toast(
     rate == null ? "Vendor assigned. Rate is pending." : "Vendor and rate assigned.",
     "success",
   );
+
+  if (fromIndent) {
+    // Live canonical read first; never wait for the snapshot-dependent views.
+    await refreshIndentAfterVendorSelection(row.indent_line_id);
+    if (state.actionLoaded) {
+      loadActionQueue({ preserveFocus: false }).catch(() => {});
+    }
+    return;
+  }
 
   await loadActionQueue();
 
@@ -3604,6 +3762,7 @@ function renderIndentModalHeader(indent) {
     deleteBtn.style.display = indent.status === "draft" ? "" : "none";
   updateIndentDraftWorkflowControls(indent);
   renderIndentLinesActions(indent);
+  updateIndentVendorSelectAction();
 }
 
 async function openPrViewModalById(prId) {
@@ -3862,6 +4021,7 @@ function openIndentViewModal(row) {
   state.indentLinesRows = [];
   updateExportButtonStates();
   renderIndentModalHeader(row);
+  updateIndentVendorSelectAction();
   setIndentSourcePrBadge(row);
   const btnEditQty = qs("iBtnEditLineQty");
   if (btnEditQty) btnEditQty.disabled = true;
@@ -4264,15 +4424,30 @@ function createIndentLineRow(row) {
       <td>${selVendor}</td>
       <td class="muted">${selRate}</td>
     `;
-  tr.addEventListener("click", () => {
+  const selectThisLine = () => {
     state.selectedIndentLine = row;
     const btnEditQty = qs("iBtnEditLineQty");
     if (btnEditQty)
       btnEditQty.disabled = state.selectedIndent?.status === "draft";
     tr.parentElement
       ?.querySelectorAll("tr")
-      .forEach((r) => (r.style.background = ""));
+      .forEach((r) => {
+        r.style.background = "";
+        r.removeAttribute("aria-selected");
+      });
     tr.style.background = "rgba(10,100,200,.06)";
+    tr.setAttribute("aria-selected", "true");
+    updateIndentVendorSelectAction();
+  };
+  tr.tabIndex = 0;
+  if (state.selectedIndentLine?.indent_line_id === row.indent_line_id) {
+    tr.setAttribute("aria-selected", "true");
+  }
+  tr.addEventListener("click", selectThisLine);
+  tr.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    selectThisLine();
   });
   return tr;
 }
@@ -4416,7 +4591,15 @@ function applyIndentLineFiltersAndRender() {
   renderIndentLinesInfinite();
 }
 
-async function loadIndentLines(indentId) {
+let indentLinesLoadSeq = 0;
+
+async function loadIndentLines(
+  indentId,
+  { preserveView = false, selectLineId = null } = {},
+) {
+  const loadSeq = ++indentLinesLoadSeq;
+  const prevVisible = iLineVisibleCount;
+  const prevScroll = qs("iLinesScroll")?.scrollTop || 0;
   setLoading(true);
   let data;
   try {
@@ -4432,7 +4615,30 @@ async function loadIndentLines(indentId) {
     return;
   }
   setLoading(false);
+  // Latest wins: a newer load or another indent opened meanwhile owns the UI.
+  if (loadSeq !== indentLinesLoadSeq || state.currentIndentId !== indentId) {
+    return;
+  }
   state.indentLinesRows = data || [];
+  if (selectLineId != null) {
+    state.selectedIndentLine =
+      state.indentLinesRows.find(
+        (r) => Number(r.indent_line_id) === Number(selectLineId),
+      ) || null;
+  }
+  if (preserveView) {
+    applyIndentLineFiltersAndRender();
+    iLineVisibleCount = Math.min(
+      Math.max(prevVisible, iLinePageSize),
+      iLineFilteredRows.length,
+    );
+    renderIndentLinesInfinite();
+    const scroller = qs("iLinesScroll");
+    if (scroller) scroller.scrollTop = prevScroll;
+    updateIndentVendorSelectAction();
+    updateExportButtonStates();
+    return;
+  }
   iLineQuery = "";
   iLineFilter = "all";
   iLineVisibleCount = 0;
@@ -4449,6 +4655,7 @@ async function loadIndentLines(indentId) {
   if (filterBtn) filterBtn.setAttribute("aria-expanded", "false");
   syncIndentLineFilterBadge();
   applyIndentLineFiltersAndRender();
+  updateIndentVendorSelectAction();
   updateExportButtonStates();
 }
 
@@ -5229,6 +5436,10 @@ function wireIndentControls() {
   // Create from PR
   qs("iBtnFromPR").addEventListener("click", openIndentFromPrModal);
   // Add Line
+  qs("iBtnSelectVendor")?.addEventListener(
+    "click",
+    openVendorSelectionForSelectedIndentLine,
+  );
   qs("iBtnAddLine").addEventListener("click", () => {
     if (!state.selectedIndent) {
       toast("Select an indent first.", "error");

@@ -104,7 +104,10 @@ class FakeEl {
   addEventListener(type, fn) {
     this.listeners[type] = fn;
   }
+  setAttribute() {}
+  removeAttribute() {}
 }
+function updateIndentVendorSelectAction() {}
 const document = { createElement(tag) { return new FakeEl(tag); } };
 function fmt(value) { return String(value ?? ""); }
 function displayMaterialClassCode(value) { return String(value ?? ""); }
