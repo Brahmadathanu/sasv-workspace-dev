@@ -638,7 +638,7 @@ function populateDestinationSections() {
 
 function populateDestinationSubsections(sectionId) {
   const sel = els.dstSubsection;
-  sel.innerHTML = '<option value="">- None / Not applicable -</option>';
+  sel.innerHTML = '<option value="">- Select Sub-section -</option>';
   const subs = state.masters.subsections.filter(
     (s) => String(s.section_id) === String(sectionId),
   );
@@ -662,17 +662,13 @@ function populateDestinationAreas(sectionId, subsectionId) {
   sel.disabled = true;
   if (!sectionId) return;
 
-  // When a subsection is selected, narrow to matching areas.
-  // When no subsection is selected, show all areas for the section to avoid
-  // incorrectly hiding areas that are valid without a subsection context.
-  let areas = state.masters.areas.filter(
-    (a) => String(a.section_id) === String(sectionId),
+  // Governed master hierarchy: every area belongs to a subsection.
+  // No cross-subsection area selection is permitted.
+  if (!subsectionId) return;
+  const areas = state.masters.areas.filter(
+    (a) => String(a.section_id) === String(sectionId) &&
+      String(a.subsection_id) === String(subsectionId),
   );
-  if (subsectionId) {
-    areas = areas.filter(
-      (a) => String(a.subsection_id) === String(subsectionId),
-    );
-  }
   if (!areas.length) return;
 
   sel.disabled = false;
@@ -686,7 +682,7 @@ function populateDestinationAreas(sectionId, subsectionId) {
 
 async function populateDestinationPlants(sectionId, subsectionId, areaId) {
   const sel = els.dstPlant;
-  sel.innerHTML = '<option value="">- Select Plant -</option>';
+  sel.innerHTML = '<option value="">- No plant / area-level -</option>';
   sel.disabled = true;
   if (!sectionId || !areaId) { syncSubmitReadiness(); return; }
 
@@ -726,7 +722,7 @@ async function populateDestinationPlants(sectionId, subsectionId, areaId) {
 function resetDestinationControls(level) {
   if (level === "section") {
     els.dstSubsection.innerHTML =
-      '<option value="">- None / Not applicable -</option>';
+      '<option value="">- Select Sub-section -</option>';
     els.dstSubsection.disabled = true;
   }
   if (level === "section" || level === "subsection") {
@@ -734,7 +730,7 @@ function resetDestinationControls(level) {
     els.dstArea.disabled = true;
   }
   if (level === "section" || level === "subsection" || level === "area") {
-    els.dstPlant.innerHTML = '<option value="">- Select Plant -</option>';
+    els.dstPlant.innerHTML = '<option value="">- No plant / area-level -</option>';
     els.dstPlant.disabled = true;
   }
 }
@@ -811,7 +807,10 @@ function syncPostingSummary() {
 function isTransferReady() {
   const source = state.selectedRow;
   if (!source || !els.transferDate.value || !els.dstSection.value ||
-      !els.dstArea.value || !els.dstPlant.value || els.dstPlant.disabled) return false;
+      !els.dstSubsection.value || !els.dstArea.value) return false;
+  const area = state.masters.areas.find(a => String(a.id) === String(els.dstArea.value));
+  if (!area || String(area.section_id) !== String(els.dstSection.value) ||
+      String(area.subsection_id) !== String(els.dstSubsection.value)) return false;
   const qty = Number(els.transferQty.value);
   const available = Number(source.qty_base ?? source.qty ?? 0);
   if (!els.transferQty.value || !Number.isFinite(qty) || qty <= 0 || qty > available) return false;
@@ -859,14 +858,23 @@ function validateTransferForm() {
     els.dstSection.focus();
     return false;
   }
+  if (!els.dstSubsection.value) {
+    showMessage("error", "Destination sub-section is required.");
+    els.dstSubsection.focus();
+    return false;
+  }
   if (!els.dstArea.value) {
     showMessage("error", "Destination area is required.");
     els.dstArea.focus();
     return false;
   }
-  if (!els.dstPlant.value) {
-    showMessage("error", "Destination plant is required.");
-    els.dstPlant.focus();
+  // Plant / Machinery is an optional, more granular location inside an area.
+  // The governed area-subsection relationship is mandatory.
+  const area = state.masters.areas.find(a => String(a.id) === String(els.dstArea.value));
+  if (!area || String(area.section_id) !== String(els.dstSection.value) ||
+      String(area.subsection_id) !== String(els.dstSubsection.value)) {
+    showMessage("error", "Destination area must belong to the selected sub-section.");
+    els.dstArea.focus();
     return false;
   }
 
@@ -1087,7 +1095,7 @@ async function initPage() {
       return;
     }
     populateDestinationSubsections(sec);
-    populateDestinationAreas(sec, "");
+    // Area options follow a selected governed subsection.
     syncPostingSummary();
   });
 
