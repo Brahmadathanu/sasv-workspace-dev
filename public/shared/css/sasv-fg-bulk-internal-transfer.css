@@ -481,6 +481,41 @@ body.sasv-fg-bit .fgroup input[type="date"]::-webkit-datetime-edit {
 }
 
 
+/* Screenshot acceptance: narrow Chromium fields match surrounding 14px typography.
+   iOS Safari alone retains 16px to prevent automatic zoom on focus. */
+body.sasv-fg-bit { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+@media (max-width: 760px) {
+  body.sasv-fg-bit .fgroup label,
+  body.sasv-fg-bit .fgroup input,
+  body.sasv-fg-bit .fgroup select,
+  body.sasv-fg-bit .fgroup textarea {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+  body.sasv-fg-bit .fgroup input,
+  body.sasv-fg-bit .fgroup select,
+  body.sasv-fg-bit .fgroup textarea {
+    min-height: 40px;
+    padding: 7px 10px;
+  }
+  body.sasv-fg-bit .fgroup input[type="date"]::-webkit-datetime-edit,
+  body.sasv-fg-bit .fgroup input[type="date"]::-webkit-date-and-time-value {
+    font: inherit;
+    font-size: 14px;
+    line-height: 1.35;
+  }
+}
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 760px) {
+    body.sasv-fg-bit .fgroup input,
+    body.sasv-fg-bit .fgroup select,
+    body.sasv-fg-bit .fgroup textarea,
+    body.sasv-fg-bit .fgroup input[type="date"]::-webkit-datetime-edit,
+    body.sasv-fg-bit .fgroup input[type="date"]::-webkit-date-and-time-value { font-size: 16px; }
+    body.sasv-fg-bit .fgroup label { font-size: 15px; }
+  }
+}
+
 /* Disabled while mandatory transfer details are incomplete. */
 body.sasv-fg-bit #submitBtn:disabled {
   cursor: not-allowed;
