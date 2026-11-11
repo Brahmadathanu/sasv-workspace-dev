@@ -115,7 +115,9 @@ function fmtQty(v) {
 async function requireSession() {
   const { data: { session } = {} } = await supabase.auth.getSession();
   if (!session) {
-    window.location.href = "login.html";
+    window.location.href = window.location.pathname.startsWith("/shared/")
+      ? "/utilities-hub/index.html"
+      : "login.html";
     throw new Error("No session");
   }
   return session;
