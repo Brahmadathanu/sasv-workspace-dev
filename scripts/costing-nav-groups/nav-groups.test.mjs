@@ -243,7 +243,13 @@ test("source: N1 does not edit registry/route-config semantics or controller fil
 
 test("CSS: N1 block is append-only, scoped to body.sasv-costing and has no !important / hidden overflow", () => {
   const css = read("public/shared/css/sasv-costing.css");
-  const block = css.slice(css.indexOf("MDC-07 N1: grouped navigation"));
+  // The stylesheet is append-only: later, unrelated blocks (e.g. Issue #208, whose comment mentions the phrase
+  // "overflow-x:hidden") follow the N1 block. Bound the N1 block at the next top-level comment so this contract
+  // checks only N1's own rules (test-only repair of a pre-existing failure on main, WP05 overnight bulk wave).
+  const n1Start = css.indexOf("MDC-07 N1: grouped navigation");
+  const n1HeaderEnd = css.indexOf("*/", n1Start) + 2;
+  const nextBlock = css.indexOf("\n/*", n1HeaderEnd);
+  const block = css.slice(n1Start, nextBlock === -1 ? undefined : nextBlock);
   assert.ok(block.length > 500);
   assert.equal(css.indexOf("MDC-07 N1: grouped navigation") > css.indexOf("CW-13: responsive hardening"), true);
   assert.doesNotMatch(block, /!important|overflow-x:\s*hidden/);

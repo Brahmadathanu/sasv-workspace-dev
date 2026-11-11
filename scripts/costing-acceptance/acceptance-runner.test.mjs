@@ -99,13 +99,25 @@ browser("happy path (ID-V, smoke): identity proven, flags set and restored, only
   assert.ok(fs.readdirSync(out("h1") + "/shots").length >= 2, "screenshots written to the out dir");
   await be.close();
 });
-browser("view-only check: a visible, enabled mutating control for ID-V is a FINDING (observed, never clicked); the lock screen under all-flags-ON is the live example", async () => {
+browser("view-only check (LOCK-P01 regression, post PR #212): with every flag ON the shipped lock screen shows NO enabled mutating control to ID-V; the read RPC is still reported for read-back", async () => {
+  // Previously this test asserted the pre-#212 defect (an enabled "Close quarter" button for a CCC view-only identity under COSTING_LOCK_SCREEN_V1).
+  // #212 (83b217be) made the lock UI fail-closed on canEdit; the unmodified shipped source therefore yields zero WRITE_CONTROL_ENABLED findings.
+  // LOCAL_SELF_TEST evidence only: it proves the current source + runner, not any hosted build or real identity.
   const be = await S.startFakeBackend();
   const r = await runAcceptance(base({ canonicalProof: canon(S.viewOnlyRows()), out: out("w1"), backendOrigin: be.origin, testHooks: hooks(be) }));
-  const f = r.findings.filter((x) => x.type === "WRITE_CONTROL_ENABLED"); assert.ok(f.length >= 1 && f.every((x) => x.flag_state === "ALL_ON"), JSON.stringify(r.findings));
+  const f = r.findings.filter((x) => x.type === "WRITE_CONTROL_ENABLED"); assert.deepEqual(f, [], "no enabled mutating control for view-only: " + JSON.stringify(f));
+  assert.ok(!r.observations.some((o) => o.claims.security === "FAIL"), "no per-lens security FAIL for view-only");
+  assert.ok(!be.seen.some((x) => x.method !== "GET" && !x.path.includes("/rpc/")), "no non-read request reached the backend");
+  const hc = r.findings.find((x) => x.type === "APP_READ_RPC_UNVERIFIED_SERVER_SIDE"); assert.ok(hc && hc.name === "rpc_costing_health_check", "the app-documented read RPC is allowed but reported for read-back");
+  await be.close();
+});
+browser("view-only check (detector kept honest): an INJECTED visible, enabled mutating control for ID-V is still a FINDING (observed, never clicked)", async () => {
+  const be = await S.startFakeBackend();
+  const inject = `window.addEventListener("load", () => setTimeout(() => { const b = document.createElement("button"); b.textContent = "Close quarter (lock months)"; document.body.appendChild(b); }, 200));`;
+  const r = await runAcceptance(base({ canonicalProof: canon(S.viewOnlyRows()), out: out("w2"), backendOrigin: be.origin, testHooks: hooks(be, inject) }));
+  const f = r.findings.filter((x) => x.type === "WRITE_CONTROL_ENABLED"); assert.ok(f.length >= 1, JSON.stringify(r.findings));
   assert.ok(f.some((x) => x.controls.some((c) => /close quarter/i.test(c)))); assert.equal(r.verdict, "SELF_TEST_COMPLETED_WITH_FINDINGS"); assert.ok(r.observations.some((o) => o.claims.security === "FAIL"));
   assert.ok(!be.seen.some((x) => x.method !== "GET" && !x.path.includes("/rpc/")), "observing the control did not click it");
-  const hc = r.findings.find((x) => x.type === "APP_READ_RPC_UNVERIFIED_SERVER_SIDE"); assert.ok(hc && hc.name === "rpc_costing_health_check", "the app-documented read RPC is allowed but reported for read-back");
   await be.close();
 });
 browser("ID-N: no Costing permission; data visible to ID-N would FAIL; module chrome alone is not a pass", async () => {
