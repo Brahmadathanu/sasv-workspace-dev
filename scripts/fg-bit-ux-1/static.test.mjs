@@ -58,6 +58,10 @@ test("a11y hooks: status regions, dialog attrs, row keyboard activation, busy gu
   assert.match(js, /handleSourceRowKeydown/);
   assert.match(js, /state\.isPosting\) return/);
 });
-test("scope: service worker cache pin not touched by this package", () => {
-  assert.match(read("public/sw.js"), /CACHE_NAME = "hub-cache-v393"/);
+test("scope: SW cache pin unchanged; FG-BIT script/CSS use the existing network-first branch", () => {
+  const sw = read("public/sw.js");
+  assert.match(sw, /CACHE_NAME = "hub-cache-v393"/);
+  assert.match(sw, /fg-bulk-internal-transfer\\\.js\$\/\.test\(url\.pathname\)/);
+  assert.match(sw, /sasv-fg-bulk-internal-transfer\\\.css\$\/\.test\(url\.pathname\)/);
+  // Runtime behaviour is covered by sw-freshness.test.mjs.
 });

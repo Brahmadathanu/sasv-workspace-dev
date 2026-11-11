@@ -1,0 +1,146 @@
+[
+  {
+    "prop": "body.fontFamily",
+    "fgBit": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+    "stockChecker": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+    "stockPurchaseExplorer": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "body.backgroundColor",
+    "fgBit": "rgb(244, 247, 248)",
+    "stockChecker": "rgb(244, 247, 248)",
+    "stockPurchaseExplorer": "rgb(244, 247, 248)",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "body.color",
+    "fgBit": "rgb(21, 37, 40)",
+    "stockChecker": "rgb(21, 37, 40)",
+    "stockPurchaseExplorer": "rgb(21, 37, 40)",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "h1.fontFamily",
+    "fgBit": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+    "stockChecker": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+    "stockPurchaseExplorer": "Inter, \"Segoe UI\", Roboto, Arial, sans-serif",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "h1.fontSize",
+    "fgBit": "18px",
+    "stockChecker": "18px",
+    "stockPurchaseExplorer": "18px",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "h1.fontWeight",
+    "fgBit": "600",
+    "stockChecker": "600",
+    "stockPurchaseExplorer": "600",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "h1.color",
+    "fgBit": "rgb(21, 37, 40)",
+    "stockChecker": "rgb(21, 37, 40)",
+    "stockPurchaseExplorer": "rgb(21, 37, 40)",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "home.backgroundColor",
+    "fgBit": "rgb(213, 239, 233)",
+    "stockChecker": "rgb(213, 239, 233)",
+    "stockPurchaseExplorer": "rgb(213, 239, 233)",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "home.color",
+    "fgBit": "rgb(13, 77, 70)",
+    "stockChecker": "rgb(13, 77, 70)",
+    "stockPurchaseExplorer": "rgb(13, 77, 70)",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "home.borderTopColor",
+    "fgBit": "rgba(20, 122, 108, 0.28)",
+    "stockChecker": "rgba(20, 122, 108, 0.28)",
+    "stockPurchaseExplorer": "rgba(20, 122, 108, 0.28)",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "home.borderRadius",
+    "fgBit": "6px",
+    "stockChecker": "6px",
+    "stockPurchaseExplorer": "6px",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "home.fontSize",
+    "fgBit": "13px",
+    "stockChecker": "13px",
+    "stockPurchaseExplorer": "13px",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "home.fontWeight",
+    "fgBit": "600",
+    "stockChecker": "600",
+    "stockPurchaseExplorer": "600",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "home.minHeight",
+    "fgBit": "36px",
+    "stockChecker": "36px",
+    "stockPurchaseExplorer": "36px",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "search.backgroundColor",
+    "fgBit": "rgb(238, 248, 246)",
+    "stockChecker": "rgb(238, 248, 246)",
+    "stockPurchaseExplorer": "rgb(238, 248, 246)",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "search.borderTopColor",
+    "fgBit": "rgba(20, 122, 108, 0.28)",
+    "stockChecker": "rgba(20, 122, 108, 0.28)",
+    "stockPurchaseExplorer": "rgba(20, 122, 108, 0.28)",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "search.borderRadius",
+    "fgBit": "6px",
+    "stockChecker": "6px",
+    "stockPurchaseExplorer": "6px",
+    "matchesSC": true,
+    "matchesSPE": true
+  },
+  {
+    "prop": "search.fontSize",
+    "fgBit": "13px",
+    "stockChecker": "14px",
+    "stockPurchaseExplorer": "13px",
+    "matchesSC": false,
+    "matchesSPE": true
+  }
+]

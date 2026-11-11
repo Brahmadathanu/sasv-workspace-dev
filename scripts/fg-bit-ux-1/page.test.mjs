@@ -346,3 +346,83 @@ test("HOME navigates to index.html (target unchanged)", { skip: SK }, async () =
   await Promise.all([page.waitForURL("**/index.html"), page.click("#homeBtn")]);
   await ctx.close();
 });
+
+// ── Review round 2: refresh / exhaustion / short-viewport regressions ──
+const scrollOwners = (page) => page.evaluate(() => {
+  const els = [document.documentElement, document.body, ...document.querySelectorAll(".modal-overlay, .modal-box, .modal-body, .mcard, .mcard-body, .modal-cards")];
+  return els.filter((e) => e.scrollHeight > e.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(e).overflowY) && !(e === document.documentElement)).map((e) => e.className || e.tagName);
+});
+
+test("320px short viewport: only .modal-body scrolls (wheel moves it, nothing else moves)", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 320, height: 400 });
+  await page.click("#sourceTbody tr[data-idx='1']");
+  assert.deepEqual(await scrollOwners(page), ["modal-body"]);
+  const before = await page.evaluate(() => ({ b: document.querySelector(".modal-body").scrollTop, d: scrollY, o: document.querySelector(".modal-overlay").scrollTop, w: document.querySelector(".source-table-wrap").scrollTop }));
+  await page.mouse.move(160, 200); await page.mouse.wheel(0, 300);
+  await page.waitForTimeout(150);
+  const after = await page.evaluate(() => ({ b: document.querySelector(".modal-body").scrollTop, d: scrollY, o: document.querySelector(".modal-overlay").scrollTop, w: document.querySelector(".source-table-wrap").scrollTop, dsw: document.documentElement.scrollWidth - document.documentElement.clientWidth }));
+  assert.ok(after.b > before.b, "modal body scrolled");
+  assert.equal(after.d, before.d, "page did not scroll"); assert.equal(after.o, 0); assert.equal(after.w, before.w, "background list did not scroll");
+  assert.equal(after.dsw, 0);
+  const f = await page.evaluate(() => { const b = document.querySelector(".modal-footer").getBoundingClientRect(); return { b: b.bottom, h: b.height, vh: innerHeight }; });
+  assert.ok(f.b <= f.vh + 0.5 && f.h > 30, "footer stays on screen while body scrolls");
+  await ctx.close();
+});
+
+test("390x340 footer is really usable: real clicks on Reset/Cancel/Submit, message not covering last field", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, height: 340 });
+  await page.click("#sourceTbody tr[data-idx='1']");
+  await page.click("#submitBtn"); // validation error appears in the footer
+  assert.equal(await page.locator("#modalMsgArea [role=alert]").isVisible(), true);
+  await page.locator("#remarks").scrollIntoViewIfNeeded();
+  const g = await page.evaluate(() => { const r = document.querySelector("#remarks").getBoundingClientRect(), f = document.querySelector(".modal-footer").getBoundingClientRect(), b = document.querySelector(".modal-body").getBoundingClientRect(); return { remarksBottom: r.bottom, footTop: f.top, bodyBottom: b.bottom, footH: f.height, vh: innerHeight }; });
+  assert.ok(g.remarksBottom <= g.footTop + 0.5, `last field not covered ${JSON.stringify(g)}`);
+  assert.ok(g.footTop >= g.bodyBottom - 0.5 && g.footH < g.vh * 0.6, "footer is a separate row and leaves room for the body");
+  const bodyH = await page.$eval(".modal-body", (b) => b.clientHeight);
+  assert.ok(bodyH >= 80, `body keeps usable height (${bodyH}px)`);
+  await page.fill("#transferQty", "5");
+  await page.click("#resetBtn");
+  assert.equal(await page.inputValue("#transferQty"), "");
+  await page.click("#cancelBtn");
+  assert.equal(await modalHidden(page), true);
+  await ctx.close();
+});
+
+test("source refresh while modal is open (post, stock remains): focus stays inside, selection re-highlighted, scroll still body-only, close restores focus to the re-rendered opener row", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 390, height: 500 });
+  await page.click("#sourceTbody tr[data-idx='5']");
+  await fillValid(page, "10");
+  await page.evaluate(() => { document.querySelector(".modal-body").scrollTop = 200; });
+  const oldRow = await page.evaluateHandle(() => document.querySelector("#sourceTbody tr[data-idx='5']"));
+  await page.click("#submitBtn");
+  await page.waitForFunction(() => /posted successfully/i.test(document.querySelector("#modalMsgArea").textContent));
+  assert.equal(await oldRow.evaluate((n) => n.isConnected), false, "list was really re-rendered");
+  assert.equal(await page.evaluate(() => document.getElementById("transferModal").contains(document.activeElement)), true, "focus inside dialog after refresh");
+  assert.equal(await page.locator("tr.row-selected").count(), 1, "selection restored on re-rendered list");
+  assert.equal(await page.$eval("main", (m) => m.hasAttribute("inert")), true, "background still inert");
+  assert.deepEqual(await scrollOwners(page), ["modal-body"]);
+  await page.click("#cancelBtn");
+  assert.equal(await page.evaluate(() => document.activeElement?.dataset?.idx), "5", "focus restored to the new row element for the same source_key");
+  assert.equal(await page.$eval("#sourceTbody tr[data-idx='5']", (t) => t.isConnected), true);
+  await ctx.close();
+});
+
+test("post exhaustion: modal closed, background live, focus on list region (not lost to <body>), Tab continues into page, list scrolls, count updated", { skip: SK }, async () => {
+  const { page, ctx } = await open({ width: 1024, height: 700 });
+  await page.click("#sourceTbody tr[data-idx='1']"); // qty 101
+  await fillValid(page, "101");
+  await page.click("#submitBtn");
+  await page.waitForFunction(() => document.querySelector("#transferModal").hidden);
+  assert.equal(await page.evaluate(() => document.activeElement.className), "source-table-wrap");
+  for (const sel of ["header", "main"]) assert.equal(await page.$eval(sel, (m) => m.hasAttribute("inert")), false, `${sel} not inert`);
+  assert.equal(await page.evaluate(() => document.body.classList.contains("fgbit-modal-open")), false);
+  assert.equal(await page.textContent("#rowCount"), "Showing 50 of 119");
+  assert.equal(await page.locator("#sourceTbody tr", { hasText: "Item 001" }).count(), 0, "exhausted row gone");
+  await page.keyboard.press("Tab"); // wrap region -> first focusable row
+  assert.equal(await page.evaluate(() => document.activeElement.tagName), "TR");
+  await page.evaluate(() => { document.querySelector(".source-table-wrap").scrollTop = 120; });
+  assert.ok(await page.$eval(".source-table-wrap", (w) => w.scrollTop > 0), "list scrolls");
+  await page.keyboard.press("Enter");
+  assert.equal(await modalHidden(page), false, "can reopen with keyboard after exhaustion");
+  await ctx.close();
+});

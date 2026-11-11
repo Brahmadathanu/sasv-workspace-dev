@@ -1,7 +1,7 @@
 # FG-BIT-UX-1 — FG Bulk Internal Transfer UI/UX modernization
 
 Client-only. Base `origin/main` = `b9915b82d6ab818e9f66eb2ab95ca36d08b55bd6`. Branch `feat/fg-bit-ux-1-modernization`.
-Not merged, not deployed. No server, Supabase, `public/sw.js`, shared CSS/JS or Electron changes.
+Not merged, not deployed. No server, Supabase, shared CSS/JS or Electron changes. `public/sw.js` has one targeted rule added (review round 2, see below); cache name unchanged.
 
 ## Files
 | File | Change |
@@ -34,17 +34,40 @@ Not merged, not deployed. No server, Supabase, `public/sw.js`, shared CSS/JS or 
 | Home bg / fg / radius / size / weight | orange / brown / 6 / 14 / 500 | `rgb(213,239,233)` / `rgb(13,77,70)` / 6 / 13 / 600 | identical |
 | search bg / height | `#e8f2fd` / 34px | `rgb(238,248,246)` / 36px | token `--sasv-search-select-bg` / 36px |
 
+## Review round 2 (independent review #6797019477)
+### 1. PWA freshness — implemented
+`public/sw.js`: `/shared/js/fg-bulk-internal-transfer.js` and `/shared/css/sasv-fg-bulk-internal-transfer.css` were added to the **existing** network-first-with-offline-cache-fallback branch (the one used by e-Aushadhi/costing assets). 5 lines added, 1 line changed. `CACHE_NAME` stays `hub-cache-v393`; no cache sweep; all other rules untouched. Regexes are unanchored at the start, so they match both `/shared/...` and `/public/shared/...` hosting.
+`scripts/fg-bit-ux-1/sw-freshness.test.mjs` (vm-mocked caches/fetch, 11 tests): reconstructed pre-fix SW serves stale JS (proves the risk); JS, CSS and `/public`-prefixed JS are served fresh online, the cache is refreshed, and offline falls back to the refreshed copy; offline with no cache rejects; unrelated files (`sasv-module-chrome.js`, `ui-icons.js`, `sasv-stock-checker.css`, `style.css`, `fg-bulk-stock.js`) stay cache-first and never hit the network; existing network-first rules still work; non-GET is not intercepted; pin unchanged; CRLF-converted SW behaves identically. Static test updated accordingly.
+Residual: `sasv-module-chrome.js` (imported by the page) remains cache-first as before. `mountModuleHome`/`mountModuleIcon` already exist in it on `main`, so a stale copy still satisfies this page.
+
+### 2. ESLint — run
+`npm ci` succeeded (ESLint 9.33.0; npm audit advisories not addressed, out of scope).
+`npx eslint public/shared/js/fg-bulk-internal-transfer.js public/sw.js scripts/fg-bit-ux-1/*.mjs` → exit 0, 0 errors, 0 warnings (after fixing one `no-regex-spaces` error in my own test). Prettier: no repo config; not run.
+
+### 3. True visual references — rendered
+`node scripts/fg-bit-ux-1/compare-references.mjs docs/fg-bit-ux-1/evidence` renders FG-BIT, Stock Checker and Stock & Purchase Explorer (desktop 1440 and phone 390; Supabase/CDN stubbed) and compares computed styles. Output: `evidence/reference-comparison*.json`, `evidence/ref-*.png`.
+Of 18 properties (body font/bg/colour; h1 font/size/weight/colour; Home bg/fg/border/radius/size/weight/min-height; search bg/border/radius/size): **18/18 equal to Stock & Purchase Explorer, 17/18 equal to Stock Checker.** The one difference is search font-size (13px vs 14px): the first text input on Stock Checker is a different control from its main search, so this is a selector artefact, not verified drift. Layout rhythm (header with divider, Home at right, light-filled search) was compared by eye on the screenshots.
+Stubbed data means the references show empty states; table/row visuals were not compared against them.
+
+### 4. Strengthened regressions (all in `scripts/fg-bit-ux-1/page.test.mjs`)
+- 320×400: wheel scroll moves only `.modal-body`; page, overlay and background list do not move; no horizontal overflow; footer stays on screen.
+- 390×340: real clicks on Submit/Reset/Cancel; error visible in footer; last field (`#remarks`) not covered; body keeps ≥80px.
+- Source refresh while modal open (post, stock remains, real re-render proven via detached node): focus stays inside dialog, selection re-highlighted, background still inert, body is the sole scroll owner, Cancel returns focus to the *new* row element for the same `source_key`.
+- Post exhaustion: modal hidden, `inert`/scroll-lock removed, focus on list region, count 50 of 119, row gone, Tab moves into the page, list scrolls, Enter reopens a row.
+- Dropped one planned test (opener removed before close) because closing re-renders the list from state, so the row reappears by design; the exhaustion test covers the real fallback.
+
 ## Tests (Node 22.23.4, Playwright Chromium, Linux, in-memory fake, no network)
 ```
-node --test scripts/fg-bit-ux-1/*.test.mjs        # 34 pass / 0 fail / 0 skipped (7 static + 27 browser)
-node --test scripts/manage-activities/static.test.mjs scripts/costing-sw-freshness/*.mjs   # 11 pass / 0 fail
-node scripts/fg-bit-ux-1/capture-evidence.mjs <root> docs/fg-bit-ux-1/evidence <label>
+node --test scripts/fg-bit-ux-1/*.test.mjs      # 49 pass / 0 fail / 0 skipped (7 static + 31 browser + 11 SW); 3 consecutive runs stable
+node --test scripts/manage-activities/*.test.mjs scripts/costing-sw-freshness/*.mjs   # 143 tests: 125 pass / 0 fail / 18 skipped
+npx eslint public/shared/js/fg-bulk-internal-transfer.js public/sw.js scripts/fg-bit-ux-1/*.mjs   # exit 0
 ```
+Adjacent suites reading `sw.js`/cache pin: 100 script files run individually; **71 fail identically with and without the `sw.js` change** (diff of failure lists empty), so they are pre-existing and unrelated; 29 pass. Not investigated here.
 Baseline: the same browser suite on base `main` = 9 pass / 18 fail (of 27). Passing on base: filters/debounce, scroll, cascade, post-success, guidance, Home — i.e. existing behaviour is unchanged; failures are the new a11y/lifecycle/geometry assertions.
 
 Viewport matrix (measured bounding boxes, scroll owners, h-overflow, operability of 11 controls each): 1440×900, 1024×768, 768×1024, 520×800, 390×844, 320×568, short desktop 1280×480, landscape 844×390; 640×400 (≈200% zoom of 1280×800) and 390×340 (soft-keyboard-height emulation). All pass. Column count checked at 1440/1100/900/760/390.
 
-Gate coverage: A contract — static test pins RPC names, 16 payload keys, identity `p_plant_id ?? null`, date computation. C — focus/Esc/backdrop/cancel/X/trap/busy tests. D — see lint.
+Gate coverage (viewport matrix here is from round 1): A contract — static test pins RPC names, 16 payload keys, identity `p_plant_id ?? null`, date computation. C — focus/Esc/backdrop/cancel/X/trap/busy tests. D — see lint.
 
 ## Functional preservation checklist
 - RPCs untouched: `rpc_fg_bulk_internal_transfer_source_page`, `…_source_by_identity`, `rpc_create_fg_bulk_internal_transfer` (+ tables sections/subsections/areas/plant_machinery reads). ✔ static test
@@ -55,11 +78,11 @@ Gate coverage: A contract — static test pins RPC names, 16 payload keys, ident
 
 ## PWA / Electron / cache freshness
 - URLs, query params and `index.html` Home target unchanged; relative asset paths (`public/shared/...`) as before; no root-absolute URLs (static test). Callers `add-log-entry.html`, `edit-log-entry.html`, `js/update-log-status.js` untouched.
-- **Freshness risk (read-only analysis of `public/sw.js`, pin `hub-cache-v393`):** HTML is network-first, but the new CSS (new URL) is fetched fresh, while `fg-bulk-internal-transfer.js` is cache-first. An installed PWA can therefore pair new HTML/CSS with the **old cached JS** until the cache name is bumped. Mitigation in this PR: the HTML is functional with the old JS (same IDs/classes; static Home markup; `.source-table-wrap` kept). Old JS would lack focus trap/restore, keyboard rows and busy guards. **Follow-up requiring owner approval:** bump `CACHE_NAME` at release. Not done here.
+- Freshness: resolved by the targeted SW rule above (no version bump). Older installed clients still need one online visit to receive the new `sw.js` itself (HTML is network-first, so they get it).
 - Native Electron and a hosted PWA were **not** tested (unavailable). Electron picks this up in the next packaged release.
 
 ## Limitations / BLOCKED
-- ESLint: **BLOCKED** — `npm install` was not run; `@eslint/js` missing, so `eslint.config.mjs` cannot load. No repo prettier config found. Syntax check `node --check` passes.
+- Real device soft keyboard, native Electron and hosted-PWA install/offline behaviour: **not tested**; post-merge smoke items.
 - Real soft-keyboard / `visualViewport` behaviour not testable in headless Chromium; only height emulation. No JS resize hacks added.
 - Dark theme: none exists in shared architecture; not added.
 - Cross-browser: Chromium only. `inert` relies on Chromium 102+/Safari 15.5+/Firefox 112+.
@@ -67,4 +90,4 @@ Gate coverage: A contract — static test pins RPC names, 16 payload keys, ident
 - Reference comparison is by computed styles + Manage Activities render; Stock Checker / Stock & Purchase Explorer were compared by shared tokens, not rendered.
 
 ## Rollback
-`git revert <merge-sha>` (UI-only; no data or schema impact). If PWA clients hold stale JS after rollback, the same cache-bump follow-up applies.
+`git revert <merge-sha>` (UI/SW-rule only; no data or schema impact). After a revert the SW rule disappears too, so installed clients may hold the cached new JS under cache-first until a version bump; the old HTML would not be compatible-checked. Prefer reverting together with an owner-approved cache bump.
