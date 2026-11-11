@@ -985,7 +985,12 @@ async function initPage() {
   if (els.homeBtn)
     els.homeBtn.addEventListener(
       "click",
-      () => (window.location.href = "index.html"),
+      () => {
+        // PWA pages are served from /shared/; Electron retains its root page.
+        window.location.href = window.location.pathname.startsWith("/shared/")
+          ? "/utilities-hub/index.html"
+          : "index.html";
+      },
     );
 
   // Collapsible guidance toggle (only visible on narrow screens via CSS)
