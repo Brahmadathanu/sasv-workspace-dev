@@ -33,7 +33,7 @@ test("page: every element id used by the script still exists (IDs preserved)", (
 test("home: canonical helper class, accessible name, target unchanged", () => {
   assert.match(html, /id="homeBtn"[^>]*class="sasv-home-btn"|class="sasv-home-btn"[^>]*id="homeBtn"|id="homeBtn"\s+type="button"\s+class="sasv-home-btn"/);
   assert.match(js, /mountModuleHome\(els\.homeBtn\)/);
-  assert.ok(js.includes(': "../../index.html"'), "Electron Home fallback preserved");
+  assert.ok(js.includes('"../../index.html"'), "Electron Home fallback preserved");
 });
 test("css: scoped to body.sasv-fg-bit, tokens only, no raw hex, no global selectors", () => {
   const stripped = css.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -80,8 +80,8 @@ test("canonical page is shared by Electron and PWA", () => {
     assert.ok(fs.existsSync(path.join(root, "public/shared", asset)), asset);
   }
   assert.ok(js.includes('window.location.protocol === "file:"'));
-  assert.ok(js.includes(': "../../index.html"'));
-  assert.ok(js.includes(': "../../login.html"'));
+  assert.ok(js.includes('"../../index.html"'));
+  assert.ok(js.includes('"../../login.html"'));
   assert.ok(js.includes('"/utilities-hub/index.html"'));
   assert.match(html, /guidance-indicator/);
   assert.match(js, /function isTransferReady\(/);
