@@ -76,3 +76,10 @@ The S1 verification package now contains:
 **C2 client direction:** [issue #294](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/294) now contains exact autonomous client handoff: use current `proc_pec_indent_lines` line values, open existing `openVendorModal` with no fabricated L1–L3 data, permit manual active vendor search in draft status, save through existing `proc_indent_set_vendor_selection`, refresh indent line first rather than waiting for Action Queue publication, preserve role and reason checks. This requires **no new server writer** to make immediate manual draft selection reachable. No client C2 PR has been created by ChatGPT.
 
 **Release:** #291 remains unmerged with fresh-asset and signed-in gates; no changes to production SQL, worker, approvals or datasets.
+
+## I. S1 next verification increment and C2 handoff — 2026-11-11
+
+- S1 isolated runner updated at commit `f1e2d90` with a **committed first writer / stale second writer** scenario, asserting that the stored requested quantity remains that of the first writer. This confirms test design for sequential optimistic concurrency, but is **not yet an actual test result**. True simultaneous worker-lock testing and PostgreSQL 17.4 runtime verification remain required before G2.
+- The existing project's PostgreSQL infrastructure is not used for tests; Supabase has no registered development branch. No production tables, RPCs or cron records were changed.
+- C2 prompt issued for [issue #294](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/294): independent branch/PR, existing shared Indents modal -> existing vendor selection modal and `proc_indent_set_vendor_selection`; no SQL, SW, app version, merge or deployment. The owner must invoke Claude Code with the prompt; a GitHub issue/comment does not start Claude automatically.
+- C1 PR #291 remains unmerged. Any C2 branch stacking must explicitly declare its C1 base and avoid duplicate shared-css commits.
