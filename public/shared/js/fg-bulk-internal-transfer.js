@@ -742,7 +742,7 @@ function getSelectText(sel) {
 }
 
 function formatSummaryDate(isoDate) {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(isoDate || "")) return "—";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate || "")) return "—";
   const [year, month, day] = isoDate.split("-");
   return `${day}-${month}-${year}`;
 }
@@ -940,7 +940,9 @@ function setBusyState(isBusy) {
     !els.transferModal.hasAttribute("hidden") &&
     !els.transferModal.contains(document.activeElement)
   ) {
-    els.submitBtn.focus();
+    // A successful partial post clears quantity and disables Submit. Focus
+    // an enabled field rather than trying to focus the disabled action.
+    (els.submitBtn.disabled ? els.transferQty : els.submitBtn).focus();
   }
 }
 
