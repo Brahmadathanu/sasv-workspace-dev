@@ -56,6 +56,14 @@ Stubbed data means the references show empty states; table/row visuals were not 
 - Post exhaustion: modal hidden, `inert`/scroll-lock removed, focus on list region, count 50 of 119, row gone, Tab moves into the page, list scrolls, Enter reopens a row.
 - Dropped one planned test (opener removed before close) because closing re-renders the list from state, so the row reappears by design; the exhaustion test covers the real fallback.
 
+## Classification governance correction — owner second hands-on inspection
+Verified in live Supabase (read-only): `areas` has 88 records, **all 88 have non-null `subsection_id`**; `plant_machinery` occurs in only 25 distinct areas, leaving 63 areas without assigned plants. The posting wrapper `rpc_create_fg_bulk_internal_transfer` forwards nullable `p_to_plant_id` to its core; the core does not require a plant ID.
+- Destination hierarchy for this live master: Section → Sub-section → Area (all required). Area options do not appear until the chosen subsection, and a selected area must belong to that subsection. The misleading "(optional)" label was removed from Sub-section.
+- Plant / Machinery is an optional finer classification; its selection is not required for readiness or submit validation. Empty destination plant remains `null` in the existing RPC payload. Cases with zero plants must allow area-level posting.
+- Narrow Guidance uses a right-justified **double-chevron** icon that reverses when expanded, with `aria-expanded` preserved. Earlier inline single-glyph indicator was removed.
+- Browser fixture now models actual area-to-subsection relationships and includes an area with no plant; regression tests cover no-plant valid submission and nullable RPC payload. Old assertions that permitted any area without selecting a subsection are updated.
+- No Supabase table, function, permission or RLS changes. Full test/lint run on latest head is still required before merge.
+
 ## Owner acceptance round 3 — pending rerun at current head
 - Source of truth: canonical `public/shared/fg-bulk-internal-transfer.html`, shared JS `public/shared/js/fg-bulk-internal-transfer.js`, module-scoped CSS. Root page is a small Electron legacy compatibility redirect, not a second full application.
 - Electron legacy query parameters (`item`, `bn`) and hash are carried into the canonical shared path; Electron Home/login use `../../index.html` and `../../login.html` from the shared file path, while hosted PWA routes to the Utilities Hub.
