@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   COMPARISON_VIEW, COMPARISON_SCOPED_RPC, COMPARISON_ROW_LIMIT, COMPARISON_COLUMNS, COMPARISON_FLAG_NAME,
-  readCostComparisonRows, scopedComparisonError,
+  COMPARISON_GENERIC_ERROR, readCostComparisonRows, scopedComparisonError,
 } from "../../public/shared/js/costing-cost-comparison-read.js";
 import { COSTING_CSR_SCOPED_COMPARISON_RPC_V1, isCostingCsrScopedComparisonRpcV1Enabled } from "../../public/shared/js/costing-feature-flags.js";
 
@@ -100,8 +100,9 @@ test("flag ON: errors are mapped to safe messages, called once, NEVER retried an
     [{ code: "42501", message: "permission denied for function rpc_x" }, /do not have permission/],
     [{ code: "P0001", message: "permission denied for module module:costing-control-center" }, /do not have permission/],
     [{ code: "P0001", message: "Not authenticated" }, /not signed in/],
+    [{ code: "P0001", message: "Invalid limit" }, /^The cost comparison could not be loaded/],
     [{ code: "57014", message: "canceling statement due to statement timeout" }, /timed out.*not retried/],
-    [{ code: "XX000", message: "boom" }, /^boom$/],
+    [{ code: "XX000", message: "boom" }, /^The cost comparison could not be loaded/],
   ];
   for (const [err, re] of cases) {
     const s = mockSupabase({ rpcResult: { data: null, error: err } });
@@ -112,10 +113,27 @@ test("flag ON: errors are mapped to safe messages, called once, NEVER retried an
   assert.doesNotMatch(scopedComparisonError({ code: "42501", message: "permission denied for schema costing" }).message, /costing|schema/i, "no internal object names leak to the UI");
 });
 
+test("unknown server errors never reach the message; code and cause are preserved for diagnostics only", () => {
+  const SENSITIVE = 'relation "costing.cost_sheet_line_monthly_snapshot" column "salary_x" violates something; query: SELECT secret FROM auth.users; role postgres; password=hunter2';
+  for (const code of ["XX000", "P0001", "22P02", "23505", "58000", "", undefined, "42P01"]) {
+    for (const f of ["message", "details"]) {
+      const e = scopedComparisonError({ code, [f]: SENSITIVE, hint: SENSITIVE });
+      if (code === "42P01" || code === "22P02" || code === "XX000" || code === "P0001" || code === "23505" || code === "58000" || !code) {
+        assert.equal(e.message, COMPARISON_GENERIC_ERROR, `${code}/${f}`);
+      }
+      for (const leak of ["costing.", "salary_x", "auth.users", "postgres", "hunter2", "SELECT", "relation"]) assert.ok(!e.message.includes(leak), `${code}/${f} leaked ${leak}`);
+      assert.equal(e.code, code || undefined);
+      assert.equal(e.cause.details ?? e.cause.message, SENSITIVE);
+    }
+  }
+  assert.equal(scopedComparisonError(null).message, COMPARISON_GENERIC_ERROR);
+  assert.equal(scopedComparisonError("string error").message, COMPARISON_GENERIC_ERROR);
+});
+
 test("flag ON: partial column sets and non-array shapes are refused, not rendered", async () => {
   const partial = row(1); delete partial.snapshot_run_label; delete partial.previous_year_selection_basis;
-  await assert.rejects(readCostComparisonRows({ supabase: mockSupabase({ rpcResult: { data: [partial], error: null } }), periodStart: "2026-11-01", scopedRpcEnabled: true }), /missing 2 expected column/);
-  await assert.rejects(readCostComparisonRows({ supabase: mockSupabase({ rpcResult: { data: { a: 1 }, error: null } }), periodStart: "2026-11-01", scopedRpcEnabled: true }), /unexpected shape/);
+  await assert.rejects(readCostComparisonRows({ supabase: mockSupabase({ rpcResult: { data: [partial], error: null } }), periodStart: "2026-11-01", scopedRpcEnabled: true }), (e) => /did not match the expected format/.test(e.message) && !/snapshot_run_label|previous_year_selection_basis/.test(e.message) && e.diagnostics.missingColumns.length === 2);
+  await assert.rejects(readCostComparisonRows({ supabase: mockSupabase({ rpcResult: { data: { a: 1 }, error: null } }), periodStart: "2026-11-01", scopedRpcEnabled: true }), (e) => e.message === COMPARISON_GENERIC_ERROR);
   const extra = { ...row(1), unexpected_new_column: 1 };
   assert.equal((await readCostComparisonRows({ supabase: mockSupabase({ rpcResult: { data: [extra], error: null } }), periodStart: "2026-11-01", scopedRpcEnabled: true })).rows.length, 1, "additive columns do not break the client");
 });
@@ -149,7 +167,7 @@ test("shell integration: single flag-gated branch for the cost-comparison lens; 
   assert.match(tail, /\.order\("product_name", \{ ascending: true \}\)\s*\.order\("sku_column_label", \{ ascending: true \}\)/);
   assert.match(tail, /await query\.limit\(2000\)/);
   assert.match(shell, /"cost-comparison": "v_cost_sheet_snapshot_sku_monthly_comparison_governed"/);
-  assert.match(shell, /if \(truncated\) \{\s*showToast\(/, "truncation is surfaced to the user");
+  assert.match(shell, /if \(truncated\) \{[\s\S]*?setStatus\(truncatedMsg, "warning"\);\s*showToast\(truncatedMsg, "warning", 6000\);/, "truncation is surfaced as a persistent status line and a toast");
 });
 
 test("release hygiene: this change set does not touch sw.js, other feature-flag defaults, or the original flag list", () => {

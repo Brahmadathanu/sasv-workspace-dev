@@ -15,11 +15,10 @@ const GATED_BLOCK = `    // #273: flag-gated scoped read (default OFF). Flag OFF
       LAST_REFRESH_TIME = refreshedAt;
       updateFreshnessIndicator();
       if (truncated) {
-        showToast(
-          "Cost comparison reached the 2000-row limit; some rows may not be shown.",
-          "warning",
-          6000,
-        );
+        const truncatedMsg =
+          "Cost comparison reached the 2000-row limit; some rows may not be shown.";
+        setStatus(truncatedMsg, "warning");
+        showToast(truncatedMsg, "warning", 6000);
       }
       return;
     }

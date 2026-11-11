@@ -38,6 +38,7 @@ export function createClient() {
   c.rpc = (name, args) => {
     if (name !== RPC) return baseRpc(name, args);
     window.__mock.rpc.push({ name, args: JSON.parse(JSON.stringify(args ?? {})) });
+    if (window.__deferred) return new Promise((res) => { (window.__pending = window.__pending || {})[args.p_period_start] = res; });
     return Promise.resolve(RPC_ERROR ? { data: null, error: RPC_ERROR } : { data: ROWS, error: null });
   };
   return c;
@@ -56,9 +57,9 @@ async function getEnv(t) {
 }
 test.after(async () => { await env?.close(); });
 
-async function run(e, { flagOn, width = 1280, rows, rpcError }) {
+async function run(e, { flagOn, width = 1280, rows, rpcError, keepOpen = false }) {
   const context = await e.browser.newContext({ viewport: { width, height: 900 } });
-  await context.addInitScript(([on, f]) => { if (on) localStorage.setItem(f, "1"); }, [flagOn, FLAG]);
+  await context.addInitScript(([on, f, d]) => { if (on) localStorage.setItem(f, "1"); if (d) window.__deferred = true; }, [flagOn, FLAG, keepOpen]);
   const stub = stubFor(rows, rpcError);
   await context.route(/cdnjs\.cloudflare\.com|fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net|esm\.sh/, (r) => {
     if (/esm\.sh\/@supabase\/supabase-js/.test(r.request().url())) return r.fulfill({ status: 200, contentType: "text/javascript", body: stub });
@@ -75,9 +76,11 @@ async function run(e, { flagOn, width = 1280, rows, rpcError }) {
   const pill = page.locator('#lensPills [data-lens="cost-comparison"]');
   if (await pill.isVisible()) await pill.click();                       // desktop path
   else await page.locator("#lensSelect").selectOption("cost-comparison"); // narrow-screen path (real user control)
+  if (keepOpen) return { page, context, errors };
   await page.waitForFunction(() => document.querySelectorAll("#tableBody tr").length > 0 || /not available|permission|timed out|Failed/i.test(document.getElementById("statusArea")?.textContent || ""), null, { timeout: 15000 });
   await page.waitForTimeout(300);
   const snap = await page.evaluate(() => ({
+    bodyText: document.body.innerText,
     tbody: document.getElementById("tableBody").innerHTML.replace(/\s+/g, " ").trim(),
     rows: document.querySelectorAll("#tableBody tr").length,
     status: document.getElementById("statusArea")?.textContent?.trim() || "",
@@ -141,3 +144,65 @@ test("flag ON with exactly 2000 rows shows a visible truncation warning", async 
   assert.deepEqual(on.errors, []);
   assert.match(on.toasts, /2000-row limit/);
 });
+
+const SENSITIVE = 'relation "costing.cost_sheet_line_monthly_snapshot" column "salary_x" failed; query: SELECT secret FROM auth.users; role postgres; password=hunter2';
+const LEAKS = ["costing.cost_sheet", "salary_x", "auth.users", "postgres", "hunter2", "SELECT secret"];
+
+for (const [label, err] of [
+  ["unknown code XX000 with sensitive message", { code: "XX000", message: SENSITIVE, details: SENSITIVE, hint: SENSITIVE }],
+  ["P0001 with sensitive message", { code: "P0001", message: SENSITIVE }],
+  ["no code, sensitive details only", { details: SENSITIVE }],
+]) {
+  test(`unknown server error (${label}) is never rendered: generic status and toast, one call, no view fallback`, async (t) => {
+    const e = await getEnv(t); if (!e) return;
+    const on = await run(e, { flagOn: true, rows: ROWS3, rpcError: err });
+    assert.deepEqual(on.errors, []);
+    assert.match(on.status, /The cost comparison could not be loaded/);
+    for (const l of LEAKS) { assert.ok(!on.status.includes(l), `status leaked ${l}`); assert.ok(!on.toasts.includes(l), `toast leaked ${l}`); assert.ok(!on.bodyText.includes(l), `page text leaked ${l}`); }
+    assert.equal(on.rpc.filter((r) => r.name === COMPARISON_SCOPED_RPC).length, 1);
+    assert.deepEqual(on.viewReads, []);
+  });
+}
+
+test("a missing-columns result shows a generic message without schema column names", async (t) => {
+  const e = await getEnv(t); if (!e) return;
+  const partial = ROWS3.map((r) => { const c = { ...r }; delete c.snapshot_run_label; delete c.previous_year_selection_basis; return c; });
+  const on = await run(e, { flagOn: true, rows: partial });
+  assert.match(on.status, /did not match the expected format/);
+  assert.ok(!/snapshot_run_label|previous_year_selection_basis/.test(on.status + on.toasts + on.bodyText));
+  assert.equal(on.rows, 0, "partial data is not rendered");
+});
+
+test("stale response: a late reply for the previous period never overwrites the newly selected period", async (t) => {
+  const e = await getEnv(t); if (!e) return;
+  const { page, context, errors } = await run(e, { flagOn: true, rows: ROWS3, keepOpen: true });
+  const rowsFor = (label) => [mkRow(1), mkRow(2)].map((r) => ({ ...r, product_name: label }));
+  await page.waitForFunction(() => window.__pending && window.__pending["2026-11-01"], null, { timeout: 15000 }); // load A (Nov) in flight
+  await page.evaluate(() => { // change the active period through the real control while A is still pending
+    const s = document.getElementById("costingPeriodSelect");
+    s.insertAdjacentHTML("afterbegin", '<option value="2026-10-01">Oct 2026</option>');
+    s.value = "2026-10-01"; s.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.waitForFunction(() => window.__pending["2026-10-01"], null, { timeout: 15000 });  // load B (Oct) in flight
+  await page.evaluate((rows) => window.__pending["2026-10-01"]({ data: rows, error: null }), rowsFor("OCT-ROW"));
+  await page.waitForFunction(() => /OCT-ROW/.test(document.getElementById("tableBody").innerText), null, { timeout: 15000 });
+  await page.evaluate((rows) => window.__pending["2026-11-01"]({ data: rows, error: null }), rowsFor("NOV-STALE-ROW")); // stale reply arrives last
+  await page.waitForTimeout(500);
+  const text = await page.evaluate(() => document.getElementById("tableBody").innerText);
+  assert.match(text, /OCT-ROW/); assert.doesNotMatch(text, /NOV-STALE-ROW/, "stale period must not be displayed");
+  const calls = await page.evaluate(() => window.__mock.rpc.map((r) => r.args.p_period_start));
+  assert.deepEqual(calls, ["2026-11-01", "2026-10-01"], "exactly one call per load, no duplicates or retries");
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+for (const width of [1280, 390]) {
+  test(`@${width}px exactly 2000 rows: warning is a persistent status line and a toast; 1999 rows show neither`, async (t) => {
+    const e = await getEnv(t); if (!e) return;
+    const many = (n) => Array.from({ length: n }, (_, i) => mkRow(i + 1));
+    const full = await run(e, { flagOn: true, width, rows: many(2000) });
+    assert.match(full.status, /2000-row limit/); assert.match(full.toasts, /2000-row limit/);
+    const under = await run(e, { flagOn: true, width, rows: many(1999) });
+    assert.doesNotMatch(under.status, /2000-row limit/); assert.doesNotMatch(under.toasts, /2000-row limit/);
+  });
+}

@@ -82,6 +82,11 @@ export const COMPARISON_COLUMNS = Object.freeze([
 
 const FIRST_OF_MONTH = /^\d{4}-\d{2}-01$/;
 
+// Fixed, user-safe texts. Server error text is NEVER rendered: an unforeseen failure of the privileged function could carry
+// schema, query or permission details. The original code and error object are kept on the thrown Error (`code`, `cause`) for
+// non-user-visible diagnostics (console / controlled logging) only.
+export const COMPARISON_GENERIC_ERROR = "The cost comparison could not be loaded. Try again later; it was not retried automatically.";
+
 export function scopedComparisonError(err) {
   const code = String(err?.code || "");
   const raw = String(err?.message || err?.details || "");
@@ -92,10 +97,10 @@ export function scopedComparisonError(err) {
     message = "You do not have permission to view the cost comparison.";
   } else if (code === "57014" || /statement timeout/i.test(raw)) {
     message = "The cost comparison query timed out on the server. Try again later; it was not retried automatically.";
-  } else if (code === "P0001" && /Not authenticated/i.test(raw)) {
+  } else if (code === "P0001" && /^Not authenticated$/i.test(raw.trim())) {
     message = "Your session is not signed in. Sign in again to view the cost comparison.";
   } else {
-    message = raw || "Cost comparison could not be loaded.";
+    message = COMPARISON_GENERIC_ERROR;
   }
   const out = new Error(message);
   out.code = code || undefined;
@@ -125,14 +130,18 @@ async function readViaScopedRpc(supabase, periodStart) {
   });
   if (error) throw scopedComparisonError(error);
   if (data !== null && data !== undefined && !Array.isArray(data)) {
-    throw new Error("Scoped comparison read returned an unexpected shape.");
+    const e = new Error(COMPARISON_GENERIC_ERROR);
+    e.diagnostics = "unexpected non-array result";
+    throw e;
   }
   const rows = data || [];
   if (rows.length > 0) {
     const have = new Set(Object.keys(rows[0]));
     const missing = COMPARISON_COLUMNS.filter((c) => !have.has(c));
     if (missing.length) {
-      throw new Error(`Scoped comparison read is missing ${missing.length} expected column(s) (${missing.slice(0, 3).join(", ")}); not rendering partial data.`);
+      const e = new Error("The cost comparison data did not match the expected format, so it was not displayed.");
+      e.diagnostics = { missingColumns: missing }; // diagnostics only, never rendered
+      throw e;
     }
   }
   return { rows, truncated: rows.length >= COMPARISON_ROW_LIMIT, source: "rpc", refreshedAt: new Date() };
