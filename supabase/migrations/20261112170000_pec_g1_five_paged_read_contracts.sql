@@ -20,7 +20,7 @@ BEGIN
   RETURN QUERY
     SELECT to_jsonb(f) AS row_data, count(*) OVER()::bigint AS total_count
     FROM public.v_proc_pr_header f
-    ORDER BY f.updated_at DESC NULLS LAST, f.pr_id DESC
+    ORDER BY f.pr_id DESC
     LIMIT p_limit OFFSET p_offset;
 END $function$;
 REVOKE ALL ON FUNCTION public.proc_pec_pr_headers_paged(p_limit integer, p_offset integer) FROM PUBLIC,anon;
@@ -41,7 +41,7 @@ BEGIN
   RETURN QUERY
     SELECT to_jsonb(f) AS row_data, count(*) OVER()::bigint AS total_count
     FROM public.v_proc_indent_console f
-    ORDER BY f.updated_at DESC NULLS LAST, f.indent_id DESC
+    ORDER BY f.indent_id DESC
     LIMIT p_limit OFFSET p_offset;
 END $function$;
 REVOKE ALL ON FUNCTION public.proc_pec_indent_headers_paged(p_limit integer, p_offset integer) FROM PUBLIC,anon;
@@ -62,7 +62,7 @@ BEGIN
   RETURN QUERY
     SELECT to_jsonb(f) AS row_data, count(*) OVER()::bigint AS total_count
     FROM public.v_proc_purchase_excess_console f
-    ORDER BY f.voucher_date DESC NULLS LAST, f.purchase_fact_id DESC
+    ORDER BY coalesce(f.net_unallocated_qty,0) DESC, f.voucher_date DESC NULLS LAST, f.purchase_fact_id DESC
     LIMIT p_limit OFFSET p_offset;
 END $function$;
 REVOKE ALL ON FUNCTION public.proc_pec_purchase_excess_paged(p_limit integer, p_offset integer) FROM PUBLIC,anon;
