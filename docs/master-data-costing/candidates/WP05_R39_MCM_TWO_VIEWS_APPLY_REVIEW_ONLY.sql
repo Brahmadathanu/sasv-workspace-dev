@@ -21,7 +21,7 @@ BEGIN
 END $guard$;
 
 -- Preserve full 32 column projection and nested relationships.
-CREATE OR REPLACE VIEW public.v_costing_material_manual_rate_history AS
+CREATE OR REPLACE VIEW public.v_costing_material_manual_rate_history WITH (security_invoker=false) AS
  SELECT manual_rate_id,
     stock_item_id,
     stock_item_code,
@@ -108,7 +108,7 @@ CREATE OR REPLACE VIEW public.v_costing_material_manual_rate_history AS
   WHERE ( SELECT (CURRENT_USER = ANY (ARRAY['postgres'::name, 'service_role'::name])) OR public.app_has_permission('module:material-cost-manager'::text, 'view'::text));
 
 -- Preserve full 34 column projection and nested relationships.
-CREATE OR REPLACE VIEW public.v_costing_material_manual_rate_register AS
+CREATE OR REPLACE VIEW public.v_costing_material_manual_rate_register WITH (security_invoker=false) AS
  SELECT manual_rate_id,
     stock_item_id,
     stock_item_code,
