@@ -41,3 +41,17 @@ This page supplements the living ledger `ERP_G0_LIVE_UOM_PR_INDENT_CORRECTION_LE
 **Public wrapper denial:** `BEGIN; SET LOCAL ROLE authenticated; DO ... PERFORM proc_pr_rebuild_from_mrp(1,'safe') ...; ROLLBACK;` matched the expected `Not authenticated` rejection. Since the wrapper rejects prior to the internal writer, no PR line was changed. This is a bare-role/no-JWT denial test only; real signed-in authorization and successful writer execution remain unverified.
 
 **No additional live writer patches in this follow-up.** The code-path gaps are documented for next bounded implementation package, not misrepresented as closed.
+
+## Implemented follow-on guard (2026-11-12) — closes previously open forward paths
+
+**Live function changes** deployed under owner instruction and captured verbatim in source-control migration `supabase/migrations/20261112122500_pec_revision_and_manual_indent_internal_guard.sql`, commit `290aeac`:
+- `proc_pr_create_revision_from_active_pec_internal`: copying a PR into a new draft revision now joins active catalog classifications and excludes RM `finished_bulk_material` / `semifinished_goods`. **Only newly created draft revisions are filtered**; original active PRs unchanged.
+- `proc_indent_add_line_pec_internal`: now rejects new **positive** or **increased** quantities for those internal classifications; existing unchanged/reduced/zeroed lines remain permitted, with existing indent-status and manual-reason checks preserved. The existing approved historical lines were not directly edited.
+
+**Live source checks:** both function definitions contain the appropriate class filters; 7/7 read-only manual-indent allow/deny policy examples PASSED. Old PR revisions would filter **49 lines each** from active PR-2026-01 and PR-2026-04 (499→450, 492→443). The 49 represent all internal-category rows, **not** all positive buying lines.
+
+**Actual writer-denial verification** in a single rolled-back DB transaction: `proc_indent_add_line_pec_internal(1,1,1070,5,1,...)` (new internal quantity) and `proc_indent_add_line_pec_internal(1,1,427,5,261,...)` (increase from 260) both raised the exact new prohibition **before mutation**. A following SELECT returned `no_internal_insert=true` and `legacy_quantity_preserved=true`; transaction ROLLBACK. This is direct behavioural denial evidence for manual add, **not** authenticated positive-path UI acceptance. All seven positive historical internal indent balances remain for governed lifecycle review.
+
+Supporting read-only fixture `ERP_G0_REVISION_MANUAL_INDENT_POLICY_FIXTURE_20261112.sql`, commit `aee1195`. The earlier section describing unpatched gaps is retained as **chronological historical audit**; it is superseded for forward generation by this implemented correction.
+
+**Still open:** authenticated allowed session writer acceptance, manual reduction/zero behavioural verification in an isolated rollback environment, PR revision create→activate integration, source-view JWT/RLS parity, historical legacy records, S4 hybrid, full MRP rebase. Formal G0 gates **0/6**, not promoted based on partial evidence.
