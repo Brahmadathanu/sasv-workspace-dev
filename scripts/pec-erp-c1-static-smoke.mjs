@@ -5,6 +5,7 @@
  */
 import fs from "node:fs";
 import { execSync } from "node:child_process";
+import { rejectedProtectedPaths } from "./lib/pec-protected-path-guard.mjs";
 
 let fail = 0;
 const ok = (c, m) => { if (!c) { fail++; console.error("FAIL:", m); } else console.log("ok  :", m); };
@@ -48,12 +49,31 @@ ok(!/proc_indent_(update|edit|set)_(draft|line)[a-z_]*|proc_pr_replenish|hybrid_
 ok((js.match(/rpc\("proc_indent_set_vendor_selection"/g) || []).length === 1, "exactly one proc_indent_set_vendor_selection call site (no duplicate implementation)");
 ok(/origin === "indent"/.test(js) && /indentAllowsVendorSelection/.test(js), "indent-origin eligibility guard present");
 
-// Protected paths untouched
-if (mainJs) {
-  const changed = sh("git diff --name-only origin/main...HEAD; git diff --name-only; git ls-files --others --exclude-standard").split("\n").filter(Boolean);
-  ok(!changed.some((f) => /^supabase\//.test(f)), "no supabase/ changes");
-  ok(!changed.includes("public/sw.js"), "public/sw.js untouched (no cache bump)");
-  ok(!changed.some((f) => /^(electron|package(-lock)?\.json)/.test(f)), "no Electron/package version changes");
+// Protected paths: inspect the CURRENT PR delta, never skip inherited paths.
+// Fetch the explicit base ref in CI; fail closed if it is missing.
+const gitTry = (command) => { try { return sh(command).trim(); } catch { return ""; } };
+const headBranch = process.env.GITHUB_HEAD_REF || gitTry("git branch --show-current");
+const baseBranch = process.env.GITHUB_BASE_REF ||
+  (headBranch === "claude/pec-phase-a-visual-acceptance"
+    ? "integration/pec-erp-staging-20261112" : "main");
+const integrationCandidate = headBranch === "integration/pec-erp-staging-20261112";
+const baseRef = "refs/remotes/origin/" + baseBranch;
+const present = gitTry("git rev-parse --verify " + baseRef);
+ok(Boolean(present), "protected-path comparison base exists (" + baseRef + ")");
+if (present) {
+  // Two-tree diff deliberately does not need full ancestry (CI uses shallow checkout).
+  const committed = gitTry("git diff --name-only " + baseRef + " HEAD");
+  // Existing five PEC migrations have mixed CRLF/LF on checkout, despite
+  // repository eol=lf normalization. Ignore ONLY line-ending whitespace noise;
+  // edits to SQL content and any SW mutation must still fail the guard.
+  const uncommitted = gitTry("git diff --ignore-space-at-eol --name-only HEAD");
+  const staged = gitTry("git diff --ignore-space-at-eol --name-only --cached");
+  const untracked = gitTry("git ls-files --others --exclude-standard");
+  const changed = [committed, uncommitted, staged, untracked].join("\n").split("\n").filter(Boolean);
+  const illegal = rejectedProtectedPaths(changed, integrationCandidate);
+  ok(illegal.length === 0, "no unauthorized new SQL/SW paths (" + (illegal.join(", ") || "none") + ")");
+  ok(!changed.some(f => /^(electron\/|package(-lock)?\\.json$)/.test(f)),
+    "no Electron/package version changes");
 }
 
 // Preserved protections from earlier work

@@ -27,6 +27,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Fetch exact PR base tree for protected-file diff
+        run: |
+          set -eu
+          base="${GITHUB_BASE_REF:-main}"
+          git fetch --no-tags --depth=1 origin "refs/heads/${base}:refs/remotes/origin/${base}"
+          git rev-parse --verify "refs/remotes/origin/${base}"
+      - name: Mutation-sensitive protected SQL and SW guard
+        run: node scripts/pec-protected-path-guard.test.mjs
+      - name: Exercise real static guard with temporary SQL and SW mutations
+        run: node scripts/pec-protected-path-mutation-smoke.mjs
       - name: Install isolated PEC browser/PDF test dependencies
         run: |
           npm install --prefix "$RUNNER_TEMP/pecdeps" --no-save --no-audit --no-fund playwright@1.62.1 jspdf@2.5.1 jspdf-autotable@3.8.2

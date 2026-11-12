@@ -640,6 +640,43 @@ body.sasv-pec {
   }
 }
 
+/* Narrow-screen corrections found by the Phase A visual acceptance (320/390px) */
+body.sasv-pec .export-dropdown {
+  max-width: calc(100vw - 16px);
+}
+@media (max-width: 520px) {
+  /* Pager row: keep export + count + prev/page/next on one line at 320px */
+  body.sasv-pec .pager-mini {
+    flex-wrap: nowrap;
+    gap: 4px;
+    min-width: 0;
+  }
+  body.sasv-pec .pager-mini .icon-btn {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+  }
+  body.sasv-pec .pager-mini .muted {
+    white-space: nowrap;
+    font-size: var(--sasv-text-xs, 0.75rem);
+  }
+  /* Indent / PR detail dialogs: title on its own full-width row, actions below */
+  body.sasv-pec #indentViewModalBackdrop .modal-header > div:first-child,
+  body.sasv-pec #prViewModalBackdrop .modal-header > div:first-child {
+    flex-wrap: wrap !important;
+  }
+  body.sasv-pec #indentViewModalBackdrop .modal-header > div:first-child > div:first-child,
+  body.sasv-pec #prViewModalBackdrop .modal-header > div:first-child > div:first-child {
+    flex: 1 1 100% !important;
+    min-width: 0;
+  }
+}
+/* Wrap at word boundaries; a column is never crushed to single characters
+   (the table scrolls horizontally instead). */
+body.sasv-pec td {
+  overflow-wrap: break-word;
+}
+
 @media (prefers-reduced-motion: reduce) {
   body.sasv-pec * {
     animation-duration: 0.01ms !important;
