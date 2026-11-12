@@ -5,7 +5,7 @@ SET LOCAL statement_timeout='45s';
 DO $guard$
 DECLARE v_oid oid := to_regclass('public.v_costing_scheme_master_register');
 BEGIN
- IF v_oid IS NULL OR md5(pg_get_viewdef(v_oid,true)) <> '__CANDIDATE_MD5__'
+ IF v_oid IS NULL OR md5(pg_get_viewdef(v_oid,true)) <> '903cb8eae3702bf72e41213ec2c89c6e'
  OR (SELECT count(*) FROM pg_attribute WHERE attrelid=v_oid AND attnum>0 AND NOT attisdropped)<>34
  OR (SELECT pg_get_userbyid(relowner) FROM pg_class WHERE oid=v_oid)<>'postgres'
  OR (SELECT relacl::text FROM pg_class WHERE oid=v_oid)<>'{postgres=arwdDxtm/postgres,authenticated=r/postgres}'
