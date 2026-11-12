@@ -119,3 +119,13 @@ Changed files (this package): `public/shared/js/procurement-execution-console.js
 - **Not verified:** packaged Electron; installed-PWA JS/CSS freshness (C1 §4b release gate; `sw-freshness` unit suite only); production performance (incl. Excess ~1.1 s/page server note).
 - **DEFER:** server-side split-only filter; the three unreachable modals; badge UI (not rendered).
 - Formal G0 remains 0/6; G4 not promoted.
+
+## 14 — Independent offset export hardening (12 November 2026)
+
+**Finding:** The original full export collector only checked `rows.length === total_count`. Under concurrent writes, offset pages can overlap, replacing an omitted group with a duplicate while preserving the same total count. This can produce an inaccurate CSV/TSV/PDF despite a passing count.
+
+**Narrow corrective commit:** `f11df919` changes `fetchAllVendorBuylistPagedRows` to reject missing group identity, repeated `getVwlOperationalRowKey` (vendor bucket, class, stock item, UOM), and a changing nonempty page `total_count` before returning any rows. The existing 50,000-row ceiling and complete-count assertion are retained. **No de-duplication or partial export is allowed.** Zero SQL/migration/SW/permission changes.
+
+**Independent executable regression:** `scripts/pec-vwl-offset-export-integrity.test.mjs` (commit `20591ba8`) extracts and runs the production collector, with six cases: successful 205-row two-page export; duplicate+omission with unchanged total must fail; page-total drift; missing identity; short/truncated transport; oversized 50,001-row export rejection. GitHub Actions `PEC Vendor-wise Offset Export Integrity` [run 43205460913](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/43205460913) **SUCCESS**, all steps. Workflow recorded in `.github/workflows/pec-vwl-offset-export-integrity.yml` (commit `fc78c3b`). This is an automated source-level behavioural test; no genuine signed-in PEC PWA session or a live concurrent database snapshot was tested. An identity guard cannot detect every possible nonduplicate concurrent reorder; future snapshot-bound export can strengthen this further if required.
+
+**Release consequence:** the earlier P1/P2 review findings are now corrected in source and supported by targeted CI. PR #335 remains draft and unmerged. Remaining release gates: signed-in role matrix and hosted RPC success, installed-PWA freshness, packaged Electron, real export/data parity and performance, owner approval. Formal PEC programme gates remain 0/6 until independent gate-level sign-off.
