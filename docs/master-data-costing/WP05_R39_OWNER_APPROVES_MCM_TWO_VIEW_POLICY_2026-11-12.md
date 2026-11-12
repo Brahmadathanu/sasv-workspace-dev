@@ -1,0 +1,29 @@
+> **R40 SUBSEQUENT PRODUCTION EXECUTION — 12 NOV 2026:** Owner subsequently authorised applying the reviewed two-view MCM correction from draft #327. This **was executed** as guarded SQL and post-deployment metadata matches the tested PG17 fingerprints for both views. [R40 execution record](WP05_R40_MCM_TWO_VIEW_PRODUCTION_EXECUTION_2026-11-12.md) supersedes the earlier 'production not authorised' status below (which is historical). Real signed-in role access remains NOT TESTED; W5-06 OPEN, WP05 6/13.
+
+> **R39 ISOLATED PG17 VERIFICATION:** A first implementation attempt without explicit `WITH (security_invoker=false)` was **rejected by the postcondition and rolled back**, because `CREATE OR REPLACE VIEW` did not retain that explicit view option. The corrected candidate now specifies it on both views; the complete original PostgreSQL 17 view definitions and nested Register→History dependencies were recreated from catalogue-derived typed fixtures. [Run 43187923357](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/43187923357) **7/7 integration PASS** on corrected SQL and pinned guarded rollback. Applied isolated definition fingerprints: History `01029a39e47a300aa7860d17b2f39cae`, Register `38b4262bfae719ca3f736185784fd047`. These fingerprints are in the rollback guard, not placeholders. The subsequent extended negative permission and service-role ACL drift check passed **8/8** on [run 43188145111](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/43188145111), including PPM-only and procurement-only denial on both views. **All testing is disposable PostgreSQL; no live production DDL applied.**
+
+# WP05 R39 — Owner-approved MCM reader policy, guarded two-view candidate (12 November 2026)
+
+**OWNER BUSINESS POLICY APPROVED — NOT AUTHORISED FOR PRODUCTION EXECUTION.** In response to R38, the owner explicitly approved **Q-R38-MCM: MCM View only** for full Material Manual Rate Register and History. CCC, CBM, CSR or any other module permission alone must not grant full material rate/provenance access. MCM View plus other module permissions remains permitted; MCM Edit without View does not confer reader access. The owner authorised preparation, isolated verification and rollback, and **explicitly reserved separate production SQL approval**.
+
+## Exact scope
+
+- `public.v_costing_material_manual_rate_history`: 32 columns, original MD5 `e827e401cc2bb8ccadf782ee5b98add4`.
+- `public.v_costing_material_manual_rate_register`: 34 columns, original MD5 `8a4c73fd3f4562679af3ed0638fa87e4`.
+- Shared prior `fn_costing_view_allowed()` on both is replaced **only in those views** with a narrow `public.app_has_permission('module:material-cost-manager','view')` for ordinary authenticated roles. The existing privileged technical branch is retained, but service_role SQL SELECT is **not granted**, so the pre-existing ACL denial persists.
+- The Register itself reads History. Candidate applies History first and Register second **in one transaction**; rollback does the same. Existing source joins, vendor provenance, output columns and client `select('*')` remain.
+- Each original view is postgres-owned, `security_invoker=false`, SQL `relacl={postgres=arwdDxtm/postgres,authenticated=r/postgres}`, anon/service_role SELECT denied. Candidate checks these attributes and exact source MD5 for both before touching either view.
+- Outside scope: `fn_costing_view_allowed`, `app_has_permission`, all other D-2 views, base `costing.material_manual_rates`, vendor tables, record values, purchasing grants, client JS, PWA/Electron, writer RPCs and users' assigned permissions.
+
+## Review artifacts
+
+- `docs/master-data-costing/candidates/WP05_R39_MCM_TWO_VIEWS_APPLY_REVIEW_ONLY.sql`: all-or-nothing guarded two-view replacement, exact output projection, single access condition, no GRANT or function creation.
+- `docs/master-data-costing/candidates/WP05_R39_MCM_TWO_VIEWS_ROLLBACK_REVIEW_ONLY.sql`: guarded restoration, **not executable until exact applied candidate MD5 values have been established from isolated PG17 and pinned**. No speculative rollback execution.
+- `scripts/wp05-r39-mcm-access/fixtures/*`: synthetic empty, type-matched source dependencies and original two view definitions taken from production metadata; one fabricated manual-rate record, no real supplier data.
+- `scripts/wp05-r39-mcm-access/mcm-views-pg17.test.mjs` + `.github/workflows/wp05-r39-mcm-view-policy.yml`: isolated PostgreSQL 17 parser, full nested two-view SQL, positive MCM and MCM+other, negative CCC/CBM/CSR/no-view, unchanged 32/34 columns, original ACL, service_role denial, rollback and drift rejection.
+
+## Current evidence and safety boundaries
+
+This review does not itself establish a real signed-in MCM PWA positive or unrelated-module negative, and this is *not* a request to test using privileged production PostgreSQL role/JWT impersonation. There is **no approval to apply either SQL file to live Supabase**, even transiently inside a rollback-only transaction. Before any later execution approval, complete isolated PG17 verification, pin rollback candidate fingerprints, independently review full SQL and preservation of actual source dependencies, and refresh live metadata with a stop-on-drift preflight. Obtain **separate owner approval for that exact two-view production operation**.
+
+**W5-06 stays OPEN**: the remaining CCC acceptance and CSR detail/lineage reader policies are unapproved, and authenticated role evidence for these views is not complete. R37 positive owner-reported Scheme History remains accepted at its stated evidence level; R34 production Scheme audit correction unchanged. Formal WP05 programme **6/13**.
