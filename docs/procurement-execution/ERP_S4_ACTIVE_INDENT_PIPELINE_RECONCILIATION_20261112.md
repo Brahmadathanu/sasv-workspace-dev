@@ -1,3 +1,5 @@
+> **Owner clarification — 12 Nov 2026:** S4 must **not depend on Tally purchase orders**. The canonical source for deducting prior procurement commitments before new PR creation is the existing **approved/issued indent balance**, computed as requested minus FIFO-allocated purchases. A PO, ETA or supplier acknowledgment is **not** a prerequisite. Older indents still approved/issued should remain eligible according to the governed indent lifecycle; they should not be silently invalidated by age alone. See final appended owner decision.
+
 # PEC S4 — Existing Indent Balance vs Pre-PR MRP Reconciliation (2026-11-12)
 
 **Status:** G0 read-only live source audit, not implementation or owner-approved supply recognition. Parent #305; programme #284.
@@ -85,3 +87,15 @@ Created **SELECT-only** `docs/procurement-execution/ERP_S4_PRE_PR_INDENT_RECON_S
 - Verified no production changes. This is a supply **evidence readback**, not a purchase-order confirmation, an approved net PR calculation or a complete item-wide preview.
 
 **Next technical steps:** obtain PO/receipt lineage and expected arrival, resolve old-indent actionability and data ageing, pin stock as-of time to the active MRP horizon, then make the complete `max(MRP_net,CCF_net)-eligible_prior_commitments` formula auditable. Require an explicit no-empty-indent guard in a separate writer approval package.
+
+## Final owner clarification: indent-based deduction, no external PO gate
+
+The owner states that Tally purchase orders are not dependable and are not in use. Therefore **remove every prior recommendation to require a current Tally PO, PO linkage, ETA or vendor confirmation to qualify the existing indent balance for the S4 *new PR duplication prevention* calculation.**
+
+**Design decision to carry forward:** `outstanding_prior_indent_qty` comes from live `v_proc_indent_line_balance`, grouped by material class + stock item + UOM with `remaining_qty > 0` (the view already includes only approved/issued indents with nonnull approval date). That balance is the authoritative *unfulfilled indent commitment*, not a physical incoming-stock number. Existing purchase FIFO allocation is already reflected, so do not subtract it again. Deduct this balance from the *incremental new requisition deficit* once, after comparing the stock-netted MRP and consumption coverage alternatives, and before applying incremental MOQ / whole-Nos rounding.
+
+**Actionability:** an indent still approved/issued in the current system remains an active procurement commitment until its status or balance is formally revised through established lifecycle governance. Age may generate a nonblocking reconciliation warning, but must not silently reduce eligible credit. The details of approved exceptions, status correction and any risk override require separate approval. Do not suspend all new PRs merely because no PO feed exists.
+
+**Panchasara control:** 61,250 Kg in three approved indent lines remains in Vendor-wise Buying List. As a **commitment-based** calculation, that amount can cover a hypothetical 11,800 Kg new procurement requirement and yield a zero *incremental* PR line, without proving that 61,250 Kg is arriving or available as physical stock. Procurement execution continues against those open indents. A future shortage despite open commitments must be handled through indent review/correction or an explicit approved override, not invented incoming supply.
+
+**Not yet implemented:** calculation source integration, stock anchor alignment, duplicate-PR/indent mapping prevention, server test, write permission controls and deployment remain gated.
