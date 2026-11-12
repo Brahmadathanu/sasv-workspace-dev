@@ -106,7 +106,7 @@ INSERT INTO costing.scheme_master_audit
 `;
 psql(schema);
 psql(firstView(rollback));
-psql("GRANT SELECT ON public.v_costing_scheme_master_audit TO authenticated,service_role; REVOKE ALL ON public.v_costing_scheme_master_audit FROM anon;");
+psql("GRANT SELECT ON public.v_costing_scheme_master_audit TO authenticated; REVOKE ALL ON public.v_costing_scheme_master_audit FROM anon,service_role;");
 for(const [name,id] of Object.entries(users)) {
  const grants=name==="mixed"?[permissionKeys.ppm,permissionKeys.ccc]:name==="edit"?[permissionKeys.ppm]:[permissionKeys[name]];
  for(const g of grants) psql(`INSERT INTO public.user_permissions_canonical VALUES ('${id}', '${g}',${name!=="edit"},${name==="edit"});`);
@@ -130,6 +130,7 @@ test("approved candidate SQL parses, applies and preserves SQL grants and 20 col
  assert.equal(psql("SELECT has_table_privilege('authenticated','public.v_costing_scheme_master_audit','SELECT');"),"t");
  assert.equal(psql("SELECT has_table_privilege('anon','public.v_costing_scheme_master_audit','SELECT');"),"f");
  assert.equal(psql("SELECT pg_get_userbyid(relowner) FROM pg_class WHERE oid='public.v_costing_scheme_master_audit'::regclass;"),"postgres");
+ assert.equal(psql("SELECT has_table_privilege('service_role','public.v_costing_scheme_master_audit','SELECT');"),"f");
 });
 test("PPM View and mixed-scope reader positive, costing-only viewers denied",()=>{
  assert.equal(count(users.ppm),1);
@@ -139,7 +140,8 @@ test("PPM View and mixed-scope reader positive, costing-only viewers denied",()=
 test("edit-only and absent UID deny; privileged service remains eligible",()=>{
  assert.equal(count(users.edit),0);
  assert.equal(count(null),0);
- assert.equal(count(null,"service_role"),1);
+ assert.throws(()=>count(null,"service_role"),/permission denied/);
+ assert.equal(count(null,"postgres"),1);
 });
 test("guard prevents reapplying candidate after definition has changed",()=>{
  assert.throws(()=>psql(candidate));
