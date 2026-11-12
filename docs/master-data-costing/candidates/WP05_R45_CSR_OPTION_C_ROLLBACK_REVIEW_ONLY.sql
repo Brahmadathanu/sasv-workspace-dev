@@ -9,8 +9,8 @@ BEGIN
  (SELECT count(*) FROM pg_attribute a WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped) cols
  FROM pg_class c WHERE c.oid IN ('public.v_costing_pricing_cost_sheet_line_traceability'::regclass,'public.v_costing_pricing_sku_detailed_cost_sheet'::regclass) LOOP
  IF v.owner<>'postgres' OR NOT has_table_privilege('authenticated',v.oid,'SELECT') OR has_table_privilege('anon',v.oid,'SELECT') OR NOT has_table_privilege('service_role',v.oid,'SELECT')
- OR (v.relname='v_costing_pricing_cost_sheet_line_traceability' AND (v.fingerprint<>'__CANDIDATE_MD5_v_costing_pricing_cost_sheet_line_traceability__' OR v.acl<>'{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=r/postgres}' OR v.opts<>'' OR v.cols<>40))
- OR (v.relname='v_costing_pricing_sku_detailed_cost_sheet' AND (v.fingerprint<>'__CANDIDATE_MD5_v_costing_pricing_sku_detailed_cost_sheet__' OR v.acl<>'{postgres=arwdDxtm/postgres,authenticated=r/postgres,service_role=arwdDxtm/postgres}' OR v.opts<>'security_invoker=true' OR v.cols<>44))
+ OR (v.relname='v_costing_pricing_cost_sheet_line_traceability' AND (v.fingerprint<>'800a546b711a9658e9f81a58b6e78303' OR v.acl<>'{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=r/postgres}' OR v.opts<>'' OR v.cols<>40))
+ OR (v.relname='v_costing_pricing_sku_detailed_cost_sheet' AND (v.fingerprint<>'4faaae56558dddbc3b418146f2ab8c59' OR v.acl<>'{postgres=arwdDxtm/postgres,authenticated=r/postgres,service_role=arwdDxtm/postgres}' OR v.opts<>'security_invoker=true' OR v.cols<>44))
  THEN RAISE EXCEPTION 'WP05 R45 rollback drift: %',v.relname; END IF;
  END LOOP;
 END $guard$;
