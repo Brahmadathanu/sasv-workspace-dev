@@ -4036,8 +4036,8 @@ async function confirmIndentResync() {
     toast("Select an indent first.", "error");
     return;
   }
-  const mode = bd.dataset.mode === "full" ? "full" : "safe";
-  const uiModeLabel = mode === "full" ? "Full" : "Safe";
+  const mode = bd.dataset.mode === "full" ? "reset" : "safe";
+  const uiModeLabel = bd.dataset.mode === "full" ? "Full" : "Safe";
 
   const { error } = await supabase.rpc("proc_indent_resync_from_pr", {
     p_indent_id: indent.indent_id,
