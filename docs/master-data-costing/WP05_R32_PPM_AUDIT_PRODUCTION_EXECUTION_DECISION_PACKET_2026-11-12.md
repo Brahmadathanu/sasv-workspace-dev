@@ -1,3 +1,5 @@
+> **R34 STATUS SUPERSEDES R32 EXECUTION HOLD — 12 NOV 2026:** The owner subsequently gave explicit production authorisation for this exact one-view correction. It **was executed** as a guarded SQL transaction, and post-deployment metadata verified. Refer to [R34 production execution record](WP05_R34_OPTION_A_SCHEME_AUDIT_PRODUCTION_EXECUTION_2026-11-12.md) for fingerprint, preserved ACL and other-view checks. R32 below documents the **earlier pre-execution gate**, not current state. Actual signed-in role acceptance remains NOT TESTED; W5-06 OPEN, formal 6/13.
+
 # WP05 R32 — Option A Scheme audit production-execution decision packet (12 November 2026)
 
 **STATUS: PRE-FLIGHT REVIEW ONLY — PRODUCTION EXECUTION NOT AUTHORISED.** The owner approved the *business policy* Option A (R28); no explicit second approval for application of SQL to live Supabase has been received. This packet adds no permission, does not run any migration, and does not promote W5-06. Formal WP05 remains **6/13**.
