@@ -1,0 +1,48 @@
+name: WP05 CSR Offline Verifier
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/csr-comparison-verifier/**'
+      - 'scripts/csr-scoped-rpc-client/**'
+      - '.github/workflows/wp05-csr-verifier.yml'
+  push:
+    branches:
+      - 'claude/epic-fermi-df6fia'
+    paths:
+      - 'scripts/csr-comparison-verifier/**'
+      - 'scripts/csr-scoped-rpc-client/**'
+      - '.github/workflows/wp05-csr-verifier.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify local PostgreSQL binary
+        run: |
+          set -euo pipefail
+          for bin in /usr/lib/postgresql/{17,16,15,14}/bin; do
+            if [ -x "$bin/initdb" ] && [ -x "$bin/pg_ctl" ] && [ -x "$bin/psql" ]; then
+              echo "CSR_VERIFIER_PG_BIN=$bin" >> "$GITHUB_ENV"
+              echo "Using local PostgreSQL $bin"
+              exit 0
+            fi
+          done
+          echo "::error::No local PostgreSQL binaries present; failing closed"
+          exit 1
+      - name: Fixture parity, benchmark statistics and client/SW contracts
+        run: node --test scripts/csr-comparison-verifier/*.test.mjs
+      - name: Existing scoped-RPC client regression
+        run: node --test scripts/csr-scoped-rpc-client/*.test.mjs

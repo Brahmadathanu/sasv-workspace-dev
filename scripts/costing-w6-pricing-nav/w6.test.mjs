@@ -178,6 +178,20 @@ test("source: W6 changes only the PPM controller (plus tests and docs): shell, r
 const PPM_REL = "public/shared/js/costing-suite-pricing-policy.js";
 const readPpm = () => fs.readFileSync(path.join(root, PPM_REL), "utf8").replace(/\r\n/g, "\n");
 const baselinePpm = () => gitOrFail("show", `${MAIN_BASE}:${PPM_REL}`).replace(/\r\n/g, "\n");
+/**
+ * Narrow, exact post-W6 source exception for #303 Scheme History actor fix.
+ * This does not alter the W6 strip helper or historical pin; unrelated edits
+ * still fail the comparison. Fail if the expected two strings drift.
+ */
+function removeApprovedSchemeAuditActorFix(source) {
+  const actorImport = 'import { formatSchemeMasterAuditActor } from "./costing-suite-scheme-audit-actor.mjs";\n';
+  const actorUsage = "text(formatSchemeMasterAuditActor(auditRow))";
+  const previousUsage = "text(auditRow.actor || auditRow.event_actor || auditRow.created_by)";
+  assert.equal(source.split(actorImport).length, 2, "exact Scheme actor import required once");
+  assert.equal(source.split(actorUsage).length, 2, "exact Scheme actor renderer required once");
+  return source.replace(actorImport, "").replace(actorUsage, previousUsage);
+}
+
 
 test("strip helper: removing the W6 additions from the controller reproduces the pre-W6 file exactly", () => {
   assert.notEqual(readPpm(), baselinePpm(), "W6 really changes the controller");
@@ -188,8 +202,8 @@ test("strip helper: removing the W6 additions from the controller reproduces the
   const POST_263 = "cf41740ec054dac7cabd1df343eb4b0b67d5bd60";
   const at = (rev) => gitOrFail("show", `${rev}:${PPM_REL}`).replace(/\r\n/g, "\n");
   assert.equal(stripW6PricingPolicy(at(PRE_263)), baselinePpm());
-  assert.equal(stripW6PricingPolicy(readPpm()), stripW6PricingPolicy(at(POST_263)));
-  assert.equal(stripW6(PPM_REL, readPpm()), stripW6PricingPolicy(at(POST_263)));
+  assert.equal(stripW6PricingPolicy(removeApprovedSchemeAuditActorFix(readPpm())), stripW6PricingPolicy(at(POST_263)));
+  assert.equal(stripW6(PPM_REL, removeApprovedSchemeAuditActorFix(readPpm())), stripW6PricingPolicy(at(POST_263)));
   assert.equal(stripW6PricingPolicy(baselinePpm()), baselinePpm(), "idempotent on the pre-W6 text");
   assert.equal(stripW6("public/shared/js/costing-suite-cost-build.js", "x"), "x", "other files are never touched");
 });
