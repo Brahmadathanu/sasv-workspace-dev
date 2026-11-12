@@ -1230,6 +1230,7 @@ body.sasv-pec .pec-filter-drawer {
   flex-direction: column;
   padding: 0;
   overflow: hidden;
+  max-height: min(680px, calc(100vh - 16px));
 }
 body.sasv-pec .pec-filter-drawer.open {
   display: flex;

@@ -1851,7 +1851,7 @@ function openFloatingFilterDrawer(btn, drawer, focusEl) {
   positionFloatingFilterDrawer(btn, drawer);
   startFloatingFilterDrawerTracking(btn, drawer);
   const firstControl = drawer.querySelector(".pec-filter-drawer-body select, .pec-filter-drawer-body input");
-  (focusEl || (drawer.classList.contains("is-sheet") ? firstControl : null))?.focus?.();
+  (focusEl || firstControl)?.focus?.();
 }
 
 function closeFloatingFilterDrawer(btn, drawer, options = {}) {
