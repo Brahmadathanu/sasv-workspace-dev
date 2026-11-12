@@ -254,6 +254,120 @@ function compareStrAsc(a, b) {
   return String(a ?? "").localeCompare(String(b ?? ""));
 }
 
+// ─── PEC-PAGING: live server-paged read contracts (draft server PR #323) ─────
+// Paged RPCs return [{ row_data, total_count }]; an empty page is [] (no total).
+// Filters are always sent to the server BEFORE paging; never filtered in JS.
+const PEC_PAGE_LIMIT_MAX = 200;
+const PEC_EXPORT_MAX_ROWS = 50000;
+
+function unpackPagedRows(data) {
+  const list = Array.isArray(data) ? data : [];
+  return {
+    rows: list.map((r) => (r && r.row_data !== undefined ? r.row_data : r)),
+    total: list.length ? Number(list[0].total_count) || 0 : 0,
+  };
+}
+
+function clampPageLimit(limit) {
+  const n = Math.floor(Number(limit) || DEFAULT_PAGE_SIZE);
+  return Math.min(PEC_PAGE_LIMIT_MAX, Math.max(1, n));
+}
+
+async function rpcPecPaged(name, params, signal = null) {
+  const query = supabase.rpc(name, params);
+  const { data, error } = await (signal && typeof query?.abortSignal === "function"
+    ? query.abortSignal(signal)
+    : query);
+  if (error) throw error;
+  return unpackPagedRows(data);
+}
+
+function rpcPecPrHeadersPaged({ status, classId, q, limit, offset, signal }) {
+  return rpcPecPaged(
+    "proc_pec_pr_headers_filtered_paged",
+    {
+      p_status: status || null,
+      p_material_class_id: classId ? Number(classId) : null,
+      p_q: q || null,
+      p_limit: clampPageLimit(limit),
+      p_offset: offset,
+    },
+    signal,
+  );
+}
+
+function rpcPecIndentHeadersPaged({ status, classId, q, limit, offset, signal }) {
+  return rpcPecPaged(
+    "proc_pec_indent_headers_filtered_paged",
+    {
+      p_status: status || null,
+      p_material_class_id: classId ? Number(classId) : null,
+      p_q: q || null,
+      p_limit: clampPageLimit(limit),
+      p_offset: offset,
+    },
+    signal,
+  );
+}
+
+function rpcPecExcessAuditPaged({ limit, offset, signal }) {
+  return rpcPecPaged(
+    "proc_pec_excess_acceptance_audit_paged",
+    { p_limit: clampPageLimit(limit), p_offset: offset },
+    signal,
+  );
+}
+
+/**
+ * Latest-wins guard per lens: beginning a new run aborts the previous request
+ * and makes its eventual response a no-op (typing, filter changes, paging and
+ * fast tab toggling can never paint older data).
+ */
+function createLatestWins() {
+  let seq = 0;
+  let ctrl = null;
+  return {
+    begin() {
+      const mine = ++seq;
+      ctrl?.abort();
+      const mineCtrl = typeof AbortController === "function" ? new AbortController() : null;
+      ctrl = mineCtrl;
+      return {
+        signal: mineCtrl?.signal || null,
+        isCurrent: () => mine === seq,
+        done() {
+          if (ctrl === mineCtrl) ctrl = null;
+        },
+      };
+    },
+  };
+}
+const pecLatest = {
+  pr: createLatestWins(),
+  indents: createLatestWins(),
+  excess: createLatestWins(),
+  excessAudit: createLatestWins(),
+};
+
+/**
+ * Fetch one page; if it is empty but not page 0 (offset out of range after the
+ * data shrank), recover to the last real page using the total from page 0.
+ * Returns null when superseded.
+ */
+async function fetchPageWithRecovery(fetchPage, page, pageSize, isCurrent) {
+  let res = await fetchPage(page);
+  if (!isCurrent()) return null;
+  if (res.rows.length || page <= 0) return { ...res, page };
+  const first = await fetchPage(0);
+  if (!isCurrent()) return null;
+  if (!first.rows.length) return { rows: [], total: 0, page: 0 };
+  const last = Math.max(0, Math.ceil(first.total / pageSize) - 1);
+  if (last === 0) return { ...first, page: 0 };
+  res = await fetchPage(last);
+  if (!isCurrent()) return null;
+  return { ...res, page: last };
+}
+
 function slicePage(rows, page, pageSize) {
   const size = Number(pageSize || DEFAULT_PAGE_SIZE);
   const start = Number(page || 0) * size;
@@ -1385,6 +1499,17 @@ function setModalProcessing(backdropId, active, text = "Processing…") {
 
 const tabLoadingControlStates = new WeakMap();
 
+// A renderer that computes pager state while a tab load is in flight must also
+// update the snapshot taken when the load began; otherwise the end-of-load
+// restore would put back the PRE-render disabled state (e.g. Prev stuck
+// disabled after moving to page 2).
+function setPagerDisabled(btn, disabled) {
+  if (!btn) return;
+  btn.disabled = Boolean(disabled);
+  const saved = tabLoadingControlStates.get(btn);
+  if (saved) saved.disabled = Boolean(disabled);
+}
+
 function isTabPanelLoadingControl(control) {
   if (
     !(
@@ -1995,17 +2120,17 @@ function updateTabCount(id, n) {
 }
 
 async function refreshAllTabCounts() {
+  // Counts come from total_count of a 1-row page, not from full-table reads.
   const [indents, pr, excess] = await Promise.allSettled([
-    rpcPecIndentHeaders(),
-    rpcPecPrHeaders(),
-    rpcPecPurchaseExcess(),
+    rpcPecIndentHeadersPaged({ limit: 1, offset: 0 }),
+    rpcPecPrHeadersPaged({ limit: 1, offset: 0 }),
+    rpcPecPaged("proc_pec_purchase_excess_filtered_paged", { p_limit: 1, p_offset: 0 }),
   ]);
   if (indents.status === "fulfilled")
-    updateTabCount("tabCountIndents", indents.value.length);
-  if (pr.status === "fulfilled")
-    updateTabCount("tabCountPr", pr.value.length);
+    updateTabCount("tabCountIndents", indents.value.total);
+  if (pr.status === "fulfilled") updateTabCount("tabCountPr", pr.value.total);
   if (excess.status === "fulfilled")
-    updateTabCount("tabCountExcess", excess.value.length);
+    updateTabCount("tabCountExcess", excess.value.total);
 }
 
 // ─── Jump to Indent (Part C) ─────────────────────────────────────────────────
@@ -4761,29 +4886,47 @@ function renderIndents() {
     });
     tbody.appendChild(tr);
   }
-  const _iCnt = state.indentsRows.length;
+  const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
+  const _iCnt = Number.isFinite(state.indentsTotal)
+    ? state.indentsTotal
+    : state.indentsRows.length;
+  const _iPages = Math.max(1, Math.ceil(_iCnt / pageSize));
   qs("iMeta").textContent = `${_iCnt} indent${_iCnt !== 1 ? "s" : ""}`;
-  qs("iPaging").textContent = `Page ${state.indentsPage + 1}`;
+  qs("iPaging").textContent = `Page ${state.indentsPage + 1}/${_iPages}`;
   const _iPrev = qs("iBtnPrev");
   const _iNext = qs("iBtnNext");
-  const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
-  if (_iPrev) _iPrev.disabled = state.indentsPage <= 0;
-  if (_iNext) _iNext.disabled = _iCnt < pageSize;
+  setPagerDisabled(_iPrev, state.indentsPage <= 0);
+  setPagerDisabled(_iNext, (state.indentsPage + 1) * pageSize >= _iCnt);
   updateTabCount("tabCountIndents", _iCnt);
   updateExportButtonStates();
 }
 
 async function loadIndents() {
+  const run = pecLatest.indents.begin();
   setTabTableLoading("indents", true);
   try {
     const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
     const status = qs("iStatus").value;
     const cls = qs("iClass").value;
     const search = (qs("iSearch").value || "").trim();
-    let rows;
+    let result;
     try {
-      rows = await rpcPecIndentHeaders();
+      result = await fetchPageWithRecovery(
+        (page) =>
+          rpcPecIndentHeadersPaged({
+            status,
+            classId: cls,
+            q: search,
+            limit: pageSize,
+            offset: page * pageSize,
+            signal: run.signal,
+          }),
+        state.indentsPage,
+        pageSize,
+        run.isCurrent,
+      );
     } catch (error) {
+      if (!run.isCurrent()) return;
       toast(`Failed to load indents: ${error.message}`, "error");
       renderTableStateRow(
         qs("iTbody"),
@@ -4794,16 +4937,13 @@ async function loadIndents() {
       );
       return;
     }
-    rows = (rows || []).filter((r) => {
-      if (status && String(r.status || "") !== String(status)) return false;
-      if (cls && Number(r.material_class_id) !== Number(cls)) return false;
-      if (search && !ilikeContains(r.indent_number, search)) return false;
-      return true;
-    });
-    rows.sort((a, b) => compareNumDesc(a.indent_id, b.indent_id));
-    state.indentsRows = slicePage(rows, state.indentsPage, pageSize);
+    if (!result || !run.isCurrent()) return;
+    state.indentsPage = result.page;
+    state.indentsTotal = result.total;
+    state.indentsRows = result.rows;
     renderIndents();
   } finally {
+    run.done();
     setTabTableLoading("indents", false);
   }
 }
@@ -7373,28 +7513,46 @@ function renderPrHeaders() {
     });
     tbody.appendChild(tr);
   }
-  const _prCnt = state.prRows.length;
+  const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
+  const _prCnt = Number.isFinite(state.prTotal)
+    ? state.prTotal
+    : state.prRows.length;
+  const _prPages = Math.max(1, Math.ceil(_prCnt / pageSize));
   qs("prMeta").textContent = `${_prCnt} PR${_prCnt !== 1 ? "s" : ""}`;
-  qs("prPaging").textContent = `Page ${state.prPage + 1}`;
+  qs("prPaging").textContent = `Page ${state.prPage + 1}/${_prPages}`;
   const _prPrev = qs("prBtnPrev");
   const _prNext = qs("prBtnNext");
-  const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
-  if (_prPrev) _prPrev.disabled = state.prPage <= 0;
-  if (_prNext) _prNext.disabled = _prCnt < pageSize;
+  setPagerDisabled(_prPrev, state.prPage <= 0);
+  setPagerDisabled(_prNext, (state.prPage + 1) * pageSize >= _prCnt);
   updateTabCount("tabCountPr", _prCnt);
 }
 
 async function loadPrHeaders() {
+  const run = pecLatest.pr.begin();
   setTabTableLoading("pr", true);
   try {
     const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
     const status = qs("prFilterStatus").value;
     const cls = qs("prFilterClass").value;
     const search = (qs("prSearch").value || "").trim();
-    let rows;
+    let result;
     try {
-      rows = await rpcPecPrHeaders();
+      result = await fetchPageWithRecovery(
+        (page) =>
+          rpcPecPrHeadersPaged({
+            status,
+            classId: cls,
+            q: search,
+            limit: pageSize,
+            offset: page * pageSize,
+            signal: run.signal,
+          }),
+        state.prPage,
+        pageSize,
+        run.isCurrent,
+      );
     } catch (error) {
+      if (!run.isCurrent()) return;
       toast(`Failed to load PRs: ${error.message}`, "error");
       renderTableStateRow(
         qs("prTbody"),
@@ -7405,16 +7563,13 @@ async function loadPrHeaders() {
       );
       return;
     }
-    rows = (rows || []).filter((r) => {
-      if (status && String(r.status || "") !== String(status)) return false;
-      if (cls && Number(r.material_class_id) !== Number(cls)) return false;
-      if (search && !ilikeContains(r.pr_number, search)) return false;
-      return true;
-    });
-    rows.sort((a, b) => compareNumDesc(a.pr_id, b.pr_id));
-    state.prRows = slicePage(rows, state.prPage, pageSize);
+    if (!result || !run.isCurrent()) return;
+    state.prPage = result.page;
+    state.prTotal = result.total;
+    state.prRows = result.rows;
     renderPrHeaders();
   } finally {
+    run.done();
     setTabTableLoading("pr", false);
   }
 }
@@ -8812,9 +8967,9 @@ function renderExcess() {
     `Page ${state.excessPage + 1}/${state.excessTotalPages}`;
   const _ePrev = qs("eBtnPrev");
   const _eNext = qs("eBtnNext");
-  if (_ePrev) _ePrev.disabled = state.excessPage <= 0;
-  if (_eNext) _eNext.disabled = state.excessPage >= state.excessTotalPages - 1;
-  updateTabCount("tabCountExcess", state.excessRows.length);
+  setPagerDisabled(_ePrev, state.excessPage <= 0);
+  setPagerDisabled(_eNext, state.excessPage >= state.excessTotalPages - 1);
+  updateTabCount("tabCountExcess", state.excessTotalCount);
 }
 
 function formatIsoDate(date) {
@@ -8945,15 +9100,44 @@ function toggleExcessFilterPanel() {
 }
 
 async function loadExcess() {
+  const run = pecLatest.excess.begin();
   setTabTableLoading("excess", true);
   try {
     const search = (qs("eSearch")?.value || "").trim();
     const filters = state.excessFilters;
     const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
-    let rows;
+    // Dates come from the existing preset/custom logic; omitted => server
+    // applies NO date restriction, so always pass what the UI shows.
+    const dateRange = getExcessDateRange();
+    const minQty = Number(filters.minQty) || 0;
+    let result;
     try {
-      rows = await rpcPecPurchaseExcess();
+      result = await fetchPageWithRecovery(
+        (page) =>
+          rpcPecPaged(
+            "proc_pec_purchase_excess_filtered_paged",
+            {
+              p_q: search || null,
+              p_material_class_code: filters.materialClassId
+                ? canonicalMaterialClassCode(filters.materialClassId)
+                : null,
+              p_date_from: dateRange.from || null,
+              p_date_to: dateRange.to || null,
+              p_min_qty: minQty > 0 ? minQty : null,
+              p_vendor_q: filters.vendorQ || null,
+              p_item_q: filters.itemQ || null,
+              p_unmapped_only: Boolean(filters.unmappedOnly),
+              p_limit: clampPageLimit(pageSize),
+              p_offset: page * pageSize,
+            },
+            run.signal,
+          ),
+        state.excessPage,
+        pageSize,
+        run.isCurrent,
+      );
     } catch (error) {
+      if (!run.isCurrent()) return;
       toast(`Failed to load excess purchases: ${error.message}`, "error");
       renderTableStateRow(
         qs("eTbody"),
@@ -8964,61 +9148,14 @@ async function loadExcess() {
       );
       return;
     }
-
-    const dateRange = getExcessDateRange();
-    const minQty = Number(filters.minQty) || 0;
-
-    rows = (rows || []).filter((r) => {
-      if (search && !ilikeContains(r.stock_item_name, search)) return false;
-      if (
-        filters.materialClassId &&
-        canonicalMaterialClassCode(r.material_class_code) !==
-          canonicalMaterialClassCode(filters.materialClassId)
-      ) {
-        return false;
-      }
-      if (minQty > 0 && Number(r.net_unallocated_qty || 0) < minQty) {
-        return false;
-      }
-      if (dateRange.from) {
-        const vd = String(r.voucher_date || "");
-        if (!vd || vd < dateRange.from) return false;
-      }
-      if (dateRange.to) {
-        const vd = String(r.voucher_date || "");
-        if (!vd || vd > dateRange.to) return false;
-      }
-      if (filters.vendorQ && !ilikeContains(r.vendor_display_name, filters.vendorQ)) {
-        return false;
-      }
-      if (filters.itemQ) {
-        const itemQ = filters.itemQ;
-        const nameHit = ilikeContains(r.stock_item_name, itemQ);
-        const codeHit = ilikeContains(r.stock_item_code, itemQ);
-        if (!nameHit && !codeHit) return false;
-      }
-      if (filters.unmappedOnly) {
-        if (r.vendor_display_name != null && String(r.vendor_display_name) !== "") {
-          return false;
-        }
-      }
-      return true;
-    });
-
-    rows.sort((a, b) => {
-      const byQty = compareNumDesc(a.net_unallocated_qty, b.net_unallocated_qty);
-      if (byQty !== 0) return byQty;
-      return compareStrAsc(b.voucher_date, a.voucher_date);
-    });
-
-    state.excessTotalCount = rows.length;
-    state.excessTotalPages = Math.max(
-      1,
-      Math.ceil(state.excessTotalCount / pageSize),
-    );
-    state.excessRows = slicePage(rows, state.excessPage, pageSize);
+    if (!result || !run.isCurrent()) return;
+    state.excessPage = result.page;
+    state.excessTotalCount = result.total;
+    state.excessTotalPages = Math.max(1, Math.ceil(result.total / pageSize));
+    state.excessRows = result.rows;
     renderExcess();
   } finally {
+    run.done();
     setTabTableLoading("excess", false);
   }
 }
@@ -9043,12 +9180,24 @@ function renderExcessAudit() {
 }
 
 async function loadExcessAuditPaged() {
+  const run = pecLatest.excessAudit.begin();
   const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
-
-  let rows;
+  let result;
   try {
-    rows = await rpcPecExcessAcceptanceAudit();
+    result = await fetchPageWithRecovery(
+      (page) =>
+        rpcPecExcessAuditPaged({
+          limit: pageSize,
+          offset: page * pageSize,
+          signal: run.signal,
+        }),
+      state.excessAuditPage,
+      pageSize,
+      run.isCurrent,
+    );
   } catch (error) {
+    run.done();
+    if (!run.isCurrent()) return;
     toast(`Failed to load acceptance audit: ${error.message}`, "error");
     renderTableStateRow(
       qs("eAuditTbody"),
@@ -9059,18 +9208,12 @@ async function loadExcessAuditPaged() {
     );
     return;
   }
-  rows = [...(rows || [])].sort((a, b) =>
-    compareStrAsc(
-      b.accepted_at ?? b.created_at ?? "",
-      a.accepted_at ?? a.created_at ?? "",
-    ),
-  );
-  state.excessAuditTotalCount = rows.length;
-  state.excessAuditTotalPages = Math.max(
-    1,
-    Math.ceil(state.excessAuditTotalCount / pageSize),
-  );
-  state.excessAuditRows = slicePage(rows, state.excessAuditPage, pageSize);
+  run.done();
+  if (!result || !run.isCurrent()) return;
+  state.excessAuditPage = result.page;
+  state.excessAuditTotalCount = result.total;
+  state.excessAuditTotalPages = Math.max(1, Math.ceil(result.total / pageSize));
+  state.excessAuditRows = result.rows;
   renderExcessAudit();
   qs("eAuditMeta").textContent =
     `${state.excessAuditTotalCount} line${state.excessAuditTotalCount !== 1 ? "s" : ""}`;
@@ -9435,13 +9578,25 @@ function buildVwlOperationalFilterOptions(rows) {
   });
 }
 
-function populateVwlOperationalVendorFilter(rows) {
+// Options for ALL rows matching the upstream filters (server-side) -> same
+// shape as buildVwlOperationalFilterOptions: { value, label, type }.
+function normalizeVwlServerFilterOptions(rows) {
+  return (rows || [])
+    .filter((r) => r && r.filter_value)
+    .map((r) => ({
+      value: String(r.filter_value),
+      label: String(r.filter_label || r.filter_value),
+      type: String(r.filter_type || ""),
+    }));
+}
+
+function populateVwlOperationalVendorFilter(rows, presetOptions = null) {
   const select = qs("vwlVendorFilter");
   if (!select) return;
 
   const current = state.vwl.vendorFilterKey || "";
 
-  const options = buildVwlOperationalFilterOptions(rows);
+  const options = presetOptions || buildVwlOperationalFilterOptions(rows);
   state.vwl.vendorFilterOptions = options;
 
   select.innerHTML =
@@ -10028,8 +10183,8 @@ function updateVendorBuylistPager() {
   const total = Number.isFinite(totalCount) ? totalCount : rows.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  if (prev) prev.disabled = page <= 0;
-  if (next) next.disabled = rows.length < pageSize;
+  setPagerDisabled(prev, page <= 0);
+  setPagerDisabled(next, (page + 1) * pageSize >= total);
   if (text) {
     text.textContent = `Page ${page + 1}/${totalPages}`;
   }
@@ -11349,12 +11504,13 @@ async function loadVendorBuylist() {
 
     const params = buildVwlRpcFilterParams();
     const splitPromise = refreshVwlSplitLookup({ signal, params, isCurrent });
-    const rawRows = await fetchVendorBuylistFilteredRows({ signal, params });
-    if (!isCurrent()) return;
 
-    // The split lookup only gates rendering when "split only" is active;
-    // otherwise the list renders now and split markers follow.
+    // "Split only" has no server filter parameter yet (DEFER), so that one mode
+    // keeps the legacy complete read + client filter. Every other mode is
+    // filtered AND paged by the server.
     if (state.vwlFilters.splitOnly) {
+      const rawRows = await fetchVendorBuylistFilteredRows({ signal, params });
+      if (!isCurrent()) return;
       await splitPromise;
       if (!isCurrent()) return;
       if (state.vwl.splitLookupFailed) {
@@ -11362,39 +11518,81 @@ async function loadVendorBuylist() {
           "Split-vendor information could not be loaded; cannot apply 'split only'.",
         );
       }
-    } else {
-      splitPromise.then((applied) => {
-        if (!isCurrent()) return;
-        if (applied) renderVendorBuylistTable();
-        else if (state.vwl.splitLookupFailed)
-          toast("Split-vendor markers are unavailable right now.", "error");
-      });
-    }
-
-    let rows = sortVendorBuylistRows(rawRows);
-    populateVwlOperationalVendorFilter(rows);
-
-    if (state.vwlFilters.splitOnly) {
+      let rows = sortVendorBuylistRows(rawRows);
+      populateVwlOperationalVendorFilter(rows);
+      state.vwl.optionsSig = null; // options came from the full read, not the options RPC
       rows = rows.filter(isVwlSplitRow);
+      const vendorFilterKey = String(state.vwl.vendorFilterKey || "").trim();
+      if (vendorFilterKey) {
+        rows = rows.filter((row) =>
+          matchesVwlOperationalFilter(row, vendorFilterKey),
+        );
+      }
+      const total = rows.length;
+      const from = state.vwl.page * state.vwl.pageSize;
+      if (from >= total && state.vwl.page > 0) {
+        state.vwl.page = Math.max(0, Math.ceil(total / state.vwl.pageSize) - 1);
+      }
+      const start = state.vwl.page * state.vwl.pageSize;
+      state.vwl.totalCount = total;
+      state.vwl.rows = rows.slice(start, start + state.vwl.pageSize);
+      renderVendorBuylistTable();
+      updateVendorBuylistPager();
+      syncVwlFilterBadge();
+      return;
     }
 
-    const vendorFilterKey = String(state.vwl.vendorFilterKey || "").trim();
-    if (vendorFilterKey) {
-      rows = rows.filter((row) =>
-        matchesVwlOperationalFilter(row, vendorFilterKey),
+    splitPromise.then((applied) => {
+      if (!isCurrent()) return;
+      if (applied) renderVendorBuylistTable();
+      else if (state.vwl.splitLookupFailed)
+        toast("Split-vendor markers are unavailable right now.", "error");
+    });
+
+    // Dropdown options cover ALL rows matching the upstream filters. They are
+    // refetched only when those filters change (or on an explicit reload),
+    // never for a page or vendor-choice change; fetched BEFORE the page so a
+    // vendor choice that no longer exists is cleared before it is sent.
+    const optionsSig = JSON.stringify(params);
+    if (state.vwl.optionsSig !== optionsSig) {
+      const { data: optData, error: optError } = await withVwlAbortSignal(
+        supabase.rpc("proc_vendorwise_buylist_operational_options", params),
+        signal,
       );
+      if (optError) throw optError;
+      if (!isCurrent()) return;
+      populateVwlOperationalVendorFilter(
+        null,
+        normalizeVwlServerFilterOptions(optData),
+      );
+      state.vwl.optionsSig = optionsSig;
     }
 
-    const total = rows.length;
-    const from = state.vwl.page * state.vwl.pageSize;
-    if (from >= total && state.vwl.page > 0) {
-      state.vwl.page = Math.max(0, Math.ceil(total / state.vwl.pageSize) - 1);
-    }
-    const start = state.vwl.page * state.vwl.pageSize;
-    const end = start + state.vwl.pageSize;
+    const pageSize = Number(state.vwl.pageSize) || 75;
+    const operationalFilter = String(state.vwl.vendorFilterKey || "").trim();
+    const result = await fetchPageWithRecovery(
+      (page) =>
+        rpcPecPaged(
+          "proc_vendorwise_buylist_operational_paged",
+          {
+            ...params,
+            p_operational_filter: operationalFilter || null,
+            p_limit: clampPageLimit(pageSize),
+            p_offset: page * pageSize,
+          },
+          signal,
+        ),
+      state.vwl.page,
+      pageSize,
+      isCurrent,
+    );
+    if (!result || !isCurrent()) return;
 
-    state.vwl.totalCount = total;
-    state.vwl.rows = rows.slice(start, end);
+    // Server order is authoritative (assigned first, UNASSIGNED last); no
+    // client re-sort of a single page.
+    state.vwl.page = result.page;
+    state.vwl.totalCount = result.total;
+    state.vwl.rows = result.rows;
     renderVendorBuylistTable();
     updateVendorBuylistPager();
     syncVwlFilterBadge();
@@ -11415,6 +11613,7 @@ async function loadVendorBuylist() {
 }
 
 async function reloadVendorBuylist() {
+  state.vwl.optionsSig = null; // data may have changed: refresh options too
   await loadVendorBuylist();
 }
 
@@ -11440,6 +11639,13 @@ async function fetchAllVendorBuylistRows() {
     );
   }
 
+  if (rows.length > PEC_EXPORT_MAX_ROWS) {
+    const err = new Error(
+      `Export has ${rows.length} rows, above the safe limit of ${PEC_EXPORT_MAX_ROWS}. Narrow the filters and export again; nothing was truncated.`,
+    );
+    err.pecExportTooLarge = true;
+    throw err;
+  }
   return rows;
 }
 
@@ -12091,7 +12297,8 @@ function wireVendorBuylistControls() {
   });
 
   qs("vwlNext")?.addEventListener("click", () => {
-    if ((state.vwl.rows || []).length < state.vwl.pageSize) return;
+    const { page, pageSize, totalCount } = state.vwl;
+    if (Number.isFinite(totalCount) && (page + 1) * pageSize >= totalCount) return;
     state.vwl.page += 1;
     loadVendorBuylist();
   });
