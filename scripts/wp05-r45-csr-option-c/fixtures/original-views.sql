@@ -257,5 +257,8 @@ CREATE OR REPLACE VIEW public.v_costing_pricing_sku_detailed_cost_sheet WITH (se
            FROM costing.v_sku_detailed_cost_sheet_current) q
   WHERE ( SELECT fn_costing_view_allowed() AS fn_costing_view_allowed);
 
-GRANT SELECT ON public.v_costing_pricing_sku_detailed_cost_sheet,public.v_costing_pricing_cost_sheet_line_traceability TO authenticated;
-GRANT ALL ON public.v_costing_pricing_sku_detailed_cost_sheet,public.v_costing_pricing_cost_sheet_line_traceability TO service_role;
+-- Preserve distinct relacl ordering seen in live PG catalogues, not merely equivalent privileges.
+GRANT ALL ON public.v_costing_pricing_cost_sheet_line_traceability TO service_role;
+GRANT SELECT ON public.v_costing_pricing_cost_sheet_line_traceability TO authenticated;
+GRANT SELECT ON public.v_costing_pricing_sku_detailed_cost_sheet TO authenticated;
+GRANT ALL ON public.v_costing_pricing_sku_detailed_cost_sheet TO service_role;
