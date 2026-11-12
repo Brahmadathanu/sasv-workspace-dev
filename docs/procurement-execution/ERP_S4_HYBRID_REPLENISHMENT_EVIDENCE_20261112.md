@@ -87,3 +87,18 @@ Each `(stock_item_id, canonical_uom_id, planning_period)` becomes one unique pla
 - `v_item_consumption_monthly_by_item` is a FULL JOIN of `v_item_consumption_rm_pm_monthly` and consumables. The RM/PM contributor derives from **`tally_rm_pm_issues_snapshot`**, Tally material issue vouchers mapped by alias, with a monthly `rm_pm_issue_qty`. This is a record of material issues, **not an independently tagged nonproduction/marketing usage stream**. Do not label the observed Punarnavasavam PM consumption as independently nonproduction demand. Proper classification is **MRP-COVERED / ISSUE-PROVENANCE-UNRESOLVED**. Separate production issue vs samples/rework/other use only from traceable voucher/dept purpose linkage.
 - `v_stock_current_by_item` chooses the **latest as_of_date per stock source** but drops this date from its output. Freshness cannot be derived from the stock view row alone. Source snapshots inspected: RM, PLM, consumable and fuel all latest `as_of_date=2026-11-11` (RM 858 latest rows, PLM 1060, consumable 55, fuel 6). Preview must join a source-level freshness watermark and record a separately approved threshold. These counts are source snapshot rows, not unique inventory items.
 - The sample label `1638` has a PLM stock row of zero; the raw material issue source and stock view are consistent in their material class, but the zero-filled rates remain **demand-history descriptors only**, not additive demand authorization.
+
+## Paired live RM/PM diagnostic with whole-count rule — 2026-11-12
+
+Owner requested an indivisible-`Nos` final integer ceiling and an RM trial. A new bounded, **SELECT-only**, read-only diagnostic was created at `docs/procurement-execution/ERP_S4_RM_PM_TRIAL_SELECT_ONLY_20261112.sql` (commit `f64bbe2`) and **executed against live Supabase**. Hypothetical same-period comparison: usage history Nov 2025–Oct 2026 (12 completed calendar months), proposed PR Nov 2026–Jan 2027 (3 months); underlying RM and PM stock watermark 2026-11-11.
+
+| Item | UOM | 12m issues | 12m mean | On-hand | 3m MRP net | 3m usage gross | After stock | Rounding | Diagnostic floor |
+|---|---|---:|---:|---:|---:|---:|---:|---|---:|
+| Panchasara, item 733 | Kg | 49,105.380 | 4,092.115 | 496.175 | 10,200 | 12,276.345 | 11,780.170 | Active MOQ 50 Kg, once | 11,800 |
+| Label – Punarnavasavam 450 ML, item 1638 | Nos | 12,587 | 1,048.916667 | 0 | 0 | 3,146.75 | 3,146.75 | Indivisible `Nos`: ceil to unit 1 | 3,147 |
+
+**Execution result:** exactly two rows returned with `review_state='ANCHOR_AND_COMMITMENT_RECONCILIATION_REQUIRED'`, `approved_pr_increment=NULL`. RM has one eligible MOQ policy, PM count item has no eligible MOQ. Both calculations were independently observed directly in the same read-only SQL output, without any mutations, PR creation, or new server functions.
+
+**Important:** The differential 11,800−10,200=1,600 Kg for Panchasara is *illustrative*, **not** a current shortage or approved order. The existing recursive MRP's first-month stock anchor can differ from the latest 2026-11-11 stock, and historical purchase/indent commitments have not been fully reconciled. A simple comparison of those two separately timed quantities is insufficient to approve a top-up.
+
+**Proposed governed rule:** final UOM quantum rounding is separate from MOQ; `Nos` always `ceil` once on the positive period net quantity. If a verified applicable MOQ exists, round to the vendor MOQ after netting and check it respects indivisible units. Divisible Kg/L are not automatically rounded to integers. An absent MOQ is not, by itself, a purchasing blocker for Nos—but supply, stock and eligibility gates still apply. See companion CCF policy contract for owner requirements.
