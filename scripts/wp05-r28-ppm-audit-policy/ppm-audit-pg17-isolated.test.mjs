@@ -144,6 +144,16 @@ test("edit-only and absent UID deny; privileged service remains eligible",()=>{
 test("guard prevents reapplying candidate after definition has changed",()=>{
  assert.throws(()=>psql(candidate));
 });
+test("rollback refuses a syntactically valid but changed PPM view before restoring candidate",()=>{
+ const viewSql=firstView(candidate);
+ const modified=viewSql.replace("  );", "  ) AND q.scheme_id > 0;");
+ assert.notEqual(modified,viewSql,"tamper must alter the view");
+ psql(modified);
+ assert.notEqual(md5(),"e2b9eb3c1b86d073183cd376f704cf58");
+ assert.throws(()=>psql(rollback),"different same-schema PPM view must not be overwritten");
+ psql(viewSql); // fixture-only restoration of the previously tested candidate for proper rollback.
+ assert.equal(md5(),"e2b9eb3c1b86d073183cd376f704cf58");
+});
 test("guarded rollback restores original view and prior role behaviour",()=>{
  psql(rollback);
  assert.equal(md5(),originalHash);
