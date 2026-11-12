@@ -69,9 +69,17 @@ if (present) {
   const uncommitted = gitTry("git diff --ignore-space-at-eol --name-only HEAD");
   const staged = gitTry("git diff --ignore-space-at-eol --name-only --cached");
   const untracked = gitTry("git ls-files --others --exclude-standard");
-  const changed = [committed, uncommitted, staged, untracked].join("\n").split("\n").filter(Boolean);
-  const illegal = rejectedProtectedPaths(changed, integrationCandidate);
+  const committedPaths = committed.split("\n").filter(Boolean);
+  const worktreePaths = [uncommitted, staged, untracked].join("\n").split("\n").filter(Boolean);
+  // Reviewed PEC migrations and the prior SW update may exist in the integration
+  // candidate's *committed* main-to-HEAD history. Never permit even those paths
+  // when they are freshly changed in the working tree (or on a client PR).
+  const illegal = [...new Set([
+    ...rejectedProtectedPaths(committedPaths, integrationCandidate),
+    ...rejectedProtectedPaths(worktreePaths, false),
+  ])];
   ok(illegal.length === 0, "no unauthorized new SQL/SW paths (" + (illegal.join(", ") || "none") + ")");
+  const changed = [...committedPaths, ...worktreePaths];
   ok(!changed.some(f => /^(electron\/|package(-lock)?\\.json$)/.test(f)),
     "no Electron/package version changes");
 }
