@@ -1,0 +1,25 @@
+name: PEC Draft Indent Edit Proposal (source-only)
+on:
+  pull_request:
+    paths:
+      - 'scripts/pec-draft-manual-indent-edits-PROPOSAL.sql'
+      - 'scripts/pec-draft-manual-indent-edits-proposal-smoke.mjs'
+      - '.github/workflows/pec-draft-indent-edit-proposal.yml'
+  workflow_dispatch:
+jobs:
+  static-proposal:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify non-production proposal safety rails
+        run: node scripts/pec-draft-manual-indent-edits-proposal-smoke.mjs
+      - name: Confirm no live migration or database access
+        run: |
+          test -f scripts/pec-draft-manual-indent-edits-PROPOSAL.sql
+          grep -Eq '^ROLLBACK;$' scripts/pec-draft-manual-indent-edits-PROPOSAL.sql
+          echo 'SOURCE-ONLY checks: never executed on a database'
