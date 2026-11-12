@@ -31,11 +31,11 @@ The earlier recorded WP07 totals (471 → 605 → 610, LF = CRLF, zero failures)
 | 2–4 | `costing-responsive` CW-13 CSS ×3 | Test sliced the CW-13 CSS block "to end of file"; the later appended N1 block and the #208 comment (which contains the text `overflow-x:hidden`) fell inside the "CW-13 block" | Yes | **Fixed** |
 | 5–7 | `costing-review-worklist` protected files; `costing-table-tools` pkg3, pkg4 | PPM controller (#263/#306) and Cost Build controller (W506) changed after their pre-W6 base | Yes | **Fixed** |
 | 8 | `costing-wp05-closure` (whole file) | Test helper `load-controller.mjs` rewrote only `./x.js` imports; #306 added `./costing-suite-scheme-audit-actor.mjs` to the PPM controller, so loading it in Node threw an unhandled rejection | Test-helper defect, shared with N2 | **Fixed** |
-| 9 | `costing-w506-conf-server` migration-static: "sorts after every other migration" | A later, unrelated migration (`20261112050000_lab_tolerance_…`) sorts after it | No (server migration ordering) | **Not changed.** Open |
-| 10 | `scheme-master-migration`: "strictly newest migration" | Same cause | No | **Not changed.** Open |
-| 11 | `scheme-master-migration`: "no client … change" | Asserts the PPM list reads `.select("*")`; #263 intentionally narrowed it to a 31-column projection | No (Scheme Master package pin, WP05) | **Not changed.** Open |
+| 9 | `costing-w506-conf-server` migration-static: "sorts after every other migration" | A later, unrelated migration (`20261112050000_lab_tolerance_…`) sorts after it | No (server migration ordering) | **Not changed.** Open — #370 |
+| 10 | `scheme-master-migration`: "strictly newest migration" | Same cause | No | **Not changed.** Open — #370 |
+| 11 | `scheme-master-migration`: "no client … change" | Asserts the PPM list reads `.select("*")`; #263 intentionally narrowed it to a 31-column projection | No (Scheme Master package pin, WP05) | **Not changed.** Open — #370 |
 | 12–13 | `fg-bit-ux-1` page tests ×2 | FG-BIT-UX-1 (#277) finished-goods transfer UI; unrelated module | No | **Not changed.** Open |
-| CRLF-only (8 extra) | `costing-sw-freshness`, `costing-w506-conf-client` ×2, `costing-w506-sec-fix-01/02` rollback ×2, `fg-bit-ux-1/sw-freshness`, `csr-comparison-verifier` line-endings, `manage-activities` header | Five tests read source/migrations with raw `readFileSync` and compare to LF literals; one test (`csr-comparison-verifier`) asserts new verifier files are LF by design; `manage-activities` was a 30 s load timeout under two concurrent suites (passes alone: 97/97) | No | Raw-read tests **fixed** (LF-normalised reader); line-ending test and timing flake documented |
+| CRLF-only (8 extra) | `costing-sw-freshness`, `costing-w506-conf-client` ×2, `costing-w506-sec-fix-01/02` rollback ×2, `fg-bit-ux-1/sw-freshness`, `csr-comparison-verifier` line-endings, `manage-activities` header | Five tests read source/migrations with raw `readFileSync` and compare to LF literals; one test (`csr-comparison-verifier`) asserts new verifier files are LF by design; `manage-activities` was a 30 s load timeout under two concurrent suites (passes alone: 97/97) | No | Raw-read tests **fixed** (LF-normalised reader); line-ending test (#370) and timing flake (#372) routed |
 
 Items 9–13 and the CRLF line-ending test are unrelated to navigation, were failing on the pinned main, and are **reported, not hidden and not edited**: their owners are the WP05 server/migration package (items 9–11, #224 family) and the FG-BIT/PEC workstreams (12–13). Item 11 is a real stale assertion that a Scheme Master owner should update deliberately.
 
@@ -108,7 +108,8 @@ Legacy smokes on the pinned head: 14 pass, 51 fail of 65 (`production-route-*-sm
 | G9 Keyboard, Back/Forward, active destination, context chips | **PASS (mock)** | §5; in-page switches are not history entries (pre-existing) |
 | G10 No new RPC / permission / calculation change | **PASS (source / isolated)** | |
 | G11 Canonical shared source (Electron = PWA) | **PASS (source)** | one copy under `public/shared`; nothing duplicated |
-| G12 Real signed-in, ON/OFF, exact-build, read-only acceptance | **NOT TESTED — owner-operated** | [checklist](MDC07_WP07_OWNER_READ_ONLY_ACCEPTANCE_CHECKLIST_2026-11-12.md); needs an owner browser (protected production authority: authenticated session) |
+| G12 Real signed-in, ON/OFF, exact-build acceptance | **NOT TESTED — owner-operated; flag-ON part additionally needs explicit owner authorisation (not given)** | [checklist](MDC07_WP07_OWNER_READ_ONLY_ACCEPTANCE_CHECKLIST_2026-11-12.md) Parts B–E; hosted build provenance is a separate gate, G12a |
+| G12a Hosted build provenance | **VERIFIED SERVER-SIDE (point in time); BROWSER NOT VERIFIED** | §10.1 |
 | G13 Electron renderer checks | **NOT TESTED (18 skipped, binary absent)** — WP12 | |
 | G14 Eleven-flag combined integration, final-build responsive, Electron/Windows | **OPEN — WP12 (B1-T2/T3)** | not required by or claimed in WP07 |
 | G15 Independent review of this record + PR | **OPEN** | |
@@ -129,3 +130,37 @@ Legacy smokes on the pinned head: 14 pass, 51 fail of 65 (`production-route-*-sm
 ## 9. Recommendation
 
 **WP07 is not yet ready for formal closure, but is ready for independent review and for the owner's read-only signed-in check.** All automated and isolated gates that can be proven without production authority pass; the exact-main suite needed test-only repairs (guards that went stale as WP05/WP06 landed), done without weakening any guard and without touching product code. The remaining blocking gap is G12 (genuine signed-in evidence) plus reviewer/owner decisions (G15/G16). Next programme gate: **merge this test-and-docs PR after independent review → owner executes the checklist → owner closure decision on WP07**; in parallel the non-WP07 failures in §2.1 should be routed to their owners, and WP08 G1 navigation inventory can proceed without waiting.
+
+## 10. Post-review corrections (independent review of PR #368, 12 Nov 2026)
+
+Review verdict: positive static review, explicitly not an independent rerun; conditions below. Test code and product code are unchanged by this section (docs, a manifest and GitHub issues only).
+
+| Review finding | Correction |
+|---|---|
+| Cache name `hub-cache-v393` does not prove the hosted assets equal the reviewed source; require exact served hashes; otherwise HOSTED BUILD NOT VERIFIED | Checklist Part A rewritten around the **existing** `scripts/costing-acceptance/verify-served-assets.mjs` (no new verifier), with expected SHA, bundle digest, per-asset manifest (`MDC07_WP07_EXPECTED_ASSET_MANIFEST_3a93432_2026-11-12.tsv`), a read-only in-browser network-vs-cache hash snippet, and a mandatory three-way classification (VERIFIED / SERVER-SIDE ONLY / NOT VERIFIED) |
+| Browser-local flag ON is a controlled activation, not a read-only observation; needs explicit owner decision | Flag-ON moved to Part C, labelled **NOT AUTHORISED**, with the wording the owner must give, exact activate/restore commands and a dedicated-profile recommendation. Part B (OFF baseline) touches no flags |
+| U11 flags optional, not essential to navigation acceptance | Part D: separately identified, separately authorised, skippable; `NOT TESTED` does not block navigation acceptance |
+| Do not ask the owner to create new role combinations | Part E: existing identities only; missing RM-only / PM-only / no-module identity = NOT TESTED; trial account untouched |
+| Preserve non-WP07 failures as issues/receivers | #370 (3 stale WP05 guards + CRLF line-ending test), #371 (FG-BIT ×2), #372 (Manage Activities load-sensitive) — no code edited |
+| Close #366 as superseded, don't merge twice | §10.3 |
+
+### 10.1 Hosted build provenance observation
+
+Ran the existing verifier (unauthenticated static GETs; no sign-in, no writes, nothing deployed or changed) on 2026-11-12 17:22 UTC:
+
+`node scripts/costing-acceptance/verify-served-assets.mjs https://sasv-utilities-hub.netlify.app 3a93432713bf86203d1e0c6ad5ebac1ce34a2413 --expect-cache hub-cache-v393`
+
+Result `VERIFIED [HOSTED]`: 73/73 assets match, 0 mismatches, served bundle digest = expected `c5a7bf14d89601f8196d97116e198425d582f77feef8e9d9dbbada849ceb0c69`, served cache `hub-cache-v393`; two HTML pages (cost-build-manager, costing-control-center) verified after removing the documented `NETLIFY_INJECTED_BANNER_V1` comment. The `costing-suite-scheme-audit-actor.mjs` module (outside the verifier's list) was compared separately and matched (`a107eaa1…`). A local-loopback self-test of the same command also verified 73/73 and is labelled `LOCAL_SELF_TEST`, not hosted proof.
+
+**What it establishes:** at that moment the hosted site delivered Costing assets byte-identical to `3a93432` (PR #368 changes nothing under `public/`). **What it does not:** which build was deployed *from* (Netlify deploy SHA not read), whether an owner's browser has activated that service-worker generation (Part A.4), or anything about authenticated behaviour. Verdict for acceptance wording: **HOSTED BUILD VERIFIED SERVER-SIDE (point in time); BROWSER NOT VERIFIED.** It must be re-run in the owner's session; a later deploy invalidates it.
+
+### 10.2 Final PR diff verification (against current `origin/main` = `3a93432`, unchanged)
+
+* 19 files: 2 modified docs, 3 added docs (+ the manifest added in this correction), 13 test/test-helper files (`scripts/`). **0 files under `public/`, `supabase/` or `sql/`.** No product code, migration, `sw.js`, cache bump or flag-default change (the flag modules are untouched, so default-OFF/exact-`1` behaviour is unchanged).
+* Guard changes bounded: sha256+path pins for 20 added files (original two-entry list and its exact-equality test unchanged); exact-text reversal of two named PPM edits (#263, #306); existing `unPersonnel` reused; CW-13 block boundary asserts its end marker exists; mutation checks failed as required. No permission test or scope guard was removed or loosened beyond these. Nothing in a guard accepts an unlisted file or an unlisted edit.
+* No deployment, release, SQL, writer, permission or global flag action. WP05 closure (14 residual lines) and WP12 B1-T2/T3 (B1-T1 = zero) untouched.
+* Executed code last verified at commit `b9cfd4c9` (full LF/CRLF, §4); the later commits are docs/manifest only and change no executable test behaviour. Doc-reading tests (`costing-acceptance`, `scheme-master-index-candidate`, `cde2-sql-candidate`, W506 server tests, wp06-g1) re-run after the docs commit `1b808ea7`: 138/139, the one failure being the already-routed migration-ordering pin (#370).
+
+### 10.3 PR #366 reconciliation
+
+PR #366 (head `7c198d3a`, one file) is carried into #368 as commit `d137d004` (cherry-pick). `MDC07_WP07_CURRENT_MAIN_CLOSURE_GAP_AUDIT_2026-11-12.md` is **byte-identical** (same SHA-256 `836b162b…`) on both branches; no divergence. #368 supersedes #366 completely. Recommendation: merge #368 only, then close #366 as superseded; do not merge both. (This session does not close or merge either.)
