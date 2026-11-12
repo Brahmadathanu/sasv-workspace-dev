@@ -201,7 +201,7 @@ BEGIN
  OR has_table_privilege('anon',v.oid,'SELECT') OR has_table_privilege('service_role',v.oid,'SELECT')
  OR (v.relname='v_costing_material_manual_rate_history' AND v.cols<>32)
  OR (v.relname='v_costing_material_manual_rate_register' AND v.cols<>34)
- THEN RAISE EXCEPTION 'WP05 R39 MCM postcondition failed: %',v.relname; END IF;
+ THEN RAISE EXCEPTION 'WP05 R39 MCM postcondition failed %: owner %, acl %, opts %, module %, helper %, cols %',v.relname,v.owner,v.acl,v.opts,position('module:material-cost-manager' IN v.def),position('fn_costing_view_allowed' IN v.def),v.cols; END IF;
  END LOOP;
 END $check$;
 COMMIT;
