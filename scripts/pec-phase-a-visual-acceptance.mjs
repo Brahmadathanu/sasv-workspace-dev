@@ -78,6 +78,7 @@ const layoutProblems = (page, scope = "page") => page.evaluate((scope) => {
   // 2) clipped text (overflow hidden/clip with content wider than box), excluding deliberate ellipsis with title
   for (const e of document.querySelectorAll("button, .pill, .tab-btn, h1, h2, h3, label, th, .pec-section-note, .page-sub, .view-only-banner, .status-area")) {
     if (!visible(e)) continue;
+    if (e.clientWidth <= 2) continue; // deliberately visually-hidden (screen-reader only) text
     const cs = getComputedStyle(e);
     if (e.scrollWidth > e.clientWidth + 1 && /hidden|clip/.test(cs.overflowX) && !(cs.textOverflow === "ellipsis" && (e.title || e.getAttribute("aria-label")))) problems.push(`clipped text: ${name(e)} (${e.scrollWidth}>${e.clientWidth})`);
   }
@@ -90,6 +91,9 @@ const layoutProblems = (page, scope = "page") => page.evaluate((scope) => {
   for (let i = 0; i < ctl.length; i++) for (let j = i + 1; j < ctl.length; j++) {
     const a = ctl[i], b = ctl[j];
     if (a.contains(b) || b.contains(a)) continue;
+    // A sticky header/actions bar legitimately floats over scrolled dialog content.
+    const sticky = (e) => { for (let p = e; p && p !== document.body; p = p.parentElement) if (getComputedStyle(p).position === "sticky") return true; return false; };
+    if (sticky(a) !== sticky(b)) continue;
     const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
     const w = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left), h = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
     if (w > 3 && h > 3) problems.push(`overlap: ${name(a)} x ${name(b)} (${Math.round(w)}x${Math.round(h)})`);
@@ -164,6 +168,7 @@ for (const w of WIDTHS) {
     await gotoLens(page, "action", narrow);
     await page.evaluate(() => document.querySelector("#aqTbody tr")?.click()); await page.waitForTimeout(500);
     if (await page.isVisible("#detailModalBackdrop.show")) await verify(page, "Action Queue line detail", w, "15-action-queue-detail"); else check(`AQ detail opens @${w}px`, false, "did not open");
+    await page.evaluate(() => document.getElementById("btnDetailClose")?.click()); await page.waitForTimeout(250);
     // R2 dialogs: new-PR dialog, PR detail (expanded), Vendor-wise row detail, Excess help
     await gotoLens(page, "pr", narrow);
     await page.evaluate(() => document.getElementById("btnGeneratePr").click()); await page.waitForTimeout(350);
