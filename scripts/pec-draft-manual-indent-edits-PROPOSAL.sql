@@ -145,6 +145,15 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'PEC manual quantity: sourcing or purchase allocation already exists';
   END IF;
+  -- Preserve the live G0 internal-material rule: decreases/unchanged only.
+  -- Do not permit a new RPC to restore forbidden external buying demand.
+  IF p_requested_qty > v_line.requested_qty AND EXISTS (
+    SELECT 1 FROM public.v_inv_stock_item_with_class sic
+    WHERE sic.stock_item_id = v_line.stock_item_id
+      AND sic.subcategory_code IN ('finished_bulk_material','semifinished_goods')
+  ) THEN
+    RAISE EXCEPTION 'PEC manual quantity: increase of internal finished-bulk/semi-finished procurement is prohibited';
+  END IF;
   IF v_line.requested_qty = p_requested_qty THEN RETURN; END IF;
 
   UPDATE public.proc_indent_line
