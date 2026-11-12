@@ -30,10 +30,10 @@ SELECT public.pec_fixture_expect_denied(7,701,'cancelled');
 SELECT public.pec_fixture_expect_denied(3,301,NULL);
 SELECT public.proc_indent_add_line(3,1,301,1,7,'governed correction') AS approved_existing_corrected;
 SELECT public.proc_indent_add_line(5,1,501,1,11,'governed correction') AS issued_existing_corrected;
-DO $fn$ DECLARE n int; qty numeric; BEGIN SELECT count(*) INTO n FROM public.proc_indent_line; IF n <> 3 THEN RAISE EXCEPTION 'expected 3 total lines, got %',n; END IF; SELECT requested_qty INTO qty FROM public.proc_indent_line WHERE indent_id=3 AND stock_item_id=301; IF qty <> 7 THEN RAISE EXCEPTION 'existing approved correction failed'; END IF; END $fn$;
 -- Even an Editor loses the RPC when the PEC Edit permission flag is missing.
 SET pec.fixture_can_edit = 'no';
 SELECT public.pec_fixture_expect_denied(1,102,NULL);
 RESET ROLE;
+DO $fn$ DECLARE n int; qty numeric; BEGIN SELECT count(*) INTO n FROM public.proc_indent_line; IF n <> 3 THEN RAISE EXCEPTION 'expected 3 total lines, got %',n; END IF; SELECT requested_qty INTO qty FROM public.proc_indent_line WHERE indent_id=3 AND stock_item_id=301; IF qty <> 7 THEN RAISE EXCEPTION 'existing approved correction failed'; END IF; END $fn$;
 DROP FUNCTION public.pec_fixture_expect_denied(bigint,bigint,text);
 SELECT 'PEC_R2_ADD_LINE_PG17_FIXTURE_PASS' AS result;
