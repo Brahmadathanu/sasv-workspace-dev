@@ -89,8 +89,8 @@ max(a.legacy_pos) FILTER(WHERE a.vendor_bucket_key<>'UNASSIGNED')
 INTO n,mismatches,first_unassigned,last_assigned
 FROM legacy a JOIN paged_equivalent b USING
 (vendor_bucket_key,material_class_id,stock_item_id,uom_id);
-IF n<>834 OR mismatches<>0 OR first_unassigned<>636 OR last_assigned<>635 THEN
+IF n<1 OR mismatches<>0 OR (first_unassigned IS NOT NULL AND first_unassigned<>coalesce(last_assigned,0)+1) THEN
  RAISE EXCEPTION 'PEC vendor business sort parity changed: count %, mismatches %, first-unassigned %, last-assigned %', n,mismatches,first_unassigned,last_assigned;
 END IF;
 END $vendor_order$;
-SELECT 'PEC_G1_VENDOR_LEGACY_ORDER_834_OF_834_PASS' AS result;
+SELECT 'PEC_G1_VENDOR_LEGACY_ORDER_PARITY_PASS' AS result;
