@@ -30,7 +30,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
 const appDir = path.resolve(arg("--app", ""));
 const asarPkg = arg("--asar", "");
-const shots = path.resolve(arg("--shots", path.join(here, "..", "docs/procurement-execution/evidence/pec-phase-a-claude-visual/electron")));
+const shots = path.resolve(arg("--shots", path.join(here, "..", "docs/procurement-execution/evidence/pec-r2-claude-visual/electron")));
 fs.mkdirSync(shots, { recursive: true });
 const repoShared = path.join(here, "..", "public", "shared");
 const PEC = ["procurement-execution-console.html", "js/procurement-execution-console.js", "css/sasv-procurement-execution-console.css"];
@@ -112,12 +112,12 @@ if (browser) {
       await setWidth(w, h);
       const vw = await page.evaluate(() => document.documentElement.clientWidth);
       const narrow = vw <= 520;
-      const lenses = [["pr", "#prPaging"], ["indents", "#iPaging"], ["vendor-buylist", "#vwlPaging"], ["action", null], ["excess", "#ePaging"]];
-      for (const [lens, pager] of lenses) {
+      const lenses = ["pr", "indents", "vendor-buylist", "action", "excess"];
+      for (const lens of lenses) {
         if (narrow) await page.selectOption("#procTabSelect", lens); else await page.click(`.tabs .tab-btn[data-tab="${lens}"]`);
         await page.waitForTimeout(700);
-        const r = await page.evaluate((pg) => ({ ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth, pager: pg ? document.querySelector(pg)?.textContent.trim() : "n/a", panel: !!document.querySelector(".tab-panel.active") }), pager);
-        check(`Electron ${vw}px ${lens}: active panel, no horizontal overflow, pager "${r.pager}"`, r.panel && r.ovf <= 1 && (pager ? /^Page 1\/\d+$/.test(r.pager) : true) ? "PASS" : "FAIL");
+        const r = await page.evaluate(() => ({ ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth, count: document.querySelector(".tab-panel.active .pec-lens-count")?.textContent.trim() || "", pager: document.querySelectorAll("#prPaging,#iPaging,#vwlPaging,#ePaging").length, panel: !!document.querySelector(".tab-panel.active") }));
+        check(`Electron ${vw}px ${lens}: active panel, no horizontal overflow, count "${r.count}", no numbered pager`, r.panel && r.ovf <= 1 && /\d/.test(r.count) && r.pager === 0 ? "PASS" : "FAIL");
         await page.screenshot({ path: path.join(shots, `electron-${vw}px-${lens}.png`) });
       }
     }

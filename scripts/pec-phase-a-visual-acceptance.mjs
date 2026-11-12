@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PEC Phase A - client visual/responsive acceptance (fixture based).
+ * PEC Phase A (R1 harness, extended for R2) - client visual/responsive acceptance (fixture based).
  * Real shared PEC HTML/JS/CSS in Chromium; only js/supabaseClient.js is a
  * synthetic stub (scripts/lib/pec-fixture-stub.mjs). Produces labelled
  * screenshots + machine-checked layout invariants at 320/390/820/1440 px.
@@ -21,7 +21,7 @@ const { chromium } = require("playwright");
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "public");
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
-const outDir = path.resolve(arg("--out", path.join(here, "..", "docs/procurement-execution/evidence/pec-phase-a-claude-visual")));
+const outDir = path.resolve(arg("--out", path.join(here, "..", "docs/procurement-execution/evidence/pec-r2-claude-visual")));
 const WIDTHS = arg("--widths", "320,390,820,1440").split(",").map(Number);
 const HEIGHTS = { 320: 720, 390: 800, 820: 1100, 1440: 900 };
 fs.mkdirSync(outDir, { recursive: true });
@@ -78,6 +78,7 @@ const layoutProblems = (page, scope = "page") => page.evaluate((scope) => {
   // 2) clipped text (overflow hidden/clip with content wider than box), excluding deliberate ellipsis with title
   for (const e of document.querySelectorAll("button, .pill, .tab-btn, h1, h2, h3, label, th, .pec-section-note, .page-sub, .view-only-banner, .status-area")) {
     if (!visible(e)) continue;
+    if (e.clientWidth <= 2) continue; // deliberately visually-hidden (screen-reader only) text
     const cs = getComputedStyle(e);
     if (e.scrollWidth > e.clientWidth + 1 && /hidden|clip/.test(cs.overflowX) && !(cs.textOverflow === "ellipsis" && (e.title || e.getAttribute("aria-label")))) problems.push(`clipped text: ${name(e)} (${e.scrollWidth}>${e.clientWidth})`);
   }
@@ -90,6 +91,9 @@ const layoutProblems = (page, scope = "page") => page.evaluate((scope) => {
   for (let i = 0; i < ctl.length; i++) for (let j = i + 1; j < ctl.length; j++) {
     const a = ctl[i], b = ctl[j];
     if (a.contains(b) || b.contains(a)) continue;
+    // A sticky header/actions bar legitimately floats over scrolled dialog content.
+    const sticky = (e) => { for (let p = e; p && p !== document.body; p = p.parentElement) if (getComputedStyle(p).position === "sticky") return true; return false; };
+    if (sticky(a) !== sticky(b)) continue;
     const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
     const w = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left), h = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
     if (w > 3 && h > 3) problems.push(`overlap: ${name(a)} x ${name(b)} (${Math.round(w)}x${Math.round(h)})`);
@@ -113,7 +117,7 @@ const shotName = (w, label) => `${w}px-${label}.png`;
 const shot = async (page, w, label) => { await page.screenshot({ path: path.join(outDir, shotName(w, label)) }); return shotName(w, label); };
 const verify = async (page, id, w, label) => { const p = await layoutProblems(page); check(`${id} @${w}px`, p.length === 0, p.slice(0, 4).join("; ")); await shot(page, w, label); };
 
-const LENSES = [["pr", "01-pr-workbench"], ["indents", "02-indents"], ["vendor-buylist", "03-vendor-wise"], ["action", "04-action-queue"], ["excess", "05-excess"]];
+const LENSES = [["pr", "01-purchase-requisitions"], ["indents", "02-purchase-indents"], ["vendor-buylist", "03-vendor-wise"], ["action", "04-action-queue"], ["excess", "05-excess-purchases"]];
 
 for (const w of WIDTHS) {
   const vp = { width: w, height: HEIGHTS[w] || 900 };
@@ -127,8 +131,9 @@ for (const w of WIDTHS) {
     check(`title + HOME visible with accessible name @${w}px`, head.title === "Procurement Execution Console" && head.homeVisible && head.homeName === "HOME");
     for (const [lens, label] of LENSES) {
       await gotoLens(page, lens, narrow);
-      const pagerSel = { pr: "#prPaging", indents: "#iPaging", "vendor-buylist": "#vwlPaging", excess: "#ePaging" }[lens];
-      if (pagerSel) { const t = (await page.textContent(pagerSel)).trim(); check(`${lens} pager shows total pages "${t}" @${w}px`, /^Page 1\/\d+$/.test(t)); }
+      const info = await page.evaluate(() => { const c = document.querySelector(".tab-panel.active .pec-lens-count"); const tr = document.querySelector(".tab-panel.active tbody tr"); return { count: c?.textContent.trim() || "", pagers: document.querySelectorAll("#prPaging,#iPaging,#vwlPaging,#ePaging,.pager-mini").length, row: tr ? getComputedStyle(tr).display : "", footer: !!document.querySelector(".tab-panel.active .pec-feed-footer") }; });
+      check(`${lens}: exact count "${info.count}", no numbered pager, incremental footer @${w}px`, /\d/.test(info.count) && info.pagers === 0 && info.footer);
+      check(`${lens}: rows render as ${w <= 640 ? "cards" : "table rows"} @${w}px`, w <= 640 ? info.row === "grid" : info.row === "table-row");
       await verify(page, `layout ${lens}`, w, label);
     }
     check(`no JS errors across five lenses @${w}px`, errors.length === 0, errors.slice(0, 2).join(" | "));
@@ -163,6 +168,23 @@ for (const w of WIDTHS) {
     await gotoLens(page, "action", narrow);
     await page.evaluate(() => document.querySelector("#aqTbody tr")?.click()); await page.waitForTimeout(500);
     if (await page.isVisible("#detailModalBackdrop.show")) await verify(page, "Action Queue line detail", w, "15-action-queue-detail"); else check(`AQ detail opens @${w}px`, false, "did not open");
+    await page.evaluate(() => document.getElementById("btnDetailClose")?.click()); await page.waitForTimeout(250);
+    // R2 dialogs: new-PR dialog, PR detail (expanded), Vendor-wise row detail, Excess help
+    await gotoLens(page, "pr", narrow);
+    await page.evaluate(() => document.getElementById("btnGeneratePr").click()); await page.waitForTimeout(350);
+    await verify(page, "New PR dialog", w, "20-new-pr-dialog");
+    await page.evaluate(() => document.getElementById("btnGenPrClose").click()); await page.waitForTimeout(200);
+    await page.evaluate(() => document.querySelector("#prTbody tr")?.click()); await page.waitForTimeout(700);
+    await page.evaluate(() => document.getElementById("prTitleToggle")?.click()); await page.waitForTimeout(150);
+    await verify(page, "PR detail (secondary info expanded)", w, "21-pr-detail-expanded");
+    await page.evaluate(() => document.getElementById("btnPrViewClose").click()); await page.waitForTimeout(200);
+    await gotoLens(page, "vendor-buylist", narrow);
+    await page.evaluate(() => document.querySelector("#vwlTbody tr")?.click()); await page.waitForTimeout(500);
+    await verify(page, "Vendor-wise row detail", w, "22-vendor-wise-row-detail");
+    await page.evaluate(() => document.getElementById("btnVwlBdClose").click()); await page.waitForTimeout(200);
+    await gotoLens(page, "excess", narrow);
+    if (narrow) { await page.evaluate(() => document.getElementById("eHelpBtn").click()); await page.waitForTimeout(150); }
+    await verify(page, "Excess Purchases header", w, "23-excess-purchases-header");
     await ctx.close();
   }
 
