@@ -75,3 +75,13 @@ Independent source inspection of `proc_indent_create_from_pr_pec_internal`: the 
 **Two separate ledgers, not an either/or decision:** prior open indents are an outstanding procurement *execution* backlog. Newly generated PR/indent lines should represent only **incremental, not-already-committed demand**. A zero new PR line means zero *additional* indent lines for that item, not termination of older outstanding indent lines. An old indent only disappears from the buy-list after authoritative status/balance/publication changes; there can be a snapshot delay.
 
 **Critical S4 policy boundary:** historical open balance is valid *buying-list evidence* and a candidate pre-PR commitment deduction; it is **not necessarily firm incoming stock**. Failed/lapsed or long-outstanding indents should be surfaced for operator resolution, neither silently double-procured nor silently credited as delivered. Never use fresh PR zero as an excuse to hide existing execution backlog.
+
+## 2026-11-12 — executable pre-PR indent reconciliation fixture
+
+Created **SELECT-only** `docs/procurement-execution/ERP_S4_PRE_PR_INDENT_RECON_SELECT_ONLY_20261112.sql` (commit `491ae93`) and **executed that exact committed SQL against live Supabase**. Bounded to item #733 Panchasara (Kg), item #1638 Label–Punarnavasavam 450 ML (Nos), hypothetical PR period Nov 2026–Jan 2027. Both results explicitly return `confirmed_eligible_old_indent_credit=NULL` and `approved_new_pr_qty=NULL` pending evidence.
+
+- Panchasara: three existing outstanding indent lines #118/#156/#191, total **61,250 Kg**, Nov–Jan MRP net **10,200 Kg**, oldest approval 2026-02-17, newest 2026-09-17, `OUTSTANDING_INDENT_RECONCILIATION_REQUIRED`.
+- Label: no older indent line in live balance, MRP net 0, `OTHER_COMMITMENTS_AND_STOCK_ANCHOR_REVIEW`. No open indent **does not** prove no other purchasing commitments.
+- Verified no production changes. This is a supply **evidence readback**, not a purchase-order confirmation, an approved net PR calculation or a complete item-wide preview.
+
+**Next technical steps:** obtain PO/receipt lineage and expected arrival, resolve old-indent actionability and data ageing, pin stock as-of time to the active MRP horizon, then make the complete `max(MRP_net,CCF_net)-eligible_prior_commitments` formula auditable. Require an explicit no-empty-indent guard in a separate writer approval package.
