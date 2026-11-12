@@ -101,21 +101,18 @@ SELECT 'PEC_G1_VENDOR_LEGACY_ORDER_PARITY_PASS' AS result;
 DO $ui_parity$
 DECLARE mismatches bigint; n bigint;
 BEGIN
- WITH src AS(
- SELECT pr_id,row_number() over(order by pr_id desc) old_pos,
- row_number() over(order by pr_id desc) new_pos FROM public.v_proc_pr_header
- )
- SELECT count(*),count(*) FILTER(WHERE old_pos<>new_pos)
- INTO n,mismatches FROM src;
- IF mismatches<>0 THEN RAISE EXCEPTION 'PR descending-ID page order mismatch'; END IF;
-
- WITH src AS(
- SELECT indent_id,row_number() over(order by indent_id desc) old_pos,
- row_number() over(order by indent_id desc) new_pos FROM public.v_proc_indent_console
- )
- SELECT count(*),count(*) FILTER(WHERE old_pos<>new_pos)
- INTO n,mismatches FROM src;
- IF mismatches<>0 THEN RAISE EXCEPTION 'Indent descending-ID page order mismatch'; END IF;
+ IF position('ORDER BY f.pr_id DESC' IN
+ (SELECT pg_get_functiondef(oid) FROM pg_proc
+  WHERE oid='public.proc_pec_pr_headers_paged(integer,integer)'::regprocedure))=0
+ THEN RAISE EXCEPTION 'PR paged RPC must order by descending ID'; END IF;
+ IF position('ORDER BY f.indent_id DESC' IN
+ (SELECT pg_get_functiondef(oid) FROM pg_proc
+  WHERE oid='public.proc_pec_indent_headers_paged(integer,integer)'::regprocedure))=0
+ THEN RAISE EXCEPTION 'Indent paged RPC must order by descending ID'; END IF;
+ IF position('ORDER BY coalesce(f.net_unallocated_qty,0) DESC' IN
+ (SELECT pg_get_functiondef(oid) FROM pg_proc
+  WHERE oid='public.proc_pec_purchase_excess_paged(integer,integer)'::regprocedure))=0
+ THEN RAISE EXCEPTION 'Excess paged RPC must priority-sort by remaining quantity'; END IF;
 
  WITH original_source AS (
  SELECT purchase_fact_id,voucher_date,
