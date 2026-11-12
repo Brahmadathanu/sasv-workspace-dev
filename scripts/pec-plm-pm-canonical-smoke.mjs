@@ -189,10 +189,11 @@ assert(
 );
 
 const excessLoad = extractNamed(src, "loadExcess");
+const excessParams = extractNamed(src, "buildExcessRpcParams");
 assert(
-  excessLoad.includes(
-      "canonicalMaterialClassCode(filters.materialClassId)",
-    ) && excessLoad.includes("p_material_class_code"),
+  excessLoad.includes("buildExcessRpcParams(") &&
+    excessParams.includes("canonicalMaterialClassCode(filters.materialClassId)") &&
+    excessParams.includes("p_material_class_code"),
   "Excess filter sends the canonical class code to the server paged read (server also maps PLM->PM)",
 );
 
@@ -245,8 +246,8 @@ assert(
 // p_material_class_code is a READ filter of the paged Excess RPC only; no write RPC may carry it.
 assert(
   (src.match(/p_material_class_code/g) || []).length === 1 &&
-    /proc_pec_purchase_excess_filtered_paged[\s\S]{0,900}p_material_class_code/.test(src),
-  "p_material_class_code appears only in the paged Excess read, in no write payload",
+    excessParams.includes("p_material_class_code"),
+  "p_material_class_code appears only in the paged Excess read builder, in no write payload",
 );
 assert(
   !/material_class_code\s*:\s*["']PLM["']/.test(src),

@@ -51,6 +51,7 @@ const code = [
     "rpcPecPaged",
     "fetchPageWithRecovery",
     "normalizeVwlServerFilterOptions",
+    "fetchAllVendorBuylistPagedRows",
     "pickRpcField",
     "buildVwlSplitKey",
     "buildVwlSplitLookup",
@@ -96,6 +97,7 @@ function makeHarness() {
             error: null,
           });
         call.fail = (message) => resolve({ data: null, error: { message } });
+        call.resolveRaw = resolve;
       });
       calls.push(call);
       // The options RPC is not under test here: answer it immediately.
@@ -376,6 +378,49 @@ const type = (h, q) => {
   );
   main(h)[0].resolve([{ name: "E" }]);
   assert((await e).length === 1, "export returns the filtered rows");
+}
+
+// 12 export completeness: pages through the paged contract and verifies total_count
+{
+  const h = makeHarness();
+  h.state.vwl.vendorFilterKey = "vendor:7";
+  const e = h.run("fetchAllVendorBuylistRows()");
+  await tick();
+  const mk = (from, n) => Array.from({ length: n }, (_, i) => ({ name: `R${from + i}` }));
+  // answer page 1 of a 450-row list: harness wraps plain rows with total=len, so
+  // build the paged shape explicitly via the raw promise instead.
+  const raw = (call, rows, total) => {
+    call.resolveRaw({ data: rows.map((r) => ({ row_data: r, total_count: total })), error: null });
+  };
+  assert(main(h)[0].params.p_limit === 200 && main(h)[0].params.p_offset === 0, "export page 1 requests limit 200/offset 0");
+  assert(main(h)[0].params.p_operational_filter === "vendor:7", "export keeps the operational vendor choice server-side");
+  raw(main(h)[0], mk(0, 200), 450);
+  await tick();
+  assert(main(h)[1]?.params.p_offset === 200, "export continues with offset 200");
+  raw(main(h)[1], mk(200, 200), 450);
+  await tick();
+  raw(main(h)[2], mk(400, 50), 450);
+  const all = await e;
+  assert(all.length === 450 && main(h).length === 3, "export collects all 450 rows over 3 pages");
+
+  const h2 = makeHarness();
+  const e2 = h2.run("fetchAllVendorBuylistRows()");
+  await tick();
+  const raw2 = (call, rows, total) => call.resolveRaw({ data: rows.map((r) => ({ row_data: r, total_count: total })), error: null });
+  raw2(main(h2)[0], mk(0, 200), 450);
+  await tick();
+  raw2(main(h2)[1], [], 450); // server returns nothing though total says 450
+  let msg = "";
+  try { await e2; } catch (err) { msg = String(err.message); }
+  assert(/Incomplete retrieval/.test(msg), "incomplete retrieval aborts the export (never a partial list)");
+
+  const h3 = makeHarness();
+  const e3 = h3.run("fetchAllVendorBuylistRows()");
+  await tick();
+  main(h3)[0].resolveRaw({ data: [{ row_data: { name: "X" }, total_count: 50001 }], error: null });
+  let msg3 = "";
+  try { await e3; } catch (err) { msg3 = String(err.message); }
+  assert(/safe limit of 50000/.test(msg3) && main(h3).length === 1, "oversize total refused after the first page, before fetching more");
 }
 
 // static contract guards

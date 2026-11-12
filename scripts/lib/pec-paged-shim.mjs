@@ -47,6 +47,8 @@ function __pagedRpc(name, p, src) {
     }
     case "proc_vendorwise_buylist_filtered":
       return __up(src.vwl || [], p);
+    case "proc_pec_indent_headers":
+      return [...(src.indents || [])].sort((a, b) => b.indent_id - a.indent_id);
     default:
       return undefined;
   }

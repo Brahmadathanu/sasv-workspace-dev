@@ -47,7 +47,7 @@ const excess = Array.from({ length: 450 }, (_, i) => ({ purchase_fact_id: i + 1,
 const audit = Array.from({ length: 250 }, (_, i) => ({ accepted_at: "2026-10-" + String(1 + (i % 28)).padStart(2, "0") + "T10:" + String(i % 60).padStart(2, "0"), stock_item_name: "Audit item " + i, accepted_qty: 1, reason: "r", accepted_by: "u" }));
 const vendors = Array.from({ length: 60 }, (_, v) => ({ id: v + 1, name: v === 59 ? "ZZ Last Vendor" : "Vendor " + String(v + 1).padStart(2, "0") }));
 const vwl = [];
-for (let i = 0; i < ${S.hugeVwl ? 50001 : 500}; i++) {
+for (let i = 0; i < ${S.hugeVwl ? 50001 : (S.vwlRows || 500)}; i++) {
   const k = i % 62;
   const unassigned = k === 60, local = k === 61;
   const v = vendors[k % 60];
@@ -66,8 +66,14 @@ export const supabase = {
       if (name === "get_user_permissions") return mk([{ target: "module:procurement-execution-console", can_view: true, can_edit: S.role === "edit" }]);
       if (S.slowSearch && p.p_q === S.slowSearch) await sleep(900);
       if (S.failPaged && name.endsWith("_paged")) return { data: null, error: { message: "fixture paged failure" } };
-      const r = __pagedRpc(name, p, { indents: indents(), prs: prs(), excess, audit, vwl });
+      if (name === "proc_procurement_action_queue_paged" && S.aq) {
+        const rows = [[250, "IND-26-0250"], [200, "IND-26-0200"], [7, "IND-26-0007"], [9999, "IND-26-9999"], [200, "STALE-NUMBER"]];
+        return mk(rows.map(([id, no], k) => ({ total_count: rows.length, row_data: { indent_line_id: 5000 + k, indent_id: id, indent_number: no, stock_item_name: "AQ item " + k, remaining_qty: 1, priority_band_final: "P1", priority_score_system: 1, material_class_code: "RM", uom_code: "KG" } })));
+      }
+      let r = __pagedRpc(name, p, { indents: indents(), prs: prs(), excess, audit, vwl });
       if (r && r.__error) return { data: null, error: { message: r.__error } };
+      // PostgREST max_rows (supabase/config.toml: 1000) silently caps UNPAGED set results
+      if (Array.isArray(r) && !name.endsWith("_paged") && !name.endsWith("_options")) r = r.slice(0, 1000);
       if (r !== undefined) return mk(r);
       if (name === "proc_vendorwise_buylist_split_items") return mk([]);
       return mk([]);
@@ -92,6 +98,7 @@ async function open(S, tab, vp = { width: 1440, height: 900 }) {
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
+  if (S.badges) await page.addInitScript(() => { const add = () => { if (!document.body) return false; for (const id of ["tabCountPr", "tabCountIndents", "tabCountExcess"]) { if (document.getElementById(id)) continue; const s = document.createElement("span"); s.id = id; s.style.display = "none"; document.body.appendChild(s); } return true; }; const mo = new MutationObserver(() => { if (add()) mo.disconnect(); }); mo.observe(document, { childList: true, subtree: true }); });
   await page.route("**/js/supabaseClient.js", (r) => r.fulfill({ contentType: "text/javascript", body: stub(S) }));
   await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
   await page.goto(`${base}/shared/procurement-execution-console.html`);
@@ -315,6 +322,123 @@ const text = (page, sel) => page.textContent(sel).then((t) => t.replace(/\s+/g, 
   await page.waitForTimeout(1500);
   const t = await page.$$eval("#toastContainer > div", (n) => n.map((e) => e.textContent).join(" | "));
   check(!downloaded && /safe limit of 50000/.test(t) && /nothing was truncated/.test(t), "Export: oversized export refused with explicit message, never silently truncated or reported complete");
+  await ctx.close();
+}
+
+
+// ───────── Jump to Indent: page-independent ─────────
+const toastsText = (page) => page.$$eval("#toastContainer > div", (n) => n.map((e) => e.textContent));
+{
+  const jumpFrom = async (page, k) => {
+    await page.evaluate(() => document.querySelector('.tabs .tab-btn[data-tab="action"]').click());
+    await page.waitForSelector("#aqTbody tr:not(.pec-table-state-row)", { timeout: 5000 });
+    await page.evaluate((i) => document.querySelectorAll("#aqTbody tr")[i].click(), k);
+    await page.waitForSelector("#detailModalBackdrop.show");
+    await page.evaluate(() => document.getElementById("btnDetailJumpIndent").click());
+  };
+  const title = (page) => page.textContent("#iLinesTitle").then((t) => t.trim());
+  {
+    const { ctx, page } = await open({ role: "edit", aq: true }, "action");
+    await jumpFrom(page, 0); await page.waitForTimeout(700);
+    check((await title(page)) === "Lines — IND-26-0250" && (await page.isVisible("#indentViewModalBackdrop.show")), "Jump: first-page indent (#250) opens its modal");
+    await page.evaluate(() => document.getElementById("btnIndentViewClose").click());
+    await jumpFrom(page, 1); await page.waitForTimeout(700);
+    const onPage0 = await page.$$eval("#iTbody tr td:nth-child(2)", (n) => n.map((e) => e.textContent.trim()));
+    check(!onPage0.includes("IND-26-0200") && (await title(page)) === "Lines — IND-26-0200", "Jump: page-2 indent (#200, not on loaded page 0) opens by exact id");
+    const paged = (await calls(page, "proc_pec_indent_headers_filtered_paged")).filter((c) => c.params.p_q === "IND-26-0200");
+    check(paged.length >= 1 && paged[0].params.p_limit === 200, "Jump: resolved through the permission-gated paged lookup by number (no full read needed)");
+    await page.evaluate(() => document.getElementById("btnIndentViewClose").click());
+    const fullBefore = (await calls(page, "proc_pec_indent_headers")).length;
+    await jumpFrom(page, 4); await page.waitForTimeout(900); // stale number, valid id -> fallback
+    check((await title(page)) === "Lines — IND-26-0200" && (await calls(page, "proc_pec_indent_headers")).length > fullBefore, "Jump: number miss falls back to the existing full-header read and still opens the right indent");
+    await page.evaluate(() => document.getElementById("btnIndentViewClose").click());
+    await jumpFrom(page, 3); await page.waitForTimeout(900);
+    check(!(await page.isVisible("#indentViewModalBackdrop.show")) && (await toastsText(page)).some((t) => /IND-26-9999 was not found or is not accessible/.test(t)), "Jump: nonexistent id shows a clear message and opens nothing");
+    await ctx.close();
+  }
+  {
+    // competing navigations: slow older jump must not hijack the newer one
+    const { ctx, page } = await open({ role: "edit", aq: true, slowSearch: "IND-26-0200" }, "action");
+    await jumpFrom(page, 1); // slow (900 ms)
+    await page.waitForTimeout(150);
+    await jumpFrom(page, 0); // fast, newer
+    await page.waitForTimeout(1800);
+    check((await title(page)) === "Lines — IND-26-0250", "Jump: stale slower navigation never replaces the newer one");
+    await ctx.close();
+  }
+}
+
+// ───────── Excess badge = active/default filters ─────────
+{
+  let expected30 = 0, expectedAll = 450;
+  for (let i = 0; i < 450; i++) if (i % 120 <= 30) expected30++;
+  // 0) current markup has no badge elements -> no invisible probe reads at boot
+  const none = await open({ role: "edit" }, "pr");
+  await none.page.waitForTimeout(800);
+  check((await none.page.locator("#tabCountExcess, #tabCountPr, #tabCountIndents").count()) === 0 && (await calls(none.page, "proc_pec_purchase_excess_filtered_paged")).length === 0, "badges: none rendered in current markup and no wasted Excess count probe at boot");
+  await none.ctx.close();
+  // 1) if a badge element is present (emulated), its meaning is the ACTIVE-filter count
+  const { ctx, page } = await open({ role: "edit", badges: true }, "pr");
+  await page.waitForTimeout(800);
+  check((await page.$eval("#tabCountExcess", (e) => e.textContent)) === String(expected30), `Excess badge at boot = default 30-day count (${expected30}), not the all-history ${expectedAll}`);
+  const probe = await calls(page, "proc_pec_purchase_excess_filtered_paged");
+  check(probe.length === 1 && probe[0].params.p_limit === 1 && probe[0].params.p_date_from !== null && probe[0].params.p_date_to !== null, "Excess badge probe sends the same date range as the lens");
+  await page.click('.tabs .tab-btn[data-tab="excess"]'); await page.waitForTimeout(600);
+  check((await text(page, "#eMeta")).startsWith(`${expected30} lines`) && (await text(page, "#tabCountExcess")) === String(expected30), "Excess lens total equals badge");
+  await page.click("#eFilterBtn"); await page.selectOption("#eFDatePreset", "fy"); await page.waitForTimeout(700);
+  check((await text(page, "#tabCountExcess")) === String(expectedAll), "Excess badge follows the date preset (365 days → all 450)");
+  await page.fill("#eSearch", "Special"); await page.waitForTimeout(700);
+  const specialTotal = (await text(page, "#tabCountExcess"));
+  check(Number(specialTotal) > 0 && Number(specialTotal) < expectedAll && (await text(page, "#eMeta")).startsWith(`${specialTotal} lines`), "Excess badge follows the quick search");
+  await ctx.close();
+  const f = await open({ role: "edit", failPaged: true, badges: true }, "pr");
+  await f.page.waitForTimeout(600);
+  check((await text(f.page, "#tabCountExcess")) === "", "Excess badge stays empty (not a wrong number) when the read is denied/fails");
+  await f.ctx.close();
+}
+
+// ───────── Vendor-wise export completeness beyond 1,000 rows ─────────
+{
+  const libs = process.env.PEC_JSPDF_ROOT;
+  const { ctx, page } = await open({ role: "edit", vwlRows: 1500 }, "vendor-buylist");
+  if (libs && fs.existsSync(path.join(libs, "jspdf/dist/jspdf.umd.min.js"))) {
+    await page.route("**/jspdf.umd.min.js", (r) => r.fulfill({ contentType: "text/javascript", body: fs.readFileSync(path.join(libs, "jspdf/dist/jspdf.umd.min.js")) }));
+    await page.route("**/jspdf.plugin.autotable.min.js", (r) => r.fulfill({ contentType: "text/javascript", body: fs.readFileSync(path.join(libs, "jspdf-autotable/dist/jspdf.plugin.autotable.min.js")) }));
+    await page.reload(); await page.waitForSelector("#mainPanel:not([hidden])"); await page.click('.tabs .tab-btn[data-tab="vendor-buylist"]');
+  }
+  await page.waitForTimeout(800);
+  const legacyLen = await page.evaluate(async () => { const { supabase } = await import("/shared/js/supabaseClient.js"); return (await supabase.rpc("proc_vendorwise_buylist_filtered", {})).data.length; });
+  check(legacyLen === 1000, `transport check: the UNPAGED full RPC is silently capped at ${legacyLen} of 1500 (PostgREST max_rows emulation) - why exports no longer use it`);
+  check((await text(page, "#vwlMeta")) === "1500 lines", "VWL list total is 1500 from total_count");
+  const download = async (sel) => { await page.click("#vwlExportBtn"); const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 60000 }), page.click(sel)]); return dl; };
+  const parseCsv = (t) => { const rows = []; let cur = [], f = "", q = false; for (let i = 0; i < t.length; i++) { const c = t[i]; if (q) { if (c === '"' && t[i + 1] === '"') { f += '"'; i++; } else if (c === '"') q = false; else f += c; } else if (c === '"') q = true; else if (c === ",") { cur.push(f); f = ""; } else if (c === "\n" || c === "\r") { if (c === "\r" && t[i + 1] === "\n") i++; cur.push(f); f = ""; if (cur.length > 1 || cur[0] !== "") rows.push(cur); cur = []; } else f += c; } if (f !== "" || cur.length) { cur.push(f); rows.push(cur); } return rows; };
+  const csv = fs.readFileSync(await (await download("#vwlExportCsv")).path(), "utf8");
+  const rows = parseCsv(csv); const head = rows[0]; const body = rows.slice(1);
+  const iItem = head.indexOf("Item"), iQty = head.indexOf("Total Qty to Buy"), iBd = head.indexOf("Indent Breakdown");
+  check(body.length === 1500 && new Set(body.map((r) => r[iItem])).size === 1500, `CSV export: all 1500 matching rows, 1500 distinct items (visible page shows 75)`);
+  check(body.reduce((a, r) => a + Number(r[iQty]), 0) === 7500, "CSV quantity parity: Σ Total Qty to Buy = 7500 (1500 × 5)");
+  check(body.every((r) => /IND-26-1\d\d \(\d\)/.test(r[iBd])), "CSV canonical 'Indent (line)' serial in every row");
+  const tsv = fs.readFileSync(await (await download("#vwlExportTsv")).path(), "utf8").split(/\r?\n/).filter((l) => l.trim());
+  check(tsv.length === 1501, "TSV export: 1500 rows + header");
+  // operational vendor choice: export == server total for that choice
+  const vopt = await page.$$eval("#vwlVendorFilter option", (n) => n.map((o) => o.value).find((v) => /^vendor:/.test(v)));
+  await page.click("#vwlFilterBtn"); await page.selectOption("#vwlVendorFilter", vopt); await page.waitForTimeout(700); await page.keyboard.press("Escape");
+  const shown = Number((await text(page, "#vwlMeta")).match(/^(\d+)/)[1]);
+  const csv2 = parseCsv(fs.readFileSync(await (await download("#vwlExportCsv")).path(), "utf8"));
+  check(shown < 1500 && csv2.length - 1 === shown, `CSV honours the operational vendor choice (${shown} rows == server total)`);
+  await page.click("#vwlFilterBtn"); await page.selectOption("#vwlVendorFilter", ""); await page.waitForTimeout(600); await page.keyboard.press("Escape");
+  if (libs && fs.existsSync(path.join(libs, "jspdf/dist/jspdf.umd.min.js"))) {
+    const pdf = await download("#vwlExportPdf");
+    const pdfPath = (await pdf.path());
+    const { execFileSync } = await import("node:child_process");
+    const txt = execFileSync("pdftotext", ["-layout", pdfPath, "-"], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+    const items = new Set(txt.match(/VItem \d{4}/g) || []);
+    const pages = (txt.match(/\f/g) || []).length;
+    check(items.size === 1500 && pages > 5, `PDF runtime (real jsPDF + pdftotext): all 1500 distinct items present across ${pages} pages`);
+    check(/IND-26-1\d\d \(\d\)/.test(txt), "PDF contains canonical 'Indent (line)' serial");
+  } else {
+    console.log("SKIP: PDF runtime (set PEC_JSPDF_ROOT to a dir containing node_modules/jspdf + jspdf-autotable) - not verified in this run");
+  }
   await ctx.close();
 }
 
