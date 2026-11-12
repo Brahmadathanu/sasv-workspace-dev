@@ -1,4 +1,4 @@
--- REVIEW ONLY. Cannot execute until candidate exact hash pinned from PG17 and separate owner operational approval.
+-- REVIEW ONLY. Exact candidate fingerprint pinned from isolated PostgreSQL 17; still requires separate owner operational approval.
 BEGIN;
 SET LOCAL lock_timeout='3s';
 SET LOCAL statement_timeout='45s';
@@ -6,7 +6,7 @@ DO $guard$
 DECLARE v_oid oid := to_regclass('public.v_costing_material_review_acceptance_register');
 BEGIN
  IF v_oid IS NULL
- OR md5(pg_get_viewdef(v_oid,true)) <> '__PIN_CANDIDATE_MD5__'
+ OR md5(pg_get_viewdef(v_oid,true)) <> '0dcc3db262a30a9b770720dcb48e6376'
  OR (SELECT count(*) FROM pg_attribute WHERE attrelid=v_oid AND attnum>0 AND NOT attisdropped)<>38
  OR (SELECT relacl::text FROM pg_class WHERE oid=v_oid)<>'{postgres=arwdDxtm/postgres,authenticated=r/postgres,service_role=arwdDxtm/postgres}'
  OR (SELECT reloptions FROM pg_class WHERE oid=v_oid) IS NOT NULL
