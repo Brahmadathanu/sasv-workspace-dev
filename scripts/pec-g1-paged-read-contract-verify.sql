@@ -62,3 +62,35 @@ BEGIN
  END IF;
 END $pages$;
 SELECT 'PEC_G1_FIRST_TWO_SOURCE_PAGES_PASS' AS result;
+
+-- The new VWL paged order must EXACTLY preserve legacy filtered-list ordering.
+-- WITH ORDINALITY observes the old function's complete result order; the new
+-- order uses the same business sort with unique keys only as tie-breakers.
+DO $vendor_order$
+DECLARE n integer; mismatches integer; first_unassigned integer; last_assigned integer;
+BEGIN
+WITH legacy AS (
+ SELECT f.vendor_bucket_key,f.material_class_id,f.stock_item_id,f.uom_id,
+        f.ordinality AS legacy_pos
+ FROM public.proc_vendorwise_buylist_filtered_pec_internal(NULL,NULL,NULL,NULL,NULL)
+ WITH ORDINALITY AS f
+), paged_equivalent AS (
+ SELECT f.vendor_bucket_key,f.material_class_id,f.stock_item_id,f.uom_id,
+ row_number() OVER (
+ ORDER BY CASE WHEN f.vendor_bucket_key='UNASSIGNED' THEN 1 ELSE 0 END,
+ f.vendor_bucket_name NULLS LAST,f.stock_item_name NULLS LAST,f.uom_code NULLS LAST,
+ f.vendor_bucket_key NULLS LAST,f.material_class_id NULLS LAST,
+ f.stock_item_id,f.uom_id) AS paged_pos
+ FROM public.proc_vendorwise_buylist_filtered_pec_internal(NULL,NULL,NULL,NULL,NULL) f
+)
+SELECT count(*),count(*) FILTER(WHERE a.legacy_pos<>b.paged_pos),
+min(a.legacy_pos) FILTER(WHERE a.vendor_bucket_key='UNASSIGNED'),
+max(a.legacy_pos) FILTER(WHERE a.vendor_bucket_key<>'UNASSIGNED')
+INTO n,mismatches,first_unassigned,last_assigned
+FROM legacy a JOIN paged_equivalent b USING
+(vendor_bucket_key,material_class_id,stock_item_id,uom_id);
+IF n<>834 OR mismatches<>0 OR first_unassigned<>636 OR last_assigned<>635 THEN
+ RAISE EXCEPTION 'PEC vendor business sort parity changed: count %, mismatches %, first-unassigned %, last-assigned %', n,mismatches,first_unassigned,last_assigned;
+END IF;
+END $vendor_order$;
+SELECT 'PEC_G1_VENDOR_LEGACY_ORDER_834_OF_834_PASS' AS result;
