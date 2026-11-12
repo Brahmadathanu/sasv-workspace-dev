@@ -11551,6 +11551,7 @@ async function fetchAllVendorBuylistPagedRows({
 } = {}) {
   const base = params || buildVwlRpcFilterParams();
   const rows = [];
+  const seenKeys = new Set();
   let total = null;
   for (let offset = 0; offset <= 100000; offset += PEC_PAGE_LIMIT_MAX) {
     const page = await rpcPecPaged(
@@ -11573,8 +11574,23 @@ async function fetchAllVendorBuylistPagedRows({
         throw err;
       }
     }
+    if (total !== null && page.rows.length && page.total !== total) {
+      throw new Error(
+        `Incomplete retrieval: vendor-wise total changed from ${total} to ${page.total} while loading; nothing was exported. Please retry.`,
+      );
+    }
     if (!page.rows.length) break;
-    rows.push(...page.rows);
+    for (const row of page.rows) {
+      const key = getVwlOperationalRowKey(row);
+      if (!getVwlOperationalBucketKey(row) || row?.material_class_id == null ||
+          row?.stock_item_id == null || row?.uom_id == null || seenKeys.has(key)) {
+        throw new Error(
+          "Incomplete retrieval: missing or repeated vendor/item/UOM group across pages; nothing was exported. Please retry.",
+        );
+      }
+      seenKeys.add(key);
+      rows.push(row);
+    }
     if (rows.length >= total) break;
   }
   if ((total ?? 0) !== rows.length) {
