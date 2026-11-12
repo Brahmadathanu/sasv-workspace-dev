@@ -55,3 +55,15 @@ Record **actual account role category, date/time, tested URL/build SHA, steps/sc
 **Preview verification limit:** An unauthenticated external browser fetch could not access the Netlify deploy-preview URL from the available browsing environment, so no hosted preview or session claim was recorded. Existing CI/Netlify success is separate from an authenticated browser acceptance.
 
 **Operator order to unblock immediately:** genuine Editor signed-in A01/A04–A08, existing View-only A02, genuine no-access A03, installed PWA A09, Electron A10, live latency A11. Capture role category, build SHA, screenshot/console evidence and actual PASS/FAIL in the table above. New accounts or permission mutations are not needed for the first two role categories.
+
+## 12 Nov — Live read-only SQL performance sampling (A11 database subcheck ONLY)
+
+Using connected Supabase `execute_sql` on project `qhmoqtxpeasamtlxaoak`, executed **read-only transactions** with `SET LOCAL statement_timeout='7000ms'` and `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` or `EXPLAIN (ANALYZE, FORMAT JSON)`. No DML, refresh, RPC impersonation, role permission change, schema write or background job triggered. Database executor measurements from one sample each:
+
+| Query shape | Observed database execution | Interpretation |
+|---|---:|---|
+| `v_proc_purchase_excess_console` filtered to last 30 days, `count(*) OVER`, net-unallocated/date/ID ordering, `LIMIT 100 OFFSET 0` | **~1,236 ms** plan actual total; returned 100 rows from 177 filtered rows | Dominant view computation; no client/network time included |
+| Direct `proc_vendorwise_buylist_filtered_pec_internal(NULL,NULL,NULL,NULL,NULL)` `LIMIT 100` | **~306 ms** execution | Baseline source-function scan; not full operational RPC |
+| Full Vendor-wise operational paging-equivalent query (`count(*) OVER`, canonical bucket sort and `LIMIT 100`) | **~141 ms** execution; 834 source rows counted, 100 returned | Closely mirrors live `proc_vendorwise_buylist_operational_paged` query body but bypasses JWT/permission wrapper |
+
+**A11 remains NOT RUN / not closed** as an end-to-end hosted PWA measurement: no real user JWT or browser network response was measured, no warm/cold distribution or p95, and the full export remains a separate acceptance case. The difference between 306 ms and 141 ms should **not** be interpreted as a proven speed improvement (separate runs and cache conditions). 30-day Excess execution around 1.24 seconds merits real browser timing; no arbitrary pass threshold assumed. The 4/5 technical preflight indicator and formal G0–G5 **0/6** remain unchanged.
