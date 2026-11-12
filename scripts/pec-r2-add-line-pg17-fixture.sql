@@ -15,9 +15,9 @@ INSERT INTO public.proc_indent_header(indent_id,status,source_pr_id) VALUES (1,'
 INSERT INTO public.proc_indent_line(indent_id,material_class_id,stock_item_id,uom_id,requested_qty,manual_reason) VALUES (3,1,301,1,5,'original'),(5,1,501,1,9,'original');
 \i supabase/migrations/20261112220000_pec_r2_add_line_new_row_status_guard.sql
 DO $fn$ BEGIN IF has_function_privilege('anon','public.proc_indent_add_line(bigint,bigint,bigint,bigint,numeric,text)','EXECUTE') THEN RAISE EXCEPTION 'anon wrapper ACL unexpectedly permitted'; END IF; IF has_function_privilege('authenticated','public.proc_indent_add_line_pec_internal(bigint,bigint,bigint,bigint,numeric,text)','EXECUTE') THEN RAISE EXCEPTION 'internal function unexpectedly executable'; END IF; IF NOT has_function_privilege('authenticated','public.proc_indent_add_line(bigint,bigint,bigint,bigint,numeric,text)','EXECUTE') THEN RAISE EXCEPTION 'wrapper ACL was lost'; END IF; END $fn$;
+CREATE OR REPLACE FUNCTION public.pec_fixture_expect_denied(p_indent bigint,p_item bigint,p_reason text DEFAULT NULL) RETURNS void LANGUAGE plpgsql AS $fn$ BEGIN PERFORM public.proc_indent_add_line(p_indent,1,p_item,1,8,p_reason); RAISE EXCEPTION 'UNEXPECTED_ALLOW'; EXCEPTION WHEN OTHERS THEN IF SQLERRM = 'UNEXPECTED_ALLOW' THEN RAISE; END IF; END $fn$;
 SET ROLE authenticated;
 SET pec.fixture_can_edit = 'yes';
-CREATE OR REPLACE FUNCTION public.pec_fixture_expect_denied(p_indent bigint,p_item bigint,p_reason text DEFAULT NULL) RETURNS void LANGUAGE plpgsql AS $fn$ BEGIN PERFORM public.proc_indent_add_line(p_indent,1,p_item,1,8,p_reason); RAISE EXCEPTION 'UNEXPECTED_ALLOW'; EXCEPTION WHEN OTHERS THEN IF SQLERRM = 'UNEXPECTED_ALLOW' THEN RAISE; END IF; END $fn$;
 -- Editor: draft manual new allowed; all other new rows denied.
 SELECT public.proc_indent_add_line(1,1,101,1,8,NULL) AS draft_manual_new_allowed;
 SELECT public.pec_fixture_expect_denied(2,201,NULL);
