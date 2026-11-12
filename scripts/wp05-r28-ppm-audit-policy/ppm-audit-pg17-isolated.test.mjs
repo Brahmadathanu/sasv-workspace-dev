@@ -167,3 +167,12 @@ test("guarded rollback restores original view and prior role behaviour",()=>{
 test("guarded rollback fails closed on wrong starting view",()=>{
  assert.throws(()=>psql(rollback));
 });
+
+test("view replacement refuses a drifted service_role SQL grant",()=>{
+ psql("GRANT SELECT ON public.v_costing_scheme_master_audit TO service_role;");
+ assert.equal(psql("SELECT has_table_privilege('service_role','public.v_costing_scheme_master_audit','SELECT');"),"t");
+ assert.throws(()=>psql(candidate),"candidate must fail on broadened existing ACL");
+ psql("REVOKE SELECT ON public.v_costing_scheme_master_audit FROM service_role;");
+ assert.equal(psql("SELECT has_table_privilege('service_role','public.v_costing_scheme_master_audit','SELECT');"),"f");
+ assert.equal(md5(),originalHash);
+});
