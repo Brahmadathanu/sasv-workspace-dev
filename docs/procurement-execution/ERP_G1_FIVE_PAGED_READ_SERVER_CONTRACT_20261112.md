@@ -95,3 +95,20 @@ The current client makes the following filters **before** `slicePage`. These mus
 ## PR #320 diff correction
 
 A previous reviewer warning misclassified a **23-commit branch-to-branch ancestry comparison** against old C2 as an unexpected merged-scope risk. Rechecking GitHub's **actual PR #320 changed-file list** and the current-main diff returned **52/52 PEC-scoped files, zero WP05/lab/SW files**. The earlier warning was explicitly retracted on #320 (comment `6819885243`). This is **not a current unrelated-file merge blocker**. Genuine requirements remain stacked merge order #291→#301→#320, #319 Full→RESET reconciliation and the control-inventory FAIL/FIX test improvement.
+
+## 12 November 2026 — Filter-before-page gap addressed by additive versioned RPCs
+
+**New live/read-only functions** (distinct names, so neither the five previously added paged RPCs nor legacy client contracts are modified):
+- `proc_pec_pr_headers_filtered_paged(p_status text,p_material_class_id bigint,p_q text,p_limit integer,p_offset integer)`
+- `proc_pec_indent_headers_filtered_paged(p_status text,p_material_class_id bigint,p_q text,p_limit integer,p_offset integer)`
+- `proc_pec_purchase_excess_filtered_paged(p_q text,p_material_class_code text,p_date_from date,p_date_to date,p_min_qty numeric,p_vendor_q text,p_item_q text,p_unmapped_only boolean,p_limit integer,p_offset integer)`
+
+All use `TABLE(row_data jsonb,total_count bigint)`, `SECURITY DEFINER`, module VIEW permission checks, `authenticated/service_role` EXECUTE (not anon), maximum page size 200 and bounded offset. Filters are inside the source query **before** `count(*) OVER()`, sorting and `LIMIT/OFFSET`. PR/Indent descending-ID order and Excess net-unallocated-desc/date-desc/purchase-fact-ID-desc are preserved.
+
+**Excess client parity:** SQL implements case-insensitive literal-substring search (not wildcard semantics), canonical PLM→PM material-class compatibility, date boundaries passed explicitly by the client (no server date assumption), minimum positive net-unallocated quantity, vendor name and item name/code filtering, and null/empty vendor for unmapped-only. The current UI's default rolling 30-day window must still be calculated by the client and transmitted as ISO dates; the RPC defaults to **no date restriction** if dates are omitted. The client currently calls a different unpaged API; nothing automatically switches it over.
+
+**Source durability:** migration `supabase/migrations/20261112173000_pec_g1_filtered_paged_read_contracts.sql` commit `bc4ba34`, applied live and successfully replayed in a single explicit transaction ending in ROLLBACK. Read-only regression `scripts/pec-g1-filtered-paging-contract-verify.sql` commit `48821c7` executed live with outcome **`PEC_G1_FILTER_BEFORE_PAGE_CONTRACT_PASS`**; this verifies three permission/catalogue contracts, live uniqueness/representative filter inputs and required predicate presence. Current live reference examples: active PR count 6, approved indent count 45, Excess rows dated 2026-10-13–2026-11-12 count 177, unmapped Excess rows 0.
+
+**Caveats:** Source/predicate tests are not an actual authenticated user function result; end-to-end filtered-total/page-key/export parity and latency remain unverified. PR/Indent quick searches are supplied client-trimmed; client filters before pagination should be replaced, not combined with page-only post-filtering. A page beyond the end returns no rows and therefore no `total_count` (same as existing Action Queue pattern). Offset paging may drift if rows are concurrently edited. The existing Purchase Excess `count(*) OVER()` expensive view work is unchanged; real p95 and dynamic request cancellation must be tested before performance release.
+
+**Next bounded client package:** one small reviewed PR integrating these exact versioned endpoints and the existing filtered VWL endpoint; test source filter and count parity over multiple pages, total badge, filter reset, latest-wins, exports over *full* filtered result, 390/820/1440 widths and role gating. Reconcile first with Claude #291 → #301 → #320 and standalone #319, rather than editing active Claude branches.
