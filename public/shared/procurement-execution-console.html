@@ -3430,7 +3430,7 @@
                   ></p>
 
                   <select
-                    id="vwlSplitVendorPick"
+                    id="vwlSplitVendorPick" aria-label="Vendor to apply to all affected lines"
                     hidden
                     aria-hidden="true"
                     tabindex="-1"
@@ -4557,14 +4557,14 @@
           style="margin-top: 8px"
         ></div>
         <div id="indentApproveDateRow" style="margin-top: 10px; display: none">
-          <label>Approval Date</label>
+          <label for="indentApproveDate">Approval Date</label>
           <input type="date" id="indentApproveDate" />
         </div>
         <div
           id="indentOverrideReasonRow"
           style="margin-top: 10px; display: none"
         >
-          <label>Override Reason (required)</label>
+          <label for="indentOverrideReason">Override Reason (required)</label>
           <textarea
             id="indentOverrideReason"
             placeholder="Reason for close with override…"
@@ -4612,7 +4612,7 @@
           style="margin-bottom: 10px"
         ></div>
         <div>
-          <label>Select an Active PR</label>
+          <label for="indentSourcePrPick">Select an Active PR</label>
           <select
             id="indentSourcePrPick"
             size="8"
@@ -4661,8 +4661,10 @@
           style="margin-top: 8px"
         ></div>
         <div class="muted" style="margin-top: 8px; font-size: 12px">
-          This will sync indent lines with source PR final quantities (including
-          delete-on-zero).
+          Syncs indent lines with the source PR's final quantities (lines at zero
+          are removed). Draft indents only, and the source PR must be active.
+          Internal finished-bulk / semi-finished materials are never purchased
+          through this console and are excluded by the server.
         </div>
         <div class="actions">
           <button id="btnIndentResyncCancel">Cancel</button>
@@ -4744,7 +4746,7 @@
             <div id="excessAcceptGrid" class="grid">
               <div>
                 <label
-                  >Accept Qty
+                   for="excessAcceptQty">Accept Qty
                   <span class="muted"
                     >(max: <span id="excessAcceptMax"></span>)</span
                   ></label
@@ -4757,7 +4759,7 @@
                 />
               </div>
               <div>
-                <label>Reason (required, min 10 chars)</label>
+                <label for="excessAcceptReason">Reason (required, min 10 chars)</label>
                 <textarea
                   id="excessAcceptReason"
                   placeholder="Reason for accepting excess…"
@@ -5298,6 +5300,10 @@
             </select>
           </div>
         </div>
+        <p class="pec-section-note" style="margin: 8px 0 0">
+          Internal finished-bulk and semi-finished materials are excluded by the
+          server and never appear as purchasable lines.
+        </p>
         <div class="actions">
           <button id="btnPrRebuildCancel">Cancel</button>
           <button id="btnPrRebuildConfirm" data-edit-action="true">Rebuild</button>
@@ -5498,19 +5504,19 @@
         <div class="modal-body">
           <div class="form-grid">
             <div class="form-group">
-              <label>PR Number <span style="color: red">*</span></label>
+              <label for="prNewNumber">PR Number <span style="color: red">*</span></label>
               <input id="prNewNumber" placeholder="e.g. PR-2026-001" />
             </div>
             <div class="form-group">
-              <label>Effective From <span style="color: red">*</span></label>
+              <label for="prEffectiveFrom">Effective From <span style="color: red">*</span></label>
               <input type="date" id="prEffectiveFrom" />
             </div>
             <div class="form-group">
-              <label>Horizon Start Month</label>
+              <label for="prHorizonStart">Horizon Start Month</label>
               <input type="month" id="prHorizonStart" />
             </div>
             <div class="form-group">
-              <label>Horizon End Month</label>
+              <label for="prHorizonEnd">Horizon End Month</label>
               <input type="month" id="prHorizonEnd" />
             </div>
             <div class="form-group">
@@ -5533,11 +5539,15 @@
               </select>
             </div>
             <div class="form-group full-col">
-              <label>Notes</label>
+              <label for="prNotes">Notes</label>
               <textarea id="prNotes" placeholder="Optional notes…"></textarea>
             </div>
           </div>
         </div>
+        <p class="pec-section-note" style="margin: 8px 0 0">
+          Internal finished-bulk and semi-finished materials are excluded by the
+          server and never appear as purchasable lines.
+        </p>
         <div class="actions">
           <button id="btnGenPrCancel">Cancel</button>
           <button id="btnGenPrConfirm" data-edit-action="true">Generate</button>
@@ -5673,11 +5683,11 @@
               </div>
             </div>
             <div class="form-group">
-              <label>Requested Qty <span style="color: red">*</span></label>
+              <label for="prAddLineQty">Requested Qty <span style="color: red">*</span></label>
               <input id="prAddLineQty" type="number" min="0.001" step="any" />
             </div>
             <div class="form-group full-col">
-              <label>Reason</label>
+              <label for="prAddLineReason">Reason</label>
               <textarea
                 id="prAddLineReason"
                 placeholder="Optional reason…"
@@ -5724,7 +5734,7 @@
         </div>
         <div class="muted" id="prSetStatusItem"></div>
         <div style="margin-top: 10px">
-          <label>Note (optional)</label>
+          <label for="prSetStatusNote">Note (optional)</label>
           <textarea
             id="prSetStatusNote"
             placeholder="Optional note…"
@@ -5770,14 +5780,14 @@
         <div class="modal-body">
           <div class="form-grid">
             <div class="form-group">
-              <label>Indent Number <span style="color: red">*</span></label>
+              <label for="ciIndentNumber">Indent Number <span style="color: red">*</span></label>
               <input
                 id="ciIndentNumber"
                 placeholder="Auto-generated if blank"
               />
             </div>
             <div class="form-group">
-              <label>Indent Date <span style="color: red">*</span></label>
+              <label for="ciIndentDate">Indent Date <span style="color: red">*</span></label>
               <input type="date" id="ciIndentDate" />
             </div>
             <div class="form-group">
@@ -5790,7 +5800,7 @@
               </select>
             </div>
             <div class="form-group full-col">
-              <label>Notes</label>
+              <label for="ciNotes">Notes</label>
               <textarea id="ciNotes" placeholder="Optional notes…"></textarea>
             </div>
           </div>
@@ -5834,7 +5844,7 @@
         </div>
         <div class="modal-body">
           <div style="margin-top: 6px">
-            <label>Select Active PR</label>
+            <label for="ifpPrPick">Select Active PR</label>
             <select
               id="ifpPrPick"
               size="6"
@@ -5848,7 +5858,7 @@
             ></select>
           </div>
           <div style="margin-top: 10px">
-            <label>Indent Number (leave blank to auto-generate)</label>
+            <label for="ifpIndentNumber">Indent Number (leave blank to auto-generate)</label>
             <input id="ifpIndentNumber" placeholder="Auto-generated if blank" />
           </div>
         </div>
@@ -5889,7 +5899,7 @@
         <div class="modal-body">
           <div style="margin-bottom: 10px; display: flex; gap: 8px">
             <input
-              id="stockPickerSearch"
+              id="stockPickerSearch" aria-label="Search stock items"
               placeholder="Search by name or code…"
               style="
                 flex: 1;
@@ -6002,12 +6012,12 @@
               </div>
             </div>
             <div class="form-group">
-              <label>Requested Qty <span style="color: red">*</span></label>
+              <label for="ialQty">Requested Qty <span style="color: red">*</span></label>
               <input id="ialQty" type="number" min="0.001" step="any" />
             </div>
             <div class="form-group full-col">
               <label
-                >Reason / Remarks
+                 for="ialReason">Reason / Remarks
                 <span id="ialReasonReq" style="color: red; display: none"
                   >*</span
                 ></label
@@ -6071,15 +6081,15 @@
         <div class="modal-body">
           <div class="form-grid">
             <div class="form-group">
-              <label>Department / Unit</label>
+              <label for="expDeptUnit">Department / Unit</label>
               <input id="expDeptUnit" type="text" value="SHRO / SASV" />
             </div>
             <div class="form-group">
-              <label>Requisition No.</label>
+              <label for="expReqNo">Requisition No.</label>
               <input id="expReqNo" type="text" readonly />
             </div>
             <div class="form-group full-col">
-              <label>Location</label>
+              <label for="expLocation">Location</label>
               <input
                 id="expLocation"
                 type="text"
@@ -6087,15 +6097,15 @@
               />
             </div>
             <div class="form-group">
-              <label>Date</label>
+              <label for="expReqDate">Date</label>
               <input id="expReqDate" type="date" />
             </div>
             <div class="form-group">
-              <label>Requisition Type</label>
+              <label for="expReqType">Requisition Type</label>
               <input id="expReqType" type="text" readonly />
             </div>
             <div class="form-group">
-              <label>Requested By</label>
+              <label for="expRequestedBy">Requested By</label>
               <input
                 id="expRequestedBy"
                 type="text"
@@ -6103,7 +6113,7 @@
               />
             </div>
             <div class="form-group">
-              <label>Contact Details</label>
+              <label for="expContactDetails">Contact Details</label>
               <input
                 id="expContactDetails"
                 type="text"

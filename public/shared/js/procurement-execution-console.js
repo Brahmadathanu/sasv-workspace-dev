@@ -3647,7 +3647,37 @@ function materialClassIdFromCategoryCode(categoryCode) {
   return null;
 }
 
+/**
+ * Truthful wording for the server-side guards deployed with the four-gram /
+ * internal-material corrections (migrations 20261112*). Returns null when the
+ * message is not one of them so callers keep their existing fallback.
+ */
+function mapPecServerGuardMessage(error) {
+  const msg = String(error?.message || error || "").toLowerCase();
+  const rules = [
+    [/internal finished-bulk\/semi-finished/, "This item is an internal finished-bulk or semi-finished material produced in-house. It cannot be added to, or increased on, a purchase requisition or indent."],
+    [/no eligible positive external-procurement/, "Nothing can be indented: after excluding internal finished-bulk/semi-finished materials and zero quantities, this PR has no purchasable lines."],
+    [/resync allowed only for draft/, "Resync is available only for draft indents."],
+    [/source pr must be active/, "The source PR must be active before this indent can be resynced."],
+    [/indent has no source_pr_id/, "This indent is not linked to a source PR."],
+    [/invalid (p_)?mode/, "The server did not recognise the resync mode. Reload the page and try again."],
+    [/rebuild allowed only for draft/, "Rebuild is available only for draft PRs."],
+    [/revision can be created only from active pr/, "A PR revision can be created only from an active PR."],
+    [/(pr|indent) is not editable in status/, "This document can no longer be edited in its current status."],
+    [/reason is required to modify an indent/, "A reason is required to modify an approved or issued indent."],
+    [/mrp uom|mrp rollup/, "The server could not convert units for this MRP data (missing or ambiguous UOM factor). Nothing was changed; contact an administrator."],
+  ];
+  for (const [re, text] of rules) if (re.test(msg)) return text;
+  return null;
+}
+
+function pecWriterErrorText(prefix, error) {
+  return mapPecServerGuardMessage(error) || `${prefix}: ${error?.message || error}`;
+}
+
 function mapIndentLineSaveError(error) {
+  const guard = mapPecServerGuardMessage(error);
+  if (guard) return guard;
   const msg = String(error?.message || error || "").toLowerCase();
   const code = String(error?.code || "");
 
@@ -3827,7 +3857,7 @@ async function createIndentPrRevision() {
     },
   );
   if (error) {
-    toast(`Create revision failed: ${error.message}`, "error");
+    toast(pecWriterErrorText("Create revision failed", error), "error");
     return;
   }
 
@@ -3953,7 +3983,7 @@ async function confirmIndentSourcePr() {
     p_note: "source switched for resync",
   });
   if (error) {
-    toast(`Set source PR failed: ${error.message}`, "error");
+    toast(pecWriterErrorText("Set source PR failed", error), "error");
     return;
   }
 
@@ -3985,8 +4015,8 @@ function openIndentResyncModal(mode) {
   if (text) {
     text.textContent =
       normalized === "full"
-        ? "Mode: Full (replace with PR quantities completely)."
-        : "Mode: Safe (conservative sync from source PR).";
+        ? "Full: every indent line is replaced from the source PR. Manual lines you added are removed."
+        : "Safe: lines mapped to the source PR are synced to its final quantities. Manual lines you added are kept.";
   }
   bd.classList.add("show");
   bd.setAttribute("aria-hidden", "false");
@@ -4007,13 +4037,14 @@ async function confirmIndentResync() {
     return;
   }
   const mode = bd.dataset.mode === "full" ? "full" : "safe";
+  const uiModeLabel = mode === "full" ? "Full" : "Safe";
 
   const { error } = await supabase.rpc("proc_indent_resync_from_pr", {
     p_indent_id: indent.indent_id,
     p_mode: mode,
   });
   if (error) {
-    toast(`Resync failed: ${error.message}`, "error");
+    toast(pecWriterErrorText("Resync failed", error), "error");
     return;
   }
 
@@ -4028,7 +4059,7 @@ async function confirmIndentResync() {
     renderIndentModalHeader(fresh);
   }
   await loadIndentLines(state.selectedIndent.indent_id);
-  toast(`Indent resynced (${mode}).`, "success");
+  toast(`Indent resynced (${uiModeLabel}).`, "success");
 }
 
 function openIndentViewModal(row) {
@@ -6528,7 +6559,7 @@ async function saveCreateIndent() {
   });
   setLoading(false);
   if (error) {
-    toast(`Create indent failed: ${error.message}`, "error");
+    toast(pecWriterErrorText("Create indent failed", error), "error");
     return;
   }
   toast(
@@ -6610,7 +6641,7 @@ async function saveIndentFromPr() {
   });
   setLoading(false);
   if (error) {
-    toast(`Create from PR failed: ${error.message}`, "error");
+    toast(pecWriterErrorText("Create from PR failed", error), "error");
     return;
   }
   toast(
@@ -7914,7 +7945,7 @@ async function confirmPrRebuildFromMrp() {
   });
   setLoading(false);
   if (error) {
-    toast(`Rebuild failed: ${error.message}`, "error");
+    toast(pecWriterErrorText("Rebuild failed", error), "error");
     return;
   }
   toast("Rebuilt from MRP", "success");
@@ -8368,7 +8399,7 @@ async function generateDraftPr() {
   });
   setLoading(false);
   if (error) {
-    toast(`Generate PR failed: ${error.message}`, "error");
+    toast(pecWriterErrorText("Generate PR failed", error), "error");
     return;
   }
   toast("Draft PR generated.", "success");
@@ -8456,7 +8487,7 @@ async function savePrAddLine() {
   });
   setLoading(false);
   if (error) {
-    toast(`Add line failed: ${error.message}`, "error");
+    toast(pecWriterErrorText("Add line failed", error), "error");
     return;
   }
   toast("Line added.", "success");
