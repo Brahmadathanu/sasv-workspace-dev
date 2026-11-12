@@ -1,3 +1,5 @@
+> **12 NOV 2026 — CURRENT-MAIN BULK VERIFICATION (newest; WP07 STILL OPEN, programme 7/13):** [Evidence record](MDC07_WP07_BULK_VERIFICATION_AND_CLOSURE_EVIDENCE_2026-11-12.md) (issue #367) re-verified N1–N4, W6 and U11 on exact main `3a93432` with a full-history LF + CRLF run (1337 tests; 13 / 21 failures before repair, all stale historical guards or unrelated modules, none a product defect) and, after test-only repairs, 0 failures in any WP07 suite (1344 tests, LF and CRLF, 18 Electron skips). 96-snapshot flag-OFF parity re-proved byte-identical against the pre-N1 tree. Per-gate PASS/NOT TESTED ledger there; **real signed-in acceptance is NOT TESTED** and is prepared as an [owner-operated read-only checklist](MDC07_WP07_OWNER_READ_ONLY_ACCEPTANCE_CHECKLIST_2026-11-12.md). The "W6 draft PR #139 / U11 not started / Not yet approved" statements below are historical (W6 and U11 are merged). This note is not an owner acceptance; no flag, deployment, SQL or permission action occurred.
+
 > **12 NOV 2026 — HANDOVER / NEXT WORKPACK ASSESSMENT REQUIRED:** [Post-WP05 R63 programme new-chat handover](COSTING_PROGRAMME_NEW_CHAT_HANDOVER_AFTER_WP05_R63_2026-11-12.md) identifies WP07/MDC-07 as a high-leverage next formal closure candidate because N1–N4/W6/U11 implementation is recorded as merged. This pointer is **NOT owner WP07 Gate Status approval or proof of final acceptance**: inspect current main, latest tests, required visual/read-only evidence and risks. WP05 is separately CLOSED with bounded residuals, 7/13; WP12 B1-T2/T3 release checks still OPEN.
 
 > **Current MDC-07 status — 3 Nov 2026:** N1 #133, N2 #136, N3 #134, N4 #135 and W6 #139 **merged** to `main` `d395d7e`. W6 verified LF 605/605 and CRLF 605/605 (61 Chromium tests each), zero skips, and the final tested tree exactly matches the merged main. The Tier-1 navigation implementation wave is complete. **MDC-07 is not formally closed:** U11 terminology (WP11) is unstarted, signed-in populated-data/feature ON acceptance is pending, and documented non-N-packs programme issues require disposition. Historical 'N1/N4/W6 draft' wording below is retained solely as dated evidence. Release gates: [Costing completion-to-release](COSTING_SUITE_COMPLETION_TO_RELEASE_2026-11-03.md).
@@ -87,7 +89,7 @@ Not yet approved.
 - [x] Current-state/audit gate (WP05 A1–A7, merged #130)
 - [x] Design/contract gate where applicable (A3 Tier 1, owner-accepted 2 Nov 2026)
 - [~] Implementation gate where applicable — N1 (#133), N3 (#134), N2 (#136) and N4 (#135) merged to `main`; W6 implemented on draft PR #139 awaiting independent review; U11 not started
-- [ ] Focused verification
+- [~] Focused verification — current-main LF/CRLF + Chromium re-run, parity re-proof, Back/Forward and gate ledger done 12 Nov 2026 (mock/isolated only); signed-in owner checklist prepared, NOT executed
 - [ ] Independent audit
 - [ ] Merge/post-merge proof where applicable
 - [ ] Final handover
@@ -103,7 +105,7 @@ Not yet approved.
 `MDC-07-W6 — implemented on draft PR #139 (reconciled with main 2ce8af0); awaiting independent review and owner acceptance. N1, N2, N3 and N4 are merged. No merge, flag activation or further package is implied.`
 
 ## Gate Status
-[~] IN PROGRESS — N1, N2, N3, N4 merged; W6 delivered for review (draft PR #139); U11 outstanding
+[~] IN PROGRESS — N1, N2, N3, N4, W6 and U11 merged (historical wording "W6 draft / U11 outstanding" superseded); current-main isolated verification recorded 12 Nov 2026; signed-in acceptance, independent review and owner decision OPEN
 
 ## Required to close
 Entry criteria must be satisfied and the work pack explicitly started.
