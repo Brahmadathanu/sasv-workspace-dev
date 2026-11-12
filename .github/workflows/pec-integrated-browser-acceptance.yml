@@ -31,6 +31,10 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/pecdeps" --no-save --no-audit --no-fund playwright@1.62.1 jspdf@2.5.1 jspdf-autotable@3.8.2
           "$RUNNER_TEMP/pecdeps/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Install PDF text inspector
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
       - name: Run PEC integrated browser and contract checks
         env:
           NODE_PATH: ${{ runner.temp }}/pecdeps/node_modules
