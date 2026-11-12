@@ -184,7 +184,7 @@ const baselinePpm = () => gitOrFail("show", `${MAIN_BASE}:${PPM_REL}`).replace(/
  * still fail the comparison. Fail if the expected two strings drift.
  */
 function removeApprovedSchemeAuditActorFix(source) {
-  const actorImport = 'import { formatSchemeMasterAuditActor } from "./costing-suite-scheme-audit-actor.mjs";\\n';
+  const actorImport = 'import { formatSchemeMasterAuditActor } from "./costing-suite-scheme-audit-actor.mjs";\n';
   const actorUsage = "text(formatSchemeMasterAuditActor(auditRow))";
   const previousUsage = "text(auditRow.actor || auditRow.event_actor || auditRow.created_by)";
   assert.equal(source.split(actorImport).length, 2, "exact Scheme actor import required once");
