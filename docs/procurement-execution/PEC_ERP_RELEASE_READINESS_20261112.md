@@ -38,3 +38,25 @@ Record per check `PASS / FAIL / BLOCKED / DEFER`, timestamp IST, hosted asset SH
 The #335 Vendor-wise full export now fetches all 200-row pages rather than trusting the capped 1,000-row RPC, but its `rows.length===total_count` completeness assertion does not detect an offset-page duplicate + omission with unchanged total during concurrent writes. The row identity helper `getVwlOperationalRowKey` provides a grounded composite key `(vendor bucket, material class, stock item, UOM)`; a duplicate-key and per-page total mismatch fail-closed test was requested on #335 (review comment 6821647548), along with a mutation-sensitive fixture where page boundaries shift. Do not silently de-duplicate export rows. Even a distinct-key check cannot prove a consistent database snapshot across multiple requests; operational export acceptance should compare against a stable fixture and warn/retry under concurrent edits.
 
 This is a **new pending client review item**, not grounds to mark existing 94 synthetic paging checks failed. Preserve owner final approval and formal gate status 0/6.
+
+## Exact Supabase migration-history repair procedure (official CLI, not blind SQL replay)
+
+Supabase's current [database migration documentation](https://supabase.com/docs/guides/deployment/database-migrations) specifies that when the schema is already changed by direct SQL but the corresponding `supabase_migrations.schema_migrations` records are missing, `supabase migration repair --status applied <version> --remote` records *history only*: it does **not** rerun SQL. This is preferable to blindly rerunning owner-applied production writes. The connected Supabase tool does not expose the CLI migration-history repair operation, so **this reconciliation has not been executed**.
+
+**Preconditions:** first merge/review approved SQL files in the target repository in dependency order, freeze the main SHA and require (a) the 7 G0 + 3 G1 source migrations match actual production definitions/data; (b) the four live SQL contract tests PASS; (c) current migration list confirms all 10 are absent; (d) no unforeseen overlapping migration timestamp or tracked schema drift. In a properly authenticated local Supabase CLI session linked to project `qhmoqtxpeasamtlxaoak`, use `supabase migration list --remote` and, after explicitly authorized approval, repair these **already-applied** versions one by one:
+
+```sh
+supabase migration repair --status applied 20261112110000 --remote
+supabase migration repair --status applied 20261112114000 --remote
+supabase migration repair --status applied 20261112122500 --remote
+supabase migration repair --status applied 20261112133000 --remote
+supabase migration repair --status applied 20261112143000 --remote
+supabase migration repair --status applied 20261112150000 --remote
+supabase migration repair --status applied 20261112152000 --remote
+supabase migration repair --status applied 20261112170000 --remote
+supabase migration repair --status applied 20261112173000 --remote
+supabase migration repair --status applied 20261112174500 --remote
+supabase migration list --remote
+```
+
+**Do not execute before the above preconditions and owner's migration-history approval.** Repair is a bookkeeping operation with real consequences for future `db push`: it tells the deployment runner to skip SQL, so only use it after the live implementation and exact migration content parity has been proven. It must never hide unapplied changes. Do not insert directly into the migration table or use `apply_migration` to create new versions merely to work around missing history. Re-run contract and procurement-integrity checks after the repair and preserve the recorded before/after history list. The client release still requires legitimate PEC JWT/PWA acceptance.
