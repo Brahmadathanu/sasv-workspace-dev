@@ -40,3 +40,18 @@ Record **actual account role category, date/time, tested URL/build SHA, steps/sc
 4. Owner gives distinct SQL migration-history repair approval **after** preflight, and distinct source merge/production deployment approval **after** acceptance. Mark G0–G5 only when gate exits are proven.
 
 **No change to formal G0–G5 count: 0/6 independently verified.** Phase B original manual draft-indent edit #356 and separate hybrid policy #305 remain outside Phase A.
+
+## Phase A fast-progress ledger — 12 Nov, refreshed
+
+**Technical preflight 4/5 checks verified (not 4/6 programme gates):**
+1. **PASS** — consolidated PR #347 at `5012fb464e8687d5f99d8ef1d72e5d6540a1fa4d` **8/8 GitHub CI completed SUCCESS**, including integrated browser + FG-BIT; source remains draft/unmerged.
+2. **PASS** — GitHub reports PR #347 **mergeable=true**. Main-side divergence inspected: 19 changed paths, all `docs/master-data-costing/WP05_*` documents, not PEC functional source; re-evaluate if main changes.
+3. **PASS** — read-only live Supabase check found all **10/10** expected G1 paging functions; preceding metadata audit confirmed PEC module guard, authenticated EXECUTE, anonymous denial.
+4. **PASS** — read-only permission aggregate: **3 PEC Editor grants / 2 PEC View-only grants**. This proves only eligible role grants exist; no authenticated PWA test is implied.
+5. **BLOCKED — owner-governed** — all **10/10** already-live PEC migration versions remain missing from Supabase official migration history. Official CLI **history-only** repair requires separate owner authorization and a frozen-source/live parity preflight; do not replay SQL or insert into history manually.
+
+**Outside the 4/5 technical preflight:** Actual signed-in A01–A12 acceptance remains NOT RUN; installed PWA, packaged Electron and measured Excess latency still NOT VERIFIED. Owner production merge/deploy decision also pending. Formal G0–G5 remains **0/6 closed**. Do not present this as 80% released; it is only 4 of 5 named technical preflight observations.
+
+**Preview verification limit:** An unauthenticated external browser fetch could not access the Netlify deploy-preview URL from the available browsing environment, so no hosted preview or session claim was recorded. Existing CI/Netlify success is separate from an authenticated browser acceptance.
+
+**Operator order to unblock immediately:** genuine Editor signed-in A01/A04–A08, existing View-only A02, genuine no-access A03, installed PWA A09, Electron A10, live latency A11. Capture role category, build SHA, screenshot/console evidence and actual PASS/FAIL in the table above. New accounts or permission mutations are not needed for the first two role categories.
