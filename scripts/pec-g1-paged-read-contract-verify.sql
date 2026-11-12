@@ -27,3 +27,38 @@ UNION ALL
 SELECT 'vendor',count(*),count(DISTINCT (vendor_bucket_key,material_class_id,stock_item_id,uom_id)) FROM public.v_proc_vendorwise_buylist;
 -- Every dataset must have a unique stable ordering key.
 -- Existing RPCs remain untouched; real signed-in read RPC acceptance remains separate.
+
+-- Read-only two-page no-overlap assertions on live source keys.
+-- These verify deterministic static ordering; not snapshot stability during writes.
+DO $pages$
+DECLARE first_n integer;second_n integer;overlap_n integer;
+BEGIN
+ WITH ordered AS (
+  SELECT purchase_fact_id, row_number() OVER (
+    ORDER BY voucher_date DESC NULLS LAST,purchase_fact_id DESC) rn
+  FROM public.v_proc_purchase_excess_console
+ ), a AS (SELECT purchase_fact_id FROM ordered WHERE rn BETWEEN 1 AND 200),
+ b AS (SELECT purchase_fact_id FROM ordered WHERE rn BETWEEN 201 AND 400)
+ SELECT (SELECT count(*) FROM a),(SELECT count(*) FROM b),
+ (SELECT count(*) FROM a JOIN b USING(purchase_fact_id))
+ INTO first_n,second_n,overlap_n;
+ IF first_n<>200 OR second_n<>200 OR overlap_n<>0 THEN
+   RAISE EXCEPTION 'PEC Excess source page contract failed: %,%,%',first_n,second_n,overlap_n;
+ END IF;
+
+ WITH ordered AS (
+  SELECT vendor_bucket_key,material_class_id,stock_item_id,uom_id,
+  row_number() OVER (
+    ORDER BY vendor_bucket_key ASC NULLS LAST,
+             material_class_id ASC NULLS LAST,stock_item_id ASC,uom_id ASC) rn
+  FROM public.v_proc_vendorwise_buylist
+ ), a AS (SELECT * FROM ordered WHERE rn BETWEEN 1 AND 200),
+ b AS (SELECT * FROM ordered WHERE rn BETWEEN 201 AND 400)
+ SELECT (SELECT count(*) FROM a),(SELECT count(*) FROM b),
+ (SELECT count(*) FROM a JOIN b USING(vendor_bucket_key,material_class_id,stock_item_id,uom_id))
+ INTO first_n,second_n,overlap_n;
+ IF first_n<>200 OR second_n<>200 OR overlap_n<>0 THEN
+   RAISE EXCEPTION 'PEC vendor source page contract failed: %,%,%',first_n,second_n,overlap_n;
+ END IF;
+END $pages$;
+SELECT 'PEC_G1_FIRST_TWO_SOURCE_PAGES_PASS' AS result;
