@@ -2120,11 +2120,24 @@ function updateTabCount(id, n) {
 }
 
 async function refreshAllTabCounts() {
+  // The tab-count badge elements (#tabCountIndents/#tabCountPr/#tabCountExcess)
+  // do not exist in the current markup (nor on main), so these counts were never
+  // shown; skip the probes entirely instead of paying for invisible reads (the
+  // Excess count is a windowed query over ~13k rows). If badges are added, the
+  // counts below follow the lens' ACTIVE filters.
+  if (!["tabCountIndents", "tabCountPr", "tabCountExcess"].some((id) => qs(id))) {
+    return;
+  }
   // Counts come from total_count of a 1-row page, not from full-table reads.
   const [indents, pr, excess] = await Promise.allSettled([
     rpcPecIndentHeadersPaged({ limit: 1, offset: 0 }),
     rpcPecPrHeadersPaged({ limit: 1, offset: 0 }),
-    rpcPecPaged("proc_pec_purchase_excess_filtered_paged", { p_limit: 1, p_offset: 0 }),
+    // Badge meaning: rows matching the Excess lens' ACTIVE filters (default:
+    // last 30 days) - identical to the lens total; loadExcess keeps it in sync.
+    rpcPecPaged(
+      "proc_pec_purchase_excess_filtered_paged",
+      buildExcessRpcParams({ limit: 1, offset: 0 }),
+    ),
   ]);
   if (indents.status === "fulfilled")
     updateTabCount("tabCountIndents", indents.value.total);
@@ -2135,19 +2148,69 @@ async function refreshAllTabCounts() {
 
 // ─── Jump to Indent (Part C) ─────────────────────────────────────────────────
 
-async function jumpToIndent(indentId) {
+let jumpToIndentSeq = 0;
+
+/**
+ * Resolve one indent header by exact id, independent of which page of the
+ * server-paged list it sits on. 1) cheap permission-gated paged lookup by the
+ * indent number when the caller knows it (exact id match required);
+ * 2) fallback: the existing full-header read (PEC VIEW gated, ~tens of rows).
+ * Never used for ordinary paging.
+ */
+async function resolveIndentHeaderById(indentId, indentNumber, isCurrent) {
+  const id = Number(indentId);
+  if (!Number.isFinite(id) || id <= 0) return null;
+  const number = String(indentNumber ?? "").trim();
+  if (number) {
+    const { rows } = await rpcPecIndentHeadersPaged({
+      q: number,
+      limit: PEC_PAGE_LIMIT_MAX,
+      offset: 0,
+    });
+    if (!isCurrent()) return null;
+    const hit = rows.find((r) => Number(r.indent_id) === id);
+    if (hit) return hit;
+  }
+  const all = await rpcPecIndentHeaders();
+  if (!isCurrent()) return null;
+  return all.find((r) => Number(r.indent_id) === id) || null;
+}
+
+async function jumpToIndent(indentId, indentNumber = "") {
+  if (!indentId) return;
+  const mine = ++jumpToIndentSeq; // latest navigation wins
+  const isCurrent = () => mine === jumpToIndentSeq;
   setTab("indents");
   qs("iStatus").value = "";
   qs("iClass").value = "";
   qs("iSearch").value = "";
   state.indentsPage = 0;
-  await loadIndents();
-  if (!indentId) return;
-  const found = state.indentsRows.find((r) => r.indent_id === indentId);
-  if (found) {
-    renderIndents();
-    openIndentViewModal(found);
+  let header = null;
+  try {
+    [header] = await Promise.all([
+      resolveIndentHeaderById(indentId, indentNumber, isCurrent),
+      loadIndents(),
+    ]);
+  } catch (error) {
+    if (!isCurrent()) return;
+    toast(`Could not open the indent: ${error?.message || error}`, "error");
+    return;
   }
+  if (!isCurrent()) return; // a newer jump (or navigation) owns the UI
+  if (!header) {
+    toast(
+      `Indent ${indentNumber || `#${indentId}`} was not found or is not accessible.`,
+      "error",
+    );
+    return;
+  }
+  // Keep the list row object in sync when the indent is on the loaded page.
+  const onPage = state.indentsRows.find(
+    (r) => Number(r.indent_id) === Number(header.indent_id),
+  );
+  const row = onPage || header;
+  if (onPage) renderIndents();
+  openIndentViewModal(row);
 }
 
 function renderRows() {
@@ -3675,7 +3738,7 @@ function wireActionQueueControls() {
   qs("btnDetailJumpIndent")?.addEventListener("click", () => {
     if (!state.selected?.indent_id) return;
     closeDetailModal();
-    jumpToIndent(state.selected.indent_id);
+    jumpToIndent(state.selected.indent_id, state.selected.indent_number);
   });
   qs("detailModalBackdrop").addEventListener("click", (e) => {
     if (e.target.id === "detailModalBackdrop") closeDetailModal();
@@ -9099,37 +9162,44 @@ function toggleExcessFilterPanel() {
   });
 }
 
+// One builder for every Excess read (table page AND tab badge) so they can
+// never disagree: active/default filters incl. the preset date range.
+function buildExcessRpcParams(opts) {
+  const { limit, offset } = opts;
+  const search = (qs("eSearch")?.value || "").trim();
+  const filters = state.excessFilters;
+  const dateRange = getExcessDateRange();
+  const minQty = Number(filters.minQty) || 0;
+  return {
+    p_q: search || null,
+    p_material_class_code: filters.materialClassId
+      ? canonicalMaterialClassCode(filters.materialClassId)
+      : null,
+    p_date_from: dateRange.from || null,
+    p_date_to: dateRange.to || null,
+    p_min_qty: minQty > 0 ? minQty : null,
+    p_vendor_q: filters.vendorQ || null,
+    p_item_q: filters.itemQ || null,
+    p_unmapped_only: Boolean(filters.unmappedOnly),
+    p_limit: clampPageLimit(limit),
+    p_offset: offset,
+  };
+}
+
 async function loadExcess() {
   const run = pecLatest.excess.begin();
   setTabTableLoading("excess", true);
   try {
-    const search = (qs("eSearch")?.value || "").trim();
-    const filters = state.excessFilters;
     const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
-    // Dates come from the existing preset/custom logic; omitted => server
-    // applies NO date restriction, so always pass what the UI shows.
-    const dateRange = getExcessDateRange();
-    const minQty = Number(filters.minQty) || 0;
+    // Dates always come from the preset/custom logic; omitted => server applies
+    // NO date restriction (see buildExcessRpcParams).
     let result;
     try {
       result = await fetchPageWithRecovery(
         (page) =>
           rpcPecPaged(
             "proc_pec_purchase_excess_filtered_paged",
-            {
-              p_q: search || null,
-              p_material_class_code: filters.materialClassId
-                ? canonicalMaterialClassCode(filters.materialClassId)
-                : null,
-              p_date_from: dateRange.from || null,
-              p_date_to: dateRange.to || null,
-              p_min_qty: minQty > 0 ? minQty : null,
-              p_vendor_q: filters.vendorQ || null,
-              p_item_q: filters.itemQ || null,
-              p_unmapped_only: Boolean(filters.unmappedOnly),
-              p_limit: clampPageLimit(pageSize),
-              p_offset: page * pageSize,
-            },
+            buildExcessRpcParams({ limit: pageSize, offset: page * pageSize }),
             run.signal,
           ),
         state.excessPage,
@@ -11467,6 +11537,54 @@ function sortVendorBuylistRows(rows) {
   });
 }
 
+/**
+ * Complete retrieval through the paged contract. The unpaged
+ * proc_vendorwise_buylist_filtered is silently capped by PostgREST max_rows
+ * (1000 in this repo's supabase/config.toml and the Supabase default), which
+ * would yield an INCOMPLETE purchasing list; pages of <=200 are never capped.
+ * Completeness is verified against total_count; any mismatch aborts.
+ */
+async function fetchAllVendorBuylistPagedRows({
+  signal = null,
+  params = null,
+  operationalFilter = "",
+} = {}) {
+  const base = params || buildVwlRpcFilterParams();
+  const rows = [];
+  let total = null;
+  for (let offset = 0; offset <= 100000; offset += PEC_PAGE_LIMIT_MAX) {
+    const page = await rpcPecPaged(
+      "proc_vendorwise_buylist_operational_paged",
+      {
+        ...base,
+        p_operational_filter: operationalFilter || null,
+        p_limit: PEC_PAGE_LIMIT_MAX,
+        p_offset: offset,
+      },
+      signal,
+    );
+    if (total === null) {
+      total = page.total;
+      if (total > PEC_EXPORT_MAX_ROWS) {
+        const err = new Error(
+          `Export has ${total} rows, above the safe limit of ${PEC_EXPORT_MAX_ROWS}. Narrow the filters and export again; nothing was truncated.`,
+        );
+        err.pecExportTooLarge = true;
+        throw err;
+      }
+    }
+    if (!page.rows.length) break;
+    rows.push(...page.rows);
+    if (rows.length >= total) break;
+  }
+  if ((total ?? 0) !== rows.length) {
+    throw new Error(
+      `Incomplete retrieval (${rows.length} of ${total ?? 0} rows); nothing was exported. The list changed while loading - please retry.`,
+    );
+  }
+  return rows;
+}
+
 async function fetchVendorBuylistFilteredRows({
   signal = null,
   params = null,
@@ -11509,7 +11627,7 @@ async function loadVendorBuylist() {
     // keeps the legacy complete read + client filter. Every other mode is
     // filtered AND paged by the server.
     if (state.vwlFilters.splitOnly) {
-      const rawRows = await fetchVendorBuylistFilteredRows({ signal, params });
+      const rawRows = await fetchAllVendorBuylistPagedRows({ signal, params });
       if (!isCurrent()) return;
       await splitPromise;
       if (!isCurrent()) return;
@@ -11626,7 +11744,13 @@ function makeDateStamp() {
 }
 
 async function fetchAllVendorBuylistRows() {
-  let rows = sortVendorBuylistRows(await fetchVendorBuylistFilteredRows());
+  // Same upstream filters + operational vendor choice as the visible list, but
+  // every page (completeness verified), never just the visible page.
+  let rows = sortVendorBuylistRows(
+    await fetchAllVendorBuylistPagedRows({
+      operationalFilter: String(state.vwl.vendorFilterKey || "").trim(),
+    }),
+  );
 
   if (state.vwlFilters.splitOnly) {
     rows = rows.filter(isVwlSplitRow);
