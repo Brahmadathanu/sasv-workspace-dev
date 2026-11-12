@@ -1,3 +1,5 @@
+> **R33 UPDATED CURRENT-MAIN REVIEW — 12 NOV 2026:** [R33 candidate reconciliation](WP05_R33_OPTION_A_CURRENT_MAIN_CANDIDATE_ALIGNMENT_2026-11-12.md): previous diverged **draft #311 closed unmerged** and superseded by **draft #315**, created at main `013e2bac...` with all six old candidate files unchanged, now 0 behind; exact-head isolated PG17 **10/10 PASS**, offline structural PASS ([CI 43172483197](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/43172483197)). **No production execution authorisation or application**, no effective signed-in role proof, W5-06 OPEN and 6/13.
+
 # WP05 R32 — Option A Scheme audit production-execution decision packet (12 November 2026)
 
 **STATUS: PRE-FLIGHT REVIEW ONLY — PRODUCTION EXECUTION NOT AUTHORISED.** The owner approved the *business policy* Option A (R28); no explicit second approval for application of SQL to live Supabase has been received. This packet adds no permission, does not run any migration, and does not promote W5-06. Formal WP05 remains **6/13**.
