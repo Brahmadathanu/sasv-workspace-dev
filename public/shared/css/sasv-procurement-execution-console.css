@@ -304,7 +304,6 @@ body.sasv-pec .card {
   border-radius: var(--sasv-radius-md, 8px);
   box-shadow: var(--sasv-shadow-sm);
 }
-body.sasv-pec .table-topbar h2,
 body.sasv-pec .section-title,
 body.sasv-pec .card h2 {
   margin: 0;
@@ -318,24 +317,6 @@ body.sasv-pec .pec-section-note {
   font-size: var(--sasv-text-xs, 0.75rem);
   line-height: 1.4;
   color: var(--sasv-text-muted);
-}
-body.sasv-pec .table-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-body.sasv-pec .table-topbar > div:first-child {
-  min-width: 0;
-}
-body.sasv-pec .pager-mini {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  color: var(--sasv-text-muted);
-  font-size: var(--sasv-text-sm, 0.8125rem);
 }
 body.sasv-pec .pec-search-card {
   background: var(--sasv-surface);
@@ -645,21 +626,6 @@ body.sasv-pec .export-dropdown {
   max-width: calc(100vw - 16px);
 }
 @media (max-width: 520px) {
-  /* Pager row: keep export + count + prev/page/next on one line at 320px */
-  body.sasv-pec .pager-mini {
-    flex-wrap: nowrap;
-    gap: 4px;
-    min-width: 0;
-  }
-  body.sasv-pec .pager-mini .icon-btn {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-  }
-  body.sasv-pec .pager-mini .muted {
-    white-space: nowrap;
-    font-size: var(--sasv-text-xs, 0.75rem);
-  }
   /* Indent / PR detail dialogs: title on its own full-width row, actions below */
   body.sasv-pec #indentViewModalBackdrop .modal-header > div:first-child,
   body.sasv-pec #prViewModalBackdrop .modal-header > div:first-child {
@@ -667,7 +633,7 @@ body.sasv-pec .export-dropdown {
   }
   body.sasv-pec #indentViewModalBackdrop .modal-header > div:first-child > div:first-child,
   body.sasv-pec #prViewModalBackdrop .modal-header > div:first-child > div:first-child {
-    flex: 1 1 100% !important;
+    flex: 1 1 calc(100% - 52px) !important;
     min-width: 0;
   }
 }

@@ -318,36 +318,6 @@ function rpcPecExcessAuditPaged({ limit, offset, signal }) {
   );
 }
 
-/**
- * Latest-wins guard per lens: beginning a new run aborts the previous request
- * and makes its eventual response a no-op (typing, filter changes, paging and
- * fast tab toggling can never paint older data).
- */
-function createLatestWins() {
-  let seq = 0;
-  let ctrl = null;
-  return {
-    begin() {
-      const mine = ++seq;
-      ctrl?.abort();
-      const mineCtrl = typeof AbortController === "function" ? new AbortController() : null;
-      ctrl = mineCtrl;
-      return {
-        signal: mineCtrl?.signal || null,
-        isCurrent: () => mine === seq,
-        done() {
-          if (ctrl === mineCtrl) ctrl = null;
-        },
-      };
-    },
-  };
-}
-const pecLatest = {
-  pr: createLatestWins(),
-  indents: createLatestWins(),
-  excess: createLatestWins(),
-  excessAudit: createLatestWins(),
-};
 
 // ─── PEC-R2: bounded, server-backed incremental feed (replaces numbered pagers) ──
 // One mechanism for PR, Indents, Excess, Audit and Vendor-wise: pages of
@@ -640,25 +610,19 @@ const state = {
   selected: null,
   actionLoaded: false,
   // PR tab
-  prPage: 0,
   prRows: [],
   selectedPr: null,
   prLinesRows: [],
   // indents tab
-  indentsPage: 0,
   indentsRows: [],
   selectedIndent: null,
   currentIndentId: null,
   indentLinesRows: [],
   selectedIndentLine: null,
   // excess tab
-  excessPage: 0,
   excessTotalCount: 0,
-  excessTotalPages: 1,
   excessRows: [],
-  excessAuditPage: 0,
   excessAuditTotalCount: 0,
-  excessAuditTotalPages: 1,
   excessAuditRows: [],
   excessModal: null,
   excessFilters: {
@@ -673,7 +637,6 @@ const state = {
   },
   // vendor-wise buylist tab
   vwl: {
-    page: 0,
     pageSize: 75,
     totalCount: null,
     search: "",
@@ -1616,7 +1579,11 @@ function toggleExportMenu(menuId, btnEl) {
   closeAllExportMenus({ exceptId: menuId });
   menu.classList.add("open");
   btnEl.setAttribute("aria-expanded", "true");
-  clampExportDropdownToViewport(menu.querySelector(".export-dropdown"));
+  const dd = menu.querySelector(".export-dropdown");
+  // Some menus are un-hidden by their click handler right AFTER this call, so
+  // measure on the next frame, when the dropdown really has a box.
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => clampExportDropdownToViewport(dd));
+  else clampExportDropdownToViewport(dd);
 }
 
 // The dropdown is anchored to the right edge of its button; on narrow screens
@@ -1628,6 +1595,7 @@ function clampExportDropdownToViewport(dd) {
   dd.style.right = "0";
   const vw = document.documentElement.clientWidth;
   let r = dd.getBoundingClientRect();
+  if (!r.width) return; // not displayed (yet)
   if (r.left >= 8) return;
   dd.style.right = "auto";
   dd.style.left = "0";
@@ -1796,17 +1764,6 @@ function setModalProcessing(backdropId, active, text = "Processing…") {
 }
 
 const tabLoadingControlStates = new WeakMap();
-
-// A renderer that computes pager state while a tab load is in flight must also
-// update the snapshot taken when the load began; otherwise the end-of-load
-// restore would put back the PRE-render disabled state (e.g. Prev stuck
-// disabled after moving to page 2).
-function setPagerDisabled(btn, disabled) {
-  if (!btn) return;
-  btn.disabled = Boolean(disabled);
-  const saved = tabLoadingControlStates.get(btn);
-  if (saved) saved.disabled = Boolean(disabled);
-}
 
 function isTabPanelLoadingControl(control) {
   if (
@@ -2482,7 +2439,6 @@ async function jumpToIndent(indentId, indentNumber = "") {
   qs("iStatus").value = "";
   qs("iClass").value = "";
   qs("iSearch").value = "";
-  state.indentsPage = 0;
   let header = null;
   try {
     [header] = await Promise.all([
@@ -5900,18 +5856,15 @@ function wireProcurementSnapshotRefreshButton() {
 
 function wireIndentControls() {
   qs("iStatus").addEventListener("change", () => {
-    state.indentsPage = 0;
     loadIndents();
   });
   qs("iClass").addEventListener("change", () => {
-    state.indentsPage = 0;
     loadIndents();
   });
   wireLiveSearchInput({
     inputId: "iSearch",
     clearId: "iSearchClear",
     onSearch: () => {
-      state.indentsPage = 0;
       loadIndents();
     },
   });
@@ -7081,7 +7034,6 @@ async function saveCreateIndent() {
     "success",
   );
   closeCreateIndentModal();
-  state.indentsPage = 0;
   await loadIndents();
   // Auto-select the new indent (by indent_id returned from RPC or first row)
   const newId = data?.indent_id ?? data;
@@ -7166,7 +7118,6 @@ async function saveIndentFromPr() {
   if (qs("prViewModalBackdrop")?.classList.contains("show")) {
     closePrViewModal();
   }
-  state.indentsPage = 0;
   await loadIndents();
   const newId = data?.indent_id ?? data;
   if (newId) {
@@ -8008,8 +7959,6 @@ const prLinesFooter = createFeedFooter({
 
 function updatePrLinePagingUi(total) {
   const rangeEl = qs("prLineRange");
-  const prevBtn = qs("prLinePrev");
-  const nextBtn = qs("prLineNext");
   const shown = total ? Math.min(prLineVisibleCount, total) : 0;
   prLinesFooter.paint({ loaded: shown, total, loading: false, error: null, ended: shown >= total, capped: false, loadedOnce: total > 0 });
   if (rangeEl) {
@@ -8018,8 +7967,6 @@ function updatePrLinePagingUi(total) {
       ? `Showing ${shown} of ${total} lines`
       : "No matching lines";
   }
-  if (prevBtn) prevBtn.disabled = true;
-  if (nextBtn) nextBtn.disabled = shown >= total;
 }
 
 function resetPrLinesInfiniteScroll(resetScrollTop = true) {
@@ -8957,7 +8904,6 @@ async function generateDraftPr() {
   toast("Draft PR generated.", "success");
   closeGeneratePrModal();
   // Reload list
-  state.prPage = 0;
   await loadPrHeaders();
 }
 
@@ -9182,17 +9128,6 @@ function wirePrControls() {
     prLinePageSize = Number.isFinite(sizeVal) && sizeVal > 0 ? sizeVal : 50;
     applyPrLineFiltersAndRender();
   });
-  qs("prLinePrev")?.addEventListener("click", () => {
-    // Infinite scroll mode: Prev paging is intentionally disabled.
-  });
-  qs("prLineNext")?.addEventListener("click", () => {
-    const total = prLineFiltered.length;
-    if (prLineVisibleCount >= total) return;
-    prLineVisibleCount = Math.min(prLineVisibleCount + prLinePageSize, total);
-    renderPrLinesPage();
-  });
-  qs("prLinePrev")?.setAttribute("aria-disabled", "true");
-  qs("prLinePrev")?.setAttribute("title", "Disabled in infinite scroll mode");
   qs("prLinesScroll")?.addEventListener("scroll", () => {
     maybeLoadMorePrLines();
   });
@@ -9212,7 +9147,6 @@ function wirePrControls() {
   });
   ["prFilterStatus", "prFilterClass"].forEach((id) =>
     qs(id).addEventListener("change", () => {
-      state.prPage = 0;
       loadPrHeaders();
     }),
   );
@@ -9220,7 +9154,6 @@ function wirePrControls() {
     inputId: "prSearch",
     clearId: "prSearchClear",
     onSearch: () => {
-      state.prPage = 0;
       loadPrHeaders();
     },
   });
@@ -9417,7 +9350,6 @@ function getExcessFilterSummary() {
 
 function applyExcessFilterChange(patch = {}) {
   Object.assign(state.excessFilters, patch);
-  state.excessPage = 0;
   syncExcessFilterBadge();
   loadExcess();
 }
@@ -9594,7 +9526,6 @@ async function loadExcessAuditPaged() {
 function openExcessAuditModal() {
   const backdrop = qs("eAuditModalBackdrop");
   if (!backdrop) return;
-  state.excessAuditPage = 0;
   backdrop.removeAttribute("inert");
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
@@ -9721,7 +9652,6 @@ function wireExcessControls() {
     inputId: "eSearch",
     clearId: "eSearchClear",
     onSearch: () => {
-      state.excessPage = 0;
       loadExcess();
     },
   });
@@ -12662,7 +12592,6 @@ function wireVendorBuylistControls() {
     debounceMs: 250,
     onSearch: (query) => {
       state.vwl.search = query;
-      state.vwl.page = 0;
       syncVwlFilterBadge();
       loadVendorBuylist();
     },
@@ -12670,7 +12599,6 @@ function wireVendorBuylistControls() {
 
   qs("vwlVendorFilter")?.addEventListener("change", (e) => {
     state.vwl.vendorFilterKey = e.target.value || "";
-    state.vwl.page = 0;
     syncVwlFilterBadge();
     loadVendorBuylist();
   });
@@ -12683,21 +12611,18 @@ function wireVendorBuylistControls() {
     );
 
     refreshVwlRmScopeAvailability();
-    state.vwl.page = 0;
     syncVwlFilterBadge();
     loadVendorBuylist();
   });
 
   qs("vwlRmScopeFilter")?.addEventListener("change", () => {
     state.vwlFilters.rmScope = qs("vwlRmScopeFilter")?.value || "";
-    state.vwl.page = 0;
     syncVwlFilterBadge();
     loadVendorBuylist();
   });
 
   qs("vwlRateStatusFilter")?.addEventListener("change", () => {
     state.vwlFilters.rateStatus = qs("vwlRateStatusFilter")?.value || "";
-    state.vwl.page = 0;
     syncVwlFilterBadge();
     loadVendorBuylist();
   });
@@ -12705,14 +12630,12 @@ function wireVendorBuylistControls() {
   qs("vwlAssignmentStatusFilter")?.addEventListener("change", () => {
     state.vwlFilters.assignmentStatus =
       qs("vwlAssignmentStatusFilter")?.value || "";
-    state.vwl.page = 0;
     syncVwlFilterBadge();
     loadVendorBuylist();
   });
 
   qs("vwlShowSplitOnly")?.addEventListener("change", (e) => {
     state.vwlFilters.splitOnly = Boolean(e.target.checked);
-    state.vwl.page = 0;
     syncVwlFilterBadge();
     loadVendorBuylist();
   });
@@ -12764,7 +12687,6 @@ function wireVendorBuylistControls() {
     if (qs("vwlVendorFilter")) qs("vwlVendorFilter").value = "";
 
     refreshVwlRmScopeAvailability();
-    state.vwl.page = 0;
     syncVwlFilterBadge();
     loadVendorBuylist();
   });
