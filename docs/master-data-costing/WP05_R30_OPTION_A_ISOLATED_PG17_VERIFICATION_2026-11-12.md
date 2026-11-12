@@ -1,3 +1,5 @@
+> **SUPERSEDING SERVICE-ROLE ACL FINDING — 12 NOV 2026:** [R31 independent ACL-parity review](WP05_R31_PPM_AUDIT_ACL_PARITY_INDEPENDENT_REVIEW_2026-11-12.md) establishes that production `service_role` **does not have SQL SELECT** on the Scheme audit view, despite being named in its outer predicate. The original R30 PG17 fixture accidentally granted that extra SQL privilege and therefore overstated service_role continuity. Draft #311 corrected; latest isolated PostgreSQL 17.11 CI **10/10 PASS** with service_role denied, postgres owner permitted, PPM View permitted, Costing-only viewers denied, rollback and drift guards verified. All production rows and user-role behaviour NT, production unchanged; R31 controls that nuance.
+
 # WP05 R30 — Option A audit-view isolated PostgreSQL 17 verification (12 November 2026)
 
 **Evidence checkpoint only.** Owner approved *PPM View-only business policy* under R28, not production execution. Candidate PR [#311](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/311) remains **DRAFT, UNMERGED**, and neither its apply nor rollback SQL was run on production. Formal programme 6/13, W5-06 OPEN.
