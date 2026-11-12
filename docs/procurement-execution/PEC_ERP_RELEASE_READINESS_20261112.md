@@ -32,3 +32,9 @@
 ## Sign-off template
 
 Record per check `PASS / FAIL / BLOCKED / DEFER`, timestamp IST, hosted asset SHA, account role class (no personal identifiers), exact PR/test fixture identifiers, before/after rows, screenshots or console logs where permitted, and owner decision. **Do not alter the ERP gate count from 0/6 without meeting its exact exit criterion**. G0 source/role inventory evidence and G1 server/client contract can be reviewed on their own; G4 requires real responsive/security/functional acceptance, and G5 actual owner-approved integration and hosted verification.
+
+## 12 Nov source review addendum — export snapshot consistency
+
+The #335 Vendor-wise full export now fetches all 200-row pages rather than trusting the capped 1,000-row RPC, but its `rows.length===total_count` completeness assertion does not detect an offset-page duplicate + omission with unchanged total during concurrent writes. The row identity helper `getVwlOperationalRowKey` provides a grounded composite key `(vendor bucket, material class, stock item, UOM)`; a duplicate-key and per-page total mismatch fail-closed test was requested on #335 (review comment 6821647548), along with a mutation-sensitive fixture where page boundaries shift. Do not silently de-duplicate export rows. Even a distinct-key check cannot prove a consistent database snapshot across multiple requests; operational export acceptance should compare against a stable fixture and warn/retry under concurrent edits.
+
+This is a **new pending client review item**, not grounds to mark existing 94 synthetic paging checks failed. Preserve owner final approval and formal gate status 0/6.
