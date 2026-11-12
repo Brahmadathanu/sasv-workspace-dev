@@ -57,3 +57,24 @@ Prevent an RM/PM/eligible nonproduction stock item being excluded or underprovid
 **Implementation sequence:** owner reviews policy D1–D5 → build pure calculation oracle against synthetic inputs → read-only data extraction and classification → preview RPC with strict permissions → signed-in operator acceptance → separately approved writer integration, if ever.
 
 **Programme:** G0 active, 0/6 gates formally verified. This is a *proposed decision contract*, not a policy approval or a production SQL migration.
+
+## Stock-on-hand deduction — precise stage and as-of gate (2026-11-12)
+
+**Confirmed server workflow:** in `v_mrp_procurement_plan`, BOM gross monthly requirement is netted against `opening_qty_anchor` on the first horizon month, rounded to active MOQ, then the calculated `closing_qty` becomes the next month's opening stock. `create_pr_from_mrp_plan_pec_internal` subsequently copies and sums `procure_qty` over the PR horizon into PR lines. **Existing MRP stock deduction occurs before PR creation.** The draft CCF is a *parallel minimum-floor comparison after MRP's netting*, never a second subtraction from the MRP output.
+
+For a **fresh PR proposal**, create one immutable read/preview context with:
+- planning anchor date and chosen horizon; common inventory source watermarks and stock allocation/usable-stock rules;
+- `B` = existing MRP **net** PR proposal (not gross BOM requirement);
+- `F` = independently stock-netted whole-horizon consumption floor, same anchor and same stock basis;
+- `Q = max(B,F)`, not `B + F`, `B + max(0,F-stock)` or `max(0,B-stock,F-stock)`.
+- evaluate sources/units per item, and ensure a single stock pool is **not credited simultaneously to different demand groups** under an eventual time-phased extension.
+
+For an **already-created PR**, do **not** compare its historical saved `B` (based on old opening stock and historical MRP) against `F` using today's live stock and claim exact parity. PR header currently exposes `effective_from_date`, `horizon_start_month`, `horizon_end_month`, `generation_filters`, and `updated_at`; there is no explicit frozen stock-watermark or opening-stock quantity field in the inspected PR header/line columns. An editable draft PR requires an **as-of reconciliation**: historic opening baseline if reproducible, physical receipts/issues since PR generation, remaining needs for remaining coverage months, already linked indent/PO commitments, and manual deltas. If that lineage is not provable, provide *advisory-only* output flagged `ANCHOR_MISMATCH_REVIEW`—not an automatic top-up.
+
+**Example (synthetic, matching fresh planning anchors):** monthly consumption 1,000 × 3 months = 3,000; current usable stock 500; production gross BOM demand 2,000 and existing MRP net procurement `B=1500` (assuming no MOQ difference); CCF net `F=2500` (assuming no other firm inbound and no safety target); proposed PR `max(1500,2500)=2500`, not 4000. Stock 500 was considered once within each **alternative** calculation; these results were compared, not summed.
+
+**Current risk boundary:** The source stock view selects latest source snapshots, while the PR generation implementation does not freeze that stock snapshot identity in an explicit, inspected PR header field. This is a lifecycle governance gap to document before authorizing repeat calculations; adding an audit envelope to a future preview does not change an existing historical PR's original provenance.
+
+**Read-only source inspection:** `proc_pr_header` has `generation_filters` JSONB and horizon/effective dates, but inspection of the relevant PR header and line columns found **no dedicated immutable stock snapshot ID/date column**. `updated_at` is a change timestamp, not a reliable original stock reference. Do not infer stock snapshot date from PR number or effective date without source evidence.
+
+**Release gate:** no new data writes/SQL deployment and no CCF addition to PRs until stock anchor, commitment de-duplication and selected owner policy are verified.
