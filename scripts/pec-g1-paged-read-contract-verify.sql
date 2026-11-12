@@ -35,7 +35,7 @@ DECLARE first_n integer;second_n integer;overlap_n integer;
 BEGIN
  WITH ordered AS (
   SELECT purchase_fact_id, row_number() OVER (
-    ORDER BY voucher_date DESC NULLS LAST,purchase_fact_id DESC) rn
+    ORDER BY coalesce(net_unallocated_qty,0) DESC,voucher_date DESC NULLS LAST,purchase_fact_id DESC) rn
   FROM public.v_proc_purchase_excess_console
  ), a AS (SELECT purchase_fact_id FROM ordered WHERE rn BETWEEN 1 AND 200),
  b AS (SELECT purchase_fact_id FROM ordered WHERE rn BETWEEN 201 AND 400)
@@ -49,8 +49,11 @@ BEGIN
  WITH ordered AS (
   SELECT vendor_bucket_key,material_class_id,stock_item_id,uom_id,
   row_number() OVER (
-    ORDER BY vendor_bucket_key ASC NULLS LAST,
-             material_class_id ASC NULLS LAST,stock_item_id ASC,uom_id ASC) rn
+    ORDER BY CASE WHEN vendor_bucket_key='UNASSIGNED' THEN 1 ELSE 0 END,
+             vendor_bucket_name ASC NULLS LAST,
+             stock_item_name ASC NULLS LAST,uom_code ASC NULLS LAST,
+             vendor_bucket_key ASC NULLS LAST,material_class_id ASC NULLS LAST,
+             stock_item_id ASC,uom_id ASC) rn
   FROM public.v_proc_vendorwise_buylist
  ), a AS (SELECT * FROM ordered WHERE rn BETWEEN 1 AND 200),
  b AS (SELECT * FROM ordered WHERE rn BETWEEN 201 AND 400)
