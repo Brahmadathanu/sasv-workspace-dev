@@ -44,3 +44,24 @@ Proposed lines in a *new* PR preview should carry separate fields:
 **Owner governance question:** should long-outstanding indent balances without traceable purchase order be considered zero firm inbound, or require operator reconciliation before new PR top-ups? Proposed default `REVIEW_REQUIRED`, no automatic credit or new order. Existing working FIFO balance remains unchanged.
 
 **No mutations** were made to MRP, PRs, indents, purchase allocations, snapshots or service worker. No PR creation/rebuild or new RPC executed.
+
+## 2026-11-12 owner direction — pre-PR outstanding-indent adjustment
+
+Owner endorsed the principle that **remaining actionable commitments from earlier approved/issued indents must reduce a subsequent PR proposal**, instead of each PR repeatedly requisitioning the same uncovered period demand. This is a design direction, **not approval of a specific age threshold, lifecycle reconciliation or automated write**.
+
+**Proposed arithmetic for a fresh, stock-aligned PR period (not historical PR):**
+
+- `G_MRP`: existing net MRP procurement, already stock-netted and MOQ-adjusted.
+- `G_CCF`: net consumption-coverage requirement, already stock-netted with same anchor but **before** incremental purchasing MOQ rounding.
+- `G = max(G_MRP, G_CCF)`, compare alternatives, do not add.
+- `K`: **eligible, actionable and undelivered** old-indent commitment *attributable to the PR coverage interval* and NOT part of stock-on-hand, nor a second count of a linked PR/PO. Use `v_proc_indent_line_balance` as starting evidence; it is an accounting balance, not a supply promise.
+- `N = max(0, G - K)`. The candidate `Q` for any **new** PR is `N` rounded once to the applicable **incremental** MOQ/pack quantum or integer Nos quantum. If the existing MRP `G_MRP` already contains MOQ excess and stock carry, verify this accounting through time-phased replay before accepting `max` as a final production formula.
+- **Non-actionable/stale** indents are not assumed valid zero or valid incoming supply. They enter `INDENT_RECONCILIATION_REQUIRED` with `K_eligible` unresolved until designated operator confirms carry-forward/expiry/cancellation/reissue. Do not blindly treat their whole remaining balance as a guaranteed future delivery.
+
+**Why subtract before rounding the new order:** Example fresh gross coverage `11,780.17 Kg`, active eligible old commitment `4,000 Kg`, MOQ `50 Kg` yields new incremental `ceil((11780.17-4000)/50)*50 = 7,800 Kg`, rather than rounding 11,780.17 first and then subtracting without validating the resulting order multiple. This is an arithmetic example, not a verified eligible existing indent.
+
+**Panchasara caution:** the actual three old approved indents leave 61,250 Kg remaining in the FIFO accounting view. The hypothetical period's consumption diagnostic 11,800 Kg would yield a **zero new PR** only if the relevant 61,250 Kg really is actionable, available over the desired horizon and not cancelled, superseded, long-overdue or unreliable. As of this inspection, those conditions are **unverified**; do not assert new PR=0 as approved or ignore material shortage risk.
+
+**Required ledger gate:** status; indent approval/effective/issue dates; explicit cancellation or supersession; amount already received and included in on-hand; undelivered amount; linkage PR→indent→PO→purchase (including invoices/purchase fact FIFO); supplier acknowledgment and projected ETA; UOM/class; overlap of multiple indents for a stock item; horizon coverage and stock snapshot. A deterministic stale threshold must be approved by owner and should raise a *reconciliation exception*, never silently cancel historic indents.
+
+**User-interface proposal:** In new PR preview show MRP net, CCF gross/net, existing on-hand, current active-indent balance, eligible carry-forward commitment, excluded/uncertain balance, difference after commitments, final new-order rounding, and each indent reference with reason. Apply no automatic PR writer until preview evidence and owner policy are accepted.
