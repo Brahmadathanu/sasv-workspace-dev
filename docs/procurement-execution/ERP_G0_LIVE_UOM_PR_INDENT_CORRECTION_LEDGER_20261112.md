@@ -82,3 +82,11 @@ December has **34 current positive products not present among the old 357** (141
 - Source-control migration and evidence are in **unmerged PR #287**; run a main-line review for schema/function drift before merge. The migration mirrors **live** applied changes and should not be mistaken for approval of an MRP detail rebuild.
 
 **Programme status remains G0 active, 0/6 formal gates verified.**
+
+## 12 Nov 2026 — Approved-indent legacy reduction transactional verification
+
+An actual legacy line reduction was attempted with `BEGIN ... ROLLBACK` on approved indent **#84**, item #427, **260 Nos → 259 Nos** via `proc_indent_add_line_pec_internal`. The internal-material increase guard correctly allowed the attempted decrease to reach the subsequent snapshot-refresh call. The refresh wrapper then refused the test with `Not authenticated`, as the administrative SQL session has no real `auth.uid()`. The attempted transaction was not committed. Postcheck: line quantity **260 Nos**, no lifecycle audit record under the test reason, refresh control requested/completed/published revisions **120/120/120**. No positive-path or end-to-end acceptance can be claimed from this.
+
+This precisely locates the remaining gate: authorized editor session and downstream refresh completion, rather than an observed quantity-guard failure. `authenticated` role has no direct UPDATE grant on `proc_pr_line`, so the invoker-mode direct requested-quantity function is not a current ordinary-role write bypass.
+
+Reproducible evidence: `ERP_G0_APPROVED_INDENT_REDUCTION_ROLLBACK_EVIDENCE_20261112.md`, commit `ab7ea6d`. Full MRP rebuild still on hold; G0 **0/6**.
