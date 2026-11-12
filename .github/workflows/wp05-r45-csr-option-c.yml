@@ -1,0 +1,39 @@
+name: WP05 R45 CSR Option C isolated PG17
+on:
+  pull_request:
+    paths:
+      - "docs/master-data-costing/candidates/WP05_R45_CSR_OPTION_C_*.sql"
+      - "scripts/wp05-r45-csr-option-c/**"
+      - ".github/workflows/wp05-r45-csr-option-c.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/wp05-r45-csr-option-c/**"
+jobs:
+  postgres17:
+    runs-on: ubuntu-latest
+    permissions: {contents: read}
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-r45-csr
+          POSTGRES_DB: wp05_csr_fixture
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d wp05_csr_fixture"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      WP05_ISOLATED_PG: "YES"
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGUSER: "postgres"
+      PGPASSWORD: "isolated-r45-csr"
+      PGDATABASE: "wp05_csr_fixture"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - name: Verify exact CSR Option C two-view SQL, nested invoker, role matrix and rollback
+        run: node --test scripts/wp05-r45-csr-option-c/csr-option-c-pg17.test.mjs
