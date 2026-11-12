@@ -42,3 +42,13 @@ The full ordered five-migration SQL payload was fetched from this clean branch a
 GitHub compare after opening draft integration PR: branch **6 commits ahead / 0 behind main**, exactly **6 changed files** (five migrations + this report). Netlify deploy-preview status reported **success** for PR #317. This is a deployment-preview status only, not evidence that the authenticated procurement workflow was executed.
 
 **Review disposition:** narrow PR #317 can move to independent review/CI. Do not merge while authorized PEC editor positive-path, view JWT/RLS parity and owner approval remain outstanding. Keep documentary PR #287 unmerged and do not apply its full diverged commit history.
+
+## Live postmigration regression guard and G0 baseline progress (12 Nov 2026)
+
+A new **SELECT-only/asserting SQL** verifier `scripts/pec-g0-postmigration-contract-verify.sql` (commit `b5be2c0`) was run on live SASV Supabase and returned `PEC_G0_POSTMIGRATION_PASS`. It verifies Kg→g=1000, reciprocal g→Kg=0.001, identity Nos, rejection of Kg↔Nos, zero wrong-UOM BOM lines for four designated materials, zero UOM mismatch on ordinary RM planning rows in the Nov–Jan horizon, no null RM gross requirement, **8/8** forward writer functions retain internal-material classification guards, and safe resync manual-line preservation marker.
+
+This verifier is a **contract smoke**, not a replacement for isolated clean install, full suite, app-session RLS, or end-to-end operator tests. No test purchase records created; no MRP refresh.
+
+Separately, current `main` canonical shared client HTML/JS was inspected: five primary lenses and **44 direct `.rpc` occurrences / 43 unique literal names**. This preliminary G0 baseline inventory was committed to broad documentation branch #287 as `ERP_G0_CURRENT_MAIN_CLIENT_RPC_INVENTORY_20261112.md` (commit `eeaee50`). It is not yet the required full five-lens DOM/permissions/control matrix. Therefore formal PEC G0 remains **0/6 gates**.
+
+Remaining release checks: run actual authenticated PEC edit session (without simulated JWT), confirm approved legacy-indent reduction → snapshot publication on controlled safe target, review view RLS parity, and get independent owner-approved PR merge. The production MRP full rebase and S4 hybrid feature remain outside this narrow PR.
