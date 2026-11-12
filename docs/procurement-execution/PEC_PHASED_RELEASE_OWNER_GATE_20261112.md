@@ -1,10 +1,10 @@
 # PEC — Fast-track phased release decision and executable gates (12 November 2026)
 
-**Status: FOR OWNER REVIEW — no authorization presumed.** Programme #284, consolidated CI candidate #347, source PRs #317/#323, #291/#301/#320/#335, cache #342, independent draft-edit proposal #356; hybrid policy #305. Supabase project `qhmoqtxpeasamtlxaoak`. Preserve approved financial/procurement records and PWA/Electron shared source.
+**Status: OWNER PHASING DECISION APPROVED (A ONLY), 12 November 2026. Production SQL, migration-history repair, merges and deployment are NOT approved.** Programme #284, consolidated CI candidate #347, source PRs #317/#323, #291/#301/#320/#335, cache #342, independent draft-edit proposal #356; hybrid policy #305. Supabase project `qhmoqtxpeasamtlxaoak`. Preserve approved financial/procurement records and PWA/Electron shared source.
 
 ## Decision to reduce critical path
 
-**Phase A: release already-built five-lens/paged PEC functionality** (G0/G1 server previously applied; C1/C2 responsive shared client, immediate vendor workflow, page/filter/export, PWA network-first asset update). Do **not** wait on original #284's previously deferred manual-draft quantity/date editing **if owner explicitly accepts deferred scoped release**. Do **not** include hybrid #305 or draft-edit proposal #356 in Phase A.
+**Phase A: prepare for release of already-built five-lens/paged PEC functionality** (G0/G1 server previously applied; C1/C2 responsive shared client, immediate vendor workflow, page/filter/export, PWA network-first asset update). Do **not** wait on original #284's previously deferred manual-draft quantity/date editing **under the owner's approved Phase A/Phase B scope split**. Do **not** include hybrid #305 or draft-edit proposal #356 in Phase A.
 
 **Phase B: complete original manual-draft edit requirements:** #356 isolated PostgreSQL 17.11 source/runtime fixture and hardened negative oracle PASS; still needs real schema/permissions, authoritative allocation/snapshot rules, explicit owner policy decision, guarded server deployment, and shared Electron/PWA editing client acceptance. Treat as mandatory original issue scope until explicitly closed or deferred by owner—not silently declared finished.
 
@@ -30,7 +30,7 @@ Stop and return to owner on failed source/live parity, new SQL drift, SQL replay
 
 ## Owner decisions requiring express approval
 
-**A. Phasing:** accept Phase A five-lens release before Phase B manual-draft editing, keeping both Phase B and hybrid separately open.
+**A. Phasing — APPROVED by owner in chat (12 Nov 2026):** proceed with Phase A five-lens release preparation before Phase B manual-draft editing; keep Phase B and hybrid separately open. This approval authorizes planning, testing and source/documentation work, **not merge, production deployment or migration-history repair**.
 
 **B. Controlled promotion:** approve the exact frozen source PR dependency order and production deployment only once remaining role/PWA/Electron gates are verified.
 
