@@ -1,14 +1,14 @@
 {
-  "sha": "9894213fcb3a7aa0e65221de2e689a6f1b52b80b",
-  "generated": "2026-11-12T19:17:36.385Z",
+  "sha": "78ca1b55068350a1a362c85d5d774b8780f93f90",
+  "generated": "2026-11-12T19:26:23.055Z",
   "widths": [
     320,
     390,
     820,
     1440
   ],
-  "pass": 162,
-  "fail": 2,
+  "pass": 164,
+  "fail": 0,
   "results": [
     {
       "id": "console renders (editor fixture) @320px",
@@ -532,8 +532,8 @@
     },
     {
       "id": "Excess filter drawer @820px",
-      "ok": false,
-      "detail": "overlap: #eFItemQ x .pec-filter-clear-btn \"Clear\" (67x6); overlap: #eFItemQ x .pec-filter-done-btn \"Done\" (67x6)"
+      "ok": true,
+      "detail": ""
     },
     {
       "id": "Excess acceptance audit dialog @820px",
@@ -737,8 +737,8 @@
     },
     {
       "id": "Excess filter drawer @1440px",
-      "ok": false,
-      "detail": "overlap: #eFItemQ x .pec-filter-clear-btn \"Clear\" (67x6); overlap: #eFItemQ x .pec-filter-done-btn \"Done\" (67x6)"
+      "ok": true,
+      "detail": ""
     },
     {
       "id": "Excess acceptance audit dialog @1440px",
