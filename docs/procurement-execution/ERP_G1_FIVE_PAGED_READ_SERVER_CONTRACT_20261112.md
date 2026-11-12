@@ -66,3 +66,32 @@ Claude's #320 full PR is stacked on #291/#301; **do not merge its current broad 
 These are **two isolated administrator plans**, not controlled repetitions, network transmission timings, p95, signed-in RPC executions, or statistically valid comparison. They show that `count(*) OVER()` can require full-data computation even with a bounded response, so **the new RPC should not be described as a proven latency improvement**. Its bounded result helps transfer/render size, not necessarily database execution cost. Need realistic authenticated runs, client-side total/filter semantics, repeated latency benchmarking and possible separate count/optimized paging strategy before performance acceptance.
 
 **Further design caveat:** the new PR, Indents and Excess paged functions currently lack corresponding server filter inputs used by their client lists. Running existing client-side filters only on each page could omit matching results. **Do not switch those lenses to paged RPCs without synchronized server-filter contracts** and relevant export semantics; only Vendor-wise has the existing five upstream filters and even there client search/selection/export must be checked.
+
+## 12 Nov: Client parity of all three remaining sort orders
+
+Direct inspection of the current canonical shared JS found the actual **post-filter, pre-page** sort:
+- PR Workbench: `rows.sort(compareNumDesc(pr_id))`, i.e. `pr_id DESC`, **not** `updated_at DESC`.
+- Indents: `rows.sort(compareNumDesc(indent_id))`, i.e. `indent_id DESC`, **not** `updated_at DESC`.
+- Excess & Overshoot: `net_unallocated_qty DESC` (JS treats null as zero); tie `voucher_date DESC`; the legacy source read already sorted by `voucher_date DESC,purchase_fact_id DESC`, so JS stable sort preserves `purchase_fact_id DESC` as final tie-breaker.
+
+The first version of PR #323 had different orders for all three. **Live RPC definitions and the as-yet-unmerged migration were corrected** (commit `be12b7f`) to the above exact semantics. Excess verified against a source SQL reconstruction of the stable client sort on **all 13,311 records**: **0 position mismatches**; PR/Indent RPC sort clauses confirmed by the live function source. The same server migration also preserves the canonical Vendor-wise business sort as separately recorded. Regression `scripts/pec-g1-paged-read-contract-verify.sql` updated with real function-source assertions and full Excess/Vendor ordering parity; result `PEC_G1_LEGACY_CLIENT_SORT_PARITY_PASS` (commit `ab899f4`). This is **catalogue and source-equivalent parity**, not a signed-in UI acceptance.
+
+## G1 next contract: server filtering BEFORE paging, not after it
+
+The current client makes the following filters **before** `slicePage`. These must become server filters if switching to true paged reads, otherwise the UI can show a misleadingly empty page and wrong `total_count` despite matches on another server page:
+
+| Lens | Current client filters | Sorting |
+|---|---|---|
+| PR | exact status, material class ID, PR number contains-text | PR ID descending |
+| Indents | exact status, material class ID, indent number contains-text | Indent ID descending |
+| Excess | quick item-name contains-text; canonical class code; explicit date from/to (default rolling 30 days, calculated in browser); minimum net unallocated quantity; vendor display name contains-text; item name/code contains-text; unmapped-only vendor | net unallocated qty descending; voucher date descending; purchase fact ID descending (tie) |
+| Audit | no filter currently, ordered acceptance timestamp DESC then ID | accepted_at descending |
+| Vendor-wise | material class ID, RM scope, rate status, assignment status, search via existing upstream RPC; **also** check the operational vendor-bucket local filter and split indicators before adopting paging | assigned groups first, UNASSIGNED last, vendor/item/UOM; deterministic technical ties |
+
+**Required future server contract:** apply all filters inside the data selection **before** `count(*) OVER()` and `LIMIT/OFFSET`; reset page on filter changes; make date bounds ISO dates provided by client (do not recompute based on database timezone); preserve use of SQL literal-safe parameters, empty search as no filter, null handling, identity/duplicate ordering and complete exports. Consider new separately versioned filtered RPCs or carefully review signature migration before replacing currently deployed additive calls. Until this is done, the current PR/Indent/Excess endpoints are **building blocks, not production-ready replacements for the filtered UI**.
+
+**Performance checkpoint:** single-run Purchase Excess query-equivalent 100-row page with count measured ~1.117 seconds, while an unpaged result computed ~0.943 seconds on another single run. No p95/real JWT evidence or conclusion of speedup.
+
+## PR #320 diff correction
+
+A previous reviewer warning misclassified a **23-commit branch-to-branch ancestry comparison** against old C2 as an unexpected merged-scope risk. Rechecking GitHub's **actual PR #320 changed-file list** and the current-main diff returned **52/52 PEC-scoped files, zero WP05/lab/SW files**. The earlier warning was explicitly retracted on #320 (comment `6819885243`). This is **not a current unrelated-file merge blocker**. Genuine requirements remain stacked merge order #291→#301→#320, #319 Full→RESET reconciliation and the control-inventory FAIL/FIX test improvement.
