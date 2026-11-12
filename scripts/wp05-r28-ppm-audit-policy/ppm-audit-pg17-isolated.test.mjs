@@ -121,6 +121,7 @@ const md5=()=>psql("SELECT md5(pg_get_viewdef('public.v_costing_scheme_master_au
 test("synthetic baseline reproduces original exact view fingerprint",()=>assert.equal(md5(),originalHash));
 test("baseline original four-module helper yields expected role contrast",()=>{
  assert.equal(count(users.ppm),0);
+ assert.throws(()=>count(null,"service_role"),/permission denied/);
  for(const k of ["ccc","cbm","csr","mcm"])assert.equal(count(users[k]),1,k);
 });
 test("approved candidate SQL parses, applies and preserves SQL grants and 20 columns",()=>{
@@ -137,7 +138,7 @@ test("PPM View and mixed-scope reader positive, costing-only viewers denied",()=
  assert.equal(count(users.mixed),1);
  for(const k of ["ccc","cbm","csr","mcm"])assert.equal(count(users[k]),0,k);
 });
-test("edit-only and absent UID deny; privileged service remains eligible",()=>{
+test("edit-only and absent UID deny; postgres owner allowed, service_role SQL SELECT denied",()=>{
  assert.equal(count(users.edit),0);
  assert.equal(count(null),0);
  assert.throws(()=>count(null,"service_role"),/permission denied/);
@@ -159,6 +160,7 @@ test("rollback refuses a syntactically valid but changed PPM view before restori
 test("guarded rollback restores original view and prior role behaviour",()=>{
  psql(rollback);
  assert.equal(md5(),originalHash);
+ assert.throws(()=>count(null,"service_role"),/permission denied/);
  assert.equal(count(users.ppm),0);
  for(const k of ["ccc","cbm","csr","mcm"])assert.equal(count(users[k]),1,k);
 });
