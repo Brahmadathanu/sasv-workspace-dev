@@ -51,6 +51,8 @@ const code = [
     "rpcPecPaged",
     "fetchPageWithRecovery",
     "normalizeVwlServerFilterOptions",
+    "getVwlOperationalBucketKey",
+    "getVwlOperationalRowKey",
     "fetchAllVendorBuylistPagedRows",
     "pickRpcField",
     "buildVwlSplitKey",
@@ -338,7 +340,7 @@ const type = (h, q) => {
   h2.state.vwlFilters.splitOnly = true;
   const b = h2.run("loadVendorBuylist()");
   await tick();
-  main(h2)[0].resolve([{ name: "A", split: true }]);
+  main(h2)[0].resolve([{ name: "A", split: true, vendor_bucket_key: "VENDOR:1", material_class_id: 1, stock_item_id: 1, uom_id: 1 }]);
   split(h2)[0].fail("split boom");
   await b;
   assert(
@@ -350,7 +352,7 @@ const type = (h, q) => {
   h3.state.vwlFilters.splitOnly = true;
   const c = h3.run("loadVendorBuylist()");
   await tick();
-  main(h3)[0].resolve([{ name: "S", split: true }, { name: "N" }]);
+  main(h3)[0].resolve([{ name: "S", split: true, vendor_bucket_key: "VENDOR:1", material_class_id: 1, stock_item_id: 2, uom_id: 3 }, { name: "N", vendor_bucket_key: "VENDOR:1", material_class_id: 1, stock_item_id: 4, uom_id: 3 }]);
   split(h3)[0].resolve([{ material_class_id: 1, stock_item_id: 2, uom_id: 3 }]);
   await c;
   assert(
@@ -376,7 +378,7 @@ const type = (h, q) => {
       main(h)[0].params.p_rate_status === "MISSING",
     "export uses current search + filters",
   );
-  main(h)[0].resolve([{ name: "E" }]);
+  main(h)[0].resolve([{ name: "E", vendor_bucket_key: "VENDOR:7", material_class_id: 1, stock_item_id: 7, uom_id: 1 }]);
   assert((await e).length === 1, "export returns the filtered rows");
 }
 
@@ -386,7 +388,7 @@ const type = (h, q) => {
   h.state.vwl.vendorFilterKey = "vendor:7";
   const e = h.run("fetchAllVendorBuylistRows()");
   await tick();
-  const mk = (from, n) => Array.from({ length: n }, (_, i) => ({ name: `R${from + i}` }));
+  const mk = (from, n) => Array.from({ length: n }, (_, i) => ({ name: `R${from + i}`, vendor_bucket_key: "VENDOR:7", material_class_id: 1, stock_item_id: from + i + 1, uom_id: 1 }));
   // answer page 1 of a 450-row list: harness wraps plain rows with total=len, so
   // build the paged shape explicitly via the raw promise instead.
   const raw = (call, rows, total) => {
