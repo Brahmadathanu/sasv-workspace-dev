@@ -81,3 +81,9 @@ Each `(stock_item_id, canonical_uom_id, planning_period)` becomes one unique pla
 8. No new PR until owner approves both formula/policy and live implementation gate.
 
 **Gate status:** G0 active; 0/6 programme gates independently accepted. This document records read-only evidence and proposal only. 
+
+## Follow-on source/freshness verification (12 November 2026 IST)
+
+- `v_item_consumption_monthly_by_item` is a FULL JOIN of `v_item_consumption_rm_pm_monthly` and consumables. The RM/PM contributor derives from **`tally_rm_pm_issues_snapshot`**, Tally material issue vouchers mapped by alias, with a monthly `rm_pm_issue_qty`. This is a record of material issues, **not an independently tagged nonproduction/marketing usage stream**. Do not label the observed Punarnavasavam PM consumption as independently nonproduction demand. Proper classification is **MRP-COVERED / ISSUE-PROVENANCE-UNRESOLVED**. Separate production issue vs samples/rework/other use only from traceable voucher/dept purpose linkage.
+- `v_stock_current_by_item` chooses the **latest as_of_date per stock source** but drops this date from its output. Freshness cannot be derived from the stock view row alone. Source snapshots inspected: RM, PLM, consumable and fuel all latest `as_of_date=2026-11-11` (RM 858 latest rows, PLM 1060, consumable 55, fuel 6). Preview must join a source-level freshness watermark and record a separately approved threshold. These counts are source snapshot rows, not unique inventory items.
+- The sample label `1638` has a PLM stock row of zero; the raw material issue source and stock view are consistent in their material class, but the zero-filled rates remain **demand-history descriptors only**, not additive demand authorization.
