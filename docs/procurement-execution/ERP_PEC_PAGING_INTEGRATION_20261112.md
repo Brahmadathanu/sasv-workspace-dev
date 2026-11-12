@@ -69,3 +69,53 @@ Shape handling: `unpackPagedRows` reads `row_data`/`total_count` (total from the
 - [x] No page-then-filter in JS for PR/Indent/Excess/Vendor-wise (except documented split-only).
 - [ ] Authenticated call of each RPC with a real PEC VIEW token — **NOT DONE**.
 - [ ] Observed permission class of a legitimate session — **NOT AVAILABLE**.
+
+---
+
+# Final correction package (review findings P1/P2) — 12 Nov 2026
+
+## 8. P1 — Jump to Indent across all pages
+**Root cause:** `jumpToIndent(id)` reset filters, loaded page 0 and then did `state.indentsRows.find(...)`. After paging moved server-side, `indentsRows` holds only the current page (live: 45 indents, 15 outside page 1), so any indent beyond page 1 silently did nothing.
+**Fix:** `jumpToIndent(id, number)` now resolves the header by exact id through `resolveIndentHeaderById`: (1) a cheap PEC-VIEW-gated `proc_pec_indent_headers_filtered_paged` lookup by indent number (limit 200, exact id match required); (2) on a miss or without a number, the existing full-header read `proc_pec_indent_headers` (still VIEW-gated; used only for this navigation, never for ordinary paging). Missing/inaccessible → toast "Indent … was not found or is not accessible." and no modal; read errors are reported. A `jumpToIndentSeq` token makes the latest navigation win; stale results are dropped after every await. The modal/selection/focus path is the unchanged `openIndentViewModal`, using the loaded list row when it is on the page.
+**Tests (paging smoke, Jump block):** first-page indent (#250); page-2 indent (#200, asserted absent from page 0) resolved via the paged lookup (no full read); stale number with valid id → fallback to the full-header read opens the right indent; nonexistent id (#9999) → message, no modal; competing navigation (slow older jump vs fast newer) → newer wins. Mutation check: forcing `isCurrent = () => true` makes the competing-navigation test FAIL.
+
+## 9. P2 — Excess count badge
+**Finding:** the badge elements (`#tabCountIndents/#tabCountPr/#tabCountExcess`) **do not exist** in the markup (also absent on `main`), so these counts were never displayed — and my earlier boot probes (including a windowed Excess count over ~13k rows) were invisible, wasted reads.
+**Decision:** (a) one shared `buildExcessRpcParams()` now builds the Excess read for both the table page and any count, so they cannot disagree; (b) badge meaning, if ever rendered, = rows matching the lens' **active filters (default last 30 days)**, never all-history; (c) `refreshAllTabCounts()` skips the probes entirely when no badge element exists (no invisible server cost). No new UI was added.
+**Tests:** current markup → no badge elements and zero Excess probe calls at boot; with an emulated badge element: boot value = default 30-day count (124 of 450 fixture, not 450), probe sends the same date range as the lens, lens total equals badge, follows the 365-day preset (→450) and the quick search, stays empty (not a wrong number) when the read fails.
+
+## 10. P2 — Vendor-wise export completeness (>1,000 rows)
+**Verification:** `supabase/config.toml` sets `max_rows = 1000` (also the Supabase default) — PostgREST silently caps an unpaged function result. `proc_vendorwise_buylist_filtered` is unpaged, so the previous export/split-only paths could return **at most 1000 rows without any error**. (The live project's configured value could not be read from here; the repo config/default is the evidence.) Live scale today is 834 groups, i.e. no truncation yet, but growth would have truncated silently.
+**Fix (no new server function):** `fetchAllVendorBuylistPagedRows()` pages `proc_vendorwise_buylist_operational_paged` (200 rows/page, never capped) with the same upstream filters and the operational vendor choice, verifies `rows.length === total_count` and **aborts with "Incomplete retrieval … nothing was exported" on any mismatch**; refuses a total above 50 000 after the first page (before fetching more) with an explicit message. CSV/TSV/PDF and the split-only list now use it; split-only still filters client-side with the split lookup (no server parameter exists — DEFER), operational filter is applied server-side for exports, and the existing sort/serial/quantity mapping is unchanged.
+**Evidence (executable runtime vs synthetic):**
+| Evidence | Kind | Result |
+|---|---|---|
+| Emulated max_rows: unpaged full RPC over 1500 fixture rows returns 1000 | synthetic emulation of PostgREST cap | shown in the test (documents why the old path was unsafe) |
+| CSV: 1500 rows, 1500 distinct items, Σ qty = 7500 (1500×5), canonical `IND-26-1xx (n)` in every row | real client code, synthetic data | PASS |
+| TSV: 1500 rows + header | same | PASS |
+| Operational vendor choice: export row count == server total for that vendor (25) | same | PASS |
+| **PDF: real jsPDF 2.5.1 + autotable 3.8.2 running in Chromium, text extracted with `pdftotext`: 1500 distinct item names across 26 pages, canonical serial present** | **executable runtime (real libraries), synthetic data** | PASS |
+| `pec-pr-pdf-continuation-header-smoke` runtime (3-page PR PDF) | executable runtime, synthetic | PASS (previously SKIPPED; libs installed in a scratch dir, `PEC_JSPDF_ROOT`) |
+| Reliability harness: 450 rows over 3 pages collected; empty page when total=450 → "Incomplete retrieval" abort; 50001 → refused after page 1 | unit, mocked RPC | PASS (39 checks) |
+Not evidenced: real backend row counts/performance, real `max_rows` of the live project, large-PDF memory/time on user hardware (26 pages for 1500 rows in this run).
+
+## 11. Integrity re-check
+All five lenses re-verified by the suite below: server filtering before paging; totals/page boundaries; out-of-range recovery; latest-wins/abort; vendor options from all upstream-filtered rows; Safe/Full resync mode (`full`→`reset`, #319 test passes); role/edit gating (C1/C2 smokes); 1440/820/390 layouts; no stuck loading or disabled pagers; single shared source (static smoke: only `public/shared/…` copies). The inventory still fails on **FAIL and FIX** and keeps the three unreachable modals as DEFER.
+
+## 12. Commands and results (12 Nov 2026; `PEC_JSPDF_ROOT` pointing at a scratch `node_modules` with jspdf 2.5.1 + jspdf-autotable 3.8.2)
+| Command | Before this package | After |
+|---|---|---|
+| `node scripts/pec-paging-contract-smoke.mjs` | 72 PASS | **94 PASS** (jump 6, badge 7, export/transport/PDF 12 added/changed; PDF runtime runs only when `PEC_JSPDF_ROOT` is set, else prints SKIP) |
+| `node scripts/pec-vwl-search-reliability-smoke.mjs` | 33 | **39** PASS |
+| `node scripts/pec-plm-pm-canonical-smoke.mjs` | PASS | PASS (assertion follows `buildExcessRpcParams`) |
+| `node scripts/pec-five-lens-inventory.mjs` | 0 FAIL/FIX | 0 FAIL/FIX (253 controls) |
+| C1 layout 118 · C2 53 · fast-track 23 · static 17 · wp01 serial · pr-scope · resync-mode 3/3 · pr-pdf-continuation (runtime now PASS) | PASS | PASS |
+| `node --test scripts/fg-bit-ux-1/sw-freshness.test.mjs` | 11/11 | 11/11 |
+Fixture sizes: 250 indents, 230 PRs, 450 excess, 250 audit, 500 vendor-wise (1500 for the export block, 50 001 for the size guard).
+Changed files (this package): `public/shared/js/procurement-execution-console.js`, `scripts/lib/pec-paged-shim.mjs`, `scripts/pec-paging-contract-smoke.mjs`, `scripts/pec-vwl-search-reliability-smoke.mjs`, `scripts/pec-plm-pm-canonical-smoke.mjs`, this document. No SQL, migrations, RLS, grants, `public/sw.js`, versions or unrelated modules.
+
+## 13. Remaining acceptance blockers (honest status)
+- **BLOCKED:** genuine signed-in editor / view-only / no-access sessions; live RPC success with a PEC VIEW token; live `max_rows` value; real row volumes. Nothing here is authenticated-backend acceptance.
+- **Not verified:** packaged Electron; installed-PWA JS/CSS freshness (C1 §4b release gate; `sw-freshness` unit suite only); production performance (incl. Excess ~1.1 s/page server note).
+- **DEFER:** server-side split-only filter; the three unreachable modals; badge UI (not rendered).
+- Formal G0 remains 0/6; G4 not promoted.
