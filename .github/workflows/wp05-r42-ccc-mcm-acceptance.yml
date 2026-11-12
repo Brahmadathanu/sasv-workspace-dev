@@ -1,0 +1,39 @@
+name: WP05 R42 CCC MCM Acceptance isolated PG17
+on:
+  pull_request:
+    paths:
+      - "docs/master-data-costing/candidates/WP05_R42_CCC_MCM_ACCEPTANCE_*.sql"
+      - "scripts/wp05-r42-acceptance/**"
+      - ".github/workflows/wp05-r42-ccc-mcm-acceptance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/wp05-r42-acceptance/**"
+jobs:
+  isolated-pg17:
+    runs-on: ubuntu-latest
+    permissions: {contents: read}
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-wp05-r42
+          POSTGRES_DB: wp05_accept_fixture
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d wp05_accept_fixture"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      WP05_ISOLATED_PG: "YES"
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGUSER: "postgres"
+      PGPASSWORD: "isolated-wp05-r42"
+      PGDATABASE: "wp05_accept_fixture"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - name: Test exact review-only view SQL against isolated PostgreSQL 17
+        run: node --test scripts/wp05-r42-acceptance/ccc-mcm-acceptance-pg17.test.mjs
