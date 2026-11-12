@@ -3060,13 +3060,30 @@ function openVendorSelectionForSelectedIndentLine() {
   });
 }
 
+// Shown when a save succeeded but the follow-up live line read failed, so the
+// operator can tell "saved" apart from "list not refreshed" and retry.
+function setIndentLinesRefreshWarning(visible) {
+  const box = qs("iLinesRefreshWarning");
+  if (box) box.hidden = !visible;
+}
+
 async function refreshIndentAfterVendorSelection(indentLineId) {
   const indentId = state.currentIndentId;
   if (!indentId) return;
-  await loadIndentLines(indentId, {
+  state.pendingLineRefresh = { indentId, indentLineId };
+  const ok = await loadIndentLines(indentId, {
     preserveView: true,
     selectLineId: indentLineId,
   });
+  if (ok === false) {
+    setIndentLinesRefreshWarning(true);
+    toast(
+      "Vendor was saved, but the line list could not be refreshed. Use Reload lines to retry.",
+      "error",
+    );
+    return;
+  }
+  state.pendingLineRefresh = null;
   try {
     const headers = await rpcPecIndentHeaders();
     const fresh = (headers || []).find(
@@ -4022,6 +4039,8 @@ function openIndentViewModal(row) {
   updateExportButtonStates();
   renderIndentModalHeader(row);
   updateIndentVendorSelectAction();
+  state.pendingLineRefresh = null;
+  setIndentLinesRefreshWarning(false);
   setIndentSourcePrBadge(row);
   const btnEditQty = qs("iBtnEditLineQty");
   if (btnEditQty) btnEditQty.disabled = true;
@@ -4610,15 +4629,20 @@ async function loadIndentLines(
       return compareNumAsc(a.indent_line_id, b.indent_line_id);
     });
   } catch (error) {
+    // A superseded load must neither clear the newer load's indicator nor
+    // report a failure for a view the operator has already left.
+    if (loadSeq !== indentLinesLoadSeq) return true;
     setLoading(false);
     toast(`Failed to load indent lines: ${error.message}`, "error");
-    return;
+    return false;
   }
+  if (loadSeq !== indentLinesLoadSeq) return true;
   setLoading(false);
-  // Latest wins: a newer load or another indent opened meanwhile owns the UI.
-  if (loadSeq !== indentLinesLoadSeq || state.currentIndentId !== indentId) {
-    return;
+  // Another indent opened meanwhile owns the UI.
+  if (state.currentIndentId !== indentId) {
+    return true;
   }
+  setIndentLinesRefreshWarning(false);
   state.indentLinesRows = data || [];
   if (selectLineId != null) {
     state.selectedIndentLine =
@@ -4637,7 +4661,7 @@ async function loadIndentLines(
     if (scroller) scroller.scrollTop = prevScroll;
     updateIndentVendorSelectAction();
     updateExportButtonStates();
-    return;
+    return true;
   }
   iLineQuery = "";
   iLineFilter = "all";
@@ -4657,6 +4681,7 @@ async function loadIndentLines(
   applyIndentLineFiltersAndRender();
   updateIndentVendorSelectAction();
   updateExportButtonStates();
+  return true;
 }
 
 // PEC-ERP-C1: show a separate "Indent Date" column only when the governed read
@@ -5436,6 +5461,19 @@ function wireIndentControls() {
   // Create from PR
   qs("iBtnFromPR").addEventListener("click", openIndentFromPrModal);
   // Add Line
+  qs("iBtnReloadIndentLines")?.addEventListener("click", async () => {
+    const pending = state.pendingLineRefresh;
+    const indentId = pending?.indentId ?? state.currentIndentId;
+    if (!indentId) return;
+    const btn = qs("iBtnReloadIndentLines");
+    if (btn) btn.disabled = true;
+    const ok = await loadIndentLines(indentId, {
+      preserveView: true,
+      selectLineId: pending?.indentLineId ?? null,
+    });
+    if (btn) btn.disabled = false;
+    if (ok !== false) state.pendingLineRefresh = null;
+  });
   qs("iBtnSelectVendor")?.addEventListener(
     "click",
     openVendorSelectionForSelectedIndentLine,

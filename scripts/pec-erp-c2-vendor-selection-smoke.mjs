@@ -49,14 +49,19 @@ export const supabase = {
   auth: { getSession: async () => ({ data: { session: { user: { id: "fixture" } } }, error: null }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) },
   rpc: async (name, params) => {
     calls.push({ name, params });
-    if (name === "get_user_permissions") return mk([{ target: "module:procurement-execution-console", can_view: true, can_edit: S.role === "edit" }]);
+    if (name === "get_user_permissions") return mk(S.role === "none" ? [] : [{ target: "module:procurement-execution-console", can_view: true, can_edit: S.role === "edit" }]);
     if (name === "proc_pec_indent_headers") return mk(headers());
-    if (name === "proc_pec_indent_lines") return mk(lines(params.p_indent_id));
+    if (name === "proc_pec_indent_lines") {
+      if (S.slowLines) await sleep(params.p_indent_id === 100 ? 800 : 1500);
+      if (S.failLinesAfterSave && globalThis.__saved && !globalThis.__failedOnce) { globalThis.__failedOnce = true; return { data: null, error: { message: "fixture lines failure" } }; }
+      return mk(lines(params.p_indent_id));
+    }
     if (name === "proc_vendor_lookup") { const q = (params.p_q || "").toLowerCase(); return mk(vendors.filter((v) => v.display_name.toLowerCase().includes(q))); }
     if (name === "proc_indent_set_vendor_selection") {
       if (S.slowSave) await sleep(600);
       if (S.saveError) return { data: null, error: { message: S.saveError } };
       const v = vendors.find((x) => x.vendor_id === params.p_selected_vendor_id);
+      globalThis.__saved = true;
       sel[params.p_indent_line_id] = { vendor: v.vendor_id, name: v.display_name, rate: params.p_selected_rate };
       return mk(null);
     }
@@ -272,6 +277,68 @@ const btnState = (page) => page.evaluate(() => { const b = document.getElementBy
   const shown = await page.evaluate(() => { const l = document.querySelector("#iBtnSelectVendor .pec-action-label"); return l && getComputedStyle(l).display !== "none" && l.textContent; });
   check(shown === "Select Vendor", "wide: icon + 'Select Vendor' label");
   if (shotsDir) await page.screenshot({ path: path.join(shotsDir, "c2-wide-indent-modal.png") });
+  await ctx.close();
+}
+
+
+// 9. Save succeeded but live line refresh failed: distinguishable + retryable
+{
+  const { ctx, page } = await open({ role: "edit", failLinesAfterSave: true });
+  await openIndent(page, 100);
+  await page.click('#iLinesTbody tr:nth-child(1)');
+  await page.click("#iBtnSelectVendor");
+  await page.waitForSelector("#vendorModalBackdrop.show");
+  await page.fill("#aqVendorSearchInput", "Active");
+  await page.waitForSelector("#aqVendorSearchResults li:not(.no-results)");
+  await page.click("#aqVendorSearchResults li:not(.no-results) >> nth=0");
+  await page.fill("#vendorRate", "5");
+  await page.fill("#vendorReason", "refresh failure test");
+  await page.click("#btnVendorSave");
+  await page.waitForTimeout(900);
+  check((await calls(page, "proc_indent_set_vendor_selection")).length === 1, "refresh failure: save itself succeeded once");
+  check(await page.isVisible("#iLinesRefreshWarning"), "refresh failure: persistent 'list may be out of date' notice shown");
+  check((await toasts(page)).some((t) => /saved, but the line list could not be refreshed/i.test(t)), "refresh failure: toast says saved but not refreshed");
+  check(!(await page.$eval("#iLinesTbody tr:nth-child(1)", (e) => e.textContent)).includes("Active Vendor A"), "refresh failure: list not claiming new vendor");
+  await page.click("#iBtnReloadIndentLines");
+  await page.waitForTimeout(700);
+  check(!(await page.isVisible("#iLinesRefreshWarning")), "retry: notice cleared after successful reload");
+  check((await page.$eval("#iLinesTbody tr:nth-child(1)", (e) => e.textContent)).includes("Active Vendor A"), "retry: list shows saved vendor");
+  check(await page.getAttribute("#iLinesTbody tr:nth-child(1)", "aria-selected") === "true", "retry: selection preserved");
+  check((await calls(page, "proc_indent_set_vendor_selection")).length === 1, "retry reloads only; no second save");
+  await ctx.close();
+}
+
+// 10. Stale line load must not clear the loading indicator of a newer load
+{
+  const { ctx, page } = await open({ role: "edit", slowLines: true });
+  await page.evaluate(() => document.querySelector('#iTbody tr:has(td:nth-child(2))') && null);
+  await page.evaluate(() => [...document.querySelectorAll("#iTbody tr")].find((r) => r.textContent.includes("IND-26-100")).click());
+  await page.waitForTimeout(150);
+  await page.evaluate(() => document.getElementById("btnIndentViewClose").click());
+  await page.evaluate(() => [...document.querySelectorAll("#iTbody tr")].find((r) => r.textContent.includes("IND-26-101")).click());
+  await page.waitForTimeout(1000); // IND-100 response (800ms) has now arrived; IND-101 (1500ms) still pending
+  const mid = await page.$eval("#mainPanel", (e) => e.style.pointerEvents);
+  check(mid === "none", "stale response arrived: newer load's loading indicator preserved");
+  await page.waitForTimeout(1200);
+  const end = await page.$eval("#mainPanel", (e) => e.style.pointerEvents);
+  check(end === "", "newer load finished: loading indicator cleared");
+  const title = await page.textContent("#iLinesTitle");
+  check(title.includes("IND-26-101") && (await page.$$eval("#iLinesTbody tr td:nth-child(2)", (n) => n.length)) === 2, "UI shows newer indent's lines only");
+  await ctx.close();
+}
+
+// 11. No-access role
+{
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  await page.route("**/js/supabaseClient.js", (r) => r.fulfill({ contentType: "text/javascript", body: stub({ role: "none" }) }));
+  await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
+  await page.goto(`${base}/shared/procurement-execution-console.html`);
+  await page.waitForTimeout(800);
+  check(!(await page.isVisible("#mainPanel")), "no access: console panel hidden");
+  check(!(await page.isVisible("#iBtnSelectVendor")), "no access: Select Vendor not visible");
+  const names = await page.evaluate(() => globalThis.__rpcCalls.map((c) => c.name));
+  check(names.every((n) => n === "get_user_permissions"), `no access: no data or mutation RPCs (${names.join(",")})`);
   await ctx.close();
 }
 

@@ -580,6 +580,26 @@ body.sasv-pec .pec-vendor-mapping-note {
   line-height: 1.4;
 }
 
+/* Save-succeeded-but-refresh-failed notice in the indent modal (C2) */
+body.sasv-pec .pec-refresh-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: var(--sasv-radius-sm, 6px);
+  border: 1px solid var(--sasv-warning-border);
+  background: var(--sasv-warning-bg);
+  color: var(--sasv-warning);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+}
+body.sasv-pec .pec-refresh-warning .icon-btn {
+  width: auto;
+  padding: 0 12px;
+}
+
 /* ── 11. Responsive geometry ─────────────────────────────────────────────── */
 body.sasv-pec {
   padding: 20px;
