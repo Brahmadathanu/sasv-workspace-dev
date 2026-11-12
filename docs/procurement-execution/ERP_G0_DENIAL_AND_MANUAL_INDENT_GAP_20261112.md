@@ -55,3 +55,19 @@ This page supplements the living ledger `ERP_G0_LIVE_UOM_PR_INDENT_CORRECTION_LE
 Supporting read-only fixture `ERP_G0_REVISION_MANUAL_INDENT_POLICY_FIXTURE_20261112.sql`, commit `aee1195`. The earlier section describing unpatched gaps is retained as **chronological historical audit**; it is superseded for forward generation by this implemented correction.
 
 **Still open:** authenticated allowed session writer acceptance, manual reduction/zero behavioural verification in an isolated rollback environment, PR revision create→activate integration, source-view JWT/RLS parity, historical legacy records, S4 hybrid, full MRP rebase. Formal G0 gates **0/6**, not promoted based on partial evidence.
+
+## G0 continuation — manual PR edit surface audited and forward guards installed (12 Nov 2026)
+
+A broader catalogue scan of all SQL routines writing `proc_pr_line` and `proc_indent_line` found two additional **permission-gated PR edit paths** that had not inherited the finished-bulk/semi-finished exclusion:
+- `proc_pr_add_line_pec_internal` could create/update a positive `requested_qty` on a draft PR for an internal item;
+- `proc_pr_set_manual_delta_pec_internal` could increase the positive final quantity `requested_qty+manual_delta_qty` on an existing draft line.
+
+**Both guards were applied live and source-controlled:** migration `supabase/migrations/20261112133000_pec_manual_pr_internal_item_guards.sql` commit `c01cc34`. They now reject **new/increased positive** internal buying commitments, while allowing reductions, unchanged and zero quantities, and ordinary RM/PM editing subject to existing writer validations. Their public wrappers `proc_pr_add_line` and `proc_pr_set_manual_delta` retain authenticated EXECUTE and canonical module edit permission; the internal functions are not directly executable by authenticated or anon roles.
+
+**Live static and predicate verification:** both updated function definitions contain guards; `ERP_G0_MANUAL_PR_EDIT_9_CASE_ORACLE_20261112.sql` commit `5ac6eaf` executed **9/9 PASS** (five add-line and four delta scenarios, including internal reductions). **No draft PR exists in the live database**, so successful authorized writer mutation was not fabricated. End-to-end UI positive-path and transactional app identity remain open.
+
+**Other discovered write path:** `proc_pr_set_requested_qty` is directly executable by authenticated as a `SECURITY INVOKER` function, without an internal class check. However, `proc_pr_line` has **SELECT-only authenticated RLS policies**, with no authenticated UPDATE policy; current ordinary authenticated sessions therefore have no general row-level UPDATE grant through this direct routine. This is a defense-in-depth caveat for privileged callers and future RLS policy changes, not evidence that a standard user can bypass the newly deployed guards today. Recheck if grants/RLS evolve.
+
+**Additional acceptance concern:** the manual indent writer for an approved/issued line invokes `proc_request_snapshot_refresh` after the line update, and that refresh wrapper requires `auth.uid()` with PEC edit rights. Therefore positive legacy reduction must be tested with a legitimate authorized session or an isolated test harness; no fake JWT/user identity or production-side effect was introduced here. Historical approved commitments remain intact.
+
+No destructive MRP refresh, new live PR, new indent, repo merge, or Tally PO dependency. PEC G0: **0/6 formal gates**, pending privileged/authorized E2E plus RLS and live-snapshot verification.
