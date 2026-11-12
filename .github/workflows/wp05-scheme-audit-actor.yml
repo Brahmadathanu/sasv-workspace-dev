@@ -1,0 +1,28 @@
+name: WP05 Scheme Audit Actor Contract
+
+on:
+  pull_request:
+    paths:
+      - "public/shared/js/costing-suite-pricing-policy.js"
+      - "public/shared/js/costing-suite-scheme-audit-actor.mjs"
+      - "public/sw.js"
+      - "scripts/wp05-scheme-audit-actor/**"
+      - ".github/workflows/wp05-scheme-audit-actor.yml"
+  push:
+    branches: [main]
+    paths:
+      - "public/shared/js/costing-suite-pricing-policy.js"
+      - "public/shared/js/costing-suite-scheme-audit-actor.mjs"
+      - "public/sw.js"
+      - "scripts/wp05-scheme-audit-actor/**"
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify isolated actor display and integration contracts
+        run: node --test scripts/wp05-scheme-audit-actor/scheme-audit-actor.test.mjs
