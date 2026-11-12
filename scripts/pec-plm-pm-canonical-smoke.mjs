@@ -191,7 +191,7 @@ assert(
 const excessLoad = extractNamed(src, "loadExcess");
 const excessParams = extractNamed(src, "buildExcessRpcParams");
 assert(
-  excessLoad.includes("buildExcessRpcParams(") &&
+  src.includes("snapshotParams: () => buildExcessRpcParams(") && excessLoad.includes("excessFeed.reset()") &&
     excessParams.includes("canonicalMaterialClassCode(filters.materialClassId)") &&
     excessParams.includes("p_material_class_code"),
   "Excess filter sends the canonical class code to the server paged read (server also maps PLM->PM)",

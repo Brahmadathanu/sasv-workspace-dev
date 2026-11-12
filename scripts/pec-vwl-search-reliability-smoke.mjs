@@ -45,11 +45,12 @@ const code = [
   "const PEC_PAGE_LIMIT_MAX = 200;",
   "const PEC_EXPORT_MAX_ROWS = 50000;",
   "const DEFAULT_PAGE_SIZE = 30;",
+  // R2: the incremental feed adopts the first page; the harness only needs its state
+  "const vwlFeed = { state: { rows: [] }, seed(rows) { this.state.rows = rows; }, complete(rows) { this.state.rows = rows; } };",
   ...[
     "unpackPagedRows",
     "clampPageLimit",
     "rpcPecPaged",
-    "fetchPageWithRecovery",
     "normalizeVwlServerFilterOptions",
     "getVwlOperationalBucketKey",
     "getVwlOperationalRowKey",

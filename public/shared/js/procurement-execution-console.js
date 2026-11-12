@@ -349,23 +349,254 @@ const pecLatest = {
   excessAudit: createLatestWins(),
 };
 
+// ─── PEC-R2: bounded, server-backed incremental feed (replaces numbered pagers) ──
+// One mechanism for PR, Indents, Excess, Audit and Vendor-wise: pages of
+// `pageSize` rows come from the paged RPCs (never the whole table), filters are
+// snapshotted at reset, responses of a superseded reset are dropped (latest
+// wins + abort), duplicate keys are skipped, the offset advances by what the
+// server returned, and loading stops at PEC_FEED_MAX_ROWS with an honest
+// message. A visible "Load more" button is always available (keyboard /
+// screen-reader / no-scroll-event fallback); scrolling near the bottom
+// auto-loads the next page.
+const PEC_FEED_MAX_ROWS = 1000;
+const PEC_FEED_NEAR_PX = 240;
+
 /**
- * Fetch one page; if it is empty but not page 0 (offset out of range after the
- * data shrank), recover to the last real page using the total from page 0.
- * Returns null when superseded.
+ * Footer shown under every incremental list: status text + an always-available
+ * "Load more"/"Retry" button. Shared by the feeds and the Action Queue.
  */
-async function fetchPageWithRecovery(fetchPage, page, pageSize, isCurrent) {
-  let res = await fetchPage(page);
-  if (!isCurrent()) return null;
-  if (res.rows.length || page <= 0) return { ...res, page };
-  const first = await fetchPage(0);
-  if (!isCurrent()) return null;
-  if (!first.rows.length) return { rows: [], total: 0, page: 0 };
-  const last = Math.max(0, Math.ceil(first.total / pageSize) - 1);
-  if (last === 0) return { ...first, page: 0 };
-  res = await fetchPage(last);
-  if (!isCurrent()) return null;
-  return { ...res, page: last };
+function createFeedFooter({ scrollId, onMore, onRetry }) {
+  let el = null;
+  const host = () => (scrollId && typeof qs === "function" ? qs(scrollId) : null);
+  function ensure() {
+    const sc = host();
+    if (!sc) return null;
+    if (el && el.isConnected && el.parentElement === sc) return el;
+    el = document.createElement("div");
+    el.className = "pec-feed-footer";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    el.innerHTML =
+      '<span class="pec-feed-status"></span><button type="button" class="pec-load-more" hidden></button>';
+    el.querySelector("button").addEventListener("click", () => {
+      if (el.dataset.mode === "retry") onRetry();
+      else onMore();
+    });
+    sc.appendChild(el);
+    return el;
+  }
+  return {
+    element: () => el,
+    /** st: { loaded, total, loading, error, ended, capped, loadedOnce } */
+    paint(st) {
+      const node = ensure();
+      if (!node) return;
+      const status = node.querySelector(".pec-feed-status");
+      const btn = node.querySelector("button");
+      const loaded = st.loaded;
+      node.hidden = !st.loadedOnce && !st.loading && !st.error;
+      let text = "";
+      let btnText = "";
+      node.dataset.mode = "";
+      if (st.error && loaded > 0) {
+        text = "Couldn't load more rows.";
+        btnText = "Retry";
+        node.dataset.mode = "retry";
+      } else if (st.loading && loaded > 0) {
+        text = "Loading more…";
+      } else if (st.capped) {
+        text = `Showing the first ${loaded} of ${st.total}. Narrow the search or filters to see the rest (exports include every matching row).`;
+      } else if (!st.ended && loaded > 0) {
+        text = `Showing ${loaded} of ${st.total}`;
+        btnText = "Load more";
+      } else if (loaded > 0) {
+        text = loaded === 1 ? "End of list" : `End of list · ${loaded} shown`;
+      }
+      status.textContent = text;
+      btn.textContent = btnText;
+      btn.hidden = !btnText;
+      btn.disabled = Boolean(st.loading);
+      if (btnText) {
+        btn.setAttribute(
+          "aria-label",
+          btnText === "Retry" ? "Retry loading more rows" : `Load more rows (${loaded} of ${st.total} shown)`,
+        );
+      } else btn.removeAttribute("aria-label");
+    },
+  };
+}
+
+function createFeed(cfg) {
+  let seq = 0;
+  let ctrl = null;
+  let scrollBound = null;
+  const f = {
+    rows: [],
+    total: 0,
+    offset: 0,
+    keys: new Set(),
+    loading: false,
+    error: null,
+    ended: false,
+    capped: false,
+    loadedOnce: false,
+    params: null,
+  };
+  const pageSize = () => clampPageLimit(cfg.pageSize ? cfg.pageSize() : DEFAULT_PAGE_SIZE);
+  const scrollEl = () => (cfg.scrollId && typeof qs === "function" ? qs(cfg.scrollId) : null);
+  const footer = createFeedFooter({
+    scrollId: cfg.scrollId,
+    onMore: () => feed.loadMore(),
+    onRetry: () => feed.retry(),
+  });
+
+  function paint() {
+    footer.paint({
+      loaded: f.rows.length,
+      total: f.total,
+      loading: f.loading,
+      error: f.error,
+      ended: f.ended,
+      capped: f.capped,
+      loadedOnce: f.loadedOnce,
+    });
+    const sc = scrollEl();
+    if (sc && scrollBound !== sc) {
+      sc.addEventListener("scroll", onScroll, { passive: true });
+      scrollBound = sc;
+    }
+  }
+
+  function nearBottom() {
+    const sc = scrollEl();
+    const el = footer.element();
+    if (!sc || !el || sc.offsetParent === null) return false;
+    return el.getBoundingClientRect().top <= sc.getBoundingClientRect().bottom + PEC_FEED_NEAR_PX;
+  }
+  let raf = 0;
+  function maybeFill() {
+    if (raf || typeof requestAnimationFrame !== "function") return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      if (!f.ended && !f.capped && !f.loading && !f.error && f.loadedOnce && nearBottom()) feed.loadMore();
+    });
+  }
+  function onScroll() {
+    maybeFill();
+  }
+
+  async function load(first) {
+    const mine = seq;
+    f.loading = true;
+    f.error = null;
+    ctrl = typeof AbortController === "function" ? new AbortController() : null;
+    const myCtrl = ctrl;
+    paint();
+    try {
+      const page = await cfg.fetchPage({
+        offset: f.offset,
+        limit: pageSize(),
+        signal: myCtrl?.signal || null,
+        params: f.params,
+        first,
+      });
+      if (mine !== seq) return;
+      f.total = page.total;
+      f.offset += page.rows.length;
+      for (const row of page.rows) {
+        const key = cfg.keyOf(row);
+        if (f.keys.has(key)) continue;
+        f.keys.add(key);
+        f.rows.push(row);
+      }
+      if (!page.rows.length || f.offset >= f.total) f.ended = true;
+      else if (f.rows.length >= PEC_FEED_MAX_ROWS) f.capped = true;
+      f.loadedOnce = true;
+    } catch (error) {
+      if (mine !== seq) return;
+      f.error = error;
+    } finally {
+      if (mine === seq) {
+        f.loading = false;
+        if (ctrl === myCtrl) ctrl = null;
+      }
+    }
+    if (mine !== seq) return;
+    cfg.onUpdate(f, { first });
+    paint();
+    maybeFill();
+  }
+
+  const feed = {
+    state: f,
+    /** New filters/search: drop everything, scroll to top, load page 1. */
+    reset() {
+      seq += 1;
+      ctrl?.abort();
+      f.rows = [];
+      f.keys = new Set();
+      f.offset = 0;
+      f.total = 0;
+      f.ended = false;
+      f.capped = false;
+      f.error = null;
+      f.loading = false;
+      f.loadedOnce = false;
+      f.params = cfg.snapshotParams ? cfg.snapshotParams() : null;
+      const sc = scrollEl();
+      if (sc) sc.scrollTop = 0;
+      return load(true);
+    },
+    /** First page already fetched elsewhere (Vendor-wise): adopt it. */
+    seed(rows, total, params = null) {
+      seq += 1;
+      ctrl?.abort();
+      f.keys = new Set();
+      f.rows = [];
+      for (const row of rows) {
+        const key = cfg.keyOf(row);
+        if (f.keys.has(key)) continue;
+        f.keys.add(key);
+        f.rows.push(row);
+      }
+      f.offset = rows.length;
+      f.total = total;
+      f.error = null;
+      f.loading = false;
+      f.params = params;
+      f.ended = !rows.length || f.offset >= total;
+      f.capped = !f.ended && f.rows.length >= PEC_FEED_MAX_ROWS;
+      f.loadedOnce = true;
+      paint();
+      maybeFill();
+    },
+    loadMore() {
+      if (f.loading || f.ended || f.capped || !f.loadedOnce) return Promise.resolve();
+      return load(false);
+    },
+    retry() {
+      f.error = null;
+      return load(!f.rows.length);
+    },
+    /** Mark the list as fully loaded by a non-paged path (split-only). */
+    complete(rows) {
+      seq += 1;
+      ctrl?.abort();
+      f.rows = rows;
+      f.keys = new Set(rows.map(cfg.keyOf));
+      f.offset = rows.length;
+      f.total = rows.length;
+      f.ended = true;
+      f.capped = false;
+      f.error = null;
+      f.loading = false;
+      f.loadedOnce = true;
+      paint();
+    },
+    paint,
+    fill: maybeFill,
+  };
+  return feed;
 }
 
 function slicePage(rows, page, pageSize) {
@@ -653,8 +884,58 @@ function observeResponsiveActionLabels() {
     requestAnimationFrame(() => {
       queued = false;
       applyResponsiveActionLabels();
+      applyRowCards();
+      mirrorLensCount();
     });
   }).observe(document.body, { childList: true, subtree: true });
+}
+
+/**
+ * Narrow screens show every data table row as a labelled card (pure CSS on
+ * `table.pec-card-table`, one mechanism for all lists). Each cell gets its
+ * column heading as `data-label`; rows that open a detail are made keyboard
+ * reachable (Enter/Space activate them like a click).
+ */
+function applyRowCards(root = document) {
+  root.querySelectorAll("table.erp-table").forEach((table) => {
+    const heads = [...table.querySelectorAll("thead th")]
+      .filter((th) => !th.hidden)
+      .map((th) => th.textContent.replace(/\s+/g, " ").trim());
+    table.classList.add("pec-card-table");
+    table.querySelectorAll("tbody > tr").forEach((tr) => {
+      if (tr.classList.contains("pec-table-state-row")) return;
+      let i = 0;
+      for (const td of tr.children) {
+        if (td.tagName !== "TD") continue;
+        if (!td.dataset.label && heads[i] !== undefined) td.dataset.label = heads[i];
+        i += td.colSpan > 1 ? td.colSpan : 1;
+      }
+      const clickable = tr.style.cursor === "pointer" || tr.classList.contains("clickable-row");
+      if (clickable && !tr.hasAttribute("tabindex")) {
+        tr.tabIndex = 0;
+        tr.dataset.pecRow = "1";
+      }
+    });
+  });
+}
+
+/** Narrow screens: the lens selector doubles as the title, so it also shows the active lens' count. */
+function mirrorLensCount() {
+  const el = qs("procTabCount");
+  if (!el) return;
+  const live = document.querySelector(".tab-panel.active .pec-lens-count");
+  const text = (live?.textContent || "").trim();
+  if (el.textContent !== text) el.textContent = text;
+}
+
+function wireRowKeyboardActivation() {
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const tr = e.target instanceof Element ? e.target.closest("tr[data-pec-row]") : null;
+    if (!tr || e.target !== tr) return; // never hijack keys inside inputs/buttons in the row
+    e.preventDefault();
+    tr.click();
+  });
 }
 
 /** WAI-ARIA tabs wiring for the five lenses (roles, selection, arrow keys). */
@@ -2230,6 +2511,15 @@ async function jumpToIndent(indentId, indentNumber = "") {
   openIndentViewModal(row);
 }
 
+const aqFooter = createFeedFooter({
+  scrollId: "aqScroll",
+  onMore: () => {
+    if (aqLoading || aqLoadingMore || !aqHasMore) return;
+    loadActionQueue({ reset: false, append: true, preserveFocus: false });
+  },
+  onRetry: () => {},
+});
+
 function renderRows() {
   const tbody = qs("aqTbody");
   tbody.innerHTML = "";
@@ -2273,16 +2563,16 @@ function renderRows() {
     tbody.appendChild(tr);
   }
 
-  if (aqLoadingMore && state.rows.length > 0) {
-    const loadingRow = document.createElement("tr");
-    loadingRow.className = "aq-loading-row";
-    loadingRow.innerHTML =
-      '<td colspan="7" style="text-align:center;padding:12px 10px;color:rgba(15,23,42,0.65);font-size:12px;">Loading more lines...</td>';
-    tbody.appendChild(loadingRow);
-  }
-
-  qs("aqMeta").textContent =
-    aqTotalCount === 0 ? "0 lines" : `Showing ${state.rows.length} of ${aqTotalCount} lines`;
+  qs("aqMeta").textContent = `${aqTotalCount} line${aqTotalCount !== 1 ? "s" : ""}`;
+  aqFooter.paint({
+    loaded: state.rows.length,
+    total: aqTotalCount,
+    loading: aqLoadingMore,
+    error: null,
+    ended: !aqHasMore,
+    capped: false,
+    loadedOnce: Boolean(state.actionLoaded) || state.rows.length > 0,
+  });
 
   updateTabCount("tabCountAction", aqTotalCount);
   updateExportButtonStates();
@@ -3822,13 +4112,38 @@ function wireActionQueueControls() {
 
 // ─── INDENT TAB ───────────────────────────────────────────────────────────────
 
+/**
+ * NEW indent lines may only be created on a DRAFT, manual (not PR-linked)
+ * indent by an editor. Approved/issued/closed/cancelled indents never accept
+ * new lines; PR-linked changes go through PR revision/resync.
+ * (Client-side guard only: the server writer is remediated separately.)
+ */
 function canAddIndentLine(indent) {
   if (!indent) return false;
   if (typeof canWriteModule === "function" && !canWriteModule()) return false;
   if (indent.source_pr_id) return false;
+  return String(indent.status || "").toLowerCase() === "draft";
+}
+
+/**
+ * Separately governed correction of the quantity of an EXISTING line on an
+ * approved/issued manual indent (the Edit Line Qty action). Unchanged policy.
+ */
+function canEditExistingIndentLineQty(indent, line) {
+  if (!indent || !line?.indent_line_id) return false;
+  if (typeof canWriteModule === "function" && !canWriteModule()) return false;
+  if (indent.source_pr_id) return false;
   const status = String(indent.status || "").toLowerCase();
-  if (status === "closed" || status === "cancelled") return false;
-  return status === "draft" || status === "approved" || status === "issued";
+  return status === "approved" || status === "issued";
+}
+
+function indentAddLineDeniedMessage(indent) {
+  if (indent?.source_pr_id) return getIndentAddLinePrBlockedMessage();
+  const status = String(indent?.status || "").toLowerCase();
+  if (status === "approved" || status === "issued") {
+    return "Approved or issued indents cannot receive new lines. Create a new draft indent or revise the source PR.";
+  }
+  return "This indent cannot accept new lines in its current status.";
 }
 
 function getIndentAddLinePrBlockedMessage() {
@@ -3970,7 +4285,8 @@ function updateIndentDraftWorkflowControls(indent) {
   const group = qs("indentDraftWorkflowGroup");
   if (!group) return;
   const isDraft = indent?.status === "draft";
-  group.style.display = isDraft ? "flex" : "none";
+  // display:contents lets the four buttons share the toolbar row with delete/export
+  group.style.display = isDraft ? "contents" : "none";
 
   const hasSourcePr = !!indent?.source_pr_id;
   const openPrBtn = qs("btnIndentOpenPr");
@@ -4521,11 +4837,7 @@ function renderIndentLinesActions(indent) {
       btnAddLine.disabled = false;
       btnAddLine.title = "Add Line";
       btnAddLine.setAttribute("aria-label", "Add Line");
-    } else if (
-      isPrLinked &&
-      indent?.status !== "closed" &&
-      indent?.status !== "cancelled"
-    ) {
+    } else if (isPrLinked && isDraft) {
       btnAddLine.style.display = "";
       btnAddLine.disabled = true;
       btnAddLine.title = blockedMsg;
@@ -4725,10 +5037,22 @@ function renderIndentLines(rows) {
   });
 }
 
+const indentLinesFooter = createFeedFooter({
+  scrollId: "iLinesScroll",
+  onMore: () => {
+    const total = iLineFilteredRows.length;
+    if (!total || iLineVisibleCount >= total) return;
+    iLineVisibleCount = Math.min(iLineVisibleCount + iLinePageSize, total);
+    renderIndentLinesInfinite({ appendOnly: true });
+  },
+  onRetry: () => {},
+});
+
 function updateIndentLinesCountUi(total) {
   const countEl = qs("iLinesCount");
   if (!countEl) return;
   const shown = total ? Math.min(iLineVisibleCount, total) : 0;
+  indentLinesFooter.paint({ loaded: shown, total, loading: false, error: null, ended: shown >= total, capped: false, loadedOnce: total > 0 });
   countEl.textContent = total ? `${shown} / ${total}` : "0 / 0";
   countEl.title = total
     ? `Showing ${shown} of ${total} lines`
@@ -4937,12 +5261,15 @@ function renderIndents() {
   if (dateTh) dateTh.hidden = !showIndentDate;
   const indentColCount = showIndentDate ? 7 : 6;
   if (!state.indentsRows.length) {
+    const failed = indentsFeed.state.error;
     renderTableStateRow(
       tbody,
       indentColCount,
-      "empty",
-      "No indents match the current filters.",
-      "Clear the search or filters to see all indents.",
+      failed ? "error" : "empty",
+      failed ? "Indents could not be loaded." : "No indents match the current filters.",
+      failed
+        ? "Change the search or filters, or reopen this tab, to retry."
+        : "Clear the search or filters to see all indents.",
     );
   }
   for (const row of state.indentsRows) {
@@ -4966,64 +5293,39 @@ function renderIndents() {
     });
     tbody.appendChild(tr);
   }
-  const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
-  const _iCnt = Number.isFinite(state.indentsTotal)
-    ? state.indentsTotal
-    : state.indentsRows.length;
-  const _iPages = Math.max(1, Math.ceil(_iCnt / pageSize));
-  qs("iMeta").textContent = `${_iCnt} indent${_iCnt !== 1 ? "s" : ""}`;
-  qs("iPaging").textContent = `Page ${state.indentsPage + 1}/${_iPages}`;
-  const _iPrev = qs("iBtnPrev");
-  const _iNext = qs("iBtnNext");
-  setPagerDisabled(_iPrev, state.indentsPage <= 0);
-  setPagerDisabled(_iNext, (state.indentsPage + 1) * pageSize >= _iCnt);
-  updateTabCount("tabCountIndents", _iCnt);
+  const total = Number.isFinite(state.indentsTotal) ? state.indentsTotal : state.indentsRows.length;
+  qs("iMeta").textContent = `${total} indent${total !== 1 ? "s" : ""}`;
+  updateTabCount("tabCountIndents", total);
   updateExportButtonStates();
 }
 
+const indentsFeed = createFeed({
+  name: "indents",
+  scrollId: "iScroll",
+  pageSize: () => state.pageSize,
+  snapshotParams: () => ({
+    status: qs("iStatus").value,
+    classId: qs("iClass").value,
+    q: (qs("iSearch").value || "").trim(),
+  }),
+  fetchPage: ({ params, limit, offset, signal }) =>
+    rpcPecIndentHeadersPaged({ ...params, limit, offset, signal }),
+  keyOf: (r) => r.indent_id,
+  onUpdate: (f) => {
+    state.indentsRows = f.rows;
+    state.indentsTotal = f.total;
+    if (f.error && !f.rows.length) {
+      toast(`Failed to load indents: ${f.error.message}`, "error");
+    }
+    renderIndents();
+  },
+});
+
 async function loadIndents() {
-  const run = pecLatest.indents.begin();
   setTabTableLoading("indents", true);
   try {
-    const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
-    const status = qs("iStatus").value;
-    const cls = qs("iClass").value;
-    const search = (qs("iSearch").value || "").trim();
-    let result;
-    try {
-      result = await fetchPageWithRecovery(
-        (page) =>
-          rpcPecIndentHeadersPaged({
-            status,
-            classId: cls,
-            q: search,
-            limit: pageSize,
-            offset: page * pageSize,
-            signal: run.signal,
-          }),
-        state.indentsPage,
-        pageSize,
-        run.isCurrent,
-      );
-    } catch (error) {
-      if (!run.isCurrent()) return;
-      toast(`Failed to load indents: ${error.message}`, "error");
-      renderTableStateRow(
-        qs("iTbody"),
-        qs("iThIndentDate")?.hidden === false ? 7 : 6,
-        "error",
-        "Indents could not be loaded.",
-        "Change the search or filters, or reopen this tab, to retry.",
-      );
-      return;
-    }
-    if (!result || !run.isCurrent()) return;
-    state.indentsPage = result.page;
-    state.indentsTotal = result.total;
-    state.indentsRows = result.rows;
-    renderIndents();
+    await indentsFeed.reset();
   } finally {
-    run.done();
     setTabTableLoading("indents", false);
   }
 }
@@ -5597,14 +5899,6 @@ function wireProcurementSnapshotRefreshButton() {
 }
 
 function wireIndentControls() {
-  qs("iBtnPrev").addEventListener("click", () => {
-    state.indentsPage = Math.max(0, state.indentsPage - 1);
-    loadIndents();
-  });
-  qs("iBtnNext").addEventListener("click", () => {
-    state.indentsPage += 1;
-    loadIndents();
-  });
   qs("iStatus").addEventListener("change", () => {
     state.indentsPage = 0;
     loadIndents();
@@ -5735,11 +6029,7 @@ function wireIndentControls() {
       return;
     }
     if (!canAddIndentLine(state.selectedIndent)) {
-      if (state.selectedIndent.source_pr_id) {
-        toast(getIndentAddLinePrBlockedMessage(), "error");
-      } else {
-        toast("This indent cannot accept new lines in its current status.", "error");
-      }
+      toast(indentAddLineDeniedMessage(state.selectedIndent), "error");
       return;
     }
     openIndentAddLineModal(null);
@@ -5757,6 +6047,10 @@ function wireIndentControls() {
           "Draft indent quantities are corrected via PR revision + resync.",
           "error",
         );
+        return;
+      }
+      if (!canEditExistingIndentLineQty(state.selectedIndent, state.selectedIndentLine)) {
+        toast("This line's quantity cannot be corrected on this indent.", "error");
         return;
       }
       openIndentAddLineModal(state.selectedIndentLine);
@@ -7390,11 +7684,11 @@ function openIndentAddLineModal(existingLine) {
   const backdrop = qs("indentAddLineModalBackdrop");
   const indent = state.selectedIndent;
   if (!existingLine && !canAddIndentLine(indent)) {
-    if (indent?.source_pr_id) {
-      toast(getIndentAddLinePrBlockedMessage(), "error");
-    } else {
-      toast("This indent cannot accept new lines in its current status.", "error");
-    }
+    toast(indentAddLineDeniedMessage(indent), "error");
+    return;
+  }
+  if (existingLine && !canEditExistingIndentLineQty(indent, existingLine)) {
+    toast("This line's quantity cannot be corrected on this indent.", "error");
     return;
   }
 
@@ -7485,16 +7779,27 @@ async function saveIndentAddLine() {
     toast("No indent selected.", "error");
     return;
   }
-  if (!canAddIndentLine(state.selectedIndent)) {
-    if (state.selectedIndent.source_pr_id) {
-      toast(getIndentAddLinePrBlockedMessage(), "error");
-    } else {
-      toast("This indent cannot accept new lines in its current status.", "error");
+  const backdrop = qs("indentAddLineModalBackdrop");
+  // Two distinct operations share this modal; each is checked on its own rule
+  // at SAVE time too (a stale/forced modal can never create a new line on an
+  // approved/issued indent).
+  const existingLineId = Number(backdrop.dataset.existingLineId || 0);
+  if (existingLineId) {
+    const line = state.selectedIndentLine;
+    if (
+      !canEditExistingIndentLineQty(state.selectedIndent, line) ||
+      Number(line.indent_line_id) !== existingLineId ||
+      Number(backdrop.dataset.stockItemId) !== Number(line.stock_item_id) ||
+      Number(backdrop.dataset.uomId) !== Number(line.uom_id)
+    ) {
+      toast("This line's quantity cannot be corrected on this indent.", "error");
+      return;
     }
+  } else if (!canAddIndentLine(state.selectedIndent)) {
+    toast(indentAddLineDeniedMessage(state.selectedIndent), "error");
     return;
   }
 
-  const backdrop = qs("indentAddLineModalBackdrop");
   const indentId = state.selectedIndent.indent_id;
   const stockItemId = Number(backdrop.dataset.stockItemId || "0");
   const uomId = Number(backdrop.dataset.uomId || "0");
@@ -7561,12 +7866,17 @@ function renderPrHeaders() {
   const tbody = qs("prTbody");
   tbody.innerHTML = "";
   if (!state.prRows.length) {
+    const failed = prFeed.state.error;
     renderTableStateRow(
       tbody,
       7,
-      "empty",
-      "No purchase requisitions match the current filters.",
-      "Clear the search or filters, or generate a draft PR.",
+      failed ? "error" : "empty",
+      failed
+        ? "Purchase requisitions could not be loaded."
+        : "No purchase requisitions match the current filters.",
+      failed
+        ? "Change the search or filters, or reopen this tab, to retry."
+        : "Clear the search or filters, or generate a draft PR.",
     );
   }
   for (const row of state.prRows) {
@@ -7593,63 +7903,38 @@ function renderPrHeaders() {
     });
     tbody.appendChild(tr);
   }
-  const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
-  const _prCnt = Number.isFinite(state.prTotal)
-    ? state.prTotal
-    : state.prRows.length;
-  const _prPages = Math.max(1, Math.ceil(_prCnt / pageSize));
-  qs("prMeta").textContent = `${_prCnt} PR${_prCnt !== 1 ? "s" : ""}`;
-  qs("prPaging").textContent = `Page ${state.prPage + 1}/${_prPages}`;
-  const _prPrev = qs("prBtnPrev");
-  const _prNext = qs("prBtnNext");
-  setPagerDisabled(_prPrev, state.prPage <= 0);
-  setPagerDisabled(_prNext, (state.prPage + 1) * pageSize >= _prCnt);
-  updateTabCount("tabCountPr", _prCnt);
+  const total = Number.isFinite(state.prTotal) ? state.prTotal : state.prRows.length;
+  qs("prMeta").textContent = `${total} PR${total !== 1 ? "s" : ""}`;
+  updateTabCount("tabCountPr", total);
 }
 
+const prFeed = createFeed({
+  name: "pr",
+  scrollId: "prScroll",
+  pageSize: () => state.pageSize,
+  snapshotParams: () => ({
+    status: qs("prFilterStatus").value,
+    classId: qs("prFilterClass").value,
+    q: (qs("prSearch").value || "").trim(),
+  }),
+  fetchPage: ({ params, limit, offset, signal }) =>
+    rpcPecPrHeadersPaged({ ...params, limit, offset, signal }),
+  keyOf: (r) => r.pr_id,
+  onUpdate: (f) => {
+    state.prRows = f.rows;
+    state.prTotal = f.total;
+    if (f.error && !f.rows.length) {
+      toast(`Failed to load PRs: ${f.error.message}`, "error");
+    }
+    renderPrHeaders();
+  },
+});
+
 async function loadPrHeaders() {
-  const run = pecLatest.pr.begin();
   setTabTableLoading("pr", true);
   try {
-    const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
-    const status = qs("prFilterStatus").value;
-    const cls = qs("prFilterClass").value;
-    const search = (qs("prSearch").value || "").trim();
-    let result;
-    try {
-      result = await fetchPageWithRecovery(
-        (page) =>
-          rpcPecPrHeadersPaged({
-            status,
-            classId: cls,
-            q: search,
-            limit: pageSize,
-            offset: page * pageSize,
-            signal: run.signal,
-          }),
-        state.prPage,
-        pageSize,
-        run.isCurrent,
-      );
-    } catch (error) {
-      if (!run.isCurrent()) return;
-      toast(`Failed to load PRs: ${error.message}`, "error");
-      renderTableStateRow(
-        qs("prTbody"),
-        7,
-        "error",
-        "Purchase requisitions could not be loaded.",
-        "Change the search or filters, or reopen this tab, to retry.",
-      );
-      return;
-    }
-    if (!result || !run.isCurrent()) return;
-    state.prPage = result.page;
-    state.prTotal = result.total;
-    state.prRows = result.rows;
-    renderPrHeaders();
+    await prFeed.reset();
   } finally {
-    run.done();
     setTabTableLoading("pr", false);
   }
 }
@@ -7708,11 +7993,25 @@ function renderPrLineRowHtml(row, isDraft) {
     </tr>`;
 }
 
+// Detail-line lists are bounded per document (one read), revealed in steps; the
+// footer gives the same accessible "Load more" fallback as the server feeds.
+const prLinesFooter = createFeedFooter({
+  scrollId: "prLinesScroll",
+  onMore: () => {
+    const total = prLineFiltered.length;
+    if (!total || prLineVisibleCount >= total) return;
+    prLineVisibleCount = Math.min(prLineVisibleCount + prLinePageSize, total);
+    renderPrLinesPage({ appendOnly: true });
+  },
+  onRetry: () => {},
+});
+
 function updatePrLinePagingUi(total) {
   const rangeEl = qs("prLineRange");
   const prevBtn = qs("prLinePrev");
   const nextBtn = qs("prLineNext");
   const shown = total ? Math.min(prLineVisibleCount, total) : 0;
+  prLinesFooter.paint({ loaded: shown, total, loading: false, error: null, ended: shown >= total, capped: false, loadedOnce: total > 0 });
   if (rangeEl) {
     rangeEl.textContent = total ? `${shown} / ${total}` : "0 / 0";
     rangeEl.title = total
@@ -8193,6 +8492,23 @@ async function confirmPrRebuildFromMrp() {
   }
 }
 
+function setPrSecondaryInfoOpen(open) {
+  const meta = qs("prDetailMeta");
+  const toggle = qs("prTitleToggle");
+  if (meta) meta.hidden = !open;
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    toggle.title = open ? "Hide PR details" : "Show PR details";
+  }
+}
+
+function setExcessHelpOpen(open) {
+  const help = qs("eHelp");
+  const btn = qs("eHelpBtn");
+  if (help) help.classList.toggle("open", open);
+  if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
 function refreshPrViewModal(row) {
   state.selectedPr = row;
   upgradePrModalButtons(row);
@@ -8209,6 +8525,7 @@ function refreshPrViewModal(row) {
   metaParts.push(`Class: ${prClassText(row)}`);
   metaParts.push(`Scope: ${prScopeText(row)}`);
   qs("prDetailMeta").textContent = metaParts.join(" \u00b7 ");
+  setPrSecondaryInfoOpen(false); // compact header: PR number + status; details on demand
   const isDraft = row.status === "draft";
   const isActive = row.status === "active";
   const isTerminal = row.status === "closed" || row.status === "cancelled";
@@ -8234,7 +8551,7 @@ function refreshPrViewModal(row) {
   // Set lifecycle hint
   const prHints = {
     draft: "Draft — edit lines, then Activate to proceed.",
-    active: "Active — create an Indent or Close when done.",
+    active: "",
     closed: "Closed — read-only.",
     cancelled: "Cancelled — read-only.",
   };
@@ -8828,6 +9145,9 @@ async function confirmPrSetStatus() {
 }
 
 function wirePrControls() {
+  qs("prTitleToggle")?.addEventListener("click", () => {
+    setPrSecondaryInfoOpen(qs("prDetailMeta")?.hidden !== false);
+  });
   qs("btnGeneratePr").addEventListener("click", openGeneratePrModal);
   // PR detail modal
   qs("btnPrViewClose").addEventListener("click", closePrViewModal);
@@ -8889,14 +9209,6 @@ function wirePrControls() {
   );
   qs("generatePrModalBackdrop").addEventListener("click", (e) => {
     if (e.target.id === "generatePrModalBackdrop") closeGeneratePrModal();
-  });
-  qs("prBtnPrev").addEventListener("click", () => {
-    state.prPage = Math.max(0, state.prPage - 1);
-    loadPrHeaders();
-  });
-  qs("prBtnNext").addEventListener("click", () => {
-    state.prPage += 1;
-    loadPrHeaders();
   });
   ["prFilterStatus", "prFilterClass"].forEach((id) =>
     qs(id).addEventListener("change", () => {
@@ -9012,12 +9324,13 @@ function renderExcess() {
   const tbody = qs("eTbody");
   tbody.innerHTML = "";
   if (!state.excessRows.length) {
+    const failed = excessFeed.state.error;
     renderTableStateRow(
       tbody,
       8,
-      "empty",
-      "No excess purchases match the current filters.",
-      "Widen the date range or clear filters.",
+      failed ? "error" : "empty",
+      failed ? "Excess purchases could not be loaded." : "No excess purchases match the current filters.",
+      failed ? "Change the search or filters, or reopen this tab, to retry." : "Widen the date range or clear filters.",
     );
   }
   for (const row of state.excessRows) {
@@ -9042,14 +9355,11 @@ function renderExcess() {
     });
     tbody.appendChild(tr);
   }
-  qs("eMeta").textContent = getExcessMetaSummary();
-  qs("ePaging").textContent =
-    `Page ${state.excessPage + 1}/${state.excessTotalPages}`;
-  const _ePrev = qs("eBtnPrev");
-  const _eNext = qs("eBtnNext");
-  setPagerDisabled(_ePrev, state.excessPage <= 0);
-  setPagerDisabled(_eNext, state.excessPage >= state.excessTotalPages - 1);
-  updateTabCount("tabCountExcess", state.excessTotalCount);
+  const total = state.excessTotalCount;
+  qs("eMeta").textContent = `${total} line${total !== 1 ? "s" : ""}`;
+  const sum = qs("eSummary");
+  if (sum) sum.textContent = getExcessFilterSummary();
+  updateTabCount("tabCountExcess", total);
 }
 
 function formatIsoDate(date) {
@@ -9088,10 +9398,8 @@ function getExcessDateRange() {
   return { from: formatIsoDate(from), to: end, label: "last 30 days" };
 }
 
-function getExcessMetaSummary() {
-  const parts = [
-    `${state.excessTotalCount} line${state.excessTotalCount !== 1 ? "s" : ""}`,
-  ];
+function getExcessFilterSummary() {
+  const parts = [];
   const filters = state.excessFilters;
   if (filters.materialClassId) parts.push(filters.materialClassId);
   const dateRange = getExcessDateRange();
@@ -9203,46 +9511,34 @@ function buildExcessRpcParams(opts) {
   };
 }
 
+const excessFeed = createFeed({
+  name: "excess",
+  scrollId: "eScroll",
+  pageSize: () => state.pageSize,
+  // Filters/search/date range are snapshotted at reset; later pages reuse them.
+  snapshotParams: () => buildExcessRpcParams({ limit: 1, offset: 0 }),
+  fetchPage: ({ params, limit, offset, signal }) =>
+    rpcPecPaged(
+      "proc_pec_purchase_excess_filtered_paged",
+      { ...params, p_limit: clampPageLimit(limit), p_offset: offset },
+      signal,
+    ),
+  keyOf: (r) => r.purchase_fact_id ?? `${r.voucher_number}|${r.stock_item_id}|${r.voucher_date}`,
+  onUpdate: (f) => {
+    state.excessRows = f.rows;
+    state.excessTotalCount = f.total;
+    if (f.error && !f.rows.length) {
+      toast(`Failed to load excess purchases: ${f.error.message}`, "error");
+    }
+    renderExcess();
+  },
+});
+
 async function loadExcess() {
-  const run = pecLatest.excess.begin();
   setTabTableLoading("excess", true);
   try {
-    const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
-    // Dates always come from the preset/custom logic; omitted => server applies
-    // NO date restriction (see buildExcessRpcParams).
-    let result;
-    try {
-      result = await fetchPageWithRecovery(
-        (page) =>
-          rpcPecPaged(
-            "proc_pec_purchase_excess_filtered_paged",
-            buildExcessRpcParams({ limit: pageSize, offset: page * pageSize }),
-            run.signal,
-          ),
-        state.excessPage,
-        pageSize,
-        run.isCurrent,
-      );
-    } catch (error) {
-      if (!run.isCurrent()) return;
-      toast(`Failed to load excess purchases: ${error.message}`, "error");
-      renderTableStateRow(
-        qs("eTbody"),
-        8,
-        "error",
-        "Excess purchases could not be loaded.",
-        "Change the search or filters, or reopen this tab, to retry.",
-      );
-      return;
-    }
-    if (!result || !run.isCurrent()) return;
-    state.excessPage = result.page;
-    state.excessTotalCount = result.total;
-    state.excessTotalPages = Math.max(1, Math.ceil(result.total / pageSize));
-    state.excessRows = result.rows;
-    renderExcess();
+    await excessFeed.reset();
   } finally {
-    run.done();
     setTabTableLoading("excess", false);
   }
 }
@@ -9251,7 +9547,14 @@ function renderExcessAudit() {
   const tbody = qs("eAuditTbody");
   tbody.innerHTML = "";
   if (!state.excessAuditRows.length) {
-    renderTableStateRow(tbody, 5, "empty", "No excess acceptances recorded.");
+    const failed = excessAuditFeed.state.error;
+    renderTableStateRow(
+      tbody,
+      5,
+      failed ? "error" : "empty",
+      failed ? "Acceptance audit could not be loaded." : "No excess acceptances recorded.",
+      failed ? "Close and reopen the audit to retry." : "",
+    );
   }
   for (const row of state.excessAuditRows) {
     const tr = document.createElement("tr");
@@ -9264,51 +9567,28 @@ function renderExcessAudit() {
     `;
     tbody.appendChild(tr);
   }
+  const total = state.excessAuditTotalCount;
+  qs("eAuditMeta").textContent = `${total} line${total !== 1 ? "s" : ""}`;
 }
 
+const excessAuditFeed = createFeed({
+  name: "excessAudit",
+  scrollId: "eAuditScroll",
+  pageSize: () => state.pageSize,
+  fetchPage: ({ limit, offset, signal }) => rpcPecExcessAuditPaged({ limit, offset, signal }),
+  keyOf: (r) => r.audit_id ?? r.acceptance_id ?? r.id ?? `${r.accepted_at}|${r.stock_item_name}|${r.accepted_qty}|${r.reason}`,
+  onUpdate: (f) => {
+    state.excessAuditRows = f.rows;
+    state.excessAuditTotalCount = f.total;
+    if (f.error && !f.rows.length) {
+      toast(`Failed to load acceptance audit: ${f.error.message}`, "error");
+    }
+    renderExcessAudit();
+  },
+});
+
 async function loadExcessAuditPaged() {
-  const run = pecLatest.excessAudit.begin();
-  const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
-  let result;
-  try {
-    result = await fetchPageWithRecovery(
-      (page) =>
-        rpcPecExcessAuditPaged({
-          limit: pageSize,
-          offset: page * pageSize,
-          signal: run.signal,
-        }),
-      state.excessAuditPage,
-      pageSize,
-      run.isCurrent,
-    );
-  } catch (error) {
-    run.done();
-    if (!run.isCurrent()) return;
-    toast(`Failed to load acceptance audit: ${error.message}`, "error");
-    renderTableStateRow(
-      qs("eAuditTbody"),
-      5,
-      "error",
-      "Acceptance audit could not be loaded.",
-      "Close and reopen the audit to retry.",
-    );
-    return;
-  }
-  run.done();
-  if (!result || !run.isCurrent()) return;
-  state.excessAuditPage = result.page;
-  state.excessAuditTotalCount = result.total;
-  state.excessAuditTotalPages = Math.max(1, Math.ceil(result.total / pageSize));
-  state.excessAuditRows = result.rows;
-  renderExcessAudit();
-  qs("eAuditMeta").textContent =
-    `${state.excessAuditTotalCount} line${state.excessAuditTotalCount !== 1 ? "s" : ""}`;
-  qs("eAuditPaging").textContent =
-    `Page ${state.excessAuditPage + 1}/${state.excessAuditTotalPages}`;
-  qs("eAuditBtnPrev").disabled = state.excessAuditPage <= 0;
-  qs("eAuditBtnNext").disabled =
-    state.excessAuditPage >= state.excessAuditTotalPages - 1;
+  await excessAuditFeed.reset();
 }
 
 function openExcessAuditModal() {
@@ -9434,14 +9714,8 @@ async function saveAcceptExcess() {
 }
 
 function wireExcessControls() {
-  qs("eBtnPrev").addEventListener("click", () => {
-    state.excessPage = Math.max(0, state.excessPage - 1);
-    loadExcess();
-  });
-  qs("eBtnNext").addEventListener("click", () => {
-    if (state.excessPage >= state.excessTotalPages - 1) return;
-    state.excessPage += 1;
-    loadExcess();
+  qs("eHelpBtn")?.addEventListener("click", () => {
+    setExcessHelpOpen(!qs("eHelp")?.classList.contains("open"));
   });
   wireLiveSearchInput({
     inputId: "eSearch",
@@ -9517,16 +9791,6 @@ function wireExcessControls() {
   qs("btnEAuditClose")?.addEventListener("click", closeExcessAuditModal);
   qs("eAuditModalBackdrop")?.addEventListener("click", (e) => {
     if (e.target.id === "eAuditModalBackdrop") closeExcessAuditModal();
-  });
-  qs("eAuditBtnPrev")?.addEventListener("click", () => {
-    if (state.excessAuditPage <= 0) return;
-    state.excessAuditPage -= 1;
-    loadExcessAuditPaged();
-  });
-  qs("eAuditBtnNext")?.addEventListener("click", () => {
-    if (state.excessAuditPage >= state.excessAuditTotalPages - 1) return;
-    state.excessAuditPage += 1;
-    loadExcessAuditPaged();
   });
 }
 
@@ -10262,23 +10526,12 @@ function breakdownToCompactText(raw, row = {}) {
 }
 
 function updateVendorBuylistPager() {
-  const { page, pageSize, rows, totalCount } = state.vwl;
-  const prev = qs("vwlPrev");
-  const next = qs("vwlNext");
-  const text = qs("vwlPaging");
+  // Count only (numbered pagination was replaced by the incremental feed).
+  const { rows, totalCount } = state.vwl;
   const count = qs("vwlMeta");
   const total = Number.isFinite(totalCount) ? totalCount : rows.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-  setPagerDisabled(prev, page <= 0);
-  setPagerDisabled(next, (page + 1) * pageSize >= total);
-  if (text) {
-    text.textContent = `Page ${page + 1}/${totalPages}`;
-  }
   if (count) {
-    count.textContent = total
-      ? `${total} line${total !== 1 ? "s" : ""}`
-      : "0 lines";
+    count.textContent = total ? `${total} line${total !== 1 ? "s" : ""}` : "0 lines";
   }
 }
 
@@ -11635,6 +11888,33 @@ async function fetchVendorBuylistFilteredRows({
   return data || [];
 }
 
+const vwlFeed = createFeed({
+  name: "vwl",
+  scrollId: "vwlScroll",
+  pageSize: () => state.vwl.pageSize || 75,
+  keyOf: (row) => getVwlOperationalRowKey(row),
+  fetchPage: ({ params, limit, offset, signal }) =>
+    rpcPecPaged(
+      "proc_vendorwise_buylist_operational_paged",
+      {
+        ...params.base,
+        p_operational_filter: params.operationalFilter || null,
+        p_limit: clampPageLimit(limit),
+        p_offset: offset,
+      },
+      signal,
+    ),
+  onUpdate: (f) => {
+    state.vwl.rows = f.rows;
+    state.vwl.totalCount = f.total;
+    if (f.error && f.rows.length) {
+      toast(`Couldn't load more rows: ${f.error.message}`, "error");
+    }
+    renderVendorBuylistTable();
+    updateVendorBuylistPager();
+  },
+});
+
 async function loadVendorBuylist() {
   // Latest call wins: supersede (abort) any in-flight load so typing cannot
   // accumulate requests or let an older response overwrite a newer one.
@@ -11679,14 +11959,10 @@ async function loadVendorBuylist() {
           matchesVwlOperationalFilter(row, vendorFilterKey),
         );
       }
-      const total = rows.length;
-      const from = state.vwl.page * state.vwl.pageSize;
-      if (from >= total && state.vwl.page > 0) {
-        state.vwl.page = Math.max(0, Math.ceil(total / state.vwl.pageSize) - 1);
-      }
-      const start = state.vwl.page * state.vwl.pageSize;
-      state.vwl.totalCount = total;
-      state.vwl.rows = rows.slice(start, start + state.vwl.pageSize);
+      // Fully retrieved (no server split filter): show them all, nothing left to page.
+      vwlFeed.complete(rows);
+      state.vwl.totalCount = rows.length;
+      state.vwl.rows = rows;
       renderVendorBuylistTable();
       updateVendorBuylistPager();
       syncVwlFilterBadge();
@@ -11721,29 +11997,23 @@ async function loadVendorBuylist() {
 
     const pageSize = Number(state.vwl.pageSize) || 75;
     const operationalFilter = String(state.vwl.vendorFilterKey || "").trim();
-    const result = await fetchPageWithRecovery(
-      (page) =>
-        rpcPecPaged(
-          "proc_vendorwise_buylist_operational_paged",
-          {
-            ...params,
-            p_operational_filter: operationalFilter || null,
-            p_limit: clampPageLimit(pageSize),
-            p_offset: page * pageSize,
-          },
-          signal,
-        ),
-      state.vwl.page,
-      pageSize,
-      isCurrent,
+    const first = await rpcPecPaged(
+      "proc_vendorwise_buylist_operational_paged",
+      {
+        ...params,
+        p_operational_filter: operationalFilter || null,
+        p_limit: clampPageLimit(pageSize),
+        p_offset: 0,
+      },
+      signal,
     );
-    if (!result || !isCurrent()) return;
+    if (!isCurrent()) return;
 
     // Server order is authoritative (assigned first, UNASSIGNED last); no
-    // client re-sort of a single page.
-    state.vwl.page = result.page;
-    state.vwl.totalCount = result.total;
-    state.vwl.rows = result.rows;
+    // client re-sort. Later pages come from the feed with these same filters.
+    vwlFeed.seed(first.rows, first.total, { base: params, operationalFilter });
+    state.vwl.totalCount = first.total;
+    state.vwl.rows = vwlFeed.state.rows;
     renderVendorBuylistTable();
     updateVendorBuylistPager();
     syncVwlFilterBadge();
@@ -12447,18 +12717,6 @@ function wireVendorBuylistControls() {
     loadVendorBuylist();
   });
 
-  qs("vwlPrev")?.addEventListener("click", () => {
-    if (state.vwl.page <= 0) return;
-    state.vwl.page -= 1;
-    loadVendorBuylist();
-  });
-
-  qs("vwlNext")?.addEventListener("click", () => {
-    const { page, pageSize, totalCount } = state.vwl;
-    if (Number.isFinite(totalCount) && (page + 1) * pageSize >= totalCount) return;
-    state.vwl.page += 1;
-    loadVendorBuylist();
-  });
 
   qs("vwlExportBtn")?.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -12617,6 +12875,8 @@ function wireVendorBuylistControls() {
   wireTabs();
   wireTabKeyboard();
   applyResponsiveActionLabels();
+  applyRowCards();
+  wireRowKeyboardActivation();
   observeResponsiveActionLabels();
   wireStockItemPicker();
   wireAddPrLineItemSearch();

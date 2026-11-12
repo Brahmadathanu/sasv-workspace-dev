@@ -54,7 +54,7 @@ ok(/origin === "indent"/.test(js) && /indentAllowsVendorSelection/.test(js), "in
 const gitTry = (command) => { try { return sh(command).trim(); } catch { return ""; } };
 const headBranch = process.env.GITHUB_HEAD_REF || gitTry("git branch --show-current");
 const baseBranch = process.env.GITHUB_BASE_REF ||
-  (headBranch === "claude/pec-phase-a-visual-acceptance"
+  (headBranch === "claude/pec-phase-a-visual-acceptance" || headBranch === "claude/pec-r2-ui-ux"
     ? "integration/pec-erp-staging-20261112" : "main");
 const integrationCandidate = headBranch === "integration/pec-erp-staging-20261112";
 const baseRef = "refs/remotes/origin/" + baseBranch;
