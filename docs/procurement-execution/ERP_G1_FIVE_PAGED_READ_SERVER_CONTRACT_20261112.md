@@ -52,3 +52,17 @@ This is a **source-equivalent administrator SELECT check**, not a signed-in invo
 ## Client dependency note
 
 Claude's #320 full PR is stacked on #291/#301; **do not merge its current broad diff blindly**. An independent compare of `claude/pec-erp-c2-immediate-vendor-selection...claude/pec-c1-five-lens-fast-track-20261112` unexpectedly includes **23 commits** and unrelated WP05/lab/SW files, so the suggested branch diff is not a safe narrow review boundary. This risk was recorded directly on #320. After prerequisite merges, derive a clean PEC-only delta and validate #319's Full→RESET behaviour.
+
+## 12 Nov — Vendor ordering regression fixed, SQL replay verified
+
+**Issue discovered:** the first version of `proc_vendorwise_buylist_filtered_paged` ordered by `vendor_bucket_key,material_class_id,stock_item_id,uom_id` rather than the canonical buyer-facing order from the legacy function (`UNASSIGNED` **last**, `vendor_bucket_name`, `stock_item_name`, `uom_code`). That could reorder the entire buying list during client pagination. Corrected the live paged RPC to match the legacy business order exactly, adding unique group keys *only as deterministic ties*. Updated existing as-yet-unmerged migration in PR #323 (commit `d051cd9`), no new migration/production purchase writes.
+
+**Evidence:** real legacy function ordering captured by `WITH ORDINALITY`; source-equivalent new ordering compared across all **834** live Vendor-wise grouped rows. **0 position mismatches**; **635 assigned groups** precede the first `UNASSIGNED` group at **position 636**. First 200 and second 200 still disjoint. Regression SQL appended to `scripts/pec-g1-paged-read-contract-verify.sql`, using a dynamic row count for future data growth; live result `PEC_G1_VENDOR_LEGACY_ORDER_PARITY_PASS`. Full migration definition replay in `BEGIN/ROLLBACK` succeeded, with corrected order present.
+
+**Single-run diagnostic, not a performance SLA:** `EXPLAIN (ANALYZE, BUFFERS,FORMAT JSON)` on underlying Purchase Excess view:
+- new paged-query equivalent (first 100 with `count(*) OVER()` and `to_jsonb`): observed execution **1,116.887 ms**, shared buffer hits **18,253**, 100 output rows;
+- existing unpaged `SELECT * ... ORDER BY ...`: observed execution **943.077 ms**, shared buffer hits **18,285**, 13,311 output rows.
+
+These are **two isolated administrator plans**, not controlled repetitions, network transmission timings, p95, signed-in RPC executions, or statistically valid comparison. They show that `count(*) OVER()` can require full-data computation even with a bounded response, so **the new RPC should not be described as a proven latency improvement**. Its bounded result helps transfer/render size, not necessarily database execution cost. Need realistic authenticated runs, client-side total/filter semantics, repeated latency benchmarking and possible separate count/optimized paging strategy before performance acceptance.
+
+**Further design caveat:** the new PR, Indents and Excess paged functions currently lack corresponding server filter inputs used by their client lists. Running existing client-side filters only on each page could omit matching results. **Do not switch those lenses to paged RPCs without synchronized server-filter contracts** and relevant export semantics; only Vendor-wise has the existing five upstream filters and even there client search/selection/export must be checked.
