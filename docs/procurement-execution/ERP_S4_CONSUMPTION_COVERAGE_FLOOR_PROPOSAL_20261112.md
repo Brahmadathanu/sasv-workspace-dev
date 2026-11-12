@@ -1,3 +1,5 @@
+> **Owner clarification — 12 Nov 2026:** no Tally PO source or purchase-order/ETA requirement in S4. Pre-PR *duplicate requisition prevention* credits the unfulfilled balance of currently approved/issued indents in the existing PEC lifecycle. This is distinct from stock/inbound forecasting. Later text proposing a PO dependency is superseded by the final note appended below.
+
 # PEC S4 — Hybrid Replenishment: Consumption Coverage Floor (Owner proposal)
 
 **Date:** 2026-11-12 IST. Parent issue #305, master #284. **DRAFT G1, not owner-approved policy and not executable production logic.** This refines the user's proposed average-consumption + MOQ-normalised PR floor while preserving current MRP, PR edits and stock governance.
@@ -108,3 +110,14 @@ Order of operations: compute fixed-calendar average unrounded → multiply by PR
 **Critical as-of warning for both cases:** `v_mrp_procurement_plan` is a recursive *active horizon* model, with opening stock anchored at its first month and carried forward. Today's reported stock snapshot (2026-11-11) may not represent the same time anchor as the plan's November–January already-stock-netted procure quantities. Comparing 11,800 and 10,200 is a **diagnostic contrast**, not exact formula parity until an aligned forward projection or plan regeneration is developed. Independent historical PR lines could also already cover material. Do not auto-update PRs from these figures.
 
 **Remaining gates:** explicit qualifying inbound ledger, snapshot/anchor alignment, class coverage, consumption basis, policy/rounding controls and signed-in acceptance. No production writing.
+
+## Final input hierarchy — confirmed owner exclusion of Tally PO dependency
+
+For **additional new PR quantities**, do not depend on `tally_purchase_orders_snapshot` or any PO/ETA source. Use:
+1. Existing **stock-netted** MRP quantity, and the independently **stock-netted** CCF from the same planning anchor; select the greater baseline need (not the sum).
+2. Approved/issued **outstanding indent balances** from `v_proc_indent_line_balance` (already net of FIFO purchase allocation), grouped by matching class/item/UOM; subtract as *existing procurement commitment*, not as physical inventory.
+3. Apply only one final positive-balance MOQ / divisible-unit policy, and ceil indivisible `Nos` to an integer. Preserve existing indents and their Buying List visibility; zero proposed PR item means no *new* indent line.
+
+No PO feed, current PO, ETA, purchase-order lifecycle or supplier acknowledgment is a precondition for (2). Do not deduct any old indent that is closed/cancelled/draft; do not silently exclude approved ones because they are old. Display ageing as review information, with an explicit governed override/correction route if a still-active indent has ceased being actionable. Do not double count a new PR's own indent in that PR's future recalculations.
+
+The above is the accepted **source and sequencing direction**, not authorization for a production writer, schema migration, automatic cancellation or merge.
