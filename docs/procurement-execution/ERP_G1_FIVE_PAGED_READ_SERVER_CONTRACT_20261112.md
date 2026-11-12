@@ -38,3 +38,17 @@ The five new `SECURITY DEFINER`, `STABLE` functions are **read-only**, require `
 5. Rebase against moving main, independent code/CI review and explicit owner merge before declaring G1 contract delivered or PWA deployed.
 
 **Formal programme gates: 0/6 verified; G0 active. S4 hybrid writer still disabled.**
+
+## 12 Nov follow-up: two-page source ordering acceptance
+
+The reproducible verifier `scripts/pec-g1-paged-read-contract-verify.sql` was extended (commit `8ceabcc`) with a **read-only, source-equivalent first/second 200-row page disjointness check**:
+
+- Purchase Excess `13,311` total: first 200, second 200, **overlap 0** (stable `voucher_date DESC NULLS LAST,purchase_fact_id DESC` ordering).
+- Vendor-wise `834` total: first 200, second 200, **overlap 0** on `(vendor_bucket_key,material_class_id,stock_item_id,uom_id)`.
+- All five function definitions continue to have module VIEW checks and `authenticated` EXECUTE true, `anon` false. Live script outcome **`PEC_G1_FIRST_TWO_SOURCE_PAGES_PASS`**.
+
+This is a **source-equivalent administrator SELECT check**, not a signed-in invocation of the actual security-definer paging RPC, no concurrency/latency guarantee and no guarantee the client filters match the server's page boundary. Actual client-side adoption and JWT-dependent acceptance remain open. No table writes.
+
+## Client dependency note
+
+Claude's #320 full PR is stacked on #291/#301; **do not merge its current broad diff blindly**. An independent compare of `claude/pec-erp-c2-immediate-vendor-selection...claude/pec-c1-five-lens-fast-track-20261112` unexpectedly includes **23 commits** and unrelated WP05/lab/SW files, so the suggested branch diff is not a safe narrow review boundary. This risk was recorded directly on #320. After prerequisite merges, derive a clean PEC-only delta and validate #319's Full→RESET behaviour.
