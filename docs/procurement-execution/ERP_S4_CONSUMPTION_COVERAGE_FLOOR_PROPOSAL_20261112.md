@@ -78,3 +78,19 @@ For an **already-created PR**, do **not** compare its historical saved `B` (base
 **Read-only source inspection:** `proc_pr_header` has `generation_filters` JSONB and horizon/effective dates, but inspection of the relevant PR header and line columns found **no dedicated immutable stock snapshot ID/date column**. `updated_at` is a change timestamp, not a reliable original stock reference. Do not infer stock snapshot date from PR number or effective date without source evidence.
 
 **Release gate:** no new data writes/SQL deployment and no CCF addition to PRs until stock anchor, commitment de-duplication and selected owner policy are verified.
+
+## 2026-11-12 — first executed read-only diagnostic checkpoint
+
+Created `docs/procurement-execution/ERP_S4_PREVIEW_READBACK_SELECT_ONLY_20261112.sql` (commit `5079b48`), explicitly a *single-item bounded SELECT* for stock item 1638 with fixed hypothetical PR period 2026-11-01 through 2027-01-01 and a complete Oct-ending 12-month consumption calendar. This is a **diagnostic data extraction**, not a new RPC/PR generation/operational recommendation, and it contains no write or grant statements.
+
+Executed the exact committed SELECT against production using read-only SQL access. Observed:
+- item `1638` Label - Punarnavasavam 450 ML, `plm`, UOM `Nos` ID 5.
+- 12 calendar months, 4 nonzero months; total usage 12,587 Nos, 12m monthly mean 1,048.917, 3m monthly mean 945.667.
+- opening/recorded stock from stock view 0 Nos; underlying PLM source snapshot watermark 2026-11-11.
+- MRP three-month gross and stock-netted procurement quantities both zero (3 MRP rows).
+- illustrative 3-month usage `(12587 / 12) × 3 = 3146.75` Nos; **not rounded to an approved MOQ**.
+- no eligible active MOQ policy for the item's UOM; `evidence_gate='MOQ_POLICY_REVIEW'`, `approved_incremental_pr_qty=NULL`. Missing verified other-firm-inbound, policy approval, stock quality/hold/UOM and historical PR lifecycle are still additional reasons for withholding a purchasing figure; gate label is only first-stop precedence, not a complete acceptance state.
+
+**Result interpretation:** demonstration that the read-only data sources can expose MRP/consumption gaps without changing MRP, and that missing policy prevents an artificial quantity from being stated as final. NOT a product-wide population study, SQL RPC installation, stock valuation or PR draft edit. The fixed 3m, 12m period and watermark are case-specific evidence fixtures; do not extrapolate these constants into the eventual API.
+
+**Next gates:** comprehensive source and eligibility mapping across all RM/PM/consumables, cross-check true available stock and order commitments, owner-approved average/MOQ/safety rules, snapshot-consistency and UOM tests, then a permission-gated preview RPC in isolated PG17.4. Existing PRs require anchor mismatch reconciliation and manual override review; no auto-writer.
