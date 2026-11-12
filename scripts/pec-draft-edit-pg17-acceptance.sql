@@ -1,5 +1,18 @@
 -- Isolated PostgreSQL 17 regression checks. Never run on live SASV.
 \set ON_ERROR_STOP on
+CREATE FUNCTION public.fixture_expect_denial(p_sql text,p_message text) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
+DECLARE v_failed boolean := false;
+BEGIN
+  BEGIN
+    EXECUTE p_sql;
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := true;
+  END;
+  IF NOT v_failed THEN RAISE EXCEPTION 'unexpectedly accepted: %',p_message; END IF;
+  RAISE NOTICE 'PASS denied: %',p_message;
+END $$;
+
 SET test.user_id = '11111111-1111-4111-8111-111111111111';
 SET test.can_edit = 'true';
 SET ROLE authenticated;
@@ -24,18 +37,6 @@ BEGIN
 END $test$;
 -- Each rejected call must throw; simple SQL DO helper rolls back local statement
 -- side effects on exception and avoids leaving false-positive tests.
-CREATE FUNCTION public.fixture_expect_denial(p_sql text,p_message text) RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
-DECLARE v_failed boolean := false;
-BEGIN
-  BEGIN
-    EXECUTE p_sql;
-  EXCEPTION WHEN OTHERS THEN
-    v_failed := true;
-  END;
-  IF NOT v_failed THEN RAISE EXCEPTION 'unexpectedly accepted: %',p_message; END IF;
-  RAISE NOTICE 'PASS denied: %',p_message;
-END $$;
 -- Mock test helpers live only inside ephemeral database.
 SELECT public.fixture_expect_denial(
  $$SELECT public.proc_indent_update_draft_date(1,'2026-11-13','2026-11-10','stale')$$,'stale date');
