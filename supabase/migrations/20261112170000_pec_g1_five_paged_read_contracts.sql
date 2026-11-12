@@ -104,7 +104,14 @@ BEGIN
   RETURN QUERY
     SELECT to_jsonb(f) AS row_data, count(*) OVER()::bigint AS total_count
     FROM public.proc_vendorwise_buylist_filtered_pec_internal(p_material_class_id,p_rm_scope,p_rate_status,p_assignment_status,p_q) f
-    ORDER BY f.vendor_bucket_key ASC NULLS LAST, f.material_class_id ASC NULLS LAST, f.stock_item_id ASC, f.uom_id ASC
+    ORDER BY CASE WHEN f.vendor_bucket_key='UNASSIGNED' THEN 1 ELSE 0 END,
+      f.vendor_bucket_name ASC NULLS LAST,
+      f.stock_item_name ASC NULLS LAST,
+      f.uom_code ASC NULLS LAST,
+      f.vendor_bucket_key ASC NULLS LAST,
+      f.material_class_id ASC NULLS LAST,
+      f.stock_item_id ASC,
+      f.uom_id ASC
     LIMIT p_limit OFFSET p_offset;
 END $function$;
 REVOKE ALL ON FUNCTION public.proc_vendorwise_buylist_filtered_paged(p_material_class_id bigint, p_rm_scope text, p_rate_status text, p_assignment_status text, p_q text, p_limit integer, p_offset integer) FROM PUBLIC,anon;
