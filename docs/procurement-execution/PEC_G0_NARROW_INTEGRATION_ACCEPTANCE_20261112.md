@@ -52,3 +52,18 @@ This verifier is a **contract smoke**, not a replacement for isolated clean inst
 Separately, current `main` canonical shared client HTML/JS was inspected: five primary lenses and **44 direct `.rpc` occurrences / 43 unique literal names**. This preliminary G0 baseline inventory was committed to broad documentation branch #287 as `ERP_G0_CURRENT_MAIN_CLIENT_RPC_INVENTORY_20261112.md` (commit `eeaee50`). It is not yet the required full five-lens DOM/permissions/control matrix. Therefore formal PEC G0 remains **0/6 gates**.
 
 Remaining release checks: run actual authenticated PEC edit session (without simulated JWT), confirm approved legacy-indent reduction → snapshot publication on controlled safe target, review view RLS parity, and get independent owner-approved PR merge. The production MRP full rebase and S4 hybrid feature remain outside this narrow PR.
+
+## 12 Nov 2026 — authenticated-role MRP factor security defect fixed
+
+**Cause:** `mrp_uom_factor_strict` initially ran `SECURITY INVOKER`, reading `inv_uom` and `inv_uom_conversion`. The conversion table is RLS-enabled with **no authenticated SELECT grant or policy**; even `SET LOCAL ROLE authenticated; SELECT mrp_uom_factor_strict(1,2)` failed with `MRP UOM: incompatible unit dimensions` due invisible UOM rows in a bare no-JWT context. This is a definite grant/RLS boundary issue independent of the four-item mass correction.
+
+**Live scoped correction:** Function is now `STABLE SECURITY DEFINER`, search_path `pg_catalog,public`, with no dynamic SQL and only governed factor/dimension SELECTs. `PUBLIC` and `anon` EXECUTE revoked; `authenticated` and `service_role` EXECUTE granted. No grant or RLS policy altered on `inv_uom_conversion` or `inv_uom`. Revision captured in the **sixth ordered migration** `supabase/migrations/20261112150000_pec_mrp_uom_factor_auth_rbac.sql` commit `9300d1d`; do not change the original earlier migration ordering.
+
+**Independent live checks:**
+- `SET LOCAL ROLE authenticated` returned Kg→g 1000, g→Kg 0.001 and Nos→Nos identity 1, **PASS**.
+- Anonymous function invocation was rejected `permission denied for function mrp_uom_factor_strict`, **PASS**.
+- `has_function_privilege(authenticated,...,EXECUTE)=true`, `anon=false`, `has_table_privilege(authenticated,'inv_uom_conversion','SELECT')=false`, `prosecdef=true`, **PASS**.
+- Reusable smoke `scripts/pec-g0-postmigration-contract-verify.sql` extended with these role/ACL assertions, commit `a5832aa`. Executed live, `PEC_G0_AUTH_UOM_HELPER_PASS`.
+- No JWT was fabricated and no authorized user was impersonated. The `v_mrp_material_gross_requirement_rm` view security option was **not** changed; real signed-in JWT/RLS read parity and PEC editor RPC success remain open.
+
+**Release governance:** the existing main has moved after narrow branch creation; rebase/check conflicts before merge. PR #317 stays draft and owner-approved merge still required. Formal PEC gate count **0/6**.
