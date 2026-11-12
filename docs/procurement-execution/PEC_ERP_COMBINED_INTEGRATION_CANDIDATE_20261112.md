@@ -25,3 +25,15 @@ The client baseline contributes the shared canonical PEC HTML, JS and CSS, 253-c
 
 ## Release rule
 Keep original source PRs for owner-governed order: **server #317→#323**, client **#291→#301→#320→#335** (reconcile #319 once), PWA #342 at or before the client deployment. Candidate #347 **must not be merged as a shortcut**, nor used to trigger production migrations. Do not enable hybrid S4/MRP rebase/Tally actions.
+
+## 12 Nov — Source/live migration-parity deep audit (read-only)
+
+A direct read-only source audit compared `CREATE OR REPLACE FUNCTION` definitions from the **exact ten staged G0+G1 migration files** against live Supabase `pg_get_functiondef`, removing SQL whitespace only for lexical comparison. The migration set has **20 distinct final functions**:
+
+- **G1 10/10:** all `pg_get_functiondef` bodies and declaration tokens match the staged `20261112170000/173000/174500` SQL. `proc_vendorwise_buylist_filtered_paged` had only nonsemantic newline/layout differences.
+- **G0 10/10 final-state parity:** eight source definitions matched directly; `proc_pr_set_manual_delta_pec_internal` matched apart from a terminal LF in the live function source, and `mrp_uom_factor_strict` matched after applying the **explicit** `20261112150000` security-definer `ALTER FUNCTION` that follows its initial definition in `20261112114000`. This is *expected migration-chain state*, not an unauthorized discrepancy. `mrp_rm_plan_rebuild_month_active` matches the last `20261112152000` definition.
+- Guarded material migration `20261112110000`: exact **13/13** specified BOM lines now use the 1000× quantity and gram UOM; **4/4** affected `inv_stock_item.default_uom_id` values use gram; **21/21** related BOM lines use gram; **zero** remaining non-gram related BOM lines.
+- Live metadata: all **10 G1** paging functions have `SECURITY DEFINER`, authenticated EXECUTE, PEC VIEW permission guard, and no anonymous EXECUTE. G0 eight internal writer/conversion functions are not directly executable by authenticated; the strict helper is intentionally SECDEF/authenticated and anon-denied. G0/ G1 regression verifier files executed live PASS.
+- `supabase_migrations.schema_migrations` query confirms **0/10 registered versions** despite the objects being live. The previously established official CLI history repair (no SQL replay) remains **unexecuted**.
+
+**Limit:** lexical SQL definition equivalence and governed BOM state cover the known changed objects, not all schema dependencies, arbitrary concurrent DML, signed-in RPC authorization or pre/post migrated-row fingerprints for every system table. The owner's migration-history repair approval and signed-in functional acceptance are still separate release conditions. No production object, master, approved indent or MRP record was changed by this audit.
