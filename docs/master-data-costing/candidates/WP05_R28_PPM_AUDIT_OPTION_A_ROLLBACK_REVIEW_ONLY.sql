@@ -1,5 +1,7 @@
 -- REVIEW ROLLBACK ONLY. DO NOT RUN WITHOUT SEPARATE OWNER APPROVAL.
 -- Reverts ONLY the Scheme Master audit view after an approved R28 Option A rollout.
+-- Exact expected candidate view fingerprint observed on isolated PostgreSQL 17.11:
+-- e2b9eb3c1b86d073183cd376f704cf58. Fails on intervening view edits.
 -- Restores the exact original 20-field projection and four-module helper predicate.
 BEGIN;
 SET LOCAL lock_timeout='3s';
@@ -14,6 +16,7 @@ BEGIN
  IF position('module:pricing-policy-manager' IN v_def)=0
    OR position('fn_costing_view_allowed' IN v_def)>0
    OR position('costing.scheme_master_audit' IN v_def)=0
+   OR md5(v_def) <> 'e2b9eb3c1b86d073183cd376f704cf58'
    OR (SELECT count(*) FROM pg_attribute WHERE attrelid=v_oid AND attnum>0 AND NOT attisdropped)<>20 THEN
    RAISE EXCEPTION 'WP05 R28 rollback: unknown intervening view revision; do not overwrite';
  END IF;
