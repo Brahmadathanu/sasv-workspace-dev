@@ -15,6 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { PAGED_SHIM } from "./lib/pec-paged-shim.mjs";
 
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
@@ -35,7 +36,8 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const base = `http://127.0.0.1:${server.address().port}`;
 
 function stub(scenario) {
-  return `
+  return `${PAGED_SHIM}
+
 const S = ${JSON.stringify(scenario)};
 const long = "Aqueous extract of Terminalia chebula fruit pericarp standardised grade A — long item name to exercise wrapping without clipping";
 const indents = Array.from({ length: 5 }, (_, i) => ({
@@ -54,8 +56,11 @@ const data = {
 const mk = (d) => ({ data: d, error: null });
 export const supabase = {
   auth: { getSession: async () => ({ data: { session: { user: { id: "fixture-user" } } }, error: null }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) },
-  rpc: async (name) => {
+  rpc: async (name, params) => {
+    const __r = __pagedRpc(name, params || {}, { indents: data.proc_pec_indent_headers, prs: data.proc_pec_pr_headers, excess: data.proc_pec_purchase_excess, audit: [] });
+    if (__r && __r.__error) return { data: null, error: { message: __r.__error } };
     if (S.failReads && (name.startsWith("proc_pec_") || name === "proc_procurement_action_queue_paged")) return { data: null, error: { message: "fixture failure" } };
+    if (__r !== undefined && !(S.failReads && name.startsWith("proc_pec_"))) return mk(__r);
     if (name === "get_user_permissions") return mk(S.role === "none" ? [] : [{ target: "module:procurement-execution-console", can_view: true, can_edit: S.role === "edit" }]);
     if (name === "proc_procurement_action_queue_paged") return mk(S.empty ? [] : [{ total_count: 1, row_data: { indent_line_id: 1, indent_id: 100, indent_number: "IND-26-100", stock_item_name: long, remaining_qty: 5, priority_band_final: "P1", priority_score_system: 80, material_class_code: "RM", uom_code: "KG" } }]);
     if (name in data) return mk(data[name]);

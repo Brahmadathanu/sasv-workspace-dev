@@ -107,6 +107,7 @@ for (const r of rows) {
   const named = Boolean(r.name);
   const wired = !r.id || refs > 0 || GENERIC.test(r.id) || r.tag === "a" || r.tag === "input" && r.type === "hidden";
   const status = !named ? "FAIL" : !wired ? "FIX" : "PASS";
+  if (status === "FIX") { a.fail++; fails++; } // FIX rows are fatal too (unreachable modals are DEFER, not FIX)
   const note = !named ? "no accessible name" : !wired ? "id not referenced by JS (verify handler)" : `named; ${r.id ? refs + " JS ref(s)" : "no id (static/dynamic)"}`;
   if (status === "FAIL") { a.fail++; fails++; }
   a.ctl.push({ ...r, status, note });
@@ -125,7 +126,7 @@ for (const [k, a] of Object.entries(byArea)) for (const c of a.ctl) {
 const md = lines.join("\n");
 if (mdOut) fs.writeFileSync(mdOut, md + "\n");
 console.log(md);
-console.log(`\nTotal controls inventoried: ${controls}; FAIL rows: ${fails}`);
+console.log(`\nTotal controls inventoried: ${controls}; FAIL+FIX rows: ${fails}`);
 const lensIdCount = (k) => byArea[k]?.ctl.filter((c) => c.id && c.tag !== "dialog").length ?? 0;
 console.log("ID-bearing controls per lens:", ["pr", "action", "indents", "vendor-buylist", "excess"].map((t) => `${t}=${lensIdCount("lens:" + t)}`).join(", "));
 if (fails) process.exit(1);

@@ -33,7 +33,14 @@ try { mainJs = sh("git show origin/main:public/shared/js/procurement-execution-c
 if (mainJs) {
   const a = rpcNames(mainJs), b = rpcNames(js);
   const added = [...b].filter((x) => !a.has(x));
-  ok(added.length === 0, `no new RPC names introduced (${added.join(",") || "none"})`);
+  // The only RPC names this client may add are the live paged read contracts (draft server PR #323).
+  const ALLOWED_NEW = new Set([
+    "proc_pec_pr_headers_filtered_paged", "proc_pec_indent_headers_filtered_paged",
+    "proc_pec_purchase_excess_filtered_paged", "proc_pec_excess_acceptance_audit_paged",
+    "proc_vendorwise_buylist_operational_paged", "proc_vendorwise_buylist_operational_options",
+  ]);
+  const unexpected = added.filter((x) => !ALLOWED_NEW.has(x));
+  ok(unexpected.length === 0, `no unexpected RPC names introduced (${unexpected.join(",") || "none"}; paged contract names allowed: ${added.filter((x) => ALLOWED_NEW.has(x)).length})`);
 }
 ok(!/proc_indent_(update|edit|set)_(draft|line)[a-z_]*|proc_pr_replenish|hybrid_replenish/.test(js), "no draft-edit / replenishment RPC wired (server contract pending)");
 

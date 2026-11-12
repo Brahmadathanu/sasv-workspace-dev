@@ -42,7 +42,15 @@ function extractFunction(name) {
 const code = [
   "let vwlLoadSeq = 0;",
   "let vwlLoadAbort = null;",
+  "const PEC_PAGE_LIMIT_MAX = 200;",
+  "const PEC_EXPORT_MAX_ROWS = 50000;",
+  "const DEFAULT_PAGE_SIZE = 30;",
   ...[
+    "unpackPagedRows",
+    "clampPageLimit",
+    "rpcPecPaged",
+    "fetchPageWithRecovery",
+    "normalizeVwlServerFilterOptions",
     "pickRpcField",
     "buildVwlSplitKey",
     "buildVwlSplitLookup",
@@ -77,10 +85,21 @@ function makeHarness() {
     rpc(name, params) {
       const call = { name, params, aborted: false };
       call.promise = new Promise((resolve) => {
-        call.resolve = (data) => resolve({ data, error: null });
+        // Paged RPCs answer [{row_data,total_count}]; tests supply plain rows.
+        call.resolve = (data) =>
+          resolve({
+            data:
+              name === "proc_vendorwise_buylist_operational_paged" &&
+              Array.isArray(data)
+                ? data.map((r) => ({ row_data: r, total_count: data.length }))
+                : data,
+            error: null,
+          });
         call.fail = (message) => resolve({ data: null, error: { message } });
       });
       calls.push(call);
+      // The options RPC is not under test here: answer it immediately.
+      if (name === "proc_vendorwise_buylist_operational_options") call.resolve([]);
       const builder = {
         abortSignal(signal) {
           signal.addEventListener("abort", () => {
@@ -120,8 +139,13 @@ function makeHarness() {
   return h;
 }
 const tick = () => new Promise((r) => setImmediate(r));
+// the list read: server-paged by default, full read only for "split only"/export
 const main = (h) =>
-  h.calls.filter((c) => c.name === "proc_vendorwise_buylist_filtered");
+  h.calls.filter(
+    (c) =>
+      c.name === "proc_vendorwise_buylist_operational_paged" ||
+      c.name === "proc_vendorwise_buylist_filtered",
+  );
 const split = (h) =>
   h.calls.filter((c) => c.name === "proc_vendorwise_buylist_split_items");
 const type = (h, q) => {
@@ -140,6 +164,17 @@ const type = (h, q) => {
     "initial load issues one main and one split RPC",
   );
   assert(main(h)[0].params.p_q === null, "initial load sends p_q=null");
+  assert(
+    main(h)[0].name === "proc_vendorwise_buylist_operational_paged" &&
+      main(h)[0].params.p_limit === 50 &&
+      main(h)[0].params.p_offset === 0 &&
+      main(h)[0].params.p_operational_filter === null,
+    "default list read is server-paged (limit/offset) with no operational filter",
+  );
+  assert(
+    h.calls.filter((c) => c.name === "proc_vendorwise_buylist_operational_options").length === 1,
+    "dropdown options come from the options RPC for the upstream filters",
+  );
   main(h)[0].resolve([{ name: "A" }]);
   await tick();
   assert(

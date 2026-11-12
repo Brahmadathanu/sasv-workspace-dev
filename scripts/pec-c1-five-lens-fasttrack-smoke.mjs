@@ -10,6 +10,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { PAGED_SHIM } from "./lib/pec-paged-shim.mjs";
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -53,7 +54,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const base = `http://127.0.0.1:${server.address().port}`;
-const stub = (S) => `
+const stub = (S) => `${PAGED_SHIM}
 const S = ${JSON.stringify(S)};
 const calls = (globalThis.__rpcCalls = []);
 const mk = (d) => ({ data: d, error: null });
@@ -61,6 +62,8 @@ export const supabase = {
   auth: { getSession: async () => ({ data: { session: { user: { id: "f" } } }, error: null }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) },
   rpc: async (name, params) => {
     calls.push({ name, params });
+    const __r = __pagedRpc(name, params || {}, { indents: [{ indent_id: 200, indent_number: "IND-26-200", status: "draft", indent_date: "2026-11-10", approved_date: null, material_class_id: 1, material_class_code: "RM", line_count: 1, source_pr_id: 55 }], prs: [], excess: [], audit: [], vwl: [] });
+    if (__r !== undefined) return mk(__r);
     if (name === "get_user_permissions") return mk([{ target: "module:procurement-execution-console", can_view: true, can_edit: true }]);
     if (name === "proc_pec_indent_headers") return mk([{ indent_id: 200, indent_number: "IND-26-200", status: "draft", indent_date: "2026-11-10", approved_date: null, material_class_id: 1, material_class_code: "RM", line_count: 1, source_pr_id: 55 }]);
     if (name === "proc_pec_indent_lines") return mk([]);
