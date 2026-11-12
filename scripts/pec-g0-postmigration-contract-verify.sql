@@ -62,3 +62,25 @@ BEGIN
   RAISE NOTICE 'PEC G0 SELECT-only postmigration assertions passed';
 END $verify$;
 SELECT 'PEC_G0_POSTMIGRATION_PASS' AS result;
+
+-- ACL and RLS consistency, including an actual authenticated role conversion.
+DO $access$
+BEGIN
+ IF NOT (SELECT prosecdef FROM pg_proc WHERE oid='public.mrp_uom_factor_strict(bigint,bigint)'::regprocedure)
+ OR has_function_privilege('anon','public.mrp_uom_factor_strict(bigint,bigint)','EXECUTE')
+ OR NOT has_function_privilege('authenticated','public.mrp_uom_factor_strict(bigint,bigint)','EXECUTE')
+ OR has_table_privilege('authenticated','public.inv_uom_conversion','SELECT')
+ THEN RAISE EXCEPTION 'PEC G0 UOM helper access boundary incorrect'; END IF;
+END $access$;
+
+BEGIN;
+SET LOCAL ROLE authenticated;
+DO $auth$
+BEGIN
+ IF public.mrp_uom_factor_strict(1,2)<>1000
+ OR public.mrp_uom_factor_strict(2,1)<>0.001
+ OR public.mrp_uom_factor_strict(5,5)<>1
+ THEN RAISE EXCEPTION 'PEC G0 strict conversion fails in authenticated role'; END IF;
+END $auth$;
+ROLLBACK;
+SELECT 'PEC_G0_AUTH_UOM_HELPER_PASS' AS result;
