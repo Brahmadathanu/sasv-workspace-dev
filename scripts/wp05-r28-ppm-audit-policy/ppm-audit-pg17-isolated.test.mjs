@@ -125,6 +125,7 @@ test("baseline original four-module helper yields expected role contrast",()=>{
 });
 test("approved candidate SQL parses, applies and preserves SQL grants and 20 columns",()=>{
  psql(candidate);
+ console.log("WP05_R28_CANDIDATE_VIEW_MD5="+md5());
  assert.equal(psql("SELECT count(*) FROM pg_attribute WHERE attrelid='public.v_costing_scheme_master_audit'::regclass AND attnum>0 AND NOT attisdropped;"),"20");
  assert.equal(psql("SELECT has_table_privilege('authenticated','public.v_costing_scheme_master_audit','SELECT');"),"t");
  assert.equal(psql("SELECT has_table_privilege('anon','public.v_costing_scheme_master_audit','SELECT');"),"f");
