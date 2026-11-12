@@ -29,7 +29,7 @@ jobs:
           node-version: "22"
       - name: Install isolated PEC browser/PDF test dependencies
         run: |
-          npm install --prefix "$RUNNER_TEMP/pecdeps" --no-save --no-audit --no-fund playwright@1.56.1 jspdf@2.5.1 jspdf-autotable@3.8.2
+          npm install --prefix "$RUNNER_TEMP/pecdeps" --no-save --no-audit --no-fund playwright@1.62.1 jspdf@2.5.1 jspdf-autotable@3.8.2
           "$RUNNER_TEMP/pecdeps/node_modules/.bin/playwright" install --with-deps chromium
       - name: Run PEC integrated browser and contract checks
         env:
