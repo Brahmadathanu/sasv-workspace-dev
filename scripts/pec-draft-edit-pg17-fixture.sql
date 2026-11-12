@@ -98,3 +98,6 @@ INSERT INTO public.proc_pr_indent_line_map VALUES(4,104,54);
 INSERT INTO public.proc_allocation_fixture VALUES(105,2);
 INSERT INTO public.inv_item_fixture VALUES(1006,'finished_bulk_material');
 INSERT INTO public.proc_indent_line_sourcing_decision VALUES(107,42);
+
+-- Fixture inspection only: expose synthetic rows to the test role.
+GRANT SELECT ON public.proc_indent_header,public.proc_indent_line,public.proc_lifecycle_audit TO authenticated;
