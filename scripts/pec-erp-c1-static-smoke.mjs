@@ -53,9 +53,19 @@ ok(/origin === "indent"/.test(js) && /indentAllowsVendorSelection/.test(js), "in
 // Fetch the explicit base ref in CI; fail closed if it is missing.
 const gitTry = (command) => { try { return sh(command).trim(); } catch { return ""; } };
 const headBranch = process.env.GITHUB_HEAD_REF || gitTry("git branch --show-current");
+// CI supplies the exact PR base. Local worktrees derive the base from
+// integration ancestry instead of a hard-coded list of branch names.
+// This only selects the comparison tree: descendant branches NEVER receive
+// an SQL/SW allowlist exemption.
+const integrationRef = "refs/remotes/origin/integration/pec-erp-staging-20261112";
+let derivedFromIntegration = false;
+try {
+  execSync("git merge-base --is-ancestor " + integrationRef + " HEAD", { stdio: "ignore" });
+  derivedFromIntegration = true;
+} catch { /* local remote ref missing or unrelated checkout */ }
 const baseBranch = process.env.GITHUB_BASE_REF ||
-  (headBranch === "claude/pec-phase-a-visual-acceptance" || headBranch === "claude/pec-r2-ui-ux"
-    ? "integration/pec-erp-staging-20261112" : "main");
+  (headBranch === "integration/pec-erp-staging-20261112" ? "main" :
+    derivedFromIntegration ? "integration/pec-erp-staging-20261112" : "main");
 const integrationCandidate = headBranch === "integration/pec-erp-staging-20261112";
 const baseRef = "refs/remotes/origin/" + baseBranch;
 const present = gitTry("git rev-parse --verify " + baseRef);

@@ -29,7 +29,7 @@ for (let i = 0; i < ${S.hugeVwl ? 50001 : (S.vwlRows || 500)}; i++) {
     vendor_bucket_name: unassigned ? "UNASSIGNED" : local ? "Local Purchase" : v.name, vendor_name: unassigned ? null : local ? "Local Purchase" : v.name,
     material_class_id: 1, material_class_code: "RM", stock_item_id: 1000 + i, uom_id: 1, stock_item_name: "VItem " + String(i).padStart(4, "0"), uom_code: "KG",
     total_qty_to_buy: 5, rate_value: unassigned ? null : 10, line_amount: unassigned ? null : 50, rate_status: unassigned ? "not_applicable" : "with_rate", assignment_status: unassigned ? "unassigned" : "assigned",
-    indent_breakdown: [{ indent_number: "IND-26-" + (100 + (i % 9)), indent_line_sort_no: 1 + (i % 4), qty_to_buy: 5, uom_code: "KG" }] });
+    indent_breakdown: Array.from({ length: ${S.vwlBdLen || 1} }, (_, b) => ({ indent_number: "IND-26-" + (100 + ((i + b) % 90)), indent_line_sort_no: 1 + ((i + b) % 4), qty_to_buy: 5, uom_code: "KG" })) });
 }
 export const supabase = {
   auth: { getSession: async () => ({ data: { session: { user: { id: "f" } } }, error: null }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) },

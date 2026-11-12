@@ -859,18 +859,49 @@ function observeResponsiveActionLabels() {
  * column heading as `data-label`; rows that open a detail are made keyboard
  * reachable (Enter/Space activate them like a click).
  */
+/**
+ * Compact ERP record card (≤640px, one CSS mechanism in the shared stylesheet).
+ * Field priority per list is declared here by column heading, not by CSS position:
+ *   title  = the record identifier (first line, bold)
+ *   status = status/band pill, trailing the title (label suppressed, name kept in title attr)
+ *   key    = the one decisive number, trailing the title
+ *   sub    = a muted second line without label (context that explains the title)
+ *   note   = long free text on its own full-width line
+ *   aux    = low-frequency fields, shown muted at the end
+ *   field  = cells holding inputs/selects/buttons (label stacked above the control)
+ *   meta   = everything else: inline "Label value" pairs (default)
+ */
+const PEC_CARD_ROLES = {
+  prTbody: { "PR Number": "title", Status: "status", "Eff. From": "meta", Horizon: "meta", Class: "meta", Scope: "meta", Lines: "meta" },
+  iTbody: { "Indent Number": "title", Status: "status", "Indent ID": "aux" },
+  vwlTbody: { Item: "title", Amount: "key", "Vendor / Local Purchase": "sub" },
+  aqTbody: { Item: "title", "Qty Pending": "key", Band: "status", "Indent#": "sub" },
+  eTbody: { Item: "title", "Net Unalloc": "key", Voucher: "sub" },
+  prLinesTbody: { Item: "title", "Final Qty": "key", Reason: "note" },
+  iLinesTbody: { Item: "title", Remaining: "key", "#": "aux" },
+  eAuditTbody: { Item: "title", "Accepted Qty": "key", Reason: "note" },
+  vwlBdTbody: { "Indent #": "title", Status: "status", Amount: "key" },
+};
+
 function applyRowCards(root = document) {
   root.querySelectorAll("table.erp-table").forEach((table) => {
     const heads = [...table.querySelectorAll("thead th")]
       .filter((th) => !th.hidden)
       .map((th) => th.textContent.replace(/\s+/g, " ").trim());
     table.classList.add("pec-card-table");
+    const roles = PEC_CARD_ROLES[table.querySelector("tbody")?.id] || null;
     table.querySelectorAll("tbody > tr").forEach((tr) => {
       if (tr.classList.contains("pec-table-state-row")) return;
       let i = 0;
       for (const td of tr.children) {
         if (td.tagName !== "TD") continue;
         if (!td.dataset.label && heads[i] !== undefined) td.dataset.label = heads[i];
+        if (!td.dataset.role) {
+          let role = roles ? roles[td.dataset.label] : i === 0 ? "title" : "";
+          if (!role) role = td.querySelector("input, select, textarea") ? "field" : "meta";
+          td.dataset.role = role;
+          if (role === "status") td.title = td.dataset.label || "";
+        }
         i += td.colSpan > 1 ? td.colSpan : 1;
       }
       const clickable = tr.style.cursor === "pointer" || tr.classList.contains("clickable-row");
@@ -889,6 +920,47 @@ function mirrorLensCount() {
   const live = document.querySelector(".tab-panel.active .pec-lens-count");
   const text = (live?.textContent || "").trim();
   if (el.textContent !== text) el.textContent = text;
+}
+
+/** Docked footer "Close" of every row-detail modal reuses the header close control. */
+function wireDetailFooterClose() {
+  document.addEventListener("click", (e) => {
+    const b = e.target instanceof Element ? e.target.closest("[data-pec-close]") : null;
+    if (!b) return;
+    b.closest(".modal")?.querySelector(".modal-header .modal-close-btn")?.click();
+  });
+}
+
+/** The one open/close trigger for every filter panel (lenses, line toolbars, Excess). */
+function bindFilterTrigger(btnId, drawerId, focusId) {
+  const btn = qs(btnId);
+  const drawer = qs(drawerId);
+  if (!btn || !drawer || btn._pecFilterBound) return;
+  btn._pecFilterBound = true;
+  btn.setAttribute("aria-controls", drawerId);
+  btn.setAttribute("aria-haspopup", "dialog");
+  drawer._ownerBtn = btn;
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (drawer.classList.contains("open")) {
+      closeFloatingFilterDrawer(btn, drawer);
+    } else {
+      closeVendorBuylistDrawers?.(null);
+      openFloatingFilterDrawer(btn, drawer, focusId ? qs(focusId) : null);
+    }
+  });
+}
+
+function wireFilterTriggers() {
+  [
+    ["aqFilterBtn", "aqFilterDrawer"],
+    ["prFilterBtn", "prFilterDrawer"],
+    ["iFilterBtn", "iFilterDrawer"],
+    ["vwlFilterBtn", "vwlFilterDrawer"],
+    ["eFilterBtn", "eFilterPanel"],
+    ["prLineFilterBtn", "prLineFilterDrawer", "prLineFilterSelect"],
+    ["iLineFilterBtn", "iLineFilterDrawer", "iLineFilterSelect"],
+  ].forEach(([b, d, f]) => bindFilterTrigger(b, d, f));
 }
 
 function wireRowKeyboardActivation() {
@@ -1603,8 +1675,93 @@ function clampExportDropdownToViewport(dd) {
   if (r.right > vw - 8) dd.style.left = `${-(r.right - (vw - 8))}px`;
 }
 
+const PEC_SHEET_MQ = "(max-width: 640px)";
+const pecIsSheetViewport = () => window.matchMedia?.(PEC_SHEET_MQ).matches === true;
+
+/** Default value of a filter control = its markup default, used by the generic Clear. */
+function resetFilterControl(el) {
+  let changed = false;
+  if (el instanceof HTMLInputElement && (el.type === "checkbox" || el.type === "radio")) {
+    if (el.checked !== el.defaultChecked) { el.checked = el.defaultChecked; changed = true; }
+  } else if (el instanceof HTMLSelectElement) {
+    const def = [...el.options].find((o) => o.defaultSelected) || el.options[0];
+    if (def && el.value !== def.value) { el.value = def.value; changed = true; }
+  } else if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+    if (el.value !== el.defaultValue) { el.value = el.defaultValue; changed = true; }
+  }
+  if (changed) {
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+}
+
+/**
+ * One filter panel anatomy for every lens and every nested modal:
+ *   header (title + Close)  ·  scrollable sections  ·  footer (Clear + Done).
+ * Built once per drawer from the existing markup; filters still apply live through the
+ * original change handlers (server-side filtering, latest-wins and reset are untouched).
+ */
+function enhanceFilterDrawer(drawer) {
+  if (!drawer || drawer.dataset.pecEnhanced === "1") return;
+  drawer.dataset.pecEnhanced = "1";
+  const legacyTitle = drawer.querySelector(":scope > .pec-filter-drawer-title");
+  const title = (legacyTitle?.textContent || drawer.getAttribute("aria-label") || "Filters").replace(/\s+/g, " ").trim();
+  legacyTitle?.remove();
+  const head = document.createElement("div");
+  head.className = "pec-filter-drawer-head";
+  head.innerHTML = '<h3 class="pec-filter-drawer-title"></h3><button type="button" class="modal-close-btn pec-filter-close" aria-label="Close filters" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+  head.querySelector("h3").textContent = title;
+  const body = document.createElement("div");
+  body.className = "pec-filter-drawer-body";
+  [...drawer.childNodes].forEach((n) => body.appendChild(n));
+  const foot = document.createElement("div");
+  foot.className = "pec-filter-actions";
+  const legacyClear = body.querySelector(".pec-filter-clear-btn");
+  const clear = legacyClear || document.createElement("button");
+  if (!legacyClear) { clear.type = "button"; clear.className = "pec-filter-clear-btn"; }
+  clear.textContent = "Clear";
+  body.querySelector(".pec-filter-actions")?.remove();
+  const done = document.createElement("button");
+  done.type = "button";
+  done.className = "pec-filter-done-btn";
+  done.textContent = "Done";
+  foot.append(clear, done);
+  drawer.append(head, body, foot);
+  drawer.setAttribute("aria-modal", "false");
+  const close = () => closeProcurementFilterDrawer(drawer, { restoreFocus: true });
+  head.querySelector(".pec-filter-close").addEventListener("click", close);
+  done.addEventListener("click", close);
+  if (!legacyClear) {
+    clear.addEventListener("click", () => {
+      body.querySelectorAll("select, input, textarea").forEach(resetFilterControl);
+    });
+  }
+  drawer.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab" || !drawer.classList.contains("is-sheet")) return;
+    const f = [...drawer.querySelectorAll("button, select, input, textarea, [tabindex]:not([tabindex='-1'])")].filter((x) => !x.disabled && x.offsetParent !== null);
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+}
+
+function syncFilterSheetState() {
+  const sheetOpen = !!document.querySelector(".pec-filter-drawer.open.is-sheet");
+  document.body.classList.toggle("pec-sheet-open", sheetOpen);
+}
+
 function positionFloatingFilterDrawer(btn, drawer) {
   if (!btn || !drawer) return;
+  if (pecIsSheetViewport()) {
+    // Phones: a full-viewport sheet (CSS); no anchored geometry.
+    ["position", "left", "right", "top", "bottom", "maxHeight", "zIndex"].forEach((k) => { drawer.style[k] = ""; });
+    drawer.classList.add("is-sheet");
+    syncFilterSheetState();
+    return;
+  }
+  drawer.classList.remove("is-sheet");
+  syncFilterSheetState();
   const rect = btn.getBoundingClientRect();
   const isInsideModal = !!btn.closest(".modal");
   drawer.style.position = "fixed";
@@ -1687,21 +1844,24 @@ function openFloatingFilterDrawer(btn, drawer, focusEl) {
     }
   }
 
+  enhanceFilterDrawer(drawer);
   drawer.classList.add("open");
   drawer._ownerBtn = btn;
   btn.setAttribute("aria-expanded", "true");
   positionFloatingFilterDrawer(btn, drawer);
   startFloatingFilterDrawerTracking(btn, drawer);
-  focusEl?.focus?.();
+  const firstControl = drawer.querySelector(".pec-filter-drawer-body select, .pec-filter-drawer-body input");
+  (focusEl || firstControl)?.focus?.();
 }
 
 function closeFloatingFilterDrawer(btn, drawer, options = {}) {
   if (!drawer) return;
   const { restoreFocus = false } = options;
   const ownerBtn = btn || drawer._ownerBtn || findControlledTrigger(drawer);
-  drawer.classList.remove("open");
+  drawer.classList.remove("open", "is-sheet");
   if (ownerBtn) ownerBtn.setAttribute("aria-expanded", "false");
   stopFloatingFilterDrawerTracking(drawer);
+  syncFilterSheetState();
 
   if (
     drawer._portalPlaceholder &&
@@ -5005,14 +5165,8 @@ const indentLinesFooter = createFeedFooter({
 });
 
 function updateIndentLinesCountUi(total) {
-  const countEl = qs("iLinesCount");
-  if (!countEl) return;
   const shown = total ? Math.min(iLineVisibleCount, total) : 0;
   indentLinesFooter.paint({ loaded: shown, total, loading: false, error: null, ended: shown >= total, capped: false, loadedOnce: total > 0 });
-  countEl.textContent = total ? `${shown} / ${total}` : "0 / 0";
-  countEl.title = total
-    ? `Showing ${shown} of ${total} lines`
-    : "No matching lines";
 }
 
 function resetIndentLinesInfiniteScroll(resetScrollTop = true) {
@@ -5886,32 +6040,6 @@ function wireIndentControls() {
     debounceMs: 150,
   });
 
-  if (iLineFilterBtn && iLineFilterDrawer) {
-    iLineFilterBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const isOpen = iLineFilterDrawer.classList.contains("open");
-      if (isOpen) {
-        closeFloatingFilterDrawer(iLineFilterBtn, iLineFilterDrawer);
-      } else {
-        openFloatingFilterDrawer(
-          iLineFilterBtn,
-          iLineFilterDrawer,
-          iLineFilterSelect,
-        );
-      }
-    });
-    iLineFilterDrawer.addEventListener("click", (e) => e.stopPropagation());
-    document.addEventListener("click", (e) => {
-      if (
-        iLineFilterDrawer.classList.contains("open") &&
-        !iLineFilterDrawer.contains(e.target) &&
-        e.target !== iLineFilterBtn &&
-        !iLineFilterBtn.contains(e.target)
-      ) {
-        closeFloatingFilterDrawer(iLineFilterBtn, iLineFilterDrawer);
-      }
-    });
-  }
 
   iLineFilterSelect?.addEventListener("change", () => {
     iLineFilter = iLineFilterSelect.value;
@@ -7958,15 +8086,8 @@ const prLinesFooter = createFeedFooter({
 });
 
 function updatePrLinePagingUi(total) {
-  const rangeEl = qs("prLineRange");
   const shown = total ? Math.min(prLineVisibleCount, total) : 0;
   prLinesFooter.paint({ loaded: shown, total, loading: false, error: null, ended: shown >= total, capped: false, loadedOnce: total > 0 });
-  if (rangeEl) {
-    rangeEl.textContent = total ? `${shown} / ${total}` : "0 / 0";
-    rangeEl.title = total
-      ? `Showing ${shown} of ${total} lines`
-      : "No matching lines";
-  }
 }
 
 function resetPrLinesInfiniteScroll(resetScrollTop = true) {
@@ -8196,29 +8317,6 @@ function wirePrLineTableActions() {
     if (filterBtn) filterBtn.classList.toggle("pec-filter-btn--active", active);
   }
 
-  if (filterBtn && filterDrawer) {
-    filterBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const isOpen = filterDrawer.classList.contains("open");
-      if (isOpen) {
-        closeFloatingFilterDrawer(filterBtn, filterDrawer);
-      } else {
-        openFloatingFilterDrawer(filterBtn, filterDrawer, filterSelect);
-      }
-    });
-    filterDrawer.addEventListener("click", (e) => e.stopPropagation());
-    // Close on outside click (outside the drawer and button)
-    document.addEventListener("click", (e) => {
-      if (
-        filterDrawer.classList.contains("open") &&
-        !filterDrawer.contains(e.target) &&
-        e.target !== filterBtn &&
-        !filterBtn.contains(e.target)
-      ) {
-        closeFloatingFilterDrawer(filterBtn, filterDrawer);
-      }
-    });
-  }
 
   if (filterSelect) {
     filterSelect.value = prLineFilterValue;
@@ -9380,45 +9478,6 @@ function syncExcessFilterBadge() {
   btn.classList.toggle("pec-filter-btn--active", count > 0);
 }
 
-function closeExcessFilterPanel({ restoreFocus = false } = {}) {
-  const panel = qs("eFilterPanel");
-  const btn = qs("eFilterBtn");
-  if (!panel || !btn) return;
-  closeFloatingFilterDrawer(btn, panel, { restoreFocus });
-}
-
-function toggleExcessFilterPanel() {
-  const panel = qs("eFilterPanel");
-  const btn = qs("eFilterBtn");
-  if (!panel || !btn) return;
-
-  const isOpen = panel.classList.contains("open");
-  if (isOpen) {
-    closeExcessFilterPanel({ restoreFocus: true });
-    return;
-  }
-
-  closeAllProcurementFilterDrawers({ exceptId: panel.id });
-  panel.classList.add("open");
-  panel._ownerBtn = btn;
-  btn.setAttribute("aria-expanded", "true");
-  const rect = btn.getBoundingClientRect();
-  panel.style.position = "fixed";
-  panel.style.top = rect.bottom + 4 + "px";
-  panel.style.left = rect.left + "px";
-  panel.style.zIndex = "10001";
-  requestAnimationFrame(() => {
-    const drawerWidth = panel.offsetWidth || 320;
-    if (rect.left + drawerWidth > window.innerWidth) {
-      panel.style.left = Math.max(4, rect.right - drawerWidth) + "px";
-    }
-    const firstField = panel.querySelector(
-      'select, input, button:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    );
-    focusElementIfPossible(firstField);
-  });
-}
-
 // One builder for every Excess read (table page AND tab badge) so they can
 // never disagree: active/default filters incl. the preset date range.
 function buildExcessRpcParams(opts) {
@@ -9655,8 +9714,6 @@ function wireExcessControls() {
       loadExcess();
     },
   });
-  const eFilterBtn = qs("eFilterBtn");
-  const eFilterPanel = qs("eFilterPanel");
   const applyExcessFilterSearchVendor = debounce((value) => {
     applyExcessFilterChange({ vendorQ: value.trim() });
   }, 250);
@@ -9664,22 +9721,6 @@ function wireExcessControls() {
     applyExcessFilterChange({ itemQ: value.trim() });
   }, 250);
 
-  eFilterBtn?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    toggleExcessFilterPanel();
-  });
-  eFilterPanel?.addEventListener("click", (e) => {
-    e.stopPropagation();
-  });
-  document.addEventListener("click", (e) => {
-    if (
-      !e.target.closest("#eFilterBtn") &&
-      !e.target.closest("#eFilterPanel")
-    ) {
-      closeExcessFilterPanel();
-    }
-  });
-  window.addEventListener("resize", closeExcessFilterPanel);
 
   syncExcessFilterBadge();
 
@@ -10500,6 +10541,8 @@ function openVwlBreakdown(row) {
   }
 
   const breakdown = normalizeVwlBreakdown(row.indent_breakdown);
+  const bdSummary = qs("vwlBdSummary");
+  if (bdSummary) bdSummary.textContent = `${breakdown.length} indent line${breakdown.length === 1 ? "" : "s"} · ${fmt(row.total_qty_to_buy)} ${row.uom_code ?? ""}`.trim();
   tbody.innerHTML = "";
   if (!breakdown.length) {
     tbody.innerHTML =
@@ -12799,6 +12842,8 @@ function wireVendorBuylistControls() {
   applyResponsiveActionLabels();
   applyRowCards();
   wireRowKeyboardActivation();
+  wireDetailFooterClose();
+  wireFilterTriggers();
   observeResponsiveActionLabels();
   wireStockItemPicker();
   wireAddPrLineItemSearch();

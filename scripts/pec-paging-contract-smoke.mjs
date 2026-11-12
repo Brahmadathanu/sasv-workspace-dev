@@ -420,7 +420,7 @@ for (const vp of [{ n: "1440", width: 1440, height: 900 }, { n: "820", width: 82
     await page.waitForTimeout(700);
     const r = await page.evaluate(({ tb, counter }) => { const tr = document.querySelector(`#${tb} tr`); const td = tr.querySelector("td:nth-child(2)"); const cs = getComputedStyle(tr); const de = document.documentElement; return { ovf: de.scrollWidth - de.clientWidth, display: cs.display, label: td?.dataset.label || "", count: document.querySelector(counter).textContent.trim(), mirror: document.getElementById("procTabCount").textContent.trim() }; }, { tb, counter });
     const isCard = vp.width <= 640;
-    check(r.ovf <= 1 && /\d/.test(r.count) && (isCard ? r.display === "grid" && r.label !== "" : r.display === "table-row"), `${vp.n}px ${tab}: ${isCard ? "row is a labelled card" : "row is a table row"}, count "${r.count}", no horizontal overflow`);
+    check(r.ovf <= 1 && /\d/.test(r.count) && (isCard ? r.display === "flex" && r.label !== "" : r.display === "table-row"), `${vp.n}px ${tab}: ${isCard ? "row is a labelled card" : "row is a table row"}, count "${r.count}", no horizontal overflow`);
     if (narrow) check(r.mirror === r.count, `${vp.n}px ${tab}: lens selector shows the count (${r.mirror})`);
     const kb = await page.evaluate((tb) => { const tr = document.querySelector(`#${tb} tr`); return { tab: tr.tabIndex, key: tr.dataset.pecRow }; }, tb);
     check(kb.tab === 0 && kb.key === "1", `${vp.n}px ${tab}: rows are keyboard reachable`);
