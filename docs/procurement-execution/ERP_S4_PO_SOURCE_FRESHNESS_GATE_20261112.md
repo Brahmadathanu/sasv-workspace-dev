@@ -1,3 +1,5 @@
+> **SUPERSEDED AS A DEPENDENCY — OWNER DECISION, 12 NOV 2026.** Tally purchase-order snapshots are **not used in the current SASV workflow and must not be used for S4 calculation, eligibility, gating, or reconciliation**. This document is retained as historical investigation only, not as a work request to restore or integrate PO feeds. The governing S4 commitment input is the existing approved/issued indent lifecycle and unfulfilled quantities from `v_proc_indent_line_balance`. Do not block S4 PR calculations on missing PO, ETA or vendor acknowledgment. See the owner decision appended below.
+
 # PEC S4 — Purchase-order freshness and actionable-indent evidence gate
 
 **Investigation:** 2026-11-12 IST · master #284 · S4 #305. Read-only Supabase evidence, no production writes.
@@ -32,3 +34,13 @@ Separately verified:
 **Panchasara control fixture:** 61,250 Kg old indent balance vs 11,800 Kg illustrative consumption coverage, MRP 10,200 Kg; old POs 7,100 Kg in the 2025-11-04 snapshot are **not additive credit** (also possibly part of earlier indents); never conclude that all 61,250 Kg is arriving nor that 11,800 Kg should be ordered.
 
 No production data writes, new RPC, PR, indent, snapshot refresh or merge. G0, 0/6 formal gates.
+
+## Superseding owner direction — no Tally purchase-order dependency
+
+The owner expressly rejected reliance on Tally purchase orders because they are not dependable and are not used in the current process. **Do not integrate, refresh, require, compare or subtract `tally_purchase_orders_snapshot` for S4.** Its age is irrelevant to the new PR calculation; `PO_SNAPSHOT_STALE` is **not** an S4 blocker. Prior proposals in this document about finding a live PO feed and requiring PO/ETA evidence are withdrawn.
+
+**Governing pre-PR principle:** use outstanding balances of approved/issued indents from `v_proc_indent_line_balance` as the procurement-commitment deduction, by stock item/material class/UOM, without treating it as physical stock or re-deducting it in MRP opening stock. Existing FIFO purchase allocations already reduce those balances. Preserve all older unfulfilled indents in Vendor-wise Buying List. Explicitly exclude draft, cancelled and closed indents according to existing lifecycle rules. If an apparently active indent is no longer valid, its status/balance must be corrected in its existing governed indent workflow rather than silently excluded by an unapproved PO or age criterion.
+
+**Remaining separate risks (not PO dependencies):** stock as-of anchor consistency; PR→indent source link de-duplication; multiple horizons/overlap; owner-approved treatment of aged but still approved indents; UOM and MOQ rounding; any supplier commitments recorded exclusively outside the indent process must not be invented or credited.
+
+This directive supersedes all incompatible prospective wording above. No production changes made.
