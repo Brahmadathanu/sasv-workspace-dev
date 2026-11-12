@@ -45,6 +45,19 @@ INSERT INTO costing.cost_sheet_line_traceability_snapshot
 VALUES (1,'2026-11-01',10,100,'B_COST',1,'Synthetic Direct Labour','2026-11-01',1000,'{"fixture":"yes"}','{"fixture":"yes"}');
 `);
 psql(fixture("original-views.sql"));
+test("Shared Costing SKU reader and trace evidence client contracts remain in source",()=>{
+ const shell=readFileSync(new URL("../../public/shared/js/costing-suite-shell.js",import.meta.url),"utf8");
+ const costSheet=readFileSync(new URL("../../public/shared/js/costing-suite-cost-sheet.js",import.meta.url),"utf8");
+ assert.match(shell,/async function fetchSkuDetail\(row\)/);
+ assert.match(shell,/"v_costing_pricing_sku_detailed_cost_sheet"/);
+ assert.match(shell,/\.eq\("period_start", ACTIVE_PERIOD_START\)/);
+ assert.match(shell,/\.eq\("sku_id", skuId\)/);
+ assert.match(shell,/return data\?\.\[0\] \|\| row;/);
+ assert.match(costSheet,/"v_costing_pricing_cost_sheet_line_traceability"/);
+ for(const field of ["trace_source_snapshot","evidence_json","drill_filter_json","refresh_run_id","valuation_date"]){
+  assert.ok(costSheet.includes('"' + field + '"'),"Missing line evidence contract "+field);
+ }
+});
 test("Exact original 44 and 40 column views parse and retain metadata",()=>{
 for(const [v,n] of [[detail,44],[trace,40]]){
 assert.equal(hash(v),original[v]);
