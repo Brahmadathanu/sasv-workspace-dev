@@ -79,3 +79,21 @@ Remaining release checks: run actual authenticated PEC edit session (without sim
 **Full source-control ordered migration replay:** fetched all **7 migration files**, stripped embedded per-file transaction wrappers and executed them in **one BEGIN…ROLLBACK** on live corrected schema. PASS: `non_gram=0`, `helper_definer=true`, `rollup_strict=true`. This proves *already-corrected production-state compatibility*, not a complete blank-environment migration replay or hosted authenticated workflow.
 
 **Remaining:** valid signed-in editor public PEC RPC success and approved legacy indent reduction→snapshot publish, view/JWT/RLS parity and owner merge approval; destructive Nov–Jan production-plan rebase intentionally held. Source-control integration PR remains draft and unmerged, client work delegated to Claude separately. Formal G0 **0/6**.
+
+## 12 Nov — Reproducible writer regression and no-residual-data proof
+
+A durable transactional fixture `scripts/pec-g0-db-transactional-writer-acceptance.sql` (commit `2c0e888`) was committed and executed against live Supabase. Output **`PEC_G0_ROLLBACK_WRITER_INTEGRATION_PASS`** with **450 PR revision lines, 206 reset-indent lines and 206 mappings**. Internally the assertions also verify zero internal-category lines in the generated indent; SAFE preservation of one manually added Ampar line with 205 mapped lines and one obsolete PR-mapped line deleted; RESET removal of that manual line and restoration of the 206 mappings. Every created test record is inside one transaction and rolls back. This is an administrator DB-internal integration test, **not** a valid authenticated PEC editor proof.
+
+**Independent post-rollback live check:** fixture PR headers **0**, indent headers **0**, audit events **0**; existing approved indent #84 item #427 requested quantity **260 Nos**, seven existing internal-category open indent balances unchanged. December 2026 MRP **5,447 detail rows / one run**, unchanged. Sequence number gaps may occur despite ROLLBACK, but no test documents were persisted.
+
+## Exact remaining sign-off test (authorized PEC editor)
+
+An existing genuinely signed-in PEC Editor with `module:procurement-execution-console` edit rights must exercise via public RPC/UI, without fake JWT or permission table writes:
+
+1. **Read contract:** Open PEC PWA, confirm PR and indent read lists, confirm an ordinary and an internal-classified item display correctly; verify the MRP gross/stock data used by PR preview and the current server-side exclusions.
+2. **Write contract:** On a legitimately disposable **draft** fixture authorised for testing, use public PR create/revision → PR-linked draft indent → SAFE and Full/RESET resync; confirm error handling and that deliberate manual additions survive SAFE and are lost only after explicit Full reset. Avoid touching approved real procurement commitments. The shared client Full→RESET fix is in separate draft PR #319, so don't claim that old live UI already passes.
+3. **Approved legacy reduction and snapshot:** A real historical approved-indent decrease is operationally material and must **not** be performed solely for test convenience. Use a dedicated approved acceptance fixture with owner-approved lifecycle and a legitimate editor, or an isolated production-equivalent environment, to verify requested quantity decrease, snapshot requested→completed→published revisions and purchase/action list coherence. SQL administration alone without `auth.uid()` reaches and is rejected at the snapshot permission boundary, as recorded earlier.
+
+Log the authorized account's permission class, tested indent/PR IDs, start/end snapshot revisions and observed PWA output **without exposing private user identifiers**. This is required for G4 operator acceptance; the present SQL tests cannot certify it.
+
+**Security view parity:** keep `v_mrp_material_gross_requirement_rm` security settings unchanged until read behaviour is compared under a valid editor JWT and view-only role. The strict factor helper authorization issue is separately corrected and verified, but does not certify all downstream JWT/RLS contracts. **G0 programme remains 0/6 formal gates.**
