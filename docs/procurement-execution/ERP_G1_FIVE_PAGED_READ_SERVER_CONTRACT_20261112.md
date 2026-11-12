@@ -112,3 +112,13 @@ All use `TABLE(row_data jsonb,total_count bigint)`, `SECURITY DEFINER`, module V
 **Caveats:** Source/predicate tests are not an actual authenticated user function result; end-to-end filtered-total/page-key/export parity and latency remain unverified. PR/Indent quick searches are supplied client-trimmed; client filters before pagination should be replaced, not combined with page-only post-filtering. A page beyond the end returns no rows and therefore no `total_count` (same as existing Action Queue pattern). Offset paging may drift if rows are concurrently edited. The existing Purchase Excess `count(*) OVER()` expensive view work is unchanged; real p95 and dynamic request cancellation must be tested before performance release.
 
 **Next bounded client package:** one small reviewed PR integrating these exact versioned endpoints and the existing filtered VWL endpoint; test source filter and count parity over multiple pages, total badge, filter reset, latest-wins, exports over *full* filtered result, 390/820/1440 widths and role gating. Reconcile first with Claude #291 → #301 → #320 and standalone #319, rather than editing active Claude branches.
+
+## 12 November — Representative filtered source page checks
+
+Additional read-only source-equivalent live queries tested combined predicates and unique pages:
+- PR: `status='active'`, class 1, number contains `PR-2026` → **4 matches; first page 2/2 unique**.
+- Indents: `status='approved'`, class 1, number contains `2` → **12 matches; first page 5/5 unique**. (Stored `indent_number` is numeric-looking text such as `235`, not the invented `IND-` prefix; the first test with `IND` returned zero, corrected with actual-data search.)
+- Excess: voucher dates `2026-10-13..2026-11-12`, minimum net unallocated qty 1 → **175 matches; first page 75/75 unique**.
+- Empty-match semantics: the paged SQL returns **no rows** for absent matches, and therefore cannot expose a total through the per-row `total_count`. Client must treat first-page zero rows as no matching results and reset/adjust an out-of-range offset.
+
+The independent source-controlled **new three-function** filtered migration was replayed in `BEGIN...ROLLBACK` on the corrected live schema (PASS). No production procurement rows or historical MRP runs changed. PR #323 remains **draft/unmerged**; current main progressed independently, so rebase review is required before merge. Do not promote real-user acceptance or p95 performance solely on these source tests.
