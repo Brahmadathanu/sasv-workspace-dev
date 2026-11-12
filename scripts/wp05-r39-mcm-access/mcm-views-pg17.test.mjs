@@ -32,7 +32,9 @@ INSERT INTO public.fixture_permission VALUES
  ('user-cbm','module:cost-build-manager',true),
  ('user-csr','module:cost-sheet-review',true),
  ('user-mixed','module:material-cost-manager',true),
- ('user-mixed','module:costing-control-center',true);
+ ('user-mixed','module:costing-control-center',true),
+ ('user-ppm','module:pricing-policy-manager',true),
+ ('user-proc','module:procurement-execution-console',true);
 INSERT INTO costing.material_manual_rates (id,stock_item_id,rate_value,status,source_snapshot)
  VALUES (100,200,90,'ACTIVE','{"vendor_display_name":"Synthetic Supplier","rate_value":"90"}');
 INSERT INTO public.inv_stock_item (id,name,code) VALUES(200,'Fixture Ingredient','TEST-RM');
@@ -64,10 +66,16 @@ test("MCM View-only and mixed readers allowed on BOTH nested views",()=>{
  for(const v of views)for(const who of ["user-mcm","user-mixed"])assert.equal(count(who,v),1,v+who);
 });
 test("CCC CBM CSR-only and no permission denied on BOTH views",()=>{
- for(const v of views)for(const who of ["user-ccc","user-cbm","user-csr","user-none"])assert.equal(count(who,v),0,v+who);
+ for(const v of views)for(const who of ["user-ccc","user-cbm","user-csr","user-ppm","user-proc","user-none"])assert.equal(count(who,v),0,v+who);
 });
 test("original candidate guard refuses reapply, no partial rewrite",()=>{
  assert.throws(()=>psql(candidate));
+});
+test("rollback refuses unexpected service_role SQL SELECT grant on either source view",()=>{
+ psql("GRANT SELECT ON public.v_costing_material_manual_rate_history TO service_role;");
+ assert.throws(()=>psql(rollback));
+ psql("REVOKE SELECT ON public.v_costing_material_manual_rate_history FROM service_role;");
+ assert.equal(psql("SELECT has_table_privilege('service_role','public.v_costing_material_manual_rate_history','SELECT');"),"f");
 });
 test("guarded rollback restores exact originals and old separate-role behaviour",()=>{
  psql(rollback);
