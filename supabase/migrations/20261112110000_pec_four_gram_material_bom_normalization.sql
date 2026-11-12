@@ -8,6 +8,7 @@ DECLARE
  v_g bigint;
  v_match integer;
  v_changed integer;
+ v_master_changed integer;
 BEGIN
  SELECT id INTO STRICT v_kg FROM public.inv_uom WHERE code='Kg' AND dimension_id=1;
  SELECT id INTO STRICT v_g FROM public.inv_uom WHERE code='g' AND dimension_id=1;
@@ -33,6 +34,17 @@ BEGIN
   RAISE EXCEPTION 'PEC g normalization: 13 exact old/new BOM states expected, found %',v_match;
  END IF;
 
+ -- Each of the four stock masters must be in precisely the old Kg state
+ -- or already in the corrected g state. Reject missing/unexpected states.
+ IF (SELECT count(*) FROM public.inv_stock_item i
+     WHERE i.id IN (64,291,424,517)
+       AND i.default_uom_id IN (v_kg,v_g)) <> 4
+ THEN RAISE EXCEPTION 'PEC g normalization: four stock masters must be Kg or g'; END IF;
+
+ UPDATE public.inv_stock_item i SET default_uom_id=v_g
+ WHERE i.id IN (64,291,424,517) AND i.default_uom_id=v_kg;
+ GET DIAGNOSTICS v_master_changed=ROW_COUNT;
+
  UPDATE public.rm_bom_line l SET
    qty_per_reference_output=e.old_qty*1000,uom_id=v_g
  FROM _pec_g_expected e
@@ -44,5 +56,5 @@ BEGIN
  OR EXISTS (SELECT 1 FROM public.inv_stock_item i
     WHERE i.id IN (64,291,424,517) AND i.default_uom_id<>v_g)
  THEN RAISE EXCEPTION 'PEC g normalization: remaining non-g master/BOM UOM'; END IF;
- RAISE NOTICE 'PEC four-item g correction: % old lines transformed, all target lines verified',v_changed;
+ RAISE NOTICE 'PEC four-item g correction: % masters and % old BOM lines transformed, all targets verified',v_master_changed,v_changed;
 END $g$;
