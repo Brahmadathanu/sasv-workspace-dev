@@ -43,7 +43,7 @@ Before: `canAddIndentLine()` returned true for `draft | approved | issued`. Now 
 | `pec-erp-c1-layout` 118 · `c2-vendor-selection` 53 · `c1-five-lens-fasttrack` 23 · `c1-static` 17 · `five-lens-inventory` 0 FAIL/FIX (245 controls; 3 unreachable modals DEFER) · `vwl-search-reliability` 39 · `plm-pm-canonical` · `wp01-indent-serial` · `pr-scope` · `resync-mode` 3/3 · `pr-pdf-continuation-header` | PASS (harnesses updated only where they pinned removed pager code; assertions otherwise unchanged) |
 | `pec-pwa-cache-freshness.test` 13 · `pec-vwl-offset-export-integrity.test` 6 · `fg-bit-ux-1/sw-freshness.test` 11 | pass, 0 fail |
 | `pec-electron-acceptance` (packaged **Linux** Electron 36.8.1 at `02bd6a0c`) | **33 PASS / 0 FAIL / 2 NOT TESTED**: `app.asar` holds exactly the 3 canonical PEC files, byte-identical to the repo and to what the packaged app serves; five lenses at 1200/820/480; CSV and PDF export |
-Totals (count-based suites above): **PASS 541 · FAIL 0 · NOT TESTED 2** (Electron authenticated roles; Windows/macOS builds). Test-harness quirk: `supabase/migrations/*` show CRLF-only worktree noise on this checkout; they were flagged `skip-worktree` locally and never staged.
+Totals (count-based suites above): **PASS 693 · FAIL 0 · NOT TESTED 2** (Electron authenticated roles; Windows/macOS builds). Test-harness quirk: `supabase/migrations/*` show CRLF-only worktree noise on this checkout; they were flagged `skip-worktree` locally and never staged.
 
 ## 6. Known defects and limitations
 - Vendor-wise: the Export button occupies its own right-aligned row on phones (cosmetic).
