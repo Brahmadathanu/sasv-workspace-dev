@@ -15,7 +15,8 @@ import * as worklist from "../../public/shared/js/costing-review-worklist.js";
 import { applyCompactRunStatusBadge, createRunStatusBadge, describeRunStatus } from "../../public/shared/js/costing-run-status-badge.js";
 import { readSourceLf } from "../lib/read-source-lf.mjs";
 import { stripN2 } from "../lib/n2-nav-strip.mjs";
-import { stripW6 } from "../lib/w6-nav-strip.mjs";
+import { unPersonnel } from "../costing-w506-conf-client/unpersonnel.mjs";
+import { stripW6, stripPostW6Approved } from "../lib/w6-nav-strip.mjs";
 import { stripU11 } from "../lib/u11-label-strip.mjs";
 import { stripSecA2 } from "../lib/sec-a2-strip.mjs";
 
@@ -527,14 +528,16 @@ test("scope: no supabase/, migration, controller, protected-screen, HTML or cach
   // MDC-07 N2: the two controllers may carry only the flag-gated N2 navigation additions (scripts/lib/n2-nav-strip.mjs).
   // MDC-07 W6: the PPM controller may carry only the flag-gated W6 five-group projection (scripts/lib/w6-nav-strip.mjs).
   // SEC-A2: costing-approval-screen.js may carry only the CCC-edit gate hunks (scripts/lib/sec-a2-strip.mjs).
-  for (const rel of unchanged) assert.equal(stripU11(rel, stripW6(rel, stripN2(rel, stripSecA2(rel, read(rel))))), readBase(rel), rel);
+  for (const rel of unchanged) assert.equal(stripU11(rel, stripW6(rel, stripPostW6Approved(rel, stripN2(rel, stripSecA2(rel, unPersonnel(rel, read(rel))))))), readBase(rel), rel);
   // MDC-07 N1: costing-feature-flags.js may only be appended to (the COSTING_NAV_GROUPS_V1 flag); nothing existing changes.
   const flagsRel = "public/shared/js/costing-feature-flags.js";
   assert.ok(read(flagsRel).startsWith(readBase(flagsRel)), "feature flags: existing content unchanged (append-only)");
   // UX-F1 changed only the service-worker cache line (v389 to v390); #208 later advanced it to v391 and LOCK-P01 (#212) to v392 without touching anything else here.
-  const swChanged = git("diff", "-U0", BASE, "--", "public/sw.js").split("\n").filter((l) => /^[+-][^+-]/.test(l));
+  // Only the cache-name lines are judged here. Later, separately owned network-first allowlist additions to sw.js (#264 Pricing Policy, #289 Cost
+  // Comparison, #306 Scheme actor, FG-BIT-UX-1) are pinned by scripts/costing-sw-freshness and their own packages (MDC-07 verification, 12 Nov 2026).
+  const swChanged = git("diff", "-U0", BASE, "--", "public/sw.js").split("\n").filter((l) => /^[+-][^+-]/.test(l) && /^[+-]const CACHE_NAME = /.test(l));
   // BASE is the historical v388 UX-F1 base, so the diff is -v388 / +v390 (WP-07's v389 sits in between).
-  assert.ok(swChanged.every((l) => /^[+-]const CACHE_NAME = "hub-cache-v(?:388|389|390|391|392)";/.test(l)), "no UX-F1 cache allocation: " + swChanged.join(" | "));
+  assert.ok(swChanged.every((l) => /^[+-]const CACHE_NAME = "hub-cache-v(?:388|389|390|391|392|393)";/.test(l)), "no UX-F1 cache allocation: " + swChanged.join(" | "));
   // Historical contract: UX-F1 released as v390. The current release line is now v392 (LOCK-P01); v391 (#208) and v390 must still be in sw.js history.
   assert.ok(swChanged.some((l) => /^\+const CACHE_NAME = "hub-cache-v393";/.test(l)), "current release cache line is v392: " + swChanged.join(" | "));
   assert.ok(git("log", "--format=%H", "-S", "hub-cache-v391", "--", "public/sw.js").trim().length > 0, "the v391 #208 release line remains in sw.js history");

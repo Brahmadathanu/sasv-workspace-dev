@@ -15,7 +15,7 @@ import * as tools from "../../public/shared/js/costing-table-tools.js";
 import { readSourceLf } from "../lib/read-source-lf.mjs";
 import { stripN1 } from "../lib/n1-nav-strip.mjs";
 import { stripN2 } from "../lib/n2-nav-strip.mjs";
-import { stripW6 } from "../lib/w6-nav-strip.mjs";
+import { stripW6, stripPostW6Approved } from "../lib/w6-nav-strip.mjs";
 
 const {
   COLUMN_HELP,
@@ -645,7 +645,7 @@ test("pkg3 COLUMN_HELP unchanged; module safety; FORBIDDEN_RPCS identical; no CS
     // MDC-07 N2: the two Costing controllers may carry only the flag-gated N2 additions (scripts/lib/n2-nav-strip.mjs).
     // MDC-07 W6: the PPM controller may carry only the flag-gated W6 five-group projection (scripts/lib/w6-nav-strip.mjs).
     const unPersonnel = (src) => (f === "cost-build" ? PERSONNEL_COSTBUILD_EDITS.reduce((t, [h, o]) => { assert.equal(t.split(h).length, 2, "personnel cost-build edit"); return t.replace(h, o); }, src) : src); // WP05-W506 personnel gate
-    if (f === "cost-build" || f === "material-cost" || f === "pricing-policy") assert.equal(stripW6(rel, stripN2(rel, unPersonnel(read(rel)))), git("show", `${PKG3_BASE}:${rel}`).replace(/\r\n/g, "\n"), f);
+    if (f === "cost-build" || f === "material-cost" || f === "pricing-policy") assert.equal(stripW6(rel, stripPostW6Approved(rel, stripN2(rel, unPersonnel(read(rel))))), git("show", `${PKG3_BASE}:${rel}`).replace(/\r\n/g, "\n"), f);
     else assert.equal(git("diff", PKG3_BASE, "--", rel), "", f);
   }
 });

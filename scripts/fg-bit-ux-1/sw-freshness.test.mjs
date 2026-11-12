@@ -8,7 +8,7 @@ import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const current = fs.readFileSync(path.join(root, "public/sw.js"), "utf8");
+const current = fs.readFileSync(path.join(root, "public/sw.js"), "utf8").replace(/\r\n/g, "\n"); // LF-normalised (CRLF checkouts)
 const ORIGIN = "https://hub.test";
 const JS = "/shared/js/fg-bulk-internal-transfer.js";
 const CSS = "/shared/css/sasv-fg-bulk-internal-transfer.css";

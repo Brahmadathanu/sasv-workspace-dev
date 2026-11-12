@@ -14,7 +14,8 @@ import * as tools from "../../public/shared/js/costing-table-tools.js";
 import { readSourceLf } from "../lib/read-source-lf.mjs";
 import { stripN1 } from "../lib/n1-nav-strip.mjs";
 import { stripN2 } from "../lib/n2-nav-strip.mjs";
-import { stripW6 } from "../lib/w6-nav-strip.mjs";
+import { unPersonnel } from "../costing-w506-conf-client/unpersonnel.mjs";
+import { stripW6, stripPostW6Approved } from "../lib/w6-nav-strip.mjs";
 import { stripLockP01Controller } from "../lib/sec-a2-strip.mjs";
 
 const { COLUMN_HELP, csvCell, isSortableColumn, sortRowsBy, tableColumnsForTable } = tools;
@@ -456,7 +457,7 @@ test("pkg4 unsortable columns key null; table-tools diff is only the three entri
   // MDC-07 N2: cost-build and material-cost may carry only the flag-gated N2 additions (scripts/lib/n2-nav-strip.mjs).
   // MDC-07 W6: the PPM controller may carry only the flag-gated W6 five-group projection (scripts/lib/w6-nav-strip.mjs).
   const n2Controllers = controllers.filter((c) => /cost-build|material-cost|pricing-policy/.test(c));
-  for (const c of n2Controllers) assert.equal(stripW6(c, stripN2(c, read(c))), git("show", `${BASE}:${c}`).replace(/\r\n/g, "\n"), c);
+  for (const c of n2Controllers) assert.equal(stripW6(c, stripPostW6Approved(c, stripN2(c, unPersonnel(c, read(c))))), git("show", `${BASE}:${c}`).replace(/\r\n/g, "\n"), c);
   assert.equal(git("diff", BASE, "--", ...controllers.filter((c) => !n2Controllers.includes(c))), "");
   assert.ok(readSourceLf(root, `${JS}/costing-feature-flags.js`).includes("COSTING_NAV_GROUPS_V1"), "plain source read still contains the N1 flag");
   assert.equal(read(`${JS}/costing-feature-flags.js`), git("show", `${BASE}:${JS}/costing-feature-flags.js`).replace(/\r\n/g, "\n"), "feature flags unchanged apart from the N1 append");
