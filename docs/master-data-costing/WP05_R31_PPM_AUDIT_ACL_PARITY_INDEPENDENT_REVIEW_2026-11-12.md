@@ -1,3 +1,5 @@
+> **R32 EXECUTION-DECISION PREFLIGHT — 12 NOV 2026:** [R32 live metadata and deployment gate packet](WP05_R32_PPM_AUDIT_PRODUCTION_EXECUTION_DECISION_PACKET_2026-11-12.md) confirms unchanged original scheme audit view MD5, 20 columns, ACL owner/service_role denial, PPM target and permission-function hashes; **no execution authorised**. Draft #311 is now 2 commits behind current main and requires exact-head reconciliation/test before production approval. W5-06 OPEN, programme 6/13.
+
 # WP05 R31 — independent Option A permission review; real SQL ACL parity (12 November 2026)
 
 **Review gate, not an execution order.** User owner approved Option A for `public.v_costing_scheme_master_audit` under R28. This report reviews the **DRAFT / UNMERGED** implementation candidate [#311](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/311). No production view rewrite, SELECT from audit rows, role/session change, writer invocation, grant or deployment occurred. W5-06 OPEN, formal programme 6/13.
