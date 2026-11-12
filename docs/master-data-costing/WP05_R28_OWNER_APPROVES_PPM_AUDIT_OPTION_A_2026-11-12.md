@@ -1,3 +1,5 @@
+> **R30 ISOLATED PG17 EVIDENCE — 12 NOV 2026:** [R30 PostgreSQL 17.11 verification](WP05_R30_OPTION_A_ISOLATED_PG17_VERIFICATION_2026-11-12.md) records 9/9 synthetic database tests and safe rollback, including PPM positive / CCC-CBM-CSR-MCM negative, 20-column and ACL/owner retention, exact original/candidate view fingerprints. Draft PR #311 NOT MERGED, production SQL NOT APPLIED, effective authenticated real-user behaviour NOT TESTED; separate execution approval still required. W5-06 OPEN, programme 6/13.
+
 # WP05 R28 — owner approves Q-R27-PPM-AUDIT Option A (12 November 2026)
 
 **AUTHORITATIVE OWNER DECISION, narrowly scoped.** Owner explicitly selected **Option A** in chat following R27's plain-English explanation. This approves **business access policy**, *not a live schema change, production test, account adjustment or deployment*. Supersedes R27's Q-R27-PPM-AUDIT *pending* status only; no other R27 reader-policy suggestions are approved.
