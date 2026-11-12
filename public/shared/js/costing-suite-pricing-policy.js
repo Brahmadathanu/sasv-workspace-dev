@@ -1,4 +1,5 @@
 import { isCostingNavGroupsV1Enabled } from "./costing-feature-flags.js";
+import { formatSchemeMasterAuditActor } from "./costing-suite-scheme-audit-actor.mjs";
 import { COSTING_PPM_NAV_GROUP_CONTRACT } from "./costing-nav-groups.js";
 import {
   MRP_PROPOSAL_VIEWS,
@@ -5344,7 +5345,7 @@ export function createPricingPolicyController(deps) {
           <td>${formatDateTime(auditRow.event_at)}</td>
           <td>${text(auditRow.reason)}</td>
           <td>${text(auditRow.approval_reference)}</td>
-          <td>${text(auditRow.actor || auditRow.event_actor || auditRow.created_by)}</td>
+          <td>${text(formatSchemeMasterAuditActor(auditRow))}</td>
           <td>${text(oldName)}</td>
           <td>${text(newName)}</td>
           <td>${text(structure)}</td>
