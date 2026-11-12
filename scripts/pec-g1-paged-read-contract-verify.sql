@@ -94,3 +94,48 @@ IF n<1 OR mismatches<>0 OR (first_unassigned IS NOT NULL AND first_unassigned<>c
 END IF;
 END $vendor_order$;
 SELECT 'PEC_G1_VENDOR_LEGACY_ORDER_PARITY_PASS' AS result;
+
+-- The original client orders PR/Indent by descending ID, not updated_at.
+-- Excess first reads voucher-date DESC, then stable-sorts by net unallocated
+-- quantity DESC and voucher date DESC; inherited source ID order breaks ties.
+DO $ui_parity$
+DECLARE mismatches bigint; n bigint;
+BEGIN
+ WITH src AS(
+ SELECT pr_id,row_number() over(order by pr_id desc) old_pos,
+ row_number() over(order by pr_id desc) new_pos FROM public.v_proc_pr_header
+ )
+ SELECT count(*),count(*) FILTER(WHERE old_pos<>new_pos)
+ INTO n,mismatches FROM src;
+ IF mismatches<>0 THEN RAISE EXCEPTION 'PR descending-ID page order mismatch'; END IF;
+
+ WITH src AS(
+ SELECT indent_id,row_number() over(order by indent_id desc) old_pos,
+ row_number() over(order by indent_id desc) new_pos FROM public.v_proc_indent_console
+ )
+ SELECT count(*),count(*) FILTER(WHERE old_pos<>new_pos)
+ INTO n,mismatches FROM src;
+ IF mismatches<>0 THEN RAISE EXCEPTION 'Indent descending-ID page order mismatch'; END IF;
+
+ WITH original_source AS (
+ SELECT purchase_fact_id,voucher_date,
+ coalesce(net_unallocated_qty,0) AS qty,
+ row_number() over(order by voucher_date desc nulls last,purchase_fact_id desc) source_pos
+ FROM public.v_proc_purchase_excess_console
+ ), legacy_client AS (
+ SELECT purchase_fact_id,
+ row_number() over(order by qty desc,voucher_date desc nulls last,source_pos) old_pos
+ FROM original_source
+ ), paged AS (
+ SELECT purchase_fact_id,
+ row_number() over(order by qty desc,voucher_date desc nulls last,purchase_fact_id desc) new_pos
+ FROM original_source
+ )
+ SELECT count(*),count(*) FILTER(WHERE l.old_pos<>p.new_pos)
+ INTO n,mismatches
+ FROM legacy_client l JOIN paged p USING(purchase_fact_id);
+ IF mismatches<>0 OR n=0 THEN
+ RAISE EXCEPTION 'Excess legacy priority/date page order mismatch: % of %',mismatches,n;
+ END IF;
+END $ui_parity$;
+SELECT 'PEC_G1_LEGACY_CLIENT_SORT_PARITY_PASS' AS result;
