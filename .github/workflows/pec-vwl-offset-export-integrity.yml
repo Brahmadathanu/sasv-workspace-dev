@@ -1,0 +1,29 @@
+name: PEC Vendor-wise Offset Export Integrity
+on:
+  pull_request:
+    paths:
+      - "public/shared/js/procurement-execution-console.js"
+      - "scripts/pec-vwl-offset-export-integrity.test.mjs"
+      - ".github/workflows/pec-vwl-offset-export-integrity.yml"
+  push:
+    branches: [main]
+    paths:
+      - "public/shared/js/procurement-execution-console.js"
+      - "scripts/pec-vwl-offset-export-integrity.test.mjs"
+      - ".github/workflows/pec-vwl-offset-export-integrity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Fail-closed paged-export identity and total contract
+        run: node --test scripts/pec-vwl-offset-export-integrity.test.mjs
