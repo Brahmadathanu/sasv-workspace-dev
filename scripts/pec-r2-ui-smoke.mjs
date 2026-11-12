@@ -185,9 +185,9 @@ for (const vp of [PHONE, TINY]) {
 {
   const { ctx, page } = await open({ role: "edit" }, PHONE, "vendor-buylist");
   await page.evaluate(() => document.querySelector("#vwlTbody tr").click()); await page.waitForTimeout(500);
-  const r = await page.evaluate(() => { const mo = document.querySelector("#vwlBreakdownModalBackdrop.show > .modal").getBoundingClientRect(); const tr = document.querySelector("#vwlBdTbody tr"); const td = tr.querySelector("td:nth-child(3)"); return { fills: mo.width === innerWidth && Math.abs(mo.height - innerHeight) <= 1, display: getComputedStyle(tr).display, label: td?.dataset.label, headHidden: getComputedStyle(document.querySelector("#vwlBdTbody").closest("table").tHead).display === "none" }; });
-  check(r.fills, "390px: Vendor-wise row detail fills the screen");
-  check(r.display === "grid" && r.label && r.headHidden, `390px: breakdown rows are labelled cards, not a nested table (label "${r.label}")`);
+  const r = await page.evaluate(() => { const mo = document.querySelector("#vwlBreakdownModalBackdrop.show > .modal").getBoundingClientRect(); const tr = document.querySelector("#vwlBdTbody tr"); const td = tr.querySelector("td:nth-child(3)"); return { fills: mo.width === innerWidth && mo.height <= innerHeight + 1 && mo.height < 400, display: getComputedStyle(tr).display, label: td?.dataset.label, headHidden: getComputedStyle(document.querySelector("#vwlBdTbody").closest("table").tHead).display === "none" }; });
+  check(r.fills, "390px: Vendor-wise row detail is full-width and natural height for a short list (no blank viewport)");
+  check(r.display === "flex" && r.label && r.headHidden, `390px: breakdown rows are labelled cards, not a nested table (label "${r.label}")`);
   if (shotsDir) await page.screenshot({ path: path.join(shotsDir, "r2-390px-vwl-detail.png") });
   await ctx.close();
 }

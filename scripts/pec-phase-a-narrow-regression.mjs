@@ -51,9 +51,9 @@ for (const W of [320, 390]) {
   const tools = await page.evaluate(() => { const ex = document.getElementById("vwlExportBtn").getBoundingClientRect(); return { pagerGone: !document.getElementById("vwlPrev") && !document.getElementById("vwlNext"), exportInside: ex.left >= 0 && ex.right <= innerWidth, count: document.getElementById("vwlMeta").textContent.trim() }; });
   check(tools.pagerGone && tools.exportInside && /\d/.test(tools.count), `${W}px: no numbered pager; export button inside viewport; count "${tools.count}"`);
 
-  // 3) rows are cards whose cells are never crushed (>= 100px wide) and wrap at word boundaries
-  const cell = await page.evaluate(() => { const tr = document.querySelector("#vwlTbody tr"); const w = Math.min(...[...tr.querySelectorAll("td")].filter((t) => t.offsetParent).map((t) => t.getBoundingClientRect().width)); return { display: getComputedStyle(tr).display, minW: Math.round(w) }; });
-  check(cell.display === "grid" && cell.minW >= 100, `${W}px: rows are cards and no cell is crushed (min cell ${cell.minW}px)`);
+  // 3) R2b: rows are compact cards (flex-wrap, inline label/value) whose cells are never clipped
+  const cell = await page.evaluate(() => { const tr = document.querySelector("#vwlTbody tr"); const r = tr.getBoundingClientRect(); const bad = [...tr.querySelectorAll("td")].filter((t) => t.offsetParent && (t.scrollWidth > t.clientWidth + 1 || t.getBoundingClientRect().right > r.right + 1)).length; return { display: getComputedStyle(tr).display, clipped: bad, h: Math.round(r.height) }; });
+check(cell.display === "flex" && cell.clipped === 0 && cell.h <= 130, `${W}px: rows are compact cards, no clipped cell (${cell.clipped}), height ${cell.h}px`);
 
   // 4) indent dialog: title row is not squeezed by the action buttons
   await page.selectOption("#procTabSelect", "indents"); await page.waitForTimeout(700);

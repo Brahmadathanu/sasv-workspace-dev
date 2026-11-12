@@ -791,48 +791,6 @@
         border-top: 1px solid var(--border, #e5e7eb);
         background: rgba(15, 23, 42, 0.018);
       }
-      #prViewModalBackdrop {
-        padding: 0;
-        align-items: stretch;
-        justify-content: stretch;
-      }
-      #indentViewModalBackdrop {
-        padding: 0;
-        align-items: stretch;
-        justify-content: stretch;
-      }
-      #prViewModalBackdrop .modal-fullpage {
-        width: 100%;
-        max-width: none !important;
-        height: 100%;
-        max-height: 100vh;
-        border-radius: 0;
-        border-left: 0;
-        border-right: 0;
-        padding: 14px 16px;
-      }
-      #indentViewModalBackdrop .modal-fullpage {
-        width: 100%;
-        max-width: none !important;
-        height: 100%;
-        max-height: 100vh;
-        border-radius: 0;
-        border-left: 0;
-        border-right: 0;
-        padding: 14px 16px;
-      }
-      #prViewModalBackdrop .modal-fullpage .modal-body {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        overflow: hidden;
-      }
-      #indentViewModalBackdrop .modal-fullpage .modal-body {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        overflow: hidden;
-      }
       .modal-header {
         display: flex;
         justify-content: space-between;
@@ -1097,20 +1055,6 @@
         background: var(--panel-bg, #fff);
         box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
       }
-      #prLinesScroll.table-scroll {
-        overflow: auto;
-        max-height: 55vh; /* safe inside modal body */
-      }
-      #prViewModalBackdrop .modal-fullpage #prLinesScroll.table-scroll {
-        flex: 1;
-        min-height: 0;
-        max-height: none;
-      }
-      #indentViewModalBackdrop .modal-fullpage #iLinesScroll.table-scroll {
-        flex: 1;
-        min-height: 0;
-        max-height: none;
-      }
       .pr-line-inline-input {
         width: 100%;
         min-width: 88px;
@@ -1367,14 +1311,6 @@
       .pec-filter-drawer.open {
         display: block;
       }
-      .pec-filter-drawer-title {
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--muted, #6b7280);
-        margin-bottom: 8px;
-      }
       .pec-filter-label {
         font-size: 11px;
         color: var(--muted, #6b7280);
@@ -1406,28 +1342,6 @@
         letter-spacing: 0.05em;
         color: var(--muted, #6b7280);
         margin-bottom: 5px;
-      }
-      .pec-filter-actions {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: 2px;
-      }
-      .pec-filter-clear-btn {
-        border: 1px solid var(--border, #e5e7eb);
-        border-radius: 6px;
-        background: var(--panel-bg, #fff);
-        color: var(--text-color, #374151);
-        padding: 6px 10px;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-      }
-      .pec-filter-clear-btn:hover,
-      .pec-filter-clear-btn:focus-visible {
-        background: #f3f4f6;
-        border-color: var(--primary, #005a8d);
-        color: var(--primary, #005a8d);
-        outline: none;
       }
       .pec-filter-select {
         width: 100%;
@@ -1528,15 +1442,6 @@
           transform: rotate(360deg);
         }
       }
-      @media (max-width: 520px) {
-        .pec-filter-drawer {
-          position: fixed;
-          left: 8px;
-          right: 8px;
-          top: auto;
-          width: auto;
-        }
-      }
       @media (max-width: 680px) {
         .modal-backdrop {
           padding: 10px;
@@ -1555,20 +1460,6 @@
 
         .modal-body {
           padding-top: 10px;
-        }
-        #prViewModalBackdrop {
-          padding: 0;
-        }
-        #indentViewModalBackdrop {
-          padding: 0;
-        }
-        #prViewModalBackdrop .modal-fullpage {
-          border-radius: 0;
-          padding: 10px;
-        }
-        #indentViewModalBackdrop .modal-fullpage {
-          border-radius: 0;
-          padding: 10px;
         }
 
         .detail-shell {
@@ -3002,7 +2893,7 @@
       aria-hidden="true"
       inert
     >
-      <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="eAuditTitle">
+      <div class="modal pec-detail pec-detail--panel pec-detail--feed" role="dialog" aria-modal="true" aria-labelledby="eAuditTitle">
         <div class="modal-header page-header">
           <div>
             <h3 style="margin: 0" id="eAuditTitle">Acceptance Audit</h3>
@@ -3033,7 +2924,7 @@
         <div class="modal-body">
           
 
-          <div class="table-scroll" id="eAuditScroll" style="max-height: 55vh">
+          <div class="table-scroll" id="eAuditScroll">
             <table class="erp-table">
               <thead>
                 <tr>
@@ -3047,6 +2938,10 @@
               <tbody id="eAuditTbody"></tbody>
             </table>
           </div>
+        </div>
+        <div class="pec-detail-foot">
+          <span class="pec-detail-foot-text" id="eAuditFootText"></span>
+          <button type="button" class="pec-detail-foot-close" data-pec-close>Close</button>
         </div>
       </div>
     </div>
@@ -3341,7 +3236,7 @@
       aria-hidden="true"
       inert
     >
-      <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="vwlBdTitle">
+      <div class="modal pec-detail pec-detail--panel" role="dialog" aria-modal="true" aria-labelledby="vwlBdTitle">
         <div class="modal-header page-header">
           <div>
             <h3 style="margin: 0" id="vwlBdTitle">Indent breakdown</h3>
@@ -3375,7 +3270,7 @@
               Review / Consolidate
             </button>
           </div>
-          <div class="table-scroll" style="max-height: 55vh">
+          <div class="table-scroll">
             <table class="erp-table">
               <thead>
                 <tr>
@@ -3391,12 +3286,16 @@
             </table>
           </div>
         </div>
+        <div class="pec-detail-foot">
+          <span class="pec-detail-foot-text" id="vwlBdSummary"></span>
+          <button type="button" class="pec-detail-foot-close" data-pec-close>Close</button>
+        </div>
       </div>
     </div>
 
     <!-- Indent View modal -->
     <div class="modal-backdrop" id="indentViewModalBackdrop" aria-hidden="true">
-      <div class="modal modal-fullpage" role="dialog" aria-modal="true" aria-labelledby="iLinesTitle">
+      <div class="modal modal-fullpage pec-detail pec-detail--page" role="dialog" aria-modal="true" aria-labelledby="iLinesTitle">
         <div class="modal-header page-header">
           <div
             style="display: flex; align-items: center; gap: 6px; width: 100%"
@@ -3837,18 +3736,6 @@
                   </svg>
                 </button>
               </div>
-              <span
-                id="iLinesCount"
-                class="muted"
-                style="
-                  margin-left: auto;
-                  font-size: 0.8rem;
-                  min-width: 72px;
-                  text-align: right;
-                  font-variant-numeric: tabular-nums;
-                  letter-spacing: 0.01em;
-                "
-              ></span>
             </div>
           </div>
           <div
@@ -3942,7 +3829,7 @@
 
     <!-- Detail modal -->
     <div class="modal-backdrop" id="detailModalBackdrop" aria-hidden="true">
-      <div class="modal detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle">
+      <div class="modal detail-modal pec-detail pec-detail--panel" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle">
         <div class="modal-header page-header">
           <h3 style="margin: 0" id="detailModalTitle"></h3>
           <div style="display: flex; align-items: center; gap: 6px">
@@ -4640,7 +4527,7 @@
 
     <!-- PR Detail modal -->
     <div class="modal-backdrop" id="prViewModalBackdrop" aria-hidden="true">
-      <div class="modal modal-fullpage" role="dialog" aria-modal="true" aria-labelledby="prLinesTitle">
+      <div class="modal modal-fullpage pec-detail pec-detail--page" role="dialog" aria-modal="true" aria-labelledby="prLinesTitle">
         <div class="modal-header page-header">
           <div>
             <h3
@@ -4991,27 +4878,6 @@
                 style="display: none; margin-left: 8px"
                 >Locked (Active PR)</span
               >
-              <div
-                class="pr-lines-paging-group"
-                style="
-                  display: flex;
-                  align-items: center;
-                  gap: 6px;
-                  margin-left: auto;
-                "
-              >
-                <span
-                  id="prLineRange"
-                  class="muted"
-                  style="
-                    font-size: 0.8rem;
-                    min-width: 72px;
-                    text-align: center;
-                    font-variant-numeric: tabular-nums;
-                    letter-spacing: 0.01em;
-                  "
-                ></span>
-              </div>
             </div>
           </div>
           <div id="prLinesScroll" class="table-scroll modal-scroll">
@@ -5952,30 +5818,6 @@
           });
         }
 
-        // Close all open filter drawers
-        function closeAllDrawers(focusBtn) {
-          document
-            .querySelectorAll(".pec-filter-drawer.open")
-            .forEach(function (d) {
-              d.classList.remove("open");
-              var btn =
-                d._ownerBtn ||
-                (d.id
-                  ? document.querySelector('[aria-controls="' + d.id + '"]')
-                  : null);
-              if (!btn) {
-                var wrap = d.closest(".pec-filter-wrap");
-                if (wrap) btn = wrap.querySelector(".pec-filter-btn");
-              }
-              if (btn) btn.setAttribute("aria-expanded", "false");
-            });
-          if (focusBtn && typeof focusBtn.focus === "function") {
-            window.requestAnimationFrame(function () {
-              focusBtn.focus();
-            });
-          }
-        }
-
         // Update the badge count for a filter button
         function updateBadge(badgeId, btnId, selectIds) {
           var badge = document.getElementById(badgeId);
@@ -5990,93 +5832,16 @@
           btn.classList.toggle("pec-filter-btn--active", count > 0);
         }
 
-        // Wire a filter button + its drawer + badge
+        // Filter badge only: open/close/sheet behaviour lives in the module (bindFilterTrigger)
         function wireFilterDrawer(btnId, drawerId, badgeId, selectIds) {
-          var btn = document.getElementById(btnId);
-          var drawer = document.getElementById(drawerId);
-          if (!btn || !drawer) return;
-          btn.setAttribute("aria-controls", drawerId);
-          if (!btn.hasAttribute("aria-haspopup")) {
-            btn.setAttribute("aria-haspopup", "dialog");
-          }
-          drawer._ownerBtn = btn;
-
-          btn.addEventListener("click", function (e) {
-            e.stopPropagation();
-            var isOpen = drawer.classList.contains("open");
-            closeAllDrawers();
-            if (!isOpen) {
-              drawer.classList.add("open");
-              btn.setAttribute("aria-expanded", "true");
-            }
-          });
-
-          // Keep drawer open while interacting with its controls
-          drawer.addEventListener("click", function (e) {
-            e.stopPropagation();
-          });
-
-          drawer.addEventListener("mousedown", function (e) {
-            var select =
-              e.target && e.target.tagName === "SELECT"
-                ? e.target
-                : e.target && e.target.closest
-                  ? e.target.closest("select")
-                  : null;
-            if (select && drawer.contains(select)) {
-              drawer._selectInteractUntil = Date.now() + 750;
-            }
-          });
-
-          // Badge update on select change
           selectIds.forEach(function (id) {
-            var sel = document.getElementById(id);
-            if (!sel) return;
-            sel.addEventListener("change", function () {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener("change", function () {
               updateBadge(badgeId, btnId, selectIds);
             });
           });
         }
-
-        // Close drawers on outside click
-        document.addEventListener("click", function (e) {
-          var openDrawers = document.querySelectorAll(".pec-filter-drawer.open");
-          for (var i = 0; i < openDrawers.length; i++) {
-            var drawer = openDrawers[i];
-            if (drawer.contains(e.target)) return;
-            var ownerBtn =
-              drawer._ownerBtn ||
-              (drawer.id
-                ? document.querySelector('[aria-controls="' + drawer.id + '"]')
-                : null);
-            if (ownerBtn && ownerBtn.contains(e.target)) return;
-            if (
-              drawer._selectInteractUntil &&
-              Date.now() < drawer._selectInteractUntil
-            ) {
-              return;
-            }
-          }
-          if (!e.target.closest(".pec-filter-wrap")) closeAllDrawers();
-        });
-
-        document.addEventListener(
-          "keydown",
-          function (e) {
-            if (e.key !== "Escape") return;
-            var openDrawer = document.querySelector(".pec-filter-drawer.open");
-            if (!openDrawer) return;
-            var btn =
-              openDrawer._ownerBtn ||
-              (openDrawer.id
-                ? document.querySelector('[aria-controls="' + openDrawer.id + '"]')
-                : null);
-            closeAllDrawers(btn || undefined);
-            e.preventDefault();
-            e.stopPropagation();
-          },
-          true,
-        );
 
         // Wire each tab's search + clear
         wireSearch("fSearch", "fSearchClear");

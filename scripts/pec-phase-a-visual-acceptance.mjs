@@ -133,7 +133,7 @@ for (const w of WIDTHS) {
       await gotoLens(page, lens, narrow);
       const info = await page.evaluate(() => { const c = document.querySelector(".tab-panel.active .pec-lens-count"); const tr = document.querySelector(".tab-panel.active tbody tr"); return { count: c?.textContent.trim() || "", pagers: document.querySelectorAll("#prPaging,#iPaging,#vwlPaging,#ePaging,.pager-mini").length, row: tr ? getComputedStyle(tr).display : "", footer: !!document.querySelector(".tab-panel.active .pec-feed-footer") }; });
       check(`${lens}: exact count "${info.count}", no numbered pager, incremental footer @${w}px`, /\d/.test(info.count) && info.pagers === 0 && info.footer);
-      check(`${lens}: rows render as ${w <= 640 ? "cards" : "table rows"} @${w}px`, w <= 640 ? info.row === "grid" : info.row === "table-row");
+      check(`${lens}: rows render as ${w <= 640 ? "cards" : "table rows"} @${w}px`, w <= 640 ? info.row === "flex" : info.row === "table-row");
       await verify(page, `layout ${lens}`, w, label);
     }
     check(`no JS errors across five lenses @${w}px`, errors.length === 0, errors.slice(0, 2).join(" | "));
