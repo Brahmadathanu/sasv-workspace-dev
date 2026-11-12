@@ -1,3 +1,5 @@
+> **R27 DECISION-READY UPDATE — 12 NOV 2026:** [Six-view owner reader-policy matrix](WP05_R27_D2_SIX_VIEW_OWNER_POLICY_DECISION_MATRIX_2026-11-12.md) records fresh live catalogue readback (anon/auth ACLs, view owners/invoker/MD5), preserved cross-module needs and one precise **unapproved** Q-R27-PPM-AUDIT permission-policy choice. No production SQL, real-user row test, grant change or W5-06 promotion. WP05 6/13.
+
 > **R24 ISOLATED ROLE MODEL — 11 NOV 2026:** [Synthetic role-oracle tests and evidence limits](WP05_R24_D2_ISOLATED_ROLE_ORACLE_2026-11-11.md); 6/6 equivalent local Node 22 assertions pass on source-derived outer helper decisions. **Not signed-in proof and not owner approval of PPM-only policy.** W5-06 OPEN.
 
 # WP05 R23 — six-view permission dependency and PPM audit structural risk (11 November 2026)
