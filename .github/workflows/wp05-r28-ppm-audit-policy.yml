@@ -1,0 +1,25 @@
+name: WP05 R28 PPM Audit Policy Candidate (Offline)
+
+on:
+  pull_request:
+    paths:
+      - "docs/master-data-costing/candidates/WP05_R28_PPM_AUDIT_OPTION_A_*.sql"
+      - "scripts/wp05-r28-ppm-audit-policy/**"
+      - ".github/workflows/wp05-r28-ppm-audit-policy.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/master-data-costing/candidates/WP05_R28_PPM_AUDIT_OPTION_A_*.sql"
+      - "scripts/wp05-r28-ppm-audit-policy/**"
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Synthetic permission and SQL structural contract (NO DB)
+        run: node --test scripts/wp05-r28-ppm-audit-policy/ppm-audit-policy.test.mjs
