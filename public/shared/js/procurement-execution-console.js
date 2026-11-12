@@ -1335,6 +1335,23 @@ function toggleExportMenu(menuId, btnEl) {
   closeAllExportMenus({ exceptId: menuId });
   menu.classList.add("open");
   btnEl.setAttribute("aria-expanded", "true");
+  clampExportDropdownToViewport(menu.querySelector(".export-dropdown"));
+}
+
+// The dropdown is anchored to the right edge of its button; on narrow screens
+// the button can sit near the left edge and the menu would be cut off
+// (found at 320px in Vendor-wise). Keep it fully inside the viewport.
+function clampExportDropdownToViewport(dd) {
+  if (!(dd instanceof HTMLElement)) return;
+  dd.style.left = "";
+  dd.style.right = "0";
+  const vw = document.documentElement.clientWidth;
+  let r = dd.getBoundingClientRect();
+  if (r.left >= 8) return;
+  dd.style.right = "auto";
+  dd.style.left = "0";
+  r = dd.getBoundingClientRect();
+  if (r.right > vw - 8) dd.style.left = `${-(r.right - (vw - 8))}px`;
 }
 
 function positionFloatingFilterDrawer(btn, drawer) {

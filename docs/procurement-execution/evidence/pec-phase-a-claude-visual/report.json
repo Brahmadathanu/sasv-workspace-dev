@@ -1,0 +1,634 @@
+{
+  "sha": "dadbc72c40e9c3d11fd0d96ecb90c66d997f2152",
+  "generated": "2026-11-12T13:36:44.454Z",
+  "widths": [
+    320,
+    390,
+    820,
+    1440
+  ],
+  "pass": 124,
+  "fail": 0,
+  "results": [
+    {
+      "id": "console renders (editor fixture) @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "title + HOME visible with accessible name @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "pr pager shows total pages \"Page 1/8\" @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout pr @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "indents pager shows total pages \"Page 1/9\" @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout indents @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "vendor-buylist pager shows total pages \"Page 1/7\" @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout vendor-buylist @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout action @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "excess pager shows total pages \"Page 1/5\" @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout excess @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no JS errors across five lenses @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "PR filter drawer @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indents filter drawer @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise filter drawer @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise export menu @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess filter drawer @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess acceptance audit dialog @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Accept-excess dialog @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indent modal (draft) @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor selection dialog @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Action Queue line detail @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state rendered @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state rendered @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "read-only banner visible @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "all visible edit actions disabled for view-only fixture @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "view-only indents @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access fixture: console panel hidden @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access state @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "console renders (editor fixture) @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "title + HOME visible with accessible name @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "pr pager shows total pages \"Page 1/8\" @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout pr @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "indents pager shows total pages \"Page 1/9\" @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout indents @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "vendor-buylist pager shows total pages \"Page 1/7\" @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout vendor-buylist @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout action @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "excess pager shows total pages \"Page 1/5\" @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout excess @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no JS errors across five lenses @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "PR filter drawer @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indents filter drawer @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise filter drawer @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise export menu @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess filter drawer @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess acceptance audit dialog @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Accept-excess dialog @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indent modal (draft) @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor selection dialog @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Action Queue line detail @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state rendered @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state rendered @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "read-only banner visible @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "all visible edit actions disabled for view-only fixture @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "view-only indents @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access fixture: console panel hidden @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access state @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "console renders (editor fixture) @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "title + HOME visible with accessible name @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "pr pager shows total pages \"Page 1/8\" @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout pr @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "indents pager shows total pages \"Page 1/9\" @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout indents @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "vendor-buylist pager shows total pages \"Page 1/7\" @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout vendor-buylist @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout action @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "excess pager shows total pages \"Page 1/5\" @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout excess @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no JS errors across five lenses @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "PR filter drawer @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indents filter drawer @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise filter drawer @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise export menu @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess filter drawer @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess acceptance audit dialog @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Accept-excess dialog @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indent modal (draft) @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor selection dialog @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Action Queue line detail @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state rendered @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state rendered @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "read-only banner visible @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "all visible edit actions disabled for view-only fixture @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "view-only indents @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access fixture: console panel hidden @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access state @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "console renders (editor fixture) @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "title + HOME visible with accessible name @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "pr pager shows total pages \"Page 1/8\" @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout pr @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "indents pager shows total pages \"Page 1/9\" @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout indents @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "vendor-buylist pager shows total pages \"Page 1/7\" @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout vendor-buylist @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout action @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "excess pager shows total pages \"Page 1/5\" @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout excess @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no JS errors across five lenses @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "PR filter drawer @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indents filter drawer @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise filter drawer @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise export menu @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess filter drawer @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess acceptance audit dialog @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Accept-excess dialog @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indent modal (draft) @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor selection dialog @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Action Queue line detail @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state rendered @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state rendered @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "read-only banner visible @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "all visible edit actions disabled for view-only fixture @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "view-only indents @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access fixture: console panel hidden @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access state @1440px",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

@@ -51,8 +51,21 @@ ok(/origin === "indent"/.test(js) && /indentAllowsVendorSelection/.test(js), "in
 // Protected paths untouched
 if (mainJs) {
   const changed = sh("git diff --name-only origin/main...HEAD; git diff --name-only; git ls-files --others --exclude-standard").split("\n").filter(Boolean);
-  ok(!changed.some((f) => /^supabase\//.test(f)), "no supabase/ changes");
-  ok(!changed.includes("public/sw.js"), "public/sw.js untouched (no cache bump)");
+  // The consolidated integration candidate (#347) INTENDS to carry the server
+  // migrations (#317/#323) and the PWA cache change (#342); the guard below
+  // protects the client-only PRs. On an integration branch it reports SKIP (not a
+  // silent pass) and still requires every other guard.
+  let branch = "";
+  try { branch = sh("git rev-parse --abbrev-ref HEAD").trim(); } catch { /* detached */ }
+  let derivedFromIntegration = false;
+  try { sh("git merge-base --is-ancestor origin/integration/pec-erp-staging-20261112 HEAD"); derivedFromIntegration = true; } catch { /* not derived */ }
+  const integration = process.env.PEC_INTEGRATION_CANDIDATE === "1" || /^integration\//.test(branch) || derivedFromIntegration;
+  if (integration) {
+    console.log(`SKIP: supabase/ and public/sw.js guards (integration candidate '${branch}' intentionally includes #317/#323/#342; reviewed separately)`);
+  } else {
+    ok(!changed.some((f) => /^supabase\//.test(f)), "no supabase/ changes");
+    ok(!changed.includes("public/sw.js"), "public/sw.js untouched (no cache bump)");
+  }
   ok(!changed.some((f) => /^(electron|package(-lock)?\.json)/.test(f)), "no Electron/package version changes");
 }
 
