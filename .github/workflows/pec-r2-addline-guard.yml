@@ -1,0 +1,20 @@
+name: PEC R2 Add Line Guard (proposal only)
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/20261112220000_pec_r2_add_line_new_row_status_guard.sql"
+      - "scripts/pec-r2-server-addline-guard.test.mjs"
+      - ".github/workflows/pec-r2-addline-guard.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-proposal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Static additive migration policy checks (NOT a database execution test)
+        run: node --test scripts/pec-r2-server-addline-guard.test.mjs
