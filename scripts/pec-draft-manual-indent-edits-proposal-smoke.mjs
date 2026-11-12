@@ -18,6 +18,8 @@ const checks = [
   ['purchase allocation exclusion', /public\.v_proc_indent_fifo_allocation/i],
   ['quantity balance exclusion', /public\.v_proc_indent_line_balance/i],
   ['sourcing selection exclusion', /public\.proc_indent_line_sourcing_decision/i],
+  ['internal material no-increase', /p_requested_qty > v_line\.requested_qty AND EXISTS/i],
+  ['G0 classification coverage', /'finished_bulk_material','semifinished_goods'/i],
   ['genuine auth user check', /auth\.uid\(\) IS NULL/i],
   ['PEC edit check', /public\.require_permission\('module:procurement-execution-console','t'\)/i],
   ['audit writer', /public\.proc_lifecycle_audit_write_internal\(/i],
@@ -36,4 +38,4 @@ assert.equal(defs.length, 2, 'proposal must add exactly two public functions');
 assert.equal((sql.match(/SECURITY DEFINER/g) || []).length, 2);
 assert.equal((sql.match(/SET search_path = pg_catalog, public, auth/g) || []).length, 2);
 console.log('PASS: 2 isolated functions and hardened search paths');
-console.log('PEC draft proposal static contract: 21/21 PASS (SOURCE ONLY; DB/JWT untested)');
+console.log('PEC draft proposal static contract: 23/23 PASS (SOURCE ONLY; DB/JWT untested)');
