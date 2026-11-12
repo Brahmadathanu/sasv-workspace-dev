@@ -34,3 +34,11 @@ Migration order:
 The formal PEC G0 ledger is **0/6 gates verified**. Substantial source- and DB-internal acceptance exists, but no assertion of completed hosted/authenticated acceptance.
 
 **Release governance:** draft integration PR; do not merge until owner approval, CI, review and accepted session tests. No Tally purchase-order dependency.
+
+## Narrow integration replay — execution evidence (12 Nov 2026)
+
+The full ordered five-migration SQL payload was fetched from this clean branch and executed in **one explicit BEGIN…ROLLBACK** against the existing live schema, removing only the embedded transaction wrappers. **PASS**, with `non_gram_bom_lines=0` and `safe_resync_guard=1` in transactional readback. This tests **already-corrected production-state compatibility**, not a complete blank-schema rebuild or authenticated UI. No production changes were committed by this replay.
+
+GitHub compare after opening draft integration PR: branch **6 commits ahead / 0 behind main**, exactly **6 changed files** (five migrations + this report). Netlify deploy-preview status reported **success** for PR #317. This is a deployment-preview status only, not evidence that the authenticated procurement workflow was executed.
+
+**Review disposition:** narrow PR #317 can move to independent review/CI. Do not merge while authorized PEC editor positive-path, view JWT/RLS parity and owner approval remain outstanding. Keep documentary PR #287 unmerged and do not apply its full diverged commit history.
