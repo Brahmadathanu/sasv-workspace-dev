@@ -40,3 +40,9 @@ On branch `docs/pec-erp-g0-baseline-20261111`, migration `supabase/migrations/20
 5. **S4 hybrid** remains out of scope until eligibility and UOM/stock anchors verified. No new production PR/indent test records were written.
 
 **PEC G0 remains active; formal gates 0/6.**
+
+## Follow-up static fixture and public-wrapper permission chain
+
+All four publicly callable `SECURITY DEFINER` wrappers (`create_pr_from_mrp_plan`, `proc_pr_rebuild_from_mrp`, `proc_indent_create_from_pr`, `proc_indent_resync_from_pr`) have **confirmed** `require_permission('module:procurement-execution-console','t')` before calling their corresponding private `*_pec_internal` writer. User-specific runtime authorization **has not** yet been exercised, so no formal permission pass is claimed.
+
+Live **9/9** read-only synthetic predicate fixtures passed: ordinary RM positive, finished-bulk excluded, semi-finished excluded, internal manual delta excluded, negative final qty excluded, zero final qty excluded, packaging positive allowed, inactive RM excluded, and external manual delta allowed. Exact reproducible SELECT in `ERP_G0_PR_INDENT_ELIGIBILITY_9_CASE_FIXTURE_20261112.sql` (commit `9164cf2`). This is a **predicate oracle**, not an RPC transaction test.
