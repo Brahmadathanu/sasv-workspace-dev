@@ -78,8 +78,8 @@ try {
   const status = (await statusArea.textContent().catch(() => ''))?.trim().slice(0,180) || '';
   const panelVisible = await panel.isVisible().catch(() => false);
   if (role === 'no-access') {
-    result('A03_no_pec_access', !panelVisible && /permission|access|verify/i.test(status)?'PASS':'FAIL',
-      !panelVisible ? 'PEC main panel inaccessible; access status present: '+Boolean(status) : 'Unexpected PEC main panel visible');
+    result('A03_no_pec_access', !panelVisible && /You do not have permission to open Procurement Execution Console\./i.test(status)?'PASS':'FAIL',
+      !panelVisible ? 'PEC main panel hidden; explicit PEC permission-denied status: '+/You do not have permission to open Procurement Execution Console\./i.test(status) : 'Unexpected PEC main panel visible');
   } else {
     result('A01_A02_module_access', panelVisible?'PASS':'FAIL', panelVisible?'PEC panel visible':'PEC panel hidden; check actual login/permission');
     if (panelVisible) {
