@@ -48,7 +48,7 @@ WITH mrp AS (
         END diagnostic_flag
  FROM candidate c JOIN canonical s USING(stock_item_id)
  LEFT JOIN mrp m ON m.material_class_id=c.material_class_id AND m.stock_item_id=c.stock_item_id AND m.uom_id=c.uom_id
- LEFT JOIN consumed u USING(stock_item_id)
+ LEFT JOIN consumed u ON u.stock_item_id=c.stock_item_id
  LEFT JOIN stock st ON st.stock_item_id=c.stock_item_id
  AND st.source_kind=CASE WHEN s.category_code='RM' THEN 'rm' ELSE 'plm' END
  LEFT JOIN indent ind ON ind.material_class_id=c.material_class_id AND ind.stock_item_id=c.stock_item_id AND ind.uom_id=c.uom_id
