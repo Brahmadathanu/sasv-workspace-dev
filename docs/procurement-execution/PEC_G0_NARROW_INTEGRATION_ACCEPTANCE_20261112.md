@@ -3,7 +3,7 @@
 Related: ERP master #284, hybrid S4 #305, broad documentary branch PR #287.
 
 ## Purpose and exact scope
-This branch starts from current `main` and retains **only five server migrations** for the owner-approved four-item UOM and procurement-writer corrections. The broad docs branch #287 is 76 commits ahead and 20 behind `main` at the initial comparison; **do not directly merge its entire history**.
+This branch starts from current `main` and retains **only seven server migrations** for the owner-approved four-item UOM and procurement-writer corrections. The broad docs branch #287 is 76 commits ahead and 20 behind `main` at the initial comparison; **do not directly merge its entire history**.
 
 Migration order:
 1. `20261112110000_pec_four_gram_material_bom_normalization.sql` — idempotent, exact 13-item Kg→g BOM line correction with old/new-state assertions and governed conversion factor; unchanged Gomatha correction is verified.
@@ -11,6 +11,8 @@ Migration order:
 3. `20261112122500_pec_revision_and_manual_indent_internal_guard.sql` — new PR revision filtering and manual-indent no-new/increase guard while preserving legacy reductions.
 4. `20261112133000_pec_manual_pr_internal_item_guards.sql` — manual PR add/quantity-delta forward-only protections.
 5. `20261112143000_pec_safe_resync_preserve_manual_lines.sql` — corrected SAFE resync preservation of unmapped manual indent lines, keeping RESET fully restorative.
+6. `20261112150000_pec_mrp_uom_factor_auth_rbac.sql` — scoped SECURITY DEFINER helper so authenticated calculations can read governed conversion factors without opening the UOM-conversion table.
+7. `20261112152000_pec_mrp_rollup_use_strict_factor.sql` — align future MRP monthly rollup with the same fail-closed conversion policy; no refresh invoked.
 
 **IMPORTANT:** migration #5 supersedes the indent-resync function version in migration #2. Apply strictly in timestamp order. These changes have already been applied live in project `qhmoqtxpeasamtlxaoak`; the migrations establish source-control lineage, and the first guarded BOM step was verified in a rolled-back readback on the corrected production state.
 
@@ -37,7 +39,7 @@ The formal PEC G0 ledger is **0/6 gates verified**. Substantial source- and DB-i
 
 ## Narrow integration replay — execution evidence (12 Nov 2026)
 
-The full ordered five-migration SQL payload was fetched from this clean branch and executed in **one explicit BEGIN…ROLLBACK** against the existing live schema, removing only the embedded transaction wrappers. **PASS**, with `non_gram_bom_lines=0` and `safe_resync_guard=1` in transactional readback. This tests **already-corrected production-state compatibility**, not a complete blank-schema rebuild or authenticated UI. No production changes were committed by this replay.
+The original ordered five-migration SQL payload was fetched from this clean branch and executed in **one explicit BEGIN…ROLLBACK** against the existing live schema, removing only the embedded transaction wrappers. **PASS**, with `non_gram_bom_lines=0` and `safe_resync_guard=1` in transactional readback. This tests **already-corrected production-state compatibility**, not a complete blank-schema rebuild or authenticated UI. No production changes were committed by this replay.
 
 GitHub compare after opening draft integration PR: branch **6 commits ahead / 0 behind main**, exactly **6 changed files** (five migrations + this report). Netlify deploy-preview status reported **success** for PR #317. This is a deployment-preview status only, not evidence that the authenticated procurement workflow was executed.
 
@@ -67,3 +69,13 @@ Remaining release checks: run actual authenticated PEC edit session (without sim
 - No JWT was fabricated and no authorized user was impersonated. The `v_mrp_material_gross_requirement_rm` view security option was **not** changed; real signed-in JWT/RLS read parity and PEC editor RPC success remain open.
 
 **Release governance:** the existing main has moved after narrow branch creation; rebase/check conflicts before merge. PR #317 stays draft and owner-approved merge still required. Formal PEC gate count **0/6**.
+
+## 12 Nov — Additional server hardening and seven-migration integration replay
+
+**Live RLS defect fixed:** The strict helper originally ran under invoker permissions. `inv_uom_conversion` and `inv_uom` have RLS and the former has **no SELECT grant to authenticated**. A bare `authenticated` role failed Kg→g lookup with a misleading incompatible-dimensions error. The narrowly read-only strict helper is now `SECURITY DEFINER`, qualified table references and fixed search_path, with EXECUTE revoked from PUBLIC/anon and granted to authenticated/service_role. No table SELECT policy/grant changed. Role test: Kg→g=1000; g→Kg=0.001; Nos identity=1; anonymous call denied; raw table remains denied. Test script `scripts/pec-g0-postmigration-contract-verify.sql` extended and executed live: `PEC_G0_AUTH_UOM_HELPER_PASS`.
+
+**Live future rollup fix:** `mrp_rm_plan_rebuild_month_active` now uses `public.mrp_uom_factor_strict(source_id,target_id)` for its `required_qty` normalization, rather than a separate `LIMIT 1` lookup that ignored ambiguous factors. Rollback-only December recomputation succeeded: **360 material monthly rows**, **0 null**, **0 negative**. Existing December `mrp_rm_plan_detail` retains **5,447 rows / 1 active run** after rollback. This is not authorization to rebuild/replace the stored plan.
+
+**Full source-control ordered migration replay:** fetched all **7 migration files**, stripped embedded per-file transaction wrappers and executed them in **one BEGIN…ROLLBACK** on live corrected schema. PASS: `non_gram=0`, `helper_definer=true`, `rollup_strict=true`. This proves *already-corrected production-state compatibility*, not a complete blank-environment migration replay or hosted authenticated workflow.
+
+**Remaining:** valid signed-in editor public PEC RPC success and approved legacy indent reduction→snapshot publish, view/JWT/RLS parity and owner merge approval; destructive Nov–Jan production-plan rebase intentionally held. Source-control integration PR remains draft and unmerged, client work delegated to Claude separately. Formal G0 **0/6**.
