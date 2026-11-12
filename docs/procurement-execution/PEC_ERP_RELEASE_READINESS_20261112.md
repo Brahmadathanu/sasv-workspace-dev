@@ -1,0 +1,70 @@
+# PEC ERP integration — release readiness and owner acceptance (12 November 2026)
+
+**Programme:** #284; hybrid S4 separate #305. **Owner final approval required.** This is a readiness checklist and **does not authorize merging, production backfills, historical MRP rebuilds or Tally PO generation**. Formal gates **0/6 VERIFIED** until independent evidence and owner sign-off.
+
+## Current evidence / known boundaries
+
+- **Server correction [draft PR #317](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/317):** seven ordered SQL migrations, including four gram-material corrections, strict governed UOM, internal RM procurement writer restrictions, SAFE resync preservation and role-safe factor helper. Live postmigration and transactional writer regression independently PASS. No authenticated real-user procurement write acceptance.
+- **Server paging [draft PR #323](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/323):** three ordered SQL migrations, 10 additive, VIEW-gated read functions (five original paged, three filtered, two operational vendor). Four independent SQL regression scripts PASS again on 12 Nov. Original reads retained. Live query equivalence does NOT prove successful real-user RPC calls or performance p95.
+- **Client:** dependency chain [#291](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/291) → [#301](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/301) → [#320](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/320) → [#335](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/335). Standalone [#319](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/319) Full→server `reset` correction is byte-identical with #335 integrated patch; resolve once, not twice. #335 head `609efc28` fixed page-independent Jump to Indent and complete full-export paging. Claude reports synthetic PEC tests and jsPDF runtime PASS; independent source review acceptable. None of the real account tests have passed.
+- **Installed-PWA freshness [draft PR #342](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/342):** PEC shared JS and CSS now network-first with offline fallback; retain cache `hub-cache-v393`. GitHub Actions [PEC PWA Cache Freshness run 43203370965](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/43203370965) **SUCCESS**: both PEC and existing FG-BIT mocked-SW regression steps passed. Netlify preview on #342 **SUCCESS**. **Not** live installed-PWA acceptance.
+- **Migration-history gap:** direct authorized SQL corrections in production made corresponding function objects live **before** PR #317/#323 migration files were merged. Latest `list_migrations` does not include any of their 20261112 PEC migration versions. Their combined ordered SQL payloads were already replayed in `BEGIN…ROLLBACK` on the corrected live schema, but an official deployment/migration runner must reconcile the ten migration entries and preserve idempotency. Do **not** assume GitHub merge alone registers applied SQL versions. Avoid duplicate execution outside governed migration process.
+- **Protected data:** no destructive MRP plan rebase; December baseline 5,447 detail rows before later checks, seven historical internal material indent balances preserved. No approved actual indent changed for test purposes.
+
+## Merge sequencing (conditional, not approval)
+
+1. Freeze the source `main` SHA and obtain an isolated integration preview. Re-evaluate branch behind/ahead, mergeability and CI; do not trust previous status snapshots.
+2. Reconcile and promote server PR **#317**, then **#323** in the governed migration pipeline. Check Supabase migration history, exact function hashes/signatures/grants before and after, run saved regression SQL and check approved procurement data row counts.
+3. Promote client prerequisites in order **#291 → #301 → #320**. Reconcile **#319** once (Full→`reset`), then **#335**. On every step check only intended PEC diff, run PEC test suites, and ensure the app/asset references are still one canonical shared source for Electron and PWA.
+4. Promote **#342** no later than #335 rollout to prevent installed PWA serving cache-first old PEC JS/CSS; keep cache version pinned unless separately justified. Rerun its GitHub Actions check and install-PWA browser acceptance.
+5. Only owner authorizes production merge/deployment after reviewing remaining blockers. Do not enable S4 hybrid writer as a side effect.
+
+## Genuine-session acceptance (minimum evidence; use a pre-authorized fixture)
+
+1. **PEC VIEW-only account:** open PWA signed in; verify all five lens reads and pager totals, PR/Indent status/class/search, default 30-day Excess, audit, Vendor-wise operational choice dropdown and Vendor-wise group selection. All edit/save/approval actions hidden or disabled; attempt a public protected writer on a safe fixture, confirm denial. Record role class but not JWT/email.
+2. **PEC editor account:** repeat same reads, check Action Queue→Jump to Indent for a known indent on page **2**, Full/SAFE resync labels, vendor-selection save/refresh in expressly allowed **draft** fixture. Verify protected internal material PR/indent additions denied by the server. No real approved indent edited for convenience.
+3. **No-access account:** direct PEC URL must fail closed and protected RPC calls reject permission. No fake JWT or admin `SET ROLE` substitute for actual end-user claims.
+4. **Paging/export:** check Vendor-wise default and operational options, narrow filter matched rows beyond first 200, quick-filter total, 200-row paging with unique identities and correct order. Export >1,000 matching rows in a safe controlled fixture when practical; PDF/CSV/TSV items, quantities, serials and totals must agree with entire filtered result, never only visible page. Emphasize controlled synthetic fixture vs actual live count.
+5. **PWA freshness:** with an already-installed PWA that cached old JS/CSS, load online after deployment; confirm actual PEC script response is fresh and calls `proc_pec_*_filtered_paged`/operational paging, then offline cache fallback. Mocked-SW CI alone cannot certify this.
+6. **Electron:** verify canonical shared path, packaged build rendering, all five lens layout at 390/820/1440 widths, PR PDF multi-page continuation, procurement actions, vendor modal and exports. Ships only with next approved Electron release, not automatically through Netlify.
+7. **Performance:** repeated authenticated/production-like page fetch observations with consistent filters and realistic dataset volumes; Excess `count(*) OVER()` can compute full 13,311-view count and has **no proven p95 speedup**. If unacceptable, raise a distinct measurable optimization rather than claiming all paging is fast.
+
+## Sign-off template
+
+Record per check `PASS / FAIL / BLOCKED / DEFER`, timestamp IST, hosted asset SHA, account role class (no personal identifiers), exact PR/test fixture identifiers, before/after rows, screenshots or console logs where permitted, and owner decision. **Do not alter the ERP gate count from 0/6 without meeting its exact exit criterion**. G0 source/role inventory evidence and G1 server/client contract can be reviewed on their own; G4 requires real responsive/security/functional acceptance, and G5 actual owner-approved integration and hosted verification.
+
+## 12 Nov source review addendum — export snapshot consistency
+
+The #335 Vendor-wise full export now fetches all 200-row pages rather than trusting the capped 1,000-row RPC, but its `rows.length===total_count` completeness assertion does not detect an offset-page duplicate + omission with unchanged total during concurrent writes. The row identity helper `getVwlOperationalRowKey` provides a grounded composite key `(vendor bucket, material class, stock item, UOM)`; a duplicate-key and per-page total mismatch fail-closed test was requested on #335 (review comment 6821647548), along with a mutation-sensitive fixture where page boundaries shift. Do not silently de-duplicate export rows. Even a distinct-key check cannot prove a consistent database snapshot across multiple requests; operational export acceptance should compare against a stable fixture and warn/retry under concurrent edits.
+
+This is a **new pending client review item**, not grounds to mark existing 94 synthetic paging checks failed. Preserve owner final approval and formal gate status 0/6.
+
+## Exact Supabase migration-history repair procedure (official CLI, not blind SQL replay)
+
+Supabase's current [database migration documentation](https://supabase.com/docs/guides/deployment/database-migrations) specifies that when the schema is already changed by direct SQL but the corresponding `supabase_migrations.schema_migrations` records are missing, `supabase migration repair --status applied <version> --remote` records *history only*: it does **not** rerun SQL. This is preferable to blindly rerunning owner-applied production writes. The connected Supabase tool does not expose the CLI migration-history repair operation, so **this reconciliation has not been executed**.
+
+**Preconditions:** first merge/review approved SQL files in the target repository in dependency order, freeze the main SHA and require (a) the 7 G0 + 3 G1 source migrations match actual production definitions/data; (b) the four live SQL contract tests PASS; (c) current migration list confirms all 10 are absent; (d) no unforeseen overlapping migration timestamp or tracked schema drift. In a properly authenticated local Supabase CLI session linked to project `qhmoqtxpeasamtlxaoak`, use `supabase migration list --remote` and, after explicitly authorized approval, repair these **already-applied** versions one by one:
+
+```sh
+supabase migration repair --status applied 20261112110000 --remote
+supabase migration repair --status applied 20261112114000 --remote
+supabase migration repair --status applied 20261112122500 --remote
+supabase migration repair --status applied 20261112133000 --remote
+supabase migration repair --status applied 20261112143000 --remote
+supabase migration repair --status applied 20261112150000 --remote
+supabase migration repair --status applied 20261112152000 --remote
+supabase migration repair --status applied 20261112170000 --remote
+supabase migration repair --status applied 20261112173000 --remote
+supabase migration repair --status applied 20261112174500 --remote
+supabase migration list --remote
+```
+
+**Do not execute before the above preconditions and owner's migration-history approval.** Repair is a bookkeeping operation with real consequences for future `db push`: it tells the deployment runner to skip SQL, so only use it after the live implementation and exact migration content parity has been proven. It must never hide unapplied changes. Do not insert directly into the migration table or use `apply_migration` to create new versions merely to work around missing history. Re-run contract and procurement-integrity checks after the repair and preserve the recorded before/after history list. The client release still requires legitimate PEC JWT/PWA acceptance.
+
+## 12 November — Vendor-wise full-export integrity correction complete
+
+A focused patch was applied directly to Claude's existing PR #335 (not a new overlapping client PR). Production function `fetchAllVendorBuylistPagedRows` now fails closed if server totals drift between populated pages, the vendor/item/UOM composite group key is missing, or the same group key appears again in another page; it still refuses exports above 50,000 rows and checks final count. Source commit `f11df919`. Dedicated mutation-sensitive tests `scripts/pec-vwl-offset-export-integrity.test.mjs` added in commit `20591ba8`, plus CI workflow `.github/workflows/pec-vwl-offset-export-integrity.yml` commit `fc78c3b`.
+
+**Independent GitHub Actions [run 43205460913](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/43205460913) SUCCESS**: the job executed the real source collector and six test scenarios (valid 205 rows, duplicate+omission unchanged count, total drift, absent identity, truncated transport and >50,000 rejection), all passing. #335 Netlify preview also SUCCESS on latest `fb621e56`; draft/unmerged. Existing Claude 94 fixture suite remains a separate earlier PASS, **not independently rerun after the guard patch**. Do not claim cross-page immutable snapshot semantics from these tests; authenticated export/live concurrency acceptance remains open.
+
+**Formal G0 audit:** Claude's 253-control static inventory has 0 reported FAIL/FIX and 28 explicit DEFER entries in three unreachable modals; independent 43-RPC catalogue and legacy WP00/WP01 reconciliation exist. However the current DOM/RPC evidence remains **source-only**, incomplete as a fully independent rendered/role/control-to-RPC acceptance matrix; G0 still **0/6 verified**. G4 operational acceptance is also blocked by the absence of legitimate editor, VIEW-only and no-access sessions. Do not advance gates on test counts alone.
