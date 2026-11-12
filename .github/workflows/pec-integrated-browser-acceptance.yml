@@ -35,6 +35,8 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq poppler-utils
+      - name: Validate interactive operator harness syntax (no credentials used)
+        run: node --check scripts/pec-phase-a-operator-browser-check.mjs
       - name: Run PEC integrated browser and contract checks
         env:
           NODE_PATH: ${{ runner.temp }}/pecdeps/node_modules
