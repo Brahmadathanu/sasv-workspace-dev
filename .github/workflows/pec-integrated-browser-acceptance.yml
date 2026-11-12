@@ -1,0 +1,52 @@
+name: PEC Integrated Browser Acceptance
+on:
+  pull_request:
+    paths:
+      - "public/shared/**"
+      - "scripts/pec-*.mjs"
+      - "scripts/lib/pec-*.mjs"
+      - ".github/workflows/pec-integrated-browser-acceptance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "public/shared/**"
+      - "scripts/pec-*.mjs"
+      - "scripts/lib/pec-*.mjs"
+      - ".github/workflows/pec-integrated-browser-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integrated-pec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install isolated PEC browser/PDF test dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pecdeps" --no-save --no-audit --no-fund playwright@1.56.1 jspdf@2.5.1 jspdf-autotable@3.8.2
+          "$RUNNER_TEMP/pecdeps/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Run PEC integrated browser and contract checks
+        env:
+          NODE_PATH: ${{ runner.temp }}/pecdeps/node_modules
+          PEC_JSPDF_ROOT: ${{ runner.temp }}/pecdeps/node_modules
+        run: |
+          set -eu
+          node --test scripts/pec-vwl-offset-export-integrity.test.mjs
+          node scripts/pec-paging-contract-smoke.mjs
+          node scripts/pec-vwl-search-reliability-smoke.mjs
+          node scripts/pec-plm-pm-canonical-smoke.mjs
+          node scripts/pec-five-lens-inventory.mjs
+          node scripts/pec-erp-c1-layout-smoke.mjs
+          node scripts/pec-erp-c2-vendor-selection-smoke.mjs
+          node scripts/pec-c1-five-lens-fasttrack-smoke.mjs
+          node scripts/pec-erp-c1-static-smoke.mjs
+          node scripts/pec-resync-mode-contract-smoke.mjs
+          node scripts/pec-wp01-indent-serial-smoke.mjs
+          node scripts/pec-pr-pdf-continuation-header-smoke.mjs
+          node scripts/pec-pr-scope-smoke.mjs
