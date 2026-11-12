@@ -1,6 +1,6 @@
 -- REVIEW ONLY. No owner permission to execute this rollback on production.
 -- Applies only after separately approved R39 production deployment, if needed.
--- Strict candidate hashes will be pinned once actual isolated PG17 SQL is tested.
+-- Candidate hashes pinned from disposable PostgreSQL 17 full-view execution; refuse any intervening edits.
 BEGIN;
 SET LOCAL lock_timeout='3s';
 SET LOCAL statement_timeout='45s';
@@ -13,8 +13,8 @@ BEGIN
  LOOP
  IF v.owner<>'postgres' OR v.acl<>'{postgres=arwdDxtm/postgres,authenticated=r/postgres}'
  OR v.opts<>'security_invoker=false'
- OR (v.relname='v_costing_material_manual_rate_history' AND v.defhash<>'__APPLIED_HASH_HISTORY__')
- OR (v.relname='v_costing_material_manual_rate_register' AND v.defhash<>'__APPLIED_HASH_REGISTER__')
+ OR (v.relname='v_costing_material_manual_rate_history' AND v.defhash<>'01029a39e47a300aa7860d17b2f39cae')
+ OR (v.relname='v_costing_material_manual_rate_register' AND v.defhash<>'38b4262bfae719ca3f736185784fd047')
  THEN RAISE EXCEPTION 'WP05 R39 rollback: unexpected changed view %, abort both',v.relname; END IF;
  END LOOP;
 END $guard$;
