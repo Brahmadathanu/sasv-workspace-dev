@@ -25,7 +25,8 @@ BEGIN
     RAISE EXCEPTION 'WP05 R28 precondition: view owner drift';
   END IF;
   IF NOT has_table_privilege('authenticated',v_oid,'SELECT')
-     OR has_table_privilege('anon',v_oid,'SELECT') THEN
+     OR has_table_privilege('anon',v_oid,'SELECT')
+     OR has_table_privilege('service_role',v_oid,'SELECT') THEN
     RAISE EXCEPTION 'WP05 R28 precondition: public view SQL ACL drift';
   END IF;
 END
@@ -92,6 +93,9 @@ BEGIN
      OR position('fn_costing_view_allowed' IN v_def)>0
      OR position('costing.scheme_master_audit' IN v_def)=0 THEN
     RAISE EXCEPTION 'WP05 R28 postcondition: wrong Scheme audit source or reader predicate';
+  END IF;
+  IF has_table_privilege('service_role',v_oid,'SELECT') THEN
+    RAISE EXCEPTION 'WP05 R28 postcondition: service_role unexpectedly gained view SELECT';
   END IF;
   IF (SELECT count(*) FROM pg_attribute WHERE attrelid=v_oid AND attnum>0 AND NOT attisdropped)<>20 THEN
     RAISE EXCEPTION 'WP05 R28 postcondition: changed audit column count';
