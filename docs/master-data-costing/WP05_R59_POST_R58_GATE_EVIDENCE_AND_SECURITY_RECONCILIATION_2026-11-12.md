@@ -15,7 +15,7 @@
 
 Additional R48 CSR-only owner observations: `sku-cost-sheet` detail and cost-sheet line trace functionality were reported positive in the CSR surface; **do not infer full printable-cost-sheet or trace network-performance PASS** or credit a CCC lens that does not exist. Other PPM policy read during R53/R58 was **POPULATED** but its exact PPM workspace ID was not recorded, so **cannot be assigned to another numbered AE1 workspace row**.
 
-The old AE1 40-row historical counts remain **13 P / 4 F / 2 NA / 21 NT**. This is an additive evidence overlay only: five original NT modules have later bounded positive subpath observations, and one historically failing #19 has an explicit post-fix recovery. Other historical failures #23, #24, #35 retain their documented recovery/remaining timing and safety distinctions.
+The old AE1 40-row historical counts remain **13 P / 4 F / 2 NA / 21 NT**. This is an additive evidence overlay only: four original NT lenses have later bounded positive subpath observations, and one historically failing #19 has an explicit post-fix recovery. Other historical failures #23, #24, #35 retain their documented recovery/remaining timing and safety distinctions.
 
 ## 2. D-2 six closure-critical sensitive views + R57 extra Register: live catalogue provenance
 
