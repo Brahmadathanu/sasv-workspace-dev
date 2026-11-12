@@ -63,8 +63,11 @@ ok(Boolean(present), "protected-path comparison base exists (" + baseRef + ")");
 if (present) {
   // Two-tree diff deliberately does not need full ancestry (CI uses shallow checkout).
   const committed = gitTry("git diff --name-only " + baseRef + " HEAD");
-  const uncommitted = gitTry("git diff --name-only HEAD");
-  const staged = gitTry("git diff --name-only --cached");
+  // Existing five PEC migrations have mixed CRLF/LF on checkout, despite
+  // repository eol=lf normalization. Ignore ONLY line-ending whitespace noise;
+  // edits to SQL content and any SW mutation must still fail the guard.
+  const uncommitted = gitTry("git diff --ignore-space-at-eol --name-only HEAD");
+  const staged = gitTry("git diff --ignore-space-at-eol --name-only --cached");
   const untracked = gitTry("git ls-files --others --exclude-standard");
   const changed = [committed, uncommitted, staged, untracked].join("\n").split("\n").filter(Boolean);
   const illegal = rejectedProtectedPaths(changed, integrationCandidate);
