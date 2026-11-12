@@ -97,3 +97,11 @@ An existing genuinely signed-in PEC Editor with `module:procurement-execution-co
 Log the authorized account's permission class, tested indent/PR IDs, start/end snapshot revisions and observed PWA output **without exposing private user identifiers**. This is required for G4 operator acceptance; the present SQL tests cannot certify it.
 
 **Security view parity:** keep `v_mrp_material_gross_requirement_rm` security settings unchanged until read behaviour is compared under a valid editor JWT and view-only role. The strict factor helper authorization issue is separately corrected and verified, but does not certify all downstream JWT/RLS contracts. **G0 programme remains 0/6 formal gates.**
+
+## 12 Nov — G0 gram migration fresh-environment portability fix
+
+The originally captured migration `20261112110000_pec_four_gram_material_bom_normalization.sql` guarded and converted exactly 13 kilogram BOM lines, but **validated** the four stock-master UOMs without converting them. This was safe as a no-op against the already-corrected live production database, but would fail on a properly matched older/fresh schema whose four stock masters still had `default_uom_id=Kg`.
+
+Updated the **unmerged source migration** to require four exact target masters in the old Kg or corrected g state, then change only Kg masters to g, followed by the existing exact 13-line BOM Kg→g conversion. All changes remain within one PostgreSQL `DO` transaction and strict postcondition: all target masters and BOM lines in g. The code rejects unknown UOM states/missing IDs instead of guessing. New commit `4ca3e236`.
+
+**Evidence:** new migration executed on the **already-corrected live schema inside explicit `BEGIN…ROLLBACK`**, PASS; read-only postcheck remains **13/13 expected corrected BOM quantities**, 4/4 masters g, 21/21 target BOM lines g, 0 non-g. On the corrected database this migration performs zero master/BOM updates. The old-Kg-to-new-g state transition has **not** been run in an isolated historical clone with real triggers, and must be included in pre-release migration QA; do not describe that untested branch as proven. No live procurement data or MRP run was changed.
