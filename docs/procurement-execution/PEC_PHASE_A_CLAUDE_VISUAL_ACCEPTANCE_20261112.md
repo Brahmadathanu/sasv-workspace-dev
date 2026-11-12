@@ -57,3 +57,14 @@ Paging, Jump to Indent (beyond page 1), vendor selection, operational grouping, 
 
 ## 8. Remaining blockers (owner / ChatGPT)
 Genuine Editor, View-only and no-access sessions (operator must sign in personally; A01–A08); installed-PWA freshness (A09); Windows packaged build and signed-in Electron (A10); measured real latency (A11); ordered merge/deploy authorisation and history-only migration repair (A12) — all outside this work.
+
+## 12 Nov — Independent review correction: protected SQL/SW CI guards
+
+The independent ChatGPT review identified that the original static check skipped SQL/SW protections on **all integration-descendant branches**, rather than exempting only reviewed changes inherited from the integration base. This could conceal new accidental production migration or SW changes in a client-only PR. Corrected directly on draft PR #365 without touching `supabase/` or `public/sw.js`:
+
+- `scripts/lib/pec-protected-path-guard.mjs` permits the precise ten known PEC migration paths plus `public/sw.js` **only on the integration candidate itself**; a descendant client PR has no protected-file exemptions.
+- `scripts/pec-erp-c1-static-smoke.mjs` now compares **current PR HEAD against its explicit base tree**, plus staged/unstaged/untracked changes, and fails closed when the base ref is absent. The protected-path guard executes regardless of whether the historical main client JS can be read.
+- CI fetches the PR's exact base-tree ref in shallow checkout and runs nine policy cases plus a full static-guard mutation test. The latter creates a temporary untracked SQL migration file and temporarily modifies `public/sw.js`, asserts both are rejected, and restores the working tree; no SQL execution, deployment, or committed migration/SW change occurs.
+- Source commits: `6147b001` (policy), `410736ff` (static checker), `c7f5bd2a` (policy tests), `9e572a65` (base fetch), `afe0e420` (real mutation test), `9958d5a9` (CI wiring). 
+
+**CI evidence:** GitHub Actions workflow `PEC Integrated Browser Acceptance`, run `43253246433`, reached and **passed** both the exact-base fetch and policy tests as well as the end-to-end temporary-mutation rejection step. The remaining browser suites must finish before final exact-head CI can be called PASS; do not infer that from this partial step result. The separate Vendor-wise Offset Export workflow is also running. No genuine operator-role acceptance has been performed; formal G0–G5 remains 0/6.
