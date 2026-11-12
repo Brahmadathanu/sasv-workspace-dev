@@ -1,3 +1,5 @@
+> **POST-PROTOCOL OWNER OBSERVATION — 12 NOV 2026:** The owner now confirms Scheme History **appears** when continuing the R36 workflow. [R37](WP05_R37_OWNER_OBSERVED_SCHEME_HISTORY_2026-11-12.md) records this as **owner-reported positive screen evidence**, while the exact PPM-only account role and signed-in network trace were not independently re-verified. The prior below statement 'real session NOT TESTED' describes the state **when this protocol was authored**, before the owner's report. Costing-only negative remains NOT TESTED; W5-06 OPEN, formal 6/13.
+
 # WP05 R36 — Scheme History browser acceptance protocol and source truth (12 Nov 2026)
 
 **Status: CLIENT CONTRACT VERIFIED / REAL AUTHENTICATED BEHAVIOUR NOT TESTED.** R34 owner-approved production one-view SQL has been applied and catalogue-verified; R35 non-identifying live permission inventory found 1 PPM View-only permission group, 3 PPM+other Costing View, 0 Costing-only without PPM. These **do not** prove active browser sessions or successful permissions.
