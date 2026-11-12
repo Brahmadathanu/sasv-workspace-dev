@@ -39,3 +39,18 @@ They appear to be **legitimate manually added indent-only lines**, not a source-
 Prepare a bounded, multi-item *read-only* comparison of MRP tuples UNION eligible historical consumption tuples; verify class/UOM joins, missing-stock handling, lead/seasonality policy, MOQ-integer quantum, zero usage months, negative overrides, and deduplication. Create a synthetic read-only calculation oracle before any server deployment.
 
 No production writes, DDL, PR/indent creation, snapshot refresh or merge. Overall PEC gates 0/6, G0 active.
+
+## Additional essential discovery — consumption items entirely absent from MRP
+
+Read-only query of consumption `v_item_consumption_monthly_by_item` with positive usage in **Nov 2025–Oct 2026**, compared by canonical `stock_item_id` with the Nov 2026–Jan 2027 RM/PM MRP item set, returned:
+
+| Metric | Distinct stock items |
+|---|---:|
+| Consumption-bearing items | 1,344 |
+| Present in consumption but absent from RM/PM MRP item set | **239** |
+| Of those absent, already have a positive approved/issued open indent | **21** |
+| Of those absent, no current positive approved/issued open indent | **218** |
+
+**Crucial limitation:** the absence check is across all consumption stock-item classes, not exclusively currently eligible RM/PM. The 239/218 are **review populations, not a confirmed count of items that should be added to a PR**. Class, activation, material UOM conversion, actual current stock, horizon consumption and explicit exclusions (fuel/consumable/JIT/other categories) must be vetted. Nonetheless, restricting candidate inputs to `v_mrp_procurement_plan` would mechanically miss all 239 potential cases. S4 preview must start with **UNION of MRP item keys and eligible historical usage item keys**, joining approved indents on matching class/item/UOM, never an inner join to MRP.
+
+This is a read-only population measurement, not an authorized purchasing quantity.
