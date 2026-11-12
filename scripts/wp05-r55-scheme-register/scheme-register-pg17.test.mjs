@@ -56,7 +56,14 @@ assert.equal(psql(`SELECT count(*) FROM pg_attribute WHERE attrelid='${v}'::regc
 test("PPM View-only signed-in fixture now reads populated Scheme Master",()=>assert.equal(rows(u(1)),1));
 test("CCC, CSR, MCM, CBM-only and PPM Edit-only do not read full Register",()=>{for(const i of [2,3,4,5,6])assert.equal(rows(u(i)),0,String(i));});
 test("repeat apply refuses changed baseline",()=>assert.throws(()=>psql(apply)));
-test("unreviewed rollback fingerprint refuses",()=>assert.throws(()=>psql(rollback)));
+test("rollback rejects unexpected SQL grant drift without overwriting view",()=>{
+const current=hash();
+psql(`GRANT UPDATE ON ${v} TO authenticated;`);
+assert.throws(()=>psql(rollback));
+assert.equal(hash(),current);
+psql(`REVOKE UPDATE ON ${v} FROM authenticated;`);
+assert.equal(psql(`SELECT relacl::text FROM pg_class WHERE oid='${v}'::regclass;`),"{postgres=arwdDxtm/postgres,authenticated=r/postgres}");
+});
 test("guarded rollback restores original fingerprint and reader behavior",()=>{
 psql(rollback);
 assert.equal(hash(),"8fdc0306bd2f1efbe0638c7c13ba4dda");
