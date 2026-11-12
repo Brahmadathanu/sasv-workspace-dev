@@ -61,7 +61,12 @@ test("Exact one-view SQL candidate applies and retains schema/owner/grants",()=>
 test("CCC View, MCM View and mixed readers allowed",()=>{for(const u of ["ccc","mcm","mixed"])assert.equal(count(u),1,u);});
 test("CBM, CSR, PPM, MCM Edit-only and no-view denied",()=>{for(const u of ["cbm","csr","ppm","edit_only","none"])assert.equal(count(u),0,u);});
 test("Apply refuses unexpected reapplication",()=>assert.throws(()=>psql(candidate)));
-test("Rollback refuses unreviewed starting definition",()=>assert.throws(()=>psql(rollback)));
+test("Rollback refuses an unexpected SQL ACL expansion without changing the view",()=>{
+ psql(`GRANT UPDATE ON ${v} TO authenticated;`);
+ assert.throws(()=>psql(rollback));
+ psql(`REVOKE UPDATE ON ${v} FROM authenticated;`);
+ assert.equal(acl(),"{postgres=arwdDxtm/postgres,authenticated=r/postgres,service_role=arwdDxtm/postgres}");
+});
 test("Guarded rollback restores original view fingerprint and original readers",()=>{
  // Will pass after tested candidate hash is pinned to rollback guard.
  psql(rollback);
