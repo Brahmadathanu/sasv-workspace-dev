@@ -99,3 +99,20 @@ The owner states that Tally purchase orders are not dependable and are not in us
 **Panchasara control:** 61,250 Kg in three approved indent lines remains in Vendor-wise Buying List. As a **commitment-based** calculation, that amount can cover a hypothetical 11,800 Kg new procurement requirement and yield a zero *incremental* PR line, without proving that 61,250 Kg is arriving or available as physical stock. Procurement execution continues against those open indents. A future shortage despite open commitments must be handled through indent review/correction or an explicit approved override, not invented incoming supply.
 
 **Not yet implemented:** calculation source integration, stock anchor alignment, duplicate-PR/indent mapping prevention, server test, write permission controls and deployment remain gated.
+
+## Executed no-PO hybrid incremental PR SELECT (12 Nov 2026)
+
+The exact committed **read-only** SQL at `docs/procurement-execution/ERP_S4_HYBRID_INCREMENTAL_PR_SELECT_ONLY_20261112.sql`, commit `1a3d8a1`, executed successfully against live Supabase for the pinned hypothetical Nov 2026–Jan 2027 horizon and 12 complete usage months through Oct 2026.
+
+| Item | MRP net | Net CCF prior to indent | Approved/issued open-indent remainder | New-PR need pre-rounding | One-time rounding | Diagnostic new-PR |
+|---|---:|---:|---:|---:|---|---:|
+| Panchasara #733, Kg | 10,200 | 11,780.170 | 61,250 (#118/#156/#191) | 0 | 50 Kg MOQ | **0 Kg** |
+| Label–Punarnavasavam 450 ML #1638, Nos | 0 | 3,146.75 | 0 | 3,146.75 | Whole Nos | **3,147 Nos** |
+
+Both rows explicitly return `approved_new_pr_qty=NULL`, with `INDENT_LIFECYCLE_AND_STOCK_ANCHOR_REVIEW` and `STOCK_ANCHOR_AND_USAGE_POLICY_REVIEW` diagnostic states respectively.
+
+**Source logic:** compare existing MRP `sum(procure_qty)` and unrounded stock-netted calendar consumption floor (never sum), subtract live `v_proc_indent_line_balance` approved/issued remainder *once* by class/item/UOM, clamp to zero, then apply MOQ or Nos ceiling **once**. The calculation does **not** read Tally purchase orders or require PO/ETA evidence. Previously published indent lines remain in the buying list; no PR or indent created.
+
+**Important limitation:** MRP's recursive period anchor and current Tally stock snapshot may not be identical; zero-filled 12m average and 3-month horizon are trial assumptions. Existing outstanding indents are intentionally credited based on owner direction, but lifecycle/exception treatment, already-linked PR/indent duplication, schema-wide units and performance remain to be verified. This is **not** a writer-ready or formally approved global procurement policy.
+
+**Next bounded G0/G1 tasks:** generalise case-specific dates and items through reviewed inputs, verify non-MRP items' class/UOM eligibility, time-phased stock anchor, duplicate PR→indent linkage (especially after regenerations), and review proposed permissions and performance with isolated tests before any production write.
