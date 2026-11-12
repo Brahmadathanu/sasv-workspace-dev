@@ -8,6 +8,21 @@ BEGIN
     EXECUTE p_sql;
   EXCEPTION WHEN OTHERS THEN
     v_failed := true;
+    IF NOT (SQLERRM ILIKE CASE
+         WHEN p_message IN ('stale date') THEN '%stale expected date%'
+         WHEN p_message IN ('stale qty') THEN '%stale expected quantity%'
+         WHEN p_message IN ('approved date','approved qty','linked source header','cancelled date') THEN '%only independent unapproved manual drafts%'
+         WHEN p_message IN ('PR mapped header','PR mapped line') THEN '%PR-linked%'
+         WHEN p_message IN ('allocated line','selected vendor') THEN '%sourcing or purchase allocation%'
+         WHEN p_message='internal material increase' THEN '%increase of internal%'
+         WHEN p_message IN ('zero quantity','nonfinite quantity') THEN '%positive finite%'
+         WHEN p_message='blank reason' THEN '%reason must contain%'
+         WHEN p_message='view-only rejected' THEN '%PEC edit permission denied%'
+         WHEN p_message='no auth uid rejected' THEN '%authenticated user session required%'
+         ELSE '%TEST_CASE_UNMAPPED%'
+       END) THEN
+      RAISE EXCEPTION 'wrong denial for %: %',p_message,SQLERRM;
+    END IF;
   END;
   IF NOT v_failed THEN RAISE EXCEPTION 'unexpectedly accepted: %',p_message; END IF;
   RAISE NOTICE 'PASS denied: %',p_message;
