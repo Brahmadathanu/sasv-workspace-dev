@@ -123,7 +123,7 @@ CREATE TABLE costing.sku_scheme_viability_snapshot (
   "scheme_viability_note_ok" text
 );
 GRANT USAGE ON SCHEMA costing TO authenticated;
-GRANT SELECT ON costing.scheme_master, costing.sku_scheme_viability_snapshot TO authenticated;
+GRANT SELECT ON costing.scheme_master, costing.scheme_policy_rules, costing.sku_scheme_policy, costing.sku_scheme_viability_snapshot TO authenticated;
 ALTER TABLE costing.scheme_master ENABLE ROW LEVEL SECURITY;
 ALTER TABLE costing.sku_scheme_viability_snapshot ENABLE ROW LEVEL SECURITY;
 CREATE POLICY read_sm ON costing.scheme_master FOR SELECT TO authenticated USING (auth.uid() IS NOT NULL);
