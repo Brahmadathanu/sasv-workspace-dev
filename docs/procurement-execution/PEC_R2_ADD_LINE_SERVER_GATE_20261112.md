@@ -33,3 +33,12 @@ Static source assertions: scripts/pec-r2-server-addline-guard.test.mjs; separate
 ## Cleanup
 
 No production test rows or permissions were created. Preserve migrations, audit evidence and CI logs. Remove only confirmed disposable local test fixtures after release acceptance.
+
+## 13 November independent pre-deployment test hardening
+
+- Source migration remains **unchanged**; no live SQL or migration-history edit.
+- The isolated PostgreSQL 17 negative-test helper now asserts exact SQLSTATE: `23514` for invalid new-row identity/status, `P0001` for governed existing-row reason rejection, and `42501` when the PEC Edit gate is not granted in the fixture.
+- It also asserts that denials do not insert extra lines, and that replacing the stock-item identity on an approved indent is treated as a new row, not a correction.
+- Dedicated PostgreSQL CI passed after this refinement at `f0d07c12`. This is simulated role/fixture evidence, **not genuine signed-in JWT evidence**.
+- The unrelated general PEC browser workflow runs a client-only static guard that intentionally rejects `supabase/migrations/` changes on a non-integration descendant PR; that guard must not be modified to allow this migration. Treat the dedicated server PG17 workflow as the scoped server test while retaining the general CI failure visibly.
+- A separate owner authorization is required before any production execution, followed by exact signature/ACL fingerprint verification and approved negative-role testing. The ten historical PEC migration records remain a distinct gated reconciliation.
