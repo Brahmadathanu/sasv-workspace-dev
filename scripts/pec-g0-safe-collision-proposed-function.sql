@@ -1,4 +1,4 @@
--- PROPOSED PEC R9 prospective SAFE quantity-collision guard; NOT deployed.
+-- PROPOSED PEC R9 prospective SAFE quantity/reason-collision guard; NOT deployed.
 -- RESET retains its explicitly destructive rebuild semantics.
 -- Forward-only proposal source, retaining the #317 function except bounded collision precondition.
 BEGIN;
@@ -66,7 +66,7 @@ begin
     and (coalesce(l.requested_qty,0) + coalesce(l.manual_delta_qty,0)) > 0;
 
   -- PEC R9 PROPOSED: fail closed when an unmapped indent line has a
-  -- positive source PR identity with a different requested quantity.
+  -- positive source PR identity with a differing quantity or normalized reason.
   -- No business writes occur before this check in SAFE mode.
   IF p_mode = 'safe' AND EXISTS (
     SELECT 1 FROM public.proc_indent_line il
@@ -75,14 +75,15 @@ begin
      AND pfl.stock_item_id = il.stock_item_id
      AND pfl.uom_id = il.uom_id
     WHERE il.indent_id = p_indent_id
-      AND il.requested_qty IS DISTINCT FROM pfl.final_qty
+      AND (il.requested_qty IS DISTINCT FROM pfl.final_qty
+        OR nullif(btrim(il.manual_reason),'') IS DISTINCT FROM pfl.manual_reason)
       AND NOT EXISTS (
         SELECT 1 FROM public.proc_pr_indent_line_map m
         WHERE m.indent_id = p_indent_id
           AND m.indent_line_id = il.indent_line_id
       )
   ) THEN
-    RAISE EXCEPTION 'SAFE resync manual/PR quantity collision; explicit resolution required'
+    RAISE EXCEPTION 'SAFE resync manual/PR quantity or reason collision; explicit resolution required'
       USING ERRCODE = '23514';
   END IF;
 
