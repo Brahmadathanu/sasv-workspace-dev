@@ -65,3 +65,7 @@ PR [#381](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/381) merged i
 ## Official migration-history reconciliation decision (13 November 2026)
 
 See [PEC_MIGRATION_HISTORY_RECONCILIATION_GOVERNED_PLAN_20261113.md](PEC_MIGRATION_HISTORY_RECONCILIATION_GOVERNED_PLAN_20261113.md). The currently documented Supabase CLI `migration repair --status applied --remote` marks verified **already-effective** migrations without replaying SQL, but cannot be executed before source integration and per-version effect parity are approved. All 11 PEC versions are still unregistered. Draft/server PRs #317, #323 and #374 remain unmerged; the #374 wrapper is effective in production. **No history repair, new live SQL, or main promotion is authorized by this plan.**
+
+## MRP helper RBAC audit R4 — 13 November 2026
+
+The [migration-effect audit](PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md) R4 addendum independently verifies the live `20261112150000` strict UOM helper's SECURITY DEFINER mode, `pg_catalog, public` search path, authenticated/service-role EXECUTE grant, anon/PUBLIC denial, and underlying conversion table isolation. The observed current grant on `inv_uom` is recorded separately without claiming the migration introduced it. **The version remains unregistered** and genuine JWT behavior has not been tested; no migration-history or production access change was made.
