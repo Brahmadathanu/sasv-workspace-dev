@@ -41,3 +41,7 @@ See [PEC_PHASE_A_POST_R2C_RELEASE_GATE_AUDIT_20261113.md](PEC_PHASE_A_POST_R2C_R
 ## Live security acceptance and migration-history control (13 November 2026)
 
 The [authenticated-role and migration-reconciliation runbook](PEC_AUTHENTICATED_ROLE_AND_MIGRATION_RECONCILIATION_PLAN_20261113.md) is the current handover for the next release gates. Live read-only recheck confirms the approved Add Line guard and ACL, **45 approved headers / 1,593 lines**, and **0/11 PEC migration versions registered** (#317 seven, #323 three, #374 one). Previously documented **ten** refers only to #317/#323; #374 creates the eleventh unregistered version. Real-role negative tests and approved fixture-based positive tests remain outstanding. This does not authorize write tests, history DML, broader cleanup or merging to main.
+
+## Migration-effect audit R1 — 13 November 2026
+
+See [PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md](PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md) for read-only live source parity: four stock masters in g (4/4), exact 13 BOM corrections (13/13), all ten G1 paged/filtered/operational RPCs present with expected authenticated/anon/PUBLIC ACL and View-guard checks. This is **bounded parity**, not full function-body equivalence or signed-in role acceptance. None of eleven PEC migration versions are registered. The live Add Line guard is deployed independently, while genuine-role/write/concurrency and official history remediation stay gated.
