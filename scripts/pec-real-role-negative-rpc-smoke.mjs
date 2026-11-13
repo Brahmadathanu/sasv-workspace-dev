@@ -8,12 +8,12 @@ test('negative probes restricted to genuine browser sessions and two denied role
   assert.match(script, /role === 'no-access' \|\| role === 'view-only'/);
   assert.match(script, /supabase\.auth\.getUser\(\)/);
   assert.match(script, /if \(identity\.error \|\| !identity\.data\?\.user\)/);
-  assert.match(script, /if \(!negative\.authenticated\)/);
+  assert.match(script, /if \(!negative\.authenticated \|\| !negative\.ran\)/);
 });
 test('denied read is bounded to one row and discards response data', () => {
   assert.match(script, /supabase\.rpc\('proc_pec_pr_headers_paged'/);
   assert.match(script, /p_limit: 1, p_offset: 0/);
-  assert.match(script, /denied: denied\(res\.error\)/);
+  assert.match(script, /denied: \(Number\(res\.status\) \|\| 0\) >= 400 && denied\(res\.error\)/);
   assert.doesNotMatch(script, /return\s*\{[^}]*data:\s*res\.data/);
 });
 test('writer uses nonexistent indent identity and cannot target genuine business data', () => {
