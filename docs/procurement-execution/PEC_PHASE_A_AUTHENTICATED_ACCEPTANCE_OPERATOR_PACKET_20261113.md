@@ -49,3 +49,11 @@ This package converts the independently verified staging/static/database evidenc
 ## Explicit handoff
 
 A person with legitimate existing Editor, View-only and denied-role identities must conduct this acceptance using the existing interactive harness and an independently reviewed direct RPC negative-test method. This assistant cannot claim that execution occurred without those authenticated observations. Keep production write probes and migration-history repair out of scope until independently authorized.
+
+## Direct server negative-RPC harness extension — proposed, not yet accepted
+
+An isolated draft change on `test/pec-real-role-rpc-negative-20261113` extends `scripts/pec-phase-a-operator-browser-check.mjs` to use the **actual browser-held signed-in Supabase client**, never exporting JWT or business rows to Node. Under `--role=no-access`, it directly calls `proc_pec_pr_headers_paged(p_limit=1,p_offset=0)` and expects a permission-specific denial. Under `--role=view-only`, it invokes `proc_indent_add_line` with the deliberately nonexistent `p_indent_id=0` and all other identity/quantity parameters zero, expecting the PEC Edit permission denial *before* indent lookup. A missing-indent error or any other arbitrary error is **FAIL**, not a permission PASS. No genuine procurement record can be targeted by the sentinel key; the probe must still run only with an operator's real authorized View-only account.
+
+The harness requires a verified authenticated session and returns only RPC name, HTTP status, SQLSTATE and a boolean permission-denied result. It does not print token/header/body/user identifiers. An absent session is **BLOCKED**. Editor mode continues to avoid write tests. Regression smoke `scripts/pec-real-role-negative-rpc-smoke.mjs` and CI syntax/safety checks are proposed in the same draft PR.
+
+**Status: proposed harness — no real Editor, View-only or denied-role execution has occurred by adding this code.** No release gate may be marked PASS until an operator's actual session outcomes and exact build provenance have been inspected. Preserve the current owner-approved R2c UI and do not alter production user permissions, database records, migration history, PWA service worker or production deployment.

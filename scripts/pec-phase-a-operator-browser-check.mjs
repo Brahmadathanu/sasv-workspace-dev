@@ -110,6 +110,60 @@ try {
       }
     }
   }
+  // Server-side permission probes are deliberately bounded and must run only after
+  // the operator signs in with the actual expected role. The browser-held Supabase
+  // client performs the request: no JWT, request headers or response bodies cross
+  // into the Node harness or get written to the evidence output.
+  if (role === 'no-access' || role === 'view-only') {
+    console.log('\nRunning bounded genuine-session RPC permission probes (no business record write).');
+    const negative = await page.evaluate(async ({ roleCategory }) => {
+      const { supabase } = await import('./js/supabaseClient.js');
+      const identity = await supabase.auth.getUser();
+      if (identity.error || !identity.data?.user) {
+        return { authenticated: false, expectedRole: roleCategory, ran: false };
+      }
+      // Do not return names, tokens, identities, response records or messages.
+      const denied = (error) => {
+        if (!error) return false;
+        const code = String(error.code || '');
+        const message = String(error.message || '');
+        return code === '42501' ||
+          ((code === 'P0001' || code === 'PGRST301') &&
+           /permission|access denied|not authorized|unauthori[sz]ed/i.test(message));
+      };
+      if (roleCategory === 'no-access') {
+        // Read-only RPC; deliberately discard any returned data before crossing
+        // the browser/Node boundary. Any successful read is a gate failure.
+        const res = await supabase.rpc('proc_pec_pr_headers_paged', {
+          p_limit: 1, p_offset: 0,
+        });
+        return { authenticated: true, expectedRole: roleCategory, ran: true,
+          rpc: 'proc_pec_pr_headers_paged',
+          denied: (Number(res.status) || 0) >= 400 && denied(res.error), status: Number(res.status) || 0,
+          code: String(res.error?.code || '').slice(0, 24) };
+      }
+      // p_indent_id=0 is an intentionally nonexistent primary key. The writer
+      // checks the Edit permission before any indent lookup, and even an
+      // incorrectly authorized request cannot modify a legitimate indent.
+      // A missing-indent error is *not* an acceptable permission denial.
+      const res = await supabase.rpc('proc_indent_add_line', {
+        p_indent_id: 0, p_material_class_id: 0, p_stock_item_id: 0,
+        p_uom_id: 0, p_requested_qty: 0, p_reason: null,
+      });
+      return { authenticated: true, expectedRole: roleCategory, ran: true,
+        rpc: 'proc_indent_add_line',
+        denied: denied(res.error), status: Number(res.status) || 0,
+        code: String(res.error?.code || '').slice(0, 24) };
+    }, { roleCategory: role });
+    if (!negative.authenticated || !negative.ran) {
+      result('direct_rpc_auth_session', 'BLOCKED', 'No verified active Supabase user session; no RPC probe executed');
+    } else {
+      result('direct_rpc_auth_session', 'PASS', 'An active authenticated session was confirmed; no identity data captured');
+      result('direct_rpc_permission_' + role, negative.denied ? 'PASS' : 'FAIL',
+        negative.rpc + ' denied=' + String(negative.denied) +
+        ' HTTP=' + negative.status + ' SQLSTATE=' + (negative.code || 'none'));
+    }
+  }
   // Never store JWTs, emails, page text, network request bodies or rendered data.
   console.log('\nRPC response status counts (names/status only):');
   console.log(JSON.stringify(Object.fromEntries([...rpcSummary].sort()),null,2));
@@ -117,6 +171,7 @@ try {
   console.log(JSON.stringify({ roleCategory:role, host:origin.hostname, checks:results,
     status:'PARTIAL_OPERATOR_EVIDENCE_ONLY', productionDataMutations:0 }, null, 2));
   if (results.some(x=>x.status==='FAIL')) process.exitCode=1;
+  else if (results.some(x=>x.status==='BLOCKED')) process.exitCode=2;
 } finally {
   rl.close();
   await context.close();
