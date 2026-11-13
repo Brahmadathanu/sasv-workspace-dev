@@ -11337,9 +11337,10 @@ export function createProductionRouteController(deps = {}) {
       if (deepLink.route_family_id) {
         state.route_family_id = String(deepLink.route_family_id);
       }
-      if (deepLink.product_id) {
-        state.product_id = String(deepLink.product_id);
-      }
+      // The Product filter comes only from an explicit product_id on THIS load. Never keep one from an earlier load
+      // (issue #380): an absent / invalid id must reset it, otherwise the register stays silently narrowed.
+      const workloadProductId = normalizePrmIntegerId(deepLink.product_id);
+      state.product_id = workloadProductId != null ? String(workloadProductId) : "";
       const result = await loadWorkloadPreview({ resetOffset, search });
       return finalizePrmLoad(token, active, result);
     }
