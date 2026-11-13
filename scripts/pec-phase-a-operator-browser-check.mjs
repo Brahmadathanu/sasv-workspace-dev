@@ -139,7 +139,7 @@ try {
         });
         return { authenticated: true, expectedRole: roleCategory, ran: true,
           rpc: 'proc_pec_pr_headers_paged',
-          denied: denied(res.error), status: Number(res.status) || 0,
+          denied: (Number(res.status) || 0) >= 400 && denied(res.error), status: Number(res.status) || 0,
           code: String(res.error?.code || '').slice(0, 24) };
       }
       // p_indent_id=0 is an intentionally nonexistent primary key. The writer
@@ -155,7 +155,7 @@ try {
         denied: denied(res.error), status: Number(res.status) || 0,
         code: String(res.error?.code || '').slice(0, 24) };
     }, { roleCategory: role });
-    if (!negative.authenticated) {
+    if (!negative.authenticated || !negative.ran) {
       result('direct_rpc_auth_session', 'BLOCKED', 'No verified active Supabase user session; no RPC probe executed');
     } else {
       result('direct_rpc_auth_session', 'PASS', 'An active authenticated session was confirmed; no identity data captured');
@@ -171,6 +171,7 @@ try {
   console.log(JSON.stringify({ roleCategory:role, host:origin.hostname, checks:results,
     status:'PARTIAL_OPERATOR_EVIDENCE_ONLY', productionDataMutations:0 }, null, 2));
   if (results.some(x=>x.status==='FAIL')) process.exitCode=1;
+  else if (results.some(x=>x.status==='BLOCKED')) process.exitCode=2;
 } finally {
   rl.close();
   await context.close();
