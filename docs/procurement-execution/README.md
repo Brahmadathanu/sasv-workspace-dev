@@ -31,3 +31,7 @@ Keep e-Aushadhi, Costing Suite, stock reconciliation and all other modules indep
 ## R2c owner mobile acceptance (13 November 2026)
 
 **PASS — owner explicitly approved** the latest staged R2c phone review after inspecting Vendor-wise full-screen detail, filter-sheet typography and the native-select auto-open correction. Captured from the owner's direct reply: “Yes that i approve and passed.” Netlify preview #347 was successful and staging commit `0003fe43b3b5810f26a95553bd57840d24125177` had **8/8 GitHub CI SUCCESS** before this acceptance entry. This does not prove authenticated Editor/View-only/no-access negative tests, actual installed-PWA cache transitions, Windows packaged Electron, server Add Line guard production activation, or the originally unreproduced Action Queue→Excess transient error. Do not close formal G0–G5 or merge #347 into main on the basis of visual acceptance alone.
+
+## Current PEC release-gate audit
+
+See [PEC_PHASE_A_POST_R2C_RELEASE_GATE_AUDIT_20261113.md](PEC_PHASE_A_POST_R2C_RELEASE_GATE_AUDIT_20261113.md) for the latest owner visual PASS, 8/8 verified staging CI, the live Add Line writer gap, the ten unregistered PEC migrations, the G0–G5 dispositions and the retained post-acceptance cleanup controls. This evidence **does not** authorize production SQL or main promotion.
