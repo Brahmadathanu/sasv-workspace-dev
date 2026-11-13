@@ -42,3 +42,13 @@ No production test rows or permissions were created. Preserve migrations, audit 
 - Dedicated PostgreSQL CI passed after this refinement at `f0d07c12`. This is simulated role/fixture evidence, **not genuine signed-in JWT evidence**.
 - The unrelated general PEC browser workflow runs a client-only static guard that intentionally rejects `supabase/migrations/` changes on a non-integration descendant PR; that guard must not be modified to allow this migration. Treat the dedicated server PG17 workflow as the scoped server test while retaining the general CI failure visibly.
 - A separate owner authorization is required before any production execution, followed by exact signature/ACL fingerprint verification and approved negative-role testing. The ten historical PEC migration records remain a distinct gated reconciliation.
+
+## 13 November owner-authorized production execution
+
+The owner expressly replied **"go ahead"** immediately after the scoped deployment recommendation. The exact PR #374 `CREATE OR REPLACE FUNCTION` body was applied to the existing authenticated `public.proc_indent_add_line(bigint,bigint,bigint,bigint,numeric,text)` wrapper under a transaction-level prior-definition fingerprint and ACL guard, without inserting migration history or changing application data.
+
+- Before: function MD5 `cf6c1748d8cd50176c3bebe02263b21f`; authenticated EXECUTE true, anon EXECUTE false, internal authenticated EXECUTE false.
+- After: function MD5 `a19fabfd29ffba4d937df1bbf09453c2`; `IF NOT v_line_exists AND (v_status <> 'draft' OR v_source_pr_id IS NOT NULL)` confirmed present, same grants.
+- Postflight inventory: 45 indent headers and 1,593 indent lines observed; **do not describe these counts as before/after equality**, since no pre-deployment counts were collected in the same transaction. The only deployed statement modifying the database was the function definition.
+- `20261112220000` **not registered** in `supabase_migrations.schema_migrations`; ten earlier PEC November 12 version gaps are independent. Do not reapply blindly or use ad-hoc history DML. PR remains unmerged; migration artifact is retained as source of the effective function.
+- Dedicated isolated PostgreSQL 17 fixture **PASS**; authentic JWT Editor/View-only/no-access and concurrency tests still **NOT TESTED**. No `main` or production client release.
