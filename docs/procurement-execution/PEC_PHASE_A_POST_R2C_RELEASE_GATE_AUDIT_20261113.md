@@ -2,6 +2,8 @@
 
 **13 November 2026 | Owner-approved visual UI | RESTRICTED RELEASE GATE**
 
+> **Latest status takes precedence over earlier audit snapshots:** The owner authorized and the server-only Add Line wrapper was successfully deployed later on 13 November. Review the final dated deployment addendum below. Earlier statements that the production guard was absent are historical pre-deployment observations, not the current state. Historical migration registration and genuine-role tests remain open.
+
 ## Verified immutable sources
 
 - Staging integration branch `integration/pec-erp-staging-20261112` at `8cc89ec22cd7813fc5b63373c090eb815b79c30e` (before this documentation-only commit): 8/8 GitHub Actions SUCCESS, Netlify #347 deploy preview SUCCESS. Source PR #378 merged, owner personally passed the R2c mobile visual experience. **This acceptance is UX only**.
