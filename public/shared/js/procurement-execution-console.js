@@ -4403,6 +4403,7 @@ function mapPecServerGuardMessage(error) {
   const rules = [
     [/internal finished-bulk\/semi-finished/, "This item is an internal finished-bulk or semi-finished material produced in-house. It cannot be added to, or increased on, a purchase requisition or indent."],
     [/no eligible positive external-procurement/, "Nothing can be indented: after excluding internal finished-bulk/semi-finished materials and zero quantities, this PR has no purchasable lines."],
+    [/safe resync manual\/pr quantity or reason collision/, "SAFE resync was blocked and nothing was changed: a manual indent line has the same item and unit as a source-PR line but a different quantity or reason. Align that line with the PR (or revise the PR), or choose Full (destructive reset) after reviewing what it deletes."],
     [/resync allowed only for draft/, "Resync is available only for draft indents."],
     [/source pr must be active/, "The source PR must be active before this indent can be resynced."],
     [/indent has no source_pr_id/, "This indent is not linked to a source PR."],
@@ -4748,6 +4749,136 @@ async function confirmIndentSourcePr() {
   toast("Source PR updated.", "success");
 }
 
+/**
+ * Read-only SAFE/RESET collision preview (server contract:
+ * proc_indent_resync_collision_preview). Advisory only: the resync writer remains
+ * the sole authority, and the server enforces PEC View permission. Nothing is
+ * fabricated when the contract is unavailable.
+ */
+const resyncPreviewState = { token: 0, status: "idle", data: null };
+
+function isSafeResyncCollisionError(error) {
+  const msg = String(error?.message || "").toLowerCase();
+  return (
+    /safe resync manual\/pr quantity or reason collision/.test(msg) ||
+    (String(error?.code || "") === "23514" && /collision/.test(msg))
+  );
+}
+
+function resyncPreviewUnavailable(error) {
+  const code = String(error?.code || "");
+  const msg = String(error?.message || "").toLowerCase();
+  return (
+    code === "PGRST202" ||
+    code === "42883" ||
+    Number(error?.status) === 404 ||
+    /could not find the function|does not exist/.test(msg)
+  );
+}
+
+function updateIndentResyncConfirmState() {
+  const bd = qs("indentResyncModalBackdrop");
+  const btn = qs("btnIndentResyncConfirm");
+  if (!bd || !btn) return;
+  const full = bd.dataset.mode === "full";
+  const ack = qs("indentResyncResetAck");
+  const preview = resyncPreviewState;
+  let reason = "";
+  if (preview.status === "loading") reason = "Checking for conflicts…";
+  else if (!full && preview.status === "ok" && preview.data?.blocked)
+    reason = "Resolve the listed conflicts first, or choose Full (destructive reset).";
+  else if (full && !ack?.checked) reason = "Tick the confirmation to enable the reset.";
+  btn.disabled = Boolean(reason) || !canWriteModule();
+  btn.textContent = full ? "Reset indent (destructive)" : "Resync";
+  btn.classList.toggle("danger", full);
+  btn.title = reason;
+}
+
+function renderIndentResyncPreview() {
+  const box = qs("indentResyncPreview");
+  const bd = qs("indentResyncModalBackdrop");
+  const ackRow = qs("indentResyncResetAckRow");
+  const ackText = qs("indentResyncResetAckText");
+  if (!box || !bd) return;
+  const full = bd.dataset.mode === "full";
+  const { status, data } = resyncPreviewState;
+  box.hidden = false;
+  let html = "";
+  if (status === "loading") {
+    html = `<div class="muted">Checking the indent against its source PR…</div>`;
+  } else if (status === "unavailable") {
+    html = `<div class="muted">Conflict preview is not available on this server version. The server still checks every Resync and rejects conflicts without changing anything.</div>`;
+  } else if (status === "denied") {
+    html = `<div class="muted">You do not have permission to preview this indent.</div>`;
+  } else if (status === "error") {
+    html = `<div class="muted">Conflict preview could not be loaded. The server still checks every Resync.</div>`;
+  } else if (status === "ok" && data && data.eligible === false) {
+    const why = { not_draft: "Only draft indents can be resynced.", no_source_pr: "This indent has no source PR.", source_pr_not_active: "The source PR must be active." }[data.reason] || "This indent cannot be resynced.";
+    html = `<div class="muted">${esc(why)}</div>`;
+  } else if (status === "ok" && data) {
+    const list = Array.isArray(data.collisions) ? data.collisions : [];
+    if (list.length) {
+      html += `<div class="pec-resync-note"><strong>${list.length} conflicting manual line${list.length === 1 ? "" : "s"}.</strong> ${full ? "Full reset ignores these and replaces every line." : "Safe resync will be rejected until each is resolved. Nothing is changed."}</div>`;
+      html += `<div class="pec-resync-table-wrap"><table class="pec-resync-table"><thead><tr><th>Item</th><th>Indent</th><th>Source PR</th></tr></thead><tbody>`;
+      for (const c of list) {
+        html += `<tr><td>${esc(c.item_name ?? `#${c.stock_item_id}`)} <span class="muted">${esc(c.uom_code ?? "")}</span></td>` +
+          `<td class="${c.differs_qty ? "pec-diff" : ""}">${esc(fmtQty(c.indent_qty))}<br><span class="muted ${c.differs_reason ? "pec-diff" : ""}">${esc(c.indent_reason ?? "— no reason")}</span></td>` +
+          `<td>${esc(fmtQty(c.pr_qty))}<br><span class="muted">${esc(c.pr_reason ?? "— no reason")}</span></td></tr>`;
+      }
+      html += `</tbody></table></div>`;
+    } else {
+      html += `<div class="muted">No conflicting manual lines. Safe resync updates PR-mapped lines and keeps independent manual lines.</div>`;
+    }
+    if (full) {
+      html += `<div class="pec-resync-note pec-resync-destructive"><strong>Full reset deletes all ${esc(String(data.reset_consequence_delete_all_lines ?? "?"))} current line(s), including ${esc(String(data.reset_consequence_manual_lines_lost ?? "?"))} manual/unmapped line(s), and rebuilds the indent from the source PR. This cannot be undone.</strong></div>`;
+    }
+  }
+  if (!html && full) {
+    html = `<div class="pec-resync-note pec-resync-destructive"><strong>Full reset deletes every current line on this indent, including manual lines, and rebuilds it from the source PR. This cannot be undone.</strong></div>`;
+  }
+  box.innerHTML = html;
+  if (ackRow) {
+    ackRow.hidden = !full;
+    if (ackText && full) {
+      const n = status === "ok" && data?.eligible !== false ? data.reset_consequence_delete_all_lines : null;
+      ackText.textContent = n != null
+        ? `I understand all ${n} line(s) will be deleted and rebuilt from the source PR.`
+        : "I understand every current line will be deleted and rebuilt from the source PR.";
+    }
+  }
+  updateIndentResyncConfirmState();
+}
+
+async function loadIndentResyncPreview(indent) {
+  const token = ++resyncPreviewState.token;
+  resyncPreviewState.status = "loading";
+  resyncPreviewState.data = null;
+  renderIndentResyncPreview();
+  if (!canAccessModule() || !indent) {
+    resyncPreviewState.status = "denied";
+    renderIndentResyncPreview();
+    return;
+  }
+  let res;
+  try {
+    res = await supabase.rpc("proc_indent_resync_collision_preview", { p_indent_id: indent.indent_id });
+  } catch (e) {
+    res = { data: null, error: { message: String(e?.message || e) } };
+  }
+  if (token !== resyncPreviewState.token) return; // modal closed / indent changed
+  if (res.error) {
+    resyncPreviewState.status = resyncPreviewUnavailable(res.error)
+      ? "unavailable"
+      : /permission denied|not authori[sz]ed|access denied/i.test(String(res.error.message || "")) ? "denied" : "error";
+  } else if (res.data && typeof res.data === "object" && !Array.isArray(res.data) && "eligible" in res.data) {
+    resyncPreviewState.status = "ok";
+    resyncPreviewState.data = res.data;
+  } else {
+    resyncPreviewState.status = "unavailable"; // never invent preview data
+  }
+  renderIndentResyncPreview();
+}
+
 function openIndentResyncModal(mode) {
   if (!canPerformEditAction("Resync indent")) return;
   const indent = state.selectedIndent;
@@ -4759,19 +4890,25 @@ function openIndentResyncModal(mode) {
   const bd = qs("indentResyncModalBackdrop");
   const text = qs("indentResyncModeText");
   bd.dataset.mode = normalized;
+  const ack = qs("indentResyncResetAck");
+  if (ack) ack.checked = false;
+  const conflict = qs("indentResyncConflict");
+  if (conflict) { conflict.hidden = true; conflict.textContent = ""; }
   if (text) {
     text.textContent =
       normalized === "full"
-        ? "Full: every indent line is replaced from the source PR. Manual lines you added are removed."
-        : "Safe: lines mapped to the source PR are synced to its final quantities. Manual lines you added are kept.";
+        ? "Full (destructive): every indent line is deleted and rebuilt from the source PR. Manual lines you added are removed."
+        : "Safe: lines mapped to the source PR are synced to its final quantities. Manual lines you added are kept; one that clashes with a PR line is never overwritten silently.";
   }
   bd.classList.add("show");
   bd.setAttribute("aria-hidden", "false");
+  loadIndentResyncPreview(indent);
 }
 
 function closeIndentResyncModal() {
   const bd = qs("indentResyncModalBackdrop");
   if (!bd) return;
+  resyncPreviewState.token++; // discard any in-flight preview
   hideModalBackdrop(bd, [qs("btnIndentResyncSafe"), qs("iSearch")]);
 }
 
@@ -4784,13 +4921,29 @@ async function confirmIndentResync() {
     return;
   }
   const mode = bd.dataset.mode === "full" ? "reset" : "safe";
-  const uiModeLabel = bd.dataset.mode === "full" ? "Full" : "Safe";
+  const isFull = mode === "reset";
+  // Full reset is destructive: never proceed without the explicit acknowledgement.
+  if (isFull && !qs("indentResyncResetAck")?.checked) {
+    toast("Confirm the destructive reset first.", "error");
+    return;
+  }
+  const uiModeLabel = isFull ? "Full" : "Safe";
 
   const { error } = await supabase.rpc("proc_indent_resync_from_pr", {
     p_indent_id: indent.indent_id,
     p_mode: mode,
   });
   if (error) {
+    if (!isFull && isSafeResyncCollisionError(error)) {
+      const conflict = qs("indentResyncConflict");
+      if (conflict) {
+        conflict.hidden = false;
+        conflict.textContent = mapPecServerGuardMessage(error);
+      }
+      toast("Safe resync blocked — nothing was changed.", "error");
+      loadIndentResyncPreview(indent); // refresh the conflict list
+      return;
+    }
     toast(pecWriterErrorText("Resync failed", error), "error");
     return;
   }
@@ -6321,6 +6474,7 @@ function wireIndentControls() {
     closeIndentResyncModal,
   );
   qs("btnIndentResyncConfirm")?.addEventListener("click", confirmIndentResync);
+  qs("indentResyncResetAck")?.addEventListener("change", updateIndentResyncConfirmState);
   qs("indentResyncModalBackdrop")?.addEventListener("click", (e) => {
     if (e.target.id === "indentResyncModalBackdrop") closeIndentResyncModal();
   });

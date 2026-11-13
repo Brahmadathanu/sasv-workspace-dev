@@ -4280,7 +4280,7 @@
       id="indentResyncModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal" style="max-width: 460px" role="dialog" aria-modal="true" aria-labelledby="indentResyncTitle">
+      <div class="modal pec-resync-modal" style="max-width: 560px" role="dialog" aria-modal="true" aria-labelledby="indentResyncTitle">
         <div class="modal-header page-header">
           <h3 id="indentResyncTitle" style="margin: 0">Resync Indent from PR</h3>
           <button
@@ -4315,6 +4315,12 @@
           Internal finished-bulk / semi-finished materials are never purchased
           through this console and are excluded by the server.
         </div>
+        <div id="indentResyncPreview" class="pec-resync-preview" aria-live="polite" hidden></div>
+        <div id="indentResyncConflict" class="pec-resync-conflict" role="alert" hidden></div>
+        <label id="indentResyncResetAckRow" class="pec-resync-ack" hidden>
+          <input type="checkbox" id="indentResyncResetAck" data-edit-action="true" aria-label="Confirm destructive reset of all indent lines" />
+          <span id="indentResyncResetAckText"></span>
+        </label>
         <div class="actions">
           <button id="btnIndentResyncCancel">Cancel</button>
           <button id="btnIndentResyncConfirm" data-edit-action="true">Resync</button>

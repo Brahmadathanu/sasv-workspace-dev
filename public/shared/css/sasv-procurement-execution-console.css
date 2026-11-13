@@ -1384,3 +1384,17 @@ body.sasv-pec #tab-excess #eSummary {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Resync collision preview / destructive reset confirmation (shared PWA + Electron source) */
+body.sasv-pec .pec-resync-modal { width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow-y: auto; }
+body.sasv-pec .pec-resync-preview { margin-top: 10px; font-size: 12px; }
+body.sasv-pec .pec-resync-note { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; }
+body.sasv-pec .pec-resync-destructive { border-color: var(--sasv-danger-border); background: var(--sasv-danger-bg); }
+body.sasv-pec .pec-resync-conflict { margin-top: 8px; padding: 6px 8px; border: 1px solid var(--sasv-danger-border); background: var(--sasv-danger-bg); border-radius: 6px; font-size: 12px; }
+body.sasv-pec .pec-resync-table-wrap { max-height: 40vh; overflow: auto; -webkit-overflow-scrolling: touch; }
+body.sasv-pec .pec-resync-table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; overflow-wrap: anywhere; }
+body.sasv-pec .pec-resync-table th, body.sasv-pec .pec-resync-table td { padding: 4px 6px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+body.sasv-pec .pec-resync-table .pec-diff { font-weight: 600; color: var(--sasv-danger); }
+body.sasv-pec .pec-resync-ack { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; font-size: 12px; }
+body.sasv-pec .pec-resync-ack input { margin-top: 2px; width: auto; min-width: 0; flex: 0 0 auto; }
+body.sasv-pec .pec-resync-ack[hidden], body.sasv-pec .pec-resync-preview[hidden], body.sasv-pec .pec-resync-conflict[hidden] { display: none; }
