@@ -46,3 +46,23 @@ Fetched the exact 7 files of PR #317 at `ca1d9a01f891ee480068f7964c56d4863a457c3
 - **Formal release:** 0/6 signed closed, no merge to `main`.
 
 This document deliberately maintains source/provenance and test distinctions. Future work should amend it with exact SHA and evidence for each remaining check instead of erasing the historical gaps.
+
+## R2 addendum — independent function-body parity (13 November 2026)
+
+**Method:** fetched source definitions verbatim from immutable GitHub PR heads #317 `ca1d9a01f891ee480068f7964c56d4863a457c39`, #323 `359de7a287ca345fc2f27391f2e557911aadd2de`, #374 `e2522775bb4cd328c8cdce25238c89ff7d45759d`; fetched live `pg_get_functiondef` via read-only SQL, extracted dollar-quoted `AS` bodies, normalized CRLF, SQL line comments, whitespace and casing, and compared body text. For functions defined twice in the #317 sequence, used the **last effective definition**. No `EXECUTE` of business functions, DML or history mutation.
+
+| Source group | Body comparisons | Result |
+|---|---:|---|
+| #323 five baseline paged read functions | 5 | **5/5 MATCH** |
+| #323 three filtered paged read functions | 3 | **3/3 MATCH** |
+| #323 two vendor operational read functions | 2 | **2/2 MATCH** |
+| #317 eight procurement internal writer/creation/revision/resync functions | 8 | **8/8 MATCH** |
+| #317 strict factor helper and active month rebuild | 2 | **2/2 MATCH** |
+| #374 Add Line public wrapper | 1 | **1/1 MATCH** |
+| **Total** | **21** | **21/21 body-normalized MATCH** |
+
+**Security metadata check:** the ten #323 paged read functions each have one live overload, SECURITY DEFINER, authenticated EXECUTE granted, anon/PUBLIC EXECUTE denied and `require_permission` visible. The eight #317 procurement internal writer/creation/resync functions all deny direct `authenticated`, `anon` and `PUBLIC` EXECUTE. The #374 Add Line wrapper retains authenticated EXECUTE, anonymous/PUBLIC denied and the explicit PEC Edit gate. The MRP strict-factor helper is SECURITY DEFINER with authenticated EXECUTE and anonymous/PUBLIC denied; `mrp_rm_plan_rebuild_month_active` has authenticated EXECUTE, anonymous/PUBLIC denied; its writer controls beyond function-body parity require their own governed review, **not a change authorized by this audit**.
+
+**Interpretation:** source/body parity is a strong confirmation that reviewed function implementations are installed, **not** a statement that exact header metadata/defaults or all permission clauses of all migrations were compared byte-for-byte. A whitespace/comment/case normalization could hide differences in string literals in principle, so the normalized equality should not be promoted to an unqualified byte-identity claim. Non-function schema/data changes, four-item BOM data (previously targeted PASS), role-specific live JWT behavior, and migration registration still require separate evidence. All eleven PEC history versions remain NOT REGISTERED. The earlier R1 “function presence only” statuses above are superseded **for function bodies** by this R2 addendum; other R1 limitations remain.
+
+**Scope conclusion:** no body divergence observed in 21 compared definitions. Genuine account Editor/View-only/denied-role execution, concurrent lifecycle tests, per-version header/DDL/data-effect parity, and official reconciliation are still OPEN; formal G0–G5 0/6 signed closed.
