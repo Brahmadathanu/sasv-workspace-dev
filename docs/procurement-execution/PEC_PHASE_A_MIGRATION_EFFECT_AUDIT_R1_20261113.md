@@ -70,3 +70,16 @@ This document deliberately maintains source/provenance and test distinctions. Fu
 ## R3 addendum — live read RPC header metadata (13 November 2026)
 
 Independent read-only check of the ten #323 paged/filtered/vendor functions confirms **10/10** are owned by `postgres`, implemented in `plpgsql`, `STABLE` (`provolatile='s'`), `SECURITY DEFINER` and configured with `search_path=pg_catalog, public, pg_temp`. This corroborates the reviewed migration headers and previously recorded authenticated-only EXECUTE/PEC View gate evidence. It is read-only catalog verification, **not** authenticated-session execution or registered-migration verification. The genuine-session operator packet is `PEC_PHASE_A_AUTHENTICATED_ACCEPTANCE_OPERATOR_PACKET_20261113.md`; current harness does not directly challenge denied-role RPCs.
+
+## R4 addendum — strict MRP conversion helper grant and table access audit (13 November 2026)
+
+**Read-only verification of migration `20261112150000`:** independently queried live PostgreSQL catalog `pg_proc`, `has_function_privilege`, and `has_table_privilege`, then compared with the exact PR #317 file `supabase/migrations/20261112150000_pec_mrp_uom_factor_auth_rbac.sql` (source head `ca1d9a01f891ee480068f7964c56d4863a457c39`).
+
+- `public.mrp_uom_factor_strict(bigint,bigint)` is `SECURITY DEFINER`; `search_path=pg_catalog, public`. **MATCH**.
+- Function EXECUTE: `authenticated=true`, `service_role=true`, `anon=false`, `PUBLIC=false`. **MATCH**.
+- Underlying `public.inv_uom_conversion` table SELECT: `authenticated=false`, `anon=false`, `PUBLIC=false`. **MATCH** the intended non-broadening.
+- `public.inv_uom` SELECT: `authenticated=true`, `anon=false`. The migration does **not** instruct revoking the existing authenticated grant; do not characterize it as newly introduced by this migration.
+- Supabase history `20261112150000` is **NOT REGISTERED**; across the eleven named PEC migration versions still **0/11 registered**.
+- **Disposition:** `20261112150000` helper's **selected security metadata and grants VERIFIED**, but no true-JWT invocation, full dataset behavior or official history reconciliation was conducted. This result does not authorize history repair or a broad function grant.
+
+The authenticated-role acceptance harness and operator packet are separately governed; running CI does not replace real account evidence.
