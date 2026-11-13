@@ -34,3 +34,8 @@ test('result records have no token or business data fields', () => {
   assert.doesNotMatch(script, /console\.log\(\s*res\b/);
   assert.doesNotMatch(script, /console\.log\(\s*identity\b/);
 });
+
+test('negative probes fail closed on HTTP success and on blocked identity evidence', () => {
+  assert.match(script, /denied: \(Number\(res\.status\) \|\| 0\) >= 400 && denied\(res\.error\)/);
+  assert.match(script, /else if \(results\.some\(x=>x\.status==='BLOCKED'\)\) process\.exitCode=2/);
+});
