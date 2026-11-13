@@ -1,0 +1,834 @@
+{
+  "sha": "36e9a816a109464be7e95e4130c6593e3f3d6f32",
+  "generated": "2026-11-13T02:38:15.237Z",
+  "widths": [
+    320,
+    390,
+    820,
+    1440
+  ],
+  "pass": 160,
+  "fail": 4,
+  "results": [
+    {
+      "id": "console renders (editor fixture) @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "title + HOME visible with accessible name @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "pr: exact count \"230 PRs\", no numbered pager, incremental footer @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "pr: rows render as cards @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout pr @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "indents: exact count \"250 indents\", no numbered pager, incremental footer @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "indents: rows render as cards @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout indents @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "vendor-buylist: exact count \"500 lines\", no numbered pager, incremental footer @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "vendor-buylist: rows render as cards @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout vendor-buylist @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "action: exact count \"5 lines\", no numbered pager, incremental footer @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "action: rows render as cards @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout action @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "excess: exact count \"124 lines\", no numbered pager, incremental footer @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "excess: rows render as cards @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout excess @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no JS errors across five lenses @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "PR filter drawer @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indents filter drawer @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise filter drawer @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise export menu @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess filter drawer @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess acceptance audit dialog @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Accept-excess dialog @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indent modal (draft) @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor selection dialog @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Action Queue line detail @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "New PR dialog @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "PR detail (secondary info expanded) @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise row detail @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess Purchases header @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state rendered @320px",
+      "ok": false,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state rendered @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "read-only banner visible @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "all visible edit actions disabled for view-only fixture @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "view-only indents @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access fixture: console panel hidden @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access state @320px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "console renders (editor fixture) @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "title + HOME visible with accessible name @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "pr: exact count \"230 PRs\", no numbered pager, incremental footer @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "pr: rows render as cards @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout pr @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "indents: exact count \"250 indents\", no numbered pager, incremental footer @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "indents: rows render as cards @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout indents @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "vendor-buylist: exact count \"500 lines\", no numbered pager, incremental footer @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "vendor-buylist: rows render as cards @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout vendor-buylist @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "action: exact count \"5 lines\", no numbered pager, incremental footer @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "action: rows render as cards @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout action @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "excess: exact count \"124 lines\", no numbered pager, incremental footer @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "excess: rows render as cards @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout excess @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no JS errors across five lenses @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "PR filter drawer @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indents filter drawer @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise filter drawer @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise export menu @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess filter drawer @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess acceptance audit dialog @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Accept-excess dialog @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indent modal (draft) @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor selection dialog @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Action Queue line detail @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "New PR dialog @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "PR detail (secondary info expanded) @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise row detail @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess Purchases header @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state rendered @390px",
+      "ok": false,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state rendered @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "read-only banner visible @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "all visible edit actions disabled for view-only fixture @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "view-only indents @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access fixture: console panel hidden @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access state @390px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "console renders (editor fixture) @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "title + HOME visible with accessible name @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "pr: exact count \"230 PRs\", no numbered pager, incremental footer @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "pr: rows render as table rows @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout pr @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "indents: exact count \"250 indents\", no numbered pager, incremental footer @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "indents: rows render as table rows @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout indents @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "vendor-buylist: exact count \"500 lines\", no numbered pager, incremental footer @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "vendor-buylist: rows render as table rows @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout vendor-buylist @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "action: exact count \"5 lines\", no numbered pager, incremental footer @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "action: rows render as table rows @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout action @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "excess: exact count \"124 lines\", no numbered pager, incremental footer @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "excess: rows render as table rows @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout excess @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no JS errors across five lenses @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "PR filter drawer @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indents filter drawer @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise filter drawer @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise export menu @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess filter drawer @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess acceptance audit dialog @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Accept-excess dialog @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indent modal (draft) @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor selection dialog @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Action Queue line detail @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "New PR dialog @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "PR detail (secondary info expanded) @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise row detail @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess Purchases header @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state rendered @820px",
+      "ok": false,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state rendered @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "read-only banner visible @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "all visible edit actions disabled for view-only fixture @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "view-only indents @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access fixture: console panel hidden @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access state @820px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "console renders (editor fixture) @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "title + HOME visible with accessible name @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "pr: exact count \"230 PRs\", no numbered pager, incremental footer @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "pr: rows render as table rows @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout pr @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "indents: exact count \"250 indents\", no numbered pager, incremental footer @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "indents: rows render as table rows @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout indents @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "vendor-buylist: exact count \"500 lines\", no numbered pager, incremental footer @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "vendor-buylist: rows render as table rows @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout vendor-buylist @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "action: exact count \"5 lines\", no numbered pager, incremental footer @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "action: rows render as table rows @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout action @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "excess: exact count \"124 lines\", no numbered pager, incremental footer @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "excess: rows render as table rows @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "layout excess @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no JS errors across five lenses @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "PR filter drawer @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indents filter drawer @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise filter drawer @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise export menu @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess filter drawer @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess acceptance audit dialog @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Accept-excess dialog @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Indent modal (draft) @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor selection dialog @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Action Queue line detail @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "New PR dialog @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "PR detail (secondary info expanded) @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Vendor-wise row detail @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "Excess Purchases header @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state rendered @1440px",
+      "ok": false,
+      "detail": ""
+    },
+    {
+      "id": "paged-read error state @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state rendered @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "empty state @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "read-only banner visible @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "all visible edit actions disabled for view-only fixture @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "view-only indents @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access fixture: console panel hidden @1440px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "id": "no-access state @1440px",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

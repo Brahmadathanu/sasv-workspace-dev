@@ -53,7 +53,7 @@ export const supabase = {
       if (S.failSecondPage && name.endsWith("_paged") && p.p_offset > 0 && (globalThis.__failedMore || 0) < Number(S.failSecondPage === true ? 1 : S.failSecondPage)) { globalThis.__failedMore = (globalThis.__failedMore || 0) + 1; return { data: null, error: { message: "fixture second-page failure" } }; }
       if (S.overlap && name === "proc_pec_pr_headers_filtered_paged" && p.p_offset > 0) p = { ...p, p_offset: p.p_offset - 2 };
       if (S.slowSearch && p.p_q === S.slowSearch) await sleep(900);
-      if (S.failPaged && name.endsWith("_paged")) return { data: null, error: { message: "fixture paged failure" } };
+      if (S.failPaged && name.endsWith("_paged")) return { data: null, error: { message: "fixture paged failure" }, status: 400 };
       if (name === "proc_procurement_action_queue_paged" && S.aq) {
         const base = [[250, "IND-26-0250"], [200, "IND-26-0200"], [7, "IND-26-0007"], [9999, "IND-26-9999"], [200, "STALE-NUMBER"]];
         const rows = S.aqRows ? Array.from({ length: S.aqRows }, (_, k) => [1000 + k, "IND-26-" + (1000 + k)]) : base;
