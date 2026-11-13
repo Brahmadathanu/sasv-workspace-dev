@@ -1,0 +1,678 @@
+{
+ "320": {
+  "pr-cards": {
+   "rows": 8,
+   "avgH": 83,
+   "hs": [
+    83,
+    83,
+    83,
+    83,
+    83,
+    83,
+    83,
+    83
+   ]
+  },
+  "pr-filter": {
+   "x": 0,
+   "y": 0,
+   "w": 320,
+   "h": 720,
+   "vw": 320,
+   "vh": 720
+  },
+  "indents-cards": {
+   "rows": 8,
+   "avgH": 83,
+   "hs": [
+    83,
+    83,
+    83,
+    83,
+    83,
+    83,
+    83,
+    83
+   ]
+  },
+  "indents-filter": {
+   "x": 0,
+   "y": 0,
+   "w": 320,
+   "h": 720,
+   "vw": 320,
+   "vh": 720
+  },
+  "vendors-cards": {
+   "rows": 8,
+   "avgH": 98,
+   "hs": [
+    98,
+    98,
+    98,
+    98,
+    98,
+    98,
+    98,
+    98
+   ]
+  },
+  "vendors-filter": {
+   "x": 0,
+   "y": 0,
+   "w": 320,
+   "h": 720,
+   "vw": 320,
+   "vh": 720
+  },
+  "aq-cards": {
+   "rows": 5,
+   "avgH": 83,
+   "hs": [
+    83,
+    83,
+    83,
+    83,
+    83
+   ]
+  },
+  "aq-filter": {
+   "x": 0,
+   "y": 0,
+   "w": 320,
+   "h": 720,
+   "vw": 320,
+   "vh": 720
+  },
+  "excess-cards": {
+   "rows": 8,
+   "avgH": 98,
+   "hs": [
+    98,
+    98,
+    98,
+    98,
+    98,
+    98,
+    98,
+    98
+   ]
+  },
+  "excess-filter": {
+   "x": 0,
+   "y": 0,
+   "w": 320,
+   "h": 720,
+   "vw": 320,
+   "vh": 720
+  },
+  "detail-pr": {
+   "modalW": 320,
+   "modalH": 720,
+   "vw": 320,
+   "vh": 720,
+   "bodyH": 663,
+   "bodyScrollH": 663,
+   "lastContentBottom": 720,
+   "blankBelowContent": 0
+  },
+  "detail-indent": {
+   "modalW": 320,
+   "modalH": 720,
+   "vw": 320,
+   "vh": 720,
+   "bodyH": 585,
+   "bodyScrollH": 585,
+   "lastContentBottom": 720,
+   "blankBelowContent": 0
+  },
+  "detail-vwl-short": {
+   "modalW": 320,
+   "modalH": 720,
+   "vw": 320,
+   "vh": 720,
+   "bodyH": 661,
+   "bodyScrollH": 661,
+   "lastContentBottom": 720,
+   "blankBelowContent": 0
+  },
+  "detail-vwl-long": {
+   "modalW": 320,
+   "modalH": 720,
+   "vw": 320,
+   "vh": 720,
+   "bodyH": 661,
+   "bodyScrollH": 4161,
+   "lastContentBottom": 4220,
+   "blankBelowContent": -3500
+  },
+  "detail-aq": {
+   "modalW": 320,
+   "modalH": 720,
+   "vw": 320,
+   "vh": 720,
+   "bodyH": 663,
+   "bodyScrollH": 832,
+   "lastContentBottom": 879,
+   "blankBelowContent": -159
+  },
+  "detail-excess-audit": {
+   "modalW": 320,
+   "modalH": 720,
+   "vw": 320,
+   "vh": 720,
+   "bodyH": 661,
+   "bodyScrollH": 661,
+   "lastContentBottom": 2636,
+   "blankBelowContent": -1916
+  }
+ },
+ "390": {
+  "pr-cards": {
+   "rows": 8,
+   "avgH": 68,
+   "hs": [
+    63,
+    83,
+    63,
+    63,
+    63,
+    83,
+    63,
+    63
+   ]
+  },
+  "pr-filter": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 800,
+   "vw": 390,
+   "vh": 800
+  },
+  "indents-cards": {
+   "rows": 8,
+   "avgH": 83,
+   "hs": [
+    83,
+    83,
+    83,
+    83,
+    83,
+    83,
+    83,
+    83
+   ]
+  },
+  "indents-filter": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 800,
+   "vw": 390,
+   "vh": 800
+  },
+  "vendors-cards": {
+   "rows": 8,
+   "avgH": 78,
+   "hs": [
+    78,
+    78,
+    78,
+    78,
+    78,
+    78,
+    78,
+    78
+   ]
+  },
+  "vendors-filter": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 800,
+   "vw": 390,
+   "vh": 800
+  },
+  "aq-cards": {
+   "rows": 5,
+   "avgH": 83,
+   "hs": [
+    83,
+    83,
+    83,
+    83,
+    83
+   ]
+  },
+  "aq-filter": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 800,
+   "vw": 390,
+   "vh": 800
+  },
+  "excess-cards": {
+   "rows": 8,
+   "avgH": 98,
+   "hs": [
+    98,
+    98,
+    98,
+    98,
+    98,
+    98,
+    98,
+    98
+   ]
+  },
+  "excess-filter": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 800,
+   "vw": 390,
+   "vh": 800
+  },
+  "detail-pr": {
+   "modalW": 390,
+   "modalH": 800,
+   "vw": 390,
+   "vh": 800,
+   "bodyH": 743,
+   "bodyScrollH": 743,
+   "lastContentBottom": 800,
+   "blankBelowContent": 0
+  },
+  "detail-indent": {
+   "modalW": 390,
+   "modalH": 800,
+   "vw": 390,
+   "vh": 800,
+   "bodyH": 665,
+   "bodyScrollH": 665,
+   "lastContentBottom": 800,
+   "blankBelowContent": 0
+  },
+  "detail-vwl-short": {
+   "modalW": 390,
+   "modalH": 800,
+   "vw": 390,
+   "vh": 800,
+   "bodyH": 741,
+   "bodyScrollH": 741,
+   "lastContentBottom": 800,
+   "blankBelowContent": 0
+  },
+  "detail-vwl-long": {
+   "modalW": 390,
+   "modalH": 800,
+   "vw": 390,
+   "vh": 800,
+   "bodyH": 741,
+   "bodyScrollH": 3347,
+   "lastContentBottom": 3406,
+   "blankBelowContent": -2606
+  },
+  "detail-aq": {
+   "modalW": 390,
+   "modalH": 800,
+   "vw": 390,
+   "vh": 800,
+   "bodyH": 743,
+   "bodyScrollH": 832,
+   "lastContentBottom": 879,
+   "blankBelowContent": -79
+  },
+  "detail-excess-audit": {
+   "modalW": 390,
+   "modalH": 800,
+   "vw": 390,
+   "vh": 800,
+   "bodyH": 741,
+   "bodyScrollH": 741,
+   "lastContentBottom": 2636,
+   "blankBelowContent": -1836
+  }
+ },
+ "820": {
+  "pr-cards": {
+   "rows": 8,
+   "avgH": 36,
+   "hs": [
+    36,
+    36,
+    36,
+    36,
+    36,
+    36,
+    36,
+    36
+   ]
+  },
+  "pr-filter": {
+   "x": 39,
+   "y": 233,
+   "w": 220,
+   "h": 247,
+   "vw": 820,
+   "vh": 1000
+  },
+  "indents-cards": {
+   "rows": 8,
+   "avgH": 36,
+   "hs": [
+    36,
+    36,
+    36,
+    36,
+    36,
+    36,
+    36,
+    36
+   ]
+  },
+  "indents-filter": {
+   "x": 39,
+   "y": 233,
+   "w": 220,
+   "h": 247,
+   "vw": 820,
+   "vh": 1000
+  },
+  "vendors-cards": {
+   "rows": 8,
+   "avgH": 29,
+   "hs": [
+    29,
+    29,
+    29,
+    29,
+    29,
+    29,
+    29,
+    29
+   ]
+  },
+  "vendors-filter": {
+   "x": 39,
+   "y": 233,
+   "w": 220,
+   "h": 484,
+   "vw": 820,
+   "vh": 1000
+  },
+  "aq-cards": {
+   "rows": 5,
+   "avgH": 36,
+   "hs": [
+    36,
+    36,
+    36,
+    36,
+    36
+   ]
+  },
+  "aq-filter": {
+   "x": 39,
+   "y": 233,
+   "w": 220,
+   "h": 541,
+   "vw": 820,
+   "vh": 1000
+  },
+  "excess-cards": {
+   "rows": 8,
+   "avgH": 45,
+   "hs": [
+    45,
+    45,
+    45,
+    45,
+    45,
+    45,
+    45,
+    45
+   ]
+  },
+  "excess-filter": {
+   "x": 39,
+   "y": 233,
+   "w": 320,
+   "h": 609,
+   "vw": 820,
+   "vh": 1000
+  },
+  "detail-pr": {
+   "modalW": 820,
+   "modalH": 1000,
+   "vw": 820,
+   "vh": 1000,
+   "bodyH": 943,
+   "bodyScrollH": 943,
+   "lastContentBottom": 1000,
+   "blankBelowContent": 0
+  },
+  "detail-indent": {
+   "modalW": 820,
+   "modalH": 1000,
+   "vw": 820,
+   "vh": 1000,
+   "bodyH": 865,
+   "bodyScrollH": 865,
+   "lastContentBottom": 1000,
+   "blankBelowContent": 0
+  },
+  "detail-vwl-short": {
+   "modalW": 780,
+   "modalH": 138,
+   "vw": 820,
+   "vh": 1000,
+   "bodyH": 77,
+   "bodyScrollH": 77,
+   "lastContentBottom": 568,
+   "blankBelowContent": 1
+  },
+  "detail-vwl-long": {
+   "modalW": 780,
+   "modalH": 880,
+   "vw": 820,
+   "vh": 1000,
+   "bodyH": 819,
+   "bodyScrollH": 1198,
+   "lastContentBottom": 1318,
+   "blankBelowContent": -378
+  },
+  "detail-aq": {
+   "modalW": 780,
+   "modalH": 856,
+   "vw": 820,
+   "vh": 1000,
+   "bodyH": 797,
+   "bodyScrollH": 797,
+   "lastContentBottom": 927,
+   "blankBelowContent": 1
+  },
+  "detail-excess-audit": {
+   "modalW": 780,
+   "modalH": 640,
+   "vw": 820,
+   "vh": 1000,
+   "bodyH": 579,
+   "bodyScrollH": 579,
+   "lastContentBottom": 1208,
+   "blankBelowContent": -388
+  }
+ },
+ "1440": {
+  "pr-cards": {
+   "rows": 8,
+   "avgH": 36,
+   "hs": [
+    36,
+    36,
+    36,
+    36,
+    36,
+    36,
+    36,
+    36
+   ]
+  },
+  "pr-filter": {
+   "x": 49,
+   "y": 225,
+   "w": 220,
+   "h": 247,
+   "vw": 1440,
+   "vh": 900
+  },
+  "indents-cards": {
+   "rows": 8,
+   "avgH": 36,
+   "hs": [
+    36,
+    36,
+    36,
+    36,
+    36,
+    36,
+    36,
+    36
+   ]
+  },
+  "indents-filter": {
+   "x": 49,
+   "y": 225,
+   "w": 220,
+   "h": 247,
+   "vw": 1440,
+   "vh": 900
+  },
+  "vendors-cards": {
+   "rows": 8,
+   "avgH": 29,
+   "hs": [
+    29,
+    29,
+    29,
+    29,
+    29,
+    29,
+    29,
+    29
+   ]
+  },
+  "vendors-filter": {
+   "x": 49,
+   "y": 225,
+   "w": 220,
+   "h": 484,
+   "vw": 1440,
+   "vh": 900
+  },
+  "aq-cards": {
+   "rows": 5,
+   "avgH": 36,
+   "hs": [
+    36,
+    36,
+    36,
+    36,
+    36
+   ]
+  },
+  "aq-filter": {
+   "x": 49,
+   "y": 225,
+   "w": 220,
+   "h": 541,
+   "vw": 1440,
+   "vh": 900
+  },
+  "excess-cards": {
+   "rows": 8,
+   "avgH": 45,
+   "hs": [
+    45,
+    45,
+    45,
+    45,
+    45,
+    45,
+    45,
+    45
+   ]
+  },
+  "excess-filter": {
+   "x": 49,
+   "y": 225,
+   "w": 320,
+   "h": 609,
+   "vw": 1440,
+   "vh": 900
+  },
+  "detail-pr": {
+   "modalW": 1440,
+   "modalH": 900,
+   "vw": 1440,
+   "vh": 900,
+   "bodyH": 843,
+   "bodyScrollH": 843,
+   "lastContentBottom": 900,
+   "blankBelowContent": 0
+  },
+  "detail-indent": {
+   "modalW": 1440,
+   "modalH": 900,
+   "vw": 1440,
+   "vh": 900,
+   "bodyH": 807,
+   "bodyScrollH": 807,
+   "lastContentBottom": 900,
+   "blankBelowContent": 0
+  },
+  "detail-vwl-short": {
+   "modalW": 980,
+   "modalH": 138,
+   "vw": 1440,
+   "vh": 900,
+   "bodyH": 77,
+   "bodyScrollH": 77,
+   "lastContentBottom": 518,
+   "blankBelowContent": 1
+  },
+  "detail-vwl-long": {
+   "modalW": 980,
+   "modalH": 792,
+   "vw": 1440,
+   "vh": 900,
+   "bodyH": 731,
+   "bodyScrollH": 1198,
+   "lastContentBottom": 1312,
+   "blankBelowContent": -466
+  },
+  "detail-aq": {
+   "modalW": 980,
+   "modalH": 550,
+   "vw": 1440,
+   "vh": 900,
+   "bodyH": 491,
+   "bodyScrollH": 491,
+   "lastContentBottom": 724,
+   "blankBelowContent": 1
+  },
+  "detail-excess-audit": {
+   "modalW": 980,
+   "modalH": 640,
+   "vw": 1440,
+   "vh": 900,
+   "bodyH": 579,
+   "bodyScrollH": 579,
+   "lastContentBottom": 1158,
+   "blankBelowContent": -388
+  }
+ }
+}

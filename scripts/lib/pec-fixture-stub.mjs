@@ -35,14 +35,25 @@ export const supabase = {
   auth: { getSession: async () => ({ data: { session: { user: { id: "f" } } }, error: null }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) },
   rpc: (name, params) => {
     let p = params || {};
-    calls.push({ name, params: p, t: Date.now() });
+    const call = { name, params: p, t: Date.now() };
+    calls.push(call);
     const run = async () => {
+      // R2c deterministic race harness: per-RPC delay (S.delay[name], or S.delayQ[name][p_q]) and scripted failures
+      // (S.fail[name] = { times, error:{message,code,name}, status, delay }) consumed in call order.
+      const dq = S.delayQ && S.delayQ[name] && S.delayQ[name][p.p_q ?? ""];
+      const d = dq !== undefined ? dq : S.delay && S.delay[name];
+      if (d) await sleep(d);
+      const fl = S.fail && S.fail[name];
+      if (fl) {
+        const used = (globalThis.__failUsed = globalThis.__failUsed || {});
+        if ((used[name] || 0) < (fl.times ?? 1)) { used[name] = (used[name] || 0) + 1; if (fl.delay) await sleep(fl.delay); call.failed = true; return { data: null, error: fl.error || { message: "fixture failure" }, status: fl.status ?? 500 }; }
+      }
       if (name === "get_user_permissions") return mk(S.role === "none" ? [] : [{ target: "module:procurement-execution-console", can_view: true, can_edit: S.role === "edit" }]);
       if (S.empty && name.endsWith("_paged")) return mk([]);
-      if (S.failSecondPage && name.endsWith("_paged") && p.p_offset > 0 && !globalThis.__failedMore) { globalThis.__failedMore = true; return { data: null, error: { message: "fixture second-page failure" } }; }
+      if (S.failSecondPage && name.endsWith("_paged") && p.p_offset > 0 && (globalThis.__failedMore || 0) < Number(S.failSecondPage === true ? 1 : S.failSecondPage)) { globalThis.__failedMore = (globalThis.__failedMore || 0) + 1; return { data: null, error: { message: "fixture second-page failure" } }; }
       if (S.overlap && name === "proc_pec_pr_headers_filtered_paged" && p.p_offset > 0) p = { ...p, p_offset: p.p_offset - 2 };
       if (S.slowSearch && p.p_q === S.slowSearch) await sleep(900);
-      if (S.failPaged && name.endsWith("_paged")) return { data: null, error: { message: "fixture paged failure" } };
+      if (S.failPaged && name.endsWith("_paged")) return { data: null, error: { message: "fixture paged failure" }, status: 400 };
       if (name === "proc_procurement_action_queue_paged" && S.aq) {
         const base = [[250, "IND-26-0250"], [200, "IND-26-0200"], [7, "IND-26-0007"], [9999, "IND-26-9999"], [200, "STALE-NUMBER"]];
         const rows = S.aqRows ? Array.from({ length: S.aqRows }, (_, k) => [1000 + k, "IND-26-" + (1000 + k)]) : base;
@@ -58,7 +69,13 @@ export const supabase = {
       return mk([]);
     };
     const prom = run();
-    prom.abortSignal = () => prom; // supabase-js query builder shape; abort not simulated
+    // supabase-js query-builder shape. Abort is simulated: an aborted request resolves with an AbortError result.
+    prom.abortSignal = (sig) => new Promise((res) => {
+      const onAbort = () => { call.aborted = true; res({ data: null, error: { name: "AbortError", message: "AbortError: The operation was aborted." }, status: 0 }); };
+      if (sig && sig.aborted) return onAbort();
+      sig && sig.addEventListener("abort", onAbort, { once: true });
+      prom.then(res);
+    });
     return prom;
   },
   from: () => { const b = { select: () => b, eq: () => b, limit: () => b, order: () => b, in: () => b, ilike: () => b, then: (r) => r(mk([])) }; return b; },

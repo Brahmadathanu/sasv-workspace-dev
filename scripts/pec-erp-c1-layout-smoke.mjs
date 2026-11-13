@@ -59,7 +59,7 @@ export const supabase = {
   rpc: async (name, params) => {
     const __r = __pagedRpc(name, params || {}, { indents: data.proc_pec_indent_headers, prs: data.proc_pec_pr_headers, excess: data.proc_pec_purchase_excess, audit: [] });
     if (__r && __r.__error) return { data: null, error: { message: __r.__error } };
-    if (S.failReads && (name.startsWith("proc_pec_") || name === "proc_procurement_action_queue_paged")) return { data: null, error: { message: "fixture failure" } };
+    if (S.failReads && (name.startsWith("proc_pec_") || name === "proc_procurement_action_queue_paged")) return { data: null, error: { message: "fixture failure" }, status: 400 };
     if (__r !== undefined && !(S.failReads && name.startsWith("proc_pec_"))) return mk(__r);
     if (name === "get_user_permissions") return mk(S.role === "none" ? [] : [{ target: "module:procurement-execution-console", can_view: true, can_edit: S.role === "edit" }]);
     if (name === "proc_procurement_action_queue_paged") return mk(S.empty ? [] : [{ total_count: 1, row_data: { indent_line_id: 1, indent_id: 100, indent_number: "IND-26-100", stock_item_name: long, remaining_qty: 5, priority_band_final: "P1", priority_score_system: 80, material_class_code: "RM", uom_code: "KG" } }]);
