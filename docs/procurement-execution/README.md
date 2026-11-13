@@ -49,3 +49,7 @@ See [PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md](PEC_PHASE_A_MIGRATION_EF
 ## Function-body parity R2 — 13 November 2026
 
 Independent read-only comparison of the GitHub-reviewed migration source against live `pg_get_functiondef` found **21/21 normalized PL/pgSQL bodies MATCH** (#323 ten paged read functions, #317 ten final internal/MRP definitions, #374 one live Add Line wrapper). Details, scope and limitations: [PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md](PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md), R2 addendum. The original 0/11 PEC migration-history registration remains; matched bodies **do not** authorize marking a migration applied. Genuine-role execution and other data/metadata checks remain open.
+
+## Authenticated acceptance handoff — 13 November 2026
+
+The [operator packet](PEC_PHASE_A_AUTHENTICATED_ACCEPTANCE_OPERATOR_PACKET_20261113.md) states exactly what can be verified under real authorized Editor, View-only and no-access sessions without creating or changing production procurement records. The existing interactive browser harness checks UI/read-only status only; **it does not test direct server-side no-access RPC denial or writer rejection**. Such checks remain NOT TESTED until real-session evidence exists. Do not close G0–G5 on synthetic fixtures, function metadata, or a hidden UI alone.
