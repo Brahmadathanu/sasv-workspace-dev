@@ -38,3 +38,12 @@
 - Stage R2c owner UX PASS is real and recorded, but formal G0–G5 not closed by this scoped pass.
 
 **Reconcile against live GitHub/Supabase again before authorizing any later work.**
+
+## 13 November 2026 — owner-authorized production Add Line restriction
+
+- **Owner authorization:** after being explicitly asked for permission to execute the exact reviewed PR #374 Add Line security migration, owner replied "go ahead." This authorized the narrow production function replacement, not a migration-history repair, other historical SQL, permission broadening or main promotion.
+- **Applied in live Supabase:** exact `CREATE OR REPLACE FUNCTION public.proc_indent_add_line(bigint,bigint,bigint,bigint,numeric,text)` definition from PR #374, inside a single transaction after the expected original `pg_get_functiondef` MD5 `cf6c1748d8cd50176c3bebe02263b21f` and ACL checks. Transactional postcondition checks passed.
+- **Read-only postflight:** new function MD5 `a19fabfd29ffba4d937df1bbf09453c2`; `v_line_exists` and draft/non-PR new-row guard present; authenticated wrapper EXECUTE `true`, anon wrapper EXECUTE `false`, authenticated internal writer EXECUTE `false`; 45 header and 1,593 indent-line rows observed after deployment (postflight counts, **not** proof of unchanged row values). No application DML was performed in the deployment statement.
+- **Migration tracking still separate:** `20261112220000` is **not registered** in `supabase_migrations.schema_migrations`. Only one non-PEC Nov 12 migration version is present; ten historical PEC Nov 12 entries remain unregistered. This is a known **function-present/history-missing** state, requiring governed official reconciliation to avoid repeat DDL.
+- **Boundaries:** dedicated isolated PostgreSQL 17 negative-test suite PASS, but genuine signed-in Editor/View-only/no-access negative tests, concurrency and lifecycle proof are **NOT TESTED**. Draft PR #374 remains unmerged; general client-only static guard rejects SQL in the feature branch and must not be weakened. Do not count G0–G5 as closed.
+- **No production data edits, broad grants, service-worker edits, main merge, migration-history writes, or cleanup deletions** were authorized or carried out in this operation.
