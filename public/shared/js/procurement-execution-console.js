@@ -4129,7 +4129,7 @@ function wireLiveSearchInput({ inputId, clearId, onSearch, debounceMs = 220 }) {
 
   const syncClearBtn = () => {
     if (!clearBtn) return;
-    clearBtn.style.display = input.value ? "" : "none";
+    clearBtn.style.display = input.value ? "flex" : "none";
   };
 
   syncClearBtn();
@@ -4171,7 +4171,7 @@ function wireActionQueueControls() {
 
   const syncActionQueueSearchClear = () => {
     if (searchClear) {
-      searchClear.style.display = searchInput?.value ? "" : "none";
+      searchClear.style.display = searchInput?.value ? "flex" : "none";
     }
   };
 
