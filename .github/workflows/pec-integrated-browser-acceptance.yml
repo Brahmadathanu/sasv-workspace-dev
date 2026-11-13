@@ -49,6 +49,8 @@ jobs:
         run: |
           node --check scripts/pec-phase-a-operator-browser-check.mjs
           node --test scripts/pec-real-role-negative-rpc-smoke.mjs
+          node --test scripts/pec-operator-probe-contract.test.mjs
+          node scripts/pec-release-provenance-check.mjs --local >/dev/null
       - name: Run PEC integrated browser and contract checks
         env:
           NODE_PATH: ${{ runner.temp }}/pecdeps/node_modules
