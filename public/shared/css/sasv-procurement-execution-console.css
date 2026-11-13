@@ -1114,61 +1114,26 @@ body.sasv-pec .pec-detail--feed > .modal-body > .table-scroll {
 body.sasv-pec .pec-detail > .modal-body > .table-toolbar {
   flex: 0 0 auto;
 }
-body.sasv-pec .pec-detail-foot {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 14px calc(8px + env(safe-area-inset-bottom, 0px));
-  border-top: 1px solid var(--sasv-divider);
-  background: var(--sasv-surface-elevated);
-}
-body.sasv-pec .pec-detail-foot-text {
-  min-width: 0;
-  color: var(--sasv-text-secondary);
-  font-size: var(--sasv-text-sm, 0.8125rem);
-  font-variant-numeric: tabular-nums;
-}
-body.sasv-pec .pec-detail-foot-text:empty {
-  display: none;
-}
-body.sasv-pec .pec-detail-foot-close {
-  margin-left: auto;
-  min-height: 36px;
-  padding: 0 18px;
-  border: 1px solid var(--sasv-control-border);
-  border-radius: var(--sasv-radius-sm, 6px);
-  background: var(--sasv-surface);
-  color: var(--sasv-text);
-  font-size: var(--sasv-text-sm, 0.8125rem);
-  font-weight: var(--sasv-fw-semibold, 600);
-  cursor: pointer;
-}
-body.sasv-pec .pec-detail-foot-close:hover {
-  background: var(--sasv-action-secondary-hover);
-}
-body.sasv-pec .pec-detail-foot-close:focus-visible {
-  outline: 3px solid var(--sasv-focus-ring);
-  outline-offset: 0;
-}
 @media (max-width: 640px) {
+  /* R2c: every row-detail modal is a full-screen detail on phones (header, scrolling body on a
+     neutral canvas, no footer). Content is top-aligned; a short list sits on the canvas, never
+     over the dimmed list behind it. */
   body.sasv-pec .modal-backdrop:has(> .pec-detail--panel).show {
     padding: 0;
-    align-items: flex-start;
+    align-items: stretch;
     justify-content: stretch;
   }
   body.sasv-pec .pec-detail--panel {
     width: 100%;
-    height: auto; /* natural height: a short breakdown does not leave a blank viewport */
-    max-height: 100vh;
-    max-height: 100dvh;
-    border-width: 0 0 1px;
-    border-radius: 0;
-  }
-  body.sasv-pec .pec-detail--feed {
     height: 100vh;
     height: 100dvh;
+    max-height: none;
+    border-width: 0;
+    border-radius: 0;
+  }
+  body.sasv-pec .pec-detail--panel:not(.pec-detail--feed) > .modal-body {
+    background: var(--sasv-surface-soft, var(--sasv-surface));
+    justify-content: flex-start;
   }
   body.sasv-pec .pec-detail > .modal-header,
   body.sasv-pec .pec-detail > .modal-body {
@@ -1217,11 +1182,6 @@ body.sasv-pec .pec-detail-foot-close:focus-visible {
     padding: 10px 0 calc(10px + env(safe-area-inset-bottom, 0px));
     margin-top: 12px;
   }
-  /* the Action Queue detail keeps its own rail layout but fills the viewport like the others */
-  body.sasv-pec .pec-detail.detail-modal {
-    height: 100vh;
-    height: 100dvh;
-  }
 }
 
 /* 3 ── Filter panel: anchored popover ≥641px, full-viewport sheet ≤640px ── */
@@ -1265,15 +1225,48 @@ body.sasv-pec .pec-filter-drawer-body .pec-filter-section {
 body.sasv-pec .pec-filter-drawer-body .pec-filter-section:last-child {
   margin-bottom: 0;
 }
+/* One typographic scale for every filter panel (lenses and nested modals): label 12px/600,
+   control 13px (popover) or 16px on phones (iOS does not zoom on focus at >=16px), compact heights. */
 body.sasv-pec .pec-filter-drawer .pec-filter-label,
-body.sasv-pec .pec-filter-drawer .pec-filter-section-title {
+body.sasv-pec .pec-filter-drawer .pec-filter-section-title,
+body.sasv-pec .pec-filter-drawer .pec-filter-section > label:not(.pec-filter-check) {
   display: block;
-  margin-bottom: 4px;
+  margin: 0 0 4px;
   color: var(--sasv-text-secondary);
   font-size: var(--sasv-text-xs, 0.75rem);
   font-weight: var(--sasv-fw-semibold, 600);
+  line-height: 1.3;
   text-transform: none;
   letter-spacing: 0;
+}
+body.sasv-pec .pec-filter-drawer .pec-filter-select,
+body.sasv-pec .pec-filter-drawer .pec-filter-input {
+  width: 100%;
+  min-height: 32px;
+  margin: 0;
+  padding: 5px 10px;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: var(--sasv-fw-regular, 400);
+  line-height: 1.25;
+  box-sizing: border-box;
+}
+body.sasv-pec .pec-filter-drawer .pec-filter-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: var(--sasv-fw-regular, 400);
+  line-height: 1.3;
+  color: var(--sasv-text);
+}
+body.sasv-pec .pec-filter-drawer .pec-filter-check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+body.sasv-pec .pec-filter-drawer-head h3:focus {
+  outline: none;
 }
 body.sasv-pec .pec-filter-actions {
   flex: 0 0 auto;
@@ -1331,8 +1324,14 @@ body.sasv-pec.pec-sheet-open {
   }
   body.sasv-pec .pec-filter-drawer.is-sheet .pec-filter-select,
   body.sasv-pec .pec-filter-drawer.is-sheet .pec-filter-input {
-    min-height: 40px;
-    font-size: 1rem; /* no iOS focus zoom */
+    min-height: 36px;
+    font-size: 16px; /* iOS Safari zooms focused fields below 16px */
+  }
+  body.sasv-pec .pec-filter-drawer.is-sheet .pec-filter-drawer-body {
+    padding: 10px 14px;
+  }
+  body.sasv-pec .pec-filter-drawer.is-sheet .pec-filter-section {
+    margin-bottom: 10px;
   }
 }
 

@@ -273,12 +273,65 @@ function clampPageLimit(limit) {
   return Math.min(PEC_PAGE_LIMIT_MAX, Math.max(1, n));
 }
 
+let pecRequestCounter = 0;
+
+/** Strip anything that looks like a credential before a message is stored, shown or logged. */
+function pecSanitizeMessage(message) {
+  return String(message ?? "")
+    .replace(/eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}(\.[A-Za-z0-9_-]*)?/g, "[token]")
+    .replace(/(bearer|apikey|api_key|authorization|token|password)\s*[:=]?\s*\S+/gi, "$1 [redacted]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200);
+}
+
+/**
+ * Classify a failed RPC so the UI can say what actually happened:
+ *   abort   - the request was cancelled (superseded requests are dropped before this is shown)
+ *   network - no HTTP response (offline, DNS, iOS "Load failed", timeout)
+ *   auth    - 401/403, expired JWT, permission denied
+ *   server  - 5xx or a database timeout/cancel
+ *   client  - other 4xx (bad request, contract mismatch)
+ */
+function pecClassifyError(error, status) {
+  const msg = String(error?.message ?? error ?? "");
+  const code = String(error?.code ?? "");
+  const http = Number(status) || 0;
+  if (error?.name === "AbortError" || /\babort(ed)?\b/i.test(msg)) return "abort";
+  if (http === 401 || http === 403 || code === "PGRST301" || code === "42501" || /jwt|not authenticated|permission denied/i.test(msg)) return "auth";
+  if (http >= 500 || /^5\d/.test(code) || code === "57014" || /statement timeout|canceling statement/i.test(msg)) return "server";
+  if (http === 0 || /failed to fetch|load failed|network|timed? ?out|offline/i.test(msg)) return "network";
+  return "client";
+}
+
+function pecDescribeError(error, { requestId, rpc, status }) {
+  const err = error instanceof Error ? error : new Error(String(error?.message ?? error ?? "Request failed"));
+  if (error && !(error instanceof Error)) {
+    err.name = error.name || err.name;
+    err.code = error.code;
+  }
+  err.pecDiag = {
+    requestId,
+    rpc,
+    status: Number(status) || 0,
+    code: String(error?.code ?? "") || null,
+    kind: pecClassifyError(error, status),
+    message: pecSanitizeMessage(error?.message ?? error),
+  };
+  return err;
+}
+
 async function rpcPecPaged(name, params, signal = null) {
-  const query = supabase.rpc(name, params);
-  const { data, error } = await (signal && typeof query?.abortSignal === "function"
-    ? query.abortSignal(signal)
-    : query);
-  if (error) throw error;
+  const requestId = `pec-${Date.now().toString(36)}-${++pecRequestCounter}`;
+  let res;
+  try {
+    const query = supabase.rpc(name, params);
+    res = await (signal && typeof query?.abortSignal === "function" ? query.abortSignal(signal) : query);
+  } catch (thrown) {
+    throw pecDescribeError(thrown, { requestId, rpc: name, status: 0 });
+  }
+  const { data, error } = res;
+  if (error) throw pecDescribeError(error, { requestId, rpc: name, status: res.status ?? 0 });
   return unpackPagedRows(data);
 }
 
@@ -330,6 +383,10 @@ function rpcPecExcessAuditPaged({ limit, offset, signal }) {
 // auto-loads the next page.
 const PEC_FEED_MAX_ROWS = 1000;
 const PEC_FEED_NEAR_PX = 240;
+/** One automatic retry for transient failures (network / 5xx / unexpected abort); then an honest error + Retry. */
+const PEC_FEED_AUTO_RETRIES = 1;
+const PEC_FEED_RETRY_DELAY_MS = 700;
+const pecIsTransientError = (e) => ["abort", "network", "server"].includes(e?.pecDiag?.kind);
 
 /**
  * Footer shown under every incremental list: status text + an always-available
@@ -459,17 +516,33 @@ function createFeed(cfg) {
     const mine = seq;
     f.loading = true;
     f.error = null;
-    ctrl = typeof AbortController === "function" ? new AbortController() : null;
-    const myCtrl = ctrl;
     paint();
+    let attempts = 0;
     try {
-      const page = await cfg.fetchPage({
-        offset: f.offset,
-        limit: pageSize(),
-        signal: myCtrl?.signal || null,
-        params: f.params,
-        first,
-      });
+      let page;
+      for (;;) {
+        attempts += 1;
+        ctrl = typeof AbortController === "function" ? new AbortController() : null;
+        const myCtrl = ctrl;
+        try {
+          page = await cfg.fetchPage({
+            offset: f.offset,
+            limit: pageSize(),
+            signal: myCtrl?.signal || null,
+            params: f.params,
+            first,
+          });
+          break;
+        } catch (error) {
+          if (mine !== seq) return;
+          if (attempts <= PEC_FEED_AUTO_RETRIES && pecIsTransientError(error)) {
+            await new Promise((r) => setTimeout(r, PEC_FEED_RETRY_DELAY_MS));
+            if (mine !== seq) return; // superseded while waiting
+            continue;
+          }
+          throw error;
+        }
+      }
       if (mine !== seq) return;
       f.total = page.total;
       f.offset += page.rows.length;
@@ -484,11 +557,13 @@ function createFeed(cfg) {
       f.loadedOnce = true;
     } catch (error) {
       if (mine !== seq) return;
+      if (error?.pecDiag) error.pecDiag.attempts = attempts;
+      if (error?.pecDiag) console.warn("[PEC] load failed", { feed: cfg.name, ...error.pecDiag });
       f.error = error;
     } finally {
       if (mine === seq) {
         f.loading = false;
-        if (ctrl === myCtrl) ctrl = null;
+        ctrl = null;
       }
     }
     if (mine !== seq) return;
@@ -775,6 +850,37 @@ function ensureIconBtnA11y(id, label) {
  * @param {string} title
  * @param {string} [detail]
  */
+/** Honest, actionable load-error state: says what failed (network / session / server / request),
+ *  shows sanitized diagnostics and offers Retry. Never blames the search or filters. */
+function renderFeedErrorState(tbody, colspan, subject, error, onRetry) {
+  const d = error?.pecDiag || {};
+  const text = {
+    network: ["could not be loaded — network problem.", "Check the connection, then retry."],
+    auth: ["could not be loaded — session problem.", "Your session may have expired. Sign in again, then retry."],
+    server: ["could not be loaded — the server did not complete the request.", "This is usually temporary. Retry in a moment."],
+    client: ["could not be loaded — the request was rejected.", "Retry; if it persists, report the diagnostics below."],
+    abort: ["loading was interrupted.", "Retry to load the list."],
+  }[d.kind] || ["could not be loaded.", "Retry to load the list."];
+  renderTableStateRow(tbody, colspan, "error", `${subject} ${text[0]}`, text[1]);
+  const td = tbody.querySelector("td");
+  if (!td) return;
+  if (d.rpc) {
+    const diag = document.createElement("span");
+    diag.className = "pec-error-diag";
+    diag.dataset.pecDiag = "1";
+    diag.textContent = [d.rpc, d.status ? `HTTP ${d.status}` : "no response", d.code ? `code ${d.code}` : null, `req ${d.requestId}`, d.attempts > 1 ? `${d.attempts} attempts` : null].filter(Boolean).join(" · ");
+    td.appendChild(diag);
+  }
+  if (onRetry) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "pec-load-more pec-error-retry";
+    btn.textContent = "Retry";
+    btn.addEventListener("click", () => onRetry());
+    td.appendChild(btn);
+  }
+}
+
 function renderTableStateRow(tbody, colspan, kind, title, detail = "") {
   if (!tbody) return;
   tbody.innerHTML = "";
@@ -920,15 +1026,6 @@ function mirrorLensCount() {
   const live = document.querySelector(".tab-panel.active .pec-lens-count");
   const text = (live?.textContent || "").trim();
   if (el.textContent !== text) el.textContent = text;
-}
-
-/** Docked footer "Close" of every row-detail modal reuses the header close control. */
-function wireDetailFooterClose() {
-  document.addEventListener("click", (e) => {
-    const b = e.target instanceof Element ? e.target.closest("[data-pec-close]") : null;
-    if (!b) return;
-    b.closest(".modal")?.querySelector(".modal-header .modal-close-btn")?.click();
-  });
 }
 
 /** The one open/close trigger for every filter panel (lenses, line toolbars, Excess). */
@@ -1711,6 +1808,7 @@ function enhanceFilterDrawer(drawer) {
   head.className = "pec-filter-drawer-head";
   head.innerHTML = '<h3 class="pec-filter-drawer-title"></h3><button type="button" class="modal-close-btn pec-filter-close" aria-label="Close filters" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
   head.querySelector("h3").textContent = title;
+  head.querySelector("h3").tabIndex = -1;
   const body = document.createElement("div");
   body.className = "pec-filter-drawer-body";
   [...drawer.childNodes].forEach((n) => body.appendChild(n));
@@ -1741,7 +1839,8 @@ function enhanceFilterDrawer(drawer) {
     const f = [...drawer.querySelectorAll("button, select, input, textarea, [tabindex]:not([tabindex='-1'])")].filter((x) => !x.disabled && x.offsetParent !== null);
     if (!f.length) return;
     const first = f[0], last = f[f.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    const heading = drawer.querySelector(".pec-filter-drawer-head h3");
+    if (e.shiftKey && (document.activeElement === first || document.activeElement === heading)) { e.preventDefault(); last.focus(); }
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   });
 }
@@ -1850,8 +1949,14 @@ function openFloatingFilterDrawer(btn, drawer, focusEl) {
   btn.setAttribute("aria-expanded", "true");
   positionFloatingFilterDrawer(btn, drawer);
   startFloatingFilterDrawerTracking(btn, drawer);
-  const firstControl = drawer.querySelector(".pec-filter-drawer-body select, .pec-filter-drawer-body input");
-  (focusEl || firstControl)?.focus?.();
+  if (drawer.classList.contains("is-sheet")) {
+    // Phones: never focus a data control on open (iOS opens a focused native <select> picker at once).
+    // The sheet heading takes focus; the user reaches the first field with Tab / a tap.
+    drawer.querySelector(".pec-filter-drawer-head h3")?.focus?.({ preventScroll: true });
+  } else {
+    const firstControl = drawer.querySelector(".pec-filter-drawer-body select, .pec-filter-drawer-body input");
+    (focusEl || firstControl)?.focus?.();
+  }
 }
 
 function closeFloatingFilterDrawer(btn, drawer, options = {}) {
@@ -2641,13 +2746,7 @@ function renderRows() {
   tbody.innerHTML = "";
 
   if (!state.rows.length && aqLoadFailed && !aqLoading) {
-    renderTableStateRow(
-      tbody,
-      7,
-      "error",
-      "Action Queue could not be loaded.",
-      "Change the search or filters, or reopen this tab, to retry.",
-    );
+    renderFeedErrorState(tbody, 7, "Action Queue", aqLastError, () => loadActionQueue({ reset: true, preserveFocus: false }));
   } else if (!state.rows.length && state.actionLoaded && !aqLoading) {
     renderTableStateRow(
       tbody,
@@ -2853,6 +2952,7 @@ function restoreActionQueueSearchFocus(snapshot) {
 }
 
 let aqLoadFailed = false;
+let aqLastError = null;
 
 async function loadActionQueue(options = {}) {
   const {
@@ -2900,19 +3000,26 @@ async function loadActionQueue(options = {}) {
       limit: aqPageSize,
     });
 
-    const { data, error } = await supabase.rpc(
-      "proc_procurement_action_queue_paged",
-      params,
-    );
+    const aqRequestId = `pec-${Date.now().toString(36)}-${++pecRequestCounter}`;
+    let aqRes;
+    try {
+      aqRes = await supabase.rpc("proc_procurement_action_queue_paged", params);
+    } catch (thrown) {
+      aqRes = { data: null, error: thrown, status: 0 }; // fetch rejected (offline, iOS "Load failed")
+    }
+    const { data, error } = aqRes;
+    const aqStatus = aqRes.status ?? 0;
 
     if (requestSeq !== aqRequestSeq || !actionQueueParamsStillCurrent(params)) {
       return;
     }
 
     if (error) {
-      console.error(error);
-      toast(`Failed to load Action Queue: ${error.message}`, "error");
+      const described = pecDescribeError(error, { requestId: aqRequestId, rpc: "proc_procurement_action_queue_paged", status: aqStatus });
+      console.warn("[PEC] load failed", { feed: "action", ...described.pecDiag });
+      toast(`Failed to load Action Queue: ${described.pecDiag.message}`, "error");
       aqLoadFailed = !isAppend;
+      aqLastError = isAppend ? aqLastError : described;
       return;
     }
 
@@ -5372,15 +5479,8 @@ function renderIndents() {
   const indentColCount = showIndentDate ? 7 : 6;
   if (!state.indentsRows.length) {
     const failed = indentsFeed.state.error;
-    renderTableStateRow(
-      tbody,
-      indentColCount,
-      failed ? "error" : "empty",
-      failed ? "Indents could not be loaded." : "No indents match the current filters.",
-      failed
-        ? "Change the search or filters, or reopen this tab, to retry."
-        : "Clear the search or filters to see all indents.",
-    );
+    if (failed) renderFeedErrorState(tbody, indentColCount, "Indents", failed, () => indentsFeed.retry());
+    else renderTableStateRow(tbody, indentColCount, "empty", "No indents match the current filters.", "Clear the search or filters to see all indents.");
   }
   for (const row of state.indentsRows) {
     const tr = document.createElement("tr");
@@ -7946,17 +8046,8 @@ function renderPrHeaders() {
   tbody.innerHTML = "";
   if (!state.prRows.length) {
     const failed = prFeed.state.error;
-    renderTableStateRow(
-      tbody,
-      7,
-      failed ? "error" : "empty",
-      failed
-        ? "Purchase requisitions could not be loaded."
-        : "No purchase requisitions match the current filters.",
-      failed
-        ? "Change the search or filters, or reopen this tab, to retry."
-        : "Clear the search or filters, or generate a draft PR.",
-    );
+    if (failed) renderFeedErrorState(tbody, 7, "Purchase requisitions", failed, () => prFeed.retry());
+    else renderTableStateRow(tbody, 7, "empty", "No purchase requisitions match the current filters.", "Clear the search or filters, or generate a draft PR.");
   }
   for (const row of state.prRows) {
     const tr = document.createElement("tr");
@@ -9356,13 +9447,9 @@ function renderExcess() {
   tbody.innerHTML = "";
   if (!state.excessRows.length) {
     const failed = excessFeed.state.error;
-    renderTableStateRow(
-      tbody,
-      8,
-      failed ? "error" : "empty",
-      failed ? "Excess purchases could not be loaded." : "No excess purchases match the current filters.",
-      failed ? "Change the search or filters, or reopen this tab, to retry." : "Widen the date range or clear filters.",
-    );
+    if (failed) renderFeedErrorState(tbody, 8, "Excess purchases", failed, () => excessFeed.retry());
+    else if (excessFeed.state.loading || !excessFeed.state.loadedOnce) tbody.innerHTML = "";
+    else renderTableStateRow(tbody, 8, "empty", "No excess purchases match the current filters.", "Widen the date range or clear filters.");
   }
   for (const row of state.excessRows) {
     const tr = document.createElement("tr");
@@ -10541,8 +10628,6 @@ function openVwlBreakdown(row) {
   }
 
   const breakdown = normalizeVwlBreakdown(row.indent_breakdown);
-  const bdSummary = qs("vwlBdSummary");
-  if (bdSummary) bdSummary.textContent = `${breakdown.length} indent line${breakdown.length === 1 ? "" : "s"} · ${fmt(row.total_qty_to_buy)} ${row.uom_code ?? ""}`.trim();
   tbody.innerHTML = "";
   if (!breakdown.length) {
     tbody.innerHTML =
@@ -11997,8 +12082,7 @@ async function loadVendorBuylist() {
     state.vwl.rows = [];
     const tbody = qs("vwlTbody");
     if (tbody)
-      tbody.innerHTML =
-        '<tr><td colspan="7" class="muted">Failed to load. Change the search or filters, or reopen the tab, to retry.</td></tr>';
+      renderFeedErrorState(tbody, 7, "Vendor-wise Buying List", e?.pecDiag ? e : pecDescribeError(e, { requestId: "n/a", rpc: "", status: 0 }), () => loadVendorBuylist());
     updateVendorBuylistPager();
   } finally {
     if (vwlLoadAbort === ctrl) vwlLoadAbort = null;
@@ -12842,7 +12926,6 @@ function wireVendorBuylistControls() {
   applyResponsiveActionLabels();
   applyRowCards();
   wireRowKeyboardActivation();
-  wireDetailFooterClose();
   wireFilterTriggers();
   observeResponsiveActionLabels();
   wireStockItemPicker();

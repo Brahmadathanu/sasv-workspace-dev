@@ -107,9 +107,7 @@ for (const vp of W) {
     check(m.ovf <= 1, `${tag}: no horizontal page overflow`);
     if (vp.width <= 640) {
       check(m.w === m.vw, `${tag}: full viewport width (${m.w})`);
-      if (kind === "page" || name === "Vendor-wise (long)" || name === "Action Queue") check(m.h >= m.vh - 1, `${tag}: fills the viewport height (${m.h}/${m.vh})`);
-      if (name === "Vendor-wise (short)") check(m.h < m.vh * 0.5 && m.gapBelowContent <= 28, `${tag}: natural height - no blank lower area (modal ${m.h}/${m.vh}, gap below content ${m.gapBelowContent}px)`);
-      if (name.startsWith("Vendor-wise")) check(m.footBottom !== null && Math.abs(m.footBottom - (m.h + (m.vh - m.h > 0 && name.endsWith("(short)") ? 0 : 0))) <= 2, `${tag}: docked footer (Close) sits at the modal bottom edge`);
+      check(m.h >= m.vh - 1, `${tag}: fills the viewport height (${m.h}/${m.vh}) - R2c full-screen detail`);
     } else if (kind === "panel") {
       check(m.w <= m.vw - 31 && m.h <= m.vh * 0.9, `${tag}: centred panel inside the viewport (${m.w}x${m.h})`);
     } else {
@@ -125,12 +123,8 @@ for (const vp of W) {
     await ctx.close();
   }
 }
-{ // docked footer Close + Escape (Vendor-wise, phone)
+{ // Escape closes the Vendor-wise detail (R2c removed the footer Close)
   const { ctx, page } = await open({ role: "edit" }, W[1], "vendor-buylist");
-  await page.evaluate(() => document.querySelector("#vwlTbody tr").click()); await page.waitForTimeout(500);
-  check(/indent line/.test(await page.textContent("#vwlBdSummary")), "390px Vendor-wise: footer summary names the indent lines and quantity");
-  await page.click("#vwlBreakdownModalBackdrop .pec-detail-foot-close"); await page.waitForTimeout(250);
-  check(!(await page.evaluate(() => document.getElementById("vwlBreakdownModalBackdrop").classList.contains("show"))), "390px Vendor-wise: footer Close dismisses the modal");
   await page.evaluate(() => document.querySelector("#vwlTbody tr").click()); await page.waitForTimeout(400);
   await page.keyboard.press("Escape"); await page.waitForTimeout(250);
   check(!(await page.evaluate(() => document.getElementById("vwlBreakdownModalBackdrop").classList.contains("show"))), "390px Vendor-wise: Escape dismisses the modal");
