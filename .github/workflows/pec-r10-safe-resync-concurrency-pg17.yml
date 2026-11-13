@@ -34,7 +34,7 @@ jobs:
         run: |
           set -eu
           ls supabase/migrations/*_pec_safe_resync_collision_guard_lock_order.sql supabase/migrations/*_pec_safe_resync_collision_preview_ro.sql
-          ! grep -Eiq '\b(grant|revoke)\b' supabase/migrations/*_pec_safe_resync_collision_guard_lock_order.sql
+          if grep -v '^[[:space:]]*--' supabase/migrations/*_pec_safe_resync_collision_guard_lock_order.sql | grep -Eiq '\b(grant|revoke)\b'; then echo 'guard migration must not change ACLs'; exit 1; fi
       - name: Run guarded source + mutation-sensitive negative controls
         env:
           PGHOST: 127.0.0.1
