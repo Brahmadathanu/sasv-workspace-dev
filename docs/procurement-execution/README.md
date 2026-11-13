@@ -73,3 +73,7 @@ The [migration-effect audit](PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md) 
 ## Historical internal-material guard evidence R5 — 13 November 2026
 
 The [migration-effect audit R5](PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md) confirms 35 positive active PR lines and 11 positive approved indent lines involving currently classified internal semi-finished/finished-bulk materials are **all created before 12 November**, with none updated on/after 12 November. This is **bounded legacy-record preservation**, not an end-to-end proof of the writer guards and not authorization to delete or reconcile history. Real authenticated negative-role and concurrency acceptance remain NOT TESTED.
+
+## SAFE-resync mapping audit R6 — 13 November 2026
+
+A read-only [mapping-integrity R6 audit](PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md) found **3 stock-item identity mismatches among 1,023 PR-to-indent line mappings**, plus **2 PR-linked indent lines without line mappings**. All are historical (pre-Nov 12), with no recorded updates since Nov 12; no causation or corruption is inferred. The six PR-linked headers each have exactly one active header mapping. [Issue #383](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/383) tracks provenance and disposable-fixture SAFE/RESET tests. Migration `20261112143000` stays **PARTIAL — REVIEW REQUIRED**, even though its function body matches source. No live resync, row editing, or migration-history registration occurred.
