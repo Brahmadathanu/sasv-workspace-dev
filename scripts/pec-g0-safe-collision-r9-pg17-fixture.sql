@@ -121,10 +121,23 @@ BEGIN
  IF (SELECT requested_qty FROM public.proc_indent_line WHERE indent_line_id=601)<>9
  THEN RAISE EXCEPTION 'Null reason collision changed quantity'; END IF;
 END $null_reason$;
--- Aligned quantity (manual reason differs) is permitted by proposed quantity-only
--- policy; the PR reason then takes precedence. This is explicitly a policy gap
--- that requires owner review and UI warning before production deployment.
+-- Same quantity but different manual reason MUST also fail closed, with no mutation.
 UPDATE public.proc_indent_line SET requested_qty=4 WHERE indent_id=1 AND stock_item_id=13;
+DO $reason_collision$
+BEGIN
+ BEGIN
+  PERFORM public.proc_indent_resync_from_pr_pec_internal(1,'safe');
+  RAISE EXCEPTION 'Reason-only collision unexpectedly succeeded' USING ERRCODE='ZX001';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLSTATE IS DISTINCT FROM '23514' THEN RAISE EXCEPTION 'Expected 23514 on reason-only collision, got %',SQLSTATE; END IF;
+ END;
+ IF (SELECT manual_reason FROM public.proc_indent_line WHERE indent_id=1 AND stock_item_id=13)
+  IS DISTINCT FROM 'manual but PR identity exists' OR
+  (SELECT requested_qty FROM public.proc_indent_line WHERE indent_id=1 AND stock_item_id=11) <> 1
+ THEN RAISE EXCEPTION 'Reason collision mutated business rows'; END IF;
+END $reason_collision$;
+-- A quantity AND normalized reason match can safely adopt PR linkage.
+UPDATE public.proc_indent_line SET manual_reason='PR 13' WHERE indent_id=1 AND stock_item_id=13;
 SELECT public.proc_indent_resync_from_pr_pec_internal(1,'safe');
 DO $safe$
 BEGIN
