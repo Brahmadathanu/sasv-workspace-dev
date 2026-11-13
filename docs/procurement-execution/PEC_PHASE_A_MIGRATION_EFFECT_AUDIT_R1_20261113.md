@@ -83,3 +83,18 @@ Independent read-only check of the ten #323 paged/filtered/vendor functions conf
 - **Disposition:** `20261112150000` helper's **selected security metadata and grants VERIFIED**, but no true-JWT invocation, full dataset behavior or official history reconciliation was conducted. This result does not authorize history repair or a broad function grant.
 
 The authenticated-role acceptance harness and operator packet are separately governed; running CI does not replace real account evidence.
+
+## R5 addendum — historical internal-material procurement preservation (13 November 2026)
+
+**Target migration group:** #317 `20261112122500` (revision and indent guard), `20261112133000` (manual PR guards), and associated UOM/internal PR guards. A read-only aggregate query linked current classified items in `public.v_inv_stock_item_with_class` to `proc_pr_line`/`proc_pr_header` and `proc_indent_line`/`proc_indent_header`, restricted to material class 1 and positive requested quantity. The classifications presently contain **186** `semifinished_goods` and **86** `finished_bulk_material` stock items.
+
+| Observation | Active PR | Approved indent |
+|---|---:|---:|
+| Positive internal-material lines | 35 | 11 |
+| Created before 2026-11-12 | 35 | 11 |
+| Created on/after 2026-11-12 | 0 | 0 |
+| Updated on/after 2026-11-12 | 0 | 0 |
+
+There are additionally **63 nonpositive** internal-material PR lines, which are not categorized as positive external procurement commitments. Totals represent current-state records, not a transactional reconstruction of events. The creation/update cutoff is calendar 12 November, not the precise deployment timestamp; classify this as **bounded historical preservation evidence**, not proof that every new/increased writer route is secure. Date comparisons use the database timestamp interpretation as queried. The positive PR lines were all `active`, and positive indent lines all `approved`. Do **not** delete or rewrite these legacy business records or mislabel them as newly created violations.
+
+**Disposition:** The observed legacy-positive records appear to predate the server guard corrections and have no updates on/after 12 Nov. This improves preservation evidence for #317 while **genuine JWT writer negative tests and concurrent lifecycle checks remain NOT TESTED**. The eleven PEC migration history registrations remain absent. No production DML, schema or grants were changed.
