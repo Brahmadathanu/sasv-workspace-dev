@@ -43,3 +43,7 @@ Supabase CLI provides `supabase migration list --remote` for comparing filesyste
 | #374 | 20261112220000 | Owner-approved live wrapper deployed, source body/ACL match; genuine negative-role still needed | UNREGISTERED |
 
 **Status:** PLAN ONLY. No server migrations merged; no migration-history repair, production DDL/DML, change to role grants, or release promotion authorized by this document.
+
+## R6 hold — historical SAFE-resync mapping anomaly (13 November 2026)
+
+The independent read-only [R6 migration-effect audit](PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md) detected 3 PR-to-indent stock-item identity mismatches and 2 unmapped PR-linked indent lines (all created before 12 Nov, no update on/after). See [issue #383](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/383). **Migration `20261112143000` must not be selected for official history-only repair** until mapping provenance and SAFE/RESET disposable fixture behaviour are reviewed and a specific owner disposition is recorded. Function body parity alone does not discharge this hold. No live writes authorized.
