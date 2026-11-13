@@ -5215,7 +5215,7 @@ function renderLensPills() {
       lensPills.classList.add("cp-nav-groups");
       lensPills.innerHTML = renderGroupedNavHtml(getActiveNavGroups(), CURRENT_LENS);
       lensPills.querySelectorAll(".pill").forEach((btn) => {
-        btn.addEventListener("click", () => switchLens(btn.dataset.lens, { fromTabClick: true }));
+        btn.addEventListener("click", () => switchLens(btn.dataset.lens));
       });
     } else {
       lensPills.innerHTML = activeSuites
@@ -5227,7 +5227,7 @@ function renderLensPills() {
         .join("");
 
       lensPills.querySelectorAll(".pill").forEach((btn) => {
-        btn.addEventListener("click", () => switchLens(btn.dataset.lens, { fromTabClick: true }));
+        btn.addEventListener("click", () => switchLens(btn.dataset.lens));
       });
     }
   }
@@ -5297,11 +5297,7 @@ async function switchPricingPolicyWorkspace(workspaceId) {
   }
 }
 
-// Lens ids that never use a Product selection carried in the URL. A tab / pill / select click into one of them
-// must not leave `product_id` behind: Workload Preview would read it as a hidden Product filter (issue #380).
-const PRM_TAB_CLICK_DROPS_PRODUCT_ID = new Set(["shared-workload-preview"]);
-
-async function switchLens(lensId, { fromTabClick = false } = {}) {
+async function switchLens(lensId) {
   if (!lensId || lensId === CURRENT_LENS) return;
   // During PRM soft-nav, ignore competing lens changes (including async select change).
   if (softNavLockLens) {
@@ -5397,10 +5393,6 @@ async function switchLens(lensId, { fromTabClick = false } = {}) {
       }
       if (CURRENT_LENS !== "product-route-editor") {
         url.searchParams.delete("product_route_id");
-      }
-      // A tab click is not an explicit Product deep link (those load through the controller and never pass here).
-      if (fromTabClick && PRM_TAB_CLICK_DROPS_PRODUCT_ID.has(CURRENT_LENS)) {
-        url.searchParams.delete("product_id");
       }
       // Shell tab clicks are not Family-summary deep links. Keep route_family_id
       // only for editor / historical-candidate lenses that need Family context.
@@ -10282,7 +10274,7 @@ costingNavContext.subscribe(() => refreshNavContextBar());
 
 lensSelect?.addEventListener("change", () => {
   if (isProgrammaticLensSync) return;
-  switchLens(lensSelect.value, { fromTabClick: true });
+  switchLens(lensSelect.value);
 });
 pricingPolicyWorkspaceSelect?.addEventListener("change", () => {
   void switchPricingPolicyWorkspace(pricingPolicyWorkspaceSelect.value);
