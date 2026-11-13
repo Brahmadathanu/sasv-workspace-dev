@@ -25,7 +25,8 @@ lf $MIG/20261112143000_pec_safe_resync_preserve_manual_lines.sql | P >/dev/null 
 case $SRC in
   legacy) ;;
   r9proto) lf "$ROOT/scripts/pec-g0-safe-collision-proposed-function.sql" | P >/dev/null ;;
-  guarded) lf $(ls $MIG/*_pec_safe_resync_collision_guard_lock_order.sql | head -1) | P >/dev/null ;;
+  guarded) lf $(ls $MIG/*_pec_safe_resync_collision_guard_lock_order.sql | head -1) | P >/dev/null
+           lf $(ls $MIG/*_pec_safe_resync_collision_preview_ro.sql | head -1) | P >/dev/null ;;
   *) echo bad source; exit 2;;
 esac
 lf "$ROOT/scripts/pec-r10/addline-wrapper-374-e252277.sql" | P >/dev/null   # guarded Add Line wrapper (#374)
@@ -157,5 +158,26 @@ for i in $(seq 20); do
   grep -qi deadlock "$OUT"/d?.err && dl=1
 done
 [ $dl = 0 ] && res T7 PASS "20 interleaved rounds, no deadlock" || res T7 FAIL "deadlock detected"
+
+# ============ read-only collision preview (guarded source only) ============
+if [ $SRC = guarded ]; then
+  seed
+  b=$(q "select public.fx_state_md5(1)")
+  j=$(q "select public.proc_indent_resync_collision_preview(1)")
+  echo "$j" | python3 -c "import sys,json;d=json.load(sys.stdin);c=d['collisions'];assert d['eligible'] and d['blocked'] and len(c)==1 and c[0]['indent_qty']==8 and float(c[0]['pr_qty'])==4 and c[0]['differs_qty'] and c[0]['differs_reason'] and d['reset_consequence_manual_lines_lost']>=2" 2>/dev/null && [ "$(q "select public.fx_state_md5(1)")" = "$b" ] && res P1 PASS "preview lists exactly the colliding line with both sides; no mutation" || res P1 FAIL "preview content wrong: $j"
+  P -c "begin read only; select public.proc_indent_resync_collision_preview(1); commit;" >/dev/null 2>&1 && res P2 PASS "preview runs in READ ONLY transaction" || res P2 FAIL "preview not read-only"
+  # consistency: preview.blocked <=> SAFE raises 23514, across states
+  ok=1
+  for state in "select 1" "update proc_indent_line set requested_qty=4 where indent_line_id=104" "update proc_indent_line set requested_qty=4, manual_reason='PR 13' where indent_line_id=104" "update proc_indent_line set requested_qty=4, manual_reason='' where indent_line_id=104"; do
+    seed; q "$state" >/dev/null
+    bl=$(q "select (public.proc_indent_resync_collision_preview(1)->>'blocked')")
+    e=$(expect_err 23514 "PERFORM public.proc_indent_resync_from_pr_pec_internal(1,'safe')")
+    { [ "$bl" = true ] && [ "$e" = OK ]; } || { [ "$bl" = false ] && [ "$e" = BAD ]; } || ok=0
+  done
+  seed; bl6=$(q "select public.proc_indent_resync_collision_preview(6)->>'blocked'"); [ "$bl6" = true ] || ok=0
+  [ $ok = 1 ] && res P3 PASS "preview.blocked agrees with SAFE rejection in 5 states (incl. NULL-reason)" || res P3 FAIL "preview/writer disagreement"
+  q "select (public.proc_indent_resync_collision_preview(3)->>'eligible')='false' and (public.proc_indent_resync_collision_preview(3)->>'reason')='not_draft' and (public.proc_indent_resync_collision_preview(4)->>'reason')='no_source_pr'" | grep -q t && res P4 PASS "non-draft / no-source indents report ineligible" || res P4 FAIL "ineligibility not reported"
+  q "select not has_function_privilege('anon','public.proc_indent_resync_collision_preview(bigint)','execute') and has_function_privilege('authenticated','public.proc_indent_resync_collision_preview(bigint)','execute') and has_function_privilege('service_role','public.proc_indent_resync_collision_preview(bigint)','execute') and not exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.proname='proc_indent_resync_collision_preview' and a.grantee=0)" | grep -q t && res P5 PASS "preview ACL: authenticated+service_role only; anon/PUBLIC denied" || res P5 FAIL "preview ACL wrong"
+fi
 dropdb --if-exists "$DB" >/dev/null 2>&1
 echo "SOURCE=$SRC FAILS=$FAILS"

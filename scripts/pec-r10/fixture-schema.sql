@@ -1,9 +1,14 @@
 -- PEC R10 disposable fixture schema (synthetic rows only; NEVER run against production).
 \set ON_ERROR_STOP on
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role NOLOGIN; END IF;
+END $$;
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;
 -- Permission stub: the real RBAC gate is a separate authenticated-session gate.
-CREATE OR REPLACE FUNCTION public.require_permission(text, text) RETURNS void LANGUAGE sql AS $$ SELECT $$;
+CREATE OR REPLACE FUNCTION public.require_permission(text, boolean) RETURNS void LANGUAGE sql AS $$ SELECT $$;
 CREATE OR REPLACE FUNCTION public.proc_material_kind_for_class(bigint) RETURNS text LANGUAGE sql AS $$ SELECT 'rm' $$;
 CREATE OR REPLACE FUNCTION public.proc_request_snapshot_refresh(text) RETURNS void LANGUAGE sql AS $$ SELECT $$;
 
@@ -42,6 +47,9 @@ INSERT INTO public.pec_fixture_stock_master VALUES
  (11,true,'raw_material'),(12,true,'raw_material'),(13,true,'raw_material'),
  (14,true,'raw_material'),(80,true,'raw_material'),(91,true,'raw_material'),
  (99,true,'finished_bulk_material');
+
+CREATE VIEW public.v_proc_indent_lines_console_ordered AS
+ SELECT l.indent_line_id, 'Item '||l.stock_item_id AS stock_item_name, 'KG'::text AS uom_code FROM public.proc_indent_line l;
 
 -- TEST-ONLY deterministic barrier. A statement-level trigger on the first
 -- UPDATE of proc_indent_line made by application 'sess_A' waits on advisory
