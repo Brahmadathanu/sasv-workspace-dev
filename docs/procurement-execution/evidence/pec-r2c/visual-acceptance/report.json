@@ -1,14 +1,14 @@
 {
-  "sha": "36e9a816a109464be7e95e4130c6593e3f3d6f32",
-  "generated": "2026-11-13T02:38:15.237Z",
+  "sha": "6e5162211a06be8ef6eb8ca2006994e6e6e580d9",
+  "generated": "2026-11-13T02:46:13.916Z",
   "widths": [
     320,
     390,
     820,
     1440
   ],
-  "pass": 160,
-  "fail": 4,
+  "pass": 164,
+  "fail": 0,
   "results": [
     {
       "id": "console renders (editor fixture) @320px",
@@ -172,7 +172,7 @@
     },
     {
       "id": "paged-read error state rendered @320px",
-      "ok": false,
+      "ok": true,
       "detail": ""
     },
     {
@@ -377,7 +377,7 @@
     },
     {
       "id": "paged-read error state rendered @390px",
-      "ok": false,
+      "ok": true,
       "detail": ""
     },
     {
@@ -582,7 +582,7 @@
     },
     {
       "id": "paged-read error state rendered @820px",
-      "ok": false,
+      "ok": true,
       "detail": ""
     },
     {
@@ -787,7 +787,7 @@
     },
     {
       "id": "paged-read error state rendered @1440px",
-      "ok": false,
+      "ok": true,
       "detail": ""
     },
     {
