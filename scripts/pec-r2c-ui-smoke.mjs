@@ -175,7 +175,7 @@ for (const vp of [W[1], W[3]]) {
   const tag = `${vp.width}px`;
   { // (a) the owner's sequence: type, clear while the reload is pending, switch to Excess at once
     const { ctx, page, errors } = await open({ ...RACE, delay: { [AQ]: 700 } }, vp, "action");
-    await page.fill("#fSearch", "abc"); await page.waitForTimeout(450);
+    await page.fill("#fSearch", "abc"); await page.waitForTimeout(650); // debounce (500ms) fired: the "abc" request is now pending
     await page.click("#fSearchClear");
     await goTab(page, vp, "excess");
     await page.waitForTimeout(2200);

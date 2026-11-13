@@ -304,6 +304,9 @@ function pecClassifyError(error, status) {
   return "client";
 }
 
+/** Message safe to show: sanitized diagnostics message when available. */
+const pecErrText = (e) => e?.pecDiag?.message ?? pecSanitizeMessage(e?.message ?? e);
+
 function pecDescribeError(error, { requestId, rpc, status }) {
   const err = error instanceof Error ? error : new Error(String(error?.message ?? error ?? "Request failed"));
   if (error && !(error instanceof Error)) {
@@ -4646,7 +4649,7 @@ async function openIndentSourcePrModal() {
       .sort((a, b) => compareNumDesc(a.pr_id, b.pr_id))
       .slice(0, 80);
   } catch (error) {
-    toast(`Failed to load PR list: ${error.message}`, "error");
+    toast(`Failed to load PR list: ${pecErrText(error)}`, "error");
     return;
   }
 
@@ -5410,7 +5413,7 @@ async function loadIndentLines(
     // report a failure for a view the operator has already left.
     if (loadSeq !== indentLinesLoadSeq) return true;
     setLoading(false);
-    toast(`Failed to load indent lines: ${error.message}`, "error");
+    toast(`Failed to load indent lines: ${pecErrText(error)}`, "error");
     return false;
   }
   if (loadSeq !== indentLinesLoadSeq) return true;
@@ -5525,7 +5528,7 @@ const indentsFeed = createFeed({
     state.indentsRows = f.rows;
     state.indentsTotal = f.total;
     if (f.error && !f.rows.length) {
-      toast(`Failed to load indents: ${f.error.message}`, "error");
+      toast(`Failed to load indents: ${pecErrText(f.error)}`, "error");
     }
     renderIndents();
   },
@@ -7287,7 +7290,7 @@ async function openIndentFromPrModal(options = {}) {
       .sort((a, b) => compareStrAsc(a.pr_number, b.pr_number));
   } catch (error) {
     setLoading(false);
-    toast(`Failed to load PRs: ${error.message}`, "error");
+    toast(`Failed to load PRs: ${pecErrText(error)}`, "error");
     return;
   }
   setLoading(false);
@@ -8094,7 +8097,7 @@ const prFeed = createFeed({
     state.prRows = f.rows;
     state.prTotal = f.total;
     if (f.error && !f.rows.length) {
-      toast(`Failed to load PRs: ${f.error.message}`, "error");
+      toast(`Failed to load PRs: ${pecErrText(f.error)}`, "error");
     }
     renderPrHeaders();
   },
@@ -8563,7 +8566,7 @@ async function loadPrLines(prId) {
     });
   } catch (error) {
     setLoading(false);
-    toast(`Failed to load PR lines: ${error.message}`, "error");
+    toast(`Failed to load PR lines: ${pecErrText(error)}`, "error");
     return;
   }
   setLoading(false);
@@ -9606,7 +9609,7 @@ const excessFeed = createFeed({
     state.excessRows = f.rows;
     state.excessTotalCount = f.total;
     if (f.error && !f.rows.length) {
-      toast(`Failed to load excess purchases: ${f.error.message}`, "error");
+      toast(`Failed to load excess purchases: ${pecErrText(f.error)}`, "error");
     }
     renderExcess();
   },
@@ -9659,7 +9662,7 @@ const excessAuditFeed = createFeed({
     state.excessAuditRows = f.rows;
     state.excessAuditTotalCount = f.total;
     if (f.error && !f.rows.length) {
-      toast(`Failed to load acceptance audit: ${f.error.message}`, "error");
+      toast(`Failed to load acceptance audit: ${pecErrText(f.error)}`, "error");
     }
     renderExcessAudit();
   },
@@ -11966,7 +11969,7 @@ const vwlFeed = createFeed({
     state.vwl.rows = f.rows;
     state.vwl.totalCount = f.total;
     if (f.error && f.rows.length) {
-      toast(`Couldn't load more rows: ${f.error.message}`, "error");
+      toast(`Couldn't load more rows: ${pecErrText(f.error)}`, "error");
     }
     renderVendorBuylistTable();
     updateVendorBuylistPager();
