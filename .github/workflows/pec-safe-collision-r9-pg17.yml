@@ -1,0 +1,47 @@
+name: PEC SAFE Collision R9 isolated PG17
+on:
+  pull_request:
+    paths:
+      - "scripts/pec-g0-safe-collision-*.sql"
+      - ".github/workflows/pec-safe-collision-r9-pg17.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  collision-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture_only
+          POSTGRES_DB: pec_collision_r9
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pec_collision_r9"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enforce proposal-only scope
+        run: |
+          set -eu
+          test -f scripts/pec-g0-safe-collision-proposed-function.sql
+          test -f supabase/migrations/20261112143000_pec_safe_resync_preserve_manual_lines.sql
+          grep -Fq '\i supabase/migrations/20261112143000_pec_safe_resync_preserve_manual_lines.sql' scripts/pec-g0-safe-collision-r9-pg17-fixture.sql
+          grep -Fq '\i scripts/pec-g0-safe-collision-proposed-function.sql' scripts/pec-g0-safe-collision-r9-pg17-fixture.sql
+      - name: Run isolated SQL fixture
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: fixture_only
+          PGDATABASE: pec_collision_r9
+        run: |
+          set -eu
+          psql -X -v ON_ERROR_STOP=1 -f scripts/pec-g0-safe-collision-r9-pg17-fixture.sql | tee "$RUNNER_TEMP/r9-result.txt"
+          grep -q PEC_G0_SAFE_COLLISION_R9_PG17_PASS "$RUNNER_TEMP/r9-result.txt"
