@@ -4,16 +4,15 @@
  *
  * Operator signs in themselves in a fresh, ephemeral browser context.
  * No tokens/credentials/session storage, screenshot or business row export.
- * No writer RPC, no download buttons and no approved indent changes.
+ * One *invalid-key* writer permission probe only for the View-only identity;
+ * no valid indent key, business-data mutation, downloads or approved changes.
  *
  * Install deps outside the repo if desired:
  *   npm install --prefix /tmp/pec-browser-acceptance playwright@1.62.1
  *   /tmp/pec-browser-acceptance/node_modules/.bin/playwright install chromium
- *   NODE_PATH=/tmp/pec-browser-acceptance/node_modules node scripts/pec-phase-a-operator-browser-check.mjs --role=view-only --url=https://deploy-preview-347--sasv-utilities-hub.netlify.app
+ *   PEC_PLAYWRIGHT_MODULE=/tmp/pec-browser-acceptance/node_modules/playwright node scripts/pec-phase-a-operator-browser-check.mjs --role=view-only --url=https://deploy-preview-347--sasv-utilities-hub.netlify.app
  *
- * Note: Node ESM does not honor NODE_PATH automatically. Use npm install
- * --no-save playwright@1.62.1 in a disposable cloned working directory
- * or import with an explicit path via PEC_PLAYWRIGHT_MODULE.
+ * Node ESM does not honor NODE_PATH. Use the explicit PEC_PLAYWRIGHT_MODULE path.
  */
 import { createRequire } from 'node:module';
 import { createInterface } from 'node:readline/promises';
@@ -152,7 +151,7 @@ try {
       });
       return { authenticated: true, expectedRole: roleCategory, ran: true,
         rpc: 'proc_indent_add_line',
-        denied: denied(res.error), status: Number(res.status) || 0,
+        denied: (Number(res.status) || 0) >= 400 && denied(res.error), status: Number(res.status) || 0,
         code: String(res.error?.code || '').slice(0, 24) };
     }, { roleCategory: role });
     if (!negative.authenticated || !negative.ran) {

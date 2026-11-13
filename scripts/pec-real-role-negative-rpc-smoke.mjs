@@ -39,3 +39,14 @@ test('negative probes fail closed on HTTP success and on blocked identity eviden
   assert.match(script, /denied: \(Number\(res\.status\) \|\| 0\) >= 400 && denied\(res\.error\)/);
   assert.match(script, /else if \(results\.some\(x=>x\.status==='BLOCKED'\)\) process\.exitCode=2/);
 });
+
+test('both negative RPCs require HTTP errors as well as recognized authorization codes', () => {
+  const required = 'denied: (Number(res.status) || 0) >= 400 && denied(res.error)';
+  assert.equal(script.split(required).length - 1, 2,
+    'both read and writer probes must require HTTP rejection');
+});
+test('operator documentation must describe invalid-key writer challenge accurately', () => {
+  assert.match(script, /invalid-key\* writer permission probe/);
+  assert.doesNotMatch(script, /No writer RPC,/);
+  assert.match(script, /PEC_PLAYWRIGHT_MODULE=\/tmp\/pec-browser-acceptance/);
+});
