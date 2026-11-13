@@ -45,3 +45,7 @@ The [authenticated-role and migration-reconciliation runbook](PEC_AUTHENTICATED_
 ## Migration-effect audit R1 — 13 November 2026
 
 See [PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md](PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md) for read-only live source parity: four stock masters in g (4/4), exact 13 BOM corrections (13/13), all ten G1 paged/filtered/operational RPCs present with expected authenticated/anon/PUBLIC ACL and View-guard checks. This is **bounded parity**, not full function-body equivalence or signed-in role acceptance. None of eleven PEC migration versions are registered. The live Add Line guard is deployed independently, while genuine-role/write/concurrency and official history remediation stay gated.
+
+## Function-body parity R2 — 13 November 2026
+
+Independent read-only comparison of the GitHub-reviewed migration source against live `pg_get_functiondef` found **21/21 normalized PL/pgSQL bodies MATCH** (#323 ten paged read functions, #317 ten final internal/MRP definitions, #374 one live Add Line wrapper). Details, scope and limitations: [PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md](PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md), R2 addendum. The original 0/11 PEC migration-history registration remains; matched bodies **do not** authorize marking a migration applied. Genuine-role execution and other data/metadata checks remain open.
