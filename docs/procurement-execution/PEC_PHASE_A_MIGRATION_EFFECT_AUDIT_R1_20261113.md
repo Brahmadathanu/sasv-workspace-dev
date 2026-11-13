@@ -98,3 +98,18 @@ The authenticated-role acceptance harness and operator packet are separately gov
 There are additionally **63 nonpositive** internal-material PR lines, which are not categorized as positive external procurement commitments. Totals represent current-state records, not a transactional reconstruction of events. The creation/update cutoff is calendar 12 November, not the precise deployment timestamp; classify this as **bounded historical preservation evidence**, not proof that every new/increased writer route is secure. Date comparisons use the database timestamp interpretation as queried. The positive PR lines were all `active`, and positive indent lines all `approved`. Do **not** delete or rewrite these legacy business records or mislabel them as newly created violations.
 
 **Disposition:** The observed legacy-positive records appear to predate the server guard corrections and have no updates on/after 12 Nov. This improves preservation evidence for #317 while **genuine JWT writer negative tests and concurrent lifecycle checks remain NOT TESTED**. The eleven PEC migration history registrations remain absent. No production DML, schema or grants were changed.
+
+## R6 addendum — SAFE PR→Indent mapping integrity and historical exceptions (13 November 2026)
+
+**Source under review:** PR #317 migration `20261112143000_pec_safe_resync_preserve_manual_lines.sql`. Source/body parity was previously established; this is an independent **read-only data-integrity audit**, not a SAFE/RESET execution or data fix.
+
+- Production inventory: **45 approved indent headers**, 39 manual (no source PR) and 6 PR-linked.
+- All six PR-linked headers have **exactly one active header-level PR mapping**; no PR-linked header has zero or multiple active mappings.
+- There are **1,023 PR→indent line mapping rows**. All references point to present header, indent-line, and PR-line records; no wrong linked PR source or indent ID; no duplicated (indent,indent-line) or (indent,PR-line) mapping.
+- **Three mappings show a stock-item-identity mismatch** between the mapped indent line and its PR line, affecting three approved indents attached to active PRs. Material-class and UOM IDs match. All three predate 12 Nov 2026, with no indent or PR line update on/after that date. None matches an alternative current source-PR line identity, nor has another correctly mapped line.
+- **Two PR-linked indent lines are unmapped**, both predating 12 Nov with nonempty manual reasons and no subsequent updates. Both *do* have the same class/stock-item/UOM identity in a current source-PR line. This means “unmapped” is an observed relationship; **manual intent is not conclusively proved** by a nonempty reason alone.
+- All 45 headers are approved; no draft indent exists to safely exercise SAFE or RESET in live production. **Do not call the resync function or alter legacy approved records just to test it.**
+
+**Disposition:** SAFE-resync function-body parity remains PASS (21/21 overall), but `20261112143000` functional/data integrity becomes **PARTIAL — REVIEW REQUIRED** for the five historical anomalies; opening [issue #383](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/383) for provenance and isolated fixture coverage. The anomalies are not proven to result from the 12 Nov function deployment and are not evidence of post-deployment new changes. No migration-history reconciliation for this version until case evidence is reviewed. No production DML, DDL, permission, or history changes performed.
+
+**Formal effect-gate rule:** classify object presence/function source parity separately from historical mapping invariants and real signed-in operations. Genuine-role acceptance remains NOT TESTED; G0–G5 remain 0/6 closed.
