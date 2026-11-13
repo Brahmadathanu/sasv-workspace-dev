@@ -15,7 +15,24 @@ INSERT INTO public.proc_indent_header(indent_id,status,source_pr_id) VALUES (1,'
 INSERT INTO public.proc_indent_line(indent_id,material_class_id,stock_item_id,uom_id,requested_qty,manual_reason) VALUES (3,1,301,1,5,'original'),(5,1,501,1,9,'original');
 \i supabase/migrations/20261112220000_pec_r2_add_line_new_row_status_guard.sql
 DO $fn$ BEGIN IF has_function_privilege('anon','public.proc_indent_add_line(bigint,bigint,bigint,bigint,numeric,text)','EXECUTE') THEN RAISE EXCEPTION 'anon wrapper ACL unexpectedly permitted'; END IF; IF has_function_privilege('authenticated','public.proc_indent_add_line_pec_internal(bigint,bigint,bigint,bigint,numeric,text)','EXECUTE') THEN RAISE EXCEPTION 'internal function unexpectedly executable'; END IF; IF NOT has_function_privilege('authenticated','public.proc_indent_add_line(bigint,bigint,bigint,bigint,numeric,text)','EXECUTE') THEN RAISE EXCEPTION 'wrapper ACL was lost'; END IF; END $fn$;
-CREATE OR REPLACE FUNCTION public.pec_fixture_expect_denied(p_indent bigint,p_item bigint,p_reason text DEFAULT NULL) RETURNS void LANGUAGE plpgsql AS $fn$ BEGIN PERFORM public.proc_indent_add_line(p_indent,1,p_item,1,8,p_reason); RAISE EXCEPTION 'UNEXPECTED_ALLOW'; EXCEPTION WHEN OTHERS THEN IF SQLERRM = 'UNEXPECTED_ALLOW' THEN RAISE; END IF; END $fn$;
+-- Every negative assertion requires the expected SQLSTATE, not an arbitrary
+-- exception such as undefined table, privilege error or schema mismatch.
+CREATE OR REPLACE FUNCTION public.pec_fixture_expect_denied(
+  p_indent bigint,p_item bigint,p_reason text,p_expected_state text DEFAULT '23514'
+) RETURNS void LANGUAGE plpgsql AS $fn$
+DECLARE observed_state text; observed_message text;
+BEGIN
+  BEGIN
+    PERFORM public.proc_indent_add_line(p_indent,1,p_item,1,8,p_reason);
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS observed_state = RETURNED_SQLSTATE,
+      observed_message = MESSAGE_TEXT;
+  END;
+  IF observed_state IS DISTINCT FROM p_expected_state THEN
+    RAISE EXCEPTION 'Expected SQLSTATE % for indent %, item %, got % (%)',
+      p_expected_state,p_indent,p_item,coalesce(observed_state,'SUCCESS'),coalesce(observed_message,'no error');
+  END IF;
+END $fn$;
 SET ROLE authenticated;
 SET pec.fixture_can_edit = 'yes';
 -- Editor: draft manual new allowed; all other new rows denied.
@@ -26,14 +43,17 @@ SELECT public.pec_fixture_expect_denied(4,401,'approved PR-linked reason');
 SELECT public.pec_fixture_expect_denied(5,502,'issued reason');
 SELECT public.pec_fixture_expect_denied(6,601,'closed');
 SELECT public.pec_fixture_expect_denied(7,701,'cancelled');
+-- A different identity is always a NEW row: deny even if the indent has another line.
+SELECT public.pec_fixture_expect_denied(3,303,'attempt new stock item');
 -- Existing approved and issued keys are corrections, not new rows: reason required.
-SELECT public.pec_fixture_expect_denied(3,301,NULL);
+SELECT public.pec_fixture_expect_denied(3,301,NULL,'P0001');
 SELECT public.proc_indent_add_line(3,1,301,1,7,'governed correction') AS approved_existing_corrected;
 SELECT public.proc_indent_add_line(5,1,501,1,11,'governed correction') AS issued_existing_corrected;
 -- Even an Editor loses the RPC when the PEC Edit permission flag is missing.
 SET pec.fixture_can_edit = 'no';
-SELECT public.pec_fixture_expect_denied(1,102,NULL);
+SELECT public.pec_fixture_expect_denied(1,102,NULL,'42501');
 RESET ROLE;
-DO $fn$ DECLARE n int; qty numeric; BEGIN SELECT count(*) INTO n FROM public.proc_indent_line; IF n <> 3 THEN RAISE EXCEPTION 'expected 3 total lines, got %',n; END IF; SELECT requested_qty INTO qty FROM public.proc_indent_line WHERE indent_id=3 AND stock_item_id=301; IF qty <> 7 THEN RAISE EXCEPTION 'existing approved correction failed'; END IF; END $fn$;
-DROP FUNCTION public.pec_fixture_expect_denied(bigint,bigint,text);
+DO $fn$ DECLARE n int; qty numeric; BEGIN SELECT count(*) INTO n FROM public.proc_indent_line; IF n <> 3 THEN RAISE EXCEPTION 'expected 3 total lines, got %',n; END IF;
+  IF EXISTS(SELECT 1 FROM public.proc_indent_line WHERE indent_id IN (2,4,6,7)) THEN RAISE EXCEPTION 'denied calls inserted lines'; END IF; SELECT requested_qty INTO qty FROM public.proc_indent_line WHERE indent_id=3 AND stock_item_id=301; IF qty <> 7 THEN RAISE EXCEPTION 'existing approved correction failed'; END IF; END $fn$;
+DROP FUNCTION public.pec_fixture_expect_denied(bigint,bigint,text,text);
 SELECT 'PEC_R2_ADD_LINE_PG17_FIXTURE_PASS' AS result;
