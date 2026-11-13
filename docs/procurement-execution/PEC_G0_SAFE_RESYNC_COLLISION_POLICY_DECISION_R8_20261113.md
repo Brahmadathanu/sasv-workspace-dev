@@ -53,3 +53,13 @@ No current live draft indents exist (45/45 approved). Do not invoke SAFE or RESE
 ## Status
 
 **Issue #383 OPEN; proposed policy B NOT APPROVED.** Isolated existing-function PASS is retained, but historical mapping provenance and policy remain **REVIEW REQUIRED**. Migration version `20261112143000` stays **UNREGISTERED and on history-repair hold**. Real signed-in role acceptance NOT TESTED; G0–G5 **0/6 closed**. No production writes, resync execution, ACL changes, history repair, or main promotion have been made.
+
+## R9 implementation prototype — test-only, not approved for deployment
+
+[Draft PR #385](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/385) targets the unmerged PR #317 feature branch. It carries a complete prospective `CREATE OR REPLACE` function definition under `scripts/pec-g0-safe-collision-proposed-function.sql` and an isolated PG17 fixture. **The official 20261112143000 migration file is unchanged**, and no new forward-only migration was created or deployed.
+
+The proposed SAFE-only guard runs after collecting eligible positive PR final lines but **before** indent-line updates/inserts/deletes or mapping changes. It detects an existing **unmapped** indent line with the same material class/item/UOM identity but `requested_qty IS DISTINCT FROM final_qty` and raises SQLSTATE `23514`. It also rejects a differing quantity when the manual reason is NULL. RESET and normal matching/pr-mapped SAFE behaviour are unchanged.
+
+The initial exact-head CI for PR #385 at `76b5b6cfd6bf748b3a32add152cf5e4c7e72c191` **PASS** using a disposable PostgreSQL 17 service, including no-side-effect assertions and regression cases. A follow-up mutation-sensitivity fixture commit was submitted to demonstrate the prior function's silent overwrite inside a rolled-back synthetic transaction; **verify its exact-head CI separately** before considering the candidate test-complete.
+
+**Review boundaries:** Equal quantities with different manual reasons still result in PR reason precedence and need owner-facing UX clarification. Concurrent writer safety, true authenticated role checks, preview/explicit operator resolution, deployed ACLs, and historical provenance are not established by this fixture. **No main/staging implementation merge, production change or history registration is authorized.** Issue #383 remains open and version `20261112143000` stays on official history-repair hold until governance is complete.
