@@ -69,3 +69,7 @@ See [PEC_MIGRATION_HISTORY_RECONCILIATION_GOVERNED_PLAN_20261113.md](PEC_MIGRATI
 ## MRP helper RBAC audit R4 — 13 November 2026
 
 The [migration-effect audit](PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md) R4 addendum independently verifies the live `20261112150000` strict UOM helper's SECURITY DEFINER mode, `pg_catalog, public` search path, authenticated/service-role EXECUTE grant, anon/PUBLIC denial, and underlying conversion table isolation. The observed current grant on `inv_uom` is recorded separately without claiming the migration introduced it. **The version remains unregistered** and genuine JWT behavior has not been tested; no migration-history or production access change was made.
+
+## Historical internal-material guard evidence R5 — 13 November 2026
+
+The [migration-effect audit R5](PEC_PHASE_A_MIGRATION_EFFECT_AUDIT_R1_20261113.md) confirms 35 positive active PR lines and 11 positive approved indent lines involving currently classified internal semi-finished/finished-bulk materials are **all created before 12 November**, with none updated on/after 12 November. This is **bounded legacy-record preservation**, not an end-to-end proof of the writer guards and not authorization to delete or reconcile history. Real authenticated negative-role and concurrency acceptance remain NOT TESTED.
