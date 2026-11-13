@@ -64,6 +64,19 @@ INSERT INTO public.proc_pr_to_indent_map(pr_id,indent_id,is_active,note) VALUES
 -- Important: This is the actual owner-reviewed server migration, not a copy.
 \i supabase/migrations/20261112143000_pec_safe_resync_preserve_manual_lines.sql
 
+-- Mutation-sensitivity baseline: the ORIGINAL function silently overwrites
+-- this colliding unmapped line. Verify baseline in a rolled-back transaction.
+BEGIN;
+SELECT public.proc_indent_resync_from_pr_pec_internal(1,'safe');
+DO $baseline$
+BEGIN
+ IF (SELECT requested_qty FROM public.proc_indent_line WHERE indent_id=1 AND stock_item_id=13)<>4
+ THEN RAISE EXCEPTION 'Baseline did not overwrite colliding manual quantity'; END IF;
+ IF (SELECT manual_reason FROM public.proc_indent_line WHERE indent_id=1 AND stock_item_id=13) IS DISTINCT FROM 'PR 13'
+ THEN RAISE EXCEPTION 'Baseline did not replace colliding manual reason'; END IF;
+END $baseline$;
+ROLLBACK;
+-- No production data: all the above used only disposable synthetic rows.
 -- Apply the candidate forward-only function definition IN THIS DISPOSABLE DB ONLY.
 \i scripts/pec-g0-safe-collision-proposed-function.sql
 -- Assert rejecting a colliding, formerly-unmapped manual line leaves ALL rows
