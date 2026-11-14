@@ -6,6 +6,7 @@ on:
       - "scripts/pec-g0-safe-collision-*.sql"
       - "supabase/migrations/*_pec_safe_resync_collision_guard_lock_order.sql"
       - "supabase/migrations/*_pec_safe_resync_collision_preview_ro.sql"
+      - "supabase/migrations/*_pec_indent_set_source_pr_lock_prelude.sql"
       - ".github/workflows/pec-r10-safe-resync-concurrency-pg17.yml"
   workflow_dispatch:
 permissions:
@@ -33,8 +34,8 @@ jobs:
       - name: Migration is the CLI-created forward-only file; history files untouched
         run: |
           set -eu
-          ls supabase/migrations/*_pec_safe_resync_collision_guard_lock_order.sql supabase/migrations/*_pec_safe_resync_collision_preview_ro.sql
-          if grep -v '^[[:space:]]*--' supabase/migrations/*_pec_safe_resync_collision_guard_lock_order.sql | grep -Eiq '\b(grant|revoke)\b'; then echo 'guard migration must not change ACLs'; exit 1; fi
+          ls supabase/migrations/*_pec_safe_resync_collision_guard_lock_order.sql supabase/migrations/*_pec_safe_resync_collision_preview_ro.sql supabase/migrations/*_pec_indent_set_source_pr_lock_prelude.sql
+          if grep -v '^[[:space:]]*--' supabase/migrations/*_pec_safe_resync_collision_guard_lock_order.sql supabase/migrations/*_pec_indent_set_source_pr_lock_prelude.sql | grep -Eiq '\b(grant|revoke)\b'; then echo 'guard migration must not change ACLs'; exit 1; fi
       - name: Run guarded source + mutation-sensitive negative controls
         env:
           PGHOST: 127.0.0.1

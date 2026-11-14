@@ -26,7 +26,8 @@ case $SRC in
   legacy) ;;
   r9proto) lf "$ROOT/scripts/pec-g0-safe-collision-proposed-function.sql" | P >/dev/null ;;
   guarded) lf $(ls $MIG/*_pec_safe_resync_collision_guard_lock_order.sql | head -1) | P >/dev/null
-           lf $(ls $MIG/*_pec_safe_resync_collision_preview_ro.sql | head -1) | P >/dev/null ;;
+           lf $(ls $MIG/*_pec_safe_resync_collision_preview_ro.sql | head -1) | P >/dev/null
+           lf $(ls $MIG/*_pec_indent_set_source_pr_lock_prelude.sql | head -1) | P >/dev/null ;;
   *) echo bad source; exit 2;;
 esac
 lf "$ROOT/scripts/pec-r10/addline-wrapper-374-e252277.sql" | P >/dev/null   # guarded Add Line wrapper (#374)
@@ -158,6 +159,66 @@ for i in $(seq 20); do
   grep -qi deadlock "$OUT"/d?.err && dl=1
 done
 [ $dl = 0 ] && res T7 PASS "20 interleaved rounds, no deadlock" || res T7 FAIL "deadlock detected"
+
+# ============ source-PR reassignment (R10b) ============
+# SR1: set_source_pr vs in-flight SAFE resync of the same indent: must wait, resync sees ONE source.
+seed; ctl_hold
+bg sess_A "select public.proc_indent_resync_from_pr_pec_internal(9,'safe')" A
+wait_wait sess_A "$A_ADV"
+bg sess_B "select public.proc_indent_set_source_pr(9,400,'r')" B
+if wait_wait sess_B "$B_ROW"; then blocked=1; else blocked=0; fi
+ctl_release; finish A; finish B
+[ $blocked = 1 ] && [ "$(cat $OUT/B.rc)" = 0 ] && [ "$(q "select source_pr_id from proc_indent_header where indent_id=9")" = 400 ] && [ "$(q "select count(*) from proc_pr_indent_line_map where indent_id=9 and pr_id=100")" = 3 ] && [ "$(q "select count(*) from proc_pr_indent_line_map where indent_id=9 and pr_id<>100")" = 0 ] && res SR1 PASS "reassignment waited for resync; resync mapped consistently to ONE source (100); then source=400" || res SR1 FAIL "reassignment overlapped resync (blocked=$blocked)"
+# SR2: approval committed-in-flight must not be followed by a reassignment decided on the stale 'draft' status.
+seed; ctl_hold
+bg sess_A "select public.fx_indent_approve_pause(13)" A
+for _ in $(seq 120); do [ "$(q "select count(*) from pg_stat_activity where application_name='sess_A' and wait_event='advisory'")" -ge 1 ] && break; sleep 0.05; done
+bg sess_B "select public.proc_indent_set_source_pr(13,400,'r')" B
+if wait_wait sess_B "$B_ROW"; then blocked=1; else blocked=0; fi
+ctl_release; finish A; finish B
+[ $blocked = 1 ] && [ "$(cat $OUT/B.rc)" != 0 ] && [ "$(q "select source_pr_id from proc_indent_header where indent_id=13")" = 100 ] && [ "$(q "select status from proc_indent_header where indent_id=13")" = approved ] && res SR2 PASS "stale-draft reassignment rejected after approval; approved indent source unchanged" || res SR2 FAIL "approved indent was reassigned or not serialized (blocked=$blocked, source=$(q "select source_pr_id from proc_indent_header where indent_id=13"))"
+# SR3: target PR superseded in-flight must not become the source.
+seed; ctl_hold
+bg sess_A "select public.fx_pr_supersede_pause(400)" A
+for _ in $(seq 120); do [ "$(q "select count(*) from pg_stat_activity where application_name='sess_A' and wait_event='advisory'")" -ge 1 ] && break; sleep 0.05; done
+bg sess_B "select public.proc_indent_set_source_pr(11,400,'r')" B
+if wait_wait sess_B "$B_ROW"; then blocked=1; else blocked=0; fi
+ctl_release; finish A; finish B
+[ $blocked = 1 ] && [ "$(cat $OUT/B.rc)" != 0 ] && [ "$(q "select coalesce(source_pr_id::text,'null') from proc_indent_header where indent_id=11")" = null ] && [ "$(q "select count(*) from proc_pr_to_indent_map where indent_id=11")" = 0 ] && res SR3 PASS "link to a just-superseded PR rejected; no source/link written" || res SR3 FAIL "indent linked to superseded PR (blocked=$blocked)"
+# SR4: Add Line vs source-PR change on a manual indent: no new manual line may slip into a freshly PR-linked indent.
+seed; ctl_hold
+bg sess_A "select public.proc_indent_set_source_pr(4,100,'r')" A
+wait_wait sess_A "$A_ADV"
+bg sess_B "select public.proc_indent_add_line(4,1,55,1,3,'x')" B
+if wait_wait sess_B "$B_ROW"; then blocked=1; else blocked=0; fi
+ctl_release; finish A; finish B
+[ $blocked = 1 ] && [ "$(q "select source_pr_id from proc_indent_header where indent_id=4")" = 100 ] && [ "$(q "select count(*) from proc_indent_line where indent_id=4 and stock_item_id=55")" = 0 ] && res SR4 PASS "Add Line waited, then denied on the now PR-linked indent (23514); no unmapped line created" || res SR4 FAIL "manual line created concurrently with PR link (blocked=$blocked)"
+# SR5: unrelated indent not blocked.
+seed; ctl_hold
+bg sess_A "select public.proc_indent_resync_from_pr_pec_internal(9,'safe')" A
+wait_wait sess_A "$A_ADV"
+if timeout 20 env PGAPPNAME=sess_B psql -X -q -At -v ON_ERROR_STOP=1 -d "$DB" -c "select public.proc_indent_set_source_pr(7,400,'ok')" >/dev/null 2>&1; then nb=1; else nb=0; fi
+ctl_release; finish A
+[ $nb = 1 ] && [ "$(cat $OUT/A.rc)" = 0 ] && res SR5 PASS "reassigning another indent is not blocked by the resync (row-level locks only)" || res SR5 FAIL "unrelated reassignment blocked/failed (nb=$nb)"
+# SR6: deadlock probe, set_source_pr x resync x Add Line x PR status, 20 interleaved rounds
+dl=0; seed
+for i in $(seq 20); do
+  tgt=$(( i % 2 == 0 ? 100 : 400 ))
+  PGAPPNAME=y1 psql -X -q -At -d "$DB" -c "select public.proc_indent_set_source_pr(7,$tgt,'r')" >/dev/null 2>"$OUT/e1.err" & p1=$!
+  PGAPPNAME=y2 psql -X -q -At -d "$DB" -c "select public.proc_indent_resync_from_pr_pec_internal(7,'safe')" >/dev/null 2>"$OUT/e2.err" & p2=$!
+  PGAPPNAME=y3 psql -X -q -At -d "$DB" -c "select public.proc_indent_add_line(7,1,11,1,$((i+1)),'m')" >/dev/null 2>"$OUT/e3.err" & p3=$!
+  PGAPPNAME=y4 psql -X -q -At -d "$DB" -c "update proc_pr_header set status='active' where pr_id in (100,400)" >/dev/null 2>"$OUT/e4.err" & p4=$!
+  wait $p1 $p2 $p3 $p4
+  grep -qi deadlock "$OUT"/e?.err && dl=1
+done
+[ $dl = 0 ] && res SR6 PASS "20 rounds set_source_pr x resync x Add Line x PR status: no deadlock" || res SR6 FAIL "deadlock detected"
+# SR7: signature, defaults and ACL preserved (never broadened)
+q "select pg_get_function_identity_arguments('public.proc_indent_set_source_pr(bigint,bigint,text)'::regprocedure)='p_indent_id bigint, p_pr_id bigint, p_note text' and has_function_privilege('authenticated','public.proc_indent_set_source_pr(bigint,bigint,text)','execute') and has_function_privilege('service_role','public.proc_indent_set_source_pr(bigint,bigint,text)','execute') and not has_function_privilege('anon','public.proc_indent_set_source_pr(bigint,bigint,text)','execute') and not has_function_privilege('authenticated','public.proc_indent_set_source_pr_pec_internal(bigint,bigint,text)','execute') and not exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.proname in ('proc_indent_set_source_pr','proc_indent_set_source_pr_pec_internal') and a.grantee=0) and (select count(*) from pg_proc where proname='proc_indent_set_source_pr')=1" | grep -q t && res SR7 PASS "signature unchanged, single overload, ACL unchanged (anon/PUBLIC denied; internal not executable by authenticated)" || res SR7 FAIL "wrapper signature/ACL changed"
+# SR8: permission gate still first: denied caller changes nothing and takes no lock effect
+b=$(q "select public.fx_state_md5(9)"); P -c "create or replace function public.require_permission(text,boolean) returns void language plpgsql as \$\$ begin raise exception 'Permission denied for module' using errcode='42501'; end \$\$" >/dev/null
+r=$(expect_err 42501 "PERFORM public.proc_indent_set_source_pr(9,400,'r')")
+P -c "create or replace function public.require_permission(text,boolean) returns void language sql as \$\$ select \$\$" >/dev/null
+[ "$r" = OK ] && [ "$(q "select public.fx_state_md5(9)")" = "$b" ] && res SR8 PASS "permission denial (42501) precedes locks/work; no mutation" || res SR8 FAIL "permission gate not first"
 
 # ============ read-only collision preview (guarded source only) ============
 if [ $SRC = guarded ]; then

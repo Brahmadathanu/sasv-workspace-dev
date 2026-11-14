@@ -51,6 +51,45 @@ INSERT INTO public.pec_fixture_stock_master VALUES
 CREATE VIEW public.v_proc_indent_lines_console_ordered AS
  SELECT l.indent_line_id, 'Item '||l.stock_item_id AS stock_item_name, 'KG'::text AS uom_code FROM public.proc_indent_line l;
 
+-- MODEL of the live proc_indent_set_source_pr_pec_internal (live body is NOT in the repository).
+-- Shape follows the owner's read-only inspection: status checks BEFORE any explicit lock, then a
+-- later UPDATE. A DB reviewer must confirm against pg_get_functiondef; the R10b migration does
+-- not replace this body, it only adds a lock prelude in the public wrapper.
+CREATE FUNCTION public.proc_indent_set_source_pr_pec_internal(p_indent_id bigint, p_pr_id bigint, p_note text DEFAULT NULL) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE v_status text; v_pr_status text;
+BEGIN
+  SELECT status INTO v_status FROM public.proc_indent_header WHERE indent_id = p_indent_id;
+  IF v_status IS NULL THEN RAISE EXCEPTION 'Indent not found'; END IF;
+  IF v_status <> 'draft' THEN RAISE EXCEPTION 'Source PR can be set only on draft indents (status=%)', v_status; END IF;
+  SELECT status INTO v_pr_status FROM public.proc_pr_header WHERE pr_id = p_pr_id;
+  IF v_pr_status IS DISTINCT FROM 'active' THEN RAISE EXCEPTION 'Source PR must be active (status=%)', v_pr_status; END IF;
+  IF current_setting('application_name') = 'sess_A' THEN PERFORM pg_advisory_lock(777); PERFORM pg_advisory_unlock(777); END IF;
+  UPDATE public.proc_indent_header SET source_pr_id = p_pr_id, updated_at = now() WHERE indent_id = p_indent_id;
+  UPDATE public.proc_pr_to_indent_map SET is_active = false, unlinked_at = now(), note = 'superseded by source change' WHERE indent_id = p_indent_id AND is_active;
+  INSERT INTO public.proc_pr_to_indent_map(pr_id, indent_id, created_by, is_active, linked_at, note) VALUES (p_pr_id, p_indent_id, auth.uid(), true, now(), coalesce(p_note, 'source set'));
+END $$;
+-- c8a-generated public wrapper (pre-R10b): permission then delegate, NO locks.
+CREATE FUNCTION public.proc_indent_set_source_pr(p_indent_id bigint, p_pr_id bigint, p_note text DEFAULT NULL) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
+begin
+  perform public.require_permission('module:procurement-execution-console', true);
+  perform public.proc_indent_set_source_pr_pec_internal(p_indent_id, p_pr_id, p_note);
+  return;
+end $$;
+REVOKE EXECUTE ON FUNCTION public.proc_indent_set_source_pr(bigint,bigint,text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.proc_indent_set_source_pr(bigint,bigint,text) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.proc_indent_set_source_pr_pec_internal(bigint,bigint,text) FROM PUBLIC, anon, authenticated;
+
+CREATE FUNCTION public.fx_indent_approve_pause(p bigint) RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  UPDATE public.proc_indent_header SET status='approved' WHERE indent_id=p;
+  PERFORM pg_advisory_lock(777); PERFORM pg_advisory_unlock(777);
+END $$;
+CREATE FUNCTION public.fx_pr_supersede_pause(p bigint) RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  UPDATE public.proc_pr_header SET status='superseded' WHERE pr_id=p;
+  PERFORM pg_advisory_lock(777); PERFORM pg_advisory_unlock(777);
+END $$;
+
 -- TEST-ONLY deterministic barrier. A statement-level trigger on the first
 -- UPDATE of proc_indent_line made by application 'sess_A' waits on advisory
 -- lock 777, which the controller holds. No sleeps are used for ordering.
@@ -88,7 +127,7 @@ CREATE FUNCTION public.fx_seed() RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
   TRUNCATE public.proc_pr_indent_line_map, public.proc_pr_to_indent_map, public.proc_indent_line,
            public.proc_indent_header, public.proc_pr_line, public.proc_pr_header RESTART IDENTITY CASCADE;
-  INSERT INTO public.proc_pr_header(pr_id,status) VALUES (100,'active'),(200,'draft'),(300,'draft');
+  INSERT INTO public.proc_pr_header(pr_id,status) VALUES (100,'active'),(200,'draft'),(300,'draft'),(400,'active');
   INSERT INTO public.proc_pr_line(pr_line_id,pr_id,material_class_id,stock_item_id,uom_id,requested_qty,manual_delta_qty,manual_reason) OVERRIDING SYSTEM VALUE VALUES
    (1001,100,1,11,1,5,0,'PR 11'),
    (1002,100,1,12,1,0,0,'PR 12 zero'),
@@ -98,7 +137,7 @@ BEGIN
    (2001,200,1,11,1,3,0,'PR200 11');
   INSERT INTO public.proc_indent_header(indent_id,status,source_pr_id) VALUES
    (1,'draft',100),(2,'draft',100),(3,'approved',100),(4,'draft',NULL),(5,'draft',200),
-   (6,'draft',100),(7,'draft',100),(9,'draft',100),(10,'draft',300);
+   (6,'draft',100),(7,'draft',100),(9,'draft',100),(10,'draft',300),(11,'draft',NULL),(13,'draft',100);
   INSERT INTO public.proc_indent_line(indent_line_id,indent_id,material_class_id,stock_item_id,uom_id,requested_qty,manual_reason) OVERRIDING SYSTEM VALUE VALUES
    -- indent 1 (SAFE) and 2 (RESET): historical collision shape
    (101,1,1,11,1,1,'stale'),(102,1,1,12,1,3,'stale zero'),(103,1,1,80,1,7,'manual independent'),
