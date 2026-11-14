@@ -64,6 +64,21 @@ t2("R10 staging-only pins do not weaken SW or arbitrary SQL rejection",
   [...r10, sw, illicit], [sw, illicit],
   { headBranch: "integration/pec-erp-staging-20261112",
     readText: (p) => fs.readFileSync(p, "utf8") });
-assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [addLine, ...r10], "exact Add Line and three reviewed R10 migrations");
+// R-2 approval-race correction (#412): proposed, pinned to its own branch and exact content.
+const r2fix = "supabase/migrations/20261114135500_pec_indent_set_status_header_lock.sql";
+{
+  const pin = REVIEWED_SERVER_MIGRATIONS[r2fix];
+  assert.ok(pin && /^[a-f0-9]{64}$/.test(pin.sha256), "R-2 reviewed SHA256 pin exists");
+  assert.deepEqual(pin.heads, ["claude/pec-r2-approval-race-fix-20261114"], "R-2 restricted to its own head branch");
+  const text = fs.readFileSync(r2fix, "utf8");
+  const context = { headBranch: "claude/pec-r2-approval-race-fix-20261114", readText: () => text };
+  t2("R-2 exact file accepted on its own branch", [r2fix], [], context);
+  t2("R-2 changed content rejected", [r2fix], [r2fix], { ...context, readText: () => text + "\n-- malicious change" });
+  t2("R-2 rejected on the staging branch (not yet approved for integration)", [r2fix], [r2fix], { ...context, headBranch: "integration/pec-erp-staging-20261112" });
+  t2("R-2 rejected on another client branch", [r2fix], [r2fix], { ...context, headBranch: "claude/pec-r12-resync-collision-ux-20261113" });
+  t2("R-2 rejected without context", [r2fix], [r2fix], null);
+  t2("R-2 renamed copy rejected", ["supabase/migrations/20261114135501_copy.sql"], ["supabase/migrations/20261114135501_copy.sql"], context);
+}
+assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [addLine, ...r10, r2fix], "exact Add Line, three reviewed R10 migrations and the proposed R-2 correction");
 
 console.log(`pec-protected-path-guard: ${passed}/${passed} PASS`);
