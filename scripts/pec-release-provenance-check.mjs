@@ -11,7 +11,7 @@
  * Deploy-preview hosts only: Netlify injects one fixed 4-line <div> before </body> of served
  * HTML (issue #399). That exact block is removed from the served HTML before hashing and the
  * result reports netlifyPreviewInjectionStripped. Any other byte difference still FAILS, and
- * the production host is never stripped.
+ * the production host strips only the pinned 3-line Netlify comment (see NETLIFY_PRODUCTION_COMMENT).
  *
  * Exit codes: 0 PASS (every served file identical), 1 FAIL (mismatch/HTTP error),
  *             2 BLOCKED (host unreachable / not allow-listed: NOT TESTED, never PASS).
@@ -37,13 +37,32 @@ const norm = (b) => Buffer.from(b.toString('latin1').replace(/\r\n/g, '\n'), 'la
 // attribute order, hex/uuid ids, fixed comment and script, exactly once.
 export const NETLIFY_PREVIEW_INJECTION = /<div data-netlify-deploy-id="[0-9a-f]{24}" data-netlify-site-id="[0-9a-f-]{36}" data-vcs="github" style="position:fixed">\n  <!-- This div is automatically inserted by Netlify for all Deploy Preview URLs\. -->\n  <script async src="\/\.netlify\/scripts\/cdp"><\/script>\n<\/div>\n?/g;
 export const isPreviewHost = (h) => /^deploy-preview-\d+--sasv-utilities-hub\.netlify\.app$/.test(h);
-// Returns { buf, stripped }. Strips only on preview hosts, only for HTML, only if the exact block occurs once.
+// Production host only: Netlify Edge serves the PEC HTML with ONE fixed 3-line comment inserted
+// directly after the `<meta charset="UTF-8" />` line (observed 14 Nov 2026, post-deploy of main 6ce8a1cb).
+// Pinned byte-for-byte (including utm_id); anything else, a second copy, or another position is NOT
+// tolerated and still FAILS. If Netlify changes the text the check fails loudly (never a false PASS).
+export const NETLIFY_PRODUCTION_COMMENT =
+  '<!-- This site is hosted on Netlify. Anyone can build and deploy a site\n' +
+  '     like this one for free: https://netlify.new/?utm_campaign=loops&utm_source=ai-legible&utm_medium=owned&utm_content=comment&utm_id=d8ee0b4c-1a12-4efd-b47c-7ced60eadcac\n' +
+  '     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->\n';
+const PRODUCTION_ANCHOR = '<meta charset="UTF-8" />\n';
+export const isProductionHost = (h) => h === 'sasv-utilities-hub.netlify.app';
+// Returns { buf, stripped }. Preview host: strips only the preview block; production host: strips only
+// the pinned comment; HTML only, only if the exact block occurs once (production: right after the anchor).
 export function stripNetlifyPreviewInjection(buf, hostname, file) {
-  if (!isPreviewHost(hostname) || !file.endsWith('.html')) return { buf, stripped: false };
-  const text = buf.toString('latin1');
-  const hits = text.match(NETLIFY_PREVIEW_INJECTION) || [];
-  if (hits.length !== 1) return { buf, stripped: false };
-  return { buf: Buffer.from(text.replace(NETLIFY_PREVIEW_INJECTION, ''), 'latin1'), stripped: true };
+  if (!file.endsWith('.html')) return { buf, stripped: false };
+  const text = buf.toString('latin1').replace(/\r\n/g, '\n');
+  if (isPreviewHost(hostname)) {
+    const hits = text.match(NETLIFY_PREVIEW_INJECTION) || [];
+    if (hits.length !== 1) return { buf, stripped: false };
+    return { buf: Buffer.from(text.replace(NETLIFY_PREVIEW_INJECTION, ''), 'latin1'), stripped: true };
+  }
+  if (isProductionHost(hostname)) {
+    const block = PRODUCTION_ANCHOR + NETLIFY_PRODUCTION_COMMENT;
+    if (text.split(NETLIFY_PRODUCTION_COMMENT).length !== 2 || text.split(block).length !== 2) return { buf, stripped: false };
+    return { buf: Buffer.from(text.replace(block, PRODUCTION_ANCHOR), 'latin1'), stripped: true };
+  }
+  return { buf, stripped: false };
 }
 export const cacheName = (buf) => /const\s+CACHE_NAME\s*=\s*"([^"]+)"/.exec(buf.toString('utf8'))?.[1] || null;
 

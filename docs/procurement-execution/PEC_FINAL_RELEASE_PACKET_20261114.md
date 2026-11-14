@@ -42,10 +42,23 @@ Disposable PG17 evidence (PR #419, runs 43605771532 and 43605771609 at `3970edcd
 | G2 | PASS (technical): 10 historical + `143000`, R10 x3, R-2, #400 installed and verified | existing evidence |
 | G3 | PASS (technical): client | existing evidence |
 | G4 | **PASS with explicit WAIVER**: Editor / View-only / No-access PASS on Netlify preview and packaged Windows Electron; provenance PASS; **installed-PWA offline/reconnect NOT TESTED, waived by owner for this release** | existing evidence + owner waiver |
-| G5 | Release step: frontend release authorized; Electron publication **not** authorized | owner decision |
+| G5 | Frontend merged to `main` (`6ce8a1cb`) and served assets verified byte-identical (see *Post-deployment verification*); Netlify production deploy status/source SHA **not independently confirmed** (no GitHub-visible Netlify status on the merge commit); Electron publication **not authorized / not done** | owner decision + served-asset evidence |
 
 ## Risks (final)
 R-1 documented recoverable deadlock risk (vendor writers update many indent headers, never lines; clean `40P01` abort; independent of R10). R-2 technically corrected (production, verified). R-3 privileged-caller boundary (service/postgres skip wrapper permission and locks by design; DB locks and live FK still serialise them). **Residual R-4: read exposure** of indent/PR tables to any signed-in user remains by design and is **temporarily accepted by the owner**; post-release permission-design follow-up tracked in its own issue. **Residual R-5: installed-PWA offline/reconnect not tested (waived).** No new material blocker found.
 
 ## Rollback
 Frontend (Netlify): republish the deploy that preceded the `main` merge, or revert the merge commit; PEC assets are network-first and the cache name is unchanged. Electron: nothing published; if published later, withdraw and re-publish the previous version. Database (forward-only, no business data written by any of these): R10a re-issue `143000`/`133000` bodies; R10b re-issue the original wrapper; R10c `DROP FUNCTION public.proc_indent_resync_collision_preview(bigint)` (client shows "preview unavailable"); R-2 remove ` for update`; #400 re-create the FOR ALL policies and re-grant INSERT/UPDATE/DELETE (restores the exposure). Never `db push`, `migration up`, `--include-all` or `db reset`; unrelated history drift remains.
+
+## Post-deployment verification (14 Nov 2026, `main` `6ce8a1cbe56e0b9b1a1beb22f71fe098647e4cd8`)
+| Check | Result |
+|---|---|
+| CI on merge commit | PASS (integrated-pec, contract, verify x2) |
+| Netlify production deploy status / source SHA | **NOT CONFIRMED from GitHub** (merge commit shows no Netlify check/status/deployment). Indirect evidence only: served assets equal the `main` tree. Owner to confirm in the Netlify dashboard that the production deploy is "Published" for `6ce8a1cb`. |
+| Served asset provenance (anonymous GET, `pec-release-provenance-check.mjs`) | **PASS** html / js / css / `sw.js` byte-identical, `CACHE_NAME` `hub-cache-v393`. HTML required tolerating Netlify's pinned 3-line edge comment (checker fixed; unit tests prove altered/duplicated/relocated/extra bytes and real content drift still FAIL). |
+| Production role smoke (Editor / View-only / No-access) | **NOT TESTED** in this step: needs the owner's own authenticated sessions; none were available to this session and no credentials were handled. Prior PASS exists only on the Netlify deploy preview and packaged Windows Electron. |
+| Installed-PWA offline/reconnect | **NOT TESTED (waived by owner)**. Not claimed. |
+| Electron publication | **Not done / not authorized.** |
+| Rollback | Republish prior Netlify deploy, or revert `6ce8a1cb` (pre-merge `main` `df66ca93`). Not exercised. |
+
+Open follow-ups: owner Netlify deploy confirmation; production role smoke via the operator runbook; #423 read-exposure permission design; PWA test (waived); Electron release decision.
