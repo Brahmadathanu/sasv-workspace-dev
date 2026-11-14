@@ -8,6 +8,12 @@ import {
 } from "./master-data-write-guard.js";
 import { resolveMasterDataLoginPage, goMasterDataHome } from "./master-data-platform.js";
 import {
+  installPopstateReapply,
+  parseMasterDataSelection,
+  replaceSelectionUrl,
+  showSelectionStatus,
+} from "./master-data-selection.js";
+import {
   mountModuleActionIcons,
   enhanceSearchableSelect,
   syncSearchableSelect,
@@ -4778,6 +4784,58 @@ rebuildTplPicker?.addEventListener("change", () => {
   void loadMappedSkusForRebuild(tplId);
 });
 
+// WP08 G2-1 selection-only URL contract (sku_id). A PM template id is NOT a SKU id. The only genuine SKU consumer is the
+// Overrides tab SKU picker; selecting it reads rpc_pm_ovr_list. The separate preview picker stays empty, so no
+// rpc_pm_preview_effective call is made from the URL. SKU must exist in the permission-filtered SKU catalogue.
+let PM_URL_SELECTION_MANAGED = false;
+function syncPmUrl() {
+  if (!PM_URL_SELECTION_MANAGED) return;
+  const v = parseInt(el("ovr_skuPicker")?.value || "", 10);
+  replaceSelectionUrl({ sku_id: Number.isFinite(v) && v > 0 ? v : null });
+}
+async function applyPmDeepLink() {
+  const sel = parseMasterDataSelection(window.location.search, "pm-templates");
+  if (!sel.present) return false;
+  PM_URL_SELECTION_MANAGED = true;
+  const notes = [...sel.issues];
+  if (sel.skuId !== null) {
+    let rows = null;
+    try {
+      rows = await ensureSkuCatalogueLoaded();
+    } catch {
+      notes.push("The SKU catalogue could not be loaded; no SKU was selected.");
+    }
+    if (rows) {
+      const hit = rows.find((r) => String(r.sku_id) === String(sel.skuId));
+      if (!hit) {
+        notes.push(`SKU ${sel.skuId} was not found in the SKU catalogue; no SKU was selected.`);
+      } else {
+        const picker = el("ovr_skuPicker");
+        populateOvrPreviewSkuPickers(rows);
+        setSearchableSelectValue(picker, hit.sku_id, true);
+        if (String(picker?.value) === String(hit.sku_id)) {
+          // Opens the Overrides tab through its own handler, which loads overrides for the picked SKU once.
+          tabBtnOverrides?.click();
+        } else {
+          notes.push(`SKU ${sel.skuId} could not be selected.`);
+        }
+      }
+    }
+  }
+  showSelectionStatus(notes.join(" "), "warning");
+  return true;
+}
+el("ovr_skuPicker")?.addEventListener("change", syncPmUrl);
+installPopstateReapply({
+  apply: () => applyPmDeepLink(),
+  blocked: () =>
+    LINES_EDIT_MODE ||
+    OVR_EDIT_MODE ||
+    MAP_EDIT_MODE ||
+    !!document.querySelector("#tabOverrides tr.dirty, #tabTemplates tr.dirty"),
+  restore: () => syncPmUrl(),
+});
+
 (async function init() {
   mountModuleActionIcons({
     home: homeBtn,
@@ -5492,6 +5550,7 @@ rebuildTplPicker?.addEventListener("change", () => {
       tabBtnMapping.disabled = true;
       tabBtnMapping.title = "No permission";
     }
+    await applyPmDeepLink();
   } catch (err) {
     console.error(err);
     setPageStatus(`Init error: ${publicErrorMessage(err)}`, "error");

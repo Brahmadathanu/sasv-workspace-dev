@@ -111,6 +111,7 @@ test("permission keys are preserved exactly (PM BOM stays module:pm-templates)",
   for (const p of [...CANON_JS, ...CANON_HTML]) assert.doesNotMatch(read(p), /module:manage-pm-bom/);
 });
 
+const G21_START = "26e3f9f29f5a22bdc6cdd82b66ba19918047ad51"; // main at WP08 G2-1 start
 const MERGED = "7392b1d25b24388204eb2b3ac3e36eec77d136cc"; // main after G2-0 (#409) and before the #416 corrective
 
 test("#416 corrective is bounded: HTML differs from merged G2-0 only by guard attributes, the guard CSS block and the viewport meta", () => {
@@ -150,8 +151,18 @@ test("#416 corrective is bounded: JS changes are guard wiring only (no RPC/table
     fs.writeFileSync(headTmp, read(p));
     let out = "";
     try { execFileSync("diff", ["-U0", tmp, headTmp], { encoding: "utf8", maxBuffer: 1 << 26 }); } catch (e) { out = e.stdout || ""; }
-    fs.rmSync(tmp, { force: true }); fs.rmSync(headTmp, { force: true });
-    const changed = out.split("\n").filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l)).map((l) => l.slice(1));
+    fs.rmSync(tmp, { force: true });
+    let changed = out.split("\n").filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l));
+    // WP08 G2-1 supersedes the G2-0 "no bridges" scope for the selection-only URL contract. Lines it adds/removes (measured
+    // against main at the G2-1 start) are excluded HERE and checked by scripts/wp08-g2-1-navigation/source.test.mjs (no new
+    // RPC/table/permission token, identical reader/writer surface). Everything else must still satisfy the #416 allow-list.
+    const g21Tmp = `${tmp}.g21`;
+    fs.writeFileSync(g21Tmp, git("show", `${G21_START}:${p}`).replace(/\r\n/g, "\n"));
+    let g21Out = "";
+    try { execFileSync("diff", ["-U0", g21Tmp, headTmp], { encoding: "utf8", maxBuffer: 1 << 26 }); } catch (e) { g21Out = e.stdout || ""; }
+    fs.rmSync(g21Tmp, { force: true }); fs.rmSync(headTmp, { force: true });
+    const g21 = new Set(g21Out.split("\n").filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l)));
+    changed = changed.filter((l) => !g21.has(l)).map((l) => l.slice(1));
     assert.ok(changed.length < 90, `${p}: ${changed.length} changed lines`);
     for (const l of changed) assert.ok(allow.some((re) => re.test(l)), `${p}: unexpected change: ${l.trim().slice(0, 120)}`);
     assert.doesNotMatch(changed.join("\n"), /\.rpc\(|\.from\(|module:/, `${p}: no data/permission-key change`);

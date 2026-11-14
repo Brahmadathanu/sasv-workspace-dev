@@ -8,6 +8,12 @@ import {
   resolveSeasonProfilesHref,
 } from "./master-data-platform.js";
 import { mountModuleHome } from "./sasv-module-chrome.js";
+import {
+  installPopstateReapply,
+  parseMasterDataSelection,
+  replaceSelectionUrl,
+  showSelectionStatus,
+} from "./master-data-selection.js";
 
 const MODULE_TARGET = "module:manage-products";
 
@@ -897,7 +903,81 @@ function setWorkspaceTab(tab) {
   if ((tab === "skus" || tab === "readiness") && (!selectedId || inNewMode)) return;
   activeTab = tab;
   paintWorkspaceTabs();
+  syncSelectionUrl();
 }
+
+// WP08 G2-1: selection-only URL contract. The URL is only kept truthful (replaceState, never pushState) once the page was
+// entered through, or is currently carrying, explicit selection params; legacy no-param URLs are never rewritten.
+let selectionUrlManaged = false;
+let applyingSelectionFromUrl = false;
+
+function syncSelectionUrl() {
+  if (!selectionUrlManaged || applyingSelectionFromUrl) return;
+  const saved = !!selectedId && !inNewMode;
+  replaceSelectionUrl({
+    product_id: saved ? selectedId : null,
+    sku_id: saved && selectedSkuId && skuDraft !== "new" ? selectedSkuId : null,
+    tab: saved && activeTab !== "products" ? activeTab : null,
+  });
+}
+
+/**
+ * Apply the explicit URL selection. Read-only: it only calls the page's existing readers (loadDetails, SKU list,
+ * readiness read). Never selects a different object than the one named; mismatches are no-ops with a status line.
+ * @returns {Promise<boolean>} true when a Product was selected from the URL
+ */
+async function applySelectionFromUrl({ initial = false } = {}) {
+  const sel = parseMasterDataSelection(window.location.search, "manage-products");
+  if (!sel.present) return false;
+  selectionUrlManaged = true;
+  applyingSelectionFromUrl = true;
+  const notes = [...sel.issues];
+  let selected = false;
+  try {
+    if (sel.productId === null) {
+      if (sel.skuId !== null) notes.push("sku_id needs a valid product_id; no Product was selected.");
+    } else if (!allProducts.some((p) => String(p.id) === String(sel.productId))) {
+      notes.push(`Product ${sel.productId} was not found; no Product was selected.`);
+    } else {
+      const same = !inNewMode && String(selectedId) === String(sel.productId);
+      let ok = same;
+      if (!same) {
+        ok = !!(await loadDetails(sel.productId));
+        if (ok) {
+          inNewMode = false;
+          previousSelectedId = null;
+          setEditing(false);
+        } else if (String(selectedId) !== String(sel.productId) || !loadedProductSnapshot) {
+          // Failed read: loadDetails sets selectedId before reading, so the initial reset below clears the half-selection.
+          notes.push(`Product ${sel.productId} could not be opened; no Product was selected.`);
+        }
+      }
+      if (ok) {
+        selected = true;
+        let tabHandled = false;
+        if (sel.skuId !== null) {
+          const sku = skuRows.find((r) => String(r.id) === String(sel.skuId));
+          if (!sku || String(sku.product_id) !== String(sel.productId)) {
+            notes.push(`SKU ${sel.skuId} does not belong to Product ${sel.productId}; no SKU was selected.`);
+          } else if (sel.tab === "readiness") {
+            await openReadinessDetail(sku.id);
+            tabHandled = true;
+          } else {
+            await selectSku(sku.id); // opens the SKUs tab
+            tabHandled = sel.tab === null || sel.tab === "skus";
+          }
+        }
+        if (!tabHandled) setWorkspaceTab(sel.tab || (sel.skuId === null ? "products" : "skus"));
+      }
+    }
+  } finally {
+    applyingSelectionFromUrl = false;
+  }
+  showSelectionStatus(notes.join(" "), "warning");
+  if (!selected && initial) await loadDetails(null);
+  return selected;
+}
+
 
 async function selectProductRow(id) {
   if (String(id) === String(selectedId) && !inNewMode) return true;
@@ -1030,6 +1110,7 @@ async function loadDetails(id) {
     loaded = true;
     applyAccessChrome();
     await loadChildSkus(id);
+    syncSelectionUrl();
   } finally {
     hideLoading();
   }
@@ -1849,6 +1930,7 @@ async function selectSku(skuId) {
   if (skuDetail) skuDetail.hidden = false;
   setWorkspaceTab("skus");
   renderSkuList();
+  syncSelectionUrl();
 }
 
 function beginNewSku() {
@@ -1875,6 +1957,7 @@ async function openReadinessDetail(skuId) {
   if (readinessDetailSurface) readinessDetailSurface.hidden = false;
   setWorkspaceTab("readiness");
   renderSkuList();
+  syncSelectionUrl();
   await showSelectedSkuReadiness();
 }
 
@@ -2365,8 +2448,19 @@ window.addEventListener("DOMContentLoaded", async () => {
   await loadClassifications();
   await loadSeasonProfiles();
   await loadProducts();
-  await loadDetails(null);
+  // WP08 G2-1: explicit, validated URL selection (after session + permission verified). Absent params keep the baseline.
+  const selectedFromUrl = await applySelectionFromUrl({ initial: true });
+  if (!selectedFromUrl && !selectionUrlManaged) await loadDetails(null);
 
   setEditing(false);
   applyAccessChrome();
+
+  installPopstateReapply({
+    apply: () => applySelectionFromUrl(),
+    // Unsaved Product/SKU edits or an open write dialog: never discard silently on Back/Forward.
+    blocked: () => unsaved || skuDirty || inNewMode || editing,
+    restore: () => {
+      syncSelectionUrl();
+    },
+  });
 });

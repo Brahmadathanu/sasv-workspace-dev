@@ -98,6 +98,8 @@ self.addEventListener("fetch", (event) => {
     // (new named exports); a stale cache-first copy of either side would break the import graph.
     /\/shared\/js\/costing-suite-recommended-ui-route\.js$/.test(url.pathname) ||
     /\/shared\/js\/costing-destination-access\.js$/.test(url.pathname) ||
+    // WP08 G2-1: selection-only URL contract module shared by the four Master Data pages (child import of network-first pages).
+    /\/shared\/js\/master-data-selection\.js$/.test(url.pathname) ||
     /\/shared\/js\/costing-suite-control-center\.js$/.test(url.pathname) ||
     /costing-suite-pricing-policy\.js$/.test(url.pathname) ||
     // Keep the Scheme History actor formatter in step with its network-first parent.
