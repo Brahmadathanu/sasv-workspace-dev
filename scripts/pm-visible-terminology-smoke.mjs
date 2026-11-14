@@ -17,8 +17,8 @@ function read(rel) {
   return readFileSync(join(root, rel), "utf8");
 }
 
-const bomHtml = read("manage-pm-bom.html");
-const bomJs = read("js/manage-pm-bom.js");
+const bomHtml = read("public/shared/manage-pm-bom.html");
+const bomJs = read("public/shared/js/manage-pm-bom.js");
 const rebuildHtml = read("public/shared/pm-rebuild-dashboard.html");
 const rebuildJs = read("public/shared/js/pm-rebuild-dashboard.js");
 const speHtml = read("public/shared/stock-purchase-explorer.html");

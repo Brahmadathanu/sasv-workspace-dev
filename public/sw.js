@@ -107,7 +107,12 @@ self.addEventListener("fetch", (event) => {
     // FG-BIT-UX-1: the page HTML is network-first, so its script/stylesheet must
     // be too, otherwise an installed PWA pairs new HTML with stale cached JS.
     /\/shared\/js\/fg-bulk-internal-transfer\.js$/.test(url.pathname) ||
-    /\/shared\/css\/sasv-fg-bulk-internal-transfer\.css$/.test(url.pathname)
+    /\/shared\/css\/sasv-fg-bulk-internal-transfer\.css$/.test(url.pathname) ||
+    // WP08 G2-0: the four shared Master Data pages (HTML is network-first) must not pair new HTML with a stale
+    // cache-first script/stylesheet. These URLs were never cached by any earlier cache generation, so no
+    // CACHE_NAME advance is needed; they simply must never enter the cache-first path.
+    /\/shared\/js\/(?:products|manage-rm-bom|manage-pm-bom|manage-sp-bom|master-data-platform)\.js$/.test(url.pathname) ||
+    /\/shared\/css\/(?:shared-ui|sasv-bom)\.css$/.test(url.pathname)
   ) {
     event.respondWith(
       (async () => {
