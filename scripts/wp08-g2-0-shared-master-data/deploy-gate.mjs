@@ -11,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { stripNetlifyBanner, NETLIFY_BANNER_ID } from "../costing-acceptance/verify-served-assets.mjs";
 
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -49,23 +50,31 @@ export function swProblems(swText) {
   return problems;
 }
 
-/** fetchImpl(url) -> {status, text()}. Returns {ok, problems, token}. */
+/** fetchImpl(url) -> {status, text()}. Returns {ok, problems, token, normalized}.
+ *  Owner-approved (Issue #410): an .html file whose LF-normalised hash fails the plain comparison is accepted ONLY if removing the single,
+ *  exact, correctly placed Netlify banner (stripNetlifyBanner / NETLIFY_BANNER_ID, shared with verify-served-assets.mjs) yields the reviewed hash.
+ *  JS/CSS and sw.js are never normalised; the token calculation is unchanged. Raw and normalised hashes are returned in `normalized`. */
 export async function verifyDeployed(origin, fetchImpl = fetch, root = repoRoot) {
   const problems = [];
+  const normalized = [];
   const reviewed = localManifest(root);
   for (const f of reviewed) {
     let res;
     try { res = await fetchImpl(origin + f.url); } catch (e) { problems.push(`${f.url}: ${e.message}`); continue; }
     if (res.status !== 200) { problems.push(`${f.url}: HTTP ${res.status}`); continue; }
-    const got = sha(Buffer.from(await res.text(), "utf8"));
-    if (got !== f.sha256) problems.push(`${f.url}: deployed bytes differ from the reviewed file`);
+    const servedText = await res.text();
+    const got = sha(Buffer.from(servedText, "utf8"));
+    if (got === f.sha256) continue;
+    const stripped = /\.html$/i.test(f.url) ? stripNetlifyBanner(f.url, norm(servedText)) : null;
+    if (stripped && sha(stripped) === f.sha256) normalized.push({ url: f.url, normalisation: NETLIFY_BANNER_ID, raw_sha256: got, normalized_sha256: sha(stripped), expected_sha256: f.sha256 });
+    else problems.push(`${f.url}: deployed bytes differ from the reviewed file`);
   }
   try {
     const sw = await fetchImpl(origin + "/sw.js");
     if (sw.status !== 200) problems.push(`/sw.js: HTTP ${sw.status}`);
     else problems.push(...swProblems(await sw.text()));
   } catch (e) { problems.push(`/sw.js: ${e.message}`); }
-  return { ok: problems.length === 0, problems, token: problems.length === 0 ? tokenOf(reviewed) : null };
+  return { ok: problems.length === 0, problems, normalized, token: problems.length === 0 ? tokenOf(reviewed) : null };
 }
 
 export const SQL_A = "docs/master-data-costing/WP08_G2_0_REGISTRY_PROPOSAL_UNAPPLIED/02_apply_pwa_client_rows.sql";
@@ -87,7 +96,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log(`stamped ${stampSql()}`);
   } else if (cmd === "verify" && origin) {
     const r = await verifyDeployed(origin.replace(/\/$/, ""));
-    if (r.ok) console.log(`GATE PASS\nGATE TOKEN ${r.token}`);
+    if (r.ok) {
+      for (const n of r.normalized) console.log(`NORMALIZED ${n.url} ${n.normalisation} raw=${n.raw_sha256} normalized=${n.normalized_sha256} expected=${n.expected_sha256}`);
+      console.log(`GATE PASS\nGATE TOKEN ${r.token}`);
+    }
     else { console.error(`GATE FAIL\n${r.problems.map((p) => " - " + p).join("\n")}`); process.exit(1); }
   } else { console.error("usage: deploy-gate.mjs manifest | stamp | verify <origin>"); process.exit(2); }
 }
