@@ -33,6 +33,20 @@ export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
       "claude/pec-r13-addline-374-integration-20261114",
     ]),
   }),
+  // R10 forward-only migrations: source-integrated but NOT applied to production.
+  // Pins cover the exact reviewed SQL blobs only; any mutation must fail.
+  "supabase/migrations/20261113170715_pec_safe_resync_collision_guard_lock_order.sql": Object.freeze({
+    sha256: "43b51cd98dc37635bc7c2ccfb9b76df1fcc89062e38e1886b754e3f8d19a624b",
+    heads: Object.freeze(["integration/pec-erp-staging-20261112"]),
+  }),
+  "supabase/migrations/20261113172424_pec_safe_resync_collision_preview_ro.sql": Object.freeze({
+    sha256: "7c379d30f32ebb7f1f8db6c82c8cbbe897e0cfcb05ed8273cf688ae4ad24925d",
+    heads: Object.freeze(["integration/pec-erp-staging-20261112"]),
+  }),
+  "supabase/migrations/20261114013211_pec_indent_set_source_pr_lock_prelude.sql": Object.freeze({
+    sha256: "420f64a00ee544f29cbc64a33b1c47c6c0c74184a8574cb06b3d4aa450243961",
+    heads: Object.freeze(["integration/pec-erp-staging-20261112"]),
+  }),
 });
 
 const lfSha256 = (text) => createHash("sha256").update(String(text).replace(/\r\n/g, "\n")).digest("hex");
