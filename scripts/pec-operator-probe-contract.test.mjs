@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { compare, PEC_FILES, localManifest, ALLOWED_HOSTS, stripNetlifyPreviewInjection } from './pec-release-provenance-check.mjs';
+import { compare, PEC_FILES, localManifest, ALLOWED_HOSTS, stripNetlifyPreviewInjection, NETLIFY_PRODUCTION_COMMENT } from './pec-release-provenance-check.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const harness = readFileSync(path.join(here, 'pec-phase-a-operator-browser-check.mjs'), 'utf8');
@@ -112,4 +112,32 @@ test('R10 preview probe: matches installed signature, safe id, no message/row ou
   const block = harness.slice(harness.indexOf('R10 collision-preview probe'));
   assert.ok(!block.includes('console.log(res') && !block.includes('JSON.stringify(res'));
   assert.ok(!block.includes('message:') && !block.includes('error:'));
+});
+
+test('production host: only the exact pinned Netlify comment after the charset meta is tolerated', () => {
+  const prod = 'sasv-utilities-hub.netlify.app';
+  const f = '/shared/procurement-execution-console.html';
+  const base = readFileSync(path.join(here, '..', 'public', 'shared', 'procurement-execution-console.html'), 'latin1').replace(/\r\n/g, '\n');
+  const anchor = '<meta charset="UTF-8" />\n';
+  assert.ok(base.includes(anchor));
+  const served = Buffer.from(base.replace(anchor, anchor + NETLIFY_PRODUCTION_COMMENT), 'latin1');
+  const ok = stripNetlifyPreviewInjection(served, prod, f);
+  assert.equal(ok.stripped, true);
+  assert.equal(ok.buf.toString('latin1'), base);
+  // genuine drift still fails (content differs after tolerated strip)
+  const drift = Buffer.from(base.replace('Procurement Execution Console', 'Procurement Execution Consolex').replace(anchor, anchor + NETLIFY_PRODUCTION_COMMENT), 'latin1');
+  const d = stripNetlifyPreviewInjection(drift, prod, f);
+  assert.notEqual(d.buf.toString('latin1'), base);
+  // altered comment, doubled comment, wrong position, non-html, other host: not stripped
+  const altered = Buffer.from(base.replace(anchor, anchor + NETLIFY_PRODUCTION_COMMENT.replace('Edge', 'Edgx')), 'latin1');
+  assert.equal(stripNetlifyPreviewInjection(altered, prod, f).stripped, false);
+  const twice = Buffer.from(base.replace(anchor, anchor + NETLIFY_PRODUCTION_COMMENT + NETLIFY_PRODUCTION_COMMENT), 'latin1');
+  assert.equal(stripNetlifyPreviewInjection(twice, prod, f).stripped, false);
+  const moved = Buffer.from(NETLIFY_PRODUCTION_COMMENT + base, 'latin1');
+  assert.equal(stripNetlifyPreviewInjection(moved, prod, f).stripped, false);
+  assert.equal(stripNetlifyPreviewInjection(served, prod, '/shared/js/procurement-execution-console.js').stripped, false);
+  assert.equal(stripNetlifyPreviewInjection(served, 'evil.example.com', f).stripped, false);
+  // an unrelated extra byte injected alongside the comment is not hidden by the tolerance
+  const extra = Buffer.from(base.replace(anchor, anchor + NETLIFY_PRODUCTION_COMMENT + '<!-- x -->\n'), 'latin1');
+  assert.notEqual(stripNetlifyPreviewInjection(extra, prod, f).buf.toString('latin1'), base);
 });
