@@ -1791,7 +1791,7 @@ function applyRmDeepLink() {
   return true;
 }
 // WP08 G2-1: BOM -> Product backlink in the existing "More actions" menu (read-only navigation; shown only for a
-// resolved Product and a verified module:manage-products view grant; no layout change).
+// resolved Product and a verified Manage Products view grant; no layout change).
 function syncProductBacklink() {
   if (!moreMenu) return;
   moreMenu.querySelectorAll("a[data-md-backlink]").forEach((n) => n.remove());
