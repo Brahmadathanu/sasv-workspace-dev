@@ -67,6 +67,7 @@ export function createClient() {
     from: (t) => chain(t),
     rpc: (name, args) => {
       log({ kind: "rpc", name, args });
+      if (window.__RPC && Object.prototype.hasOwnProperty.call(window.__RPC, name)) return Promise.resolve({ data: window.__RPC[name], error: null });
       if (name === "get_user_permissions") return Promise.resolve({ data: window.__GRANTS || [], error: null });
       if (name === "app_get_current_user_context") return Promise.resolve({ data: { user_id: user.id, email: user.email, is_authenticated: !!session }, error: null });
       if (name === "app_get_my_permissions") return Promise.resolve({ data: window.__GRANTS || [], error: null });
@@ -79,7 +80,7 @@ export function createClient() {
 `;
 
 /** role: denied | view | edit. suffix: query string. Returns page + helpers. */
-export async function openSelectionPage(env, { platform, moduleDef, role = "view", width = 1280, suffix = "", wait = 1200 }) {
+export async function openSelectionPage(env, { platform, moduleDef, role = "view", width = 1280, suffix = "", wait = 1200, extraGrants = [], rpc = {} }) {
   const server = env.servers[platform];
   const origin = `http://127.0.0.1:${server.address().port}`;
   const cfg = PLATFORMS[platform];
@@ -89,7 +90,7 @@ export async function openSelectionPage(env, { platform, moduleDef, role = "view
     view: [{ target: moduleDef.target, can_view: true, can_edit: false }],
     edit: [{ target: moduleDef.target, can_view: true, can_edit: true }],
   }[role];
-  await context.addInitScript(([g, f]) => { window.__GRANTS = g; window.__FIXTURES = f; }, [grants, FIXTURES]);
+  await context.addInitScript(([g, f, r]) => { window.__GRANTS = g; window.__FIXTURES = f; window.__RPC = r; }, [[...grants, ...extraGrants], FIXTURES, rpc]);
   const external = [];
   await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, async (route) => {
     const url = route.request().url();
@@ -114,3 +115,25 @@ export async function openSelectionPage(env, { platform, moduleDef, role = "view
 // Anything that could write, preview, rebuild or activate. Selection from a URL must never trigger one of these.
 export const FORBIDDEN_RPC = /(?:^|_)(?:create|update|set|save|delete|approve|submit|activate|deactivate|upsert|insert|clone|publish|supersede|rebuild|preview|map_set|map_clear|renumber|import)(?:_|$)/i;
 export const statusText = (page) => page.evaluate(() => { const e = document.getElementById("mdSelectionStatus"); return e && !e.hidden ? e.textContent : ""; });
+
+export const view = (target, edit = false) => ({ target, can_view: true, can_edit: edit });
+const dep = (label, route, status = "BLOCKED") => ({ label, dependency_code: label.toUpperCase().replace(/\W+/g, "_"), effective_status: status, recommended_ui_route: route });
+export const READINESS_RPC = {
+  rpc_get_latest_governed_cost_period_start: "2026-10-01",
+  rpc_get_product_sku_readiness: {
+    summary: { overall_severity: "BLOCKED" },
+    lifecycle: { sku_is_active: true },
+    downstream_control: {},
+    dependencies: [
+      dep("Route", "PRODUCTION_ROUTE_MANAGER"),
+      dep("Driver", "DRIVER_GOVERNANCE"),
+      dep("QC overhead", "QC_ACTION_QUEUE"),
+      dep("Commercial basis", "COMMERCIAL_SALES_ASSUMPTIONS"),
+      dep("MRP", "MRP_GOVERNANCE"),
+      dep("Scheme", "SELLING_SCHEME_POLICIES"),
+      dep("Batch", "BATCH_SIZES"),
+      dep("Regional", "REGIONAL_MARKETING_REVIEW"),
+    ],
+    shared_issues: [],
+  },
+};

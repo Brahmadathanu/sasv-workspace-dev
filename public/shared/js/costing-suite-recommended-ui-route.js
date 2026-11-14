@@ -472,3 +472,59 @@ export function resolveRecommendedUiRouteTarget(routeCode, ctx = {}) {
     resolveRecommendedUiRouteTargetUngated(routeCode, ctx),
   );
 }
+
+/**
+ * A resolver target is offerable only when it names a real, configured Costing destination (module route and, when
+ * present, an allowed lens). Single authority shared by the Costing shell surfaces and Manage Products.
+ */
+export function isConfiguredRecommendedTarget(target) {
+  if (!target || target.navigable !== true) return false;
+  const config = COSTING_ROUTE_CONFIG[target.moduleKey];
+  if (!config?.routePath) return false;
+  if (target.lensId && Array.isArray(config.allowedLensIds)) {
+    return config.allowedLensIds.includes(target.lensId);
+  }
+  return true;
+}
+
+/** Pricing Policy Manager ignores product_id/sku_id today: a PPM link never claims to carry identity. */
+export function recommendedTargetCarriesIdentity(target) {
+  return !!target && target.moduleKey !== "pricing-policy-manager";
+}
+
+function cssList(value) {
+  return Array.isArray(value) ? value.join(",") : String(value);
+}
+
+/**
+ * Same-folder (platform-neutral) href for a configured target, for hosts that run outside the Costing shell (Manage
+ * Products). Costing pages and Master Data pages share public/shared/, which Electron serves at /public/shared/ and the
+ * PWA at /shared/, so a sibling-relative URL is correct in both. Returns null for anything not configured.
+ */
+export function buildRecommendedRouteHref(target) {
+  if (!isConfiguredRecommendedTarget(target)) return null;
+  const config = COSTING_ROUTE_CONFIG[target.moduleKey];
+  const file = /([^/]+\.html)$/i.exec(String(config.routePath || ""))?.[1];
+  if (!file) return null;
+  const p = target.navigateParams || {};
+  const qs = new URLSearchParams();
+  const isPpm = target.moduleKey === "pricing-policy-manager";
+  if (isPpm) {
+    if (p.workspace) qs.set("workspace", p.workspace);
+    if (p.status?.length) qs.set("status", cssList(p.status));
+    if (p.periodStart && p.workspace === COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID) {
+      qs.set("period_start", p.periodStart);
+    }
+  } else {
+    if (p.lens) qs.set("lens", p.lens);
+    if (p.status?.length) qs.set("status", cssList(p.status));
+    if (p.issue?.length) qs.set("issue", cssList(p.issue));
+    if (p.source?.length) qs.set("source", cssList(p.source));
+    if (p.managerTab) qs.set("manager_tab", p.managerTab);
+    if (p.periodStart) qs.set("period_start", p.periodStart);
+    if (p.productId != null) qs.set("product_id", String(p.productId));
+    if (p.skuId != null) qs.set("sku_id", String(p.skuId));
+  }
+  const query = qs.toString();
+  return query ? `${file}?${query}` : file;
+}

@@ -9,6 +9,21 @@ import {
 } from "./master-data-platform.js";
 import { mountModuleHome } from "./sasv-module-chrome.js";
 import {
+  armDestinationAccessGate,
+  markDestinationAccessFailed,
+  resetDestinationAccess,
+  setDestinationAccessFromPermissionRows,
+} from "./costing-destination-access.js";
+import {
+  buildRecommendedRouteHref,
+  describeRecommendedRouteUnavailable,
+  isConfiguredRecommendedTarget,
+  recommendedTargetCarriesIdentity,
+  resolveRecommendedUiRouteTarget,
+} from "./costing-suite-recommended-ui-route.js";
+import {
+  buildMasterDataHref,
+  canOfferMasterDataLink,
   installPopstateReapply,
   parseMasterDataSelection,
   replaceSelectionUrl,
@@ -81,6 +96,9 @@ const governanceApprovalRef = document.getElementById("governanceApprovalRef");
 const governanceReasonError = document.getElementById("governanceReasonError");
 const governanceConfirm = document.getElementById("governanceConfirm");
 const governanceCancel = document.getElementById("governanceCancel");
+
+// WP08 G2-1: permission rows from the one authenticated get_user_permissions read (null = unknown, never granted).
+let permissionRows = null;
 
 const accessState = {
   userId: null,
@@ -337,6 +355,11 @@ async function loadProductMasterAccess() {
   accessState.userId = session.user.id;
   const uid = accessState.userId;
   let found = null;
+  // WP08 G2-1: fail closed. Outbound links are offered only when THIS authenticated permission read verifies the
+  // destination module's own view grant; any failure, fallback or missing row leaves them as non-link text.
+  armDestinationAccessGate();
+  resetDestinationAccess();
+  markDestinationAccessFailed();
 
   try {
     const { data: perms, error } = await supabase.rpc("get_user_permissions", {
@@ -345,6 +368,8 @@ async function loadProductMasterAccess() {
     if (!error && Array.isArray(perms)) {
       const hit = perms.find((r) => r?.target === MODULE_TARGET);
       if (hit) found = hit;
+      permissionRows = perms;
+      setDestinationAccessFromPermissionRows(perms);
     }
   } catch {
     // fall through
@@ -1931,6 +1956,7 @@ async function selectSku(skuId) {
   setWorkspaceTab("skus");
   renderSkuList();
   syncSelectionUrl();
+  renderRelatedLinks();
 }
 
 function beginNewSku() {
@@ -1958,6 +1984,7 @@ async function openReadinessDetail(skuId) {
   setWorkspaceTab("readiness");
   renderSkuList();
   syncSelectionUrl();
+  renderRelatedLinks();
   await showSelectedSkuReadiness();
 }
 
@@ -2017,6 +2044,90 @@ function manageProductsRemediationAction(issue) {
   return null;
 }
 
+// ─── WP08 G2-1 outbound handoffs (read-only navigation; never invokes a writer) ───
+function relatedContext() {
+  const row = skuRows.find((r) => String(r.id) === String(selectedSkuId)) || null;
+  return {
+    productId: selectedId,
+    skuId: row && skuDraft !== "new" ? row.id : null,
+    periodStart: governedPeriodStart,
+  };
+}
+
+/** Resolver-backed destination for a server recommended_ui_route code, or an explanatory non-link. */
+function readinessRouteLink(route) {
+  const ctx = relatedContext();
+  const target = resolveRecommendedUiRouteTarget(route, ctx);
+  if (!isConfiguredRecommendedTarget(target)) {
+    return target?.reason && /^permission-/.test(target.reason)
+      ? { text: describeRecommendedRouteUnavailable(target.reason) }
+      : null;
+  }
+  const href = buildRecommendedRouteHref(target);
+  if (!href) return null;
+  return {
+    href,
+    label: target.label,
+    note: recommendedTargetCarriesIdentity(target)
+      ? null
+      : "Opens the workspace only; this Product/SKU is not carried over.",
+  };
+}
+
+/** Related / Open in links, only where the identity, the destination's selection contract and view permission are proven. */
+function relatedLinkSpecs() {
+  const ctx = relatedContext();
+  const specs = [];
+  if (!ctx.productId || inNewMode) return specs;
+  const offer = (moduleKey, label, params) => {
+    if (!canOfferMasterDataLink(moduleKey, permissionRows)) return;
+    const href = buildMasterDataHref(moduleKey, params);
+    if (href) specs.push({ href, label });
+  };
+  offer("manage-rm-bom", "Open RM BOM for this Product", { productId: ctx.productId });
+  if (ctx.skuId != null) offer("pm-templates", "Open PM BOM for this SKU", { skuId: ctx.skuId });
+  // SP BOM is keyed by an SP owner stock item, and no Product -> owner association exists in the verified data: no link.
+  const prm = resolveRecommendedUiRouteTarget("PRODUCTION_ROUTE_MANAGER", { productId: ctx.productId });
+  if (prm.navigable === true && prm.productId != null) {
+    const href = buildRecommendedRouteHref(prm);
+    if (href) specs.push({ href, label: "Open Production Route for this Product" });
+  }
+  return specs;
+}
+
+function renderRelatedLinks() {
+  const hosts = [skuReadiness, document.querySelector("#skuDetail .mp-surface-panel")].filter(Boolean);
+  for (const host of hosts) {
+    host.querySelectorAll(":scope > .mp-related").forEach((n) => n.remove());
+    const specs = relatedLinkSpecs();
+    if (!specs.length) continue;
+    const box = document.createElement("div");
+    box.className = "mp-related";
+    box.setAttribute("data-md-related", "");
+    const heading = document.createElement("h4");
+    heading.className = "mp-group-title";
+    heading.textContent = "Related";
+    box.appendChild(heading);
+    const list = document.createElement("ul");
+    for (const spec of specs) {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = spec.href;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = spec.label;
+      li.appendChild(a);
+      list.appendChild(li);
+    }
+    box.appendChild(list);
+    const hint = document.createElement("div");
+    hint.className = "mp-remediation-meta";
+    hint.textContent = "Opens in a new tab. Navigation only; the destination applies its own permission check.";
+    box.appendChild(hint);
+    host.appendChild(box);
+  }
+}
+
 function appendRemediation(parent, title, status, note, reasonCode, route, action) {
   const item = document.createElement("div");
   item.className = "mp-remediation-item";
@@ -2046,6 +2157,27 @@ function appendRemediation(parent, title, status, note, reasonCode, route, actio
     routeLine.className = "mp-remediation-route";
     routeLine.textContent = `Resolve in: ${route}`;
     item.appendChild(routeLine);
+    const link = readinessRouteLink(route);
+    if (link?.href) {
+      const a = document.createElement("a");
+      a.className = "btn secondary";
+      a.href = link.href;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = link.label;
+      item.appendChild(a);
+      if (link.note) {
+        const n = document.createElement("div");
+        n.className = "mp-remediation-meta";
+        n.textContent = link.note;
+        item.appendChild(n);
+      }
+    } else if (link?.text) {
+      const n = document.createElement("div");
+      n.className = "mp-remediation-meta";
+      n.textContent = link.text;
+      item.appendChild(n);
+    }
   }
   if (action && typeof action.run === "function") {
     const button = document.createElement("button");
@@ -2170,6 +2302,7 @@ function renderSkuReadiness(payload) {
     remediation.prepend(heading);
     skuReadiness.appendChild(remediation);
   }
+  renderRelatedLinks();
 }
 
 function skuFormValues() {

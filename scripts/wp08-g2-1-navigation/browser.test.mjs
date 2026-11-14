@@ -3,7 +3,7 @@
 //   node --test scripts/wp08-g2-1-navigation/browser.test.mjs
 import test from "node:test";
 import assert from "node:assert/strict";
-import { launch, startServer, PLATFORMS, MODULES, openSelectionPage, FORBIDDEN_RPC, statusText } from "./harness.mjs";
+import { launch, startServer, PLATFORMS, MODULES, openSelectionPage, FORBIDDEN_RPC, statusText, view, READINESS_RPC } from "./harness.mjs";
 
 const mod = (key) => MODULES.find((m) => m.key === key);
 let env;
@@ -197,6 +197,76 @@ for (const platform of Object.keys(PLATFORMS)) {
       assert.deepEqual(c.filter((x) => (x.kind === "from" && /bom_header|v_picker|v_sku/.test(x.table)) || x.name === "rpc_pm_ovr_list"), [], key);
       await r.context.close();
     }
+  });
+
+  // ───────── Stage C: outbound handoffs ─────────
+  const ALL_VIEW = [view("module:manage-rm-bom"), view("module:pm-templates"), view("module:production-route-manager"), view("module:cost-build-manager"), view("module:cost-sheet-review"), view("module:pricing-policy-manager")];
+  const readinessLinks = (page) => page.evaluate(() => ({
+    related: [...document.querySelectorAll("#skuReadiness .mp-related a")].map((a) => a.getAttribute("href")),
+    remediation: [...document.querySelectorAll("#skuReadiness .mp-remediation-item")].map((it) => ({ text: it.querySelector("strong")?.textContent, route: it.querySelector(".mp-remediation-route")?.textContent, href: it.querySelector("a")?.getAttribute("href") || null, note: [...it.querySelectorAll(".mp-remediation-meta")].map((m) => m.textContent).join("|") })),
+  }));
+  P("Products readiness: Related and remediation links only for proven destinations with verified view permission", async (e) => {
+    const r = await openSelectionPage(e, { platform, moduleDef: mod("manage-products"), suffix: "?product_id=11&sku_id=501&tab=readiness", extraGrants: ALL_VIEW, rpc: READINESS_RPC });
+    const l = await readinessLinks(r.page);
+    assert.deepEqual(l.related, ["manage-rm-bom.html?product_id=11", "manage-pm-bom.html?sku_id=501", "production-route-manager.html?lens=product-route-assignments&product_id=11"]);
+    const by = Object.fromEntries(l.remediation.map((x) => [x.route.replace("Resolve in: ", ""), x]));
+    assert.equal(by.PRODUCTION_ROUTE_MANAGER.href, "production-route-manager.html?lens=product-route-assignments&product_id=11");
+    assert.equal(by.DRIVER_GOVERNANCE.href, "cost-build-manager.html?lens=driver-governance");
+    assert.equal(by.QC_ACTION_QUEUE.href, "cost-sheet-review.html?lens=qc-action-queue&period_start=2026-10-01");
+    assert.equal(by.COMMERCIAL_SALES_ASSUMPTIONS.href, "pricing-policy-manager.html?workspace=commercial-sales-assumptions&period_start=2026-10-01");
+    assert.match(by.COMMERCIAL_SALES_ASSUMPTIONS.note, /not carried over/);
+    for (const code of ["MRP_GOVERNANCE", "SELLING_SCHEME_POLICIES", "BATCH_SIZES", "REGIONAL_MARKETING_REVIEW"]) assert.equal(by[code].href, null, `${code} stays text only`);
+    assert.deepEqual(r.errors, []); assertNoWrites(await r.calls(), r.external);
+    await r.context.close();
+  });
+  P("Products readiness: no destination permission -> no links, explanatory text; SP BOM never offered", async (e) => {
+    const r = await openSelectionPage(e, { platform, moduleDef: mod("manage-products"), suffix: "?product_id=11&sku_id=501&tab=readiness", rpc: READINESS_RPC });
+    const l = await readinessLinks(r.page);
+    assert.deepEqual(l.related, []);
+    assert.ok(l.remediation.length >= 8 && l.remediation.every((x) => x.href === null), "no remediation link without destination view permission");
+    assert.match(l.remediation.find((x) => /DRIVER_GOVERNANCE/.test(x.route)).note, /do not have permission/);
+    await r.context.close();
+    const v = await openSelectionPage(e, { platform, moduleDef: mod("manage-products"), suffix: "?product_id=11&sku_id=501&tab=readiness", extraGrants: [{ target: "module:manage-sp-bom", can_view: true, can_edit: true }], rpc: READINESS_RPC });
+    assert.deepEqual((await readinessLinks(v.page)).related, [], "SP BOM has no proven Product->owner mapping");
+    await v.context.close();
+  });
+  P("Products readiness: a can_view=false or non-boolean grant never produces a link", async (e) => {
+    const r = await openSelectionPage(e, { platform, moduleDef: mod("manage-products"), suffix: "?product_id=11&sku_id=501&tab=readiness", extraGrants: [{ target: "module:manage-rm-bom", can_view: false, can_edit: true }, { target: "module:pm-templates", can_view: "true", can_edit: true }], rpc: READINESS_RPC });
+    assert.deepEqual((await readinessLinks(r.page)).related, []);
+    await r.context.close();
+  });
+  P("Products -> RM BOM handoff: link resolves under this platform's prefix, opens read-only, lands on the same Product", async (e) => {
+    const r = await openSelectionPage(e, { platform, moduleDef: mod("manage-products"), suffix: "?product_id=11&sku_id=501&tab=readiness", extraGrants: ALL_VIEW, rpc: READINESS_RPC });
+    const href = (await readinessLinks(r.page)).related[0];
+    const abs = new URL(href, r.page.url());
+    assert.equal(abs.pathname, `${PLATFORMS[platform].pagePrefix}manage-rm-bom.html`);
+    const [popup] = await Promise.all([r.context.waitForEvent("page"), r.page.locator('#skuReadiness .mp-related a[href^="manage-rm-bom"]').click()]);
+    await popup.waitForLoadState("load"); await popup.waitForTimeout(1200);
+    assert.equal(new URL(popup.url()).pathname, abs.pathname);
+    assert.equal(await popup.evaluate(() => document.getElementById("productPicker").value), "11");
+    assert.equal(await popup.evaluate(() => window.opener), null, "noopener");
+    assert.deepEqual((await popup.evaluate(() => window.__CALLS)).filter((c) => c.kind === "WRITE" || (c.kind === "rpc" && /(?:create|update|set|save|delete|approve|submit|activate|upsert|insert|clone|rebuild|preview)/i.test(c.name))), []);
+    await r.context.close();
+  });
+  P("RM BOM -> Product backlink: only with a resolved Product and verified manage-products view; lands on the same Product", async (e) => {
+    const links = (page) => page.evaluate(() => [...document.querySelectorAll("#moreMenu a[data-md-backlink]")].map((a) => a.getAttribute("href")));
+    let r = await openSelectionPage(e, { platform, moduleDef: mod("manage-rm-bom"), suffix: "?product_id=11", extraGrants: [view("module:manage-products")] });
+    assert.deepEqual(await links(r.page), ["manage-products.html?product_id=11"]);
+    const abs = new URL("manage-products.html?product_id=11", r.page.url());
+    assert.equal(abs.pathname, `${PLATFORMS[platform].pagePrefix}manage-products.html`);
+    const popup = await r.context.newPage();
+    await popup.goto(abs.href); await popup.waitForTimeout(1200);
+    assert.equal(await popup.evaluate(() => document.getElementById("itemInput").value), "Alpha");
+    await popup.close(); await r.context.close();
+    r = await openSelectionPage(e, { platform, moduleDef: mod("manage-rm-bom"), suffix: "?product_id=11" });
+    assert.deepEqual(await links(r.page), [], "no grant -> no backlink");
+    await r.context.close();
+    r = await openSelectionPage(e, { platform, moduleDef: mod("manage-rm-bom"), suffix: "?product_id=11", extraGrants: [{ target: "module:manage-products", can_view: false, can_edit: false }] });
+    assert.deepEqual(await links(r.page), [], "view=false -> no backlink");
+    await r.context.close();
+    r = await openSelectionPage(e, { platform, moduleDef: mod("manage-rm-bom"), extraGrants: [view("module:manage-products")] });
+    assert.deepEqual(await links(r.page), [], "no selected Product -> no backlink");
+    await r.context.close();
   });
   for (const width of [1280, 390]) {
     P(`deep-linked pages @${width}: no page errors; horizontal overflow ${width === 390 ? "checked except known PM UX-P05" : "checked"}`, async (e) => {
