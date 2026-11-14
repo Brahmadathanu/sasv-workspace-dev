@@ -100,7 +100,7 @@ Electron registry rows still say `manage-*.html`; those root URLs forward to the
 2. Deploy the PWA from `public/`; verify `/shared/manage-{products,rm-bom,pm-bom,sp-bom}.html` and CSS/JS return 200 and render for a real view-only and an editor identity (owner-authorised, no writers pressed).
 3. Run `deploy-gate.mjs verify <pwa-origin>` (must PASS), then `01_preflight_and_before_select.sql` (read-only; every `pwa_state` must be `ABSENT`), then, with the separate production-mutation approval, `02_apply_pwa_client_rows.sql` (fails closed on any existing PWA row; keep the APPLY RECEIPT); verify the PWA launcher shows the four modules per existing grants.
 4. Release Electron (contains the same files); after adoption, optionally apply `03_optional_repoint_electron_routes.sql`; stubs may then be retired.
-5. Rollback: `99_rollback.sql`; code rollback by reverting the PR (stubs make an Electron-side revert safe because registry rows were never changed unless step B ran).
+5. Rollback: `98_rollback_step_b_electron.sql` then `99_rollback_step_a_pwa.sql` with the saved receipts; code rollback by reverting the PR (stubs make an Electron-side revert safe because registry rows were never changed unless step B ran).
 
 ## 8. Files in this package
 See the PR file list: 9 moved files + `master-data-platform.js`, 4 root stubs, 6 HTML/CSS reference edits (4 root pages, MRP console, plus the moved pages), 7 smoke path updates (1 assertion updated), the test directory `scripts/wp08-g2-0-shared-master-data/`, and `WP08_G2_0_REGISTRY_PROPOSAL_UNAPPLIED/`.
