@@ -68,3 +68,29 @@ REVOKE ALL ON FUNCTION public.proc_pr_add_line_pec_internal(bigint,bigint,bigint
 GRANT EXECUTE ON FUNCTION public.proc_pr_add_line_pec_internal(bigint,bigint,bigint,bigint,numeric,text) TO service_role;
 REVOKE ALL ON FUNCTION public.proc_pr_set_manual_delta_pec_internal(bigint,numeric,text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.proc_pr_set_manual_delta_pec_internal(bigint,numeric,text) TO service_role;
+
+-- #400 live-shaped tables (catalog read 14 Nov 2026): three item-policy tables with a FOR ALL policy for any signed-in
+-- user, and proc_pr_revision_map with broad table grants but RLS and no policy. Invoker views model the live
+-- security-invoker views (v_proc_item_*_effective, v_proc_indent_from_pr_audit) that read these tables as the caller.
+ALTER ROLE service_role BYPASSRLS;
+CREATE TABLE public.proc_item_criticality_policy (item_id bigint PRIMARY KEY, level int NOT NULL);
+CREATE TABLE public.proc_item_lead_time_policy (item_id bigint PRIMARY KEY, days int NOT NULL);
+CREATE TABLE public.proc_item_production_urgency (item_id bigint PRIMARY KEY, urgency int NOT NULL);
+CREATE TABLE public.proc_pr_revision_map (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, pr_id bigint);
+INSERT INTO public.proc_item_criticality_policy VALUES (11, 1), (12, 2);
+INSERT INTO public.proc_item_lead_time_policy VALUES (11, 5), (12, 6);
+INSERT INTO public.proc_item_production_urgency VALUES (11, 1), (12, 3);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.proc_item_criticality_policy, public.proc_item_lead_time_policy, public.proc_item_production_urgency TO authenticated;
+GRANT ALL ON public.proc_pr_revision_map TO anon, authenticated;
+GRANT ALL ON public.proc_item_criticality_policy, public.proc_item_lead_time_policy, public.proc_item_production_urgency, public.proc_pr_revision_map TO service_role;
+ALTER TABLE public.proc_item_criticality_policy ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.proc_item_lead_time_policy ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.proc_item_production_urgency ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.proc_pr_revision_map ENABLE ROW LEVEL SECURITY;
+CREATE POLICY proc_item_criticality_policy_authenticated_crud ON public.proc_item_criticality_policy FOR ALL TO authenticated USING ((SELECT auth.uid()) IS NOT NULL) WITH CHECK ((SELECT auth.uid()) IS NOT NULL);
+CREATE POLICY proc_item_lead_time_policy_authenticated_crud ON public.proc_item_lead_time_policy FOR ALL TO authenticated USING ((SELECT auth.uid()) IS NOT NULL) WITH CHECK ((SELECT auth.uid()) IS NOT NULL);
+CREATE POLICY proc_item_production_urgency_authenticated_crud ON public.proc_item_production_urgency FOR ALL TO authenticated USING ((SELECT auth.uid()) IS NOT NULL) WITH CHECK ((SELECT auth.uid()) IS NOT NULL);
+CREATE VIEW public.fx_item_criticality_effective WITH (security_invoker = true) AS SELECT item_id, level FROM public.proc_item_criticality_policy;
+CREATE VIEW public.fx_pr_to_indent_audit WITH (security_invoker = true) AS SELECT pr_id, indent_id, is_active FROM public.proc_pr_to_indent_map;
+CREATE VIEW public.fx_line_map_audit WITH (security_invoker = true) AS SELECT indent_id, indent_line_id FROM public.proc_pr_indent_line_map;
+GRANT SELECT ON public.fx_item_criticality_effective, public.fx_pr_to_indent_audit, public.fx_line_map_audit TO authenticated;

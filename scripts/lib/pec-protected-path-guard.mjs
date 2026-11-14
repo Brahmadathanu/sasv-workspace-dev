@@ -53,6 +53,11 @@ export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
     sha256: "1dd812008e520db3a1c1ee2a3f62fe56f76350b23de417423831e6ce67d14823",
     heads: Object.freeze(["claude/pec-r2-approval-race-fix-20261114", "integration/pec-erp-staging-20261112"]),
   }),
+  // #400 authenticated-DML correction: PROPOSED, NOT applied to production, needs separate owner approval.
+  "supabase/migrations/20261114160000_pec_revoke_authenticated_dml_policy_link_tables.sql": Object.freeze({
+    sha256: "068710bf9eafe6745bf214c95ed2e0315dc1819757d23bfb53a4392037080f20",
+    heads: Object.freeze(["claude/pec-400-dml-hardening-20261114", "integration/pec-erp-staging-20261112"]),
+  }),
 });
 
 const lfSha256 = (text) => createHash("sha256").update(String(text).replace(/\r\n/g, "\n")).digest("hex");
