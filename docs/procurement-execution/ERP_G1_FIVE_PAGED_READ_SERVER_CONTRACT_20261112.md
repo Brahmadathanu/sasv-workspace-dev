@@ -1,0 +1,139 @@
+# PEC G1 — Five additive paged read contracts (12 Nov 2026)
+
+**Server:** live SASV Supabase project `qhmoqtxpeasamtlxaoak`. **Trackers:** #284 and #305. **Client:** Claude C1/C2/C3 stacked draft PRs #291 → #301 → #320; separate shared resync bug PR #319; server correction draft #317.
+
+## Contract
+
+The five new `SECURITY DEFINER`, `STABLE` functions are **read-only**, require `require_permission('module:procurement-execution-console',false)` and allow EXECUTE only to `authenticated` and `service_role` (not `PUBLIC`/`anon`). The functions do not change the existing nonpaged APIs and do not broaden access to their source views.
+
+| RPC | Inputs | Stable order |
+|---|---|---|
+| `proc_pec_pr_headers_paged` | `p_limit`, `p_offset` | `updated_at DESC NULLS LAST,pr_id DESC` |
+| `proc_pec_indent_headers_paged` | `p_limit`, `p_offset` | `updated_at DESC NULLS LAST,indent_id DESC` |
+| `proc_vendorwise_buylist_filtered_paged` | Same 5 filters as existing filtered RPC; `p_limit`, `p_offset` | `vendor_bucket_key,material_class_id,stock_item_id,uom_id` ascending |
+| `proc_pec_purchase_excess_paged` | `p_limit`, `p_offset` | `voucher_date DESC NULLS LAST,purchase_fact_id DESC` |
+| `proc_pec_excess_acceptance_audit_paged` | `p_limit`, `p_offset` | `accepted_at DESC NULLS LAST,acceptance_id DESC` |
+
+**Common return**: `TABLE(row_data jsonb,total_count bigint)`, matching the established Action Queue envelope. `row_data` contains the same columns as the original source row (including existing vendor-wise `indent_breakdown` JSONB). `total_count` counts the filtered dataset before pagination and repeats on each returned row.
+
+**Boundaries:** defaults `p_limit=100,p_offset=0`; `1<=p_limit<=200`, `0<=p_offset<=100000`. Other values raise a descriptive SQL exception. On an empty first page the function returns **zero rows**, not a synthetic empty row. Clients should interpret empty offset 0 as total 0; if an offset beyond the end returns zero rows, they must not assume the underlying dataset has total zero.
+
+**Important:** offset pagination provides deterministic ordering **within a snapshot**, not an immutable snapshot across concurrent changes. Client must reset offset/selection on filter/sort changes, use latest-wins cancellation, deduplicate by server key and keep export semantics separately verified. A future keyset cursor may be required if live concurrent writes demonstrate drift. Avoid claiming an infinite-scroll guarantee until real-account UX acceptance passes.
+
+## Source / verification
+
+- New additive migration: `supabase/migrations/20261112170000_pec_g1_five_paged_read_contracts.sql` is exact live function source and explicit grants.
+- Regression: `scripts/pec-g1-paged-read-contract-verify.sql` executed on production and passed all five permission/SECURITY DEFINER and stable-key checks.
+- Current datasets: PR headers **7/7** unique keys, Indents **45/45**, Purchase Excess **13,311/13,311**, Excess audit **0/0**, Vendor-wise **834/834**.
+- Independent source-equivalent direct-view first-page checks returned 3 unique rows for all nonempty datasets, in the expected sort order. No signed-in user token was available through the administrative connector: direct public RPC calls correctly returned `Not authenticated`, so **functional successful caller-side page reads are not claimed**.
+- No production PR/indent lines, stock or historical MRP details modified; only five new function objects were created.
+- The current client uses old unpaged endpoints. **Claude #320 does not call these new RPCs.** A separate reviewed follow-up client PR should switch them using page-aware filter and export semantics. Do not silently retrofit #320 while it is undergoing review.
+
+## Review and release conditions
+
+1. Real PEC viewer/editor JWT read; check first/next/end page, total_count, role removal and unauthorized denial.
+2. Verify server-side filtering parity for VWL and stable key/indent breakdown, including CSV/TSV/PDF export completeness beyond visible page.
+3. Benchmark Purchase Excess under real production-like page loads (13,311 rows in source); `count(*) OVER()` may still compute a full count and is not proof of p95 improvement. Add index/performance work only with query plans and timing evidence.
+4. If filters for PR/Indents/Excess remain client-only, do not claim true server pagination under filtered views until the exact filter parameters and consistent total_count semantics are added.
+5. Rebase against moving main, independent code/CI review and explicit owner merge before declaring G1 contract delivered or PWA deployed.
+
+**Formal programme gates: 0/6 verified; G0 active. S4 hybrid writer still disabled.**
+
+## 12 Nov follow-up: two-page source ordering acceptance
+
+The reproducible verifier `scripts/pec-g1-paged-read-contract-verify.sql` was extended (commit `8ceabcc`) with a **read-only, source-equivalent first/second 200-row page disjointness check**:
+
+- Purchase Excess `13,311` total: first 200, second 200, **overlap 0** (stable `voucher_date DESC NULLS LAST,purchase_fact_id DESC` ordering).
+- Vendor-wise `834` total: first 200, second 200, **overlap 0** on `(vendor_bucket_key,material_class_id,stock_item_id,uom_id)`.
+- All five function definitions continue to have module VIEW checks and `authenticated` EXECUTE true, `anon` false. Live script outcome **`PEC_G1_FIRST_TWO_SOURCE_PAGES_PASS`**.
+
+This is a **source-equivalent administrator SELECT check**, not a signed-in invocation of the actual security-definer paging RPC, no concurrency/latency guarantee and no guarantee the client filters match the server's page boundary. Actual client-side adoption and JWT-dependent acceptance remain open. No table writes.
+
+## Client dependency note
+
+Claude's #320 full PR is stacked on #291/#301; **do not merge its current broad diff blindly**. An independent compare of `claude/pec-erp-c2-immediate-vendor-selection...claude/pec-c1-five-lens-fast-track-20261112` unexpectedly includes **23 commits** and unrelated WP05/lab/SW files, so the suggested branch diff is not a safe narrow review boundary. This risk was recorded directly on #320. After prerequisite merges, derive a clean PEC-only delta and validate #319's Full→RESET behaviour.
+
+## 12 Nov — Vendor ordering regression fixed, SQL replay verified
+
+**Issue discovered:** the first version of `proc_vendorwise_buylist_filtered_paged` ordered by `vendor_bucket_key,material_class_id,stock_item_id,uom_id` rather than the canonical buyer-facing order from the legacy function (`UNASSIGNED` **last**, `vendor_bucket_name`, `stock_item_name`, `uom_code`). That could reorder the entire buying list during client pagination. Corrected the live paged RPC to match the legacy business order exactly, adding unique group keys *only as deterministic ties*. Updated existing as-yet-unmerged migration in PR #323 (commit `d051cd9`), no new migration/production purchase writes.
+
+**Evidence:** real legacy function ordering captured by `WITH ORDINALITY`; source-equivalent new ordering compared across all **834** live Vendor-wise grouped rows. **0 position mismatches**; **635 assigned groups** precede the first `UNASSIGNED` group at **position 636**. First 200 and second 200 still disjoint. Regression SQL appended to `scripts/pec-g1-paged-read-contract-verify.sql`, using a dynamic row count for future data growth; live result `PEC_G1_VENDOR_LEGACY_ORDER_PARITY_PASS`. Full migration definition replay in `BEGIN/ROLLBACK` succeeded, with corrected order present.
+
+**Single-run diagnostic, not a performance SLA:** `EXPLAIN (ANALYZE, BUFFERS,FORMAT JSON)` on underlying Purchase Excess view:
+- new paged-query equivalent (first 100 with `count(*) OVER()` and `to_jsonb`): observed execution **1,116.887 ms**, shared buffer hits **18,253**, 100 output rows;
+- existing unpaged `SELECT * ... ORDER BY ...`: observed execution **943.077 ms**, shared buffer hits **18,285**, 13,311 output rows.
+
+These are **two isolated administrator plans**, not controlled repetitions, network transmission timings, p95, signed-in RPC executions, or statistically valid comparison. They show that `count(*) OVER()` can require full-data computation even with a bounded response, so **the new RPC should not be described as a proven latency improvement**. Its bounded result helps transfer/render size, not necessarily database execution cost. Need realistic authenticated runs, client-side total/filter semantics, repeated latency benchmarking and possible separate count/optimized paging strategy before performance acceptance.
+
+**Further design caveat:** the new PR, Indents and Excess paged functions currently lack corresponding server filter inputs used by their client lists. Running existing client-side filters only on each page could omit matching results. **Do not switch those lenses to paged RPCs without synchronized server-filter contracts** and relevant export semantics; only Vendor-wise has the existing five upstream filters and even there client search/selection/export must be checked.
+
+## 12 Nov: Client parity of all three remaining sort orders
+
+Direct inspection of the current canonical shared JS found the actual **post-filter, pre-page** sort:
+- PR Workbench: `rows.sort(compareNumDesc(pr_id))`, i.e. `pr_id DESC`, **not** `updated_at DESC`.
+- Indents: `rows.sort(compareNumDesc(indent_id))`, i.e. `indent_id DESC`, **not** `updated_at DESC`.
+- Excess & Overshoot: `net_unallocated_qty DESC` (JS treats null as zero); tie `voucher_date DESC`; the legacy source read already sorted by `voucher_date DESC,purchase_fact_id DESC`, so JS stable sort preserves `purchase_fact_id DESC` as final tie-breaker.
+
+The first version of PR #323 had different orders for all three. **Live RPC definitions and the as-yet-unmerged migration were corrected** (commit `be12b7f`) to the above exact semantics. Excess verified against a source SQL reconstruction of the stable client sort on **all 13,311 records**: **0 position mismatches**; PR/Indent RPC sort clauses confirmed by the live function source. The same server migration also preserves the canonical Vendor-wise business sort as separately recorded. Regression `scripts/pec-g1-paged-read-contract-verify.sql` updated with real function-source assertions and full Excess/Vendor ordering parity; result `PEC_G1_LEGACY_CLIENT_SORT_PARITY_PASS` (commit `ab899f4`). This is **catalogue and source-equivalent parity**, not a signed-in UI acceptance.
+
+## G1 next contract: server filtering BEFORE paging, not after it
+
+The current client makes the following filters **before** `slicePage`. These must become server filters if switching to true paged reads, otherwise the UI can show a misleadingly empty page and wrong `total_count` despite matches on another server page:
+
+| Lens | Current client filters | Sorting |
+|---|---|---|
+| PR | exact status, material class ID, PR number contains-text | PR ID descending |
+| Indents | exact status, material class ID, indent number contains-text | Indent ID descending |
+| Excess | quick item-name contains-text; canonical class code; explicit date from/to (default rolling 30 days, calculated in browser); minimum net unallocated quantity; vendor display name contains-text; item name/code contains-text; unmapped-only vendor | net unallocated qty descending; voucher date descending; purchase fact ID descending (tie) |
+| Audit | no filter currently, ordered acceptance timestamp DESC then ID | accepted_at descending |
+| Vendor-wise | material class ID, RM scope, rate status, assignment status, search via existing upstream RPC; **also** check the operational vendor-bucket local filter and split indicators before adopting paging | assigned groups first, UNASSIGNED last, vendor/item/UOM; deterministic technical ties |
+
+**Required future server contract:** apply all filters inside the data selection **before** `count(*) OVER()` and `LIMIT/OFFSET`; reset page on filter changes; make date bounds ISO dates provided by client (do not recompute based on database timezone); preserve use of SQL literal-safe parameters, empty search as no filter, null handling, identity/duplicate ordering and complete exports. Consider new separately versioned filtered RPCs or carefully review signature migration before replacing currently deployed additive calls. Until this is done, the current PR/Indent/Excess endpoints are **building blocks, not production-ready replacements for the filtered UI**.
+
+**Performance checkpoint:** single-run Purchase Excess query-equivalent 100-row page with count measured ~1.117 seconds, while an unpaged result computed ~0.943 seconds on another single run. No p95/real JWT evidence or conclusion of speedup.
+
+## PR #320 diff correction
+
+A previous reviewer warning misclassified a **23-commit branch-to-branch ancestry comparison** against old C2 as an unexpected merged-scope risk. Rechecking GitHub's **actual PR #320 changed-file list** and the current-main diff returned **52/52 PEC-scoped files, zero WP05/lab/SW files**. The earlier warning was explicitly retracted on #320 (comment `6819885243`). This is **not a current unrelated-file merge blocker**. Genuine requirements remain stacked merge order #291→#301→#320, #319 Full→RESET reconciliation and the control-inventory FAIL/FIX test improvement.
+
+## 12 November 2026 — Filter-before-page gap addressed by additive versioned RPCs
+
+**New live/read-only functions** (distinct names, so neither the five previously added paged RPCs nor legacy client contracts are modified):
+- `proc_pec_pr_headers_filtered_paged(p_status text,p_material_class_id bigint,p_q text,p_limit integer,p_offset integer)`
+- `proc_pec_indent_headers_filtered_paged(p_status text,p_material_class_id bigint,p_q text,p_limit integer,p_offset integer)`
+- `proc_pec_purchase_excess_filtered_paged(p_q text,p_material_class_code text,p_date_from date,p_date_to date,p_min_qty numeric,p_vendor_q text,p_item_q text,p_unmapped_only boolean,p_limit integer,p_offset integer)`
+
+All use `TABLE(row_data jsonb,total_count bigint)`, `SECURITY DEFINER`, module VIEW permission checks, `authenticated/service_role` EXECUTE (not anon), maximum page size 200 and bounded offset. Filters are inside the source query **before** `count(*) OVER()`, sorting and `LIMIT/OFFSET`. PR/Indent descending-ID order and Excess net-unallocated-desc/date-desc/purchase-fact-ID-desc are preserved.
+
+**Excess client parity:** SQL implements case-insensitive literal-substring search (not wildcard semantics), canonical PLM→PM material-class compatibility, date boundaries passed explicitly by the client (no server date assumption), minimum positive net-unallocated quantity, vendor name and item name/code filtering, and null/empty vendor for unmapped-only. The current UI's default rolling 30-day window must still be calculated by the client and transmitted as ISO dates; the RPC defaults to **no date restriction** if dates are omitted. The client currently calls a different unpaged API; nothing automatically switches it over.
+
+**Source durability:** migration `supabase/migrations/20261112173000_pec_g1_filtered_paged_read_contracts.sql` commit `bc4ba34`, applied live and successfully replayed in a single explicit transaction ending in ROLLBACK. Read-only regression `scripts/pec-g1-filtered-paging-contract-verify.sql` commit `48821c7` executed live with outcome **`PEC_G1_FILTER_BEFORE_PAGE_CONTRACT_PASS`**; this verifies three permission/catalogue contracts, live uniqueness/representative filter inputs and required predicate presence. Current live reference examples: active PR count 6, approved indent count 45, Excess rows dated 2026-10-13–2026-11-12 count 177, unmapped Excess rows 0.
+
+**Caveats:** Source/predicate tests are not an actual authenticated user function result; end-to-end filtered-total/page-key/export parity and latency remain unverified. PR/Indent quick searches are supplied client-trimmed; client filters before pagination should be replaced, not combined with page-only post-filtering. A page beyond the end returns no rows and therefore no `total_count` (same as existing Action Queue pattern). Offset paging may drift if rows are concurrently edited. The existing Purchase Excess `count(*) OVER()` expensive view work is unchanged; real p95 and dynamic request cancellation must be tested before performance release.
+
+**Next bounded client package:** one small reviewed PR integrating these exact versioned endpoints and the existing filtered VWL endpoint; test source filter and count parity over multiple pages, total badge, filter reset, latest-wins, exports over *full* filtered result, 390/820/1440 widths and role gating. Reconcile first with Claude #291 → #301 → #320 and standalone #319, rather than editing active Claude branches.
+
+## 12 November — Representative filtered source page checks
+
+Additional read-only source-equivalent live queries tested combined predicates and unique pages:
+- PR: `status='active'`, class 1, number contains `PR-2026` → **4 matches; first page 2/2 unique**.
+- Indents: `status='approved'`, class 1, number contains `2` → **12 matches; first page 5/5 unique**. (Stored `indent_number` is numeric-looking text such as `235`, not the invented `IND-` prefix; the first test with `IND` returned zero, corrected with actual-data search.)
+- Excess: voucher dates `2026-10-13..2026-11-12`, minimum net unallocated qty 1 → **175 matches; first page 75/75 unique**.
+- Empty-match semantics: the paged SQL returns **no rows** for absent matches, and therefore cannot expose a total through the per-row `total_count`. Client must treat first-page zero rows as no matching results and reset/adjust an out-of-range offset.
+
+The independent source-controlled **new three-function** filtered migration was replayed in `BEGIN...ROLLBACK` on the corrected live schema (PASS). No production procurement rows or historical MRP runs changed. PR #323 remains **draft/unmerged**; current main progressed independently, so rebase review is required before merge. Do not promote real-user acceptance or p95 performance solely on these source tests.
+
+## 12 November — Operational vendor selection is now server-paged
+
+The Vendor-wise lens had an additional **client-only operational filter** after its existing five upstream filters: `vendor:<id>`, `bucket:LOCAL_PURCHASE` or `bucket:UNASSIGNED`. Switching to the former paged RPC without moving this predicate server-side would have incomplete totals and selection. Two **additive, read-only** RPCs are now live:
+
+- `proc_vendorwise_buylist_operational_paged(p_material_class_id bigint,p_rm_scope text,p_rate_status text,p_assignment_status text,p_q text,p_operational_filter text,p_limit integer,p_offset integer)`: `TABLE(row_data jsonb,total_count bigint)`. The final operational filter is applied **before** counting and paging, with the same established Vendor-wise business sort, unique tie-breaker and limit 1–200.
+- `proc_vendorwise_buylist_operational_options(p_material_class_id bigint,p_rm_scope text,p_rate_status text,p_assignment_status text,p_q text)`: `TABLE(filter_value text,filter_label text,filter_type text,group_count bigint)`. Options are derived from the **entire upstream filtered dataset**, not just a visible page, to prevent missing vendor choices. Client should re-fetch options when upstream filters/search change; do not include its selected operational filter in options calculation.
+
+Both are `SECURITY DEFINER`, call `require_permission('module:procurement-execution-console',false)`, permit `authenticated/service_role` EXECUTE and deny `anon/PUBLIC`. Exact SQL and grants captured in `supabase/migrations/20261112174500_pec_g1_vendor_operational_paging.sql` (commit `c627d45`).
+
+**Static/live source-equivalent verification**: all **834** existing Vendor-wise grouped rows map uniquely into **68 operational choices**. Of these, **199** rows are Unassigned, **99** Local Purchase and an example actual vendor `vendor:75` has **94** rows. No missing grouping keys. `scripts/pec-g1-operational-vendor-paging-verify.sql` (commit `6c31534`) executed live with `PEC_G1_OPERATIONAL_VENDOR_FILTER_CONTRACT_PASS`; the script checks ACL, guard, filter-before-count/page SQL and complete key grouping. An administrator query **cannot** substitute for successful real-user function invocation; signed-in JWT acceptance remains open.
+
+**Ordered source replay**: the three related PR #323 migrations (17:00 five initial paged reads; 17:30 three pre-filtered reads; 17:45 vendor operational page/options) ran together in `BEGIN…ROLLBACK` against current corrected live schema, **PASS** with **10/10 function objects** present. No actual buying-list/indent/PR/MRP row changed by this replay.
+
+The G1 server pagination design now covers the identified client pre-page filters, including Vendor-wise operational vendor choice. The remaining work is **client-side adoption with genuine signed-in account acceptance**: row_data decoding, correct total_count and empty-page handling, latest-wins/cancellation, complete filtered exports and reports, options from full filtered result, page reset on every filter change, and paged vs existing export parity. Do not claim performance speedup until independent repeated benchmarking; Excess window count may still scan the entire 13,311-row view.

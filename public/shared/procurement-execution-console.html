@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en-GB" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -791,48 +791,6 @@
         border-top: 1px solid var(--border, #e5e7eb);
         background: rgba(15, 23, 42, 0.018);
       }
-      #prViewModalBackdrop {
-        padding: 0;
-        align-items: stretch;
-        justify-content: stretch;
-      }
-      #indentViewModalBackdrop {
-        padding: 0;
-        align-items: stretch;
-        justify-content: stretch;
-      }
-      #prViewModalBackdrop .modal-fullpage {
-        width: 100%;
-        max-width: none !important;
-        height: 100%;
-        max-height: 100vh;
-        border-radius: 0;
-        border-left: 0;
-        border-right: 0;
-        padding: 14px 16px;
-      }
-      #indentViewModalBackdrop .modal-fullpage {
-        width: 100%;
-        max-width: none !important;
-        height: 100%;
-        max-height: 100vh;
-        border-radius: 0;
-        border-left: 0;
-        border-right: 0;
-        padding: 14px 16px;
-      }
-      #prViewModalBackdrop .modal-fullpage .modal-body {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        overflow: hidden;
-      }
-      #indentViewModalBackdrop .modal-fullpage .modal-body {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        overflow: hidden;
-      }
       .modal-header {
         display: flex;
         justify-content: space-between;
@@ -1012,24 +970,9 @@
         border-radius: 50%;
         animation: pecSpin 0.7s linear infinite;
       }
-      .table-topbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin: 0 0 4px;
-      }
       .toolbar-row {
         display: flex;
         align-items: center;
-      }
-      .pager-mini {
-        display: flex;
-        gap: 6px;
-        align-items: center;
-        font-size: 12px;
-      }
-      .pager-mini .muted {
-        margin-right: 2px;
       }
       #iLinesPager {
         min-height: 34px;
@@ -1111,20 +1054,6 @@
         z-index: 5;
         background: var(--panel-bg, #fff);
         box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
-      }
-      #prLinesScroll.table-scroll {
-        overflow: auto;
-        max-height: 55vh; /* safe inside modal body */
-      }
-      #prViewModalBackdrop .modal-fullpage #prLinesScroll.table-scroll {
-        flex: 1;
-        min-height: 0;
-        max-height: none;
-      }
-      #indentViewModalBackdrop .modal-fullpage #iLinesScroll.table-scroll {
-        flex: 1;
-        min-height: 0;
-        max-height: none;
       }
       .pr-line-inline-input {
         width: 100%;
@@ -1382,14 +1311,6 @@
       .pec-filter-drawer.open {
         display: block;
       }
-      .pec-filter-drawer-title {
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--muted, #6b7280);
-        margin-bottom: 8px;
-      }
       .pec-filter-label {
         font-size: 11px;
         color: var(--muted, #6b7280);
@@ -1421,28 +1342,6 @@
         letter-spacing: 0.05em;
         color: var(--muted, #6b7280);
         margin-bottom: 5px;
-      }
-      .pec-filter-actions {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: 2px;
-      }
-      .pec-filter-clear-btn {
-        border: 1px solid var(--border, #e5e7eb);
-        border-radius: 6px;
-        background: var(--panel-bg, #fff);
-        color: var(--text-color, #374151);
-        padding: 6px 10px;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-      }
-      .pec-filter-clear-btn:hover,
-      .pec-filter-clear-btn:focus-visible {
-        background: #f3f4f6;
-        border-color: var(--primary, #005a8d);
-        color: var(--primary, #005a8d);
-        outline: none;
       }
       .pec-filter-select {
         width: 100%;
@@ -1543,15 +1442,6 @@
           transform: rotate(360deg);
         }
       }
-      @media (max-width: 520px) {
-        .pec-filter-drawer {
-          position: fixed;
-          left: 8px;
-          right: 8px;
-          top: auto;
-          width: auto;
-        }
-      }
       @media (max-width: 680px) {
         .modal-backdrop {
           padding: 10px;
@@ -1570,20 +1460,6 @@
 
         .modal-body {
           padding-top: 10px;
-        }
-        #prViewModalBackdrop {
-          padding: 0;
-        }
-        #indentViewModalBackdrop {
-          padding: 0;
-        }
-        #prViewModalBackdrop .modal-fullpage {
-          border-radius: 0;
-          padding: 10px;
-        }
-        #indentViewModalBackdrop .modal-fullpage {
-          border-radius: 0;
-          padding: 10px;
         }
 
         .detail-shell {
@@ -1885,21 +1761,15 @@
         }
       }
     </style>
+    <!-- PEC-ERP-C1: SASV Workspace specialisation after inline legacy styles so token rules win the cascade -->
+    <link rel="stylesheet" href="../shared/css/sasv-procurement-execution-console.css" />
   </head>
 
-  <body data-theme="system">
-    <div
-      class="header-card"
-      style="
-        padding: 12px;
-        background: transparent;
-        border: none;
-        border-radius: 0;
-      "
-    >
-      <div class="page-header">
-        <div>
-          <h1>Procurement Execution Console</h1>
+  <body class="sasv-pec" data-theme="system">
+    <div class="header-card pec-header-card">
+      <div class="page-header pec-header">
+        <div class="pec-header-copy">
+          <h1 class="sasv-module-title">Procurement Execution Console</h1>
           <div class="page-sub" id="subtitle">
             End-to-end procurement cockpit: PR → Indent execution, priority
             queue, vendor sourcing, FIFO allocation, and overshoot control
@@ -1909,7 +1779,7 @@
             <div class="controls"></div>
           </div>
         </div>
-        <div style="display: flex; align-items: stretch; gap: 8px">
+        <div class="pec-header-actions">
           <div class="header-utils">
             <button
               id="workflowGuideBtn"
@@ -1964,9 +1834,9 @@
             <button
               id="homeBtn"
               type="button"
-              title="Home"
-              aria-label="Home"
-              class="icon-btn ghost with-label"
+              title="HOME"
+              aria-label="HOME"
+              class="sasv-home-btn"
             >
               <svg
                 width="16"
@@ -2022,12 +1892,13 @@
       <div class="tabs-card">
         <div class="tab-select-wrap">
           <select id="procTabSelect" class="tab-select" aria-label="Select tab">
-            <option value="pr" selected>PR Workbench</option>
-            <option value="indents">Indents</option>
+            <option value="pr" selected>Purchase Requisitions</option>
+            <option value="indents">Purchase Indents</option>
             <option value="vendor-buylist">Vendor-wise Buying List</option>
             <option value="action">Action Queue</option>
-            <option value="excess">Excess &amp; Overshoot</option>
+            <option value="excess">Excess Purchases</option>
           </select>
+          <span id="procTabCount" class="tab-select-count" aria-hidden="true"></span>
           <svg
             class="tab-select-icon"
             width="16"
@@ -2046,9 +1917,9 @@
             />
           </svg>
         </div>
-        <div class="tabs" role="tablist" aria-label="Procurement tabs">
-          <button class="tab-btn active" data-tab="pr">PR Workbench</button>
-          <button class="tab-btn" data-tab="indents">Indents</button>
+        <div class="tabs" role="tablist" aria-label="Procurement lenses">
+          <button class="tab-btn active" data-tab="pr">Purchase Requisitions</button>
+          <button class="tab-btn" data-tab="indents">Purchase Indents</button>
           <button
             class="tab-btn"
             data-tab="vendor-buylist"
@@ -2058,9 +1929,7 @@
             <div class="tab-sub">All actionable indents - vendor grouped</div>
           </button>
           <button class="tab-btn" data-tab="action">Action Queue</button>
-          <button class="tab-btn" data-tab="excess">
-            Excess &amp; Overshoot
-          </button>
+          <button class="tab-btn" data-tab="excess">Excess Purchases</button>
         </div>
       </div>
 
@@ -2197,51 +2066,11 @@
           </div>
 
           <div class="card">
-            <div class="table-topbar">
-              <h2 style="margin: 0">Purchase Requisitions</h2>
-              <div class="pager-mini">
-                <span class="muted" id="prMeta"></span>
-                <button
-                  id="prBtnPrev"
-                  class="icon-btn ghost"
-                  title="Previous page"
-                  aria-label="Previous page"
-                  disabled
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    aria-hidden="true"
-                  >
-                    <path d="M15 6l-6 6 6 6" />
-                  </svg>
-                </button>
-                <span id="prPaging"></span>
-                <button
-                  id="prBtnNext"
-                  class="icon-btn ghost"
-                  title="Next page"
-                  aria-label="Next page"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    aria-hidden="true"
-                  >
-                    <path d="M9 6l6 6-6 6" />
-                  </svg>
-                </button>
-              </div>
+            <div class="pec-lens-head">
+              <h2 class="pec-lens-title">Purchase Requisitions</h2>
+              <div class="pec-lens-tools"><span class="pec-lens-count" id="prMeta" aria-live="polite" aria-atomic="true"></span></div>
             </div>
-            <div class="table-scroll">
+            <div class="table-scroll" id="prScroll">
               <table class="erp-table">
                 <thead>
                   <tr>
@@ -2403,18 +2232,10 @@
           </div>
 
           <div class="card">
-            <div class="table-topbar">
-              <h2 style="margin: 0">Lines</h2>
-              <div class="pager-mini" style="margin-left: auto">
-                                <span
-                  class="muted"
-                  id="aqMeta"
-                  aria-live="polite"
-                  aria-atomic="true"
-                ></span>
-              </div>
+            <div class="pec-lens-head">
+              <h2 class="pec-lens-title">Action Queue</h2>
+              <div class="pec-lens-tools"><span class="pec-lens-count" id="aqMeta" aria-live="polite" aria-atomic="true"></span></div>
             </div>
-
             <div id="aqScroll" class="table-scroll">
               <table class="erp-table">
                 <thead>
@@ -2589,56 +2410,17 @@
             </div>
           </div>
           <div class="card">
-            <div class="table-topbar">
-              <h2 style="margin: 0">Indents</h2>
-              <div class="pager-mini">
-                <span class="muted" id="iMeta"></span>
-                <button
-                  id="iBtnPrev"
-                  class="icon-btn ghost"
-                  title="Previous page"
-                  aria-label="Previous page"
-                  disabled
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    aria-hidden="true"
-                  >
-                    <path d="M15 6l-6 6 6 6" />
-                  </svg>
-                </button>
-                <span id="iPaging"></span>
-                <button
-                  id="iBtnNext"
-                  class="icon-btn ghost"
-                  title="Next page"
-                  aria-label="Next page"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    aria-hidden="true"
-                  >
-                    <path d="M9 6l6 6-6 6" />
-                  </svg>
-                </button>
-              </div>
+            <div class="pec-lens-head">
+              <h2 class="pec-lens-title">Purchase Indents</h2>
+              <div class="pec-lens-tools"><span class="pec-lens-count" id="iMeta" aria-live="polite" aria-atomic="true"></span></div>
             </div>
-            <div class="table-scroll">
+            <div class="table-scroll" id="iScroll">
               <table class="erp-table">
                 <thead>
                   <tr>
                     <th>Indent ID</th>
                     <th>Indent Number</th>
+                    <th id="iThIndentDate" hidden>Indent Date</th>
                     <th>Approved Date</th>
                     <th>Status</th>
                     <th>Class</th>
@@ -2818,14 +2600,9 @@
           </div>
 
           <div class="card">
-            <div
-              class="toolbar-row"
-              style="justify-content: space-between; gap: 10px; flex-wrap: wrap"
-            >
-              <h2 style="margin: 0">Buying List</h2>
-
-              <div class="toolbar-row" style="gap: 8px">
-                <div class="export-menu" id="vwlExportMenu">
+            <div class="pec-lens-head pec-lens-head--tools">
+              <h2 class="pec-lens-title">Vendor-wise Buying List</h2>
+              <div class="pec-lens-tools"><div class="export-menu" id="vwlExportMenu">
                   <button
                     id="vwlExportBtn"
                     class="icon-btn ghost"
@@ -2865,54 +2642,9 @@
                       Export Vendor-wise TSV
                     </button>
                   </div>
-                </div>
-
-                <div class="pager-mini">
-                  <span class="muted" id="vwlMeta"></span>
-                  <button
-                    id="vwlPrev"
-                    class="icon-btn ghost"
-                    title="Prev"
-                    type="button"
-                    aria-label="Previous page"
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      aria-hidden="true"
-                    >
-                      <path d="M15 6l-6 6 6 6" />
-                    </svg>
-                  </button>
-                  <span id="vwlPaging"></span>
-                  <button
-                    id="vwlNext"
-                    class="icon-btn ghost"
-                    title="Next"
-                    type="button"
-                    aria-label="Next page"
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      aria-hidden="true"
-                    >
-                      <path d="M9 6l6 6-6 6" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
+                </div><span class="pec-lens-count" id="vwlMeta" aria-live="polite" aria-atomic="true"></span></div>
             </div>
-
-            <div class="table-scroll">
+            <div class="table-scroll" id="vwlScroll">
               <table class="erp-table">
                 <thead>
                   <tr>
@@ -3094,10 +2826,9 @@
             </div>
           </div>
           <div class="card" style="margin-bottom: 12px">
-            <div class="table-topbar">
-              <h2 style="margin: 0">Excess Purchases</h2>
-              <div class="pager-mini">
-                <button
+            <div class="pec-lens-head pec-lens-head--tools">
+              <h2 class="pec-lens-title">Excess Purchases</h2>
+              <div class="pec-lens-tools"><button
                   id="eAuditBtn"
                   class="icon-btn audit-btn"
                   type="button"
@@ -3122,49 +2853,19 @@
                     <line x1="8" y1="12" x2="16" y2="12" />
                     <line x1="8" y1="16" x2="14" y2="16" />
                   </svg>
-                </button>
-                <span class="muted" id="eMeta"></span>
-                <button
-                  id="eBtnPrev"
-                  class="icon-btn ghost"
-                  title="Previous page"
-                  aria-label="Previous page"
-                  disabled
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    aria-hidden="true"
-                  >
-                    <path d="M15 6l-6 6 6 6" />
-                  </svg>
-                </button>
-                <span id="ePaging"></span>
-                <button
-                  id="eBtnNext"
-                  class="icon-btn ghost"
-                  title="Next page"
-                  aria-label="Next page"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    aria-hidden="true"
-                  >
-                    <path d="M9 6l6 6-6 6" />
-                  </svg>
-                </button>
-              </div>
+                </button><span class="pec-lens-count" id="eMeta" aria-live="polite" aria-atomic="true"></span></div>
             </div>
-            <div class="table-scroll">
+            <div class="pec-lens-help">
+              <button id="eHelpBtn" type="button" class="pec-info-btn" aria-expanded="false" aria-controls="eHelp">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span>About excess purchases</span>
+              </button>
+              <p class="pec-section-note" id="eHelp">
+                Purchases received beyond their allocated indent quantity. Open a row to accept the excess with a reason; every acceptance is recorded in the Acceptance Audit.
+              </p>
+              <p class="pec-section-note" id="eSummary" aria-live="polite"></p>
+            </div>
+            <div class="table-scroll" id="eScroll">
               <table class="erp-table">
                 <thead>
                   <tr>
@@ -3192,7 +2893,7 @@
       aria-hidden="true"
       inert
     >
-      <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="eAuditTitle">
+      <div class="modal pec-detail pec-detail--panel pec-detail--feed" role="dialog" aria-modal="true" aria-labelledby="eAuditTitle">
         <div class="modal-header page-header">
           <div>
             <h3 style="margin: 0" id="eAuditTitle">Acceptance Audit</h3>
@@ -3221,49 +2922,9 @@
         </div>
 
         <div class="modal-body">
-          <div class="pager-mini" style="justify-content: flex-end">
-            <span class="muted" id="eAuditPaging">Page 1/1</span>
-            <button
-              id="eAuditBtnPrev"
-              class="icon-btn ghost"
-              title="Previous page"
-              aria-label="Previous page"
-              disabled
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"
-              >
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <button
-              id="eAuditBtnNext"
-              class="icon-btn ghost"
-              title="Next page"
-              aria-label="Next page"
-              disabled
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"
-              >
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-          </div>
+          
 
-          <div class="table-scroll" style="max-height: 55vh">
+          <div class="table-scroll" id="eAuditScroll">
             <table class="erp-table">
               <thead>
                 <tr>
@@ -3428,7 +3089,7 @@
                   ></p>
 
                   <select
-                    id="vwlSplitVendorPick"
+                    id="vwlSplitVendorPick" aria-label="Vendor to apply to all affected lines"
                     hidden
                     aria-hidden="true"
                     tabindex="-1"
@@ -3571,7 +3232,7 @@
       aria-hidden="true"
       inert
     >
-      <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="vwlBdTitle">
+      <div class="modal pec-detail pec-detail--panel" role="dialog" aria-modal="true" aria-labelledby="vwlBdTitle">
         <div class="modal-header page-header">
           <div>
             <h3 style="margin: 0" id="vwlBdTitle">Indent breakdown</h3>
@@ -3605,7 +3266,7 @@
               Review / Consolidate
             </button>
           </div>
-          <div class="table-scroll" style="max-height: 55vh">
+          <div class="table-scroll">
             <table class="erp-table">
               <thead>
                 <tr>
@@ -3626,7 +3287,7 @@
 
     <!-- Indent View modal -->
     <div class="modal-backdrop" id="indentViewModalBackdrop" aria-hidden="true">
-      <div class="modal modal-fullpage" role="dialog" aria-modal="true" aria-labelledby="iLinesTitle">
+      <div class="modal modal-fullpage pec-detail pec-detail--page" role="dialog" aria-modal="true" aria-labelledby="iLinesTitle">
         <div class="modal-header page-header">
           <div
             style="display: flex; align-items: center; gap: 6px; width: 100%"
@@ -3655,6 +3316,7 @@
                 <span id="indentSourcePrBadge" class="pill">Source PR: —</span>
               </div>
             </div>
+            <div class="pec-modal-actions" id="indentHeaderActions">
             <div
               id="indentDraftWorkflowGroup"
               style="
@@ -3868,6 +3530,7 @@
                 </button>
               </div>
             </div>
+            </div>
             <button
               id="btnIndentViewClose"
               class="modal-close-btn"
@@ -3928,6 +3591,32 @@
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
               </button>
+              <button
+                id="iBtnSelectVendor"
+                type="button"
+                data-edit-action="true"
+                class="icon-btn primary"
+                title="Select Vendor"
+                aria-label="Select Vendor"
+                aria-haspopup="dialog"
+                hidden
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <polyline points="16 11 18 13 22 9" />
+                </svg>
+              </button>
             </div>
             <div
               id="indentViewHint"
@@ -3946,49 +3635,6 @@
                 flex-wrap: wrap;
               "
             >
-              <div class="pec-search-wrap">
-                <input
-                  id="iLineSearch"
-                  class="pec-search-input"
-                  type="text"
-                  placeholder="Search items (name/code/category)..."
-                  aria-label="Search indent lines"
-                />
-                <button
-                  id="iLineSearchClear"
-                  type="button"
-                  class="pec-input-clear"
-                  title="Clear search"
-                  aria-label="Clear search"
-                  style="display: none"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="13"
-                    height="13"
-                    aria-hidden="true"
-                  >
-                    <line
-                      x1="18"
-                      y1="6"
-                      x2="6"
-                      y2="18"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                      stroke-linecap="round"
-                    />
-                    <line
-                      x1="6"
-                      y1="6"
-                      x2="18"
-                      y2="18"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                      stroke-linecap="round"
-                    />
-                  </svg>
-                </button>
-              </div>
               <div class="pec-filter-wrap" id="iLineFilterWrap">
                 <button
                   id="iLineFilterBtn"
@@ -4039,19 +3685,61 @@
                   </select>
                 </div>
               </div>
-              <span
-                id="iLinesCount"
-                class="muted"
-                style="
-                  margin-left: auto;
-                  font-size: 0.8rem;
-                  min-width: 72px;
-                  text-align: right;
-                  font-variant-numeric: tabular-nums;
-                  letter-spacing: 0.01em;
-                "
-              ></span>
+              <div class="pec-search-wrap">
+                <input
+                  id="iLineSearch"
+                  class="pec-search-input"
+                  type="text"
+                  placeholder="Search items (name/code/category)..."
+                  aria-label="Search indent lines"
+                />
+                <button
+                  id="iLineSearchClear"
+                  type="button"
+                  class="pec-input-clear"
+                  title="Clear search"
+                  aria-label="Clear search"
+                  style="display: none"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="13"
+                    height="13"
+                    aria-hidden="true"
+                  >
+                    <line
+                      x1="18"
+                      y1="6"
+                      x2="6"
+                      y2="18"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="6"
+                      y1="6"
+                      x2="18"
+                      y2="18"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
+          </div>
+          <div
+            id="iLinesRefreshWarning"
+            class="pec-refresh-warning"
+            role="alert"
+            hidden
+          >
+            <span>The line list may be out of date.</span>
+            <button id="iBtnReloadIndentLines" type="button" class="icon-btn">
+              <span>Reload lines</span>
+            </button>
           </div>
           <div id="iLinesScroll" class="table-scroll modal-scroll">
             <div id="iLinesEmpty" class="muted">No lines for this indent.</div>
@@ -4111,17 +3799,17 @@
         <div class="modal-body">
           <ol class="workflow-list">
             <li>
-              PR Workbench: Generate Draft PR, edit required quantities, then
+              Purchase Requisitions: Generate Draft PR, edit required quantities, then
               Activate.
             </li>
             <li>Create Indent from Active PR.</li>
-            <li>Indents: Approve, Issue, and Close by lifecycle status.</li>
+            <li>Purchase Indents: Approve, Issue, and Close by lifecycle status.</li>
             <li>
               Action Queue: Recommend vendor, Select vendor, then export buying
               list.
             </li>
             <li>
-              Excess &amp; Overshoot: accept excess or raise a new indent.
+              Excess Purchases: accept the excess with a reason (every acceptance is audited).
             </li>
           </ol>
           <div class="workflow-note">
@@ -4133,7 +3821,7 @@
 
     <!-- Detail modal -->
     <div class="modal-backdrop" id="detailModalBackdrop" aria-hidden="true">
-      <div class="modal detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle">
+      <div class="modal detail-modal pec-detail pec-detail--panel" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle">
         <div class="modal-header page-header">
           <h3 style="margin: 0" id="detailModalTitle"></h3>
           <div style="display: flex; align-items: center; gap: 6px">
@@ -4518,14 +4206,14 @@
           style="margin-top: 8px"
         ></div>
         <div id="indentApproveDateRow" style="margin-top: 10px; display: none">
-          <label>Approval Date</label>
+          <label for="indentApproveDate">Approval Date</label>
           <input type="date" id="indentApproveDate" />
         </div>
         <div
           id="indentOverrideReasonRow"
           style="margin-top: 10px; display: none"
         >
-          <label>Override Reason (required)</label>
+          <label for="indentOverrideReason">Override Reason (required)</label>
           <textarea
             id="indentOverrideReason"
             placeholder="Reason for close with override…"
@@ -4573,7 +4261,7 @@
           style="margin-bottom: 10px"
         ></div>
         <div>
-          <label>Select an Active PR</label>
+          <label for="indentSourcePrPick">Select an Active PR</label>
           <select
             id="indentSourcePrPick"
             size="8"
@@ -4592,7 +4280,7 @@
       id="indentResyncModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal" style="max-width: 460px" role="dialog" aria-modal="true" aria-labelledby="indentResyncTitle">
+      <div class="modal pec-resync-modal" style="max-width: 560px" role="dialog" aria-modal="true" aria-labelledby="indentResyncTitle">
         <div class="modal-header page-header">
           <h3 id="indentResyncTitle" style="margin: 0">Resync Indent from PR</h3>
           <button
@@ -4622,9 +4310,17 @@
           style="margin-top: 8px"
         ></div>
         <div class="muted" style="margin-top: 8px; font-size: 12px">
-          This will sync indent lines with source PR final quantities (including
-          delete-on-zero).
+          Syncs indent lines with the source PR's final quantities (lines at zero
+          are removed). Draft indents only, and the source PR must be active.
+          Internal finished-bulk / semi-finished materials are never purchased
+          through this console and are excluded by the server.
         </div>
+        <div id="indentResyncPreview" class="pec-resync-preview" aria-live="polite" hidden></div>
+        <div id="indentResyncConflict" class="pec-resync-conflict" role="alert" hidden></div>
+        <label id="indentResyncResetAckRow" class="pec-resync-ack" hidden>
+          <input type="checkbox" id="indentResyncResetAck" data-edit-action="true" aria-label="Confirm destructive reset of all indent lines" />
+          <span id="indentResyncResetAckText"></span>
+        </label>
         <div class="actions">
           <button id="btnIndentResyncCancel">Cancel</button>
           <button id="btnIndentResyncConfirm" data-edit-action="true">Resync</button>
@@ -4705,7 +4401,7 @@
             <div id="excessAcceptGrid" class="grid">
               <div>
                 <label
-                  >Accept Qty
+                   for="excessAcceptQty">Accept Qty
                   <span class="muted"
                     >(max: <span id="excessAcceptMax"></span>)</span
                   ></label
@@ -4718,7 +4414,7 @@
                 />
               </div>
               <div>
-                <label>Reason (required, min 10 chars)</label>
+                <label for="excessAcceptReason">Reason (required, min 10 chars)</label>
                 <textarea
                   id="excessAcceptReason"
                   placeholder="Reason for accepting excess…"
@@ -4829,19 +4525,23 @@
 
     <!-- PR Detail modal -->
     <div class="modal-backdrop" id="prViewModalBackdrop" aria-hidden="true">
-      <div class="modal modal-fullpage" role="dialog" aria-modal="true" aria-labelledby="prLinesTitle">
+      <div class="modal modal-fullpage pec-detail pec-detail--page" role="dialog" aria-modal="true" aria-labelledby="prLinesTitle">
         <div class="modal-header page-header">
           <div>
             <h3
               style="margin: 0; display: flex; align-items: center; gap: 10px"
             >
-              <span id="prLinesTitle"></span>
+              <button type="button" id="prTitleToggle" class="pec-title-toggle" aria-expanded="false" aria-controls="prDetailMeta" title="Show PR details">
+                <span id="prLinesTitle"></span>
+                <svg class="pec-title-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
               <span class="pill" id="prDetailStatus"></span>
             </h3>
             <div
               class="muted"
               id="prDetailMeta"
               style="font-size: 12px; margin-top: 4px"
+              hidden
             ></div>
           </div>
           <button
@@ -5074,49 +4774,6 @@
                 flex-wrap: wrap;
               "
             >
-              <div class="pec-search-wrap">
-                <input
-                  id="prLineSearch"
-                  class="pec-search-input"
-                  type="text"
-                  placeholder="Search items (name/code/category)..."
-                  aria-label="Search PR lines"
-                />
-                <button
-                  id="prLineSearchClear"
-                  type="button"
-                  class="pec-input-clear"
-                  title="Clear search"
-                  aria-label="Clear search"
-                  style="display: none"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="13"
-                    height="13"
-                    aria-hidden="true"
-                  >
-                    <line
-                      x1="18"
-                      y1="6"
-                      x2="6"
-                      y2="18"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                      stroke-linecap="round"
-                    />
-                    <line
-                      x1="6"
-                      y1="6"
-                      x2="18"
-                      y2="18"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                      stroke-linecap="round"
-                    />
-                  </svg>
-                </button>
-              </div>
               <div class="pec-filter-wrap" id="prLineFilterWrap">
                 <button
                   id="prLineFilterBtn"
@@ -5170,33 +4827,55 @@
                   </select>
                 </div>
               </div>
+              <div class="pec-search-wrap">
+                <input
+                  id="prLineSearch"
+                  class="pec-search-input"
+                  type="text"
+                  placeholder="Search items (name/code/category)..."
+                  aria-label="Search PR lines"
+                />
+                <button
+                  id="prLineSearchClear"
+                  type="button"
+                  class="pec-input-clear"
+                  title="Clear search"
+                  aria-label="Clear search"
+                  style="display: none"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="13"
+                    height="13"
+                    aria-hidden="true"
+                  >
+                    <line
+                      x1="18"
+                      y1="6"
+                      x2="6"
+                      y2="18"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="6"
+                      y1="6"
+                      x2="18"
+                      y2="18"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+              </div>
               <span
                 id="prLineLockPill"
                 class="pill"
                 style="display: none; margin-left: 8px"
                 >Locked (Active PR)</span
               >
-              <div
-                class="pr-lines-paging-group"
-                style="
-                  display: flex;
-                  align-items: center;
-                  gap: 6px;
-                  margin-left: auto;
-                "
-              >
-                <span
-                  id="prLineRange"
-                  class="muted"
-                  style="
-                    font-size: 0.8rem;
-                    min-width: 72px;
-                    text-align: center;
-                    font-variant-numeric: tabular-nums;
-                    letter-spacing: 0.01em;
-                  "
-                ></span>
-              </div>
             </div>
           </div>
           <div id="prLinesScroll" class="table-scroll modal-scroll">
@@ -5259,6 +4938,10 @@
             </select>
           </div>
         </div>
+        <p class="pec-section-note" style="margin: 8px 0 0">
+          Internal finished-bulk and semi-finished materials are excluded by the
+          server and never appear as purchasable lines.
+        </p>
         <div class="actions">
           <button id="btnPrRebuildCancel">Cancel</button>
           <button id="btnPrRebuildConfirm" data-edit-action="true">Rebuild</button>
@@ -5459,19 +5142,19 @@
         <div class="modal-body">
           <div class="form-grid">
             <div class="form-group">
-              <label>PR Number <span style="color: red">*</span></label>
+              <label for="prNewNumber">PR Number <span style="color: red">*</span></label>
               <input id="prNewNumber" placeholder="e.g. PR-2026-001" />
             </div>
             <div class="form-group">
-              <label>Effective From <span style="color: red">*</span></label>
+              <label for="prEffectiveFrom">Effective From <span style="color: red">*</span></label>
               <input type="date" id="prEffectiveFrom" />
             </div>
             <div class="form-group">
-              <label>Horizon Start Month</label>
+              <label for="prHorizonStart">Horizon Start Month</label>
               <input type="month" id="prHorizonStart" />
             </div>
             <div class="form-group">
-              <label>Horizon End Month</label>
+              <label for="prHorizonEnd">Horizon End Month</label>
               <input type="month" id="prHorizonEnd" />
             </div>
             <div class="form-group">
@@ -5494,11 +5177,15 @@
               </select>
             </div>
             <div class="form-group full-col">
-              <label>Notes</label>
+              <label for="prNotes">Notes</label>
               <textarea id="prNotes" placeholder="Optional notes…"></textarea>
             </div>
           </div>
         </div>
+        <p class="pec-section-note" style="margin: 8px 0 0">
+          Internal finished-bulk and semi-finished materials are excluded by the
+          server and never appear as purchasable lines.
+        </p>
         <div class="actions">
           <button id="btnGenPrCancel">Cancel</button>
           <button id="btnGenPrConfirm" data-edit-action="true">Generate</button>
@@ -5634,11 +5321,11 @@
               </div>
             </div>
             <div class="form-group">
-              <label>Requested Qty <span style="color: red">*</span></label>
+              <label for="prAddLineQty">Requested Qty <span style="color: red">*</span></label>
               <input id="prAddLineQty" type="number" min="0.001" step="any" />
             </div>
             <div class="form-group full-col">
-              <label>Reason</label>
+              <label for="prAddLineReason">Reason</label>
               <textarea
                 id="prAddLineReason"
                 placeholder="Optional reason…"
@@ -5685,7 +5372,7 @@
         </div>
         <div class="muted" id="prSetStatusItem"></div>
         <div style="margin-top: 10px">
-          <label>Note (optional)</label>
+          <label for="prSetStatusNote">Note (optional)</label>
           <textarea
             id="prSetStatusNote"
             placeholder="Optional note…"
@@ -5731,14 +5418,14 @@
         <div class="modal-body">
           <div class="form-grid">
             <div class="form-group">
-              <label>Indent Number <span style="color: red">*</span></label>
+              <label for="ciIndentNumber">Indent Number <span style="color: red">*</span></label>
               <input
                 id="ciIndentNumber"
                 placeholder="Auto-generated if blank"
               />
             </div>
             <div class="form-group">
-              <label>Indent Date <span style="color: red">*</span></label>
+              <label for="ciIndentDate">Indent Date <span style="color: red">*</span></label>
               <input type="date" id="ciIndentDate" />
             </div>
             <div class="form-group">
@@ -5751,7 +5438,7 @@
               </select>
             </div>
             <div class="form-group full-col">
-              <label>Notes</label>
+              <label for="ciNotes">Notes</label>
               <textarea id="ciNotes" placeholder="Optional notes…"></textarea>
             </div>
           </div>
@@ -5795,7 +5482,7 @@
         </div>
         <div class="modal-body">
           <div style="margin-top: 6px">
-            <label>Select Active PR</label>
+            <label for="ifpPrPick">Select Active PR</label>
             <select
               id="ifpPrPick"
               size="6"
@@ -5809,7 +5496,7 @@
             ></select>
           </div>
           <div style="margin-top: 10px">
-            <label>Indent Number (leave blank to auto-generate)</label>
+            <label for="ifpIndentNumber">Indent Number (leave blank to auto-generate)</label>
             <input id="ifpIndentNumber" placeholder="Auto-generated if blank" />
           </div>
         </div>
@@ -5850,7 +5537,7 @@
         <div class="modal-body">
           <div style="margin-bottom: 10px; display: flex; gap: 8px">
             <input
-              id="stockPickerSearch"
+              id="stockPickerSearch" aria-label="Search stock items"
               placeholder="Search by name or code…"
               style="
                 flex: 1;
@@ -5963,12 +5650,12 @@
               </div>
             </div>
             <div class="form-group">
-              <label>Requested Qty <span style="color: red">*</span></label>
+              <label for="ialQty">Requested Qty <span style="color: red">*</span></label>
               <input id="ialQty" type="number" min="0.001" step="any" />
             </div>
             <div class="form-group full-col">
               <label
-                >Reason / Remarks
+                 for="ialReason">Reason / Remarks
                 <span id="ialReasonReq" style="color: red; display: none"
                   >*</span
                 ></label
@@ -6032,15 +5719,15 @@
         <div class="modal-body">
           <div class="form-grid">
             <div class="form-group">
-              <label>Department / Unit</label>
+              <label for="expDeptUnit">Department / Unit</label>
               <input id="expDeptUnit" type="text" value="SHRO / SASV" />
             </div>
             <div class="form-group">
-              <label>Requisition No.</label>
+              <label for="expReqNo">Requisition No.</label>
               <input id="expReqNo" type="text" readonly />
             </div>
             <div class="form-group full-col">
-              <label>Location</label>
+              <label for="expLocation">Location</label>
               <input
                 id="expLocation"
                 type="text"
@@ -6048,15 +5735,15 @@
               />
             </div>
             <div class="form-group">
-              <label>Date</label>
+              <label for="expReqDate">Date</label>
               <input id="expReqDate" type="date" />
             </div>
             <div class="form-group">
-              <label>Requisition Type</label>
+              <label for="expReqType">Requisition Type</label>
               <input id="expReqType" type="text" readonly />
             </div>
             <div class="form-group">
-              <label>Requested By</label>
+              <label for="expRequestedBy">Requested By</label>
               <input
                 id="expRequestedBy"
                 type="text"
@@ -6064,7 +5751,7 @@
               />
             </div>
             <div class="form-group">
-              <label>Contact Details</label>
+              <label for="expContactDetails">Contact Details</label>
               <input
                 id="expContactDetails"
                 type="text"
@@ -6129,30 +5816,6 @@
           });
         }
 
-        // Close all open filter drawers
-        function closeAllDrawers(focusBtn) {
-          document
-            .querySelectorAll(".pec-filter-drawer.open")
-            .forEach(function (d) {
-              d.classList.remove("open");
-              var btn =
-                d._ownerBtn ||
-                (d.id
-                  ? document.querySelector('[aria-controls="' + d.id + '"]')
-                  : null);
-              if (!btn) {
-                var wrap = d.closest(".pec-filter-wrap");
-                if (wrap) btn = wrap.querySelector(".pec-filter-btn");
-              }
-              if (btn) btn.setAttribute("aria-expanded", "false");
-            });
-          if (focusBtn && typeof focusBtn.focus === "function") {
-            window.requestAnimationFrame(function () {
-              focusBtn.focus();
-            });
-          }
-        }
-
         // Update the badge count for a filter button
         function updateBadge(badgeId, btnId, selectIds) {
           var badge = document.getElementById(badgeId);
@@ -6167,93 +5830,16 @@
           btn.classList.toggle("pec-filter-btn--active", count > 0);
         }
 
-        // Wire a filter button + its drawer + badge
+        // Filter badge only: open/close/sheet behaviour lives in the module (bindFilterTrigger)
         function wireFilterDrawer(btnId, drawerId, badgeId, selectIds) {
-          var btn = document.getElementById(btnId);
-          var drawer = document.getElementById(drawerId);
-          if (!btn || !drawer) return;
-          btn.setAttribute("aria-controls", drawerId);
-          if (!btn.hasAttribute("aria-haspopup")) {
-            btn.setAttribute("aria-haspopup", "dialog");
-          }
-          drawer._ownerBtn = btn;
-
-          btn.addEventListener("click", function (e) {
-            e.stopPropagation();
-            var isOpen = drawer.classList.contains("open");
-            closeAllDrawers();
-            if (!isOpen) {
-              drawer.classList.add("open");
-              btn.setAttribute("aria-expanded", "true");
-            }
-          });
-
-          // Keep drawer open while interacting with its controls
-          drawer.addEventListener("click", function (e) {
-            e.stopPropagation();
-          });
-
-          drawer.addEventListener("mousedown", function (e) {
-            var select =
-              e.target && e.target.tagName === "SELECT"
-                ? e.target
-                : e.target && e.target.closest
-                  ? e.target.closest("select")
-                  : null;
-            if (select && drawer.contains(select)) {
-              drawer._selectInteractUntil = Date.now() + 750;
-            }
-          });
-
-          // Badge update on select change
           selectIds.forEach(function (id) {
-            var sel = document.getElementById(id);
-            if (!sel) return;
-            sel.addEventListener("change", function () {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener("change", function () {
               updateBadge(badgeId, btnId, selectIds);
             });
           });
         }
-
-        // Close drawers on outside click
-        document.addEventListener("click", function (e) {
-          var openDrawers = document.querySelectorAll(".pec-filter-drawer.open");
-          for (var i = 0; i < openDrawers.length; i++) {
-            var drawer = openDrawers[i];
-            if (drawer.contains(e.target)) return;
-            var ownerBtn =
-              drawer._ownerBtn ||
-              (drawer.id
-                ? document.querySelector('[aria-controls="' + drawer.id + '"]')
-                : null);
-            if (ownerBtn && ownerBtn.contains(e.target)) return;
-            if (
-              drawer._selectInteractUntil &&
-              Date.now() < drawer._selectInteractUntil
-            ) {
-              return;
-            }
-          }
-          if (!e.target.closest(".pec-filter-wrap")) closeAllDrawers();
-        });
-
-        document.addEventListener(
-          "keydown",
-          function (e) {
-            if (e.key !== "Escape") return;
-            var openDrawer = document.querySelector(".pec-filter-drawer.open");
-            if (!openDrawer) return;
-            var btn =
-              openDrawer._ownerBtn ||
-              (openDrawer.id
-                ? document.querySelector('[aria-controls="' + openDrawer.id + '"]')
-                : null);
-            closeAllDrawers(btn || undefined);
-            e.preventDefault();
-            e.stopPropagation();
-          },
-          true,
-        );
 
         // Wire each tab's search + clear
         wireSearch("fSearch", "fSearchClear");

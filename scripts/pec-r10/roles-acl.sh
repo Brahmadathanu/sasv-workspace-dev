@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+# F1 real-role layer: genuine require_permission, grants and RLS mirroring the live shape, exercised
+# with SET ROLE (grants are really enforced). Synthetic users only.
+#   roles-acl.sh [guarded|open|noperm]
+# Negative controls (run-roles.sh requires these to FAIL):
+#   open   -> EXECUTE broadened to PUBLIC/anon/authenticated: G5 and G6 must fail
+#   noperm -> require_permission is a no-op: G2 and G3 must fail
+set -u
+MODE=${1:-guarded}
+. "$(dirname "$0")/lib.sh" roles guarded
+P -f "$LIBDIR/fixture-rbac.sql" >/dev/null
+case $MODE in
+  open) P -c "grant execute on all functions in schema public to public, anon, authenticated" >/dev/null ;;
+  noperm) P -c "create or replace function public.require_permission(p_target text, p_need_edit boolean) returns void language sql as \$f\$ select \$f\$" >/dev/null ;;
+  guarded) : ;;
+  *) echo "bad mode"; exit 2 ;;
+esac
+EDITOR=aaaaaaaa-0000-0000-0000-000000000001; VIEWER=aaaaaaaa-0000-0000-0000-000000000002; NONE=aaaaaaaa-0000-0000-0000-000000000003
+
+# as <role> <uuid|-> "<sql>"  ->  OK | SQLSTATE:message   (statement runs and commits as that role)
+as() {
+  local role=$1 uid=$2 sql=$3 sub out
+  [ "$uid" = - ] && sub='' || sub=$uid
+  out=$(psql -X -q -At -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -d "$DB" -c "set role $role; select set_config('request.jwt.claim.sub','$sub',false); $sql" 2>&1) && { echo OK; return; }
+  printf '%s' "$out" | tr '\n' ' ' | sed -E 's/.*ERROR: +([0-9A-Z]{5}): *([^ ].{0,100}).*/\1:\2/'
+}
+ADD="select public.proc_indent_add_line(23,1,14,1,2,'role test')"
+SRC="select public.proc_indent_set_source_pr(4,100,'role test')"
+PRV="select public.proc_indent_resync_collision_preview(1)"
+gmd() { q "select public.fx_global_md5()"; }
+
+seed; A0=$(q "select public.fx_acl_md5()"); G0=$(gmd)
+
+# G1 viewer: preview allowed
+r=$(as authenticated $VIEWER "$PRV"); [ "$r" = OK ] && res G1 PASS "View-only: R10 preview permitted" || res G1 FAIL "viewer preview -> $r"
+# G2 viewer: writers denied by the permission gate, no mutation
+ok=1
+for s in "$ADD" "$SRC"; do r=$(as authenticated $VIEWER "$s"); case $r in "P0001:Permission denied for module:procurement-execution-console (edit=t)"*) : ;; *) ok=0; echo "  viewer writer -> $r" >&2 ;; esac; done
+[ "$(gmd)" = "$G0" ] || ok=0
+[ $ok = 1 ] && res G2 PASS "View-only: Add Line and source-PR change denied (P0001, 'Permission denied ... (edit=t)': PostgreSQL prints the boolean as t/f); nothing changed" || res G2 FAIL "viewer writer not denied or state changed"
+# G3 no-access: preview and writers denied; unauthenticated session rejected
+ok=1
+r=$(as authenticated $NONE "$PRV"); case $r in "P0001:Permission denied for module:procurement-execution-console (edit=f)"*) : ;; *) ok=0; echo "  none preview -> $r" >&2 ;; esac
+r=$(as authenticated $NONE "$ADD"); case $r in P0001:Permission\ denied*) : ;; *) ok=0; echo "  none writer -> $r" >&2 ;; esac
+r=$(as authenticated - "$PRV"); case $r in "P0001:Not authenticated"*) : ;; *) ok=0; echo "  no-sub preview -> $r" >&2 ;; esac
+[ "$(gmd)" = "$G0" ] || ok=0
+[ $ok = 1 ] && res G3 PASS "No-access: preview and writers denied (edit=f / edit=t wording); a session without identity is 'Not authenticated'; nothing changed" || res G3 FAIL "no-access gate wrong"
+# G4 editor: everything permitted (these two writes commit; reseed afterwards)
+ok=1
+r=$(as authenticated $EDITOR "$PRV"); [ "$r" = OK ] || { ok=0; echo "  editor preview -> $r" >&2; }
+r=$(as authenticated $EDITOR "$ADD"); [ "$r" = OK ] || { ok=0; echo "  editor add_line -> $r" >&2; }
+r=$(as authenticated $EDITOR "$SRC"); [ "$r" = OK ] || { ok=0; echo "  editor set_source -> $r" >&2; }
+[ "$(q "select (select count(*) from proc_indent_line where indent_id=23 and stock_item_id=14)=1 and (select source_pr_id from proc_indent_header where indent_id=4)=100")" = t ] || ok=0
+[ $ok = 1 ] && res G4 PASS "Editor: preview, Add Line and source-PR change all permitted and effective" || res G4 FAIL "editor flow wrong"
+# G5 anon: no EXECUTE on any wrapper or the preview
+seed; ok=1
+for s in "$ADD" "$SRC" "$PRV"; do r=$(as anon - "$s"); case $r in 42501:*) : ;; *) ok=0; echo "  anon -> $r" >&2 ;; esac; done
+[ "$(gmd)" = "$(q "select public.fx_global_md5()")" ] || ok=0
+[ $ok = 1 ] && res G5 PASS "anon: Add Line, source-PR change and preview all 42501 (no EXECUTE)" || res G5 FAIL "anon reached a wrapper or the preview"
+# G6 authenticated and anon cannot call any internal writer
+ok=1
+for who in authenticated anon; do
+  for s in "select public.proc_indent_resync_from_pr_pec_internal(9,'safe')" \
+           "select public.proc_indent_add_line_pec_internal(23,1,14,1,2,'x')" \
+           "select public.proc_indent_set_source_pr_pec_internal(4,100,'x')" \
+           "select public.proc_pr_add_line_pec_internal(200,1,12,1,1,'x')" \
+           "select public.proc_pr_set_manual_delta_pec_internal(2001,1,'x')"; do
+    r=$(as $who $EDITOR "$s"); case $r in 42501:*) : ;; *) ok=0; echo "  $who internal -> $r" >&2 ;; esac
+  done
+done
+[ $ok = 1 ] && res G6 PASS "authenticated (even with Edit) and anon cannot execute any *_pec_internal writer (42501)" || res G6 FAIL "an internal writer is executable by a client role"
+# G7 direct table DML by client roles
+seed; G0=$(gmd); ok=1
+for s in "insert into proc_indent_line(indent_id,material_class_id,stock_item_id,uom_id,requested_qty) values (23,1,15,1,1)" \
+         "update proc_indent_line set requested_qty=99" "delete from proc_indent_line" \
+         "update proc_pr_line set requested_qty=99" "insert into proc_pr_header(pr_id,status) values (900,'active')"; do
+  r=$(as authenticated $EDITOR "$s"); case $r in 42501:*) : ;; *) ok=0; echo "  authenticated DML -> $r" >&2 ;; esac
+done
+r=$(as authenticated $EDITOR "insert into proc_pr_indent_line_map(indent_id,indent_line_id,pr_id,pr_line_id) values (23,2301,100,1001)"); case $r in 42501:*) : ;; *) ok=0; echo "  map insert -> $r" >&2 ;; esac
+r=$(as anon - "insert into proc_pr_indent_line_map(indent_id,indent_line_id,pr_id,pr_line_id) values (23,2301,100,1001)"); case $r in 42501:*) : ;; *) ok=0; echo "  anon map insert -> $r" >&2 ;; esac
+as authenticated $EDITOR "update proc_pr_indent_line_map set pr_id=999; delete from proc_pr_indent_line_map" >/dev/null
+r=$(as anon - "select count(*) from proc_indent_line"); case $r in 42501:*) : ;; *) ok=0; echo "  anon select -> $r" >&2 ;; esac
+[ "$(gmd)" = "$G0" ] || { ok=0; echo "  state changed by direct DML" >&2; }
+[ $ok = 1 ] && res G7 PASS "client roles cannot write indent/PR tables; proc_pr_indent_line_map writes are stopped by RLS (insert 42501, update/delete affect 0 rows); anon cannot read; state unchanged" || res G7 FAIL "direct DML or anon read succeeded"
+# G7c CONFIRMED (live policy replicated): a signed-in user WITHOUT any PEC grant can modify PR-to-indent link rows directly
+seed; n0=$(q "select count(*) from proc_pr_to_indent_map"); a0=$(q "select count(*) from proc_pr_to_indent_map where is_active")
+as authenticated $NONE "update proc_pr_to_indent_map set is_active=false, note='tampered'; delete from proc_pr_to_indent_map where pr_id=500" >/dev/null
+n1=$(q "select count(*) from proc_pr_to_indent_map"); a1=$(q "select count(*) from proc_pr_to_indent_map where is_active")
+if [ "$a1" = 0 ] && [ "$n1" -lt "$n0" ]; then echo "RESULT G7c CONFIRMED a signed-in user with NO PEC grant changed $a0 active links to inactive and deleted rows in proc_pr_to_indent_map (FOR ALL policy auth.uid() IS NOT NULL, replicated from live): effective write access is not tied to the PEC permission (#400; same policy shape live on the criticality, lead-time and production-urgency policy tables)"; else res G7c FAIL "expected the replicated live policy to allow the write (active=$a1 rows=$n1/$n0)"; fi
+# characterisation of the pre-existing read exposure (issue #400): any signed-in user can read the tables
+seed; n=$(psql -X -q -At -d "$DB" -c "set role authenticated; select set_config('request.jwt.claim.sub','$NONE',false); select count(*) from proc_indent_line" 2>/dev/null | tail -1)
+echo "RESULT G7b INFO a signed-in user WITHOUT any PEC grant can read $n indent lines directly (policy auth.uid() IS NOT NULL) — characterisation of #400, not a fix"
+# G8 nothing above changed any ACL or policy
+[ "$(q "select public.fx_acl_md5()")" = "$A0" ] && res G8 PASS "ACL/policy fingerprint unchanged across the whole role suite" || res G8 FAIL "ACL fingerprint changed"
+
+
+# ======================= #400 correction (guarded mode only): one forward-only migration =======================
+if [ "$MODE" = guarded ]; then
+  FOUR="proc_pr_to_indent_map proc_item_criticality_policy proc_item_lead_time_policy proc_item_production_urgency"
+  reset_pol() { P -c "truncate public.proc_item_criticality_policy, public.proc_item_lead_time_policy, public.proc_item_production_urgency; insert into public.proc_item_criticality_policy values (11,1),(12,2); insert into public.proc_item_lead_time_policy values (11,5),(12,6); insert into public.proc_item_production_urgency values (11,1),(12,3)" >/dev/null; }
+  pol_md5() { q "select md5(coalesce((select string_agg(item_id||':'||level,',' order by item_id) from proc_item_criticality_policy),'')||'#'||coalesce((select string_agg(item_id||':'||days,',' order by item_id) from proc_item_lead_time_policy),'')||'#'||coalesce((select string_agg(item_id||':'||urgency,',' order by item_id) from proc_item_production_urgency),''))"; }
+  acl_other() { q "select md5(coalesce((select string_agg(p.oid::regprocedure::text||'='||coalesce(p.proacl::text,'null')||'/'||p.prosecdef::text,';' order by p.oid::regprocedure::text) from pg_proc p where p.pronamespace='public'::regnamespace and p.proname not like 'fx\_%'),'')||'#'||coalesce((select string_agg(c.relname||'='||coalesce(c.relacl::text,'null'),';' order by c.relname) from pg_class c where c.relnamespace='public'::regnamespace and c.relkind in ('r','v') and c.relname not in ('proc_pr_to_indent_map','proc_item_criticality_policy','proc_item_lead_time_policy','proc_item_production_urgency','proc_pr_indent_line_map','proc_pr_revision_map')),''))"; }
+  cnt() { psql -X -q -At -d "$DB" -c "set role authenticated; select set_config('request.jwt.claim.sub','$1',false); select count(*) from $2" 2>/dev/null | tail -1; }
+  # G9a CONFIRMED before the correction (live policies replicated): a signed-in user with NO PEC grant rewrites the three policy tables
+  seed; reset_pol; p0=$(pol_md5)
+  as authenticated $NONE "update proc_item_criticality_policy set level=99; delete from proc_item_lead_time_policy; insert into proc_item_production_urgency values (77,9)" >/dev/null
+  if [ "$(pol_md5)" != "$p0" ]; then echo "RESULT G9a CONFIRMED before the correction: a signed-in user with NO PEC grant updated, deleted and inserted rows in the criticality, lead-time and production-urgency policy tables (replicated live policy)"; else res G9a FAIL "pre-correction write not reproduced"; fi
+  # ---- apply the REAL migration file
+  seed; reset_pol; AO0=$(acl_other); POLCNT0=$(q "select count(*) from pg_policy")
+  MIGF=$(ls "$ROOT"/supabase/migrations/*_pec_revoke_authenticated_dml_policy_link_tables.sql 2>/dev/null | head -1)
+  if [ -z "$MIGF" ] || ! lf "$MIGF" | P >/dev/null; then res G9 FAIL "#400 migration missing or did not apply in the fixture"; fi
+  # G9: negative roles on all four tables: nobody can write directly
+  seed; reset_pol; p0=$(pol_md5); g0=$(gmd); ok=1; nchk=0
+  STMTS=("insert into proc_item_criticality_policy values (77,9)" "update proc_item_criticality_policy set level=99" "delete from proc_item_criticality_policy"
+         "insert into proc_item_lead_time_policy values (77,9)" "update proc_item_lead_time_policy set days=99" "delete from proc_item_lead_time_policy"
+         "insert into proc_item_production_urgency values (77,9)" "update proc_item_production_urgency set urgency=99" "delete from proc_item_production_urgency"
+         "insert into proc_pr_to_indent_map(pr_id,indent_id,is_active) values (100,23,true)" "update proc_pr_to_indent_map set is_active=false" "delete from proc_pr_to_indent_map")
+  for u in $NONE $VIEWER $EDITOR; do for st in "${STMTS[@]}"; do r=$(as authenticated $u "$st"); nchk=$((nchk+1)); case $r in 42501:*) : ;; *) ok=0; echo "  authenticated $u: $st -> $r" >&2 ;; esac; done; done
+  for st in "${STMTS[@]}"; do r=$(as anon - "$st"); nchk=$((nchk+1)); case $r in 42501:*) : ;; *) ok=0; echo "  anon: $st -> $r" >&2 ;; esac; done
+  [ "$(pol_md5)" = "$p0" ] && [ "$(gmd)" = "$g0" ] || { ok=0; echo "  state changed" >&2; }
+  [ $ok = 1 ] && [ $nchk = 48 ] && res G9 PASS "after the correction no client role (no-access, View-only, Editor, anon) can insert, update or delete on any of the four tables ($nchk attempts, all 42501); rows unchanged" || res G9 FAIL "a direct write succeeded or the check count is wrong ($nchk)"
+  # G10: reads preserved, including security-invoker views that read the tables as the caller
+  ok=1
+  [ "$(cnt $NONE proc_item_criticality_policy)" = 2 ] && [ "$(cnt $NONE proc_item_lead_time_policy)" = 2 ] && [ "$(cnt $NONE proc_item_production_urgency)" = 2 ] || ok=0
+  [ "$(cnt $VIEWER proc_pr_to_indent_map)" -ge 1 ] || ok=0
+  [ "$(cnt $NONE fx_item_criticality_effective)" = 2 ] || ok=0
+  [ "$(cnt $NONE fx_pr_to_indent_audit)" -ge 1 ] || ok=0
+  [ "$(cnt $NONE fx_line_map_audit)" = 0 ] || ok=0
+  [ $ok = 1 ] && res G10 PASS "reads unchanged: policy tables and link table readable by signed-in users; security-invoker views over them still return rows (the line-map view still returns 0 rows under RLS and does not error)" || res G10 FAIL "a read path broke after the correction"
+  # G11: required workflows preserved: SECURITY DEFINER wrapper still writes the link table; service_role still writes everything
+  ok=1
+  r=$(as authenticated $EDITOR "select public.proc_indent_set_source_pr(4,100,'workflow check')"); [ "$r" = OK ] || { ok=0; echo "  definer wrapper -> $r" >&2; }
+  [ "$(q "select count(*) from proc_pr_to_indent_map where indent_id=4 and pr_id=100 and is_active")" = 1 ] || ok=0
+  r=$(as service_role - "update proc_item_criticality_policy set level=5 where item_id=11; insert into proc_pr_to_indent_map(pr_id,indent_id,is_active) values (100,23,true); update proc_pr_to_indent_map set note='svc' where indent_id=23"); [ "$r" = OK ] || { ok=0; echo "  service_role -> $r" >&2; }
+  [ $ok = 1 ] && res G11 PASS "SECURITY DEFINER set-source wrapper still writes the link table for an Editor; service_role still writes the policy and link tables" || res G11 FAIL "a required write workflow broke"
+  # G12: privilege hygiene on the six tables
+  ok=1
+  [ "$(q "select count(*) from (values ('proc_pr_to_indent_map'),('proc_item_criticality_policy'),('proc_item_lead_time_policy'),('proc_item_production_urgency'),('proc_pr_indent_line_map'),('proc_pr_revision_map')) t(n), unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) pr where has_table_privilege('anon','public.'||n,pr)")" = 0 ] || { ok=0; echo "  anon still holds a privilege" >&2; }
+  [ "$(q "select count(*) from (values ('proc_pr_to_indent_map'),('proc_item_criticality_policy'),('proc_item_lead_time_policy'),('proc_item_production_urgency'),('proc_pr_indent_line_map'),('proc_pr_revision_map')) t(n), unnest(array['INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) pr where has_table_privilege('authenticated','public.'||n,pr)")" = 0 ] || { ok=0; echo "  authenticated still holds a write-class privilege" >&2; }
+  [ "$(q "select count(*) from (values ('proc_pr_to_indent_map'),('proc_item_criticality_policy'),('proc_item_lead_time_policy'),('proc_item_production_urgency'),('proc_pr_indent_line_map'),('proc_pr_revision_map')) t(n) where has_table_privilege('authenticated','public.'||n,'SELECT')")" = 6 ] || { ok=0; echo "  authenticated lost SELECT" >&2; }
+  [ $ok = 1 ] && res G12 PASS "anon holds no privilege on the six tables; authenticated keeps SELECT only (no DML, TRUNCATE, REFERENCES or TRIGGER)" || res G12 FAIL "privilege hygiene not as intended"
+  # G13: the change is confined: nothing else's ACL moved; the four tables now carry exactly one read policy each
+  ok=1
+  [ "$(acl_other)" = "$AO0" ] || { ok=0; echo "  ACLs outside the six tables changed" >&2; }
+  [ "$(q "select count(*) from pg_policy")" = "$POLCNT0" ] || { ok=0; echo "  policy count changed" >&2; }
+  [ "$(q "select string_agg(c.relname||':'||p.polname||':'||p.polcmd::text,';' order by c.relname) from pg_policy p join pg_class c on c.oid=p.polrelid where c.relname in ('proc_pr_to_indent_map','proc_item_criticality_policy','proc_item_lead_time_policy','proc_item_production_urgency')")" = "proc_item_criticality_policy:proc_item_criticality_policy_authenticated_read:r;proc_item_lead_time_policy:proc_item_lead_time_policy_authenticated_read:r;proc_item_production_urgency:proc_item_production_urgency_authenticated_read:r;proc_pr_to_indent_map:proc_pr_to_indent_map_authenticated_read:r" ] || { ok=0; echo "  unexpected policies on the four tables" >&2; }
+  [ $ok = 1 ] && res G13 PASS "ACLs of every other function, table and view unchanged; policy count unchanged; each of the four tables has exactly one FOR SELECT policy" || res G13 FAIL "change is not confined"
+fi
+echo "SOURCE=roles:${MODE} FAILS=$FAILS"

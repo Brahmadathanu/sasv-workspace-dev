@@ -108,6 +108,10 @@ self.addEventListener("fetch", (event) => {
     // be too, otherwise an installed PWA pairs new HTML with stale cached JS.
     /\/shared\/js\/fg-bulk-internal-transfer\.js$/.test(url.pathname) ||
     /\/shared\/css\/sasv-fg-bulk-internal-transfer\.css$/.test(url.pathname) ||
+    // PEC ERP: the shared module must not pair newly served HTML with stale
+    // cached paging/client logic or visual styles in installed PWAs.
+    /\/shared\/js\/procurement-execution-console\.js$/.test(url.pathname) ||
+    /\/shared\/css\/sasv-procurement-execution-console\.css$/.test(url.pathname) ||
     // WP08 G2-0: the four shared Master Data pages (HTML is network-first) must not pair new HTML with a stale
     // cache-first script/stylesheet. These URLs were never cached by any earlier cache generation, so no
     // CACHE_NAME advance is needed; they simply must never enter the cache-first path.

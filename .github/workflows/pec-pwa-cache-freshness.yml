@@ -1,0 +1,33 @@
+name: PEC PWA Cache Freshness
+on:
+  pull_request:
+    paths:
+      - "public/sw.js"
+      - "scripts/pec-pwa-cache-freshness.test.mjs"
+      - "scripts/fg-bit-ux-1/sw-freshness.test.mjs"
+      - ".github/workflows/pec-pwa-cache-freshness.yml"
+  push:
+    branches: [main]
+    paths:
+      - "public/sw.js"
+      - "scripts/pec-pwa-cache-freshness.test.mjs"
+      - "scripts/fg-bit-ux-1/sw-freshness.test.mjs"
+      - ".github/workflows/pec-pwa-cache-freshness.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: PEC installed-PWA freshness
+        run: node --test scripts/pec-pwa-cache-freshness.test.mjs
+      - name: Existing FG-BIT SW freshness non-regression
+        run: node --test scripts/fg-bit-ux-1/sw-freshness.test.mjs

@@ -42,7 +42,23 @@ function extractFunction(name) {
 const code = [
   "let vwlLoadSeq = 0;",
   "let vwlLoadAbort = null;",
+  "const PEC_PAGE_LIMIT_MAX = 200;",
+  "const PEC_EXPORT_MAX_ROWS = 50000;",
+  "const DEFAULT_PAGE_SIZE = 30;",
+  "let pecRequestCounter = 0;",
+  // R2: the incremental feed adopts the first page; the harness only needs its state
+  "const vwlFeed = { state: { rows: [] }, seed(rows) { this.state.rows = rows; }, complete(rows) { this.state.rows = rows; } };",
   ...[
+    "unpackPagedRows",
+    "pecSanitizeMessage",
+    "pecClassifyError",
+    "pecDescribeError",
+    "clampPageLimit",
+    "rpcPecPaged",
+    "normalizeVwlServerFilterOptions",
+    "getVwlOperationalBucketKey",
+    "getVwlOperationalRowKey",
+    "fetchAllVendorBuylistPagedRows",
     "pickRpcField",
     "buildVwlSplitKey",
     "buildVwlSplitLookup",
@@ -77,10 +93,22 @@ function makeHarness() {
     rpc(name, params) {
       const call = { name, params, aborted: false };
       call.promise = new Promise((resolve) => {
-        call.resolve = (data) => resolve({ data, error: null });
+        // Paged RPCs answer [{row_data,total_count}]; tests supply plain rows.
+        call.resolve = (data) =>
+          resolve({
+            data:
+              name === "proc_vendorwise_buylist_operational_paged" &&
+              Array.isArray(data)
+                ? data.map((r) => ({ row_data: r, total_count: data.length }))
+                : data,
+            error: null,
+          });
         call.fail = (message) => resolve({ data: null, error: { message } });
+        call.resolveRaw = resolve;
       });
       calls.push(call);
+      // The options RPC is not under test here: answer it immediately.
+      if (name === "proc_vendorwise_buylist_operational_options") call.resolve([]);
       const builder = {
         abortSignal(signal) {
           signal.addEventListener("abort", () => {
@@ -104,6 +132,8 @@ function makeHarness() {
     showLoadingMask: () => (h.mask.show += 1),
     hideLoadingMask: () => (h.mask.hide += 1),
     toast: (m, t) => h.toasts.push([m, t]),
+    // R2c: shared honest error state (real implementation is DOM-heavy; contract asserted in pec-r2c-ui-smoke)
+    renderFeedErrorState: (tb, _cols, subject) => { tb.innerHTML = `<tr><td>${subject} could not be loaded.</td></tr>`; },
     toastError: (p, e) => h.toasts.push([`${p}: ${e?.message}`, "error"]),
     loadVendorBuylistFilterOptions: async () => {},
     sortVendorBuylistRows: (r) => r,
@@ -120,8 +150,13 @@ function makeHarness() {
   return h;
 }
 const tick = () => new Promise((r) => setImmediate(r));
+// the list read: server-paged by default, full read only for "split only"/export
 const main = (h) =>
-  h.calls.filter((c) => c.name === "proc_vendorwise_buylist_filtered");
+  h.calls.filter(
+    (c) =>
+      c.name === "proc_vendorwise_buylist_operational_paged" ||
+      c.name === "proc_vendorwise_buylist_filtered",
+  );
 const split = (h) =>
   h.calls.filter((c) => c.name === "proc_vendorwise_buylist_split_items");
 const type = (h, q) => {
@@ -140,6 +175,17 @@ const type = (h, q) => {
     "initial load issues one main and one split RPC",
   );
   assert(main(h)[0].params.p_q === null, "initial load sends p_q=null");
+  assert(
+    main(h)[0].name === "proc_vendorwise_buylist_operational_paged" &&
+      main(h)[0].params.p_limit === 50 &&
+      main(h)[0].params.p_offset === 0 &&
+      main(h)[0].params.p_operational_filter === null,
+    "default list read is server-paged (limit/offset) with no operational filter",
+  );
+  assert(
+    h.calls.filter((c) => c.name === "proc_vendorwise_buylist_operational_options").length === 1,
+    "dropdown options come from the options RPC for the upstream filters",
+  );
   main(h)[0].resolve([{ name: "A" }]);
   await tick();
   assert(
@@ -248,7 +294,7 @@ const type = (h, q) => {
     h.toasts.some(([m, t]) => t === "error" && m.includes("statement timeout")),
     "server error surfaced with its message",
   );
-  assert(h.tbody.innerHTML.includes("Failed to load"), "error row shown");
+  assert(h.tbody.innerHTML.includes("could not be loaded"), "error row shown");
   assert(h.mask.show === h.mask.hide, "mask resolved after error");
   const b = type(h, "again");
   await tick();
@@ -301,7 +347,7 @@ const type = (h, q) => {
   h2.state.vwlFilters.splitOnly = true;
   const b = h2.run("loadVendorBuylist()");
   await tick();
-  main(h2)[0].resolve([{ name: "A", split: true }]);
+  main(h2)[0].resolve([{ name: "A", split: true, vendor_bucket_key: "VENDOR:1", material_class_id: 1, stock_item_id: 1, uom_id: 1 }]);
   split(h2)[0].fail("split boom");
   await b;
   assert(
@@ -313,7 +359,7 @@ const type = (h, q) => {
   h3.state.vwlFilters.splitOnly = true;
   const c = h3.run("loadVendorBuylist()");
   await tick();
-  main(h3)[0].resolve([{ name: "S", split: true }, { name: "N" }]);
+  main(h3)[0].resolve([{ name: "S", split: true, vendor_bucket_key: "VENDOR:1", material_class_id: 1, stock_item_id: 2, uom_id: 3 }, { name: "N", vendor_bucket_key: "VENDOR:1", material_class_id: 1, stock_item_id: 4, uom_id: 3 }]);
   split(h3)[0].resolve([{ material_class_id: 1, stock_item_id: 2, uom_id: 3 }]);
   await c;
   assert(
@@ -339,8 +385,51 @@ const type = (h, q) => {
       main(h)[0].params.p_rate_status === "MISSING",
     "export uses current search + filters",
   );
-  main(h)[0].resolve([{ name: "E" }]);
+  main(h)[0].resolve([{ name: "E", vendor_bucket_key: "VENDOR:7", material_class_id: 1, stock_item_id: 7, uom_id: 1 }]);
   assert((await e).length === 1, "export returns the filtered rows");
+}
+
+// 12 export completeness: pages through the paged contract and verifies total_count
+{
+  const h = makeHarness();
+  h.state.vwl.vendorFilterKey = "vendor:7";
+  const e = h.run("fetchAllVendorBuylistRows()");
+  await tick();
+  const mk = (from, n) => Array.from({ length: n }, (_, i) => ({ name: `R${from + i}`, vendor_bucket_key: "VENDOR:7", material_class_id: 1, stock_item_id: from + i + 1, uom_id: 1 }));
+  // answer page 1 of a 450-row list: harness wraps plain rows with total=len, so
+  // build the paged shape explicitly via the raw promise instead.
+  const raw = (call, rows, total) => {
+    call.resolveRaw({ data: rows.map((r) => ({ row_data: r, total_count: total })), error: null });
+  };
+  assert(main(h)[0].params.p_limit === 200 && main(h)[0].params.p_offset === 0, "export page 1 requests limit 200/offset 0");
+  assert(main(h)[0].params.p_operational_filter === "vendor:7", "export keeps the operational vendor choice server-side");
+  raw(main(h)[0], mk(0, 200), 450);
+  await tick();
+  assert(main(h)[1]?.params.p_offset === 200, "export continues with offset 200");
+  raw(main(h)[1], mk(200, 200), 450);
+  await tick();
+  raw(main(h)[2], mk(400, 50), 450);
+  const all = await e;
+  assert(all.length === 450 && main(h).length === 3, "export collects all 450 rows over 3 pages");
+
+  const h2 = makeHarness();
+  const e2 = h2.run("fetchAllVendorBuylistRows()");
+  await tick();
+  const raw2 = (call, rows, total) => call.resolveRaw({ data: rows.map((r) => ({ row_data: r, total_count: total })), error: null });
+  raw2(main(h2)[0], mk(0, 200), 450);
+  await tick();
+  raw2(main(h2)[1], [], 450); // server returns nothing though total says 450
+  let msg = "";
+  try { await e2; } catch (err) { msg = String(err.message); }
+  assert(/Incomplete retrieval/.test(msg), "incomplete retrieval aborts the export (never a partial list)");
+
+  const h3 = makeHarness();
+  const e3 = h3.run("fetchAllVendorBuylistRows()");
+  await tick();
+  main(h3)[0].resolveRaw({ data: [{ row_data: { name: "X" }, total_count: 50001 }], error: null });
+  let msg3 = "";
+  try { await e3; } catch (err) { msg3 = String(err.message); }
+  assert(/safe limit of 50000/.test(msg3) && main(h3).length === 1, "oversize total refused after the first page, before fetching more");
 }
 
 // static contract guards
