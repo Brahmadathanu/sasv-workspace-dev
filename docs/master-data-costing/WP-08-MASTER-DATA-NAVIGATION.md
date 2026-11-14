@@ -1,3 +1,5 @@
+> **14 NOV 2026 — WP08 G1 CURRENT-STATE AUDIT KICKOFF (LATEST):** WP07 was owner-conditionally closed, programme **8/13**. WP08 entry prerequisites are satisfied; **G1 AUDIT IN PROGRESS**, not design or implementation authorisation. [Exact-main source inventory and NAV-P01/NAV-P02 audit brief](WP08_G1_SOURCE_PINNED_NAVIGATION_AUDIT_BRIEF_2026-11-14.md). Existing Product/SKU/Readiness tabs and prior WP02/WP03 implementation must be reused, but Product→BOM→Route→Policy click-path and readiness `recommended_ui_route` targets remain unverified pending G1. Preserve WP09 launcher and WP11 visual work boundaries and WP12 final release obligations. Older G0/NOT STARTED statements below are dated history, not new PASS evidence.
+
 # WP-08 — Product / Master Data Navigation Rationalisation
 
 ## Objective
