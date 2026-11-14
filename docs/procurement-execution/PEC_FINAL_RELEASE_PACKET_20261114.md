@@ -1,4 +1,21 @@
-# PEC final release packet — GO / NO-GO (one page)
+# PEC final release packet — GO / NO-GO and post-release record
+
+## Current operational status — post-release reconciliation (14 November 2026)
+
+**AUTHORITATIVE CURRENT RELEASE STATUS: COMPLETE for the PEC web/PWA frontend and server correction scope.** Original GO/NO-GO planning and predeployment snapshots below are retained as dated decision evidence, **not as current uncompleted tasks**.
+
+- **Production repository/main:** `e96172c874cc9d8eb440c11e325d06afd5cb6321`; #347 integrated frontend as `6ce8a1cbe56e0b9b1a1beb22f71fe098647e4cd8`, #424 strict Netlify production-comment provenance checker merged subsequently.
+- **Netlify:** owner-supplied dashboard screenshot showed **Published**, `main@e96172c`, PEC provenance correction, 14 Nov 2026 at ~9:09 PM IST; earlier #347 PEC production deploy `main@6ce8a1c` at ~8:39 PM. The screenshot did not expose a deployment ID.
+- **Production PWA online and roles (owner observation): PASS** — online PWA loads; Editor opens all five lenses; View-only edit controls disabled; No-access PEC launcher absent. Previous direct RPC role probes passed on deploy preview and packaged Windows Electron; direct RPCs were not re-run on production.
+- **Client provenance:** JS/CSS/SW byte-identical to pinned source per operator evidence; HTML matches after stripping only the exact observed Netlify three-line comment; strict checker fix merged with regression tests.
+- **Server:** history 699, R10 ×3 + R-2 + #400 original versions registered; intended functions and table write protections deployed; no approved-indent test writes.
+- **Release governance:** issue #388 **CLOSED/COMPLETED** with final evidence; G0–G5 frontend release closure recorded there. **Installed PWA offline/reconnect remains NOT TESTED and owner-waived**, not PASS; Electron **publication not authorized/not done**.
+- **Outstanding non-release follow-ups:** #423 temporary authenticated PR/indent read exposure (explicit owner-accepted residual); #393 (and its historical finding record #383) five legacy mapping exceptions — do not alter approved data. Older draft PRs or issue planning documents may be retained for historical traceability; they do **not** indicate the released code is absent.
+
+**Evidence:** [PEC final closure #388](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/388#issuecomment-6880188255), [owner production-role smoke](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/388#issuecomment-6880086970), [technical closures](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/399), [read-risk follow-up](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/423).
+
+---
+
 
 14 November 2026 | Issue #388 | **Electron publication is NOT authorized. Release of the frontend (PR #347 → `main`, Netlify) is authorized by the owner under the conditions in *Owner decisions*.**
 
