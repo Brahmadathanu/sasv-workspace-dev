@@ -77,3 +77,21 @@ Constraints found: after #389 lands, the protected-path guard will reject its th
 
 ## 6. Exact steps to final PEC release
 1. Owner: record #383 disposition. 2. DB reviewer: dry-run #389 on a staging DB copy; verify `require_permission` wording and `v_proc_indent_lines_console_ordered` columns; review Gap 2. 3. Owner: approve R10 apply/ACL; operator applies via reviewed process (not in this package). 4. Owner approves, operator executes per-version `repair` (one at a time, matrix §3 CLI 3.1.0 plan). 5. Merge in §5b order (#392, #389, #390, #391) → staging; re-run CI at the exact head. 6. Operators run runbook A–F with Editor, View-only, no-access, PWA and Windows Electron; fill template (PASS only if performed). 7. Owner signs G0–G5 against that evidence. 8. Merge #347 → main once; deploy; re-run provenance check against production host; owner closes #383/gates.
+
+## 14 November — integrated staging technical readiness and decision boundary
+
+**Current exact integrated head:** `67c4fac8fe5533030a4aeb0b495407a430e8eebf` on draft PR #347 (`integration/pec-erp-staging-20261112`). All four reviewed PRs **#392, #389, #390, #391 merged to staging only**. GitHub workflows **10/10 completed SUCCESS** at this exact head, including protected SQL/SW path mutation checks, integrated PEC browser and contract suite, Add Line PG17 fixture and R10 PG17 concurrency harness. Netlify deploy-preview status SUCCESS. This establishes **staging source/CI readiness**, not signed-in browser or production deployment acceptance.
+
+**Guard correction:** the three R10 migration source files `20261113170715`, `20261113172424`, `20261114013211` are each pinned to the integration branch by exact SHA-256; altered contents, client-branch edits, SW and arbitrary SQL still fail. Exact run evidence in GitHub Actions for head above. Previously failed merged-head run `a4592898` is superseded; it was a new-path allowlist failure rather than a PG17 concurrency failure.
+
+**Live read-only confirmation:** `20261112114000`'s `v_mrp_material_gross_requirement_rm` SQL matches current `pg_get_viewdef` after whitespace normalisation, upgrading version #2 to **bounded definition parity PASS**. Query of `supabase_migrations.schema_migrations` found none of the **eleven legacy + three R10** versions registered (0/14). This is **not** authorization for repair; the underlying production objects/effects may already exist and a blind `db push` would be unsafe.
+
+**Owner decision needed for issue #383:** recommend *historical-baseline exception with no automatic data correction*: record the 3 mismatched mapped stock-item identities and 2 unmapped-but-PR-matching quantities as historical pre-12-Nov exceptions; leave all **approved** indents unchanged; require separate forensic disposition before any remedial data migration. Owner must expressly decide whether this evidence suffices for history-only registration of `20261112143000` or requires a continued HOLD. Until approved, **HOLD remains**.
+
+**Release work remaining:** 
+- DB reviewer staging-copy rehearsal of migration and ACL effects, with explicit review of preview `SECURITY DEFINER` and new `authenticated`/`service_role` EXECUTE grant. Catalog verification of existing `require_permission(text,boolean)` and preview-view column names is PASS; no live R10 preview exists yet.
+- Owner per-version **11 individual** history dispositions; no blanket repair. Three R10 versions require separate approval for application, never pre-authorised by staging CI.
+- Signed-in Editor, View-only, no-access acceptance, installed PWA and packaged Windows Electron remain **NOT TESTED**; no live draft indent exists for positive real writer testing. Follow `PEC_OPERATOR_EXECUTION_RUNBOOK_20261113.md` without inventing role evidence.
+- Formal **G0–G5 remain 0/6 closed**; no promotion of #347 to `main`, no production migration or Netlify/Electron release until owner gate signoff.
+
+**Critical-path interpretation:** combined technical integration CI = **PASS (10/10)**; database dry-run and owner approvals = **BLOCKED / NOT TESTED**; genuine role/device acceptance = **NOT TESTED**; production release = **NOT AUTHORIZED**.
