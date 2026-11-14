@@ -20,7 +20,7 @@ Evidence provenance: source facts (blob SHAs, DDL/ACL/DML inventory, topology) w
 | 10 | 20261112174500 vendor operational | 218424161e | 2 functions + 4 ACL | 2/2 | **PASS (bounded)** | NO | live full-export concurrency untested | **Candidate** |
 | 11 | 20261112220000 Add Line wrapper (#374) | 319e517092 (branch only) | 1 function; ACL retained by REPLACE | live wrapper MD5 `a19fabfd…`, ACL verified; body match | **PASS (bounded)** | NO | file not on staging; separate owner approval covered install, **not** registration | **Candidate** (after file lands in the release source) |
 
-Not part of the 11: `20261112050000` (lab), and **proposed, unapplied R10 files** `20261113170715` (guard + lock order) and `20261113172424` (preview RPC + new ACL) from #389 — they sort after all eleven so a normal forward `db push` applies them after reconciliation.
+Not part of the 11: `20261112050000` (lab), and **proposed, unapplied R10 files** `20261113170715` (guard + lock order), `20261113172424` (preview RPC + new ACL) and `20261114013211` (source-PR reassignment lock prelude, no ACL change) from #389 — they sort after all eleven so a normal forward `db push` applies them after reconciliation.
 
 **Rule:** a version may be repaired only when its row is a PASS, a fresh read-only preflight repeats the check on the day, and the owner approves *that version by number*. No blanket approval; #5 stays HOLD.
 
@@ -28,7 +28,7 @@ Not part of the 11: `20261112050000` (lab), and **proposed, unapplied R10 files*
 Facts (computed): staging #347 `b97af2b0` carries the exact blobs of #317's 7 and #323's 3 migrations (10/10 byte-identical) although neither PR head is an ancestor of staging; #374 (`e2522775`, base `547db163`) is **not** in staging; #385/#389 add only scripts/proposed SQL. `main` is `4a857c02`.
 Recommendation (single path, no double-merge): 
 1. Do **not** merge #317/#323 to `main` separately — their blobs already live in #347; merging both would duplicate/conflict.
-2. Land #374's one migration into staging first (retarget/merge #374 → `integration/pec-erp-staging-20261112`), so the release source contains all 11 files.
+2. Land #374's one migration into staging first via **#392** (current-staging merge of #374 + pinned protected-path exception; identical file, no conflicts) — do not also merge #374 — so the release source contains all 11 files.
 3. After owner sign-off of gates: merge **#347 → main once** (one atomic set containing all 11 versions + client). Close #317/#323 as superseded **only on owner decision**.
 4. R10 (#389) and client (#390) merge into staging *after* migration history is reconciled, and only after owner approval of the new ACL; they are separate versions and never edit historical files.
 5. Hosting deploy hooks must never run `db push` on the already-live versions (see §3).
