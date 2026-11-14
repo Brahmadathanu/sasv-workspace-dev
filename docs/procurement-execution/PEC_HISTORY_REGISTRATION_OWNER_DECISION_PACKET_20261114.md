@@ -40,3 +40,25 @@ Project: `qhmoqtxpeasamtlxaoak` | Master issue #388 | Historical hold #383 | For
 5. Record before/after exact version list and evidence in #388. Formal G0–G5 remain 0/6 closed.
 
 **Decision requested from owner:** which of the ten exact versions may be marked *applied in history only*? Recommend the ten listed **only after a fresh execution-time comparison for each**, with `20261112143000` excluded, and with the explicit understanding that these commands **do not run their SQL**. Whether a gap left by held `143000` can be safely tolerated or must be resolved before further database migrations is a separate release decision.
+
+
+## Owner decision — 14 November 2026 (subsequent continuation)
+
+**OWNER APPROVED FOR HISTORY-ONLY REGISTRATION, CONDITIONAL ON EXECUTION-TIME VERIFICATION:** In response to the explicit question naming all ten versions and expressly excluding `20261112143000`, the owner replied: “Okay go ahead.” This authorizes *only* the following exact numbered history-only registration candidates, checked independently before each action:
+
+1. `20261112110000`
+2. `20261112114000`
+3. `20261112122500`
+4. `20261112133000`
+5. `20261112150000`
+6. `20261112152000`
+7. `20261112170000`
+8. `20261112173000`
+9. `20261112174500`
+10. `20261112220000`
+
+**Decision ≠ execution.** No migration-history repair has been performed. The execution operator must prove per-version current effect/source/ACL parity and registration absence, freeze production identity and source hashes, use a linked version-aware Supabase CLI with verified `migration repair --help`, record pre/post remote version lists, and stop on any mismatch. The historical chronology and non-PEC drift remain in scope for safety review. `20261112143000` remains **HOLD / NOT APPROVED**; the three forward R10 migrations are **NOT AUTHORIZED** by this owner decision. No source SQL execution, broad `db push`, production business DML, grant changes, merges or deployment is authorized.
+
+**Environment stop:** This continuation runtime has no installed/linked `supabase` CLI. Its available Supabase migration connector cannot preserve the source versions. Do not use unversioned `apply_migration`, direct schema-history INSERT, or raw SQL DDL as a workaround. The remaining task is a version-aware operator execution using the separately governed procedure.
+
+**Latest read-only production recheck:** all 14 PEC/R10 versions absent from official history; 45 indent headers, 0 drafts; collision preview absent. G0–G5 remain 0/6 formally closed.
