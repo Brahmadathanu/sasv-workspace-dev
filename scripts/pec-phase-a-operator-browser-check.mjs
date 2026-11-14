@@ -163,6 +163,37 @@ try {
         ' HTTP=' + negative.status + ' SQLSTATE=' + (negative.code || 'none'));
     }
   }
+  // R10 collision-preview probe (read-only RPC, all three roles). p_indent_id=0 is a nonexistent
+  // primary key: a role holding PEC View passes the permission gate and then fails with
+  // "Indent not found" (HTTP>=400, P0001) — proof the gate was passed, with no data exposed.
+  // A role without PEC View is stopped by the permission gate ("Permission denied ...").
+  // Only booleans, HTTP status and SQLSTATE leave the browser; never the message or any row.
+  console.log('\nRunning bounded R10 collision-preview probe (nonexistent indent id; no data read).');
+  const preview = await page.evaluate(async () => {
+    const { supabase } = await import('./js/supabaseClient.js');
+    const identity = await supabase.auth.getUser();
+    if (identity.error || !identity.data?.user) return { authenticated: false, ran: false };
+    const res = await supabase.rpc('proc_indent_resync_collision_preview', { p_indent_id: 0 });
+    const message = String(res.error?.message || '');
+    const status = Number(res.status) || 0;
+    return { authenticated: true, ran: true, status, code: String(res.error?.code || '').slice(0, 24),
+      passedGate: !!res.error && /^Indent not found/i.test(message),
+      denied: status >= 400 && (String(res.error?.code || '') === '42501' ||
+        ((String(res.error?.code || '') === 'P0001' || String(res.error?.code || '') === 'PGRST301') &&
+         /permission|access denied|not authorized|unauthori[sz]ed/i.test(message))),
+      dataReturned: !res.error && res.data != null };
+  });
+  if (!preview.authenticated || !preview.ran) {
+    result('r10_preview_probe', 'BLOCKED', 'No verified active Supabase user session; preview probe not executed');
+  } else {
+    const expectDenied = role === 'no-access';
+    const ok = expectDenied ? (preview.denied && !preview.passedGate && !preview.dataReturned)
+                            : (preview.passedGate && !preview.denied && !preview.dataReturned);
+    result('r10_preview_' + role, ok ? 'PASS' : 'FAIL',
+      'proc_indent_resync_collision_preview expected=' + (expectDenied ? 'denied' : 'permitted(passed gate)') +
+      ' denied=' + String(preview.denied) + ' passedGate=' + String(preview.passedGate) +
+      ' HTTP=' + preview.status + ' SQLSTATE=' + (preview.code || 'none'));
+  }
   // Never store JWTs, emails, page text, network request bodies or rendered data.
   console.log('\nRPC response status counts (names/status only):');
   console.log(JSON.stringify(Object.fromEntries([...rpcSummary].sort()),null,2));

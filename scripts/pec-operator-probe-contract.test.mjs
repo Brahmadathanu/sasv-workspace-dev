@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { compare, PEC_FILES, localManifest, ALLOWED_HOSTS } from './pec-release-provenance-check.mjs';
+import { compare, PEC_FILES, localManifest, ALLOWED_HOSTS, stripNetlifyPreviewInjection } from './pec-release-provenance-check.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const harness = readFileSync(path.join(here, 'pec-phase-a-operator-browser-check.mjs'), 'utf8');
@@ -76,4 +76,40 @@ test('provenance checker: allow-list, compare and non-PASS on drift', () => {
   const swDrift = JSON.parse(JSON.stringify(local)); swDrift['/sw.js'].cacheName = 'hub-cache-old';
   assert.ok(compare(local, swDrift).some((r) => r.status === 'FAIL'));
   assert.ok(compare(local, { ...same, '/sw.js': { error: 'HTTP 404' } }).some((r) => r.status === 'FAIL'));
+});
+
+// Issue #399: tolerate only the exact Netlify deploy-preview injection; nothing else.
+const NETLIFY_BLOCK = '<div data-netlify-deploy-id="6af83e9a501040ad4c69aa6f" data-netlify-site-id="d8ee0b4c-1a12-4efd-b47c-7ced60eadcac" data-vcs="github" style="position:fixed">' + String.fromCharCode(10) +
+  '  <!-- This div is automatically inserted by Netlify for all Deploy Preview URLs. -->' + String.fromCharCode(10) +
+  '  <script async src="/.netlify/scripts/cdp"></script>' + String.fromCharCode(10) + '</div>' + String.fromCharCode(10);
+test('provenance checker (#399): strips only the exact Netlify preview injection', () => {
+  const html = Buffer.from('<html><body>x</body>' + String.fromCharCode(10) + '</html>' + String.fromCharCode(10));
+  const injected = Buffer.from(String(html).replace('</html>', NETLIFY_BLOCK + '</html>'));
+  const host = 'deploy-preview-347--sasv-utilities-hub.netlify.app', f = '/shared/procurement-execution-console.html';
+  const ok = stripNetlifyPreviewInjection(injected, host, f);
+  assert.equal(ok.stripped, true); assert.equal(ok.buf.toString(), html.toString());
+  // production host, non-HTML file, and duplicate/altered blocks are never stripped
+  assert.equal(stripNetlifyPreviewInjection(injected, 'sasv-utilities-hub.netlify.app', f).stripped, false);
+  assert.equal(stripNetlifyPreviewInjection(injected, host, '/shared/js/procurement-execution-console.js').stripped, false);
+  const twice = Buffer.from(String(injected).replace('</html>', NETLIFY_BLOCK + '</html>'));
+  assert.equal(stripNetlifyPreviewInjection(twice, host, f).stripped, false);
+  const altered = Buffer.from(String(injected).replace('/.netlify/scripts/cdp', '/evil.js'));
+  assert.equal(stripNetlifyPreviewInjection(altered, host, f).stripped, false);
+  const extra = Buffer.from(String(injected).replace('<body>', '<body><script>1</script>'));
+  const r = stripNetlifyPreviewInjection(extra, host, f); assert.equal(r.stripped, true);
+  assert.notEqual(r.buf.toString(), html.toString()); // other drift remains different -> compare() FAILs
+});
+
+// R10 preview probe contract (operator acceptance package).
+test('R10 preview probe: matches installed signature, safe id, no message/row output, all roles covered', () => {
+  const m = readdirSync(mig).find((f) => f.includes('pec_safe_resync_collision_preview_ro'));
+  const sql = readFileSync(path.join(mig, m), 'utf8');
+  assert.ok(sql.includes('proc_indent_resync_collision_preview(p_indent_id bigint)'));
+  assert.ok(harness.includes("supabase.rpc('proc_indent_resync_collision_preview', { p_indent_id: 0 })"));
+  assert.ok(harness.includes('Indent not found'));
+  assert.ok(harness.includes('dataReturned'));
+  assert.ok(harness.includes("expectDenied = role === 'no-access'"));
+  const block = harness.slice(harness.indexOf('R10 collision-preview probe'));
+  assert.ok(!block.includes('console.log(res') && !block.includes('JSON.stringify(res'));
+  assert.ok(!block.includes('message:') && !block.includes('error:'));
 });
