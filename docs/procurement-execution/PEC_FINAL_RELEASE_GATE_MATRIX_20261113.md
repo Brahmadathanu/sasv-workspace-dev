@@ -95,3 +95,15 @@ Constraints found: after #389 lands, the protected-path guard will reject its th
 - Formal **G0–G5 remain 0/6 closed**; no promotion of #347 to `main`, no production migration or Netlify/Electron release until owner gate signoff.
 
 **Critical-path interpretation:** combined technical integration CI = **PASS (10/10)**; database dry-run and owner approvals = **BLOCKED / NOT TESTED**; genuine role/device acceptance = **NOT TESTED**; production release = **NOT AUTHORIZED**.
+
+## 14 November — owner-bounded #383 historical baseline disposition
+
+The owner instructed **proceed** following the recommendation to accept the five legacy PR→indent mapping anomalies as a **documented historical baseline**, without modifying approved indents. Record this as **BASELINE ACCEPTED / DATA UNCHANGED**, not correction, causality proof, or clearance for any production write.
+
+- Three wrong-stock-item current PR-line maps and two unmapped-but-PR-matching manual indent lines remain as recorded pre-12-Nov historical exceptions.
+- Separate forensic and any future remediation work is tracked in [issue #393](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/393), which requires independent approval before modifying approved business records.
+- **Issue #383 remains OPEN as the governing history-registration decision; version `20261112143000` remains HOLD.** The owner has not approved registration or history repair for that version, nor for any other version.
+- This bounded baseline decision removes the need for repeat exploratory research **before continuing technical/operator preflight**, but does not waive the official G0–G5 or migration-history gates.
+- Genuine Editor, View-only, no-access, installed PWA and Windows Electron acceptance remain NOT TESTED. All G0–G5 remain 0/6 formally closed.
+
+Operator next-step order: staging-copy DB rehearsal and ACL checks → per-version written history approvals → authorized role/PWA/Electron runbook → owner sign-off → production merge/deployment only on separate explicit release authorization. No production SQL execution or history change accompanied this disposition.
