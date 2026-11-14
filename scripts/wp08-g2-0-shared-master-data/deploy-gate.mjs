@@ -19,12 +19,12 @@ export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)
 export const GATE_FILES = Object.freeze([
   "shared/manage-products.html", "shared/manage-rm-bom.html", "shared/manage-pm-bom.html", "shared/manage-sp-bom.html",
   "shared/js/products.js", "shared/js/manage-rm-bom.js", "shared/js/manage-pm-bom.js", "shared/js/manage-sp-bom.js",
-  "shared/js/master-data-platform.js", "shared/css/shared-ui.css", "shared/css/sasv-bom.css",
+  "shared/js/master-data-platform.js", "shared/js/master-data-write-guard.js", "shared/css/shared-ui.css", "shared/css/sasv-bom.css",
 ].map((p) => ({ repo: `public/${p}`, url: `/${p}` })));
 
 /** The deployed service worker must route the new modules through the network-first branch (not hashed: sw.js changes with every release). */
 export const SW_REQUIRED_PATTERNS = Object.freeze([
-  String.raw`(?:products|manage-rm-bom|manage-pm-bom|manage-sp-bom|master-data-platform)\.js$`,
+  String.raw`(?:products|manage-rm-bom|manage-pm-bom|manage-sp-bom|master-data-platform|master-data-write-guard)\.js$`,
   String.raw`(?:shared-ui|sasv-bom)\.css$`,
 ]);
 export const SW_MARKER = "WP08 G2-0";

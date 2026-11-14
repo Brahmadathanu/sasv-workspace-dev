@@ -28,7 +28,7 @@ function harness(src = swSrc) {
   };
 }
 
-const MODULE_ASSETS = ["/shared/js/products.js", "/shared/js/manage-rm-bom.js", "/shared/js/manage-pm-bom.js", "/shared/js/manage-sp-bom.js", "/shared/js/master-data-platform.js", "/shared/css/shared-ui.css", "/shared/css/sasv-bom.css"];
+const MODULE_ASSETS = ["/shared/js/products.js", "/shared/js/manage-rm-bom.js", "/shared/js/manage-pm-bom.js", "/shared/js/manage-sp-bom.js", "/shared/js/master-data-platform.js", "/shared/js/master-data-write-guard.js", "/shared/css/shared-ui.css", "/shared/css/sasv-bom.css"];
 
 test("the four modules' scripts and styles are network-first: a stale cached copy is replaced online, and the fresh copy serves offline", async () => {
   for (const p of MODULE_ASSETS) {

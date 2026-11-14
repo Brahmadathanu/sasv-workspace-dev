@@ -1,6 +1,11 @@
 /* eslint-env browser */
 import { supabase } from "./supabaseClient.js";
 import { bootstrapApp } from "./appBootstrap.js";
+import {
+  canWriteMasterData,
+  setMasterDataAccess,
+  setMasterDataAccessFromGrant,
+} from "./master-data-write-guard.js";
 import { resolveMasterDataLoginPage, goMasterDataHome } from "./master-data-platform.js";
 import {
   mountModuleActionIcons,
@@ -83,7 +88,7 @@ function clearPageStatus() {
   host.className = "bom-page-status";
 }
 
-async function resolveModuleAccess() {
+async function resolveModuleAccessUnguarded() {
   const boot = await bootstrapApp({ loginPage: resolveMasterDataLoginPage() });
   if (!boot.ok) {
     if (boot.reason === "no-session") return { ok: false, reason: "no-session" };
@@ -116,6 +121,31 @@ async function resolveModuleAccess() {
     console.error("Permission load failed (RPC)", pErr);
     return { ok: false, reason: "verify-failed" };
   }
+}
+
+// WP08 G2-0 #416: one fail-closed access state (client presentation/handler guard only; the database remains the authority).
+function requireEdit() {
+  if (canWriteMasterData()) return true;
+  setStatus("You do not have permission to edit this module.", "error");
+  return false;
+}
+async function resolveModuleAccess() {
+  setMasterDataAccess("locked");
+  let access;
+  try {
+    access = await resolveModuleAccessUnguarded();
+  } catch (err) {
+    console.error("Module access resolution failed", err);
+    access = { ok: false, reason: "verify-failed" };
+  }
+  if (access && access.ok) {
+    setMasterDataAccessFromGrant({ canView: PERM_CAN_VIEW, canEdit: PERM_CAN_EDIT });
+  } else {
+    PERM_CAN_VIEW = false;
+    PERM_CAN_EDIT = false;
+    setMasterDataAccess("locked");
+  }
+  return access;
 }
 
 // Horizontal scroll sync
@@ -1339,6 +1369,7 @@ async function loadBom(ownerId) {
 }
 
 async function saveBom() {
+  if (!requireEdit()) return;
   const issues = renderQA();
   if (issues.length)
     return setStatus("Fix validation issues before saving.", "error");
@@ -1687,7 +1718,10 @@ function closeEditHeaderModal() {
     focusTrapDispose = null;
   }
 }
-editHeaderBtn && editHeaderBtn.addEventListener("click", openEditHeaderModal);
+editHeaderBtn &&
+  editHeaderBtn.addEventListener("click", () => {
+    if (requireEdit()) openEditHeaderModal();
+  });
 ehCloseBtn && ehCloseBtn.addEventListener("click", closeEditHeaderModal);
 if (ehCancelBtn)
   ehCancelBtn.addEventListener("click", (e) => {
@@ -1696,6 +1730,7 @@ if (ehCancelBtn)
   });
 if (ehApplyBtn)
   ehApplyBtn.addEventListener("click", (e) => {
+    if (!requireEdit()) return;
     e.preventDefault();
     const q = ehRefQty.value === "" ? null : parseFloat(ehRefQty.value);
     const u = ehRefUom.value ? parseInt(ehRefUom.value, 10) : null;
@@ -1793,8 +1828,12 @@ function closeDeleteHeaderModal() {
     focusTrapDispose = null;
   }
 }
-cloneBtn.addEventListener("click", () => openNewHeaderModal());
-deleteBtn.addEventListener("click", () => openDeleteHeaderModal());
+cloneBtn.addEventListener("click", () => {
+  if (requireEdit()) openNewHeaderModal();
+});
+deleteBtn.addEventListener("click", () => {
+  if (requireEdit()) openDeleteHeaderModal();
+});
 nhCloseBtn.addEventListener("click", closeNewHeaderModal);
 nhCancelBtn.addEventListener("click", (e) => {
   e.preventDefault();
@@ -1819,6 +1858,7 @@ if (dhCancelBtn)
   });
 if (dhConfirmBtn)
   dhConfirmBtn.addEventListener("click", async () => {
+    if (!requireEdit()) return;
     if (!CURRENT_OWNER_ID) return;
     dhConfirmBtn.disabled = true;
     deleteBtn && (deleteBtn.disabled = true);
@@ -1856,6 +1896,7 @@ if (dhConfirmBtn)
   });
 
 nhCreateBtn.addEventListener("click", async () => {
+  if (!requireEdit()) return;
   const ownerId = parseInt(nhProduct.value, 10);
   if (!ownerId) return alert("Select an owner for the new header.");
   const refQtyVal = nhRefQty.value ? parseFloat(nhRefQty.value) : null;
@@ -1934,6 +1975,7 @@ if (dlCancelBtn)
   });
 if (dlConfirmBtn)
   dlConfirmBtn.addEventListener("click", () => {
+    if (!requireEdit()) return;
     if (PENDING_DELETE_LINE_INDEX != null) {
       CURRENT_LINES.splice(PENDING_DELETE_LINE_INDEX, 1);
       if (!CURRENT_LINES.length) CURRENT_LINES.push(blankLine());

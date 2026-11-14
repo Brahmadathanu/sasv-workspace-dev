@@ -22,7 +22,7 @@ const CANON_HTML = HTML.map((f) => `public/shared/${f}`);
 const CANON_JS = JS.map((f) => `public/shared/js/${f}`);
 
 test("one canonical source: pages and module scripts live in public/shared and nowhere else", () => {
-  for (const p of [...CANON_HTML, ...CANON_JS, "public/shared/css/shared-ui.css", "public/shared/js/master-data-platform.js"]) assert.ok(exists(p), `${p} exists`);
+  for (const p of [...CANON_HTML, ...CANON_JS, "public/shared/css/shared-ui.css", "public/shared/js/master-data-platform.js", "public/shared/js/master-data-write-guard.js"]) assert.ok(exists(p), `${p} exists`);
   for (const f of JS) assert.ok(!exists(`js/${f}`), `legacy js/${f} must not remain (moved, not copied)`);
   assert.ok(!exists("css/shared-ui.css"), "legacy css/shared-ui.css must not remain");
   const tracked = git("ls-files").split("\n").filter(Boolean);
@@ -111,36 +111,50 @@ test("permission keys are preserved exactly (PM BOM stays module:pm-templates)",
   for (const p of [...CANON_JS, ...CANON_HTML]) assert.doesNotMatch(read(p), /module:manage-pm-bom/);
 });
 
-test("moved, not rewritten: only allow-listed navigation/import/path lines differ from the base commit", () => {
-  try { git("cat-file", "-e", `${BASE}^{commit}`); } catch { assert.fail(`needs ${BASE} (full history): git fetch --unshallow`); }
-  const pairs = [["manage-products.html", "public/shared/manage-products.html"], ["manage-rm-bom.html", "public/shared/manage-rm-bom.html"], ["manage-pm-bom.html", "public/shared/manage-pm-bom.html"], ["manage-sp-bom.html", "public/shared/manage-sp-bom.html"], ["js/products.js", "public/shared/js/products.js"], ["js/manage-rm-bom.js", "public/shared/js/manage-rm-bom.js"], ["js/manage-pm-bom.js", "public/shared/js/manage-pm-bom.js"], ["js/manage-sp-bom.js", "public/shared/js/manage-sp-bom.js"], ["css/shared-ui.css", "public/shared/css/shared-ui.css"]];
+const MERGED = "7392b1d25b24388204eb2b3ac3e36eec77d136cc"; // main after G2-0 (#409) and before the #416 corrective
+
+test("#416 corrective is bounded: HTML differs from merged G2-0 only by guard attributes, the guard CSS block and the viewport meta", () => {
+  try { git("cat-file", "-e", `${MERGED}^{commit}`); } catch { assert.fail(`needs ${MERGED} (full history): git fetch --unshallow`); }
+  for (const f of HTML) {
+    const before = git("show", `${MERGED}:public/shared/${f}`).replace(/\r\n/g, "\n");
+    const after = read(`public/shared/${f}`)
+      .replace(/ data-md-access="locked"/, "")
+      .replace(/ data-md-(?:writer|field)(?=[\s>])/g, "")
+      .replace(/    <style id="mdAccessGuardCss">[\s\S]*?<\/style>\n/, "")
+      .replace(/\n    <meta name="viewport" content="width=device-width, initial-scale=1" \/>/, before.includes('<meta name="viewport"') ? (m) => m : "");
+    assert.equal(after, before, `${f}: stripping the guard additions must reproduce the merged page exactly`);
+  }
+});
+
+test("#416 corrective is bounded: JS changes are guard wiring only (no RPC/table/permission-key change; allow-listed lines)", () => {
   const allow = [
-    /^import \{ (?:supabase|bootstrapApp|mountModuleHome) \} from "(?:\.\.\/public\/shared\/js\/|\.\/)[A-Za-z-]+\.js";$/,
-    /^\} from "(?:\.\.\/public\/shared\/js\/|\.\/)sasv-module-chrome\.js";$/,
-    /^import \{ resolveMasterDataLoginPage, goMasterDataHome \} from "\.\/master-data-platform\.js";$/,
-    /^import \{$/, /^  resolveMasterDataLoginPage,$/, /^  goMasterDataHome,$/, /^  resolveSeasonProfilesHref,$/, /^\} from "\.\/master-data-platform\.js";$/,
-    /bootstrapApp\(\{ loginPage: (?:"login\.html"|resolveMasterDataLoginPage\(\)) \}\)/,
-    /^\s*(?:window\.location\.href = "index\.html"|goMasterDataHome\(\));$/,
-    /<link rel="stylesheet" href="(?:public\/shared\/css|css|\.\.\/shared\/css)\/[a-z-]+\.css" \/>/,
-    /<script type="module" src="(?:public\/shared\/js|js)\/(?:supabaseClient|products|manage-[a-z]+-bom)\.js"><\/script>/,
-    /manage-season-profiles\.html/,
-    /Season Profiles exists only|const seasonProfilesLink|if \(seasonProfilesLink\)|const seasonHref|if \(seasonHref\)|else seasonProfilesLink\.hidden|^\s*\}$|^\s*$/,
-    /homeBtn\?\.addEventListener\("click", \(\) =>|window\.Platform &&|\? window\.Platform\.goHome\(\)|: \(window\.location\.href = "index\.html"\)|^\s*\);$|homeBtn\?\.addEventListener\("click", \(\) => goMasterDataHome\(\)\);/,
-    /^window\.addEventListener\("DOMContentLoaded", async \(\) => \{$|^  const boot = await bootstrapApp\(/,
+    /master-data-write-guard\.js/, /^import \{$/, /^\s*(?:canWriteMasterData|setMasterDataAccess|setMasterDataAccessFromGrant),$/, /^\} from "\.\/master-data-write-guard\.js";$/,
+    /^import \{ setMasterDataAccess, setMasterDataAccessFromGrant \}/,
+    /WP08 G2-0 #416/, /PERM_CAN_\* are reset/,
+    /requireEdit/, /resolveModuleAccessUnguarded/, /^async function resolveModuleAccess\(\) \{$/,
+    /^\s*setMasterDataAccess\("locked"\);?(?: \/\/.*)?$/, /^\s*let access;$/, /^\s*try \{$/, /^\s*\} catch \(err\) \{$/,
+    /Module access resolution failed/, /access = \{ ok: false, reason: "verify-failed" \};/, /^\s*\}$/, /^\s*\} else \{$/,
+    /if \(access && access\.ok\) \{/, /setMasterDataAccessFromGrant\(/, /PERM_CAN_VIEW = false;/, /PERM_CAN_EDIT = false;/, /return access;/,
+    /^function requireEdit\(\) \{$/, /if \(canWriteMasterData\(\)/, /setStatus\(/, /^\s*return (?:true|false);$/, /^\};?$/, /^\}$/, /^\s*$/,
+    /^(?:cloneBtn|deleteBtn)\.addEventListener\("click", \(\) => (?:openNewHeaderModal|openDeleteHeaderModal)\(\)\);$/,
+    /^(?:if \(editHeaderBtn\) editHeaderBtn|editHeaderBtn && editHeaderBtn)\.addEventListener\("click", openEditHeaderModal\);$/,
+    /^\s*(?:editHeaderBtn\.addEventListener|if \(requireEdit\(\)\) (?:openNewHeaderModal|openDeleteHeaderModal|openEditHeaderModal)\(\);)/,
+    /^(?:cloneBtn|deleteBtn)\.addEventListener\("click", \(\) => \{$/, /^\s*if \(requireEdit\(\)\) \{?$/,
+    /^\s*editHeaderBtn\s*&&?$/, /^\s*editHeaderBtn$/, /^\s*\.addEventListener\("click", \(\) => \{$/, /^if \(editHeaderBtn\)$/, /^\s*\}\);$/,
   ];
-  for (const [oldP, newP] of pairs) {
-    const tmp = path.join(os.tmpdir(), `g2-0-base-${crypto.randomBytes(4).toString("hex")}-${path.basename(oldP)}`);
-    fs.writeFileSync(tmp, git("show", `${BASE}:${oldP}`));
+  for (const f of JS) {
+    const p = `public/shared/js/${f}`;
+    const tmp = path.join(os.tmpdir(), `g2-0-corr-${crypto.randomBytes(4).toString("hex")}-${f}`);
+    fs.writeFileSync(tmp, git("show", `${MERGED}:${p}`).replace(/\r\n/g, "\n"));
     const headTmp = `${tmp}.head`;
-    fs.writeFileSync(headTmp, read(newP));
+    fs.writeFileSync(headTmp, read(p));
     let out = "";
-    try { execFileSync("diff", ["-U0", tmp, headTmp], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }); } catch (e) { out = e.stdout || ""; }
-    fs.rmSync(tmp, { force: true });
-    fs.rmSync(headTmp, { force: true });
+    try { execFileSync("diff", ["-U0", tmp, headTmp], { encoding: "utf8", maxBuffer: 1 << 26 }); } catch (e) { out = e.stdout || ""; }
+    fs.rmSync(tmp, { force: true }); fs.rmSync(headTmp, { force: true });
     const changed = out.split("\n").filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l)).map((l) => l.slice(1));
-    const total = git("show", `${BASE}:${oldP}`).split("\n").length;
-    assert.ok(changed.length < Math.max(40, total * 0.01), `${newP}: ${changed.length} changed lines of ${total} is a move, not a rewrite`);
-    for (const l of changed) assert.ok(allow.some((re) => re.test(l)), `${newP}: unexpected change: ${l.trim().slice(0, 120)}`);
+    assert.ok(changed.length < 90, `${p}: ${changed.length} changed lines`);
+    for (const l of changed) assert.ok(allow.some((re) => re.test(l)), `${p}: unexpected change: ${l.trim().slice(0, 120)}`);
+    assert.doesNotMatch(changed.join("\n"), /\.rpc\(|\.from\(|module:/, `${p}: no data/permission-key change`);
   }
 });
 

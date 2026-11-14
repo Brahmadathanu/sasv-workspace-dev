@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="en" data-sasv-theme="sasv-core">
+<html lang="en" data-sasv-theme="sasv-core" data-md-access="locked">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SASV WORKSPACE | Manage Semi-finished BOM</title>
     <link rel="stylesheet" href="../shared/css/style.css" />
 <link rel="stylesheet" href="../shared/css/shared-ui.css" />
@@ -906,7 +907,13 @@
     <!-- jsPDF (for PDF export) -->
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-  </head>
+      <style id="mdAccessGuardCss">
+      /* WP08 G2-0 #416: fail closed until a permission check succeeds (see js/master-data-write-guard.js). */
+      html[data-md-access="locked"] [data-md-writer] { display: none !important; }
+      html:not([data-md-access="edit"]) [data-md-field] { pointer-events: none; }
+      html[data-md-access="view"] [data-md-writer] { pointer-events: none; opacity: 0.55; cursor: not-allowed; }
+    </style>
+</head>
   <body data-theme="system" class="sasv-module sasv-module--app sasv-bom">
     <header>
       <div
@@ -1065,7 +1072,7 @@
               <span class="visually-hidden">Reload</span>
             </button>
             <button
-              id="saveBtn"
+              id="saveBtn" data-md-writer
               class="btn primary icon-btn"
               title="Save BOM header and lines"
               aria-label="Save BOM"
@@ -1121,11 +1128,11 @@
                 role="menu"
                 aria-labelledby="moreMenuBtn"
               >
-                <button id="cloneBtn" class="menu-item" role="menuitem">
+                <button id="cloneBtn" data-md-writer class="menu-item" role="menuitem">
                   New Header
                 </button>
                 <button
-                  id="editHeaderBtn"
+                  id="editHeaderBtn" data-md-writer
                   class="menu-item"
                   role="menuitem"
                   disabled
@@ -1140,7 +1147,7 @@
                   "
                 />
                 <button
-                  id="deleteBtn"
+                  id="deleteBtn" data-md-writer
                   class="menu-item danger"
                   role="menuitem"
                   disabled
@@ -1155,16 +1162,16 @@
       <div class="panel-body bom-hidden-fields">
         <!-- Hidden controls retained for logic and saving -->
         <input
-          id="refQty"
+          id="refQty" data-md-field
           type="number"
           step="0.001"
           min="0"
           readonly
           class="sr-only"
         />
-        <select id="refUom" disabled class="sr-only"></select>
+        <select id="refUom" data-md-field disabled class="sr-only"></select>
         <input
-          id="lossPct"
+          id="lossPct" data-md-field
           type="number"
           step="0.01"
           min="0"
@@ -1198,7 +1205,7 @@
             <button id="linesViewBtn" class="seg active" type="button">
               View
             </button>
-            <button id="linesEditBtn" class="seg" type="button">Edit</button>
+            <button id="linesEditBtn" data-md-writer class="seg" type="button">Edit</button>
           </div>
           <button
             id="kbHelpBtn"
@@ -1283,7 +1290,7 @@
           <div class="form-row">
             <div class="label">Product</div>
             <div>
-              <select id="nhProduct"></select>
+              <select id="nhProduct" data-md-field></select>
               <div class="muted">Choose the product for the new header.</div>
             </div>
           </div>
@@ -1291,7 +1298,7 @@
             <div class="label">Reference Output Qty</div>
             <div>
               <input
-                id="nhRefQty"
+                id="nhRefQty" data-md-field
                 type="number"
                 step="0.001"
                 min="0"
@@ -1301,13 +1308,13 @@
           </div>
           <div class="form-row">
             <div class="label">Reference Output UOM</div>
-            <div><select id="nhRefUom"></select></div>
+            <div><select id="nhRefUom" data-md-field></select></div>
           </div>
           <div class="form-row">
             <div class="label">Process Loss %</div>
             <div>
               <input
-                id="nhLossPct"
+                id="nhLossPct" data-md-field
                 type="number"
                 step="0.01"
                 min="0"
@@ -1323,11 +1330,11 @@
             <div class="label">Clone Lines</div>
             <div>
               <label style="display: flex; align-items: center; gap: 8px">
-                <input id="nhCloneToggle" type="checkbox" /> Enable cloning from
+                <input id="nhCloneToggle" data-md-field type="checkbox" /> Enable cloning from
                 existing BOM
               </label>
               <div id="nhCloneSection" style="margin-top: 8px; display: none">
-                <select id="nhCloneProduct"></select>
+                <select id="nhCloneProduct" data-md-field></select>
                 <div class="muted">
                   Lines will be copied from this product’s BOM if available.
                   Header values above remain as entered.
@@ -1338,7 +1345,7 @@
         </div>
         <div class="modal-actions">
           <button id="nhCancelBtn" class="btn ghost">Cancel</button>
-          <button id="nhCreateBtn" class="btn primary">Initialize</button>
+          <button id="nhCreateBtn" data-md-writer class="btn primary">Initialize</button>
         </div>
       </div>
     </div>
@@ -1373,7 +1380,7 @@
         </div>
         <div class="modal-actions">
           <button id="dhCancelBtn" class="btn ghost">Cancel</button>
-          <button id="dhConfirmBtn" class="btn danger">Confirm Delete</button>
+          <button id="dhConfirmBtn" data-md-writer class="btn danger">Confirm Delete</button>
         </div>
       </div>
     </div>
@@ -1400,7 +1407,7 @@
         </div>
         <div class="modal-actions">
           <button id="dlCancelBtn" class="btn ghost">Cancel</button
-          ><button id="dlConfirmBtn" class="btn danger">Delete</button>
+          ><button id="dlConfirmBtn" data-md-writer class="btn danger">Delete</button>
         </div>
       </div>
     </div>
@@ -1433,7 +1440,7 @@
           "
         >
           <input
-            id="insCountInput"
+            id="insCountInput" data-md-field
             type="number"
             min="1"
             max="100"
@@ -1462,7 +1469,7 @@
         </div>
         <div style="display: flex; gap: 6px; justify-content: flex-end">
           <button id="insCancelBtn" class="btn ghost">Cancel</button>
-          <button id="insOkBtn" class="btn primary">Insert</button>
+          <button id="insOkBtn" data-md-writer class="btn primary">Insert</button>
         </div>
       </div>
     </div>
@@ -1530,18 +1537,18 @@
           <div class="form-row">
             <div class="label">Reference Output Qty</div>
             <div>
-              <input id="ehRefQty" type="number" step="0.001" min="0" />
+              <input id="ehRefQty" data-md-field type="number" step="0.001" min="0" />
             </div>
           </div>
           <div class="form-row">
             <div class="label">Reference Output UOM</div>
-            <div><select id="ehRefUom"></select></div>
+            <div><select id="ehRefUom" data-md-field></select></div>
           </div>
           <div class="form-row">
             <div class="label">Process Loss %</div>
             <div>
               <input
-                id="ehLossPct"
+                id="ehLossPct" data-md-field
                 type="number"
                 step="0.01"
                 min="0"
@@ -1553,7 +1560,7 @@
             <div class="label">Notes</div>
             <div>
               <textarea
-                id="ehNotes"
+                id="ehNotes" data-md-field
                 rows="3"
                 style="width: 100%; resize: vertical"
               ></textarea>
@@ -1565,7 +1572,7 @@
         </div>
         <div class="modal-actions">
           <button id="ehCancelBtn" class="btn ghost">Cancel</button
-          ><button id="ehApplyBtn" class="btn primary">Apply</button>
+          ><button id="ehApplyBtn" data-md-writer class="btn primary">Apply</button>
         </div>
       </div>
     </div>
