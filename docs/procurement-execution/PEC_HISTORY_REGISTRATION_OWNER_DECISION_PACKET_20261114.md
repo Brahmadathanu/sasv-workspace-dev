@@ -62,3 +62,7 @@ Project: `qhmoqtxpeasamtlxaoak` | Master issue #388 | Historical hold #383 | For
 **Environment stop:** This continuation runtime has no installed/linked `supabase` CLI. Its available Supabase migration connector cannot preserve the source versions. Do not use unversioned `apply_migration`, direct schema-history INSERT, or raw SQL DDL as a workaround. The remaining task is a version-aware operator execution using the separately governed procedure.
 
 **Latest read-only production recheck:** all 14 PEC/R10 versions absent from official history; 45 indent headers, 0 drafts; collision preview absent. G0–G5 remain 0/6 formally closed.
+
+
+## Execution record — 14 November 2026
+**EXECUTED (history-only):** all ten approved versions were registered with `supabase migration repair <version> --status applied --linked` (CLI 2.48.3), one at a time with per-version remote verification. Remote history 683 -> 693 versions; `20261112143000` and the three R10 versions remain absent; function definition MD5s, indent/BOM data and ACLs unchanged. No SQL replayed. Full evidence: `PEC_HISTORY_REGISTRATION_EXECUTION_REPORT_20261114.md` (frozen source `397dbef4`). Note the "Environment stop" above applied to an earlier runtime; this execution used a locally installed, authenticated, linked CLI. The GitHub #388 comment was not posted (gh unauthenticated).
