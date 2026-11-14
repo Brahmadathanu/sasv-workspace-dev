@@ -110,11 +110,11 @@ Environment: Node 22, Playwright Chromium, isolated mock (data-aware Supabase st
 | `wp08-g2-1-navigation/source.test.mjs` (surface unchanged, data-free modules, SW, ownership) | 9/9 PASS | 9/9 PASS | n/a |
 | `wp08-g2-1-navigation/browser.test.mjs` (Electron-root + PWA, 1280/390, view/edit/denied, selection, mismatch/invalid, legacy, Back/Forward + dirty block, replaceState, handoffs, backlink, zero writer RPC) | 44 PASS, 0 FAIL, **1 TODO** (PM BOM 390 px UX-P05) | 44 PASS, 1 TODO | n/a |
 | `wp08-g2-0-shared-master-data/browser.test.mjs` | 46 PASS, **2 TODO** (UX-P05, unchanged) | 46 PASS, 2 TODO | 46 PASS, 2 TODO |
-| `…/fail-closed.test.mjs` | 81/81 PASS | 81/81 PASS | n/a (run once; passes) |
+| `…/fail-closed.test.mjs` | 81/81 PASS | 81/81 PASS | 81/81 PASS |
 | `…/sw-freshness-and-gate.test.mjs` | 15/15 PASS | 15/15 PASS | 15/15 PASS |
 | `…/registry-sql.test.mjs` | 18/18 PASS | 18/18 PASS | 18/18 PASS (token now computed from the G2-0 reviewed revision — see §10 note) |
 | `…/source.test.mjs` | 11 PASS, **2 FAIL (#11, #12)** | same | **same 2 FAIL (#11, #12)** — pre-existing |
-| `costing-readiness-usability/readiness-usability.test.mjs` (Chromium on) | 21/21 PASS | 21/21 PASS | n/a |
+| `costing-readiness-usability/readiness-usability.test.mjs` (Chromium on) | 21/21 PASS | 21/21 PASS | 21/21 PASS |
 | `recommended-ui-route-smoke.mjs`, `wp04-readiness-client-contract-smoke.mjs`, `costing-sw-freshness/pricing-policy-sw.test.mjs` | PASS | PASS | PASS |
 | `costing-review-worklist/run-context`, `run-selection` | 10/10, 18/18 PASS | — | PASS |
 | `costing-nav-groups/{browser,prm-integration}`, `costing-nav-mcm-cbm/n2-browser`, `costing-prm-nav-context/*browser/lens-presentation`, `costing-w6-pricing-nav/w6-browser`, `costing-scope-guard/*` | all PASS (12, 4, 10, 11, 12, 10, 5, 38) | — | PASS |
