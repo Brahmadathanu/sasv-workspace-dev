@@ -1,0 +1,46 @@
+name: PEC G0 SAFE Resync PG17 isolated fixture
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/20261112143000_pec_safe_resync_preserve_manual_lines.sql"
+      - "scripts/pec-g0-safe-resync-pg17-fixture.sql"
+      - ".github/workflows/pec-g0-safe-resync-pg17.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  safe-resync-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture_only
+          POSTGRES_DB: pec_safe_resync_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pec_safe_resync_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm fixture uses owner-reviewed migration source
+        run: |
+          set -eu
+          grep -Fq '\i supabase/migrations/20261112143000_pec_safe_resync_preserve_manual_lines.sql' scripts/pec-g0-safe-resync-pg17-fixture.sql
+          test -f supabase/migrations/20261112143000_pec_safe_resync_preserve_manual_lines.sql
+      - name: Execute disposable PG17 SAFE and RESET assertions (never production)
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: fixture_only
+          PGDATABASE: pec_safe_resync_fixture
+        run: |
+          set -eu
+          psql -X -v ON_ERROR_STOP=1 -f scripts/pec-g0-safe-resync-pg17-fixture.sql | tee "$RUNNER_TEMP/pec-g0-safe-resync.txt"
+          grep -q PEC_G0_SAFE_RESYNC_PG17_FIXTURE_PASS "$RUNNER_TEMP/pec-g0-safe-resync.txt"
