@@ -56,3 +56,14 @@ Fixture evidence, not live runtime: the lifecycle-audit trigger and the snapshot
 2. If approved: authorise the version-preserving apply + single-version registration in section 6, and the later pin change to the staging branch.
 3. Decide whether the sibling status writers (issue/close/override/autoclose) get their own bounded review (recommended: separate, lower priority).
 4. R-1 and R-3 dispositions per `PEC_RESIDUAL_RISK_LEDGER_20261114.md` (corrected descriptions).
+
+
+## Owner production authorization — 14 November 2026 (subsequent decision)
+
+**OWNER APPROVED — EXACT ONE MIGRATION, CONDITIONALLY EXECUTABLE.** After independent live/source/CI review in issue #412, the owner responded **"Go ahead"** to the explicit question: "Do you approve production execution of exactly `20261114135500` under these safeguards?" This authorizes the *existing*, unchanged `20261114135500_pec_indent_set_status_header_lock.sql` only (source pinned SHA-256 `1dd812008e520db3a1c1ee2a3f62fe56f76350b23de417423831e6ce67d14823`) for linked project `qhmoqtxpeasamtlxaoak`, subject to §6 fail-closed checks. Authorization includes single-original-version history registration using `supabase migration repair 20261114135500 --status applied --linked` **after** successful exact-file SQL execution and verification. Approval does **not** authorize other migrations or history registrations.
+
+**Fresh read-only baseline at authorization:** remote history `697` entries, target version absent; 48 indent headers / 0 drafts / 1,598 lines / 1,023 line mappings. Internal status-function body MD5 `052dfcbd06e19746213aaada2b588036`, SECURITY DEFINER, `search_path=public`, anon/authenticated EXECUTE false. Operator must independently reconfirm source, ACL, four audit triggers, public wrapper, full data fingerprint and target before execution, STOP on drift or incomplete evidence.
+
+**Execution scope:** same guarded single-file transaction process used for approved R10; register only the exact original version after the function installation succeeds; independently compare installed body against pinned source with the sole `FOR UPDATE` addition, preserve business rows, wrapper, ACL and audit semantics, and return evidence. No privileged real-record writer probe, `db push`, `migration up`, `--include-all`, unrelated REVOKE/GRANT, role alteration, `main` merge, PWA/Electron release or signing G0–G5. Protected-path pin change needs separate code review before integration.
+
+**This paragraph records owner approval, not execution or successful deployment.**
