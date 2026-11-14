@@ -12,6 +12,7 @@ import { COSTING_ROUTE_CONFIG } from "./costing-route-config.js";
 import {
   formatRecommendedUiRouteLabel,
   resolveRecommendedUiRouteTarget,
+  describeRecommendedRouteUnavailable,
 } from "./costing-suite-recommended-ui-route.js";
 import { buildCsv } from "./costing-table-tools.js";
 
@@ -671,7 +672,9 @@ export function buildReadinessRemediationActions(assessment) {
       buttonLabel: navigable ? target.label : null,
       moduleKey: navigable ? target.moduleKey : null,
       navigateParams: navigable ? { ...(target.navigateParams || {}) } : null,
-      unavailableReason: navigable ? null : NO_DESTINATION_TEXT,
+      unavailableReason: navigable
+        ? null
+        : describeRecommendedRouteUnavailable(target.reason),
     });
   };
 

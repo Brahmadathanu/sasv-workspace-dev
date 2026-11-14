@@ -2,6 +2,7 @@ import {
   formatFirstControlStatusLabel,
   formatRecommendedUiRouteLabel,
   resolveRecommendedUiRouteTarget,
+  describeRecommendedRouteUnavailable,
   resolveSkuControlPrimaryMessage,
   resolveSkuControlSecondaryMaterialMessage,
 } from "./costing-suite-recommended-ui-route.js";
@@ -2043,7 +2044,7 @@ export function createControlCenterController(deps) {
           Recommended route: ${text(routeLabel)}
         </div>
         <div class="cp-muted-text" style="margin-top:6px;line-height:1.45">
-          No dedicated navigation is configured for this control yet.
+          ${text(describeRecommendedRouteUnavailable(target.reason))}
         </div>
       </div>
     `;
