@@ -101,4 +101,38 @@ Research result (current source): PPM reads `product_id`/`sku_id` into `LAUNCH_D
 
 ## 9. Test matrix
 
-See §10 for exact commands and outcomes (filled from the final run).
+Environment: Node 22, Playwright Chromium, isolated mock (data-aware Supabase stub + jsPDF stub; no network, no live data, no writer exercised). Command form: `node --test <file>`. Code revision tested: `bdeda88` (later commits are docs only). **LF** = Linux checkout; **CRLF** = detached worktree of the same revision with the changed/pinned text files converted to CRLF (method as in the G2-0 report). "Baseline" = the same file run once on untouched `main` `26e3f9f`.
+
+| Suite | LF | CRLF | Baseline on `main` |
+|---|---|---|---|
+| `wp08-g2-1-navigation/resolver.test.mjs` (4 new codes, anti-guessing, permission gate: unknown/denied/view/edit/malformed/failed) | 8/8 PASS | 8/8 PASS | n/a (new) |
+| `wp08-g2-1-navigation/selection.test.mjs` (strict ids, parse/build contracts, offer rules, PM key, PPM tripwire, hrefs) | 8/8 PASS | 8/8 PASS | n/a |
+| `wp08-g2-1-navigation/source.test.mjs` (surface unchanged, data-free modules, SW, ownership) | 9/9 PASS | 9/9 PASS | n/a |
+| `wp08-g2-1-navigation/browser.test.mjs` (Electron-root + PWA, 1280/390, view/edit/denied, selection, mismatch/invalid, legacy, Back/Forward + dirty block, replaceState, handoffs, backlink, zero writer RPC) | 44 PASS, 0 FAIL, **1 TODO** (PM BOM 390 px UX-P05) | 44 PASS, 1 TODO | n/a |
+| `wp08-g2-0-shared-master-data/browser.test.mjs` | 46 PASS, **2 TODO** (UX-P05, unchanged) | 46 PASS, 2 TODO | 46 PASS, 2 TODO |
+| `…/fail-closed.test.mjs` | 81/81 PASS | 81/81 PASS | n/a (run once; passes) |
+| `…/sw-freshness-and-gate.test.mjs` | 15/15 PASS | 15/15 PASS | 15/15 PASS |
+| `…/registry-sql.test.mjs` | 18/18 PASS | 18/18 PASS | 18/18 PASS (token now computed from the G2-0 reviewed revision — see §10 note) |
+| `…/source.test.mjs` | 11 PASS, **2 FAIL (#11, #12)** | same | **same 2 FAIL (#11, #12)** — pre-existing |
+| `costing-readiness-usability/readiness-usability.test.mjs` (Chromium on) | 21/21 PASS | 21/21 PASS | n/a |
+| `recommended-ui-route-smoke.mjs`, `wp04-readiness-client-contract-smoke.mjs`, `costing-sw-freshness/pricing-policy-sw.test.mjs` | PASS | PASS | PASS |
+| `costing-review-worklist/run-context`, `run-selection` | 10/10, 18/18 PASS | — | PASS |
+| `costing-nav-groups/{browser,prm-integration}`, `costing-nav-mcm-cbm/n2-browser`, `costing-prm-nav-context/*browser/lens-presentation`, `costing-w6-pricing-nav/w6-browser`, `costing-scope-guard/*` | all PASS (12, 4, 10, 11, 12, 10, 5, 38) | — | PASS |
+| **Pre-existing failures, identical on `main` (not caused by G2-1)** | `review-worklist` #1,2,6,7,10,11; `wp05-closure` #13; `ppm-n6-nav-resolver-smoke` #1; `nav-groups.test` #23,24; `n2.test` #7,8,9; `prm-nav-context.test` #25; `w6.test` #10–13; g2-0 `source` #11,12 | — | the same test numbers fail on `main` (baseline run, `lf-base` vs `lf-mine` diff: only `registry-sql` differed, then fixed) |
+
+Reported honestly: those baseline failures are source-pinned tests comparing against older bases/immutable ranges and were **not** fixed or weakened here; they are not PASS.
+
+## 10. Notes, deviations and handback
+
+* **Existing tests updated (with evidence, not weakened):** (1) G2-0 `source.test.mjs` #7 (#416 bounded-change check) now excludes only lines that G2-1 added/removed relative to `main`@G2-1 start; every other line must still pass the #416 allow-list and the `.rpc(`/`.from(`/`module:` ban; the G2-1 additions are checked by `wp08-g2-1-navigation/source.test.mjs`. (2) G2-0 `registry-sql.test.mjs` computes the gate token from the G2-0 reviewed revision blobs instead of the working tree: step A was stamped for, and applied live against, those bytes; G2-1 intentionally changes the four page scripts. The proposal SQL/receipt files were **not** re-stamped or edited. Consequence for WP12: `deploy-gate.mjs verify`/`stamp` against the post-G2-1 bytes would yield a new token; step A is already applied, so no action is required unless the owner re-runs it.
+* **Code revision tested:** `bdeda8808c7bc9216e2128916ef622c97a13892b`. The final PR head SHA (docs-only commits on top, if any) is stated in the PR description.
+* **Changed-file inventory vs `26e3f9f`:** docs (WP-08 header, this report); `public/shared/js/` — new `costing-destination-access.js`, `master-data-selection.js`; modified `costing-suite-recommended-ui-route.js`, `costing-suite-readiness.js`, `costing-suite-control-center.js`, `costing-suite-shell.js`, `products.js`, `manage-rm-bom.js`, `manage-sp-bom.js`, `manage-pm-bom.js`; `public/sw.js`; tests `scripts/wp08-g2-1-navigation/*` (new) and the two G2-0 test files above. **No** SQL/migration, HTML page, permission, registry, Electron-root, flag or activation-receipt file changed. (The five `supabase/migrations/20261112*` files show CRLF-only modifications in the working copy of this session's container; they are not part of this PR.)
+* **WP11 hand-back:** PM BOM 390 px page overflow (UX-P05) remains FAIL/deferred (recorded as a TODO test, not masked). Mobile/visual polish of the new Related block and status line is not designed beyond reuse of existing classes.
+* **WP12 hand-back:** live authenticated PWA/Electron acceptance of the new links and URL selection (including a real view-only identity), Electron child-window behaviour, installed-PWA service-worker pickup, and Step B Electron legacy-route repoint remain open.
+* **WP09 hand-back:** no launcher/IA change; no new hub/module.
+
+## 11. Essential owner decisions
+
+1. Approve or amend the Pricing mapping recommendation in §6 (`MRP_GOVERNANCE`→`sku-mrp-policies`, `SELLING_SCHEME_POLICIES`→`sku-overview`), and whether a separate PPM `product_id`/`sku_id` selection consumer package is wanted.
+2. Optional scope: add Costing-shell mappings for `MANAGE_PRODUCTS` / `PM_BOM_MANAGER` to the new inbound contracts (§8), and name the owning module for `BATCH_SIZES` / `REGIONAL_MARKETING_REVIEW`.
+3. Merge/rollout of this PR (separate owner gate). No other decision is needed to continue.
