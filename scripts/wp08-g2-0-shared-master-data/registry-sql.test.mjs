@@ -258,7 +258,7 @@ test("Preflight is read-only and reports the exact states the apply scripts enfo
 
 test("Static: gate token embedded in step A equals the token of the reviewed bytes; no DDL/permission writes in any script", () => {
   assert.ok(A.includes(`v_expected constant text := '${TOKEN}';`), `step A token is stale: run node scripts/wp08-g2-0-shared-master-data/deploy-gate.mjs stamp (expected ${TOKEN})`);
-  const code = (s) => s.split("\n").map((l) => l.replace(/--.*$/, "")).join("\n");
+  const code = (s) => s.replace(/\r\n/g, "\n").split("\n").map((l) => l.replace(/--.*$/, "")).join("\n");
   for (const raw of [A, B, RB_A, RB_B]) {
     const sql = code(raw);
     assert.match(raw, /^\s*(?:--[^\n]*\n|\s)*begin;/i);

@@ -34,7 +34,7 @@ One-source assertion (tested): each canonical file exists once; no byte-identica
 | Dynamic URL construction | only blob URLs for export | unchanged |
 | Reader/writer RPCs | extracted `.rpc(...)`, `.from(...)`, `module:*` multisets | **identical to base** (tested) |
 | Registry route consumers | `index.html` launcher (Electron) and `hub-auth.js` (PWA) read `v_app_module_registry.route_path` | unchanged code; route plan in the registry proposal |
-| Service worker | `public/sw.js` cache-first for JS/CSS | **not changed** (see risk R3) |
+| Service worker | `public/sw.js` cache-first for JS/CSS | **minimal change (revision 2):** module scripts/styles added to the network-first branch; `CACHE_NAME` unchanged (see §3a, R3) |
 
 ## 3. Safety properties preserved
 
@@ -58,15 +58,20 @@ One-source assertion (tested): each canonical file exists once; no byte-identica
 
 Environment: Node 22, Playwright Chromium (stubbed Supabase + jsPDF; no network, no live data, no writer pressed). LF checkout on Linux; CRLF not exercised on this host (the files are byte-moved, so line endings are identical to base).
 
-| Suite | Result |
-|---|---|
-| `scripts/wp08-g2-0-shared-master-data/source.test.mjs` | **11/11 PASS** – one-source, stubs, Electron+PWA transitive resolution, no page-relative home/login, permission keys, moved-not-rewritten, RPC/table surface identical, shared-ui consumers, helper targets, scope guard, registry-proposal safety |
-| `scripts/wp08-g2-0-shared-master-data/browser.test.mjs` | **44/44 PASS** – 4 modules × {Electron-root, PWA-public} × {390, 1280 px}: assets 200, no errors, no horizontal overflow; denied/view/edit guards; non-mutating boot; HOME and no-session targets per client; PM BOM wrong-key denied; Season Profiles; jsPDF; legacy-root forwarding (query+hash) and PWA 404 for root names |
-| Existing PM/BOM/Product smokes (7 scripts, paths updated) | pass except `product-sku-lifecycle-smoke` which fails on **both base and branch** with the same stale assertion `service worker generation is hub-cache-v332` (pre-existing, unrelated) |
-| `bom-reg-4-pm-tabs-smoke` | one assertion pinned the literal `bootstrapApp({ loginPage: "login.html" })`; **updated** to the platform-neutral call (not weakened: it still proves bootstrapApp is used) |
-| Before/after sweep of 45 existing scripts (nav, PWA/SW freshness, scope guards, BOM/PM/Product, acceptance, FG-BIT, activities, MRP) | **identical exit codes on base and branch** – see §4.1 |
+| Suite (revision 2) | LF | CRLF |
+|---|---|---|
+| `source.test.mjs` (one-source, stubs, Electron+PWA transitive resolution, permission keys, moved-not-rewritten, RPC surface identical, minimal `sw.js` diff, scope guard, registry file hygiene) | **12/12 PASS** | **12/12 PASS** |
+| `registry-sql.test.mjs` (isolated PostgreSQL 16, unix socket, temp dir; **no Supabase**): absent / identical / conflicting / partial / repeat / missing prerequisite / wrong target / no-`ON_ERROR_STOP` / gate token / rollback provenance / step B | **18/18 PASS** | **18/18 PASS** |
+| `sw-freshness-and-gate.test.mjs` (mocked service worker incl. a negative control on the BASE `sw.js`; deployment gate pass/fail/CRLF) | **8/8 PASS** | **8/8 PASS** |
+| `browser.test.mjs` (Chromium; 4 modules × Electron-root/PWA-public × 390/1280; roles; HOME/login; assets; non-mutating boot; PM key; Season Profiles; jsPDF; legacy forwarding) | **46 PASS, 0 fail, 2 TODO** | **46 PASS, 0 fail, 2 TODO** |
+| `csr-pwa-freshness`, 106 other `sw.js`-referencing scripts | identical exit codes before/after the `sw.js` edit (pre-existing failures unchanged) | – |
+| 45-script area sweep vs base | identical except `costing-acceptance/verify-served-assets.test.mjs`, which timed out (exit 124) on the base run and passed (0) on this run — timing-dependent, not a regression | – |
+| 6 existing PM/BOM smokes | pass | – |
 
-**Known baseline, not a regression:** PM BOM page overflows horizontally at 390 px (scrollWidth 567) on the **base** commit as well (measured on a clean base worktree). The test pins that value as an upper bound so G2-0 cannot worsen it; fixing it is WP11 (UX-P02).
+CRLF method: a detached worktree of the committed head with the canonical pages/scripts/styles, `sw.js`, root stubs, test directory and registry SQL converted to CRLF; tests normalise CRLF where they compare text, and the deployment gate hashes after CRLF→LF.
+The two `todo` results are the **KNOWN ISSUE** PM BOM 390 px overflow (UX-P05, WP11): they record that the page overflows (scrollWidth 567, same as base) and are deliberately **not** counted as a pass. A separate non-regression bound (≤ 567) passes.
+
+**Known issue, no visual-overflow PASS claimed:** the PM BOM page overflows horizontally at 390 px (scrollWidth 567) on the **base** commit as well (clean base worktree). Parked as **UX-P05** for WP11; the 390 px overflow check is not applied to that combination, a `todo` test records it, and a ≤ 567 non-regression bound passes. All other module/viewport/platform combinations have no horizontal overflow (PASS).
 
 ### 4.1 Before/after regression sweep
 Run against a clean base worktree (`3f47b115`) and this branch, 45 scripts selected by area (file-name patterns for costing nav/acceptance/PWA freshness, scope guards, BOM/PM/Product, MRP, BMR, activities), 40 s timeout, parallel 6: **exit codes identical for all 45** (`diff` empty).
@@ -79,11 +84,11 @@ Not run: the remaining ~176 scripts (a full sweep was started and abandoned beca
 |---|---|---|
 | R1 | **Older Electron builds** have no `public/shared/manage-*.html`. | Do **not** repoint Electron registry rows (step B) until all installed builds are updated; root stubs keep the legacy route working. |
 | R2 | **PWA registry not enabled yet** – nothing is user-visible in the PWA until step A is applied by the owner. | By design; step A is gated on deployment verification. |
-| R3 | **Service-worker staleness:** JS/CSS are cache-first; a future change to these modules could pair new HTML with stale cached JS in an installed PWA. First load is unaffected (new URLs). | Not changed here because ~40 existing scripts pin `hub-cache-v393`; recommend adding the four module scripts to the network-first list with the next cache bump (WP12 / release). |
+| R3 | **Service-worker staleness** (cache-first JS/CSS could pair new HTML with stale cached JS in an installed PWA). | **Mitigated:** five scripts + two stylesheets are network-first (mock-SW tested, with a negative control on the base `sw.js`); `CACHE_NAME` unchanged because these URLs were never cached before. **Rollout gate:** `deploy-gate.mjs verify` must pass on the deployed PWA (bytes + service worker) and its token is required by step A. Residual: clients still running an old service worker until it updates (`skipWaiting` + `claim` shorten this); the gate verifies the host, not each device. |
 | R4 | **Season Profiles not in PWA** – the Products page hides "Manage profiles" there. | Owner decision: migrate Season Profiles (needs its own registry/permission review) or accept. |
 | R5 | **PDF/print needs jsDelivr** (unchanged); offline PWA cannot export. | Existing behaviour; consider vendoring under WP12. |
 | R6 | **PWA sign-in target**: missing session sends users to the hub sign-in (`/utilities-hub/index.html`), not a per-page login. | Matches how the hub is the PWA's only sign-in; verify in authenticated PWA acceptance (NOT TESTED live). |
-| R7 | PM BOM 390 px overflow (pre-existing). | WP11. |
+| R7 | PM BOM 390 px overflow (pre-existing, UX-P05). | WP11; no overflow PASS claimed. |
 | R8 | Live behaviour (real roles, real data, real PWA host) **NOT TESTED**; all browser evidence uses stubs. | WP12 integrated PWA/Electron/Windows acceptance + owner authenticated check before step A. |
 
 ## 6. Legacy root URL compatibility
@@ -93,7 +98,7 @@ Electron registry rows still say `manage-*.html`; those root URLs forward to the
 
 1. Independent review of this PR (ChatGPT) and owner approval; merge by the owner.
 2. Deploy the PWA from `public/`; verify `/shared/manage-{products,rm-bom,pm-bom,sp-bom}.html` and CSS/JS return 200 and render for a real view-only and an editor identity (owner-authorised, no writers pressed).
-3. Run `01_preflight_and_before_select.sql` (read-only), then, with the separate production-mutation approval, `02_apply_pwa_client_rows.sql`; verify the PWA launcher shows the four modules per existing grants.
+3. Run `deploy-gate.mjs verify <pwa-origin>` (must PASS), then `01_preflight_and_before_select.sql` (read-only; every `pwa_state` must be `ABSENT`), then, with the separate production-mutation approval, `02_apply_pwa_client_rows.sql` (fails closed on any existing PWA row; keep the APPLY RECEIPT); verify the PWA launcher shows the four modules per existing grants.
 4. Release Electron (contains the same files); after adoption, optionally apply `03_optional_repoint_electron_routes.sql`; stubs may then be retired.
 5. Rollback: `99_rollback.sql`; code rollback by reverting the PR (stubs make an Electron-side revert safe because registry rows were never changed unless step B ran).
 
