@@ -69,12 +69,13 @@ const r2fix = "supabase/migrations/20261114135500_pec_indent_set_status_header_l
 {
   const pin = REVIEWED_SERVER_MIGRATIONS[r2fix];
   assert.ok(pin && /^[a-f0-9]{64}$/.test(pin.sha256), "R-2 reviewed SHA256 pin exists");
-  assert.deepEqual(pin.heads, ["claude/pec-r2-approval-race-fix-20261114"], "R-2 restricted to its own head branch");
+  assert.deepEqual(pin.heads, ["claude/pec-r2-approval-race-fix-20261114", "integration/pec-erp-staging-20261112"], "R-2 restricted to its own branch and the staging branch");
   const text = fs.readFileSync(r2fix, "utf8");
   const context = { headBranch: "claude/pec-r2-approval-race-fix-20261114", readText: () => text };
   t2("R-2 exact file accepted on its own branch", [r2fix], [], context);
   t2("R-2 changed content rejected", [r2fix], [r2fix], { ...context, readText: () => text + "\n-- malicious change" });
-  t2("R-2 rejected on the staging branch (not yet approved for integration)", [r2fix], [r2fix], { ...context, headBranch: "integration/pec-erp-staging-20261112" });
+  t2("R-2 exact file accepted on the staging branch (integration after production approval)", [r2fix], [], { ...context, headBranch: "integration/pec-erp-staging-20261112" });
+  t2("R-2 changed content rejected on the staging branch", [r2fix], [r2fix], { ...context, headBranch: "integration/pec-erp-staging-20261112", readText: () => text + "\n-- malicious change" });
   t2("R-2 rejected on another client branch", [r2fix], [r2fix], { ...context, headBranch: "claude/pec-r12-resync-collision-ux-20261113" });
   t2("R-2 rejected without context", [r2fix], [r2fix], null);
   t2("R-2 renamed copy rejected", ["supabase/migrations/20261114135501_copy.sql"], ["supabase/migrations/20261114135501_copy.sql"], context);
