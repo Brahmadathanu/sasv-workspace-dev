@@ -66,3 +66,14 @@ Project: `qhmoqtxpeasamtlxaoak` | Master issue #388 | Historical hold #383 | For
 
 ## Execution record — 14 November 2026
 **EXECUTED (history-only):** all ten approved versions were registered with `supabase migration repair <version> --status applied --linked` (CLI 2.48.3), one at a time with per-version remote verification. Remote history 683 -> 693 versions; `20261112143000` and the three R10 versions remain absent; function definition MD5s, indent/BOM data and ACLs unchanged. No SQL replayed. Full evidence: `PEC_HISTORY_REGISTRATION_EXECUTION_REPORT_20261114.md` (frozen source `397dbef4`). Note the "Environment stop" above applied to an earlier runtime; this execution used a locally installed, authenticated, linked CLI. The GitHub #388 comment was not posted (gh unauthenticated).
+
+
+## Subsequent owner decision — 14 November 2026: `20261112143000` history-only authorization
+
+**APPROVED CONDITIONALLY, NOT YET EXECUTED.** After independent bounded review was recorded in issue #383 and #388, the owner replied **“proceed”** to the specific recommendation to register historical migration version `20261112143000` **in history only**, using the same controlled Supabase CLI procedure as the earlier ten. This supersedes the earlier owner-decision HOLD **solely for this exact history-only repair once its execution-time checks pass**. The historical five business-data exceptions remain unchanged and separately tracked in #393.
+
+Required preflight: freeze the exact local SQL file and Git blob SHA, verify currently installed `proc_indent_resync_from_pr_pec_internal(bigint,text)` body/SECDEF/search_path/ACL against the file, verify live definition MD5 and absence of `143000` in remote history, verify linked target project `qhmoqtxpeasamtlxaoak`, CLI version and `migration repair --help`; confirm no unexpected schema or source drift. The read-only review observed definition MD5 `b4ca2525ead97eba685ff30ab50d4959`, function EXECUTE only postgres/service_role, and no drafts. If any difference is unexplained, **STOP**.
+
+Approved operation upon passing every check: run exactly one version-preserving `supabase migration repair 20261112143000 --status applied --linked` from an appropriately isolated, verified CLI workspace, then check remote registry and unchanged function/data/ACL state. Do **not** execute the SQL migration content, backfill/rewrite approved indents, apply three R10 migrations, run unrestricted `db push`/`migration up`, change permissions, merge or deploy. R10 requires a separate owner decision; G0–G5 remain unsigned. **Approval is not proof of execution.**
+
+This ChatGPT runtime cannot invoke the locally linked Claude Desktop Supabase CLI, so the repair is assigned to that authorized CLI environment. Fresh read-only production query at approval time: `143000` and all three R10 versions absent; function MD5 unchanged; zero draft indents.
