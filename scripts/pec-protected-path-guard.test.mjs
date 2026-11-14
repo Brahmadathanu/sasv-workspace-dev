@@ -41,5 +41,29 @@ t2("CRLF checkout of identical content still matches", [addLine], [], ctx({ read
 t2("other migrations are NOT exempted by the #374 entry", [illicit, migrated, sw], [illicit, migrated, sw], ctx());
 t2("renamed copy of the reviewed SQL is rejected", ["supabase/migrations/20261112220001_copy.sql"], ["supabase/migrations/20261112220001_copy.sql"], ctx());
 t2("SW stays protected on the reviewed head", [sw, addLine], [sw], ctx());
-assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [addLine], "exactly one reviewed server migration");
+const r10 = [
+  "supabase/migrations/20261113170715_pec_safe_resync_collision_guard_lock_order.sql",
+  "supabase/migrations/20261113172424_pec_safe_resync_collision_preview_ro.sql",
+  "supabase/migrations/20261114013211_pec_indent_set_source_pr_lock_prelude.sql",
+];
+for (const migration of r10) {
+  const pin = REVIEWED_SERVER_MIGRATIONS[migration];
+  assert.ok(pin && /^[a-f0-9]{64}$/.test(pin.sha256), "R10 reviewed SHA256 pin exists");
+  assert.deepEqual(pin.heads, ["integration/pec-erp-staging-20261112"], "R10 restricted to staging branch");
+  const text = fs.readFileSync(migration, "utf8");
+  const context = { headBranch: "integration/pec-erp-staging-20261112", readText: () => text };
+  t2("R10 exact file accepted on integration branch: " + migration, [migration], [], context);
+  t2("R10 changed content rejected: " + migration, [migration], [migration],
+    { ...context, readText: () => text + "\\n-- malicious change" });
+  t2("R10 wrong branch rejected: " + migration, [migration], [migration],
+    { ...context, headBranch: "claude/pec-r12-resync-collision-ux-20261113" });
+  t2("R10 no context rejected: " + migration, [migration], [migration], null);
+  t2("R10 uncommitted content rejected: " + migration, [migration], [migration], null);
+}
+t2("R10 staging-only pins do not weaken SW or arbitrary SQL rejection",
+  [...r10, sw, illicit], [sw, illicit],
+  { headBranch: "integration/pec-erp-staging-20261112",
+    readText: (p) => fs.readFileSync(p, "utf8") });
+assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [addLine, ...r10], "exact Add Line and three reviewed R10 migrations");
+
 console.log(`pec-protected-path-guard: ${passed}/${passed} PASS`);
