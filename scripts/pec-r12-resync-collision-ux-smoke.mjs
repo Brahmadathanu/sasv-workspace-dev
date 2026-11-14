@@ -35,11 +35,27 @@ const browser = await chromium.launch();
 let failures = 0;
 const check = (ok, m) => { if (!ok) { failures++; console.error("FAIL:", m); } else console.log("ok  :", m); };
 const NARROW = { width: 375, height: 760 }, WIDE = { width: 1280, height: 850 };
-const PREVIEW_BLOCKED = { eligible: true, reason: null, blocked: true,
+let PREVIEW_BLOCKED = { eligible: true, reason: null, blocked: true,
   collisions: [{ indent_line_id: 1, stock_item_id: 13, item_name: "Synthetic <b>Item</b> 13", uom_code: "KG", indent_qty: 8, indent_reason: "manual but PR identity exists", pr_qty: 4, pr_reason: "PR 13", differs_qty: true, differs_reason: true }],
   reset_consequence_delete_all_lines: 5, reset_consequence_manual_lines_lost: 2 };
-const PREVIEW_CLEAN = { eligible: true, reason: null, blocked: false, collisions: [], reset_consequence_delete_all_lines: 3, reset_consequence_manual_lines_lost: 1 };
+let PREVIEW_CLEAN = { eligible: true, reason: null, blocked: false, collisions: [], reset_consequence_delete_all_lines: 3, reset_consequence_manual_lines_lost: 1 };
 const COLLISION_ERR = { message: "SAFE resync manual/PR quantity or reason collision; explicit resolution required", code: "23514" };
+
+// F3: with --golden <dir> (or PEC_PREVIEW_GOLDEN_DIR) replay the REAL server preview JSON exported from the
+// synthetic PostgreSQL fixture (scripts/pec-r10/export-golden.sh) instead of the hand-written objects above.
+const gi = process.argv.indexOf("--golden");
+const goldenDir = gi > 0 ? path.resolve(process.argv[gi + 1]) : (process.env.PEC_PREVIEW_GOLDEN_DIR ? path.resolve(process.env.PEC_PREVIEW_GOLDEN_DIR) : null);
+if (goldenDir) {
+  const g = (n) => JSON.parse(fs.readFileSync(path.join(goldenDir, n), "utf8"));
+  const gb = g("preview-blocked.json"), gc = g("preview-clean.json"), ga = g("preview-ineligible-approved.json");
+  check(gb.eligible === true && gb.blocked === true && Array.isArray(gb.collisions) && gb.collisions.length === 1 && gb.reset_consequence_delete_all_lines === 5 && gb.reset_consequence_manual_lines_lost === 2, "golden: real server preview for the synthetic collision indent has the expected shape and counts");
+  check(gc.eligible === true && gc.blocked === false && gc.collisions.length === 0, "golden: real server preview for a matched indent is clean");
+  check(ga.eligible === false && ga.reason === "not_draft", "golden: real server preview for an approved indent is ineligible");
+  // real server output; only the item name is replaced by an HTML probe so the escaping check stays meaningful
+  PREVIEW_BLOCKED = { ...gb, collisions: gb.collisions.map((c) => ({ ...c, item_name: "Synthetic <b>Item</b> " + c.stock_item_id })) };
+  PREVIEW_CLEAN = gc;
+  console.log("info: replaying golden server preview JSON from", goldenDir);
+}
 
 async function open(S, vp) {
   const ctx = await browser.newContext({ viewport: vp });

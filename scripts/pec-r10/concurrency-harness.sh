@@ -4,17 +4,21 @@
 #   guarded  = new R10 migration (collision guard + lock order)
 #   legacy   = 20261112143000 as-is (negative control)
 #   r9proto  = #385 prototype: collision guard, NO locks (negative control)
-# Env: PGHOST PGPORT PGUSER [PGPASSWORD]. Creates/drops database pec_r10_<source>.
+# Env: PEC_FIXTURE_ONLY=1 (required) PGHOST (local only) PGPORT PGUSER [PGPASSWORD]. Creates a NEW database
+# pec_r10_<source>_<run-id> and drops only that one on exit (see guard.sh).
 # Ordering uses an advisory-lock barrier (id 777) plus polling pg_stat_activity wait
 # events; no sleep is relied upon for ordering. Prints "RESULT <id> PASS|FAIL ...".
 set -u
 SRC=${1:?source}; ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 MIG=$ROOT/supabase/migrations
-DB=pec_r10_$SRC
+# F1 isolation guard (H1-H5): local throw-away server only, unique db, cleanup trap
+. "$ROOT/scripts/pec-r10/guard.sh"
+pec_guard_preflight "$SRC"
+pec_create_db
+DB=$PEC_DB
 export PGOPTIONS='-c client_min_messages=warning'
 P() { psql -X -q -At -v ON_ERROR_STOP=1 -d "$DB" "$@"; }
 PA() { local app=$1; shift; PGAPPNAME=$app psql -X -q -At -v ON_ERROR_STOP=1 -d "$DB" "$@"; }
-dropdb --if-exists "$DB" >/dev/null 2>&1; createdb "$DB" || exit 2
 lf() { tr -d '\r' < "$1"; }
 P -f "$ROOT/scripts/pec-r10/fixture-schema.sql" >/dev/null
 # real function sources
@@ -240,5 +244,4 @@ if [ $SRC = guarded ]; then
   q "select (public.proc_indent_resync_collision_preview(3)->>'eligible')='false' and (public.proc_indent_resync_collision_preview(3)->>'reason')='not_draft' and (public.proc_indent_resync_collision_preview(4)->>'reason')='no_source_pr'" | grep -q t && res P4 PASS "non-draft / no-source indents report ineligible" || res P4 FAIL "ineligibility not reported"
   q "select not has_function_privilege('anon','public.proc_indent_resync_collision_preview(bigint)','execute') and has_function_privilege('authenticated','public.proc_indent_resync_collision_preview(bigint)','execute') and has_function_privilege('service_role','public.proc_indent_resync_collision_preview(bigint)','execute') and not exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.proname='proc_indent_resync_collision_preview' and a.grantee=0)" | grep -q t && res P5 PASS "preview ACL: authenticated+service_role only; anon/PUBLIC denied" || res P5 FAIL "preview ACL wrong"
 fi
-dropdb --if-exists "$DB" >/dev/null 2>&1
 echo "SOURCE=$SRC FAILS=$FAILS"

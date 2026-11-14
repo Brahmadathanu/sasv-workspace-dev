@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - "scripts/pec-r10/**"
+      - "scripts/pec-r12-resync-collision-ux-smoke.mjs"
+      - "scripts/lib/pec-fixture-stub.mjs"
       - "scripts/pec-g0-safe-collision-*.sql"
       - "supabase/migrations/*_pec_safe_resync_collision_guard_lock_order.sql"
       - "supabase/migrations/*_pec_safe_resync_collision_preview_ro.sql"
@@ -14,7 +16,7 @@ permissions:
 jobs:
   concurrency-harness:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     services:
       postgres:
         image: postgres:17
@@ -38,6 +40,7 @@ jobs:
           if grep -v '^[[:space:]]*--' supabase/migrations/*_pec_safe_resync_collision_guard_lock_order.sql supabase/migrations/*_pec_indent_set_source_pr_lock_prelude.sql | grep -Eiq '\b(grant|revoke)\b'; then echo 'guard migration must not change ACLs'; exit 1; fi
       - name: Run guarded source + mutation-sensitive negative controls
         env:
+          PEC_FIXTURE_ONLY: "1"
           PGHOST: 127.0.0.1
           PGPORT: "5432"
           PGUSER: postgres
@@ -47,3 +50,74 @@ jobs:
           psql -X -At -c 'select version()'
           bash scripts/pec-r10/run-ci.sh | tee "$RUNNER_TEMP/r10.txt"
           grep -q PEC_R10_CONCURRENCY_HARNESS_PASS "$RUNNER_TEMP/r10.txt"
+      - name: F1 guard mutation test (stub psql, no database)
+        run: bash scripts/pec-r10/guard-mutation-test.sh | tee "$RUNNER_TEMP/guard-mutation.txt"; grep -q PEC_GUARD_MUTATION_PASS "$RUNNER_TEMP/guard-mutation.txt"
+      - name: F2/F4 writer matrix, real roles, risk characterisation and negative controls
+        env:
+          PEC_FIXTURE_ONLY: "1"
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: fixture_only
+        run: |
+          set -u -o pipefail
+          bash scripts/pec-r10/run-fixture-suite.sh | tee "$RUNNER_TEMP/fixture-suite.txt"
+          grep -q PEC_FIXTURE_SUITE_PASS "$RUNNER_TEMP/fixture-suite.txt"
+      - name: Second identical run (repeatability)
+        env:
+          PEC_FIXTURE_ONLY: "1"
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: fixture_only
+        run: |
+          set -u
+          bash scripts/pec-r10/run-fixture-suite.sh > "$RUNNER_TEMP/fixture-suite-2.txt"
+          grep -h '^RESULT ' "$RUNNER_TEMP/fixture-suite.txt" | grep -v ' R1b ' | sed -E 's/ [0-9]+ round/ N round/' | sort > "$RUNNER_TEMP/r1.txt"
+          grep -h '^RESULT ' "$RUNNER_TEMP/fixture-suite-2.txt" | grep -v ' R1b ' | sed -E 's/ [0-9]+ round/ N round/' | sort > "$RUNNER_TEMP/r2.txt"
+          diff "$RUNNER_TEMP/r1.txt" "$RUNNER_TEMP/r2.txt"
+          echo "REPEATABLE: identical RESULT lines on two runs"
+      - name: Teardown check (no fixture database or backend left)
+        env:
+          PGHOST: 127.0.0.1
+          PGUSER: postgres
+          PGPASSWORD: fixture_only
+        run: |
+          set -eu
+          left=$(psql -X -At -d postgres -c "select count(*) from pg_database where datname like 'pec_r10_%'")
+          echo "leftover fixture databases: $left"
+          [ "$left" = 0 ]
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install isolated Playwright (client UX replay)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pecdeps" --no-save --no-audit --no-fund playwright@1.62.1
+          "$RUNNER_TEMP/pecdeps/node_modules/.bin/playwright" install --with-deps chromium
+      - name: F3 export real server preview JSON and replay it through the client UX smoke
+        env:
+          PEC_FIXTURE_ONLY: "1"
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: fixture_only
+          NODE_PATH: ${{ runner.temp }}/pecdeps/node_modules
+        run: |
+          set -eu -o pipefail
+          bash scripts/pec-r10/export-golden.sh "$RUNNER_TEMP/golden"
+          node scripts/pec-r12-resync-collision-ux-smoke.mjs --golden "$RUNNER_TEMP/golden" --shots "$RUNNER_TEMP/shots" | tee "$RUNNER_TEMP/ux-golden.txt"
+          grep -q "replaying golden server preview JSON" "$RUNNER_TEMP/ux-golden.txt"
+          ! grep -q "^FAIL" "$RUNNER_TEMP/ux-golden.txt"
+      - name: Upload CI artifacts (screenshots are CI artefacts, not signed acceptance evidence)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pec-fixture-f1-f4-evidence
+          path: |
+            ${{ runner.temp }}/fixture-suite.txt
+            ${{ runner.temp }}/fixture-suite-2.txt
+            ${{ runner.temp }}/guard-mutation.txt
+            ${{ runner.temp }}/ux-golden.txt
+            ${{ runner.temp }}/golden
+            ${{ runner.temp }}/shots
+          if-no-files-found: warn
