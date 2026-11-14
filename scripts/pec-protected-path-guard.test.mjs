@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Mutation-sensitive PEC integration protected-file policy verification.
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { rejectedProtectedPaths, INTEGRATION_PROTECTED_PATHS, REVIEWED_SERVER_MIGRATIONS } from "./lib/pec-protected-path-guard.mjs";
 import fs from "node:fs";
 let passed = 0;
@@ -80,6 +81,40 @@ const r2fix = "supabase/migrations/20261114135500_pec_indent_set_status_header_l
   t2("R-2 rejected without context", [r2fix], [r2fix], null);
   t2("R-2 renamed copy rejected", ["supabase/migrations/20261114135501_copy.sql"], ["supabase/migrations/20261114135501_copy.sql"], context);
 }
-assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [addLine, ...r10, r2fix], "exact Add Line, three reviewed R10 migrations and the proposed R-2 correction");
+// Reviewed main-sync exception for public/sw.js: exact merged content + sync branch only.
+{
+  const pin = REVIEWED_SERVER_MIGRATIONS[sw];
+  const syncHead = "claude/pec-staging-main-sync-20261114";
+  assert.ok(pin && /^[a-f0-9]{64}$/.test(pin.sha256), "sw.js reviewed SHA256 pin exists");
+  assert.deepEqual(pin.heads, [syncHead], "sw.js exception restricted to the sync branch only");
+  const live = fs.readFileSync(sw, "utf8");
+  const liveSha = createHash("sha256").update(live.replace(/\r\n/g, "\n")).digest("hex");
+  if (liveSha === pin.sha256) {
+    const ctx = (over = {}) => ({ headBranch: syncHead, readText: () => live, ...over });
+    // content properties of the reviewed merge
+    const lf = live.replace(/\r\n/g, "\n");
+    assert.ok(lf.includes('const CACHE_NAME = "hub-cache-v393"'), "cache version unchanged");
+    assert.ok(/procurement-execution-console\\\.js\$\/\.test\(url\.pathname\)/.test(lf) && /sasv-procurement-execution-console\\\.css\$\/\.test\(url\.pathname\)/.test(lf), "PEC network-first rules present");
+    assert.ok(lf.includes("WP08 G2-0") && lf.includes("master-data-platform") && lf.includes("master-data-write-guard") && lf.includes("(?:shared-ui|sasv-bom)"), "main (WP08 G2-0) network-first rules present, including the write-guard module");
+    assert.ok(!/<<<<<<<|>>>>>>>/.test(lf), "no conflict markers");
+    t2("sw.js exact reviewed merge accepted on the sync branch", [sw], [], ctx());
+    t2("sw.js CRLF checkout of the same content accepted", [sw], [], ctx({ readText: () => lf.replace(/\n/g, "\r\n") }));
+    t2("sw.js one extra character rejected", [sw], [sw], ctx({ readText: () => lf + "\n// x" }));
+    t2("sw.js with the PEC rules removed rejected", [sw], [sw], ctx({ readText: () => lf.replace("procurement-execution-console", "procurement-execution-consolX") }));
+    t2("sw.js with the main WP08 rules removed rejected", [sw], [sw], ctx({ readText: () => lf.replace("master-data-platform", "master-data-platfor") }));
+    t2("sw.js with a bumped cache version rejected", [sw], [sw], ctx({ readText: () => lf.replace("hub-cache-v393", "hub-cache-v394") }));
+    t2("unrelated protected migration still rejected beside the sw.js exception", [sw, illicit, migrated], [illicit, migrated], ctx());
+  } else {
+    console.log("NOTE: working-tree public/sw.js differs from the reviewed merge pin; acceptance cases skipped (rejection cases below always run)");
+  }
+  const text = fs.readFileSync(sw, "utf8");
+  t2("sw.js rejected on the staging branch itself via the sync pin (integration candidates use the separate inherited list)", [sw], [sw], { headBranch: "integration/pec-erp-staging-20261112", readText: () => text });
+  t2("sw.js rejected on another client branch", [sw], [sw], { headBranch: "claude/pec-r12-resync-collision-ux-20261113", readText: () => text });
+  t2("sw.js rejected on the R-2 branch", [sw], [sw], { headBranch: "claude/pec-r2-approval-race-fix-20261114", readText: () => text });
+  t2("sw.js rejected without context", [sw], [sw], null);
+  t2("sw.js rejected when unreadable", [sw], [sw], { headBranch: syncHead, readText: () => { throw new Error("nope"); } });
+  t2("sw.js altered on the sync branch rejected", [sw], [sw], { headBranch: syncHead, readText: () => text + "\n// tampered" });
+}
+assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [addLine, sw, ...r10, r2fix], "exact Add Line, the reviewed sw.js merge pin, three reviewed R10 migrations and the production-applied R-2 correction");
 
 console.log(`pec-protected-path-guard: ${passed}/${passed} PASS`);

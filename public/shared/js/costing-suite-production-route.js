@@ -460,6 +460,9 @@ export function createProductionRouteController(deps = {}) {
   let pendingOpenRouteFamilyId = null;
   let lastProductCandidatePayload = null;
   let prmPopstateBound = false;
+  // Set by onLensExit(): the shell calls it only when a tab / pill / select click leaves a PRM lens. The next lens
+  // load is then a tab entry, not an explicit deep link (issue #380). Cleared by that load and by history moves.
+  let prmTabEntryPending = false;
   let lensRenderGeneration = 0;
   let familyRouteOpenGeneration = 0;
   let activeLensRequestController = null;
@@ -1502,6 +1505,7 @@ export function createProductionRouteController(deps = {}) {
 
   function onPrmPopState() {
     if (disposed) return;
+    prmTabEntryPending = false; // history moves are always URL-authoritative
     const deepLink = applyDeepLinkFromUrl();
     const lens =
       new URLSearchParams(window.location.search).get("lens") ||
@@ -11268,9 +11272,14 @@ export function createProductionRouteController(deps = {}) {
     // Stale / superseded / disposed loads never touch the stored context (finalizePrmLoad marks them stale).
     if (disposed || !result || result.stale !== false || result.generation !== lensRenderGeneration) return result;
     if (result.ok === false) {
+      // Issue #395: the lens changed even though its load failed - present chips for it (none on a non-identity
+      // lens) before forgetting the ids that failed to load.
+      navContext.present(state.activeLens);
       navContext.invalidate(injected);
       return result;
     }
+    // commit() also re-presents the chips for this accepted lens: remembered chips on an identity lens, none on any
+    // other lens (issue #395), without altering the stored context.
     navContext.commit(state.activeLens, {
       deepLink: hydrated,
       productHeader: productEditorHeader(),
@@ -11282,6 +11291,8 @@ export function createProductionRouteController(deps = {}) {
 
   async function loadPrmLens({ lens, deepLink = {}, resetOffset = false, search } = {}) {
     if (disposed) return { ok: false };
+    const tabEntry = prmTabEntryPending;
+    prmTabEntryPending = false;
     state.deepLink = { ...deepLink };
     if (deepLink.as_of_date) state.as_of_date = deepLink.as_of_date;
     const requestedLens =
@@ -11337,9 +11348,22 @@ export function createProductionRouteController(deps = {}) {
       if (deepLink.route_family_id) {
         state.route_family_id = String(deepLink.route_family_id);
       }
-      if (deepLink.product_id) {
-        state.product_id = String(deepLink.product_id);
+      // The Product filter comes only from an explicit product_id on THIS load (deep link, history move, navigate()).
+      // A tab click that merely finds the previous selection still in the URL is not one, and an earlier load's
+      // filter must never survive (issue #380): otherwise the register stays silently narrowed.
+      if (tabEntry && deepLink.product_id) {
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("product_id");
+          window.history.replaceState({}, "", url.toString());
+        } catch {
+          /* ignore URL sync failures */
+        }
+        delete deepLink.product_id;
+        delete state.deepLink.product_id;
       }
+      const workloadProductId = normalizePrmIntegerId(deepLink.product_id);
+      state.product_id = workloadProductId != null ? String(workloadProductId) : "";
       const result = await loadWorkloadPreview({ resetOffset, search });
       return finalizePrmLoad(token, active, result);
     }
@@ -12283,6 +12307,7 @@ export function createProductionRouteController(deps = {}) {
   }
 
   function onLensExit() {
+    prmTabEntryPending = true;
     unbind();
     hideSpecialHosts();
     state.productRouteCreateHandoff = null;

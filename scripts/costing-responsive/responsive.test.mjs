@@ -19,7 +19,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const read = (rel) => unPersonnel(rel, fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n"));
 const SKIP_BROWSER = process.env.COSTING_RESPONSIVE_SKIP === "1";
 const css = read("public/shared/css/sasv-costing.css");
-const block = css.slice(css.indexOf("CW-13: responsive hardening"));
+// The CW-13 block is the span from its own header to the next appended block (MDC-07 N1, then Issue #208). Later appended
+// blocks are judged by their own tests; slicing to end-of-file made this guard fail when they were legitimately appended.
+const cw13Start = css.indexOf("CW-13: responsive hardening");
+const cw13End = css.indexOf("/* MDC-07 N1:", cw13Start);
+assert.ok(cw13Start > 0 && cw13End > cw13Start, "CW-13 block must be followed by the MDC-07 N1 appended block");
+const block = css.slice(cw13Start, cw13End);
 
 test("harness covers exactly the six Costing suite pages and the five audited widths", () => {
   const routePaths = Object.values(COSTING_ROUTE_CONFIG).map((c) => c.routePath.replace(/^public\//, "")).sort();

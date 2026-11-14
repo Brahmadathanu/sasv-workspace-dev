@@ -48,7 +48,8 @@ test("journey ON: Product, Product route version and chips persist across groups
     assert.equal(await count(page, "rpc_get_effective_product_process_route", (a) => Object.values(a).includes(77)), 1, "Effective Route is opened for the retained Product");
     await pill(page, "route-readiness");             // Readiness group
     await pill(page, "route-families");              // Assign & Map group
-    assert.match((await chips(page)).product, /#77/, "context survives register / non-identity lenses");
+    // Issue #395: the selection is still remembered, but its chips are shown only on identity lenses (restored below).
+    assert.deepEqual(await chips(page), {}, "chips are not shown on register / non-identity lenses");
     await pill(page, "product-route-editor", 1200);  // back to Build
     assert.equal(await detailCalls(page, 9002), 2, "the same route version is re-opened, not a chooser");
     assert.equal((await chips(page)).route, "Product route #9002");
@@ -159,6 +160,13 @@ test("rapid changes: a slow response of an abandoned lens never overwrites the s
     await pill(page, "route-families", 0);           // user moves on immediately
     await settle(page, 2200);                        // the slow response arrives late
     assert.deepEqual(await active(page), ["route-families"]);
+    // Issue #395: Route Families is a non-identity lens, so no chips are shown; the REMEMBERED context must still be
+    // the accepted load's (Product 78 / version 9100), never the abandoned slow one's (77 / 9002).
+    assert.deepEqual(await chips(page), {}, "no chips on a non-identity lens");
+    // Drop the abandoned navigation's explicit ids from the address bar (no navigation), then use the pill: with no
+    // explicit ids N4 hydration decides, from the remembered context.
+    await page.evaluate(() => history.replaceState({}, "", `${location.pathname}?lens=route-families`));
+    await pill(page, "product-route-editor", 1200);
     const c = await chips(page);
     assert.match(c.product, /Other Product \(#78\)/, "context still belongs to the accepted load");
     assert.equal(c.route, "Product route #9100");
@@ -176,8 +184,9 @@ test("rapid changes: an abandoned hydrated load that resolves late (stale) neith
     await page.click('#lensPills .pill[data-lens="route-families"]');
     await settle(page, 2200);
     assert.deepEqual(await active(page), ["route-families"]);
-    assert.equal((await chips(page)).route, "Product route #9002", "late stale response did not wipe or change the stored version");
+    assert.deepEqual(await chips(page), {}, "no chips on a non-identity lens (issue #395)");
     await pill(page, "product-route-editor", 1200);
+    assert.equal((await chips(page)).route, "Product route #9002", "late stale response did not wipe or change the stored version");
     assert.equal((await chips(page)).route, "Product route #9002");
   });
 });

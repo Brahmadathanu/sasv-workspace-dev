@@ -18,7 +18,7 @@ function read(rel) {
   return readFileSync(join(root, rel), "utf8");
 }
 
-const bom = read("js/manage-pm-bom.js");
+const bom = read("public/shared/js/manage-pm-bom.js");
 const labEntry = read("public/shared/js/lab-analysis-entry.js");
 const labProto = read("public/shared/js/lab-protocol-manager.js");
 const labSpec = read("public/shared/js/lab-spec-profile-manager.js");

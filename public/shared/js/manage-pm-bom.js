@@ -1,12 +1,18 @@
 /* eslint-env browser */
-import { supabase } from "../public/shared/js/supabaseClient.js";
-import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
+import { supabase } from "./supabaseClient.js";
+import { bootstrapApp } from "./appBootstrap.js";
+import {
+  canWriteMasterData,
+  setMasterDataAccess,
+  setMasterDataAccessFromGrant,
+} from "./master-data-write-guard.js";
+import { resolveMasterDataLoginPage, goMasterDataHome } from "./master-data-platform.js";
 import {
   mountModuleActionIcons,
   enhanceSearchableSelect,
   syncSearchableSelect,
   setSearchableSelectValue,
-} from "../public/shared/js/sasv-module-chrome.js";
+} from "./sasv-module-chrome.js";
 
 // Elements
 const el = (id) => document.getElementById(id);
@@ -179,8 +185,8 @@ function clearPageStatus() {
   host.className = "bom-page-status";
 }
 
-async function resolveModuleAccess() {
-  const boot = await bootstrapApp({ loginPage: "login.html" });
+async function resolveModuleAccessUnguarded() {
+  const boot = await bootstrapApp({ loginPage: resolveMasterDataLoginPage() });
   if (!boot.ok) {
     if (boot.reason === "no-session") return { ok: false, reason: "no-session" };
     console.error("PM Templates bootstrap failed", boot.error || boot.reason);
@@ -212,6 +218,32 @@ async function resolveModuleAccess() {
     console.error("Permission load failed (RPC)", pErr);
     return { ok: false, reason: "verify-failed" };
   }
+}
+
+// WP08 G2-0 #416: one fail-closed access state (client presentation/handler guard only; the database remains the authority).
+// PERM_CAN_* are reset on every failed/denied/errored check, so the existing PERM_CAN_EDIT handler guards fail closed too.
+function requireEdit() {
+  if (canWriteMasterData() && PERM_CAN_EDIT) return true;
+  setStatus("No permission to edit.", "error");
+  return false;
+}
+async function resolveModuleAccess() {
+  setMasterDataAccess("locked");
+  let access;
+  try {
+    access = await resolveModuleAccessUnguarded();
+  } catch (err) {
+    console.error("Module access resolution failed", err);
+    access = { ok: false, reason: "verify-failed" };
+  }
+  if (access && access.ok) {
+    setMasterDataAccessFromGrant({ canView: PERM_CAN_VIEW, canEdit: PERM_CAN_EDIT });
+  } else {
+    PERM_CAN_VIEW = false;
+    PERM_CAN_EDIT = false;
+    setMasterDataAccess("locked");
+  }
+  return access;
 }
 
 let SKU_CATALOGUE = [];
@@ -4009,6 +4041,7 @@ function closeNewTplModal() {
   if (ntCodeInput) ntCodeInput.value = "";
 }
 async function createNewTemplateFromModal() {
+  if (!requireEdit()) return;
   const code = (ntCodeInput?.value || "").trim();
   if (!code) {
     setStatus("Template Code is required to create a new template.", "error");
@@ -4044,6 +4077,7 @@ async function createNewTemplateFromModal() {
 }
 newTplBtn?.addEventListener("click", (e) => {
   e.preventDefault();
+  if (!requireEdit()) return;
   openNewTplModal();
 });
 ntCloseBtn?.addEventListener("click", closeNewTplModal);
@@ -4074,6 +4108,7 @@ function closeEditTplModal() {
   editTplModal.style.display = "none";
 }
 function applyEditTemplate() {
+  if (!requireEdit()) return;
   const q =
     etRefQtyInput?.value === "" ? null : parseFloat(etRefQtyInput.value);
   const u = etRefUomSel?.value ? parseInt(etRefUomSel.value, 10) : null;
@@ -4094,6 +4129,7 @@ function applyEditTemplate() {
 }
 editTplBtn?.addEventListener("click", (e) => {
   e.preventDefault();
+  if (!requireEdit()) return;
   if (!CURRENT_TPL_ID) return;
   openEditTplModal();
 });
@@ -4503,6 +4539,7 @@ dlModal?.addEventListener("keydown", (e) => {
 });
 
 renumberBtn.addEventListener("click", async () => {
+  if (!requireEdit()) return;
   if (!CURRENT_TPL_ID)
     return setStatus("Select a template to renumber.", "error");
   const { error } = await supabase.rpc("rpc_pm_tpl_renumber", {
@@ -4747,11 +4784,7 @@ rebuildTplPicker?.addEventListener("change", () => {
     refresh: el("reloadBtn"),
     download: el("exportBtn"),
   });
-  homeBtn?.addEventListener("click", () =>
-    window.Platform && typeof window.Platform.goHome === "function"
-      ? window.Platform.goHome()
-      : (window.location.href = "index.html")
-  );
+  homeBtn?.addEventListener("click", () => goMasterDataHome());
 
   const access = await resolveModuleAccess();
   if (access.reason === "no-session") return;
@@ -5193,6 +5226,7 @@ rebuildTplPicker?.addEventListener("change", () => {
     dtCloseBtn?.addEventListener("click", closeDeleteModal);
     dtCancelBtn?.addEventListener("click", closeDeleteModal);
     dtConfirmBtn?.addEventListener("click", async () => {
+      if (!requireEdit()) return closeDeleteModal();
       if (!CURRENT_TPL_ID) return closeDeleteModal();
       setStatus("Deleting…", "info", 2200);
       try {

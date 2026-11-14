@@ -33,6 +33,14 @@ export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
       "claude/pec-r13-addline-374-integration-20261114",
     ]),
   }),
+  // Reviewed sync of main (0a3eeb71) into the staging branch (owner decision 14 Nov 2026, option 1): the ONE exception for
+  // public/sw.js. Pinned to the exact merged file (union of the PEC console and WP08 G2-0 network-first rules,
+  // CACHE_NAME hub-cache-v393) and to the sync branch only. Any other content, any other branch, any other protected
+  // file stays rejected. (This map also pins SQL migrations; the key is simply the protected path.)
+  "public/sw.js": Object.freeze({
+    sha256: "86245dbd72611d9593cfc06a782364052a190638575aede1ba46dc4929437239",
+    heads: Object.freeze(["claude/pec-staging-main-sync-20261114"]),
+  }),
   // R10 forward-only migrations: source-integrated but NOT applied to production.
   // Pins cover the exact reviewed SQL blobs only; any mutation must fail.
   "supabase/migrations/20261113170715_pec_safe_resync_collision_guard_lock_order.sql": Object.freeze({

@@ -1,7 +1,13 @@
 // js/products.js — Gate 5.11V governed Product Master writers
-import { supabase } from "../public/shared/js/supabaseClient.js";
-import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
-import { mountModuleHome } from "../public/shared/js/sasv-module-chrome.js";
+import { supabase } from "./supabaseClient.js";
+import { bootstrapApp } from "./appBootstrap.js";
+import { setMasterDataAccess, setMasterDataAccessFromGrant } from "./master-data-write-guard.js";
+import {
+  resolveMasterDataLoginPage,
+  goMasterDataHome,
+  resolveSeasonProfilesHref,
+} from "./master-data-platform.js";
+import { mountModuleHome } from "./sasv-module-chrome.js";
 
 const MODULE_TARGET = "module:manage-products";
 
@@ -135,6 +141,7 @@ function hideLoading() {
 }
 
 function setAccessDenied(message) {
+  setMasterDataAccess("locked"); // WP08 G2-0 #416: denied/unverified => every writer control hidden and inert
   document.body.classList.add("access-denied");
   if (accessStatusEl) {
     accessStatusEl.hidden = false;
@@ -200,6 +207,7 @@ function setEditing(on) {
 function applyAccessChrome() {
   const hasAccess = canAccessModule();
   const canEdit = canWriteModule();
+  setMasterDataAccessFromGrant({ canView: hasAccess, canEdit: hasAccess && canEdit }); // WP08 G2-0 #416
 
   document.body.classList.toggle("view-only-mode", hasAccess && !canEdit);
   if (viewOnlyBanner) viewOnlyBanner.hidden = !(hasAccess && !canEdit);
@@ -2309,7 +2317,7 @@ homeBtn.addEventListener("click", async () => {
     !(await showModal("You have unsaved changes. Leave anyway?", "Yes", "No"))
   )
     return;
-  window.location.href = "index.html";
+  goMasterDataHome();
 });
 
 window.addEventListener("beforeunload", (event) => {
@@ -2319,7 +2327,14 @@ window.addEventListener("beforeunload", (event) => {
 });
 
 window.addEventListener("DOMContentLoaded", async () => {
-  const boot = await bootstrapApp({ loginPage: "login.html" });
+  // Season Profiles exists only at the Electron repo root; hide the link on the PWA instead of a dead 404.
+  const seasonProfilesLink = document.getElementById("seasonProfilesLink");
+  if (seasonProfilesLink) {
+    const seasonHref = resolveSeasonProfilesHref();
+    if (seasonHref) seasonProfilesLink.setAttribute("href", seasonHref);
+    else seasonProfilesLink.hidden = true;
+  }
+  const boot = await bootstrapApp({ loginPage: resolveMasterDataLoginPage() });
   if (!boot.ok) return;
 
   try {
