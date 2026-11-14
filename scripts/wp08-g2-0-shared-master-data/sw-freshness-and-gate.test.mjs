@@ -118,3 +118,95 @@ test("gate: swProblems recognises the committed service worker and rejects one t
   assert.deepEqual(swProblems(swSrc), []);
   assert.ok(swProblems("self.addEventListener('fetch',()=>{}); // Static → cache-first").length >= 2);
 });
+
+// ---- Netlify HTML-banner normalisation (Issue #410, owner-approved; strict, HTML-only, fail-closed) ----------------------
+import { NETLIFY_BANNER, NETLIFY_BANNER_ID } from "../costing-acceptance/verify-served-assets.mjs";
+const HTML_URL = "/shared/manage-products.html";
+const CHARSET = '<meta charset="UTF-8" />\n';
+const gitHtml = () => fs.readFileSync(path.join(repoRoot, "public" + HTML_URL), "utf8").replace(/\r\n/g, "\n");
+const withBanner = (html, where = "after") => { const at = html.indexOf(CHARSET) + CHARSET.length; return where === "after" ? html.slice(0, at) + NETLIFY_BANNER + html.slice(at) : NETLIFY_BANNER + html; };
+async function gate(mutate) {
+  const { server, origin: o } = await serve(mutate);
+  try { return await verifyDeployed(o, fetchText); } finally { server.close(); }
+}
+
+test("banner gate: exact matching HTML passes with nothing normalised", async () => {
+  const r = await gate({});
+  assert.equal(r.ok, true); assert.deepEqual(r.normalized, []); assert.equal(r.token, tokenOf(localManifest()));
+});
+
+test("banner gate: the exact Netlify comment right after <meta charset> passes, same token, raw vs normalised hashes recorded", async () => {
+  const served = withBanner(gitHtml());
+  const r = await gate({ [HTML_URL]: served });
+  assert.deepEqual(r.problems, []);
+  assert.equal(r.token, tokenOf(localManifest()), "token calculation unchanged");
+  assert.equal(r.normalized.length, 1);
+  const n = r.normalized[0];
+  const expected = localManifest().find((m) => m.url === HTML_URL).sha256;
+  assert.equal(n.url, HTML_URL); assert.equal(n.normalisation, NETLIFY_BANNER_ID);
+  assert.equal(n.normalized_sha256, expected); assert.equal(n.expected_sha256, expected); assert.notEqual(n.raw_sha256, expected);
+});
+
+test("banner gate: all four HTML pages with the banner pass", async () => {
+  const urls = GATE_FILES.filter((f) => /\.html$/.test(f.url)).map((f) => f.url);
+  assert.equal(urls.length, 4);
+  const mutate = Object.fromEntries(urls.map((u) => [u, withBanner(fs.readFileSync(path.join(repoRoot, "public" + u), "utf8").replace(/\r\n/g, "\n"))]));
+  const r = await gate(mutate);
+  assert.equal(r.ok, true); assert.equal(r.normalized.length, 4);
+});
+
+test("banner gate: altered, duplicated, relocated or wrongly anchored banners and unrelated edits are rejected (token withheld)", async () => {
+  const base = gitHtml();
+  const good = withBanner(base);
+  const cases = {
+    "altered campaign id": good.replace("d8ee0b4c", "deadbeef"),
+    "altered text": good.replace("Anyone can build", "Anyone may build"),
+    "duplicate banner": good.replace(NETLIFY_BANNER, NETLIFY_BANNER + NETLIFY_BANNER),
+    "banner twice, apart": good + NETLIFY_BANNER,
+    "relocated to top": withBanner(base, "top"),
+    "relocated before title": base.replace("<title>", NETLIFY_BANNER + "<title>"),
+    "no charset anchor": good.replace(CHARSET, '<meta charset="utf-8" />\n'),
+    "unrelated modification plus banner": good.replace("</body>", "<script>alert(1)</script></body>"),
+    "unrelated modification only": base.replace("</body>", "<!-- x --></body>"),
+    "stripped trailing byte plus banner": good.slice(0, -1),
+  };
+  for (const [label, served] of Object.entries(cases)) {
+    const r = await gate({ [HTML_URL]: served });
+    assert.equal(r.ok, false, label); assert.equal(r.token, null, label);
+    assert.ok(r.problems.some((p) => p.startsWith(HTML_URL)), label); assert.deepEqual(r.normalized, [], label);
+  }
+});
+
+test("banner gate: JS, CSS and sw.js are never normalised (banner on them fails; tampering fails)", async () => {
+  for (const f of GATE_FILES.filter((x) => !/\.html$/.test(x.url))) {
+    const orig = fs.readFileSync(path.join(repoRoot, f.repo), "utf8").replace(/\r\n/g, "\n");
+    for (const served of [NETLIFY_BANNER + orig, orig + "\n/* tamper */", orig.replace(/\S/, "#")]) {
+      const r = await gate({ [f.url]: served });
+      assert.equal(r.ok, false, f.url); assert.equal(r.token, null);
+      assert.ok(r.problems.some((p) => p.startsWith(f.url)), f.url); assert.deepEqual(r.normalized, []);
+    }
+  }
+  const swBanner = await gate({ "/sw.js": NETLIFY_BANNER + swSrc });
+  assert.equal(swBanner.ok, true, "sw.js is not hash-compared (pattern freshness checks only, unchanged)");
+  const stale = await gate({ [HTML_URL]: withBanner(gitHtml()), "/sw.js": swSrc.replace(/WP08 G2-0/g, "X") });
+  assert.equal(stale.ok, false, "a banner-normalised HTML never excuses a stale service worker");
+  assert.equal(stale.token, null);
+});
+
+test("banner gate: LF vs CRLF - banner with CRLF served bytes passes; CRLF banner mixed edits still reject", async () => {
+  const crlf = withBanner(gitHtml()).replace(/\n/g, "\r\n");
+  const r = await gate({ [HTML_URL]: crlf });
+  assert.equal(r.ok, true); assert.equal(r.normalized.length, 1);
+  const bad = withBanner(gitHtml()).replace("</body>", "<b>x</b></body>").replace(/\n/g, "\r\n");
+  assert.equal((await gate({ [HTML_URL]: bad })).ok, false);
+});
+
+test("banner gate: CLI prints NORMALIZED rows with raw and normalised hashes", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const { server, origin: o } = await serve({ [HTML_URL]: withBanner(gitHtml()) });
+  try {
+    const out = await new Promise((res, rej) => import("node:child_process").then(({ execFile }) => execFile(process.execPath, [path.join(repoRoot, "scripts/wp08-g2-0-shared-master-data/deploy-gate.mjs"), "verify", o], (e, so) => e ? rej(e) : res(so))));
+    assert.match(out, /NORMALIZED \/shared\/manage-products\.html NETLIFY_INJECTED_BANNER_V1 raw=[0-9a-f]{64} normalized=[0-9a-f]{64} expected=[0-9a-f]{64}/);
+    assert.match(out, /GATE PASS\nGATE TOKEN g2-0-/);
+  } finally { server.close(); }
+});
