@@ -55,6 +55,17 @@ export const PRM_LENS_CONTEXT_KEYS = Object.freeze({
 
 const ROUTE_KEYS = Object.freeze(["product_route_id", "family_route_id"]);
 
+/**
+ * Issue #395 (WP07 P8): an IDENTITY lens is one that receives stored context (PRM_LENS_CONTEXT_KEYS). Only on an
+ * identity lens may the Product / Family / Route chips be shown. Every other lens (Workload Preview, Route Readiness,
+ * Mapping / Foundation Review, Cost Centres, Subgroup Mappings, Archived Routes, Route Families, ...) ignores the
+ * remembered selection, so showing it there would read as an active filter. Presentation only: the remembered ids
+ * themselves are never changed by this.
+ */
+export function isPrmIdentityLens(lensId) {
+  return typeof lensId === "string" && Object.prototype.hasOwnProperty.call(PRM_LENS_CONTEXT_KEYS, lensId);
+}
+
 const EMPTY = Object.freeze({
   product_id: null,
   product_route_id: null,
@@ -208,6 +219,9 @@ export function createPrmNavContextTracker({
   getNames = () => ({}),
 } = {}) {
   let context = { ...EMPTY };
+  // Lens of the last ACCEPTED load. null = nothing accepted yet: publish the stored context as before (it is empty
+  // until a lens has committed, so nothing is shown). Controls presentation only (issue #395).
+  let activeLens = null;
   const on = () => {
     try {
       return !!isEnabled();
@@ -222,7 +236,9 @@ export function createPrmNavContextTracker({
     } catch {
       names = {};
     }
-    store.set(buildPrmNavChipValues(context, names));
+    // Chips only on an identity lens; any other accepted lens publishes empty chips (the stored context is kept).
+    const shown = activeLens === null || isPrmIdentityLens(activeLens) ? context : EMPTY;
+    store.set(buildPrmNavChipValues(shown, names));
   };
   return {
     isEnabled: on,
@@ -234,13 +250,28 @@ export function createPrmNavContextTracker({
     /** Commit what an ACCEPTED (non-stale, successful) lens load established. Returns true when context changed. */
     commit(lensId, view) {
       if (!on()) return false;
+      if (lensId) activeLens = String(lensId);
       const loaded = collectPrmLoadedIds(lensId, view);
-      if (!loaded) return false;
+      if (!loaded) {
+        // Accepted load that establishes no identity (register / evidence lens): still re-present for this lens.
+        publish();
+        return false;
+      }
       const next = reconcilePrmNavContext(context, loaded);
       const changed = PRM_NAV_CONTEXT_KEYS.some((k) => next[k] !== context[k]);
       context = next;
       publish(); // names may have arrived since the last commit
       return changed;
+    },
+    /**
+     * An accepted lens load changed the active lens: re-present the chips for it (identity lens -> remembered chips,
+     * any other lens -> none). Never alters the stored context or what `hydrate` injects. Inert with the flag OFF.
+     */
+    present(lensId) {
+      if (!on()) return false;
+      activeLens = lensId ? String(lensId) : null;
+      publish();
+      return true;
     },
     /** A user opened a Route Family (summary): explicit Family selection. */
     selectFamily(routeFamilyId) {
@@ -272,6 +303,7 @@ export function createPrmNavContextTracker({
     clear() {
       const had = PRM_NAV_CONTEXT_KEYS.some((k) => context[k] != null);
       context = { ...EMPTY };
+      activeLens = null;
       if (had || on()) store.set({ product: "", family: "", route: "" });
       return had;
     },

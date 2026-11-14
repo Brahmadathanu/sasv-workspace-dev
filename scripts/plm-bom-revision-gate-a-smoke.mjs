@@ -148,7 +148,7 @@ assert(
   "migration header declares no bootstrap data",
 );
 
-const managePm = readFileSync(join(root, "js/manage-pm-bom.js"), "utf8");
+const managePm = readFileSync(join(root, "public/shared/js/manage-pm-bom.js"), "utf8");
 assert(
   !/rpc_plm_bom_revision_/i.test(managePm),
   "Gate A does not wire Manage PM BOM UI to revision RPCs",

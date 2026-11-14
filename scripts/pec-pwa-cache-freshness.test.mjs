@@ -58,7 +58,8 @@ function load(source) {
   return { request, store, network };
 }
 
-const noPec = current.replace(
+// Newline-agnostic: the baseline is built from an LF-normalised copy so a CRLF checkout cannot change the verdict.
+const noPec = current.replace(/\r\n/g, "\n").replace(
   / \|\|\n {4}\/\/ PEC ERP:[\s\S]*?sasv-procurement-execution-console\\\.css\$\/\.test\(url\.pathname\)/,
   "",
 );

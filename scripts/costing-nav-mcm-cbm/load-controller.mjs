@@ -9,6 +9,6 @@ const jsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../
 export async function loadController(file) {
   let src = fs.readFileSync(path.join(jsDir, file), "utf8").replace(/\r\n/g, "\n");
   src = src.replace('import { supabase } from "./supabaseClient.js";', 'const supabase = {};');
-  src = src.replace(/from "\.\/([a-z0-9-]+\.js)"/g, (_m, f) => `from "${pathToFileURL(path.join(jsDir, f)).href}"`);
+  src = src.replace(/from "\.\/([a-z0-9-]+\.m?js)"/g, (_m, f) => `from "${pathToFileURL(path.join(jsDir, f)).href}"`);
   return import(`data:text/javascript;base64,${Buffer.from(src).toString("base64")}`);
 }

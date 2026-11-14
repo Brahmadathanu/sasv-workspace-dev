@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const rd = (p) => readFileSync(join(root, p), "utf8");
+const rd = (p) => readFileSync(join(root, p), "utf8").replace(/\r\n/g, "\n"); // LF-normalised so CRLF checkouts judge the same text
 const cb = await import(join(root, "public/shared/js/costing-suite-cost-build.js"));
 const SALARY_PARTS = ["basic_salary", "allowance_amount", "employer_contribution", "other_salary_cost"];
 

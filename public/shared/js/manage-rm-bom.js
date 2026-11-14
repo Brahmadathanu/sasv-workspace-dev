@@ -1,12 +1,13 @@
 /* eslint-env browser */
-import { supabase } from "../public/shared/js/supabaseClient.js";
-import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
+import { supabase } from "./supabaseClient.js";
+import { bootstrapApp } from "./appBootstrap.js";
+import { resolveMasterDataLoginPage, goMasterDataHome } from "./master-data-platform.js";
 import {
   mountModuleActionIcons,
   enhanceSearchableSelect,
   syncSearchableSelect,
   setSearchableSelectValue,
-} from "../public/shared/js/sasv-module-chrome.js";
+} from "./sasv-module-chrome.js";
 
 // Elements
 const el = (id) => document.getElementById(id);
@@ -80,7 +81,7 @@ function clearPageStatus() {
 }
 
 async function resolveModuleAccess() {
-  const boot = await bootstrapApp({ loginPage: "login.html" });
+  const boot = await bootstrapApp({ loginPage: resolveMasterDataLoginPage() });
   if (!boot.ok) {
     if (boot.reason === "no-session") return { ok: false, reason: "no-session" };
     console.error("RM BOM bootstrap failed", boot.error || boot.reason);
@@ -1636,7 +1637,7 @@ if (insertPopover)
   const homeBtn = el("homeBtn");
   if (homeBtn) {
     homeBtn.addEventListener("click", () => {
-      window.location.href = "index.html";
+      goMasterDataHome();
     });
   }
 
