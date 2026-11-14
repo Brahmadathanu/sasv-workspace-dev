@@ -85,7 +85,12 @@ if (present) {
   // candidate's *committed* main-to-HEAD history. Never permit even those paths
   // when they are freshly changed in the working tree (or on a client PR).
   const illegal = [...new Set([
-    ...rejectedProtectedPaths(committedPaths, integrationCandidate),
+    // Committed paths only: the reviewed server-lane migration exception is pinned to
+    // exact path + head branch + content hash (see REVIEWED_SERVER_MIGRATIONS).
+    ...rejectedProtectedPaths(committedPaths, integrationCandidate, {
+      headBranch,
+      readText: (f) => fs.readFileSync(f, "utf8"),
+    }),
     ...rejectedProtectedPaths(worktreePaths, false),
   ])];
   ok(illegal.length === 0, "no unauthorized new SQL/SW paths (" + (illegal.join(", ") || "none") + ")");

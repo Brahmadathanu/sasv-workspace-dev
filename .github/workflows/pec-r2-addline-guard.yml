@@ -1,0 +1,46 @@
+name: PEC R2 Add Line Guard (isolated fixture)
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/20261112220000_pec_r2_add_line_new_row_status_guard.sql"
+      - "scripts/pec-r2-server-addline-guard.test.mjs"
+      - "scripts/pec-r2-add-line-pg17-fixture.sql"
+      - ".github/workflows/pec-r2-addline-guard.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pg17-fixture:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture_only
+          POSTGRES_DB: pec_r2_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pec_r2_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Static additive migration policy checks
+        run: node --test scripts/pec-r2-server-addline-guard.test.mjs
+      - name: Isolated PostgreSQL 17 fixture — never production
+        env:
+          PGPASSWORD: fixture_only
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: pec_r2_fixture
+        run: |
+          set -eu
+          psql -X -v ON_ERROR_STOP=1 -f scripts/pec-r2-add-line-pg17-fixture.sql | tee "$RUNNER_TEMP/pec-r2-pg17-result.txt"
+          grep -q PEC_R2_ADD_LINE_PG17_FIXTURE_PASS "$RUNNER_TEMP/pec-r2-pg17-result.txt"
