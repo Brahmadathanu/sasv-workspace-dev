@@ -1,7 +1,12 @@
 // js/products.js — Gate 5.11V governed Product Master writers
-import { supabase } from "../public/shared/js/supabaseClient.js";
-import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
-import { mountModuleHome } from "../public/shared/js/sasv-module-chrome.js";
+import { supabase } from "./supabaseClient.js";
+import { bootstrapApp } from "./appBootstrap.js";
+import {
+  resolveMasterDataLoginPage,
+  goMasterDataHome,
+  resolveSeasonProfilesHref,
+} from "./master-data-platform.js";
+import { mountModuleHome } from "./sasv-module-chrome.js";
 
 const MODULE_TARGET = "module:manage-products";
 
@@ -2309,7 +2314,7 @@ homeBtn.addEventListener("click", async () => {
     !(await showModal("You have unsaved changes. Leave anyway?", "Yes", "No"))
   )
     return;
-  window.location.href = "index.html";
+  goMasterDataHome();
 });
 
 window.addEventListener("beforeunload", (event) => {
@@ -2319,7 +2324,14 @@ window.addEventListener("beforeunload", (event) => {
 });
 
 window.addEventListener("DOMContentLoaded", async () => {
-  const boot = await bootstrapApp({ loginPage: "login.html" });
+  // Season Profiles exists only at the Electron repo root; hide the link on the PWA instead of a dead 404.
+  const seasonProfilesLink = document.getElementById("seasonProfilesLink");
+  if (seasonProfilesLink) {
+    const seasonHref = resolveSeasonProfilesHref();
+    if (seasonHref) seasonProfilesLink.setAttribute("href", seasonHref);
+    else seasonProfilesLink.hidden = true;
+  }
+  const boot = await bootstrapApp({ loginPage: resolveMasterDataLoginPage() });
   if (!boot.ok) return;
 
   try {

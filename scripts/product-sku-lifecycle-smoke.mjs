@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
-const products = readFileSync(join(root, "js/products.js"), "utf8");
-const html = readFileSync(join(root, "manage-products.html"), "utf8");
+const products = readFileSync(join(root, "public/shared/js/products.js"), "utf8");
+const html = readFileSync(join(root, "public/shared/manage-products.html"), "utf8");
 const sw = readFileSync(join(root, "public/sw.js"), "utf8");
 const types = readFileSync(join(root, "public/shared/js/types/supabase.ts"), "utf8");
 const pointMigration = readFileSync(
