@@ -97,6 +97,9 @@ const governanceReasonError = document.getElementById("governanceReasonError");
 const governanceConfirm = document.getElementById("governanceConfirm");
 const governanceCancel = document.getElementById("governanceCancel");
 
+// WP08 G2-1: the gate is armed at module load, before any permission read or render (fail closed; see costing-destination-access.js).
+armDestinationAccessGate();
+
 // WP08 G2-1: permission rows from the one authenticated get_user_permissions read (null = unknown, never granted).
 let permissionRows = null;
 
@@ -357,7 +360,6 @@ async function loadProductMasterAccess() {
   let found = null;
   // WP08 G2-1: fail closed. Outbound links are offered only when THIS authenticated permission read verifies the
   // destination module's own view grant; any failure, fallback or missing row leaves them as non-link text.
-  armDestinationAccessGate();
   resetDestinationAccess();
   markDestinationAccessFailed();
 

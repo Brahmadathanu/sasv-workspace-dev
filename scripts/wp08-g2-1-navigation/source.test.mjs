@@ -92,3 +92,60 @@ test("route-code matrix is complete: every server-literal code is either proven-
   for (const code of ["DRIVER_GOVERNANCE", "QC_ACTION_QUEUE", "MATERIALS_STORES_ACTION_QUEUE", "COMMERCIAL_SALES_ASSUMPTIONS"]) assert.match(t, new RegExp(`"${code}"`));
   for (const code of ["MRP_GOVERNANCE", "SELLING_SCHEME_POLICIES", "BATCH_SIZES", "REGIONAL_MARKETING_REVIEW"]) assert.match(t, new RegExp(`${code}: "(?:ambiguous-workspace|unmapped)"`));
 });
+
+// ───────── CI-compatibility correction: every production consumer arms the gate before rendering any link ─────────
+import { stripWp08G21Shell, WP08_G2_1_SHELL_PIECES } from "../lib/wp08-g2-1-strip.mjs";
+import { stripN1Shell } from "../lib/n1-nav-strip.mjs";
+
+test("gate is armed at module top level (not inside a function) in the Costing shell and in Manage Products", () => {
+  for (const f of ["public/shared/js/costing-suite-shell.js", "public/shared/js/products.js"]) {
+    const t = read(f);
+    assert.equal((t.match(/^armDestinationAccessGate\(\);$/gm) ?? []).length, 1, `${f}: exactly one top-level arm call`);
+    assert.equal((t.match(/armDestinationAccessGate\(\)/g) ?? []).length, 1, `${f}: no arm call anywhere else (e.g. inside a handler)`);
+  }
+  const prod = read("public/shared/js/products.js");
+  assert.ok(prod.indexOf("\narmDestinationAccessGate();") < prod.indexOf("async function loadProductMasterAccess"), "armed before the permission read function exists");
+});
+test("every Costing page boots only through the shell entry, so resolver consumers never run unarmed", () => {
+  const entries = fs.readdirSync(path.join(root, "public/shared/js")).filter((n) => /-entry\.js$/.test(n) && /costing-suite-shell/.test(read(`public/shared/js/${n}`)));
+  assert.ok(entries.length >= 6, `shell entries: ${entries.join(",")}`);
+  for (const n of entries) assert.match(read(`public/shared/js/${n}`), /^import \{ bootstrapCostingSuite \} from "\.\/costing-suite-shell\.js";[\s\S]*bootstrapCostingSuite\("/m, n);
+  // The only importers of modules that call the resolver are the shell (and the draft evidence provider chain) — never a page/HTML.
+  const consumers = ["costing-suite-readiness", "costing-suite-control-center", "costing-review-worklist", "costing-draft-run-evidence", "costing-suite-recommended-ui-route"];
+  const importers = new Set();
+  for (const f of fs.readdirSync(path.join(root, "public/shared/js")).filter((n) => /\.m?js$/.test(n))) {
+    const t = read(`public/shared/js/${f}`);
+    for (const c of consumers) if (new RegExp(`from "\\./${c}\\.js"`).test(t) && f !== `${c}.js`) importers.add(f);
+  }
+  for (const f of importers) assert.ok(["costing-draft-run-evidence-provider.js", "costing-review-worklist.js", "costing-suite-control-center.js", "costing-suite-readiness.js", "costing-suite-shell.js", "costing-draft-run-evidence.js", "products.js"].includes(f), `unexpected resolver consumer ${f}: it must arm the gate or be loaded only via the shell`);
+  for (const h of fs.readdirSync(path.join(root, "public/shared")).filter((n) => n.endsWith(".html"))) {
+    assert.doesNotMatch(read(`public/shared/${h}`), /costing-suite-(readiness|control-center)\.js|costing-review-worklist\.js|costing-destination-access\.js/, `${h} must not load a consumer directly`);
+  }
+});
+test("historical-comparison strip removes exactly the five G2-1 shell pieces and nothing else (mutation-negative)", () => {
+  const shell = read("public/shared/js/costing-suite-shell.js");
+  const stripped = stripWp08G21Shell(shell);
+  assert.equal(stripped, base("public/shared/js/costing-suite-shell.js"), "stripped shell == main at G2-1 start");
+  assert.equal(stripN1Shell(shell).includes("DestinationAccess"), false);
+  for (const piece of WP08_G2_1_SHELL_PIECES) {
+    assert.ok(shell.includes(piece), "piece present");
+    assert.ok(!stripped.includes(piece), "piece removed");
+    assert.ok(stripWp08G21Shell(shell.replace(piece, piece + piece)).includes(piece), "a duplicated piece is NOT stripped (ambiguous)");
+    const altered = shell.replace(piece, piece.replace(/\w+/, (m) => m + "X"));
+    assert.ok(stripWp08G21Shell(altered) !== stripped, "an altered piece is left in place so the historical test fails");
+  }
+  const extra = shell.replace("armDestinationAccessGate();\n", "armDestinationAccessGate();\nwindow.evil = 1;\n");
+  assert.ok(stripWp08G21Shell(extra).includes("window.evil"), "any additional shell change survives the strip");
+});
+
+test("pinned-file strip (resolver, control-center): reverts only the exact reviewed revision (mutation-negative)", async () => {
+  const { stripWp08G21Pinned, WP08_G2_1_PINNED_FILES } = await import("../lib/wp08-g2-1-strip.mjs");
+  for (const rel of Object.keys(WP08_G2_1_PINNED_FILES)) {
+    const text = read(rel);
+    assert.equal(stripWp08G21Pinned(rel, text), base(rel), `${rel}: exact reviewed revision reverts to the G2-1 start text`);
+    assert.equal(stripWp08G21Pinned(rel, text.replace(/\n/g, "\r\n")), base(rel), `${rel}: CRLF checkout reverts identically`);
+    assert.equal(stripWp08G21Pinned(rel, text + "\n// x"), text + "\n// x", `${rel}: any extra edit is NOT reverted, so the historical test fails`);
+    assert.equal(stripWp08G21Pinned(rel, text.replace("navigable", "navigabl3")), text.replace("navigable", "navigabl3"), `${rel}: a mutation is not reverted`);
+  }
+  assert.equal(stripWp08G21Pinned("public/shared/js/other.js", "x"), "x", "other files untouched");
+});
