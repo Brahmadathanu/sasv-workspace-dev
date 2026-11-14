@@ -39,6 +39,8 @@ if (mainJs) {
     "proc_pec_pr_headers_filtered_paged", "proc_pec_indent_headers_filtered_paged",
     "proc_pec_purchase_excess_filtered_paged", "proc_pec_excess_acceptance_audit_paged",
     "proc_vendorwise_buylist_operational_paged", "proc_vendorwise_buylist_operational_options",
+    // R12: read-only SAFE/RESET collision preview (proposed server contract, draft server PR; client degrades if absent)
+    "proc_indent_resync_collision_preview",
   ]);
   const unexpected = added.filter((x) => !ALLOWED_NEW.has(x));
   ok(unexpected.length === 0, `no unexpected RPC names introduced (${unexpected.join(",") || "none"}; paged contract names allowed: ${added.filter((x) => ALLOWED_NEW.has(x)).length})`);

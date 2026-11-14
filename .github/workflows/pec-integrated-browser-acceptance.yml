@@ -63,6 +63,8 @@ jobs:
           node scripts/pec-erp-c1-layout-smoke.mjs
           node scripts/pec-erp-c2-vendor-selection-smoke.mjs
           node scripts/pec-c1-five-lens-fasttrack-smoke.mjs
+          node scripts/pec-r12-resync-collision-ux-smoke.mjs
+          node --test scripts/pec-r12-preview-contract.test.mjs
           node scripts/pec-erp-c1-static-smoke.mjs
           node scripts/pec-resync-mode-contract-smoke.mjs
           node scripts/pec-wp01-indent-serial-smoke.mjs

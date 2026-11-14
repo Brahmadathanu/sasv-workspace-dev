@@ -59,6 +59,15 @@ export const supabase = {
         const rows = S.aqRows ? Array.from({ length: S.aqRows }, (_, k) => [1000 + k, "IND-26-" + (1000 + k)]) : base;
         return mk(rows.slice(p.p_offset || 0, (p.p_offset || 0) + (p.p_limit || 50)).map(([id, no], k0) => { const k = (p.p_offset || 0) + k0; return { total_count: rows.length, row_data: { indent_line_id: 5000 + k, indent_id: id, indent_number: no, stock_item_name: "AQ item " + k, remaining_qty: 1, priority_band_final: "P1", priority_score_system: 1, material_class_code: "RM", uom_code: "KG" } }; }));
       }
+      // R12 resync-collision fixtures (synthetic; contract = proc_indent_resync_collision_preview)
+      if (name === "proc_indent_resync_collision_preview" && (S.preview || S.previewError)) {
+        if (S.previewError) return { data: null, error: S.previewError, status: S.previewError.status || 400 };
+        return mk(S.preview);
+      }
+      if (name === "proc_indent_resync_from_pr") {
+        if (S.resyncError && (p.p_mode === "safe" || S.resyncError.any)) return { data: null, error: S.resyncError, status: 400 };
+        return mk(null);
+      }
       let r = __pagedRpc(name, p, { indents: indents(), prs: prs(), excess, audit, vwl });
       if (r && r.__error) return { data: null, error: { message: r.__error } };
       // PostgREST max_rows (supabase/config.toml: 1000) silently caps UNPAGED set results

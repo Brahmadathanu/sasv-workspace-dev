@@ -97,6 +97,11 @@ for (const [label, btn, re] of [["Safe", "#btnIndentResyncSafe", /manual lines y
   await page.waitForSelector("#indentResyncModalBackdrop.show");
   check(re.test(await page.textContent("#indentResyncModeText")), `resync ${label}: copy states what happens to manual lines`);
   check(/Draft indents only/.test(await page.textContent("#indentResyncModalBackdrop")), `resync ${label}: draft-only / active-source-PR note shown`);
+  if (label === "Full") {
+    // R12: the destructive reset now needs an explicit acknowledgement before the RPC is sent.
+    check(await page.$eval("#btnIndentResyncConfirm", (b) => b.disabled), "resync Full: reset disabled until acknowledged");
+    await page.check("#indentResyncResetAck");
+  }
   await page.click("#btnIndentResyncConfirm");
   await page.waitForTimeout(600);
   check((await toasts(page)).some((t) => t.includes(`Indent resynced (${label})`)), `resync ${label}: success toast uses UI label`);
