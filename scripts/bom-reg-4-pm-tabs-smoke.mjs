@@ -7,8 +7,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const src = readFileSync(join(root, "js/manage-pm-bom.js"), "utf8");
-const html = readFileSync(join(root, "manage-pm-bom.html"), "utf8");
+const src = readFileSync(join(root, "public/shared/js/manage-pm-bom.js"), "utf8");
+const html = readFileSync(join(root, "public/shared/manage-pm-bom.html"), "utf8");
 const fails = [];
 const assert = (cond, msg) => {
   if (!cond) fails.push(msg);
@@ -117,8 +117,8 @@ assert(
   "override writes require can_edit"
 );
 assert(
-  /bootstrapApp\(\{ loginPage: "login.html" \}\)/.test(src),
-  "bootstrapApp still used"
+  /bootstrapApp\(\{ loginPage: resolveMasterDataLoginPage\(\) \}\)/.test(src),
+  "bootstrapApp still used (WP08 G2-0: platform-neutral login page; Electron value is /login.html)"
 );
 
 const activateRebuild =

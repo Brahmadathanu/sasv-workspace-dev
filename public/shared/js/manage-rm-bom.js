@@ -1,12 +1,18 @@
 /* eslint-env browser */
-import { supabase } from "../public/shared/js/supabaseClient.js";
-import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
+import { supabase } from "./supabaseClient.js";
+import { bootstrapApp } from "./appBootstrap.js";
+import {
+  canWriteMasterData,
+  setMasterDataAccess,
+  setMasterDataAccessFromGrant,
+} from "./master-data-write-guard.js";
+import { resolveMasterDataLoginPage, goMasterDataHome } from "./master-data-platform.js";
 import {
   mountModuleActionIcons,
   enhanceSearchableSelect,
   syncSearchableSelect,
   setSearchableSelectValue,
-} from "../public/shared/js/sasv-module-chrome.js";
+} from "./sasv-module-chrome.js";
 
 // Elements
 const el = (id) => document.getElementById(id);
@@ -79,8 +85,8 @@ function clearPageStatus() {
   host.className = "bom-page-status";
 }
 
-async function resolveModuleAccess() {
-  const boot = await bootstrapApp({ loginPage: "login.html" });
+async function resolveModuleAccessUnguarded() {
+  const boot = await bootstrapApp({ loginPage: resolveMasterDataLoginPage() });
   if (!boot.ok) {
     if (boot.reason === "no-session") return { ok: false, reason: "no-session" };
     console.error("RM BOM bootstrap failed", boot.error || boot.reason);
@@ -112,6 +118,31 @@ async function resolveModuleAccess() {
     console.error("Permission load failed (RPC)", pErr);
     return { ok: false, reason: "verify-failed" };
   }
+}
+
+// WP08 G2-0 #416: one fail-closed access state (client presentation/handler guard only; the database remains the authority).
+function requireEdit() {
+  if (canWriteMasterData()) return true;
+  setStatus("You do not have permission to edit this module.", "error");
+  return false;
+}
+async function resolveModuleAccess() {
+  setMasterDataAccess("locked");
+  let access;
+  try {
+    access = await resolveModuleAccessUnguarded();
+  } catch (err) {
+    console.error("Module access resolution failed", err);
+    access = { ok: false, reason: "verify-failed" };
+  }
+  if (access && access.ok) {
+    setMasterDataAccessFromGrant({ canView: PERM_CAN_VIEW, canEdit: PERM_CAN_EDIT });
+  } else {
+    PERM_CAN_VIEW = false;
+    PERM_CAN_EDIT = false;
+    setMasterDataAccess("locked");
+  }
+  return access;
 }
 
 // Horizontal scroll sync and back-to-top
@@ -834,6 +865,7 @@ async function loadBom(pid) {
 }
 
 async function saveBom() {
+  if (!requireEdit()) return;
   const issues = renderQA();
   if (issues.length)
     return setStatus("Fix validation issues before saving.", "error");
@@ -1123,7 +1155,10 @@ function closeEditHeaderModal() {
     focusTrapDispose = null;
   }
 }
-if (editHeaderBtn) editHeaderBtn.addEventListener("click", openEditHeaderModal);
+if (editHeaderBtn)
+  editHeaderBtn.addEventListener("click", () => {
+    if (requireEdit()) openEditHeaderModal();
+  });
 if (ehCloseBtn) ehCloseBtn.addEventListener("click", closeEditHeaderModal);
 if (ehCancelBtn)
   ehCancelBtn.addEventListener("click", (e) => {
@@ -1132,6 +1167,7 @@ if (ehCancelBtn)
   });
 if (ehApplyBtn)
   ehApplyBtn.addEventListener("click", (e) => {
+    if (!requireEdit()) return;
     e.preventDefault();
     // Basic validation on modal inputs
     const q = ehRefQty.value === "" ? null : parseFloat(ehRefQty.value);
@@ -1235,8 +1271,12 @@ function closeDeleteHeaderModal() {
     focusTrapDispose = null;
   }
 }
-cloneBtn.addEventListener("click", () => openNewHeaderModal());
-deleteBtn.addEventListener("click", () => openDeleteHeaderModal());
+cloneBtn.addEventListener("click", () => {
+  if (requireEdit()) openNewHeaderModal();
+});
+deleteBtn.addEventListener("click", () => {
+  if (requireEdit()) openDeleteHeaderModal();
+});
 nhCloseBtn.addEventListener("click", closeNewHeaderModal);
 nhCancelBtn.addEventListener("click", (e) => {
   e.preventDefault();
@@ -1377,6 +1417,7 @@ if (dhCancelBtn)
   });
 if (dhConfirmBtn)
   dhConfirmBtn.addEventListener("click", async () => {
+    if (!requireEdit()) return;
     if (!CURRENT_HEADER?.id) return;
     dhConfirmBtn.disabled = true;
     if (deleteBtn) deleteBtn.disabled = true; // already in a delete operation
@@ -1406,6 +1447,7 @@ if (dhConfirmBtn)
   });
 
 nhCreateBtn.addEventListener("click", async () => {
+  if (!requireEdit()) return;
   // Collect modal header data
   const prodId = parseInt(nhProduct.value, 10);
   if (!prodId) return alert("Select a product for the new header.");
@@ -1490,6 +1532,7 @@ if (dlCancelBtn)
   });
 if (dlConfirmBtn)
   dlConfirmBtn.addEventListener("click", () => {
+    if (!requireEdit()) return;
     if (PENDING_DELETE_LINE_INDEX != null) {
       CURRENT_LINES.splice(PENDING_DELETE_LINE_INDEX, 1);
       if (!CURRENT_LINES.length) CURRENT_LINES.push(blankLine());
@@ -1636,7 +1679,7 @@ if (insertPopover)
   const homeBtn = el("homeBtn");
   if (homeBtn) {
     homeBtn.addEventListener("click", () => {
-      window.location.href = "index.html";
+      goMasterDataHome();
     });
   }
 

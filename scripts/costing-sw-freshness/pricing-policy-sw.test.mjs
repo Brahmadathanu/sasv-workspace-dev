@@ -84,7 +84,7 @@ function load(src) {
   return { run, net, store };
 }
 
-const current = fs.readFileSync(swPath, "utf8");
+const current = fs.readFileSync(swPath, "utf8").replace(/\r\n/g, "\n"); // LF-normalised (CRLF checkouts)
 const baseline = current.replace(
   "    /costing-suite-pricing-policy\\.js$/.test(url.pathname) ||\n",
   "",

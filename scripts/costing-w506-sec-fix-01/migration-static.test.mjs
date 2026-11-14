@@ -9,7 +9,7 @@ import { createHash } from "node:crypto";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const MIG_NAME = "20261109105557_wp05_w506_sec_fix_01_staff_classification_writer_guard.sql";
-const rd = (p) => readFileSync(join(root, p), "utf8");
+const rd = (p) => readFileSync(join(root, p), "utf8").replace(/\r\n/g, "\n"); // LF-normalised so CRLF checkouts judge the same text
 const mig = rd(`supabase/migrations/${MIG_NAME}`);
 const rb = rd("docs/master-data-costing/prepared/WP05_W506_SEC_FIX_01_ROLLBACK.sql");
 const runner = rd("supabase/tests/w506_sec_fix_01/run_local.sh");

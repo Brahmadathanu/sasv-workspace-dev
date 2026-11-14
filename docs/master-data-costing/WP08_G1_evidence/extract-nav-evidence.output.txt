@@ -1,0 +1,98 @@
+## A. Literal 'recommended_ui_route' codes in supabase/migrations
+BATCH_SIZES	migrations=2
+COMMERCIAL_SALES_ASSUMPTIONS	migrations=2
+DRIVER_GOVERNANCE	migrations=2
+MANAGE_PRODUCTS	migrations=2
+MATERIALS_STORES_ACTION_QUEUE	migrations=1
+MRP_GOVERNANCE	migrations=2
+PM_BOM_MANAGER	migrations=2
+PRODUCTION_ROUTE_MANAGER	migrations=3
+QC_ACTION_QUEUE	migrations=1
+REGIONAL_MARKETING_REVIEW	migrations=3
+SELLING_SCHEME_POLICIES	migrations=5
+
+## B. Codes handled by resolveRecommendedUiRouteTarget
+PRODUCTION_ROUTE_MANAGER
+MATERIAL_RATE_MANAGER
+MATERIAL_RATE_REVIEW
+SELLING_PRICE_POLICY_REVIEW
+PRICING_POLICY_REVIEW
+COST_APPROVAL_WORKBENCH
+
+## C. Server codes with NO resolver branch (all fall through to navigable:false/unmapped)
+BATCH_SIZES
+COMMERCIAL_SALES_ASSUMPTIONS
+DRIVER_GOVERNANCE
+MANAGE_PRODUCTS
+MATERIALS_STORES_ACTION_QUEUE
+MRP_GOVERNANCE
+PM_BOM_MANAGER
+QC_ACTION_QUEUE
+REGIONAL_MARKETING_REVIEW
+SELLING_SCHEME_POLICIES
+
+## D. COSTING_ROUTE_CONFIG modules
+costing-control-center	module:costing-control-center	public/shared/costing-control-center.html
+material-cost-manager	module:material-cost-manager	public/shared/material-cost-manager.html
+cost-build-manager	module:cost-build-manager	public/shared/cost-build-manager.html
+pricing-policy-manager	module:pricing-policy-manager	public/shared/pricing-policy-manager.html
+cost-sheet-review	module:cost-sheet-review	public/shared/cost-sheet-review.html
+production-route-manager	module:production-route-manager	public/shared/production-route-manager.html
+
+## E. Root-level *.html (Electron express.static root; NOT under public/)
+add-log-entry.html
+edit-log-entry.html
+fg-bulk-internal-transfer.html
+index.html
+login.html
+manage-activities.html
+manage-areas.html
+manage-categories.html
+manage-category-map.html
+manage-chapters.html
+manage-machine-types.html
+manage-plants.html
+manage-pm-bom.html
+manage-product-groups.html
+manage-products.html
+manage-publications.html
+manage-references.html
+manage-rm-bom.html
+manage-season-profiles.html
+manage-sections.html
+manage-sp-bom.html
+manage-stock-items.html
+manage-subcategories.html
+manage-subgroups.html
+manage-subsections.html
+manage-tally-inv-mapping.html
+manage-uom.html
+procurement-planning-workbench.html
+production-overrides.html
+production-planning-workbench.html
+reset-password.html
+sop-dashboard.html
+sop-editor.html
+sop-viewer.html
+supply-batch-plan.html
+supply-overrides.html
+update-log-status.html
+
+## F. Product/BOM pages present under public/? (PWA publish = public)
+manage-products.html	root=true	public=false	public/shared=false
+manage-rm-bom.html	root=true	public=false	public/shared=false
+manage-pm-bom.html	root=true	public=false	public/shared=false
+manage-sp-bom.html	root=true	public=false	public/shared=false
+
+## G. URL-parameter consumers (source grep)
+js/products.js	URLSearchParams=false	permissionTarget=module:manage-products
+js/manage-rm-bom.js	URLSearchParams=false	permissionTarget=manage-rm-bom
+js/manage-pm-bom.js	URLSearchParams=false	permissionTarget=pm-templates
+js/manage-sp-bom.js	URLSearchParams=false	permissionTarget=manage-sp-bom
+costing-suite-shell.js reads product_id=true sku_id=true
+shell applies LAUNCH_DRILL_CONTEXT.skuId only for: manual-rate-manager (Material Cost Manager)
+PRM applyDeepLinkFromUrl reads product_id=true
+
+## H. Electron application menu items with module navigation
+main.js menu labels: File, Edit, View, Window, Check for updates, Learn More
+setWindowOpenHandler/will-navigate present: false

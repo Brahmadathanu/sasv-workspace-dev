@@ -176,6 +176,33 @@ export const APPROVED_COSTING_SUPABASE_FILES = Object.freeze([
   },
 ]);
 
+export const APPROVED_COSTING_WP05_SUPABASE_FILES = Object.freeze([
+  // MDC-07 verification (12 Nov 2026): the WP05 server packages below were added to main after these historical guards last ran (they
+  // are not in any CI job). They are owner-accepted WP05 work (WP05 closed with bounded residuals, R63), merged before this guard
+  // entry; each is pinned by path AND LF-normalised sha256, exactly like the entries above, so any edit, rename or additional
+  // Costing migration/test file is still reported. No file here is edited or applied by this entry.
+  { package: "WP05-W506 SEC-FIX-01 (staff-classification writer guard)", rel: "supabase/migrations/20261109105557_wp05_w506_sec_fix_01_staff_classification_writer_guard.sql", sha256: "fba8c5a054d0e1ce87bc4a0cf36fe7875d6913428893c4c6f62957d3530d1e64" },
+  { package: "WP05-W506 SEC-FIX-02 (staff-classification close-writer guard)", rel: "supabase/migrations/20261109105717_wp05_w506_sec_fix_02_staff_classification_close_writer_guard.sql", sha256: "90fb2e52a6d74a22d5ebc5aa80549e349a8393c3e31386ad93796cd9895417ec" },
+  { package: "WP05-W506 CONF-01 (personnel view gate)", rel: "supabase/migrations/20261110071308_wp05_w506_conf_01_personnel_view_gate.sql", sha256: "8460e1d9f5c9b33790e7a80e22ef96576ce32d45a59822931a9ccfa9d6f68e7c" },
+  { package: "WP05 CSR scoped Cost Comparison RPC (#273/#275)", rel: "supabase/migrations/20261111133505_csr_scoped_comparison_rpc_additive_20261111.sql", sha256: "765c0d9d9d4296901e65fb58770decbea4d860a2f835063397529a7ae9d6f914" },
+  { package: "WP05-W506 combined PG17 sequence", rel: "supabase/tests/w506_combined/run_combined_sequence.sh", sha256: "06737eb2c4f14bf4687dad4203da6c85d1006be4937f75516134ed590339de1d" },
+  { package: "WP05-W506 CONF-01 (personnel view gate)", rel: "supabase/tests/w506_conf/live_view_definitions_pg17_20261109.sql", sha256: "60534715518e144298eead6b241525b89c8f6804ccd68aa3c3733e1a08066108" },
+  { package: "WP05-W506 CONF-01 (personnel view gate)", rel: "supabase/tests/w506_conf/matrix.sql", sha256: "cbd8a5982155b61f1684628bfbefb0c23707432edf495cd62b1cfa00bb57c035" },
+  { package: "WP05-W506 CONF-01 (personnel view gate)", rel: "supabase/tests/w506_conf/run_view_gate_test.sh", sha256: "287e09f8e4f1e2765d46420f103bb38a8adceb3ef2f652d1c62963bb32dfcd24" },
+  { package: "WP05-W506 CONF-01 (personnel view gate)", rel: "supabase/tests/w506_conf/scaffold.sql", sha256: "1bde1e702095500f8dc344a20d912bff85e1168f56ff1a74c686cd16b995cfc6" },
+  { package: "WP05-W506 SEC-FIX-01 (staff-classification writer guard)", rel: "supabase/tests/w506_sec_fix_01/fixture.sql", sha256: "1ea5215bca65ac47e08eae428d3d107acc33e4ef5ad1e7ce10fd3fec4dc3accd" },
+  { package: "WP05-W506 SEC-FIX-01 (staff-classification writer guard)", rel: "supabase/tests/w506_sec_fix_01/live_definition_snapshot_20261109.sql", sha256: "2b775fa1e8c70d29ddb46be3b068727a2fe570a2cd455c8d8be9aab303278a04" },
+  { package: "WP05-W506 SEC-FIX-01 (staff-classification writer guard)", rel: "supabase/tests/w506_sec_fix_01/live_matrix.sql", sha256: "95769fd55432df5c747e1d03f7c9208e7b4d43c2d51f61a781b9993266615b7c" },
+  { package: "WP05-W506 SEC-FIX-01 (staff-classification writer guard)", rel: "supabase/tests/w506_sec_fix_01/live_scaffold.sql", sha256: "f26776feb5f8ed644dc9e1d1a9818b8de3e8478fa83a928db3a94626cb406204" },
+  { package: "WP05-W506 SEC-FIX-01 (staff-classification writer guard)", rel: "supabase/tests/w506_sec_fix_01/matrix.sql", sha256: "193a9ccca2fe845525a1a0e64c9b702a77faa81ef39dc5f52d8420f547582563" },
+  { package: "WP05-W506 SEC-FIX-01 (staff-classification writer guard)", rel: "supabase/tests/w506_sec_fix_01/run_live_equivalent.sh", sha256: "238a92621b3635aa7f7bcdb63c1c38845c82aca0c8a22b85cb1a4af8e00a38d1" },
+  { package: "WP05-W506 SEC-FIX-01 (staff-classification writer guard)", rel: "supabase/tests/w506_sec_fix_01/run_local.sh", sha256: "04d5635af53ad301b5b5bf06b944c405ebd3872b5dc453df9c2dbf605148cd58" },
+  { package: "WP05-W506 SEC-FIX-02 (staff-classification close-writer guard)", rel: "supabase/tests/w506_sec_fix_02/live_close_definition_snapshot_20261109.sql", sha256: "f44042b52ff5e4d53ca6e0b5b690bb4c7ed252653126b10ef76c7142951cd4f9" },
+  { package: "WP05-W506 SEC-FIX-02 (staff-classification close-writer guard)", rel: "supabase/tests/w506_sec_fix_02/live_matrix.sql", sha256: "50b3fc37be022f9ba07cd909eb9171cc16e2e2020b891e8ccd786973c4abf811" },
+  { package: "WP05-W506 SEC-FIX-02 (staff-classification close-writer guard)", rel: "supabase/tests/w506_sec_fix_02/live_scaffold.sql", sha256: "dfdbc42abf3ab72e6191a1de9aceba8261871b69a55bf8e10df20e1ee4227a22" },
+  { package: "WP05-W506 SEC-FIX-02 (staff-classification close-writer guard)", rel: "supabase/tests/w506_sec_fix_02/run_live_equivalent.sh", sha256: "debadd3eb1941fd8c68546f53a9ad51309ea913036cb5339a8b0fec1599ace5b" },
+]);
+
 const sha256Lf = (text) => crypto.createHash("sha256").update(String(text).replace(/\r\n/g, "\n")).digest("hex");
 
 /** Supabase changes that touch Costing or rewrite history. Returns human-readable violation strings. */
@@ -269,7 +296,7 @@ const withoutCw07LabelOnly = (paths, ctx) =>
   paths.filter((rel) => !isCw07LabelOnlyChange({ ...ctx, rel }) && !isApprovedHtmlInsertionOnly({ ...ctx, rel }));
 
 /** One-call summary used by the package tests. */
-export function costingScopeReport({ git, root, base, approvedSupabase = APPROVED_COSTING_SUPABASE_FILES }) {
+export function costingScopeReport({ git, root, base, approvedSupabase = [...APPROVED_COSTING_SUPABASE_FILES, ...APPROVED_COSTING_WP05_SUPABASE_FILES] }) {
   const htmlScope = costingHtmlScope({ git, base });
   const cssScope = costingCssScope({ git, root, base });
   const ctx = { git, root, base };

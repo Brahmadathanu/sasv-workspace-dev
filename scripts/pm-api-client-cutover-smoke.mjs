@@ -15,7 +15,7 @@ const assert = (cond, msg) => {
 };
 const read = (rel) => readFileSync(join(root, rel), "utf8");
 
-const bom = read("js/manage-pm-bom.js");
+const bom = read("public/shared/js/manage-pm-bom.js");
 const rebuild = read("public/shared/js/pm-rebuild-dashboard.js");
 const speHtml = read("public/shared/stock-purchase-explorer.html");
 const tallyHtml = read("manage-tally-inv-mapping.html");

@@ -111,7 +111,12 @@ self.addEventListener("fetch", (event) => {
     // PEC ERP: the shared module must not pair newly served HTML with stale
     // cached paging/client logic or visual styles in installed PWAs.
     /\/shared\/js\/procurement-execution-console\.js$/.test(url.pathname) ||
-    /\/shared\/css\/sasv-procurement-execution-console\.css$/.test(url.pathname)
+    /\/shared\/css\/sasv-procurement-execution-console\.css$/.test(url.pathname) ||
+    // WP08 G2-0: the four shared Master Data pages (HTML is network-first) must not pair new HTML with a stale
+    // cache-first script/stylesheet. These URLs were never cached by any earlier cache generation, so no
+    // CACHE_NAME advance is needed; they simply must never enter the cache-first path.
+    /\/shared\/js\/(?:products|manage-rm-bom|manage-pm-bom|manage-sp-bom|master-data-platform|master-data-write-guard)\.js$/.test(url.pathname) ||
+    /\/shared\/css\/(?:shared-ui|sasv-bom)\.css$/.test(url.pathname)
   ) {
     event.respondWith(
       (async () => {
