@@ -67,3 +67,5 @@ Operator commands: `PEC_OPERATOR_EXECUTION_RUNBOOK_20261113.md` §C against `htt
 6. No `main` merge, frontend release or Electron deployment performed.
 7. Rollback is forward-only by a separately reviewed migration (re-issue `143000`/`133000` bodies and the original wrapper; `DROP FUNCTION` for the preview). Not needed so far.
 8. Issue #388 was not updated by this run (`gh` not authenticated here).
+
+> **Correction (14 Nov 2026, see `PEC_RESIDUAL_RISK_LEDGER_20261114.md`):** in section 7 item 3, R-1 is not a "vendor bulk writers vs resync line-lock inversion" (vendor writers do not touch indent lines; the residual is two multi-header writers deadlocking each other, independent of R10) and R-3 is narrower (database locks still serialise privileged direct writes with a running resync). R-2 is a reproduced defect tracked in issue #412.
