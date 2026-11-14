@@ -95,7 +95,7 @@ const r2fix = "supabase/migrations/20261114135500_pec_indent_set_status_header_l
     const lf = live.replace(/\r\n/g, "\n");
     assert.ok(lf.includes('const CACHE_NAME = "hub-cache-v393"'), "cache version unchanged");
     assert.ok(/procurement-execution-console\\\.js\$\/\.test\(url\.pathname\)/.test(lf) && /sasv-procurement-execution-console\\\.css\$\/\.test\(url\.pathname\)/.test(lf), "PEC network-first rules present");
-    assert.ok(lf.includes("(?:products|manage-rm-bom|manage-pm-bom|manage-sp-bom|master-data-platform)") && lf.includes("(?:shared-ui|sasv-bom)"), "main (WP08 G2-0) network-first rules present");
+    assert.ok(lf.includes("WP08 G2-0") && lf.includes("master-data-platform") && lf.includes("master-data-write-guard") && lf.includes("(?:shared-ui|sasv-bom)"), "main (WP08 G2-0) network-first rules present, including the write-guard module");
     assert.ok(!/<<<<<<<|>>>>>>>/.test(lf), "no conflict markers");
     t2("sw.js exact reviewed merge accepted on the sync branch", [sw], [], ctx());
     t2("sw.js CRLF checkout of the same content accepted", [sw], [], ctx({ readText: () => lf.replace(/\n/g, "\r\n") }));
