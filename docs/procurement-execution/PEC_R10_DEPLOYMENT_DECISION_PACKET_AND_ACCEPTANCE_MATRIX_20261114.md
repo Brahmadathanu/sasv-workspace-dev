@@ -79,3 +79,17 @@ Accepted PEC R2c UI behaviour: no client file changed in this run.
 
 ## 8. Evidence limits
 All live reads were in the SQL editor, read-only (catalog and aggregate counts; no identities or business rows recorded). CI results come from the public GitHub API for the exact head; job logs were not downloaded. Registration/approval is not proof of execution; G0–G5 remain unsigned.
+
+
+## Owner decision — 14 November 2026: R10 forward deployment, conditional
+
+**Owner APPROVED the bounded R10 release path** by replying "Okay go ahead" to the explicit proposal to resolve the two conditions together and then use Claude Desktop for three versioned migration deployments. Interpret this as:
+- **C1 APPROVED:** accept existing exact-head GitHub PG17 synthetic CI rehearsal as sufficient for *this bounded production migration gate*, without creating a live-data database clone. This is not a claim of live concurrency/runtime acceptance or final release approval.
+- **C2 APPROVED:** authorize the new STABLE SECURITY DEFINER `proc_indent_resync_collision_preview(bigint)` to enforce `require_permission('module:procurement-execution-console', false)` and grant `EXECUTE` **only** to `authenticated` and `service_role`, explicitly revoking `PUBLIC` and `anon` as in the pinned `20261113172424` source. Genuine-role negative checks are still mandatory before final release.
+- **Production forward installation CONDITIONALLY APPROVED:** exact existing source versions **`20261113170715`**, **`20261113172424`**, **`20261114013211`**, individually in original-version order, subject to frozen SHA/hash and function/ACL/trigger/status preflights, individual transaction success and post-checks, a version-aware history recording without unrestricted bulk push, and halt-on-unexpected-drift. Do not edit source or silently substitute a different migration/version. Preserve the names and run the three files in ascending version order.
+
+**Execution boundary:** This is permission for the three pre-reviewed forward migrations only, including their expressly scoped preview grants. **No** business-row mutation (existing approved indents are never test fixtures), unrelated grant hardening (#400), vendor writer/status race patches, new source changes, RLS modifications, full-project migration repair/push, `main` merge, PWA/Electron release, or formal G0–G5 sign-off. Rollback must use a separately reviewed forward migration; never replay older migrations. If actual execution requires an unsafe direct history insert, ambiguous source/version handling or disallowed bulk migration command, **STOP** instead of improvising.
+
+**Fresh connected production read-only baseline at authorization:** 694 official migration history rows; R10 registrations 0/3; 48 indent headers, zero drafts, 1,598 indent lines, 1,023 line mappings; preview RPC absent; resync definition MD5 `b4ca2525ead97eba685ff30ab50d4959`; source-PR wrapper definition MD5 `5aa37e3f9d61fd4d2ac4b186a6e5d85c`. Real signed-in Editor/View-only/no-access and installed PWA/Windows Electron tests remain NOT TESTED. The *authorization* is recorded here; **R10 deployment is not asserted executed**.
+
+**Remaining follow-ups:** #399 strict Netlify preview provenance checker; #400 separate read/ACL exposure assessment. Any proven unauthorized access becomes a release blocker. R-1 vendor bulk writer line-lock inversion and R-2 approval stale line-count residuals remain uncorrected and require explicit release-risk disposition.
