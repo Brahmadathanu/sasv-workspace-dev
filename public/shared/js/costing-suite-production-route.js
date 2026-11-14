@@ -11272,9 +11272,14 @@ export function createProductionRouteController(deps = {}) {
     // Stale / superseded / disposed loads never touch the stored context (finalizePrmLoad marks them stale).
     if (disposed || !result || result.stale !== false || result.generation !== lensRenderGeneration) return result;
     if (result.ok === false) {
+      // Issue #395: the lens changed even though its load failed - present chips for it (none on a non-identity
+      // lens) before forgetting the ids that failed to load.
+      navContext.present(state.activeLens);
       navContext.invalidate(injected);
       return result;
     }
+    // commit() also re-presents the chips for this accepted lens: remembered chips on an identity lens, none on any
+    // other lens (issue #395), without altering the stored context.
     navContext.commit(state.activeLens, {
       deepLink: hydrated,
       productHeader: productEditorHeader(),
