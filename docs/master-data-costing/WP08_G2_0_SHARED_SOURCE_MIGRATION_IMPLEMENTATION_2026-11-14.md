@@ -52,12 +52,14 @@ Environment: Node 22, Playwright Chromium (stubbed Supabase + jsPDF; no network,
 | `scripts/wp08-g2-0-shared-master-data/browser.test.mjs` | **44/44 PASS** – 4 modules × {Electron-root, PWA-public} × {390, 1280 px}: assets 200, no errors, no horizontal overflow; denied/view/edit guards; non-mutating boot; HOME and no-session targets per client; PM BOM wrong-key denied; Season Profiles; jsPDF; legacy-root forwarding (query+hash) and PWA 404 for root names |
 | Existing PM/BOM/Product smokes (7 scripts, paths updated) | pass except `product-sku-lifecycle-smoke` which fails on **both base and branch** with the same stale assertion `service worker generation is hub-cache-v332` (pre-existing, unrelated) |
 | `bom-reg-4-pm-tabs-smoke` | one assertion pinned the literal `bootstrapApp({ loginPage: "login.html" })`; **updated** to the platform-neutral call (not weakened: it still proves bootstrapApp is used) |
-| Before/after full sweep of 221 existing smoke/unit scripts | see §4.1 |
+| Before/after sweep of 45 existing scripts (nav, PWA/SW freshness, scope guards, BOM/PM/Product, acceptance, FG-BIT, activities, MRP) | **identical exit codes on base and branch** – see §4.1 |
 
 **Known baseline, not a regression:** PM BOM page overflows horizontally at 390 px (scrollWidth 567) on the **base** commit as well (measured on a clean base worktree). The test pins that value as an upper bound so G2-0 cannot worsen it; fixing it is WP11 (UX-P02).
 
 ### 4.1 Before/after regression sweep
-RESULT_PLACEHOLDER
+Run against a clean base worktree (`3f47b115`) and this branch, 45 scripts selected by area (file-name patterns for costing nav/acceptance/PWA freshness, scope guards, BOM/PM/Product, MRP, BMR, activities), 40 s timeout, parallel 6: **exit codes identical for all 45** (`diff` empty).
+Non-zero in **both** runs (pre-existing, not caused by G2-0): `costing-acceptance/acceptance-runner.test.mjs`, `costing-acceptance/verify-served-assets.test.mjs`, `manage-activities/page.test.mjs` (exit 124 = exceeded 40 s, browser-driven, **no verdict**), `fg-bit-ux-1/page.test.mjs` (exit 1), `product-sku-lifecycle-smoke.mjs` (exit 1, stale `hub-cache-v332` pin).
+Not run: the remaining ~176 scripts (a full sweep was started and abandoned because the browser-driven ones exceed practical time); those that read the moved files were found by grep and updated (§1). `ppm-n6-nav-resolver-smoke` (2 pre-existing PRM failures from WP08 G1) and `eaushadhi-worker` suites were excluded from the sweep as unrelated.
 
 ## 5. Risks
 
