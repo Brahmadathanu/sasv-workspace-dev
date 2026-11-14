@@ -11,7 +11,7 @@ import { execFileSync } from "node:child_process";
 import { repoRoot, MODULES } from "./harness.mjs";
 
 const BASE = "3f47b11517c0592c71d6c27bf3601ec5e3c51658"; // main at G2-0 start
-const read = (p) => fs.readFileSync(path.join(repoRoot, p), "utf8");
+const read = (p) => fs.readFileSync(path.join(repoRoot, p), "utf8").replace(/\r\n/g, "\n");
 const exists = (p) => fs.existsSync(path.join(repoRoot, p));
 const sha = (p) => crypto.createHash("sha256").update(fs.readFileSync(path.join(repoRoot, p))).digest("hex");
 const git = (...a) => execFileSync("git", a, { cwd: repoRoot, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
@@ -131,9 +131,12 @@ test("moved, not rewritten: only allow-listed navigation/import/path lines diffe
   for (const [oldP, newP] of pairs) {
     const tmp = path.join(os.tmpdir(), `g2-0-base-${crypto.randomBytes(4).toString("hex")}-${path.basename(oldP)}`);
     fs.writeFileSync(tmp, git("show", `${BASE}:${oldP}`));
+    const headTmp = `${tmp}.head`;
+    fs.writeFileSync(headTmp, read(newP));
     let out = "";
-    try { execFileSync("diff", ["-U0", tmp, path.join(repoRoot, newP)], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }); } catch (e) { out = e.stdout || ""; }
+    try { execFileSync("diff", ["-U0", tmp, headTmp], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }); } catch (e) { out = e.stdout || ""; }
     fs.rmSync(tmp, { force: true });
+    fs.rmSync(headTmp, { force: true });
     const changed = out.split("\n").filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l)).map((l) => l.slice(1));
     const total = git("show", `${BASE}:${oldP}`).split("\n").length;
     assert.ok(changed.length < Math.max(40, total * 0.01), `${newP}: ${changed.length} changed lines of ${total} is a move, not a rewrite`);
@@ -181,36 +184,34 @@ test("platform helper: Electron vs PWA targets, and no data access or writes in 
   assert.doesNotMatch(read("public/shared/js/master-data-platform.js"), /supabase|\.rpc\(|\.from\(|localStorage/);
 });
 
+test("service worker change is minimal: only added network-first patterns for the shared Master Data modules, CACHE_NAME unchanged", () => {
+  const diff = git("diff", "-U0", "--no-color", BASE, "HEAD", "--", "public/sw.js");
+  const changed = diff.split("\n").filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l));
+  assert.ok(changed.length <= 10, `sw.js diff is ${changed.length} lines`);
+  assert.ok(!changed.some((l) => /CACHE_NAME/.test(l)), "no cache-version change");
+  const added = changed.filter((l) => l.startsWith("+")).join("\n");
+  assert.match(added, /WP08 G2-0/);
+  assert.match(added, /products\|manage-rm-bom\|manage-pm-bom\|manage-sp-bom\|master-data-platform/);
+  assert.match(added, /shared-ui\|sasv-bom/);
+  assert.equal((read("public/sw.js").match(/const CACHE_NAME = "hub-cache-v393"/g) ?? []).length, 1);
+});
+
 test("scope guard: no G2-1 bridges, no resolver/PPM/registry-config/sw/flag changes in this package", () => {
   const changed = git("diff", "--name-only", BASE, "HEAD").split("\n").filter(Boolean);
-  const forbidden = [/costing-suite-recommended-ui-route/, /costing-suite-pricing-policy/, /costing-suite-shell/, /costing-route-config/, /costing-suite-registry/, /costing-feature-flags/, /^public\/sw\.js$/, /^supabase\//, /^main\.js$/, /^preload\.js$/, /^public\/netlify\.toml$/, /module-registry\.js$/];
+  const forbidden = [/costing-suite-recommended-ui-route/, /costing-suite-pricing-policy/, /costing-suite-shell/, /costing-route-config/, /costing-suite-registry/, /costing-feature-flags/, /^supabase\//, /^main\.js$/, /^preload\.js$/, /^public\/netlify\.toml$/, /module-registry\.js$/];
   for (const f of changed) for (const re of forbidden) assert.doesNotMatch(f, re, `forbidden file changed: ${f}`);
   for (const p of CANON_JS) assert.doesNotMatch(read(p), /URLSearchParams|location\.search/, `${p} adds no deep-link consumer`);
 });
 
-test("registry proposal is unapplied, idempotent, scoped to route paths, and never touches permissions", () => {
+test("registry proposal files exist, are outside supabase/migrations, and keep PM BOM on pm-templates (behaviour is covered by registry-sql.test.mjs)", () => {
   const dir = "docs/master-data-costing/WP08_G2_0_REGISTRY_PROPOSAL_UNAPPLIED";
-  for (const f of ["README.md", "01_preflight_and_before_select.sql", "02_apply_pwa_client_rows.sql", "03_optional_repoint_electron_routes.sql", "99_rollback.sql"]) assert.ok(exists(`${dir}/${f}`), f);
+  const files = ["README.md", "01_preflight_and_before_select.sql", "02_apply_pwa_client_rows.sql", "03_optional_repoint_electron_routes.sql", "98_rollback_step_b_electron.sql", "99_rollback_step_a_pwa.sql"];
+  for (const f of files) assert.ok(exists(`${dir}/${f}`), f);
+  assert.ok(!exists(`${dir}/99_rollback.sql`), "the old overwriting-era rollback is gone");
   assert.ok(!git("ls-files", "supabase/migrations").split("\n").some((f) => /g2[_-]?0|master_data_pwa/i.test(f)), "must not be in supabase/migrations");
-  const apply = read(`${dir}/02_apply_pwa_client_rows.sql`);
-  const elec = read(`${dir}/03_optional_repoint_electron_routes.sql`);
-  const roll = read(`${dir}/99_rollback.sql`);
-  const pre = read(`${dir}/01_preflight_and_before_select.sql`);
-  const all = apply + elec + roll + pre;
-  for (const [key, target, file] of [["manage-products", "module:manage-products", "manage-products.html"], ["manage-rm-bom", "module:manage-rm-bom", "manage-rm-bom.html"], ["manage-sp-bom", "module:manage-sp-bom", "manage-sp-bom.html"], ["pm-templates", "module:pm-templates", "manage-pm-bom.html"]]) {
-    assert.ok(apply.includes(`'${key}'`) && apply.includes(`'public/shared/${file}'`), `apply ${key}`);
-    assert.ok(pre.includes(`'${target}'`), `preflight ${target}`);
-    assert.ok(roll.includes(`'${key}'`) && elec.includes(`'${key}'`));
-  }
-  assert.doesNotMatch(all, /manage-pm-bom'/, "no manage-pm-bom registry/permission key");
-  assert.match(apply, /on conflict \(module_key, client_key\) do update/i);
-  assert.match(apply, /client_key = 'electron'/, "PWA rows derive from the existing Electron rows");
-  assert.match(elec, /c\.route_path = v\.legacy_route/, "electron repoint is guarded by the legacy value");
-  for (const sql of [apply, elec, roll]) {
-    assert.match(sql, /^\s*(?:--[^\n]*\n|\s)*begin;/i);
-    assert.match(sql, /commit;\s*$/i);
-    assert.doesNotMatch(sql, /\b(grant|revoke|alter\s+(?:table|policy)|create\s+(?:policy|function|table)|drop\s|truncate)\b/i);
-    assert.doesNotMatch(sql, /(?:insert\s+into|update|delete\s+from)\s+(?:public\.)?(?:app_modules|user_permissions\w*|role_permissions\w*|app_nav_sections|permissions\w*)\b/i);
-  }
+  const all = files.filter((f) => f.endsWith(".sql")).map((f) => read(`${dir}/${f}`)).join("\n");
+  assert.match(all, /'pm-templates'/);
+  assert.doesNotMatch(all, /manage-pm-bom'/);
+  assert.doesNotMatch(all, /on conflict/i, "no upsert in any script");
   assert.match(all, /UNAPPLIED/);
 });
