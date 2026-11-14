@@ -11,7 +11,7 @@ MODE=${1:-guarded}
 P -f "$LIBDIR/fixture-rbac.sql" >/dev/null
 case $MODE in
   open) P -c "grant execute on all functions in schema public to public, anon, authenticated" >/dev/null ;;
-  noperm) P -c "create or replace function public.require_permission(text,boolean) returns void language sql as \$f\$ select \$f\$" >/dev/null ;;
+  noperm) P -c "create or replace function public.require_permission(p_target text, p_need_edit boolean) returns void language sql as \$f\$ select \$f\$" >/dev/null ;;
   guarded) : ;;
   *) echo "bad mode"; exit 2 ;;
 esac
@@ -35,16 +35,16 @@ seed; A0=$(q "select public.fx_acl_md5()"); G0=$(gmd)
 r=$(as authenticated $VIEWER "$PRV"); [ "$r" = OK ] && res G1 PASS "View-only: R10 preview permitted" || res G1 FAIL "viewer preview -> $r"
 # G2 viewer: writers denied by the permission gate, no mutation
 ok=1
-for s in "$ADD" "$SRC"; do r=$(as authenticated $VIEWER "$s"); case $r in "P0001:Permission denied for module:procurement-execution-console (edit=true)"*) : ;; *) ok=0; echo "  viewer writer -> $r" >&2 ;; esac; done
+for s in "$ADD" "$SRC"; do r=$(as authenticated $VIEWER "$s"); case $r in "P0001:Permission denied for module:procurement-execution-console (edit=t)"*) : ;; *) ok=0; echo "  viewer writer -> $r" >&2 ;; esac; done
 [ "$(gmd)" = "$G0" ] || ok=0
-[ $ok = 1 ] && res G2 PASS "View-only: Add Line and source-PR change denied (P0001 'Permission denied ... edit=true'); nothing changed" || res G2 FAIL "viewer writer not denied or state changed"
+[ $ok = 1 ] && res G2 PASS "View-only: Add Line and source-PR change denied (P0001, 'Permission denied ... (edit=t)': PostgreSQL prints the boolean as t/f); nothing changed" || res G2 FAIL "viewer writer not denied or state changed"
 # G3 no-access: preview and writers denied; unauthenticated session rejected
 ok=1
-r=$(as authenticated $NONE "$PRV"); case $r in "P0001:Permission denied for module:procurement-execution-console (edit=false)"*) : ;; *) ok=0; echo "  none preview -> $r" >&2 ;; esac
+r=$(as authenticated $NONE "$PRV"); case $r in "P0001:Permission denied for module:procurement-execution-console (edit=f)"*) : ;; *) ok=0; echo "  none preview -> $r" >&2 ;; esac
 r=$(as authenticated $NONE "$ADD"); case $r in P0001:Permission\ denied*) : ;; *) ok=0; echo "  none writer -> $r" >&2 ;; esac
 r=$(as authenticated - "$PRV"); case $r in "P0001:Not authenticated"*) : ;; *) ok=0; echo "  no-sub preview -> $r" >&2 ;; esac
 [ "$(gmd)" = "$G0" ] || ok=0
-[ $ok = 1 ] && res G3 PASS "No-access: preview and writers denied (edit=false / edit=true wording); a session without identity is 'Not authenticated'; nothing changed" || res G3 FAIL "no-access gate wrong"
+[ $ok = 1 ] && res G3 PASS "No-access: preview and writers denied (edit=f / edit=t wording); a session without identity is 'Not authenticated'; nothing changed" || res G3 FAIL "no-access gate wrong"
 # G4 editor: everything permitted (these two writes commit; reseed afterwards)
 ok=1
 r=$(as authenticated $EDITOR "$PRV"); [ "$r" = OK ] || { ok=0; echo "  editor preview -> $r" >&2; }
