@@ -45,11 +45,16 @@ const code = [
   "const PEC_PAGE_LIMIT_MAX = 200;",
   "const PEC_EXPORT_MAX_ROWS = 50000;",
   "const DEFAULT_PAGE_SIZE = 30;",
+  "let pecRequestCounter = 0;",
+  // R2: the incremental feed adopts the first page; the harness only needs its state
+  "const vwlFeed = { state: { rows: [] }, seed(rows) { this.state.rows = rows; }, complete(rows) { this.state.rows = rows; } };",
   ...[
     "unpackPagedRows",
+    "pecSanitizeMessage",
+    "pecClassifyError",
+    "pecDescribeError",
     "clampPageLimit",
     "rpcPecPaged",
-    "fetchPageWithRecovery",
     "normalizeVwlServerFilterOptions",
     "getVwlOperationalBucketKey",
     "getVwlOperationalRowKey",
@@ -127,6 +132,8 @@ function makeHarness() {
     showLoadingMask: () => (h.mask.show += 1),
     hideLoadingMask: () => (h.mask.hide += 1),
     toast: (m, t) => h.toasts.push([m, t]),
+    // R2c: shared honest error state (real implementation is DOM-heavy; contract asserted in pec-r2c-ui-smoke)
+    renderFeedErrorState: (tb, _cols, subject) => { tb.innerHTML = `<tr><td>${subject} could not be loaded.</td></tr>`; },
     toastError: (p, e) => h.toasts.push([`${p}: ${e?.message}`, "error"]),
     loadVendorBuylistFilterOptions: async () => {},
     sortVendorBuylistRows: (r) => r,
@@ -287,7 +294,7 @@ const type = (h, q) => {
     h.toasts.some(([m, t]) => t === "error" && m.includes("statement timeout")),
     "server error surfaced with its message",
   );
-  assert(h.tbody.innerHTML.includes("Failed to load"), "error row shown");
+  assert(h.tbody.innerHTML.includes("could not be loaded"), "error row shown");
   assert(h.mask.show === h.mask.hide, "mask resolved after error");
   const b = type(h, "again");
   await tick();

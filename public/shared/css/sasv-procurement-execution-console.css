@@ -304,7 +304,6 @@ body.sasv-pec .card {
   border-radius: var(--sasv-radius-md, 8px);
   box-shadow: var(--sasv-shadow-sm);
 }
-body.sasv-pec .table-topbar h2,
 body.sasv-pec .section-title,
 body.sasv-pec .card h2 {
   margin: 0;
@@ -318,24 +317,6 @@ body.sasv-pec .pec-section-note {
   font-size: var(--sasv-text-xs, 0.75rem);
   line-height: 1.4;
   color: var(--sasv-text-muted);
-}
-body.sasv-pec .table-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-body.sasv-pec .table-topbar > div:first-child {
-  min-width: 0;
-}
-body.sasv-pec .pager-mini {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  color: var(--sasv-text-muted);
-  font-size: var(--sasv-text-sm, 0.8125rem);
 }
 body.sasv-pec .pec-search-card {
   background: var(--sasv-surface);
@@ -645,21 +626,6 @@ body.sasv-pec .export-dropdown {
   max-width: calc(100vw - 16px);
 }
 @media (max-width: 520px) {
-  /* Pager row: keep export + count + prev/page/next on one line at 320px */
-  body.sasv-pec .pager-mini {
-    flex-wrap: nowrap;
-    gap: 4px;
-    min-width: 0;
-  }
-  body.sasv-pec .pager-mini .icon-btn {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-  }
-  body.sasv-pec .pager-mini .muted {
-    white-space: nowrap;
-    font-size: var(--sasv-text-xs, 0.75rem);
-  }
   /* Indent / PR detail dialogs: title on its own full-width row, actions below */
   body.sasv-pec #indentViewModalBackdrop .modal-header > div:first-child,
   body.sasv-pec #prViewModalBackdrop .modal-header > div:first-child {
@@ -667,7 +633,7 @@ body.sasv-pec .export-dropdown {
   }
   body.sasv-pec #indentViewModalBackdrop .modal-header > div:first-child > div:first-child,
   body.sasv-pec #prViewModalBackdrop .modal-header > div:first-child > div:first-child {
-    flex: 1 1 100% !important;
+    flex: 1 1 calc(100% - 52px) !important;
     min-width: 0;
   }
 }
@@ -675,6 +641,741 @@ body.sasv-pec .export-dropdown {
    (the table scrolls horizontally instead). */
 body.sasv-pec td {
   overflow-wrap: break-word;
+}
+
+/* ── R2 (owner mobile review): one header per lens, search fill, feed footer, cards ── */
+/* One meaningful title per lens with the exact count on the right */
+body.sasv-pec .pec-lens-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 6px;
+  min-width: 0;
+}
+body.sasv-pec .pec-lens-title {
+  margin: 0;
+  font-size: var(--sasv-text-lg, 1rem);
+  font-weight: var(--sasv-fw-semibold, 600);
+  line-height: 1.3;
+  min-width: 0;
+}
+body.sasv-pec .pec-lens-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+body.sasv-pec .pec-lens-count {
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+body.sasv-pec .pec-lens-help {
+  margin: 0 0 6px;
+}
+body.sasv-pec .pec-lens-help .pec-section-note {
+  margin: 0 0 4px;
+}
+body.sasv-pec .pec-info-btn {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm, 6px);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  font-size: var(--sasv-text-xs, 0.75rem);
+  cursor: pointer;
+}
+body.sasv-pec #eSummary:empty {
+  display: none;
+}
+
+/* Search fields: light fill like Stock Checker (semantic tokens, theme-safe) */
+body.sasv-pec .pec-search-input,
+body.sasv-pec .tab-select {
+  background: var(--sasv-search-select-bg, var(--sasv-surface-soft));
+  border: 1px solid var(--sasv-search-select-border, var(--sasv-control-border));
+}
+body.sasv-pec .pec-search-input:focus {
+  background: var(--sasv-control-bg, var(--sasv-surface));
+}
+
+/* Tighter vertical rhythm */
+body.sasv-pec .tabs-card {
+  padding: 6px;
+}
+body.sasv-pec .pec-search-card {
+  padding: 6px 8px;
+  margin: 6px 0;
+}
+body.sasv-pec .tab-panel.active > .card {
+  padding: 10px 12px;
+}
+body.sasv-pec .header-card.pec-header-card {
+  margin-bottom: 8px;
+}
+
+/* Incremental feed footer (status + always-available Load more) */
+body.sasv-pec .pec-feed-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 8px 14px;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-xs, 0.75rem);
+  text-align: center;
+}
+body.sasv-pec .pec-feed-footer[hidden] {
+  display: none !important;
+}
+body.sasv-pec .pec-load-more {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--sasv-action-primary-soft-border);
+  border-radius: var(--sasv-radius-sm, 6px);
+  background: var(--sasv-action-primary-soft);
+  color: var(--sasv-action-primary-active);
+  font-weight: var(--sasv-fw-semibold, 600);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  cursor: pointer;
+}
+body.sasv-pec .pec-load-more:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+/* PR detail: PR number is the header and expands the secondary info */
+body.sasv-pec .pec-title-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  margin-left: -6px;
+  border: 0;
+  border-radius: var(--sasv-radius-sm, 6px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+body.sasv-pec .pec-title-toggle:hover {
+  background: var(--sasv-action-secondary-hover);
+}
+body.sasv-pec .pec-title-chevron {
+  transition: transform 0.15s ease;
+}
+body.sasv-pec .pec-title-toggle[aria-expanded="true"] .pec-title-chevron {
+  transform: rotate(180deg);
+}
+
+/* Indent dialog: six header actions use the full toolbar width */
+body.sasv-pec .pec-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+@media (max-width: 820px) {
+  body.sasv-pec #indentViewModalBackdrop .modal-header > div:first-child {
+    flex-wrap: wrap !important;
+  }
+  body.sasv-pec #indentViewModalBackdrop .pec-modal-actions {
+    order: 3;
+    flex: 1 1 100%;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+  }
+  body.sasv-pec #indentViewModalBackdrop .pec-modal-actions > .icon-btn,
+  body.sasv-pec #indentViewModalBackdrop .pec-modal-actions > .export-menu,
+  body.sasv-pec #indentViewModalBackdrop .pec-modal-actions .icon-btn {
+    flex: 0 0 auto;
+  }
+  body.sasv-pec #indentViewModalBackdrop #btnIndentViewClose {
+    order: 2;
+  }
+}
+
+/* ≤520px: the lens selector is the title (and shows the count); the page chrome is compact */
+body.sasv-pec .tab-select-count {
+  display: none;
+}
+@media (max-width: 520px) {
+  body.sasv-pec .tab-select-wrap {
+    margin: 0;
+  }
+  body.sasv-pec .tab-select-count {
+    display: block;
+    position: absolute;
+    right: 38px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--sasv-text-muted);
+    font-size: var(--sasv-text-sm, 0.8125rem);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+  body.sasv-pec .tab-select {
+    padding-right: 120px;
+  }
+  /* Title + count stay in the DOM (landmark, live region) but are visually replaced by the selector */
+  body.sasv-pec .pec-lens-title,
+  body.sasv-pec .pec-lens-count {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  body.sasv-pec .pec-lens-head:not(.pec-lens-head--tools) {
+    display: none;
+  }
+  body.sasv-pec .pec-lens-head--tools {
+    justify-content: flex-end;
+  }
+  body.sasv-pec .tabs-card {
+    padding: 4px;
+    border: 0;
+    background: transparent;
+  }
+  body.sasv-pec #mainPanel {
+    padding: 6px;
+  }
+  body.sasv-pec .tab-panel.active > .card {
+    padding: 6px 4px;
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+  body.sasv-pec .pec-search-card {
+    margin: 4px 0;
+  }
+}
+body.sasv-pec table.pec-card-table td .pill {
+  align-self: flex-start;
+}
+@media (max-width: 520px) {
+  /* Acceptance Audit shares the first header line with the "About" control, right-aligned */
+  body.sasv-pec #tab-excess > .card {
+    position: relative;
+  }
+  body.sasv-pec #tab-excess .pec-lens-head--tools {
+    position: absolute;
+    top: 6px;
+    right: 4px;
+    margin: 0;
+  }
+  body.sasv-pec #tab-excess .pec-lens-help {
+    min-height: 36px;
+    padding-right: 48px;
+  }
+}
+
+/* ══ R2b — one ERP design system ═══════════════════════════════════════════
+   1. Compact record card (every list, ≤640px)   2. Row-detail modal contract (.pec-detail)
+   3. Filter panel / sheet (.pec-filter-drawer)   4. Modal search fill
+   Field priority per list is declared in JS (PEC_CARD_ROLES → td[data-role]). */
+
+/* 1 ── Compact record card ─────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  body.sasv-pec .pec-info-btn {
+    display: inline-flex;
+  }
+  body.sasv-pec #eHelp {
+    display: none;
+  }
+  body.sasv-pec #eHelp.open {
+    display: block;
+  }
+  body.sasv-pec table.pec-card-table,
+  body.sasv-pec table.pec-card-table tbody {
+    display: block;
+    width: 100%;
+  }
+  body.sasv-pec table.pec-card-table thead {
+    display: none;
+  }
+  /* title · status · key on the primary line, then muted sub line, then inline "label value" pairs */
+  body.sasv-pec table.pec-card-table tbody > tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 12px;
+    margin: 0 0 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--sasv-divider);
+    border-radius: var(--sasv-radius-md, 8px);
+    background: var(--sasv-surface);
+    box-shadow: var(--sasv-shadow-sm);
+    font-size: var(--sasv-text-sm, 0.8125rem);
+    line-height: 1.35;
+  }
+  body.sasv-pec table.pec-card-table tbody > tr:hover td {
+    background: transparent;
+  }
+  body.sasv-pec table.pec-card-table tbody > tr > td {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    text-align: left;
+    white-space: normal;
+    order: 5;
+  }
+  body.sasv-pec table.pec-card-table tbody > tr > td:empty {
+    display: none;
+  }
+  body.sasv-pec table.pec-card-table tbody > tr > td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    color: var(--sasv-text-muted);
+    font-size: 0.6875rem;
+    font-weight: var(--sasv-fw-medium, 500);
+  }
+  body.sasv-pec table.pec-card-table tbody > tr > td:not([data-label])::before,
+  body.sasv-pec table.pec-card-table tbody > tr > td[data-role="title"]::before,
+  body.sasv-pec table.pec-card-table tbody > tr > td[data-role="status"]::before,
+  body.sasv-pec table.pec-card-table tbody > tr > td[data-role="sub"]::before {
+    display: none;
+  }
+  body.sasv-pec table.pec-card-table tbody > tr > td[data-role="title"] {
+    order: 1;
+    flex: 1 1 0;
+    min-width: 40%;
+    font-size: var(--sasv-text-md, 0.875rem);
+    font-weight: var(--sasv-fw-semibold, 600);
+    color: var(--sasv-text);
+  }
+  body.sasv-pec table.pec-card-table tbody > tr > td[data-role="status"] {
+    order: 2;
+    margin-left: auto;
+  }
+  body.sasv-pec table.pec-card-table tbody > tr > td[data-role="key"] {
+    order: 3;
+    font-weight: var(--sasv-fw-semibold, 600);
+    font-variant-numeric: tabular-nums;
+  }
+  body.sasv-pec table.pec-card-table tbody > tr > td[data-role="sub"] {
+    order: 4;
+    flex: 1 1 100%;
+    color: var(--sasv-text-secondary);
+  }
+  body.sasv-pec table.pec-card-table tbody > tr > td[data-role="aux"] {
+    order: 6;
+    color: var(--sasv-text-muted);
+  }
+  body.sasv-pec table.pec-card-table tbody > tr > td[data-role="note"] {
+    order: 7;
+    flex: 1 1 100%;
+    color: var(--sasv-text-secondary);
+  }
+  /* cells that hold controls keep their label above the control */
+  body.sasv-pec table.pec-card-table tbody > tr > td[data-role="field"] {
+    flex: 1 1 calc(50% - 6px);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+  body.sasv-pec table.pec-card-table tbody > tr > td[colspan],
+  body.sasv-pec table.pec-card-table tbody > tr.pec-table-state-row > td {
+    flex: 1 1 100%;
+    display: block;
+  }
+  body.sasv-pec table.pec-card-table tbody > tr > td[colspan]::before,
+  body.sasv-pec table.pec-card-table tbody > tr.pec-table-state-row > td::before {
+    display: none;
+  }
+  body.sasv-pec table.pec-card-table tbody > tr.pec-table-state-row {
+    display: block;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+  body.sasv-pec table.pec-card-table tbody > tr[tabindex]:focus-visible {
+    outline-offset: 0;
+  }
+  body.sasv-pec table.pec-card-table td .pill {
+    align-self: baseline;
+  }
+  body.sasv-pec .table-scroll {
+    max-height: none;
+  }
+  body.sasv-pec table.pec-card-table td input,
+  body.sasv-pec table.pec-card-table td select {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* 2 ── Row-detail modal contract (.pec-detail) ─────────────────────────────
+   header (title · status · close) → optional expandable meta → toolbar (filter | search)
+   → body (scrolls) → optional docked footer.
+   --page  PR / Indent: full viewport at every width (many lines + actions)
+   --panel Vendor-wise breakdown / Action Queue / Acceptance Audit: centred panel on desktop,
+           full-width sheet on phones (natural height up to the full viewport) */
+body.sasv-pec .modal-backdrop:has(> .pec-detail--page) {
+  padding: 0;
+  align-items: stretch;
+  justify-content: stretch;
+}
+body.sasv-pec .pec-detail {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+body.sasv-pec .pec-detail--page {
+  width: 100%;
+  max-width: none !important;
+  height: 100%;
+  max-height: 100vh;
+  max-height: 100dvh;
+  border-radius: 0;
+  border-width: 0;
+}
+body.sasv-pec .pec-detail--panel {
+  width: min(980px, calc(100vw - 32px));
+  max-width: none;
+  max-height: min(88vh, 900px);
+}
+body.sasv-pec .pec-detail > .modal-header {
+  position: static;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 14px;
+  background: var(--sasv-surface-elevated);
+  box-shadow: none;
+  border-bottom: 1px solid var(--sasv-divider);
+}
+body.sasv-pec .pec-detail > .modal-header h3 {
+  margin: 0;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+body.sasv-pec .pec-detail > .modal-header .muted {
+  font-size: var(--sasv-text-xs, 0.75rem);
+  margin-top: 2px;
+}
+body.sasv-pec .pec-detail > .modal-header .modal-close-btn {
+  flex: 0 0 auto;
+  min-width: 36px;
+  min-height: 36px;
+}
+body.sasv-pec .pec-detail > .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+body.sasv-pec .pec-detail--page > .modal-body {
+  overflow: hidden;
+}
+body.sasv-pec .pec-detail--page .modal-body > .table-scroll,
+body.sasv-pec .pec-detail--page .modal-body > .modal-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+}
+body.sasv-pec .pec-detail--panel > .modal-body > .table-scroll {
+  max-height: none;
+  overflow: visible;
+}
+/* Feed-backed detail (Acceptance Audit): the list is the scroller that drives incremental loading */
+body.sasv-pec .pec-detail--feed {
+  height: min(72vh, 640px); /* a first page always overflows, so the feed loads on scroll, not eagerly */
+}
+body.sasv-pec .pec-detail--feed > .modal-body {
+  overflow: hidden;
+}
+body.sasv-pec .pec-detail--feed > .modal-body > .table-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+body.sasv-pec .pec-detail > .modal-body > .table-toolbar {
+  flex: 0 0 auto;
+}
+@media (max-width: 640px) {
+  /* R2c: every row-detail modal is a full-screen detail on phones (header, scrolling body on a
+     neutral canvas, no footer). Content is top-aligned; a short list sits on the canvas, never
+     over the dimmed list behind it. */
+  body.sasv-pec .modal-backdrop:has(> .pec-detail--panel).show {
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+  body.sasv-pec .pec-detail--panel {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    max-height: none;
+    border-width: 0;
+    border-radius: 0;
+  }
+  body.sasv-pec .pec-detail--panel:not(.pec-detail--feed) > .modal-body {
+    background: var(--sasv-surface-soft, var(--sasv-surface));
+    justify-content: flex-start;
+  }
+  body.sasv-pec .pec-detail > .modal-header,
+  body.sasv-pec .pec-detail > .modal-body {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  /* Form dialogs (create / edit / confirm) use the viewport with sticky actions */
+  body.sasv-pec #generatePrModalBackdrop.show,
+  body.sasv-pec #acceptExcessModalBackdrop.show,
+  body.sasv-pec #createIndentModalBackdrop.show,
+  body.sasv-pec #indentFromPrModalBackdrop.show,
+  body.sasv-pec #prAddLineModalBackdrop.show,
+  body.sasv-pec #indentAddLineModalBackdrop.show,
+  body.sasv-pec #exportIndentModalBackdrop.show,
+  body.sasv-pec #vendorModalBackdrop.show,
+  body.sasv-pec #stockPickerModalBackdrop.show {
+    padding: 0 !important;
+    align-items: stretch;
+  }
+  body.sasv-pec #generatePrModalBackdrop.show > .modal,
+  body.sasv-pec #acceptExcessModalBackdrop.show > .modal,
+  body.sasv-pec #createIndentModalBackdrop.show > .modal,
+  body.sasv-pec #indentFromPrModalBackdrop.show > .modal,
+  body.sasv-pec #prAddLineModalBackdrop.show > .modal,
+  body.sasv-pec #indentAddLineModalBackdrop.show > .modal,
+  body.sasv-pec #exportIndentModalBackdrop.show > .modal,
+  body.sasv-pec #vendorModalBackdrop.show > .modal,
+  body.sasv-pec #stockPickerModalBackdrop.show > .modal {
+    width: 100vw;
+    max-width: none !important;
+    height: 100vh;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  body.sasv-pec .modal-backdrop.show .modal:not(.pec-detail) .actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
+    background: var(--sasv-surface-elevated);
+    border-top: 1px solid var(--sasv-divider);
+    padding: 10px 0 calc(10px + env(safe-area-inset-bottom, 0px));
+    margin-top: 12px;
+  }
+}
+
+/* 3 ── Filter panel: anchored popover ≥641px, full-viewport sheet ≤640px ── */
+body.sasv-pec .pec-filter-drawer {
+  display: none;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  max-height: min(680px, calc(100vh - 16px));
+}
+body.sasv-pec .pec-filter-drawer.open {
+  display: flex;
+}
+body.sasv-pec .pec-filter-drawer-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 8px 14px;
+  border-bottom: 1px solid var(--sasv-divider);
+}
+body.sasv-pec .pec-filter-drawer-head .pec-filter-drawer-title {
+  margin: 0;
+  font-size: var(--sasv-text-md, 0.875rem);
+  font-weight: var(--sasv-fw-semibold, 600);
+  color: var(--sasv-text);
+  text-transform: none;
+  letter-spacing: 0;
+}
+body.sasv-pec .pec-filter-drawer-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 14px;
+}
+body.sasv-pec .pec-filter-drawer-body .pec-filter-section {
+  margin-bottom: 12px;
+}
+body.sasv-pec .pec-filter-drawer-body .pec-filter-section:last-child {
+  margin-bottom: 0;
+}
+/* One typographic scale for every filter panel (lenses and nested modals): label 12px/600,
+   control 13px (popover) or 16px on phones (iOS does not zoom on focus at >=16px), compact heights. */
+body.sasv-pec .pec-filter-drawer .pec-filter-label,
+body.sasv-pec .pec-filter-drawer .pec-filter-section-title,
+body.sasv-pec .pec-filter-drawer .pec-filter-section > label:not(.pec-filter-check) {
+  display: block;
+  margin: 0 0 4px;
+  color: var(--sasv-text-secondary);
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: var(--sasv-fw-semibold, 600);
+  line-height: 1.3;
+  text-transform: none;
+  letter-spacing: 0;
+}
+body.sasv-pec .pec-filter-drawer .pec-filter-select,
+body.sasv-pec .pec-filter-drawer .pec-filter-input {
+  width: 100%;
+  min-height: 32px;
+  margin: 0;
+  padding: 5px 10px;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: var(--sasv-fw-regular, 400);
+  line-height: 1.25;
+  box-sizing: border-box;
+}
+body.sasv-pec .pec-filter-drawer .pec-filter-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: var(--sasv-fw-regular, 400);
+  line-height: 1.3;
+  color: var(--sasv-text);
+}
+body.sasv-pec .pec-filter-drawer .pec-filter-check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+body.sasv-pec .pec-filter-drawer-head h3:focus {
+  outline: none;
+}
+body.sasv-pec .pec-filter-actions {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 14px calc(8px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--sasv-divider);
+  background: var(--sasv-surface-elevated);
+}
+body.sasv-pec .pec-filter-clear-btn,
+body.sasv-pec .pec-filter-done-btn {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm, 6px);
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: var(--sasv-fw-semibold, 600);
+  cursor: pointer;
+}
+body.sasv-pec .pec-filter-done-btn {
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+}
+body.sasv-pec .pec-filter-clear-btn:hover {
+  background: var(--sasv-action-secondary-hover);
+}
+body.sasv-pec .pec-filter-done-btn:hover {
+  background: var(--sasv-action-primary-hover);
+}
+body.sasv-pec .pec-filter-clear-btn:focus-visible,
+body.sasv-pec .pec-filter-done-btn:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 0;
+}
+body.sasv-pec.pec-sheet-open {
+  overflow: hidden;
+}
+@media (max-width: 640px) {
+  body.sasv-pec .pec-filter-drawer.is-sheet {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    z-index: 2147483647;
+  }
+  body.sasv-pec .pec-filter-drawer.is-sheet .pec-filter-select,
+  body.sasv-pec .pec-filter-drawer.is-sheet .pec-filter-input {
+    min-height: 36px;
+    font-size: 16px; /* iOS Safari zooms focused fields below 16px */
+  }
+  body.sasv-pec .pec-filter-drawer.is-sheet .pec-filter-drawer-body {
+    padding: 10px 14px;
+  }
+  body.sasv-pec .pec-filter-drawer.is-sheet .pec-filter-section {
+    margin-bottom: 10px;
+  }
+}
+
+/* 4 ── Search fields inside modals use the same subtle fill as the lenses ── */
+body.sasv-pec .modal .pec-search-input,
+body.sasv-pec .modal input[type="search"] {
+  background: var(--sasv-search-select-bg, var(--sasv-surface-soft));
+  border: 1px solid var(--sasv-search-select-border, var(--sasv-control-border));
+}
+body.sasv-pec .modal .pec-search-input:focus,
+body.sasv-pec .modal input[type="search"]:focus {
+  background: var(--sasv-control-bg, var(--sasv-surface));
+}
+
+/* 5 ── Excess Purchases: deliberate gap before the period summary ───────── */
+body.sasv-pec #tab-excess .pec-lens-help {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+body.sasv-pec #tab-excess .pec-lens-help .pec-section-note {
+  margin: 0;
+}
+body.sasv-pec #tab-excess #eHelp.open,
+body.sasv-pec #tab-excess #eHelp {
+  flex: 1 1 100%;
+}
+body.sasv-pec #tab-excess #eSummary {
+  margin-left: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--sasv-surface-soft);
+  border: 1px solid var(--sasv-divider);
+  color: var(--sasv-text-secondary);
+  font-size: var(--sasv-text-xs, 0.75rem);
+}
+@media (max-width: 640px) {
+  body.sasv-pec #tab-excess #eHelp {
+    display: none;
+  }
+  body.sasv-pec #tab-excess #eHelp.open {
+    display: block;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

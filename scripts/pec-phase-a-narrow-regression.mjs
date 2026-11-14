@@ -47,13 +47,13 @@ for (const W of [320, 390]) {
   check(dd.l >= 0 && dd.r <= dd.vw, `${W}px: Vendor-wise export menu inside viewport [${Math.round(dd.l)}..${Math.round(dd.r)}] of ${dd.vw}`);
   await page.keyboard.press("Escape");
 
-  // 2) pager stays on one line (export, count, prev, page, next share a row)
-  const pager = await page.evaluate(() => { const tops = ["#vwlExportBtn", "#vwlMeta", "#vwlPrev", "#vwlPaging", "#vwlNext"].map((s) => { const r = document.querySelector(s).getBoundingClientRect(); return Math.round(r.top + r.height / 2); }); return { spread: Math.max(...tops) - Math.min(...tops) }; });
-  check(pager.spread <= 6, `${W}px: pager controls on a single row (vertical spread ${pager.spread}px)`);
+  // 2) R2: numbered pager is gone; the export tool and the count stay inside the viewport
+  const tools = await page.evaluate(() => { const ex = document.getElementById("vwlExportBtn").getBoundingClientRect(); return { pagerGone: !document.getElementById("vwlPrev") && !document.getElementById("vwlNext"), exportInside: ex.left >= 0 && ex.right <= innerWidth, count: document.getElementById("vwlMeta").textContent.trim() }; });
+  check(tools.pagerGone && tools.exportInside && /\d/.test(tools.count), `${W}px: no numbered pager; export button inside viewport; count "${tools.count}"`);
 
-  // 3) table cells not crushed to single characters ("VItem 0061" stays <= 2 lines)
-  const cell = await page.evaluate(() => { const td = document.querySelector("#vwlTbody tr td:nth-child(2)"); const lh = parseFloat(getComputedStyle(td).lineHeight) || 18; return { lines: Math.round(td.getBoundingClientRect().height / lh) }; });
-  check(cell.lines <= 3, `${W}px: item cell wraps at word boundaries (${cell.lines} lines)`);
+  // 3) R2b: rows are compact cards (flex-wrap, inline label/value) whose cells are never clipped
+  const cell = await page.evaluate(() => { const tr = document.querySelector("#vwlTbody tr"); const r = tr.getBoundingClientRect(); const bad = [...tr.querySelectorAll("td")].filter((t) => t.offsetParent && (t.scrollWidth > t.clientWidth + 1 || t.getBoundingClientRect().right > r.right + 1)).length; return { display: getComputedStyle(tr).display, clipped: bad, h: Math.round(r.height) }; });
+check(cell.display === "flex" && cell.clipped === 0 && cell.h <= 130, `${W}px: rows are compact cards, no clipped cell (${cell.clipped}), height ${cell.h}px`);
 
   // 4) indent dialog: title row is not squeezed by the action buttons
   await page.selectOption("#procTabSelect", "indents"); await page.waitForTimeout(700);

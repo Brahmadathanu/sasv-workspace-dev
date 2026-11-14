@@ -60,49 +60,59 @@ const calls = (page, name) => page.evaluate((n) => globalThis.__rpcCalls.filter(
 const last = async (page, name) => { const c = (await calls(page, name)).filter((x) => x.params.p_limit !== 1); return c[c.length - 1]; };
 const text = (page, sel) => page.textContent(sel).then((t) => t.replace(/\s+/g, " ").trim());
 
+
+// ───────── R2 helpers: incremental feed (no numbered pagers) ─────────
+const scrollEnd = (page, id) => page.evaluate((i) => { const e = document.getElementById(i); e.scrollTop = e.scrollHeight; }, id);
+const footer = (page, id) => page.evaluate((i) => { const f = document.querySelector(`#${i} .pec-feed-footer`); return f ? { text: f.querySelector(".pec-feed-status").textContent.trim(), btn: !f.querySelector("button").hidden ? f.querySelector("button").textContent.trim() : "", hidden: f.hidden } : null; }, id);
+const rowCount = (page, tb) => page.$$eval(`#${tb} tr:not(.pec-table-state-row)`, (n) => n.length);
+
 // ───────── PR ─────────
 {
   const { ctx, page, errors } = await open({ role: "edit" }, "pr");
   const name = "proc_pec_pr_headers_filtered_paged";
   let c = await last(page, name);
   check(c && c.params.p_limit === 30 && c.params.p_offset === 0 && c.params.p_status === null, "PR: first page requested with limit 30/offset 0, no filters");
-  check((await page.$$eval("#prTbody tr", (n) => n.length)) === 30, "PR: exactly one page (30 rows) rendered from 230");
-  check((await text(page, "#prPaging")) === "Page 1/8" && (await text(page, "#prMeta")) === "230 PRs", "PR: total/pages derived from total_count (230 → Page 1/8)");
+  check((await rowCount(page, "prTbody")) === 30, "PR: first 30 of 230 rows rendered (not the whole table)");
+  check((await text(page, "#prMeta")) === "230 PRs", "PR: exact count from total_count right of the lens title");
+  check((await page.locator("#prBtnPrev, #prBtnNext, #prPaging").count()) === 0, "PR: no numbered pagination controls in the DOM");
   const ids = async () => page.$$eval("#prTbody tr td:first-child", (n) => n.map((e) => e.textContent.trim()));
+  let f = await footer(page, "prScroll");
+  check(f && /Showing 30 of 230/.test(f.text) && f.btn === "Load more", `PR: accessible footer "${f?.text}" with a Load more button`);
   const p1 = await ids();
   check(p1[0] === "PR-0230", "PR: descending ID order from server");
-  await page.click("#prBtnNext"); await page.waitForTimeout(400);
+  await scrollEnd(page, "prScroll"); await page.waitForTimeout(600);
   c = await last(page, name);
   const p2 = await ids();
-  check(c.params.p_offset === 30 && p2[0] === "PR-0200" && !p2.some((x) => p1.includes(x)), "PR: page 2 offset 30, no duplicates, order continues");
+  check(c.params.p_offset === 30 && p2.length === 60 && new Set(p2).size === 60 && p2[30] === "PR-0200", "PR: scrolling near the bottom appends page 2 (offset 30), no duplicates, order continues");
+  await page.focus("#prScroll .pec-load-more"); await page.keyboard.press("Enter"); await page.waitForTimeout(500);
+  check((await rowCount(page, "prTbody")) === 90, "PR: keyboard activation of Load more loads the next page");
   await page.fill("#prSearch", "PR-0007"); await page.waitForTimeout(700);
   c = await last(page, name);
-  check(c.params.p_q === "PR-0007" && c.params.p_offset === 0, "PR: search sent to server and page reset to 0");
-  check((await ids()).join() === "PR-0007", "PR: match located beyond first page is found (server-side filter)");
+  check(c.params.p_q === "PR-0007" && c.params.p_offset === 0 && (await page.evaluate(() => document.getElementById("prScroll").scrollTop)) === 0, "PR: search resets the feed to offset 0 and scroll to top");
+  check((await ids()).join() === "PR-0007", "PR: match located beyond the loaded rows is found (server-side filter)");
+  f = await footer(page, "prScroll");
+  check(f && /End of list/.test(f.text) && f.btn === "", "PR: end-of-list status, no Load more when everything is loaded");
   await page.fill("#prSearch", ""); await page.waitForTimeout(500);
   await page.click("#prFilterBtn"); await page.selectOption("#prFilterStatus", "active"); await page.waitForTimeout(500);
   c = await last(page, name);
-  check(c.params.p_status === "active" && c.params.p_offset === 0 && (await text(page, "#prMeta")) === "58 PRs", "PR: status filter mapped to p_status, page reset, total from server (58)");
+  check(c.params.p_status === "active" && c.params.p_offset === 0 && (await text(page, "#prMeta")) === "58 PRs", "PR: status filter mapped to p_status, feed reset, total from server (58)");
   await page.fill("#prSearch", "ZZZ-NOMATCH"); await page.waitForTimeout(700);
   check((await page.locator("#tab-pr td.pec-table-state.is-empty").count()) === 1 && (await text(page, "#prMeta")) === "0 PRs", "PR: no-match filtered result shows empty state (0 PRs)");
   const legacy = await page.evaluate((L) => globalThis.__rpcCalls.filter((c) => L.includes(c.name)).map((c) => c.name), [...LEGACY]);
   check(legacy.length === 0, `PR/Indent/Excess/Audit never call the full-read RPCs (${legacy.join(",") || "none"})`);
   check(errors.length === 0, `PR: no page errors ${errors.join("|")}`);
-  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, "paging-pr-empty.png") });
   await ctx.close();
 }
 
-// ───────── Out-of-range recovery (PR) ─────────
+// ───────── Shrinking data / end of list (PR) ─────────
 {
   const { ctx, page } = await open({ role: "edit" }, "pr");
-  for (let i = 0; i < 7; i++) { await page.click("#prBtnNext"); await page.waitForTimeout(250); }
-  check((await text(page, "#prPaging")) === "Page 8/8" && (await page.$$eval("#prTbody tr", (n) => n.length)) === 20, "PR: last page (8/8) shows the 20 remaining rows");
-  check(await page.$eval("#prBtnNext", (b) => b.disabled), "PR: Next disabled on last page");
-  await page.evaluate(() => globalThis.__setCounts(250, 35)); // data shrinks while operator is on page 8
-  await page.click("#prBtnPrev"); await page.waitForTimeout(800); // -> page 7 offset 180: empty -> recover
-  const rows = await page.$$eval("#prTbody tr td:first-child", (n) => n.length);
-  check((await text(page, "#prPaging")) === "Page 2/2" && rows === 5, `PR: out-of-range offset recovers to last real page (Page 2/2, ${rows} rows)`);
-  check((await page.locator("#tab-pr td.pec-table-state.is-empty").count()) === 0, "PR: out-of-range page is not shown as an empty result");
+  await page.evaluate(() => globalThis.__setCounts(250, 35)); // 35 PRs now exist server-side
+  for (let i = 0; i < 3; i++) { await scrollEnd(page, "prScroll"); await page.waitForTimeout(500); }
+  const n = await rowCount(page, "prTbody");
+  const f = await footer(page, "prScroll");
+  check(n === 35 && /End of list/.test(f.text), `PR: when the server total shrinks the feed ends cleanly (${n} rows, "${f.text}")`);
+  check((await page.locator("#tab-pr td.pec-table-state.is-error").count()) === 0, "PR: shrinking data is not reported as an error");
   await ctx.close();
 }
 
@@ -112,10 +122,12 @@ const text = (page, sel) => page.textContent(sel).then((t) => t.replace(/\s+/g, 
   const name = "proc_pec_indent_headers_filtered_paged";
   let c = await last(page, name);
   check(c.params.p_limit === 30 && c.params.p_offset === 0, "Indents: first page 30/0");
-  check((await text(page, "#iPaging")) === "Page 1/9" && (await text(page, "#iMeta")) === "250 indents", "Indents: 250 rows → Page 1/9");
+  check((await text(page, "#iMeta")) === "250 indents" && (await page.locator("#iBtnPrev, #iBtnNext, #iPaging").count()) === 0, "Indents: exact count, no numbered pager");
+  await scrollEnd(page, "iScroll"); await page.waitForTimeout(600);
+  check((await last(page, name)).params.p_offset === 30 && (await rowCount(page, "iTbody")) === 60, "Indents: scroll appends offset 30");
   await page.click("#iFilterBtn"); await page.selectOption("#iStatus", "approved"); await page.waitForTimeout(500);
   c = await last(page, name);
-  check(c.params.p_status === "approved" && (await text(page, "#iMeta")) === "83 indents", "Indents: status filter server-side (83 approved of 250)");
+  check(c.params.p_status === "approved" && c.params.p_offset === 0 && (await text(page, "#iMeta")) === "83 indents" && (await rowCount(page, "iTbody")) === 30, "Indents: status filter server-side (83 approved of 250); feed reset to first page of 30");
   await page.selectOption("#iClass", "2"); await page.waitForTimeout(500);
   c = await last(page, name);
   check(c.params.p_material_class_id === 2, "Indents: material class sent as numeric id");
@@ -157,9 +169,13 @@ const text = (page, sel) => page.textContent(sel).then((t) => t.replace(/\s+/g, 
   const dm = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return iso(d); };
   check(c.params.p_date_from === dm(30) && c.params.p_date_to === iso(new Date()), `Excess: default last-30-day ISO range sent (${c.params.p_date_from}..${c.params.p_date_to})`);
   const total30 = Number((await text(page, "#eMeta")).match(/^(\d+) lines/)?.[1]);
+  check((await text(page, "#eSummary")).includes("last 30 days"), "Excess: filter summary (last 30 days) shown separately from the count");
   const allRowsSample = await page.$$eval("#eTbody tr td:first-child div.muted", (n) => n.map((e) => e.textContent.trim()));
   check(total30 > 0 && total30 < 450 && allRowsSample.every((d) => d >= dm(30)), `Excess: 30-day filter applied by server (${total30} of 450); visible rows inside range`);
-  check((await text(page, "#ePaging")) === `Page 1/${Math.ceil(total30 / 30)}`, "Excess: pages from total_count");
+  check((await page.locator("#ePaging, #eBtnPrev, #eBtnNext").count()) === 0 && (await rowCount(page, "eTbody")) === 30, "Excess: first 30 rows, no numbered pager");
+  await scrollEnd(page, "eScroll"); await page.waitForTimeout(600);
+  const exRows = await page.$$eval("#eTbody tr td:first-child", (n) => n.map((e) => e.textContent.replace(/\s+/g, " ").trim()));
+  check(exRows.length === 60 && new Set(exRows).size === 60 && (await last(page, "proc_pec_purchase_excess_filtered_paged")).params.p_offset === 30, "Excess: scroll appends offset 30 with the same 30-day filter and no duplicate rows");
   // ordering: net unallocated desc then date desc
   const nets = await page.$$eval("#eTbody tr td:nth-child(8)", (n) => n.map((e) => Number(e.textContent.replace(/,/g, ""))));
   check(nets.every((v, i) => i === 0 || nets[i - 1] >= v), "Excess: server order net-unallocated descending retained (no client re-sort)");
@@ -186,10 +202,10 @@ const text = (page, sel) => page.textContent(sel).then((t) => t.replace(/\s+/g, 
   await page.click("#eAuditBtn"); await page.waitForTimeout(600);
   let c = await last(page, "proc_pec_excess_acceptance_audit_paged");
   check(c.params.p_limit === 30 && c.params.p_offset === 0, "Audit: first page 30/0");
-  check((await text(page, "#eAuditPaging")) === "Page 1/9" && (await text(page, "#eAuditMeta")) === "250 lines", "Audit: 250 rows → Page 1/9");
-  await page.click("#eAuditBtnNext"); await page.waitForTimeout(500);
+  check((await text(page, "#eAuditMeta")) === "250 lines" && (await page.locator("#eAuditBtnPrev, #eAuditBtnNext, #eAuditPaging").count()) === 0, "Audit: exact count, no numbered pager");
+  await scrollEnd(page, "eAuditScroll"); await page.waitForTimeout(600);
   c = await last(page, "proc_pec_excess_acceptance_audit_paged");
-  check(c.params.p_offset === 30 && (await text(page, "#eAuditPaging")) === "Page 2/9", "Audit: Next requests offset 30");
+  check(c.params.p_offset === 30 && (await rowCount(page, "eAuditTbody")) === 60, "Audit: scrolling inside the dialog appends offset 30");
   await ctx.close();
 }
 
@@ -200,19 +216,19 @@ const text = (page, sel) => page.textContent(sel).then((t) => t.replace(/\s+/g, 
   const PAGED = "proc_vendorwise_buylist_operational_paged", OPTS = "proc_vendorwise_buylist_operational_options";
   let c = await last(page, PAGED);
   check(c.params.p_limit === 75 && c.params.p_offset === 0 && c.params.p_operational_filter === null, "VWL: first page 75/0, no operational filter");
-  check((await text(page, "#vwlPaging")) === "Page 1/7" && (await text(page, "#vwlMeta")) === "500 lines", "VWL: 500 rows → Page 1/7");
+  check((await text(page, "#vwlMeta")) === "500 lines" && (await rowCount(page, "vwlTbody")) === 75 && (await page.locator("#vwlPrev, #vwlNext, #vwlPaging").count()) === 0, "VWL: exact count, first 75 rows, no numbered pager");
   const optionLabels = async () => page.$$eval("#vwlVendorFilter option", (n) => n.map((o) => o.textContent.trim()));
   const labels = await optionLabels();
   const firstPageVendors = await page.$$eval("#vwlTbody tr td:first-child", (n) => n.map((e) => e.textContent));
   check(labels.some((l) => l.includes("ZZ Last Vendor")) && !firstPageVendors.some((t) => t.includes("ZZ Last Vendor")), "VWL: dropdown lists a vendor that exists only on a later page");
   check(labels.some((l) => /Local Purchase/.test(l)) && labels.some((l) => /UNASSIGNED/i.test(l)), "VWL: Local Purchase and UNASSIGNED buckets in options");
   check((await calls(page, OPTS)).length === 1, "VWL: options requested once for the initial upstream filters");
-  await page.click("#vwlNext"); await page.waitForTimeout(500);
-  check((await last(page, PAGED)).params.p_offset === 75 && (await calls(page, OPTS)).length === 1, "VWL: page change does not refetch options");
-  // last page: UNASSIGNED sorted last by the server
-  for (let i = 0; i < 5; i++) { await page.click("#vwlNext"); await page.waitForTimeout(350); }
+  await scrollEnd(page, "vwlScroll"); await page.waitForTimeout(600);
+  check((await last(page, PAGED)).params.p_offset === 75 && (await calls(page, OPTS)).length === 1, "VWL: loading more does not refetch options");
+  for (let i = 0; i < 7; i++) { await scrollEnd(page, "vwlScroll"); await page.waitForTimeout(450); }
   const lastRows = await page.$$eval("#vwlTbody tr td:first-child", (n) => n.map((e) => e.textContent.trim()));
-  check((await text(page, "#vwlPaging")) === "Page 7/7" && /UNASSIGNED/i.test(lastRows[lastRows.length - 1]), "VWL: last page ends with UNASSIGNED (server order kept)");
+  const vf = await footer(page, "vwlScroll");
+  check(lastRows.length === 500 && /End of list/.test(vf.text) && /UNASSIGNED/i.test(lastRows[lastRows.length - 1]), `VWL: all 500 loaded incrementally, ends with UNASSIGNED (server order kept); footer "${vf.text}"`);
   // operational choice
   await page.click("#vwlFilterBtn");
   await page.selectOption("#vwlVendorFilter", "bucket:UNASSIGNED"); await page.waitForTimeout(600);
@@ -395,17 +411,22 @@ const toastsText = (page) => page.$$eval("#toastContainer > div", (n) => n.map((
   check((await page.locator("#tab-indents td.pec-table-state.is-error").count()) === 1, "paged read failure shows error state (not stuck loading)");
   await ctx.close();
 }
-// Responsive: large-data pagers at wide / tablet / narrow widths, no overflow, pager reachable
-for (const vp of [{ n: "wide", width: 1440, height: 900 }, { n: "tablet", width: 820, height: 1100 }, { n: "mobile", width: 390, height: 800 }]) {
+// Responsive: incremental lists + cards at wide / tablet / phone widths
+for (const vp of [{ n: "1440", width: 1440, height: 900 }, { n: "820", width: 820, height: 1100 }, { n: "390", width: 390, height: 800 }, { n: "320", width: 320, height: 720 }]) {
   const { ctx, page, errors } = await open({ role: "edit" }, "pr", vp);
-  for (const [tab, pager] of [["pr", "#prPaging"], ["indents", "#iPaging"], ["vendor-buylist", "#vwlPaging"], ["excess", "#ePaging"]]) {
-    if (vp.width <= 520) await page.selectOption("#procTabSelect", tab); else await page.click(`.tabs .tab-btn[data-tab="${tab}"]`);
-    await page.waitForTimeout(600);
-    const r = await page.evaluate((sel) => { const e = document.querySelector(sel); const b = e.getBoundingClientRect(); return { ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth, vis: b.width > 0 && b.right <= innerWidth + 1, txt: e.textContent.trim() }; }, pager);
-    check(r.ovf <= 1 && r.vis && /^Page 1\/\d+$/.test(r.txt), `${vp.n} ${tab}: pager "${r.txt}" visible, no horizontal overflow`);
-    if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `paging-${vp.n}-${tab}.png`) });
+  const narrow = vp.width <= 520;
+  for (const [tab, tb, counter] of [["pr", "prTbody", "#prMeta"], ["indents", "iTbody", "#iMeta"], ["vendor-buylist", "vwlTbody", "#vwlMeta"], ["excess", "eTbody", "#eMeta"]]) {
+    if (narrow) await page.selectOption("#procTabSelect", tab); else await page.click(`.tabs .tab-btn[data-tab="${tab}"]`);
+    await page.waitForTimeout(700);
+    const r = await page.evaluate(({ tb, counter }) => { const tr = document.querySelector(`#${tb} tr`); const td = tr.querySelector("td:nth-child(2)"); const cs = getComputedStyle(tr); const de = document.documentElement; return { ovf: de.scrollWidth - de.clientWidth, display: cs.display, label: td?.dataset.label || "", count: document.querySelector(counter).textContent.trim(), mirror: document.getElementById("procTabCount").textContent.trim() }; }, { tb, counter });
+    const isCard = vp.width <= 640;
+    check(r.ovf <= 1 && /\d/.test(r.count) && (isCard ? r.display === "flex" && r.label !== "" : r.display === "table-row"), `${vp.n}px ${tab}: ${isCard ? "row is a labelled card" : "row is a table row"}, count "${r.count}", no horizontal overflow`);
+    if (narrow) check(r.mirror === r.count, `${vp.n}px ${tab}: lens selector shows the count (${r.mirror})`);
+    const kb = await page.evaluate((tb) => { const tr = document.querySelector(`#${tb} tr`); return { tab: tr.tabIndex, key: tr.dataset.pecRow }; }, tb);
+    check(kb.tab === 0 && kb.key === "1", `${vp.n}px ${tab}: rows are keyboard reachable`);
+    if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `r2-${vp.n}px-${tab}.png`) });
   }
-  check(errors.length === 0, `${vp.n}: no page errors ${errors.join("|")}`);
+  check(errors.length === 0, `${vp.n}px: no page errors ${errors.join("|")}`);
   await ctx.close();
 }
 await browser.close();

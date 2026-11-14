@@ -1,0 +1,185 @@
+{
+  "sha": "02bd6a0c0f092f088f6135cedc0543647e832c6a",
+  "electron": "see ua",
+  "generated": "2026-11-12T18:04:01.048Z",
+  "pass": 33,
+  "fail": 0,
+  "notTested": 2,
+  "results": [
+    {
+      "id": "packaged app.asar present",
+      "status": "PASS",
+      "detail": "<app>/resources/app.asar"
+    },
+    {
+      "id": "exactly the 3 canonical PEC files in the package (no duplicate source)",
+      "status": "PASS",
+      "detail": "/public/shared/css/sasv-procurement-execution-console.css, /public/shared/js/procurement-execution-console.js, /public/shared/procurement-execution-console.html"
+    },
+    {
+      "id": "asar == repo bytes: procurement-execution-console.html",
+      "status": "PASS",
+      "detail": "8d4d9e7fe3e6"
+    },
+    {
+      "id": "asar == repo bytes: js/procurement-execution-console.js",
+      "status": "PASS",
+      "detail": "1c0675f4a680"
+    },
+    {
+      "id": "asar == repo bytes: css/sasv-procurement-execution-console.css",
+      "status": "PASS",
+      "detail": "f4183aa567c0"
+    },
+    {
+      "id": "packaged app serves PEC on localhost:3000",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "served bytes == repo bytes: procurement-execution-console.html",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "served bytes == repo bytes: js/procurement-execution-console.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "served bytes == repo bytes: css/sasv-procurement-execution-console.css",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "connected to the packaged Electron renderer (CDP)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "renderer is Electron",
+      "status": "PASS",
+      "detail": "Electron/36.8.1"
+    },
+    {
+      "id": "PEC console renders in packaged Electron (fixture session)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "window resize method: renderer viewport emulation (BrowserWindow resize not exposed)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron 1200px pr: active panel, no horizontal overflow, count \"230 PRs\", no numbered pager",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron 1200px indents: active panel, no horizontal overflow, count \"250 indents\", no numbered pager",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron 1200px vendor-buylist: active panel, no horizontal overflow, count \"500 lines\", no numbered pager",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron 1200px action: active panel, no horizontal overflow, count \"5 lines\", no numbered pager",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron 1200px excess: active panel, no horizontal overflow, count \"124 lines\", no numbered pager",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron 820px pr: active panel, no horizontal overflow, count \"230 PRs\", no numbered pager",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron 820px indents: active panel, no horizontal overflow, count \"250 indents\", no numbered pager",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron 820px vendor-buylist: active panel, no horizontal overflow, count \"500 lines\", no numbered pager",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron 820px action: active panel, no horizontal overflow, count \"5 lines\", no numbered pager",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron 820px excess: active panel, no horizontal overflow, count \"124 lines\", no numbered pager",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron 480px pr: active panel, no horizontal overflow, count \"230 PRs\", no numbered pager",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron 480px indents: active panel, no horizontal overflow, count \"250 indents\", no numbered pager",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron 480px vendor-buylist: active panel, no horizontal overflow, count \"500 lines\", no numbered pager",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron 480px action: active panel, no horizontal overflow, count \"5 lines\", no numbered pager",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron 480px excess: active panel, no horizontal overflow, count \"124 lines\", no numbered pager",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron export menu inside the window (282..464 of 480)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron CSV export written (VENDOR_WISE_BUYLIST_20261112.csv): all fixture rows + header",
+      "status": "PASS",
+      "detail": "501 lines"
+    },
+    {
+      "id": "Electron PDF export (real jsPDF in the packaged renderer): 500 distinct fixture items",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Electron HOME button navigates inside the app origin (/index.html)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "no JS page errors in Electron renderer",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "Authenticated roles (editor / view-only / no-access) in Electron",
+      "status": "NOT TESTED",
+      "detail": "requires genuine sessions; fixture stub is not security evidence"
+    },
+    {
+      "id": "Windows/macOS installer behaviour",
+      "status": "NOT TESTED",
+      "detail": "only the Linux unpacked build was produced"
+    }
+  ]
+}
