@@ -10,6 +10,7 @@ on:
       - "supabase/migrations/*_pec_safe_resync_collision_preview_ro.sql"
       - "supabase/migrations/*_pec_indent_set_source_pr_lock_prelude.sql"
       - "supabase/migrations/*_pec_indent_set_status_header_lock.sql"
+      - "supabase/migrations/*_pec_revoke_authenticated_dml_policy_link_tables.sql"
       - ".github/workflows/pec-r10-safe-resync-concurrency-pg17.yml"
   workflow_dispatch:
 permissions:

@@ -115,6 +115,19 @@ const r2fix = "supabase/migrations/20261114135500_pec_indent_set_status_header_l
   t2("sw.js rejected when unreadable", [sw], [sw], { headBranch: syncHead, readText: () => { throw new Error("nope"); } });
   t2("sw.js altered on the sync branch rejected", [sw], [sw], { headBranch: syncHead, readText: () => text + "\n// tampered" });
 }
-assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [addLine, sw, ...r10, r2fix], "exact Add Line, the reviewed sw.js merge pin, three reviewed R10 migrations and the production-applied R-2 correction");
+// #400 authenticated-DML correction: proposed, pinned to its own branch (and staging for later integration) and exact content.
+const sec400 = "supabase/migrations/20261114160000_pec_revoke_authenticated_dml_policy_link_tables.sql";
+{
+  const pin = REVIEWED_SERVER_MIGRATIONS[sec400];
+  assert.ok(pin && /^[a-f0-9]{64}$/.test(pin.sha256), "#400 reviewed SHA256 pin exists");
+  assert.deepEqual(pin.heads, ["claude/pec-400-dml-hardening-20261114", "integration/pec-erp-staging-20261112"], "#400 restricted to its own branch and staging");
+  const text = fs.readFileSync(sec400, "utf8");
+  const context = { headBranch: "claude/pec-400-dml-hardening-20261114", readText: () => text };
+  t2("#400 exact file accepted on its own branch", [sec400], [], context);
+  t2("#400 changed content rejected", [sec400], [sec400], { ...context, readText: () => text + "\n-- malicious change" });
+  t2("#400 rejected on another client branch", [sec400], [sec400], { ...context, headBranch: "claude/pec-r12-resync-collision-ux-20261113" });
+  t2("#400 rejected without context", [sec400], [sec400], null);
+}
+assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [addLine, sw, ...r10, r2fix, sec400], "exact Add Line, the reviewed sw.js merge pin, three reviewed R10 migrations, the production-applied R-2 correction and the #400 correction");
 
 console.log(`pec-protected-path-guard: ${passed}/${passed} PASS`);
