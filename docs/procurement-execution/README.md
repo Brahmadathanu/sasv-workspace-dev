@@ -96,3 +96,7 @@ Draft [PR #385](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/385), a
 
 ## Finalization package #388 — 13 November 2026
 Draft PRs #389 (server R10), #390 (client R12), #391 (evidence). See [final gate matrix](PEC_FINAL_RELEASE_GATE_MATRIX_20261113.md), [operator runbook](PEC_OPERATOR_EXECUTION_RUNBOOK_20261113.md), [migration matrix + CLI plan](PEC_RELEASE_MIGRATION_MATRIX_20261113.md) and the R10 note on #389. Formal G0–G5 remain 0/6 closed; no genuine-role test has been performed.
+
+## PEC historical baseline accepted for preflight — 14 November 2026
+
+Owner-bounded disposition: accept five legacy PR–indent mapping exceptions as a **documented unchanged historical baseline**, with separate forensic follow-up [#393](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/393). [#383](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/383) remains open for an explicit per-version migration-history decision, and `20261112143000` remains **HOLD**. This is not a data correction, a migration-history repair approval, or a gate closure. Combined PEC staging source at `67c4fac8` passed 10/10 GitHub workflows and Netlify preview; subsequent documentation heads require their own CI checks. Next: isolated staging-copy DB/ACL rehearsal and genuine authorized operator/PWA/Electron acceptance. G0–G5 remain 0/6 signed.
