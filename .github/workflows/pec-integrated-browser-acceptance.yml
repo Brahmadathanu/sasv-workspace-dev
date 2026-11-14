@@ -33,6 +33,8 @@ jobs:
           base="${GITHUB_BASE_REF:-main}"
           git fetch --no-tags --depth=1 origin "refs/heads/${base}:refs/remotes/origin/${base}"
           git rev-parse --verify "refs/remotes/origin/${base}"
+      - name: Report exact reviewed R10 migration SHA-256 values
+        run: node scripts/pec-r10-migration-hash-audit.mjs
       - name: Mutation-sensitive protected SQL and SW guard
         run: node scripts/pec-protected-path-guard.test.mjs
       - name: Exercise real static guard with temporary SQL and SW mutations
