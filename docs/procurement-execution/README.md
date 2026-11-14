@@ -93,3 +93,6 @@ Draft [PR #385](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/385), a
 ## Final PEC release technical package for Claude Cloud — 13 November 2026
 
 [GitHub issue #388](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/388) is the **single master bulk execution handover** to complete R9 SAFE collision/concurrency work, guarded PEC client resolution UX, genuine-role operator readiness, eleven-version migration source/history reconciliation and the final G0–G5 release gate matrix. This is a **draft-PR and CI evidence package only**, not authority to deploy, execute production SQL, repair history, change grants, edit approved indents, merge `main` or sign off acceptance. Any actual Editor/View-only/no-access role tests remain NOT TESTED until performed through real signed-in identities. Previous R8/R9 audit notes remain evidence, but #388 supersedes open-ended exploratory rounds as the finalization execution queue.
+
+## Finalization package #388 — 13 November 2026
+Draft PRs #389 (server R10), #390 (client R12), #391 (evidence). See [final gate matrix](PEC_FINAL_RELEASE_GATE_MATRIX_20261113.md), [operator runbook](PEC_OPERATOR_EXECUTION_RUNBOOK_20261113.md), [migration matrix + CLI plan](PEC_RELEASE_MIGRATION_MATRIX_20261113.md) and the R10 note on #389. Formal G0–G5 remain 0/6 closed; no genuine-role test has been performed.
