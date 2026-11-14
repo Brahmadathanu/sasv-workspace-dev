@@ -6,7 +6,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { pgAvailable, startCluster } from "./pg-harness.mjs";
-import { repoRoot, localManifest, tokenOf } from "./deploy-gate.mjs";
+import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { repoRoot, GATE_FILES, tokenOf } from "./deploy-gate.mjs";
 
 const DIR = path.join(repoRoot, "docs/master-data-costing/WP08_G2_0_REGISTRY_PROPOSAL_UNAPPLIED");
 const sqlFile = (f) => fs.readFileSync(path.join(DIR, f), "utf8");
@@ -15,7 +17,16 @@ const B = sqlFile("03_optional_repoint_electron_routes.sql");
 const PRE = sqlFile("01_preflight_and_before_select.sql");
 const RB_B = sqlFile("98_rollback_step_b_electron.sql");
 const RB_A = sqlFile("99_rollback_step_a_pwa.sql");
-const TOKEN = tokenOf(localManifest());
+// WP08 G2-1: the step A SQL was stamped for, and applied live against, the G2-0 reviewed bytes. G2-1 intentionally changes
+// the four page scripts, so the token is now computed from the G2-0 reviewed revision (main at the G2-1 start, which
+// is byte-identical for these files) instead of the working tree. The proposal files are historical activation artefacts and
+// are NOT re-stamped; any re-run of step A for newer bytes needs a new, separately approved token.
+const G2_0_REVIEWED_REV = "26e3f9f29f5a22bdc6cdd82b66ba19918047ad51";
+const reviewedManifest = GATE_FILES.map((f) => {
+  const blob = execFileSync("git", ["show", `${G2_0_REVIEWED_REV}:${f.repo}`], { cwd: repoRoot, maxBuffer: 1 << 26 }).toString("utf8").replace(/\r\n/g, "\n");
+  return { ...f, sha256: crypto.createHash("sha256").update(Buffer.from(blob, "utf8")).digest("hex") };
+});
+const TOKEN = tokenOf(reviewedManifest);
 
 const KEYS = ["manage-products", "manage-rm-bom", "manage-sp-bom", "pm-templates"];
 const LEGACY = { "manage-products": "manage-products.html", "manage-rm-bom": "manage-rm-bom.html", "manage-sp-bom": "manage-sp-bom.html", "pm-templates": "manage-pm-bom.html" };

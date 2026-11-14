@@ -2,6 +2,12 @@ import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 import { showToast as sasvShowToast } from "./toast.js";
 import { mountModuleActionIcons } from "./sasv-module-chrome.js";
+import {
+  armDestinationAccessGate,
+  markDestinationAccessFailed,
+  resetDestinationAccess,
+  setDestinationAccessFromPermissionRows,
+} from "./costing-destination-access.js";
 import { createPeriodDateStatus, createRecalculationController, periodDateText, periodOfficialDateText } from "./costing-recalculation.js";
 import { createRunStatusBadge } from "./costing-run-status-badge.js";
 import {
@@ -175,6 +181,9 @@ async function bootstrapCostingSuite(routeModuleKey = null) {
   }
 }
 
+// WP08 G2-1: fail closed — remediation links are offered only after the
+// authenticated permission rows verify the destination module view grant.
+armDestinationAccessGate();
 let PERM_CAN_VIEW = false;
 let PERM_CAN_EDIT = false;
 let PERM_CONTROL_CENTER_EDIT = false;
@@ -3488,6 +3497,7 @@ async function loadPermissions(sessionUserId) {
   PERM_CONTROL_CENTER_EDIT = false;
   PERM_PRM_EDIT = false;
   PERMISSIONS_LOAD_ERROR = false;
+  resetDestinationAccess();
   CAN_VIEW_TRACE = false;
   CAN_EXPORT_TRACE = false;
   CAN_VIEW_RM_TRACE = false;
@@ -3518,6 +3528,7 @@ async function loadPermissions(sessionUserId) {
     PERMISSIONS_LOAD_ERROR = true;
   }
 
+  markDestinationAccessFailed();
   TRACE_PERMISSIONS_RESOLVED = true;
   syncRefreshButtonDisabled();
   syncTraceExportButtonState();
@@ -3525,6 +3536,7 @@ async function loadPermissions(sessionUserId) {
 }
 
 function applyPermissionEntriesFromRpc(perms) {
+  setDestinationAccessFromPermissionRows(perms);
   const byTarget = new Map(
     perms.filter((row) => row?.target).map((row) => [row.target, row]),
   );

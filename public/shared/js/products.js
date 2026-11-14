@@ -8,6 +8,27 @@ import {
   resolveSeasonProfilesHref,
 } from "./master-data-platform.js";
 import { mountModuleHome } from "./sasv-module-chrome.js";
+import {
+  armDestinationAccessGate,
+  markDestinationAccessFailed,
+  resetDestinationAccess,
+  setDestinationAccessFromPermissionRows,
+} from "./costing-destination-access.js";
+import {
+  buildRecommendedRouteHref,
+  describeRecommendedRouteUnavailable,
+  isConfiguredRecommendedTarget,
+  recommendedTargetCarriesIdentity,
+  resolveRecommendedUiRouteTarget,
+} from "./costing-suite-recommended-ui-route.js";
+import {
+  buildMasterDataHref,
+  canOfferMasterDataLink,
+  installPopstateReapply,
+  parseMasterDataSelection,
+  replaceSelectionUrl,
+  showSelectionStatus,
+} from "./master-data-selection.js";
 
 const MODULE_TARGET = "module:manage-products";
 
@@ -75,6 +96,12 @@ const governanceApprovalRef = document.getElementById("governanceApprovalRef");
 const governanceReasonError = document.getElementById("governanceReasonError");
 const governanceConfirm = document.getElementById("governanceConfirm");
 const governanceCancel = document.getElementById("governanceCancel");
+
+// WP08 G2-1: the gate is armed at module load, before any permission read or render (fail closed; see costing-destination-access.js).
+armDestinationAccessGate();
+
+// WP08 G2-1: permission rows from the one authenticated get_user_permissions read (null = unknown, never granted).
+let permissionRows = null;
 
 const accessState = {
   userId: null,
@@ -331,6 +358,10 @@ async function loadProductMasterAccess() {
   accessState.userId = session.user.id;
   const uid = accessState.userId;
   let found = null;
+  // WP08 G2-1: fail closed. Outbound links are offered only when THIS authenticated permission read verifies the
+  // destination module's own view grant; any failure, fallback or missing row leaves them as non-link text.
+  resetDestinationAccess();
+  markDestinationAccessFailed();
 
   try {
     const { data: perms, error } = await supabase.rpc("get_user_permissions", {
@@ -339,6 +370,8 @@ async function loadProductMasterAccess() {
     if (!error && Array.isArray(perms)) {
       const hit = perms.find((r) => r?.target === MODULE_TARGET);
       if (hit) found = hit;
+      permissionRows = perms;
+      setDestinationAccessFromPermissionRows(perms);
     }
   } catch {
     // fall through
@@ -897,7 +930,81 @@ function setWorkspaceTab(tab) {
   if ((tab === "skus" || tab === "readiness") && (!selectedId || inNewMode)) return;
   activeTab = tab;
   paintWorkspaceTabs();
+  syncSelectionUrl();
 }
+
+// WP08 G2-1: selection-only URL contract. The URL is only kept truthful (replaceState, never pushState) once the page was
+// entered through, or is currently carrying, explicit selection params; legacy no-param URLs are never rewritten.
+let selectionUrlManaged = false;
+let applyingSelectionFromUrl = false;
+
+function syncSelectionUrl() {
+  if (!selectionUrlManaged || applyingSelectionFromUrl) return;
+  const saved = !!selectedId && !inNewMode;
+  replaceSelectionUrl({
+    product_id: saved ? selectedId : null,
+    sku_id: saved && selectedSkuId && skuDraft !== "new" ? selectedSkuId : null,
+    tab: saved && activeTab !== "products" ? activeTab : null,
+  });
+}
+
+/**
+ * Apply the explicit URL selection. Read-only: it only calls the page's existing readers (loadDetails, SKU list,
+ * readiness read). Never selects a different object than the one named; mismatches are no-ops with a status line.
+ * @returns {Promise<boolean>} true when a Product was selected from the URL
+ */
+async function applySelectionFromUrl({ initial = false } = {}) {
+  const sel = parseMasterDataSelection(window.location.search, "manage-products");
+  if (!sel.present) return false;
+  selectionUrlManaged = true;
+  applyingSelectionFromUrl = true;
+  const notes = [...sel.issues];
+  let selected = false;
+  try {
+    if (sel.productId === null) {
+      if (sel.skuId !== null) notes.push("sku_id needs a valid product_id; no Product was selected.");
+    } else if (!allProducts.some((p) => String(p.id) === String(sel.productId))) {
+      notes.push(`Product ${sel.productId} was not found; no Product was selected.`);
+    } else {
+      const same = !inNewMode && String(selectedId) === String(sel.productId);
+      let ok = same;
+      if (!same) {
+        ok = !!(await loadDetails(sel.productId));
+        if (ok) {
+          inNewMode = false;
+          previousSelectedId = null;
+          setEditing(false);
+        } else if (String(selectedId) !== String(sel.productId) || !loadedProductSnapshot) {
+          // Failed read: loadDetails sets selectedId before reading, so the initial reset below clears the half-selection.
+          notes.push(`Product ${sel.productId} could not be opened; no Product was selected.`);
+        }
+      }
+      if (ok) {
+        selected = true;
+        let tabHandled = false;
+        if (sel.skuId !== null) {
+          const sku = skuRows.find((r) => String(r.id) === String(sel.skuId));
+          if (!sku || String(sku.product_id) !== String(sel.productId)) {
+            notes.push(`SKU ${sel.skuId} does not belong to Product ${sel.productId}; no SKU was selected.`);
+          } else if (sel.tab === "readiness") {
+            await openReadinessDetail(sku.id);
+            tabHandled = true;
+          } else {
+            await selectSku(sku.id); // opens the SKUs tab
+            tabHandled = sel.tab === null || sel.tab === "skus";
+          }
+        }
+        if (!tabHandled) setWorkspaceTab(sel.tab || (sel.skuId === null ? "products" : "skus"));
+      }
+    }
+  } finally {
+    applyingSelectionFromUrl = false;
+  }
+  showSelectionStatus(notes.join(" "), "warning");
+  if (!selected && initial) await loadDetails(null);
+  return selected;
+}
+
 
 async function selectProductRow(id) {
   if (String(id) === String(selectedId) && !inNewMode) return true;
@@ -1030,6 +1137,7 @@ async function loadDetails(id) {
     loaded = true;
     applyAccessChrome();
     await loadChildSkus(id);
+    syncSelectionUrl();
   } finally {
     hideLoading();
   }
@@ -1849,6 +1957,8 @@ async function selectSku(skuId) {
   if (skuDetail) skuDetail.hidden = false;
   setWorkspaceTab("skus");
   renderSkuList();
+  syncSelectionUrl();
+  renderRelatedLinks();
 }
 
 function beginNewSku() {
@@ -1875,6 +1985,8 @@ async function openReadinessDetail(skuId) {
   if (readinessDetailSurface) readinessDetailSurface.hidden = false;
   setWorkspaceTab("readiness");
   renderSkuList();
+  syncSelectionUrl();
+  renderRelatedLinks();
   await showSelectedSkuReadiness();
 }
 
@@ -1934,6 +2046,90 @@ function manageProductsRemediationAction(issue) {
   return null;
 }
 
+// ─── WP08 G2-1 outbound handoffs (read-only navigation; never invokes a writer) ───
+function relatedContext() {
+  const row = skuRows.find((r) => String(r.id) === String(selectedSkuId)) || null;
+  return {
+    productId: selectedId,
+    skuId: row && skuDraft !== "new" ? row.id : null,
+    periodStart: governedPeriodStart,
+  };
+}
+
+/** Resolver-backed destination for a server recommended_ui_route code, or an explanatory non-link. */
+function readinessRouteLink(route) {
+  const ctx = relatedContext();
+  const target = resolveRecommendedUiRouteTarget(route, ctx);
+  if (!isConfiguredRecommendedTarget(target)) {
+    return target?.reason && /^permission-/.test(target.reason)
+      ? { text: describeRecommendedRouteUnavailable(target.reason) }
+      : null;
+  }
+  const href = buildRecommendedRouteHref(target);
+  if (!href) return null;
+  return {
+    href,
+    label: target.label,
+    note: recommendedTargetCarriesIdentity(target)
+      ? null
+      : "Opens the workspace only; this Product/SKU is not carried over.",
+  };
+}
+
+/** Related / Open in links, only where the identity, the destination's selection contract and view permission are proven. */
+function relatedLinkSpecs() {
+  const ctx = relatedContext();
+  const specs = [];
+  if (!ctx.productId || inNewMode) return specs;
+  const offer = (moduleKey, label, params) => {
+    if (!canOfferMasterDataLink(moduleKey, permissionRows)) return;
+    const href = buildMasterDataHref(moduleKey, params);
+    if (href) specs.push({ href, label });
+  };
+  offer("manage-rm-bom", "Open RM BOM for this Product", { productId: ctx.productId });
+  if (ctx.skuId != null) offer("pm-templates", "Open PM BOM for this SKU", { skuId: ctx.skuId });
+  // SP BOM is keyed by an SP owner stock item, and no Product -> owner association exists in the verified data: no link.
+  const prm = resolveRecommendedUiRouteTarget("PRODUCTION_ROUTE_MANAGER", { productId: ctx.productId });
+  if (prm.navigable === true && prm.productId != null) {
+    const href = buildRecommendedRouteHref(prm);
+    if (href) specs.push({ href, label: "Open Production Route for this Product" });
+  }
+  return specs;
+}
+
+function renderRelatedLinks() {
+  const hosts = [skuReadiness, document.querySelector("#skuDetail .mp-surface-panel")].filter(Boolean);
+  for (const host of hosts) {
+    host.querySelectorAll(":scope > .mp-related").forEach((n) => n.remove());
+    const specs = relatedLinkSpecs();
+    if (!specs.length) continue;
+    const box = document.createElement("div");
+    box.className = "mp-related";
+    box.setAttribute("data-md-related", "");
+    const heading = document.createElement("h4");
+    heading.className = "mp-group-title";
+    heading.textContent = "Related";
+    box.appendChild(heading);
+    const list = document.createElement("ul");
+    for (const spec of specs) {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = spec.href;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = spec.label;
+      li.appendChild(a);
+      list.appendChild(li);
+    }
+    box.appendChild(list);
+    const hint = document.createElement("div");
+    hint.className = "mp-remediation-meta";
+    hint.textContent = "Opens in a new tab. Navigation only; the destination applies its own permission check.";
+    box.appendChild(hint);
+    host.appendChild(box);
+  }
+}
+
 function appendRemediation(parent, title, status, note, reasonCode, route, action) {
   const item = document.createElement("div");
   item.className = "mp-remediation-item";
@@ -1963,6 +2159,27 @@ function appendRemediation(parent, title, status, note, reasonCode, route, actio
     routeLine.className = "mp-remediation-route";
     routeLine.textContent = `Resolve in: ${route}`;
     item.appendChild(routeLine);
+    const link = readinessRouteLink(route);
+    if (link?.href) {
+      const a = document.createElement("a");
+      a.className = "btn secondary";
+      a.href = link.href;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = link.label;
+      item.appendChild(a);
+      if (link.note) {
+        const n = document.createElement("div");
+        n.className = "mp-remediation-meta";
+        n.textContent = link.note;
+        item.appendChild(n);
+      }
+    } else if (link?.text) {
+      const n = document.createElement("div");
+      n.className = "mp-remediation-meta";
+      n.textContent = link.text;
+      item.appendChild(n);
+    }
   }
   if (action && typeof action.run === "function") {
     const button = document.createElement("button");
@@ -2087,6 +2304,7 @@ function renderSkuReadiness(payload) {
     remediation.prepend(heading);
     skuReadiness.appendChild(remediation);
   }
+  renderRelatedLinks();
 }
 
 function skuFormValues() {
@@ -2365,8 +2583,19 @@ window.addEventListener("DOMContentLoaded", async () => {
   await loadClassifications();
   await loadSeasonProfiles();
   await loadProducts();
-  await loadDetails(null);
+  // WP08 G2-1: explicit, validated URL selection (after session + permission verified). Absent params keep the baseline.
+  const selectedFromUrl = await applySelectionFromUrl({ initial: true });
+  if (!selectedFromUrl && !selectionUrlManaged) await loadDetails(null);
 
   setEditing(false);
   applyAccessChrome();
+
+  installPopstateReapply({
+    apply: () => applySelectionFromUrl(),
+    // Unsaved Product/SKU edits or an open write dialog: never discard silently on Back/Forward.
+    blocked: () => unsaved || skuDirty || inNewMode || editing,
+    restore: () => {
+      syncSelectionUrl();
+    },
+  });
 });

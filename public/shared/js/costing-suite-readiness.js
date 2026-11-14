@@ -12,6 +12,8 @@ import { COSTING_ROUTE_CONFIG } from "./costing-route-config.js";
 import {
   formatRecommendedUiRouteLabel,
   resolveRecommendedUiRouteTarget,
+  describeRecommendedRouteUnavailable,
+  isConfiguredRecommendedTarget,
 } from "./costing-suite-recommended-ui-route.js";
 import { buildCsv } from "./costing-table-tools.js";
 
@@ -617,13 +619,7 @@ function isActionableStatus(status, applicability) {
  * button is only offered where a real, configured destination exists.
  */
 export function isConfiguredRemediationTarget(target) {
-  if (!target || target.navigable !== true) return false;
-  const config = COSTING_ROUTE_CONFIG[target.moduleKey];
-  if (!config?.routePath) return false;
-  if (target.lensId && Array.isArray(config.allowedLensIds)) {
-    return config.allowedLensIds.includes(target.lensId);
-  }
-  return true;
+  return isConfiguredRecommendedTarget(target);
 }
 
 function remediationContext(assessment) {
@@ -671,7 +667,9 @@ export function buildReadinessRemediationActions(assessment) {
       buttonLabel: navigable ? target.label : null,
       moduleKey: navigable ? target.moduleKey : null,
       navigateParams: navigable ? { ...(target.navigateParams || {}) } : null,
-      unavailableReason: navigable ? null : NO_DESTINATION_TEXT,
+      unavailableReason: navigable
+        ? null
+        : describeRecommendedRouteUnavailable(target.reason),
     });
   };
 

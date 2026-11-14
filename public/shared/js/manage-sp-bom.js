@@ -8,6 +8,12 @@ import {
 } from "./master-data-write-guard.js";
 import { resolveMasterDataLoginPage, goMasterDataHome } from "./master-data-platform.js";
 import {
+  installPopstateReapply,
+  parseMasterDataSelection,
+  replaceSelectionUrl,
+  showSelectionStatus,
+} from "./master-data-selection.js";
+import {
   mountModuleActionIcons,
   enhanceSearchableSelect,
   syncSearchableSelect,
@@ -2184,11 +2190,49 @@ if (insertPopover)
       clearPageStatus();
     }
     applyPermissionUi();
+    applySpDeepLink();
   } catch (err) {
     console.error(err);
     setPageStatus(`Init error: ${publicErrorMessage(err)}`, "error");
   }
 })();
+
+
+/* ---------------- WP08 G2-1 selection-only URL contract (owner_item_id: SP owner = stock item) ---------------- */
+let URL_SELECTION_MANAGED = false;
+function syncSpUrl() {
+  if (!URL_SELECTION_MANAGED) return;
+  replaceSelectionUrl({ owner_item_id: CURRENT_OWNER_ID });
+}
+// Runs only after session + permission verification and after the product picker is hydrated. Read-only: it reuses the
+// picker's own change handler (loadBom reads). Unknown ids are ignored; no other owner is ever selected instead.
+function applySpDeepLink() {
+  const sel = parseMasterDataSelection(window.location.search, "manage-sp-bom");
+  if (!sel.present) return false;
+  URL_SELECTION_MANAGED = true;
+  const notes = [...sel.issues];
+  if (sel.ownerItemId !== null) {
+    const hit = OWNERS.find((p) => String(p.id) === String(sel.ownerItemId));
+    if (!hit) {
+      notes.push(`SP owner item ${sel.ownerItemId} was not found in the picker; no owner was selected.`);
+    } else if (String(CURRENT_OWNER_ID) !== String(hit.id)) {
+      setSearchableSelectValue(productPicker, hit.id, true);
+      if (String(productPicker.value) === String(hit.id)) {
+        productPicker.dispatchEvent(new Event("change"));
+      } else {
+        notes.push(`SP owner item ${sel.ownerItemId} could not be selected.`);
+      }
+    }
+  }
+  showSelectionStatus(notes.join(" "), "warning");
+  return true;
+}
+productPicker.addEventListener("change", syncSpUrl);
+installPopstateReapply({
+  apply: () => applySpDeepLink(),
+  blocked: () => LINES_EDIT_MODE,
+  restore: () => syncSpUrl(),
+});
 
 /* Helpers */
 async function ensureMissingStockItems() {

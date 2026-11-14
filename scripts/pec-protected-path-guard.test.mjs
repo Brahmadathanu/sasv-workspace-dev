@@ -2,7 +2,7 @@
 // Mutation-sensitive PEC integration protected-file policy verification.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { rejectedProtectedPaths, INTEGRATION_PROTECTED_PATHS, REVIEWED_SERVER_MIGRATIONS } from "./lib/pec-protected-path-guard.mjs";
+import { rejectedProtectedPaths, INTEGRATION_PROTECTED_PATHS, REVIEWED_SERVER_MIGRATIONS, REVIEWED_WP08_G2_1_PINS } from "./lib/pec-protected-path-guard.mjs";
 import fs from "node:fs";
 let passed = 0;
 function test(name, changed, integration, expected) {
@@ -80,6 +80,35 @@ const r2fix = "supabase/migrations/20261114135500_pec_indent_set_status_header_l
   t2("R-2 rejected on another client branch", [r2fix], [r2fix], { ...context, headBranch: "claude/pec-r12-resync-collision-ux-20261113" });
   t2("R-2 rejected without context", [r2fix], [r2fix], null);
   t2("R-2 renamed copy rejected", ["supabase/migrations/20261114135501_copy.sql"], ["supabase/migrations/20261114135501_copy.sql"], context);
+}
+// Reviewed WP08 G2-1 exception for public/sw.js: exact content + the WP08 G2-1 branch only (mutation-negative).
+{
+  const pin = REVIEWED_WP08_G2_1_PINS[sw];
+  const head = "claude/blissful-thompson-lv1ekb";
+  assert.ok(pin && /^[a-f0-9]{64}$/.test(pin.sha256), "WP08 G2-1 sw.js SHA256 pin exists");
+  assert.deepEqual(pin.heads, [head], "WP08 G2-1 sw.js exception restricted to its own branch");
+  const live = fs.readFileSync(sw, "utf8");
+  const lf = live.replace(/\r\n/g, "\n");
+  const liveSha = createHash("sha256").update(lf).digest("hex");
+  const ctx = (over = {}) => ({ headBranch: head, readText: () => live, ...over });
+  const check = (name, changed, expected, c) => { assert.deepEqual(rejectedProtectedPaths(changed, false, c), expected, name); console.log("PASS:", name); passed++; };
+  if (liveSha === pin.sha256) {
+    assert.ok(lf.includes('const CACHE_NAME = "hub-cache-v393"'), "cache version unchanged");
+    for (const m of ["costing-suite-recommended-ui-route", "costing-destination-access", "master-data-selection", "costing-suite-control-center", "master-data-platform|master-data-write-guard", "procurement-execution-console"]) assert.ok(lf.includes(m), `network-first rule present: ${m}`);
+    check("WP08 G2-1 sw.js exact reviewed content accepted on its branch", [sw], [], ctx());
+    check("WP08 G2-1 sw.js CRLF checkout accepted", [sw], [], ctx({ readText: () => lf.replace(/\n/g, "\r\n") }));
+    check("WP08 G2-1 sw.js beside an unrelated migration: migration still rejected", [sw, illicit], [illicit], ctx());
+  } else {
+    console.log("NOTE: working-tree public/sw.js differs from the WP08 G2-1 pin; acceptance cases skipped (rejection cases below always run)");
+  }
+  check("WP08 G2-1 sw.js one extra character rejected", [sw], [sw], ctx({ readText: () => lf + "\n// x" }));
+  check("WP08 G2-1 sw.js with a bumped cache version rejected", [sw], [sw], ctx({ readText: () => lf.replace("hub-cache-v393", "hub-cache-v394") }));
+  check("WP08 G2-1 sw.js with a network-first rule removed rejected", [sw], [sw], ctx({ readText: () => lf.replace("master-data-selection", "master-data-selectio") }));
+  check("WP08 G2-1 sw.js rejected on another branch", [sw], [sw], ctx({ headBranch: "claude/pec-r12-resync-collision-ux-20261113" }));
+  check("WP08 G2-1 sw.js rejected on the staging branch", [sw], [sw], ctx({ headBranch: "integration/pec-erp-staging-20261112" }));
+  check("WP08 G2-1 sw.js rejected without context", [sw], [sw], null);
+  check("WP08 G2-1 pin never exempts a migration", [migrated, illicit], [migrated, illicit], ctx());
+  check("WP08 G2-1 pin never exempts uncommitted/working-tree changes", [sw], [sw], undefined);
 }
 // Reviewed main-sync exception for public/sw.js: exact merged content + sync branch only.
 {

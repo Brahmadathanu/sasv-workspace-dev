@@ -68,13 +68,25 @@ export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
   }),
 });
 
+// Reviewed WP08 G2-1 service-worker change (Issue #425 / PR #427, owner-authorised): it adds only network-first patterns for the
+// resolver, destination-access, selection and control-center modules. Same contract as the pins above (exact path + exact
+// head branch + SHA-256 of the LF-normalised content): any other content, branch or protected file stays rejected, and
+// working-tree changes are never exempt. Kept separate so the existing public/sw.js sync pin is unchanged.
+export const REVIEWED_WP08_G2_1_PINS = Object.freeze({
+  "public/sw.js": Object.freeze({
+    sha256: "e3c55e7af7acfa27114f9f1112fc9036fc94df9a42ac2c11fef6ac66035c4d43",
+    heads: Object.freeze(["claude/blissful-thompson-lv1ekb"]),
+  }),
+});
+
 const lfSha256 = (text) => createHash("sha256").update(String(text).replace(/\r\n/g, "\n")).digest("hex");
 
 function reviewedServerException(path, ctx) {
-  const entry = REVIEWED_SERVER_MIGRATIONS[path];
-  if (!entry || !ctx || typeof ctx.readText !== "function") return false;
-  if (!entry.heads.includes(ctx.headBranch)) return false;
-  try { return lfSha256(ctx.readText(path)) === entry.sha256; } catch { return false; }
+  if (!ctx || typeof ctx.readText !== "function") return false;
+  return [REVIEWED_SERVER_MIGRATIONS[path], REVIEWED_WP08_G2_1_PINS[path]].some((entry) => {
+    if (!entry || !entry.heads.includes(ctx.headBranch)) return false;
+    try { return lfSha256(ctx.readText(path)) === entry.sha256; } catch { return false; }
+  });
 }
 
 /**

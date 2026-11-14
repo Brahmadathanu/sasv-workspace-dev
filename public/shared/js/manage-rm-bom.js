@@ -8,6 +8,14 @@ import {
 } from "./master-data-write-guard.js";
 import { resolveMasterDataLoginPage, goMasterDataHome } from "./master-data-platform.js";
 import {
+  buildMasterDataHref,
+  canOfferMasterDataLink,
+  installPopstateReapply,
+  parseMasterDataSelection,
+  replaceSelectionUrl,
+  showSelectionStatus,
+} from "./master-data-selection.js";
+import {
   mountModuleActionIcons,
   enhanceSearchableSelect,
   syncSearchableSelect,
@@ -85,6 +93,7 @@ function clearPageStatus() {
   host.className = "bom-page-status";
 }
 
+let PERMISSION_ROWS = null;
 async function resolveModuleAccessUnguarded() {
   const boot = await bootstrapApp({ loginPage: resolveMasterDataLoginPage() });
   if (!boot.ok) {
@@ -109,6 +118,7 @@ async function resolveModuleAccessUnguarded() {
       );
       return { ok: false, reason: "verify-failed" };
     }
+    PERMISSION_ROWS = perms; // WP08 G2-1: verified rows for read-only backlink gating (never grants anything)
     const p = perms.find((r) => r && r.target === `module:${MODULE_ID}`);
     PERM_CAN_VIEW = !!(p && p.can_view);
     PERM_CAN_EDIT = !!(p && p.can_edit);
@@ -1743,11 +1753,67 @@ if (insertPopover)
       clearPageStatus();
     }
     applyPermissionUi();
+    applyRmDeepLink();
   } catch (err) {
     console.error(err);
     setPageStatus(`Init error: ${publicErrorMessage(err)}`, "error");
   }
 })();
+
+
+/* ---------------- WP08 G2-1 selection-only URL contract (product_id) ---------------- */
+let URL_SELECTION_MANAGED = false;
+function syncRmUrl() {
+  if (!URL_SELECTION_MANAGED) return;
+  replaceSelectionUrl({ product_id: CURRENT_PRODUCT_ID });
+}
+// Runs only after session + permission verification and after the product picker is hydrated. Read-only: it reuses the
+// picker's own change handler (loadBom reads). Unknown ids are ignored; no other product is ever selected instead.
+function applyRmDeepLink() {
+  const sel = parseMasterDataSelection(window.location.search, "manage-rm-bom");
+  if (!sel.present) return false;
+  URL_SELECTION_MANAGED = true;
+  const notes = [...sel.issues];
+  if (sel.productId !== null) {
+    const hit = PRODUCTS.find((p) => String(p.id) === String(sel.productId));
+    if (!hit) {
+      notes.push(`Product ${sel.productId} was not found in the picker; no Product was selected.`);
+    } else if (String(CURRENT_PRODUCT_ID) !== String(hit.id)) {
+      setSearchableSelectValue(productPicker, hit.id, true);
+      if (String(productPicker.value) === String(hit.id)) {
+        productPicker.dispatchEvent(new Event("change"));
+      } else {
+        notes.push(`Product ${sel.productId} could not be selected.`);
+      }
+    }
+  }
+  showSelectionStatus(notes.join(" "), "warning");
+  return true;
+}
+// WP08 G2-1: BOM -> Product backlink in the existing "More actions" menu (read-only navigation; shown only for a
+// resolved Product and a verified Manage Products view grant; no layout change).
+function syncProductBacklink() {
+  if (!moreMenu) return;
+  moreMenu.querySelectorAll("a[data-md-backlink]").forEach((n) => n.remove());
+  if (!CURRENT_PRODUCT_ID || !canOfferMasterDataLink("manage-products", PERMISSION_ROWS)) return;
+  const href = buildMasterDataHref("manage-products", { productId: CURRENT_PRODUCT_ID });
+  if (!href) return;
+  const a = document.createElement("a");
+  a.setAttribute("data-md-backlink", "");
+  a.className = "menu-item";
+  a.setAttribute("role", "menuitem");
+  a.href = href;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  a.textContent = "Open Product in Manage Products";
+  moreMenu.insertBefore(a, moreMenu.firstChild);
+}
+productPicker.addEventListener("change", () => { syncRmUrl(); syncProductBacklink(); });
+installPopstateReapply({
+  apply: () => applyRmDeepLink(),
+  blocked: () => LINES_EDIT_MODE,
+  restore: () => syncRmUrl(),
+});
 
 /* ---------------- Helpers ---------------- */
 async function ensureMissingRmItems() {

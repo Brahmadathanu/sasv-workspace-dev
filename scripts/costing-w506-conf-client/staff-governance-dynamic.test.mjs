@@ -29,7 +29,13 @@ function makeShell() {
   const modal = { hidden: false, classList: { contains: (c) => c === "hidden" && modal.hidden, add: (c) => { if (c === "hidden") modal.hidden = true; }, remove: () => { modal.hidden = false; } }, setAttribute() {} };
   const mkChain = (view) => { const q = { view, cols: null }; log.requests.push(q); const ch = { select(c) { q.cols = c; return ch; }, eq() { return ch; }, order() { return ch; } }; return ch; };
   const perms = { rows: [] };
+  // WP08 G2-1: the real shell functions now also drive the destination-access gate (costing-destination-access.js). The harness
+  // supplies the real module's behaviour through recorders so the gate calls are observable, not silently stubbed away.
+  const gate = { calls: [] };
   const ctx = vm.createContext({
+    resetDestinationAccess: () => gate.calls.push("reset"),
+    markDestinationAccessFailed: () => gate.calls.push("failed"),
+    setDestinationAccessFromPermissionRows: (rows) => gate.calls.push(["rows", rows.length]),
     console, Array, Map, Promise, String, Number,
     CURRENT_LENS: "staff-governance", ACTIVE_PERIOD_START: "2026-11-01", ROWS_LOAD_GENERATION: 0, softNavLockLens: null,
     ALL_ROWS: [], VIEW: [], CURRENT_PAGE: 1, LAST_REFRESH_TIME: null,
@@ -75,7 +81,7 @@ function makeShell() {
   // the real export click guard from the shell source
   const click = shellSrc.slice(shellSrc.indexOf('exportBtn?.addEventListener("click", () => {'));
   vm.runInContext(click.slice(0, click.indexOf("\n});\n") + 5).replace("exportBtn?.addEventListener", "exportBtn.addEventListener"), ctx);
-  return { ctx, log, state, modal, ctrl,
+  return { ctx, log, state, modal, ctrl, gate,
     grant: (view, edit) => { ctx.PERM_CAN_VIEW = view; ctx.PERM_CAN_EDIT = edit; },
     run: (code) => vm.runInContext(code, ctx),
     permRows: (view, edit) => [{ target: "module:cost-build-manager", can_view: view, can_edit: edit }],
@@ -199,4 +205,16 @@ test("SIGN-OUT: an auth SIGNED_OUT event purges staff rows, edit state and grant
   assert.ok(s.log.purge >= 1);
   s.state.pending.shift().resolve(ROWS); await p;
   assert.equal(s.ctx.ALL_ROWS.length, 0, "in-flight response discarded after sign-out");
+});
+
+test("WP08 G2-1 destination gate: refresh resets grants first; a resolved read installs rows; a failed read fails closed", async () => {
+  let s = makeShell();
+  const ok = s.run("loadPermissions('u1')"); await tick();
+  assert.deepEqual(s.gate.calls, ["reset"], "grants are dropped before the permission RPC resolves");
+  s.state.pending.shift().resolve({ data: s.permRows(true, false), error: null }); await ok;
+  assert.deepEqual(s.gate.calls, ["reset", ["rows", 1]]);
+  s = makeShell();
+  const bad = s.run("loadPermissions('u1')"); await tick();
+  s.state.pending.shift().reject(new Error("rpc down")); await bad;
+  assert.deepEqual(s.gate.calls, ["reset", "failed"], "failed/ thrown permission read leaves the gate closed");
 });
