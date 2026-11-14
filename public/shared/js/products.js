@@ -1,6 +1,7 @@
 // js/products.js — Gate 5.11V governed Product Master writers
 import { supabase } from "./supabaseClient.js";
 import { bootstrapApp } from "./appBootstrap.js";
+import { setMasterDataAccess, setMasterDataAccessFromGrant } from "./master-data-write-guard.js";
 import {
   resolveMasterDataLoginPage,
   goMasterDataHome,
@@ -140,6 +141,7 @@ function hideLoading() {
 }
 
 function setAccessDenied(message) {
+  setMasterDataAccess("locked"); // WP08 G2-0 #416: denied/unverified => every writer control hidden and inert
   document.body.classList.add("access-denied");
   if (accessStatusEl) {
     accessStatusEl.hidden = false;
@@ -205,6 +207,7 @@ function setEditing(on) {
 function applyAccessChrome() {
   const hasAccess = canAccessModule();
   const canEdit = canWriteModule();
+  setMasterDataAccessFromGrant({ canView: hasAccess, canEdit: hasAccess && canEdit }); // WP08 G2-0 #416
 
   document.body.classList.toggle("view-only-mode", hasAccess && !canEdit);
   if (viewOnlyBanner) viewOnlyBanner.hidden = !(hasAccess && !canEdit);
