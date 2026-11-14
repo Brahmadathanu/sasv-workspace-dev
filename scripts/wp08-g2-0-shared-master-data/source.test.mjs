@@ -188,7 +188,7 @@ test("service worker change is minimal: only added network-first patterns for th
   const diff = git("diff", "-U0", "--no-color", BASE, "HEAD", "--", "public/sw.js");
   const changed = diff.split("\n").filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l));
   assert.ok(changed.length <= 10, `sw.js diff is ${changed.length} lines`);
-  assert.ok(!changed.some((l) => /CACHE_NAME/.test(l)), "no cache-version change");
+  assert.ok(!changed.some((l) => /const CACHE_NAME/.test(l)), "no cache-version change");
   const added = changed.filter((l) => l.startsWith("+")).join("\n");
   assert.match(added, /WP08 G2-0/);
   assert.match(added, /products\|manage-rm-bom\|manage-pm-bom\|manage-sp-bom\|master-data-platform/);

@@ -42,6 +42,18 @@ One-source assertion (tested): each canonical file exists once; no byte-identica
 - Writer safeguards, BOM revision governance, activation guards, effective-dating: **no logic touched**. Diff vs base is limited to an allow-list of import/path/nav lines (tested), and the RPC/table/permission token multiset is identical.
 - No new RPC, no schema, grant, RLS, flag, or `localStorage` use.
 
+## 3a. Revision 2 (independent-review corrections, same branch)
+
+| # | Review point | Resolution |
+|---|---|---|
+| 1 | Step A overwrote existing PWA rows (`ON CONFLICT DO UPDATE`) | Removed. Step A now fails closed if any of the four PWA rows exists (identical, conflicting or partial) and writes nothing; no upsert anywhere |
+| 2 | Rollback could delete a pre-existing registration | Rollbacks match exact key + route + the `updated_at` stamp of the apply transaction (receipt). Pre-existing rows cannot match because step A refuses to run when they exist. Missing receipt = refusal |
+| 3 | Atomicity | one transaction, `lock_timeout`/`statement_timeout`, advisory lock, `SHARE ROW EXCLUSIVE` table lock, row-count assertions; error ⇒ no writes |
+| 4 | SQL tests | `registry-sql.test.mjs`: 18 scenarios on an isolated throw-away PostgreSQL 16 (no Supabase) |
+| 5 | Service-worker freshness | `public/sw.js`: the five module scripts and two stylesheets added to the existing network-first branch (6 added lines, `CACHE_NAME` **unchanged** at v393). No cache bump is needed because these URLs were never cached by any earlier generation and now never enter the cache-first path. Rollout gate: `deploy-gate.mjs verify` must pass on the deployed PWA (bytes + service worker) and its token is required by step A |
+| 6 | PM BOM 390 px | recorded as parked **UX-P05** (WP11); the browser test no longer asserts a pass for that combination (a `todo` test records it) |
+| 7 | Architecture | unchanged: single source, permission keys, legacy Electron stubs, RPC contracts |
+
 ## 4. Test evidence (this branch)
 
 Environment: Node 22, Playwright Chromium (stubbed Supabase + jsPDF; no network, no live data, no writer pressed). LF checkout on Linux; CRLF not exercised on this host (the files are byte-moved, so line endings are identical to base).

@@ -17,9 +17,10 @@ async function getEnv(t) {
 }
 test.after(async () => { await env?.close(); env?.servers.electron.close(); env?.servers.pwa.close(); });
 
-// Measured on the BASE commit (3f47b115, root page, Electron-style serving): PM BOM already overflows to 567 px at a 390 px
-// viewport. G2-0 must not make it worse; fixing it is WP11 (UX-P02 narrow-width work), not a G2-0 change.
-const BASELINE_OVERFLOW = { "pm-templates@390": 567 };
+// KNOWN ISSUE, NOT A PASS (parked as UX-P05, WP11): on the BASE commit (3f47b115, root page) the PM BOM page already overflows
+// horizontally to 567 px at a 390 px viewport. G2-0 does not fix it. The generic overflow assertion is therefore NOT applied to
+// that one combination, and a separate test marked `todo` records the measurement without reporting a visual-overflow PASS.
+const KNOWN_OVERFLOW_ISSUES = { "pm-templates@390": 567 };
 
 const WRITER = /^(?:rpc_)?(?:create|update|set|save|delete|approve|submit|activate|deactivate|upsert|insert|clone|publish|supersede)/i;
 
@@ -32,8 +33,9 @@ for (const platform of Object.keys(PLATFORMS)) {
         assert.deepEqual(r.failed, [], "no 4xx/5xx same-origin response");
         assert.deepEqual(r.errors, [], "no page/console errors");
         const o = await overflow(r.page);
-        const allowed = BASELINE_OVERFLOW[`${m.key}@${width}`] ?? o.vw + 1;
-        assert.ok(o.scrollWidth <= allowed, `scrollWidth ${o.scrollWidth} <= ${allowed} (viewport ${o.vw}${allowed > o.vw + 1 ? ", pre-existing baseline overflow" : ""})`);
+        if (KNOWN_OVERFLOW_ISSUES[`${m.key}@${width}`] === undefined) {
+          assert.ok(o.scrollWidth <= o.vw + 1, `scrollWidth ${o.scrollWidth} <= viewport ${o.vw}`);
+        } // else: known WP11 issue, asserted separately below as a `todo` (no overflow PASS is claimed)
         assert.equal(await r.page.evaluate(() => document.getElementById("homeBtn") !== null), true, "HOME control present");
         await r.context.close();
       });
@@ -90,6 +92,23 @@ for (const platform of Object.keys(PLATFORMS)) {
       await s.context.close();
     });
   }
+}
+
+for (const platform of Object.keys(PLATFORMS)) {
+  test(`KNOWN ISSUE WP11/UX-P05 (not a pass): ${platform} PM BOM @390 horizontal overflow is recorded and must not worsen beyond the base measurement of 567 px`, { todo: "WP11 UX-P05: PM BOM overflows at 390 px on the base commit too; layout fix is out of G2-0 scope" }, async (t) => {
+    const e = await getEnv(t); if (!e) return;
+    const r = await openPage(e, { platform, moduleDef: MODULES.find((x) => x.key === "pm-templates"), role: "edit", width: 390 });
+    const o = await overflow(r.page);
+    await r.context.close();
+    assert.ok(o.scrollWidth <= o.vw + 1, `PM BOM overflows: scrollWidth ${o.scrollWidth} vs viewport ${o.vw} (base: 567)`); // fails today by design (todo)
+  });
+  test(`${platform} PM BOM @390 overflow does not exceed the base measurement (non-regression bound only)`, async (t) => {
+    const e = await getEnv(t); if (!e) return;
+    const r = await openPage(e, { platform, moduleDef: MODULES.find((x) => x.key === "pm-templates"), role: "edit", width: 390 });
+    const o = await overflow(r.page);
+    await r.context.close();
+    assert.ok(o.scrollWidth <= KNOWN_OVERFLOW_ISSUES["pm-templates@390"], `scrollWidth ${o.scrollWidth} must not exceed the base 567`);
+  });
 }
 
 test("PM BOM gate is module:pm-templates only: the wrong key (module:manage-pm-bom) stays denied on both clients", async (t) => {
