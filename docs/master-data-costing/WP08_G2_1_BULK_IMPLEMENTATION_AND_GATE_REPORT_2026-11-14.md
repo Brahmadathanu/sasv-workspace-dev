@@ -136,3 +136,21 @@ Reported honestly: those baseline failures are source-pinned tests comparing aga
 1. Approve or amend the Pricing mapping recommendation in §6 (`MRP_GOVERNANCE`→`sku-mrp-policies`, `SELLING_SCHEME_POLICIES`→`sku-overview`), and whether a separate PPM `product_id`/`sku_id` selection consumer package is wanted.
 2. Optional scope: add Costing-shell mappings for `MANAGE_PRODUCTS` / `PM_BOM_MANAGER` to the new inbound contracts (§8), and name the owning module for `BATCH_SIZES` / `REGIONAL_MARKETING_REVIEW`.
 3. Merge/rollout of this PR (separate owner gate). No other decision is needed to continue.
+
+## 12. CI compatibility correction (PR #427 review) and correction of §9
+
+The first push failed three workflows. All three were **newly introduced by G2-1** (each passes on `main`), and are repaired without weakening any protection:
+
+| Workflow | Cause | Fix | Mutation-negative evidence |
+|---|---|---|---|
+| `focused-confidentiality` (WP05 W506) | the dynamic harness runs the real `loadPermissions` / `applyPermissionEntriesFromRpc` in a `vm` sandbox that did not define the three new destination-access functions | the harness supplies recorders for them; new test asserts: grants reset before the permission RPC resolves, rows installed on success, gate fails closed on a thrown/failed read | removing any of the three shell calls fails the new test |
+| `integrated-pec` (PEC protected-path guard) | `public/sw.js` is protected; the authorised G2-1 change had no pin | `REVIEWED_WP08_G2_1_PINS`: exact path + head branch `claude/blissful-thompson-lv1ekb` + SHA-256 of the LF-normalised content (existing sync pin untouched) | 63/63 guard tests incl. new cases: extra char, bumped `CACHE_NAME`, removed rule, other branch, staging branch, no context, uncommitted changes, migrations beside it — all rejected |
+| `offline-regression` (WP05 nav-groups) | the historical "stripped shell equals pre-N1 baseline" comparison saw five new shell pieces | `scripts/lib/wp08-g2-1-strip.mjs`: each of the five exact pieces is removed only when it occurs exactly once; chained into `stripN1Shell` | tests: stripped shell == `main`@G2-1 start; duplicated, altered or extra shell text is **not** stripped (still fails the historical test) |
+
+Found while reproducing: with full git history the review-worklist protected-file pin (`review-worklist.test.mjs` #11) also failed on G2-1 (resolver and control-center are pinned to an older base); it passes on `main`. Repaired with a SHA-256-pinned revert (`stripWp08G21Pinned`): only the exact reviewed revision is reverted to the G2-1 start text; any other edit still fails.
+
+**Correction to §9:** the earlier "pre-existing baseline failures" list was measured in a shallow clone, where tests that read older commits (`git show <old>`) fail spuriously. With full history, the failures that truly exist **on untouched `main`** are only: G2-0 `source.test.mjs` #11, #12 and `ppm-n6-nav-resolver-smoke.mjs` #1. The other tests listed there (review-worklist, wp05-closure #13, nav-groups, n2, prm-nav-context, w6) pass on `main` and now pass on this branch.
+
+**Gate arming audit (production consumers).** Resolver consumers: Costing readiness, Control Center SKU control, review worklist and draft-run evidence — all loaded only by `costing-suite-shell.js`, whose six page entries import and call `bootstrapCostingSuite`; the shell calls `armDestinationAccessGate()` once at module top level, so it runs before any boot, permission load or render. Manage Products (the only other consumer) now arms at its own module top level (previously inside the permission loader). `source.test.mjs` asserts exactly one top-level arm call in each, no arm call elsewhere, entry-point structure, and that no HTML page loads a consumer directly. Unresolved/failed permission state still renders text, never a link.
+
+No SQL, permission, registry, flag or deployment change; the five unrelated `supabase/migrations/20261112*` working-copy files were not touched or committed.
