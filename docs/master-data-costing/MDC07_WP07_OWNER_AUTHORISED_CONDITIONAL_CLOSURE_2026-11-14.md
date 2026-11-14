@@ -2,7 +2,7 @@
 
 **Decision:** **WP07 CLOSED — OWNER ACCEPTED WITH DOCUMENTED BOUNDED RESIDUALS.** The owner replied **"Okay go ahead"** to ChatGPT's explicit recommendation of conditional WP07 closure and to the four enumerated residual dispositions, after the final authenticated P8 evidence was independently reviewed and merged. This record captures that approval; **it is not a fresh PASS for any omitted test**.
 
-**Formal programme count:** **8/13 workpacks CLOSED** — WP-1, WP00–WP04, WP05, WP06 and WP07. The remaining substantive workpacks **WP08–WP12 stay OPEN**. Historical programme banners and evidence retain their dated status; this decision supersedes older WP07 OPEN / 7/13 statements only from this approval onward.
+**Formal programme count:** **8/13 substantive workpacks CLOSED** — **WP00–WP07**. The prerequisite **WP-1** is also closed but is **outside the 13-workpack denominator**. The remaining substantive workpacks **WP08–WP12 stay OPEN**. Historical programme banners and evidence retain their dated status; this decision supersedes older WP07 OPEN / 7/13 statements only from this approval onward.
 
 ## 1. Basis, provenance and decision sequence
 
