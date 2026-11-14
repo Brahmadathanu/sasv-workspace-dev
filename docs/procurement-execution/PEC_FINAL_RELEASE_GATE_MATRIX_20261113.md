@@ -1,5 +1,8 @@
 # PEC final release gate matrix (issue #388, Batch E)
 
+> **SUPERSEDED HISTORICAL SNAPSHOT — 13 November 2026.** This is a preserved pre-release gate ledger, not the current PEC status. Statements below such as "G0–G5 0/6 closed", "R10 unapplied", "history unregistered", "roles NOT TESTED" and old branch SHAs describe their dated checkpoints only. The PEC server corrections and web/PWA frontend subsequently shipped, production role smoke passed, Netlify showed **Published** at `main@e96172c`, and the formal frontend release was closed under [issue #388](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/388#issuecomment-6880188255). Read the [authoritative post-release status](PEC_FINAL_RELEASE_PACKET_20261114.md) before using any gate or migration claim from this file. Electron publication and installed-PWA offline/reconnect acceptance were not included (offline waived / NOT TESTED); read exposure and legacy mapping forensics remain follow-ups #423/#393.
+
+
 **13 Nov 2026 · No gate is closed by this document. G0–G5 remain 0/6 closed pending owner sign-off.** Legend: PASS = observed and evidenced · FAIL · BLOCKED = cannot proceed without a named external input · NOT TESTED. "Green CI" is never promoted to acceptance.
 
 ## 1. Exact heads (re-validated 13 Nov 2026)
