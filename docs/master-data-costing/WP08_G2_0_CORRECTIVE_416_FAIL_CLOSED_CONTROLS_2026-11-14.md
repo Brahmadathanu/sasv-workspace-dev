@@ -41,5 +41,20 @@ Registry/feature flags: unchanged. Permission keys unchanged (`module:manage-pro
 ## 5. Tests (see the PR for results)
 `scripts/wp08-g2-0-shared-master-data/fail-closed.test.mjs` (Chromium, stubbed backend, Electron-root and PWA-public): per page and platform — denied, no session, session throws, permission RPC error / non-array / throw, wrong key, delayed permission answer (locked from first paint, then correct view-only), view-only strictly read-only, editor keeps governed controls (nothing pressed), denied at 390 px, programmatic activation of every writer reaches no writer RPC; viewport meta; and **mutation tests** that re-create the pre-fix behaviour (guard module permissive, lock CSS/attributes stripped) and require the same assertions to detect operable writers. `source.test.mjs` proves HTML differs from the merged G2-0 pages only by guard attributes/CSS/viewport and JS differs only by guard wiring with an unchanged RPC/table/permission surface.
 
+### 5.1 Results (Node 22, Chromium, stubbed backend; LF and a CRLF worktree)
+
+| Suite | LF | CRLF |
+|---|---|---|
+| `fail-closed.test.mjs` (incl. 10 mutation tests) | 81/81 | 81/81 |
+| `source.test.mjs` | 13/13 | 13/13 |
+| `registry-sql.test.mjs` (isolated PostgreSQL) | 18/18 | 18/18 |
+| `sw-freshness-and-gate.test.mjs` | 15/15 | 15/15 |
+| `browser.test.mjs` (G2-0 parity; 2 `todo` = known PM BOM 390 px overflow, UX-P05, **not** a pass) | 46 pass, 0 fail, 2 todo | 46 pass, 0 fail, 2 todo |
+| 6 existing PM/BOM smokes, `csr-pwa-freshness` | pass | – |
+| `product-sku-lifecycle-smoke` | fails on base and here with the same stale `hub-cache-v332` pin | – |
+| 45-script area sweep vs base | identical exit codes | – |
+
+The first mutation run reproduced the original defects (`newInlineBtn` operable on a denied Products page; `saveBtn` operable on denied RM/SP BOM pages) and the 8 initial failures were test-design issues in the "no session" case (the page redirects away), fixed by asserting the redirect target and recorded calls instead. Not run: the remaining ~176 scripts outside the area sweep; no authenticated or live test.
+
 ## 6. Still required after merge and deployment (not done here)
 Authenticated **positive** view and editor identities on the served PWA with real read data and **no writer pressed**, before any PWA registry activation (Issue #416 gate; Run 2 only exercised a denied identity).
