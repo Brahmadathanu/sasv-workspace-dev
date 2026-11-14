@@ -64,8 +64,36 @@ st=$(q "select status from proc_indent_header where indent_id=31"); n=$(q "selec
 if [ "$st" = approved ] && [ "$n" = 0 ]; then
   echo "RESULT R2a CONFIRMED known defect reproduced with the live approval body: indent 31 ended 'approved' with $n lines (approval used a stale line count; resync emptied the draft in between)"
 else res R2a FAIL "defect not reproduced (status=$st lines=$n): re-assess R-2"; fi
-# R2b: PROPOSED fix, applied only in this throw-away database: take the header row lock first (FOR UPDATE).
-P -c "DO \$\$ DECLARE d text; BEGIN d := pg_get_functiondef('public.proc_indent_set_status_pec_internal(bigint,text,date)'::regprocedure); IF (length(d) - length(replace(d,'from public.proc_indent_header where indent_id = p_indent_id;',''))) <> length('from public.proc_indent_header where indent_id = p_indent_id;') THEN RAISE EXCEPTION 'expected exactly one match'; END IF; EXECUTE replace(d,'from public.proc_indent_header where indent_id = p_indent_id;','from public.proc_indent_header where indent_id = p_indent_id for update;'); END \$\$" >/dev/null || res R2b FAIL "could not apply the proposed fix in the fixture"
+# ---- baselines under the LIVE body (before the correction): behaviour the migration must not change
+attrs() { q "select concat_ws('|',p.prosecdef,coalesce(p.proconfig::text,'-'),coalesce(p.proacl::text,'-'),pg_get_function_identity_arguments(p.oid),p.prorettype::regtype::text,p.provolatile,p.proisstrict) from pg_proc p where p.proname='proc_indent_set_status_pec_internal' and p.pronamespace='public'::regnamespace"; }
+# probe: every rule of the approval/issue/close/cancel function, each run dry (effects rolled back)
+probe() { seed; for c in "9,'approved'" "13,'approved'" "20,'approved'" "9999,'approved'" "22,'issued'" "20,'issued'" "9,'issued'" "21,'closed'" "9,'closed'" "9,'cancelled'" "22,'cancelled'" "9,'bogus'" "NULL,'approved'" "9,NULL"; do printf '%s=>%s;' "$c" "$(try "select public.proc_indent_set_status_pec_internal($c)")"; done; }
+# lifecycle: real transitions and the resulting rows + audit trail
+lifecycle() { seed; q "select public.proc_indent_set_status_pec_internal(9,'approved'); select public.proc_indent_set_status_pec_internal(9,'issued'); select public.proc_indent_set_status_pec_internal(9,'closed'); select public.proc_indent_set_status_pec_internal(23,'approved'); select public.proc_indent_set_status_pec_internal(23,'cancelled')" >/dev/null 2>&1; q "select public.fx_global_md5()||'#'||coalesce((select string_agg(indent_id||':'||old_status||'>'||new_status,',' order by seq) from public.fx_header_audit),'')||'#'||(select string_agg(indent_id||'='||status||'/'||coalesce(approved_date is not null,false)::text||'/'||coalesce(issued_date is not null,false)::text,',' order by indent_id) from public.proc_indent_header where indent_id in (9,23))"; }
+ATTR_LIVE=$(attrs); PROBE_LIVE=$(probe); LIFE_LIVE=$(lifecycle)
+# R2d (existing defect, second symptom): two approvals of the same draft both run to completion with the live body
+seed; ctl_hold
+bg sess_A "set fx.pause_hdr_stmt='on'; select public.proc_indent_set_status_pec_internal(9,'approved')" A
+wait_wait sess_A "$A_ADV" || res R2d FAIL "first approval never reached the pause"
+q "select public.proc_indent_set_status_pec_internal(9,'approved')" >/dev/null 2>&1; b_rc=$?
+ctl_release; finish A
+if [ $b_rc = 0 ] && [ "$(cat "$OUT/A.rc")" = 0 ]; then echo "RESULT R2d CONFIRMED live body: two concurrent approvals of the same draft indent both succeed (no serialization; second UPDATE silently repeats the transition)"
+else res R2d FAIL "double approval not reproduced (second rc=$b_rc first rc=$(cat "$OUT/A.rc"))"; fi
+
+# ---- APPLY THE REAL MIGRATION FILE (not a sed edit) to the disposable database
+MIGF=$(ls "$ROOT"/supabase/migrations/*_pec_indent_set_status_header_lock.sql 2>/dev/null | head -1)
+if [ -z "$MIGF" ] || ! lf "$MIGF" | P >/dev/null; then res R2h FAIL "R-2 migration missing or did not apply in the fixture"; fi
+FN="proname='proc_indent_set_status_pec_internal' and pronamespace='public'::regnamespace"
+ok=1
+[ "$(q "select md5(replace(replace(prosrc,chr(13),''),' for update;',';')) from pg_proc where $FN")" = 052dfcbd06e19746213aaada2b588036 ] || { ok=0; echo "  body is not 'live body + one token'" >&2; }
+[ "$(q "select (length(prosrc)-length(replace(prosrc,' for update;','')))/length(' for update;') from pg_proc where $FN")" = 1 ] || { ok=0; echo "  expected exactly one added lock" >&2; }
+[ "$(attrs)" = "$ATTR_LIVE" ] || { ok=0; echo "  attributes changed: $(attrs) vs $ATTR_LIVE" >&2; }
+[ "$(q "select md5(replace(prosrc,chr(13),'')) from pg_proc where $FN")" != 052dfcbd06e19746213aaada2b588036 ] || { ok=0; echo "  migration did not change the body" >&2; }
+[ $ok = 1 ] && res R2h PASS "corrected body = live body (md5 052dfcbd...) plus exactly one 'for update'; signature, SECURITY DEFINER, search_path, ACL, return type and volatility unchanged" || res R2h FAIL "migration is not a one-token change or changed attributes"
+[ "$(probe)" = "$PROBE_LIVE" ] && res R2i PASS "all 14 transition outcomes (successes and error codes/messages, incl. zero-line, non-draft, unknown indent, bad status, NULLs) identical before and after" || res R2i FAIL "an outcome differs between the live and corrected body"
+[ "$(lifecycle)" = "$LIFE_LIVE" ] && res R2j PASS "approve -> issue -> close and approve -> cancel give identical rows, dates and audit trail before and after" || res R2j FAIL "lifecycle effects or audit trail differ"
+
+# R2b: the race is closed (same scenario as R2a, now with the real migration)
 seed; q "update proc_pr_line set requested_qty=0 where pr_id=500" >/dev/null
 ctl_hold
 bg sess_A "set fx.pause_hdr_stmt='on'; select public.proc_indent_set_status_pec_internal(31,'approved')" A
@@ -74,9 +102,51 @@ bg sess_B "select public.proc_indent_resync_from_pr_pec_internal(31,'safe')" B
 if wait_wait sess_B "$B_ROW"; then blocked=1; else blocked=0; fi
 ctl_release; finish A; finish B
 st=$(q "select status from proc_indent_header where indent_id=31"); n=$(q "select count(*) from proc_indent_line where indent_id=31")
-[ $blocked = 1 ] && [ "$st" = approved ] && [ "$n" = 3 ] && [ "$(cat "$OUT/B.rc")" != 0 ] && res R2b PASS "with the proposed header-lock-first approval: the resync waits, the approval keeps its 3 lines, the resync is then rejected (indent no longer draft)" || res R2b FAIL "proposed fix does not close the race (blocked=$blocked status=$st lines=$n)"
-# the same invariant stated generally, on the fixed fixture: no approved indent without lines
-[ "$(q "select count(*) from proc_indent_header h where h.status='approved' and not exists (select 1 from proc_indent_line l where l.indent_id=h.indent_id) and h.indent_id=31")" = 0 ] && res R2c PASS "invariant 'approved => at least one line' holds for indent 31 under the proposed fix" || res R2c FAIL "approved indent without lines under the proposed fix"
+[ $blocked = 1 ] && [ "$st" = approved ] && [ "$n" = 3 ] && [ "$(cat "$OUT/B.rc")" != 0 ] && res R2b PASS "corrected approval: the resync waits, the approval keeps its 3 lines, the resync is then rejected (indent no longer draft)" || res R2b FAIL "race not closed (blocked=$blocked status=$st lines=$n)"
+# R2b': the opposite order must still work: resync first, then approval is refused ('Cannot approve indent without lines')
+seed; q "update proc_pr_line set requested_qty=0 where pr_id=500" >/dev/null
+q "select public.proc_indent_resync_from_pr_pec_internal(31,'safe')" >/dev/null
+r=$(try "select public.proc_indent_set_status_pec_internal(31,'approved')")
+[ "$(q "select status from proc_indent_header where indent_id=31")" = draft ] && case $r in *"Cannot approve indent without lines"*) res R2k PASS "resync first, approval second: zero-line approval denied, indent stays draft, nothing written" ;; *) res R2k FAIL "zero-line approval not denied ($r)" ;; esac
+# R2d': double approval is now serialised: the second approval waits, then is rejected ('Only draft indents can be approved')
+seed; ctl_hold
+bg sess_A "set fx.pause_hdr_stmt='on'; select public.proc_indent_set_status_pec_internal(9,'approved')" A
+wait_wait sess_A "$A_ADV"
+bg sess_B "select public.proc_indent_set_status_pec_internal(9,'approved')" B
+if wait_wait sess_B "$B_ROW"; then blocked=1; else blocked=0; fi
+ctl_release; finish A; finish B
+[ $blocked = 1 ] && [ "$(cat "$OUT/A.rc")" = 0 ] && [ "$(cat "$OUT/B.rc")" != 0 ] && grep -q "Only draft indents can be approved" "$OUT/B.err" && [ "$(q "select count(*) from fx_header_audit where indent_id=9 and new_status='approved'")" = 1 ] && res R2d_fixed PASS "second approval waited and was rejected; exactly one draft>approved audit row" || res R2d_fixed FAIL "double approval not serialised (blocked=$blocked)"
+# R2e: Add Line cannot slip a new line into an indent that is being approved (wrapper and approval now share the header lock)
+seed; ctl_hold
+bg sess_A "set fx.pause_hdr_stmt='on'; select public.proc_indent_set_status_pec_internal(23,'approved')" A
+wait_wait sess_A "$A_ADV"
+bg sess_B "select public.proc_indent_add_line(23,1,14,1,2,'late')" B
+if wait_wait sess_B "$B_ROW"; then blocked=1; else blocked=0; fi
+ctl_release; finish A; finish B
+[ $blocked = 1 ] && [ "$(q "select status from proc_indent_header where indent_id=23")" = approved ] && [ "$(q "select count(*) from proc_indent_line where indent_id=23")" = 2 ] && grep -q "New indent lines are allowed only" "$OUT/B.err" && res R2e PASS "Add Line waited for the approval, then was rejected (23514); the approved indent keeps exactly the 2 lines that were counted" || res R2e FAIL "Add Line not serialised with approval (blocked=$blocked)"
+# R2f: source-PR reassignment (R10b wrapper) cannot overtake an approval
+seed; ctl_hold
+bg sess_A "set fx.pause_hdr_stmt='on'; select public.proc_indent_set_status_pec_internal(4,'approved')" A
+wait_wait sess_A "$A_ADV"
+bg sess_B "select public.proc_indent_set_source_pr(4,100,'r')" B
+if wait_wait sess_B "$B_ROW"; then blocked=1; else blocked=0; fi
+ctl_release; finish A; finish B
+[ $blocked = 1 ] && [ "$(q "select status from proc_indent_header where indent_id=4")" = approved ] && [ "$(q "select coalesce(source_pr_id::text,'null') from proc_indent_header where indent_id=4")" = null ] && [ "$(cat "$OUT/B.rc")" != 0 ] && res R2f PASS "source-PR reassignment waited for the approval and was then rejected; the approved indent kept its (empty) source" || res R2f FAIL "reassignment not serialised with approval (blocked=$blocked)"
+# R2g: lock-order compatibility: 20 rounds, approval x resync x reassignment x approved-line correction (snapshot lock) x close x PR status
+dl=0; inv=1
+for i in $(seq 20); do
+  seed; q "update proc_pr_line set requested_qty=0 where pr_id=500" >/dev/null
+  PGAPPNAME=a1 psql -X -q -At -d "$DB" -c "select public.proc_indent_set_status_pec_internal(31,'approved')" >/dev/null 2>"$OUT/a1.err" & p1=$!
+  PGAPPNAME=a2 psql -X -q -At -d "$DB" -c "select public.proc_indent_resync_from_pr_pec_internal(31,'safe')" >/dev/null 2>"$OUT/a2.err" & p2=$!
+  PGAPPNAME=a3 psql -X -q -At -d "$DB" -c "select public.proc_indent_add_line(20,1,11,1,$((i+2)),'k$i')" >/dev/null 2>"$OUT/a3.err" & p3=$!
+  PGAPPNAME=a4 psql -X -q -At -d "$DB" -c "select public.proc_indent_set_status_pec_internal(21,'closed')" >/dev/null 2>"$OUT/a4.err" & p4=$!
+  PGAPPNAME=a5 psql -X -q -At -d "$DB" -c "select public.proc_indent_set_source_pr(31,400,'r')" >/dev/null 2>"$OUT/a5.err" & p5=$!
+  PGAPPNAME=a6 psql -X -q -At -d "$DB" -c "update proc_pr_header set status='active' where pr_id in (100,400,500)" >/dev/null 2>"$OUT/a6.err" & p6=$!
+  wait $p1 $p2 $p3 $p4 $p5 $p6
+  grep -qi deadlock "$OUT"/a?.err && dl=$((dl+1))
+  [ "$(q "select count(*) from proc_indent_header h where h.indent_id=31 and h.status='approved' and not exists (select 1 from proc_indent_line l where l.indent_id=31)")" = 0 ] || inv=0
+done
+[ $dl = 0 ] && [ $inv = 1 ] && res R2g PASS "20 rounds of approval x resync x reassignment x approved-line correction x close x PR status: no deadlock, and 'approved => at least one line' held in every round" || res R2g FAIL "deadlocks=$dl invariant_ok=$inv"
 
 # ===================== R-3: privileged callers =====================
 # R3a: a direct INSERT of a NEW line (service-role style, no wrapper) while a resync is in flight. The live FK

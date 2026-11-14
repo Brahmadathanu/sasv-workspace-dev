@@ -55,6 +55,7 @@ CREATE TRIGGER fx_hdr_pause_row_trg BEFORE UPDATE ON public.proc_indent_header F
 CREATE FUNCTION public.fx_seed_risk() RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
   TRUNCATE public.proc_indent_line_sourcing_decision;
+  TRUNCATE public.fx_header_audit RESTART IDENTITY;
   PERFORM public.fx_seed();
   PERFORM public.fx_seed_extra();
   INSERT INTO public.proc_indent_header(indent_id, status, source_pr_id) VALUES (31, 'draft', 500);
@@ -62,4 +63,23 @@ BEGIN
     (3101, 31, 1, 11, 1, 3, NULL), (3102, 31, 1, 14, 1, 2, 'PR500 14'), (3103, 31, 1, 13, 1, 6, 'PR500 13');
   INSERT INTO public.proc_pr_indent_line_map(indent_id, indent_line_id, pr_id, pr_line_id) VALUES (31, 3101, 500, 5001), (31, 3102, 500, 5002), (31, 3103, 500, 5003);
   INSERT INTO public.proc_pr_to_indent_map(pr_id, indent_id, is_active, note) VALUES (500, 31, true, 'risk');
+END $$;
+
+-- Header status-transition audit model (the live lifecycle-audit trigger writes an audit row per change).
+CREATE TABLE public.fx_header_audit (seq bigserial PRIMARY KEY, indent_id bigint, old_status text, new_status text);
+CREATE FUNCTION public.fx_header_audit_trg() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF OLD.status IS DISTINCT FROM NEW.status THEN
+    INSERT INTO public.fx_header_audit(indent_id, old_status, new_status) VALUES (NEW.indent_id, OLD.status, NEW.status);
+  END IF;
+  RETURN NULL;
+END $$;
+CREATE TRIGGER fx_header_audit_trg AFTER UPDATE ON public.proc_indent_header FOR EACH ROW EXECUTE FUNCTION public.fx_header_audit_trg();
+
+-- Faithful lock footprint of the live snapshot refresh: proc_request_snapshot_refresh_pec_internal takes
+-- pg_advisory_xact_lock(hashtext('procurement_snapshot_refresh_request')) (held to commit). Every writer that
+-- calls it does so AFTER its header lock/UPDATE, so the global lock is always last in the lock order.
+CREATE OR REPLACE FUNCTION public.proc_request_snapshot_refresh(text) RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext('procurement_snapshot_refresh_request'));
 END $$;

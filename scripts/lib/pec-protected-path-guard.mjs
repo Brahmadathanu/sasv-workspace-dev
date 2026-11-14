@@ -47,6 +47,12 @@ export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
     sha256: "420f64a00ee544f29cbc64a33b1c47c6c0c74184a8574cb06b3d4aa450243961",
     heads: Object.freeze(["integration/pec-erp-staging-20261112"]),
   }),
+  // R-2 approval-race correction (#412): applied to production 14 Nov 2026 under explicit owner approval
+  // (history version registered). Pinned to the exact file; its own branch and, for integration, the staging branch only.
+  "supabase/migrations/20261114135500_pec_indent_set_status_header_lock.sql": Object.freeze({
+    sha256: "1dd812008e520db3a1c1ee2a3f62fe56f76350b23de417423831e6ce67d14823",
+    heads: Object.freeze(["claude/pec-r2-approval-race-fix-20261114", "integration/pec-erp-staging-20261112"]),
+  }),
 });
 
 const lfSha256 = (text) => createHash("sha256").update(String(text).replace(/\r\n/g, "\n")).digest("hex");

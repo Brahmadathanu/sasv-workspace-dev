@@ -78,10 +78,15 @@ for s in "insert into proc_indent_line(indent_id,material_class_id,stock_item_id
 done
 r=$(as authenticated $EDITOR "insert into proc_pr_indent_line_map(indent_id,indent_line_id,pr_id,pr_line_id) values (23,2301,100,1001)"); case $r in 42501:*) : ;; *) ok=0; echo "  map insert -> $r" >&2 ;; esac
 r=$(as anon - "insert into proc_pr_indent_line_map(indent_id,indent_line_id,pr_id,pr_line_id) values (23,2301,100,1001)"); case $r in 42501:*) : ;; *) ok=0; echo "  anon map insert -> $r" >&2 ;; esac
-as authenticated $EDITOR "update proc_pr_indent_line_map set pr_id=999; delete from proc_pr_indent_line_map; update proc_pr_to_indent_map set is_active=false; delete from proc_pr_to_indent_map" >/dev/null
+as authenticated $EDITOR "update proc_pr_indent_line_map set pr_id=999; delete from proc_pr_indent_line_map" >/dev/null
 r=$(as anon - "select count(*) from proc_indent_line"); case $r in 42501:*) : ;; *) ok=0; echo "  anon select -> $r" >&2 ;; esac
 [ "$(gmd)" = "$G0" ] || { ok=0; echo "  state changed by direct DML" >&2; }
-[ $ok = 1 ] && res G7 PASS "client roles cannot write indent/PR tables; line-map writes are stopped by RLS (insert 42501, update/delete affect 0 rows); anon cannot read; state unchanged" || res G7 FAIL "direct DML or anon read succeeded"
+[ $ok = 1 ] && res G7 PASS "client roles cannot write indent/PR tables; proc_pr_indent_line_map writes are stopped by RLS (insert 42501, update/delete affect 0 rows); anon cannot read; state unchanged" || res G7 FAIL "direct DML or anon read succeeded"
+# G7c CONFIRMED (live policy replicated): a signed-in user WITHOUT any PEC grant can modify PR-to-indent link rows directly
+seed; n0=$(q "select count(*) from proc_pr_to_indent_map"); a0=$(q "select count(*) from proc_pr_to_indent_map where is_active")
+as authenticated $NONE "update proc_pr_to_indent_map set is_active=false, note='tampered'; delete from proc_pr_to_indent_map where pr_id=500" >/dev/null
+n1=$(q "select count(*) from proc_pr_to_indent_map"); a1=$(q "select count(*) from proc_pr_to_indent_map where is_active")
+if [ "$a1" = 0 ] && [ "$n1" -lt "$n0" ]; then echo "RESULT G7c CONFIRMED a signed-in user with NO PEC grant changed $a0 active links to inactive and deleted rows in proc_pr_to_indent_map (FOR ALL policy auth.uid() IS NOT NULL, replicated from live): effective write access is not tied to the PEC permission (#400; same policy shape live on the criticality, lead-time and production-urgency policy tables)"; else res G7c FAIL "expected the replicated live policy to allow the write (active=$a1 rows=$n1/$n0)"; fi
 # characterisation of the pre-existing read exposure (issue #400): any signed-in user can read the tables
 seed; n=$(psql -X -q -At -d "$DB" -c "set role authenticated; select set_config('request.jwt.claim.sub','$NONE',false); select count(*) from proc_indent_line" 2>/dev/null | tail -1)
 echo "RESULT G7b INFO a signed-in user WITHOUT any PEC grant can read $n indent lines directly (policy auth.uid() IS NOT NULL) — characterisation of #400, not a fix"

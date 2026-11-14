@@ -2,8 +2,8 @@
 -- SYNTHETIC users and rows only; NEVER production. Loaded by roles-acl.sh after lib.sh.
 -- Sources of truth (read-only observations, 14 Nov 2026): live require_permission(text,boolean) body;
 -- live ACLs: wrappers authenticated+service_role, *_pec_internal service_role only; indent/PR tables
--- authenticated SELECT only (RLS policy auth.uid() IS NOT NULL); line-map tables carry broad
--- table grants with RLS enabled and NO policy (issue #400 observation, characterised not fixed).
+-- authenticated SELECT only (RLS policy auth.uid() IS NOT NULL); proc_pr_indent_line_map carries broad table grants with RLS
+-- enabled and NO policy (denied); proc_pr_to_indent_map has a FOR ALL policy for any signed-in user (issue #400, characterised).
 \set ON_ERROR_STOP on
 
 CREATE TABLE public.user_permissions_canonical (
@@ -52,6 +52,9 @@ CREATE POLICY proc_indent_header_authenticated_read ON public.proc_indent_header
 CREATE POLICY proc_indent_line_authenticated_read ON public.proc_indent_line FOR SELECT TO authenticated USING ((SELECT auth.uid()) IS NOT NULL);
 CREATE POLICY proc_pr_header_authenticated_read ON public.proc_pr_header FOR SELECT TO authenticated USING ((SELECT auth.uid()) IS NOT NULL);
 CREATE POLICY proc_pr_line_authenticated_read ON public.proc_pr_line FOR SELECT TO authenticated USING ((SELECT auth.uid()) IS NOT NULL);
+-- LIVE FACT (catalog read 14 Nov 2026): proc_pr_to_indent_map carries a FOR ALL policy for any signed-in user, not tied to the
+-- PEC module permission. (Three item-policy tables have the same shape live: criticality, lead time, production urgency.)
+CREATE POLICY proc_pr_to_indent_map_authenticated_crud ON public.proc_pr_to_indent_map FOR ALL TO authenticated USING ((SELECT auth.uid()) IS NOT NULL) WITH CHECK ((SELECT auth.uid()) IS NOT NULL);
 
 REVOKE ALL ON FUNCTION public.proc_indent_add_line(bigint,bigint,bigint,bigint,numeric,text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.proc_indent_add_line(bigint,bigint,bigint,bigint,numeric,text) TO authenticated, service_role;
