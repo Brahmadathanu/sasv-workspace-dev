@@ -20,7 +20,7 @@ select set_config('g2_0.deploy_gate_token', '<<PASTE_GATE_TOKEN_FROM_deploy-gate
 
 do $$
 declare
-  v_expected constant text := 'g2-0-2cb6da61e0f896616188681ef0b7b13a';
+  v_expected constant text := 'g2-0-7508596128ccc98a6c8d54b695693352';
   v_bad int;
   v_existing int;
   v_inserted int;

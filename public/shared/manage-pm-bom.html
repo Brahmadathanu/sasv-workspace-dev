@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="en" data-sasv-theme="sasv-core">
+<html lang="en" data-sasv-theme="sasv-core" data-md-access="locked">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SASV WORKSPACE | Manage Packing Material BOM</title>
     <link rel="stylesheet" href="../shared/css/style.css" />
 <link rel="stylesheet" href="../shared/css/shared-ui.css" />
@@ -1120,7 +1121,13 @@
     <!-- jsPDF (for PDF export) -->
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-  </head>
+      <style id="mdAccessGuardCss">
+      /* WP08 G2-0 #416: fail closed until a permission check succeeds (see js/master-data-write-guard.js). */
+      html[data-md-access="locked"] [data-md-writer] { display: none !important; }
+      html:not([data-md-access="edit"]) [data-md-field] { pointer-events: none; }
+      html[data-md-access="view"] [data-md-writer] { pointer-events: none; opacity: 0.55; cursor: not-allowed; }
+    </style>
+</head>
   <body class="sasv-module sasv-module--app sasv-bom" data-theme="system">
     <header>
       <div
@@ -1275,7 +1282,7 @@
                   View
                 </button>
                 <button
-                  id="ovr_editBtn"
+                  id="ovr_editBtn" data-md-writer
                   class="seg"
                   type="button"
                   data-short="E"
@@ -1392,7 +1399,7 @@
                   <button id="previewViewBtn" class="seg active" type="button">
                     View
                   </button>
-                  <button id="previewEditBtn" class="seg" type="button">
+                  <button id="previewEditBtn" data-md-writer class="seg" type="button">
                     Edit
                   </button>
                 </div>
@@ -1401,7 +1408,7 @@
                   style="display: inline-flex; gap: 8px; align-items: center"
                 >
                   <button
-                    id="previewSaveBtn"
+                    id="previewSaveBtn" data-md-writer
                     class="btn primary"
                     type="button"
                     style="display: none"
@@ -1538,13 +1545,13 @@
               <div
                 style="display: flex; flex-direction: column; min-width: 160px"
               >
-                <button id="rebuildTplBtn" class="btn" style="text-align: left">
+                <button id="rebuildTplBtn" data-md-writer class="btn" style="text-align: left">
                   Rebuild for Template
                 </button>
-                <button id="dryRunBtn" class="btn" style="text-align: left">
+                <button id="dryRunBtn" data-md-writer class="btn" style="text-align: left">
                   Dry Run (All)
                 </button>
-                <button id="rebuildAllBtn" class="btn" style="text-align: left">
+                <button id="rebuildAllBtn" data-md-writer class="btn" style="text-align: left">
                   Rebuild All
                 </button>
               </div>
@@ -1715,7 +1722,7 @@
                 </svg>
               </button>
               <button
-                id="saveBtn"
+                id="saveBtn" data-md-writer
                 class="btn primary icon-btn"
                 title="Save template header and lines"
                 aria-label="Save Template"
@@ -1770,18 +1777,18 @@
                   role="menu"
                   aria-labelledby="moreMenuBtn"
                 >
-                  <button id="newTplBtn" class="menu-item" role="menuitem">
+                  <button id="newTplBtn" data-md-writer class="menu-item" role="menuitem">
                     New Template
                   </button>
                   <button
-                    id="editTplBtn"
+                    id="editTplBtn" data-md-writer
                     class="menu-item"
                     role="menuitem"
                     disabled
                   >
                     Edit Template
                   </button>
-                  <button id="renumberBtn" class="menu-item" role="menuitem">
+                  <button id="renumberBtn" data-md-writer class="menu-item" role="menuitem">
                     Renumber
                   </button>
                   <hr
@@ -1792,7 +1799,7 @@
                     "
                   />
                   <button
-                    id="deleteTplBtn"
+                    id="deleteTplBtn" data-md-writer
                     class="menu-item danger"
                     role="menuitem"
                     disabled
@@ -1807,22 +1814,22 @@
         <div class="panel-body bom-hidden-fields">
           <!-- Hidden controls retained for logic and saving (match RM-BOM pattern) -->
           <input
-            id="tplCode"
+            id="tplCode" data-md-field
             type="text"
             class="sr-only"
             aria-hidden="true"
             tabindex="-1"
           />
           <input
-            id="refQty"
+            id="refQty" data-md-field
             type="number"
             step="0.0001"
             min="0"
             class="sr-only"
           />
-          <select id="refUom" class="sr-only"></select>
+          <select id="refUom" data-md-field class="sr-only"></select>
           <input
-            id="lossPct"
+            id="lossPct" data-md-field
             type="number"
             step="0.01"
             min="0"
@@ -1857,7 +1864,7 @@
               <button id="linesViewBtn" class="seg active" type="button">
                 View
               </button>
-              <button id="linesEditBtn" class="seg" type="button">Edit</button>
+              <button id="linesEditBtn" data-md-writer class="seg" type="button">Edit</button>
             </div>
             <button
               id="kbHelpBtn"
@@ -2001,7 +2008,7 @@
             <label style="display: flex; align-items: center; gap: 6px">
               <span class="hint">Count</span>
               <input
-                id="insCountInput"
+                id="insCountInput" data-md-field
                 type="number"
                 min="1"
                 max="100"
@@ -2013,7 +2020,7 @@
             <button id="insCancelBtn" type="button" class="btn ghost">
               Cancel
             </button>
-            <button id="insOkBtn" type="button" class="btn primary">
+            <button id="insOkBtn" data-md-writer type="button" class="btn primary">
               Insert
             </button>
           </div>
@@ -2066,12 +2073,12 @@
             <div style="display: grid; gap: 10px">
               <label>
                 <span class="hint">Template Code</span>
-                <input id="ntCode" type="text" />
+                <input id="ntCode" data-md-field type="text" />
               </label>
               <label>
                 <span class="hint">Reference Output Qty</span>
                 <input
-                  id="ntRefQty"
+                  id="ntRefQty" data-md-field
                   type="number"
                   step="0.0001"
                   min="0"
@@ -2080,12 +2087,12 @@
               </label>
               <label>
                 <span class="hint">Reference Output UOM</span>
-                <select id="ntRefUom"></select>
+                <select id="ntRefUom" data-md-field></select>
               </label>
               <label>
                 <span class="hint">Process Loss %</span>
                 <input
-                  id="ntLossPct"
+                  id="ntLossPct" data-md-field
                   type="number"
                   step="0.01"
                   min="0"
@@ -2100,7 +2107,7 @@
           </div>
           <div class="modal-actions">
             <button id="ntCancelBtn" class="btn ghost">Cancel</button>
-            <button id="ntCreateBtn" class="btn primary">Create</button>
+            <button id="ntCreateBtn" data-md-writer class="btn primary">Create</button>
           </div>
         </div>
       </div>
@@ -2147,7 +2154,7 @@
                 Reference Output Qty
               </div>
               <div>
-                <input id="etRefQty" type="number" step="0.0001" min="0" />
+                <input id="etRefQty" data-md-field type="number" step="0.0001" min="0" />
               </div>
             </div>
             <div
@@ -2172,7 +2179,7 @@
               >
                 Reference Output UOM
               </div>
-              <div><select id="etRefUom"></select></div>
+              <div><select id="etRefUom" data-md-field></select></div>
             </div>
             <div
               class="form-row"
@@ -2198,7 +2205,7 @@
               </div>
               <div>
                 <input
-                  id="etLossPct"
+                  id="etLossPct" data-md-field
                   type="number"
                   step="0.01"
                   min="0"
@@ -2212,7 +2219,7 @@
           </div>
           <div class="modal-actions">
             <button id="etCancelBtn" class="btn ghost">Cancel</button>
-            <button id="etApplyBtn" class="btn primary">Apply</button>
+            <button id="etApplyBtn" data-md-writer class="btn primary">Apply</button>
           </div>
         </div>
       </div>
@@ -2250,7 +2257,7 @@
           </div>
           <div class="modal-actions">
             <button id="dtCancelBtn" class="btn ghost">Cancel</button>
-            <button id="dtConfirmBtn" class="btn danger">Confirm Delete</button>
+            <button id="dtConfirmBtn" data-md-writer class="btn danger">Confirm Delete</button>
           </div>
         </div>
       </div>
@@ -2322,7 +2329,7 @@
                 </svg>
               </button>
               <button
-                id="mapNewBtn"
+                id="mapNewBtn" data-md-writer
                 class="btn primary icon-btn"
                 title="New mapping"
                 aria-label="New mapping"
@@ -2354,7 +2361,7 @@
                   <button id="mapViewBtn" class="seg active" type="button">
                     View
                   </button>
-                  <button id="mapEditBtn" class="seg" type="button">
+                  <button id="mapEditBtn" data-md-writer class="seg" type="button">
                     Edit
                   </button>
                 </div>
@@ -2363,7 +2370,7 @@
                   style="display: inline-flex; gap: 8px; align-items: center"
                 >
                   <button
-                    id="mapSaveBtn"
+                    id="mapSaveBtn" data-md-writer
                     class="btn primary"
                     type="button"
                     style="display: none"
@@ -2419,7 +2426,7 @@
                     View
                   </button>
                   <button
-                    id="mapKebabEditBtn"
+                    id="mapKebabEditBtn" data-md-writer
                     class="menu-item"
                     role="menuitem"
                   >
@@ -2491,11 +2498,11 @@
           <div class="modal-body" style="display: grid; gap: 12px">
             <label>
               <span>SKU</span>
-              <select id="mapNewSkuPicker"></select>
+              <select id="mapNewSkuPicker" data-md-field></select>
             </label>
             <label>
               <span>Template</span>
-              <select id="mapNewTplPicker"></select>
+              <select id="mapNewTplPicker" data-md-field></select>
             </label>
             <p class="muted" style="margin: 0">
               Choose a SKU and a PM template to create a new mapping.
@@ -2503,7 +2510,7 @@
           </div>
           <div class="modal-actions">
             <button id="mapNewCancelBtn" class="btn ghost">Cancel</button>
-            <button id="mapNewCreateBtn" class="btn primary">Create</button>
+            <button id="mapNewCreateBtn" data-md-writer class="btn primary">Create</button>
           </div>
         </div>
       </div>

@@ -50,7 +50,7 @@ function chain(table) {
     get(_t, prop) {
       if (prop === "then") return (res, rej) => Promise.resolve(result).then(res, rej);
       if (prop === "catch" || prop === "finally") return () => proxy;
-      return (...a) => { calls.push({ kind: "from", table, method: String(prop) }); return proxy; };
+      return (...a) => { calls.push({ kind: "from", table, method: String(prop) }); window.__mdRecord?.({ kind: "from", table, method: String(prop) }); return proxy; };
     },
     apply: () => proxy,
   });
@@ -60,7 +60,7 @@ export function createClient() {
   const session = window.__MOCK_SESSION === false ? null : { access_token: "stub", user };
   const client = {
     auth: {
-      getSession: async () => ({ data: { session }, error: null }),
+      getSession: async () => { if (window.__MOCK_FAIL === "session-throw") throw new Error("mock session failure"); if (window.__MOCK_FAIL === "session-error") return { data: { session: null }, error: { message: "mock" } }; return { data: { session }, error: null }; },
       getUser: async () => ({ data: { user: session ? user : null }, error: null }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
       refreshSession: async () => ({ data: { session }, error: null }),
@@ -68,8 +68,15 @@ export function createClient() {
     },
     from: (table) => chain(table),
     rpc: (name, args) => {
-      calls.push({ kind: "rpc", name, args });
-      if (name === "get_user_permissions") return Promise.resolve({ data: window.__MOCK_GRANTS || [], error: null });
+      calls.push({ kind: "rpc", name, args }); window.__mdRecord?.({ kind: "rpc", name });
+      if (name === "get_user_permissions") {
+        const f = window.__MOCK_FAIL;
+        if (f === "perm-error") return Promise.resolve({ data: null, error: { message: "mock permission failure" } });
+        if (f === "perm-nonarray") return Promise.resolve({ data: { not: "an array" }, error: null });
+        if (f === "perm-throw") return Promise.reject(new Error("mock permission throw"));
+        const grants = window.__MOCK_GRANTS || [];
+        return window.__MOCK_DELAY_MS ? new Promise((r) => setTimeout(() => r({ data: grants, error: null }), window.__MOCK_DELAY_MS)) : Promise.resolve({ data: grants, error: null });
+      }
       if (name === "app_get_current_user_context") return Promise.resolve({ data: { user_id: user.id, email: user.email, is_authenticated: !!session }, error: null });
       if (name === "app_get_my_permissions") return Promise.resolve({ data: window.__MOCK_GRANTS || [], error: null });
       return chain("rpc:" + name);
@@ -91,7 +98,7 @@ export async function launch() {
 }
 
 /** role: "denied" | "view" | "edit" | "legacy-pm-key-only". Returns page, requests log and error log. */
-export async function openPage(env, { platform, moduleDef, role, width, session = true, pathSuffix = "" }) {
+export async function openPage(env, { platform, moduleDef, role, width, session = true, pathSuffix = "", fail = null, delayPermMs = 0, mutant = null, wait = 900 }) {
   const server = env.servers[platform];
   const origin = `http://127.0.0.1:${server.address().port}`;
   const cfg = PLATFORMS[platform];
@@ -103,13 +110,25 @@ export async function openPage(env, { platform, moduleDef, role, width, session 
     // Only the WRONG key for PM BOM: must stay denied (module:pm-templates is the sole gate).
     "wrong-key": [{ target: "module:manage-pm-bom", can_view: true, can_edit: true }],
   }[role];
-  await context.addInitScript(([g, s]) => { window.__MOCK_GRANTS = g; window.__MOCK_SESSION = s; }, [grants, session]);
+  await context.addInitScript(([g, s, f, d]) => { window.__MOCK_GRANTS = g; window.__MOCK_SESSION = s; window.__MOCK_FAIL = f; window.__MOCK_DELAY_MS = d; }, [grants, session, fail, delayPermMs]);
+  if (mutant === "no-guard") {
+    // Emulates the pre-#416 behaviour: no fail-closed default, no CSS lock, guard module permissive. Used to prove the tests are mutation-sensitive.
+    await context.route(/master-data-write-guard\.js/, (route) => route.fulfill({ status: 200, contentType: "text/javascript", body: "export const canWriteMasterData=()=>true;export const setMasterDataAccess=()=>'edit';export const setMasterDataAccessFromGrant=()=>'edit';export const getMasterDataAccess=()=>'edit';export const MD_ACCESS={};" }));
+    await context.route(new RegExp(`${moduleDef.file.replace(".", "\\.")}`), async (route) => {
+      const res = await route.fetch();
+      let body = await res.text();
+      body = body.replace(/ data-md-access="locked"/, "").replace(/<style id="mdAccessGuardCss">[\s\S]*?<\/style>/, "").replace(/ data-md-(?:writer|field)/g, "");
+      await route.fulfill({ response: res, body });
+    });
+  }
   await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, async (route) => {
     const url = route.request().url();
     if (/esm\.sh\/@supabase\/supabase-js/.test(url)) return route.fulfill({ status: 200, contentType: "text/javascript", body: SUPABASE_STUB });
     if (/jspdf/.test(url)) return route.fulfill({ status: 200, contentType: "text/javascript", body: JSPDF_STUB });
     return route.fulfill({ status: 200, contentType: "text/plain", body: "" });
   });
+  const recorded = [];
+  await context.exposeBinding("__mdRecord", (_src, c) => { recorded.push(c); });
   const page = await context.newPage();
   const failed = [];
   const errors = [];
@@ -118,8 +137,8 @@ export async function openPage(env, { platform, moduleDef, role, width, session 
   page.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource/.test(m.text())) errors.push(m.text()); });
   const url = `${origin}${cfg.pagePrefix}${moduleDef.file}${pathSuffix}`;
   await page.goto(url, { waitUntil: "load" });
-  await page.waitForTimeout(900);
-  return { page, context, failed, errors, origin, url };
+  await page.waitForTimeout(wait);
+  return { page, context, failed, errors, origin, url, recorded };
 }
 
 export async function overflow(page) {
