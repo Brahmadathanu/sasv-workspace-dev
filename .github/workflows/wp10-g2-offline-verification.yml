@@ -1,0 +1,84 @@
+name: WP10 G2 offline verification
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/wp10-g2-offline-verification.yml'
+      - 'public/shared/js/products.js'
+      - 'public/shared/js/costing-suite-readiness.js'
+      - 'public/shared/js/wp10-safeguards*.js'
+      - 'scripts/wp10-g2-safeguards/**'
+      - 'scripts/wp10-g1-safeguard-audit/**'
+      - 'scripts/wp08-g2-0-shared-master-data/pg-harness.mjs'
+      - 'docs/master-data-costing/WP10_G1_EVIDENCE/*.json'
+      - 'docs/master-data-costing/WP10_G2_EVIDENCE/*.json'
+      - 'docs/master-data-costing/WP10_G2_UNAPPLIED_SQL_PROPOSALS/**'
+
+permissions:
+  contents: read
+
+jobs:
+  wp10-offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      NODE_PATH: ${{ runner.temp }}/wp10deps/node_modules
+      WP10_G2_BROWSER_SKIP: '0'
+      WP10_G2_SHOTS: '1'
+      WP10_EVIDENCE: ${{ runner.temp }}/wp10-evidence
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch main for source-scope comparisons
+        run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
+      - name: Install isolated test dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/wp10deps" --no-save --no-audit --no-fund --ignore-scripts playwright@1.62.1
+          "$RUNNER_TEMP/wp10deps/node_modules/.bin/playwright" install --with-deps chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-16 postgresql-client-16
+      - name: Require PostgreSQL and Chromium test infrastructure
+        run: |
+          node --input-type=module -e "import {pgAvailable} from './scripts/wp08-g2-0-shared-master-data/pg-harness.mjs'; if (!pgAvailable()) throw Error('PostgreSQL unavailable; no skipped fixture PASS');"
+          node -e "const fs=require('fs'); const p=require('playwright'); if (!fs.existsSync(p.chromium.executablePath())) throw Error('Chromium unavailable');"
+          mkdir -p "$WP10_EVIDENCE"
+      - name: Pure client, delivery, source and draft-SQL contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for suite in client-units sw-delivery source draft-sql-static; do
+            node "scripts/wp10-g2-safeguards/$suite.test.mjs" | tee "$WP10_EVIDENCE/$suite.log"
+          done
+      - name: Isolated PostgreSQL fixtures and mutation controls (never Supabase)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for suite in horizon guards provenance; do
+            node "scripts/wp10-g2-safeguards/$suite.test.mjs" "$WP10_EVIDENCE/$suite.json" | tee "$WP10_EVIDENCE/$suite.log"
+            if grep -q '^SKIPPED' "$WP10_EVIDENCE/$suite.log"; then
+              echo '::error::PostgreSQL fixture skipped; gate cannot pass'
+              exit 1
+            fi
+          done
+      - name: Mocked Chromium at 390 and 1280 (not live-role acceptance)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/wp10-g2-safeguards/browser-products.test.mjs scripts/wp10-g2-safeguards/browser-readiness.test.mjs | tee "$WP10_EVIDENCE/chromium.log"
+          if grep -Eq '^# skipped [1-9]' "$WP10_EVIDENCE/chromium.log"; then
+            echo '::error::Chromium checks skipped; gate cannot pass'
+            exit 1
+          fi
+      - name: Preserve offline logs and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp10-g2-offline-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/wp10-evidence/
+            docs/master-data-costing/WP10_G2_EVIDENCE/screenshots/
+          if-no-files-found: warn
