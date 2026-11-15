@@ -187,7 +187,8 @@ export const HORIZON_TIME_BUDGET_MS = 120000;
 
 /**
  * Validates one horizon page. `prev` (optional) is what the panel already accepted: { context, lastSkuId, expectedCursor, rowIds:Set, pageIndex }.
- * R4: a has_more page MUST carry a positive integral cursor that moves strictly past this page's scan position (never the cursor that was sent);
+ * R4: a has_more page MUST carry a positive integral cursor at or beyond its last row and strictly past the cursor that was sent;
+ * SQL proposal 03 returns the last SCANNED SKU, so equality with the last displayed row is valid (e.g. the flagged-row limit was reached).
  * rows must be positive-integral, strictly ascending and not seen before; the date window must be exactly [from, from+days] inclusive; and every page
  * of one panel session must carry the SAME context (date basis, window, route coverage, amounts flag) - otherwise the caller restarts or stops.
  */
@@ -207,7 +208,7 @@ export function validateHorizonEnvelope(data, prev = null, { sentCursor = null }
   }
   if (!Array.isArray(data.rows)) return { ok: false, error: "Horizon rows must be an array." };
   const seen = new Set(prev?.rowIds || []);
-  let last = prev?.lastSkuId ?? (sentCursor == null ? 0 : Number(sentCursor));
+  let last = Math.max(prev?.lastSkuId ?? 0, sentCursor == null ? 0 : Number(sentCursor));
   const rows = [];
   for (const r of data.rows) {
     if (!r || !posInt(r.sku_id) || !posInt(r.product_id) || !Array.isArray(r.essentials)) return { ok: false, error: "Horizon row is malformed." };
@@ -233,8 +234,7 @@ export function validateHorizonEnvelope(data, prev = null, { sentCursor = null }
   if (hasMore) {
     if (!posInt(data.next_after_sku_id)) return { ok: false, error: "Horizon says more pages exist but gave no valid continuation cursor." };
     next = Number(data.next_after_sku_id);
-    const floor = Math.max(last, sentCursor == null ? 0 : Number(sentCursor));
-    if (next <= floor) return { ok: false, error: "Horizon continuation cursor does not advance." };
+    if (next <= (sentCursor == null ? 0 : Number(sentCursor)) || next < last) return { ok: false, error: "Horizon continuation cursor does not advance or precedes a returned row." };
     if (prev?.expectedCursor != null && sentCursor != null && Number(sentCursor) !== Number(prev.expectedCursor)) return { ok: false, error: "Horizon page was requested with an unexpected cursor." };
   } else if (data.next_after_sku_id != null) {
     return { ok: false, error: "Horizon returned a cursor on the last page." };

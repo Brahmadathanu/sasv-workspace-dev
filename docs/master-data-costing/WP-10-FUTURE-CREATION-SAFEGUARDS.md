@@ -1,4 +1,4 @@
-> **LATEST — INDEPENDENT REVIEW HOLD:** source/control-flow/SQL review found unapproved unknown-allowed route edits, incomplete route boundaries, activation-import race, pagination validation and rollback provenance gaps. [Consolidated corrections](WP10_G2_INDEPENDENT_REVIEW_2026-11-15.md) and new read-only route-callee catalog are committed to the same #441 branch. Original mocked results remain historical evidence; no merge/apply/activation authorised. O1–O4 are already approved; amounts-policy changes and override workflow are outside scope. WP10 OPEN, 10/13.
+> **LATEST — CORRECTED-SOURCE REVIEW:** R1–R7 source corrections accepted; one further client/SQL cursor mismatch was corrected directly. [Review and verification limits](WP10_G2_CORRECTED_SOURCE_REVIEW_2026-11-15.md): fresh units 14/14, delivery 7/7, source 9/9, static 19 PASS. Focused Chromium rerun on the reviewer correction is pending; author-head integrated-pec succeeded. Read-only impact preview remains unimplemented. PR #441 stays draft, SQL unapplied, flag default-off; WP10 OPEN, 10/13.
 
 # WP-10 — Governance Safeguards for Future Product/SKU Creation
 
@@ -22,7 +22,7 @@ One [G2 package](WP10_G2_SINGLE_DRAFT_IMPLEMENTATION_PACKAGE_2026-11-15.md), [is
 - [ ] Formal owner WP10 closure.
 
 ## Next step and execution state
-G2 draft PR is open for independent review (no merge, no production step, no flag activation); ChatGPT handles read-only server questions and independent review. No new G1 handover or repeated confirmation needed. Assignment is prepared; no Claude task submitted by ChatGPT. The named operator nomination remains an operational follow-up; programme owner is accountable until then.
+G2 draft PR #441 has completed corrected-source review, with a direct pagination correction awaiting focused mocked Chromium verification and exact-head CI. Then present the default-off source merge for owner authority. The read-only counterfactual impact-preview contract remains open; transactional rejection does not complete it. No production step or flag activation is authorised. No new G1 handover is needed. The named operator nomination remains an operational follow-up; programme owner is accountable until then.
 
 ## Protected boundaries
 No production SQL, rebuild/cron scheduling, permissions/RLS/grants, registry, feature activation, deployment, G2 merge or automatic deactivation. New SQL remains unapplied outside migrations. Keep existing five essentials, CI-038a date semantics, LIVE_AS_OF and fingerprint authoritative. Test all in-window effective boundaries rather than only endpoints. WP09 remains closed and launcher flag untouched; WP08/PEC stay closed; WP11 defects and all WP12 receiving/security/PWA/Electron/Windows gates preserved. Five historical migration CRLF-only differences remain untouched. Programme stays 10/13 until a separate formal closure.

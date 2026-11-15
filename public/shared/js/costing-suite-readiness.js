@@ -2507,7 +2507,7 @@ export function createPortfolioReadinessController(deps = {}) {
   function ensureWp10() {
     if (wp10Module || wp10Loading || !wp10Enabled()) return;
     wp10Loading = true;
-    import("./wp10-safeguards-ui.js?v=18f867c0f4")
+    import("./wp10-safeguards-ui.js?v=419f1603de")
       .then((m) => {
         wp10Module = m;
         wp10Loading = false;

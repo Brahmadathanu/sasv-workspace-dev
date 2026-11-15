@@ -39,10 +39,32 @@ test("R4 a valid last page and a valid continuation page are accepted", () => {
 test("R4 has_more=true with a NULL / missing / non-integral / non-positive cursor is rejected (independently reproduced defect)", () => {
   for (const c of [null, undefined, 0, -3, 2.5, "x", "0"]) bad(page({ has_more: true, next_after_sku_id: c }), null, {}, /continuation cursor/);
 });
-test("R4 a cursor that does not advance past the page's rows or the cursor that was sent is rejected", () => {
-  bad(page({ has_more: true, next_after_sku_id: 5 }), null, {}, /does not advance/);          // equals last row
+test("R4 a cursor before the page's rows or not past the cursor that was sent is rejected", () => {
+  bad(page({ has_more: true, next_after_sku_id: 4 }), null, {}, /does not advance/);          // before last row
   bad(page({ rows: [], has_more: true, next_after_sku_id: 40 }), null, { sentCursor: 40 }, /does not advance/); // equals sent cursor
   bad(page({ rows: [], has_more: true, next_after_sku_id: 39 }), null, { sentCursor: 40 }, /does not advance/);
+});
+test("R4 SQL03 keyset contract: last-scanned cursor MAY equal the last displayed SKU; the next page must start after it", () => {
+  const sql = fs.readFileSync(path.join(root, "docs/master-data-costing/WP10_G2_UNAPPLIED_SQL_PROPOSALS/03_operational_expiry_horizon_rpc.sql"), "utf8");
+  assert.match(sql, /v_last := rec\.sku_id/);
+  assert.match(sql, /if v_flagged >= v_limit then exit; end if/);
+  assert.match(sql, /'next_after_sku_id', case when coalesce\(v_more, false\) then v_last else null end/);
+  const first = validateHorizonEnvelope(page({ has_more: true, next_after_sku_id: 5 }));
+  assert.equal(first.ok, true, "a full flagged page ends at its last scanned/displayed SKU");
+  const prev = { context: first.value.context, lastSkuId: first.value.lastSkuId, rowIds: new Set([5]), expectedCursor: 5 };
+  assert.equal(validateHorizonEnvelope(page({ rows: [row(9)] }), prev, { sentCursor: 5 }).ok, true);
+  // Sparse scans may move farther than the last displayed SKU: reject a later row behind that scan cursor.
+  bad(page({ rows: [row(7)] }), { ...prev, expectedCursor: 50 }, { sentCursor: 50 }, /out of order|move past/);
+});
+test("R4 mutation control: restoring strict cursor > last displayed row rejects a valid SQL03 continuation", async () => {
+  const source = fs.readFileSync(path.join(root, "public/shared/js/wp10-safeguards.js"), "utf8");
+  const real = "next < last";
+  assert.equal(source.split(real).length, 2, "mutation target is unique");
+  const mutant = source.replace(real, "next <= last");
+  const mod = await import(`data:text/javascript;base64,${Buffer.from(mutant).toString("base64")}`);
+  const response = page({ has_more: true, next_after_sku_id: 5 });
+  assert.equal(validateHorizonEnvelope(response).ok, true);
+  assert.equal(mod.validateHorizonEnvelope(response).ok, false, "the server-shaped regression detects the old comparison");
 });
 test("R4 an EMPTY scanned page with a valid advancing cursor is accepted (flagged rows are sparse); a cursor on the last page is rejected", () => {
   const v = validateHorizonEnvelope(page({ rows: [], has_more: true, next_after_sku_id: 250 }), null, { sentCursor: 50 });

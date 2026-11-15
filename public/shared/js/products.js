@@ -2473,7 +2473,7 @@ async function loadWp10Modules() {
   if (!wp10SafeguardsOn()) return null;
   if (wp10Mods) return wp10Mods;
   try {
-    const [core, ui] = await Promise.all([import("./wp10-safeguards.js?v=18f867c0f4"), import("./wp10-safeguards-ui.js?v=18f867c0f4")]);
+    const [core, ui] = await Promise.all([import("./wp10-safeguards.js?v=419f1603de"), import("./wp10-safeguards-ui.js?v=419f1603de")]);
     wp10Mods = { core, ui };
   } catch {
     wp10Mods = null;

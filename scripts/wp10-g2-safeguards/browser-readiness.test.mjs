@@ -195,14 +195,14 @@ test("R4.1 has_more=true with a NULL cursor stops with an error: the first page 
   } finally { await browser.close(); }
 });
 
-test("R4.2 valid paging: empty scanned page with a valid cursor, then a final page; cursors are sent in order and rows are not duplicated", { skip }, async () => {
-  const seq = [{ data: HZ_PAGE([HZ_ROW(5)], { has_more: true, next_after_sku_id: 50 }) }, { data: HZ_PAGE([], { has_more: true, next_after_sku_id: 100 }) }, { data: HZ_PAGE([HZ_ROW(120)]) }];
+test("R4.2 valid paging: cursor equals last displayed SKU, empty scanned page, then final page; cursors are sent in order", { skip }, async () => {
+  const seq = [{ data: HZ_PAGE([HZ_ROW(5)], { has_more: true, next_after_sku_id: 5 }) }, { data: HZ_PAGE([], { has_more: true, next_after_sku_id: 100 }) }, { data: HZ_PAGE([HZ_ROW(120)]) }];
   const { browser, page } = await openHarness({ flag: true, portfolioError: { message: "READINESS_BUILD_STALE: x" }, horizon: { sequence: seq } });
   try {
     await loadHz(page);
     await page.locator("#wp10HorizonPanel").getByRole("button", { name: /Load more/ }).click(); await page.waitForTimeout(400);
     await page.locator("#wp10HorizonPanel").getByRole("button", { name: /Load more/ }).click(); await page.waitForTimeout(400);
-    assert.deepEqual(await hzCalls(page), [null, 50, 100]);
+    assert.deepEqual(await hzCalls(page), [null, 5, 100]);
     assert.equal(await page.locator("#wp10HorizonPanel .wp10-horizon__row").count(), 2);
     assert.equal(await page.locator("#wp10HorizonPanel").getByRole("button", { name: /Load more/ }).count(), 0);
   } finally { await browser.close(); }

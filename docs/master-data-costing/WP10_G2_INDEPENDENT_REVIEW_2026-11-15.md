@@ -1,3 +1,5 @@
+> **LATEST:** corrected-source review and one additional cursor-contract correction are recorded in [the follow-up review](WP10_G2_CORRECTED_SOURCE_REVIEW_2026-11-15.md). R1–R7 source dispositions are updated there; focused Chromium verification of the reviewer correction is pending. The HOLD below describes the original reviewed head and is retained as history. No merge or SQL application is authorised.
+
 # WP10 G2 — Independent review and consolidated correction (15 November 2026)
 
 **HOLD — NOT READY TO MERGE OR APPLY SQL. WP10 OPEN, programme 10/13.** Reviewed #441 at 3e5c63d2532f655cbac378886c184e51f357d161, base 6b7eb45f. Original 35-file change remains draft implementation/unapplied proposals. No SQL executed, writer invoked, flag activated, merge/deploy or migration change.

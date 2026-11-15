@@ -16,7 +16,7 @@ import {
   safeText,
   validateHorizonEnvelope,
   classifyReadinessError,
-} from "./wp10-safeguards.js?v=18f867c0f4";
+} from "./wp10-safeguards.js?v=419f1603de";
 
 // Minimal self-contained styles (reuse existing tokens/classes where present); injected once, only when this module is loaded (flag ON).
 const CSS = `.wp10-meta{font-size:.78rem;color:var(--sasv-text-muted,#5b6472);overflow-wrap:anywhere}

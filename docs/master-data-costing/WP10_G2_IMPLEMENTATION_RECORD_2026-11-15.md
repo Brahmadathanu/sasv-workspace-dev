@@ -3,7 +3,13 @@
 Authority: issue #440 and `WP10_G2_SINGLE_DRAFT_IMPLEMENTATION_PACKAGE_2026-11-15.md`; owner decisions O1–O5 as recorded in `WP10_OWNER_G1_ACCEPTANCE_G2_DRAFT_AUTHORITY_2026-11-15.md`.
 Base: `origin/main` 6b7eb45f9aaab89a8916740f70caa7375499570d. Branch `claude/wp10-g2-safeguards`. One draft PR. **Not merged, not deployed, no flag activated, no production SQL, no formal WP10 closure. Programme stays 10/13.**
 
-## What was delivered
+> **Current independent review:** [corrected-source review](WP10_G2_CORRECTED_SOURCE_REVIEW_2026-11-15.md) accepts the R1–R7 source corrections and records an additional client/SQL cursor-contract fix. Fresh reviewer units are 14/14; focused Chromium rerun is pending.
+
+## Historical first delivery (3e5c63d2; superseded by the follow-up below)
+
+The original choices, unresolved-contract list, counts and rollback description in this section are historical. In particular, allow-on-error, partial route closure, amount/override decisions and unconditional rollback statements were superseded.
+
+### What was delivered
 | # | Package item | Delivered | Where |
 |---|---|---|---|
 | 1 | Readiness lens distinguishes STALE / ABSENT / INCOMPLETE / valuation-missing / auth / permission / timeout / transport / unknown; names governed period, owner accountability and the manual runbook; no auto rebuild/retry | Yes (flag-gated). **No new RPC**: the existing portfolio read already raises `READINESS_BUILD_STALE/ABSENT/INCOMPLETE` in its error message | `wp10-safeguards.js` (`classifyReadinessError`, `readinessStateModel`), `wp10-safeguards-ui.js` (`readinessUnavailableHtml`), hooks in `costing-suite-readiness.js` |
