@@ -312,8 +312,8 @@ try {
       const rows = REG[client]; const one = rows.filter((r) => r.module_key === "vendor-master");
       const s = await open(client, { grants: grant(one, "use"), rewrites, width: 1280 });
       let found;
-      if (client === "pwa") { await s.page.fill("#hub-search-input", "stock"); found = await s.page.$$eval("#hub-search-results li", (e) => e.length); }
-      else { await s.page.keyboard.press("Control+k"); await s.page.fill("#cmdPaletteInput", "stock"); found = await s.page.$$eval("#cmd-results .cmd-result-item", (e) => e.length); }
+      if (client === "pwa") { await s.page.fill("#hub-search-input", "bottled"); found = await s.page.$$eval("#hub-search-results li", (e) => e.length); }
+      else { await s.page.keyboard.press("Control+k"); await s.page.fill("#cmdPaletteInput", "bottled"); found = await s.page.$$eval("#cmd-results .cmd-result-item", (e) => e.length); }
       await s.close();
       return found;
     };
@@ -333,7 +333,7 @@ try {
       return n;
     };
     check("M6 control: no pin reuse across a user switch on the real code", (await switchLeak([])) === 0);
-    const m7 = await switchLeak([[/\/shared\/js\/launcher-presentation\.js$/, (b) => b.replace('return norm(user?.id || user?.email || "guest") || "guest";', 'return "guest";')]]);
+    const m7 = await switchLeak([[/\/utilities-hub\/js\/hub-auth\.js$/, (b) => b.replace("hubTools.scope = scopeFromUser(session?.user);", 'hubTools.scope = hubTools.scope === "guest" ? scopeFromUser(session?.user) : hubTools.scope;')]]);
     check("M7 mutation 'stale pin reuse across users' is DETECTED", m7 > 0);
   }
 
