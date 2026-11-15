@@ -525,6 +525,8 @@ function promptGovernance({
   danger = false,
   onOpen = null, // WP10 G2 (flag-gated callers only): receives { setDetail(node) } to show asynchronous pre-check detail inside the dialog
 } = {}) {
+  // One owner of the shared confirmation controls while the WP10 flag is enabled.
+  if (wp10SafeguardsOn() && governanceModalOverlay?.classList.contains("show")) return Promise.resolve(null);
   return new Promise((resolve) => {
     if (
       !governanceModalOverlay ||
@@ -1221,6 +1223,9 @@ function wp10ProductAttemptValid(a) {
     Number(loadedProductSnapshot.product_id) === a.productId &&
     Number(loadedProductSnapshot.sub_group_id) === a.storedSubGroupId &&
     currentSg === a.proposedSubGroupId &&
+    JSON.stringify(buildProductRpcPayloadFromForm({ reason: "__pending__", approvalReference: null })) === a.draftSignature &&
+    JSON.stringify(loadedProductSnapshot) === a.loadedSignature &&
+    editing === a.wasEditing &&
     canWriteModule() &&
     !writeBusy
   );
@@ -1233,6 +1238,7 @@ form.addEventListener("submit", async (e) => {
     return;
   }
   if (writeBusy) return;
+  if (wp10ProductAttempt) return; // one confirmation lifecycle at a time
 
   const draft = buildProductRpcPayloadFromForm({
     reason: "__pending__",
@@ -1308,8 +1314,7 @@ form.addEventListener("submit", async (e) => {
   // Serialised import -> preview -> dialog -> revalidation lifecycle; the existing writer and its transactional guard stay authoritative (the preview is advisory: no token, nothing it returns relaxes a check).
   let attempt = null;
   if (!isCreate && wp10SafeguardsOn() && wp10SubgroupChanging(draft)) {
-    if (wp10ProductAttempt) return; // one confirmation lifecycle at a time
-    attempt = { productId: Number(selectedId), storedSubGroupId: loadedProductSnapshot.sub_group_id, proposedSubGroupId: Number(draft.p_sub_group_id) };
+    attempt = { productId: Number(selectedId), storedSubGroupId: Number(loadedProductSnapshot.sub_group_id), proposedSubGroupId: Number(draft.p_sub_group_id), draftSignature: JSON.stringify(draft), loadedSignature: JSON.stringify(loadedProductSnapshot), wasEditing: editing };
     wp10ProductAttempt = attempt; // reserved BEFORE any await
   }
   let governance;

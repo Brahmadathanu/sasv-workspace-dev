@@ -266,6 +266,95 @@ for (const width of [1280, 390]) {
   });
 }
 
+test("IR1a full draft changes during import: no dialog/read/write; a fresh retry works", { skip }, async () => {
+  const { page, context } = await openProduct({ importDelayMs: 700, rpc: { rpc_wp10_preview_product_subgroup_impact: { data: VALID2, error: null }, rpc_update_product: ok } });
+  await clickSave(page);
+  await page.evaluate(() => { document.getElementById("itemInput").value = "Changed during import"; });
+  await page.waitForTimeout(1400);
+  assert.equal(await page.locator("#governanceModalOverlay.show").count(), 0);
+  assert.equal(await rpcCount(page, "rpc_wp10_preview_product_subgroup_impact"), 0);
+  assert.equal(await rpcCount(page, "rpc_update_product"), 0);
+  await clickSave(page);
+  await page.waitForSelector("#governanceModalDetail [data-wp10-preview]");
+  await confirmWith(page);
+  assert.equal(await rpcCount(page, "rpc_update_product"), 1);
+  await context.close();
+});
+
+test("IR1b name, status or PTO changes under an open preview confirmation cannot replace the confirmed draft", { skip }, async () => {
+  for (const field of ["itemInput", "statusSelect", "isPtoCheckbox"]) {
+    const { page, context } = await openProduct({ rpc: { rpc_wp10_preview_product_subgroup_impact: { data: VALID2, error: null }, rpc_update_product: ok } });
+    await clickSave(page);
+    await page.waitForSelector("#governanceModalDetail [data-wp10-preview]");
+    await page.evaluate((id) => { const e = document.getElementById(id); if (id === "isPtoCheckbox") e.checked = !e.checked; else e.value = id === "statusSelect" ? "Inactive" : "Changed after confirmation opened"; }, field);
+    await confirmWith(page);
+    assert.equal(await rpcCount(page, "rpc_update_product"), 0, field);
+    assert.match(await page.locator("body").innerText(), /nothing was submitted/);
+    await context.close();
+  }
+});
+
+test("IR2a pending preview cannot re-enter as an unchanged-subgroup save; reservation releases after stale import", { skip }, async () => {
+  const { page, context } = await openProduct({ importDelayMs: 700, rpc: { rpc_update_product: ok } });
+  await clickSave(page);
+  await setSubgroup(page, 1);
+  await clickSave(page);
+  await page.waitForTimeout(1400);
+  assert.equal(await page.locator("#governanceModalOverlay.show").count(), 0);
+  assert.equal(await rpcCount(page, "rpc_update_product"), 0);
+  await clickSave(page);
+  await page.waitForSelector("#governanceModalOverlay.show");
+  await confirmWith(page);
+  assert.equal(await rpcCount(page, "rpc_update_product"), 1);
+  await context.close();
+});
+
+test("IR2b an unchanged-subgroup re-submit cannot attach another confirm handler to an open preview", { skip }, async () => {
+  const { page, context } = await openProduct({ rpc: { rpc_wp10_preview_product_subgroup_impact: { data: VALID2, error: null }, rpc_update_product: ok } });
+  await clickSave(page);
+  await page.waitForSelector("#governanceModalDetail [data-wp10-preview]");
+  await setSubgroup(page, 1);
+  await clickSave(page);
+  await confirmWith(page);
+  assert.equal(await rpcCount(page, "rpc_update_product"), 0);
+  await context.close();
+});
+
+test("IR3 flag-ON shared dialog has one owner even for two ordinary unchanged-subgroup saves", { skip }, async () => {
+  const { page, context } = await openProduct({ changeSubgroup: false, rpc: { rpc_update_product: ok } });
+  await clickSave(page);
+  await page.waitForSelector("#governanceModalOverlay.show");
+  await clickSave(page);
+  await confirmWith(page);
+  assert.equal(await rpcCount(page, "rpc_update_product"), 1);
+  await context.close();
+});
+
+test("IR-M1 mutation detects missing full-draft validation: a changed name reaches the writer", { skip }, async () => {
+  const guard = 'JSON.stringify(buildProductRpcPayloadFromForm({ reason: "__pending__", approvalReference: null })) === a.draftSignature &&';
+  const { page, context } = await openProduct({ mutateProducts: [[guard, ""]], rpc: { rpc_wp10_preview_product_subgroup_impact: { data: VALID2, error: null }, rpc_update_product: ok } });
+  await clickSave(page);
+  await page.waitForSelector("#governanceModalDetail [data-wp10-preview]");
+  await page.evaluate(() => { document.getElementById("itemInput").value = "Unconfirmed replacement"; });
+  await confirmWith(page);
+  assert.equal(await rpcCount(page, "rpc_update_product"), 1, "IR1b must detect the mutant");
+  await context.close();
+});
+
+test("IR-M2 mutation detects missing reservation and shared-dialog ownership: reclassified save writes", { skip }, async () => {
+  const { page, context } = await openProduct({ mutateProducts: [
+    ["if (wp10ProductAttempt) return; // one confirmation lifecycle at a time", ""],
+    ['if (wp10SafeguardsOn() && governanceModalOverlay?.classList.contains("show")) return Promise.resolve(null);', ""],
+  ], rpc: { rpc_wp10_preview_product_subgroup_impact: { data: VALID2, error: null }, rpc_update_product: ok } });
+  await clickSave(page);
+  await page.waitForSelector("#governanceModalDetail [data-wp10-preview]");
+  await setSubgroup(page, 1);
+  await clickSave(page);
+  await confirmWith(page);
+  assert.equal(await rpcCount(page, "rpc_update_product"), 1, "IR2b must detect the mutant");
+  await context.close();
+});
+
 // ---------------- mutation controls (the harness serves a MUTATED products.js / helper; each must be CAUGHT by a probe above) ----------------
 test("M1 mutation control: WITHOUT the pre-writer revalidation a changed sub-group still reaches the writer (B10 would fail)", { skip }, async () => {
   const { page, context } = await openProduct({ mutateProducts: [["function wp10ProductAttemptValid(a) {", "function wp10ProductAttemptValid(a) { return true;"]], rpc: { rpc_wp10_preview_product_subgroup_impact: { data: VALID2, error: null }, rpc_update_product: ok } });
@@ -278,7 +367,7 @@ test("M1 mutation control: WITHOUT the pre-writer revalidation a changed sub-gro
 });
 
 test("M2 mutation control: WITHOUT any serialization double invocation opens two previews (B8 would fail)", { skip }, async () => {
-  const { page, context } = await openProduct({ importDelayMs: 500, mutateProducts: [["if (wp10ProductAttempt) return; // one confirmation lifecycle at a time", ""], ["wp10ProductAttempt === a &&", ""]], rpc: { rpc_wp10_preview_product_subgroup_impact: { data: VALID2, error: null }, rpc_update_product: ok } });
+  const { page, context } = await openProduct({ importDelayMs: 500, mutateProducts: [["if (wp10ProductAttempt) return; // one confirmation lifecycle at a time", ""], ["wp10ProductAttempt === a &&", ""], ['if (wp10SafeguardsOn() && governanceModalOverlay?.classList.contains("show")) return Promise.resolve(null);', ""]], rpc: { rpc_wp10_preview_product_subgroup_impact: { data: VALID2, error: null }, rpc_update_product: ok } });
   await page.evaluate(() => { const f = document.getElementById("productForm"); f.dispatchEvent(new Event("submit", { cancelable: true })); f.dispatchEvent(new Event("submit", { cancelable: true })); });
   await page.waitForSelector("#governanceModalOverlay.show");
   await page.waitForTimeout(900);
