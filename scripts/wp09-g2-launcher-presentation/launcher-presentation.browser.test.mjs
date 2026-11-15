@@ -312,7 +312,7 @@ try {
       const rows = REG[client]; const one = rows.filter((r) => r.module_key === "vendor-master");
       const s = await open(client, { grants: grant(one, "use"), rewrites, width: 1280 });
       let found;
-      if (client === "pwa") { await s.page.fill("#hub-search-input", "bottled"); found = await s.page.$$eval("#hub-search-results li", (e) => e.length); }
+      if (client === "pwa") { await s.page.fill("#hub-search-input", "bottled"); found = await s.page.$$eval("#hub-search-results li.hub-search__result", (e) => e.length); }
       else { await s.page.keyboard.press("Control+k"); await s.page.fill("#cmdPaletteInput", "bottled"); found = await s.page.$$eval("#cmd-results .cmd-result-item", (e) => e.length); }
       await s.close();
       return found;
