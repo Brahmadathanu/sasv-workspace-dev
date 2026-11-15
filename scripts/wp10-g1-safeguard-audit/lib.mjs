@@ -7,6 +7,10 @@ export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)
 export const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), "utf8");
 export const catalog = JSON.parse(read("docs/master-data-costing/WP10_G1_EVIDENCE/live-guard-catalog-2026-11-15.json"));
 export const liveFn = (schema, name) => catalog.functions.find((f) => f.schema_name === schema && f.proname === name)?.definition;
+// Independent live catalog (ChatGPT read-only capture, 15 Nov 2026): full definitions + ACLs for 23 functions, product triggers, privileges, policies, cron classification.
+export const catalog2 = JSON.parse(read("docs/master-data-costing/WP10_G1_EVIDENCE/independent-live-catalog-2026-11-15.json"));
+export const liveFn2 = (schema, name) => catalog2.functions.find((f) => f.schema === schema && f.proname === name)?.definition;
+export const liveMeta2 = (schema, name) => catalog2.functions.find((f) => f.schema === schema && f.proname === name);
 
 /** Body between the outermost dollar quotes of a CREATE FUNCTION statement. */
 export function fnBody(sql) {

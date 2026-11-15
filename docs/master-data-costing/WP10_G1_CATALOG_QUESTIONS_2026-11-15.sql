@@ -1,3 +1,8 @@
+-- STATUS (reconciliation update): Q1-Q9 below were ANSWERED by ChatGPT's independent read-only capture
+-- (WP10_G1_EVIDENCE/independent-live-catalog-2026-11-15.json; results mapped in WP10_G1_AUDIT_REPORT section 7 and tests P5.*).
+-- This file is kept as the record of the questions. Still open and OPTIONAL: definitions of the four route-validation callees
+-- (fn_resolve_effective_route_family_route, fn_resolve_effective_product_process_route, fn_validate_product_process_route,
+-- fn_validate_route_family_route) and build-history metadata (ids/status/timestamps only). Nothing here has been executed by the audit session.
 -- WP10 G1 — exact READ-ONLY catalog questions for ChatGPT (project qhmoqtxpeasamtlxaoak). NOT EXECUTED by the G1 audit session (no database access).
 -- Catalog / metadata only: no business rows, no completeness counts, no role impersonation, no writer or preview/readiness function is invoked.
 -- Each block names the finding it can confirm or refute. Return results as JSON per block (Q1..Q9) for the G2 design freeze.

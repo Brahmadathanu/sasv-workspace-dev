@@ -122,9 +122,9 @@
     },
     {
       "id": "P3.6",
-      "status": "NOT PROVEN",
-      "name": "fn_product_skus_price_list_active_guard and fn_log_product_sku_change live definitions not captured (repo migrations 20261022173416 / CI-038 describe them)",
-      "detail": "catalog question Q4"
+      "status": "PASS",
+      "name": "the two trigger functions the first capture lacked are now captured (independent catalog): price-list guard and change-log function exist live",
+      "detail": ""
     },
     {
       "id": "P3.7",
@@ -135,7 +135,7 @@
     {
       "id": "P4.1",
       "status": "PASS",
-      "name": "44 epoch triggers on 44 distinct tables (+ the product_skus one in sku_triggers = 45 hooks incl. SKU)",
+      "name": "44 epoch triggers on 44 distinct tables (the product_skus epoch trigger is one of the 44 and is also listed in sku_triggers)",
       "detail": ""
     },
     {
@@ -189,8 +189,134 @@
     {
       "id": "P4.6",
       "status": "NOT PROVEN",
-      "name": "tables adjacent to the readiness chain that carry NO epoch hook (BOM lines, stock-item/classification maps, pack map): coverage is only a gap if a resolver reads them — resolver definitions for MRP/selling price are not in the repo or catalog",
-      "detail": "public.plm_bom_revision_line, public.inv_stock_item, public.inv_stock_item_class_map, public.plm_sku_pack_map, public.product_sku_master_audit, public.product_sku_change_log (catalog question Q8)"
+      "name": "tables adjacent to the chain with NO epoch hook (BOM lines, stock-item/classification maps, pack map): only a gap if a resolver reads them. The MRP / selling-price / route-family resolvers are now captured and read only hooked tables (P5.17); BOM lines are immutable once approved; no captured resolver reads the inventory/classification tables",
+      "detail": "public.plm_bom_revision_line, public.inv_stock_item, public.inv_stock_item_class_map, public.plm_sku_pack_map, public.product_sku_master_audit, public.product_sku_change_log"
+    },
+    {
+      "id": "P5.0",
+      "status": "PASS",
+      "name": "independent catalog is catalog-only evidence (23 functions, product triggers, privileges, policies, cron classification) with no cron command text and no build-history rows",
+      "detail": ""
+    },
+    {
+      "id": "P5.1",
+      "status": "PASS",
+      "name": "the independent capture is IDENTICAL to the first capture for all five original functions (two captures agree)",
+      "detail": ""
+    },
+    {
+      "id": "P5.2",
+      "status": "PASS",
+      "name": "EXECUTE ACLs: lifecycle/SKU/product writer RPCs and the pre-check are executable by authenticated + service_role; guard functions only by service_role; the activation helper only by its owner",
+      "detail": ""
+    },
+    {
+      "id": "P5.3",
+      "status": "PASS",
+      "name": "the live portfolio read and governed-period list are executable by authenticated only (not service_role); fingerprint, bump and builder are owner-only",
+      "detail": ""
+    },
+    {
+      "id": "P5.4",
+      "status": "PASS",
+      "name": "all four writers: SECURITY DEFINER, search_path public+pg_temp, require_permission('module:manage-products', true), auth.uid() check, reason required, write the governed audit table",
+      "detail": ""
+    },
+    {
+      "id": "P5.5",
+      "status": "PASS",
+      "name": "the SKU update RPC exposes NO product_id and NO active-state parameter, and its UPDATE touches only pack_size, uom, is_sample",
+      "detail": ""
+    },
+    {
+      "id": "P5.6",
+      "status": "PASS",
+      "name": "the create RPC passes p_is_active into the INSERT (coalesce false) — so an active insert reaches the table triggers (and is rejected there)",
+      "detail": ""
+    },
+    {
+      "id": "P5.7",
+      "status": "PASS",
+      "name": "live change-log function == CI-038 section 5 text",
+      "detail": ""
+    },
+    {
+      "id": "P5.8",
+      "status": "PASS",
+      "name": "live price-list guard == its repository migration text (20261022173416)",
+      "detail": ""
+    },
+    {
+      "id": "P5.9",
+      "status": "NOT PROVEN",
+      "name": "repository has NO creating migration for the six functions captured live only (product/SKU writers, product-inactivation guard, parent-active guard): repo/live parity cannot be asserted; live text is now the authority",
+      "detail": "no repo definition found"
+    },
+    {
+      "id": "P5.10",
+      "status": "PASS",
+      "name": "product-side guard is live, enabled and BEFORE UPDATE OF status; it rejects a transition TO Inactive while any child SKU is active (G-3 resolved at catalog level)",
+      "detail": ""
+    },
+    {
+      "id": "P5.11",
+      "status": "PASS",
+      "name": "all five tables: RLS enabled (not forced), authenticated has NO INSERT/UPDATE/DELETE privilege, anon has no SELECT, service_role has UPDATE",
+      "detail": ""
+    },
+    {
+      "id": "P5.12",
+      "status": "PASS",
+      "name": "the only policies are authenticated SELECT on products and product_skus; the audit tables and change log have NO policy (not readable by ordinary roles)",
+      "detail": ""
+    },
+    {
+      "id": "P5.13",
+      "status": "PASS",
+      "name": "fingerprint = governed period + valuation date from cost_periods + latest SUCCESS refresh run + all source epochs + 13 canonical function definition hashes + 3 view hashes + source schema hash; it references NO current date/now/clock",
+      "detail": ""
+    },
+    {
+      "id": "P5.14",
+      "status": "PASS",
+      "name": "epoch bump updates the registered relation's epoch and RAISES for an unregistered relation (a hook on an unregistered table would fail the write)",
+      "detail": ""
+    },
+    {
+      "id": "P5.15",
+      "status": "PASS",
+      "name": "no readiness READ path references today: LIVE_AS_OF reads the governed valuation date from costing.cost_periods; the portfolio read matches digest + valuation date + evidence run and otherwise raises ABSENT / INCOMPLETE / STALE",
+      "detail": ""
+    },
+    {
+      "id": "P5.16",
+      "status": "PASS",
+      "name": "the governed builder uses the clock only for build timestamps/status (no as-of use of today)",
+      "detail": ""
+    },
+    {
+      "id": "P5.17",
+      "status": "PASS",
+      "name": "MRP, selling-price and route-family resolvers read ONLY epoch-hooked tables (G-6 resolved for these three)",
+      "detail": "fn_resolve_sku_mrp_as_of: costing.sku_mrp_policy ; fn_resolve_sku_selling_price_policy_as_of: costing.sku_selling_price_policy ; fn_resolve_route_family_for_product: costing.production_route_family_product_map|costing.production_route_family|public.products|costing.production_route_family_product_subgroup_map|public.sub_groups|costing.production_route_family_product_group_map"
+    },
+    {
+      "id": "P5.18",
+      "status": "NOT PROVEN",
+      "name": "route-validation chain: fn_validate_effective_product_process_route calls functions whose definitions are NOT captured, so their table closure vs the 44 hooks is unproven (route step/behaviour/product-route tables ARE hooked)",
+      "detail": "fn_validate_effective_product_process_route, fn_resolve_effective_route_family_route, fn_resolve_effective_product_process_route, fn_validate_product_process_route, fn_validate_route_family_route"
+    },
+    {
+      "id": "P5.19",
+      "status": "PASS",
+      "name": "34 cron rows captured as name/schedule/active + boolean classification; NONE mentions readiness or invokes the governed builder; no pg_proc source directly calls the builder",
+      "detail": ""
+    },
+    {
+      "id": "P5.20",
+      "status": "NOT PROVEN",
+      "name": "no scheduler/owner INSIDE the database was found; an external scheduler/worker, indirect dynamic call or human ownership is neither confirmed nor excluded",
+      "detail": "stale consumers in function source: rpc_get_product_sku_readiness_portfolio; notification-like surfaces are health/ETL names only"
     }
   ]
 }

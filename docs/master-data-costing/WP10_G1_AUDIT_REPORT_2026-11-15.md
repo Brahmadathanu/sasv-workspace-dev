@@ -1,155 +1,171 @@
 > **Independent live reconciliation, 15 November 2026 (authoritative current status):** ChatGPT subsequently ran catalog-only verification within the existing audit authority. See [live reconciliation](WP10_G1_INDEPENDENT_LIVE_RECONCILIATION_2026-11-15.md) and metadata JSON. Product-side guard is present; authenticated direct DML is denied; date mismatch is a contract distinction rather than a proven defect; P2's proposed future-date helper call is unsupported. Original no-DB statements and fixture results below remain historical facts of Claude's session. G1 design freeze remains HOLD pending evidence/fixture reconciliation, not pending permission for read-only queries. WP10 OPEN, 10/13.
+>
+> **Claude reconciliation update (this revision):** matrices, fixtures, tests, gap ranking and the expiry proposal are reconciled with `WP10_G1_EVIDENCE/independent-live-catalog-2026-11-15.json` (§0a lists exactly what changed). Pre-reconciliation fixture results (43/43, 7/7) are preserved unchanged in `WP10_G1_EVIDENCE/results/historical-b8494345/` and are **not** re-labelled as live acceptance.
 
 # WP10 G1 — Product/SKU safeguard transition and recurrence audit (issue #438)
 
-**Status: G1 AUDIT DELIVERED FOR INDEPENDENT REVIEW. No implementation, no change to activation/readiness logic, no database access, no migration, permission, registry, flag, deploy or closure.** WP10 remains OPEN; programme remains **10/13** (no count advance). WP09 closure, the default-off `LAUNCHER_PRESENTATION_V1` flag, WP11 defects (PM BOM 390px, #429) and every WP12 receiving case are preserved untouched.
+**Status: G1 AUDIT RECONCILED WITH THE INDEPENDENT LIVE CATALOG; FOR INDEPENDENT REVIEW. No implementation, no change to activation or readiness logic, no database access by this session, no migration, permission, registry, flag, deploy or closure.** WP10 remains OPEN; programme remains **10/13** (no count advance). WP09 closure, the default-off `LAUNCHER_PRESENTATION_V1` flag, WP11 defects (PM BOM 390px, #429) and every WP12 receiving case are preserved untouched. Governed-period readiness semantics (LIVE_AS_OF at the period's valuation date, fail-closed STALE/ABSENT/INCOMPLETE) are preserved and never altered by any proposal below.
 
 ## 0. Pins and evidence classes
 
 | | |
 |---|---|
-| Base (`main` at refresh) | `5ad28a87dfbdaa5d311dbd505721eb308c732623` (WP09 closure + WP10 kickoff; kickoff was `6d934c67…`, the only drift is docs) |
-| Branch / PR | `claude/lucid-gates-6uwfvx` restarted from that main; one draft PR (head SHA in the PR) |
-| Live evidence used | only the committed catalog capture `WP10_G1_EVIDENCE/live-guard-catalog-2026-11-15.json` (5 function definitions, 5 `product_skus` triggers, 44 readiness-epoch triggers). **No new live query was run; none was possible** (this session has no database access). |
+| Base (`main`) | `5ad28a87dfbdaa5d311dbd505721eb308c732623` |
+| Reconciled PR head before this update | `95644f206406f88c36d1c7734e876475b66bdbb3` (independent review; earlier Claude head `b8494345…`) |
+| Live evidence | `live-guard-catalog-2026-11-15.json` (first capture) and `independent-live-catalog-2026-11-15.json` (independent capture: 23 full function definitions with owner/SECURITY/`proacl`, products triggers, table privileges, RLS policies, 34 cron rows as name/schedule/active + boolean classification, direct-builder-caller scan, notification-surface names). The independent capture is **identical** to the first for all five original functions (test P5.1). **This session ran no live query.** |
 
-Every statement below carries one class: **PROVEN-LIVE** (captured live text), **PROVEN-REPO** (migration/client source), **DOC** (WP-01…04 records), **FIXTURE** (isolated throw-away PostgreSQL scenario), **MODEL** (fixture model of an uncaptured mechanism) or **NOT PROVEN** (needs a catalog question, §7). Nothing was inferred as a live fact without one of the first four.
+Classes: **PROVEN-LIVE** (captured text/metadata), **PROVEN-REPO**, **DOC** (WP-01…04 records), **FIXTURE** (isolated throw-away PostgreSQL scenario; live-verbatim text unless labelled), **MODEL** (control flow copied from captured text over fixture tables), **NOT PROVEN** (no capture covers it). Catalog metadata is not role behaviour: nothing here claims real-identity success/denial.
+
+## 0a. What this reconciliation changed (versus the head `b8494345`)
+
+| Area | Change |
+|---|---|
+| Executive claims | "Ownership absent" and "high-severity expiry defect" **removed**. G-1 is now "ownership/cadence not found in the database scan — ask the business owner"; G-2 is a *contract distinction + a separate current-operational requirement*, not a period-readiness defect. |
+| Q1–Q9 | All answered by the independent capture (§7); the catalog SQL file is now a record of answered questions plus the residual optional ones. |
+| Fixtures | Stand-ins replaced by **live-verbatim** text: the four product/SKU writers, product-inactivation guard + trigger, price-list guard, change-log function, MRP / selling-price / route-family resolvers, epoch bump, readiness fingerprint. Remaining stand-ins: route-validation chain (callees uncaptured), permission/auth stubs, and the *modelled* portfolio read. Scenario count 43 → **56** (new: product-edit route drift F14, writer validation negatives F15, price-list guard F16, expiry-horizon feasibility F17, live-fingerprint time/period semantics F7). |
+| Product-side guard | G-3 "unproven" is **resolved at catalog level** (live trigger + function). Zero-SKU product visibility remains a separate design question; historical counts are not current counts. |
+| Re-parenting | Narrowed to **privileged direct writers**; the SKU update RPC has no `product_id`/active parameter; authenticated DML is denied (catalog). A *new* path is documented: product subgroup edits through the supported RPC can change an active SKU's resolved route (F14). |
+| P2 expiry proposal | **Corrected** (§8): the activation helper cannot be called at today+N. |
+| CSVs | `writer-transition-matrix.csv` (8 rows, ACL/privilege column added) and `dependency-trace.csv` (resolver tables **derived from live text**, fingerprint-coverage column) regenerated by script. |
 
 ## 1. Executive result
 
-1. **Prevention at creation/activation is real and server-authoritative.** The live trigger rejects an *active* SKU create or an inactive→active transition unless all five essentials resolve; the same text runs for the RPC and for direct SQL; there is no sample, urgent or approval-reference bypass (FIXTURE F2–F4). Inactive incomplete drafts remain allowed by design (F1).
-2. **Prevention stops at the moment of activation.** Already-active rows are deliberately not re-checked (live text). That boundary is confirmed, not a defect, but it has one concrete hole (G-4: re-parenting an active SKU) and relies entirely on **detection** afterwards.
-3. **Detection is fail-closed but ownerless.** Source-epoch hooks invalidate the derived readiness build on every dependency *write*; a stale or absent build makes the portfolio read raise `READINESS_BUILD_STALE/ABSENT` instead of showing a status. Nothing in the repository or the captured catalog schedules the rebuild, alerts anyone or names an owner; production precedent (12 Nov: Readiness unavailable → owner-authorised one-off rebuild #7) shows the recovery is a manual database call (G-1).
-4. **Passage of time is invisible to write-triggered hooks.** An effective-dated dependency that lapses with no row write leaves the build "fresh" while the activation helper (as-of = today IST) already reports it missing (FIXTURE F7). Activation evaluates *today*; LIVE_AS_OF readiness evaluates the governed *valuation date* (G-2).
-5. **Product-side coverage is documented but not proven**, and the questions that would settle live parity (writer definitions, product-side guard, privileges, freshness composition, schedules) are listed as exact catalog queries in §7.
+1. **Prevention at creation/activation is real, server-authoritative and unchanged.** The live trigger rejects an *active* SKU insert or an inactive→active transition unless the five essentials resolve; the same text runs for the RPC and for direct SQL; no sample, urgent or approval-reference bypass exists (FIXTURE F2–F4). Inactive incomplete drafts stay allowed (F1).
+2. **Prevention stops at activation by design.** Already-active rows are not re-checked — an explicit existing boundary. Two ways it can drift are now proven at fixture level with live-verbatim text: (a) a **privileged** direct re-parent of an active SKU (F8.3; ordinary authenticated DML is denied and the SKU update RPC cannot re-parent), and (b) a **supported** product subgroup edit that changes the resolved route family of an active SKU's product (F14.2). Both are *detected afterwards* (epoch → STALE), neither is prevented.
+3. **Freshness is period-as-of, fail-closed and DDL-aware.** The live fingerprint covers the governed period, its valuation date, the latest SUCCESS evidence run, all source epochs, the definition hashes of 13 canonical functions and 3 views, and the source schema hash. It references **no current date**; no readiness read path references today (P5.13, P5.15). A stale/absent/incomplete build raises `READINESS_BUILD_STALE/ABSENT/INCOMPLETE` instead of showing a status. This is correct for LIVE_AS_OF — it is *not* a promise of present-day expiry detection.
+4. **The activation helper and LIVE_AS_OF answer different questions** (today-IST versus the governed valuation date). That is a contract distinction (F7.3 shows the SKU still resolves at the valuation date after a later batch-size expiry). A *current-operational* expiry view is a separate requirement and must be designed without changing LIVE_AS_OF.
+5. **Ownership and cadence of the readiness rebuild are not established.** No cron row mentions readiness or invokes the builder, and no database function calls it (P5.19); an external scheduler/worker or human owner is **neither confirmed nor excluded** (P5.20). The 12 Nov production recovery was a manual owner-authorised call (DOC R51). This is a business-owner question, not a source-proven absence.
 
-## 2. Exact writer / transition matrix (summary; full table `WP10_G1_EVIDENCE/writer-transition-matrix.csv`)
+## 2. Exact writer / transition matrix (full table: `WP10_G1_EVIDENCE/writer-transition-matrix.csv`)
 
-| Path | Client input | Server authority | Proven vs missing |
-|---|---|---|---|
-| `rpc_create_product` | name, subgroup, UOM pair, status Active\|Inactive (no default), reason… | DOC only | **Live text, ACL NOT PROVEN** (Q1). An Active product without SKU is accepted (DOC). |
-| `rpc_update_product` (also product deactivation) | master fields | DOC only | **NOT PROVEN** (Q1). Inactivation guard while SKUs are active is DOC-only (`fn_guard_product_inactivation_requires_no_active_skus`) and **not in the catalog capture** (Q3). |
-| `rpc_create_product_sku` | product, pack, UOM, `p_is_active` (client always `false`), sample, reason | DOC for the RPC; **trigger behaviour PROVEN-LIVE** | Active create rejected P0001 for RPC and direct INSERT (F2). RPC text/ACL NOT PROVEN (Q1/Q2). |
-| `rpc_update_product_sku` | pack, UOM, sample, reason (no active flag) | DOC; trigger behaviour PROVEN-LIVE | Edits on an **active** SKU allowed without re-check (F8.1), logged with exact changed columns (F8.2). |
-| `rpc_set_product_sku_active` | id, target, reason (required), approval reference (optional) | **PROVEN-LIVE, equals CI-038** (parity P1.4) | edit permission, auth, row lock, five-essential pre-check only when activating, parent guard, audit with old/new snapshots (F3–F5). ACL not captured (Q2). |
-| Direct `product_skus` writes | any | PROVEN-LIVE triggers (5 enabled) | Covered for every writer at trigger level; **who holds direct table privileges NOT PROVEN** (Q4). |
-| Direct `products.status` update | status | product-side guard not captured | SKU-side triggers do **not** cover it (F9.1). |
+| Path | Client input | Live authority | ACL / privilege (catalog) | Fixture |
+|---|---|---|---|---|
+| `rpc_create_product` | name, subgroup, UOM pair, status (Active\|Inactive, no default), reason… | LIVE text captured (not executed in fixtures) | EXECUTE authenticated + service_role | — |
+| `rpc_update_product` | master fields incl. `sub_group_id`, `status` | LIVE, **executed verbatim** | same | F9, F14 |
+| `rpc_create_product_sku` | product, pack, UOM, `p_is_active` (client always `false`), sample, reason | LIVE, executed verbatim; passes `p_is_active` to the INSERT | same | F1, F2, F15 |
+| `rpc_update_product_sku` | pack, UOM, sample, reason — **no `product_id`, no active flag** | LIVE, executed verbatim | same | F8, F15 |
+| `rpc_set_product_sku_active` | id, target, reason (required), approval reference | LIVE = CI-038 (P1.4, P5.1) | same | F3–F5 |
+| Direct writes on `product_skus` | any | live triggers | **authenticated INSERT/UPDATE/DELETE = false** on all five tables; RLS enabled; only SELECT policies on `products`/`product_skus`; `service_role` UPDATE = true | F2, F8, F12 |
+| Direct `products.status` | status | live product-side trigger | as above | F9 |
 
-**Interactions proven in fixtures:** inactive creation with nothing complete (F1); active creation rejected incl. sample (F2); each of the five essentials individually blocks, with an approval reference changing nothing (F3); complete activation, role/reason/same-state refusals, deactivation never pre-checked (F4); parent must be Active even when everything else is complete (F5); later dependency deletion/expiry leaves the SKU active but changes the helper result (F6); active edits (F8); product deactivation (F9, stand-in guard clearly labelled); ambiguous PM BOM (F10); IST/period as-of rule (F11); direct writers leave a change-log row but no lifecycle audit event (F12).
+Guard/helper ACLs: guard and change-log functions are executable by `service_role` only; the activation helper by its owner only; `rpc_get_sku_activation_check` by authenticated + service_role (P5.2). `SECURITY DEFINER` is **not** treated as proof of who can call — EXECUTE comes from `proacl`. Runtime writer success/denial for real identities was **not tested**.
+
+**Transitions proven (FIXTURE, live-verbatim text):** inactive creation with nothing complete (F1); active creation rejected incl. sample (F2); each essential individually blocks and an approval reference changes nothing (F3); complete activation, role/reason/same-state refusals, deactivation never pre-checked (F4); parent must be Active (F5); product-side inactivation guard (F9); later dependency deletion/expiry leaves the SKU active while the helper reports it (F6); active edits (F8); ambiguous PM BOM (F10); IST/period as-of rule (F11); direct writers leave a change-log row but no lifecycle event (F12); product subgroup edit changes the resolved route (F14); writer validation negatives (F15); price-list flags forced false when inactive (F16).
 
 ## 3. WP01–WP04 contract reuse (no second readiness system)
 
 | Contract | What G1 traced |
 |---|---|
-| **Five-essential guard** (CI-038, WP-10 design basis) | Live helper returns exactly `PM_BOM_REVISION, BATCH_SIZE_REFERENCE, MANUFACTURING_ROUTE, MRP_POLICY, SELLING_PRICE_POLICY`, in that order (P2.1); no sample/urgent/override parameter exists (P2.2). |
-| **Latest-period valuation / current-IST rule (CI-038a)** | as-of = `greatest(coalesce(latest period valuation date, current_date), current IST date)`; live text equals the CI-038a migration and *differs* from the original CI-038 text (P1.1, P1.5); IST day not UTC day, later valuation date wins, then today wins again (F11). |
-| **Parent-active guard** | Live trigger blocks activation under a missing or non-Active parent (P2.7, F5, F8.5, F9.3). Its function has **no creating migration in the repo** (SA1 only revokes ACL) — parity not provable (P1.6). |
-| **Audit trail** | Lifecycle RPC writes `product_sku_master_audit` (old/new snapshots, reason, approval reference, actor); every row change writes `product_sku_change_log` (actor NULL for non-app writers). Direct writers get a change-log row but **no lifecycle event** (F12.1). Audit rows are append-only in behaviour (F12.2). |
-| **Active ≠ Costing Ready** (WP-01/02) | The guard evaluates only the five essentials; the other WP-01 dependencies (scheme, commercial/regional basis, labour/overhead/QC/stores/admin/finance/marketing, material rate/evidence) are *not* activation prerequisites by owner decision (WP-10 design note E). The client states "Activating this SKU does not set costing readiness to READY" and passes the server severity through unchanged; only the exact string `READY` renders the pass badge (client C3.1, C4.1–C4.3, mutation CM.2). |
-| **Fail-closed reads** | Client: a readiness error returns no payload and the row shows "Unavailable" (C4.4). Server: portfolio read raises `READINESS_BUILD_ABSENT/INCOMPLETE/STALE` (V2.2 text; modelled F6.3). |
+| **Five-essential guard** | Live helper returns exactly `PM_BOM_REVISION, BATCH_SIZE_REFERENCE, MANUFACTURING_ROUTE, MRP_POLICY, SELLING_PRICE_POLICY`, in order; no sample/urgent/override parameter (P2.1, P2.2). |
+| **Latest-period valuation / current-IST rule (CI-038a)** | as-of = `greatest(coalesce(latest period valuation date, current_date), current IST date)`; equals the CI-038a migration and *differs* from the original CI-038 text (P1.1, P1.5); IST day not UTC day (F11). |
+| **Parent-active guard** | Live trigger blocks activation under a missing or non-Active parent (P2.7, F5, F8.5, F9.3). **No creating migration in the repo** — repo/live parity not provable (P1.6, P5.9); the live text is the authority. |
+| **Audit trail** | Lifecycle and SKU RPCs write `product_sku_master_audit` (old/new snapshots, reason, approval reference, actor); every row change writes `product_sku_change_log` (actor NULL for non-app writers). Direct writers get a change-log row and **no lifecycle event** (F12.1). Audit and change-log tables have RLS enabled and **no policy** (P5.12). |
+| **Active ≠ Costing Ready** | The guard evaluates only the five essentials; the rest of WP-01 is not an activation prerequisite by owner decision. The client says "Activating this SKU does not set costing readiness to READY" and renders READY only for the exact string `READY` (client C3.1, C4.1–C4.3, mutation CM.2). |
+| **Fail-closed reads** | Client: a readiness error returns no payload and the row shows "Unavailable" (C4.4). Server: portfolio read raises ABSENT / INCOMPLETE / STALE (live text, P5.15; modelled F6.3). |
 
 ## 4. Dependency change → epoch → freshness → readiness → visible remediation
 
-Full per-dependency table: `WP10_G1_EVIDENCE/dependency-trace.csv` (16 rows; the "hooked / UNHOOKED" columns are *derived from the live catalog*).
+Per-dependency table: `WP10_G1_EVIDENCE/dependency-trace.csv` (16 rows; resolver tables derived from live text, hook and fingerprint coverage derived from the live catalog).
 
 ```
-write to a dependency table ──(AFTER statement trigger, 44+1 tables, shared bump function)──► source epoch
-epoch / valuation date / refresh run ──► readiness_source_fingerprint(period) digest
-stored portfolio build.digest ≠ current digest ──► portfolio read raises READINESS_BUILD_STALE (fail-closed)
-READINESS_BUILD_STALE ──► Costing Control Center Readiness: "Readiness unavailable — READINESS_BUILD_STALE"
-recovery ──► owner-authorised call of costing.fn_wp04_build_readiness_portfolio(period)   [manual: R51, 12 Nov 2026]
+write to a dependency table ──(AFTER statement trigger, 44 tables, one bump function)──► source epoch (registered relation; unregistered relation RAISES)
+period + valuation date + SUCCESS evidence run + epochs + 13 function-definition hashes + 3 view hashes + schema hash ──► fingerprint digest
+stored build digest/valuation/run ≠ live fingerprint ──► portfolio read raises READINESS_BUILD_STALE (ABSENT / INCOMPLETE likewise), fail-closed
+Costing Control Center Readiness ──► "Readiness unavailable — READINESS_BUILD_STALE"  (DOC R50)
+recovery ──► owner-authorised call of costing.fn_wp04_build_readiness_portfolio(period)   (DOC R51; scheduler/owner NOT PROVEN)
 ```
 
-**Proven:** the five essentials' source tables are hooked (P4.4.*); product/subgroup/group/category tables are hooked (P4.5); hooks are AFTER-write triggers only (P4.3); STALE persists until an explicit build (F6.4, MODEL); the visible text for a stale portfolio is the generic readiness error (R50 evidence). **Not proven (no claim of a gap):** fingerprint composition and whether it includes today's date (Q5, Q9); the MRP / selling-price resolver tables (definitions absent from repo and catalog, Q8); whether any schedule/alert consumes the stale state (Q6, Q7); direct material-rate/valuation tables are **not** in the hooked set but are reached only indirectly via refresh runs and control-status snapshots (hooked) — whether that is sufficient is for Q8/Q9. `plm_bom_revision_line` is unhooked but approved revisions/lines are immutable by migration (gate A). The 44 hooks prove invalidation, **not** that alerting, refresh cadence or operator ownership are adequate (stated in the issue and unchanged).
+**Proven (live text):** the five essentials' source tables are hooked; **the MRP, selling-price and route-family resolvers read only hooked tables** (P5.17 — G-6 resolved for these three); resolver and canonical-function *definition* changes invalidate the build through the fingerprint; the schema digest covers hooked tables' columns; no readiness read or fingerprint text references today; the builder uses the clock only for build timestamps (P5.16). **Not proven:** the route-validation chain (`fn_validate_effective_product_process_route` calls four functions whose definitions are not captured, P5.18); direct material-rate/valuation tables (hooked indirectly via refresh runs/snapshots; sufficiency unproven); the inventory/classification maps (unhooked; no captured resolver reads them); consumers, schedule and owner (P5.20). The 44 hooks prove invalidation, not that alerting, cadence or ownership are adequate.
 
-Churn note (DOC, R51): the build went stale from changes to cost periods, refresh runs/stages and allocation snapshots — i.e. mostly *non-product* churn. A STALE state therefore cannot be read as "a SKU lost a dependency"; it only says "re-evaluate".
+DOC R51: the November build went stale from cost-period, refresh-run and allocation-snapshot changes, i.e. mostly non-product churn — STALE means "re-evaluate", not "a SKU lost a dependency".
 
-## 5. Tests and evidence (all offline; PostgreSQL fixtures run in a throw-away local cluster, never against Supabase)
+## 5. Tests and exact results (offline; PostgreSQL fixtures in a throw-away local cluster, never Supabase)
 
-| Suite | What it proves | Result |
+| Suite | Scope | Result |
 |---|---|---|
-| `catalog-parity.test.mjs` | live bodies == repo migrations (helper = CI-038a, completeness fn, pre-check RPC, lifecycle RPC); five essentials/order; as-of rule; boundary text; trigger inventory; 44 hooks; essential-source coverage | **PASS 29**, **NOT PROVEN 3** (parent-guard repo parity; two uncaptured trigger functions; adjacent unhooked tables) |
-| `transition-fixture.test.mjs` (43 checks, scenarios F1–F13) | live-verbatim guard/RPC/trigger text against fixture tables; negatives for each essential, parent, roles, reason, same-state, sample, approval reference, ambiguity, IST/period, expiry by time, active edits, re-parenting, product deactivation, direct writers | **PASS 43/43** |
-| `fixture-mutation.test.mjs` | the invariants fail when a safeguard is removed: completeness trigger, parent trigger, lifecycle pre-check, CI-038a, an epoch hook, an essential | **PASS 7/7** (clean fixture + 6 mutants each detected) |
-| `client-contract.test.mjs` | no direct table writes; five RPCs; create sends `p_is_active:false`; update has no active flag; reason modal; severity pass-through with **real** badge functions executed; two source mutants detected | **PASS 19**, **FINDING CONFIRMED 1** (pre-check RPC unused by any client) |
+| `catalog-parity.test.mjs` | first-capture parity with repo (P1–P4); independent-capture reconciliation (P5): two captures agree, EXECUTE ACLs, writer facts, SKU-update signature, change-log/price-list repo parity, product-side guard, privileges/RLS/policies, fingerprint composition, bump behaviour, read-path clock references, builder clock use, resolver table closure vs the 44 hooks, cron/consumer scan | **PASS 48**, **NOT PROVEN 5** (P1.6 parent-guard repo parity; P4.6 adjacent unhooked tables; P5.9 six functions with no repo definition; P5.18 route-validation callee closure; P5.20 scheduler/owner) |
+| `transition-fixture.test.mjs` | scenarios F1–F17 on live-verbatim text (see §2) | **PASS 56/56** |
+| `fixture-mutation.test.mjs` | invariants fail when a safeguard is removed: completeness trigger, parent trigger, lifecycle pre-check, CI-038a, **product-side inactivation trigger**, **fingerprint ignoring epochs**, an epoch hook, an essential | **PASS 9/9** (clean fixture + 8 mutants, each detected) |
+| `client-contract.test.mjs` | no direct table writes; five RPCs; create sends `p_is_active:false`; update has no active flag; reason modal; severity pass-through with real badge functions; two source mutants | **PASS 19**, **FINDING CONFIRMED 1** (pre-check RPC used by no client); includes the two existing runners below |
 | Existing `scripts/wp04-readiness-client-contract-smoke.mjs` | readiness client contract | PASS 36 |
-| Existing `scripts/product-sku-lifecycle-smoke.mjs` | lifecycle smoke | **EXISTING BASELINE FAILURE: 100 PASS / 2 FAIL** — "service worker generation is hub-cache-v332" (stale after v393) and "in-module action does not invent route URLs" (WP08 resolver bridges added). Not caused or edited by WP10; reported, not fixed. |
-| Existing `scripts/costing-readiness-usability/readiness-usability.test.mjs` | readiness remediation / export / LIVE_AS_OF clarity incl. fail-closed envelopes | **PASS 21/21** (0 skipped; mock data, no network) |
+| Existing `scripts/costing-readiness-usability/readiness-usability.test.mjs` | remediation/export/LIVE_AS_OF clarity, fail-closed envelopes | PASS 21/21 |
+| Existing `scripts/product-sku-lifecycle-smoke.mjs` | lifecycle smoke | **EXISTING BASELINE FAILURE, unchanged: 100 PASS / 2 FAIL** — stale `hub-cache-v332` expectation; WP08 route-bridge assertion. Not caused or edited by WP10. |
 
-**Fixture provenance** (asserted by test F13.1): 7 objects are *live-verbatim* (helper — only `now()`→`fixture_now()` so time can be fixed —, completeness trigger function, parent guard function, lifecycle RPC, pre-check RPC, two trigger definitions); 2 are *repo-verbatim* (`plm_sku_bom_revision_as_of`, SKU change log); the rest are **stand-ins** for objects whose live text is not captured (writer RPCs, product-inactivation guard, route/MRP/selling resolvers, epoch bump, freshness fingerprint). Stand-in results show *contract interaction only*, never live behaviour. No role was impersonated against production; fixture roles are GUC stubs.
+**Fixture provenance** (asserted by F13.1): live-verbatim = 4 writers, lifecycle and pre-check RPCs, the three guards, product-side guard + trigger, price-list guard + trigger, change-log function, activation helper (single `now()`→`fixture_now()` token change), MRP/selling-price/route-family resolvers, epoch bump + hooks, fingerprint (functions it hashes but the fixture lacks hash as NULL); repo-verbatim = `plm_sku_bom_revision_as_of`, change-log table. **Stand-ins:** route-validation chain, permission/auth/`normalize_key` stubs. **MODEL:** the portfolio read (control flow copied from the live RPC). Historical pre-reconciliation fixture results are preserved in `results/historical-b8494345/` and are not live acceptance. The new fixtures run captured text on synthetic rows: they prove the *audited logic*, not current production data, real identities or the builder.
 
-## 6. Gap ranking
+## 6. Gap ranking (reconciled)
 
-| # | Severity | Gap | Prevention vs detection today | Evidence |
+| # | Severity | Gap | Prevention vs detection today | Evidence / bound |
 |---|---|---|---|---|
-| **G-1** | High | **Readiness refresh ownership/cadence needs reconciliation.** A dependency write makes the build STALE (fail-closed, visible as an error) but recovery is a manual owner-authorised database call; recurrence is certain (high-churn sources are hooked). | Detection: yes (fail-closed). Visibility: generic error. Ownership/cadence: none found. | F6, DOC R50–R52, V2.2 reader text; schedule/alert absence **NOT PROVEN** (Q6, Q7) |
-| **G-2** | High | **Separate current-operational expiry requirement (not a proven period-readiness defect).** Write-triggered epochs cannot see an `effective_to` passing; the activation guard evaluates today-IST while LIVE_AS_OF evaluates the governed valuation date, so an active SKU can read READY in the build while its essentials already lapse today. | None for lapse-by-time until a new period/build. | F7.1–F7.3 (helper vs MODEL freshness); real fingerprint composition **NOT PROVEN** (Q5, Q9) |
-| **G-3** | Medium | **Product-side coverage unproven.** SKU triggers do not stop product inactivation; the documented product guard is not captured. Active products with zero SKU / no active SKU (54 / 179 at WP-02) are invisible to a SKU-grained portfolio (1,793 SKU items). | Guard: documented only. Detection of product-without-SKU: none beyond WP03 creation guidance. | F9.1; DOC WP-02/03/04; Q3 |
-| **G-4** | Medium | **Re-parenting an ACTIVE SKU bypasses the product-level essentials** (batch size, route): the completeness trigger fires on `UPDATE OF product_id` but returns early for already-active rows. Reachable only by direct writers (the RPC cannot change `product_id`, DOC). | Prevention: none. Detection: epoch → STALE → blocked on next build (F8.4, F8.6). | F8.3 (PROVEN at trigger level) |
-| **G-5** | Medium | **Direct-writer visibility.** Direct SQL changes leave a change-log row (actor NULL) but no lifecycle audit event, and the log has no policy (visible only to privileged roles, repo text). Historical SKUs 17/114 went active→inactive with no audit. | Detection exists but not operator-visible. | F12; CI-038 repo text; Q4 |
-| **G-6** | Medium (unproven) | **Epoch coverage completeness** for the MRP/selling-price resolvers and direct material-rate inputs cannot be confirmed: definitions are in neither repo nor catalog. | Unknown. Not a defect claim. | P4.6 NOT PROVEN; Q8 |
-| **G-7** | Low | **Pre-activation UX gap.** `rpc_get_sku_activation_check` (five essentials + owner screen) is unused; the user sees only the severity notice and learns of missing essentials from the rejection toast; `error.detail` is not rendered. Server stays authoritative. | Prevention is server-side; guidance is late. | client C3.2 (finding), C3.3 |
-| **G-8** | Low | **Ambiguous PM BOM** raises a raw exception from the guard/pre-check (fail-closed but opaque). | Fail-closed. | F10.1 |
-| **G-9** | Info | **Source/live parity**: parent-guard function and the MRP/selling resolvers have no repo definition; the other four guard texts match repo exactly. | — | P1.1–P1.6 |
-| **G-10** | Info | **Boundary, not defect:** already-active rows are not re-checked; deactivation is never blocked; historical active-but-incomplete SKUs (3 at the CI-038 analysis) remain by design. | — | P2.4, P2.6 |
+| **G-1** | Medium | **Readiness rebuild ownership and cadence need a business answer.** No cron row, no database function and no source scan references the governed builder; recovery on 12 Nov was a manual owner-authorised call; external scheduler/worker/owner not established. Recurrence is expected (hooked sources are high-churn). | Detection: yes, fail-closed STALE; visibility: generic error; owner/cadence: **unknown** | P5.19, P5.20 (NOT PROVEN), DOC R50–R52. Current build age and SKU counts **not** asserted (no build metadata read) |
+| **G-2** | Medium (requirement, not defect) | **Current-operational expiry is a separate lens from LIVE_AS_OF.** The activation helper evaluates today-IST; readiness evaluates the governed valuation date and, by contract, stays correct for that period when a date lapses afterwards (F7.2–F7.4). Write-triggered hooks cannot see a lapse by time — correct for the period contract. A lapse-by-time view for *today* does not exist and must not be built by changing LIVE_AS_OF. | none for the operational lens | live fingerprint/read text (P5.13, P5.15), F7, F17 |
+| **G-3** | Low–Medium | **Product-side guard: resolved.** A live BEFORE UPDATE OF status trigger rejects inactivation while any child SKU is active; it carries that invariant alone (F9.5). Residual: zero-SKU / no-active-SKU **visibility** is a design question (historical counts are not current counts). | prevention present | P5.10, F9 |
+| **G-4** | Low–Medium | **Active-SKU product-level essentials can drift two ways without re-check:** (a) privileged direct re-parent (F8.3 — ordinary authenticated DML denied, SKU update RPC cannot re-parent); (b) a **supported** product subgroup edit that changes the resolved route family (F14.2). Both detected afterwards via epoch → STALE. | prevention: none; detection: fail-closed | F8, F14; P5.5, P5.11 |
+| **G-5** | Low | **Direct-writer visibility:** change-log row with actor NULL, no lifecycle event; audit/change-log tables have RLS and **no policy**, so ordinary roles cannot read them; authenticated DML denied, `service_role` UPDATE true. Historical SKUs 17/114 pre-date the change log. | detection exists, operator visibility not established | F12, P5.11, P5.12 |
+| **G-6** | Low (largely resolved) | **Epoch coverage:** MRP, selling-price and route-family resolvers read only hooked tables (P5.17). Open: the route-validation callee closure (P5.18) and direct material-rate inputs. | — | P5.17 (PASS), P5.18 (NOT PROVEN) |
+| **G-7** | Low | **Pre-activation UX gap:** `rpc_get_sku_activation_check` is used by no client; the user learns the missing essentials from the rejection toast; `error.detail` is not rendered. Server stays authoritative. | server prevents; guidance late | client C3.2, C3.3 |
+| **G-8** | Low | **Ambiguous PM BOM** raises a raw exception from the guard/pre-check (fail-closed, opaque). | fail-closed | F10.1 |
+| **G-9** | Info | **Source/live parity:** six functions captured live have **no repo definition** (4 writers, product guard, parent guard); the four guard/RPC texts that do exist in the repo match live; resolvers are live-only. | — | P1, P5.7–P5.9 |
+| **G-10** | Info | **Boundary, not defect:** already-active rows are not re-checked; deactivation is never blocked; historical active-but-incomplete SKUs remain by design. | — | P2.4, P2.6 |
 
-## 7. Exact read-only catalog questions for ChatGPT (`WP10_G1_CATALOG_QUESTIONS_2026-11-15.sql`, `begin read only … rollback`)
+## 7. Catalog questions Q1–Q9 — answered by the independent capture
 
-| Q | Asks for | Settles |
-|---|---|---|
-| Q1 | definition, owner, SECURITY mode, `proconfig`, ACL, md5 of `rpc_create_product`, `rpc_update_product`, `rpc_create_product_sku`, `rpc_update_product_sku` | matrix W1–W4; whether any writer can create an active SKU or change `product_id` |
-| Q2 | owner/ACL/SECURITY of the five captured functions | who can EXECUTE guard and lifecycle RPCs |
-| Q3 | triggers on `products`, product/SKU audit tables; text of `fn_guard_product_inactivation_requires_no_active_skus`, `fn_product_skus_price_list_active_guard`, `fn_log_product_sku_change` | G-3, G-5 |
-| Q4 | table privileges, RLS flags and policies for `products`, `product_skus`, audit tables, change log | direct-writer reach; change-log visibility (G-4, G-5) |
-| Q5 | definitions of `fn_wp04_readiness_source_fingerprint`, `fn_wp04_readiness_bump_source_epoch`, `fn_wp04_build_readiness_portfolio`; substrate columns; build-history metadata (ids, status, timestamps only) | G-1, G-2 |
-| Q6 | `cron.job` (name, schedule, active, command head), callers of the governed build, relevant extensions | G-1 owner/cadence |
-| Q7 | alert/notification/outbox-like tables; functions referencing `READINESS_BUILD_STALE/ABSENT` | G-1 consumers |
-| Q8 | definitions of `fn_resolve_sku_mrp_as_of`, `fn_resolve_sku_selling_price_policy_as_of`, route resolvers | G-6 |
-| Q9 | whether the readiness RPCs reference "today" | G-2 |
+| Q | Result (bounded) |
+|---|---|
+| Q1 | Four writer definitions and ACLs captured; all call `require_permission('module:manage-products', true)` + `auth.uid()` and write governed audit rows; the SKU update exposes no `product_id`/active parameter; the create RPC passes `p_is_active` to the INSERT (P5.4–P5.6). |
+| Q2 | ACLs captured (P5.2, P5.3). `SECURITY DEFINER` is not used as an authorisation claim. |
+| Q3 | Product-side trigger and function captured (P5.10); price-list guard and change-log function captured and match repo text (P5.7, P5.8). |
+| Q4 | Privileges/RLS/policies captured (P5.11, P5.12). Real identities not tested. |
+| Q5 | Fingerprint composition and bump/read behaviour captured (P5.13–P5.15). |
+| Q6 | 34 cron rows, none readiness-related, no direct builder caller (P5.19); external scheduling **not established**. |
+| Q7 | Only the portfolio RPC references the STALE/ABSENT tokens; other names are ETL/health surfaces; absence or presence of an alert consumer **not established**. |
+| Q8 | Resolver definitions captured; three read only hooked tables (P5.17); route-validation callee chain not captured (P5.18). |
+| Q9 | No readiness read references today (P5.15); the helper's `greatest(valuation, today IST)` and LIVE_AS_OF serve different contracts. |
 
-No business-row completeness count is requested.
+Residual optional queries (only if a real source is identified): the four route-validation callee definitions; build-history *metadata* (ids/status/timestamps — not read, so no build-age claim). No business-row completeness count is requested.
 
 ## 8. Minimal design proposal (proposal only; nothing implemented)
 
-**Principle.** Keep prevention where it already is (creation/activation, server-authoritative). Add only: (a) an *owner* and *visible state* for staleness, (b) a read-only *expiry horizon* over the existing helper, (c) one narrow trigger decision, (d) client use of the existing pre-check. No second readiness calculator, no automatic deactivation, no new launcher, no permission change.
+**Principle.** Prevention at creation/activation stays as is. Governed-period LIVE_AS_OF semantics, fingerprint and portfolio read are **unchanged**. Proposals add visibility, an owner and — separately — a *current-operational* lens built from existing canonical contracts. No second readiness calculator, no automatic deactivation, no new launcher, no permission change, no scheduler from a partial-absence claim.
 
-| # | Safeguard | Kind | Named owner | Trigger | Freshness rule | Action |
-|---|---|---|---|---|---|---|
-| P1 | **Readiness freshness status** — a read-only status (reusing the existing build/epoch tables) exposed in the existing Costing Control Center Readiness lens: *stale since*, changed source tables, last build, owner | detection + visible remediation | Costing Control Center operator (role to be named by the owner) | build digest ≠ current digest, or no build for the latest governed period | owner-set maximum stale age (decision O2) | governed rebuild via the **existing** `fn_wp04_build_readiness_portfolio`: manual runbook, or a scheduled server job **only if Q6 shows none exists and the owner approves** |
-| P2 | **Expiry horizon** — read-only list of *active* SKUs whose five essentials are missing today or lapse within N days, requiring a design that can inspect effective-date boundaries: the existing helper accepts only SKU/product, not an as-of date; it cannot be called at today+N without a reviewed contract change | detection (time-based) | dependency owner screens (PM BOM Manager, Supply/Batch Plan, Production Route Manager, Pricing Policy Manager) | daily and at costing-period open | evaluated live at call time (no stored copy) | owner fixes the effective dates in the specialist screen; nothing is deactivated |
-| P3 | **Active re-parent guard** — when `product_id` changes on an already-active SKU, require the product-level essentials (batch size, route) or reject | prevention (narrow) | Product/SKU lifecycle owner | `UPDATE OF product_id` on an active row | as-of rule unchanged | server migration after review; owner decides prevention vs detection-only (O4) |
-| P4 | **Pre-submit check in Manage Products** — call the existing `rpc_get_sku_activation_check` before Activate; render missing codes + owner screens; render `error.detail` on rejection | guidance | Manage Products | opening the Activate confirmation | live | none (server unchanged) |
-| P5 | **Product-level visibility** — confirm the product-inactivation guard (Q3); show products with no SKU / no active SKU in the existing Product catalog lens | detection | Manage Products | catalog load | live | owner decides per product; no auto-repair |
+| # | Safeguard | Kind | Owner (proposed, to be confirmed) | Trigger / freshness | Action |
+|---|---|---|---|---|---|
+| P1 | **Readiness freshness visibility** — surface in the existing Costing Control Center Readiness lens *why* the build is unavailable (STALE vs ABSENT vs INCOMPLETE), the period, and the owner/runbook; reuse existing tables and error codes | visible remediation | a **named Costing Control Center operator accountable to the owner** (O1) | on STALE/ABSENT/INCOMPLETE; stale-age target to be set **after** build metadata is measured (O2) | rebuild via the existing governed call. **A scheduled database rebuild is a production-writer operation requiring its own exact approval**; it is not proposed here and not inferred from the absence of a cron row |
+| P2 | **Current-operational expiry horizon (corrected)** — read-only list of *active* SKUs whose five essentials are missing **today** or lapse within N days. The existing helper **cannot** be used for today+N: its signature is `(p_sku_id, p_product_id)` and its date is computed inside (F17.2). Design must instead inspect effective boundaries by calling the **date-parameterised canonical resolvers** (`plm_sku_bom_revision_as_of(sku,date)`, `fn_resolve_sku_mrp_as_of(sku,date)`, `fn_resolve_sku_selling_price_policy_as_of(sku,date)`, route-family/validation by `(product,date)`) — **proven callable at another date** (F17.1) — and, for the **batch-size reference, which has no resolver function** (an inline predicate in the helper, F17.3), a reviewed date-parameterised contract or one narrow internal function. This must not alter the five-essential list, the CI-038a as-of rule, LIVE_AS_OF, the fingerprint or the portfolio read | detection (time-based), separate from period readiness | dependency owner screens (PM BOM Manager, Supply/Batch Plan, Production Route Manager, Pricing Policy Manager) | evaluated live at call time (no stored copy); horizon **only after** the date semantics above are reviewed (O3: 30 days is a candidate) | owner fixes effective dates in the specialist screen; nothing is deactivated |
+| P3 | **Active product-level drift guard** — for already-active SKUs, decide whether privileged re-parenting (F8.3) and product subgroup/route-changing edits (F14.2) are *prohibited* or *require a reviewed remediation path*. Prefer rejecting unreviewed active re-parenting if the owner chooses prevention (O4) | prevention (narrow) or detection-only | Product/SKU lifecycle owner | `UPDATE OF product_id` on an active row; product subgroup change with active child SKUs | server migration only after review; **no automatic deactivation** |
+| P4 | **Pre-submit check in Manage Products** — call the existing `rpc_get_sku_activation_check` on the Activate confirmation; render missing codes + owner screens; render `error.detail` on rejection. Server rejection stays authoritative; existing fail-closed behaviour preserved | guidance | Manage Products | opening the Activate confirmation | none (server unchanged) |
+| P5 | **Product-level visibility** — show products with no SKU / no active SKU in the existing Product catalog lens (current counts to be taken at design time; historical counts are not used) | detection | Manage Products | catalog load | owner decides per product; no auto-repair |
 
-**Before/after, concrete**
+**Before/after, corrected**
 
 | Scenario | Today | With the proposal |
 |---|---|---|
-| Batch-size reference of an active SKU expires 31 Dec with no edit | no write → no epoch change → build stays "fresh"; nobody is told; the SKU would fail only if someone re-activated it (F7) | P2 on 1 Dec lists it ("BATCH_SIZE_REFERENCE expires in 30 days — Supply / Batch Plan"); P1 unchanged (no stale build) |
-| PM BOM revision superseded on an active SKU | epoch bump → Readiness shows "unavailable — READINESS_BUILD_STALE" until an owner-authorised database call (R51) | P1 shows "stale since …, changed: plm_bom_revision, owner: Costing operator, action: rebuild"; a rebuild runs per the agreed cadence |
-| Active SKU re-parented by SQL to a product with no route | accepted silently (F8.3); STALE later | P3 rejects (or flags, if detection-only is chosen) with the missing product-level essentials named |
-| Planner activates a SKU missing MRP policy | rejection toast after submit: "…Missing: MRP policy." (F3.MRP) | P4 shows "Missing: MRP policy → Pricing Policy Manager > MRP" before submit; server rejection unchanged |
+| Batch-size reference of an active SKU lapses on 31 Dec; no edit | the governed-period readiness for the existing period remains correct and fresh; nothing tells the operator the SKU would fail an activation check *today* (F7.1–F7.3) | P2 lists it on 1 Dec ("BATCH_SIZE_REFERENCE lapses in 30 days — Supply / Batch Plan") **once the date-parameterised contract is reviewed**; LIVE_AS_OF unchanged |
+| PM BOM revision superseded on an active SKU | epoch → STALE → Readiness unavailable until an owner-authorised call (DOC R51) | P1 explains *why* it is unavailable, for which period and who acts; the rebuild call is unchanged |
+| Privileged re-parent / product subgroup change on an active SKU | accepted silently (F8.3, F14.2), STALE afterwards | P3 per owner choice: reject, or require a reviewed remediation |
+| Planner activates a SKU missing MRP | rejection toast after submit (F3.MRP) | P4 shows "Missing: MRP policy → Pricing Policy Manager > MRP" before submit |
 
 ## 9. Recommended G2 implementation scope (not authorised)
 
-* **Prerequisite:** ChatGPT runs Q1–Q9 (read-only) and returns the results; P1/P2/P3 designs are frozen only after Q5–Q9 and Q1/Q4.
-* **Server (small, reviewable, owner-approved migrations only):** S-1 read-only freshness-status function over existing tables (P1); S-2 read-only expiry-horizon function reusing `costing.fn_sku_activation_missing_items` (P2); S-3 optional completeness-trigger extension for active re-parent (P3). Scheduler (if any) is a separate owner approval.
-* **Client:** C-1 Costing Control Center Readiness banner/status (P1, reuses the existing lens); C-2 Manage Products pre-check + error-detail rendering (P4); C-3 product-without-SKU visibility (P5).
-* **Out of scope:** automatic deactivation, new readiness calculator, new launcher or module, blanket permission changes, any change to the five-essential list or to the as-of rule.
-* **Tests for G2:** reuse this package's fixtures as regression contracts (they already encode the negatives), add the new functions as live-verbatim text once reviewed.
+* **Prerequisites:** owner decisions O1–O4; optional residual catalog items (§7); a reviewed date semantics note for P2 (including the batch-size essential).
+* **Server (reviewed, owner-approved migrations only):** S-1 read-only state function that classifies STALE/ABSENT/INCOMPLETE for a period using existing tables (P1, if the existing error text is judged insufficient); S-2 read-only expiry-horizon function built on date-parameterised canonical resolvers plus the reviewed batch-size contract (P2); S-3 optional guard for active re-parent / route-changing product edits (P3). **Any scheduled rebuild is a separate production-writer approval.**
+* **Client:** C-1 Readiness lens explanation + owner/runbook (P1); C-2 Manage Products pre-check + `error.detail` (P4, plausible bounded improvement); C-3 product-level visibility (P5).
+* **Out of scope:** automatic deactivation, a second readiness calculator, new launcher/module, blanket permission changes, any change to the five essentials, the as-of rule, LIVE_AS_OF or the fingerprint.
+* **Tests for G2:** reuse these fixtures as regression contracts; new server functions enter the fixture as live-verbatim text after review.
 
-## 10. Decisions required from the owner (essential only)
+## 10. Decisions for the owner (business/design; not implementation authority)
 
-| # | Decision | Recommended |
+| # | Decision | Reviewer-aligned recommendation |
 |---|---|---|
-| O1 | Who owns readiness rebuilds and stale-state follow-up (named role)? | Costing Control Center operator |
-| O2 | Maximum acceptable stale age, and is a scheduled rebuild acceptable or must it stay a manual runbook? | Schedule only if Q6 shows none exists; otherwise runbook + P1 visibility |
-| O3 | Expiry horizon N days and who is notified | 30 days; dependency owner screens |
-| O4 | Active re-parent: prevent (reject) or detect-only (flag)? | Prevent (rare, direct-writer only) |
-| O5 | Authorise ChatGPT to run catalog questions Q1–Q9 (read-only) | Yes |
+| O1 | Named owner for readiness rebuilds and stale-state follow-up | A named Costing Control Center operator accountable to the owner |
+| O2 | Stale-age target and whether any scheduled rebuild is acceptable | Set the target after workload/current-build metadata are measured; a scheduled rebuild needs separate exact approval |
+| O3 | Current-operational expiry horizon and recipients | 30 days is a candidate only after valid date semantics are designed |
+| O4 | Active product-level drift (privileged re-parent; route-changing product edits): prevent, require reviewed remediation, or detect-only | Prefer rejecting unreviewed active re-parenting |
+| ~~O5~~ | ~~Authorise catalog queries~~ | **Satisfied** (existing read-only audit authority; Q1–Q9 answered) |
 
 ## 11. Hard-stop compliance
 
-No production SQL, migration, registry, permission/RLS/grant, flag, release, deployment or Electron change. No edit to existing activation/readiness logic or tests. WP08/PEC not reopened; WP09 closure and `LAUNCHER_PRESENTATION_V1` untouched; WP11 defects and WP12 cases (including `W12-WP08-01…08`) remain NOT TESTED/OPEN. The five historical `20261112*` migration CRLF-only worktree differences were left unstaged. WP10 authority document updated only to record G1 status; no formal closure.
+No production SQL, migration, registry, permission/RLS/grant, flag, release, deployment or Electron change; no edit to existing activation/readiness logic or to any existing test. WP08/PEC not reopened; WP09 closure and `LAUNCHER_PRESENTATION_V1` untouched; WP11 defects and WP12 cases (incl. `W12-WP08-01…08`) remain NOT TESTED/OPEN. The five historical `20261112*` migration CRLF-only worktree differences are unstaged and untouched. WP10 authority updated for G1 status only; no closure or count advance. **G2 is not implemented and no merge is requested.**
 
 ## 12. Reproduce
 

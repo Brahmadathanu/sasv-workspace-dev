@@ -33,11 +33,23 @@
     {
       "id": "MU 5",
       "status": "PASS",
+      "name": "product-side inactivation trigger dropped is DETECTED",
+      "detail": "violations=product-inactivation-with-active-sku-accepted"
+    },
+    {
+      "id": "MU 6",
+      "status": "PASS",
+      "name": "fingerprint ignores source epochs is DETECTED",
+      "detail": "violations=dependency-change-not-invalidated"
+    },
+    {
+      "id": "MU 7",
+      "status": "PASS",
       "name": "epoch hook on a dependency dropped is DETECTED",
       "detail": "violations=dependency-change-not-invalidated"
     },
     {
-      "id": "MU 6",
+      "id": "MU 8",
       "status": "PASS",
       "name": "MRP essential ignored by the helper (trigger dropped too) is DETECTED",
       "detail": "violations=active-insert-accepted,activation-with-missing-essential-accepted"

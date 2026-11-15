@@ -17,7 +17,7 @@ const T = (label, stmt) => `select public.fx_try('${label}', $q$${stmt}$q$);\n`;
 /** Core invariants of the audited contract; returns the list of violated ones. */
 function invariants(fix) {
   const db = cluster.newDb();
-  const boot = cluster.script(db, fix + "\ninsert into public.products(item,status) values ('P1','Active'),('P2','Inactive'),('P3','Active');\n");
+  const boot = cluster.script(db, fix + "\ninsert into public.products(item, sub_group_id, status) values ('P1',1,'Active'),('P2',1,'Inactive'),('P3',1,'Active');\n");
   if (boot.code) throw new Error(boot.err);
   cluster.script(
     db,
@@ -29,6 +29,7 @@ function invariants(fix) {
       T("act_missing_mrp", "select * from public.rpc_set_product_sku_active(1, true, 'x')") +
       T("act_inactive_parent", "select * from public.rpc_set_product_sku_active(2, true, 'x')") +
       T("act_ok", "select * from public.rpc_set_product_sku_active(3, true, 'x')") +
+      T("product_inactive_with_active_sku", "select * from public.rpc_update_product(3, 'P3', 1, 'ml', 'Inactive', null, null, false, false, null, null, false, 'r')") +
       "select costing.fx_build_now('2026-09-01');\ndelete from costing.sku_selling_price_policy where sku_id = 3;\n" +
       T("read_after_dep_change", "select costing.fx_read('2026-09-01')"),
     { stopOnError: false },
@@ -49,6 +50,7 @@ function invariants(fix) {
   if (log.act_missing_mrp.ok) bad.push("activation-with-missing-essential-accepted");
   if (log.act_inactive_parent.ok) bad.push("activation-under-inactive-parent-accepted");
   if (!log.act_ok.ok) bad.push("complete-activation-rejected");
+  if (log.product_inactive_with_active_sku.ok) bad.push("product-inactivation-with-active-sku-accepted");
   if (log.read_after_dep_change.ok) bad.push("dependency-change-not-invalidated");
   if (asOf !== "2026-11-15") bad.push("asof-not-IST-today");
   return bad;
@@ -70,6 +72,8 @@ try {
       (s) => s.replace("v_val := greatest(coalesce(v_val, current_date), (public.fixture_now() at time zone 'Asia/Kolkata')::date);", "v_val := coalesce(v_val, current_date);"),
       "asof-not-IST-today",
     ],
+    "product-side inactivation trigger dropped": [dropTrigger("trg_product_inactivation_requires_no_active_skus"), "product-inactivation-with-active-sku-accepted"],
+    "fingerprint ignores source epochs": [(s) => s.replace("'source_epochs',v_epochs,", "'source_epochs','{}'::jsonb,"), "dependency-change-not-invalidated"],
     "epoch hook on a dependency dropped": [(s) => s.replace(/CREATE TRIGGER wp04_readiness_epoch_[0-9a-f]+ AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing\.sku_selling_price_policy[^;]*;/, ""), "dependency-change-not-invalidated"],
     "MRP essential ignored by the helper (trigger dropped too)": [
       (s) => dropTrigger("trg_sku_activation_completeness_guard")(s).replace("fn_resolve_sku_mrp_as_of(p_sku_id, v_val) m limit 1), '') <> 'RESOLVED'", "fn_resolve_sku_mrp_as_of(p_sku_id, v_val) m limit 1), '') <> 'RESOLVED' and false"),
