@@ -1,0 +1,194 @@
+{
+  "results": [
+    {
+      "name": "C1 contract has exactly the 79 live Electron keys",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "C2 every contract section equals the CURRENT live section (A preserves all sections)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "C3 41 PWA keys are a subset of the contract",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "C4 committed contract equals the generator output from the accepted mapping + snapshot",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "C5 electron: section-scoped top-level cards = option-coverage maximum (36), every module exactly once",
+      "status": "PASS",
+      "detail": "total=36"
+    },
+    {
+      "name": "C5 pwa: section-scoped top-level cards = option-coverage maximum (24), every module exactly once",
+      "status": "PASS",
+      "detail": "total=24"
+    },
+    {
+      "name": "C6 every (section,family) lives in exactly one subgroup",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "C7 six Costing modules incl. Production Route Manager form ONE family in ONE section",
+      "status": "PASS",
+      "detail": "product-reference-master|Costing suite|Costing suite"
+    },
+    {
+      "name": "C8 registered child pages stay launchable: coa-print, edit-log-entry, sop-editor, sop-viewer",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "C9 families never cross sections: no family label appears in two sections with merged ids",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "U1 unknown future key lands in the fallback subgroup, flat, LAST, and is not lost",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "U2 cross-section disagreement => treated as unknown (fallback, no family), never merged into the other section",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "U3 getContractEntry null for unknown key and for mismatched section",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "S1 label match",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "S2 subgroup match (approved subgroup 'Stock positions')",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "S3 real alias match (operations-monitor found via former name etl-monitor)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "S4 description-only match",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "S5 AND of terms; empty/space query returns no results",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "S6 section names are NOT searched (section label alone finds no section-only module)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "S7 matcher returns the entry object flagged locked (callers keep it disabled) and never adds fields that enable it",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "S8 deterministic order: exact label first, then label order",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "S9 NO alias was added or changed in module-registry.js (lab key differences are not masked)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "S10 the two recorded lab permission-name differences have no alias",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "Q1 key shape identical to the Electron launcher key",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "Q2 scope derivation matches normalizeModuleKey for uuid/email/guest",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "Q3 maximum 10 pins, newest first, oldest dropped",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "Q4 toggle off removes; scopes are isolated",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "Q5 pins resolve only to visible, enabled, routable modules; order kept",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "Q6 stale/revoked/locked pins are retained (not pruned) for restore",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "Q7 corrupt storage and throwing storage degrade to no pins",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "F1 flag: only the exact value '1' enables; default OFF",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "MU0 invariant suite is clean on the real module",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "MU lost-unknown-module is detected by the invariant suite",
+      "status": "PASS",
+      "detail": "lost-unknown-module"
+    },
+    {
+      "name": "MU cross-section-family-collision is detected by the invariant suite",
+      "status": "PASS",
+      "detail": "cross-section-family-collision"
+    },
+    {
+      "name": "MU stale-pin-reuse-across-users is detected by the invariant suite",
+      "status": "PASS",
+      "detail": "stale-pin-reuse-across-users"
+    },
+    {
+      "name": "MU locked-pin-resolved is detected by the invariant suite",
+      "status": "PASS",
+      "detail": "locked-pin-resolved"
+    },
+    {
+      "name": "MU unroutable-pin-resolved is detected by the invariant suite",
+      "status": "PASS",
+      "detail": "unroutable-pin-resolved"
+    },
+    {
+      "name": "MU revoked-pin-resolved is detected by the invariant suite",
+      "status": "PASS",
+      "detail": "locked-pin-resolved,unroutable-pin-resolved,revoked-pin-resolved"
+    }
+  ]
+}

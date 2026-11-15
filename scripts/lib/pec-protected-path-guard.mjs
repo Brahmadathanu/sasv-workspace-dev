@@ -79,11 +79,19 @@ export const REVIEWED_WP08_G2_1_PINS = Object.freeze({
   }),
 });
 
+// WP09 #437: exact owner-reviewed additive network-first change; no PEC application change.
+export const REVIEWED_WP09_G2_PINS = Object.freeze({
+  "public/sw.js": Object.freeze({
+    sha256: "a1b35dc2bf7bd9bd9f166f356b3d4cabed9340401e09a5d74da7480d269066b9",
+    heads: Object.freeze(["claude/wp09-g2-launcher-families"]),
+  }),
+});
+
 const lfSha256 = (text) => createHash("sha256").update(String(text).replace(/\r\n/g, "\n")).digest("hex");
 
 function reviewedServerException(path, ctx) {
   if (!ctx || typeof ctx.readText !== "function") return false;
-  return [REVIEWED_SERVER_MIGRATIONS[path], REVIEWED_WP08_G2_1_PINS[path]].some((entry) => {
+  return [REVIEWED_SERVER_MIGRATIONS[path], REVIEWED_WP08_G2_1_PINS[path], REVIEWED_WP09_G2_PINS[path]].some((entry) => {
     if (!entry || !entry.heads.includes(ctx.headBranch)) return false;
     try { return lfSha256(ctx.readText(path)) === entry.sha256; } catch { return false; }
   });

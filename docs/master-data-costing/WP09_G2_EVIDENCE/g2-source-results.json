@@ -1,0 +1,109 @@
+{
+  "results": [
+    {
+      "name": "G1 runtime files changed are exactly within the authorised client set",
+      "status": "PASS",
+      "detail": "7 files"
+    },
+    {
+      "name": "G2 nothing under supabase/, sql/, tools/ or electron/ changed; no migration added",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "G3 no legacy/source page, WP08 shared page or master page changed",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "G4 Costing flag source, the eleven-flag sweep and the WP08 tests are byte-identical to the authority head",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "G5 historical G1 evidence snapshot and mapping CSV unchanged (provenance preserved)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "G6 original G1 handover/report/authority documents preserved verbatim",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "W1 index.html: no added line introduces a Supabase writer/RPC/registry table access",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "W1 public/utilities-hub/js/hub-auth.js: no added line introduces a Supabase writer/RPC/registry table access",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "W1 public/shared/js/module-registry.js: no added line introduces a Supabase writer/RPC/registry table access",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "W1 public/sw.js: no added line introduces a Supabase writer/RPC/registry table access",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "W2 shared presentation module has no Supabase import, no network, no permission logic",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "W3 contract is data only (79 frozen tuples; no routes, grants or targets)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "X1 flag identifier LAUNCHER_PRESENTATION_V1 is defined once and read via localStorage exact value '1'",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "X2 no code anywhere sets the flag (no setItem of LAUNCHER_PRESENTATION_V1 in runtime files)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "X3 flag is independent of the eleven COSTING_* flags",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "X4 every G2 behaviour in both launchers is guarded by presentationOn",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "SW1 CACHE_NAME is UNCHANGED (hub-cache-v393): network-first routing alone delivers the changed scripts, keeping the WP08 service-worker guards green",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "SW2 service-worker diff is ADD-ONLY (no existing line removed or edited; G2-0 and G2-1 patterns byte-identical)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "SW3 new files and the two changed cache-first scripts are network-first; PRECACHE list untouched (stale ETL precache cleanup deferred)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "D1 decision recorded in code: PWA does not record recents/usage; Electron keeps recents storage but renders pins only",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "D2 PWA Quick Access has no server persistence (localStorage only)",
+      "status": "PASS",
+      "detail": ""
+    }
+  ]
+}

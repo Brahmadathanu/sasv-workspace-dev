@@ -26,7 +26,7 @@ export function startServer(client) {
 }
 
 const SUPABASE_STUB = `
-const user = { id: "00000000-0000-0000-0000-0000000000a1", email: "wp09-g1@example.invalid" };
+const curUser = () => ({ id: window.__USER_ID || "00000000-0000-0000-0000-0000000000a1", email: (window.__USER_EMAIL || "wp09-g1@example.invalid") });
 const writes = (window.__WRITES = window.__WRITES || []);
 const reads = (window.__READS = window.__READS || []);
 function builder(table) {
@@ -55,13 +55,16 @@ function builder(table) {
   return p;
 }
 export function createClient() {
-  const session = window.__NO_SESSION ? null : { access_token: "stub", user };
+  const mkSession = () => (window.__NO_SESSION ? null : { access_token: "stub", user: curUser() });
   const client = {
     auth: {
-      getSession: async () => ({ data: { session }, error: null }),
-      getUser: async () => ({ data: { user: session ? user : null }, error: null }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
-      refreshSession: async () => ({ data: { session }, error: null }),
+      getSession: async () => ({ data: { session: mkSession() }, error: null }),
+      getUser: async () => ({ data: { user: mkSession() ? curUser() : null }, error: null }),
+      onAuthStateChange: (callback) => {
+        (window.__AUTH_CALLBACKS ||= []).push(callback);
+        return { data: { subscription: { unsubscribe() {} } } };
+      },
+      refreshSession: async () => ({ data: { session: mkSession() }, error: null }),
       signOut: async () => ({ error: null }),
       signInWithPassword: async () => ({ data: {}, error: null }),
     },
@@ -71,6 +74,14 @@ export function createClient() {
         const f = window.__PERM_FAIL;
         if (f === "error") return Promise.resolve({ data: null, error: { message: "mock" } });
         if (f === "nonarray") return Promise.resolve({ data: { x: 1 }, error: null });
+        // Test-only controllable permission latency. Capture the response now,
+        // so releasing a previous identity's request really returns stale data.
+        if (window.__HOLD_PERMISSIONS) {
+          const data = (window.__GRANTS || []).slice();
+          return new Promise((resolve) => {
+            (window.__PERM_PENDING ||= []).push({ user: curUser().id, resolve: () => resolve({ data, error: null }) });
+          });
+        }
         return Promise.resolve({ data: window.__GRANTS || [], error: null });
       }
       writes.push({ rpc: name });
@@ -97,27 +108,37 @@ export async function launch() {
  * registry: rows in v_app_module_registry shape; sections: app_nav_sections rows; grants: [{target,can_view,can_edit}].
  * Returns { page, context, errors, close }.
  */
-export async function openLauncher(env, { client, width, registry, sections, grants, permFail = null, storage = null, userAgentOverride }) {
+export async function openLauncher(env, { client, width, registry, sections, grants, permFail = null, storage = null, userAgentOverride, userId = null, height = 900, context: sharedContext = null, deviceScaleFactor = null, rewrites = [] }) {
   const server = env.servers[client];
   const origin = `http://127.0.0.1:${server.address().port}`;
   const cfg = CLIENTS[client];
-  const context = await env.browser.newContext({ viewport: { width, height: 900 }, ...(cfg.userAgent ? { userAgent: cfg.userAgent } : {}), ...(userAgentOverride ? { userAgent: userAgentOverride } : {}) });
-  await context.addInitScript(([r, s, g, f, st]) => {
+  const context = sharedContext || await env.browser.newContext({ viewport: { width, height }, ...(deviceScaleFactor ? { deviceScaleFactor } : {}), ...(cfg.userAgent ? { userAgent: cfg.userAgent } : {}), ...(userAgentOverride ? { userAgent: userAgentOverride } : {}) });
+  await context.addInitScript(([r, s, g, f, st, uid]) => {
+    if (uid) window.__USER_ID = uid;
     window.__REGISTRY = r; window.__SECTIONS = s; window.__GRANTS = g; window.__PERM_FAIL = f;
     window.electronAPI = window.electronAPI || { getAppVersion: async () => "6.1.0-test", onUpdateStatus() {}, checkForUpdates: async () => ({}), getUpdateState: async () => ({}) };
     if (st) { try { for (const [k, v] of Object.entries(st)) if (!localStorage.getItem(k)) localStorage.setItem(k, v); } catch {} }
-  }, [registry, sections, grants, permFail, storage]);
+  }, [registry, sections, grants, permFail, storage, userId]);
   await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => {
     const url = route.request().url();
     if (/esm\.sh\/@supabase\/supabase-js/.test(url)) return route.fulfill({ status: 200, contentType: "text/javascript", body: SUPABASE_STUB });
     return route.fulfill({ status: 200, contentType: "text/plain", body: "" });
   });
+  // Test-only response rewrites for LOCAL files: [[urlRegex, (body, url) => newBody]] (baseline comparison / mutation controls).
+  for (const [rx, fn] of rewrites) {
+    await context.route(rx, async (route) => {
+      const res = await route.fetch();
+      await route.fulfill({ response: res, body: fn(await res.text(), route.request().url()) });
+    });
+  }
   const page = await context.newPage();
+  const requests = [];
+  page.on("request", (r) => { if (!r.url().startsWith(origin)) requests.push(r.url()); });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e.message || e)));
   await page.goto(origin + cfg.home, { waitUntil: "load" });
   await page.waitForTimeout(1200);
-  return { page, context, errors, origin, close: () => context.close() };
+  return { page, context, errors, origin, requests, close: () => context.close() };
 }
 
 export function row(moduleKey, label, sectionKey, sectionLabel, sortOrder, extra = {}) {

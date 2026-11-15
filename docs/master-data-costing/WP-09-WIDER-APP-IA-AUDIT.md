@@ -1,3 +1,9 @@
+> **LATEST — CORRECTED G2 VERIFICATION ACCEPTED / MERGE AUTHORITY PENDING:** ChatGPT independently verified head `b26c7c3454f03cb2199999080095404cb7cb6e70`: runtime unchanged from reviewed correction; committed corrected-head JSONs reconcile to Chromium 87/87 + OFF 33/33, contract 38/38, source 23/23 and regressions 5/5 PASS (all offline/mocked). The previous corrected-head browser-evidence HOLD is resolved. [Final independent recommendation](WP09_G2_FINAL_INDEPENDENT_VERIFICATION_2026-11-15.md) proposes #434 merge → #437 retarget/base check → default-off merge, subject to owner authority. Neither PR is merged or retargeted. Live/release acceptance remains NOT TESTED; WP09 OPEN, 9/13; WP11/WP12 obligations retained. Older HOLD/pending-rerun banners below are historical.
+
+> **LATEST — G2 INDEPENDENT CORRECTIONS / VERIFICATION HOLD:** #437 is correctly on its own branch targeting #434. [Independent review](WP09_G2_INDEPENDENT_REVIEW_2026-11-15.md) records flag-reader, PWA async identity-state and test-guard corrections. Fresh offline checks pass; corrected-head Chromium needs rerun in the existing Claude session, not a new package. Original author 82/82 mocked results are preserved as historical. No merge/flag/deploy/closure; WP09 OPEN, 9/13; WP11 defects and WP12 obligations retained.
+
+> **15 NOV 2026 — WP09 G2 CLIENT PACKAGE DELIVERED FOR INDEPENDENT REVIEW (LATEST; WP09 OPEN, 9/13):** under owner authority ("Yes proceed", issue #436) the A→C client package is implemented as one separate draft PR behind the **default-off** flag `LAUNCHER_PRESENTATION_V1` — see [WP09_G2_CLIENT_IMPLEMENTATION_2026-11-15.md](WP09_G2_CLIENT_IMPLEMENTATION_2026-11-15.md) and [season/legacy review](WP09_G2_SEASON_PROFILE_AND_LEGACY_SOURCE_REVIEW_2026-11-15.md). **Flag not activated; nothing merged or deployed; no SQL, registry, permission, grant, production-writer or Electron-route change; writers and source-only pages preserved.** Mocked-Chromium results are not authenticated production acceptance. WP11 defects, WP12 role/security/PWA/Electron/Windows/flag obligations and `W12-WP08-01…08` remain open. No formal WP09 closure. Earlier banners below are historical.
+
 # WP-09 — Wider Application Launcher/Section Audit
 
 **15 November 2026 — G1 OWNER ACCEPTED; G2 A→C CLIENT IMPLEMENTATION AUTHORISED. WP09 OPEN; programme 9/13.**
@@ -23,7 +29,8 @@ Season-profile source writers overlap, but `manage-season-profiles` is unregiste
 - [x] ChatGPT independent review of Claude audit and corrected deliverables
 - [x] Owner G1 completion and design decisions
 - [x] G2 client implementation authorisation; detailed contract to be reviewed with code
-- [ ] Implementation / focused acceptance / independent code review
+- [x] Implementation behind default-off flag `LAUNCHER_PRESENTATION_V1` (draft PR; mocked tests 38/38, 21/21, 82/82)
+- [ ] Independent code review / focused acceptance
 - [ ] Merge and post-merge evidence
 - [ ] Formal WP09 closure
 
@@ -34,4 +41,4 @@ Fresh registry **21/21 PASS**, source **50/50 PASS**, mutation **22/22 PASS**. F
 Execute the [authorised single G2 package](WP09_G2_SINGLE_CLIENT_PACKAGE_2026-11-15.md), then ChatGPT independently reviews the implementation. G1 is accepted; recommendations approved in the [owner record](WP09_OWNER_G1_ACCEPTANCE_G2_AUTHORITY_2026-11-15.md) no longer require repeated confirmation. No merge, deployment, production flag activation or formal WP09 closure follows automatically. Separate writer/source cleanup remains conditional on exact review.
 
 ## Changes and protected boundaries
-Audit scripts, evidence and documentation only. No runtime client, server, registry, permission, grant, RLS, migration, feature-flag, deployment or Electron-route change. WP08/PEC not reopened. Historical CRLF-only 20261112 migrations untouched. WP11 PM BOM overflow and SKU Deactivate contrast #429 retained. WP12 inherited security, flags, PWA, Electron/Windows and WP08 eight-case receiving obligations remain OPEN; Pricing unknown destinations stay text-only. No work-pack closure or programme-count advance.
+G1: audit scripts, evidence and documentation only. G2 (separate draft PR): seven client runtime files behind default-off `LAUNCHER_PRESENTATION_V1`; still no server, registry, permission, grant, RLS, migration, flag activation, deployment or Electron-route change. WP08/PEC not reopened. Historical CRLF-only 20261112 migrations untouched. WP11 PM BOM overflow and SKU Deactivate contrast #429 retained. WP12 inherited security, flags, PWA, Electron/Windows and WP08 eight-case receiving obligations remain OPEN; Pricing unknown destinations stay text-only. No work-pack closure or programme-count advance.

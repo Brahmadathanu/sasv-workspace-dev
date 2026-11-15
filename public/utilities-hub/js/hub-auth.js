@@ -13,11 +13,33 @@ import {
   loadClientModuleRegistry,
   loadNavigationSections,
   normalizeModuleKey,
+  getModuleKeyAliases,
 } from "../../shared/js/module-registry.js";
+import {
+  isLauncherPresentationV1Enabled,
+  planSection,
+  getContractEntry,
+  matchModules,
+  readPins,
+  togglePin,
+  resolveQuickAccess,
+  scopeFromUser,
+} from "../../shared/js/launcher-presentation.js";
+
+// WP09 G2: ONE default-off flag (localStorage LAUNCHER_PRESENTATION_V1 === "1"). OFF = today's hub, unchanged.
+const presentationOn = isLauncherPresentationV1Enabled();
+if (presentationOn) {
+  document.documentElement.dataset.launcherPresentation = "v1";
+  const css = document.createElement("link");
+  css.rel = "stylesheet";
+  css.href = "../shared/css/launcher-presentation.css";
+  document.head.appendChild(css);
+}
 
 let activeRenderPromise = null;
 let queuedRenderReason = null;
 let lastRenderedSessionKey = null;
+let presentationRenderVersion = 0;
 
 function getSessionRenderKey(session) {
   return session?.user?.id || "anon";
@@ -118,6 +140,31 @@ function renderMessageCard(title, message) {
     </article>`;
 }
 
+// WP09 G2: subgroup headings + collapsible families for one section. Input is the already permission-filtered
+// list for this section (accessLevel "none" never reaches here), so empty families/subgroups cannot exist.
+function renderSectionPresentation(section, list, renderCard) {
+  const sectionKey = list[0]?.sectionKey || "";
+  const plan = planSection(list, sectionKey);
+  let out = `
+      <div class="hub-section" data-section-key="${safeText(sectionKey)}">
+        <h3 class="hub-section-title">${safeText(section.label)}</h3>
+        ${section.description ? `<p>${safeText(section.description)}</p>` : ""}`;
+  plan.subgroups.forEach((sub) => {
+    out += `<div class="hub-subgroup" data-subgroup="${safeText(sub.label)}" data-subgroup-fallback="${sub.fallback ? "true" : "false"}"><h4 class="hub-subgroup__title">${safeText(sub.label)}</h4><div class="hub-grid">`;
+    sub.nodes.forEach((node) => {
+      if (node.kind === "module") {
+        out += renderCard(node.item);
+        return;
+      }
+      const bodyId = `family-${node.id}`;
+      const open = node.items.length === 1;
+      out += `<div class="hub-family" data-family-id="${safeText(node.id)}"><button type="button" class="hub-family__toggle" aria-expanded="${open ? "true" : "false"}" aria-controls="${safeText(bodyId)}"><span class="hub-family__title">${safeText(node.label)}</span><span class="hub-family__count">${node.items.length}</span><span class="hub-family__chevron" aria-hidden="true"></span></button><div class="hub-family__body" id="${safeText(bodyId)}" role="group" aria-label="${safeText(node.label)}"${open ? "" : " hidden"}>${node.items.map(renderCard).join("")}</div></div>`;
+    });
+    out += "</div></div>";
+  });
+  return out + "</div>";
+}
+
 function renderUtilitiesSectioned(utilities, accessMap) {
   const bySection = new Map();
   utilities
@@ -156,13 +203,7 @@ function renderUtilitiesSectioned(utilities, accessMap) {
     const list = section.items.sort(sortByCuration);
     if (!list.length) return;
 
-    html += `
-      <div class="hub-section">
-        <h3 class="hub-section-title">${safeText(section.label)}</h3>
-        ${section.description ? `<p>${safeText(section.description)}</p>` : ""}
-        <div class="hub-grid">`;
-
-    list.forEach((utility) => {
+    const renderCard = (utility) => {
       const isLockedView = utility.accessLevel === "view";
       const isReadEntry = utility.accessLevel === "read";
       const href = isLockedView ? "#" : utility.href;
@@ -177,15 +218,27 @@ function renderUtilitiesSectioned(utilities, accessMap) {
           ? '<span class="hub-card-note">Read only</span>'
           : "";
 
-      html += `
+      return `
         <article class="hub-card${isLockedView ? " muted" : ""}" tabindex="-1">
           <h3><a href="${safeText(href)}" data-href="${safeText(utility.href)}" data-module-key="${safeText(utility.moduleKey)}"${isLockedView ? ' aria-disabled="true"' : ""}${title ? ` title="${safeText(title)}"` : ""}>${safeText(utility.label)}</a></h3>
           <p>${safeText(utility.description || "")}</p>
           ${action}
         </article>`;
-    });
+    };
 
-    html += "</div></div>";
+    if (!presentationOn) {
+      html += `
+      <div class="hub-section">
+        <h3 class="hub-section-title">${safeText(section.label)}</h3>
+        ${section.description ? `<p>${safeText(section.description)}</p>` : ""}
+        <div class="hub-grid">`;
+      list.forEach((utility) => {
+        html += renderCard(utility);
+      });
+      html += "</div></div>";
+    } else {
+      html += renderSectionPresentation(section, list, renderCard);
+    }
   });
 
   return (
@@ -407,19 +460,146 @@ async function logoutFlow() {
   }
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// WP09 G2 (flag ON only): shared search + per-user LOCAL Quick Access for the PWA.
+// All data below is derived from the permission-filtered utilities of the CURRENT render; nothing is cached across users.
+const hubTools = { root: null, scope: "guest", entries: [], bound: false };
+
+function ensureHubToolsRoot() {
+  if (hubTools.root) return hubTools.root;
+  if (!elRoot?.parentNode) return null;
+  const root = document.createElement("section");
+  root.id = "hub-tools";
+  root.className = "hub-tools";
+  root.setAttribute("aria-label", "Search and Quick Access");
+  elRoot.parentNode.insertBefore(root, elRoot);
+  hubTools.root = root;
+  return root;
+}
+
+function clearHubTools() {
+  hubTools.scope = "guest";
+  hubTools.entries = [];
+  if (hubTools.root) hubTools.root.innerHTML = "";
+}
+
+function buildHubEntries(utilities, accessMap) {
+  return utilities
+    .filter((utility) => (accessMap[utility.id] || "none") !== "none")
+    .map((utility) => {
+      const level = accessMap[utility.id];
+      const contract = getContractEntry(utility.moduleKey, utility.sectionKey);
+      return {
+        moduleKey: utility.moduleKey,
+        label: utility.label,
+        description: utility.description || "",
+        subgroup: contract ? contract.subgroup : "",
+        aliases: getModuleKeyAliases(utility.moduleKey),
+        locked: level === "view",
+        href: level === "view" ? "#" : utility.href || "#",
+        accessLevel: level,
+      };
+    });
+}
+
+function renderHubQuickAccess() {
+  const host = hubTools.root?.querySelector("#hub-quick");
+  if (!host) return;
+  const pinned = resolveQuickAccess(readPins(globalThis.localStorage, hubTools.scope), hubTools.entries);
+  host.innerHTML = pinned.length
+    ? `<h3 class="hub-quick__title">Quick Access</h3><ul class="hub-quick__list">${pinned
+        .map(
+          (entry) =>
+            `<li class="hub-quick__item"><a href="${safeText(entry.href)}" data-module-key="${safeText(entry.moduleKey)}">${safeText(entry.label)}</a><button type="button" class="hub-pin" data-action="unpin" data-module-key="${safeText(entry.moduleKey)}" aria-pressed="true" aria-label="Unpin ${safeText(entry.label)} from Quick Access" title="Unpin from Quick Access">&#9733;</button></li>`,
+        )
+        .join("")}</ul><p class="hub-search__note">Quick Access is personal to this browser and only shows tools you can open.</p>`
+    : `<h3 class="hub-quick__title">Quick Access</h3><p class="hub-quick__empty">No pins yet. Search for a tool and pin it.</p>`;
+}
+
+function renderHubSearchResults(query) {
+  const list = hubTools.root?.querySelector("#hub-search-results");
+  if (!list) return;
+  const pins = new Set(readPins(globalThis.localStorage, hubTools.scope));
+  const hits = String(query || "").trim() ? matchModules(query, hubTools.entries) : [];
+  if (!String(query || "").trim()) {
+    list.innerHTML = "";
+    return;
+  }
+  list.innerHTML = hits.length
+    ? hits
+        .map((entry) => {
+          const key = normalizeModuleKey(entry.moduleKey);
+          const pinned = pins.has(key);
+          const pinBtn = entry.locked
+            ? '<span class="hub-card-note">View only</span>'
+            : `<button type="button" class="hub-pin" data-action="pin" data-module-key="${safeText(entry.moduleKey)}" aria-pressed="${pinned ? "true" : "false"}" aria-label="${pinned ? "Unpin" : "Pin"} ${safeText(entry.label)} ${pinned ? "from" : "to"} Quick Access" title="${pinned ? "Unpin from" : "Pin to"} Quick Access">&#9733;</button>`;
+          return `<li class="hub-search__result"${entry.locked ? ' aria-disabled="true"' : ""} data-module-key="${safeText(entry.moduleKey)}"><a href="${safeText(entry.href)}"${entry.locked ? ' aria-disabled="true"' : ""} data-module-key="${safeText(entry.moduleKey)}">${safeText(entry.label)}</a>${pinBtn}</li>`;
+        })
+        .join("")
+    : '<li class="hub-search__note">No matching tools.</li>';
+}
+
+function bindHubToolsOnce(root) {
+  if (hubTools.bound) return;
+  hubTools.bound = true;
+  root.addEventListener("input", (event) => {
+    if (event.target?.id === "hub-search-input") renderHubSearchResults(event.target.value);
+  });
+  root.addEventListener("click", (event) => {
+    const disabled = event.target.closest?.("a[aria-disabled='true']");
+    if (disabled) {
+      event.preventDefault();
+      return;
+    }
+    const btn = event.target.closest?.("button.hub-pin");
+    if (!btn) return;
+    const key = normalizeModuleKey(btn.dataset.moduleKey || "");
+    const entry = hubTools.entries.find((e) => normalizeModuleKey(e.moduleKey) === key);
+    // Pins require an enabled, routable module that is visible to the CURRENT user.
+    if (!entry || entry.locked || !entry.href || entry.href === "#") return;
+    togglePin(globalThis.localStorage, hubTools.scope, key);
+    renderHubQuickAccess();
+    renderHubSearchResults(root.querySelector("#hub-search-input")?.value || "");
+  });
+  // Delegated family toggle (keyboard-accessible native buttons).
+  elRoot?.addEventListener("click", (event) => {
+    const toggle = event.target.closest?.(".hub-family__toggle");
+    if (!toggle) return;
+    const body = toggle.parentElement?.querySelector(".hub-family__body");
+    if (!body) return;
+    const open = toggle.getAttribute("aria-expanded") !== "true";
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    body.hidden = !open;
+  });
+}
+
+function renderHubTools(session, utilities, accessMap) {
+  const root = ensureHubToolsRoot();
+  if (!root) return;
+  hubTools.scope = scopeFromUser(session?.user);
+  hubTools.entries = buildHubEntries(utilities, accessMap);
+  root.innerHTML = `<label class="hub-search__note" for="hub-search-input">Search tools by name, description, group or former name</label><input id="hub-search-input" class="hub-search__input" type="search" autocomplete="off" placeholder="Search tools" aria-controls="hub-search-results"><ul id="hub-search-results" class="hub-search__results" aria-live="polite"></ul><div id="hub-quick" class="hub-quick"></div>`;
+  renderHubQuickAccess();
+  bindHubToolsOnce(root);
+}
+
 async function performRender() {
+  const renderVersion = presentationRenderVersion;
   setBusy(true);
   if (elEmpty) elEmpty.style.display = "none";
 
   const {
     data: { session },
   } = await supabase.auth.getSession();
+  if (presentationOn && renderVersion !== presentationRenderVersion) return;
   lastRenderedSessionKey = getSessionRenderKey(session);
 
   updateAuthUI(session);
   await showGreeting(session);
+  if (presentationOn && renderVersion !== presentationRenderVersion) return;
 
   if (!session?.user) {
+    if (presentationOn) clearHubTools();
     if (elRoot) {
       elRoot.innerHTML = renderMessageCard(
         "Sign in required",
@@ -437,7 +617,9 @@ async function performRender() {
     utilities = await loadUtilities();
     accessMap = await loadAccessMap(session?.user?.id, utilities);
   } catch (error) {
+    if (presentationOn && renderVersion !== presentationRenderVersion) return;
     console.error("Failed to load PWA module registry", error);
+    if (presentationOn) clearHubTools();
     if (elRoot) {
       elRoot.innerHTML = renderMessageCard(
         "Module registry unavailable",
@@ -449,11 +631,15 @@ async function performRender() {
     return;
   }
 
+  // An identity/revalidation signal can arrive while the old permission request
+  // is pending. Only the latest requested render may publish launcher state.
+  if (presentationOn && renderVersion !== presentationRenderVersion) return;
   if (elRoot) {
     elRoot.innerHTML = renderUtilitiesSectioned(utilities, accessMap);
     elRoot.classList.remove("hub-grid");
     elRoot.classList.add("hub-root-sectioned");
   }
+  if (presentationOn) renderHubTools(session, utilities, accessMap);
   const hasVisible = utilities.some(
     (utility) => (accessMap[utility.id] || "none") !== "none",
   );
@@ -463,6 +649,11 @@ async function performRender() {
 }
 
 async function render(reason = "manual") {
+  if (presentationOn) {
+    presentationRenderVersion++;
+    clearHubTools();
+    if (elRoot) elRoot.innerHTML = "";
+  }
   if (activeRenderPromise) {
     queuedRenderReason = reason;
     return activeRenderPromise;
@@ -545,7 +736,8 @@ function wireEvents() {
       return;
     }
 
-    if (event === "SIGNED_IN" && activeRenderPromise) {
+    if (event === "SIGNED_IN" && activeRenderPromise &&
+        (!presentationOn || sessionKey === lastRenderedSessionKey)) {
       return;
     }
 

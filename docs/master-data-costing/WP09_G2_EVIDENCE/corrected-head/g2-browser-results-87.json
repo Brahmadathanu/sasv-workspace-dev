@@ -1,0 +1,440 @@
+{
+  "synthetic": "mocked network/grants; actual registered keys from the committed live snapshot",
+  "results": [
+    {
+      "name": "O1 electron: flag unset => launcher DOM is byte-identical to the authority-head launcher (rollback = today's launcher)",
+      "status": "PASS",
+      "detail": "bytes=70849"
+    },
+    {
+      "name": "O2 electron: flag unset => no presentation attribute, no families/subgroups/tools, no shared-search bridge",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "O3 electron: only the exact value \"1\" enables (0/true/on/' 1'/'' stay OFF)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "O1 pwa: flag unset => launcher DOM is byte-identical to the authority-head launcher (rollback = today's launcher)",
+      "status": "PASS",
+      "detail": "bytes=14869"
+    },
+    {
+      "name": "O2 pwa: flag unset => no presentation attribute, no families/subgroups/tools, no shared-search bridge",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "O3 pwa: only the exact value \"1\" enables (0/true/on/' 1'/'' stay OFF)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "T1 electron@1280: editor sees all 79 registered modules, 36 top-level cards (section-scoped A→C reference)",
+      "status": "PASS",
+      "detail": "modules=79 top=36"
+    },
+    {
+      "name": "T2 electron@1280: subgroup headings rendered (approved A subgroup count)",
+      "status": "PASS",
+      "detail": "headings=34"
+    },
+    {
+      "name": "T3 electron@1280: no horizontal overflow (families collapsed)",
+      "status": "PASS",
+      "detail": "1280/1280"
+    },
+    {
+      "name": "T4 electron@1280: no horizontal overflow (all families expanded)",
+      "status": "PASS",
+      "detail": "1280/1280"
+    },
+    {
+      "name": "T5 electron@1280: only mocked reads; writes limited to the existing presence heartbeat; no Supabase host contacted",
+      "status": "PASS",
+      "detail": "[{\"table\":\"user_presence\",\"op\":\"upsert\"}]"
+    },
+    {
+      "name": "T1 electron@390: editor sees all 79 registered modules, 36 top-level cards (section-scoped A→C reference)",
+      "status": "PASS",
+      "detail": "modules=79 top=36"
+    },
+    {
+      "name": "T2 electron@390: subgroup headings rendered (approved A subgroup count)",
+      "status": "PASS",
+      "detail": "headings=34"
+    },
+    {
+      "name": "T3 electron@390: no horizontal overflow (families collapsed)",
+      "status": "PASS",
+      "detail": "390/390"
+    },
+    {
+      "name": "T4 electron@390: no horizontal overflow (all families expanded)",
+      "status": "PASS",
+      "detail": "390/390"
+    },
+    {
+      "name": "T5 electron@390: only mocked reads; writes limited to the existing presence heartbeat; no Supabase host contacted",
+      "status": "PASS",
+      "detail": "[{\"table\":\"user_presence\",\"op\":\"upsert\"}]"
+    },
+    {
+      "name": "T1 pwa@1280: editor sees all 41 registered modules, 24 top-level cards (section-scoped A→C reference)",
+      "status": "PASS",
+      "detail": "modules=41 top=24"
+    },
+    {
+      "name": "T2 pwa@1280: subgroup headings rendered (approved A subgroup count)",
+      "status": "PASS",
+      "detail": "headings=23"
+    },
+    {
+      "name": "T3 pwa@1280: no horizontal overflow (families collapsed)",
+      "status": "PASS",
+      "detail": "1280/1280"
+    },
+    {
+      "name": "T4 pwa@1280: no horizontal overflow (all families expanded)",
+      "status": "PASS",
+      "detail": "1280/1280"
+    },
+    {
+      "name": "T5 pwa@1280: only mocked reads; writes limited to the existing presence heartbeat; no Supabase host contacted",
+      "status": "PASS",
+      "detail": "[]"
+    },
+    {
+      "name": "T1 pwa@390: editor sees all 41 registered modules, 24 top-level cards (section-scoped A→C reference)",
+      "status": "PASS",
+      "detail": "modules=41 top=24"
+    },
+    {
+      "name": "T2 pwa@390: subgroup headings rendered (approved A subgroup count)",
+      "status": "PASS",
+      "detail": "headings=23"
+    },
+    {
+      "name": "T3 pwa@390: no horizontal overflow (families collapsed)",
+      "status": "PASS",
+      "detail": "390/390"
+    },
+    {
+      "name": "T4 pwa@390: no horizontal overflow (all families expanded)",
+      "status": "PASS",
+      "detail": "390/390"
+    },
+    {
+      "name": "T5 pwa@390: only mocked reads; writes limited to the existing presence heartbeat; no Supabase host contacted",
+      "status": "PASS",
+      "detail": "[]"
+    },
+    {
+      "name": "K1 electron: native button toggles with Enter and Space, aria-expanded/aria-controls/hidden agree, focus stays on the toggle",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "K1 pwa: native button toggles with Enter and Space, aria-expanded/aria-controls/hidden agree, focus stays on the toggle",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "F1 electron: one Costing family holds all six modules incl. Production Route Manager, collapsed by default",
+      "status": "PASS",
+      "detail": "product-reference-master--costing-suite--costing-suite"
+    },
+    {
+      "name": "F2 electron: every family child keeps its exact registered direct route",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "F3 electron: palette finds Production Route Manager (direct route) while its family stays collapsed",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "F4 electron: pin works with the family collapsed; Quick Access chip routes to the registered destination",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "F5 pwa: search finds Production Route Manager at its PWA route while the family is collapsed",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "F6 pwa: pin works from search with family collapsed (per-user local Quick Access)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "S1 electron palette: approved subgroup search finds the stock views",
+      "status": "PASS",
+      "detail": "Bottled Stock|FG Bulk Stock|Stock & Purchase Explorer|Stock Checker"
+    },
+    {
+      "name": "S2 electron palette: existing alias (etl-monitor) finds Operations Monitor",
+      "status": "PASS",
+      "detail": "ETL Monitor"
+    },
+    {
+      "name": "S3 electron palette: description text now matches",
+      "status": "PASS",
+      "detail": "workflow -> 6"
+    },
+    {
+      "name": "S4 pwa: same matcher — alias, subgroup and label hits",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "R1 electron viewer: view-mode modules locked (href '#', route kept), read-mode modules clickable read-only",
+      "status": "PASS",
+      "detail": "locked=72 read=7"
+    },
+    {
+      "name": "R2 electron viewer: locked modules never appear in the palette (existing semantics) and cannot be pinned",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "R3 electron viewer: header search still lists the already-visible locked module (disabled), as before",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "R4 electron denied: no module, family or subgroup is visible",
+      "status": "PASS",
+      "detail": "groups=0"
+    },
+    {
+      "name": "R5 electron mixed: single granted member shows its family (1 child, auto-expanded) and every other family/section disappears",
+      "status": "PASS",
+      "detail": "[{\"n\":1,\"open\":\"true\"}]"
+    },
+    {
+      "name": "R6 electron: permission failure (error) => fail closed (0 visible modules, no pinned/search leftovers)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "R6 electron: permission failure (nonarray) => fail closed (0 visible modules, no pinned/search leftovers)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "R1 pwa viewer: already-visible locked result is shown DISABLED (href '#', no pin button), never enabled",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "R2 pwa viewer: clicking a locked result does not navigate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "R4 pwa denied: no module, family or subgroup is visible",
+      "status": "PASS",
+      "detail": "groups=0"
+    },
+    {
+      "name": "R5 pwa mixed: single granted member shows its family (1 child, auto-expanded) and every other family/section disappears",
+      "status": "PASS",
+      "detail": "[{\"n\":1,\"open\":\"true\"}]"
+    },
+    {
+      "name": "R6 pwa: permission failure (error) => fail closed (0 visible modules, no pinned/search leftovers)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "R6 pwa: permission failure (nonarray) => fail closed (0 visible modules, no pinned/search leftovers)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "X1 electron: unknown registry key stays visible and reachable",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "X2 electron: unknown key => 'More' subgroup, flat (no family)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "X3 electron: cross-section collision (view-logs moved to System) => stays in System as a flat 'More' item; Work Log family is NOT used",
+      "status": "PASS",
+      "detail": "{\"sub\":\"More\",\"fallback\":\"true\",\"fam\":false,\"sec\":\"system\"}"
+    },
+    {
+      "name": "X4 electron: section absent from the catalog sorts AFTER every catalog section (deterministic)",
+      "status": "PASS",
+      "detail": "work-log>planning-workspace>mrp-procurement>inventory-sales>product-reference-master>qa-qc>plant-assets>bmr-production-records>sops>system>admin>zz-not-in-catalog"
+    },
+    {
+      "name": "X1 pwa: unknown registry key stays visible and reachable",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "X2 pwa: unknown key => 'More' subgroup, flat (no family)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "X3 pwa: cross-section collision (view-logs moved to System) => stays in System as a flat 'More' item; Work Log family is NOT used",
+      "status": "PASS",
+      "detail": "{\"sub\":\"More\",\"fallback\":\"true\",\"fam\":false,\"sec\":\"system\"}"
+    },
+    {
+      "name": "X4 pwa: section absent from the catalog sorts AFTER every catalog section (deterministic)",
+      "status": "PASS",
+      "detail": "work-log>mrp-procurement>inventory-sales>product-reference-master>qa-qc>system>admin>zz-not-in-catalog"
+    },
+    {
+      "name": "P1 electron: three seeded pins render for their owner",
+      "status": "PASS",
+      "detail": "Canonical Admin|Lab Workflow Access Control Manager|Staff Directory Manager"
+    },
+    {
+      "name": "P2 electron: revoked module disappears from Quick Access but the pin is retained",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "P3 electron: a pin whose module became view-only is not shown (pins require enabled modules)",
+      "status": "PASS",
+      "detail": "mode=view shown=2"
+    },
+    {
+      "name": "P4 electron: user A sees A's pins",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "P5 electron: a different user in the same browser profile sees none of A's pins",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "P8 electron: pin cap is 10 (attempted 12)",
+      "status": "PASS",
+      "detail": "stored=10"
+    },
+    {
+      "name": "P1 pwa: three seeded pins render for their owner",
+      "status": "PASS",
+      "detail": "Canonical Admin|Staff Directory Manager|Executive MIS Dashboard"
+    },
+    {
+      "name": "P2 pwa: revoked module disappears from Quick Access but the pin is retained",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "P3 pwa: a pin whose module became view-only is not shown (pins require enabled modules)",
+      "status": "PASS",
+      "detail": "mode=view shown=2"
+    },
+    {
+      "name": "P4 pwa: user A sees A's pins",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "P5 pwa: identity change clears the active Quick Access, search results and query (no state from user A is shown to user B)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "P6 pwa: switching back shows A's pins again (no cross-user write occurred)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "P7 pwa: sign-out clears tools (no pins/search state remain)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "P8 pwa: pin cap is 10 (attempted 12)",
+      "status": "PASS",
+      "detail": "stored=10"
+    },
+    {
+      "name": "R1 pwa: tools/search/modules disappear while revalidation permissions are held",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "R2 pwa: changed SIGNED_IN is queued and stale response never republishes tools",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "R3 pwa: final denied identity gets neither prior pins, modules nor search hits",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "R4 pwa: sign-out clears tools synchronously before old permissions resolve",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "R5 pwa: old permission response cannot restore tools after sign-out",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "M0 control: permission filter holds on the real code (electron + pwa)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "M1 mutation 'electron permission-filter bypass' is DETECTED",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "M2 mutation 'pwa permission-filter bypass' is DETECTED",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "M3 control: denied modules never leak into search (electron + pwa)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "M4 mutation 'pwa hidden search-result leakage' is DETECTED",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "M5 mutation 'electron palette leakage of denied modules' is DETECTED",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "M6 control: no pin reuse across a user switch on the real code",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "M7 mutation 'stale pin reuse across users' is DETECTED",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "V1 screenshots written (mocked data)",
+      "status": "PASS",
+      "detail": "/tmp/claude-0/scratch/shots2"
+    }
+  ]
+}
