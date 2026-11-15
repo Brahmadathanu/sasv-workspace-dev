@@ -1,0 +1,174 @@
+[
+  {
+    "client": "electron",
+    "registered_modules": 79,
+    "mapped_modules": 79,
+    "option_a_tiles": 79,
+    "option_a_sections": 11,
+    "option_a_subgroups": 34,
+    "option_b_tiles": 79,
+    "option_b_sections": 9,
+    "option_c_top_level": 36,
+    "count_basis": "maximum registered inventory, before per-user grants; families scoped to live section; singleton family still counts as one tile",
+    "perSection": [
+      {
+        "section": "admin",
+        "modules": 5,
+        "subgroups": 3,
+        "family_cards": 2,
+        "flat_tiles": 1,
+        "option_c_top_level": 3
+      },
+      {
+        "section": "bmr-production-records",
+        "modules": 1,
+        "subgroups": 1,
+        "family_cards": 0,
+        "flat_tiles": 1,
+        "option_c_top_level": 1
+      },
+      {
+        "section": "inventory-sales",
+        "modules": 15,
+        "subgroups": 7,
+        "family_cards": 4,
+        "flat_tiles": 3,
+        "option_c_top_level": 7
+      },
+      {
+        "section": "mrp-procurement",
+        "modules": 12,
+        "subgroups": 5,
+        "family_cards": 3,
+        "flat_tiles": 3,
+        "option_c_top_level": 6
+      },
+      {
+        "section": "planning-workspace",
+        "modules": 4,
+        "subgroups": 2,
+        "family_cards": 1,
+        "flat_tiles": 2,
+        "option_c_top_level": 3
+      },
+      {
+        "section": "plant-assets",
+        "modules": 5,
+        "subgroups": 1,
+        "family_cards": 1,
+        "flat_tiles": 0,
+        "option_c_top_level": 1
+      },
+      {
+        "section": "product-reference-master",
+        "modules": 15,
+        "subgroups": 5,
+        "family_cards": 5,
+        "flat_tiles": 0,
+        "option_c_top_level": 5
+      },
+      {
+        "section": "qa-qc",
+        "modules": 9,
+        "subgroups": 3,
+        "family_cards": 3,
+        "flat_tiles": 0,
+        "option_c_top_level": 3
+      },
+      {
+        "section": "sops",
+        "modules": 3,
+        "subgroups": 1,
+        "family_cards": 1,
+        "flat_tiles": 0,
+        "option_c_top_level": 1
+      },
+      {
+        "section": "system",
+        "modules": 4,
+        "subgroups": 3,
+        "family_cards": 2,
+        "flat_tiles": 1,
+        "option_c_top_level": 3
+      },
+      {
+        "section": "work-log",
+        "modules": 6,
+        "subgroups": 3,
+        "family_cards": 3,
+        "flat_tiles": 0,
+        "option_c_top_level": 3
+      }
+    ]
+  },
+  {
+    "client": "pwa",
+    "registered_modules": 41,
+    "mapped_modules": 41,
+    "option_a_tiles": 41,
+    "option_a_sections": 7,
+    "option_a_subgroups": 23,
+    "option_b_tiles": 41,
+    "option_b_sections": 9,
+    "option_c_top_level": 24,
+    "count_basis": "maximum registered inventory, before per-user grants; families scoped to live section; singleton family still counts as one tile",
+    "perSection": [
+      {
+        "section": "admin",
+        "modules": 4,
+        "subgroups": 3,
+        "family_cards": 2,
+        "flat_tiles": 1,
+        "option_c_top_level": 3
+      },
+      {
+        "section": "inventory-sales",
+        "modules": 11,
+        "subgroups": 6,
+        "family_cards": 3,
+        "flat_tiles": 3,
+        "option_c_top_level": 6
+      },
+      {
+        "section": "mrp-procurement",
+        "modules": 4,
+        "subgroups": 3,
+        "family_cards": 1,
+        "flat_tiles": 3,
+        "option_c_top_level": 4
+      },
+      {
+        "section": "product-reference-master",
+        "modules": 8,
+        "subgroups": 3,
+        "family_cards": 3,
+        "flat_tiles": 0,
+        "option_c_top_level": 3
+      },
+      {
+        "section": "qa-qc",
+        "modules": 8,
+        "subgroups": 3,
+        "family_cards": 3,
+        "flat_tiles": 0,
+        "option_c_top_level": 3
+      },
+      {
+        "section": "system",
+        "modules": 4,
+        "subgroups": 3,
+        "family_cards": 2,
+        "flat_tiles": 1,
+        "option_c_top_level": 3
+      },
+      {
+        "section": "work-log",
+        "modules": 2,
+        "subgroups": 2,
+        "family_cards": 2,
+        "flat_tiles": 0,
+        "option_c_top_level": 2
+      }
+    ]
+  }
+]

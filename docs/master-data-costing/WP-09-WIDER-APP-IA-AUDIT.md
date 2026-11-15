@@ -1,69 +1,37 @@
-> **15 NOV 2026 — WP09 G1 OPEN / SOURCE + LIVE REGISTRY AUDIT:** WP08 is owner-conditionally CLOSED and the programme is **9/13**. [WP09 G1 bulk audit issue #432](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/432) captures the read-only live 85-module / 79 Electron / 41 PWA entry baseline, the 11-section audit and the scoped one-package G1 source/role/route inventory and G2 design options. **No G2 grouping design has been approved; no launcher source, registration, permissions, SQL, flags, deployments or Electron route changes authorised.** WP11 visual defects, WP12 final release and WP08 residual receiving obligations remain separate. Historical G0/NOT STARTED entries below are superseded by this latest banner.
-
 # WP-09 — Wider Application Launcher/Section Audit
 
+**15 November 2026 — G1 OWNER ACCEPTED; G2 A→C CLIENT IMPLEMENTATION AUTHORISED. WP09 OPEN; programme 9/13.**
+
+[Owner authority and conditions](WP09_OWNER_G1_ACCEPTANCE_G2_AUTHORITY_2026-11-15.md). One consolidated Claude package is ready; task submission is awaiting the owner’s existing Claude session (the inspected browser requires sign-in). No coding task is claimed started. Existing draft [PR #434](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/434), [issue #432](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/432).
+
 ## Objective
-Inspect the wider workspace for granular launchers, duplication and weak grouping after Product + Costing are understood.
+Inspect the wider workspace for granular launchers, duplication and weak grouping after Product + Costing are understood. This file is the work-pack authority under `MASTER_PROGRAMME.md`.
 
-## Why this work pack exists
-See MASTER_PROGRAMME.md and the approved programme handoff. This file is the durable authority for this work pack.
+## Current gate and evidence
+G1 source/live metadata reconciliation and independent review complete in bounded audit scope; owner completion/design decision now recorded in the authority document. [Corrected G1 report](WP09_G1_BULK_AUDIT_REPORT_2026-11-15.md) records provenance, exact module mapping, options, test classifications and decisions D1–D8. The original [new-chat handover](WP09_G1_INDEPENDENT_REVIEW_NEW_CHAT_HANDOVER_2026-11-15.md) is preserved unchanged as historical orientation; the corrected report supersedes its mapping-pending status.
 
-## Entry criteria
-All prerequisite work packs in MASTER_PROGRAMME.md are completed and verified.
+Read-only capture: 85 definitions (6 inactive), 79 Electron / 41 PWA registrations, 11 active sections. All 79 exact live Electron keys and 41 PWA keys now map to canonical sources and current routes/sections. No alias substitution, lost child launcher or Option A section move. All 92 source pages are partitioned: 79 mapped canonical owners and 13 shell/auth/redirect/source-only pages. The original Claude container's lack of database access remains historical fact; later ChatGPT capture is complete, not currently BLOCKED.
 
-## Scope
-As defined by the approved programme handoff; refine only from audited live architecture and explicit decisions.
+## Findings and proposed design
+A→C is **owner approved** within the client-only authority. A retains 11 Electron / 7 PWA populated sections with 79 / 41 tiles; C reduces maximum registered top-level tiles to **36 / 24**, with section-scoped families and no registry change. B re-sections into nine domains and requires separate SQL authority. Six Costing modules, including Production Route Manager, remain independent permission and route targets in a proposed family.
 
-## Explicit exclusions
-No work belonging to later gates; no guessed data; no unrelated/e-Aushadhi changes.
-
-## Current-state findings
-Live read-only 15 Nov inventory: 85 module definitions, 79 active navigable Electron entries, 41 PWA, 11 active sections, no duplicate active client route URLs and no orphan sections. All 41 PWA entries exist in Electron; 38 active Electron-only. Permission-specific visibility and functional duplication are NOT TESTED. Full evidence/next audit contract: issue #432.
-
-## Approved design / contract
-Not yet approved.
+Season-profile source writers overlap, but `manage-season-profiles` is unregistered. `production-overrides` is an unregistered broken source shell. Neither is a pair of duplicate live cards. Both local-fallback modules are already live registered, so missing-row fallback injection is dormant. Two lab page/registry permission-name differences require WP12 role/page acceptance; their runtime effect is NOT TESTED.
 
 ## Milestones
-- [~] Current-state/audit gate (G1 read-only inventory started; bulk audit issue #432)
-- [ ] Design/contract gate where applicable
-- [ ] Implementation gate where applicable
-- [ ] Focused verification
-- [ ] Independent audit
-- [ ] Merge/post-merge proof where applicable
-- [ ] Final handover
+- [x] Source and captured-metadata audit reconciled
+- [x] Exact-key mapping / route / mutation verification
+- [x] ChatGPT independent review of Claude audit and corrected deliverables
+- [x] Owner G1 completion and design decisions
+- [x] G2 client implementation authorisation; detailed contract to be reviewed with code
+- [ ] Implementation / focused acceptance / independent code review
+- [ ] Merge and post-merge evidence
+- [ ] Formal WP09 closure
 
-## Current Gate
-`WP09-G1 — wider application launcher/source/registry audit OPEN`
+## Verification
+Fresh registry **21/21 PASS**, source **50/50 PASS**, mutation **22/22 PASS**. Fresh WP08 G2-1 source **13/13**, resolver **8/8**, SW freshness **15/15 PASS**. Historical G2-0 scope guards retain **2 FAIL of 13**; fresh registry SQL **1 PASS / 17 SKIPPED** (no PostgreSQL binaries). Claude's original synthetic Chromium **33/33** and fail-closed **81/81 PASS** remain historical; fresh browser rerun BLOCKED by browser-launch environment restrictions. Live roles, installed PWA, packaged Electron and Windows release remain **NOT TESTED**, not synthetic PASS.
 
-## Gate Status
-[~] IN PROGRESS — G1; programme 9/13 (WP09 OPEN)
+## Next gate / owner decisions
+Execute the [authorised single G2 package](WP09_G2_SINGLE_CLIENT_PACKAGE_2026-11-15.md), then ChatGPT independently reviews the implementation. G1 is accepted; recommendations approved in the [owner record](WP09_OWNER_G1_ACCEPTANCE_G2_AUTHORITY_2026-11-15.md) no longer require repeated confirmation. No merge, deployment, production flag activation or formal WP09 closure follows automatically. Separate writer/source cleanup remains conditional on exact review.
 
-## Required to close
-Entry criteria must be satisfied and the work pack explicitly started.
-
-## Next gate
-Complete one source-pinned role/route/section and workflow audit in issue #432; submit owner-ready G2 grouping alternatives without changing registry/source or permissions.
-
-## Server changes
-None.
-
-## Client changes
-None.
-
-## Tests / verification
-G0 read-only SQL inventory verified 15 Nov; 85 modules, 79 Electron active nav, 41 PWA active nav, section counts and no orphan/duplicate URL. G1 source, role, browser and UX verification still NOT TESTED.
-
-## Decisions created
-None.
-
-## Risks
-Premature assumptions; scope drift; duplicated authority; loss of effective-dated/history semantics.
-
-## Parked discoveries
-None.
-
-## Exit criteria
-All work-pack objectives and required verification gates pass; documentation and handover are current.
-
-## Final handover
-G1 audit package opened in issue #432, owner design choice pending; no implementation or closure.
+## Changes and protected boundaries
+Audit scripts, evidence and documentation only. No runtime client, server, registry, permission, grant, RLS, migration, feature-flag, deployment or Electron-route change. WP08/PEC not reopened. Historical CRLF-only 20261112 migrations untouched. WP11 PM BOM overflow and SKU Deactivate contrast #429 retained. WP12 inherited security, flags, PWA, Electron/Windows and WP08 eight-case receiving obligations remain OPEN; Pricing unknown destinations stay text-only. No work-pack closure or programme-count advance.

@@ -1,0 +1,196 @@
+{
+  "synthetic": true,
+  "density": {
+    "electron-1280": {
+      "modules": 79,
+      "sections": 11,
+      "pageHeightPx": 2133,
+      "horizontalOverflow": false
+    },
+    "electron-390": {
+      "modules": 79,
+      "sections": 11,
+      "pageHeightPx": 5559,
+      "horizontalOverflow": false
+    },
+    "pwa-1280": {
+      "modules": 41,
+      "sections": 7,
+      "pageHeightPx": 3123,
+      "horizontalOverflow": false
+    },
+    "pwa-390": {
+      "modules": 41,
+      "sections": 7,
+      "pageHeightPx": 6721,
+      "horizontalOverflow": false
+    }
+  },
+  "results": [
+    {
+      "name": "E1 visible sections render in app_nav_sections.sort_order",
+      "ok": true,
+      "detail": "Alpha|Beta|Gamma"
+    },
+    {
+      "name": "E2 sort_order tie broken deterministically by label (Alpha Module before Zeta Module)",
+      "ok": true,
+      "detail": "Alpha Module|Zeta Module|Read Only Module"
+    },
+    {
+      "name": "E3 use => enabled link with route",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "E4 min_nav_mode=read + can_view => clickable read-only",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "E5 min_nav_mode=view + can_view => visible but locked, href '#', route kept in data-href",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "E6 no grant => hidden (display none)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "E7 legacy key alias hub_admin resolves to grant for admin-console",
+      "ok": true,
+      "detail": "{\"display\":\"flex\",\"locked\":false,\"ro\":false,\"href\":\"public/shared/hub_admin.html\",\"dh\":\"public/shared/hub_admin.html\"}"
+    },
+    {
+      "name": "E8 section panel with only hidden rows is not shown (Beta has a locked row so remains)",
+      "ok": true,
+      "detail": "visible panels=3"
+    },
+    {
+      "name": "P1 Ctrl+K lists only non-locked visible modules",
+      "ok": true,
+      "detail": "Alpha Module|Zeta Module|Read Only Module|Admin Console Alias|Edit Module"
+    },
+    {
+      "name": "P2 palette matches LABEL only (description text finds nothing) — documented limitation",
+      "ok": true,
+      "detail": "hits=0"
+    },
+    {
+      "name": "P3 palette does not match section names (Beta section search finds no label)",
+      "ok": true,
+      "detail": "hits=0"
+    },
+    {
+      "name": "P4 palette substring search by label works",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "P5 header search datalist also lists locked module (differs from palette) — inconsistency recorded",
+      "ok": true,
+      "detail": "Alpha Module|Zeta Module|Read Only Module|Locked Module|Admin Console Alias|Edit Module"
+    },
+    {
+      "name": "Q1 pin from palette appears in Quick Access",
+      "ok": true,
+      "detail": "Edit Module"
+    },
+    {
+      "name": "Q2 pins are per-user localStorage (client-local, not server-synced)",
+      "ok": true,
+      "detail": "[\"edit-mod\"]"
+    },
+    {
+      "name": "Q3 no writer API called by launcher while pinning (presence heartbeat is the only write)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Q4 launcher writes limited to user_presence heartbeat (no registry/permission write)",
+      "ok": true,
+      "detail": "[{\"table\":\"user_presence\",\"op\":\"upsert\"}]"
+    },
+    {
+      "name": "Q5 pinned module with revoked grant, locked module and removed key are NOT shown in Quick Access",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Q6 stale/ungranted pins are retained in storage (restore when access returns; never pruned)",
+      "ok": true,
+      "detail": "[\"edit-mod\",\"locked-mod\",\"zzz-removed\"]"
+    },
+    {
+      "name": "Q7 pin restored once grant is present again",
+      "ok": true,
+      "detail": "Edit Module"
+    },
+    {
+      "name": "F3 FINDING: client-side fallback module (absent from registry) creates an off-catalog section ordered by array index => rendered BEFORE all catalog sections",
+      "ok": true,
+      "detail": "System & Admin|Alpha|Beta|Gamma"
+    },
+    {
+      "name": "F1 permission RPC error => launcher fails closed (0 visible modules)",
+      "ok": true,
+      "detail": "visible=0"
+    },
+    {
+      "name": "F1 permission RPC nonarray => launcher fails closed (0 visible modules)",
+      "ok": true,
+      "detail": "visible=0"
+    },
+    {
+      "name": "F2 empty grant set shows 'Account active' status panel",
+      "ok": true,
+      "detail": "Account active"
+    },
+    {
+      "name": "R-E1280 Electron 79 entries @1280px: all visible, no horizontal overflow",
+      "ok": true,
+      "detail": "visible=79 panels=11 scrollWidth=1280/1280 pageHeight=2133px"
+    },
+    {
+      "name": "R-E390 Electron 79 entries @390px: all visible, no horizontal overflow",
+      "ok": true,
+      "detail": "visible=79 panels=11 scrollWidth=390/390 pageHeight=5559px"
+    },
+    {
+      "name": "H1 PWA hides ungranted module entirely (not in DOM)",
+      "ok": true,
+      "detail": "Alpha Module|Zeta Module|Read Only Module|Locked Module|Admin Console Alias|Edit Module"
+    },
+    {
+      "name": "H2 PWA locked module rendered with href '#' and View only note",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "H3 PWA sort tie also resolved by label",
+      "ok": true,
+      "detail": "Alpha Module|Zeta Module"
+    },
+    {
+      "name": "H4 PWA hub has NO module search / palette / Quick Access (client asymmetry recorded)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "H5 PWA small sample @390px no horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390/390"
+    },
+    {
+      "name": "R-P1280 PWA 41 entries @1280px: all rendered, no horizontal overflow",
+      "ok": true,
+      "detail": "cards=41 sections=7 scrollWidth=1280/1280 pageHeight=3123px"
+    },
+    {
+      "name": "R-P390 PWA 41 entries @390px: all rendered, no horizontal overflow",
+      "ok": true,
+      "detail": "cards=41 sections=7 scrollWidth=390/390 pageHeight=6721px"
+    }
+  ]
+}
