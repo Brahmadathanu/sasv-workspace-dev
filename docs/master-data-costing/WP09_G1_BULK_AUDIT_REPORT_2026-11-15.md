@@ -1,3 +1,5 @@
+> **Owner decision recorded later on 15 November:** G1 accepted in documented audit scope; A→C client implementation authorised. See [owner authority](WP09_OWNER_G1_ACCEPTANCE_G2_AUTHORITY_2026-11-15.md). The decision matrix and pending language below describe the pre-approval recommendation; the owner record supersedes that status, retaining all test limitations. WP09 OPEN, 9/13.
+
 # WP09 G1 — Reconciled launcher / section IA audit (15 November 2026)
 
 **G1 technical audit READY for owner completion decision. WP09 OPEN; programme 9/13. G2 implementation NOT AUTHORISED.** This is the corrected audit in existing draft PR #434 for issue #432. Recommendations below are unapproved. No launcher source, registry, SQL, permissions, flags, deployment or Electron routes changed.
