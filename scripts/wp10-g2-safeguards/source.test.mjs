@@ -28,14 +28,14 @@ test("S1 flag is read-only, exact '1', never set by shipped code", () => {
 test("S2 helper modules load only by dynamic import behind the flag (no static import)", () => {
   assert.equal(/^import .*wp10-safeguards/m.test(products), false);
   assert.equal(/^import .*wp10-safeguards/m.test(readiness), false);
-  assert.match(products, /import\("\.\/wp10-safeguards\.js"\)/);
-  assert.match(readiness, /import\("\.\/wp10-safeguards-ui\.js"\)/);
+  assert.match(products, /import\("\.\/wp10-safeguards\.js\?v=[0-9a-f]{10}"\)/);
+  assert.match(readiness, /import\("\.\/wp10-safeguards-ui\.js\?v=[0-9a-f]{10}"\)/);
 });
 
 test("S3 new client modules call no writer and no table API; only the read-only horizon endpoint is named", () => {
   for (const src of [core, ui]) {
     assert.equal(/\.rpc\(\s*["']rpc_(create|update|set|build|refresh|rebuild)/.test(src), false);
-    assert.equal(/\.from\(|\.insert\(|\.upsert\(|\.delete\(/.test(src), false);
+    assert.equal(/\.from\(\s*["'`]|\.insert\(\s*[\[{]|\.upsert\(|\.update\(\s*\{|supabase\s*\./.test(src), false); // table API shapes only (Map.delete / Array.from are not table calls)
   }
   assert.match(core, /rpc_wp10_get_operational_expiry_horizon/);
 });
@@ -55,8 +55,11 @@ test("S5 protected files are byte-identical to origin/main (sw.js, manage-produc
   }
 });
 
-test("S6 SQL proposals live outside supabase/migrations and no migration file was added", () => {
-  assert.ok(fs.existsSync(path.join(root, "supabase/draft-proposals/wp10-g2-unapplied")));
+test("S6 SQL proposals live outside supabase/ entirely (so the PEC protected-path guard needs no exemption) and no migration/supabase file was added", () => {
+  const supa = git("diff", "--name-only", "origin/main", "HEAD", "--", "supabase").split("\n").filter(Boolean);
+  assert.deepEqual(supa, [], "no tracked supabase/ change");
+  assert.equal(fs.existsSync(path.join(root, "supabase/draft-proposals")), false);
+  assert.ok(fs.existsSync(path.join(root, "docs/master-data-costing/WP10_G2_UNAPPLIED_SQL_PROPOSALS")));
   const added = git("diff", "--name-status", "origin/main", "--", "supabase/migrations").split("\n").filter((l) => /^A/.test(l));
   assert.deepEqual(added, []);
   const untrackedMig = git("ls-files", "--others", "--exclude-standard", "supabase/migrations").trim();

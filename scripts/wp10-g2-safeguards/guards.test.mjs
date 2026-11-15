@@ -2,6 +2,7 @@
 // Live-verbatim writers/guards/resolvers from the G1 fixture; route VALIDATION is the labelled G1 stand-in. Proposal SQL loaded exactly as drafted.
 // Run: node scripts/wp10-g2-safeguards/guards.test.mjs [resultsJson]
 import fs from "node:fs";
+import { spawn } from "node:child_process";
 import { pgAvailable, startPg, g2FixtureSql, makeRunner, session, draft, DRAFTS, T, NEWSKU, ACTIVATE } from "./fixture.mjs";
 import { makeResults } from "../wp10-g1-safeguard-audit/lib.mjs";
 
@@ -15,6 +16,7 @@ const OPEN = (sku, product) => NEWSKU(product, 10 + sku) + `select public.fx_com
 const SUBGROUP_ROUTE = "insert into costing.production_route_family(id, status, effective_from) values (777, 'APPROVED', date '2026-01-01');\ninsert into costing.production_route_family_product_subgroup_map(product_subgroup_id, route_family_id, status, effective_from) values (1, 777, 'APPROVED', date '2026-01-01');\ninsert into costing.production_route_family_route(route_family_id, status, effective_from) values (777, 'APPROVED', date '2026-01-01');\n";
 // product-level essentials (batch size + product-level route) for product p, WITHOUT touching SKU-level rows
 const PRODUCT_LEVEL = (p) => `insert into public.production_batch_size_ref(product_id, effective_from) values (${p}, date '2026-01-01');\ninsert into costing.production_route_family(id, status, effective_from) values (${900 + p}, 'APPROVED', date '2026-01-01');\ninsert into costing.production_route_family_product_map(product_id, route_family_id, status, effective_from) values (${p}, ${900 + p}, 'APPROVED', date '2026-01-01');\ninsert into costing.production_route_family_route(route_family_id, status, effective_from) values (${900 + p}, 'APPROVED', date '2026-01-01');\n`;
+const AMBIG = (p) => `select public.fx_product_route(${p}, date '2026-01-01', null, (select id from costing.production_route_family_route where route_family_id = ${900 + p} limit 1));\nselect public.fx_product_route(${p}, date '2026-02-01', null, (select id from costing.production_route_family_route where route_family_id = ${900 + p} limit 1));\n`;
 const SUBGROUP_ACTIVE = (sku, product) => NEWSKU(product, 10 + sku) + `select public.fx_complete(${sku}, ${product}, 'ROUTE');\n` + ACTIVATE(sku);
 
 try {
@@ -91,10 +93,58 @@ try {
       + T("route_already_invalid", UPD(1, "P1", 3, "Active", "route already missing")));
     check("P3.1", "when the route was ALREADY invalid before the edit, nothing is newly lost and the edit is allowed (the guard never blocks pre-existing drift)", s.log.route_already_invalid.ok);
   }
+  // ================= R1: unresolved impact is REJECTED (distinct reason), never read as "no impact" =================
+  // The validator is replaced by a branch-on-subgroup stand-in ONLY to force each evaluation outcome; the live chain is exercised separately (P6/P7).
+  const VAL = (bySubgroup) => `create or replace function costing.fn_validate_effective_product_process_route(p_product_id integer, p_as_of_date date default current_date) returns jsonb language plpgsql as $$
+    declare sg integer; begin select sub_group_id into sg from public.products where id = p_product_id;
+    ${Object.entries(bySubgroup).map(([k, v]) => `if sg = ${k} then ${v}; end if;`).join(" ")} return jsonb_build_object('valid', true); end $$;\n`;
+  const RAISE = "raise exception 'validator down'", INVALID = "return jsonb_build_object('valid', false)", MALFORMED = "return jsonb_build_object('errors', jsonb_build_array('x'))", VALID = "return jsonb_build_object('valid', true)";
+  const R1CASE = (label, vals, move = 3) => {
+    const s = scenario(EDITOR + OPEN(1, 1) + VAL(vals) + "create table public.fx_snap_epoch as select epoch from costing.readiness_portfolio_source_epoch where source_relation = 'public.products';\n" + T(label, UPD(1, "P1", move, "Active", "route change")));
+    return { s, rejected: !s.log[label].ok, unresolved: /WP10_PRODUCT_ROUTE_IMPACT_UNRESOLVED/.test(s.log[label].msg || ""), rolledBack: s.one("select sub_group_id from public.products where id=1") === "1" && s.one("select count(*) from public.product_master_audit") === "0" };
+  };
   {
-    const s = scenario(EDITOR + SUBGROUP_ROUTE + SUBGROUP_ACTIVE(1, 1) + "create or replace function costing.fn_validate_effective_product_process_route(p_product_id integer, p_as_of_date date default current_date) returns jsonb language plpgsql as $$ begin raise exception 'validator down'; end $$;\n"
-      + T("validator_error", UPD(1, "P1", 3, "Active", "validator unavailable")));
-    check("P4.1", "EXPLICIT DECISION: an evaluation ERROR never blocks a master-data edit (unknown → allowed; detection by epoch/horizon remains)", s.log.validator_error.ok);
+    const c1 = R1CASE("after_error", { 3: RAISE });
+    check("P4.1", "R1 AFTER-error (valid before, evaluation raises after): REJECTED with the distinct review-required reason WP10_PRODUCT_ROUTE_IMPACT_UNRESOLVED; product row and product_master_audit row rolled back", c1.rejected && c1.unresolved && c1.rolledBack, c1.s.log.after_error.msg);
+    const c2 = R1CASE("before_error", { 1: RAISE, 3: INVALID });
+    check("P4.2", "R1 BEFORE-error with invalid after: REJECTED as UNRESOLVED (cannot prove nothing was newly lost); fully rolled back", c2.rejected && c2.unresolved && c2.rolledBack, c2.s.log.before_error.msg);
+    const c3 = R1CASE("before_error_after_valid", { 1: RAISE, 3: VALID });
+    check("P4.3", "R1 BEFORE-error but the route is VALID after the move: allowed (nothing can be lost)", !c3.rejected);
+    const c4 = R1CASE("malformed_after", { 3: MALFORMED });
+    check("P4.4", "R1 MALFORMED result after the move (no boolean 'valid'): REJECTED as UNRESOLVED", c4.rejected && c4.unresolved && c4.rolledBack, c4.s.log.malformed_after.msg);
+    const c5 = R1CASE("both_error", { 1: RAISE, 3: RAISE });
+    check("P4.5", "R1 error before AND after: REJECTED as UNRESOLVED", c5.rejected && c5.unresolved && c5.rolledBack);
+    const c6 = R1CASE("invalid_to_malformed", { 1: INVALID, 3: MALFORMED });
+    check("P4.6", "R1 already-invalid before, malformed after: REJECTED as UNRESOLVED (unknown is never safe)", c6.rejected && c6.unresolved);
+    const c7 = R1CASE("invalid_stays_invalid", { 1: INVALID, 3: INVALID });
+    check("P4.7", "R1 preserved semantics: invalid -> invalid is NOT a new loss and stays allowed", !c7.rejected);
+    const c8 = R1CASE("valid_stays_valid", { 1: VALID, 3: VALID });
+    check("P4.8", "R1 preserved semantics: valid -> valid is allowed", !c8.rejected);
+    const s9 = scenario(EDITOR + OPEN(1, 4) + VAL({ 3: INVALID }) + "alter table public.products disable trigger trg_wp10_product_route_impact_before;\n" + T("no_before_receipt", UPD(4, "P4", 3, "Active", "before trigger disabled")));
+    check("P4.9", "R1 a missing BEFORE receipt (BEFORE trigger disabled) is UNKNOWN, never safe: the edit is rejected as UNRESOLVED", !s9.log.no_before_receipt.ok && /UNRESOLVED/.test(s9.log.no_before_receipt.msg || ""));
+    const s10 = scenario(EDITOR + NEWSKU(3, 33) + VAL({ 1: RAISE, 3: RAISE }) + T("no_active_sku_error", UPD(3, "P3", 3, "Active", "no active SKU on P3")));
+    check("P4.10", "R1 a product with NO active SKU is never blocked, even when route evaluation fails (ordinary edits unaffected)", s10.log.no_active_sku_error.ok);
+    const s11 = scenario(EDITOR + OPEN(1, 1) + VAL({ 3: RAISE }) + T("rename_only_error", UPD(1, "P1 renamed", 1, "Active", "rename only")));
+    check("P4.11", "R1 an edit that does not change sub_group_id is unaffected even when route evaluation would fail", s11.log.rename_only_error.ok);
+  }
+  // ================= R1/R2: the LIVE route chain (verbatim callees) as the evaluator =================
+  {
+    const s = scenario(EDITOR + SUBGROUP_ROUTE + SUBGROUP_ACTIVE(1, 1) + OPEN(2, 4) + AMBIG(4)
+      + T("live_ambiguous_product_route", UPD(4, "P4", 3, "Active", "product route is ambiguous")));
+    check("P6.1", "R1 with the LIVE chain: an AMBIGUOUS approved product route (overlap raises in the verbatim live resolver) makes the impact unresolved -> REJECTED, rolled back", !s.log.live_ambiguous_product_route.ok && /UNRESOLVED/.test(s.log.live_ambiguous_product_route.msg || "") && s.one("select sub_group_id from public.products where id=4") === "1");
+  }
+  // ================= concurrency: row lock serialises two subgroup edits; the second sees the first's committed state =================
+  {
+    const sc = scenario(EDITOR + SUBGROUP_ROUTE + SUBGROUP_ACTIVE(1, 1) + "insert into costing.production_route_family_product_subgroup_map(product_subgroup_id, route_family_id, status, effective_from) values (2, 777, 'APPROVED', date '2026-01-01');\n");
+    const sock = sc.q("show unix_socket_directories"), port = sc.q("show port");
+    const run = (sqlText) => new Promise((resolve) => { const c = spawn("psql", ["-X", "-q", "-h", sock, "-p", port, "-U", "postgres", "-d", sc.db, "-t", "-A", "-v", "ON_ERROR_STOP=0"], { stdio: ["pipe", "pipe", "pipe"] }); let out = "", err = ""; c.stdout.on("data", (d) => (out += d)); c.stderr.on("data", (d) => (err += d)); c.on("close", () => resolve({ out, err })); c.stdin.end(sqlText); });
+    const pre = EDITOR;
+    const A = run(pre + "begin;\nupdate public.products set sub_group_id = 2 where id = 1;\nselect pg_sleep(1.5);\ncommit;\n");
+    await new Promise((r) => setTimeout(r, 500));
+    const B = run(pre + "update public.products set sub_group_id = 3 where id = 1;\n");
+    const [ra, rb] = await Promise.all([A, B]);
+    check("P7.1", "CONCURRENCY: session B (moving to the unmapped sub-group) blocks on A's row lock, then evaluates against A's COMMITTED state (valid at sub-group 2) and is rejected for the harmful move; final state = A's", /WP10_PRODUCT_ROUTE_IMPACT: moving product 1 to sub-group 3/.test(rb.err) && sc.one("select sub_group_id from public.products where id=1") === "2", (rb.err || "").slice(0, 160));
+    check("P7.2", "CONCURRENCY: the allowed session A committed normally (no error)", !/ERROR/.test(ra.err));
   }
   {
     const sql = g2FixtureSql();
@@ -109,9 +159,11 @@ try {
       const s = sc(EDITOR + SUBGROUP_ROUTE + SUBGROUP_ACTIVE(1, 1) + OPEN(2, 4) + PRODUCT_LEVEL(3) + NEWSKU(5, 5) + PRODUCT_LEVEL(5)
         + "insert into costing.production_route_family_product_subgroup_map(product_subgroup_id, route_family_id, status, effective_from) values (2, 777, 'APPROVED', date '2026-01-01');\n"
         + "insert into public.sub_groups values (4, 2);\nupdate public.products set sub_group_id = 3 where id = 7;\n" + NEWSKU(7, 61) + "select public.fx_complete(4, 7, 'ROUTE');\nalter table public.product_skus disable trigger trg_sku_activation_completeness_guard;\nupdate public.product_skus set is_active = true where id = 4;\nalter table public.product_skus enable trigger trg_sku_activation_completeness_guard;\n"
+        + NEWSKU(8, 88) + "select public.fx_complete(5, 8);\n" + ACTIVATE(5) + AMBIG(8)
         + T("active_reparent", "update public.product_skus set product_id = 3 where id = 2")
         + T("already_invalid", UPD(7, "P7", 4, "Active", "route already missing"))
         + T("inactive_reparent", "update public.product_skus set product_id = 6 where id = 3")
+        + T("unknown_impact", UPD(8, "P8", 3, "Active", "route evaluation fails (ambiguous product route)"))
         + T("harmful", UPD(1, "P1", 3, "Active", "x"))
         + T("safe_move", UPD(4, "P4", 3, "Active", "no route lost for P4 (product-level map)"))
         + T("safe_stays_valid", "update public.products set sub_group_id = 2 where id = 1; update public.products set sub_group_id = 1 where id = 1"));
@@ -121,6 +173,7 @@ try {
       if (s.log.harmful.ok) bad.push("harmful-product-edit-accepted");
       if (!s.log.safe_move.ok || !s.log.safe_stays_valid.ok) bad.push("normal-subgroup-edit-blocked");
       if (!s.log.already_invalid.ok) bad.push("preexisting-drift-blocked");
+      if (s.log.unknown_impact.ok) bad.push("unknown-impact-allowed");
       return bad;
     };
     const base = g2FixtureSql();
@@ -131,8 +184,9 @@ try {
       "re-parent trigger dropped": [M("reparent", "create trigger trg_wp10_active_sku_reparent_guard\n  before update of product_id on public.product_skus\n  for each row execute function public.fn_wp10_guard_active_sku_reparent();", ""), "active-reparent-accepted"],
       "re-parent guard rejects inactive SKUs too (over-broad)": [M("reparent", "if old.is_active is true and new.is_active is true and new.product_id", "if new.product_id"), "inactive-reparent-blocked"],
       "product route-impact AFTER trigger dropped": [M("route", "create trigger trg_wp10_product_route_impact_after\n  after update of sub_group_id on public.products\n  for each row execute function public.fn_wp10_product_route_impact_after();", ""), "harmful-product-edit-accepted"],
-      "product guard blocks EVERY subgroup edit (blanket freeze)": [M("route", "if v_after = 'true' then return null; end if;", ""), "normal-subgroup-edit-blocked"],
-      "'route already invalid' exemption removed (blocks pre-existing drift)": [M("route", "if v_before is distinct from 'true' then return null; end if;", ""), "preexisting-drift-blocked"],
+      "product guard blocks EVERY subgroup edit (blanket freeze)": [M("route", "if v_after = 'valid' or (v_before = 'invalid' and v_after = 'invalid') then return null; end if;", ""), "normal-subgroup-edit-blocked"],
+      "'route already invalid' exemption removed (blocks pre-existing drift)": [M("route", "(v_before = 'invalid' and v_after = 'invalid')", "false"), "preexisting-drift-blocked"],
+      "unknown impact treated as safe (R1 regression: fail-open)": [M("route", "  -- remaining combinations (after unknown; or before unknown with after invalid): the impact cannot be proven safe -> REVIEW REQUIRED\n", "  return null;\n"), "unknown-impact-allowed"],
     };
     let n = 0;
     for (const [name, [sql, expected]] of Object.entries(mutants)) {

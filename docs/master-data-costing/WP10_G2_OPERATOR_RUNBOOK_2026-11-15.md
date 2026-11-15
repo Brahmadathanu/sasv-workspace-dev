@@ -28,6 +28,7 @@ Nothing in this runbook runs a builder, rebuilds readiness, retries a writer or 
 - With the flag ON, the Activate dialog shows the missing-requirement pre-check (existing read-only `rpc_get_sku_activation_check`) with the owner screen for each item and a link only where a destination is verified (PM BOM, Production Route).
 - The pre-check is advisory. The server checks again at Confirm and its rejection is shown in full. A clean pre-check is not a promise and does not make costing READY. If the pre-check is unavailable, the dialog says so; the server still decides.
 - “More than one PM BOM revision” = ambiguous; resolve in PM BOM Manager (end or supersede the overlapping approved revision).
+- Only one activation dialog/check runs at a time; if you change the selected SKU or the SKU's state changes while it is open, nothing is submitted (a message says so) — reopen on the SKU you mean.
 - Missing batch size / MRP / selling policy: resolve in the named owner screen; there is no verified deep link, open it from the launcher.
 - There is no override and no approval reference bypass.
 
@@ -35,8 +36,12 @@ Nothing in this runbook runs a builder, rebuilds readiness, retries a writer or 
 - Separate from the governed period: evaluated at today's IST date and every effective-date boundary in the next 30 days.
 - The date shown is the **first day a requirement is not covered** (effective-to dates are inclusive).
 - “Gap that recovers” rows are still reported: a hole that closes before day 30 still affects the days inside it.
-- “Unknown” is never “fine”. Amount sanity (zero/negative) and complete route-boundary coverage are not evaluated (stated on screen).
+- “Unknown” is never “fine”. Amounts (zero/negative) are not evaluated — canonical resolution semantics are preserved (stated on screen). Route boundaries cover product routes, route-family routes, family assignments and effective dependencies through the real validator; a result marked PARTIAL (client budget, malformed or changed window) is never a completeness claim and rows shown are only those received.
+- If the window changes between pages (the date rolled over) the list restarts once from the first page; a second change stops it with an error.
 - Nothing is notified, deactivated or rebuilt by this panel.
+
+## 3b. Product edits that change the sub-group (only after server proposal 05 is separately authorised)
+- A sub-group change on a product with active SKUs is refused when it would remove the product's valid route (`WP10_PRODUCT_ROUTE_IMPACT`) **or** when the impact cannot be determined (`WP10_PRODUCT_ROUTE_IMPACT_UNRESOLVED`, review required). There is no override. Fix the route data with the Production Route Manager owner (or deactivate the SKUs through the audited SKU action), then repeat the edit.
 
 ## 4. Products with no SKU / no active SKU
 Use the existing Readiness → Membership Exceptions (Products with no SKU; Active products without an active SKU). Historical counts in older records (54 / 179) are not current counts.

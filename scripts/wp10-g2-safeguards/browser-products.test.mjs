@@ -18,7 +18,7 @@ const STUB = `
 const user = { id: "00000000-0000-0000-0000-000000000000", email: "wp10@example.invalid" };
 const calls = (window.__MOCK_CALLS = window.__MOCK_CALLS || []);
 const PRODUCTS = [{ id: 7, item: "Test Product", malayalam_name: "ടെസ്റ്റ്", status: "Active", sub_group_id: 1, is_pto: false, uom_base: "Nos", conversion_to_base: 1, is_seasonal: false, season_profile_id: null, is_llt: false, manufacture_lead_time_months: null }];
-const SKUS = [{ id: 71, product_id: 7, pack_size: 100, uom: "ml", is_sample: false, is_active: false }];
+const SKUS = [{ id: 71, product_id: 7, pack_size: 100, uom: "ml", is_sample: false, is_active: false }, { id: 72, product_id: 7, pack_size: 200, uom: "ml", is_sample: false, is_active: false }];
 function table(name) {
   let single = false;
   const proxy = new Proxy(function () {}, {
@@ -70,7 +70,7 @@ let server; let browser;
 test.before(async () => { if (skip) return; server = await startServer("pwa"); browser = await chromium.launch(); });
 test.after(async () => { await browser?.close(); await new Promise((r) => server?.close(r)); });
 
-async function open({ width = 1280, flag = true, rpc = {}, blockModule = false, mutateUi = false } = {}) {
+async function open({ width = 1280, flag = true, rpc = {}, blockModule = false, mutateUi = false, importDelayMs = 0, mutateProducts = null } = {}) {
   const origin = `http://127.0.0.1:${server.address().port}`;
   const context = await browser.newContext({ viewport: { width, height: 900 } });
   await context.addInitScript(([g, f]) => {
@@ -88,6 +88,12 @@ async function open({ width = 1280, flag = true, rpc = {}, blockModule = false, 
   if (mutateUi) await context.route(/wp10-safeguards-ui\.js/, async (route) => {
     const res = await route.fetch();
     const body = (await res.text()).replace("n.textContent = text", "n.innerHTML = text");
+    await route.fulfill({ response: res, body });
+  });
+  if (importDelayMs) await context.route(/wp10-safeguards(-ui)?\.js/, async (route) => { const res = await route.fetch(); await new Promise((r) => setTimeout(r, importDelayMs)); await route.fulfill({ response: res }); });
+  if (mutateProducts) await context.route(/\/js\/products\.js/, async (route) => {
+    const res = await route.fetch(); let body = await res.text();
+    for (const [from, to] of mutateProducts) { if (!body.includes(from)) throw new Error("mutation target missing: " + from); body = body.replace(from, to); }
     await route.fulfill({ response: res, body });
   });
   if (blockModule) await context.route(/wp10-safeguards(-ui)?\.js/, (route) => route.fulfill({ status: 500, body: "boom" }));
@@ -262,3 +268,158 @@ test("M1 mutation control: a UI that renders server text as HTML IS detected (ho
   assert.equal(await page.locator("#governanceModalDetail img").count() > 0, true, "the mutant must be caught by the hostile-text probe");
   await context.close();
 });
+
+// ======================= R3: lifecycle serialization, revalidation, identity of detail/result =======================
+const selectOther = (page) => page.evaluate(() => { const rows = [...document.querySelectorAll("#skuRegisterBody tr, #skuLedger button")].filter((n) => n.offsetParent !== null); rows[1].click(); });
+const countOf = (page, name) => page.evaluate((n) => window.__MOCK_CALLS.filter((c) => c.kind === "rpc" && c.name === n).length, name);
+
+test("R3.1 double invocation during a delayed helper import opens ONE dialog, ONE pre-check and (after confirm) ONE writer call", { skip }, async () => {
+  const { page, context } = await open({ importDelayMs: 600, rpc: { rpc_get_sku_activation_check: { data: MISSING, error: null }, rpc_set_product_sku_active: { data: { ok: true }, error: null } } });
+  await page.locator("#skuToggleActiveBtn").click();
+  await page.locator("#skuToggleActiveBtn").click({ force: true }).catch(() => {});
+  await page.evaluate(() => document.getElementById("skuToggleActiveBtn").click());
+  await page.waitForSelector("#governanceModalOverlay.show");
+  await page.waitForTimeout(900);
+  assert.equal(await countOf(page, "rpc_get_sku_activation_check"), 1);
+  await page.fill("#governanceReason", "one reason");
+  await page.locator("#governanceConfirm").click();
+  await page.waitForTimeout(600);
+  assert.equal(await countOf(page, "rpc_set_product_sku_active"), 1);
+  await context.close();
+});
+
+test("R3.2 selection changed BEFORE the dialog opens (import still pending): nothing opens, no pre-check, no writer", { skip }, async () => {
+  const { page, context } = await open({ importDelayMs: 700, rpc: { rpc_get_sku_activation_check: { data: MISSING, error: null } } });
+  await page.locator("#skuToggleActiveBtn").click();
+  await selectOther(page);
+  await page.waitForTimeout(1200);
+  assert.equal(await page.locator("#governanceModalOverlay.show").count(), 0);
+  assert.equal(await countOf(page, "rpc_get_sku_activation_check"), 0);
+  assert.equal(await countOf(page, "rpc_set_product_sku_active"), 0);
+  // the reservation was released: a fresh attempt on the new selection works
+  await page.locator("#skuToggleActiveBtn").click();
+  await page.waitForSelector("#governanceModalOverlay.show");
+  await context.close();
+});
+
+test("R3.3 selection changed while the dialog is open: confirming submits NOTHING and says why", { skip }, async () => {
+  const { page, context } = await open({ rpc: { rpc_get_sku_activation_check: { data: MISSING, error: null }, rpc_set_product_sku_active: { data: { ok: true }, error: null } } });
+  await page.locator("#skuToggleActiveBtn").click();
+  await page.waitForSelector("#governanceModalDetail .wp10-activation");
+  await selectOther(page);
+  await page.waitForTimeout(400);
+  await page.fill("#governanceReason", "reason");
+  await page.locator("#governanceConfirm").click();
+  await page.waitForTimeout(500);
+  assert.equal(await countOf(page, "rpc_set_product_sku_active"), 0);
+  assert.match(await page.locator("body").innerText(), /nothing was submitted/);
+  await context.close();
+});
+
+test("R3.4 a stale pre-check response for a previous SKU never paints into a later dialog; the catch path is identity-checked too", { skip }, async () => {
+  const slowFail = async () => { await new Promise((r) => setTimeout(r, 900)); throw new Error("late failure"); };
+  const { page, context } = await open({ rpc: { rpc_get_sku_activation_check: slowFail } });
+  await page.locator("#skuToggleActiveBtn").click();
+  await page.waitForSelector("#governanceModalOverlay.show");
+  await page.locator("#governanceCancel").click();
+  await selectOther(page);
+  await page.waitForTimeout(1300);
+  assert.equal((await page.locator("#governanceModalDetail").innerText()).trim(), "");
+  await context.close();
+});
+
+test("R3.5 cancel then reopen: each dialog shows only ITS OWN pre-check; reservation released on cancel", { skip }, async () => {
+  const alternating = async () => { window.__n = (window.__n || 0) + 1; const mine = window.__n; await new Promise((r) => setTimeout(r, mine === 1 ? 800 : 50)); return { data: { sku_id: 71, as_of_date: "2026-11-15", missing: [{ code: mine === 1 ? "MRP_POLICY" : "BATCH_SIZE_REFERENCE", label: mine === 1 ? "FIRST-DIALOG" : "SECOND-DIALOG" }] }, error: null }; };
+  const { page, context } = await open({ rpc: { rpc_get_sku_activation_check: alternating } });
+  await page.locator("#skuToggleActiveBtn").click();
+  await page.waitForSelector("#governanceModalOverlay.show");
+  await page.locator("#governanceCancel").click();
+  await page.waitForTimeout(200); // the reservation is released as the cancelled attempt unwinds
+  await page.locator("#skuToggleActiveBtn").click();
+  await page.waitForTimeout(1500);
+  await page.waitForSelector("#governanceModalDetail .wp10-activation__items");
+  const t = await page.locator("#governanceModalDetail").innerText();
+  assert.match(t, /SECOND-DIALOG/); assert.doesNotMatch(t, /FIRST-DIALOG/);
+  await context.close();
+});
+
+test("R3.6 a rejection shown for SKU A is cleared when another SKU is selected, and never painted if selection changed during the writer call", { skip }, async () => {
+  const slowReject = async () => { await new Promise((r) => setTimeout(r, 700)); return { data: null, error: { message: "Cannot activate SKU 71", details: JSON.stringify({ missing: [{ code: "MRP_POLICY", label: "MRP" }] }) } }; };
+  const { page, context } = await open({ rpc: { rpc_get_sku_activation_check: { data: MISSING, error: null }, rpc_set_product_sku_active: slowReject } });
+  await page.locator("#skuToggleActiveBtn").click();
+  await page.waitForSelector("#governanceModalDetail .wp10-activation");
+  await page.fill("#governanceReason", "reason");
+  await page.locator("#governanceConfirm").click();
+  await selectOther(page);
+  await page.waitForTimeout(1200);
+  assert.equal((await page.locator("#wp10ActivationResult").innerText().catch(() => "")).trim(), "", "rejection for SKU 71 must not appear on SKU 72");
+  // now show a rejection on the SELECTED sku and switch away
+  const { page: p2, context: c2 } = await open({ rpc: { rpc_get_sku_activation_check: { data: MISSING, error: null }, rpc_set_product_sku_active: { data: null, error: { message: "Cannot activate SKU 71", details: JSON.stringify({ missing: [{ code: "MRP_POLICY", label: "MRP" }] }) } } } });
+  await p2.locator("#skuToggleActiveBtn").click();
+  await p2.waitForSelector("#governanceModalDetail .wp10-activation");
+  await p2.fill("#governanceReason", "reason");
+  await p2.locator("#governanceConfirm").click();
+  await p2.waitForSelector("#wp10ActivationResult [data-wp10-activation]");
+  await selectOther(p2);
+  await p2.waitForTimeout(500);
+  assert.equal((await p2.locator("#wp10ActivationResult").innerText()).trim(), "", "stale rejection is cleared on selection change");
+  await context.close(); await c2.close();
+});
+
+test("R3.7 flag OFF keeps today's un-serialised flow (no reservation object, no helper import) - byte-identical behaviour", { skip }, async () => {
+  const { page, context, loaded } = await open({ flag: false });
+  await page.locator("#skuToggleActiveBtn").click();
+  await page.waitForSelector("#governanceModalOverlay.show");
+  assert.deepEqual(loaded, []);
+  assert.equal(await countOf(page, "rpc_get_sku_activation_check"), 0);
+  await context.close();
+});
+
+test("M2 mutation control: WITHOUT any serialization (no reservation, no ownership check), double invocation opens two pre-checks (R3.1 would fail)", { skip }, async () => {
+  const { page, context } = await open({ importDelayMs: 500, mutateProducts: [["if (wp10ActivationAttempt) return;", ""], ["wp10ActivationAttempt === attempt &&", ""]], rpc: { rpc_get_sku_activation_check: { data: MISSING, error: null }, rpc_set_product_sku_active: { data: { ok: true }, error: null } } });
+  await page.evaluate(() => { const b = document.getElementById("skuToggleActiveBtn"); b.click(); b.click(); });
+  await page.waitForSelector("#governanceModalOverlay.show");
+  await page.waitForTimeout(900);
+  await page.fill("#governanceReason", "one reason");
+  await page.locator("#governanceConfirm").click();
+  await page.waitForTimeout(700);
+  const checks = await countOf(page, "rpc_get_sku_activation_check"), writers = await countOf(page, "rpc_set_product_sku_active");
+  assert.equal(checks > 1 || writers > 1, true, `the mutant must be caught by the double-invocation probe (checks=${checks}, writers=${writers})`);
+  await context.close();
+});
+
+test("M3 mutation control: WITHOUT the revalidation, a changed selection still reaches the writer (R3.3 would fail)", { skip }, async () => {
+  const { page, context } = await open({ mutateProducts: [["function wp10AttemptStillValid(attempt) {", "function wp10AttemptStillValid(attempt) { return true;"]], rpc: { rpc_get_sku_activation_check: { data: MISSING, error: null }, rpc_set_product_sku_active: { data: { ok: true }, error: null } } });
+  await page.locator("#skuToggleActiveBtn").click();
+  await page.waitForSelector("#governanceModalDetail .wp10-activation");
+  await selectOther(page);
+  await page.waitForTimeout(300);
+  await page.fill("#governanceReason", "reason");
+  await page.locator("#governanceConfirm").click();
+  await page.waitForTimeout(500);
+  assert.equal(await countOf(page, "rpc_set_product_sku_active"), 1, "the mutant must be caught: it submits for a SKU that is no longer selected");
+  await context.close();
+});
+
+for (const width of [1280, 390]) {
+  test(`O2 whole-page overflow @${width}: Manage Products with the dialog open (pre-check items) and after a rejection adds no horizontal overflow relative to flag OFF`, { skip }, async () => {
+    const measure = async (flag) => {
+      const { page, context } = await open({ width, flag, rpc: { rpc_get_sku_activation_check: { data: MISSING, error: null }, rpc_set_product_sku_active: { data: null, error: { message: "Cannot activate SKU 71", details: JSON.stringify({ missing: [{ code: "PM_BOM_REVISION", label: "PM BOM revision" }, { code: "BATCH_SIZE_REFERENCE", label: "Batch size" }] }) } } } });
+      const w = () => page.evaluate(() => ({ vw: document.documentElement.clientWidth, doc: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) }));
+      const closed = await w();
+      await page.locator("#skuToggleActiveBtn").click();
+      await page.waitForSelector("#governanceModalOverlay.show");
+      if (flag) await page.waitForSelector("#governanceModalDetail .wp10-activation__items");
+      const dialog = await w();
+      await page.fill("#governanceReason", "reason");
+      await page.locator("#governanceConfirm").click();
+      await page.waitForTimeout(600);
+      const rejected = await w();
+      await context.close();
+      return { closed, dialog, rejected };
+    };
+    const off = await measure(false), on = await measure(true);
+    for (const k of ["closed", "dialog", "rejected"]) assert.ok(on[k].doc <= off[k].doc + 1, `${k}: flag ON ${on[k].doc} must not exceed flag OFF ${off[k].doc}`);
+    if (SHOTS) { fs.mkdirSync(shotDir, { recursive: true }); fs.writeFileSync(path.join(shotDir, `products-overflow-compare-${width}.json`), JSON.stringify({ width, off, on }, null, 2) + "\n"); }
+  });
+}

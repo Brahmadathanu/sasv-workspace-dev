@@ -18,7 +18,35 @@ begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '30s';
 
-create or replace function public.rpc_wp10_get_operational_expiry_horizon(
+-- PROVENANCE PREFLIGHT (R5): refuses to run when any object this file creates already exists (it never overwrites or adopts), when a live dependency
+-- differs from the definition that was reviewed (md5 of pg_get_functiondef), or when a prerequisite proposal is missing or was modified after it was
+-- applied. Re-running this file therefore FAILS at this block by design; a partial apply is impossible because the file is one transaction.
+do $wp10_preflight$
+declare t text; r record; v oid; c text;
+begin
+  foreach t in array array['public.rpc_wp10_get_operational_expiry_horizon(integer, bigint, integer)'] loop
+    if to_regprocedure(t) is not null then
+      raise exception 'WP10-G2 preflight: % already exists; refusing to overwrite or adopt it (review the existing definition separately).', t;
+    end if;
+  end loop;
+  if to_regprocedure('public.app_has_permission(text, text)') is null then raise exception 'WP10-G2 preflight: required function public.app_has_permission(text, text) is missing.'; end if;
+  foreach t in array array['costing.fn_wp10_today_ist()', 'costing.fn_wp10_batch_size_state_as_of(bigint, date)'] loop
+    v := to_regprocedure(t);
+    c := case when v is null then null else obj_description(v, 'pg_proc') end;
+    if v is null or c is null or c not like 'WP10-G2 01\_%' or split_part(c, 'md5:', 2) <> md5(pg_get_functiondef(v)) then
+      raise exception 'WP10-G2 preflight: prerequisite % (proposal 01) is missing, not applied by this procedure, or modified since.', t;
+    end if;
+  end loop;
+  foreach t in array array['costing.fn_wp10_essential_states_as_of(bigint, bigint, date)', 'costing.fn_wp10_boundary_dates(bigint, bigint, date, date)'] loop
+    v := to_regprocedure(t);
+    c := case when v is null then null else obj_description(v, 'pg_proc') end;
+    if v is null or c is null or c not like 'WP10-G2 02\_%' or split_part(c, 'md5:', 2) <> md5(pg_get_functiondef(v)) then
+      raise exception 'WP10-G2 preflight: prerequisite % (proposal 02) is missing, not applied by this procedure, or modified since.', t;
+    end if;
+  end loop;
+end $wp10_preflight$;
+
+create function public.rpc_wp10_get_operational_expiry_horizon(
   p_horizon_days integer default 30,
   p_after_sku_id bigint default null,
   p_limit integer default 50
@@ -143,7 +171,8 @@ begin
       'governed_period_semantics_unchanged', true,
       'is_governed_period_valuation', false,
       'amounts_evaluated', false,
-      'route_boundary_coverage', 'CAPTURED_TABLES_ONLY'),
+      'route_boundary_coverage', 'COMPLETE',
+      'route_closure', 'SELECTOR_WINDOWS_PLUS_REAL_VALIDATOR (see proposal 02)'),
     'rows', v_rows,
     'statistics', jsonb_build_object('scanned_count', v_scanned, 'flagged_count', v_flagged, 'scan_cap', c_scan_cap, 'limit', v_limit, 'budget_exhausted', v_budget_hit),
     'has_more', coalesce(v_more, false),
@@ -154,4 +183,15 @@ $fn$;
 
 revoke all on function public.rpc_wp10_get_operational_expiry_horizon(integer, bigint, integer) from public, anon, authenticated, service_role;
 grant execute on function public.rpc_wp10_get_operational_expiry_horizon(integer, bigint, integer) to authenticated;
+
+-- RECEIPT (R5): stamps each created object with this file name and the md5 of its definition as created. 99_rollback_all.sql removes ONLY objects
+-- whose receipt is present and whose definition still matches; anything changed or unowned makes the rollback fail closed without dropping anything.
+do $wp10_receipt$
+declare t text; v oid; r record;
+begin
+  foreach t in array array['public.rpc_wp10_get_operational_expiry_horizon(integer, bigint, integer)'] loop
+    v := to_regprocedure(t);
+    execute format('comment on function %s is %L', v::regprocedure, 'WP10-G2 03_operational_expiry_horizon_rpc.sql md5:' || md5(pg_get_functiondef(v)));
+  end loop;
+end $wp10_receipt$;
 commit;

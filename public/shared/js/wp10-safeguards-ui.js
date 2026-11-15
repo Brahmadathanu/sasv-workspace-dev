@@ -5,6 +5,9 @@ import {
   HORIZON_CLASS_LABELS,
   HORIZON_DAYS,
   HORIZON_MAX_PAGES,
+  HORIZON_MAX_ROWS,
+  HORIZON_MAX_SCANNED,
+  HORIZON_TIME_BUDGET_MS,
   HORIZON_PAGE_LIMIT,
   buildHorizonRequest,
   createLatestGuard,
@@ -13,7 +16,7 @@ import {
   safeText,
   validateHorizonEnvelope,
   classifyReadinessError,
-} from "./wp10-safeguards.js";
+} from "./wp10-safeguards.js?v=18f867c0f4";
 
 // Minimal self-contained styles (reuse existing tokens/classes where present); injected once, only when this module is loaded (flag ON).
 const CSS = `.wp10-meta{font-size:.78rem;color:var(--sasv-text-muted,#5b6472);overflow-wrap:anywhere}
@@ -65,7 +68,12 @@ export function mountOperationalHorizonPanel({ host, anchor = null, costingRpc, 
   if (!host || !doc || typeof costingRpc !== "function") return null;
   injectStyles(doc);
   let panel = doc.getElementById("wp10HorizonPanel");
-  if (panel && PANELS.has(panel)) return PANELS.get(panel);
+  if (panel && PANELS.has(panel)) {
+    // R-review: a cached panel must not keep the first caller's closures. Re-bind to the CURRENT controller; a pending read of an older one is discarded.
+    const api0 = PANELS.get(panel);
+    api0.rebind({ costingRpc, isActive, periodStart });
+    return api0;
+  }
   if (panel) panel.remove();
   panel = el(doc, "section", "wp10-horizon");
   panel.id = "wp10HorizonPanel";
@@ -73,7 +81,8 @@ export function mountOperationalHorizonPanel({ host, anchor = null, costingRpc, 
   (anchor && anchor.parentNode ? anchor.parentNode : host).insertBefore(panel, anchor && anchor.parentNode ? anchor.nextSibling : null);
 
   const guard = createLatestGuard();
-  const st = { rows: [], context: null, pages: 0, hasMore: false, next: null, loading: false, status: "idle", message: "", scanned: 0 };
+  const bound = { costingRpc, isActive, periodStart };
+  const st = { rows: [], context: null, pages: 0, hasMore: false, next: null, loading: false, status: "idle", message: "", scanned: 0, rowIds: new Set(), lastSkuId: 0, startedAt: 0, restarts: 0, disposed: false };
 
   function render() {
     panel.replaceChildren();
@@ -89,11 +98,13 @@ export function mountOperationalHorizonPanel({ host, anchor = null, costingRpc, 
       status.textContent = "Loading the horizon…";
     } else if (st.status === "unavailable") {
       status.textContent = st.message;
+    } else if (st.status === "partial") {
+      status.textContent = st.message;
     } else if (st.status === "error") {
       status.textContent = st.message;
       status.setAttribute("role", "alert");
     } else if (st.context) {
-      status.textContent = `Evaluated from ${st.context.evaluated_from} (today's IST date) through ${st.context.evaluated_through}. ${st.rows.length} SKU${st.rows.length === 1 ? "" : "s"} flagged after scanning ${st.scanned}${st.hasMore ? "; more pages are available" : ""}. ${st.context.route_boundary_coverage === "CAPTURED_TABLES_ONLY" ? "Route boundary coverage covers the captured route tables only. " : ""}${st.context.amounts_evaluated ? "" : "Amounts (zero/negative) are not evaluated."}`;
+      status.textContent = `Evaluated from ${st.context.evaluated_from} (today's IST date) through ${st.context.evaluated_through}. ${st.rows.length} SKU${st.rows.length === 1 ? "" : "s"} flagged after scanning ${st.scanned}${st.hasMore ? "; more pages are available" : ""}. ${st.context.route_boundary_coverage === "PARTIAL" ? "Route boundary coverage is PARTIAL: this assessment does not cover every route dependency. " : "Route boundaries assessed: product routes, route-family routes, family assignments, effective steps and overrides. "}${st.context.amounts_evaluated ? "" : "Amounts (zero/negative) are not evaluated."}`;
     }
     const actions = el(doc, "div", "wp10-horizon__actions");
     const load = el(doc, "button", "btn secondary", st.rows.length || st.status === "ready" ? "Reload from the start" : "Load horizon");
@@ -129,31 +140,60 @@ export function mountOperationalHorizonPanel({ host, anchor = null, costingRpc, 
     }
   }
 
-  async function fetchPage(reset) {
-    if (st.loading || !isActive()) return;
-    if (reset) { st.rows = []; st.pages = 0; st.next = null; st.hasMore = false; st.scanned = 0; st.context = null; }
+  function reset() { st.rows = []; st.pages = 0; st.next = null; st.hasMore = false; st.scanned = 0; st.context = null; st.rowIds = new Set(); st.lastSkuId = 0; st.startedAt = Date.now(); }
+  function stop(status, message) { st.status = status; st.message = message; st.hasMore = false; }
+
+  async function fetchPage(isReset) {
+    if (st.disposed || st.loading) return;
+    if (!bound.isActive()) { guard.cancel(); st.loading = false; st.status = "idle"; render(); return; }
+    if (isReset) { reset(); st.restarts = 0; }
+    // Bounds: pages, flagged rows, scanned SKUs and wall-clock time. Hitting one STOPS with a partial label - never a completion claim.
+    if (st.pages >= HORIZON_MAX_PAGES || st.rows.length >= HORIZON_MAX_ROWS || st.scanned >= HORIZON_MAX_SCANNED) { stop("partial", "Stopped at the client page/row/scan budget. The list shown is PARTIAL and says nothing about SKUs not yet scanned."); render(); return; }
+    if (st.startedAt && Date.now() - st.startedAt > HORIZON_TIME_BUDGET_MS) { stop("partial", "Stopped at the time budget. The list shown is PARTIAL."); render(); return; }
     const token = guard.next();
     st.loading = true; st.status = "loading"; render();
-    const req = buildHorizonRequest({ afterSkuId: reset ? null : st.next, limit: HORIZON_PAGE_LIMIT, days: HORIZON_DAYS });
+    const sentCursor = isReset ? null : st.next;
+    const req = buildHorizonRequest({ afterSkuId: sentCursor, limit: HORIZON_PAGE_LIMIT, days: HORIZON_DAYS });
+    const rpc = bound.costingRpc;
+    let restart = false;
     try {
-      const { data, error } = await costingRpc(req.rpc, req.args);
-      if (!guard.isCurrent(token) || !isActive()) return;
+      const { data, error } = await rpc(req.rpc, req.args);
+      if (!guard.isCurrent(token) || st.disposed) return;
+      if (!bound.isActive()) { st.status = "idle"; return; }
       if (error) throw error;
-      const v = validateHorizonEnvelope(data);
-      if (!v.ok) { st.status = "error"; st.message = `Operational expiry horizon unavailable — ${v.error}`; return; }
-      st.context = v.value.context; st.rows = st.rows.concat(v.value.rows); st.pages += 1; st.hasMore = v.value.hasMore; st.next = v.value.nextAfterSkuId; st.scanned += v.value.scannedCount; st.status = "ready";
+      const v = validateHorizonEnvelope(data, { context: st.context, lastSkuId: st.lastSkuId, rowIds: st.rowIds, expectedCursor: st.next }, { sentCursor });
+      if (!v.ok && v.contextChanged && st.restarts < 1) {
+        st.restarts += 1; reset(); restart = true; // window crossed midnight / coverage changed: one clean restart from the first page
+      } else if (!v.ok) {
+        st.hasMore = false;
+        st.status = "error"; st.message = `Operational expiry horizon unavailable — ${v.error} Rows shown so far are PARTIAL and not an assessment of every SKU.`;
+      } else {
+      st.context = v.value.context; st.rows = st.rows.concat(v.value.rows); st.rowIds = new Set(st.rows.map((r) => r.sku_id)); st.lastSkuId = v.value.lastSkuId;
+      st.pages += 1; st.hasMore = v.value.hasMore; st.next = v.value.nextAfterSkuId; st.scanned += v.value.scannedCount; st.status = "ready";
+      }
     } catch (err) {
-      if (!guard.isCurrent(token)) return;
+      if (!guard.isCurrent(token) || st.disposed) return;
+      st.hasMore = false;
       if (isMissingRpcError(err)) { st.status = "unavailable"; st.message = "The operational expiry horizon is not available on this server yet. Nothing has changed; Readiness is unaffected."; }
-      else { const c = classifyReadinessError(err); st.status = "error"; st.message = `Operational expiry horizon unavailable — ${c.kind === "PERMISSION" ? "you do not have access" : c.kind === "TIMEOUT" ? "the request timed out" : c.kind === "TRANSPORT" ? "the server could not be reached" : safeText(err?.message, 160) || "unexpected error"}. Nothing was retried automatically.`; }
+      else { const c = classifyReadinessError(err); st.status = "error"; st.message = `Operational expiry horizon unavailable — ${c.kind === "PERMISSION" ? "you do not have access" : c.kind === "TIMEOUT" ? "the request timed out" : c.kind === "TRANSPORT" ? "the server could not be reached" : safeText(err?.message, 160) || "unexpected error"}. Nothing was retried automatically.${st.rows.length ? " Rows shown so far are PARTIAL." : ""}`; }
     } finally {
-      if (guard.isCurrent(token)) { st.loading = false; render(); }
+      if (guard.isCurrent(token) && !st.disposed) { st.loading = false; render(); }
     }
+    if (restart && !st.disposed) { st.status = "idle"; await fetchPage(false); }
   }
-  const api = { render, fetchPage, guard, state: st, periodStart };
+  function rebind(next) { guard.cancel(); st.loading = false; reset(); st.status = "idle"; st.message = ""; Object.assign(bound, next); render(); }
+  function dispose() { st.disposed = true; guard.cancel(); st.loading = false; PANELS.delete(panel); panel.remove(); }
+  const api = { render, fetchPage, guard, state: st, rebind, dispose, get periodStart() { return bound.periodStart; } };
   PANELS.set(panel, api);
   render();
   return api;
+}
+
+/** Remove the horizon panel of a document (lens exit / controller disposal); a pending read of it is cancelled and its result discarded. */
+export function disposeHorizonPanel(doc) {
+  const panel = doc?.getElementById?.("wp10HorizonPanel");
+  const api = panel && PANELS.get(panel);
+  if (api) api.dispose(); else panel?.remove();
 }
 
 // ---- 3. Manage Products: activation pre-check / rejection detail (DOM nodes; every string via textContent) ----

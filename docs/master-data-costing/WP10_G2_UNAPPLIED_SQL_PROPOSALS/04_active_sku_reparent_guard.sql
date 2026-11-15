@@ -16,7 +16,23 @@ begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '30s';
 
-create or replace function public.fn_wp10_guard_active_sku_reparent()
+-- PROVENANCE PREFLIGHT (R5): refuses to run when any object this file creates already exists (it never overwrites or adopts), when a live dependency
+-- differs from the definition that was reviewed (md5 of pg_get_functiondef), or when a prerequisite proposal is missing or was modified after it was
+-- applied. Re-running this file therefore FAILS at this block by design; a partial apply is impossible because the file is one transaction.
+do $wp10_preflight$
+declare t text; r record; v oid; c text;
+begin
+  foreach t in array array['public.fn_wp10_guard_active_sku_reparent()'] loop
+    if to_regprocedure(t) is not null then
+      raise exception 'WP10-G2 preflight: % already exists; refusing to overwrite or adopt it (review the existing definition separately).', t;
+    end if;
+  end loop;
+  if exists (select 1 from pg_trigger where tgname = 'trg_wp10_active_sku_reparent_guard' and tgrelid = 'public.product_skus'::regclass and not tgisinternal) then
+    raise exception 'WP10-G2 preflight: trigger trg_wp10_active_sku_reparent_guard on public.product_skus already exists; refusing to overwrite or adopt it.';
+  end if;
+end $wp10_preflight$;
+
+create function public.fn_wp10_guard_active_sku_reparent()
 returns trigger
 language plpgsql
 security definer
@@ -34,8 +50,21 @@ end
 $fn$;
 revoke all on function public.fn_wp10_guard_active_sku_reparent() from public, anon, authenticated;
 
-drop trigger if exists trg_wp10_active_sku_reparent_guard on public.product_skus;
 create trigger trg_wp10_active_sku_reparent_guard
   before update of product_id on public.product_skus
   for each row execute function public.fn_wp10_guard_active_sku_reparent();
+
+-- RECEIPT (R5): stamps each created object with this file name and the md5 of its definition as created. 99_rollback_all.sql removes ONLY objects
+-- whose receipt is present and whose definition still matches; anything changed or unowned makes the rollback fail closed without dropping anything.
+do $wp10_receipt$
+declare t text; v oid; r record;
+begin
+  foreach t in array array['public.fn_wp10_guard_active_sku_reparent()'] loop
+    v := to_regprocedure(t);
+    execute format('comment on function %s is %L', v::regprocedure, 'WP10-G2 04_active_sku_reparent_guard.sql md5:' || md5(pg_get_functiondef(v)));
+  end loop;
+  for r in select oid, tgname from pg_trigger where tgname = 'trg_wp10_active_sku_reparent_guard' and tgrelid = 'public.product_skus'::regclass and not tgisinternal loop
+    execute format('comment on trigger %I on public.product_skus is %L', r.tgname, 'WP10-G2 04_active_sku_reparent_guard.sql md5:' || md5(pg_get_triggerdef(r.oid)));
+  end loop;
+end $wp10_receipt$;
 commit;

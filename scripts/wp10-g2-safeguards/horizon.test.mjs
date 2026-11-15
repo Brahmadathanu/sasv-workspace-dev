@@ -26,7 +26,7 @@ try {
     const env = call(s);
     check("H1.1", "a fully covered open-ended SKU is NOT flagged (no row, flagged_count 0, scanned 1)", env.rows.length === 0 && env.statistics.flagged_count === 0 && env.statistics.scanned_count === 1);
     check("H15.1", "the context names its date basis: CURRENT_IST_DATE = today's IST date (2026-11-15), explicitly NOT the governed valuation date (2026-09-10); governed semantics flagged unchanged", env.context.date_basis === "CURRENT_IST_DATE" && env.context.evaluated_from === "2026-11-15" && env.context.evaluated_through === "2026-12-15" && env.context.is_governed_period_valuation === false && env.context.governed_period_semantics_unchanged === true);
-    check("H15.2", "the context states effective_to is INCLUSIVE, amounts are not evaluated and route boundary coverage is limited to captured tables", /INCLUSIVE/.test(env.context.effective_to_semantics) && env.context.amounts_evaluated === false && env.context.route_boundary_coverage === "CAPTURED_TABLES_ONLY");
+    check("H15.2", "the context states effective_to is INCLUSIVE, amounts are not evaluated and route boundary coverage is COMPLETE (R2: closure proven against the live callee catalog)", /INCLUSIVE/.test(env.context.effective_to_semantics) && env.context.amounts_evaluated === false && env.context.route_boundary_coverage === "COMPLETE");
   }
   // ===== H2/H3 lapse and inclusive boundary at the window edge =====
   {
@@ -103,7 +103,7 @@ try {
     const s = scenario(EDITOR + OPEN(1, 1));
     const t = (label, pre) => { try { s.q(HORIZON(), pre); return null; } catch (e) { return String(e.message); } };
     check("H13.1", "no permission → denied; unauthenticated → denied; manage-products VIEW and costing-control-center VIEW (existing targets, no new target) → allowed", /Permission denied/.test(t("none", VIEW_ONLY(""))) && /Not authenticated/.test(t("noauth", session({ uid: "" }))) && t("mp", VIEW_ONLY("module:manage-products:view")) === null && t("ccc", VIEW_ONLY("module:costing-control-center:view")) === null && /Permission denied/.test(t("other", VIEW_ONLY("module:vendor-master:view"))));
-    check("H13.2", "the proposal grants EXECUTE to authenticated only (revoked from public/anon/service_role) and its helpers to nobody", /revoke all on function public\.rpc_wp10_get_operational_expiry_horizon\(integer, bigint, integer\) from public, anon, authenticated, service_role;\s*grant execute on function public\.rpc_wp10_get_operational_expiry_horizon\(integer, bigint, integer\) to authenticated;/.test(fs.readFileSync(new URL("../../supabase/draft-proposals/wp10-g2-unapplied/03_operational_expiry_horizon_rpc.sql", import.meta.url), "utf8")));
+    check("H13.2", "the proposal grants EXECUTE to authenticated only (revoked from public/anon/service_role) and its helpers to nobody", /revoke all on function public\.rpc_wp10_get_operational_expiry_horizon\(integer, bigint, integer\) from public, anon, authenticated, service_role;\s*grant execute on function public\.rpc_wp10_get_operational_expiry_horizon\(integer, bigint, integer\) to authenticated;/.test(fs.readFileSync(new URL("../../docs/master-data-costing/WP10_G2_UNAPPLIED_SQL_PROPOSALS/03_operational_expiry_horizon_rpc.sql", import.meta.url), "utf8")));
   }
   // ===== H14 budgets and paging =====
   {
@@ -126,11 +126,36 @@ try {
     const clamp = call(s, HORIZON(999, "null", 1000)), low = call(s, HORIZON(0, "null", 0));
     check("H14.4", "budgets clamp: limit ≤ 100, horizon 1..90 days", clamp.statistics.limit === 100 && clamp.context.horizon_days === 90 && low.statistics.limit === 1 && low.context.horizon_days === 1);
   }
+  // ===== H17 (R2): route boundary closure with the LIVE route chain (verbatim callees) =====
+  const FR = (fam) => `(select id from costing.production_route_family_route where route_family_id = ${fam} order by id limit 1)`;
+  const ROUTE_SETUPS = {
+    familyGap: (p, sku) => OPEN(sku, p) + `update costing.production_route_family_route set effective_to = date '2026-12-01' where route_family_id = ${900 + p};\ninsert into costing.production_route_family_route(route_family_id, status, effective_from) values (${900 + p}, 'APPROVED', date '2026-12-05');\n`,
+    productRouteInvalidFrom: (p, sku) => OPEN(sku, p) + `select public.fx_product_route(${p}, date '2026-12-08', null, ${FR(900 + p)});\ninsert into costing.product_process_route_override(product_route_id, base_step_id, operation_type) select (select max(id) from costing.product_process_route where product_id = ${p}), s.id, 'BYPASS_STEP' from costing.production_route_family_route_step s where s.family_route_id = ${FR(900 + p)} and s.route_step_scope = 'PRODUCTION_PROCESS';\n`,
+    productRouteOverlap: (p, sku) => OPEN(sku, p) + `select public.fx_product_route(${p}, date '2026-01-01', date '2026-12-10', ${FR(900 + p)});\nselect public.fx_product_route(${p}, date '2026-12-05', null, ${FR(900 + p)});\n`,
+    supersededInvalidFrom: (p, sku) => OPEN(sku, p) + `select set_config('fx.no_steps', 'on', false);\ninsert into costing.production_route_family_route(route_family_id, status, effective_from) values (${900 + p}, 'SUPERSEDED', date '2026-12-10');\nselect set_config('fx.no_steps', 'off', false);\n`,
+    productRouteReplaced: (p, sku) => OPEN(sku, p) + `select public.fx_product_route(${p}, date '2026-01-01', date '2026-12-10', ${FR(900 + p)});\n`,
+    productRouteGapThenFamily: (p, sku) => OPEN(sku, p) + `select public.fx_product_route(${p}, date '2026-01-01', date '2026-12-01', ${FR(900 + p)});\nselect public.fx_product_route(${p}, date '2026-12-06', null, ${FR(900 + p)});\n`,
+  };
+  {
+    const s = scenario(EDITOR + ROUTE_SETUPS.familyGap(1, 1) + ROUTE_SETUPS.productRouteInvalidFrom(3, 2) + ROUTE_SETUPS.productRouteOverlap(4, 3) + ROUTE_SETUPS.productRouteReplaced(5, 4) + ROUTE_SETUPS.productRouteGapThenFamily(6, 5));
+    const env = call(s);
+    const f = ess(rowOf(env, 1), "MANUFACTURING_ROUTE");
+    check("H17.1", "family-route replacement GAP inside the window (A ends 12-01, B starts 12-05) is reported with the LIVE validator: first issue 12-02, recovers 12-05, GAP_RECOVERS_IN_WINDOW", f && f.first_issue_date === "2026-12-02" && f.recovers_on === "2026-12-05" && f.classification === "GAP_RECOVERS_IN_WINDOW", JSON.stringify(f));
+    const pi = ess(rowOf(env, 2), "MANUFACTURING_ROUTE");
+    check("H17.2", "PRODUCT route that becomes INVALID from 12-08 (override bypasses the only production step): reported as LAPSES_IN_WINDOW from 12-08 - a boundary that exists ONLY in costing.product_process_route and is invisible to family-table-only coverage", pi && pi.first_issue_date === "2026-12-08" && pi.issue_state === "MISSING" && pi.classification === "LAPSES_IN_WINDOW", JSON.stringify(pi));
+    const po = ess(rowOf(env, 3), "MANUFACTURING_ROUTE");
+    check("H17.3", "PRODUCT route OVERLAP starting 12-05 (the live resolver raises AMBIGUOUS_APPROVED_PRODUCT_ROUTE): reported AMBIGUOUS_IN_WINDOW from 12-05, not UNKNOWN and not silently fine", po && po.first_issue_date === "2026-12-05" && po.issue_state === "AMBIGUOUS" && po.classification === "AMBIGUOUS_IN_WINDOW", JSON.stringify(po));
+    check("H17.4", "REPLACEMENT coverage: a valid product route ending 12-10 while the family route continues is NOT flagged (validity continues through inheritance)", !rowOf(env, 4));
+    check("H17.5", "a product-route gap (ends 12-01, next starts 12-06) while the family route covers it is NOT flagged: the real validator decides, boundaries are only evaluation points", !rowOf(env, 5));
+    check("H17.8", "a SUPERSEDED family route (selected by the live resolver from 12-10, no steps) turns the route invalid from its own start - a boundary only visible when SUPERSEDED windows are included", (() => { const s2 = scenario(EDITOR + ROUTE_SETUPS.supersededInvalidFrom(1, 1)); const e = ess(rowOf(call(s2), 1), "MANUFACTURING_ROUTE"); return e && e.first_issue_date === "2026-12-10" && e.classification === "LAPSES_IN_WINDOW"; })());
+    check("H17.6", "route coverage is declared COMPLETE with its closure basis (selector windows + the real validator), and every route finding above came from the verbatim live callees", env.context.route_boundary_coverage === "COMPLETE" && /SELECTOR_WINDOWS_PLUS_REAL_VALIDATOR/.test(env.context.route_closure));
+    check("H17.7", "the fixture's live-verbatim route chain is provenance-labelled (stand-in tables only)", s.one("select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'costing' and p.proname in ('fn_resolve_effective_product_process_route','fn_resolve_effective_route_family_route','fn_validate_product_process_route','fn_validate_route_family_route','fn_effective_product_process_route_steps')") === "5");
+  }
   // ===== H16 mutation controls =====
   {
     const probe = (sql) => {
       const sc = run(sql);
-      const s = sc(EDITOR + OPEN(1, 1) + OPEN(2, 3) + OPEN(3, 4)
+      const s = sc(EDITOR + OPEN(1, 1) + OPEN(2, 3) + OPEN(3, 4) + ROUTE_SETUPS.productRouteInvalidFrom(5, 4) + ROUTE_SETUPS.productRouteOverlap(6, 5) + ROUTE_SETUPS.familyGap(7, 6) + ROUTE_SETUPS.supersededInvalidFrom(8, 7)
         + "update public.production_batch_size_ref set effective_to = date '2026-12-01' where product_id = 1;\n"
         + "update costing.sku_mrp_policy set effective_to = date '2026-11-30' where sku_id = 2;\ninsert into costing.sku_mrp_policy(sku_id, status, effective_from) values (2, 'APPROVED', date '2026-12-05');\n"
         + "insert into public.plm_bom_revision(sku_id, status, effective_from) values (3, 'APPROVED', date '2026-12-03');\n");
@@ -139,6 +164,10 @@ try {
         const env = call(s);
         const a = ess(rowOf(env, 1), "BATCH_SIZE_REFERENCE"), g = ess(rowOf(env, 2), "MRP_POLICY"), m = ess(rowOf(env, 3), "PM_BOM_REVISION");
         if (!(a && a.first_issue_date === "2026-12-02")) bad.push("inclusive-boundary");
+        if (!(ess(rowOf(env, 4), "MANUFACTURING_ROUTE")?.first_issue_date === "2026-12-08")) bad.push("product-route-boundary-missed");
+        if (!(ess(rowOf(env, 5), "MANUFACTURING_ROUTE")?.issue_state === "AMBIGUOUS")) bad.push("route-ambiguity-lost");
+        if (!(ess(rowOf(env, 6), "MANUFACTURING_ROUTE")?.recovers_on === "2026-12-05")) bad.push("family-route-gap-missed");
+        if (!(ess(rowOf(env, 7), "MANUFACTURING_ROUTE")?.first_issue_date === "2026-12-10")) bad.push("superseded-window-missed");
         if (!(g && g.recovers_on === "2026-12-05" && g.classification === "GAP_RECOVERS_IN_WINDOW")) bad.push("mid-window-gap-recovery");
         if (!(m && m.classification === "AMBIGUOUS_IN_WINDOW")) bad.push("ambiguity");
       } catch { bad.push("call-failed"); }
@@ -154,6 +183,9 @@ try {
       "effective_to boundary off by one (d_to instead of d_to + 1)": [M("states", "union select d_to + 1 from edges", "union select d_to from edges"), "inclusive-boundary"],
       "effective_from boundaries dropped (gap recovery invisible)": [M("states", "select d_from as d from edges where d_from is not null\n    union ", "select d_to + 1 as d from edges where false\n    union "), "mid-window-gap-recovery"],
       "only today and window end compared (no boundary scan)": [M("horizon", "v_dates := array[v_today] || costing.fn_wp10_boundary_dates(rec.sku_id, rec.product_id, v_today, v_end);", "v_dates := array[v_today, v_end];"), "mid-window-gap-recovery"],
+      "product-route windows dropped from the boundary set (family tables only)": [M("states", "\n    union all select pr.effective_from, pr.effective_to from costing.product_process_route pr where pr.product_id = p_product_id and pr.archived_at is null and pr.status = 'APPROVED'", ""), "product-route-boundary-missed"],
+      "route ambiguity mapped to UNKNOWN": [M("states", "s := case when sqlerrm like 'AMBIGUOUS_APPROVED_PRODUCT_ROUTE%' then 'AMBIGUOUS' else 'UNKNOWN' end;", "s := 'UNKNOWN';"), "route-ambiguity-lost"],
+      "family route SUPERSEDED windows dropped": [M("states", "fr.status in ('APPROVED', 'SUPERSEDED')", "fr.status = 'APPROVED'"), "superseded-window-missed"],
       "ambiguity mapped to UNKNOWN": [M("states", "s := case when sqlerrm like 'AMBIGUOUS_PM_BOM_REVISION%' then 'AMBIGUOUS' else 'UNKNOWN' end;", "s := 'UNKNOWN';"), "ambiguity"],
       "permission check removed": [M("horizon", "if not (public.app_has_permission('module:manage-products', 'view') or public.app_has_permission('module:costing-control-center', 'view')) then\n    raise exception 'Permission denied';\n  end if;", ""), "permission-bypassed"],
       "sample/inactive exclusions removed": [M("horizon", "where s.is_active and p.status = 'Active' and not coalesce(s.is_sample, false)\n      and (p_after_sku_id is null or s.id > p_after_sku_id)", "where (p_after_sku_id is null or s.id > p_after_sku_id)"), "sample-included"],

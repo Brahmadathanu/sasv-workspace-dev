@@ -1745,6 +1745,7 @@ let skuLoadGeneration = 0;
 
 async function loadChildSkus(productId) {
   const generation = ++skuLoadGeneration;
+  wp10ClearActivationResult();
   skuDirty = false;
   skuDraft = null;
   selectedSkuId = null;
@@ -1943,6 +1944,7 @@ function renderNoSkuGuidance() {
 }
 
 async function closeSkuDialog() {
+  wp10ClearActivationResult(); // R3: a rejection detail belongs to the SKU it was shown for; a different selection clears it
   if (!(await confirmDiscardSku())) return;
   skuDirty = false;
   if (skuDraft === "new") skuDraft = null;
@@ -1963,6 +1965,7 @@ function fillSkuMasterFields(row) {
 }
 
 async function selectSku(skuId) {
+  if (String(skuId) !== String(selectedSkuId)) wp10ClearActivationResult(); // R3: a rejection detail belongs to the SKU it was shown for
   if (String(skuId) === String(selectedSkuId) && skuDraft !== "new") {
     if (readinessDetailSurface) readinessDetailSurface.hidden = true;
     if (skuDetail) skuDetail.hidden = false;
@@ -2470,7 +2473,7 @@ async function loadWp10Modules() {
   if (!wp10SafeguardsOn()) return null;
   if (wp10Mods) return wp10Mods;
   try {
-    const [core, ui] = await Promise.all([import("./wp10-safeguards.js"), import("./wp10-safeguards-ui.js")]);
+    const [core, ui] = await Promise.all([import("./wp10-safeguards.js?v=18f867c0f4"), import("./wp10-safeguards-ui.js?v=18f867c0f4")]);
     wp10Mods = { core, ui };
   } catch {
     wp10Mods = null;
@@ -2501,6 +2504,23 @@ function wp10ClearActivationResult() {
   document.getElementById("wp10ActivationResult")?.replaceChildren();
 }
 
+// R3: one open/import/confirm/submit lifecycle at a time (flag ON only). Released in finally, so cancel/error/exit paths cannot leave it held.
+let wp10ActivationAttempt = null;
+function wp10AttemptStillValid(attempt) {
+  const row = currentSkuRow();
+  return (
+    wp10ActivationAttempt === attempt &&
+    !!row &&
+    String(row.id) === String(attempt.skuId) &&
+    String(selectedId) === String(attempt.productId) &&
+    row.is_active === attempt.wasActive &&
+    canWriteModule() &&
+    !skuDirty &&
+    skuDraft !== "new" &&
+    !inNewMode
+  );
+}
+
 async function toggleSkuActive() {
   const row = currentSkuRow();
   if (!canWriteModule() || !row || writeBusy || skuDraft === "new") return;
@@ -2509,9 +2529,27 @@ async function toggleSkuActive() {
     return;
   }
   const nextActive = !row.is_active;
+  let attempt = null;
+  if (nextActive && wp10SafeguardsOn()) {
+    if (wp10ActivationAttempt) return; // a dialog / pre-check / submission for this flow is already in progress
+    attempt = { skuId: row.id, productId: selectedId, wasActive: row.is_active };
+    wp10ActivationAttempt = attempt; // reserved BEFORE any await
+  }
+  try {
+    return await toggleSkuActiveInner(row, nextActive, attempt);
+  } finally {
+    if (attempt && wp10ActivationAttempt === attempt) wp10ActivationAttempt = null;
+  }
+}
+
+async function toggleSkuActiveInner(row, nextActive, attempt) {
   const packIdentity = skuPackIdentity(row.pack_size, row.uom, row.is_sample);
   wp10ClearActivationResult();
-  const wp10 = nextActive ? await loadWp10Modules() : null;
+  const wp10 = attempt ? await loadWp10Modules() : null;
+  if (attempt && !wp10AttemptStillValid(attempt)) {
+    showToast("The selection or SKU state changed; nothing was opened or submitted.");
+    return;
+  }
   let preCheckOnOpen = null;
   let dialogOpen = false;
   const guard = wp10 ? wp10.core.createLatestGuard() : null;
@@ -2519,12 +2557,13 @@ async function toggleSkuActive() {
     preCheckOnOpen = (handle) => {
       dialogOpen = true;
       const token = guard.next();
+      const live = () => guard.isCurrent(token) && dialogOpen && wp10AttemptStillValid(attempt);
       handle.setDetail(wp10.ui.statusNode(document, "Checking activation requirements…"));
       (async () => {
         let node;
         try {
           const { data, error } = await supabase.rpc("rpc_get_sku_activation_check", { p_sku_id: row.id });
-          if (!guard.isCurrent(token) || !dialogOpen || currentSkuRow()?.id !== row.id) return; // stale response, closed dialog or changed selection
+          if (!live()) return; // stale response, closed dialog or changed selection/state
           if (error) {
             const parsed = wp10.core.parseActivationError(error);
             node = wp10.ui.buildActivationCheckNode(document, { ok: false, reason: parsed.kind === "AMBIGUOUS_PM_BOM" ? "AMBIGUOUS_PM_BOM" : parsed.kind === "PERMISSION" ? "NO_PERMISSION" : parsed.kind === "UNAVAILABLE" ? "UNREACHABLE" : "ERROR" }, { linkFor: wp10OwnerLink });
@@ -2532,10 +2571,10 @@ async function toggleSkuActive() {
             node = wp10.ui.buildActivationCheckNode(document, wp10.core.parseActivationCheck(data, row.id), { linkFor: wp10OwnerLink });
           }
         } catch {
-          if (!guard.isCurrent(token) || !dialogOpen) return;
+          if (!live()) return; // R3: the catch path applies the same identity checks
           node = wp10.ui.buildActivationCheckNode(document, { ok: false, reason: "UNREACHABLE" }, { linkFor: wp10OwnerLink });
         }
-        handle.setDetail(node);
+        if (live()) handle.setDetail(node);
       })();
     };
   }
@@ -2551,6 +2590,11 @@ async function toggleSkuActive() {
   dialogOpen = false;
   guard?.cancel();
   if (!governance) return;
+  // R3: re-validate immediately before the writer; the dialog may have been open while selection, rights or state changed.
+  if (attempt && !wp10AttemptStillValid(attempt)) {
+    showToast("The selection, your access or the SKU state changed while the dialog was open; nothing was submitted.");
+    return;
+  }
   writeBusy = true;
   syncSkuAccessChrome();
   showLoading();
@@ -2563,9 +2607,12 @@ async function toggleSkuActive() {
     });
     if (error) {
       surfaceRpcError(error, "Unable to change SKU active state.");
-      if (wp10 && nextActive) {
+      if (wp10 && nextActive && currentSkuRow() && String(currentSkuRow().id) === String(row.id)) {
         const host = wp10ActivationResultHost();
-        host?.replaceChildren(wp10.ui.buildRejectionNode(document, wp10.core.parseActivationError(error), { linkFor: wp10OwnerLink }));
+        if (host) {
+          host.setAttribute("data-sku-id", String(row.id));
+          host.replaceChildren(wp10.ui.buildRejectionNode(document, wp10.core.parseActivationError(error), { linkFor: wp10OwnerLink }));
+        }
       }
       return;
     }

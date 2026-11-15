@@ -6,9 +6,11 @@
 // Nothing here grants access, rebuilds anything, retries a writer or labels any status READY.
 
 export const WP10_SAFEGUARDS_V1 = "WP10_SAFEGUARDS_V1";
-export function isWp10SafeguardsV1Enabled(storage = globalThis.localStorage) {
+export function isWp10SafeguardsV1Enabled(storage) {
+  // R6: every property access (including globalThis.localStorage, whose getter can throw when storage is disabled) happens inside the try.
   try {
-    return storage?.getItem?.(WP10_SAFEGUARDS_V1) === "1";
+    const st = storage === undefined ? globalThis.localStorage : storage;
+    return st?.getItem?.(WP10_SAFEGUARDS_V1) === "1";
   } catch {
     return false;
   }
@@ -177,25 +179,65 @@ export function isMissingRpcError(err) {
   return code === "PGRST202" || code === "42883" || Number(err?.status) === 404 || /could not find the function|schema cache/i.test(msg);
 }
 
-export function validateHorizonEnvelope(data) {
+const posInt = (v) => typeof v === "number" ? Number.isSafeInteger(v) && v > 0 : typeof v === "string" && /^[1-9]\d{0,15}$/.test(v);
+const dayNum = (iso) => Math.round(Date.parse(`${iso}T00:00:00Z`) / 86400000);
+export const HORIZON_MAX_ROWS = 1000;
+export const HORIZON_MAX_SCANNED = 20000;
+export const HORIZON_TIME_BUDGET_MS = 120000;
+
+/**
+ * Validates one horizon page. `prev` (optional) is what the panel already accepted: { context, lastSkuId, expectedCursor, rowIds:Set, pageIndex }.
+ * R4: a has_more page MUST carry a positive integral cursor that moves strictly past this page's scan position (never the cursor that was sent);
+ * rows must be positive-integral, strictly ascending and not seen before; the date window must be exactly [from, from+days] inclusive; and every page
+ * of one panel session must carry the SAME context (date basis, window, route coverage, amounts flag) - otherwise the caller restarts or stops.
+ */
+export function validateHorizonEnvelope(data, prev = null, { sentCursor = null } = {}) {
   if (!data || typeof data !== "object" || Array.isArray(data)) return { ok: false, error: "Horizon response is not an object." };
   if (data.assessment_kind !== "OPERATIONAL_EXPIRY_HORIZON") return { ok: false, error: "Horizon assessment_kind mismatch." };
   const c = data.context;
   if (!c || c.date_basis !== "CURRENT_IST_DATE" || !ISO.test(String(c.evaluated_from)) || !ISO.test(String(c.evaluated_through))) return { ok: false, error: "Horizon date context is missing or not the current IST date." };
+  const span = dayNum(String(c.evaluated_through)) - dayNum(String(c.evaluated_from));
+  const days = Number(c.horizon_days);
+  if (!Number.isInteger(days) || days < 1 || days > 90 || span !== days) return { ok: false, error: "Horizon window is inconsistent with its horizon_days." };
+  if (typeof c.route_boundary_coverage !== "string" || !["COMPLETE", "PARTIAL"].includes(c.route_boundary_coverage)) return { ok: false, error: "Horizon route boundary coverage is missing or unrecognised." };
+  if (typeof c.amounts_evaluated !== "boolean") return { ok: false, error: "Horizon amounts_evaluated flag is missing." };
+  const context = { evaluated_from: String(c.evaluated_from), evaluated_through: String(c.evaluated_through), horizon_days: days, route_boundary_coverage: c.route_boundary_coverage, amounts_evaluated: c.amounts_evaluated };
+  if (prev?.context) {
+    for (const k of Object.keys(context)) if (prev.context[k] !== context[k]) return { ok: false, contextChanged: true, error: `Horizon context changed between pages (${k}); the assessment was restarted-needed.` };
+  }
   if (!Array.isArray(data.rows)) return { ok: false, error: "Horizon rows must be an array." };
+  const seen = new Set(prev?.rowIds || []);
+  let last = prev?.lastSkuId ?? (sentCursor == null ? 0 : Number(sentCursor));
   const rows = [];
   for (const r of data.rows) {
-    if (!r || !Number.isFinite(Number(r.sku_id)) || !Array.isArray(r.essentials)) return { ok: false, error: "Horizon row is malformed." };
+    if (!r || !posInt(r.sku_id) || !posInt(r.product_id) || !Array.isArray(r.essentials)) return { ok: false, error: "Horizon row is malformed." };
+    const id = Number(r.sku_id);
+    if (seen.has(id)) return { ok: false, error: "Horizon returned a duplicate SKU row." };
+    if (id <= last) return { ok: false, error: "Horizon rows are out of order or do not move past the cursor." };
+    seen.add(id); last = id;
     const essentials = [];
     for (const e of r.essentials) {
       if (!CLASSES.has(e?.classification) || !STATES.has(e?.today_state) || !STATES.has(e?.issue_state)) return { ok: false, error: "Horizon essential has an unknown classification or state." };
-      essentials.push({
-        code: safeText(e.code, 40), owner_screen: safeText(e.owner_screen, 120), today_state: e.today_state, issue_state: e.issue_state, classification: e.classification,
-        first_issue_date: ISO.test(String(e.first_issue_date)) ? String(e.first_issue_date) : null, recovers_on: e.recovers_on && ISO.test(String(e.recovers_on)) ? String(e.recovers_on) : null,
-      });
+      const fi = ISO.test(String(e.first_issue_date)) ? String(e.first_issue_date) : null;
+      const rc = e.recovers_on && ISO.test(String(e.recovers_on)) ? String(e.recovers_on) : null;
+      if ((fi && (fi < context.evaluated_from || fi > context.evaluated_through)) || (rc && (rc < context.evaluated_from || rc > context.evaluated_through))) return { ok: false, error: "Horizon essential date is outside the evaluated window." };
+      essentials.push({ code: safeText(e.code, 40), owner_screen: safeText(e.owner_screen, 120), today_state: e.today_state, issue_state: e.issue_state, classification: e.classification, first_issue_date: fi, recovers_on: rc });
     }
-    rows.push({ sku_id: Number(r.sku_id), product_id: Number(r.product_id), essentials });
+    rows.push({ sku_id: id, product_id: Number(r.product_id), essentials });
   }
   const st = data.statistics || {};
-  return { ok: true, value: { context: { evaluated_from: String(c.evaluated_from), evaluated_through: String(c.evaluated_through), horizon_days: Number(c.horizon_days) || null, route_boundary_coverage: safeText(c.route_boundary_coverage, 40), amounts_evaluated: c.amounts_evaluated === true }, rows, hasMore: data.has_more === true, nextAfterSkuId: data.next_after_sku_id == null ? null : Number(data.next_after_sku_id), scannedCount: Number(st.scanned_count) || 0, budgetExhausted: st.budget_exhausted === true } };
+  const scanned = Number(st.scanned_count);
+  if (!Number.isInteger(scanned) || scanned < 0) return { ok: false, error: "Horizon scanned_count is missing or invalid." };
+  const hasMore = data.has_more === true;
+  let next = null;
+  if (hasMore) {
+    if (!posInt(data.next_after_sku_id)) return { ok: false, error: "Horizon says more pages exist but gave no valid continuation cursor." };
+    next = Number(data.next_after_sku_id);
+    const floor = Math.max(last, sentCursor == null ? 0 : Number(sentCursor));
+    if (next <= floor) return { ok: false, error: "Horizon continuation cursor does not advance." };
+    if (prev?.expectedCursor != null && sentCursor != null && Number(sentCursor) !== Number(prev.expectedCursor)) return { ok: false, error: "Horizon page was requested with an unexpected cursor." };
+  } else if (data.next_after_sku_id != null) {
+    return { ok: false, error: "Horizon returned a cursor on the last page." };
+  }
+  return { ok: true, value: { context, rows, hasMore, nextAfterSkuId: next, scannedCount: scanned, budgetExhausted: st.budget_exhausted === true, lastSkuId: last } };
 }

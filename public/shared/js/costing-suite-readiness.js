@@ -2475,6 +2475,7 @@ export function createPortfolioReadinessController(deps = {}) {
   function render() {
     if (!isActiveLens()) {
       setHostVisibility(false);
+      if (wp10Module) wp10Module.disposeHorizonPanel(typeof document !== "undefined" ? document : null); // lens exit: no obsolete controls or results remain
       return;
     }
     setHostVisibility(true);
@@ -2506,7 +2507,7 @@ export function createPortfolioReadinessController(deps = {}) {
   function ensureWp10() {
     if (wp10Module || wp10Loading || !wp10Enabled()) return;
     wp10Loading = true;
-    import("./wp10-safeguards-ui.js")
+    import("./wp10-safeguards-ui.js?v=18f867c0f4")
       .then((m) => {
         wp10Module = m;
         wp10Loading = false;
@@ -3056,6 +3057,7 @@ export function createPortfolioReadinessController(deps = {}) {
     clearSearchTimer();
     closeMembershipModal();
     setHostVisibility(false);
+    if (wp10Module) wp10Module.disposeHorizonPanel(typeof document !== "undefined" ? document : null);
     state.selectedAssessment = null;
     selectedSkuId = null;
     if (typeof closeDetails === "function") {
@@ -3065,6 +3067,7 @@ export function createPortfolioReadinessController(deps = {}) {
 
   function destroy() {
     disposed = true;
+    if (wp10Module) wp10Module.disposeHorizonPanel(typeof document !== "undefined" ? document : null);
     clearSearchTimer();
     teardownMembershipModalScroll();
     unbindHandlers();

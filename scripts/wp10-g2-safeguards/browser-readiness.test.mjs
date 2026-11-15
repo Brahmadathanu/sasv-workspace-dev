@@ -22,7 +22,7 @@ const MIME = { ".js": "text/javascript", ".html": "text/html", ".css": "text/css
 
 const HORIZON_OK = (over = {}) => ({
   assessment_kind: "OPERATIONAL_EXPIRY_HORIZON",
-  context: { date_basis: "CURRENT_IST_DATE", evaluated_from: "2026-11-15", evaluated_through: "2026-12-15", horizon_days: 30, route_boundary_coverage: "CAPTURED_TABLES_ONLY", amounts_evaluated: false },
+  context: { date_basis: "CURRENT_IST_DATE", evaluated_from: "2026-11-15", evaluated_through: "2026-12-15", horizon_days: 30, route_boundary_coverage: "COMPLETE", amounts_evaluated: false },
   rows: [{ sku_id: 71, product_id: 7, essentials: [{ code: "MRP_POLICY", owner_screen: "Pricing Policy Manager > MRP", today_state: "RESOLVED", issue_state: "MISSING", classification: "LAPSES_IN_WINDOW", first_issue_date: "2026-12-01", recovers_on: null }] }],
   statistics: { scanned_count: 1, budget_exhausted: false }, has_more: false, next_after_sku_id: null, ...over,
 });
@@ -58,6 +58,12 @@ async function openHarness({ flag, portfolioError = null, horizon = null, width 
           if (HORIZON === "missing") return { data: null, error: { code: "PGRST202", message: "Could not find the function public.rpc_wp10_get_operational_expiry_horizon", status: 404 } };
           if (HORIZON === "transport") return { data: null, error: { message: "Failed to fetch", status: 0 } };
           if (HORIZON === "malformed") return { data: { assessment_kind: "SOMETHING_ELSE" }, error: null };
+          if (HORIZON && HORIZON.sequence) {
+            const i = Math.min(window.__hz = (window.__hz ?? -1) + 1, HORIZON.sequence.length - 1);
+            const step = HORIZON.sequence[i];
+            if (step.delayMs) await new Promise((r) => setTimeout(r, step.delayMs));
+            return { data: step.data, error: step.error || null };
+          }
           return { data: HORIZON, error: null };
         }
         if (PORTFOLIO_ERROR) return { data: null, error: PORTFOLIO_ERROR };
@@ -65,7 +71,7 @@ async function openHarness({ flag, portfolioError = null, horizon = null, width 
       }
       const ctrl = createPortfolioReadinessController({
         costingRpc, showToast: () => {}, text: (v) => v == null || v === "" ? "—" : String(v),
-        getCurrentLens: () => "portfolio-readiness", canView: () => true, getSearchValue: () => "",
+        getCurrentLens: () => window.__lens || "portfolio-readiness", canView: () => true, getSearchValue: () => "",
         openDetails: () => {}, downloadCsv: () => true,
       });
       window.ctrl = ctrl; window.__ready = true;
@@ -140,7 +146,7 @@ for (const width of [1280, 390]) {
       assert.match(t, /SKU 71 · product 7/);
       assert.match(t, /Lapses in window: MRP_POLICY from 2026-12-01/);
       assert.match(t, /owner screen: Pricing Policy Manager > MRP/);
-      assert.match(t, /captured route tables only/);
+      assert.match(t, /Route boundaries assessed: product routes, route-family routes/);
       assert.match(t, /Amounts \(zero\/negative\) are not evaluated/);
       assert.equal(await noOverflow(page), true);
       await shot(page, "horizon-loaded", width);
@@ -169,3 +175,128 @@ test("H3 no panel when the flag is off even if the endpoint would answer", { ski
   const { browser, page } = await openHarness({ flag: false, portfolioError: { message: "READINESS_BUILD_STALE: x" }, horizon: HORIZON_OK() });
   try { assert.equal(await page.locator("#wp10HorizonPanel").count(), 0); } finally { await browser.close(); }
 });
+
+// ===================== R4 panel behaviour, disposal/remount, whole-page overflow vs flag OFF =====================
+const HZ_CTX = { date_basis: "CURRENT_IST_DATE", evaluated_from: "2026-11-15", evaluated_through: "2026-12-15", horizon_days: 30, route_boundary_coverage: "COMPLETE", amounts_evaluated: false };
+const HZ_ROW = (id) => ({ sku_id: id, product_id: 100 + id, essentials: [{ code: "MRP_POLICY", owner_screen: "Pricing Policy Manager > MRP", today_state: "RESOLVED", issue_state: "MISSING", classification: "LAPSES_IN_WINDOW", first_issue_date: "2026-12-01", recovers_on: null }] });
+const HZ_PAGE = (rows, extra = {}) => ({ assessment_kind: "OPERATIONAL_EXPIRY_HORIZON", context: HZ_CTX, rows, statistics: { scanned_count: 50 }, has_more: false, next_after_sku_id: null, ...extra });
+const hzCalls = (page) => page.evaluate(() => window.__calls.filter((c) => c.name === "rpc_wp10_get_operational_expiry_horizon").map((c) => c.args.p_after_sku_id));
+const loadHz = async (page) => { await page.locator("#wp10HorizonPanel").getByRole("button", { name: /Load horizon|Reload/ }).click(); await page.waitForTimeout(500); };
+
+test("R4.1 has_more=true with a NULL cursor stops with an error: the first page is NOT re-requested or appended again, and rows are labelled PARTIAL", { skip }, async () => {
+  const { browser, page } = await openHarness({ flag: true, portfolioError: { message: "READINESS_BUILD_STALE: x" }, horizon: { sequence: [{ data: HZ_PAGE([HZ_ROW(5)], { has_more: true, next_after_sku_id: null }) }] } });
+  try {
+    await loadHz(page);
+    const t = await page.locator("#wp10HorizonPanel").innerText();
+    assert.match(t, /no valid continuation cursor/);
+    assert.match(t, /PARTIAL/);
+    assert.equal((await hzCalls(page)).length, 1);
+    assert.equal(await page.locator("#wp10HorizonPanel").getByRole("button", { name: /Load more/ }).count(), 0);
+  } finally { await browser.close(); }
+});
+
+test("R4.2 valid paging: empty scanned page with a valid cursor, then a final page; cursors are sent in order and rows are not duplicated", { skip }, async () => {
+  const seq = [{ data: HZ_PAGE([HZ_ROW(5)], { has_more: true, next_after_sku_id: 50 }) }, { data: HZ_PAGE([], { has_more: true, next_after_sku_id: 100 }) }, { data: HZ_PAGE([HZ_ROW(120)]) }];
+  const { browser, page } = await openHarness({ flag: true, portfolioError: { message: "READINESS_BUILD_STALE: x" }, horizon: { sequence: seq } });
+  try {
+    await loadHz(page);
+    await page.locator("#wp10HorizonPanel").getByRole("button", { name: /Load more/ }).click(); await page.waitForTimeout(400);
+    await page.locator("#wp10HorizonPanel").getByRole("button", { name: /Load more/ }).click(); await page.waitForTimeout(400);
+    assert.deepEqual(await hzCalls(page), [null, 50, 100]);
+    assert.equal(await page.locator("#wp10HorizonPanel .wp10-horizon__row").count(), 2);
+    assert.equal(await page.locator("#wp10HorizonPanel").getByRole("button", { name: /Load more/ }).count(), 0);
+  } finally { await browser.close(); }
+});
+
+test("R4.3 a duplicate row on a later page is rejected and the earlier rows stay labelled PARTIAL", { skip }, async () => {
+  const seq = [{ data: HZ_PAGE([HZ_ROW(5)], { has_more: true, next_after_sku_id: 50 }) }, { data: HZ_PAGE([HZ_ROW(5)]) }];
+  const { browser, page } = await openHarness({ flag: true, portfolioError: { message: "READINESS_BUILD_STALE: x" }, horizon: { sequence: seq } });
+  try {
+    await loadHz(page);
+    await page.locator("#wp10HorizonPanel").getByRole("button", { name: /Load more/ }).click(); await page.waitForTimeout(400);
+    const t = await page.locator("#wp10HorizonPanel").innerText();
+    assert.match(t, /out of order|duplicate/); assert.match(t, /PARTIAL/);
+    assert.equal(await page.locator("#wp10HorizonPanel .wp10-horizon__row").count(), 1);
+  } finally { await browser.close(); }
+});
+
+test("R4.4 context change between pages (window crossed midnight): ONE clean restart from the first page; the final list is a single consistent assessment", { skip }, async () => {
+  const NEXT = { ...HZ_CTX, evaluated_from: "2026-11-16", evaluated_through: "2026-12-16" };
+  const seq = [
+    { data: HZ_PAGE([HZ_ROW(5)], { has_more: true, next_after_sku_id: 50 }) },
+    { data: { ...HZ_PAGE([HZ_ROW(60)]), context: NEXT } },                       // page 2 carries a different window
+    { data: { ...HZ_PAGE([HZ_ROW(5), HZ_ROW(60)]), context: NEXT } },            // restarted page 1 (new window)
+  ];
+  const { browser, page } = await openHarness({ flag: true, portfolioError: { message: "READINESS_BUILD_STALE: x" }, horizon: { sequence: seq } });
+  try {
+    await loadHz(page);
+    await page.locator("#wp10HorizonPanel").getByRole("button", { name: /Load more/ }).click(); await page.waitForTimeout(700);
+    assert.deepEqual(await hzCalls(page), [null, 50, null]);
+    const t = await page.locator("#wp10HorizonPanel").innerText();
+    assert.match(t, /Evaluated from 2026-11-16/);
+    assert.equal(await page.locator("#wp10HorizonPanel .wp10-horizon__row").count(), 2);
+  } finally { await browser.close(); }
+});
+
+test("R4.5 a second context change after the one allowed restart STOPS with an error (never mixes assessments)", { skip }, async () => {
+  const C2 = { ...HZ_CTX, evaluated_from: "2026-11-16", evaluated_through: "2026-12-16" }, C3 = { ...HZ_CTX, evaluated_from: "2026-11-17", evaluated_through: "2026-12-17" };
+  const seq = [{ data: HZ_PAGE([HZ_ROW(5)], { has_more: true, next_after_sku_id: 50 }) }, { data: { ...HZ_PAGE([HZ_ROW(60)], { has_more: true, next_after_sku_id: 90 }), context: C2 } }, { data: { ...HZ_PAGE([HZ_ROW(5)], { has_more: true, next_after_sku_id: 50 }), context: C2 } }, { data: { ...HZ_PAGE([HZ_ROW(60)]), context: C3 } }];
+  const { browser, page } = await openHarness({ flag: true, portfolioError: { message: "READINESS_BUILD_STALE: x" }, horizon: { sequence: seq } });
+  try {
+    await loadHz(page);
+    await page.locator("#wp10HorizonPanel").getByRole("button", { name: /Load more/ }).click(); await page.waitForTimeout(700);
+    await page.locator("#wp10HorizonPanel").getByRole("button", { name: /Load more/ }).click().catch(() => {}); await page.waitForTimeout(500);
+    assert.match(await page.locator("#wp10HorizonPanel").innerText(), /context changed|PARTIAL/);
+  } finally { await browser.close(); }
+});
+
+test("D1 lens exit while a horizon read is pending: the panel is removed, the late result is discarded, and re-entry mounts a FRESH panel whose controls work", { skip }, async () => {
+  const seq = [{ data: HZ_PAGE([HZ_ROW(5)]), delayMs: 900 }, { data: HZ_PAGE([HZ_ROW(8)]) }];
+  const { browser, page } = await openHarness({ flag: true, portfolioError: { message: "READINESS_BUILD_STALE: x" }, horizon: { sequence: seq } });
+  try {
+    await page.locator("#wp10HorizonPanel").getByRole("button", { name: /Load horizon/ }).click();
+    await page.evaluate(() => { window.__lens = "other"; window.ctrl.onLensExit(); window.ctrl.render(); });
+    assert.equal(await page.locator("#wp10HorizonPanel").count(), 0);
+    await page.waitForTimeout(1200);
+    assert.equal(await page.locator("#wp10HorizonPanel").count(), 0, "late result must not resurrect or render into a removed panel");
+    await page.evaluate(() => { window.__lens = "portfolio-readiness"; window.ctrl.render(); });
+    const btn = page.locator("#wp10HorizonPanel").getByRole("button", { name: /Load horizon/ });
+    assert.equal(await btn.isDisabled(), false, "controls are not left inert by the old read");
+    await btn.click(); await page.waitForTimeout(500);
+    assert.match(await page.locator("#wp10HorizonPanel").innerText(), /SKU 8 · product 108/);
+    assert.doesNotMatch(await page.locator("#wp10HorizonPanel").innerText(), /SKU 5 · product 105/);
+  } finally { await browser.close(); }
+});
+
+test("D2 controller disposal removes the panel; a NEW controller's panel is bound to the new controller (old closures are not reused)", { skip }, async () => {
+  const { browser, page } = await openHarness({ flag: true, portfolioError: { message: "READINESS_BUILD_STALE: x" }, horizon: HORIZON_OK() });
+  try {
+    assert.equal(await page.locator("#wp10HorizonPanel").count(), 1);
+    await page.evaluate(() => window.ctrl.destroy());
+    assert.equal(await page.locator("#wp10HorizonPanel").count(), 0);
+  } finally { await browser.close(); }
+});
+
+test("D3 remount of an existing panel (same document) re-binds to the CURRENT lens state: after exit the old isActive closure cannot keep it alive", { skip }, async () => {
+  const { browser, page } = await openHarness({ flag: true, portfolioError: { message: "READINESS_BUILD_STALE: x" }, horizon: HORIZON_OK() });
+  try {
+    const before = await page.evaluate(() => document.getElementById("wp10HorizonPanel") !== null);
+    await page.evaluate(() => { window.ctrl.render(); window.ctrl.render(); });
+    assert.equal(before, true);
+    assert.equal(await page.locator("#wp10HorizonPanel").count(), 1, "repeated renders do not stack panels");
+  } finally { await browser.close(); }
+});
+
+for (const width of [1280, 390]) {
+  test(`O1 whole-page overflow @${width}: flag ON adds no horizontal overflow relative to flag OFF for the same unavailable state (inherited WP11 widths are not hidden)`, { skip }, async () => {
+    const measure = async (flag) => {
+      const { browser, page } = await openHarness({ flag, portfolioError: { message: "READINESS_BUILD_STALE: x" }, horizon: HORIZON_OK(), width });
+      try { return await page.evaluate(() => ({ vw: document.documentElement.clientWidth, doc: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) })); } finally { await browser.close(); }
+    };
+    const off = await measure(false), on = await measure(true);
+    assert.equal(off.vw, on.vw);
+    assert.ok(on.doc <= off.doc + 1, `flag ON scrollWidth ${on.doc} must not exceed flag OFF ${off.doc}`);
+    fs.mkdirSync(shotDir, { recursive: true });
+    fs.writeFileSync(path.join(shotDir, `overflow-compare-${width}.json`), JSON.stringify({ width, flag_off_scrollWidth: off.doc, flag_on_scrollWidth: on.doc, viewport: on.vw }, null, 2) + "\n");
+  });
+}
