@@ -1,3 +1,5 @@
+> **SUBSEQUENT OWNER DECISION:** #441 source merged normally at `a3816a3f` under explicit approval, with default-off flag and SQL unapplied. [Approval, final-head evidence and remaining gates](WP10_OWNER_G2_DEFAULT_OFF_SOURCE_MERGE_AND_REMAINING_GATES_2026-11-15.md) supersede any earlier source-merge prohibition or pending state below for #441 only. Preview, production application and formal closure remain open; 10/13.
+
 # WP10 — Owner G1 acceptance and G2 draft authority (15 November 2026)
 
 The owner replied **“Okay go ahead please”** to the concrete G1 acceptance/merge and G2 decision table after the independent review. This is the recorded user instruction, not a signature created on their behalf.

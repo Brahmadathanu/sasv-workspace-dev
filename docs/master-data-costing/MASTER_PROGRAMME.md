@@ -1,4 +1,4 @@
-> **CURRENT — WP10 G2 SOURCE VERIFIED; OWNER MERGE DECISION PENDING (15 Nov; 10/13):** [Independent evidence](WP10_G2_CI_VERIFICATION_AND_MERGE_RECOMMENDATION_2026-11-15.md) records 199 fresh offline PASS at `9f28f05b`, including 51 mocked Chromium/99 PostgreSQL checks; integrated-pec green. Recommend bounded default-off source merge of #441, with SQL unapplied and counterfactual impact-preview implementation still open (contract drafted). No merge, production step, flag activation or formal closure executed; WP11/WP12 obligations retained. Earlier dispatch/review/rerun banners are historical.
+> **CURRENT — WP10 G2 DEFAULT-OFF SOURCE MERGED (15 Nov; 10/13):** [Owner approval/merge receipt](WP10_OWNER_G2_DEFAULT_OFF_SOURCE_MERGE_AND_REMAINING_GATES_2026-11-15.md): #441 merged normally at `a3816a3f`, reviewed head `83ab1173`, all current-head checks green and 199 fresh offline PASS. Flag default-off; SQL unapplied. The [single remaining preview assignment](WP10_G2_IMPACT_PREVIEW_SINGLE_DRAFT_COMPLETION_PACKAGE_2026-11-15.md) is prepared for the existing Claude session, not submitted. Preview implementation, SQL application/release acceptance and formal WP10 closure remain open. WP11 defects and all WP12 obligations retained; earlier merge-pending banners are historical.
 
 > **CURRENT — WP09 FINAL AUDIT READY FOR OWNER (15 Nov; 9/13):** G1/G2 source merged; post-merge CI SUCCESS and six hosted PWA runtime assets match main source byte-for-byte. [Final audit and closure recommendation](WP09_FINAL_AUDIT_AND_CONDITIONAL_CLOSURE_RECOMMENDATION_2026-11-15.md) proposes conditional closure with explicit W12-WP09-01…05 receiving gates, default-off presentation and preserved WP11 defects. WP09 OPEN until a separate owner closure decision; no activation or formal count advance. Older pending-hosting/merge banners below are historical.
 
@@ -146,7 +146,7 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 - [x] MDC-07 (WP07) — Costing Suite Navigation and IA — owner-conditionally CLOSED
 - [x] WP08 — Product / Master Data Navigation Rationalisation — owner-conditionally CLOSED
 - [x] WP09 — Wider Application Launcher/Section Audit — owner-conditionally CLOSED 15 Nov 2026
-- [ ] WP10 — Future Product/SKU Creation Safeguards — G1 ACCEPTED/MERGED; G2 draft implementation authorised (#440)
+- [ ] WP10 — Future Product/SKU Creation Safeguards — G1/G2 default-off source merged; preview/SQL/acceptance still OPEN (#440)
 - [ ] WP11 — UX Consistency and Visual Hardening
 - [ ] WP12 — Regression, Live Proof and Governance Documentation
 
@@ -154,13 +154,13 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11–WP12. Later phases do not start because an attractive future idea appears.
 
 ## Programme status
-IN PROGRESS: closing. Current remaining items: REMAINING_WORK_2026-10-31.md (31 Oct 2026). Earlier list and dispositions: MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md (25 Oct 2026)
+IN PROGRESS: 10/13 substantive work packs closed (WP00–WP09); WP10–WP12 open. Current remaining work is tracked by the WP10/WP11/WP12 authority records and the latest banner above. REMAINING_WORK_2026-10-31.md and MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md are earlier dated records, not current gate authority.
 
 ## Active work pack
-WP10 — Future Product/SKU Creation Safeguards. G1 audit accepted and merged through #439; G2 draft implementation authorised under issue #440. One consolidated package; production execution and formal closure remain separate owner gates.
+WP10 — Future Product/SKU Creation Safeguards. G1 #439 and default-off G2 source #441 are merged. Under still-open issue #440, complete the counterfactual pre-submit impact preview through the single draft completion package, then independently review the full unapplied SQL/application and acceptance gates. Production execution and formal closure remain separate owner decisions.
 
 ## Active gate
-None. WP04-G8 is completed and post-merge verification passed.
+WP10 G2 completion: counterfactual pre-submit impact-preview implementation and independent review. The source merge did not apply SQL or activate a flag. Separate exact owner authority remains necessary for server application and later acceptance/closure. WP04-G8 is historical completed work.
 
 WP04 merged to `main` as `1ff8d13e90b5078dde7e414e3c257cf41aa6f34b` with parent 1 `a007cea4d624835dc5406a952657769868619649` and parent 2 `836ff0e9e9fd8dbe27061dde2a6346236466b2a4`. G0–G8 are complete. Formal G7 remains PASS; Track A remains CLOSED / APPLIED / PROVEN; Track B remains accepted at runtime candidate `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`. Post-merge verification confirmed the merged tree matches the verified branch tree, Build 4 remains current/COMPLETED with Run 115 and 1793/611 populations, source fingerprint matches, Readiness RPC and CSE-P01 are unchanged, and no new statement-timeout or legacy-dashboard-summary log event was found in the checked post-merge window. No GitHub CI evidence is claimed. WP05 remains not started.
 

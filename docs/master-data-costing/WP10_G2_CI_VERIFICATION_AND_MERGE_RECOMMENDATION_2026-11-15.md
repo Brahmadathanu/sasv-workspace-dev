@@ -1,3 +1,5 @@
+> **SUBSEQUENT OWNER DECISION:** #441 source merged normally at `a3816a3f` under explicit approval, with default-off flag and SQL unapplied. [Approval, final-head evidence and remaining gates](WP10_OWNER_G2_DEFAULT_OFF_SOURCE_MERGE_AND_REMAINING_GATES_2026-11-15.md) supersede any earlier source-merge prohibition or pending state below for #441 only. Preview, production application and formal closure remain open; 10/13.
+
 # WP10 G2 — Independent CI verification and bounded merge recommendation
 
 **15 November 2026. WP10 OPEN; programme 10/13. Owner source-merge decision pending. SQL unapplied; flag default-off.**

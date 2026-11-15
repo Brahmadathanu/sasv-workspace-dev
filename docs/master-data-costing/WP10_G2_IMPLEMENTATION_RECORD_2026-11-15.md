@@ -1,3 +1,5 @@
+> **SUBSEQUENT OWNER DECISION:** #441 source merged normally at `a3816a3f` under explicit approval, with default-off flag and SQL unapplied. [Approval, final-head evidence and remaining gates](WP10_OWNER_G2_DEFAULT_OFF_SOURCE_MERGE_AND_REMAINING_GATES_2026-11-15.md) supersede any earlier source-merge prohibition or pending state below for #441 only. Preview, production application and formal closure remain open; 10/13.
+
 > **LATEST:** [Independent CI verification and bounded source-merge recommendation](WP10_G2_CI_VERIFICATION_AND_MERGE_RECOMMENDATION_2026-11-15.md) records 199 fresh offline PASS (including 51 Chromium and 99 PostgreSQL checks) at `9f28f05b`. This supersedes the earlier local-environment browser/PG limitation and pending-rerun status below. Impact preview is contract-only, not implemented; SQL remains unapplied, flag OFF, owner merge decision pending. WP10 OPEN, 10/13.
 
 # WP10 G2 — Implementation record (draft; independent review R1–R7 addressed in this same PR)
