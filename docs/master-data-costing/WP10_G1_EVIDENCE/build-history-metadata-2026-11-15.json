@@ -1,0 +1,45 @@
+{
+  "classification": "read-only history metadata; not source-digest freshness proof, production build or SKU completeness acceptance",
+  "rows": [
+    {
+      "id": 7,
+      "period_start": "2026-11-01",
+      "status": "COMPLETED",
+      "is_current": true,
+      "valuation_date": "2026-11-02",
+      "started_at": "2026-11-12 11:19:58.069796+00",
+      "completed_at": "2026-11-12 11:20:41.051674+00",
+      "promoted_at": "2026-11-12 11:20:41.051674+00"
+    },
+    {
+      "id": 6,
+      "period_start": "2026-11-01",
+      "status": "SUPERSEDED",
+      "is_current": false,
+      "valuation_date": "2026-11-02",
+      "started_at": "2026-11-08 10:06:18.15965+00",
+      "completed_at": "2026-11-08 10:07:00.548108+00",
+      "promoted_at": "2026-11-08 10:07:00.548108+00"
+    },
+    {
+      "id": 5,
+      "period_start": "2026-10-01",
+      "status": "COMPLETED",
+      "is_current": true,
+      "valuation_date": "2026-10-22",
+      "started_at": "2026-10-26 02:25:29.351019+00",
+      "completed_at": "2026-10-26 02:26:11.490651+00",
+      "promoted_at": "2026-10-26 02:26:11.490652+00"
+    },
+    {
+      "id": 4,
+      "period_start": "2026-09-01",
+      "status": "COMPLETED",
+      "is_current": true,
+      "valuation_date": "2026-09-10",
+      "started_at": "2026-10-05 12:30:28.28371+00",
+      "completed_at": "2026-10-05 12:31:11.409165+00",
+      "promoted_at": "2026-10-05 12:31:11.409166+00"
+    }
+  ]
+}
