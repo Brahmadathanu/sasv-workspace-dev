@@ -1,0 +1,6 @@
+== wp08 browser
+# tests 48 # pass 46 # fail 0 # skipped 0 
+== wp08 source
+# tests 13 # pass 10 # fail 3 # skipped 0 
+== wp08 fail-closed
+# tests 81 # pass 81 # fail 0 # skipped 0 

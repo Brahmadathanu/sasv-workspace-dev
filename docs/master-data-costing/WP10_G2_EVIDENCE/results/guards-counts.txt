@@ -1,0 +1,18 @@
+== scripts/wp08-g2-1-navigation/source.test.mjs
+not ok 1 - reader/writer surface of the four pages is unchanged vs G2-1 start (same rpc names, tables, permission strings) # tests 13 # pass 12 # fail 1 # skipped 0 
+== scripts/wp08-g2-1-navigation/selection.test.mjs
+# tests 8 # pass 8 # fail 0 # skipped 0 
+== scripts/wp08-g2-1-navigation/resolver.test.mjs
+# tests 8 # pass 8 # fail 0 # skipped 0 
+== scripts/wp09-protected-sw-pin.test.mjs
+# tests 1 # pass 1 # fail 0 # skipped 0 
+== scripts/pec-protected-path-guard.test.mjs
+# tests 1 # pass 1 # fail 0 # skipped 0 
+== scripts/pec-pwa-cache-freshness.test.mjs
+# tests 13 # pass 13 # fail 0 # skipped 0 
+== scripts/wp08-g2-0-shared-master-data/fail-closed.test.mjs
+# tests 81 # pass 81 # fail 0 # skipped 0 
+== scripts/wp08-g2-0-shared-master-data/sw-freshness-and-gate.test.mjs
+# tests 15 # pass 15 # fail 0 # skipped 0 
+== scripts/wp08-g2-1-navigation/browser.test.mjs
+not ok 45 - KNOWN ISSUE WP11/UX-P05 (not a pass): PM BOM 390 px horizontal overflow persists with a deep link # TODO WP11 UX-P05: pre-existing PM BOM mobile overflow; not fixed or masked by G2-1 # tests 45 # pass 44 # fail 0 # skipped 0 

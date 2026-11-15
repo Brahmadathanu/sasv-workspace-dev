@@ -179,6 +179,12 @@ test("writer / reader surface is unchanged: identical RPC names, table names and
   for (const [o, n] of map) {
     const before = tokens(git("show", `${BASE}:${o}`));
     const after = tokens(read(n));
+    // WP10 G2 (issue #440) adds exactly one READ-ONLY, flag-gated call to the existing rpc_get_sku_activation_check in products.js; it is the only
+    // sanctioned deviation from the G2-0 surface and is itself pinned by scripts/wp10-g2-safeguards/source.test.mjs (no writer/table/permission change).
+    if (n.endsWith("products.js")) {
+      const i = after.rpc.indexOf("rpc_get_sku_activation_check");
+      if (i >= 0 && !before.rpc.includes("rpc_get_sku_activation_check")) after.rpc.splice(i, 1);
+    }
     assert.deepEqual(after, before, `${n} data/permission surface`);
     assert.ok(before.rpc.length > 0);
   }

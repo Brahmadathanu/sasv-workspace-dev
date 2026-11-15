@@ -523,6 +523,7 @@ function promptGovernance({
   message,
   confirmLabel = "Confirm",
   danger = false,
+  onOpen = null, // WP10 G2 (flag-gated callers only): receives { setDetail(node) } to show asynchronous pre-check detail inside the dialog
 } = {}) {
   return new Promise((resolve) => {
     if (
@@ -554,6 +555,24 @@ function promptGovernance({
 
     governanceModalOverlay.classList.add("show");
     governanceModalOverlay.setAttribute("aria-hidden", "false");
+    let detailHost = null;
+    if (typeof onOpen === "function") {
+      detailHost = document.getElementById("governanceModalDetail");
+      if (!detailHost && governanceModalMessage?.parentNode) {
+        detailHost = document.createElement("div");
+        detailHost.id = "governanceModalDetail";
+        detailHost.setAttribute("aria-live", "polite");
+        governanceModalMessage.parentNode.insertBefore(detailHost, governanceModalMessage.nextSibling);
+      }
+      detailHost?.replaceChildren();
+      onOpen({
+        setDetail: (node) => {
+          if (!detailHost || !governanceModalOverlay.classList.contains("show")) return false;
+          detailHost.replaceChildren(node);
+          return true;
+        },
+      });
+    }
     try {
       governanceReason.focus();
     } catch {
@@ -572,6 +591,7 @@ function promptGovernance({
       }
       governanceModalOverlay.classList.remove("show");
       governanceModalOverlay.setAttribute("aria-hidden", "true");
+      detailHost?.replaceChildren();
     };
 
     const onOk = () => {
@@ -2435,6 +2455,52 @@ function activationReadinessNotice(row) {
   return "Readiness unavailable. Activating this SKU does not set costing readiness to READY.";
 }
 
+// ---- WP10 G2 (default OFF; localStorage WP10_SAFEGUARDS_V1 === "1"): activation pre-check detail and structured rejection ----
+// Helper modules load by dynamic import ONLY when the flag is on; any load failure leaves today's flow untouched. The server stays authoritative:
+// the pre-check never gates, never enables and never implies success, and the activation call is always made by the existing code below.
+function wp10SafeguardsOn() {
+  try {
+    return globalThis.localStorage?.getItem("WP10_SAFEGUARDS_V1") === "1";
+  } catch {
+    return false;
+  }
+}
+let wp10Mods = null;
+async function loadWp10Modules() {
+  if (!wp10SafeguardsOn()) return null;
+  if (wp10Mods) return wp10Mods;
+  try {
+    const [core, ui] = await Promise.all([import("./wp10-safeguards.js"), import("./wp10-safeguards-ui.js")]);
+    wp10Mods = { core, ui };
+  } catch {
+    wp10Mods = null;
+  }
+  return wp10Mods;
+}
+// Only destinations already proven by the existing related-links contract are offered (PM BOM, Production Route). Batch sizes and the pricing
+// workspaces have no verified destination (WP08 decision), so they show the owner-screen NAME only.
+function wp10OwnerLink(item) {
+  const specs = relatedLinkSpecs();
+  if (item.link === "pm-bom") return specs.find((x) => /^Open PM BOM/.test(x.label)) || null;
+  if (item.link === "route") return specs.find((x) => /^Open Production Route/.test(x.label)) || null;
+  return null;
+}
+function wp10ActivationResultHost() {
+  let host = document.getElementById("wp10ActivationResult");
+  // Placed beside the Activate button (inside the SKU editor), not in #skuReadiness, which lives in a hidden readiness surface.
+  const anchor = skuToggleActiveBtn?.parentNode;
+  if (!host && anchor?.parentNode) {
+    host = document.createElement("div");
+    host.id = "wp10ActivationResult";
+    host.setAttribute("aria-live", "assertive");
+    anchor.parentNode.insertBefore(host, anchor.nextSibling);
+  }
+  return host;
+}
+function wp10ClearActivationResult() {
+  document.getElementById("wp10ActivationResult")?.replaceChildren();
+}
+
 async function toggleSkuActive() {
   const row = currentSkuRow();
   if (!canWriteModule() || !row || writeBusy || skuDraft === "new") return;
@@ -2444,6 +2510,35 @@ async function toggleSkuActive() {
   }
   const nextActive = !row.is_active;
   const packIdentity = skuPackIdentity(row.pack_size, row.uom, row.is_sample);
+  wp10ClearActivationResult();
+  const wp10 = nextActive ? await loadWp10Modules() : null;
+  let preCheckOnOpen = null;
+  let dialogOpen = false;
+  const guard = wp10 ? wp10.core.createLatestGuard() : null;
+  if (wp10) {
+    preCheckOnOpen = (handle) => {
+      dialogOpen = true;
+      const token = guard.next();
+      handle.setDetail(wp10.ui.statusNode(document, "Checking activation requirements…"));
+      (async () => {
+        let node;
+        try {
+          const { data, error } = await supabase.rpc("rpc_get_sku_activation_check", { p_sku_id: row.id });
+          if (!guard.isCurrent(token) || !dialogOpen || currentSkuRow()?.id !== row.id) return; // stale response, closed dialog or changed selection
+          if (error) {
+            const parsed = wp10.core.parseActivationError(error);
+            node = wp10.ui.buildActivationCheckNode(document, { ok: false, reason: parsed.kind === "AMBIGUOUS_PM_BOM" ? "AMBIGUOUS_PM_BOM" : parsed.kind === "PERMISSION" ? "NO_PERMISSION" : parsed.kind === "UNAVAILABLE" ? "UNREACHABLE" : "ERROR" }, { linkFor: wp10OwnerLink });
+          } else {
+            node = wp10.ui.buildActivationCheckNode(document, wp10.core.parseActivationCheck(data, row.id), { linkFor: wp10OwnerLink });
+          }
+        } catch {
+          if (!guard.isCurrent(token) || !dialogOpen) return;
+          node = wp10.ui.buildActivationCheckNode(document, { ok: false, reason: "UNREACHABLE" }, { linkFor: wp10OwnerLink });
+        }
+        handle.setDetail(node);
+      })();
+    };
+  }
   const governance = await promptGovernance({
     title: nextActive ? "Activate SKU" : "Deactivate SKU",
     confirmLabel: nextActive ? "Activate SKU" : "Deactivate SKU",
@@ -2451,7 +2546,10 @@ async function toggleSkuActive() {
     message: nextActive
       ? `Activate SKU ${row.id} (${packIdentity})?\n\nThis lifecycle target will become Active.\n\n${activationReadinessNotice(row)}\n\nA business reason is required. An approval reference is optional.`
       : `Deactivate SKU ${row.id} (${packIdentity})?\n\nThis lifecycle target will become Inactive.\n\nA business reason is required. An approval reference is optional.`,
+    onOpen: preCheckOnOpen,
   });
+  dialogOpen = false;
+  guard?.cancel();
   if (!governance) return;
   writeBusy = true;
   syncSkuAccessChrome();
@@ -2465,10 +2563,15 @@ async function toggleSkuActive() {
     });
     if (error) {
       surfaceRpcError(error, "Unable to change SKU active state.");
+      if (wp10 && nextActive) {
+        const host = wp10ActivationResultHost();
+        host?.replaceChildren(wp10.ui.buildRejectionNode(document, wp10.core.parseActivationError(error), { linkFor: wp10OwnerLink }));
+      }
       return;
     }
     const keepId = row.id;
     skuDirty = false;
+    wp10ClearActivationResult();
     await loadChildSkus(selectedId);
     await selectSku(keepId);
     showToast(nextActive ? "SKU activated." : "SKU deactivated.", 4000);

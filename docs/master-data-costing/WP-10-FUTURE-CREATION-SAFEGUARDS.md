@@ -14,13 +14,13 @@ One [G2 package](WP10_G2_SINGLE_DRAFT_IMPLEMENTATION_PACKAGE_2026-11-15.md), [is
 - [x] G0 entry criteria and kickoff.
 - [x] G1 live/source transition and recurrence audit, corrected fixtures, independent review and owner acceptance.
 - [x] G1 merge; O1–O4 and bounded G2 draft authority recorded.
-- [ ] G2 implementation and unapplied SQL proposals in one draft PR.
+- [x] G2 implementation (default-off client flag) and unapplied SQL proposals delivered in one draft PR — see [implementation record](WP10_G2_IMPLEMENTATION_RECORD_2026-11-15.md) and [operator runbook](WP10_G2_OPERATOR_RUNBOOK_2026-11-15.md); not merged, nothing applied or activated.
 - [ ] Independent code/contract review and focused validation.
 - [ ] Separate exact production authority where needed.
 - [ ] Formal owner WP10 closure.
 
 ## Next step and execution state
-Execute #440 in one new implementation branch/draft PR against current main; ChatGPT handles read-only server questions and independent review. No new G1 handover or repeated confirmation needed. Assignment is prepared; no Claude task submitted by ChatGPT. The named operator nomination remains an operational follow-up; programme owner is accountable until then.
+G2 draft PR is open for independent review (no merge, no production step, no flag activation); ChatGPT handles read-only server questions and independent review. No new G1 handover or repeated confirmation needed. Assignment is prepared; no Claude task submitted by ChatGPT. The named operator nomination remains an operational follow-up; programme owner is accountable until then.
 
 ## Protected boundaries
 No production SQL, rebuild/cron scheduling, permissions/RLS/grants, registry, feature activation, deployment, G2 merge or automatic deactivation. New SQL remains unapplied outside migrations. Keep existing five essentials, CI-038a date semantics, LIVE_AS_OF and fingerprint authoritative. Test all in-window effective boundaries rather than only endpoints. WP09 remains closed and launcher flag untouched; WP08/PEC stay closed; WP11 defects and all WP12 receiving/security/PWA/Electron/Windows gates preserved. Five historical migration CRLF-only differences remain untouched. Programme stays 10/13 until a separate formal closure.

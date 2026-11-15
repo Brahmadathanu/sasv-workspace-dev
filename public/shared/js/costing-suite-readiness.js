@@ -1145,6 +1145,8 @@ export function createPortfolioReadinessController(deps = {}) {
     portfolio: null,
     portfolioUnavailable: false,
     portfolioError: null,
+    portfolioErrorRaw: null, // WP10 G2: raw error kept only to explain the unavailable state (flag-gated rendering)
+    periodsErrorRaw: null,
     gaps: null,
     gapsUnavailable: false,
     gapsError: null,
@@ -1372,6 +1374,7 @@ export function createPortfolioReadinessController(deps = {}) {
       state.periods = [];
       state.periodStart = null;
       state.periodsUnavailable = true;
+      state.periodsErrorRaw = err;
       state.periodsError = isPermissionError(err)
         ? "Unavailable — permission denied for governed periods."
         : `Unavailable — ${err?.message || "governed periods failed to load."}`;
@@ -1402,6 +1405,7 @@ export function createPortfolioReadinessController(deps = {}) {
       state.loadingPortfolio = true;
       state.portfolioUnavailable = false;
       state.portfolioError = null;
+      state.portfolioErrorRaw = null;
       state.selectedAssessment = null;
       selectedSkuId = null;
     }
@@ -1447,6 +1451,7 @@ export function createPortfolioReadinessController(deps = {}) {
       state.loadedContext = contextFromArgs(req.args);
       state.portfolioUnavailable = false;
       state.portfolioError = null;
+      state.portfolioErrorRaw = null;
       if (typeof onPortfolioContextLoaded === "function") {
         onPortfolioContextLoaded(asObject(state.portfolio.context) || {});
       }
@@ -1464,6 +1469,7 @@ export function createPortfolioReadinessController(deps = {}) {
       state.loadedContext = null;
       state.registerRows = [];
       state.portfolioUnavailable = true;
+      state.portfolioErrorRaw = err;
       state.portfolioError = isPermissionError(err)
         ? "Unavailable — permission denied for portfolio readiness."
         : `Unavailable — ${err?.message || "portfolio readiness failed to load."}`;
@@ -2112,9 +2118,12 @@ export function createPortfolioReadinessController(deps = {}) {
       return;
     }
     if (state.portfolioUnavailable) {
-      statusHost.innerHTML = `<div class="status error" role="alert">Readiness unavailable — ${escapeHtml(
-        state.portfolioError || "Unavailable",
-      )}</div>`;
+      const rich = wp10UnavailableHtml();
+      statusHost.innerHTML =
+        rich ||
+        `<div class="status error" role="alert">Readiness unavailable — ${escapeHtml(
+          state.portfolioError || "Unavailable",
+        )}</div>`;
       return;
     }
     statusHost.innerHTML = "";
@@ -2428,11 +2437,15 @@ export function createPortfolioReadinessController(deps = {}) {
       const msg = escapeHtml(
         state.portfolioError || state.periodsError || "Unavailable",
       );
+      const rich = wp10UnavailableHtml();
       if (tableBody) {
-        tableBody.innerHTML = `<tr><td colspan="7"><div class="cp-readiness-unavailable status error" role="alert">Readiness unavailable — ${msg}</div></td></tr>`;
+        tableBody.innerHTML = rich
+          ? `<tr><td colspan="7">${rich}</td></tr>`
+          : `<tr><td colspan="7"><div class="cp-readiness-unavailable status error" role="alert">Readiness unavailable — ${msg}</div></td></tr>`;
       }
       if (cardHost) {
-        cardHost.innerHTML = `<div class="cp-readiness-unavailable status error" role="alert">Readiness unavailable — ${msg}</div>`;
+        cardHost.innerHTML =
+          rich || `<div class="cp-readiness-unavailable status error" role="alert">Readiness unavailable — ${msg}</div>`;
       }
       return;
     }
@@ -2476,6 +2489,46 @@ export function createPortfolioReadinessController(deps = {}) {
     renderRows();
     renderLiveAsOf();
     renderExportControls();
+    renderWp10Panels();
+  }
+
+  // ---- WP10 G2 (default OFF; localStorage WP10_SAFEGUARDS_V1 === "1"): explanatory unavailable states + operational expiry horizon ----
+  // The helper module is loaded by dynamic import ONLY when the flag is on, so flag-off behaviour (and a missing or stale module) cannot affect this lens.
+  let wp10Module = null;
+  let wp10Loading = false;
+  function wp10Enabled() {
+    try {
+      return globalThis.localStorage?.getItem("WP10_SAFEGUARDS_V1") === "1";
+    } catch {
+      return false;
+    }
+  }
+  function ensureWp10() {
+    if (wp10Module || wp10Loading || !wp10Enabled()) return;
+    wp10Loading = true;
+    import("./wp10-safeguards-ui.js")
+      .then((m) => {
+        wp10Module = m;
+        wp10Loading = false;
+        if (!disposed) render();
+      })
+      .catch(() => {
+        wp10Loading = false; // module unavailable: the existing one-line messages remain
+      });
+  }
+  function wp10UnavailableHtml() {
+    if (!wp10Enabled()) return null;
+    ensureWp10();
+    const raw = state.portfolioUnavailable && !state.periodsUnavailable ? state.portfolioErrorRaw : state.periodsErrorRaw || state.portfolioErrorRaw;
+    if (!wp10Module || !raw) return null;
+    return wp10Module.readinessUnavailableHtml(raw, state.periodStart);
+  }
+  function renderWp10Panels() {
+    if (!wp10Enabled()) return;
+    ensureWp10();
+    if (!wp10Module) return;
+    const { host, statusHost } = hostEls();
+    wp10Module.mountOperationalHorizonPanel({ host, anchor: statusHost, costingRpc, isActive: () => !disposed && isActiveLens(), periodStart: state.periodStart });
   }
 
   // ---- WP05-P01: LIVE_AS_OF clarity, remediation, CSV export ----------------
