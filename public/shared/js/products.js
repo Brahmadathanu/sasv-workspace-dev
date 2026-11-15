@@ -523,6 +523,7 @@ function promptGovernance({
   message,
   confirmLabel = "Confirm",
   danger = false,
+  onOpen = null, // WP10 G2 (flag-gated callers only): receives { setDetail(node) } to show asynchronous pre-check detail inside the dialog
 } = {}) {
   return new Promise((resolve) => {
     if (
@@ -554,6 +555,24 @@ function promptGovernance({
 
     governanceModalOverlay.classList.add("show");
     governanceModalOverlay.setAttribute("aria-hidden", "false");
+    let detailHost = null;
+    if (typeof onOpen === "function") {
+      detailHost = document.getElementById("governanceModalDetail");
+      if (!detailHost && governanceModalMessage?.parentNode) {
+        detailHost = document.createElement("div");
+        detailHost.id = "governanceModalDetail";
+        detailHost.setAttribute("aria-live", "polite");
+        governanceModalMessage.parentNode.insertBefore(detailHost, governanceModalMessage.nextSibling);
+      }
+      detailHost?.replaceChildren();
+      onOpen({
+        setDetail: (node) => {
+          if (!detailHost || !governanceModalOverlay.classList.contains("show")) return false;
+          detailHost.replaceChildren(node);
+          return true;
+        },
+      });
+    }
     try {
       governanceReason.focus();
     } catch {
@@ -572,6 +591,7 @@ function promptGovernance({
       }
       governanceModalOverlay.classList.remove("show");
       governanceModalOverlay.setAttribute("aria-hidden", "true");
+      detailHost?.replaceChildren();
     };
 
     const onOk = () => {
@@ -1725,6 +1745,7 @@ let skuLoadGeneration = 0;
 
 async function loadChildSkus(productId) {
   const generation = ++skuLoadGeneration;
+  wp10ClearActivationResult();
   skuDirty = false;
   skuDraft = null;
   selectedSkuId = null;
@@ -1923,6 +1944,7 @@ function renderNoSkuGuidance() {
 }
 
 async function closeSkuDialog() {
+  wp10ClearActivationResult(); // R3: a rejection detail belongs to the SKU it was shown for; a different selection clears it
   if (!(await confirmDiscardSku())) return;
   skuDirty = false;
   if (skuDraft === "new") skuDraft = null;
@@ -1943,6 +1965,7 @@ function fillSkuMasterFields(row) {
 }
 
 async function selectSku(skuId) {
+  if (String(skuId) !== String(selectedSkuId)) wp10ClearActivationResult(); // R3: a rejection detail belongs to the SKU it was shown for
   if (String(skuId) === String(selectedSkuId) && skuDraft !== "new") {
     if (readinessDetailSurface) readinessDetailSurface.hidden = true;
     if (skuDetail) skuDetail.hidden = false;
@@ -2435,6 +2458,69 @@ function activationReadinessNotice(row) {
   return "Readiness unavailable. Activating this SKU does not set costing readiness to READY.";
 }
 
+// ---- WP10 G2 (default OFF; localStorage WP10_SAFEGUARDS_V1 === "1"): activation pre-check detail and structured rejection ----
+// Helper modules load by dynamic import ONLY when the flag is on; any load failure leaves today's flow untouched. The server stays authoritative:
+// the pre-check never gates, never enables and never implies success, and the activation call is always made by the existing code below.
+function wp10SafeguardsOn() {
+  try {
+    return globalThis.localStorage?.getItem("WP10_SAFEGUARDS_V1") === "1";
+  } catch {
+    return false;
+  }
+}
+let wp10Mods = null;
+async function loadWp10Modules() {
+  if (!wp10SafeguardsOn()) return null;
+  if (wp10Mods) return wp10Mods;
+  try {
+    const [core, ui] = await Promise.all([import("./wp10-safeguards.js?v=419f1603de"), import("./wp10-safeguards-ui.js?v=419f1603de")]);
+    wp10Mods = { core, ui };
+  } catch {
+    wp10Mods = null;
+  }
+  return wp10Mods;
+}
+// Only destinations already proven by the existing related-links contract are offered (PM BOM, Production Route). Batch sizes and the pricing
+// workspaces have no verified destination (WP08 decision), so they show the owner-screen NAME only.
+function wp10OwnerLink(item) {
+  const specs = relatedLinkSpecs();
+  if (item.link === "pm-bom") return specs.find((x) => /^Open PM BOM/.test(x.label)) || null;
+  if (item.link === "route") return specs.find((x) => /^Open Production Route/.test(x.label)) || null;
+  return null;
+}
+function wp10ActivationResultHost() {
+  let host = document.getElementById("wp10ActivationResult");
+  // Placed beside the Activate button (inside the SKU editor), not in #skuReadiness, which lives in a hidden readiness surface.
+  const anchor = skuToggleActiveBtn?.parentNode;
+  if (!host && anchor?.parentNode) {
+    host = document.createElement("div");
+    host.id = "wp10ActivationResult";
+    host.setAttribute("aria-live", "assertive");
+    anchor.parentNode.insertBefore(host, anchor.nextSibling);
+  }
+  return host;
+}
+function wp10ClearActivationResult() {
+  document.getElementById("wp10ActivationResult")?.replaceChildren();
+}
+
+// R3: one open/import/confirm/submit lifecycle at a time (flag ON only). Released in finally, so cancel/error/exit paths cannot leave it held.
+let wp10ActivationAttempt = null;
+function wp10AttemptStillValid(attempt) {
+  const row = currentSkuRow();
+  return (
+    wp10ActivationAttempt === attempt &&
+    !!row &&
+    String(row.id) === String(attempt.skuId) &&
+    String(selectedId) === String(attempt.productId) &&
+    row.is_active === attempt.wasActive &&
+    canWriteModule() &&
+    !skuDirty &&
+    skuDraft !== "new" &&
+    !inNewMode
+  );
+}
+
 async function toggleSkuActive() {
   const row = currentSkuRow();
   if (!canWriteModule() || !row || writeBusy || skuDraft === "new") return;
@@ -2443,7 +2529,55 @@ async function toggleSkuActive() {
     return;
   }
   const nextActive = !row.is_active;
+  let attempt = null;
+  if (nextActive && wp10SafeguardsOn()) {
+    if (wp10ActivationAttempt) return; // a dialog / pre-check / submission for this flow is already in progress
+    attempt = { skuId: row.id, productId: selectedId, wasActive: row.is_active };
+    wp10ActivationAttempt = attempt; // reserved BEFORE any await
+  }
+  try {
+    return await toggleSkuActiveInner(row, nextActive, attempt);
+  } finally {
+    if (attempt && wp10ActivationAttempt === attempt) wp10ActivationAttempt = null;
+  }
+}
+
+async function toggleSkuActiveInner(row, nextActive, attempt) {
   const packIdentity = skuPackIdentity(row.pack_size, row.uom, row.is_sample);
+  wp10ClearActivationResult();
+  const wp10 = attempt ? await loadWp10Modules() : null;
+  if (attempt && !wp10AttemptStillValid(attempt)) {
+    showToast("The selection or SKU state changed; nothing was opened or submitted.");
+    return;
+  }
+  let preCheckOnOpen = null;
+  let dialogOpen = false;
+  const guard = wp10 ? wp10.core.createLatestGuard() : null;
+  if (wp10) {
+    preCheckOnOpen = (handle) => {
+      dialogOpen = true;
+      const token = guard.next();
+      const live = () => guard.isCurrent(token) && dialogOpen && wp10AttemptStillValid(attempt);
+      handle.setDetail(wp10.ui.statusNode(document, "Checking activation requirements…"));
+      (async () => {
+        let node;
+        try {
+          const { data, error } = await supabase.rpc("rpc_get_sku_activation_check", { p_sku_id: row.id });
+          if (!live()) return; // stale response, closed dialog or changed selection/state
+          if (error) {
+            const parsed = wp10.core.parseActivationError(error);
+            node = wp10.ui.buildActivationCheckNode(document, { ok: false, reason: parsed.kind === "AMBIGUOUS_PM_BOM" ? "AMBIGUOUS_PM_BOM" : parsed.kind === "PERMISSION" ? "NO_PERMISSION" : parsed.kind === "UNAVAILABLE" ? "UNREACHABLE" : "ERROR" }, { linkFor: wp10OwnerLink });
+          } else {
+            node = wp10.ui.buildActivationCheckNode(document, wp10.core.parseActivationCheck(data, row.id), { linkFor: wp10OwnerLink });
+          }
+        } catch {
+          if (!live()) return; // R3: the catch path applies the same identity checks
+          node = wp10.ui.buildActivationCheckNode(document, { ok: false, reason: "UNREACHABLE" }, { linkFor: wp10OwnerLink });
+        }
+        if (live()) handle.setDetail(node);
+      })();
+    };
+  }
   const governance = await promptGovernance({
     title: nextActive ? "Activate SKU" : "Deactivate SKU",
     confirmLabel: nextActive ? "Activate SKU" : "Deactivate SKU",
@@ -2451,8 +2585,16 @@ async function toggleSkuActive() {
     message: nextActive
       ? `Activate SKU ${row.id} (${packIdentity})?\n\nThis lifecycle target will become Active.\n\n${activationReadinessNotice(row)}\n\nA business reason is required. An approval reference is optional.`
       : `Deactivate SKU ${row.id} (${packIdentity})?\n\nThis lifecycle target will become Inactive.\n\nA business reason is required. An approval reference is optional.`,
+    onOpen: preCheckOnOpen,
   });
+  dialogOpen = false;
+  guard?.cancel();
   if (!governance) return;
+  // R3: re-validate immediately before the writer; the dialog may have been open while selection, rights or state changed.
+  if (attempt && !wp10AttemptStillValid(attempt)) {
+    showToast("The selection, your access or the SKU state changed while the dialog was open; nothing was submitted.");
+    return;
+  }
   writeBusy = true;
   syncSkuAccessChrome();
   showLoading();
@@ -2465,10 +2607,18 @@ async function toggleSkuActive() {
     });
     if (error) {
       surfaceRpcError(error, "Unable to change SKU active state.");
+      if (wp10 && nextActive && currentSkuRow() && String(currentSkuRow().id) === String(row.id)) {
+        const host = wp10ActivationResultHost();
+        if (host) {
+          host.setAttribute("data-sku-id", String(row.id));
+          host.replaceChildren(wp10.ui.buildRejectionNode(document, wp10.core.parseActivationError(error), { linkFor: wp10OwnerLink }));
+        }
+      }
       return;
     }
     const keepId = row.id;
     skuDirty = false;
+    wp10ClearActivationResult();
     await loadChildSkus(selectedId);
     await selectSku(keepId);
     showToast(nextActive ? "SKU activated." : "SKU deactivated.", 4000);

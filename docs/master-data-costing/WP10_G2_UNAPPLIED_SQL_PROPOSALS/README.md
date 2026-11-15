@@ -1,0 +1,48 @@
+# WP10 G2 — UNAPPLIED SQL proposals
+
+**Nothing here has been run against any database, and nothing here is a migration.** The directory is deliberately outside
+`supabase/migrations`. Applying any file needs separate, exact, owner-authorised operational approval (issue #440 boundary).
+
+| File | Creates | Purpose |
+|---|---|---|
+| `01_clock_and_batch_size_contract.sql` | `costing.fn_wp10_today_ist()`, `costing.fn_wp10_batch_size_state_as_of(product, date)` | Single clock read; reviewed date-parameterised batch-size contract (predicate identical to the live helper's inline predicate) |
+| `02_essential_states_and_boundaries.sql` | `costing.fn_wp10_essential_states_as_of`, `costing.fn_wp10_boundary_dates` | Five-essential state at an explicit date; every effective boundary (`effective_from`, `effective_to + 1`) inside a window |
+| `03_operational_expiry_horizon_rpc.sql` | `public.rpc_wp10_get_operational_expiry_horizon(int, bigint, int)` | Read-only, STABLE, paged 30-day operational lens |
+| `04_active_sku_reparent_guard.sql` | trigger `trg_wp10_active_sku_reparent_guard` on `public.product_skus` | Rejects re-parenting an SKU that is active before and after |
+| `05_product_route_impact_guard.sql` | triggers `trg_wp10_product_route_impact_before/after` on `public.products` | Rejects a `sub_group_id` change on a product with an active SKU when it newly invalidates the route, or when the impact cannot be determined (review required) |
+| `99_rollback_all.sql` | — | Drops every object above (no data touched) |
+
+Apply order 01 → 02 → 03 → 04 → 05 (enforced by the preflights). Roll back with `99_rollback_all.sql` (single transaction; fail-closed on any changed or unowned object).
+
+## Provenance, preflight, receipts and rollback (R5)
+Every file 01–05 begins with a **preflight** and ends with a **receipt**; they use `CREATE FUNCTION` / `CREATE TRIGGER` only (never `CREATE OR REPLACE`, never `DROP TRIGGER IF EXISTS`).
+- **Preflight refuses** (raising before anything is created) when: an object the file would create already exists (a foreign object is never overwritten or adopted); a required table/function is missing; a live dependency's `md5(pg_get_functiondef)` differs from the reviewed definition (9 live functions are fingerprinted from the committed catalogs); a prerequisite proposal is missing or its receipt no longer matches its definition.
+- **Re-run semantics:** re-running any file fails at its preflight by design ("already exists; refusing to overwrite"). **Partial apply:** each file is one transaction, so a file is applied wholly or not at all; applying out of order is refused because 02/03/05 verify the receipts of their prerequisites.
+- **Receipt:** each created function/trigger gets `COMMENT … 'WP10-G2 <file> md5:<md5 of its definition as created>'` (no new table, no grant, no registry row).
+- **Rollback (`99_rollback_all.sql`)** first verifies every object that exists carries an intact receipt; if any existing proposal-named object has no receipt (not created by this procedure) or was modified since, it raises and **drops nothing**. Objects that do not exist (partial/already-rolled-back sets) are skipped with a NOTICE; drops have no CASCADE, so an unexpected dependent also aborts.
+- Verified by `scripts/wp10-g2-safeguards/provenance.test.mjs` (collision, pre-existing trigger, partial apply, prerequisite modified, live dependency drift, clean rollback, double rollback, modified-before-rollback, unowned object, partial rollback, no table touched, and two mutation controls).
+
+## Live dependency closure (must exist and be unchanged in the target database)
+- `public.plm_sku_bom_revision_as_of(sku, date)`, `costing.fn_resolve_sku_mrp_as_of(sku, date)`, `costing.fn_resolve_sku_selling_price_policy_as_of(sku, date)`,
+  `costing.fn_resolve_route_family_for_product(product, date)`, `costing.fn_validate_effective_product_process_route(product, date)`.
+- Tables read: `public.production_batch_size_ref`, `public.plm_bom_revision`, the MRP and selling-policy tables behind the resolvers, `public.product_skus`, `public.products`.
+- Permission helper `public.app_has_permission` and the existing targets `module:manage-products` / `module:costing-control-center` (**no new permission target, registry row or launcher entry**).
+- **Not changed or rewritten:** `costing.fn_sku_activation_missing_items`, `rpc_set_product_sku_active`, `rpc_get_sku_activation_check`, the readiness fingerprint, the portfolio read, the five-essential list, CI-038a (`greatest(valuation date, current IST date)`), `LIVE_AS_OF`. Live-only functions are not rewritten for repository parity.
+- **Route dependency closure (R2) is now proven** against the independent route-callee catalog (`WP10_G2_EVIDENCE/independent-route-callee-catalog-2026-11-15.json`: `fn_resolve_effective_product_process_route`, `fn_resolve_effective_route_family_route`, `fn_validate_product_process_route`, `fn_validate_route_family_route`, `fn_effective_product_process_route_steps`). The route state at date D is a function of the SELECTED family / family route / product route; the three validators take no date, so validity can change only when a selector window opens or closes. The boundary scan therefore includes the three family-map levels, route families, family routes (APPROVED **and** SUPERSEDED, as the resolver selects) and product routes (APPROVED), and each boundary is evaluated with the real validator. Static-in-D tables (steps, overrides, locations, cost centres at the route's own date, behaviours, resource classes, batch reference equality) are classified in `draft-sql-static.test.mjs` S15/S16. `route_boundary_coverage` is `COMPLETE`; nothing in the chain remains uncaptured. If a future DDL change adds a date-driven selector, the fingerprints in the preflight and the S14–S17 tests fail first.
+
+## Grant implications
+- Helper functions 01/02 and guard functions 04/05: `REVOKE ALL … FROM public, anon, authenticated`; they run as SECURITY DEFINER with a pinned `search_path`; only triggers/RPC 03 call them. `service_role` is not granted on the helpers.
+- RPC 03: `REVOKE ALL` then `GRANT EXECUTE … TO authenticated` only; inside it requires `auth.uid()` and view permission on `module:manage-products` OR `module:costing-control-center`. This is the **only** new client-callable surface and it is read-only.
+- Triggers 04/05 apply to every writer including privileged ones (service role, owner, SQL editor). They add rejections only for the two precise conditions above; the live product-side inactivation guard and SKU activation guards are untouched.
+- No table privilege, RLS policy or registry row changes. Ordinary authenticated direct DML on `products` / `product_skus` stays denied as in the live catalog.
+
+## Contracts (settled / unresolved)
+- **Amounts (zero/negative)** — SETTLED as out of scope: canonical resolution semantics are preserved; no new amount policy is proposed or requested. The panel states what is assessed.
+- **Route boundary coverage** — RESOLVED by R2 (above).
+- **Override / exception workflow** — not authorised and not needed: there is no bypass, flag or permission target. The reviewed path is deactivate → re-parent/complete → re-activate through the existing audited RPC.
+- **Impact review for subgroup edits** — proposal 05 now rejects when the impact is *determinable and harmful* (`WP10_PRODUCT_ROUTE_IMPACT`) **or not determinable** (`WP10_PRODUCT_ROUTE_IMPACT_UNRESOLVED`, review required; R1). It is not a blanket freeze: valid→valid, invalid→invalid, no-active-SKU and non-subgroup edits are unaffected.
+- **UNRESOLVED (specific contract returned, not invented): read-only pre-submit impact PREVIEW.** The live `fn_resolve_route_family_for_product` reads `products.sub_group_id` from the table, so a *counterfactual* ("what would the route be if sub-group were X?") cannot flow through the live resolver/validator chain without either (a) a new owner-authorised resolver with a sub-group override parameter that duplicates the three-level family selection, or (b) a live-function change adding such a parameter. A rollback-based dry run is a write and is excluded. Until the owner chooses (a) or (b), the guard (which evaluates after the move inside the writer's transaction) is the safety net and its error text names the remediation.
+- The target database must be checked for the live definitions of the dependencies before applying: the preflight enforces it mechanically (md5 fingerprints), see `docs/master-data-costing/WP10_G1_CATALOG_QUESTIONS_2026-11-15.sql`.
+
+## Verification
+Isolated PostgreSQL fixtures in `scripts/wp10-g2-safeguards/` (`horizon.test.mjs`, `guards.test.mjs`, `provenance.test.mjs`, `draft-sql-static.test.mjs`); live-verbatim function text where captured (now including the whole route chain from the independent route-callee catalog), labelled stand-in tables elsewhere (`PROVENANCE_ROUTE` in `fixture.mjs`). The production writer, preview and build functions are never called. See `docs/master-data-costing/WP10_G2_IMPLEMENTATION_RECORD_2026-11-15.md`.

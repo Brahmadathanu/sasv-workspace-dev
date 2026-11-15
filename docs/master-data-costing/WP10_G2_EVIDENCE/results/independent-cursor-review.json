@@ -1,0 +1,54 @@
+{
+  "reviewed_author_head": "57d846a2abb4453f11d2bec46937e582898a9020",
+  "base": "6b7eb45f9aaab89a8916740f70caa7375499570d",
+  "review_date": "2026-11-15",
+  "scope": "offline/mocked; reviewer cursor correction; no production operations",
+  "asset_token": "419f1603de",
+  "fresh_results": {
+    "client_units": {
+      "pass": 14,
+      "fail": 0,
+      "includes": "SQL03 cursor-equality contract and detected strict-comparison mutant"
+    },
+    "sw_delivery": {
+      "pass": 7,
+      "fail": 0
+    },
+    "source_safety": {
+      "pass": 9,
+      "fail": 0
+    },
+    "draft_sql_static": {
+      "pass": 19,
+      "fail": 0,
+      "not_proven": 0
+    }
+  },
+  "postgres_fixtures": {
+    "status": "SKIPPED",
+    "reason": "PostgreSQL binaries unavailable"
+  },
+  "chromium": {
+    "status": "ENVIRONMENT_BLOCKED",
+    "reason": "Playwright Chromium executable missing; browser download proxy connection failed; initial launch errors precede assertions",
+    "required_rerun": [
+      "browser-products.test.mjs (24 tests)",
+      "browser-readiness.test.mjs (27 tests, updated R4.2)"
+    ]
+  },
+  "ci_author_head": {
+    "integrated-pec": "success",
+    "netlify_header_rules": "success",
+    "netlify_redirect_rules": "success",
+    "netlify_pages_changed": "neutral",
+    "new_head": "must recheck"
+  },
+  "impact_preview": "NOT IMPLEMENTED",
+  "production_role_or_installed_app_acceptance": "NOT TESTED",
+  "sql_applied": false,
+  "flag_activated": false,
+  "merged": false,
+  "wp10": "OPEN",
+  "programme_closed": 10,
+  "programme_total": 13
+}

@@ -1,0 +1,58 @@
+== g2 horizon (PASS/FAIL/NOT_PROVEN/SKIPPED labels)
+     43 PASS 
+== g2 guards (PASS/FAIL/NOT_PROVEN/SKIPPED labels)
+     37 PASS 
+== g2 provenance (PASS/FAIL/NOT_PROVEN/SKIPPED labels)
+     19 PASS 
+== g2 draft-sql-static (PASS/FAIL/NOT_PROVEN/SKIPPED labels)
+     19 PASS 
+== g2 client-units (node:test)
+# tests 12 # pass 12 # fail 0 # skipped 0 
+== g2 source (node:test)
+# tests 9 # pass 8 # fail 1 # skipped 0 
+== g2 sw-delivery (node:test)
+# tests 7 # pass 7 # fail 0 # skipped 0 
+== g2 browser-products (node:test)
+# tests 24 # pass 24 # fail 0 # skipped 0 
+== g2 browser-readiness (node:test)
+# tests 27 # pass 27 # fail 0 # skipped 0 
+== g1 transition-fixture (labels)
+     56 PASS 
+== g1 fixture-mutation (labels)
+      9 PASS 
+== g1 catalog-parity (labels)
+      5 NOT_PROVEN      48 PASS 
+== g1 client-contract (labels)
+      1 FAIL      19 PASS 
+== readiness usability
+# tests 21 # pass 21 # fail 0 # skipped 0 
+== wp04 readiness client smoke
+All WP04-G5 readiness client contract smoke checks passed.
+== product/SKU lifecycle smoke
+PASS lines: 100
+FAIL service worker generation is hub-cache-v332
+FAIL in-module action does not invent route URLs
+FAILED product-sku-lifecycle-smoke (2)
+== wp08-g2-0-shared-master-data/source
+# tests 13 # pass 11 # fail 2 # skipped 0 
+== wp08-g2-0-shared-master-data/fail-closed
+# tests 81 # pass 81 # fail 0 # skipped 0 
+== wp08-g2-0-shared-master-data/sw-freshness-and-gate
+# tests 15 # pass 15 # fail 0 # skipped 0 
+== wp08-g2-0-shared-master-data/browser
+# tests 48 # pass 46 # fail 0 # skipped 0 
+== wp08-g2-1-navigation/source
+# tests 13 # pass 12 # fail 1 # skipped 0 
+== wp08-g2-1-navigation/selection
+# tests 8 # pass 8 # fail 0 # skipped 0 
+== wp08-g2-1-navigation/resolver
+# tests 8 # pass 8 # fail 0 # skipped 0 
+== wp08-g2-1-navigation/browser
+# tests 45 # pass 44 # fail 0 # skipped 0 
+== pec-protected-path-guard
+# tests 1 # pass 1 # fail 0 # skipped 0 
+== pec-pwa-cache-freshness
+# tests 13 # pass 13 # fail 0 # skipped 0 
+== wp09-protected-sw-pin
+# tests 1 # pass 1 # fail 0 # skipped 0 
+END
