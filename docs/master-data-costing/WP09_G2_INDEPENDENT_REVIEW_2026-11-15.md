@@ -1,3 +1,5 @@
+> **LATEST — CORRECTED G2 VERIFICATION ACCEPTED / MERGE AUTHORITY PENDING:** ChatGPT independently verified head `b26c7c3454f03cb2199999080095404cb7cb6e70`: runtime unchanged from reviewed correction; committed corrected-head JSONs reconcile to Chromium 87/87 + OFF 33/33, contract 38/38, source 23/23 and regressions 5/5 PASS (all offline/mocked). The previous corrected-head browser-evidence HOLD is resolved. [Final independent recommendation](WP09_G2_FINAL_INDEPENDENT_VERIFICATION_2026-11-15.md) proposes #434 merge → #437 retarget/base check → default-off merge, subject to owner authority. Neither PR is merged or retargeted. Live/release acceptance remains NOT TESTED; WP09 OPEN, 9/13; WP11/WP12 obligations retained. Older HOLD/pending-rerun banners below are historical.
+
 # WP09 G2 — ChatGPT independent review and corrective evidence (15 November 2026)
 
 **Verdict: corrections prepared for draft PR #437; HOLD runtime merge/release until corrected-head browser verification. WP09 OPEN, programme 9/13.** No production flag, SQL, registry, permission, deployment or Electron repointing change.
