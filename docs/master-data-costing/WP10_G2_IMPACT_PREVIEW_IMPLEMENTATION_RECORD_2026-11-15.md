@@ -1,3 +1,5 @@
+> **SUBSEQUENT INDEPENDENT REVIEW (16 Nov IST):** [Review/corrections](WP10_G2_IMPACT_PREVIEW_INDEPENDENT_REVIEW_2026-11-16.md) records two additional client lifecycle gaps corrected on this branch and new regression/mutation checks. Counts below describe author head `af207001` and are preserved as historical offline evidence. Corrected-source head `fbe86562` passed 286 offline checks, including 30 preview Chromium checks; see the independent review for run/artifact and live catalog-only bounds. Source merge still needs owner approval.
+
 # WP10 G2 — Pre-submit impact preview: implementation record (draft; independent review pending)
 
 **15 November 2026. Draft implementation only.** Package: [`WP10_G2_IMPACT_PREVIEW_SINGLE_DRAFT_COMPLETION_PACKAGE_2026-11-15.md`](WP10_G2_IMPACT_PREVIEW_SINGLE_DRAFT_COMPLETION_PACKAGE_2026-11-15.md) under issue #440, contract [`WP10_G2_COUNTERFACTUAL_PREVIEW_CONTRACT_DRAFT_2026-11-15.md`](WP10_G2_COUNTERFACTUAL_PREVIEW_CONTRACT_DRAFT_2026-11-15.md).
@@ -20,7 +22,7 @@ Base: `origin/main` `38f61c34c39df9ca7dd4b2697ddeaf21f84d262b`. One new branch `
 3. **A stale dialog kept "Checking…" forever** when the selection changed while it was open; both the activation pre-check and the preview now replace it with an explicit "discarded" note and still submit nothing.
 4. A source comment containing the word "bypass" tripped the G1 C5.1 text guard (a regression against the G1 baseline); reworded, no behaviour change.
 
-## Fresh offline results (this head; mocked/isolated only — not live-role or installed-app acceptance; raw: `WP10_G2_EVIDENCE/results/regression-counts.txt`)
+## Author-head offline results (af207001; historical after reviewer corrections; mocked/isolated only — not live-role or installed-app acceptance; raw: `WP10_G2_EVIDENCE/results/regression-counts.txt`)
 | Suite | PASS | FAIL | NOT PROVEN | SKIPPED |
 |---|---|---|---|---|
 | G2 horizon / guards / provenance (isolated PG) | 43 / 37 / 26 | 0 | 0 | 0 |

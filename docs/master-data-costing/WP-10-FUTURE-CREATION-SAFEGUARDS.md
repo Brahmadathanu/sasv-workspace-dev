@@ -1,4 +1,4 @@
-> **LATEST — OWNER-APPROVED SOURCE MERGE:** [Receipt and remaining gates](WP10_OWNER_G2_DEFAULT_OFF_SOURCE_MERGE_AND_REMAINING_GATES_2026-11-15.md): #441 merged at `a3816a3f` after exact-head checks passed (199 offline PASS plus integrated-pec). Flag default-off; SQL unapplied. [Preview completion package](WP10_G2_IMPACT_PREVIEW_SINGLE_DRAFT_COMPLETION_PACKAGE_2026-11-15.md) prepared, not submitted. Preview/production/acceptance/closure remain open; programme 10/13.
+> **LATEST — PREVIEW SOURCE VERIFIED (16 Nov IST):** corrected draft #442 completed [independent review](WP10_G2_IMPACT_PREVIEW_INDEPENDENT_REVIEW_2026-11-16.md) and 286 offline checks (81 mocked Chromium), with exact-source CI green. Owner source-merge decision pending; SQL unapplied and flag default-off. Live catalog-only preflight 9/9 hashes match, no WP10 objects installed. No real-role/production-scale acceptance or closure; WP10 OPEN, 10/13.
 
 # WP-10 — Governance Safeguards for Future Product/SKU Creation
 
@@ -19,13 +19,15 @@ One [G2 package](WP10_G2_SINGLE_DRAFT_IMPLEMENTATION_PACKAGE_2026-11-15.md), [is
 - [x] G2 implementation (default-off client flag) and unapplied SQL proposals delivered in one draft PR — see [implementation record](WP10_G2_IMPLEMENTATION_RECORD_2026-11-15.md) and [operator runbook](WP10_G2_OPERATOR_RUNBOOK_2026-11-15.md); source merged under owner authority; nothing applied or activated.
 - [x] Independent review and fresh offline validation of the delivered source (199 PASS); preview implementation remains open.
 - [x] Owner approved default-off source merge #441; normal receipt a3816a3f. No SQL execution or closure.
-- [x] Counterfactual pre-submit impact preview **drafted** (proposal 06 unapplied, default-off client integration, isolated PG + mocked Chromium evidence, unapplied SQL application manifest, WP12 receiving cases) in one draft PR on `claude/wp10-g2-impact-preview` — see [preview implementation record](WP10_G2_IMPACT_PREVIEW_IMPLEMENTATION_RECORD_2026-11-15.md). Independent review pending; not merged, nothing applied or activated.
-- [ ] Independent review of the preview package; real-role/hosted/production-scale acceptance (NOT TESTED).
+- [x] Counterfactual pre-submit impact preview **drafted** (proposal 06 unapplied, default-off client integration, isolated PG + mocked Chromium evidence, unapplied SQL application manifest, WP12 receiving cases) in one draft PR on `claude/wp10-g2-impact-preview` — see [preview implementation record](WP10_G2_IMPACT_PREVIEW_IMPLEMENTATION_RECORD_2026-11-15.md). Independent review/corrections complete; source merge pending, nothing applied or activated.
+- [x] Independent review/correction and fresh CI verification of the preview source: 286 PASS.
+- [ ] Owner source-merge decision for #442 (default-off, SQL unapplied).
+- [ ] Real-role/hosted/production-scale acceptance (NOT TESTED).
 - [ ] Separate exact production authority where needed.
 - [ ] Formal owner WP10 closure.
 
 ## Next step and execution state
-G2 source PR #441 is merged. The preview package is drafted in one new draft PR (see the preview implementation record) and awaits independent review. Then independently review the exact unapplied SQL package and prepare the separate owner application/acceptance decisions. No new G1 handover is needed. The named operator nomination remains an operational follow-up; programme owner is accountable until then.
+G2 source PR #441 is merged. The corrected preview package in #442 is independently verified and awaits an owner default-off source-merge decision. Then complete the exact unapplied SQL application/ACL/existence-only dependency and performance review before the separate owner execution/acceptance decisions. No new G1 handover is needed. The named operator nomination remains an operational follow-up; programme owner is accountable until then.
 
 ## Protected boundaries
 No production SQL, rebuild/cron scheduling, permissions/RLS/grants, registry, feature activation, deployment, further runtime merge or automatic deactivation without separate authority. New SQL remains unapplied outside migrations. Keep existing five essentials, CI-038a date semantics, LIVE_AS_OF and fingerprint authoritative. Test all in-window effective boundaries rather than only endpoints. WP09 remains closed and launcher flag untouched; WP08/PEC stay closed; WP11 defects and all WP12 receiving/security/PWA/Electron/Windows gates preserved. Five historical migration CRLF-only differences remain untouched. Programme stays 10/13 until a separate formal closure.

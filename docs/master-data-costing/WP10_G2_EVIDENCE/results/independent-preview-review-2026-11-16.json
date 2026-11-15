@@ -1,0 +1,71 @@
+{
+  "review_date_ist": "2026-11-16",
+  "pr": 442,
+  "verified_head": "fbe86562d159a44bd9c3e11b7c2a7e7f13564555",
+  "base": "38f61c34c39df9ca7dd4b2697ddeaf21f84d262b",
+  "workflow_run": 43761775553,
+  "job": 132957937860,
+  "artifact": 14180832129,
+  "artifact_url": "https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/43761775553/artifacts/14180832129",
+  "classification": "isolated PostgreSQL and mocked Chromium; NOT live-role, hosted/installed-app or production-scale acceptance",
+  "results": {
+    "client_units": 14,
+    "delivery": 7,
+    "source": 11,
+    "sql_static": 25,
+    "horizon_fixture": 43,
+    "guards_fixture": 37,
+    "provenance_fixture": 26,
+    "preview_fixture": 42,
+    "existing_chromium": 51,
+    "preview_chromium": 30,
+    "total_pass": 286,
+    "fail": 0,
+    "skipped": 0
+  },
+  "review_corrections": [
+    "IR1 full draft/loaded snapshot/editing state bound to preview confirmation",
+    "IR2 pending-attempt guard before classifying submission; one shared flag-ON dialog owner",
+    "Mutation controls extended to remove the added shared protection; IR3 fixture explicitly populates stored subgroup",
+    "PV-7 corrected: installation SET LOCAL is not a persistent endpoint timeout"
+  ],
+  "checks": [
+    {
+      "name": "Redirect rules - sasv-utilities-hub",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Header rules - sasv-utilities-hub",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Pages changed - sasv-utilities-hub",
+      "status": "completed",
+      "conclusion": "neutral"
+    },
+    {
+      "name": "integrated-pec",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "wp10-offline",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "live_preflight": "../independent-application-preflight-2026-11-16.json",
+  "live_catalog_summary": {
+    "fingerprints_match": "9/9",
+    "wp10_functions": 0,
+    "wp10_triggers": 0,
+    "server_version": "17.4",
+    "classification": "catalog metadata only, no business RPC/validator/preview/build or writer invoked"
+  },
+  "source_merge": "RECOMMENDED; requires separate owner decision and current-head CI recheck",
+  "sql": "UNAPPLIED; no execution authority",
+  "flag": "DEFAULT OFF; not activated",
+  "programme": "10/13; WP10 OPEN"
+}

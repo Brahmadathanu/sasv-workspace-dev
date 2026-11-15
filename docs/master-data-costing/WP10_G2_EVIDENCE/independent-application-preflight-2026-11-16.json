@@ -1,0 +1,107 @@
+{
+  "project_id": "qhmoqtxpeasamtlxaoak",
+  "classification": "read-only system-catalog SELECT; no business rows, validator/RPC/preview/build invocation or writes",
+  "query": "with expected(signature, expected_md5) as (values ('costing.fn_resolve_route_family_for_product(integer, date)','641fd0f7eb7438eed53c1c6170deb0ec'),('costing.fn_resolve_effective_route_family_route(integer, date)','5d7ac1d9e0427eae90b590ead55fe58a'),('costing.fn_validate_product_process_route(bigint)','cc6cef1fac171ce812c9dd6702e4efbc'),('costing.fn_validate_effective_product_process_route(integer, date)','a9396f97a23cba5bbaceada07bc6448a'),('costing.fn_resolve_effective_product_process_route(integer, date)','3c5a292804748daf679605382e1691fb'),('costing.fn_validate_route_family_route(bigint)','09cd3572e36000095b8b1eb1833491c8'),('costing.fn_effective_product_process_route_steps(bigint)','0968054cfb097874f54239c1c2ce3ab5'),('costing.fn_resolve_sku_mrp_as_of(bigint, date)','73b23adedd8b67814f9b1f944b772d53'),('costing.fn_resolve_sku_selling_price_policy_as_of(bigint, date)','23425275b1cb28f7e005bffdd5dc0388')), deps as (select signature,expected_md5,to_regprocedure(signature) as oid from expected)\nselect jsonb_build_object(\n'observed_at',current_timestamp,'server_version',current_setting('server_version'),\n'dependencies',(select jsonb_agg(jsonb_build_object('signature',signature,'expected_md5',expected_md5,'live_md5',case when oid is not null then md5(pg_get_functiondef(oid)) end,'matches',coalesce(md5(pg_get_functiondef(oid))=expected_md5,false)) order by signature) from deps),\n'wp10_functions',(select coalesce(jsonb_agg(p.oid::regprocedure::text order by p.oid::regprocedure::text),'[]'::jsonb) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','costing') and (p.proname like 'fn_wp10_%' or p.proname like 'rpc_wp10_%')),\n'wp10_triggers',(select coalesce(jsonb_agg(t.tgname order by t.tgname),'[]'::jsonb) from pg_trigger t where not t.tgisinternal and t.tgname like 'trg_wp10_%'),\n'function_default_acls',(select coalesce(jsonb_agg(jsonb_build_object('owner',d.defaclrole::regrole::text,'schema',n.nspname,'acl',d.defaclacl::text)),'[]'::jsonb) from pg_default_acl d join pg_namespace n on n.oid=d.defaclnamespace where d.defaclobjtype='f' and n.nspname in ('public','costing')),\n'role_timeout_settings',(select coalesce(jsonb_agg(jsonb_build_object('role',r.rolname,'database',db.datname,'setting',cfg.setting)),'[]'::jsonb) from pg_db_role_setting s left join pg_roles r on r.oid=s.setrole left join pg_database db on db.oid=s.setdatabase cross join lateral unnest(s.setconfig) cfg(setting) where (r.rolname in ('postgres','authenticator','authenticated','anon','service_role') or s.setrole=0) and (cfg.setting like 'statement_timeout=%' or cfg.setting like 'lock_timeout=%' or cfg.setting like 'idle_in_transaction_session_timeout=%'))\n) as preflight;",
+  "catalog": {
+    "observed_at": "2026-11-15T21:07:45.444065+00:00",
+    "dependencies": [
+      {
+        "matches": true,
+        "live_md5": "0968054cfb097874f54239c1c2ce3ab5",
+        "signature": "costing.fn_effective_product_process_route_steps(bigint)",
+        "expected_md5": "0968054cfb097874f54239c1c2ce3ab5"
+      },
+      {
+        "matches": true,
+        "live_md5": "3c5a292804748daf679605382e1691fb",
+        "signature": "costing.fn_resolve_effective_product_process_route(integer, date)",
+        "expected_md5": "3c5a292804748daf679605382e1691fb"
+      },
+      {
+        "matches": true,
+        "live_md5": "5d7ac1d9e0427eae90b590ead55fe58a",
+        "signature": "costing.fn_resolve_effective_route_family_route(integer, date)",
+        "expected_md5": "5d7ac1d9e0427eae90b590ead55fe58a"
+      },
+      {
+        "matches": true,
+        "live_md5": "641fd0f7eb7438eed53c1c6170deb0ec",
+        "signature": "costing.fn_resolve_route_family_for_product(integer, date)",
+        "expected_md5": "641fd0f7eb7438eed53c1c6170deb0ec"
+      },
+      {
+        "matches": true,
+        "live_md5": "73b23adedd8b67814f9b1f944b772d53",
+        "signature": "costing.fn_resolve_sku_mrp_as_of(bigint, date)",
+        "expected_md5": "73b23adedd8b67814f9b1f944b772d53"
+      },
+      {
+        "matches": true,
+        "live_md5": "23425275b1cb28f7e005bffdd5dc0388",
+        "signature": "costing.fn_resolve_sku_selling_price_policy_as_of(bigint, date)",
+        "expected_md5": "23425275b1cb28f7e005bffdd5dc0388"
+      },
+      {
+        "matches": true,
+        "live_md5": "a9396f97a23cba5bbaceada07bc6448a",
+        "signature": "costing.fn_validate_effective_product_process_route(integer, date)",
+        "expected_md5": "a9396f97a23cba5bbaceada07bc6448a"
+      },
+      {
+        "matches": true,
+        "live_md5": "cc6cef1fac171ce812c9dd6702e4efbc",
+        "signature": "costing.fn_validate_product_process_route(bigint)",
+        "expected_md5": "cc6cef1fac171ce812c9dd6702e4efbc"
+      },
+      {
+        "matches": true,
+        "live_md5": "09cd3572e36000095b8b1eb1833491c8",
+        "signature": "costing.fn_validate_route_family_route(bigint)",
+        "expected_md5": "09cd3572e36000095b8b1eb1833491c8"
+      }
+    ],
+    "wp10_triggers": [],
+    "server_version": "17.4",
+    "wp10_functions": [],
+    "function_default_acls": [
+      {
+        "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "owner": "postgres",
+        "schema": "public"
+      },
+      {
+        "acl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
+        "owner": "supabase_admin",
+        "schema": "public"
+      }
+    ],
+    "role_timeout_settings": [
+      {
+        "role": "authenticated",
+        "setting": "statement_timeout=8s",
+        "database": null
+      },
+      {
+        "role": "anon",
+        "setting": "statement_timeout=3s",
+        "database": null
+      },
+      {
+        "role": "authenticator",
+        "setting": "statement_timeout=8s",
+        "database": null
+      },
+      {
+        "role": "authenticator",
+        "setting": "lock_timeout=8s",
+        "database": null
+      }
+    ]
+  },
+  "limitations": [
+    "Only the nine definitions fingerprinted by the proposals were compared. Existence-only auth/PM-BOM dependencies, detailed privileges/constraints and rollout readiness are not proved by these hashes.",
+    "Role/database timeout catalog settings do not prove actual PostgREST session timeout or production-scale performance.",
+    "No WP10 objects were installed; all proposals remain unapplied.",
+    "Live role behaviour, installed clients and production acceptance remain NOT TESTED."
+  ]
+}
