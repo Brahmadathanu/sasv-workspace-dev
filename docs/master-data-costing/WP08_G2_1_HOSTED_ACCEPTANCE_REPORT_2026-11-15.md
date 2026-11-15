@@ -37,7 +37,7 @@ No mismatches (no FAIL).
 | 7 | Product/SKU → PM BOM link | `manage-pm-bom.html?sku_id=1`; destination = check 4 | PASS |
 | 8 | Product → Production Route link | `production-route-manager.html?lens=product-route-assignments&product_id=1`; destination opened on Product Assignments lens, "Focused Product ID: 1" (0 assignment records) | PASS |
 | 9 | RM BOM → Product backlink | In the More actions menu: `manage-products.html?product_id=1`, `_blank`; destination selected Abhayarishtam | PASS |
-| 10 | New-tab behaviour | Click on a Related link attempted a new tab (built-in pane blocks tabs opened from automation); destinations verified by direct navigation | PASS (see note) |
+| 10 | New-tab behaviour | Click on a Related link attempted a new tab (built-in pane blocks tabs opened from automation); destinations verified by direct navigation | **PARTIAL** — link intent and destination verified; actual opened-tab behaviour NOT TESTED |
 | 11 | Invalid identifiers | Product 999999: "was not found; no Product was selected". SKU 999999 and SKU 2 with Product 1: "does not belong to Product 1; no SKU was selected" (Product kept). `abc`, `-5`, `tab=bogus`: each ignored with a message. RM BOM 999999 / `abc`, PM BOM sku 999999, SP BOM owner 1 / `zzz`: no selection, explanatory message, no error | PASS |
 | 12 | Back/Forward | The URL is kept truthful with replaceState only (by design), so in-page tab switches create no history entries. A synthetic history entry and Back/Forward re-applied the correct tab (skus then readiness). Cross-page Back from RM BOM returned to the previous page | PASS |
 | 13 | Console | No console errors on any page | PASS |
