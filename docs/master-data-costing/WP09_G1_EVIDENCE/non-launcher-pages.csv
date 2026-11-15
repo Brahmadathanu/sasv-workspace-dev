@@ -1,0 +1,16 @@
+page,reason
+index.html,Electron launcher shell
+login.html,auth
+reset-password.html,auth
+public/utilities-hub/index.html,PWA launcher shell
+public/utilities-hub/auth/callback.html,auth
+public/utilities-hub/auth/reset.html,auth
+edit-log-entry.html,child page of Work Log (edit from view/update)
+sop-editor.html,child page of SOP Dashboard
+sop-viewer.html,child page of SOP Dashboard
+public/shared/coa-print.html,print child page of COA Register
+manage-products.html,legacy redirect stub (WP08)
+manage-rm-bom.html,legacy redirect stub (WP08)
+manage-pm-bom.html,legacy redirect stub (WP08)
+manage-sp-bom.html,legacy redirect stub (WP08)
+fg-bulk-internal-transfer.html,legacy redirect stub

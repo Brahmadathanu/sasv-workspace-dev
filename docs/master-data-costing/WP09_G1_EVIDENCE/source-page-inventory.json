@@ -1,0 +1,3707 @@
+{
+ "generatedBy": "scripts/wp09-g1-launcher-audit/source-inventory.mjs",
+ "pages": [
+  {
+   "path": "add-log-entry.html",
+   "electronRoute": "add-log-entry.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Add Log Entry",
+   "h1": "",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 753,
+   "scriptLines": 1855,
+   "tables": [
+    "activities",
+    "areas",
+    "bmr_details",
+    "bottled_stock_on_hand",
+    "daily_work_log",
+    "event_type_lkp",
+    "fg_bulk_stock",
+    "plant_machinery",
+    "product_skus",
+    "products",
+    "sections",
+    "subsections"
+   ],
+   "rpcs": [
+    "app_get_current_user_context",
+    "app_get_my_permissions",
+    "app_has_permission",
+    "rpc_create_daily_work_log_with_packaging"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "./public/shared/view-logs.html",
+    "edit-log-entry.html",
+    "fg-bulk-internal-transfer.html",
+    "index.html",
+    "login.html",
+    "update-log-status.html"
+   ],
+   "moduleTokens": [
+    "add-log-entry",
+    "foo"
+   ],
+   "scriptCount": 6
+  },
+  {
+   "path": "edit-log-entry.html",
+   "electronRoute": "edit-log-entry.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Edit Log Entry",
+   "h1": "",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 945,
+   "scriptLines": 5750,
+   "tables": [
+    "activities",
+    "areas",
+    "bmr_details",
+    "daily_work_log",
+    "event_skus",
+    "event_type_lkp",
+    "fg_bulk_stock",
+    "packaging_events",
+    "plant_machinery",
+    "product_skus",
+    "products",
+    "sections",
+    "subsections",
+    "v_fg_storage_residuals"
+   ],
+   "rpcs": [
+    "app_get_current_user_context",
+    "app_get_my_permissions",
+    "app_has_permission",
+    "fn_fg_force_close",
+    "rpc_debug_runtime_identity",
+    "rpc_update_daily_work_log_with_packaging"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 3
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "fg-bulk-internal-transfer.html",
+    "index.html",
+    "login.html"
+   ],
+   "moduleTokens": [
+    "edit-log-entry",
+    "foo"
+   ],
+   "scriptCount": 7
+  },
+  {
+   "path": "fg-bulk-internal-transfer.html",
+   "electronRoute": "fg-bulk-internal-transfer.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "FG Bulk Internal Transfer — Redirect",
+   "h1": "",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 21,
+   "scriptLines": 0,
+   "tables": [],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [],
+   "moduleTokens": [],
+   "scriptCount": 0
+  },
+  {
+   "path": "index.html",
+   "electronRoute": "index.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE",
+   "h1": "",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 1619,
+   "scriptLines": 972,
+   "tables": [
+    "app_nav_sections",
+    "user_presence",
+    "v_app_module_registry",
+    "v_module_badges"
+   ],
+   "rpcs": [
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 1,
+    "delete": 2
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "./admin.html",
+    "login.html",
+    "public/shared/product-shelf-life-manager.html",
+    "public/shared/staff-directory-manager.html",
+    "public/utilities-hub/admin.html"
+   ],
+   "moduleTokens": [
+    "product-shelf-life-manager",
+    "staff-directory-manager"
+   ],
+   "scriptCount": 5
+  },
+  {
+   "path": "login.html",
+   "electronRoute": "login.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Login",
+   "h1": "",
+   "viewportMeta": false,
+   "mediaQueries": 1,
+   "htmlLines": 513,
+   "scriptLines": 1142,
+   "tables": [
+    "profiles"
+   ],
+   "rpcs": [
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 5
+  },
+  {
+   "path": "manage-activities.html",
+   "electronRoute": "manage-activities.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Activities",
+   "h1": "Manage Activities",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 126,
+   "scriptLines": 1988,
+   "tables": [
+    "activities",
+    "activity_kinds",
+    "areas",
+    "sections",
+    "subsections"
+   ],
+   "rpcs": [
+    "app_get_current_user_context",
+    "app_get_my_permissions",
+    "app_has_permission",
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 1,
+    "update": 2,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html",
+    "login.html"
+   ],
+   "moduleTokens": [
+    "foo",
+    "manage-activities"
+   ],
+   "scriptCount": 7
+  },
+  {
+   "path": "manage-areas.html",
+   "electronRoute": "manage-areas.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Areas",
+   "h1": "Manage Areas",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 59,
+   "scriptLines": 1165,
+   "tables": [
+    "areas",
+    "sections",
+    "subsections"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 4
+  },
+  {
+   "path": "manage-categories.html",
+   "electronRoute": "manage-categories.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Categories",
+   "h1": "Manage Categories",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 64,
+   "scriptLines": 1090,
+   "tables": [
+    "categories"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 4
+  },
+  {
+   "path": "manage-category-map.html",
+   "electronRoute": "manage-category-map.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Inventory Classification Mapping",
+   "h1": "Inventory Classification Mapping",
+   "viewportMeta": true,
+   "mediaQueries": 2,
+   "htmlLines": 1084,
+   "scriptLines": 2556,
+   "tables": [
+    "inv_class_category",
+    "inv_class_group",
+    "inv_class_subcategory",
+    "inv_class_subgroup",
+    "inv_stock_item",
+    "inv_stock_item_class_map"
+   ],
+   "rpcs": [
+    "fn_bulk_upsert_item_class_map"
+   ],
+   "writers": {
+    "insert": 3,
+    "update": 4,
+    "upsert": 0,
+    "delete": 4
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html",
+    "login.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 6
+  },
+  {
+   "path": "manage-chapters.html",
+   "electronRoute": "manage-chapters.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Chapters",
+   "h1": "",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 127,
+   "scriptLines": 227,
+   "tables": [
+    "publication_details",
+    "text_chapters"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 2
+  },
+  {
+   "path": "manage-machine-types.html",
+   "electronRoute": "manage-machine-types.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Plant/Machinery Types",
+   "h1": "Manage Plant/Machinery Types",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 76,
+   "scriptLines": 1105,
+   "tables": [
+    "machine_types"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 4
+  },
+  {
+   "path": "manage-plants.html",
+   "electronRoute": "manage-plants.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Plant/Machinery",
+   "h1": "Manage Plant/Machinery",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 110,
+   "scriptLines": 1290,
+   "tables": [
+    "areas",
+    "machine_types",
+    "plant_machinery",
+    "sections",
+    "subsections"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 4
+  },
+  {
+   "path": "manage-pm-bom.html",
+   "electronRoute": "manage-pm-bom.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": true,
+   "redirectTarget": "public/shared/manage-pm-bom.html",
+   "title": "Redirecting…",
+   "h1": "",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 15,
+   "scriptLines": 0,
+   "tables": [],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [],
+   "moduleTokens": [],
+   "scriptCount": 0
+  },
+  {
+   "path": "manage-product-groups.html",
+   "electronRoute": "manage-product-groups.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Product Groups",
+   "h1": "Manage Product Groups",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 64,
+   "scriptLines": 1094,
+   "tables": [
+    "categories",
+    "product_groups",
+    "sub_categories"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 4
+  },
+  {
+   "path": "manage-products.html",
+   "electronRoute": "manage-products.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": true,
+   "redirectTarget": "public/shared/manage-products.html",
+   "title": "Redirecting…",
+   "h1": "",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 15,
+   "scriptLines": 0,
+   "tables": [],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [],
+   "moduleTokens": [],
+   "scriptCount": 0
+  },
+  {
+   "path": "manage-publications.html",
+   "electronRoute": "manage-publications.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Publications",
+   "h1": "Manage Publications",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 135,
+   "scriptLines": 253,
+   "tables": [
+    "publication_details"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 2
+  },
+  {
+   "path": "manage-references.html",
+   "electronRoute": "manage-references.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage References",
+   "h1": "Manage References",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 163,
+   "scriptLines": 328,
+   "tables": [
+    "product_references",
+    "products",
+    "publication_details",
+    "text_chapters"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 2
+  },
+  {
+   "path": "manage-rm-bom.html",
+   "electronRoute": "manage-rm-bom.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": true,
+   "redirectTarget": "public/shared/manage-rm-bom.html",
+   "title": "Redirecting…",
+   "h1": "",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 15,
+   "scriptLines": 0,
+   "tables": [],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [],
+   "moduleTokens": [],
+   "scriptCount": 0
+  },
+  {
+   "path": "manage-season-profiles.html",
+   "electronRoute": "manage-season-profiles.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Season Profiles",
+   "h1": "Season Profiles",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 47,
+   "scriptLines": 995,
+   "tables": [
+    "season_profile"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 4
+  },
+  {
+   "path": "manage-sections.html",
+   "electronRoute": "manage-sections.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Sections",
+   "h1": "Manage Sections",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 48,
+   "scriptLines": 1036,
+   "tables": [
+    "sections"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 4
+  },
+  {
+   "path": "manage-sp-bom.html",
+   "electronRoute": "manage-sp-bom.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": true,
+   "redirectTarget": "public/shared/manage-sp-bom.html",
+   "title": "Redirecting…",
+   "h1": "",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 15,
+   "scriptLines": 0,
+   "tables": [],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [],
+   "moduleTokens": [],
+   "scriptCount": 0
+  },
+  {
+   "path": "manage-stock-items.html",
+   "electronRoute": "manage-stock-items.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Stock Items",
+   "h1": "Manage Stock Items",
+   "viewportMeta": true,
+   "mediaQueries": 1,
+   "htmlLines": 566,
+   "scriptLines": 3128,
+   "tables": [
+    "inv_stock_item",
+    "inv_stock_item_class_map",
+    "inv_uom"
+   ],
+   "rpcs": [
+    "get_inv_classification_hierarchy_json",
+    "get_stock_items_by_classification"
+   ],
+   "writers": {
+    "insert": 1,
+    "update": 2,
+    "upsert": 1,
+    "delete": 3
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "/index.html",
+    "index.html",
+    "login.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 7
+  },
+  {
+   "path": "manage-subcategories.html",
+   "electronRoute": "manage-subcategories.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Sub-categories",
+   "h1": "Manage Sub-categories",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 55,
+   "scriptLines": 1075,
+   "tables": [
+    "categories",
+    "sub_categories"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 4
+  },
+  {
+   "path": "manage-subgroups.html",
+   "electronRoute": "manage-subgroups.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Sub-groups",
+   "h1": "Manage Sub-groups",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 61,
+   "scriptLines": 1100,
+   "tables": [
+    "categories",
+    "product_groups",
+    "sub_categories",
+    "sub_groups"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 4
+  },
+  {
+   "path": "manage-subsections.html",
+   "electronRoute": "manage-subsections.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Sub-sections",
+   "h1": "Manage Sub-sections",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 55,
+   "scriptLines": 1109,
+   "tables": [
+    "sections",
+    "subsections"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 4
+  },
+  {
+   "path": "manage-tally-inv-mapping.html",
+   "electronRoute": "manage-tally-inv-mapping.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Tally Stock Item Mapping",
+   "h1": "Tally Stock Item Mapping",
+   "viewportMeta": true,
+   "mediaQueries": 4,
+   "htmlLines": 912,
+   "scriptLines": 2168,
+   "tables": [
+    "inv_stock_item",
+    "inv_stock_item_alias",
+    "inv_uom",
+    "v_inv_stock_item_alias_coverage",
+    "v_inv_stock_item_alias_search"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html",
+    "manage-tally-mapping.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 4
+  },
+  {
+   "path": "manage-uom.html",
+   "electronRoute": "manage-uom.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage UOM",
+   "h1": "Manage UOM",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 274,
+   "scriptLines": 1513,
+   "tables": [
+    "inv_uom",
+    "inv_uom_dimension"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 2,
+    "update": 3,
+    "upsert": 0,
+    "delete": 2
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "/index.html",
+    "index.html",
+    "login.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 7
+  },
+  {
+   "path": "procurement-planning-workbench.html",
+   "electronRoute": "procurement-planning-workbench.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Procurement Planning Workbench",
+   "h1": "Procurement Planning Workbench",
+   "viewportMeta": false,
+   "mediaQueries": 8,
+   "htmlLines": 1148,
+   "scriptLines": 3151,
+   "tables": [
+    "mrp_rm_overlay_season_runs",
+    "v_mrp_pm_contrib_detail",
+    "v_mrp_rm_conversion_contrib_detail",
+    "v_mrp_rm_overlay_season_monthly_active",
+    "v_mrp_rm_trace_batch",
+    "v_mrp_rm_trace_horizon"
+   ],
+   "rpcs": [
+    "get_user_permissions",
+    "rpc_overlay_monthly_search"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 7
+  },
+  {
+   "path": "production-overrides.html",
+   "electronRoute": "production-overrides.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Supply Overrides",
+   "h1": "Production Overrides",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 271,
+   "scriptLines": 0,
+   "tables": [],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [],
+   "moduleTokens": [],
+   "scriptCount": 0
+  },
+  {
+   "path": "production-planning-workbench.html",
+   "electronRoute": "production-planning-workbench.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Production Planning Workbench",
+   "h1": "Production Planning Workbench",
+   "viewportMeta": true,
+   "mediaQueries": 3,
+   "htmlLines": 2921,
+   "scriptLines": 5679,
+   "tables": [
+    "bottled_stock_on_hand",
+    "bulk_stock",
+    "fg_bulk_stock",
+    "products",
+    "v_forecast_production_plan_net_sku",
+    "v_product_bulk_consolidated",
+    "v_product_bulk_net_to_make",
+    "v_product_bulk_net_to_make_after_wip",
+    "v_product_bulk_required_monthly",
+    "v_sdv_dim_godown_region",
+    "v_sku_catalog_enriched",
+    "v_wip_batches"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "index.html",
+    "login.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 5
+  },
+  {
+   "path": "public/shared/analysis-workspace.html",
+   "electronRoute": "public/shared/analysis-workspace.html",
+   "pwaRoute": "/shared/analysis-workspace.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Analysis Workspace",
+   "h1": "Analysis Workspace",
+   "viewportMeta": true,
+   "mediaQueries": 11,
+   "htmlLines": 3165,
+   "scriptLines": 5403,
+   "tables": [
+    "analysis_status_history",
+    "coa_issue",
+    "test_default_method_map",
+    "test_master",
+    "test_method",
+    "user_permissions_canonical",
+    "v_analysis_result_calculation_summary",
+    "v_analysis_result_entry",
+    "v_analysis_result_observation",
+    "v_coa_signatory_picker"
+   ],
+   "rpcs": [
+    "fn_add_outsourced_analysis_result_line",
+    "fn_approve_analysis_for_coa",
+    "fn_clear_multi_value_analysis_result",
+    "fn_create_reference_exception",
+    "fn_get_analysis_spec_locks",
+    "fn_get_lab_uom_picker",
+    "fn_get_user_analysis_action_permissions",
+    "fn_issue_coa",
+    "fn_pass_analysis_scrutiny",
+    "fn_reopen_analysis_after_approval",
+    "fn_return_analysis_for_correction",
+    "fn_save_analysis_result",
+    "fn_save_multi_value_analysis_result",
+    "fn_search_reference_sources",
+    "fn_submit_analysis_for_scrutiny",
+    "fn_submit_analysis_reference_proposal",
+    "fn_sync_analysis_results_from_effective_spec",
+    "fn_upsert_outsourced_report_for_result",
+    "fn_upsert_reference_source",
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "../index.html",
+    "/index.html",
+    "coa-print.html",
+    "index.html",
+    "lab-analysis-queue.html",
+    "login.html"
+   ],
+   "moduleTokens": [
+    "analysis-workspace"
+   ],
+   "scriptCount": 3
+  },
+  {
+   "path": "public/shared/bmr-card-not-initiated.html",
+   "electronRoute": "public/shared/bmr-card-not-initiated.html",
+   "pwaRoute": "/shared/bmr-card-not-initiated.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | BMR Card – Not Initiated",
+   "h1": "",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 327,
+   "scriptLines": 3336,
+   "tables": [
+    "bmr_card_not_initiated",
+    "bmr_details"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 5
+  },
+  {
+   "path": "public/shared/bottled-stock.html",
+   "electronRoute": "public/shared/bottled-stock.html",
+   "pwaRoute": "/shared/bottled-stock.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Bottled Stock",
+   "h1": "",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 300,
+   "scriptLines": 492,
+   "tables": [
+    "bottled_stock_on_hand"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 3
+  },
+  {
+   "path": "public/shared/coa-print.html",
+   "electronRoute": "public/shared/coa-print.html",
+   "pwaRoute": "/shared/coa-print.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Certificate of Analysis — Form 50",
+   "h1": "Certificate of Analysis",
+   "viewportMeta": true,
+   "mediaQueries": 5,
+   "htmlLines": 735,
+   "scriptLines": 982,
+   "tables": [
+    "v_coa_form50_header",
+    "v_coa_form50_lines"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html",
+    "lab-analysis-queue.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 3
+  },
+  {
+   "path": "public/shared/coa-register.html",
+   "electronRoute": "public/shared/coa-register.html",
+   "pwaRoute": "/shared/coa-register.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "COA Register — Issued Certificates of Analysis",
+   "h1": "COA Register",
+   "viewportMeta": true,
+   "mediaQueries": 6,
+   "htmlLines": 985,
+   "scriptLines": 649,
+   "tables": [
+    "v_coa_register",
+    "v_coa_register_versions"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html",
+    "analysis-workspace.html",
+    "coa-print.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 3
+  },
+  {
+   "path": "public/shared/control-sample-register.html",
+   "electronRoute": "public/shared/control-sample-register.html",
+   "pwaRoute": "/shared/control-sample-register.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Control Sample Register",
+   "h1": "Control Sample Register",
+   "viewportMeta": true,
+   "mediaQueries": 8,
+   "htmlLines": 1911,
+   "scriptLines": 1475,
+   "tables": [
+    "v_control_register_active",
+    "v_control_sample_exempted",
+    "v_control_sample_pending_collection",
+    "v_control_sample_ready_for_removal",
+    "v_control_sample_register",
+    "v_control_sample_sku_option"
+   ],
+   "rpcs": [
+    "fn_create_control_register",
+    "fn_create_control_sample_from_analysis_with_register",
+    "fn_deactivate_control_register_mapping",
+    "fn_exempt_control_sample_collection",
+    "fn_mark_control_sample_exception_removed",
+    "fn_mark_control_sample_removed"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 3
+  },
+  {
+   "path": "public/shared/cost-build-manager.html",
+   "electronRoute": "public/shared/cost-build-manager.html",
+   "pwaRoute": "/shared/cost-build-manager.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Cost Build Manager",
+   "h1": "Cost Build Manager",
+   "viewportMeta": true,
+   "mediaQueries": 16,
+   "htmlLines": 4354,
+   "scriptLines": 94528,
+   "tables": [
+    "app_nav_sections",
+    "inv_stock_item",
+    "v_app_module_registry",
+    "v_costing_pricing_period_run_status"
+   ],
+   "rpcs": [
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "./admin.html",
+    "/index.html",
+    "/login.html",
+    "/supply-batch-plan.html",
+    "lab-protocol-manager.html",
+    "lab-spec-profile-manager.html",
+    "pricing-policy-manager.html",
+    "public/shared/cost-sheet-review.html",
+    "public/shared/costing-control-center.html",
+    "public/shared/material-cost-manager.html",
+    "public/shared/pricing-policy-manager.html",
+    "public/shared/production-route-manager.html",
+    "public/utilities-hub/admin.html"
+   ],
+   "moduleTokens": [
+    "cost-build-manager",
+    "cost-sheet-review",
+    "costing-control-center",
+    "material-cost-manager",
+    "pricing-policy-manager",
+    "production-route-manager",
+    "supply-batch-plan"
+   ],
+   "scriptCount": 65
+  },
+  {
+   "path": "public/shared/cost-sheet-review.html",
+   "electronRoute": "public/shared/cost-sheet-review.html",
+   "pwaRoute": "/shared/cost-sheet-review.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Cost Sheet Review",
+   "h1": "Cost Sheet Review",
+   "viewportMeta": true,
+   "mediaQueries": 20,
+   "htmlLines": 5062,
+   "scriptLines": 94528,
+   "tables": [
+    "app_nav_sections",
+    "inv_stock_item",
+    "v_app_module_registry",
+    "v_costing_pricing_period_run_status"
+   ],
+   "rpcs": [
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "./admin.html",
+    "/index.html",
+    "/login.html",
+    "/supply-batch-plan.html",
+    "lab-protocol-manager.html",
+    "lab-spec-profile-manager.html",
+    "pricing-policy-manager.html",
+    "public/shared/cost-build-manager.html",
+    "public/shared/costing-control-center.html",
+    "public/shared/material-cost-manager.html",
+    "public/shared/pricing-policy-manager.html",
+    "public/shared/production-route-manager.html",
+    "public/utilities-hub/admin.html"
+   ],
+   "moduleTokens": [
+    "cost-build-manager",
+    "cost-sheet-review",
+    "costing-control-center",
+    "material-cost-manager",
+    "pricing-policy-manager",
+    "production-route-manager",
+    "supply-batch-plan"
+   ],
+   "scriptCount": 65
+  },
+  {
+   "path": "public/shared/costing-control-center.html",
+   "electronRoute": "public/shared/costing-control-center.html",
+   "pwaRoute": "/shared/costing-control-center.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Costing Control Center",
+   "h1": "Costing Control Center",
+   "viewportMeta": true,
+   "mediaQueries": 16,
+   "htmlLines": 4853,
+   "scriptLines": 94528,
+   "tables": [
+    "app_nav_sections",
+    "inv_stock_item",
+    "v_app_module_registry",
+    "v_costing_pricing_period_run_status"
+   ],
+   "rpcs": [
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "./admin.html",
+    "/index.html",
+    "/login.html",
+    "/supply-batch-plan.html",
+    "lab-protocol-manager.html",
+    "lab-spec-profile-manager.html",
+    "pricing-policy-manager.html",
+    "public/shared/cost-build-manager.html",
+    "public/shared/cost-sheet-review.html",
+    "public/shared/material-cost-manager.html",
+    "public/shared/pricing-policy-manager.html",
+    "public/shared/production-route-manager.html",
+    "public/utilities-hub/admin.html"
+   ],
+   "moduleTokens": [
+    "cost-build-manager",
+    "cost-sheet-review",
+    "costing-control-center",
+    "material-cost-manager",
+    "pricing-policy-manager",
+    "production-route-manager",
+    "supply-batch-plan"
+   ],
+   "scriptCount": 65
+  },
+  {
+   "path": "public/shared/e-aushadhi-review-control.html",
+   "electronRoute": "public/shared/e-aushadhi-review-control.html",
+   "pwaRoute": "/shared/e-aushadhi-review-control.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | e-Aushadhi Review & Control",
+   "h1": "e-Aushadhi Review & Control",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 490,
+   "scriptLines": 18623,
+   "tables": [],
+   "rpcs": [
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html",
+    "/login.html"
+   ],
+   "moduleTokens": [
+    "e-aushadhi-automation"
+   ],
+   "scriptCount": 11
+  },
+  {
+   "path": "public/shared/execution-gate.html",
+   "electronRoute": "public/shared/execution-gate.html",
+   "pwaRoute": "/shared/execution-gate.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Production Execution Gate",
+   "h1": "Production Execution Gate",
+   "viewportMeta": true,
+   "mediaQueries": 8,
+   "htmlLines": 1592,
+   "scriptLines": 2057,
+   "tables": [
+    "pm_status_snapshot_current_month",
+    "priority_queue_snapshot_current_month",
+    "rm_status_snapshot_current_month"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 3
+  },
+  {
+   "path": "public/shared/executive-mis-dashboard.html",
+   "electronRoute": "public/shared/executive-mis-dashboard.html",
+   "pwaRoute": "/shared/executive-mis-dashboard.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Executive MIS Dashboard",
+   "h1": "Executive MIS Dashboard",
+   "viewportMeta": true,
+   "mediaQueries": 2,
+   "htmlLines": 1190,
+   "scriptLines": 2358,
+   "tables": [
+    "mv_mis_executive_summary",
+    "v_mis_finance_outstanding_detail",
+    "v_mis_finance_tab_summary",
+    "v_mis_finished_goods_tab_summary",
+    "v_mis_inventory_tab_summary",
+    "v_mis_production_tab_summary",
+    "v_mis_sales_tab_summary"
+   ],
+   "rpcs": [
+    "get_mis_finance_party_page",
+    "get_mis_finished_goods_sku_page",
+    "get_mis_inventory_item_page",
+    "get_mis_sales_product_page",
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html",
+    "/login.html"
+   ],
+   "moduleTokens": [
+    "executive-mis-dashboard"
+   ],
+   "scriptCount": 3
+  },
+  {
+   "path": "public/shared/fg-bulk-internal-transfer.html",
+   "electronRoute": "public/shared/fg-bulk-internal-transfer.html",
+   "pwaRoute": "/shared/fg-bulk-internal-transfer.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "FG Bulk Internal Transfer",
+   "h1": "FG Bulk Internal Transfer",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 326,
+   "scriptLines": 2082,
+   "tables": [
+    "areas",
+    "plant_machinery",
+    "sections",
+    "subsections"
+   ],
+   "rpcs": [
+    "rpc_create_fg_bulk_internal_transfer",
+    "rpc_fg_bulk_internal_transfer_source_by_identity",
+    "rpc_fg_bulk_internal_transfer_source_page"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [],
+   "moduleTokens": [],
+   "scriptCount": 4
+  },
+  {
+   "path": "public/shared/fg-bulk-stock.html",
+   "electronRoute": "public/shared/fg-bulk-stock.html",
+   "pwaRoute": "/shared/fg-bulk-stock.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | FG Bulk Stock",
+   "h1": "",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 251,
+   "scriptLines": 516,
+   "tables": [
+    "fg_bulk_stock"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 3
+  },
+  {
+   "path": "public/shared/fg-transfer-reconciliation.html",
+   "electronRoute": "public/shared/fg-transfer-reconciliation.html",
+   "pwaRoute": "/shared/fg-transfer-reconciliation.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "FG Transfer Reconciliation",
+   "h1": "FG Transfer Reconciliation",
+   "viewportMeta": true,
+   "mediaQueries": 10,
+   "htmlLines": 2357,
+   "scriptLines": 7657,
+   "tables": [
+    "v_dwl_fg_transfer_event",
+    "v_tally_fg_transfer_normalized"
+   ],
+   "rpcs": [
+    "rpc_fg_transfer_recon_counts",
+    "rpc_fg_transfer_recon_counts_by_date",
+    "rpc_fg_transfer_recon_fix_suggestions",
+    "rpc_fg_transfer_recon_get_v2",
+    "rpc_fg_transfer_recon_list_enriched",
+    "rpc_fg_transfer_recon_problem_counts",
+    "rpc_fg_transfer_tally_event_list"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [
+    "fg-transfer-reconciliation"
+   ],
+   "scriptCount": 5
+  },
+  {
+   "path": "public/shared/fill-planner.html",
+   "electronRoute": "public/shared/fill-planner.html",
+   "pwaRoute": "/shared/fill-planner.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Fill Planner",
+   "h1": "Fill Planner",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 191,
+   "scriptLines": 2567,
+   "tables": [
+    "product_skus",
+    "products",
+    "sku_stock_snapshot",
+    "v_fill_inputs",
+    "v_sku_mrp_current"
+   ],
+   "rpcs": [
+    "calc_fill_plan"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 5
+  },
+  {
+   "path": "public/shared/forecast-console.html",
+   "electronRoute": "public/shared/forecast-console.html",
+   "pwaRoute": "/shared/forecast-console.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Forecast Console",
+   "h1": "Forecast Console",
+   "viewportMeta": true,
+   "mediaQueries": 7,
+   "htmlLines": 1687,
+   "scriptLines": 5692,
+   "tables": [
+    "forecast_demand_overrides",
+    "forecast_run",
+    "marketing_overrides_staging",
+    "plan_publish_headers",
+    "plan_publish_lines",
+    "user_permissions_canonical",
+    "v_forecast_plan_12m",
+    "v_forecast_runs_recent",
+    "v_sdv_dim_godown_region",
+    "v_sku_catalog_enriched"
+   ],
+   "rpcs": [
+    "count_forecast_exceptions_summary",
+    "count_forecast_health_mv",
+    "count_publish_lines",
+    "deactivate_forecast_override",
+    "delete_publish",
+    "enqueue_forecast_job",
+    "fetch_missing_relevant",
+    "get_publish_lines",
+    "get_user_permissions",
+    "promote_all_staging",
+    "rpc_forecast_exceptions",
+    "rpc_incomplete_pairs"
+   ],
+   "writers": {
+    "insert": 4,
+    "update": 1,
+    "upsert": 0,
+    "delete": 2
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [
+    "forecast-console"
+   ],
+   "scriptCount": 6
+  },
+  {
+   "path": "public/shared/lab-analysis-entry.html",
+   "electronRoute": "public/shared/lab-analysis-entry.html",
+   "pwaRoute": "/shared/lab-analysis-entry.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Lab Analysis Entry",
+   "h1": "Lab Analysis Entry",
+   "viewportMeta": true,
+   "mediaQueries": 10,
+   "htmlLines": 2057,
+   "scriptLines": 3001,
+   "tables": [
+    "bmr_details",
+    "protocol_category",
+    "protocol_category_inv_group_map",
+    "protocol_category_product_group_map",
+    "spec_profile_inv_group_map",
+    "v_current_user_staff_context",
+    "v_fg_product_with_group",
+    "v_rm_pm_item_with_group",
+    "v_sample_receipt_fg_batch_picker",
+    "v_sample_receipt_staff_picker"
+   ],
+   "rpcs": [
+    "fn_decide_repeat_analysis",
+    "fn_get_active_protocol_category_id_for_pm_subcategory",
+    "fn_get_repeat_analysis_context",
+    "fn_get_user_workflow_action_permissions",
+    "fn_list_repeat_analysis_requests",
+    "fn_request_repeat_analysis",
+    "fn_resolve_current_active_spec_lines",
+    "fn_validate_current_active_spec"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html",
+    "analysis-workspace.html",
+    "lab-analysis-queue.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 6
+  },
+  {
+   "path": "public/shared/lab-analysis-queue.html",
+   "electronRoute": "public/shared/lab-analysis-queue.html",
+   "pwaRoute": "/shared/lab-analysis-queue.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Laboratory Analysis Queue",
+   "h1": "Laboratory Analysis Queue",
+   "viewportMeta": true,
+   "mediaQueries": 14,
+   "htmlLines": 1446,
+   "scriptLines": 1199,
+   "tables": [
+    "analysis_status_history",
+    "coa_issue",
+    "user_permissions_canonical",
+    "v_analysis_header",
+    "v_analysis_pending_scrutiny"
+   ],
+   "rpcs": [
+    "fn_get_user_analysis_action_permissions",
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html",
+    "analysis-workspace.html",
+    "coa-print.html",
+    "index.html",
+    "login.html"
+   ],
+   "moduleTokens": [
+    "lab-analysis-queue"
+   ],
+   "scriptCount": 3
+  },
+  {
+   "path": "public/shared/lab-protocol-manager.html",
+   "electronRoute": "public/shared/lab-protocol-manager.html",
+   "pwaRoute": "/shared/lab-protocol-manager.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Protocol Manager",
+   "h1": "Protocol Manager",
+   "viewportMeta": true,
+   "mediaQueries": 7,
+   "htmlLines": 2469,
+   "scriptLines": 2577,
+   "tables": [
+    "product_groups",
+    "protocol_category",
+    "protocol_category_inv_group_map",
+    "protocol_category_pm_subcategory_map",
+    "protocol_category_product_group_map",
+    "protocol_category_test",
+    "test_master",
+    "v_protocol_usage_preview",
+    "v_rm_pm_item_with_group",
+    "v_test_with_default_method"
+   ],
+   "rpcs": [
+    "fn_deactivate_protocol_category",
+    "fn_deactivate_protocol_test_line",
+    "fn_move_protocol_test_line",
+    "fn_reorder_protocol_test_lines",
+    "fn_save_protocol_category",
+    "fn_save_protocol_test_line",
+    "fn_set_active_fg_protocol_for_group_family",
+    "fn_set_active_pm_protocol_for_subcategory_family",
+    "fn_set_active_rm_protocol_for_group_family"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 3
+  },
+  {
+   "path": "public/shared/lab-spec-profile-manager.html",
+   "electronRoute": "public/shared/lab-spec-profile-manager.html",
+   "pwaRoute": "/shared/lab-spec-profile-manager.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Specification Profile Manager",
+   "h1": "Specification Profile Manager",
+   "viewportMeta": true,
+   "mediaQueries": 17,
+   "htmlLines": 5912,
+   "scriptLines": 12260,
+   "tables": [
+    "lab_uom",
+    "product_groups",
+    "protocol_category",
+    "protocol_category_inv_group_map",
+    "protocol_category_product_group_map",
+    "spec_line",
+    "spec_override",
+    "spec_profile",
+    "spec_profile_inv_group_map",
+    "test_default_method_map",
+    "test_master",
+    "test_method",
+    "v_fg_product_with_group",
+    "v_pending_spec_change_requests",
+    "v_rm_pm_item_with_group",
+    "v_sample_receipt_fg_picker",
+    "v_spec_change_request_review_counts",
+    "v_spec_change_request_review_queue",
+    "v_spec_lifecycle_history",
+    "v_spec_override_register",
+    "v_spec_profile_detail",
+    "v_test_with_default_method"
+   ],
+   "rpcs": [
+    "fn_create_new_spec_version_from_edits",
+    "fn_deactivate_spec_override",
+    "fn_generate_fg_group_spec_profile",
+    "fn_generate_inv_group_spec_profile",
+    "fn_generate_pm_subcategory_spec_profile",
+    "fn_get_active_protocol_category_id_for_pm_subcategory",
+    "fn_get_active_spec_profile_id_for_fg_group",
+    "fn_get_active_spec_profile_id_for_inv_group",
+    "fn_get_active_spec_profile_id_for_pm_subcategory",
+    "fn_get_lab_uom_picker",
+    "fn_preview_effective_fg_spec_for_product",
+    "fn_preview_effective_pm_spec_for_item",
+    "fn_preview_effective_rm_spec_for_item",
+    "fn_rebuild_base_spec_from_protocol",
+    "fn_review_spec_override",
+    "fn_save_spec_override_direct",
+    "fn_set_active_fg_group_spec_profile_family",
+    "fn_set_active_pm_subcategory_spec_profile_family",
+    "fn_set_active_rm_group_spec_profile_family",
+    "fn_supersede_spec_override"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 4
+  },
+  {
+   "path": "public/shared/lab-workflow-access-control.html",
+   "electronRoute": "public/shared/lab-workflow-access-control.html",
+   "pwaRoute": "/shared/lab-workflow-access-control.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Lab Workflow Access Control Manager",
+   "h1": "Lab Workflow Access Control Manager",
+   "viewportMeta": true,
+   "mediaQueries": 11,
+   "htmlLines": 1314,
+   "scriptLines": 0,
+   "tables": [],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [],
+   "moduleTokens": [],
+   "scriptCount": 0
+  },
+  {
+   "path": "public/shared/manage-bmr.html",
+   "electronRoute": "public/shared/manage-bmr.html",
+   "pwaRoute": "/shared/manage-bmr.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Manage BMR",
+   "h1": "Manage Batch Manufacturing Record",
+   "viewportMeta": true,
+   "mediaQueries": 10,
+   "htmlLines": 2474,
+   "scriptLines": 5286,
+   "tables": [
+    "bmr_card_not_initiated",
+    "bmr_details",
+    "categories",
+    "product_groups",
+    "products",
+    "sub_categories",
+    "sub_groups",
+    "v_bmr_with_map_flag"
+   ],
+   "rpcs": [
+    "app_get_current_user_context",
+    "app_get_my_permissions",
+    "app_has_permission",
+    "rpc_admin_correct_bmr_plan_mapping",
+    "rpc_get_bmr_admin_correction_history",
+    "rpc_preview_bmr_admin_correction",
+    "rpc_search_bmr_admin_correction_history"
+   ],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "/index.html",
+    "index.html",
+    "login.html"
+   ],
+   "moduleTokens": [
+    "bmr",
+    "foo",
+    "manage-bmr"
+   ],
+   "scriptCount": 9
+  },
+  {
+   "path": "public/shared/manage-pm-bom.html",
+   "electronRoute": "public/shared/manage-pm-bom.html",
+   "pwaRoute": "/shared/manage-pm-bom.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Packing Material BOM",
+   "h1": "Manage PM BOM",
+   "viewportMeta": true,
+   "mediaQueries": 4,
+   "htmlLines": 3054,
+   "scriptLines": 7077,
+   "tables": [
+    "inv_class_category",
+    "inv_stock_item",
+    "inv_stock_item_class_map",
+    "inv_uom",
+    "plm_sku_pack_map",
+    "plm_tpl_header",
+    "v_product_details",
+    "v_sku_catalog_enriched"
+   ],
+   "rpcs": [
+    "app_get_current_user_context",
+    "app_get_my_permissions",
+    "app_has_permission",
+    "get_user_permissions",
+    "rpc_pm_map_clear",
+    "rpc_pm_map_set",
+    "rpc_pm_override_counts",
+    "rpc_pm_ovr_delete",
+    "rpc_pm_ovr_list",
+    "rpc_pm_ovr_upsert",
+    "rpc_pm_preview_effective",
+    "rpc_pm_rebuild_all",
+    "rpc_pm_rebuild_skus_for_tpl",
+    "rpc_pm_tpl_delete_line",
+    "rpc_pm_tpl_list_lines",
+    "rpc_pm_tpl_renumber",
+    "rpc_pm_tpl_upsert_header",
+    "rpc_pm_tpl_upsert_line",
+    "rpc_skus_without_overrides"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 2,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "/index.html",
+    "/login.html",
+    "index.html",
+    "login.html",
+    "manage-products.html",
+    "manage-rm-bom.html",
+    "manage-sp-bom.html"
+   ],
+   "moduleTokens": [
+    "foo",
+    "manage-products",
+    "manage-rm-bom",
+    "manage-sp-bom",
+    "pm-templates"
+   ],
+   "scriptCount": 10
+  },
+  {
+   "path": "public/shared/manage-products.html",
+   "electronRoute": "public/shared/manage-products.html",
+   "pwaRoute": "/shared/manage-products.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Products",
+   "h1": "Manage Products",
+   "viewportMeta": true,
+   "mediaQueries": 3,
+   "htmlLines": 1323,
+   "scriptLines": 7218,
+   "tables": [
+    "categories",
+    "product_groups",
+    "product_skus",
+    "products",
+    "season_profile",
+    "sub_categories",
+    "sub_groups",
+    "user_permissions_canonical"
+   ],
+   "rpcs": [
+    "app_get_current_user_context",
+    "app_get_my_permissions",
+    "app_has_permission",
+    "get_user_permissions",
+    "rpc_create_product",
+    "rpc_create_product_sku",
+    "rpc_get_latest_governed_cost_period_start",
+    "rpc_get_product_sku_readiness",
+    "rpc_set_product_sku_active",
+    "rpc_update_product",
+    "rpc_update_product_sku"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html",
+    "/login.html",
+    "index.html",
+    "login.html",
+    "manage-pm-bom.html",
+    "manage-rm-bom.html",
+    "manage-sp-bom.html",
+    "public/shared/cost-build-manager.html",
+    "public/shared/cost-sheet-review.html",
+    "public/shared/costing-control-center.html",
+    "public/shared/material-cost-manager.html",
+    "public/shared/pricing-policy-manager.html",
+    "public/shared/production-route-manager.html"
+   ],
+   "moduleTokens": [
+    "cost-build-manager",
+    "cost-sheet-review",
+    "costing-control-center",
+    "foo",
+    "manage-products",
+    "manage-rm-bom",
+    "manage-sp-bom",
+    "material-cost-manager",
+    "pm-templates",
+    "pricing-policy-manager",
+    "production-route-manager"
+   ],
+   "scriptCount": 15
+  },
+  {
+   "path": "public/shared/manage-rm-bom.html",
+   "electronRoute": "public/shared/manage-rm-bom.html",
+   "pwaRoute": "/shared/manage-rm-bom.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Raw Material BOM",
+   "h1": "Manage Raw Material BOM",
+   "viewportMeta": true,
+   "mediaQueries": 6,
+   "htmlLines": 1694,
+   "scriptLines": 4934,
+   "tables": [
+    "inv_stock_item",
+    "inv_uom",
+    "rm_bom_header",
+    "rm_bom_line",
+    "v_picker_products"
+   ],
+   "rpcs": [
+    "app_get_current_user_context",
+    "app_get_my_permissions",
+    "app_has_permission",
+    "fn_rm_bom_upsert",
+    "get_user_permissions",
+    "rpc_get_rm_items"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "/index.html",
+    "/login.html",
+    "index.html",
+    "login.html",
+    "manage-pm-bom.html",
+    "manage-products.html",
+    "manage-sp-bom.html"
+   ],
+   "moduleTokens": [
+    "foo",
+    "manage-products",
+    "manage-rm-bom",
+    "manage-sp-bom",
+    "pm-templates"
+   ],
+   "scriptCount": 10
+  },
+  {
+   "path": "public/shared/manage-sp-bom.html",
+   "electronRoute": "public/shared/manage-sp-bom.html",
+   "pwaRoute": "/shared/manage-sp-bom.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Manage Semi-finished BOM",
+   "h1": "Manage Semi-finished BOM",
+   "viewportMeta": true,
+   "mediaQueries": 4,
+   "htmlLines": 1593,
+   "scriptLines": 4432,
+   "tables": [
+    "inv_stock_item",
+    "inv_uom",
+    "sp_bom_header",
+    "sp_bom_line",
+    "v_picker_sp_owners",
+    "v_stock_item_picker"
+   ],
+   "rpcs": [
+    "app_get_current_user_context",
+    "app_get_my_permissions",
+    "app_has_permission",
+    "get_user_permissions",
+    "rpc_sp_bom_delete_line",
+    "rpc_sp_bom_list_lines",
+    "rpc_sp_bom_renumber",
+    "rpc_sp_bom_upsert_header",
+    "rpc_sp_bom_upsert_line"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "/index.html",
+    "/login.html",
+    "index.html",
+    "login.html",
+    "manage-pm-bom.html",
+    "manage-products.html",
+    "manage-rm-bom.html"
+   ],
+   "moduleTokens": [
+    "foo",
+    "manage-products",
+    "manage-rm-bom",
+    "manage-sp-bom",
+    "pm-templates"
+   ],
+   "scriptCount": 10
+  },
+  {
+   "path": "public/shared/material-cost-manager.html",
+   "electronRoute": "public/shared/material-cost-manager.html",
+   "pwaRoute": "/shared/material-cost-manager.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Material Cost Manager",
+   "h1": "Material Cost Manager",
+   "viewportMeta": true,
+   "mediaQueries": 18,
+   "htmlLines": 4981,
+   "scriptLines": 94528,
+   "tables": [
+    "app_nav_sections",
+    "inv_stock_item",
+    "v_app_module_registry",
+    "v_costing_pricing_period_run_status"
+   ],
+   "rpcs": [
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "./admin.html",
+    "/index.html",
+    "/login.html",
+    "/supply-batch-plan.html",
+    "lab-protocol-manager.html",
+    "lab-spec-profile-manager.html",
+    "pricing-policy-manager.html",
+    "public/shared/cost-build-manager.html",
+    "public/shared/cost-sheet-review.html",
+    "public/shared/costing-control-center.html",
+    "public/shared/pricing-policy-manager.html",
+    "public/shared/production-route-manager.html",
+    "public/utilities-hub/admin.html"
+   ],
+   "moduleTokens": [
+    "cost-build-manager",
+    "cost-sheet-review",
+    "costing-control-center",
+    "material-cost-manager",
+    "pricing-policy-manager",
+    "production-route-manager",
+    "supply-batch-plan"
+   ],
+   "scriptCount": 65
+  },
+  {
+   "path": "public/shared/mrp-master-data-console.html",
+   "electronRoute": "public/shared/mrp-master-data-console.html",
+   "pwaRoute": "/shared/mrp-master-data-console.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "MRP Master Data Console",
+   "h1": "MRP Master Data Console",
+   "viewportMeta": false,
+   "mediaQueries": 8,
+   "htmlLines": 1900,
+   "scriptLines": 4765,
+   "tables": [
+    "inv_rm_form_conversion",
+    "inv_stock_item",
+    "inv_stock_item_moq_policy",
+    "inv_stock_item_season_profile",
+    "inv_uom",
+    "season_profile",
+    "season_profile_month",
+    "season_profile_weight",
+    "v_inv_stock_item_with_class",
+    "v_season_calendar"
+   ],
+   "rpcs": [
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 1,
+    "update": 1,
+    "upsert": 5,
+    "delete": 5
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 7
+  },
+  {
+   "path": "public/shared/mrp-material-board.html",
+   "electronRoute": "public/shared/mrp-material-board.html",
+   "pwaRoute": "/shared/mrp-material-board.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Material Requirements Board",
+   "h1": "MRP Material Board",
+   "viewportMeta": true,
+   "mediaQueries": 5,
+   "htmlLines": 1377,
+   "scriptLines": 3701,
+   "tables": [],
+   "rpcs": [
+    "mrp_material_overview_page"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html",
+    "pm-issue-allocation.html",
+    "rm-issue-allocation.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 6
+  },
+  {
+   "path": "public/shared/operations-control.html",
+   "electronRoute": "public/shared/operations-control.html",
+   "pwaRoute": "/shared/operations-control.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "ETL Control",
+   "h1": "",
+   "viewportMeta": true,
+   "mediaQueries": 4,
+   "htmlLines": 686,
+   "scriptLines": 1085,
+   "tables": [
+    "etl_jobs"
+   ],
+   "rpcs": [
+    "build_preset_jobs",
+    "cancel_jobs",
+    "enqueue_all_daily_jobs",
+    "enqueue_forecast_job",
+    "enqueue_job",
+    "is_etl_admin",
+    "list_etl_presets",
+    "retry_jobs_by_ids"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 3
+  },
+  {
+   "path": "public/shared/operations-monitor.html",
+   "electronRoute": "public/shared/operations-monitor.html",
+   "pwaRoute": "/shared/operations-monitor.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "ETL Monitor",
+   "h1": "",
+   "viewportMeta": true,
+   "mediaQueries": 1,
+   "htmlLines": 281,
+   "scriptLines": 563,
+   "tables": [
+    "v_forecast_overview",
+    "v_forecast_runs_recent",
+    "v_health_last_heartbeat",
+    "v_health_mapping_today",
+    "v_health_snapshot_today",
+    "v_job_activity",
+    "v_job_activity_detailed"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 3
+  },
+  {
+   "path": "public/shared/plant-occupancy.html",
+   "electronRoute": "public/shared/plant-occupancy.html",
+   "pwaRoute": "/shared/plant-occupancy.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Plant / Machinery Occupancy",
+   "h1": "",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 83,
+   "scriptLines": 127,
+   "tables": [
+    "plant_machinery"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 3
+  },
+  {
+   "path": "public/shared/pm-issue-allocation.html",
+   "electronRoute": "public/shared/pm-issue-allocation.html",
+   "pwaRoute": "/shared/pm-issue-allocation.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | PM Issue Allocation",
+   "h1": "PM Issue Allocation",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 209,
+   "scriptLines": 3480,
+   "tables": [
+    "product_skus",
+    "products"
+   ],
+   "rpcs": [
+    "get_user_permissions",
+    "mrp_pm_allocation_console",
+    "mrp_pm_issue_lines_save"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 8
+  },
+  {
+   "path": "public/shared/pm-rebuild-dashboard.html",
+   "electronRoute": "public/shared/pm-rebuild-dashboard.html",
+   "pwaRoute": "/shared/pm-rebuild-dashboard.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | PM Rebuild Dashboard",
+   "h1": "PM Rebuild Dashboard",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 122,
+   "scriptLines": 2709,
+   "tables": [],
+   "rpcs": [
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html",
+    "plm-issue-allocation.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 8
+  },
+  {
+   "path": "public/shared/pricing-policy-manager.html",
+   "electronRoute": "public/shared/pricing-policy-manager.html",
+   "pwaRoute": "/shared/pricing-policy-manager.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Pricing Policy Manager",
+   "h1": "Pricing Policy Manager",
+   "viewportMeta": true,
+   "mediaQueries": 25,
+   "htmlLines": 7468,
+   "scriptLines": 94528,
+   "tables": [
+    "app_nav_sections",
+    "inv_stock_item",
+    "v_app_module_registry",
+    "v_costing_pricing_period_run_status"
+   ],
+   "rpcs": [
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "./admin.html",
+    "/index.html",
+    "/login.html",
+    "/supply-batch-plan.html",
+    "lab-protocol-manager.html",
+    "lab-spec-profile-manager.html",
+    "public/shared/cost-build-manager.html",
+    "public/shared/cost-sheet-review.html",
+    "public/shared/costing-control-center.html",
+    "public/shared/material-cost-manager.html",
+    "public/shared/production-route-manager.html",
+    "public/utilities-hub/admin.html"
+   ],
+   "moduleTokens": [
+    "cost-build-manager",
+    "cost-sheet-review",
+    "costing-control-center",
+    "material-cost-manager",
+    "pricing-policy-manager",
+    "production-route-manager",
+    "supply-batch-plan"
+   ],
+   "scriptCount": 65
+  },
+  {
+   "path": "public/shared/procurement-execution-console.html",
+   "electronRoute": "public/shared/procurement-execution-console.html",
+   "pwaRoute": "/shared/procurement-execution-console.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Procurement Execution Console",
+   "h1": "Procurement Execution Console",
+   "viewportMeta": true,
+   "mediaQueries": 11,
+   "htmlLines": 5898,
+   "scriptLines": 14033,
+   "tables": [
+    "inv_uom",
+    "user_permissions_canonical",
+    "v_inv_stock_item_with_class",
+    "v_stock_current_by_item",
+    "v_stock_item_picker"
+   ],
+   "rpcs": [
+    "create_pr_from_mrp_plan",
+    "get_user_permissions",
+    "proc_apply_vendor_to_same_item_lines",
+    "proc_clear_vendor_assignment_for_same_item_lines",
+    "proc_get_snapshot_refresh_status",
+    "proc_indent_accept_excess",
+    "proc_indent_add_line",
+    "proc_indent_clear_vendor_assignment",
+    "proc_indent_close_strict",
+    "proc_indent_close_with_override",
+    "proc_indent_create",
+    "proc_indent_create_from_pr",
+    "proc_indent_delete_draft",
+    "proc_indent_issue",
+    "proc_indent_recommend_and_accept_vendors_step",
+    "proc_indent_recommend_vendor",
+    "proc_indent_resync_collision_preview",
+    "proc_indent_resync_from_pr",
+    "proc_indent_set_source_pr",
+    "proc_indent_set_status",
+    "proc_indent_set_vendor_selection",
+    "proc_pec_buylist_material_class_options",
+    "proc_pec_buylist_rm_scope_options",
+    "proc_pec_excess_acceptance_audit",
+    "proc_pec_indent_headers",
+    "proc_pec_indent_lines",
+    "proc_pec_pr_headers",
+    "proc_pec_pr_lines",
+    "proc_pec_purchase_excess",
+    "proc_pec_sourcing_decisions",
+    "proc_pec_vendor_details",
+    "proc_pr_add_line",
+    "proc_pr_create_revision_from_active",
+    "proc_pr_delete_draft",
+    "proc_pr_rebuild_from_mrp",
+    "proc_pr_set_manual_delta",
+    "proc_pr_set_manual_reason",
+    "proc_pr_set_status",
+    "proc_preview_same_item_vendor_action",
+    "proc_procurement_action_queue_paged",
+    "proc_request_snapshot_refresh",
+    "proc_vendor_lookup",
+    "proc_vendorwise_buylist_filtered",
+    "proc_vendorwise_buylist_operational_options",
+    "proc_vendorwise_buylist_split_items"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [
+    "procurement-execution-console"
+   ],
+   "scriptCount": 5
+  },
+  {
+   "path": "public/shared/product-shelf-life-manager.html",
+   "electronRoute": "public/shared/product-shelf-life-manager.html",
+   "pwaRoute": "/shared/product-shelf-life-manager.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Product Shelf Life Manager",
+   "h1": "Product Shelf Life Manager",
+   "viewportMeta": true,
+   "mediaQueries": 1,
+   "htmlLines": 338,
+   "scriptLines": 1950,
+   "tables": [
+    "user_permissions_canonical"
+   ],
+   "rpcs": [
+    "fn_deactivate_product_shelf_life",
+    "fn_get_product_shelf_life_manager_snapshot",
+    "fn_save_product_shelf_life",
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "../index.html",
+    "/index.html",
+    "index.html",
+    "login.html"
+   ],
+   "moduleTokens": [
+    "product-shelf-life-manager"
+   ],
+   "scriptCount": 5
+  },
+  {
+   "path": "public/shared/production-execution-queue.html",
+   "electronRoute": "public/shared/production-execution-queue.html",
+   "pwaRoute": "/shared/production-execution-queue.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Production Execution Queue",
+   "h1": "Production Execution Queue",
+   "viewportMeta": true,
+   "mediaQueries": 15,
+   "htmlLines": 2148,
+   "scriptLines": 3313,
+   "tables": [
+    "pm_reservation_snapshot_current_month",
+    "pm_status_snapshot_current_month",
+    "priority_queue_snapshot_current_month",
+    "rm_reservation_snapshot_current_month",
+    "rm_status_snapshot_current_month",
+    "v_batch_risk_reduction_current_month",
+    "v_product_details"
+   ],
+   "rpcs": [
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html",
+    "/login.html",
+    "rm-issue-allocation.html"
+   ],
+   "moduleTokens": [
+    "production-execution-queue"
+   ],
+   "scriptCount": 3
+  },
+  {
+   "path": "public/shared/production-route-manager.html",
+   "electronRoute": "public/shared/production-route-manager.html",
+   "pwaRoute": "/shared/production-route-manager.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Production Route Manager",
+   "h1": "Production Route Manager",
+   "viewportMeta": true,
+   "mediaQueries": 22,
+   "htmlLines": 3311,
+   "scriptLines": 94528,
+   "tables": [
+    "app_nav_sections",
+    "inv_stock_item",
+    "v_app_module_registry",
+    "v_costing_pricing_period_run_status"
+   ],
+   "rpcs": [
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "./admin.html",
+    "/index.html",
+    "/login.html",
+    "/supply-batch-plan.html",
+    "lab-protocol-manager.html",
+    "lab-spec-profile-manager.html",
+    "pricing-policy-manager.html",
+    "public/shared/cost-build-manager.html",
+    "public/shared/cost-sheet-review.html",
+    "public/shared/costing-control-center.html",
+    "public/shared/material-cost-manager.html",
+    "public/shared/pricing-policy-manager.html",
+    "public/utilities-hub/admin.html"
+   ],
+   "moduleTokens": [
+    "cost-build-manager",
+    "cost-sheet-review",
+    "costing-control-center",
+    "material-cost-manager",
+    "pricing-policy-manager",
+    "production-route-manager",
+    "supply-batch-plan"
+   ],
+   "scriptCount": 65
+  },
+  {
+   "path": "public/shared/rm-issue-allocation.html",
+   "electronRoute": "public/shared/rm-issue-allocation.html",
+   "pwaRoute": "/shared/rm-issue-allocation.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | RM Issue Allocation",
+   "h1": "RM Issue Allocation",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 209,
+   "scriptLines": 4110,
+   "tables": [
+    "product_skus",
+    "products"
+   ],
+   "rpcs": [
+    "get_user_permissions",
+    "mrp_rm_allocation_console",
+    "mrp_rm_issue_lines_save",
+    "refresh_after_rm_allocation"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 8
+  },
+  {
+   "path": "public/shared/rm-rebuild-dashboard.html",
+   "electronRoute": "public/shared/rm-rebuild-dashboard.html",
+   "pwaRoute": "/shared/rm-rebuild-dashboard.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | RM Rebuild Dashboard",
+   "h1": "RM Rebuild Dashboard",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 134,
+   "scriptLines": 3147,
+   "tables": [
+    "v_mrp_pm_contrib_detail",
+    "v_mrp_rm_trace"
+   ],
+   "rpcs": [
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html",
+    "rm-issue-allocation.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 10
+  },
+  {
+   "path": "public/shared/rm-seasonal-overlay.html",
+   "electronRoute": "public/shared/rm-seasonal-overlay.html",
+   "pwaRoute": "/shared/rm-seasonal-overlay.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | RM Seasonal Overlay",
+   "h1": "",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 137,
+   "scriptLines": 2140,
+   "tables": [
+    "mrp_rm_overlay_season_detail",
+    "mrp_rm_overlay_season_runs",
+    "v_mrp_rm_overlay_season_monthly_active"
+   ],
+   "rpcs": [
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [],
+   "moduleTokens": [],
+   "scriptCount": 6
+  },
+  {
+   "path": "public/shared/sales-viewer.html",
+   "electronRoute": "public/shared/sales-viewer.html",
+   "pwaRoute": "/shared/sales-viewer.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Sales Viewer",
+   "h1": "Sales Viewer",
+   "viewportMeta": true,
+   "mediaQueries": 2,
+   "htmlLines": 916,
+   "scriptLines": 1058,
+   "tables": [
+    "v_sdv_freshness",
+    "v_sdv_sales_enriched"
+   ],
+   "rpcs": [
+    "sdv_zero_sellers_abs"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 20,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 4
+  },
+  {
+   "path": "public/shared/staff-directory-manager.html",
+   "electronRoute": "public/shared/staff-directory-manager.html",
+   "pwaRoute": "/shared/staff-directory-manager.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Staff Directory Manager",
+   "h1": "Staff Directory Manager",
+   "viewportMeta": true,
+   "mediaQueries": 4,
+   "htmlLines": 950,
+   "scriptLines": 3175,
+   "tables": [
+    "user_permissions_canonical",
+    "v_staff_compensation_monthly_manager"
+   ],
+   "rpcs": [
+    "fn_deactivate_staff",
+    "fn_deactivate_staff_category",
+    "fn_deactivate_staff_status",
+    "fn_deactivate_unit",
+    "fn_get_staff_directory_snapshot",
+    "fn_save_staff",
+    "fn_save_staff_category",
+    "fn_save_staff_compensation_monthly",
+    "fn_save_staff_status",
+    "fn_save_unit",
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "../index.html",
+    "/index.html",
+    "index.html",
+    "login.html"
+   ],
+   "moduleTokens": [
+    "staff-directory-manager"
+   ],
+   "scriptCount": 5
+  },
+  {
+   "path": "public/shared/stock-checker.html",
+   "electronRoute": "public/shared/stock-checker.html",
+   "pwaRoute": "/shared/stock-checker.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV Stock Checker",
+   "h1": "Stock Checker",
+   "viewportMeta": true,
+   "mediaQueries": 27,
+   "htmlLines": 3488,
+   "scriptLines": 7829,
+   "tables": [
+    "categories",
+    "product_groups",
+    "products",
+    "sku_stock_snapshot",
+    "sub_categories",
+    "sub_groups",
+    "v_stock_checker"
+   ],
+   "rpcs": [
+    "stock_checker_query",
+    "unmapped_aggregate",
+    "unmapped_rows"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 5
+  },
+  {
+   "path": "public/shared/stock-purchase-explorer.html",
+   "electronRoute": "public/shared/stock-purchase-explorer.html",
+   "pwaRoute": "/shared/stock-purchase-explorer.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Stock & Purchase Explorer",
+   "h1": "Stock & Purchase Explorer",
+   "viewportMeta": true,
+   "mediaQueries": 15,
+   "htmlLines": 2146,
+   "scriptLines": 6756,
+   "tables": [
+    "inv_class_category",
+    "inv_class_group",
+    "inv_class_subcategory",
+    "inv_class_subgroup",
+    "inv_stock_item",
+    "inv_stock_item_class_map",
+    "inv_uom",
+    "v_item_consumption_monthly_by_item",
+    "v_item_supply_overview",
+    "v_purchases_summary_by_item",
+    "v_stock_current_by_item"
+   ],
+   "rpcs": [
+    "fn_consumption_monthly_filtered",
+    "fn_consumption_summary_count_filtered",
+    "fn_consumption_summary_filtered",
+    "fn_purchase_details_filtered",
+    "fn_purchase_summary_filtered",
+    "fn_rm_rms_stock_filtered",
+    "fn_rm_rms_stock_filtered_count",
+    "fn_stock_purchase_value_summary"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 8
+  },
+  {
+   "path": "public/shared/test-method-master.html",
+   "electronRoute": "public/shared/test-method-master.html",
+   "pwaRoute": "/shared/test-method-master.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Test & Method Master Manager",
+   "h1": "Test & Method Master Manager",
+   "viewportMeta": true,
+   "mediaQueries": 12,
+   "htmlLines": 1736,
+   "scriptLines": 1964,
+   "tables": [
+    "user_permissions_canonical"
+   ],
+   "rpcs": [
+    "fn_clear_test_default_method",
+    "fn_deactivate_lab_uom",
+    "fn_deactivate_method",
+    "fn_deactivate_test",
+    "fn_get_test_method_master_snapshot",
+    "fn_save_lab_uom",
+    "fn_save_test_master",
+    "fn_save_test_method",
+    "fn_set_test_default_method",
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html",
+    "index.html",
+    "login.html"
+   ],
+   "moduleTokens": [
+    "lab-test-method-master"
+   ],
+   "scriptCount": 3
+  },
+  {
+   "path": "public/shared/vendor-master.html",
+   "electronRoute": "public/shared/vendor-master.html",
+   "pwaRoute": "/shared/vendor-master.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Vendor Master",
+   "h1": "Vendor Master",
+   "viewportMeta": true,
+   "mediaQueries": 6,
+   "htmlLines": 1727,
+   "scriptLines": 3326,
+   "tables": [
+    "inv_uom",
+    "user_permissions_canonical"
+   ],
+   "rpcs": [
+    "get_user_permissions",
+    "proc_vendor_alias_sync_from_sources",
+    "proc_vendor_create",
+    "proc_vendor_create_and_map_tally_alias",
+    "proc_vendor_directory_paged",
+    "proc_vendor_identity_action_paged",
+    "proc_vendor_item_rate_create",
+    "proc_vendor_item_rate_paged",
+    "proc_vendor_item_rate_update",
+    "proc_vendor_lookup",
+    "proc_vendor_map_tally_alias",
+    "proc_vendor_rate_item_lookup",
+    "proc_vendor_set_active",
+    "proc_vendor_unmapped_alias_count",
+    "proc_vendor_unmapped_alias_queue_paged",
+    "proc_vendor_update"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [
+    "vendor-master"
+   ],
+   "scriptCount": 5
+  },
+  {
+   "path": "public/shared/view-logs.html",
+   "electronRoute": "public/shared/view-logs.html",
+   "pwaRoute": "/shared/view-logs.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | View Logs",
+   "h1": "View Logs",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 595,
+   "scriptLines": 4457,
+   "tables": [
+    "areas",
+    "daily_work_log",
+    "plant_machinery",
+    "sections",
+    "subsections",
+    "v_fg_bulk_transfer_history"
+   ],
+   "rpcs": [
+    "app_get_current_user_context",
+    "app_get_my_permissions",
+    "app_has_permission"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html",
+    "index.html",
+    "login.html"
+   ],
+   "moduleTokens": [
+    "foo",
+    "view-logs"
+   ],
+   "scriptCount": 8
+  },
+  {
+   "path": "public/shared/wip-stock.html",
+   "electronRoute": "public/shared/wip-stock.html",
+   "pwaRoute": "/shared/wip-stock.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | WIP Stock",
+   "h1": "",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 425,
+   "scriptLines": 3577,
+   "tables": [
+    "areas",
+    "daily_work_log",
+    "sections",
+    "subsections"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "/index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 6
+  },
+  {
+   "path": "public/utilities-hub/admin.html",
+   "electronRoute": "public/utilities-hub/admin.html",
+   "pwaRoute": "/utilities-hub/admin.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Canonical Admin",
+   "h1": "Canonical Admin",
+   "viewportMeta": true,
+   "mediaQueries": 2,
+   "htmlLines": 684,
+   "scriptLines": 1083,
+   "tables": [
+    "permission_targets"
+   ],
+   "rpcs": [
+    "admin_recent_permissions",
+    "admin_user_suggest",
+    "admin_users_for_target",
+    "get_admin_audit_logs",
+    "get_user_permissions",
+    "list_hub_access_by_email",
+    "revoke_user_access",
+    "set_user_access_by_email_key"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [],
+   "moduleTokens": [
+    "admin-console"
+   ],
+   "scriptCount": 1
+  },
+  {
+   "path": "public/utilities-hub/auth/callback.html",
+   "electronRoute": "public/utilities-hub/auth/callback.html",
+   "pwaRoute": "/utilities-hub/auth/callback.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Signing you in…",
+   "h1": "Signing you in…",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 251,
+   "scriptLines": 48,
+   "tables": [],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [],
+   "moduleTokens": [],
+   "scriptCount": 1
+  },
+  {
+   "path": "public/utilities-hub/auth/reset.html",
+   "electronRoute": "public/utilities-hub/auth/reset.html",
+   "pwaRoute": "/utilities-hub/auth/reset.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Reset password — SASV Utilities Hub",
+   "h1": "Reset your password",
+   "viewportMeta": true,
+   "mediaQueries": 0,
+   "htmlLines": 132,
+   "scriptLines": 48,
+   "tables": [],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [],
+   "moduleTokens": [],
+   "scriptCount": 1
+  },
+  {
+   "path": "public/utilities-hub/index.html",
+   "electronRoute": "public/utilities-hub/index.html",
+   "pwaRoute": "/utilities-hub/index.html",
+   "pwaReachable": true,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV Utilities Hub",
+   "h1": "SASV Utilities Hub",
+   "viewportMeta": true,
+   "mediaQueries": 2,
+   "htmlLines": 450,
+   "scriptLines": 805,
+   "tables": [
+    "app_nav_sections",
+    "v_app_module_registry"
+   ],
+   "rpcs": [
+    "get_user_permissions"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "./admin.html",
+    "public/utilities-hub/admin.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 3
+  },
+  {
+   "path": "reset-password.html",
+   "electronRoute": "reset-password.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Reset Password",
+   "h1": "",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 96,
+   "scriptLines": 93,
+   "tables": [],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "login.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 2
+  },
+  {
+   "path": "sop-dashboard.html",
+   "electronRoute": "sop-dashboard.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | SOP Dashboard",
+   "h1": "SOP Dashboard",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 125,
+   "scriptLines": 848,
+   "tables": [
+    "activity_kinds",
+    "sop_revisions",
+    "sop_series",
+    "v_sop_flat"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "index.html",
+    "login.html",
+    "sop-editor.html",
+    "sop-viewer.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 2
+  },
+  {
+   "path": "sop-editor.html",
+   "electronRoute": "sop-editor.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | New / Edit SOP",
+   "h1": "New / Edit SOP",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 323,
+   "scriptLines": 1850,
+   "tables": [
+    "activity_kinds",
+    "product_group_kinds",
+    "profiles",
+    "sop_approvals",
+    "sop_attachments",
+    "sop_master",
+    "sop_review_policies",
+    "sop_revisions",
+    "sop_sections",
+    "sop_series"
+   ],
+   "rpcs": [
+    "sop_approval_decide",
+    "sop_publish_approved",
+    "sop_sections_resequence",
+    "sop_sections_reset_to_template",
+    "sop_submit_for_review"
+   ],
+   "writers": {
+    "insert": 7,
+    "update": 9,
+    "upsert": 0,
+    "delete": 2
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 2
+  },
+  {
+   "path": "sop-viewer.html",
+   "electronRoute": "sop-viewer.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | SOP Viewer",
+   "h1": "SOP Viewer",
+   "viewportMeta": false,
+   "mediaQueries": 4,
+   "htmlLines": 271,
+   "scriptLines": 3516,
+   "tables": [
+    "sop_attachments",
+    "sop_revisions",
+    "sop_sections",
+    "sop_series",
+    "v_sop_flat"
+   ],
+   "rpcs": [],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 0
+   },
+   "hasWriter": false,
+   "outgoingPageLinks": [
+    "index.html",
+    "login.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 3
+  },
+  {
+   "path": "supply-batch-plan.html",
+   "electronRoute": "supply-batch-plan.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Supply Batch Plan",
+   "h1": "Supply Batch Plan",
+   "viewportMeta": true,
+   "mediaQueries": 15,
+   "htmlLines": 3792,
+   "scriptLines": 10694,
+   "tables": [
+    "batch_plan_batches",
+    "batch_plan_headers",
+    "batch_plan_lines",
+    "bmr_card_not_initiated",
+    "bmr_details",
+    "products",
+    "v_batch_plan_batches_status",
+    "v_batch_plan_lines_with_impact",
+    "v_batch_plan_mapping",
+    "v_batch_plan_mapping_rollup",
+    "v_batch_plan_rollup"
+   ],
+   "rpcs": [
+    "app_get_current_user_context",
+    "app_get_my_permissions",
+    "app_has_permission",
+    "apply_production_batch_override_immediate",
+    "deactivate_production_batch_override",
+    "get_plan_worklist",
+    "list_overrides_for_header",
+    "map_batch_to_bmr_by_bn",
+    "nudge_small_residuals",
+    "rebuild_batch_plan",
+    "rebuild_batch_plan_unmapped",
+    "recalc_batch_plan_for_product",
+    "rpc_admin_correct_bmr_plan_mapping",
+    "rpc_get_bmr_admin_correction_history",
+    "rpc_preview_bmr_admin_correction",
+    "rpc_search_bmr_admin_correction_history"
+   ],
+   "writers": {
+    "insert": 1,
+    "update": 4,
+    "upsert": 0,
+    "delete": 1
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "/index.html",
+    "index.html",
+    "login.html",
+    "public/shared/manage-bmr.html"
+   ],
+   "moduleTokens": [
+    "supply-batch-plan"
+   ],
+   "scriptCount": 11
+  },
+  {
+   "path": "supply-overrides.html",
+   "electronRoute": "supply-overrides.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "Supply Overrides",
+   "h1": "Supply Overrides",
+   "viewportMeta": true,
+   "mediaQueries": 4,
+   "htmlLines": 2212,
+   "scriptLines": 4548,
+   "tables": [
+    "manual_plan_lines",
+    "manual_plan_sets",
+    "production_qty_overrides",
+    "v_product_details",
+    "v_supply_recon"
+   ],
+   "rpcs": [
+    "apply_manual_plan_set",
+    "apply_production_overrides",
+    "process_supply_rollup_refresh",
+    "rollback_manual_plan_apply",
+    "seed_manual_plan_set"
+   ],
+   "writers": {
+    "insert": 2,
+    "update": 4,
+    "upsert": 0,
+    "delete": 2
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "index.html"
+   ],
+   "moduleTokens": [],
+   "scriptCount": 5
+  },
+  {
+   "path": "update-log-status.html",
+   "electronRoute": "update-log-status.html",
+   "pwaRoute": null,
+   "pwaReachable": false,
+   "redirectStub": false,
+   "redirectTarget": null,
+   "title": "SASV WORKSPACE | Update Log Status",
+   "h1": "",
+   "viewportMeta": false,
+   "mediaQueries": 0,
+   "htmlLines": 491,
+   "scriptLines": 2101,
+   "tables": [
+    "areas",
+    "bmr_details",
+    "bottled_stock_on_hand",
+    "daily_work_log",
+    "event_skus",
+    "event_type_lkp",
+    "fg_bulk_stock",
+    "packaging_events",
+    "plant_machinery",
+    "product_skus",
+    "products",
+    "sections",
+    "subsections"
+   ],
+   "rpcs": [
+    "app_get_current_user_context",
+    "app_get_my_permissions",
+    "app_has_permission",
+    "rpc_fg_bulk_internal_transfer_source_page",
+    "rpc_update_daily_work_log_status"
+   ],
+   "writers": {
+    "insert": 0,
+    "update": 0,
+    "upsert": 0,
+    "delete": 2
+   },
+   "hasWriter": true,
+   "outgoingPageLinks": [
+    "add-log-entry.html",
+    "fg-bulk-internal-transfer.html",
+    "index.html",
+    "login.html"
+   ],
+   "moduleTokens": [
+    "foo",
+    "update-log-status"
+   ],
+   "scriptCount": 6
+  }
+ ]
+}
