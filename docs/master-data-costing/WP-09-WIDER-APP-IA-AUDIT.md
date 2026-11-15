@@ -25,7 +25,8 @@ Season-profile source writers overlap, but `manage-season-profiles` is unregiste
 - [x] ChatGPT independent review of Claude audit and corrected deliverables
 - [x] Owner G1 completion and design decisions
 - [x] G2 client implementation authorisation; detailed contract to be reviewed with code
-- [ ] Implementation / focused acceptance / independent code review
+- [x] Implementation behind default-off flag `LAUNCHER_PRESENTATION_V1` (draft PR; mocked tests 38/38, 21/21, 82/82)
+- [ ] Independent code review / focused acceptance
 - [ ] Merge and post-merge evidence
 - [ ] Formal WP09 closure
 
@@ -36,4 +37,4 @@ Fresh registry **21/21 PASS**, source **50/50 PASS**, mutation **22/22 PASS**. F
 Execute the [authorised single G2 package](WP09_G2_SINGLE_CLIENT_PACKAGE_2026-11-15.md), then ChatGPT independently reviews the implementation. G1 is accepted; recommendations approved in the [owner record](WP09_OWNER_G1_ACCEPTANCE_G2_AUTHORITY_2026-11-15.md) no longer require repeated confirmation. No merge, deployment, production flag activation or formal WP09 closure follows automatically. Separate writer/source cleanup remains conditional on exact review.
 
 ## Changes and protected boundaries
-Audit scripts, evidence and documentation only. No runtime client, server, registry, permission, grant, RLS, migration, feature-flag, deployment or Electron-route change. WP08/PEC not reopened. Historical CRLF-only 20261112 migrations untouched. WP11 PM BOM overflow and SKU Deactivate contrast #429 retained. WP12 inherited security, flags, PWA, Electron/Windows and WP08 eight-case receiving obligations remain OPEN; Pricing unknown destinations stay text-only. No work-pack closure or programme-count advance.
+G1: audit scripts, evidence and documentation only. G2 (separate draft PR): seven client runtime files behind default-off `LAUNCHER_PRESENTATION_V1`; still no server, registry, permission, grant, RLS, migration, flag activation, deployment or Electron-route change. WP08/PEC not reopened. Historical CRLF-only 20261112 migrations untouched. WP11 PM BOM overflow and SKU Deactivate contrast #429 retained. WP12 inherited security, flags, PWA, Electron/Windows and WP08 eight-case receiving obligations remain OPEN; Pricing unknown destinations stay text-only. No work-pack closure or programme-count advance.

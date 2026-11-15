@@ -43,9 +43,30 @@
 * **Recent items — decision:** *not displayed in either client.* Electron keeps its existing recents/usage storage (used for the "Suggested shortcut" prompt); the PWA records neither. Rationale: a recents list is a second personalised surface needing its own revocation/identity handling, beyond the authorised scope; the pin list + search cover the need. Revisit only on owner request.
 * **Hygiene delivered because grouping needs it:** deterministic order for sections missing from the catalog (after all catalog sections, ON only) and explicit fallback grouping. **Deferred (unchanged):** display-name/taxonomy renames, SQL sort-order tie cleanup, stale ETL precache. The two fallback modules (Product Shelf Life, Staff Directory) are registered in the snapshot, so no missing-registration defect is claimed.
 
-## 4. Verification (all offline/mocked; see `WP09_G2_EVIDENCE/`)
+## 4. Verification (offline / mocked; evidence in `WP09_G2_EVIDENCE/`)
 
-See the results table in the PR description and `WP09_G2_EVIDENCE/g2-test-results.json`. Environment skips are reported BLOCKED/SKIPPED, never PASS. **None of this is authenticated production, live-role, installed-PWA, packaged-Electron or Windows acceptance.**
+| Suite | Result |
+|---|---|
+| Pre-implementation baseline (G1): registry verifier L1–L12 + S1–S3, source-contract, registry mutation | PASS 21/21, 50/50, 22/22 (run before any edit) |
+| `scripts/wp09-g2-launcher-presentation/contract.test.mjs` — contract = 79 live keys/sections, 36/24 section-scoped top-level cards, six-Costing family, child pages, unknown/collision fallback, shared matcher, alias table byte-identical, lab keys unaliased, pins (cap 10, scope, revocation), flag, **6 pure mutation controls** | **PASS 38/38** |
+| `source.test.mjs` — scope guard (7 runtime files only, nothing under supabase/sql/electron, no WP08/costing/flag file touched), no new writers, data-only contract, single default-off flag never set, add-only service worker, recents decision | **PASS 21/21** |
+| `launcher-presentation.browser.test.mjs` — real Chromium, actual registered keys, both clients, 390 + 1280: OFF byte-identical to authority head (+ `0/true/on/' 1'/''` stay OFF), counts 79/36 and 41/24, subgroup headings 34/23, no horizontal overflow (collapsed and expanded), keyboard Enter/Space family toggle + focus, Costing family routes/search/pin while collapsed, label/description/subgroup/alias search, editor / viewer(locked+read) / denied / mixed, permission error + non-array fail closed, unknown key, cross-section collision, catalog-missing order, pin revocation/restore, 10-pin cap, user switch, sign-out, writer/network assertions, **5 browser mutation controls** (permission-filter bypass ×2, hidden search leakage ×2, stale pin reuse), 5 screenshots | **PASS 82/82** |
+| G1 regression with flag OFF on the modified code: `launcher-browser.test.mjs` | PASS 33/33 |
+| G1 `source-contract.test.mjs` | PASS 50/50 — two assertions (O6, B7) were intentionally re-expressed because G2 makes those behaviours flag-conditional; each now asserts the unchanged OFF behaviour **and** the ON change independently. All other assertions untouched. |
+| G1 `registry-mutation.test.mjs`, `registry-verify.mjs` on the committed snapshot | PASS 22/22, PASS 21/21 (snapshot/evidence byte-identical to the authority head, test G5) |
+| WP08 `g2-1/source` 13/13, `g2-1/resolver` 8/8, `g2-0/sw-freshness-and-gate` 15/15, `g2-0/registry-sql` 18/18 (PostgreSQL available in this session) | PASS |
+| WP08 `g2-0/source.test.mjs` | **11 PASS / 2 FAIL — documented historical diff-scope baseline** (tests 11 "sw.js diff…" and 12 "forbidden file changed…"); identical to the baseline, not weakened, not edited |
+| WP08 `g2-0/fail-closed.test.mjs` (~5 min browser suite) | **NOT RE-RUN** in G2 (no Master Data page, resolver or WP08 file changed; last recorded 81/81 in G1) |
+| Authenticated live roles, real negative/view-only users, installed PWA, packaged Electron/Windows, hosted resolver | **NOT TESTED** (WP12) |
+
+Two defects found in *my own tests* during the work (a shared-context close, a control that matched a granted module, a counted "no results" note) were fixed in the tests; no runtime defect was found by the suites. Screenshots (mocked data, deviceScaleFactor 2): `WP09_G2_EVIDENCE/screenshots/{electron-1280,electron-390,pwa-1280,pwa-390}-flag-on.png` and `pwa-390-flag-off.png`. Reproduce:
+
+```
+node scripts/wp09-g2-launcher-presentation/generate-contract.mjs --check
+node scripts/wp09-g2-launcher-presentation/contract.test.mjs
+node scripts/wp09-g2-launcher-presentation/source.test.mjs
+node scripts/wp09-g2-launcher-presentation/launcher-presentation.browser.test.mjs results.json ./shots   # ~8 min
+```
 
 ## 5. Receiving obligations (unchanged and inherited)
 
