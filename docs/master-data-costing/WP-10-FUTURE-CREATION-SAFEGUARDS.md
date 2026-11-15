@@ -1,3 +1,5 @@
+> **LATEST — INDEPENDENT REVIEW HOLD:** source/control-flow/SQL review found unapproved unknown-allowed route edits, incomplete route boundaries, activation-import race, pagination validation and rollback provenance gaps. [Consolidated corrections](WP10_G2_INDEPENDENT_REVIEW_2026-11-15.md) and new read-only route-callee catalog are committed to the same #441 branch. Original mocked results remain historical evidence; no merge/apply/activation authorised. O1–O4 are already approved; amounts-policy changes and override workflow are outside scope. WP10 OPEN, 10/13.
+
 # WP-10 — Governance Safeguards for Future Product/SKU Creation
 
 **G1 ACCEPTED / MERGED; G2 DRAFT IMPLEMENTATION AUTHORISED — 15 November 2026. WP10 OPEN, programme 10/13.**
