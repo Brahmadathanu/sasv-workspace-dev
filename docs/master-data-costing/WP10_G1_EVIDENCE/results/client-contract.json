@@ -1,0 +1,130 @@
+{
+  "results": [
+    {
+      "id": "C1.1",
+      "status": "PASS",
+      "name": "Manage Products performs NO direct table write on products / product_skus / audit tables (reads via .select only)",
+      "detail": ""
+    },
+    {
+      "id": "C1.2",
+      "status": "PASS",
+      "name": "writer RPC set is exactly the five audited writers (+ readiness/period reads and the lookups already in WP-02/03)",
+      "detail": "get_user_permissions,rpc_create_product,rpc_create_product_sku,rpc_get_latest_governed_cost_period_start,rpc_get_product_sku_readiness,rpc_set_product_sku_active,rpc_update_product,rpc_update_product_sku"
+    },
+    {
+      "id": "C2.1",
+      "status": "PASS",
+      "name": "SKU create always sends p_is_active:false (new SKUs are inactive; the server trigger would reject an active create anyway)",
+      "detail": ""
+    },
+    {
+      "id": "C2.2",
+      "status": "PASS",
+      "name": "SKU pack/UOM/sample update never sends an active flag (activation cannot ride on a master edit)",
+      "detail": ""
+    },
+    {
+      "id": "C2.3",
+      "status": "PASS",
+      "name": "activation/deactivation uses only rpc_set_product_sku_active with a mandatory business reason modal",
+      "detail": ""
+    },
+    {
+      "id": "C2.4",
+      "status": "PASS",
+      "name": "Product deactivation is a governed Product update (rpc_update_product), not a cascade to SKUs",
+      "detail": ""
+    },
+    {
+      "id": "C3.1",
+      "status": "PASS",
+      "name": "the activation confirmation shows readiness severity for the governed period and states activation does NOT set costing readiness to READY",
+      "detail": ""
+    },
+    {
+      "id": "C3.2",
+      "status": "FINDING CONFIRMED",
+      "name": "FINDING: the server pre-check rpc_get_sku_activation_check (five essentials with owner screen) is called by NO client or script — the user learns the missing essentials only from the rejection after submitting",
+      "detail": "usedAnywhere=false"
+    },
+    {
+      "id": "C3.3",
+      "status": "PASS",
+      "name": "server rejections are surfaced from error.message only; the structured error.detail (missing codes + owner screens) is not rendered",
+      "detail": ""
+    },
+    {
+      "id": "C4.1",
+      "status": "PASS",
+      "name": "READY -> 'Ready'/pass; REVIEW_REQUIRED -> warn; BLOCKER and BLOCKED -> 'Blocked'/fail",
+      "detail": ""
+    },
+    {
+      "id": "C4.2",
+      "status": "PASS",
+      "name": "NOTHING except the exact string READY can ever render the pass badge (undefined/null/''/lower-case/UNKNOWN/garbage are neutral)",
+      "detail": ""
+    },
+    {
+      "id": "C4.3",
+      "status": "PASS",
+      "name": "UNKNOWN stays UNKNOWN (neutral) and a missing/invalid severity reads 'Unavailable' — fail-closed display",
+      "detail": ""
+    },
+    {
+      "id": "C4.4",
+      "status": "PASS",
+      "name": "a readiness read error returns null (no payload is cached, never defaulted to READY) and the SKU row remains visible",
+      "detail": ""
+    },
+    {
+      "id": "C4.5",
+      "status": "PASS",
+      "name": "readiness is requested only as LIVE_AS_OF for the SERVER-governed latest period with a null refresh run (the client never invents a valuation date)",
+      "detail": ""
+    },
+    {
+      "id": "CM.1",
+      "status": "PASS",
+      "name": "badge control: the real source satisfies 'only READY passes'",
+      "detail": ""
+    },
+    {
+      "id": "CM.2",
+      "status": "PASS",
+      "name": "MUTANT 'unknown renders as pass' is DETECTED",
+      "detail": ""
+    },
+    {
+      "id": "CM.3",
+      "status": "PASS",
+      "name": "MUTANT 'SKU create sends p_is_active:true' is DETECTED by the C2.1 pattern",
+      "detail": ""
+    },
+    {
+      "id": "C5.1",
+      "status": "PASS",
+      "name": "client carries no readiness calculator, no override/bypass/urgent path and no sample exemption for activation",
+      "detail": ""
+    },
+    {
+      "id": "C5.2",
+      "status": "PASS",
+      "name": "the page exposes no direct 'is_active' checkbox on the SKU master form (activation is a separate governed action)",
+      "detail": ""
+    },
+    {
+      "id": "B1",
+      "status": "FAIL",
+      "name": "scripts/product-sku-lifecycle-smoke.mjs EXISTING BASELINE FAILURE (unchanged by WP10 G1)",
+      "detail": "100 PASS; failing: service worker generation is hub-cache-v332 | in-module action does not invent route URLs"
+    },
+    {
+      "id": "B2",
+      "status": "PASS",
+      "name": "scripts/wp04-readiness-client-contract-smoke.mjs baseline",
+      "detail": "36 PASS"
+    }
+  ]
+}

@@ -1,0 +1,775 @@
+{
+  "date": "2026-11-15",
+  "project": "qhmoqtxpeasamtlxaoak",
+  "classification": "catalog SELECT only; no production business functions called or data written; cron commands deliberately not captured",
+  "functions": [
+    {
+      "schema": "costing",
+      "proname": "fn_product_sku_readiness_live_core",
+      "args": "p_sku_id bigint, p_period_start date, p_valuation_date date, p_evidence_run_id bigint, p_route_evidence jsonb, p_shared_issues jsonb",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_product_sku_readiness_live_core(p_sku_id bigint, p_period_start date, p_valuation_date date, p_evidence_run_id bigint, p_route_evidence jsonb, p_shared_issues jsonb)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\ndeclare e jsonb;\nbegin\n if p_evidence_run_id is not null then\n select c.evidence_envelope into strict e from costing.fn_wp04_c_run_cohort(ARRAY[p_sku_id]::bigint[],p_period_start,p_valuation_date,p_evidence_run_id) c;\n end if;\n return costing.fn_wp04_c_live_core(p_sku_id,p_period_start,p_valuation_date,p_evidence_run_id,p_route_evidence,p_shared_issues,e);\nend\n$function$\n"
+    },
+    {
+      "schema": "costing",
+      "proname": "fn_resolve_route_family_for_product",
+      "args": "p_product_id integer, p_as_of_date date",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=costing, public"
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_resolve_route_family_for_product(p_product_id integer, p_as_of_date date DEFAULT CURRENT_DATE)\n RETURNS bigint\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public'\nAS $function$\ndeclare\n  v_date date := coalesce(p_as_of_date,current_date);\n  v_product_family bigint;\n  v_subgroup_family bigint;\n  v_group_family bigint;\nbegin\n  select m.route_family_id\n  into v_product_family\n  from costing.production_route_family_product_map m\n  join costing.production_route_family f on f.id=m.route_family_id\n  where m.product_id=p_product_id\n    and m.archived_at is null\n    and m.status='APPROVED'\n    and m.effective_from<=v_date\n    and (m.effective_to is null or m.effective_to>=v_date)\n    and f.archived_at is null\n    and f.status='APPROVED'\n    and f.effective_from<=v_date\n    and (f.effective_to is null or f.effective_to>=v_date)\n  order by m.effective_from desc,m.id desc\n  limit 1;\n\n  if v_product_family is not null then\n    return v_product_family;\n  end if;\n\n  select sm.route_family_id\n  into v_subgroup_family\n  from public.products p\n  join costing.production_route_family_product_subgroup_map sm\n    on sm.product_subgroup_id=p.sub_group_id\n   and sm.archived_at is null\n   and sm.status='APPROVED'\n   and sm.effective_from<=v_date\n   and (sm.effective_to is null or sm.effective_to>=v_date)\n  join costing.production_route_family f\n    on f.id=sm.route_family_id\n   and f.archived_at is null\n   and f.status='APPROVED'\n   and f.effective_from<=v_date\n   and (f.effective_to is null or f.effective_to>=v_date)\n  where p.id=p_product_id\n  order by sm.effective_from desc,sm.id desc\n  limit 1;\n\n  if v_subgroup_family is not null then\n    return v_subgroup_family;\n  end if;\n\n  select gm.route_family_id\n  into v_group_family\n  from public.products p\n  join public.sub_groups sg on sg.id=p.sub_group_id\n  join costing.production_route_family_product_group_map gm\n    on gm.product_group_id=sg.product_group_id\n   and gm.archived_at is null\n   and gm.status='APPROVED'\n   and gm.effective_from<=v_date\n   and (gm.effective_to is null or gm.effective_to>=v_date)\n  join costing.production_route_family f\n    on f.id=gm.route_family_id\n   and f.archived_at is null\n   and f.status='APPROVED'\n   and f.effective_from<=v_date\n   and (f.effective_to is null or f.effective_to>=v_date)\n  where p.id=p_product_id\n  order by gm.effective_from desc,gm.id desc\n  limit 1;\n\n  return v_group_family;\nend\n$function$\n"
+    },
+    {
+      "schema": "costing",
+      "proname": "fn_resolve_sku_mrp_as_of",
+      "args": "p_sku_id bigint, p_valuation_date date",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_resolve_sku_mrp_as_of(p_sku_id bigint, p_valuation_date date)\n RETURNS TABLE(sku_id bigint, valuation_date date, resolution_status text, qualifying_policy_count bigint, policy_id bigint, mrp_ik numeric, mrp_ok numeric, ok_pct numeric, calc_mode text, effective_from date, effective_to date, source_type text, source_quality text, approval_reference text, resolution_note text)\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\r\n\r\nwith qualifying as (\r\n    select\r\n        p.id as policy_id,\r\n        p.sku_id,\r\n        p.mrp_ik,\r\n        p.mrp_ok,\r\n        p.ok_pct,\r\n        p.calc_mode,\r\n        p.effective_from,\r\n        p.effective_to,\r\n        p.source_type,\r\n        p.source_quality,\r\n        p.approval_reference\r\n\r\n    from costing.sku_mrp_policy p\r\n\r\n    where p.sku_id = p_sku_id\r\n      and p.status = 'APPROVED'\r\n      and p.effective_from <= p_valuation_date\r\n      and (\r\n           p.effective_to is null\r\n        or p.effective_to >= p_valuation_date\r\n      )\r\n),\r\n\r\nqualified_count as (\r\n    select count(*)::bigint as policy_count\r\n    from qualifying\r\n),\r\n\r\nsingle_policy as (\r\n    select q.*\r\n    from qualifying q\r\n    cross join qualified_count c\r\n    where c.policy_count = 1\r\n)\r\n\r\nselect\r\n    p_sku_id as sku_id,\r\n    p_valuation_date as valuation_date,\r\n\r\n    case\r\n        when c.policy_count = 0\r\n            then 'MISSING'\r\n\r\n        when c.policy_count = 1\r\n            then 'RESOLVED'\r\n\r\n        else 'AMBIGUOUS'\r\n    end as resolution_status,\r\n\r\n    c.policy_count as qualifying_policy_count,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.policy_id\r\n        else null::bigint\r\n    end as policy_id,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.mrp_ik\r\n        else null::numeric\r\n    end as mrp_ik,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.mrp_ok\r\n        else null::numeric\r\n    end as mrp_ok,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.ok_pct\r\n        else null::numeric\r\n    end as ok_pct,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.calc_mode\r\n        else null::text\r\n    end as calc_mode,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.effective_from\r\n        else null::date\r\n    end as effective_from,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.effective_to\r\n        else null::date\r\n    end as effective_to,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.source_type\r\n        else null::text\r\n    end as source_type,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.source_quality\r\n        else null::text\r\n    end as source_quality,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.approval_reference\r\n        else null::text\r\n    end as approval_reference,\r\n\r\n    case\r\n        when c.policy_count = 0 then\r\n            format(\r\n                'No approved SKU MRP policy is effective on valuation date %s.',\r\n                p_valuation_date\r\n            )\r\n\r\n        when c.policy_count = 1 then\r\n            format(\r\n                'Approved SKU MRP policy %s resolved for valuation date %s.',\r\n                sp.policy_id,\r\n                p_valuation_date\r\n            )\r\n\r\n        else\r\n            format(\r\n                '%s approved SKU MRP policies overlap on valuation date %s; resolution is blocked.',\r\n                c.policy_count,\r\n                p_valuation_date\r\n            )\r\n    end as resolution_note\r\n\r\nfrom qualified_count c\r\nleft join single_policy sp\r\n  on true;\r\n\r\n$function$\n"
+    },
+    {
+      "schema": "costing",
+      "proname": "fn_resolve_sku_selling_price_policy_as_of",
+      "args": "p_sku_id bigint, p_valuation_date date",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_resolve_sku_selling_price_policy_as_of(p_sku_id bigint, p_valuation_date date)\n RETURNS TABLE(sku_id bigint, valuation_date date, resolution_status text, qualifying_policy_count bigint, policy_id bigint, gst_percent numeric, ik_discount_percent numeric, ok_discount_percent numeric, ik_discount_amount numeric, ok_discount_amount numeric, contingency_percent numeric, effective_from date, effective_to date, remarks text, resolution_note text)\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\r\n\r\nwith qualifying as (\r\n    select\r\n        p.id as policy_id,\r\n        p.sku_id,\r\n\r\n        p.gst_percent,\r\n\r\n        p.ik_discount_percent,\r\n        p.ok_discount_percent,\r\n\r\n        p.ik_discount_amount,\r\n        p.ok_discount_amount,\r\n\r\n        p.contingency_percent,\r\n\r\n        p.effective_from,\r\n        p.effective_to,\r\n\r\n        p.remarks\r\n\r\n    from costing.sku_selling_price_policy p\r\n\r\n    where p.sku_id = p_sku_id\r\n      and p.is_active = true\r\n      and p.effective_from <= p_valuation_date\r\n      and (\r\n           p.effective_to is null\r\n        or p.effective_to >= p_valuation_date\r\n      )\r\n),\r\n\r\nqualified_count as (\r\n    select count(*)::bigint as policy_count\r\n    from qualifying\r\n),\r\n\r\nsingle_policy as (\r\n    select q.*\r\n    from qualifying q\r\n    cross join qualified_count c\r\n    where c.policy_count = 1\r\n)\r\n\r\nselect\r\n    p_sku_id as sku_id,\r\n    p_valuation_date as valuation_date,\r\n\r\n    case\r\n        when c.policy_count = 0\r\n            then 'MISSING'\r\n\r\n        when c.policy_count = 1\r\n            then 'RESOLVED'\r\n\r\n        else 'AMBIGUOUS'\r\n    end as resolution_status,\r\n\r\n    c.policy_count as qualifying_policy_count,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.policy_id\r\n        else null::bigint\r\n    end as policy_id,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.gst_percent\r\n        else null::numeric\r\n    end as gst_percent,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.ik_discount_percent\r\n        else null::numeric\r\n    end as ik_discount_percent,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.ok_discount_percent\r\n        else null::numeric\r\n    end as ok_discount_percent,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.ik_discount_amount\r\n        else null::numeric\r\n    end as ik_discount_amount,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.ok_discount_amount\r\n        else null::numeric\r\n    end as ok_discount_amount,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.contingency_percent\r\n        else null::numeric\r\n    end as contingency_percent,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.effective_from\r\n        else null::date\r\n    end as effective_from,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.effective_to\r\n        else null::date\r\n    end as effective_to,\r\n\r\n    case\r\n        when c.policy_count = 1\r\n            then sp.remarks\r\n        else null::text\r\n    end as remarks,\r\n\r\n    case\r\n        when c.policy_count = 0 then\r\n            format(\r\n                'No active selling-price policy is effective for SKU %s on valuation date %s.',\r\n                p_sku_id,\r\n                p_valuation_date\r\n            )\r\n\r\n        when c.policy_count = 1 then\r\n            format(\r\n                'Selling-price policy %s resolved for SKU %s on valuation date %s.',\r\n                sp.policy_id,\r\n                p_sku_id,\r\n                p_valuation_date\r\n            )\r\n\r\n        else\r\n            format(\r\n                '%s active selling-price policies overlap for SKU %s on valuation date %s; resolution is blocked.',\r\n                c.policy_count,\r\n                p_sku_id,\r\n                p_valuation_date\r\n            )\r\n    end as resolution_note\r\n\r\nfrom qualified_count c\r\nleft join single_policy sp\r\n  on true;\r\n\r\n$function$\n"
+    },
+    {
+      "schema": "costing",
+      "proname": "fn_sku_activation_missing_items",
+      "args": "p_sku_id bigint, p_product_id bigint",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_sku_activation_missing_items(p_sku_id bigint, p_product_id bigint DEFAULT NULL::bigint)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\ndeclare\n  v_product_id bigint;\n  v_period date;\n  v_val date;\n  v_missing jsonb := '[]'::jsonb;\n  v_family bigint;\n  v_valid jsonb;\nbegin\n  v_product_id := coalesce(p_product_id, (select s.product_id from public.product_skus s where s.id = p_sku_id));\n  if v_product_id is null then\n    raise exception 'SKU % not found', p_sku_id;\n  end if;\n\n  -- Current governed costing period = latest period; its valuation date is the as-of date.\n  select cp.period_start, cp.valuation_date into v_period, v_val\n  from costing.cost_periods cp order by cp.period_start desc limit 1;\n  v_val := greatest(coalesce(v_val, current_date), (now() at time zone 'Asia/Kolkata')::date);  -- CI-038a\n\n  -- (1) Approved PM-BOM revision (SKU level)\n  if not exists (select 1 from public.plm_sku_bom_revision_as_of(p_sku_id, v_val) b where b.id is not null) then\n    v_missing := v_missing || jsonb_build_object('code','PM_BOM_REVISION','label','Approved packing-material BOM','where','PM BOM Manager');\n  end if;\n\n  -- (2) Batch-size reference (product level)\n  if not exists (select 1 from public.production_batch_size_ref b\n                 where b.product_id = v_product_id and b.is_active\n                   and b.effective_from <= v_val and (b.effective_to is null or b.effective_to >= v_val)) then\n    v_missing := v_missing || jsonb_build_object('code','BATCH_SIZE_REFERENCE','label','Batch size reference','where','Batch Sizes (Supply / Batch Plan)');\n  end if;\n\n  -- (3) Production route READY (single-product version of costing.fn_product_process_route_readiness)\n  v_family := costing.fn_resolve_route_family_for_product(v_product_id::int, v_val);\n  v_valid  := costing.fn_validate_effective_product_process_route(v_product_id::int, v_val);\n  if v_family is null\n     or not exists (select 1 from costing.production_route_family_route r\n                    where r.route_family_id = v_family and r.archived_at is null and r.status = 'APPROVED'\n                      and r.effective_from <= v_val and (r.effective_to is null or r.effective_to >= v_val))\n     or not coalesce((v_valid->>'valid')::boolean, false) then\n    v_missing := v_missing || jsonb_build_object('code','MANUFACTURING_ROUTE','label','Production route','where','Production Route Manager');\n  end if;\n\n  -- (4) MRP policy\n  if coalesce((select m.resolution_status from costing.fn_resolve_sku_mrp_as_of(p_sku_id, v_val) m limit 1), '') <> 'RESOLVED' then\n    v_missing := v_missing || jsonb_build_object('code','MRP_POLICY','label','MRP policy','where','Pricing Policy Manager > MRP');\n  end if;\n\n  -- (5) Selling-price / GST policy\n  if coalesce((select x.resolution_status from costing.fn_resolve_sku_selling_price_policy_as_of(p_sku_id, v_val) x limit 1), '') <> 'RESOLVED' then\n    v_missing := v_missing || jsonb_build_object('code','SELLING_PRICE_POLICY','label','Selling price / GST policy','where','Pricing Policy Manager > Selling & scheme policies');\n  end if;\n\n  return jsonb_build_object('sku_id', p_sku_id, 'period_start', v_period, 'as_of_date', v_val, 'missing', v_missing);\nend\n$function$\n"
+    },
+    {
+      "schema": "costing",
+      "proname": "fn_validate_effective_product_process_route",
+      "args": "p_product_id integer, p_as_of_date date",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_validate_effective_product_process_route(p_product_id integer, p_as_of_date date DEFAULT CURRENT_DATE)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\ndeclare\n  v_date date:=coalesce(p_as_of_date,current_date);\n  v_family_id bigint;\n  v_family_route_id bigint;\n  v_product_route_id bigint;\n  v_validation jsonb;\nbegin\n  v_family_id:=costing.fn_resolve_route_family_for_product(p_product_id,v_date);\n  if v_family_id is null then\n    return jsonb_build_object('valid',false,'errors',jsonb_build_array('NO_APPROVED_ROUTE_FAMILY_MAPPING'),'route_source',null,'product_id',p_product_id);\n  end if;\n\n  v_family_route_id:=costing.fn_resolve_effective_route_family_route(p_product_id,v_date);\n  if v_family_route_id is null then\n    return jsonb_build_object('valid',false,'errors',jsonb_build_array('NO_APPROVED_ROUTE_FAMILY_ROUTE'),'route_source',null,'product_id',p_product_id,'route_family_id',v_family_id);\n  end if;\n\n  v_product_route_id:=costing.fn_resolve_effective_product_process_route(p_product_id,v_date);\n  if v_product_route_id is not null then\n    return costing.fn_validate_product_process_route(v_product_route_id)\n      || jsonb_build_object('route_source','PRODUCT_ROUTE','product_id',p_product_id,'route_family_id',v_family_id,\n                            'family_route_id',v_family_route_id,'product_route_id',v_product_route_id);\n  end if;\n\n  v_validation:=costing.fn_validate_route_family_route(v_family_route_id);\n  return v_validation || jsonb_build_object(\n    'route_source','ROUTE_FAMILY_INHERITED',\n    'product_id',p_product_id,\n    'route_family_id',v_family_id,\n    'family_route_id',v_family_route_id,\n    'product_route_id',null\n  );\nend\n$function$\n"
+    },
+    {
+      "schema": "costing",
+      "proname": "fn_wp04_build_readiness_portfolio",
+      "args": "p_period_start date",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_wp04_build_readiness_portfolio(p_period_start date)\n RETURNS bigint\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\nDECLARE\n  v_period date;\n  v_val date;\n  v_run bigint;\n  v_build bigint;\n  v_start_fp jsonb;\n  v_start_digest text;\n  v_end_fp jsonb;\n  v_end_digest text;\n  v_route_map jsonb;\n  v_route_count bigint;\n  v_route_distinct bigint;\n  v_shared jsonb:='[]'::jsonb;\n  v_sku_ids bigint[];\n  v_run_map jsonb:='{}'::jsonb;\n  v_items bigint;\n  v_operational bigint;\n  v_invalid bigint;\n  v_relation record;\nBEGIN\n  v_period:=date_trunc('month',p_period_start::timestamp)::date;\n  IF NOT pg_try_advisory_xact_lock(hashtextextended('WP04_READINESS_BUILD:'||v_period::text,0)) THEN\n    RAISE EXCEPTION 'READINESS_BUILD_IN_PROGRESS';\n  END IF;\n\n  SELECT valuation_date INTO v_val\n  FROM costing.cost_periods WHERE period_start=v_period;\n  IF v_val IS NULL THEN RAISE EXCEPTION 'Governed valuation date missing for %',v_period; END IF;\n\n  SELECT id INTO v_run\n  FROM costing.costing_refresh_run\n  WHERE period_start=v_period AND valuation_date=v_val AND overall_status='SUCCESS'\n  ORDER BY finished_at DESC NULLS LAST,id DESC LIMIT 1;\n\n  SELECT array_agg(id ORDER BY id) INTO v_sku_ids\n  FROM public.product_skus;\n  IF coalesce(cardinality(v_sku_ids),0)=0 THEN\n    RAISE EXCEPTION 'No SKUs available for readiness build';\n  END IF;\n\n  SELECT fingerprint,digest INTO v_start_fp,v_start_digest\n  FROM costing.fn_wp04_readiness_source_fingerprint(v_period);\n\n  INSERT INTO costing.product_sku_readiness_portfolio_build(\n    period_start,valuation_date,evidence_refresh_run_id,status,is_current,\n    source_fingerprint,source_fingerprint_digest\n  )\n  VALUES(v_period,v_val,v_run,'BUILDING',false,v_start_fp,v_start_digest)\n  RETURNING id INTO v_build;\n\n  BEGIN\n    WITH route_rows AS MATERIALIZED (\n      SELECT * FROM costing.fn_product_process_route_readiness(v_val)\n    )\n    SELECT count(*),count(distinct product_id),jsonb_object_agg(product_id::text,to_jsonb(r))\n    INTO v_route_count,v_route_distinct,v_route_map\n    FROM route_rows r;\n\n    IF v_route_count<>v_route_distinct THEN\n      RAISE EXCEPTION 'Nonunique route evidence';\n    END IF;\n\n    IF v_run IS NOT NULL THEN\n      v_shared:=costing.fn_product_sku_readiness_shared_issues(v_val);\n\n      SELECT coalesce(jsonb_object_agg(c.sku_id::text,c.evidence_envelope),'{}'::jsonb)\n      INTO v_run_map\n      FROM costing.fn_wp04_c_run_cohort(v_sku_ids,v_period,v_val,v_run) c;\n\n      IF (SELECT count(*) FROM jsonb_object_keys(v_run_map))<>cardinality(v_sku_ids) THEN\n        RAISE EXCEPTION 'Batched run cohort cardinality mismatch';\n      END IF;\n    END IF;\n\n    INSERT INTO costing.product_sku_readiness_portfolio_item(\n      build_id,sku_id,product_id,product_name,product_status,\n      sku_is_active,sku_is_sample,overall_severity,assessment\n    )\n    SELECT\n      v_build,\n      s.id,\n      s.product_id,\n      a.assessment#>>'{identity,product_name}',\n      a.assessment#>>'{lifecycle,product_status}',\n      coalesce((a.assessment#>>'{lifecycle,sku_is_active}')::boolean,false),\n      coalesce((a.assessment#>>'{lifecycle,sku_is_sample}')::boolean,false),\n      a.assessment#>>'{summary,overall_severity}',\n      a.assessment\n    FROM public.product_skus s\n    CROSS JOIN LATERAL (\n      SELECT costing.fn_wp04_c_live_core(\n        s.id,v_period,v_val,v_run,\n        v_route_map->(s.product_id::text),\n        v_shared,\n        CASE WHEN v_run IS NULL THEN NULL ELSE v_run_map->(s.id::text) END\n      ) AS assessment\n    ) a;\n\n    SELECT count(*),\n           count(*) FILTER(\n             WHERE product_status='Active'\n               AND sku_is_active\n               AND NOT coalesce(sku_is_sample,false)\n           ),\n           count(*) FILTER(\n             WHERE assessment#>>'{context,context_type}' IS DISTINCT FROM 'LIVE_AS_OF'\n                OR assessment#>>'{context,sku_id}' IS DISTINCT FROM sku_id::text\n                OR assessment#>>'{context,product_id}' IS DISTINCT FROM product_id::text\n                OR assessment#>>'{context,period_start}' IS DISTINCT FROM v_period::text\n                OR assessment#>>'{context,valuation_date}' IS DISTINCT FROM v_val::text\n                OR assessment#>'{context,refresh_run_id}' IS DISTINCT FROM 'null'::jsonb\n                OR (v_run IS NOT NULL AND assessment#>>'{context,evidence_refresh_run_id}' IS DISTINCT FROM v_run::text)\n                OR overall_severity NOT IN ('READY','REVIEW_REQUIRED','BLOCKER','UNKNOWN')\n           )\n    INTO v_items,v_operational,v_invalid\n    FROM costing.product_sku_readiness_portfolio_item\n    WHERE build_id=v_build;\n\n    IF v_items IS DISTINCT FROM cardinality(v_sku_ids) THEN\n      RAISE EXCEPTION 'Readiness build item count mismatch';\n    END IF;\n    IF v_invalid<>0 THEN\n      RAISE EXCEPTION 'Readiness build canonical validation failed for % items',v_invalid;\n    END IF;\n\n    INSERT INTO costing.product_sku_readiness_portfolio_incidence(\n      build_id,sku_id,incidence_kind,dependency_code,issue_code,\n      owner_module,route_code,status,shared_issue\n    )\n    SELECT i.build_id,i.sku_id,'DEPENDENCY',\n           d->>'dependency_code',NULL,d->>'owner_module',d->>'recommended_ui_route',\n           coalesce(d->>'effective_status',d->>'raw_status'),NULL\n    FROM costing.product_sku_readiness_portfolio_item i\n    CROSS JOIN LATERAL jsonb_array_elements(i.assessment->'dependencies') x(d)\n    WHERE i.build_id=v_build\n      AND d->>'applicability'<>'NOT_REQUIRED'\n      AND coalesce(d->>'effective_status',d->>'raw_status')\n          IN ('BLOCKED','BLOCKER','REVIEW_REQUIRED','UNKNOWN');\n\n    INSERT INTO costing.product_sku_readiness_portfolio_incidence(\n      build_id,sku_id,incidence_kind,dependency_code,issue_code,\n      owner_module,route_code,status,shared_issue\n    )\n    SELECT i.build_id,i.sku_id,'SHARED',\n           d->>'dependency_code',d->>'issue_code',d->>'owner_module',\n           d->>'recommended_ui_route',d->>'status',d\n    FROM costing.product_sku_readiness_portfolio_item i\n    CROSS JOIN LATERAL jsonb_array_elements(i.assessment->'shared_issues') x(d)\n    WHERE i.build_id=v_build\n      AND d->>'status' IN ('BLOCKED','BLOCKER','REVIEW_REQUIRED','UNKNOWN');\n\n    INSERT INTO costing.product_sku_readiness_portfolio_incidence(\n      build_id,sku_id,incidence_kind,dependency_code,region_code,raw_status,effective_status\n    )\n    SELECT DISTINCT i.build_id,i.sku_id,'REGIONAL','REGIONAL_MARKETING_EVIDENCE',\n           e->>'region_code',e->>'raw_status',e->>'effective_status'\n    FROM costing.product_sku_readiness_portfolio_item i\n    CROSS JOIN LATERAL jsonb_array_elements(i.assessment->'dependencies') x(d)\n    CROSS JOIN LATERAL jsonb_array_elements(coalesce(d->'evidence','[]'::jsonb)) y(e)\n    WHERE i.build_id=v_build\n      AND d->>'dependency_code'='REGIONAL_MARKETING_EVIDENCE';\n\n    FOR v_relation IN\n      SELECT source_relation,epoch\n      FROM costing.readiness_portfolio_source_epoch\n      ORDER BY source_relation\n      FOR UPDATE\n    LOOP NULL; END LOOP;\n\n    SELECT fingerprint,digest INTO v_end_fp,v_end_digest\n    FROM costing.fn_wp04_readiness_source_fingerprint(v_period);\n\n    IF v_end_digest IS DISTINCT FROM v_start_digest THEN\n      UPDATE costing.product_sku_readiness_portfolio_build\n      SET status='FAILED',completed_at=clock_timestamp(),error_text='SOURCE_CHANGED_DURING_BUILD'\n      WHERE id=v_build;\n      RETURN v_build;\n    END IF;\n\n    UPDATE costing.product_sku_readiness_portfolio_build\n    SET is_current=false,\n        status=CASE WHEN status='COMPLETED' THEN 'SUPERSEDED' ELSE status END\n    WHERE period_start=v_period AND is_current;\n\n    UPDATE costing.product_sku_readiness_portfolio_build\n    SET status='COMPLETED',is_current=true,\n        source_fingerprint=v_end_fp,source_fingerprint_digest=v_end_digest,\n        item_count=v_items,operational_count=v_operational,\n        completed_at=clock_timestamp(),promoted_at=clock_timestamp(),error_text=NULL\n    WHERE id=v_build;\n\n    RETURN v_build;\n  EXCEPTION WHEN OTHERS THEN\n    UPDATE costing.product_sku_readiness_portfolio_build\n    SET status='FAILED',is_current=false,completed_at=clock_timestamp(),\n        error_text=left(SQLSTATE||': '||SQLERRM,2000)\n    WHERE id=v_build;\n    RETURN v_build;\n  END;\nEND\n$function$\n"
+    },
+    {
+      "schema": "costing",
+      "proname": "fn_wp04_readiness_bump_source_epoch",
+      "args": "",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\nDECLARE\n  v_relation text := format('%I.%I',TG_TABLE_SCHEMA,TG_TABLE_NAME);\nBEGIN\n  UPDATE costing.readiness_portfolio_source_epoch\n     SET epoch=epoch+1,\n         touched_at=clock_timestamp()\n   WHERE source_relation=v_relation;\n  IF NOT FOUND THEN\n    RAISE EXCEPTION 'Unregistered readiness source relation %',v_relation;\n  END IF;\n  RETURN NULL;\nEND\n$function$\n"
+    },
+    {
+      "schema": "costing",
+      "proname": "fn_wp04_readiness_source_fingerprint",
+      "args": "p_period_start date",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_wp04_readiness_source_fingerprint(p_period_start date)\n RETURNS TABLE(fingerprint jsonb, digest text)\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\nDECLARE\n  v_period date;\n  v_val date;\n  v_run bigint;\n  v_epochs jsonb;\n  v_defs text;\n  v_schema text;\n  v_fp jsonb;\nBEGIN\n  IF p_period_start IS NULL THEN RAISE EXCEPTION 'Period is required'; END IF;\n  v_period:=date_trunc('month',p_period_start::timestamp)::date;\n\n  SELECT valuation_date INTO v_val\n  FROM costing.cost_periods\n  WHERE period_start=v_period;\n  IF v_val IS NULL THEN RAISE EXCEPTION 'Governed valuation date missing for %',v_period; END IF;\n\n  SELECT id INTO v_run\n  FROM costing.costing_refresh_run\n  WHERE period_start=v_period\n    AND valuation_date=v_val\n    AND overall_status='SUCCESS'\n  ORDER BY finished_at DESC NULLS LAST,id DESC\n  LIMIT 1;\n\n  SELECT jsonb_object_agg(source_relation,epoch ORDER BY source_relation)\n  INTO v_epochs\n  FROM costing.readiness_portfolio_source_epoch;\n\n  SELECT string_agg(sig||'='||md5(pg_get_functiondef(to_regprocedure(sig))),'|' ORDER BY sig)\n  INTO v_defs\n  FROM unnest(ARRAY[\n    'costing.fn_product_sku_readiness_live_core(bigint,date,date,bigint,jsonb,jsonb)',\n    'costing.fn_wp04_c_live_core(bigint,date,date,bigint,jsonb,jsonb,jsonb)',\n    'costing.fn_wp04_c_run_cohort(bigint[],date,date,bigint)',\n    'costing.fn_wp04_c_run_assemble(bigint,date,date,bigint,costing.sku_direct_labour_allocation_snapshot,costing.sku_production_overhead_allocation_snapshot,costing.sku_qc_allocation_snapshot,costing.sku_materials_stores_allocation_snapshot,costing.sku_admin_finance_overhead_allocation_snapshot,costing.sku_marketing_expense_allocation_snapshot)',\n    'costing.fn_wp04_c_enrich(jsonb,bigint,date,date,bigint,jsonb,jsonb)',\n    'costing.fn_product_sku_readiness_shared_issues(date)',\n    'costing.fn_product_process_route_readiness(date)',\n    'costing.fn_resolve_sku_mrp_as_of(bigint,date)',\n    'costing.fn_resolve_sku_selling_price_policy_as_of(bigint,date)',\n    'costing.fn_resolve_sku_commercial_sales_basis_point(bigint,date,date)',\n    'costing.fn_resolve_sku_sales_assumption_as_of(date,bigint,date)',\n    'costing.fn_resolve_sales_allocation_default_policy_as_of(text,date)',\n    'public.plm_sku_bom_revision_as_of(bigint,date)'\n  ]::text[]) x(sig);\n\n  v_defs:=v_defs\n    ||'|view:costing.v_cost_driver_policy_registry='\n    ||md5(pg_get_viewdef('costing.v_cost_driver_policy_registry'::regclass,true))\n    ||'|view:costing.v_sku_commercial_sales_basis='\n    ||md5(pg_get_viewdef('costing.v_sku_commercial_sales_basis'::regclass,true))\n    ||'|view:costing.v_regional_marketing_evidence_review_queue='\n    ||md5(pg_get_viewdef('costing.v_regional_marketing_evidence_review_queue'::regclass,true));\n\n  SELECT string_agg(\n    e.source_relation||':'||\n    coalesce((\n      SELECT string_agg(\n        a.attname||'/'||a.atttypid::regtype::text||'/'||a.attnotnull::text,\n        ',' ORDER BY a.attnum\n      )\n      FROM pg_attribute a\n      WHERE a.attrelid=to_regclass(e.source_relation)\n        AND a.attnum>0\n        AND NOT a.attisdropped\n    ),''),\n    '|' ORDER BY e.source_relation\n  )\n  INTO v_schema\n  FROM costing.readiness_portfolio_source_epoch e;\n\n  v_fp:=jsonb_build_object(\n    'contract_version','WP04_G7_TRACK_A_V2',\n    'period_start',v_period,\n    'valuation_date',v_val,\n    'evidence_refresh_run_id',v_run,\n    'source_epochs',v_epochs,\n    'canonical_definition_digest',md5(v_defs),\n    'source_schema_digest',md5(v_schema)\n  );\n\n  RETURN QUERY SELECT v_fp,md5(v_fp::text);\nEND\n$function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "fn_guard_active_sku_requires_active_product",
+      "args": "",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.fn_guard_active_sku_requires_active_product()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\r\ndeclare\r\n    v_product_status text;\r\nbegin\r\n    if new.is_active is not true then\r\n        return new;\r\n    end if;\r\n\r\n    select p.status\r\n    into v_product_status\r\n    from public.products p\r\n    where p.id = new.product_id;\r\n\r\n    if not found then\r\n        raise exception\r\n            'Cannot activate SKU: product % does not exist.',\r\n            new.product_id;\r\n    end if;\r\n\r\n    if v_product_status is distinct from 'Active' then\r\n        raise exception\r\n            'Cannot activate SKU for inactive product %.',\r\n            new.product_id;\r\n    end if;\r\n\r\n    return new;\r\nend;\r\n$function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "fn_guard_product_inactivation_requires_no_active_skus",
+      "args": "",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.fn_guard_product_inactivation_requires_no_active_skus()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\r\ndeclare\r\n    v_active_sku_count bigint;\r\nbegin\r\n    if new.status is distinct from 'Inactive'\r\n       or old.status is not distinct from 'Inactive'\r\n    then\r\n        return new;\r\n    end if;\r\n\r\n    select count(*)::bigint\r\n    into v_active_sku_count\r\n    from public.product_skus ps\r\n    where ps.product_id = new.id\r\n      and ps.is_active = true;\r\n\r\n    if v_active_sku_count > 0 then\r\n        raise exception\r\n            'Cannot mark product % inactive while % active SKU(s) remain. Deactivate the SKUs first.',\r\n            new.id,\r\n            v_active_sku_count;\r\n    end if;\r\n\r\n    return new;\r\nend;\r\n$function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "fn_guard_sku_activation_completeness",
+      "args": "",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=public, costing, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.fn_guard_sku_activation_completeness()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'costing', 'pg_temp'\nAS $function$\ndeclare\n  v_chk jsonb;\n  v_list text;\nbegin\n  if new.is_active is not true then return new; end if;\n  if tg_op = 'UPDATE' and old.is_active is true then return new; end if;  -- already active: untouched\n\n  v_chk := costing.fn_sku_activation_missing_items(new.id, new.product_id);\n  if jsonb_array_length(v_chk->'missing') > 0 then\n    select string_agg((m->>'label') || ' (' || (m->>'where') || ')', '; ')\n      into v_list from jsonb_array_elements(v_chk->'missing') m;\n    raise exception using\n      errcode = 'P0001',\n      message = format('Cannot activate SKU %s: missing %s. Fill these in, then activate again.', new.id, v_list),\n      detail  = v_chk::text,\n      hint    = 'Save the SKU as inactive until all five costing essentials are approved.';\n  end if;\n  return new;\nend\n$function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "fn_log_product_sku_change",
+      "args": "",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.fn_log_product_sku_change()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\ndeclare\n  v_old jsonb := case when tg_op <> 'INSERT' then to_jsonb(old) end;\n  v_new jsonb := case when tg_op <> 'DELETE' then to_jsonb(new) end;\n  v_cols text[];\nbegin\n  if tg_op = 'UPDATE' then\n    select array_agg(k) into v_cols from jsonb_object_keys(v_new) k where v_new->k is distinct from v_old->k;\n    if v_cols is null then return null; end if;   -- no-op update\n  end if;\n  insert into public.product_sku_change_log (sku_id, op, old_row, new_row, changed_columns, actor_user_id)\n  values (coalesce((v_new->>'id')::bigint, (v_old->>'id')::bigint), tg_op, v_old, v_new, v_cols, auth.uid());\n  return null;\nend\n$function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "fn_product_skus_price_list_active_guard",
+      "args": "",
+      "owner": "postgres",
+      "prosecdef": false,
+      "proconfig": [
+        "search_path=pg_catalog, public"
+      ],
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.fn_product_skus_price_list_active_guard()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\nBEGIN\n  IF NOT NEW.is_active THEN\n    NEW.price_list_ik := FALSE;\n    NEW.price_list_ok := FALSE;\n  ELSE\n    NEW.price_list_ik := COALESCE(NEW.price_list_ik,FALSE);\n    NEW.price_list_ok := COALESCE(NEW.price_list_ok,FALSE);\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "rpc_create_product",
+      "args": "p_item text, p_sub_group_id integer, p_malayalam_name text, p_status text, p_uom_base text, p_conversion_to_base numeric, p_is_seasonal boolean, p_is_llt boolean, p_manufacture_lead_time_months integer, p_season_profile_id integer, p_is_pto boolean, p_reason text, p_approval_reference text",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.rpc_create_product(p_item text, p_sub_group_id integer, p_malayalam_name text, p_status text, p_uom_base text, p_conversion_to_base numeric, p_is_seasonal boolean, p_is_llt boolean, p_manufacture_lead_time_months integer, p_season_profile_id integer, p_is_pto boolean, p_reason text, p_approval_reference text DEFAULT NULL::text)\n RETURNS TABLE(product_id integer, item text, sub_group_id integer, malayalam_name text, status text, uom_base text, conversion_to_base numeric, is_seasonal boolean, is_llt boolean, manufacture_lead_time_months integer, season_profile_id integer, is_pto boolean)\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\r\ndeclare\r\n    v_actor uuid;\r\n    v_item text;\r\n    v_status text;\r\n    v_uom_base text;\r\n    v_reason text;\r\n    v_approval_reference text;\r\n    v_inserted public.products%rowtype;\r\nbegin\r\n    perform public.require_permission(\r\n        'module:manage-products',\r\n        true\r\n    );\r\n\r\n    v_actor := auth.uid();\r\n\r\n    if v_actor is null then\r\n        raise exception 'Not authenticated';\r\n    end if;\r\n\r\n    v_item := btrim(coalesce(p_item, ''));\r\n    v_status := initcap(lower(btrim(coalesce(p_status, ''))));\r\n    v_uom_base := nullif(btrim(coalesce(p_uom_base, '')), '');\r\n    v_reason := btrim(coalesce(p_reason, ''));\r\n    v_approval_reference :=\r\n        nullif(\r\n            btrim(coalesce(p_approval_reference, '')),\r\n            ''\r\n        );\r\n\r\n    if v_item = '' then\r\n        raise exception 'Product name is required';\r\n    end if;\r\n\r\n    if v_reason = '' then\r\n        raise exception 'Product creation reason is required';\r\n    end if;\r\n\r\n    if v_status not in ('Active', 'Inactive') then\r\n        raise exception\r\n            'Product status must be Active or Inactive';\r\n    end if;\r\n\r\n    if p_sub_group_id is null\r\n       or not exists (\r\n            select 1\r\n            from public.sub_groups sg\r\n            where sg.id = p_sub_group_id\r\n       )\r\n    then\r\n        raise exception\r\n            'Valid product subgroup is required';\r\n    end if;\r\n\r\n    if (\r\n           v_uom_base is null\r\n           and p_conversion_to_base is not null\r\n       )\r\n       or (\r\n           v_uom_base is not null\r\n           and p_conversion_to_base is null\r\n       )\r\n    then\r\n        raise exception\r\n            'Base UOM and conversion-to-base must either both be supplied or both be null';\r\n    end if;\r\n\r\n    if v_uom_base is not null\r\n       and v_uom_base not in ('Kg', 'L', 'Nos')\r\n    then\r\n        raise exception\r\n            'Base UOM must be Kg, L or Nos';\r\n    end if;\r\n\r\n    if p_conversion_to_base is not null\r\n       and p_conversion_to_base <= 0\r\n    then\r\n        raise exception\r\n            'Conversion-to-base must be greater than zero';\r\n    end if;\r\n\r\n    if p_manufacture_lead_time_months is not null\r\n       and p_manufacture_lead_time_months < 0\r\n    then\r\n        raise exception\r\n            'Manufacturing lead time cannot be negative';\r\n    end if;\r\n\r\n    if p_season_profile_id is not null\r\n       and not exists (\r\n            select 1\r\n            from public.season_profile sp\r\n            where sp.id = p_season_profile_id\r\n       )\r\n    then\r\n        raise exception\r\n            'Season profile % does not exist',\r\n            p_season_profile_id;\r\n    end if;\r\n\r\n    perform pg_advisory_xact_lock(\r\n        hashtext(\r\n            'PRODUCT_NAME:'\r\n            || public.normalize_key(v_item)\r\n        )\r\n    );\r\n\r\n    if exists (\r\n        select 1\r\n        from public.products p\r\n        where public.normalize_key(p.item)\r\n            = public.normalize_key(v_item)\r\n    ) then\r\n        raise exception\r\n            'A product with normalized name \"%\" already exists',\r\n            public.normalize_key(v_item);\r\n    end if;\r\n\r\n    insert into public.products (\r\n        item,\r\n        sub_group_id,\r\n        malayalam_name,\r\n        status,\r\n        uom_base,\r\n        conversion_to_base,\r\n        is_seasonal,\r\n        is_llt,\r\n        manufacture_lead_time_months,\r\n        season_profile_id,\r\n        is_pto\r\n    )\r\n    values (\r\n        v_item,\r\n        p_sub_group_id,\r\n        nullif(\r\n            btrim(coalesce(p_malayalam_name, '')),\r\n            ''\r\n        ),\r\n        v_status,\r\n        v_uom_base,\r\n        p_conversion_to_base,\r\n        coalesce(p_is_seasonal, false),\r\n        coalesce(p_is_llt, false),\r\n        p_manufacture_lead_time_months,\r\n        p_season_profile_id,\r\n        coalesce(p_is_pto, false)\r\n    )\r\n    returning *\r\n    into v_inserted;\r\n\r\n    insert into public.product_master_audit (\r\n        product_id,\r\n        event_type,\r\n        old_snapshot,\r\n        new_snapshot,\r\n        reason,\r\n        approval_reference,\r\n        actor_user_id\r\n    )\r\n    values (\r\n        v_inserted.id,\r\n        'CREATE',\r\n        null,\r\n        to_jsonb(v_inserted),\r\n        v_reason,\r\n        v_approval_reference,\r\n        v_actor\r\n    );\r\n\r\n    return query\r\n    select\r\n        v_inserted.id,\r\n        v_inserted.item,\r\n        v_inserted.sub_group_id,\r\n        v_inserted.malayalam_name,\r\n        v_inserted.status,\r\n        v_inserted.uom_base,\r\n        v_inserted.conversion_to_base,\r\n        coalesce(v_inserted.is_seasonal, false),\r\n        coalesce(v_inserted.is_llt, false),\r\n        v_inserted.manufacture_lead_time_months,\r\n        v_inserted.season_profile_id,\r\n        v_inserted.is_pto;\r\nend;\r\n$function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "rpc_create_product_sku",
+      "args": "p_product_id bigint, p_pack_size numeric, p_uom text, p_is_active boolean, p_is_sample boolean, p_reason text, p_approval_reference text",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.rpc_create_product_sku(p_product_id bigint, p_pack_size numeric, p_uom text, p_is_active boolean, p_is_sample boolean, p_reason text, p_approval_reference text DEFAULT NULL::text)\n RETURNS TABLE(sku_id bigint, product_id bigint, pack_size numeric, uom text, is_active boolean, is_sample boolean)\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\r\ndeclare\r\n    v_actor uuid;\r\n    v_uom text;\r\n    v_reason text;\r\n    v_approval_reference text;\r\n    v_inserted public.product_skus%rowtype;\r\nbegin\r\n    perform public.require_permission(\r\n        'module:manage-products',\r\n        true\r\n    );\r\n\r\n    v_actor := auth.uid();\r\n\r\n    if v_actor is null then\r\n        raise exception 'Not authenticated';\r\n    end if;\r\n\r\n    if p_product_id is null then\r\n        raise exception 'Product ID is required';\r\n    end if;\r\n\r\n    if p_pack_size is null\r\n       or p_pack_size <= 0\r\n    then\r\n        raise exception\r\n            'SKU pack size must be greater than zero';\r\n    end if;\r\n\r\n    v_uom := btrim(coalesce(p_uom, ''));\r\n    v_reason := btrim(coalesce(p_reason, ''));\r\n    v_approval_reference :=\r\n        nullif(\r\n            btrim(coalesce(p_approval_reference, '')),\r\n            ''\r\n        );\r\n\r\n    if v_uom = '' then\r\n        raise exception 'SKU UOM is required';\r\n    end if;\r\n\r\n    if v_reason = '' then\r\n        raise exception 'SKU creation reason is required';\r\n    end if;\r\n\r\n    if not exists (\r\n        select 1\r\n        from public.products p\r\n        where p.id = p_product_id\r\n    ) then\r\n        raise exception\r\n            'Product % does not exist',\r\n            p_product_id;\r\n    end if;\r\n\r\n    perform pg_advisory_xact_lock(\r\n        hashtext(\r\n            'PRODUCT_SKU:'\r\n            || p_product_id::text\r\n            || ':'\r\n            || p_pack_size::text\r\n            || ':'\r\n            || lower(v_uom)\r\n        )\r\n    );\r\n\r\n    if exists (\r\n        select 1\r\n        from public.product_skus ps\r\n        where ps.product_id = p_product_id\r\n          and ps.pack_size = p_pack_size\r\n          and lower(btrim(ps.uom)) = lower(v_uom)\r\n    ) then\r\n        raise exception\r\n            'SKU already exists for product %, pack size % and UOM %',\r\n            p_product_id,\r\n            p_pack_size,\r\n            v_uom;\r\n    end if;\r\n\r\n    insert into public.product_skus (\r\n        product_id,\r\n        pack_size,\r\n        uom,\r\n        is_active,\r\n        is_sample\r\n    )\r\n    values (\r\n        p_product_id,\r\n        p_pack_size,\r\n        v_uom,\r\n        coalesce(p_is_active, false),\r\n        coalesce(p_is_sample, false)\r\n    )\r\n    returning *\r\n    into v_inserted;\r\n\r\n    insert into public.product_sku_master_audit (\r\n        sku_id,\r\n        product_id,\r\n        event_type,\r\n        old_snapshot,\r\n        new_snapshot,\r\n        reason,\r\n        approval_reference,\r\n        actor_user_id\r\n    )\r\n    values (\r\n        v_inserted.id,\r\n        v_inserted.product_id,\r\n        'CREATE',\r\n        null,\r\n        to_jsonb(v_inserted),\r\n        v_reason,\r\n        v_approval_reference,\r\n        v_actor\r\n    );\r\n\r\n    return query\r\n    select\r\n        v_inserted.id,\r\n        v_inserted.product_id,\r\n        v_inserted.pack_size,\r\n        v_inserted.uom,\r\n        v_inserted.is_active,\r\n        v_inserted.is_sample;\r\nend;\r\n$function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "rpc_get_product_sku_readiness",
+      "args": "p_sku_id bigint, p_period_start date, p_context_type text, p_refresh_run_id bigint",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=public, costing, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.rpc_get_product_sku_readiness(p_sku_id bigint, p_period_start date, p_context_type text DEFAULT 'LIVE_AS_OF'::text, p_refresh_run_id bigint DEFAULT NULL::bigint)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'public', 'costing', 'pg_temp'\nAS $function$\ndeclare\n v_context_type text:=upper(coalesce(nullif(btrim(p_context_type),''),'LIVE_AS_OF'));\n v_period date; v_val date; v_run bigint; v_run_status text; v_integrity text:='LIVE_GOVERNED_PERIOD';\n v_route_json jsonb; v_shared_json jsonb;\n v_sku record; v_bom record; v_route record; v_mrp record; v_sell record; v_batch record; v_sales record; v_control record;\n v_pm text; v_sm text; v_cf text; v_ev text; v_out text; v_sev text; v_dep jsonb:='[]'; v_base jsonb;\nbegin\n \n  if auth.uid() is null then\n    raise exception 'Not authenticated';\n  end if;\n  if not (\n    public.app_has_permission('module:manage-products', 'view')\n    or public.app_has_permission('module:costing-control-center', 'view')\n  ) then\n    raise exception 'Permission denied for module:manage-products or module:costing-control-center (edit=false)';\n  end if;\n\n if p_sku_id is null then raise exception 'SKU ID is required'; end if;\n if v_context_type not in ('LIVE_AS_OF','EXACT_RUN') then raise exception 'Invalid context type %',p_context_type; end if;\n select s.id sku_id,s.product_id,s.pack_size,s.uom,s.is_active sku_is_active,s.is_sample,p.item product_name,p.status product_status,p.uom_base,p.conversion_to_base\n into v_sku from public.product_skus s join public.products p on p.id=s.product_id where s.id=p_sku_id;\n if not found then raise exception 'SKU % not found',p_sku_id; end if;\n\n if v_context_type='LIVE_AS_OF' then\n  if p_period_start is null then raise exception 'Costing period start is required for LIVE_AS_OF'; end if;\n  v_period:=date_trunc('month',p_period_start::timestamp)::date;\n  select valuation_date into v_val from costing.cost_periods where period_start=v_period;\n  if v_val is null then raise exception 'Governed valuation date is missing for period %',v_period; end if;\n  if p_refresh_run_id is not null then raise exception 'Refresh run ID is not accepted for LIVE_AS_OF'; end if;\n  select id,overall_status into v_run,v_run_status from costing.costing_refresh_run\n   where period_start=v_period and valuation_date=v_val and overall_status='SUCCESS'\n   order by finished_at desc nulls last,id desc limit 1;\n else\n  if p_refresh_run_id is null then raise exception 'Refresh run ID is required for EXACT_RUN'; end if;\n  select r.id,r.period_start,r.valuation_date,r.overall_status,\n   case when exists(select 1 from costing.costing_refresh_run_stage st where st.refresh_run_id=r.id and (st.period_start is distinct from r.period_start or st.valuation_date is distinct from r.valuation_date)) then 'MISMATCH'\n        when r.valuation_context_source='LEGACY_BACKFILL' then 'LEGACY_UNVERIFIED' else 'CONSISTENT' end\n  into v_run,v_period,v_val,v_run_status,v_integrity from costing.costing_refresh_run r where r.id=p_refresh_run_id;\n  if v_run is null then raise exception 'Refresh run % not found',p_refresh_run_id; end if;\n  if p_period_start is not null and date_trunc('month',p_period_start::timestamp)::date<>v_period then raise exception 'Supplied period does not match refresh run context'; end if;\n end if;\n\n if v_context_type='LIVE_AS_OF' then\n  select to_jsonb(x) into v_route_json from costing.fn_product_process_route_readiness(v_val) x where x.product_id=v_sku.product_id limit 1;\n  v_shared_json:='[]'::jsonb;\n  if v_run is not null then v_shared_json:=costing.fn_product_sku_readiness_shared_issues(v_val); end if;\n  return costing.fn_product_sku_readiness_live_core(p_sku_id,v_period,v_val,v_run,v_route_json,v_shared_json);\n end if;\n  select * into v_control from costing.sku_costing_control_status_snapshot c where c.sku_id=p_sku_id and c.refresh_run_id=v_run limit 1;\n  v_pm:='UNKNOWN'; v_sm:=case when v_control.sku_id is not null and v_control.pack_size>0 and nullif(btrim(v_control.pack_uom),'') is not null then 'RESOLVED' else 'UNKNOWN' end;\n  v_cf:=case when v_control.sku_id is null then 'UNKNOWN' when v_control.cost_sheet_status='BLOCKED' then 'BLOCKED' else 'RESOLVED' end;\n  v_ev:=case when v_control.sku_id is null then 'UNKNOWN' when v_control.control_severity='BLOCKER' then 'BLOCKED' when v_control.control_severity='REVIEW_REQUIRED' then 'REVIEW_REQUIRED' when v_control.control_severity='READY' then 'READY' else 'UNKNOWN' end;\n  v_dep:=jsonb_build_array(\n   jsonb_build_object('dependency_code','PRODUCT_MASTER','label','Product master','scope','PRODUCT','dimension','MASTER_FOUNDATION','applicability','APPLICABLE','raw_status','UNKNOWN','resolution_source','NOT_FROZEN_IN_RUN','reason_code','NOT_FROZEN_IN_RUN','owner_module','MANAGE_PRODUCTS','recommended_ui_route','MANAGE_PRODUCTS','authority','EXACT_RUN_FROZEN_EVIDENCE_ONLY'),\n   jsonb_build_object('dependency_code','SKU_PACK_IDENTITY','label','SKU pack identity','scope','SKU_EXACT_RUN','dimension','MASTER_FOUNDATION','applicability','APPLICABLE','raw_status',v_sm,'resolution_source',case when v_control.sku_id is null then 'NO_RUN_SNAPSHOT' else 'RUN_CONTROL_SNAPSHOT' end,'owner_module','MANAGE_PRODUCTS','recommended_ui_route','MANAGE_PRODUCTS','authority','costing.sku_costing_control_status_snapshot'),\n   jsonb_build_object('dependency_code','MRP_POLICY','label','MRP policy','scope','SKU_EXACT_RUN','dimension','COSTING_FOUNDATION','applicability','APPLICABLE','raw_status',case when v_control.mrp_resolution_status='RESOLVED' then 'RESOLVED' when v_control.sku_id is null then 'UNKNOWN' else 'BLOCKED' end,'resolution_source','RUN_CONTROL_SNAPSHOT','owner_module','PRICING_POLICY_MANAGER','recommended_ui_route','MRP_GOVERNANCE','authority','costing.sku_costing_control_status_snapshot'),\n   jsonb_build_object('dependency_code','SELLING_PRICE_POLICY','label','Selling-price/GST policy','scope','SKU_EXACT_RUN','dimension','COSTING_FOUNDATION','applicability','APPLICABLE','raw_status',case when v_control.selling_policy_resolution_status='RESOLVED' then 'RESOLVED' when v_control.sku_id is null then 'UNKNOWN' else 'BLOCKED' end,'resolution_source','RUN_CONTROL_SNAPSHOT','owner_module','PRICING_POLICY_MANAGER','recommended_ui_route','SELLING_SCHEME_POLICIES','authority','costing.sku_costing_control_status_snapshot'),\n   jsonb_build_object('dependency_code','FINAL_COSTING_CONTROL','label','Final costing control','scope','SKU_EXACT_RUN','dimension','COSTING_OUTCOME','applicability','APPLICABLE','raw_status',coalesce(v_control.cost_sheet_status,'UNKNOWN'),'resolution_source',case when v_control.sku_id is null then 'NO_RUN_SNAPSHOT' else 'RUN_CONTROL_SNAPSHOT' end,'reason_code',v_control.first_control_status,'note',v_control.control_note,'owner_module','COSTING_CONTROL_CENTER','recommended_ui_route',v_control.recommended_ui_route,'authority','costing.sku_costing_control_status_snapshot')\n  );\n\n v_out:=coalesce(v_control.cost_sheet_status,'UNKNOWN');\n v_sev:=case when v_cf='BLOCKED' or v_ev='BLOCKED' or v_control.control_severity='BLOCKER' then 'BLOCKER' when v_ev='REVIEW_REQUIRED' or v_control.control_severity='REVIEW_REQUIRED' then 'REVIEW_REQUIRED' when v_control.control_severity='READY' then 'READY' else 'UNKNOWN' end;\n v_base:=jsonb_build_object(\n  'context',jsonb_build_object('context_type',v_context_type,'sku_id',p_sku_id,'product_id',v_sku.product_id,'period_start',v_period,'valuation_date',v_val,'refresh_run_id',case when v_context_type='EXACT_RUN' then v_run else null end,'run_status',v_run_status,'context_integrity_status',v_integrity),\n  'lifecycle',case when v_context_type='LIVE_AS_OF' then jsonb_build_object('product_status',v_sku.product_status,'sku_is_active',v_sku.sku_is_active,'sku_is_sample',v_sku.is_sample) else jsonb_build_object('status','UNKNOWN','reason_code','NOT_FROZEN_IN_RUN') end,\n  'identity',jsonb_build_object('product_name',v_sku.product_name,'pack_size',case when v_context_type='EXACT_RUN' and v_control.sku_id is not null then v_control.pack_size else v_sku.pack_size end,'pack_uom',case when v_context_type='EXACT_RUN' and v_control.sku_id is not null then v_control.pack_uom else v_sku.uom end),\n  'summary',jsonb_build_object('product_master_foundation_status',v_pm,'sku_master_foundation_status',v_sm,'costing_foundation_status',v_cf,'evidence_quality_status',v_ev,'costing_outcome_status',v_out,'overall_severity',v_sev),\n  'dependencies',v_dep,'shared_issues','[]'::jsonb,\n  'downstream_control',case when v_control.sku_id is null then null else jsonb_build_object('first_control_status',v_control.first_control_status,'control_severity',v_control.control_severity,'recommended_ui_route',v_control.recommended_ui_route,'control_note',v_control.control_note,'material_costing_status',v_control.material_costing_status,'pm_costing_status',v_control.pm_costing_status,'manufacturing_cop_status',v_control.manufacturing_cop_status,'internal_loaded_cost_status',v_control.internal_loaded_cost_status,'pricing_bridge_status',v_control.pricing_bridge_status,'selling_price_bridge_status',v_control.selling_price_bridge_status,'cost_sheet_status',v_control.cost_sheet_status,'refresh_run_id',v_control.refresh_run_id) end);\n if v_run is not null then return costing.fn_product_sku_readiness_enrich(v_base,p_sku_id,v_period,v_val,v_run); end if;\n return v_base;\nend $function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "rpc_get_product_sku_readiness_portfolio",
+      "args": "p_period_start date, p_population_scope text, p_overall_severities text[], p_dependency_codes text[], p_owner_modules text[], p_route_codes text[], p_search text, p_after_sku_id bigint, p_limit integer",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=public, costing, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.rpc_get_product_sku_readiness_portfolio(p_period_start date, p_population_scope text DEFAULT 'OPERATIONAL'::text, p_overall_severities text[] DEFAULT NULL::text[], p_dependency_codes text[] DEFAULT NULL::text[], p_owner_modules text[] DEFAULT NULL::text[], p_route_codes text[] DEFAULT NULL::text[], p_search text DEFAULT NULL::text, p_after_sku_id bigint DEFAULT NULL::bigint, p_limit integer DEFAULT 50)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'public', 'costing', 'pg_temp'\nAS $function$\nDECLARE\n  v_period date;\n  v_result jsonb;\n  v_has_current boolean;\n  v_current_status text;\nBEGIN\n  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;\n  IF NOT public.app_has_permission('module:costing-control-center','view') THEN\n    RAISE EXCEPTION 'Permission denied';\n  END IF;\n  IF p_period_start IS NULL THEN\n    RAISE EXCEPTION 'Costing period start is required for LIVE_AS_OF';\n  END IF;\n\n  v_period:=date_trunc('month',p_period_start::timestamp)::date;\n\n  -- One SQL statement/snapshot binds freshness, current-build identity and indexed read.\n  SELECT costing.fn_wp04_readiness_portfolio_index_read(\n           b.id,p_period_start,p_population_scope,p_overall_severities,\n           p_dependency_codes,p_owner_modules,p_route_codes,p_search,p_after_sku_id,p_limit\n         )\n  INTO v_result\n  FROM costing.fn_wp04_readiness_source_fingerprint(v_period) fp\n  JOIN costing.product_sku_readiness_portfolio_build b\n    ON b.period_start=v_period\n   AND b.valuation_date=(fp.fingerprint->>'valuation_date')::date\n   AND b.evidence_refresh_run_id IS NOT DISTINCT FROM\n       nullif(fp.fingerprint->>'evidence_refresh_run_id','')::bigint\n   AND b.status='COMPLETED'\n   AND b.is_current\n   AND b.source_fingerprint_digest=fp.digest\n  ORDER BY b.id DESC\n  LIMIT 1;\n\n  IF v_result IS NOT NULL THEN\n    RETURN v_result;\n  END IF;\n\n  SELECT EXISTS(\n    SELECT 1\n    FROM costing.product_sku_readiness_portfolio_build b\n    WHERE b.period_start=v_period AND b.is_current\n  )\n  INTO v_has_current;\n\n  IF NOT v_has_current THEN\n    RAISE EXCEPTION 'READINESS_BUILD_ABSENT';\n  END IF;\n\n  SELECT status INTO v_current_status\n  FROM costing.product_sku_readiness_portfolio_build\n  WHERE period_start=v_period AND is_current\n  ORDER BY id DESC LIMIT 1;\n\n  IF v_current_status<>'COMPLETED' THEN\n    RAISE EXCEPTION 'READINESS_BUILD_INCOMPLETE';\n  END IF;\n\n  RAISE EXCEPTION 'READINESS_BUILD_STALE';\nEND\n$function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "rpc_get_readiness_governed_periods",
+      "args": "p_before_period_start date, p_limit integer",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=public, costing, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.rpc_get_readiness_governed_periods(p_before_period_start date DEFAULT NULL::date, p_limit integer DEFAULT 24)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'public', 'costing', 'pg_temp'\nAS $function$\ndeclare result jsonb;\nbegin\n if auth.uid() is null then raise exception 'Not authenticated'; end if;\n if not public.app_has_permission('module:costing-control-center','view') then raise exception 'Permission denied'; end if;\n if p_limit is null or p_limit<1 or p_limit>100 then raise exception 'Invalid limit'; end if;\n with candidates as materialized (\n  select period_start,valuation_date from costing.cost_periods\n  where p_before_period_start is null or period_start<p_before_period_start\n  order by period_start desc limit p_limit+1\n ), page as materialized (select * from candidates order by period_start desc limit p_limit)\n select jsonb_build_object('observed_at',statement_timestamp(),'before_period_start',p_before_period_start,'limit',p_limit,\n  'rows',coalesce((select jsonb_agg(to_jsonb(p) order by period_start desc) from page p),'[]'::jsonb),\n  'returned_count',(select count(*) from page),'has_more',(select count(*)>p_limit from candidates),\n  'next_before_period_start',case when (select count(*)>p_limit from candidates) then (select min(period_start) from page) end)\n into result;\n return result;\nend $function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "rpc_get_sku_activation_check",
+      "args": "p_sku_id bigint",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=public, costing, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.rpc_get_sku_activation_check(p_sku_id bigint)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'public', 'costing', 'pg_temp'\nAS $function$\nbegin\n  if auth.uid() is null then raise exception 'Not authenticated'; end if;\n  if not public.app_has_permission('module:manage-products', 'view') then\n    raise exception 'Permission denied for module:manage-products';\n  end if;\n  return costing.fn_sku_activation_missing_items(p_sku_id);\nend\n$function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "rpc_set_product_sku_active",
+      "args": "p_sku_id bigint, p_is_active boolean, p_reason text, p_approval_reference text",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.rpc_set_product_sku_active(p_sku_id bigint, p_is_active boolean, p_reason text, p_approval_reference text DEFAULT NULL::text)\n RETURNS TABLE(sku_id bigint, product_id bigint, pack_size numeric, uom text, is_active boolean, is_sample boolean, audit_event_type text)\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\ndeclare\n    v_actor uuid;\n    v_reason text;\n    v_approval_reference text;\n    v_event_type text;\n    v_old public.product_skus%rowtype;\n    v_new public.product_skus%rowtype;\n    v_chk jsonb;\n    v_list text;\nbegin\n    perform public.require_permission('module:manage-products', true);\n    v_actor := auth.uid();\n    if v_actor is null then raise exception 'Not authenticated'; end if;\n    if p_sku_id is null then raise exception 'SKU ID is required'; end if;\n    if p_is_active is null then raise exception 'Target SKU active state is required'; end if;\n    v_reason := btrim(coalesce(p_reason, ''));\n    v_approval_reference := nullif(btrim(coalesce(p_approval_reference, '')), '');\n    if v_reason = '' then raise exception 'SKU lifecycle reason is required'; end if;\n\n    select * into v_old from public.product_skus ps where ps.id = p_sku_id for update;\n    if not found then raise exception 'SKU % does not exist', p_sku_id; end if;\n    if v_old.is_active is not distinct from p_is_active then\n        raise exception 'SKU % is already %', p_sku_id, case when p_is_active then 'active' else 'inactive' end;\n    end if;\n\n    if p_is_active then\n        v_chk := costing.fn_sku_activation_missing_items(p_sku_id, v_old.product_id);\n        if jsonb_array_length(v_chk->'missing') > 0 then\n            select string_agg(m->>'label', ', ') into v_list from jsonb_array_elements(v_chk->'missing') m;\n            raise exception using errcode = 'P0001',\n              message = format('This SKU cannot be made active yet. Missing: %s.', v_list),\n              detail = v_chk::text;\n        end if;\n    end if;\n\n    v_event_type := case when p_is_active then 'ACTIVATE' else 'DEACTIVATE' end;\n\n    update public.product_skus ps set is_active = p_is_active where ps.id = p_sku_id returning * into v_new;\n\n    insert into public.product_sku_master_audit (sku_id, product_id, event_type, old_snapshot, new_snapshot, reason, approval_reference, actor_user_id)\n    values (v_new.id, v_new.product_id, v_event_type, to_jsonb(v_old), to_jsonb(v_new), v_reason, v_approval_reference, v_actor);\n\n    return query select v_new.id, v_new.product_id, v_new.pack_size, v_new.uom, v_new.is_active, v_new.is_sample, v_event_type;\nend;\n$function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "rpc_update_product",
+      "args": "p_product_id integer, p_item text, p_sub_group_id integer, p_malayalam_name text, p_status text, p_uom_base text, p_conversion_to_base numeric, p_is_seasonal boolean, p_is_llt boolean, p_manufacture_lead_time_months integer, p_season_profile_id integer, p_is_pto boolean, p_reason text, p_approval_reference text",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.rpc_update_product(p_product_id integer, p_item text, p_sub_group_id integer, p_malayalam_name text, p_status text, p_uom_base text, p_conversion_to_base numeric, p_is_seasonal boolean, p_is_llt boolean, p_manufacture_lead_time_months integer, p_season_profile_id integer, p_is_pto boolean, p_reason text, p_approval_reference text DEFAULT NULL::text)\n RETURNS TABLE(product_id integer, item text, sub_group_id integer, malayalam_name text, status text, uom_base text, conversion_to_base numeric, is_seasonal boolean, is_llt boolean, manufacture_lead_time_months integer, season_profile_id integer, is_pto boolean, audit_event_type text)\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\r\ndeclare\r\n    v_actor uuid;\r\n    v_item text;\r\n    v_status text;\r\n    v_uom_base text;\r\n    v_reason text;\r\n    v_approval_reference text;\r\n    v_event_type text;\r\n    v_old public.products%rowtype;\r\n    v_new public.products%rowtype;\r\nbegin\r\n    perform public.require_permission(\r\n        'module:manage-products',\r\n        true\r\n    );\r\n\r\n    v_actor := auth.uid();\r\n\r\n    if v_actor is null then\r\n        raise exception 'Not authenticated';\r\n    end if;\r\n\r\n    if p_product_id is null then\r\n        raise exception 'Product ID is required';\r\n    end if;\r\n\r\n    v_item := btrim(coalesce(p_item, ''));\r\n    v_status := initcap(lower(btrim(coalesce(p_status, ''))));\r\n    v_uom_base := nullif(btrim(coalesce(p_uom_base, '')), '');\r\n    v_reason := btrim(coalesce(p_reason, ''));\r\n    v_approval_reference :=\r\n        nullif(\r\n            btrim(coalesce(p_approval_reference, '')),\r\n            ''\r\n        );\r\n\r\n    if v_item = '' then\r\n        raise exception 'Product name is required';\r\n    end if;\r\n\r\n    if v_reason = '' then\r\n        raise exception 'Product update reason is required';\r\n    end if;\r\n\r\n    if v_status not in ('Active', 'Inactive') then\r\n        raise exception\r\n            'Product status must be Active or Inactive';\r\n    end if;\r\n\r\n    if p_sub_group_id is null\r\n       or not exists (\r\n            select 1\r\n            from public.sub_groups sg\r\n            where sg.id = p_sub_group_id\r\n       )\r\n    then\r\n        raise exception\r\n            'Valid product subgroup is required';\r\n    end if;\r\n\r\n    if (\r\n           v_uom_base is null\r\n           and p_conversion_to_base is not null\r\n       )\r\n       or (\r\n           v_uom_base is not null\r\n           and p_conversion_to_base is null\r\n       )\r\n    then\r\n        raise exception\r\n            'Base UOM and conversion-to-base must either both be supplied or both be null';\r\n    end if;\r\n\r\n    if v_uom_base is not null\r\n       and v_uom_base not in ('Kg', 'L', 'Nos')\r\n    then\r\n        raise exception\r\n            'Base UOM must be Kg, L or Nos';\r\n    end if;\r\n\r\n    if p_conversion_to_base is not null\r\n       and p_conversion_to_base <= 0\r\n    then\r\n        raise exception\r\n            'Conversion-to-base must be greater than zero';\r\n    end if;\r\n\r\n    if p_manufacture_lead_time_months is not null\r\n       and p_manufacture_lead_time_months < 0\r\n    then\r\n        raise exception\r\n            'Manufacturing lead time cannot be negative';\r\n    end if;\r\n\r\n    if p_season_profile_id is not null\r\n       and not exists (\r\n            select 1\r\n            from public.season_profile sp\r\n            where sp.id = p_season_profile_id\r\n       )\r\n    then\r\n        raise exception\r\n            'Season profile % does not exist',\r\n            p_season_profile_id;\r\n    end if;\r\n\r\n    select *\r\n    into v_old\r\n    from public.products p\r\n    where p.id = p_product_id\r\n    for update;\r\n\r\n    if not found then\r\n        raise exception\r\n            'Product % does not exist',\r\n            p_product_id;\r\n    end if;\r\n\r\n    perform pg_advisory_xact_lock(\r\n        hashtext(\r\n            'PRODUCT_NAME:'\r\n            || public.normalize_key(v_item)\r\n        )\r\n    );\r\n\r\n    if exists (\r\n        select 1\r\n        from public.products p\r\n        where p.id <> p_product_id\r\n          and public.normalize_key(p.item)\r\n              = public.normalize_key(v_item)\r\n    ) then\r\n        raise exception\r\n            'Another product with normalized name \"%\" already exists',\r\n            public.normalize_key(v_item);\r\n    end if;\r\n\r\n    if v_old.status is distinct from v_status then\r\n        if v_status = 'Active' then\r\n            v_event_type := 'ACTIVATE';\r\n        else\r\n            v_event_type := 'DEACTIVATE';\r\n        end if;\r\n    else\r\n        v_event_type := 'UPDATE';\r\n    end if;\r\n\r\n    update public.products p\r\n    set\r\n        item = v_item,\r\n        sub_group_id = p_sub_group_id,\r\n        malayalam_name =\r\n            nullif(\r\n                btrim(coalesce(p_malayalam_name, '')),\r\n                ''\r\n            ),\r\n        status = v_status,\r\n        uom_base = v_uom_base,\r\n        conversion_to_base = p_conversion_to_base,\r\n        is_seasonal = coalesce(p_is_seasonal, false),\r\n        is_llt = coalesce(p_is_llt, false),\r\n        manufacture_lead_time_months =\r\n            p_manufacture_lead_time_months,\r\n        season_profile_id = p_season_profile_id,\r\n        is_pto = coalesce(p_is_pto, false)\r\n    where p.id = p_product_id\r\n    returning *\r\n    into v_new;\r\n\r\n    insert into public.product_master_audit (\r\n        product_id,\r\n        event_type,\r\n        old_snapshot,\r\n        new_snapshot,\r\n        reason,\r\n        approval_reference,\r\n        actor_user_id\r\n    )\r\n    values (\r\n        v_new.id,\r\n        v_event_type,\r\n        to_jsonb(v_old),\r\n        to_jsonb(v_new),\r\n        v_reason,\r\n        v_approval_reference,\r\n        v_actor\r\n    );\r\n\r\n    return query\r\n    select\r\n        v_new.id,\r\n        v_new.item,\r\n        v_new.sub_group_id,\r\n        v_new.malayalam_name,\r\n        v_new.status,\r\n        v_new.uom_base,\r\n        v_new.conversion_to_base,\r\n        coalesce(v_new.is_seasonal, false),\r\n        coalesce(v_new.is_llt, false),\r\n        v_new.manufacture_lead_time_months,\r\n        v_new.season_profile_id,\r\n        v_new.is_pto,\r\n        v_event_type;\r\nend;\r\n$function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "rpc_update_product_sku",
+      "args": "p_sku_id bigint, p_pack_size numeric, p_uom text, p_is_sample boolean, p_reason text, p_approval_reference text",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=public, pg_temp"
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.rpc_update_product_sku(p_sku_id bigint, p_pack_size numeric, p_uom text, p_is_sample boolean, p_reason text, p_approval_reference text DEFAULT NULL::text)\n RETURNS TABLE(sku_id bigint, product_id bigint, pack_size numeric, uom text, is_active boolean, is_sample boolean)\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\r\ndeclare\r\n    v_actor uuid;\r\n    v_uom text;\r\n    v_reason text;\r\n    v_approval_reference text;\r\n    v_old public.product_skus%rowtype;\r\n    v_new public.product_skus%rowtype;\r\nbegin\r\n    perform public.require_permission(\r\n        'module:manage-products',\r\n        true\r\n    );\r\n\r\n    v_actor := auth.uid();\r\n\r\n    if v_actor is null then\r\n        raise exception 'Not authenticated';\r\n    end if;\r\n\r\n    if p_sku_id is null then\r\n        raise exception 'SKU ID is required';\r\n    end if;\r\n\r\n    if p_pack_size is null\r\n       or p_pack_size <= 0\r\n    then\r\n        raise exception\r\n            'SKU pack size must be greater than zero';\r\n    end if;\r\n\r\n    v_uom := btrim(coalesce(p_uom, ''));\r\n    v_reason := btrim(coalesce(p_reason, ''));\r\n    v_approval_reference :=\r\n        nullif(\r\n            btrim(coalesce(p_approval_reference, '')),\r\n            ''\r\n        );\r\n\r\n    if v_uom = '' then\r\n        raise exception 'SKU UOM is required';\r\n    end if;\r\n\r\n    if v_reason = '' then\r\n        raise exception 'SKU update reason is required';\r\n    end if;\r\n\r\n    select *\r\n    into v_old\r\n    from public.product_skus ps\r\n    where ps.id = p_sku_id\r\n    for update;\r\n\r\n    if not found then\r\n        raise exception\r\n            'SKU % does not exist',\r\n            p_sku_id;\r\n    end if;\r\n\r\n    perform pg_advisory_xact_lock(\r\n        hashtext(\r\n            'PRODUCT_SKU:'\r\n            || v_old.product_id::text\r\n            || ':'\r\n            || p_pack_size::text\r\n            || ':'\r\n            || lower(v_uom)\r\n        )\r\n    );\r\n\r\n    if exists (\r\n        select 1\r\n        from public.product_skus ps\r\n        where ps.id <> p_sku_id\r\n          and ps.product_id = v_old.product_id\r\n          and ps.pack_size = p_pack_size\r\n          and lower(btrim(ps.uom)) = lower(v_uom)\r\n    ) then\r\n        raise exception\r\n            'Another SKU already exists for product %, pack size % and UOM %',\r\n            v_old.product_id,\r\n            p_pack_size,\r\n            v_uom;\r\n    end if;\r\n\r\n    update public.product_skus ps\r\n    set\r\n        pack_size = p_pack_size,\r\n        uom = v_uom,\r\n        is_sample = coalesce(p_is_sample, false)\r\n    where ps.id = p_sku_id\r\n    returning *\r\n    into v_new;\r\n\r\n    insert into public.product_sku_master_audit (\r\n        sku_id,\r\n        product_id,\r\n        event_type,\r\n        old_snapshot,\r\n        new_snapshot,\r\n        reason,\r\n        approval_reference,\r\n        actor_user_id\r\n    )\r\n    values (\r\n        v_new.id,\r\n        v_new.product_id,\r\n        'UPDATE',\r\n        to_jsonb(v_old),\r\n        to_jsonb(v_new),\r\n        v_reason,\r\n        v_approval_reference,\r\n        v_actor\r\n    );\r\n\r\n    return query\r\n    select\r\n        v_new.id,\r\n        v_new.product_id,\r\n        v_new.pack_size,\r\n        v_new.uom,\r\n        v_new.is_active,\r\n        v_new.is_sample;\r\nend;\r\n$function$\n"
+    }
+  ],
+  "triggers": [
+    {
+      "nspname": "public",
+      "relname": "products",
+      "tgname": "trg_product_inactivation_requires_no_active_skus",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER trg_product_inactivation_requires_no_active_skus BEFORE UPDATE OF status ON public.products FOR EACH ROW EXECUTE FUNCTION fn_guard_product_inactivation_requires_no_active_skus()"
+    },
+    {
+      "nspname": "public",
+      "relname": "products",
+      "tgname": "wp04_readiness_epoch_10cdc96fc855",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_10cdc96fc855 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.products FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    }
+  ],
+  "privileges": [
+    {
+      "relname": "product_master_audit",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "auth_ins": false,
+      "auth_upd": false,
+      "auth_del": false,
+      "anon_sel": false,
+      "svc_upd": true
+    },
+    {
+      "relname": "product_sku_change_log",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "auth_ins": false,
+      "auth_upd": false,
+      "auth_del": false,
+      "anon_sel": false,
+      "svc_upd": true
+    },
+    {
+      "relname": "product_sku_master_audit",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "auth_ins": false,
+      "auth_upd": false,
+      "auth_del": false,
+      "anon_sel": false,
+      "svc_upd": true
+    },
+    {
+      "relname": "product_skus",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "auth_ins": false,
+      "auth_upd": false,
+      "auth_del": false,
+      "anon_sel": false,
+      "svc_upd": true
+    },
+    {
+      "relname": "products",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "auth_ins": false,
+      "auth_upd": false,
+      "auth_del": false,
+      "anon_sel": false,
+      "svc_upd": true
+    }
+  ],
+  "policies": [
+    {
+      "schemaname": "public",
+      "tablename": "product_skus",
+      "policyname": "product_skus_authenticated_read",
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "qual": "(( SELECT auth.uid() AS uid) IS NOT NULL)",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "products",
+      "policyname": "products_authenticated_read",
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "qual": "(( SELECT auth.uid() AS uid) IS NOT NULL)",
+      "with_check": null
+    }
+  ],
+  "columns": [
+    {
+      "table_name": "product_sku_readiness_portfolio_build",
+      "column_name": "id",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "product_sku_readiness_portfolio_build",
+      "column_name": "period_start",
+      "data_type": "date"
+    },
+    {
+      "table_name": "product_sku_readiness_portfolio_build",
+      "column_name": "valuation_date",
+      "data_type": "date"
+    },
+    {
+      "table_name": "product_sku_readiness_portfolio_build",
+      "column_name": "evidence_refresh_run_id",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "product_sku_readiness_portfolio_build",
+      "column_name": "status",
+      "data_type": "text"
+    },
+    {
+      "table_name": "product_sku_readiness_portfolio_build",
+      "column_name": "is_current",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "product_sku_readiness_portfolio_build",
+      "column_name": "source_fingerprint",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "product_sku_readiness_portfolio_build",
+      "column_name": "source_fingerprint_digest",
+      "data_type": "text"
+    },
+    {
+      "table_name": "product_sku_readiness_portfolio_build",
+      "column_name": "item_count",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "product_sku_readiness_portfolio_build",
+      "column_name": "operational_count",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "product_sku_readiness_portfolio_build",
+      "column_name": "started_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "product_sku_readiness_portfolio_build",
+      "column_name": "completed_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "product_sku_readiness_portfolio_build",
+      "column_name": "promoted_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "product_sku_readiness_portfolio_build",
+      "column_name": "error_text",
+      "data_type": "text"
+    },
+    {
+      "table_name": "readiness_portfolio_source_epoch",
+      "column_name": "source_relation",
+      "data_type": "text"
+    },
+    {
+      "table_name": "readiness_portfolio_source_epoch",
+      "column_name": "epoch",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "readiness_portfolio_source_epoch",
+      "column_name": "touched_at",
+      "data_type": "timestamp with time zone"
+    }
+  ],
+  "cron": [
+    {
+      "jobid": 7,
+      "jobname": "cleanup_etl_jobs_weekly",
+      "schedule": "30 4 * * 0",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 8,
+      "jobname": "maybe_push_stock_HALF_HOURLY_IST",
+      "schedule": "7,37 3-4 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 9,
+      "jobname": "maybe_push_stock_CATCHUP_IST_2355",
+      "schedule": "25 18 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 10,
+      "jobname": "enqueue_storage_cleanup_midnight_IST",
+      "schedule": "30 18 * * *",
+      "active": false,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 11,
+      "jobname": "enqueue_storage_cleanup_jobs_IST_0010",
+      "schedule": "40 18 * * *",
+      "active": false,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 15,
+      "jobname": "cleanup_raw_nightly",
+      "schedule": "0 19 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 16,
+      "jobname": "forecast_all_monthly_26th",
+      "schedule": "0 2 26 * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 17,
+      "jobname": "refresh_sales_monthly_0315_IST",
+      "schedule": "45 21 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 21,
+      "jobname": "refresh_mv_forecast_plan_12m_daily",
+      "schedule": "10 3 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 22,
+      "jobname": "supply_rollups_every_2min_fixed",
+      "schedule": "0 2 * * *",
+      "active": false,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 23,
+      "jobname": "supply_rollups_nightly_full_fixed",
+      "schedule": "40 3 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 24,
+      "jobname": "plm_issue_ingest_prevday",
+      "schedule": "10 19 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 25,
+      "jobname": "rm_issue_ingest_prevday",
+      "schedule": "10 19 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 27,
+      "jobname": "refresh_mv_tally_fg_transfer_snapshot_latest",
+      "schedule": "35 2,22 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 36,
+      "jobname": "refresh_mv_production_priority_queue_current_month_every_4h",
+      "schedule": "45 2,22 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 37,
+      "jobname": "refresh_rm_reservation_snapshot_current_month_every_4h",
+      "schedule": "25 2,22 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 38,
+      "jobname": "refresh_pm_reservation_snapshot_current_month_every_4h",
+      "schedule": "30 2,22 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 39,
+      "jobname": "priority_queue_snapshot_every_4h",
+      "schedule": "10 6,22 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 40,
+      "jobname": "refresh_blocker_snapshots_current_month_every_4h",
+      "schedule": "0 2,22 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 41,
+      "jobname": "refresh_execution_gate_snapshots_current_month_every_4h",
+      "schedule": "5 2,22 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 42,
+      "jobname": "refresh_pm_leverage_snapshot_every_4h",
+      "schedule": "10 2,22 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 43,
+      "jobname": "refresh_rm_leverage_snapshot_every_4h",
+      "schedule": "15 2,22 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 44,
+      "jobname": "refresh_material_status_snapshots_current_month_every_4h",
+      "schedule": "20 2,22 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 48,
+      "jobname": "refresh_mv_stock_purchase_value_base_working_hours",
+      "schedule": "50 2,22 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 49,
+      "jobname": "daily_preflight_1300",
+      "schedule": "0 2 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 50,
+      "jobname": "daily_preflight_1030",
+      "schedule": "0 0 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 51,
+      "jobname": "daily_preflight_0800",
+      "schedule": "30 2 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 52,
+      "jobname": "refresh_mv_mis_executive_summary_morning",
+      "schedule": "0 3 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 53,
+      "jobname": "refresh_mv_mis_executive_summary_night",
+      "schedule": "0 22 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 63,
+      "jobname": "procurement_snapshot_refresh_request_daily_0135_IST",
+      "schedule": "5 20 * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 65,
+      "jobname": "procurement_snapshot_refresh_stage_processor_every_minute",
+      "schedule": "* * * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 66,
+      "jobname": "costing_weekly_draft_0200_IST",
+      "schedule": "30 20 * * 0",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 67,
+      "jobname": "costing_monthend_draft_0200_IST",
+      "schedule": "30 20 28-31 * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    },
+    {
+      "jobid": 68,
+      "jobname": "costing_stage_processor_5min_governed",
+      "schedule": "*/5 * * * *",
+      "active": true,
+      "mentions_readiness": false,
+      "invokes_builder": false
+    }
+  ],
+  "direct_builder_callers": [],
+  "notification_surfaces": [
+    {
+      "table_schema": "public",
+      "table_name": "etl_health_log"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "v_daily_etl_health"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "v_health_jobs_today"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "v_health_last_heartbeat"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "v_health_mapping_today"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "v_health_snapshot_today"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "v_sdv_freshness"
+    }
+  ],
+  "stale_consumers": [
+    {
+      "nspname": "public",
+      "proname": "rpc_get_product_sku_readiness_portfolio"
+    }
+  ],
+  "limits": [
+    "External scheduling, business owner and live role behaviour not established",
+    "Optional build-history query omitted; no current build/stale-age or SKU deficiency counts claimed",
+    "Q9 inspected full definitions rather than treating references_today regex as semantic proof",
+    "fn_log_product_change absent from queried names; products audit writer uses RPCs, not assumed trigger"
+  ]
+}

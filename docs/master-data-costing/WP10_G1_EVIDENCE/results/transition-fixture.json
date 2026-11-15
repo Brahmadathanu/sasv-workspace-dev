@@ -1,0 +1,366 @@
+{
+  "synthetic": "isolated PostgreSQL fixture; live-verbatim guards and writers (independent catalog), labelled stand-ins",
+  "provenance": {
+    "costing.fn_sku_activation_missing_items": "LIVE-VERBATIM (clock token only)",
+    "public.fn_guard_sku_activation_completeness": "LIVE-VERBATIM",
+    "public.fn_guard_active_sku_requires_active_product": "LIVE-VERBATIM",
+    "public.fn_guard_product_inactivation_requires_no_active_skus + trigger": "LIVE-VERBATIM",
+    "public.fn_product_skus_price_list_active_guard + trigger": "LIVE-VERBATIM",
+    "public.fn_log_product_sku_change": "LIVE-VERBATIM",
+    "public.rpc_set_product_sku_active": "LIVE-VERBATIM",
+    "public.rpc_get_sku_activation_check": "LIVE-VERBATIM",
+    "public.rpc_create_product_sku": "LIVE-VERBATIM",
+    "public.rpc_update_product_sku": "LIVE-VERBATIM",
+    "public.rpc_update_product": "LIVE-VERBATIM",
+    "costing.fn_resolve_sku_mrp_as_of": "LIVE-VERBATIM",
+    "costing.fn_resolve_sku_selling_price_policy_as_of": "LIVE-VERBATIM",
+    "costing.fn_resolve_route_family_for_product": "LIVE-VERBATIM",
+    "costing.fn_wp04_readiness_bump_source_epoch": "LIVE-VERBATIM",
+    "costing.fn_wp04_readiness_source_fingerprint": "LIVE-VERBATIM (missing referenced functions hash as NULL in the fixture)",
+    "trigger definitions (product_skus x4, products x1 guard, epoch hooks)": "LIVE-VERBATIM",
+    "public.plm_sku_bom_revision_as_of": "REPO-VERBATIM (gate A migration)",
+    "public.product_sku_change_log table": "REPO-VERBATIM (CI-038 section 5)",
+    "costing.fn_validate_effective_product_process_route": "STAND-IN (live text captured but calls four uncaptured route functions)",
+    "costing.fx_read / fx_build_now": "MODEL (control flow copied from the live portfolio RPC text; reads fixture build table)",
+    "public.require_permission / app_has_permission / auth.uid / normalize_key": "STAND-IN (live text not captured)",
+    "public.rpc_create_product": "NOT EXECUTED in the fixture (captured; product creation is outside the SKU transition scenarios)"
+  },
+  "results": [
+    {
+      "id": "F1.1",
+      "status": "PASS",
+      "name": "inactive SKU with NONE of the five essentials can be created (LIVE rpc_create_product_sku and direct insert)",
+      "detail": ""
+    },
+    {
+      "id": "F1.2",
+      "status": "PASS",
+      "name": "creation writes the live CREATE audit (old snapshot null, reason) AND the live change-log row",
+      "detail": ""
+    },
+    {
+      "id": "F1.3",
+      "status": "PASS",
+      "name": "creation bumps the product_skus source epoch (live bump function, registered relation)",
+      "detail": ""
+    },
+    {
+      "id": "F2.1",
+      "status": "PASS",
+      "name": "direct INSERT of an active SKU with no essentials is rejected (P0001) naming all five missing items with owner screens",
+      "detail": "Cannot activate SKU 1: missing Approved packing-material BOM (PM BOM Manager); Batch size reference "
+    },
+    {
+      "id": "F2.2",
+      "status": "PASS",
+      "name": "the LIVE create RPC passes p_is_active=true through to the table and the trigger rejects it identically; no SKU and no audit row remain",
+      "detail": ""
+    },
+    {
+      "id": "F2.3",
+      "status": "PASS",
+      "name": "a SAMPLE SKU gets no bypass: is_sample=true active insert is rejected with the same five items",
+      "detail": ""
+    },
+    {
+      "id": "F2.4",
+      "status": "PASS",
+      "name": "rejected creation leaves the epoch untouched (statement rolled back)",
+      "detail": ""
+    },
+    {
+      "id": "F3.PM_BOM",
+      "status": "PASS",
+      "name": "missing ONLY Approved packing-material BOM blocks activation (P0001, message lists exactly it) even with an approval reference",
+      "detail": "This SKU cannot be made active yet. Missing: Approved packing-material BOM."
+    },
+    {
+      "id": "F3.BATCH",
+      "status": "PASS",
+      "name": "missing ONLY Batch size reference blocks activation (P0001, message lists exactly it) even with an approval reference",
+      "detail": "This SKU cannot be made active yet. Missing: Batch size reference."
+    },
+    {
+      "id": "F3.ROUTE",
+      "status": "PASS",
+      "name": "missing ONLY Production route blocks activation (P0001, message lists exactly it) even with an approval reference",
+      "detail": "This SKU cannot be made active yet. Missing: Production route."
+    },
+    {
+      "id": "F3.MRP",
+      "status": "PASS",
+      "name": "missing ONLY MRP policy blocks activation (P0001, message lists exactly it) even with an approval reference",
+      "detail": "This SKU cannot be made active yet. Missing: MRP policy."
+    },
+    {
+      "id": "F3.SELLING",
+      "status": "PASS",
+      "name": "missing ONLY Selling price / GST policy blocks activation (P0001, message lists exactly it) even with an approval reference",
+      "detail": "This SKU cannot be made active yet. Missing: Selling price / GST policy."
+    },
+    {
+      "id": "F3.6",
+      "status": "PASS",
+      "name": "no ACTIVATE audit row and no state change after five rejections; detail json carries code + owner screen",
+      "detail": ""
+    },
+    {
+      "id": "F4.1",
+      "status": "PASS",
+      "name": "complete SKU activates through the RPC; audit holds reason, approval reference, actor and old/new snapshots",
+      "detail": ""
+    },
+    {
+      "id": "F4.2",
+      "status": "PASS",
+      "name": "a complete SKU also activates by direct UPDATE (trigger passes) — and no lifecycle audit row is written on that path",
+      "detail": ""
+    },
+    {
+      "id": "F4.3",
+      "status": "PASS",
+      "name": "view-only editor, unauthenticated caller and blank reason are all refused",
+      "detail": ""
+    },
+    {
+      "id": "F4.4",
+      "status": "PASS",
+      "name": "already-active target is rejected; deactivation is allowed and audited DEACTIVATE (never blocked by the five-essential check)",
+      "detail": ""
+    },
+    {
+      "id": "F4.5",
+      "status": "PASS",
+      "name": "created inactive, completed, activated = the supported path; audit shows CREATE-less seed, then ACTIVATE then DEACTIVATE for SKU 1",
+      "detail": ""
+    },
+    {
+      "id": "F5.1",
+      "status": "PASS",
+      "name": "a COMPLETE SKU under an Inactive product cannot be activated (RPC or direct); nothing is audited",
+      "detail": ""
+    },
+    {
+      "id": "F5.2",
+      "status": "PASS",
+      "name": "Active is not Costing Ready: the guard's five-essential check passes while every other WP-01 dependency is outside its scope",
+      "detail": ""
+    },
+    {
+      "id": "F6.1",
+      "status": "PASS",
+      "name": "deleting the approved PM BOM revision and expiring the batch-size reference do NOT deactivate the active SKU (explicit boundary; no automatic deactivation)",
+      "detail": ""
+    },
+    {
+      "id": "F6.2",
+      "status": "PASS",
+      "name": "the SAME live helper now reports both dependencies missing (detection source exists, evaluated on demand at today's IST date)",
+      "detail": ""
+    },
+    {
+      "id": "F6.3",
+      "status": "PASS",
+      "name": "live epoch hooks fire on both writes; the LIVE fingerprint changes so the (modelled) portfolio read turns STALE, fail-closed, until a governed rebuild; a period with no build fails closed as ABSENT and a period with no governed valuation date fails closed at the fingerprint",
+      "detail": ""
+    },
+    {
+      "id": "F6.4",
+      "status": "PASS",
+      "name": "STALE persists on repeated reads and the build count is unchanged until an explicit build call (no scheduler exists in the fixture; production schedule/owner NOT PROVEN)",
+      "detail": ""
+    },
+    {
+      "id": "F7.1",
+      "status": "PASS",
+      "name": "with the clock past effective_to and NO row written, the activation helper (as-of = today IST) reports BATCH_SIZE_REFERENCE missing for the already-active SKU",
+      "detail": "2027-01-05|BATCH_SIZE_REFERENCE"
+    },
+    {
+      "id": "F7.2",
+      "status": "PASS",
+      "name": "LIVE fingerprint digest and epochs are identical at both clocks (the live fingerprint text references no clock), and the portfolio read still returns FRESH — correct for its contract: the governed period's result at valuation date 2026-09-10",
+      "detail": "digest equal=true"
+    },
+    {
+      "id": "F7.3",
+      "status": "PASS",
+      "name": "governed-period semantics: evaluated AT the period valuation date the SKU's essentials still resolve (RESOLVED|true|true) even though today's IST date is after the batch reference expiry — two different contracts, neither wrong",
+      "detail": "RESOLVED|true|true"
+    },
+    {
+      "id": "F7.4",
+      "status": "PASS",
+      "name": "the fingerprint carries the governed valuation date 2026-09-10 and the successful evidence run, never today's date",
+      "detail": ""
+    },
+    {
+      "id": "F8.1",
+      "status": "PASS",
+      "name": "LIVE rpc_update_product_sku edits pack/sample on an ACTIVE SKU even though its MRP policy is now missing (already-active boundary: essentials are not re-checked)",
+      "detail": "|"
+    },
+    {
+      "id": "F8.2",
+      "status": "PASS",
+      "name": "every active edit is recorded with the exact changed columns (live change-log function) and the live UPDATE audit holds old/new snapshots",
+      "detail": ""
+    },
+    {
+      "id": "F8.3",
+      "status": "PASS",
+      "name": "PROVEN AT TRIGGER LEVEL (privileged writers only): re-parenting an ACTIVE SKU to an Active product with NO batch size and NO route is accepted — the completeness trigger fires (UPDATE OF product_id) but returns early for an already-active row",
+      "detail": ""
+    },
+    {
+      "id": "F8.4",
+      "status": "PASS",
+      "name": "…detection still exists: the helper lists the product-level essentials missing for the moved SKU and the live epoch hook fired",
+      "detail": "BATCH_SIZE_REFERENCE,MANUFACTURING_ROUTE,MRP_POLICY"
+    },
+    {
+      "id": "F8.5",
+      "status": "PASS",
+      "name": "re-parenting an active SKU to an INACTIVE product IS blocked by the live parent-active guard",
+      "detail": ""
+    },
+    {
+      "id": "F8.6",
+      "status": "PASS",
+      "name": "the live-fingerprint portfolio read goes STALE after these writes",
+      "detail": ""
+    },
+    {
+      "id": "F8.7",
+      "status": "PASS",
+      "name": "the LIVE SKU update RPC has no product_id or is_active parameter, so the supported client path cannot re-parent or activate (signature from the independent catalog)",
+      "detail": ""
+    },
+    {
+      "id": "F9.1",
+      "status": "PASS",
+      "name": "LIVE product-side guard (BEFORE UPDATE OF status): the LIVE rpc_update_product cannot inactivate a product while any SKU is active — names the count and the remedy",
+      "detail": ""
+    },
+    {
+      "id": "F9.2",
+      "status": "PASS",
+      "name": "once the SKU is deactivated, product inactivation succeeds and the live product audit records DEACTIVATE with old/new snapshots",
+      "detail": ""
+    },
+    {
+      "id": "F9.3",
+      "status": "PASS",
+      "name": "once the parent is Inactive, SKU reactivation is blocked by the live parent guard even though all five essentials are complete",
+      "detail": ""
+    },
+    {
+      "id": "F9.4",
+      "status": "PASS",
+      "name": "the product guard protects direct writers too (direct UPDATE of a product with no active SKU is allowed; with an active SKU it would be refused by the same trigger)",
+      "detail": ""
+    },
+    {
+      "id": "F9.5",
+      "status": "PASS",
+      "name": "reliance proof: with the product-side trigger removed (fixture only) an Inactive product with an ACTIVE SKU becomes possible — SKU-side triggers do not cover it, so the single product-side trigger carries this invariant",
+      "detail": ""
+    },
+    {
+      "id": "F10.1",
+      "status": "PASS",
+      "name": "two overlapping approved PM BOM revisions make activation (and the pre-check) RAISE AMBIGUOUS_PM_BOM_REVISION — fail-closed, but a raw exception rather than a listed 'missing' item",
+      "detail": ""
+    },
+    {
+      "id": "F11.1",
+      "status": "PASS",
+      "name": "as-of uses the IST calendar day, not UTC (20:00 UTC on 14 Nov = 15 Nov IST) when it is later than the period valuation date",
+      "detail": "2026-11-15"
+    },
+    {
+      "id": "F11.2",
+      "status": "PASS",
+      "name": "a LATER governed valuation date beats today's IST date (greatest rule)",
+      "detail": "2027-02-15"
+    },
+    {
+      "id": "F11.3",
+      "status": "PASS",
+      "name": "once IST today passes the latest valuation date, today wins again (20:00 UTC 28 Feb = 1 Mar IST)",
+      "detail": "2027-03-01"
+    },
+    {
+      "id": "F12.1",
+      "status": "PASS",
+      "name": "a direct (non-RPC) deactivation leaves NO lifecycle audit event but IS captured in the live change log with actor_user_id NULL",
+      "detail": ""
+    },
+    {
+      "id": "F12.2",
+      "status": "PASS",
+      "name": "audit rows are append-only in behaviour: later edits add rows and never rewrite earlier snapshots",
+      "detail": ""
+    },
+    {
+      "id": "F14.1",
+      "status": "PASS",
+      "name": "the route essential can be satisfied through the product's SUBGROUP mapping (live resolver precedence: product map, then subgroup, then group) and activation succeeds",
+      "detail": ""
+    },
+    {
+      "id": "F14.2",
+      "status": "PASS",
+      "name": "PROVEN: editing the product's subgroup with the LIVE rpc_update_product is accepted while an SKU is active and silently drops the resolved route (MANUFACTURING_ROUTE now missing) — product-level essentials are not re-checked on product edits",
+      "detail": ""
+    },
+    {
+      "id": "F14.3",
+      "status": "PASS",
+      "name": "…detected afterwards: the products/product_skus epoch hooks fired and the portfolio read is STALE until rebuilt (prevention none, detection fail-closed)",
+      "detail": ""
+    },
+    {
+      "id": "F15.1",
+      "status": "PASS",
+      "name": "LIVE create rejects zero pack, blank UOM, blank reason, duplicate identity (case-insensitive UOM), missing product and a view-only caller",
+      "detail": ""
+    },
+    {
+      "id": "F15.2",
+      "status": "PASS",
+      "name": "LIVE update rejects a colliding identity",
+      "detail": ""
+    },
+    {
+      "id": "F16.1",
+      "status": "PASS",
+      "name": "LIVE price-list guard forces both price-list flags FALSE on an inactive SKU (BEFORE trigger, not SECURITY DEFINER)",
+      "detail": ""
+    },
+    {
+      "id": "F17.1",
+      "status": "PASS",
+      "name": "the canonical resolvers ARE date-parameterised: MRP policy and PM BOM revision resolve at 2026-12-01 and stop resolving at 2027-01-05 (effective_to boundary inspectable without writing anything)",
+      "detail": "RESOLVED|true|true / MISSING|false|true"
+    },
+    {
+      "id": "F17.2",
+      "status": "PASS",
+      "name": "the activation helper CANNOT be called at today+N: its signature is (p_sku_id bigint, p_product_id bigint) and the as-of date is computed inside",
+      "detail": ""
+    },
+    {
+      "id": "F17.3",
+      "status": "PASS",
+      "name": "the batch-size essential has NO resolver function: it is an inline predicate inside the helper, so a horizon check needs a reviewed date-parameterised contract (or one narrow internal function) for that essential",
+      "detail": ""
+    },
+    {
+      "id": "F13.1",
+      "status": "PASS",
+      "name": "every fixture object is classed; LIVE-VERBATIM now covers writers, product guard, price-list guard, change log, three resolvers, epoch bump and fingerprint; the stand-in set is the route-validation chain, permission/auth stubs and the modelled portfolio read",
+      "detail": ""
+    }
+  ]
+}
