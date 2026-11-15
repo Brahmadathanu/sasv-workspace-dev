@@ -25,28 +25,28 @@ No work belonging to later gates; no guessed data; no unrelated/e-Aushadhi chang
 G1 audit complete (`WP08_G1_SOURCE_PINNED_NAVIGATION_AUDIT_REPORT_2026-11-14.md`). G2-0 shared-source migration, activation and launcher verification complete. G2-1 findings and contract: `WP08_G2_1_BULK_IMPLEMENTATION_AND_GATE_REPORT_2026-11-14.md`. G2-1 merged (#427, `63b536f3`); hosted acceptance: `WP08_G2_1_HOSTED_ACCEPTANCE_REPORT_2026-11-15.md`. (Earlier "Not started" wording was historical.)
 
 ## Approved design / contract
-Not yet approved.
+G2 shared-platform design approved on 14 November 2026; see `WP08_G2_OWNER_APPROVED_SHARED_PLATFORM_CONTRACT_2026-11-14.md`. The owner has not approved ambiguous PPM workspace semantics or Electron Step B.
 
 ## Milestones
 - [x] Current-state/audit gate (G1)
 - [x] Design/contract gate where applicable (`WP08_G2_OWNER_APPROVED_SHARED_PLATFORM_CONTRACT_2026-11-14.md`)
 - [x] Implementation gate: G2-0 DONE; G2-1 MERGED (#427, `63b536f3`)
 - [~] Focused verification (G2-1 isolated verification in the implementation report; hosted positive-role acceptance PASS with findings in the hosted-acceptance report; denied/view-only/Electron NOT TESTED)
-- [ ] Independent audit
-- [ ] Merge/post-merge proof where applicable
-- [ ] Final handover
+- [x] Independent audit — `WP08_INDEPENDENT_AUDIT_AND_CONDITIONAL_CLOSURE_RECOMMENDATION_2026-11-15.md` (conditional recommendation, not sign-off)
+- [x] Merge/post-merge proof for G2-1 — #427 merged, #428 hosted evidence merged; full Electron release remains WP12
+- [ ] Final handover and owner closure disposition
 
 ## Current Gate
-`WP08-G2-1 — merged; post-merge hosted acceptance recorded (positive-role identity only)` (G2-0 DONE; history: G0/G1 entries were earlier gates)
+`WP08-G3 — independent audit complete; OWNER CONDITIONAL-CLOSURE DISPOSITION PENDING` (G2-0/G2-1 implemented; WP12 release obligations not certified)
 
 ## Gate Status
 [~] IN PROGRESS — OPEN; programme 8/13
 
 ## Required to close
-Entry criteria must be satisfied and the work pack explicitly started.
+Owner must approve or reject the five explicit residual transfers in `WP08_INDEPENDENT_AUDIT_AND_CONDITIONAL_CLOSURE_RECOMMENDATION_2026-11-15.md`, especially unresolved PPM semantics, Costing-side links, live denied/view-only evidence and deferred Electron route. The present audit is not a closure signature.
 
 ## Next gate
-Owner decisions on Pricing workspace mapping (`MRP_GOVERNANCE`, `SELLING_SCHEME_POLICIES`, PPM identity consumption) and optional Costing→Master-Data mappings; then acceptance with a real view-only and a denied identity (NOT TESTED), Electron-specific acceptance (NOT TESTED), WP09 launcher IA, WP11 UX-P05, WP12 integrated release checks.
+Obtain owner conditional-closure disposition and ensure WP12 explicitly receives live negative/view-only, Costing-side target, installed PWA and Electron/window tests; WP11 receives UX-P05 and issue #429; WP09 receives launcher IA. Do not execute Electron Step B without separate authorisation.
 
 ## Server changes
 None.
@@ -55,19 +55,19 @@ None.
 G2-1 (merged, #427; deployed bytes verified): `costing-suite-recommended-ui-route.js`, `costing-destination-access.js`, `master-data-selection.js`, Products / RM / SP / PM BOM selection wiring, readiness link wiring, `sw.js` network-first patterns.
 
 ## Tests / verification
-None.
+G2-0 source, browser, registry, security and PWA launcher evidence; G2-1 LF/CRLF mocked-browser suites; 7/7 GitHub CI PASS; hosted positive-role and deployed-byte evidence in `WP08_G2_1_HOSTED_ACCEPTANCE_REPORT_2026-11-15.md`. Real denied/view-only identity, hosted Costing-side resolver links and Electron are NOT TESTED; PM BOM at 390px remains FAIL (WP11 UX-P05).
 
 ## Decisions created
-None.
+G2 canonical source/platform and owner-approved Step A registry activation. G2-1 deliberately leaves ambiguous PPM links text-only and unproven routes unmapped. Final owner dispositions: `WP08_INDEPENDENT_AUDIT_AND_CONDITIONAL_CLOSURE_RECOMMENDATION_2026-11-15.md`.
 
 ## Risks
 Premature assumptions; scope drift; duplicated authority; loss of effective-dated/history semantics.
 
 ## Parked discoveries
-Broader Product / Master Data navigation, parked from completed WP02. WP08 is not started.
+WP09 launcher consolidation, WP11 visual fixes, WP12 integrated role/Electron acceptance and separate PPM destination/identity contract as itemized in the independent audit. These are NOT evidence of completion.
 
 ## Exit criteria
 All work-pack objectives and required verification gates pass; documentation and handover are current.
 
 ## Final handover
-Not started.
+Independent audit prepared 15 Nov 2026; awaiting owner-approved conditional closure and explicit WP12 receipt. WP08 remains OPEN; programme 8/13.
