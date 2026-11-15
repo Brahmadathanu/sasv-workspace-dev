@@ -67,7 +67,7 @@ const inv = inventory();
 const byPath = Object.fromEntries(inv.map((p) => [p.path, p]));
 const mapped = new Set(MAPPING.map((m) => m.page));
 check("M1 mapping pages all exist in source", MAPPING.every((m) => byPath[m.page]), MAPPING.filter((m) => !byPath[m.page]).map((m) => m.page).join());
-check("M2 no duplicate page or key in mapping", mapped.size === MAPPING.length && new Set(MAPPING.map((m) => m.key)).size === MAPPING.length);
+check("M2 no duplicate page or key in mapping", mapped.size === MAPPING.length && new Set(MAPPING.map((m) => m.key)).size === MAPPING.length && MAPPING.every((m) => !(m.page in NON_LAUNCHER)));
 const unclassified = inv.filter((p) => !mapped.has(p.path) && !(p.path in NON_LAUNCHER)).map((p) => p.path);
 check("M3 every source HTML page is mapped or explicitly classed non-launcher", unclassified.length === 0, unclassified.join());
 check("M4 optA sections are existing keys; optB sections are declared", MAPPING.every((m) => EXISTING_SECTIONS.includes(m.optA.section) && OPTION_B_SECTIONS.some(([k]) => k === m.optB.section) || false));

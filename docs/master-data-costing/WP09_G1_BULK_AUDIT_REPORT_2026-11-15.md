@@ -1,129 +1,124 @@
-> **15 Nov 2026 — INDEPENDENT LATER EVIDENCE (supersedes initial BLOCKED row-capture status, not the original audit history):** ChatGPT subsequently obtained a **read-only live registry capture** and committed `WP09_G1_EVIDENCE/live-registry-snapshot-2026-11-15.json` (85 definitions; 120 client rows; 79 Electron / 41 PWA). [Independent reconciliation addendum](WP09_G1_LIVE_REGISTRY_RECONCILIATION_ADDENDUM_2026-11-15.md) identifies **seven live module keys absent from the candidate 77-row mapping** and five candidate key mismatches. `production-overrides` is **not registered**. **G2 design freeze remains HOLD** until the mapping and offline verifier reconcile actual live keys; Option C's 30 top-level estimate is provisional. The original session's no-Supabase statement remains a true historical limitation of that session, not the current project status. WP09 OPEN, 9/13; no live role/electron acceptance or registry mutations.
+# WP09 G1 — Reconciled launcher / section IA audit (15 November 2026)
 
-# WP09 G1 — Launcher / section information-architecture audit (bulk package, issue #432)
+**G1 technical audit READY for owner completion decision. WP09 OPEN; programme 9/13. G2 implementation NOT AUTHORISED.** This is the corrected audit in existing draft PR #434 for issue #432. Recommendations below are unapproved. No launcher source, registry, SQL, permissions, flags, deployment or Electron routes changed.
 
-**Status:** G1 audit + design OPTIONS delivered. WP09 remains **OPEN**; programme remains **9/13**. WP08/PEC closed and not reopened. Nothing in this package changes launcher source, registry data, permissions, flags, SQL, deployments or Electron routes.
+## Evidence provenance and main reconciliation
 
-## 0. Exact source pin and honesty statement
+- Original Claude audit: base `5735321c4524a9f93947435bd1eccb0f7d7cf9ae`, original head `4c5e114d00f0359a45787f705fd78e53f725021d`. Its container lacked database access. Its 92-page inventory and 77 candidate rows were source evidence, not the live registry. Historical author-reported tests: source 50/50, synthetic Chromium 33/33, WP08 fail-closed 81/81.
+- ChatGPT subsequently captured metadata using read-only SELECT on Supabase project `qhmoqtxpeasamtlxaoak`; snapshot/addendum were on refreshed PR head `f678730290a3f67319894ffad4893fd8051f8b2e`. This review uses that exact committed capture; it does not repeat the completed live investigation or claim another SQL capture.
+- Refreshed main `e5693623e71ae60d0d613498f4e76c99be7214ef` adds only `MASTER_PROGRAMME.md` and the authoritative new-chat handover through #435. Main was merged into this branch without changing the handover bytes. Full history is available for baseline guards.
+- Evidence: `WP09_G1_EVIDENCE/live-registry-snapshot-2026-11-15.json`, regenerated `module-group-mapping.csv`, `non-launcher-pages.csv`, `option-coverage.json`, `registry-verify-result.csv`, and `g1-reconciliation-tests.json`. Snapshot is metadata only; no user grants, private data or credentials.
 
-| Item | Value |
+## Live registered inventory and exact mapping
+
+85 module definitions (6 inactive); 120 navigable client rows = **79 Electron / 41 PWA**; 38 Electron-only; all PWA keys also on Electron; 11 active sections. No orphan assignment or duplicate destination. These are registrations before per-user grants, not a claim that every user sees every tile.
+
+All **79 exact Electron keys and 41 PWA keys are mapped**, without alias substitution. Each CSV row records canonical source owner, registered per-client route, resolved static path, live label/section/order/target/minimum nav mode, and Option A/B/C design data. All 92 source pages partition into 79 mapped owners and 13 shell/auth/redirect/source-only pages. Registered child pages remain registered routes.
+
+| Original candidate problem | Corrected disposition |
 |---|---|
-| Base (latest `origin/main` at start) | `5735321c4524a9f93947435bd1eccb0f7d7cf9ae` (#433, 15 Nov 2026) |
-| Drift vs WP08 closure `1894157…` named in #432 | `git diff 1894157..5735321` = **one file, `WP-09-WIDER-APP-IA-AUDIT.md` (docs only)**. No launcher/source drift. |
-| Branch | `claude/lucid-gates-6uwfvx` |
-| History | Repository was a shallow clone; `git fetch --unshallow` run so history-based guards see full history (1587 commits). |
-| Pre-existing worktree noise | Five `supabase/migrations/20261112*` files show CRLF-only differences in the container worktree. **Untouched and not staged** (hard stop in #432); commit uses explicit paths only. |
+| Missing `coa-print`, `edit-log-entry`, `sop-editor`, `sop-viewer` | Four independent live-key rows added. Child-page purpose does not authorise removing a launcher or its permission target. |
+| `manage-tally-inv-mapping` | Bound to live `tally-inv-mapping`; source filename retained. |
+| `lab-test-method-master` | Bound to live `test-method-master-manager`; page-internal permission string recorded separately. |
+| `lab-workflow-access-control` | Bound to live `lab-workflow-access-control-manager`; page-internal permission string recorded separately. |
+| `production-overrides`, `manage-season-profiles` | Removed from live-key map; retained in source-only appendix. Neither is a live registered launcher. |
+| Sixteen source-inferred section differences | Option A section values now exactly match live sections; L12 requires zero moves. |
+| Six Costing modules | `costing-control-center`, `material-cost-manager`, `cost-build-manager`, `pricing-policy-manager`, `cost-sheet-review`, **`production-route-manager`**. All six map to the Costing family; distinct routes and grants retained. |
 
-**What this session could NOT observe (BLOCKED, stated plainly):** this container has no Supabase connector, no credentials (`.env` is empty) and no SQL tool. **The live row-level registry capture (labels, sections, sort orders, nav modes, flags for each of the 85 modules / 79 Electron / 41 PWA rows) was therefore NOT performed by this session.** The G0 aggregates in #432 (85/6/79/41/38, section distributions, two sort-tie pairs, no duplicate routes, no orphans) are **cited, not re-verified**. Instead the package delivers:
+## Launcher behaviour and ranked findings
 
-* a **SELECT-only capture pack** (`WP09_G1_LIVE_REGISTRY_SELECT_PACK.sql`, `begin read only … rollback`, no permission/grant/customer data);
-* a **verifier** (`registry-verify.mjs`) that, given the exported JSON, re-checks every G0 number, route existence in the static roots, duplicates, ties, orphan sections, and fails if any live `module_key` has no row in the G1 mapping (the **G2 design-freeze gate**);
-* a **source-derived** inventory of all 92 HTML pages and a 77-row module mapping (§5) whose `module_key` is *source-proven* for 32 rows and *inferred from the file name* for 45 rows (marked; confirm with the export).
+| Finding | Evidence and implication |
+|---|---|
+| Dense sections | Electron Inventory 15, Product/Reference 15, MRP 12. Live grouping differs from a source-domain grouping: three BOM launchers are in Inventory; Product Shelf Life is in Product/Reference; FG transfer and Activities are in Work Log. A/C preserve these placements. |
+| Search / personal access | Source proves two Electron label-only search surfaces with different locked-item handling; PWA has no search or Quick Access. Electron pins are per-user browser-local, maximum 10; recents maximum 8 are stored but not rendered. No live usage evidence. |
+| Season-profile writer overlap | Source shows `manage-season-profiles.html` and MRP Master Data Console both writing season data. The former is unregistered: a governance question about source writers, not two live launcher cards. Recommend MRP console as canonical, pending owner decision and functional/dependency comparison. No writer is disabled here. |
+| Unregistered broken shell | `production-overrides.html` references missing `css/style.css` and `js/production-overrides.js`. Recommend dependency review and later archive/removal of source only. There is no production launcher registration to retire. |
+| Legitimate specialised entries | RM/PM issue/rebuild pairs, different stock views, ETL read/control, Costing six and WP08 redirect stubs retain independent purposes. Stock-item vs bulk class mapping are related; lab workspace vs entry/queue overlap remains undetermined. No consolidation authorised. |
+| Fallback ordering | Source/synthetic evidence proves off-catalog fallback ordering can precede catalog sections. **Both Product Shelf Life and Staff Directory are present live**, so their missing-row injection path is dormant for this capture. A defensive G2 fix remains useful; no current missing registration asserted. |
+| Permission-name differences | `test-method-master-manager` registry target vs `lab-test-method-master` page checks; `lab-workflow-access-control-manager` vs `lab-workflow-access-control` page checks. Shared normalizer does not alias these pairs. Actual effect is NOT TESTED. Preserve both identities; G2 must not silently add aliases, repoint targets or alter checks. WP12 needs positive/negative/view-only page acceptance before release, and any demonstrated disclosure is a blocker. |
+| Section coupling / names | Electron groups by label; icons/colours use fixed section keys. Plant Sections/Subsections and two category taxonomies need clearer display names. B would require coordinated registry and client work. |
+| Root-only source | 27 mapped canonical pages are root-only by source layout. This differs from the 38 Electron-only registrations; source presence does not grant PWA registration. No porting approved. |
+| Sort ties | MRP order 110 (`plant-occupancy`, `vendor-master`) and Product order 95 (`pricing-policy-manager`, `production-route-manager`) sort deterministically by label. Not a confirmed defect; no SQL cleanup needed for G2. |
+| Legacy precache / links | Two stale ETL precache paths remain a hygiene candidate. Static cross-link scan is limited and does not establish absence of JS navigation. Pricing unknown destinations stay text-only. |
 
-Everything below is therefore classified **SOURCE-PROVEN**, **SYNTHETIC-TESTED** (real launcher code, synthetic registry/grants in Chromium) or **NOT OBSERVED**.
+## Options recomputed from live keys
 
-## 1. How the launchers actually work (source-proven)
+| Measure | A — subheadings in live sections | B — domain re-sectioning | C — families layered on A |
+|---|---|---|---|
+| Coverage Electron / PWA | 79/79; 41/41 | 79/79; 41/41 | 79/79; 41/41 |
+| Electron top-level tiles | 79 | 79 | **36** |
+| PWA top-level tiles | 41 | 41 | **24** |
+| Populated sections Electron / PWA | 11 / 7 | 9 / 9 | 11 / 7 |
+| A subgroup headings Electron / PWA | 34 / 23 | See mapped B subgroup | Same as A |
+| Registry changes | None | Required; separate approval | None |
+| Rollback | Revert presentation contract | Restore captured sections + client maps | Return to A / flat tiles |
 
-| Concern | Electron (`index.html`) | PWA (`public/utilities-hub`) |
+Option C counts are **section-scoped**: identical family names in different live sections do not collapse across those sections. Singleton families count as one tile. Electron has 25 section-family cards + 11 flat tiles = 36; PWA has 16 + 8 = 24. Counts describe maximum registered inventory before grants; actual family visibility must be computed from already permission-filtered children. The historical **30** estimate from 77 candidates is superseded. Grouping the six Costing entries as one family is a proposal included in these counts, not approval.
+
+| Electron live section | Registered modules | C top-level tiles |
 |---|---|---|
-| Data | `v_app_module_registry` (client `electron`, `nav_enabled`, ordered `sort_order`,`label`) + `app_nav_sections` (`is_active`) | same view, client `pwa` |
-| Section grouping | by **section label text**, section order from catalog `sort_order` (**falls back to array index if the catalog row is missing**) | by section label; order = catalog sort (default 999) |
-| Item order | `sort_order` then `label.localeCompare` (view *and* client) | section → order → label |
-| Permission | `get_user_permissions` → `buildPermissionMap` → `getModuleAccessLevel`: `use` (can_edit) / `read` (can_view + min_nav_mode=read) / `view` (locked, href `#`) / `none` | same functions; `none` removed from DOM |
-| Failure mode | RPC error / non-array → **all modules hidden (fail closed)** | null perms → all `none` (fail closed) |
-| Search | header `#moduleSearch` datalist **and** Ctrl+K palette; both **label-substring only**; palette excludes locked, datalist includes them; empty palette = first 20 | **none** |
-| Quick Access | personal pins (≤10) and recents (≤8) + usage-based suggestion in `localStorage` key `sasv-workspace:<user-id>:…`; shows only pins that are currently visible, enabled and routable; never prunes stale pins | **none** |
-| Route handling | `normalizeClientRoute`: Electron keeps `public/…`, rewrites `../shared/`, `./admin.html`; PWA rewrites `public/shared/x` → `/shared/x` and **does not rewrite Electron-root routes** (they would 404 — correct, PWA publish root is `public/`) | |
-| Local fallback | `injectLocalFallbackModules` adds **Product Shelf Life** and **Staff Directory** if the registry lacks them; section chosen by regex over live labels | — |
-| Section-key coupling | colour map `SECTION_KEY_FAMILY` (index.html) and icon map `SECTION_KEY_ICONS` (ui-icons.js) are hard-coded for the 11 keys (+2 fallback keys) | no icons |
+| admin | 5 | 3 |
+| bmr-production-records | 1 | 1 |
+| inventory-sales | 15 | 7 |
+| mrp-procurement | 12 | 6 |
+| planning-workspace | 4 | 3 |
+| plant-assets | 5 | 1 |
+| product-reference-master | 15 | 5 |
+| qa-qc | 9 | 3 |
+| sops | 3 | 1 |
+| system | 4 | 3 |
+| work-log | 6 | 3 |
 
-## 2. Ranked IA findings
+`option-coverage.json` also records every PWA section. PWA Option B populates nine domains, not the original rough estimate of six to eight.
 
-| # | Sev | Finding | Evidence class |
-|---|---|---|---|
-| F1 | High | **Live row-level inventory not captured** (no DB access). All per-module section/label/order claims below are source-derived; G2 cannot be frozen until the SELECT pack is run and `registry-verify.mjs` passes L10/L11 (mapping complete). | BLOCKED |
-| F2 | High | **Density / mixed concerns.** Product & Reference (15), Inventory & Sales (15), MRP (12). By source the "Product & Reference" family mixes ≥6 concerns: product+BOM (WP08 four + route manager), the **six-tile Costing suite**, product-classification masters, inventory masters, reference-library masters, seasonality. Measured launcher height with the G0 distribution (synthetic labels): Electron 79 tiles **2133 px @1280 / 5559 px @390**; PWA 41 tiles **3123 px @1280 / 6721 px @390** — no horizontal overflow in either. | G0 counts + SYNTHETIC-TESTED |
-| F3 | High | **Genuine functional overlap (source-proven):** (a) **`season_profile` has two owners** — `manage-season-profiles` (create/edit/delete) and the MRP Master Data Console season tab (also deletes `season_profile` + `season_profile_month`); (b) **`production-overrides.html`** is a legacy shell titled "Supply Overrides" whose only script `js/production-overrides.js` and stylesheet `css/style.css` **do not exist** — it cannot function and duplicates `supply-overrides.html`; (c) `manage-stock-items` and `manage-category-map` both write `inv_stock_item_class_map` (single-item vs bulk path) — *related*, ownership to be stated, not necessarily redundant. Whether (b) is registered is NOT OBSERVED. | SOURCE-PROVEN |
-| F4 | Med | **Legitimate specialised modules (do not merge):** RM vs PM issue-allocation and rebuild pairs (different RPCs; roughly 1,200 differing lines across ~3,600); `bottled-stock` / `fg-bulk-stock` / `wip-stock` (distinct data objects); `stock-checker` vs `stock-purchase-explorer` (SKU snapshot vs item stock/purchase); `operations-monitor` (read) vs `operations-control` (writes `etl_jobs`); six Costing tiles over one shared suite shell (multi-entry by design, WP05 A3); WP08 root redirect stubs (legacy URL compatibility, Step B not authorised). `analysis-workspace` vs `lab-analysis-entry/queue`: overlap **NOT DETERMINED** (needs workflow-owner input). | SOURCE-PROVEN / NOT DETERMINED |
-| F5 | Med | **Search and Quick Access gaps.** Label-only matching (description, section, aliases such as `etl-monitor`, not searched); two Electron search surfaces behave differently for locked items; **PWA has neither search nor Quick Access** although it is the long (6.7k px @390) client; Quick Access is browser-local per user, so pins don't follow a user between Electron and PWA or devices; recents are written but never rendered. | SOURCE + SYNTHETIC-TESTED |
-| F6 | Med | **Client-side fallback injection** places Product Shelf Life / Staff Directory by regex over live section labels and, when the catalog row is missing, orders the off-catalog section by array index → it renders **before every catalog section** (test F3). Any section rename (Option B) silently changes where these land. Whether the live registry already carries both rows is NOT OBSERVED. | SYNTHETIC-TESTED |
-| F7 | Med | **Section keys are coupled to client code** (icons, colours) and Electron groups by *label*, so two sections sharing a label would merge. New section keys need a client change. | SOURCE-PROVEN |
-| F8 | Med | **Naming.** (i) master pages "Manage Sections / Sub-sections" are plant-location masters but collide with the launcher's own word "section"; (ii) two "category" taxonomies (product `categories/sub_categories` vs inventory `inv_class_category`); (iii) 18 Electron-root masters all use "Manage …" while newer modules use nouns; (iv) key/label/page mismatches: `pm-templates`↔`manage-pm-bom`↔"Manage PM BOM", `lab-test-method-master`↔`test-method-master`, `sales-data-viewer`↔`sales-viewer`, ETL pages titled "ETL Control/Monitor" under `operations-*`. | SOURCE-PROVEN |
-| F9 | Med | **Electron-root-only.** 26 launcher-candidate source pages exist only at the repo root and are **not reachable in the PWA publish root**: 18 reference/inventory/plant masters, `production-planning-workbench`, `procurement-planning-workbench`, `supply-batch-plan`, `supply-overrides`, `production-overrides`, `add-log-entry`, `update-log-status`, `sop-dashboard`. Intent (deliberate vs legacy layout) is NOT OBSERVED. Note the Costing suite references `supply-batch-plan` as a destination; PWA reachability of that link is NOT TESTED. | SOURCE-PROVEN |
-| F10 | Low | **Sort ties** (G0: MRP 110, Product 95) are deterministic in the SQL view and both clients (label tiebreak, test O1/E2/H3) — not a defect; fragile only if a label is edited. | SOURCE + SYNTHETIC-TESTED |
-| F11 | Low | `public/sw.js` precaches `/shared/etl-monitor.html` and `/shared/js/etl-control.js` (renamed to `operations-*`); install skips missing assets with a warning — harmless but stale. | SOURCE-PROVEN |
-| F12 | Low | **Cross-links.** Static page-to-page links exist for the Costing suite, WP08 BOM family, Work Log trio, Lab analysis flow and MRP board → issue/allocation. **None found** for planning chain (forecast → workbench → batch plan), classification master hierarchies, plant masters, stock views (a static scan; JS-built navigation not detectable). | SOURCE-PROVEN (scan-limited) |
+**Recommendation: approve A, then C**, with shared search and local personal Quick Access. Keep all current registry keys, targets, routes and live sections; family cards are presentation containers, never replacement permission targets. Search results and pins stay at module level and can reach children without manually opening a family. Empty families disappear; locked children follow existing visibility rules; do not invent new permissions. B offers domain consistency but adds registry mutation and retraining; defer it.
 
-## 3. Duplicate vs specialised — classification summary
+## Verification and classifications
 
-| Class | Modules |
+| Gate / suite | Corrected-review result |
 |---|---|
-| Confirmed overlap / defect → owner decision | season profiles (2 owners); `production-overrides` (broken duplicate shell) |
-| Related, ownership statement needed | `manage-stock-items` / `manage-category-map`; `analysis-workspace` / `lab-analysis-*` (not determined) |
-| Legitimate specialised or multi-entry | RM/PM pairs, stock views, ETL pair, Costing six, WP08 stubs, parent-child masters, workflow chains |
+| Offline registry L1–L12 (18 explicit rows, including per-client route ownership) + S1–S3 full-capture integrity | **PASS 21/21** against committed capture; full CSV retained |
+| Source contracts | **PASS 50/50**; added disjoint mapped/source-only classification assertion |
+| Metadata / mapping mutation suite | **PASS 22/22**: correct PWA base resolution; missing registrations/keys/definitions; stale source-token key; alias masking; duplicate key/destination; wrong existing page owner; missing file; orphan/inactive section; section move; unknown client all detected |
+| WP08 G2-1 source / resolver; SW freshness | Fresh **PASS 13/13, 8/8, 15/15** |
+| WP08 historical G2-0 source guards | Fresh **11/13 PASS, 2 FAIL**: unchanged historical diff-scope guards (`sw.js diff is 18 lines`; `costing-suite-recommended-ui-route.js`). No guard weakened. |
+| WP08 registry SQL suite | Fresh **1 PASS / 17 SKIPPED**, PostgreSQL server binaries unavailable. Historical author-reported **18/18 PASS** retained, not relabelled as fresh. |
+| Launcher Chromium | Historical Claude **33/33 PASS**, synthetic registry/grants, 390/1280. Fresh rerun **BLOCKED**: bundled browser absent; system Chromium cannot create required socket (`Operation not permitted`). No launcher source changed. |
+| WP08 fail-closed | Historical Claude **81/81 PASS** (synthetic and mutation-sensitive); browser rerun unavailable here; not a new live acceptance claim. |
+| Live role visibility/page access, installed PWA, packaged Electron, Windows release, real usage | **NOT TESTED**; WP12 obligations remain OPEN |
 
-## 4. Design options (all unexecuted)
+The verifier now resolves PWA relative URLs from `/utilities-hub/index.html`, checks every mapping key regardless of original basis, rejects alias substitution, requires one row per exact live key, validates canonical ownership or an existing redirect, and fails on Option A section moves. It only reads local files; it does not contact Supabase.
 
-All options keep registry `module_key`s, `target_key`s, routes and permission targets intact; no new module, no duplicate HTML/JS.
+Reproduce from repository root:
 
-| | **A. Hygiene + sub-headings** | **B. ERP lifecycle re-sectioning** | **C. Collapsible families (on top of A)** |
+```sh
+node scripts/wp09-g1-launcher-audit/build-evidence.mjs docs/master-data-costing/WP09_G1_EVIDENCE
+node scripts/wp09-g1-launcher-audit/registry-verify.mjs docs/master-data-costing/WP09_G1_EVIDENCE/live-registry-snapshot-2026-11-15.json docs/master-data-costing/WP09_G1_EVIDENCE
+node scripts/wp09-g1-launcher-audit/source-contract.test.mjs
+node scripts/wp09-g1-launcher-audit/registry-mutation.test.mjs
+```
+
+## ChatGPT independent review of Claude PR
+
+The original missing-key blocker is resolved: exact keys, canonical source ownership, live-section preservation, both-client routes, 92-page partition and derived option coverage have been reviewed against the snapshot and source. Mutation checks demonstrate that the corrected verifier rejects the original missing-key and stale-key classes. Main #435 documentation is preserved. Runtime files and protected migration bytes are unchanged in the PR.
+
+**Verdict: G1 technical deliverables are ready for the owner to accept as a completed audit.** Browser limitations do not become PASS and do not establish G2/release acceptance. No G2 implementation, merge or WP09 formal closure is implied. The owner's IA/business decisions below are still needed to make G2 concrete. This is ChatGPT's review and correction of Claude's package, not a new external reviewer approval.
+
+## Owner decisions to record before G2
+
+| ID | Decision | Recommendation / consequence | Status |
 |---|---|---|---|
-| Idea | Keep 11 sections. Add a presentation-only contract (`module_key → subgroup`), same pattern as `costing-nav-groups.js` (unmapped keys fall into "More", nothing can vanish). | Replace 11 sections by 9 ERP domains: Work Log & Daily Ops, Planning & Procurement, Inventory & Sales, Product & Costing, Master Data, Plant & Production, Quality (QA/QC & SOPs), Analytics & MIS, System & Administration. | Same contract; related modules fold into 18 collapsed "family" cards (e.g. Product classification, Inventory masters, Reference library, Plant locations & equipment, Rebuild & issue (RM / PM), Costing suite, Stock positions, Lab masters). 12 modules stay flat. |
-| Top-level tiles (77 mapped pages) | 77 under 11 headings, 25 subheadings | 77 under 9 sections | **30** (18 families + 12 flat) |
-| DB data change | **None** (optional: unique `sort_order` for the 2 tied pairs — separate approval) | **Yes** — `app_modules.section_key` for many rows, new/retired `app_nav_sections` rows | **None** |
-| Client change | contract + both renderers + shared filter | icons/colour maps, fallback regexes, tests | accordion UI + a11y + 390px |
-| Quick Access / palette | unchanged semantics; palette gains description/subgroup/alias match | unchanged | stays module-level and flat (families never hide a pin or search hit) |
-| Role visibility | unchanged (gate is per module); empty subgroups hidden | unchanged per module; some roles lose a familiar section | a family is shown only if ≥1 child is visible; locked children shown inside |
-| 390 / 1280 | adds ≈25 headings; PWA needs search | fewer, shorter sections | largest reduction at 390 (6.7k px PWA list collapses) |
-| PWA/Electron asymmetry | contract keyed by `module_key` → keys absent in a client are ignored | PWA currently populates 7 of 11 sections; B yields ≈6–8 for PWA | same as A |
-| Electron Step B | not needed | not needed | not needed |
-| Migration cost | Low–Medium | **High** (DB + client + retraining) | Medium |
-| Rollback | remove contract/flag → today's flat view | restore captured `section_key` values (before-SELECT) + revert maps | remove contract/flag |
-| Main risk | subgroup spanning two live sections fragments | user retraining; fallback placement; hidden-section confusion | expand/collapse discoverability; keyboard/a11y |
+| D1 | Accept G1 reconciled audit with test classifications | Accept bounded source/metadata audit; retain historical synthetic/browser limitations and WP12 acceptance | Pending owner |
+| D2 | IA direction | A then C; keep current sections and registry unchanged. Defer B. | Pending owner |
+| D3 | Canonical season-profile writer | Prefer registered MRP Master Data Console, after parity/dependency review. Source-only page disposition requires its own approved change; no writer removal in launcher work. | Pending owner |
+| D4 | Legacy source cleanup | Review references to unregistered production-overrides, then propose archive/removal separately. Never call this launcher retirement. | Pending owner |
+| D5 | Six Costing entries | One visual family containing all six including Production Route Manager; preserve individual targets/routes, pins and search results | Pending owner |
+| D6 | PWA search / Quick Access | Add both; shared permission-filtered search across Electron surfaces and PWA; per-user local pins, no backend sync | Pending owner |
+| D7 | Root-only source / child routes | No PWA expansion or removal of registered child pages in this package | Proposed boundary |
+| D8 | Naming / hygiene | Clarify plant/taxonomy display labels; defensive fallback and stale precache cleanup only with approved G2 scope | Pending owner |
 
-**Recommendation: A, then C** (progressive, client-only, reversible, no registry mutation, reuses the shipped Costing grouping precedent). **B only if the owner wants renamed top-level domains after living with A/C.** In all options, first close F6 (fallback injection) and add shared search across both Electron surfaces and the PWA.
+No recommendation is an automatic approval or a default authorisation. `WP09_G2_SINGLE_CLIENT_PACKAGE_2026-11-15.md` provides one substantial Claude Code Cloud package to activate only after these decisions are recorded. ChatGPT retains orchestration, read-only metadata verification and independent review; no additional handover is required.
 
-## 5. Module mapping
+## Protected programme boundaries
 
-`WP09_G1_EVIDENCE/module-group-mapping.csv` — 77 launcher-candidate source pages, with candidate key (basis), Electron/PWA route and source reachability, **Option A subgroup**, **Option B section/subgroup**, **Option C family**, duplication class and the data objects each page touches. `live_current_section`/`live_sort_order` are literally `NOT OBSERVED`. Column `optA_domain_section_reference_only` is a *reference* domain only: Option A **does not move any module** from its live section. `non-launcher-pages.csv` explains the other 15 pages (shells, auth, child pages, five redirect stubs). At most 8 of the 85 registry modules (85 − 77) have no mapped source page; the verifier reports the exact unmapped keys.
-
-## 6. Recommended G2 phasing (NOT EXECUTED)
-
-1. **G2-0** Owner decisions (§8); run the SELECT pack; `registry-verify.mjs` must show L10/L11 resolved.
-2. **G2-1 Hygiene (no IA change):** fix fallback-injection ordering/placement; one shared search filter for header datalist and palette (label + description + subgroup + alias); PWA search; decide `production-overrides` (retire vs repair) and season-profile ownership; stale SW precache; unique `sort_order` data pass (owner-gated SQL).
-3. **G2-2 Option A contract** behind a new presentation flag proposed to the owner (no flag is touched here).
-4. **G2-3 Option C families.**
-5. **G2-4 Option B** only on explicit owner request.
-6. Final roles/flags/PWA/Electron/Windows acceptance stays **WP12**; 390px defects stay **WP11**.
-
-## 7. Tests and evidence (read-only; no writer, no network)
-
-| Suite | Result |
-|---|---|
-| `scripts/wp09-g1-launcher-audit/source-contract.test.mjs` — route normalisation (9), keys/permission gate (10), ordering/behaviour contracts (16), icon coupling (2), mapping completeness (7), missing-asset and SW probes (2), writer guard (2), verifier self-test incl. mutation (4) | **PASS 50/50** |
-| `launcher-browser.test.mjs` — real Chromium, real launcher code, **synthetic** registry/grants: ordering & tie, use/read/locked/hidden, alias grant, palette scope, pin/restore/revoke, fail-closed (2 modes), empty grants, fallback finding, Electron 79 and PWA 41 at 1280/390 | **PASS 33/33** (synthetic; **not** live-role acceptance) |
-| Baselines at pinned SHA with full history: WP08 `registry-sql` 18/18, `g2-1/source` 13/13, `g2-1/resolver` 8/8, `sw-freshness-and-gate` 15/15 | PASS |
-| WP08 `g2-0/source.test.mjs` | **FAIL 2/13 — pre-existing baseline**: test 11 ("sw.js diff is 18 lines") and test 12 ("forbidden file changed: costing-suite-recommended-ui-route.js") are PR-diff-scope guards for the already-merged G2-0 package and are now outdated by later merged work; not caused by this package |
-| WP08 `g2-0/fail-closed.test.mjs` (browser, ~5 min) | PASS 81/81 |
-| Live registry row capture / per-role live visibility / installed PWA / packaged Electron / usage analytics | **BLOCKED / NOT TESTED** |
-
-Reproduce: `node scripts/wp09-g1-launcher-audit/source-contract.test.mjs`, `node scripts/wp09-g1-launcher-audit/launcher-browser.test.mjs`, `node scripts/wp09-g1-launcher-audit/build-evidence.mjs docs/master-data-costing/WP09_G1_EVIDENCE`.
-
-## 8. Owner decision matrix
-
-Defaults apply if unanswered; none authorises implementation.
-
-| # | Decision | Options | Recommended default | Essential? |
-|---|---|---|---|---|
-| D1 | Provide live registry evidence | Run the SELECT-only pack (or authorise a follow-up read-only session with DB access) | Run it before G2-0 | **Yes** |
-| D2 | IA direction | A / **A→C** / B | A→C | **Yes** |
-| D3 | Season-profile ownership | Keep both / canonical = Manage Season Profiles / canonical = MRP Master Data Console | Decide one canonical writer, other read-only | **Yes** |
-| D4 | `production-overrides.html` (missing JS/CSS, duplicate of Supply Overrides) | Retire registration / repair / keep | Retire after D1 confirms it is registered | **Yes** |
-| D5 | Costing six tiles placement | Stay in Product & Reference / own "Costing" group (Option B) / one family (Option C) | One family (C) | Yes (business preference) |
-| D6 | PWA gets search + Quick Access | Yes / search only / no | Search + Quick Access | No (default applied) |
-| D7 | Electron-root-only pages needed on PWA | none / named list from the 26 | None for now | No |
-| D8 | Rename plant "Sections/Sub-sections" masters and align the two "category" taxonomy labels | Rename / keep | Rename to "Plant Sections/Sub-sections" at G2-2 | No |
-
-## 9. Hard-stop compliance
-
-No DB or registry write, no permission/RLS/grant change, no SQL migration, no launcher UI/source change, no feature-flag change, no merge/deploy, no WP08/PEC reopening, no touch of the CRLF-only 20261112 migration differences. The launcher pages under test were exercised only against an in-page stub that **records** any writer attempt; the only recorded write is the existing `user_presence` heartbeat.
+WP08 and PEC stay closed. WP11 PM BOM mobile overflow (UX-P05) and SKU Deactivate contrast (#429) remain unresolved in their owning work pack. WP12 inherits all security/negative-role, 11-flag, hosted resolver, installed-PWA, packaged-Electron and Windows obligations, including WP08 receiving cases W12-WP08-01…08 and the two lab permission-name checks described above. No historical failure, NOT TESTED result or residual is cleared here. Five CRLF-only `supabase/migrations/20261112*` worktree differences remain untouched and excluded. Programme stays **9/13** until separate formal closures.

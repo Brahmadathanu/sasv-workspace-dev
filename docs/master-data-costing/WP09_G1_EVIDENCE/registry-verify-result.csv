@@ -1,0 +1,22 @@
+id,status,detail
+L1 active navigable Electron = 79,PASS,79
+L2 active navigable PWA = 41,PASS,41
+L3 every PWA module also in Electron,PASS,
+L4 Electron-only = 38,PASS,
+L5 electron section distribution matches G0,PASS,"{""admin"":5,""bmr-production-records"":1,""inventory-sales"":15,""mrp-procurement"":12,""planning-workspace"":4,""plant-assets"":5,""product-reference-master"":15,""qa-qc"":9,""sops"":3,""system"":4,""work-log"":6}"
+L6 no duplicate active route within electron,PASS,
+L7 sort_order ties reported (electron),PASS,mrp-procurement:110=[plant-occupancy|vendor-master]; product-reference-master:95=[pricing-policy-manager|production-route-manager]
+L8 electron route target exists in static root,PASS,
+L8 electron route ownership matches canonical page or redirect,PASS,
+L5 pwa section distribution matches G0,PASS,"{""admin"":4,""inventory-sales"":11,""mrp-procurement"":4,""product-reference-master"":8,""qa-qc"":8,""system"":4,""work-log"":2}"
+L6 no duplicate active route within pwa,PASS,
+L7 sort_order ties reported (pwa),PASS,mrp-procurement:110=[plant-occupancy|vendor-master]; product-reference-master:95=[pricing-policy-manager|production-route-manager]
+L8 pwa route target exists in static root,PASS,
+L8 pwa route ownership matches canonical page or redirect,PASS,
+L9 no orphan active section assignment,PASS,
+L10 every live module_key has exactly one mapping row,PASS,unmapped/duplicate=0: 
+L11 every mapping key is registered (all bases; aliases cannot mask gaps),PASS,0: 
+L12 Option A preserves every live section,PASS,0: 
+S1 definitions = 85; inactive = 6; active visible = 79,PASS,
+S2 active sections = 11 with unique keys,PASS,
+S3 unique definitions/client keys and active definition linkage,PASS,

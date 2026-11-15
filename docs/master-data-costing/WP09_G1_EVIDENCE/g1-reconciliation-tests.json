@@ -1,0 +1,179 @@
+{
+  "review_date": "2026-11-15",
+  "refreshed_main": "e5693623e71ae60d0d613498f4e76c99be7214ef",
+  "refreshed_pr_head": "f678730290a3f67319894ffad4893fd8051f8b2e",
+  "classification": "offline verification of existing independently captured live metadata; not a new SQL capture or live role acceptance",
+  "checks": {
+    "registry": {
+      "status": "PASS",
+      "passed": 21,
+      "output": [
+        "PASS  L1 active navigable Electron = 79  \u2014 79",
+        "PASS  L2 active navigable PWA = 41  \u2014 41",
+        "PASS  L3 every PWA module also in Electron",
+        "PASS  L4 Electron-only = 38",
+        "PASS  L5 electron section distribution matches G0  \u2014 {\"admin\":5,\"bmr-production-records\":1,\"inventory-sales\":15,\"mrp-procurement\":12,\"planning-workspace\":4,\"plant-assets\":5,\"product-reference-master\":15,\"qa-qc\":9,\"sops\":3,\"system\":4,\"work-log\":6}",
+        "PASS  L6 no duplicate active route within electron",
+        "PASS  L7 sort_order ties reported (electron)  \u2014 mrp-procurement:110=[plant-occupancy|vendor-master]; product-reference-master:95=[pricing-policy-manager|production-route-manager]",
+        "PASS  L8 electron route target exists in static root",
+        "PASS  L8 electron route ownership matches canonical page or redirect",
+        "PASS  L5 pwa section distribution matches G0  \u2014 {\"admin\":4,\"inventory-sales\":11,\"mrp-procurement\":4,\"product-reference-master\":8,\"qa-qc\":8,\"system\":4,\"work-log\":2}",
+        "PASS  L6 no duplicate active route within pwa",
+        "PASS  L7 sort_order ties reported (pwa)  \u2014 mrp-procurement:110=[plant-occupancy|vendor-master]; product-reference-master:95=[pricing-policy-manager|production-route-manager]",
+        "PASS  L8 pwa route target exists in static root",
+        "PASS  L8 pwa route ownership matches canonical page or redirect",
+        "PASS  L9 no orphan active section assignment",
+        "PASS  L10 every live module_key has exactly one mapping row  \u2014 unmapped/duplicate=0: ",
+        "PASS  L11 every mapping key is registered (all bases; aliases cannot mask gaps)  \u2014 0: ",
+        "PASS  L12 Option A preserves every live section  \u2014 0: ",
+        "PASS  S1 definitions = 85; inactive = 6; active visible = 79",
+        "PASS  S2 active sections = 11 with unique keys",
+        "PASS  S3 unique definitions/client keys and active definition linkage"
+      ]
+    },
+    "source": {
+      "status": "PASS",
+      "passed": 50,
+      "output": [
+        "PASS  R1 electron: public/shared route kept",
+        "PASS  R2 electron: /public/ leading slash stripped",
+        "PASS  R3 electron: ../shared/ -> public/shared/",
+        "PASS  R4 electron: ./admin.html -> hub admin",
+        "PASS  R5 electron: root legacy route untouched (Step B not authorised)",
+        "PASS  R6 pwa: public/shared route -> /shared/ (publish root is public/)",
+        "PASS  R7 pwa: ../shared kept relative; ./admin.html kept",
+        "PASS  R8 pwa: electron-root legacy route is NOT rewritten (would 404 on PWA)",
+        "PASS  R9 absolute http / hash passthrough",
+        "PASS  K1 key aliases",
+        "PASS  K2 permission map ORs duplicate targets (module:/role: share a key)",
+        "PASS  K3 can_edit => use",
+        "PASS  K4 view-only + min view => view (locked)",
+        "PASS  K5 view-only + min read => read",
+        "PASS  K6 view-only + min edit => none",
+        "PASS  K7 no grant => none",
+        "PASS  K8 empty/unknown min_nav_mode defaults to view",
+        "PASS  O1 G0 tie pairs resolve deterministically by label (MRP 110, Product 95)",
+        "PASS  O2 SQL view query orders sort_order then label",
+        "PASS  O3 Electron client re-sorts order then label.localeCompare",
+        "PASS  O4 PWA sortByCuration = section, order, label",
+        "PASS  O5 Electron groups by sectionLabel (title), not key \u2014 two sections sharing a label would merge",
+        "PASS  O6 FINDING Electron section order falls back to row index when catalog entry missing",
+        "PASS  B1 Electron fails closed when get_user_permissions fails",
+        "PASS  B2 PWA fails closed (null perms => none)",
+        "PASS  B3 palette search = label substring only",
+        "PASS  B4 palette empty query capped at 20",
+        "PASS  B5 Quick Access personal: localStorage scoped by user id; pins<=10, recents<=8",
+        "PASS  B6 Quick Access excludes locked/disabled and '#' routes",
+        "PASS  B7 PWA hub has no module search / palette / Quick Access code",
+        "PASS  B8 FINDING two Electron search surfaces (header datalist + Ctrl+K palette) with different locked-item handling",
+        "PASS  B9 local fallback modules injected client-side: product-shelf-life-manager, staff-directory-manager",
+        "PASS  B10 launcher never writes registry/permission tables (only user_presence)",
+        "PASS  C1 11 current section keys all have an icon mapping  \u2014 missing=",
+        "PASS  C2 Option B new section keys have NO icon mapping today (client change required)  \u2014 work-log-operations,planning-procurement,product-costing,master-data,plant-production,quality,analytics-mis,system-admin",
+        "PASS  M1 mapping pages all exist in source",
+        "PASS  M2 no duplicate page or key in mapping",
+        "PASS  M3 every source HTML page is mapped or explicitly classed non-launcher",
+        "PASS  M4 optA sections are existing keys; optB sections are declared",
+        "PASS  M5 FINDING Electron-root-only launcher pages (not reachable in PWA publish root)  \u2014 27 pages",
+        "PASS  M6 redirect stubs all point at an existing public/shared page  \u2014 fg-bulk-internal-transfer.html,manage-pm-bom.html,manage-products.html,manage-rm-bom.html,manage-sp-bom.html",
+        "PASS  M7 WP08 shared four exist under public/shared (PWA-reachable)",
+        "PASS  A1 KNOWN FINDING exactly one page references missing local assets: production-overrides.html -> css/style.css and js/production-overrides.js  \u2014 production-overrides.html -> css/style.css; production-overrides.html -> js/production-overrides.js",
+        "PASS  A2 KNOWN FINDING stale service-worker precache entries (renamed ETL pages)  \u2014 /shared/etl-monitor.html,/shared/js/etl-control.js",
+        "PASS  W1 audit scripts contain no network client / writer API calls (harness stub excluded)",
+        "PASS  W2 harness records, never forwards, writes (no real network)",
+        "PASS  V1 verifier: synthetic 79/41 shape passes counts, parity, distribution",
+        "PASS  V2 verifier: synthetic keys are flagged unmapped (mapping gate works)",
+        "PASS  V3 verifier: dropping one active Electron row is detected",
+        "PASS  V4 verifier: duplicate active route is detected",
+        "",
+        "ALL PASSED"
+      ]
+    },
+    "mutation": {
+      "status": "PASS",
+      "passed": 22,
+      "output": [
+        "PASS committed capture passes all gates",
+        "PASS PWA base resolution: ./admin.html",
+        "PASS PWA base resolution: ../shared/view-logs.html",
+        "PASS PWA base resolution: /shared/view-logs.html?x=1#row",
+        "PASS missing Electron registration detected by L1",
+        "PASS missing PWA registration detected by L2",
+        "PASS PWA key outside Electron detected by L3",
+        "PASS section distribution drift detected by L5 electron",
+        "PASS duplicate destination detected by L6 no duplicate active route within electron",
+        "PASS missing PWA file detected by L8 pwa route target",
+        "PASS existing but wrong page owner detected by L8 electron route ownership",
+        "PASS orphan section detected by L9",
+        "PASS missing registered child mapping detected by L10",
+        "PASS duplicate mapping key detected by L10",
+        "PASS stale source-token key cannot escape L11 detected by L11",
+        "PASS alias cannot substitute for exact live key detected by L10",
+        "PASS Option A section move detected by L12",
+        "PASS definition count drift detected by S1",
+        "PASS inactive section detected by S2",
+        "PASS duplicate client key with unique route detected by S3",
+        "PASS missing definition capture detected by S1",
+        "PASS unknown client registration detected by S3",
+        "22/22 PASS; negative cases prove detection, not live-role acceptance"
+      ]
+    }
+  },
+  "wp08_fresh": {
+    "g2_1_source": {
+      "pass": 13,
+      "fail": 0
+    },
+    "resolver": {
+      "pass": 8,
+      "fail": 0
+    },
+    "sw_freshness": {
+      "pass": 15,
+      "fail": 0
+    },
+    "g2_0_source": {
+      "pass": 11,
+      "fail": 2,
+      "classification": "historical baseline diff-scope guards, unchanged runtime source"
+    },
+    "registry_sql": {
+      "pass": 1,
+      "skipped": 17,
+      "reason": "PostgreSQL server binaries unavailable"
+    }
+  },
+  "browser_fresh": {
+    "status": "BLOCKED",
+    "reason": "bundled Chromium missing; system Chromium launch fails with socket() Operation not permitted",
+    "launcher_harness_changed": false
+  },
+  "browser_historical": {
+    "launcher": {
+      "pass": 33,
+      "classification": "Claude original synthetic registry/grants"
+    },
+    "wp08_fail_closed": {
+      "pass": 81,
+      "classification": "Claude original synthetic/mutation-sensitive"
+    }
+  },
+  "live_acceptance": {
+    "roles": "NOT TESTED",
+    "installed_pwa": "NOT TESTED",
+    "packaged_electron": "NOT TESTED",
+    "windows": "NOT TESTED"
+  },
+  "sha256": {
+    "scripts/wp09-g1-launcher-audit/build-evidence.mjs": "cfa86d7ad1512b67a37443f9c7c92e0ee56626018bd2e49a6eac5d6650e92e56",
+    "scripts/wp09-g1-launcher-audit/harness.mjs": "993557bcfacaeac8d49c347cb228a32eccd49f76d4e45e6e03b9bc1356cf803c",
+    "scripts/wp09-g1-launcher-audit/launcher-browser.test.mjs": "7921cac6db935c05f861016162bcafd3c785d3aa9d1380989bb3ad9e593a6a1c",
+    "scripts/wp09-g1-launcher-audit/lib.mjs": "29a9db3c2a08b7fbb18ea8ab910c68da78e8f210c8a1527758aad75ea2ddb042",
+    "scripts/wp09-g1-launcher-audit/module-mapping.mjs": "d9cfd4bb7b6f8563522a86fbde2e470a85dfc92914cfba5508d46090a14ef391",
+    "scripts/wp09-g1-launcher-audit/registry-mutation.test.mjs": "b10c7cc4c7cf1c3b615a06ba11b4a1c4a2666a22b45318169ca7948cc66c06e9",
+    "scripts/wp09-g1-launcher-audit/registry-verify.mjs": "c6d2f21e05d9fd59a3dc8542ab47932afd3afc19deea0fb5aac15cc57b50ad69",
+    "scripts/wp09-g1-launcher-audit/source-contract.test.mjs": "da91413a7d99e40e30f369f57d413090c6823b26101dcae371e6ea6f76d973d2",
+    "scripts/wp09-g1-launcher-audit/source-inventory.mjs": "32cc8196fdadc205be1fb816385b02517e2afa375287b8c73251661f6f7c6839",
+    "docs/master-data-costing/WP09_G1_EVIDENCE/live-registry-snapshot-2026-11-15.json": "b380eb7a058927bc1b537e681bd0cb2fde588a35c7b20430925c9cceaa517095"
+  }
+}
