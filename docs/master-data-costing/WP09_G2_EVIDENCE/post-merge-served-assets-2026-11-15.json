@@ -1,0 +1,56 @@
+{
+  "date": "2026-11-15",
+  "expected_source": "a3fdcb10766a462e56d569ef9fc4c1e4178871d9",
+  "origin": "https://sasv-utilities-hub.netlify.app",
+  "classification": "unauthenticated direct HTTPS responses; no browser flag, service worker or role acceptance; matching files do not prove Netlify deploy commit",
+  "results": [
+    {
+      "path": "shared/js/launcher-presentation.js",
+      "http": 200,
+      "status": "PASS",
+      "expected_sha256": "02af5b2a20049180a51edd594b363359691b8448c97165ce08f684cdfeaec6f6",
+      "served_sha256": "02af5b2a20049180a51edd594b363359691b8448c97165ce08f684cdfeaec6f6",
+      "etag": "\"3f5787a707692962279e31a732cfed1a-ssl\""
+    },
+    {
+      "path": "shared/js/launcher-presentation-contract.js",
+      "http": 200,
+      "status": "PASS",
+      "expected_sha256": "eb0d22da3133f966fa4dd9e4efd0d327187ea1cc41a01c5de082b50d2257571a",
+      "served_sha256": "eb0d22da3133f966fa4dd9e4efd0d327187ea1cc41a01c5de082b50d2257571a",
+      "etag": "\"95163ba28a58799fe3d2b29338282097-ssl\""
+    },
+    {
+      "path": "shared/css/launcher-presentation.css",
+      "http": 200,
+      "status": "PASS",
+      "expected_sha256": "3bcff1d7b071f01926a573708b1c88f4d32683783388626c627a1c624b6a2eab",
+      "served_sha256": "3bcff1d7b071f01926a573708b1c88f4d32683783388626c627a1c624b6a2eab",
+      "etag": "\"f8c6d56cd8194428a2459bedfe94fd3a-ssl\""
+    },
+    {
+      "path": "shared/js/module-registry.js",
+      "http": 200,
+      "status": "PASS",
+      "expected_sha256": "eb8324a049120209f2604a98761cb6e4fc0f61a7ad331300e9a29d194913c060",
+      "served_sha256": "eb8324a049120209f2604a98761cb6e4fc0f61a7ad331300e9a29d194913c060",
+      "etag": "\"ab3ea3712f5c167891d1eaabee2494d5-ssl\""
+    },
+    {
+      "path": "utilities-hub/js/hub-auth.js",
+      "http": 200,
+      "status": "PASS",
+      "expected_sha256": "ffedc80bd854f43892480235c1ab2f41cd1ebd58635c220128a20beff971e194",
+      "served_sha256": "ffedc80bd854f43892480235c1ab2f41cd1ebd58635c220128a20beff971e194",
+      "etag": "\"5ee0a0a58cb8881119fd3b4b103dc97e-ssl\""
+    },
+    {
+      "path": "sw.js",
+      "http": 200,
+      "status": "PASS",
+      "expected_sha256": "a1b35dc2bf7bd9bd9f166f356b3d4cabed9340401e09a5d74da7480d269066b9",
+      "served_sha256": "a1b35dc2bf7bd9bd9f166f356b3d4cabed9340401e09a5d74da7480d269066b9",
+      "etag": "\"af4bf7fbf3865b53ad73262c0db1c16a-ssl\""
+    }
+  ]
+}

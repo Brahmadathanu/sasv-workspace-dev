@@ -17,7 +17,7 @@ The runtime remains byte-identical to independently reviewed correction 9a26db7b
 
 ## Hosting and post-merge evidence
 
-At recording time, the main merge has a successful verify and contract check and an in-progress integrated-pec push check. GitHub combined statuses contain no hosting receipt (empty statuses); therefore **production hosting completion is NOT CONFIRMED**, rather than assumed successful. No manual deploy was issued. The owner acknowledged the normal hosting pipeline may run. Hosted served-asset/build provenance, authenticated role/page acceptance and SW lifecycle are still untested. A later receipt or production check must be recorded separately with exact commit/build evidence; pre-merge preview/header checks do not prove production deployment.
+Later verification on 15 November: post-merge verify, integrated-pec and contract are SUCCESS. Six unauthenticated production-host runtime responses are HTTP 200 and byte-for-byte matches to a3fdcb10 source (JSON: WP09_G2_EVIDENCE/post-merge-served-assets-2026-11-15.json). This supersedes the earlier in-progress/hosting-unconfirmed observation for those six files. No Netlify deployment commit receipt, actual installed controller, role/page interaction or package was verified. No manual deployment or feature-flag activation occurred. See WP09_FINAL_AUDIT_AND_CONDITIONAL_CLOSURE_RECOMMENDATION_2026-11-15.md for the exact retained gates.
 
 ## Retained gates
 

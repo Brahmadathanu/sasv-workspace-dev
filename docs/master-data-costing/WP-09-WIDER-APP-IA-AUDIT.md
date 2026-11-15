@@ -1,46 +1,25 @@
-> **LATEST — OWNER-AUTHORISED G1/G2 SOURCE INTEGRATION COMPLETE (15 Nov 2026; 9/13):** #434 merged at `93dee941621faa8500e7833376a922f5f90216c1`; #437 retargeted to main, refreshed CI passed, then merged at `6e8572df39fe3b3667001e33cf30b454ac067cd2`. [Post-merge record](WP09_POST_MERGE_INTEGRATION_2026-11-15.md) records exact reviewed SW pin, verification and outstanding acceptance. Presentation remains default-off; no flag activation performed. WP09 OPEN; no formal closure/count advance. Hosting completion and served-asset acceptance are NOT CONFIRMED from available receipts; WP11 defects and WP12 role/SW/PWA/Electron/Windows obligations remain. Older merge-pending/verification-HOLD banners below are historical.
-
-> **LATEST — CORRECTED G2 VERIFICATION ACCEPTED / MERGE AUTHORITY PENDING:** ChatGPT independently verified head `b26c7c3454f03cb2199999080095404cb7cb6e70`: runtime unchanged from reviewed correction; committed corrected-head JSONs reconcile to Chromium 87/87 + OFF 33/33, contract 38/38, source 23/23 and regressions 5/5 PASS (all offline/mocked). The previous corrected-head browser-evidence HOLD is resolved. [Final independent recommendation](WP09_G2_FINAL_INDEPENDENT_VERIFICATION_2026-11-15.md) proposes #434 merge → #437 retarget/base check → default-off merge, subject to owner authority. Neither PR is merged or retargeted. Live/release acceptance remains NOT TESTED; WP09 OPEN, 9/13; WP11/WP12 obligations retained. Older HOLD/pending-rerun banners below are historical.
-
-> **LATEST — G2 INDEPENDENT CORRECTIONS / VERIFICATION HOLD:** #437 is correctly on its own branch targeting #434. [Independent review](WP09_G2_INDEPENDENT_REVIEW_2026-11-15.md) records flag-reader, PWA async identity-state and test-guard corrections. Fresh offline checks pass; corrected-head Chromium needs rerun in the existing Claude session, not a new package. Original author 82/82 mocked results are preserved as historical. No merge/flag/deploy/closure; WP09 OPEN, 9/13; WP11 defects and WP12 obligations retained.
-
-> **15 NOV 2026 — WP09 G2 CLIENT PACKAGE DELIVERED FOR INDEPENDENT REVIEW (LATEST; WP09 OPEN, 9/13):** under owner authority ("Yes proceed", issue #436) the A→C client package is implemented as one separate draft PR behind the **default-off** flag `LAUNCHER_PRESENTATION_V1` — see [WP09_G2_CLIENT_IMPLEMENTATION_2026-11-15.md](WP09_G2_CLIENT_IMPLEMENTATION_2026-11-15.md) and [season/legacy review](WP09_G2_SEASON_PROFILE_AND_LEGACY_SOURCE_REVIEW_2026-11-15.md). **Flag not activated; nothing merged or deployed; no SQL, registry, permission, grant, production-writer or Electron-route change; writers and source-only pages preserved.** Mocked-Chromium results are not authenticated production acceptance. WP11 defects, WP12 role/security/PWA/Electron/Windows/flag obligations and `W12-WP08-01…08` remain open. No formal WP09 closure. Earlier banners below are historical.
-
 # WP-09 — Wider Application Launcher/Section Audit
 
-**15 November 2026 — G1 OWNER ACCEPTED; G2 A→C CLIENT IMPLEMENTATION AUTHORISED. WP09 OPEN; programme 9/13.**
+**Current gate: source integration and post-merge asset verification COMPLETE; OWNER CONDITIONAL-CLOSURE DECISION PENDING. WP09 OPEN, programme 9/13.**
 
-[Owner authority and conditions](WP09_OWNER_G1_ACCEPTANCE_G2_AUTHORITY_2026-11-15.md). One consolidated Claude package is ready; task submission is awaiting the owner’s existing Claude session (the inspected browser requires sign-in). No coding task is claimed started. Existing draft [PR #434](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/434), [issue #432](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/432).
+## Objective and outcome
+Inspect wider workspace launcher granularity, duplication and grouping. G1 source/live metadata audit accepted by owner. A→C subgroups/families, shared search and PWA local Quick Access implemented, independently corrected and merged through #434/#437. Current sections, module keys, individual routes/permission targets and client asymmetry are retained. Maximum 36 Electron / 24 PWA top-level cards represent all 79 / 41 modules, including six distinct Costing entries.
 
-## Objective
-Inspect the wider workspace for granular launchers, duplication and weak grouping after Product + Costing are understood. This file is the work-pack authority under `MASTER_PROGRAMME.md`.
+## Completed gates
+- [x] Live metadata: 85 definitions, 79 Electron / 41 PWA registrations, 11 sections; exact mapping reconciled.
+- [x] G1 independent audit and owner design approval.
+- [x] One G2 client package and independent corrective review.
+- [x] Corrected mocked Chromium 87/87, OFF regression 33/33, contract 38/38, scope 23/23, lifecycle 5/5.
+- [x] Owner-authorised merges #434 at 93dee941 and #437 at 6e8572df; post-merge CI success.
+- [x] Six directly served PWA runtime assets HTTP 200 and byte-identical to a3fdcb10 source.
+- [ ] Owner formal WP09 closure decision.
 
-## Current gate and evidence
-G1 source/live metadata reconciliation and independent review complete in bounded audit scope; owner completion/design decision now recorded in the authority document. [Corrected G1 report](WP09_G1_BULK_AUDIT_REPORT_2026-11-15.md) records provenance, exact module mapping, options, test classifications and decisions D1–D8. The original [new-chat handover](WP09_G1_INDEPENDENT_REVIEW_NEW_CHAT_HANDOVER_2026-11-15.md) is preserved unchanged as historical orientation; the corrected report supersedes its mapping-pending status.
+## Current evidence and next gate
+[Final audit, bounded dispositions and explicit receiving ledger](WP09_FINAL_AUDIT_AND_CONDITIONAL_CLOSURE_RECOMMENDATION_2026-11-15.md) is the current recommendation. [Post-merge record](WP09_POST_MERGE_INTEGRATION_2026-11-15.md), [corrected-head verification](WP09_G2_CORRECTED_HEAD_VERIFICATION_2026-11-15.md) and [independent review](WP09_G2_INDEPENDENT_REVIEW_2026-11-15.md) preserve chronology and historical failures. Original handover is historical and unchanged.
 
-Read-only capture: 85 definitions (6 inactive), 79 Electron / 41 PWA registrations, 11 active sections. All 79 exact live Electron keys and 41 PWA keys now map to canonical sources and current routes/sections. No alias substitution, lost child launcher or Option A section move. All 92 source pages are partitioned: 79 mapped canonical owners and 13 shell/auth/redirect/source-only pages. The original Claude container's lack of database access remains historical fact; later ChatGPT capture is complete, not currently BLOCKED.
+Recommend conditional closure of the launcher/source work, with default-off presentation and binding WP12 W12-WP09-01…05 acceptance before activation/release. The owner has not yet approved formal closure. WP10 remains pending the programme gate decision.
 
-## Findings and proposed design
-A→C is **owner approved** within the client-only authority. A retains 11 Electron / 7 PWA populated sections with 79 / 41 tiles; C reduces maximum registered top-level tiles to **36 / 24**, with section-scoped families and no registry change. B re-sections into nine domains and requires separate SQL authority. Six Costing modules, including Production Route Manager, remain independent permission and route targets in a proposed family.
+## Limits and receiving obligations
+Served-file matching is unauthenticated byte evidence, not live-role acceptance, Netlify deployment-commit receipt, installed-worker activation or packaged Electron/Windows verification. Those remain NOT TESTED under the explicit WP12 ledger. No flag activation, permissions, SQL/registry change, legacy writer removal or Electron Step B occurred. The historical two WP08 source-scope failures remain recorded.
 
-Season-profile source writers overlap, but `manage-season-profiles` is unregistered. `production-overrides` is an unregistered broken source shell. Neither is a pair of duplicate live cards. Both local-fallback modules are already live registered, so missing-row fallback injection is dormant. Two lab page/registry permission-name differences require WP12 role/page acceptance; their runtime effect is NOT TESTED.
-
-## Milestones
-- [x] Source and captured-metadata audit reconciled
-- [x] Exact-key mapping / route / mutation verification
-- [x] ChatGPT independent review of Claude audit and corrected deliverables
-- [x] Owner G1 completion and design decisions
-- [x] G2 client implementation authorisation; detailed contract to be reviewed with code
-- [x] Implementation behind default-off flag `LAUNCHER_PRESENTATION_V1` (draft PR; mocked tests 38/38, 21/21, 82/82)
-- [ ] Independent code review / focused acceptance
-- [ ] Merge and post-merge evidence
-- [ ] Formal WP09 closure
-
-## Verification
-Fresh registry **21/21 PASS**, source **50/50 PASS**, mutation **22/22 PASS**. Fresh WP08 G2-1 source **13/13**, resolver **8/8**, SW freshness **15/15 PASS**. Historical G2-0 scope guards retain **2 FAIL of 13**; fresh registry SQL **1 PASS / 17 SKIPPED** (no PostgreSQL binaries). Claude's original synthetic Chromium **33/33** and fail-closed **81/81 PASS** remain historical; fresh browser rerun BLOCKED by browser-launch environment restrictions. Live roles, installed PWA, packaged Electron and Windows release remain **NOT TESTED**, not synthetic PASS.
-
-## Next gate / owner decisions
-Execute the [authorised single G2 package](WP09_G2_SINGLE_CLIENT_PACKAGE_2026-11-15.md), then ChatGPT independently reviews the implementation. G1 is accepted; recommendations approved in the [owner record](WP09_OWNER_G1_ACCEPTANCE_G2_AUTHORITY_2026-11-15.md) no longer require repeated confirmation. No merge, deployment, production flag activation or formal WP09 closure follows automatically. Separate writer/source cleanup remains conditional on exact review.
-
-## Changes and protected boundaries
-G1: audit scripts, evidence and documentation only. G2 (separate draft PR): seven client runtime files behind default-off `LAUNCHER_PRESENTATION_V1`; still no server, registry, permission, grant, RLS, migration, flag activation, deployment or Electron-route change. WP08/PEC not reopened. Historical CRLF-only 20261112 migrations untouched. WP11 PM BOM overflow and SKU Deactivate contrast #429 retained. WP12 inherited security, flags, PWA, Electron/Windows and WP08 eight-case receiving obligations remain OPEN; Pricing unknown destinations stay text-only. No work-pack closure or programme-count advance.
+Two lab permission-name mismatches remain WP12 security checks. Season-profile F-A/F-B/F-C and optional production-overrides archival remain separate conditional follow-ups. WP11 PM BOM mobile overflow and SKU Deactivate contrast #429 remain unresolved. WP08/PEC stay closed. Five migration CRLF-only worktree differences remain untouched. No programme count advance without owner closure.
