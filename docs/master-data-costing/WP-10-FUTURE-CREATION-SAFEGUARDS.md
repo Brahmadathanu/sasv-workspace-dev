@@ -1,4 +1,4 @@
-> **LATEST — CORRECTED-SOURCE REVIEW:** R1–R7 source corrections accepted; one further client/SQL cursor mismatch was corrected directly. [Review and verification limits](WP10_G2_CORRECTED_SOURCE_REVIEW_2026-11-15.md): fresh units 14/14, delivery 7/7, source 9/9, static 19 PASS. Focused Chromium rerun on the reviewer correction is pending; author-head integrated-pec succeeded. Read-only impact preview remains unimplemented. PR #441 stays draft, SQL unapplied, flag default-off; WP10 OPEN, 10/13.
+> **LATEST — INDEPENDENT VERIFICATION COMPLETE FOR DELIVERED SOURCE:** [CI evidence and merge recommendation](WP10_G2_CI_VERIFICATION_AND_MERGE_RECOMMENDATION_2026-11-15.md): 199 fresh offline checks PASS, including 51 mocked Chromium and 99 PostgreSQL checks; integrated-pec also green at `9f28f05b`. Default-off source merge is recommended for owner approval; no merge or SQL application executed. The [counterfactual preview contract](WP10_G2_COUNTERFACTUAL_PREVIEW_CONTRACT_DRAFT_2026-11-15.md) is drafted, implementation still open. WP10 OPEN, programme 10/13.
 
 # WP-10 — Governance Safeguards for Future Product/SKU Creation
 
@@ -17,12 +17,14 @@ One [G2 package](WP10_G2_SINGLE_DRAFT_IMPLEMENTATION_PACKAGE_2026-11-15.md), [is
 - [x] G1 live/source transition and recurrence audit, corrected fixtures, independent review and owner acceptance.
 - [x] G1 merge; O1–O4 and bounded G2 draft authority recorded.
 - [x] G2 implementation (default-off client flag) and unapplied SQL proposals delivered in one draft PR — see [implementation record](WP10_G2_IMPLEMENTATION_RECORD_2026-11-15.md) and [operator runbook](WP10_G2_OPERATOR_RUNBOOK_2026-11-15.md); not merged, nothing applied or activated.
-- [ ] Independent code/contract review and focused validation.
+- [x] Independent review and fresh offline validation of the delivered source (199 PASS); preview implementation remains open.
+- [ ] Owner source-merge decision; default-off source merge only, no SQL execution or closure.
+- [ ] Counterfactual pre-submit impact preview implementation and acceptance.
 - [ ] Separate exact production authority where needed.
 - [ ] Formal owner WP10 closure.
 
 ## Next step and execution state
-G2 draft PR #441 has completed corrected-source review, with a direct pagination correction awaiting focused mocked Chromium verification and exact-head CI. Then present the default-off source merge for owner authority. The read-only counterfactual impact-preview contract remains open; transactional rejection does not complete it. No production step or flag activation is authorised. No new G1 handover is needed. The named operator nomination remains an operational follow-up; programme owner is accountable until then.
+G2 draft PR #441 is independently verified for a bounded default-off source-merge decision. The read-only counterfactual impact-preview contract is drafted but unimplemented; transactional rejection does not complete it. SQL application and live/release acceptance remain separate gates. No new G1 handover is needed. The named operator nomination remains an operational follow-up; programme owner is accountable until then.
 
 ## Protected boundaries
 No production SQL, rebuild/cron scheduling, permissions/RLS/grants, registry, feature activation, deployment, G2 merge or automatic deactivation. New SQL remains unapplied outside migrations. Keep existing five essentials, CI-038a date semantics, LIVE_AS_OF and fingerprint authoritative. Test all in-window effective boundaries rather than only endpoints. WP09 remains closed and launcher flag untouched; WP08/PEC stay closed; WP11 defects and all WP12 receiving/security/PWA/Electron/Windows gates preserved. Five historical migration CRLF-only differences remain untouched. Programme stays 10/13 until a separate formal closure.

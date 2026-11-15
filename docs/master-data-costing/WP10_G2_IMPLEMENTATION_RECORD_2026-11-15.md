@@ -1,3 +1,5 @@
+> **LATEST:** [Independent CI verification and bounded source-merge recommendation](WP10_G2_CI_VERIFICATION_AND_MERGE_RECOMMENDATION_2026-11-15.md) records 199 fresh offline PASS (including 51 Chromium and 99 PostgreSQL checks) at `9f28f05b`. This supersedes the earlier local-environment browser/PG limitation and pending-rerun status below. Impact preview is contract-only, not implemented; SQL remains unapplied, flag OFF, owner merge decision pending. WP10 OPEN, 10/13.
+
 # WP10 G2 — Implementation record (draft; independent review R1–R7 addressed in this same PR)
 
 Authority: issue #440 and `WP10_G2_SINGLE_DRAFT_IMPLEMENTATION_PACKAGE_2026-11-15.md`; owner decisions O1–O5 as recorded in `WP10_OWNER_G1_ACCEPTANCE_G2_DRAFT_AUTHORITY_2026-11-15.md`.
