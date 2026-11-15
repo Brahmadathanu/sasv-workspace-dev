@@ -21,7 +21,11 @@ Fresh local reviewer checks before/after the bounded client correction: client u
 
 These are source-level control-flow findings; the new mocked-controller tests/mutations must execute successfully in CI before a merge recommendation. Existing M2 now removes the added shared-dialog protection too; otherwise it no longer creates the duplicated-dialog fault it is intended to detect. This is a documented defence-in-depth mutation adjustment, not a runtime exemption. Flag-OFF behaviour is unchanged.
 
-The correction changes only `products.js`, the preview browser regressions and review documentation. Helper contents, content-hash token `6b42977628`, generated SQL, application hashes, grants-as-text, SW and migrations are unchanged.
+The correction changes only `products.js`, preview/activation browser regressions and documentation. Helper contents, content-hash token `6b42977628`, generated SQL, application hashes, grants-as-text, SW and migrations are unchanged.
+
+First corrected CI run `43760654216` passed the pure/static and all PostgreSQL checks, then stopped with 50/51 passing in the existing Products/Readiness browser group. The sole failure was activation mutation M2: the new shared-dialog guard prevented the deliberately removed activation reservation from creating duplicates (one check/one writer). Its mutation now removes that shared protection too, matching its stated "without any serialization" fault. The new preview browser suite had not yet run because that earlier step failed. No missing-runtime-guard defect was inferred from this mutation setup failure; a full rerun is required.
+
+WP12 PV-7's timeout description was corrected: the proposal file's 30-second `SET LOCAL statement_timeout` bounds installation only. Actual role/PostgREST request timeout and production-scale latency require separate verification; no persistent endpoint timeout was added.
 
 ## Remaining gates
 
