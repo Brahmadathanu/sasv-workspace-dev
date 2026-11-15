@@ -322,6 +322,7 @@ test("IR2b an unchanged-subgroup re-submit cannot attach another confirm handler
 
 test("IR3 flag-ON shared dialog has one owner even for two ordinary unchanged-subgroup saves", { skip }, async () => {
   const { page, context } = await openProduct({ changeSubgroup: false, rpc: { rpc_update_product: ok } });
+  await setSubgroup(page, 1); // explicitly populate the required select with the stored subgroup, as in B13
   await clickSave(page);
   await page.waitForSelector("#governanceModalOverlay.show");
   await clickSave(page);

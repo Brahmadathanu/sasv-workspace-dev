@@ -27,6 +27,8 @@ First corrected CI run `43760654216` passed the pure/static and all PostgreSQL c
 
 WP12 PV-7's timeout description was corrected: the proposal file's 30-second `SET LOCAL statement_timeout` bounds installation only. Actual role/PostgREST request timeout and production-scale latency require separate verification; no persistent endpoint timeout was added.
 
+Second corrected CI run `43761065457` passed all 51 existing browser checks and 29/30 preview checks, including IR1/IR2 and both new mutants. The sole failure was new IR3 before its first confirmation: its `changeSubgroup:false` harness setup left the required select unpopulated. Like existing B13, IR3 now explicitly selects the stored subgroup 1 before submitting. This is a fixture-input correction; the preceding validation modal correctly prevented opening a confirmation for an incomplete form. A fresh exact-head pass is still required.
+
 ## Remaining gates
 
 Run exact-head WP10 offline CI (expected preview Chromium suite now 30 checks, with every existing suite retained) and integrated-pec. Record actual totals/artifacts and an independent verdict before requesting an owner source-merge decision. No source approval for #441 is reused as approval for #442.
