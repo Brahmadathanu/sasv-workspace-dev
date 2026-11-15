@@ -1,0 +1,28 @@
+{
+  "results": [
+    {
+      "name": "flag remains OFF when accessing localStorage itself throws",
+      "status": "FAIL",
+      "detail": "storage denied"
+    },
+    {
+      "name": "PWA tools clear synchronously while a new render waits for permissions",
+      "status": "FAIL",
+      "detail": "Expected values to be strictly equal:\n\n1 !== 0\n"
+    },
+    {
+      "name": "identity change during pending permissions never commits the previous user's tools",
+      "status": "FAIL",
+      "detail": "Expected values to be strictly equal:\n\n1 !== 0\n"
+    },
+    {
+      "name": "sign-out during pending permissions cannot restore the previous user's tools",
+      "status": "PASS"
+    },
+    {
+      "name": "flag OFF preserves existing rendered DOM while refresh is pending",
+      "status": "PASS"
+    }
+  ],
+  "classification": "offline VM of actual hub lifecycle; not browser or live acceptance"
+}

@@ -8,7 +8,13 @@ const git = (...a) => execFileSync("git", a, { cwd: repoRoot, encoding: "utf8" }
 
 // ---- scope guard: only the authorised runtime files changed against the authority head ----
 const changed = new Set([...git("diff", "--name-only", AUTHORITY_HEAD), ...git("diff", "--name-only", "--cached", AUTHORITY_HEAD), ...git("ls-files", "--others", "--exclude-standard")]);
-for (const f of [...changed]) if (/^supabase\/migrations\/20261112/.test(f)) changed.delete(f); // CRLF-only worktree noise, never staged
+for (const f of [...changed]) {
+  if (!/^supabase\/migrations\/20261112/.test(f)) continue;
+  // Ignore only working-copy line endings on an otherwise unchanged tracked file.
+  // Committed SQL edits or substantive whitespace/content changes must still fail.
+  const committed = execFileSync("git", ["show", `HEAD:${f}`], { cwd: repoRoot, encoding: "utf8" });
+  if (committed === baselineFile(f) && readFile(f).replace(/\r\n/g, "\n") === committed.replace(/\r\n/g, "\n")) changed.delete(f);
+}
 const RUNTIME_ALLOWED = new Set(["index.html", "public/utilities-hub/js/hub-auth.js", "public/shared/js/module-registry.js", "public/shared/js/launcher-presentation.js", "public/shared/js/launcher-presentation-contract.js", "public/shared/css/launcher-presentation.css", "public/sw.js"]);
 const runtimeChanged = [...changed].filter((f) => !f.startsWith("docs/") && !f.startsWith("scripts/"));
 check("G1 runtime files changed are exactly within the authorised client set", runtimeChanged.every((f) => RUNTIME_ALLOWED.has(f)), runtimeChanged.filter((f) => !RUNTIME_ALLOWED.has(f)).join() || `${runtimeChanged.length} files`);
@@ -33,7 +39,18 @@ check("X1 flag identifier LAUNCHER_PRESENTATION_V1 is defined once and read via 
 check("X2 no code anywhere sets the flag (no setItem of LAUNCHER_PRESENTATION_V1 in runtime files)", !flagHits.some((f) => /setItem\([^)]*LAUNCHER_PRESENTATION_V1/.test(readFile(f).replace(/^\s*\/\/.*$/gm, ""))) && !/setItem\(\s*(LAUNCHER_PRESENTATION_V1|"LAUNCHER_PRESENTATION_V1")/.test(lpCode));
 check("X3 flag is independent of the eleven COSTING_* flags", !/COSTING_/.test(lpCode));
 const idx = readFile("index.html"), hub = readFile("public/utilities-hub/js/hub-auth.js");
-check("X4 every G2 behaviour in both launchers is guarded by presentationOn", /const presentationOn = isLauncherPresentationV1Enabled\(\)/.test(idx) && /const presentationOn = isLauncherPresentationV1Enabled\(\)/.test(hub) && !/planSection\(/.test(idx.replace(/if \(!presentationOn\)[\s\S]*?else \{[\s\S]*?\}\n\s*\}/, "")) || true);
+function presentationEntryGuards(indexSource, hubSource) {
+  return [indexSource, hubSource].every((src) =>
+    /const presentationOn = isLauncherPresentationV1Enabled\(\)/.test(src) &&
+    /if \(presentationOn\) \{\s*document\.documentElement\.dataset\.launcherPresentation/.test(src)
+  ) && /if \(!presentationOn\) \{[\s\S]*?section\.items\.map\(renderModuleLink\)[\s\S]*?else \{\s*const plan = planSection/.test(indexSource) &&
+    /if \(!presentationOn\) \{[\s\S]*?list\.forEach[\s\S]*?else \{\s*html \+= renderSectionPresentation/.test(hubSource) &&
+    /if \(presentationOn\) renderHubTools\(session, utilities, accessMap\);/.test(hubSource) &&
+    /if \(presentationOn\) syncPresentationGroups\(\);/.test(indexSource);
+}
+check("X4 presentation CSS, renderers and tools require explicit flag guards", presentationEntryGuards(idx, hub));
+check("X4M1 unconditional PWA tools mutation is rejected", !presentationEntryGuards(idx, hub.replace("if (presentationOn) renderHubTools(session, utilities, accessMap);", "renderHubTools(session, utilities, accessMap);")));
+check("X4M2 unconditional Electron group sync mutation is rejected", !presentationEntryGuards(idx.replace("if (presentationOn) syncPresentationGroups();", "syncPresentationGroups();"), hub));
 
 // ---- service worker: delivery of the changed scripts without touching existing behaviour ----
 const sw = readFile("public/sw.js"), swBase = baselineFile("public/sw.js");

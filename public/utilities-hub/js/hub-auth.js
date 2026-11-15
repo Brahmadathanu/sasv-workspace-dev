@@ -39,6 +39,7 @@ if (presentationOn) {
 let activeRenderPromise = null;
 let queuedRenderReason = null;
 let lastRenderedSessionKey = null;
+let presentationRenderVersion = 0;
 
 function getSessionRenderKey(session) {
   return session?.user?.id || "anon";
@@ -583,16 +584,19 @@ function renderHubTools(session, utilities, accessMap) {
 }
 
 async function performRender() {
+  const renderVersion = presentationRenderVersion;
   setBusy(true);
   if (elEmpty) elEmpty.style.display = "none";
 
   const {
     data: { session },
   } = await supabase.auth.getSession();
+  if (presentationOn && renderVersion !== presentationRenderVersion) return;
   lastRenderedSessionKey = getSessionRenderKey(session);
 
   updateAuthUI(session);
   await showGreeting(session);
+  if (presentationOn && renderVersion !== presentationRenderVersion) return;
 
   if (!session?.user) {
     if (presentationOn) clearHubTools();
@@ -613,6 +617,7 @@ async function performRender() {
     utilities = await loadUtilities();
     accessMap = await loadAccessMap(session?.user?.id, utilities);
   } catch (error) {
+    if (presentationOn && renderVersion !== presentationRenderVersion) return;
     console.error("Failed to load PWA module registry", error);
     if (presentationOn) clearHubTools();
     if (elRoot) {
@@ -626,6 +631,9 @@ async function performRender() {
     return;
   }
 
+  // An identity/revalidation signal can arrive while the old permission request
+  // is pending. Only the latest requested render may publish launcher state.
+  if (presentationOn && renderVersion !== presentationRenderVersion) return;
   if (elRoot) {
     elRoot.innerHTML = renderUtilitiesSectioned(utilities, accessMap);
     elRoot.classList.remove("hub-grid");
@@ -641,6 +649,11 @@ async function performRender() {
 }
 
 async function render(reason = "manual") {
+  if (presentationOn) {
+    presentationRenderVersion++;
+    clearHubTools();
+    if (elRoot) elRoot.innerHTML = "";
+  }
   if (activeRenderPromise) {
     queuedRenderReason = reason;
     return activeRenderPromise;
@@ -723,7 +736,8 @@ function wireEvents() {
       return;
     }
 
-    if (event === "SIGNED_IN" && activeRenderPromise) {
+    if (event === "SIGNED_IN" && activeRenderPromise &&
+        (!presentationOn || sessionKey === lastRenderedSessionKey)) {
       return;
     }
 

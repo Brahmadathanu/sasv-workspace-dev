@@ -13,9 +13,11 @@ export const LAUNCHER_PRESENTATION_V1 = "LAUNCHER_PRESENTATION_V1";
 export const FALLBACK_SUBGROUP = "More";
 export const PIN_LIMIT = 10;
 
-export function isLauncherPresentationV1Enabled(storage = globalThis.localStorage) {
+export function isLauncherPresentationV1Enabled(storage) {
   try {
-    return storage?.getItem?.(LAUNCHER_PRESENTATION_V1) === "1";
+    // Access to the storage property itself can throw in restricted browsers.
+    const source = storage === undefined ? globalThis.localStorage : storage;
+    return source?.getItem?.(LAUNCHER_PRESENTATION_V1) === "1";
   } catch {
     return false;
   }

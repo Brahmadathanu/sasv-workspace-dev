@@ -1,0 +1,389 @@
+{
+  "reviewed_author_head": "2b0f9a13d53b3ccbba72d1b9ead289ae9bade614",
+  "authority_head": "7584c0f04cae2b4a713a12fe46b2db1fac580835",
+  "classification": "offline independent review; no live role or release acceptance",
+  "contract": {
+    "results": [
+      {
+        "name": "C1 contract has exactly the 79 live Electron keys",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "C2 every contract section equals the CURRENT live section (A preserves all sections)",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "C3 41 PWA keys are a subset of the contract",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "C4 committed contract equals the generator output from the accepted mapping + snapshot",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "C5 electron: section-scoped top-level cards = option-coverage maximum (36), every module exactly once",
+        "status": "PASS",
+        "detail": "total=36"
+      },
+      {
+        "name": "C5 pwa: section-scoped top-level cards = option-coverage maximum (24), every module exactly once",
+        "status": "PASS",
+        "detail": "total=24"
+      },
+      {
+        "name": "C6 every (section,family) lives in exactly one subgroup",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "C7 six Costing modules incl. Production Route Manager form ONE family in ONE section",
+        "status": "PASS",
+        "detail": "product-reference-master|Costing suite|Costing suite"
+      },
+      {
+        "name": "C8 registered child pages stay launchable: coa-print, edit-log-entry, sop-editor, sop-viewer",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "C9 families never cross sections: no family label appears in two sections with merged ids",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "U1 unknown future key lands in the fallback subgroup, flat, LAST, and is not lost",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "U2 cross-section disagreement => treated as unknown (fallback, no family), never merged into the other section",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "U3 getContractEntry null for unknown key and for mismatched section",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "S1 label match",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "S2 subgroup match (approved subgroup 'Stock positions')",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "S3 real alias match (operations-monitor found via former name etl-monitor)",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "S4 description-only match",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "S5 AND of terms; empty/space query returns no results",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "S6 section names are NOT searched (section label alone finds no section-only module)",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "S7 matcher returns the entry object flagged locked (callers keep it disabled) and never adds fields that enable it",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "S8 deterministic order: exact label first, then label order",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "S9 NO alias was added or changed in module-registry.js (lab key differences are not masked)",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "S10 the two recorded lab permission-name differences have no alias",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "Q1 key shape identical to the Electron launcher key",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "Q2 scope derivation matches normalizeModuleKey for uuid/email/guest",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "Q3 maximum 10 pins, newest first, oldest dropped",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "Q4 toggle off removes; scopes are isolated",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "Q5 pins resolve only to visible, enabled, routable modules; order kept",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "Q6 stale/revoked/locked pins are retained (not pruned) for restore",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "Q7 corrupt storage and throwing storage degrade to no pins",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "F1 flag: only the exact value '1' enables; default OFF",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "MU0 invariant suite is clean on the real module",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "MU lost-unknown-module is detected by the invariant suite",
+        "status": "PASS",
+        "detail": "lost-unknown-module"
+      },
+      {
+        "name": "MU cross-section-family-collision is detected by the invariant suite",
+        "status": "PASS",
+        "detail": "cross-section-family-collision"
+      },
+      {
+        "name": "MU stale-pin-reuse-across-users is detected by the invariant suite",
+        "status": "PASS",
+        "detail": "stale-pin-reuse-across-users"
+      },
+      {
+        "name": "MU locked-pin-resolved is detected by the invariant suite",
+        "status": "PASS",
+        "detail": "locked-pin-resolved"
+      },
+      {
+        "name": "MU unroutable-pin-resolved is detected by the invariant suite",
+        "status": "PASS",
+        "detail": "unroutable-pin-resolved"
+      },
+      {
+        "name": "MU revoked-pin-resolved is detected by the invariant suite",
+        "status": "PASS",
+        "detail": "locked-pin-resolved,unroutable-pin-resolved,revoked-pin-resolved"
+      }
+    ]
+  },
+  "source": {
+    "results": [
+      {
+        "name": "G1 runtime files changed are exactly within the authorised client set",
+        "status": "PASS",
+        "detail": "7 files"
+      },
+      {
+        "name": "G2 nothing under supabase/, sql/, tools/ or electron/ changed; no migration added",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "G3 no legacy/source page, WP08 shared page or master page changed",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "G4 Costing flag source, the eleven-flag sweep and the WP08 tests are byte-identical to the authority head",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "G5 historical G1 evidence snapshot and mapping CSV unchanged (provenance preserved)",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "G6 original G1 handover/report/authority documents preserved verbatim",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "W1 index.html: no added line introduces a Supabase writer/RPC/registry table access",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "W1 public/utilities-hub/js/hub-auth.js: no added line introduces a Supabase writer/RPC/registry table access",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "W1 public/shared/js/module-registry.js: no added line introduces a Supabase writer/RPC/registry table access",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "W1 public/sw.js: no added line introduces a Supabase writer/RPC/registry table access",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "W2 shared presentation module has no Supabase import, no network, no permission logic",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "W3 contract is data only (79 frozen tuples; no routes, grants or targets)",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "X1 flag identifier LAUNCHER_PRESENTATION_V1 is defined once and read via localStorage exact value '1'",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "X2 no code anywhere sets the flag (no setItem of LAUNCHER_PRESENTATION_V1 in runtime files)",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "X3 flag is independent of the eleven COSTING_* flags",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "X4 presentation CSS, renderers and tools require explicit flag guards",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "X4M1 unconditional PWA tools mutation is rejected",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "X4M2 unconditional Electron group sync mutation is rejected",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "SW1 CACHE_NAME is UNCHANGED (hub-cache-v393): network-first routing alone delivers the changed scripts, keeping the WP08 service-worker guards green",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "SW2 service-worker diff is ADD-ONLY (no existing line removed or edited; G2-0 and G2-1 patterns byte-identical)",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "SW3 new files and the two changed cache-first scripts are network-first; PRECACHE list untouched (stale ETL precache cleanup deferred)",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "D1 decision recorded in code: PWA does not record recents/usage; Electron keeps recents storage but renders pins only",
+        "status": "PASS",
+        "detail": ""
+      },
+      {
+        "name": "D2 PWA Quick Access has no server persistence (localStorage only)",
+        "status": "PASS",
+        "detail": ""
+      }
+    ]
+  },
+  "lifecycle": {
+    "results": [
+      {
+        "name": "flag remains OFF when accessing localStorage itself throws",
+        "status": "PASS"
+      },
+      {
+        "name": "PWA tools clear synchronously while a new render waits for permissions",
+        "status": "PASS"
+      },
+      {
+        "name": "identity change during pending permissions never commits the previous user's tools",
+        "status": "PASS"
+      },
+      {
+        "name": "sign-out during pending permissions cannot restore the previous user's tools",
+        "status": "PASS"
+      },
+      {
+        "name": "flag OFF preserves existing rendered DOM while refresh is pending",
+        "status": "PASS"
+      }
+    ],
+    "classification": "offline VM of actual hub lifecycle; not browser or live acceptance"
+  },
+  "browser": {
+    "fresh_status": "BLOCKED",
+    "reason": "Chromium/Playwright unavailable in this execution environment",
+    "author_historical_g2_pass": 82,
+    "author_historical_g1_off_pass": 33,
+    "corrected_head_rerun_required": true,
+    "new_deferred_cases": {
+      "count": 5,
+      "status": "NOT EXECUTED",
+      "expected_extended_total_with_screenshots": 87,
+      "syntax_check": "PASS"
+    }
+  },
+  "baselines": {
+    "g1_registry": {
+      "pass": 21
+    },
+    "g1_source": {
+      "pass": 50
+    },
+    "g1_mutation": {
+      "pass": 22
+    },
+    "wp08_navigation_source": {
+      "pass": 13
+    },
+    "wp08_resolver": {
+      "pass": 8
+    },
+    "wp08_sw": {
+      "pass": 15
+    },
+    "wp08_sql": {
+      "pass": 1,
+      "skipped": 17
+    },
+    "wp08_g20_source": {
+      "pass": 11,
+      "fail": 2,
+      "historical_baseline": true
+    }
+  },
+  "live_roles": "NOT TESTED",
+  "installed_pwa": "NOT TESTED",
+  "packaged_electron_windows": "NOT TESTED",
+  "hosted_resolver": "NOT TESTED"
+}

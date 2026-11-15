@@ -294,6 +294,44 @@ try {
     await cap.close();
   }
 
+  // Independent review: identity changes while the previous permission response
+  // is deliberately held. Settled-state-only checks cannot detect this race.
+  {
+    const rows = REG.pwa;
+    const seed = { ...FLAG_ON, [pinKey(U_A)]: JSON.stringify(rows.slice(0, 2).map((r) => r.module_key)) };
+    const pending = await open("pwa", { storage: seed });
+    await pending.page.fill("#hub-search-input", rows[0].label);
+    await pending.page.evaluate(() => { window.__HOLD_PERMISSIONS = true; window.dispatchEvent(new Event("pageshow")); });
+    await pending.page.waitForFunction(() => window.__PERM_PENDING?.length === 1);
+    const cleared = await pending.page.evaluate(() => document.querySelectorAll("#hub-tools *, #hub-root a[data-module-key]").length === 0);
+    check("R1 pwa: tools/search/modules disappear while revalidation permissions are held", cleared);
+    await pending.page.evaluate((user) => {
+      window.__USER_ID = user; window.__GRANTS = [];
+      for (const callback of window.__AUTH_CALLBACKS || []) callback("SIGNED_IN", { user: { id: user } });
+      window.__PERM_PENDING.shift().resolve();
+    }, U_B);
+    await pending.page.waitForFunction((user) => window.__PERM_PENDING?.some((p) => p.user === user), U_B);
+    check("R2 pwa: changed SIGNED_IN is queued and stale response never republishes tools", await pending.page.evaluate(() => document.querySelectorAll("#hub-tools *, #hub-root a[data-module-key]").length === 0));
+    await pending.page.evaluate(() => { window.__HOLD_PERMISSIONS = false; window.__PERM_PENDING.shift().resolve(); });
+    await pending.page.waitForSelector("#hub-search-input");
+    await pending.page.fill("#hub-search-input", rows[0].label);
+    check("R3 pwa: final denied identity gets neither prior pins, modules nor search hits", await pending.page.evaluate(() => document.querySelectorAll("#hub-quick a, #hub-root a[data-module-key], #hub-search-results .hub-search__result").length === 0));
+    await pending.close();
+
+    const signedOut = await open("pwa", { storage: seed });
+    await signedOut.page.evaluate(() => { window.__HOLD_PERMISSIONS = true; window.dispatchEvent(new Event("pageshow")); });
+    await signedOut.page.waitForFunction(() => window.__PERM_PENDING?.length === 1);
+    await signedOut.page.evaluate(() => {
+      window.__NO_SESSION = true;
+      for (const callback of window.__AUTH_CALLBACKS || []) callback("SIGNED_OUT", null);
+    });
+    check("R4 pwa: sign-out clears tools synchronously before old permissions resolve", await signedOut.page.evaluate(() => document.querySelectorAll("#hub-tools *, #hub-root a[data-module-key]").length === 0));
+    await signedOut.page.evaluate(() => { window.__HOLD_PERMISSIONS = false; window.__PERM_PENDING.shift().resolve(); });
+    await signedOut.page.waitForFunction(() => document.querySelector("#hub-root")?.textContent.includes("Sign in required"));
+    check("R5 pwa: old permission response cannot restore tools after sign-out", await signedOut.page.evaluate(() => document.querySelectorAll("#hub-tools *, #hub-root a[data-module-key]").length === 0));
+    await signedOut.close();
+  }
+
   // ===== 9. Mutation controls (browser): the suite must FAIL when the guards are removed =====
   {
     const deniedAbsent = async (client, rewrites) => {

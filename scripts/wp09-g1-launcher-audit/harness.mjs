@@ -60,7 +60,10 @@ export function createClient() {
     auth: {
       getSession: async () => ({ data: { session: mkSession() }, error: null }),
       getUser: async () => ({ data: { user: mkSession() ? curUser() : null }, error: null }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+      onAuthStateChange: (callback) => {
+        (window.__AUTH_CALLBACKS ||= []).push(callback);
+        return { data: { subscription: { unsubscribe() {} } } };
+      },
       refreshSession: async () => ({ data: { session: mkSession() }, error: null }),
       signOut: async () => ({ error: null }),
       signInWithPassword: async () => ({ data: {}, error: null }),
@@ -71,6 +74,14 @@ export function createClient() {
         const f = window.__PERM_FAIL;
         if (f === "error") return Promise.resolve({ data: null, error: { message: "mock" } });
         if (f === "nonarray") return Promise.resolve({ data: { x: 1 }, error: null });
+        // Test-only controllable permission latency. Capture the response now,
+        // so releasing a previous identity's request really returns stale data.
+        if (window.__HOLD_PERMISSIONS) {
+          const data = (window.__GRANTS || []).slice();
+          return new Promise((resolve) => {
+            (window.__PERM_PENDING ||= []).push({ user: curUser().id, resolve: () => resolve({ data, error: null }) });
+          });
+        }
         return Promise.resolve({ data: window.__GRANTS || [], error: null });
       }
       writes.push({ rpc: name });

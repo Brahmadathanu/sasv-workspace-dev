@@ -1,3 +1,5 @@
+> **Later independent review:** ChatGPT found and corrected storage-getter fallback and pending-render identity isolation defects, replaced a vacuous source assertion, and tightened migration scope checking on the same #437 branch. See [independent review](WP09_G2_INDEPENDENT_REVIEW_2026-11-15.md). Fresh corrected-file results: contract 38/38, source 23/23, lifecycle regressions 5/5. Corrected-head Chromium remains BLOCKED here; the original 82/82 and screenshots below describe Claude's submitted `2b0f9a13` head. Runtime merge remains HOLD. No live acceptance or production flag activation.
+
 # WP09 G2 — A→C launcher families, shared search and PWA Quick Access (client package, issue #436)
 
 **Status: IMPLEMENTED BEHIND A DEFAULT-OFF FLAG; FOR INDEPENDENT REVIEW. Not merged, not deployed, flag not activated anywhere.** WP09 remains OPEN; programme remains 9/13. WP08/PEC remain closed. Authority: owner "Yes proceed" record `WP09_OWNER_G1_ACCEPTANCE_G2_AUTHORITY_2026-11-15.md`; package `WP09_G2_SINGLE_CLIENT_PACKAGE_2026-11-15.md` (both preserved verbatim).
@@ -59,7 +61,7 @@
 | WP08 `g2-0/fail-closed.test.mjs` (~5 min browser suite) | **NOT RE-RUN** in G2 (no Master Data page, resolver or WP08 file changed; last recorded 81/81 in G1) |
 | Authenticated live roles, real negative/view-only users, installed PWA, packaged Electron/Windows, hosted resolver | **NOT TESTED** (WP12) |
 
-Two defects found in *my own tests* during the work (a shared-context close, a control that matched a granted module, a counted "no results" note) were fixed in the tests; no runtime defect was found by the suites. Screenshots (mocked data, deviceScaleFactor 2): `WP09_G2_EVIDENCE/screenshots/{electron-1280,electron-390,pwa-1280,pwa-390}-flag-on.png` and `pwa-390-flag-off.png`. Reproduce:
+Three defects found in *my own tests* during the work (a shared-context close, a control that matched a granted module, a counted "no results" note) were fixed in the tests; no runtime defect was found by the suites. Screenshots (mocked data, deviceScaleFactor 2): `WP09_G2_EVIDENCE/screenshots/{electron-1280,electron-390,pwa-1280,pwa-390}-flag-on.png` and `pwa-390-flag-off.png`. Reproduce:
 
 ```
 node scripts/wp09-g2-launcher-presentation/generate-contract.mjs --check
