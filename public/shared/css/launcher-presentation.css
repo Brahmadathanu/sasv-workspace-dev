@@ -1,0 +1,217 @@
+/* WP09 G2 — launcher subgroup headings, collapsible families, PWA search and Quick Access.
+   Loaded ONLY when localStorage LAUNCHER_PRESENTATION_V1 === "1" (default OFF). Reuses existing tokens with fallbacks. */
+.sasv-subgroup,
+.hub-subgroup {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.sasv-subgroup + .sasv-subgroup,
+.hub-subgroup + .hub-subgroup {
+  margin-top: 6px;
+}
+.sasv-subgroup__title,
+.hub-subgroup__title {
+  margin: 4px 2px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sasv-text-muted, #5b6472);
+}
+.sasv-subgroup__nodes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+.sasv-family,
+.hub-family {
+  grid-column: 1 / -1;
+  min-width: 0;
+  border: 1px solid var(--sasv-control-border, #d6dbe3);
+  border-radius: var(--sasv-radius-md, 8px);
+  background: var(--sasv-surface, #fff);
+}
+.sasv-family__toggle,
+.hub-family__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.sasv-family__toggle:hover,
+.hub-family__toggle:hover {
+  background: var(--sasv-surface-soft, #f3f5f8);
+}
+.sasv-family__toggle:focus-visible,
+.hub-family__toggle:focus-visible,
+.hub-search__input:focus-visible,
+.hub-search__result a:focus-visible {
+  outline: 2px solid var(--sasv-action-primary, #005a8d);
+  outline-offset: 2px;
+}
+.sasv-family__title,
+.hub-family__title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sasv-family__count,
+.hub-family__count {
+  min-width: 1.6em;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--sasv-surface-soft, #eef1f5);
+  font-size: 0.78rem;
+  text-align: center;
+}
+.sasv-family__chevron,
+.hub-family__chevron {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+[aria-expanded="true"] > .sasv-family__chevron,
+[aria-expanded="true"] > .hub-family__chevron {
+  transform: rotate(-135deg);
+}
+.sasv-family__body {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 6px;
+  padding: 8px;
+  min-width: 0;
+}
+.sasv-family__body[hidden],
+.hub-family__body[hidden] {
+  display: none;
+}
+.hub-family__body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  padding: 12px;
+  min-width: 0;
+}
+/* PWA search + Quick Access */
+.hub-tools {
+  max-width: 1120px;
+  margin: 12px auto;
+  padding: 0 4px;
+}
+.hub-search__input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border, #d6dbe3);
+  border-radius: 10px;
+  font: inherit;
+}
+.hub-search__results {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.hub-search__result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  background: #fff;
+}
+.hub-search__result a {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: inherit;
+  text-decoration: none;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+.hub-search__result[aria-disabled="true"] {
+  opacity: 0.6;
+}
+.hub-search__note {
+  font-size: 0.75rem;
+  color: var(--sasv-text-muted, #5b6472);
+}
+.hub-pin {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--border, #d6dbe3);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+}
+.hub-pin[aria-pressed="true"] {
+  background: var(--sasv-action-primary-soft, #e6f1f7);
+  border-color: var(--sasv-action-primary, #005a8d);
+}
+.hub-quick {
+  margin-top: 12px;
+}
+.hub-quick__title {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--sasv-text-muted, #5b6472);
+}
+.hub-quick__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.hub-quick__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+.hub-quick__item a {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1px solid var(--border, #d6dbe3);
+  border-radius: 999px;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.hub-quick__empty {
+  font-size: 0.8rem;
+  color: var(--sasv-text-muted, #5b6472);
+}
+@media (max-width: 720px) {
+  .sasv-subgroup__nodes,
+  .sasv-family__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hub-family__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

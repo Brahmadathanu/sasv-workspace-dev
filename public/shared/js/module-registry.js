@@ -67,6 +67,16 @@ export function normalizeModuleKey(value) {
   return MODULE_KEY_ALIASES[normalized] || normalized;
 }
 
+/**
+ * WP09 G2: the existing alias spellings that normalise to `moduleKey` (read-only reverse view of MODULE_KEY_ALIASES).
+ * Used only to make launcher search find a module by its former name; it grants and routes nothing.
+ */
+export function getModuleKeyAliases(moduleKey) {
+  const target = normalizeModuleKey(moduleKey);
+  if (!target) return [];
+  return Object.keys(MODULE_KEY_ALIASES).filter((alias) => MODULE_KEY_ALIASES[alias] === target);
+}
+
 export function targetToModuleKey(targetKey) {
   const raw = safeString(targetKey);
   if (!raw) return "";

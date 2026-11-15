@@ -111,6 +111,13 @@ self.addEventListener("fetch", (event) => {
     /\/shared\/js\/eaushadhi-review-.*\.js$/.test(url.pathname) ||
     /\/shared\/js\/eaushadhi-.*\.js$/.test(url.pathname) ||
     /\/shared\/css\/sasv-eaushadhi-review\.css$/.test(url.pathname) ||
+    // WP09 G2: launcher presentation (flag-gated) modules, and the two previously cache-first scripts that import
+    // them, are served network-first so an installed PWA never pairs new code with a stale cached copy.
+    // (Network-first bypasses an older cached entry, so no CACHE_NAME advance is needed.)
+    /\/shared\/js\/launcher-presentation(?:-contract)?\.js$/.test(url.pathname) ||
+    /\/shared\/css\/launcher-presentation\.css$/.test(url.pathname) ||
+    /\/shared\/js\/module-registry\.js$/.test(url.pathname) ||
+    /\/utilities-hub\/js\/hub-auth\.js$/.test(url.pathname) ||
     // FG-BIT-UX-1: the page HTML is network-first, so its script/stylesheet must
     // be too, otherwise an installed PWA pairs new HTML with stale cached JS.
     /\/shared\/js\/fg-bulk-internal-transfer\.js$/.test(url.pathname) ||

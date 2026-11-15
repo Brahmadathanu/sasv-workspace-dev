@@ -1,3 +1,5 @@
+> **15 NOV 2026 — WP09 G2 CLIENT PACKAGE DELIVERED FOR INDEPENDENT REVIEW (LATEST; WP09 OPEN, 9/13):** under owner authority ("Yes proceed", issue #436) the A→C client package is implemented as one separate draft PR behind the **default-off** flag `LAUNCHER_PRESENTATION_V1` — see [WP09_G2_CLIENT_IMPLEMENTATION_2026-11-15.md](WP09_G2_CLIENT_IMPLEMENTATION_2026-11-15.md) and [season/legacy review](WP09_G2_SEASON_PROFILE_AND_LEGACY_SOURCE_REVIEW_2026-11-15.md). **Flag not activated; nothing merged or deployed; no SQL, registry, permission, grant, production-writer or Electron-route change; writers and source-only pages preserved.** Mocked-Chromium results are not authenticated production acceptance. WP11 defects, WP12 role/security/PWA/Electron/Windows/flag obligations and `W12-WP08-01…08` remain open. No formal WP09 closure. Earlier banners below are historical.
+
 # WP-09 — Wider Application Launcher/Section Audit
 
 **15 November 2026 — G1 OWNER ACCEPTED; G2 A→C CLIENT IMPLEMENTATION AUTHORISED. WP09 OPEN; programme 9/13.**

@@ -219,6 +219,12 @@
               href: a.getAttribute("href"),
               id: a.dataset.moduleId || "",
               disabled: a.getAttribute("aria-disabled") === "true",
+              // WP09 G2 (inert unless LAUNCHER_PRESENTATION_V1 is "1": attributes are only rendered then)
+              moduleKey: a.dataset.moduleId || "",
+              description: a.dataset.description || "",
+              subgroup: a.dataset.subgroup || "",
+              aliases: (a.dataset.aliases || "").split("|").filter(Boolean),
+              locked: a.getAttribute("aria-disabled") === "true",
             }))
             .filter((a) => a.label);
 
@@ -245,6 +251,10 @@
         function findBest(label) {
           if (!label) return null;
           const idx = input._moduleIndex || [];
+          if (window.__launcherSearch?.enabled) {
+            // WP09 G2: shared matcher (label, description, subgroup, aliases). Locked hits stay disabled (caller refuses them).
+            return window.__launcherSearch.match(label, idx)[0] || null;
+          }
           const q = label.trim().toLowerCase();
           // exact match first
           let hit = idx.find((x) => x.label.toLowerCase() === q);
@@ -359,11 +369,16 @@
         function renderCmdResults(q) {
           const idx = input._moduleIndex || [];
           const qLow = q.trim().toLowerCase();
-          const filtered = qLow
-            ? idx.filter(
-                (x) => !x.disabled && x.label.toLowerCase().includes(qLow),
-              )
-            : idx.filter((x) => !x.disabled).slice(0, 20);
+          const searchable = idx.filter((x) => !x.disabled);
+          const filtered = window.__launcherSearch?.enabled
+            ? qLow
+              ? window.__launcherSearch.match(q, searchable)
+              : searchable.slice(0, 20)
+            : qLow
+              ? idx.filter(
+                  (x) => !x.disabled && x.label.toLowerCase().includes(qLow),
+                )
+              : idx.filter((x) => !x.disabled).slice(0, 20);
           const pinnedSet = new Set(getPinnedModulesSafe());
 
           cmdResults.innerHTML = "";
@@ -482,9 +497,28 @@
         loadClientModuleRegistry,
         loadNavigationSections,
         normalizeModuleKey,
+        getModuleKeyAliases,
       } from "./public/shared/js/module-registry.js";
+      import {
+        isLauncherPresentationV1Enabled,
+        planSection,
+        getContractEntry,
+        matchModules,
+      } from "./public/shared/js/launcher-presentation.js";
 
       window.supabase = supabase;
+
+      // WP09 G2: ONE default-off presentation flag (LAUNCHER_PRESENTATION_V1 = "1"). OFF = today's launcher, unchanged.
+      const presentationOn = isLauncherPresentationV1Enabled();
+      if (presentationOn) {
+        document.documentElement.dataset.launcherPresentation = "v1";
+        const presentationCss = document.createElement("link");
+        presentationCss.rel = "stylesheet";
+        presentationCss.href = "public/shared/css/launcher-presentation.css";
+        document.head.appendChild(presentationCss);
+        // Bridge for the classic header/palette script below: one shared matcher, flat module-level results.
+        window.__launcherSearch = { enabled: true, match: matchModules };
+      }
 
       function escapeHtml(value) {
         return String(value ?? "")
@@ -663,6 +697,43 @@
             ).some((anchor) => anchor.style.display !== "none");
             panel.style.display = hasVisibleLinks ? "" : "none";
           });
+        if (presentationOn) syncPresentationGroups();
+      }
+
+      // WP09 G2: resolve family / subgroup visibility AFTER permission filtering. Only anchors the permission pass set
+      // to "flex" count as visible, so empty families and subgroups disappear and nothing is shown before the gate runs.
+      function syncPresentationGroups() {
+        document.querySelectorAll("#workspace-sections .sasv-family").forEach((family) => {
+          const links = Array.from(family.querySelectorAll("a.module-link"));
+          const visible = links.filter((a) => a.style.display === "flex").length;
+          family.style.display = visible ? "" : "none";
+          const count = family.querySelector("[data-family-count]");
+          if (count) count.textContent = String(visible);
+          const toggle = family.querySelector(".sasv-family__toggle");
+          const body = family.querySelector(".sasv-family__body");
+          if (toggle && body && visible === 1 && !family.dataset.userToggled) {
+            toggle.setAttribute("aria-expanded", "true");
+            body.hidden = false;
+          }
+        });
+        document.querySelectorAll("#workspace-sections .sasv-subgroup").forEach((sub) => {
+          const any = Array.from(sub.querySelectorAll("a.module-link")).some((a) => a.style.display === "flex");
+          sub.style.display = any ? "" : "none";
+        });
+      }
+
+      if (presentationOn && workspaceRoot) {
+        workspaceRoot.addEventListener("click", (event) => {
+          const toggle = event.target.closest && event.target.closest(".sasv-family__toggle");
+          if (!toggle) return;
+          const family = toggle.closest(".sasv-family");
+          const body = family?.querySelector(".sasv-family__body");
+          if (!body) return;
+          const open = toggle.getAttribute("aria-expanded") !== "true";
+          toggle.setAttribute("aria-expanded", open ? "true" : "false");
+          body.hidden = !open;
+          family.dataset.userToggled = "true";
+        });
       }
 
       function getSuggestionCandidate(candidates) {
@@ -886,7 +957,7 @@
               key: sectionKey,
               title: sectionTitle,
               hint: sectionMeta?.description || "",
-              order: sectionMeta?.sortOrder ?? index,
+              order: sectionMeta?.sortOrder ?? (presentationOn ? 1_000_000 + index : index),
               items: [],
             });
           } else if (!sections.get(sectionTitle).key && sectionKey) {
@@ -1000,8 +1071,7 @@
           if (hint) hint.textContent = section.hint || "";
           if (list) {
             const identityClass = `identity-${identity}`;
-            list.innerHTML = section.items
-              .map((item) => {
+            const renderModuleLink = (item) => {
                 const href = item.placeholder ? "#" : item.routePath || "#";
                 const initial = (item.label.trim()[0] || "?").toUpperCase();
                 const desc = String(item.description || "").trim();
@@ -1014,6 +1084,14 @@
                   `data-placeholder="${item.placeholder ? "true" : "false"}"`,
                   `data-initial="${escapeHtml(initial)}"`,
                 ];
+                if (presentationOn) {
+                  const entry = getContractEntry(item.moduleKey, sectionKey);
+                  attrs.push(
+                    `data-subgroup="${escapeHtml(entry ? entry.subgroup : "")}"`,
+                    `data-description="${escapeHtml(item.description || "")}"`,
+                    `data-aliases="${escapeHtml(getModuleKeyAliases(item.moduleKey).join("|"))}"`,
+                  );
+                }
                 if (!item.placeholder) {
                   attrs.push(
                     `data-href="${escapeHtml(item.routePath || "#")}"`,
@@ -1029,8 +1107,24 @@
                   ? `<span class="sasv-module-launch__desc">${escapeHtml(desc)}</span>`
                   : `<span class="sasv-module-launch__desc"></span>`;
                 return `<a ${attrs.join(" ")} href="${escapeHtml(href)}"><span class="sasv-module-launch__badge ml-initial ${identityClass}" aria-hidden="true">${escapeHtml(initial)}</span><span class="sasv-module-launch__body ml-copy"><span class="sasv-module-launch__title ml-label">${escapeHtml(item.label)}</span>${descHtml}<span class="ml-badge hidden" data-module-badge="true"></span></span></a>`;
-              })
-              .join("");
+            };
+            if (!presentationOn) {
+              list.innerHTML = section.items.map(renderModuleLink).join("");
+            } else {
+              const plan = planSection(section.items, sectionKey);
+              list.innerHTML = plan.subgroups
+                .map((sub) => {
+                  const nodes = sub.nodes
+                    .map((node) => {
+                      if (node.kind === "module") return renderModuleLink(node.item);
+                      const bodyId = `family-${node.id}`;
+                      return `<div class="sasv-family" data-family-id="${escapeHtml(node.id)}"><button type="button" class="sasv-family__toggle" aria-expanded="false" aria-controls="${escapeHtml(bodyId)}"><span class="sasv-family__title">${escapeHtml(node.label)}</span><span class="sasv-family__count" data-family-count></span><span class="sasv-family__chevron" aria-hidden="true"></span></button><div class="sasv-family__body" id="${escapeHtml(bodyId)}" role="group" aria-label="${escapeHtml(node.label)}" hidden>${node.items.map(renderModuleLink).join("")}</div></div>`;
+                    })
+                    .join("");
+                  return `<div class="sasv-subgroup" data-subgroup="${escapeHtml(sub.label)}" data-subgroup-fallback="${sub.fallback ? "true" : "false"}"><h3 class="sasv-subgroup__title">${escapeHtml(sub.label)}</h3><div class="sasv-subgroup__nodes">${nodes}</div></div>`;
+                })
+                .join("");
+            }
           }
           workspaceRoot.appendChild(panel);
         });

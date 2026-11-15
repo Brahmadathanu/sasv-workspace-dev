@@ -42,7 +42,7 @@ check("O2 SQL view query orders sort_order then label", /order\("sort_order"[^)]
 check("O3 Electron client re-sorts order then label.localeCompare", /left\.order !== right\.order\) return left\.order - right\.order;\s*return left\.label\.localeCompare/.test(idx));
 check("O4 PWA sortByCuration = section, order, label", /sectionDelta[\s\S]*orderDelta[\s\S]*localeCompare/.test(hub));
 check("O5 Electron groups by sectionLabel (title), not key — two sections sharing a label would merge", /sections\.has\(sectionTitle\)/.test(idx) && /sections\.get\(sectionTitle\)/.test(idx));
-check("O6 FINDING Electron section order falls back to row index when catalog entry missing", /order: sectionMeta\?\.sortOrder \?\? index/.test(idx));
+check("O6 FINDING (G1, historical) Electron section order falls back to row index when catalog entry is missing — G2 keeps this EXACT behaviour with the flag OFF and orders such sections after every catalog section when LAUNCHER_PRESENTATION_V1 is ON", /order: sectionMeta\?\.sortOrder \?\? \(presentationOn \? 1_000_000 \+ index : index\)/.test(idx));
 
 // ---- launcher behaviour contracts ----
 check("B1 Electron fails closed when get_user_permissions fails", /display = "none"/.test(idx) && /permsErr \|\| !Array\.isArray\(perms\)/.test(idx));
@@ -51,7 +51,7 @@ check("B3 palette search = label substring only", /x\.label\.toLowerCase\(\)\.in
 check("B4 palette empty query capped at 20", /slice\(0, 20\)/.test(idx));
 check("B5 Quick Access personal: localStorage scoped by user id; pins<=10, recents<=8", /sasv-workspace:\$\{workspaceStorageScope\}/.test(idx) && /writeStoredModuleList\("pinned-modules", items, 10\)/.test(idx) && /"recent-modules", items, 8/.test(idx));
 check("B6 Quick Access excludes locked/disabled and '#' routes", /aria-disabled"\) !== "true" && href !== "#"/.test(idx));
-check("B7 PWA hub has no module search / palette / Quick Access code", !/moduleSearch|cmd-palette|pinned-modules/.test(read("public/utilities-hub/index.html") + hub));
+check("B7 (G1, historical) PWA hub has no module search / palette / Quick Access with the flag OFF; G2 creates them only when LAUNCHER_PRESENTATION_V1 is ON", !/moduleSearch|cmd-palette|pinned-modules/.test(read("public/utilities-hub/index.html") + hub) && /if \(presentationOn\) renderHubTools\(session, utilities, accessMap\)/.test(hub));
 check("B8 FINDING two Electron search surfaces (header datalist + Ctrl+K palette) with different locked-item handling", /module-list-datalist/.test(idx) && /cmdPaletteInput/.test(idx));
 check("B9 local fallback modules injected client-side: product-shelf-life-manager, staff-directory-manager", /product-shelf-life-manager/.test(idx) && /staff-directory-manager/.test(idx) && /sortOrder: 9998/.test(idx));
 check("B10 launcher never writes registry/permission tables (only user_presence)", !/from\("(app_modules|app_module_clients|app_nav_sections|permission_targets|user_permissions)[a-z_]*"\)\s*\.(insert|update|upsert|delete)/.test(idx + hub + reg));
