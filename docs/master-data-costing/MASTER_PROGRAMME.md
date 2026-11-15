@@ -1,3 +1,5 @@
+> **CURRENT — WP09 OWNER CONDITIONALLY CLOSED; WP10 STARTED (10/13):** [WP09 closure](WP09_OWNER_AUTHORISED_CONDITIONAL_CLOSURE_2026-11-15.md) records the owner's explicit Go ahead. All bounded dispositions and W12-WP09-01…05 remain binding; presentation stays default-off. WP10 G0 is satisfied and [G1 audit](WP10_G1_INITIAL_AUDIT_2026-11-15.md) is in progress under issue #438; no implementation/SQL/flag/release authority. WP11 defects and WP12 inherited gates unchanged. Older progress banners below are historical.
+
 > **CURRENT — WP09 FINAL AUDIT READY FOR OWNER (15 Nov; 9/13):** G1/G2 source merged; post-merge CI SUCCESS and six hosted PWA runtime assets match main source byte-for-byte. [Final audit and closure recommendation](WP09_FINAL_AUDIT_AND_CONDITIONAL_CLOSURE_RECOMMENDATION_2026-11-15.md) proposes conditional closure with explicit W12-WP09-01…05 receiving gates, default-off presentation and preserved WP11 defects. WP09 OPEN until a separate owner closure decision; no activation or formal count advance. Older pending-hosting/merge banners below are historical.
 
 > **LATEST — OWNER-AUTHORISED G1/G2 SOURCE INTEGRATION COMPLETE (15 Nov 2026; 9/13):** #434 merged at `93dee941621faa8500e7833376a922f5f90216c1`; #437 retargeted to main, refreshed CI passed, then merged at `6e8572df39fe3b3667001e33cf30b454ac067cd2`. [Post-merge record](WP09_POST_MERGE_INTEGRATION_2026-11-15.md) records exact reviewed SW pin, verification and outstanding acceptance. Presentation remains default-off; no flag activation performed. WP09 OPEN; no formal closure/count advance. Hosting completion and served-asset acceptance are NOT CONFIRMED from available receipts; WP11 defects and WP12 role/SW/PWA/Electron/Windows obligations remain. Older merge-pending/verification-HOLD banners below are historical.
@@ -140,11 +142,11 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 - [x] WP03 — Creation-Time Guided Completeness — COMPLETED, VERIFIED, AND MERGED
 - [x] WP04 — Central Master Data / Costing Readiness Control Centre — COMPLETED, VERIFIED, MERGED, AND CLOSED
 - [x] WP05 — Costing Suite Functional Rationalisation Audit — CLOSED 12 Nov 2026 by owner-authorised W5-10 with bounded residuals; see R63/R62; no claim all tests PASS or release approved
-- [ ] WP06 — Pricing Policy Manager Simplification
-- [~] MDC-07 (was WP07) — Costing Suite Navigation and Information Architecture — N1 implemented on a draft PR (3 Nov 2026), awaiting review; N2/N3/N4/W6/U11 not started
-- [ ] WP08 — Product / Master Data Navigation Rationalisation
-- [ ] WP09 — Wider Application Launcher/Section Audit
-- [ ] WP10 — Governance Safeguards for Future Product/SKU Creation
+- [x] WP06 — Pricing Policy Manager Simplification — CLOSED (prior owner gate)
+- [x] MDC-07 (WP07) — Costing Suite Navigation and IA — owner-conditionally CLOSED
+- [x] WP08 — Product / Master Data Navigation Rationalisation — owner-conditionally CLOSED
+- [x] WP09 — Wider Application Launcher/Section Audit — owner-conditionally CLOSED 15 Nov 2026
+- [ ] WP10 — Future Product/SKU Creation Safeguards — STARTED; G0 satisfied, G1 audit in progress (#438)
 - [ ] WP11 — UX Consistency and Visual Hardening
 - [ ] WP12 — Regression, Live Proof and Governance Documentation
 
@@ -155,7 +157,7 @@ WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11
 IN PROGRESS: closing. Current remaining items: REMAINING_WORK_2026-10-31.md (31 Oct 2026). Earlier list and dispositions: MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md (25 Oct 2026)
 
 ## Active work pack
-None formally accepted as active (see 3 Nov status above). WP04 — Central Master Data / Costing Readiness Control Centre is completed, verified, merged, and closed. *Updated 3 Nov 2026:* WP05 audit evidence (A1–A7) merged as #130; the owner accepted the WP05-G2 Tier 1 design on 2 Nov 2026; P02 (#131) and P01 (#132) are merged; MDC-07 package N1 is implemented on a draft PR awaiting independent review. No package other than N1 is authorised. Formal count unchanged: 5 of 13 substantive work packs accepted.
+WP10 — Governance Safeguards for Future Product/SKU Creation. G0 entry satisfied; G1 transition/recurrence audit in progress. See WP10_G1_INITIAL_AUDIT_2026-11-15.md and issue #438.
 
 ## Active gate
 None. WP04-G8 is completed and post-merge verification passed.
@@ -163,7 +165,7 @@ None. WP04-G8 is completed and post-merge verification passed.
 WP04 merged to `main` as `1ff8d13e90b5078dde7e414e3c257cf41aa6f34b` with parent 1 `a007cea4d624835dc5406a952657769868619649` and parent 2 `836ff0e9e9fd8dbe27061dde2a6346236466b2a4`. G0–G8 are complete. Formal G7 remains PASS; Track A remains CLOSED / APPLIED / PROVEN; Track B remains accepted at runtime candidate `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`. Post-merge verification confirmed the merged tree matches the verified branch tree, Build 4 remains current/COMPLETED with Run 115 and 1793/611 populations, source fingerprint matches, Readiness RPC and CSE-P01 are unchanged, and no new statement-timeout or legacy-dashboard-summary log event was found in the checked post-merge window. No GitHub CI evidence is claimed. WP05 remains not started.
 
 ## Overall completion progress
-5 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, WP03, and WP04 are complete. WP04 merged to `main` as `1ff8d13e90b5078dde7e414e3c257cf41aa6f34b`; its final synchronized feature head was `836ff0e9e9fd8dbe27061dde2a6346236466b2a4`, while the signed-in runtime candidate verified in G7 was `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
+**10 of 13 substantive work packs CLOSED (WP00–WP09)**, with owner-approved bounded residuals where documented. WP10–WP12 OPEN. WP-1 is an additional prerequisite outside the denominator. Conditional closure does not grant rollout or turn WP12 NOT TESTED cases into PASS.
 
 ## Major locked decisions
 - Server-authoritative completeness.

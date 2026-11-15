@@ -1,0 +1,370 @@
+{
+  "date": "2026-11-15",
+  "project": "qhmoqtxpeasamtlxaoak",
+  "source_pin": "6d934c6701c33d46c48ea52ad902424f0bc82b5f",
+  "classification": "read-only catalog SELECT; function definitions and trigger metadata only; no business writer, readiness function or role impersonation executed",
+  "functions": [
+    {
+      "schema_name": "public",
+      "proname": "fn_guard_active_sku_requires_active_product",
+      "definition": "CREATE OR REPLACE FUNCTION public.fn_guard_active_sku_requires_active_product()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\r\ndeclare\r\n    v_product_status text;\r\nbegin\r\n    if new.is_active is not true then\r\n        return new;\r\n    end if;\r\n\r\n    select p.status\r\n    into v_product_status\r\n    from public.products p\r\n    where p.id = new.product_id;\r\n\r\n    if not found then\r\n        raise exception\r\n            'Cannot activate SKU: product % does not exist.',\r\n            new.product_id;\r\n    end if;\r\n\r\n    if v_product_status is distinct from 'Active' then\r\n        raise exception\r\n            'Cannot activate SKU for inactive product %.',\r\n            new.product_id;\r\n    end if;\r\n\r\n    return new;\r\nend;\r\n$function$\n"
+    },
+    {
+      "schema_name": "costing",
+      "proname": "fn_sku_activation_missing_items",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_sku_activation_missing_items(p_sku_id bigint, p_product_id bigint DEFAULT NULL::bigint)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\ndeclare\n  v_product_id bigint;\n  v_period date;\n  v_val date;\n  v_missing jsonb := '[]'::jsonb;\n  v_family bigint;\n  v_valid jsonb;\nbegin\n  v_product_id := coalesce(p_product_id, (select s.product_id from public.product_skus s where s.id = p_sku_id));\n  if v_product_id is null then\n    raise exception 'SKU % not found', p_sku_id;\n  end if;\n\n  -- Current governed costing period = latest period; its valuation date is the as-of date.\n  select cp.period_start, cp.valuation_date into v_period, v_val\n  from costing.cost_periods cp order by cp.period_start desc limit 1;\n  v_val := greatest(coalesce(v_val, current_date), (now() at time zone 'Asia/Kolkata')::date);  -- CI-038a\n\n  -- (1) Approved PM-BOM revision (SKU level)\n  if not exists (select 1 from public.plm_sku_bom_revision_as_of(p_sku_id, v_val) b where b.id is not null) then\n    v_missing := v_missing || jsonb_build_object('code','PM_BOM_REVISION','label','Approved packing-material BOM','where','PM BOM Manager');\n  end if;\n\n  -- (2) Batch-size reference (product level)\n  if not exists (select 1 from public.production_batch_size_ref b\n                 where b.product_id = v_product_id and b.is_active\n                   and b.effective_from <= v_val and (b.effective_to is null or b.effective_to >= v_val)) then\n    v_missing := v_missing || jsonb_build_object('code','BATCH_SIZE_REFERENCE','label','Batch size reference','where','Batch Sizes (Supply / Batch Plan)');\n  end if;\n\n  -- (3) Production route READY (single-product version of costing.fn_product_process_route_readiness)\n  v_family := costing.fn_resolve_route_family_for_product(v_product_id::int, v_val);\n  v_valid  := costing.fn_validate_effective_product_process_route(v_product_id::int, v_val);\n  if v_family is null\n     or not exists (select 1 from costing.production_route_family_route r\n                    where r.route_family_id = v_family and r.archived_at is null and r.status = 'APPROVED'\n                      and r.effective_from <= v_val and (r.effective_to is null or r.effective_to >= v_val))\n     or not coalesce((v_valid->>'valid')::boolean, false) then\n    v_missing := v_missing || jsonb_build_object('code','MANUFACTURING_ROUTE','label','Production route','where','Production Route Manager');\n  end if;\n\n  -- (4) MRP policy\n  if coalesce((select m.resolution_status from costing.fn_resolve_sku_mrp_as_of(p_sku_id, v_val) m limit 1), '') <> 'RESOLVED' then\n    v_missing := v_missing || jsonb_build_object('code','MRP_POLICY','label','MRP policy','where','Pricing Policy Manager > MRP');\n  end if;\n\n  -- (5) Selling-price / GST policy\n  if coalesce((select x.resolution_status from costing.fn_resolve_sku_selling_price_policy_as_of(p_sku_id, v_val) x limit 1), '') <> 'RESOLVED' then\n    v_missing := v_missing || jsonb_build_object('code','SELLING_PRICE_POLICY','label','Selling price / GST policy','where','Pricing Policy Manager > Selling & scheme policies');\n  end if;\n\n  return jsonb_build_object('sku_id', p_sku_id, 'period_start', v_period, 'as_of_date', v_val, 'missing', v_missing);\nend\n$function$\n"
+    },
+    {
+      "schema_name": "public",
+      "proname": "rpc_get_sku_activation_check",
+      "definition": "CREATE OR REPLACE FUNCTION public.rpc_get_sku_activation_check(p_sku_id bigint)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'public', 'costing', 'pg_temp'\nAS $function$\nbegin\n  if auth.uid() is null then raise exception 'Not authenticated'; end if;\n  if not public.app_has_permission('module:manage-products', 'view') then\n    raise exception 'Permission denied for module:manage-products';\n  end if;\n  return costing.fn_sku_activation_missing_items(p_sku_id);\nend\n$function$\n"
+    },
+    {
+      "schema_name": "public",
+      "proname": "fn_guard_sku_activation_completeness",
+      "definition": "CREATE OR REPLACE FUNCTION public.fn_guard_sku_activation_completeness()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'costing', 'pg_temp'\nAS $function$\ndeclare\n  v_chk jsonb;\n  v_list text;\nbegin\n  if new.is_active is not true then return new; end if;\n  if tg_op = 'UPDATE' and old.is_active is true then return new; end if;  -- already active: untouched\n\n  v_chk := costing.fn_sku_activation_missing_items(new.id, new.product_id);\n  if jsonb_array_length(v_chk->'missing') > 0 then\n    select string_agg((m->>'label') || ' (' || (m->>'where') || ')', '; ')\n      into v_list from jsonb_array_elements(v_chk->'missing') m;\n    raise exception using\n      errcode = 'P0001',\n      message = format('Cannot activate SKU %s: missing %s. Fill these in, then activate again.', new.id, v_list),\n      detail  = v_chk::text,\n      hint    = 'Save the SKU as inactive until all five costing essentials are approved.';\n  end if;\n  return new;\nend\n$function$\n"
+    },
+    {
+      "schema_name": "public",
+      "proname": "rpc_set_product_sku_active",
+      "definition": "CREATE OR REPLACE FUNCTION public.rpc_set_product_sku_active(p_sku_id bigint, p_is_active boolean, p_reason text, p_approval_reference text DEFAULT NULL::text)\n RETURNS TABLE(sku_id bigint, product_id bigint, pack_size numeric, uom text, is_active boolean, is_sample boolean, audit_event_type text)\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\ndeclare\n    v_actor uuid;\n    v_reason text;\n    v_approval_reference text;\n    v_event_type text;\n    v_old public.product_skus%rowtype;\n    v_new public.product_skus%rowtype;\n    v_chk jsonb;\n    v_list text;\nbegin\n    perform public.require_permission('module:manage-products', true);\n    v_actor := auth.uid();\n    if v_actor is null then raise exception 'Not authenticated'; end if;\n    if p_sku_id is null then raise exception 'SKU ID is required'; end if;\n    if p_is_active is null then raise exception 'Target SKU active state is required'; end if;\n    v_reason := btrim(coalesce(p_reason, ''));\n    v_approval_reference := nullif(btrim(coalesce(p_approval_reference, '')), '');\n    if v_reason = '' then raise exception 'SKU lifecycle reason is required'; end if;\n\n    select * into v_old from public.product_skus ps where ps.id = p_sku_id for update;\n    if not found then raise exception 'SKU % does not exist', p_sku_id; end if;\n    if v_old.is_active is not distinct from p_is_active then\n        raise exception 'SKU % is already %', p_sku_id, case when p_is_active then 'active' else 'inactive' end;\n    end if;\n\n    if p_is_active then\n        v_chk := costing.fn_sku_activation_missing_items(p_sku_id, v_old.product_id);\n        if jsonb_array_length(v_chk->'missing') > 0 then\n            select string_agg(m->>'label', ', ') into v_list from jsonb_array_elements(v_chk->'missing') m;\n            raise exception using errcode = 'P0001',\n              message = format('This SKU cannot be made active yet. Missing: %s.', v_list),\n              detail = v_chk::text;\n        end if;\n    end if;\n\n    v_event_type := case when p_is_active then 'ACTIVATE' else 'DEACTIVATE' end;\n\n    update public.product_skus ps set is_active = p_is_active where ps.id = p_sku_id returning * into v_new;\n\n    insert into public.product_sku_master_audit (sku_id, product_id, event_type, old_snapshot, new_snapshot, reason, approval_reference, actor_user_id)\n    values (v_new.id, v_new.product_id, v_event_type, to_jsonb(v_old), to_jsonb(v_new), v_reason, v_approval_reference, v_actor);\n\n    return query select v_new.id, v_new.product_id, v_new.pack_size, v_new.uom, v_new.is_active, v_new.is_sample, v_event_type;\nend;\n$function$\n"
+    }
+  ],
+  "sku_triggers": [
+    {
+      "tgname": "trg_active_sku_requires_active_product",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER trg_active_sku_requires_active_product BEFORE INSERT OR UPDATE OF product_id, is_active ON public.product_skus FOR EACH ROW EXECUTE FUNCTION fn_guard_active_sku_requires_active_product()"
+    },
+    {
+      "tgname": "trg_product_sku_change_log",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER trg_product_sku_change_log AFTER INSERT OR DELETE OR UPDATE ON public.product_skus FOR EACH ROW EXECUTE FUNCTION fn_log_product_sku_change()"
+    },
+    {
+      "tgname": "trg_product_skus_price_list_active_guard",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER trg_product_skus_price_list_active_guard BEFORE INSERT OR UPDATE ON public.product_skus FOR EACH ROW EXECUTE FUNCTION fn_product_skus_price_list_active_guard()"
+    },
+    {
+      "tgname": "trg_sku_activation_completeness_guard",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER trg_sku_activation_completeness_guard BEFORE INSERT OR UPDATE OF is_active, product_id ON public.product_skus FOR EACH ROW EXECUTE FUNCTION fn_guard_sku_activation_completeness()"
+    },
+    {
+      "tgname": "wp04_readiness_epoch_269c9b1695b3",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_269c9b1695b3 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.product_skus FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    }
+  ],
+  "readiness_epoch_triggers": [
+    {
+      "schema_name": "costing",
+      "relname": "cost_driver_policy_cutover_acceptance",
+      "tgname": "wp04_readiness_epoch_f3b6ff2446d4",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_f3b6ff2446d4 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.cost_driver_policy_cutover_acceptance FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "cost_driver_policy_envelope",
+      "tgname": "wp04_readiness_epoch_88abed30aa14",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_88abed30aa14 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.cost_driver_policy_envelope FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "cost_element_driver_catalog",
+      "tgname": "wp04_readiness_epoch_197e3a6ca70c",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_197e3a6ca70c AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.cost_element_driver_catalog FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "cost_periods",
+      "tgname": "wp04_readiness_epoch_458128e51987",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_458128e51987 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.cost_periods FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "costing_refresh_run",
+      "tgname": "wp04_readiness_epoch_7c5e942273b1",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_7c5e942273b1 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.costing_refresh_run FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "costing_refresh_run_stage",
+      "tgname": "wp04_readiness_epoch_a133c04af177",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_a133c04af177 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.costing_refresh_run_stage FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "direct_labour_workload_policy",
+      "tgname": "wp04_readiness_epoch_a1bbb3efbdf8",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_a1bbb3efbdf8 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.direct_labour_workload_policy FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "marketing_allocation_policy",
+      "tgname": "wp04_readiness_epoch_ca2e89dd8d63",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_ca2e89dd8d63 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.marketing_allocation_policy FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "materials_stores_workload_policy",
+      "tgname": "wp04_readiness_epoch_e42bcf77495f",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_e42bcf77495f AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.materials_stores_workload_policy FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "product_process_route",
+      "tgname": "wp04_readiness_epoch_9de1ab53debb",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_9de1ab53debb AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.product_process_route FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "product_process_route_override",
+      "tgname": "wp04_readiness_epoch_509f0304cb21",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_509f0304cb21 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.product_process_route_override FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "production_overhead_workload_policy",
+      "tgname": "wp04_readiness_epoch_3bd05595c165",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_3bd05595c165 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.production_overhead_workload_policy FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "production_route_behaviour",
+      "tgname": "wp04_readiness_epoch_374d6d9c7734",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_374d6d9c7734 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.production_route_behaviour FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "production_route_candidate_policy",
+      "tgname": "wp04_readiness_epoch_419fd2cbbac2",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_419fd2cbbac2 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.production_route_candidate_policy FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "production_route_family",
+      "tgname": "wp04_readiness_epoch_63e71670d9c8",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_63e71670d9c8 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.production_route_family FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "production_route_family_product_group_map",
+      "tgname": "wp04_readiness_epoch_5dba1ada250b",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_5dba1ada250b AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.production_route_family_product_group_map FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "production_route_family_product_map",
+      "tgname": "wp04_readiness_epoch_7cdef1987b40",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_7cdef1987b40 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.production_route_family_product_map FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "production_route_family_product_subgroup_map",
+      "tgname": "wp04_readiness_epoch_dc0ad3f02a38",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_dc0ad3f02a38 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.production_route_family_product_subgroup_map FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "production_route_family_route",
+      "tgname": "wp04_readiness_epoch_28bd169b69ca",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_28bd169b69ca AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.production_route_family_route FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "production_route_family_route_step",
+      "tgname": "wp04_readiness_epoch_f46ec6c45b95",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_f46ec6c45b95 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.production_route_family_route_step FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "qc_workload_policy",
+      "tgname": "wp04_readiness_epoch_913e93246686",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_913e93246686 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.qc_workload_policy FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "sales_allocation_default_policy",
+      "tgname": "wp04_readiness_epoch_8e83e44470df",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_8e83e44470df AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.sales_allocation_default_policy FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "sku_admin_finance_overhead_allocation_snapshot",
+      "tgname": "wp04_readiness_epoch_20bfb1e493c2",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_20bfb1e493c2 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.sku_admin_finance_overhead_allocation_snapshot FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "sku_commercial_sales_assumption",
+      "tgname": "wp04_readiness_epoch_d5f5407b5915",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_d5f5407b5915 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.sku_commercial_sales_assumption FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "sku_costing_control_status_snapshot",
+      "tgname": "wp04_readiness_epoch_95f5c4d4e87d",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_95f5c4d4e87d AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.sku_costing_control_status_snapshot FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "sku_direct_labour_allocation_snapshot",
+      "tgname": "wp04_readiness_epoch_80408c3f1397",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_80408c3f1397 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.sku_direct_labour_allocation_snapshot FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "sku_marketing_expense_allocation_snapshot",
+      "tgname": "wp04_readiness_epoch_9bacf4f816c1",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_9bacf4f816c1 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.sku_marketing_expense_allocation_snapshot FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "sku_materials_stores_allocation_snapshot",
+      "tgname": "wp04_readiness_epoch_ce8e3ca4ca0b",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_ce8e3ca4ca0b AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.sku_materials_stores_allocation_snapshot FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "sku_mrp_policy",
+      "tgname": "wp04_readiness_epoch_fef0a6ac7792",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_fef0a6ac7792 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.sku_mrp_policy FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "sku_production_overhead_allocation_snapshot",
+      "tgname": "wp04_readiness_epoch_e587ed10a5d2",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_e587ed10a5d2 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.sku_production_overhead_allocation_snapshot FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "sku_qc_allocation_snapshot",
+      "tgname": "wp04_readiness_epoch_bd8d5d9c2de5",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_bd8d5d9c2de5 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.sku_qc_allocation_snapshot FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "sku_regional_marketing_allocation_basis_snapshot",
+      "tgname": "wp04_readiness_epoch_653aad7cc5c6",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_653aad7cc5c6 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.sku_regional_marketing_allocation_basis_snapshot FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "sku_sales_allocation_basis_snapshot",
+      "tgname": "wp04_readiness_epoch_1d5fa66540d0",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_1d5fa66540d0 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.sku_sales_allocation_basis_snapshot FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "sku_scheme_policy",
+      "tgname": "wp04_readiness_epoch_a548ccea947e",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_a548ccea947e AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.sku_scheme_policy FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "sku_selected_scheme_policy_context_snapshot",
+      "tgname": "wp04_readiness_epoch_20eb3d1ca416",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_20eb3d1ca416 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.sku_selected_scheme_policy_context_snapshot FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "costing",
+      "relname": "sku_selling_price_policy",
+      "tgname": "wp04_readiness_epoch_4d40f6e485d0",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_4d40f6e485d0 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON costing.sku_selling_price_policy FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "public",
+      "relname": "categories",
+      "tgname": "wp04_readiness_epoch_a335a721765d",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_a335a721765d AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.categories FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "public",
+      "relname": "plm_bom_revision",
+      "tgname": "wp04_readiness_epoch_9a5044e02f0f",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_9a5044e02f0f AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.plm_bom_revision FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "public",
+      "relname": "product_groups",
+      "tgname": "wp04_readiness_epoch_417001907bdf",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_417001907bdf AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.product_groups FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "public",
+      "relname": "product_skus",
+      "tgname": "wp04_readiness_epoch_269c9b1695b3",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_269c9b1695b3 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.product_skus FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "public",
+      "relname": "production_batch_size_ref",
+      "tgname": "wp04_readiness_epoch_a1059d402083",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_a1059d402083 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.production_batch_size_ref FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "public",
+      "relname": "products",
+      "tgname": "wp04_readiness_epoch_10cdc96fc855",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_10cdc96fc855 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.products FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "public",
+      "relname": "sub_categories",
+      "tgname": "wp04_readiness_epoch_4aa115b0c97e",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_4aa115b0c97e AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.sub_categories FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    },
+    {
+      "schema_name": "public",
+      "relname": "sub_groups",
+      "tgname": "wp04_readiness_epoch_b4891bc5a740",
+      "tgenabled": "O",
+      "definition": "CREATE TRIGGER wp04_readiness_epoch_b4891bc5a740 AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.sub_groups FOR EACH STATEMENT EXECUTE FUNCTION costing.fn_wp04_readiness_bump_source_epoch()"
+    }
+  ]
+}

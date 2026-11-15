@@ -1,67 +1,19 @@
 # WP-10 — Governance Safeguards for Future Product/SKU Creation
 
+**STARTED 15 November 2026. G0 entry satisfied; G1 source/live-metadata audit IN PROGRESS. Programme 10/13.** Owner approved starting WP10 together with conditional WP09 closure.
+
 ## Objective
-Implement systematic detection/prevention so incomplete SKUs cannot remain silent.
+Implement systematic detection/prevention so incomplete SKUs cannot remain silent. Reuse server-authoritative WP01–WP04 contracts, preserving Active versus Costing Ready, effective dating, audit history and fail-closed status semantics.
 
-## Why this work pack exists
-See MASTER_PROGRAMME.md and the approved programme handoff. This file is the durable authority for this work pack.
+## Current findings and evidence
+[Initial independent audit](WP10_G1_INITIAL_AUDIT_2026-11-15.md) records existing inactive creation, five-essential activation checks, parent-active and audit triggers, and 44 live readiness epoch hooks. [Issue #438](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/438) is one comprehensive writer/recurrence source-and-fixture audit assignment. Live metadata evidence is committed; production completeness/role testing is NOT TESTED. No new safeguard implementation is justified until the recurrence/freshness gap analysis is complete.
 
-## Entry criteria
-All prerequisite work packs in MASTER_PROGRAMME.md are completed and verified.
+## Gates
+- [x] Entry: WP09 owner conditionally closed; existing prerequisites respected.
+- [~] G1: creation/update/activation transitions, later dependency and expiry detection, ownership, visibility and failure paths; isolated fixtures.
+- [ ] Reviewed G2 design/minimal implementation scope.
+- [ ] Implementation, focused tests and independent audit.
+- [ ] Owner approval for any exact production operation or formal closure.
 
-## Scope
-As defined by the approved programme handoff; refine only from audited live architecture and explicit decisions.
-
-## Explicit exclusions
-No work belonging to later gates; no guessed data; no unrelated/e-Aushadhi changes.
-
-## Current-state findings
-Not started.
-
-## Approved design / contract
-Not yet approved.
-
-## Milestones
-- [ ] Current-state/audit gate
-- [ ] Design/contract gate where applicable
-- [ ] Implementation gate where applicable
-- [ ] Focused verification
-- [ ] Independent audit
-- [ ] Merge/post-merge proof where applicable
-- [ ] Final handover
-
-## Current Gate
-`WP10-G0 — entry criteria / not started`
-
-## Gate Status
-[ ] NOT STARTED
-
-## Required to close
-Entry criteria must be satisfied and the work pack explicitly started.
-
-## Next gate
-To be determined from evidence when this WP becomes active.
-
-## Server changes
-None.
-
-## Client changes
-None.
-
-## Tests / verification
-None.
-
-## Decisions created
-None.
-
-## Risks
-Premature assumptions; scope drift; duplicated authority; loss of effective-dated/history semantics.
-
-## Parked discoveries
-None.
-
-## Exit criteria
-All work-pack objectives and required verification gates pass; documentation and handover are current.
-
-## Final handover
-Not started.
+## Next work and exclusions
+Complete #438 as one audit PR; ChatGPT handles direct read-only server questions and independent review. Preserve inactive incomplete drafts, five-essential activation guard and existing audit contracts. No production SQL/migrations, permission/RLS/grant, registry, flag activation, release/deploy, new launcher or automatic deactivation. No WP08/PEC reopening. WP11 defects and all inherited WP12 cases remain. Five historical migration CRLF-only differences stay untouched. WP10 remains OPEN; implementation and closure are not implied by this kickoff.
