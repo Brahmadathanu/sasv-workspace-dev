@@ -371,7 +371,7 @@ try {
       return n;
     };
     check("M6 control: no pin reuse across a user switch on the real code", (await switchLeak([])) === 0);
-    const m7 = await switchLeak([[/\/utilities-hub\/js\/hub-auth\.js$/, (b) => b.replace("hubTools.scope = scopeFromUser(session?.user);", 'hubTools.scope = hubTools.scope === "guest" ? scopeFromUser(session?.user) : hubTools.scope;')]]);
+    const m7 = await switchLeak([[/\/utilities-hub\/js\/hub-auth\.js$/, (b) => b.replace('  hubTools.scope = "guest";\n', "").replace("hubTools.scope = scopeFromUser(session?.user);", 'hubTools.scope = hubTools.scope === "guest" ? scopeFromUser(session?.user) : hubTools.scope;')]]);
     check("M7 mutation 'stale pin reuse across users' is DETECTED", m7 > 0);
   }
 
