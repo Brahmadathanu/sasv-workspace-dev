@@ -3,19 +3,23 @@
 == g2 guards (PASS/FAIL/NOT_PROVEN/SKIPPED labels)
      37 PASS 
 == g2 provenance (PASS/FAIL/NOT_PROVEN/SKIPPED labels)
-     19 PASS 
+     26 PASS 
+== g2 preview (PASS/FAIL/NOT_PROVEN/SKIPPED labels)
+     42 PASS 
 == g2 draft-sql-static (PASS/FAIL/NOT_PROVEN/SKIPPED labels)
-     19 PASS 
+     25 PASS 
 == g2 client-units (node:test)
-# tests 12 # pass 12 # fail 0 # skipped 0 
+# tests 14 # pass 14 # fail 0 # skipped 0 
 == g2 source (node:test)
-# tests 9 # pass 8 # fail 1 # skipped 0 
+# tests 11 # pass 11 # fail 0 # skipped 0 
 == g2 sw-delivery (node:test)
 # tests 7 # pass 7 # fail 0 # skipped 0 
 == g2 browser-products (node:test)
 # tests 24 # pass 24 # fail 0 # skipped 0 
 == g2 browser-readiness (node:test)
 # tests 27 # pass 27 # fail 0 # skipped 0 
+== g2 browser-preview (node:test)
+# tests 23 # pass 23 # fail 0 # skipped 0 
 == g1 transition-fixture (labels)
      56 PASS 
 == g1 fixture-mutation (labels)
@@ -42,7 +46,7 @@ FAILED product-sku-lifecycle-smoke (2)
 == wp08-g2-0-shared-master-data/browser
 # tests 48 # pass 46 # fail 0 # skipped 0 
 == wp08-g2-1-navigation/source
-# tests 13 # pass 12 # fail 1 # skipped 0 
+# tests 13 # pass 13 # fail 0 # skipped 0 
 == wp08-g2-1-navigation/selection
 # tests 8 # pass 8 # fail 0 # skipped 0 
 == wp08-g2-1-navigation/resolver

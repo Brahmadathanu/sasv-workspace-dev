@@ -26,7 +26,8 @@ test("reader/writer surface of the four pages is unchanged vs G2-1 start (same r
     if (f.endsWith("products.js")) { b.perm = [...new Set(b.perm)]; a.perm = [...new Set(a.perm)]; }
     // WP10 G2 (issue #440): one read-only, flag-gated call to the existing rpc_get_sku_activation_check is the only sanctioned addition;
     // pinned by scripts/wp10-g2-safeguards/source.test.mjs (S9).
-    if (f.endsWith("products.js") && !b.rpc.includes("rpc_get_sku_activation_check")) { const i = a.rpc.indexOf("rpc_get_sku_activation_check"); if (i >= 0) a.rpc.splice(i, 1); }
+    // exact names only (each at most once), pinned again by WP10 source S9; the impact preview (#440 completion package) adds exactly rpc_wp10_preview_product_subgroup_impact.
+    if (f.endsWith("products.js")) for (const name of ["rpc_get_sku_activation_check", "rpc_wp10_preview_product_subgroup_impact"]) { if (!b.rpc.includes(name)) { const i = a.rpc.indexOf(name); if (i >= 0) a.rpc.splice(i, 1); } }
     assert.deepEqual(a.rpc, b.rpc, `${f} rpc`);
     assert.deepEqual(a.from, b.from, `${f} tables`);
     assert.deepEqual(a.perm, b.perm, `${f} permission strings`);

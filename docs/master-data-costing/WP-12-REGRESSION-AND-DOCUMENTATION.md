@@ -97,3 +97,6 @@ The owner explicitly authorises **receipt of responsibilities**, not evidence st
 | B1-T1 | **None** | No individual AE1 21 NT or 4 historical F accepted or transferred |
 
 **Receiving milestone:** WP12 final integrated acceptance **before any rollout**. **Status:** assignment accepted; execution outstanding. Older mock-backed integration results may be credited only within their precise scope and do not substitute for genuine signed-in final-build evidence. WP05 still owns its specialist security, failed/untested individual lenses, factual costing parity, D3/C5/D5/F1/L1 findings, and final Gate Status. [Binding shared §11](WP05_WP06_WP12_AUTHENTICATED_ACCEPTANCE_EXECUTION_PACKAGE_2026-11-06.md); [B1 full matrix](WP05_B1_WP12_RECEIVER_AND_OWNER_APPROVAL_PACKAGE_2026-11-10.md).
+
+## WP10 impact-preview receiving cases (15 Nov 2026)
+See [WP10_WP12_IMPACT_PREVIEW_RECEIVING_CASES_2026-11-15.md](WP10_WP12_IMPACT_PREVIEW_RECEIVING_CASES_2026-11-15.md): real-role, hosted/installed-client, cache-release and production-scale cases for the pre-submit preview. All NOT TESTED; they add to, never replace, existing WP12 obligations.

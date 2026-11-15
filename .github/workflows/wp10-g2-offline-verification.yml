@@ -13,6 +13,7 @@ on:
       - 'docs/master-data-costing/WP10_G1_EVIDENCE/*.json'
       - 'docs/master-data-costing/WP10_G2_EVIDENCE/*.json'
       - 'docs/master-data-costing/WP10_G2_UNAPPLIED_SQL_PROPOSALS/**'
+      - 'docs/master-data-costing/WP10_G2_COUNTERFACTUAL_PREVIEW_CONTRACT_DRAFT_2026-11-15.md'
 
 permissions:
   contents: read
@@ -55,11 +56,13 @@ jobs:
           for suite in client-units sw-delivery source draft-sql-static; do
             node "scripts/wp10-g2-safeguards/$suite.test.mjs" | tee "$WP10_EVIDENCE/$suite.log"
           done
+          # the generated proposal 06 must equal its generator output (derivation parity is asserted by draft-sql-static S19/S20)
+          node scripts/wp10-g2-safeguards/gen-proposal-06.mjs && git diff --exit-code -- docs/master-data-costing/WP10_G2_UNAPPLIED_SQL_PROPOSALS/06_subgroup_impact_preview.sql
       - name: Isolated PostgreSQL fixtures and mutation controls (never Supabase)
         shell: bash
         run: |
           set -euo pipefail
-          for suite in horizon guards provenance; do
+          for suite in horizon guards provenance preview; do
             node "scripts/wp10-g2-safeguards/$suite.test.mjs" "$WP10_EVIDENCE/$suite.json" | tee "$WP10_EVIDENCE/$suite.log"
             if grep -q '^SKIPPED' "$WP10_EVIDENCE/$suite.log"; then
               echo '::error::PostgreSQL fixture skipped; gate cannot pass'
@@ -73,6 +76,12 @@ jobs:
           node --test scripts/wp10-g2-safeguards/browser-products.test.mjs scripts/wp10-g2-safeguards/browser-readiness.test.mjs | tee "$WP10_EVIDENCE/chromium.log"
           if grep -Eq '^# skipped [1-9]' "$WP10_EVIDENCE/chromium.log"; then
             echo '::error::Chromium checks skipped; gate cannot pass'
+            exit 1
+          fi
+          # the new preview suite must actually have run (a missing file or a silently empty run must not pass)
+          node --test scripts/wp10-g2-safeguards/browser-preview.test.mjs | tee "$WP10_EVIDENCE/chromium-preview.log"
+          if ! grep -Eq '^# pass [1-9][0-9]+' "$WP10_EVIDENCE/chromium-preview.log" || grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$WP10_EVIDENCE/chromium-preview.log"; then
+            echo '::error::impact-preview Chromium suite did not run to a clean pass'
             exit 1
           fi
       - name: Preserve offline logs and screenshots

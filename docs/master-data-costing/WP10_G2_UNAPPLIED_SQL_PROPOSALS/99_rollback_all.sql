@@ -1,5 +1,5 @@
 -- WP10 G2 ROLLBACK — UNAPPLIED. DO NOT RUN without separate, exact, owner-authorised operational approval.
--- Removes ONLY objects created by an application of proposals 01-05 that is still intact. No data is touched; no live-only function is altered.
+-- Removes ONLY objects created by an application of proposals 01-06 that is still intact. No data is touched; no live-only function is altered.
 --
 -- PROVENANCE (R5): every object created by 01-05 carries a COMMENT receipt 'WP10-G2 <file> md5:<md5 of its definition as created>'.
 --   Phase 1 verifies every object that EXISTS: receipt present, naming one of the five proposal files, and the current definition still matches the md5.
@@ -17,6 +17,12 @@ declare
   c text;
   v_bad text[] := '{}';
   v_funcs text[] := array[
+    'public.rpc_wp10_preview_product_subgroup_impact(integer, integer)',
+    'costing.fn_wp10_route_state_ctx(integer, date, integer)',
+    'costing.fn_wp10_validate_effective_product_process_route_ctx(integer, date, integer)',
+    'costing.fn_wp10_validate_product_process_route_ctx(bigint, integer)',
+    'costing.fn_wp10_resolve_effective_route_family_route_ctx(integer, date, integer)',
+    'costing.fn_wp10_resolve_route_family_ctx(integer, date, integer)',
     'public.rpc_wp10_get_operational_expiry_horizon(integer, bigint, integer)',
     'public.fn_wp10_product_route_impact_after()',
     'public.fn_wp10_product_route_impact_before()',
@@ -37,14 +43,14 @@ begin
     v := to_regprocedure(t);
     if v is null then continue; end if;
     c := obj_description(v, 'pg_proc');
-    if c is null or c !~ '^WP10-G2 0[1-5]_[a-z_]+\.sql md5:[0-9a-f]{32}$' or split_part(c, 'md5:', 2) <> md5(pg_get_functiondef(v)) then
+    if c is null or c !~ '^WP10-G2 0[1-6]_[a-z_]+\.sql md5:[0-9a-f]{32}$' or split_part(c, 'md5:', 2) <> md5(pg_get_functiondef(v)) then
       v_bad := v_bad || t;
     end if;
   end loop;
   for i in 1 .. array_length(v_trg, 1) loop
     for r in select oid, tgname from pg_trigger where tgname = v_trg[i][1] and tgrelid = v_trg[i][2]::regclass and not tgisinternal loop
       c := obj_description(r.oid, 'pg_trigger');
-      if c is null or c !~ '^WP10-G2 0[1-5]_[a-z_]+\.sql md5:[0-9a-f]{32}$' or split_part(c, 'md5:', 2) <> md5(pg_get_triggerdef(r.oid)) then
+      if c is null or c !~ '^WP10-G2 0[1-6]_[a-z_]+\.sql md5:[0-9a-f]{32}$' or split_part(c, 'md5:', 2) <> md5(pg_get_triggerdef(r.oid)) then
         v_bad := v_bad || (v_trg[i][1] || ' on ' || v_trg[i][2]);
       end if;
     end loop;

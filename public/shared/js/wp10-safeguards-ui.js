@@ -8,6 +8,7 @@ import {
   HORIZON_MAX_ROWS,
   HORIZON_MAX_SCANNED,
   HORIZON_TIME_BUDGET_MS,
+  PREVIEW_REASON_TEXT,
   HORIZON_PAGE_LIMIT,
   buildHorizonRequest,
   createLatestGuard,
@@ -16,7 +17,7 @@ import {
   safeText,
   validateHorizonEnvelope,
   classifyReadinessError,
-} from "./wp10-safeguards.js?v=419f1603de";
+} from "./wp10-safeguards.js?v=6b42977628";
 
 // Minimal self-contained styles (reuse existing tokens/classes where present); injected once, only when this module is loaded (flag ON).
 const CSS = `.wp10-meta{font-size:.78rem;color:var(--sasv-text-muted,#5b6472);overflow-wrap:anywhere}
@@ -26,7 +27,7 @@ const CSS = `.wp10-meta{font-size:.78rem;color:var(--sasv-text-muted,#5b6472);ov
 .wp10-horizon__list{list-style:none;margin:0;padding:0;display:grid;gap:8px}.wp10-horizon__row{padding:8px;border:1px solid var(--sasv-control-border,#e5e7eb);border-radius:8px;min-width:0;overflow-wrap:anywhere}
 .wp10-horizon__ess{font-size:.85rem;margin-top:4px}
 .wp10-activation{margin-top:8px;padding:8px;border:1px solid var(--sasv-control-border,#d6dbe3);border-radius:8px;overflow-wrap:anywhere;min-width:0}
-.wp10-activation--rejected{border-color:#b42318}.wp10-activation__items{margin:6px 0 0;padding-left:1.1rem}`;
+#governanceModalBox{max-height:calc(100vh - 24px);overflow-y:auto}#governanceModalDetail{max-height:min(32vh,280px);overflow:auto;overscroll-behavior:contain}.wp10-activation--rejected{border-color:#b42318}.wp10-activation__items{margin:6px 0 0;padding-left:1.1rem}`;
 function injectStyles(doc) {
   if (!doc || doc.getElementById("wp10SafeguardsStyles")) return;
   const s = doc.createElement("style");
@@ -266,3 +267,63 @@ export function buildRejectionNode(doc, parsed, { linkFor = () => null } = {}) {
   if (parsed.hint) box.appendChild(el(doc, "div", "wp10-meta", `Server hint: ${parsed.hint}`));
   return box;
 }
+
+// ---- 4. Manage Products: pre-submit subgroup-impact preview (DOM nodes; every string via textContent) ----
+const PREVIEW_HEADLINE = {
+  NO_SUBGROUP_CHANGE: "The sub-group is not changing, so there is no route impact to preview.",
+  UNKNOWN: "Impact NOT proven: the route could not be fully evaluated for one of the sub-groups. Review is required before saving.",
+  ROUTE_LOSS: "Route loss detected: the product has a valid production route now but would not have one under the proposed sub-group.",
+  VALID_TO_VALID: "No new route loss observed at this moment: the product has a valid route under both sub-groups (identity shown below may differ).",
+  INVALID_TO_VALID: "The proposed sub-group resolves a valid route at this moment (the current one is not valid).",
+  INVALID_TO_INVALID: "An existing route problem remains under both sub-groups; this change does not fix it.",
+};
+const PREVIEW_UNAVAILABLE = {
+  ABSENT: "The impact preview is not available on this server yet. No assessment was made; the server still checks the save.",
+  NO_PERMISSION: "The impact preview could not be run with your access. No assessment was made; the server still checks the save.",
+  UNREACHABLE: "The impact preview could not be reached. No assessment was made; the server still checks the save.",
+  INPUT: "The impact preview rejected its inputs (the product or sub-group may no longer exist). No assessment was made.",
+  MALFORMED: "The impact preview returned an unusable answer and was discarded. No assessment was made; the server still checks the save.",
+  IDENTITY_MISMATCH: "The impact preview answered for a different product or sub-group and was discarded.",
+  INCONSISTENT: "The impact preview contradicted itself and was discarded. No assessment was made.",
+  STORED_CHANGED: "This product's stored sub-group changed since you opened it, so the preview is stale. Reopen the product before saving.",
+  ERROR: "The impact preview failed. No assessment was made; the server still checks the save.",
+};
+function routeLine(doc, label, r) {
+  const box = el(doc, "div", "wp10-meta");
+  const ids = [r.familyId != null ? `family ${r.familyId}` : "no family", r.familyRouteId != null ? `family route ${r.familyRouteId}` : null, r.productRouteId != null ? `product route ${r.productRouteId}` : null, r.routeSource ? r.routeSource.toLowerCase().replace(/_/g, " ") : null].filter(Boolean).join(" · ");
+  box.appendChild(el(doc, "strong", null, `${label}: ${r.state} — `));
+  box.appendChild(doc.createTextNode(ids));
+  if (r.reasons.length) {
+    const ul = el(doc, "ul", "wp10-activation__items");
+    for (const code of r.reasons) { const li = el(doc, "li"); li.appendChild(doc.createTextNode(PREVIEW_REASON_TEXT[code] ? `${PREVIEW_REASON_TEXT[code]} ` : "")); li.appendChild(el(doc, "span", "wp10-meta", `(${code})`)); ul.appendChild(li); }
+    box.appendChild(ul);
+  }
+  return box;
+}
+/** view: {kind:"ok", value} | {kind:"unavailable", reason}. linkFor({link:"route"}) → verified Production Route Manager link or null. */
+export function buildSubgroupImpactNode(doc, view, { linkFor = () => null } = {}) {
+  injectStyles(doc);
+  const box = el(doc, "div", "wp10-activation");
+  box.setAttribute("data-wp10-preview", view?.kind === "ok" ? view.value.impactClass : "unavailable");
+  if (view?.kind !== "ok") {
+    box.appendChild(statusNode(doc, PREVIEW_UNAVAILABLE[view?.reason] || PREVIEW_UNAVAILABLE.ERROR));
+    return box;
+  }
+  const v = view.value;
+  const bad = v.impactClass === "ROUTE_LOSS" || v.impactClass === "UNKNOWN";
+  if (bad) box.classList.add("wp10-activation--rejected");
+  box.appendChild(el(doc, "strong", null, PREVIEW_HEADLINE[v.impactClass]));
+  if (v.subGroupChanged) {
+    box.appendChild(routeLine(doc, "Route today under the current sub-group", v.before));
+    box.appendChild(routeLine(doc, "Route under the proposed sub-group", v.proposed));
+    box.appendChild(el(doc, "div", "wp10-meta", `Active SKUs of this product at this moment: ${v.activeSkuCount}. Evaluated on ${v.evaluatedOn} (IST). ${v.activeSkuCount === 0 ? "No active SKU is affected now; this says nothing about a later activation." : ""}`));
+    if (v.impactClass === "ROUTE_LOSS" || v.impactClass === "UNKNOWN" || v.impactClass === "INVALID_TO_INVALID") {
+      box.appendChild(el(doc, "div", "wp10-meta", "Remediation: with the Production Route Manager owner, map the proposed sub-group (or its group) to an approved route family, or fix the route data; or deactivate the active SKUs through the audited SKU action; then retry. There is no override."));
+      const link = typeof linkFor === "function" ? linkFor({ link: "route" }) : null;
+      if (link?.href) { const a = el(doc, "a", "btn secondary", link.label || "Open Production Route Manager"); a.href = link.href; a.target = "_blank"; a.rel = "noopener noreferrer"; box.appendChild(a); }
+    }
+  }
+  box.appendChild(el(doc, "div", "wp10-meta", "This preview is advisory and not authoritative: it is not an approval, not a bypass and not a promise that the save will succeed. The server checks again when you save, and this is not a costing READY statement."));
+  return box;
+}
+

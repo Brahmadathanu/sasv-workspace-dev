@@ -78,11 +78,33 @@ test("S8 Manage Products: pre-check never disables Confirm and never calls a wri
   assert.equal(/rpc_set_product_sku_active/.test(pre), false);
 });
 
-test("S9 products.js RPC surface differs from main by exactly the one read-only pre-check call", () => {
+test("S9 products.js RPC surface differs from main by exactly the read-only impact preview (exact name, no wildcard; the activation pre-check was merged with #441)", () => {
   const rpcs = (t) => [...t.matchAll(/\.rpc\(\s*["'`]([^"'`]+)["'`]/g)].map((m) => m[1]).sort();
   const base = rpcs(git("show", "origin/main:public/shared/js/products.js"));
   const now = rpcs(products);
-  assert.deepEqual(now.filter((n) => !base.includes(n)), ["rpc_get_sku_activation_check"]);
+  assert.deepEqual(now.filter((n) => !base.includes(n)).sort(), ["rpc_wp10_preview_product_subgroup_impact"], "vs current main (which already carries the merged activation pre-check) exactly the preview is new");
+  assert.ok(base.includes("rpc_get_sku_activation_check"));
+  assert.equal(now.filter((n) => n === "rpc_wp10_preview_product_subgroup_impact").length, 1, "the preview endpoint is called from exactly one site");
   assert.deepEqual(base.filter((n) => !now.includes(n)), []);
   assert.equal((products.match(/\.from\(\s*["'`]/g) || []).length, (git("show", "origin/main:public/shared/js/products.js").match(/\.from\(\s*["'`]/g) || []).length);
+});
+
+test("S10 impact preview: exactly one literal read-only RPC call site; the existing writer call sites are unchanged; preview code never disables Confirm or calls a writer", () => {
+  const baseProducts = git("show", "origin/main:public/shared/js/products.js");
+  const count = (t, re) => (t.match(re) || []).length;
+  assert.equal(count(products, /"rpc_update_product"/g), count(baseProducts, /"rpc_update_product"/g), "writer call sites unchanged");
+  assert.equal(count(products, /supabase\.rpc\("rpc_wp10_preview_product_subgroup_impact"/g), 1, "exactly one literal call site (so the WP08 surface pins see the exact name)");
+  assert.match(core, /export const PREVIEW_RPC = "rpc_wp10_preview_product_subgroup_impact";/);
+  const seg = products.slice(products.indexOf("let attempt = null;"), products.indexOf("if (!governance) return;", products.indexOf("let attempt = null;")));
+  assert.equal(/governanceConfirm|disabled\s*=|rpc_update_product|rpc_create_product/.test(seg), false);
+  assert.match(seg, /wp10ProductAttemptValid\(attempt\)/);
+});
+
+test("S11 the offline CI gate requires the preview suites (PG fixture + Chromium + generator parity) and rejects skips, keeping every earlier suite", () => {
+  const wf = fs.readFileSync(path.join(root, ".github/workflows/wp10-g2-offline-verification.yml"), "utf8");
+  for (const suite of ["client-units", "sw-delivery", "source", "draft-sql-static", "horizon", "guards", "provenance", "preview"]) assert.match(wf, new RegExp(`\\b${suite}\\b`), suite);
+  for (const f of ["browser-products.test.mjs", "browser-readiness.test.mjs", "browser-preview.test.mjs"]) assert.match(wf, new RegExp(f.replace(".", "\\.")));
+  assert.match(wf, /gen-proposal-06\.mjs/);
+  assert.match(wf, /grep -q '\^SKIPPED'/);
+  assert.match(wf, /# \(fail\|skipped\|cancelled\)/);
 });

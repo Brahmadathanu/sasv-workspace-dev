@@ -241,3 +241,79 @@ export function validateHorizonEnvelope(data, prev = null, { sentCursor = null }
   }
   return { ok: true, value: { context, rows, hasMore, nextAfterSkuId: next, scannedCount: scanned, budgetExhausted: st.budget_exhausted === true, lastSkuId: last } };
 }
+
+// ------------------------------------------------------------------------------------------------------------------
+// 4. Pre-submit subgroup-impact PREVIEW (UNAPPLIED server proposal 06; client inert until the RPC exists AND the flag is on).
+// The preview is NON-AUTHORITATIVE: it never gates, enables, disables or replaces the existing writer and its transactional guard.
+export const PREVIEW_RPC = "rpc_wp10_preview_product_subgroup_impact";
+export const PREVIEW_STATES = Object.freeze(["VALID", "INVALID", "UNKNOWN"]);
+export const PREVIEW_CLASSES = Object.freeze(["NO_SUBGROUP_CHANGE", "UNKNOWN", "ROUTE_LOSS", "VALID_TO_VALID", "INVALID_TO_VALID", "INVALID_TO_INVALID"]);
+const ROUTE_SOURCES = new Set(["PRODUCT_ROUTE", "ROUTE_FAMILY_INHERITED"]);
+const REASON_RE = /^[A-Z][A-Z0-9_]{0,63}$/;
+/** Plain-language text for the codes the canonical validators / proposal 06 emit; an unknown code is shown as its code only (never as markup). */
+export const PREVIEW_REASON_TEXT = Object.freeze({
+  NO_APPROVED_ROUTE_FAMILY_MAPPING: "No approved route family is mapped to this product, sub-group or group on today's date.",
+  NO_APPROVED_ROUTE_FAMILY_ROUTE: "The mapped route family has no approved or superseded route in force today.",
+  NO_APPROVED_ROUTE_FAMILY_ASSIGNMENT: "The product route's own effective-from date has no route family under this sub-group.",
+  ROUTE_FAMILY_ASSIGNMENT_MISMATCH: "The product route was built on a different route family than this sub-group resolves at the route's effective date.",
+  AMBIGUOUS_APPROVED_PRODUCT_ROUTE: "More than one approved product route overlaps today; the route cannot be resolved.",
+  EVALUATION_ERROR: "The route check could not be evaluated.",
+  MALFORMED_RESULT: "The route check returned an unusable result.",
+  UNSPECIFIED_REASON: "The route is invalid but no specific reason was returned.",
+  REQUIRES_PRODUCTION_PROCESS_STEP: "The effective route has no production process step.",
+  NO_ROUTE_STEPS: "The effective route has no steps.",
+  BASE_ROUTE_FAMILY_ROUTE_NOT_APPROVED: "The product route's base family route is not approved.",
+  INCOMPLETE_ROUTE_EVIDENCE: "The route evidence is incomplete.",
+});
+
+export function buildPreviewRequest(productId, proposedSubGroupId) {
+  const p = Number(productId), g = Number(proposedSubGroupId);
+  if (!Number.isSafeInteger(p) || p <= 0 || !Number.isSafeInteger(g) || g <= 0) return null;
+  return { rpc: PREVIEW_RPC, args: { p_product_id: p, p_proposed_sub_group_id: g } };
+}
+
+/** 'ABSENT' | 'NO_PERMISSION' | 'UNREACHABLE' | 'INPUT' | 'ERROR' - an absent endpoint is explicit, never an assessment. */
+export function classifyPreviewFailure(err) {
+  if (isMissingRpcError(err)) return "ABSENT";
+  const msg = String(err?.message ?? err ?? "");
+  if (/WP10_PREVIEW_INPUT/.test(msg)) return "INPUT";
+  const c = classifyReadinessError(err);
+  if (c.kind === "PERMISSION" || c.kind === "NOT_AUTHENTICATED") return "NO_PERMISSION";
+  if (c.kind === "TRANSPORT" || c.kind === "TIMEOUT") return "UNREACHABLE";
+  return "ERROR";
+}
+
+function validateRoute(r) {
+  if (!r || typeof r !== "object" || Array.isArray(r) || !PREVIEW_STATES.includes(r.state)) return null;
+  const idOk = (v) => v === null || (Number.isSafeInteger(v) && v > 0);
+  if (![r.family_id, r.family_route_id, r.product_route_id].every(idOk)) return null;
+  if (r.route_source !== null && !ROUTE_SOURCES.has(r.route_source)) return null;
+  if (!Array.isArray(r.reasons) || r.reasons.length > 12 || !r.reasons.every((x) => typeof x === "string" && REASON_RE.test(x))) return null;
+  if (r.state !== "VALID" && r.reasons.length === 0) return null; // INVALID/UNKNOWN always explain themselves
+  return { state: r.state, routeSource: r.route_source, familyId: r.family_id, familyRouteId: r.family_route_id, productRouteId: r.product_route_id, reasons: r.reasons.slice(0, 12) };
+}
+
+/**
+ * Strict validation of one preview response against what THIS attempt asked for. expected = { productId, storedSubGroupId, proposedSubGroupId }.
+ * Anything off is {ok:false, reason}: never a favourable assessment. STORED_CHANGED means the server's stored sub-group differs from the one the form
+ * was loaded with (someone else edited the product): the result is stale for this attempt.
+ */
+export function validatePreviewEnvelope(data, expected) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return { ok: false, reason: "MALFORMED" };
+  if (data.assessment_kind !== "PRODUCT_SUBGROUP_ROUTE_IMPACT" || data.authoritative_for_save !== false) return { ok: false, reason: "MALFORMED" };
+  if (data.product_id !== Number(expected.productId) || data.proposed_sub_group_id !== Number(expected.proposedSubGroupId)) return { ok: false, reason: "IDENTITY_MISMATCH" };
+  if (!Number.isSafeInteger(data.stored_sub_group_id) || data.stored_sub_group_id <= 0) return { ok: false, reason: "MALFORMED" };
+  if (data.stored_sub_group_id !== Number(expected.storedSubGroupId)) return { ok: false, reason: "STORED_CHANGED" };
+  if (typeof data.sub_group_changed !== "boolean" || data.sub_group_changed !== (data.stored_sub_group_id !== data.proposed_sub_group_id)) return { ok: false, reason: "MALFORMED" };
+  if (!PREVIEW_CLASSES.includes(data.impact_class) || typeof data.review_required !== "boolean") return { ok: false, reason: "MALFORMED" };
+  if (!Number.isSafeInteger(data.active_sku_count) || data.active_sku_count < 0) return { ok: false, reason: "MALFORMED" };
+  if (!ISO.test(String(data.evaluated_on)) || data.date_basis !== "CURRENT_IST_DATE") return { ok: false, reason: "MALFORMED" };
+  if (typeof data.context_digest !== "string" || !/^[0-9a-f]{32}$/.test(data.context_digest)) return { ok: false, reason: "MALFORMED" };
+  const before = validateRoute(data.before), proposed = validateRoute(data.proposed);
+  if (!before || !proposed) return { ok: false, reason: "MALFORMED" };
+  // the class must follow from the states: a response that contradicts itself is not displayed as an assessment
+  const anyUnknown = before.state === "UNKNOWN" || proposed.state === "UNKNOWN";
+  const expectClass = !data.sub_group_changed ? "NO_SUBGROUP_CHANGE" : anyUnknown ? "UNKNOWN" : before.state === "VALID" && proposed.state === "INVALID" ? "ROUTE_LOSS" : before.state === "VALID" ? "VALID_TO_VALID" : proposed.state === "VALID" ? "INVALID_TO_VALID" : "INVALID_TO_INVALID";
+  if (expectClass !== data.impact_class) return { ok: false, reason: "INCONSISTENT" };
+  return { ok: true, value: { impactClass: data.impact_class, reviewRequired: data.review_required, activeSkuCount: data.active_sku_count, evaluatedOn: String(data.evaluated_on), subGroupChanged: data.sub_group_changed, before, proposed, digest: data.context_digest } };
+}
