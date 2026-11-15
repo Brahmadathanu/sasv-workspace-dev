@@ -1,0 +1,46 @@
+{
+  "results": [
+    {
+      "id": "M0",
+      "status": "PASS",
+      "name": "invariant suite is clean on the unmodified fixture",
+      "detail": ""
+    },
+    {
+      "id": "MU 1",
+      "status": "PASS",
+      "name": "completeness trigger dropped is DETECTED",
+      "detail": "violations=active-insert-accepted"
+    },
+    {
+      "id": "MU 2",
+      "status": "PASS",
+      "name": "parent-active trigger dropped is DETECTED",
+      "detail": "violations=activation-under-inactive-parent-accepted"
+    },
+    {
+      "id": "MU 3",
+      "status": "PASS",
+      "name": "pre-check neutralised in lifecycle RPC and completeness trigger dropped is DETECTED",
+      "detail": "violations=active-insert-accepted,activation-with-missing-essential-accepted"
+    },
+    {
+      "id": "MU 4",
+      "status": "PASS",
+      "name": "CI-038a reverted (valuation-only as-of) is DETECTED",
+      "detail": "violations=asof-not-IST-today"
+    },
+    {
+      "id": "MU 5",
+      "status": "PASS",
+      "name": "epoch hook on a dependency dropped is DETECTED",
+      "detail": "violations=dependency-change-not-invalidated"
+    },
+    {
+      "id": "MU 6",
+      "status": "PASS",
+      "name": "MRP essential ignored by the helper (trigger dropped too) is DETECTED",
+      "detail": "violations=active-insert-accepted,activation-with-missing-essential-accepted"
+    }
+  ]
+}

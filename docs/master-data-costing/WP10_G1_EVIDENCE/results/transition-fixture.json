@@ -1,0 +1,278 @@
+{
+  "synthetic": "isolated PostgreSQL fixture; live-verbatim guards, stand-in writers",
+  "provenance": {
+    "costing.fn_sku_activation_missing_items": "LIVE-VERBATIM (clock tokens only)",
+    "public.fn_guard_sku_activation_completeness": "LIVE-VERBATIM",
+    "public.fn_guard_active_sku_requires_active_product": "LIVE-VERBATIM",
+    "public.rpc_set_product_sku_active": "LIVE-VERBATIM",
+    "public.rpc_get_sku_activation_check": "LIVE-VERBATIM",
+    "trg_active_sku_requires_active_product": "LIVE-VERBATIM",
+    "trg_sku_activation_completeness_guard": "LIVE-VERBATIM",
+    "public.plm_sku_bom_revision_as_of": "REPO-VERBATIM (gate A migration)",
+    "public.fn_log_product_sku_change + trg_product_sku_change_log": "REPO-VERBATIM (CI-038 section 5)",
+    "fx_standin_rpc_create_product_sku / _update_product_sku / _update_product_status": "STAND-IN (live definitions NOT captured)",
+    "fx_standin_guard_product_inactivation": "STAND-IN (live definition NOT captured; documented in WP-02-G1)",
+    "costing.fn_resolve_* / fn_validate_* resolvers": "STAND-IN (MRP / selling-price live definitions NOT captured; route resolvers differ)",
+    "costing.fn_wp04_readiness_bump_source_epoch + fx_fingerprint/fx_read": "STAND-IN (live definitions NOT captured; models the documented V2.2 freshness comparison)"
+  },
+  "results": [
+    {
+      "id": "F1.1",
+      "status": "PASS",
+      "name": "inactive SKU with NONE of the five essentials can be created (RPC stand-in and direct insert)",
+      "detail": ""
+    },
+    {
+      "id": "F1.2",
+      "status": "PASS",
+      "name": "creation writes the create audit (stand-in contract) AND the verbatim change log row",
+      "detail": ""
+    },
+    {
+      "id": "F1.3",
+      "status": "PASS",
+      "name": "creation bumps the product_skus source epoch (invalidation hook fires for a new inactive SKU)",
+      "detail": ""
+    },
+    {
+      "id": "F2.1",
+      "status": "PASS",
+      "name": "direct INSERT of an active SKU with no essentials is rejected (P0001) naming all five missing items with their owner screens",
+      "detail": "Cannot activate SKU 1: missing Approved packing-material BOM (PM BOM Manager); Batch size reference (Batch Sizes (Supply"
+    },
+    {
+      "id": "F2.2",
+      "status": "PASS",
+      "name": "the create RPC with p_is_active=true is rejected identically and leaves no SKU and no audit row",
+      "detail": ""
+    },
+    {
+      "id": "F2.3",
+      "status": "PASS",
+      "name": "a SAMPLE SKU gets no bypass: is_sample=true active insert is rejected with the same five items",
+      "detail": ""
+    },
+    {
+      "id": "F2.4",
+      "status": "PASS",
+      "name": "rejected creation rolls the epoch back too (no hook fired for a statement that failed)",
+      "detail": ""
+    },
+    {
+      "id": "F3.PM_BOM",
+      "status": "PASS",
+      "name": "missing ONLY Approved packing-material BOM blocks activation (P0001, message lists exactly it) even with an approval reference",
+      "detail": "This SKU cannot be made active yet. Missing: Approved packing-material BOM."
+    },
+    {
+      "id": "F3.BATCH",
+      "status": "PASS",
+      "name": "missing ONLY Batch size reference blocks activation (P0001, message lists exactly it) even with an approval reference",
+      "detail": "This SKU cannot be made active yet. Missing: Batch size reference."
+    },
+    {
+      "id": "F3.ROUTE",
+      "status": "PASS",
+      "name": "missing ONLY Production route blocks activation (P0001, message lists exactly it) even with an approval reference",
+      "detail": "This SKU cannot be made active yet. Missing: Production route."
+    },
+    {
+      "id": "F3.MRP",
+      "status": "PASS",
+      "name": "missing ONLY MRP policy blocks activation (P0001, message lists exactly it) even with an approval reference",
+      "detail": "This SKU cannot be made active yet. Missing: MRP policy."
+    },
+    {
+      "id": "F3.SELLING",
+      "status": "PASS",
+      "name": "missing ONLY Selling price / GST policy blocks activation (P0001, message lists exactly it) even with an approval reference",
+      "detail": "This SKU cannot be made active yet. Missing: Selling price / GST policy."
+    },
+    {
+      "id": "F3.6",
+      "status": "PASS",
+      "name": "no ACTIVATE audit row and no state change after five rejections; detail json carries code + owner screen",
+      "detail": ""
+    },
+    {
+      "id": "F4.1",
+      "status": "PASS",
+      "name": "complete SKU activates through the RPC; audit holds reason, approval reference, actor and old/new snapshots",
+      "detail": ""
+    },
+    {
+      "id": "F4.2",
+      "status": "PASS",
+      "name": "a complete SKU also activates by direct UPDATE (trigger passes) — and no audit row is written on that path",
+      "detail": ""
+    },
+    {
+      "id": "F4.3",
+      "status": "PASS",
+      "name": "view-only editor, unauthenticated caller and blank reason are all refused",
+      "detail": ""
+    },
+    {
+      "id": "F4.4",
+      "status": "PASS",
+      "name": "already-active target is rejected; deactivation is allowed and audited DEACTIVATE (never blocked by the five-essential check)",
+      "detail": ""
+    },
+    {
+      "id": "F4.5",
+      "status": "PASS",
+      "name": "SKU created inactive then completed then activated = the supported path; the audit trail shows exactly ACTIVATE then DEACTIVATE for SKU 1",
+      "detail": ""
+    },
+    {
+      "id": "F5.1",
+      "status": "PASS",
+      "name": "a COMPLETE SKU under an Inactive product cannot be activated (RPC or direct); nothing is audited",
+      "detail": ""
+    },
+    {
+      "id": "F5.2",
+      "status": "PASS",
+      "name": "Active is not Costing Ready: the activation check passes while only the five essentials are modelled (readiness dimensions beyond the five are NOT evaluated by the guard)",
+      "detail": ""
+    },
+    {
+      "id": "F6.1",
+      "status": "PASS",
+      "name": "deleting the approved PM BOM revision and expiring the batch-size reference do NOT deactivate the active SKU (explicit existing boundary; no automatic deactivation)",
+      "detail": ""
+    },
+    {
+      "id": "F6.2",
+      "status": "PASS",
+      "name": "the SAME guard helper now reports both dependencies missing (detection source exists, evaluated on demand)",
+      "detail": ""
+    },
+    {
+      "id": "F6.3",
+      "status": "PASS",
+      "name": "source-epoch hooks fire on both dependency writes; the (modelled) freshness read turns STALE, fail-closed, until a governed rebuild; absent build also fails closed",
+      "detail": ""
+    },
+    {
+      "id": "F6.4",
+      "status": "PASS",
+      "name": "nothing in the model alerts anyone or rebuilds: STALE persists on repeated reads and the build count is unchanged until an explicit build call (matches the 12 Nov production recovery, which needed an owner-authorised one-off call)",
+      "detail": ""
+    },
+    {
+      "id": "F7.1",
+      "status": "PASS",
+      "name": "with the clock past effective_to and NO row written, the activation helper (as-of = today IST) reports BATCH_SIZE_REFERENCE missing for the already-active SKU",
+      "detail": "2027-01-05|BATCH_SIZE_REFERENCE"
+    },
+    {
+      "id": "F7.2",
+      "status": "PASS",
+      "name": "…while NO epoch changes and the modelled freshness read still returns FRESH: write-triggered hooks cannot observe passage of time (structural property; the real fingerprint composition is NOT captured — catalog question Q5)",
+      "detail": "epochs equal=true read=FRESH"
+    },
+    {
+      "id": "F7.3",
+      "status": "PASS",
+      "name": "the helper's as-of date (today IST, 2027-01-05) differs from the governed period valuation date (2026-09-10) that LIVE_AS_OF readiness is evaluated at — the activation guard and readiness evaluate different dates",
+      "detail": ""
+    },
+    {
+      "id": "F8.1",
+      "status": "PASS",
+      "name": "editing pack/UOM/sample on an ACTIVE SKU is allowed even though its MRP policy is now missing (already-active boundary: essentials are not re-checked on edits)",
+      "detail": "||75|true"
+    },
+    {
+      "id": "F8.2",
+      "status": "PASS",
+      "name": "every active edit is recorded with exactly the changed columns by the verbatim change log",
+      "detail": ""
+    },
+    {
+      "id": "F8.3",
+      "status": "PASS",
+      "name": "PROVEN PREVENTION GAP: re-parenting an ACTIVE SKU to an Active product that has NO batch size and NO route is accepted — the completeness trigger fires (UPDATE OF product_id) but returns early because the row was already active",
+      "detail": ""
+    },
+    {
+      "id": "F8.4",
+      "status": "PASS",
+      "name": "…detection still exists: the helper now lists the product-level essentials missing for the moved SKU and the product_skus epoch hook fired",
+      "detail": ""
+    },
+    {
+      "id": "F8.5",
+      "status": "PASS",
+      "name": "re-parenting an active SKU to an INACTIVE product IS blocked by the parent-active guard",
+      "detail": ""
+    },
+    {
+      "id": "F8.6",
+      "status": "PASS",
+      "name": "the freshness read goes STALE after these active edits (epoch bumped by the writes)",
+      "detail": ""
+    },
+    {
+      "id": "F9.1",
+      "status": "PASS",
+      "name": "the SKU-side triggers alone do NOT stop a product being set Inactive while an active SKU exists (leaves an active SKU under an inactive parent) — coverage rests on the product-side guard documented in WP-02 whose live definition is NOT captured",
+      "detail": ""
+    },
+    {
+      "id": "F9.2",
+      "status": "PASS",
+      "name": "STAND-IN of the documented product-side guard: product inactivation blocked while any SKU is active; allowed after the SKU is deactivated",
+      "detail": ""
+    },
+    {
+      "id": "F9.3",
+      "status": "PASS",
+      "name": "once the parent is Inactive, SKU reactivation is blocked by the verbatim parent guard (even though the five essentials are complete)",
+      "detail": ""
+    },
+    {
+      "id": "F10.1",
+      "status": "PASS",
+      "name": "two overlapping approved PM BOM revisions make activation (and the pre-check) RAISE AMBIGUOUS_PM_BOM_REVISION — fail-closed, but as a raw exception rather than a listed 'missing' item",
+      "detail": ""
+    },
+    {
+      "id": "F11.1",
+      "status": "PASS",
+      "name": "as-of uses the IST calendar day, not UTC (20:00 UTC on 14 Nov = 15 Nov IST) when it is later than the period valuation date",
+      "detail": "2026-11-15"
+    },
+    {
+      "id": "F11.2",
+      "status": "PASS",
+      "name": "a LATER governed valuation date beats today's IST date (greatest rule)",
+      "detail": "2027-02-15"
+    },
+    {
+      "id": "F11.3",
+      "status": "PASS",
+      "name": "once IST today passes the latest valuation date, today wins again (20:00 UTC 28 Feb = 1 Mar IST)",
+      "detail": "2027-03-01"
+    },
+    {
+      "id": "F12.1",
+      "status": "PASS",
+      "name": "a direct (non-RPC) deactivation leaves NO lifecycle audit event but IS captured in the change log with actor_user_id NULL (service/SQL-editor signature)",
+      "detail": ""
+    },
+    {
+      "id": "F12.2",
+      "status": "PASS",
+      "name": "audit rows are append-only in behaviour: later edits add rows and never rewrite earlier snapshots",
+      "detail": ""
+    },
+    {
+      "id": "F13.1",
+      "status": "PASS",
+      "name": "every fixture object is classed LIVE-VERBATIM / REPO-VERBATIM / STAND-IN; the live-verbatim set equals the five captured functions + two triggers",
+      "detail": ""
+    }
+  ]
+}

@@ -1,0 +1,196 @@
+{
+  "results": [
+    {
+      "id": "P0.1",
+      "status": "PASS",
+      "name": "catalog is catalog-only evidence for qhmoqtxpeasamtlxaoak with 5 functions, 5 product_skus triggers, 44 epoch triggers",
+      "detail": ""
+    },
+    {
+      "id": "P1.1",
+      "status": "PASS",
+      "name": "live helper == CI-038a (as-of = greatest(period valuation, current IST date))",
+      "detail": ""
+    },
+    {
+      "id": "P1.2",
+      "status": "PASS",
+      "name": "live completeness trigger fn == CI-038",
+      "detail": ""
+    },
+    {
+      "id": "P1.3",
+      "status": "PASS",
+      "name": "live read-only pre-check RPC == CI-038",
+      "detail": ""
+    },
+    {
+      "id": "P1.4",
+      "status": "PASS",
+      "name": "live lifecycle RPC == CI-038 section 4",
+      "detail": ""
+    },
+    {
+      "id": "P1.5",
+      "status": "PASS",
+      "name": "CI-038a is the ONLY delta from the original CI-038 helper (valuation-only text would regress the as-of rule)",
+      "detail": ""
+    },
+    {
+      "id": "P1.6",
+      "status": "NOT PROVEN",
+      "name": "parent-active guard: live definition captured; repository has NO creating migration (SA1 only revokes ACL) — source/live parity cannot be proven from the repo",
+      "detail": "live captured=true repoDefinition=false"
+    },
+    {
+      "id": "P2.1",
+      "status": "PASS",
+      "name": "exactly the five essentials, in this order",
+      "detail": "PM_BOM_REVISION,BATCH_SIZE_REFERENCE,MANUFACTURING_ROUTE,MRP_POLICY,SELLING_PRICE_POLICY"
+    },
+    {
+      "id": "P2.2",
+      "status": "PASS",
+      "name": "as-of date = greatest(latest cost period valuation date (fallback current_date), current IST date); no sample/urgent/approval parameter exists",
+      "detail": ""
+    },
+    {
+      "id": "P2.3",
+      "status": "PASS",
+      "name": "helper is STABLE SECURITY DEFINER with fixed search_path (live header)",
+      "detail": ""
+    },
+    {
+      "id": "P2.4",
+      "status": "PASS",
+      "name": "completeness guard: inactive rows pass; UPDATE of an already-active row returns early (explicit existing boundary); error carries errcode P0001 + detail json + hint",
+      "detail": ""
+    },
+    {
+      "id": "P2.5",
+      "status": "PASS",
+      "name": "lifecycle RPC: edit permission, auth, reason required, row lock, same-state rejected, five-essential pre-check only when activating, audit insert with old/new snapshots",
+      "detail": ""
+    },
+    {
+      "id": "P2.6",
+      "status": "PASS",
+      "name": "lifecycle RPC: the five-essential pre-check sits inside `if p_is_active`, so deactivation is never blocked by it, and no cascade touches products or other SKUs",
+      "detail": ""
+    },
+    {
+      "id": "P2.7",
+      "status": "PASS",
+      "name": "parent-active guard: only evaluates when NEW.is_active; missing parent and non-'Active' parent both raise",
+      "detail": ""
+    },
+    {
+      "id": "P2.8",
+      "status": "PASS",
+      "name": "pre-check RPC needs authentication and module:manage-products VIEW (not edit) and is read-only",
+      "detail": ""
+    },
+    {
+      "id": "P3.1",
+      "status": "PASS",
+      "name": "all five product_skus triggers are enabled (tgenabled = 'O')",
+      "detail": ""
+    },
+    {
+      "id": "P3.2",
+      "status": "PASS",
+      "name": "completeness guard is BEFORE INSERT OR UPDATE OF is_active, product_id ROW (so a product_id change on an ACTIVE row fires it, but the function returns early)",
+      "detail": ""
+    },
+    {
+      "id": "P3.3",
+      "status": "PASS",
+      "name": "parent-active guard is BEFORE INSERT OR UPDATE OF product_id, is_active ROW",
+      "detail": ""
+    },
+    {
+      "id": "P3.4",
+      "status": "PASS",
+      "name": "change-log trigger is AFTER INSERT OR DELETE OR UPDATE (every row change, including direct SQL, is logged)",
+      "detail": ""
+    },
+    {
+      "id": "P3.5",
+      "status": "PASS",
+      "name": "price-list guard exists; its function definition is NOT in the catalog",
+      "detail": ""
+    },
+    {
+      "id": "P3.6",
+      "status": "NOT PROVEN",
+      "name": "fn_product_skus_price_list_active_guard and fn_log_product_sku_change live definitions not captured (repo migrations 20261022173416 / CI-038 describe them)",
+      "detail": "catalog question Q4"
+    },
+    {
+      "id": "P3.7",
+      "status": "PASS",
+      "name": "the SKU epoch trigger is statement-level and also fires on TRUNCATE",
+      "detail": ""
+    },
+    {
+      "id": "P4.1",
+      "status": "PASS",
+      "name": "44 epoch triggers on 44 distinct tables (+ the product_skus one in sku_triggers = 45 hooks incl. SKU)",
+      "detail": ""
+    },
+    {
+      "id": "P4.2",
+      "status": "PASS",
+      "name": "every epoch trigger is enabled, AFTER INSERT/DELETE/UPDATE/TRUNCATE, FOR EACH STATEMENT, one shared function",
+      "detail": ""
+    },
+    {
+      "id": "P4.3",
+      "status": "PASS",
+      "name": "every captured hook is an AFTER INSERT/DELETE/UPDATE/TRUNCATE write trigger: passage of time alone (an effective_to date being reached) cannot bump an epoch",
+      "detail": ""
+    },
+    {
+      "id": "P4.4.PM_BOM_REVISION",
+      "status": "PASS",
+      "name": "epoch hook present on the source table(s) of PM_BOM_REVISION",
+      "detail": ""
+    },
+    {
+      "id": "P4.4.BATCH_SIZE_REFERENCE",
+      "status": "PASS",
+      "name": "epoch hook present on the source table(s) of BATCH_SIZE_REFERENCE",
+      "detail": ""
+    },
+    {
+      "id": "P4.4.MANUFACTURING_ROUTE",
+      "status": "PASS",
+      "name": "epoch hook present on the source table(s) of MANUFACTURING_ROUTE",
+      "detail": ""
+    },
+    {
+      "id": "P4.4.MRP_POLICY",
+      "status": "PASS",
+      "name": "epoch hook present on the source table(s) of MRP_POLICY",
+      "detail": ""
+    },
+    {
+      "id": "P4.4.SELLING_PRICE_POLICY",
+      "status": "PASS",
+      "name": "epoch hook present on the source table(s) of SELLING_PRICE_POLICY",
+      "detail": ""
+    },
+    {
+      "id": "P4.5",
+      "status": "PASS",
+      "name": "product master tables that feed route/classification resolution are hooked",
+      "detail": ""
+    },
+    {
+      "id": "P4.6",
+      "status": "NOT PROVEN",
+      "name": "tables adjacent to the readiness chain that carry NO epoch hook (BOM lines, stock-item/classification maps, pack map): coverage is only a gap if a resolver reads them — resolver definitions for MRP/selling price are not in the repo or catalog",
+      "detail": "public.plm_bom_revision_line, public.inv_stock_item, public.inv_stock_item_class_map, public.plm_sku_pack_map, public.product_sku_master_audit, public.product_sku_change_log (catalog question Q8)"
+    }
+  ]
+}

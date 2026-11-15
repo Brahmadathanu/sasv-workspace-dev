@@ -1,3 +1,5 @@
+> **15 NOV 2026 — WP10 G1 AUDIT DELIVERED FOR INDEPENDENT REVIEW (WP10 OPEN, programme 10/13, no count advance):** see [WP10_G1_AUDIT_REPORT_2026-11-15.md](WP10_G1_AUDIT_REPORT_2026-11-15.md) — writer/transition matrix, dependency trace, isolated-fixture results, ranked gaps (G-1 readiness refresh ownerless; G-2 time-expiry blind spot / date mismatch; G-4 active re-parent bypass), minimal design proposal and exact catalog questions Q1–Q9 for ChatGPT. **Audit/proposal only: no change to activation or readiness logic, no SQL/migration/permission/registry/flag/deploy, no closure.** G2 scope is recommended, not authorised.
+
 # WP-10 — Governance Safeguards for Future Product/SKU Creation
 
 **STARTED 15 November 2026. G0 entry satisfied; G1 source/live-metadata audit IN PROGRESS. Programme 10/13.** Owner approved starting WP10 together with conditional WP09 closure.
@@ -10,8 +12,8 @@ Implement systematic detection/prevention so incomplete SKUs cannot remain silen
 
 ## Gates
 - [x] Entry: WP09 owner conditionally closed; existing prerequisites respected.
-- [~] G1: creation/update/activation transitions, later dependency and expiry detection, ownership, visibility and failure paths; isolated fixtures.
-- [ ] Reviewed G2 design/minimal implementation scope.
+- [x] G1 audit delivered for independent review (draft PR): creation/update/activation transitions, later dependency and expiry detection, ownership, visibility, failure paths; isolated fixtures PASS 43/43 + 7/7 mutation + 29 parity (3 NOT PROVEN). Catalog questions Q1–Q9 await ChatGPT.
+- [ ] Reviewed G2 design/minimal implementation scope (owner decisions O1–O5 in the G1 report; Q1–Q9 results required first).
 - [ ] Implementation, focused tests and independent audit.
 - [ ] Owner approval for any exact production operation or formal closure.
 
