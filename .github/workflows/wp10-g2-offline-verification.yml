@@ -22,10 +22,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      NODE_PATH: ${{ runner.temp }}/wp10deps/node_modules
       WP10_G2_BROWSER_SKIP: '0'
       WP10_G2_SHOTS: '1'
-      WP10_EVIDENCE: ${{ runner.temp }}/wp10-evidence
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,6 +33,10 @@ jobs:
           node-version: '22'
       - name: Fetch main for source-scope comparisons
         run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
+      - name: Prepare isolated test paths
+        run: |
+          echo "NODE_PATH=$RUNNER_TEMP/wp10deps/node_modules" >> "$GITHUB_ENV"
+          echo "WP10_EVIDENCE=$RUNNER_TEMP/wp10-evidence" >> "$GITHUB_ENV"
       - name: Install isolated test dependencies
         run: |
           npm install --prefix "$RUNNER_TEMP/wp10deps" --no-save --no-audit --no-fund --ignore-scripts playwright@1.62.1
