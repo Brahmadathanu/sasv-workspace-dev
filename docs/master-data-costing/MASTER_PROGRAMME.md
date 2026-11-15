@@ -1,4 +1,4 @@
-> **CURRENT — WP09 OWNER CONDITIONALLY CLOSED; WP10 STARTED (10/13):** [WP09 closure](WP09_OWNER_AUTHORISED_CONDITIONAL_CLOSURE_2026-11-15.md) records the owner's explicit Go ahead. All bounded dispositions and W12-WP09-01…05 remain binding; presentation stays default-off. WP10 G0 is satisfied and [G1 audit](WP10_G1_INITIAL_AUDIT_2026-11-15.md) is in progress under issue #438; no implementation/SQL/flag/release authority. WP11 defects and WP12 inherited gates unchanged. Older progress banners below are historical.
+> **CURRENT — WP10 G1 ACCEPTED/MERGED; G2 DRAFT AUTHORISED (15 Nov; 10/13):** [Owner authority](WP10_OWNER_G1_ACCEPTANCE_G2_DRAFT_AUTHORITY_2026-11-15.md) records the explicit approval, #439 merge ee3def823295c105fcef7f821418e887e0612699, and O1–O4 decisions. [Single G2 package](WP10_G2_SINGLE_DRAFT_IMPLEMENTATION_PACKAGE_2026-11-15.md), issue #440, is ready for the existing Claude session; not yet dispatched. No production SQL/scheduling/permissions/flags/deployment, G2 merge or formal WP10 closure authorised. WP09 closure, WP11 defects and all WP12 receiving cases retained. Earlier G1-in-progress banners are historical.
 
 > **CURRENT — WP09 FINAL AUDIT READY FOR OWNER (15 Nov; 9/13):** G1/G2 source merged; post-merge CI SUCCESS and six hosted PWA runtime assets match main source byte-for-byte. [Final audit and closure recommendation](WP09_FINAL_AUDIT_AND_CONDITIONAL_CLOSURE_RECOMMENDATION_2026-11-15.md) proposes conditional closure with explicit W12-WP09-01…05 receiving gates, default-off presentation and preserved WP11 defects. WP09 OPEN until a separate owner closure decision; no activation or formal count advance. Older pending-hosting/merge banners below are historical.
 
@@ -146,7 +146,7 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 - [x] MDC-07 (WP07) — Costing Suite Navigation and IA — owner-conditionally CLOSED
 - [x] WP08 — Product / Master Data Navigation Rationalisation — owner-conditionally CLOSED
 - [x] WP09 — Wider Application Launcher/Section Audit — owner-conditionally CLOSED 15 Nov 2026
-- [ ] WP10 — Future Product/SKU Creation Safeguards — STARTED; G0 satisfied, G1 audit in progress (#438)
+- [ ] WP10 — Future Product/SKU Creation Safeguards — G1 ACCEPTED/MERGED; G2 draft implementation authorised (#440)
 - [ ] WP11 — UX Consistency and Visual Hardening
 - [ ] WP12 — Regression, Live Proof and Governance Documentation
 
@@ -157,7 +157,7 @@ WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11
 IN PROGRESS: closing. Current remaining items: REMAINING_WORK_2026-10-31.md (31 Oct 2026). Earlier list and dispositions: MDC_WORKFLOW_STATUS_AND_CLOSING_PLAN.md (25 Oct 2026)
 
 ## Active work pack
-WP10 — Governance Safeguards for Future Product/SKU Creation. G0 entry satisfied; G1 transition/recurrence audit in progress. See WP10_G1_INITIAL_AUDIT_2026-11-15.md and issue #438.
+WP10 — Future Product/SKU Creation Safeguards. G1 audit accepted and merged through #439; G2 draft implementation authorised under issue #440. One consolidated package; production execution and formal closure remain separate owner gates.
 
 ## Active gate
 None. WP04-G8 is completed and post-merge verification passed.
