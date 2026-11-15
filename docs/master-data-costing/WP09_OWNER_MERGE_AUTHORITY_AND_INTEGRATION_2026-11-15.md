@@ -1,3 +1,5 @@
+> **LATEST — OWNER-AUTHORISED G1/G2 SOURCE INTEGRATION COMPLETE (15 Nov 2026; 9/13):** #434 merged at `93dee941621faa8500e7833376a922f5f90216c1`; #437 retargeted to main, refreshed CI passed, then merged at `6e8572df39fe3b3667001e33cf30b454ac067cd2`. [Post-merge record](WP09_POST_MERGE_INTEGRATION_2026-11-15.md) records exact reviewed SW pin, verification and outstanding acceptance. Presentation remains default-off; no flag activation performed. WP09 OPEN; no formal closure/count advance. Hosting completion and served-asset acceptance are NOT CONFIRMED from available receipts; WP11 defects and WP12 role/SW/PWA/Electron/Windows obligations remain. Older merge-pending/verification-HOLD banners below are historical.
+
 # WP09 owner merge authority and integration — 15 November 2026
 
 Owner replied **“I approve and go ahead”** to the concrete #434 merge → #437 retarget/diff/check → default-off merge sequence, acknowledging that the normal hosting pipeline may run. This supersedes earlier implementation-only/no-merge authority in the bounded scope. It does not authorise flag activation, SQL, registry/permissions, Electron repointing or formal closure.
