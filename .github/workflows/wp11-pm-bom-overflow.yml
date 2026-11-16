@@ -1,0 +1,27 @@
+name: WP11 PM BOM 390px Overflow
+on:
+  pull_request:
+    paths:
+      - 'public/shared/manage-pm-bom.html'
+      - 'scripts/wp11-pm-bom-overflow.test.mjs'
+      - '.github/workflows/wp11-pm-bom-overflow.yml'
+permissions:
+  contents: read
+jobs:
+  narrow:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser dependency
+        run: |
+          npm install --prefix "$RUNNER_TEMP/wp11deps" --no-save --ignore-scripts --no-audit --no-fund playwright@1.62.1
+          "$RUNNER_TEMP/wp11deps/node_modules/.bin/playwright" install --with-deps chromium
+          echo "NODE_PATH=$RUNNER_TEMP/wp11deps/node_modules" >> "$GITHUB_ENV"
+      - name: Chromium 390px Electron/PWA narrow overflow contract
+        run: node --test scripts/wp11-pm-bom-overflow.test.mjs
