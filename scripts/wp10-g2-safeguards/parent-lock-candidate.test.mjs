@@ -184,6 +184,24 @@ try {
     const state={active:rs.one("select is_active::text from public.product_skus where id=1"),parent:rs.one("select product_id from public.product_skus where id=1"),destStatus:rs.one("select status from public.products where id=3"),destSubgroup:rs.one("select sub_group_id from public.products where id=3")};
     check("CL18","Active SKU reparent to ACTIVE destination lacking route is rejected",activated.code===0 && moved.code!==0 && state.active==="true" && state.parent==="1" && state.destStatus==="Active" && state.destSubgroup==="3" && !/inactive product|deadlock detected|statement timeout|lock timeout/i.test(moved.err),JSON.stringify({activated:activated.code,moved:moved.code,state,error:moved.err.slice(0,240)}));
   }
+  // Active-SKU reparent versus destination subgroup change: destination first.
+  // The parent-lock recheck must see the committed destination subgroup and refuse.
+  {
+    const reparent = makeRunner(cluster, { sql: g2FixtureSql() });
+    const rs = reparent(candidate + "\n" + session() +
+      "insert into costing.production_route_family(id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
+      "insert into costing.production_route_family_product_subgroup_map(product_subgroup_id,route_family_id,status,effective_from) values (1,777,'APPROVED',date '2026-01-01');\n" +
+      "insert into costing.production_route_family_route(route_family_id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
+      NEWSKU(1,55) + "select public.fx_complete(1,1,'ROUTE');\n");
+    const activation=await psql(rs,"set statement_timeout='7000ms';\n"+session()+"update public.product_skus set is_active=true where id=1;\n");
+    const product=psql(rs,"set application_name='wp10_reparent_dest_writer'; set statement_timeout='9000ms';\n"+session()+"begin; update public.products set sub_group_id=3 where id=3; select pg_sleep(3); commit;\n");
+    let holding=false;
+    for(let i=0;i<60;i++){if(Number(rs.q("select count(*) from pg_stat_activity where application_name='wp10_reparent_dest_writer' and wait_event='PgSleep'"))>0){holding=true;break;}await sleep(75);}
+    const move=holding ? psql(rs,"set statement_timeout='9000ms'; set lock_timeout='8000ms';\n"+session()+"update public.product_skus set product_id=3 where id=1;\n"):Promise.resolve({code:-1,err:"barrier missing"});
+    const [pr,mr]=await Promise.all([product,move]);
+    const state={sku:rs.one("select product_id from public.product_skus where id=1"),dest:rs.one("select sub_group_id from public.products where id=3")};
+    check("CL19","Destination subgroup edit commits before active-SKU reparent; reparent rejects",activation.code===0 && holding && pr.code===0 && mr.code!==0 && state.sku==="1" && state.dest==="3" && !/deadlock detected|statement timeout|lock timeout/i.test(mr.err),JSON.stringify({activation:activation.code,product:pr.code,move:mr.code,state,error:mr.err.slice(0,220)}));
+  }
   // Negative mutation: removing the candidate parent lock must restore the unsafe
   // activation-first cross-flow witness. A witness is not a proof of safety.
   {
