@@ -96,6 +96,23 @@ try {
     const state = {product:pr.code,activation:ar.code,sku:sr.one("select is_active::text from public.product_skus where id=1"),subgroup:sr.one("select sub_group_id from public.products where id=1")};
     check("CL6", "Reverse schedule: subgroup edit commits and activation is refused; SKU remains inactive", holding && pr.code===0 && ar.code!==0 && state.sku==="false" && state.subgroup==="3", JSON.stringify(state)+" "+ar.err.slice(0,200));
   }
+  // Direct privileged table writes must be governed by the same trigger, not just RPCs.
+  {
+    const direct = makeRunner(cluster, { sql: g2FixtureSql() });
+    const ds = direct(candidate + "\n" + session() +
+      "insert into costing.production_route_family(id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
+      "insert into costing.production_route_family_product_subgroup_map(product_subgroup_id,route_family_id,status,effective_from) values (1,777,'APPROVED',date '2026-01-01');\n" +
+      "insert into costing.production_route_family_route(route_family_id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
+      NEWSKU(1,55) + "select public.fx_complete(1,1,'ROUTE');\n");
+    const activate = await psql(ds, "update public.product_skus set is_active=true where id=1;\n");
+    check("CL7", "Privileged direct activation uses the parent-lock trigger and succeeds when route valid", activate.code===0 && ds.one("select is_active::text from public.product_skus where id=1")==="true",activate.err);
+    const harmful = await psql(ds, "update public.products set sub_group_id=3 where id=1;\n");
+    check("CL8", "Privileged direct harmful subgroup update is rejected, leaving active SKU route valid", harmful.code!==0 && /WP10_PRODUCT_ROUTE_IMPACT/.test(harmful.err) && ds.one("select sub_group_id from public.products where id=1")==="1",harmful.err.slice(0,200));
+    const deactivate = await psql(ds, "update public.product_skus set is_active=false where id=1;\n");
+    const move = await psql(ds, "update public.products set sub_group_id=3 where id=1;\n");
+    const invalidActivation = await psql(ds, "update public.product_skus set is_active=true where id=1;\n");
+    check("CL9", "Direct deactivate then subgroup change allowed; subsequent direct activation refused",deactivate.code===0 && move.code===0 && invalidActivation.code!==0 && ds.one("select is_active::text from public.product_skus where id=1")==="false",invalidActivation.err.slice(0,200));
+  }
 } finally {
   cluster.stop();
 }
