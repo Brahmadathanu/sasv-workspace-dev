@@ -5,7 +5,8 @@ import { supabase } from '../public/shared/js/supabaseClient.js';
 const styleId='wp10-classification-access-style';
 const accessAttr='data-wp10-classification-access';
 const selectors=[
- '.edit-btn','.delete-btn','.save-btn','#addBtn','#addSection','#addCategoryForm','#addSubForm','#addSubGroupForm'
+ '.edit-btn','.delete-btn','.save-btn','#saveEdit','#editForm','#addBtn','#addSection',
+ '#addCategoryForm','#addNewSubCategory','#addSubForm','#addSubGroupForm'
 ];
 if(typeof document!=='undefined'){
  const root=document.documentElement;
