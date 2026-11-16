@@ -124,6 +124,9 @@ self.addEventListener("fetch", (event) => {
     /\/shared\/css\/sasv-fg-bulk-internal-transfer\.css$/.test(url.pathname) ||
     // PEC ERP: the shared module must not pair newly served HTML with stale
     // cached paging/client logic or visual styles in installed PWAs.
+    // WP10: four classification masters now use governed RPCs and import two
+    // shared security helpers. Treat their JS as one network-first version set.
+    /\/(?:shared\/)?js\/(?:categories|subcategories|product-groups|subgroups|classification-master-access|classification-html-escape)\.js$/.test(url.pathname) ||
     /\/shared\/js\/procurement-execution-console\.js$/.test(url.pathname) ||
     /\/shared\/css\/sasv-procurement-execution-console\.css$/.test(url.pathname) ||
     // WP08 G2-0: the four shared Master Data pages (HTML is network-first) must not pair new HTML with a stale

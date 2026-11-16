@@ -1,0 +1,46 @@
+name: WP10 Classification Client Release
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/wp10-classification-client.yml'
+      - 'js/categories.js'
+      - 'js/subcategories.js'
+      - 'js/product-groups.js'
+      - 'js/subgroups.js'
+      - 'js/classification-master-access.js'
+      - 'js/classification-html-escape.js'
+      - 'manage-product-groups.html'
+      - 'public/sw.js'
+      - 'scripts/wp10-client-release-contract.test.mjs'
+      - 'scripts/wp10-g2-safeguards/browser-classification-access.test.mjs'
+      - 'scripts/wp10-g2-safeguards/classification-html-escape.test.mjs'
+permissions:
+  contents: read
+jobs:
+  client:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated Chromium
+        run: |
+          npm install --prefix "$RUNNER_TEMP/wp10deps" --no-save --no-audit --no-fund --ignore-scripts playwright@1.62.1
+          "$RUNNER_TEMP/wp10deps/node_modules/.bin/playwright" install --with-deps chromium
+          echo "NODE_PATH=$RUNNER_TEMP/wp10deps/node_modules" >> "$GITHUB_ENV"
+      - name: Static and escaping checks
+        run: |
+          set -euo pipefail
+          node --test scripts/wp10-client-release-contract.test.mjs scripts/wp10-g2-safeguards/classification-html-escape.test.mjs
+          for file in js/categories.js js/subcategories.js js/product-groups.js js/subgroups.js js/classification-master-access.js js/classification-html-escape.js; do node --input-type=module --check < "$file"; done
+          node --check public/sw.js
+      - name: Mocked Editor/View-only/No-access Chromium checks
+        run: |
+          set -euo pipefail
+          node --test scripts/wp10-g2-safeguards/browser-classification-access.test.mjs | tee "$RUNNER_TEMP/browser-checks.log"
+          if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/browser-checks.log"; then exit 1; fi
+          grep -Eq '^# pass [1-9]' "$RUNNER_TEMP/browser-checks.log"

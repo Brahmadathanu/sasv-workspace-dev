@@ -1,11 +1,14 @@
 import { supabase } from '../public/shared/js/supabaseClient.js';
 import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
+import { initializeClassificationAccess } from './classification-master-access.js';
+import { escapeClassificationHtml } from './classification-html-escape.js';
 
 const categorySelect    = document.getElementById('categorySelect');
 const subcategorySelect = document.getElementById('subcategorySelect');
 const groupTableBody    = document.querySelector('#groupTable tbody');
 const clearFiltersBtn   = document.getElementById('clearFilters');
 const newGroupInput     = document.getElementById('newGroupInput');
+const newGroupKind      = document.getElementById('newGroupKind');
 const addBtn            = document.getElementById('addBtn');
 const clearNewBtn       = document.getElementById('clearNew');
 const confirmOverlay    = document.getElementById('confirmOverlay');
@@ -13,6 +16,12 @@ const confirmMsg        = document.getElementById('confirmMsg');
 const confirmYes        = document.getElementById('confirmYes');
 const confirmNo         = document.getElementById('confirmNo');
 const homeIcon          = document.getElementById('homeIcon');
+
+async function loadGroupKinds() {
+  const { data, error } = await supabase.from('product_group_kinds').select('id, group_name, code').order('group_name');
+  if (error) { console.error(error); window.alert('Unable to load product group kinds'); return; }
+  populate(newGroupKind, data, 'id', 'group_name', 'Select group kind');
+}
 
 let pendingAction = null;  // { type:'add'|'delete'|'update', id?, name? }
 
@@ -71,7 +80,7 @@ async function renderGroups() {
     const tr = document.createElement('tr');
     tr.dataset.id = r.id;
     tr.innerHTML = `
-      <td class="group-cell">${r.group_name}</td>
+      <td class="group-cell">${escapeClassificationHtml(r.group_name)}</td>
       <td>
         <button class="action-link edit-btn">Edit</button> |
         <button class="action-link delete-btn">Delete</button>
@@ -99,7 +108,9 @@ subcategorySelect.addEventListener('change', renderGroups);
 addBtn.addEventListener('click', () => {
   const name = newGroupInput.value.trim();
   if (!subcategorySelect.value || !name) return;
-  pendingAction = { type:'add', name };
+  const kindId = Number(newGroupKind.value);
+  if (!Number.isInteger(kindId) || kindId <= 0) { window.alert('Select a product group kind'); newGroupKind.focus(); return; }
+  pendingAction = { type:'add', name, kindId, subcategoryId: Number(subcategorySelect.value) };
   confirmMsg.textContent = `Add Product Group "${name}"?`;
   confirmOverlay.style.display = 'flex';
 });
@@ -121,7 +132,7 @@ groupTableBody.addEventListener('click', e => {
   // EDIT → inline Save | Cancel only
   if (btn.classList.contains('edit-btn')) {
     const oldName = cell.textContent;
-    cell.innerHTML = `<input type="text" class="edit-input" value="${oldName}">`;
+    cell.innerHTML = `<input type="text" class="edit-input" value="${escapeClassificationHtml(oldName)}">`;
     actionsTd.innerHTML = `
       <button class="action-link save-btn">Save</button> |
       <button class="action-link cancel-btn">Cancel</button>
@@ -162,22 +173,18 @@ confirmYes.addEventListener('click', async () => {
   pendingAction = null;
 
   if (act.type === 'add') {
-    await supabase
-      .from('product_groups')
-      .insert([{ sub_category_id: subcategorySelect.value, group_name: act.name }]);
+    const { error } = await supabase.rpc('rpc_wp10_create_product_group', { p_parent_id: act.subcategoryId, p_name: act.name, p_kind_id: act.kindId });
+    if (error) { window.alert(`Could not create product group: ${error.message}`); return; }
     newGroupInput.value = '';
+    newGroupKind.value = '';
   }
   if (act.type === 'delete') {
-    await supabase
-      .from('product_groups')
-      .delete()
-      .eq('id', act.id);
+    const { error } = await supabase.rpc('rpc_wp10_delete_product_group', { p_id: Number(act.id) });
+    if (error) { window.alert(`Could not delete product group: ${error.message}`); return; }
   }
   if (act.type === 'update') {
-    await supabase
-      .from('product_groups')
-      .update({ group_name: act.name })
-      .eq('id', act.id);
+    const { error } = await supabase.rpc('rpc_wp10_rename_product_group', { p_id: Number(act.id), p_name: act.name });
+    if (error) { window.alert(`Could not rename product group: ${error.message}`); return; }
   }
 
   renderGroups();
@@ -195,6 +202,8 @@ homeIcon.addEventListener('click', () => {
 
 /** Initialize on load */
 window.addEventListener('DOMContentLoaded', async () => {
-  await loadCategories();
+  await Promise.all([loadCategories(), loadGroupKinds()]);
   renderGroups();
 });
+// Writer surfaces stay locked unless the canonical module Edit permission is verified.
+initializeClassificationAccess('module:manage-product-groups');
