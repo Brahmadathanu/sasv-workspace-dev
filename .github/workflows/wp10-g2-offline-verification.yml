@@ -4,6 +4,11 @@ on:
   pull_request:
     paths:
       - '.github/workflows/wp10-g2-offline-verification.yml'
+      - 'js/categories.js'
+      - 'js/subcategories.js'
+      - 'js/product-groups.js'
+      - 'js/subgroups.js'
+      - 'manage-product-groups.html'
       - 'public/shared/js/products.js'
       - 'public/shared/js/costing-suite-readiness.js'
       - 'public/shared/js/wp10-safeguards*.js'
@@ -53,6 +58,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          node scripts/wp10-g2-safeguards/verify-classification-crud-contract.mjs | tee "$WP10_EVIDENCE/classification-contract.log"
           for suite in client-units sw-delivery source draft-sql-static phase1-registration phase1-inventory; do
             node "scripts/wp10-g2-safeguards/$suite.test.mjs" | tee "$WP10_EVIDENCE/$suite.log"
           done
