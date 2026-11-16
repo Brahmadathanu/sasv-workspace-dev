@@ -1,5 +1,6 @@
 import { supabase } from '../public/shared/js/supabaseClient.js';
 import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
+import { initializeClassificationAccess } from './classification-master-access.js';
 
 const categorySelect    = document.getElementById('categorySelect');
 const subcategorySelect = document.getElementById('subcategorySelect');
@@ -203,3 +204,5 @@ window.addEventListener('DOMContentLoaded', async () => {
   await Promise.all([loadCategories(), loadGroupKinds()]);
   renderGroups();
 });
+// Writer surfaces stay locked unless the canonical module Edit permission is verified.
+initializeClassificationAccess('module:manage-product-groups');
