@@ -62,7 +62,7 @@ try{
  chk("RM-G9 harmful group-level mapping inactivation rejected",groupUnsafe.code!==0,groupUnsafe.err.slice(-400));
  chk("RM-G10 active group-inherited route preserved",status(g)==="true|true",status(g));
 
- console.log(JSON.stringify({pass,fail,provenance:"DISPOSABLE_POSTGRESQL_ONLY",guard_scope:"product-and-subgroup-maps",other_route_writers:"UNRESOLVED"}));
+ console.log(JSON.stringify({pass,fail,provenance:"DISPOSABLE_POSTGRESQL_ONLY",guard_scope:"product-subgroup-group-maps",other_route_writers:"UNRESOLVED"}));
 }catch(e){console.error("FAIL/BLOCKED "+e.stack);fail++;}
 finally{cluster.stop();}
 if(fail)process.exitCode=1;
