@@ -29,9 +29,14 @@ with required_functions(signature) as (
  and not exists(select 1 from pg_attrdef d where d.adrelid=a.attrelid and d.adnum=a.attnum)
  and not exists(select 1 from supplied_columns s where s.tbl=c.relname and s.col=a.attname)
 ), inbound_fk as (
- select con.conname,con.conrelid::regclass::text as child,con.confrelid::regclass::text as parent,
+ select con.conname,format('%I.%I',child_ns.nspname,child_tbl.relname) as child,format('%I.%I',parent_ns.nspname,parent_tbl.relname) as parent,
  con.confdeltype as rule
- from pg_constraint con where con.contype='f'
+ from pg_constraint con
+ join pg_class child_tbl on child_tbl.oid=con.conrelid
+ join pg_namespace child_ns on child_ns.oid=child_tbl.relnamespace
+ join pg_class parent_tbl on parent_tbl.oid=con.confrelid
+ join pg_namespace parent_ns on parent_ns.oid=parent_tbl.relnamespace
+ where con.contype='f'
  and con.confrelid in ('public.categories'::regclass,'public.sub_categories'::regclass,
                        'public.product_groups'::regclass,'public.sub_groups'::regclass)
 ), unsafe_fk as (
