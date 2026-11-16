@@ -33,6 +33,26 @@ Manual copy/paste risk: obtain each complete SQL file from the exact commit (not
 ### Partial install failure / safe recovery
 Each SQL file has its **own** BEGIN/COMMIT; if parent installs successfully but subgroup fails, nine functions legitimately remain. Stop; capture error and catalog state. Do **not** blindly rerun the parent SQL; its collision preflight will fail by design. On separately authorized rollback, remove the nine functions using only the pinned parent rollback if no live client depends on them, or resolve the subgroup error and continue using the same reviewed pinned file. The opposite rollback order is subgroup first, then parent. Do not drop these functions once compatible clients consume them without a dependency and client cutover review.
 
+## Independent B1–B4 re-review clearance — 2026-11-16
+
+An independent Claude Code reviewer re-evaluated the four review blockers at exact PR head `6c8f839d4d7e449b47bf6a34af3391dc67c3093f` and returned **PASS B1, PASS B2, PASS B3, PASS B4**, authorizing the **bounded server-first installation** subject to the operator conditions below. This assessment was provided by the owner in the project conversation; the reviewer did not use live database access or execute SQL. It is **not a submitted GitHub PR review**, and must not be described as one.
+
+Exact-head [GitHub Actions run 43863128401](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/43863128401) completed SUCCESS and its head matches `6c8f839d4d7e449b47bf6a34af3391dc67c3093f`.
+
+Assistant independently reran the single-row live **read-only** preflight after receiving the PASS review: **PASS / 10 checks / 0 failed / 12 missing / 0 present**. The live row-count snapshot before installation was:
+
+| Master | Row count |
+|---|---:|
+| `public.categories` | 5 |
+| `public.sub_categories` | 24 |
+| `public.product_groups` | 100 |
+| `public.sub_groups` | 146 |
+
+This evidence is ephemeral and must be rechecked in Dashboard immediately before installation. The two installation SQL files plus their rollback files remain pinned to the four exact SHA-256 values in the B1 section below, and installation must be performed **in order**, parent nine functions then subgroup three functions, with the postflight worksheet. The manual Dashboard installation requires an explicit owner action. A successful initial installation is *not* WP10 closure.
+
+### Superseding the previous review hold
+Earlier text in this historical receipt saying "independent reviewer approval has not been recorded" describes the prior state and is **superseded solely for the bounded server-first installation** by the B1–B4 PASS review above. No approval of CL15, the four-table revoke, a client deployment, or complete WP10 closure has been issued.
+
 ## Exact server-first action ready for independent review
 Install only:
 1. `scripts/wp10-g2-safeguards/review-only-parent-classification-governed-rpcs.sql` (9 permission-checked CRUD functions).
