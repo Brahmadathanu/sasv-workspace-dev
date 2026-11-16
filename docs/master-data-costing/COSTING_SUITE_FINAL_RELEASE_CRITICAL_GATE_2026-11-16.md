@@ -25,7 +25,7 @@ Cron `cron.job_run_details` read-only: weekly job 66 most recent 2026-11-15 20:3
 
 | Gate | Required, safest evidence | Current state / stop rule |
 |---|---|---|
-| C-F1 Final source/asset provenance | Exact main/Netlify-served build digest for six Costing modules and shared imports, installed SW freshness and default-off flags | **NOT VERIFIED for final combined build**; prior dated positive proofs do not transfer |
+| C-F1 Final source/asset provenance | Exact main/Netlify-served build digest for six Costing modules and shared imports, installed SW freshness and default-off flags | **PARTIAL:** 12/12 shared Product/RM/PM/SP BOM HTML/JS/CSS files and deployed SW rule verified on 16 Nov [WP12 hosted witness](WP12_HOSTED_COSTING_MASTER_ASSET_PROVENANCE_2026-11-16.md); the final six Costing modules, installed PWA controller and true final build remain NOT TESTED |
 | C-F2 11 flags, six modules | WP12 B1-T2: default OFF, relevant narrow ON/OFF, cross-module/deep-link and restoration, 390/1280; no production writer/preview | **NOT TESTED for final build**, stop on stale dependency, console error or unauthorized action |
 | C-F3 Genuine roles/security | Real approved Editor/View/No-access sessions for relevant Costing reads, sensitive fields and module visibility; preserve separate seven-view negative GETs as NOT TESTED until safely observed | **PARTIAL historical**, never test real writer-denial by pressing mutating RPC or fabricate roles |
 | C-F4 Real costing parity | Current run/period context, 3-sample SKU cost sheet/print/status parity (previous WP05 S2/S9 acceptance preserved), no wrong pricing basis and live run-context regression | **Prior accepted with limits**; new erroneous financial results are immediate blocker |
