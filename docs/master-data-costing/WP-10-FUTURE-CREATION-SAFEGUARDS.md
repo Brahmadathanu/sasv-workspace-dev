@@ -1,8 +1,10 @@
+> **CURRENT HANDOVER — 16 Nov 2026:** [Start here](WP10_PHASE1_COMPLETE_PHASE2_NEW_CHAT_HANDOVER_2026-11-16.md). Phase 1 applied and source/history registration merged in #443 at `ab3c525aaeaedc5f788c8c934d231794ed24d2a5`; final offline CI **300 PASS / 0 FAIL / 0 SKIPPED**, protected-path registry audit **80/80 PASS**. WP10 OPEN, programme **10/13**. Guards 04/05 UNAPPLIED; flag OFF; real-role/release acceptance remains NOT TESTED. Earlier pending-approval/source-registration banners below are historical.
+
 > **LATEST — READ-ONLY SERVER STAGE APPLIED:** [Phase 1 receipt](WP10_SQL_PHASE1_APPLIED_AND_VERIFIED_2026-11-16.md): owner-approved 01/02/03/06 installed and verified, 11 functions, no triggers, history 699→703. Flag OFF; 04/05 await separate authority. Real JWT/hosted/scale/release acceptance and formal closure remain open. WP10 OPEN, 10/13.
 
 # WP-10 — Governance Safeguards for Future Product/SKU Creation
 
-**G1 AND G2 DEFAULT-OFF SOURCE MERGED — 15 November 2026. Preview/SQL/acceptance incomplete. WP10 OPEN, programme 10/13.**
+**G1/G2 and preview source merged; read-only SQL Phase 1 applied and registered — 16 November 2026. Blocking guards and real-role/release acceptance incomplete. WP10 OPEN, programme 10/13.**
 
 ## Objective
 Systematic prevention/detection so incomplete SKUs cannot remain silent, reusing WP01–WP04 server-authoritative contracts. Active, current-operational completeness and governed-period costing readiness remain distinct.
@@ -23,6 +25,7 @@ One [G2 package](WP10_G2_SINGLE_DRAFT_IMPLEMENTATION_PACKAGE_2026-11-15.md), [is
 - [x] Independent review/correction and fresh CI verification of the preview source: 286 PASS.
 - [x] Owner approved default-off source merge #442; normal receipt d20a8991. SQL unapplied.
 - [x] Owner exact Phase 1 SQL approval and application/postchecks (01/02/03/06); history 699→703, eleven functions verified.
+- [x] Phase 1 source/history registration #443 merged; final offline CI 300 PASS, protected-path registry audit 80/80 PASS.
 - [ ] Later exact authority/application/acceptance for blocking guards 04/05.
 - [ ] Real-role/hosted/production-scale acceptance (NOT TESTED).
 - [ ] Separate exact production authority where needed.

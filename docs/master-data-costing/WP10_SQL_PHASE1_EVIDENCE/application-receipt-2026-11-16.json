@@ -320,5 +320,25 @@
     "performance": "Single private-helper SQL-editor read-only sample of 10 SKUs/products; not RPC/PostgREST p95 or production-scale acceptance",
     "wp10": "OPEN",
     "programme": "10/13"
+  },
+  "source_registration": {
+    "pr": 443,
+    "reviewed_head": "7ce80e26ef9c65b70a5a7ac899acb48b955235cc",
+    "merge_commit": "ab3c525aaeaedc5f788c8c934d231794ed24d2a5",
+    "offline_ci": {
+      "run_id": 43794722118,
+      "job_id": 133060808267,
+      "pass": 300,
+      "fail": 0,
+      "skipped": 0,
+      "artifact_id": 14194247399
+    },
+    "protected_path_registry_audit": {
+      "pass": 80,
+      "fail": 0
+    },
+    "pec_run_id": 43794722284,
+    "pec_conclusion": "success",
+    "classification": "source registration and offline CI; not live-role or installed-client acceptance"
   }
 }

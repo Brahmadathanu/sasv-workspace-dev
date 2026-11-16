@@ -43,6 +43,16 @@ Preparation/inventory negative controls: 14 local PASS, including wrong project/
 
 The first source-registration PEC CI run stopped at its legacy exact-registry-key assertion (seven historical keys). That assertion now lists the four approved WP10 payloads explicitly as well, retaining exact-list enforcement and every prior pin. Twenty added controls assert exact hash/lane acceptance and wrong-hash/wrong-branch/missing-context/unrelated-SQL/SW rejection. This was source inventory reconciliation; no production SQL was retried or altered.
 
+## Final source-registration receipt — 16 November 2026
+
+PR [#443](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/443) merged normally at **`ab3c525aaeaedc5f788c8c934d231794ed24d2a5`**, reviewed head `7ce80e26ef9c65b70a5a7ac899acb48b955235cc`. No runtime or applied payload changed in the registration corrections.
+
+- Final [WP10 offline CI](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/43794722118), job `133060808267`: **300 PASS, 0 FAIL, 0 SKIPPED**. Artifact `14194247399` contains the run evidence.
+- Protected-path registry audit: **80/80 PASS** (60 prior controls plus 20 exact-registration rejection controls). PEC run `43794722284`: SUCCESS.
+- Current-head checks were success/neutral before merge; Netlify deploy-preview status was success. This is CI/preview status, not hosted/installed production acceptance or a production deployment command.
+- The 300 results are offline/isolated PostgreSQL/mocked Chromium evidence. The ten bounded live private-helper reads above remain a separate classification.
+- [Authoritative continuation handover](WP10_PHASE1_COMPLETE_PHASE2_NEW_CHAT_HANDOVER_2026-11-16.md) records the remaining guard-review and release gates.
+
 ## Remaining gates
 
 - **Guards 04/05 remain UNAPPLIED.** Their future authority must acknowledge immediate blocking behaviour independent of the browser flag. Existing live writers were not exercised as a rehearsal here.
