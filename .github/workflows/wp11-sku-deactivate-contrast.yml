@@ -1,0 +1,20 @@
+name: WP11 SKU Deactivate Contrast
+on:
+  pull_request:
+    paths:
+      - 'public/shared/manage-products.html'
+      - 'public/shared/css/style.css'
+      - 'public/shared/js/products.js'
+      - 'scripts/wp11-sku-deactivate-contrast.test.mjs'
+      - '.github/workflows/wp11-sku-deactivate-contrast.yml'
+permissions:
+  contents: read
+jobs:
+  contrast:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test scripts/wp11-sku-deactivate-contrast.test.mjs
