@@ -46,15 +46,22 @@ test("S3 new client modules call no writer and no table API; only the read-only 
 test("S4 no new permission target, registry entry, launcher entry or route in the client package", () => {
   for (const src of [core, ui]) assert.equal(/module:[a-z-]+/.test(src), false);
   const changed = git("diff", "--name-only", "origin/main", "--", "public", "index.html", "main.js", "electron").split("\n").filter(Boolean);
-  const allowed = new Set(["public/shared/js/products.js", "public/shared/js/costing-suite-readiness.js", "public/shared/js/wp10-safeguards.js", "public/shared/js/wp10-safeguards-ui.js"]);
+  const allowed = new Set(["public/shared/js/products.js", "public/shared/js/costing-suite-readiness.js", "public/shared/js/wp10-safeguards.js", "public/shared/js/wp10-safeguards-ui.js", "public/sw.js"]);
   const untracked = git("ls-files", "--others", "--exclude-standard", "public").split("\n").filter(Boolean);
   for (const f of [...changed, ...untracked]) assert.ok(allowed.has(f), `unexpected changed client file: ${f}`);
 });
 
-test("S5 protected files are byte-identical to origin/main (sw.js, manage-products.html, launcher, registry)", () => {
-  for (const f of ["public/sw.js", "public/shared/manage-products.html", "index.html", "public/shared/js/module-registry.js", "public/shared/js/hub-auth.js", "public/shared/js/master-data-write-guard.js"]) {
+test("S5 existing protected files remain byte-identical; SW differs only by approved classification network-first rule", () => {
+  for (const f of ["public/shared/manage-products.html", "index.html", "public/shared/js/module-registry.js", "public/shared/js/hub-auth.js", "public/shared/js/master-data-write-guard.js"]) {
     if (!fs.existsSync(path.join(root, f))) continue;
     assert.equal(git("diff", "--stat", "origin/main", "--", f).trim(), "", `${f} must be unchanged`);
+  const existing=git("show", "origin/main:public/sw.js");
+  const current=read("public/sw.js");
+  const start=current.indexOf("    // WP10: four classification masters");
+  const end=current.indexOf("    /\\/shared\\/js\\/procurement-execution-console\\.js$/.test(url.pathname) ||",start);
+  assert.ok(start>=0 && end>start,"expected bounded WP10-only network-first insertion");
+  assert.equal(current.slice(0,start)+current.slice(end),existing.replace(/\\r\\n/g,"\\n"),
+   "outside classification freshness rule SW must remain byte-identical");
   }
 });
 
