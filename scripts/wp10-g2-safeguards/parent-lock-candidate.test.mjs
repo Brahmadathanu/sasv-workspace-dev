@@ -242,7 +242,7 @@ try {
     const move = await psql(ds, "update public.products set sub_group_id=3 where id=1;\n");
     const invalidActivation = await psql(ds, "update public.product_skus set is_active=true where id=1;\n");
     check("CL9", "Direct deactivate then subgroup change allowed; subsequent direct activation refused",deactivate.code===0 && move.code===0 && invalidActivation.code!==0 && ds.one("select is_active::text from public.product_skus where id=1")==="false",invalidActivation.err.slice(0,200));
-    const rollbackSql=fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "experimental-parent-lock-rollback.sql"),"utf8");
+    const rollbackSql=fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "review-only-cl15-parent-lock-correction-rollback.sql"),"utf8");
     const rollback=await psql(ds,rollbackSql);
     const removed=ds.one("select to_regprocedure('public.fn_wp10_activation_parent_lock_recheck()') is null and not exists (select 1 from pg_trigger where tgname='zz_wp10_activation_parent_lock_recheck')");
     const retained=ds.one("select to_regprocedure('costing.fn_wp10_today_ist()') is not null");
@@ -253,5 +253,5 @@ try {
 } finally {
   cluster.stop();
 }
-if (process.argv[2]) fs.writeFileSync(process.argv[2], JSON.stringify({ provenance: "disposable PostgreSQL, live-verbatim G1 writer and G2 route chain, synthetic tables, unapplied 05 plus experimental trigger, synthetic AFTER pause", results }, null, 2) + "\n");
+if (process.argv[2]) fs.writeFileSync(process.argv[2], JSON.stringify({ provenance: "disposable PostgreSQL, live-verbatim G1 writer and G2 route chain, synthetic tables, unapplied 05 plus guarded CL15 correction candidate, synthetic AFTER pause", results }, null, 2) + "\n");
 process.exit(failed() ? 1 : 0);
