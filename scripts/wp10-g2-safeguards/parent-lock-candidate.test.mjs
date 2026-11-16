@@ -138,6 +138,23 @@ try {
     const siblingCount = ms.one("select count(*) from public.product_skus where product_id=1 and is_active");
     check("CL14","Multiple active SKUs retain active parent; inactivation rejected",first.code===0 && blocked.code!==0 && /Cannot mark product/.test(blocked.err) && second.code===0 && siblingCount==="2" && ms.one("select status from public.products where id=1")==="Active",JSON.stringify({first:first.code,blocked:blocked.code,second:second.code,siblingCount,error:blocked.err.slice(0,150)}));
   }
+  // Two concurrent activations under the same parent must serialize without a
+  // deadlock or timeout. This is bounded contention coverage, not a global proof.
+  {
+    const contention = makeRunner(cluster, { sql: g2FixtureSql() });
+    const cs = contention(candidate + "\n" + session() +
+      "insert into costing.production_route_family(id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
+      "insert into costing.production_route_family_product_subgroup_map(product_subgroup_id,route_family_id,status,effective_from) values (1,777,'APPROVED',date '2026-01-01');\n" +
+      "insert into costing.production_route_family_route(route_family_id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
+      NEWSKU(1,55) + "select public.fx_complete(1,1,'ROUTE');\n" +
+      NEWSKU(1,56) + "select public.fx_complete(2,1,'ROUTE');\n");
+    const [a,b] = await Promise.all([
+      psql(cs,"set statement_timeout='7000ms'; set lock_timeout='6000ms';\n"+session()+"update public.product_skus set is_active=true where id=1;\n"),
+      psql(cs,"set statement_timeout='7000ms'; set lock_timeout='6000ms';\n"+session()+"update public.product_skus set is_active=true where id=2;\n")
+    ]);
+    const active=cs.one("select count(*) from public.product_skus where product_id=1 and is_active");
+    check("CL16","Concurrent sibling SKU activations finish without timeout or deadlock",a.code===0 && b.code===0 && active==="2",JSON.stringify({a:a.code,b:b.code,active,errors:[a.err.slice(0,150),b.err.slice(0,150)]}));
+  }
   // Negative mutation: removing the candidate parent lock must restore the unsafe
   // activation-first cross-flow witness. A witness is not a proof of safety.
   {
