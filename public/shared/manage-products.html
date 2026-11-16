@@ -611,7 +611,8 @@
         align-items: center;
       }
       #skuToggleActiveBtn.danger {
-        color: var(--sasv-danger);
+        /* Danger buttons have a filled red background: do not set red foreground. */
+        color: var(--sasv-text-on-primary);
         border-color: var(--sasv-danger);
       }
       .sku-master-grid > div {
