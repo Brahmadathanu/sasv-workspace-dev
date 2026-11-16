@@ -35,6 +35,8 @@ export function startCluster() {
     /** fresh empty database per scenario */
     newDb() { const name = `t${++n}`; const r = psql("postgres", ["-c", `create database ${name}`]); if (r.code) throw new Error(r.err); return name; },
     sql(db, text) { const r = psql(db, ["-v", "ON_ERROR_STOP=1", "-t", "-A", "-F", "|"], text); if (r.code) throw new Error(r.err); return r.out.trim(); },
+    /** Local-only psql connection arguments for parallel isolated-session tests; no network host. */
+    connectionArgs(db) { if (!/^t[0-9]+$/.test(db)) throw new Error('non-fixture database rejected'); return psqlArgs(db); },
     /** run a script like an operator would (psql -f via stdin). */
     script(db, text, { stopOnError = true } = {}) { return psql(db, [...(stopOnError ? ["-v", "ON_ERROR_STOP=1"] : []), "-t", "-A", "-F", "|"], text); },
     stop() {
