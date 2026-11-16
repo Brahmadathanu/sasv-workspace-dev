@@ -25,7 +25,7 @@ test('product group kind chooser is mandatory in client and HTML',()=>{
 });
 test('SW refreshes all six scripts together and retains network-first fallback',()=>{
  const s=read('public/sw.js');
- assert.match(s,/CACHE_NAME = "hub-cache-v394"/);
+ assert.match(s,/CACHE_NAME = "hub-cache-v393"/);
  assert.match(s,/classification-master-access/);
  assert.match(s,/classification-html-escape/);
  assert.match(s,/categories\|subcategories\|product-groups\|subgroups/);
