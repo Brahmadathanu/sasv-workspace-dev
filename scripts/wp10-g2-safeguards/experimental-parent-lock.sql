@@ -14,7 +14,7 @@ declare
   v_check jsonb;
 begin
   if new.is_active is not true then return new; end if;
-  if tg_op = 'UPDATE' and old.is_active is true then return new; end if;
+  if tg_op = 'UPDATE' and old.is_active is true and old.product_id is not distinct from new.product_id then return new; end if;
   if new.product_id is null then
     raise exception using errcode='P0001', message='WP10_ACTIVATION_PARENT_MISSING: product_id is required';
   end if;
