@@ -62,7 +62,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for suite in horizon guards provenance preview; do
+          for suite in horizon guards provenance preview cross-flow-concurrency; do
             node "scripts/wp10-g2-safeguards/$suite.test.mjs" "$WP10_EVIDENCE/$suite.json" | tee "$WP10_EVIDENCE/$suite.log"
             if grep -q '^SKIPPED' "$WP10_EVIDENCE/$suite.log"; then
               echo '::error::PostgreSQL fixture skipped; gate cannot pass'
