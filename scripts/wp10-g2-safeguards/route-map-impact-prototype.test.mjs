@@ -49,6 +49,19 @@ try{
  if(se.code)throw Error("E seed "+se.err.slice(-1200));
  const invalid=cluster.script(e,"update costing.production_route_family_product_subgroup_map set status='INACTIVE',effective_to=current_date where id=1;");
  chk("RM-G8 rejection does not write a readiness-invalidating business state",invalid.code!==0 && status(e)==="true|true");
+ const g=db();
+ const groupSeed=cluster.script(g,actor+
+ "insert into costing.production_route_family(id,status,effective_from) values(777,'APPROVED',date '2026-01-01');"+
+ "insert into costing.production_route_family_product_group_map(product_group_id,route_family_id,status,effective_from) values(1,777,'APPROVED',date '2026-01-01');"+
+ "insert into costing.production_route_family_route(route_family_id,status,effective_from) values(777,'APPROVED',date '2026-01-01');"+
+ "insert into public.product_skus(product_id,pack_size,uom) values(1,50,'mL');"+
+ "select public.fx_complete(1,1,'ROUTE');"+
+ "select * from public.rpc_set_product_sku_active(1,true,'group route');");
+ if(groupSeed.code)throw Error("G seed "+groupSeed.err.slice(-1200));
+ const groupUnsafe=cluster.script(g,"update costing.production_route_family_product_group_map set status='INACTIVE',effective_to=current_date where id=1;");
+ chk("RM-G9 harmful group-level mapping inactivation rejected",groupUnsafe.code!==0,groupUnsafe.err.slice(-400));
+ chk("RM-G10 active group-inherited route preserved",status(g)==="true|true",status(g));
+
  console.log(JSON.stringify({pass,fail,provenance:"DISPOSABLE_POSTGRESQL_ONLY",guard_scope:"product-and-subgroup-maps",other_route_writers:"UNRESOLVED"}));
 }catch(e){console.error("FAIL/BLOCKED "+e.stack);fail++;}
 finally{cluster.stop();}
