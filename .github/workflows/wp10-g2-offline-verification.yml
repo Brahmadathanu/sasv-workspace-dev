@@ -74,6 +74,7 @@ jobs:
           node scripts/wp10-g2-safeguards/crossflow-controls.test.mjs | tee "$WP10_EVIDENCE/crossflow-controls.log"
           node scripts/wp10-g2-safeguards/crossflow-reverse-order.test.mjs | tee "$WP10_EVIDENCE/crossflow-reverse-order.log"
           node scripts/wp10-g2-safeguards/atomic-05-cl15-review.test.mjs | tee "$WP10_EVIDENCE/atomic-review.log"
+          node scripts/wp10-g2-safeguards/route-map-lifecycle-gap.test.mjs | tee "$WP10_EVIDENCE/route-map-lifecycle-gap.log"
       - name: Mocked Chromium at 390 and 1280 (not live-role acceptance)
         shell: bash
         run: |
