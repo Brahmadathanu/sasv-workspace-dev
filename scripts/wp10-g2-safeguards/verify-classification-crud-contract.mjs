@@ -11,12 +11,14 @@ const master = [
   ['product_groups','product_group','js/product-groups.js','manage-product-groups'],
   ['sub_groups','subgroup','js/subgroups.js','manage-subgroups']
 ];
+const accessGuard = read('js/classification-master-access.js');
 const parentSql = read('scripts/wp10-g2-safeguards/review-only-parent-classification-governed-rpcs.sql');
 const subgroupSql = read('scripts/wp10-g2-safeguards/review-only-subgroup-governed-rpcs.sql');
 let count=0;
 function assert(ok,what){count++;if(!ok)throw Error('WP10 CLASSIFICATION FAIL: '+what);}
 for (const [table,stem,client,target] of master){
  const code=read(client);const sql=table==='sub_groups'?subgroupSql:parentSql;
+ assert(code.includes('initializeClassificationAccess'),client+' missing access guard');
  // Excludes read-only table queries, catches all direct write methods within 110 chars.
  assert(!new RegExp("\\.from\\(['\\\"]"+table+"['\\\"]\\)[\\s\\S]{0,110}\\.(?:insert|update|delete)\\(").test(code),client+' has direct DML');
  for(const verb of ['create','rename','delete']){
@@ -25,6 +27,7 @@ for (const [table,stem,client,target] of master){
  }
  assert(sql.includes("require_permission('module:"+target+"',true)"),stem+' missing Edit guard');
 }
+assert(accessGuard.includes("supabase.rpc('app_has_permission'") && accessGuard.includes("p_mode") && accessGuard.includes("'locked'") && accessGuard.includes("'edit'"),'access guard must deny editing by default');
 const group = read('js/product-groups.js');
 assert(read('manage-product-groups.html').includes('id="newGroupKind"'),'kind selector absent');
 assert(group.includes('p_kind_id: act.kindId'),'group client kind ID absent');
