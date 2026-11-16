@@ -56,9 +56,7 @@ ${aSession}
 select * from public.product_skus where id=1 for update;
 select * from public.rpc_set_product_sku_active(1,true,'isolated A activation');
 \\echo A_ACTIVATED
-select pg_sleep(4);
-commit;
-`, "A_ACTIVATED");
+`, "A_ACTIVATED", true);
   aChild = a.child;
   await Promise.race([a.observed, new Promise((_,reject) => setTimeout(()=>reject(new Error("A barrier timeout")),10000))]);
   const b = run(`begin;
@@ -69,7 +67,7 @@ commit;
 `);
   bChild = b.child;
   const bOutcome = await b.ended;
-  a.finish("commit;\\n");
+  a.finish("commit;\n");
   const aOutcome = await a.ended;
   const final = cluster.sql(db, `select ps.is_active::text || '|' || p.sub_group_id::text || '|' ||
    coalesce((costing.fn_validate_effective_product_process_route(p.id,date '2026-11-15')->>'valid'),'null')
