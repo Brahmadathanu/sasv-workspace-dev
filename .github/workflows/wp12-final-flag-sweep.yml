@@ -1,0 +1,39 @@
+name: WP12 Final-Source Eleven-Flag Chromium Matrix
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/wp12-final-flag-sweep.yml'
+      - 'scripts/costing-wp12-flag-sweep/flag-sweep-browser.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  flags:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated Chromium
+        run: |
+          npm install --prefix "$RUNNER_TEMP/wp12deps" --no-save --no-audit --no-fund --ignore-scripts playwright@1.62.1
+          "$RUNNER_TEMP/wp12deps/node_modules/.bin/playwright" install --with-deps chromium
+          echo "NODE_PATH=$RUNNER_TEMP/wp12deps/node_modules" >> "$GITHUB_ENV"
+      - name: Run all 11 flags across six real module pages (inert mock backend)
+        run: |
+          set -euo pipefail
+          unset COSTING_WP12_SKIP_BROWSER
+          node --test scripts/costing-wp12-flag-sweep/flag-sweep-browser.test.mjs | tee "$RUNNER_TEMP/wp12-flag-matrix.log"
+          if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/wp12-flag-matrix.log"; then exit 1; fi
+          grep -Eq '^# pass [1-9]' "$RUNNER_TEMP/wp12-flag-matrix.log"
+      - name: Capture complete flag-matrix CI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp12-final-source-flag-matrix
+          path: ${{ runner.temp }}/wp12-flag-matrix.log
+          if-no-files-found: warn
