@@ -3,8 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {escapeClassificationHtml} from '../../js/classification-html-escape.js';
+
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
+// This Electron repository is CommonJS; the browser helper is a native ESM script.
+const helperSource=fs.readFileSync(path.join(root,'js/classification-html-escape.js'),'utf8');
+const {escapeClassificationHtml}=await import('data:text/javascript;base64,'+Buffer.from(helperSource).toString('base64'));
 test('classification label encoding prevents markup, inline event handlers and attribute breakouts',()=>{
  const original=`<img src=x onerror="alert('x')"> & "quoted" 'single'`;
  const html=escapeClassificationHtml(original);
