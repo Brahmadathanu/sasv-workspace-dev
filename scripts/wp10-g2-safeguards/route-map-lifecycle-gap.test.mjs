@@ -39,14 +39,14 @@ try {
  ].join("\n")+"\n";
  const a=s(editor+route+ACTIVATE(1)+
    T("subgroup_inactivation","select public.rpc_inactivate_product_subgroup_route_family_mapping(1,date '2026-11-15')"));
- const result=a.one("select ps.is_active::text||'|'||(costing.fn_validate_effective_product_process_route(ps.product_id,date '2026-11-15')->>'valid') from public.product_skus ps where id=1");
+ const result=a.one("select ps.is_active::text||'|'||(costing.fn_validate_effective_product_process_route(ps.product_id::integer,date '2026-11-15')->>'valid') from public.product_skus ps where id=1");
  check("RM1 subgroup inactivation via live-RPC control flow succeeds",a.log.subgroup_inactivation?.ok===true);
  check("RM2 active SKU route becomes invalid without a product subgroup edit",result==="true|false",result);
  const b=s(editor+
  "insert into public.product_skus(product_id,pack_size,uom) values(1,50,'mL');"+
  "select public.fx_complete(1,1);\n"+ACTIVATE(1)+
  T("product_inactivation","select public.rpc_inactivate_product_route_family_assignment(1,date '2026-11-15')"));
- const result2=b.one("select ps.is_active::text||'|'||(costing.fn_validate_effective_product_process_route(ps.product_id,date '2026-11-15')->>'valid') from public.product_skus ps where id=1");
+ const result2=b.one("select ps.is_active::text||'|'||(costing.fn_validate_effective_product_process_route(ps.product_id::integer,date '2026-11-15')->>'valid') from public.product_skus ps where id=1");
  check("RM3 product assignment inactivation via live-RPC control flow succeeds",b.log.product_inactivation?.ok===true);
  check("RM4 product assignment inactivation can invalidate active SKU",result2==="true|false",result2);
  console.log(JSON.stringify({pass,fail,provenance:"LIVE-RPC-CONTROL-FLOW-TRANSCRIPTION / ISOLATED-ROUTE-TABLE-STANDINS",production_incident:false,fix_status:"OPEN"}));
