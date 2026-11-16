@@ -55,14 +55,14 @@ test("S5 existing protected files remain byte-identical; SW differs only by appr
   for (const f of ["public/shared/manage-products.html", "index.html", "public/shared/js/module-registry.js", "public/shared/js/hub-auth.js", "public/shared/js/master-data-write-guard.js"]) {
     if (!fs.existsSync(path.join(root, f))) continue;
     assert.equal(git("diff", "--stat", "origin/main", "--", f).trim(), "", `${f} must be unchanged`);
-  const existing=git("show", "origin/main:public/sw.js");
+  }
+  const existing=git("show", "origin/main:public/sw.js").replace(/\r\n/g,"\n");
   const current=read("public/sw.js");
   const start=current.indexOf("    // WP10: four classification masters");
   const end=current.indexOf("    /\\/shared\\/js\\/procurement-execution-console\\.js$/.test(url.pathname) ||",start);
   assert.ok(start>=0 && end>start,"expected bounded WP10-only network-first insertion");
-  assert.equal(current.slice(0,start)+current.slice(end),existing.replace(/\\r\\n/g,"\\n"),
-   "outside classification freshness rule SW must remain byte-identical");
-  }
+  assert.equal(current.slice(0,start)+current.slice(end),existing,
+    "outside classification freshness rule SW must remain byte-identical");
 });
 
 test("S6 proposal sources stay outside supabase/; only receipt/hash/branch-pinned Phase 1 history copies may be registered", () => {
