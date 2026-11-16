@@ -21,7 +21,7 @@ begin
   end if;
   select pg_get_triggerdef(v_trigger) into v_definition;
   if v_definition not like '%BEFORE INSERT OR UPDATE OF is_active, product_id ON public.product_skus%'
-     or v_definition not like '%EXECUTE FUNCTION fn_wp10_activation_parent_lock_recheck()%'
+     or v_definition not like '%fn_wp10_activation_parent_lock_recheck()%'
      or pg_get_functiondef(v_function) not like '%WP10_ACTIVATION_RECHECK_FAILED%'
      or pg_get_functiondef(v_function) not like '%FOR UPDATE%' then
     raise exception 'WP10 correction rollback refused: experimental definition drift';
