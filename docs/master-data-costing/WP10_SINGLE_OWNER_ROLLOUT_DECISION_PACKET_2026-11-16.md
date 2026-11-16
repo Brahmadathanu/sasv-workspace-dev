@@ -49,6 +49,12 @@ This table is **proposed ordering**, not permission to operate. Phases C and D m
 | Merge/PWA/Electron deployment | NOT PERFORMED |
 | WP10 formal sign-off | OPEN |
 
+## 6. Latest verification and independent review status
+- CI [run 43849585373](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/43849585373) completed SUCCESS at the owner-decision-packet commit; existing suites remain green.
+- Subsequent exact-client hardening includes the Categories Save control and Sub-categories Add section in the fail-closed writer guard. Dedicated mocked Chromium assertions cover these surfaces for Editor, View-only, No-access and permission-error states at 390 px and 1280 px. **The exact follow-up CI head must complete before approval.**
+- PR #444 had **no submitted independent GitHub reviews** when checked. No independent reviewer approval is claimed.
+- Production query confirms all four representative governed `rpc_wp10_create_*` endpoints are absent. Installing the two guarded server proposals would create new functions, not overwrite existing ones. Production direct-write privileges remain intact.
+
 ## 6. Decision summary
 Approve nothing implicitly. The next legitimate owner review should be for a **bounded RPC server-first installation** only, after independent source/security inspection and exact preflight. Client release and 4-table DML revoke are **separate** choices because installed Electron versions remain unknown. The Route Manager concurrency residual cannot be silently converted to PASS.
 
