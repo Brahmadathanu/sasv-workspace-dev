@@ -31,7 +31,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 try {
   const scenario = makeRunner(cluster, { sql: g2FixtureSql() });
   // All state is synthetic. Product 1 has a route ONLY while assigned to subgroup 1.
-  const candidate = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "experimental-parent-lock.sql"), "utf8");
+  const candidate = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "review-only-cl15-parent-lock-correction.sql"), "utf8");
   const setup = candidate + "\n" + session() +
     "insert into costing.production_route_family(id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
     "insert into costing.production_route_family_product_subgroup_map(product_subgroup_id,route_family_id,status,effective_from) values (1,777,'APPROVED',date '2026-01-01');\n" +
