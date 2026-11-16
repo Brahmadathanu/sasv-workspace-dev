@@ -36,6 +36,8 @@ begin
  perform 1 from public.sub_groups where id=p_subgroup_id for update;
  if not found then raise exception 'Subgroup not found'; end if;
  if exists(select 1 from public.products where sub_group_id=p_subgroup_id) then raise exception 'Cannot delete subgroup referenced by products'; end if;
+ if exists(select 1 from costing.production_route_family_product_subgroup_map where product_subgroup_id=p_subgroup_id) then raise exception 'Cannot delete subgroup referenced by route mappings'; end if;
+ if exists(select 1 from public.scheme_policy_rules where sub_group_id=p_subgroup_id) then raise exception 'Cannot delete subgroup referenced by scheme rules'; end if;
  delete from public.sub_groups where id=p_subgroup_id;
 end $fn$;
 revoke all on function public.rpc_wp10_create_subgroup(integer,text),public.rpc_wp10_rename_subgroup(integer,text),public.rpc_wp10_delete_subgroup(integer) from public,anon,authenticated;
