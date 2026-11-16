@@ -1117,6 +1117,29 @@
         outline-offset: -2px;
         border-color: #3b82f6;
       }
+      /* WP11 UX-P05: constrain PM-BOM chrome to the device viewport. */
+      @media (max-width: 640px) {
+        .panel, .panel-header, .tabs-wrap, .tabs, .erp-pills-bar {
+          min-width: 0;
+          max-width: 100%;
+          box-sizing: border-box;
+        }
+        .panel-header {
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .panel-header > *, .erp-pills-bar > * {
+          min-width: 0;
+          max-width: 100%;
+        }
+        .tabs { overflow-x: auto; overflow-y: hidden; }
+        .tabs .tab-btn { white-space: nowrap; }
+        .two-col { grid-template-columns: minmax(0, 1fr); }
+        .form-row[style*="grid-template-columns: 220px 1fr"] {
+          grid-template-columns: minmax(0, 1fr) !important;
+        }
+        .form-row > *, .two-col > * { min-width: 0; }
+      }
     </style>
     <!-- jsPDF (for PDF export) -->
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
