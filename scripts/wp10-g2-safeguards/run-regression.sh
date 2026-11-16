@@ -4,8 +4,8 @@
 cd "$(dirname "$0")/../.." || exit 1
 c() { node --test "$@" 2>&1 | grep -E "^# (tests|pass|fail|skipped)" | tr '\n' ' '; echo; }
 labels() { grep -E "^(# )?(PASS|FAIL|NOT PROVEN|SKIPPED)" | sed -E 's/^# //' | awk '{ if ($1=="NOT") print "NOT_PROVEN"; else print $1 }' | sort | uniq -c | tr '\n' ' '; echo; }
-for t in horizon guards provenance draft-sql-static; do echo "== g2 $t (PASS/FAIL/NOT_PROVEN/SKIPPED labels)"; node scripts/wp10-g2-safeguards/$t.test.mjs 2>&1 | labels; done
-for t in client-units source sw-delivery browser-products browser-readiness; do echo "== g2 $t (node:test)"; c scripts/wp10-g2-safeguards/$t.test.mjs; done
+for t in horizon guards provenance preview draft-sql-static; do echo "== g2 $t (PASS/FAIL/NOT_PROVEN/SKIPPED labels)"; node scripts/wp10-g2-safeguards/$t.test.mjs 2>&1 | labels; done
+for t in client-units source sw-delivery browser-products browser-readiness browser-preview; do echo "== g2 $t (node:test)"; c scripts/wp10-g2-safeguards/$t.test.mjs; done
 for t in transition-fixture fixture-mutation catalog-parity client-contract; do echo "== g1 $t (labels)"; node scripts/wp10-g1-safeguard-audit/$t.test.mjs 2>&1 | labels; done
 echo "== readiness usability"; c scripts/costing-readiness-usability/readiness-usability.test.mjs
 echo "== wp04 readiness client smoke"; node scripts/wp04-readiness-client-contract-smoke.mjs 2>&1 | tail -1

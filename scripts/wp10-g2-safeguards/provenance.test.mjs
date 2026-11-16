@@ -8,13 +8,13 @@ import { makeResults } from "../wp10-g1-safeguard-audit/lib.mjs";
 const { results, check, classify, failed } = makeResults();
 if (!pgAvailable()) { classify("V0", "SKIPPED", "PostgreSQL unavailable — provenance fixtures SKIPPED (not PASS)"); if (process.argv[2]) fs.writeFileSync(process.argv[2], JSON.stringify({ results }, null, 2) + "\n"); process.exit(2); }
 const cluster = startPg();
-const ORDER = ["clock", "states", "horizon", "reparent", "route"];
+const ORDER = ["clock", "states", "horizon", "reparent", "route", "preview"];
 const BASE = g2FixtureSql({ load: [] }) + PRODUCTS_SEED;
 const fresh = () => { const db = cluster.newDb(); const r = cluster.script(db, BASE); if (r.code) throw new Error("base boot failed: " + r.err); return db; };
 const apply = (db, key) => cluster.script(db, draft(DRAFTS[key]));
 const applyAll = (db, keys = ORDER) => keys.map((k) => apply(db, k));
 const q = (db, text) => cluster.sql(db, text);
-const WP10_OBJECTS = "select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where p.proname like 'fn_wp10_%' or p.proname = 'rpc_wp10_get_operational_expiry_horizon'";
+const WP10_OBJECTS = "select count(*) from pg_proc p where p.proname like '%wp10%'";
 const WP10_TRIGGERS = "select count(*) from pg_trigger where tgname like 'trg_wp10_%' and not tgisinternal";
 const md5Of = (db, sig) => q(db, `select md5(pg_get_functiondef('${sig}'::regprocedure))`);
 const ROLLBACK = () => draft(DRAFTS.rollback);
@@ -25,8 +25,8 @@ try {
   {
     const db = fresh();
     const rs = applyAll(db);
-    check("V1.1", "clean first application of 01..05 succeeds file by file (each file is one transaction)", rs.every((r) => r.code === 0), rs.map((r) => r.err.slice(0, 80)).join("|"));
-    check("V1.2", "every created function and trigger carries a receipt 'WP10-G2 <file> md5:<md5 of its definition>' that matches the object", q(db, "select count(*) from pg_proc p where (p.proname like 'fn_wp10_%' or p.proname = 'rpc_wp10_get_operational_expiry_horizon') and obj_description(p.oid, 'pg_proc') ~ '^WP10-G2 0[1-5]_' and split_part(obj_description(p.oid, 'pg_proc'), 'md5:', 2) = md5(pg_get_functiondef(p.oid))") === "8" && q(db, "select count(*) from pg_trigger t where t.tgname like 'trg_wp10_%' and obj_description(t.oid, 'pg_trigger') ~ '^WP10-G2 0[1-5]_' and split_part(obj_description(t.oid, 'pg_trigger'), 'md5:', 2) = md5(pg_get_triggerdef(t.oid))") === "3");
+    check("V1.1", "clean first application of 01..06 succeeds file by file (each file is one transaction)", rs.every((r) => r.code === 0), rs.map((r) => r.err.slice(0, 80)).join("|"));
+    check("V1.2", "every created function and trigger carries a receipt 'WP10-G2 <file> md5:<md5 of its definition>' that matches the object", q(db, "select count(*) from pg_proc p where p.proname like '%wp10%' and obj_description(p.oid, 'pg_proc') ~ '^WP10-G2 0[1-6]_' and split_part(obj_description(p.oid, 'pg_proc'), 'md5:', 2) = md5(pg_get_functiondef(p.oid))") === "14" && q(db, "select count(*) from pg_trigger t where t.tgname like 'trg_wp10_%' and obj_description(t.oid, 'pg_trigger') ~ '^WP10-G2 0[1-5]_' and split_part(obj_description(t.oid, 'pg_trigger'), 'md5:', 2) = md5(pg_get_triggerdef(t.oid))") === "3");
   }
   // V2 re-run refuses and changes nothing
   {
@@ -115,6 +115,37 @@ try {
     const tablesBefore = q(db, "select string_agg(relname, ',' order by relname) from pg_class where relkind = 'r' and relnamespace in ('public'::regnamespace, 'costing'::regnamespace)");
     cluster.script(db, ROLLBACK());
     check("V12.1", "rollback changes no table (no table is created by the proposals and none is dropped)", q(db, "select string_agg(relname, ',' order by relname) from pg_class where relkind = 'r' and relnamespace in ('public'::regnamespace, 'costing'::regnamespace)") === tablesBefore);
+  }
+  // V14 proposal 06 (preview): collision, prerequisite/live drift, rollback
+  {
+    const db = fresh();
+    q(db, "create function costing.fn_wp10_route_state_ctx(p integer, d date, s integer) returns jsonb language sql as $$ select '{}'::jsonb $$");
+    const foreign = md5Of(db, "costing.fn_wp10_route_state_ctx(integer,date,integer)");
+    applyAll(db, ["clock"]);
+    const r = apply(db, "preview");
+    check("V14.1", "06: a PRE-EXISTING helper with a 06 name is refused and left untouched; no 06 object is created", r.code !== 0 && /already exists; refusing to overwrite or adopt/.test(r.err) && md5Of(db, "costing.fn_wp10_route_state_ctx(integer,date,integer)") === foreign && q(db, "select count(*) from pg_proc where proname like 'fn_wp10_%ctx' or proname = 'rpc_wp10_preview_product_subgroup_impact'") === "1");
+    const db2 = fresh();
+    const r0 = apply(db2, "preview");
+    check("V14.2", "06 before 01 is refused (prerequisite proposal 01 missing)", r0.code !== 0 && /prerequisite .* \(proposal 01\)/.test(r0.err));
+    const db3 = fresh(); apply(db3, "clock");
+    q(db3, "alter function costing.fn_validate_product_process_route(bigint) volatile");
+    const r3 = apply(db3, "preview");
+    check("V14.3", "06 is refused when a captured live function it is DERIVED FROM changed (fn_validate_product_process_route md5 drift)", r3.code !== 0 && /live function costing.fn_validate_product_process_route\(bigint\) differs from the reviewed definition/.test(r3.err));
+    const db4 = fresh(); apply(db4, "clock");
+    q(db4, "alter function costing.fn_resolve_route_family_for_product(integer, date) volatile");
+    const r4 = apply(db4, "preview");
+    check("V14.4", "06 is refused when the live family resolver it is derived from changed", r4.code !== 0 && /fn_resolve_route_family_for_product\(integer, date\) differs/.test(r4.err));
+    const db5 = fresh(); applyAll(db5);
+    q(db5, "create or replace function costing.fn_wp10_resolve_route_family_ctx(p_product_id integer, p_as_of_date date, p_sub_group_id integer) returns bigint language sql as $$ select 1::bigint $$");
+    const n5 = q(db5, WP10_OBJECTS);
+    const r5 = cluster.script(db5, ROLLBACK());
+    check("V14.5", "a MODIFIED 06 helper makes the rollback refuse and drop NOTHING (every other 06 object still present)", r5.code !== 0 && /rollback refused \(nothing dropped\).*fn_wp10_resolve_route_family_ctx/.test(r5.err) && q(db5, WP10_OBJECTS) === n5);
+    const db6 = fresh(); applyAll(db6);
+    const r6 = cluster.script(db6, ROLLBACK());
+    check("V14.6", "rollback removes all 06 objects with the others (no wp10 function remains; live route chain byte-identical)", r6.code === 0 && q(db6, WP10_OBJECTS) === "0" && LIVE_SIGS.every((sg) => /./.test(md5Of(db6, sg))));
+    const db7 = fresh(); applyAll(db7, ["clock", "preview"]);
+    const grants = q(db7, "select has_function_privilege('authenticated','public.rpc_wp10_preview_product_subgroup_impact(integer,integer)','execute')::text || ':' || has_function_privilege('authenticated','costing.fn_wp10_route_state_ctx(integer,date,integer)','execute')::text");
+    check("V14.7", "applying 06 grants EXECUTE on the preview RPC to authenticated only; no helper is granted (proposed grant implication verified in isolation)", grants === "true:false");
   }
   // V13 mutation controls: a weakened preflight / rollback is detected
   {

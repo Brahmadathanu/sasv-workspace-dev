@@ -525,6 +525,8 @@ function promptGovernance({
   danger = false,
   onOpen = null, // WP10 G2 (flag-gated callers only): receives { setDetail(node) } to show asynchronous pre-check detail inside the dialog
 } = {}) {
+  // One owner of the shared confirmation controls while the WP10 flag is enabled.
+  if (wp10SafeguardsOn() && governanceModalOverlay?.classList.contains("show")) return Promise.resolve(null);
   return new Promise((resolve) => {
     if (
       !governanceModalOverlay ||
@@ -1200,6 +1202,35 @@ function buildSaveSummary(fields) {
   ].join("\n");
 }
 
+// ---- WP10 G2 preview lifecycle helpers (flag ON only) ----
+let wp10ProductAttempt = null;
+function wp10SubgroupChanging(draft) {
+  return (
+    !!loadedProductSnapshot &&
+    Number(loadedProductSnapshot.product_id) === Number(selectedId) &&
+    loadedProductSnapshot.sub_group_id != null &&
+    draft.p_sub_group_id != null &&
+    Number(draft.p_sub_group_id) !== Number(loadedProductSnapshot.sub_group_id)
+  );
+}
+function wp10ProductAttemptValid(a) {
+  const currentSg = subgroupSelect && subgroupSelect.value ? Number(subgroupSelect.value) : null;
+  return (
+    wp10ProductAttempt === a &&
+    !inNewMode &&
+    String(selectedId) === String(a.productId) &&
+    !!loadedProductSnapshot &&
+    Number(loadedProductSnapshot.product_id) === a.productId &&
+    Number(loadedProductSnapshot.sub_group_id) === a.storedSubGroupId &&
+    currentSg === a.proposedSubGroupId &&
+    JSON.stringify(buildProductRpcPayloadFromForm({ reason: "__pending__", approvalReference: null })) === a.draftSignature &&
+    JSON.stringify(loadedProductSnapshot) === a.loadedSignature &&
+    editing === a.wasEditing &&
+    canWriteModule() &&
+    !writeBusy
+  );
+}
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!canWriteModule()) {
@@ -1207,6 +1238,7 @@ form.addEventListener("submit", async (e) => {
     return;
   }
   if (writeBusy) return;
+  if (wp10ProductAttempt) return; // one confirmation lifecycle at a time
 
   const draft = buildProductRpcPayloadFromForm({
     reason: "__pending__",
@@ -1278,12 +1310,67 @@ form.addEventListener("submit", async (e) => {
 
   const isCreate = !selectedId;
   const summary = buildSaveSummary(draft);
-  const governance = await promptGovernance({
-    title: isCreate ? "Create product" : "Update product",
-    message: `${isCreate ? "Create" : "Update"} this product?\n\n${summary}`,
-    confirmLabel: isCreate ? "Create" : "Save",
-    danger: false,
-  });
+  // WP10 G2 (default OFF; WP10_SAFEGUARDS_V1 === "1"): read-only pre-submit sub-group impact PREVIEW, only for an EXISTING product whose sub-group is changing.
+  // Serialised import -> preview -> dialog -> revalidation lifecycle; the existing writer and its transactional guard stay authoritative (the preview is advisory: no token, nothing it returns relaxes a check).
+  let attempt = null;
+  if (!isCreate && wp10SafeguardsOn() && wp10SubgroupChanging(draft)) {
+    attempt = { productId: Number(selectedId), storedSubGroupId: Number(loadedProductSnapshot.sub_group_id), proposedSubGroupId: Number(draft.p_sub_group_id), draftSignature: JSON.stringify(draft), loadedSignature: JSON.stringify(loadedProductSnapshot), wasEditing: editing };
+    wp10ProductAttempt = attempt; // reserved BEFORE any await
+  }
+  let governance;
+  try {
+    const wp10 = attempt ? await loadWp10Modules() : null;
+    if (attempt && !wp10ProductAttemptValid(attempt)) {
+      showToast("The selection, your access or the product changed; nothing was opened or submitted.");
+      return;
+    }
+    let dialogOpen = false;
+    const pguard = wp10 ? wp10.core.createLatestGuard() : null;
+    const previewOnOpen = wp10
+      ? (handle) => {
+          dialogOpen = true;
+          const token = pguard.next();
+          const live = () => pguard.isCurrent(token) && dialogOpen && wp10ProductAttemptValid(attempt);
+          // a dialog that is still open for THIS attempt but whose context changed must not keep "Checking…" or show a stale answer
+          const discardedNote = () => { if (pguard.isCurrent(token) && dialogOpen) handle.setDetail(wp10.ui.statusNode(document, "This preview was discarded because the product, its sub-group or your access changed. Nothing is submitted unless the context is current when you confirm.")); };
+          handle.setDetail(wp10.ui.statusNode(document, "Checking the route impact of the sub-group change…"));
+          (async () => {
+            let view;
+            try {
+              const req = wp10.core.buildPreviewRequest(attempt.productId, attempt.proposedSubGroupId);
+              if (!req) throw new Error("WP10_PREVIEW_INPUT");
+              const { data, error } = await supabase.rpc("rpc_wp10_preview_product_subgroup_impact", req.args); // exact read-only endpoint name (pinned by the WP08 surface allowances and WP10 S9)
+              if (!live()) { discardedNote(); return; } // stale, cancelled, closed, changed selection/subgroup/rights, or disposed
+              if (error) view = { kind: "unavailable", reason: wp10.core.classifyPreviewFailure(error) };
+              else {
+                const v = wp10.core.validatePreviewEnvelope(data, attempt);
+                view = v.ok ? { kind: "ok", value: v.value } : { kind: "unavailable", reason: v.reason };
+              }
+            } catch (err) {
+              if (!live()) { discardedNote(); return; }
+              view = { kind: "unavailable", reason: wp10.core.classifyPreviewFailure(err) };
+            }
+            if (live()) handle.setDetail(wp10.ui.buildSubgroupImpactNode(document, view, { linkFor: wp10OwnerLink }));
+          })();
+        }
+      : null;
+    governance = await promptGovernance({
+      title: isCreate ? "Create product" : "Update product",
+      message: `${isCreate ? "Create" : "Update"} this product?\n\n${summary}`,
+      confirmLabel: isCreate ? "Create" : "Save",
+      danger: false,
+      onOpen: previewOnOpen,
+    });
+    dialogOpen = false;
+    pguard?.cancel();
+    // revalidate immediately before the writer: selection, draft, rights and state may have changed while the dialog was open
+    if (governance && attempt && !wp10ProductAttemptValid(attempt)) {
+      showToast("The selection, the sub-group, your access or the product changed while the dialog was open; nothing was submitted.");
+      return;
+    }
+  } finally {
+    if (attempt && wp10ProductAttempt === attempt) wp10ProductAttempt = null; // released synchronously before the writer below
+  }
   if (!governance) return;
 
   const payload = buildProductRpcPayloadFromForm(governance);
@@ -2473,7 +2560,7 @@ async function loadWp10Modules() {
   if (!wp10SafeguardsOn()) return null;
   if (wp10Mods) return wp10Mods;
   try {
-    const [core, ui] = await Promise.all([import("./wp10-safeguards.js?v=419f1603de"), import("./wp10-safeguards-ui.js?v=419f1603de")]);
+    const [core, ui] = await Promise.all([import("./wp10-safeguards.js?v=6b42977628"), import("./wp10-safeguards-ui.js?v=6b42977628")]);
     wp10Mods = { core, ui };
   } catch {
     wp10Mods = null;
@@ -2558,12 +2645,13 @@ async function toggleSkuActiveInner(row, nextActive, attempt) {
       dialogOpen = true;
       const token = guard.next();
       const live = () => guard.isCurrent(token) && dialogOpen && wp10AttemptStillValid(attempt);
+      const discardedNote = () => { if (guard.isCurrent(token) && dialogOpen) handle.setDetail(wp10.ui.statusNode(document, "This check was discarded because the selection or the SKU state changed. Nothing is submitted unless the context is current when you confirm.")); };
       handle.setDetail(wp10.ui.statusNode(document, "Checking activation requirements…"));
       (async () => {
         let node;
         try {
           const { data, error } = await supabase.rpc("rpc_get_sku_activation_check", { p_sku_id: row.id });
-          if (!live()) return; // stale response, closed dialog or changed selection/state
+          if (!live()) { discardedNote(); return; } // stale response, closed dialog or changed selection/state
           if (error) {
             const parsed = wp10.core.parseActivationError(error);
             node = wp10.ui.buildActivationCheckNode(document, { ok: false, reason: parsed.kind === "AMBIGUOUS_PM_BOM" ? "AMBIGUOUS_PM_BOM" : parsed.kind === "PERMISSION" ? "NO_PERMISSION" : parsed.kind === "UNAVAILABLE" ? "UNREACHABLE" : "ERROR" }, { linkFor: wp10OwnerLink });
@@ -2571,7 +2659,7 @@ async function toggleSkuActiveInner(row, nextActive, attempt) {
             node = wp10.ui.buildActivationCheckNode(document, wp10.core.parseActivationCheck(data, row.id), { linkFor: wp10OwnerLink });
           }
         } catch {
-          if (!live()) return; // R3: the catch path applies the same identity checks
+          if (!live()) { discardedNote(); return; } // R3: the catch path applies the same identity checks
           node = wp10.ui.buildActivationCheckNode(document, { ok: false, reason: "UNREACHABLE" }, { linkFor: wp10OwnerLink });
         }
         if (live()) handle.setDetail(node);

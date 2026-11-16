@@ -4,7 +4,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
-import { repoRoot, read, catalog, catalog2, liveFn2, makeResults } from "../wp10-g1-safeguard-audit/lib.mjs";
+import { repoRoot, read, catalog, catalog2, liveFn2, normalizeSql, makeResults } from "../wp10-g1-safeguard-audit/lib.mjs";
+import { buildManifest, MANIFEST } from "./gen-application-manifest.mjs";
+import { buildProposal06, OUT as OUT06, SOURCES, DERIVED } from "./gen-proposal-06.mjs";
 
 const { results, check, classify, failed } = makeResults();
 const DIR = "docs/master-data-costing/WP10_G2_UNAPPLIED_SQL_PROPOSALS";
@@ -13,17 +15,17 @@ const strip = (s) => s.replace(/--.*$/gm, "");
 const body = Object.fromEntries(files.map((f) => [f, strip(read(`${DIR}/${f}`))]));
 const raw = Object.fromEntries(files.map((f) => [f, read(`${DIR}/${f}`)]));
 
-check("S1", "six draft files exist (01-05 + 99 rollback) in a draft directory OUTSIDE supabase/ (so outside supabase/migrations and outside the PEC protected path)", files.join() === "01_clock_and_batch_size_contract.sql,02_essential_states_and_boundaries.sql,03_operational_expiry_horizon_rpc.sql,04_active_sku_reparent_guard.sql,05_product_route_impact_guard.sql,99_rollback_all.sql" && !DIR.startsWith("supabase/migrations"));
+check("S1", "seven draft files exist (01-06 + 99 rollback) in a draft directory OUTSIDE supabase/ (so outside supabase/migrations and outside the PEC protected path)", files.join() === "01_clock_and_batch_size_contract.sql,02_essential_states_and_boundaries.sql,03_operational_expiry_horizon_rpc.sql,04_active_sku_reparent_guard.sql,05_product_route_impact_guard.sql,06_subgroup_impact_preview.sql,99_rollback_all.sql" && !DIR.startsWith("supabase/migrations"));
 const tracked = execFileSync("git", ["ls-files", "supabase/migrations"], { cwd: repoRoot, encoding: "utf8" });
 check("S2", "no WP10 G2 object is present in supabase/migrations (tracked or untracked): the proposals are unapplied", !/wp10/i.test(tracked) && !fs.readdirSync(path.join(repoRoot, "supabase/migrations")).some((f) => /wp10/i.test(f)));
 check("S3", "every draft file is labelled UNAPPLIED / DO NOT RUN in its first lines", files.every((f) => /UNAPPLIED/.test(raw[f].split("\n").slice(0, 3).join("\n")) && /DO NOT RUN|UNAPPLIED/i.test(raw[f].split("\n").slice(0, 3).join("\n"))));
 check("S4", "every file is one transaction with lock/statement timeouts (begin … commit; set local lock_timeout / statement_timeout)", files.every((f) => /\bbegin;/.test(body[f]) && /\bcommit;/.test(body[f])) && files.filter((f) => !/99_/.test(f)).every((f) => /set local lock_timeout/.test(body[f]) && /set local statement_timeout/.test(body[f])));
 
 // ---- read-only proposals contain no DML/DDL beyond function creation ----
-const readOnly = ["01_clock_and_batch_size_contract.sql", "02_essential_states_and_boundaries.sql", "03_operational_expiry_horizon_rpc.sql"];
+const readOnly = ["01_clock_and_batch_size_contract.sql", "02_essential_states_and_boundaries.sql", "03_operational_expiry_horizon_rpc.sql", "06_subgroup_impact_preview.sql"];
 const forbidden = /\b(insert\s+into|update\s+\w|delete\s+from|truncate|create\s+table|alter\s+table|drop\s+table|create\s+policy|alter\s+policy|create\s+trigger|drop\s+trigger)\b/i;
-check("S5", "the read-only proposals (01-03) contain no INSERT/UPDATE/DELETE/TRUNCATE/DDL other than CREATE FUNCTION + REVOKE/GRANT + comment receipts", readOnly.every((f) => !forbidden.test(body[f].replace(/create function/gi, ""))));
-check("S6", "every function in 01-03 is STABLE and SECURITY DEFINER with a fixed search_path", readOnly.every((f) => { const fns = body[f].split(/create function/i).slice(1); return fns.every((x) => /\bstable\b/i.test(x) && /security definer/i.test(x) && /set search_path/i.test(x)); }));
+check("S5", "the read-only proposals (01-03, 06) contain no INSERT/UPDATE/DELETE/TRUNCATE/DDL other than CREATE FUNCTION + REVOKE/GRANT + comment receipts", readOnly.every((f) => !forbidden.test(body[f].replace(/create function/gi, ""))));
+check("S6", "every function in 01-03 and 06 is STABLE and SECURITY DEFINER with a fixed search_path", readOnly.every((f) => { const fns = body[f].split(/create function/i).slice(1); return fns.every((x) => /\bstable\b/i.test(x) && /security definer/i.test(x) && /set search_path/i.test(x)); }));
 check("S7", "no proposal calls the governed builder, the fingerprint, the portfolio read, the epoch bump or any refresh/writer function", files.every((f) => !/\b(?:fn_wp04_build_readiness_portfolio|fn_wp04_readiness_source_fingerprint|fn_wp04_readiness_bump_source_epoch|rpc_get_product_sku_readiness_portfolio|rpc_set_product_sku_active|rpc_update_product|rpc_create_product(?:_sku)?)\s*\(/.test(body[f])));
 check("S8", "the proposals do NOT redefine any live function (no CREATE of an object that exists in either live catalog): all new names are fn_wp10_* / rpc_wp10_*", (() => { const live = new Set([...catalog.functions.map((f) => f.proname), ...catalog2.functions.map((f) => f.proname)]); const created = files.flatMap((f) => [...body[f].matchAll(/create function\s+(?:\w+\.)?(\w+)/gi)].map((m) => m[1])); return created.length >= 7 && created.every((n) => /wp10/.test(n) && !live.has(n)); })());
 
@@ -31,7 +33,7 @@ check("S8", "the proposals do NOT redefine any live function (no CREATE of an ob
 const targets = new Set(files.flatMap((f) => [...body[f].matchAll(/'(module:[a-z0-9-]+)'/g)].map((m) => m[1])));
 check("S9", "permission targets used are ONLY the existing manage-products and costing-control-center (no new permission target)", [...targets].sort().join() === "module:costing-control-center,module:manage-products");
 const grants = files.flatMap((f) => [...body[f].matchAll(/\bgrant\s+[^;]+;/gi)].map((m) => m[0].replace(/\s+/g, " ")));
-check("S10", "exactly ONE grant exists: EXECUTE on the horizon RPC to authenticated; everything else is revoked from public/anon/authenticated (no RLS/policy/table-privilege change)", grants.length === 1 && /grant execute on function public\.rpc_wp10_get_operational_expiry_horizon\(integer, bigint, integer\) to authenticated;/i.test(grants[0]) && files.every((f) => !/\b(create policy|alter policy|drop policy|row level security|alter table)\b/i.test(body[f])));
+check("S10", "exactly TWO grants exist, both EXECUTE to authenticated on a read-only RPC (the horizon and the preview); every helper is revoked from public/anon/authenticated and no RLS/policy/table-privilege change exists", grants.length === 2 && grants.some((g) => /grant execute on function public\.rpc_wp10_get_operational_expiry_horizon\(integer, bigint, integer\) to authenticated;/i.test(g)) && grants.some((g) => /grant execute on function public\.rpc_wp10_preview_product_subgroup_impact\(integer, integer\) to authenticated;/i.test(g)) && files.every((f) => !/\b(create policy|alter policy|drop policy|row level|grant (select|insert|update|delete))/i.test(body[f])));
 
 // ---- rollback completeness ----
 const created = files.filter((f) => !/99_/.test(f)).flatMap((f) => [...body[f].matchAll(/create function\s+((?:\w+\.)?\w+)\s*\(/gi)].map((m) => m[1]));
@@ -51,6 +53,25 @@ const tableRefs = new Set(files.flatMap((f) => [...body[f].matchAll(/\b(?:from|j
 const tableClosure = [...tableRefs].sort().map((t) => ({ object: t, kind: "table", epoch_hooked: epochTables.has(t) }));
 check("S12", "every function the proposals CALL is a live captured function, a repo-defined function, or an auth/permission helper (closure has no unknown callee)", fnClosure.every((c) => c.live_captured || c.other_evidence), fnClosure.filter((c) => !c.live_captured && !c.other_evidence).map((c) => c.object).join());
 check("S13", "every table the read proposals touch is epoch-hooked or a product master table (their changes already invalidate the readiness build)", tableClosure.every((t) => t.epoch_hooked), tableClosure.filter((t) => !t.epoch_hooked).map((t) => t.object).join());
+// ---- proposal 06 (preview): generated file, mechanical derivation, parity with the captured text ----
+check("S19", "06 is byte-identical to the output of its generator (no hand edit can drift from the derivation)", read(`${DIR}/06_subgroup_impact_preview.sql`) === buildProposal06());
+{
+  const norm = (t) => normalizeSql(t.replace(/CREATE (OR REPLACE )?FUNCTION [^(]+\([^)]*\)/i, "CREATE FUNCTION X()").replace("'costing', 'public', 'pg_temp'", "'costing', 'public'")).replace(/;$/, "");
+  const back = {
+    resolve_family: (t) => t.split("from (select p_product_id as id, p_sub_group_id as sub_group_id) p\n").join("from public.products p\n"),
+    resolve_family_route: (t) => t.split("costing.fn_wp10_resolve_route_family_ctx(p_product_id,p_as_of_date,p_sub_group_id)").join("costing.fn_resolve_route_family_for_product(p_product_id,p_as_of_date)"),
+    validate_product_route: (t) => t.split("costing.fn_wp10_resolve_route_family_ctx(v_route.product_id,coalesce(v_route.effective_from,current_date),p_sub_group_id)").join("costing.fn_resolve_route_family_for_product(v_route.product_id,coalesce(v_route.effective_from,current_date))"),
+    validate_effective: (t) => t.split("costing.fn_wp10_resolve_route_family_ctx(p_product_id,v_date,p_sub_group_id)").join("costing.fn_resolve_route_family_for_product(p_product_id,v_date)").split("costing.fn_wp10_resolve_effective_route_family_route_ctx(p_product_id,v_date,p_sub_group_id)").join("costing.fn_resolve_effective_route_family_route(p_product_id,v_date)").split("costing.fn_wp10_validate_product_process_route_ctx(v_product_route_id,p_sub_group_id)").join("costing.fn_validate_product_process_route(v_product_route_id)"),
+  };
+  const src = { resolve_family: "fn_resolve_route_family_for_product", resolve_family_route: "fn_resolve_effective_route_family_route", validate_product_route: "fn_validate_product_process_route", validate_effective: "fn_validate_effective_product_process_route" };
+  const results06 = Object.keys(src).map((k) => ({ k, same: norm(back[k](DERIVED[k])) === norm(SOURCES[src[k]].def), derivedInFile: raw["06_subgroup_impact_preview.sql"].includes(DERIVED[k]) }));
+  check("S20", "PARITY: undoing ONLY the named substitutions turns each of the four derived helpers back into its captured live definition (whitespace/header-insensitive) - no broad reimplementation", results06.every((r) => r.same && r.derivedInFile), results06.filter((r) => !r.same || !r.derivedInFile).map((r) => r.k).join());
+  const subs = { resolve_family: ["from public.products p"], resolve_family_route: ["fn_resolve_route_family_for_product"], validate_product_route: ["fn_resolve_route_family_for_product(v_route.product_id"], validate_effective: ["fn_resolve_route_family_for_product(", "fn_resolve_effective_route_family_route(", "fn_validate_product_process_route("] };
+  check("S21", "the derived helpers contain NO remaining call to the stored-subgroup canonical resolver and no read of public.products (so no path can silently fall back to the stored context)", ["resolve_family", "resolve_family_route", "validate_product_route", "validate_effective"].every((k) => !/fn_resolve_route_family_for_product|fn_resolve_effective_route_family_route\(|fn_validate_product_process_route\(|public\.products/.test(DERIVED[k].replace(/--.*$/gm, ""))));
+  check("S22", "the reused canonical callees (product-route selection, family-route validator, effective steps) are called by name and fingerprinted in the 06 preflight with the md5 of their captured text", ["fn_resolve_effective_product_process_route", "fn_validate_route_family_route", "fn_effective_product_process_route_steps"].every((n) => raw["06_subgroup_impact_preview.sql"].includes(`'${SOURCES[n].sig}', '${SOURCES[n].md5}'`)) && /fn_resolve_effective_product_process_route\(/.test(DERIVED.validate_effective) && /fn_validate_route_family_route\(/.test(DERIVED.validate_effective));
+  check("S23", "06 has no write, no set_config, no builder/refresh/writer call, no new permission target and its only grant is the preview RPC to authenticated", !/\b(insert\s+into|update\s+\w+\s+set|delete\s+from|set_config|fn_wp04_|rpc_update_product|rpc_set_product)/i.test(body["06_subgroup_impact_preview.sql"].replace(/\$wp10_receipt\$[\s\S]*?\$wp10_receipt\$/, "")) && [...body["06_subgroup_impact_preview.sql"].matchAll(/'(module:[a-z0-9-]+)'/g)].every((m) => m[1] === "module:manage-products"));
+}
+check("S24", "the unapplied-SQL application manifest (order, sha256 of every file, dependency/absence checks, grants, rollback, stop conditions) equals the generator output, so its hashes always match the committed SQL", read(MANIFEST) === buildManifest() && /NOT PERMISSION TO APPLY/.test(read(MANIFEST)));
 // ---- R2 route dependency closure against the independent route-callee catalog ----
 const ROUTE_CAT = JSON.parse(read("docs/master-data-costing/WP10_G2_EVIDENCE/independent-route-callee-catalog-2026-11-15.json"));
 const routeDefs = Object.fromEntries(ROUTE_CAT.functions.map((f) => [f.proname, f.definition]));

@@ -9,7 +9,7 @@ import { repoRoot, liveFn2, read } from "../wp10-g1-safeguard-audit/lib.mjs";
 export { pgAvailable, session, PROVENANCE };
 export const DRAFT_DIR = path.join(repoRoot, "docs/master-data-costing/WP10_G2_UNAPPLIED_SQL_PROPOSALS");
 export const draft = (name) => fs.readFileSync(path.join(DRAFT_DIR, name), "utf8");
-export const DRAFTS = { clock: "01_clock_and_batch_size_contract.sql", states: "02_essential_states_and_boundaries.sql", horizon: "03_operational_expiry_horizon_rpc.sql", reparent: "04_active_sku_reparent_guard.sql", route: "05_product_route_impact_guard.sql", rollback: "99_rollback_all.sql" };
+export const DRAFTS = { clock: "01_clock_and_batch_size_contract.sql", states: "02_essential_states_and_boundaries.sql", horizon: "03_operational_expiry_horizon_rpc.sql", reparent: "04_active_sku_reparent_guard.sql", route: "05_product_route_impact_guard.sql", preview: "06_subgroup_impact_preview.sql", rollback: "99_rollback_all.sql" };
 
 // STAND-IN clock: the proposal reads the clock in ONE function; the fixture replaces only that function so tests can fix 'today' (same technique as G1's fixture_now).
 // The stand-in is then RE-STAMPED with the same receipt format so that provenance checks (99 rollback, prerequisite receipts) see an intact object; tests that need the
@@ -70,7 +70,7 @@ create function public.fx_product_route(p_product int, p_from date, p_to date, p
 `;
 
 /** which drafts to load (default all five); `mutate(name, text)` lets mutation tests alter one file. */
-export function g2FixtureSql({ load = ["clock", "states", "horizon", "reparent", "route"], mutate = (n, t) => t, clock = true } = {}) {
+export function g2FixtureSql({ load = ["clock", "states", "horizon", "reparent", "route", "preview"], mutate = (n, t) => t, clock = true } = {}) {
   let sql = fixtureSql() + ROUTE_CHAIN_SQL + "\ndo $$ begin if not exists (select 1 from pg_roles where rolname='service_role') then create role service_role nologin; end if; end $$;\n";
   for (const k of load) sql += "\n" + mutate(k, draft(DRAFTS[k])) + "\n";
   if (load.includes("clock") && clock) sql += CLOCK_STANDIN;

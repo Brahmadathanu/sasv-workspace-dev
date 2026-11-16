@@ -43,6 +43,12 @@ Nothing in this runbook runs a builder, rebuilds readiness, retries a writer or 
 ## 3b. Product edits that change the sub-group (only after server proposal 05 is separately authorised)
 - A sub-group change on a product with active SKUs is refused when it would remove the product's valid route (`WP10_PRODUCT_ROUTE_IMPACT`) **or** when the impact cannot be determined (`WP10_PRODUCT_ROUTE_IMPACT_UNRESOLVED`, review required). There is no override. Fix the route data with the Production Route Manager owner (or deactivate the SKUs through the audited SKU action), then repeat the edit.
 
+### 3c. Pre-submit sub-group impact preview (flag ON **and** server proposal 06 separately authorised)
+- Editing an EXISTING product and changing its sub-group shows, inside the Save confirmation, the product's route today and under the proposed sub-group (route identity: family / family route / product route, coded reasons, active-SKU count, IST date). It runs only for a changed sub-group on an existing product.
+- It is **advisory**: not an approval, not a bypass, not a costing READY statement, and never a promise that the save will succeed. Proposal 05 (if applied) and the writer decide when you confirm. A favourable preview can still be followed by a server rejection.
+- Route loss, UNKNOWN (impact not proven) or an existing route problem: resolve with the Production Route Manager owner (map the proposed sub-group or its group to an approved family, fix the route data, or deactivate the active SKUs through the audited action) before retrying. There is no override and the screen does not block you by itself.
+- "Not available on this server yet" means the endpoint is absent: no assessment was made. A "discarded" or "stale" note means the product, sub-group or your access changed; nothing is submitted until the context is current when you confirm.
+
 ## 4. Products with no SKU / no active SKU
 Use the existing Readiness → Membership Exceptions (Products with no SKU; Active products without an active SKU). Historical counts in older records (54 / 179) are not current counts.
 

@@ -182,8 +182,11 @@ test("writer / reader surface is unchanged: identical RPC names, table names and
     // WP10 G2 (issue #440) adds exactly one READ-ONLY, flag-gated call to the existing rpc_get_sku_activation_check in products.js; it is the only
     // sanctioned deviation from the G2-0 surface and is itself pinned by scripts/wp10-g2-safeguards/source.test.mjs (no writer/table/permission change).
     if (n.endsWith("products.js")) {
-      const i = after.rpc.indexOf("rpc_get_sku_activation_check");
-      if (i >= 0 && !before.rpc.includes("rpc_get_sku_activation_check")) after.rpc.splice(i, 1);
+      // WP10 impact preview (issue #440 completion package) adds exactly one more READ-ONLY, flag-gated call: rpc_wp10_preview_product_subgroup_impact (exact name, exactly once; re-pinned by WP10 source S9).
+      for (const name of ["rpc_get_sku_activation_check", "rpc_wp10_preview_product_subgroup_impact"]) {
+        const i = after.rpc.indexOf(name);
+        if (i >= 0 && !before.rpc.includes(name)) after.rpc.splice(i, 1);
+      }
     }
     assert.deepEqual(after, before, `${n} data/permission surface`);
     assert.ok(before.rpc.length > 0);

@@ -376,7 +376,7 @@ test("R3.7 flag OFF keeps today's un-serialised flow (no reservation object, no 
 });
 
 test("M2 mutation control: WITHOUT any serialization (no reservation, no ownership check), double invocation opens two pre-checks (R3.1 would fail)", { skip }, async () => {
-  const { page, context } = await open({ importDelayMs: 500, mutateProducts: [["if (wp10ActivationAttempt) return;", ""], ["wp10ActivationAttempt === attempt &&", ""]], rpc: { rpc_get_sku_activation_check: { data: MISSING, error: null }, rpc_set_product_sku_active: { data: { ok: true }, error: null } } });
+  const { page, context } = await open({ importDelayMs: 500, mutateProducts: [["if (wp10ActivationAttempt) return;", ""], ["wp10ActivationAttempt === attempt &&", ""], ['if (wp10SafeguardsOn() && governanceModalOverlay?.classList.contains("show")) return Promise.resolve(null);', ""]], rpc: { rpc_get_sku_activation_check: { data: MISSING, error: null }, rpc_set_product_sku_active: { data: { ok: true }, error: null } } });
   await page.evaluate(() => { const b = document.getElementById("skuToggleActiveBtn"); b.click(); b.click(); });
   await page.waitForSelector("#governanceModalOverlay.show");
   await page.waitForTimeout(900);
