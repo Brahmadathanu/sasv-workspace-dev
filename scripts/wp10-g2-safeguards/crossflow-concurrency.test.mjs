@@ -111,7 +111,7 @@ commit;
 `, "G_B_READY", false, greenDb);
     greenBChild = gb.child;
     await Promise.race([gb.observed, new Promise((_,reject)=>setTimeout(()=>reject(new Error("green B barrier timeout")),10000))]);
-    ga.finish("commit;\\n");
+    ga.finish("commit;\n");
     const [gaEnd, gbEnd] = await Promise.all([ga.ended, gb.ended]);
     const greenFinal=cluster.sql(greenDb, `select ps.is_active::text || '|' || p.sub_group_id::text || '|' ||
       coalesce((costing.fn_validate_effective_product_process_route(p.id,date '2026-11-15')->>'valid'),'null')
