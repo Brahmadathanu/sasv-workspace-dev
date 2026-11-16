@@ -6,6 +6,9 @@ import {pgAvailable,startPg,g2FixtureSql,makeRunner,session,T,ACTIVATE} from "./
 if(!pgAvailable()){console.error("BLOCKED isolated PG unavailable");process.exit(2);}
 const cluster=startPg();
 const liveRpc=String.raw`
+-- live PRM audit fields omitted by minimalist base fixture; only local schema supplement.
+alter table costing.production_route_family_product_subgroup_map add column updated_at timestamptz;
+alter table costing.production_route_family_product_map add column updated_at timestamptz;
 create or replace function public.rpc_inactivate_product_subgroup_route_family_mapping(p_mapping_id bigint,p_effective_to date)
 returns jsonb language plpgsql security definer set search_path='public','costing','pg_temp' as $body$
 begin
