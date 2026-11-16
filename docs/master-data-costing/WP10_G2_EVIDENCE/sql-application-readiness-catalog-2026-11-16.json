@@ -1,0 +1,689 @@
+{
+  "project_id": "qhmoqtxpeasamtlxaoak",
+  "review_date_ist": "2026-11-16",
+  "classification": "SELECT-only system-catalog application readiness; no production RPC, preview, validator, build or writer invoked; no SQL applied",
+  "function_sources": [
+    {
+      "schema": "auth",
+      "proname": "uid",
+      "arguments": "",
+      "provolatile": "s",
+      "prosecdef": false,
+      "owner": "supabase_auth_admin",
+      "proconfig": null,
+      "acl": "{=X/supabase_auth_admin,supabase_auth_admin=X/supabase_auth_admin,dashboard_user=X/supabase_auth_admin}",
+      "definition_md5": "ea3b41bf29e2ad573067939329aa088e",
+      "definition": "CREATE OR REPLACE FUNCTION auth.uid()\n RETURNS uuid\n LANGUAGE sql\n STABLE\nAS $function$\n  select \n  coalesce(\n    nullif(current_setting('request.jwt.claim.sub', true), ''),\n    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')\n  )::uuid\n$function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "app_has_permission",
+      "arguments": "p_target text, p_mode text",
+      "provolatile": "v",
+      "prosecdef": false,
+      "owner": "postgres",
+      "proconfig": [
+        "search_path=public"
+      ],
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "definition_md5": "7b4c99b7d4a698237806b2ca10fe24af",
+      "definition": "CREATE OR REPLACE FUNCTION public.app_has_permission(p_target text, p_mode text DEFAULT 'view'::text)\n RETURNS boolean\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\r\nDECLARE\r\n  v_uid uuid;\r\nBEGIN\r\n  v_uid := auth.uid();\r\n\r\n  IF v_uid IS NULL THEN\r\n    RETURN false;\r\n  END IF;\r\n\r\n  RETURN public.app_has_permission_core(v_uid, p_target, p_mode);\r\nEND;\r\n$function$\n"
+    },
+    {
+      "schema": "public",
+      "proname": "plm_sku_bom_revision_as_of",
+      "arguments": "p_sku_id bigint, p_as_of date",
+      "provolatile": "s",
+      "prosecdef": true,
+      "owner": "postgres",
+      "proconfig": [
+        "search_path=public, pg_temp"
+      ],
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition_md5": "b116953eb0715a5598388f7f6416c0c3",
+      "definition": "CREATE OR REPLACE FUNCTION public.plm_sku_bom_revision_as_of(p_sku_id bigint, p_as_of date)\n RETURNS plm_bom_revision\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\ndeclare\n  v_count integer;\n  v_row public.plm_bom_revision%rowtype;\nbegin\n  if p_sku_id is null then\n    raise exception 'p_sku_id is required';\n  end if;\n  if p_as_of is null then\n    raise exception 'p_as_of is required';\n  end if;\n\n  select count(*)::integer into v_count\n  from public.plm_bom_revision r\n  where r.sku_id = p_sku_id\n    and r.status in ('APPROVED', 'SUPERSEDED')\n    and r.effective_from <= p_as_of\n    and (r.effective_to is null or r.effective_to >= p_as_of);\n\n  if v_count > 1 then\n    raise exception 'AMBIGUOUS_PM_BOM_REVISION: sku_id=% as_of=% matched % governed revisions',\n      p_sku_id, p_as_of, v_count;\n  end if;\n\n  if v_count = 0 then\n    return null;\n  end if;\n\n  select r.* into v_row\n  from public.plm_bom_revision r\n  where r.sku_id = p_sku_id\n    and r.status in ('APPROVED', 'SUPERSEDED')\n    and r.effective_from <= p_as_of\n    and (r.effective_to is null or r.effective_to >= p_as_of);\n\n  return v_row;\nend;\n$function$\n"
+    }
+  ],
+  "permission_core": [
+    {
+      "signature": "app_has_permission_core(uuid,text,text)",
+      "provolatile": "v",
+      "prosecdef": true,
+      "owner": "postgres",
+      "proconfig": [
+        "search_path=public"
+      ],
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "definition_md5": "655bbd0eaeb2729aa360787785a9ee27",
+      "definition": "CREATE OR REPLACE FUNCTION public.app_has_permission_core(p_user_id uuid, p_target text, p_mode text DEFAULT 'view'::text)\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\r\nDECLARE\r\n  v_allowed boolean := false;\r\nBEGIN\r\n  IF p_user_id IS NULL THEN\r\n    RETURN false;\r\n  END IF;\r\n\r\n  IF p_mode NOT IN ('view', 'edit') THEN\r\n    RAISE EXCEPTION 'Invalid mode: %, expected view or edit', p_mode;\r\n  END IF;\r\n\r\n  SELECT\r\n    CASE\r\n      WHEN p_mode = 'view' THEN can_view\r\n      WHEN p_mode = 'edit' THEN can_edit\r\n      ELSE false\r\n    END\r\n  INTO v_allowed\r\n  FROM public.user_permissions_canonical\r\n  WHERE user_id = p_user_id\r\n    AND target = p_target;\r\n\r\n  RETURN COALESCE(v_allowed, false);\r\nEND;\r\n$function$\n"
+    }
+  ],
+  "acl_catalog": {
+    "roles": [
+      {
+        "role": "authenticated",
+        "inherits": true,
+        "bypass_rls": false,
+        "public_usage": true,
+        "costing_usage": true
+      },
+      {
+        "role": "anon",
+        "inherits": true,
+        "bypass_rls": false,
+        "public_usage": true,
+        "costing_usage": false
+      },
+      {
+        "role": "service_role",
+        "inherits": true,
+        "bypass_rls": true,
+        "public_usage": true,
+        "costing_usage": false
+      },
+      {
+        "role": "postgres",
+        "inherits": true,
+        "bypass_rls": true,
+        "public_usage": true,
+        "costing_usage": true
+      }
+    ],
+    "observed_at": "2026-11-16T01:11:03.509777+00:00",
+    "public_usage": [
+      {
+        "acl": "{postgres=UC/postgres,authenticated=U/postgres}",
+        "owner": "postgres",
+        "schema": "costing"
+      },
+      {
+        "acl": "{pg_database_owner=UC/pg_database_owner,=U/pg_database_owner,postgres=U/pg_database_owner,anon=U/pg_database_owner,authenticated=U/pg_database_owner,service_role=U/pg_database_owner}",
+        "owner": "pg_database_owner",
+        "schema": "public"
+      }
+    ],
+    "installer_role": "postgres",
+    "permission_view": {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=arwd/postgres}",
+      "owner": "postgres",
+      "options": null,
+      "definition": null
+    },
+    "wp10_trigger_count": 0,
+    "wp10_function_count": 0,
+    "function_default_acls": [
+      {
+        "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "owner": "postgres",
+        "schema": "public"
+      },
+      {
+        "acl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
+        "owner": "supabase_admin",
+        "schema": "public"
+      }
+    ]
+  },
+  "permission_relation": {
+    "kind": "r",
+    "policies": [
+      {
+        "name": "upc_admin_delete",
+        "check": null,
+        "roles": [
+          "authenticated"
+        ],
+        "using": "is_admin()",
+        "command": "d"
+      },
+      {
+        "name": "upc_admin_insert",
+        "check": "is_admin()",
+        "roles": [
+          "authenticated"
+        ],
+        "using": null,
+        "command": "a"
+      },
+      {
+        "name": "upc_admin_update",
+        "check": "is_admin()",
+        "roles": [
+          "authenticated"
+        ],
+        "using": "is_admin()",
+        "command": "w"
+      },
+      {
+        "name": "upc_select_admin_or_self",
+        "check": null,
+        "roles": [
+          "authenticated"
+        ],
+        "using": "(is_admin() OR (user_id = ( SELECT auth.uid() AS uid)))",
+        "command": "r"
+      }
+    ],
+    "relation": "user_permissions_canonical",
+    "rls_forced": false,
+    "rls_enabled": true
+  },
+  "index_catalog": [
+    {
+      "schema": "costing",
+      "relname": "product_process_route",
+      "estimated_rows": 230,
+      "indexes": [
+        {
+          "name": "idx_product_process_route_effective",
+          "valid": true,
+          "definition": "CREATE INDEX idx_product_process_route_effective ON costing.product_process_route USING btree (product_id, status, effective_from, effective_to)"
+        },
+        {
+          "name": "idx_product_process_route_effective_lookup",
+          "valid": true,
+          "definition": "CREATE INDEX idx_product_process_route_effective_lookup ON costing.product_process_route USING btree (product_id, status, effective_from DESC, route_version DESC, id DESC)"
+        },
+        {
+          "name": "product_process_route_archive_idx",
+          "valid": true,
+          "definition": "CREATE INDEX product_process_route_archive_idx ON costing.product_process_route USING btree (archived_at, id)"
+        },
+        {
+          "name": "product_process_route_no_approved_overlap",
+          "valid": true,
+          "definition": "CREATE INDEX product_process_route_no_approved_overlap ON costing.product_process_route USING gist (product_id, daterange(effective_from, COALESCE(effective_to, 'infinity'::date), '[]'::text)) WHERE ((status = 'APPROVED'::text) AND (archived_at IS NULL))"
+        },
+        {
+          "name": "product_process_route_one_writable_uq",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX product_process_route_one_writable_uq ON costing.product_process_route USING btree (product_id) WHERE ((archived_at IS NULL) AND (status = ANY (ARRAY['DRAFT'::text, 'REVIEW_REQUIRED'::text])))"
+        },
+        {
+          "name": "product_process_route_pkey",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX product_process_route_pkey ON costing.product_process_route USING btree (id)"
+        },
+        {
+          "name": "product_process_route_product_id_route_version_key",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX product_process_route_product_id_route_version_key ON costing.product_process_route USING btree (product_id, route_version)"
+        },
+        {
+          "name": "product_process_route_route_code_route_version_key",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX product_process_route_route_code_route_version_key ON costing.product_process_route USING btree (route_code, route_version)"
+        }
+      ]
+    },
+    {
+      "schema": "costing",
+      "relname": "production_route_family_product_group_map",
+      "estimated_rows": 13,
+      "indexes": [
+        {
+          "name": "idx_route_family_group_map_effective_lookup",
+          "valid": true,
+          "definition": "CREATE INDEX idx_route_family_group_map_effective_lookup ON costing.production_route_family_product_group_map USING btree (product_group_id, status, effective_from DESC, id DESC)"
+        },
+        {
+          "name": "production_route_family_group_map_archive_idx",
+          "valid": true,
+          "definition": "CREATE INDEX production_route_family_group_map_archive_idx ON costing.production_route_family_product_group_map USING btree (archived_at, id)"
+        },
+        {
+          "name": "production_route_family_map_family_idx",
+          "valid": true,
+          "definition": "CREATE INDEX production_route_family_map_family_idx ON costing.production_route_family_product_group_map USING btree (route_family_id, status, effective_from)"
+        },
+        {
+          "name": "production_route_family_map_group_idx",
+          "valid": true,
+          "definition": "CREATE INDEX production_route_family_map_group_idx ON costing.production_route_family_product_group_map USING btree (product_group_id, status, effective_from)"
+        },
+        {
+          "name": "production_route_family_pg_map_approved_overlap_guard",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX production_route_family_pg_map_approved_overlap_guard ON costing.production_route_family_product_group_map USING btree (product_group_id, effective_from) WHERE (status = 'APPROVED'::text)"
+        },
+        {
+          "name": "production_route_family_pg_map_no_approved_overlap",
+          "valid": true,
+          "definition": "CREATE INDEX production_route_family_pg_map_no_approved_overlap ON costing.production_route_family_product_group_map USING gist (product_group_id, daterange(effective_from, COALESCE(effective_to, 'infinity'::date), '[]'::text)) WHERE ((status = 'APPROVED'::text) AND (archived_at IS NULL))"
+        },
+        {
+          "name": "production_route_family_pg_map_one_writable_uq",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX production_route_family_pg_map_one_writable_uq ON costing.production_route_family_product_group_map USING btree (product_group_id) WHERE ((archived_at IS NULL) AND (status = ANY (ARRAY['DRAFT'::text, 'IN_REVIEW'::text])))"
+        },
+        {
+          "name": "production_route_family_product_group_map_pkey",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX production_route_family_product_group_map_pkey ON costing.production_route_family_product_group_map USING btree (id)"
+        }
+      ]
+    },
+    {
+      "schema": "costing",
+      "relname": "production_route_family_product_map",
+      "estimated_rows": 440,
+      "indexes": [
+        {
+          "name": "idx_route_family_product_map_effective_lookup",
+          "valid": true,
+          "definition": "CREATE INDEX idx_route_family_product_map_effective_lookup ON costing.production_route_family_product_map USING btree (product_id, status, effective_from DESC, id DESC)"
+        },
+        {
+          "name": "production_route_family_product_map_archive_idx",
+          "valid": true,
+          "definition": "CREATE INDEX production_route_family_product_map_archive_idx ON costing.production_route_family_product_map USING btree (archived_at, id)"
+        },
+        {
+          "name": "production_route_family_product_map_family_idx",
+          "valid": true,
+          "definition": "CREATE INDEX production_route_family_product_map_family_idx ON costing.production_route_family_product_map USING btree (route_family_id, status)"
+        },
+        {
+          "name": "production_route_family_product_map_no_approved_overlap",
+          "valid": true,
+          "definition": "CREATE INDEX production_route_family_product_map_no_approved_overlap ON costing.production_route_family_product_map USING gist (product_id, daterange(effective_from, COALESCE(effective_to, 'infinity'::date), '[]'::text)) WHERE ((status = 'APPROVED'::text) AND (archived_at IS NULL))"
+        },
+        {
+          "name": "production_route_family_product_map_one_writable_uq",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX production_route_family_product_map_one_writable_uq ON costing.production_route_family_product_map USING btree (product_id) WHERE ((archived_at IS NULL) AND (status = ANY (ARRAY['DRAFT'::text, 'IN_REVIEW'::text])))"
+        },
+        {
+          "name": "production_route_family_product_map_pkey",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX production_route_family_product_map_pkey ON costing.production_route_family_product_map USING btree (id)"
+        },
+        {
+          "name": "production_route_family_product_map_product_idx",
+          "valid": true,
+          "definition": "CREATE INDEX production_route_family_product_map_product_idx ON costing.production_route_family_product_map USING btree (product_id, effective_from, effective_to, status)"
+        }
+      ]
+    },
+    {
+      "schema": "costing",
+      "relname": "production_route_family_product_subgroup_map",
+      "estimated_rows": 17,
+      "indexes": [
+        {
+          "name": "production_route_family_product_subgroup_map_approved_start_uq",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX production_route_family_product_subgroup_map_approved_start_uq ON costing.production_route_family_product_subgroup_map USING btree (product_subgroup_id, effective_from) WHERE ((status = 'APPROVED'::text) AND (archived_at IS NULL))"
+        },
+        {
+          "name": "production_route_family_product_subgroup_map_family_idx",
+          "valid": true,
+          "definition": "CREATE INDEX production_route_family_product_subgroup_map_family_idx ON costing.production_route_family_product_subgroup_map USING btree (route_family_id, status, effective_from, effective_to) WHERE (archived_at IS NULL)"
+        },
+        {
+          "name": "production_route_family_product_subgroup_map_lookup_idx",
+          "valid": true,
+          "definition": "CREATE INDEX production_route_family_product_subgroup_map_lookup_idx ON costing.production_route_family_product_subgroup_map USING btree (product_subgroup_id, status, effective_from, effective_to) WHERE (archived_at IS NULL)"
+        },
+        {
+          "name": "production_route_family_product_subgroup_map_pkey",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX production_route_family_product_subgroup_map_pkey ON costing.production_route_family_product_subgroup_map USING btree (id)"
+        },
+        {
+          "name": "production_route_family_psg_map_no_approved_overlap",
+          "valid": true,
+          "definition": "CREATE INDEX production_route_family_psg_map_no_approved_overlap ON costing.production_route_family_product_subgroup_map USING gist (product_subgroup_id, daterange(effective_from, COALESCE(effective_to, 'infinity'::date), '[]'::text)) WHERE ((status = 'APPROVED'::text) AND (archived_at IS NULL))"
+        },
+        {
+          "name": "production_route_family_psg_map_one_writable_uq",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX production_route_family_psg_map_one_writable_uq ON costing.production_route_family_product_subgroup_map USING btree (product_subgroup_id) WHERE ((archived_at IS NULL) AND (status = ANY (ARRAY['DRAFT'::text, 'IN_REVIEW'::text])))"
+        }
+      ]
+    },
+    {
+      "schema": "costing",
+      "relname": "production_route_family_route",
+      "estimated_rows": 131,
+      "indexes": [
+        {
+          "name": "idx_route_family_route_effective_lookup",
+          "valid": true,
+          "definition": "CREATE INDEX idx_route_family_route_effective_lookup ON costing.production_route_family_route USING btree (route_family_id, status, effective_from DESC, route_version DESC, id DESC)"
+        },
+        {
+          "name": "production_route_family_route_archive_idx",
+          "valid": true,
+          "definition": "CREATE INDEX production_route_family_route_archive_idx ON costing.production_route_family_route USING btree (archived_at, id)"
+        },
+        {
+          "name": "production_route_family_route_family_idx",
+          "valid": true,
+          "definition": "CREATE INDEX production_route_family_route_family_idx ON costing.production_route_family_route USING btree (route_family_id, status, effective_from)"
+        },
+        {
+          "name": "production_route_family_route_no_approved_overlap",
+          "valid": true,
+          "definition": "CREATE INDEX production_route_family_route_no_approved_overlap ON costing.production_route_family_route USING gist (route_family_id, daterange(effective_from, COALESCE(effective_to, 'infinity'::date), '[]'::text)) WHERE ((status = 'APPROVED'::text) AND (archived_at IS NULL))"
+        },
+        {
+          "name": "production_route_family_route_one_writable_uq",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX production_route_family_route_one_writable_uq ON costing.production_route_family_route USING btree (route_family_id) WHERE ((archived_at IS NULL) AND (status = ANY (ARRAY['DRAFT'::text, 'REVIEW_REQUIRED'::text])))"
+        },
+        {
+          "name": "production_route_family_route_pkey",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX production_route_family_route_pkey ON costing.production_route_family_route USING btree (id)"
+        },
+        {
+          "name": "production_route_family_route_route_code_route_version_key",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX production_route_family_route_route_code_route_version_key ON costing.production_route_family_route USING btree (route_code, route_version)"
+        },
+        {
+          "name": "production_route_family_route_route_family_id_route_version_key",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX production_route_family_route_route_family_id_route_version_key ON costing.production_route_family_route USING btree (route_family_id, route_version)"
+        }
+      ]
+    },
+    {
+      "schema": "costing",
+      "relname": "sku_mrp_policy",
+      "estimated_rows": 1769,
+      "indexes": [
+        {
+          "name": "ix_sku_mrp_policy_created_at",
+          "valid": true,
+          "definition": "CREATE INDEX ix_sku_mrp_policy_created_at ON costing.sku_mrp_policy USING btree (created_at DESC)"
+        },
+        {
+          "name": "ix_sku_mrp_policy_effective_lookup",
+          "valid": true,
+          "definition": "CREATE INDEX ix_sku_mrp_policy_effective_lookup ON costing.sku_mrp_policy USING btree (sku_id, effective_from, effective_to) WHERE (status = 'APPROVED'::text)"
+        },
+        {
+          "name": "sku_mrp_policy_pkey",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX sku_mrp_policy_pkey ON costing.sku_mrp_policy USING btree (id)"
+        },
+        {
+          "name": "ux_sku_mrp_policy_open_approved",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX ux_sku_mrp_policy_open_approved ON costing.sku_mrp_policy USING btree (sku_id) WHERE ((status = 'APPROVED'::text) AND (effective_to IS NULL))"
+        },
+        {
+          "name": "ux_sku_mrp_policy_sku_effective_from",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX ux_sku_mrp_policy_sku_effective_from ON costing.sku_mrp_policy USING btree (sku_id, effective_from) WHERE (status = 'APPROVED'::text)"
+        }
+      ]
+    },
+    {
+      "schema": "costing",
+      "relname": "sku_selling_price_policy",
+      "estimated_rows": 1314,
+      "indexes": [
+        {
+          "name": "idx_sku_selling_price_policy_active",
+          "valid": true,
+          "definition": "CREATE INDEX idx_sku_selling_price_policy_active ON costing.sku_selling_price_policy USING btree (is_active)"
+        },
+        {
+          "name": "idx_sku_selling_price_policy_sku",
+          "valid": true,
+          "definition": "CREATE INDEX idx_sku_selling_price_policy_sku ON costing.sku_selling_price_policy USING btree (sku_id)"
+        },
+        {
+          "name": "sku_selling_price_policy_pkey",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX sku_selling_price_policy_pkey ON costing.sku_selling_price_policy USING btree (id)"
+        },
+        {
+          "name": "sku_selling_price_policy_unique",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX sku_selling_price_policy_unique ON costing.sku_selling_price_policy USING btree (sku_id, effective_from)"
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "relname": "plm_bom_revision",
+      "estimated_rows": 673,
+      "indexes": [
+        {
+          "name": "ix_plm_bom_revision_sku_status_dates",
+          "valid": true,
+          "definition": "CREATE INDEX ix_plm_bom_revision_sku_status_dates ON public.plm_bom_revision USING btree (sku_id, status, effective_from, effective_to)"
+        },
+        {
+          "name": "plm_bom_revision_no_governed_overlap",
+          "valid": true,
+          "definition": "CREATE INDEX plm_bom_revision_no_governed_overlap ON public.plm_bom_revision USING gist (sku_id, daterange(effective_from, COALESCE(effective_to, 'infinity'::date), '[]'::text)) WHERE (status = ANY (ARRAY['APPROVED'::text, 'SUPERSEDED'::text]))"
+        },
+        {
+          "name": "plm_bom_revision_pkey",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX plm_bom_revision_pkey ON public.plm_bom_revision USING btree (id)"
+        },
+        {
+          "name": "plm_bom_revision_sku_rev_uq",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX plm_bom_revision_sku_rev_uq ON public.plm_bom_revision USING btree (sku_id, revision_no)"
+        },
+        {
+          "name": "uq_plm_bom_revision_one_open_approved",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX uq_plm_bom_revision_one_open_approved ON public.plm_bom_revision USING btree (sku_id) WHERE ((status = 'APPROVED'::text) AND (effective_to IS NULL))"
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "relname": "product_skus",
+      "estimated_rows": 1793,
+      "indexes": [
+        {
+          "name": "idx_product_skus_active",
+          "valid": true,
+          "definition": "CREATE INDEX idx_product_skus_active ON public.product_skus USING btree (is_active)"
+        },
+        {
+          "name": "idx_product_skus_product_id",
+          "valid": true,
+          "definition": "CREATE INDEX idx_product_skus_product_id ON public.product_skus USING btree (product_id)"
+        },
+        {
+          "name": "product_skus_pkey",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX product_skus_pkey ON public.product_skus USING btree (id)"
+        },
+        {
+          "name": "product_skus_product_id_pack_size_uom_key",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX product_skus_product_id_pack_size_uom_key ON public.product_skus USING btree (product_id, pack_size, uom)"
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "relname": "production_batch_size_ref",
+      "estimated_rows": 536,
+      "indexes": [
+        {
+          "name": "ix_pbsr_product_effective",
+          "valid": true,
+          "definition": "CREATE INDEX ix_pbsr_product_effective ON public.production_batch_size_ref USING btree (product_id, effective_from DESC)"
+        },
+        {
+          "name": "ix_pbsr_product_history",
+          "valid": true,
+          "definition": "CREATE INDEX ix_pbsr_product_history ON public.production_batch_size_ref USING btree (product_id, effective_from DESC, id DESC)"
+        },
+        {
+          "name": "ix_pbsr_supersedes_reference",
+          "valid": true,
+          "definition": "CREATE INDEX ix_pbsr_supersedes_reference ON public.production_batch_size_ref USING btree (supersedes_reference_id) WHERE (supersedes_reference_id IS NOT NULL)"
+        },
+        {
+          "name": "production_batch_size_ref_pkey",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX production_batch_size_ref_pkey ON public.production_batch_size_ref USING btree (id)"
+        },
+        {
+          "name": "uq_pbsr_active_one",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX uq_pbsr_active_one ON public.production_batch_size_ref USING btree (product_id) WHERE (is_active = true)"
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "relname": "products",
+      "estimated_rows": 1337,
+      "indexes": [
+        {
+          "name": "idx_products_status",
+          "valid": true,
+          "definition": "CREATE INDEX idx_products_status ON public.products USING btree (status)"
+        },
+        {
+          "name": "products_item_key",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX products_item_key ON public.products USING btree (item)"
+        },
+        {
+          "name": "products_pkey",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX products_pkey ON public.products USING btree (id)"
+        },
+        {
+          "name": "uq_products_id_uom_base",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX uq_products_id_uom_base ON public.products USING btree (id, uom_base)"
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "relname": "sub_groups",
+      "estimated_rows": 133,
+      "indexes": [
+        {
+          "name": "sub_groups_pkey",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX sub_groups_pkey ON public.sub_groups USING btree (id)"
+        },
+        {
+          "name": "sub_groups_product_group_id_sub_group_name_key",
+          "valid": true,
+          "definition": "CREATE UNIQUE INDEX sub_groups_product_group_id_sub_group_name_key ON public.sub_groups USING btree (product_group_id, sub_group_name)"
+        }
+      ]
+    }
+  ],
+  "fresh_fingerprints_and_absence": {
+    "observed_at": "2026-11-16T01:19:17.579609+00:00",
+    "dependencies": [
+      {
+        "matches": true,
+        "live_md5": "0968054cfb097874f54239c1c2ce3ab5",
+        "signature": "costing.fn_effective_product_process_route_steps(bigint)",
+        "expected_md5": "0968054cfb097874f54239c1c2ce3ab5"
+      },
+      {
+        "matches": true,
+        "live_md5": "3c5a292804748daf679605382e1691fb",
+        "signature": "costing.fn_resolve_effective_product_process_route(integer, date)",
+        "expected_md5": "3c5a292804748daf679605382e1691fb"
+      },
+      {
+        "matches": true,
+        "live_md5": "5d7ac1d9e0427eae90b590ead55fe58a",
+        "signature": "costing.fn_resolve_effective_route_family_route(integer, date)",
+        "expected_md5": "5d7ac1d9e0427eae90b590ead55fe58a"
+      },
+      {
+        "matches": true,
+        "live_md5": "641fd0f7eb7438eed53c1c6170deb0ec",
+        "signature": "costing.fn_resolve_route_family_for_product(integer, date)",
+        "expected_md5": "641fd0f7eb7438eed53c1c6170deb0ec"
+      },
+      {
+        "matches": true,
+        "live_md5": "73b23adedd8b67814f9b1f944b772d53",
+        "signature": "costing.fn_resolve_sku_mrp_as_of(bigint, date)",
+        "expected_md5": "73b23adedd8b67814f9b1f944b772d53"
+      },
+      {
+        "matches": true,
+        "live_md5": "23425275b1cb28f7e005bffdd5dc0388",
+        "signature": "costing.fn_resolve_sku_selling_price_policy_as_of(bigint, date)",
+        "expected_md5": "23425275b1cb28f7e005bffdd5dc0388"
+      },
+      {
+        "matches": true,
+        "live_md5": "a9396f97a23cba5bbaceada07bc6448a",
+        "signature": "costing.fn_validate_effective_product_process_route(integer, date)",
+        "expected_md5": "a9396f97a23cba5bbaceada07bc6448a"
+      },
+      {
+        "matches": true,
+        "live_md5": "cc6cef1fac171ce812c9dd6702e4efbc",
+        "signature": "costing.fn_validate_product_process_route(bigint)",
+        "expected_md5": "cc6cef1fac171ce812c9dd6702e4efbc"
+      },
+      {
+        "matches": true,
+        "live_md5": "09cd3572e36000095b8b1eb1833491c8",
+        "signature": "costing.fn_validate_route_family_route(bigint)",
+        "expected_md5": "09cd3572e36000095b8b1eb1833491c8"
+      }
+    ],
+    "wp10_triggers": [],
+    "server_version": "17.4",
+    "wp10_functions": [],
+    "function_default_acls": [
+      {
+        "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "owner": "postgres",
+        "schema": "public"
+      },
+      {
+        "acl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
+        "owner": "supabase_admin",
+        "schema": "public"
+      }
+    ],
+    "role_timeout_settings": [
+      {
+        "role": "authenticated",
+        "setting": "statement_timeout=8s",
+        "database": null
+      },
+      {
+        "role": "anon",
+        "setting": "statement_timeout=3s",
+        "database": null
+      },
+      {
+        "role": "authenticator",
+        "setting": "statement_timeout=8s",
+        "database": null
+      },
+      {
+        "role": "authenticator",
+        "setting": "lock_timeout=8s",
+        "database": null
+      }
+    ]
+  },
+  "limits": [
+    "Catalog/source evidence is not real-role or installed-client acceptance.",
+    "Row estimates are planner statistics, not exact business counts or measured performance.",
+    "PostgreSQL16 synthetic fixture results are not a live PostgreSQL17.4 execution test.",
+    "The captured defaults and helper source do not grant authority to apply the SQL."
+  ]
+}

@@ -1,4 +1,4 @@
-> **LATEST — PREVIEW SOURCE VERIFIED (16 Nov IST):** corrected draft #442 completed [independent review](WP10_G2_IMPACT_PREVIEW_INDEPENDENT_REVIEW_2026-11-16.md) and 286 offline checks (81 mocked Chromium), with exact-source CI green. Owner source-merge decision pending; SQL unapplied and flag default-off. Live catalog-only preflight 9/9 hashes match, no WP10 objects installed. No real-role/production-scale acceptance or closure; WP10 OPEN, 10/13.
+> **LATEST — PREVIEW SOURCE MERGED; SQL STAGED (16 Nov IST):** [Owner/merge record](WP10_OWNER_G2_PREVIEW_MERGE_AND_SQL_STAGE_2026-11-16.md): #442 merged at `d20a8991` after exact-head checks passed. [Phase 1 review](WP10_SQL_PHASE1_EXACT_APPLICATION_REVIEW_2026-11-16.md) is ready for exact owner authority on 01/02/03/06; 04/05 are deferred because their guards act regardless of the client flag. SQL unapplied, flag default-off; WP10 OPEN, 10/13.
 
 # WP-10 — Governance Safeguards for Future Product/SKU Creation
 
@@ -21,13 +21,15 @@ One [G2 package](WP10_G2_SINGLE_DRAFT_IMPLEMENTATION_PACKAGE_2026-11-15.md), [is
 - [x] Owner approved default-off source merge #441; normal receipt a3816a3f. No SQL execution or closure.
 - [x] Counterfactual pre-submit impact preview **drafted** (proposal 06 unapplied, default-off client integration, isolated PG + mocked Chromium evidence, unapplied SQL application manifest, WP12 receiving cases) in one draft PR on `claude/wp10-g2-impact-preview` — see [preview implementation record](WP10_G2_IMPACT_PREVIEW_IMPLEMENTATION_RECORD_2026-11-15.md). Independent review/corrections complete; source merge pending, nothing applied or activated.
 - [x] Independent review/correction and fresh CI verification of the preview source: 286 PASS.
-- [ ] Owner source-merge decision for #442 (default-off, SQL unapplied).
+- [x] Owner approved default-off source merge #442; normal receipt d20a8991. SQL unapplied.
+- [ ] Owner exact Phase 1 SQL decision and bounded application/postchecks (01/02/03/06).
+- [ ] Later exact authority/application/acceptance for blocking guards 04/05.
 - [ ] Real-role/hosted/production-scale acceptance (NOT TESTED).
 - [ ] Separate exact production authority where needed.
 - [ ] Formal owner WP10 closure.
 
 ## Next step and execution state
-G2 source PR #441 is merged. The corrected preview package in #442 is independently verified and awaits an owner default-off source-merge decision. Then complete the exact unapplied SQL application/ACL/existence-only dependency and performance review before the separate owner execution/acceptance decisions. No new G1 handover is needed. The named operator nomination remains an operational follow-up; programme owner is accountable until then.
+G2 source PR #441 is merged. The corrected preview package #442 is merged. The exact Phase 1 SQL review and new application catalog/source evidence are prepared for owner execution authority. Apply/verify only the authorised read-only stage first, keep the flag OFF, then handle the blocking-guard and acceptance gates separately. No new G1 handover is needed. The named operator nomination remains an operational follow-up; programme owner is accountable until then.
 
 ## Protected boundaries
 No production SQL, rebuild/cron scheduling, permissions/RLS/grants, registry, feature activation, deployment, further runtime merge or automatic deactivation without separate authority. New SQL remains unapplied outside migrations. Keep existing five essentials, CI-038a date semantics, LIVE_AS_OF and fingerprint authoritative. Test all in-window effective boundaries rather than only endpoints. WP09 remains closed and launcher flag untouched; WP08/PEC stay closed; WP11 defects and all WP12 receiving/security/PWA/Electron/Windows gates preserved. Five historical migration CRLF-only differences remain untouched. Programme stays 10/13 until a separate formal closure.

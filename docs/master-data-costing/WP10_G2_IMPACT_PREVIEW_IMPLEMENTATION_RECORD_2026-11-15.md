@@ -1,3 +1,5 @@
+> **SUBSEQUENT OWNER DECISION:** preview source #442 merged normally at `d20a8991` under explicit approval. [Receipt and SQL stage](WP10_OWNER_G2_PREVIEW_MERGE_AND_SQL_STAGE_2026-11-16.md) supersede earlier source-merge-pending status below. No SQL applied or flag activated; exact Phase 1 application decision remains open. WP10 OPEN, 10/13.
+
 > **SUBSEQUENT INDEPENDENT REVIEW (16 Nov IST):** [Review/corrections](WP10_G2_IMPACT_PREVIEW_INDEPENDENT_REVIEW_2026-11-16.md) records two additional client lifecycle gaps corrected on this branch and new regression/mutation checks. Counts below describe author head `af207001` and are preserved as historical offline evidence. Corrected-source head `fbe86562` passed 286 offline checks, including 30 preview Chromium checks; see the independent review for run/artifact and live catalog-only bounds. Source merge still needs owner approval.
 
 # WP10 G2 — Pre-submit impact preview: implementation record (draft; independent review pending)

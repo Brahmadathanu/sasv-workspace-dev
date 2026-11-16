@@ -1,3 +1,5 @@
+> **Current authority (16 Nov IST):** source #441/#442 is merged; SQL remains unapplied and flag default-off. [Application stage](WP10_SQL_PHASE1_EXACT_APPLICATION_REVIEW_2026-11-16.md) requires separate exact owner authority. Do not enable the flag merely because source merged; any flag trial needs its bounded acceptance authority after server gates.
+
 # WP10 G2 — Operator runbook (manual, read-only)
 
 Audience: the programme owner (accountable until a named Costing Control Center operator is nominated) and any nominated operator.

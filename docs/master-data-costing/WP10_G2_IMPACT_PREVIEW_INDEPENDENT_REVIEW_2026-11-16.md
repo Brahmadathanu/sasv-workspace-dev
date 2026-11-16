@@ -1,3 +1,5 @@
+> **SUBSEQUENT OWNER DECISION:** preview source #442 merged normally at `d20a8991` under explicit approval. [Receipt and SQL stage](WP10_OWNER_G2_PREVIEW_MERGE_AND_SQL_STAGE_2026-11-16.md) supersede earlier source-merge-pending status below. No SQL applied or flag activated; exact Phase 1 application decision remains open. WP10 OPEN, 10/13.
+
 # WP10 G2 impact preview — Independent review (16 November 2026 IST)
 
 **INDEPENDENT SOURCE REVIEW COMPLETE — bounded default-off source merge recommended for owner approval. PR #442 stays draft. WP10 OPEN; programme 10/13. No source merge, SQL application or flag activation authority is inferred.**

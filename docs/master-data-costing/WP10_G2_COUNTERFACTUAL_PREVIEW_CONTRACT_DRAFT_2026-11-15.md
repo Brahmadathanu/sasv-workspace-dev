@@ -1,3 +1,5 @@
+> **SUBSEQUENT OWNER DECISION:** preview source #442 merged normally at `d20a8991` under explicit approval. [Receipt and SQL stage](WP10_OWNER_G2_PREVIEW_MERGE_AND_SQL_STAGE_2026-11-16.md) supersede earlier source-merge-pending status below. No SQL applied or flag activated; exact Phase 1 application decision remains open. WP10 OPEN, 10/13.
+
 > **SUBSEQUENT IMPLEMENTATION:** this design is implemented as default-off source and unapplied proposal 06 in draft #442. [Independent review](WP10_G2_IMPACT_PREVIEW_INDEPENDENT_REVIEW_2026-11-16.md) is complete for corrected source with 286 offline PASS; owner source-merge decision remains pending. The original design-only status below is historical; no endpoint is installed, no SQL applied and no flag activated.
 
 # WP10 G2 — Counterfactual subgroup-impact preview contract (draft)
