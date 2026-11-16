@@ -80,7 +80,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test scripts/wp10-g2-safeguards/browser-products.test.mjs scripts/wp10-g2-safeguards/browser-readiness.test.mjs | tee "$WP10_EVIDENCE/chromium.log"
+          node --test scripts/wp10-g2-safeguards/browser-products.test.mjs scripts/wp10-g2-safeguards/browser-readiness.test.mjs scripts/wp10-g2-safeguards/browser-classification-access.test.mjs | tee "$WP10_EVIDENCE/chromium.log"
           if grep -Eq '^# skipped [1-9]' "$WP10_EVIDENCE/chromium.log"; then
             echo '::error::Chromium checks skipped; gate cannot pass'
             exit 1
