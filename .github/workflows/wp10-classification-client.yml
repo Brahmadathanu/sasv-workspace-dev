@@ -36,7 +36,8 @@ jobs:
         run: |
           set -euo pipefail
           node --test scripts/wp10-client-release-contract.test.mjs scripts/wp10-g2-safeguards/classification-html-escape.test.mjs
-          for file in js/categories.js js/subcategories.js js/product-groups.js js/subgroups.js js/classification-master-access.js js/classification-html-escape.js public/sw.js; do node --check "$file"; done
+          for file in js/categories.js js/subcategories.js js/product-groups.js js/subgroups.js js/classification-master-access.js js/classification-html-escape.js; do node --input-type=module --check < "$file"; done
+          node --check public/sw.js
       - name: Mocked Editor/View-only/No-access Chromium checks
         run: |
           set -euo pipefail
