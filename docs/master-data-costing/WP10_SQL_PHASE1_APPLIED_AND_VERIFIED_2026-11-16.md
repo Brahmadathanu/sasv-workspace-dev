@@ -41,6 +41,8 @@ The old draft-only assertions that no WP10 migration could exist are updated to 
 
 Preparation/inventory negative controls: 14 local PASS, including wrong project/stage, altered hashes, unrelated SQL/SW, wrong lane, missing context, extra/missing source copies, duplicate versions and foreign paths. Static/generator checks: 25 local PASS. Full current-branch CI status is recorded on the source-registration PR; neither local nor CI fixtures are labelled live-role acceptance.
 
+The first source-registration PEC CI run stopped at its legacy exact-registry-key assertion (seven historical keys). That assertion now lists the four approved WP10 payloads explicitly as well, retaining exact-list enforcement and every prior pin. Twenty added controls assert exact hash/lane acceptance and wrong-hash/wrong-branch/missing-context/unrelated-SQL/SW rejection. This was source inventory reconciliation; no production SQL was retried or altered.
+
 ## Remaining gates
 
 - **Guards 04/05 remain UNAPPLIED.** Their future authority must acknowledge immediate blocking behaviour independent of the browser flag. Existing live writers were not exercised as a rehearsal here.

@@ -157,6 +157,25 @@ const sec400 = "supabase/migrations/20261114160000_pec_revoke_authenticated_dml_
   t2("#400 rejected on another client branch", [sec400], [sec400], { ...context, headBranch: "claude/pec-r12-resync-collision-ux-20261113" });
   t2("#400 rejected without context", [sec400], [sec400], null);
 }
-assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [addLine, sw, ...r10, r2fix, sec400], "exact Add Line, the reviewed sw.js merge pin, three reviewed R10 migrations, the production-applied R-2 correction and the #400 correction");
+// Owner-approved WP10 Phase 1: exact applied payloads on one server lane, not a general SQL exception.
+const wp10 = [
+  ["supabase/migrations/20261116022440_wp10_g2_01_clock_and_batch_size_contract.sql", "0077b90fffbf9bd9c770ab55b85e81e8110d1c6c0a8a17135ba71bee4620dab3"],
+  ["supabase/migrations/20261116022501_wp10_g2_02_essential_states_and_boundaries.sql", "ef4cd91f693c220a614db3f7640afb301126b47626cde93e792b393b27c74b31"],
+  ["supabase/migrations/20261116022517_wp10_g2_03_operational_expiry_horizon_rpc.sql", "dea309c07d0ff6726b04d9ed4d56e190c6d2afda9628a06996df133e7dfb0ce5"],
+  ["supabase/migrations/20261116022528_wp10_g2_06_subgroup_impact_preview.sql", "abb291fe26bce9ac2618eca5325b4cb82392a262d895585e87b9746cc8f9217f"],
+];
+for (const [file, expectedSha] of wp10) {
+  const pin = REVIEWED_SERVER_MIGRATIONS[file];
+  assert.deepEqual(pin, { sha256: expectedSha, heads: ["server/wp10-g2-read-only-phase1"] });
+  const content = fs.readFileSync(file, "utf8");
+  assert.equal(createHash("sha256").update(content.replace(/\r\n/g, "\n")).digest("hex"), expectedSha);
+  const context = { headBranch: "server/wp10-g2-read-only-phase1", readText: () => content };
+  t2("WP10 exact payload accepted only on its server lane: " + file, [file], [], context);
+  t2("WP10 changed payload rejected: " + file, [file], [file], { ...context, readText: () => content + "\n-- changed" });
+  t2("WP10 other branch rejected: " + file, [file], [file], { ...context, headBranch: "main" });
+  t2("WP10 missing context rejected: " + file, [file], [file], null);
+  t2("WP10 entry grants no unrelated SQL/SW exception: " + file, [illicit, sw], [illicit, sw], context);
+}
+assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact four owner-applied WP10 payloads and unchanged seven legacy server/SW pins");
 
 console.log(`pec-protected-path-guard: ${passed}/${passed} PASS`);
