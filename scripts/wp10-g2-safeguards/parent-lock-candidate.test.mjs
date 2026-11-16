@@ -169,6 +169,21 @@ try {
     const state={active:rs.one("select is_active::text from public.product_skus where id=1"),parent:rs.one("select product_id from public.product_skus where id=1")};
     check("CL17","Active SKU reparent to product without route is rejected atomically",activated.code===0 && moved.code!==0 && state.active==="true" && state.parent==="1" && !/deadlock detected|statement timeout|lock timeout/i.test(moved.err),JSON.stringify({activated:activated.code,moved:moved.code,state,error:moved.err.slice(0,220)}));
   }
+  // Active destination product has no approved route: unlike CL17 this isolates
+  // the route requirement rather than the inactive-product guard.
+  {
+    const reparent = makeRunner(cluster, { sql: g2FixtureSql() });
+    const rs = reparent(candidate + "\n" + session() +
+      "insert into costing.production_route_family(id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
+      "insert into costing.production_route_family_product_subgroup_map(product_subgroup_id,route_family_id,status,effective_from) values (1,777,'APPROVED',date '2026-01-01');\n" +
+      "insert into costing.production_route_family_route(route_family_id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
+      NEWSKU(1,55) + "select public.fx_complete(1,1,'ROUTE');\n" +
+      "update public.products set sub_group_id=3 where id=3;\n");
+    const activated=await psql(rs,"set statement_timeout='7000ms';\n"+session()+"update public.product_skus set is_active=true where id=1;\n");
+    const moved=await psql(rs,"set statement_timeout='7000ms';\n"+session()+"update public.product_skus set product_id=3 where id=1;\n");
+    const state={active:rs.one("select is_active::text from public.product_skus where id=1"),parent:rs.one("select product_id from public.product_skus where id=1"),destStatus:rs.one("select status from public.products where id=3"),destSubgroup:rs.one("select sub_group_id from public.products where id=3")};
+    check("CL18","Active SKU reparent to ACTIVE destination lacking route is rejected",activated.code===0 && moved.code!==0 && state.active==="true" && state.parent==="1" && state.destStatus==="Active" && state.destSubgroup==="3" && !/inactive product|deadlock detected|statement timeout|lock timeout/i.test(moved.err),JSON.stringify({activated:activated.code,moved:moved.code,state,error:moved.err.slice(0,240)}));
+  }
   // Negative mutation: removing the candidate parent lock must restore the unsafe
   // activation-first cross-flow witness. A witness is not a proof of safety.
   {
