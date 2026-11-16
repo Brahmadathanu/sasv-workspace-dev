@@ -19,7 +19,7 @@ Cron `cron.job_run_details` read-only: weekly job 66 most recent 2026-11-15 20:3
 - WP05 final rationalisation conditionally CLOSED (R63, 12 Nov) with bounded functional, performance, authority and seven-view security residuals; B1-T2/T3 acceptance belongs to WP12. WP06, WP07, WP08 and WP09 also closed with owner-accepted bounded residuals.
 - WP10 server-first 12 classification CRUD RPC installation completed (live catalogue 12/12, existing four-table privileges 4/4), client-only #445 merged, root Electron pages included by electron-builder `**/*` and local Express static server. **Installed Electron client not yet tested**, old direct-DML clients remain supported, 04/05/CL15 and route writer residual remain open.
 - WP11 SKU Deactivate text contrast corrected under #448 and merged `a0222844c48d5638d22d3d16f534c62a60ddfe7c`. Genuine authenticated UX retest not yet recorded.
-- WP11 PM BOM 390px overflow correction candidate #449 has focused Chromium Electron/PWA mocked PASS; retain its merge/release and real populated-data acceptance as separate pending gates until independently observed.
+- WP11 PM BOM 390px overflow correction #449 **merged** to main as `448556cd7ac7b2991c2e1f580027b82e695f7533`. Its focused Chromium Electron/PWA mocked 390px and adjacent PEC integration checks PASSED. Real populated-data signed-in acceptance remains NOT TESTED; do not relabel the historical 563px observation as a live retest.
 
 ## Minimum closing evidence before owner can authorise a combined Costing Suite release
 
@@ -35,10 +35,10 @@ Cron `cron.job_run_details` read-only: weekly job 66 most recent 2026-11-15 20:3
 | C-F8 Owner publication and governance | Explicit accept/reject of each bounded residual and approval to publish an exact version | **NOT AUTHORISED**, no release until gate |
 
 ## Immediate shortest safe execution order
-1. Finish narrowly scoped #449 and obtain focused/integration CI; correct actual failures, do not turn test failures into TODO/PASS.
+1. Verify merged #448/#449 asset provenance on the hosted/installed candidate and perform the pending real 390px signed-in PM BOM / SKU Deactivate visual acceptance; don't confuse mocked 390px PASS with hosted acceptance.
 2. Freeze approved commit and run cheap read-only live inventory/provenance checks. No SQL writer or pricing policy/flag changes as a side effect.
 3. Execute a **small real-identity, read-only** Costing browser witness for final build: six module boot, sensitive details, Cost Comparison error-free normal read, known Scheme Master list/history, PM BOM 390 and flags restored OFF; capture PASS/FAIL/NOT TESTED for each with no confidential values. Full WP12 matrix remains binding unless owner explicitly approves scoped release deferments with risk and destination.
-4. Prepare combined Electron installer only when Costing acceptance supports a release candidate. Packaging must include classification screens (#445) and WP11 fixes (#448/#449 once merged). Test installed package and update/rollback, then request exact-version publication approval.
+4. Prepare combined Electron installer only when Costing acceptance supports a release candidate. Packaging must include classification screens (#445) and WP11 fixes (#448/#449 merged). Test installed package and update/rollback, then request exact-version publication approval.
 
 **Release blocker rule:** Any demonstrated sensitive disclosure, wrong valuation/pricing basis, unapproved write, unresolved normal-user HTTP 500, build mismatch or blocked security/Windows acceptance prohibits an unconditional PASS. Approved conditional WP05–WP09 closures are not retroactive evidence for WP12.
 
