@@ -1,3 +1,5 @@
+> **CORRECTIVE SOURCE STATUS — 16 Nov 2026:** WP11 remains formally OPEN. Two independently scoped UX corrections are now merged: Product SKU Deactivate filled-danger button text contrast [#448](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/448), and PM BOM page overflow at 390px [#449](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/449) (actual isolated mocked Chromium Electron/PWA 390px PASS). Hosted Product/BOM bytes subsequently verified 12/12; genuine signed-in populated-data PM BOM / Deactivate visual acceptance is **NOT TESTED** and the original 563px WP08 finding remains historical. No claim of broader WP11 design/consistency completion or new Electron installer. [Current release-gate ledger](COSTING_SUITE_FINAL_RELEASE_CRITICAL_GATE_2026-11-16.md).
+
 # WP-11 — UX Consistency and Visual Hardening
 
 ## Objective
