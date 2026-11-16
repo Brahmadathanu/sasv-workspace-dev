@@ -1,4 +1,4 @@
-# Costing Suite — consolidated bulk-execution and deferred-work gate (16 November 2026)
+> **LATEST ISOLATED TWO-SESSION EVIDENCE (16 NOV):** Original WP10 guard 05 *fails to prevent* an active SKU ending with an invalid subgroup route in disposable PostgreSQL; both sessions committed. [Reproduction receipt](WP10_CL15_ISOLATED_TWO_SESSION_REPRODUCTION_2026-11-16.md), [CI run 43927979156](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/43927979156). This supersedes the earlier unproven-interleaving classification **for the isolated fixture only**. It is not a confirmed production incident. Guard 05 HOLD, no SQL applied; a review-only parent-row lock candidate/red-green test is separately pending.\n\n# Costing Suite — consolidated bulk-execution and deferred-work gate (16 November 2026)
 
 **Status:** BOUNDED READ-ONLY PRODUCTION RECHECK COMPLETE; WP10/WP11/WP12 OPEN, programme **10/13** formally closed. This record does **not** approve SQL deployment, flags, grants, permissions, legacy fleet cutover, build publication, business writes, or formal workpack closure.
 
