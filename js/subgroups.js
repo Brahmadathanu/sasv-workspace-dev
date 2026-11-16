@@ -2,6 +2,7 @@
 import { supabase } from '../public/shared/js/supabaseClient.js';
 import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
 import { initializeClassificationAccess } from './classification-master-access.js';
+import { escapeClassificationHtml } from './classification-html-escape.js';
 
 const categorySelect    = document.getElementById('categorySelect');
 const subcategorySelect = document.getElementById('subcategorySelect');
@@ -107,7 +108,7 @@ async function renderSubGroups(groupId) {
     const tr = document.createElement('tr');
     tr.dataset.id = r.id;
     tr.innerHTML = `
-      <td class="name-cell">${r.sub_group_name}</td>
+      <td class="name-cell">${escapeClassificationHtml(r.sub_group_name)}</td>
       <td class="actions-cell">
         <button class="action-link edit-btn">Edit</button> |
         <button class="action-link delete-btn">Delete</button>
@@ -159,7 +160,7 @@ tableBody.addEventListener('click', async e => {
 
   // Edit: turn into input + Save/Cancel
   if (btn.classList.contains('edit-btn')) {
-    nameCell.innerHTML = `<input type="text" class="edit-input" value="${oldName}" />`;
+    nameCell.innerHTML = `<input type="text" class="edit-input" value="${escapeClassificationHtml(oldName)}" />`;
     const inp = nameCell.querySelector('.edit-input');
     inp.select();
     actionsCell.innerHTML = `
