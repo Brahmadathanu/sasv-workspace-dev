@@ -70,6 +70,7 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/wp10-g2-safeguards/classification-crud-pg.test.mjs | tee "$WP10_EVIDENCE/classification-pg.log"
+          node scripts/wp10-g2-safeguards/classification-delete-concurrency.test.mjs | tee "$WP10_EVIDENCE/classification-delete-concurrency.log"
           for suite in horizon guards provenance preview cross-flow-concurrency parent-lock-candidate; do
             node "scripts/wp10-g2-safeguards/$suite.test.mjs" "$WP10_EVIDENCE/$suite.json" | tee "$WP10_EVIDENCE/$suite.log"
             if grep -q '^SKIPPED' "$WP10_EVIDENCE/$suite.log"; then
