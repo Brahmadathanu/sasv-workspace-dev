@@ -27,6 +27,8 @@ Cron `cron.job_run_details` read-only: weekly job 66 most recent 2026-11-15 20:3
 - WP11 SKU Deactivate text contrast corrected under #448 and merged `a0222844c48d5638d22d3d16f534c62a60ddfe7c`. Genuine authenticated UX retest not yet recorded.
 - WP11 PM BOM 390px overflow correction #449 **merged** to main as `448556cd7ac7b2991c2e1f580027b82e695f7533`. Its focused Chromium Electron/PWA mocked 390px and adjacent PEC integration checks PASSED. Real populated-data signed-in acceptance remains NOT TESTED; do not relabel the historical 563px observation as a live retest.
 
+> **16 Nov C-F5 normal-user mode distinction:** Scoped Cost Comparison RPC live catalog **PASS** (exact signed function, authenticated EXECUTE, anon denied, SECURITY DEFINER/fixed search path), but the **client flag is still OFF by default**, so normal sessions continue to call the legacy governed view implicated in intermittent #273 HTTP 500. Prior authenticated scoped-RPC functional recovery was accepted within bounded pilot scope; neither the normal default-OFF reliability nor 4-second p95 was proven. No global flag change authorized. See [WP12 mode release decision](WP12_COST_COMPARISON_SCOPED_RELEASE_DECISION_2026-11-16.md).
+
 ## Minimum closing evidence before owner can authorise a combined Costing Suite release
 
 | Gate | Required, safest evidence | Current state / stop rule |
