@@ -9,7 +9,7 @@ test('SKU Deactivate uses the canonical filled-danger text contrast token',()=>{
  const rule=page.match(/#skuToggleActiveBtn\.danger\s*\{([^}]+)\}/)?.[1];
  assert.ok(rule,'missing Deactivate specificity rule');
  assert.match(rule,/color:\s*var\(--sasv-text-on-primary\)/);
- assert.doesNotMatch(rule,/(?:^|\\n)\\s*color:\\s*var\\(--sasv-danger\\)/);
+ assert.ok(!rule.split(String.fromCharCode(10)).some(line => line.trim()==='color: var(--sasv-danger);'));
  assert.match(theme,/\.btn\.danger\s*\{[^}]*background:\s*var\(--sasv-danger\)[^}]*color:\s*var\(--sasv-text-on-primary\)/s);
 });
 test('SKU lifecycle still gated and no new client writer introduced',()=>{
