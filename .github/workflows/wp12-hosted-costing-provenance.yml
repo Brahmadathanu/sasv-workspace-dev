@@ -1,0 +1,28 @@
+name: WP12 Hosted Costing Asset Provenance (read-only)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/wp12-hosted-costing-provenance.yml'
+      - 'public/shared/manage-products.html'
+      - 'public/shared/manage-pm-bom.html'
+      - 'public/shared/js/products.js'
+      - 'public/shared/js/manage-pm-bom.js'
+      - 'public/sw.js'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  hosted-provenance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read-only public served-byte verification
+        run: |
+          set -euo pipefail
+          node scripts/wp08-g2-0-shared-master-data/deploy-gate.mjs verify https://sasv-utilities-hub.netlify.app
