@@ -6,6 +6,7 @@ const subcategorySelect = document.getElementById('subcategorySelect');
 const groupTableBody    = document.querySelector('#groupTable tbody');
 const clearFiltersBtn   = document.getElementById('clearFilters');
 const newGroupInput     = document.getElementById('newGroupInput');
+const newGroupKind      = document.getElementById('newGroupKind');
 const addBtn            = document.getElementById('addBtn');
 const clearNewBtn       = document.getElementById('clearNew');
 const confirmOverlay    = document.getElementById('confirmOverlay');
@@ -13,6 +14,12 @@ const confirmMsg        = document.getElementById('confirmMsg');
 const confirmYes        = document.getElementById('confirmYes');
 const confirmNo         = document.getElementById('confirmNo');
 const homeIcon          = document.getElementById('homeIcon');
+
+async function loadGroupKinds() {
+  const { data, error } = await supabase.from('product_group_kinds').select('id, group_name, code').order('group_name');
+  if (error) { console.error(error); window.alert('Unable to load product group kinds'); return; }
+  populate(newGroupKind, data, 'id', 'group_name', 'Select group kind');
+}
 
 let pendingAction = null;  // { type:'add'|'delete'|'update', id?, name? }
 
@@ -99,7 +106,9 @@ subcategorySelect.addEventListener('change', renderGroups);
 addBtn.addEventListener('click', () => {
   const name = newGroupInput.value.trim();
   if (!subcategorySelect.value || !name) return;
-  pendingAction = { type:'add', name };
+  const kindId = Number(newGroupKind.value);
+  if (!Number.isInteger(kindId) || kindId <= 0) { window.alert('Select a product group kind'); newGroupKind.focus(); return; }
+  pendingAction = { type:'add', name, kindId, subcategoryId: Number(subcategorySelect.value) };
   confirmMsg.textContent = `Add Product Group "${name}"?`;
   confirmOverlay.style.display = 'flex';
 });
@@ -162,10 +171,12 @@ confirmYes.addEventListener('click', async () => {
   pendingAction = null;
 
   if (act.type === 'add') {
-    await supabase
+    const { error } = await supabase
       .from('product_groups')
-      .insert([{ sub_category_id: subcategorySelect.value, group_name: act.name }]);
+      .insert([{ sub_category_id: act.subcategoryId, group_name: act.name, kind_id: act.kindId }]);
+    if (error) { window.alert(`Could not create product group: ${error.message}`); return; }
     newGroupInput.value = '';
+    newGroupKind.value = '';
   }
   if (act.type === 'delete') {
     await supabase
@@ -195,6 +206,6 @@ homeIcon.addEventListener('click', () => {
 
 /** Initialize on load */
 window.addEventListener('DOMContentLoaded', async () => {
-  await loadCategories();
+  await Promise.all([loadCategories(), loadGroupKinds()]);
   renderGroups();
 });
