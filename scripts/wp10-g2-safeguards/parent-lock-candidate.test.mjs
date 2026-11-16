@@ -155,6 +155,20 @@ try {
     const active=cs.one("select count(*) from public.product_skus where product_id=1 and is_active");
     check("CL16","Concurrent sibling SKU activations finish without timeout or deadlock",a.code===0 && b.code===0 && active==="2",JSON.stringify({a:a.code,b:b.code,active,errors:[a.err.slice(0,150),b.err.slice(0,150)]}));
   }
+  // Reparent an already-active SKU to a product lacking an approved route.
+  // Existing BEFORE guards and the candidate recheck must reject the move.
+  {
+    const reparent = makeRunner(cluster, { sql: g2FixtureSql() });
+    const rs = reparent(candidate + "\n" + session() +
+      "insert into costing.production_route_family(id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
+      "insert into costing.production_route_family_product_subgroup_map(product_subgroup_id,route_family_id,status,effective_from) values (1,777,'APPROVED',date '2026-01-01');\n" +
+      "insert into costing.production_route_family_route(route_family_id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
+      NEWSKU(1,55) + "select public.fx_complete(1,1,'ROUTE');\n");
+    const activated=await psql(rs,"set statement_timeout='7000ms';\n"+session()+"update public.product_skus set is_active=true where id=1;\n");
+    const moved=await psql(rs,"set statement_timeout='7000ms';\n"+session()+"update public.product_skus set product_id=2 where id=1;\n");
+    const state={active:rs.one("select is_active::text from public.product_skus where id=1"),parent:rs.one("select product_id from public.product_skus where id=1")};
+    check("CL17","Active SKU reparent to product without route is rejected atomically",activated.code===0 && moved.code!==0 && state.active==="true" && state.parent==="1" && !/deadlock detected|statement timeout|lock timeout/i.test(moved.err),JSON.stringify({activated:activated.code,moved:moved.code,state,error:moved.err.slice(0,220)}));
+  }
   // Negative mutation: removing the candidate parent lock must restore the unsafe
   // activation-first cross-flow witness. A witness is not a proof of safety.
   {
