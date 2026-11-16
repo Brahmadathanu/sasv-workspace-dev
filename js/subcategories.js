@@ -2,6 +2,7 @@
 import { supabase } from '../public/shared/js/supabaseClient.js';
 import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
 import { initializeClassificationAccess } from './classification-master-access.js';
+import { escapeClassificationHtml } from './classification-html-escape.js';
 
 const catSelect     = document.getElementById('categorySelect');
 const addForm       = document.getElementById('addSubForm');
@@ -76,7 +77,7 @@ async function renderSubcategories() {
     const tr = document.createElement('tr');
     tr.dataset.id = r.id;
     tr.innerHTML = `
-      <td class="name-cell">${r.subcategory_name}</td>
+      <td class="name-cell">${escapeClassificationHtml(r.subcategory_name)}</td>
       <td>
         <button class="action-link edit-btn">Edit</button> |
         <button class="action-link delete-btn">Delete</button>
@@ -136,7 +137,7 @@ subTableBody.addEventListener('click', async e => {
   if (btn.classList.contains('edit-btn')) {
     currentEditId   = id;
     currentOldName = oldName;
-    nameTd.innerHTML = `<input type="text" class="edit-input" value="${oldName}"/>`;
+    nameTd.innerHTML = `<input type="text" class="edit-input" value="${escapeClassificationHtml(oldName)}"/>`;
     nameTd.querySelector('.edit-input').select();
     tr.children[1].innerHTML = `
       <button class="action-link save-btn">Save</button> |
