@@ -1,6 +1,7 @@
 // subcategories.js
 import { supabase } from '../public/shared/js/supabaseClient.js';
 import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
+import { initializeClassificationAccess } from './classification-master-access.js';
 
 const catSelect     = document.getElementById('categorySelect');
 const addForm       = document.getElementById('addSubForm');
@@ -173,3 +174,5 @@ mountModuleHome(homeIcon);
 homeIcon.onclick = () => {
   window.location.href = 'index.html';
 };
+// Writer surfaces stay locked unless the canonical module Edit permission is verified.
+initializeClassificationAccess('module:manage-subcategories');
