@@ -1,11 +1,14 @@
 // WP10 G2 source/safety checks: default-off flag, protected files untouched, no writers or new permission targets in the new client code,
-// draft SQL outside supabase/migrations, no new migration files, CRLF migration differences untouched by this package.
+// immutable proposal payloads outside supabase/, with only owner-applied receipt/hash/branch-pinned history copies; CRLF differences untouched.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { loadPhase1Inventory, sha256 } from "./phase1-applied-inventory.mjs";
+import { BRANCH } from "./prepare-phase1-registration.mjs";
+import { rejectedProtectedPaths } from "../lib/pec-protected-path-guard.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
@@ -55,13 +58,21 @@ test("S5 protected files are byte-identical to origin/main (sw.js, manage-produc
   }
 });
 
-test("S6 SQL proposals live outside supabase/ entirely (so the PEC protected-path guard needs no exemption) and no migration/supabase file was added", () => {
+test("S6 proposal sources stay outside supabase/; only receipt/hash/branch-pinned Phase 1 history copies may be registered", () => {
   const supa = git("diff", "--name-only", "origin/main", "HEAD", "--", "supabase").split("\n").filter(Boolean);
-  assert.deepEqual(supa, [], "no tracked supabase/ change");
+  const inventory = new Map(loadPhase1Inventory().map(m => [m.path, m.sha256]));
+  const branch = process.env.GITHUB_HEAD_REF || git("branch", "--show-current").trim();
+  const readCommitted = f => git("show", `HEAD:${f}`);
+  for (const f of supa) {
+    assert.equal(branch, BRANCH, "new registration only on the owner-approved server lane");
+    assert.ok(inventory.has(f), `unapproved supabase path: ${f}`);
+    assert.equal(sha256(readCommitted(f)), inventory.get(f), `applied payload changed: ${f}`);
+  }
+  assert.deepEqual(rejectedProtectedPaths(supa, false, { headBranch: branch, readText: readCommitted }), []);
   assert.equal(fs.existsSync(path.join(root, "supabase/draft-proposals")), false);
   assert.ok(fs.existsSync(path.join(root, "docs/master-data-costing/WP10_G2_UNAPPLIED_SQL_PROPOSALS")));
   const added = git("diff", "--name-status", "origin/main", "--", "supabase/migrations").split("\n").filter((l) => /^A/.test(l));
-  assert.deepEqual(added, []);
+  assert.ok(added.every(l => supa.includes(l.split(/\s+/)[1])), "no uncommitted migration registration");
   const untrackedMig = git("ls-files", "--others", "--exclude-standard", "supabase/migrations").trim();
   assert.equal(untrackedMig, "");
 });
@@ -78,11 +89,11 @@ test("S8 Manage Products: pre-check never disables Confirm and never calls a wri
   assert.equal(/rpc_set_product_sku_active/.test(pre), false);
 });
 
-test("S9 products.js RPC surface differs from main by exactly the read-only impact preview (exact name, no wildcard; the activation pre-check was merged with #441)", () => {
+test("S9 merged products.js RPC surface is the exact reviewed call-site multiset (no wildcard or new writer)", () => {
   const rpcs = (t) => [...t.matchAll(/\.rpc\(\s*["'`]([^"'`]+)["'`]/g)].map((m) => m[1]).sort();
   const base = rpcs(git("show", "origin/main:public/shared/js/products.js"));
   const now = rpcs(products);
-  assert.deepEqual(now.filter((n) => !base.includes(n)).sort(), ["rpc_wp10_preview_product_subgroup_impact"], "vs current main (which already carries the merged activation pre-check) exactly the preview is new");
+  assert.deepEqual(now, ["get_user_permissions", "rpc_create_product", "rpc_create_product_sku", "rpc_get_latest_governed_cost_period_start", "rpc_get_product_sku_readiness", "rpc_get_sku_activation_check", "rpc_set_product_sku_active", "rpc_update_product", "rpc_update_product", "rpc_update_product_sku", "rpc_wp10_preview_product_subgroup_impact"]);
   assert.ok(base.includes("rpc_get_sku_activation_check"));
   assert.equal(now.filter((n) => n === "rpc_wp10_preview_product_subgroup_impact").length, 1, "the preview endpoint is called from exactly one site");
   assert.deepEqual(base.filter((n) => !now.includes(n)), []);

@@ -1,0 +1,406 @@
+{
+  "project_id": "qhmoqtxpeasamtlxaoak",
+  "catalog": {
+    "observed_at": "2026-11-16T02:22:44.351127+00:00",
+    "dependencies": [
+      {
+        "matches": true,
+        "live_md5": "0968054cfb097874f54239c1c2ce3ab5",
+        "signature": "costing.fn_effective_product_process_route_steps(bigint)",
+        "expected_md5": "0968054cfb097874f54239c1c2ce3ab5"
+      },
+      {
+        "matches": true,
+        "live_md5": "3c5a292804748daf679605382e1691fb",
+        "signature": "costing.fn_resolve_effective_product_process_route(integer, date)",
+        "expected_md5": "3c5a292804748daf679605382e1691fb"
+      },
+      {
+        "matches": true,
+        "live_md5": "5d7ac1d9e0427eae90b590ead55fe58a",
+        "signature": "costing.fn_resolve_effective_route_family_route(integer, date)",
+        "expected_md5": "5d7ac1d9e0427eae90b590ead55fe58a"
+      },
+      {
+        "matches": true,
+        "live_md5": "641fd0f7eb7438eed53c1c6170deb0ec",
+        "signature": "costing.fn_resolve_route_family_for_product(integer, date)",
+        "expected_md5": "641fd0f7eb7438eed53c1c6170deb0ec"
+      },
+      {
+        "matches": true,
+        "live_md5": "73b23adedd8b67814f9b1f944b772d53",
+        "signature": "costing.fn_resolve_sku_mrp_as_of(bigint, date)",
+        "expected_md5": "73b23adedd8b67814f9b1f944b772d53"
+      },
+      {
+        "matches": true,
+        "live_md5": "23425275b1cb28f7e005bffdd5dc0388",
+        "signature": "costing.fn_resolve_sku_selling_price_policy_as_of(bigint, date)",
+        "expected_md5": "23425275b1cb28f7e005bffdd5dc0388"
+      },
+      {
+        "matches": true,
+        "live_md5": "a9396f97a23cba5bbaceada07bc6448a",
+        "signature": "costing.fn_validate_effective_product_process_route(integer, date)",
+        "expected_md5": "a9396f97a23cba5bbaceada07bc6448a"
+      },
+      {
+        "matches": true,
+        "live_md5": "cc6cef1fac171ce812c9dd6702e4efbc",
+        "signature": "costing.fn_validate_product_process_route(bigint)",
+        "expected_md5": "cc6cef1fac171ce812c9dd6702e4efbc"
+      },
+      {
+        "matches": true,
+        "live_md5": "09cd3572e36000095b8b1eb1833491c8",
+        "signature": "costing.fn_validate_route_family_route(bigint)",
+        "expected_md5": "09cd3572e36000095b8b1eb1833491c8"
+      }
+    ],
+    "wp10_triggers": [],
+    "server_version": "17.4",
+    "wp10_functions": [],
+    "function_default_acls": [
+      {
+        "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "owner": "postgres",
+        "schema": "public"
+      },
+      {
+        "acl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
+        "owner": "supabase_admin",
+        "schema": "public"
+      }
+    ],
+    "role_timeout_settings": [
+      {
+        "role": "authenticated",
+        "setting": "statement_timeout=8s",
+        "database": null
+      },
+      {
+        "role": "anon",
+        "setting": "statement_timeout=3s",
+        "database": null
+      },
+      {
+        "role": "authenticator",
+        "setting": "statement_timeout=8s",
+        "database": null
+      },
+      {
+        "role": "authenticator",
+        "setting": "lock_timeout=8s",
+        "database": null
+      }
+    ]
+  },
+  "before": {
+    "tables": [
+      {
+        "acl": "{postgres=arwdDxtm/postgres}",
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.product_process_route",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres}",
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.product_process_route_override",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.production_route_family",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.production_route_family_product_group_map",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=r/postgres}",
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.production_route_family_product_map",
+        "rls_forced": false
+      },
+      {
+        "acl": null,
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.production_route_family_product_subgroup_map",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.production_route_family_route",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.production_route_family_route_step",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,authenticated=r/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "relation": "costing.sku_mrp_policy",
+        "rls_forced": false
+      },
+      {
+        "acl": null,
+        "rls": true,
+        "owner": "postgres",
+        "relation": "costing.sku_selling_price_policy",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "relation": "plm_bom_revision",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=r/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "relation": "product_skus",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "relation": "production_batch_size_ref",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=r/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "relation": "products",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=arwd/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "relation": "sub_groups",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=arwd/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "relation": "user_permissions_canonical",
+        "rls_forced": false
+      }
+    ],
+    "functions": [
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "md5": "655bbd0eaeb2729aa360787785a9ee27",
+        "owner": "postgres",
+        "signature": "app_has_permission_core(uuid,text,text)"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "md5": "7b4c99b7d4a698237806b2ca10fe24af",
+        "owner": "postgres",
+        "signature": "app_has_permission(text,text)"
+      },
+      {
+        "acl": "{=X/supabase_auth_admin,supabase_auth_admin=X/supabase_auth_admin,dashboard_user=X/supabase_auth_admin}",
+        "md5": "ea3b41bf29e2ad573067939329aa088e",
+        "owner": "supabase_auth_admin",
+        "signature": "auth.uid()"
+      },
+      {
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "md5": "b116953eb0715a5598388f7f6416c0c3",
+        "owner": "postgres",
+        "signature": "plm_sku_bom_revision_as_of(bigint,date)"
+      }
+    ],
+    "installer": "postgres",
+    "observed_at": "2026-11-16T02:23:26.73398+00:00"
+  },
+  "after": {
+    "tables": [
+      {
+        "acl": "{postgres=arwdDxtm/postgres}",
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.product_process_route",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres}",
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.product_process_route_override",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.production_route_family",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.production_route_family_product_group_map",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=r/postgres}",
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.production_route_family_product_map",
+        "rls_forced": false
+      },
+      {
+        "acl": null,
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.production_route_family_product_subgroup_map",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.production_route_family_route",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "owner": "postgres",
+        "relation": "costing.production_route_family_route_step",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,authenticated=r/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "relation": "costing.sku_mrp_policy",
+        "rls_forced": false
+      },
+      {
+        "acl": null,
+        "rls": true,
+        "owner": "postgres",
+        "relation": "costing.sku_selling_price_policy",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "relation": "plm_bom_revision",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=r/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "relation": "product_skus",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "relation": "production_batch_size_ref",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=r/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "relation": "products",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=arwd/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "relation": "sub_groups",
+        "rls_forced": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=arwd/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "relation": "user_permissions_canonical",
+        "rls_forced": false
+      }
+    ],
+    "functions": [
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "md5": "655bbd0eaeb2729aa360787785a9ee27",
+        "owner": "postgres",
+        "signature": "app_has_permission_core(uuid,text,text)"
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "md5": "7b4c99b7d4a698237806b2ca10fe24af",
+        "owner": "postgres",
+        "signature": "app_has_permission(text,text)"
+      },
+      {
+        "acl": "{=X/supabase_auth_admin,supabase_auth_admin=X/supabase_auth_admin,dashboard_user=X/supabase_auth_admin}",
+        "md5": "ea3b41bf29e2ad573067939329aa088e",
+        "owner": "supabase_auth_admin",
+        "signature": "auth.uid()"
+      },
+      {
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "md5": "b116953eb0715a5598388f7f6416c0c3",
+        "owner": "postgres",
+        "signature": "plm_sku_bom_revision_as_of(bigint,date)"
+      }
+    ],
+    "installer": "postgres",
+    "observed_at": "2026-11-16T02:27:17.992674+00:00"
+  },
+  "read_only_query": "begin read only;\nset local statement_timeout = '8s';\nwith started as materialized (select clock_timestamp() as t, costing.fn_wp10_today_ist() as day),\nsample as materialized (\n select s.id as sku_id,s.product_id,p.sub_group_id from public.product_skus s join public.products p on p.id=s.product_id\n where s.is_active and p.status='Active' and not coalesce(s.is_sample,false) order by s.id limit 10),\nevaluated as materialized (\n select s.sku_id,s.product_id,\n costing.fn_wp10_essential_states_as_of(s.sku_id,s.product_id,t.day) as essentials,\n costing.fn_wp10_route_state_ctx(s.product_id::integer,t.day,s.sub_group_id) as route,\n costing.fn_wp10_boundary_dates(s.sku_id,s.product_id,t.day,t.day+30) as boundaries\n from sample s cross join started t)\nselect jsonb_build_object(\n'transaction_read_only',current_setting('transaction_read_only'),\n'statement_timeout',current_setting('statement_timeout'),\n'date_ist',(select day from started),\n'sampled_skus',(select count(*) from evaluated),\n'sampled_products',(select count(distinct product_id) from evaluated),\n'essential_results',(select jsonb_agg(jsonb_build_object('code',key,'state',value,'count',n) order by key,value) from (select kv.key,kv.value,count(*) n from evaluated e cross join lateral jsonb_each_text(e.essentials) kv group by kv.key,kv.value) z),\n'route_results',(select jsonb_object_agg(state,n) from (select route->>'state' as state,count(*) n from evaluated group by route->>'state') z),\n'boundary_dates_total',(select sum(cardinality(boundaries)) from evaluated),\n'well_formed',(select bool_and(essentials ?& array['PM_BOM_REVISION','BATCH_SIZE_REFERENCE','MANUFACTURING_ROUTE','MRP_POLICY','SELLING_PRICE_POLICY'] and not exists(select 1 from jsonb_each_text(essentials) x where x.value not in ('RESOLVED','MISSING','AMBIGUOUS','UNKNOWN')) and route->>'state' in ('VALID','INVALID','UNKNOWN') and cardinality(boundaries)<=30) from evaluated),\n'negative_control',costing.fn_wp10_route_state_ctx(null,(select day from started),null),\n'batch_elapsed_ms',round(extract(epoch from clock_timestamp()-(select t from started))*1000,3)\n) as readonly_checks;\ncommit;",
+  "new_history_expected": [
+    {
+      "name": "wp10_g2_01_clock_and_batch_size_contract",
+      "version": "20261116022440"
+    },
+    {
+      "name": "wp10_g2_02_essential_states_and_boundaries",
+      "version": "20261116022501"
+    },
+    {
+      "name": "wp10_g2_03_operational_expiry_horizon_rpc",
+      "version": "20261116022517"
+    },
+    {
+      "name": "wp10_g2_06_subgroup_impact_preview",
+      "version": "20261116022528"
+    }
+  ]
+}

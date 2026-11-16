@@ -1,0 +1,324 @@
+{
+  "project_id": "qhmoqtxpeasamtlxaoak",
+  "date_ist": "2026-11-16",
+  "authority": "Owner 'Yes go ahead' to exact Phase 1 plan at daa63cea280c7ddd0c4e878ed0ddaf300920b823",
+  "source_base": "daa63cea280c7ddd0c4e878ed0ddaf300920b823",
+  "stage": "PHASE1_APPLIED",
+  "migration_count_before": 699,
+  "migration_count_after": 703,
+  "migrations": [
+    {
+      "name": "wp10_g2_01_clock_and_batch_size_contract",
+      "version": "20261116022440",
+      "source_file": "01_clock_and_batch_size_contract.sql",
+      "sha256": "0077b90fffbf9bd9c770ab55b85e81e8110d1c6c0a8a17135ba71bee4620dab3",
+      "path": "supabase/migrations/20261116022440_wp10_g2_01_clock_and_batch_size_contract.sql"
+    },
+    {
+      "name": "wp10_g2_02_essential_states_and_boundaries",
+      "version": "20261116022501",
+      "source_file": "02_essential_states_and_boundaries.sql",
+      "sha256": "ef4cd91f693c220a614db3f7640afb301126b47626cde93e792b393b27c74b31",
+      "path": "supabase/migrations/20261116022501_wp10_g2_02_essential_states_and_boundaries.sql"
+    },
+    {
+      "name": "wp10_g2_03_operational_expiry_horizon_rpc",
+      "version": "20261116022517",
+      "source_file": "03_operational_expiry_horizon_rpc.sql",
+      "sha256": "dea309c07d0ff6726b04d9ed4d56e190c6d2afda9628a06996df133e7dfb0ce5",
+      "path": "supabase/migrations/20261116022517_wp10_g2_03_operational_expiry_horizon_rpc.sql"
+    },
+    {
+      "name": "wp10_g2_06_subgroup_impact_preview",
+      "version": "20261116022528",
+      "source_file": "06_subgroup_impact_preview.sql",
+      "sha256": "abb291fe26bce9ac2618eca5325b4cb82392a262d895585e87b9746cc8f9217f",
+      "path": "supabase/migrations/20261116022528_wp10_g2_06_subgroup_impact_preview.sql"
+    }
+  ],
+  "functions": [
+    {
+      "acl": "{postgres=X/postgres}",
+      "name": "fn_wp10_batch_size_state_as_of",
+      "owner": "postgres",
+      "config": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "schema": "costing",
+      "receipt": "WP10-G2 01_clock_and_batch_size_contract.sql md5:bd928e7a2c7ce23cc704aab8b06b652e",
+      "signature": "costing.fn_wp10_batch_size_state_as_of(bigint,date)",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_wp10_batch_size_state_as_of(p_product_id bigint, p_as_of date)\n RETURNS text\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\n  select case when exists (\n    select 1 from public.production_batch_size_ref b\n    where b.product_id = p_product_id\n      and b.is_active\n      and b.effective_from <= p_as_of\n      and (b.effective_to is null or b.effective_to >= p_as_of)\n  ) then 'RESOLVED' else 'MISSING' end\n$function$\n",
+      "volatility": "s",
+      "anon_execute": false,
+      "definition_md5": "bd928e7a2c7ce23cc704aab8b06b652e",
+      "receipt_matches": true,
+      "service_execute": false,
+      "security_definer": true,
+      "authenticated_execute": false
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "name": "fn_wp10_boundary_dates",
+      "owner": "postgres",
+      "config": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "schema": "costing",
+      "receipt": "WP10-G2 02_essential_states_and_boundaries.sql md5:c1e06521513f2e919e4ce12999142b69",
+      "signature": "costing.fn_wp10_boundary_dates(bigint,bigint,date,date)",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_wp10_boundary_dates(p_sku_id bigint, p_product_id bigint, p_from date, p_to date)\n RETURNS date[]\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\n  with product as (\n    select p.id, p.sub_group_id, sg.product_group_id\n    from public.products p left join public.sub_groups sg on sg.id = p.sub_group_id\n    where p.id = p_product_id\n  ),\n  families as (\n    select m.route_family_id as id from costing.production_route_family_product_map m where m.product_id = p_product_id\n    union select sm.route_family_id from costing.production_route_family_product_subgroup_map sm join product pr on pr.sub_group_id = sm.product_subgroup_id\n    union select gm.route_family_id from costing.production_route_family_product_group_map gm join product pr on pr.product_group_id = gm.product_group_id\n  ),\n  edges(d_from, d_to) as (\n    select r.effective_from, r.effective_to from public.plm_bom_revision r where r.sku_id = p_sku_id and r.status in ('APPROVED', 'SUPERSEDED')\n    union all select b.effective_from, b.effective_to from public.production_batch_size_ref b where b.product_id = p_product_id and b.is_active\n    union all select p.effective_from, p.effective_to from costing.sku_mrp_policy p where p.sku_id = p_sku_id and p.status = 'APPROVED'\n    union all select p.effective_from, p.effective_to from costing.sku_selling_price_policy p where p.sku_id = p_sku_id and p.is_active\n    union all select f.effective_from, f.effective_to from costing.production_route_family f where f.id in (select id from families) and f.archived_at is null and f.status = 'APPROVED'\n    union all select fr.effective_from, fr.effective_to from costing.production_route_family_route fr where fr.route_family_id in (select id from families) and fr.archived_at is null and fr.status in ('APPROVED', 'SUPERSEDED')\n    union all select pr.effective_from, pr.effective_to from costing.product_process_route pr where pr.product_id = p_product_id and pr.archived_at is null and pr.status = 'APPROVED'\n    union all select m.effective_from, m.effective_to from costing.production_route_family_product_map m where m.product_id = p_product_id and m.archived_at is null and m.status = 'APPROVED'\n    union all select sm.effective_from, sm.effective_to from costing.production_route_family_product_subgroup_map sm join product pr on pr.sub_group_id = sm.product_subgroup_id where sm.archived_at is null and sm.status = 'APPROVED'\n    union all select gm.effective_from, gm.effective_to from costing.production_route_family_product_group_map gm join product pr on pr.product_group_id = gm.product_group_id where gm.archived_at is null and gm.status = 'APPROVED'\n  ),\n  dates as (\n    select d_from as d from edges where d_from is not null\n    union select d_to + 1 from edges where d_to is not null\n  )\n  select coalesce(array_agg(d order by d), '{}'::date[]) from dates where d > p_from and d <= p_to\n$function$\n",
+      "volatility": "s",
+      "anon_execute": false,
+      "definition_md5": "c1e06521513f2e919e4ce12999142b69",
+      "receipt_matches": true,
+      "service_execute": false,
+      "security_definer": true,
+      "authenticated_execute": false
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "name": "fn_wp10_essential_states_as_of",
+      "owner": "postgres",
+      "config": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "schema": "costing",
+      "receipt": "WP10-G2 02_essential_states_and_boundaries.sql md5:504699377d9dd35144cb108a4197544d",
+      "signature": "costing.fn_wp10_essential_states_as_of(bigint,bigint,date)",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_wp10_essential_states_as_of(p_sku_id bigint, p_product_id bigint, p_as_of date)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\ndeclare\n  v jsonb := '{}'::jsonb;\n  s text;\n  v_family bigint;\n  v_valid jsonb;\nbegin\n  begin\n    if exists (select 1 from public.plm_sku_bom_revision_as_of(p_sku_id, p_as_of) b where b.id is not null) then s := 'RESOLVED'; else s := 'MISSING'; end if;\n  exception when others then\n    s := case when sqlerrm like 'AMBIGUOUS_PM_BOM_REVISION%' then 'AMBIGUOUS' else 'UNKNOWN' end;\n  end;\n  v := v || jsonb_build_object('PM_BOM_REVISION', s);\n\n  begin s := costing.fn_wp10_batch_size_state_as_of(p_product_id, p_as_of); exception when others then s := 'UNKNOWN'; end;\n  v := v || jsonb_build_object('BATCH_SIZE_REFERENCE', s);\n\n  begin\n    v_family := costing.fn_resolve_route_family_for_product(p_product_id::int, p_as_of);\n    v_valid := costing.fn_validate_effective_product_process_route(p_product_id::int, p_as_of);\n    if v_family is not null\n       and exists (select 1 from costing.production_route_family_route r\n                   where r.route_family_id = v_family and r.archived_at is null and r.status = 'APPROVED'\n                     and r.effective_from <= p_as_of and (r.effective_to is null or r.effective_to >= p_as_of))\n       and coalesce((v_valid->>'valid')::boolean, false) then s := 'RESOLVED'; else s := 'MISSING'; end if;\n  exception when others then\n    s := case when sqlerrm like 'AMBIGUOUS_APPROVED_PRODUCT_ROUTE%' then 'AMBIGUOUS' else 'UNKNOWN' end;\n  end;\n  v := v || jsonb_build_object('MANUFACTURING_ROUTE', s);\n\n  begin\n    select m.resolution_status into s from costing.fn_resolve_sku_mrp_as_of(p_sku_id, p_as_of) m limit 1;\n    s := case when s in ('RESOLVED', 'MISSING', 'AMBIGUOUS') then s else 'UNKNOWN' end;\n  exception when others then s := 'UNKNOWN'; end;\n  v := v || jsonb_build_object('MRP_POLICY', s);\n\n  begin\n    select x.resolution_status into s from costing.fn_resolve_sku_selling_price_policy_as_of(p_sku_id, p_as_of) x limit 1;\n    s := case when s in ('RESOLVED', 'MISSING', 'AMBIGUOUS') then s else 'UNKNOWN' end;\n  exception when others then s := 'UNKNOWN'; end;\n  v := v || jsonb_build_object('SELLING_PRICE_POLICY', s);\n  return v;\nend\n$function$\n",
+      "volatility": "s",
+      "anon_execute": false,
+      "definition_md5": "504699377d9dd35144cb108a4197544d",
+      "receipt_matches": true,
+      "service_execute": false,
+      "security_definer": true,
+      "authenticated_execute": false
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "name": "fn_wp10_resolve_effective_route_family_route_ctx",
+      "owner": "postgres",
+      "config": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "schema": "costing",
+      "receipt": "WP10-G2 06_subgroup_impact_preview.sql md5:292c87b1dccbb9713786178ccc6fe4e2",
+      "signature": "costing.fn_wp10_resolve_effective_route_family_route_ctx(integer,date,integer)",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_wp10_resolve_effective_route_family_route_ctx(p_product_id integer, p_as_of_date date, p_sub_group_id integer)\n RETURNS bigint\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\n  with f as (\n    select costing.fn_wp10_resolve_route_family_ctx(p_product_id,p_as_of_date,p_sub_group_id) route_family_id\n  )\n  select r.id\n  from costing.production_route_family_route r,f\n  where r.route_family_id=f.route_family_id\n    and r.archived_at is null\n    and r.status in ('APPROVED','SUPERSEDED')\n    and r.effective_from<=coalesce(p_as_of_date,current_date)\n    and (r.effective_to is null or r.effective_to>=coalesce(p_as_of_date,current_date))\n  order by r.effective_from desc,r.route_version desc,r.id desc\n  limit 1\n$function$\n",
+      "volatility": "s",
+      "anon_execute": false,
+      "definition_md5": "292c87b1dccbb9713786178ccc6fe4e2",
+      "receipt_matches": true,
+      "service_execute": false,
+      "security_definer": true,
+      "authenticated_execute": false
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "name": "fn_wp10_resolve_route_family_ctx",
+      "owner": "postgres",
+      "config": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "schema": "costing",
+      "receipt": "WP10-G2 06_subgroup_impact_preview.sql md5:428eed206652d6387be3d7a2020e1a17",
+      "signature": "costing.fn_wp10_resolve_route_family_ctx(integer,date,integer)",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_wp10_resolve_route_family_ctx(p_product_id integer, p_as_of_date date, p_sub_group_id integer)\n RETURNS bigint\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\ndeclare\n  v_date date := coalesce(p_as_of_date,current_date);\n  v_product_family bigint;\n  v_subgroup_family bigint;\n  v_group_family bigint;\nbegin\n  select m.route_family_id\n  into v_product_family\n  from costing.production_route_family_product_map m\n  join costing.production_route_family f on f.id=m.route_family_id\n  where m.product_id=p_product_id\n    and m.archived_at is null\n    and m.status='APPROVED'\n    and m.effective_from<=v_date\n    and (m.effective_to is null or m.effective_to>=v_date)\n    and f.archived_at is null\n    and f.status='APPROVED'\n    and f.effective_from<=v_date\n    and (f.effective_to is null or f.effective_to>=v_date)\n  order by m.effective_from desc,m.id desc\n  limit 1;\n\n  if v_product_family is not null then\n    return v_product_family;\n  end if;\n\n  select sm.route_family_id\n  into v_subgroup_family\n  from (select p_product_id as id, p_sub_group_id as sub_group_id) p\n  join costing.production_route_family_product_subgroup_map sm\n    on sm.product_subgroup_id=p.sub_group_id\n   and sm.archived_at is null\n   and sm.status='APPROVED'\n   and sm.effective_from<=v_date\n   and (sm.effective_to is null or sm.effective_to>=v_date)\n  join costing.production_route_family f\n    on f.id=sm.route_family_id\n   and f.archived_at is null\n   and f.status='APPROVED'\n   and f.effective_from<=v_date\n   and (f.effective_to is null or f.effective_to>=v_date)\n  where p.id=p_product_id\n  order by sm.effective_from desc,sm.id desc\n  limit 1;\n\n  if v_subgroup_family is not null then\n    return v_subgroup_family;\n  end if;\n\n  select gm.route_family_id\n  into v_group_family\n  from (select p_product_id as id, p_sub_group_id as sub_group_id) p\n  join public.sub_groups sg on sg.id=p.sub_group_id\n  join costing.production_route_family_product_group_map gm\n    on gm.product_group_id=sg.product_group_id\n   and gm.archived_at is null\n   and gm.status='APPROVED'\n   and gm.effective_from<=v_date\n   and (gm.effective_to is null or gm.effective_to>=v_date)\n  join costing.production_route_family f\n    on f.id=gm.route_family_id\n   and f.archived_at is null\n   and f.status='APPROVED'\n   and f.effective_from<=v_date\n   and (f.effective_to is null or f.effective_to>=v_date)\n  where p.id=p_product_id\n  order by gm.effective_from desc,gm.id desc\n  limit 1;\n\n  return v_group_family;\nend\n$function$\n",
+      "volatility": "s",
+      "anon_execute": false,
+      "definition_md5": "428eed206652d6387be3d7a2020e1a17",
+      "receipt_matches": true,
+      "service_execute": false,
+      "security_definer": true,
+      "authenticated_execute": false
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "name": "fn_wp10_route_state_ctx",
+      "owner": "postgres",
+      "config": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "schema": "costing",
+      "receipt": "WP10-G2 06_subgroup_impact_preview.sql md5:8c30a07c011eea069643ef9156ca5794",
+      "signature": "costing.fn_wp10_route_state_ctx(integer,date,integer)",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_wp10_route_state_ctx(p_product_id integer, p_as_of_date date, p_sub_group_id integer)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\ndeclare\n  v jsonb;\n  v_state text;\n  v_reasons jsonb;\n  v_src text;\nbegin\n  begin\n    v := costing.fn_wp10_validate_effective_product_process_route_ctx(p_product_id, p_as_of_date, p_sub_group_id);\n  exception when others then\n    -- evaluation failure is UNKNOWN, never valid; only the canonical ambiguity code is surfaced, never raw exception text\n    return jsonb_build_object('state', 'UNKNOWN', 'route_source', null, 'family_id', null, 'family_route_id', null, 'product_route_id', null,\n      'reasons', jsonb_build_array(case when sqlerrm like 'AMBIGUOUS_APPROVED_PRODUCT_ROUTE%' then 'AMBIGUOUS_APPROVED_PRODUCT_ROUTE' else 'EVALUATION_ERROR' end));\n  end;\n  if v is null or jsonb_typeof(v) is distinct from 'object' or jsonb_typeof(v -> 'valid') is distinct from 'boolean' then\n    return jsonb_build_object('state', 'UNKNOWN', 'route_source', null, 'family_id', null, 'family_route_id', null, 'product_route_id', null,\n      'reasons', jsonb_build_array('MALFORMED_RESULT'));\n  end if;\n  v_state := case when (v ->> 'valid')::boolean then 'VALID' else 'INVALID' end;\n  select coalesce(jsonb_agg(e), '[]'::jsonb) into v_reasons\n  from (select e from jsonb_array_elements_text(case when jsonb_typeof(v -> 'errors') = 'array' then v -> 'errors' else '[]'::jsonb end) e\n        where e ~ '^[A-Z][A-Z0-9_]{0,63}$' limit 12) q;\n  if v_state = 'INVALID' and jsonb_array_length(v_reasons) = 0 then v_reasons := jsonb_build_array('UNSPECIFIED_REASON'); end if;\n  v_src := v ->> 'route_source';\n  return jsonb_build_object(\n    'state', v_state,\n    'route_source', case when v_src in ('PRODUCT_ROUTE', 'ROUTE_FAMILY_INHERITED') then v_src else null end,\n    'family_id', case when (v ->> 'route_family_id') ~ '^[0-9]{1,18}$' then (v ->> 'route_family_id')::bigint else null end,\n    'family_route_id', case when (v ->> 'family_route_id') ~ '^[0-9]{1,18}$' then (v ->> 'family_route_id')::bigint else null end,\n    'product_route_id', case when (v ->> 'product_route_id') ~ '^[0-9]{1,18}$' then (v ->> 'product_route_id')::bigint else null end,\n    'reasons', v_reasons);\nend\n$function$\n",
+      "volatility": "s",
+      "anon_execute": false,
+      "definition_md5": "8c30a07c011eea069643ef9156ca5794",
+      "receipt_matches": true,
+      "service_execute": false,
+      "security_definer": true,
+      "authenticated_execute": false
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "name": "fn_wp10_today_ist",
+      "owner": "postgres",
+      "config": [
+        "search_path=pg_catalog, pg_temp"
+      ],
+      "schema": "costing",
+      "receipt": "WP10-G2 01_clock_and_batch_size_contract.sql md5:e8c4dea232541c6669dea2acb5799e8d",
+      "signature": "costing.fn_wp10_today_ist()",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_wp10_today_ist()\n RETURNS date\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'pg_temp'\nAS $function$ select (now() at time zone 'Asia/Kolkata')::date $function$\n",
+      "volatility": "s",
+      "anon_execute": false,
+      "definition_md5": "e8c4dea232541c6669dea2acb5799e8d",
+      "receipt_matches": true,
+      "service_execute": false,
+      "security_definer": true,
+      "authenticated_execute": false
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "name": "fn_wp10_validate_effective_product_process_route_ctx",
+      "owner": "postgres",
+      "config": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "schema": "costing",
+      "receipt": "WP10-G2 06_subgroup_impact_preview.sql md5:deb23753f83556e67e5452f75c44a802",
+      "signature": "costing.fn_wp10_validate_effective_product_process_route_ctx(integer,date,integer)",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_wp10_validate_effective_product_process_route_ctx(p_product_id integer, p_as_of_date date, p_sub_group_id integer)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\ndeclare\n  v_date date:=coalesce(p_as_of_date,current_date);\n  v_family_id bigint;\n  v_family_route_id bigint;\n  v_product_route_id bigint;\n  v_validation jsonb;\nbegin\n  v_family_id:=costing.fn_wp10_resolve_route_family_ctx(p_product_id,v_date,p_sub_group_id);\n  if v_family_id is null then\n    return jsonb_build_object('valid',false,'errors',jsonb_build_array('NO_APPROVED_ROUTE_FAMILY_MAPPING'),'route_source',null,'product_id',p_product_id);\n  end if;\n\n  v_family_route_id:=costing.fn_wp10_resolve_effective_route_family_route_ctx(p_product_id,v_date,p_sub_group_id);\n  if v_family_route_id is null then\n    return jsonb_build_object('valid',false,'errors',jsonb_build_array('NO_APPROVED_ROUTE_FAMILY_ROUTE'),'route_source',null,'product_id',p_product_id,'route_family_id',v_family_id);\n  end if;\n\n  v_product_route_id:=costing.fn_resolve_effective_product_process_route(p_product_id,v_date);\n  if v_product_route_id is not null then\n    return costing.fn_wp10_validate_product_process_route_ctx(v_product_route_id,p_sub_group_id)\n      || jsonb_build_object('route_source','PRODUCT_ROUTE','product_id',p_product_id,'route_family_id',v_family_id,\n                            'family_route_id',v_family_route_id,'product_route_id',v_product_route_id);\n  end if;\n\n  v_validation:=costing.fn_validate_route_family_route(v_family_route_id);\n  return v_validation || jsonb_build_object(\n    'route_source','ROUTE_FAMILY_INHERITED',\n    'product_id',p_product_id,\n    'route_family_id',v_family_id,\n    'family_route_id',v_family_route_id,\n    'product_route_id',null\n  );\nend\n$function$\n",
+      "volatility": "s",
+      "anon_execute": false,
+      "definition_md5": "deb23753f83556e67e5452f75c44a802",
+      "receipt_matches": true,
+      "service_execute": false,
+      "security_definer": true,
+      "authenticated_execute": false
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "name": "fn_wp10_validate_product_process_route_ctx",
+      "owner": "postgres",
+      "config": [
+        "search_path=costing, public, pg_temp"
+      ],
+      "schema": "costing",
+      "receipt": "WP10-G2 06_subgroup_impact_preview.sql md5:b7e393d0ff282657b1515489b09bf5dd",
+      "signature": "costing.fn_wp10_validate_product_process_route_ctx(bigint,integer)",
+      "definition": "CREATE OR REPLACE FUNCTION costing.fn_wp10_validate_product_process_route_ctx(p_product_route_id bigint, p_sub_group_id integer)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'costing', 'public', 'pg_temp'\nAS $function$\ndeclare\n  v_route costing.product_process_route%rowtype;\n  v_errors jsonb:='[]'::jsonb;\n  v_family_id bigint;\n  v_base_family_id bigint;\n  v_release_only boolean:=false;\n  v_batch_product_id integer;\n  v_steps integer;\n  v_rm integer;\n  v_fg integer;\n  v_prod integer;\n  v_qc integer;\n  v_duplicate_sequence boolean:=false;\nbegin\n  select * into v_route from costing.product_process_route where id=p_product_route_id;\n  if not found then return jsonb_build_object('valid',false,'errors',jsonb_build_array('PRODUCT_ROUTE_NOT_FOUND')); end if;\n  if v_route.archived_at is not null then\n    return jsonb_build_object('valid',false,'errors',jsonb_build_array('ARCHIVED_PRODUCT_ROUTE'),'product_route_id',p_product_route_id);\n  end if;\n\n  v_family_id:=costing.fn_wp10_resolve_route_family_ctx(v_route.product_id,coalesce(v_route.effective_from,current_date),p_sub_group_id);\n  select r.route_family_id,coalesce(f.allows_release_only_route,false)\n    into v_base_family_id,v_release_only\n  from costing.production_route_family_route r\n  join costing.production_route_family f on f.id=r.route_family_id\n  where r.id=v_route.base_route_family_route_id and r.archived_at is null and f.archived_at is null;\n\n  if v_base_family_id is null then v_errors:=v_errors||jsonb_build_array('BASE_ROUTE_FAMILY_ROUTE_ARCHIVED_OR_MISSING'); end if;\n  if v_family_id is null then v_errors:=v_errors||jsonb_build_array('NO_APPROVED_ROUTE_FAMILY_ASSIGNMENT');\n  elsif v_family_id<>v_base_family_id then v_errors:=v_errors||jsonb_build_array('ROUTE_FAMILY_ASSIGNMENT_MISMATCH'); end if;\n\n  if not exists(\n    select 1 from costing.production_route_family_route r\n    join costing.production_route_family f on f.id=r.route_family_id\n    where r.id=v_route.base_route_family_route_id and r.archived_at is null and f.archived_at is null and r.status='APPROVED'\n  ) then v_errors:=v_errors||jsonb_build_array('BASE_ROUTE_FAMILY_ROUTE_NOT_APPROVED'); end if;\n\n  select product_id into v_batch_product_id from public.production_batch_size_ref where id=v_route.batch_size_ref_id;\n  if v_batch_product_id is distinct from v_route.product_id then v_errors:=v_errors||jsonb_build_array('BATCH_REFERENCE_PRODUCT_MISMATCH'); end if;\n\n  if exists(\n    select 1 from costing.product_process_route_override o\n    join costing.production_route_family_route_step s on s.id=o.base_step_id\n    where o.product_route_id=p_product_route_id and s.family_route_id<>v_route.base_route_family_route_id\n  ) then v_errors:=v_errors||jsonb_build_array('OVERRIDE_REFERENCES_FOREIGN_ROUTE_FAMILY_STEP'); end if;\n\n  with es as materialized (select * from costing.fn_effective_product_process_route_steps(p_product_route_id)),\n  counts as (\n    select count(*)::integer steps,\n           count(*) filter(where route_step_scope='BOUNDARY_RM_ISSUE')::integer rm,\n           count(*) filter(where route_step_scope='BOUNDARY_FG_TRANSFER')::integer fg,\n           count(*) filter(where route_step_scope='PRODUCTION_PROCESS')::integer prod,\n           count(*) filter(where route_step_scope='QC_OTHER_POOL')::integer qc\n    from es\n  ), dup as (select exists(select 1 from es group by sequence_no having count(*)>1) has_dup)\n  select counts.steps,counts.rm,counts.fg,counts.prod,counts.qc,dup.has_dup\n    into v_steps,v_rm,v_fg,v_prod,v_qc,v_duplicate_sequence\n  from counts cross join dup;\n\n  if v_steps=0 then v_errors:=v_errors||jsonb_build_array('NO_ROUTE_STEPS'); end if;\n  if v_rm<>1 then v_errors:=v_errors||jsonb_build_array('REQUIRES_EXACTLY_ONE_RM_ISSUE_BOUNDARY'); end if;\n  if v_fg<>1 then v_errors:=v_errors||jsonb_build_array('REQUIRES_EXACTLY_ONE_FG_TRANSFER_BOUNDARY'); end if;\n  if v_release_only then\n    if v_prod<>0 then v_errors:=v_errors||jsonb_build_array('RELEASE_ONLY_ROUTE_MUST_NOT_HAVE_PRODUCTION_PROCESS_STEP'); end if;\n    if v_qc<>1 then v_errors:=v_errors||jsonb_build_array('RELEASE_ONLY_ROUTE_REQUIRES_EXACTLY_ONE_QC_STEP'); end if;\n    if v_steps<>3 then v_errors:=v_errors||jsonb_build_array('RELEASE_ONLY_ROUTE_REQUIRES_EXACTLY_THREE_STEPS'); end if;\n  elsif v_prod<1 then\n    v_errors:=v_errors||jsonb_build_array('REQUIRES_PRODUCTION_PROCESS_STEP');\n  end if;\n  if coalesce(v_duplicate_sequence,false) then v_errors:=v_errors||jsonb_build_array('DUPLICATE_EFFECTIVE_SEQUENCE'); end if;\n  if v_route.evidence_status not in ('MANUAL_COMPLETE','HISTORICAL_COMPLETE') then v_errors:=v_errors||jsonb_build_array('INCOMPLETE_ROUTE_EVIDENCE'); end if;\n\n  return jsonb_build_object('valid',jsonb_array_length(v_errors)=0,'errors',v_errors,'step_count',v_steps,\n    'rm_boundary_count',v_rm,'fg_boundary_count',v_fg,'production_step_count',v_prod,'qc_step_count',v_qc,\n    'allows_release_only_route',v_release_only,'resolved_route_family_id',v_family_id);\nend\n$function$\n",
+      "volatility": "s",
+      "anon_execute": false,
+      "definition_md5": "b7e393d0ff282657b1515489b09bf5dd",
+      "receipt_matches": true,
+      "service_execute": false,
+      "security_definer": true,
+      "authenticated_execute": false
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "name": "rpc_wp10_get_operational_expiry_horizon",
+      "owner": "postgres",
+      "config": [
+        "search_path=public, costing, pg_temp"
+      ],
+      "schema": "public",
+      "receipt": "WP10-G2 03_operational_expiry_horizon_rpc.sql md5:454e9af693c50c81824bb0ff99ff6af9",
+      "signature": "rpc_wp10_get_operational_expiry_horizon(integer,bigint,integer)",
+      "definition": "CREATE OR REPLACE FUNCTION public.rpc_wp10_get_operational_expiry_horizon(p_horizon_days integer DEFAULT 30, p_after_sku_id bigint DEFAULT NULL::bigint, p_limit integer DEFAULT 50)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'public', 'costing', 'pg_temp'\nAS $function$\ndeclare\n  c_scan_cap constant integer := 200;\n  v_today date;\n  v_days integer;\n  v_limit integer;\n  v_end date;\n  rec record;\n  v_dates date[];\n  v_d date;\n  v_states jsonb;\n  v_today_states jsonb;\n  v_codes text[] := array['PM_BOM_REVISION','BATCH_SIZE_REFERENCE','MANUFACTURING_ROUTE','MRP_POLICY','SELLING_PRICE_POLICY'];\n  v_code text;\n  v_state text;\n  v_today_state text;\n  v_first date;\n  v_first_state text;\n  v_recovers date;\n  v_class text;\n  v_ess jsonb;\n  v_rows jsonb := '[]'::jsonb;\n  v_row_ess jsonb;\n  v_scanned integer := 0;\n  v_flagged integer := 0;\n  v_last bigint := null;\n  v_budget_hit boolean := false;\n  v_more boolean;\n  v_owner jsonb := jsonb_build_object(\n    'PM_BOM_REVISION', 'PM BOM Manager',\n    'BATCH_SIZE_REFERENCE', 'Batch Sizes (Supply / Batch Plan)',\n    'MANUFACTURING_ROUTE', 'Production Route Manager',\n    'MRP_POLICY', 'Pricing Policy Manager > MRP',\n    'SELLING_PRICE_POLICY', 'Pricing Policy Manager > Selling & scheme policies');\n  v_timeline jsonb;\nbegin\n  if auth.uid() is null then raise exception 'Not authenticated'; end if;\n  if not (public.app_has_permission('module:manage-products', 'view') or public.app_has_permission('module:costing-control-center', 'view')) then\n    raise exception 'Permission denied';\n  end if;\n\n  v_today := costing.fn_wp10_today_ist();\n  v_days := least(greatest(coalesce(p_horizon_days, 30), 1), 90);\n  v_limit := least(greatest(coalesce(p_limit, 50), 1), 100);\n  v_end := v_today + v_days;\n\n  for rec in\n    select s.id as sku_id, s.product_id\n    from public.product_skus s\n    join public.products p on p.id = s.product_id\n    where s.is_active and p.status = 'Active' and not coalesce(s.is_sample, false)\n      and (p_after_sku_id is null or s.id > p_after_sku_id)\n    order by s.id\n    limit c_scan_cap + 1\n  loop\n    if v_scanned >= c_scan_cap then v_budget_hit := true; exit; end if;\n    v_scanned := v_scanned + 1;\n    v_last := rec.sku_id;\n\n    v_dates := array[v_today] || costing.fn_wp10_boundary_dates(rec.sku_id, rec.product_id, v_today, v_end);\n    v_timeline := '{}'::jsonb;\n    foreach v_d in array v_dates loop\n      v_timeline := v_timeline || jsonb_build_object(v_d::text, costing.fn_wp10_essential_states_as_of(rec.sku_id, rec.product_id, v_d));\n    end loop;\n    v_today_states := v_timeline -> v_today::text;\n\n    v_row_ess := '[]'::jsonb;\n    foreach v_code in array v_codes loop\n      v_today_state := v_today_states ->> v_code;\n      v_first := null; v_first_state := null; v_recovers := null;\n      if v_today_state <> 'RESOLVED' then\n        v_first := v_today; v_first_state := v_today_state;\n      end if;\n      foreach v_d in array v_dates loop\n        v_state := (v_timeline -> v_d::text) ->> v_code;\n        if v_first is null then\n          if v_state <> 'RESOLVED' then v_first := v_d; v_first_state := v_state; end if;\n        elsif v_recovers is null and v_d > v_first and v_state = 'RESOLVED' then\n          v_recovers := v_d;\n        end if;\n      end loop;\n      if v_first is not null then\n        v_class := case\n          when v_first_state = 'UNKNOWN' then 'UNKNOWN'\n          when v_first = v_today then 'TODAY_' || v_first_state\n          when v_first_state = 'AMBIGUOUS' then 'AMBIGUOUS_IN_WINDOW'\n          when v_recovers is not null then 'GAP_RECOVERS_IN_WINDOW'\n          else 'LAPSES_IN_WINDOW' end;\n        v_row_ess := v_row_ess || jsonb_build_object(\n          'code', v_code, 'owner_screen', v_owner ->> v_code, 'today_state', v_today_state,\n          'first_issue_date', v_first, 'issue_state', v_first_state, 'recovers_on', v_recovers, 'classification', v_class);\n      end if;\n    end loop;\n\n    if jsonb_array_length(v_row_ess) > 0 then\n      v_flagged := v_flagged + 1;\n      v_rows := v_rows || jsonb_build_object('sku_id', rec.sku_id, 'product_id', rec.product_id, 'essentials', v_row_ess, 'evaluated_dates', to_jsonb(v_dates));\n      if v_flagged >= v_limit then exit; end if;\n    end if;\n  end loop;\n\n  select exists (\n    select 1 from public.product_skus s join public.products p on p.id = s.product_id\n    where s.is_active and p.status = 'Active' and not coalesce(s.is_sample, false) and v_last is not null and s.id > v_last\n  ) into v_more;\n\n  return jsonb_build_object(\n    'assessment_kind', 'OPERATIONAL_EXPIRY_HORIZON',\n    'context', jsonb_build_object(\n      'date_basis', 'CURRENT_IST_DATE',\n      'evaluated_from', v_today, 'evaluated_through', v_end, 'horizon_days', v_days,\n      'effective_to_semantics', 'INCLUSIVE (first uncovered day = effective_to + 1)',\n      'governed_period_semantics_unchanged', true,\n      'is_governed_period_valuation', false,\n      'amounts_evaluated', false,\n      'route_boundary_coverage', 'COMPLETE',\n      'route_closure', 'SELECTOR_WINDOWS_PLUS_REAL_VALIDATOR (see proposal 02)'),\n    'rows', v_rows,\n    'statistics', jsonb_build_object('scanned_count', v_scanned, 'flagged_count', v_flagged, 'scan_cap', c_scan_cap, 'limit', v_limit, 'budget_exhausted', v_budget_hit),\n    'has_more', coalesce(v_more, false),\n    'next_after_sku_id', case when coalesce(v_more, false) then v_last else null end\n  );\nend\n$function$\n",
+      "volatility": "s",
+      "anon_execute": false,
+      "definition_md5": "454e9af693c50c81824bb0ff99ff6af9",
+      "receipt_matches": true,
+      "service_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "name": "rpc_wp10_preview_product_subgroup_impact",
+      "owner": "postgres",
+      "config": [
+        "search_path=public, costing, pg_temp"
+      ],
+      "schema": "public",
+      "receipt": "WP10-G2 06_subgroup_impact_preview.sql md5:9a538ac657ea32bad5db6b29c4ac3703",
+      "signature": "rpc_wp10_preview_product_subgroup_impact(integer,integer)",
+      "definition": "CREATE OR REPLACE FUNCTION public.rpc_wp10_preview_product_subgroup_impact(p_product_id integer, p_proposed_sub_group_id integer)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'public', 'costing', 'pg_temp'\nAS $function$\ndeclare\n  v_today date;\n  v_stored integer;\n  v_found boolean;\n  v_active integer;\n  v_before jsonb;\n  v_prop jsonb;\n  v_changed boolean;\n  v_class text;\nbegin\n  if auth.uid() is null then raise exception 'Not authenticated'; end if;\n  if not public.app_has_permission('module:manage-products', 'view') then raise exception 'Permission denied'; end if;\n  if p_product_id is null or p_proposed_sub_group_id is null then\n    raise exception using errcode = '22023', message = 'WP10_PREVIEW_INPUT: a product and a proposed sub-group are required.';\n  end if;\n  select p.sub_group_id, true into v_stored, v_found from public.products p where p.id = p_product_id;\n  if not coalesce(v_found, false) then\n    raise exception using errcode = 'P0002', message = format('WP10_PREVIEW_INPUT: product %s does not exist.', p_product_id);\n  end if;\n  if not exists (select 1 from public.sub_groups g where g.id = p_proposed_sub_group_id) then\n    raise exception using errcode = 'P0002', message = format('WP10_PREVIEW_INPUT: sub-group %s does not exist.', p_proposed_sub_group_id);\n  end if;\n  -- one STABLE function = one statement snapshot for every read below; today's IST date comes from the single clock function of proposal 01\n  v_today := costing.fn_wp10_today_ist();\n  select count(*)::integer into v_active from public.product_skus s where s.product_id = p_product_id and s.is_active;\n  v_before := costing.fn_wp10_route_state_ctx(p_product_id, v_today, v_stored);\n  v_prop := costing.fn_wp10_route_state_ctx(p_product_id, v_today, p_proposed_sub_group_id);\n  v_changed := v_stored is distinct from p_proposed_sub_group_id;\n  v_class := case\n    when not v_changed then 'NO_SUBGROUP_CHANGE'\n    when v_before ->> 'state' = 'UNKNOWN' or v_prop ->> 'state' = 'UNKNOWN' then 'UNKNOWN'\n    when v_before ->> 'state' = 'VALID' and v_prop ->> 'state' = 'INVALID' then 'ROUTE_LOSS'\n    when v_before ->> 'state' = 'VALID' then 'VALID_TO_VALID'\n    when v_prop ->> 'state' = 'VALID' then 'INVALID_TO_VALID'\n    else 'INVALID_TO_INVALID' end;\n  return jsonb_build_object(\n    'assessment_kind', 'PRODUCT_SUBGROUP_ROUTE_IMPACT',\n    'authoritative_for_save', false,\n    'product_id', p_product_id,\n    'stored_sub_group_id', v_stored,\n    'proposed_sub_group_id', p_proposed_sub_group_id,\n    'sub_group_changed', v_changed,\n    'evaluated_on', v_today,\n    'date_basis', 'CURRENT_IST_DATE',\n    'active_sku_count', v_active,\n    'before', v_before,\n    'proposed', v_prop,\n    'impact_class', v_class,\n    'review_required', (v_class = 'UNKNOWN') or (v_class = 'ROUTE_LOSS' and v_active > 0),\n    'context_digest', md5(concat_ws('|', p_product_id, v_stored, p_proposed_sub_group_id, v_today, v_active, v_before::text, v_prop::text)));\nend\n$function$\n",
+      "volatility": "s",
+      "anon_execute": false,
+      "definition_md5": "9a538ac657ea32bad5db6b29c4ac3703",
+      "receipt_matches": true,
+      "service_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    }
+  ],
+  "triggers": [],
+  "read_only_postchecks": {
+    "date_ist": "2026-11-16",
+    "well_formed": true,
+    "sampled_skus": 10,
+    "route_results": {
+      "VALID": 10
+    },
+    "batch_elapsed_ms": 493.347,
+    "negative_control": {
+      "state": "INVALID",
+      "reasons": [
+        "NO_APPROVED_ROUTE_FAMILY_MAPPING"
+      ],
+      "family_id": null,
+      "route_source": null,
+      "family_route_id": null,
+      "product_route_id": null
+    },
+    "sampled_products": 10,
+    "essential_results": [
+      {
+        "code": "BATCH_SIZE_REFERENCE",
+        "count": 10,
+        "state": "RESOLVED"
+      },
+      {
+        "code": "MANUFACTURING_ROUTE",
+        "count": 10,
+        "state": "RESOLVED"
+      },
+      {
+        "code": "MRP_POLICY",
+        "count": 10,
+        "state": "RESOLVED"
+      },
+      {
+        "code": "PM_BOM_REVISION",
+        "count": 10,
+        "state": "RESOLVED"
+      },
+      {
+        "code": "SELLING_PRICE_POLICY",
+        "count": 10,
+        "state": "RESOLVED"
+      }
+    ],
+    "statement_timeout": "8s",
+    "boundary_dates_total": 0,
+    "transaction_read_only": "on"
+  },
+  "existing_acl_rls_comparison": {
+    "tables": 16,
+    "unchanged": true
+  },
+  "extra_dependency_comparison": {
+    "functions": 4,
+    "unchanged": true
+  },
+  "security_advisors": {
+    "before_count": 7,
+    "after_count": 7,
+    "added": []
+  },
+  "limits": {
+    "client_flag": "OFF; no activation",
+    "guards_04_05": "UNAPPLIED",
+    "real_role_acceptance": "NOT TESTED",
+    "public_rpc_http_acceptance": "NOT TESTED",
+    "installed_pwa_electron_windows": "NOT TESTED",
+    "performance": "Single private-helper SQL-editor read-only sample of 10 SKUs/products; not RPC/PostgREST p95 or production-scale acceptance",
+    "wp10": "OPEN",
+    "programme": "10/13"
+  }
+}

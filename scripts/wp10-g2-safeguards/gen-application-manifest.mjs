@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { loadPhase1Inventory, RECEIPT } from "./phase1-applied-inventory.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 export const MANIFEST = "docs/master-data-costing/WP10_G2_UNAPPLIED_SQL_APPLICATION_MANIFEST_2026-11-15.md";
@@ -21,11 +22,13 @@ const FILES = [
 export const sha256 = (rel) => crypto.createHash("sha256").update(fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n")).digest("hex");
 
 export function buildManifest() {
+  const applied = loadPhase1Inventory();
+  const status = applied.length ? `Phase 1 files 01/02/03/06 are APPLIED on qhmoqtxpeasamtlxaoak; 04/05 and rollback remain UNAPPLIED. See [actual receipts](${RECEIPT.replace('docs/master-data-costing/', '')}). Payload headers saying UNAPPLIED are retained as the immutable pre-application source, not current installation status.` : "No applied Phase 1 receipt is registered in this source snapshot.";
   const rows = FILES.map(([f, objs, deps, grant], i) => `| ${i + 1} | \`${f}\` | \`${sha256(`${DIR}/${f}`)}\` | ${objs} | ${deps} | ${grant} |`).join("\n");
-  return `# WP10 G2 — Unapplied SQL application manifest (for later OWNER review)
+  return `# WP10 G2 — Reviewed SQL payload manifest (application status from receipts)
 
 **GENERATED FILE — do not edit by hand** (\`node scripts/wp10-g2-safeguards/gen-application-manifest.mjs\`; \`draft-sql-static.test.mjs\` S24 requires it to match the SQL).
-**THIS DOCUMENT IS NOT PERMISSION TO APPLY ANYTHING.** Nothing listed here has been run against any database. No production SQL, grant, permission, RLS, registry, flag, deployment or merge is authorised by it. WP10 stays OPEN; programme 10/13.
+**THIS DOCUMENT IS NOT PERMISSION TO APPLY ANYTHING.** ${status} No additional SQL, grant, permission, RLS, registry, flag, deployment or merge is authorised by this manifest. WP10 stays OPEN; programme 10/13.
 Applying any step needs a separate, exact owner decision naming the target database, the file hashes below and the operator.
 
 ## 1. Files, order and hashes (sha256 of the committed text, LF-normalised)

@@ -25,6 +25,22 @@ export const INTEGRATION_PROTECTED_PATHS = new Set([
 // migration is still rejected. Working-tree (uncommitted) changes are NEVER
 // exempt: callers pass a context only for committed paths.
 export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
+  "supabase/migrations/20261116022440_wp10_g2_01_clock_and_batch_size_contract.sql": Object.freeze({
+    sha256: "0077b90fffbf9bd9c770ab55b85e81e8110d1c6c0a8a17135ba71bee4620dab3",
+    heads: Object.freeze(["server/wp10-g2-read-only-phase1"]),
+  }),
+  "supabase/migrations/20261116022501_wp10_g2_02_essential_states_and_boundaries.sql": Object.freeze({
+    sha256: "ef4cd91f693c220a614db3f7640afb301126b47626cde93e792b393b27c74b31",
+    heads: Object.freeze(["server/wp10-g2-read-only-phase1"]),
+  }),
+  "supabase/migrations/20261116022517_wp10_g2_03_operational_expiry_horizon_rpc.sql": Object.freeze({
+    sha256: "dea309c07d0ff6726b04d9ed4d56e190c6d2afda9628a06996df133e7dfb0ce5",
+    heads: Object.freeze(["server/wp10-g2-read-only-phase1"]),
+  }),
+  "supabase/migrations/20261116022528_wp10_g2_06_subgroup_impact_preview.sql": Object.freeze({
+    sha256: "abb291fe26bce9ac2618eca5325b4cb82392a262d895585e87b9746cc8f9217f",
+    heads: Object.freeze(["server/wp10-g2-read-only-phase1"]),
+  }),
   // PR #374 Add Line new-row status guard (owner-reviewed; wrapper already installed live).
   "supabase/migrations/20261112220000_pec_r2_add_line_new_row_status_guard.sql": Object.freeze({
     sha256: "f9441b67451f0d012e77c576beec347a99c491b57f0b11eeda755a5a50eeee03",
