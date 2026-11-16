@@ -71,6 +71,31 @@ try {
     JSON.stringify({ activation: ra.code, productEdit: b.code, sku, subgroup, route, activationError: ra.err.slice(0,240), productError: b.err.slice(0,240) }));
   check("CL4", "Activation commits and product writer rejects with route-impact guard", safe && /WP10_PRODUCT_ROUTE_IMPACT/.test(b.err));
   console.log(safe ? "CANDIDATE BLOCKED THE REPRODUCED SCHEDULE" : "CANDIDATE NOT VERIFIED; DO NOT DEPLOY");
+  // Reverse schedule: product edit holds the parent lock first. The activation's
+  // existing friendly precheck may run before it waits, but the final parent-lock
+  // trigger MUST revalidate after the product writer commits.
+  {
+    const reverse = makeRunner(cluster, { sql: g2FixtureSql() });
+    const sr = reverse(candidate + "\\n" + session() +
+      "insert into costing.production_route_family(id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\\n" +
+      "insert into costing.production_route_family_product_subgroup_map(product_subgroup_id,route_family_id,status,effective_from) values (1,777,'APPROVED',date '2026-01-01');\\n" +
+      "insert into costing.production_route_family_route(route_family_id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\\n" +
+      NEWSKU(1,55) + "select public.fx_complete(1,1,'ROUTE');\\n");
+    const product = psql(sr, "set application_name='wp10_reverse_product';\\n" + session() +
+      "begin; update public.products set sub_group_id=3 where id=1; select pg_sleep(3); commit;\\n");
+    let holding = false;
+    for (let i = 0; i < 40; i++) {
+      const n = sr.q("select count(*) from pg_stat_activity where application_name='wp10_reverse_product' and wait_event='PgSleep'");
+      if (Number(n) > 0) { holding = true; break; }
+      await sleep(75);
+    }
+    check("CL5", "Reverse schedule: subgroup writer holds product lock before activation", holding);
+    const activation = holding ? psql(sr, "set application_name='wp10_reverse_activation';\\n" + session() +
+      "select * from public.rpc_set_product_sku_active(1,true,'reverse activation');\\n") : Promise.resolve({code:-1,err:"barrier missing"});
+    const [pr, ar] = await Promise.all([product, activation]);
+    const state = {product:pr.code,activation:ar.code,sku:sr.one("select is_active::text from public.product_skus where id=1"),subgroup:sr.one("select sub_group_id from public.products where id=1")};
+    check("CL6", "Reverse schedule: subgroup edit commits and activation is refused; SKU remains inactive", holding && pr.code===0 && ar.code!==0 && state.sku==="false" && state.subgroup==="3", JSON.stringify(state)+" "+ar.err.slice(0,200));
+  }
 } finally {
   cluster.stop();
 }
