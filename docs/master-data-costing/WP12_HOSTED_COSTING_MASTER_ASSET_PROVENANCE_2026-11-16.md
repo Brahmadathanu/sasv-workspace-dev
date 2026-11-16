@@ -13,3 +13,10 @@
 - WP11 PM BOM responsive correction #449 is merged to main; offline 390px Chromium Electron/PWA fixture PASS. Hosted bytes have matched but *real authenticated PM BOM 390px with populated data* remains NOT TESTED. Historical 563px wide page finding remains the original dated failure, not falsified.
 - WP11 SKU Deactivate colour correction #448 is merged; authentic visible-button check remains NOT TESTED.
 - No production API writer, SQL mutation, test-account permission change, Netlify deployment or Electron release was performed by this verification.
+
+## Supplement — final six-Costing hosted static bundle verified on 16 November 2026
+
+- Read-only [GitHub Actions run 43901062519](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/43901062519), [workflow PR #453](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/453) merged as `6734fff46cedb7c9eee0f2c206e49afeb9f3cdc3`.
+- Existing `scripts/costing-acceptance/verify-served-assets.mjs` executed against `https://sasv-utilities-hub.netlify.app` with explicit Git PR synthetic merge source SHA `bebd97a77273dcd38e99a4966a0e5cfc0e7f52f7` (asset tree matches the pre-workflow main). Expected `hub-cache-v393`; source and served cache v393.
+- Log result: **`VERIFIED [HOSTED] ... 74/74 assets match; cache hub-cache-v393; bundle 78ee8a3cc965c905…`**. Script permits only exact known Netlify HTML banner normalization and does not normalize JS/CSS. The JSON report was uploaded as the workflow artifact `wp12-six-costing-hosted-proof`.
+- This **upgrades the six-Costing hosted static-byte provenance gate to PASS at the tested source asset tree**, and supersedes the earlier narrower 'six-Costing hosted asset NOT TESTED' statement. It does not prove a browser's activated installed SW, authenticated Editor/View/No-access, 11-flag cross-module outcomes, absence of runtime API 500, populated costing data behavior or Electron/Windows packaging.
