@@ -1,6 +1,6 @@
 -- WP10 RM1 REVIEW ONLY: deferred final-state veto on route-mapping transitions affecting active SKUs.
 -- Never run against Supabase without independent owner approval / complete route-writer review.
--- This prototype covers product-level and subgroup-level maps ONLY. Group, family/route,
+-- This prototype covers product-, subgroup-, and group-level maps ONLY. Family/route,
 -- product_route and sub_groups parent mutations remain unresolved and prevent any global claim.
 -- Requires the separately reviewed CL15 activation-parent SHARE lock as an atomic prerequisite.
 begin;
@@ -14,7 +14,7 @@ begin
  if to_regprocedure('costing.fn_wp10_rm1_deferred_mapping_impact()') is not null then
   raise exception 'RM1 helper exists; no overwrite';
  end if;
- if exists (select 1 from pg_trigger where tgname in ('trg_wp10_rm1_subgroup_mapping_impact','trg_wp10_rm1_product_mapping_impact') and not tgisinternal) then
+ if exists (select 1 from pg_trigger where tgname in ('trg_wp10_rm1_subgroup_mapping_impact','trg_wp10_rm1_product_mapping_impact','trg_wp10_rm1_group_mapping_impact') and not tgisinternal) then
   raise exception 'RM1 trigger exists; no adopt or overwrite';
  end if;
 end $rm1_preflight$;
@@ -45,6 +45,9 @@ begin
          and pr.id in ((to_jsonb(old)->>'product_id')::integer,(to_jsonb(new)->>'product_id')::integer))
      or (tg_table_name='production_route_family_product_subgroup_map'
          and pr.sub_group_id in ((to_jsonb(old)->>'product_subgroup_id')::integer,(to_jsonb(new)->>'product_subgroup_id')::integer))
+     or (tg_table_name='production_route_family_product_group_map'
+         and exists (select 1 from public.sub_groups sg where sg.id=pr.sub_group_id
+           and sg.product_group_id in ((to_jsonb(old)->>'product_group_id')::integer,(to_jsonb(new)->>'product_group_id')::integer)))
   order by pr.id
  loop
   perform 1 from public.products x where x.id=p.id for update;
@@ -74,6 +77,10 @@ deferrable initially deferred for each row
 execute function costing.fn_wp10_rm1_deferred_mapping_impact();
 create constraint trigger trg_wp10_rm1_subgroup_mapping_impact
 after update on costing.production_route_family_product_subgroup_map
+deferrable initially deferred for each row
+execute function costing.fn_wp10_rm1_deferred_mapping_impact();
+create constraint trigger trg_wp10_rm1_group_mapping_impact
+after update on costing.production_route_family_product_group_map
 deferrable initially deferred for each row
 execute function costing.fn_wp10_rm1_deferred_mapping_impact();
 commit;
