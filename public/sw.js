@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v393"; // WP05-W506 Staff Governance personnel-confidentiality client gate (explicit projections, edit gating); v392 was Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)
+const CACHE_NAME = "hub-cache-v394"; // WP05-W506 Staff Governance personnel-confidentiality client gate (explicit projections, edit gating); v392 was Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)
 
 const PRECACHE = [
   // Hub shell
@@ -124,6 +124,9 @@ self.addEventListener("fetch", (event) => {
     /\/shared\/css\/sasv-fg-bulk-internal-transfer\.css$/.test(url.pathname) ||
     // PEC ERP: the shared module must not pair newly served HTML with stale
     // cached paging/client logic or visual styles in installed PWAs.
+    // WP10: four classification masters now use governed RPCs and import two
+    // shared security helpers. Treat their JS as one network-first version set.
+    /\/(?:shared\/)?js\/(?:categories|subcategories|product-groups|subgroups|classification-master-access|classification-html-escape)\.js$/.test(url.pathname) ||
     /\/shared\/js\/procurement-execution-console\.js$/.test(url.pathname) ||
     /\/shared\/css\/sasv-procurement-execution-console\.css$/.test(url.pathname) ||
     // WP08 G2-0: the four shared Master Data pages (HTML is network-first) must not pair new HTML with a stale
