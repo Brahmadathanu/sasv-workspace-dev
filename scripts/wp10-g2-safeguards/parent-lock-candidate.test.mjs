@@ -96,6 +96,33 @@ try {
     const state = {product:pr.code,activation:ar.code,sku:sr.one("select is_active::text from public.product_skus where id=1"),subgroup:sr.one("select sub_group_id from public.products where id=1")};
     check("CL6", "Reverse schedule: subgroup edit commits and activation is refused; SKU remains inactive", holding && pr.code===0 && ar.code!==0 && state.sku==="false" && state.subgroup==="3", JSON.stringify(state)+" "+ar.err.slice(0,200));
   }
+  // Parent inactivation must serialize against first activation, in both orders.
+  // All waits are bounded; a timeout or deadlock is a test failure, never PASS.
+  {
+    const mk = () => makeRunner(cluster, { sql: g2FixtureSql() })(candidate + "\n" + session() +
+      "insert into costing.production_route_family(id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
+      "insert into costing.production_route_family_product_subgroup_map(product_subgroup_id,route_family_id,status,effective_from) values (1,777,'APPROVED',date '2026-01-01');\n" +
+      "insert into costing.production_route_family_route(route_family_id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
+      NEWSKU(1,55) + "select public.fx_complete(1,1,'ROUTE');\n");
+    const ac = mk();
+    const pa = psql(ac, "set application_name='wp10_inactivation_activation_first'; set statement_timeout='7000ms';\n"+session()+
+      "begin; update public.product_skus set is_active=true where id=1; select pg_sleep(2); commit;\n");
+    let aHeld=false;
+    for(let i=0;i<40;i++){if(Number(ac.q("select count(*) from pg_stat_activity where application_name='wp10_inactivation_activation_first' and wait_event='PgSleep'"))>0){aHeld=true;break;}await sleep(50);}
+    const pb=aHeld ? psql(ac,"set statement_timeout='7000ms';\n"+session()+"update public.products set status='Inactive' where id=1;\n"):Promise.resolve({code:-1,err:"barrier missing"});
+    const [ar,br]=await Promise.all([pa,pb]);
+    const af={sku:ac.one("select is_active::text from public.product_skus where id=1"),status:ac.one("select status from public.products where id=1")};
+    check("CL12","Activation-first blocks concurrent product inactivation",aHeld && ar.code===0 && br.code!==0 && /Cannot mark product/.test(br.err) && af.sku==="true" && af.status==="Active",JSON.stringify({ar:ar.code,br:br.code,af,error:br.err.slice(0,200)}));
+    const bc=mk();
+    const ia=psql(bc,"set application_name='wp10_inactivation_product_first'; set statement_timeout='7000ms';\n"+session()+
+      "begin; update public.products set status='Inactive' where id=1; select pg_sleep(2); commit;\n");
+    let iHeld=false;
+    for(let i=0;i<40;i++){if(Number(bc.q("select count(*) from pg_stat_activity where application_name='wp10_inactivation_product_first' and wait_event='PgSleep'"))>0){iHeld=true;break;}await sleep(50);}
+    const ib=iHeld ? psql(bc,"set statement_timeout='7000ms';\n"+session()+"update public.product_skus set is_active=true where id=1;\n"):Promise.resolve({code:-1,err:"barrier missing"});
+    const [ir,jr]=await Promise.all([ia,ib]);
+    const bf={sku:bc.one("select is_active::text from public.product_skus where id=1"),status:bc.one("select status from public.products where id=1")};
+    check("CL13","Inactivation-first blocks concurrent SKU activation",iHeld && ir.code===0 && jr.code!==0 && bf.sku==="false" && bf.status==="Inactive" && !/deadlock detected|statement timeout|lock timeout/i.test(jr.err),JSON.stringify({ir:ir.code,jr:jr.code,bf,error:jr.err.slice(0,200)}));
+  }
   // Direct privileged table writes must be governed by the same trigger, not just RPCs.
   {
     const direct = makeRunner(cluster, { sql: g2FixtureSql() });
