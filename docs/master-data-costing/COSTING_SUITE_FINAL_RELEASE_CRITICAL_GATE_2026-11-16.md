@@ -1,3 +1,5 @@
+> **16 Nov exact-head B1-T2 automated supplement:** 21/21 Chromium flag-sweep PASS, 0 skipped (CI 43902516696), with inert mock backend; see [minimal signed-in witness](WP12_MINIMAL_FINAL_READ_ONLY_OWNER_WITNESS_2026-11-16.md). This is not authenticated role/flag/release PASS.
+
 # Costing Suite — final release-critical closure gate (16 November 2026)
 
 ## Objective and honest status
