@@ -18,7 +18,7 @@ test.before(async()=>{if(!skip)browser=await chromium.launch();});
 test.after(async()=>{await browser?.close();});
 async function scenario(mode,width){
  const page=await browser.newPage({viewport:{width,height:720}});
- await page.setContent('<!doctype html><html><head></head><body><main class="sasv-module-shell"><form id="addCategoryForm"><button id="createBtn" type="submit">Add</button></form><button class="edit-btn">Edit</button><button class="delete-btn">Delete</button><button class="save-btn">Save</button><button id="addBtn">Add Group</button><div id="addSection">New Group</div><form id="addSubForm">Add Sub</form><form id="addSubGroupForm">Add subgroup</form></main><div id="readOnly">Read listing</div></body></html>');
+ await page.setContent('<!doctype html><html><head></head><body><main class="sasv-module-shell"><form id="addCategoryForm"><button id="createBtn" type="submit">Add</button></form><form id="editForm"><button id="saveEdit" type="submit">Save</button></form><section id="addNewSubCategory"><form id="addSubForm">New</form></section><button class="edit-btn">Edit</button><button class="delete-btn">Delete</button><button class="save-btn">Save</button><button id="addBtn">Add Group</button><div id="addSection">New Group</div><form id="addSubGroupForm">Add subgroup</form></main><div id="readOnly">Read listing</div></body></html>');
  await page.evaluate(m=>{
    window.__permissions=m;
    window.__attempts=0;
@@ -38,7 +38,9 @@ async function scenario(mode,width){
      editVisible:getComputedStyle(document.querySelector('.edit-btn')).display!=='none',
      listingVisible:getComputedStyle(document.getElementById('readOnly')).display!=='none',
      attempts:window.__attempts,
-     addVisible:getComputedStyle(document.getElementById('addSection')).display!=='none'};
+     addVisible:getComputedStyle(document.getElementById('addSection')).display!=='none',
+     saveVisible:getComputedStyle(document.getElementById('saveEdit')).display!=='none',
+     subcategoryAddVisible:getComputedStyle(document.getElementById('addNewSubCategory')).display!=='none'};
  });
  await page.close();
  return result;
@@ -46,8 +48,8 @@ async function scenario(mode,width){
 for(const width of [390,1280])for(const mode of ['edit','view','none','error']){
  test('classification '+mode+' @'+width,{skip},async()=>{
   const r=await scenario(mode,width);
-  if(mode==='edit'){assert.equal(r.state,'edit');assert.equal(r.editVisible,true);assert.equal(r.addVisible,true);assert.equal(r.attempts,1);}
-  else{assert.notEqual(r.state,'edit');assert.equal(r.editVisible,false);assert.equal(r.addVisible,false);assert.equal(r.attempts,0);}
+  if(mode==='edit'){assert.equal(r.state,'edit');assert.equal(r.editVisible,true);assert.equal(r.addVisible,true);assert.equal(r.saveVisible,true);assert.equal(r.subcategoryAddVisible,true);assert.equal(r.attempts,1);}
+  else{assert.notEqual(r.state,'edit');assert.equal(r.editVisible,false);assert.equal(r.addVisible,false);assert.equal(r.saveVisible,false);assert.equal(r.subcategoryAddVisible,false);assert.equal(r.attempts,0);}
   assert.equal(r.listingVisible,true);
  });
 }
