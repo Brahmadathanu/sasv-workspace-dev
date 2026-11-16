@@ -24,9 +24,9 @@ try {
       T("privileged_direct_activation","update public.product_skus set is_active=true where id=1"));
     check("B1 no-active-SKU move allowed",s.log.empty_move?.ok===true);
     check("B2 B-first activation rechecks invalid committed route and is rejected",
-      s.log.activation_after_move?.ok===false && s.one("select is_active from public.product_skus where id=1")==="false");
+      s.log.activation_after_move?.ok===false && s.one("select is_active::text from public.product_skus where id=1")==="false");
     check("B3 privileged direct activation cannot bypass existing five-essential validation",
-      s.log.privileged_direct_activation?.ok===false && s.one("select is_active from public.product_skus where id=1")==="false");
+      s.log.privileged_direct_activation?.ok===false && s.one("select is_active::text from public.product_skus where id=1")==="false");
   }
   {
     const s=run(session()+route1+createS+ACTIVATE(1)+
