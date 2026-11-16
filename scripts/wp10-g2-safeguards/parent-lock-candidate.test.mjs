@@ -123,6 +123,21 @@ try {
     const bf={sku:bc.one("select is_active::text from public.product_skus where id=1"),status:bc.one("select status from public.products where id=1")};
     check("CL13","Inactivation-first blocks concurrent SKU activation",iHeld && ir.code===0 && jr.code!==0 && bf.sku==="false" && bf.status==="Inactive" && !/deadlock detected|statement timeout|lock timeout/i.test(jr.err),JSON.stringify({ir:ir.code,jr:jr.code,bf,error:jr.err.slice(0,200)}));
   }
+  // Multi-SKU product: one active sibling must prevent parent inactivation.
+  {
+    const multi = makeRunner(cluster, { sql: g2FixtureSql() });
+    const ms = multi(candidate + "\n" + session() +
+      "insert into costing.production_route_family(id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
+      "insert into costing.production_route_family_product_subgroup_map(product_subgroup_id,route_family_id,status,effective_from) values (1,777,'APPROVED',date '2026-01-01');\n" +
+      "insert into costing.production_route_family_route(route_family_id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
+      NEWSKU(1,55) + "select public.fx_complete(1,1,'ROUTE');\n" +
+      NEWSKU(2,56) + "select public.fx_complete(2,1,'ROUTE');\n");
+    const first = await psql(ms, "set statement_timeout='7000ms';\n" + session() + "update public.product_skus set is_active=true where id=1;\n");
+    const blocked = await psql(ms, "set statement_timeout='7000ms';\n" + session() + "update public.products set status='Inactive' where id=1;\n");
+    const second = await psql(ms, "set statement_timeout='7000ms';\n" + session() + "update public.product_skus set is_active=true where id=2;\n");
+    const siblingCount = ms.one("select count(*) from public.product_skus where product_id=1 and is_active");
+    check("CL14","Multiple active SKUs retain active parent; inactivation rejected",first.code===0 && blocked.code!==0 && /Cannot mark product/.test(blocked.err) && second.code===0 && siblingCount==="2" && ms.one("select status from public.products where id=1")==="Active",JSON.stringify({first:first.code,blocked:blocked.code,second:second.code,siblingCount,error:blocked.err.slice(0,150)}));
+  }
   // Direct privileged table writes must be governed by the same trigger, not just RPCs.
   {
     const direct = makeRunner(cluster, { sql: g2FixtureSql() });
