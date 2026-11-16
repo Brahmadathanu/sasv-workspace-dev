@@ -2,6 +2,7 @@
 import { supabase } from '../public/shared/js/supabaseClient.js'
 import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
 import { initializeClassificationAccess } from './classification-master-access.js';
+import { escapeClassificationHtml } from './classification-html-escape.js';
 
 //
 // In-page confirmation helper
@@ -56,7 +57,7 @@ async function renderTable() {
   const tbody = document.querySelector('#categoriesTable tbody')
   tbody.innerHTML = rows.map(r => `
     <tr data-id="${r.id}">
-      <td class="name-cell">${r.category_name}</td>
+      <td class="name-cell">${escapeClassificationHtml(r.category_name)}</td>
       <td>
         <button class="action-link edit-btn">Edit</button> |
         <button class="action-link delete-btn">Delete</button>
