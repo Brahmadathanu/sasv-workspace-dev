@@ -69,6 +69,7 @@ jobs:
               exit 1
             fi
           done
+          node scripts/wp10-g2-safeguards/crossflow-concurrency.test.mjs | tee "$WP10_EVIDENCE/crossflow-concurrency.log"
       - name: Mocked Chromium at 390 and 1280 (not live-role acceptance)
         shell: bash
         run: |
