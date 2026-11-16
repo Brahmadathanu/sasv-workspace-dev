@@ -92,9 +92,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         return
       }
 
-      const { error } = await supabase
-        .from('categories')
-        .insert([{ category_name: name }])
+      const { error } = await supabase.rpc('rpc_wp10_create_category', { p_name: name })
 
       if (error) {
         console.error('Error adding category:', error)
@@ -123,10 +121,7 @@ window.addEventListener('DOMContentLoaded', async () => {
           focusAddInput()
           return
         }
-        const { error } = await supabase
-          .from('categories')
-          .delete()
-          .eq('id', id)
+        const { error } = await supabase.rpc('rpc_wp10_delete_category', { p_id: Number(id) })
 
         if (error) {
           console.error('Error deleting category:', error)
@@ -173,10 +168,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         focusAddInput()
         return
       }
-      const { error } = await supabase
-        .from('categories')
-        .update({ category_name: newName })
-        .eq('id', currentId)
+      const { error } = await supabase.rpc('rpc_wp10_rename_category', { p_id: Number(currentId), p_name: newName })
 
       if (error) {
         console.error('Error updating category:', error)
