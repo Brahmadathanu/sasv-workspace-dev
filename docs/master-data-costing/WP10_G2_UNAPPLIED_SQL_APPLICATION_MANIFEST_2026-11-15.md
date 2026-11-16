@@ -1,7 +1,7 @@
-# WP10 G2 — Unapplied SQL application manifest (for later OWNER review)
+# WP10 G2 — Reviewed SQL payload manifest (application status from receipts)
 
 **GENERATED FILE — do not edit by hand** (`node scripts/wp10-g2-safeguards/gen-application-manifest.mjs`; `draft-sql-static.test.mjs` S24 requires it to match the SQL).
-**THIS DOCUMENT IS NOT PERMISSION TO APPLY ANYTHING.** Nothing listed here has been run against any database. No production SQL, grant, permission, RLS, registry, flag, deployment or merge is authorised by it. WP10 stays OPEN; programme 10/13.
+**THIS DOCUMENT IS NOT PERMISSION TO APPLY ANYTHING.** Phase 1 files 01/02/03/06 are APPLIED on qhmoqtxpeasamtlxaoak; 04/05 and rollback remain UNAPPLIED. See [actual receipts](WP10_SQL_PHASE1_EVIDENCE/application-receipt-2026-11-16.json). Payload headers saying UNAPPLIED are retained as the immutable pre-application source, not current installation status. No additional SQL, grant, permission, RLS, registry, flag, deployment or merge is authorised by this manifest. WP10 stays OPEN; programme 10/13.
 Applying any step needs a separate, exact owner decision naming the target database, the file hashes below and the operator.
 
 ## 1. Files, order and hashes (sha256 of the committed text, LF-normalised)

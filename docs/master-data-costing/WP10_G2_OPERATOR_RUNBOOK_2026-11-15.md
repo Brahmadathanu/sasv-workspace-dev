@@ -1,3 +1,5 @@
+> **SUBSEQUENT OWNER APPROVAL/EXECUTION:** Phase 1 files 01/02/03/06 are APPLIED, with eleven functions and intended ACLs verified. [Current register](WP10_SQL_PHASE1_APPLIED_AND_VERIFIED_2026-11-16.md) supersedes earlier pending/unapplied statements below for these four files only. Flag OFF; guards 04/05 remain UNAPPLIED, role/release acceptance open, 10/13.
+
 > **Current authority (16 Nov IST):** source #441/#442 is merged; SQL remains unapplied and flag default-off. [Application stage](WP10_SQL_PHASE1_EXACT_APPLICATION_REVIEW_2026-11-16.md) requires separate exact owner authority. Do not enable the flag merely because source merged; any flag trial needs its bounded acceptance authority after server gates.
 
 # WP10 G2 — Operator runbook (manual, read-only)

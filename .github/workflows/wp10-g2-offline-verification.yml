@@ -53,7 +53,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for suite in client-units sw-delivery source draft-sql-static; do
+          for suite in client-units sw-delivery source draft-sql-static phase1-registration phase1-inventory; do
             node "scripts/wp10-g2-safeguards/$suite.test.mjs" | tee "$WP10_EVIDENCE/$suite.log"
           done
           # the generated proposal 06 must equal its generator output (derivation parity is asserted by draft-sql-static S19/S20)

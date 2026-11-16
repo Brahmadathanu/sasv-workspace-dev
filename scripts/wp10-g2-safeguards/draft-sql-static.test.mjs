@@ -1,6 +1,7 @@
 // WP10 G2 — static review of the UNAPPLIED proposal SQL: location, labelling, read-only-ness, dependency closure against the live catalogs, grants, rollback completeness.
 // Offline. Reads files only. Run: node scripts/wp10-g2-safeguards/draft-sql-static.test.mjs [resultsJson] [closureJson]
 import fs from "node:fs";
+import { loadPhase1Inventory, verifyAppliedCopies } from "./phase1-applied-inventory.mjs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
@@ -17,7 +18,8 @@ const raw = Object.fromEntries(files.map((f) => [f, read(`${DIR}/${f}`)]));
 
 check("S1", "seven draft files exist (01-06 + 99 rollback) in a draft directory OUTSIDE supabase/ (so outside supabase/migrations and outside the PEC protected path)", files.join() === "01_clock_and_batch_size_contract.sql,02_essential_states_and_boundaries.sql,03_operational_expiry_horizon_rpc.sql,04_active_sku_reparent_guard.sql,05_product_route_impact_guard.sql,06_subgroup_impact_preview.sql,99_rollback_all.sql" && !DIR.startsWith("supabase/migrations"));
 const tracked = execFileSync("git", ["ls-files", "supabase/migrations"], { cwd: repoRoot, encoding: "utf8" });
-check("S2", "no WP10 G2 object is present in supabase/migrations (tracked or untracked): the proposals are unapplied", !/wp10/i.test(tracked) && !fs.readdirSync(path.join(repoRoot, "supabase/migrations")).some((f) => /wp10/i.test(f)));
+const migrationFiles = [...new Set([...tracked.split("\n").filter(Boolean), ...fs.readdirSync(path.join(repoRoot, "supabase/migrations")).map(f => `supabase/migrations/${f}`)])];
+check("S2", "only receipt-listed, hash-exact owner-applied Phase 1 WP10 migration copies exist; no unapproved WP10 migration", verifyAppliedCopies(loadPhase1Inventory(), migrationFiles, read));
 check("S3", "every draft file is labelled UNAPPLIED / DO NOT RUN in its first lines", files.every((f) => /UNAPPLIED/.test(raw[f].split("\n").slice(0, 3).join("\n")) && /DO NOT RUN|UNAPPLIED/i.test(raw[f].split("\n").slice(0, 3).join("\n"))));
 check("S4", "every file is one transaction with lock/statement timeouts (begin … commit; set local lock_timeout / statement_timeout)", files.every((f) => /\bbegin;/.test(body[f]) && /\bcommit;/.test(body[f])) && files.filter((f) => !/99_/.test(f)).every((f) => /set local lock_timeout/.test(body[f]) && /set local statement_timeout/.test(body[f])));
 

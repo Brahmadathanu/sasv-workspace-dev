@@ -1,3 +1,5 @@
+> **CURRENT APPLICATION STATE:** owner-approved 01/02/03/06 are APPLIED on qhmoqtxpeasamtlxaoak. [Application register](../WP10_SQL_PHASE1_APPLIED_AND_VERIFIED_2026-11-16.md) and the receipt-aware manifest give versions/hashes/status. 04/05 and rollback remain UNAPPLIED. SQL payload headers are immutable pre-application provenance, not current status; do not rerun or edit an applied payload. Flag remains OFF.
+
 # WP10 G2 — UNAPPLIED SQL proposals
 
 **Nothing here has been run against any database, and nothing here is a migration.** The directory is deliberately outside

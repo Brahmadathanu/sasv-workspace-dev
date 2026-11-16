@@ -1,3 +1,5 @@
+> **SUBSEQUENT OWNER APPROVAL/EXECUTION:** Phase 1 files 01/02/03/06 are APPLIED, with eleven functions and intended ACLs verified. [Current register](WP10_SQL_PHASE1_APPLIED_AND_VERIFIED_2026-11-16.md) supersedes earlier pending/unapplied statements below for these four files only. Flag OFF; guards 04/05 remain UNAPPLIED, role/release acceptance open, 10/13.
+
 # WP10 — Exact Phase 1 SQL application review
 
 **PROPOSAL FOR OWNER APPROVAL; NOT EXECUTED.** Target: Supabase project `qhmoqtxpeasamtlxaoak`. Source: main after #442 merge `d20a8991200df5fbf9e99e1a16478d62c3e2245e`. WP10 OPEN, programme 10/13. The owner's latest instruction approves the source merge and asks that necessary SQL be handled at the appropriate time; it does not approve these production files/hashes or their new-function grants.

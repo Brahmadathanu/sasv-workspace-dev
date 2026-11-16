@@ -1,3 +1,5 @@
+> **SUBSEQUENT OWNER APPROVAL/EXECUTION:** Phase 1 files 01/02/03/06 are APPLIED, with eleven functions and intended ACLs verified. [Current register](WP10_SQL_PHASE1_APPLIED_AND_VERIFIED_2026-11-16.md) supersedes earlier pending/unapplied statements below for these four files only. Flag OFF; guards 04/05 remain UNAPPLIED, role/release acceptance open, 10/13.
+
 # WP10 — Owner-approved preview merge; SQL stage prepared
 
 **16 November 2026 IST. PR #442 MERGED. WP10 OPEN; programme 10/13. SQL UNAPPLIED; client flag default-off.**
