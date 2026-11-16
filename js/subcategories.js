@@ -102,13 +102,11 @@ addForm.addEventListener('submit', async e => {
 
   if (!await showConfirm(`Add "${name}" to selected category?`)) return;
 
-  const { error } = await supabase
-    .from('sub_categories')
-    .insert([{ category_id: catId, subcategory_name: name }]);
-  if (error) console.error('Insert error:', error);
+  const { error } = await supabase.rpc('rpc_wp10_create_subcategory', { p_parent_id: Number(catId), p_name: name });
+  if (error) { window.alert(`Could not add sub-category: ${error.message}`); return; }
 
   addForm.subcategory_name.value = '';
-  renderSubcategories();
+  await renderSubcategories();
 });
 
 // Table click (edit/save/cancel/delete)
@@ -127,11 +125,9 @@ subTableBody.addEventListener('click', async e => {
       renderSubcategories();
       return;
     }
-    await supabase
-      .from('sub_categories')
-      .delete()
-      .eq('id', id);
-    renderSubcategories();
+    const { error } = await supabase.rpc('rpc_wp10_delete_subcategory', { p_id: Number(id) });
+    if (error) { window.alert(`Could not delete sub-category: ${error.message}`); return; }
+    await renderSubcategories();
     return;
   }
 
@@ -159,11 +155,9 @@ subTableBody.addEventListener('click', async e => {
       renderSubcategories();
       return;
     }
-    await supabase
-      .from('sub_categories')
-      .update({ subcategory_name: newName })
-      .eq('id', currentEditId);
-    renderSubcategories();
+    const { error } = await supabase.rpc('rpc_wp10_rename_subcategory', { p_id: Number(currentEditId), p_name: newName });
+    if (error) { window.alert(`Could not rename sub-category: ${error.message}`); return; }
+    await renderSubcategories();
     return;
   }
 
