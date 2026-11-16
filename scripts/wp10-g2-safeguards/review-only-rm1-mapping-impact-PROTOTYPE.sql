@@ -42,9 +42,9 @@ begin
   select distinct pr.id
   from public.products pr
   where (tg_table_name='production_route_family_product_map'
-         and pr.id in (old.product_id,new.product_id))
+         and pr.id in ((to_jsonb(old)->>'product_id')::integer,(to_jsonb(new)->>'product_id')::integer))
      or (tg_table_name='production_route_family_product_subgroup_map'
-         and pr.sub_group_id in (old.product_subgroup_id,new.product_subgroup_id))
+         and pr.sub_group_id in ((to_jsonb(old)->>'product_subgroup_id')::integer,(to_jsonb(new)->>'product_subgroup_id')::integer))
   order by pr.id
  loop
   perform 1 from public.products x where x.id=p.id for update;
