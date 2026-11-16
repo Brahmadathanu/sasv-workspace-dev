@@ -171,24 +171,18 @@ confirmYes.addEventListener('click', async () => {
   pendingAction = null;
 
   if (act.type === 'add') {
-    const { error } = await supabase
-      .from('product_groups')
-      .insert([{ sub_category_id: act.subcategoryId, group_name: act.name, kind_id: act.kindId }]);
+    const { error } = await supabase.rpc('rpc_wp10_create_product_group', { p_parent_id: act.subcategoryId, p_name: act.name, p_kind_id: act.kindId });
     if (error) { window.alert(`Could not create product group: ${error.message}`); return; }
     newGroupInput.value = '';
     newGroupKind.value = '';
   }
   if (act.type === 'delete') {
-    await supabase
-      .from('product_groups')
-      .delete()
-      .eq('id', act.id);
+    const { error } = await supabase.rpc('rpc_wp10_delete_product_group', { p_id: Number(act.id) });
+    if (error) { window.alert(`Could not delete product group: ${error.message}`); return; }
   }
   if (act.type === 'update') {
-    await supabase
-      .from('product_groups')
-      .update({ group_name: act.name })
-      .eq('id', act.id);
+    const { error } = await supabase.rpc('rpc_wp10_rename_product_group', { p_id: Number(act.id), p_name: act.name });
+    if (error) { window.alert(`Could not rename product group: ${error.message}`); return; }
   }
 
   renderGroups();
