@@ -15,7 +15,7 @@ const db = cluster.newDb();
 const aSession = session();
 let aChild;
 let bChild;
-function run(sql, marker = null) {
+function run(sql, marker = null, holdOpen = false) {
   const child = spawn("psql", [...cluster.connectionArgs(db), "-X", "-q", "-v", "ON_ERROR_STOP=1", "-t", "-A"], { stdio: ["pipe", "pipe", "pipe"] });
   let out = "", err = "", resolvedMarker = false;
   let signalMarker, rejectMarker;
@@ -29,8 +29,8 @@ function run(sql, marker = null) {
     if (marker && !resolvedMarker && out.includes(marker)) { resolvedMarker = true; signalMarker(); }
   });
   child.stderr.on("data", chunk => { err += chunk.toString(); });
-  child.stdin.end(sql);
-  return { child, ended, observed };
+  if (holdOpen) child.stdin.write(sql); else child.stdin.end(sql);
+  return { child, ended, observed, finish: tail => { if (!holdOpen) throw new Error("session not held open"); child.stdin.end(tail); } };
 }
 try {
   const setup = cluster.script(db, g2FixtureSql({load: ["clock", "states", "reparent", "route"]}) + PRODUCTS_SEED + `
@@ -69,6 +69,7 @@ commit;
 `);
   bChild = b.child;
   const bOutcome = await b.ended;
+  a.finish("commit;\\n");
   const aOutcome = await a.ended;
   const final = cluster.sql(db, `select ps.is_active::text || '|' || p.sub_group_id::text || '|' ||
    coalesce((costing.fn_validate_effective_product_process_route(p.id,date '2026-11-15')->>'valid'),'null')
