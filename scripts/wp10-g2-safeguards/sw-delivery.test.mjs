@@ -86,9 +86,19 @@ test("R7.5 the importers on disk carry the CURRENT token on every helper import,
   }
 });
 
-test("R7.6 public/sw.js is byte-identical to origin/main (no cache bump, no pin change): the delivery strategy needs no service-worker edit", async () => {
-  const { execFileSync } = await import("node:child_process");
-  assert.equal(execFileSync("git", ["diff", "--stat", "origin/main", "--", "public/sw.js"], { cwd: root, encoding: "utf8" }).trim(), "");
+test("R7.6 existing v393 cache and WP10 G2 versioned-helper delivery stay intact while classification scripts become network-first", async () => {
+  assert.match(swSource, /const CACHE_NAME = "hub-cache-v393"/);
+  for (const h of HELPERS) {
+    const sw = makeSw({ cache: { [h]: "OLD-HELPER" }, network: { [h]: "NEW-HELPER" } });
+    assert.equal(await sw.get(h), "OLD-HELPER", "existing WP10 G2 helper must remain cache-first");
+  }
+  for(const f of ["categories","subcategories","product-groups","subgroups","classification-master-access","classification-html-escape"]) {
+    const url="/shared/js/"+f+".js";
+    const sw=makeSw({cache:{[url]:"OLD"},network:{[url]:"FRESH"}});
+    assert.equal(await sw.get(url),"FRESH",url+" must be network-first");
+    const fallback=makeSw({cache:{[url]:"CACHED"},offline:true});
+    assert.equal(await fallback.get(url),"CACHED",url+" must retain offline fallback");
+  }
 });
 
 test("R7.7 offline with an old helper cached under the same versioned URL still works (cache fallback), and a missing helper fails safe (parent catches the import and renders today's UI)", async () => {
