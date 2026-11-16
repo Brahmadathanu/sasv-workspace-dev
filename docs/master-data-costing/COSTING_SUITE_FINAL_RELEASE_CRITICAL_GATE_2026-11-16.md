@@ -1,3 +1,5 @@
+> **16 Nov WP12 anonymous hosted route subgate:** 6/6 Costing modules redirected genuine logged-out Chromium contexts to login; no attempted business reads/writes/flags ([receipt](WP12_LIVE_ANONYMOUS_DIRECT_ROUTE_RECEIPT_2026-11-16.md), [CI run 43904501309](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/43904501309)). **Authenticated Editor/View-only/No-access, seven sensitive-view negative GETs, signed-in flags and Electron/Windows remain open.**
+
 > **16 Nov exact-head B1-T2 automated supplement:** 21/21 Chromium flag-sweep PASS, 0 skipped (CI 43902516696), with inert mock backend; see [minimal signed-in witness](WP12_MINIMAL_FINAL_READ_ONLY_OWNER_WITNESS_2026-11-16.md). This is not authenticated role/flag/release PASS.
 
 # Costing Suite — final release-critical closure gate (16 November 2026)
