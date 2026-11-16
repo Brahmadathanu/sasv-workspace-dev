@@ -1,6 +1,8 @@
 // subgroups.js
 import { supabase } from '../public/shared/js/supabaseClient.js';
 import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
+import { initializeClassificationAccess } from './classification-master-access.js';
+import { escapeClassificationHtml } from './classification-html-escape.js';
 
 const categorySelect    = document.getElementById('categorySelect');
 const subcategorySelect = document.getElementById('subcategorySelect');
@@ -106,7 +108,7 @@ async function renderSubGroups(groupId) {
     const tr = document.createElement('tr');
     tr.dataset.id = r.id;
     tr.innerHTML = `
-      <td class="name-cell">${r.sub_group_name}</td>
+      <td class="name-cell">${escapeClassificationHtml(r.sub_group_name)}</td>
       <td class="actions-cell">
         <button class="action-link edit-btn">Edit</button> |
         <button class="action-link delete-btn">Delete</button>
@@ -131,11 +133,10 @@ addForm.addEventListener('submit', async e => {
   const groupId = groupSelect.value;
   if (!groupId || !name) return;
   if (!await showConfirm(`Add "${name}" to this group?`)) return;
-  await supabase
-    .from('sub_groups')
-    .insert([{ product_group_id: groupId, sub_group_name: name }]);
+  const { error } = await supabase.rpc('rpc_wp10_create_subgroup', { p_group_id: Number(groupId), p_name: name });
+  if (error) { window.alert(`Could not add subgroup: ${error.message}`); return; }
   addForm.reset();
-  renderSubGroups(groupId);
+  await renderSubGroups(groupId);
 });
 
 // Inline Edit/Delete/Save/Cancel
@@ -151,14 +152,15 @@ tableBody.addEventListener('click', async e => {
   // Delete
   if (btn.classList.contains('delete-btn')) {
     if (!await showConfirm(`Delete "${oldName}"?`)) return;
-    await supabase.from('sub_groups').delete().eq('id', id);
-    renderSubGroups(groupSelect.value);
+    const { error } = await supabase.rpc('rpc_wp10_delete_subgroup', { p_subgroup_id: Number(id) });
+    if (error) { window.alert(`Could not delete subgroup: ${error.message}`); return; }
+    await renderSubGroups(groupSelect.value);
     return;
   }
 
   // Edit: turn into input + Save/Cancel
   if (btn.classList.contains('edit-btn')) {
-    nameCell.innerHTML = `<input type="text" class="edit-input" value="${oldName}" />`;
+    nameCell.innerHTML = `<input type="text" class="edit-input" value="${escapeClassificationHtml(oldName)}" />`;
     const inp = nameCell.querySelector('.edit-input');
     inp.select();
     actionsCell.innerHTML = `
@@ -178,11 +180,9 @@ tableBody.addEventListener('click', async e => {
       renderSubGroups(groupSelect.value);
       return;
     }
-    await supabase
-      .from('sub_groups')
-      .update({ sub_group_name: newName })
-      .eq('id', id);
-    renderSubGroups(groupSelect.value);
+    const { error } = await supabase.rpc('rpc_wp10_rename_subgroup', { p_subgroup_id: Number(id), p_name: newName });
+    if (error) { window.alert(`Could not rename subgroup: ${error.message}`); return; }
+    await renderSubGroups(groupSelect.value);
     return;
   }
 
@@ -204,3 +204,5 @@ homeIcon.addEventListener('click', () => window.location.href = 'index.html');
 
 // Initialize
 window.addEventListener('DOMContentLoaded', loadCategories);
+// Writer surfaces stay locked unless the canonical module Edit permission is verified.
+initializeClassificationAccess('module:manage-subgroups');

@@ -4,6 +4,11 @@ on:
   pull_request:
     paths:
       - '.github/workflows/wp10-g2-offline-verification.yml'
+      - 'js/categories.js'
+      - 'js/subcategories.js'
+      - 'js/product-groups.js'
+      - 'js/subgroups.js'
+      - 'manage-product-groups.html'
       - 'public/shared/js/products.js'
       - 'public/shared/js/costing-suite-readiness.js'
       - 'public/shared/js/wp10-safeguards*.js'
@@ -53,6 +58,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          node scripts/wp10-g2-safeguards/verify-classification-crud-contract.mjs | tee "$WP10_EVIDENCE/classification-contract.log"
+          node --test scripts/wp10-g2-safeguards/classification-html-escape.test.mjs | tee "$WP10_EVIDENCE/classification-html-escape.log"
           for suite in client-units sw-delivery source draft-sql-static phase1-registration phase1-inventory; do
             node "scripts/wp10-g2-safeguards/$suite.test.mjs" | tee "$WP10_EVIDENCE/$suite.log"
           done
@@ -62,7 +69,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for suite in horizon guards provenance preview; do
+          node scripts/wp10-g2-safeguards/classification-crud-pg.test.mjs | tee "$WP10_EVIDENCE/classification-pg.log"
+          node scripts/wp10-g2-safeguards/classification-delete-concurrency.test.mjs | tee "$WP10_EVIDENCE/classification-delete-concurrency.log"
+          for suite in horizon guards provenance preview cross-flow-concurrency parent-lock-candidate; do
             node "scripts/wp10-g2-safeguards/$suite.test.mjs" "$WP10_EVIDENCE/$suite.json" | tee "$WP10_EVIDENCE/$suite.log"
             if grep -q '^SKIPPED' "$WP10_EVIDENCE/$suite.log"; then
               echo '::error::PostgreSQL fixture skipped; gate cannot pass'
@@ -73,7 +82,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test scripts/wp10-g2-safeguards/browser-products.test.mjs scripts/wp10-g2-safeguards/browser-readiness.test.mjs | tee "$WP10_EVIDENCE/chromium.log"
+          node --test scripts/wp10-g2-safeguards/browser-products.test.mjs scripts/wp10-g2-safeguards/browser-readiness.test.mjs scripts/wp10-g2-safeguards/browser-classification-access.test.mjs | tee "$WP10_EVIDENCE/chromium.log"
           if grep -Eq '^# skipped [1-9]' "$WP10_EVIDENCE/chromium.log"; then
             echo '::error::Chromium checks skipped; gate cannot pass'
             exit 1
