@@ -112,6 +112,13 @@ try {
     const move = await psql(ds, "update public.products set sub_group_id=3 where id=1;\n");
     const invalidActivation = await psql(ds, "update public.product_skus set is_active=true where id=1;\n");
     check("CL9", "Direct deactivate then subgroup change allowed; subsequent direct activation refused",deactivate.code===0 && move.code===0 && invalidActivation.code!==0 && ds.one("select is_active::text from public.product_skus where id=1")==="false",invalidActivation.err.slice(0,200));
+    const rollbackSql=fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "experimental-parent-lock-rollback.sql"),"utf8");
+    const rollback=await psql(ds,rollbackSql);
+    const removed=ds.one("select to_regprocedure('public.fn_wp10_activation_parent_lock_recheck()') is null and not exists (select 1 from pg_trigger where tgname='zz_wp10_activation_parent_lock_recheck')");
+    const retained=ds.one("select to_regprocedure('costing.fn_wp10_today_ist()') is not null");
+    check("CL10","Fixture rollback removes correction only while retaining Phase 1",rollback.code===0 && removed==="t" && retained==="t",rollback.err.slice(0,300));
+    const second=await psql(ds,rollbackSql);
+    check("CL11","Rollback fails closed when correction objects already absent",second.code!==0 && /rollback refused/.test(second.err),second.err.slice(0,240));
   }
 } finally {
   cluster.stop();
