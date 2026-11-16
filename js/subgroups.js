@@ -131,11 +131,10 @@ addForm.addEventListener('submit', async e => {
   const groupId = groupSelect.value;
   if (!groupId || !name) return;
   if (!await showConfirm(`Add "${name}" to this group?`)) return;
-  await supabase
-    .from('sub_groups')
-    .insert([{ product_group_id: groupId, sub_group_name: name }]);
+  const { error } = await supabase.rpc('rpc_wp10_create_subgroup', { p_group_id: Number(groupId), p_name: name });
+  if (error) { window.alert(`Could not add subgroup: ${error.message}`); return; }
   addForm.reset();
-  renderSubGroups(groupId);
+  await renderSubGroups(groupId);
 });
 
 // Inline Edit/Delete/Save/Cancel
@@ -151,8 +150,9 @@ tableBody.addEventListener('click', async e => {
   // Delete
   if (btn.classList.contains('delete-btn')) {
     if (!await showConfirm(`Delete "${oldName}"?`)) return;
-    await supabase.from('sub_groups').delete().eq('id', id);
-    renderSubGroups(groupSelect.value);
+    const { error } = await supabase.rpc('rpc_wp10_delete_subgroup', { p_subgroup_id: Number(id) });
+    if (error) { window.alert(`Could not delete subgroup: ${error.message}`); return; }
+    await renderSubGroups(groupSelect.value);
     return;
   }
 
@@ -178,11 +178,9 @@ tableBody.addEventListener('click', async e => {
       renderSubGroups(groupSelect.value);
       return;
     }
-    await supabase
-      .from('sub_groups')
-      .update({ sub_group_name: newName })
-      .eq('id', id);
-    renderSubGroups(groupSelect.value);
+    const { error } = await supabase.rpc('rpc_wp10_rename_subgroup', { p_subgroup_id: Number(id), p_name: newName });
+    if (error) { window.alert(`Could not rename subgroup: ${error.message}`); return; }
+    await renderSubGroups(groupSelect.value);
     return;
   }
 
