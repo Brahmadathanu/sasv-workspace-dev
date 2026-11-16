@@ -53,8 +53,13 @@ try{
  exec(editor,"select public.rpc_wp10_create_category('C'); select public.rpc_wp10_create_subcategory(1,'SC'); select public.rpc_wp10_create_product_group(1,'PG',1); select public.rpc_wp10_create_subgroup(1,'SG');",true,'Editor creates four-level hierarchy');
  assert(query('select count(*) from public.sub_groups')==='1','subgroup persisted');
  exec(editor,"select public.rpc_wp10_rename_category(1,'C2');select public.rpc_wp10_rename_subcategory(1,'SC2');select public.rpc_wp10_rename_product_group(1,'PG2');select public.rpc_wp10_rename_subgroup(1,'SG2');",true,'Editor renames all levels');
- for(const [name,sql] of [['category',"select public.rpc_wp10_create_category('X');"],['subcategory',"select public.rpc_wp10_rename_subcategory(1,'X');"],['group','select public.rpc_wp10_delete_product_group(1);'],['subgroup','select public.rpc_wp10_delete_subgroup(1);']])
-  exec(viewer,sql,false,'View-only denied '+name);
+ for(const [stem,create,rename,remove] of [
+  ['category',"select public.rpc_wp10_create_category('X');","select public.rpc_wp10_rename_category(1,'X');","select public.rpc_wp10_delete_category(1);"],
+  ['subcategory',"select public.rpc_wp10_create_subcategory(1,'X');","select public.rpc_wp10_rename_subcategory(1,'X');","select public.rpc_wp10_delete_subcategory(1);"],
+  ['product_group',"select public.rpc_wp10_create_product_group(1,'X',1);","select public.rpc_wp10_rename_product_group(1,'X');","select public.rpc_wp10_delete_product_group(1);"],
+  ['subgroup',"select public.rpc_wp10_create_subgroup(1,'X');","select public.rpc_wp10_rename_subgroup(1,'X');","select public.rpc_wp10_delete_subgroup(1);"]
+ ]) for(const [action,sql] of [['create',create],['rename',rename],['delete',remove]])
+  exec(viewer,sql,false,'View-only denied '+stem+' '+action);
  exec('',"select public.rpc_wp10_create_category('X');",false,'Anon denied','anon');
  for(const name of ['category','subcategory','product_group'])exec(editor,'select public.rpc_wp10_delete_'+name+'(1);',false,'Cascade blocked '+name);
  exec(editor,'select public.rpc_wp10_delete_subgroup(1);',true,'Empty subgroup deletion');
