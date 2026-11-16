@@ -8,6 +8,8 @@ begin
  if to_regprocedure('public.fn_wp10_activation_parent_lock_recheck()') is not null then raise exception 'WP10 CL15 function already exists'; end if;
  if exists(select 1 from pg_trigger where tgrelid='public.product_skus'::regclass and tgname='zz_wp10_activation_parent_lock_recheck') then raise exception 'WP10 CL15 trigger already exists'; end if;
  if to_regprocedure('costing.fn_sku_activation_missing_items(bigint,bigint)') is null then raise exception 'Missing live activation recheck contract'; end if;
+ if to_regprocedure('public.fn_wp10_product_route_impact_before()') is null or to_regprocedure('public.fn_wp10_product_route_impact_after()') is null then raise exception 'CL15 requires proposal 05 route impact guards'; end if;
+ if not exists(select 1 from pg_trigger where tgrelid='public.products'::regclass and tgname='trg_wp10_product_route_impact_after' and tgenabled='O') then raise exception 'CL15 requires enabled proposal 05 route impact trigger'; end if;
  if not exists(select 1 from pg_trigger where tgrelid='public.product_skus'::regclass and tgname='trg_sku_activation_completeness_guard' and not tgisinternal and tgenabled='O') then raise exception 'Activation completeness guard missing or disabled'; end if;
 end $preflight$;
 create function public.fn_wp10_activation_parent_lock_recheck()
