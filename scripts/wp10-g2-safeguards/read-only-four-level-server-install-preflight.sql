@@ -35,7 +35,7 @@ with required_functions(signature) as (
  and con.confrelid in ('public.categories'::regclass,'public.sub_categories'::regclass,
                        'public.product_groups'::regclass,'public.sub_groups'::regclass)
 ), unsafe_fk as (
- select child||' -> '||parent||' ('||conname||', delete='||rule||')' as name
+ select child||' -> '||parent||' ('||conname||', delete='||rule::text||')' as name
  from inbound_fk where not (rule in ('a','r') or
   (rule='c' and (child,parent) in (
    ('public.sub_categories','public.categories'),
