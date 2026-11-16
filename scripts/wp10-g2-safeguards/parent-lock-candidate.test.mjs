@@ -148,14 +148,14 @@ try {
       "insert into costing.production_route_family_route(route_family_id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
       NEWSKU(1,55) + "select public.fx_complete(1,1,'ROUTE');\n" +
       `create function public.fx_mutation_pause() returns trigger language plpgsql as $
-         begin if new.is_active is true and old.is_active is not true then perform pg_sleep(2); end if;
-         return null; end $;
+         begin if new.is_active is true and old.is_active is not true then perform pg_sleep(4); end if;
+         return null; end $mut$;
          create trigger zz_fx_mutation_pause after update of is_active on public.product_skus
          for each row execute function public.fx_mutation_pause();\n`);
     const activation = psql(ns,"set application_name='wp10_negative_mutation_activation'; set statement_timeout='7000ms';\n"+session()+
       "begin; update public.product_skus set is_active=true where id=1; commit;\n");
     let paused=false;
-    for(let i=0;i<40;i++){if(Number(ns.q("select count(*) from pg_stat_activity where application_name='wp10_negative_mutation_activation' and wait_event='PgSleep'"))>0){paused=true;break;}await sleep(50);}
+    for(let i=0;i<80;i++){if(Number(ns.q("select count(*) from pg_stat_activity where application_name='wp10_negative_mutation_activation' and wait_event='PgSleep'"))>0){paused=true;break;}await sleep(50);}
     const move=paused ? psql(ns,"set statement_timeout='7000ms';\n"+session()+"update public.products set sub_group_id=3 where id=1;\n"):Promise.resolve({code:-1,err:"barrier missing"});
     const [ar,mr]=await Promise.all([activation,move]);
     const state={activation:ar.code,move:mr.code,sku:ns.one("select is_active::text from public.product_skus where id=1"),subgroup:ns.one("select sub_group_id from public.products where id=1")};
