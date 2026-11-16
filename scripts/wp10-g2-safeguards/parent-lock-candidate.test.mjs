@@ -147,11 +147,11 @@ try {
       "insert into costing.production_route_family_product_subgroup_map(product_subgroup_id,route_family_id,status,effective_from) values (1,777,'APPROVED',date '2026-01-01');\n" +
       "insert into costing.production_route_family_route(route_family_id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
       NEWSKU(1,55) + "select public.fx_complete(1,1,'ROUTE');\n" +
-      `create function public.fx_mutation_pause() returns trigger language plpgsql as $
-         begin if new.is_active is true and old.is_active is not true then perform pg_sleep(4); end if;
+      `create function public.fx_mutation_pause() returns trigger language plpgsql as $mut$2         begin if new.is_active is true and old.is_active is not true then perform pg_sleep(4); end if;
          return null; end $mut$;
          create trigger zz_fx_mutation_pause after update of is_active on public.product_skus
          for each row execute function public.fx_mutation_pause();\n`);
+    check("CL15_SETUP","Negative mutation pause trigger installed",ns.one("select count(*) from pg_trigger where tgname='zz_fx_mutation_pause'")==="1");
     const activation = psql(ns,"set application_name='wp10_negative_mutation_activation'; set statement_timeout='7000ms';\n"+session()+
       "begin; update public.product_skus set is_active=true where id=1; commit;\n");
     let paused=false;
