@@ -31,6 +31,7 @@ create table public.sub_groups(id serial primary key,product_group_id integer no
 create table public.products(id serial primary key,sub_group_id integer references public.sub_groups(id) on delete restrict);
 create table costing.production_route_family_product_subgroup_map(id serial primary key,product_subgroup_id integer references public.sub_groups(id) on delete restrict);
 create table costing.scheme_policy_rules(id serial primary key,sub_group_id integer references public.sub_groups(id));
+grant select,insert,update,delete on public.categories,public.sub_categories,public.product_groups,public.sub_groups to authenticated;
 `;
 let n=0;
 function assert(ok,label,detail=''){if(!ok)throw Error('FAIL '+label+' '+detail);console.log('PASS P'+(++n)+' '+label);}
@@ -68,6 +69,21 @@ try{
  exec(editor,'select public.rpc_wp10_delete_subgroup(2);',false,'Scheme policy protected');
  exec(editor,"select public.rpc_wp10_create_product_group(1,'bad',999);",false,'Invalid kind blocked');
  assert(query('select product_group_id from public.sub_groups where id=2')==='1','Parent unchanged');
+ const revoked=run(file('review-only-four-level-auth-dml-revoke.sql'));
+ assert(revoked.code===0,'Four-level direct DML revoke',revoked.err);
+ for(const table of ['categories','sub_categories','product_groups','sub_groups']){
+  assert(query("select has_table_privilege('authenticated','public."+table+"','SELECT')") === 't',table+' SELECT retained');
+  assert(query("select has_table_privilege('authenticated','public."+table+"','INSERT')") === 'f',table+' INSERT revoked');
+  assert(query("select has_table_privilege('authenticated','public."+table+"','UPDATE')") === 'f',table+' UPDATE revoked');
+  assert(query("select has_table_privilege('authenticated','public."+table+"','DELETE')") === 'f',table+' DELETE revoked');
+ }
+ exec(viewer,"select public.rpc_wp10_create_category('forbidden');",false,'View-only still denied after revoke');
+ exec(editor,"select public.rpc_wp10_create_category('post revoke');",true,'Editor RPC survives direct-DML revoke');
+ exec(editor,"insert into public.categories(category_name) values('bypass');",false,'Authenticated direct DML denied');
+ const restored=run(file('review-only-four-level-auth-dml-revoke-rollback.sql'));
+ assert(restored.code===0,'Four-level privilege rollback',restored.err);
+ for(const table of ['categories','sub_categories','product_groups','sub_groups'])
+  assert(query("select has_table_privilege('authenticated','public."+table+"','INSERT')") === 't',table+' DML restored');
  for(const [label,name] of [['subgroup','review-only-subgroup-governed-rpcs-rollback.sql'],['parent','review-only-parent-classification-governed-rpcs-rollback.sql']]){
   const r=run(file(name));assert(r.code===0,label+' rollback',r.err);
  }
