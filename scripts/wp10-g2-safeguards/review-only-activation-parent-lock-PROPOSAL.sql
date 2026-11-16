@@ -38,4 +38,14 @@ revoke all on function public.fn_wp10_activation_parent_lock() from public,anon,
 create trigger trg_aa_wp10_activation_parent_lock
   before insert or update of is_active,product_id on public.product_skus
   for each row execute function public.fn_wp10_activation_parent_lock();
+
+do $wp10_cl15_receipt$
+declare v oid; t oid;
+begin
+  v:=to_regprocedure('public.fn_wp10_activation_parent_lock()');
+  select oid into t from pg_trigger where tgname='trg_aa_wp10_activation_parent_lock' and tgrelid='public.product_skus'::regclass and not tgisinternal;
+  if v is null or t is null then raise exception 'CL15 receipt objects missing'; end if;
+  execute format('comment on function %s is %L',v::regprocedure,'WP10-CL15 activation-parent-lock md5:'||md5(pg_get_functiondef(v)));
+  execute format('comment on trigger %I on public.product_skus is %L','trg_aa_wp10_activation_parent_lock','WP10-CL15 activation-parent-lock md5:'||md5(pg_get_triggerdef(t)));
+end $wp10_cl15_receipt$;
 commit;
