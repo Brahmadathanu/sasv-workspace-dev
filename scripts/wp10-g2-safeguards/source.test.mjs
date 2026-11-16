@@ -58,11 +58,17 @@ test("S5 existing protected files remain byte-identical; SW differs only by appr
   }
   const existing=git("show", "origin/main:public/sw.js").replace(/\r\n/g,"\n");
   const current=read("public/sw.js");
-  const start=current.indexOf("    // WP10: four classification masters");
-  const end=current.indexOf("    /\\/shared\\/js\\/procurement-execution-console\\.js$/.test(url.pathname) ||",start);
-  assert.ok(start>=0 && end>start,"expected bounded WP10-only network-first insertion");
-  assert.equal(current.slice(0,start)+current.slice(end),existing,
-    "outside classification freshness rule SW must remain byte-identical");
+  if (current === existing) {
+    // The classification network-first rule was already merged into main by #445.
+    assert.match(current, /WP10: four classification masters/, "merged classification rule must remain present");
+  } else {
+    // Historical G2 source-on-branch case: only the bounded network-first rule may differ.
+    const start=current.indexOf("    // WP10: four classification masters");
+    const end=current.indexOf("    /\\/shared\\/js\\/procurement-execution-console\\.js$/.test(url.pathname) ||",start);
+    assert.ok(start>=0 && end>start,"expected bounded WP10-only network-first insertion");
+    assert.equal(current.slice(0,start)+current.slice(end),existing,
+      "outside classification freshness rule SW must remain byte-identical");
+  }
 });
 
 test("S6 proposal sources stay outside supabase/; only receipt/hash/branch-pinned Phase 1 history copies may be registered", () => {
