@@ -1,6 +1,7 @@
 // subgroups.js
 import { supabase } from '../public/shared/js/supabaseClient.js';
 import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
+import { initializeClassificationAccess } from './classification-master-access.js';
 
 const categorySelect    = document.getElementById('categorySelect');
 const subcategorySelect = document.getElementById('subcategorySelect');
@@ -202,3 +203,5 @@ homeIcon.addEventListener('click', () => window.location.href = 'index.html');
 
 // Initialize
 window.addEventListener('DOMContentLoaded', loadCategories);
+// Writer surfaces stay locked unless the canonical module Edit permission is verified.
+initializeClassificationAccess('module:manage-subgroups');
