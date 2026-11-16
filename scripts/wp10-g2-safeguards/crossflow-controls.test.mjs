@@ -49,8 +49,8 @@ try {
       s2.one("select sub_group_id from public.products where id=1")==="1");
     // Out-of-scope mapping edit is intentionally demonstrated, NOT counted as a resolved safety guard.
     const s3=run(session()+route1+createS+ACTIVATE(1)+
-      T("remove_active_route_mapping","delete from costing.production_route_family_product_subgroup_map where product_subgroup_id=1"));
-    check("RESIDUAL-RM1 route map can still be removed from beneath an active SKU (NOT CLOSED)",
+      T("remove_active_route_mapping","update costing.production_route_family_product_subgroup_map set status = 'INACTIVE', effective_to = current_date where product_subgroup_id=1 and status = 'APPROVED'"));
+    check("RESIDUAL-RM1 governed-shape mapping inactivation can still remove an active SKU route (NOT CLOSED)",
       s3.log.remove_active_route_mapping?.ok===true &&
       s3.one("select costing.fn_validate_effective_product_process_route(1,date '2026-11-15')->>'valid'")==="false");
   }
