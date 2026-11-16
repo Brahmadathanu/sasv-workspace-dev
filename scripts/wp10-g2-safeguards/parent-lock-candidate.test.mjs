@@ -131,7 +131,7 @@ try {
       "insert into costing.production_route_family_product_subgroup_map(product_subgroup_id,route_family_id,status,effective_from) values (1,777,'APPROVED',date '2026-01-01');\n" +
       "insert into costing.production_route_family_route(route_family_id,status,effective_from) values (777,'APPROVED',date '2026-01-01');\n" +
       NEWSKU(1,55) + "select public.fx_complete(1,1,'ROUTE');\n" +
-      NEWSKU(2,56) + "select public.fx_complete(2,1,'ROUTE');\n");
+      NEWSKU(1,56) + "select public.fx_complete(2,1,'ROUTE');\n");
     const first = await psql(ms, "set statement_timeout='7000ms';\n" + session() + "update public.product_skus set is_active=true where id=1;\n");
     const blocked = await psql(ms, "set statement_timeout='7000ms';\n" + session() + "update public.products set status='Inactive' where id=1;\n");
     const second = await psql(ms, "set statement_timeout='7000ms';\n" + session() + "update public.product_skus set is_active=true where id=2;\n");
