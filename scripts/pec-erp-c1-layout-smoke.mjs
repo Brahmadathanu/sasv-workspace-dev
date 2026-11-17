@@ -62,6 +62,10 @@ export const supabase = {
     if (S.failReads && (name.startsWith("proc_pec_") || name === "proc_procurement_action_queue_paged")) return { data: null, error: { message: "fixture failure" }, status: 400 };
     if (__r !== undefined && !(S.failReads && name.startsWith("proc_pec_"))) return mk(__r);
     if (name === "get_user_permissions") return mk(S.role === "none" ? [] : [{ target: "module:procurement-execution-console", can_view: true, can_edit: S.role === "edit" }]);
+    if (name === "proc_pec_pr_headers") {
+      if (S.numberingDelay) await new Promise(r => setTimeout(r, S.numberingDelay));
+      return mk(S.numberingRows || []);
+    }
     if (name === "proc_procurement_action_queue_paged") return mk(S.empty ? [] : [{ total_count: 1, row_data: { indent_line_id: 1, indent_id: 100, indent_number: "IND-26-100", stock_item_name: long, remaining_qty: 5, priority_band_final: "P1", priority_score_system: 80, material_class_code: "RM", uom_code: "KG" } }]);
     if (name in data) return mk(data[name]);
     return mk([]);
@@ -244,6 +248,52 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
     `${tag} acceptance fields fit their grid columns`);
   check(errors.length === 0, `${tag} no page errors`);
   if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-excess-label-spacing.png`) });
+  await ctx.close();
+}
+
+// Generate Draft PR: prefilled number follows real PR-YYYY-NN convention.
+// Full-header fixture includes a revision; user edits and late RPCs stay untouched.
+{
+  const numberingRows = [
+    { pr_number: "PR-2026-01" },
+    { pr_number: "PR-2026-06" },
+    { pr_number: "PR-2026-06/REV01" },
+    { pr_number: "PR-2025-19" },
+    { pr_number: "CUSTOM-2026-90" }
+  ];
+  const { ctx, page, errors } = await open({ role: "edit", numberingRows }, VIEWPORTS[0]);
+  await page.click("#btnGeneratePr");
+  await page.waitForSelector("#generatePrModalBackdrop.show");
+  await page.waitForFunction(() => document.getElementById("prNewNumber").value !== "");
+  check((await page.inputValue("#prNewNumber")).endsWith("-07"), "draft PR: next base number ignores revision and custom formats");
+  check(await page.inputValue("#prNewNumber") === "PR-2026-07", "draft PR: existing numbering convention retained");
+  await page.fill("#prNewNumber", "OWNER-CUSTOM-PR");
+  await page.fill("#prEffectiveFrom", "2027-01-12");
+  await page.dispatchEvent("#prEffectiveFrom", "change");
+  await page.waitForTimeout(250);
+  check(await page.inputValue("#prNewNumber") === "OWNER-CUSTOM-PR", "draft PR: owner entry persists after date changes");
+  await page.click("#btnGenPrCancel");
+  await page.click("#btnGeneratePr");
+  await page.waitForFunction(() => document.getElementById("prNewNumber").value !== "");
+  await page.fill("#prEffectiveFrom", "2027-01-12");
+  await page.dispatchEvent("#prEffectiveFrom", "change");
+  await page.waitForFunction(() => document.getElementById("prNewNumber").value === "PR-2027-01");
+  check(await page.inputValue("#prNewNumber") === "PR-2027-01", "draft PR: suggestion follows effective-date year");
+  await page.click("#btnGenPrCancel");
+  check(errors.length === 0, `draft PR: no page errors ${errors.join("|")}`);
+  await ctx.close();
+}
+{
+  const { ctx, page, errors } = await open({
+    role: "edit", numberingDelay: 320,
+    numberingRows: [{ pr_number: "PR-2026-09" }]
+  }, VIEWPORTS[0]);
+  await page.click("#btnGeneratePr");
+  await page.fill("#prNewNumber", "MANUAL-FAST");
+  await page.waitForTimeout(600);
+  check(await page.inputValue("#prNewNumber") === "MANUAL-FAST", "draft PR: late suggestion cannot overwrite manual number");
+  await page.click("#btnGenPrCancel");
+  check(errors.length === 0, `draft PR late lookup: no page errors ${errors.join("|")}`);
   await ctx.close();
 }
 
