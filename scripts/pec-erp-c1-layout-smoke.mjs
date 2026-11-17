@@ -220,6 +220,33 @@ for (const [scn, kind] of [[{ role: "edit", empty: true }, "is-empty"], [{ role:
   await ctx.close();
 }
 
+// Excess Purchase acceptance form: label-to-field spacing must not collapse.
+// Inspect actual layout at desktop and narrow phone widths, with no writer calls.
+for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
+  const { ctx, page, errors } = await open({ role: "edit" }, vp);
+  const tag = `[Excess ${vp.name}]`;
+  await page.evaluate(() => {
+    const backdrop = document.getElementById("acceptExcessModalBackdrop");
+    backdrop.classList.add("show");
+    backdrop.setAttribute("aria-hidden", "false");
+  });
+  const fields = await page.evaluate(() => ["excessAcceptQty", "excessAcceptReason"].map(id => {
+    const control = document.getElementById(id);
+    const label = document.querySelector(`label[for="${id}"]`);
+    const l = label.getBoundingClientRect();
+    const c = control.getBoundingClientRect();
+    return { id, separation: c.top - l.bottom, labelDisplay: getComputedStyle(label).display,
+      labelHeight: l.height, controlWidth: c.width, parentWidth: control.parentElement.getBoundingClientRect().width };
+  }));
+  check(fields.every(f => f.labelDisplay === "block" && f.separation >= 6 && f.labelHeight > 0),
+    `${tag} acceptance labels are separated from field borders by at least 6px`);
+  check(fields.every(f => f.controlWidth <= f.parentWidth + 1),
+    `${tag} acceptance fields fit their grid columns`);
+  check(errors.length === 0, `${tag} no page errors`);
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-excess-label-spacing.png`) });
+  await ctx.close();
+}
+
 // Action Queue detail → Select Vendor: actual Chromium hover/focus and responsive layout.
 // The fixture returns only synthetic rows; no production RPC or business mutation.
 for (const vp of VIEWPORTS) {
