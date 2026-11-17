@@ -63,6 +63,13 @@ select public.rpc_set_product_sku_active(1,true,'unified fixture');
  const tamper=pg.script(db,"update costing.production_route_family_product_subgroup_inactivation_audit set inactivation_reason='altered' where id=1;");
  ck("U15 preserved audit cannot be edited after rollback",tamper.code!==0 && /WP10_RM1_REASON_AUDIT_IMMUTABLE/.test(tamper.err));
  ck("U16 rollback manifest is atomic and conserves audit records",rollbackManifest.begin_count===1&&rollbackManifest.commit_count===1&&rollbackManifest.retains_reason_audit_table===true);
+ const missing=pg.newDb(),mb=pg.script(missing,g2FixtureSql({load:["clock","states","reparent"]})+PRODUCTS_SEED);
+ if(mb.code)throw Error("missing base fixture "+mb.err.slice(-400));
+ const blocked=pg.script(missing,script);
+ ck("U17 unified install refuses when governed two-arg base RPC is absent",blocked.code!==0,blocked.err.slice(-180));
+ ck("U18 failed atomic install leaves zero 05/CL15/RM1 triggers",
+   pg.sql(missing,"select count(*) from pg_trigger where tgname like 'trg_wp10_rm1_%' or tgname like 'trg_wp10_product_route_impact_%' or tgname='trg_aa_wp10_activation_parent_lock'")==="0");
+
  console.log(JSON.stringify({pass,fail,unified_sha256:manifest.sha256,production_ddl:false,environment:"DISPOSABLE_POSTGRESQL_ONLY"}));
 }catch(e){console.error("FAIL/BLOCKED "+e.stack);fail++;}
 finally{pg.stop();}
