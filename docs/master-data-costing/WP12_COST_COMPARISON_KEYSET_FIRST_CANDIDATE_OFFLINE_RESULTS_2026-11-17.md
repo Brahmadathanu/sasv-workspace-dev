@@ -61,3 +61,20 @@ Tool: `candidates/keyset-first/plan-evidence.mjs`; recorded output `evidence/syn
 
 ## 6. Rollback
 Nothing to roll back: not applied, not referenced by any client. If it were ever applied, it is a new function name — rollback is `DROP FUNCTION public.rpc_get_cost_sheet_sku_monthly_comparison_scoped_keyset_v1(date, integer);` plus the already-existing client flag OFF. The installed function is never replaced.
+
+## 7. Independent live production read-only counts — 17 November 2026 (later than offline modelling)
+**READ-ONLY VERIFIED on Supabase project `qhmoqtxpeasamtlxaoak`**, using `BEGIN READ ONLY`, a local 6-second statement timeout and bounded aggregates of existing snapshot periods. This follow-up was performed in a separate ChatGPT session after the cloud candidate research. No DML, approval, permissions, indexes, ANALYZE, feature flags, production function calls or business-value rows were changed/read. Counts below are actual aggregate query results, not planner estimates.
+
+| Period | Governed refresh run | Governed selection | Distinct governed SKU IDs | Governed line rows | Total retained period rows | Distinct retained run IDs | Non-governed line rows |
+|---|---:|---|---:|---:|---:|---:|---:|
+| 2026-09-01 | 122 | APPROVED | 634 | 27,896 | 874,391 | 30 | 846,495 |
+| 2026-10-01 | 143 | APPROVED | 627 | 27,588 | 442,156 | 16 | 414,568 |
+| 2026-11-01 | 152 | LATEST_SUCCESS (draft, not approved) | 629 | 27,676 | 82,984 | 3 | 55,308 |
+
+Each month's `count(DISTINCT (sku_id,product_name,sku_column_label))` equalled its distinct governed SKU count (634/627/629). November 2025 had **no governed run** in the limited period lookup. The client requests `p_limit=2000`. **Thus the current-period keyed cap does not bite at all for these three real governed runs.** The keyset-first candidate cannot meaningfully reduce the number of historical SKUs through early LIMIT for these periods. Its offline correctness and 11/11 tests are retained, but **this candidate is NOT recommended for rollout as a speed fix** on present evidence.
+
+### Interpretation of retained-run counts versus actual view plan
+Most retained snapshot rows are from non-governed runs (Sep ~96.8%, Oct ~93.8%, Nov ~66.6%). This **does not prove** the installed scoped RPC scans all those rows: prior live plain `EXPLAIN` of the governed-view read used `idx_cost_sheet_monthly_exact_tuple` with both `snapshot_period_start` and `refresh_run_id` join conditions, so at least that planner path is already governed-run-selective. The plain outer `EXPLAIN` of the SECURITY DEFINER RPC was opaque and cannot establish whether its internal planner chooses the same access path.
+
+### Recommended next technical gate
+Do **not** apply the candidate or commission a production rewrite yet. With separately authorised non-executing source-level planning, compare the installed scoped RPC's **extracted RETURN QUERY SQL** for Sep/Oct/Nov using literal inputs against the observed governed-view plan; inspect actual `Index Cond`, buffer *estimates unavailable without execution*, cardinality and join order. Use **plain EXPLAIN only**, no `ANALYZE`, no function execution, no business data retrieval and no operational statistics refresh. Plan units are not timings. If a credible bottleneck emerges, prepare a **new, isolated, evidence-led** candidate and parity fixture rather than changing this passing research package. Keep default-OFF flag, WP10/WP12 OPEN and Electron HOLD.
