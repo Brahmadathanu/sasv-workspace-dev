@@ -4,7 +4,7 @@
 
 > **Subsequent genuine-session receipt:** [Read-only existing-account observations](COSTING_GENUINE_EXISTING_ACCOUNT_PARTIAL_RECEIPT_2026-11-17.md) supersede the initial authentication blocker below. All six modules rendered populated reads; correct CSR approved/draft run labels, Scheme Master list/history and desktop populated PM BOM observed. Independent role categories, 390px, active SW/flags, HTTP timing and Windows remain NOT TESTED.
 
-> **Continuation 3 (17 Nov):** [Genuine 390px PM BOM FAIL, PWA v393 PASS](COSTING_WP11_390PX_PM_BOM_AND_PWA_RECEIPT_2026-11-17.md); [WP10 bounded deferral packet](WP10_BOUNDED_DEFERRAL_DECISION_PACKET_2026-11-17.md). Supersedes the 390px NOT TESTED entries below.
+> **Continuation 3 (17 Nov, superseded by final production receipt):** [WP11 production 390px PASS on main c6af2cb7](COSTING_WP11_390PX_PM_BOM_AND_PWA_RECEIPT_2026-11-17.md); WP11 closure recommended, owner decision pending; [WP10 bounded deferral packet](WP10_BOUNDED_DEFERRAL_DECISION_PACKET_2026-11-17.md). The earlier 390px NOT TESTED / FAIL entries below are historical.
 
 > **Earlier continuation:** [Deactivate visual PASS and capability receipt](COSTING_ACCEPTANCE_REMAINING_CAPABILITY_RECEIPT_2026-11-17.md). Genuine active-SKU desktop label legible/unclipped (client/scroll 91×34), never activated. Actual 390px, runtime/cache/flags and request metadata remain NOT TESTED: native browser explicitly blocks DevTools by organisation policy. Independent role proofs/sessions absent; no negative probe or comparison replay. Prior positives preserved.
 
