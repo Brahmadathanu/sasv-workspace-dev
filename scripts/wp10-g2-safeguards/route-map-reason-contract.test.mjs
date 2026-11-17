@@ -56,6 +56,11 @@ try{
  check("C13 legacy two-arg invocation leaves no required reason audit (cutover risk)",
   legacy.one("select status from costing.production_route_family_product_subgroup_map where id=1")==="INACTIVE" &&
   legacy.one("select count(*) from costing.production_route_family_product_subgroup_inactivation_audit")==="0");
+ const auditUpdate=cluster.script(over.db,"update costing.production_route_family_product_subgroup_inactivation_audit set inactivation_reason='TAMPER' where id=1;");
+ const auditDelete=cluster.script(over.db,"delete from costing.production_route_family_product_subgroup_inactivation_audit where id=1;");
+ check("C14 existing reason event UPDATE forbidden even to fixture owner",auditUpdate.code!==0 && /WP10_RM1_REASON_AUDIT_IMMUTABLE/.test(auditUpdate.err));
+ check("C15 existing reason event DELETE forbidden even to fixture owner",auditDelete.code!==0 && /WP10_RM1_REASON_AUDIT_IMMUTABLE/.test(auditDelete.err));
+ check("C16 both denied changes retain original reason",over.one("select inactivation_reason from costing.production_route_family_product_subgroup_inactivation_audit where id=1")==="Product-level approved route remains effective");
  // This is intentionally a positive proof of an OPEN governance hole. The three-arg overload
  // cannot enforce reason capture while legacy two-arg EXECUTE is still available.
 
