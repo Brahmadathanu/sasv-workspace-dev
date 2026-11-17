@@ -113,3 +113,29 @@ The owner-authorised session extracted the `RETURN QUERY` SQL from the repositor
 The internal source plans explicitly show `Index Cond: snapshot_period_start = ranked.period_start AND snapshot_period_start = ANY (three dates) AND refresh_run_id = ranked.refresh_run_id`. This establishes a governed-run selective **plan**, but does not establish that the leading `(period, valuation_date, run)` B-tree reads few irrelevant entries or that cost predictions match actual work. The aggregate live governed line counts are 27,896 Sep, 27,588 Oct and 27,676 Nov, each far larger than these estimated rows even before considering the related historical period. September and October's plan estimated aggregates also differ materially from the current actual SKU counts (634, 627); planner rows are not reliable counts.
 
 **Updated evidence-led decision:** keyset-first candidate remains **OFFLINE RESEARCH ONLY / NO APPLY**; fixed 2000-row key cap is above actual 627–634 current-period SKUs. The meaningful next decision is whether the owner wants a separately reviewed **statistics remediation experiment** with a bounded operational `ANALYZE` on one large snapshot table, accompanied by a careful pre/post nonexecuting plan and authenticated latency acceptance protocol. `ANALYZE` is a live maintenance write to statistics, NOT a read-only investigation, and has **not** been authorised or performed. No live query was benchmarked; do not claim a speed fix or resume Electron release. Keep WP10/WP12 OPEN, WP11 CLOSED, 11/13 closed, release HOLD.
+
+## 8. Owner-authorised controlled production ANALYZE — 17 November 2026 (later follow-up)
+**Executed and verified.** The owner responded "Go ahead" to the prior recommendation for a controlled PostgreSQL statistics-maintenance intervention. A separate connected ChatGPT session first checked the exact Supabase project `qhmoqtxpeasamtlxaoak` was `ACTIVE_HEALTHY` (PostgreSQL 17.4), that no other sessions were active at preflight, and that no `pg_stat_progress_analyze` job was already running on the target relation. A pre-intervention captured source-extracted, plain `EXPLAIN` for the installed scoped RPC's October and November `RETURN QUERY` (function itself not called). Only the target snapshot table was analysed, using:
+
+```sql
+BEGIN;
+SET LOCAL lock_timeout='2s';
+SET LOCAL statement_timeout='45s';
+ANALYZE (SKIP_LOCKED TRUE) costing.cost_sheet_line_monthly_snapshot;
+COMMIT;
+```
+
+The connector returned success; a **separate immediate `pg_stat_all_tables` verification** confirmed `last_analyze=2026-11-17 15:58:48.171630+00` (21:28:48 IST), `analyze_count: 1→2`, `n_mod_since_analyze: 55,352→0`, estimated `n_live_tup: 1,490,828→1,484,232`. The changed estimated live count is a **statistics estimate, not a data deletion**. No costing rows, approvals, functions, ACL/RLS, indexes, code, cache or flags were modified. This statistics-maintenance change is not a fully reversible migration; no pre-ANALYZE statistics snapshot was restored.
+
+### Before/after: extracted installed scoped-RPC source plain EXPLAIN
+The source was extracted from repository migration `supabase/migrations/20261111133505_csr_scoped_comparison_rpc_additive_20261111.sql`; `p_period_start`/ `p_limit` replaced with bounded literal values; no body was executed and no runtime latency was measured. `EXPLAIN` ran inside `BEGIN READ ONLY`.
+
+| Period | Before outer Limit cost | After outer Limit cost | Before line_pivot grouped-estimate | After grouped-estimate | Before snapshot index-scan rows | After index-scan rows |
+|---|---|---|---:|---:|---:|---:|
+| Sep 2026 | 4635.59..4635.63 | 4356.01..4356.05 | 3,223 | 2,980 | 3,149 | 2,895 |
+| Oct 2026 | 7022.00..7022.06 | 6308.22..6308.28 | 4,702 | 4,345 | 4,594 | 4,221 |
+| Nov 2026 | 2433.26..2433.28 | 2548.00..2548.02 | 1,680 | 1,735 | 1,641 | 1,685 |
+
+All three post-ANALYZE plans still use `idx_cost_sheet_monthly_exact_tuple` with governed period, period set and run equality conditions. A second **simple, non-executed** `EXPLAIN SELECT sku_id,line_label,value_numeric FROM ... WHERE snapshot_period_start=<literal> AND refresh_run_id=<literal>` showed a changed Nov index choice: before `idx_cost_sheet_monthly_run_sku`, estimated 1 row; after `idx_cost_sheet_monthly_exact_tuple`, estimated **1,671** rows, versus the previously verified **27,676** actual governed line rows. September simple query estimated 17,615→15,700 vs actual 27,896; October 8,564→8,221 vs actual 27,588. Estimates remain materially wrong despite refreshed statistics; no finding of a performance fix.
+
+**Interpretation / stop gate:** The ANALYZE maintenance action was completed and catalog-verified. Its effect on planner costs was **mixed** (lower Sep/Oct, higher Nov), and the cardinality estimates still diverge sharply from actual bounded aggregate counts. **No Cost Comparison request or browser p95 was retested**, so the original default-OFF UI timeout remains an unresolved release risk. Do not automatically re-ANALYZE, increase timeout, create an index, deploy #473, enable scoped-RPC flags or lift the Electron HOLD. The next release-relevant evidence is **one authorised normal default-OFF Cost Comparison UI request**, capturing endpoint category, HTTP status, duration and visible error/pass without bodies or identifiers; stop if it times out again. Maintain WP10/WP12 OPEN, WP11 CLOSED, 11/13 closed.
