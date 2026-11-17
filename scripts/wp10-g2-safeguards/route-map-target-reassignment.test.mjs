@@ -14,8 +14,12 @@ const actor=session({perms:"module:manage-products:view,module:manage-products:e
 const setup=(which,guard)=>{
  const db=pg.newDb(),a=pg.script(db,base+(guard==="old"?old:guard==="new"?rm1:""));
  if(a.code)throw Error("boot "+a.err.slice(-900));
- const sm=which==="product"?"production_route_family_product_map":"production_route_family_product_subgroup_map";
- const col=which==="product"?"product_id":"product_subgroup_id";
+ const spec={
+  product:{table:"production_route_family_product_map",column:"product_id",replacement:8},
+  subgroup:{table:"production_route_family_product_subgroup_map",column:"product_subgroup_id",replacement:2},
+  group:{table:"production_route_family_product_group_map",column:"product_group_id",replacement:2}
+ }[which];
+ const sm=spec.table,col=spec.column;
  const seed=actor+`
  insert into costing.production_route_family(id,status,effective_from) values(777,'APPROVED',date '2026-01-01');
  insert into costing.production_route_family_route(route_family_id,status,effective_from) values(777,'APPROVED',date '2026-01-01');
@@ -30,10 +34,13 @@ const setup=(which,guard)=>{
 let pass=0,fail=0;const check=(id,ok,detail="")=>{console.log((ok?"PASS ":"FAIL ")+id+(detail?" — "+detail:""));ok?pass++:fail++;};
 const validity=db=>pg.sql(db,"select costing.fn_validate_effective_product_process_route(1,date '2026-11-15')->>'valid'");
 try{
- for(const kind of ["product","subgroup"]){
-  const tbl=kind==="product"?"production_route_family_product_map":"production_route_family_product_subgroup_map";
-  const col=kind==="product"?"product_id":"product_subgroup_id";
-  const target=kind==="product"?8:2;
+ for(const kind of ["product","subgroup","group"]){
+  const spec={
+   product:{table:"production_route_family_product_map",column:"product_id",replacement:8},
+   subgroup:{table:"production_route_family_product_subgroup_map",column:"product_subgroup_id",replacement:2},
+   group:{table:"production_route_family_product_group_map",column:"product_group_id",replacement:2}
+  }[kind];
+  const tbl=spec.table,col=spec.column,target=spec.replacement;
   const update=`update costing.${tbl} set ${col}=${target} where ${col}=1;`;
   const red=setup(kind,"old"),rr=pg.script(red,update);
   check(kind+"-RED1 old metadata-only shortcut permits mapping target reassignment",rr.code===0,rr.err.slice(-180));
