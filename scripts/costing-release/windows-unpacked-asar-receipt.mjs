@@ -27,7 +27,7 @@ const files=[
  "public/shared/js/costing-feature-flags.js",
  "public/shared/js/costing-suite-shell.js",
  "public/shared/js/master-data-platform.js","public/shared/js/master-data-write-guard.js",
- "main.js","package.json"
+ "main.js"
 ];
 const dist=path.resolve(process.env.COSTING_WIN_UNPACKED||path.join(root,"dist","win-unpacked"));
 const pack=path.join(dist,"resources","app.asar");
@@ -44,7 +44,7 @@ for(const rel of files){
  if(!listing.includes("/"+rel)){receipt.errors.push("ASAR file missing: "+rel);continue;}
  const source=fs.readFileSync(local);
  let embedded;
- try{embedded=asar.extractFile(pack,rel);}catch(e){receipt.errors.push("extract failed "+rel+": "+e.message);continue;}
+ try{embedded=asar.extractFile(pack,path.join(...rel.split("/")));}catch(e){receipt.errors.push("extract failed "+rel+": "+e.message);continue;}
  const expectedSha=sha(source),actualSha=sha(embedded),ok=expectedSha===actualSha;
  receipt.checked_files.push({path:rel,sha256:expectedSha,match:ok});
  if(!ok)receipt.errors.push("byte drift: "+rel);
@@ -56,6 +56,18 @@ if(listing.includes("/manage-product-groups.html")){
 for(const rel of ["docs/master-data-costing/MASTER_PROGRAMME.md","scripts/costing-release/windows-unpacked-asar-receipt.mjs"]){
  if(listing.includes("/"+rel))receipt.errors.push("nonruntime docs/scripts unexpectedly packed: "+rel);
 }
+// Electron Builder deliberately rewrites package.json while stripping development dependencies.
+// Validate the runtime identity/version semantically instead of claiming byte equality.
+try{
+ const packagedJson=JSON.parse(asar.extractFile(pack,"package.json").toString("utf8"));
+ const repoJson=JSON.parse(fs.readFileSync(path.join(root,"package.json"),"utf8"));
+ receipt.package_json={version:packagedJson.version,name:packagedJson.name,
+   version_matches:packagedJson.version===repoJson.version,
+   name_matches:packagedJson.name===repoJson.name};
+ if(!receipt.package_json.version_matches||!receipt.package_json.name_matches){
+   receipt.errors.push("packaged app identity/version differs from source");
+ }
+}catch(e){receipt.errors.push("packaged package.json unreadable: "+e.message);}
 receipt.verdict=receipt.errors.length===0?"PASS":"FAIL";
 receipt.matched=receipt.checked_files.filter(x=>x.match).length;
 receipt.expected=files.length;
