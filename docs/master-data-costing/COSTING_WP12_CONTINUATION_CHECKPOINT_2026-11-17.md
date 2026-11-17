@@ -86,3 +86,7 @@ Maintain repo documentation **during each meaningful work step**: capture source
 | Source/CI regressions | **NOT RUN here** | Local clone could not fully check out (Windows long paths); prior CI run 44102021037 SUCCESS only |
 
 No writers clicked, no flag/permission/SQL/data change, no response bodies captured. WP10/WP12 remain OPEN, 11/13, Electron HOLD.
+
+
+## Regression run and Cost Comparison timeout investigation — 17 November 2026
+See [WP12_REGRESSION_AND_COST_COMPARISON_TIMEOUT_INVESTIGATION_2026-11-17.md](WP12_REGRESSION_AND_COST_COMPARISON_TIMEOUT_INVESTIGATION_2026-11-17.md). Summary: 72/96 local non-browser tests PASS; 23 fail identically on pristine main (no PostgreSQL / Windows host / ref-based guards: NOT TESTED locally); 1 PR-induced guard failure (WP10 G2 S4 on the comment-only JS edits, not CI-visible because path-filtered); PEC integrated CI run 44104385612 SUCCESS on head 89c379c. Cost Comparison default-OFF timeout is treated as release-blocking pending owner decisions; live EXPLAIN NOT TESTED.

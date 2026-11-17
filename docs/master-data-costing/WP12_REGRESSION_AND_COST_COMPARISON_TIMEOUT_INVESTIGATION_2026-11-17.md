@@ -1,0 +1,61 @@
+# WP12 — source/CI regression results and Cost Comparison timeout investigation (17 November 2026)
+
+**Status:** review-only documentation. WP10 and WP12 remain **OPEN**, WP11 **CLOSED**, programme **11/13**, Electron release **HOLD**. No production write, SQL install, permission/flag/account change, approval, deploy or publication was performed. Prior accepted evidence is preserved.
+
+## 1. Provenance
+- Branch `docs/wp12-continuation-20261117` (draft PR #472), head `89c379c14ab39a1a551c687c914ebce6761379a2`; base `main` `8c7648fab72f2cf2e40bacc74e8fe59bedca2777`. Diff vs main = docs + two comment-only JS edits (`62bc03f`).
+- Checkout: Windows, Node v24.5.0, blobless full-history clone, `core.longpaths=true`, `core.autocrlf=false`, sparse checkout excluding `docs/costing-pipeline-independent-audit/` (Windows MAX_PATH). Failing tests were re-run on a pristine `main` worktree for baseline comparison.
+- Command: `node --test <file>` per file, 96 non-browser tests matching costing/csr/wp05/wp10/wp11/wp12/pwa/electron/flag/permission (6-way parallel, 150 s cap). Playwright/Chromium browser suites (`*-browser.test.mjs`) were **not** run locally.
+
+## 2. Local source regression result (96 files)
+| Outcome | Count | Notes |
+| --- | ---: | --- |
+| PASS | 72 | |
+| FAIL on PR head **and** on `main` (environment/baseline) | 21 | see below |
+| FAIL on PR head only (**regression vs main**) | 1 | `scripts/wp10-g2-safeguards/source.test.mjs` |
+| Timeout (124) on PR head and main | 2 | `verify-served-assets`, `responsive` (need browser/network) |
+
+24 files did not pass on the PR head (22 non-zero exit + 2 timeouts). Re-running those 24 on pristine `main`: 23 failed identically (21 exit 1 + 2 timeouts = baseline); only `source.test.mjs` passed on main.
+
+**Baseline/environmental failures (identical on pristine main; not caused by the PR; tests not edited):**
+- No local PostgreSQL → fixtures print `SKIPPED ... (not PASS)` and exit non-zero: `csr-comparison-verifier/{bench,parity}`, `wp10-g1-safeguard-audit/{fixture-mutation,transition-fixture}`, `wp10-g2-safeguards/{guards,horizon,preview,provenance}`. Classified **NOT TESTED locally**.
+- Windows host: `spawnSync tar` (acceptance-runner), `C:\tmp` path (cost-sheet-terminology), `c:` ESM URL scheme (w506-conf-client x2).
+- Git-ref/diff-based guards (`uxf1`, `review-worklist`, `cross-links`, `sec-a2-strip`, `draft-run-evidence*`, `table-tools-pkg3/4`, `w506-conf-server/migration-static`) fail in this checkout identically on main. **NOT TESTED locally**; Linux CI is the authority.
+
+### Finding R-1 (PR-induced, medium): WP10 G2 guard S4 trips on the comment-only JS edits
+`scripts/wp10-g2-safeguards/source.test.mjs` S4 diffs `public/` against `origin/main` and allows only a pinned set of client files. It passes on main and **fails on PR head** with `unexpected changed client file: public/shared/js/costing-cost-comparison-read.js` (comment-only change `62bc03f`; `costing-feature-flags.js` is expected to trip it likewise). The workflow `wp10-g2-offline-verification.yml` is path-filtered and did **not** run on PR #472, so no red check is visible. Any later PR touching WP10 paths while these comments are not on `main` would fail S4. Nothing changed here (protected test). Owner options: (a) revert the `62bc03f` comment edits from this PR; (b) land them as their own reviewed PR to `main` first; (c) extend the allowlist in a reviewed change.
+
+## 3. GitHub Actions
+- PR #472 head `89c379c`: [PEC Integrated Browser Acceptance run 44104385612](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/44104385612) — **SUCCESS** (job `integrated-pec`; Netlify header/redirect rules pass, deploy preview ready). Earlier heads (44103587916, 44103555126, 44103104138, 44102595032, 44102456273, 44102021037, 44101932836) all success.
+- On `main`: WP12 Hosted Costing Asset Provenance, e.g. [44096979204](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/44096979204), success.
+- **Not triggered for this PR** (path filters): WP10 G2 offline verification and the WP05/WP11/WP12 workflows → **NOT TESTED on this head**; no PASS inferred. These are mocked/offline suites, not genuine authenticated evidence.
+
+## 4. Cost Comparison default-OFF timeout — investigation (read-only, repository analysis)
+**Observation (17 Nov, genuine signed-in session, role unproven):** one load of Cost Sheet Review → Cost Comparison, Nov 2026, flag OFF; UI showed raw server text "canceling statement due to statement timeout" (57014 class). HTTP status/elapsed were not captured by the tool. Not repeated.
+
+**Read path (verified in source at head):** `costing-suite-shell.js` (~4933-4966) → flag OFF → `v_cost_sheet_snapshot_sku_monthly_comparison_governed` `.select("*")` `.eq("snapshot_period_start", period)` ordered by product_name, sku_column_label, `.limit(2000)` → public wrapper → `costing.v_cost_sheet_snapshot_sku_monthly_comparison_governed`. The OFF path has no retry and renders the raw server message (sanitised text exists only on the scoped RPC path).
+
+**Why it is slow (existing evidence: #273, CSR_READ_TIMEOUT_DIAGNOSIS, CSR_PLAN_RECHECK, WP05 R18, three-period variance doc):**
+- The view pivots `costing.cost_sheet_line_monthly_snapshot` (~1.4 M planner rows, ~1.26 GB) over all governed periods (`line_pivot`, ~5.5 k grouped rows), self-joins previous month and previous year, and only then filters the requested period. ORDER/LIMIT cannot prune the aggregation.
+- #273 owner Chrome evidence (11 Nov): 500@8.15 s, 200@6.03 s, 200@2.12 s, 500@8.15 s, 200@2.23 s: intermittent, failures cluster at about 8 s (consistent with an authenticated-role statement timeout). Variation suggests cache/IO and planner-statistics sensitivity (stats last auto-analysed 24 Oct before November rows; manual ANALYZE 5 Nov recorded) rather than a proven client duplicate-request bug; the five requests were likely repeated navigations (not proven).
+- Installed scoped RPC (flag OFF, `authenticated` EXECUTE): restricts `line_pivot` to {period, period-1 month, period-1 year} inside the function. Planner cost Sep 4,602 / Oct 6,993 / Nov 2,413 (R18) vs 8,098 for the view; browser pilot 5.75/4.08/4.37 s (edge 5.4/3.6/4.0 s), HTTP 200, ID-N/X/O denials credited. It is the safer path functionally but **not proven fast**: single samples, no p95, October gain small, margin to an ~8 s timeout only ~2-4 s.
+- R18 rejected candidates: `NOT MATERIALIZED` CTE and three separate pivots are worse in every month.
+
+**Not done / blocked:** live `EXPLAIN` (no read-only database connector in this session) → **NOT TESTED**. No `EXPLAIN ANALYZE`, no view execution, no schema change. Current statistics freshness for the snapshot table was not re-read.
+
+### Recommended corrective path (smallest sound, in order)
+1. **Evidence (read-only, owner-authorised session):** `BEGIN READ ONLY` catalogue read of `pg_stat_user_tables` (`last_analyze`, `last_autoanalyze`, `n_mod_since_analyze`, `reltuples`) for the snapshot table, plain `EXPLAIN (FORMAT JSON)` (no ANALYZE) of the exact OFF request for Sep/Oct/Nov, and the role `statement_timeout` from `pg_roles.rolconfig`. This shows whether a statistics refresh (an operational ANALYZE, separately approved) is the cheapest fix for the November regression.
+2. **Interim posture:** keep the flag OFF globally (owner R63). If the lens must be usable before a rewrite, authorise a **time-boxed browser-local scoped-RPC pilot** for named View-only users: Nov/Oct/Sep once each, record endpoint/status/ms, then remove the flag. Rollback = remove the localStorage value; no server change.
+3. **Durable fix candidate (repo-only proposal, unapplied):** keyset-first rewrite (compute the current period's ordered top-N SKU keyset first, aggregate previous month/year only for those keys), or a period/run-keyed precomputed comparison snapshot written at governed refresh. Needs bidirectional `EXCEPT ALL` parity across Sep/Oct/Nov, 63-column types, governed-run selection, permissions, October non-regression, 4 s p95 on adequate samples and rollback SQL. Rollback = flag OFF, then restore the previous function body or drop the new function.
+4. Do **not** raise `statement_timeout`, add indexes or widen grants on current evidence (period indexes already used; R18: no index justified).
+5. Optional client hardening (separate reviewed PR, not prepared because it touches protected behaviour): sanitise OFF-path error text and avoid auto-running the heavy query until the tab is opened.
+
+No corrective PR was prepared: the evidence does not yet justify a specific SQL or client change.
+
+## 5. Outstanding acceptance conditions
+Role matrix (Editor/View-only/No-access), V1-V7 negative GETs, ordinary Cost Comparison HTTP status/ms, real eleven-flag combined test, Windows NSIS/ZIP acceptance, WP10 PostgreSQL fixtures on Linux/CI, four-table direct-DML cutover: all remain NOT TESTED/OPEN per the continuation checkpoint.
+
+## 6. Owner decisions requested
+1. Choose R-1 option (a), (b) or (c).
+2. Authorise the read-only metadata plus plain EXPLAIN session (§4.1): yes/no.
+3. Choose release posture: keep OFF with accepted risk, or authorise a time-boxed scoped-RPC pilot (§4.2), and/or authorise a repo-only keyset-first proposal (§4.3).
