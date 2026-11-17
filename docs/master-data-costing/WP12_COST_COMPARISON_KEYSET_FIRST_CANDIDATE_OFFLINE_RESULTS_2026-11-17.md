@@ -78,3 +78,12 @@ Most retained snapshot rows are from non-governed runs (Sep ~96.8%, Oct ~93.8%, 
 
 ### Recommended next technical gate
 Do **not** apply the candidate or commission a production rewrite yet. With separately authorised non-executing source-level planning, compare the installed scoped RPC's **extracted RETURN QUERY SQL** for Sep/Oct/Nov using literal inputs against the observed governed-view plan; inspect actual `Index Cond`, buffer *estimates unavailable without execution*, cardinality and join order. Use **plain EXPLAIN only**, no `ANALYZE`, no function execution, no business data retrieval and no operational statistics refresh. Plan units are not timings. If a credible bottleneck emerges, prepare a **new, isolated, evidence-led** candidate and parity fixture rather than changing this passing research package. Keep default-OFF flag, WP10/WP12 OPEN and Electron HOLD.
+
+### Exact live index definitions — correction to shorthand interpretations
+Further read-only `pg_indexes` inspection found:
+- `idx_cost_sheet_monthly_exact_tuple`: **`(snapshot_period_start, valuation_date, refresh_run_id)`**, *not* a contiguous `(period,refresh_run_id)` key. A displayed `Index Cond` with both period and run does not alone prove the B-tree can efficiently skip across all valuation dates.
+- `idx_cost_sheet_monthly_run_sku`: **`(refresh_run_id, sku_id)`**, a second possible governed-run-first access path.
+- `idx_cost_sheet_snapshot_period_sku`: **`(snapshot_period_start, sku_id)`**, used in the synthetic candidate assumptions.
+- `uq_cost_sheet_monthly_snapshot_line` also leads with `(snapshot_period_start, valuation_date, refresh_run_id, ...)`.
+
+This corrects any overly strong claim that the earlier planned `idx_cost_sheet_monthly_exact_tuple` path already guarantees efficient period+run lookup. **Neither a new index nor a rewrite is authorised from catalogue evidence alone**. Use a nonexecuting extracted-body `EXPLAIN` to compare actual chosen plan nodes/estimates and investigate the existing `refresh_run_id`-leading index. No changes were applied.
