@@ -4,6 +4,7 @@ on:
     paths:
       - '.github/workflows/costing-windows-unpacked-rehearsal.yml'
       - 'scripts/costing-release/windows-unpacked-asar-receipt.mjs'
+      - 'scripts/costing-release/windows-unpacked-local-http-smoke.mjs'
   workflow_dispatch:
 permissions:
   contents: read
@@ -43,6 +44,29 @@ jobs:
         run: |
           node scripts/costing-release/windows-unpacked-asar-receipt.mjs --out "$env:RUNNER_TEMP/costing-windows-evidence/asar-parity.json"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install fail-closed outbound block for packed app before runtime test
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path "dist/win-unpacked/SASV Workspace.exe").Path
+          $rule = "Costing CI OFFLINE app $env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          New-NetFirewallRule -DisplayName $rule -Direction Outbound -Action Block -Program $exe -Profile Any -Enabled True -ErrorAction Stop | Out-Null
+          $actual = Get-NetFirewallRule -DisplayName $rule -ErrorAction Stop
+          if ($actual.Action -ne "Block" -or $actual.Direction -ne "Outbound" -or $actual.Enabled -ne "True") { throw "Outbound app deny rule not effective" }
+          "COSTING_OUTBOUND_FIREWALL_CONFIRMED=1" | Out-File -Append -FilePath $env:GITHUB_ENV
+          "COSTING_FIREWALL_RULE=$rule" | Out-File -Append -FilePath $env:GITHUB_ENV
+      - name: Run offline packed Electron local static server smoke
+        shell: pwsh
+        run: |
+          if ($env:COSTING_OUTBOUND_FIREWALL_CONFIRMED -ne "1") { throw "App firewall unconfirmed: refuse launch" }
+          node scripts/costing-release/windows-unpacked-local-http-smoke.mjs --out "$env:RUNNER_TEMP/costing-windows-evidence/packaged-local-http.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Remove isolated runner firewall rule
+        if: always()
+        shell: pwsh
+        run: |
+          if ($env:COSTING_FIREWALL_RULE) {
+            Get-NetFirewallRule -DisplayName $env:COSTING_FIREWALL_RULE -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction Stop
+          }
       - name: Preserve NO-PUBLISH and acceptance boundaries
         if: always()
         shell: pwsh
@@ -50,8 +74,8 @@ jobs:
           @'
           WIN-UNPACKED PRE-RELEASE REHEARSAL ONLY.
           No NSIS/ZIP installer, updater feed, release upload, code signing, production SQL or live login.
-          No packaged application launch; ASAR byte parity does not certify runtime.
-          NOT TESTED: installed Windows app, role access, local HTTP served assets, update/rollback.
+          Unpacked packaged application runtime is launched ONLY after verified per-executable outbound block; local static GET receipt is separate from signed-in UI or updater testing.
+          NOT TESTED: installed NSIS/ZIP Windows app, role access, genuine user content, or updater installation/rollback.
           NOT AUTHORISED: release publication, main merge, production flag/permission changes.
           The owner-deferred combined installer remains deferred pending actual WP11/WP12 live-role acceptance.
           '@ | Set-Content "$env:RUNNER_TEMP/costing-windows-evidence/boundaries.txt"
