@@ -44,3 +44,7 @@ A currently valid subgroup route can remain valid on the **current** date even a
 The **review-only** RM1 candidate now checks `costing.fn_validate_effective_product_process_route(product_id,new.effective_from)` **in addition to current date** whenever a mapping has newly reached or changed APPROVED state and its effective_from is future dated. This is done inside the deferred final-transaction check and preserves valid future replacement if the target family has a valid effective route then.
 
 `scripts/wp10-g2-safeguards/route-map-future-approval.test.mjs` builds a **baseline RED** example (future product map approved, present valid, future invalid), then requires **GREEN** unsafe future approval rejection, unchanged draft/current route and a valid future approval acceptance. Isolated PostgreSQL only; CI must be checked for this exact head. This safeguard is **not** a complete future-term horizon or arbitrary effective_to closure policy, which remains separately governed under the existing expiry/readiness workflow.
+
+### Live future-map census (17 Nov IST)
+
+A separate bounded read-only query counted currently non-archived APPROVED mappings by tier: **379 product, 16 subgroup and 0 group**, with **0 future-effective APPROVED records** in every tier. Therefore the new future-shadowing control is an isolated proof of a possible *future workflow transition*, not an observed problematic scheduled live mapping. The 455-product current/+7/+30 validator checks remain separate from this census. No production business mutation occurred.
