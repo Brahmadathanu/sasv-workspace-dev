@@ -48,3 +48,9 @@ The **review-only** RM1 candidate now checks `costing.fn_validate_effective_prod
 ### Live future-map census (17 Nov IST)
 
 A separate bounded read-only query counted currently non-archived APPROVED mappings by tier: **379 product, 16 subgroup and 0 group**, with **0 future-effective APPROVED records** in every tier. Therefore the new future-shadowing control is an isolated proof of a possible *future workflow transition*, not an observed problematic scheduled live mapping. The 455-product current/+7/+30 validator checks remain separate from this census. No production business mutation occurred.
+
+## Existing protected route architecture — trigger inventory rechecked
+
+A fresh read-only live trigger inventory confirms **pre-existing lifecycle protections**, not a blank or ungoverned routing schema. `production_route_family`, `production_route_family_route` and `product_process_route` each already have effective-date validation, approval-reference enforcement, approved-object immutability and WP04 epoch hooks (four triggers apiece). Family route steps and product-route overrides have dedicated immutability and epoch hooks (two apiece). The product mapping has an assignment guard plus effective-date/reference/epoch hooks (four). Subgroup and group mapping tables each have date-guard, immutability and epoch hooks (three). The WP04 source epoch trigger invalidates readiness evidence but does not itself veto an immediately route-breaking transition.
+
+This corroborates the **minimal-change** strategy: the candidate RM1 active-product effective-route postcondition complements these safeguards and should not replace the already-completed route-family lifecycle or weaken the approval and history controls. The remaining edge cases are about cross-table downstream impact and effective-date precedence, not missing basic lifecycle governance. No triggers or records were changed in production.
