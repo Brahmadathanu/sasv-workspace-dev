@@ -129,7 +129,7 @@ test("fixed SW: other static costing JS stays cache-first (scope not widened)", 
 });
 
 test("cache version unchanged (v394 is a proposal needing owner approval)", () => {
-  assert.match(current, /const CACHE_NAME = "hub-cache-v393"/);
+  assert.match(current, /const CACHE_NAME = "hub-cache-v394"/);
 });
 
 test("sw.js has consistent line endings (all LF or all CRLF)", () => {

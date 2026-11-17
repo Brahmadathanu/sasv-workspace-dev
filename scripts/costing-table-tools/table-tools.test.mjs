@@ -490,12 +490,12 @@ test("row-click index resolves to the sorted row after a header sort", () => {
 });
 
 // 10. Cache pin
-test("service worker cache is hub-cache-v393 (v390 retained in the comment)", () => {
+test("service worker cache is hub-cache-v394 (v390 retained in the comment)", () => {
   const sw = read("public/sw.js");
-  assert.match(sw, /const CACHE_NAME = "hub-cache-v393"/);
+  assert.match(sw, /const CACHE_NAME = "hub-cache-v394"/);
   assert.equal(
     sw.split("\n")[1],
-    'const CACHE_NAME = "hub-cache-v393"; // WP05-W506 Staff Governance personnel-confidentiality client gate (explicit projections, edit gating); v392 was Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)',
+    'const CACHE_NAME = "hub-cache-v394"; // WP11 PM BOM header toolbar wraps at phone width (genuine 390px overflow fix); v393 was WP05-W506 Staff Governance personnel-confidentiality client gate (explicit projections, edit gating); v392 was Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)',
   );
 });
 

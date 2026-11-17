@@ -8,21 +8,39 @@ on:
       - 'public/shared/js/products.js'
       - 'public/shared/js/manage-pm-bom.js'
       - 'public/sw.js'
+      - 'scripts/wp11-preview-provenance/**'
+  push:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   hosted-provenance:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 25
     steps:
+      # Pull requests are verified against their OWN exact head commit (not the synthetic merge commit).
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Read-only public served-byte verification
+      # Production monitoring gate: unchanged. Runs after a deploy (push to main) and on demand. It is NOT run against a PR candidate,
+      # because a candidate and production differ by design until the owner deploys it.
+      - name: Production served-byte verification (post-deploy / on demand)
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           node scripts/wp08-g2-0-shared-master-data/deploy-gate.mjs verify https://sasv-utilities-hub.netlify.app
+      # Candidate gate: the Netlify Deploy Preview for this PR must serve exactly the checked-out candidate (bytes + cache generation).
+      # A mismatching, stale or missing preview FAILS (it is retried while Netlify builds, never skipped).
+      - name: Deploy Preview candidate provenance (exact head SHA)
+        if: github.event_name == 'pull_request'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          node scripts/wp11-preview-provenance/verify-preview-candidate.mjs "https://deploy-preview-${PR_NUMBER}--sasv-utilities-hub.netlify.app" "${HEAD_SHA}" --attempts 36 --delay-ms 20000

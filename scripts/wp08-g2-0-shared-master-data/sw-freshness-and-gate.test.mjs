@@ -59,8 +59,8 @@ test("negative control: the BASE service worker WOULD have served stale cached m
   assert.equal((await h.request("/shared/js/products.js")).body, "stale");
 });
 
-test("no cache-generation change: CACHE_NAME is still the single hub-cache-v393 line (these URLs were never cached by an earlier generation)", () => {
-  assert.equal((swSrc.match(/const CACHE_NAME = "hub-cache-v393"/g) ?? []).length, 1);
+test("no cache-generation change: CACHE_NAME is still the single hub-cache-v394 line (these URLs were never cached by an earlier generation)", () => {
+  assert.equal((swSrc.match(/const CACHE_NAME = "hub-cache-v394"/g) ?? []).length, 1);
   assert.equal((swSrc.match(/const CACHE_NAME\b/g) ?? []).length, 1);
 });
 

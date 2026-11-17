@@ -79,7 +79,7 @@ test("existing guards, permission keys and G2-0 activation artefacts are untouch
 });
 test("service worker: new modules are network-first; CACHE_NAME unchanged; G2-0 pattern byte-identical", () => {
   const sw = read("public/sw.js");
-  assert.equal((sw.match(/const CACHE_NAME = "hub-cache-v393"/g) ?? []).length, 1);
+  assert.equal((sw.match(/const CACHE_NAME = "hub-cache-v394"/g) ?? []).length, 1);
   assert.ok(sw.includes("products|manage-rm-bom|manage-pm-bom|manage-sp-bom|master-data-platform|master-data-write-guard)"));
   for (const m of ["costing-suite-recommended-ui-route", "costing-destination-access", "master-data-selection", "costing-suite-control-center"]) assert.match(sw, new RegExp(m));
   const net = sw.indexOf("master-data-selection"); const handler = sw.indexOf('fetch(req, { cache: "no-store" })', net);

@@ -172,7 +172,7 @@ test("shell integration: single flag-gated branch for the cost-comparison lens; 
 
 test("release hygiene: this change set does not touch sw.js, other feature-flag defaults, or the original flag list", () => {
   const sw = rd("public/sw.js");
-  assert.equal(sw.split("\n")[1].startsWith('const CACHE_NAME = "hub-cache-v393"'), true, "no cache bump in this PR (a release step for the owner)");
+  assert.equal(sw.split("\n")[1].startsWith('const CACHE_NAME = "hub-cache-v394"'), true, "no cache bump in this PR (a release step for the owner)");
   const flags = rd("public/shared/js/costing-feature-flags.js");
   assert.equal((flags.match(/=== "1"/g) || []).length, 10, "ten earlier flags + the new one, all exact-'1'-only");
 });

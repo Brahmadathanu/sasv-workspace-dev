@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { loadPhase1Inventory, sha256 } from "./phase1-applied-inventory.mjs";
 import { BRANCH } from "./prepare-phase1-registration.mjs";
 import { rejectedProtectedPaths } from "../lib/pec-protected-path-guard.mjs";
+import { pmBomDeltaApproved, normaliseApprovedSwDelta, WP11_PM_BOM_PATH } from "./wp11-approved-delta.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
@@ -48,7 +49,10 @@ test("S4 no new permission target, registry entry, launcher entry or route in th
   const changed = git("diff", "--name-only", "origin/main", "--", "public", "index.html", "main.js", "electron").split("\n").filter(Boolean);
   const allowed = new Set(["public/shared/js/products.js", "public/shared/js/costing-suite-readiness.js", "public/shared/js/wp10-safeguards.js", "public/shared/js/wp10-safeguards-ui.js", "public/sw.js"]);
   const untracked = git("ls-files", "--others", "--exclude-standard", "public").split("\n").filter(Boolean);
-  for (const f of [...changed, ...untracked]) assert.ok(allowed.has(f), `unexpected changed client file: ${f}`);
+  // WP11 permit: the PM BOM page may differ from main ONLY by the exact reviewed, content-pinned CSS addition (see wp11-approved-delta.mjs).
+  const pmBomDiff = git("diff", "-U0", "origin/main", "--", WP11_PM_BOM_PATH);
+  assert.ok(pmBomDeltaApproved(pmBomDiff), `${WP11_PM_BOM_PATH} differs from main by more than the reviewed WP11 addition`);
+  for (const f of [...changed, ...untracked]) assert.ok(allowed.has(f) || (f === WP11_PM_BOM_PATH && changed.includes(f)), `unexpected changed client file: ${f}`);
 });
 
 test("S5 existing protected files remain byte-identical; SW differs only by approved classification network-first rule", () => {
@@ -57,7 +61,14 @@ test("S5 existing protected files remain byte-identical; SW differs only by appr
     assert.equal(git("diff", "--stat", "origin/main", "--", f).trim(), "", `${f} must be unchanged`);
   }
   const existing=git("show", "origin/main:public/sw.js").replace(/\r\n/g,"\n");
-  const current=read("public/sw.js");
+  // WP11 permit: only line 2 (v393 -> v394 cache name + comment) may differ; it is mapped back before the byte-identity comparison.
+  const current=normaliseApprovedSwDelta(read("public/sw.js"), existing);
+  if (existing.includes("    // WP10: four classification masters")) {
+    // The classification network-first rule is already merged into main: the whole SW (after the single approved WP11 line-2 delta)
+    // must now be byte-identical to main.
+    assert.equal(current, existing, "SW must be byte-identical to main apart from the approved WP11 cache line");
+    return;
+  }
   const start=current.indexOf("    // WP10: four classification masters");
   const end=current.indexOf("    /\\/shared\\/js\\/procurement-execution-console\\.js$/.test(url.pathname) ||",start);
   assert.ok(start>=0 && end>start,"expected bounded WP10-only network-first insertion");

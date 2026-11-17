@@ -128,7 +128,7 @@ for (const platform of Object.keys(PLATFORMS)) {
       const o = await overflow(r.page);
       // The viewport meta is present, so the layout width is the device width; the known PM BOM overflow (UX-P05, WP11) is not asserted away.
       assert.equal(await r.page.evaluate(() => document.documentElement.clientWidth), 390);
-      if (m.key !== "pm-templates") assert.ok(o.scrollWidth <= o.vw + 1, `scrollWidth ${o.scrollWidth} <= ${o.vw}`);
+      assert.ok(o.scrollWidth <= o.vw + 1, `scrollWidth ${o.scrollWidth} <= ${o.vw}`);
       await r.context.close();
     });
   }
