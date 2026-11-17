@@ -83,7 +83,7 @@ export function startCluster() {
 }
 
 /** Cluster + fixture schema + data + reconstructed governed view + installed function (verbatim from migration). */
-export function buildFixture({ withData = true } = {}) {
+export function buildFixture({ withData = true, candidateFunctionSql = null, extraFixtureSql = [] } = {}) {
   const c = startCluster();
   try {
     const { createFunction, returnQuery } = extractFromMigration();
@@ -91,6 +91,9 @@ export function buildFixture({ withData = true } = {}) {
     c.must(buildGovernedViewSql(returnQuery));
     c.must(createFunction);
     if (withData) c.must(rd(join(HERE, "sql/fixture-data.sql")));
+    // Optional, opt-in: a CANDIDATE function (new name; the installed function above is never replaced) and extra synthetic fixtures.
+    if (candidateFunctionSql) c.must(rd(candidateFunctionSql));
+    for (const f of extraFixtureSql) c.must(rd(f));
   } catch (e) { c.stop(); throw e; }
   return c;
 }

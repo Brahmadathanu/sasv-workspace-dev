@@ -1,0 +1,639 @@
+{
+ "generatedBy": "candidates/keyset-first/plan-evidence.mjs",
+ "warning": "LOCAL SYNTHETIC SHAPE EVIDENCE - NOT PRODUCTION, NOT A SPEED CLAIM. Local ms are three warm runs on one sandbox VM and are NOT a percentile.",
+ "runs": [
+  {
+   "scenario": "uniform_3000sku_x1run_limit2000",
+   "kind": "LOCAL SYNTHETIC SHAPE EVIDENCE - NOT PRODUCTION, NOT A SPEED CLAIM",
+   "synthetic": {
+    "snapshotRows": 1449000,
+    "skus": 3000,
+    "periods": 23,
+    "assumedIndex": "idx_cost_sheet_snapshot_period_sku(snapshot_period_start, sku_id) - from proposal, unverified in production"
+   },
+   "pg": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+   "results": [
+    {
+     "period": "2026-09-01",
+     "shape": "governed_view",
+     "snapshotRowsRead": 1449000,
+     "rowsEnteringAggregates": 1449000,
+     "scanNodes": [
+      "Seq Scan"
+     ],
+     "sharedBuffersHitPlusRead": 28574,
+     "resultRows": 2000,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      4745,
+      4794,
+      4581
+     ]
+    },
+    {
+     "period": "2026-09-01",
+     "shape": "installed_rpc_body",
+     "snapshotRowsRead": 189000,
+     "rowsEnteringAggregates": 189000,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 28730,
+     "resultRows": 2000,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      766,
+      736,
+      752
+     ]
+    },
+    {
+     "period": "2026-09-01",
+     "shape": "keyset_first_body",
+     "snapshotRowsRead": 147000,
+     "rowsEnteringAggregates": 149000,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 60989,
+     "resultRows": 2000,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      540,
+      554,
+      561
+     ]
+    },
+    {
+     "period": "2026-10-01",
+     "shape": "governed_view",
+     "snapshotRowsRead": 1449000,
+     "rowsEnteringAggregates": 1449000,
+     "scanNodes": [
+      "Seq Scan"
+     ],
+     "sharedBuffersHitPlusRead": 28574,
+     "resultRows": 2000,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      4646,
+      4464,
+      4669
+     ]
+    },
+    {
+     "period": "2026-10-01",
+     "shape": "installed_rpc_body",
+     "snapshotRowsRead": 189000,
+     "rowsEnteringAggregates": 189000,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 28730,
+     "resultRows": 2000,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      764,
+      774,
+      747
+     ]
+    },
+    {
+     "period": "2026-10-01",
+     "shape": "keyset_first_body",
+     "snapshotRowsRead": 147000,
+     "rowsEnteringAggregates": 149000,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 60996,
+     "resultRows": 2000,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      587,
+      581,
+      577
+     ]
+    },
+    {
+     "period": "2026-11-01",
+     "shape": "governed_view",
+     "snapshotRowsRead": 1449000,
+     "rowsEnteringAggregates": 1449000,
+     "scanNodes": [
+      "Seq Scan"
+     ],
+     "sharedBuffersHitPlusRead": 28574,
+     "resultRows": 2000,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      4523,
+      4697,
+      4504
+     ]
+    },
+    {
+     "period": "2026-11-01",
+     "shape": "installed_rpc_body",
+     "snapshotRowsRead": 189000,
+     "rowsEnteringAggregates": 189000,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 28730,
+     "resultRows": 2000,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      751,
+      751,
+      773
+     ]
+    },
+    {
+     "period": "2026-11-01",
+     "shape": "keyset_first_body",
+     "snapshotRowsRead": 147000,
+     "rowsEnteringAggregates": 149000,
+     "scanNodes": [
+      "Bitmap Heap Scan",
+      "Index Scan:idx_cost_sheet_snapshot_period_sku"
+     ],
+     "sharedBuffersHitPlusRead": 80805,
+     "resultRows": 2000,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      580,
+      587,
+      590
+     ]
+    }
+   ]
+  },
+  {
+   "scenario": "uniform_1500sku_x1run_limit2000",
+   "kind": "LOCAL SYNTHETIC SHAPE EVIDENCE - NOT PRODUCTION, NOT A SPEED CLAIM",
+   "synthetic": {
+    "snapshotRows": 724500,
+    "skus": 1500,
+    "periods": 23,
+    "assumedIndex": "idx_cost_sheet_snapshot_period_sku(snapshot_period_start, sku_id) - from proposal, unverified in production"
+   },
+   "pg": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+   "results": [
+    {
+     "period": "2026-09-01",
+     "shape": "governed_view",
+     "snapshotRowsRead": 724500,
+     "rowsEnteringAggregates": 724500,
+     "scanNodes": [
+      "Seq Scan"
+     ],
+     "sharedBuffersHitPlusRead": 14292,
+     "resultRows": 1500,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      2334,
+      2147,
+      2390
+     ]
+    },
+    {
+     "period": "2026-09-01",
+     "shape": "installed_rpc_body",
+     "snapshotRowsRead": 94500,
+     "rowsEnteringAggregates": 94500,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 14373,
+     "resultRows": 1500,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      335,
+      346,
+      357
+     ]
+    },
+    {
+     "period": "2026-09-01",
+     "shape": "keyset_first_body",
+     "snapshotRowsRead": 94500,
+     "rowsEnteringAggregates": 94500,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 28657,
+     "resultRows": 1500,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      337,
+      278,
+      275
+     ]
+    },
+    {
+     "period": "2026-10-01",
+     "shape": "governed_view",
+     "snapshotRowsRead": 724500,
+     "rowsEnteringAggregates": 724500,
+     "scanNodes": [
+      "Seq Scan"
+     ],
+     "sharedBuffersHitPlusRead": 14292,
+     "resultRows": 1500,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      2436,
+      2468,
+      2194
+     ]
+    },
+    {
+     "period": "2026-10-01",
+     "shape": "installed_rpc_body",
+     "snapshotRowsRead": 94500,
+     "rowsEnteringAggregates": 94500,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 14373,
+     "resultRows": 1500,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      315,
+      294,
+      367
+     ]
+    },
+    {
+     "period": "2026-10-01",
+     "shape": "keyset_first_body",
+     "snapshotRowsRead": 94500,
+     "rowsEnteringAggregates": 94500,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 28657,
+     "resultRows": 1500,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      326,
+      341,
+      349
+     ]
+    },
+    {
+     "period": "2026-11-01",
+     "shape": "governed_view",
+     "snapshotRowsRead": 724500,
+     "rowsEnteringAggregates": 724500,
+     "scanNodes": [
+      "Seq Scan"
+     ],
+     "sharedBuffersHitPlusRead": 14292,
+     "resultRows": 1500,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      2237,
+      2291,
+      2372
+     ]
+    },
+    {
+     "period": "2026-11-01",
+     "shape": "installed_rpc_body",
+     "snapshotRowsRead": 94500,
+     "rowsEnteringAggregates": 94500,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 14373,
+     "resultRows": 1500,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      339,
+      359,
+      333
+     ]
+    },
+    {
+     "period": "2026-11-01",
+     "shape": "keyset_first_body",
+     "snapshotRowsRead": 94500,
+     "rowsEnteringAggregates": 94500,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 28657,
+     "resultRows": 1500,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      328,
+      323,
+      321
+     ]
+    }
+   ]
+  },
+  {
+   "scenario": "prodshape_230sku_x14runs_limit2000",
+   "kind": "LOCAL SYNTHETIC SHAPE EVIDENCE - NOT PRODUCTION, NOT A SPEED CLAIM",
+   "synthetic": {
+    "snapshotRows": 1555260,
+    "skusPerPeriod": 230,
+    "runsPerPeriod": 14,
+    "limit": 2000,
+    "periods": 23,
+    "assumedIndex": "idx_cost_sheet_snapshot_period_sku(snapshot_period_start, sku_id) - from proposal, unverified in production"
+   },
+   "pg": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+   "results": [
+    {
+     "period": "2026-09-01",
+     "shape": "governed_view",
+     "snapshotRowsRead": 1555260,
+     "rowsEnteringAggregates": 111090,
+     "scanNodes": [
+      "Seq Scan"
+     ],
+     "sharedBuffersHitPlusRead": 30670,
+     "resultRows": 230,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      572,
+      544,
+      540
+     ]
+    },
+    {
+     "period": "2026-09-01",
+     "shape": "installed_rpc_body",
+     "snapshotRowsRead": 202860,
+     "rowsEnteringAggregates": 14490,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 30844,
+     "resultRows": 230,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      268,
+      199,
+      231
+     ]
+    },
+    {
+     "period": "2026-09-01",
+     "shape": "keyset_first_body",
+     "snapshotRowsRead": 140070,
+     "rowsEnteringAggregates": 14720,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 32978,
+     "resultRows": 230,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      216,
+      239,
+      218
+     ]
+    },
+    {
+     "period": "2026-10-01",
+     "shape": "governed_view",
+     "snapshotRowsRead": 1555260,
+     "rowsEnteringAggregates": 111090,
+     "scanNodes": [
+      "Seq Scan"
+     ],
+     "sharedBuffersHitPlusRead": 30670,
+     "resultRows": 230,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      596,
+      696,
+      563
+     ]
+    },
+    {
+     "period": "2026-10-01",
+     "shape": "installed_rpc_body",
+     "snapshotRowsRead": 202860,
+     "rowsEnteringAggregates": 14490,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 30844,
+     "resultRows": 230,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      240,
+      246,
+      226
+     ]
+    },
+    {
+     "period": "2026-10-01",
+     "shape": "keyset_first_body",
+     "snapshotRowsRead": 140070,
+     "rowsEnteringAggregates": 14720,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 32978,
+     "resultRows": 230,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      193,
+      203,
+      188
+     ]
+    },
+    {
+     "period": "2026-11-01",
+     "shape": "governed_view",
+     "snapshotRowsRead": 1555260,
+     "rowsEnteringAggregates": 111090,
+     "scanNodes": [
+      "Seq Scan"
+     ],
+     "sharedBuffersHitPlusRead": 30670,
+     "resultRows": 230,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      636,
+      615,
+      641
+     ]
+    },
+    {
+     "period": "2026-11-01",
+     "shape": "installed_rpc_body",
+     "snapshotRowsRead": 202860,
+     "rowsEnteringAggregates": 14490,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 30844,
+     "resultRows": 230,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      232,
+      212,
+      213
+     ]
+    },
+    {
+     "period": "2026-11-01",
+     "shape": "keyset_first_body",
+     "snapshotRowsRead": 140070,
+     "rowsEnteringAggregates": 14720,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 32978,
+     "resultRows": 230,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      173,
+      201,
+      215
+     ]
+    }
+   ]
+  },
+  {
+   "scenario": "prodshape_230sku_x14runs_limit100",
+   "kind": "LOCAL SYNTHETIC SHAPE EVIDENCE - NOT PRODUCTION, NOT A SPEED CLAIM",
+   "synthetic": {
+    "snapshotRows": 1555260,
+    "skusPerPeriod": 230,
+    "runsPerPeriod": 14,
+    "limit": 100,
+    "periods": 23,
+    "assumedIndex": "idx_cost_sheet_snapshot_period_sku(snapshot_period_start, sku_id) - from proposal, unverified in production"
+   },
+   "pg": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+   "results": [
+    {
+     "period": "2026-09-01",
+     "shape": "governed_view",
+     "snapshotRowsRead": 1555260,
+     "rowsEnteringAggregates": 111090,
+     "scanNodes": [
+      "Seq Scan"
+     ],
+     "sharedBuffersHitPlusRead": 30670,
+     "resultRows": 100,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      553,
+      608,
+      556
+     ]
+    },
+    {
+     "period": "2026-09-01",
+     "shape": "installed_rpc_body",
+     "snapshotRowsRead": 202860,
+     "rowsEnteringAggregates": 14490,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 30844,
+     "resultRows": 100,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      256,
+      217,
+      219
+     ]
+    },
+    {
+     "period": "2026-09-01",
+     "shape": "keyset_first_body",
+     "snapshotRowsRead": 140070,
+     "rowsEnteringAggregates": 9030,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 32984,
+     "resultRows": 100,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      174,
+      173,
+      195
+     ]
+    },
+    {
+     "period": "2026-10-01",
+     "shape": "governed_view",
+     "snapshotRowsRead": 1555260,
+     "rowsEnteringAggregates": 111090,
+     "scanNodes": [
+      "Seq Scan"
+     ],
+     "sharedBuffersHitPlusRead": 30670,
+     "resultRows": 100,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      544,
+      554,
+      545
+     ]
+    },
+    {
+     "period": "2026-10-01",
+     "shape": "installed_rpc_body",
+     "snapshotRowsRead": 202860,
+     "rowsEnteringAggregates": 14490,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 30844,
+     "resultRows": 100,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      217,
+      219,
+      208
+     ]
+    },
+    {
+     "period": "2026-10-01",
+     "shape": "keyset_first_body",
+     "snapshotRowsRead": 140070,
+     "rowsEnteringAggregates": 9030,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 32984,
+     "resultRows": 100,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      188,
+      190,
+      177
+     ]
+    },
+    {
+     "period": "2026-11-01",
+     "shape": "governed_view",
+     "snapshotRowsRead": 1555260,
+     "rowsEnteringAggregates": 111090,
+     "scanNodes": [
+      "Seq Scan"
+     ],
+     "sharedBuffersHitPlusRead": 30670,
+     "resultRows": 100,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      449,
+      633,
+      596
+     ]
+    },
+    {
+     "period": "2026-11-01",
+     "shape": "installed_rpc_body",
+     "snapshotRowsRead": 202860,
+     "rowsEnteringAggregates": 14490,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 30844,
+     "resultRows": 100,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      218,
+      211,
+      207
+     ]
+    },
+    {
+     "period": "2026-11-01",
+     "shape": "keyset_first_body",
+     "snapshotRowsRead": 140070,
+     "rowsEnteringAggregates": 9030,
+     "scanNodes": [
+      "Bitmap Heap Scan"
+     ],
+     "sharedBuffersHitPlusRead": 32984,
+     "resultRows": 100,
+     "localExecutionMs_threeRunsNOTAPERCENTILE": [
+      178,
+      171,
+      183
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -2,6 +2,8 @@
 
 **NOT APPLIED. NOT A MIGRATION. NOT BENCHMARKED.** No SQL in this document is to be executed against production. Flag `COSTING_CSR_SCOPED_COMPARISON_RPC_V1` stays **OFF**; no browser-local pilot is authorised. WP10/WP12 OPEN, WP11 CLOSED, Electron HOLD. Context: [investigation report](WP12_REGRESSION_AND_COST_COMPARISON_TIMEOUT_INVESTIGATION_2026-11-17.md), issue #273, [WP05 R18](WP05_R18_CSR_PLANNER_OPTIMIZATION_SCREEN_2026-11-11.md).
 
+> **Update 17 Nov 2026 (later):** candidate implemented and parity-tested **offline only** — see [offline results](WP12_COST_COMPARISON_KEYSET_FIRST_CANDIDATE_OFFLINE_RESULTS_2026-11-17.md). Correct on all fixtures; risk (a) resolved by construction and tested; **benefit unproven and possibly negligible when production SKUs/period are well below the 2000 cap**. Still NOT APPLIED / NOT BENCHMARKED on production.
+
 ## 1. Problem recap
 Default-OFF read `v_cost_sheet_snapshot_sku_monthly_comparison_governed` pivots `costing.cost_sheet_line_monthly_snapshot` (~1.4 M rows) across **all** governed periods, then filters the requested period; observed 57014 timeouts (5 Nov, 11 Nov, 17 Nov UI). The installed scoped RPC (`rpc_get_cost_sheet_sku_monthly_comparison_scoped`, source `supabase/migrations/20261111133505_csr_scoped_comparison_rpc_additive_20261111.sql`) already limits `line_pivot` to `{p, p-1 month, p-1 year}` but still pivots **every SKU of three periods** (Oct requests include Sep) before applying `WHERE snapshot_period_start = p ORDER BY product_name, sku_column_label, sku_id LIMIT p_limit`. R18: naive `NOT MATERIALIZED` and three-CTE rewrites were worse.
 
