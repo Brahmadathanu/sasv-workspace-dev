@@ -35,7 +35,7 @@ try{
  chk("RM-G4 approved replacement preserves active route",status(b)==="true|true",status(b));
  const c=db();const sc=cluster.script(c,actor+base);
  if(sc.code)throw Error("C seed "+sc.err.slice(-1200));
- const fallback=cluster.script(c,"insert into costing.production_route_family(id,status,effective_from) values(901,'APPROVED',date '2026-01-01');insert into costing.production_route_family_product_map(product_id,route_family_id,status,effective_from) values(1,901,'APPROVED',date '2026-01-01');insert into costing.production_route_family_route(route_family_id,status,effective_from) values(901,'APPROVED',date '2026-01-01');");
+ const fallback=cluster.script(c,"insert into costing.production_route_family(id,status,effective_from) values(901,'APPROVED',date '2026-01-01');insert into costing.production_route_family_route(route_family_id,status,effective_from) values(901,'APPROVED',date '2026-01-01');insert into costing.production_route_family_product_map(product_id,route_family_id,status,effective_from) values(1,901,'APPROVED',date '2026-01-01');");
  if(fallback.code)throw Error("C product override "+fallback.err.slice(-1200));
  const unaffected=cluster.script(c,"update costing.production_route_family_product_subgroup_map set status='INACTIVE',effective_to=current_date where id=1;");
  chk("RM-G5 unaffected subgroup mapping inactivation allowed with effective product-level route",unaffected.code===0,unaffected.err.slice(-500));
