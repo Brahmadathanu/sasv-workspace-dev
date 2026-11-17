@@ -31,6 +31,7 @@ const sql=[
 "set local lock_timeout='5s';",
 "set local statement_timeout='30s';",
 ...input.flatMap(x=>["-- START "+x.label,x.body,"-- END "+x.label]),
+"NOTIFY pgrst, 'reload schema';",
 "commit;",""
 ].join("\n");
 const manifest={classification:"UNAPPLIED_REVIEW_ONLY",source_count:input.length,begin_count:(sql.match(/^begin;$/gm)||[]).length,commit_count:(sql.match(/^commit;$/gm)||[]).length,sha256:sha(sql),sources:input.map(({label,relative,source_sha256})=>({label,relative,source_sha256})),has_legacy_two_arg_rpc:true,production_ddl:false};
