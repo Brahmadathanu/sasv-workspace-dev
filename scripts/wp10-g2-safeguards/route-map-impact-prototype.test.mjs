@@ -62,6 +62,19 @@ try{
  chk("RM-G9 harmful group-level mapping inactivation rejected",groupUnsafe.code!==0,groupUnsafe.err.slice(-400));
  chk("RM-G10 active group-inherited route preserved",status(g)==="true|true",status(g));
 
+ const futureDb=db(),fs=cluster.script(futureDb,actor+base);
+ if(fs.code)throw Error("future inactivation seed "+fs.err.slice(-1200));
+ const futureStop=cluster.script(futureDb,"update costing.production_route_family_product_subgroup_map set status='INACTIVE',effective_to=date '2099-12-31' where id=1;");
+ chk("RM-G11 future effective_to does not make immediate INACTIVE status safe",futureStop.code!==0);
+ chk("RM-G12 rejection preserves current active route despite future end date",status(futureDb)==="true|true" && cluster.sql(futureDb,"select status from costing.production_route_family_product_subgroup_map where id=1")==="APPROVED");
+ const futureReplaceDb=db(),fr=cluster.script(futureReplaceDb,actor+base+
+ "insert into costing.production_route_family(id,status,effective_from) values(992,'APPROVED',date '2026-01-01');"+
+ "insert into costing.production_route_family_route(route_family_id,status,effective_from) values(992,'APPROVED',date '2026-01-01');");
+ if(fr.code)throw Error("future replacement seed "+fr.err.slice(-1200));
+ const deferredReplacement=cluster.script(futureReplaceDb,"begin;update costing.production_route_family_product_subgroup_map set status='SUPERSEDED',effective_to=date '2099-12-30' where id=1; insert into costing.production_route_family_product_subgroup_map(product_subgroup_id,route_family_id,status,effective_from) values(1,992,'APPROVED',date '2099-12-31');commit;");
+ chk("RM-G13 future-only approved replacement cannot prematurely retire current effective route",deferredReplacement.code!==0);
+ chk("RM-G14 rejected premature supersession leaves current route intact",status(futureReplaceDb)==="true|true" && cluster.sql(futureReplaceDb,"select status from costing.production_route_family_product_subgroup_map where id=1")==="APPROVED");
+
  console.log(JSON.stringify({pass,fail,provenance:"DISPOSABLE_POSTGRESQL_ONLY",guard_scope:"product-subgroup-group-maps",other_route_writers:"UNRESOLVED"}));
 }catch(e){console.error("FAIL/BLOCKED "+e.stack);fail++;}
 finally{cluster.stop();}
