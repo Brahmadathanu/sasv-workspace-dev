@@ -245,7 +245,7 @@ for (const vp of VIEWPORTS) {
         labelVisible: label && getComputedStyle(label).display !== "none",
         color: c.color, background: c.backgroundColor, scroll: b.scrollWidth > b.clientWidth + 2 };
     });
-  })));
+  }));
   check(readable.every(r => r.width >= r.parentWidth - 3 && r.height >= 44),
     `${tag} all action buttons full-width and touch-sized`);
   check(readable.every(r => r.labelVisible && !r.scroll),
