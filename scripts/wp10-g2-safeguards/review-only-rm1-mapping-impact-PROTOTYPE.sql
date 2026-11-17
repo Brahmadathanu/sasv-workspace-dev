@@ -39,11 +39,17 @@ begin
      and (new.status is distinct from 'APPROVED' or new.archived_at is not null)
    then return null; end if;
    -- Ignore metadata-only changes to an already approved mapping.
+   -- Compare the mapping's TARGET, not merely the family/date/status payload.
+   -- Otherwise a privileged UPDATE that moves the approved mapping to another
+   -- product/subgroup/group could bypass this guard as a "metadata-only" edit.
    if old.status is not distinct from new.status
       and old.route_family_id is not distinct from new.route_family_id
       and old.effective_from is not distinct from new.effective_from
       and old.effective_to is not distinct from new.effective_to
       and old.archived_at is not distinct from new.archived_at
+      and (v_old->>'product_id') is not distinct from (v_new->>'product_id')
+      and (v_old->>'product_subgroup_id') is not distinct from (v_new->>'product_subgroup_id')
+      and (v_old->>'product_group_id') is not distinct from (v_new->>'product_group_id')
    then return null; end if;
  end if;
  v_today:=costing.fn_wp10_today_ist();
