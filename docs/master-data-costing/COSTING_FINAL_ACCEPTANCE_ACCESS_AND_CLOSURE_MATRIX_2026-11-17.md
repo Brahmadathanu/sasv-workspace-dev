@@ -1,4 +1,4 @@
-# Final acceptance access check, closure matrix and release disposition — 17 November 2026
+> **FORMAL OWNER CLOSURE — 17 NOV 2026: WP11 CLOSED.** Explicit owner approval following production v394 genuine populated PM BOM 390px PASS and Deactivate desktop visibility PASS. Authoritative [owner-approved WP11 closure record](WP11_OWNER_APPROVED_FORMAL_CLOSURE_2026-11-17.md) committed to `main`, and `MASTER_PROGRAMME.md` advanced to **11/13 (84.6%) CLOSED**. **WP10 and WP12 remain OPEN; Electron release HOLD.** All older WP11-OPEN/10-of-13 entries below are historical; do not downgrade formal closure when consolidating this draft PR. Optional SQL #463 remains unapplied.\n\n# Final acceptance access check, closure matrix and release disposition — 17 November 2026
 
 **Evidence status: read-only repository reconciliation complete; genuine existing-account visual acceptance PARTIAL after successful owner-supervised sign-in. Programme 10/13 CLOSED; WP10/WP11/WP12 OPEN. This is not owner sign-off.**
 
