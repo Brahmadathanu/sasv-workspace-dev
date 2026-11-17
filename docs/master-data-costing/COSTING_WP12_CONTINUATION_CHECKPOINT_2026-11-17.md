@@ -141,3 +141,10 @@ Controlled `ANALYZE (SKIP_LOCKED TRUE) costing.cost_sheet_line_monthly_snapshot`
 4. **WP10:** confirm the order — fleet-compatible release first, then four-table ACL/RLS hardening — and whether optional PR #463 (guards SQL) and PR #471 (fleet inventory) stay out of scope.
 5. **Release:** separate approval for candidate packaging only after items 1–3; publication remains a further, exact-version approval.
 6. **PRs:** #472 and #473 stay draft; #473 contains research/test/docs only and should not be merged as a performance fix.
+
+## 17 Nov 2026 — Owner's mobile post-ANALYZE Cost Comparison visual witness
+**OWNER-REPORTED VISIBLE FUNCTIONAL PASS (mobile).** After the controlled PostgreSQL statistics refresh, the owner opened the normal November 2026 Cost Comparison table in their mobile SASV Workspace session and reported verbatim: **"The table loads seamlessly"**. This supersedes the earlier post-ANALYZE screen witness **NOT TESTED** for the **visible table-load portion only**. No statement-timeout UI error was reported in this one observation. Do not overclaim independent automated observation or causation by the statistics refresh.
+
+**Still NOT TESTED in this mobile witness:** actual browser worker/controller and browser-local scoped comparison flag state, underlying endpoint, HTTP status, request duration, network error-free traces, p95<=4000ms, and independent role/7-view denial checks. Earlier separate evidence indicates v394 served assets and browser-default-OFF flags but cannot establish the owner's current mobile runtime/flag state. No new request probes or client changes are implied. A single successful owner-reported load is **not performance acceptance or WP12 closure**.
+
+**Decision:** Preserve user-visible PASS as new evidence, keep global scoped-RPC flag OFF, no extra ANALYZE or SQL change, WP10/WP12 OPEN, WP11 CLOSED, Electron HOLD until separately approved remaining gates.
