@@ -61,6 +61,10 @@ try{
  check("C14 existing reason event UPDATE forbidden even to fixture owner",auditUpdate.code!==0 && /WP10_RM1_REASON_AUDIT_IMMUTABLE/.test(auditUpdate.err));
  check("C15 existing reason event DELETE forbidden even to fixture owner",auditDelete.code!==0 && /WP10_RM1_REASON_AUDIT_IMMUTABLE/.test(auditDelete.err));
  check("C16 both denied changes retain original reason",over.one("select inactivation_reason from costing.production_route_family_product_subgroup_inactivation_audit where id=1")==="Product-level approved route remains effective");
+ const auditTruncate=cluster.script(over.db,"truncate table costing.production_route_family_product_subgroup_inactivation_audit;");
+ check("C17 privileged TRUNCATE denied; row triggers alone would not protect this",auditTruncate.code!==0&&/WP10_RM1_REASON_AUDIT_IMMUTABLE/.test(auditTruncate.err));
+ check("C18 reason event remains intact after denied TRUNCATE",over.one("select count(*) from costing.production_route_family_product_subgroup_inactivation_audit")==="1");
+
  // This is intentionally a positive proof of an OPEN governance hole. The three-arg overload
  // cannot enforce reason capture while legacy two-arg EXECUTE is still available.
 
