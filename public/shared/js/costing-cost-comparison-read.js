@@ -6,7 +6,7 @@
 //
 // Deliberate non-features: no retry, no automatic fallback to the view on error (a masked fallback would hide a broken
 // server and double the query cost), no writer RPC, no change to periods, labels, run selection or column semantics.
-// The server function is PREPARED and NOT APPLIED; this code must not be enabled until the owner approves application.
+// Server function is installed. This browser-local flag remains default OFF pending separately authorised release-mode acceptance.
 
 export const COMPARISON_VIEW = "v_cost_sheet_snapshot_sku_monthly_comparison_governed";
 export const COMPARISON_SCOPED_RPC = "rpc_get_cost_sheet_sku_monthly_comparison_scoped";
