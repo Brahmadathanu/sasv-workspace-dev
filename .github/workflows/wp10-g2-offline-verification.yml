@@ -82,6 +82,7 @@ jobs:
           node scripts/wp10-g2-safeguards/route-map-approval-transition.test.mjs | tee "$WP10_EVIDENCE/route-map-approval-transition.log"
           node scripts/wp10-g2-safeguards/route-map-rollback-prototype.test.mjs | tee "$WP10_EVIDENCE/route-map-rollback-prototype.log"
           node scripts/wp10-g2-safeguards/route-map-fanout-41.test.mjs | tee "$WP10_EVIDENCE/route-map-fanout-41.log"
+          node scripts/wp10-g2-safeguards/route-map-future-approval.test.mjs | tee "$WP10_EVIDENCE/route-map-future-approval.log"
       - name: Mocked Chromium at 390 and 1280 (not live-role acceptance)
         shell: bash
         run: |
