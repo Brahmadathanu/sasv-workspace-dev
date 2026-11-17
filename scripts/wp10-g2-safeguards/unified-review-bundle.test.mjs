@@ -63,6 +63,11 @@ select public.rpc_set_product_sku_active(1,true,'unified fixture');
  const tamper=pg.script(db,"update costing.production_route_family_product_subgroup_inactivation_audit set inactivation_reason='altered' where id=(select max(id) from costing.production_route_family_product_subgroup_inactivation_audit);");
  ck("U15 preserved audit cannot be edited after rollback",tamper.code!==0 && /WP10_RM1_REASON_AUDIT_IMMUTABLE/.test(tamper.err));
  ck("U16 rollback manifest is atomic and conserves audit records",rollbackManifest.begin_count===1&&rollbackManifest.commit_count===1&&rollbackManifest.retains_reason_audit_table===true);
+ const auditTruncate=pg.script(db,"truncate costing.production_route_family_product_subgroup_inactivation_audit;");
+ ck("U19 preserved audit rejects TRUNCATE after review-bundle rollback",auditTruncate.code!==0&&/WP10_RM1_REASON_AUDIT_IMMUTABLE/.test(auditTruncate.err));
+ ck("U20 retained audit entry survives all three privileged delete attempts",
+   pg.sql(db,"select count(*) from costing.production_route_family_product_subgroup_inactivation_audit")==="1");
+
  const missing=pg.newDb(),mb=pg.script(missing,g2FixtureSql({load:["clock","states","reparent"]})+PRODUCTS_SEED);
  if(mb.code)throw Error("missing base fixture "+mb.err.slice(-400));
  const blocked=pg.script(missing,script);
