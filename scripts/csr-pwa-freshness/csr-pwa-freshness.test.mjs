@@ -86,6 +86,6 @@ test("API and non-GET calls are never intercepted", async () => {
 });
 
 test("existing service-worker version remains unchanged and no global flag is enabled", () => {
-  assert.match(sw, /const CACHE_NAME = "hub-cache-v393"/);
+  assert.match(sw, /const CACHE_NAME = "hub-cache-v394"/);
   assert.doesNotMatch(sw, /localStorage\.setItem\(/);
 });

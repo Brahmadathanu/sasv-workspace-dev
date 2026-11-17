@@ -227,7 +227,7 @@ test("service worker change is minimal: only added network-first patterns for th
   assert.match(added, /WP08 G2-0/);
   assert.match(added, /products\|manage-rm-bom\|manage-pm-bom\|manage-sp-bom\|master-data-platform/);
   assert.match(added, /shared-ui\|sasv-bom/);
-  assert.equal((read("public/sw.js").match(/const CACHE_NAME = "hub-cache-v393"/g) ?? []).length, 1);
+  assert.equal((read("public/sw.js").match(/const CACHE_NAME = "hub-cache-v394"/g) ?? []).length, 1);
 });
 
 test("scope guard: no G2-1 bridges, no resolver/PPM/registry-config/sw/flag changes in this package", () => {

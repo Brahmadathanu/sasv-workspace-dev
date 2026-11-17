@@ -103,11 +103,21 @@ export const REVIEWED_WP09_G2_PINS = Object.freeze({
   }),
 });
 
+// WP11 PM BOM responsive fix (PR #467): the ONLY change to public/sw.js is the hub-cache-v393 -> hub-cache-v394 line (CSS delivery needs a
+// cache-generation advance; owner-approved). Exact path + exact head branch + SHA-256 of the LF-normalised file. Any other content, branch,
+// protected path or SQL migration stays rejected; the global protected-path policy is unchanged.
+export const REVIEWED_WP11_V394_PINS = Object.freeze({
+  "public/sw.js": Object.freeze({
+    sha256: "aa4620ff6a068c172827362ba7c54c43d9c6fb08962fc441123428e1d439bf52",
+    heads: Object.freeze(["review/wp11-pm-bom-v394-minimal-20261117"]),
+  }),
+});
+
 const lfSha256 = (text) => createHash("sha256").update(String(text).replace(/\r\n/g, "\n")).digest("hex");
 
 function reviewedServerException(path, ctx) {
   if (!ctx || typeof ctx.readText !== "function") return false;
-  return [REVIEWED_SERVER_MIGRATIONS[path], REVIEWED_WP08_G2_1_PINS[path], REVIEWED_WP09_G2_PINS[path]].some((entry) => {
+  return [REVIEWED_SERVER_MIGRATIONS[path], REVIEWED_WP08_G2_1_PINS[path], REVIEWED_WP09_G2_PINS[path], REVIEWED_WP11_V394_PINS[path]].some((entry) => {
     if (!entry || !entry.heads.includes(ctx.headBranch)) return false;
     try { return lfSha256(ctx.readText(path)) === entry.sha256; } catch { return false; }
   });

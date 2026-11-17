@@ -99,7 +99,7 @@ test("FIXED F-1 (#289): Cost Comparison child modules are network-first with off
   const h = loadSw(), P = "/shared/js/unrelated-static-file.js";
   h.store.set(ORIGIN + P, "OLD"); h.net.files[P] = "NEW";
   assert.equal((await h.run(ORIGIN + P)).body, "OLD", "unrelated static JS remains cache-first");
-  assert.match(raw("public/sw.js"), /const CACHE_NAME = "hub-cache-v393"/, "no cache-version bump");
+  assert.match(raw("public/sw.js"), /const CACHE_NAME = "hub-cache-v394"/, "no cache-version bump");
 });
 
 test("line endings: the client files in the Cost Comparison path are consistently LF or CRLF, and new verifier files are LF", () => {

@@ -72,8 +72,8 @@ test("pack expectation: the Scheme Master list read is a pure GET path (no mutat
   assert.doesNotMatch(chain, /\.(insert|update|upsert|delete|rpc)\(/);
 });
 
-test("pack expectation: service worker identity the operator should see (hub-cache-v393; PPM module network-first with cache fallback)", () => {
-  assert.match(sw, /hub-cache-v393/);
+test("pack expectation: service worker identity the operator should see (hub-cache-v394; PPM module network-first with cache fallback)", () => {
+  assert.match(sw, /hub-cache-v394/);
   assert.match(sw, /costing-suite-pricing-policy\\\.js\$/);
 });
 

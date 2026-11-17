@@ -2,7 +2,7 @@
 // Mutation-sensitive PEC integration protected-file policy verification.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { rejectedProtectedPaths, INTEGRATION_PROTECTED_PATHS, REVIEWED_SERVER_MIGRATIONS, REVIEWED_WP08_G2_1_PINS } from "./lib/pec-protected-path-guard.mjs";
+import { rejectedProtectedPaths, INTEGRATION_PROTECTED_PATHS, REVIEWED_SERVER_MIGRATIONS, REVIEWED_WP08_G2_1_PINS, REVIEWED_WP11_V394_PINS } from "./lib/pec-protected-path-guard.mjs";
 import fs from "node:fs";
 let passed = 0;
 function test(name, changed, integration, expected) {
@@ -143,6 +143,31 @@ const r2fix = "supabase/migrations/20261114135500_pec_indent_set_status_header_l
   t2("sw.js rejected without context", [sw], [sw], null);
   t2("sw.js rejected when unreadable", [sw], [sw], { headBranch: syncHead, readText: () => { throw new Error("nope"); } });
   t2("sw.js altered on the sync branch rejected", [sw], [sw], { headBranch: syncHead, readText: () => text + "\n// tampered" });
+}
+// WP11 v394 exception for public/sw.js (PR #467): exact content hash + its own branch only; negative mutations always run.
+{
+  const pin = REVIEWED_WP11_V394_PINS[sw];
+  const head = "review/wp11-pm-bom-v394-minimal-20261117";
+  assert.ok(pin && /^[a-f0-9]{64}$/.test(pin.sha256), "WP11 sw.js SHA256 pin exists");
+  assert.deepEqual(pin.heads, [head], "WP11 sw.js exception restricted to its own branch");
+  const live = fs.readFileSync(sw, "utf8");
+  const lf = live.replace(/\r\n/g, "\n");
+  assert.equal(createHash("sha256").update(lf).digest("hex"), pin.sha256, "working-tree sw.js is the pinned WP11 v394 file (re-pin only with owner review)");
+  assert.ok(lf.includes('const CACHE_NAME = "hub-cache-v394"'), "v394 cache line");
+  const ctx = (over = {}) => ({ headBranch: head, readText: () => live, ...over });
+  const c = (name, changed, expected, context) => { assert.deepEqual(rejectedProtectedPaths(changed, false, context), expected, name); console.log("PASS:", name); passed++; };
+  c("WP11 sw.js exact content accepted on its branch", [sw], [], ctx());
+  c("WP11 sw.js CRLF checkout accepted", [sw], [], ctx({ readText: () => lf.replace(/\n/g, "\r\n") }));
+  c("WP11 sw.js one extra character rejected", [sw], [sw], ctx({ readText: () => lf + "\n// x" }));
+  c("WP11 sw.js with a network-first rule removed rejected", [sw], [sw], ctx({ readText: () => lf.replace("master-data-platform", "master-data-platfor") }));
+  c("WP11 sw.js with another cache generation rejected", [sw], [sw], ctx({ readText: () => lf.replace("hub-cache-v394", "hub-cache-v395") }));
+  c("WP11 sw.js previous v393 content rejected", [sw], [sw], ctx({ readText: () => lf.replace("hub-cache-v394", "hub-cache-v393") }));
+  c("WP11 sw.js rejected on another branch", [sw], [sw], ctx({ headBranch: "claude/pec-r12-resync-collision-ux-20261113" }));
+  c("WP11 sw.js rejected on the staging branch", [sw], [sw], ctx({ headBranch: "integration/pec-erp-staging-20261112" }));
+  c("WP11 sw.js rejected without context", [sw], [sw], null);
+  c("WP11 pin never exempts a migration", [migrated, illicit], [migrated, illicit], ctx());
+  c("WP11 pin never exempts a migration beside sw.js", [sw, illicit, migrated], [illicit, migrated], ctx());
+  c("WP11 pin never exempts uncommitted/working-tree changes", [sw], [sw], undefined);
 }
 // #400 authenticated-DML correction: proposed, pinned to its own branch (and staging for later integration) and exact content.
 const sec400 = "supabase/migrations/20261114160000_pec_revoke_authenticated_dml_policy_link_tables.sql";

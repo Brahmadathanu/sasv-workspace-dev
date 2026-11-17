@@ -48,5 +48,5 @@ test("parent renderer escapes the actor formatter result", () => {
 test("the PWA uses network-first routing for the new child module", () => {
   const sw = readFileSync(fileURLToPath(new URL("../../public/sw.js", import.meta.url)), "utf8");
   assert.ok(sw.includes("costing-suite-scheme-audit-actor\\.mjs$"));
-  assert.ok(sw.includes('hub-cache-v393'));
+  assert.ok(sw.includes('hub-cache-v394'));
 });

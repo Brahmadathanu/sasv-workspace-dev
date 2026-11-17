@@ -75,7 +75,7 @@ test("non-GET requests are not intercepted", async () => {
   assert.equal(await h.run(JS, "POST"), undefined);
 });
 test("cache name is unchanged (no version bump, no cache sweep)", () => {
-  assert.match(current, /const CACHE_NAME = "hub-cache-v393"/);
+  assert.match(current, /const CACHE_NAME = "hub-cache-v394"/);
   assert.equal(current.match(/\bcaches\.delete\(/g).length, 1, "activate cleanup unchanged");
 });
 test("sw.js keeps consistent line endings (all LF or all CRLF)", () => {

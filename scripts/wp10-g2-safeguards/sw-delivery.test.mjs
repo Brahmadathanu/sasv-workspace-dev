@@ -87,7 +87,7 @@ test("R7.5 the importers on disk carry the CURRENT token on every helper import,
 });
 
 test("R7.6 existing v393 cache and WP10 G2 versioned-helper delivery stay intact while classification scripts become network-first", async () => {
-  assert.match(swSource, /const CACHE_NAME = "hub-cache-v393"/);
+  assert.match(swSource, /const CACHE_NAME = "hub-cache-v394"/);
   for (const h of HELPERS) {
     const sw = makeSw({ cache: { [h]: "OLD-HELPER" }, network: { [h]: "NEW-HELPER" } });
     assert.equal(await sw.get(h), "OLD-HELPER", "existing WP10 G2 helper must remain cache-first");
