@@ -25,15 +25,15 @@ try{
  const good=run(editor+family+
  "insert into public.product_skus(product_id,pack_size,uom) values (1,50,'mL');"+
  "select public.fx_complete(1,1,'ROUTE');"+
- ACTIVATE(1)+
- T("unsafe","select public.rpc_inactivate_product_subgroup_route_family_mapping(1,date '2026-11-15','Approved production route must not be lost')")+
- T("blank","select public.rpc_inactivate_product_subgroup_route_family_mapping(1,date '2026-11-15','   ')"));
+ ACTIVATE(1));
+ const unsafeCall=cluster.script(good.db,editor+"select public.rpc_inactivate_product_subgroup_route_family_mapping(1,date '2026-11-15','Approved production route must not be lost');");
+ const blankCall=cluster.script(good.db,editor+"select public.rpc_inactivate_product_subgroup_route_family_mapping(1,date '2026-11-15','   ');");
  check("C1 three-argument live-client-compatible overload available",
    good.one("select count(*) from pg_proc where oid=to_regprocedure('public.rpc_inactivate_product_subgroup_route_family_mapping(bigint,date,text)')")==="1");
- check("C2 unsafe inactivation rejected by route-integrity guard",good.log.unsafe?.ok===false);
+ check("C2 unsafe inactivation rejected by route-integrity guard",unsafeCall.code!==0 && /WP10_RM1_ROUTE_IMPACT_REJECTED/.test(unsafeCall.err));
  check("C3 rejected mapping has no inactivation audit event",good.one("select count(*) from costing.production_route_family_product_subgroup_inactivation_audit")==="0");
  check("C4 no partial status change after rejected RPC",good.one("select status from costing.production_route_family_product_subgroup_map where id=1")==="APPROVED");
- check("C5 missing reason rejected",good.log.blank?.ok===false);
+ check("C5 missing reason rejected",blankCall.code!==0 && /meaningful inactivation reason/.test(blankCall.err));
  const over=run(editor+family+
  "insert into costing.production_route_family(id,status,effective_from) values(901,'APPROVED',date '2026-01-01');"+
  "insert into costing.production_route_family_product_map(product_id,route_family_id,status,effective_from) values(1,901,'APPROVED',date '2026-01-01');"+
