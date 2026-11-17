@@ -12,7 +12,8 @@ const manifest=JSON.parse(execFileSync(process.execPath,[new URL("./gen-unified-
 const lifecycle=fs.readFileSync(new URL("./route-map-lifecycle-gap.test.mjs",import.meta.url),"utf8");
 const match=lifecycle.match(/const liveRpc=String\.raw\x60([\s\S]*?)\x60;/);
 if(!match)throw Error("live two-arg stub extraction absent");
-const boot=g2FixtureSql({load:["clock","states","reparent","route"]})+PRODUCTS_SEED+match[1];
+// The unified bundle itself installs proposal 05. Never preload 05 via G2's "route" key.
+const boot=g2FixtureSql({load:["clock","states","reparent"]})+PRODUCTS_SEED+match[1];
 let pass=0,fail=0;const ck=(k,ok,detail="")=>{console.log((ok?"PASS ":"FAIL ")+k+(detail?" — "+detail:""));ok?pass++:fail++;};
 try{
  const db=pg.newDb(),b=pg.script(db,boot);
