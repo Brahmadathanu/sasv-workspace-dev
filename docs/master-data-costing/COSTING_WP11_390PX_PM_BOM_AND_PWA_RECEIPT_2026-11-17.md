@@ -20,9 +20,10 @@
 
 - **Observed:** with a template selected, the panel toolbar (QA chip, Reload `#reloadBtn`, Save `#saveBtn`, menus) is laid out at x=663–992 inside a 358px panel that clips (`overflow:hidden`). Editors cannot reach Save/Reload at 390px; the document reports scrollWidth 847.
 - **Root cause:** `public/shared/manage-pm-bom.html` sets `.panel-header .hdr-top { flex-wrap: nowrap }`; `product-heading-label` (min-width 220px) and `erp-pills-bar` (min-width 280px) then force the actions off-canvas. The ≤640px media block only changed `flex-basis` and never restored wrapping.
-- **Fix (not merged):** branch `review/wp11-pm-bom-header-wrap-20261117`, commit `8b5ae20c488bc9384ff4ba941154983fcac2e318`: wrap `.hdr-top` and drop the two min-widths at ≤640px.
-- **Verification so far:** diagnostic style injection of the same rule on the hosted page at 390px gave scrollWidth = clientWidth = 390, `innerWidth` 390, Save at x=196–232. This was an in-memory style only and is not a deployed-build receipt.
-- **Not done:** no automated regression test yet; no service-worker cache bump. Static assets are cache-first, so a fix reaches existing clients only with an owner-approved cache advance (v394), which also requires updating `cache-bump-coupling.test.mjs`. Same `nowrap` rule exists in RM/SP BOM pages and was not measured.
+- **Correction (draft PR, not merged):** [PR #467](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/467), branch , source SHA . At ≤1100px  wraps and the label/pills min-widths are dropped (the same overflow also occurred at 768px: 792).  →  (owner-approved).
+- **RM BOM / SP BOM:** evaluated;  already , unchanged.
+- **Local regression (real Chromium, mobile emulation, populated 4-line template, stubbed network):**  7/7 — populated @390/768/1280 no page overflow and QA chip/Reload/Save inside viewport and hit-testable; internal table scroll; mutation test (WP11 rule stripped) reproduces the overflow, so the suite fails on the original CSS.  1/1 — a v393 client updates to v394 via the normal lifecycle, old cache purged, corrected page served. G2-0 browser + fail-closed 125/125; 15 smoke scripts exit 0. 16 historical branch-relative scope-guard failures are identical on the pre-change base.
+- **Still required for WP11:** genuine populated 390px test on the deployed candidate (preview), then owner closure. Local/mocked PASS is not closure evidence.
 
 ## Impact on status
 
