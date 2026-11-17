@@ -49,4 +49,13 @@ begin
 end $body$;
 revoke all on function public.rpc_inactivate_product_subgroup_route_family_mapping(bigint,date,text) from public,anon,authenticated;
 grant execute on function public.rpc_inactivate_product_subgroup_route_family_mapping(bigint,date,text) to authenticated,service_role;
+-- Exact function-definition receipt permits a bounded rollback without losing audit rows.
+do $rm1_reason_receipt$
+declare v oid;
+begin
+ v:=to_regprocedure('public.rpc_inactivate_product_subgroup_route_family_mapping(bigint,date,text)');
+ if v is null then raise exception 'reason wrapper receipt function missing'; end if;
+ execute format('comment on function %s is %L',v::regprocedure,
+   'WP10-RM1-REASON-REVIEW md5:'||md5(pg_get_functiondef(v)));
+end $rm1_reason_receipt$;
 commit;
