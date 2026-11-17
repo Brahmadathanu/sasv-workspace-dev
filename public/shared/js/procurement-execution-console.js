@@ -9135,9 +9135,9 @@ let prNumberSuggestionSeq = 0;
 
 function suggestNextPrNumber(rows, year) {
   const y = String(year || "");
-  if (!/^\\d{4}$/.test(y)) return "";
+  if (!/^\d{4}$/.test(y)) return "";
   let highest = 0;
-  const pattern = new RegExp("^PR-" + y + "-(\\\\d+)$", "i");
+  const pattern = new RegExp("^PR-" + y + "-(\\d+)$", "i");
   for (const row of rows || []) {
     const m = pattern.exec(String(row?.pr_number || "").trim());
     if (m) {
