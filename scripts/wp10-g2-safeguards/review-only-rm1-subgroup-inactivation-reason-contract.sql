@@ -40,6 +40,11 @@ revoke all on function costing.fn_wp10_rm1_reason_audit_immutable() from public,
 create trigger trg_wp10_rm1_reason_audit_immutable
  before update or delete on costing.production_route_family_product_subgroup_inactivation_audit
  for each row execute function costing.fn_wp10_rm1_reason_audit_immutable();
+-- Row triggers do not fire for TRUNCATE. Preserve all audit history against a
+-- privileged accidental/tracked TRUNCATE while this audit register is retained.
+create trigger trg_wp10_rm1_reason_audit_no_truncate
+ before truncate on costing.production_route_family_product_subgroup_inactivation_audit
+ for each statement execute function costing.fn_wp10_rm1_reason_audit_immutable();
 
 
 create function public.rpc_inactivate_product_subgroup_route_family_mapping(
