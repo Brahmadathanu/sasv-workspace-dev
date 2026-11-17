@@ -110,3 +110,34 @@ Controlled `ANALYZE (SKIP_LOCKED TRUE) costing.cost_sheet_line_monthly_snapshot`
 - User is mobile. The connected ChatGPT workspace has **no authenticated SASV browser** or direct Claude-cloud execution control. The separate Claude cloud session may perform the read-only witness only if it legitimately possesses the current signed-in session and supported request-metadata capabilities. No account impersonation, credential transfer, or workarounds for disallowed inspection.
 - Exact receiving task: verify deployed PWA SW/controller v394 and browser-local Cost Comparison flag OFF, open the **normal Nov 2026 Cost Comparison lens once**, capture only time (IST), visible success/error, endpoint category / HTTP status / duration *if supported*, no tokens, response bodies, SKU/cost values or repeated 500 probes. If any field cannot be captured, report NOT TESTED for that field. Stop and preserve evidence if 57014 appears again.
 - Regardless of a successful ordinary read, outstanding independent Editor/View-only/No-access signed-in role matrix, 7 sensitive-view negative GETs, issue #273 robust p95 and final installed Electron/fleet cutover remain separate decisions. Do not close WP10/WP12 or lift Electron HOLD on a single success. No live flags, SQL, permissions, data, approvals, merges or publication authorised by this bridge.
+
+## Post-ANALYZE acceptance attempt and closure-matrix review — 17 November 2026 (Claude Code cloud session)
+**Post-ANALYZE ordinary default-OFF Cost Comparison screen: NOT TESTED.** This cloud session has no signed-in SASV browser and no request-inspection capability (no browser/DevTools tool; no attached owner machine; attaching one would give file/shell access, not the owner's authenticated session, and credentials must not be transferred). Therefore the following were **not observed and not inferred**: PWA service-worker *controller* and active cache in a real browser, browser-local flag value, the November 2026 screen result, request endpoint category, HTTP status, elapsed duration, or recurrence of the statement timeout. No Cost Comparison request of any kind was made; no production database, flag, permission, SQL, merge, deploy or installer action was taken.
+
+**Only observation made (unauthenticated, static, hosted — not browser evidence):** `scripts/costing-acceptance/verify-served-assets.mjs https://sasv-utilities-hub.netlify.app 8c7648fab72f2cf2e40bacc74e8fe59bedca2777 --expect-cache hub-cache-v394` → **VERIFIED [HOSTED], 74/74 assets match `main` `8c7648f`, served cache name `hub-cache-v394`** (2 HTML files verified after removing the documented Netlify injected banner). This supports "the deployed bytes are the v394 build"; it does **not** show what any user's installed worker or flag currently is.
+
+**Offline regression state:** `node --test scripts/csr-comparison-verifier/*.test.mjs scripts/csr-scoped-rpc-client/*.test.mjs scripts/csr-pwa-freshness/*.test.mjs` was 71/71 on commit `866c7b5` (earlier this session); only documentation changed afterwards on the PR #473 branch (owner commits through `e052d41`). Not re-run for this entry; a fresh CI head check is still needed before relying on it.
+
+### Closure matrix — what current access can and cannot complete
+| Gate | Completable with cloud-session access? | Status after this review |
+| --- | --- | --- |
+| Normal default-OFF Nov 2026 screen: status/duration/visible result | **No** — needs the owner's (or a legitimately signed-in user's) browser | **NOT TESTED**; remains the single next witness; timeout still an open release risk |
+| Installed PWA controller/cache + flag OFF in a real browser | **No** | PARTIAL (hosted v394 bytes re-verified 74/74; browser controller/flag not observed) |
+| Editor / View-only / No-access independent role matrix | **No** — requires separately identifiable legitimate sessions | NOT TESTED |
+| Seven sensitive-view negative GETs under real JWT | **No** — requires real role JWTs; none may be fabricated or transferred | NOT TESTED |
+| Eleven-flag combined/restore live acceptance | **No** — no production flag toggles authorised | NOT TESTED |
+| Issue #273 robust p95 (≤ 4000 ms, adequate N) | **No** — needs genuine authorised sessions; a single duration is not a p95 | NOT TESTED |
+| Windows NSIS/ZIP candidate, install/update/rollback | **No** — HOLD; needs owner packaging approval and a Windows PC | NOT TESTED |
+| Four-table authenticated direct-DML hardening (WP10) | **No** — SQL/ACL change is owner-gated and ordered after fleet compatibility | CONFIRMED OPEN RISK (12/12 grants still true on 17 Nov read-only catalogue) |
+| Keyset-first candidate (#473) | Done offline | **Research only; not a speed fix** (owner's later live counts: 627–634 SKUs/period ≪ 2000 cap) |
+| Source/hosted provenance, offline CI | Yes | Re-verified as stated above |
+
+**Net:** every remaining gate needs the owner's authenticated session, real role identities, or a separate owner approval. None can be completed here. WP10/WP12 OPEN; WP11 CLOSED; programme 11/13; Electron HOLD.
+
+### Exact next owner decisions
+1. **Witness (smallest, highest value):** nominate who opens the *normal* (flag-OFF) November 2026 Cost Comparison screen **once** in a real signed-in desktop browser and records only: time (IST), visible success/error, and — from DevTools Network, status/duration only, filtered to the comparison request, no bodies/headers/tokens/values. Confirm first that the worker is v394 and the browser-local flag is unset/OFF. **Stop at the first statement-timeout (57014/500) and do not repeat.** A pass is one observation, not a p95.
+2. **If it times out or is marginal:** choose between (a) keep the flag OFF and accept the lens as unreliable pending redesign, (b) authorise a **time-boxed browser-local scoped-RPC pilot** for named View-only users (rollback = remove the local value), or (c) authorise a separately reviewed redesign/index/statistics investigation. **Do not** choose the keyset-first candidate as the fix on present evidence.
+3. **Role evidence:** supply legitimate existing Editor/View-only/No-access sessions for the role matrix and seven negative GETs, or explicitly accept the narrower "one existing account" evidence as the WP12 receiving standard.
+4. **WP10:** confirm the order — fleet-compatible release first, then four-table ACL/RLS hardening — and whether optional PR #463 (guards SQL) and PR #471 (fleet inventory) stay out of scope.
+5. **Release:** separate approval for candidate packaging only after items 1–3; publication remains a further, exact-version approval.
+6. **PRs:** #472 and #473 stay draft; #473 contains research/test/docs only and should not be merged as a performance fix.
