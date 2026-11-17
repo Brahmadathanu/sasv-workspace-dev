@@ -6,6 +6,8 @@ import {pgAvailable,startPg,g2FixtureSql,PRODUCTS_SEED,session} from "./fixture.
 if(!pgAvailable()){console.error("BLOCKED PostgreSQL unavailable");process.exit(2);}
 const pg=startPg();
 const script=execFileSync(process.execPath,[new URL("./gen-unified-05-cl15-rm1-review.mjs",import.meta.url).pathname],{encoding:"utf8"});
+const rollback=execFileSync(process.execPath,[new URL("./gen-unified-05-cl15-rm1-rollback-review.mjs",import.meta.url).pathname],{encoding:"utf8"});
+const rollbackManifest=JSON.parse(execFileSync(process.execPath,[new URL("./gen-unified-05-cl15-rm1-rollback-review.mjs",import.meta.url).pathname,"--manifest"],{encoding:"utf8"}));
 const manifest=JSON.parse(execFileSync(process.execPath,[new URL("./gen-unified-05-cl15-rm1-review.mjs",import.meta.url).pathname,"--manifest"],{encoding:"utf8"}));
 const lifecycle=fs.readFileSync(new URL("./route-map-lifecycle-gap.test.mjs",import.meta.url),"utf8");
 const match=lifecycle.match(/const liveRpc=String\.raw\x60([\s\S]*?)\x60;/);
@@ -39,6 +41,27 @@ select public.rpc_set_product_sku_active(1,true,'unified fixture');
  const bad=pg.script(db,writer+"select public.rpc_inactivate_product_subgroup_route_family_mapping(1,date '2026-11-15','The active product must retain its route');");
  ck("U7 combined package vetoes unsafe reasoned inactivation",bad.code!==0&&/WP10_RM1_ROUTE_IMPACT_REJECTED/.test(bad.err),bad.err.slice(-200));
  ck("U8 failed reasoned inactivation rolls back state and audit",pg.sql(db,"select status from costing.production_route_family_product_subgroup_map where id=1")==="APPROVED"&&pg.sql(db,"select count(*) from costing.production_route_family_product_subgroup_inactivation_audit")==="0");
+ const validPredecessorReplacement=pg.script(db,writer+
+ "insert into costing.production_route_family(id,status,effective_from) values(901,'APPROVED',date '2026-01-01');"+
+ "insert into costing.production_route_family_route(route_family_id,status,effective_from) values(901,'APPROVED',date '2026-01-01');"+
+ "insert into costing.production_route_family_product_map(product_id,route_family_id,status,effective_from) values(1,901,'APPROVED',date '2026-01-01');"+
+ "select public.rpc_inactivate_product_subgroup_route_family_mapping(1,date '2026-11-15','Product mapping valid route remains');");
+ ck("U9 safe audited subgroup inactivation after product override succeeds",validPredecessorReplacement.code===0,validPredecessorReplacement.err.slice(-200));
+ ck("U10 exactly one immutable reason event exists prior to rollback",
+   pg.sql(db,"select count(*) from costing.production_route_family_product_subgroup_inactivation_audit")==="1");
+ const rb=pg.script(db,rollback);
+ ck("U11 unified reverse-order rollback succeeds with retained nonempty audit history",rb.code===0,rb.err.slice(-300));
+ ck("U12 original 2-arg governed function survives, 3-arg wrapper removed",
+   pg.sql(db,"select to_regprocedure('public.rpc_inactivate_product_subgroup_route_family_mapping(bigint,date)') is not null")==="t"&&
+   pg.sql(db,"select to_regprocedure('public.rpc_inactivate_product_subgroup_route_family_mapping(bigint,date,text)') is null")==="t");
+ ck("U13 all six review impact/lock triggers removed without touching original business data",
+   pg.sql(db,"select count(*) from pg_trigger where tgname in ('trg_wp10_rm1_product_mapping_impact','trg_wp10_rm1_subgroup_mapping_impact','trg_wp10_rm1_group_mapping_impact','trg_wp10_product_route_impact_before','trg_wp10_product_route_impact_after','trg_aa_wp10_activation_parent_lock')")==="0");
+ ck("U14 retained audit event and its update/delete veto survive rollback",
+   pg.sql(db,"select inactivation_reason from costing.production_route_family_product_subgroup_inactivation_audit where id=1")==="Product mapping valid route remains"&&
+   pg.sql(db,"select count(*) from pg_trigger where tgname='trg_wp10_rm1_reason_audit_immutable'")==="1");
+ const tamper=pg.script(db,"update costing.production_route_family_product_subgroup_inactivation_audit set inactivation_reason='altered' where id=1;");
+ ck("U15 preserved audit cannot be edited after rollback",tamper.code!==0 && /WP10_RM1_REASON_AUDIT_IMMUTABLE/.test(tamper.err));
+ ck("U16 rollback manifest is atomic and conserves audit records",rollbackManifest.begin_count===1&&rollbackManifest.commit_count===1&&rollbackManifest.retains_reason_audit_table===true);
  console.log(JSON.stringify({pass,fail,unified_sha256:manifest.sha256,production_ddl:false,environment:"DISPOSABLE_POSTGRESQL_ONLY"}));
 }catch(e){console.error("FAIL/BLOCKED "+e.stack);fail++;}
 finally{pg.stop();}
