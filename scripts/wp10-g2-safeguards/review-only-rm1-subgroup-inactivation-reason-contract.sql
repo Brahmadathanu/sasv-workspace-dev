@@ -26,6 +26,21 @@ create table costing.production_route_family_product_subgroup_inactivation_audit
 );
 alter table costing.production_route_family_product_subgroup_inactivation_audit enable row level security;
 revoke all on costing.production_route_family_product_subgroup_inactivation_audit from public,anon,authenticated;
+-- Guard historical audit rows against UPDATE or DELETE even by a privileged table writer.
+-- Retained alongside the audit table during a wrapper/client rollback.
+create function costing.fn_wp10_rm1_reason_audit_immutable()
+returns trigger language plpgsql security definer
+set search_path=costing,public,pg_temp
+as $audit$
+begin
+ raise exception using errcode='P0001',
+  message='WP10_RM1_REASON_AUDIT_IMMUTABLE: existing reason events cannot be updated or deleted';
+end $audit$;
+revoke all on function costing.fn_wp10_rm1_reason_audit_immutable() from public,anon,authenticated;
+create trigger trg_wp10_rm1_reason_audit_immutable
+ before update or delete on costing.production_route_family_product_subgroup_inactivation_audit
+ for each row execute function costing.fn_wp10_rm1_reason_audit_immutable();
+
 
 create function public.rpc_inactivate_product_subgroup_route_family_mapping(
  p_mapping_id bigint, p_effective_to date, p_inactivation_reason text
