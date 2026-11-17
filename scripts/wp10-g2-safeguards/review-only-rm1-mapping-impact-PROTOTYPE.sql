@@ -22,19 +22,30 @@ create function costing.fn_wp10_rm1_deferred_mapping_impact()
 returns trigger language plpgsql security definer
 set search_path=costing,public,pg_temp
 as $rm1$
-declare p record; v_json jsonb; v_valid text; v_today date;
+declare p record; v_json jsonb; v_valid text; v_today date; v_old jsonb; v_new jsonb;
 begin
- -- A deferred constraint trigger sees final multi-row replacement state at COMMIT.
- -- Inactive/terminal history edits unrelated to a formerly approved map are untouched.
- if old.status is distinct from 'APPROVED' or old.archived_at is not null then return null; end if;
- if to_jsonb(old) is not distinct from to_jsonb(new) then return null; end if;
- -- Ignore immutable metadata-only changes; protect only route-affecting transitions.
- if old.status is not distinct from new.status
-    and old.route_family_id is not distinct from new.route_family_id
-    and old.effective_from is not distinct from new.effective_from
-    and old.effective_to is not distinct from new.effective_to
-    and old.archived_at is not distinct from new.archived_at
- then return null; end if;
+ -- A deferred constraint trigger validates the final multi-row transaction state.
+ -- BOTH demotion of an approved mapping AND newly-approved shadowing must be checked.
+ -- Specifically: a Draft -> Approved product override can take precedence over a valid
+ -- subgroup route; old.status='APPROVED' alone is NOT a sufficient event filter.
+ v_new:=to_jsonb(new);
+ if tg_op='INSERT' then
+   v_old:='{}'::jsonb;
+   if new.status is distinct from 'APPROVED' or new.archived_at is not null then return null; end if;
+ else
+   v_old:=to_jsonb(old);
+   if v_old is not distinct from v_new then return null; end if;
+   if (old.status is distinct from 'APPROVED' or old.archived_at is not null)
+     and (new.status is distinct from 'APPROVED' or new.archived_at is not null)
+   then return null; end if;
+   -- Ignore metadata-only changes to an already approved mapping.
+   if old.status is not distinct from new.status
+      and old.route_family_id is not distinct from new.route_family_id
+      and old.effective_from is not distinct from new.effective_from
+      and old.effective_to is not distinct from new.effective_to
+      and old.archived_at is not distinct from new.archived_at
+   then return null; end if;
+ end if;
  v_today:=costing.fn_wp10_today_ist();
  -- Product FOR UPDATE conflicts with activation's parent SHARE lock, forcing serialisation.
  -- Every evaluated product with one or more active SKUs must retain a valid route.
@@ -42,12 +53,12 @@ begin
   select distinct pr.id
   from public.products pr
   where (tg_table_name='production_route_family_product_map'
-         and pr.id in ((to_jsonb(old)->>'product_id')::integer,(to_jsonb(new)->>'product_id')::integer))
+         and pr.id in ((v_old->>'product_id')::integer,(v_new->>'product_id')::integer))
      or (tg_table_name='production_route_family_product_subgroup_map'
-         and pr.sub_group_id in ((to_jsonb(old)->>'product_subgroup_id')::integer,(to_jsonb(new)->>'product_subgroup_id')::integer))
+         and pr.sub_group_id in ((v_old->>'product_subgroup_id')::integer,(v_new->>'product_subgroup_id')::integer))
      or (tg_table_name='production_route_family_product_group_map'
          and exists (select 1 from public.sub_groups sg where sg.id=pr.sub_group_id
-           and sg.product_group_id in ((to_jsonb(old)->>'product_group_id')::integer,(to_jsonb(new)->>'product_group_id')::integer)))
+           and sg.product_group_id in ((v_old->>'product_group_id')::integer,(v_new->>'product_group_id')::integer)))
   order by pr.id
  loop
   perform 1 from public.products x where x.id=p.id for update;
@@ -72,15 +83,15 @@ end $rm1$;
 revoke all on function costing.fn_wp10_rm1_deferred_mapping_impact() from public,anon,authenticated;
 
 create constraint trigger trg_wp10_rm1_product_mapping_impact
-after update on costing.production_route_family_product_map
+after insert or update on costing.production_route_family_product_map
 deferrable initially deferred for each row
 execute function costing.fn_wp10_rm1_deferred_mapping_impact();
 create constraint trigger trg_wp10_rm1_subgroup_mapping_impact
-after update on costing.production_route_family_product_subgroup_map
+after insert or update on costing.production_route_family_product_subgroup_map
 deferrable initially deferred for each row
 execute function costing.fn_wp10_rm1_deferred_mapping_impact();
 create constraint trigger trg_wp10_rm1_group_mapping_impact
-after update on costing.production_route_family_product_group_map
+after insert or update on costing.production_route_family_product_group_map
 deferrable initially deferred for each row
 execute function costing.fn_wp10_rm1_deferred_mapping_impact();
 commit;
