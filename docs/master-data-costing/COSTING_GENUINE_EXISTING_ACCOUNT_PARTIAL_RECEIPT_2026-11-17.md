@@ -1,6 +1,6 @@
 # Genuine existing-account bounded browser acceptance — 17 November 2026
 
-**Executed in the available cloud browser, approximately 17:24–17:40 IST. PARTIAL authenticated read-only evidence; not full role, build, PWA or release acceptance.** No identity, credentials, JWT, session state, confidential rows or response bodies are included.
+**Executed in the available cloud browser, 17 November IST; exact per-action clock times were not captured. PARTIAL authenticated read-only evidence; not full role, build, PWA or release acceptance.** No identity, credentials, JWT, session state, confidential rows or response bodies are included.
 
 ## Authentication and method
 
