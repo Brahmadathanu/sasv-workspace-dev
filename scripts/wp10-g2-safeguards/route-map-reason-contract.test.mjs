@@ -36,8 +36,8 @@ try{
  check("C5 missing reason rejected",blankCall.code!==0 && /meaningful inactivation reason/.test(blankCall.err));
  const over=run(editor+family+
  "insert into costing.production_route_family(id,status,effective_from) values(901,'APPROVED',date '2026-01-01');"+
- "insert into costing.production_route_family_product_map(product_id,route_family_id,status,effective_from) values(1,901,'APPROVED',date '2026-01-01');"+
  "insert into costing.production_route_family_route(route_family_id,status,effective_from) values(901,'APPROVED',date '2026-01-01');"+
+ "insert into costing.production_route_family_product_map(product_id,route_family_id,status,effective_from) values(1,901,'APPROVED',date '2026-01-01');"+
  "insert into public.product_skus(product_id,pack_size,uom) values (1,50,'mL');"+
  "select public.fx_complete(1,1,'ROUTE');"+
  ACTIVATE(1)+
