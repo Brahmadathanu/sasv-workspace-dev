@@ -8,7 +8,7 @@ if(!pgAvailable()){console.error("BLOCKED isolated PostgreSQL unavailable");proc
 const pg=startPg(),read=n=>fs.readFileSync(new URL(n,import.meta.url),"utf8");
 const rm1=read("review-only-rm1-mapping-impact-PROTOTYPE.sql");
 const old=rm1.replace(/^\s*and \(v_old->>'(?:product_id|product_subgroup_id|product_group_id)'\) is not distinct from \(v_new->>'(?:product_id|product_subgroup_id|product_group_id)'\)\s*$/gm,"");
-if(old===rm1||old.includes("(v_old->>'product_id')"))throw Error("could not reconstruct previous metadata-only omission");
+if(old===rm1||old.includes("and (v_old->>'product_id') is not distinct from"))throw Error("could not reconstruct previous metadata-only omission");
 const base=g2FixtureSql({load:["clock","states","reparent","route"]})+PRODUCTS_SEED+read("review-only-activation-parent-lock-PROPOSAL.sql");
 const actor=session({perms:"module:manage-products:view,module:manage-products:edit,module:production-route-manager:edit"});
 const setup=(which,guard)=>{
