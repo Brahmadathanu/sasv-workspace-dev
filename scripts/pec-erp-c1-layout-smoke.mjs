@@ -220,6 +220,68 @@ for (const [scn, kind] of [[{ role: "edit", empty: true }, "is-empty"], [{ role:
   await ctx.close();
 }
 
+// Action Queue detail → Select Vendor: actual Chromium hover/focus and responsive layout.
+// The fixture returns only synthetic rows; no production RPC or business mutation.
+for (const vp of VIEWPORTS) {
+  const { ctx, page, errors } = await open({ role: "edit" }, vp);
+  const tag = `[AQ ${vp.name}]`;
+  if (vp.width <= 520) await page.selectOption("#procTabSelect", "action");
+  else await page.click('.tabs .tab-btn[data-tab="action"]');
+  await page.waitForSelector("#aqTbody tr:not(.pec-table-state)", { timeout: 6000 });
+  await page.click("#aqTbody tr:first-child");
+  await page.waitForSelector("#detailModalBackdrop.show");
+  const ids = ["btnDetailRecommend", "btnDetailSelectVendor", "btnDetailJumpIndent"];
+  const paths = await page.evaluate(() => ["btnDetailRecommend", "btnDetailSelectVendor", "btnDetailJumpIndent"].map(
+    id => document.getElementById(id).querySelector("svg").innerHTML.trim()
+  ));
+  check(new Set(paths).size === 3, `${tag} action roles use distinct semantic SVGs`);
+  const readable = (await page.evaluate(() => {
+    const ids = ["btnDetailRecommend", "btnDetailSelectVendor", "btnDetailJumpIndent"];
+    return ids.map(id => {
+      const b = document.getElementById(id), c = getComputedStyle(b);
+      const r = b.getBoundingClientRect(), p = b.parentElement.getBoundingClientRect();
+      const label = b.querySelector("span");
+      return { id, width: r.width, parentWidth: p.width, height: r.height,
+        labelVisible: label && getComputedStyle(label).display !== "none",
+        color: c.color, background: c.backgroundColor, scroll: b.scrollWidth > b.clientWidth + 2 };
+    });
+  }));
+  check(readable.every(r => r.width >= r.parentWidth - 3 && r.height >= 44),
+    `${tag} all action buttons full-width and touch-sized`);
+  check(readable.every(r => r.labelVisible && !r.scroll),
+    `${tag} action labels visible without clipping`);
+  for (const id of ids) {
+    await page.hover("#" + id);
+    const info = await page.evaluate((id) => {
+      const b = document.getElementById(id), c = getComputedStyle(b);
+      const toRgb = x => (x.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+      const lum = rgb => {
+        const v = rgb.map(x => x / 255).map(x => x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4);
+        return v[0] * 0.2126 + v[1] * 0.7152 + v[2] * 0.0722;
+      };
+      const foreground = lum(toRgb(c.color)), background = lum(toRgb(c.backgroundColor));
+      return { ratio: (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05),
+        color: c.color, background: c.backgroundColor };
+    }, id);
+    check(info.ratio >= 4.5, `${tag} ${id} hover text contrast ${info.ratio.toFixed(2)}:1`);
+  }
+  await page.click("#btnDetailSelectVendor");
+  await page.waitForSelector("#vendorModalBackdrop.show");
+  check(await page.isVisible("#aqVendorSearchInput"), `${tag} vendor selection search accessible`);
+  check(await page.isVisible("#btnVendorSave"), `${tag} vendor dialog actions visible`);
+  const footer = await page.evaluate(() => {
+    const m = document.querySelector("#vendorModalBackdrop > .modal").getBoundingClientRect();
+    const actions = document.querySelector("#vendorModalBackdrop .actions").getBoundingClientRect();
+    return { within: actions.bottom <= m.bottom + 2 && actions.left >= m.left - 2 };
+  });
+  check(footer.within, `${tag} vendor dialog footer contained`);
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-aq-select-vendor-modal.png`) });
+  await page.click("#btnVendorClose");
+  check(!(await page.isVisible("#vendorModalBackdrop.show")), `${tag} vendor dialog closes without side effects`);
+  check(errors.length === 0, `${tag} no Action Queue modal page errors ${errors.join("|")}`);
+  await ctx.close();
+}
+
 await browser.close();
 server.close();
 if (failures) { console.error(`pec-erp-c1-layout-smoke: ${failures} FAILED`); process.exit(1); }

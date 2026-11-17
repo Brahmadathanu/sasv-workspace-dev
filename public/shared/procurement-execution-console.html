@@ -910,6 +910,161 @@
       .detail-action-buttons .icon-btn svg {
         flex-shrink: 0;
       }
+      /* Action Queue row detail: dedicated high-contrast, full-width ERP actions.
+         Scoped to this modal to avoid the shared button:hover color override. */
+      #detailModalBackdrop .detail-action-buttons {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+      }
+      #detailModalBackdrop .detail-action-buttons .icon-btn {
+        display: inline-flex;
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+        padding: 9px 12px;
+        gap: 10px;
+        align-items: center;
+        justify-content: flex-start;
+        text-align: left;
+        border-radius: 9px;
+        line-height: 1.3;
+        color: #164e48;
+        background: #e8f5f1;
+        border: 1px solid #a8d4cb;
+        box-shadow: none;
+      }
+      #detailModalBackdrop .detail-action-buttons .icon-btn > span {
+        display: block;
+        flex: 1;
+        min-width: 0;
+        white-space: normal;
+        overflow-wrap: normal;
+        text-align: left;
+      }
+      #detailModalBackdrop .detail-action-buttons .icon-btn svg {
+        width: 19px;
+        height: 19px;
+        flex: 0 0 19px;
+        stroke: currentColor;
+      }
+      #detailModalBackdrop .detail-action-buttons .icon-btn.primary:hover:not(:disabled),
+      #detailModalBackdrop .detail-action-buttons .icon-btn.primary:focus-visible {
+        color: #0e4942 !important;
+        background: #ceeae3 !important;
+        border-color: #65ada1 !important;
+      }
+      #detailModalBackdrop .detail-action-buttons .icon-btn.secondary {
+        color: #1d4d81;
+        background: #edf4ff;
+        border-color: #b8d0ef;
+      }
+      #detailModalBackdrop .detail-action-buttons .icon-btn.secondary:hover:not(:disabled),
+      #detailModalBackdrop .detail-action-buttons .icon-btn.secondary:focus-visible {
+        color: #164575 !important;
+        background: #d8e9ff !important;
+        border-color: #7ba9df !important;
+      }
+      #detailModalBackdrop .detail-action-buttons .icon-btn.ghost {
+        color: #334155;
+        background: #f8fafc;
+        border-color: #cbd5e1;
+      }
+      #detailModalBackdrop .detail-action-buttons .icon-btn.ghost:hover:not(:disabled),
+      #detailModalBackdrop .detail-action-buttons .icon-btn.ghost:focus-visible {
+        color: #1e293b !important;
+        background: #e9eef4 !important;
+        border-color: #94a3b8 !important;
+      }
+      #detailModalBackdrop .detail-action-buttons .icon-btn:focus-visible,
+      #vendorModalBackdrop button:focus-visible,
+      #clearSelectedVendorModalBackdrop button:focus-visible {
+        outline: 2px solid #087f8c;
+        outline-offset: 2px;
+      }
+      #detailModalBackdrop .detail-action-buttons .icon-btn:disabled,
+      #detailModalBackdrop .detail-action-buttons .icon-btn:disabled:hover {
+        color: #667085 !important;
+        background: #f1f5f9 !important;
+        border-color: #d8dee6 !important;
+        opacity: 0.72;
+      }
+      /* Follow-on selection and confirmation dialogs use the same compact modal
+         language; do not alter vendor selection/confirmation business handling. */
+      #vendorModalBackdrop > .modal,
+      #clearSelectedVendorModalBackdrop > .modal {
+        padding: 0;
+        overflow: hidden;
+        border-radius: 12px;
+      }
+      #vendorModalBackdrop .modal-header,
+      #clearSelectedVendorModalBackdrop .modal-header {
+        margin: 0;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        background: #f8fafc;
+      }
+      #vendorModalBackdrop .modal-body,
+      #clearSelectedVendorModalBackdrop .modal-body {
+        padding: 16px;
+        min-height: 0;
+        overflow-y: auto;
+      }
+      #vendorModalBackdrop .actions,
+      #clearSelectedVendorModalBackdrop .actions {
+        margin: 0;
+        padding: 12px 16px;
+        border-top: 1px solid var(--border, #e5e7eb);
+        background: #f8fafc;
+      }
+      #vendorModalBackdrop .actions button,
+      #clearSelectedVendorModalBackdrop .actions button {
+        min-height: 40px;
+        border-radius: 8px;
+      }
+      #vendorModalBackdrop .actions button:hover:not(:disabled),
+      #clearSelectedVendorModalBackdrop .actions button:hover:not(:disabled) {
+        opacity: 1;
+      }
+      #vendorModalBackdrop .erp-choice-row:focus-within {
+        border-color: #087f8c;
+        outline: 2px solid #93d5d0;
+        outline-offset: 1px;
+      }
+      [data-theme="dark"] #detailModalBackdrop .detail-action-buttons .icon-btn.primary {
+        color: #b8efe2;
+        background: #17483f;
+        border-color: #438678;
+      }
+      [data-theme="dark"] #detailModalBackdrop .detail-action-buttons .icon-btn.secondary {
+        color: #bfdbfe;
+        background: #1e385c;
+        border-color: #4976a6;
+      }
+      [data-theme="dark"] #detailModalBackdrop .detail-action-buttons .icon-btn.ghost {
+        color: #e2e8f0;
+        background: #263344;
+        border-color: #4a5c72;
+      }
+      [data-theme="dark"] #detailModalBackdrop .detail-action-buttons .icon-btn.primary:hover:not(:disabled) {
+        color: #e0fff5 !important;
+        background: #235b50 !important;
+      }
+      [data-theme="dark"] #detailModalBackdrop .detail-action-buttons .icon-btn.secondary:hover:not(:disabled) {
+        color: #eff6ff !important;
+        background: #30527a !important;
+      }
+      [data-theme="dark"] #detailModalBackdrop .detail-action-buttons .icon-btn.ghost:hover:not(:disabled) {
+        color: #fff !important;
+        background: #39495f !important;
+      }
+      [data-theme="dark"] #vendorModalBackdrop .modal-header,
+      [data-theme="dark"] #clearSelectedVendorModalBackdrop .modal-header,
+      [data-theme="dark"] #vendorModalBackdrop .actions,
+      [data-theme="dark"] #clearSelectedVendorModalBackdrop .actions {
+        background: #263344;
+      }
       @media (max-width: 980px) {
         .detail-shell {
           grid-template-columns: 1fr;
@@ -3890,24 +4045,11 @@
                     title="Recommend vendor"
                     aria-label="Recommend vendor"
                   >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      aria-hidden="true"
-                    >
-                      <path d="M15 4V2" />
-                      <path d="M15 16v-2" />
-                      <path d="M8 9h2" />
-                      <path d="M20 9h2" />
-                      <path d="M17.8 11.8 19 13" />
-                      <path d="M15 9h0" />
-                      <path d="M17.8 6.2 11 5" />
-                      <path d="M3 21l9-9" />
-                      <path d="M12.2 6.2 11 5" />
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <circle cx="9" cy="8" r="3" />
+                      <path d="M3 19v-1a6 6 0 0 1 10.5-4" />
+                      <path d="m17 12 .8 2.2L20 15l-2.2.8L17 18l-.8-2.2L14 15l2.2-.8L17 12Z" />
+                      <path d="M20 4v4M18 6h4" />
                     </svg>
                     <span>Recommend vendor</span>
                   </button>
@@ -3919,16 +4061,10 @@
                     title="Select vendor"
                     aria-label="Select vendor"
                   >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      aria-hidden="true"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <circle cx="8" cy="8" r="3" />
+                      <path d="M2.5 20v-2a5.5 5.5 0 0 1 9.8-3.4" />
+                      <path d="m14.5 16 2.5 2.5 5-6" />
                     </svg>
                     <span>Select vendor</span>
                   </button>
@@ -3965,17 +4101,11 @@
                     title="Jump to indent"
                     aria-label="Jump to indent"
                   >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      aria-hidden="true"
-                    >
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                      <polyline points="12 5 19 12 12 19" />
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8" />
+                      <path d="M13 3v5h5" />
+                      <path d="M8 12h5M8 16h3" />
+                      <path d="m16 15 4 3-4 3M20 18h-7" />
                     </svg>
                     <span>Jump to indent</span>
                   </button>
