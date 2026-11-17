@@ -1,0 +1,75 @@
+name: Costing Final-Source Release Receiver (READ ONLY)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/costing-release-readonly-receiver.yml'
+      - 'docs/master-data-costing/COSTING_RELEASE_SCOPE_AND_FINAL_RECEIVER_2026-11-17.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  release-receiver:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Define exact candidate and preserve receipts
+        run: |
+          set -euo pipefail
+          echo "CANDIDATE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/costing-release-evidence"
+          git rev-parse HEAD | tee "$RUNNER_TEMP/costing-release-evidence/checkout-sha.txt"
+          git show HEAD:package.json | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).version' | tee "$RUNNER_TEMP/costing-release-evidence/package-version.txt"
+      - name: Verify hosted six-Costing source asset bytes and service worker
+        run: |
+          set -euo pipefail
+          node scripts/costing-acceptance/verify-served-assets.mjs https://sasv-utilities-hub.netlify.app "$CANDIDATE_SHA" --expect-cache hub-cache-v393 --json "$RUNNER_TEMP/costing-release-evidence/six-costing-hosted.json" | tee "$RUNNER_TEMP/costing-release-evidence/six-costing-hosted.log"
+      - name: Verify hosted Product/BOM source assets
+        run: |
+          set -euo pipefail
+          node scripts/wp08-g2-0-shared-master-data/deploy-gate.mjs verify https://sasv-utilities-hub.netlify.app | tee "$RUNNER_TEMP/costing-release-evidence/shared-masters-hosted.log"
+      - name: Verify merged WP11 SKU Deactivate source contrast
+        run: |
+          set -euo pipefail
+          node --test scripts/wp11-sku-deactivate-contrast.test.mjs | tee "$RUNNER_TEMP/costing-release-evidence/wp11-sku-contrast.log"
+      - name: Install isolated Chromium for non-production mocks
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/costing-release-deps" --no-save --no-audit --no-fund --ignore-scripts playwright@1.62.1
+          "$RUNNER_TEMP/costing-release-deps/node_modules/.bin/playwright" install --with-deps chromium
+          echo "NODE_PATH=$RUNNER_TEMP/costing-release-deps/node_modules" >> "$GITHUB_ENV"
+      - name: Verify WP11 390px PM BOM in isolated Chromium
+        run: |
+          set -euo pipefail
+          node --test scripts/wp11-pm-bom-overflow.test.mjs | tee "$RUNNER_TEMP/costing-release-evidence/wp11-pm-bom-390-mock.log"
+      - name: Verify default OFF and all 11 flag combinations in mocked six-module pages
+        run: |
+          set -euo pipefail
+          unset COSTING_WP12_SKIP_BROWSER
+          node --test scripts/costing-wp12-flag-sweep/flag-sweep-browser.test.mjs | tee "$RUNNER_TEMP/costing-release-evidence/wp12-flag-mock.log"
+          if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/costing-release-evidence/wp12-flag-mock.log"; then exit 1; fi
+          grep -Eq '^# pass [1-9]' "$RUNNER_TEMP/costing-release-evidence/wp12-flag-mock.log"
+      - name: Non-substitutable release gates
+        if: always()
+        run: |
+          cat <<'EOF' | tee "$RUNNER_TEMP/costing-release-evidence/release-gates.txt"
+          VERIFIED BY THIS WORKFLOW: hosted static assets (if prior steps pass), isolated WP11 UI mocks, isolated WP12 mock flag matrix.
+          NOT TESTED HERE: real authenticated Editor/View/No-access and sensitive-view GET denials.
+          NOT TESTED HERE: installed PWA active service-worker/controller cache.
+          NOT TESTED HERE: populated production PM BOM 390px/Deactivate label and normal CSR default-OFF response.
+          NOT TESTED HERE: Windows NSIS/ZIP installed package, update, rollback and publication.
+          NOT AUTHORISED: production SQL or role changes, Electron publish, flags, workpack closure.
+          EOF
+      - name: Save independent read-only release-gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: costing-release-readonly-receiver
+          path: ${{ runner.temp }}/costing-release-evidence/
+          if-no-files-found: error
