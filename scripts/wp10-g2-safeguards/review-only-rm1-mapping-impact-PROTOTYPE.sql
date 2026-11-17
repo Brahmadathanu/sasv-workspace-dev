@@ -94,4 +94,22 @@ create constraint trigger trg_wp10_rm1_group_mapping_impact
 after insert or update on costing.production_route_family_product_group_map
 deferrable initially deferred for each row
 execute function costing.fn_wp10_rm1_deferred_mapping_impact();
+do $rm1_receipts$
+declare f oid; t oid; rec record;
+begin
+ f:=to_regprocedure('costing.fn_wp10_rm1_deferred_mapping_impact()');
+ if f is null then raise exception 'RM1 source function missing'; end if;
+ execute format('comment on function %s is %L',f::regprocedure,'WP10-RM1-REVIEW md5:'||md5(pg_get_functiondef(f)));
+ for rec in select * from (values
+   ('costing.production_route_family_product_map','trg_wp10_rm1_product_mapping_impact'),
+   ('costing.production_route_family_product_subgroup_map','trg_wp10_rm1_subgroup_mapping_impact'),
+   ('costing.production_route_family_product_group_map','trg_wp10_rm1_group_mapping_impact')
+ ) as x(tbl,tg) loop
+  select oid into t from pg_trigger
+   where tgrelid=rec.tbl::regclass and tgname=rec.tg and not tgisinternal;
+  if t is null then raise exception 'RM1 trigger receipt target missing: %',rec.tg; end if;
+  execute format('comment on trigger %I on %s is %L',
+    rec.tg,rec.tbl,'WP10-RM1-REVIEW md5:'||md5(pg_get_triggerdef(t)));
+ end loop;
+end $rm1_receipts$;
 commit;
