@@ -54,7 +54,7 @@ check("X4M2 unconditional Electron group sync mutation is rejected", !presentati
 
 // ---- service worker: delivery of the changed scripts without touching existing behaviour ----
 const sw = readFile("public/sw.js"), swBase = baselineFile("public/sw.js");
-check("SW1 CACHE_NAME is UNCHANGED (hub-cache-v393): network-first routing alone delivers the changed scripts, keeping the WP08 service-worker guards green", /CACHE_NAME = "hub-cache-v393"/.test(sw) && /CACHE_NAME = "hub-cache-v393"/.test(swBase));
+check("SW1 CACHE_NAME is UNCHANGED (hub-cache-v394): network-first routing alone delivers the changed scripts, keeping the WP08 service-worker guards green", /CACHE_NAME = "hub-cache-v394"/.test(sw) && /CACHE_NAME = "hub-cache-v394"/.test(swBase));
 const removedSw = swBase.split("\n").filter((l) => !sw.split("\n").includes(l));
 check("SW2 service-worker diff is ADD-ONLY (no existing line removed or edited; G2-0 and G2-1 patterns byte-identical)", removedSw.length === 0, removedSw.map((l) => l.slice(0, 60)).join(" | "));
 check("SW3 new files and the two changed cache-first scripts are network-first; PRECACHE list untouched (stale ETL precache cleanup deferred)", /launcher-presentation\(\?:-contract\)\?/.test(sw) && /launcher-presentation\\\.css/.test(sw) && /module-registry\\\.js/.test(sw) && /hub-auth\\\.js/.test(sw) && sw.split("const PRECACHE")[1].split("];")[0] === swBase.split("const PRECACHE")[1].split("];")[0]);

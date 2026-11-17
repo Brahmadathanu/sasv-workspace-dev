@@ -118,7 +118,7 @@ test("non-GET requests are never intercepted", async () => {
   assert.equal(await h.request(JS, "POST"), undefined);
 });
 test("cache version remains unchanged and no broad cache deletion added", () => {
-  assert.match(current, /const CACHE_NAME = "hub-cache-v393"/);
+  assert.match(current, /const CACHE_NAME = "hub-cache-v394"/);
   assert.equal((current.match(/\bcaches\.delete\(/g) || []).length, 1);
 });
 test("service-worker file has consistent newline style", () => {
