@@ -9129,6 +9129,54 @@ function closePrViewModal() {
   backdrop.setAttribute("aria-hidden", "true");
 }
 
+// Next PR number is a suggestion only. The existing unique index on
+// proc_pr_header.pr_number remains authoritative on concurrent creates.
+let prNumberSuggestionSeq = 0;
+
+function suggestNextPrNumber(rows, year) {
+  const y = String(year || "");
+  if (!/^\d{4}$/.test(y)) return "";
+  let highest = 0;
+  const pattern = new RegExp("^PR-" + y + "-(\\d+)$", "i");
+  for (const row of rows || []) {
+    const m = pattern.exec(String(row?.pr_number || "").trim());
+    if (m) {
+      const n = Number(m[1]);
+      if (Number.isSafeInteger(n) && n > highest) highest = n;
+    }
+  }
+  const next = highest + 1;
+  return `PR-${y}-${String(next).padStart(2, "0")}`;
+}
+
+async function updateGeneratePrNumberSuggestion() {
+  const input = qs("prNewNumber");
+  const hint = qs("prNumberHint");
+  const seq = ++prNumberSuggestionSeq;
+  const backdrop = qs("generatePrModalBackdrop");
+  if (!input || !backdrop?.classList.contains("show") ||
+      input.dataset.prUserEdited === "true") return;
+  const year = (qs("prEffectiveFrom")?.value || "").slice(0, 4);
+  if (hint) hint.textContent = "Checking the next available PR number…";
+  try {
+    // Unfiltered and read-only: the paged PR lens may omit older or filtered PRs.
+    const headers = await rpcPecPrHeaders();
+    if (seq !== prNumberSuggestionSeq || !backdrop.classList.contains("show") ||
+        input.dataset.prUserEdited === "true") return;
+    const suggested = suggestNextPrNumber(headers, year);
+    if (suggested) {
+      input.value = suggested;
+      if (hint) hint.textContent = "Suggested from existing PRs. You may edit it. A duplicate number is rejected when generating.";
+    } else if (hint) {
+      hint.textContent = "Enter a PR number manually.";
+    }
+  } catch {
+    if (seq !== prNumberSuggestionSeq || !backdrop.classList.contains("show") ||
+        input.dataset.prUserEdited === "true") return;
+    if (hint) hint.textContent = "Could not suggest a number. Enter one manually.";
+  }
+}
+
 function openGeneratePrModal() {
   if (!canPerformEditAction("Generate PR")) return;
   lastFocusedBeforeGeneratePrModal =
@@ -9137,6 +9185,7 @@ function openGeneratePrModal() {
       : null;
   qs("prEffectiveFrom").value = new Date().toISOString().slice(0, 10);
   qs("prNewNumber").value = "";
+  qs("prNewNumber").dataset.prUserEdited = "false";
   qs("prHorizonStart").value = "";
   qs("prHorizonEnd").value = "";
   qs("prMaterialClass").value = "";
@@ -9147,6 +9196,7 @@ function openGeneratePrModal() {
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
   qs("prNewNumber")?.focus();
+  void updateGeneratePrNumberSuggestion();
 }
 
 function updateGeneratePrRmScopeVisibility() {
@@ -9157,6 +9207,7 @@ function updateGeneratePrRmScopeVisibility() {
 }
 
 function closeGeneratePrModal() {
+  ++prNumberSuggestionSeq; // discard an in-flight suggestion after dismissal
   const backdrop = qs("generatePrModalBackdrop");
   const active = document.activeElement;
   if (active instanceof HTMLElement && backdrop.contains(active)) {
@@ -9484,6 +9535,17 @@ function wirePrControls() {
   qs("btnGenPrCancel").addEventListener("click", closeGeneratePrModal);
   qs("btnGenPrClose").addEventListener("click", closeGeneratePrModal);
   qs("btnGenPrConfirm").addEventListener("click", generateDraftPr);
+  qs("prNewNumber").addEventListener("input", () => {
+    qs("prNewNumber").dataset.prUserEdited = "true";
+    ++prNumberSuggestionSeq;
+    const hint = qs("prNumberHint");
+    if (hint) hint.textContent = "Custom PR number. Uniqueness is checked when generating.";
+  });
+  qs("prEffectiveFrom").addEventListener("change", () => {
+    if (qs("prNewNumber").dataset.prUserEdited !== "true") {
+      void updateGeneratePrNumberSuggestion();
+    }
+  });
   qs("prMaterialClass").addEventListener(
     "change",
     updateGeneratePrRmScopeVisibility,
