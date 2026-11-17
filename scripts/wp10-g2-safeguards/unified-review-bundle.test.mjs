@@ -23,7 +23,7 @@ try{
  if(installed.code)throw Error("unified install did not commit");
  ck("U2 candidate manifest is single-transaction and four reviewed sources",manifest.begin_count===1&&manifest.commit_count===1&&manifest.source_count===4);
  ck("U3 3 mapping triggers, 3 G2/CL15 triggers and private audit exist",
- pg.sql(db,"select count(*) from pg_trigger where tgname like 'trg_wp10_rm1_%'")==="3" &&
+ pg.sql(db,"select count(*) from pg_trigger where tgname in ('trg_wp10_rm1_product_mapping_impact','trg_wp10_rm1_subgroup_mapping_impact','trg_wp10_rm1_group_mapping_impact')")==="3" &&
  pg.sql(db,"select count(*) from pg_trigger where tgname in ('trg_wp10_product_route_impact_before','trg_wp10_product_route_impact_after','trg_aa_wp10_activation_parent_lock')")==="3" &&
  pg.sql(db,"select count(*) from information_schema.tables where table_schema='costing' and table_name='production_route_family_product_subgroup_inactivation_audit'")==="1");
  ck("U4 legacy and 3-arg RPC coexist",pg.sql(db,"select count(*) from pg_proc where oid in (to_regprocedure('public.rpc_inactivate_product_subgroup_route_family_mapping(bigint,date)'),to_regprocedure('public.rpc_inactivate_product_subgroup_route_family_mapping(bigint,date,text)'))")==="2");
@@ -58,9 +58,9 @@ select public.rpc_set_product_sku_active(1,true,'unified fixture');
  ck("U13 all six review impact/lock triggers removed without touching original business data",
    pg.sql(db,"select count(*) from pg_trigger where tgname in ('trg_wp10_rm1_product_mapping_impact','trg_wp10_rm1_subgroup_mapping_impact','trg_wp10_rm1_group_mapping_impact','trg_wp10_product_route_impact_before','trg_wp10_product_route_impact_after','trg_aa_wp10_activation_parent_lock')")==="0");
  ck("U14 retained audit event and its update/delete veto survive rollback",
-   pg.sql(db,"select inactivation_reason from costing.production_route_family_product_subgroup_inactivation_audit where id=1")==="Product mapping valid route remains"&&
+   pg.sql(db,"select inactivation_reason from costing.production_route_family_product_subgroup_inactivation_audit order by id desc limit 1")==="Product mapping valid route remains"&&
    pg.sql(db,"select count(*) from pg_trigger where tgname='trg_wp10_rm1_reason_audit_immutable'")==="1");
- const tamper=pg.script(db,"update costing.production_route_family_product_subgroup_inactivation_audit set inactivation_reason='altered' where id=1;");
+ const tamper=pg.script(db,"update costing.production_route_family_product_subgroup_inactivation_audit set inactivation_reason='altered' where id=(select max(id) from costing.production_route_family_product_subgroup_inactivation_audit);");
  ck("U15 preserved audit cannot be edited after rollback",tamper.code!==0 && /WP10_RM1_REASON_AUDIT_IMMUTABLE/.test(tamper.err));
  ck("U16 rollback manifest is atomic and conserves audit records",rollbackManifest.begin_count===1&&rollbackManifest.commit_count===1&&rollbackManifest.retains_reason_audit_table===true);
  const missing=pg.newDb(),mb=pg.script(missing,g2FixtureSql({load:["clock","states","reparent"]})+PRODUCTS_SEED);
