@@ -50,6 +50,15 @@ try{
  const denied=run(family+
  T("permission","select public.rpc_inactivate_product_subgroup_route_family_mapping(1,date '2026-11-15','A genuine reason but no module edit')"));
  check("C11 no editor permission rejects request",denied.log.permission?.ok===false);
+ const legacy=run(editor+family+
+  T("legacy_two_arg","select public.rpc_inactivate_product_subgroup_route_family_mapping(1,date '2026-11-15')"));
+ check("C12 legacy two-arg invocation still succeeds under prior edit permission",legacy.log.legacy_two_arg?.ok===true);
+ check("C13 legacy two-arg invocation leaves no required reason audit (cutover risk)",
+  legacy.one("select status from costing.production_route_family_product_subgroup_map where id=1")==="INACTIVE" &&
+  legacy.one("select count(*) from costing.production_route_family_product_subgroup_inactivation_audit")==="0");
+ // This is intentionally a positive proof of an OPEN governance hole. The three-arg overload
+ // cannot enforce reason capture while legacy two-arg EXECUTE is still available.
+
  console.log(JSON.stringify({pass,fail,isolation:"DISPOSABLE_ONLY",production_ddl:false}));
 }catch(err){console.error("FAIL/BLOCKED "+err.stack);fail++;}
 finally{cluster.stop();}
