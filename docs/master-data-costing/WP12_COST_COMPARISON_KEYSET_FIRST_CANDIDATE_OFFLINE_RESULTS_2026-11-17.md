@@ -87,3 +87,16 @@ Further read-only `pg_indexes` inspection found:
 - `uq_cost_sheet_monthly_snapshot_line` also leads with `(snapshot_period_start, valuation_date, refresh_run_id, ...)`.
 
 This corrects any overly strong claim that the earlier planned `idx_cost_sheet_monthly_exact_tuple` path already guarantees efficient period+run lookup. **Neither a new index nor a rewrite is authorised from catalogue evidence alone**. Use a nonexecuting extracted-body `EXPLAIN` to compare actual chosen plan nodes/estimates and investigate the existing `refresh_run_id`-leading index. No changes were applied.
+
+### Additional plain EXPLAIN and statistics evidence — candidate selection shifts toward planner diagnosis
+Read-only plain `EXPLAIN` of **simple indexed SELECTs only** (not the comparison function; no `ANALYZE` and no row execution) on `costing.cost_sheet_line_monthly_snapshot` with each exact governed `period + refresh_run_id` pair returned:
+
+| Period/run | Planner estimated rows | Actual bounded governed line count | Planned access |
+|---|---:|---:|---|
+| Sep 2026 / 122 | 17,615 | 27,896 | `idx_cost_sheet_monthly_run_sku`, `Index Cond refresh_run_id=122`, period as Filter |
+| Oct 2026 / 143 | 8,564 | 27,588 | `idx_cost_sheet_monthly_exact_tuple`, both period and run in Index Cond |
+| Nov 2026 / 152 | **1** | **27,676** | `idx_cost_sheet_monthly_run_sku`, `Index Cond refresh_run_id=152`, period as Filter |
+
+These are **simple probe SELECT plans**, not the actual pivot/function plans. They demonstrate significant cardinality estimation error for the current governed run, especially November; they do *not* prove a corresponding improvement from any particular index, statistics refresh, or query rewrite. Index paths vary by month. `pg_stats` for this table reports `n_distinct` estimates of 49 refresh runs, 6 period starts and 10 valuation dates; `pg_stat_all_tables.last_analyze` was 2026-11-05, with ~55k estimated modifications since. A conditional read-only review of whether newer runs are underrepresented in statistics is now more valuable than pursuing the 2,000-row keyset cap.
+
+**Updated recommended next step:** run only narrowly targeted, non-executing `EXPLAIN` of the exact installed RPC's extracted internal SELECT (three periods) and inspect plan choices and estimates. Separately prepare a specific **ANALYZE impact assessment** for owner approval (no refresh performed yet): what table would be analysed, operational impact, pre/post plan capture, rollback limitations, expected monitoring and reapproval requirements. Do not claim that `ANALYZE` will fix timeout solely from these estimates; actual authenticated latency and status are still required. No feature-flag pilot or release approval was granted.
