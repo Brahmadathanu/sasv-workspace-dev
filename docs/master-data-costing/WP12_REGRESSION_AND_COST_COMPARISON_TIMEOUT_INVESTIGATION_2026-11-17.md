@@ -59,3 +59,41 @@ Role matrix (Editor/View-only/No-access), V1-V7 negative GETs, ordinary Cost Com
 1. Choose R-1 option (a), (b) or (c).
 2. Authorise the read-only metadata plus plain EXPLAIN session (§4.1): yes/no.
 3. Choose release posture: keep OFF with accepted risk, or authorise a time-boxed scoped-RPC pilot (§4.2), and/or authorise a repo-only keyset-first proposal (§4.3).
+
+
+## 7. Owner-approved R-1 correction and re-verification (17 Nov 2026, later)
+**Owner decision:** R-1 option (a): revert the two comment edits. `public/shared/js/costing-feature-flags.js` and `public/shared/js/costing-cost-comparison-read.js` were restored byte-for-byte to `main` `8c7648fab72f2cf2e40bacc74e8fe59bedca2777` (`git checkout origin/main -- <file>`). The corrected factual explanation (scoped RPC is **installed**, flag default OFF, release mode undecided) now lives only in documentation. WP10 guard allowlist unchanged; no application behaviour changed.
+- Corrected PR head after revert: `d181b5a94003a1fd976376d2f99fa4bc7c03adaa` (docs-only vs main; `git diff origin/main -- public index.html main.js electron` is empty).
+- **R-1 re-test:** `scripts/wp10-g2-safeguards/source.test.mjs` on that head: **11/11 PASS** (previously failed S4). 
+
+### Re-run of the 96-file source set in a Linux environment (WSL2 Ubuntu 24.04, Node v22.11.0, PostgreSQL 16 client/server binaries, clone of head `d181b5a`, `origin/main` ref pinned to `8c7648f`)
+| Outcome | Count |
+| --- | ---: |
+| PASS | 85 |
+| FAIL | 11 |
+
+Previously-failing items now **genuinely PASS on Linux** (PostgreSQL fixtures actually executed, `skipped 0`): `csr-comparison-verifier/parity` 11/11, `wp10-g2-safeguards/{guards,horizon,preview,provenance}`, `wp10-g1-safeguard-audit/transition-fixture`, `csr-comparison-verifier/bench`, plus the Windows-host/ref failures (tar, `C:\tmp`, ESM URL, shallow history). These are synthetic isolated-fixture results, **not** genuine authenticated or production evidence.
+
+**Remaining 11 failures — none counted as PASS:**
+| Test | Cause | Class |
+| --- | --- | --- |
+| `cost-sheet-a4-narrow-layout`, `wp11-pm-bom-overflow`, `wp12-live-anonymous-denial` | Playwright/Chromium not installed in the WSL environment | **NOT TESTED in Linux**; these 3 did PASS in the earlier Windows run (Chromium available there), so they are credited from that run only |
+| `costing-ccc-uxf1`, `costing-review-worklist` | diff guard "no Costing or history-rewriting supabase change" flags the four WP10 G2 migrations (`20261116022440`..`022528`) added after the guard was written | **Baseline failure on pristine `main` too** (re-run on `8c7648f`: exit 1) |
+| `costing-w506-conf-server/migration-static` | "latest" migration now a WP10 G2 file, not the pinned W506 one | Baseline on `main` |
+| `costing-table-tools/table-tools-pkg3`, `pkg4` | pinned diff of `costing-suite-control-center.js` and related files differs from the pinned baseline | Baseline on `main` |
+| `costing-approval/sec-a2-strip`, `costing-draft-run-evidence/draft-run-evidence` | strict-equality assertions (colour/error-text constants) | Baseline on `main` (cause not investigated further; not caused by this PR) |
+| `wp10-g1-safeguard-audit/fixture-mutation` | `M0 invariant suite is clean on the unmodified fixture — asof-not-IST-today` (date-sensitive fixture) | Baseline on `main`; fixture depends on the current IST date |
+
+Reconciliation of the earlier Windows run (24 non-passing on the PR head; 23 of them also failed on pristine main): 16 were environmental (Windows host, no PostgreSQL, partial history, timeouts) and now PASS on Linux; the other 8 fail identically in both environments and on pristine `main` (baseline, listed above). Across both environments 88 of 96 files PASS in at least one environment (PostgreSQL fixtures only in Linux, Chromium suites only in Windows); 8 fail in both. **Pre-existing baseline failures are a repository-hygiene finding for the owner, not a result of this PR, and must not be treated as passes.** I did not edit tests or protected code. An attempt to create a non-root OS user in WSL was denied by the tool permission layer and was not worked around; the PG harness ran without it.
+
+### Read-only database metadata and plain EXPLAIN (item 3)
+**BLOCKED / NOT TESTED.** No approved database connection or Supabase connector is available in this session (no connector tool; no credentials were sought or used). No `pg_stat_user_tables`, `pg_roles.rolconfig` or `EXPLAIN` was run. The §4.1 query set therefore remains a pending owner-run item. No `EXPLAIN ANALYZE`, no execution of the comparison view, no statistics or SQL change.
+
+### Keyset-first proposal (item 4)
+Prepared as a repository-only document: [WP12_COST_COMPARISON_KEYSET_FIRST_PROPOSAL_2026-11-17.md](WP12_COST_COMPARISON_KEYSET_FIRST_PROPOSAL_2026-11-17.md). Unapplied, unbenchmarked.
+
+### Superseded statements
+§2 above (R-1 failure on head `89c379c`) is historical: it was corrected by the revert in this section. §4 recommendation 5 and the comment-edit references in the earlier checkpoint text are likewise superseded; the checkpoint's "Scoped source-comment correction committed" section is retained as history but those comment edits are no longer in the branch. The scoped-RPC flag remains OFF; no browser-local pilot is authorised.
+
+### Recommended next technical step
+Owner-run (or owner-authorised connector) **read-only metadata + plain `EXPLAIN` session** for Sep/Oct/Nov (stats freshness, `n_mod_since_analyze`, role `statement_timeout`, plan shape for the OFF view, installed RPC, and the keyset-first candidate once authored). That evidence decides between a separately approved `ANALYZE` and the keyset-first rewrite; in parallel, author the candidate SQL and fixtures in the isolated PG harness only.
