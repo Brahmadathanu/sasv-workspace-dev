@@ -71,3 +71,18 @@ Maintain repo documentation **during each meaningful work step**: capture source
 - [Focused authenticated browser receiving handoff](WP12_AUTHENTICATED_BROWSER_RECEIVING_HANDOFF_2026-11-17.md) now documents the smallest read-only genuine-role/Cost Comparison and V1–V7 sensitive-view negative receiving cases, safe redacted status/timing receipt format and fail-closed NOT TESTED handling.
 - This is **prepared procedure only**. No authenticated browser session was obtained and no live view GET, Cost Comparison UI request, flag change or role impersonation was executed here.
 - At review, earlier integrated PEC workflow run 44102021037 was SUCCESS; later runs 44102595032 and 44103104138 were still IN PROGRESS (no failures reported at that observation). Every new documentation head requires independent relevant CI status; no claim of current-head all-CI PASS.
+
+## WP12 browser-access attempt (built-in Claude desktop browser) — 17 Nov 2026
+**Provenance:** automated assistant session using the Claude desktop in-app browser pane against `https://sasv-utilities-hub.netlify.app`. The pane already held a signed-in session (hub shows "Signed in"). Identity and role were **not** disclosed or independently proved (no grant evidence; no credentials/JWT/cookies read). Claude-in-Chrome had no connected browser.
+
+| Case | Result | Notes / limitations |
+| --- | --- | --- |
+| Authenticated browser access to production | **PARTIAL** | Signed-in session of unproven role category; no second/restricted account available |
+| Editor / View-only / No-access matrix | **NOT TESTED** | No independently identified accounts; role not fabricated |
+| Seven sensitive-view negative GETs (V1–V7) | **NOT TESTED** | No proven No-access session and no approved safe GET method; no probes sent |
+| Default-OFF Cost Comparison (one load, Nov 2026 period) | **FAIL (UI-observed) — release risk** | Panel showed "Failed to load selected lens: canceling statement due to statement timeout" (PostgreSQL statement timeout) while the lens header showed 829 rows / page 1/26. Browser-local flag keys absent = default OFF. The pane's network tool did not list the Supabase REST call, so **HTTP status and elapsed ms are NOT captured**. Not repeated per handoff stop rule; the 2,000-row governed view is the OFF path. Owner decision needed re scoped-RPC mode. |
+| Installed PWA controller/cache | **PASS (observed)** | `navigator.serviceWorker.controller` = `/sw.js`; cache `hub-cache-v394` |
+| Browser-local default-OFF flags | **PASS (limited)** | No COSTING/flag keys in localStorage for this origin; flag values not modified |
+| Source/CI regressions | **NOT RUN here** | Local clone could not fully check out (Windows long paths); prior CI run 44102021037 SUCCESS only |
+
+No writers clicked, no flag/permission/SQL/data change, no response bodies captured. WP10/WP12 remain OPEN, 11/13, Electron HOLD.
