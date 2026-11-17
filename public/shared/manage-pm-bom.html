@@ -780,6 +780,15 @@
         }
       }
       @media (max-width: 640px) {
+        /* WP11: .hdr-top is nowrap above; at phone width its min-widths pushed the
+           Save/Reload/menu toolbar outside the clipped panel (unreachable). */
+        .panel-header .hdr-top {
+          flex-wrap: wrap;
+        }
+        .panel-header .product-heading-label,
+        .panel-header .erp-pills-bar {
+          min-width: 0;
+        }
         .panel-header .product-heading-label {
           flex-basis: 100%;
         }
