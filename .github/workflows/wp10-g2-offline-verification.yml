@@ -57,6 +57,7 @@ jobs:
             node "scripts/wp10-g2-safeguards/$suite.test.mjs" | tee "$WP10_EVIDENCE/$suite.log"
           done
           node scripts/wp10-g2-safeguards/gen-atomic-05-cl15-review.mjs --check | tee "$WP10_EVIDENCE/atomic-review-source.log"
+          node scripts/wp10-g2-safeguards/gen-unified-05-cl15-rm1-review.mjs --check | tee "$WP10_EVIDENCE/unified-review-manifest.log"
           node --test scripts/wp10-g2-safeguards/historical-route-policy.test.mjs | tee "$WP10_EVIDENCE/historical-route-policy.log"
           # the generated proposal 06 must equal its generator output (derivation parity is asserted by draft-sql-static S19/S20)
           node scripts/wp10-g2-safeguards/gen-proposal-06.mjs && git diff --exit-code -- docs/master-data-costing/WP10_G2_UNAPPLIED_SQL_PROPOSALS/06_subgroup_impact_preview.sql
@@ -83,6 +84,7 @@ jobs:
           node scripts/wp10-g2-safeguards/route-map-rollback-prototype.test.mjs | tee "$WP10_EVIDENCE/route-map-rollback-prototype.log"
           node scripts/wp10-g2-safeguards/route-map-fanout-41.test.mjs | tee "$WP10_EVIDENCE/route-map-fanout-41.log"
           node scripts/wp10-g2-safeguards/route-map-future-approval.test.mjs | tee "$WP10_EVIDENCE/route-map-future-approval.log"
+          node scripts/wp10-g2-safeguards/unified-review-bundle.test.mjs | tee "$WP10_EVIDENCE/unified-review-bundle.log"
       - name: Mocked Chromium at 390 and 1280 (not live-role acceptance)
         shell: bash
         run: |
