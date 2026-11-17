@@ -77,6 +77,25 @@ begin
     detail=format('mapping_table=%s; mapping_id=%s; outcome=%s',tg_table_name,new.id,coalesce(v_valid,'UNKNOWN')),
     hint='Approve a valid effective replacement before changing the old mapping, or deactivate affected SKUs with the governed lifecycle first.';
   end if;
+  -- A newly approved FUTURE-dated higher-precedence mapping can leave today's
+  -- inherited route valid while making the route invalid on its start date.
+  -- Check the new approval's effective_from separately. This does not replace
+  -- an explicit policy for arbitrary future termination or long-range horizons.
+  if new.status='APPROVED' and new.archived_at is null
+     and new.effective_from is not null and new.effective_from>v_today then
+   begin
+    v_json:=costing.fn_validate_effective_product_process_route(p.id,new.effective_from);
+    v_valid:=v_json->>'valid';
+   exception when others then
+    v_valid:=null;
+   end;
+   if v_valid is distinct from 'true' then
+    raise exception using errcode='P0001',
+     message=format('WP10_RM1_FUTURE_APPROVAL_ROUTE_REJECTED: approved mapping would leave active SKU route invalid or unknown for product %s on %s.',p.id,new.effective_from),
+     detail=format('mapping_table=%s; mapping_id=%s; future_validity=%s',tg_table_name,new.id,coalesce(v_valid,'UNKNOWN')),
+     hint='Prepare and approve an effective future family route before approving the new mapping.';
+   end if;
+  end if;
  end loop;
  return null;
 end $rm1$;
