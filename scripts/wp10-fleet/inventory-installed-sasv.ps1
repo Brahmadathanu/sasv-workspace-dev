@@ -1,6 +1,6 @@
 # SASV WP10: local, read-only installed Electron inventory
 # Windows PowerShell 5.1+; no network, admin rights, app launch, updater invocation or registry writes.
-# Run: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\wp10-fleet\inventory-installed-sasv.ps1
+# Run: powershell -NoProfile -File .\scripts\wp10-fleet\inventory-installed-sasv.ps1
 # Optional private local receipt: ... -OutFile "$env:TEMP\sasv-fleet-local.json"
 [CmdletBinding()]
 param(
