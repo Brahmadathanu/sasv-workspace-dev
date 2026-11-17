@@ -77,6 +77,7 @@ jobs:
           node scripts/wp10-g2-safeguards/route-map-lifecycle-gap.test.mjs | tee "$WP10_EVIDENCE/route-map-lifecycle-gap.log"
           node scripts/wp10-g2-safeguards/route-map-impact-prototype.test.mjs | tee "$WP10_EVIDENCE/route-map-impact-prototype.log"
           node scripts/wp10-g2-safeguards/route-map-concurrency-prototype.test.mjs | tee "$WP10_EVIDENCE/route-map-concurrency-prototype.log"
+          node scripts/wp10-g2-safeguards/route-map-reason-contract.test.mjs | tee "$WP10_EVIDENCE/route-map-reason-contract.log"
       - name: Mocked Chromium at 390 and 1280 (not live-role acceptance)
         shell: bash
         run: |
