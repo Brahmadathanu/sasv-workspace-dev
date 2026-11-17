@@ -28,6 +28,7 @@ const sql=[
 "set local lock_timeout='5s';",
 "set local statement_timeout='30s';",
 ...fragments.flatMap(x=>["-- START "+x.file,x.body,"-- END "+x.file]),
+"NOTIFY pgrst, 'reload schema';",
 "commit;",""
 ].join("\n");
 const manifest={classification:"UNAPPLIED_REVIEW_ONLY",scope:"unified-05-cl15-rm1",retains_reason_audit_table:true,retains_original_governed_inactivation_rpc:true,revokes_3arg_contract_on_rollback:true,source_count:fragments.length,begin_count:(sql.match(/^begin;$/gm)||[]).length,commit_count:(sql.match(/^commit;$/gm)||[]).length,sha256:sha(sql),sources:fragments.map(({file,source_sha256})=>({file,source_sha256}))};
