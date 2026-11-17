@@ -163,6 +163,19 @@
         gap: 12px;
         align-items: start;
       }
+      /* Keep acceptance labels clearly separated from their field borders.
+         Scoped to this modal; no change to acceptance quantities or validation. */
+      #acceptExcessModalBackdrop #excessAcceptGrid > div > label {
+        display: block;
+        margin: 0 0 8px;
+        line-height: 1.4;
+      }
+      #acceptExcessModalBackdrop #excessAcceptGrid > div > input,
+      #acceptExcessModalBackdrop #excessAcceptGrid > div > textarea {
+        display: block;
+        box-sizing: border-box;
+        width: 100%;
+      }
 
       @media (max-width: 680px) {
         #excessModalGrid,
