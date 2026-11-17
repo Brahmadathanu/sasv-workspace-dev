@@ -34,7 +34,7 @@ select public.rpc_set_product_sku_active(s.id,true,'RM1 fanout fixture') from pu
  check("F3 all 41 active products retain canonical valid effective routes",
  pg.sql(db,"select count(*) from public.product_skus ps where ps.is_active and (costing.fn_validate_effective_product_process_route(ps.product_id::integer,current_date)->>'valid')='true'")==="41");
  const t1=Date.now();
- const replacement=pg.script(db,"begin; set local statement_timeout='30s';update costing.production_route_family_product_subgroup_map set status='SUPERSEDED',effective_to=current_date-1 where id=1; insert into costing.production_route_family_product_subgroup_map(product_subgroup_id,route_family_id,status,effective_from) values (1,778,'APPROVED',current_date);commit;");
+ const replacement=pg.script(db,"begin; set local statement_timeout='30s';update costing.production_route_family_product_subgroup_map set status='SUPERSEDED',effective_to=date '2026-11-14' where id=1; insert into costing.production_route_family_product_subgroup_map(product_subgroup_id,route_family_id,status,effective_from) values (1,778,'APPROVED',date '2026-11-15');commit;");
  const ms2=Date.now()-t1;
  check("F4 41-product valid-to-valid atomic subgroup replacement allowed",replacement.code===0,replacement.err.slice(-200));
  check("F5 41 active routes stay valid after approved replacement",
