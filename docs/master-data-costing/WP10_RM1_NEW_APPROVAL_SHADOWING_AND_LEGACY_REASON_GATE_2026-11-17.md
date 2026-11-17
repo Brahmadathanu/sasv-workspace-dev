@@ -34,3 +34,16 @@ The client requires a reason and passes `p_inactivation_reason`; live subgroup-i
 This is **preventive safety work**. Keep the completed Route Family Management lifecycle, immutable approved history and existing permission checks. Source changes under [draft PR #463](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/463) are bounded to tests, review-only candidate SQL and documentation. [Issue #464](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/464) remains OPEN.
 
 No SQL execution in production; no PR merge; no role/flag changes. **WP10/11/12 OPEN; formal programme 10/13.**
+
+## Additional subgroup-parent permission evidence (independent conditional gate)
+
+Live read-only catalog inspection on 17 Nov 2026 found that `authenticated` has table-level `UPDATE` on `public.sub_groups`, including the `product_group_id` column. RLS is enabled, but its `sub_groups_authenticated_crud` policy uses `auth.uid() IS NOT NULL` for both USING and WITH CHECK. There is **no separate business BEFORE UPDATE trigger** on `sub_groups`; the observed statement trigger is WP04 readiness-epoch invalidation, which does not veto a harmful relationship change. In contrast, inspected `js/subgroups.js` uses the governed `rpc_wp10_rename_subgroup` for ordinary renaming, so changing `product_group_id` is not a proven intended client pathway. 
+
+**Impact boundary:** As of this audit all group-level route mappings are archived, and the 455/455 current route-validation result is valid; this is not proof of an existing active-route break. If an approved effective group mapping is introduced or reactivated, direct authenticated subgroup-parent reassignments could change inherited route selection without passing the RM1 mapping-table trigger. Treat the column-level write permission and parent change as a **named prospective permission/routing gap** requiring its own controlled design. A blanket REVOKE of `sub_groups` UPDATE might break legacy master maintenance; first verify consumers and preserve the current authorised rename/create path. No permissions were changed.
+
+## Isolated CI and rollback receiver
+
+- Additional approval-shadowing source test: `scripts/wp10-g2-safeguards/route-map-approval-transition.test.mjs`, with baseline RED scenario plus corrected guard assertions for direct approved INSERT and DRAFT→APPROVED, and a valid promotion control. Fixture-modelled, not a live signed-in approval.
+- Candidate RM1 guard now includes `AFTER INSERT OR UPDATE` triggers for product/subgroup/group mapping and definition-MD5 receipts, with scoped rollback file `review-only-rm1-mapping-impact-scoped-rollback.sql` and negative drift tests in `route-map-rollback-prototype.test.mjs`.
+- The rollback deliberately leaves original Route Manager RPCs, Phase1 WP10 and CL15 parent-lock in place. The reason-audit table and three-argument wrapper require separate explicit audit-retention/cutover disposition; **do not drop a populated reason audit as part of an emergency guard rollback**.
+- These are test/review artifacts only; check the exact latest CI receipt and independent owner deployment gate before any production DDL.
