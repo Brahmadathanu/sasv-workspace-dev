@@ -30,3 +30,9 @@ This document protects the previously completed PRM lifecycle: explicit user app
 **Deployment stop gate:** one checksum-pinned atomic review package, complete writer bypass/privileged caller review, receipt-and-data-retention-aware rollback, fan-out deadlock tests, live permission negative roles, owner exact separate DDL approval. Keep issue #464 OPEN; WP10/WP11/WP12 OPEN, 10/13 formally closed.
 
 See [historical reconciliation](WP10_RM1_G2_CI032_HISTORICAL_ROUTE_RECONCILIATION_2026-11-17.md) and [deep review](WP10_RM1_DEEP_EVALUATION_COMPLETED_PRM_2026-11-17.md). No production data, run, role or deploy changed.
+
+## Live subgroup mapping fan-out / test target
+
+Read-only live aggregate on 17 Nov 2026 shows **100** active products dependent on **12** effective approved subgroup mappings without an approved product override, **max 41 active dependent products in one subgroup** (mean 8.33). For the 12 mapped subgroups, the full set of active descendants in the read-only aggregate was likewise 100, max 41. A real lifecycle writer may lock **up to at least 41 product rows** in one reviewed subgroup transaction at today's distribution; this is a measured workload fixture bound, not a guaranteed future maximum.
+
+`scripts/wp10-g2-safeguards/route-map-fanout-41.test.mjs` constructs **41 active products through the isolated SKU activation RPC**, then tests rejected harmful inactivation, valid replacement in one transaction, and 41 post-change canonical route validations. It prints elapsed times but explicitly **does not certify a production p95/p99 performance SLO**. Independent live contention, timeout, deadlock and owner UX acceptance remain required. No live DML.
