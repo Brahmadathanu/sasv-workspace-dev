@@ -33,6 +33,8 @@ export function identityProblems(candidateCfg, productionPkg) {
   if (same(candidateCfg.nsis?.guid, prod.nsis?.guid)) p.push("NSIS GUID equals production");
   if (!/^[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12}$/.test(String(candidateCfg.nsis?.guid || ""))) p.push("NSIS GUID malformed");
   if (same(candidateCfg.extraMetadata?.name, productionPkg.name)) p.push("package name equals production");
+  if (!candidateCfg.extraMetadata?.productName || same(candidateCfg.extraMetadata.productName, productionPkg.productName)) p.push("packaged package.json productName missing or equals production (Electron app.getName() reads it)");
+  if (!(candidateCfg.files || []).includes("!.env")) p.push("candidate file patterns must exclude .env");
   if (same(candidateCfg.extraMetadata?.version, productionPkg.version)) p.push("version equals production");
   if (same(candidateCfg.nsis?.shortcutName, prod.productName)) p.push("shortcut name equals production");
   if (candidateCfg.publish !== null) p.push("publish must be null (no feed, no app-update.yml)");

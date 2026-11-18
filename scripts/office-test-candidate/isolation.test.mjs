@@ -73,6 +73,9 @@ test("candidate builder config: every identity field differs from production; no
   assert.ok(mut((c) => { c.nsis.deleteAppDataOnUninstall = true; }).length);
   assert.ok(mut((c) => { delete c.extraMetadata.sasvOfficeTestCandidate; }).length);
   assert.ok(mut((c) => { c.nsis.shortcutName = "SASV Workspace"; }).length);
+  assert.ok(mut((c) => { delete c.extraMetadata.productName; }).some((x) => /productName/.test(x)));
+  assert.ok(mut((c) => { c.extraMetadata.productName = "SASV Workspace"; }).length);
+  assert.ok(mut((c) => { c.files = c.files.filter((f) => f !== "!.env"); }).some((x) => /\.env/.test(x)));
   assert.equal(cfg.extraMetadata.sasvOfficeTestCandidate.sourceCommit, "UNSET", "committed config cannot masquerade as a stamped build: main.js refuses 'UNSET'");
   assert.equal(cfg.win.signAndEditExecutable, undefined, "exe resources are edited (default) so the .exe carries the test identity"); assert.equal(cfg.win.certificateFile, undefined); assert.deepEqual(cfg.win.target.map((t) => t.target), ["nsis", "zip"]);
 });

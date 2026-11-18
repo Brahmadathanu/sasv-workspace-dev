@@ -17,7 +17,8 @@
       "candidateVersion": "6.1.0-officetest.1",
       "baselineMainSha": "8c7648fab72f2cf2e40bacc74e8fe59bedca2777",
       "sourceCommit": "UNSET"
-    }
+    },
+    "productName": "SASV Workspace OFFICE TEST"
   },
   "files": [
     "**/*",
@@ -34,6 +35,8 @@
     "!dist-office-test/**",
     "!dist-eaushadhi-*/**",
     "!electron/candidate/electron-builder*.json",
+    "!.env",
+    "!.env.*",
     "!readme.md",
     "!LAB_WORKFLOW_ACCESS_CONTROL_README.md"
   ],
