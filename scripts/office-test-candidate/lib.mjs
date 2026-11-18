@@ -45,7 +45,11 @@ export function identityProblems(candidateCfg, productionPkg) {
   return p;
 }
 
-export function listAsar(asarPath, root) { return requireFrom(root)("@electron/asar").listPackage(asarPath, { isPack: false }).map((x) => x.replace(/\\/g, "/").replace(/^\//, "")); }
+export function listAsar(asarPath, root) {
+  const asar = requireFrom(root)("@electron/asar");
+  return asar.listPackage(asarPath, { isPack: false }).map((x) => x.replace(/\\/g, "/").replace(/^\//, ""))
+    .filter((f) => { const st = asar.statFile(asarPath, f); return st && !("files" in st); }); // regular files only (no directories)
+}
 export function readAsarFile(asarPath, rel, root) { return requireFrom(root)("@electron/asar").extractFile(asarPath, rel); }
 
 const REQUIRED_ASAR = [
