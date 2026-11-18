@@ -41,7 +41,10 @@ const { env, removed } = scrubbedEnv();
 env.CI = "true";
 const run = (cmd, a, cwd) => { const r = spawnSync(cmd, a, { cwd, env, stdio: "inherit" }); if (r.status !== 0) fail(2, `${cmd} ${a.join(" ")} failed (${r.status})`); };
 run("npm", ["ci", "--ignore-scripts", "--no-audit", "--no-fund"], src);
+// Wine's rcedit/NSIS helpers segfault when TMPDIR/TMP/TEMP are redirected (reproduced on Wine 9.0, Ubuntu 24.04); run the builder with the default temp dir.
+const builderEnvBackup = { ...env }; for (const k of ["TMPDIR", "TMP", "TEMP"]) delete env[k];
 run(path.join(src, "node_modules/.bin/electron-builder"), ["--win", "nsis", "zip", "--publish", "never", "--config", genCfg], src);
+void builderEnvBackup;
 
 // 3. collect
 const dist = path.join(src, "dist-office-test");
