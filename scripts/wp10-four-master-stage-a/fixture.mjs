@@ -14,6 +14,7 @@ import { startCluster, pgAvailable } from "../wp08-g2-0-shared-master-data/pg-ha
 
 export { startCluster, pgAvailable };
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+export const MIGRATION = "supabase/migrations/20261118161406_wp10_four_master_stage_a_state_reconciliation.sql";
 export const SQL_DIR = path.join(root, "docs/master-data-costing/WP10_FOUR_MASTER_STAGE_A_UNAPPLIED_SQL");
 export const sqlFile = (n) => fs.readFileSync(path.join(SQL_DIR, n), "utf8");
 export const FILES = { pre: "01_preflight_readonly.sql", apply: "02_stage_a_apply.sql", post: "03_postflight_readonly.sql", rollback: "99_rollback_stage_a.sql" };

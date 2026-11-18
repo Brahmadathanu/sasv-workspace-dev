@@ -7,6 +7,11 @@ on:
       - 'scripts/wp10-four-master-stage-a/**'
       - 'scripts/wp08-g2-0-shared-master-data/pg-harness.mjs'
       - 'docs/master-data-costing/WP10_FOUR_MASTER_STAGE_A_UNAPPLIED_SQL/**'
+      - 'docs/master-data-costing/WP10_STAGE_A_RECONCILIATION_SQL/**'
+      - 'docs/master-data-costing/WP10_STAGE_A_MIGRATION_RECONCILIATION_PACKAGE_2026-11-18.md'
+      - 'supabase/migrations/20261118161406_wp10_four_master_stage_a_state_reconciliation.sql'
+      - 'scripts/lib/pec-protected-path-guard.mjs'
+      - 'scripts/pec-protected-path-guard.test.mjs'
       # the client guard is repo-wide: any shipped client source can introduce a direct write
       - 'js/**'
       - 'public/shared/js/**'
@@ -21,11 +26,12 @@ permissions:
 jobs:
   stage-a:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0   # merge-base checks (only one migration added; pins unchanged)
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -42,3 +48,18 @@ jobs:
           node --test scripts/wp10-four-master-stage-a/stage-a-sql.test.mjs | tee "$RUNNER_TEMP/sql.log"
           if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/sql.log"; then exit 1; fi
           grep -Eq '^# pass [1-9]' "$RUNNER_TEMP/sql.log"
+      - name: Reconciliation migration (state A/B/C, mutants, rollback/recovery) and registration verification on disposable fixtures
+        run: |
+          set -euo pipefail
+          for suite in reconciliation-migration reconciliation-registration; do
+            node --test "scripts/wp10-four-master-stage-a/$suite.test.mjs" | tee "$RUNNER_TEMP/$suite.log"
+            if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/$suite.log"; then exit 1; fi
+            grep -Eq '^# pass [1-9]' "$RUNNER_TEMP/$suite.log"
+          done
+      - name: Reconciliation source governance, protected-path pin and registry guards
+        run: |
+          set -euo pipefail
+          node --test scripts/wp10-four-master-stage-a/reconciliation-governance.test.mjs | tee "$RUNNER_TEMP/gov.log"
+          if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/gov.log"; then exit 1; fi
+          node scripts/pec-protected-path-guard.test.mjs
+          node scripts/pec-protected-path-mutation-smoke.mjs

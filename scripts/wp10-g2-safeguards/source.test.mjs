@@ -8,7 +8,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadPhase1Inventory, sha256 } from "./phase1-applied-inventory.mjs";
 import { BRANCH } from "./prepare-phase1-registration.mjs";
-import { rejectedProtectedPaths } from "../lib/pec-protected-path-guard.mjs";
+import { rejectedProtectedPaths, REVIEWED_SERVER_MIGRATIONS } from "../lib/pec-protected-path-guard.mjs";
 import { pmBomDeltaApproved, normaliseApprovedSwDelta, WP11_PM_BOM_PATH } from "./wp11-approved-delta.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -81,7 +81,15 @@ test("S6 proposal sources stay outside supabase/; only receipt/hash/branch-pinne
   const inventory = new Map(loadPhase1Inventory().map(m => [m.path, m.sha256]));
   const branch = process.env.GITHUB_HEAD_REF || git("branch", "--show-current").trim();
   const readCommitted = f => git("show", `HEAD:${f}`);
+  // PR #477: exactly ONE additional reviewed WP10 migration (Stage A state-aware reconciliation) is allowed, only via its hash+head pin in the guard.
+  const stageA = Object.entries(REVIEWED_SERVER_MIGRATIONS).filter(([f]) => /wp10_four_master_stage_a_state_reconciliation/.test(f));
+  assert.equal(stageA.length, 1, "exactly one Stage A reconciliation pin");
   for (const f of supa) {
+    if (f === stageA[0][0]) {
+      assert.ok(stageA[0][1].heads.includes(branch), "Stage A reconciliation only on its pinned head branches");
+      assert.equal(sha256(readCommitted(f)), stageA[0][1].sha256, `reconciliation payload changed: ${f}`);
+      continue;
+    }
     assert.equal(branch, BRANCH, "new registration only on the owner-approved server lane");
     assert.ok(inventory.has(f), `unapproved supabase path: ${f}`);
     assert.equal(sha256(readCommitted(f)), inventory.get(f), `applied payload changed: ${f}`);

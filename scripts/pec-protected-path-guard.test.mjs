@@ -201,6 +201,22 @@ for (const [file, expectedSha] of wp10) {
   t2("WP10 missing context rejected: " + file, [file], [file], null);
   t2("WP10 entry grants no unrelated SQL/SW exception: " + file, [illicit, sw], [illicit, sw], context);
 }
-assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact four owner-applied WP10 payloads and unchanged seven legacy server/SW pins");
+// WP10 four-master Stage A state-aware reconciliation migration (PR #477): ONE exact path + LF SHA-256 + two named heads, nothing broader.
+const stageA = "supabase/migrations/20261118161406_wp10_four_master_stage_a_state_reconciliation.sql";
+{
+  const pin = REVIEWED_SERVER_MIGRATIONS[stageA];
+  assert.ok(pin && /^[a-f0-9]{64}$/.test(pin.sha256), "Stage A reconciliation pin exists");
+  assert.deepEqual(pin.heads, ["claude/blissful-mendel-ty92mw", "server/wp10-four-master-stage-a-reconciliation"]);
+  const content = fs.readFileSync(stageA, "utf8");
+  assert.equal(createHash("sha256").update(content.replace(/\r\n/g, "\n")).digest("hex"), pin.sha256, "pinned hash equals the committed file");
+  for (const head of pin.heads) t2("Stage A reconciliation accepted on pinned head " + head, [stageA], [], { headBranch: head, readText: () => content });
+  const context = { headBranch: pin.heads[1], readText: () => content };
+  t2("Stage A reconciliation changed payload rejected", [stageA], [stageA], { ...context, readText: () => content + "\n-- changed" });
+  t2("Stage A reconciliation other branch rejected", [stageA], [stageA], { ...context, headBranch: "main" });
+  t2("Stage A reconciliation missing context rejected", [stageA], [stageA], null);
+  t2("Stage A reconciliation renamed copy rejected", ["supabase/migrations/20261118161407_wp10_four_master_stage_a_state_reconciliation.sql"], ["supabase/migrations/20261118161407_wp10_four_master_stage_a_state_reconciliation.sql"], context);
+  t2("Stage A reconciliation entry grants no unrelated SQL/SW exception", [illicit, sw], [illicit, sw], context);
+}
+assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [...wp10.map(([file]) => file), stageA, addLine, sw, ...r10, r2fix, sec400], "exact four owner-applied WP10 payloads, the Stage A reconciliation pin and unchanged seven legacy server/SW pins");
 
 console.log(`pec-protected-path-guard: ${passed}/${passed} PASS`);
