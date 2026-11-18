@@ -121,3 +121,9 @@ Keep SELECT grants, RLS read policy and the 12 narrowly permitted `rpc_wp10_*` E
 
 ## No-action / status
 **Nothing applied or merged by this document.** The precise SQL is a reviewed candidate, not a deployment instruction. WP10/WP12 OPEN, programme 11/13 CLOSED, Electron HOLD. PR #463 stays separate/unapplied. There was no master record DML, ACL/RLS mutation, account change, installed-client change or production feature flag activation. Security findings anchored by read-only 18 Nov pg_catalog observation and [Supabase securing API grants and RLS](https://supabase.com/docs/guides/api/securing-your-api).
+
+## 18 Nov additional independent source + helper preflight (read-only)
+- Pinned `main` SHA `8c7648fab72f2cf2e40bacc74e8fe59bedca2777`: independently inspected `js/categories.js`, `js/subcategories.js`, `js/product-groups.js`, `js/subgroups.js`. Each has three named `rpc_wp10_*` operations for create/delete/rename. Their `.from(...)` lines are used for list/read paths; no direct `.insert/.update/.delete/.upsert` calls found in these four reviewed files. **Scope is these four files, not a whole-repository proof**.
+- Live PostgreSQL catalog, `BEGIN READ ONLY`: `public.app_has_permission`, `public.app_has_permission_core`, `public.require_permission` all have `authenticated EXECUTE=true`, `anon EXECUTE=false`. The first is invoker, the other two definer; function owner postgres. This supports Stage A feasibility but **is not** a real JWT denied-role/Editor behaviour test.
+- Live 18 Nov policy/ACL recheck: four tables `postgres/service_role/authenticated` explicit ACLs; `authenticated` retains `arwd`, table owner postgres, and one broad ALL RLS policy each. No catalog or business modification.
+- **Preflight remaining:** test Stage A under actual isolated authorised permissions/fixtures and verify no unintended modules write these tables; catalog and source alone do not authorise production policy replacement.
