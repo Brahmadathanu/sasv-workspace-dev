@@ -74,7 +74,7 @@ test("candidate builder config: every identity field differs from production; no
   assert.ok(mut((c) => { delete c.extraMetadata.sasvOfficeTestCandidate; }).length);
   assert.ok(mut((c) => { c.nsis.shortcutName = "SASV Workspace"; }).length);
   assert.equal(cfg.extraMetadata.sasvOfficeTestCandidate.sourceCommit, "UNSET", "committed config cannot masquerade as a stamped build: main.js refuses 'UNSET'");
-  assert.equal(cfg.win.signAndEditExecutable, false); assert.deepEqual(cfg.win.target.map((t) => t.target), ["nsis", "zip"]);
+  assert.equal(cfg.win.signAndEditExecutable, undefined, "exe resources are edited (default) so the .exe carries the test identity"); assert.equal(cfg.win.certificateFile, undefined); assert.deepEqual(cfg.win.target.map((t) => t.target), ["nsis", "zip"]);
 });
 
 test("ASAR/package checks: required routes present, forbidden trees/feeds absent, packaged package.json carries the exact SHA (mutants detected)", () => {

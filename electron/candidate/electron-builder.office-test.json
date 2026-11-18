@@ -43,7 +43,6 @@
   ],
   "win": {
     "icon": "public/shared/assets/branding/derived/favicon.ico",
-    "signAndEditExecutable": false,
     "target": [
       {
         "target": "nsis",

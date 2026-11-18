@@ -98,8 +98,8 @@ try {
 const hashes = { [nsis]: sha256File(path.join(out, nsis)), [zip]: sha256File(path.join(out, zip)), "app.asar": asarHash };
 fs.writeFileSync(path.join(out, "SHA256SUMS.txt"), Object.entries(hashes).map(([n, h]) => `${h}  ${n}`).join("\n") + "\n");
 const manifest = { kind: "OFFICE-PC TEST CANDIDATE - UNPUBLISHED - NOT A RELEASE", sourceCommit: sha, baselineMain: BASELINE_MAIN_SHA, builtAtUtc: new Date().toISOString(),
-  builder: { host: `${os.platform()} ${os.arch()} (cross-build, no Wine)`, node: process.version, electronBuilder: JSON.parse(fs.readFileSync(path.join(src, "node_modules/electron-builder/package.json"), "utf8")).version, electron: JSON.parse(fs.readFileSync(path.join(src, "node_modules/electron/package.json"), "utf8")).version },
-  signing: "UNSIGNED; win.signAndEditExecutable=false (exe resources/icon not edited: Wine unavailable)", strippedEnv: removed,
+  builder: { host: `${os.platform()} ${os.arch()} (cross-build; Wine ${execFileSync("wine", ["--version"], { encoding: "utf8" }).trim()} for NSIS uninstaller + exe resource editing)`, node: process.version, electronBuilder: JSON.parse(fs.readFileSync(path.join(src, "node_modules/electron-builder/package.json"), "utf8")).version, electron: JSON.parse(fs.readFileSync(path.join(src, "node_modules/electron/package.json"), "utf8")).version },
+  signing: "UNSIGNED (no certificate configured; credentials stripped from the environment). Windows SmartScreen will warn.", strippedEnv: removed,
   artifacts: Object.fromEntries(Object.entries(hashes).map(([n, h]) => [n, { sha256: h, bytes: fs.statSync(path.join(out, n === "app.asar" ? "app.asar" : n)).size }])),
   checks, problems, verdict: problems.length ? "FAIL" : "VERIFIED" };
 fs.writeFileSync(path.join(out, "manifest.json"), JSON.stringify(manifest, null, 2));
