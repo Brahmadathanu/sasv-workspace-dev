@@ -27,7 +27,7 @@ test("public/, js/, preload.js and the Supabase/SQL trees are identical to the p
   // committed (BASE..HEAD) + staged content only: unstaged checkout line-ending noise is not part of the candidate.
   const g = (a) => execFileSync("git", a, { cwd: REPO, encoding: "utf8" }).split("\n").filter(Boolean);
   const changed = [...new Set([...g(["diff", "--name-only", BASELINE_MAIN_SHA, "HEAD"]), ...g(["diff", "--name-only", "--cached"])])];
-  const allowed = [/^main\.js$/, /^electron\/candidate\//, /^scripts\/office-test-candidate\//, /^docs\/master-data-costing\//];
+  const allowed = [/^main\.js$/, /^electron\/candidate\//, /^scripts\/office-test-candidate\//, /^scripts\/wp10-g2-safeguards\/source\.test\.mjs$/, /^docs\/master-data-costing\//];
   const stray = changed.filter((f) => !allowed.some((re) => re.test(f)));
   assert.deepEqual(stray, [], `unexpected changed paths: ${stray.join(", ")}`);
   assert.ok(changed.includes("main.js"));

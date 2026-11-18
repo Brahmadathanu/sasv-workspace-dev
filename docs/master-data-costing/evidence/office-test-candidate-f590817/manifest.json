@@ -1,0 +1,81 @@
+{
+  "kind": "OFFICE-PC TEST CANDIDATE - UNPUBLISHED - NOT A RELEASE",
+  "sourceCommit": "f590817946f29455224b212b6c94a5e5f2fb2e52",
+  "baselineMain": "8c7648fab72f2cf2e40bacc74e8fe59bedca2777",
+  "builtAtUtc": "2026-11-18T02:45:00.208Z",
+  "builder": {
+    "host": "linux x64 (cross-build; Wine wine-9.0 (Ubuntu 9.0~repack-4build3) for NSIS uninstaller + exe resource editing)",
+    "node": "v22.23.4",
+    "electronBuilder": "26.0.12",
+    "electron": "36.8.1"
+  },
+  "signing": "UNSIGNED (no certificate configured; signing credentials stripped from the environment; PE certificate-table sizes recorded in checks.identity). Windows SmartScreen will warn.",
+  "strippedEnv": [
+    "GH_TOKEN",
+    "GITHUB_TOKEN"
+  ],
+  "artifacts": {
+    "SASV-Workspace-OFFICE-TEST-6.1.0-officetest.1.exe": {
+      "sha256": "855ba8218605f393c55bb9f38d60d7b6e9886135285f3b7c288c15d4f0afa994",
+      "bytes": 106402644
+    },
+    "SASV-Workspace-OFFICE-TEST-6.1.0-officetest.1.zip": {
+      "sha256": "28b341edd1a7e05d9815eea8ba1c87f401e9a43e7c76086ee0c50dda348172b6",
+      "bytes": 141411758
+    },
+    "app.asar": {
+      "sha256": "2c178f2096d8c3e2a89ece6fe328bb4f7cc80923889f3e3370ea24b7a5c91ab0",
+      "bytes": 62242628
+    }
+  },
+  "checks": {
+    "asar": {
+      "files": 4451,
+      "costingAssetsRequired": 74
+    },
+    "packagedPackageJson": {
+      "name": "sasv-workspace-office-test",
+      "productName": "SASV Workspace OFFICE TEST",
+      "version": "6.1.0-officetest.1",
+      "marker": {
+        "schema": 1,
+        "appId": "com.brahmadathanu.sasvworkspace.officetest",
+        "userDataDirName": "SASV Workspace OFFICE TEST",
+        "updaterDisabled": true,
+        "candidateVersion": "6.1.0-officetest.1",
+        "baselineMainSha": "8c7648fab72f2cf2e40bacc74e8fe59bedca2777",
+        "sourceCommit": "f590817946f29455224b212b6c94a5e5f2fb2e52"
+      }
+    },
+    "gitByteParity": {
+      "filesCompared": 429,
+      "mismatches": 0
+    },
+    "secretScan": {
+      "hits": 0,
+      "publicAnonJwtOccurrences": 3
+    },
+    "identity": {
+      "exeResourcesCarryCandidateName": true,
+      "builderInputGuid": "7E24F336-164C-4D66-85A4-8D38A617BCE5",
+      "productionGuidInBuilderInput": false,
+      "nsisGuidExtractedFromInstaller": "NOT VERIFIED (installer header is compressed; GUID verified from the exact builder input only)",
+      "authenticodeCertificateTableBytes": {
+        "nsis": 0,
+        "exe": 0
+      }
+    },
+    "zip": {
+      "entries": 329,
+      "exe": "SASV Workspace OFFICE TEST.exe",
+      "asarSameAsUnpacked": true
+    },
+    "nsisPayload": {
+      "status": "app.asar in installer payload == hashed app.asar",
+      "exe": true,
+      "payloadExeSameAsUnpacked": true
+    }
+  },
+  "problems": [],
+  "verdict": "VERIFIED"
+}
