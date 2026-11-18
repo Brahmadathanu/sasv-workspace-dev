@@ -1,6 +1,7 @@
 -- WP10 four-master STAGE A — 02 APPLY. NOT APPLIED / NOT A MIGRATION (deliberately outside supabase/migrations).
 -- Replaces the identity-only FOR ALL policy on four classification masters with identity-only SELECT + per-module Edit-gated INSERT/UPDATE/DELETE,
--- using the canonical public.app_has_permission(target,'edit') (the same helper/targets the merged clients and governed RPCs use).
+-- using the canonical public.app_has_permission(target,'view') AND (target,'edit'): the live public.require_permission(target,true) used by the 12 governed RPCs requires BOTH
+-- can_view and can_edit, so direct-DML policies must too (rev 2: an edit-without-view canonical row is denied here exactly as the RPC denies it).
 -- Does NOT change any GRANT (Stage B REVOKE is a separate, separately-authorised step), data, function, trigger or other table.
 -- Single transaction. Aborts (changing nothing) if live state differs from the reviewed ORIGINAL state or if the result differs from the expected end state.
 -- Run 01_preflight_readonly.sql first (must show RESULT PASS). Rollback: 99_rollback_stage_a.sql. Verify: 03_postflight_readonly.sql.
@@ -33,14 +34,14 @@ create policy categories_authenticated_read on public.categories
   for select to authenticated using ((select auth.uid()) is not null);
 create policy categories_authenticated_insert on public.categories
   for insert to authenticated
-  with check ((select public.app_has_permission('module:manage-categories', 'edit')));
+  with check ((select public.app_has_permission('module:manage-categories', 'view')) and (select public.app_has_permission('module:manage-categories', 'edit')));
 create policy categories_authenticated_update on public.categories
   for update to authenticated
-  using ((select public.app_has_permission('module:manage-categories', 'edit')))
-  with check ((select public.app_has_permission('module:manage-categories', 'edit')));
+  using ((select public.app_has_permission('module:manage-categories', 'view')) and (select public.app_has_permission('module:manage-categories', 'edit')))
+  with check ((select public.app_has_permission('module:manage-categories', 'view')) and (select public.app_has_permission('module:manage-categories', 'edit')));
 create policy categories_authenticated_delete on public.categories
   for delete to authenticated
-  using ((select public.app_has_permission('module:manage-categories', 'edit')));
+  using ((select public.app_has_permission('module:manage-categories', 'view')) and (select public.app_has_permission('module:manage-categories', 'edit')));
 
 -- 2. sub_categories
 drop policy sub_categories_authenticated_crud on public.sub_categories;
@@ -48,14 +49,14 @@ create policy sub_categories_authenticated_read on public.sub_categories
   for select to authenticated using ((select auth.uid()) is not null);
 create policy sub_categories_authenticated_insert on public.sub_categories
   for insert to authenticated
-  with check ((select public.app_has_permission('module:manage-subcategories', 'edit')));
+  with check ((select public.app_has_permission('module:manage-subcategories', 'view')) and (select public.app_has_permission('module:manage-subcategories', 'edit')));
 create policy sub_categories_authenticated_update on public.sub_categories
   for update to authenticated
-  using ((select public.app_has_permission('module:manage-subcategories', 'edit')))
-  with check ((select public.app_has_permission('module:manage-subcategories', 'edit')));
+  using ((select public.app_has_permission('module:manage-subcategories', 'view')) and (select public.app_has_permission('module:manage-subcategories', 'edit')))
+  with check ((select public.app_has_permission('module:manage-subcategories', 'view')) and (select public.app_has_permission('module:manage-subcategories', 'edit')));
 create policy sub_categories_authenticated_delete on public.sub_categories
   for delete to authenticated
-  using ((select public.app_has_permission('module:manage-subcategories', 'edit')));
+  using ((select public.app_has_permission('module:manage-subcategories', 'view')) and (select public.app_has_permission('module:manage-subcategories', 'edit')));
 
 -- 3. product_groups
 drop policy product_groups_authenticated_crud on public.product_groups;
@@ -63,14 +64,14 @@ create policy product_groups_authenticated_read on public.product_groups
   for select to authenticated using ((select auth.uid()) is not null);
 create policy product_groups_authenticated_insert on public.product_groups
   for insert to authenticated
-  with check ((select public.app_has_permission('module:manage-product-groups', 'edit')));
+  with check ((select public.app_has_permission('module:manage-product-groups', 'view')) and (select public.app_has_permission('module:manage-product-groups', 'edit')));
 create policy product_groups_authenticated_update on public.product_groups
   for update to authenticated
-  using ((select public.app_has_permission('module:manage-product-groups', 'edit')))
-  with check ((select public.app_has_permission('module:manage-product-groups', 'edit')));
+  using ((select public.app_has_permission('module:manage-product-groups', 'view')) and (select public.app_has_permission('module:manage-product-groups', 'edit')))
+  with check ((select public.app_has_permission('module:manage-product-groups', 'view')) and (select public.app_has_permission('module:manage-product-groups', 'edit')));
 create policy product_groups_authenticated_delete on public.product_groups
   for delete to authenticated
-  using ((select public.app_has_permission('module:manage-product-groups', 'edit')));
+  using ((select public.app_has_permission('module:manage-product-groups', 'view')) and (select public.app_has_permission('module:manage-product-groups', 'edit')));
 
 -- 4. sub_groups
 drop policy sub_groups_authenticated_crud on public.sub_groups;
@@ -78,14 +79,14 @@ create policy sub_groups_authenticated_read on public.sub_groups
   for select to authenticated using ((select auth.uid()) is not null);
 create policy sub_groups_authenticated_insert on public.sub_groups
   for insert to authenticated
-  with check ((select public.app_has_permission('module:manage-subgroups', 'edit')));
+  with check ((select public.app_has_permission('module:manage-subgroups', 'view')) and (select public.app_has_permission('module:manage-subgroups', 'edit')));
 create policy sub_groups_authenticated_update on public.sub_groups
   for update to authenticated
-  using ((select public.app_has_permission('module:manage-subgroups', 'edit')))
-  with check ((select public.app_has_permission('module:manage-subgroups', 'edit')));
+  using ((select public.app_has_permission('module:manage-subgroups', 'view')) and (select public.app_has_permission('module:manage-subgroups', 'edit')))
+  with check ((select public.app_has_permission('module:manage-subgroups', 'view')) and (select public.app_has_permission('module:manage-subgroups', 'edit')));
 create policy sub_groups_authenticated_delete on public.sub_groups
   for delete to authenticated
-  using ((select public.app_has_permission('module:manage-subgroups', 'edit')));
+  using ((select public.app_has_permission('module:manage-subgroups', 'view')) and (select public.app_has_permission('module:manage-subgroups', 'edit')));
 
 -- 5. in-transaction post-assertion: exact expected end state, grants untouched; any mismatch raises and the whole transaction rolls back
 do $$
@@ -103,8 +104,8 @@ begin
       end if;
       if cmd <> 'r' then
         select coalesce(pg_get_expr(polqual, polrelid), '') || ' || ' || coalesce(pg_get_expr(polwithcheck, polrelid), '') into expr from pg_policy where polrelid = ('public.' || t.tbl)::regclass and polname = pol;
-        if expr !~ ('app_has_permission\(''' || t.target || '''(::text)?, ''edit''(::text)?\)') then
-          raise exception 'WP10 Stage A post-check: policy % does not gate on % edit (%)', pol, t.target, expr;
+        if expr !~ ('app_has_permission\(''' || t.target || '''(::text)?, ''view''(::text)?\)') or expr !~ ('app_has_permission\(''' || t.target || '''(::text)?, ''edit''(::text)?\)') then
+          raise exception 'WP10 Stage A post-check: policy % does not gate on % view AND edit (%)', pol, t.target, expr;
         end if;
       end if;
     end loop;

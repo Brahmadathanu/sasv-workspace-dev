@@ -48,7 +48,7 @@ for (const t of TABLES) {
   test(`S04 ${t.tbl}: Stage A permission matrix (insert/update/delete/upsert allowed ONLY for the module Editor; reads open to all signed-in)`, { skip }, () => {
     const db = applied();
     const own = OWN_EDITOR[t.tbl];
-    const denied = ["viewer", "noAccess", ...Object.values(OWN_EDITOR).filter((a) => a !== own)]; // View-only, No-access and Editors of the OTHER three modules
+    const denied = ["viewer", "noAccess", "editNoView", ...Object.values(OWN_EDITOR).filter((a) => a !== own)]; // View-only, No-access and Editors of the OTHER three modules
     for (const actor of denied) {
       const before = rowsHash(cluster, db);
       assert.equal(dml(cluster, db, actor, t.ins), "DENIED", `${t.tbl} insert as ${actor}`);
@@ -72,6 +72,28 @@ for (const t of TABLES) {
   });
 }
 
+for (const t of TABLES) {
+  test(`S04b ${t.tbl} [rev 2]: can_view=false + can_edit=true is DENIED direct INSERT/UPDATE/DELETE/UPSERT; can_view=true + can_edit=true is ALLOWED; both rules mirror require_permission(target,true)`, { skip }, () => {
+    const db = applied(); const before = rowsHash(cluster, db);
+    // the anomalous row really exists for this table and really has edit without view
+    assert.equal(cluster.sql(db, `select can_view::text || can_edit::text from public.user_permissions_canonical where user_id = '${ACTORS.editNoView}' and target = '${t.target}'`), "falsetrue");
+    assert.equal(dml(cluster, db, "editNoView", t.ins), "DENIED", t.tbl + " insert");
+    assert.equal(dml(cluster, db, "editNoView", t.upd), 0, t.tbl + " update");
+    assert.equal(dml(cluster, db, "editNoView", t.del), 0, t.tbl + " delete");
+    assert.equal(dml(cluster, db, "editNoView", t.ups), "DENIED", t.tbl + " upsert");
+    assert.equal(rowsHash(cluster, db), before, "rows unchanged");
+    // the governed RPC denies the SAME identity: policy and RPC agree
+    for (const call of RPC_CALLS[t.tbl]) { const r = as(cluster, db, "editNoView", call); assert.equal(r.ok, false, call); assert.match(r.err, /Permission denied/i); }
+    // consistency: flipping can_view to true makes BOTH the direct write and the RPC succeed for that identity
+    cluster.sql(db, `update public.user_permissions_canonical set can_view = true where user_id = '${ACTORS.editNoView}' and target = '${t.target}'`);
+    assert.equal(dml(cluster, db, "editNoView", t.ins), 1, t.tbl + " insert with view+edit");
+    assert.equal(as(cluster, db, "editNoView", RPC_CALLS[t.tbl][1]).ok, true, "RPC with view+edit");
+    // and view-only (can_edit=false) stays denied
+    cluster.sql(db, `update public.user_permissions_canonical set can_edit = false where user_id = '${ACTORS.editNoView}' and target = '${t.target}'`);
+    assert.equal(dml(cluster, db, "editNoView", t.ins), "DENIED"); assert.equal(as(cluster, db, "editNoView", RPC_CALLS[t.tbl][0]).ok, false);
+  });
+}
+
 test("S05 a View-only user can SEE rows (SELECT policy) but an UPDATE/DELETE of them affects 0 rows and a data-changing RETURNING path is not a bypass", { skip }, () => {
   const db = applied(); const before = rowsHash(cluster, db);
   assert.equal(dml(cluster, db, "viewer", "update public.categories set category_name = 'HACK' where true"), 0);
@@ -84,7 +106,7 @@ for (const t of TABLES) {
   test(`S06 ${t.tbl}: governed RPCs keep working under Stage A and keep their own permission gate (Editor ok; View-only/No-access/other-module Editor denied)`, { skip }, () => {
     const db = applied(); const own = OWN_EDITOR[t.tbl];
     for (const call of RPC_CALLS[t.tbl]) {
-      for (const actor of ["viewer", "noAccess", ...Object.values(OWN_EDITOR).filter((a) => a !== own)]) {
+      for (const actor of ["viewer", "noAccess", "editNoView", ...Object.values(OWN_EDITOR).filter((a) => a !== own)]) {
         const r = as(cluster, db, actor, call);
         assert.equal(r.ok, false, `${call} as ${actor} must be denied`);
         assert.match(r.err, /Permission denied/i);
@@ -114,6 +136,11 @@ test("S08 postflight PASS after apply; every check PASS; preflight REFUSES the p
 test("S09 postflight detects tampering: wrong module key, residual FOR ALL policy, revoked grant, forced RLS", { skip }, () => {
   let db = applied();
   cluster.sql(db, "drop policy categories_authenticated_update on public.categories; create policy categories_authenticated_update on public.categories for update to authenticated using ((select public.app_has_permission('module:manage-subgroups','edit'))) with check ((select public.app_has_permission('module:manage-subgroups','edit')))");
+  assert.equal(postflight(db).result.status, "FAIL");
+  db = applied(); // rev 2: a policy weakened to Edit-only (no View) must be detected
+  cluster.sql(db, "drop policy sub_categories_authenticated_delete on public.sub_categories; create policy sub_categories_authenticated_delete on public.sub_categories for delete to authenticated using ((select public.app_has_permission('module:manage-subcategories','edit')))");
+  assert.equal(postflight(db).result.status, "FAIL");
+  db = applied(); cluster.sql(db, "drop policy categories_authenticated_insert on public.categories; create policy categories_authenticated_insert on public.categories for insert to authenticated with check ((select public.app_has_permission('module:manage-categories','view')))");
   assert.equal(postflight(db).result.status, "FAIL");
   db = applied(); cluster.sql(db, "create policy extra_all on public.sub_groups for all to authenticated using (true) with check (true)");
   assert.equal(postflight(db).result.status, "FAIL");
@@ -185,7 +212,8 @@ test("S15 preflight WARN/INFO rows expose reviewer facts without identities", { 
   const p = preflight(db);
   assert.equal(p.result.status, "PASS");
   assert.ok(p.rows.some((r) => /^P17 owner_definer_writer/.test(r.id) && r.status === "WARN"));
-  const edit = p.rows.find((r) => /^P19 categories/.test(r.id)); assert.match(edit.detail, /: 2/);
+  const anomalous = p.rows.find((r) => /^P21 categories/.test(r.id)); assert.match(anomalous.detail, /: 1$/, "P21 reports the (disposable) edit-without-view row count only");
+  const edit = p.rows.find((r) => /^P19 categories/.test(r.id)); assert.match(edit.detail, /: 3/); // editorAll, editorCategories, and the anomalous editNoView row (can_edit true)
   assert.ok(!p.rows.some((r) => /00000000-0000-0000-0000/.test(r.detail)), "no user ids in output");
 });
 
@@ -205,9 +233,11 @@ test("S17 each table is gated by its OWN module key and 'edit' (static check of 
     const section = code.slice(code.indexOf(`-- ${["categories", "sub_categories", "product_groups", "sub_groups"].indexOf(t.tbl) + 1}. ${t.tbl}`));
     const block = section.slice(0, section.indexOf("\n\n"));
     const keys = [...block.matchAll(/app_has_permission\('([^']+)', '([^']+)'\)/g)];
-    assert.equal(keys.length, 4, t.tbl + ": insert check + update using/check + delete using = 4 gates, counted " + keys.length);
+    assert.equal(keys.length, 8, t.tbl + ": 4 gates (insert check, update using+check, delete using) x (view + edit), counted " + keys.length);
+    assert.equal(keys.filter((k) => k[2] === "view").length, 4, t.tbl + " view gates"); assert.equal(keys.filter((k) => k[2] === "edit").length, 4, t.tbl + " edit gates");
+    assert.ok(keys.every((k) => k[1] === t.target), t.tbl + " uses only its own key");
   }
   const all = [...code.matchAll(/app_has_permission\('([^']+)', '([^']+)'\)/g)];
-  assert.ok(all.every((m) => m[2] === "edit"));
+  assert.ok(all.every((m) => m[2] === "edit" || m[2] === "view"));
   assert.deepEqual([...new Set(all.map((m) => m[1]))].sort(), TABLES.map((t) => t.target).sort());
 });

@@ -1,7 +1,8 @@
 // WP10 four-master Stage A — disposable PostgreSQL fixture. Throw-away LOCAL cluster only (unix socket, temp dir); never Supabase, never a network DB.
 // PROVENANCE (all STAND-INS; nothing here is live evidence):
 //  - public.app_has_permission / app_has_permission_core / require_permission: STAND-INS mirroring the documented live shape (WP05 R23: invoker wrapper reads auth.uid(), delegates to a
-//    SECURITY DEFINER core that reads public.user_permissions_canonical; 'view'->can_view, 'edit'->can_edit; missing uid -> false). Live function text for require_permission is not in the repo.
+//    SECURITY DEFINER core that reads public.user_permissions_canonical; 'view'->can_view, 'edit'->can_edit; missing uid -> false). Live function text for require_permission is not in the repo;
+//    its semantics here follow the independent live review of PR #477: require_permission(target, true) requires can_view = true AND can_edit = true (stand-in implements exactly that).
 //  - the 12 rpc_wp10_* functions: STAND-INS (live bodies are not in the repository): SECURITY DEFINER, owned by the table owner, require_permission(<module>, true) then plain DML.
 //  - original policies/grants: verbatim from supabase/migrations/20260809160830_security_advisor_sa2c_wave1_authenticated_master_crud.sql (live-applied).
 //  - roles: authenticated/anon/service_role are plain NOLOGIN roles; the table/function owner `fx_owner` is NON-superuser without BYPASSRLS (like live: owner bypass only via table ownership).
@@ -42,6 +43,7 @@ export const ACTORS = {
   editorSubgroups: "00000000-0000-0000-0000-0000000000a5",
   viewer: "00000000-0000-0000-0000-0000000000b1",      // can_view true, can_edit false on all four
   noAccess: "00000000-0000-0000-0000-0000000000c1",   // authenticated identity with no canonical rows
+  editNoView: "00000000-0000-0000-0000-0000000000d1", // ANOMALOUS: can_edit true but can_view false on all four modules (rev 2 negative case)
 };
 export const OWN_EDITOR = { categories: "editorCategories", sub_categories: "editorSubcategories", product_groups: "editorProductGroups", sub_groups: "editorSubgroups" };
 
@@ -65,7 +67,7 @@ create function public.app_has_permission(p_target text, p_mode text) returns bo
 declare v uuid := auth.uid(); begin if v is null then return false; end if; return public.app_has_permission_core(v, p_target, p_mode); end $$;
 revoke all on function public.app_has_permission(text,text) from public; grant execute on function public.app_has_permission(text,text) to authenticated, fx_owner;
 create function public.require_permission(p_target text, p_edit boolean) returns void language plpgsql security definer set search_path = public, pg_temp as $$
-begin if not public.app_has_permission(p_target, case when p_edit then 'edit' else 'view' end) then raise exception 'Permission denied for %', p_target using errcode = '42501'; end if; end $$;
+begin if not (public.app_has_permission(p_target, 'view') and (not p_edit or public.app_has_permission(p_target, 'edit'))) then raise exception 'Permission denied for %', p_target using errcode = '42501'; end if; end $$;
 alter function public.require_permission(text,boolean) owner to fx_owner; revoke all on function public.require_permission(text,boolean) from public; grant execute on function public.require_permission(text,boolean) to authenticated;
 
 create table public.categories(id serial primary key, category_name text not null unique);
@@ -93,7 +95,8 @@ insert into public.user_permissions_canonical values
  ('${ACTORS.editorAll}','module:manage-categories',true,true),('${ACTORS.editorAll}','module:manage-subcategories',true,true),('${ACTORS.editorAll}','module:manage-product-groups',true,true),('${ACTORS.editorAll}','module:manage-subgroups',true,true),
  ('${ACTORS.editorCategories}','module:manage-categories',true,true),('${ACTORS.editorSubcategories}','module:manage-subcategories',true,true),
  ('${ACTORS.editorProductGroups}','module:manage-product-groups',true,true),('${ACTORS.editorSubgroups}','module:manage-subgroups',true,true),
- ('${ACTORS.viewer}','module:manage-categories',true,false),('${ACTORS.viewer}','module:manage-subcategories',true,false),('${ACTORS.viewer}','module:manage-product-groups',true,false),('${ACTORS.viewer}','module:manage-subgroups',true,false);
+ ('${ACTORS.viewer}','module:manage-categories',true,false),('${ACTORS.viewer}','module:manage-subcategories',true,false),('${ACTORS.viewer}','module:manage-product-groups',true,false),('${ACTORS.viewer}','module:manage-subgroups',true,false),
+ ('${ACTORS.editNoView}','module:manage-categories',false,true),('${ACTORS.editNoView}','module:manage-subcategories',false,true),('${ACTORS.editNoView}','module:manage-product-groups',false,true),('${ACTORS.editNoView}','module:manage-subgroups',false,true);
 ` + rpc("rpc_wp10_create_category", "p_name text", "module:manage-categories", "insert into public.categories(category_name) values (p_name)")
   + rpc("rpc_wp10_rename_category", "p_id int, p_name text", "module:manage-categories", "update public.categories set category_name = p_name where id = p_id")
   + rpc("rpc_wp10_delete_category", "p_id int", "module:manage-categories", "delete from public.categories where id = p_id")

@@ -71,7 +71,7 @@ checks(ord, id, status, detail) as (
                 from pg_proc p join pg_namespace n on n.oid = p.pronamespace, pg_class c where n.nspname = 'public' and p.proname = rpc and c.oid = to_regclass('public.' || rpcs.tbl)), false) then 'PASS' else 'FAIL' end,
          'RPC owner is the table owner or has BYPASSRLS/superuser (so RLS cannot block it)' from rpcs
   union all select 303, 'P14 ' || rpc, case when coalesce((select p.prosrc ~* ('require_permission\(\s*''' || rpcs.target || '''\s*,\s*true\s*\)') from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = rpc), false) then 'PASS' else 'FAIL' end,
-         'body calls require_permission(''' || target || ''', true) (module Edit) — the same target/mode Stage A policies use' from rpcs
+         'body calls require_permission(''' || target || ''', true) (module Edit; live semantics: can_view AND can_edit) — the same target and View+Edit rule Stage A policies use' from rpcs
   union all select 304, 'P15 ' || rpc, case when coalesce((select p.proconfig is not null and exists (select 1 from unnest(p.proconfig) s where s ~* '^search_path=') from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = rpc), false) then 'PASS' else 'WARN' end,
          'fixed search_path configured' from rpcs
   union all select 305, 'P16 ' || rpc, case when exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = rpc and has_function_privilege('authenticated', p.oid, 'EXECUTE'))
@@ -89,6 +89,8 @@ checks(ord, id, status, detail) as (
   union all select 410, 'P18 ' || tbl, 'INFO', 'user triggers: ' || coalesce((select string_agg(tgname, ',') from pg_trigger where tgrelid = oid_ and not tgisinternal), '(none)') || '; table owner=' || coalesce((select pg_get_userbyid(relowner) from pg_class where oid = oid_), '?') from rel
   union all select 420, 'P19 ' || tbl, 'INFO',
          'users with canonical Edit on ' || target || ': ' || coalesce((select count(*)::text from public.user_permissions_canonical u where u.target = rel.target and u.can_edit is true), 'n/a (count only, no identities)') from rel
+  union all select 430, 'P21 ' || tbl, 'INFO',
+         'canonical rows with can_edit true but can_view not true on ' || target || ' (denied by the Stage A View+Edit rule and by require_permission): ' || coalesce((select count(*)::text from public.user_permissions_canonical u where u.target = rel.target and u.can_edit is true and u.can_view is not true), 'n/a (count only)') from rel
   union all select 900, 'P20 environment', 'INFO', 'server_version=' || current_setting('server_version') || '; current_user=' || current_user
 )
 select id, status, detail from (

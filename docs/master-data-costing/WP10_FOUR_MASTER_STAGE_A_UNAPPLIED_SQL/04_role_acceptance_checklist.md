@@ -14,4 +14,6 @@ For each module M in {categories, sub_categories, product_groups, sub_groups} an
 | 5 | Direct REST `POST/PATCH/DELETE /rest/v1/M` (legacy-binary equivalent) | succeeds (compat only) | 42501 / 0 rows | 42501 / 0 rows | 42501 / 0 rows |
 | 6 | Dependent reads (products, BMR, lab, stock screens) | unchanged | unchanged | unchanged | unchanged |
 
+Rev 2 note: Editor(M) means canonical can_view = true AND can_edit = true. If the owner can provision a disposable identity with can_edit = true and can_view = false (anomalous), it must be denied rows 3-5 like View-only; no such identity is assumed to exist and none was created.
+
 Stop and consider rollback only if an authorised Editor is wrongly denied (1–4) or any RPC fails.
