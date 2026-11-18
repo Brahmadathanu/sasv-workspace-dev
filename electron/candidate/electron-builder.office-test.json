@@ -1,0 +1,64 @@
+{
+  "$comment": "OFFICE-PC TEST CANDIDATE ONLY. Unpublished. Never use for the staff application. Dynamic fields (sourceCommit) are merged by scripts/office-test-candidate/build.mjs; building without them yields a marker that main.js refuses to run.",
+  "appId": "com.brahmadathanu.sasvworkspace.officetest",
+  "productName": "SASV Workspace OFFICE TEST",
+  "artifactName": "SASV-Workspace-OFFICE-TEST-${version}.${ext}",
+  "publish": null,
+  "directories": { "output": "dist-office-test" },
+  "extraMetadata": {
+    "name": "sasv-workspace-office-test",
+    "version": "6.1.0-officetest.1",
+    "sasvOfficeTestCandidate": {
+      "schema": 1,
+      "appId": "com.brahmadathanu.sasvworkspace.officetest",
+      "userDataDirName": "SASV Workspace OFFICE TEST",
+      "updaterDisabled": true,
+      "candidateVersion": "6.1.0-officetest.1",
+      "baselineMainSha": "8c7648fab72f2cf2e40bacc74e8fe59bedca2777",
+      "sourceCommit": "UNSET"
+    }
+  },
+  "files": [
+    "**/*",
+    "!docs/**",
+    "!scripts/**",
+    "!tools/**",
+    "!supabase/**",
+    "!sql/**",
+    "!.cursor/**",
+    "!.agents/**",
+    "!coverage/**",
+    "!.temp/**",
+    "!dist/**",
+    "!dist-office-test/**",
+    "!dist-eaushadhi-*/**",
+    "!electron/candidate/electron-builder*.json",
+    "!readme.md",
+    "!LAB_WORKFLOW_ACCESS_CONTROL_README.md"
+  ],
+  "asarUnpack": [
+    "**/node_modules/playwright-core/**",
+    "electron/eaushadhi-worker/**"
+  ],
+  "win": {
+    "icon": "public/shared/assets/branding/derived/favicon.ico",
+    "signAndEditExecutable": false,
+    "target": [
+      { "target": "nsis", "arch": ["x64"] },
+      { "target": "zip", "arch": ["x64"] }
+    ]
+  },
+  "nsis": {
+    "oneClick": true,
+    "perMachine": false,
+    "allowElevation": true,
+    "allowToChangeInstallationDirectory": false,
+    "guid": "7E24F336-164C-4D66-85A4-8D38A617BCE5",
+    "shortcutName": "SASV Workspace OFFICE TEST",
+    "uninstallDisplayName": "SASV Workspace OFFICE TEST",
+    "createDesktopShortcut": false,
+    "createStartMenuShortcut": true,
+    "runAfterFinish": false,
+    "deleteAppDataOnUninstall": false
+  }
+}
