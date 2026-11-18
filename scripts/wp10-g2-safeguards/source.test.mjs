@@ -47,7 +47,10 @@ test("S3 new client modules call no writer and no table API; only the read-only 
 test("S4 no new permission target, registry entry, launcher entry or route in the client package", () => {
   for (const src of [core, ui]) assert.equal(/module:[a-z-]+/.test(src), false);
   const changed = git("diff", "--name-only", "origin/main", "--", "public", "index.html", "main.js", "electron").split("\n").filter(Boolean);
-  const allowed = new Set(["public/shared/js/products.js", "public/shared/js/costing-suite-readiness.js", "public/shared/js/wp10-safeguards.js", "public/shared/js/wp10-safeguards-ui.js", "public/sw.js"]);
+  const allowed = new Set(["public/shared/js/products.js", "public/shared/js/costing-suite-readiness.js", "public/shared/js/wp10-safeguards.js", "public/shared/js/wp10-safeguards-ui.js", "public/sw.js",
+    // Office-PC TEST candidate (unpublished): exact paths only, no wildcard. main.js changes are gated on a build-time marker that the normal
+    // package.json lacks; behaviour is pinned by scripts/office-test-candidate/isolation.test.mjs.
+    "main.js", "electron/candidate/office-test-isolation.js", "electron/candidate/electron-builder.office-test.json"]);
   const untracked = git("ls-files", "--others", "--exclude-standard", "public").split("\n").filter(Boolean);
   // WP11 permit: the PM BOM page may differ from main ONLY by the exact reviewed, content-pinned CSS addition (see wp11-approved-delta.mjs).
   const pmBomDiff = git("diff", "-U0", "origin/main", "--", WP11_PM_BOM_PATH);

@@ -24,6 +24,16 @@ const path = require("path");
 const fs = require("fs");
 const { registerEaushadhiWorkerIpc } = require("./electron/eaushadhi-worker/ipc");
 
+// ---------------- Office-PC TEST candidate isolation ----------------
+// null for the normal app and `npm start` (package.json has no candidate marker => zero behaviour change). For the
+// unpublished office-test build only: separate userData path (set BEFORE the single-instance lock), updater disabled.
+const OFFICE_TEST = require("./electron/candidate/office-test-isolation").activate({
+  app,
+  dialog,
+  readFileSync: fs.readFileSync,
+  appDir: __dirname,
+});
+
 /** Same file as electron-builder `build.win.icon`. Do not duplicate. */
 const CANONICAL_WIN_ICON_REL = path.join(
   "public",
@@ -62,7 +72,11 @@ const DEV_APP_USER_MODEL_ID = "com.brahmadathanu.sasvworkspace.dev";
 
 if (process.platform === "win32") {
   app.setAppUserModelId(
-    app.isPackaged ? PACKAGED_APP_USER_MODEL_ID : DEV_APP_USER_MODEL_ID,
+    OFFICE_TEST
+      ? OFFICE_TEST.appId
+      : app.isPackaged
+        ? PACKAGED_APP_USER_MODEL_ID
+        : DEV_APP_USER_MODEL_ID,
   );
 }
 
@@ -174,6 +188,11 @@ const {
   LevelFormat, // for outline numbering, etc.
 } = require("docx");
 const { autoUpdater } = require("electron-updater");
+if (OFFICE_TEST) {
+  // Belt and braces: even if some path reached the updater, nothing may download or install on quit.
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+}
 
 const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
 const UPDATE_RECHECK_ON_FOCUS_MS = 10 * 60 * 1000;
@@ -203,6 +222,7 @@ function sendUpdate(payload) {
 }
 
 function canCheckForUpdates() {
+  if (OFFICE_TEST) return false; // test candidate: every update check (startup/interval/focus/resume/manual) is inert
   if (!app.isPackaged) return false;
   if (updateCheckInFlight) return false;
   if (lastUpdateState.status === "progress") return false;
@@ -286,9 +306,24 @@ webApp.use((req, res, next) => {
 });
 
 webApp.use(express.static(path.join(__dirname)));
-webApp.listen(3000, () =>
+const staticServer = webApp.listen(3000, () =>
   console.log("Static server at http://localhost:3000"),
 );
+if (OFFICE_TEST) {
+  // Port 3000 is fixed (Supabase CORS / reset-password redirects use http://localhost:3000). If the normal SASV Workspace or
+  // `npm start` already owns it, refuse to run: the candidate window must never load pages served by another app instance.
+  staticServer.on("error", (err) => {
+    try {
+      dialog.showErrorBox(
+        "SASV Workspace OFFICE TEST cannot start",
+        `Port 3000 is unavailable (${(err && err.code) || "error"}). Close SASV Workspace and any npm start session, then start this test app again.`,
+      );
+    } catch {
+      // headless
+    }
+    app.exit(2);
+  });
+}
 
 // ---------------- Single Instance Lock ----------------
 // Prevent multiple instances from running simultaneously
@@ -331,6 +366,14 @@ function createWindow() {
     },
   });
   applyWindowsDevWindowIdentity(mainWindow);
+  if (OFFICE_TEST) {
+    // Make the test app unmistakable in the title bar / taskbar.
+    const win = mainWindow;
+    win.on("page-title-updated", (event, title) => {
+      event.preventDefault();
+      win.setTitle(`[OFFICE TEST] ${title}`);
+    });
+  }
   mainWindow.loadURL("http://localhost:3000/login.html");
   mainWindow.webContents.on("did-finish-load", () => {
     try {
@@ -380,6 +423,7 @@ ipcMain.handle("get-app-version", () => app.getVersion());
 ipcMain.handle("updater:get-state", () => lastUpdateState);
 ipcMain.handle("updater:check", () => checkForAppUpdates("renderer"));
 ipcMain.handle("updater:restart", () => {
+  if (OFFICE_TEST) return { ok: false, error: "Updater disabled in the office test build" };
   try {
     autoUpdater.quitAndInstall(true, true);
     return { ok: true };
@@ -432,6 +476,10 @@ ipcMain.handle("auth:hasPermission", (_evt, moduleName, action) => {
 app.whenReady().then(() => {
   ensureDevStartMenuShortcut();
   createWindow();
+  if (OFFICE_TEST) {
+    console.log("Office test candidate: auto-update disabled (no feed configured, no checks scheduled)");
+    return;
+  }
   try {
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
