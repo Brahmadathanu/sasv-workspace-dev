@@ -7,7 +7,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { BASELINE_MAIN_SHA, CONFIG_REL, REPO, asarContentProblems, identityProblems, listAsar, packagedPkgProblems, parityWithGit, readAsarFile, scrubbedEnv, secretScan, sha256File } from "./lib.mjs";
+import { BASELINE_MAIN_SHA, CONFIG_REL, REPO, asarContentProblems, identityProblems, listAsar, packagedPkgProblems, parityWithGit, peCertificateTableSize, readAsarFile, scrubbedEnv, secretScan, sha256File, utf16Strings } from "./lib.mjs";
 import { costingAssetList } from "../costing-acceptance/verify-served-assets.mjs";
 
 const args = process.argv.slice(2); const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
@@ -55,7 +55,7 @@ if (!nsis || !zip) fail(1, `expected NSIS and ZIP in ${dist}, got ${names.join("
 for (const n of [nsis, zip]) fs.copyFileSync(path.join(dist, n), path.join(out, n));
 const asarSrc = path.join(dist, "win-unpacked/resources/app.asar");
 fs.copyFileSync(asarSrc, path.join(out, "app.asar"));
-fs.copyFileSync(path.join(dist, "builder-effective-config.yaml"), path.join(out, "builder-effective-config.yaml"));
+fs.copyFileSync(genCfg, path.join(out, "builder.generated.json")); // exact builder input (electron-builder only writes an effective-config file for interactive TTY builds)
 
 // 4. verification
 const problems = []; const checks = {};
@@ -71,11 +71,17 @@ const scan = secretScan({ asarPath: asarSrc, files, root: src }); if (scan.hits.
 const resDir = path.join(dist, "win-unpacked/resources");
 if (fs.existsSync(path.join(resDir, "app-update.yml"))) problems.push("app-update.yml present in resources (updater feed would exist)");
 if (names.some((n) => /^latest.*\.yml$/.test(n))) problems.push("latest.yml was produced (release-feed artefact)");
-const eff = fs.readFileSync(path.join(out, "builder-effective-config.yaml"), "utf8");
-for (const needle of ["appId: com.brahmadathanu.sasvworkspace.officetest", "productName: SASV Workspace OFFICE TEST", `guid: ${cfg.nsis.guid}`]) if (!eff.includes(needle)) problems.push(`effective config lacks "${needle}"`);
-if (/A3F5C8D2-14BE-4E7A-9B3C-6D0E2F1A4B87|appId: com\.brahmadathanu\.sasvworkspace\s*$/m.test(eff)) problems.push("effective config contains the production GUID/appId");
-if (/provider: github/.test(eff)) problems.push("effective config contains a github publish provider");
-checks.effectiveConfig = { appIdOk: true, guidOk: true, noProductionIdentity: !/A3F5C8D2-14BE/.test(eff) };
+const exeInUnpacked = path.join(dist, "win-unpacked/SASV Workspace OFFICE TEST.exe");
+if (!fs.existsSync(exeInUnpacked)) problems.push("win-unpacked lacks 'SASV Workspace OFFICE TEST.exe'");
+if (fs.existsSync(path.join(dist, "win-unpacked/SASV Workspace.exe"))) problems.push("win-unpacked contains the production executable name");
+const u16 = utf16Strings(exeInUnpacked);
+for (const needle of ["SASV Workspace OFFICE TEST", "6.1.0-officetest.1"]) if (![...u16].some((x) => x.includes(needle))) problems.push(`exe version resources lack "${needle}"`);
+if ([...u16].some((x) => x === "SASV Workspace" || /ProductName\W*SASV Workspace$/.test(x))) problems.push("exe version resources contain the bare production product name");
+const certSizes = { nsis: peCertificateTableSize(path.join(out, nsis)), exe: peCertificateTableSize(exeInUnpacked) };
+checks.identity = { exeResourcesCarryCandidateName: true, builderInputGuid: cfg.nsis.guid, productionGuidInBuilderInput: JSON.stringify(cfg).includes("A3F5C8D2-14BE-4E7A-9B3C-6D0E2F1A4B87"),
+  nsisGuidExtractedFromInstaller: "NOT VERIFIED (installer header is compressed; GUID verified from the exact builder input only)", authenticodeCertificateTableBytes: certSizes };
+if (checks.identity.productionGuidInBuilderInput) problems.push("builder input contains the production GUID");
+if (cfg.publish !== null) problems.push("builder input has a publish feed");
 const mz = (p) => { const b = Buffer.alloc(2); const fd = fs.openSync(p, "r"); fs.readSync(fd, b, 0, 2, 0); fs.closeSync(fd); return b.toString("latin1") === "MZ"; };
 if (!mz(path.join(out, nsis))) problems.push("NSIS installer is not a PE (MZ) file");
 // ZIP contents and the app.asar inside it
@@ -89,12 +95,14 @@ checks.zip = { entries: zl.filter(Boolean).length, exe: exeInZip || null, asarSa
 // NSIS payload app.asar (7z extraction of the installer; independent of the unpacked dir)
 try {
   const z7 = path.join(src, "node_modules/7zip-bin/linux/x64/7za"); const nx = path.join(work, "nsisx"); fs.mkdirSync(nx);
-  execFileSync(z7, ["x", "-y", `-o${nx}`, path.join(out, nsis)], { stdio: "ignore" });
-  const pay = (function find(d) { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) { const r = find(p); if (r) return r; } else if (/^app-64\.7z$/.test(e.name)) return p; } return null; })(nx);
-  if (!pay) { checks.nsisPayload = { status: "NOT VERIFIED: app-64.7z not found in installer extraction" }; }
-  else { const px = path.join(work, "payx"); fs.mkdirSync(px); execFileSync(z7, ["x", "-y", `-o${px}`, pay], { stdio: "ignore" });
-    const same = sha256File(path.join(px, "resources/app.asar")) === asarHash; if (!same) problems.push("NSIS payload app.asar differs from win-unpacked app.asar");
-    checks.nsisPayload = { status: same ? "app.asar in installer payload == app.asar hashed below" : "MISMATCH", exe: fs.existsSync(path.join(px, "SASV Workspace OFFICE TEST.exe")) }; if (!checks.nsisPayload.exe) problems.push("NSIS payload lacks the OFFICE TEST executable"); }
+  execFileSync(z7, ["x", "-y", `-o${nx}`, path.join(out, nsis)], { stdio: "ignore", maxBuffer: 64 * 1024 * 1024 });
+  const payAsar = path.join(nx, "resources/app.asar");
+  if (!fs.existsSync(payAsar)) checks.nsisPayload = { status: "NOT VERIFIED: resources/app.asar not found in installer extraction" };
+  else {
+    const same = sha256File(payAsar) === asarHash; if (!same) problems.push("NSIS payload app.asar differs from win-unpacked app.asar");
+    const exeOk = fs.existsSync(path.join(nx, "SASV Workspace OFFICE TEST.exe")); if (!exeOk) problems.push("NSIS payload lacks the OFFICE TEST executable");
+    checks.nsisPayload = { status: same ? "app.asar in installer payload == hashed app.asar" : "MISMATCH", exe: exeOk, payloadExeSameAsUnpacked: sha256File(path.join(nx, "SASV Workspace OFFICE TEST.exe")) === sha256File(exeInUnpacked) };
+  }
 } catch (e) { checks.nsisPayload = { status: `NOT VERIFIED: ${String(e.message).split("\n")[0]}` }; }
 
 // 5. hashes + manifest
@@ -102,7 +110,7 @@ const hashes = { [nsis]: sha256File(path.join(out, nsis)), [zip]: sha256File(pat
 fs.writeFileSync(path.join(out, "SHA256SUMS.txt"), Object.entries(hashes).map(([n, h]) => `${h}  ${n}`).join("\n") + "\n");
 const manifest = { kind: "OFFICE-PC TEST CANDIDATE - UNPUBLISHED - NOT A RELEASE", sourceCommit: sha, baselineMain: BASELINE_MAIN_SHA, builtAtUtc: new Date().toISOString(),
   builder: { host: `${os.platform()} ${os.arch()} (cross-build; Wine ${execFileSync("wine", ["--version"], { encoding: "utf8" }).trim()} for NSIS uninstaller + exe resource editing)`, node: process.version, electronBuilder: JSON.parse(fs.readFileSync(path.join(src, "node_modules/electron-builder/package.json"), "utf8")).version, electron: JSON.parse(fs.readFileSync(path.join(src, "node_modules/electron/package.json"), "utf8")).version },
-  signing: "UNSIGNED (no certificate configured; credentials stripped from the environment). Windows SmartScreen will warn.", strippedEnv: removed,
+  signing: "UNSIGNED (no certificate configured; signing credentials stripped from the environment; PE certificate-table sizes recorded in checks.identity). Windows SmartScreen will warn.", strippedEnv: removed,
   artifacts: Object.fromEntries(Object.entries(hashes).map(([n, h]) => [n, { sha256: h, bytes: fs.statSync(path.join(out, n === "app.asar" ? "app.asar" : n)).size }])),
   checks, problems, verdict: problems.length ? "FAIL" : "VERIFIED" };
 fs.writeFileSync(path.join(out, "manifest.json"), JSON.stringify(manifest, null, 2));

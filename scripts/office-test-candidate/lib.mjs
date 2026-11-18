@@ -111,3 +111,26 @@ export function secretScan({ asarPath, files, root }) {
   }
   return { hits, publicAnonJwtOccurrences: anonJwt, note: "public anon keys are expected in a client app and are counted only; no values recorded" };
 }
+
+/** Authenticode state from the PE header: size of the Certificate Table data directory (0 = unsigned). Throws if not a PE32/PE32+ file. */
+export function peCertificateTableSize(file) {
+  const fd = fs.openSync(file, "r");
+  try {
+    const head = Buffer.alloc(4096); fs.readSync(fd, head, 0, 4096, 0);
+    if (head.toString("latin1", 0, 2) !== "MZ") throw new Error("not a PE file");
+    const pe = head.readUInt32LE(0x3c); if (head.toString("latin1", pe, pe + 4) !== "PE\0\0") throw new Error("bad PE signature");
+    const opt = pe + 24; const magic = head.readUInt16LE(opt); const dirs = opt + (magic === 0x20b ? 112 : 96);
+    return head.readUInt32LE(dirs + 4 * 8 + 4); // DataDirectory[4] (Security) size
+  } finally { fs.closeSync(fd); }
+}
+
+/** UTF-16LE strings of a PE (like `strings -el`), for checking version-resource identity without Windows tooling. */
+export function utf16Strings(file, min = 6) {
+  const b = fs.readFileSync(file); const out = new Set(); let cur = [];
+  for (let i = 0; i + 1 < b.length; i += 2) {
+    const c = b[i] | (b[i + 1] << 8);
+    if (c >= 32 && c < 127 || c === 0xa9) cur.push(String.fromCharCode(c));
+    else { if (cur.length >= min) out.add(cur.join("")); cur = []; }
+  }
+  return out;
+}

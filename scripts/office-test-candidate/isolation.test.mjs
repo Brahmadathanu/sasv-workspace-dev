@@ -149,3 +149,17 @@ test("main.js source guards: candidate activation precedes the single-instance l
   const rest = s.slice(s.indexOf('ipcMain.handle("updater:restart"'), s.indexOf("quitAndInstall"));
   assert.match(rest, /if \(OFFICE_TEST\) return \{ ok: false/);
 });
+
+test("PE helpers: certificate-table size distinguishes signed from unsigned (PE32 and PE32+); UTF-16 string reader sees version-resource text", async () => {
+  const { peCertificateTableSize, utf16Strings } = await import("./lib.mjs");
+  const os = await import("node:os");
+  const mk = (magic, certSize) => {
+    const b = Buffer.alloc(4096); b.write("MZ", 0, "latin1"); b.writeUInt32LE(0x80, 0x3c); b.write("PE\0\0", 0x80, "latin1");
+    const opt = 0x80 + 24; b.writeUInt16LE(magic, opt); const dirs = opt + (magic === 0x20b ? 112 : 96); b.writeUInt32LE(certSize, dirs + 4 * 8 + 4);
+    const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "pe-")), "t.exe"); fs.writeFileSync(f, Buffer.concat([b, Buffer.from("S\0A\0S\0V\0 \0T\0E\0S\0T\0\0\0", "latin1")])); return f;
+  };
+  assert.equal(peCertificateTableSize(mk(0x20b, 0)), 0); assert.equal(peCertificateTableSize(mk(0x20b, 5120)), 5120);
+  assert.equal(peCertificateTableSize(mk(0x10b, 0)), 0); assert.equal(peCertificateTableSize(mk(0x10b, 64)), 64);
+  assert.ok(utf16Strings(mk(0x20b, 0)).has("SASV TEST"));
+  const junk = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "pe-")), "j.bin"); fs.writeFileSync(junk, "hello"); assert.throws(() => peCertificateTableSize(junk), /not a PE/);
+});
