@@ -1,10 +1,11 @@
 {
-  "$comment": "OFFICE-PC TEST CANDIDATE ONLY. Unpublished. Never use for the staff application. Dynamic fields (sourceCommit) are merged by scripts/office-test-candidate/build.mjs; building without them yields a marker that main.js refuses to run.",
   "appId": "com.brahmadathanu.sasvworkspace.officetest",
   "productName": "SASV Workspace OFFICE TEST",
   "artifactName": "SASV-Workspace-OFFICE-TEST-${version}.${ext}",
   "publish": null,
-  "directories": { "output": "dist-office-test" },
+  "directories": {
+    "output": "dist-office-test"
+  },
   "extraMetadata": {
     "name": "sasv-workspace-office-test",
     "version": "6.1.0-officetest.1",
@@ -44,8 +45,18 @@
     "icon": "public/shared/assets/branding/derived/favicon.ico",
     "signAndEditExecutable": false,
     "target": [
-      { "target": "nsis", "arch": ["x64"] },
-      { "target": "zip", "arch": ["x64"] }
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      },
+      {
+        "target": "zip",
+        "arch": [
+          "x64"
+        ]
+      }
     ]
   },
   "nsis": {
