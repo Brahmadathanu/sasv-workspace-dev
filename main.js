@@ -359,7 +359,19 @@ function createWindow() {
   const createdWindow = mainWindow;
   staticServerReady
     .then(() => createdWindow.loadURL(`${APP_ORIGIN}/login.html`))
-    .catch((err) => console.error("Main window load failed:", err && err.message));
+    .catch((err) => {
+      console.error("Main window load failed:", err && err.message);
+      // Show a readable message instead of a blank window (typically the port is held by another program).
+      const html =
+        '<!doctype html><meta charset="utf-8"><title>SASV Workspace</title>' +
+        '<body style="font-family:Segoe UI,Arial,sans-serif;margin:3rem;max-width:40rem">' +
+        "<h2>SASV Workspace could not start</h2>" +
+        `<p>The local page server could not listen on port ${STATIC_PORT}. Another program may be using it.</p>` +
+        "<p>Close the other program or restart the PC, then open SASV Workspace again.</p></body>";
+      if (!createdWindow.isDestroyed()) {
+        createdWindow.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html)).catch(() => {});
+      }
+    });
   mainWindow.webContents.on("did-finish-load", () => {
     try {
       mainWindow.webContents.send("updater:status", lastUpdateState);

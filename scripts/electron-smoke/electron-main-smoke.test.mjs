@@ -147,3 +147,27 @@ test('updater discovers a newer version from a LOCAL generic feed on this Electr
   }, { feed: feedPort, updaterPath: path.join(root, 'node_modules', 'electron-updater') });
   assert.equal(result.found, '9.9.9'); assert.equal(result.downloaded, false);
 });
+
+test('print/report popups: a blob: URL minted by the app origin and about:blank document.write both open; IPv6 loopback (::1) also serves the app when the host has IPv6', { skip }, async () => {
+  const before = app.windows().length;
+  await win.evaluate(() => { const u = URL.createObjectURL(new Blob(['<h1>print</h1>'], { type: 'text/html' })); window.open(u); }); await sleep(900);
+  assert.equal(app.windows().length, before + 1, 'blob: popup from the app origin allowed');
+  await win.evaluate(() => { const w = window.open('about:blank'); w.document.write('<h1>report</h1>'); w.document.close(); }); await sleep(900);
+  assert.equal(app.windows().length, before + 2, 'about:blank + document.write popup allowed');
+  for (const w of app.windows().filter(x => x !== win)) await w.close().catch(() => {});
+  const v6 = await new Promise(resolve => { const s = net.connect({ host: '::1', port, timeout: 1500 }, () => { s.destroy(); resolve('connected'); }); s.on('error', e => resolve(e.code)); s.on('timeout', () => { s.destroy(); resolve('TIMEOUT'); }); });
+  assert.ok(['connected', 'EADDRNOTAVAIL', 'ECONNREFUSED'].includes(v6), 'IPv6 loopback result: ' + v6);
+  if (v6 === 'connected') assert.equal((await httpGet('::1', port, '/login.html')).status, 200);
+});
+
+test('port collision: when the port is taken, the app stays up and shows a readable message instead of a blank window or a crash', { skip }, async () => {
+  const taken = await freePort(); const blocker = net.createServer(); await new Promise(r => blocker.listen(taken, '127.0.0.1', r));
+  const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'sasv-electron-collision-'));
+  const env = { ...process.env, SASV_STATIC_PORT: String(taken), NODE_ENV: 'production' }; delete env.ELECTRON_RUN_AS_NODE;
+  const a2 = await _electron.launch({ args: [process.env.SASV_SMOKE_APP || '.', `--user-data-dir=${ud}`], cwd: root, env, timeout: 90000 });
+  try {
+    const w = await a2.firstWindow({ timeout: 60000 });
+    await w.waitForFunction(() => document.body && /could not start/i.test(document.body.innerText), null, { timeout: 30000 });
+    assert.match(await w.evaluate(() => document.body.innerText), new RegExp(String(taken)));
+  } finally { await a2.close().catch(() => {}); blocker.close(); fs.rmSync(ud, { recursive: true, force: true }); }
+});
