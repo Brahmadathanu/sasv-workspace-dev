@@ -1,6 +1,5 @@
-import { supabase } from '../public/shared/js/supabaseClient.js';
-import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
-import { initializeClassificationAccess } from './classification-master-access.js';
+import { supabase } from './supabaseClient.js';
+import { startClassificationModule, setClassificationStatus } from './classification-master-shell.js?v=49a21f7924';
 import { escapeClassificationHtml } from './classification-html-escape.js';
 
 const categorySelect    = document.getElementById('categorySelect');
@@ -15,11 +14,10 @@ const confirmOverlay    = document.getElementById('confirmOverlay');
 const confirmMsg        = document.getElementById('confirmMsg');
 const confirmYes        = document.getElementById('confirmYes');
 const confirmNo         = document.getElementById('confirmNo');
-const homeIcon          = document.getElementById('homeIcon');
 
 async function loadGroupKinds() {
   const { data, error } = await supabase.from('product_group_kinds').select('id, group_name, code').order('group_name');
-  if (error) { console.error(error); window.alert('Unable to load product group kinds'); return; }
+  if (error) { console.error(error); setClassificationStatus('error', 'Unable to load product group kinds. Reload the page to try again.'); return; }
   populate(newGroupKind, data, 'id', 'group_name', 'Select group kind');
 }
 
@@ -42,7 +40,7 @@ async function loadCategories() {
     .from('categories')
     .select('id, category_name')
     .order('category_name', { ascending: true });
-  if (error) { console.error(error); return; }
+  if (error) { console.error(error); setClassificationStatus('error', 'Unable to load categories. Reload the page to try again.'); return; }
   populate(categorySelect, data, 'id', 'category_name', 'Category');
 }
 
@@ -58,7 +56,7 @@ async function loadSubcategories(catId) {
     .select('id, subcategory_name')
     .eq('category_id', catId)
     .order('subcategory_name', { ascending: true });
-  if (error) { console.error(error); return; }
+  if (error) { console.error(error); setClassificationStatus('error', 'Unable to load sub-categories. Reload the page to try again.'); return; }
   populate(subcategorySelect, data, 'id', 'subcategory_name', 'Sub-category');
   subcategorySelect.disabled = false;
 }
@@ -74,7 +72,9 @@ async function renderGroups() {
     .select('id, group_name')
     .eq('sub_category_id', subId)
     .order('group_name', { ascending: true });
-  if (error) { console.error(error); return; }
+  if (error) { console.error(error); setClassificationStatus('error', 'Unable to load product groups. Reload the page to try again.'); return; }
+  if (data.length === 0) setClassificationStatus('empty', 'No product groups for this sub-category.');
+  else setClassificationStatus('ready');
 
   data.forEach(r => {
     const tr = document.createElement('tr');
@@ -194,16 +194,9 @@ confirmNo.addEventListener('click', () => {
   confirmOverlay.style.display = 'none';
 });
 
-/** 10. Navigate home */
-mountModuleHome(homeIcon);
-homeIcon.addEventListener('click', () => {
-  window.location.href = 'index.html';
-});
-
-/** Initialize on load */
-window.addEventListener('DOMContentLoaded', async () => {
+// Session gate + canonical View/Edit check run first; rows load only for a View-permitted user, and writer
+// surfaces stay locked unless canonical module Edit is verified (see classification-master-shell.js).
+startClassificationModule('module:manage-product-groups', async () => {
   await Promise.all([loadCategories(), loadGroupKinds()]);
-  renderGroups();
+  await renderGroups();
 });
-// Writer surfaces stay locked unless the canonical module Edit permission is verified.
-initializeClassificationAccess('module:manage-product-groups');

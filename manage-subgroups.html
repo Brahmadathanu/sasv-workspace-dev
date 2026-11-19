@@ -1,60 +1,16 @@
-<!DOCTYPE html>
-<html lang="en" data-sasv-theme="sasv-core">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SASV WORKSPACE | Manage Sub-groups</title>
-  <link rel="stylesheet" href="public/shared/css/style.css" />
-</head>
-<body class="sasv-module" data-theme="system">
-  <div class="sasv-module-shell">
-    <header class="sasv-module-header header-bar">
-      <div class="sasv-module-heading">
-        <h1 class="sasv-module-title">Manage Sub-groups</h1>
-      </div>
-      <button type="button" id="homeIcon" class="action-link" title="Home" aria-label="Home"></button>
-    </header>
-
-    <div class="filters">
-      <select id="categorySelect">
-        <option value="">-- Category --</option>
-      </select>
-      <select id="subcategorySelect" disabled>
-        <option value="">-- Sub-category --</option>
-      </select>
-      <select id="groupSelect" disabled>
-        <option value="">-- Product Group --</option>
-      </select>
-      <button type="button" id="clearFilters" class="clear-link">Clear</button>
-    </div>
-
-    <section class="section">
-      <h3 class="sasv-module-section-title">Existing Sub-groups</h3>
-      <table>
-        <thead>
-          <tr><th>Name</th><th>Actions</th></tr>
-        </thead>
-        <tbody id="subGroupTable"></tbody>
-      </table>
-    </section>
-
-    <section class="section">
-      <h3 class="sasv-module-section-title">Add New Sub-group</h3>
-      <form id="addSubGroupForm" class="sasv-inline-form">
-        <input type="text" name="sub_group_name" placeholder="Enter sub-group name" required />
-        <button type="submit" class="btn primary">Add Sub-group</button>
-      </form>
-    </section>
-  </div>
-
-  <div id="confirmOverlay">
-    <div id="confirmBox">
-      <p id="confirmMessage"></p>
-      <button type="button" id="confirmYes">Yes</button>
-      <button type="button" id="confirmNo">No</button>
-    </div>
-  </div>
-
-  <script type="module" src="js/subgroups.js"></script>
-</body>
+<!doctype html>
+<!-- WP10 PWA enablement legacy-URL compatibility stub. The canonical page is public/shared/manage-subgroups.html (one source for
+     Electron and PWA). This stub only forwards, preserving query and hash; it contains no module code. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Redirecting…</title>
+    <meta http-equiv="refresh" content="0; url=public/shared/manage-subgroups.html" />
+    <script>
+      location.replace("public/shared/manage-subgroups.html" + location.search + location.hash);
+    </script>
+  </head>
+  <body>
+    <p>Redirecting to <a href="public/shared/manage-subgroups.html">Manage subgroups</a>…</p>
+  </body>
 </html>

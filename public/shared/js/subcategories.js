@@ -1,13 +1,11 @@
 // subcategories.js
-import { supabase } from '../public/shared/js/supabaseClient.js';
-import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
-import { initializeClassificationAccess } from './classification-master-access.js';
+import { supabase } from './supabaseClient.js';
+import { startClassificationModule, setClassificationStatus } from './classification-master-shell.js?v=49a21f7924';
 import { escapeClassificationHtml } from './classification-html-escape.js';
 
 const catSelect     = document.getElementById('categorySelect');
 const addForm       = document.getElementById('addSubForm');
 const subTableBody  = document.querySelector('#subTable tbody');
-const homeIcon      = document.getElementById('homeIcon');
 
 const confirmOverlay = document.getElementById('confirmOverlay');
 const confirmBox     = document.getElementById('confirmBox');
@@ -47,6 +45,7 @@ async function loadCategories() {
     .order('category_name', { ascending: true });
   if (error) {
     console.error('Error loading categories:', error);
+    setClassificationStatus('error', 'Unable to load categories. Reload the page to try again.');
     return;
   }
   data.forEach(r => {
@@ -70,8 +69,11 @@ async function renderSubcategories() {
     .order('subcategory_name', { ascending: true });
   if (error) {
     console.error('Error loading sub-categories:', error);
+    setClassificationStatus('error', 'Unable to load sub-categories. Reload the page to try again.');
     return;
   }
+  if (data.length === 0) setClassificationStatus('empty', 'No sub-categories for this category.');
+  else setClassificationStatus('ready');
 
   data.forEach(r => {
     const tr = document.createElement('tr');
@@ -86,11 +88,6 @@ async function renderSubcategories() {
     subTableBody.appendChild(tr);
   });
 }
-
-// Init
-window.addEventListener('DOMContentLoaded', async () => {
-  await loadCategories();
-});
 
 // Category changed
 catSelect.addEventListener('change', renderSubcategories);
@@ -170,10 +167,6 @@ subTableBody.addEventListener('click', async e => {
   }
 });
 
-// Home navigation
-mountModuleHome(homeIcon);
-homeIcon.onclick = () => {
-  window.location.href = 'index.html';
-};
-// Writer surfaces stay locked unless the canonical module Edit permission is verified.
-initializeClassificationAccess('module:manage-subcategories');
+// Session gate + canonical View/Edit check run first; rows load only for a View-permitted user, and writer
+// surfaces stay locked unless canonical module Edit is verified (see classification-master-shell.js).
+startClassificationModule('module:manage-subcategories', loadCategories);

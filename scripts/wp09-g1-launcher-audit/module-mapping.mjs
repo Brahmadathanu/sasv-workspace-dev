@@ -58,10 +58,10 @@ export const MAPPING = [
   { page: "public/shared/cost-sheet-review.html", key: "cost-sheet-review", keyBasis: "live-registry", optA: A("product-reference-master", "Costing suite"), optB: A("product-costing", "Costing suite"), optC: "Costing suite", dup: "legit suite entry" },
 
   // ---- Product / reference / inventory masters (root Electron-only)
-  { page: "manage-product-groups.html", key: "manage-product-groups", keyBasis: "live-registry", optA: A("product-reference-master", "Product classification"), optB: A("master-data", "Product classification"), optC: "Product classification", dup: "parent-child master family" },
-  { page: "manage-subgroups.html", key: "manage-subgroups", keyBasis: "live-registry", optA: A("product-reference-master", "Product classification"), optB: A("master-data", "Product classification"), optC: "Product classification", dup: "parent-child master family" },
-  { page: "manage-categories.html", key: "manage-categories", keyBasis: "live-registry", optA: A("product-reference-master", "Product classification"), optB: A("master-data", "Product classification"), optC: "Product classification", dup: "parent-child master family" },
-  { page: "manage-subcategories.html", key: "manage-subcategories", keyBasis: "live-registry", optA: A("product-reference-master", "Product classification"), optB: A("master-data", "Product classification"), optC: "Product classification", dup: "parent-child master family" },
+  { page: "public/shared/manage-product-groups.html", key: "manage-product-groups", keyBasis: "live-registry", optA: A("product-reference-master", "Product classification"), optB: A("master-data", "Product classification"), optC: "Product classification", dup: "parent-child master family" },
+  { page: "public/shared/manage-subgroups.html", key: "manage-subgroups", keyBasis: "live-registry", optA: A("product-reference-master", "Product classification"), optB: A("master-data", "Product classification"), optC: "Product classification", dup: "parent-child master family" },
+  { page: "public/shared/manage-categories.html", key: "manage-categories", keyBasis: "live-registry", optA: A("product-reference-master", "Product classification"), optB: A("master-data", "Product classification"), optC: "Product classification", dup: "parent-child master family" },
+  { page: "public/shared/manage-subcategories.html", key: "manage-subcategories", keyBasis: "live-registry", optA: A("product-reference-master", "Product classification"), optB: A("master-data", "Product classification"), optC: "Product classification", dup: "parent-child master family" },
   { page: "manage-stock-items.html", key: "manage-stock-items", keyBasis: "live-registry", optA: A("inventory-sales", "Inventory masters"), optB: A("master-data", "Inventory masters"), optC: "Inventory masters", dup: "RELATED: also writes inv_stock_item_class_map (single-item) vs manage-category-map (bulk)" },
   { page: "manage-category-map.html", key: "manage-category-map", keyBasis: "live-registry", optA: A("inventory-sales", "Inventory masters"), optB: A("master-data", "Inventory masters"), optC: "Inventory masters", dup: "RELATED: bulk class map (fn_bulk_upsert_item_class_map)" },
   { page: "manage-tally-inv-mapping.html", key: "tally-inv-mapping", keyBasis: "live-registry", optA: A("inventory-sales", "Inventory masters"), optB: A("master-data", "Inventory masters"), optC: "Inventory masters", dup: "distinct (Tally alias mapping)" },
@@ -115,6 +115,9 @@ export const NON_LAUNCHER = {
   "manage-products.html": "legacy redirect stub (WP08)", "manage-rm-bom.html": "legacy redirect stub (WP08)",
   "manage-pm-bom.html": "legacy redirect stub (WP08)", "manage-sp-bom.html": "legacy redirect stub (WP08)",
   "fg-bulk-internal-transfer.html": "legacy redirect stub",
+  // WP10 PWA enablement: canonical pages moved to public/shared (one source for Electron + PWA); root URLs forward.
+  "manage-categories.html": "legacy redirect stub (WP10 PWA)", "manage-subcategories.html": "legacy redirect stub (WP10 PWA)",
+  "manage-product-groups.html": "legacy redirect stub (WP10 PWA)", "manage-subgroups.html": "legacy redirect stub (WP10 PWA)",
 };
 
 export const OPTION_B_SECTIONS = [

@@ -1,7 +1,6 @@
 // subgroups.js
-import { supabase } from '../public/shared/js/supabaseClient.js';
-import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
-import { initializeClassificationAccess } from './classification-master-access.js';
+import { supabase } from './supabaseClient.js';
+import { startClassificationModule, setClassificationStatus } from './classification-master-shell.js?v=49a21f7924';
 import { escapeClassificationHtml } from './classification-html-escape.js';
 
 const categorySelect    = document.getElementById('categorySelect');
@@ -10,7 +9,6 @@ const groupSelect       = document.getElementById('groupSelect');
 const tableBody         = document.getElementById('subGroupTable');
 const addForm           = document.getElementById('addSubGroupForm');
 const clearFilters      = document.getElementById('clearFilters');
-const homeIcon          = document.getElementById('homeIcon');
 
 const confirmOverlay    = document.getElementById('confirmOverlay');
 const confirmMessage    = document.getElementById('confirmMessage');
@@ -42,7 +40,7 @@ async function loadCategories() {
     .from('categories')
     .select('id, category_name')
     .order('category_name');
-  if (error) return console.error(error);
+  if (error) { console.error(error); setClassificationStatus('error', 'Unable to load categories. Reload the page to try again.'); return; }
   categorySelect.innerHTML = '<option value="">-- Category --</option>';
   data.forEach(c => {
     const o = document.createElement('option');
@@ -65,7 +63,7 @@ async function loadSubcategories(catId) {
     .select('id, subcategory_name')
     .eq('category_id', catId)
     .order('subcategory_name');
-  if (error) return console.error(error);
+  if (error) { console.error(error); setClassificationStatus('error', 'Unable to load sub-categories. Reload the page to try again.'); return; }
   data.forEach(sc => {
     const o = document.createElement('option');
     o.value = sc.id;
@@ -85,7 +83,7 @@ async function loadGroups(subCatId) {
     .select('id, group_name')
     .eq('sub_category_id', subCatId)
     .order('group_name');
-  if (error) return console.error(error);
+  if (error) { console.error(error); setClassificationStatus('error', 'Unable to load product groups. Reload the page to try again.'); return; }
   data.forEach(g => {
     const o = document.createElement('option');
     o.value = g.id;
@@ -103,7 +101,9 @@ async function renderSubGroups(groupId) {
     .select('id, sub_group_name')
     .eq('product_group_id', groupId)
     .order('sub_group_name');
-  if (error) return console.error(error);
+  if (error) { console.error(error); setClassificationStatus('error', 'Unable to load sub-groups. Reload the page to try again.'); return; }
+  if (data.length === 0) setClassificationStatus('empty', 'No sub-groups for this product group.');
+  else setClassificationStatus('ready');
   data.forEach(r => {
     const tr = document.createElement('tr');
     tr.dataset.id = r.id;
@@ -198,11 +198,6 @@ categorySelect.addEventListener('change', () => loadSubcategories(categorySelect
 subcategorySelect.addEventListener('change', () => loadGroups(subcategorySelect.value));
 groupSelect.addEventListener('change', () => renderSubGroups(groupSelect.value));
 
-// Home navigation
-mountModuleHome(homeIcon);
-homeIcon.addEventListener('click', () => window.location.href = 'index.html');
-
-// Initialize
-window.addEventListener('DOMContentLoaded', loadCategories);
-// Writer surfaces stay locked unless the canonical module Edit permission is verified.
-initializeClassificationAccess('module:manage-subgroups');
+// Session gate + canonical View/Edit check run first; rows load only for a View-permitted user, and writer
+// surfaces stay locked unless canonical module Edit is verified (see classification-master-shell.js).
+startClassificationModule('module:manage-subgroups', loadCategories);

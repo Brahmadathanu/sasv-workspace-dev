@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 let chromium=null;
 try { chromium=createRequire(import.meta.url)('playwright').chromium; }catch{}
 const skip=process.env.WP10_G2_BROWSER_SKIP==='1'||!chromium?'Chromium unavailable':false;
-const file=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../js/classification-master-access.js');
+const file=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../public/shared/js/classification-master-access.js');
 const original=fs.readFileSync(file,'utf8');
 assert.ok(original.includes("import { supabase }"),'expected import line');
 const source=original.replace(/import \{ supabase \} from ['"][^'"]+['"];?/,

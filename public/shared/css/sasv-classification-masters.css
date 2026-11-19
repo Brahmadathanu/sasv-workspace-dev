@@ -1,0 +1,40 @@
+/* WP10 PWA enablement - responsive + state styling for the four classification master pages.
+   Tokens come from sasv-module.css / style.css; only layout and state rules live here. */
+.sasv-module-shell { max-width: 960px; margin: 0 auto; padding: 0 12px 24px; box-sizing: border-box; }
+
+#classificationStatus {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--sasv-border, #c9d0d8);
+  border-radius: var(--sasv-radius-md, 8px);
+  background: var(--sasv-surface, #fff);
+}
+#classificationStatus[data-kind="error"],
+#classificationStatus[data-kind="denied"] { border-color: #b3261e; }
+
+/* Permission-denied: nothing from the module body is shown. */
+html[data-classification-state="denied"] .sasv-module-shell > :not(header):not(#classificationStatus),
+html[data-classification-state="denied"] #confirmOverlay,
+html[data-classification-state="denied"] #editOverlay { display: none !important; }
+
+.sasv-module-shell table { width: 100%; border-collapse: collapse; }
+.sasv-module-shell th, .sasv-module-shell td { text-align: left; padding: 6px 8px; overflow-wrap: anywhere; }
+.sasv-module-shell input[type="text"], .sasv-module-shell select { min-height: 40px; max-width: 100%; box-sizing: border-box; }
+.sasv-module-shell button { min-height: 36px; }
+.sasv-module-shell .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+
+#confirmOverlay, #editOverlay { padding: 12px; box-sizing: border-box; }
+#confirmBox, #editBox { max-width: 100%; box-sizing: border-box; }
+
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+  outline: 2px solid var(--sasv-focus, #1a5fb4);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .sasv-module-shell { padding: 0 8px 20px; }
+  .sasv-module-shell form, .sasv-module-shell .sasv-inline-form { display: flex; flex-direction: column; gap: 8px; }
+  .sasv-module-shell input[type="text"], .sasv-module-shell select, .sasv-module-shell form .btn { width: 100%; }
+  .sasv-module-shell .filters select { flex: 1 1 100%; }
+  .sasv-module-shell table { display: block; overflow-x: auto; }
+}

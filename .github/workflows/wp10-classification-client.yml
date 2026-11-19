@@ -3,13 +3,25 @@ on:
   pull_request:
     paths:
       - '.github/workflows/wp10-classification-client.yml'
-      - 'js/categories.js'
-      - 'js/subcategories.js'
-      - 'js/product-groups.js'
-      - 'js/subgroups.js'
-      - 'js/classification-master-access.js'
-      - 'js/classification-html-escape.js'
+      - 'public/shared/js/categories.js'
+      - 'public/shared/js/subcategories.js'
+      - 'public/shared/js/product-groups.js'
+      - 'public/shared/js/subgroups.js'
+      - 'public/shared/js/classification-master-access.js'
+      - 'public/shared/js/classification-html-escape.js'
+      - 'public/shared/js/classification-master-shell.js'
+      - 'public/shared/css/sasv-classification-masters.css'
+      - 'public/shared/manage-categories.html'
+      - 'public/shared/manage-subcategories.html'
+      - 'public/shared/manage-subgroups.html'
+      - 'manage-categories.html'
+      - 'manage-subcategories.html'
       - 'manage-product-groups.html'
+      - 'manage-subgroups.html'
+      - 'scripts/wp10-g2-safeguards/classification-pwa-enablement.test.mjs'
+      - 'scripts/wp10-g2-safeguards/classification-module-resolution.test.mjs'
+      - 'scripts/wp10-g2-safeguards/stamp-classification-pwa-version.mjs'
+      - 'public/shared/manage-product-groups.html'
       - 'public/sw.js'
       - 'scripts/wp10-client-release-contract.test.mjs'
       - 'scripts/wp10-g2-safeguards/browser-classification-access.test.mjs'
@@ -36,11 +48,11 @@ jobs:
         run: |
           set -euo pipefail
           node --test scripts/wp10-client-release-contract.test.mjs scripts/wp10-g2-safeguards/classification-html-escape.test.mjs
-          for file in js/categories.js js/subcategories.js js/product-groups.js js/subgroups.js js/classification-master-access.js js/classification-html-escape.js; do node --input-type=module --check < "$file"; done
+          for file in public/shared/js/categories.js public/shared/js/subcategories.js public/shared/js/product-groups.js public/shared/js/subgroups.js public/shared/js/classification-master-access.js public/shared/js/classification-html-escape.js public/shared/js/classification-master-shell.js; do node --input-type=module --check < "$file"; done
           node --check public/sw.js
       - name: Mocked Editor/View-only/No-access Chromium checks
         run: |
           set -euo pipefail
-          node --test scripts/wp10-g2-safeguards/browser-classification-access.test.mjs | tee "$RUNNER_TEMP/browser-checks.log"
+          node --test scripts/wp10-g2-safeguards/browser-classification-access.test.mjs scripts/wp10-g2-safeguards/classification-pwa-enablement.test.mjs scripts/wp10-g2-safeguards/classification-module-resolution.test.mjs | tee "$RUNNER_TEMP/browser-checks.log"
           if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/browser-checks.log"; then exit 1; fi
           grep -Eq '^# pass [1-9]' "$RUNNER_TEMP/browser-checks.log"

@@ -47,7 +47,10 @@ test("S3 new client modules call no writer and no table API; only the read-only 
 test("S4 no new permission target, registry entry, launcher entry or route in the client package", () => {
   for (const src of [core, ui]) assert.equal(/module:[a-z-]+/.test(src), false);
   const changed = git("diff", "--name-only", "origin/main", "--", "public", "index.html", "main.js", "electron").split("\n").filter(Boolean);
-  const allowed = new Set(["public/shared/js/products.js", "public/shared/js/costing-suite-readiness.js", "public/shared/js/wp10-safeguards.js", "public/shared/js/wp10-safeguards-ui.js", "public/sw.js"]);
+  const allowed = new Set(["public/shared/js/products.js", "public/shared/js/costing-suite-readiness.js", "public/shared/js/wp10-safeguards.js", "public/shared/js/wp10-safeguards-ui.js", "public/sw.js",
+    // WP10 PWA enablement: the four classification pages move to their canonical shared location (one source for Electron + PWA).
+    ...["categories","subcategories","product-groups","subgroups"].flatMap(m => [`public/shared/manage-${m}.html`, `public/shared/js/${m}.js`]),
+    "public/shared/js/classification-master-access.js", "public/shared/js/classification-html-escape.js", "public/shared/js/classification-master-shell.js", "public/shared/css/sasv-classification-masters.css"]);
   const untracked = git("ls-files", "--others", "--exclude-standard", "public").split("\n").filter(Boolean);
   // WP11 permit: the PM BOM page may differ from main ONLY by the exact reviewed, content-pinned CSS addition (see wp11-approved-delta.mjs).
   const pmBomDiff = git("diff", "-U0", "origin/main", "--", WP11_PM_BOM_PATH);
