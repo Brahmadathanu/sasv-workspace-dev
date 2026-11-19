@@ -31,7 +31,7 @@ test('apply script touches only policies and the helper: no table grants, no DML
   assert.match(sql, /app_is_provisioned_user/);
 });
 test('read-only scripts are wrapped in read only transactions that end in rollback', () => {
-  for (const f of ['pre', 'post', 'coverage']) {
+  for (const f of ['pre', 'post', 'coverage', 'deps']) {
     const sql = sqlFile(FILES[f]);
     assert.match(sql, /begin read only;/); assert.match(sql, /rollback;\s*$/);
     assert.doesNotMatch(sql.replace(/--.*$/gm, '').replace(/'[^']*'/g, "''"), /\b(?:insert|update|delete|create|drop|alter|grant|revoke)\b\s/i);
@@ -164,4 +164,16 @@ test('coverage query runs and reports counts only', { skip }, () => {
   assert.equal(Number(out.auth_identities_total), 11);
   assert.equal(Number(out.provisioned_identities), 9, 'editorAll, viewer, editNoView and six readers hold a true grant');
   assert.equal(Number(out.would_lose_reads_total), 2, 'noAccess and denyAll');
+});
+
+test('live dependency catalog query lists dependent views (with security_invoker) and reader functions (definer vs invoker)', { skip }, () => {
+  const db = newFixture(cluster);
+  const r = cluster.script(db, sqlFile(FILES.deps)); assert.equal(r.code, 0, r.err);
+  const rows = r.out.trim().split(/\r?\n/).filter(Boolean).map(l => l.split('|'));
+  const mode = name => rows.find(x => x[1] === name)?.[2];
+  assert.equal(mode('public.v_product_details'), 'security_invoker=true');
+  assert.equal(mode('public.v_stock_checker'), 'security_invoker=true');
+  assert.equal(mode('public.v_definer_no_predicate'), 'security_invoker=false');
+  assert.equal(mode('public.rpc_get_production_route_master_options()'), 'SECURITY DEFINER');
+  assert.equal(mode('public.fn_product_group_id_for_product(p_id integer)'), 'INVOKER');
 });

@@ -17,7 +17,7 @@ export { startCluster, pgAvailable };
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 export const SQL_DIR = path.join(root, 'docs/master-data-costing/WP10_CLASSIFICATION_SELECT_HARDENING_UNAPPLIED_SQL');
 export const sqlFile = n => fs.readFileSync(path.join(SQL_DIR, n), 'utf8');
-export const FILES = { pre: '01_preflight_readonly.sql', apply: '02_apply_provisioned_read_gate.sql', post: '03_postflight_readonly.sql', coverage: '04_coverage_readonly.sql', rollback: '99_rollback.sql' };
+export const FILES = { pre: '01_preflight_readonly.sql', apply: '02_apply_provisioned_read_gate.sql', post: '03_postflight_readonly.sql', coverage: '04_coverage_readonly.sql', deps: '05_dependency_catalog_readonly.sql', rollback: '99_rollback.sql' };
 export const TABLES = ['categories', 'sub_categories', 'product_groups', 'sub_groups'];
 const U = n => `00000000-0000-0000-0000-0000000000${n}`;
 export const ACTORS = {
