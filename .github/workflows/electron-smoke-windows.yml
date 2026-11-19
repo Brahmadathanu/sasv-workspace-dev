@@ -1,0 +1,40 @@
+name: Electron smoke (Windows, isolated profile, loopback)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/electron-smoke-windows.yml'
+      - 'main.js'
+      - 'preload.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'electron/**'
+      - 'scripts/electron-smoke/**'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies and the Electron binary (Electron 42+ no longer downloads it in postinstall)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npx install-electron
+      - name: Hardening unit tests and Electron main-process smoke (unpackaged, throw-away profile, random loopback port, updater inactive)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/electron-smoke/security-hardening.test.mjs scripts/electron-smoke/electron-main-smoke.test.mjs | tee "$RUNNER_TEMP/smoke.log"
+          if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/smoke.log"; then exit 1; fi
+          grep -Eq '^# pass [1-9]' "$RUNNER_TEMP/smoke.log"
