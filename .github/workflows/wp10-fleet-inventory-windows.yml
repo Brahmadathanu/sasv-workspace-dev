@@ -1,0 +1,30 @@
+name: WP10 fleet inventory utility (Windows PowerShell 5.1, ephemeral runner)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/wp10-fleet-inventory-windows.yml'
+      - 'scripts/wp10-fleet/**'
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Inventory utility tests (static, synthetic guard checks, fake-install end-to-end on this throw-away runner)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # CI=true makes the end-to-end tests run; they use a FAKE install in a temp folder. No staff machine is scanned.
+          node --test scripts/wp10-fleet/inventory-installed-sasv.test.mjs | tee "$RUNNER_TEMP/inv.log"
+          if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/inv.log"; then exit 1; fi
+          grep -Eq '^# pass [1-9]' "$RUNNER_TEMP/inv.log"
