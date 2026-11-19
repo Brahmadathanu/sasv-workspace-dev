@@ -39,7 +39,7 @@ Evidence classes used below: **[repo]** static scan of this repository, **[live-
 [repo] a static scan of `supabase/migrations` finds 24 functions reading the tables: **23 SECURITY DEFINER, 1 INVOKER** (`costing.fn_product_group_id_for_product`). They serve Production Route Manager (`module:production-route-manager`), Supply Batch Plan, Manage Products (`rpc_wp10_preview_product_subgroup_impact`), and lab spec/protocol helpers. SECURITY DEFINER objects run as the owner; with RLS not forced they are **unaffected by any change to the authenticated read policy** [fixture]. Caveat: local migrations are incomplete (633 files vs 705 live history rows), so this is a lower bound; `05_dependency_catalog_readonly.sql` is the authoritative live check.
 
 ### 2.4 Cross-module conclusion
-The four tables are **shared reference taxonomy** used as context by product, BMR, stock, lab, costing, production-route and sales/MIS workflows and by the legacy Electron daily-log screens. A reader set keyed to specific modules would need ~25 module keys, would break the next module that joins the taxonomy, and would require every Electron work-log user to hold one of them. The classification-specific control that is genuinely needed is the **write** guard (done) and the screen gate (done).
+The four tables are **shared reference taxonomy** used as context by product, BMR, stock, lab, costing, production-route and sales/MIS workflows and by the legacy Electron daily-log screens. A reader set keyed to specific modules would need roughly 25 module keys, would break the next module that joins the taxonomy, and would require every Electron work-log user to hold one of them. The classification-specific control that is genuinely needed is the **write** guard (done) and the screen gate (done).
 
 ## 3. Options and recommendation
 | Option | What changes | Risk | Verdict |
@@ -57,7 +57,7 @@ The four tables are **shared reference taxonomy** used as context by product, BM
 ## 4. Legacy Electron direct-write dependency (not presumed upgraded)
 - Installed pre-#445 Electron versions still direct-write the four tables; Stage A already requires View AND Edit for those writes. Option B does **not** touch writes, so it is safe whether or not the fleet is upgraded.
 - Legacy Editors are provisioned (they hold `can_edit`), so their direct `UPDATE ... RETURNING` and reads continue [fixture: write matrix identical before and after].
-- Legacy daily-log users read `bottled_stock_on_hand` / `fg_bulk_stock` and are provisioned through `module:add-log-entry` / `module:edit-log-entry`. `04_coverage_readonly.sql` counts any sign-in identity that would lose reads, so this assumption is checked on production before apply.
+- Legacy daily-log users read `bottled_stock_on_hand` / `fg_bulk_stock`; the Electron pages check `module:add-log-entry` / `module:edit-log-entry`, so they should be provisioned, but that is an inference from the client code, not verified on production. `04_coverage_readonly.sql` counts any sign-in identity that would lose reads, so this assumption is checked on production before apply.
 - **Stage B (REVOKE direct DML) stays blocked** on managed-fleet inventory and a separate owner decision. This package neither includes nor depends on it.
 
 ## 5. Test evidence
