@@ -9,6 +9,7 @@ let PERM_CAN_VIEW = false;
 let DATA_REFRESH_TIME = null;
 let ACTIVE_INFO_BUTTON = null;
 let ACTIVE_POPOVER = null;
+let POPOVER_OPENED_BY_HOVER = false;
 let ACTIVE_TAB = "finance";
 let FINANCE_FILTER = "payables";
 let FINANCE_SEARCH = "";
@@ -18,6 +19,8 @@ let FINANCE_TOTAL_ROWS = 0;
 let FINANCE_ROWS = [];
 let FINANCE_SUMMARY = null;
 let FINANCE_LAST_FOCUS = null;
+let FINANCE_IS_LOADING = false;
+let FINANCE_ERROR = "";
 let SALES_SEARCH = "";
 let SALES_CURRENT_PAGE = 1;
 let SALES_PAGE_SIZE = 25;
@@ -25,6 +28,7 @@ let SALES_TOTAL_ROWS = 0;
 let SALES_ROWS = [];
 let SALES_SUMMARY = null;
 let SALES_IS_LOADING = false;
+let SALES_ERROR = "";
 let INVENTORY_FILTER = "all";
 let INVENTORY_SEARCH = "";
 let INVENTORY_CURRENT_PAGE = 1;
@@ -33,6 +37,7 @@ let INVENTORY_TOTAL_ROWS = 0;
 let INVENTORY_ROWS = [];
 let INVENTORY_SUMMARY = null;
 let INVENTORY_IS_LOADING = false;
+let INVENTORY_ERROR = "";
 let FG_FILTER = "all";
 let FG_SEARCH = "";
 let FG_CURRENT_PAGE = 1;
@@ -41,7 +46,80 @@ let FG_TOTAL_ROWS = 0;
 let FG_ROWS = [];
 let FG_SUMMARY = null;
 let FG_IS_LOADING = false;
+let FG_ERROR = "";
 let PRODUCTION_SUMMARY = null;
+
+// ---------------------------------------------------------------------------
+// Async request-state guards (MIS-C1).
+// Every server query takes a token from beginRequest(key). Only the holder of
+// the latest token for that key may touch state, DOM or the loading mask; an
+// older completion is dropped. invalidateTabRequests() (tab switch / refresh)
+// retires every in-flight tab query so none can repaint a different panel.
+// ---------------------------------------------------------------------------
+const REQUEST_SEQ = Object.create(null);
+const TAB_REQUEST_KEYS = [
+  "finance:summary",
+  "finance:page",
+  "finance:modal",
+  "sales:summary",
+  "sales:page",
+  "inventory:summary",
+  "inventory:page",
+  "fg:summary",
+  "fg:page",
+  "production",
+];
+let TAB_LOAD_COUNT = 0;
+let ACTIVE_TAB_FAILED = false;
+
+function beginRequest(key) {
+  REQUEST_SEQ[key] = (REQUEST_SEQ[key] || 0) + 1;
+  return REQUEST_SEQ[key];
+}
+
+function isLatestRequest(key, token) {
+  return REQUEST_SEQ[key] === token;
+}
+
+function invalidateTabRequests() {
+  TAB_REQUEST_KEYS.forEach((key) => beginRequest(key));
+}
+
+// A rejected/thrown request must still settle into the error state rather
+// than leaving the loading mask up forever.
+async function settle(promise) {
+  try {
+    return await promise;
+  } catch (e) {
+    return { data: null, error: e instanceof Error ? e : new Error(String(e)) };
+  }
+}
+
+function errorMessage(error) {
+  return (error && error.message) || "See console for details.";
+}
+
+// Re-render a toolbar after a page load, except while the user is typing in
+// its search box: rebuilding it would steal focus and overwrite characters
+// typed after the request was sent.
+function renderToolbarUnlessTyping(searchInputId, renderFn) {
+  if (document.activeElement?.id === searchInputId) return;
+  renderFn();
+}
+
+function renderTableState(prefix, { loading, error, loadingText, emptyText, errorText, retryKey }) {
+  if (loading) {
+    return `<div class="${prefix}-status" role="status">${escapeHtml(loadingText)}</div>`;
+  }
+  if (error) {
+    return `<div class="${prefix}-status error" role="alert">${escapeHtml(errorText)} ${escapeHtml(error)}${
+      retryKey
+        ? ` <button type="button" class="mis-retry-btn" data-mis-retry="${escapeHtml(retryKey)}">Retry</button>`
+        : ""
+    }</div>`;
+  }
+  return `<div class="${prefix}-empty">${escapeHtml(emptyText)}</div>`;
+}
 
 const $ = (id) => document.getElementById(id);
 const statusArea = $("statusArea");
@@ -163,8 +241,11 @@ function relativeTimeLabel(value) {
   return `${Math.floor(elapsedHr / 24)}d ago`;
 }
 
+// Returns "granted" | "denied" | "error". Only the server-supplied can_view
+// flag grants access; a failed lookup never opens the module.
 async function loadPermissions(sessionUserId) {
   PERM_CAN_VIEW = false;
+  let outcome = "error";
   try {
     const { data: perms, error: permsErr } = await supabase.rpc(
       "get_user_permissions",
@@ -173,6 +254,7 @@ async function loadPermissions(sessionUserId) {
     if (!permsErr && Array.isArray(perms)) {
       const p = perms.find((r) => r && r.target === `module:${MODULE_ID}`);
       if (p) PERM_CAN_VIEW = !!p.can_view;
+      outcome = PERM_CAN_VIEW ? "granted" : "denied";
     } else {
       console.warn(
         "[MIS] Permission RPC failed",
@@ -182,6 +264,7 @@ async function loadPermissions(sessionUserId) {
   } catch (e) {
     console.warn("[MIS] Permission RPC failed", e);
   }
+  return outcome;
 }
 
 function setPlanningNotice(row) {
@@ -196,6 +279,7 @@ function setPlanningNotice(row) {
 }
 
 async function loadExecutiveSummary() {
+  const tabLoadMarker = TAB_LOAD_COUNT;
   try {
     if (refreshBtn) refreshBtn.disabled = true;
     if (kpiGrid) kpiGrid.innerHTML = "";
@@ -235,11 +319,9 @@ async function loadExecutiveSummary() {
       : null;
     updateFreshnessIndicator();
     clearStatus();
-    if (ACTIVE_TAB === "finance") await loadFinanceTab();
-    if (ACTIVE_TAB === "sales") await loadSalesTab();
-    if (ACTIVE_TAB === "inventory") await loadInventoryTab();
-    if (ACTIVE_TAB === "finished-goods") await loadFinishedGoodsTab();
-    if (ACTIVE_TAB === "production") await loadProductionTab();
+    // If the user switched tab while the summary was loading, that tab has
+    // already fetched its own data; reloading it here would be a duplicate.
+    if (TAB_LOAD_COUNT === tabLoadMarker) await loadActiveTab();
   } finally {
     if (refreshBtn) refreshBtn.disabled = false;
   }
@@ -427,6 +509,7 @@ function closeKpiPopover() {
   }
   ACTIVE_INFO_BUTTON = null;
   ACTIVE_POPOVER = null;
+  POPOVER_OPENED_BY_HOVER = false;
 }
 
 function positionKpiPopover(button, popover) {
@@ -459,6 +542,12 @@ function openKpiPopover(button, toggle = true) {
   }
 
   if (ACTIVE_INFO_BUTTON === button && toggle) {
+    // A click right after a hover-open pins the popover instead of
+    // immediately closing the one the pointer just opened.
+    if (POPOVER_OPENED_BY_HOVER) {
+      POPOVER_OPENED_BY_HOVER = false;
+      return;
+    }
     closeKpiPopover();
     return;
   }
@@ -490,6 +579,7 @@ function openKpiPopover(button, toggle = true) {
   button.setAttribute("aria-expanded", "true");
   ACTIVE_INFO_BUTTON = button;
   ACTIVE_POPOVER = popover;
+  POPOVER_OPENED_BY_HOVER = !toggle;
   positionKpiPopover(button, popover);
 }
 
@@ -524,27 +614,38 @@ function renderPlaceholderTab() {
   tabPanel.innerHTML = `<div class="tab-placeholder">This section will be added in the next phase.</div>`;
 }
 
-function renderActiveTab() {
-  renderDetailTabs();
+// Single entry point for (re)loading the active tab. Retires every in-flight
+// tab query first so a late response can never repaint the wrong panel.
+function loadActiveTab() {
+  TAB_LOAD_COUNT += 1;
+  ACTIVE_TAB_FAILED = false;
+  invalidateTabRequests();
+  cancelPendingSearches();
   tabPanel?.classList.toggle("production-panel", ACTIVE_TAB === "production");
-  if (ACTIVE_TAB === "finance") {
-    loadFinanceTab();
-  } else if (ACTIVE_TAB === "sales") {
-    loadSalesTab();
-  } else if (ACTIVE_TAB === "inventory") {
-    loadInventoryTab();
-  } else if (ACTIVE_TAB === "finished-goods") {
-    loadFinishedGoodsTab();
-  } else if (ACTIVE_TAB === "production") {
-    loadProductionTab();
-  } else {
-    renderPlaceholderTab();
-  }
+  if (ACTIVE_TAB === "finance") return loadFinanceTab();
+  if (ACTIVE_TAB === "sales") return loadSalesTab();
+  if (ACTIVE_TAB === "inventory") return loadInventoryTab();
+  if (ACTIVE_TAB === "finished-goods") return loadFinishedGoodsTab();
+  if (ACTIVE_TAB === "production") return loadProductionTab();
+  renderPlaceholderTab();
+  return Promise.resolve();
 }
 
-function setFinanceStatus(message, type = "info") {
-  if (!tabPanel) return;
-  tabPanel.innerHTML = `<div class="finance-status ${escapeHtml(type)}">${escapeHtml(message)}</div>`;
+function renderActiveTab() {
+  renderDetailTabs();
+  return loadActiveTab();
+}
+
+// Choosing the tab that is already showing is a no-op (no duplicate request)
+// unless its last load failed, in which case it acts as a retry.
+function selectTab(tabId) {
+  const next = tabId || "finance";
+  if (next === ACTIVE_TAB && !ACTIVE_TAB_FAILED) {
+    if (detailTabSelect) detailTabSelect.value = ACTIVE_TAB;
+    return;
+  }
+  ACTIVE_TAB = next;
+  renderActiveTab();
 }
 
 function setTableLoading(
@@ -561,6 +662,7 @@ function setTableLoading(
     if (!mask) {
       mask = document.createElement("div");
       mask.className = "table-loading-mask";
+      mask.setAttribute("role", "status");
       shell.appendChild(mask);
     }
 
@@ -571,22 +673,35 @@ function setTableLoading(
       </div>
     `;
     mask.hidden = false;
-  } else if (mask) {
-    mask.hidden = true;
+    shell.setAttribute("aria-busy", "true");
+  } else {
+    if (mask) mask.hidden = true;
+    shell.removeAttribute("aria-busy");
   }
 }
 
 async function loadFinanceTab() {
   if (!tabPanel) return;
-  setFinanceStatus("Loading finance parties...");
   FINANCE_ROWS = [];
   FINANCE_TOTAL_ROWS = 0;
+  FINANCE_IS_LOADING = true;
+  FINANCE_ERROR = "";
   renderFinanceTab();
 
-  const summaryResult = await supabase
-    .from("v_mis_finance_tab_summary")
-    .select("finance_scope_note")
-    .single();
+  // Summary and first page are independent; run them together so neither
+  // waits on the other (same two queries as before, no extras).
+  await Promise.all([loadFinanceSummary(), loadFinancePartyPage()]);
+}
+
+async function loadFinanceSummary() {
+  const token = beginRequest("finance:summary");
+  const summaryResult = await settle(
+    supabase
+      .from("v_mis_finance_tab_summary")
+      .select("finance_scope_note")
+      .single(),
+  );
+  if (!isLatestRequest("finance:summary", token)) return;
 
   if (summaryResult.error) {
     console.error("[MIS] Finance summary load failed", summaryResult.error);
@@ -594,8 +709,6 @@ async function loadFinanceTab() {
     FINANCE_SUMMARY = summaryResult.data || null;
     renderFinanceScopeNote();
   }
-
-  await loadFinancePartyPage();
 }
 
 function renderFinanceTab() {
@@ -687,29 +800,35 @@ function renderFinanceToolbar() {
 }
 
 async function loadFinancePartyPage() {
-  const wrap = $("financePartyTableWrap");
-  if (wrap && !FINANCE_ROWS.length) {
-    wrap.innerHTML = `<div class="finance-status">Loading parties...</div>`;
-  }
+  const token = beginRequest("finance:page");
+  FINANCE_IS_LOADING = true;
+  FINANCE_ERROR = "";
+  if (!FINANCE_ROWS.length) renderFinancePartyTable();
 
   setTableLoading(".finance-table-shell", true, "Loading finance parties...");
 
-  const { data, error } = await supabase.rpc("get_mis_finance_party_page", {
-    p_group_filter: FINANCE_FILTER,
-    p_search: FINANCE_SEARCH,
-    p_limit: FINANCE_PAGE_SIZE,
-    p_offset: (FINANCE_CURRENT_PAGE - 1) * FINANCE_PAGE_SIZE,
-  });
+  const { data, error } = await settle(
+    supabase.rpc("get_mis_finance_party_page", {
+      p_group_filter: FINANCE_FILTER,
+      p_search: FINANCE_SEARCH,
+      p_limit: FINANCE_PAGE_SIZE,
+      p_offset: (FINANCE_CURRENT_PAGE - 1) * FINANCE_PAGE_SIZE,
+    }),
+  );
+
+  // A newer query owns the state and the loading mask; drop this response.
+  if (!isLatestRequest("finance:page", token)) return;
 
   setTableLoading(".finance-table-shell", false);
+  FINANCE_IS_LOADING = false;
 
   if (error) {
     console.error("[MIS] Finance party page load failed", error);
     FINANCE_ROWS = [];
     FINANCE_TOTAL_ROWS = 0;
-    if (wrap) {
-      wrap.innerHTML = `<div class="finance-status error">Failed to load finance parties. ${escapeHtml(error.message || "See console for details.")}</div>`;
-    }
+    FINANCE_ERROR = errorMessage(error);
+    ACTIVE_TAB_FAILED = true;
+    renderFinancePartyTable();
     renderFinancePagination();
     return;
   }
@@ -724,7 +843,7 @@ async function loadFinancePartyPage() {
     FINANCE_TOTAL_ROWS =
       Number(data?.total_rows ?? data?.total_count ?? FINANCE_ROWS.length) || 0;
   }
-  renderFinanceToolbar();
+  renderToolbarUnlessTyping("financeSearch", renderFinanceToolbar);
   renderFinancePartyTable();
   renderFinancePagination();
 }
@@ -735,7 +854,14 @@ function renderFinancePartyTable() {
   const rows = FINANCE_ROWS;
 
   if (!rows.length) {
-    wrap.innerHTML = `<div class="finance-empty">No parties found for this scope.</div>`;
+    wrap.innerHTML = renderTableState("finance", {
+      loading: FINANCE_IS_LOADING,
+      error: FINANCE_ERROR,
+      loadingText: "Loading parties...",
+      emptyText: "No parties found for this scope.",
+      errorText: "Failed to load finance parties.",
+      retryKey: "finance",
+    });
     return;
   }
 
@@ -754,7 +880,7 @@ function renderFinancePartyTable() {
         ${rows
           .map(
             (row, index) => `
-              <tr data-party-index="${index}">
+              <tr data-party-index="${index}" tabindex="0" aria-haspopup="dialog" aria-label="View outstanding bills for ${escapeHtml(row.party_name || "party")}">
                 <td>${escapeHtml(row.party_name || "-")}</td>
                 <td>${escapeHtml(row.mis_group_name || "-")}</td>
                 <td class="num">${escapeHtml(formatIntegerIN(row.bill_count))}</td>
@@ -769,9 +895,16 @@ function renderFinancePartyTable() {
   `;
 
   wrap.querySelectorAll("tbody tr").forEach((tr) => {
-    tr.addEventListener("click", () => {
+    const open = () => {
       const row = rows[Number(tr.getAttribute("data-party-index"))];
       if (row) openFinancePartyDetails(row);
+    };
+    tr.addEventListener("click", open);
+    tr.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        open();
+      }
     });
   });
 }
@@ -810,7 +943,9 @@ function setFinanceFilter(value) {
 }
 
 function setFinanceSearch(value) {
-  FINANCE_SEARCH = String(value || "").trim();
+  const next = String(value || "").trim();
+  if (next === FINANCE_SEARCH) return;
+  FINANCE_SEARCH = next;
   FINANCE_CURRENT_PAGE = 1;
   loadFinancePartyPage();
 }
@@ -837,17 +972,21 @@ function goFinanceNextPage() {
 
 async function loadSalesTab() {
   if (!tabPanel) return;
-  setFinanceStatus("Loading sales products...");
   SALES_ROWS = [];
   SALES_TOTAL_ROWS = 0;
   SALES_IS_LOADING = true;
+  SALES_ERROR = "";
   renderSalesTab();
-  setTableLoading(".sales-table-shell", true, "Loading sales products...");
 
-  const summaryResult = await supabase
-    .from("v_mis_sales_tab_summary")
-    .select("*")
-    .single();
+  await Promise.all([loadSalesSummary(), loadSalesProductPage()]);
+}
+
+async function loadSalesSummary() {
+  const token = beginRequest("sales:summary");
+  const summaryResult = await settle(
+    supabase.from("v_mis_sales_tab_summary").select("*").single(),
+  );
+  if (!isLatestRequest("sales:summary", token)) return;
 
   if (summaryResult.error) {
     console.error("[MIS] Sales summary load failed", summaryResult.error);
@@ -855,8 +994,6 @@ async function loadSalesTab() {
     SALES_SUMMARY = summaryResult.data || null;
     renderSalesScopeNote();
   }
-
-  await loadSalesProductPage();
 }
 
 function renderSalesTab() {
@@ -930,29 +1067,33 @@ function renderSalesToolbar() {
 }
 
 async function loadSalesProductPage() {
-  const wrap = $("salesProductTableWrap");
-  if (wrap && !SALES_ROWS.length) {
-    wrap.innerHTML = `<div class="sales-status">Preparing sales table...</div>`;
-  }
+  const token = beginRequest("sales:page");
+  SALES_IS_LOADING = true;
+  SALES_ERROR = "";
+  if (!SALES_ROWS.length) renderSalesProductTable();
 
   setTableLoading(".sales-table-shell", true, "Loading sales products...");
 
-  const { data, error } = await supabase.rpc("get_mis_sales_product_page", {
-    p_search: SALES_SEARCH,
-    p_limit: SALES_PAGE_SIZE,
-    p_offset: (SALES_CURRENT_PAGE - 1) * SALES_PAGE_SIZE,
-  });
+  const { data, error } = await settle(
+    supabase.rpc("get_mis_sales_product_page", {
+      p_search: SALES_SEARCH,
+      p_limit: SALES_PAGE_SIZE,
+      p_offset: (SALES_CURRENT_PAGE - 1) * SALES_PAGE_SIZE,
+    }),
+  );
+
+  if (!isLatestRequest("sales:page", token)) return;
 
   setTableLoading(".sales-table-shell", false);
+  SALES_IS_LOADING = false;
 
   if (error) {
     console.error("[MIS] Sales product page load failed", error);
-    SALES_IS_LOADING = false;
     SALES_ROWS = [];
     SALES_TOTAL_ROWS = 0;
-    if (wrap) {
-      wrap.innerHTML = `<div class="sales-status error">Failed to load sales products. ${escapeHtml(error.message || "See console for details.")}</div>`;
-    }
+    SALES_ERROR = errorMessage(error);
+    ACTIVE_TAB_FAILED = true;
+    renderSalesProductTable();
     renderSalesPagination();
     return;
   }
@@ -960,9 +1101,8 @@ async function loadSalesProductPage() {
   SALES_ROWS = Array.isArray(data) ? data : [];
   SALES_TOTAL_ROWS =
     Number(SALES_ROWS[0]?.total_rows ?? SALES_ROWS.length) || 0;
-  SALES_IS_LOADING = false;
 
-  renderSalesToolbar();
+  renderToolbarUnlessTyping("salesSearch", renderSalesToolbar);
   renderSalesProductTable();
   renderSalesPagination();
 }
@@ -972,9 +1112,14 @@ function renderSalesProductTable() {
   if (!wrap) return;
 
   if (!SALES_ROWS.length) {
-    wrap.innerHTML = SALES_IS_LOADING
-      ? `<div class="sales-status">Preparing sales table...</div>`
-      : `<div class="sales-empty">No products found.</div>`;
+    wrap.innerHTML = renderTableState("sales", {
+      loading: SALES_IS_LOADING,
+      error: SALES_ERROR,
+      loadingText: "Preparing sales table...",
+      emptyText: "No products found.",
+      errorText: "Failed to load sales products.",
+      retryKey: "sales",
+    });
     return;
   }
 
@@ -1035,7 +1180,9 @@ function renderSalesPagination() {
 }
 
 function setSalesSearch(value) {
-  SALES_SEARCH = String(value || "").trim();
+  const next = String(value || "").trim();
+  if (next === SALES_SEARCH) return;
+  SALES_SEARCH = next;
   SALES_CURRENT_PAGE = 1;
   loadSalesProductPage();
 }
@@ -1062,21 +1209,21 @@ function goSalesNextPage() {
 
 async function loadInventoryTab() {
   if (!tabPanel) return;
-  setFinanceStatus("Loading inventory items...");
   INVENTORY_ROWS = [];
   INVENTORY_TOTAL_ROWS = 0;
   INVENTORY_IS_LOADING = true;
+  INVENTORY_ERROR = "";
   renderInventoryTab();
-  setTableLoading(
-    ".inventory-table-shell",
-    true,
-    "Loading inventory items...",
-  );
 
-  const summaryResult = await supabase
-    .from("v_mis_inventory_tab_summary")
-    .select("*")
-    .single();
+  await Promise.all([loadInventorySummary(), loadInventoryItemPage()]);
+}
+
+async function loadInventorySummary() {
+  const token = beginRequest("inventory:summary");
+  const summaryResult = await settle(
+    supabase.from("v_mis_inventory_tab_summary").select("*").single(),
+  );
+  if (!isLatestRequest("inventory:summary", token)) return;
 
   if (summaryResult.error) {
     console.error("[MIS] Inventory summary load failed", summaryResult.error);
@@ -1084,8 +1231,6 @@ async function loadInventoryTab() {
     INVENTORY_SUMMARY = summaryResult.data || null;
     renderInventoryScopeNote();
   }
-
-  await loadInventoryItemPage();
 }
 
 function renderInventoryTab() {
@@ -1187,10 +1332,10 @@ function renderInventoryToolbar() {
 }
 
 async function loadInventoryItemPage() {
-  const wrap = $("inventoryItemTableWrap");
-  if (wrap && !INVENTORY_ROWS.length) {
-    wrap.innerHTML = `<div class="inventory-status">Preparing inventory table...</div>`;
-  }
+  const token = beginRequest("inventory:page");
+  INVENTORY_IS_LOADING = true;
+  INVENTORY_ERROR = "";
+  if (!INVENTORY_ROWS.length) renderInventoryItemTable();
 
   setTableLoading(
     ".inventory-table-shell",
@@ -1198,23 +1343,27 @@ async function loadInventoryItemPage() {
     "Loading inventory items...",
   );
 
-  const { data, error } = await supabase.rpc("get_mis_inventory_item_page", {
-    p_source_kind: INVENTORY_FILTER,
-    p_search: INVENTORY_SEARCH,
-    p_limit: INVENTORY_PAGE_SIZE,
-    p_offset: (INVENTORY_CURRENT_PAGE - 1) * INVENTORY_PAGE_SIZE,
-  });
+  const { data, error } = await settle(
+    supabase.rpc("get_mis_inventory_item_page", {
+      p_source_kind: INVENTORY_FILTER,
+      p_search: INVENTORY_SEARCH,
+      p_limit: INVENTORY_PAGE_SIZE,
+      p_offset: (INVENTORY_CURRENT_PAGE - 1) * INVENTORY_PAGE_SIZE,
+    }),
+  );
+
+  if (!isLatestRequest("inventory:page", token)) return;
 
   setTableLoading(".inventory-table-shell", false);
+  INVENTORY_IS_LOADING = false;
 
   if (error) {
     console.error("[MIS] Inventory item page load failed", error);
-    INVENTORY_IS_LOADING = false;
     INVENTORY_ROWS = [];
     INVENTORY_TOTAL_ROWS = 0;
-    if (wrap) {
-      wrap.innerHTML = `<div class="inventory-status error">Failed to load inventory items. ${escapeHtml(error.message || "See console for details.")}</div>`;
-    }
+    INVENTORY_ERROR = errorMessage(error);
+    ACTIVE_TAB_FAILED = true;
+    renderInventoryItemTable();
     renderInventoryPagination();
     return;
   }
@@ -1222,9 +1371,8 @@ async function loadInventoryItemPage() {
   INVENTORY_ROWS = Array.isArray(data) ? data : [];
   INVENTORY_TOTAL_ROWS =
     Number(INVENTORY_ROWS[0]?.total_rows ?? INVENTORY_ROWS.length) || 0;
-  INVENTORY_IS_LOADING = false;
 
-  renderInventoryToolbar();
+  renderToolbarUnlessTyping("inventorySearch", renderInventoryToolbar);
   renderInventoryItemTable();
   renderInventoryPagination();
 }
@@ -1245,9 +1393,14 @@ function renderInventoryItemTable() {
   if (!wrap) return;
 
   if (!INVENTORY_ROWS.length) {
-    wrap.innerHTML = INVENTORY_IS_LOADING
-      ? `<div class="inventory-status">Preparing inventory table...</div>`
-      : `<div class="inventory-empty">No items found.</div>`;
+    wrap.innerHTML = renderTableState("inventory", {
+      loading: INVENTORY_IS_LOADING,
+      error: INVENTORY_ERROR,
+      loadingText: "Preparing inventory table...",
+      emptyText: "No items found.",
+      errorText: "Failed to load inventory items.",
+      retryKey: "inventory",
+    });
     return;
   }
 
@@ -1323,7 +1476,9 @@ function setInventoryFilter(value) {
 }
 
 function setInventorySearch(value) {
-  INVENTORY_SEARCH = String(value || "").trim();
+  const next = String(value || "").trim();
+  if (next === INVENTORY_SEARCH) return;
+  INVENTORY_SEARCH = next;
   INVENTORY_CURRENT_PAGE = 1;
   loadInventoryItemPage();
 }
@@ -1353,17 +1508,21 @@ function goInventoryNextPage() {
 
 async function loadFinishedGoodsTab() {
   if (!tabPanel) return;
-  setFinanceStatus("Loading Finished Goods SKUs...");
   FG_ROWS = [];
   FG_TOTAL_ROWS = 0;
   FG_IS_LOADING = true;
+  FG_ERROR = "";
   renderFinishedGoodsTab();
-  setTableLoading(".fg-table-shell", true, "Loading Finished Goods SKUs...");
 
-  const summaryResult = await supabase
-    .from("v_mis_finished_goods_tab_summary")
-    .select("*")
-    .single();
+  await Promise.all([loadFinishedGoodsSummary(), loadFinishedGoodsSkuPage()]);
+}
+
+async function loadFinishedGoodsSummary() {
+  const token = beginRequest("fg:summary");
+  const summaryResult = await settle(
+    supabase.from("v_mis_finished_goods_tab_summary").select("*").single(),
+  );
+  if (!isLatestRequest("fg:summary", token)) return;
 
   if (summaryResult.error) {
     console.error(
@@ -1374,8 +1533,6 @@ async function loadFinishedGoodsTab() {
     FG_SUMMARY = summaryResult.data || null;
     renderFinishedGoodsScopeNote();
   }
-
-  await loadFinishedGoodsSkuPage();
 }
 
 function renderFinishedGoodsTab() {
@@ -1479,42 +1636,42 @@ function renderFinishedGoodsToolbar() {
 }
 
 async function loadFinishedGoodsSkuPage() {
-  const wrap = $("fgSkuTableWrap");
-  if (wrap && !FG_ROWS.length) {
-    wrap.innerHTML = `<div class="fg-status">Preparing Finished Goods table...</div>`;
-  }
+  const token = beginRequest("fg:page");
+  FG_IS_LOADING = true;
+  FG_ERROR = "";
+  if (!FG_ROWS.length) renderFinishedGoodsSkuTable();
 
   setTableLoading(".fg-table-shell", true, "Loading Finished Goods SKUs...");
 
-  const { data, error } = await supabase.rpc(
-    "get_mis_finished_goods_sku_page",
-    {
+  const { data, error } = await settle(
+    supabase.rpc("get_mis_finished_goods_sku_page", {
       p_mos_filter: FG_FILTER,
       p_search: FG_SEARCH,
       p_limit: FG_PAGE_SIZE,
       p_offset: (FG_CURRENT_PAGE - 1) * FG_PAGE_SIZE,
-    },
+    }),
   );
 
+  if (!isLatestRequest("fg:page", token)) return;
+
   setTableLoading(".fg-table-shell", false);
+  FG_IS_LOADING = false;
 
   if (error) {
     console.error("[MIS] Finished Goods SKU page load failed", error);
-    FG_IS_LOADING = false;
     FG_ROWS = [];
     FG_TOTAL_ROWS = 0;
-    if (wrap) {
-      wrap.innerHTML = `<div class="fg-status error">Failed to load Finished Goods SKUs. ${escapeHtml(error.message || "See console for details.")}</div>`;
-    }
+    FG_ERROR = errorMessage(error);
+    ACTIVE_TAB_FAILED = true;
+    renderFinishedGoodsSkuTable();
     renderFinishedGoodsPagination();
     return;
   }
 
   FG_ROWS = Array.isArray(data) ? data : [];
   FG_TOTAL_ROWS = Number(FG_ROWS[0]?.total_rows ?? FG_ROWS.length) || 0;
-  FG_IS_LOADING = false;
 
-  renderFinishedGoodsToolbar();
+  renderToolbarUnlessTyping("fgSearch", renderFinishedGoodsToolbar);
   renderFinishedGoodsSkuTable();
   renderFinishedGoodsPagination();
 }
@@ -1541,9 +1698,14 @@ function renderFinishedGoodsSkuTable() {
   if (!wrap) return;
 
   if (!FG_ROWS.length) {
-    wrap.innerHTML = FG_IS_LOADING
-      ? `<div class="fg-status">Preparing Finished Goods table...</div>`
-      : `<div class="fg-empty">No SKUs found.</div>`;
+    wrap.innerHTML = renderTableState("fg", {
+      loading: FG_IS_LOADING,
+      error: FG_ERROR,
+      loadingText: "Preparing Finished Goods table...",
+      emptyText: "No SKUs found.",
+      errorText: "Failed to load Finished Goods SKUs.",
+      retryKey: "finished-goods",
+    });
     return;
   }
 
@@ -1620,7 +1782,9 @@ function setFinishedGoodsFilter(value) {
 }
 
 function setFinishedGoodsSearch(value) {
-  FG_SEARCH = String(value || "").trim();
+  const next = String(value || "").trim();
+  if (next === FG_SEARCH) return;
+  FG_SEARCH = next;
   FG_CURRENT_PAGE = 1;
   loadFinishedGoodsSkuPage();
 }
@@ -1647,9 +1811,10 @@ function goFinishedGoodsNextPage() {
 
 async function loadProductionTab() {
   if (!tabPanel) return;
+  const token = beginRequest("production");
   tabPanel.innerHTML = `
     <div class="production-loading-shell">
-      <div class="production-status">Preparing production summary...</div>
+      <div class="production-status" role="status">Preparing production summary...</div>
     </div>
   `;
   setTableLoading(
@@ -1658,16 +1823,18 @@ async function loadProductionTab() {
     "Loading production summary...",
   );
 
-  const { data, error } = await supabase
-    .from("v_mis_production_tab_summary")
-    .select("*")
-    .single();
+  const { data, error } = await settle(
+    supabase.from("v_mis_production_tab_summary").select("*").single(),
+  );
+
+  if (!isLatestRequest("production", token)) return;
 
   setTableLoading(".production-loading-shell", false);
 
   if (error) {
     console.error("[MIS] Production summary load failed", error);
-    tabPanel.innerHTML = `<div class="finance-status error">Failed to load production summary.</div>`;
+    ACTIVE_TAB_FAILED = true;
+    tabPanel.innerHTML = `<div class="finance-status error" role="alert">Failed to load production summary. ${escapeHtml(errorMessage(error))} <button type="button" class="mis-retry-btn" data-mis-retry="production">Retry</button></div>`;
     return;
   }
 
@@ -1985,25 +2152,37 @@ const debouncedSetFinishedGoodsSearch = debounce((value) => {
   setFinishedGoodsSearch(value);
 }, 250);
 
+function isFinanceModalOpen() {
+  return !!financeModalOverlay && !financeModalOverlay.classList.contains("hidden");
+}
+
 async function openFinancePartyDetails(row) {
   if (!financeModalOverlay || !financeModalContent) return;
-  FINANCE_LAST_FOCUS = document.activeElement;
+  const token = beginRequest("finance:modal");
+  // Keep the original trigger if a second row is opened while already open.
+  if (!isFinanceModalOpen()) FINANCE_LAST_FOCUS = document.activeElement;
   financeModalOverlay.classList.remove("hidden");
   financeModalOverlay.setAttribute("aria-hidden", "false");
   if (financeModalTitle) financeModalTitle.textContent = row.party_name || "-";
   if (financeModalSubtitle) {
     financeModalSubtitle.textContent = `${row.mis_group_name || "-"} | ${formatCurrencyINR(row.outstanding_amount_mis_value)}`;
   }
-  financeModalContent.innerHTML = `<div class="finance-status">Loading bill details...</div>`;
+  financeModalContent.innerHTML = `<div class="finance-status" role="status">Loading bill details...</div>`;
+  financeModalClose?.focus?.();
 
-  const { data, error } = await supabase
-    .from("v_mis_finance_outstanding_detail")
-    .select(
-      "report_date, mis_group_name, bill_date_text, bill_ref, party_name, outstanding_amount_tally_value, outstanding_amount_abs_line_value",
-    )
-    .eq("party_name", row.party_name)
-    .eq("mis_group_name", row.mis_group_name)
-    .order("bill_date_text", { ascending: true });
+  const { data, error } = await settle(
+    supabase
+      .from("v_mis_finance_outstanding_detail")
+      .select(
+        "report_date, mis_group_name, bill_date_text, bill_ref, party_name, outstanding_amount_tally_value, outstanding_amount_abs_line_value",
+      )
+      .eq("party_name", row.party_name)
+      .eq("mis_group_name", row.mis_group_name)
+      .order("bill_date_text", { ascending: true }),
+  );
+
+  // Closed, or another party opened, while this was in flight.
+  if (!isLatestRequest("finance:modal", token) || !isFinanceModalOpen()) return;
 
   if (error) {
     console.error("[MIS] Finance bill detail load failed", error);
@@ -2048,7 +2227,8 @@ async function openFinancePartyDetails(row) {
 }
 
 function closeFinanceModal() {
-  if (!financeModalOverlay) return;
+  if (!financeModalOverlay || !isFinanceModalOpen()) return;
+  beginRequest("finance:modal");
   if (financeModalOverlay.contains(document.activeElement)) {
     document.activeElement.blur();
   }
@@ -2057,6 +2237,9 @@ function closeFinanceModal() {
   if (financeModalContent) financeModalContent.innerHTML = "";
   if (FINANCE_LAST_FOCUS && document.contains(FINANCE_LAST_FOCUS)) {
     FINANCE_LAST_FOCUS.focus?.();
+  } else {
+    // The table may have been re-rendered while the modal was open.
+    ($("financeSearch") || tabPanel)?.focus?.();
   }
   FINANCE_LAST_FOCUS = null;
 }
@@ -2067,14 +2250,18 @@ function wireEvents() {
   detailTabs?.addEventListener("click", (ev) => {
     const btn = ev.target.closest(".pill");
     if (!btn) return;
-    ACTIVE_TAB = btn.getAttribute("data-tab") || "finance";
-    renderActiveTab();
+    selectTab(btn.getAttribute("data-tab"));
   });
   detailTabSelect?.addEventListener("change", () => {
-    ACTIVE_TAB = detailTabSelect.value || "finance";
-    renderActiveTab();
+    selectTab(detailTabSelect.value);
   });
   tabPanel?.addEventListener("click", (ev) => {
+    const retryBtn = ev.target.closest("[data-mis-retry]");
+    if (retryBtn) {
+      loadActiveTab();
+      return;
+    }
+
     const filterBtn = ev.target.closest("#financeFilterBtn");
     if (filterBtn) {
       ev.stopPropagation();
@@ -2168,6 +2355,16 @@ function wireEvents() {
     }
   });
   tabPanel?.addEventListener("input", (ev) => {
+    const clearId = {
+      financeSearch: "financeSearchClear",
+      salesSearch: "salesSearchClear",
+      inventorySearch: "inventorySearchClear",
+      fgSearch: "fgSearchClear",
+    }[ev.target?.id];
+    if (clearId) {
+      const clearBtn = $(clearId);
+      if (clearBtn) clearBtn.style.display = ev.target.value ? "" : "none";
+    }
     if (ev.target?.id === "financeSearch") {
       debouncedSetFinanceSearch(ev.target.value);
     } else if (ev.target?.id === "salesSearch") {
@@ -2234,7 +2431,39 @@ function wireEvents() {
     closeKpiPopover();
   });
   document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Tab" && isFinanceModalOpen()) {
+      const focusable = [
+        ...financeModalOverlay.querySelectorAll(
+          'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ].filter((el) => el.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!financeModalOverlay.contains(document.activeElement)) {
+        ev.preventDefault();
+        first.focus();
+      } else if (ev.shiftKey && document.activeElement === first) {
+        ev.preventDefault();
+        last.focus();
+      } else if (!ev.shiftKey && document.activeElement === last) {
+        ev.preventDefault();
+        first.focus();
+      }
+      return;
+    }
     if (ev.key === "Escape") {
+      // If focus is inside an open filter drawer, hand it back to its button.
+      [
+        ["financeFilterDrawer", "financeFilterBtn"],
+        ["inventoryFilterDrawer", "inventoryFilterBtn"],
+        ["fgFilterDrawer", "fgFilterBtn"],
+      ].forEach(([drawerId, btnId]) => {
+        const drawer = $(drawerId);
+        if (drawer?.classList.contains("open") && drawer.contains(document.activeElement)) {
+          $(btnId)?.focus();
+        }
+      });
       closeKpiPopover();
       closeFinanceFilterDrawer();
       closeInventoryFilterDrawer();
@@ -2253,10 +2482,21 @@ function wireEvents() {
 
 function debounce(fn, wait) {
   let timer = null;
-  return function (...args) {
+  const debounced = function (...args) {
     clearTimeout(timer);
     timer = setTimeout(() => fn.apply(this, args), wait);
   };
+  debounced.cancel = () => clearTimeout(timer);
+  return debounced;
+}
+
+// A debounced search typed just before a tab switch must not fire into the
+// next panel; the rebuilt toolbar renders from committed state anyway.
+function cancelPendingSearches() {
+  debouncedSetFinanceSearch.cancel();
+  debouncedSetSalesSearch.cancel();
+  debouncedSetInventorySearch.cancel();
+  debouncedSetFinishedGoodsSearch.cancel();
 }
 
 (async function init() {
@@ -2265,10 +2505,18 @@ function debounce(fn, wait) {
   } = await supabase.auth.getSession();
   if (!session) return (window.location.href = "/login.html");
 
-  await loadPermissions(session.user.id);
+  const permission = await loadPermissions(session.user.id);
 
   if (!PERM_CAN_VIEW) {
-    setStatus("You do not have permission to view this module.", "error");
+    // Deny by default. Access is decided server-side by get_user_permissions;
+    // the client only reflects the result and never loads module data without it.
+    document.body.classList.add("mis-denied");
+    setStatus(
+      permission === "error"
+        ? "Could not verify your access to this module. Please refresh the page or try again shortly."
+        : "You do not have permission to view this module.",
+      "error",
+    );
     return;
   }
 
