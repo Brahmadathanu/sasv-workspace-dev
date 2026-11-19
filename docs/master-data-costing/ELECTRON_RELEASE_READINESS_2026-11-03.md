@@ -50,8 +50,26 @@ Details: [ELECTRON_RC_DEPENDENCY_HARDENING_REPORT_2026-11-19.md](ELECTRON_RC_DEP
 - **Code signing:** installer and executable are unsigned; signing recommended before the fleet cutover; risk acceptance only for a controlled pilot (owner decision).
 - **Fleet:** inventory instrument (PR #471) hardened and Windows-CI tested; real-workstation pilot NOT TESTED; Stage B blocked until the fleet gates pass.
 
-### Electron 45.4.1 upgrade (draft PR stacked on the hardening PR)
-Details: [ELECTRON_45_UPGRADE_REPORT_2026-11-19.md](ELECTRON_45_UPGRADE_REPORT_2026-11-19.md). Owner approved the target Electron 45.4.1 and version 6.2.0 (to be assigned in the release PR).
+### Electron 45.4.1 upgrade (merged to main as #482; #480 merged earlier)
+Details: [ELECTRON_45_UPGRADE_REPORT_2026-11-19.md](ELECTRON_45_UPGRADE_REPORT_2026-11-19.md). Owner approved the target Electron 45.4.1 and version 6.2.0 (assigned in the release-candidate PR).
 - **Electron advisories:** 45 -> **0** (all dependencies 8, none shipped; runtime 0).
 - **Main-process hardening:** static server bound to loopback only, wildcard CORS removed, `webSecurity:false` removed, `open-module-url` restricted to app pages, same-origin window/navigation policy. Automated Electron smoke 9/9 on source and on the built ASAR; Windows packaging pass; updater feed discovery pass on a local feed.
 - **Still NOT TESTED:** the packaged `.exe` (would start the real updater), sign-in and authenticated screens in Electron 45 (owner checklist), real-workstation fleet pilot. Release remains on **HOLD**.
+
+### 6.2.0 release candidate (draft PR; NOT published)
+Details: [ELECTRON_6_2_0_RELEASE_CANDIDATE_REPORT_2026-11-19.md](ELECTRON_6_2_0_RELEASE_CANDIDATE_REPORT_2026-11-19.md) and [ELECTRON_CODE_SIGNING_PROPOSAL_2026-11-19.md](ELECTRON_CODE_SIGNING_PROPOSAL_2026-11-19.md).
+- **Candidate:** version 6.2.0 on Electron 45.4.1; local unsigned x64 build (`--publish never`); ASAR 30/30 key files identical to git; runtime advisories 0; no secrets in the package; updater compatibility and a real-artifact download plus tamper rejection verified on a local feed (nothing installed).
+- **Explicit acceptance gates, all NOT TESTED until the office Windows PC is available:** G1 packaged Electron 45 signed-in UI pass (6 Costing + 4 Classification modules, Home/back, print popup); G2 installer over a 6.1.0 install; G3 pilot update path via a GitHub pre-release on 1 to 2 PCs; G4 code-signing decision and signed build; G5 fleet gates F1 to F6; G6 Stage B (blocked until G5, separate approval).
+- **Open work packs:** WP10 OPEN (cosmetic leftovers; production writer testing on a disposable fixture or owner-approved scope; fleet gates); WP12 OPEN (V6 positive read inconclusive; Cost Comparison performance under #273 and the 4 s p95 decision; live flag ON/ALL-ON deferred; Windows pilot).
+- **Publication:** **HOLD**. Promoting a GitHub release to "Latest" is the fleet cutover; a pre-release is not offered to installed 6.1.0 clients.
+
+### Remote readiness reconciliation (19 Nov 2026; documentation only)
+Details: [ELECTRON_6_2_0_REMOTE_READINESS_RECONCILIATION_2026-11-19.md](ELECTRON_6_2_0_REMOTE_READINESS_RECONCILIATION_2026-11-19.md). All results above are preserved.
+- **Exact-head CI:** #483 head `e46e3c37`, Windows run 44555940400, 25/25 pass.
+- **Pre-release isolation:** verified from electron-updater 6.8.11 source (stable clients read `releases/latest`, which excludes pre-releases); no `v6.2.0` tag or release exists; live proof remains G3.
+- **Rollback:** electron-updater never downgrades; pulling a release only contains new downloads; manual downgrade over 6.2.0 is NOT tested (add to G2). The RC report's rollback sentence is clarified there.
+- **Signing:** Microsoft Artifact Signing does not list India; DigiCert OV + KeyLocker and GlobalSign OV + HSM are the candidates, price/eligibility UNVERIFIED pending owner-requested quotes. Nothing purchased.
+- **Publication:** **HOLD**; WP10, WP12 OPEN; Stage B HOLD.
+
+### Acceptance, pilot and isolation procedures (19 Nov 2026; documentation only)
+Details: [ELECTRON_6_2_0_ACCEPTANCE_AND_PILOT_PROCEDURES_2026-11-19.md](ELECTRON_6_2_0_ACCEPTANCE_AND_PILOT_PROCEDURES_2026-11-19.md). Adds signing-quote requirements, the final seven-row G1 screen (isolated profile and updater cache), G2/G3 migration and rollback steps, and pre-release isolation safeguards. Candidate code head `e46e3c37` unchanged; Windows CI 25/25 remains the exact-head receipt. Nothing executed or published; HOLD unchanged.

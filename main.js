@@ -122,6 +122,9 @@ function devStartMenuShortcutMatches(existing, desired) {
 
 function ensureDevStartMenuShortcut() {
   if (process.platform !== "win32" || app.isPackaged) return;
+  // Automated runs (SASV_STATIC_PORT is only set by tests) and explicit opt-outs must never rewrite the developer's
+  // real Start Menu shortcut, which would otherwise point at a temporary test checkout.
+  if (process.env.SASV_STATIC_PORT || process.env.SASV_SKIP_DEV_SHORTCUT === "1") return;
 
   const shortcutPath = devStartMenuShortcutPath();
   const desired = devStartMenuShortcutSpec();
