@@ -101,5 +101,10 @@
   "bugs": {
     "url": "https://github.com/Brahmadathanu/sasv-workspace-dev/issues"
   },
-  "homepage": "https://github.com/Brahmadathanu/sasv-workspace-dev#readme"
+  "homepage": "https://github.com/Brahmadathanu/sasv-workspace-dev#readme",
+  "overrides": {
+    "html-to-docx": {
+      "image-size": "^2.1.0"
+    }
+  }
 }
