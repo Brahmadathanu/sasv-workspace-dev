@@ -35,6 +35,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test scripts/electron-smoke/security-hardening.test.mjs scripts/electron-smoke/electron-main-smoke.test.mjs | tee "$RUNNER_TEMP/smoke.log"
+          node --test scripts/electron-smoke/security-hardening.test.mjs scripts/electron-smoke/electron-main-smoke.test.mjs scripts/electron-smoke/electron-updater-compat.test.mjs | tee "$RUNNER_TEMP/smoke.log"
           if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/smoke.log"; then exit 1; fi
           grep -Eq '^# pass [1-9]' "$RUNNER_TEMP/smoke.log"
