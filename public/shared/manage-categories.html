@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" data-sasv-theme="sasv-core">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SASV WORKSPACE | Manage Categories</title>
+  <link rel="stylesheet" href="../shared/css/style.css">
+  <link rel="stylesheet" href="../shared/css/sasv-classification-masters.css?v=399a51b69e">
+</head>
+<body class="sasv-module" data-theme="system">
+  <div class="sasv-module-shell">
+    <header class="sasv-module-header header-bar">
+      <div class="sasv-module-heading">
+        <h1 class="sasv-module-title">Manage Categories</h1>
+      </div>
+      <button type="button" id="homeIcon" class="action-link" title="Home" aria-label="Home"></button>
+    </header>
+    <div id="classificationStatus" role="status" aria-live="polite" hidden></div>
+
+    <section>
+      <h3 class="sasv-module-section-title">Existing Categories</h3>
+      <table id="categoriesTable">
+        <thead>
+          <tr>
+            <th>Category Name</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h3 class="sasv-module-section-title">Add Category</h3>
+      <form id="addCategoryForm">
+        <input type="text" name="category_name" placeholder="New category name" required />
+        <button type="submit" class="btn primary">Add Category</button>
+      </form>
+    </section>
+  </div>
+
+  <div id="editOverlay">
+    <div id="editBox" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+      <h3 id="editTitle">Edit Category</h3>
+      <form id="editForm">
+        <input id="editInput" name="edit_name" type="text" required />
+        <div class="modal-actions">
+          <button type="button" id="cancelEdit" class="btn ghost">Cancel</button>
+          <button type="submit" id="saveEdit" class="btn primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="confirmOverlay">
+    <div id="confirmBox" role="dialog" aria-modal="true" aria-labelledby="confirmMessage">
+      <p id="confirmMessage"></p>
+      <button type="button" id="confirmYes">Yes</button>
+      <button type="button" id="confirmNo">No</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/categories.js"></script>
+</body>
+</html>

@@ -1,7 +1,6 @@
 // js/categories.js
-import { supabase } from '../public/shared/js/supabaseClient.js'
-import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
-import { initializeClassificationAccess } from './classification-master-access.js';
+import { supabase } from './supabaseClient.js'
+import { startClassificationModule, setClassificationStatus } from './classification-master-shell.js?v=399a51b69e';
 import { escapeClassificationHtml } from './classification-html-escape.js';
 
 //
@@ -50,7 +49,7 @@ async function renderTable() {
 
   if (error) {
     console.error('Error loading categories:', error)
-    alert('Failed to load categories')
+    setClassificationStatus('error', 'Unable to load categories. Reload the page to try again.')
     return
   }
 
@@ -64,14 +63,14 @@ async function renderTable() {
       </td>
     </tr>
   `).join('')
+  if (rows.length === 0) setClassificationStatus('empty', 'No categories found.')
+  else setClassificationStatus('ready')
 }
 
 //
 // Wire up UI
 //
 window.addEventListener('DOMContentLoaded', async () => {
-  await renderTable()
-  focusAddInput()
 
   const overlay   = document.getElementById('editOverlay')
   const editForm  = document.getElementById('editForm')
@@ -182,11 +181,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     focusAddInput()
   })
 
-  // Home navigation
-  mountModuleHome(document.getElementById('homeIcon'));
-  document.getElementById('homeIcon').onclick = () => {
-    window.location.href = 'index.html'
-  }
 })
-// Writer surfaces stay locked unless the canonical module Edit permission is verified.
-initializeClassificationAccess('module:manage-categories');
+// Session gate + canonical View/Edit check run first; rows load only for a View-permitted user, and writer
+// surfaces stay locked unless canonical module Edit is verified (see classification-master-shell.js).
+startClassificationModule('module:manage-categories', async () => {
+  await renderTable()
+  focusAddInput()
+});

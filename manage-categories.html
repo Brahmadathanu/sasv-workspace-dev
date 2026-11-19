@@ -1,63 +1,16 @@
-<!DOCTYPE html>
-<html lang="en" data-sasv-theme="sasv-core">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SASV WORKSPACE | Manage Categories</title>
-  <link rel="stylesheet" href="public/shared/css/style.css">
-</head>
-<body class="sasv-module" data-theme="system">
-  <div class="sasv-module-shell">
-    <header class="sasv-module-header header-bar">
-      <div class="sasv-module-heading">
-        <h1 class="sasv-module-title">Manage Categories</h1>
-      </div>
-      <button type="button" id="homeIcon" class="action-link" title="Home" aria-label="Home"></button>
-    </header>
-
-    <section>
-      <h3 class="sasv-module-section-title">Existing Categories</h3>
-      <table id="categoriesTable">
-        <thead>
-          <tr>
-            <th>Category Name</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
-
-    <section>
-      <h3 class="sasv-module-section-title">Add Category</h3>
-      <form id="addCategoryForm">
-        <input type="text" name="category_name" placeholder="New category name" required />
-        <button type="submit" class="btn primary">Add Category</button>
-      </form>
-    </section>
-  </div>
-
-  <div id="editOverlay">
-    <div id="editBox">
-      <h3>Edit Category</h3>
-      <form id="editForm">
-        <input id="editInput" name="edit_name" type="text" required />
-        <div class="modal-actions">
-          <button type="button" id="cancelEdit" class="btn ghost">Cancel</button>
-          <button type="submit" id="saveEdit" class="btn primary">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="confirmOverlay">
-    <div id="confirmBox">
-      <p id="confirmMessage"></p>
-      <button type="button" id="confirmYes">Yes</button>
-      <button type="button" id="confirmNo">No</button>
-    </div>
-  </div>
-
-  <script type="module" src="js/categories.js"></script>
-</body>
+<!doctype html>
+<!-- WP10 PWA enablement legacy-URL compatibility stub. The canonical page is public/shared/manage-categories.html (one source for
+     Electron and PWA). This stub only forwards, preserving query and hash; it contains no module code. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Redirecting…</title>
+    <meta http-equiv="refresh" content="0; url=public/shared/manage-categories.html" />
+    <script>
+      location.replace("public/shared/manage-categories.html" + location.search + location.hash);
+    </script>
+  </head>
+  <body>
+    <p>Redirecting to <a href="public/shared/manage-categories.html">Manage categories</a>…</p>
+  </body>
 </html>

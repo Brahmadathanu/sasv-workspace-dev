@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" data-sasv-theme="sasv-core">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SASV WORKSPACE | Manage Product Groups</title>
+  <link rel="stylesheet" href="../shared/css/style.css" />
+  <link rel="stylesheet" href="../shared/css/sasv-classification-masters.css?v=399a51b69e" />
+</head>
+<body class="sasv-module" data-theme="system">
+  <div class="sasv-module-shell">
+    <header class="sasv-module-header header-bar">
+      <div class="sasv-module-heading">
+        <h1 class="sasv-module-title">Manage Product Groups</h1>
+      </div>
+      <button type="button" id="homeIcon" class="action-link" title="Home" aria-label="Home"></button>
+    </header>
+    <div id="classificationStatus" role="status" aria-live="polite" hidden></div>
+
+    <div class="filter-bar filters">
+      <select id="categorySelect">
+        <option value="">Category</option>
+      </select>
+      <select id="subcategorySelect" disabled>
+        <option value="">Sub-category</option>
+      </select>
+      <button type="button" id="clearFilters" class="clear-link">Clear</button>
+    </div>
+
+    <section>
+      <h3 class="sasv-module-section-title">Existing Product Groups</h3>
+      <table id="groupTable">
+        <thead>
+          <tr>
+            <th>Product Group</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="addSection">
+      <h3 class="sasv-module-section-title">Add New Product Group</h3>
+      <div class="add-row">
+        <input id="newGroupInput" placeholder="Product group name" />
+        <select id="newGroupKind" aria-label="Product group kind" required>
+          <option value="">Select group kind</option>
+        </select>
+        <button type="button" id="addBtn" class="btn primary">Add</button>
+        <button type="button" id="clearNew" class="btn ghost">Clear</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="confirmOverlay" class="overlay">
+    <div class="modal">
+      <p id="confirmMsg"></p>
+      <div class="modal-actions">
+        <button type="button" id="confirmYes" class="confirm">Confirm</button>
+        <button type="button" id="confirmNo" class="cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/product-groups.js"></script>
+</body>
+</html>

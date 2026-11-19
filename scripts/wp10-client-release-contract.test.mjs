@@ -10,8 +10,8 @@ const matrix=[
 ];
 for(const [file,permission,stem] of matrix){
  test(file+' uses governed CRUD RPCs and fail-closed permission gate',()=>{
-  const text=read('js/'+file+'.js');
-  assert.ok(text.includes("initializeClassificationAccess('"+permission+"')"));
+  const text=read('public/shared/js/'+file+'.js');
+  assert.ok(text.includes("startClassificationModule('"+permission+"'"));
   assert.ok(text.includes("import { escapeClassificationHtml }"));
   for(const op of ['create','rename','delete'])
    assert.ok(text.includes("rpc_wp10_"+op+"_"+stem),op+' missing');
@@ -20,8 +20,8 @@ for(const [file,permission,stem] of matrix){
  });
 }
 test('product group kind chooser is mandatory in client and HTML',()=>{
- assert.ok(read('manage-product-groups.html').includes('id="newGroupKind"'));
- assert.ok(read('js/product-groups.js').includes('p_kind_id'));
+ assert.ok(read('public/shared/manage-product-groups.html').includes('id="newGroupKind"'));
+ assert.ok(read('public/shared/js/product-groups.js').includes('p_kind_id'));
 });
 test('SW refreshes all six scripts together and retains network-first fallback',()=>{
  const s=read('public/sw.js');

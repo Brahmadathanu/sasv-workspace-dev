@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" data-sasv-theme="sasv-core">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SASV WORKSPACE | Manage Sub-categories</title>
+  <link rel="stylesheet" href="../shared/css/style.css">
+  <link rel="stylesheet" href="../shared/css/sasv-classification-masters.css?v=399a51b69e">
+</head>
+<body class="sasv-module" data-theme="system">
+  <div class="sasv-module-shell">
+    <header class="sasv-module-header header-bar">
+      <div class="sasv-module-heading">
+        <h1 class="sasv-module-title">Manage Sub-categories</h1>
+      </div>
+      <button type="button" id="homeIcon" class="action-link" title="Home" aria-label="Home"></button>
+    </header>
+    <div id="classificationStatus" role="status" aria-live="polite" hidden></div>
+
+    <section class="form-row">
+      <label for="categorySelect">Select Category:</label>
+      <select id="categorySelect">
+        <option value="">-- Select --</option>
+      </select>
+    </section>
+
+    <section id="existingSubCategories">
+      <h3 class="sasv-module-section-title">Existing Sub-categories</h3>
+      <table id="subTable">
+        <thead>
+          <tr><th>Sub-category</th><th>Action</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="addNewSubCategory">
+      <h3 class="sasv-module-section-title">Add New Sub-category</h3>
+      <form id="addSubForm">
+        <input type="text" name="subcategory_name" placeholder="New sub-category name" required />
+        <button type="submit" class="btn primary">Add</button>
+      </form>
+    </section>
+  </div>
+
+  <div id="confirmOverlay">
+    <div id="confirmBox" role="dialog" aria-modal="true" aria-labelledby="confirmMessage">
+      <p id="confirmMessage"></p>
+      <button type="button" id="confirmYes">Yes</button>
+      <button type="button" id="confirmNo">No</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/subcategories.js"></script>
+</body>
+</html>
