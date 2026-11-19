@@ -49,3 +49,9 @@ Details: [ELECTRON_RC_DEPENDENCY_HARDENING_REPORT_2026-11-19.md](ELECTRON_RC_DEP
 - **Version:** proposal 6.2.0 (published latest is 6.1.0); bump belongs in a separate release PR re-built on that exact head.
 - **Code signing:** installer and executable are unsigned; signing recommended before the fleet cutover; risk acceptance only for a controlled pilot (owner decision).
 - **Fleet:** inventory instrument (PR #471) hardened and Windows-CI tested; real-workstation pilot NOT TESTED; Stage B blocked until the fleet gates pass.
+
+### Electron 45.4.1 upgrade (draft PR stacked on the hardening PR)
+Details: [ELECTRON_45_UPGRADE_REPORT_2026-11-19.md](ELECTRON_45_UPGRADE_REPORT_2026-11-19.md). Owner approved the target Electron 45.4.1 and version 6.2.0 (to be assigned in the release PR).
+- **Electron advisories:** 45 -> **0** (all dependencies 8, none shipped; runtime 0).
+- **Main-process hardening:** static server bound to loopback only, wildcard CORS removed, `webSecurity:false` removed, `open-module-url` restricted to app pages, same-origin window/navigation policy. Automated Electron smoke 9/9 on source and on the built ASAR; Windows packaging pass; updater feed discovery pass on a local feed.
+- **Still NOT TESTED:** the packaged `.exe` (would start the real updater), sign-in and authenticated screens in Electron 45 (owner checklist), real-workstation fleet pilot. Release remains on **HOLD**.

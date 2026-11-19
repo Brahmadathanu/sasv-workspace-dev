@@ -23,6 +23,11 @@ const {
 const path = require("path");
 const fs = require("fs");
 const { registerEaushadhiWorkerIpc } = require("./electron/eaushadhi-worker/ipc");
+const hardening = require("./electron/security-hardening");
+
+/** Port of the embedded loopback static server (3000 unless SASV_STATIC_PORT is set for tests). */
+const STATIC_PORT = hardening.resolveStaticPort(process.env);
+const APP_ORIGIN = hardening.appOrigin(STATIC_PORT);
 
 /** Same file as electron-builder `build.win.icon`. Do not duplicate. */
 const CANONICAL_WIN_ICON_REL = path.join(
@@ -267,28 +272,46 @@ autoUpdater.on("update-downloaded", (info) => {
   sendUpdate({ status: "downloaded", version: info && info.version });
 });
 
-// ---------------- Static server (http://localhost:3000) ----------------
+// ---------------- Static server (loopback only, http://localhost:3000) ----------------
+// Same-origin static hosting for the app's own pages. Bound to 127.0.0.1 (and ::1) so it is not reachable from
+// the LAN, and sends no CORS headers: the app only requests it from its own origin. SASV_STATIC_PORT is for tests.
 const webApp = express();
-
-// Add CORS headers for development
-webApp.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization, apikey",
-  );
-  if (req.method === "OPTIONS") {
-    res.sendStatus(200);
-  } else {
-    next();
-  }
-});
-
+webApp.disable("x-powered-by");
 webApp.use(express.static(path.join(__dirname)));
-webApp.listen(3000, () =>
-  console.log("Static server at http://localhost:3000"),
-);
+const staticServerReady = hardening
+  .listenLoopback(webApp, STATIC_PORT, (m) => console.log(m))
+  .catch((err) => {
+    console.error("Static server failed to start:", err && err.message);
+    throw err;
+  });
+staticServerReady.catch(() => {});
+
+// ---------------- Window and navigation policy ----------------
+// App pages may open same-origin pages and about:blank (print/report popups). Other http(s) links go to the user's
+// default browser, never into an Electron window; every other scheme is blocked. A window that is showing an app page
+// cannot be navigated away from the app origin. Windows not showing an app page (e.g. electron-prompt) are unaffected.
+function openExternalSafely(url) {
+  try {
+    const u = new URL(url);
+    if (u.protocol === "https:" || u.protocol === "http:") shell.openExternal(u.toString());
+  } catch {
+    // ignore malformed URLs
+  }
+}
+app.on("web-contents-created", (_event, contents) => {
+  contents.setWindowOpenHandler(({ url }) => {
+    const verdict = hardening.classifyWindowOpen(url, STATIC_PORT);
+    if (verdict === "allow") return { action: "allow" };
+    if (verdict === "external") openExternalSafely(url);
+    return { action: "deny" };
+  });
+  contents.on("will-navigate", (event, url) => {
+    const verdict = hardening.classifyNavigation(contents.getURL(), url, STATIC_PORT);
+    if (verdict === "allow") return;
+    event.preventDefault();
+    if (verdict === "external") openExternalSafely(url);
+  });
+});
 
 // ---------------- Single Instance Lock ----------------
 // Prevent multiple instances from running simultaneously
@@ -327,11 +350,28 @@ function createWindow() {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: false, // Disable web security to allow CORS in desktop app
+      // webSecurity stays at its default (true): the app pages are same-origin with the embedded server and the
+      // remote APIs (Supabase) send their own CORS headers, as they do for the PWA.
     },
   });
   applyWindowsDevWindowIdentity(mainWindow);
-  mainWindow.loadURL("http://localhost:3000/login.html");
+  // Load only after the loopback server is listening (it is bound asynchronously).
+  const createdWindow = mainWindow;
+  staticServerReady
+    .then(() => createdWindow.loadURL(`${APP_ORIGIN}/login.html`))
+    .catch((err) => {
+      console.error("Main window load failed:", err && err.message);
+      // Show a readable message instead of a blank window (typically the port is held by another program).
+      const html =
+        '<!doctype html><meta charset="utf-8"><title>SASV Workspace</title>' +
+        '<body style="font-family:Segoe UI,Arial,sans-serif;margin:3rem;max-width:40rem">' +
+        "<h2>SASV Workspace could not start</h2>" +
+        `<p>The local page server could not listen on port ${STATIC_PORT}. Another program may be using it.</p>` +
+        "<p>Close the other program or restart the PC, then open SASV Workspace again.</p></body>";
+      if (!createdWindow.isDestroyed()) {
+        createdWindow.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html)).catch(() => {});
+      }
+    });
   mainWindow.webContents.on("did-finish-load", () => {
     try {
       mainWindow.webContents.send("updater:status", lastUpdateState);
@@ -347,12 +387,19 @@ ipcMain.on("focus-window", (event) => {
   if (win) win.focus();
 });
 
-ipcMain.on("open-module-url", (event, { absUrl, opts = {} }) => {
+ipcMain.on("open-module-url", (event, payload) => {
   try {
+    const { absUrl, opts = {} } = payload || {};
+    // This opens a window that carries the privileged preload, so only app-origin pages are accepted.
+    const targetUrl = hardening.resolveModuleUrl(absUrl, STATIC_PORT);
+    if (!targetUrl) {
+      console.warn("open-module-url rejected a non-app URL");
+      return;
+    }
     const parent = BrowserWindow.fromWebContents(event.sender);
     const child = new BrowserWindow({
-      width: opts.width || 1200,
-      height: opts.height || 800,
+      width: hardening.clampSize(opts && opts.width, 1200),
+      height: hardening.clampSize(opts && opts.height, 800),
       parent,
       modal: false,
       show: true,
@@ -364,9 +411,6 @@ ipcMain.on("open-module-url", (event, { absUrl, opts = {} }) => {
         nodeIntegration: false,
       },
     });
-    const targetUrl = /^https?:|^file:/i.test(absUrl)
-      ? absUrl
-      : new URL(absUrl, "http://localhost:3000/").toString();
     applyWindowsDevWindowIdentity(child);
     child.loadURL(targetUrl);
   } catch (err) {
