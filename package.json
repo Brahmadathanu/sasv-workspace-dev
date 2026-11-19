@@ -5,11 +5,15 @@
   "description": "Pilot Electron + Supabase workspace application",
   "main": "main.js",
   "scripts": {
+    "predev": "install-electron",
     "dev": "electron .",
     "build": "electron-builder",
+    "prestart": "install-electron",
     "start": "electron .",
     "branding:generate": "node tools/generate-branding-assets.js",
-    "sync-db": "node tools/sync-supabase-types.mjs"
+    "sync-db": "node tools/sync-supabase-types.mjs",
+    "electron:install": "install-electron",
+    "test:electron": "node --test scripts/electron-smoke/security-hardening.test.mjs scripts/electron-smoke/electron-main-smoke.test.mjs"
   },
   "author": "",
   "license": "ISC",
@@ -83,7 +87,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
-    "electron": "^36.2.1",
+    "electron": "^45.4.1",
     "electron-builder": "^26.0.12",
     "electron-reload": "^2.0.0-alpha.1",
     "eslint": "^9.33.0",
