@@ -62,3 +62,11 @@ Details: [ELECTRON_6_2_0_RELEASE_CANDIDATE_REPORT_2026-11-19.md](ELECTRON_6_2_0_
 - **Explicit acceptance gates, all NOT TESTED until the office Windows PC is available:** G1 packaged Electron 45 signed-in UI pass (6 Costing + 4 Classification modules, Home/back, print popup); G2 installer over a 6.1.0 install; G3 pilot update path via a GitHub pre-release on 1 to 2 PCs; G4 code-signing decision and signed build; G5 fleet gates F1 to F6; G6 Stage B (blocked until G5, separate approval).
 - **Open work packs:** WP10 OPEN (cosmetic leftovers; production writer testing on a disposable fixture or owner-approved scope; fleet gates); WP12 OPEN (V6 positive read inconclusive; Cost Comparison performance under #273 and the 4 s p95 decision; live flag ON/ALL-ON deferred; Windows pilot).
 - **Publication:** **HOLD**. Promoting a GitHub release to "Latest" is the fleet cutover; a pre-release is not offered to installed 6.1.0 clients.
+
+### Remote readiness reconciliation (19 Nov 2026; documentation only)
+Details: [ELECTRON_6_2_0_REMOTE_READINESS_RECONCILIATION_2026-11-19.md](ELECTRON_6_2_0_REMOTE_READINESS_RECONCILIATION_2026-11-19.md). All results above are preserved.
+- **Exact-head CI:** #483 head `e46e3c37`, Windows run 44555940400, 25/25 pass.
+- **Pre-release isolation:** verified from electron-updater 6.8.11 source (stable clients read `releases/latest`, which excludes pre-releases); no `v6.2.0` tag or release exists; live proof remains G3.
+- **Rollback:** electron-updater never downgrades; pulling a release only contains new downloads; manual downgrade over 6.2.0 is NOT tested (add to G2). The RC report's rollback sentence is clarified there.
+- **Signing:** Microsoft Artifact Signing does not list India; DigiCert OV + KeyLocker and GlobalSign OV + HSM are the candidates, price/eligibility UNVERIFIED pending owner-requested quotes. Nothing purchased.
+- **Publication:** **HOLD**; WP10, WP12 OPEN; Stage B HOLD.
