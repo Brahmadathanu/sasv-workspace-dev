@@ -171,3 +171,14 @@ test('port collision: when the port is taken, the app stays up and shows a reada
     assert.match(await w.evaluate(() => document.body.innerText), new RegExp(String(taken)));
   } finally { await a2.close().catch(() => {}); blocker.close(); fs.rmSync(ud, { recursive: true, force: true }); }
 });
+
+test('automated runs never rewrite the developer Start Menu shortcut', { skip: skip || process.platform !== 'win32' }, async () => {
+  const lnk = path.join(process.env.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'SASV Workspace Dev.lnk');
+  if (!fs.existsSync(lnk)) return; // nothing to protect on this machine
+  const before = fs.statSync(lnk).mtimeMs;
+  const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'sasv-electron-lnk-'));
+  const env = { ...process.env, SASV_STATIC_PORT: String(await freePort()), NODE_ENV: 'production' }; delete env.ELECTRON_RUN_AS_NODE;
+  const a3 = await _electron.launch({ args: [process.env.SASV_SMOKE_APP || '.', `--user-data-dir=${ud}`], cwd: root, env, timeout: 90000 });
+  try { await a3.firstWindow({ timeout: 60000 }); await sleep(1500); assert.equal(fs.statSync(lnk).mtimeMs, before, 'shortcut untouched'); }
+  finally { await a3.close().catch(() => {}); fs.rmSync(ud, { recursive: true, force: true }); }
+});
