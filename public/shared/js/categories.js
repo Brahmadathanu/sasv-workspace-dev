@@ -1,6 +1,6 @@
 // js/categories.js
 import { supabase } from './supabaseClient.js'
-import { startClassificationModule, setClassificationStatus } from './classification-master-shell.js?v=399a51b69e';
+import { startClassificationModule, setClassificationStatus } from './classification-master-shell.js?v=49a21f7924';
 import { escapeClassificationHtml } from './classification-html-escape.js';
 
 //

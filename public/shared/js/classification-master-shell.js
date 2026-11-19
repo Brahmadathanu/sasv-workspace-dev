@@ -5,8 +5,11 @@
 // This module only decides WHETHER and WHEN a page may load; it grants nothing. Authorisation stays with the
 // canonical app_has_permission() checks and the governed RPCs on the server.
 //
-// Sequence: session gate -> canonical View/Edit check -> (denied state | load rows). A No-access user never has any
-// classification SELECT issued by these pages, so restricted rows are not fetched or rendered.
+// Sequence: session gate -> canonical View/Edit check -> (denied state | load rows). These pages issue no classification
+// SELECT for a user without View, so restricted rows are not fetched or rendered BY THESE PAGES.
+// SECURITY NOTE: this is a UI control, not server-side denial. Under Stage A the authenticated role can still SELECT the
+// four base tables over REST (only DML is View AND Edit guarded), so a direct REST read is not blocked by this gate.
+// Server-side read denial would need a separate, owner-approved policy change and is NOT part of this client.
 import { bootstrapApp } from './appBootstrap.js';
 import { goMasterDataHome, resolveMasterDataLoginPage } from './master-data-platform.js';
 import { mountModuleHome } from './sasv-module-chrome.js';

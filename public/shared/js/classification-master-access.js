@@ -1,6 +1,6 @@
 // Classification masters: fail-closed, presentation-only Edit gating.
 // Server RPCs enforce the authoritative permission. View-only users can still read rows.
-import { supabase } from '../public/shared/js/supabaseClient.js';
+import { supabase } from './supabaseClient.js';
 
 const styleId='wp10-classification-access-style';
 const accessAttr='data-wp10-classification-access';

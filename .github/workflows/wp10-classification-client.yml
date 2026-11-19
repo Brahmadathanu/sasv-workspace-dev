@@ -19,6 +19,7 @@ on:
       - 'manage-product-groups.html'
       - 'manage-subgroups.html'
       - 'scripts/wp10-g2-safeguards/classification-pwa-enablement.test.mjs'
+      - 'scripts/wp10-g2-safeguards/classification-module-resolution.test.mjs'
       - 'scripts/wp10-g2-safeguards/stamp-classification-pwa-version.mjs'
       - 'public/shared/manage-product-groups.html'
       - 'public/sw.js'
@@ -52,6 +53,6 @@ jobs:
       - name: Mocked Editor/View-only/No-access Chromium checks
         run: |
           set -euo pipefail
-          node --test scripts/wp10-g2-safeguards/browser-classification-access.test.mjs scripts/wp10-g2-safeguards/classification-pwa-enablement.test.mjs | tee "$RUNNER_TEMP/browser-checks.log"
+          node --test scripts/wp10-g2-safeguards/browser-classification-access.test.mjs scripts/wp10-g2-safeguards/classification-pwa-enablement.test.mjs scripts/wp10-g2-safeguards/classification-module-resolution.test.mjs | tee "$RUNNER_TEMP/browser-checks.log"
           if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/browser-checks.log"; then exit 1; fi
           grep -Eq '^# pass [1-9]' "$RUNNER_TEMP/browser-checks.log"
