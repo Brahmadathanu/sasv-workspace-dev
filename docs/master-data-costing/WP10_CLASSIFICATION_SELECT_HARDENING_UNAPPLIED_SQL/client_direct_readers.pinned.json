@@ -1,0 +1,26 @@
+{
+ "public/shared/js/lab-protocol-manager.js": [
+  "product_groups"
+ ],
+ "public/shared/js/lab-spec-profile-manager.js": [
+  "product_groups"
+ ],
+ "public/shared/js/manage-bmr.js": [
+  "categories",
+  "product_groups",
+  "sub_categories",
+  "sub_groups"
+ ],
+ "public/shared/js/products.js": [
+  "categories",
+  "product_groups",
+  "sub_categories",
+  "sub_groups"
+ ],
+ "public/shared/js/stock-checker.js": [
+  "categories",
+  "product_groups",
+  "sub_categories",
+  "sub_groups"
+ ]
+}
