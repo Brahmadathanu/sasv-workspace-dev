@@ -70,3 +70,6 @@ Details: [ELECTRON_6_2_0_REMOTE_READINESS_RECONCILIATION_2026-11-19.md](ELECTRON
 - **Rollback:** electron-updater never downgrades; pulling a release only contains new downloads; manual downgrade over 6.2.0 is NOT tested (add to G2). The RC report's rollback sentence is clarified there.
 - **Signing:** Microsoft Artifact Signing does not list India; DigiCert OV + KeyLocker and GlobalSign OV + HSM are the candidates, price/eligibility UNVERIFIED pending owner-requested quotes. Nothing purchased.
 - **Publication:** **HOLD**; WP10, WP12 OPEN; Stage B HOLD.
+
+### Acceptance, pilot and isolation procedures (19 Nov 2026; documentation only)
+Details: [ELECTRON_6_2_0_ACCEPTANCE_AND_PILOT_PROCEDURES_2026-11-19.md](ELECTRON_6_2_0_ACCEPTANCE_AND_PILOT_PROCEDURES_2026-11-19.md). Adds signing-quote requirements, the final seven-row G1 screen (isolated profile and updater cache), G2/G3 migration and rollback steps, and pre-release isolation safeguards. Candidate code head `e46e3c37` unchanged; Windows CI 25/25 remains the exact-head receipt. Nothing executed or published; HOLD unchanged.
