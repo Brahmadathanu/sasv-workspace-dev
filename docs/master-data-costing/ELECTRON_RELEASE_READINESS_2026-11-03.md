@@ -38,3 +38,14 @@
 - **Programme:** WP05, WP06, MDC-07 and later work packs remain open until their separate requirements close; U11 terminology is not part of the four completed navigation packages.
 
 **Next execution owner:** Windows/Claude local worker runs pre-release checks and submits a versioned release-candidate report without publishing; assistant independently reviews; owner approves release/version/rollout. No new engineering work or feature scope should be added to this audit merely to satisfy documentation.
+
+## Update 19 Nov 2026: release-candidate hardening status
+
+Details: [ELECTRON_RC_DEPENDENCY_HARDENING_REPORT_2026-11-19.md](ELECTRON_RC_DEPENDENCY_HARDENING_REPORT_2026-11-19.md). Nothing published; release remains on **HOLD**.
+
+- **Owner packaged-app acceptance (local unpacked build from `main` `6b415c25`):** PASS, 10/10 modules (owner-reported; recorded in PR #465). Packaged ASAR static checks PASS (30/30 key files identical to git, governed RPC writers only).
+- **Dependency advisories:** runtime (shipped) advisories 11 -> **0**; all dependencies 40 -> 10 (0 critical), via a lockfile-only fix plus one tested `overrides` entry. **Open:** Electron 36.x (45 advisories) needs a major upgrade to 42+ (recommend 43/44/45) in its own PR with the owner checklist; remaining others are build-time only.
+- **Windows packaging verification (nsis + zip, publish never) on the hardened tree:** PASS. Launch/UI of this dependency set on a packaged build: NOT TESTED.
+- **Version:** proposal 6.2.0 (published latest is 6.1.0); bump belongs in a separate release PR re-built on that exact head.
+- **Code signing:** installer and executable are unsigned; signing recommended before the fleet cutover; risk acceptance only for a controlled pilot (owner decision).
+- **Fleet:** inventory instrument (PR #471) hardened and Windows-CI tested; real-workstation pilot NOT TESTED; Stage B blocked until the fleet gates pass.
