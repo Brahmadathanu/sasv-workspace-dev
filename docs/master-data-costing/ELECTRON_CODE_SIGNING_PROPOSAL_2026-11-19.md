@@ -17,7 +17,9 @@
 | **D. Unsigned with compensating controls (interim)** | none | update channel unprotected beyond HTTPS and sha512 | acceptable only for a named pilot, never for fleet-wide automatic updates |
 
 ## 3. Recommended approach
-1. **Decision now:** pursue **A**; if the owner cannot pass identity validation, use **B**. Both keep the private key off staff PCs and off the owner's laptop.
+> **Update 19 Nov 2026:** Microsoft's quickstart does not list India among eligible Public Trust organisation countries, so option A is expected to be unavailable to an India-registered organisation (verify on Microsoft's live page). Option B (DigiCert OV + KeyLocker, or GlobalSign OV + HSM/Key Vault) is now the working recommendation, pending written vendor quotes. Details: [ELECTRON_6_2_0_REMOTE_READINESS_RECONCILIATION_2026-11-19.md](ELECTRON_6_2_0_REMOTE_READINESS_RECONCILIATION_2026-11-19.md).
+
+1. **Decision now (superseded by the note above):** pursue **A**; if the owner cannot pass identity validation, use **B**. Both keep the private key off staff PCs and off the owner's laptop.
 2. **Until signing exists (interim, option D controls):**
    - Do **not** make 6.2.0 the GitHub "Latest" release. electron-updater only considers pre-releases when the *installed* version is itself a pre-release (the installed 6.1.0 has `allowPrerelease` false), so a GitHub **pre-release** is invisible to existing clients. Publish 6.2.0 as a pre-release first and install it **manually on one or two pilot PCs**, confirming the installer's SHA-256 against the value in the release notes (recorded out of band).
    - Require 2FA, restricted push and release rights, and branch protection on the repository; keep release creation to the owner only.
