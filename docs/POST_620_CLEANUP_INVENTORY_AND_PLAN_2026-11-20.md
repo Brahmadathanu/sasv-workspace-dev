@@ -94,3 +94,24 @@ Per-folder checks before each removal: path on the approved list, registered wor
 | `wp06-line931-preflight\.tmp-line931-preflight-userdata` | 482 MB | NEEDS OWNER REVIEW | none (scratch) |
 | four `dist-eaushadhi-*-proof` folders in composition-* worktrees | about 360 MB each | SAFE TO REMOVE after approval | rebuildable proof builds |
 Each needs a separate approval; deletions would use per-folder, non-recursive-by-script review.
+
+## 9. Execution record: generated-file cleanup (20 Nov 2026, owner approval #490 comment 7040740336)
+- **Smoke logs:** 29 untracked `*.jsonl` files (16 KB total) deleted from 24 worktrees' `.tmp-smoke-userdata\eaushadhi-worker-logs\`, then the 24 now-empty log directories. Checks per file: untracked (0 tracked), no reparse points, no other content in the directory. Not touched: `wp07-ux1`, `prm-bypass`, `wp07-bundle-a-screen-test`, `executor-packaging-proof` logs, the dev folder, `sasv-*` folders.
+- **Proof builds:** 4 folders deleted, about 1,439 MB: `daily-worklog-app-wt-composition-executor-packaging-proof\dist-eaushadhi-composition-executor-proof` (360 MB), `...-composition-line930-release-gate\dist-eaushadhi-live-contract-proof` (360), `...-composition-page-identity-contract\dist-eaushadhi-composition-page-identity-proof` (360), `...-composition-first-live-line-930\dist-eaushadhi-first-live-930-proof` (359). Each verified: canonical path, no reparse point or nested `.git` anywhere inside, no tracked file, no junction anywhere targeting it, no process running from it.
+- **Skipped: none.** Not approved and untouched: `.tmp-line931-preflight-userdata` (482 MB), `sasv-release-test\dist`, `sasv-620-g1\dist`, all `node_modules` junctions, all tracked and line-ending changes.
+- **After:** dev worktree status byte-identical (9 entries, HEAD `80e6fd39`); 53 registered worktrees, no branch changed; dirty worktrees fell from 34 to **10**; D: free space 16.6 to about 18.0 GB.
+- **Remaining dirty (10):** `daily-worklog-app` (protected), `sasv-release-test` (protected), `manage-bmr-main-visual` (2 `.tmp` logs), `composition-executor-packaging-proof` (8 modified tracked, 5 untracked), `prm-bypass` (1 CRLF SQL), `wp04-s0-cursor-runner` (6 `__pycache__`), `wp06-final-stage-preflight` (14 `.tmp` scripts), `wp06-line931-preflight` (3,303 untracked), `wp07-ux1` (1 CRLF SQL, `UX1_2_PLAN.md`, 1 other), `wp07-bundle-a-screen-test` (`package-lock.json` real diff, 1 CRLF SQL, 1 stray).
+
+## 10. PROPOSAL (not executed): reconcile remaining dirty worktrees and junction dependencies
+**10a. Junction dependencies (11 worktrees).** 7 junction to the original dev folder's `node_modules`, `wp06-final-prelive-f22b36c` to `composition-prelive-acceptance`, `wp06-postfix-preflight` to `wp06-final-prelive-f22b36c`; 2 are also dirty (`final-stage-preflight`, `line931-preflight`). Safe method if approved: for each clean merged one, remove only the link with `rmdir "<path>\node_modules"` (removes the junction itself, never the target; recreate with `mklink /J`), re-verify the dev folder's `node_modules` is intact after each, then `git worktree remove` (no force). Order for the chain: `postfix-preflight`, then `final-prelive-f22b36c`, then `composition-prelive-acceptance` (805 MB). 9 clean merged candidates (about 0.3 GB) + prelive-acceptance (0.8 GB). Approval required.
+**10b. Dirty worktrees.**
+| Worktree | Proposed action | Approval |
+|---|---|---|
+| `wp04-s0-cursor-runner` | delete 6 untracked `__pycache__` files (branch already pushed) | yes |
+| `manage-bmr-main-visual` | delete 2 `.tmp` logs | yes |
+| `wp06-final-stage-preflight` | archive 14 `.tmp` scripts to a folder outside the worktree, then remove | yes |
+| `wp06-line931-preflight` | owner inspects 3,303 files and the 482 MB userdata; archive a manifest, then remove | yes, separately |
+| `executor-packaging-proof` | export the 8 real modified files as a patch outside the repo (no commit), owner decides | owner review |
+| `wp07-ux1`, `wp07-bundle-a-screen-test` | keep `UX1_2_PLAN.md` and the `package-lock.json` diff; owner decides commit or discard | owner review |
+| `prm-bypass` | CRLF-only SQL edit: leave | none |
+| dev folder, `sasv-release-test` | protected | none |
