@@ -7,8 +7,9 @@
 -- Reference: docs/executive-mis/MIS_G7_SERVER_CONTRACT_DRAFT.md
 --
 -- IMPORTANT: This preview intentionally provides COVERED SUBTOTALS ONLY.
--- It does not claim full bulk COP while materials-stores stage eligibility
--- remains unapproved. It does not provide formal completion value or an
+-- RM materials-stores handling is attributed to bulk using the approved
+-- RM/PM workload split; PM materials-stores handling remains a packing cost.
+-- Full bulk COP still requires owner acceptance of model-stage attribution. It does not provide formal completion value or an
 -- achievement percentage. Production installation requires separate approval.
 WITH
 params AS (
@@ -54,6 +55,27 @@ material_conversion AS (
 ),
 -- All product-rate components are unique by product. Do not join raw SKU rows
 -- directly to physical events or production plans: that duplicates quantities.
+materials_stores_rm AS (
+  -- Preserve the approved SKU workload model, then collapse to ONE product rate.
+  -- RM workload share is for bulk stage; PM share remains packing stage.
+  -- This is model attribution (not measured actual material-issue activity).
+  SELECT m.product_id,
+         sum(m.monthly_sku_allocation_amount *
+             w.rm_workload_units / nullif(w.unified_workload_units, 0))
+           / nullif(sum(w.monthly_sku_base_qty), 0) AS rm_stores_rate,
+         count(*) filter (
+           where w.unified_workload_units <= 0
+              or w.monthly_sku_base_qty is null
+              or w.monthly_sku_base_qty <= 0
+              or m.allocation_status <> 'READY'
+              or w.allocation_status <> 'READY'
+         ) AS invalid_stores_rows
+  FROM costing.sku_materials_stores_allocation_snapshot m
+  JOIN costing.sku_materials_stores_workload_snapshot w
+    ON w.refresh_run_id=m.refresh_run_id AND w.sku_id=m.sku_id
+  JOIN params ON m.refresh_run_id=params.approved_cost_run_id
+  GROUP BY m.product_id
+),
 product_rates AS (
   SELECT p.id AS product_id,
          p.uom_base AS base_uom,
@@ -65,8 +87,9 @@ product_rates AS (
                    AND q.qc_rate >= 0
                    AND c.conversion_rate >= 0
                    AND c.conversion_rate = c.max_conversion_rate
+                   AND st.rm_stores_rate >= 0 AND st.invalid_stores_rows = 0
               THEN rm.rm_rate + l.labour_rate + o.overhead_rate +
-                   q.qc_rate + c.conversion_rate
+                   q.qc_rate + c.conversion_rate + st.rm_stores_rate
               ELSE NULL END AS provisional_bulk_rate,
          CASE WHEN rm.rm_rate IS NULL OR rm.rm_rate <= 0 THEN 'NO_APPROVED_RATE'
               WHEN rm.rm_rate <> rm.max_rm_rate THEN 'RM_RATE_CONFLICT'
@@ -74,6 +97,7 @@ product_rates AS (
               WHEN o.overhead_rate IS NULL OR o.overhead_rate < 0 OR o.overhead_rate <> o.max_overhead_rate THEN 'OVERHEAD_CONFLICT'
               WHEN q.qc_rate IS NULL OR q.qc_rate < 0 THEN 'INVALID_QC'
               WHEN c.conversion_rate IS NULL OR c.conversion_rate < 0 OR c.conversion_rate <> c.max_conversion_rate THEN 'CONVERSION_CONFLICT'
+              WHEN st.rm_stores_rate IS NULL OR st.rm_stores_rate < 0 OR st.invalid_stores_rows <> 0 THEN 'STORES_RM_ALLOCATION_UNVERIFIED'
               ELSE 'PROVISIONAL_STAGE_SCOPE' END AS rate_status
   FROM public.products p
   LEFT JOIN rm ON rm.product_id=p.id
@@ -81,6 +105,7 @@ product_rates AS (
   LEFT JOIN route_overhead o ON o.product_id=p.id
   LEFT JOIN quality_control q ON q.product_id=p.id
   LEFT JOIN material_conversion c ON c.product_id=p.id
+  LEFT JOIN materials_stores_rm st ON st.product_id=p.id
 ),
 live_plan AS (
   SELECT p.product_id, p.final_make_qty AS quantity_base, pr.uom_base AS base_uom
@@ -121,7 +146,7 @@ transfer_lines AS (
 )
 SELECT
   'LIVE_INDICATIVE_NOT_FROZEN'::text AS plan_status,
-  'BULK_COMPONENT_SCOPE_UNAPPROVED'::text AS monetary_status,
+  'RM_STORES_MODEL_ATTRIBUTION_PROPOSED_NOT_APPROVED'::text AS monetary_status,
   (SELECT approved_cost_run_id FROM params) AS reference_cost_run_id,
   (SELECT inclusive_report_cutoff FROM params) AS report_cutoff,
   'COVERED_SUBTOTAL_ONLY'::text AS monetary_completeness,
