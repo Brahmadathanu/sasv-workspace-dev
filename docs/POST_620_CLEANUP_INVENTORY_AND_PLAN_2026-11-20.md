@@ -157,3 +157,20 @@ Group B, preserve then clean (one approval): archive `UX1_2_PLAN.md` and `UX2_PL
 Group C, scratch archive then remove (separate approval): `wp06-final-stage-preflight` (14 files) and `wp06-line931-preflight` (3,303 files and 482 MB), with a manifest and restricted archive first because they may embed SQL.
 Group D, leave: CRLF-only edits (`prm-bypass`, the SQL edits in the dev folder, `wp07-ux1`, `bundle-a`, `sasv-release-test`).
 Group E, protected: original dev folder and `sasv-release-test`.
+
+## 17. Execution record: Group A (20 Nov 2026, owner approval #490 comment 7041038252)
+Before deletion each path was confirmed untracked, not a junction or symlink, and its content inspected. **10 files deleted, 0 skipped, about 0.3 MB:**
+- `wp04-s0-cursor-runner\supabase\tests\wp04\__pycache__\` : `auth_api_harness`, `operator_launcher`, `test_auth_api_harness`, `test_operator_launcher`, `test_runner`, `test_test_runner` (all `.cpython-312.pyc`; the empty `__pycache__` folder was left).
+- `daily-worklog-app\.worktrees\manage-bmr-main-visual\`: `.tmp-manage-bmr-visual.stderr.log` (empty) and `.tmp-manage-bmr-visual.stdout.log` (npm start banner only).
+- `wp07-ux1\.tmp-smoke-userdata\eaushadhi-worker-logs\2026-10-25.jsonl` and its now-empty log directory.
+- `wp07-bundle-a-screen-test\tatus --short`: confirmed accidental, it contained one colourised `git log --oneline` line for commit `6c4434ae`.
+**After:** `wp04-s0-cursor-runner` and `manage-bmr-main-visual` clean; `wp07-ux1` has only the CRLF SQL edit and the two plan documents; `wp07-bundle-a-screen-test` has only `package-lock.json` and the CRLF SQL edit. Not touched: plan documents, `package-lock.json`, SQL, source, any whole worktree. Dev folder status byte-identical to baseline (9 entries, HEAD `80e6fd39`); v6.2.0 still Latest. Dirty worktrees: 9 to 7.
+
+## 18. PROPOSAL (not executed): Group B, preserve the WP07 plans and the lockfile patch
+Archive root (outside every repository, not tracked): `D:\ELECTRON PROJECTS\sasv-archive-20261120\`.
+| Item | Source | Facts | Proposed action |
+|---|---|---|---|
+| `UX1_2_PLAN.md` | `wp07-ux1` (untracked) | 17,320 B, 192 lines, sha256 `5D5D80545E4C38BA...`, no secret patterns | copy to `...\wp07-ux1\`, verify SHA-256, keep original |
+| `UX2_PLAN.md` | `wp07-ux1` (untracked) | 21,826 B, 215 lines, sha256 `0EA8D686DD53E3D1...`, no secret patterns | same |
+| `package-lock.json` change | `wp07-bundle-a-screen-test` (HEAD `6c4434ae`, branch `feat/wp07-bundle-a-ux-polish` pushed) | working copy has 153 lines removed, 0 added (8,969 to 8,816 lines): drops the `@electron/windows-sign` block and similar `optional`/`dev` entries, consistent with an `npm install` pruning, not intended content | save `git diff -- package-lock.json` as `package-lock-bundle-a-20261120.patch` plus its SHA-256 in the archive; do NOT revert the file; owner then chooses discard or keep |
+Optional: commit the two plans to a docs branch instead of (or as well as) the archive copy. Verification after execution: SHA-256 of each archived file equals the source; originals untouched; `package-lock.json` unchanged. Owner approval required before any copy; no deletion is part of Group B.
