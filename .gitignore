@@ -61,3 +61,10 @@ coverage/
 acceptance-*/
 *.storage-state.json
 *.storage.json
+
+# local worktrees, scratch and temporary test artifacts
+.worktrees/
+.tmp-*
+.tmp-*/
+scripts/tmp-*
+*.log
