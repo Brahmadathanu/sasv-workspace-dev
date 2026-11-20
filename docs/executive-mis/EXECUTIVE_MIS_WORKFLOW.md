@@ -3,8 +3,8 @@
 **Established:** 19 November 2026 (IST)  
 **Scope:** Executive MIS Dashboard only (`executive-mis-dashboard`)  
 **Control status:** Documentation baseline; no MIS release or database migration authorized by this document  
-**Current gate:** MIS-G7 — value-layer design and OFFLINE validation ONLY (no live SQL authorized)  
-**Next action:** Review draft G7 server contract and synthetic tests, resolve data/security hold points; obtain separate explicit authorization before any live SQL  
+**Current gate:** MIS-G7 — canonical server reporting function INSTALLED; authenticated acceptance HOLD  
+**Next action:** Obtain genuine authenticated MIS View positive/negative testing for the one installed canonical RPC, record SERVER ACCEPTED only after checks, then hand Claude one client bulk package  
 **Release separation:** Costing Suite Electron release readiness takes precedence. Do not use this document/branch/PR to block, amend, rebase, merge into, or trigger that release.
 
 ## 1. Purpose, authority and navigation
@@ -54,7 +54,7 @@ Maintain distinct semantics and source dates. Do not pretend reports with differ
 | MIS-G4 | Finished Goods tab and MRP filter explanation | PASS (reported) | 622 SKUs; zero 54, nonzero MOS <1: 104, MOS 1–3: 221, MOS >6: 101; “murivenna” 5; client label “Same IK/OK MRP” while RPC argument remains `shaded` |
 | MIS-G5 | Production summary-only tab | PASS (reported), semantic correction OPEN | Plan/pipeline tables and secondary cards render; planned 929,887.73 mixed base units; active 412; overdue WIP 59 |
 | MIS-G6 | Production value semantics and source/rate feasibility | **METHODOLOGY APPROVED (CONDITIONAL)** | Owner approved 20 Nov 2026, subject to documented materials-stores, plan freeze, event, joint-process and permission checks; no live SQL approval |
-| MIS-G7 | Production value implementation and parity | **OPEN — DESIGN/OFFLINE ONLY** | G6 methodology approved; draft server contract and synthetic tests, no SQL installation, merge or release authority |
+| MIS-G7 | Production value implementation and parity | **OPEN — SERVER INSTALLED, ACCEPTANCE HOLD** | One unversioned canonical read RPC installed in controlled scope; no signed-in MIS View positive test, plan freeze, or completion parity yet |
 | MIS-G8 | Alerts discovery, definitions, severity, actionable drilldowns | PARKED | Start only after G7 or express reprioritization |
 | MIS-G9 | Cross-tab hardening, freshness, authorization, load/performance and full acceptance | NOT STARTED | Preserve prior tab evidence; retest changed surfaces |
 | MIS-G10 | Independent MIS release decision | HOLD / NOT AUTHORIZED | Must not be coupled to the immediate Costing Suite Electron release |
@@ -444,3 +444,29 @@ November ledger source has 79 positive FG bulk-storage receipts and separate 86 
 **Authority HOLD**: No production migration, grants, staff sessions, client implementation, branch merge or release changes. Required next owner decision is **separate narrow authorization of exact phase-1 function** after preflight/security/rollback checks. A granted server installation approval would *not* authorize Claude to begin until API is SERVER ACCEPTED with a signed receipt. Claude client bulk prompt is parked and ready at `MIS_CLAUDE_BULK_CLIENT_HANDOFF_AFTER_G7_SERVER_ACCEPTANCE.md`; Claude not invoked.
 
 **Programme progress**: G0–G5 owner-reported PASS (6/11); G6 conditional methodology approval; G7 design/phase-1 installation authorization pending, G8 parked, G9–G10 pending. Preserve Costing Suite independent release.
+
+
+## 24. Canonical MIS reporting installation and single-source decision — 20 November 2026
+
+**Owner direction and authorization interpretation:** "I prefer no versions just one source of truth. With that said go ahead." This follows the requested **separate, narrow G7 function installation approval**, and authorizes only an additive canonical reporting function, not merges, client changes, other Costing objects, service worker, Electron installer or release. There must be **one callable MIS production-value interface** named `public.get_mis_production_value_summary(date,date)`, with no preview/v1/v2 functions. Source of truth is the ONE installed function and its ONE current canonical SQL file `docs/executive-mis/MIS_PRODUCTION_VALUE_SUMMARY.sql`; this workflow remains the single programme status ledger. Git migration history preserves evidence without competing APIs. Obsolete phase-1 and SELECT-only draft SQL files were deleted from the docs branch; older discussions and historical file paths are **not** current authority.
+
+### Preflight and performance finding
+
+- Read-only catalog: no preexisting `get_mis_production_value_summary` or alternate preview function. Canonical permission target found as **`module:executive-mis-dashboard`**, not `executive-mis-dashboard`. Corrected before installation; one existing positive grant was observed. No user identities collected.
+- The earlier proposed `v_fg_transfer_reconciliation` CTE carried an **estimated cost ≈2,755,408,911**, unsuitable for a live page. Replaced with latest snapshot `public.tally_fg_transfer_voucher_lines` where `as_of_date<=report_cutoff`, using `voucher_date` for the period. Read-only full-month Tally book amount **₹33,15,640.34** for November 1–20 matched the full reconciliation-derived book amount on inspection; detailed log matching is deliberately labelled `NOT_CHECKED_BY_BOOK_TOTAL` rather than claimed.
+- Corrected SQL `EXPLAIN (FORMAT JSON)` estimated cost **45,943.34** (large improvement but not a runtime benchmark). The extracted, identical accounting SELECT was executed read-only once and returned: report November 2026, as-of Nov20, Oct approved run143, 100 planned products (0 unvalued), 79 physical receipts (2 unvalued), 0 in-period correction flags, 210 Tally voucher lines, book total **₹33,15,640.34**, indicative covered plan **₹64,05,582.23**, covered receipts **₹32,04,512.24** (values rounded for display); completion and achievement NULL; plan LIVE_INDICATIVE. No assumption of comprehensive completed production or immutable plan.
+
+### Installation evidence
+
+- The exact canonical SQL blob `bcac9e76132dacc86a670b21ce79668a418e17fe` from commit `5ac388bbee14c0a436d63582bba96c7603b8bc7c` was applied **once** using authenticated Supabase migration `executive_mis_canonical_production_value_summary`, result **success:true**. SQL contains explicit `BEGIN/COMMIT`, creates **one new function only** with its own `REVOKE PUBLIC, anon` and `GRANT authenticated`; does not replace existing MIS/Costing sources, change plans, release assets or client.
+- Live post-installation `pg_proc`: exactly `get_mis_production_value_summary(date,date)`, `SECURITY DEFINER`, stable, `search_path=pg_catalog, pg_temp`, canonical permission text included; effective EXECUTE rights: `anon=false`, `PUBLIC=false`, `authenticated=true`. Migration history records exact migration name. No-session SQL invocation raised expected `42501 MIS view permission required`.
+- Security advisor reports the **intentional** `authenticated_security_definer_function_executable` warning for this new MIS RPC (plus unrelated pre-existing alerts). It is expected because this authorized, permission-gated reporting function reads private costing sources; not proof of actual safe role access. Supabase guidance: https://supabase.com/docs/guides/observability/advisors?queryGroups=lint&lint=0028_authenticated_security_definer_function_executable — review runtime guard and actual signed-in role deny/pass before activation.
+- **NOT TESTED / acceptance blocker:** genuine authenticated MIS View session positive invocation, signed-in no-view negative invocation, and browser/API integration. The admin SQL connection has no user JWT and **cannot** be treated as such; do not fabricate identities or weaken permission. Therefore **SERVER ACCEPTED NOT ISSUED** and Claude's coding package still gated. No client code, merge, deployment or Costing Suite release change was made.
+
+### Remaining single workflow
+
+1. Validate genuine user-accessible RPC with independently identified MIS View user and denied signed-in role; check response source dates and expected nulls. Existing no-session denial and role EXECUTE grants already verified.
+2. Record a `SERVER ACCEPTED` receipt once runtime/permission results are real. Then hand over the ONE bulk client assignment in `docs/executive-mis/MIS_CLAUDE_BULK_CLIENT_HANDOFF_AFTER_G7_SERVER_ACCEPTANCE.md`; Claude not invoked yet.
+3. Complete frozen-plan seal and canonical batch completion only in later bounded G7 work against this same reporting interface, with separately authorized SQL. Preserve G8 PARKED, G9/G10 pending and independent Costing release.
+
+**Current programme progress:** G0–G5 six owner-reported PASS out of 11; G6 methodology conditionally approved; G7 **SERVER INSTALLED, ACCEPTANCE HOLD**; G8 parked; G9/G10 pending. No new formally closed gate or release claim.
