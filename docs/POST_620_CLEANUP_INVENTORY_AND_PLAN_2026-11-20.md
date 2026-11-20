@@ -365,3 +365,64 @@ Remaining merged-PR remote branches 233; 224 have no exception. Exceptions (9): 
 | `docs/costing-14-lens-evidence-matrix-20261108` | #215 | 2026-11-08 | `28b3996018` |
 | `docs/costing-checkpoint-handover-20261108` | #216 | 2026-11-08 | `71a6b44543` |
 | `docs/costing-staff-preview-contract-20261108` | #218 | 2026-11-08 | `be6441b156` |
+
+## 29. Execution record: remote branch cleanup, Batch 2 (20 Nov 2026, owner approval #490 comment 7041705379)
+Manifest sha256 `66A22A46DEA03E1427419D72390ECC3C5F8CCC61D06A9BD7DD7ADE5E7DBCA0EE` verified. Same checks as Batch 1, with the full tip SHA compared to the manifest (not a prefix), re-read immediately before each of the 50 single-ref deletions; PRs #249 and #271 were excluded as instructed.
+- **Deleted: 50. Skipped: 0. Failed: 0.** Remote branches 315 to **265**.
+- **Recovery:** `sasv-archive-20261120\merged-branches-batch2-recovery-20261120.csv` (full SHA, PR, `refs/pull/<n>/head`); every PR head ref still resolves (437).
+- **Protected, verified after:** 42/42 open-PR head branches exist; the preserved branches (`wip/composition-executor-packaging-proof-20261120`, `test/wp04-s0-cursor-runner`, `feat/lab-repeat-analysis-governance-client`, `costing/w1-approved-run-labels-rebased`), `costing/approval-screen-preview`, `costing/cw06-dialogs-item1` and the two review-pending branches for #271 and #249 exist; `main` is `be529de2`; tag `v6.2.0` is `ebb59a49`, still Latest with its 4 assets; 18 local worktrees untouched.
+
+## 30. BATCH 3 (PROPOSED, NOT DELETED)
+Merged-PR remote branches left: 183, of which 174 have no exception. Exceptions (9, unchanged): #487, #488, #489 (local branches or worktrees), #105, #99, #90, #57 (local branches or worktrees), and #271, #249 (owner review). The Executive MIS test is now strict (`executive-mis` / `mis-c<n>` names) and excluded nothing in the merged set; #485 and #486 are open and protected. Batch 3 = the next 50 oldest eligible (merged 8 to 11 Nov 2026); 33 of them have costing/WP05/WP10/WP12-type names, so these are more recent Costing-programme branches: each is merged and its PR head ref is preserved, but the owner may prefer to hold them. Manifest with full SHAs: `sasv-archive-20261120\merged-branches-batch3-manifest-20261120.csv` (sha256 `85F164EC88D2D9D5D8480208C5BFBFC6CCCD66AA938F7B2A4F1234BD9D8FC385`). Remote count would go 265 to 215.
+| Branch | PR | Merged | Tip |
+|---|---|---|---|
+| `docs/csr-plans-closure-target-20261108` | #219 | 2026-11-08 | `3985317ce4` |
+| `docs/idv-selector-subtab-acceptance-2026-11-08` | #217 | 2026-11-08 | `2ed951fa14` |
+| `docs/pec-vwl-r2-live-migration-reconcile` | #239 | 2026-11-08 | `2ddc08848c` |
+| `docs/scheme-master-logs-and-wp06-closure-20261108` | #226 | 2026-11-08 | `287d765143` |
+| `docs/scheme-master-production-index-runbook-20261108` | #229 | 2026-11-08 | `fb8385ea9e` |
+| `docs/wp05-formal-gate-audit-20261108` | #233 | 2026-11-08 | `590b0c73b3` |
+| `docs/wp05-idv-owner-security-closure-20261108` | #241 | 2026-11-08 | `c89b6bb4d9` |
+| `docs/wp05-par1-live-parity-20261108` | #240 | 2026-11-08 | `7e3f3a1c3c` |
+| `docs/wp06-formal-owner-closure-20261108` | #232 | 2026-11-08 | `0e4e378837` |
+| `docs/wp06-idv-navgroups-acceptance-20261108` | #223 | 2026-11-08 | `23668091ed` |
+| `docs/wp06-owner-approved-acceptance-amendment-20261108` | #231 | 2026-11-08 | `698813c41e` |
+| `docs/wp06-owner-decisions-scheme-57014-20261108` | #225 | 2026-11-08 | `7140eedfec` |
+| `fix/lock-screen-client-edit-guard-20261108` | #212 | 2026-11-08 | `2174d8f3d8` |
+| `fix/pec-vwl-search-reliability` | #238 | 2026-11-08 | `59b89ab3d7` |
+| `fix/verify-served-assets-netlify-banner-20261108` | #210 | 2026-11-08 | `5d615c5748` |
+| `migration/scheme-master-register-viability-lateral-20261108` | #214 | 2026-11-08 | `33b0eed075` |
+| `claude/wonderful-lovelace-dym809` | #244 | 2026-11-09 | `81504e9c9c` |
+| `claude/wp05-w506-client-01-dependency-matrix` | #253 | 2026-11-09 | `ccf5b3eba0` |
+| `claude/wp05-w506-combined-release-readiness` | #256 | 2026-11-09 | `f7acc2d899` |
+| `claude/wp05-w506-sec-fix-01-staff-writer-guard` | #254 | 2026-11-09 | `6137ff7f13` |
+| `claude/wp05-w506-sec-fix-02-close-writer-guard` | #255 | 2026-11-09 | `47f8261717` |
+| `docs/wp05-cld2-live-catalogue-20261109` | #243 | 2026-11-09 | `58e410b7f8` |
+| `docs/wp05-cld3-live-scheme-check-20261109` | #245 | 2026-11-09 | `abd5cdc086` |
+| `docs/wp05-closure-decision-package-20261109` | #246 | 2026-11-09 | `a54525634d` |
+| `docs/wp05-owner-decisions-b1-security-plan-20261109` | #247 | 2026-11-09 | `9cd9a5e789` |
+| `docs/wp05-targeted-w506-catalogue-20261109` | #248 | 2026-11-09 | `abafac964e` |
+| `docs/wp05-w506-personnel-policy-and-client-trace-20261109` | #252 | 2026-11-09 | `5f9056a1be` |
+| `docs/wp05-w506-sensitive-client-minimum-columns-20261109` | #251 | 2026-11-09 | `fb1599cd87` |
+| `docs/wp05-w506-view-sensitivity-consumers-20261109` | #250 | 2026-11-09 | `8ed307bbb0` |
+| `claude/clever-cori-ub53fg` | #266 | 2026-11-10 | `60954068c8` |
+| `claude/wp05-w506-authenticated-acceptance` | #261 | 2026-11-10 | `8d61334283` |
+| `claude/wp05-w506-conf-client-gate` | #258 | 2026-11-10 | `ea8c9554c2` |
+| `claude/wp05-w506-conf-server-view-gate` | #257 | 2026-11-10 | `245a15570e` |
+| `fix/wp05-scheme-master-list-projection-r12` | #263 | 2026-11-10 | `72aac23ae7` |
+| `fix/wp05-w506-conf-migration-version-reconcile` | #260 | 2026-11-10 | `01fd2e69cc` |
+| `claude/csr-scoped-rpc-client-273` | #276 | 2026-11-11 | `d6661034b0` |
+| `claude/ecstatic-gates-6lcutk` | #269 | 2026-11-11 | `34c595ca0e` |
+| `claude/epic-fermi-df6fia` | #286 | 2026-11-11 | `a61c2bf698` |
+| `claude/wp05-gate-reconciliation-282` | #285 | 2026-11-11 | `b27197dc77` |
+| `claude/wp05-overnight-offline-tests-20261110` | #268 | 2026-11-11 | `6ca7badfec` |
+| `claude/wp05-viability-periods-proposal-20261110` | #270 | 2026-11-11 | `da3f47cb53` |
+| `docs/wp05-handover-20261111-after-286` | #293 | 2026-11-11 | `3f8f35a137` |
+| `docs/wp05-post-292-merge-reconciliation-20261111` | #295 | 2026-11-11 | `a40fc70ca8` |
+| `docs/wp05-r20-owner-decisions-d2-subset-20261111` | #296 | 2026-11-11 | `93bad37f36` |
+| `docs/wp05-r22-helper-predicate-followup-20261111` | #299 | 2026-11-11 | `c8d0e73f21` |
+| `docs/wp05-r22-six-view-contract-evidence-20261111` | #298 | 2026-11-11 | `7d66fa624e` |
+| `docs/wp05-r23-d2-role-dependency-20261111` | #300 | 2026-11-11 | `27a8e9215b` |
+| `docs/wp05-r25-d2-render-contract-20261111` | #304 | 2026-11-11 | `007fb2eb1e` |
+| `feat/fg-bit-ux-1-modernization` | #277 | 2026-11-11 | `424643c377` |
+| `fix/wp05-csr-pwa-freshness-integrated-20261111` | #292 | 2026-11-11 | `554e7bcfea` |
