@@ -67,3 +67,20 @@ The costing snapshot tables are not available for direct `authenticated` SELECT,
 - **Next after offline design:** independent SQL syntax/security/performance review, owner accepts specific cost scope and snapshot lifecycle, then fresh explicit SQL application authorization. Client Claude bulk implementation only against a SERVER ACCEPTED stable response signature.
 
 **G7 status:** OPEN / DESIGN-ONLY. G8 parked. G9/G10 remain future. G0–G5 owner-reported PASS (6/11); G6 methodology conditionally approved but not an extra closed gate.
+
+
+## 7. Accelerated RM/PM materials-stores attribution
+
+**Owner direction (20 Nov):** Manufacturing-support materials-stores overhead should count toward production. Independent G7 read-only source inspection established that the existing `MATERIALS_STORES_STANDARD_RM_PM_V1` policy explicitly derives each SKU's unified stores workload from **both RM and PM**; charging the entire SKU stores overhead to bulk would capture packaging workload. The appropriate interpretation is **RM-related workload share included at bulk stage; PM-related share stays with packaging**. No Costing Suite policy change authorized.
+
+**Exact approved-run 143 evidence:**
+- `costing.sku_materials_stores_workload_snapshot` contains `rm_workload_units`, `pm_workload_units`, `unified_workload_units`, `monthly_sku_base_qty`. All **627** rows have nonnull nonnegative components and positive unified workloads; **627/627** satisfy `RM + PM = unified`.
+- `costing.sku_materials_stores_allocation_snapshot` has 627 READY allocations across 453 products; total **₹2,60,508.25**, decomposing into **RM ₹2,713.94** and **PM ₹2,57,794.31**, residual **₹0.00** at reported precision. These are **approved model allocations for October** (not actual November incurred expenditure). All 453 products have valid positive base drivers.
+- Per product, recombine allocation amounts at SKU level by the **existing workload mix**: `RM handling allocation = SUM(sku_allocation_amount * rm_workload_units/unified_workload_units)`; `PM handling allocation = SUM(sku_allocation_amount * pm_workload_units/unified_workload_units)`. Then `RM handling cost per product base UOM = RM handling allocation / SUM(monthly_sku_base_qty)`. Never average per-SKU rates and never add the whole RM+PM SKU stores cost.
+- All **100** planned November products have the approved model's stores coverage. The RM share is small relative to the PM share under the governing model; this is a **model result, not evidence that actual RM-store effort is negligible**. The workforce driver is an ideal-case standard RM/PM model, not actual-issue data.
+- Five internal source products show a difference between the stores SKU base volume and the separate manufacturing labour model's monthly product base quantity. **Do not interchange denominators.** Keep the approved stores workload's own `monthly_sku_base_qty`, and flag exceptions if the model version changes.
+- Example product reference rates (RM stores per base): Murivenna ₹0.034671/Kg, Jumbolene Capsule ₹0.000064/Nos, Thippili Rasayanam ₹0.008753/Kg. Do not use these examples as current approved November prices.
+
+**SQL design updated** in `MIS_G7_READONLY_SQL_DESIGN.sql` to include only the RM allocation split in the bulk component reference rate, with source model status/driver guards. PM handling remains explicitly outside bulk. The implementation remains a **review-only unexecuted SELECT** and must not be exposed directly to authenticated clients.
+
+**Decision boundary:** This resolves the prior ambiguity at the **design-method level** under the owner's direction, pending acceptance of the RM/PM attribution semantics and official server reconciliation. Do not mark G7 SERVER ACCEPTED, close cost-scope review without independent proof, run production SQL, merge, deploy or modify Costing Suite policy.
