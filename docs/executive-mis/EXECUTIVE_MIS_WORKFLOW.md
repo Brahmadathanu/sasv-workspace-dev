@@ -281,3 +281,32 @@ For the dashboard: report *receipt into FG bulk storage* separately from *formal
 4. **Independent acceptance:** mock contract tests, negative-access/RLS, responsive/mobile, cross-tab stale request, data parity, latency/EXPLAIN and browser acceptance. Do not bundle or expedite an unsafe release, and do not merge MIS into the Costing Suite Electron candidate.
 
 **Status:** G6 OPEN and urgent; G7 unopened pending owner methodology approval; G8 parked; G9–G10 future. G0–G5 owner-reported PASS unchanged. No production SQL/client/release mutations in this checkpoint.
+
+
+## 15. G6 provisional monetary method / owner decision checkpoint — 20 November 2026
+
+**Observation pin:** authenticated read-only Supabase queries on 2026-11-20 approximately **20:58 IST**; November plan remains a mutable live view, so figures below are **test outputs and NOT approved KPIs**. No production SQL or client writes executed. Owner requested accelerated, future-proof, plain-English implementation; future route-oriented logging to use a replaceable event adapter.
+
+### Feasible component basis
+
+- Approved October costing **run 143** is the only vetted approved source examined for November reporting; November run 152 is draft and must not be substituted.
+- Candidate rate per product base UOM: approved **raw material cost per base unit** (`sku_material_cost_snapshot.rm_cost_per_base_unit`, consistent across SKU formats) + **manufacturing-only direct labour per base unit** (`product_direct_labour_workload_snapshot.product_direct_labour_allocation / monthly_product_base_qty`) + **route production overhead per base UOM** (`sku_production_overhead_allocation_snapshot.production_overhead_cost_per_base_uom`, consistent across SKU formats) + **product QC per base UOM** (`product_qc_allocation_snapshot.qc_cost_per_product_base_uom`, consistent across SKU formats) + **applicable internal material conversion per product base UOM** (`sku_internal_material_conversion_snapshot.internal_conversion_cost_per_product_base_uom`, consistent across SKU formats).
+- All **100 positive November planned products** have present, nonnegative core components and a positive product manufacturing labour quantity driver. The internal material conversion component is populated but **zero for all 100 planned products** in approved run 143; other products in the approved run do have positive internal conversion components, so never hard-code zero.
+- Packing materials and packing labour are **excluded** from candidate bulk rate; packing-only amounts exist separately in costing. Other overhead families, product internal-source materials-stores costs, joint-process co-product treatment, policy stages and unit identity require reconciliation before authorization. Do not label this candidate as the approved full bulk COP until reconciliation and owner approval.
+- **Numerical dry-run only:** multiplying the *current live November planned quantity* by the candidate component rate yields **₹64,04,326.16 across 100 products**; this is **indicative / NOT a publishable production value**, because plan is not frozen and component scope has not been formally accepted.
+- November FG bulk-storage receipts comprise 79 positive rows across 52 products, with **50 products / 77 receipts** covered by candidate approved costing run 143 components. Candidate product-rate multiplication yields **₹32,04,140.56 across 77 covered receipts only**, *excluding* two unvalued receipt quantities. This is **not a complete actual output value**, not a completed-production metric, and must never be compared as equivalent to Tally FG book transfer.
+- Explicit no-rate exceptions: **Kayyonyadi Enna** (product_id 220; 30 Kg receipt 9 Nov; `In Storage`, no completion) and **Anulomana Sookshma Choornam** (product_id 1049; 3.4 Kg receipt 2 Nov; `Done`, completed 3 Nov). Neither has an October run 143 cost snapshot. No rate imputation or substitution of a draft costing run.
+- `daily_work_log` receipt rows have status and `completed_on` that may postdate receipt. Normalize storage receipts and formal batch completion separately; do not sum repeated completion dates as additional production. When product-route logging replaces legacy data, migrate the *adapter*, not the reporting contract or MIS client.
+- Forecast monthly base tables are traceable to `forecast_run` runs (November source has 7 run IDs), while 506 active November `production_qty_overrides` and evolving stock/WIP contribute to a derived plan; explicitly freeze a complete plan version for reproducible management reporting.
+
+### Plain-English decision package to present to owner (G6 still OPEN)
+
+**Question A — definition of bulk value:** use a **reference cost estimate** (the sum of approved raw materials, manufacturing-only labour, production overhead, relevant QC and proven internal conversion costs) rather than the packaged SKU selling price or packaged COP. This is a benchmark, **not** actual expenditure. Confirm additional eligible bulk-stage overhead and joint-production allocation policy after component parity proof.
+
+**Question B — actual production event:** dashboard should display distinct quantities for **received in bulk storage** (physical movements) and **formally completed** (batch completion, with one canonical event per batch); use the former for a clearly labelled provisional physical receipt measure, not conflate with completed output. Source-independent versioned event adapter must accommodate the future route-based work log.
+
+**Question C — reporting vintage:** pin an approved costing run and planning snapshot/cutoff independently; optionally show latest live indicative plan clearly separate from frozen monthly baseline. Exceptions must be visible in product counts, quantities by UOM and excluded-value status. Do not turn missing values into zero.
+
+**Question D — separation from FG transfer accounting:** continue to show transferred FG value from Tally separately as book transfer value and with reconciliation exceptions, not as manufacturing COP.
+
+**Decision status:** Method proposal only, **NOT owner-approved**. G7 remains unopened, SQL authorization not granted, MIS client #486 draft and Costing Suite release untouched. Next bounded verification: product source-coproduction and additional overhead overlap, entitlement/EXPLAIN planning, frozen plan mechanism; owner approval on semantic package before any production SQL deployment.
