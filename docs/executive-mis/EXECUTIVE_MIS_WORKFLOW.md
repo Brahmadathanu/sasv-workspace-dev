@@ -221,3 +221,34 @@ Each new MIS conversation begins by reading this file and verifying the GitHub h
 5. Present exact SQL/RPC contract, security/EXPLAIN and rollback proposal; obtain owner method approval and independent SQL authorization before G7.
 
 **Disposition:** G6 ongoing, no monetary MIS KPI accepted. G0–G5 owner-reported PASS preserved; MIS-C1 PR #486 remains draft and review-only. Costing Suite Electron release independent.
+
+
+## 13. MIS-G6 source-semantics and rate-spread checkpoint — 20 November 2026
+
+**Evidence type:** authenticated read-only SQL against Supabase project `qhmoqtxpeasamtlxaoak`; dates and counts are observed fixtures, not frozen monthly facts. No production writes, migrations, client code, release action or gate advancement.
+
+### Rate normalization: approved run 143
+
+- `costing.sku_internal_loaded_cost_snapshot`: approved run 143 has **627 SKU rows / 453 products**, with no missing or nonpositive `manufacturing_cop_per_sku`. Among the **100 November positive-plan products observed**, approved run 143 maps to **160 SKU rows**. Each has positive `pack_size * v_sku_catalog_enriched.conversion_to_base`.
+- Naïve normalized **SKU manufacturing COP / (pack_size * conversion_to_base)** is **different in all 44 multi-SKU planned products**. In **41/44** the maximum/minimum ratio exceeds 1.05; worst observed ratio ~**3.19**. Examples: Jumbolene Capsule 3.19x; Rejuliv Forte Capsule 3.02x; Murivenna 1.57x. Therefore **do not choose a SKU, average SKU COP, or call SKU COP per bulk unit a product bulk production rate**.
+- Crucial positive evidence: `costing.sku_material_cost_snapshot.rm_cost_per_base_unit` is **consistent within every one of the 44 multi-SKU planned products**, and within all **453** multi-SKU product groups of approved run 143. The approved product-level RM base rate is therefore a plausible *component*, but excludes labour, production overhead and possibly other bulk-stage inputs. `costing.sku_production_overhead_allocation_snapshot` has 160 mapped records / 100 products and no missing `production_overhead_cost_per_base_uom`, but SKU allocation semantics must be checked for separation of bulk versus packing overhead. Product workload snapshot exists for all 453 approved-run products. **No complete bulk COP rate is yet authorized.**
+- The source-derived planned demand view `v_product_bulk_required_monthly` already calculates `net_units * pack_size * conversion_to_base` and aggregates by product/UOM. Do **not apply the product conversion factor again** to `final_make_qty` without proving a separate semantic need; the live plan mixes Kg/L/Nos but its source values are already expressed on the product bulk-base scale.
+
+### Actual bulk storage versus formal completion
+
+- All 79 November `fg_bulk_stock_ledger` positive receipts (`source_table='daily_work_log'`, `reason_code='FG bulk storage'`) are traceable to valid distinct daily_work_log IDs, with matching ledger/log dates and recorded `storage_qty`.
+- Status split: **58 receipt rows / 40 distinct batch keys** come from work logs with `status='Done'` and non-null `completed_on`; **21 rows / 21 distinct batch keys** are `In Storage` with null `completed_on`. No completion date precedes its log date in the audited set. Receipt date and formal completion date are distinct and may span days. Multiple receipts per batch have distinct IDs and different storage quantities; further event lifecycle checks needed before classifying as incremental production output.
+- Recommendation: independently label **Bulk Stored (physical receipts by storage entry date)** versus **Bulk Completed (formal completion event by completion date)**. Do not use the legacy expected-output sum as verified actual production. Exclude internal transfer, bottling, force-close adjustment and stock count effects from *newly produced* amounts unless separate explicitly documented treatment permits them.
+
+### Plan provenance
+
+- November `sku_forecast_monthly_base` contains **1,974 source rows across 7 run IDs**. `forecast_run` has provenance including `as_of_date`, `status`, `module_slot`, `closed_at` and `frozen_after_day`; latest shown historical successful runs 122–124 as-of 26 Oct. `production_qty_overrides` has **506 active November rows**, newest update timestamp 2026-10-30 06:59:51+00.
+- These fields help establish plan provenance but **do not prove the present derived plan is immutable**: WIP, current stock/forecast inputs and other joins may change. Fix a reproducible plan-as-of/snapshot contract before G7.
+
+### Updated G6 design recommendation and blocking proof
+
+**Proposed semantic contract (not approved):** Plan at an explicit version/as-of; rate = approved **bulk-stage** manufacturing cost in product base UOM, assembled from proven governed components without packaged-only costs; actual = reconciled distinct bulk receipt/completion evidence with explicit event timing; transfer value = separately sourced Tally book value. Report money only for verifiably mapped rows; disclose missing-rate/quantity/status coverage and provenance. Set `N/A` for non-comparable achievement, not a false percentage.
+
+**Remaining G6 checks:** verify shared product RM base rate against row-level BOM and complete bulk-stage labour/overhead definitions; inspect daily work-log status transitions and storage ledger idempotence; identify exact plan run membership and stable cutoff; prove approved-rate coverage for all eligible *actual* products, not merely planned products; independently check database privileges/EXPLAIN on prospective reporting route. Do not implement G7 until owner approves method and subsequently authorizes live SQL separately.
+
+**Programme status:** G0–G5 owner-reported PASS; G6 current OPEN; G7 pending, G8 parked, G9–G10 pending. MIS-C1 #486 draft review only; Costing Suite Electron release wholly independent.
