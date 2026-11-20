@@ -1,6 +1,6 @@
 # SASV Workspace 6.2.0: final acceptance execution receipt (20 Nov 2026)
 
-**STATUS: 6.2.0 NOT PUBLISHED. G1 NOT TESTED (owner-interactive). No tag, release, SQL, grant, flag or fleet change.** WP10 and WP12 remain **OPEN**; Stage B **HOLD**.
+**STATUS: 6.2.0 NOT PUBLISHED. G1 PASS (owner-reported; see 4a). No tag, release, SQL, grant, flag or fleet change.** WP10 and WP12 remain **OPEN**; Stage B **HOLD**.
 
 ## 1. Candidate identity (supersedes the earlier-SHA references)
 The procedures document (19 Nov) names code head `e46e3c37` of #483. #483 is now merged: the accepted source is `main` at
@@ -36,7 +36,11 @@ The exe and ASAR hashes equal the RC report's; the installer and ZIP differ (NSI
 Latest release `v6.1.0`; no `v6.2.0` tag or release; `v6.1.0` `latest.yml` digest `415b54fe...28aaca7` and installer digest `0884f2bc...8557f4` unchanged. `v6.0.1` and `v6.1.0` assets untouched.
 
 ## 4. G1 status
-Desktop automation tools are not available in this session and sign-in needs the owner's credentials, which must not be entered by the agent. The hosted PWA is not a substitute. All seven G1 rows: **NOT TESTED**. Owner launcher: `D:\ELECTRON PROJECTS\sasv-620-g1-launch-G1.bat` (isolated `--user-data-dir` and redirected `LOCALAPPDATA`; the installed profile `%APPDATA%\SASV Workspace` and `daily-worklog-app-updater` cache are not used). Pass/fail rows are in the procedures document section 2.
+Desktop automation tools are not available in this session and sign-in needs the owner's credentials, which must not be entered by the agent. The hosted PWA is not a substitute. At the time of the first build all seven G1 rows were NOT TESTED (superseded by 4a). Owner launcher: `D:\ELECTRON PROJECTS\sasv-620-g1-launch-G1.bat` (isolated `--user-data-dir` and redirected `LOCALAPPDATA`; the installed profile `%APPDATA%\SASV Workspace` and `daily-worklog-app-updater` cache are not used). Pass/fail rows are in the procedures document section 2.
+
+### 4a. G1 closure (20 Nov 2026, owner-reported)
+**G1: PASS (owner-reported, all seven rows).** Owner completed, on the packaged 6.2.0 build above (isolated profile via the launcher): login; six Costing modules; four Classification modules; Home/back; one print popup; no errors, CORS or blank pages; no unexpected updater download; sign-out. Evidence is the owner's report; no screenshots or data retained. No writers were activated.
+Cleanup, verified before deletion: launcher uses `%TEMP%\sasv-g1-profile` (21.2 MB, no reparse points) and `%TEMP%\sasv-g1-local` (0 MB of files; no updater cache was created, consistent with no download). App not running. Only those two folders were deleted. Untouched: installed profile `%APPDATA%\SASV Workspace`, `%LOCALAPPDATA%\daily-worklog-app-updater`, the dev folder, `sasv-release-test`, `dist\` artifacts and an unrelated `sasv-updater-compat-*` temp folder.
 
 ## 5. G2/G3, signing
 G2/G3 not started (require G1 PASS and explicit owner approval). This PC has an installed profile and updater cache, so it is not a disposable G2 target without a profile backup. Signing is unresolved: choose A (signed, needs a valid identity and signed-artifact checks) or B (unsigned pre-release pilot on one or two named PCs, only with a separate dated owner risk acceptance and after G1 PASS).
