@@ -42,6 +42,17 @@ Desktop automation tools are not available in this session and sign-in needs the
 **G1: PASS (owner-reported, all seven rows).** Owner completed, on the packaged 6.2.0 build above (isolated profile via the launcher): login; six Costing modules; four Classification modules; Home/back; one print popup; no errors, CORS or blank pages; no unexpected updater download; sign-out. Evidence is the owner's report; no screenshots or data retained. No writers were activated.
 Cleanup, verified before deletion: launcher uses `%TEMP%\sasv-g1-profile` (21.2 MB, no reparse points) and `%TEMP%\sasv-g1-local` (0 MB of files; no updater cache was created, consistent with no download). App not running. Only those two folders were deleted. Untouched: installed profile `%APPDATA%\SASV Workspace`, `%LOCALAPPDATA%\daily-worklog-app-updater`, the dev folder, `sasv-release-test`, `dist\` artifacts and an unrelated `sasv-updater-compat-*` temp folder.
 
+### 4b. Office-PC unsigned pilot: BLOCKED before install (20 Nov 2026)
+Owner authorised (20 Nov 2026, in chat) an unsigned 6.2.0 install on this PC only, provided backup and rollback prerequisites pass. No GitHub release, tag, upload, other PC, auto-update or database change authorised.
+| Prerequisite | Result |
+|---|---|
+| 6.1.0 actually installed? | **No.** `%LOCALAPPDATA%\Programs\daily-worklog-app` exists but is empty (0 items, no exe, no uninstaller). A stale per-user uninstall registry entry "SASV Workspace 3.12.0" points at the missing uninstaller. The app was previously run with `npm start`, not installed. This PC is a fresh-install case, not a 6.1.0 to 6.2.0 upgrade. |
+| 6.2.0 installer SHA-256 | PASS: `AE9AF856...72958AA9A` equals the accepted build. |
+| Profile and updater cache located | `%APPDATA%\SASV Workspace` (778 MB) and `%LOCALAPPDATA%\daily-worklog-app-updater` (holds a 6.0.1 `pending` installer). Not running. |
+| Backup | PASS: profile (caches excluded, 1,577 files, 326 MB) and updater cache copied to `D:\ELECTRON PROJECTS\sasv-pilot-backup-20261120` (local only, not uploaded; contains session data, treat as confidential). |
+| 6.1.0 rollback installer matches documented checksum | **FAIL.** Only local copy: `sasv-release-test\dist\SASV Workspace Setup 6.1.0.exe`, SHA-256 `A3E7436F...E1D792`, a local build. Documented published value is `0884f2bc...8557f4`. They differ, so it is not the accepted 6.1.0 artifact. |
+**Result: BLOCKED. 6.2.0 was not installed.** Unblock by authorising download of the published `SASV-Workspace-Setup-6.1.0.exe` from the v6.1.0 release (about 103.6 MB) and verifying it against `0884f2bc...8557f4`, or by supplying a verified copy. Even then, evidence is a fresh install and will not prove the upgrade path (G2 stays NOT TESTED).
+
 ## 5. G2/G3, signing
 G2/G3 not started (require G1 PASS and explicit owner approval). This PC has an installed profile and updater cache, so it is not a disposable G2 target without a profile backup. Signing is unresolved: choose A (signed, needs a valid identity and signed-artifact checks) or B (unsigned pre-release pilot on one or two named PCs, only with a separate dated owner risk acceptance and after G1 PASS).
 
