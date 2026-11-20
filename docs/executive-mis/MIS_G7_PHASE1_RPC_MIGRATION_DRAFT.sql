@@ -171,7 +171,7 @@ BEGIN
       'report_month',v_month,'as_of_date',v_cutoff,
       'approved_cost_run_id',v_run,'approved_cost_valuation_date',v_valuation,
       'status','PREVIEW_NOT_A_FROZEN_BASELINE','plan_status','LIVE_INDICATIVE',
-      'component_policy','RM_STORES_V1_PM_EXCLUDED',
+      'component_policy','RM_STORES_PM_EXCLUDED',
       'planned_product_count',(SELECT count(*) FROM priced_plan),
       'planned_unvalued_count',(SELECT count(*) FROM priced_plan WHERE value IS NULL),
       'planned_reference_covered_value',(SELECT sum(value) FROM priced_plan),
