@@ -174,3 +174,20 @@ Archive root (outside every repository, not tracked): `D:\ELECTRON PROJECTS\sasv
 | `UX2_PLAN.md` | `wp07-ux1` (untracked) | 21,826 B, 215 lines, sha256 `0EA8D686DD53E3D1...`, no secret patterns | same |
 | `package-lock.json` change | `wp07-bundle-a-screen-test` (HEAD `6c4434ae`, branch `feat/wp07-bundle-a-ux-polish` pushed) | working copy has 153 lines removed, 0 added (8,969 to 8,816 lines): drops the `@electron/windows-sign` block and similar `optional`/`dev` entries, consistent with an `npm install` pruning, not intended content | save `git diff -- package-lock.json` as `package-lock-bundle-a-20261120.patch` plus its SHA-256 in the archive; do NOT revert the file; owner then chooses discard or keep |
 Optional: commit the two plans to a docs branch instead of (or as well as) the archive copy. Verification after execution: SHA-256 of each archived file equals the source; originals untouched; `package-lock.json` unchanged. Owner approval required before any copy; no deletion is part of Group B.
+
+## 19. Execution record: Group B archive (20 Nov 2026, owner approval #490 comment 7041097950)
+Archive root `D:\ELECTRON PROJECTS\sasv-archive-20261120\` (outside every Git repository; nothing uploaded). Files:
+| Archive file | SHA-256 | Bytes | Check |
+|---|---|---|---|
+| `wp07-ux1-plan-documents\UX1_2_PLAN.md` | `5D5D80545E4C38BA94BBC96EF6977D18E90FC9B1F8553CECE77008FF7C61C09A` | 17,320 | equals original |
+| `wp07-ux1-plan-documents\UX2_PLAN.md` | `0EA8D686DD53E3D1CB2AF87E5965311B7F58714ABEBFCD6155AB7A8CF918E1C9` | 21,826 | equals original |
+| `wp07-bundle-a-package-lock-patch\package-lock-bundle-a-20261120.patch` | `38425EED9BCFBA3C1709BB25DFE0E11B34D3F22AB8BEE020D492FFDAF1B56293` | 7,472 (290 lines) | `git apply --check -R` against the working copy succeeds (no file modified) |
+| `PROVENANCE.txt` | n/a | 1,336 | records source worktrees, branch, HEAD commits and hashes |
+Provenance: plans from `wp07-ux1` (branch `feat/wp07-ux1-worklist`); patch from `wp07-bundle-a-screen-test` (detached HEAD `6c4434ae`, remote branch `origin/feat/wp07-bundle-a-ux-polish`), 0 additions and 153 deletions in `package-lock.json`, not committed, not reverted.
+Verification after archiving: the two plan documents and `package-lock.json` have the same SHA-256 as before; both worktrees' `git status` unchanged (plans untracked, lockfile and CRLF SQL edit still modified). Nothing was deleted, reverted, restored, committed or modified; Group C and the SQL line-ending edits untouched.
+
+## 20. PROPOSAL (not executed): next recommendation
+1. **Group C, manifest first (non-destructive step, can proceed once approved):** for `wp06-final-stage-preflight` (14 untracked files) and `wp06-line931-preflight` (3,303 untracked files and the 482 MB `.tmp-line931-preflight-userdata`), write a manifest (path, size, SHA-256) into `sasv-archive-20261120\wp06-preflight-manifests\` and flag any file whose text matches SQL/secret patterns. Then the owner chooses per file group: archive (restricted folder), keep, or remove. Removal of those two worktrees (clean after cleanup) would follow separately; junctions to the dev `node_modules` are removed link-only first.
+2. **Group D (leave):** CRLF-only SQL edits in `prm-bypass`, `wp07-ux1`, `wp07-bundle-a-screen-test`, the dev folder and `sasv-release-test`.
+3. **`wp07-bundle-a-screen-test` lockfile:** owner decision, discard (restore from HEAD) or keep; the archive patch preserves it either way.
+4. **Beyond worktrees (cleanup plan group 4 and 5):** the per-branch report for 329 unmerged remote branches and 40 open PRs, and `git maintenance`/`gc` on the dev repository after worktrees settle; none started.
