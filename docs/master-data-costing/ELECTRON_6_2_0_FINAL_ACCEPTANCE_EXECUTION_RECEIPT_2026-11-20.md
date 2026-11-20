@@ -53,6 +53,19 @@ Owner authorised (20 Nov 2026, in chat) an unsigned 6.2.0 install on this PC onl
 | 6.1.0 rollback installer matches documented checksum | **FAIL.** Only local copy: `sasv-release-test\dist\SASV Workspace Setup 6.1.0.exe`, SHA-256 `A3E7436F...E1D792`, a local build. Documented published value is `0884f2bc...8557f4`. They differ, so it is not the accepted 6.1.0 artifact. |
 **Result: BLOCKED. 6.2.0 was not installed.** Unblock by authorising download of the published `SASV-Workspace-Setup-6.1.0.exe` from the v6.1.0 release (about 103.6 MB) and verifying it against `0884f2bc...8557f4`, or by supplying a verified copy. Even then, evidence is a fresh install and will not prove the upgrade path (G2 stays NOT TESTED).
 
+### 4c. Office-PC unsigned pilot: FRESH INSTALL (20 Nov 2026) - not a 6.1.0 to 6.2.0 migration
+Owner then approved downloading the published 6.1.0 installer. **Rollback installer verified:** `gh release download v6.1.0` from `Brahmadathanu/sasv-workspace-dev` (non-pre-release), 103,567,655 bytes, full 64-hex SHA-256 equals the documented value `0884f2bc3acc2d8a06c565784c11526f98c03728ee8cd3be96b4e261438557f4` (compared programmatically against both the procedures document and the GitHub release asset digest), stored at `D:\ELECTRON PROJECTS\sasv-pilot-backup-20261120\rollback-6.1.0\`. Never executed. Unsigned, as published.
+Install: `SASV Workspace Setup 6.2.0.exe` (SHA-256 `AE9AF856...72958AA9A`) run once per-user; no SmartScreen or UAC prompt required.
+| Check | Result |
+|---|---|
+| Installed version | PASS: `%LOCALAPPDATA%\Programs\daily-worklog-app\SASV Workspace.exe` ProductVersion 6.2.0.0, SHA-256 equals the accepted exe (`C226EE9B...22FA9C1`); uninstall entry "SASV Workspace 6.2.0" added |
+| Shortcut | PASS: Start Menu `SASV Workspace.lnk` targets the installed exe; the `SASV Workspace Dev` shortcut (dev electron) untouched; no Desktop shortcut |
+| Launch | PASS: window title "SASV WORKSPACE \| Login" (signed-out login page) |
+| Embedded server | PASS: listens on `[::1]:3000` only; no LAN listener on 3000 (a transient 192.168.x socket seen in one query was an outbound Chromium socket, not a server) |
+| Updater | PASS (no download): cache holds the 6.0.1 `pending` files (unchanged timestamps) and `installer.exe`, which is the NSIS installer's own stored copy (hash equals the 6.2.0 installer), not a downloaded update |
+| Login, six Costing, four Classification, Home/back, print popup on the installed app | **NOT TESTED** (needs the owner's sign-in; owner checklist pending) |
+Notes: the stale "SASV Workspace 3.12.0" uninstall entry (different GUID) remains; it is a pre-existing orphan. The existing shared profile `%APPDATA%\SASV Workspace` (backed up) was used. Rollback: close app, uninstall 6.2.0 (profile kept), run the verified 6.1.0 installer manually, restore the profile backup only if incompatible.
+
 ## 5. G2/G3, signing
 G2/G3 not started (require G1 PASS and explicit owner approval). This PC has an installed profile and updater cache, so it is not a disposable G2 target without a profile backup. Signing is unresolved: choose A (signed, needs a valid identity and signed-artifact checks) or B (unsigned pre-release pilot on one or two named PCs, only with a separate dated owner risk acceptance and after G1 PASS).
 
