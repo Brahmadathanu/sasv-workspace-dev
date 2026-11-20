@@ -221,3 +221,27 @@ Scope: `wp06-final-stage-preflight` (HEAD `01ce609d`, 0 ahead of main, 0 tracked
 
 ## 23. PROPOSAL (not executed): remove the two now-clean worktrees
 `wp06-final-stage-preflight` and `wp06-line931-preflight`: HEAD in `origin/main`, 0 tracked changes. Steps if approved: (1) re-verify each of the 9 untracked originals against the archive SHA-256 above, then delete just those 9 files; (2) confirm clean status; (3) read the `node_modules` junction target (expected: the original dev folder's `node_modules`), remove only the link with `rmdir`, re-count the target; (4) `git worktree remove` without force. Result: 18 worktrees remain; no branch deleted. Owner approval required.
+
+## 24. Execution record: the two WP06 preflight worktrees (20 Nov 2026, owner approval #490 comment 7041375674)
+For each of `wp06-final-stage-preflight` (HEAD `01ce609d`) and `wp06-line931-preflight` (HEAD `6e5d11ea`): HEAD an ancestor of `origin/main`; no tracked change; the untracked originals (3 and 6) each matched their archived copy by full SHA-256 (section 22) and only those 9 were deleted; status clean; `node_modules` verified as a junction whose target was exactly `D:\ELECTRON PROJECTS\daily-worklog-app\node_modules`; link removed with `rmdir`; dev `node_modules` re-counted (457 entries, 14,409 files, unchanged); then `git worktree remove` without force.
+- **Removed: 2. Skipped: 0.** Disk recovered about 62 MB (D: free about 22.3 GB; the 487 MB of Group C was freed earlier).
+- **After:** 18 registered worktrees (was 20); dev worktree status identical to the baseline; branches unchanged (no branch deleted; the two worktrees were detached); v6.2.0 still Latest.
+
+## 25. CONSOLIDATED PLAN (proposal only, nothing deleted): remaining worktrees and GitHub housekeeping
+**A. Remaining 18 worktrees**
+| Group | Worktrees | Proposal |
+|---|---|---|
+| Protected | original `daily-worklog-app` (16 entries incl. untracked), `sasv-release-test` (6 dirty), `sasv-620-g1` (verified 6.2.0 build) | keep |
+| Inside the dev folder (protected area) | `.worktrees/bmr-lifecycle-client` (clean, in main), `.worktrees/cw06-dialogs-item1` (1 pushed commit), `.worktrees/manage-bmr-main-visual` (clean, detached), `node_modules/.worktrees/lab-repeat-analysis-governance-client` (3 pushed commits) | owner decides; `bmr-lifecycle-client` and `manage-bmr-main-visual` could go (already in main) |
+| Pushed work, clean (about 3.1 GB with own `node_modules`) | `wp07-s2c-c1-qc-preparation-ui` (814 MB, 31 ahead), `wp07-final-validation` (450 MB, 43), `wp07-regression-acceptance` (450 MB, 2), `wp07-v390-final-acceptance` (450 MB, 5), `sasv-cache-v390-test` (46 MB), `sasv-costing-preview-owner` (50 MB), `wp04-s0-cursor-runner`, `executor-packaging-proof` (wip branch) | each HEAD is contained in a pushed remote branch; folders could be removed (branches stay) if the owner no longer needs a local checkout; one-at-a-time with the same checks |
+| Dirty, small | `wp07-ux1` (CRLF SQL + the two plans, archived), `wp07-bundle-a-screen-test` (lockfile diff archived + CRLF SQL), `prm-bypass` (CRLF SQL) | owner decides on the lockfile; CRLF-only edits can be reverted with approval |
+**B. GitHub branches and PRs (read-only classification, 365 remote branches, 437 PRs: 367 merged, 42 open, 28 closed)**
+| Class | Count | Proposal |
+|---|---|---|
+| Remote branch whose PR is MERGED | 283 | delete the branch refs in batches (PRs and merge commits stay; GitHub's "Restore branch" recovers each); better first enable repository setting "Automatically delete head branches"; owner approval for each batch |
+| OPEN PR | 42 | owner triage (keep / close with comment); #485 and #486 (Executive MIS) isolated and excluded |
+| PR CLOSED unmerged | 19 | review; tag `archive/<name>` before any deletion |
+| No PR, not merged | 19 | keep for review; includes the 5 preserved today (`test/wp04-s0-cursor-runner`, `feat/lab-repeat-analysis-governance-client`, `costing/w1-approved-run-labels-rebased` and `wip/composition-executor-packaging-proof-20261120`) and 14 older docs/claude/staging branches |
+| Ancestor of main, no PR | 1 | deletable |
+| Local branches (49) | 35 have no remote branch, all 0 ahead of main except `prm-bypass` (1, pushed under another name) | `git branch -d` (refuses unmerged) for the 0-ahead ones after a list review; the other 14 are tracked by class above |
+Order I recommend: (1) enable auto-delete of merged branches and a `v*` tag ruleset; (2) delete the 283 merged remote branches in batches of about 50 with a pre-listed manifest; (3) triage the 42 open PRs; (4) local `git branch -d` for the 35 ancestor branches; (5) `git maintenance` / `gc` on the dev repository. Every step needs separate approval; none was executed. Note: a `git fetch --prune` was run in the dev repository while classifying (it only refreshes remote-tracking refs; no worktree, branch or file changed).
