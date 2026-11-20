@@ -245,3 +245,61 @@ For each of `wp06-final-stage-preflight` (HEAD `01ce609d`) and `wp06-line931-pre
 | Ancestor of main, no PR | 1 | deletable |
 | Local branches (49) | 35 have no remote branch, all 0 ahead of main except `prm-bypass` (1, pushed under another name) | `git branch -d` (refuses unmerged) for the 0-ahead ones after a list review; the other 14 are tracked by class above |
 Order I recommend: (1) enable auto-delete of merged branches and a `v*` tag ruleset; (2) delete the 283 merged remote branches in batches of about 50 with a pre-listed manifest; (3) triage the 42 open PRs; (4) local `git branch -d` for the 35 ancestor branches; (5) `git maintenance` / `gc` on the dev repository. Every step needs separate approval; none was executed. Note: a `git fetch --prune` was run in the dev repository while classifying (it only refreshes remote-tracking refs; no worktree, branch or file changed).
+
+## 26. Repository setting applied; first merged-branch batch prepared (20 Nov 2026, owner approval #490 comment 7041477266)
+**Setting:** "Automatically delete head branches" was `false`; set to `true` via the repository API and read back as `true`. Compatibility checked: 24 workflows trigger only on `main` or fixed branch filters and use `github.event.pull_request.head.sha` for checkouts (none needs a head branch to survive its merge); 5 open PRs have a non-`main` base (#477, #473, #385, #275, #118): when their base PR merges and its head branch is deleted, GitHub retargets them to the merged PR's base, so they are not orphaned; Executive MIS PRs #485/#486 base on `main` and simply lose their head branch after merging. The setting applies only to future merges: no existing branch, local branch, PR, tag, branch-protection rule or release was changed (365 remote branches before and after, v6.2.0 still Latest, 42 open PRs). Tag protection (`v*`) is NOT part of this step.
+**Historical cleanup, classification of the 283 merged-PR remote branches:** 274 have no exception; 9 are excluded (7 still exist as local branches, 3 of them checked out in worktrees; 2 match the Executive MIS name filter). For every branch the current tip equals the head commit of its merged PR or is an ancestor of `main` (no post-merge commits exist). No branch is the head of an open PR or the base of one.
+**BATCH 1 (PROPOSED, NOT DELETED): 50 branches, the oldest merged first (merged 24 Oct to 4 Nov 2026).** Local manifests with SHAs: `sasv-archive-20261120\merged-branches-batch1-manifest-20261120.csv` (sha256 `A2C8D51C5148CA52D89E2D8EF35B7B36293FA7DDDEEB2E2539801FCA3FFE2C11`) and `merged-branches-full-classification-20261120.csv`. Recovery for each: the PR page's "Restore branch" button, or `git push origin <sha>:refs/heads/<name>` using the SHA below; the merge commits stay on `main`.
+| Branch | PR | Merged | Tip |
+|---|---|---|---|
+| `feat/wp07-qc-pilot-rebased` | #79 | 2026-10-24 | `0de9ec6a6e` |
+| `codex/costing-lock-screen` | #101 | 2026-10-30 | `2b3d8c4902` |
+| `codex/costing-recalc-with-date` | #100 | 2026-10-30 | `ba2b2c828d` |
+| `codex/costing-run-status-screen` | #102 | 2026-10-30 | `e687c97290` |
+| `chore/migration-20261015045233-line-endings` | #109 | 2026-10-31 | `f62c62426c` |
+| `codex/costing-polish-lock-runstatus` | #103 | 2026-10-31 | `ac6eee1fc2` |
+| `codex/costing-ux-consistency` | #104 | 2026-10-31 | `003c4470b0` |
+| `costing/cw05-table-tools` | #106 | 2026-10-31 | `380e65366d` |
+| `costing/cw05-table-tools-pkg2` | #108 | 2026-10-31 | `c74b10b48a` |
+| `docs/costing-state-2026-10-31` | #107 | 2026-10-31 | `87ea7d962e` |
+| `claude/tender-carson-67ip7t` | #124 | 2026-11-01 | `3075c633c3` |
+| `costing/cw05-table-tools-pkg3` | #110 | 2026-11-01 | `aa37a4705b` |
+| `costing/cw05-table-tools-pkg4` | #112 | 2026-11-01 | `d3d779bae0` |
+| `costing/review-worklist-v1` | #111 | 2026-11-01 | `522efa6094` |
+| `docs/state-update-2026-11-01` | #113 | 2026-11-01 | `a3e4f81da7` |
+| `feat/costing-c1b-run-148-worklist` | #117 | 2026-11-01 | `1c4e385c56` |
+| `feat/costing-c1-run-context-diagnostics` | #115 | 2026-11-01 | `fb7e863b82` |
+| `feat/costing-uxf1-dashboard-compact-ccc` | #121 | 2026-11-01 | `175e55557b` |
+| `feat/costing-uxf2-compact-worklist` | #125 | 2026-11-01 | `00845b5d7d` |
+| `merge-prep/wp07` | #120 | 2026-11-01 | `f1e63b598b` |
+| `release/costing-uxf1-cache-v390` | #123 | 2026-11-01 | `1bbf358b78` |
+| `feat/costing-cw06-route-dialogs` | #126 | 2026-11-02 | `151cb615fc` |
+| `feat/costing-cw07-cost-sheet-terminology` | #128 | 2026-11-02 | `533eb29f68` |
+| `feat/costing-cw13-responsive` | #127 | 2026-11-02 | `7f6e9d4e4d` |
+| `claude/blissful-dijkstra-jt1vdq` | #135 | 2026-11-03 | `f29f8c3561` |
+| `claude/confident-cori-kkf1ok` | #134 | 2026-11-03 | `5f7252ead2` |
+| `claude/costing-u11-terminology` | #144 | 2026-11-03 | `202757f8a6` |
+| `claude/keen-bohr-9jgfx5` | #139 | 2026-11-03 | `5c3869acd8` |
+| `claude/mdc07-n1-shared-navigation` | #133 | 2026-11-03 | `d45950a95d` |
+| `claude/serene-planck-h9syav` | #136 | 2026-11-03 | `ae41de8d6e` |
+| `claude/wp05-costing-rationalisation-audit` | #130 | 2026-11-03 | `f5510028dc` |
+| `claude/wp05-p01-readiness-usability` | #132 | 2026-11-03 | `62666a2dfa` |
+| `claude/wp05-p02-production-route-corrections` | #131 | 2026-11-03 | `bed99d82a9` |
+| `docs/costing-navigation-wave-postmerge-20261103` | #140 | 2026-11-03 | `c7dae684ea` |
+| `docs/costing-postmerge-status-20261102` | #129 | 2026-11-03 | `c70673505e` |
+| `fix/costing-n2-n3-historical-scope-guards` | #138 | 2026-11-03 | `7a5b1abbac` |
+| `claude/costing-a7-material-review-acceptance-tests` | #146 | 2026-11-04 | `25ab33be96` |
+| `claude/costing-cde1a-mock-evidence-drawer` | #149 | 2026-11-04 | `b272f07534` |
+| `claude/costing-guard-repair-fixed-ranges` | #156 | 2026-11-04 | `6be24a6601` |
+| `claude/costing-scope-guard-sql-comment-fix` | #170 | 2026-11-04 | `4577b5eeaf` |
+| `claude/costing-wp05-cl1-closure-evidence` | #151 | 2026-11-04 | `284ec6772b` |
+| `claude/costing-wp06-f7-clean` | #161 | 2026-11-04 | `e0a3770219` |
+| `claude/costing-wp06-f9-clean` | #162 | 2026-11-04 | `9ae655eb84` |
+| `claude/costing-wp06-g1b-default-policy-modal-tests` | #154 | 2026-11-04 | `e1b0cf6fe8` |
+| `claude/costing-wp06-g1c-mrp-proposal-tests` | #155 | 2026-11-04 | `2167898784` |
+| `claude/costing-wp06-g1d-csa-concurrency` | #153 | 2026-11-04 | `729a692d47` |
+| `claude/costing-wp06-g1-task-flow-audit` | #152 | 2026-11-04 | `f4dd56c222` |
+| `claude/costing-wp12-flag-matrix-sweep` | #160 | 2026-11-04 | `0521863da7` |
+| `claude/epic-faraday-8qt8fa` | #165 | 2026-11-04 | `6fde88c11a` |
+| `claude/epic-faraday-8qt8fa-wp12-allowlist` | #169 | 2026-11-04 | `36b47dafc7` |
+Method if approved: delete the 50 refs through the GitHub API one by one (`DELETE /git/refs/heads/<name>`), after re-verifying each branch's tip still equals the manifest SHA and has no open PR; then re-count (365 to 315). Never touch Executive MIS, open-PR branches, unmerged branches, tags or releases.
