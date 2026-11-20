@@ -1,0 +1,68 @@
+name: PEC Draft Indent Edit Proposal (source-only + isolated PG17)
+on:
+  pull_request:
+    paths:
+      - 'scripts/pec-draft-manual-indent-edits-PROPOSAL.sql'
+      - 'scripts/pec-draft-manual-indent-edits-proposal-smoke.mjs'
+      - 'scripts/pec-draft-edit-pg17-fixture.sql'
+      - 'scripts/pec-draft-edit-pg17-acceptance.sql'
+      - '.github/workflows/pec-draft-indent-edit-proposal.yml'
+  workflow_dispatch:
+jobs:
+  static-proposal:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify source-only proposal safety rails
+        run: node scripts/pec-draft-manual-indent-edits-proposal-smoke.mjs
+      - name: Confirm production-safe rollback wrapper
+        run: |
+          grep -Eq '^ROLLBACK;$' scripts/pec-draft-manual-indent-edits-PROPOSAL.sql
+          test ! -f supabase/migrations/pec-draft-manual-indent-edits-PROPOSAL.sql
+          echo 'Source-only check complete; no database connection'
+  pg17-disposable:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: fixture-only
+          POSTGRES_DB: pec_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pec_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run authentic PostgreSQL 17 parser and synthetic lifecycle tests
+        env:
+          PGPASSWORD: fixture-only
+        run: |
+          set -euo pipefail
+          # Only a disposable GitHub Actions database. No Supabase keys or network URLs.
+          docker run --rm --network host -v "$PWD:/repo:ro" -w /repo \
+            -e PGPASSWORD="$PGPASSWORD" postgres:17 \
+            psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d pec_fixture \
+            -f scripts/pec-draft-edit-pg17-fixture.sql
+
+          # Strip ONLY transaction wrapper; the standalone proposal retains ROLLBACK.
+          awk '!/^(BEGIN|ROLLBACK);$/' scripts/pec-draft-manual-indent-edits-PROPOSAL.sql > /tmp/pec-draft-proposal-in-fixture.sql
+          docker run --rm --network host -v "/tmp/pec-draft-proposal-in-fixture.sql:/tmp/proposal.sql:ro" \
+            -e PGPASSWORD="$PGPASSWORD" postgres:17 \
+            psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d pec_fixture -f /tmp/proposal.sql
+
+          docker run --rm --network host -v "$PWD:/repo:ro" -w /repo \
+            -e PGPASSWORD="$PGPASSWORD" postgres:17 \
+            psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d pec_fixture \
+            -f scripts/pec-draft-edit-pg17-acceptance.sql | tee /tmp/pec-draft-pg17.log
+          grep -q PEC_DRAFT_PG17_FIXTURE_PASS /tmp/pec-draft-pg17.log
