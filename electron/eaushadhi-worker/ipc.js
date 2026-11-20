@@ -23,6 +23,10 @@ const CHANNELS = Object.freeze({
   PRODUCT_DETAILS_REBASE_PORTAL: "eaushadhi-worker:product-details-rebase-portal",
   PRODUCT_DETAILS_RECOVER_AMBIGUOUS_EXACT_ONE:
     "eaushadhi-worker:product-details-recover-ambiguous-exact-one",
+  COMPOSITION_PREVIEW: "eaushadhi-worker:composition-preview",
+  COMPOSITION_START_LINE: "eaushadhi-worker:composition-start-line",
+  COMPOSITION_RECOVER_RUN: "eaushadhi-worker:composition-recover-run",
+  COMPOSITION_VERIFY_STAGE: "eaushadhi-worker:composition-verify-stage",
   CAPTURE_CONTRACT: "eaushadhi-worker:capture-contract",
   OPEN_CAPTURE_FOLDER: "eaushadhi-worker:open-capture-folder",
   RECHECK_LOGIN: "eaushadhi-worker:recheck-login",
@@ -172,6 +176,50 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
           userConfirmed: payload?.userConfirmed === true,
         },
       );
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.COMPOSITION_PREVIEW,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return worker.previewCompositionExecution(productId, accessToken);
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.COMPOSITION_START_LINE,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return worker.startCompositionLineExecution(productId, accessToken, {
+        sourceCompositionLineId: payload?.sourceCompositionLineId,
+        userConfirmed: payload?.userConfirmed === true,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.COMPOSITION_RECOVER_RUN,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return worker.recoverCompositionRunExecution(productId, accessToken, {
+        runId: payload?.runId,
+        userConfirmed: payload?.userConfirmed === true,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.COMPOSITION_VERIFY_STAGE,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return worker.verifyCompositionStageExecution(productId, accessToken, {
+        userConfirmed: payload?.userConfirmed === true,
+      });
     }),
   );
 

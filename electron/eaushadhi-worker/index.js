@@ -45,6 +45,9 @@ const {
   isProductDetailsLiveArmedFor,
 } = require("./product-details-live-arm");
 const { buildProductDetailsLiveAdapters } = require("./product-details-live-adapters");
+const { createCompositionExecutor } = require("./composition-executor");
+const { buildCompositionLiveAdapters } = require("./composition-live-adapters");
+const { isCompositionLiveArmedFor } = require("./composition-live-arm");
 
 /** Phase A: capability exists; live mutation remains disarmed until Phase B. */
 const PRODUCT_DETAILS_LIVE_ARMED = isProductDetailsLiveArmedFor(PD_PRODUCT_ID);
@@ -141,6 +144,7 @@ function createEaushadhiWorker({
   let detachControlledClose = null;
   let portalContract = null;
   const rpcCall = typeof callRpc === "function" ? callRpc : callWorkerRpc;
+  const compositionExecutor = createCompositionExecutor();
   const requireSection =
     typeof requireContractFn === "function" ? requireContractFn : requireContract;
 
@@ -925,6 +929,93 @@ function createEaushadhiWorker({
     };
   }
 
+  function buildCompositionTrustedDeps(accessToken) {
+    const activePage = controlledPage;
+    const liveArmed = isCompositionLiveArmedFor(PD_PRODUCT_ID);
+    let adapters = null;
+    const getAdapters = () => {
+      if (!adapters) {
+        adapters = buildCompositionLiveAdapters({
+          page: activePage,
+          callRpc: (name, args) => rpcCall(accessToken, name, args),
+          getWorkerState: () => machine.get(),
+          liveArmed,
+          log: (entry) => log(entry),
+        });
+      }
+      return adapters;
+    };
+    return {
+      productId: PD_PRODUCT_ID,
+      liveArmed,
+      loadAuthority: (options) => getAdapters().loadAuthority(options),
+      fillTarget: (target) => getAdapters().fillTarget(target),
+      invokeSaveOnce: (runId) => getAdapters().invokeSaveOnce(runId),
+      rereadRow: (rowId) => getAdapters().rereadRow(rowId),
+      armRun: (args) => getAdapters().armRun(args),
+      recordSave: (args) => getAdapters().recordSave(args),
+      verifyRow: (args) => getAdapters().verifyRow(args),
+      markStageVerified: (args) => getAdapters().markStageVerified(args),
+    };
+  }
+
+  async function previewCompositionExecution(rawProductId, rawAccessToken) {
+    const id = validateProductId(rawProductId);
+    const accessToken = validateAccessToken(rawAccessToken);
+    if (id !== PD_PRODUCT_ID) {
+      return { ok: false, code: "PRODUCT_LOCK_REJECTED", message: `Composition V1 accepts only product_id ${PD_PRODUCT_ID}.` };
+    }
+    return compositionExecutor.preview(buildCompositionTrustedDeps(accessToken));
+  }
+
+  async function startCompositionLineExecution(rawProductId, rawAccessToken, rawOptions = {}) {
+    const id = validateProductId(rawProductId);
+    const accessToken = validateAccessToken(rawAccessToken);
+    const command = sanitizeRendererCommand(rawOptions);
+    if (id !== PD_PRODUCT_ID) {
+      return { ok: false, code: "PRODUCT_LOCK_REJECTED", message: `Composition V1 accepts only product_id ${PD_PRODUCT_ID}.` };
+    }
+    return compositionExecutor.startLine(buildCompositionTrustedDeps(accessToken), {
+      sourceCompositionLineId: sourceIdFromRenderer(rawOptions?.sourceCompositionLineId),
+      userConfirmed: command.userConfirmed === true,
+    });
+  }
+
+  function sourceIdFromRenderer(value) {
+    const id = Number(value);
+    return Number.isSafeInteger(id) && id > 0 ? id : null;
+  }
+
+  function runIdFromRenderer(value) {
+    const id = typeof value === "string" ? value.trim() : "";
+    return /^[0-9a-f]{8}-[0-9a-f-]{27,}$/.test(id) ? id : null;
+  }
+
+  async function recoverCompositionRunExecution(rawProductId, rawAccessToken, rawOptions = {}) {
+    const id = validateProductId(rawProductId);
+    const accessToken = validateAccessToken(rawAccessToken);
+    const command = sanitizeRendererCommand(rawOptions);
+    if (id !== PD_PRODUCT_ID) {
+      return { ok: false, code: "PRODUCT_LOCK_REJECTED", message: `Composition V1 accepts only product_id ${PD_PRODUCT_ID}.` };
+    }
+    return compositionExecutor.recoverRun(buildCompositionTrustedDeps(accessToken), {
+      runId: runIdFromRenderer(rawOptions?.runId),
+      userConfirmed: command.userConfirmed === true,
+    });
+  }
+
+  async function verifyCompositionStageExecution(rawProductId, rawAccessToken, rawOptions = {}) {
+    const id = validateProductId(rawProductId);
+    const accessToken = validateAccessToken(rawAccessToken);
+    const command = sanitizeRendererCommand(rawOptions);
+    if (id !== PD_PRODUCT_ID) {
+      return { ok: false, code: "PRODUCT_LOCK_REJECTED", message: `Composition V1 accepts only product_id ${PD_PRODUCT_ID}.` };
+    }
+    return compositionExecutor.verifyStage(buildCompositionTrustedDeps(accessToken), {
+      userConfirmed: command.userConfirmed === true,
+    });
+  }
+
   async function previewProductDetailsExecution(rawProductId, rawAccessToken, rawOptions = {}) {
     const id = validateProductId(rawProductId);
     const accessToken = validateAccessToken(rawAccessToken);
@@ -1216,6 +1307,10 @@ function createEaushadhiWorker({
     reconcileAmbiguousSaveProductDetailsExecution,
     rebasePortalProjectionProductDetailsExecution,
     recoverAmbiguousSaveExactOneProductDetailsExecution,
+    previewCompositionExecution,
+    startCompositionLineExecution,
+    recoverCompositionRunExecution,
+    verifyCompositionStageExecution,
     capturePortalContract,
     openLastCaptureFolder,
   };

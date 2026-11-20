@@ -254,6 +254,16 @@ assert(workerIndexSrc.includes("adopted_allowed_page"), "unpacked worker records
 assert(workerIndexSrc.includes("active operation"), "unpacked worker fail-closes controlled loss while RUNNING");
 assert(diagnosticsSrc.includes("detection_source"), "unpacked diagnostics persist detection_source");
 const workerIndexRootSrc = readFileSync(join(root, "electron/eaushadhi-worker/index.js"), "utf8");
+for (const file of [
+  "composition-executor.js",
+  "composition-live-adapters.js",
+  "composition-live-arm.js",
+  "composition-native-normalizer.js",
+]) {
+  assert(existsSync(join(root, "electron/eaushadhi-worker", file)), `source worker includes ${file}`);
+}
+assert(workerIndexRootSrc.includes("previewCompositionExecution"), "source worker wires Composition preview");
+assert(workerIndexRootSrc.includes("startCompositionLineExecution"), "source worker wires Composition start-line");
 assert(workerIndexRootSrc.includes("bindControlledTarget"), "source worker binds controlled CDP target");
 assert(workerIndexRootSrc.includes("createCdpTargetGuard"), "source worker wires CDP target guard");
 assert(workerIndexRootSrc.includes("closed_offending_target"), "source worker records closed_offending_target");

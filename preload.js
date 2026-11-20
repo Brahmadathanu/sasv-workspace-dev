@@ -87,6 +87,28 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       accessToken,
       userConfirmed: options?.userConfirmed === true,
     }),
+  previewComposition: (productId, accessToken) =>
+    ipcRenderer.invoke("eaushadhi-worker:composition-preview", { productId, accessToken }),
+  startCompositionLine: (productId, sourceCompositionLineId, accessToken, options) =>
+    ipcRenderer.invoke("eaushadhi-worker:composition-start-line", {
+      productId,
+      sourceCompositionLineId,
+      accessToken,
+      userConfirmed: options?.userConfirmed === true,
+    }),
+  recoverCompositionRun: (productId, runId, accessToken, options) =>
+    ipcRenderer.invoke("eaushadhi-worker:composition-recover-run", {
+      productId,
+      runId,
+      accessToken,
+      userConfirmed: options?.userConfirmed === true,
+    }),
+  verifyCompositionStage: (productId, accessToken, options) =>
+    ipcRenderer.invoke("eaushadhi-worker:composition-verify-stage", {
+      productId,
+      accessToken,
+      userConfirmed: options?.userConfirmed === true,
+    }),
   capturePortalContract: (accessToken) =>
     ipcRenderer.invoke("eaushadhi-worker:capture-contract", { accessToken }),
   openCaptureFolder: (accessToken) =>

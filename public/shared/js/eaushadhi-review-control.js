@@ -190,6 +190,7 @@ import {
   runWorkerFoundationCheck,
   runWorkerEntryDryRun,
   previewWorkerProductDetails,
+  previewWorkerComposition,
   rebasePortalProjectionProductDetails,
   reconcileAmbiguousSaveProductDetails,
   recoverAmbiguousSaveExactOneProductDetails,
@@ -291,6 +292,7 @@ const state = {
   workerReconcileResult: null,
   workerRebaseResult: null,
   workerExactOneRecoveryResult: null,
+  workerCompositionPreview: null,
   workerCaptureResult: null,
   loadGen: 0,
   busy: false,
@@ -1449,14 +1451,15 @@ function renderDetails() {
 function renderComposition() {
   const host = $("tab-composition");
   const filtered = filterCompositionLines(state.lines, state.issues, state.compositionView);
+  const executionPanel = compositionPortalExecutionHtml();
   const count = $("compositionRowCount");
   if (count) count.textContent = formatShowingCount(filtered.length, state.lines.length);
   if (!state.lines.length) {
-    host.innerHTML = `<div class="section-card empty-state">No composition lines returned for this product.</div>`;
+    host.innerHTML = `${executionPanel}<div class="section-card empty-state">No composition lines returned for this product.</div>`;
     return;
   }
   if (!filtered.length) {
-    host.innerHTML = `<div class="section-card empty-state">
+    host.innerHTML = `${executionPanel}<div class="section-card empty-state">
       <p>No ingredient lines match the current composition filters.</p>
       <button type="button" class="icon-btn with-label" id="btnClearCompositionFilters">Clear filters</button>
     </div>`;
@@ -1469,7 +1472,7 @@ function renderComposition() {
     PART_USED: "Part Used",
     MEASUREMENT_UNIT: "Unit",
   };
-  host.innerHTML = filtered
+  host.innerHTML = executionPanel + filtered
     .map((row) => {
       const id = optionId(row.source_composition_line_id);
       const draft = state.lineDrafts.get(id) || lineDraftFromRow(row);
@@ -1611,6 +1614,36 @@ function renderComposition() {
     })
     .join("");
   applyPermissionUi();
+}
+
+function compositionPortalExecutionHtml() {
+  if (!isFirstControlledEntryProduct(state.selectedProductId)) return "";
+  const preview = state.workerCompositionPreview;
+  const missing = Array.isArray(preview?.missingSourceLineIds) ? preview.missingSourceLineIds : [];
+  const matches = Array.isArray(preview?.matchedSourceLineIds) ? preview.matchedSourceLineIds : [];
+  const blockers = Array.isArray(preview?.blockers) ? preview.blockers : [];
+  const active = preview?.activeRun;
+  return `<section class="section-card composition-portal-execution" aria-labelledby="compositionPortalExecutionTitle">
+    <h3 id="compositionPortalExecutionTitle">Composition portal execution</h3>
+    <p class="muted-note">Read-only portal comparison. Governed Composition editing remains separate.</p>
+    <div class="action-row">
+      <button type="button" class="icon-btn with-label" id="btnWorkerCompositionPreview" data-edit-action="true"${state.busy ? ' data-force-disabled="true"' : ""}>Preview portal state</button>
+      ${missing.map((id) => `<button type="button" class="icon-btn with-label primary" disabled aria-disabled="true" data-composition-start-line="${escapeHtml(id)}">Enter line ${escapeHtml(id)}</button>`).join("")}
+      ${active ? '<button type="button" class="icon-btn with-label" disabled aria-disabled="true">Recover active run</button>' : ""}
+      <button type="button" class="icon-btn with-label" disabled aria-disabled="true">Verify Composition stage</button>
+    </div>
+    <p class="muted-note"><strong>Composition live execution is not armed.</strong></p>
+    <p class="muted-note">${preview ? escapeHtml([
+      `Status ${preview.code || "unknown"}`,
+      `Stage ${preview.stage?.stage_status || "NOT_STARTED"}`,
+      `Governed ${preview.governedCount ?? 0}`,
+      `Portal ${preview.portalCount ?? 0}`,
+      `Matches ${matches.length}`,
+      `Missing ${missing.length ? missing.join(", ") : "none"}`,
+      blockers.length ? `Blockers ${blockers.join(", ")}` : "",
+      active ? `Active run ${active.runStatus || "unknown"}` : "No active run",
+    ].filter(Boolean).join(". ")) : "Run Preview portal state to collect fresh trusted evidence."}</p>
+  </section>`;
 }
 
 function dictionaryStatusLabel(status) {
@@ -3376,6 +3409,24 @@ async function sessionAccessToken() {
   return session?.access_token;
 }
 
+async function submitWorkerCompositionPreview() {
+  if (!canWrite() || state.busy || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  state.busy = true;
+  renderComposition();
+  try {
+    const token = await sessionAccessToken();
+    const result = await previewWorkerComposition(state.selectedProductId, token);
+    state.workerCompositionPreview = result;
+    showToast(
+      result?.ok === true ? "Composition portal preview complete." : result?.message || "Composition preview is blocked.",
+      result?.ok === true ? "info" : "error",
+    );
+  } finally {
+    state.busy = false;
+    renderComposition();
+  }
+}
+
 async function submitWorkerCapture() {
   if (!canWrite() || state.busy) return;
   const status = state.workerStatus?.state;
@@ -3762,6 +3813,7 @@ async function openProduct(productId) {
     if (!idsEqual(state.selectedProductId, productId)) {
       state.workerFoundationResult = null;
       state.workerDryRunResult = null;
+      state.workerCompositionPreview = null;
       state.workerProductDetailsPreview = null;
       state.workerProductDetailsResult = null;
       state.workerReconcileResult = null;
@@ -3850,6 +3902,7 @@ async function backToQueue() {
   state.selectedProductId = null;
   state.workerFoundationResult = null;
   state.workerDryRunResult = null;
+  state.workerCompositionPreview = null;
   state.workerProductDetailsPreview = null;
   state.workerProductDetailsResult = null;
   state.workerReconcileResult = null;
@@ -5731,6 +5784,10 @@ function wireEvents() {
     void autosaveLine(lineId);
   });
   $("tab-composition")?.addEventListener("click", (event) => {
+    if (event.target.id === "btnWorkerCompositionPreview") {
+      void submitWorkerCompositionPreview();
+      return;
+    }
     if (event.target.id === "btnClearCompositionFilters") {
       clearCompositionFilters();
       return;
