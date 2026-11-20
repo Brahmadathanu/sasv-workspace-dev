@@ -34,12 +34,15 @@ BEGIN
   v_month := p_report_month;
   v_cutoff := least(
     coalesce(p_as_of_date, (now() at time zone 'Asia/Kolkata')::date),
+    (now() at time zone 'Asia/Kolkata')::date,
     (v_month + interval '1 month - 1 day')::date
   );
   IF v_cutoff < v_month THEN
     RAISE EXCEPTION 'as-of date before report month' USING ERRCODE = '22023';
   END IF;
   -- Adjacent previous month: do not accept a draft or arbitrary client run ID.
+  -- The bounded preview is not a frozen valuation snapshot: historical
+  -- source adjustments after the cutoff are NOT automatically reconstructed.
   SELECT s.approved_run_id,s.approved_run_valuation_date
     INTO v_run,v_valuation
   FROM costing.v_costing_period_run_status s
