@@ -303,3 +303,65 @@ Order I recommend: (1) enable auto-delete of merged branches and a `v*` tag rule
 | `claude/epic-faraday-8qt8fa` | #165 | 2026-11-04 | `6fde88c11a` |
 | `claude/epic-faraday-8qt8fa-wp12-allowlist` | #169 | 2026-11-04 | `36b47dafc7` |
 Method if approved: delete the 50 refs through the GitHub API one by one (`DELETE /git/refs/heads/<name>`), after re-verifying each branch's tip still equals the manifest SHA and has no open PR; then re-count (365 to 315). Never touch Executive MIS, open-PR branches, unmerged branches, tags or releases.
+
+## 27. Execution record: remote branch cleanup, Batch 1 (20 Nov 2026, owner approval #490 comment 7041567213)
+Re-verified immediately before deleting each of the 50 Batch 1 branches: tip prefix equals the manifest SHA, the merged PR number matches, the tip equals the merged PR head (or is in `main`), no open PR uses it as head or base, no local branch or worktree, not Executive-MIS-named, and `refs/pull/<n>/head` still resolves to the PR's head commit (this keeps the original, pre-squash commits recoverable after the branch ref is gone). The tip was re-read again right before each `DELETE /git/refs/heads/<name>` (one call per branch, no wildcard, no force).
+- **Deleted: 50. Skipped: 0. Failed: 0.** Remote branches 365 to **315**.
+- **Recovery:** full SHAs and PR numbers saved locally in `sasv-archive-20261120\merged-branches-batch1-recovery-20261120.csv`; restore with the PR's "Restore branch" button or `git push origin <fullSha>:refs/heads/<name>` (also reachable as `refs/pull/<n>/head`).
+- **Protected, verified after:** all 42 open-PR head branches still exist; the 4 branches preserved earlier (`wip/composition-executor-packaging-proof-20261120`, `test/wp04-s0-cursor-runner`, `feat/lab-repeat-analysis-governance-client`, `costing/w1-approved-run-labels-rebased`) exist; `main` is `be529de2`; `v6.2.0` tag is `ebb59a49` and still Latest; 437 PR head refs resolve.
+- **Observation:** #487, #488 and #489 have merged. `costing/w1-approved-run-labels-rebased` maps to merged PR #90 and its pushed tip equals that PR's head, so its two commits were already in `main` through a squash; the earlier "unpushed" preservation was redundant but harmless. The name filter `mis|executive` was too broad: it excluded `fix/lab-tolerance-observation-missing-count-20261111` (#271) and `docs/wp05-w506-permission-boundary-matrix-20261109` (#249) because of the letters "mis" in "missing"/"permission"; neither is Executive MIS.
+
+## 28. BATCH 2 (PROPOSED, NOT DELETED)
+Remaining merged-PR remote branches 233; 224 have no exception. Exceptions (9): `chore/gitignore-local-remnants-20261120` (#489), `docs/post-620-cleanup-inventory-20261120` (#488), `docs/620-final-acceptance-receipt-20261120` (#487) and `costing/cw06-dialogs-item1`, `costing/approval-screen-preview`, `costing/w1-approved-run-labels-rebased`, `feat/wp07-s2b-b1-qc-report-read-probe` (each still a local branch or worktree); #271 and #249 only match the over-broad name filter (owner may include them). Batch 2 = the next 50 oldest eligible (merged 4 to 8 Nov 2026), manifest with full SHAs in `sasv-archive-20261120\merged-branches-batch2-manifest-20261120.csv` (sha256 `66A22A46DEA03E1427419D72390ECC3C5F8CCC61D06A9BD7DD7ADE5E7DBCA0EE`). Same method and re-checks as Batch 1; remote count would go 315 to 265.
+| Branch | PR | Merged | Tip |
+|---|---|---|---|
+| `claude/ma-lint-fix` | #167 | 2026-11-04 | `a32474841d` |
+| `claude/ma-ux-2-visual` | #168 | 2026-11-04 | `e005c1d33a` |
+| `claude/vibrant-pasteur-9gohzi` | #164 | 2026-11-04 | `f022a38e0e` |
+| `docs/costing-acceptance-security-audit-20261104` | #171 | 2026-11-04 | `6be34b8221` |
+| `docs/costing-sec-a1-prepared-20261104` | #172 | 2026-11-04 | `40328860d0` |
+| `docs/costing-sec-a2-live-verification-20261104` | #173 | 2026-11-04 | `4f29c0b62c` |
+| `governance/manage-activities-rls-reconcile` | #166 | 2026-11-04 | `22d5478d1f` |
+| `review/costing-wp06-f8-clean-20261104` | #163 | 2026-11-04 | `6927796772` |
+| `design/csr-parameterized-secure-read-20261105` | #183 | 2026-11-05 | `b49fba3712` |
+| `docs/cde2-live-source-contract-audit-20261105` | #191 | 2026-11-05 | `e53f64d9b3` |
+| `docs/costing-authenticated-acceptance-gate-20261105` | #175 | 2026-11-05 | `48de3f7aa5` |
+| `docs/costing-interactive-synthetic-preview-20261105` | #195 | 2026-11-05 | `080d92c9ef` |
+| `docs/costing-loopback-preview-security-pass-20261105` | #194 | 2026-11-05 | `f92df509ba` |
+| `docs/costing-preview-mock-ci-zero-skips-20261105` | #193 | 2026-11-05 | `6373c380f5` |
+| `docs/costing-run150-failure-governance-20261105` | #190 | 2026-11-05 | `486d305ac4` |
+| `docs/costing-six-module-read-navigation-20261105` | #177 | 2026-11-05 | `b84235b3d5` |
+| `docs/costing-view-only-test-grants-20261105` | #176 | 2026-11-05 | `d01e6d840b` |
+| `docs/csr-analyze-maintenance-verification-20261105` | #188 | 2026-11-05 | `88cabc3b2d` |
+| `docs/csr-explain-plan-gate-20261105` | #181 | 2026-11-05 | `e3aa621173` |
+| `docs/csr-owner-pwa-read-pass-20261105` | #189 | 2026-11-05 | `eb16486550` |
+| `docs/csr-period-scoped-prototype-20261105` | #182 | 2026-11-05 | `0c55f298c4` |
+| `docs/csr-printable-runtime-statistics-20261105` | #187 | 2026-11-05 | `64d823147a` |
+| `docs/csr-read-timeout-diagnosis-20261105` | #180 | 2026-11-05 | `c82bc17304` |
+| `docs/csr-three-period-plan-variance-20261105` | #186 | 2026-11-05 | `11eb7d901e` |
+| `docs/prm-cost-centres-owner-retest-pass-20261105` | #179 | 2026-11-05 | `46211a2989` |
+| `fix/costing-approval-view-only-sec-a2-20261104` | #174 | 2026-11-05 | `fc7d554976` |
+| `fix/pec-manual-indent-insertion-order-20261105` | #185 | 2026-11-05 | `81f600fe96` |
+| `fix/prm-cost-centres-view-only-read-20261105` | #178 | 2026-11-05 | `76053f07ed` |
+| `test/costing-preview-provenance-gate-20261105` | #192 | 2026-11-05 | `d0f4d59dce` |
+| `test/csr-scoped-rpc-contract-20261105` | #184 | 2026-11-05 | `5de2b94137` |
+| `claude/costing-cde1b-provider-adapter-20261106` | #201 | 2026-11-06 | `20355f1171` |
+| `claude/costing-completion-matrix-20261106` | #202 | 2026-11-06 | `3b3831051c` |
+| `claude/costing-cs-a4-left-clip-fix-20261106` | #200 | 2026-11-06 | `9682ee6c13` |
+| `claude/costing-cs-lines-preview-20261106` | #199 | 2026-11-06 | `87cf9151ff` |
+| `claude/costing-preview-bulk-20261106` | #197 | 2026-11-06 | `ba7e7e46a0` |
+| `docs/cde2-live-contract-corrections-20261106` | #203 | 2026-11-06 | `ce007fca22` |
+| `docs/costing-preview-owner-correction-20261106` | #198 | 2026-11-06 | `d44eb14d58` |
+| `claude/cde2-sql-candidate-20261106` | #205 | 2026-11-07 | `aaf6b040e8` |
+| `claude/issue-206-acceptance-runner` | #207 | 2026-11-07 | `a94718eb44` |
+| `claude/sasv-costing-suite-206-tqaq9o` | #209 | 2026-11-07 | `69564cf2f0` |
+| `docs/cde2-eligibility-immutability-audit-20261106` | #204 | 2026-11-07 | `7449ccc678` |
+| `claude/stoic-cannon-vu5j0w` | #221 | 2026-11-08 | `5d623ba9ff` |
+| `claude/wizardly-volta-5put01` | #228 | 2026-11-08 | `1d48466369` |
+| `claude/wp05-ae1-evidence-ledger` | #235 | 2026-11-08 | `08ee56a138` |
+| `claude/wp05-ae2-local-evidence-credit` | #236 | 2026-11-08 | `fa9779c112` |
+| `claude/wp05-cld1-offline-closure-acceleration` | #242 | 2026-11-08 | `a2eb263717` |
+| `claude/wp05-par1-s2-s9-read-parity` | #237 | 2026-11-08 | `e245713207` |
+| `docs/costing-14-lens-evidence-matrix-20261108` | #215 | 2026-11-08 | `28b3996018` |
+| `docs/costing-checkpoint-handover-20261108` | #216 | 2026-11-08 | `71a6b44543` |
+| `docs/costing-staff-preview-contract-20261108` | #218 | 2026-11-08 | `be6441b156` |
