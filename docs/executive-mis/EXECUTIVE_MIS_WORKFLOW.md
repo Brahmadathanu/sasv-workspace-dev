@@ -310,3 +310,40 @@ For the dashboard: report *receipt into FG bulk storage* separately from *formal
 **Question D — separation from FG transfer accounting:** continue to show transferred FG value from Tally separately as book transfer value and with reconciliation exceptions, not as manufacturing COP.
 
 **Decision status:** Method proposal only, **NOT owner-approved**. G7 remains unopened, SQL authorization not granted, MIS client #486 draft and Costing Suite release untouched. Next bounded verification: product source-coproduction and additional overhead overlap, entitlement/EXPLAIN planning, frozen plan mechanism; owner approval on semantic package before any production SQL deployment.
+
+
+## 16. MIS-G6 exact approved cost decomposition and method-ready recommendation — 20 November 2026
+
+**Read-only evidence, no live change.** The previous G6 provisional sum was dry-run only; the following checks establish exact *approved SKU manufacturing COP* accounting decomposition and the separability of product bulk manufacturing components. G6 is **method-ready but not owner-approved or closed**.
+
+### Exact costing decomposition, independent read-only checks
+
+- Across **all 627 SKU rows** of **approved October run 143**, `manufacturing_cop_per_sku` equals `material_cost_per_sku + direct_labour_cost_per_sku + production_overhead_cost_per_sku + quality_control_overhead_cost_per_sku + materials_stores_overhead_cost_per_sku + internal_conversion_cost_per_sku`: **627/627 PASS**, zero differences at paisa threshold and returned max absolute difference rounded to **0.000000**.
+- If internal conversion is wrongly omitted, **7 of 627** SKU rows differ by more than ₹0.01; in all seven the difference exactly equals the `sku_internal_material_conversion_snapshot.internal_conversion_cost_per_sku` amount. This confirms that separate conversion component must remain eligible where actually present.
+- Across **627/627** approved rows, `direct_labour_cost_per_sku = manufacturing_direct_labour_cost_per_sku + packing_labour_cost_per_sku`; **zero** differences >₹0.01. For all **627** rows, the independently derived `manufacturing_direct_labour_cost_per_sku / sku_base_qty_per_unit` matches `product_direct_labour_workload_snapshot.product_direct_labour_allocation / monthly_product_base_qty` within ₹0.01; zero mismatches (max gap rounded 0.0000). Hence manufacturing-only labour has an independently cross-validated product bulk-unit rate.
+- Across **627/627**, `production_overhead_cost_per_sku` matches `production_overhead_cost_per_base_uom * sku_base_qty_per_unit` within ₹0.01. Product base overhead and QC are also constant across all 124 multi-SKU groups in the approved run.
+- This DOES NOT mean that the complete **bulk COP** equals packaged manufacturing COP: packaged raw materials may include packing materials; packing labour and SKU materials-stores costs need stage classification. The proposed bulk cost uses product RM base + product manufacturing labour base + product route overhead base + QC base + applicable internal conversion base. `materials_stores_overhead_cost_per_sku` is **not blindly included**; product internal-source materials-stores snapshots cover five distinct source products and have no direct join to the 100 planned product IDs (may require source→beneficiary mapping). This is a scope/exception gate, not reason to invent a blanket per-pack rate.
+
+### Joint process — policy evidence and non-double-counting rule
+
+- `costing.joint_process_policy` policy 1 `KSHEERABALA_AVARTHI_JOINT` uses **OUTPUT_MASS**, effective **2026-10-23** onward, approved by `PRP_STEP72_USER_APPROVAL_20261022`; policy 2 is the preceding one-day version effective 22–23 Oct. Approved output quantities are **105 Kg** product 183 (101 Avarthi) and **5 Kg** product 184 (41 Avarthi). Stages 1389–1392 contain 41 shared cycles and 60 continuation cycles assigned to product 183.
+- November's positive bulk receipts include product **183**, **3 receipts / 167.36 Kg**, and none for product **184**. Both have zero planned November quantity in current derived plan. Therefore no synthetic co-product receipt or planned quantity is allowed. Apply each product's **approved product-level allocated reference rate once to its own verified actual output**, retaining policy ID/cutoff and joint-process lineage; do not allocate the same common-process costs again or force output-ratio co-production from a single receipt.
+- The cost snapshot's individual product RM and labour allocations are positive, but a full independent batch-level joint-process cost reconciliation remains a subsequent acceptance check; pre-existing approved costing policy is authoritative, not reconstructed by MIS.
+
+### Current exceptions and reporting contract recommendations
+
+- Planned 100 positive products have complete positive approved reference rates for the five candidate components and no negative components. **Indicative planned ₹64,04,326.16** only, on live mutable plan.
+- Of **52** unique actual receipt products and **79** positive receipt records, **50 products / 77 records** map to run 143. **Kayyonyadi Enna** (30 Kg, in storage) and **Anulomana Sookshma Choornam** (3.4 Kg, done) must be flagged missing approved rate; **indicative covered-receipt ₹32,04,140.56** is incomplete and not a formal completed-production metric.
+- Separate **bulk received** by ledger movement date from **bulk completed** by canonical batch completion event date. Do not count each daily-work-log `Done` row as a separate batch closure; 18 batch keys have two receipts and shared/possibly differing completion dates.
+- Pin and disclose **approved cost vintage = run 143 as of 22 Oct**, **explicit plan version/as-of** and **actual event reporting cutoff**. Never silently replace approved rates with November draft 152. Transfer value remains separately labeled Tally book value with reconciliation exceptions. The future product-route logging migration must only replace the production-event adapter; the client and reporting contract remain stable.
+
+### Fast-track G6 owner-method decision (requires affirmative decision, not authorization to install SQL)
+
+Recommended accept in principle:
+1. Define *planned bulk production value* as sum of source product-base quantity × governed approved **bulk-stage** product-unit component cost; no mixing UOMs as physical quantities.
+2. Show *FG bulk received value* as costed positive physical receipts with explicit coverage and source date; show **completed bulk** separately on independently reconciled canonical batch lifecycle.
+3. Keep *Tally book FG transfer value* on its own basis; show no derived cross-basis achievement ratio unless equivalent scope is proven.
+4. Missing approved rates, incomplete cost-scope classifications, joint-process anomalies, non-frozen plans and unmatched actual event coverage must show as **unvalued/under review**, never zero/imputed.
+5. Route work-log modernization through an adapter, preserve ERP styling and narrow-screen accessibility, bulk assign Claude after stable G7 server contract, keep Costing Suite 6.2.0 release isolated.
+
+**Remaining pre-SQL design proofs:** confirm and explicitly classify any bulk-stage materials stores overhead and joint-process edge cases, design frozen plan-as-of strategy, RPC access control and EXPLAIN. These may be done as bounded G7 design after owner method acceptance, **without authorizing production mutation**. G6 remains open until owner decision; G7 not yet opened.
