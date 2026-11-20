@@ -1,5 +1,6 @@
 -- Executive MIS G7 — REVIEW-ONLY SQL PROPOSAL. NEVER APPLY TO PRODUCTION.
--- This is an illustrative read-only SELECT for an offline-reproduced data contract.
+-- This is an illustrative read-only SELECT for a proposed contract; not executed on live DB.
+-- Period report cutoffs are consistent for physical receipts and book FG transfers.
 -- Do not run this query in the user-facing authenticated role: costing snapshots are
 -- private and this is intentionally NOT a permission-gated RPC.
 -- No DDL, grants, procedures, refresh or table mutations.
@@ -13,7 +14,7 @@ WITH
 params AS (
   SELECT
     date '2026-11-01' AS report_month,
-    date '2026-11-20' AS inclusive_receipt_cutoff,
+    date '2026-11-20' AS inclusive_report_cutoff,
     143::bigint AS approved_cost_run_id
 ),
 rm AS (
@@ -56,23 +57,23 @@ material_conversion AS (
 product_rates AS (
   SELECT p.id AS product_id,
          p.uom_base AS base_uom,
-         CASE WHEN rm.rm_rate IS NOT NULL
+         CASE WHEN rm.rm_rate > 0
                    AND rm.rm_rate = rm.max_rm_rate
-                   AND l.labour_rate IS NOT NULL
-                   AND o.overhead_rate IS NOT NULL
+                   AND l.labour_rate >= 0
+                   AND o.overhead_rate >= 0
                    AND o.overhead_rate = o.max_overhead_rate
-                   AND q.qc_rate IS NOT NULL
-                   AND c.conversion_rate IS NOT NULL
+                   AND q.qc_rate >= 0
+                   AND c.conversion_rate >= 0
                    AND c.conversion_rate = c.max_conversion_rate
               THEN rm.rm_rate + l.labour_rate + o.overhead_rate +
                    q.qc_rate + c.conversion_rate
               ELSE NULL END AS provisional_bulk_rate,
-         CASE WHEN rm.rm_rate IS NULL THEN 'NO_APPROVED_RATE'
+         CASE WHEN rm.rm_rate IS NULL OR rm.rm_rate <= 0 THEN 'NO_APPROVED_RATE'
               WHEN rm.rm_rate <> rm.max_rm_rate THEN 'RM_RATE_CONFLICT'
-              WHEN l.labour_rate IS NULL THEN 'MISSING_LABOUR'
-              WHEN o.overhead_rate IS NULL OR o.overhead_rate <> o.max_overhead_rate THEN 'OVERHEAD_CONFLICT'
-              WHEN q.qc_rate IS NULL THEN 'MISSING_QC'
-              WHEN c.conversion_rate IS NULL OR c.conversion_rate <> c.max_conversion_rate THEN 'CONVERSION_CONFLICT'
+              WHEN l.labour_rate IS NULL OR l.labour_rate < 0 THEN 'INVALID_LABOUR'
+              WHEN o.overhead_rate IS NULL OR o.overhead_rate < 0 OR o.overhead_rate <> o.max_overhead_rate THEN 'OVERHEAD_CONFLICT'
+              WHEN q.qc_rate IS NULL OR q.qc_rate < 0 THEN 'INVALID_QC'
+              WHEN c.conversion_rate IS NULL OR c.conversion_rate < 0 OR c.conversion_rate <> c.max_conversion_rate THEN 'CONVERSION_CONFLICT'
               ELSE 'PROVISIONAL_STAGE_SCOPE' END AS rate_status
   FROM public.products p
   LEFT JOIN rm ON rm.product_id=p.id
@@ -101,7 +102,7 @@ receipt_events AS (
          l.movement_date::date AS receipt_date
   FROM public.fg_bulk_stock_ledger l
   JOIN params ON l.movement_date >= params.report_month
-             AND l.movement_date < params.inclusive_receipt_cutoff + interval '1 day'
+             AND l.movement_date < least(params.inclusive_report_cutoff + interval '1 day',params.report_month + interval '1 month')
   WHERE l.source_table='daily_work_log'
     AND l.reason_code='FG bulk storage'
     AND l.qty_base>0
@@ -113,15 +114,17 @@ receipt_lines AS (
   FROM receipt_events e LEFT JOIN product_rates r USING(product_id)
 ),
 transfer_lines AS (
-  SELECT t.tally_total_amount,t.recon_status,t.valuation_status,t.exists_in_tally
+  SELECT t.book_transfer_value,t.tally_total_amount,t.recon_status,t.valuation_status,t.exists_in_tally
   FROM public.v_fg_transfer_reconciliation t
   JOIN params ON t.transfer_date>=params.report_month
-             AND t.transfer_date<params.report_month+interval '1 month'
+             AND t.transfer_date<least(params.inclusive_report_cutoff + interval '1 day', params.report_month+interval '1 month')
 )
 SELECT
   'LIVE_INDICATIVE_NOT_FROZEN'::text AS plan_status,
   'BULK_COMPONENT_SCOPE_UNAPPROVED'::text AS monetary_status,
   (SELECT approved_cost_run_id FROM params) AS reference_cost_run_id,
+  (SELECT inclusive_report_cutoff FROM params) AS report_cutoff,
+  'COVERED_SUBTOTAL_ONLY'::text AS monetary_completeness,
   (SELECT count(*) FROM plan_lines) AS plan_product_count,
   (SELECT count(*) FROM plan_lines WHERE covered_value IS NULL) AS unvalued_plan_products,
   (SELECT sum(covered_value) FROM plan_lines) AS plan_covered_subtotal,
@@ -129,7 +132,8 @@ SELECT
   (SELECT count(*) FROM receipt_lines WHERE covered_value IS NULL) AS unvalued_receipts,
   (SELECT sum(covered_value) FROM receipt_lines) AS receipt_covered_subtotal,
   (SELECT count(*) FROM transfer_lines) AS transfer_event_count,
-  (SELECT sum(tally_total_amount) FROM transfer_lines) AS tally_book_transfer_value,
+  (SELECT sum(book_transfer_value) FROM transfer_lines) AS tally_book_transfer_value,
+  (SELECT count(*) FROM transfer_lines WHERE book_transfer_value IS NULL) AS transfer_unvalued_count,
   (SELECT count(*) FROM transfer_lines
     WHERE recon_status IS DISTINCT FROM 'MATCHED'
        OR valuation_status IS DISTINCT FROM 'OK'
