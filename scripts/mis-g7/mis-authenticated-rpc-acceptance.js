@@ -5,8 +5,30 @@
 // No staff provisioning, permission changes, token impersonation or writes.
 // Copy the async IIFE below into DevTools console. Do not paste keys or JWTs.
 (async () => {
-  const moduleUrl = new URL("/public/shared/js/supabaseClient.js", location.origin);
-  const { supabase } = await import(moduleUrl.href);
+  // Production generally serves /shared/, while local dev may serve /public/shared/.
+  // Reuse the module page's existing script location when present.
+  const misScript = [...document.querySelectorAll('script[src]')]
+    .find((node) => node.src.includes("/executive-mis-dashboard.js"));
+  const candidateUrls = misScript
+    ? [new URL("supabaseClient.js", misScript.src).href]
+    : [
+        new URL("/shared/js/supabaseClient.js", location.origin).href,
+        new URL("/public/shared/js/supabaseClient.js", location.origin).href
+      ];
+  let clientModule = null;
+  for (const url of candidateUrls) {
+    try {
+      clientModule = await import(url);
+      if (clientModule?.supabase) break;
+    } catch {
+      // Try only the known same-origin alternate static path.
+    }
+  }
+  if (!clientModule?.supabase) {
+    console.error("MIS G7 acceptance: application Supabase module unavailable");
+    return { acceptance: "NOT_TESTED", reason: "MODULE_NOT_AVAILABLE" };
+  }
+  const { supabase } = clientModule;
   const result = {
     check: "MIS_G7_CANONICAL_AUTH_RPC",
     origin: location.origin,
