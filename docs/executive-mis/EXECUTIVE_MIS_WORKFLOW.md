@@ -252,3 +252,32 @@ Each new MIS conversation begins by reading this file and verifying the GitHub h
 **Remaining G6 checks:** verify shared product RM base rate against row-level BOM and complete bulk-stage labour/overhead definitions; inspect daily work-log status transitions and storage ledger idempotence; identify exact plan run membership and stable cutoff; prove approved-rate coverage for all eligible *actual* products, not merely planned products; independently check database privileges/EXPLAIN on prospective reporting route. Do not implement G7 until owner approves method and subsequently authorizes live SQL separately.
 
 **Programme status:** G0–G5 owner-reported PASS; G6 current OPEN; G7 pending, G8 parked, G9–G10 pending. MIS-C1 #486 draft review only; Costing Suite Electron release wholly independent.
+
+
+## 14. G6 fast-track and product-route work-log compatibility — 20 November 2026
+
+### Owner requirements and quality bar
+
+The owner explicitly intends to upgrade the current `daily_work_log` structure to a **product-process-route-oriented logging system**. Executive MIS must remain **ERP-styled, future-proof and maintainable**, not bind its public-facing reporting contract to `daily_work_log` columns, row statuses or UI implementation. Explain progress and decisions in plain English first; make technical details subordinate. Execute an **accelerated, evidence-led sequence** with parallel independent packages where safe, but never weaken tests, permissions, review gates or release isolation.
+
+### Recommended migration-safe boundary
+
+Introduce an MIS-owned, **read-only versioned production-event normalization contract**, initially adapted from the existing work logs and bulk-stock ledger, later replaceable by the product-route event source without rewriting MIS views/JS. Proposed canonical fields (names provisional): `source_system`, `source_record_id`, `product_id`, `batch_identity`, `route_id`, `route_step_id`, `event_type`, `event_effective_on`, `recorded_at`, `physical_quantity_base`, `product_base_uom`, `completion_state`, `source_version`, `lineage_ref`, `is_correction`, `supersedes_event_id`; null route IDs are permitted for legacy. The adapter must preserve source identity, distinguish *recording storage* from *formal completion* and physical *transfers*, handle reversal/supersession, and prevent double counting. Do **not** create these schema objects under G6 without separate owner authorization.
+
+For the dashboard: report *receipt into FG bulk storage* separately from *formally completed bulk*, avoid interpreting `In Storage` as approved completion, and never use historical `expected_output_base_qty` as actual produced. Use a stable plan version/as-of and independently tagged approved cost run/version. Retain source freshness and unvalued/exception counters. Keep all source changes behind reporting adapters so G7 client work has no dependency on future work-log table layout.
+
+### New independent live G6 component findings
+
+- Approved run 143 contains `costing.product_direct_labour_workload_snapshot` for all **453 products**, exposing the **manufacturing labour product allocation**, monthly product base quantity, and a manufacturing labour component pool identifier; the cost suite separately models packing labour in `costing.sku_direct_labour_allocation_snapshot` (`manufacturing_direct_labour_cost_per_sku` and `packing_labour_cost_per_sku`).
+- For all **100 currently positive-planned November products**, approved run 143 has populated **RM cost per product base unit**, a **positive monthly manufacturing labour quantity driver and product labour allocation**, **production overhead per product base UOM** and **QC overhead per product base UOM**. This is *component-presence coverage*, not validation of the final aggregate bulk-COP policy.
+- Across the **124 multi-SKU product groups** in approved run 143's overhead snapshot, `production_overhead_cost_per_base_uom` is internally consistent across packs. The same **124** multi-SKU groups have consistent `qc_cost_per_product_base_uom`. Previous checks found RM base rates consistent across the approved product groups. Therefore product-level RM + **manufacturing-only** labour + route production overhead + appropriate QC are plausible core bulk cost components; inspect inclusion of any material-conversion or stores costs and joint-process co-product sharing, plus exact cost/policy treatment, before monetary publication.
+- Among 18 November product/batch keys with two positive FG bulk-storage receipts, both entries are currently `Done` and hold a formal completion date; one example has two different completion dates within the same batch. Distinct source IDs suggest separate records, but **do not assume two completions**. A future event adapter must reconcile physical receipt totals separately from the single canonical batch closure lifecycle.
+
+### Fast-track sequencing (while G6 remains current)
+
+1. **ChatGPT server lane now:** complete bounded cost-component reconciliation and actual output event acceptance, pin approved cost vintage and forecast as-of, draft read-only G7 SQL/RPC and permission/tests with no production installation.
+2. **Claude client lane:** MIS-C1 #486 remains a **separate draft**; authenticated testing can be prepared without merging. Any later G7 valuation UI package must use only an approved stable reporting contract and should be assigned as a coherent bulk package (not piecemeal) after owner method acceptance. Avoid client changes during discovery that force premature or misleading numbers.
+3. **Owner decision:** present plain-English formula, interpretations, exceptions, fallback and proof matrix in one approval checkpoint; only after explicit approval authorize bounded live SQL separately.
+4. **Independent acceptance:** mock contract tests, negative-access/RLS, responsive/mobile, cross-tab stale request, data parity, latency/EXPLAIN and browser acceptance. Do not bundle or expedite an unsafe release, and do not merge MIS into the Costing Suite Electron candidate.
+
+**Status:** G6 OPEN and urgent; G7 unopened pending owner methodology approval; G8 parked; G9–G10 future. G0–G5 owner-reported PASS unchanged. No production SQL/client/release mutations in this checkpoint.
