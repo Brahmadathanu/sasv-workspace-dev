@@ -72,6 +72,22 @@ Notes: the stale "SASV Workspace 3.12.0" uninstall entry (different GUID) remain
 - Control test: the identical binary (same SHA-256) run from `dist\win-unpacked` with an isolated profile signed in successfully (owner-reported). Conclusion (inference, not proven): Bitdefender restricts the installed copy's network access; the app and code are not at fault.
 - **Result: installed-app login, navigation and print NOT TESTED. Pilot NOT complete.** Finding for the fleet: unsigned builds can be blocked by Bitdefender ATD; this strengthens the signing requirement and means each PC needs an AV allowance or a signed build before rollout. Fresh-install pilot only; G2 upgrade path NOT TESTED.
 
+### 4e. Office-PC pilot: RESOLVED, installed fresh-install PASS (20 Nov 2026)
+Root cause of the sign-in failure (owner finding): a firewall block on the installed exe (the owner had been looking in the Windows Firewall rules rather than the Bitdefender firewall); once corrected, the installed app signed in. The conclusion in 4d that Bitdefender restricts the installed copy's network access is therefore confirmed in kind (AV/firewall, not code or profile); the exact Bitdefender setting changed was not captured.
+Owner-reported results on the **installed** 6.2.0 (SHA-256 of installed exe `C226EE9B...22FA9C1`, ProductVersion 6.2.0.0), isolated temporary profile then the real profile:
+| Check | Result |
+|---|---|
+| Sign-in (temporary profile) | PASS |
+| Six Costing + four Classification modules | PASS |
+| Home/back from two modules | PASS |
+| Read-only print popup | PASS (owner-reported) |
+| Errors / update prompts | PASS: none |
+| Sign-out | PASS |
+| Start Menu launch, real profile, sign-in, sign-out | PASS |
+| Updater | PASS (no download): cache holds only the installer's own stored copy and the old 6.0.1 files (unchanged 14 Aug timestamps) |
+Temporary test profiles removed after verification (isolated paths only). Real profile `%APPDATA%\SASV Workspace` retained; its regenerable caches were cleared on 20 Nov and a backup exists. Rollback installer (`0884f2bc...8557f4`, verified) kept at `D:\ELECTRON PROJECTS\sasv-pilot-backup-20261120\rollback-6.1.0\`.
+**Scope:** a FRESH install on one PC. It is not a 6.1.0-to-6.2.0 migration test (G2 NOT TESTED) and no pre-release exists (G3 NOT TESTED). Fleet finding: Bitdefender ATD quarantined the unsigned exe on first launch and a firewall allowance was needed; every staff PC with similar AV needs an allowance or a signed build.
+
 ## 5. G2/G3, signing
 G2/G3 not started (require G1 PASS and explicit owner approval). This PC has an installed profile and updater cache, so it is not a disposable G2 target without a profile backup. Signing is unresolved: choose A (signed, needs a valid identity and signed-artifact checks) or B (unsigned pre-release pilot on one or two named PCs, only with a separate dated owner risk acceptance and after G1 PASS).
 
