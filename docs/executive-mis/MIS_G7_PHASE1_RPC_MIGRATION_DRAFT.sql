@@ -1,6 +1,8 @@
--- REVIEW ONLY: DO NOT EXECUTE OR APPLY. MIS-G7 PHASE 1 / PROPOSAL.
+-- AUTHORITATIVE CANDIDATE (ONE PUBLIC REPORTING RPC). DO NOT APPLY WITHOUT
+-- AN AUTHORIZED TRANSACTION AND THE REQUIRED PRE/POST CHECKS.
 -- Requires separate owner authorization, independent SQL syntax/EXPLAIN and role testing.
--- Additive preview only; no existing MIS objects or costing policy are modified.
+-- One unversioned, additive canonical reporting function; source metadata and
+-- migration history preserve prior changes without parallel v1/v2 client APIs.
 -- This does NOT implement frozen plan or formal completed production.
 --
 -- A deliberately narrow public aggregate gateway is SECURITY DEFINER because
@@ -8,7 +10,7 @@
 -- cannot be used here without introducing a private read model + its own RLS.
 -- On installation, owner and execute grants MUST be reviewed/verified.
 BEGIN;
-CREATE FUNCTION public.get_mis_production_preview_v1(
+CREATE FUNCTION public.get_mis_production_value_summary(
   p_report_month date,
   p_as_of_date date DEFAULT NULL
 )
@@ -25,7 +27,7 @@ DECLARE
   v_valuation date;
   v_result jsonb;
 BEGIN
-  IF auth.uid() IS NULL OR NOT public.app_has_permission('executive-mis-dashboard','view') THEN
+  IF auth.uid() IS NULL OR NOT public.app_has_permission('module:executive-mis-dashboard','view') THEN
     RAISE EXCEPTION 'MIS view permission required' USING ERRCODE = '42501';
   END IF;
   IF p_report_month IS NULL OR p_report_month <> date_trunc('month',p_report_month::timestamp)::date THEN
@@ -40,6 +42,8 @@ BEGIN
   IF v_cutoff < v_month THEN
     RAISE EXCEPTION 'as-of date before report month' USING ERRCODE = '22023';
   END IF;
+  -- Canonical module permission target is module:executive-mis-dashboard
+  -- (verified in public.user_permissions_canonical).
   -- Adjacent previous month: do not accept a draft or arbitrary client run ID.
   -- The bounded preview is not a frozen valuation snapshot: historical
   -- source adjustments after the cutoff are NOT automatically reconstructed.
@@ -185,13 +189,14 @@ BEGIN
 END;
 $function$;
 -- PostgreSQL grants EXECUTE to PUBLIC by default. Revoke in same transaction.
-REVOKE ALL ON FUNCTION public.get_mis_production_preview_v1(date,date) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.get_mis_production_preview_v1(date,date) FROM anon;
-GRANT EXECUTE ON FUNCTION public.get_mis_production_preview_v1(date,date) TO authenticated;
+REVOKE ALL ON FUNCTION public.get_mis_production_value_summary(date,date) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_mis_production_value_summary(date,date) FROM anon;
+GRANT EXECUTE ON FUNCTION public.get_mis_production_value_summary(date,date) TO authenticated;
 COMMIT;
 -- Rollback after independent authorization/if never published:
--- BEGIN; REVOKE ALL ON FUNCTION public.get_mis_production_preview_v1(date,date)
+-- BEGIN; REVOKE ALL ON FUNCTION public.get_mis_production_value_summary(date,date)
 -- FROM PUBLIC, anon, authenticated;
--- DROP FUNCTION IF EXISTS public.get_mis_production_preview_v1(date,date);
+-- DROP FUNCTION IF EXISTS public.get_mis_production_value_summary(date,date);
 -- COMMIT;
--- Do not execute this proposal without owner-authorized change gate.
+-- One callable source of truth; no alternative preview or versioned function.
+-- Do not execute without separately recorded transaction safeguards.
