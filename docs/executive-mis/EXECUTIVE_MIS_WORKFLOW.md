@@ -3,8 +3,8 @@
 **Established:** 19 November 2026 (IST)  
 **Scope:** Executive MIS Dashboard only (`executive-mis-dashboard`)  
 **Control status:** Documentation baseline; no MIS release or database migration authorized by this document  
-**Current gate:** MIS-G6 — production monetary valuation discovery and definition (READ-ONLY)  
-**Next action:** Inspect available production planning, batch, cost-rate and valuation sources; establish a valid monetary basis before SQL or UI mutation  
+**Current gate:** MIS-G7 — value-layer design and OFFLINE validation ONLY (no live SQL authorized)  
+**Next action:** Review draft G7 server contract and synthetic tests, resolve data/security hold points; obtain separate explicit authorization before any live SQL  
 **Release separation:** Costing Suite Electron release readiness takes precedence. Do not use this document/branch/PR to block, amend, rebase, merge into, or trigger that release.
 
 ## 1. Purpose, authority and navigation
@@ -53,8 +53,8 @@ Maintain distinct semantics and source dates. Do not pretend reports with differ
 | MIS-G3 | Manufacturing Inventory tab | PASS (reported) | 1,628 items; RM 789, PLM 795, Consumables 38, Fuel 6; “oil” search 56, masks/sticky headers/paging accepted |
 | MIS-G4 | Finished Goods tab and MRP filter explanation | PASS (reported) | 622 SKUs; zero 54, nonzero MOS <1: 104, MOS 1–3: 221, MOS >6: 101; “murivenna” 5; client label “Same IK/OK MRP” while RPC argument remains `shaded` |
 | MIS-G5 | Production summary-only tab | PASS (reported), semantic correction OPEN | Plan/pipeline tables and secondary cards render; planned 929,887.73 mixed base units; active 412; overdue WIP 59 |
-| MIS-G6 | Production value semantics and source/rate feasibility | **OPEN — CURRENT** | No accepted basis yet for planned-value or bulk-produced-value; read-only discovery first |
-| MIS-G7 | Production value implementation and parity | NOT STARTED | Contingent on G6 decision and explicit server approval |
+| MIS-G6 | Production value semantics and source/rate feasibility | **METHODOLOGY APPROVED (CONDITIONAL)** | Owner approved 20 Nov 2026, subject to documented materials-stores, plan freeze, event, joint-process and permission checks; no live SQL approval |
+| MIS-G7 | Production value implementation and parity | **OPEN — DESIGN/OFFLINE ONLY** | G6 methodology approved; draft server contract and synthetic tests, no SQL installation, merge or release authority |
 | MIS-G8 | Alerts discovery, definitions, severity, actionable drilldowns | PARKED | Start only after G7 or express reprioritization |
 | MIS-G9 | Cross-tab hardening, freshness, authorization, load/performance and full acceptance | NOT STARTED | Preserve prior tab evidence; retest changed surfaces |
 | MIS-G10 | Independent MIS release decision | HOLD / NOT AUTHORIZED | Must not be coupled to the immediate Costing Suite Electron release |
@@ -347,3 +347,20 @@ Recommended accept in principle:
 5. Route work-log modernization through an adapter, preserve ERP styling and narrow-screen accessibility, bulk assign Claude after stable G7 server contract, keep Costing Suite 6.2.0 release isolated.
 
 **Remaining pre-SQL design proofs:** confirm and explicitly classify any bulk-stage materials stores overhead and joint-process edge cases, design frozen plan-as-of strategy, RPC access control and EXPLAIN. These may be done as bounded G7 design after owner method acceptance, **without authorizing production mutation**. G6 remains open until owner decision; G7 not yet opened.
+
+
+## 17. MIS-G7 design authorization and offline validation receipt — 20 November 2026
+
+**Owner decision:** `I approve the proposed Executive MIS G6 valuation methodology subject to the documented checks. Proceed with G7 design and offline validation only. Do not execute production SQL, merge PRs, or touch the Costing Suite release without separate authorization.` **G6 methodology is conditionally approved; G7 is DESIGN/OFFLINE only.** No completed-gate count increment: G0–G5 remain 6/11 owner-reported PASS. G6 final administrative closure and G7 implementation acceptance remain subject to their own evidence/decisions.
+
+**Bounded design deliverables (draft PR #485 branch only):**
+- `docs/executive-mis/MIS_G7_SERVER_CONTRACT_DRAFT.md`: plain-English valuation semantics, versioned event/plan/rate adapter model, proposed response API, null/coverage states, approval-run pins, permissions and isolation, independently testable acceptance/rollback gates. **Not a migration or executable production SQL.**
+- `scripts/mis-g7/g7_offline_fixture_test.py`: deterministic synthetic-only unit test of value arithmetic, duplicate-source protection, missing-rate handling, mixed UOM, cutoff, In Storage vs Done, internal transfer exclusion, UOM mismatches, density-sensitive conversions, cost-run pin and no-comparable-percentage/no-view stub.
+- **Offline runner executed in local isolated runtime:** `python /mnt/data/mis_g7_offline/g7_contract_offline_test.py` yielded **12/12 PASS** on synthetic fixtures; this is *not* production SQL execution, real permission-negative verification, genuine cost-scope parity or a UI/browser test. The committed repo fixture script mirrors those 12 cases, but was not independently executed from a checked-out repository in this session.
+- **Security inspection from read-only Supabase catalog:** `costing.sku_material_cost_snapshot`, `costing.sku_internal_loaded_cost_snapshot` and `costing.product_direct_labour_workload_snapshot` currently **deny authenticated SELECT**. Existing four MIS page RPCs are security-invoker, authenticated-executable and not anon-executable. `v_user_permissions_effective` has user/target/can_view fields; `public.app_has_permission` checks auth.uid and canonical permission core. G7 must use server-side MIS view authorization and least-privileged private aggregation; **do not grant costing table reads**. Supabase docs confirm security-definer public views/functions can bypass RLS; any privileged interface must be reviewed with strict grants, fixed search_path, no dynamic SQL and negative-access tests. Actual authenticated deny/pass **NOT TESTED**.
+- **Safe reporting contract:** expense sources are not to be exposed in raw detail. Two missing approved-run rate products (Kayyonyadi Enna and Anulomana Sookshma Choornam) remain unvalued. No comparison of Tally book values with COP totals or use of expected batch output as actual. Future route-based work logging swaps the adapter rather than the UI contract.
+- **Status:** draft documentation commits only on independent workflow branch. No production SQL installation/migration, no MIS-C1 #486 merge, no Electron/Costing release changes. No SERVER ACCEPTED claim.
+
+**Unresolved, in order:** (1) precise stage eligibility/beneficiary mapping for materials-stores overhead, (2) frozen plan snapshot/cutoff, (3) multi-posting and completion lifecycle/reversal parity, (4) joint-process beneficiary verification, (5) bounded SQL implementation proposal and EXPLAIN/performance review, (6) server-only permission-negative tests after independently authorized installation. Any failed item must be explicit **BLOCKED / NOT VERIFIED**; do not fabricate a complete KPI.
+
+**Next action:** independently review design and classify the outstanding source-scope questions, prepare exact SQL proposal offline; ask the owner for a separate narrowly bounded production-SQL authorization only after satisfactory review. Subsequent Claude UI bulk package waits for SERVER ACCEPTED; Costing Suite release is independent.
