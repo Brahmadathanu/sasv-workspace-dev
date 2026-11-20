@@ -73,3 +73,6 @@ Documentation branch created from observed main `980cfeed1aaaaf13d6cd168506dc91d
 **Next:** single next authorized step
 **Parked:** short note
 **Locked:** key decisions
+
+## 2026-11-11 — New PEC ERP modernisation phase (G0 active)
+The historical bounded WP00/WP01 closure remains intact. The newer owner-authorised **ERP-wide procurement planning/execution + global design language** modernisation is tracked separately under [issue #284](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/284), with the compact [G0 evidence/contract](ERP_MODERNISATION_G0_20261111.md). Six new gates G0–G5; **0/6 verified, G0 active** at this documentation checkpoint. The new issue does not authorise production SQL changes, client merges or releases. Reconcile prior WP02-A PR-PDF implementation, manual-indent ordering UI acceptance, VWL search SQL/client follow-ups and other canonical-serial popups within G0 rather than reopening the closed WP01 history. Replace the historic cursor/client-executor conventions only within an independently approved new work-pack contract for Claude; existing governance and permission safeguards remain binding.
