@@ -4,6 +4,8 @@
 -- One unversioned, additive canonical reporting function; source metadata and
 -- migration history preserve prior changes without parallel v1/v2 client APIs.
 -- This does NOT implement frozen plan or formal completed production.
+-- Tally total is sourced from latest <=as-of voucher-line snapshot, not the
+-- expensive reconciliation view; matching exceptions remain NOT CHECKED.
 --
 -- A deliberately narrow public aggregate gateway is SECURITY DEFINER because
 -- authenticated users have NO SELECT on costing snapshots. SECURITY INVOKER
@@ -150,10 +152,20 @@ BEGIN
       AND l.reason_code IN ('FG bulk storage (update)',
            'FG bulk storage (delete)','FG bulk storage (In Storage)')
   ),
+  -- The full reconciliation view requires very expensive historical aggregation.
+  -- Use the latest complete Tally voucher snapshot observed by requested as-of.
+  -- This yields Tally book amount, NOT log-matching/valuation exception evidence.
+  transfer_snapshot AS (
+    SELECT max(t.as_of_date) as_of_date
+    FROM public.tally_fg_transfer_voucher_lines t
+    WHERE t.as_of_date<=v_cutoff
+  ),
   transfer AS (
-    SELECT t.book_transfer_value,t.recon_status,t.valuation_status,t.exists_in_tally
-    FROM public.v_fg_transfer_reconciliation t
-    WHERE t.transfer_date>=v_month AND t.transfer_date<=v_cutoff
+    SELECT t.transfer_amount book_transfer_value,t.voucher_date,
+           t.as_of_date
+    FROM public.tally_fg_transfer_voucher_lines t
+    JOIN transfer_snapshot s ON t.as_of_date=s.as_of_date
+    WHERE t.voucher_date>=v_month AND t.voucher_date<=v_cutoff
   )
   SELECT jsonb_build_object(
       'report_month',v_month,'as_of_date',v_cutoff,
@@ -174,12 +186,11 @@ BEGIN
              WHEN (SELECT count(*) FROM priced_receipt WHERE value IS NULL)>0
              THEN 'PARTIAL_COVERAGE' ELSE 'COVERED_SUBTOTAL' END,
       'tally_fg_transfer_book_value',(SELECT sum(book_transfer_value) FROM transfer),
-      'transfer_count',(SELECT count(*) FROM transfer),
-      'transfer_exception_count',(SELECT count(*) FROM transfer
-        WHERE recon_status IS DISTINCT FROM 'MATCHED'
-          OR valuation_status IS DISTINCT FROM 'OK'
-          OR exists_in_tally IS DISTINCT FROM true
-          OR book_transfer_value IS NULL),
+      'transfer_line_count',(SELECT count(*) FROM transfer),
+      'tally_snapshot_as_of',(SELECT as_of_date FROM transfer_snapshot),
+      'transfer_reconciliation_status','NOT_CHECKED_BY_BOOK_TOTAL',
+      'transfer_missing_amount_lines',(SELECT count(*) FROM transfer
+        WHERE book_transfer_value IS NULL),
       'completed_reference_value',NULL,
       'completed_status','NOT_VERIFIED',
       'plan_achievement_pct',NULL,
