@@ -66,6 +66,12 @@ Install: `SASV Workspace Setup 6.2.0.exe` (SHA-256 `AE9AF856...72958AA9A`) run o
 | Login, six Costing, four Classification, Home/back, print popup on the installed app | **NOT TESTED** (needs the owner's sign-in; owner checklist pending) |
 Notes: the stale "SASV Workspace 3.12.0" uninstall entry (different GUID) remains; it is a pre-existing orphan. The existing shared profile `%APPDATA%\SASV Workspace` (backed up) was used. Rollback: close app, uninstall 6.2.0 (profile kept), run the verified 6.1.0 installer manually, restore the profile backup only if incompatible.
 
+### 4d. Office-PC pilot: installed copy blocked by Bitdefender (20 Nov 2026)
+- ~12:05: Bitdefender Total Security (Advanced Threat Defense, "SuspiciousBehavior" detection) blocked and quarantined files of the freshly installed, unsigned 6.2.0 after the app was launched from PowerShell. The installed `SASV Workspace.exe` became unreadable; the owner restored items and added exclusions; the blocked folder was uninstalled/removed and 6.2.0 reinstalled from the verified installer (exe SHA-256 `C226EE9B...22FA9C1`, ProductVersion 6.2.0.0, readable). Embedded app launches to Login from the Start Menu.
+- The installed copy then failed to sign in: console `ERR_CACHE_READ_FAILURE` and `esm.sh/@supabase/supabase-js@2 ERR_NETWORK_ACCESS_DENIED` (repeated after the regenerable web caches in the profile were cleared). The PC itself reaches esm.sh (HTTP 200) and Windows Firewall has no blocking rule; the owner could not find a Bitdefender firewall-rules screen.
+- Control test: the identical binary (same SHA-256) run from `dist\win-unpacked` with an isolated profile signed in successfully (owner-reported). Conclusion (inference, not proven): Bitdefender restricts the installed copy's network access; the app and code are not at fault.
+- **Result: installed-app login, navigation and print NOT TESTED. Pilot NOT complete.** Finding for the fleet: unsigned builds can be blocked by Bitdefender ATD; this strengthens the signing requirement and means each PC needs an AV allowance or a signed build before rollout. Fresh-install pilot only; G2 upgrade path NOT TESTED.
+
 ## 5. G2/G3, signing
 G2/G3 not started (require G1 PASS and explicit owner approval). This PC has an installed profile and updater cache, so it is not a disposable G2 target without a profile backup. Signing is unresolved: choose A (signed, needs a valid identity and signed-artifact checks) or B (unsigned pre-release pilot on one or two named PCs, only with a separate dated owner risk acceptance and after G1 PASS).
 
