@@ -1,6 +1,6 @@
 # SASV Workspace 6.2.0: final acceptance execution receipt (20 Nov 2026)
 
-**STATUS: 6.2.0 NOT PUBLISHED. G1 PASS (owner-reported; see 4a). No tag, release, SQL, grant, flag or fleet change.** WP10 and WP12 remain **OPEN**; Stage B **HOLD**.
+**STATUS (20 Nov 2026): v6.2.0 PUBLISHED as stable Latest (unsigned), from accepted `main` commit `ebb59a4954b245bc7912e9872682d440f318f6ed`. G1 and one-PC fresh-install pilot PASS (owner-reported); G2 and G3 NOT TESTED, waived for this release. No database grant, flag or Stage B change.** WP10 and WP12 remain **OPEN**; Stage B **HOLD**.
 
 ## 1. Candidate identity (supersedes the earlier-SHA references)
 The procedures document (19 Nov) names code head `e46e3c37` of #483. #483 is now merged: the accepted source is `main` at
