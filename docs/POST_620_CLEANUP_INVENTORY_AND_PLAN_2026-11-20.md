@@ -68,3 +68,29 @@ Each folder has 0 uncommitted entries and its HEAD commit is an ancestor of `ori
 | `daily-worklog-app-wt-wp07-g3b-s1-qc-preparation-read-probe` | 813 MB | feat/wp07-g3b-s1-qc-preparation-read-probe | `257c8032` | in main |
 | `daily-worklog-app-wt-wp07-s2b-b1-qc-report-registration` | 813 MB | feat/wp07-s2b-b1-qc-report-read-probe | `3b32f108` | in main |
 
+
+## 7. Execution record: 18-worktree removal (20 Nov 2026, owner approval #488 comment 7040639771)
+Per-folder checks before each removal: path on the approved list, registered worktree, canonical path, no modified/staged/untracked files, HEAD an ancestor of `origin/main`, no reparse points or nested `.git`. Removal with `git worktree remove` (no `--force`), no recursive OS deletion.
+- **Removed: 8** (about 3.2 GB freed): composition-hidden-row-id-parser, composition-native-fill-order, composition-recheck-wiring, post-entry-reconcile-rpc-migration (29 MB each), wp06-page-identity-acceptance (722 MB), wp06-readonly-acceptance, wp07-g3b-s1-qc-preparation-read-probe, wp07-s2b-b1-qc-report-registration (813 MB each). All 8 branch refs and tips still exist.
+- **Skipped: 10, none deleted.** 9 have `node_modules` as a junction into another folder (7 into the original dev folder's `node_modules`, 2 chained into other worktrees): composition-final-stage-verify, composition-phase2-line931, fill-planner-clipboard, wp06-final-prelive-f22b36c, wp06-full-readonly-acceptance, wp06-post-fill-order-preflight, wp06-postfix-preflight, wp06-quantity-readonly-acceptance, wp06-representative-regression. 1 passed every check but was skipped as a dependency: composition-prelive-acceptance (805 MB) holds the real `node_modules` that two skipped folders junction to.
+- **Stale records:** the 2 missing `%TEMP%` registrations (trusted-executor, verified-field-lock) were inspected; dry run showed only those two would change, no locked entries; both tips are in `origin/main`; pruned (metadata only, branches kept).
+- **After:** 53 registered worktrees (was 63), 0 prunable, original dev worktree status byte-identical (9 entries, HEAD `80e6fd39`, 1 stash), no branch deleted. Anomaly: the junctions above (deleting through them is unsafe: they alias the dev folder's `node_modules`).
+
+## 8. PROPOSAL (not executed): next group
+**8a. Dirty-worktree reconciliation (34 dirty worktrees classified, read-only).**
+| Class | Worktrees | Content | Proposed disposition |
+|---|---|---|---|
+| Only `.tmp-smoke-userdata/eaushadhi-worker-logs/*.jsonl` | about 22 (composition-*, merge-*, reference-*, global-reference-dictionary-client, post-entry-ingredient-form..., pre-entry-reopen..., remove-queue-kpis, wp07-s2c-c1) | generated smoke logs, no tracked edits | SAFE TO REMOVE the log folder, then the worktree is clean; needs approval |
+| CRLF-only SQL edits (no real content diff) | `daily-worklog-app` (1), `prm-bypass`, `wp07-ux1`, `wp07-bundle-a-screen-test`, `sasv-release-test` (5) | line endings only | KEEP as is (protected); optional `git checkout` only with owner approval |
+| `.tmp-*` scripts and logs | `manage-bmr-main-visual`, `wp06-final-stage-preflight` (14), `wp06-line931-preflight` (3,303 files, 482 MB userdata) | generated preflight scratch | ARCHIVE or remove after owner inspection |
+| Real unsaved work | `composition-executor-packaging-proof` (8 modified tracked files, 123 untracked incl. 360 MB dist proof); `wp07-ux1` (`UX1_2_PLAN.md`); `wp07-bundle-a-screen-test` (`package-lock.json`); `wp04-s0-cursor-runner` (`__pycache__` only) | possible genuine edits | NEEDS OWNER REVIEW: commit to a branch or archive a patch before any cleanup |
+| Original dev folder | `daily-worklog-app` (15 untracked incl. `.tmp-aside/`, `e HEAD`, `tring(9)`) | owner work | PROTECTED |
+
+**8b. Redundant generated files** (about 3.5 GB listed; none touched):
+| Path | Size | Classification | Recovery |
+|---|---|---|---|
+| `sasv-620-g1\dist` | 1,038 MB | KEEP: verified 6.2.0 release build | published assets re-downloadable; keep until owner decides |
+| `sasv-release-test\dist` | 598 MB | ARCHIVE then remove: local 6.1.0 build, not the published artifact | rebuild from tag `v6.1.0` |
+| `wp06-line931-preflight\.tmp-line931-preflight-userdata` | 482 MB | NEEDS OWNER REVIEW | none (scratch) |
+| four `dist-eaushadhi-*-proof` folders in composition-* worktrees | about 360 MB each | SAFE TO REMOVE after approval | rebuildable proof builds |
+Each needs a separate approval; deletions would use per-folder, non-recursive-by-script review.
