@@ -1,0 +1,5 @@
+# C1B PR #117 final pre-merge audit — 1 November 2026
+
+PR #117 head 1c4e385c568bf9a03d0221657e59bdadfe6b3a1d targets main 31d55c852f0f9f178766204ecb510e8e80759f82, draft and GitHub mergeable. 20 changed files. No supabase directory changes. The public/sw.js cache is hub-cache-v388, reserved for costing by Jarvis. Adjacent smoke/test differences audited as cache/version-only. The functional C1B code and prior requested two corrections had been reviewed; no new blocking finding from final diff inspection.
+
+Code-review verdict: conditionally merge-ready, **not merged**. Owner must separately authorise exact squash-merge of PR #117. Test suite numbers (260/260, smokes 14 passing and 3 pre-existing failing) are Claude-reported and have not been independently executed. Browser permitted/denied JWT checks and actual operation walkthrough remain pending post-merge. Feature flag remains OFF by default and must not be activated except controlled owner testing. Draft drawer line-level evidence remains governed-run evidence, not 148; 111 of 114 exceptions lack direct mapped fix link. Programme acceptance gates 3/10 remain.
