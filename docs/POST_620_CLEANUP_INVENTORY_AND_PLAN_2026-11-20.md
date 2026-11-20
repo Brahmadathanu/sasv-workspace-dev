@@ -426,3 +426,64 @@ Merged-PR remote branches left: 183, of which 174 have no exception. Exceptions 
 | `docs/wp05-r25-d2-render-contract-20261111` | #304 | 2026-11-11 | `007fb2eb1e` |
 | `feat/fg-bit-ux-1-modernization` | #277 | 2026-11-11 | `424643c377` |
 | `fix/wp05-csr-pwa-freshness-integrated-20261111` | #292 | 2026-11-11 | `554e7bcfea` |
+
+## 31. Execution record: remote branch cleanup, Batch 3 (20 Nov 2026, owner approval #490 comment 7041853579)
+Manifest sha256 `85F164EC88D2D9D5D8480208C5BFBFC6CCCD66AA938F7B2A4F1234BD9D8FC385` verified. Batch 1/2 checks repeated (full tip SHA equals manifest and re-read before each single-ref deletion; PR merged and matching; no open-PR head/base; no local branch or worktree; `refs/pull/<n>/head` preserved; PRs #249 and #271 excluded).
+**Extra dependency screen for the 33 Costing-type branches (and all 50):** open-PR head/base, release notes, `.github/workflows` and docs/scripts referencing each branch name were searched on `origin/main`. Four branches had any reference at all: `claude/wp05-w506-conf-client-gate` (a historical design note marked "DEPLOYED 10 NOVEMBER 2026"), `fix/wp05-scheme-master-list-projection-r12` (a historical gate ledger that links Draft PR #263 by PR URL, which stays valid), and two branches named only as `push:` branch filters in `wp05-csr-verifier.yml` (`claude/epic-fermi-df6fia`) and `wp05-csr-pwa-freshness.yml` (`fix/wp05-csr-pwa-freshness-integrated-20261111`); both workflows also run on every `pull_request` touching their paths, so deleting those branches only makes a dead push filter inert and removes no coverage. No release note, open PR relation or live workflow behaviour depended on any of the 50, so none was retained merely for its name. (The two inert push filters could be cleaned in a later docs/workflow PR.)
+- **Deleted: 50. Skipped: 0. Failed: 0.** Remote branches 265 to **215**. Recovery: `sasv-archive-20261120\merged-branches-batch3-recovery-20261120.csv` (full SHA, PR, `refs/pull/<n>/head`).
+- **Protected, verified after:** 42/42 open-PR heads exist; #271 and #249 branches, `wip/composition-executor-packaging-proof-20261120`, `costing/approval-screen-preview`, `test/wp04-s0-cursor-runner` exist; `main` `be529de2`; tag `v6.2.0` `ebb59a49` still Latest with 4 assets; 437 PR head refs resolve; 24 workflow files unchanged.
+
+## 32. BATCH 4 (PROPOSED, NOT DELETED)
+Merged-PR remote branches left: 133, of which 124 are eligible (same 9 exceptions as before: #487-#489, #105, #99, #90, #57 and the review-pending #271 and #249). Batch 4 = the next 50 oldest eligible (merged 11 to 13 Nov 2026). Dependency screen (open PRs, workflows, release notes, docs/scripts keywords): no flags. Manifest with full SHAs: `sasv-archive-20261120\merged-branches-batch4-manifest-20261120.csv` (sha256 `49F7ADD5832293C4C600BB505A3C23A7A2126863AF794FD70F177201C33F1E59`). Remote count would go 215 to 165; 83 merged-PR branches would remain afterwards.
+| Branch | PR | Merged | Tip |
+|---|---|---|---|
+| `governance/csr-rpc-live-migration-sync-20261111` | #278 | 2026-11-11 | `8603625119` |
+| `governance/wp05-r17-authenticated-matrix-performance-20261111` | #281 | 2026-11-11 | `07cdf618c1` |
+| `governance/wp05-r18-csr-planner-screen-20261111` | #283 | 2026-11-11 | `d83776c578` |
+| `governance/wp05-w505-owner-accepted-with-limits-20261111` | #279 | 2026-11-11 | `889c71ffe9` |
+| `governance/wp05-w506-scoped-identity-acceptance-20261111` | #280 | 2026-11-11 | `70e881199c` |
+| `test/wp05-d2-isolated-synthetic-role-contract-20261111` | #302 | 2026-11-11 | `64f086d23a` |
+| `claude/pec-phase-a-visual-acceptance` | #365 | 2026-11-12 | `45d69e9c47` |
+| `claude/pec-r2-ui-ux` | #373 | 2026-11-12 | `a568f87358` |
+| `claude/wp07-bulk-verification-closure-3cmvvk` | #368 | 2026-11-12 | `5ca2071d14` |
+| `docs/costing-programme-wp05-closed-new-chat-handover-20261112` | #364 | 2026-11-12 | `fea5121ed1` |
+| `docs/wp05-r26-post-306-ci-reconciliation-20261112` | #307 | 2026-11-12 | `b1ce793ed4` |
+| `docs/wp05-r27-d2-owner-policy-decision-matrix-20261112` | #308 | 2026-11-12 | `1d5a465adf` |
+| `docs/wp05-r28-owner-option-a-ppm-audit-20261112` | #310 | 2026-11-12 | `870cce2dbf` |
+| `docs/wp05-r30-pg17-isolated-verification-20261112` | #312 | 2026-11-12 | `9ac68f84c7` |
+| `docs/wp05-r31-ppm-audit-acl-independent-review-20261112` | #313 | 2026-11-12 | `8d2ed496e6` |
+| `docs/wp05-r32-predeployment-execution-gate-20261112` | #314 | 2026-11-12 | `97444fc051` |
+| `docs/wp05-r34-option-a-prod-applied-20261112` | #316 | 2026-11-12 | `a80c62f5a3` |
+| `docs/wp05-r35-authenticated-acceptance-availability-20261112` | #318 | 2026-11-12 | `c92c7c6792` |
+| `docs/wp05-r36-scheme-history-real-session-acceptance-20261112` | #321 | 2026-11-12 | `66d1bdbe33` |
+| `docs/wp05-r37-owner-scheme-history-positive-20261112` | #322 | 2026-11-12 | `b5d5bff87b` |
+| `docs/wp05-r38-remaining-five-reader-policy-review-20261112` | #324 | 2026-11-12 | `a20500ff35` |
+| `docs/wp05-r39-mcm-policy-approved-20261112` | #326 | 2026-11-12 | `d9adc278f3` |
+| `docs/wp05-r40-mcm-production-apply-20261112` | #328 | 2026-11-12 | `82986dc1e0` |
+| `docs/wp05-r41-mcm-browser-readiness-and-ccc-policy-20261112` | #329 | 2026-11-12 | `bf1c511327` |
+| `docs/wp05-r42-ccc-mcm-owner-policy-20261112` | #331 | 2026-11-12 | `f8d3933150` |
+| `docs/wp05-r43-ccc-mcm-acceptance-production-20261112` | #333 | 2026-11-12 | `97dda4ccb2` |
+| `docs/wp05-r44-csr-reader-policy-decision-20261112` | #334 | 2026-11-12 | `91bc5e56fe` |
+| `docs/wp05-r45-csr-option-c-owner-policy-20261112` | #337 | 2026-11-12 | `ac9f9dd1b7` |
+| `docs/wp05-r45-exact-head-10of10-20261112` | #339 | 2026-11-12 | `57c0be5602` |
+| `docs/wp05-r46-csr-option-c-production-20261112` | #340 | 2026-11-12 | `f0d1ae64f5` |
+| `docs/wp05-r47-auth-acceptance-and-closure-path-20261112` | #341 | 2026-11-12 | `ae826d8a50` |
+| `docs/wp05-r48-test-account-csr-only-stage-20261112` | #343 | 2026-11-12 | `73f49cdbc7` |
+| `docs/wp05-r49-csr-pass-ccc-only-stage-20261112` | #344 | 2026-11-12 | `d7ccbcceb0` |
+| `docs/wp05-r50-ccc-readiness-error-hold-20261112` | #345 | 2026-11-12 | `f6c62f7918` |
+| `docs/wp05-r51-readiness-build-recovery-20261112` | #346 | 2026-11-12 | `1dbd1c731e` |
+| `docs/wp05-r52-ccc-stage2-pass-mcm-stage3-20261112` | #348 | 2026-11-12 | `03df30dab1` |
+| `docs/wp05-r53-mcm-acceptance-ppm-only-stage-20261112` | #349 | 2026-11-12 | `26cb1dd3d3` |
+| `docs/wp05-r54-ppm-stage4-scheme-master-empty-20261112` | #350 | 2026-11-12 | `22ed989a1a` |
+| `docs/wp05-r55-scheme-register-owner-decision-20261112` | #352 | 2026-11-12 | `f7cc6a8b09` |
+| `docs/wp05-r56-ppm-register-production-approval-gate-20261112` | #354 | 2026-11-12 | `92b4a9f2d4` |
+| `docs/wp05-r57-ppm-scheme-register-production-20261112` | #357 | 2026-11-12 | `adfd30c500` |
+| `docs/wp05-r58-ppm-recovery-baseline-restoration-20261112` | #358 | 2026-11-12 | `4f0755e157` |
+| `docs/wp05-r59-post-r58-gate-evidence-reconciliation-20261112` | #359 | 2026-11-12 | `d157ad7e16` |
+| `docs/wp05-r60-scoped-auth-negative-provenance-20261112` | #360 | 2026-11-12 | `0ab5b1d742` |
+| `docs/wp05-r61-fast-close-no-duplicate-cost-comparison-20261112` | #361 | 2026-11-12 | `6381aa598e` |
+| `docs/wp05-r62-owner-bounded-residuals-final-gate-packet-20261112` | #362 | 2026-11-12 | `bb2583fc94` |
+| `docs/wp05-r63-owner-w510-conditional-close-20261112` | #363 | 2026-11-12 | `a70cb9de92` |
+| `fix/lab-tolerance-scrutiny-validation-20261112` | #309 | 2026-11-12 | `c7e80e830f` |
+| `fix/wp05-scheme-audit-actor-contract-20261112` | #306 | 2026-11-12 | `f008aacc45` |
+| `claude/friendly-einstein-4z45px` | #387 | 2026-11-13 | `652cac86ec` |
