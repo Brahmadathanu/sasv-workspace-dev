@@ -145,3 +145,15 @@ Section 12's "19 small" label was a miscount: it enumerates 20 small plus 3 larg
 | `manage-bmr-main-visual` (inside the dev folder) | 2 `.tmp` stdout/stderr logs | None | Delete the 2 logs; protected area, so only with explicit approval | Yes |
 Protected and untouched: the original dev folder (9 uncommitted entries incl. `.tmp-aside/`, `e HEAD`, `tring(9)`) and `sasv-release-test`.
 **Recommended first step:** preserve `composition-executor-packaging-proof` on a pushed `wip/` branch, because it is the only unsaved real work.
+
+## 15. Preservation record: executor-packaging work (20 Nov 2026, owner approval #490 comment 7040973653)
+Branch `wip/composition-executor-packaging-proof-20261120`, commit `7c07b15a84bcccb8749230da8dddf0ebdd472f94`, parent = the worktree's original base commit `9910cc722755cb31eb606bb8104dc07a95e91a02`. Pushed without force; remote SHA equals the local commit. Pre-commit scan of all 13 files found no secrets, credentials, base64 blobs or binaries; only explicitly named paths were staged (13 files, 1,672 insertions, 4 deletions). **Not reviewed and not for merge.**
+Files preserved: `electron/eaushadhi-worker/index.js`, `ipc.js`, `composition-executor.js` (new), `composition-live-adapters.js` (new), `composition-live-arm.js` (new), `composition-native-normalizer.js` (new); `preload.js`; `public/shared/js/eaushadhi-review-control.js`, `eaushadhi-review-worker-client.js`; `scripts/eaushadhi-worker-ipc-smoke.mjs`, `eaushadhi-worker-packaging-smoke.mjs`, `eaushadhi-worker-product-details-execution-smoke.mjs`, `eaushadhi-worker-composition-execution-smoke.mjs` (new).
+Remaining uncommitted material in that worktree: none (status clean). The worktree was kept; nothing removed, reset or deleted. Dirty worktrees: 10 to 9.
+
+## 16. PROPOSAL (not executed): next grouped cleanup of the remaining 9 dirty worktrees
+Group A, tiny and generated (one approval): delete 6 untracked `__pycache__` files in `wp04-s0-cursor-runner`; delete 2 `.tmp` logs in `manage-bmr-main-visual`; delete the `.tmp-smoke-userdata` logs in `wp07-ux1` and the stray `tatus --short` file in `wp07-bundle-a-screen-test`.
+Group B, preserve then clean (one approval): archive `UX1_2_PLAN.md` and `UX2_PLAN.md` (`wp07-ux1`) to a non-repository folder (or commit to a docs branch); save a patch of the 153-line `package-lock.json` deletion (`wp07-bundle-a-screen-test`) for owner decision.
+Group C, scratch archive then remove (separate approval): `wp06-final-stage-preflight` (14 files) and `wp06-line931-preflight` (3,303 files and 482 MB), with a manifest and restricted archive first because they may embed SQL.
+Group D, leave: CRLF-only edits (`prm-bypass`, the SQL edits in the dev folder, `wp07-ux1`, `bundle-a`, `sasv-release-test`).
+Group E, protected: original dev folder and `sasv-release-test`.
