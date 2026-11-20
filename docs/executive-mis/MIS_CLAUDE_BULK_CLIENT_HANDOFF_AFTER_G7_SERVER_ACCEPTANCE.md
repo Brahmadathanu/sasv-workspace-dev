@@ -1,20 +1,22 @@
 # Claude Code bulk client handoff — Executive MIS Production (NOT YET AUTHORIZED TO EXECUTE)
 
-**Mode:** READY-TO-COPY work assignment, **parked until G7 SERVER ACCEPTED**.  
+**Mode:** READY-TO-COPY work assignment, **parked until G7 SERVER ACCEPTED**. Single authoritative RPC is `public.get_mis_production_value_summary(date,date)`; no preview or versioned APIs.  
 **Repository:** `Brahmadathanu/sasv-workspace-dev`  
 **MIS canonical workflow:** `docs/executive-mis/EXECUTIVE_MIS_WORKFLOW.md` on `docs/executive-mis-workflow-20261119`, draft PR #485.  
 **Existing client candidate:** MIS-C1 draft PR #486, branch `claude/mis-c1-client-polish-hardening-m7rbjk`, previously observed head `eec9e03a98694af27c0ba726849b81cd28439748`. REVALIDATE live branch SHA first, no blind rebase or merge.  
-**Server reference:** `docs/executive-mis/MIS_G7_SERVER_CONTRACT_DRAFT.md` and `MIS_G7_CONSOLIDATED_IMPLEMENTATION_REVIEW_2026-11-20.md`; `MIS_G7_PHASE1_RPC_MIGRATION_DRAFT.sql` is a **proposal, not installed or server accepted**.
+**Server reference:** `docs/executive-mis/MIS_G7_SERVER_CONTRACT_DRAFT.md` and `MIS_G7_CONSOLIDATED_IMPLEMENTATION_REVIEW_2026-11-20.md`; `MIS_PRODUCTION_VALUE_SUMMARY.sql` is **installed as the sole canonical API**, but awaits a genuine signed-in authorized user acceptance test before SERVER ACCEPTED.
 
 ## Stop gate / permission
 
-**Do not start client implementation until owner provides G7 SERVER ACCEPTED receipt:** exact production callable RPC name and signature, return JSON field contract, authenticated positive/no-view/anon test result, live cutoffs, sample response and current deploy/branch baseline. A documentation design or mocked SQL does not satisfy this. No client deployment, merge, installer packaging, shared service worker/cache changes, Costing Suite asset changes, server SQL, schema, grants, cron, network policy or Electron release work without separate owner approval.
+**Do not start client implementation until owner provides G7 SERVER ACCEPTED receipt:** confirmation of the installed canonical `public.get_mis_production_value_summary(date,date)` RPC, authenticated MIS View positive test, no-view/anon deny evidence, current published response contract, and current deploy/branch baseline. A documentation design or mocked SQL does not satisfy this. No client deployment, merge, installer packaging, shared service worker/cache changes, Costing Suite asset changes, server SQL, schema, grants, cron, network policy or Electron release work without separate owner approval.
 
 ## When SERVER ACCEPTED: one credit-efficient cohesive implementation assignment
 
 You own **client only**. Implement a polished, compact, professional enterprise ERP-style Production monetary view with one coherent bulk package, not incremental scattered cosmetic PRs.
 
 **Client files:** `public/shared/executive-mis-dashboard.html`, `public/shared/js/executive-mis-dashboard.js`, its module-specific styles and targeted offline tests as justified. Preserve other MIS tabs and all existing modules. Inspect current branch first; coordinate with PR #486, do not discard its latest-wins and accessibility fixes.
+
+**Installed canonical JSON fields (pending authenticated acceptance):** `report_month`, `as_of_date`, `approved_cost_run_id`, `approved_cost_valuation_date`, `status`, `plan_status`, `component_policy`, `planned_product_count`, `planned_unvalued_count`, `planned_reference_covered_value`, `receipt_event_count`, `receipt_unvalued_count`, `receipt_correction_event_count`, `receipt_reference_covered_value`, `receipt_value_status`, `tally_fg_transfer_book_value`, `transfer_line_count`, `tally_snapshot_as_of`, `transfer_reconciliation_status`, `transfer_missing_amount_lines`, `completed_reference_value`, `completed_status`, `plan_achievement_pct`, `comparability`. Values may be null. `transfer_reconciliation_status='NOT_CHECKED_BY_BOOK_TOTAL'` means the fast Tally book aggregate is not a log-matching reconciliation. Future evolution **changes this same API** with additional nullable fields only when separately governed.
 
 **Business view:**
 1. Primary Production monetary KPI row: **Planned bulk value** (approved frozen snapshot only, else prominently `Live indicative plan`), **Actual bulk received covered value** (with coverage caveat), **Completed bulk value** (N/A until canonical verified event), **Transferred FG book value** (explicitly `Tally book basis`, visually separate). Keep distinct source dates, run ID, as-of cutoff and basis.
@@ -34,4 +36,4 @@ You own **client only**. Implement a polished, compact, professional enterprise 
 
 Only read-only audit of PR #486, inspect module integration points, document proposed mock fixtures and conflict/merge plan. NO client code changes, no new branch/PR, no claimed acceptance; wait for SERVER ACCEPTED to avoid consuming credit on guesses.
 
-**Current status:** Claude not launched by ChatGPT; no direct Claude connector available in this session. This file is an assignment artifact only.
+**Current status (20 Nov 2026):** Canonical RPC installed, PostgreSQL grant and no-session rejection checked; genuine authenticated MIS View call remains NOT TESTED, so SERVER ACCEPTED **not yet issued**. Claude not launched by ChatGPT; no direct Claude connector available in this session. This file is the one client assignment artifact only.
