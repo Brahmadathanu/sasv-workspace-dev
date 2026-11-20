@@ -195,3 +195,29 @@ Each new MIS conversation begins by reading this file and verifying the GitHub h
 **Do next:** complete *read-only* MIS-G6 discovery and prepare an evidence-backed rate/basis proposal. Review source definitions and schema before suggesting money formulas. Report coverage and any blocking unknowns. **Stop before any schema change, migration, production write, Electron release action, or client refactor.**
 
 **Release protection checkpoint (19 Nov 2026):** Creating this workflow document is organizational only. The Costing Suite release is governed elsewhere; no MIS evidence, design work or PR shall be inserted into its release candidate or acceptance checklist.
+
+
+## 12. MIS-G6 read-only evidence checkpoint — 20 November 2026
+
+**Scope and state:** authenticated read-only Supabase probes only; G6 remains CURRENT / OPEN. No SQL migration, view change, approval designation, client merge, deployment, service worker or Electron release change. PR #486 MIS-C1 independent client review is recorded on its PR; draft only, not accepted production evidence.
+
+### Source and valuation audit
+
+- `costing.v_costing_period_run_status`: October 2026 approved run **143**, valuation **2026-10-22**; November 2026 draft run **152**, valuation **2026-11-16**, no November approved run. Never use draft run 152 as approved.
+- Positive November planning lines in `v_product_bulk_consolidated_effective`: **100 on later live probe**, against **101 on earlier probe**, proving the current view is not an immutable planning snapshot; determine stable plan version/as-of before a reproducible KPI.
+- For the 100 positive-plan products on the later probe, **100/100** have a positive manufacturing-COP SKU mapping in approved run 143; **44/100** have multiple SKU formats. This is **product-presence coverage only**, not verified per-bulk-unit-cost coverage. Do not arbitrarily select a SKU or multiply cost per pack by bulk quantity.
+- Planning product breakdown: Kg **64** products / source quantity **10,905.16**; L **30** / **27,942.50**; Nos **6** / **437,500**. Unlike UOM quantities are not additive. All 100 have positive `products.conversion_to_base`; observed conversion factors include **0.001**, **0.00091** (oil/ghritham group) and **1**. The meaning and multiplicative direction of `final_make_qty` require source-level proof before normalization.
+- `v_mis_production_position` currently sums `expected_output_base_qty` using `last_fg_bulk_updated`, with selected final states, not a demonstrated actual completed-volume event series; it also omits `MIXED` state (seven November-updated records observed). Do not assert valid bulk actual/achievement from that legacy figure.
+- More promising actual bulk event source: `public.fg_bulk_stock_ledger` rows with `source_table='daily_work_log'` and `reason_code='FG bulk storage'` for November: **79 positive rows / 61 distinct (product_id,batch_number) keys / 52 products**, dates 2–19 Nov. **18 batch keys** have two postings; none had nonpositive summed quantity. Confirm whether these are incremental completions, reposts/corrections, or multiple locations before deciding whether to sum or deduplicate. Separate packing outflows, force-close adjustments, and paired internal transfers from production inflows.
+- November `v_fg_transfer_reconciliation`: 99 Tally records, total **₹32,60,278.34**, book-transfer amount equal to `tally_total_amount` in the audited summary; 94 MATCHED/valuation OK, 4 MISSING_LOG/valuation OK, 1 MATCHED/NOT_VALUED. Arithmetic parity **does not establish** an equivalent cost basis to approved manufacturing COP.
+- `costing.v_product_rm_standard_cost`: 534 products, two without positive RM rate and four with blocking lines in prior probe. RM standard cost is partial manufacturing cost, not a substitute for governed full manufacturing COP.
+
+### Pending G6 exit proofs (not yet owner-approved)
+
+1. Demonstrate `final_make_qty` physical units and precise direction/meaning of product conversion factors, particularly 0.00091; derive a product-base-unit rate from approved SKU manufacturing COP without double counting packaging/other SKU-level conversion costs. Document joint-process and multi-SKU policy.
+2. Validate `fg_bulk_stock_ledger` posting identity and correction/reversal semantics, including multiple postings per batch and cutoff consistency, and reconcile ledger output to batch canonical records and documented daily work logs.
+3. Pin an explicit plan-as-of (or immutable month snapshot), report month and same valuation vintage for plan and bulk actual. Quantify approved-rate coverage by *valid unit normalization*, not just matching product IDs.
+4. Retain Tally book FG value as a separately labeled basis until parity with reference manufacturing COP is independently demonstrated; keep exception counts and dates.
+5. Present exact SQL/RPC contract, security/EXPLAIN and rollback proposal; obtain owner method approval and independent SQL authorization before G7.
+
+**Disposition:** G6 ongoing, no monetary MIS KPI accepted. G0–G5 owner-reported PASS preserved; MIS-C1 PR #486 remains draft and review-only. Costing Suite Electron release independent.
