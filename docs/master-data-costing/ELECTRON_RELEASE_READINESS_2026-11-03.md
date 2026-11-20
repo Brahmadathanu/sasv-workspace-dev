@@ -1,5 +1,7 @@
 # SASV Workspace — Electron Release Readiness Gate (3 Nov 2026)
 
+> **UPDATE 20 Nov 2026: v6.2.0 PUBLISHED as stable (unsigned) from `main` `ebb59a49`, owner-directed. G1 PASS; G2 NOT TESTED (owner waiver); G3 NOT TESTED; signing deferred; WP10/WP12 OPEN; Stage B HOLD.** The status below is the historical 3 Nov record. Current evidence: `ELECTRON_6_2_0_FINAL_ACCEPTANCE_EXECUTION_RECEIPT_2026-11-20.md`.
+
 **Status: SOURCE INTEGRATED; DISTRIBUTABLE RELEASE NOT YET AUTHORISED.** This is a gate/checklist, not an instruction to publish, deploy or activate. It belongs to the single Costing Suite programme control plane.
 
 ## Evidence verified from GitHub (3 Nov 2026)
