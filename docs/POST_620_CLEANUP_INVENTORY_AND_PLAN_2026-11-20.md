@@ -35,3 +35,36 @@ Owner chooses one of: (i) approve pushing the 3 unpushed branches (`git push -u 
 
 ## 4. Unchanged by this document
 v6.2.0 publication, WP10/WP12 OPEN, Stage B HOLD, PR #485/#486 isolation.
+
+## 5. Update 20 Nov 2026 (owner-approved): unpushed branches preserved
+Verified (no secrets: only fake test fixtures such as sb_secret_fake; no binaries; largest blob 558 KB; no same-name remote branch existed), then pushed without force, exact history, `git push origin refs/heads/X:refs/heads/X`. Local and remote SHAs match:
+| Remote branch | SHA | Commits ahead of main |
+|---|---|---|
+| `test/wp04-s0-cursor-runner` | `016bd4585598ecf11fc6968bb625e21130ceb60c` | 33 |
+| `feat/lab-repeat-analysis-governance-client` | `88f4c859a500a1475c6e8b03ba598cf18ec18d1d` | 3 |
+| `costing/w1-approved-run-labels-rebased` | `26f33c873e293d8138b2124e788372cd3fdfc69c` | 2 |
+Not merged into main. Uncommitted changes in worktrees (for example 1 dirty entry in the wp04 worktree) were NOT pushed.
+
+## 6. PROPOSAL (not executed): remove 18 clean worktrees in one batch
+Each folder has 0 uncommitted entries and its HEAD commit is an ancestor of `origin/main` (verified with `git merge-base --is-ancestor`), so no commit is lost; local branch names are kept (removing a worktree does not delete its branch). Total about 4.3 GB. Method if approved: `git worktree remove <path>` (no `--force`, so Git refuses if anything is dirty), folder by folder, then `git worktree prune` for the 2 missing `%TEMP%` records. Recovery: `git worktree add <path> <branch-or-sha>`. Requires owner approval (touches the original dev repository's `.git`). Note: `git stash` has 1 shared entry; it is unaffected.
+| Folder under `D:\ELECTRON PROJECTS` | Size | Branch | HEAD | Preservation |
+|---|---|---|---|---|
+| `daily-worklog-app-wt-composition-final-stage-verify` | 29 MB | feat/eaushadhi-composition-final-stage-verify | `6ce0afad` | in main |
+| `daily-worklog-app-wt-composition-hidden-row-id-parser` | 29 MB | fix/eaushadhi-composition-hidden-row-id-parser | `095afbbd` | in main |
+| `daily-worklog-app-wt-composition-native-fill-order` | 29 MB | fix/eaushadhi-composition-native-fill-order | `0a3b961c` | in main |
+| `daily-worklog-app-wt-composition-phase2-line931` | 29 MB | feat/eaushadhi-composition-phase2-line931 | `7657a66f` | in main |
+| `daily-worklog-app-wt-composition-prelive-acceptance` | 805 MB | (detached) | `2ad4b80b` | in main |
+| `daily-worklog-app-wt-composition-recheck-wiring` | 29 MB | fix/eaushadhi-composition-recheck-wiring | `6b1b1a84` | in main |
+| `daily-worklog-app-wt-fill-planner-clipboard` | 30 MB | fix/fill-planner-urgent-sku-clipboard-label | `30846656` | in main |
+| `daily-worklog-app-wt-post-entry-reconcile-rpc-migration` | 29 MB | chore/eaushadhi-post-entry-reconcile-rpc-migration | `7c5bc289` | in main |
+| `daily-worklog-app-wt-wp06-final-prelive-f22b36c` | 29 MB | (detached) | `f22b36ca` | in main |
+| `daily-worklog-app-wt-wp06-full-readonly-acceptance` | 29 MB | (detached) | `c44e1ca2` | in main |
+| `daily-worklog-app-wt-wp06-page-identity-acceptance` | 722 MB | (detached) | `0ba73d74` | in main |
+| `daily-worklog-app-wt-wp06-post-fill-order-preflight` | 29 MB | (detached) | `768992a3` | in main |
+| `daily-worklog-app-wt-wp06-postfix-preflight` | 29 MB | (detached) | `b162d493` | in main |
+| `daily-worklog-app-wt-wp06-quantity-readonly-acceptance` | 29 MB | (detached) | `80c2f9e2` | in main |
+| `daily-worklog-app-wt-wp06-readonly-acceptance` | 813 MB | (detached) | `142c7fe5` | in main |
+| `daily-worklog-app-wt-wp06-representative-regression` | 29 MB | (detached) | `c719dacf` | in main |
+| `daily-worklog-app-wt-wp07-g3b-s1-qc-preparation-read-probe` | 813 MB | feat/wp07-g3b-s1-qc-preparation-read-probe | `257c8032` | in main |
+| `daily-worklog-app-wt-wp07-s2b-b1-qc-report-registration` | 813 MB | feat/wp07-s2b-b1-qc-report-read-probe | `3b32f108` | in main |
+
