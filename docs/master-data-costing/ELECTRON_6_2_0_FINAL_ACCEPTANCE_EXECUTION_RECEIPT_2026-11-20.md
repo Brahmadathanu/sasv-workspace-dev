@@ -88,6 +88,19 @@ Owner-reported results on the **installed** 6.2.0 (SHA-256 of installed exe `C22
 Temporary test profiles removed after verification (isolated paths only). Real profile `%APPDATA%\SASV Workspace` retained; its regenerable caches were cleared on 20 Nov and a backup exists. Rollback installer (`0884f2bc...8557f4`, verified) kept at `D:\ELECTRON PROJECTS\sasv-pilot-backup-20261120\rollback-6.1.0\`.
 **Scope:** a FRESH install on one PC. It is not a 6.1.0-to-6.2.0 migration test (G2 NOT TESTED) and no pre-release exists (G3 NOT TESTED). Fleet finding: Bitdefender ATD quarantined the unsigned exe on first launch and a firewall allowance was needed; every staff PC with similar AV needs an allowance or a signed build.
 
+### 4f. PUBLICATION: SASV Workspace v6.2.0 stable (20 Nov 2026, owner-directed, comment #7040209259)
+Owner waived G2 (**G2 NOT TESTED, owner-accepted waiver, not PASS**); G3 NOT TESTED (no pre-release stage was used). Signing deferred; unsigned stable release accepted, with the Bitdefender/firewall risk acknowledged and no antivirus policy changed.
+**Pre-publication gate (all passed):** `main` = `ebb59a4954b245bc7912e9872682d440f318f6ed`, identical to the accepted candidate (no commits since); worktree clean; installer SHA-256 `AE9AF856...72958AA9A`, ProductVersion 6.2.0.0; `latest.yml` version 6.2.0, url/path `SASV-Workspace-Setup-6.2.0.exe`, size 141,444,151 and sha512 recomputed and equal; blockmap present; no `v6.2.0` tag or release existed. Updater contract: the 6.1.0 tag's `package.json` has no `publisherName`, so electron-updater in installed 6.1.0 clients (autoDownload and install-on-quit, `allowPrerelease` false) does no publisher-signature check and accepts an unsigned installer whose sha512 matches; no signature control was bypassed.
+**Published:** https://github.com/Brahmadathanu/sasv-workspace-dev/releases/tag/v6.2.0 (created as draft, assets uploaded and digests compared, then published as stable and Latest). Tag `v6.2.0` -> `ebb59a49...`.
+| Asset | Bytes | SHA-256 |
+|---|---|---|
+| `SASV-Workspace-Setup-6.2.0.exe` | 141,444,151 | `ae9af8561648921ce92f290c7ffd15841821516979be8cbed082eb772958aa9a` |
+| `SASV-Workspace-Setup-6.2.0.exe.blockmap` | 149,086 | `7062f620a081255a1bfe082e828a05a33cdb6ec06d134cb90b2a5805ad085569` |
+| `SASV-Workspace-6.2.0-win.zip` | 177,000,130 | `b88c78d20eee2731b2e45b9f346cf7af2e0c9681c5dbe4d95d348157513e89ad` |
+| `latest.yml` | 357 | `63350ac0be0d026912ce59fd31abd5abd9a7d4575cdba4da4dbe6c1e154afeb7` |
+**Independent post-publish verification:** `releases/latest` = v6.2.0 (not draft, not pre-release); public `releases/latest/download/latest.yml` serves version 6.2.0; a fresh public download of the installer matches size, SHA-256 and the manifest sha512; blockmap URL returns 200. v6.1.0 and v6.0.1 assets unchanged (digests identical to the earlier baseline, incl. 6.1.0 installer `0884f2bc...8557f4`).
+**Consequence:** existing 6.1.0 clients with auto-update will now download 6.2.0 and install on quit. No staff installation was performed or verified. **Outstanding risk:** antivirus (Bitdefender) quarantined the unsigned exe on the owner's PC; staff PCs may need local allowances. Rollback: 6.1.0 and 6.0.1 assets intact; a bad release is corrected by a 6.2.1 forward-fix (electron-updater does not downgrade). WP10/WP12 OPEN and Stage B HOLD unchanged.
+
 ## 5. G2/G3, signing
 G2/G3 not started (require G1 PASS and explicit owner approval). This PC has an installed profile and updater cache, so it is not a disposable G2 target without a profile backup. Signing is unresolved: choose A (signed, needs a valid identity and signed-artifact checks) or B (unsigned pre-release pilot on one or two named PCs, only with a separate dated owner risk acceptance and after G1 PASS).
 
