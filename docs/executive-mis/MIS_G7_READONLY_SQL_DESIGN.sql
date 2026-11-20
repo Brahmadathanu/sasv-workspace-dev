@@ -1,6 +1,8 @@
 -- Executive MIS G7 — REVIEW-ONLY SQL PROPOSAL. NEVER APPLY TO PRODUCTION.
 -- This is an illustrative read-only SELECT for a proposed contract; not executed on live DB.
 -- Period report cutoffs are consistent for physical receipts and book FG transfers.
+-- Ledger timestamptz dates are interpreted in Asia/Kolkata explicitly; Tally transfer_date is a date.
+-- Conversion may inhibit a movement_date index, requiring an authorized EXPLAIN and suitable bound strategy before live deployment.
 -- Do not run this query in the user-facing authenticated role: costing snapshots are
 -- private and this is intentionally NOT a permission-gated RPC.
 -- No DDL, grants, procedures, refresh or table mutations.
@@ -124,10 +126,10 @@ plan_lines AS (
 -- formal completed_on. Do not interpret 'Done' rows as distinct completed batches.
 receipt_events AS (
   SELECT l.id AS ledger_event_id,l.product_id,l.qty_base,l.uom,
-         l.movement_date::date AS receipt_date
+         (l.movement_date AT TIME ZONE 'Asia/Kolkata')::date AS receipt_date
   FROM public.fg_bulk_stock_ledger l
-  JOIN params ON l.movement_date >= params.report_month
-             AND l.movement_date < least(params.inclusive_report_cutoff + interval '1 day',params.report_month + interval '1 month')
+  JOIN params ON (l.movement_date AT TIME ZONE 'Asia/Kolkata')::date >= params.report_month
+             AND (l.movement_date AT TIME ZONE 'Asia/Kolkata')::date < least(params.inclusive_report_cutoff + 1, (params.report_month + interval '1 month')::date)
   WHERE l.source_table='daily_work_log'
     AND l.reason_code='FG bulk storage'
     AND l.qty_base>0
@@ -142,7 +144,7 @@ transfer_lines AS (
   SELECT t.book_transfer_value,t.tally_total_amount,t.recon_status,t.valuation_status,t.exists_in_tally
   FROM public.v_fg_transfer_reconciliation t
   JOIN params ON t.transfer_date>=params.report_month
-             AND t.transfer_date<least(params.inclusive_report_cutoff + interval '1 day', params.report_month+interval '1 month')
+             AND t.transfer_date<least(params.inclusive_report_cutoff + 1, (params.report_month+interval '1 month')::date)
 )
 SELECT
   'LIVE_INDICATIVE_NOT_FROZEN'::text AS plan_status,
