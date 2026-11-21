@@ -1,3 +1,5 @@
+> **21 NOV 2026 — LATER EVIDENCE, NOT A RESOLUTION OF THIS INCIDENT:** A separate subsequent authenticated No-access session run reported V1–V7 **HTTP 200 with zero rows** for each bounded select. See [seven-view later receipt](WP12_SEVEN_VIEW_AUTHENTICATED_NO_DISCLOSURE_2026-11-21.md). Since the earlier V1 report said **one protected row visible** and the sessions' canonical identities/permission grants were not independently correlated, the results are **CONFLICTING; ROOT CAUSE AND WHETHER THE FIRST RESULT WAS AUTHORISED REMAIN UNRESOLVED**. Do not erase this historical report, infer it was a false positive, or assert universal no-disclosure from the later 7/7 run. The owner subsequently approved **conditional WP12 workflow closure**, which is a programme-status decision **NOT a security clearance of this incident**. This finding requires a distinct security triage before any unconditional assurance. No further data-bearing production probes, privilege changes or broad access relaxation authorised by this note.
+
 # WP12 V1 early-stop security observation — 21 November 2026
 
 **STATUS: SECURITY HOLD / POTENTIAL UNAUTHORISED READ — NOT CLEARED.**
