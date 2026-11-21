@@ -26,8 +26,10 @@ export function loadPhase1Inventory() {
   return fs.existsSync(file) ? inventoryFromReceipt(JSON.parse(fs.readFileSync(file, "utf8"))) : [];
 }
 
-export function verifyAppliedCopies(inventory, files, readText) {
-  const expected = new Map(inventory.map(m => [m.path, m.sha256]));
+// `extra` (default empty => behaviour unchanged): additional reviewed WP10-named migrations as Map(path -> LF sha256), e.g. the PR #477 Stage A
+// reconciliation migration, whose hash is taken from its pin in the protected-path guard. Anything not listed there is still rejected.
+export function verifyAppliedCopies(inventory, files, readText, extra = new Map()) {
+  const expected = new Map([...inventory.map(m => [m.path, m.sha256]), ...extra]);
   const wp10 = files.filter(f => /wp10/i.test(f));
   if (wp10.length !== expected.size || new Set(wp10).size !== wp10.length) return false;
   return wp10.every(f => expected.has(f) && sha256(readText(f)) === expected.get(f));

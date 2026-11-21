@@ -41,6 +41,14 @@ export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
     sha256: "abb291fe26bce9ac2618eca5325b4cb82392a262d895585e87b9746cc8f9217f",
     heads: Object.freeze(["server/wp10-g2-read-only-phase1"]),
   }),
+  // WP10 four-master Stage A state-aware reconciliation (PR #477). Stage A RLS was ALREADY applied to production (18 Nov 2026); this exact file is a
+  // fail-closed, idempotent state machine (original -> harden; already hardened -> verified no-op; anything else -> refuse) so migration history and
+  // older databases converge without replaying Stage A. Pinned to this exact path + LF-normalised SHA-256 + the PR #477 head branch and the named
+  // server lane. History registration of production is a separate owner-approved step (see WP10_STAGE_A_MIGRATION_RECONCILIATION_PACKAGE_2026-11-18.md).
+  "supabase/migrations/20261118161406_wp10_four_master_stage_a_state_reconciliation.sql": Object.freeze({
+    sha256: "c0e4cdbd4908d43f865e22e7c805464292d7d8387482003ee6674baba9fbbf2d",
+    heads: Object.freeze(["claude/blissful-mendel-ty92mw", "server/wp10-four-master-stage-a-reconciliation"]),
+  }),
   // PR #374 Add Line new-row status guard (owner-reviewed; wrapper already installed live).
   "supabase/migrations/20261112220000_pec_r2_add_line_new_row_status_guard.sql": Object.freeze({
     sha256: "f9441b67451f0d012e77c576beec347a99c491b57f0b11eeda755a5a50eeee03",
