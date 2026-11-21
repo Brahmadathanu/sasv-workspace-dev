@@ -3,13 +3,19 @@
 -- executive_mis_canonical_production_value_summary, 20 November 2026.
 -- Future changes must update THIS single reporting function and the
 -- EXECUTIVE_MIS_WORKFLOW.md ledger. Do not deploy competing preview/v1/v2 RPCs.
--- This file contains the PROPOSED bounded timeout correction; current production
--- still runs the prior definition until separately authorized migration.
--- Real authenticated View test on 2026-11-21 returned 57014 timeout; no-view
--- and anonymous negative-access tests PASS. Not yet SERVER ACCEPTED.
--- AUTHORITATIVE TIMEOUT CORRECTION (ONE PUBLIC RPC). DO NOT APPLY WITHOUT
--- AN AUTHORIZED TRANSACTION AND THE REQUIRED PRE/POST CHECKS.
--- Requires separate owner authorization, independent SQL syntax/EXPLAIN and role testing.
+-- The bounded timeout correction below is INSTALLED in production as the same
+-- single canonical function via migration
+-- executive_mis_production_value_summary_timeout_correction (21 Nov 2026).
+-- Rollback source is the original installed migration in database history;
+-- before-function MD5 0dbe2d7bb3ea9112181a6bc83a012a99.
+-- After-function MD5 909abab03c8ffdb16b1e5f2753008723.
+-- Previous authenticated View call (before correction) returned 57014 timeout.
+-- No-view and anonymous negative-access tests PASS; a POST-CORRECTION
+-- genuine MIS View positive test is still required for SERVER ACCEPTED.
+-- AUTHORITATIVE INSTALLED FUNCTION (ONE PUBLIC RPC); do not reapply casually.
+-- Future modifications require separate owner approval and parity checks.
+-- Installation completed with owner authorization; prior SQL planning and
+-- 4-second bounded read-only extraction passed. Positive browser test pending.
 -- One unversioned, additive canonical reporting function; source metadata and
 -- migration history preserve prior changes without parallel v1/v2 client APIs.
 -- This does NOT implement frozen plan or formal completed production.
@@ -209,10 +215,9 @@ REVOKE ALL ON FUNCTION public.get_mis_production_value_summary(date,date) FROM P
 REVOKE ALL ON FUNCTION public.get_mis_production_value_summary(date,date) FROM anon;
 GRANT EXECUTE ON FUNCTION public.get_mis_production_value_summary(date,date) TO authenticated;
 COMMIT;
--- Rollback after independent authorization/if never published:
--- BEGIN; REVOKE ALL ON FUNCTION public.get_mis_production_value_summary(date,date)
--- FROM PUBLIC, anon, authenticated;
--- DROP FUNCTION IF EXISTS public.get_mis_production_value_summary(date,date);
--- COMMIT;
+-- IN-PLACE ROLLBACK (if independently authorized): restore the exact prior
+-- function definition captured by pg_get_functiondef before this correction,
+-- without dropping the function. Its migration definition is retained as
+-- executive_mis_canonical_production_value_summary. Do not DROP the RPC.
 -- One callable source of truth; no alternative preview or versioned function.
 -- Do not execute without separately recorded transaction safeguards.
