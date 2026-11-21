@@ -1,0 +1,13 @@
+# WP12 V1 early-stop security observation — 21 November 2026
+
+**STATUS: SECURITY HOLD / POTENTIAL UNAUTHORISED READ — NOT CLEARED.**
+
+Owner executed the existing scoped seven-view read-only acceptance script in a browser they identified as signed in with a No-access account. The script verified an authenticated session (identity not captured), queried the first view `public.v_costing_material_manual_rate_register` with `.select('*').limit(1)`, and printed only case/status/classification; result was **V1 HTTP 200, PROTECTED ROW VISIBLE — STOP**. Loop exited before V2–V7. Business contents, JWTs, subject identifier and network headers were not supplied or recorded. This is a genuine user-reported observation, not an assistant-executed HTTP query.
+
+**Immediate instruction:** STOP all V2–V7, do not repeat the V1 query or continue production read probes. Do not change privileges, read rows in SQL, capture data contents, or publish sensitive screenshots.
+
+**Catalog-only investigation:** v_costing_material_manual_rate_register exists as a postgres-owned `security_invoker=false` view. The outer SELECT has an explicit `CURRENT_USER IN (postgres, service_role) OR app_has_permission('module:material-cost-manager','view')` predicate. The app_has_permission helper uses `auth.uid()` and app_has_permission_core consults `public.user_permissions_canonical`. These definitions alone cannot establish effective caller identity in this browser or whether a hidden module equals denied MCM permission. A possible separate MCM View grant or caller-context semantics must be resolved before attributing a defect.
+
+**Next safe diagnostic ONLY:** Under the SAME legitimately signed-in browser account, call the existing nonmutating permission check RPC `app_has_permission` for `p_target='module:material-cost-manager',p_mode='view'` and report exclusively GRANTED/DENIED/ERROR code; no identities, headers, response rows or tokens. A reported DENIED alongside V1 data requires escalation as a **confirmed authorisation failure under the tested conditions**, with source-view evaluation and mitigation separately reviewed before any production correction. GRANTED means V1 alone does not prove unauthorised disclosure; independently establish role classification, and do not assume hidden navigation is equivalent to no underlying permission.
+
+**Boundary:** No WP12 closure, do not convert V1 to PASS, 12/13 formal unchanged. Maintain v6.2.0 release as published; this WP12 security hold is not permission to roll it back. Remaining six negatives V2–V7 untested. No grants, policy, view, migration, installer or flags changed by this incident note. All further seven-view read tests paused.
