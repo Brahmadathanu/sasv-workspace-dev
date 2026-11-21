@@ -3,14 +3,17 @@
 -- executive_mis_canonical_production_value_summary, 20 November 2026.
 -- Future changes must update THIS single reporting function and the
 -- EXECUTIVE_MIS_WORKFLOW.md ledger. Do not deploy competing preview/v1/v2 RPCs.
--- This file retains exact installed function/permission SQL below.
--- Live positive authenticated acceptance is still NOT TESTED.
--- AUTHORITATIVE CANDIDATE (ONE PUBLIC REPORTING RPC). DO NOT APPLY WITHOUT
+-- This file contains the PROPOSED bounded timeout correction; current production
+-- still runs the prior definition until separately authorized migration.
+-- Real authenticated View test on 2026-11-21 returned 57014 timeout; no-view
+-- and anonymous negative-access tests PASS. Not yet SERVER ACCEPTED.
+-- AUTHORITATIVE TIMEOUT CORRECTION (ONE PUBLIC RPC). DO NOT APPLY WITHOUT
 -- AN AUTHORIZED TRANSACTION AND THE REQUIRED PRE/POST CHECKS.
 -- Requires separate owner authorization, independent SQL syntax/EXPLAIN and role testing.
 -- One unversioned, additive canonical reporting function; source metadata and
 -- migration history preserve prior changes without parallel v1/v2 client APIs.
 -- This does NOT implement frozen plan or formal completed production.
+-- Live planning value is explicitly NULL instead of querying a >6s source view.
 -- Tally total is sourced from latest <=as-of voucher-line snapshot, not the
 -- expensive reconciliation view; matching exceptions remain NOT CHECKED.
 --
@@ -19,7 +22,7 @@
 -- cannot be used here without introducing a private read model + its own RLS.
 -- On installation, owner and execute grants MUST be reviewed/verified.
 BEGIN;
-CREATE FUNCTION public.get_mis_production_value_summary(
+CREATE OR REPLACE FUNCTION public.get_mis_production_value_summary(
   p_report_month date,
   p_as_of_date date DEFAULT NULL
 )
@@ -127,16 +130,11 @@ BEGIN
     LEFT JOIN conv c ON c.product_id=p.id
     LEFT JOIN stores s ON s.product_id=p.id
   ),
-  plan AS (
-    SELECT pl.product_id,pl.final_make_qty qty,p.uom_base uom
-    FROM public.v_product_bulk_consolidated_effective pl
-    JOIN public.products p ON p.id=pl.product_id
-    WHERE pl.month_start=v_month AND pl.final_make_qty>0
-  ),
-  priced_plan AS (
-    SELECT pl.*, CASE WHEN pl.uom=r.base_uom THEN pl.qty*r.per_base END value
-    FROM plan pl LEFT JOIN rate r ON r.product_id=pl.product_id
-  ),
+  -- Live product planning view was measured >6s in read-only EXPLAIN ANALYZE
+  -- under a bounded test; invoking it makes the authenticated 8s RPC time out.
+  -- G7 does not yet have an approved frozen plan. Do NOT substitute a stale
+  -- forecast or an ungoverned override sum. Therefore publish plan as NULL.
+  -- When the governed sealed plan exists, use that immutable read model here.
   receipt AS (
     SELECT l.id,l.product_id,l.qty_base qty,l.uom
     FROM public.fg_bulk_stock_ledger l
@@ -177,11 +175,11 @@ BEGIN
   SELECT jsonb_build_object(
       'report_month',v_month,'as_of_date',v_cutoff,
       'approved_cost_run_id',v_run,'approved_cost_valuation_date',v_valuation,
-      'status','PREVIEW_NOT_A_FROZEN_BASELINE','plan_status','LIVE_INDICATIVE',
+      'status','BULK_RECEIPT_COVERED_REFERENCE','plan_status','UNAVAILABLE_PENDING_FROZEN_PLAN',
       'component_policy','RM_STORES_PM_EXCLUDED',
-      'planned_product_count',(SELECT count(*) FROM priced_plan),
-      'planned_unvalued_count',(SELECT count(*) FROM priced_plan WHERE value IS NULL),
-      'planned_reference_covered_value',(SELECT sum(value) FROM priced_plan),
+      'planned_product_count',NULL,
+      'planned_unvalued_count',NULL,
+      'planned_reference_covered_value',NULL,
       'receipt_event_count',(SELECT count(*) FROM priced_receipt),
       'receipt_unvalued_count',(SELECT count(*) FROM priced_receipt WHERE value IS NULL),
       'receipt_correction_event_count',(SELECT n FROM correction),
