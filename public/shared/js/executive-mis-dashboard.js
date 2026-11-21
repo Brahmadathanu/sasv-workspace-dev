@@ -53,6 +53,9 @@ let PRODUCTION_SUMMARY = null;
 let PRODUCTION_VALUE = { status: "loading", data: null, message: "" };
 let PRODUCTION_VALUE_MONTH = ""; // first of month, YYYY-MM-01 (IST); set on first use
 let PRODUCTION_VALUE_ASOF = ""; // optional YYYY-MM-DD cutoff, "" = server default (today IST)
+let PRODUCTION_ASOF_NOTICE = ""; // visible explanation when a chosen cutoff is cleared (never a silent reset)
+let PRODUCTION_ASOF_TIMER = null;
+let PRODUCTION_VALUE_REQUESTED = ""; // "month|asof" last sent, to avoid duplicate identical requests
 
 // ---------------------------------------------------------------------------
 // Async request-state guards (MIS-C1).
@@ -1917,6 +1920,7 @@ async function loadProductionValue() {
 
   const args = { p_report_month: PRODUCTION_VALUE_MONTH };
   if (PRODUCTION_VALUE_ASOF) args.p_as_of_date = PRODUCTION_VALUE_ASOF;
+  PRODUCTION_VALUE_REQUESTED = `${PRODUCTION_VALUE_MONTH}|${PRODUCTION_VALUE_ASOF}`;
   const { data, error } = await settle(
     supabase.rpc("get_mis_production_value_summary", args),
   );
@@ -2121,26 +2125,87 @@ function renderProductionValueSection() {
               .map((o) => `<option value="${escapeHtml(o.value)}"${o.value === PRODUCTION_VALUE_MONTH ? " selected" : ""}>${escapeHtml(o.label)}</option>`)
               .join("")}</select></label>
           <label class="pv-field"><span>As of</span>
-            <input id="pvAsOf" class="pv-input" type="date" min="${escapeHtml(bounds.min)}" max="${escapeHtml(bounds.max)}" value="${escapeHtml(PRODUCTION_VALUE_ASOF)}" /></label>
+            <input id="pvAsOf" class="pv-input" type="date" min="${escapeHtml(bounds.min)}" max="${escapeHtml(bounds.max)}" value="${escapeHtml(PRODUCTION_VALUE_ASOF)}" aria-describedby="pvAsOfStatus" /></label>
         </div>
       </div>
+      <div class="pv-asof-status" id="pvAsOfStatus" aria-live="polite">${renderAsOfStatusHtml()}</div>
       <div id="productionValueBody" class="pv-body"></div>
     </section>`;
 }
 
-function onProductionValueControlChange() {
-  const month = $("pvMonth")?.value;
-  if (month) PRODUCTION_VALUE_MONTH = month;
-  let asof = $("pvAsOf")?.value || "";
+// iOS Safari shows nothing for an empty date input and can lose the wheel selection if script rewrites the
+// value or min/max while the picker is open. So the chosen cutoff is also shown as plain text, the input is
+// only rewritten when it must be cleared, and every clear is explained on screen.
+function renderAsOfStatusHtml() {
   const b = productionValueAsOfBounds();
-  if (asof && (asof < b.min || asof > b.max)) asof = "";
-  PRODUCTION_VALUE_ASOF = asof;
+  const range = `${formatDateIN(b.min)} to ${formatDateIN(b.max)}`;
+  const chosen = PRODUCTION_VALUE_ASOF
+    ? `Cutoff: <b>${escapeHtml(formatDateIN(PRODUCTION_VALUE_ASOF))}</b> <button type="button" class="mis-retry-btn pv-asof-clear" data-pv-asof-clear>Use default</button>`
+    : `Cutoff: <b>default</b> (latest allowed, ${escapeHtml(formatDateIN(b.max))})`;
+  return `${chosen}<span class="pv-asof-range"> &middot; allowed ${escapeHtml(range)}</span>${
+    PRODUCTION_ASOF_NOTICE ? `<div class="pv-asof-notice" role="status">${escapeHtml(PRODUCTION_ASOF_NOTICE)}</div>` : ""
+  }`;
+}
+
+function refreshAsOfStatus() {
+  const el = $("pvAsOfStatus");
+  if (el) el.innerHTML = renderAsOfStatusHtml();
+}
+
+function applyProductionValueSelection({ monthChanged = false } = {}) {
   const input = $("pvAsOf");
-  if (input) {
-    input.min = b.min;
-    input.max = b.max;
-    input.value = asof;
+  const raw = input?.value || "";
+  const b = productionValueAsOfBounds();
+  let asof = PRODUCTION_VALUE_ASOF;
+  // A month change keeps the stored choice (then range-checks it); a change on the date control itself
+  // takes its value, where empty means the user cleared it. Anything not an ISO date is ignored.
+  if (!monthChanged) asof = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : "";
+  // An empty read right after we cleared the control ourselves (input then change events) is not a new
+  // user action: keep the explanation on screen.
+  const echo = !monthChanged && raw === "" && PRODUCTION_VALUE_ASOF === "";
+  if (!echo) PRODUCTION_ASOF_NOTICE = "";
+  if (asof && (asof < b.min || asof > b.max)) {
+    PRODUCTION_ASOF_NOTICE = monthChanged
+      ? `Cutoff ${formatDateIN(asof)} is outside the selected month, so the default cutoff is used.`
+      : `Cutoff ${formatDateIN(asof)} is outside ${formatDateIN(b.min)} to ${formatDateIN(b.max)}, so the default cutoff is used.`;
+    asof = "";
   }
+  PRODUCTION_VALUE_ASOF = asof;
+  if (input) {
+    if (monthChanged) {
+      input.min = b.min;
+      input.max = b.max;
+    }
+    if (input.value !== asof) input.value = asof; // rewritten only when it differs
+  }
+  refreshAsOfStatus();
+}
+
+function onProductionValueControlChange(ev) {
+  const target = ev?.target;
+  const monthChanged = target?.id === "pvMonth";
+  if (monthChanged) {
+    const month = $("pvMonth")?.value;
+    if (month) PRODUCTION_VALUE_MONTH = month;
+  }
+  applyProductionValueSelection({ monthChanged });
+  // "input" fires as the iOS wheel moves; wait for it to settle. "change" (picker closed) goes at once.
+  clearTimeout(PRODUCTION_ASOF_TIMER);
+  const go = () => {
+    if (`${PRODUCTION_VALUE_MONTH}|${PRODUCTION_VALUE_ASOF}` === PRODUCTION_VALUE_REQUESTED && !monthChanged) return;
+    loadProductionValue();
+  };
+  if (ev?.type === "input") PRODUCTION_ASOF_TIMER = setTimeout(go, 450);
+  else go();
+}
+
+function clearProductionAsOf() {
+  clearTimeout(PRODUCTION_ASOF_TIMER);
+  PRODUCTION_VALUE_ASOF = "";
+  PRODUCTION_ASOF_NOTICE = "";
+  const input = $("pvAsOf");
+  if (input) input.value = "";
+  refreshAsOfStatus();
   loadProductionValue();
 }
 
@@ -2379,9 +2444,16 @@ function wireEvents() {
     selectTab(detailTabSelect.value);
   });
   tabPanel?.addEventListener("change", (ev) => {
-    if (ev.target.id === "pvMonth" || ev.target.id === "pvAsOf") onProductionValueControlChange();
+    if (ev.target.id === "pvMonth" || ev.target.id === "pvAsOf") onProductionValueControlChange(ev);
+  });
+  tabPanel?.addEventListener("input", (ev) => {
+    if (ev.target.id === "pvAsOf") onProductionValueControlChange(ev);
   });
   tabPanel?.addEventListener("click", (ev) => {
+    if (ev.target.closest("[data-pv-asof-clear]")) {
+      clearProductionAsOf();
+      return;
+    }
     const retryBtn = ev.target.closest("[data-mis-retry]");
     if (retryBtn) {
       const retryKey = retryBtn.getAttribute("data-mis-retry");

@@ -218,7 +218,7 @@ const pvText = (page) => page.textContent("#productionValueBody");
 const pvCards = (page) => page.$$eval(".pv-kpi", (c) => c.map((x) => ({ title: x.querySelector(".pv-kpi-title").textContent, value: x.querySelector(".pv-kpi-value").textContent, badge: x.querySelector(".pv-kpi-badge")?.textContent || "", caption: x.querySelector(".pv-kpi-caption")?.textContent || "", book: x.classList.contains("book") })));
 const openProduction = async (opts) => {
   const r = await open(opts);
-  await r.page.click('[data-tab="production"]');
+  await tabClick(r.page, "production");
   await r.page.waitForSelector(".production-summary-grid");
   return r;
 };
@@ -610,6 +610,133 @@ test("counts: missing/null server counts render a dash, never an invented zero",
     await tabClick(page, "production");
     await page.waitForSelector(".production-summary-card");
     assert.deepEqual(await page.$$eval(".production-summary-card .production-summary-value", (t) => t.map((x) => x.textContent)), ["5", "-", "0", "-", "-", "9"]);
+  } finally { await page.context().close(); }
+});
+
+// ---- As-of cutoff (iOS Safari date-input correction). Chromium + 390px viewport emulation; real WebKit was not
+// available in the test environment, so iOS-specific rendering is simulated (event sequence, value persistence).
+const idle = (page) => page.waitForFunction(() => document.querySelector("#productionValueBody")?.getAttribute("aria-busy") === "false");
+const valueArgs = (page) => calls(page, "get_mis_production_value_summary").then((c) => c.map((x) => x.args));
+async function openAsOf(width = 390) {
+  const r = await openProduction({ width, height: 800 });
+  await r.page.waitForSelector(".pv-kpi");
+  const opts = await r.page.$$eval("#pvMonth option", (o) => o.map((x) => x.value));
+  return { ...r, opts, month: opts[1], day: opts[1].slice(0, 8) + "15" };
+}
+const pickDate = async (page, value) => {
+  await page.evaluate((v) => { const i = document.querySelector("#pvAsOf"); i.value = v; i.dispatchEvent(new Event("input", { bubbles: true })); i.dispatchEvent(new Event("change", { bubbles: true })); }, value);
+};
+
+test("as-of: a chosen day stays visible in the field and in text, and is sent as p_as_of_date; counts untouched", { skip }, async () => {
+  const { page, opts, month, day } = await openAsOf();
+  try {
+    await page.selectOption("#pvMonth", month); await idle(page);
+    await pickDate(page, day); await idle(page);
+    assert.equal(await page.inputValue("#pvAsOf"), day, "field keeps the chosen date");
+    assert.match(await page.textContent("#pvAsOfStatus"), /Cutoff:\s*15 /);
+    assert.match(await page.textContent("#pvAsOfStatus"), /allowed 01 .* to /);
+    assert.ok(await page.$("#pvAsOfStatus [data-pv-asof-clear]"), "clear/default control offered");
+    const args = await valueArgs(page);
+    assert.deepEqual(args.at(-1), { p_report_month: month, p_as_of_date: day });
+    assert.match(await pvText(page), /Events to 15 /);
+    assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 1, "live counts not re-fetched");
+    assert.deepEqual(await page.$$eval(".production-summary-card .production-summary-value", (t) => t.map((x) => x.textContent)), ["412", "100", "59", "7", "8", "2,581"]);
+    // survives an unrelated re-render of the tab (Refresh) with the same field value
+    await page.click("#refreshBtn");
+    await page.waitForSelector("#pvAsOf"); await idle(page);
+    assert.equal(await page.inputValue("#pvAsOf"), day);
+    assert.equal((await valueArgs(page)).at(-1).p_as_of_date, day);
+  } finally { await page.context().close(); }
+});
+
+test("as-of: iOS-style wheel (several input events then change) yields one request with the final date and no value rewrite", { skip }, async () => {
+  const { page, month } = await openAsOf();
+  try {
+    await page.selectOption("#pvMonth", month); await idle(page);
+    const before = (await valueArgs(page)).length;
+    const [y, m] = month.split("-");
+    await page.evaluate(() => { const i = document.querySelector("#pvAsOf"); window.__writes = 0; const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value"); Object.defineProperty(i, "value", { get() { return d.get.call(this); }, set(v) { window.__writes++; d.set.call(this, v); } }); });
+    for (const d of ["05", "09", "12", "15"]) await page.evaluate(([v]) => { const i = document.querySelector("#pvAsOf"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(i, v); i.dispatchEvent(new Event("input", { bubbles: true })); }, [`${y}-${m}-${d}`]);
+    await page.evaluate(() => document.querySelector("#pvAsOf").dispatchEvent(new Event("change", { bubbles: true })));
+    await idle(page); await page.waitForTimeout(700); // longer than the 450 ms input settle: no extra request
+    const args = await valueArgs(page);
+    assert.equal(args.length, before + 1, JSON.stringify(args.slice(before)));
+    assert.equal(args.at(-1).p_as_of_date, `${y}-${m}-15`);
+    assert.equal(await page.inputValue("#pvAsOf"), `${y}-${m}-15`);
+    assert.equal(await page.evaluate(() => window.__writes), 0, "script never rewrote the control while the user was picking");
+    // input-only (no change event delivered): settles and requests once
+    await page.evaluate(([v]) => { const i = document.querySelector("#pvAsOf"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(i, v); i.dispatchEvent(new Event("input", { bubbles: true })); }, [`${y}-${m}-20`]);
+    await page.waitForFunction((n) => window.__mis.calls.filter((c) => c.name === "get_mis_production_value_summary").length === n + 1, args.length);
+    assert.equal((await valueArgs(page)).at(-1).p_as_of_date, `${y}-${m}-20`);
+    assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 1);
+  } finally { await page.context().close(); }
+});
+
+test("as-of: changing month after a chosen cutoff clears it visibly, not silently; counts untouched", { skip }, async () => {
+  const { page, opts, month, day } = await openAsOf();
+  try {
+    await page.selectOption("#pvMonth", month); await idle(page);
+    await pickDate(page, day); await idle(page);
+    await page.selectOption("#pvMonth", opts[2]); await idle(page);
+    assert.equal(await page.inputValue("#pvAsOf"), "");
+    const st = await page.textContent("#pvAsOfStatus");
+    assert.match(st, /is outside the selected month, so the default cutoff is used/);
+    assert.match(st, /Cutoff:\s*default/);
+    assert.equal(await page.getAttribute("#pvAsOf", "min"), opts[2]);
+    const last = (await valueArgs(page)).at(-1);
+    assert.deepEqual(last, { p_report_month: opts[2] });
+    assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 1);
+    // the notice is replaced by the next valid choice
+    await pickDate(page, opts[2].slice(0, 8) + "10"); await idle(page);
+    assert.doesNotMatch(await page.textContent("#pvAsOfStatus"), /outside/);
+  } finally { await page.context().close(); }
+});
+
+test("as-of: invalid, out-of-range and cleared values are explained and fall back to the default cutoff", { skip }, async () => {
+  const { page, opts, month, day } = await openAsOf();
+  try {
+    await page.selectOption("#pvMonth", month); await idle(page);
+    const [y, m] = month.split("-");
+    // out of range (previous month's last day)
+    await pickDate(page, opts[2].slice(0, 8) + "28"); await idle(page);
+    assert.match(await page.textContent("#pvAsOfStatus"), /outside .* so the default cutoff is used/);
+    assert.equal(await page.inputValue("#pvAsOf"), "");
+    assert.equal("p_as_of_date" in (await valueArgs(page)).at(-1), false);
+    // garbage text is ignored
+    await pickDate(page, "not-a-date"); await idle(page);
+    assert.equal("p_as_of_date" in (await valueArgs(page)).at(-1), false);
+    assert.match(await page.textContent("#pvAsOfStatus"), /Cutoff:\s*default/);
+    // valid, then user clears the native field -> default
+    await pickDate(page, day); await idle(page);
+    assert.equal((await valueArgs(page)).at(-1).p_as_of_date, day);
+    await pickDate(page, ""); await idle(page);
+    assert.equal("p_as_of_date" in (await valueArgs(page)).at(-1), false);
+    assert.match(await page.textContent("#pvAsOfStatus"), /Cutoff:\s*default/);
+    // "Use default" button
+    await pickDate(page, day); await idle(page);
+    await page.click("#pvAsOfStatus [data-pv-asof-clear]"); await idle(page);
+    assert.equal(await page.inputValue("#pvAsOf"), "");
+    assert.equal("p_as_of_date" in (await valueArgs(page)).at(-1), false);
+    assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 1);
+  } finally { await page.context().close(); }
+});
+
+test("as-of: 390px presentation keeps the field, its range text and the selected date inside the viewport", { skip }, async () => {
+  const { page, month, day } = await openAsOf(390);
+  try {
+    await page.selectOption("#pvMonth", month); await idle(page);
+    await pickDate(page, day); await idle(page);
+    for (const sel of ["#pvAsOf", "#pvMonth", "#pvAsOfStatus"]) {
+      const r = await page.$eval(sel, (e) => { const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, w: b.width, h: b.height }; });
+      assert.ok(r.l >= 0 && r.r <= 390.5 && r.w > 100 && r.h >= 20, `${sel} ${JSON.stringify(r)}`);
+    }
+    assert.ok((await page.$eval("#pvAsOf", (e) => e.getBoundingClientRect().height)) >= 34, "touch height");
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), "no page overflow");
+    assert.notEqual(await page.$eval("#pvAsOf", (e) => getComputedStyle(e).webkitTextFillColor), "rgba(0, 0, 0, 0)", "selected text is not transparent");
+    if (process.env.MIS_SCREENSHOT_DIR) {
+      await page.locator("#productionValueSection").scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `${process.env.MIS_SCREENSHOT_DIR}/asof-selected-390.png` });
+    }
   } finally { await page.context().close(); }
 });
 
