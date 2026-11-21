@@ -74,3 +74,20 @@ This finding strengthens the KEEP-first approach: Scheme Master and selected-sch
 - Run history again confirms July 59 (56 SUCCESS, 3 FAILED); Aug 5 (4 SUCCESS, 1 CANCELLED); Sep 38 (28 SUCCESS, 10 FAILED); Oct 18 (16 SUCCESS, 2 FAILED); Nov 4 (3 SUCCESS, 1 FAILED), total 124. SUCCESS is not approved.
 - Bounded indexed query of the scheme snapshot for three selected run IDs counted **September approved 122: 3,804**, **October approved 143: 3,762**, and **November draft 152: 4,403** all-scheme rows (11,969 total). The selected-scheme design proposal reports 634/627/630 distinct selected SKU-scheme pairs respectively, but these design counts must be independently parity-verified before replacing refresh logic.
 - **Local code housekeeping is a separate user-directed reconciliation.** Owner's dev CMD is on `costing/approval-screen-preview` commit `80e6fd39` (2 commits ahead, 614 behind `origin/main` before latest merge) with one modified migration and multiple untracked temporary files/worktrees. The owner prefers one authoritative GitHub main and no accumulating local debris. No direct remote access to the Windows filesystem exists in this assistant session; only locally run commands can verify unique changes and safely remove old files. Never run `git clean -fdx` or delete `.worktrees` indiscriminately, which may house active linked worktrees and unmerged development.
+
+## S1 — proposed narrow monthly rollover decision (NOT applied)
+
+**Owner's intended rule:** current month plus three previous months is the *maximum detailed-approved retention window*; old-month drafts should be cleared promptly after closing/month rollover, but only after documented protection checks. Example **November 2026**: detailed approval window Aug–Nov; July+ older than window. August has **no approved run**, so its successful calculations are not to be mistaken for an approval merely because they are recent.
+
+| Historical category | Proposed handling / gate |
+| --- | --- |
+| September approved locked 122; October approved 143 | **KEEP untouched**, including all required selected-scheme, traceability, priced output, approval/fingerprint evidence while within window. |
+| Older within-window approvals (e.g. earlier October approved runs 128/136/140, superseded by 143) | **HOLD** for owner policy: either preserve full detail while window active or compact them to immutable approval/fingerprint summaries after audited equivalence. Do not mark them drafts. |
+| October latest unapproved draft 148; September nonapproved runs | **CANDIDATE** after a grace period and reference checks; never assume running/failed/accepted evidence can be deleted without exception. |
+| August SUCCESS without approval (and July SUCCESS without approval) | **CANDIDATE** only after documenting any historical development/cost audit, signed financial reporting or linked evidence uses. Their current `OPEN/DRAFT` statuses preclude calling them approved. |
+| July+ detail older than three previous months | **ARCHIVE/COMPACT candidate**, *not* immediate delete; retain immutable summaries and required legal/financial evidence and protect any historical external references. |
+| Failed/cancelled/stage history | Retain compact incident/refresh execution ledger; delete bulky per-run working detail only after causal and recovery dependencies reviewed. |
+
+**Safety blockers before any S2 pilot:** enumerate all 64 run FK references and the three scheme viability FK links with retention semantics, check referenced run designations/fingerprints, archive manifest+checksum+restore rehearsal, prove selected-scheme IK/OK outputs and printed cost sheets unchanged, show per-run exact byte/row estimates, document lock/WAL impact and whether VACUUM can reuse or reclaim capacity. An automated first-of-month job is prohibited before this pilot demonstrates idempotent recovery and owner accepts the exact policy.
+
+**Security sidecar:** issue [#494](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/494) tracks unresolved conflicting V1 No-access views; unrelated to destructive storage approval and not a cleared finding.
