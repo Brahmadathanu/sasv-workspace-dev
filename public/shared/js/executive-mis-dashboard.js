@@ -9,6 +9,7 @@ let PERM_CAN_VIEW = false;
 let DATA_REFRESH_TIME = null;
 let ACTIVE_INFO_BUTTON = null;
 let ACTIVE_POPOVER = null;
+let POPOVER_OPENED_BY_HOVER = false;
 let ACTIVE_TAB = "finance";
 let FINANCE_FILTER = "payables";
 let FINANCE_SEARCH = "";
@@ -18,6 +19,8 @@ let FINANCE_TOTAL_ROWS = 0;
 let FINANCE_ROWS = [];
 let FINANCE_SUMMARY = null;
 let FINANCE_LAST_FOCUS = null;
+let FINANCE_IS_LOADING = false;
+let FINANCE_ERROR = "";
 let SALES_SEARCH = "";
 let SALES_CURRENT_PAGE = 1;
 let SALES_PAGE_SIZE = 25;
@@ -25,6 +28,7 @@ let SALES_TOTAL_ROWS = 0;
 let SALES_ROWS = [];
 let SALES_SUMMARY = null;
 let SALES_IS_LOADING = false;
+let SALES_ERROR = "";
 let INVENTORY_FILTER = "all";
 let INVENTORY_SEARCH = "";
 let INVENTORY_CURRENT_PAGE = 1;
@@ -33,6 +37,7 @@ let INVENTORY_TOTAL_ROWS = 0;
 let INVENTORY_ROWS = [];
 let INVENTORY_SUMMARY = null;
 let INVENTORY_IS_LOADING = false;
+let INVENTORY_ERROR = "";
 let FG_FILTER = "all";
 let FG_SEARCH = "";
 let FG_CURRENT_PAGE = 1;
@@ -41,7 +46,88 @@ let FG_TOTAL_ROWS = 0;
 let FG_ROWS = [];
 let FG_SUMMARY = null;
 let FG_IS_LOADING = false;
+let FG_ERROR = "";
 let PRODUCTION_SUMMARY = null;
+// Canonical G7 production value summary (server computed; the browser never derives a rupee figure).
+// status: loading | ok | error | denied | expired | invalid
+let PRODUCTION_VALUE = { status: "loading", data: null, message: "" };
+let PRODUCTION_VALUE_MONTH = ""; // first of month, YYYY-MM-01 (IST); set on first use
+let PRODUCTION_VALUE_ASOF = ""; // optional YYYY-MM-DD cutoff, "" = server default (today IST)
+let PRODUCTION_ASOF_NOTICE = ""; // visible explanation when a chosen cutoff is cleared (never a silent reset)
+let PRODUCTION_VALUE_REQUESTED = ""; // "month|asof" last sent, to avoid duplicate identical requests
+
+// ---------------------------------------------------------------------------
+// Async request-state guards (MIS-C1).
+// Every server query takes a token from beginRequest(key). Only the holder of
+// the latest token for that key may touch state, DOM or the loading mask; an
+// older completion is dropped. invalidateTabRequests() (tab switch / refresh)
+// retires every in-flight tab query so none can repaint a different panel.
+// ---------------------------------------------------------------------------
+const REQUEST_SEQ = Object.create(null);
+const TAB_REQUEST_KEYS = [
+  "finance:summary",
+  "finance:page",
+  "finance:modal",
+  "sales:summary",
+  "sales:page",
+  "inventory:summary",
+  "inventory:page",
+  "fg:summary",
+  "fg:page",
+  "production",
+  "production:value",
+];
+let TAB_LOAD_COUNT = 0;
+let ACTIVE_TAB_FAILED = false;
+
+function beginRequest(key) {
+  REQUEST_SEQ[key] = (REQUEST_SEQ[key] || 0) + 1;
+  return REQUEST_SEQ[key];
+}
+
+function isLatestRequest(key, token) {
+  return REQUEST_SEQ[key] === token;
+}
+
+function invalidateTabRequests() {
+  TAB_REQUEST_KEYS.forEach((key) => beginRequest(key));
+}
+
+// A rejected/thrown request must still settle into the error state rather
+// than leaving the loading mask up forever.
+async function settle(promise) {
+  try {
+    return await promise;
+  } catch (e) {
+    return { data: null, error: e instanceof Error ? e : new Error(String(e)) };
+  }
+}
+
+function errorMessage(error) {
+  return (error && error.message) || "See console for details.";
+}
+
+// Re-render a toolbar after a page load, except while the user is typing in
+// its search box: rebuilding it would steal focus and overwrite characters
+// typed after the request was sent.
+function renderToolbarUnlessTyping(searchInputId, renderFn) {
+  if (document.activeElement?.id === searchInputId) return;
+  renderFn();
+}
+
+function renderTableState(prefix, { loading, error, loadingText, emptyText, errorText, retryKey }) {
+  if (loading) {
+    return `<div class="${prefix}-status" role="status">${escapeHtml(loadingText)}</div>`;
+  }
+  if (error) {
+    return `<div class="${prefix}-status error" role="alert">${escapeHtml(errorText)} ${escapeHtml(error)}${
+      retryKey
+        ? ` <button type="button" class="mis-retry-btn" data-mis-retry="${escapeHtml(retryKey)}">Retry</button>`
+        : ""
+    }</div>`;
+  }
+  return `<div class="${prefix}-empty">${escapeHtml(emptyText)}</div>`;
+}
 
 const $ = (id) => document.getElementById(id);
 const statusArea = $("statusArea");
@@ -163,8 +249,11 @@ function relativeTimeLabel(value) {
   return `${Math.floor(elapsedHr / 24)}d ago`;
 }
 
+// Returns "granted" | "denied" | "error". Only the server-supplied can_view
+// flag grants access; a failed lookup never opens the module.
 async function loadPermissions(sessionUserId) {
   PERM_CAN_VIEW = false;
+  let outcome = "error";
   try {
     const { data: perms, error: permsErr } = await supabase.rpc(
       "get_user_permissions",
@@ -173,6 +262,7 @@ async function loadPermissions(sessionUserId) {
     if (!permsErr && Array.isArray(perms)) {
       const p = perms.find((r) => r && r.target === `module:${MODULE_ID}`);
       if (p) PERM_CAN_VIEW = !!p.can_view;
+      outcome = PERM_CAN_VIEW ? "granted" : "denied";
     } else {
       console.warn(
         "[MIS] Permission RPC failed",
@@ -182,6 +272,7 @@ async function loadPermissions(sessionUserId) {
   } catch (e) {
     console.warn("[MIS] Permission RPC failed", e);
   }
+  return outcome;
 }
 
 function setPlanningNotice(row) {
@@ -196,6 +287,7 @@ function setPlanningNotice(row) {
 }
 
 async function loadExecutiveSummary() {
+  const tabLoadMarker = TAB_LOAD_COUNT;
   try {
     if (refreshBtn) refreshBtn.disabled = true;
     if (kpiGrid) kpiGrid.innerHTML = "";
@@ -235,11 +327,9 @@ async function loadExecutiveSummary() {
       : null;
     updateFreshnessIndicator();
     clearStatus();
-    if (ACTIVE_TAB === "finance") await loadFinanceTab();
-    if (ACTIVE_TAB === "sales") await loadSalesTab();
-    if (ACTIVE_TAB === "inventory") await loadInventoryTab();
-    if (ACTIVE_TAB === "finished-goods") await loadFinishedGoodsTab();
-    if (ACTIVE_TAB === "production") await loadProductionTab();
+    // If the user switched tab while the summary was loading, that tab has
+    // already fetched its own data; reloading it here would be a duplicate.
+    if (TAB_LOAD_COUNT === tabLoadMarker) await loadActiveTab();
   } finally {
     if (refreshBtn) refreshBtn.disabled = false;
   }
@@ -333,9 +423,9 @@ function renderKpiCards(row) {
     {
       title: "Transferred to Finished Goods Value",
       value: formatCurrencyINR(row.transferred_to_finished_goods_value),
-      note: "Value of production transferred to finished goods in the current reporting period.",
+      note: "Executive-summary snapshot of production value moved into finished goods. A separate source from the Production tab's Tally book figure; the two are not expected to match.",
       source: productionDate,
-      detail: "Production value moved into finished goods.",
+      detail: "Source: executive summary (materialized view). Compare with the Production tab's Tally book value only as a different basis.",
     },
   ];
 
@@ -427,6 +517,7 @@ function closeKpiPopover() {
   }
   ACTIVE_INFO_BUTTON = null;
   ACTIVE_POPOVER = null;
+  POPOVER_OPENED_BY_HOVER = false;
 }
 
 function positionKpiPopover(button, popover) {
@@ -459,6 +550,12 @@ function openKpiPopover(button, toggle = true) {
   }
 
   if (ACTIVE_INFO_BUTTON === button && toggle) {
+    // A click right after a hover-open pins the popover instead of
+    // immediately closing the one the pointer just opened.
+    if (POPOVER_OPENED_BY_HOVER) {
+      POPOVER_OPENED_BY_HOVER = false;
+      return;
+    }
     closeKpiPopover();
     return;
   }
@@ -490,6 +587,7 @@ function openKpiPopover(button, toggle = true) {
   button.setAttribute("aria-expanded", "true");
   ACTIVE_INFO_BUTTON = button;
   ACTIVE_POPOVER = popover;
+  POPOVER_OPENED_BY_HOVER = !toggle;
   positionKpiPopover(button, popover);
 }
 
@@ -524,27 +622,38 @@ function renderPlaceholderTab() {
   tabPanel.innerHTML = `<div class="tab-placeholder">This section will be added in the next phase.</div>`;
 }
 
-function renderActiveTab() {
-  renderDetailTabs();
+// Single entry point for (re)loading the active tab. Retires every in-flight
+// tab query first so a late response can never repaint the wrong panel.
+function loadActiveTab() {
+  TAB_LOAD_COUNT += 1;
+  ACTIVE_TAB_FAILED = false;
+  invalidateTabRequests();
+  cancelPendingSearches();
   tabPanel?.classList.toggle("production-panel", ACTIVE_TAB === "production");
-  if (ACTIVE_TAB === "finance") {
-    loadFinanceTab();
-  } else if (ACTIVE_TAB === "sales") {
-    loadSalesTab();
-  } else if (ACTIVE_TAB === "inventory") {
-    loadInventoryTab();
-  } else if (ACTIVE_TAB === "finished-goods") {
-    loadFinishedGoodsTab();
-  } else if (ACTIVE_TAB === "production") {
-    loadProductionTab();
-  } else {
-    renderPlaceholderTab();
-  }
+  if (ACTIVE_TAB === "finance") return loadFinanceTab();
+  if (ACTIVE_TAB === "sales") return loadSalesTab();
+  if (ACTIVE_TAB === "inventory") return loadInventoryTab();
+  if (ACTIVE_TAB === "finished-goods") return loadFinishedGoodsTab();
+  if (ACTIVE_TAB === "production") return loadProductionTab();
+  renderPlaceholderTab();
+  return Promise.resolve();
 }
 
-function setFinanceStatus(message, type = "info") {
-  if (!tabPanel) return;
-  tabPanel.innerHTML = `<div class="finance-status ${escapeHtml(type)}">${escapeHtml(message)}</div>`;
+function renderActiveTab() {
+  renderDetailTabs();
+  return loadActiveTab();
+}
+
+// Choosing the tab that is already showing is a no-op (no duplicate request)
+// unless its last load failed, in which case it acts as a retry.
+function selectTab(tabId) {
+  const next = tabId || "finance";
+  if (next === ACTIVE_TAB && !ACTIVE_TAB_FAILED) {
+    if (detailTabSelect) detailTabSelect.value = ACTIVE_TAB;
+    return;
+  }
+  ACTIVE_TAB = next;
+  renderActiveTab();
 }
 
 function setTableLoading(
@@ -561,6 +670,7 @@ function setTableLoading(
     if (!mask) {
       mask = document.createElement("div");
       mask.className = "table-loading-mask";
+      mask.setAttribute("role", "status");
       shell.appendChild(mask);
     }
 
@@ -571,22 +681,35 @@ function setTableLoading(
       </div>
     `;
     mask.hidden = false;
-  } else if (mask) {
-    mask.hidden = true;
+    shell.setAttribute("aria-busy", "true");
+  } else {
+    if (mask) mask.hidden = true;
+    shell.removeAttribute("aria-busy");
   }
 }
 
 async function loadFinanceTab() {
   if (!tabPanel) return;
-  setFinanceStatus("Loading finance parties...");
   FINANCE_ROWS = [];
   FINANCE_TOTAL_ROWS = 0;
+  FINANCE_IS_LOADING = true;
+  FINANCE_ERROR = "";
   renderFinanceTab();
 
-  const summaryResult = await supabase
-    .from("v_mis_finance_tab_summary")
-    .select("finance_scope_note")
-    .single();
+  // Summary and first page are independent; run them together so neither
+  // waits on the other (same two queries as before, no extras).
+  await Promise.all([loadFinanceSummary(), loadFinancePartyPage()]);
+}
+
+async function loadFinanceSummary() {
+  const token = beginRequest("finance:summary");
+  const summaryResult = await settle(
+    supabase
+      .from("v_mis_finance_tab_summary")
+      .select("finance_scope_note")
+      .single(),
+  );
+  if (!isLatestRequest("finance:summary", token)) return;
 
   if (summaryResult.error) {
     console.error("[MIS] Finance summary load failed", summaryResult.error);
@@ -594,8 +717,6 @@ async function loadFinanceTab() {
     FINANCE_SUMMARY = summaryResult.data || null;
     renderFinanceScopeNote();
   }
-
-  await loadFinancePartyPage();
 }
 
 function renderFinanceTab() {
@@ -687,29 +808,35 @@ function renderFinanceToolbar() {
 }
 
 async function loadFinancePartyPage() {
-  const wrap = $("financePartyTableWrap");
-  if (wrap && !FINANCE_ROWS.length) {
-    wrap.innerHTML = `<div class="finance-status">Loading parties...</div>`;
-  }
+  const token = beginRequest("finance:page");
+  FINANCE_IS_LOADING = true;
+  FINANCE_ERROR = "";
+  if (!FINANCE_ROWS.length) renderFinancePartyTable();
 
   setTableLoading(".finance-table-shell", true, "Loading finance parties...");
 
-  const { data, error } = await supabase.rpc("get_mis_finance_party_page", {
-    p_group_filter: FINANCE_FILTER,
-    p_search: FINANCE_SEARCH,
-    p_limit: FINANCE_PAGE_SIZE,
-    p_offset: (FINANCE_CURRENT_PAGE - 1) * FINANCE_PAGE_SIZE,
-  });
+  const { data, error } = await settle(
+    supabase.rpc("get_mis_finance_party_page", {
+      p_group_filter: FINANCE_FILTER,
+      p_search: FINANCE_SEARCH,
+      p_limit: FINANCE_PAGE_SIZE,
+      p_offset: (FINANCE_CURRENT_PAGE - 1) * FINANCE_PAGE_SIZE,
+    }),
+  );
+
+  // A newer query owns the state and the loading mask; drop this response.
+  if (!isLatestRequest("finance:page", token)) return;
 
   setTableLoading(".finance-table-shell", false);
+  FINANCE_IS_LOADING = false;
 
   if (error) {
     console.error("[MIS] Finance party page load failed", error);
     FINANCE_ROWS = [];
     FINANCE_TOTAL_ROWS = 0;
-    if (wrap) {
-      wrap.innerHTML = `<div class="finance-status error">Failed to load finance parties. ${escapeHtml(error.message || "See console for details.")}</div>`;
-    }
+    FINANCE_ERROR = errorMessage(error);
+    ACTIVE_TAB_FAILED = true;
+    renderFinancePartyTable();
     renderFinancePagination();
     return;
   }
@@ -724,7 +851,7 @@ async function loadFinancePartyPage() {
     FINANCE_TOTAL_ROWS =
       Number(data?.total_rows ?? data?.total_count ?? FINANCE_ROWS.length) || 0;
   }
-  renderFinanceToolbar();
+  renderToolbarUnlessTyping("financeSearch", renderFinanceToolbar);
   renderFinancePartyTable();
   renderFinancePagination();
 }
@@ -735,7 +862,14 @@ function renderFinancePartyTable() {
   const rows = FINANCE_ROWS;
 
   if (!rows.length) {
-    wrap.innerHTML = `<div class="finance-empty">No parties found for this scope.</div>`;
+    wrap.innerHTML = renderTableState("finance", {
+      loading: FINANCE_IS_LOADING,
+      error: FINANCE_ERROR,
+      loadingText: "Loading parties...",
+      emptyText: "No parties found for this scope.",
+      errorText: "Failed to load finance parties.",
+      retryKey: "finance",
+    });
     return;
   }
 
@@ -754,7 +888,7 @@ function renderFinancePartyTable() {
         ${rows
           .map(
             (row, index) => `
-              <tr data-party-index="${index}">
+              <tr data-party-index="${index}" tabindex="0" aria-haspopup="dialog" aria-label="View outstanding bills for ${escapeHtml(row.party_name || "party")}">
                 <td>${escapeHtml(row.party_name || "-")}</td>
                 <td>${escapeHtml(row.mis_group_name || "-")}</td>
                 <td class="num">${escapeHtml(formatIntegerIN(row.bill_count))}</td>
@@ -769,9 +903,16 @@ function renderFinancePartyTable() {
   `;
 
   wrap.querySelectorAll("tbody tr").forEach((tr) => {
-    tr.addEventListener("click", () => {
+    const open = () => {
       const row = rows[Number(tr.getAttribute("data-party-index"))];
       if (row) openFinancePartyDetails(row);
+    };
+    tr.addEventListener("click", open);
+    tr.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        open();
+      }
     });
   });
 }
@@ -810,7 +951,9 @@ function setFinanceFilter(value) {
 }
 
 function setFinanceSearch(value) {
-  FINANCE_SEARCH = String(value || "").trim();
+  const next = String(value || "").trim();
+  if (next === FINANCE_SEARCH) return;
+  FINANCE_SEARCH = next;
   FINANCE_CURRENT_PAGE = 1;
   loadFinancePartyPage();
 }
@@ -837,17 +980,21 @@ function goFinanceNextPage() {
 
 async function loadSalesTab() {
   if (!tabPanel) return;
-  setFinanceStatus("Loading sales products...");
   SALES_ROWS = [];
   SALES_TOTAL_ROWS = 0;
   SALES_IS_LOADING = true;
+  SALES_ERROR = "";
   renderSalesTab();
-  setTableLoading(".sales-table-shell", true, "Loading sales products...");
 
-  const summaryResult = await supabase
-    .from("v_mis_sales_tab_summary")
-    .select("*")
-    .single();
+  await Promise.all([loadSalesSummary(), loadSalesProductPage()]);
+}
+
+async function loadSalesSummary() {
+  const token = beginRequest("sales:summary");
+  const summaryResult = await settle(
+    supabase.from("v_mis_sales_tab_summary").select("*").single(),
+  );
+  if (!isLatestRequest("sales:summary", token)) return;
 
   if (summaryResult.error) {
     console.error("[MIS] Sales summary load failed", summaryResult.error);
@@ -855,8 +1002,6 @@ async function loadSalesTab() {
     SALES_SUMMARY = summaryResult.data || null;
     renderSalesScopeNote();
   }
-
-  await loadSalesProductPage();
 }
 
 function renderSalesTab() {
@@ -930,29 +1075,33 @@ function renderSalesToolbar() {
 }
 
 async function loadSalesProductPage() {
-  const wrap = $("salesProductTableWrap");
-  if (wrap && !SALES_ROWS.length) {
-    wrap.innerHTML = `<div class="sales-status">Preparing sales table...</div>`;
-  }
+  const token = beginRequest("sales:page");
+  SALES_IS_LOADING = true;
+  SALES_ERROR = "";
+  if (!SALES_ROWS.length) renderSalesProductTable();
 
   setTableLoading(".sales-table-shell", true, "Loading sales products...");
 
-  const { data, error } = await supabase.rpc("get_mis_sales_product_page", {
-    p_search: SALES_SEARCH,
-    p_limit: SALES_PAGE_SIZE,
-    p_offset: (SALES_CURRENT_PAGE - 1) * SALES_PAGE_SIZE,
-  });
+  const { data, error } = await settle(
+    supabase.rpc("get_mis_sales_product_page", {
+      p_search: SALES_SEARCH,
+      p_limit: SALES_PAGE_SIZE,
+      p_offset: (SALES_CURRENT_PAGE - 1) * SALES_PAGE_SIZE,
+    }),
+  );
+
+  if (!isLatestRequest("sales:page", token)) return;
 
   setTableLoading(".sales-table-shell", false);
+  SALES_IS_LOADING = false;
 
   if (error) {
     console.error("[MIS] Sales product page load failed", error);
-    SALES_IS_LOADING = false;
     SALES_ROWS = [];
     SALES_TOTAL_ROWS = 0;
-    if (wrap) {
-      wrap.innerHTML = `<div class="sales-status error">Failed to load sales products. ${escapeHtml(error.message || "See console for details.")}</div>`;
-    }
+    SALES_ERROR = errorMessage(error);
+    ACTIVE_TAB_FAILED = true;
+    renderSalesProductTable();
     renderSalesPagination();
     return;
   }
@@ -960,9 +1109,8 @@ async function loadSalesProductPage() {
   SALES_ROWS = Array.isArray(data) ? data : [];
   SALES_TOTAL_ROWS =
     Number(SALES_ROWS[0]?.total_rows ?? SALES_ROWS.length) || 0;
-  SALES_IS_LOADING = false;
 
-  renderSalesToolbar();
+  renderToolbarUnlessTyping("salesSearch", renderSalesToolbar);
   renderSalesProductTable();
   renderSalesPagination();
 }
@@ -972,9 +1120,14 @@ function renderSalesProductTable() {
   if (!wrap) return;
 
   if (!SALES_ROWS.length) {
-    wrap.innerHTML = SALES_IS_LOADING
-      ? `<div class="sales-status">Preparing sales table...</div>`
-      : `<div class="sales-empty">No products found.</div>`;
+    wrap.innerHTML = renderTableState("sales", {
+      loading: SALES_IS_LOADING,
+      error: SALES_ERROR,
+      loadingText: "Preparing sales table...",
+      emptyText: "No products found.",
+      errorText: "Failed to load sales products.",
+      retryKey: "sales",
+    });
     return;
   }
 
@@ -1035,7 +1188,9 @@ function renderSalesPagination() {
 }
 
 function setSalesSearch(value) {
-  SALES_SEARCH = String(value || "").trim();
+  const next = String(value || "").trim();
+  if (next === SALES_SEARCH) return;
+  SALES_SEARCH = next;
   SALES_CURRENT_PAGE = 1;
   loadSalesProductPage();
 }
@@ -1062,21 +1217,21 @@ function goSalesNextPage() {
 
 async function loadInventoryTab() {
   if (!tabPanel) return;
-  setFinanceStatus("Loading inventory items...");
   INVENTORY_ROWS = [];
   INVENTORY_TOTAL_ROWS = 0;
   INVENTORY_IS_LOADING = true;
+  INVENTORY_ERROR = "";
   renderInventoryTab();
-  setTableLoading(
-    ".inventory-table-shell",
-    true,
-    "Loading inventory items...",
-  );
 
-  const summaryResult = await supabase
-    .from("v_mis_inventory_tab_summary")
-    .select("*")
-    .single();
+  await Promise.all([loadInventorySummary(), loadInventoryItemPage()]);
+}
+
+async function loadInventorySummary() {
+  const token = beginRequest("inventory:summary");
+  const summaryResult = await settle(
+    supabase.from("v_mis_inventory_tab_summary").select("*").single(),
+  );
+  if (!isLatestRequest("inventory:summary", token)) return;
 
   if (summaryResult.error) {
     console.error("[MIS] Inventory summary load failed", summaryResult.error);
@@ -1084,8 +1239,6 @@ async function loadInventoryTab() {
     INVENTORY_SUMMARY = summaryResult.data || null;
     renderInventoryScopeNote();
   }
-
-  await loadInventoryItemPage();
 }
 
 function renderInventoryTab() {
@@ -1187,10 +1340,10 @@ function renderInventoryToolbar() {
 }
 
 async function loadInventoryItemPage() {
-  const wrap = $("inventoryItemTableWrap");
-  if (wrap && !INVENTORY_ROWS.length) {
-    wrap.innerHTML = `<div class="inventory-status">Preparing inventory table...</div>`;
-  }
+  const token = beginRequest("inventory:page");
+  INVENTORY_IS_LOADING = true;
+  INVENTORY_ERROR = "";
+  if (!INVENTORY_ROWS.length) renderInventoryItemTable();
 
   setTableLoading(
     ".inventory-table-shell",
@@ -1198,23 +1351,27 @@ async function loadInventoryItemPage() {
     "Loading inventory items...",
   );
 
-  const { data, error } = await supabase.rpc("get_mis_inventory_item_page", {
-    p_source_kind: INVENTORY_FILTER,
-    p_search: INVENTORY_SEARCH,
-    p_limit: INVENTORY_PAGE_SIZE,
-    p_offset: (INVENTORY_CURRENT_PAGE - 1) * INVENTORY_PAGE_SIZE,
-  });
+  const { data, error } = await settle(
+    supabase.rpc("get_mis_inventory_item_page", {
+      p_source_kind: INVENTORY_FILTER,
+      p_search: INVENTORY_SEARCH,
+      p_limit: INVENTORY_PAGE_SIZE,
+      p_offset: (INVENTORY_CURRENT_PAGE - 1) * INVENTORY_PAGE_SIZE,
+    }),
+  );
+
+  if (!isLatestRequest("inventory:page", token)) return;
 
   setTableLoading(".inventory-table-shell", false);
+  INVENTORY_IS_LOADING = false;
 
   if (error) {
     console.error("[MIS] Inventory item page load failed", error);
-    INVENTORY_IS_LOADING = false;
     INVENTORY_ROWS = [];
     INVENTORY_TOTAL_ROWS = 0;
-    if (wrap) {
-      wrap.innerHTML = `<div class="inventory-status error">Failed to load inventory items. ${escapeHtml(error.message || "See console for details.")}</div>`;
-    }
+    INVENTORY_ERROR = errorMessage(error);
+    ACTIVE_TAB_FAILED = true;
+    renderInventoryItemTable();
     renderInventoryPagination();
     return;
   }
@@ -1222,9 +1379,8 @@ async function loadInventoryItemPage() {
   INVENTORY_ROWS = Array.isArray(data) ? data : [];
   INVENTORY_TOTAL_ROWS =
     Number(INVENTORY_ROWS[0]?.total_rows ?? INVENTORY_ROWS.length) || 0;
-  INVENTORY_IS_LOADING = false;
 
-  renderInventoryToolbar();
+  renderToolbarUnlessTyping("inventorySearch", renderInventoryToolbar);
   renderInventoryItemTable();
   renderInventoryPagination();
 }
@@ -1245,9 +1401,14 @@ function renderInventoryItemTable() {
   if (!wrap) return;
 
   if (!INVENTORY_ROWS.length) {
-    wrap.innerHTML = INVENTORY_IS_LOADING
-      ? `<div class="inventory-status">Preparing inventory table...</div>`
-      : `<div class="inventory-empty">No items found.</div>`;
+    wrap.innerHTML = renderTableState("inventory", {
+      loading: INVENTORY_IS_LOADING,
+      error: INVENTORY_ERROR,
+      loadingText: "Preparing inventory table...",
+      emptyText: "No items found.",
+      errorText: "Failed to load inventory items.",
+      retryKey: "inventory",
+    });
     return;
   }
 
@@ -1323,7 +1484,9 @@ function setInventoryFilter(value) {
 }
 
 function setInventorySearch(value) {
-  INVENTORY_SEARCH = String(value || "").trim();
+  const next = String(value || "").trim();
+  if (next === INVENTORY_SEARCH) return;
+  INVENTORY_SEARCH = next;
   INVENTORY_CURRENT_PAGE = 1;
   loadInventoryItemPage();
 }
@@ -1353,17 +1516,21 @@ function goInventoryNextPage() {
 
 async function loadFinishedGoodsTab() {
   if (!tabPanel) return;
-  setFinanceStatus("Loading Finished Goods SKUs...");
   FG_ROWS = [];
   FG_TOTAL_ROWS = 0;
   FG_IS_LOADING = true;
+  FG_ERROR = "";
   renderFinishedGoodsTab();
-  setTableLoading(".fg-table-shell", true, "Loading Finished Goods SKUs...");
 
-  const summaryResult = await supabase
-    .from("v_mis_finished_goods_tab_summary")
-    .select("*")
-    .single();
+  await Promise.all([loadFinishedGoodsSummary(), loadFinishedGoodsSkuPage()]);
+}
+
+async function loadFinishedGoodsSummary() {
+  const token = beginRequest("fg:summary");
+  const summaryResult = await settle(
+    supabase.from("v_mis_finished_goods_tab_summary").select("*").single(),
+  );
+  if (!isLatestRequest("fg:summary", token)) return;
 
   if (summaryResult.error) {
     console.error(
@@ -1374,8 +1541,6 @@ async function loadFinishedGoodsTab() {
     FG_SUMMARY = summaryResult.data || null;
     renderFinishedGoodsScopeNote();
   }
-
-  await loadFinishedGoodsSkuPage();
 }
 
 function renderFinishedGoodsTab() {
@@ -1479,42 +1644,42 @@ function renderFinishedGoodsToolbar() {
 }
 
 async function loadFinishedGoodsSkuPage() {
-  const wrap = $("fgSkuTableWrap");
-  if (wrap && !FG_ROWS.length) {
-    wrap.innerHTML = `<div class="fg-status">Preparing Finished Goods table...</div>`;
-  }
+  const token = beginRequest("fg:page");
+  FG_IS_LOADING = true;
+  FG_ERROR = "";
+  if (!FG_ROWS.length) renderFinishedGoodsSkuTable();
 
   setTableLoading(".fg-table-shell", true, "Loading Finished Goods SKUs...");
 
-  const { data, error } = await supabase.rpc(
-    "get_mis_finished_goods_sku_page",
-    {
+  const { data, error } = await settle(
+    supabase.rpc("get_mis_finished_goods_sku_page", {
       p_mos_filter: FG_FILTER,
       p_search: FG_SEARCH,
       p_limit: FG_PAGE_SIZE,
       p_offset: (FG_CURRENT_PAGE - 1) * FG_PAGE_SIZE,
-    },
+    }),
   );
 
+  if (!isLatestRequest("fg:page", token)) return;
+
   setTableLoading(".fg-table-shell", false);
+  FG_IS_LOADING = false;
 
   if (error) {
     console.error("[MIS] Finished Goods SKU page load failed", error);
-    FG_IS_LOADING = false;
     FG_ROWS = [];
     FG_TOTAL_ROWS = 0;
-    if (wrap) {
-      wrap.innerHTML = `<div class="fg-status error">Failed to load Finished Goods SKUs. ${escapeHtml(error.message || "See console for details.")}</div>`;
-    }
+    FG_ERROR = errorMessage(error);
+    ACTIVE_TAB_FAILED = true;
+    renderFinishedGoodsSkuTable();
     renderFinishedGoodsPagination();
     return;
   }
 
   FG_ROWS = Array.isArray(data) ? data : [];
   FG_TOTAL_ROWS = Number(FG_ROWS[0]?.total_rows ?? FG_ROWS.length) || 0;
-  FG_IS_LOADING = false;
 
-  renderFinishedGoodsToolbar();
+  renderToolbarUnlessTyping("fgSearch", renderFinishedGoodsToolbar);
   renderFinishedGoodsSkuTable();
   renderFinishedGoodsPagination();
 }
@@ -1541,9 +1706,14 @@ function renderFinishedGoodsSkuTable() {
   if (!wrap) return;
 
   if (!FG_ROWS.length) {
-    wrap.innerHTML = FG_IS_LOADING
-      ? `<div class="fg-status">Preparing Finished Goods table...</div>`
-      : `<div class="fg-empty">No SKUs found.</div>`;
+    wrap.innerHTML = renderTableState("fg", {
+      loading: FG_IS_LOADING,
+      error: FG_ERROR,
+      loadingText: "Preparing Finished Goods table...",
+      emptyText: "No SKUs found.",
+      errorText: "Failed to load Finished Goods SKUs.",
+      retryKey: "finished-goods",
+    });
     return;
   }
 
@@ -1620,7 +1790,9 @@ function setFinishedGoodsFilter(value) {
 }
 
 function setFinishedGoodsSearch(value) {
-  FG_SEARCH = String(value || "").trim();
+  const next = String(value || "").trim();
+  if (next === FG_SEARCH) return;
+  FG_SEARCH = next;
   FG_CURRENT_PAGE = 1;
   loadFinishedGoodsSkuPage();
 }
@@ -1645,45 +1817,155 @@ function goFinishedGoodsNextPage() {
   loadFinishedGoodsSkuPage();
 }
 
+// The Production tab is two independent sections: the canonical monetary section (mounted at once)
+// and the subordinate legacy counts section. Each has its own request key, state, error and retry.
+const PRODUCTION_COUNT_FIELDS = Object.freeze([
+  "active_pipeline_batch_count",
+  "work_in_process_batch_count",
+  "overdue_work_in_process_batch_count",
+  "finished_goods_bulk_batch_count",
+  "bottled_stock_batch_count",
+  "total_canonical_batch_count",
+]);
+let PRODUCTION_COUNTS = { status: "loading", message: "" };
+
+function renderProductionShell() {
+  tabPanel.innerHTML = `
+    ${renderProductionValueSection()}
+    <div id="productionCounts" class="production-counts"></div>
+  `;
+  renderProductionValueBody();
+  renderProductionCountsBody();
+}
+
 async function loadProductionTab() {
   if (!tabPanel) return;
-  tabPanel.innerHTML = `
-    <div class="production-loading-shell">
-      <div class="production-status">Preparing production summary...</div>
-    </div>
-  `;
-  setTableLoading(
-    ".production-loading-shell",
-    true,
-    "Loading production summary...",
+  if (!PRODUCTION_VALUE_MONTH) PRODUCTION_VALUE_MONTH = `${istToday().slice(0, 7)}-01`;
+  renderProductionShell();
+  await Promise.all([
+    loadProductionValue(),
+    loadProductionCounts(),
+  ]);
+}
+
+async function loadProductionCounts() {
+  const token = beginRequest("production");
+  PRODUCTION_COUNTS = { status: "loading", message: "" };
+  renderProductionCountsBody();
+
+  const { data, error } = await settle(
+    // Explicit six-field projection of the cheap live pipeline view. The legacy
+    // v_mis_production_tab_summary (position x pipeline) is not queried: it times out (57014).
+    supabase.from("v_mis_batch_pipeline").select(PRODUCTION_COUNT_FIELDS.join(",")).single(),
   );
-
-  const { data, error } = await supabase
-    .from("v_mis_production_tab_summary")
-    .select("*")
-    .single();
-
-  setTableLoading(".production-loading-shell", false);
+  if (!isLatestRequest("production", token)) return;
 
   if (error) {
     console.error("[MIS] Production summary load failed", error);
-    tabPanel.innerHTML = `<div class="finance-status error">Failed to load production summary.</div>`;
-    return;
+    ACTIVE_TAB_FAILED = true;
+    PRODUCTION_COUNTS = { status: "error", message: errorMessage(error) };
+  } else {
+    PRODUCTION_SUMMARY = data || null;
+    PRODUCTION_COUNTS = { status: "ok", message: "" };
   }
-
-  PRODUCTION_SUMMARY = data || null;
-  renderProductionTab();
+  renderProductionCountsBody();
 }
 
-function formatPlanningStatusLabel(value) {
-  switch (value) {
-    case "CURRENT_MONTH_PLAN_AVAILABLE":
-      return "Current Month Plan Available";
-    case "CURRENT_MONTH_PLAN_NOT_AVAILABLE_USING_NEXT_AVAILABLE_PLAN_MONTH":
-      return "Current Month Plan Not Available - Using Next Available Plan Month";
-    default:
-      return value || "-";
+function istToday() {
+  // YYYY-MM-DD in Asia/Kolkata (en-CA formats as ISO).
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function productionValueMonthOptions() {
+  const [y, m] = istToday().split("-").map(Number);
+  const out = [];
+  for (let i = 0; i < 12; i += 1) {
+    const d = new Date(Date.UTC(y, m - 1 - i, 1));
+    const iso = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+    out.push({
+      value: iso,
+      label: new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric", timeZone: "UTC" }).format(d),
+    });
   }
+  return out;
+}
+
+// Pure: selectable cutoff range for a report month (first of month) given today's IST date.
+function asOfBoundsFor(monthStart, today) {
+  const [y, m] = monthStart.split("-").map(Number);
+  const monthEnd = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+  return { min: monthStart, max: monthEnd < today ? monthEnd : today };
+}
+
+// Pure: every selectable day in [min, max], as ISO values with a readable label.
+function asOfDayOptionsFor(bounds) {
+  const out = [];
+  const fmt = new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric", weekday: "short", timeZone: "UTC" });
+  const last = Number(bounds.max.slice(8, 10));
+  for (let d = Number(bounds.min.slice(8, 10)); d <= last; d += 1) {
+    const iso = `${bounds.min.slice(0, 8)}${String(d).padStart(2, "0")}`;
+    out.push({ value: iso, label: fmt.format(new Date(`${iso}T00:00:00Z`)).replace(/,/g, "") });
+  }
+  return out;
+}
+
+function productionValueAsOfBounds() {
+  return asOfBoundsFor(PRODUCTION_VALUE_MONTH, istToday());
+}
+
+function renderAsOfOptionsHtml() {
+  const b = productionValueAsOfBounds();
+  return [`<option value=""${PRODUCTION_VALUE_ASOF === "" ? " selected" : ""}>Default (latest allowed)</option>`]
+    .concat(asOfDayOptionsFor(b).map((o) => `<option value="${escapeHtml(o.value)}"${o.value === PRODUCTION_VALUE_ASOF ? " selected" : ""}>${escapeHtml(o.label)}</option>`))
+    .join("");
+}
+
+function classifyValueError(error) {
+  const code = String((error && (error.code || error.status)) || "");
+  const msg = String((error && error.message) || "");
+  if (code === "42501" || code === "403" || /permission required/i.test(msg)) return "denied";
+  if (code === "401" || code === "PGRST301" || /jwt|not authenticated|session/i.test(msg)) return "expired";
+  if (code === "22023") return "invalid";
+  return "error";
+}
+
+async function loadProductionValue() {
+  if (!PRODUCTION_VALUE_MONTH) PRODUCTION_VALUE_MONTH = `${istToday().slice(0, 7)}-01`;
+  const token = beginRequest("production:value");
+  PRODUCTION_VALUE = { status: "loading", data: null, message: "" };
+  renderProductionValueBody();
+
+  const args = { p_report_month: PRODUCTION_VALUE_MONTH };
+  if (PRODUCTION_VALUE_ASOF) args.p_as_of_date = PRODUCTION_VALUE_ASOF;
+  PRODUCTION_VALUE_REQUESTED = `${PRODUCTION_VALUE_MONTH}|${PRODUCTION_VALUE_ASOF}`;
+  const { data, error } = await settle(
+    supabase.rpc("get_mis_production_value_summary", args),
+  );
+  if (!isLatestRequest("production:value", token)) return;
+
+  if (error) {
+    console.error("[MIS] Production value summary load failed", error);
+    ACTIVE_TAB_FAILED = true;
+    PRODUCTION_VALUE = {
+      status: classifyValueError(error),
+      data: null,
+      message: errorMessage(error),
+    };
+  } else if (!data || typeof data !== "object" || Array.isArray(data)) {
+    PRODUCTION_VALUE = {
+      status: "error",
+      data: null,
+      message: "The server returned an unexpected response.",
+    };
+  } else {
+    PRODUCTION_VALUE = { status: "ok", data, message: "" };
+  }
+  renderProductionValueBody();
 }
 
 function formatPercent(value) {
@@ -1693,136 +1975,277 @@ function formatPercent(value) {
   return `${formatNumberIN(n)}%`;
 }
 
-function renderProductionTab() {
-  if (!tabPanel) return;
+const PV_STATUS_LABELS = {
+  BULK_RECEIPT_COVERED_REFERENCE: "Bulk receipts, approved reference cost (covered subtotal)",
+  NO_PREVIOUS_MONTH_APPROVED_COST: "No approved cost run for the previous month",
+};
+const PV_COMPONENT_POLICY_LABELS = {
+  RM_STORES_PM_EXCLUDED:
+    "Rate includes RM and RM materials-stores share only. PM stores, packing labour and PM costs are excluded from bulk.",
+};
+
+function pvCard({ cls = "", title, value, badge = "", caption = "", unavailable = false }) {
+  return `
+    <div class="pv-kpi ${cls}${unavailable ? " unavailable" : ""}">
+      <div class="pv-kpi-title">${escapeHtml(title)}</div>
+      <div class="pv-kpi-value">${escapeHtml(value)}</div>
+      ${badge ? `<div class="pv-kpi-badge">${escapeHtml(badge)}</div>` : ""}
+      ${caption ? `<div class="pv-kpi-caption">${escapeHtml(caption)}</div>` : ""}
+    </div>`;
+}
+
+function pvHasValue(v) {
+  return v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v));
+}
+
+// Pure presentation of the server payload. No arithmetic: every rupee figure is shown exactly as
+// supplied, and a missing figure is a word, never "₹0".
+function buildProductionValueCards(d) {
+  const noRun = d.status === "NO_PREVIOUS_MONTH_APPROVED_COST";
+  const events = pvHasValue(d.receipt_event_count) ? Number(d.receipt_event_count) : null;
+  const unvalued = pvHasValue(d.receipt_unvalued_count) ? Number(d.receipt_unvalued_count) : null;
+  const corrections = pvHasValue(d.receipt_correction_event_count) ? Number(d.receipt_correction_event_count) : 0;
+  const rStatus = d.receipt_value_status;
+
+  // 1. Planned
+  let planned;
+  if (pvHasValue(d.planned_reference_covered_value)) {
+    planned = pvCard({
+      title: "Planned bulk value",
+      value: formatCurrencyINR(d.planned_reference_covered_value),
+      badge: d.plan_status === "FROZEN" ? "Frozen plan" : String(d.plan_status || "").replace(/_/g, " ").toLowerCase(),
+      caption: pvHasValue(d.planned_unvalued_count) && Number(d.planned_unvalued_count) > 0
+        ? `${formatIntegerIN(d.planned_unvalued_count)} planned product(s) unvalued - covered subtotal`
+        : "Reference estimate",
+    });
+  } else {
+    planned = pvCard({
+      title: "Planned bulk value",
+      value: "Unavailable",
+      unavailable: true,
+      badge: d.plan_status === "UNAVAILABLE_PENDING_FROZEN_PLAN" ? "Pending frozen plan" : "",
+      caption: d.plan_status === "UNAVAILABLE_PENDING_FROZEN_PLAN"
+        ? "No approved frozen plan snapshot yet; no planned amount is shown."
+        : "No planned amount supplied for this period.",
+    });
+  }
+
+  // 2. Actual bulk received (covered)
+  let recv;
+  if (noRun) {
+    recv = pvCard({ title: "Bulk received - covered value", value: "Unavailable", unavailable: true, badge: "No approved cost", caption: "Previous month has no approved cost run, so receipts cannot be valued." });
+  } else if (rStatus === "BLOCKED_CORRECTION_LINEAGE" || (!pvHasValue(d.receipt_reference_covered_value) && corrections > 0)) {
+    recv = pvCard({ title: "Bulk received - covered value", value: "Withheld", unavailable: true, badge: "Correction lineage blocked", caption: `${formatIntegerIN(corrections)} correction event(s) in period; subtotal withheld until lineage is verified.` });
+  } else if (!pvHasValue(d.receipt_reference_covered_value)) {
+    const allUnvalued = events !== null && events > 0 && unvalued === events;
+    recv = pvCard({
+      title: "Bulk received - covered value",
+      value: allUnvalued ? "Unvalued" : events === 0 ? "No receipts" : "Unavailable",
+      unavailable: true,
+      caption: allUnvalued ? `All ${formatIntegerIN(events)} receipt event(s) lack an approved rate.` : events === 0 ? "No bulk receipt events in this period." : "No covered value supplied.",
+    });
+  } else {
+    const partial = rStatus === "PARTIAL_COVERAGE" || (unvalued !== null && unvalued > 0);
+    recv = pvCard({
+      title: "Bulk received - covered value",
+      value: formatCurrencyINR(d.receipt_reference_covered_value),
+      badge: partial ? "Partial coverage" : "Covered subtotal",
+      caption: `${events === null ? "-" : formatIntegerIN(events)} receipt event(s)${unvalued ? `, ${formatIntegerIN(unvalued)} unvalued and excluded` : ""}. Not full cost or actual expense.`,
+    });
+  }
+
+  // 3. Completed
+  const completed = pvHasValue(d.completed_reference_value)
+    ? pvCard({ title: "Completed bulk value", value: formatCurrencyINR(d.completed_reference_value), badge: String(d.completed_status || "").replace(/_/g, " ").toLowerCase(), caption: "Canonical completion events." })
+    : pvCard({ title: "Completed bulk value", value: "N/A", unavailable: true, badge: d.completed_status === "NOT_VERIFIED" || !d.completed_status ? "Not verified" : String(d.completed_status).replace(/_/g, " ").toLowerCase(), caption: "No canonical batch-completion event is verified yet." });
+
+  // 4. Transferred FG (Tally book basis; deliberately a separate card style)
+  const lines = pvHasValue(d.transfer_line_count) ? Number(d.transfer_line_count) : null;
+  const missing = pvHasValue(d.transfer_missing_amount_lines) ? Number(d.transfer_missing_amount_lines) : 0;
+  const snap = d.tally_snapshot_as_of ? `Tally snapshot ${formatDateIN(d.tally_snapshot_as_of)}. ` : "";
+  const recon = d.transfer_reconciliation_status === "NOT_CHECKED_BY_BOOK_TOTAL"
+    ? "Not reconciled to batch log."
+    : d.transfer_reconciliation_status ? `Reconciliation: ${String(d.transfer_reconciliation_status).replace(/_/g, " ").toLowerCase()}.` : "";
+  const transfer = pvHasValue(d.tally_fg_transfer_book_value)
+    ? pvCard({ cls: "book", title: "Transferred to FG - book value", value: formatCurrencyINR(d.tally_fg_transfer_book_value), badge: "Tally book basis", caption: `${lines === null ? "-" : formatIntegerIN(lines)} voucher line(s)${missing ? `, ${formatIntegerIN(missing)} without amount` : ""}. ${snap}${recon}` })
+    : pvCard({ cls: "book", title: "Transferred to FG - book value", value: lines === 0 ? "No transfers" : "Unavailable", unavailable: true, badge: "Tally book basis", caption: lines === 0 ? `No Tally transfer lines in period. ${snap}`.trim() : `${snap}No book value supplied.`.trim() });
+
+  return [planned, recv, completed, transfer].join("");
+}
+
+function renderProductionValueBody() {
+  const body = $("productionValueBody");
+  if (!body) return;
+  const st = PRODUCTION_VALUE;
+  body.setAttribute("aria-busy", st.status === "loading" ? "true" : "false");
+  if (st.status === "loading") {
+    body.innerHTML = `<div class="pv-state" role="status"><span class="table-loading-spinner" aria-hidden="true"></span> Loading production values...</div>`;
+    return;
+  }
+  if (st.status !== "ok") {
+    const text = {
+      denied: "You do not have permission to view production values.",
+      expired: "Your session has expired or could not be verified. Sign in again, then retry.",
+      invalid: "That report month or cut-off date is not valid for the server.",
+      error: "Failed to load production values.",
+    }[st.status];
+    const detail = st.status === "error" || st.status === "invalid" ? ` ${escapeHtml(st.message)}` : "";
+    body.innerHTML = `<div class="pv-state error" role="alert">${escapeHtml(text)}${detail}${
+      st.status === "denied" ? "" : ` <button type="button" class="mis-retry-btn" data-mis-retry="production-value">Retry</button>`
+    }</div>`;
+    return;
+  }
+
+  const d = st.data;
+  const noRun = d.status === "NO_PREVIOUS_MONTH_APPROVED_COST";
+  const comparable = d.comparability === "COMPARABLE" && pvHasValue(d.plan_achievement_pct);
+  const policy = d.component_policy
+    ? PV_COMPONENT_POLICY_LABELS[d.component_policy] || `Component policy: ${d.component_policy}`
+    : "";
+  const statusLabel = PV_STATUS_LABELS[d.status] || (d.status ? String(d.status).replace(/_/g, " ").toLowerCase() : "");
+  const basis = [
+    `Report month <b>${escapeHtml(formatDateIN(d.report_month))}</b>`,
+    `Events to <b>${escapeHtml(formatDateIN(d.as_of_date))}</b>`,
+    noRun ? "" : `Approved cost run <b>#${escapeHtml(d.approved_cost_run_id ?? "-")}</b> (valued ${escapeHtml(formatDateIN(d.approved_cost_valuation_date))})`,
+  ].filter(Boolean).join(" &middot; ");
+
+  body.innerHTML = `
+    <div class="pv-basis">${basis}</div>
+    <div class="pv-kpi-grid">${buildProductionValueCards(d)}</div>
+    <div class="pv-achievement">
+      <span class="pv-achievement-label">Plan achievement</span>
+      <span class="pv-achievement-value">${comparable ? escapeHtml(formatPercent(d.plan_achievement_pct)) : "N/A"}</span>
+      <span class="pv-achievement-note">${comparable ? "Server-confirmed comparable basis." : "Not comparable: no frozen plan or verified completion on the same cost basis. Receipts and Tally book value are never used as a plan percentage."}</span>
+    </div>
+    <details class="pv-notes">
+      <summary>Basis, coverage and exclusions</summary>
+      <ul>
+        <li>Indicative covered subtotal at approved reference cost; it is not full COP or actual expense.</li>
+        ${statusLabel ? `<li>Server status: ${escapeHtml(statusLabel)}.</li>` : ""}
+        ${policy ? `<li>${escapeHtml(policy)}</li>` : ""}
+        <li>Receipts use legacy physical storage postings; a stored receipt is not a formal batch completion.</li>
+        <li>Tally book value is a separate accounting basis and is not comparable with the reference-cost figures.</li>
+        <li>The top-of-page "Transferred to Finished Goods Value" card comes from the executive summary snapshot, not from this report; the two sources can differ.</li>
+        <li>Physical quantities in Kg, L and Nos are never added together.</li>
+      </ul>
+    </details>`;
+}
+
+function renderProductionValueSection() {
+  const opts = productionValueMonthOptions();
+  if (!opts.some((o) => o.value === PRODUCTION_VALUE_MONTH)) {
+    opts.unshift({ value: PRODUCTION_VALUE_MONTH, label: formatDateIN(PRODUCTION_VALUE_MONTH) });
+  }
+  return `
+    <section class="pv" id="productionValueSection" aria-labelledby="pvHeading">
+      <div class="pv-head">
+        <h2 class="pv-heading" id="pvHeading">Production value</h2>
+        <div class="pv-controls">
+          <label class="pv-field"><span>Month</span>
+            <select id="pvMonth" class="pv-input">${opts
+              .map((o) => `<option value="${escapeHtml(o.value)}"${o.value === PRODUCTION_VALUE_MONTH ? " selected" : ""}>${escapeHtml(o.label)}</option>`)
+              .join("")}</select></label>
+          <label class="pv-field"><span>As of</span>
+            <select id="pvAsOf" class="pv-input" aria-describedby="pvAsOfStatus">${renderAsOfOptionsHtml()}</select></label>
+        </div>
+      </div>
+      <div class="pv-asof-status" id="pvAsOfStatus" aria-live="polite">${renderAsOfStatusHtml()}</div>
+      <div id="productionValueBody" class="pv-body"></div>
+    </section>`;
+}
+
+// The cutoff is a select of exactly the days allowed for the chosen report month (1..last day, capped at
+// today IST). A native date input cannot stop iOS from scrolling to other months, so it is not used. The
+// range/ISO guard below stays as a safety net, and the chosen cutoff is also echoed as plain text.
+function renderAsOfStatusHtml() {
+  const b = productionValueAsOfBounds();
+  const range = `${formatDateIN(b.min)} to ${formatDateIN(b.max)}`;
+  const chosen = PRODUCTION_VALUE_ASOF
+    ? `Cutoff: <b>${escapeHtml(formatDateIN(PRODUCTION_VALUE_ASOF))}</b> <button type="button" class="mis-retry-btn pv-asof-clear" data-pv-asof-clear>Use default</button>`
+    : `Cutoff: <b>default</b> (latest allowed, ${escapeHtml(formatDateIN(b.max))})`;
+  return `${chosen}<span class="pv-asof-range"> &middot; allowed ${escapeHtml(range)}</span>${
+    PRODUCTION_ASOF_NOTICE ? `<div class="pv-asof-notice" role="status">${escapeHtml(PRODUCTION_ASOF_NOTICE)}</div>` : ""
+  }`;
+}
+
+function refreshAsOfStatus() {
+  const el = $("pvAsOfStatus");
+  if (el) el.innerHTML = renderAsOfStatusHtml();
+}
+
+function applyProductionValueSelection({ monthChanged = false } = {}) {
+  const input = $("pvAsOf");
+  const b = productionValueAsOfBounds();
+  // Month change keeps the stored choice (then range-checks it); a change on the day control takes its value.
+  const raw = monthChanged ? PRODUCTION_VALUE_ASOF : input?.value || "";
+  let asof = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : "";
+  PRODUCTION_ASOF_NOTICE = "";
+  if (asof && (asof < b.min || asof > b.max)) {
+    PRODUCTION_ASOF_NOTICE = monthChanged
+      ? `Cutoff ${formatDateIN(asof)} is outside the selected month, so the default cutoff is used.`
+      : `Cutoff ${formatDateIN(asof)} is outside ${formatDateIN(b.min)} to ${formatDateIN(b.max)}, so the default cutoff is used.`;
+    asof = "";
+  }
+  PRODUCTION_VALUE_ASOF = asof;
+  if (input && (monthChanged || input.value !== asof)) {
+    input.innerHTML = renderAsOfOptionsHtml();
+    input.value = asof;
+  }
+  refreshAsOfStatus();
+}
+
+function onProductionValueControlChange(ev) {
+  const monthChanged = ev?.target?.id === "pvMonth";
+  if (monthChanged) {
+    const month = $("pvMonth")?.value;
+    if (month) PRODUCTION_VALUE_MONTH = month;
+  }
+  applyProductionValueSelection({ monthChanged });
+  // One request per effective selection: skip when month and cutoff are what was last requested.
+  if (!monthChanged && `${PRODUCTION_VALUE_MONTH}|${PRODUCTION_VALUE_ASOF}` === PRODUCTION_VALUE_REQUESTED) return;
+  loadProductionValue();
+}
+
+function clearProductionAsOf() {
+  PRODUCTION_VALUE_ASOF = "";
+  PRODUCTION_ASOF_NOTICE = "";
+  const input = $("pvAsOf");
+  if (input) input.value = "";
+  refreshAsOfStatus();
+  loadProductionValue();
+}
+
+function renderProductionCountsBody() {
+  const host = $("productionCounts");
+  if (!host) return;
+  const st = PRODUCTION_COUNTS;
+  host.setAttribute("aria-busy", st.status === "loading" ? "true" : "false");
+  if (st.status === "loading") {
+    host.innerHTML = `<div class="production-summary-heading">Live batch pipeline &mdash; current state</div><div class="pv-state" role="status"><span class="table-loading-spinner" aria-hidden="true"></span> Loading batch counts...</div>`;
+    return;
+  }
+  if (st.status === "error") {
+    host.innerHTML = `<div class="production-summary-heading">Live batch pipeline &mdash; current state</div><div class="pv-state error" role="alert">Failed to load production batch counts. ${escapeHtml(st.message)} <button type="button" class="mis-retry-btn" data-mis-retry="production-counts">Retry</button></div>`;
+    return;
+  }
   const s = PRODUCTION_SUMMARY || {};
-  const periodLine = `Report month: ${formatDateIN(s.report_month_start)} to ${formatDateIN(s.report_month_end)} | Planning month: ${formatDateIN(s.planning_month_start)} | Status: ${formatPlanningStatusLabel(s.planning_period_status)}`;
+  // Counts only, straight from the server. Current state of the live pipeline; not month-bound.
   const cards = [
-    {
-      title: "Planned Production",
-      value: formatNumberIN(s.planned_production_base_qty),
-    },
-    {
-      title: "Bulk Produced",
-      value: formatNumberIN(s.bulk_produced_base_qty),
-    },
-    {
-      title: "Transferred to Finished Goods",
-      value: formatNumberIN(s.transferred_to_finished_goods_base_qty),
-    },
-    {
-      title: "Bulk Achievement %",
-      value: formatPercent(s.bulk_production_achievement_pct),
-    },
-    {
-      title: "FG Transfer Achievement %",
-      value: formatPercent(s.fg_transfer_achievement_pct),
-    },
-    {
-      title: "Active Pipeline Batches",
-      value: formatIntegerIN(s.active_pipeline_batch_count),
-    },
+    { title: "Active Pipeline Batches", value: formatIntegerIN(s.active_pipeline_batch_count) },
+    { title: "Work in Process Batches", value: formatIntegerIN(s.work_in_process_batch_count) },
     {
       title: "Overdue WIP Batches",
       value: formatIntegerIN(s.overdue_work_in_process_batch_count),
-      state:
-        Number(s.overdue_work_in_process_batch_count) > 0 ? "warning" : "",
+      state: Number(s.overdue_work_in_process_batch_count) > 0 ? "warning" : "",
     },
+    { title: "FG Bulk Batches", value: formatIntegerIN(s.finished_goods_bulk_batch_count) },
+    { title: "Bottled Stock Batches", value: formatIntegerIN(s.bottled_stock_batch_count) },
+    { title: "Total Canonical Batches", value: formatIntegerIN(s.total_canonical_batch_count) },
   ];
 
-  const achievementRows = [
-    {
-      metric: "Planned Production",
-      quantity: formatNumberIN(s.planned_production_base_qty),
-      variance: "-",
-      achievement: "-",
-      explanation: s.planned_production_note,
-    },
-    {
-      metric: "Bulk Produced",
-      quantity: formatNumberIN(s.bulk_produced_base_qty),
-      variance: formatNumberIN(s.bulk_production_variance_base_qty),
-      achievement: formatPercent(s.bulk_production_achievement_pct),
-      explanation: s.bulk_produced_note,
-    },
-    {
-      metric: "Transferred to Finished Goods",
-      quantity: formatNumberIN(s.transferred_to_finished_goods_base_qty),
-      variance: formatNumberIN(s.fg_transfer_variance_base_qty),
-      achievement: formatPercent(s.fg_transfer_achievement_pct),
-      explanation: s.transferred_to_finished_goods_note,
-    },
-    {
-      metric: "Transferred to Finished Goods Value",
-      quantity: formatCurrencyINR(s.transferred_to_finished_goods_value),
-      variance: "-",
-      achievement: "-",
-      explanation: s.fg_transfer_achievement_note,
-    },
-  ];
-
-  const pipelineRows = [
-    {
-      stage: "Not Initiated",
-      count: formatIntegerIN(s.not_initiated_batch_count),
-      baseQty: formatNumberIN(s.not_initiated_expected_output_base_qty),
-      explanation: s.not_initiated_note,
-    },
-    {
-      stage: "Work in Process",
-      count: formatIntegerIN(s.work_in_process_batch_count),
-      baseQty: formatNumberIN(s.work_in_process_expected_output_base_qty),
-      explanation: s.work_in_process_note,
-    },
-    {
-      stage: "Finished Goods Bulk",
-      count: formatIntegerIN(s.finished_goods_bulk_batch_count),
-      baseQty: formatNumberIN(s.finished_goods_bulk_on_hand_base_qty),
-      explanation: s.finished_goods_bulk_note,
-    },
-    {
-      stage: "Bottled Stock",
-      count: formatIntegerIN(s.bottled_stock_batch_count),
-      baseQty: formatNumberIN(s.bottled_stock_on_hand_base_qty),
-      explanation: s.bottled_stock_note,
-    },
-    {
-      stage: "Active Pipeline Total",
-      count: formatIntegerIN(s.active_pipeline_batch_count),
-      baseQty: "-",
-      explanation: s.active_pipeline_batch_count_note,
-    },
-    {
-      stage: "Overdue Work in Process",
-      count: formatIntegerIN(s.overdue_work_in_process_batch_count),
-      baseQty: "-",
-      explanation: "Positive values require production follow-up.",
-    },
-    {
-      stage: "Transferred Only",
-      count: formatIntegerIN(s.transferred_only_batch_count),
-      baseQty: formatNumberIN(s.transferred_only_base_qty),
-      explanation: s.transferred_only_note,
-    },
-    {
-      stage: "Total Canonical Batches",
-      count: formatIntegerIN(s.total_canonical_batch_count),
-      baseQty: "-",
-      explanation: s.total_canonical_batch_count_note,
-    },
-  ];
-
-  tabPanel.innerHTML = `
-    <div class="production-scope-note">
-      <div class="production-period-line">${escapeHtml(periodLine)}</div>
-      ${
-        s.production_scope_note
-          ? `<div>${escapeHtml(s.production_scope_note)}</div>`
-          : ""
-      }
-    </div>
-
-    <div class="production-summary-heading">Production Summary</div>
+  host.innerHTML = `
+    <div class="production-summary-heading">Live batch pipeline &mdash; current state</div>
+    <div class="production-scope-note">Counts of batches as they stand now. They are not tied to the report month selected above, which applies only to the production value section.</div>
     <div class="production-summary-grid">
       ${cards
         .map(
@@ -1834,68 +2257,6 @@ function renderProductionTab() {
           `,
         )
         .join("")}
-    </div>
-
-    <div class="production-section">
-      <div class="production-section-title">Production Achievement</div>
-      <div class="production-table-wrap">
-        <table class="production-table">
-          <thead>
-            <tr>
-              <th>Metric</th>
-              <th class="num">Quantity / Value</th>
-              <th class="num">Variance</th>
-              <th class="num">Achievement</th>
-              <th>Explanation</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${achievementRows
-              .map(
-                (row) => `
-                  <tr>
-                    <td>${escapeHtml(row.metric)}</td>
-                    <td class="num">${escapeHtml(row.quantity)}</td>
-                    <td class="num">${escapeHtml(row.variance)}</td>
-                    <td class="num">${escapeHtml(row.achievement)}</td>
-                    <td>${escapeHtml(row.explanation || "-")}</td>
-                  </tr>
-                `,
-              )
-              .join("")}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="production-section">
-      <div class="production-section-title">Batch Pipeline</div>
-      <div class="production-table-wrap">
-        <table class="production-table">
-          <thead>
-            <tr>
-              <th>Stage</th>
-              <th class="num">Batch Count</th>
-              <th class="num">Base Quantity</th>
-              <th>Explanation</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${pipelineRows
-              .map(
-                (row) => `
-                  <tr>
-                    <td>${escapeHtml(row.stage)}</td>
-                    <td class="num">${escapeHtml(row.count)}</td>
-                    <td class="num">${escapeHtml(row.baseQty)}</td>
-                    <td>${escapeHtml(row.explanation || "-")}</td>
-                  </tr>
-                `,
-              )
-              .join("")}
-          </tbody>
-        </table>
-      </div>
     </div>
   `;
 }
@@ -1985,25 +2346,37 @@ const debouncedSetFinishedGoodsSearch = debounce((value) => {
   setFinishedGoodsSearch(value);
 }, 250);
 
+function isFinanceModalOpen() {
+  return !!financeModalOverlay && !financeModalOverlay.classList.contains("hidden");
+}
+
 async function openFinancePartyDetails(row) {
   if (!financeModalOverlay || !financeModalContent) return;
-  FINANCE_LAST_FOCUS = document.activeElement;
+  const token = beginRequest("finance:modal");
+  // Keep the original trigger if a second row is opened while already open.
+  if (!isFinanceModalOpen()) FINANCE_LAST_FOCUS = document.activeElement;
   financeModalOverlay.classList.remove("hidden");
   financeModalOverlay.setAttribute("aria-hidden", "false");
   if (financeModalTitle) financeModalTitle.textContent = row.party_name || "-";
   if (financeModalSubtitle) {
     financeModalSubtitle.textContent = `${row.mis_group_name || "-"} | ${formatCurrencyINR(row.outstanding_amount_mis_value)}`;
   }
-  financeModalContent.innerHTML = `<div class="finance-status">Loading bill details...</div>`;
+  financeModalContent.innerHTML = `<div class="finance-status" role="status">Loading bill details...</div>`;
+  financeModalClose?.focus?.();
 
-  const { data, error } = await supabase
-    .from("v_mis_finance_outstanding_detail")
-    .select(
-      "report_date, mis_group_name, bill_date_text, bill_ref, party_name, outstanding_amount_tally_value, outstanding_amount_abs_line_value",
-    )
-    .eq("party_name", row.party_name)
-    .eq("mis_group_name", row.mis_group_name)
-    .order("bill_date_text", { ascending: true });
+  const { data, error } = await settle(
+    supabase
+      .from("v_mis_finance_outstanding_detail")
+      .select(
+        "report_date, mis_group_name, bill_date_text, bill_ref, party_name, outstanding_amount_tally_value, outstanding_amount_abs_line_value",
+      )
+      .eq("party_name", row.party_name)
+      .eq("mis_group_name", row.mis_group_name)
+      .order("bill_date_text", { ascending: true }),
+  );
+
+  // Closed, or another party opened, while this was in flight.
+  if (!isLatestRequest("finance:modal", token) || !isFinanceModalOpen()) return;
 
   if (error) {
     console.error("[MIS] Finance bill detail load failed", error);
@@ -2048,7 +2421,8 @@ async function openFinancePartyDetails(row) {
 }
 
 function closeFinanceModal() {
-  if (!financeModalOverlay) return;
+  if (!financeModalOverlay || !isFinanceModalOpen()) return;
+  beginRequest("finance:modal");
   if (financeModalOverlay.contains(document.activeElement)) {
     document.activeElement.blur();
   }
@@ -2057,6 +2431,9 @@ function closeFinanceModal() {
   if (financeModalContent) financeModalContent.innerHTML = "";
   if (FINANCE_LAST_FOCUS && document.contains(FINANCE_LAST_FOCUS)) {
     FINANCE_LAST_FOCUS.focus?.();
+  } else {
+    // The table may have been re-rendered while the modal was open.
+    ($("financeSearch") || tabPanel)?.focus?.();
   }
   FINANCE_LAST_FOCUS = null;
 }
@@ -2067,14 +2444,34 @@ function wireEvents() {
   detailTabs?.addEventListener("click", (ev) => {
     const btn = ev.target.closest(".pill");
     if (!btn) return;
-    ACTIVE_TAB = btn.getAttribute("data-tab") || "finance";
-    renderActiveTab();
+    selectTab(btn.getAttribute("data-tab"));
   });
   detailTabSelect?.addEventListener("change", () => {
-    ACTIVE_TAB = detailTabSelect.value || "finance";
-    renderActiveTab();
+    selectTab(detailTabSelect.value);
+  });
+  tabPanel?.addEventListener("change", (ev) => {
+    if (ev.target.id === "pvMonth" || ev.target.id === "pvAsOf") onProductionValueControlChange(ev);
   });
   tabPanel?.addEventListener("click", (ev) => {
+    if (ev.target.closest("[data-pv-asof-clear]")) {
+      clearProductionAsOf();
+      return;
+    }
+    const retryBtn = ev.target.closest("[data-mis-retry]");
+    if (retryBtn) {
+      const retryKey = retryBtn.getAttribute("data-mis-retry");
+      if (retryKey === "production-value") {
+        loadProductionValue();
+        return;
+      }
+      if (retryKey === "production-counts") {
+        loadProductionCounts();
+        return;
+      }
+      loadActiveTab();
+      return;
+    }
+
     const filterBtn = ev.target.closest("#financeFilterBtn");
     if (filterBtn) {
       ev.stopPropagation();
@@ -2168,6 +2565,16 @@ function wireEvents() {
     }
   });
   tabPanel?.addEventListener("input", (ev) => {
+    const clearId = {
+      financeSearch: "financeSearchClear",
+      salesSearch: "salesSearchClear",
+      inventorySearch: "inventorySearchClear",
+      fgSearch: "fgSearchClear",
+    }[ev.target?.id];
+    if (clearId) {
+      const clearBtn = $(clearId);
+      if (clearBtn) clearBtn.style.display = ev.target.value ? "" : "none";
+    }
     if (ev.target?.id === "financeSearch") {
       debouncedSetFinanceSearch(ev.target.value);
     } else if (ev.target?.id === "salesSearch") {
@@ -2234,7 +2641,39 @@ function wireEvents() {
     closeKpiPopover();
   });
   document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Tab" && isFinanceModalOpen()) {
+      const focusable = [
+        ...financeModalOverlay.querySelectorAll(
+          'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ].filter((el) => el.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!financeModalOverlay.contains(document.activeElement)) {
+        ev.preventDefault();
+        first.focus();
+      } else if (ev.shiftKey && document.activeElement === first) {
+        ev.preventDefault();
+        last.focus();
+      } else if (!ev.shiftKey && document.activeElement === last) {
+        ev.preventDefault();
+        first.focus();
+      }
+      return;
+    }
     if (ev.key === "Escape") {
+      // If focus is inside an open filter drawer, hand it back to its button.
+      [
+        ["financeFilterDrawer", "financeFilterBtn"],
+        ["inventoryFilterDrawer", "inventoryFilterBtn"],
+        ["fgFilterDrawer", "fgFilterBtn"],
+      ].forEach(([drawerId, btnId]) => {
+        const drawer = $(drawerId);
+        if (drawer?.classList.contains("open") && drawer.contains(document.activeElement)) {
+          $(btnId)?.focus();
+        }
+      });
       closeKpiPopover();
       closeFinanceFilterDrawer();
       closeInventoryFilterDrawer();
@@ -2253,10 +2692,21 @@ function wireEvents() {
 
 function debounce(fn, wait) {
   let timer = null;
-  return function (...args) {
+  const debounced = function (...args) {
     clearTimeout(timer);
     timer = setTimeout(() => fn.apply(this, args), wait);
   };
+  debounced.cancel = () => clearTimeout(timer);
+  return debounced;
+}
+
+// A debounced search typed just before a tab switch must not fire into the
+// next panel; the rebuilt toolbar renders from committed state anyway.
+function cancelPendingSearches() {
+  debouncedSetFinanceSearch.cancel();
+  debouncedSetSalesSearch.cancel();
+  debouncedSetInventorySearch.cancel();
+  debouncedSetFinishedGoodsSearch.cancel();
 }
 
 (async function init() {
@@ -2265,10 +2715,18 @@ function debounce(fn, wait) {
   } = await supabase.auth.getSession();
   if (!session) return (window.location.href = "/login.html");
 
-  await loadPermissions(session.user.id);
+  const permission = await loadPermissions(session.user.id);
 
   if (!PERM_CAN_VIEW) {
-    setStatus("You do not have permission to view this module.", "error");
+    // Deny by default. Access is decided server-side by get_user_permissions;
+    // the client only reflects the result and never loads module data without it.
+    document.body.classList.add("mis-denied");
+    setStatus(
+      permission === "error"
+        ? "Could not verify your access to this module. Please refresh the page or try again shortly."
+        : "You do not have permission to view this module.",
+      "error",
+    );
     return;
   }
 
