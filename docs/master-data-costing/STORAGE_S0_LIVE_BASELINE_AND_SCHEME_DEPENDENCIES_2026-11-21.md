@@ -62,3 +62,9 @@ Consequently **a direct DELETE of scheme rows can fail referential integrity** a
 Live read-only catalogue also found **more than fifty** costing snapshot tables/views with `refresh_run_id` and `period_start` (the inspected output includes more than 50; this is not a counted exhaustive table total). A wide range of `costing_refresh_run(id)` foreign keys have `ON DELETE RESTRICT` / default NO ACTION; only some stage rows are CASCADE. Thus deleting a refresh-run header is **not equivalent** to safe cascading deletion of all its dependent snapshots; retain approved run IDs, designated/fingerprint/acceptance records, and stage lineage. Formal S1 must produce an explicit dependency-ordered archival/deletion plan and full preview before any owner-authorised purge.
 
 This finding strengthens the KEEP-first approach: Scheme Master and selected-scheme profitability/audit must remain intact while the expensive exhaustive comparison fanout is replaced, not dropped. No destructive SQL, DDL or migration was run.
+
+## S0 metadata totals (21 Nov confirmation)
+- `costing` user-table allocated relations: **14,574.6 MiB**.
+- `public` user-table allocated relations: **3,459.2 MiB**.
+- Combined `costing` + `public` tables/indexes/TOAST: **18,033.8 MiB**, approximately **17.61 GiB** allocated. **This is not a verified Supabase billed storage usage or plan cap.**
+- `costing.costing_refresh_run(id)` is targeted by **64 foreign key constraints across 64 dependent relations**. `costing.sku_scheme_viability_snapshot(id)` is targeted by **3 foreign key constraints**, detailed above. The existing idea of simply deleting old refresh runs or dropping a scheme snapshot would therefore violate or cascade into extensive referential/audit obligations; do not implement a raw `DELETE FROM costing_refresh_run` retention job.
