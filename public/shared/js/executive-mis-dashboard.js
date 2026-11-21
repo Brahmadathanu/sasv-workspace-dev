@@ -48,6 +48,11 @@ let FG_SUMMARY = null;
 let FG_IS_LOADING = false;
 let FG_ERROR = "";
 let PRODUCTION_SUMMARY = null;
+// Canonical G7 production value summary (server computed; the browser never derives a rupee figure).
+// status: loading | ok | error | denied | expired | invalid
+let PRODUCTION_VALUE = { status: "loading", data: null, message: "" };
+let PRODUCTION_VALUE_MONTH = ""; // first of month, YYYY-MM-01 (IST); set on first use
+let PRODUCTION_VALUE_ASOF = ""; // optional YYYY-MM-DD cutoff, "" = server default (today IST)
 
 // ---------------------------------------------------------------------------
 // Async request-state guards (MIS-C1).
@@ -68,6 +73,7 @@ const TAB_REQUEST_KEYS = [
   "fg:summary",
   "fg:page",
   "production",
+  "production:value",
 ];
 let TAB_LOAD_COUNT = 0;
 let ACTIVE_TAB_FAILED = false;
@@ -1823,6 +1829,10 @@ async function loadProductionTab() {
     "Loading production summary...",
   );
 
+  // The canonical value RPC runs alongside the existing counts view; each has its own
+  // latest-wins token so a slow or failed value call never blocks or repaints the counts.
+  const valueDone = loadProductionValue({ render: false });
+
   const { data, error } = await settle(
     supabase.from("v_mis_production_tab_summary").select("*").single(),
   );
@@ -1840,6 +1850,79 @@ async function loadProductionTab() {
 
   PRODUCTION_SUMMARY = data || null;
   renderProductionTab();
+  await valueDone;
+}
+
+function istToday() {
+  // YYYY-MM-DD in Asia/Kolkata (en-CA formats as ISO).
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function productionValueMonthOptions() {
+  const [y, m] = istToday().split("-").map(Number);
+  const out = [];
+  for (let i = 0; i < 12; i += 1) {
+    const d = new Date(Date.UTC(y, m - 1 - i, 1));
+    const iso = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+    out.push({
+      value: iso,
+      label: new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric", timeZone: "UTC" }).format(d),
+    });
+  }
+  return out;
+}
+
+function productionValueAsOfBounds() {
+  const today = istToday();
+  const [y, m] = PRODUCTION_VALUE_MONTH.split("-").map(Number);
+  const monthEnd = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+  return { min: PRODUCTION_VALUE_MONTH, max: monthEnd < today ? monthEnd : today };
+}
+
+function classifyValueError(error) {
+  const code = String((error && (error.code || error.status)) || "");
+  const msg = String((error && error.message) || "");
+  if (code === "42501" || code === "403" || /permission required/i.test(msg)) return "denied";
+  if (code === "401" || code === "PGRST301" || /jwt|not authenticated|session/i.test(msg)) return "expired";
+  if (code === "22023") return "invalid";
+  return "error";
+}
+
+async function loadProductionValue({ render = true } = {}) {
+  if (!PRODUCTION_VALUE_MONTH) PRODUCTION_VALUE_MONTH = `${istToday().slice(0, 7)}-01`;
+  const token = beginRequest("production:value");
+  PRODUCTION_VALUE = { status: "loading", data: null, message: "" };
+  if (render) renderProductionValueBody();
+
+  const args = { p_report_month: PRODUCTION_VALUE_MONTH };
+  if (PRODUCTION_VALUE_ASOF) args.p_as_of_date = PRODUCTION_VALUE_ASOF;
+  const { data, error } = await settle(
+    supabase.rpc("get_mis_production_value_summary", args),
+  );
+  if (!isLatestRequest("production:value", token)) return;
+
+  if (error) {
+    console.error("[MIS] Production value summary load failed", error);
+    PRODUCTION_VALUE = {
+      status: classifyValueError(error),
+      data: null,
+      message: errorMessage(error),
+    };
+  } else if (!data || typeof data !== "object" || Array.isArray(data)) {
+    PRODUCTION_VALUE = {
+      status: "error",
+      data: null,
+      message: "The server returned an unexpected response.",
+    };
+  } else {
+    PRODUCTION_VALUE = { status: "ok", data, message: "" };
+  }
+  renderProductionValueBody();
 }
 
 function formatPlanningStatusLabel(value) {
@@ -1860,134 +1943,237 @@ function formatPercent(value) {
   return `${formatNumberIN(n)}%`;
 }
 
+const PV_STATUS_LABELS = {
+  BULK_RECEIPT_COVERED_REFERENCE: "Bulk receipts, approved reference cost (covered subtotal)",
+  NO_PREVIOUS_MONTH_APPROVED_COST: "No approved cost run for the previous month",
+};
+const PV_COMPONENT_POLICY_LABELS = {
+  RM_STORES_PM_EXCLUDED:
+    "Rate includes RM and RM materials-stores share only. PM stores, packing labour and PM costs are excluded from bulk.",
+};
+
+function pvCard({ cls = "", title, value, badge = "", caption = "", unavailable = false }) {
+  return `
+    <div class="pv-kpi ${cls}${unavailable ? " unavailable" : ""}">
+      <div class="pv-kpi-title">${escapeHtml(title)}</div>
+      <div class="pv-kpi-value">${escapeHtml(value)}</div>
+      ${badge ? `<div class="pv-kpi-badge">${escapeHtml(badge)}</div>` : ""}
+      ${caption ? `<div class="pv-kpi-caption">${escapeHtml(caption)}</div>` : ""}
+    </div>`;
+}
+
+function pvHasValue(v) {
+  return v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v));
+}
+
+// Pure presentation of the server payload. No arithmetic: every rupee figure is shown exactly as
+// supplied, and a missing figure is a word, never "₹0".
+function buildProductionValueCards(d) {
+  const noRun = d.status === "NO_PREVIOUS_MONTH_APPROVED_COST";
+  const events = pvHasValue(d.receipt_event_count) ? Number(d.receipt_event_count) : null;
+  const unvalued = pvHasValue(d.receipt_unvalued_count) ? Number(d.receipt_unvalued_count) : null;
+  const corrections = pvHasValue(d.receipt_correction_event_count) ? Number(d.receipt_correction_event_count) : 0;
+  const rStatus = d.receipt_value_status;
+
+  // 1. Planned
+  let planned;
+  if (pvHasValue(d.planned_reference_covered_value)) {
+    planned = pvCard({
+      title: "Planned bulk value",
+      value: formatCurrencyINR(d.planned_reference_covered_value),
+      badge: d.plan_status === "FROZEN" ? "Frozen plan" : String(d.plan_status || "").replace(/_/g, " ").toLowerCase(),
+      caption: pvHasValue(d.planned_unvalued_count) && Number(d.planned_unvalued_count) > 0
+        ? `${formatIntegerIN(d.planned_unvalued_count)} planned product(s) unvalued - covered subtotal`
+        : "Reference estimate",
+    });
+  } else {
+    planned = pvCard({
+      title: "Planned bulk value",
+      value: "Unavailable",
+      unavailable: true,
+      badge: d.plan_status === "UNAVAILABLE_PENDING_FROZEN_PLAN" ? "Pending frozen plan" : "",
+      caption: d.plan_status === "UNAVAILABLE_PENDING_FROZEN_PLAN"
+        ? "No approved frozen plan snapshot yet; no planned amount is shown."
+        : "No planned amount supplied for this period.",
+    });
+  }
+
+  // 2. Actual bulk received (covered)
+  let recv;
+  if (noRun) {
+    recv = pvCard({ title: "Bulk received - covered value", value: "Unavailable", unavailable: true, badge: "No approved cost", caption: "Previous month has no approved cost run, so receipts cannot be valued." });
+  } else if (rStatus === "BLOCKED_CORRECTION_LINEAGE" || (!pvHasValue(d.receipt_reference_covered_value) && corrections > 0)) {
+    recv = pvCard({ title: "Bulk received - covered value", value: "Withheld", unavailable: true, badge: "Correction lineage blocked", caption: `${formatIntegerIN(corrections)} correction event(s) in period; subtotal withheld until lineage is verified.` });
+  } else if (!pvHasValue(d.receipt_reference_covered_value)) {
+    const allUnvalued = events !== null && events > 0 && unvalued === events;
+    recv = pvCard({
+      title: "Bulk received - covered value",
+      value: allUnvalued ? "Unvalued" : events === 0 ? "No receipts" : "Unavailable",
+      unavailable: true,
+      caption: allUnvalued ? `All ${formatIntegerIN(events)} receipt event(s) lack an approved rate.` : events === 0 ? "No bulk receipt events in this period." : "No covered value supplied.",
+    });
+  } else {
+    const partial = rStatus === "PARTIAL_COVERAGE" || (unvalued !== null && unvalued > 0);
+    recv = pvCard({
+      title: "Bulk received - covered value",
+      value: formatCurrencyINR(d.receipt_reference_covered_value),
+      badge: partial ? "Partial coverage" : "Covered subtotal",
+      caption: `${events === null ? "-" : formatIntegerIN(events)} receipt event(s)${unvalued ? `, ${formatIntegerIN(unvalued)} unvalued and excluded` : ""}. Not full cost or actual expense.`,
+    });
+  }
+
+  // 3. Completed
+  const completed = pvHasValue(d.completed_reference_value)
+    ? pvCard({ title: "Completed bulk value", value: formatCurrencyINR(d.completed_reference_value), badge: String(d.completed_status || "").replace(/_/g, " ").toLowerCase(), caption: "Canonical completion events." })
+    : pvCard({ title: "Completed bulk value", value: "N/A", unavailable: true, badge: d.completed_status === "NOT_VERIFIED" || !d.completed_status ? "Not verified" : String(d.completed_status).replace(/_/g, " ").toLowerCase(), caption: "No canonical batch-completion event is verified yet." });
+
+  // 4. Transferred FG (Tally book basis; deliberately a separate card style)
+  const lines = pvHasValue(d.transfer_line_count) ? Number(d.transfer_line_count) : null;
+  const missing = pvHasValue(d.transfer_missing_amount_lines) ? Number(d.transfer_missing_amount_lines) : 0;
+  const snap = d.tally_snapshot_as_of ? `Tally snapshot ${formatDateIN(d.tally_snapshot_as_of)}. ` : "";
+  const recon = d.transfer_reconciliation_status === "NOT_CHECKED_BY_BOOK_TOTAL"
+    ? "Not reconciled to batch log."
+    : d.transfer_reconciliation_status ? `Reconciliation: ${String(d.transfer_reconciliation_status).replace(/_/g, " ").toLowerCase()}.` : "";
+  const transfer = pvHasValue(d.tally_fg_transfer_book_value)
+    ? pvCard({ cls: "book", title: "Transferred to FG - book value", value: formatCurrencyINR(d.tally_fg_transfer_book_value), badge: "Tally book basis", caption: `${lines === null ? "-" : formatIntegerIN(lines)} voucher line(s)${missing ? `, ${formatIntegerIN(missing)} without amount` : ""}. ${snap}${recon}` })
+    : pvCard({ cls: "book", title: "Transferred to FG - book value", value: lines === 0 ? "No transfers" : "Unavailable", unavailable: true, badge: "Tally book basis", caption: lines === 0 ? `No Tally transfer lines in period. ${snap}`.trim() : `${snap}No book value supplied.`.trim() });
+
+  return [planned, recv, completed, transfer].join("");
+}
+
+function renderProductionValueBody() {
+  const body = $("productionValueBody");
+  if (!body) return;
+  const st = PRODUCTION_VALUE;
+  body.setAttribute("aria-busy", st.status === "loading" ? "true" : "false");
+  if (st.status === "loading") {
+    body.innerHTML = `<div class="pv-state" role="status"><span class="table-loading-spinner" aria-hidden="true"></span> Loading production values...</div>`;
+    return;
+  }
+  if (st.status !== "ok") {
+    const text = {
+      denied: "You do not have permission to view production values.",
+      expired: "Your session has expired or could not be verified. Sign in again, then retry.",
+      invalid: "That report month or cut-off date is not valid for the server.",
+      error: "Failed to load production values.",
+    }[st.status];
+    const detail = st.status === "error" || st.status === "invalid" ? ` ${escapeHtml(st.message)}` : "";
+    body.innerHTML = `<div class="pv-state error" role="alert">${escapeHtml(text)}${detail}${
+      st.status === "denied" ? "" : ` <button type="button" class="mis-retry-btn" data-mis-retry="production-value">Retry</button>`
+    }</div>`;
+    return;
+  }
+
+  const d = st.data;
+  const noRun = d.status === "NO_PREVIOUS_MONTH_APPROVED_COST";
+  const comparable = d.comparability === "COMPARABLE" && pvHasValue(d.plan_achievement_pct);
+  const policy = d.component_policy
+    ? PV_COMPONENT_POLICY_LABELS[d.component_policy] || `Component policy: ${d.component_policy}`
+    : "";
+  const statusLabel = PV_STATUS_LABELS[d.status] || (d.status ? String(d.status).replace(/_/g, " ").toLowerCase() : "");
+  const basis = [
+    `Report month <b>${escapeHtml(formatDateIN(d.report_month))}</b>`,
+    `Events to <b>${escapeHtml(formatDateIN(d.as_of_date))}</b>`,
+    noRun ? "" : `Approved cost run <b>#${escapeHtml(d.approved_cost_run_id ?? "-")}</b> (valued ${escapeHtml(formatDateIN(d.approved_cost_valuation_date))})`,
+  ].filter(Boolean).join(" &middot; ");
+
+  body.innerHTML = `
+    <div class="pv-basis">${basis}</div>
+    <div class="pv-kpi-grid">${buildProductionValueCards(d)}</div>
+    <div class="pv-achievement">
+      <span class="pv-achievement-label">Plan achievement</span>
+      <span class="pv-achievement-value">${comparable ? escapeHtml(formatPercent(d.plan_achievement_pct)) : "N/A"}</span>
+      <span class="pv-achievement-note">${comparable ? "Server-confirmed comparable basis." : "Not comparable: no frozen plan or verified completion on the same cost basis. Receipts and Tally book value are never used as a plan percentage."}</span>
+    </div>
+    <details class="pv-notes">
+      <summary>Basis, coverage and exclusions</summary>
+      <ul>
+        <li>Indicative covered subtotal at approved reference cost; it is not full COP or actual expense.</li>
+        ${statusLabel ? `<li>Server status: ${escapeHtml(statusLabel)}.</li>` : ""}
+        ${policy ? `<li>${escapeHtml(policy)}</li>` : ""}
+        <li>Receipts use legacy physical storage postings; a stored receipt is not a formal batch completion.</li>
+        <li>Tally book value is a separate accounting basis and is not comparable with the reference-cost figures.</li>
+        <li>Physical quantities in Kg, L and Nos are never added together.</li>
+      </ul>
+    </details>`;
+}
+
+function renderProductionValueSection() {
+  const opts = productionValueMonthOptions();
+  if (!opts.some((o) => o.value === PRODUCTION_VALUE_MONTH)) {
+    opts.unshift({ value: PRODUCTION_VALUE_MONTH, label: formatDateIN(PRODUCTION_VALUE_MONTH) });
+  }
+  const bounds = productionValueAsOfBounds();
+  return `
+    <section class="pv" id="productionValueSection" aria-labelledby="pvHeading">
+      <div class="pv-head">
+        <h2 class="pv-heading" id="pvHeading">Production value</h2>
+        <div class="pv-controls">
+          <label class="pv-field"><span>Month</span>
+            <select id="pvMonth" class="pv-input">${opts
+              .map((o) => `<option value="${escapeHtml(o.value)}"${o.value === PRODUCTION_VALUE_MONTH ? " selected" : ""}>${escapeHtml(o.label)}</option>`)
+              .join("")}</select></label>
+          <label class="pv-field"><span>As of</span>
+            <input id="pvAsOf" class="pv-input" type="date" min="${escapeHtml(bounds.min)}" max="${escapeHtml(bounds.max)}" value="${escapeHtml(PRODUCTION_VALUE_ASOF)}" /></label>
+        </div>
+      </div>
+      <div id="productionValueBody" class="pv-body"></div>
+    </section>`;
+}
+
+function onProductionValueControlChange() {
+  const month = $("pvMonth")?.value;
+  if (month) PRODUCTION_VALUE_MONTH = month;
+  let asof = $("pvAsOf")?.value || "";
+  const b = productionValueAsOfBounds();
+  if (asof && (asof < b.min || asof > b.max)) asof = "";
+  PRODUCTION_VALUE_ASOF = asof;
+  const input = $("pvAsOf");
+  if (input) {
+    input.min = b.min;
+    input.max = b.max;
+    input.value = asof;
+  }
+  loadProductionValue();
+}
+
 function renderProductionTab() {
   if (!tabPanel) return;
   const s = PRODUCTION_SUMMARY || {};
   const periodLine = `Report month: ${formatDateIN(s.report_month_start)} to ${formatDateIN(s.report_month_end)} | Planning month: ${formatDateIN(s.planning_month_start)} | Status: ${formatPlanningStatusLabel(s.planning_period_status)}`;
+  // Counts only. Base quantities and achievement percentages from the legacy view mix Kg, L and Nos and
+  // are no longer headline figures (see the diagnostics section).
   const cards = [
-    {
-      title: "Planned Production",
-      value: formatNumberIN(s.planned_production_base_qty),
-    },
-    {
-      title: "Bulk Produced",
-      value: formatNumberIN(s.bulk_produced_base_qty),
-    },
-    {
-      title: "Transferred to Finished Goods",
-      value: formatNumberIN(s.transferred_to_finished_goods_base_qty),
-    },
-    {
-      title: "Bulk Achievement %",
-      value: formatPercent(s.bulk_production_achievement_pct),
-    },
-    {
-      title: "FG Transfer Achievement %",
-      value: formatPercent(s.fg_transfer_achievement_pct),
-    },
-    {
-      title: "Active Pipeline Batches",
-      value: formatIntegerIN(s.active_pipeline_batch_count),
-    },
+    { title: "Active Pipeline Batches", value: formatIntegerIN(s.active_pipeline_batch_count) },
+    { title: "Work in Process Batches", value: formatIntegerIN(s.work_in_process_batch_count) },
     {
       title: "Overdue WIP Batches",
       value: formatIntegerIN(s.overdue_work_in_process_batch_count),
-      state:
-        Number(s.overdue_work_in_process_batch_count) > 0 ? "warning" : "",
+      state: Number(s.overdue_work_in_process_batch_count) > 0 ? "warning" : "",
     },
+    { title: "FG Bulk Batches", value: formatIntegerIN(s.finished_goods_bulk_batch_count) },
+    { title: "Bottled Stock Batches", value: formatIntegerIN(s.bottled_stock_batch_count) },
+    { title: "Total Canonical Batches", value: formatIntegerIN(s.total_canonical_batch_count) },
   ];
 
-  const achievementRows = [
-    {
-      metric: "Planned Production",
-      quantity: formatNumberIN(s.planned_production_base_qty),
-      variance: "-",
-      achievement: "-",
-      explanation: s.planned_production_note,
-    },
-    {
-      metric: "Bulk Produced",
-      quantity: formatNumberIN(s.bulk_produced_base_qty),
-      variance: formatNumberIN(s.bulk_production_variance_base_qty),
-      achievement: formatPercent(s.bulk_production_achievement_pct),
-      explanation: s.bulk_produced_note,
-    },
-    {
-      metric: "Transferred to Finished Goods",
-      quantity: formatNumberIN(s.transferred_to_finished_goods_base_qty),
-      variance: formatNumberIN(s.fg_transfer_variance_base_qty),
-      achievement: formatPercent(s.fg_transfer_achievement_pct),
-      explanation: s.transferred_to_finished_goods_note,
-    },
-    {
-      metric: "Transferred to Finished Goods Value",
-      quantity: formatCurrencyINR(s.transferred_to_finished_goods_value),
-      variance: "-",
-      achievement: "-",
-      explanation: s.fg_transfer_achievement_note,
-    },
-  ];
-
-  const pipelineRows = [
-    {
-      stage: "Not Initiated",
-      count: formatIntegerIN(s.not_initiated_batch_count),
-      baseQty: formatNumberIN(s.not_initiated_expected_output_base_qty),
-      explanation: s.not_initiated_note,
-    },
-    {
-      stage: "Work in Process",
-      count: formatIntegerIN(s.work_in_process_batch_count),
-      baseQty: formatNumberIN(s.work_in_process_expected_output_base_qty),
-      explanation: s.work_in_process_note,
-    },
-    {
-      stage: "Finished Goods Bulk",
-      count: formatIntegerIN(s.finished_goods_bulk_batch_count),
-      baseQty: formatNumberIN(s.finished_goods_bulk_on_hand_base_qty),
-      explanation: s.finished_goods_bulk_note,
-    },
-    {
-      stage: "Bottled Stock",
-      count: formatIntegerIN(s.bottled_stock_batch_count),
-      baseQty: formatNumberIN(s.bottled_stock_on_hand_base_qty),
-      explanation: s.bottled_stock_note,
-    },
-    {
-      stage: "Active Pipeline Total",
-      count: formatIntegerIN(s.active_pipeline_batch_count),
-      baseQty: "-",
-      explanation: s.active_pipeline_batch_count_note,
-    },
-    {
-      stage: "Overdue Work in Process",
-      count: formatIntegerIN(s.overdue_work_in_process_batch_count),
-      baseQty: "-",
-      explanation: "Positive values require production follow-up.",
-    },
-    {
-      stage: "Transferred Only",
-      count: formatIntegerIN(s.transferred_only_batch_count),
-      baseQty: formatNumberIN(s.transferred_only_base_qty),
-      explanation: s.transferred_only_note,
-    },
-    {
-      stage: "Total Canonical Batches",
-      count: formatIntegerIN(s.total_canonical_batch_count),
-      baseQty: "-",
-      explanation: s.total_canonical_batch_count_note,
-    },
+  const diagRows = [
+    ["Planned production", s.planned_production_base_qty, s.planned_production_note],
+    ["Bulk produced", s.bulk_produced_base_qty, s.bulk_produced_note],
+    ["Transferred to Finished Goods", s.transferred_to_finished_goods_base_qty, s.transferred_to_finished_goods_note],
+    ["Not initiated (expected output)", s.not_initiated_expected_output_base_qty, s.not_initiated_note],
+    ["Work in process (expected output)", s.work_in_process_expected_output_base_qty, s.work_in_process_note],
+    ["Finished goods bulk on hand", s.finished_goods_bulk_on_hand_base_qty, s.finished_goods_bulk_note],
+    ["Bottled stock on hand", s.bottled_stock_on_hand_base_qty, s.bottled_stock_note],
+    ["Transferred only", s.transferred_only_base_qty, s.transferred_only_note],
   ];
 
   tabPanel.innerHTML = `
     <div class="production-scope-note">
       <div class="production-period-line">${escapeHtml(periodLine)}</div>
-      ${
-        s.production_scope_note
-          ? `<div>${escapeHtml(s.production_scope_note)}</div>`
-          : ""
-      }
+      ${s.production_scope_note ? `<div>${escapeHtml(s.production_scope_note)}</div>` : ""}
     </div>
+
+    ${renderProductionValueSection()}
 
     <div class="production-summary-heading">Production Summary</div>
     <div class="production-summary-grid">
@@ -2003,68 +2189,31 @@ function renderProductionTab() {
         .join("")}
     </div>
 
-    <div class="production-section">
-      <div class="production-section-title">Production Achievement</div>
+    <details class="production-section production-diagnostics">
+      <summary class="production-section-title">Source diagnostics - mixed base units, not additive</summary>
+      <div class="production-diag-note">These quantities mix Kg, L and Nos in one base-quantity field. They are neither a physical total nor a financial figure, and no achievement percentage is derived from them. Per-unit quantities are not provided by the canonical API.</div>
       <div class="production-table-wrap">
         <table class="production-table">
           <thead>
-            <tr>
-              <th>Metric</th>
-              <th class="num">Quantity / Value</th>
-              <th class="num">Variance</th>
-              <th class="num">Achievement</th>
-              <th>Explanation</th>
-            </tr>
+            <tr><th>Source figure</th><th class="num">Mixed-unit quantity</th><th>Explanation</th></tr>
           </thead>
           <tbody>
-            ${achievementRows
+            ${diagRows
               .map(
-                (row) => `
+                (r) => `
                   <tr>
-                    <td>${escapeHtml(row.metric)}</td>
-                    <td class="num">${escapeHtml(row.quantity)}</td>
-                    <td class="num">${escapeHtml(row.variance)}</td>
-                    <td class="num">${escapeHtml(row.achievement)}</td>
-                    <td>${escapeHtml(row.explanation || "-")}</td>
-                  </tr>
-                `,
+                    <td>${escapeHtml(r[0])}</td>
+                    <td class="num">${escapeHtml(formatNumberIN(r[1]))}</td>
+                    <td>${escapeHtml(r[2] || "-")}</td>
+                  </tr>`,
               )
               .join("")}
           </tbody>
         </table>
       </div>
-    </div>
-
-    <div class="production-section">
-      <div class="production-section-title">Batch Pipeline</div>
-      <div class="production-table-wrap">
-        <table class="production-table">
-          <thead>
-            <tr>
-              <th>Stage</th>
-              <th class="num">Batch Count</th>
-              <th class="num">Base Quantity</th>
-              <th>Explanation</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${pipelineRows
-              .map(
-                (row) => `
-                  <tr>
-                    <td>${escapeHtml(row.stage)}</td>
-                    <td class="num">${escapeHtml(row.count)}</td>
-                    <td class="num">${escapeHtml(row.baseQty)}</td>
-                    <td>${escapeHtml(row.explanation || "-")}</td>
-                  </tr>
-                `,
-              )
-              .join("")}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    </details>
   `;
+  renderProductionValueBody();
 }
 
 function openFinanceFilterDrawer() {
@@ -2255,9 +2404,16 @@ function wireEvents() {
   detailTabSelect?.addEventListener("change", () => {
     selectTab(detailTabSelect.value);
   });
+  tabPanel?.addEventListener("change", (ev) => {
+    if (ev.target.id === "pvMonth" || ev.target.id === "pvAsOf") onProductionValueControlChange();
+  });
   tabPanel?.addEventListener("click", (ev) => {
     const retryBtn = ev.target.closest("[data-mis-retry]");
     if (retryBtn) {
+      if (retryBtn.getAttribute("data-mis-retry") === "production-value") {
+        loadProductionValue();
+        return;
+      }
       loadActiveTab();
       return;
     }

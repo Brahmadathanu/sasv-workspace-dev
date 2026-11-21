@@ -23,12 +23,13 @@ test("server contracts are consumed unchanged (names and parameters)", () => {
     "mv_mis_executive_summary", "v_mis_finance_tab_summary", "get_mis_finance_party_page", "v_mis_sales_tab_summary",
     "get_mis_sales_product_page", "v_mis_inventory_tab_summary", "get_mis_inventory_item_page",
     "v_mis_finished_goods_tab_summary", "get_mis_finished_goods_sku_page", "v_mis_production_tab_summary",
+    "get_mis_production_value_summary",
   ]) assert.ok(js.includes(`"${obj}"`), obj);
   for (const p of ["p_group_filter", "p_search", "p_limit", "p_offset", "p_source_kind", "p_mos_filter"]) assert.ok(js.includes(p), p);
   // The FG filter value stays `shaded`; only the label is "Same IK/OK MRP".
   assert.match(js, /value="shaded"[^>]*\/> Same IK\/OK MRP/);
   assert.ok(!/Shaded</.test(js));
-  assert.equal(/\.rpc\(\s*"get_mis_(?!finance_party_page|sales_product_page|inventory_item_page|finished_goods_sku_page)/.test(js), false);
+  assert.equal(/\.rpc\(\s*"get_mis_(?!finance_party_page|sales_product_page|inventory_item_page|finished_goods_sku_page|production_value_summary)/.test(js), false);
 });
 
 test("no polling or timers were added (only the existing 60 s freshness label tick)", () => {
@@ -47,11 +48,24 @@ test("production secondary cards use semantic tokens, not hard-coded palette val
   assert.match(block, /var\(--mis-/);
 });
 
-test("no production monetary valuation was introduced", () => {
-  const prod = js.slice(js.indexOf("function renderProductionTab"), js.indexOf("function openFinanceFilterDrawer"));
-  // The only rupee figure in Production remains the pre-existing server-supplied FG transfer value row.
-  assert.equal((prod.match(/formatCurrencyINR\(/g) || []).length, 1);
-  assert.match(prod, /Transferred to Finished Goods Value/);
+test("production value is presentation-only: sole canonical RPC, no browser arithmetic or source queries", () => {
+  const a = js.indexOf("const PV_STATUS_LABELS");
+  const b = js.indexOf("function renderProductionTab");
+  const code = js.slice(a, b) + js.slice(js.indexOf("async function loadProductionValue"), js.indexOf("const PV_STATUS_LABELS"));
+  assert.doesNotMatch(code, /[\w)\]]\s+[*\/]\s+[\w(]/, "no multiplication/division in the value code");
+  assert.doesNotMatch(code, /Number\([^)]*\)\s*[+\-]\s*Number\(/, "no summation of server figures");
+  assert.doesNotMatch(js, /daily_work_log|fg_bulk_stock_ledger|tally_fg_transfer_voucher_lines|costing\./);
+  assert.equal((js.match(/get_mis_production_value_summary/g) || []).length, 1);
+  assert.doesNotMatch(js, /get_mis_production_value_summary_v\d|preview/i);
+});
+
+test("production value styles use semantic tokens only", () => {
+  const a = html.indexOf(".pv {");
+  const b = html.indexOf(".production-section {");
+  assert.ok(a > 0 && b > a);
+  const block = html.slice(a, b);
+  assert.doesNotMatch(block, /#[0-9a-fA-F]{3,8}\b/);
+  assert.doesNotMatch(block, /rgba?\(/);
 });
 
 // ---------------------------------------------------------------- browser tests
@@ -200,24 +214,173 @@ test("Finished Goods: filter values/labels and status labels (RPC value stays 's
   } finally { await page.context().close(); }
 });
 
-test("Production: Production Summary hierarchy, source figures and tables unchanged", { skip }, async () => {
-  const { page } = await open();
+const pvText = (page) => page.textContent("#productionValueBody");
+const pvCards = (page) => page.$$eval(".pv-kpi", (c) => c.map((x) => ({ title: x.querySelector(".pv-kpi-title").textContent, value: x.querySelector(".pv-kpi-value").textContent, badge: x.querySelector(".pv-kpi-badge")?.textContent || "", caption: x.querySelector(".pv-kpi-caption")?.textContent || "", book: x.classList.contains("book") })));
+const openProduction = async (opts) => {
+  const r = await open(opts);
+  await r.page.click('[data-tab="production"]');
+  await r.page.waitForSelector(".production-summary-grid");
+  return r;
+};
+const pvOverride = (page, data) => setHandler(page, "get_mis_production_value_summary", new Function("a", `const base = ${JSON.stringify({})}; return { data: Object.assign({ report_month: a.p_report_month, as_of_date: "2026-11-20", approved_cost_run_id: 143, approved_cost_valuation_date: "2026-10-22", status: "BULK_RECEIPT_COVERED_REFERENCE", plan_status: "UNAVAILABLE_PENDING_FROZEN_PLAN", component_policy: "RM_STORES_PM_EXCLUDED", receipt_event_count: 10, receipt_unvalued_count: 0, receipt_correction_event_count: 0, receipt_reference_covered_value: 1000, receipt_value_status: "COVERED_SUBTOTAL", tally_fg_transfer_book_value: 500, transfer_line_count: 3, tally_snapshot_as_of: "2026-11-20", transfer_reconciliation_status: "NOT_CHECKED_BY_BOOK_TOTAL", transfer_missing_amount_lines: 0, completed_reference_value: null, completed_status: "NOT_VERIFIED", plan_achievement_pct: null, comparability: "NOT_COMPARABLE" }, ${JSON.stringify(data)}), error: null };`));
+const refresh = async (page) => { await page.click("#pvMonth"); await page.selectOption("#pvMonth", { index: 1 }); await page.selectOption("#pvMonth", { index: 0 }); await page.waitForFunction(() => document.querySelector("#productionValueBody")?.getAttribute("aria-busy") === "false"); };
+
+test("Production value: four cards, covered subtotal, unavailable plan/completion, Tally book basis kept separate", { skip }, async () => {
+  const { page } = await openProduction();
+  try {
+    await page.waitForSelector(".pv-kpi");
+    const cards = await pvCards(page);
+    assert.deepEqual(cards.map((c) => c.title), ["Planned bulk value", "Bulk received - covered value", "Completed bulk value", "Transferred to FG - book value"]);
+    assert.equal(cards[0].value, "Unavailable"); assert.match(cards[0].caption, /No approved frozen plan/);
+    assert.match(cards[1].value, /₹32,04,140\.56/); assert.equal(cards[1].badge, "Partial coverage"); assert.match(cards[1].caption, /80 receipt event\(s\), 2 unvalued and excluded\. Not full cost/);
+    assert.equal(cards[2].value, "N/A"); assert.equal(cards[2].badge, "Not verified");
+    assert.match(cards[3].value, /₹25,00,000/); assert.equal(cards[3].badge, "Tally book basis"); assert.ok(cards[3].book && !cards.slice(0, 3).some((c) => c.book));
+    assert.match(cards[3].caption, /Not reconciled to batch log/);
+    const t = await pvText(page);
+    assert.match(t, /Approved cost run #143/); assert.match(t, /valued 22 Oct 2026/); assert.match(t, /Events to 20 Nov 2026/);
+    assert.match(t, /Plan achievement\s*N\/A/); assert.match(t, /Not comparable/);
+    assert.doesNotMatch(t, /₹\s?0(\.00)?\b/, "no impossible zero");
+    assert.doesNotMatch(t, /NaN|undefined|null/);
+    // the explanation of exclusions is present
+    await page.click(".pv-notes summary");
+    assert.match(await page.textContent(".pv-notes"), /RM materials-stores share|RM and RM materials-stores/);
+    assert.match(await page.textContent(".pv-notes"), /PM stores, packing labour and PM costs are excluded/);
+    // the RPC is called once, with the first-of-month IST month and no as-of unless chosen
+    const c = (await calls(page, "get_mis_production_value_summary"));
+    assert.equal(c.length, 1); assert.match(c[0].args.p_report_month, /^\d{4}-\d{2}-01$/); assert.equal("p_as_of_date" in c[0].args, false);
+    // counts remain; mixed-unit quantities are demoted into a labelled collapsed diagnostic with no % columns
+    assert.deepEqual(await page.$$eval(".production-summary-card .production-summary-title", (t) => t.map((x) => x.textContent)), ["Active Pipeline Batches", "Work in Process Batches", "Overdue WIP Batches", "FG Bulk Batches", "Bottled Stock Batches", "Total Canonical Batches"]);
+    assert.equal(await page.$eval(".production-diagnostics", (e) => e.open), false);
+    assert.match(await page.textContent(".production-diagnostics > summary"), /mixed base units, not additive/);
+    const diag = await page.textContent(".production-diagnostics");
+    assert.doesNotMatch(diag, /Achievement|53\.77|43\.02/);
+    assert.doesNotMatch(await page.textContent("#tabPanel"), /Bulk Achievement %|FG Transfer Achievement %/);
+  } finally { await page.context().close(); }
+});
+
+test("Production value fixtures: no run, correction lineage, all unvalued, no receipts, zero transfers, comparable", { skip }, async () => {
+  const { page } = await openProduction();
+  try {
+    await pvOverride(page, { status: "NO_PREVIOUS_MONTH_APPROVED_COST", plan_status: "LIVE_INDICATIVE", receipt_event_count: null, receipt_reference_covered_value: null, receipt_value_status: null, tally_fg_transfer_book_value: null, transfer_line_count: null, approved_cost_run_id: null, approved_cost_valuation_date: null });
+    await refresh(page);
+    let cards = await pvCards(page);
+    assert.equal(cards[1].value, "Unavailable"); assert.equal(cards[1].badge, "No approved cost"); assert.equal(cards[3].value, "Unavailable");
+    assert.doesNotMatch(await pvText(page), /Approved cost run|₹/);
+
+    await pvOverride(page, { receipt_correction_event_count: 3, receipt_reference_covered_value: null, receipt_value_status: "BLOCKED_CORRECTION_LINEAGE" });
+    await refresh(page);
+    cards = await pvCards(page);
+    assert.equal(cards[1].value, "Withheld"); assert.equal(cards[1].badge, "Correction lineage blocked"); assert.match(cards[1].caption, /3 correction event/);
+
+    await pvOverride(page, { receipt_event_count: 2, receipt_unvalued_count: 2, receipt_reference_covered_value: null, receipt_value_status: "PARTIAL_COVERAGE" });
+    await refresh(page);
+    cards = await pvCards(page);
+    assert.equal(cards[1].value, "Unvalued"); assert.match(cards[1].caption, /All 2 receipt event/);
+
+    await pvOverride(page, { receipt_event_count: 0, receipt_unvalued_count: 0, receipt_reference_covered_value: null, tally_fg_transfer_book_value: null, transfer_line_count: 0 });
+    await refresh(page);
+    cards = await pvCards(page);
+    assert.equal(cards[1].value, "No receipts"); assert.equal(cards[3].value, "No transfers");
+    assert.doesNotMatch(await pvText(page), /₹/);
+
+    await pvOverride(page, { tally_fg_transfer_book_value: 900, transfer_line_count: 4, transfer_missing_amount_lines: 1, transfer_reconciliation_status: "MISSING_LOG" });
+    await refresh(page);
+    cards = await pvCards(page);
+    assert.match(cards[3].caption, /4 voucher line\(s\), 1 without amount/); assert.match(cards[3].caption, /missing log/);
+
+    // clean positive, rates present: covered subtotal without partial caveat
+    await pvOverride(page, {});
+    await refresh(page);
+    cards = await pvCards(page);
+    assert.equal(cards[1].badge, "Covered subtotal"); assert.match(cards[1].value, /₹1,000/);
+
+    // percentage only appears when the server says COMPARABLE and supplies it; planned value shown verbatim then
+    await pvOverride(page, { comparability: "NOT_COMPARABLE", plan_achievement_pct: 88 });
+    await refresh(page);
+    assert.match(await pvText(page), /Plan achievement\s*N\/A/, "a stray pct without COMPARABLE is never shown");
+    await pvOverride(page, { comparability: "COMPARABLE", plan_achievement_pct: 88, plan_status: "FROZEN", planned_reference_covered_value: 2000, planned_unvalued_count: 0 });
+    await refresh(page);
+    assert.match(await pvText(page), /Plan achievement\s*88%/);
+    assert.match((await pvCards(page))[0].value, /₹2,000/);
+  } finally { await page.context().close(); }
+});
+
+test("Production value: report month and cut-off are sent to the server; as-of is bounded", { skip }, async () => {
+  const { page } = await openProduction();
+  try {
+    const opts = await page.$$eval("#pvMonth option", (o) => o.map((x) => x.value));
+    assert.equal(opts.length, 12); assert.ok(opts.every((v) => /^\d{4}-\d{2}-01$/.test(v)));
+    await page.selectOption("#pvMonth", opts[2]);
+    await page.waitForFunction(() => document.querySelector("#productionValueBody")?.getAttribute("aria-busy") === "false");
+    const bounds = await page.$eval("#pvAsOf", (e) => ({ min: e.min, max: e.max }));
+    assert.equal(bounds.min, opts[2]); assert.ok(bounds.max >= bounds.min);
+    const day = bounds.min.slice(0, 8) + "10";
+    await page.fill("#pvAsOf", day);
+    await page.dispatchEvent("#pvAsOf", "change");
+    await page.waitForFunction(() => document.querySelector("#productionValueBody")?.getAttribute("aria-busy") === "false");
+    const c = await calls(page, "get_mis_production_value_summary");
+    assert.deepEqual(c.at(-1).args, { p_report_month: opts[2], p_as_of_date: day });
+    assert.match(await pvText(page), /Events to 10 /);
+    // changing the month clears an as-of that is now outside the month
+    await page.selectOption("#pvMonth", opts[0]);
+    await page.waitForFunction(() => document.querySelector("#productionValueBody")?.getAttribute("aria-busy") === "false");
+    assert.equal(await page.inputValue("#pvAsOf"), "");
+    assert.equal("p_as_of_date" in (await calls(page, "get_mis_production_value_summary")).at(-1).args, false);
+  } finally { await page.context().close(); }
+});
+
+test("Production value: loading, denied (403/42501), 401, generic error + Retry; counts unaffected", { skip }, async () => {
+  const { page } = await open({ init: () => { window.__mis.handlers = { get_mis_production_value_summary: () => (window.__mis.first = window.__mis.defer()).promise }; } });
   try {
     await page.click('[data-tab="production"]');
+    await page.waitForFunction(() => !!window.__mis.first);
     await page.waitForSelector(".production-summary-grid");
-    assert.equal(await page.textContent(".production-summary-heading"), "Production Summary");
-    const cards = await page.$$eval(".production-summary-card", (c) => c.map((x) => [x.querySelector(".production-summary-title").textContent, x.querySelector(".production-summary-value").textContent, x.classList.contains("warning")]));
-    assert.deepEqual(cards.map((c) => c[0]), ["Planned Production", "Bulk Produced", "Transferred to Finished Goods", "Bulk Achievement %", "FG Transfer Achievement %", "Active Pipeline Batches", "Overdue WIP Batches"]);
-    assert.deepEqual(cards.map((c) => c[1]), ["9,29,887.73", "5,00,000", "4,00,000", "53.77%", "43.02%", "412", "59"]);
-    assert.ok(cards.every((c) => !c[1].includes("₹")), "secondary cards stay unit-less; no rupee valuation implied");
-    assert.deepEqual(cards.map((c) => c[2]), [false, false, false, false, false, false, true]);
-    assert.deepEqual(await page.$$eval(".production-section-title", (t) => t.map((x) => x.textContent)), ["Production Achievement", "Batch Pipeline"]);
-    // Subordinate to the primary KPI cards: smaller value type and shorter cards.
-    const m = await page.evaluate(() => {
-      const kpi = document.querySelector(".kpi-card"), sec = document.querySelector(".production-summary-card");
-      return { kpiFont: parseFloat(getComputedStyle(kpi.querySelector(".kpi-value")).fontSize), secFont: parseFloat(getComputedStyle(sec.querySelector(".production-summary-value")).fontSize), kpiH: kpi.getBoundingClientRect().height, secH: sec.getBoundingClientRect().height };
-    });
-    assert.ok(m.secFont < m.kpiFont && m.secH < m.kpiH, JSON.stringify(m));
+    assert.match(await pvText(page), /Loading production values/);
+    assert.equal(await page.getAttribute("#productionValueBody", "aria-busy"), "true");
+    assert.doesNotMatch(await pvText(page), /₹|Unavailable|N\/A/, "no false values while loading");
+    await page.evaluate(() => window.__mis.first.resolve({ data: null, error: { code: "42501", message: "MIS view permission required" } }));
+    await page.waitForSelector(".pv-state.error");
+    assert.match(await pvText(page), /do not have permission to view production values/);
+    assert.equal(await page.$(".pv-state .mis-retry-btn"), null, "denied has no retry");
+    assert.equal(await page.getAttribute(".pv-state.error", "role"), "alert");
+    assert.ok((await page.textContent(".production-summary-grid")).includes("Active Pipeline Batches"), "counts still render");
+    await setHandler(page, "get_mis_production_value_summary", () => ({ data: null, error: { status: 401, message: "JWT expired" } }));
+    await page.selectOption("#pvMonth", { index: 1 });
+    await page.waitForFunction(() => /session has expired/.test(document.querySelector("#productionValueBody").textContent));
+    assert.ok(await page.$(".pv-state .mis-retry-btn"));
+    await setHandler(page, "get_mis_production_value_summary", () => Promise.reject(new Error("network down")));
+    await page.click(".pv-state .mis-retry-btn");
+    await page.waitForFunction(() => /Failed to load production values\. network down/.test(document.querySelector("#productionValueBody").textContent));
+    const before = (await calls(page, "v_mis_production_tab_summary")).length;
+    await page.evaluate(() => { delete window.__mis.handlers.get_mis_production_value_summary; });
+    await page.click(".pv-state .mis-retry-btn");
+    await page.waitForSelector(".pv-kpi");
+    assert.equal((await calls(page, "v_mis_production_tab_summary")).length, before, "value retry does not reload counts");
+  } finally { await page.context().close(); }
+});
+
+test("Production value: latest response wins and a response after leaving the tab is dropped", { skip }, async () => {
+  const { page } = await open({ init: () => { window.__mis.handlers = { get_mis_production_value_summary: (a) => { const d = window.__mis.defer(); (window.__mis.q = window.__mis.q || []).push({ a, d }); return d.promise; } }; } });
+  try {
+    await page.click('[data-tab="production"]');
+    await page.waitForFunction(() => window.__mis.q?.length === 1);
+    await page.selectOption("#pvMonth", { index: 1 });
+    await page.waitForFunction(() => window.__mis.q.length === 2);
+    const mk = (m, run) => ({ data: { report_month: m, as_of_date: m, approved_cost_run_id: run, approved_cost_valuation_date: "2026-01-01", status: "BULK_RECEIPT_COVERED_REFERENCE", plan_status: "UNAVAILABLE_PENDING_FROZEN_PLAN", receipt_event_count: 1, receipt_unvalued_count: 0, receipt_correction_event_count: 0, receipt_reference_covered_value: 7, receipt_value_status: "COVERED_SUBTOTAL", completed_status: "NOT_VERIFIED", comparability: "NOT_COMPARABLE" }, error: null });
+    // newest resolves first, stale one later: stale must not overwrite
+    await page.evaluate((r) => window.__mis.q[1].d.resolve(r), mk("2026-10-01", 222));
+    await page.waitForFunction(() => /#222/.test(document.querySelector("#productionValueBody").textContent));
+    await page.evaluate((r) => window.__mis.q[0].d.resolve(r), mk("2026-11-01", 111));
+    await page.waitForTimeout(150);
+    assert.match(await pvText(page), /#222/); assert.doesNotMatch(await pvText(page), /#111/);
+    // leave the tab while a new request is pending: late arrival cannot repaint
+    await page.selectOption("#pvMonth", { index: 0 });
+    await page.waitForFunction(() => window.__mis.q.length === 3);
+    await page.click('[data-tab="sales"]');
+    await page.waitForSelector(".sales-table");
+    await page.evaluate((r) => window.__mis.q[2].d.resolve(r), mk("2026-11-01", 333));
+    await page.waitForTimeout(150);
+    assert.doesNotMatch(await page.textContent("#tabPanel"), /#333|Production value/);
   } finally { await page.context().close(); }
 });
 
@@ -531,7 +694,21 @@ for (const width of WIDTHS) {
       await page.waitForSelector(".production-summary-grid");
       await noPageOverflow("production");
       for (const r of await rects(".production-summary-card")) assert.ok(r.l >= 0 && r.r <= vw + 0.5, `production card clipped ${JSON.stringify(r)}`);
-      if (width <= 768) assert.ok(await page.$eval(".production-table-wrap", (e) => e.scrollWidth > e.clientWidth), "production table scrolls inside its wrap");
+      await page.waitForSelector(".pv-kpi");
+      for (const r of await rects(".pv-kpi, #pvMonth, #pvAsOf")) assert.ok(r.l >= 0 && r.r <= vw + 0.5 && r.w > 60, `production value control clipped ${JSON.stringify(r)}`);
+      if (width <= 520) for (const r of await rects("#pvMonth, #pvAsOf")) assert.ok(r.h >= 34, `pv control touch target ${r.h}`);
+      if (width <= 359) assert.equal(new Set(await page.$$eval(".pv-kpi", (c) => c.map((x) => Math.round(x.getBoundingClientRect().left)))).size, 1, "single column at 320");
+      await page.click(".production-diagnostics > summary");
+      if (width <= 520) assert.ok(await page.$eval(".production-diagnostics .production-table-wrap", (e) => e.scrollWidth > e.clientWidth), "production table scrolls inside its wrap");
+      await noPageOverflow("production (diagnostics open)");
+      // keyboard: month select reachable and focus ring defined
+      await page.focus("#pvMonth");
+      assert.equal(await page.evaluate(() => document.activeElement.id), "pvMonth");
+      if (process.env.MIS_SCREENSHOT_DIR) {
+        await page.evaluate(() => document.querySelector(".production-diagnostics").open = false);
+        await page.evaluate(() => document.querySelector("#tabPanel").scrollTo(0, 0));
+        await page.screenshot({ path: `${process.env.MIS_SCREENSHOT_DIR}/production-value-${width}.png`, fullPage: false });
+      }
       assert.deepEqual(consoleErrors, []);
     } finally { await page.context().close(); }
   });

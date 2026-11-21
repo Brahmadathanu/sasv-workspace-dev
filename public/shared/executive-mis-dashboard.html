@@ -497,6 +497,136 @@
         color: var(--mis-warning);
       }
 
+
+      /* Production value (canonical G7 RPC): compact ERP cards, semantic tokens only. */
+      .pv {
+        margin: 0 0 8px;
+        border: 1px solid var(--mis-border);
+        border-radius: 8px;
+        background: var(--mis-surface);
+        padding: 8px 10px 10px;
+      }
+      .pv-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px 12px;
+        margin-bottom: 6px;
+      }
+      .pv-heading {
+        margin: 0;
+        color: var(--mis-text);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+      .pv-controls { display: flex; flex-wrap: wrap; gap: 6px; }
+      .pv-field {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        color: var(--mis-muted);
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .pv-input {
+        min-height: 30px;
+        padding: 3px 8px;
+        border: 1px solid var(--mis-search-border);
+        border-radius: 6px;
+        background: var(--mis-search-bg);
+        color: var(--mis-text);
+        font: inherit;
+        font-size: 12.5px;
+      }
+      .pv-input:hover { border-color: var(--mis-accent); }
+      .pv-input:focus-visible,
+      .pv-notes summary:focus-visible,
+      .production-diagnostics summary:focus-visible {
+        outline: 2px solid var(--mis-accent);
+        outline-offset: 1px;
+      }
+      .pv-basis { margin-bottom: 6px; color: var(--mis-muted); font-size: 11.5px; line-height: 1.5; }
+      .pv-basis b { color: var(--mis-text); font-weight: 700; }
+      .pv-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 6px;
+      }
+      .pv-kpi {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+        padding: 7px 10px;
+        border: 1px solid var(--mis-accent-soft-border);
+        border-left: 3px solid var(--mis-accent);
+        border-radius: 6px;
+        background: var(--mis-surface-soft);
+      }
+      .pv-kpi.book { border-style: dashed; border-left-style: solid; }
+      .pv-kpi.unavailable { border-left-color: var(--mis-border); }
+      .pv-kpi-title { color: var(--mis-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.02em; }
+      .pv-kpi-value { color: var(--mis-text); font-size: 19px; font-weight: 750; line-height: 1.2; overflow-wrap: anywhere; }
+      .pv-kpi.unavailable .pv-kpi-value { color: var(--mis-muted); font-size: 15px; font-weight: 650; }
+      .pv-kpi-badge {
+        align-self: flex-start;
+        padding: 1px 7px;
+        border: 1px solid var(--mis-info-border);
+        border-radius: 999px;
+        background: var(--mis-info-bg);
+        color: var(--mis-info);
+        font-size: 10.5px;
+        font-weight: 700;
+      }
+      .pv-kpi-caption { color: var(--mis-muted); font-size: 11px; line-height: 1.4; }
+      .pv-achievement {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 2px 8px;
+        margin-top: 6px;
+        padding: 5px 10px;
+        border: 1px solid var(--mis-divider);
+        border-radius: 6px;
+        font-size: 12px;
+      }
+      .pv-achievement-label { color: var(--mis-muted); font-weight: 700; }
+      .pv-achievement-value { color: var(--mis-text); font-weight: 750; }
+      .pv-achievement-note { color: var(--mis-muted); font-size: 11px; flex: 1 1 220px; }
+      .pv-notes { margin-top: 6px; font-size: 11.5px; color: var(--mis-muted); }
+      .pv-notes summary { cursor: pointer; font-weight: 700; color: var(--mis-text-secondary); }
+      .pv-notes ul { margin: 4px 0 0; padding-left: 18px; line-height: 1.5; }
+      .pv-state {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 14px 8px;
+        color: var(--mis-muted);
+        font-size: 12.5px;
+      }
+      .pv-state.error {
+        border: 1px solid var(--mis-danger-border);
+        border-radius: 6px;
+        background: var(--mis-danger-bg);
+        color: var(--mis-danger);
+      }
+      .production-diagnostics > summary { cursor: pointer; list-style-position: inside; }
+      .production-diag-note { padding: 6px 10px; color: var(--mis-muted); font-size: 11.5px; line-height: 1.45; border-bottom: 1px solid var(--mis-divider); }
+      .production-diagnostics .production-table { min-width: 520px; }
+      @media (max-width: 520px) {
+        .pv { padding: 7px 8px 8px; }
+        .pv-controls, .pv-field { width: 100%; }
+        .pv-field { justify-content: space-between; }
+        .pv-input { flex: 1 1 auto; min-height: 36px; }
+        .pv-kpi-grid { grid-template-columns: 1fr 1fr; }
+        .pv-kpi-value { font-size: 17px; }
+      }
+      @media (max-width: 359px) {
+        .pv-kpi-grid { grid-template-columns: 1fr; }
+      }
+
       .production-section {
         min-height: 0;
         margin-top: 10px;
