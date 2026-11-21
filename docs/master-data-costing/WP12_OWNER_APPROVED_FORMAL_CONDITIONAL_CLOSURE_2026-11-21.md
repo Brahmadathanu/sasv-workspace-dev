@@ -31,6 +31,12 @@ After receiving the [WP12 final closure recommendation](WP12_FINAL_CONDITIONAL_C
 6. **Desktop provenance/recovery:** Installed v6.2.0 verified by owner on staff systems, but per-installed ASAR digest and next installer update/rollback maintenance steps remain NOT TESTED. Receiver: next separately approved desktop maintenance release gate.
 7. **Optional engineering proposals:** SQL PR #463, additional WP10 04/05/CL15, keyset proposal PR #473, and other unmerged proposals remain separately governed/unapplied absent explicit review and approval; this receipt does not silently approve them.
 
+
+## Critical conflicting V1 security receipt — OPEN / NOT CLEARED
+A distinct historical operator report on 21 Nov recorded **V1 HTTP 200 with one protected row visible** under a purported No-access session; execution stopped before V2–V7. The later different real-session batch recorded **all seven HTTP 200 with no rows**. These are **conflicting results**, not a demonstrated security fix. Underlying canonical permissions for the actual JWT in the first test were not independently proven, so the earlier row could have been a legitimately authorised MCM read or an unintended disclosure; the facts do **not** establish either outcome.
+
+**This potential exposure remains a separately OPEN security triage / no-unconditional-security-signoff condition.** The owner's WP12 conditional *workpackage* closure approval cannot, and does not, certify that V1 was authorised or harmless. See [original stop receipt](WP12_V1_POTENTIAL_UNAUTHORISED_READ_STOP_2026-11-21.md) and [later empty-result receipt](WP12_SEVEN_VIEW_AUTHENTICATED_NO_DISCLOSURE_2026-11-21.md). Receiver: authorised application security operator plus programme owner. Next step is identity/permission classification through an approved privacy-preserving operator check, **without repeating data-bearing production GETs**; if V1 was confirmed under denied canonical permission, escalate as a real security incident before further releases/access changes. Do not change RLS/view ownership or grants speculatively.
+
 ## Programme status and next priority
 **WP00–WP12 CLOSED (13/13, 100%) with separately recorded bounded residual acceptance.** WP10 and WP12 closures are **conditional**; status is *formally completed with receiving obligations*, not unconditional global assurance.
 
