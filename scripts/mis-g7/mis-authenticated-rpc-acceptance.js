@@ -12,8 +12,8 @@
   const candidateUrls = misScript
     ? [new URL("supabaseClient.js", misScript.src).href]
     : [
-        new URL("/shared/js/supabaseClient.js", location.origin).href,
-        new URL("/public/shared/js/supabaseClient.js", location.origin).href
+        new URL("/public/shared/js/supabaseClient.js", location.origin).href,
+        new URL("/shared/js/supabaseClient.js", location.origin).href
       ];
   let clientModule = null;
   for (const url of candidateUrls) {
@@ -90,7 +90,8 @@
   return result;
 })();
 // Expected: MIS View -> ALLOWED with approved_cost_run=143, report_month=2026-11-01,
-// receipt_events=79, receipt_unvalued=2, comparable=NOT_COMPARABLE at a
+// receipt_events reflects current source data (previously 79, subsequently 80),
+// receipt_unvalued=2, comparable=NOT_COMPARABLE at a
 // matching source vintage. Genuine signed-in no-View and anonymous -> DENIED.
 // Results may drift with source updates; record as-of and source observation.
 // Never publish email, user ID, authorization headers, JWT or raw RPC response.
