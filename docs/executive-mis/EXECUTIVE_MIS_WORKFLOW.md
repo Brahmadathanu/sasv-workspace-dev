@@ -3,8 +3,8 @@
 **Established:** 19 November 2026 (IST)  
 **Scope:** Executive MIS Dashboard only (`executive-mis-dashboard`)  
 **Control status:** Documentation baseline; no MIS release or database migration authorized by this document  
-**Current gate:** MIS-G7 — canonical server reporting function INSTALLED; authenticated acceptance HOLD  
-**Next action:** Obtain genuine authenticated MIS View positive/negative testing for the one installed canonical RPC, record SERVER ACCEPTED only after checks, then hand Claude one client bulk package  
+**Current gate:** MIS-G7 — canonical server reporting RPC SERVER ACCEPTED (bounded indicative covered-subtotal contract); full G7 freeze/completion still OPEN  
+**Next action:** Give Claude one bounded client-only bulk package against the SERVER ACCEPTED RPC; separately preserve pending G7 frozen plan and completed-event integrity requirements  
 **Release separation:** Costing Suite Electron release readiness takes precedence. Do not use this document/branch/PR to block, amend, rebase, merge into, or trigger that release.
 
 ## 1. Purpose, authority and navigation
@@ -524,3 +524,16 @@ Created **one small supporting test artifact** `scripts/mis-g7/mis-authenticated
 **Post-install checks:** migration history present; exactly one `get_mis_production_value_summary(date,date)`; installed definition MD5 `909abab03c8ffdb16b1e5f2753008723`; same `postgres` owner, `SECURITY DEFINER`, `search_path=pg_catalog, pg_temp`, same effective acl (service_role and authenticated execute; anon and PUBLIC not allowed). Catalog confirms expensive live planning source removed and `UNAVAILABLE_PENDING_FROZEN_PLAN` present, canonical permission guard intact. A no-session call still raised expected 42501 access denial. **The previously submitted genuine signed-in no-view and anonymous denials are preserved** (not rerun, as security contract unchanged).
 
 **Only next bounded acceptance:** ask owner/operator to rerun the previously prepared `scripts/mis-g7/mis-authenticated-rpc-acceptance.js` under the real existing **SIGNED_IN_MIS_VIEW** session, once, for Nov 1–20. Verify `rpc_outcome=ALLOWED`, `approved_cost_run=143`, `plan_status=UNAVAILABLE_PENDING_FROZEN_PLAN`, `comparable=NOT_COMPARABLE`; counts are mutable and must not be hard-coded. If positive succeeds, record SERVER ACCEPTED for this provisional covered-subtotal contract and hand over the single Claude client bulk package subject to remaining G7 formal freeze/completion limitations. If positive fails, only debug the exact error, do not broaden permissions or request repeat of both negative tests. **G7 remains ACCEPTANCE HOLD** until real positive result; G8 parked; G9/G10 pending; formal 6/11 gates.
+
+
+## 29. G7 authenticated server PASS and Claude bulk-client release — 21 November 2026
+
+**Authoritative genuine-session acceptance from owner (2026-11-21T12:02:59.651Z):** existing signed-in `SIGNED_IN_MIS_VIEW` at `http://localhost:3000` returned `session_present=true`, `canonical_permission=true`, `rpc_outcome=ALLOWED`, `rpc_code=null`, `approved_cost_run=143`, `report_month=2026-11-01`, `receipt_events=80`, `receipt_unvalued=2`, `plan_status=UNAVAILABLE_PENDING_FROZEN_PLAN`, `comparable=NOT_COMPARABLE`, harness `acceptance=PASS`. No identity, JWT, confidential costing response body or token was recorded.
+
+**Previously owner-tested negative sessions remain accepted unchanged:** real signed-in no-MIS-View `canonical_permission=false` received `403 / 42501` PASS; anonymous `401 / 42501` PASS. Post-timeout correction installed canonical RPC persisted one signature with `anon` EXECUTE denied, `authenticated` EXECUTE allowed, fixed `search_path=pg_catalog, pg_temp` and server-side canonical module guard. This closes the precise server RPC positive/negative access checkpoint **SERVER ACCEPTED — BOUNDED COVERED SUBTOTAL CONTRACT**. No separate preview/v1/v2 runtime source of truth exists.
+
+**Not G7 overall closure:** live plan source was too slow and removed rather than silently substituted. Planned values are intentionally NULL with `UNAVAILABLE_PENDING_FROZEN_PLAN`; completed production and achievement intentionally NULL/`NOT_COMPARABLE`; bulk receipts are covered-valued only with 2 unvalued rows in tested month. Tally book figure remains separately based on voucher-line snapshot, and transfer log reconciliation is `NOT_CHECKED_BY_BOOK_TOTAL`. Historical update/delete correction lineage, sealed immutable plans, verified completion-event parity and broader G7 production-value acceptance remain OPEN. Never label formal managerial achievement ready.
+
+**Claude client package handoff now eligible:** client-only single comprehensive package in `docs/executive-mis/MIS_CLAUDE_BULK_CLIENT_HANDOFF_AFTER_G7_SERVER_ACCEPTANCE.md` against `public.get_mis_production_value_summary(date,date)`; user-directed Claude execution is not yet confirmed. Existing draft PR #486 remains **open, unmerged** on `claude/mis-c1-client-polish-hardening-m7rbjk`, observed head `eec9e03a98694af27c0ba726849b81cd28439748`; PR #485 docs remains draft/unmerged. Explicitly no SQL writes, merges, client deploy, service-worker modifications or Costing Suite Electron release changes with this documentation update.
+
+**Programme progress:** G0–G5 owner-reported PASS (6/11); G6 conditional; G7 server subgate PASS, G7 full workflow OPEN; G8 PARKED; G9–G10 pending. Next one concrete step is Claude client bulk implementation and one subsequent independent audit; parallel server plan-freeze/completion must not be falsely inferred from client work.
