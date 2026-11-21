@@ -28,3 +28,13 @@ Exact feature names verified against reviewed main `public/shared/js/costing-fea
 
 ## No action beyond recording
 No production SQL/rows, role/grant change, service worker register/cache manipulation, localStorage mutation, flag activation/deactivation, network body disclosure, PR merge or release. WP12 only active; storage/selected schemes and cleanup parked.
+
+## 21 Nov owner follow-up — exact cache identity confirmed
+
+After the initial console receipt, the operator ran the **read-only** filtered cache-name check:
+```js
+console.log((await caches.keys()).filter(name => name.startsWith("hub-cache-")));
+```
+The actual Chrome output was `['hub-cache-v394']` (one element). **PASS: one visible matching hub cache, exact version v394**, corroborating the prior active `/sw.js` controller and accepted hosted PWA v394 delivery. This is cache-name evidence and does not byte-hash every cached asset or independently prove every tab has reloaded. No cache deletion, storage mutation, new requests or feature changes occurred.
+
+The separately observed `COSTING_REVIEW_WORKLIST_V1` remains **ON/stored**; user has **not yet confirmed intentionality**. Ten other flags remain OFF/default at the prior observed time. WP12 formally OPEN until remaining residual decisions and owner closure.
