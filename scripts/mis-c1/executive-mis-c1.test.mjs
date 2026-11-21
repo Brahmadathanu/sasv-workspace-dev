@@ -313,11 +313,11 @@ test("Production value: report month and cut-off are sent to the server; as-of i
     assert.equal(opts.length, 12); assert.ok(opts.every((v) => /^\d{4}-\d{2}-01$/.test(v)));
     await page.selectOption("#pvMonth", opts[2]);
     await page.waitForFunction(() => document.querySelector("#productionValueBody")?.getAttribute("aria-busy") === "false");
-    const bounds = await page.$eval("#pvAsOf", (e) => ({ min: e.min, max: e.max }));
-    assert.equal(bounds.min, opts[2]); assert.ok(bounds.max >= bounds.min);
-    const day = bounds.min.slice(0, 8) + "10";
-    await page.fill("#pvAsOf", day);
-    await page.dispatchEvent("#pvAsOf", "change");
+    const days = await page.$$eval("#pvAsOf option", (o) => o.map((x) => x.value));
+    assert.equal(days[0], ""); assert.equal(days[1], opts[2]);
+    assert.ok(days.slice(1).every((d) => d.startsWith(opts[2].slice(0, 8))), "only days of the selected month");
+    const day = opts[2].slice(0, 8) + "10";
+    await page.selectOption("#pvAsOf", day);
     await page.waitForFunction(() => document.querySelector("#productionValueBody")?.getAttribute("aria-busy") === "false");
     const c = await calls(page, "get_mis_production_value_summary");
     assert.deepEqual(c.at(-1).args, { p_report_month: opts[2], p_as_of_date: day });
@@ -613,8 +613,8 @@ test("counts: missing/null server counts render a dash, never an invented zero",
   } finally { await page.context().close(); }
 });
 
-// ---- As-of cutoff (iOS Safari date-input correction). Chromium + 390px viewport emulation; real WebKit was not
-// available in the test environment, so iOS-specific rendering is simulated (event sequence, value persistence).
+// ---- As-of cutoff: month-scoped day selector (replaces the native date input, which iOS lets users scroll
+// outside min/max). Chromium + 390px emulation; real iOS Safari still needs owner approval.
 const idle = (page) => page.waitForFunction(() => document.querySelector("#productionValueBody")?.getAttribute("aria-busy") === "false");
 const valueArgs = (page) => calls(page, "get_mis_production_value_summary").then((c) => c.map((x) => x.args));
 async function openAsOf(width = 390) {
@@ -623,25 +623,73 @@ async function openAsOf(width = 390) {
   const opts = await r.page.$$eval("#pvMonth option", (o) => o.map((x) => x.value));
   return { ...r, opts, month: opts[1], day: opts[1].slice(0, 8) + "15" };
 }
-const pickDate = async (page, value) => {
-  await page.evaluate((v) => { const i = document.querySelector("#pvAsOf"); i.value = v; i.dispatchEvent(new Event("input", { bubbles: true })); i.dispatchEvent(new Event("change", { bubbles: true })); }, value);
-};
+const dayValues = (page) => page.$$eval("#pvAsOf option", (o) => o.map((x) => x.value));
 
-test("as-of: a chosen day stays visible in the field and in text, and is sent as p_as_of_date; counts untouched", { skip }, async () => {
-  const { page, opts, month, day } = await openAsOf();
+// Pure helpers, extracted from the module source and evaluated in isolation.
+const helpers = new Function(`${js.slice(js.indexOf("function asOfBoundsFor"), js.indexOf("function productionValueAsOfBounds"))}; return { asOfBoundsFor, asOfDayOptionsFor };`)();
+
+test("as-of helper: allowed days per month (Oct 2026=31, Nov 2026 capped at today, Feb 2026=28, Feb 2024=29, Apr=30)", () => {
+  const days = (m, today) => helpers.asOfDayOptionsFor(helpers.asOfBoundsFor(m, today));
+  assert.equal(days("2026-10-01", "2026-11-21").length, 31);
+  assert.equal(days("2026-10-01", "2026-11-21").at(-1).value, "2026-10-31");
+  assert.equal(days("2026-11-01", "2026-11-21").length, 21);
+  assert.equal(days("2026-11-01", "2026-11-21").at(-1).value, "2026-11-21", "current month stops at today IST");
+  assert.equal(days("2026-11-01", "2026-11-01").length, 1, "first day of the current month");
+  assert.equal(days("2026-02-01", "2026-11-21").length, 28);
+  assert.equal(days("2024-02-01", "2026-11-21").length, 29);
+  assert.equal(days("2024-02-01", "2026-11-21").at(-1).value, "2024-02-29");
+  assert.equal(days("2026-04-01", "2026-11-21").length, 30);
+  assert.equal(days("2026-12-01", "2026-12-31").length, 31);
+  const first = days("2026-10-01", "2026-11-21")[0];
+  assert.equal(first.value, "2026-10-01"); assert.equal(first.label, "Thu 01 Oct 2026");
+  assert.ok(days("2026-10-01", "2026-11-21").every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d.value)));
+  assert.deepEqual(helpers.asOfBoundsFor("2026-10-01", "2026-11-21"), { min: "2026-10-01", max: "2026-10-31" });
+});
+
+test("as-of: the control is a select offering Default plus only the selected month's allowed days (no native date input)", { skip }, async () => {
+  const { page, opts, month } = await openAsOf();
+  try {
+    assert.equal(await page.$eval("#pvAsOf", (e) => e.tagName), "SELECT");
+    assert.equal(await page.$('input[type="date"]'), null);
+    assert.equal(await page.$eval("#pvAsOf", (e) => e.labels?.[0]?.textContent.trim().startsWith("As of")), true, "accessible label");
+    // current (default) month: 1..today IST, nothing in the future
+    let d = await dayValues(page);
+    assert.equal(d[0], ""); assert.equal(d[1], opts[0]);
+    const today = await page.evaluate(() => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date()));
+    assert.equal(d.at(-1), today, "current month capped at today IST");
+    assert.equal(d.length - 1, Number(today.slice(8, 10)));
+    // a past month offers every day of that month
+    await page.selectOption("#pvMonth", month); await idle(page);
+    d = await dayValues(page);
+    const [y, m] = month.split("-").map(Number);
+    assert.equal(d.length - 1, new Date(Date.UTC(y, m, 0)).getUTCDate());
+    assert.equal(d.at(-1), `${month.slice(0, 8)}${String(d.length - 1).padStart(2, "0")}`);
+    assert.ok(d.slice(1).every((v) => v.startsWith(month.slice(0, 8))), "no day of another month is offered");
+    assert.equal(await page.inputValue("#pvAsOf"), "", "defaults to the default cutoff");
+    assert.match(await page.textContent("#pvAsOfStatus"), /Cutoff:\s*default/);
+  } finally { await page.context().close(); }
+});
+
+test("as-of: choosing a day shows it, sends ISO p_as_of_date once, leaves counts untouched, survives Refresh", { skip }, async () => {
+  const { page, month, day } = await openAsOf();
   try {
     await page.selectOption("#pvMonth", month); await idle(page);
-    await pickDate(page, day); await idle(page);
-    assert.equal(await page.inputValue("#pvAsOf"), day, "field keeps the chosen date");
+    const before = (await valueArgs(page)).length;
+    await page.selectOption("#pvAsOf", day); await idle(page);
+    assert.equal(await page.inputValue("#pvAsOf"), day);
+    assert.match(await page.$eval("#pvAsOf", (e) => e.selectedOptions[0].textContent), /15/);
     assert.match(await page.textContent("#pvAsOfStatus"), /Cutoff:\s*15 /);
-    assert.match(await page.textContent("#pvAsOfStatus"), /allowed 01 .* to /);
-    assert.ok(await page.$("#pvAsOfStatus [data-pv-asof-clear]"), "clear/default control offered");
+    assert.match(await page.textContent("#pvAsOfStatus"), /allowed 01 .* to 3[01]|allowed 01 .* to 2[89]/);
+    assert.ok(await page.$("#pvAsOfStatus [data-pv-asof-clear]"));
     const args = await valueArgs(page);
+    assert.equal(args.length, before + 1, "exactly one request for the selection");
     assert.deepEqual(args.at(-1), { p_report_month: month, p_as_of_date: day });
     assert.match(await pvText(page), /Events to 15 /);
     assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 1, "live counts not re-fetched");
     assert.deepEqual(await page.$$eval(".production-summary-card .production-summary-value", (t) => t.map((x) => x.textContent)), ["412", "100", "59", "7", "8", "2,581"]);
-    // survives an unrelated re-render of the tab (Refresh) with the same field value
+    // re-selecting the same day sends nothing
+    await page.selectOption("#pvAsOf", day); await page.waitForTimeout(200);
+    assert.equal((await valueArgs(page)).length, before + 1, "same selection is not re-requested");
     await page.click("#refreshBtn");
     await page.waitForSelector("#pvAsOf"); await idle(page);
     assert.equal(await page.inputValue("#pvAsOf"), day);
@@ -649,71 +697,47 @@ test("as-of: a chosen day stays visible in the field and in text, and is sent as
   } finally { await page.context().close(); }
 });
 
-test("as-of: iOS-style wheel (several input events then change) yields one request with the final date and no value rewrite", { skip }, async () => {
-  const { page, month } = await openAsOf();
-  try {
-    await page.selectOption("#pvMonth", month); await idle(page);
-    const before = (await valueArgs(page)).length;
-    const [y, m] = month.split("-");
-    await page.evaluate(() => { const i = document.querySelector("#pvAsOf"); window.__writes = 0; const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value"); Object.defineProperty(i, "value", { get() { return d.get.call(this); }, set(v) { window.__writes++; d.set.call(this, v); } }); });
-    for (const d of ["05", "09", "12", "15"]) await page.evaluate(([v]) => { const i = document.querySelector("#pvAsOf"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(i, v); i.dispatchEvent(new Event("input", { bubbles: true })); }, [`${y}-${m}-${d}`]);
-    await page.evaluate(() => document.querySelector("#pvAsOf").dispatchEvent(new Event("change", { bubbles: true })));
-    await idle(page); await page.waitForTimeout(700); // longer than the 450 ms input settle: no extra request
-    const args = await valueArgs(page);
-    assert.equal(args.length, before + 1, JSON.stringify(args.slice(before)));
-    assert.equal(args.at(-1).p_as_of_date, `${y}-${m}-15`);
-    assert.equal(await page.inputValue("#pvAsOf"), `${y}-${m}-15`);
-    assert.equal(await page.evaluate(() => window.__writes), 0, "script never rewrote the control while the user was picking");
-    // input-only (no change event delivered): settles and requests once
-    await page.evaluate(([v]) => { const i = document.querySelector("#pvAsOf"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(i, v); i.dispatchEvent(new Event("input", { bubbles: true })); }, [`${y}-${m}-20`]);
-    await page.waitForFunction((n) => window.__mis.calls.filter((c) => c.name === "get_mis_production_value_summary").length === n + 1, args.length);
-    assert.equal((await valueArgs(page)).at(-1).p_as_of_date, `${y}-${m}-20`);
-    assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 1);
-  } finally { await page.context().close(); }
-});
-
-test("as-of: changing month after a chosen cutoff clears it visibly, not silently; counts untouched", { skip }, async () => {
+test("as-of: changing month rebuilds the days and visibly reverts a now-invalid cutoff to the default", { skip }, async () => {
   const { page, opts, month, day } = await openAsOf();
   try {
     await page.selectOption("#pvMonth", month); await idle(page);
-    await pickDate(page, day); await idle(page);
+    await page.selectOption("#pvAsOf", day); await idle(page);
+    const before = (await valueArgs(page)).length;
     await page.selectOption("#pvMonth", opts[2]); await idle(page);
+    const d = await dayValues(page);
+    assert.ok(d.slice(1).every((v) => v.startsWith(opts[2].slice(0, 8))), "options rebuilt for the new month");
     assert.equal(await page.inputValue("#pvAsOf"), "");
     const st = await page.textContent("#pvAsOfStatus");
     assert.match(st, /is outside the selected month, so the default cutoff is used/);
     assert.match(st, /Cutoff:\s*default/);
-    assert.equal(await page.getAttribute("#pvAsOf", "min"), opts[2]);
-    const last = (await valueArgs(page)).at(-1);
-    assert.deepEqual(last, { p_report_month: opts[2] });
+    const args = await valueArgs(page);
+    assert.equal(args.length, before + 1, "one request for the month change");
+    assert.deepEqual(args.at(-1), { p_report_month: opts[2] });
     assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 1);
-    // the notice is replaced by the next valid choice
-    await pickDate(page, opts[2].slice(0, 8) + "10"); await idle(page);
+    // choosing a valid day replaces the notice
+    await page.selectOption("#pvAsOf", opts[2].slice(0, 8) + "10"); await idle(page);
     assert.doesNotMatch(await page.textContent("#pvAsOfStatus"), /outside/);
+    assert.equal((await valueArgs(page)).at(-1).p_as_of_date, opts[2].slice(0, 8) + "10");
   } finally { await page.context().close(); }
 });
 
-test("as-of: invalid, out-of-range and cleared values are explained and fall back to the default cutoff", { skip }, async () => {
+test("as-of: safety guard still rejects forged/out-of-range values; Use default and Default option work", { skip }, async () => {
   const { page, opts, month, day } = await openAsOf();
   try {
     await page.selectOption("#pvMonth", month); await idle(page);
-    const [y, m] = month.split("-");
-    // out of range (previous month's last day)
-    await pickDate(page, opts[2].slice(0, 8) + "28"); await idle(page);
+    const force = (value) => page.evaluate((v) => { const i = document.querySelector("#pvAsOf"); const o = document.createElement("option"); o.value = v; o.textContent = "forged"; i.appendChild(o); i.value = v; i.dispatchEvent(new Event("change", { bubbles: true })); }, value);
+    await force(opts[2].slice(0, 8) + "28"); await idle(page);
     assert.match(await page.textContent("#pvAsOfStatus"), /outside .* so the default cutoff is used/);
+    assert.equal("p_as_of_date" in (await valueArgs(page)).at(-1), false);
     assert.equal(await page.inputValue("#pvAsOf"), "");
+    await force("not-a-date"); await idle(page).catch(() => {}); await page.waitForTimeout(150);
     assert.equal("p_as_of_date" in (await valueArgs(page)).at(-1), false);
-    // garbage text is ignored
-    await pickDate(page, "not-a-date"); await idle(page);
-    assert.equal("p_as_of_date" in (await valueArgs(page)).at(-1), false);
-    assert.match(await page.textContent("#pvAsOfStatus"), /Cutoff:\s*default/);
-    // valid, then user clears the native field -> default
-    await pickDate(page, day); await idle(page);
-    assert.equal((await valueArgs(page)).at(-1).p_as_of_date, day);
-    await pickDate(page, ""); await idle(page);
+    assert.equal(await page.$$eval("#pvAsOf option", (o) => o.filter((x) => x.textContent === "forged").length), 0, "forged options are discarded on rebuild");
+    await page.selectOption("#pvAsOf", day); await idle(page);
+    await page.selectOption("#pvAsOf", ""); await idle(page);
     assert.equal("p_as_of_date" in (await valueArgs(page)).at(-1), false);
     assert.match(await page.textContent("#pvAsOfStatus"), /Cutoff:\s*default/);
-    // "Use default" button
-    await pickDate(page, day); await idle(page);
+    await page.selectOption("#pvAsOf", day); await idle(page);
     await page.click("#pvAsOfStatus [data-pv-asof-clear]"); await idle(page);
     assert.equal(await page.inputValue("#pvAsOf"), "");
     assert.equal("p_as_of_date" in (await valueArgs(page)).at(-1), false);
@@ -721,23 +745,42 @@ test("as-of: invalid, out-of-range and cleared values are explained and fall bac
   } finally { await page.context().close(); }
 });
 
-test("as-of: 390px presentation keeps the field, its range text and the selected date inside the viewport", { skip }, async () => {
-  const { page, month, day } = await openAsOf(390);
+test("as-of: latest response wins when the cutoff is changed twice quickly", { skip }, async () => {
+  const { page, month } = await openAsOf();
   try {
     await page.selectOption("#pvMonth", month); await idle(page);
-    await pickDate(page, day); await idle(page);
-    for (const sel of ["#pvAsOf", "#pvMonth", "#pvAsOfStatus"]) {
-      const r = await page.$eval(sel, (e) => { const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, w: b.width, h: b.height }; });
-      assert.ok(r.l >= 0 && r.r <= 390.5 && r.w > 100 && r.h >= 20, `${sel} ${JSON.stringify(r)}`);
-    }
-    assert.ok((await page.$eval("#pvAsOf", (e) => e.getBoundingClientRect().height)) >= 34, "touch height");
-    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), "no page overflow");
-    assert.notEqual(await page.$eval("#pvAsOf", (e) => getComputedStyle(e).webkitTextFillColor), "rgba(0, 0, 0, 0)", "selected text is not transparent");
-    if (process.env.MIS_SCREENSHOT_DIR) {
-      await page.locator("#productionValueSection").scrollIntoViewIfNeeded();
-      await page.screenshot({ path: `${process.env.MIS_SCREENSHOT_DIR}/asof-selected-390.png` });
-    }
+    await page.evaluate(() => { window.__mis.q = []; window.__mis.handlers.get_mis_production_value_summary = (a) => { const d = window.__mis.defer(); window.__mis.q.push({ a, d }); return d.promise; }; });
+    await page.selectOption("#pvAsOf", month.slice(0, 8) + "05");
+    await page.selectOption("#pvAsOf", month.slice(0, 8) + "20");
+    await page.waitForFunction(() => window.__mis.q.length === 2);
+    const mk = (run, d) => ({ data: { report_month: "x", as_of_date: d, approved_cost_run_id: run, approved_cost_valuation_date: "2026-01-01", status: "BULK_RECEIPT_COVERED_REFERENCE", plan_status: "UNAVAILABLE_PENDING_FROZEN_PLAN", receipt_event_count: 1, receipt_unvalued_count: 0, receipt_correction_event_count: 0, receipt_reference_covered_value: 7, receipt_value_status: "COVERED_SUBTOTAL", completed_status: "NOT_VERIFIED", comparability: "NOT_COMPARABLE" }, error: null });
+    await page.evaluate((r) => window.__mis.q[1].d.resolve(r), mk(220, month.slice(0, 8) + "20"));
+    await page.waitForFunction(() => /#220/.test(document.querySelector("#productionValueBody").textContent));
+    await page.evaluate((r) => window.__mis.q[0].d.resolve(r), mk(105, month.slice(0, 8) + "05"));
+    await page.waitForTimeout(150);
+    assert.match(await pvText(page), /#220/); assert.doesNotMatch(await pvText(page), /#105/);
+    assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 1);
   } finally { await page.context().close(); }
+});
+
+test("as-of: 320/390/520 presentation keeps month, day selector and status inside the viewport at touch height", { skip }, async () => {
+  for (const width of [320, 390, 520]) {
+    const { page, month, day } = await openAsOf(width);
+    try {
+      await page.selectOption("#pvMonth", month); await idle(page);
+      await page.selectOption("#pvAsOf", day); await idle(page);
+      for (const sel of ["#pvAsOf", "#pvMonth", "#pvAsOfStatus"]) {
+        const r = await page.$eval(sel, (e) => { const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, w: b.width, h: b.height }; });
+        assert.ok(r.l >= 0 && r.r <= width + 0.5 && r.w > 100 && r.h >= 20, `${width} ${sel} ${JSON.stringify(r)}`);
+      }
+      assert.ok((await page.$eval("#pvAsOf", (e) => e.getBoundingClientRect().height)) >= 34, `touch height @${width}`);
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `no overflow @${width}`);
+      if (process.env.MIS_SCREENSHOT_DIR && width === 390) {
+        await page.locator("#productionValueSection").scrollIntoViewIfNeeded();
+        await page.screenshot({ path: `${process.env.MIS_SCREENSHOT_DIR}/asof-select-390.png` });
+      }
+    } finally { await page.context().close(); }
+  }
 });
 
 // ---- Async request-state hardening

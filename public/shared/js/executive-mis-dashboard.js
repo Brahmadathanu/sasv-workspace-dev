@@ -54,7 +54,6 @@ let PRODUCTION_VALUE = { status: "loading", data: null, message: "" };
 let PRODUCTION_VALUE_MONTH = ""; // first of month, YYYY-MM-01 (IST); set on first use
 let PRODUCTION_VALUE_ASOF = ""; // optional YYYY-MM-DD cutoff, "" = server default (today IST)
 let PRODUCTION_ASOF_NOTICE = ""; // visible explanation when a chosen cutoff is cleared (never a silent reset)
-let PRODUCTION_ASOF_TIMER = null;
 let PRODUCTION_VALUE_REQUESTED = ""; // "month|asof" last sent, to avoid duplicate identical requests
 
 // ---------------------------------------------------------------------------
@@ -1896,11 +1895,34 @@ function productionValueMonthOptions() {
   return out;
 }
 
-function productionValueAsOfBounds() {
-  const today = istToday();
-  const [y, m] = PRODUCTION_VALUE_MONTH.split("-").map(Number);
+// Pure: selectable cutoff range for a report month (first of month) given today's IST date.
+function asOfBoundsFor(monthStart, today) {
+  const [y, m] = monthStart.split("-").map(Number);
   const monthEnd = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
-  return { min: PRODUCTION_VALUE_MONTH, max: monthEnd < today ? monthEnd : today };
+  return { min: monthStart, max: monthEnd < today ? monthEnd : today };
+}
+
+// Pure: every selectable day in [min, max], as ISO values with a readable label.
+function asOfDayOptionsFor(bounds) {
+  const out = [];
+  const fmt = new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric", weekday: "short", timeZone: "UTC" });
+  const last = Number(bounds.max.slice(8, 10));
+  for (let d = Number(bounds.min.slice(8, 10)); d <= last; d += 1) {
+    const iso = `${bounds.min.slice(0, 8)}${String(d).padStart(2, "0")}`;
+    out.push({ value: iso, label: fmt.format(new Date(`${iso}T00:00:00Z`)).replace(/,/g, "") });
+  }
+  return out;
+}
+
+function productionValueAsOfBounds() {
+  return asOfBoundsFor(PRODUCTION_VALUE_MONTH, istToday());
+}
+
+function renderAsOfOptionsHtml() {
+  const b = productionValueAsOfBounds();
+  return [`<option value=""${PRODUCTION_VALUE_ASOF === "" ? " selected" : ""}>Default (latest allowed)</option>`]
+    .concat(asOfDayOptionsFor(b).map((o) => `<option value="${escapeHtml(o.value)}"${o.value === PRODUCTION_VALUE_ASOF ? " selected" : ""}>${escapeHtml(o.label)}</option>`))
+    .join("");
 }
 
 function classifyValueError(error) {
@@ -2114,7 +2136,6 @@ function renderProductionValueSection() {
   if (!opts.some((o) => o.value === PRODUCTION_VALUE_MONTH)) {
     opts.unshift({ value: PRODUCTION_VALUE_MONTH, label: formatDateIN(PRODUCTION_VALUE_MONTH) });
   }
-  const bounds = productionValueAsOfBounds();
   return `
     <section class="pv" id="productionValueSection" aria-labelledby="pvHeading">
       <div class="pv-head">
@@ -2125,7 +2146,7 @@ function renderProductionValueSection() {
               .map((o) => `<option value="${escapeHtml(o.value)}"${o.value === PRODUCTION_VALUE_MONTH ? " selected" : ""}>${escapeHtml(o.label)}</option>`)
               .join("")}</select></label>
           <label class="pv-field"><span>As of</span>
-            <input id="pvAsOf" class="pv-input" type="date" min="${escapeHtml(bounds.min)}" max="${escapeHtml(bounds.max)}" value="${escapeHtml(PRODUCTION_VALUE_ASOF)}" aria-describedby="pvAsOfStatus" /></label>
+            <select id="pvAsOf" class="pv-input" aria-describedby="pvAsOfStatus">${renderAsOfOptionsHtml()}</select></label>
         </div>
       </div>
       <div class="pv-asof-status" id="pvAsOfStatus" aria-live="polite">${renderAsOfStatusHtml()}</div>
@@ -2133,9 +2154,9 @@ function renderProductionValueSection() {
     </section>`;
 }
 
-// iOS Safari shows nothing for an empty date input and can lose the wheel selection if script rewrites the
-// value or min/max while the picker is open. So the chosen cutoff is also shown as plain text, the input is
-// only rewritten when it must be cleared, and every clear is explained on screen.
+// The cutoff is a select of exactly the days allowed for the chosen report month (1..last day, capped at
+// today IST). A native date input cannot stop iOS from scrolling to other months, so it is not used. The
+// range/ISO guard below stays as a safety net, and the chosen cutoff is also echoed as plain text.
 function renderAsOfStatusHtml() {
   const b = productionValueAsOfBounds();
   const range = `${formatDateIN(b.min)} to ${formatDateIN(b.max)}`;
@@ -2154,16 +2175,11 @@ function refreshAsOfStatus() {
 
 function applyProductionValueSelection({ monthChanged = false } = {}) {
   const input = $("pvAsOf");
-  const raw = input?.value || "";
   const b = productionValueAsOfBounds();
-  let asof = PRODUCTION_VALUE_ASOF;
-  // A month change keeps the stored choice (then range-checks it); a change on the date control itself
-  // takes its value, where empty means the user cleared it. Anything not an ISO date is ignored.
-  if (!monthChanged) asof = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : "";
-  // An empty read right after we cleared the control ourselves (input then change events) is not a new
-  // user action: keep the explanation on screen.
-  const echo = !monthChanged && raw === "" && PRODUCTION_VALUE_ASOF === "";
-  if (!echo) PRODUCTION_ASOF_NOTICE = "";
+  // Month change keeps the stored choice (then range-checks it); a change on the day control takes its value.
+  const raw = monthChanged ? PRODUCTION_VALUE_ASOF : input?.value || "";
+  let asof = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : "";
+  PRODUCTION_ASOF_NOTICE = "";
   if (asof && (asof < b.min || asof > b.max)) {
     PRODUCTION_ASOF_NOTICE = monthChanged
       ? `Cutoff ${formatDateIN(asof)} is outside the selected month, so the default cutoff is used.`
@@ -2171,36 +2187,26 @@ function applyProductionValueSelection({ monthChanged = false } = {}) {
     asof = "";
   }
   PRODUCTION_VALUE_ASOF = asof;
-  if (input) {
-    if (monthChanged) {
-      input.min = b.min;
-      input.max = b.max;
-    }
-    if (input.value !== asof) input.value = asof; // rewritten only when it differs
+  if (input && (monthChanged || input.value !== asof)) {
+    input.innerHTML = renderAsOfOptionsHtml();
+    input.value = asof;
   }
   refreshAsOfStatus();
 }
 
 function onProductionValueControlChange(ev) {
-  const target = ev?.target;
-  const monthChanged = target?.id === "pvMonth";
+  const monthChanged = ev?.target?.id === "pvMonth";
   if (monthChanged) {
     const month = $("pvMonth")?.value;
     if (month) PRODUCTION_VALUE_MONTH = month;
   }
   applyProductionValueSelection({ monthChanged });
-  // "input" fires as the iOS wheel moves; wait for it to settle. "change" (picker closed) goes at once.
-  clearTimeout(PRODUCTION_ASOF_TIMER);
-  const go = () => {
-    if (`${PRODUCTION_VALUE_MONTH}|${PRODUCTION_VALUE_ASOF}` === PRODUCTION_VALUE_REQUESTED && !monthChanged) return;
-    loadProductionValue();
-  };
-  if (ev?.type === "input") PRODUCTION_ASOF_TIMER = setTimeout(go, 450);
-  else go();
+  // One request per effective selection: skip when month and cutoff are what was last requested.
+  if (!monthChanged && `${PRODUCTION_VALUE_MONTH}|${PRODUCTION_VALUE_ASOF}` === PRODUCTION_VALUE_REQUESTED) return;
+  loadProductionValue();
 }
 
 function clearProductionAsOf() {
-  clearTimeout(PRODUCTION_ASOF_TIMER);
   PRODUCTION_VALUE_ASOF = "";
   PRODUCTION_ASOF_NOTICE = "";
   const input = $("pvAsOf");
@@ -2445,9 +2451,6 @@ function wireEvents() {
   });
   tabPanel?.addEventListener("change", (ev) => {
     if (ev.target.id === "pvMonth" || ev.target.id === "pvAsOf") onProductionValueControlChange(ev);
-  });
-  tabPanel?.addEventListener("input", (ev) => {
-    if (ev.target.id === "pvAsOf") onProductionValueControlChange(ev);
   });
   tabPanel?.addEventListener("click", (ev) => {
     if (ev.target.closest("[data-pv-asof-clear]")) {
