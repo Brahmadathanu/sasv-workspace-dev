@@ -1817,6 +1817,14 @@ function goFinishedGoodsNextPage() {
 
 // The Production tab is two independent sections: the canonical monetary section (mounted at once)
 // and the subordinate legacy counts section. Each has its own request key, state, error and retry.
+const PRODUCTION_COUNT_FIELDS = Object.freeze([
+  "active_pipeline_batch_count",
+  "work_in_process_batch_count",
+  "overdue_work_in_process_batch_count",
+  "finished_goods_bulk_batch_count",
+  "bottled_stock_batch_count",
+  "total_canonical_batch_count",
+]);
 let PRODUCTION_COUNTS = { status: "loading", message: "" };
 
 function renderProductionShell() {
@@ -1844,7 +1852,9 @@ async function loadProductionCounts() {
   renderProductionCountsBody();
 
   const { data, error } = await settle(
-    supabase.from("v_mis_production_tab_summary").select("*").single(),
+    // Explicit six-field projection of the cheap live pipeline view. The legacy
+    // v_mis_production_tab_summary (position x pipeline) is not queried: it times out (57014).
+    supabase.from("v_mis_batch_pipeline").select(PRODUCTION_COUNT_FIELDS.join(",")).single(),
   );
   if (!isLatestRequest("production", token)) return;
 
@@ -1930,17 +1940,6 @@ async function loadProductionValue() {
     PRODUCTION_VALUE = { status: "ok", data, message: "" };
   }
   renderProductionValueBody();
-}
-
-function formatPlanningStatusLabel(value) {
-  switch (value) {
-    case "CURRENT_MONTH_PLAN_AVAILABLE":
-      return "Current Month Plan Available";
-    case "CURRENT_MONTH_PLAN_NOT_AVAILABLE_USING_NEXT_AVAILABLE_PLAN_MONTH":
-      return "Current Month Plan Not Available - Using Next Available Plan Month";
-    default:
-      return value || "-";
-  }
 }
 
 function formatPercent(value) {
@@ -2151,17 +2150,15 @@ function renderProductionCountsBody() {
   const st = PRODUCTION_COUNTS;
   host.setAttribute("aria-busy", st.status === "loading" ? "true" : "false");
   if (st.status === "loading") {
-    host.innerHTML = `<div class="production-summary-heading">Production Summary</div><div class="pv-state" role="status"><span class="table-loading-spinner" aria-hidden="true"></span> Loading batch counts...</div>`;
+    host.innerHTML = `<div class="production-summary-heading">Live batch pipeline &mdash; current state</div><div class="pv-state" role="status"><span class="table-loading-spinner" aria-hidden="true"></span> Loading batch counts...</div>`;
     return;
   }
   if (st.status === "error") {
-    host.innerHTML = `<div class="production-summary-heading">Production Summary</div><div class="pv-state error" role="alert">Failed to load production batch counts. ${escapeHtml(st.message)} <button type="button" class="mis-retry-btn" data-mis-retry="production-counts">Retry</button></div>`;
+    host.innerHTML = `<div class="production-summary-heading">Live batch pipeline &mdash; current state</div><div class="pv-state error" role="alert">Failed to load production batch counts. ${escapeHtml(st.message)} <button type="button" class="mis-retry-btn" data-mis-retry="production-counts">Retry</button></div>`;
     return;
   }
   const s = PRODUCTION_SUMMARY || {};
-  const periodLine = `Report month: ${formatDateIN(s.report_month_start)} to ${formatDateIN(s.report_month_end)} | Planning month: ${formatDateIN(s.planning_month_start)} | Status: ${formatPlanningStatusLabel(s.planning_period_status)}`;
-  // Counts only. Base quantities and achievement percentages from the legacy view mix Kg, L and Nos and
-  // are no longer headline figures (see the diagnostics section).
+  // Counts only, straight from the server. Current state of the live pipeline; not month-bound.
   const cards = [
     { title: "Active Pipeline Batches", value: formatIntegerIN(s.active_pipeline_batch_count) },
     { title: "Work in Process Batches", value: formatIntegerIN(s.work_in_process_batch_count) },
@@ -2175,24 +2172,9 @@ function renderProductionCountsBody() {
     { title: "Total Canonical Batches", value: formatIntegerIN(s.total_canonical_batch_count) },
   ];
 
-  const diagRows = [
-    ["Planned production", s.planned_production_base_qty, s.planned_production_note],
-    ["Bulk produced", s.bulk_produced_base_qty, s.bulk_produced_note],
-    ["Transferred to Finished Goods", s.transferred_to_finished_goods_base_qty, s.transferred_to_finished_goods_note],
-    ["Not initiated (expected output)", s.not_initiated_expected_output_base_qty, s.not_initiated_note],
-    ["Work in process (expected output)", s.work_in_process_expected_output_base_qty, s.work_in_process_note],
-    ["Finished goods bulk on hand", s.finished_goods_bulk_on_hand_base_qty, s.finished_goods_bulk_note],
-    ["Bottled stock on hand", s.bottled_stock_on_hand_base_qty, s.bottled_stock_note],
-    ["Transferred only", s.transferred_only_base_qty, s.transferred_only_note],
-  ];
-
   host.innerHTML = `
-    <div class="production-scope-note">
-      <div class="production-period-line">${escapeHtml(periodLine)}</div>
-      ${s.production_scope_note ? `<div>${escapeHtml(s.production_scope_note)}</div>` : ""}
-    </div>
-
-    <div class="production-summary-heading">Production Summary</div>
+    <div class="production-summary-heading">Live batch pipeline &mdash; current state</div>
+    <div class="production-scope-note">Counts of batches as they stand now. They are not tied to the report month selected above, which applies only to the production value section.</div>
     <div class="production-summary-grid">
       ${cards
         .map(
@@ -2205,30 +2187,6 @@ function renderProductionCountsBody() {
         )
         .join("")}
     </div>
-
-    <details class="production-section production-diagnostics">
-      <summary class="production-section-title">Source diagnostics - mixed base units, not additive</summary>
-      <div class="production-diag-note">These quantities mix Kg, L and Nos in one base-quantity field. They are neither a physical total nor a financial figure, and no achievement percentage is derived from them. Per-unit quantities are not provided by the canonical API.</div>
-      <div class="production-table-wrap">
-        <table class="production-table">
-          <thead>
-            <tr><th>Source figure</th><th class="num">Mixed-unit quantity</th><th>Explanation</th></tr>
-          </thead>
-          <tbody>
-            ${diagRows
-              .map(
-                (r) => `
-                  <tr>
-                    <td>${escapeHtml(r[0])}</td>
-                    <td class="num">${escapeHtml(formatNumberIN(r[1]))}</td>
-                    <td>${escapeHtml(r[2] || "-")}</td>
-                  </tr>`,
-              )
-              .join("")}
-          </tbody>
-        </table>
-      </div>
-    </details>
   `;
 }
 

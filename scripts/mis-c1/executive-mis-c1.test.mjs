@@ -22,7 +22,7 @@ test("server contracts are consumed unchanged (names and parameters)", () => {
   for (const obj of [
     "mv_mis_executive_summary", "v_mis_finance_tab_summary", "get_mis_finance_party_page", "v_mis_sales_tab_summary",
     "get_mis_sales_product_page", "v_mis_inventory_tab_summary", "get_mis_inventory_item_page",
-    "v_mis_finished_goods_tab_summary", "get_mis_finished_goods_sku_page", "v_mis_production_tab_summary",
+    "v_mis_finished_goods_tab_summary", "get_mis_finished_goods_sku_page", "v_mis_batch_pipeline",
     "get_mis_production_value_summary",
   ]) assert.ok(js.includes(`"${obj}"`), obj);
   for (const p of ["p_group_filter", "p_search", "p_limit", "p_offset", "p_source_kind", "p_mos_filter"]) assert.ok(js.includes(p), p);
@@ -248,13 +248,14 @@ test("Production value: four cards, covered subtotal, unavailable plan/completio
     // the RPC is called once, with the first-of-month IST month and no as-of unless chosen
     const c = (await calls(page, "get_mis_production_value_summary"));
     assert.equal(c.length, 1); assert.match(c[0].args.p_report_month, /^\d{4}-\d{2}-01$/); assert.equal("p_as_of_date" in c[0].args, false);
-    // counts remain; mixed-unit quantities are demoted into a labelled collapsed diagnostic with no % columns
+    // counts: six server counts, labelled as the live current state, no diagnostics/mixed-unit/plan strip
     assert.deepEqual(await page.$$eval(".production-summary-card .production-summary-title", (t) => t.map((x) => x.textContent)), ["Active Pipeline Batches", "Work in Process Batches", "Overdue WIP Batches", "FG Bulk Batches", "Bottled Stock Batches", "Total Canonical Batches"]);
-    assert.equal(await page.$eval(".production-diagnostics", (e) => e.open), false);
-    assert.match(await page.textContent(".production-diagnostics > summary"), /mixed base units, not additive/);
-    const diag = await page.textContent(".production-diagnostics");
-    assert.doesNotMatch(diag, /Achievement|53\.77|43\.02/);
-    assert.doesNotMatch(await page.textContent("#tabPanel"), /Bulk Achievement %|FG Transfer Achievement %/);
+    assert.deepEqual(await page.$$eval(".production-summary-card .production-summary-value", (t) => t.map((x) => x.textContent)), ["412", "100", "59", "7", "8", "2,581"]);
+    assert.match(await countsText(page), /Live batch pipeline — current state/);
+    assert.match(await countsText(page), /not tied to the report month/);
+    const panel = await countsText(page);
+    assert.equal(await page.$(".production-diagnostics"), null);
+    assert.doesNotMatch(panel, /Achievement|mixed base units|Planning month|Source diagnostics|base quantity|Kg|Nos/);
   } finally { await page.context().close(); }
 });
 
@@ -351,11 +352,11 @@ test("Production value: loading, denied (403/42501), 401, generic error + Retry;
     await setHandler(page, "get_mis_production_value_summary", () => Promise.reject(new Error("network down")));
     await page.click(".pv-state .mis-retry-btn");
     await page.waitForFunction(() => /Failed to load production values\. network down/.test(document.querySelector("#productionValueBody").textContent));
-    const before = (await calls(page, "v_mis_production_tab_summary")).length;
+    const before = (await calls(page, "v_mis_batch_pipeline")).length;
     await page.evaluate(() => { delete window.__mis.handlers.get_mis_production_value_summary; });
     await page.click(".pv-state .mis-retry-btn");
     await page.waitForSelector(".pv-kpi");
-    assert.equal((await calls(page, "v_mis_production_tab_summary")).length, before, "value retry does not reload counts");
+    assert.equal((await calls(page, "v_mis_batch_pipeline")).length, before, "value retry does not reload counts");
   } finally { await page.context().close(); }
 });
 
@@ -391,9 +392,9 @@ async function openProductionDeferred({ width = 1280 } = {}) {
     window.__mis.handlers = window.__mis.handlers || {};
     window.__mis.mode = { counts: "defer", value: "defer" };
     window.__mis.q = { counts: [], value: [] };
-    window.__mis.fixtureCounts = { data: { report_month_start: "2026-11-01", report_month_end: "2026-11-30", planning_month_start: "2026-11-01", planning_period_status: "CURRENT_MONTH_PLAN_AVAILABLE", active_pipeline_batch_count: 412, work_in_process_batch_count: 100, overdue_work_in_process_batch_count: 59, finished_goods_bulk_batch_count: 7, bottled_stock_batch_count: 8, total_canonical_batch_count: 900 }, error: null };
+    window.__mis.fixtureCounts = { data: { active_pipeline_batch_count: 412, work_in_process_batch_count: 100, overdue_work_in_process_batch_count: 59, finished_goods_bulk_batch_count: 7, bottled_stock_batch_count: 8, total_canonical_batch_count: 900 }, error: null };
     window.__mis.fixtureValue = (a) => ({ data: { report_month: a.p_report_month, as_of_date: "2026-11-20", approved_cost_run_id: 143, approved_cost_valuation_date: "2026-10-22", status: "BULK_RECEIPT_COVERED_REFERENCE", plan_status: "UNAVAILABLE_PENDING_FROZEN_PLAN", component_policy: "RM_STORES_PM_EXCLUDED", receipt_event_count: 80, receipt_unvalued_count: 2, receipt_correction_event_count: 0, receipt_reference_covered_value: 3204140.56, receipt_value_status: "PARTIAL_COVERAGE", tally_fg_transfer_book_value: 2500000, transfer_line_count: 41, tally_snapshot_as_of: "2026-11-20", transfer_reconciliation_status: "NOT_CHECKED_BY_BOOK_TOTAL", transfer_missing_amount_lines: 0, completed_reference_value: null, completed_status: "NOT_VERIFIED", plan_achievement_pct: null, comparability: "NOT_COMPARABLE" }, error: null });
-    window.__mis.handlers.v_mis_production_tab_summary = () => {
+    window.__mis.handlers.v_mis_batch_pipeline = () => {
       if (window.__mis.mode.counts === "default") return window.__mis.fixtureCounts;
       const d = window.__mis.defer(); window.__mis.q.counts.push({ d }); return d.promise;
     };
@@ -408,7 +409,7 @@ async function openProductionDeferred({ width = 1280 } = {}) {
 }
 const qLen = (page, k) => page.evaluate((x) => window.__mis.q[x].length, k);
 const resolveQ = (page, k, i, v) => page.evaluate(([x, j, val]) => window.__mis.q[x][j].d.resolve(val), [k, i, v]);
-const okCounts = { data: { report_month_start: "2026-11-01", report_month_end: "2026-11-30", planning_month_start: "2026-11-01", planning_period_status: "CURRENT_MONTH_PLAN_AVAILABLE", active_pipeline_batch_count: 412, work_in_process_batch_count: 100, overdue_work_in_process_batch_count: 59, finished_goods_bulk_batch_count: 7, bottled_stock_batch_count: 8, total_canonical_batch_count: 900 }, error: null };
+const okCounts = { data: { active_pipeline_batch_count: 412, work_in_process_batch_count: 100, overdue_work_in_process_batch_count: 59, finished_goods_bulk_batch_count: 7, bottled_stock_batch_count: 8, total_canonical_batch_count: 900 }, error: null };
 const okValue = (m, run = 143, v = 11) => ({ data: { report_month: m, as_of_date: m, approved_cost_run_id: run, approved_cost_valuation_date: "2026-10-22", status: "BULK_RECEIPT_COVERED_REFERENCE", plan_status: "UNAVAILABLE_PENDING_FROZEN_PLAN", receipt_event_count: 1, receipt_unvalued_count: 0, receipt_correction_event_count: 0, receipt_reference_covered_value: v, receipt_value_status: "COVERED_SUBTOTAL", completed_status: "NOT_VERIFIED", comparability: "NOT_COMPARABLE" }, error: null });
 const countsText = (page) => page.textContent("#productionCounts");
 
@@ -519,7 +520,7 @@ test("unauthorized session: Production data and RPCs are never requested or show
       await page.evaluate(() => { try { document.querySelector('[data-tab="production"]')?.click(); } catch {} });
       await page.waitForTimeout(250);
       const names = (await calls(page)).map((c) => c.name);
-      assert.ok(!names.includes("get_mis_production_value_summary") && !names.includes("v_mis_production_tab_summary"), names.join());
+      assert.ok(!names.includes("get_mis_production_value_summary") && !names.includes("v_mis_batch_pipeline"), names.join());
       assert.equal(await page.$("#productionValueSection"), null);
       assert.doesNotMatch(await page.evaluate(() => document.body.innerText), /₹32,04|Tally book|Production value/);
     } finally { await page.context().close(); }
@@ -570,6 +571,45 @@ test("top-level Transferred-to-FG KPI is labelled as the executive-summary sourc
     // the KPI popover/detail text names its source
     const js_ = await page.evaluate(async () => (await (await fetch("/shared/js/executive-mis-dashboard.js")).text()));
     assert.match(js_, /A separate source from the Production tab's Tally book figure/);
+  } finally { await page.context().close(); }
+});
+
+// ---- Production counts source (timeout correction)
+test("counts source: explicit six-field projection from v_mis_batch_pipeline; legacy view and diagnostics removed", () => {
+  assert.doesNotMatch(js, /\.from\(\s*"v_mis_production_tab_summary"/);
+  const m = js.match(/const PRODUCTION_COUNT_FIELDS = Object\.freeze\(\[([\s\S]*?)\]\)/);
+  assert.ok(m);
+  assert.deepEqual([...m[1].matchAll(/"([a-z_]+)"/g)].map((x) => x[1]), ["active_pipeline_batch_count", "work_in_process_batch_count", "overdue_work_in_process_batch_count", "finished_goods_bulk_batch_count", "bottled_stock_batch_count", "total_canonical_batch_count"]);
+  assert.match(js, /supabase\.from\("v_mis_batch_pipeline"\)\.select\(PRODUCTION_COUNT_FIELDS\.join\(","\)\)\.single\(\)/);
+  assert.doesNotMatch(js, /production-diagnostics|Source diagnostics|planned_production_base_qty|bulk_produced_base_qty|_base_qty|bulk_production_achievement_pct/);
+  assert.doesNotMatch(js, /v_mis_production_position|v_product_bulk_consolidated_effective|v_fg_transfer_reconciliation/);
+});
+
+test("counts source at runtime: one pipeline query, six fields only, no legacy/other tables; month change touches only the money RPC", { skip }, async () => {
+  const { page } = await openProduction();
+  try {
+    await page.waitForSelector(".pv-kpi");
+    const names = (await calls(page)).filter((c) => /production|pipeline/.test(c.name)).map((c) => c.name);
+    assert.deepEqual(names.sort(), ["get_mis_production_value_summary", "v_mis_batch_pipeline"]);
+    const q = (await calls(page, "v_mis_batch_pipeline"))[0];
+    const sel = q.chain.find((st) => st[0] === "select");
+    assert.equal(sel[1], "active_pipeline_batch_count,work_in_process_batch_count,overdue_work_in_process_batch_count,finished_goods_bulk_batch_count,bottled_stock_batch_count,total_canonical_batch_count");
+    assert.ok(!(await calls(page)).some((c) => c.name === "v_mis_production_tab_summary"));
+    await page.selectOption("#pvMonth", { index: 3 });
+    await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "get_mis_production_value_summary").length === 2);
+    await page.waitForFunction(() => document.querySelector("#productionValueBody").getAttribute("aria-busy") === "false");
+    assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 1, "month selection never re-queries counts");
+    assert.deepEqual(await page.$$eval(".production-summary-card .production-summary-value", (t) => t.map((x) => x.textContent)), ["412", "100", "59", "7", "8", "2,581"], "counts unchanged by month");
+    assert.match(await countsText(page), /current state/);
+  } finally { await page.context().close(); }
+});
+
+test("counts: missing/null server counts render a dash, never an invented zero", { skip }, async () => {
+  const { page } = await open({ init: () => { window.__mis.handlers = { v_mis_batch_pipeline: () => ({ data: { active_pipeline_batch_count: 5, work_in_process_batch_count: null, overdue_work_in_process_batch_count: 0, finished_goods_bulk_batch_count: null, bottled_stock_batch_count: null, total_canonical_batch_count: 9 }, error: null }) }; } });
+  try {
+    await tabClick(page, "production");
+    await page.waitForSelector(".production-summary-card");
+    assert.deepEqual(await page.$$eval(".production-summary-card .production-summary-value", (t) => t.map((x) => x.textContent)), ["5", "-", "0", "-", "-", "9"]);
   } finally { await page.context().close(); }
 });
 
@@ -887,14 +927,11 @@ for (const width of WIDTHS) {
       for (const r of await rects(".pv-kpi, #pvMonth, #pvAsOf")) assert.ok(r.l >= 0 && r.r <= vw + 0.5 && r.w > 60, `production value control clipped ${JSON.stringify(r)}`);
       if (width <= 520) for (const r of await rects("#pvMonth, #pvAsOf")) assert.ok(r.h >= 34, `pv control touch target ${r.h}`);
       if (width <= 359) assert.equal(new Set(await page.$$eval(".pv-kpi", (c) => c.map((x) => Math.round(x.getBoundingClientRect().left)))).size, 1, "single column at 320");
-      await page.click(".production-diagnostics > summary");
-      if (width <= 520) assert.ok(await page.$eval(".production-diagnostics .production-table-wrap", (e) => e.scrollWidth > e.clientWidth), "production table scrolls inside its wrap");
-      await noPageOverflow("production (diagnostics open)");
+      await noPageOverflow("production");
       // keyboard: month select reachable and focus ring defined
       await page.focus("#pvMonth");
       assert.equal(await page.evaluate(() => document.activeElement.id), "pvMonth");
       if (process.env.MIS_SCREENSHOT_DIR) {
-        await page.evaluate(() => document.querySelector(".production-diagnostics").open = false);
         await page.evaluate(() => document.querySelector("#tabPanel").scrollTo(0, 0));
         await page.screenshot({ path: `${process.env.MIS_SCREENSHOT_DIR}/production-value-${width}.png`, fullPage: false });
       }
