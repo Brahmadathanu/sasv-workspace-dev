@@ -384,6 +384,195 @@ test("Production value: latest response wins and a response after leaving the ta
   } finally { await page.context().close(); }
 });
 
+// ---- Production: independent sections (G7 audit correction)
+// Opens Production with both sections under test control. mode: "default" | "defer".
+async function openProductionDeferred({ width = 1280 } = {}) {
+  const r = await open({ width, init: () => {
+    window.__mis.handlers = window.__mis.handlers || {};
+    window.__mis.mode = { counts: "defer", value: "defer" };
+    window.__mis.q = { counts: [], value: [] };
+    window.__mis.fixtureCounts = { data: { report_month_start: "2026-11-01", report_month_end: "2026-11-30", planning_month_start: "2026-11-01", planning_period_status: "CURRENT_MONTH_PLAN_AVAILABLE", active_pipeline_batch_count: 412, work_in_process_batch_count: 100, overdue_work_in_process_batch_count: 59, finished_goods_bulk_batch_count: 7, bottled_stock_batch_count: 8, total_canonical_batch_count: 900 }, error: null };
+    window.__mis.fixtureValue = (a) => ({ data: { report_month: a.p_report_month, as_of_date: "2026-11-20", approved_cost_run_id: 143, approved_cost_valuation_date: "2026-10-22", status: "BULK_RECEIPT_COVERED_REFERENCE", plan_status: "UNAVAILABLE_PENDING_FROZEN_PLAN", component_policy: "RM_STORES_PM_EXCLUDED", receipt_event_count: 80, receipt_unvalued_count: 2, receipt_correction_event_count: 0, receipt_reference_covered_value: 3204140.56, receipt_value_status: "PARTIAL_COVERAGE", tally_fg_transfer_book_value: 2500000, transfer_line_count: 41, tally_snapshot_as_of: "2026-11-20", transfer_reconciliation_status: "NOT_CHECKED_BY_BOOK_TOTAL", transfer_missing_amount_lines: 0, completed_reference_value: null, completed_status: "NOT_VERIFIED", plan_achievement_pct: null, comparability: "NOT_COMPARABLE" }, error: null });
+    window.__mis.handlers.v_mis_production_tab_summary = () => {
+      if (window.__mis.mode.counts === "default") return window.__mis.fixtureCounts;
+      const d = window.__mis.defer(); window.__mis.q.counts.push({ d }); return d.promise;
+    };
+    window.__mis.handlers.get_mis_production_value_summary = (a) => {
+      if (window.__mis.mode.value === "default") return window.__mis.fixtureValue(a);
+      const d = window.__mis.defer(); window.__mis.q.value.push({ a, d }); return d.promise;
+    };
+  } });
+  await tabClick(r.page, "production");
+  await r.page.waitForFunction(() => window.__mis.q.counts.length === 1 && window.__mis.q.value.length === 1);
+  return r;
+}
+const qLen = (page, k) => page.evaluate((x) => window.__mis.q[x].length, k);
+const resolveQ = (page, k, i, v) => page.evaluate(([x, j, val]) => window.__mis.q[x][j].d.resolve(val), [k, i, v]);
+const okCounts = { data: { report_month_start: "2026-11-01", report_month_end: "2026-11-30", planning_month_start: "2026-11-01", planning_period_status: "CURRENT_MONTH_PLAN_AVAILABLE", active_pipeline_batch_count: 412, work_in_process_batch_count: 100, overdue_work_in_process_batch_count: 59, finished_goods_bulk_batch_count: 7, bottled_stock_batch_count: 8, total_canonical_batch_count: 900 }, error: null };
+const okValue = (m, run = 143, v = 11) => ({ data: { report_month: m, as_of_date: m, approved_cost_run_id: run, approved_cost_valuation_date: "2026-10-22", status: "BULK_RECEIPT_COVERED_REFERENCE", plan_status: "UNAVAILABLE_PENDING_FROZEN_PLAN", receipt_event_count: 1, receipt_unvalued_count: 0, receipt_correction_event_count: 0, receipt_reference_covered_value: v, receipt_value_status: "COVERED_SUBTOTAL", completed_status: "NOT_VERIFIED", comparability: "NOT_COMPARABLE" }, error: null });
+const countsText = (page) => page.textContent("#productionCounts");
+
+test("independence: both sections mount immediately; value shows while legacy counts HANG", { skip }, async () => {
+  const { page } = await openProductionDeferred();
+  try {
+    await page.waitForSelector("#productionValueSection");
+    await page.waitForSelector("#productionCounts");
+    assert.match(await pvText(page), /Loading production values/);
+    assert.match(await countsText(page), /Loading batch counts/);
+    await page.evaluate(() => { window.__mis.mode.value = "default"; });
+    await resolveQ(page, "value", 0, (await page.evaluate(() => window.__mis.fixtureValue({ p_report_month: "2026-11-01" }))));
+    await page.waitForSelector(".pv-kpi");
+    assert.match((await pvCards(page))[1].value, /₹32,04,140\.56/);
+    await page.waitForTimeout(300); // counts still pending: no timeout/blank, value intact
+    assert.match(await countsText(page), /Loading batch counts/);
+    assert.equal(await page.$(".production-summary-card"), null);
+    assert.match((await pvCards(page))[1].value, /₹32,04,140\.56/);
+    // controls usable while counts hang
+    await page.evaluate(() => { window.__mis.mode.value = "defer"; });
+    await page.selectOption("#pvMonth", { index: 1 });
+    await page.waitForFunction(() => window.__mis.q.value.length === 2);
+    assert.equal(await page.getAttribute("#productionValueBody", "aria-busy"), "true");
+    assert.equal(await qLen(page, "counts"), 1, "month change never re-requests counts");
+    // late counts arrive later and render without touching the value section
+    await resolveQ(page, "counts", 0, okCounts);
+    await page.waitForSelector(".production-summary-card");
+    assert.match(await countsText(page), /Active Pipeline Batches/);
+    assert.ok(await page.$("#pvMonth"), "value controls survive counts render");
+  } finally { await page.context().close(); }
+});
+
+test("independence: legacy counts FAIL while value succeeds; counts retry is counts-only", { skip }, async () => {
+  const { page } = await openProductionDeferred();
+  try {
+    await page.evaluate(() => { window.__mis.mode.value = "default"; });
+    await resolveQ(page, "counts", 0, { data: null, error: { message: "statement timeout" } });
+    await resolveQ(page, "value", 0, await page.evaluate(() => window.__mis.fixtureValue({ p_report_month: "2026-11-01" })));
+    await page.waitForSelector("#productionCounts .pv-state.error");
+    assert.match(await countsText(page), /Failed to load production batch counts\. statement timeout/);
+    assert.equal(await page.getAttribute("#productionCounts .pv-state.error", "role"), "alert");
+    assert.equal((await pvCards(page)).length, 4, "value cards stay visible");
+    assert.equal(await page.$("#productionValueBody .pv-state.error"), null);
+    const valueCalls = (await calls(page, "get_mis_production_value_summary")).length;
+    await page.click("#productionCounts .mis-retry-btn");
+    await page.waitForFunction(() => window.__mis.q.counts.length === 2);
+    assert.equal((await calls(page, "get_mis_production_value_summary")).length, valueCalls, "counts retry does not touch value RPC");
+    assert.match(await countsText(page), /Loading batch counts/);
+    assert.equal((await pvCards(page)).length, 4, "value untouched while counts retry");
+    await resolveQ(page, "counts", 1, okCounts);
+    await page.waitForSelector(".production-summary-card");
+  } finally { await page.context().close(); }
+});
+
+test("independence: value FAILS while counts succeed; value retry is value-only", { skip }, async () => {
+  const { page } = await openProductionDeferred();
+  try {
+    await resolveQ(page, "counts", 0, okCounts);
+    await resolveQ(page, "value", 0, { data: null, error: { message: "RPC down" } });
+    await page.waitForSelector("#productionValueBody .pv-state.error");
+    assert.match(await pvText(page), /Failed to load production values\. RPC down/);
+    assert.match(await countsText(page), /Active Pipeline Batches/);
+    assert.equal(await page.$("#productionCounts .pv-state.error"), null);
+    const countCalls = (await page.evaluate(() => window.__mis.q.counts.length));
+    await page.click("#productionValueBody .mis-retry-btn");
+    await page.waitForFunction(() => window.__mis.q.value.length === 2);
+    assert.equal(await qLen(page, "counts"), countCalls, "value retry does not refetch counts");
+    assert.match(await countsText(page), /Active Pipeline Batches/, "counts stay rendered");
+    await resolveQ(page, "value", 1, okValue("2026-11-01"));
+    await page.waitForSelector(".pv-kpi");
+    assert.doesNotMatch(await pvText(page), /₹\s?0(\.00)?\b|NaN|undefined/);
+  } finally { await page.context().close(); }
+});
+
+test("independence: tab switch and Refresh with both requests in flight retire stale responses", { skip }, async () => {
+  const { page } = await openProductionDeferred();
+  try {
+    // 1) leave the tab with both in flight; late answers must not repaint Sales
+    await page.click('[data-tab="sales"]');
+    await page.waitForSelector(".sales-table");
+    await resolveQ(page, "counts", 0, okCounts);
+    await resolveQ(page, "value", 0, okValue("2026-11-01", 111));
+    await page.waitForTimeout(200);
+    const panel = await page.textContent("#tabPanel");
+    assert.doesNotMatch(panel, /#111|Production value|Active Pipeline Batches|Loading batch counts/);
+    // 2) return: fresh requests are made, the new ones win over any stale answers
+    await page.click('[data-tab="production"]');
+    await page.waitForFunction(() => window.__mis.q.counts.length === 2 && window.__mis.q.value.length === 2);
+    // 3) Refresh while in flight: yet another pair, older pair retired
+    await page.click("#refreshBtn");
+    await page.waitForFunction(() => window.__mis.q.counts.length === 3 && window.__mis.q.value.length === 3);
+    await resolveQ(page, "counts", 2, { data: { ...okCounts.data, active_pipeline_batch_count: 333 }, error: null });
+    await resolveQ(page, "value", 2, okValue("2026-11-01", 333));
+    await page.waitForFunction(() => /#333/.test(document.querySelector("#productionValueBody").textContent));
+    await resolveQ(page, "counts", 1, { data: { ...okCounts.data, active_pipeline_batch_count: 222 }, error: null });
+    await resolveQ(page, "value", 1, okValue("2026-11-01", 222));
+    await page.waitForTimeout(200);
+    assert.match(await pvText(page), /#333/); assert.doesNotMatch(await pvText(page), /#222|#111/);
+    assert.match(await countsText(page), /333/); assert.doesNotMatch(await countsText(page), /\b222\b/);
+  } finally { await page.context().close(); }
+});
+
+test("unauthorized session: Production data and RPCs are never requested or shown", { skip }, async () => {
+  for (const permission of ["denied", "error"]) {
+    const { page } = await open({ permission, noWait: true });
+    try {
+      await page.waitForFunction(() => /permission|verify/.test(document.querySelector("#statusArea").textContent));
+      await page.evaluate(() => { try { document.querySelector('[data-tab="production"]')?.click(); } catch {} });
+      await page.waitForTimeout(250);
+      const names = (await calls(page)).map((c) => c.name);
+      assert.ok(!names.includes("get_mis_production_value_summary") && !names.includes("v_mis_production_tab_summary"), names.join());
+      assert.equal(await page.$("#productionValueSection"), null);
+      assert.doesNotMatch(await page.evaluate(() => document.body.innerText), /₹32,04|Tally book|Production value/);
+    } finally { await page.context().close(); }
+  }
+});
+
+for (const width of [390, 1280]) {
+  test(`independence layout @${width}px: hanging counts / failed counts / failed value stay usable`, { skip }, async () => {
+    const { page } = await openProductionDeferred({ width });
+    try {
+      const noOverflow = () => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth && document.body.scrollWidth <= document.documentElement.clientWidth);
+      const inView = (sel) => page.$$eval(sel, (els) => els.map((e) => { const r = e.getBoundingClientRect(); return r.left >= -0.5 && r.right <= innerWidth + 0.5 && r.width > 40; }));
+      // counts hanging, value loaded
+      await page.evaluate(() => { window.__mis.mode.value = "default"; });
+      await resolveQ(page, "value", 0, await page.evaluate(() => window.__mis.fixtureValue({ p_report_month: "2026-11-01" })));
+      await page.waitForSelector(".pv-kpi");
+      assert.ok(await noOverflow(), "hanging counts: overflow");
+      assert.ok((await inView(".pv-kpi, #pvMonth, #pvAsOf, #productionCounts .pv-state")).every(Boolean));
+      // counts error + retry button reachable and touch-sized on mobile
+      await resolveQ(page, "counts", 0, { data: null, error: { message: "timeout" } });
+      await page.waitForSelector("#productionCounts .mis-retry-btn");
+      assert.ok(await noOverflow(), "counts error: overflow");
+      const btn = await page.$eval("#productionCounts .mis-retry-btn", (e) => { const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, h: r.height }; });
+      assert.ok(btn.l >= 0 && btn.r <= width + 0.5 && btn.h >= 24, JSON.stringify(btn));
+      // value error with counts ok
+      await page.click("#productionCounts .mis-retry-btn");
+      await resolveQ(page, "counts", 1, okCounts);
+      await page.waitForSelector(".production-summary-card");
+      await page.evaluate(() => { window.__mis.mode.value = "defer"; });
+      await page.selectOption("#pvMonth", { index: 1 });
+      await page.waitForFunction(() => window.__mis.q.value.length === 2);
+      await resolveQ(page, "value", 1, { data: null, error: { message: "boom" } });
+      await page.waitForSelector("#productionValueBody .mis-retry-btn");
+      assert.ok(await noOverflow(), "value error: overflow");
+      assert.ok((await inView(".production-summary-card, #productionValueBody .mis-retry-btn")).every(Boolean));
+    } finally { await page.context().close(); }
+  });
+}
+
+test("top-level Transferred-to-FG KPI is labelled as the executive-summary source, distinct from the Tally book card", { skip }, async () => {
+  const { page } = await openProduction();
+  try {
+    const src = await page.evaluate(() => [...document.querySelectorAll(".kpi-card")].map((c) => c.textContent).find((t) => /Transferred to Finished Goods Value/.test(t)) || "");
+    assert.ok(src, "KPI present");
+    await page.click(".pv-notes summary");
+    assert.match(await page.textContent(".pv-notes"), /top-of-page "Transferred to Finished Goods Value" card comes from the executive summary snapshot/);
+    assert.match((await pvCards(page))[3].badge, /Tally book basis/);
+    // the KPI popover/detail text names its source
+    const js_ = await page.evaluate(async () => (await (await fetch("/shared/js/executive-mis-dashboard.js")).text()));
+    assert.match(js_, /A separate source from the Production tab's Tally book figure/);
+  } finally { await page.context().close(); }
+});
+
 // ---- Async request-state hardening
 test("race: a stale search response never overwrites or unmasks the latest query", { skip }, async () => {
   const { page } = await open();

@@ -421,9 +421,9 @@ function renderKpiCards(row) {
     {
       title: "Transferred to Finished Goods Value",
       value: formatCurrencyINR(row.transferred_to_finished_goods_value),
-      note: "Value of production transferred to finished goods in the current reporting period.",
+      note: "Executive-summary snapshot of production value moved into finished goods. A separate source from the Production tab's Tally book figure; the two are not expected to match.",
       source: productionDate,
-      detail: "Production value moved into finished goods.",
+      detail: "Source: executive summary (materialized view). Compare with the Production tab's Tally book value only as a different basis.",
     },
   ];
 
@@ -1815,42 +1815,48 @@ function goFinishedGoodsNextPage() {
   loadFinishedGoodsSkuPage();
 }
 
+// The Production tab is two independent sections: the canonical monetary section (mounted at once)
+// and the subordinate legacy counts section. Each has its own request key, state, error and retry.
+let PRODUCTION_COUNTS = { status: "loading", message: "" };
+
+function renderProductionShell() {
+  tabPanel.innerHTML = `
+    ${renderProductionValueSection()}
+    <div id="productionCounts" class="production-counts"></div>
+  `;
+  renderProductionValueBody();
+  renderProductionCountsBody();
+}
+
 async function loadProductionTab() {
   if (!tabPanel) return;
-  const token = beginRequest("production");
-  tabPanel.innerHTML = `
-    <div class="production-loading-shell">
-      <div class="production-status" role="status">Preparing production summary...</div>
-    </div>
-  `;
-  setTableLoading(
-    ".production-loading-shell",
-    true,
-    "Loading production summary...",
-  );
+  if (!PRODUCTION_VALUE_MONTH) PRODUCTION_VALUE_MONTH = `${istToday().slice(0, 7)}-01`;
+  renderProductionShell();
+  await Promise.all([
+    loadProductionValue(),
+    loadProductionCounts(),
+  ]);
+}
 
-  // The canonical value RPC runs alongside the existing counts view; each has its own
-  // latest-wins token so a slow or failed value call never blocks or repaints the counts.
-  const valueDone = loadProductionValue({ render: false });
+async function loadProductionCounts() {
+  const token = beginRequest("production");
+  PRODUCTION_COUNTS = { status: "loading", message: "" };
+  renderProductionCountsBody();
 
   const { data, error } = await settle(
     supabase.from("v_mis_production_tab_summary").select("*").single(),
   );
-
   if (!isLatestRequest("production", token)) return;
-
-  setTableLoading(".production-loading-shell", false);
 
   if (error) {
     console.error("[MIS] Production summary load failed", error);
     ACTIVE_TAB_FAILED = true;
-    tabPanel.innerHTML = `<div class="finance-status error" role="alert">Failed to load production summary. ${escapeHtml(errorMessage(error))} <button type="button" class="mis-retry-btn" data-mis-retry="production">Retry</button></div>`;
-    return;
+    PRODUCTION_COUNTS = { status: "error", message: errorMessage(error) };
+  } else {
+    PRODUCTION_SUMMARY = data || null;
+    PRODUCTION_COUNTS = { status: "ok", message: "" };
   }
-
-  PRODUCTION_SUMMARY = data || null;
-  renderProductionTab();
-  await valueDone;
+  renderProductionCountsBody();
 }
 
 function istToday() {
@@ -1893,11 +1899,11 @@ function classifyValueError(error) {
   return "error";
 }
 
-async function loadProductionValue({ render = true } = {}) {
+async function loadProductionValue() {
   if (!PRODUCTION_VALUE_MONTH) PRODUCTION_VALUE_MONTH = `${istToday().slice(0, 7)}-01`;
   const token = beginRequest("production:value");
   PRODUCTION_VALUE = { status: "loading", data: null, message: "" };
-  if (render) renderProductionValueBody();
+  renderProductionValueBody();
 
   const args = { p_report_month: PRODUCTION_VALUE_MONTH };
   if (PRODUCTION_VALUE_ASOF) args.p_as_of_date = PRODUCTION_VALUE_ASOF;
@@ -1908,6 +1914,7 @@ async function loadProductionValue({ render = true } = {}) {
 
   if (error) {
     console.error("[MIS] Production value summary load failed", error);
+    ACTIVE_TAB_FAILED = true;
     PRODUCTION_VALUE = {
       status: classifyValueError(error),
       data: null,
@@ -2093,6 +2100,7 @@ function renderProductionValueBody() {
         ${policy ? `<li>${escapeHtml(policy)}</li>` : ""}
         <li>Receipts use legacy physical storage postings; a stored receipt is not a formal batch completion.</li>
         <li>Tally book value is a separate accounting basis and is not comparable with the reference-cost figures.</li>
+        <li>The top-of-page "Transferred to Finished Goods Value" card comes from the executive summary snapshot, not from this report; the two sources can differ.</li>
         <li>Physical quantities in Kg, L and Nos are never added together.</li>
       </ul>
     </details>`;
@@ -2137,8 +2145,19 @@ function onProductionValueControlChange() {
   loadProductionValue();
 }
 
-function renderProductionTab() {
-  if (!tabPanel) return;
+function renderProductionCountsBody() {
+  const host = $("productionCounts");
+  if (!host) return;
+  const st = PRODUCTION_COUNTS;
+  host.setAttribute("aria-busy", st.status === "loading" ? "true" : "false");
+  if (st.status === "loading") {
+    host.innerHTML = `<div class="production-summary-heading">Production Summary</div><div class="pv-state" role="status"><span class="table-loading-spinner" aria-hidden="true"></span> Loading batch counts...</div>`;
+    return;
+  }
+  if (st.status === "error") {
+    host.innerHTML = `<div class="production-summary-heading">Production Summary</div><div class="pv-state error" role="alert">Failed to load production batch counts. ${escapeHtml(st.message)} <button type="button" class="mis-retry-btn" data-mis-retry="production-counts">Retry</button></div>`;
+    return;
+  }
   const s = PRODUCTION_SUMMARY || {};
   const periodLine = `Report month: ${formatDateIN(s.report_month_start)} to ${formatDateIN(s.report_month_end)} | Planning month: ${formatDateIN(s.planning_month_start)} | Status: ${formatPlanningStatusLabel(s.planning_period_status)}`;
   // Counts only. Base quantities and achievement percentages from the legacy view mix Kg, L and Nos and
@@ -2167,13 +2186,11 @@ function renderProductionTab() {
     ["Transferred only", s.transferred_only_base_qty, s.transferred_only_note],
   ];
 
-  tabPanel.innerHTML = `
+  host.innerHTML = `
     <div class="production-scope-note">
       <div class="production-period-line">${escapeHtml(periodLine)}</div>
       ${s.production_scope_note ? `<div>${escapeHtml(s.production_scope_note)}</div>` : ""}
     </div>
-
-    ${renderProductionValueSection()}
 
     <div class="production-summary-heading">Production Summary</div>
     <div class="production-summary-grid">
@@ -2213,7 +2230,6 @@ function renderProductionTab() {
       </div>
     </details>
   `;
-  renderProductionValueBody();
 }
 
 function openFinanceFilterDrawer() {
@@ -2410,8 +2426,13 @@ function wireEvents() {
   tabPanel?.addEventListener("click", (ev) => {
     const retryBtn = ev.target.closest("[data-mis-retry]");
     if (retryBtn) {
-      if (retryBtn.getAttribute("data-mis-retry") === "production-value") {
+      const retryKey = retryBtn.getAttribute("data-mis-retry");
+      if (retryKey === "production-value") {
         loadProductionValue();
+        return;
+      }
+      if (retryKey === "production-counts") {
+        loadProductionCounts();
         return;
       }
       loadActiveTab();
