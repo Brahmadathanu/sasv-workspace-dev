@@ -49,3 +49,16 @@ Two named `costing.rpc_refresh_sku_scheme_viability_snapshot` overloads exist (p
 3. Conduct selected-scheme design parity in safe read-only/staging branch before any client/API/cron changes. Only later seek owner approval for SQL/install, client deployment, archive/deletion, physical reclamation and monthly automation as distinct gates.
 
 **Not authorised:** any DELETE/DROP/TRUNCATE/VACUUM FULL/REINDEX, retention scheduler, RPC/view changes, app rollout, branch cleanup or PR merge. Security V1 triage must be tracked as an independent critical exception, not silently dismissed by 13/13 workflow closure.
+
+## Additional 21 Nov read-only FK/run-link discovery — material constraint
+
+A further `pg_constraint` inspection uncovered **three direct RESTRICT foreign keys pointing to `costing.sku_scheme_viability_snapshot(id)`**, not just view dependencies:
+- `costing.cost_sheet_line_monthly_snapshot.ik_scheme_viability_snapshot_id` → scheme viability ID, ON DELETE RESTRICT.
+- `costing.cost_sheet_line_monthly_snapshot.ok_scheme_viability_snapshot_id` → scheme viability ID, ON DELETE RESTRICT.
+- `costing.cost_sheet_line_traceability_snapshot.scheme_viability_snapshot_id` → scheme viability ID, ON DELETE RESTRICT.
+
+Consequently **a direct DELETE of scheme rows can fail referential integrity** and any `DROP ... CASCADE` would be especially unsafe. Preserve historical print/cost line/traceability lineage and explicitly design a selected-scheme identity replacement/migration before any table retirement.
+
+Live read-only catalogue also found **more than fifty** costing snapshot tables/views with `refresh_run_id` and `period_start` (the inspected output includes more than 50; this is not a counted exhaustive table total). A wide range of `costing_refresh_run(id)` foreign keys have `ON DELETE RESTRICT` / default NO ACTION; only some stage rows are CASCADE. Thus deleting a refresh-run header is **not equivalent** to safe cascading deletion of all its dependent snapshots; retain approved run IDs, designated/fingerprint/acceptance records, and stage lineage. Formal S1 must produce an explicit dependency-ordered archival/deletion plan and full preview before any owner-authorised purge.
+
+This finding strengthens the KEEP-first approach: Scheme Master and selected-scheme profitability/audit must remain intact while the expensive exhaustive comparison fanout is replaced, not dropped. No destructive SQL, DDL or migration was run.
