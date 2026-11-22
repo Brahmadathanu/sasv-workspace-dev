@@ -186,6 +186,19 @@ const sec400 = "supabase/migrations/20261114160000_pec_revoke_authenticated_dml_
 // dedicated review branch only. Even an additional newline or a different
 // branch must fail protected-path authorization.
 // Full S4 new plan, atomic generation, and draft reconciliation — exact applied blobs.
+const s4horizonguard = [
+ ["supabase/migrations/20261122084655_pec_s4_duplicate_pr_horizon_guard.sql",
+  "0c29d28eb377b770d112fa69c14da7ca30265bf2d7859d64fbcd5cabe4832685"]
+];
+for(const [file,sha] of s4horizonguard){
+ const content=fs.readFileSync(file,"utf8");
+ assert.deepEqual(REVIEWED_SERVER_MIGRATIONS[file],{sha256:sha,heads:["feat/pec-s4-end-to-end-20261122"]});
+ assert.equal(createHash("sha256").update(content.replace(/\r\n/g,"\n")).digest("hex"),sha);
+ const ctx={headBranch:"feat/pec-s4-end-to-end-20261122",readText:()=>content};
+ t2("S4 horizon lock exact accepted",[file],[],ctx);
+ t2("S4 horizon lock changed rejected",[file],[file],{...ctx,readText:()=>content+"\n-- tamper"});
+ t2("S4 horizon lock wrong branch rejected",[file],[file],{...ctx,headBranch:"main"});
+}
 const s4uomguard = [
   ["supabase/migrations/20261122084452_pec_s4_duplicate_uom_candidate_guard.sql",
     "bed758b746cfdfe675d85d9205f8c70d89269caf33c9e232eb6561fb34331eca"]
@@ -277,6 +290,6 @@ for (const [file, expectedSha] of wp10) {
   t2("WP10 missing context rejected: " + file, [file], [file], null);
   t2("WP10 entry grants no unrelated SQL/SW exception: " + file, [illicit, sw], [illicit, sw], context);
 }
-assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [...s4uomguard.map(([file]) => file), ...s4retired.map(([file]) => file), ...s4compat.map(([file]) => file), ...s4e2e.map(([file]) => file), ...s4.map(([file]) => file), ...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact five registered S4 payloads, four WP10 payloads and unchanged legacy server/SW pins");
+assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [...s4horizonguard.map(([file]) => file), ...s4uomguard.map(([file]) => file), ...s4retired.map(([file]) => file), ...s4compat.map(([file]) => file), ...s4e2e.map(([file]) => file), ...s4.map(([file]) => file), ...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact five registered S4 payloads, four WP10 payloads and unchanged legacy server/SW pins");
 
 console.log(`pec-protected-path-guard: ${passed}/${passed} PASS`);
