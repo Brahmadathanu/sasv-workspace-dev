@@ -1,7 +1,7 @@
 # Executive MIS G7 — governed production reporting design decision package
 
 **Prepared:** 22 November 2026 IST  
-**Status:** REVISED P1–P3 LIVE-GOVERNED PLANNING DESIGN accepted for design direction by owner; C1–C3/T1–T3 review ongoing; NOT APPROVED FOR INSTALLATION  
+**Status (current, 22 November 2026):** P1–P3 live-governed planning accepted as design direction; C1–C3 stock/packing/transfer evidence substantially audited but full-COP/whole-batch criteria and historical exceptions remain OPEN; T1–T3 process reconciliation remains OPEN. Mandatory accounted FG bulk, governed positive excess output, and inline authorized packing modal are OWNER-ACCEPTED BUSINESS/UX POLICY for future route logging—not installed. NO SERVER/CLIENT INSTALLATION AUTHORIZED.  
 **Scope:** live governed plan and registered-batch reconciliation (supersedes mandatory plan sealing), formal completion-event valuation, FG transfer reconciliation; no new client functionality yet  
 **Existing backend:** Supabase `qhmoqtxpeasamtlxaoak`  
 **Source-of-truth ledger:** `docs/executive-mis/EXECUTIVE_MIS_WORKFLOW.md` on `docs/executive-mis-workflow-20261119` (draft PR #485; still unmerged into `main`)  
@@ -9,6 +9,8 @@
 **Absolute HOLD:** no DDL/DML, no new RPC, no employee-level disclosure, no permissions expansion, no global timeout change, no Costing Suite/Electron release change, no PR #485 merge, no invented full-COP actual or plan achievement.
 
 ## Executive decision
+
+> **CURRENT AUTHORITATIVE PRECEDENCE NOTICE (22 November 2026):** Sections IX–XVIII and the canonical workflow §§34–43 supersede conflicting earlier G7 proposals in this document. In particular, an immutable frozen monthly plan is **not** required for the primary current-state requirement KPI; an actual FG bulk storage receipt, its `Done` status or a rounded zero bulk balance is **not** proof of whole-batch FG transfer; and a source-backed extra bulk quantity can be entered by an explicitly authorized operator from the packing in-page modal with a single guarded atomic excess-plus-pack post. Sections I–VIII are preserved as historical design history and are **not** operative policy where inconsistent. Production route changes are a separate governed workstream. The accepted monetary RPC is still partial/indicative; plan and whole-completed value and achievement remain unavailable pending proof and explicit installation approval.
 
 The current Executive MIS financial production cards are intentionally **indicative, not formally comparable**. A frozen plan, a verified completed-output event, and a reconciled transfer snapshot cannot be safely constructed by summing current views. The three reporting concepts must be verified independently, then aligned by **month, event basis, normalized UOM, cost basis, approved rate cutoff, source version and security context**.
 
