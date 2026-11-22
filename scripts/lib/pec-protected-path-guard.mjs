@@ -25,6 +25,20 @@ export const INTEGRATION_PROTECTED_PATHS = new Set([
 // migration is still rejected. Working-tree (uncommitted) changes are NEVER
 // exempt: callers pass a context only for committed paths.
 export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
+  // S4 end-to-end: three exact new *registered production* migration blobs.
+  // No blanket exemption: head branch and content SHA-256 must both match.
+  "supabase/migrations/20261122082353_pec_s4_new_pr_hybrid_plan.sql": Object.freeze({
+    sha256: "2ef75c2953eea7e6d79b096c549f834acb15b71cae277ff8b2385ab3bea3301b",
+    heads: Object.freeze(["feat/pec-s4-end-to-end-20261122"]),
+  }),
+  "supabase/migrations/20261122082532_pec_s4_hybrid_generator_evidence.sql": Object.freeze({
+    sha256: "7296a87c0e603c0c9919dcc95ef7a6e690380676c6c552e97b1964eee8f98d70",
+    heads: Object.freeze(["feat/pec-s4-end-to-end-20261122"]),
+  }),
+  "supabase/migrations/20261122082653_pec_s4_reconcile_existing_draft.sql": Object.freeze({
+    sha256: "dea0c1e12ff1aa909997a0eaf9bfcbdd6f84b3c70e66d8dd5a635f7c3fa59b51",
+    heads: Object.freeze(["feat/pec-s4-end-to-end-20261122"]),
+  }),
   // S4 emergency CCF: two additive server migrations already registered live on
   // 22 Nov 2026; exact file/branch/LF-SHA256 only. No blanket procurement SQL
   // exemption. One is View-only preview; the other is a draft-only guarded
