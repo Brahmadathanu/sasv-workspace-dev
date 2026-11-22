@@ -1,0 +1,90 @@
+name: Publish SASV Workspace v6.3.0 pre-release once
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-sasv-v630-once.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    if: ${{ github.event.head_commit.message == 'chore(release): issue owner-approved v6.3.0 prerelease' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fail closed unless approved identity and source are present
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REPOSITORY}" = "Brahmadathanu/sasv-workspace-dev"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "$(node -p 'require("./package.json").version')" = "6.3.0"
+          test "$(node -p 'require("./package-lock.json").version')" = "6.3.0"
+          test "$(node -p 'require("./package-lock.json").packages[""].version')" = "6.3.0"
+          if gh release view v6.3.0 --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo 'Release already exists; refuse to replace or mutate'; exit 1
+          fi
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/v6.3.0" >/dev/null 2>&1; then
+            echo 'Tag already exists; refuse to change tag'; exit 1
+          fi
+      - name: Retrieve exact verified Windows CI artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          gh run download 45030214044 -R "${GITHUB_REPOSITORY}" -n sasv-v630-unpublished-windows-candidate -D dist
+          grep -Fq '7dc3f034e44457619a3db9a67c2e4d21f8bf9ab1' dist/CANDIDATE_SOURCE.txt
+          echo '42e7d6b2bd01f0227ec44b7244df6ceab9ba4079ef7c2d0f48432df636d07010  dist/SASV Workspace Setup 6.3.0.exe' > expected.sha256
+          echo '9199673a794a142deb777a5321a2bdc0ed5d1093d07466836099baa355ae7f8f  dist/SASV Workspace-6.3.0-win.zip' >> expected.sha256
+          echo '4fe863ee1a5b80f503b46fa6e638cfea504922f4d669bd0cb72f4a38519a34ab  dist/SASV Workspace Setup 6.3.0.exe.blockmap' >> expected.sha256
+          echo '3a900a51bfc8eb1cd7050d0af0891c5b9397836ce680f610fa31236bcf9b357b  dist/latest.yml' >> expected.sha256
+          sha256sum -c expected.sha256
+          grep -Eq '^version: 6\\.3\\.0[[:space:]]*$' dist/latest.yml
+      - name: Publish as Pre-release, never Latest
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<'NOTES'
+          SASV Workspace v6.3.0 — PEC S4 hybrid replenishment
+
+          - Consumption-informed RM/PM draft PR recommendations, with 12 completed months, available stock, outstanding approved/issued indents and MOQ evidence.
+          - Revised two-stage PR creation with read-only requirement review, explicit acknowledgement and controlled generation.
+          - Mobile-friendly Consumption Requirement Review, clearer suggested additional quantities, concise actions and accessibility improvements.
+          - Existing permission and review-required gates remain enforced.
+
+          PRE-RELEASE / LIMITED PILOT: unsigned Windows installer. Windows SmartScreen may warn; verify the SHA-256 out of band and use only authorised pilot PCs. Do not distribute fleet-wide until acceptance. This pre-release is deliberately not Latest and must not change the stable auto-updater feed.
+          Binary provenance: CI run 45030214044, source commit 7dc3f034e44457619a3db9a67c2e4d21f8bf9ab1. Published source integration: 583daa270f0e188f62e13febe64aeddcf803ac38.
+          NOTES
+          gh release create v6.3.0 \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target 583daa270f0e188f62e13febe64aeddcf803ac38 \
+            --title "SASV Workspace v6.3.0 — PEC S4 (Pilot)" \
+            --prerelease --latest=false \
+            --notes-file release-notes.md \
+            "dist/SASV Workspace Setup 6.3.0.exe" \
+            "dist/SASV Workspace-6.3.0-win.zip" \
+            "dist/SASV Workspace Setup 6.3.0.exe.blockmap" \
+            "dist/latest.yml" \
+            "dist/SHA256SUMS.txt"
+      - name: Confirm GitHub pre-release and stable channel isolation
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view v6.3.0 -R "${GITHUB_REPOSITORY}" --json isPrerelease,isDraft,tagName --jq 'select(.isPrerelease == true and .isDraft == false and .tagName == "v6.3.0") | .tagName' | grep -Fx v6.3.0
+          stable="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name')"
+          test "${stable}" != "v6.3.0"
+          echo "Pre-release v6.3.0 published; stable Latest remains ${stable}"
