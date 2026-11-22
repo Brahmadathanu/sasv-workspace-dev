@@ -188,3 +188,40 @@ Candidate summary: `report_month; cutoff_ist; tally_snapshot_as_of; log_source_c
 - **P3:** Use the approved suitable costing reference only after product bulk-stage rate, UOM, complete-cost basis and accepted-rate cutoff checks; distinguish current-target value, verified completed-SKU manufacturing value and Tally book value. **Previously accepted financial safeguards unchanged**, full rate parity not yet tested.
 
 **Revised next bounded work:** read-only source-semantic proof that the effective view is gross total target versus residual after WIP/registered batches; inspect batch_plan_header states and BMR registration correction lifecycle; design a fast live-view refresh/availability contract; write offline scenarios for registered batches vs changed live requirements; then revise the one canonical server RPC proposal. C1–C3 must be reoriented to finished SKUs transferred and batch-wide exhausted/adjusted closure per owner's operations explanation. T1–T3 recon exceptions still require process clarification. Absolutely no SQL install or client refactor here.
+
+
+## X. Live requirement versus actual batch registration — bounded semantic proof (22 November 2026)
+
+**Authority:** live Supabase metadata and scoped SELECT only; no implementation, no installer/release changes. These findings refine P1–P3 but do NOT close G7.
+
+### Proven view dependencies and operations
+
+1. `v_product_bulk_required_monthly` converts positive SKU net forecast needs into product bulk-base quantity as `SUM(net_units * pack_size * conversion_to_base)`. Do not convert it a second time.
+2. `v_product_bulk_net_to_make` applies available bulk stock `v_product_bulk_soh`, carrying unused stock across forecast months. It represents the **net quantity to manufacture after current bulk SOH**, not a gross initial forecast.
+3. `v_product_bulk_net_to_make_after_wip` further deducts **eligible current WIP expected net output**, allocated across months, where `v_wip_expected_output_base` has a matching product, BOM and base UOM. WIP candidates originate from `v_wip_batches`, which reads `daily_work_log` with `status='Doing'` OR `status='In Storage' AND activity='Intermediate storage'`; it is **not** a list of all BMR-registered batches. Estimated output uses `batch_size*(1-process_loss_pct)` if eligible. The WIP pool is not tied exclusively to the month when the relevant plan batch was registered; it is dynamically allocated from the earliest requirement month.
+4. `v_product_bulk_adjusted_to_base` uses reference preferred/min/max sizes to adjust production batches with carry-forward across months.
+5. `v_product_bulk_consolidated_effective` adds current active overrides and produces `final_make_qty=greatest(0, adjusted_bulk_to_make+override_delta)`. This is the **current additional effective making requirement given stock and eligible WIP**, not conclusively the historical approved overall monthly target.
+6. `v_product_bulk_consolidated_effective_with_batches` calls `compute_batches` on `final_make_qty`, producing **suggested** sizes/count, not actual registered batches.
+
+### Independent registration check and critical status safeguard
+
+- For month 2026-11, `batch_plan_headers.id=33` is **`status='draft'`**, even though its 81 current `batch_plan_batches` records are BMR linked and have `source_rule='auto'`. Those links are operational evidence, **not** a substitute for an `applied` plan-header approval. All 81 are unique product+BMR keys in the latest read. The October comparison header `id=31` was `applied` with 75 linked rows.
+- Of the 81 November registered batch-plan rows, **16** match a currently eligible-looking `v_wip_batches` product+batch identity. They overlap the upstream WIP pool's *candidate* set, but additional BOM/UOM/loss eligibility is required before concluding every such row contributes an actual quantitative WIP deduction. The other registered BMR-linked rows must **not** automatically be treated as already in process.
+- A preliminary join on batch number alone once yielded **82 joined rows / 17 WIP joins**, revealing possible join multiplication from an insufficient key, *not* 82 genuine registered rows. The corrected independent query uses 81 distinct `batch_plan_batches` IDs and an `EXISTS` match requiring **product_id and BMR batch number**, giving 16 WIP matches. All future comparisons must use product + batch (and governed BMR/route identity when available), not batch string alone.
+
+### Decision: do not calculate a naïve requirement-minus-registered difference
+
+**A tempting but invalid expression** is `final_make_qty - SUM(all registered batch sizes)`. The numerator is *already net of bulk stock and eligible current WIP*, while the denominator may include unstarted, currently active, finished, superseded, and `draft` plan batches. Some of the registered quantities are also already represented in the WIP deduction; subtracting them can double count. Without establishing the correct cohort and baseline, the difference and any purported variance/achievement are misleading.
+
+**G7 live reporting contract, now refined:**
+- `CURRENT_ADDITIONAL_MAKE_REQUIREMENT`: separately labeled live `final_make_qty` from the effective view, with source-calculation timestamp or honest freshness status. Do not rename it `APPROVED_MONTHLY_TARGET`.
+- `REGISTERED_BATCH_PLAN`: separate eligible batch records and header governance state; distinguish `DRAFT`, `SUBMITTED`, `APPLIED`. BMR registration and WIP evidence are separately labeled and never implicitly equivalent.
+- `WIP_EXPECTED_OUTPUT`: a third, clearly labeled, *estimated* quantity (only rows with valid product/BOM/UOM and policy) which already contributes to the netting in the effective requirement.
+- `GAP`, `REVISED_PLAN_VALUE`, `ACHIEVEMENT_PCT`: remain unavailable until a mathematically valid same-cohort comparison is constructed and reviewed, including risk that registered batches may have been fulfilled or originated in a different month.
+- For history, a current recalculation against a past selected month is **not** an as-of reconstruction. Preserve `CURRENT_STATE_FOR_SELECTED_MONTH` versus historical event cutoff.
+
+### Follow-up read-only acceptance cases before server design
+
+A. Applied plan with all registered batches still unstarted; B. Draft BMR-linked rows; C. A subset already WIP included in `v_wip_expected_output_base`; D. WIP without registered current-month plan; E. finished/partially transferred batches; F. an authorized manual override; G. stock change and multi-month carry; H. repeat batch numbers across distinct products; I. missing/mismatched UOM or BOM. Ensure source filters, quantities and batch status cannot be conflated. Demonstrate acceptable performance without invoking the known >6s live full view in the 8s authenticated reporting request.
+
+**Next:** proceed to read-only case matrices and coherent same-population semantics before drafting any SQL installation. C1–C3 are separately being corrected toward finished-SKU transfer as an output event and whole-batch exhaust/approved-loss closure; T1–T3 require precise reconciliation-status meaning. **No database writes or release changes authorized.**
