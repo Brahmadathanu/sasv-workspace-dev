@@ -182,6 +182,25 @@ const sec400 = "supabase/migrations/20261114160000_pec_revoke_authenticated_dml_
   t2("#400 rejected on another client branch", [sec400], [sec400], { ...context, headBranch: "claude/pec-r12-resync-collision-ux-20261113" });
   t2("#400 rejected without context", [sec400], [sec400], null);
 }
+// Owner-requested PEC S4: two registered production migrations, pinned to the
+// dedicated review branch only. Even an additional newline or a different
+// branch must fail protected-path authorization.
+const s4 = [
+  ["supabase/migrations/20261122075009_pec_s4_ccf_pr_preview_readonly.sql", "2aeee1b1c4e1749d59aef3b4f8ec29e16c315f5e9babb7c8853cea58d8c58823"],
+  ["supabase/migrations/20261122075447_pec_s4_ccf_apply_draft_line_guarded.sql", "818a672522542a12d651847b3af34ca58457dd299ce43d681214df9811134f5a"],
+];
+for (const [file, expectedSha] of s4) {
+  const pin = REVIEWED_SERVER_MIGRATIONS[file];
+  assert.deepEqual(pin, { sha256: expectedSha, heads: ["feat/pec-s4-ccf-preview-20261122"] });
+  const content = fs.readFileSync(file, "utf8");
+  assert.equal(createHash("sha256").update(content.replace(/\r\n/g, "\n")).digest("hex"), expectedSha);
+  const context = { headBranch: "feat/pec-s4-ccf-preview-20261122", readText: () => content };
+  t2("S4 exact registered payload accepted only on reviewed branch: " + file, [file], [], context);
+  t2("S4 modified payload rejected: " + file, [file], [file], { ...context, readText: () => content + "\n-- altered" });
+  t2("S4 unrelated branch rejected: " + file, [file], [file], { ...context, headBranch: "main" });
+  t2("S4 no context rejected: " + file, [file], [file], null);
+  t2("S4 does not exempt arbitrary SQL/SW: " + file, [illicit, sw], [illicit, sw], context);
+}
 // Owner-approved WP10 Phase 1: exact applied payloads on one server lane, not a general SQL exception.
 const wp10 = [
   ["supabase/migrations/20261116022440_wp10_g2_01_clock_and_batch_size_contract.sql", "0077b90fffbf9bd9c770ab55b85e81e8110d1c6c0a8a17135ba71bee4620dab3"],
@@ -201,6 +220,6 @@ for (const [file, expectedSha] of wp10) {
   t2("WP10 missing context rejected: " + file, [file], [file], null);
   t2("WP10 entry grants no unrelated SQL/SW exception: " + file, [illicit, sw], [illicit, sw], context);
 }
-assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact four owner-applied WP10 payloads and unchanged seven legacy server/SW pins");
+assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [...s4.map(([file]) => file), ...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact two registered S4 payloads, four WP10 payloads and unchanged legacy server/SW pins");
 
 console.log(`pec-protected-path-guard: ${passed}/${passed} PASS`);
