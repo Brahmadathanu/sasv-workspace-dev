@@ -28,6 +28,7 @@ A PR must never omit a purchasable RM/PM material solely because production MRP 
 | 20261122083237 | Legacy Electron creation forwarded to hybrid generator; legacy S4-only MRP rebuild prohibited |
 | 20261122083956 | Retire obsolete, differently calculated legacy single-line CCF writer; legacy CCF remains diagnostic only |
 | 20261122084452 | Forward-only guard: never create default-UOM consumption-only duplicate when item is already in an MRP UOM |
+| 20261122084655 | Transaction-locked guard against duplicate active/draft PR for the same class, scope and complete horizon |
 
 All six source migration filenames must exactly match the registered migration versions. New SQL is branch/SHA-pinned in the existing mutation-sensitive PEC protected-path guard. Never reapply migrations already in production.
 
