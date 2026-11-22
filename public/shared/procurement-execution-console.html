@@ -2457,6 +2457,54 @@
       #ccfPreviewModalBackdrop .pec-ccf-compact-dl { display:grid; grid-template-columns:1fr auto; gap:2px 12px; margin:4px 0; }
       #ccfPreviewModalBackdrop .pec-ccf-compact-dl dt { color:var(--muted,#64748b); }
       #ccfPreviewModalBackdrop .pec-ccf-compact-dl dd { margin:0; text-align:right; font-variant-numeric:tabular-nums; }
+
+      /* Requirement Review: consistent ERP dialog footer, including disabled state. */
+      #s4ReviewModalBackdrop .pec-s4-review-actions {
+        display: flex; justify-content: flex-end; align-items: center;
+        gap: 10px; margin-top: 10px;
+      }
+      #s4ReviewModalBackdrop .pec-s4-review-actions > button {
+        appearance: none; -webkit-appearance: none;
+        box-sizing: border-box; min-height: 42px; min-width: 126px;
+        margin: 0; padding: 9px 16px;
+        border: 1px solid var(--border,#cbd5e1);
+        border-radius: 9px; background: var(--panel-bg,#fff);
+        color: var(--text-color,#182a2d);
+        font: inherit; font-size: 13px; font-weight: 650;
+        line-height: 1.3; text-align: center;
+        cursor: pointer; transition: background .12s, border-color .12s;
+      }
+      #s4ReviewModalBackdrop #btnS4ReviewBack {
+        background: rgba(100,116,139,.07);
+        border-color: rgba(100,116,139,.27);
+      }
+      #s4ReviewModalBackdrop #btnS4ReviewBack:hover {
+        background: rgba(100,116,139,.13);
+      }
+      #s4ReviewModalBackdrop #btnS4ReviewConfirm:not(:disabled) {
+        background: var(--primary,#0b605a);
+        border-color: var(--primary,#0b605a);
+        color: #fff;
+      }
+      #s4ReviewModalBackdrop #btnS4ReviewConfirm:not(:disabled):hover {
+        filter: brightness(.94);
+      }
+      #s4ReviewModalBackdrop #btnS4ReviewConfirm:disabled {
+        background: rgba(100,116,139,.10);
+        border-color: rgba(100,116,139,.20);
+        color: var(--muted,#64748b);
+        cursor: not-allowed; opacity: .85;
+      }
+      #s4ReviewModalBackdrop .pec-s4-review-actions > button:focus-visible {
+        outline: 2px solid var(--primary,#0b605a);
+        outline-offset: 2px;
+      }
+      @media (max-width: 680px) {
+        #s4ReviewModalBackdrop .pec-s4-review-actions > button {
+          min-width: 0; flex: 1 1 0; min-height: 44px;
+          padding: 9px 8px; white-space: nowrap;
+        }
+      }
 </style>
     <!-- PEC-ERP-C1: SASV Workspace specialisation after inline legacy styles so token rules win the cascade -->
     <link rel="stylesheet" href="../shared/css/sasv-procurement-execution-console.css" />
