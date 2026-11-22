@@ -435,36 +435,20 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   await ctx.close();
 }
 
-// S4 Editor: no writer until a single-line explicit review, reason and checkbox.
-// The writer here is a fixture; no live PR data is used or modified.
+// S4 legacy diagnostic now has NO operational writer after unified
+// hybrid plan, even for Editors. Existing archived #495 RPC is retired.
 {
-  const { ctx, page, errors } = await open({ role: "edit", ccfDraft: true }, VIEWPORTS[0]);
+  const {ctx,page,errors}=await open({role:"edit",ccfDraft:true},VIEWPORTS[0]);
   await page.click('.tabs .tab-btn[data-tab="pr"]');
   await page.waitForSelector("#prTbody tr:not(.pec-table-state)");
   await page.click("#prTbody tr:first-child");
   await page.click("#btnPrCoveragePreview");
-  await page.waitForSelector("#ccfPreviewTbody button[data-ccf-line-id='77']");
-  check(await page.evaluate(() => (globalThis.__ccfWriterCalls || []).length) === 0,
-    "CCF Editor: preview alone never invokes writer");
-  await page.click("#ccfPreviewTbody button[data-ccf-line-id='77']");
-  await page.waitForSelector("#ccfApplyModalBackdrop.show");
-  check(await page.isDisabled("#btnCcfApplyConfirm"),
-    "CCF Editor: confirmation disabled without reason and acknowledgement");
-  await page.fill("#ccfApplyReason", "Consumption coverage needed for this approved stock review");
-  check(await page.isDisabled("#btnCcfApplyConfirm"),
-    "CCF Editor: reason alone cannot approve");
-  await page.check("#ccfApplyAcknowledged");
-  check(await page.isEnabled("#btnCcfApplyConfirm"),
-    "CCF Editor: explicit acknowledgement enables guarded action");
-  await page.click("#btnCcfApplyConfirm");
-  await page.waitForFunction(() => (globalThis.__ccfWriterCalls || []).length === 1);
-  const calls = await page.evaluate(() => globalThis.__ccfWriterCalls || []);
-  check(calls[0].p_confirm === true && Number(calls[0].p_expected_ccf_floor) === 2098,
-    "CCF Editor: exact preview floor and explicit confirmation submitted");
-  await page.waitForFunction(() => !document.getElementById("ccfApplyModalBackdrop").classList.contains("show"));
-  check(await page.isVisible("#prViewModalBackdrop.show"),
-    "CCF Editor: PR detail remains accessible after single-line approval");
-  check(errors.length === 0, `CCF Editor: no page errors ${errors.join("|")}`);
+  await page.waitForFunction(() => document.querySelector("#ccfPreviewTbody")?.textContent.includes("Punarnavasavam"));
+  check(await page.locator("#ccfPreviewTbody button[data-ccf-line-id]").count()===0,
+    "CCF legacy: old writer not offered to Editor; S4 reconciliation is canonical");
+  check(await page.evaluate(() => (globalThis.__ccfWriterCalls||[]).length)===0,
+    "CCF legacy: no obsolete writer called");
+  check(errors.length===0,`CCF legacy diagnostic: no page errors ${errors.join("|")}`);
   await ctx.close();
 }
 
