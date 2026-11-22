@@ -9,6 +9,7 @@ on:
 permissions:
   contents: write
   actions: read
+  issues: write
 
 jobs:
   publish:
@@ -44,7 +45,10 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           gh run download 45030214044 -R "${GITHUB_REPOSITORY}" -n sasv-v630-unpublished-windows-candidate -D dist
-          grep -Fq '7dc3f034e44457619a3db9a67c2e4d21f8bf9ab1' dist/CANDIDATE_SOURCE.txt
+          # The CI run was a pull_request event, so CANDIDATE_SOURCE.txt records the PR merge ref,
+          # not the branch head. Verify the head SHA and success from the run record instead.
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/45030214044" --jq '.head_sha + " " + .conclusion')" = '7dc3f034e44457619a3db9a67c2e4d21f8bf9ab1 success'
+          test -s dist/CANDIDATE_SOURCE.txt
           echo '42e7d6b2bd01f0227ec44b7244df6ceab9ba4079ef7c2d0f48432df636d07010  dist/SASV Workspace Setup 6.3.0.exe' > expected.sha256
           echo '9199673a794a142deb777a5321a2bdc0ed5d1093d07466836099baa355ae7f8f  dist/SASV Workspace-6.3.0-win.zip' >> expected.sha256
           echo '4fe863ee1a5b80f503b46fa6e638cfea504922f4d669bd0cb72f4a38519a34ab  dist/SASV Workspace Setup 6.3.0.exe.blockmap' >> expected.sha256
