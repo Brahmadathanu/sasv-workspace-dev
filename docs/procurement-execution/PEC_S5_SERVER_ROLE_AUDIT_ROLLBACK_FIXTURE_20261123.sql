@@ -1,5 +1,5 @@
 -- PEC S5 supplemental role, plan audit and stale-edit rollback checks.
--- Load candidates A+B+C+D inside BEGIN; execute this; ROLLBACK.
+-- Load registered S5 migration in BEGIN; execute this; ROLLBACK.
 DO $test$
 DECLARE v_editor uuid;v_viewer uuid;v_first jsonb;v_second jsonb;
         v_count int;v_failed boolean;v_id bigint;
