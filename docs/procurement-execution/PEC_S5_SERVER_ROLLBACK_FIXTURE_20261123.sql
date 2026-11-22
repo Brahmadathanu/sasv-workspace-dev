@@ -1,5 +1,5 @@
 -- PEC S5 disposable production-shaped transaction fixture.
--- Run ONLY after loading candidates A,B,C,D in the SAME transaction.
+-- Load the registered S5 migration into a disposable transaction before this fixture.
 -- This script never commits; all synthetic PR/data and DDL is ROLLED BACK.
 DO $test$
 DECLARE v_user uuid;v_preview jsonb;v_out jsonb;
