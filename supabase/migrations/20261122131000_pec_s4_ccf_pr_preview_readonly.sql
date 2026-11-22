@@ -8,7 +8,7 @@ RETURNS SETOF jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
 AS $fn$
 BEGIN
-  PERFORM public.require_permission('module:procurement-execution-console','v');
+  PERFORM public.require_permission('module:procurement-execution-console',false);
   IF NOT EXISTS (SELECT 1 FROM public.proc_pr_header WHERE pr_id=p_pr_id) THEN
     RAISE EXCEPTION 'PR not found' USING ERRCODE='P0002';
   END IF;
