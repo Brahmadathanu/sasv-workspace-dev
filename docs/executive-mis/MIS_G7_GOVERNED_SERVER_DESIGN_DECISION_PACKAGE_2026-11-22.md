@@ -468,3 +468,16 @@ Negative tests: authenticated-but-unprivileged actor, read-only MIS actor, no-ac
 - Additional-output variance impacts production report but never mutates already-approved costing run values without separate governance.
 
 **Governance:** Server security/stock writer work belongs in a separate approved product-route/FG-stock work package, followed by a detailed Claude bulk client package when appropriate; neither is an incidental MIS G7 patch. No enforcement, migration, data correction or release authorized by this decision. G7 OPEN, 6/11 formal gates.
+
+
+## XIX. Bounded current Tally snapshot coverage check for nine legacy signed-SKU exceptions — 22 November 2026
+
+**Scope:** read-only metadata and 21/22-Nov-2026 as-of snapshot queries in live Supabase project `qhmoqtxpeasamtlxaoak`; preserves §XIV case classifications and §XVIII owner policy. No data alteration or unbounded historical joins.
+
+- Verified `tally_fg_transfer_voucher_lines` has indexes beginning on `as_of_date` (including `tally_fg_transfer_voucher_lines_asof_store_idx`); it does **not** have a dedicated `batch_code` index in the inspected index catalog. The bounded query filtered only `as_of_date IN ('2026-11-21','2026-11-22')` and the exact nine §XIV batch codes: 6172, 6396, 6237, 6111, 6259, 6002, 6031, 4978, 4974. **Zero matching snapshot rows** at these two cutoffs.
+- Independent coverage query for each indexed as-of date returned **3,102 voucher lines and 934 distinct batch codes**. Both as-of populations have `MIN(voucher_date)='2026-04-01'` and `MAX(voucher_date)='2026-11-21'`. All §XIV negative-pack event spans end by **24 February 2026**, before that earliest voucher-date coverage.
+- **Disposition:** `NOT TESTED / SOURCE COVERAGE UNAVAILABLE` for original legacy voucher-line parity on these nine from the two present snapshots. Zero matches are consistent with the current snapshot window, **not** evidence that original Tally transactions did not exist, nor proof of inventory shortfall or permission to correct historic stock. Historical snapshots, archival vouchers and approved opening packaged-SKU balances remain outstanding. Do not assert historical completeness from the current current-state snapshots. Keep nine cases `LEGACY_COVERAGE_UNVERIFIED` + `PACKAGED_STOCK_EXCEPTION_NEGATIVE` and batch whole-completion in REVIEW.
+- Source risk: `batch_code` matching alone is not enough to prove product/SKU parity; any older evidence must resolve original voucher GUID + date + inventory item/SKU + product/batch + unit conversion and corrections, avoiding unrelated identical batch strings.
+- Next bounded G7 step: inspect existing historical snapshot-retention inventory/indexed voucher-date availability **before** selecting any older date; then retrieve only discoverable relevant original voucher/source keys. If unavailable, request independent archived Tally vouchers/opening-balance documentation, not a broad scan or manufactured balancing entry.
+
+**Governance:** formal G0–G5 = 6/11 (~55%), G7 OPEN, no G8 start; PR #485 draft/unmerged; no SQL writes, privilege/cache/client/Electron or Costing Suite release modifications.
