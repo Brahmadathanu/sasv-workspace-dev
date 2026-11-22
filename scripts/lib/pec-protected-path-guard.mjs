@@ -25,6 +25,10 @@ export const INTEGRATION_PROTECTED_PATHS = new Set([
 // migration is still rejected. Working-tree (uncommitted) changes are NEVER
 // exempt: callers pass a context only for committed paths.
 export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
+  "supabase/migrations/20261122083237_pec_s4_legacy_electron_compatibility.sql": Object.freeze({
+    sha256: "5aede676c2442410eedfa20ee4f9307f6aebd84f8bfd86223db544f36013ce2e",
+    heads: Object.freeze(["feat/pec-s4-end-to-end-20261122"]),
+  }),
   // S4 end-to-end: three exact new *registered production* migration blobs.
   // No blanket exemption: head branch and content SHA-256 must both match.
   "supabase/migrations/20261122082353_pec_s4_new_pr_hybrid_plan.sql": Object.freeze({
