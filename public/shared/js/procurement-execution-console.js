@@ -8457,9 +8457,13 @@ async function commitFinalQty(
   if (delta === 0) {
     reasonText = "";
     if (reasonInput) reasonInput.value = "";
-  } else if (!reasonText) {
-    reasonText = "Quantity adjustment";
-    if (reasonInput) reasonInput.value = reasonText;
+  } else if (pecReasonIsPlaceholderOnly(reasonText)) {
+    // A quantity override needs a real, item-specific justification. Offer the standard wording
+    // (editable) but never save the unfinished prefix as the reason.
+    if (reasonInput && !reasonText) {
+      pecApplyReasonTemplate(reasonInput, PEC_REASON_TEMPLATES.qtyOverride);
+    }
+    throw new Error("Add an item-specific justification in the Reason column, then enter the quantity again.");
   }
   // Use correct DB param names: p_manual_reason instead of p_reason
   const { error } = await supabase.rpc("proc_pr_set_manual_delta", {
@@ -8478,6 +8482,10 @@ async function commitReason(prLineId, reasonText) {
   const row = prLineAll.find((item) => Number(item.pr_line_id) === prLineId);
   if (!row) return;
   const currentDelta = Number(row.manual_delta_qty || 0);
+  if (currentDelta && String(reasonText || "").trim().startsWith(PEC_REASON_TEMPLATES.qtyOverride.trim()) &&
+      pecReasonIsPlaceholderOnly(reasonText)) {
+    throw new Error("Complete the item-specific justification for this quantity adjustment.");
+  }
   // If only the reason changed (final qty unchanged), call proc_pr_set_manual_reason
   if (!currentDelta) {
     const { error } = await supabase.rpc("proc_pr_set_manual_reason", {
@@ -9431,6 +9439,60 @@ let s4ReconcilePr = null;
 let s4ReconcileEvidence = null;
 let s4ReconRequestSeq = 0;
 
+// Issue #502: standard, editable reason defaults. They are ordinary text: never auto-submitted,
+// never pre-checking an attestation, never overwriting text the user has edited.
+const PEC_REASON_TEMPLATES = Object.freeze({
+  notesNormal: "Procurement requirement prepared for the selected planning period using MRP and consumption-based estimates, considering verified stock and outstanding procurement commitments.",
+  notesJit: "Just-in-time procurement requirement based on planned production demand for the selected period. Quantities are subject to review against existing procurement commitments and applicable supplier constraints.",
+  reconcile: "Reconcile untouched draft PR lines with updated consumption-based requirements, preserving existing manual adjustments and retaining flagged items for separate review.",
+  qtyOverride: "Quantity adjusted following review of production demand and procurement constraints. Item-specific justification: ",
+  statusActive: "PR activated for indent creation.",
+  statusClosed: "PR closed by user request.",
+  statusCancelled: "PR cancelled by user request.",
+});
+const PEC_MIN_SPECIFIC_JUSTIFICATION = 10;
+function pecApplyReasonTemplate(el, text) {
+  if (!(el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement)) return;
+  el.value = text;
+  el.dataset.pecTemplate = text;
+  el.dataset.pecUserEdited = "false";
+}
+function pecWireReasonField(el) {
+  if (!el || el.dataset.pecReasonWired === "1") return;
+  el.dataset.pecReasonWired = "1";
+  el.addEventListener("input", () => {
+    el.dataset.pecUserEdited = el.value !== (el.dataset.pecTemplate || "") ? "true" : "false";
+    if (el.id === "prNotes") pecSyncNotesTemplate();
+  });
+}
+// The unfinished override prefix, or the prefix plus a token justification, is NOT a justification.
+function pecReasonIsPlaceholderOnly(value, prefix = PEC_REASON_TEMPLATES.qtyOverride) {
+  const v = String(value ?? "").trim();
+  const p = prefix.trim();
+  if (!v || v === p) return true;
+  return v.startsWith(p) && v.slice(p.length).trim().length < PEC_MIN_SPECIFIC_JUSTIFICATION;
+}
+function pecNotesTemplateForRoute() {
+  return s4PlanRoute() === "jit" ? PEC_REASON_TEMPLATES.notesJit : PEC_REASON_TEMPLATES.notesNormal;
+}
+// Swap the notes default when the route changes, but only if the user has not edited it; if they
+// have, keep their text and offer (not force) the new suggested wording.
+function pecSyncNotesTemplate() {
+  const el = qs("prNotes");
+  if (!el) return;
+  const desired = pecNotesTemplateForRoute();
+  const edited = el.dataset.pecUserEdited === "true";
+  const hint = qs("prNotesTemplateHint");
+  if (!edited || !el.value.trim()) {
+    if (el.value !== desired) pecApplyReasonTemplate(el, desired);
+    if (hint) hint.hidden = true;
+    return;
+  }
+  const isOtherTemplate = [PEC_REASON_TEMPLATES.notesNormal, PEC_REASON_TEMPLATES.notesJit].includes(el.value.trim());
+  if (hint) hint.hidden = el.value.trim() === desired || isOtherTemplate;
+  if (isOtherTemplate && el.value.trim() !== desired) pecApplyReasonTemplate(el, desired);
+}
+
 function s4ParametersForGenerate() {
   const start = monthToFirstDate(qs("prHorizonStart")?.value);
   const end = monthToFirstDate(qs("prHorizonEnd")?.value);
@@ -9440,6 +9502,29 @@ function s4ParametersForGenerate() {
   return { p_start: start, p_end: end, p_class: cls, p_rm_scope: scope };
 }
 function s4Signature(p) { return JSON.stringify(p); }
+// Issue #502: procurement route. RM + "JIT Only" is MRP-led (server-owned route functions);
+// everything else keeps the approved S4 hybrid pipeline unchanged. If the JIT functions are not
+// installed on the server yet, the client falls back to the conservative hybrid review.
+let s4JitServerMissing = false;
+function s4PlanRoute() {
+  const p = s4ParametersForGenerate();
+  return p.p_class === 1 && p.p_rm_scope === "jit" && !s4JitServerMissing ? "jit" : "hybrid";
+}
+function s4CompareConsumption() {
+  const el = qs("genS4Compare");
+  return el ? el.checked : true;
+}
+function s4CurrentSignature() {
+  const p = s4ParametersForGenerate();
+  const route = s4PlanRoute();
+  return route === "jit"
+    ? JSON.stringify({ ...p, route, compare: s4CompareConsumption() })
+    : JSON.stringify(p); // hybrid signature is exactly the previous one
+}
+function s4IsMissingRpc(err) {
+  const text = `${err?.code || ""} ${err?.message || ""}`;
+  return /PGRST202|42883|could not find the function|does not exist/i.test(text);
+}
 function s4Summary(rows) {
   const auto = rows.filter(x => x.gate === "AUTO_ELIGIBLE");
   return {
@@ -9452,7 +9537,8 @@ function s4Summary(rows) {
 }
 function s4GateLabel(r) {
   if (r.gate === "AUTO_ELIGIBLE") return "Auto-eligible";
-  const t = String(r.gate || "REVIEW").toLowerCase().replace(/_/g, " ");
+  const t = String(r.gate || "REVIEW").toLowerCase().replace(/_/g, " ")
+    .replace(/\b(moq|uom|mrp)\b/g, (m) => m.toUpperCase());
   return "Review required · " + t.charAt(0).toUpperCase() + t.slice(1);
 }
 function s4RenderExceptions(rows, targetId) {
@@ -9478,6 +9564,7 @@ function s4RenderExceptions(rows, targetId) {
       const ev=[
         `<p>MRP qty ${esc(q(r.mrp_net_qty||0))} · Suggested ${esc(suggested)} ${esc(r.uom_code||"")}</p>`,
         r.usage_12m!=null ? `<p>12-month usage ${esc(q(r.usage_12m))}</p>` : "",
+        r.consumption_gap_vs_mrp!=null ? `<p>Historical consumption above MRP (informational) ${esc(q(r.consumption_gap_vs_mrp))}</p>` : "",
         r.stock_qty!=null ? `<p>Stock ${esc(q(r.stock_qty))}</p>` : "",
         r.outstanding_indent_qty!=null ? `<p>Open indents ${esc(q(r.outstanding_indent_qty))}</p>` : "",
         `<p>Gate ${esc(r.gate||"REVIEW")}</p>`
@@ -9534,7 +9621,7 @@ function s4UpdateReviewReady() {
   const btn=qs("btnS4ReviewConfirm");
   if(!btn)return;
   btn.disabled = !s4PlanRows ||
-    s4PlanSignature !== s4Signature(s4ParametersForGenerate()) ||
+    s4PlanSignature !== s4CurrentSignature() ||
     !qs("genS4Acknowledged")?.checked;
 }
 function s4UpdateGenerateReady() {
@@ -9543,7 +9630,7 @@ function s4UpdateGenerateReady() {
   btn.disabled = !canWriteModule() || s4Generating || !s4PlanRows ||
     !s4ReviewConfirmedSig ||
     s4ReviewConfirmedSig !== s4PlanSignature ||
-    s4PlanSignature !== s4Signature(s4ParametersForGenerate());
+    s4PlanSignature !== s4CurrentSignature();
 }
 function s4CloseReview() {
   // Back / Close / Escape / backdrop: never approves anything. The plan is
@@ -9558,7 +9645,7 @@ function s4CloseReview() {
   s4UpdateGenerateReady();
 }
 function s4ConfirmReview() {
-  if(!s4PlanRows || s4PlanSignature!==s4Signature(s4ParametersForGenerate()) ||
+  if(!s4PlanRows || s4PlanSignature!==s4CurrentSignature() ||
      !qs("genS4Acknowledged")?.checked)return;
   s4ReviewConfirmedSig=s4PlanSignature;
   s4ReviewConfirmedSummary=s4Summary(s4PlanRows);
@@ -9574,23 +9661,39 @@ async function s4PreviewForGenerate() {
     toast("Select both planning months before reviewing the requirement.","error");
     return;
   }
-  const signature=s4Signature(params);
+  const route=s4PlanRoute();
+  const signature=s4CurrentSignature();
   s4InvalidatePreview({keepModal:true});          // clears any earlier confirmation
   const seq=++s4PlanRequestSeq;                   // latest request wins
   const modal=qs("s4ReviewModalBackdrop");
   qs("s4ReviewContext").textContent=
     `${params.p_start.slice(0,7)} to ${params.p_end.slice(0,7)} · ${
       params.p_class===1?"RM":params.p_class===2?"PM":params.p_class===5?"IND":"All classes"}`;
-  qs("genS4PreviewSummary").textContent="Checking stock, MRP, consumption and outstanding indents…";
+  qs("genS4PreviewSummary").textContent=route==="jit"
+    ? "Checking MRP and outstanding indents for RM (JIT Only)…"
+    : "Checking stock, MRP, consumption and outstanding indents…";
+  if(qs("s4ReviewRoute")){
+    qs("s4ReviewRoute").hidden=route!=="jit";
+    qs("s4ReviewRoute").textContent="RM (JIT Only) is procured just in time: the requirement is MRP-led. Stock mapping is not required, existing open indents are netted once, and UOM, MOQ and horizon checks still apply. Consumption items without MRP are not added.";
+  }
+  if(qs("genS4CompareRow"))qs("genS4CompareRow").hidden=route!=="jit";
   qs("genS4ReviewCounts").textContent="";
   qs("genS4PreviewExceptions").textContent="";
   if(qs("genS4ItemSearch"))qs("genS4ItemSearch").value="";
   modal.classList.add("show");modal.setAttribute("aria-hidden","false");
   modal.querySelector(".modal")?.focus();
-  const result=await supabase.rpc("proc_pec_s4_new_pr_plan",params);
+  const result=route==="jit"
+    ? await supabase.rpc("proc_pec_jit_mrp_plan",{
+        p_start:params.p_start,p_end:params.p_end,p_compare_consumption:s4CompareConsumption()})
+    : await supabase.rpc("proc_pec_s4_new_pr_plan",params);
   if(seq!==s4PlanRequestSeq || !modal.classList.contains("show") ||
     !qs("generatePrModalBackdrop")?.classList.contains("show") ||
-    signature!==s4Signature(s4ParametersForGenerate()))return;
+    signature!==s4CurrentSignature())return;
+  if(route==="jit" && result.error && s4IsMissingRpc(result.error)){
+    s4JitServerMissing=true;
+    toast("The JIT MRP route is not installed on the server yet; using the standard hybrid review.","error");
+    return s4PreviewForGenerate();
+  }
   if(result.error || !Array.isArray(result.data) || !result.data.length){
     qs("genS4PreviewSummary").textContent=
       `Review unavailable: ${pecErrText(result.error || {message:"No planning materials returned"})}`;
@@ -9599,6 +9702,18 @@ async function s4PreviewForGenerate() {
   }
   s4PlanRows=result.data;s4PlanSignature=signature;
   const sum=s4Summary(result.data);
+  if(route==="jit"){
+    const netted=result.data.filter(r=>Number(r.outstanding_indent_qty)>0).length;
+    const gaps=result.data.filter(r=>Number(r.consumption_gap_vs_mrp)>0).length;
+    const cmp=s4CompareConsumption();
+    qs("genS4PreviewSummary").textContent=
+      `${sum.total} JIT MRP materials · ${sum.auto} auto-eligible · ${sum.review} require manual review · ${netted} netted against open indents. No indent will be created.`;
+    qs("genS4ReviewCounts").innerHTML=
+      `<div><b>${sum.auto}</b><span>Auto-eligible</span></div>`+
+      `<div class="is-review"><b>${sum.review}</b><span>Review required</span></div>`+
+      `<div><b>${netted}</b><span>Netted vs open indents</span></div>`+
+      `<div><b>${cmp?gaps:"—"}</b><span>${cmp?"Above MRP in history":"Comparison off"}</span></div>`;
+  } else {
   qs("genS4PreviewSummary").textContent=
     `${sum.total} materials · ${sum.positive} positive automatic requirements · ${sum.zeroMrp} zero-MRP materials now included · ${sum.consumptionOnly} consumption-only candidates · ${sum.review} require manual review. No indent will be created.`;
   qs("genS4ReviewCounts").innerHTML=
@@ -9606,6 +9721,7 @@ async function s4PreviewForGenerate() {
     `<div class="is-review"><b>${sum.review}</b><span>Review required</span></div>`+
     `<div><b>${sum.zeroMrp}</b><span>Zero-MRP included</span></div>`+
     `<div><b>${sum.consumptionOnly}</b><span>Consumption-only</span></div>`;
+  }
   s4RenderExceptions(result.data,"genS4PreviewExceptions");
   s4UpdateReviewReady();
   s4UpdateGenerateReady();
@@ -9622,7 +9738,7 @@ async function s4OpenReconciliation() {
   s4ReconcilePr=pr;
   s4ReconcileEvidence=null;
   const seq=++s4ReconRequestSeq;
-  qs("s4ReconcileReason").value="";
+  pecApplyReasonTemplate(qs("s4ReconcileReason"),PEC_REASON_TEMPLATES.reconcile);
   if(qs("s4ReconcileItemSearch"))qs("s4ReconcileItemSearch").value="";
   qs("s4ReconcileAcknowledged").checked=false;
   qs("s4ReconcileError").textContent="";
@@ -9746,7 +9862,8 @@ function openGeneratePrModal() {
   qs("prMaterialClass").value = "";
   qs("prRmScope").value = "normal";
   qs("prRmScopeRow").style.display = "none";
-  qs("prNotes").value = "";
+  pecApplyReasonTemplate(qs("prNotes"), pecNotesTemplateForRoute());
+  if (qs("prNotesTemplateHint")) qs("prNotesTemplateHint").hidden = true;
   const backdrop = qs("generatePrModalBackdrop");
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
@@ -9839,7 +9956,7 @@ async function generateDraftPr() {
     genFilters.rm_scope = qs("prRmScope").value || "all";
   }
 
-  if (!s4PlanRows || s4PlanSignature !== s4Signature(s4ParametersForGenerate()) ||
+  if (!s4PlanRows || s4PlanSignature !== s4CurrentSignature() ||
       !s4ReviewConfirmedSig || s4ReviewConfirmedSig !== s4PlanSignature) {
     toast("Review and confirm the requirements before generating.","error");
     return;
@@ -9847,7 +9964,19 @@ async function generateDraftPr() {
   if (s4Generating) return;
   s4Generating=true;s4UpdateGenerateReady();
   setLoading(true);
-  const { data: s4Receipt, error } = await supabase.rpc("proc_pec_s4_generate_pr", {
+  const jitRoute = s4PlanRoute() === "jit";
+  const { data: s4Receipt, error } = jitRoute
+    ? await supabase.rpc("proc_pec_jit_generate_pr", {
+        p_pr_number: prNumber,
+        p_effective_from_date: effectiveFrom,
+        p_horizon_start_month: horizonStart,
+        p_horizon_end_month: horizonEnd,
+        p_generation_filters: { ...genFilters, rm_scope: "jit" },
+        p_notes: notes,
+        p_compare_consumption: s4CompareConsumption(),
+        p_confirm: true,
+      })
+    : await supabase.rpc("proc_pec_s4_generate_pr", {
     p_pr_number: prNumber,
     p_effective_from_date: effectiveFrom, // must be YYYY-MM-DD
     p_horizon_start_month: horizonStart, // now YYYY-MM-01
@@ -9864,7 +9993,7 @@ async function generateDraftPr() {
     toast(pecWriterErrorText("Generate PR failed", error), "error");
     return;
   }
-  toast(`S4 draft generated: ${s4Receipt?.auto_evidenced_lines || 0} evidenced lines, ${s4Receipt?.review_required_lines || 0} items requiring review.`, "success");
+  toast(`${jitRoute ? "JIT MRP draft" : "S4 draft"} generated: ${s4Receipt?.auto_evidenced_lines || 0} evidenced lines, ${s4Receipt?.review_required_lines || 0} items requiring review.`, "success");
   closeGeneratePrModal();
   // Reload list
   await loadPrHeaders();
@@ -9888,7 +10017,7 @@ function openPrAddLineModal() {
   }
   qs("prAddLineUomText").textContent = "—";
   qs("prAddLineQty").value = "";
-  qs("prAddLineReason").value = "";
+  pecApplyReasonTemplate(qs("prAddLineReason"), PEC_REASON_TEMPLATES.qtyOverride);
   backdrop.inert = false;
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
@@ -9922,7 +10051,13 @@ async function savePrAddLine() {
   const stockItemId = Number(backdrop.dataset.stockItemId || "0");
   const uomId = Number(backdrop.dataset.uomId || "0");
   const qty = Number((qs("prAddLineQty").value || "").trim());
-  const reason = (qs("prAddLineReason").value || "").trim() || null;
+  const rawReason = (qs("prAddLineReason").value || "").trim();
+  if (rawReason && pecReasonIsPlaceholderOnly(rawReason)) {
+    toast("Complete the item-specific justification, or clear the reason.", "error");
+    qs("prAddLineReason").focus();
+    return;
+  }
+  const reason = rawReason || null;
   const materialClassRaw = qs("prAddLineClass").value;
   const materialClassId = materialClassRaw ? Number(materialClassRaw) : null;
   if (!stockItemId) {
@@ -9981,7 +10116,9 @@ function openPrSetStatusModal(row, targetStatus) {
   qs("prSetStatusTitle").textContent =
     titles[targetStatus] ?? "Change PR Status";
   qs("prSetStatusItem").textContent = row.pr_number;
-  qs("prSetStatusNote").value = "";
+  pecApplyReasonTemplate(qs("prSetStatusNote"),
+    { active: PEC_REASON_TEMPLATES.statusActive, closed: PEC_REASON_TEMPLATES.statusClosed,
+      cancelled: PEC_REASON_TEMPLATES.statusCancelled }[targetStatus] || "");
   backdrop.inert = false;
   backdrop.dataset.prId = String(row.pr_id);
   backdrop.dataset.targetStatus = targetStatus;
@@ -10060,6 +10197,16 @@ function wirePrControls() {
   qs("btnGeneratePr").addEventListener("click", openGeneratePrModal);
   qs("btnGenS4Preview")?.addEventListener("click",s4PreviewForGenerate);
   qs("btnGenS4ReviewAgain")?.addEventListener("click",s4PreviewForGenerate);
+  qs("genS4Compare")?.addEventListener("change",()=>{
+    if(qs("s4ReviewModalBackdrop")?.classList.contains("show"))s4PreviewForGenerate();
+    else s4InvalidatePreview();
+  });
+  ["prNotes","s4ReconcileReason","prAddLineReason","prSetStatusNote"].forEach(id=>pecWireReasonField(qs(id)));
+  qs("btnPrNotesUseTemplate")?.addEventListener("click",()=>{
+    pecApplyReasonTemplate(qs("prNotes"),pecNotesTemplateForRoute());
+    pecSyncNotesTemplate();
+  });
+  ["prMaterialClass","prRmScope"].forEach(id=>qs(id)?.addEventListener("change",pecSyncNotesTemplate));
   qs("btnS4ReviewBack")?.addEventListener("click",s4CloseReview);
   qs("btnS4ReviewClose")?.addEventListener("click",s4CloseReview);
   qs("btnS4ReviewConfirm")?.addEventListener("click",s4ConfirmReview);

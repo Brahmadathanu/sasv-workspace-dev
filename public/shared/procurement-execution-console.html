@@ -2387,6 +2387,10 @@
         background:none; border:0; padding:4px 6px; min-height:28px; cursor:pointer;
         color:var(--primary,#0b605a); font:inherit; font-weight:600; text-decoration:underline;
       }
+      .pec-s4-compare { display:flex; align-items:flex-start; gap:10px; margin:0 0 10px; font-size:13px; line-height:1.4; cursor:pointer; }
+      .pec-s4-compare[hidden], #s4ReviewRoute[hidden], .pec-s4-template-hint[hidden] { display:none !important; }
+      .pec-s4-compare input { flex:0 0 22px; width:22px; height:22px; margin:0; accent-color:var(--primary,#0b605a); cursor:pointer; }
+      .pec-s4-template-hint { margin-top:6px; font-size:12px; line-height:1.4; color:var(--muted,#64748b); }
       #s4ReviewModalBackdrop { z-index:10000; }
       #s4ReviewModalBackdrop > .modal { max-width:860px; padding:0; min-height:0; overflow:hidden; }
       #s4ReviewModalBackdrop > .modal > .modal-header { padding:12px 14px 8px; }
@@ -6023,6 +6027,10 @@
             <div class="form-group full-col">
               <label for="prNotes">Notes</label>
               <textarea id="prNotes" placeholder="Optional notes…"></textarea>
+              <div id="prNotesTemplateHint" class="pec-s4-template-hint" hidden>
+                Your notes differ from the suggested wording for this procurement route.
+                <button type="button" id="btnPrNotesUseTemplate" class="pec-s4-link-btn">Use suggested wording</button>
+              </div>
             </div>
             <div class="form-group full-col pec-s4-review-gate">
               <button type="button" id="btnGenS4Preview" class="icon-btn with-label secondary"
@@ -6070,6 +6078,11 @@
         </div>
         <div class="modal-body pec-s4-review-body">
           <p id="genS4PreviewSummary" class="pec-section-note" role="status" aria-live="polite"></p>
+          <p id="s4ReviewRoute" class="pec-section-note" hidden></p>
+          <label id="genS4CompareRow" class="pec-s4-compare" for="genS4Compare" hidden>
+            <input type="checkbox" id="genS4Compare" checked />
+            <span>Compare with historical consumption (recommended). Informational only; it never changes a quantity or creates an item.</span>
+          </label>
           <div id="genS4ReviewCounts" class="pec-s4-counts" aria-label="Requirement counts"></div>
           <div class="pec-s4-review-search">
             <label for="genS4ItemSearch">Find planned material</label>

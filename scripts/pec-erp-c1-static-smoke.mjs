@@ -46,6 +46,8 @@ if (mainJs) {
     "proc_pec_ccf_pr_preview", "proc_pec_ccf_apply_draft_line",
     "proc_pec_s4_new_pr_plan", "proc_pec_s4_generate_pr",
     "proc_pec_s4_reconcile_draft", "proc_pec_s4_pr_evidence",
+    // Issue #502: server-owned JIT MRP route (pinned server PR; client falls back to hybrid if absent).
+    "proc_pec_jit_mrp_plan", "proc_pec_jit_generate_pr",
   ]);
   const unexpected = added.filter((x) => !ALLOWED_NEW.has(x));
   ok(unexpected.length === 0, `no unexpected RPC names introduced (${unexpected.join(",") || "none"}; paged contract names allowed: ${added.filter((x) => ALLOWED_NEW.has(x)).length})`);
@@ -99,6 +101,19 @@ if(js.includes('rpc("proc_pec_s4_generate_pr"')){
      js.includes('rpc("proc_pec_s4_reconcile_draft"') &&
      !js.includes('rpc("create_pr_from_mrp_plan"'),
     "S4 E2E client uses governed generator and never legacy MRP-only generation");
+}
+if (js.includes('rpc("proc_pec_jit_generate_pr"')) {
+  const jit = read("supabase/migrations/20261122153109_pec_jit_mrp_route_plan_and_generator.sql");
+  ok(jit.includes("require_permission('module:procurement-execution-console',true)") &&
+     jit.includes("require_permission('module:procurement-execution-console',false)") &&
+     jit.includes("rm_procurement_mode='jit_procured'") &&
+     jit.includes("p_confirm IS DISTINCT FROM true"),
+    "JIT route: server contract is permission-gated, confirmation-gated and jit_procured-only");
+  ok(js.includes("s4IsMissingRpc") && js.includes('rpc("proc_pec_jit_mrp_plan"') &&
+     js.includes('rpc("proc_pec_s4_generate_pr"'),
+    "JIT route: client falls back to the existing hybrid review when the server functions are absent");
+  ok(!js.includes('reasonText = "Quantity adjustment"') && js.includes("pecReasonIsPlaceholderOnly"),
+    "reason templates: no silent generic override reason; placeholder-only input is rejected");
 }
 // PEC-ERP-C2: single vendor-selection writer, reused from the indent modal
 ok((js.match(/rpc\("proc_indent_set_vendor_selection"/g) || []).length === 1, "exactly one proc_indent_set_vendor_selection call site (no duplicate implementation)");
