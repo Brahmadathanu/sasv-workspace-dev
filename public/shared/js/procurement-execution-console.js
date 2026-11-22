@@ -9221,6 +9221,33 @@ function renderCcfPreview() {
     tbody.innerHTML = '<tr><td colspan="9" class="muted">No matching coverage rows. Change the filter to inspect all PR lines.</td></tr>';
     return;
   }
+  // A separate compact mobile representation avoids nine permanently
+  // expanded table columns. Full numeric provenance remains accessible.
+  if (window.matchMedia("(max-width: 680px)").matches) {
+    tbody.innerHTML = rows.map(row => {
+      const itemName = esc(row.stock_item_name || String(row.stock_item_id));
+      const gate = esc(row.review_state || "REVIEW_REQUIRED");
+      const n = (value) => esc(ccfPreviewNumber(value));
+      const detailAction = canApplyCcfLine(row)
+        ? `<button type="button" class="pec-ccf-approve-btn" data-edit-action="true" data-ccf-line-id="${Number(row.pr_line_id)}" aria-label="Review and approve consumption coverage for ${itemName}">Review &amp; apply</button>`
+        : "Review only";
+      const evidence = `Recorded in ${Number(row.months_with_usage || 0)} months; monthly average ${n(row.calendar_monthly_average)}; last use ${esc(row.latest_usage_month || "none")}; stock as-of ${esc(row.stock_as_of || "unknown")}.`;
+      return `<tr class="pec-ccf-compact-row"><td colspan="9"><div class="pec-ccf-compact-card">
+        <div class="pec-ccf-compact-top"><strong>${itemName}</strong><span class="pec-ccf-compact-gate">${gate}</span></div>
+        <div class="pec-ccf-compact-metrics">
+          <span><small>MRP</small>${n(row.mrp_suggested_qty)}</span>
+          <span><small>12m Usage</small>${n(row.usage_12m)}</span>
+          <span><small>Stock</small>${n(row.stock_on_hand)}</span>
+          <span><small>Coverage</small><strong>${n(row.illustrative_ccf_floor)}</strong></span>
+        </div>
+        <details class="pec-ccf-compact-details"><summary>Details · ${esc(row.uom_code || "—")}</summary>
+          <p>${evidence}</p><p>PR final ${n(row.pr_effective_qty)} · Open indents ${n(row.outstanding_indent_qty)} · Potential increase ${n(row.illustrative_increment)}</p>
+          <p>${detailAction}</p>
+        </details>
+      </div></td></tr>`;
+    }).join("");
+    return;
+  }
   tbody.innerHTML = rows.map(row => {
     const evidence = `12m recorded in ${Number(row.months_with_usage || 0)} months · average ${ccfPreviewNumber(row.calendar_monthly_average)}/month · last ${row.latest_usage_month || "none"} · stock as-of ${row.stock_as_of || "unknown"}`;
     const action = canApplyCcfLine(row)
