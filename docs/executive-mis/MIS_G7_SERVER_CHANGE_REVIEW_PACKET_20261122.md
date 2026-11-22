@@ -123,3 +123,35 @@ Do **not** combine C1 whole-batch completion with G7-S1/S2 pricing implementatio
 ## F. Gate and disposition
 
 **Prepared:** review-only exact S1 resolver SQL + explicit S2/S3 delta/rollback and remaining blockers. **NOT** compile-tested, **NOT** installed, **NOT** ready for production authorization until S2 mapping, complete migrated RPC text and S3 schema governance are independently reviewed. Canonical workflow remains formal **6/11 (~55%)**, G7 OPEN. Draft docs PR #485 unmerged. Completed Costing Suite Electron release untouched.
+
+
+## G. S2 blocker resolution — voucher-line alias mapping independently verified (22 Nov 2026 IST)
+
+**Evidence advancement:** Previously S2's Tally-to-SKU mapping was unproved; it is now **PROVEN at the read-only 1–21 Nov 2026 fixture scope**, independently from the existing aggregated reconciliation view. Exact repository SQL read-only fixture:
+
+`docs/executive-mis/MIS_G7_S2_APPROVED_TRANSFER_REFERENCE_READONLY_PROOF_20261122.sql`
+
+The **exact checked-in fixture** was fetched and re-executed under `BEGIN READ ONLY; SET LOCAL statement_timeout='8000ms';` with no data writes. Results:
+
+| Coverage | Original voucher lines | Tally book value | Approved Oct143 manufacturing reference subtotal |
+|---|---:|---:|---:|
+| COVERED | 224 | ₹37,02,135.26 | **₹39,84,998.88** |
+| NO_APPROVED_RATE | 2 | ₹9,715.30 | NULL |
+| ALL Tally | 226 | ₹37,11,850.56 | **partial covered reference only** |
+
+All 226 lines had SKU aliases, quantity, distinct original line identities; zero cancelled/optional. Two missing rates: **SKU1350 Anulomana Sookshma Choornam/SP873 174 Pkt** (voucher TN/IK/TVM/345, 02-Nov, book 9422.10), and **SKU41 Dhanyamlam/6957 10 Btl** (voucher TN/IK/TVM/350, 09-Nov, book 293.20). October approved run143 does not have either SKU cost; November draft cannot substitute. These 2 are outside the covered reference subtotal, which is **not** an all-SKU manufacturing value and **not** a completed-production figure. Source date strictly `as_of_date=2026-11-22`; voucher dates through 21-Nov only. Reference price period October valuation 22-Oct.
+
+**Mapping lineage:** existing `public.v_tally_fg_transfer_normalized` derives SKU via `public.sku_aliases.alias_key=public.f_norm_key(item_name)` then `public.v_sku_catalog_enriched`. It is based on `app_private.mv_tally_fg_transfer_snapshot_latest` with unique group key `(transfer_store,transfer_date,item_name,batch_code)`, NOT original voucher line identity. For auditable financial reference, the reviewed bounded SQL instead starts with `public.tally_fg_transfer_voucher_lines` whose unique index covers `(as_of_date,transfer_store,voucher_guid,inventory_line_no,batch_line_no)`; it applies the exact same alias resolver and joins `public.product_skus` for pack identity and `costing.sku_internal_loaded_cost_snapshot` for approved-run per-SKU manufacturing COP. It does **not** substitute aggregate Kg quantity or Tally accounting value for SKU packs.
+
+**Planner evidence:** `EXPLAIN (COSTS)` for bounded read-only cohort showed bitmap index scans on voucher `as_of_date` and `voucher_date`, unique index lookup on `sku_aliases.alias_key` and index-only scan on approved `sku_internal_loaded_cost_snapshot(refresh_run_id,sku_id)`. This is favorable *static planner* evidence, **not actual authenticated latency or p95 guarantee**. Keep 8s role timeout acceptance separately pending.
+
+**Resolved:** source-to-SKU mapping + exact bounded reference coverage for inspected month; no need for new alias mapping tables or permanent duplicative SKU resolver.
+
+**Still NOT production-install ready:**
+1. Current live RPC must be reconstructed as a full exact diff; no isolated syntax-checked new full function yet. Preserve all existing result fields and auth.
+2. Robust latest complete historical snapshot selection by requested as-of (this fixture hardcodes 22-Nov). Snapshot completeness/fingerprint and retroactive corrections need final contract.
+3. Verify full cohort vs current Tally source totals, transfer correction/reversal semantics, and zero/negative movement treatment beyond the clean fixture; avoid unconstrained full joins.
+4. S3 privileged immutable finalized-report receipt is an independent writer + retention policy gate and **must not** be silently put into the STABLE summary RPC.
+5. Actual synthetic run switch/revocation and full genuine role+performance acceptance are pending.
+
+**Gate:** S2 mapping read-only proof PASSED at exact bounded fixture, G7 implementation NOT INSTALLED; formal programme 6/11 (55%). Next small step: assemble exact additive current RPC replacement review diff using this verified line cohort, test in isolated environment, archive current source checksum and rollback, and seek owner installation permission separately.
