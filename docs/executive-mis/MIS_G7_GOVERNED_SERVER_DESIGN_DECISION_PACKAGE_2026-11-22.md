@@ -663,3 +663,86 @@ Native Siddha `DAILY LOG` bounded `C18000:D25511` search returned Kantha 4166 **
 ### Server implementation readiness gate (NOT authorized or started)
 
 Recommended minimum bounded package, subject to a separate owner authorization after exact migration/design review: (i) canonical private latest-approved-run resolver using verified designation source and deterministic tie/period cutoffs, with run transition fixtures; (ii) SKU-level manufacturing-COP reference cohort with explicit uncovered counts/quantities, per-run provenance and UOM parity, not a silent partial subtotal; (iii) finalized report immutable valuation receipt and explicit revision path; (iv) source-aware transfer reconciliation where external Siddha sheet provenance and real Tally voucher identities remain separate until proved; (v) additive existing-RPC output only after no-access/anon tests, latency and freshness guards. Scope should avoid any stock ledger writer or historical backfill. **G7 remains OPEN pending implementation and acceptance** despite accepted policy; formal gate count **6/11 (~55%)**. Next action: bounded technical package exact SQL design and dry-run fixtures, not an unapproved production execution.
+
+
+## XXVIII. G7 server contract implementation review package — DOCUMENTATION ONLY (22 Nov 2026)
+
+**Gate:** Owner APPROVED C1–C3/T1–T3 policy, automatic latest-APPROVED LIVE cost reference, finalized-report cost-run locking. Owner authorized next bounded **server proof/governance**, **NOT** production install. This section is an exact **reviewable design outline**, not executable SQL migration, not approval to apply it. Preserve existing canonical `public.get_mis_production_value_summary(date,date)` and its outward signature.
+
+### 1. Authoritative approval resolution — independently proven
+
+Read-only proof from live `costing.v_costing_period_run_status` joined to `costing.v_costing_run_effective_designation` and `costing.costing_refresh_run` for report month November: period **2026-10-01**, run **143**, valuation **2026-10-22**, latest effective designation `APPROVED`, `overall_status=SUCCESS`, `valuation_context_source=CAPTURED_AT_REQUEST`. Indexes exist for run-period and per-SKU rates: `costing.costing_refresh_run(period_start DESC,id DESC)`, `costing.costing_run_designation(period_start,designated_at DESC)`, `costing.sku_internal_loaded_cost_snapshot(refresh_run_id,sku_id)` with unique partial constraint on non-NULL run+SKU. No need to invent shadow approval state.
+
+**Proposed private resolver query shape (READ-MODEL SPECIMEN, NOT FOR EXECUTION):**
+
+```sql
+SELECT s.approved_run_id AS reference_run_id,
+       s.period_start AS reference_cost_period,
+       s.approved_run_valuation_date AS reference_valuation_date
+FROM costing.v_costing_period_run_status AS s
+JOIN costing.v_costing_run_effective_designation AS d
+  ON d.refresh_run_id = s.approved_run_id
+ AND d.designation = 'APPROVED'
+JOIN costing.costing_refresh_run AS r
+  ON r.id = s.approved_run_id
+ AND r.period_start = s.period_start
+ AND r.overall_status = 'SUCCESS'
+ AND r.valuation_context_source = 'CAPTURED_AT_REQUEST'
+WHERE s.approved_run_id IS NOT NULL
+  AND s.period_start <= :eligible_cost_period_upper_bound
+ORDER BY s.period_start DESC, s.approved_run_id DESC
+LIMIT 1;
+```
+
+`:eligible_cost_period_upper_bound` is computed server-side. **LIVE LATEST-APPROVED REFERENCE** permits the latest run already approved at calculation time and applicable to current reference policy, not a user-supplied run. **AS-OF HISTORIC** must never falsely use approvals that occurred after an alleged historical knowledge cutoff; where no frozen historical receipt exists, describe the result as **recomputed at latest approved cost** (with evaluation timestamp), not historical-as-known or historical-actual. Eligibility must also consider effective designation *as of evaluation*, revocation, and live policy. If an approval is later revoked and no newer eligible run exists, resolver falls back only to another currently valid approved run or returns NULL with status `NO_APPROVED_REFERENCE`; never preserve revoked run in a new live computation. Existing finalized reports retain their original recorded run and status, explicitly flagged if governance later revoked its source.
+
+**Read-only fixture:** the equivalent verified current resolver returns October run143. The existing RPC does not yet do this: it only looks at the immediately prior month. The dynamic transition when Nov becomes approved is a **synthetic test** until a real run is approved; do not create a production designation for testing.
+
+### 2. SKU manufacturing COP: identity, rates, denominator and no cross-basis mixing
+
+**Source:** `costing.sku_internal_loaded_cost_snapshot`, join by `refresh_run_id = resolver.reference_run_id` and exact `sku_id`, verify `manufacturing_cop_status='READY'`, rate numeric/nonnegative, matching `pack_size` / `pack_uom` against authoritative transferred SKU identity and effective pack-definition policy. Rate represents **manufacturing COP per saleable SKU pack**, **NOT** `internal_loaded_cost_per_sku` (includes administration), price/MRP or accounting book transfer amount. Investigate BOM/UOM conversions (especially 10mL Chirattai transferred to Kg normalization) before any base-quantity alternative. Keep Tally qty packs with original UOM and product batch/voucher identity.
+
+**Safe source-bound computation:** per qualifying transfer event line `reference_value = transferred_pack_count × manufacturing_cop_per_sku`. For nonqualifying lines, value = NULL with explicit `UNMAPPED_SKU|SKU_NOT_IN_APPROVED_RUN|RATE_REVIEW_REQUIRED|RATE_BLOCKED|PACK_UOM_MISMATCH|QUANTITY_UNVERIFIED|APPROVAL_NOT_AVAILABLE`. A rate `READY` alone does not certify event's real dated transfer reconciliation. A Tally-grounded reference subtotal may be reported separately even while process parity remains incomplete; its label must say Tally-based quantity and approved reference price, **not verified operational production**.
+
+**Coverage receipt required:** `source_voucher_line_count, eligible_sku_line_count, covered_line_count, uncovered_line_count, covered_pack_count, uncovered_pack_count, covered_reference_subtotal, coverage_status, reference_run_id, reference_cost_period, reference_valuation_date, evaluated_at_ist, tally_snapshot_as_of, reconciliation_status`. Do not sum pack counts across incompatible pack denominations without context. A covered-subtotal must **never** be labelled a complete production value if `uncovered_line_count > 0`, or if source-date/transfer identity or correction lineage is not verified. No multiplication against duplicate Tally snapshot dates or replayed voucher lines.
+
+**Observed fixture:** among the seven Nov exception SKU identities, approved run143 has `READY` records for 892, 969, 1091, 1271, 1273, 1308 (6/7); **1350 not present**, hence its approved COP reference is NULL, even though November draft152 has a numeric rate. Do not convert 6/7 into monetary or overall transfer coverage; this is only inspected SKU-count coverage.
+
+### 3. Finalization locking and revaluation semantics
+
+A report finalization operation is a **distinct privileged business writer**, NOT part of an ordinary MIS dashboard read. No current finalization schema/route was identified through name-based catalog search (not proof none exists). Before adding one, run full dependency/schema audit and verify authority. Proposed private immutable receipt shape:
+
+```text
+receipt_id (server generated)
+report_kind, report_month, report_as_of_date, finalized_at_ist
+finalized_by_authorized_actor (server derived)
+reference_cost_run_id, cost_period, reference_valuation_date
+tally_snapshot_as_of, source_cutoff, source_fingerprint
+normalization_version, transfer_policy_version, route_cutover_version
+covered/uncovered counts and amounts, status_flags
+frozen_aggregate_payload_hash, canonical receipt status
+supersedes_receipt_id (nullable for explicit restatement)
+```
+
+Required invariants: finalized receipt version immutable; unique idempotency request / business intent, permissioned finalize action with separate authority from MIS View; report edits via new superseding version preserving original, referential integrity to designated costing run and approved-source proof at finalization, no PII/client-controlled actor, access-controlled private schema/tables, retention and authorized historical restoration policy. **Crucial:** saving *only* run ID is not sufficient if subsequent data changes or run cleanup prune snapshots; snapshot exact frozen aggregate payload and coverage, source digest and retention dependency or independently immutable export. Cannot promise historical reproducibility if snapshot data is deleted later. Reconcile with separate Costing Suite retention governance before any retention-related DDL.
+
+### 4. Existing RPC: exact additive, bounded behavior
+
+Keep **only** `public.get_mis_production_value_summary(p_report_month date,p_as_of_date date DEFAULT NULL)` as browser production monetary interface. Existing SECDEF + `search_path=pg_catalog,pg_temp` + `auth.uid()`/MIS View permission guard and authenticated-only EXECUTE are **observed static facts** to preserve. Do not create a competing public v2 or grant SELECT on cost raw tables. Propose additive JSON fields under a namespaced `approved_cost_reference` object, plus explicitly `NOT_VERIFIED` formal completion and unchanged legacy fields until parity proved. **Do not rewrite the currently observed receipt-reference value as completed-production value.** Preserve semantic compatibility for existing clients.
+
+**Execution-cost guard:** select one approved run and pre-aggregate only the requested month/bounded Tally as-of and keyed SKU rows, with no per-request full historical full join, cross-product explosion, unindexed Google Sheets access or live effective product-planning CTE. Source Sheet ingestion/crosswalk and full product-route logging must be separate sanctioned architecture; no direct synchronous Sheets network lookups inside authenticated MIS RPC. Pending/partial provenance represented as N/A. Indexed snapshot selection, representative bounded EXPLAIN, genuine signed-in p95 and 8s timeout acceptance required before install.
+
+### 5. Security invariants and negative test matrix
+
+- Authorized MIS View user: additive fields show only permitted aggregates, no raw staff/salary, actor data or sensitive batch-level details.
+- Authenticated user without MIS View: fail `42501` and expose zero financial payload.
+- Anonymous: no function EXECUTE; fail without data exposure.
+- Different actor with View but no report-finalize permission: may read allowed summary but **cannot finalize or restate**.
+- After cost run revocation, draft emergence, or later APPROVED run, live selector changes ONLY according to effective approved state, without silently editing finalized receipt.
+- Partial/missing SKU rate, missing transfer event, correction/reversal, unmapped SKU, mismatched pack UOM, 0 quantity, negative reversal and idempotent duplicate voucher: no overvaluation or fictitious complete coverage. No invented grace periods, no sourced-via-Sheet duplicate accounting transfers.
+- Fixtures: approved Sep122 / Oct143 + November draft152; later-Nov-approved fixture and revocation fixture run against **synthetic controlled data**, not production mutation.
+- Validate Netlify/browser cache/controller freshness and 390px responsive output only after separately authorized server/client implementation. No login impersonation; genuine authorized and denied sessions.
+
+### 6. Exact next governance boundary
+
+This workpack is **DESIGN REVIEW READY**, **NOT INSTALL READY**. Before any installation: independently review SQL migration diff, chosen private schema/retention, cost-rate/approved-run resolver, the canonical RPC replacement definition, privilege/grant impact and rollback to prior tested RPC; document planned transaction boundaries, explain fixture results and owner installation request. A server-only rehearsal in staging/synthetic fixtures may be separately authorized. Do NOT change completed Costing Suite approved runs, historical snapshots, FG stock ledger policies/writers, route logs or Siddha Google Sheets as incidental MIS work. Client bulk assignment to Claude remains after accepted server contract, not triggered by this design review. **G7 OPEN; formal 6/11 (55%).**
