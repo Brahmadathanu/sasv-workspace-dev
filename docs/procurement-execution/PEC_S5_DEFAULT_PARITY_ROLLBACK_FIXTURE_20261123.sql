@@ -1,5 +1,5 @@
 -- PEC S5 exact-default-parity fixture (read-only synthetic authorisation).
--- Load source candidates A+C in BEGIN; run this and ROLLBACK.
+-- Load registered S5 migration in BEGIN; run this and ROLLBACK.
 DO $test$
 DECLARE v_user uuid;v_old jsonb;v_new jsonb;v_count integer;
 BEGIN
