@@ -42,3 +42,23 @@ Package on a trusted Windows builder using the release candidate; never publish 
 - PWA origin and deploy preview could not be inspected through available public browsing; actual deployed commit/cache/controller and authenticated 390px Editor/View-only screens remain **NOT TESTED**.
 - Do not infer successful Netlify production deployment from the GitHub merge alone.
 - PR-2026-07 and PR-2026-08 remain guarded and not reconciled; #305 remains open and release publication HOLD remains unchanged.
+
+## 22 Nov 2026 — Exact synchronized release-candidate artifact receipt
+
+- PEC S4 accepted UX merged via PR #498 into `main`: `d90104a24327f2a8d5e7823777b8b03be71b19d1`.
+- Main history synchronized into release branch via PR #499: candidate source commit `7dc3f034e44457619a3db9a67c2e4d21f8bf9ab1`; release-only changes limited to the 6.3.0 manifests, unpublished packaging workflow and two release documentation files.
+- Windows isolated-profile loopback smoke GitHub Actions [#45030214059](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/45030214059): **SUCCESS**, updater inactive.
+- Windows NSIS+ZIP non-publishing package GitHub Actions [#45030214044](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/45030214044): **SUCCESS**. The workflow verified `latest.yml` version `6.3.0`, matched installer SHA-512 digest to the manifest, computed and printed SHA-256 values, and uploaded the private candidate archive.
+- Private GitHub Actions [artifact ID 14757671795](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/45030214044/artifacts/14757671795), `sasv-v630-unpublished-windows-candidate`, 318,248,389 bytes, retention 3 days, not a GitHub Release. CI upload archive SHA-256: `a05ab2f57a1f343896f2aea776e1f01cc55db25d16f8450d28525f3b5525612c`.
+- Component SHA-256 values from verified Windows job log (actual artifact bytes have **not** been independently redownloaded here):
+
+| File | SHA-256 |
+|---|---|
+| `SASV Workspace Setup 6.3.0.exe` | `42e7d6b2bd01f0227ec44b7244df6ceab9ba4079ef7c2d0f48432df636d07010` |
+| `SASV Workspace-6.3.0-win.zip` | `9199673a794a142deb777a5321a2bdc0ed5d1093d07466836099baa355ae7f8f` |
+| `SASV Workspace Setup 6.3.0.exe.blockmap` | `4fe863ee1a5b80f503b46fa6e638cfea504922f4d669bd0cb72f4a38519a34ab` |
+| `latest.yml` | `3a900a51bfc8eb1cd7050d0af0891c5b9397836ce680f610fa31236bcf9b357b` |
+
+**Security/operational limitation:** `electron-builder` reports no Windows code-signing certificate configured; EXE, staged elevation helper and uninstaller were built unsigned. Windows SmartScreen/reputation prompts may occur. Signing was also absent in prior candidate builds; do not misrepresent signing as passed.
+
+**Still unverified:** authenticated production PWA serving merged SHA; installed Windows pilot and live updater retrieval/update behavior. The available public browser could not inspect the Netlify production PWA origin. Owner's earlier authenticated preview acceptance passed. **Do not publish/merge release PR or alter `latest.yml` updater feed until the separate owner publication decision.** PR-2026-07 and PR-2026-08 still require genuine Editor execution and date-guard compliance; remain unchanged.
