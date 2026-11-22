@@ -86,3 +86,67 @@ GRANT EXECUTE ON FUNCTION public.proc_pec_ind_set_planned_requirement(bigint,dat
   TO authenticated;
 -- The planned-demand view is not public Data API content: expose through the
 -- future S5 review RPC, guarded by the read-level PEC permission check.
+
+-- Every change to a governed monthly plan has an append-only before/after audit.
+CREATE TABLE IF NOT EXISTS public.proc_pec_ind_planned_requirement_audit (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  plan_id bigint NOT NULL REFERENCES public.proc_pec_ind_planned_requirement(id),
+  event_kind text NOT NULL CHECK(event_kind IN ('INSERT','UPDATE')),
+  old_row jsonb,
+  new_row jsonb NOT NULL,
+  changed_at timestamptz NOT NULL DEFAULT now(),
+  changed_by uuid
+);
+ALTER TABLE public.proc_pec_ind_planned_requirement_audit ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.proc_pec_ind_planned_requirement_audit FROM PUBLIC,anon,authenticated;
+
+CREATE OR REPLACE FUNCTION public.proc_pec_ind_plan_audit_trg()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
+SET search_path TO pg_catalog,public AS $audit$
+BEGIN
+  INSERT INTO public.proc_pec_ind_planned_requirement_audit(
+    plan_id,event_kind,old_row,new_row,changed_by)
+  VALUES (NEW.id,TG_OP,
+    CASE WHEN TG_OP='UPDATE' THEN to_jsonb(OLD) ELSE NULL END,
+    to_jsonb(NEW),auth.uid());
+  RETURN NEW;
+END;
+$audit$;
+REVOKE ALL ON FUNCTION public.proc_pec_ind_plan_audit_trg() FROM PUBLIC,anon,authenticated;
+DROP TRIGGER IF EXISTS trg_proc_pec_ind_plan_audit
+  ON public.proc_pec_ind_planned_requirement;
+CREATE TRIGGER trg_proc_pec_ind_plan_audit
+AFTER INSERT OR UPDATE ON public.proc_pec_ind_planned_requirement
+FOR EACH ROW EXECUTE FUNCTION public.proc_pec_ind_plan_audit_trg();
+
+-- Read permission is enforced at the RPC boundary; do not grant direct SELECT.
+CREATE OR REPLACE FUNCTION public.proc_pec_ind_list_planned_requirements(
+ p_start date,p_end date
+) RETURNS SETOF jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path TO pg_catalog,public AS $list$
+DECLARE v_month date:=date_trunc('month',now() AT TIME ZONE 'Asia/Kolkata')::date;
+BEGIN
+ PERFORM public.require_permission('module:procurement-execution-console',false);
+ IF p_start IS NULL OR p_end IS NULL
+   OR p_start<>date_trunc('month',p_start)::date
+   OR p_end<>date_trunc('month',p_end)::date
+   OR p_end<p_start OR p_start<(v_month-interval '1 month')::date
+   OR p_end>(v_month+interval '12 months')::date
+ THEN RAISE EXCEPTION 'Invalid IND plan listing horizon'; END IF;
+ RETURN QUERY
+ SELECT jsonb_build_object(
+   'id',p.id,'stock_item_id',p.stock_item_id,'stock_item_name',si.name,
+   'uom_id',p.uom_id,'uom_code',u.code,'month_start',p.month_start,
+   'planned_qty',p.gross_required_qty,'reason',p.reason,
+   'is_active',p.is_active,'updated_at',p.updated_at)
+ FROM public.proc_pec_ind_planned_requirement p
+ JOIN public.inv_stock_item si ON si.id=p.stock_item_id
+ LEFT JOIN public.inv_uom u ON u.id=p.uom_id
+ WHERE p.month_start BETWEEN p_start AND p_end
+ ORDER BY si.name,p.month_start;
+END;
+$list$;
+REVOKE ALL ON FUNCTION public.proc_pec_ind_list_planned_requirements(date,date)
+ FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.proc_pec_ind_list_planned_requirements(date,date)
+ TO authenticated;
