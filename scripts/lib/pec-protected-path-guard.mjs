@@ -25,6 +25,12 @@ export const INTEGRATION_PROTECTED_PATHS = new Set([
 // migration is still rejected. Working-tree (uncommitted) changes are NEVER
 // exempt: callers pass a context only for committed paths.
 export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
+  // Issue #502: additive JIT MRP route (two new functions; no existing function replaced). Exact path + head
+  // branch + LF SHA-256. Installation in production is a separate owner-approved step.
+  "supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql": Object.freeze({
+    sha256: "1fe2ead139e093c98af2cd17b936066972d788a902908b09ffa2114b2dc5ffd1",
+    heads: Object.freeze(["feat/pec-jit-route-server-20261122"]),
+  }),
   "supabase/migrations/20261122084655_pec_s4_duplicate_pr_horizon_guard.sql": Object.freeze({
     sha256: "0c29d28eb377b770d112fa69c14da7ca30265bf2d7859d64fbcd5cabe4832685",
     heads: Object.freeze(["feat/pec-s4-end-to-end-20261122"]),
