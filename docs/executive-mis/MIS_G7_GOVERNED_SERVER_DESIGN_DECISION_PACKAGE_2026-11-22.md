@@ -253,3 +253,38 @@ A. Applied plan with all registered batches still unstarted; B. Draft BMR-linked
 - **Action for next bounded audit:** reconcile SKU-level `event_skus` transfer counts with work-log SKU breakdown and Tally voucher lines by product+batch+date+SKU, establish source precedence for completed-transferred output, then test total packing/transfer/outstanding bulk/packaged quantities and losses for selected batches. Distinguish historical-as-of transfer events from mutable current balances. Security and ≤8s authenticated latency remain gates.
 
 **Decision:** no need to introduce a new WIP MV for correctness. Preserve direct planning dependency and optionally optimize with a fresh, labeled read model only if performance requires it. Finished-SKU transfers are the candidate operational output evidence; full-batch closure requires a separately verified conservation/accounting rule. No SQL installation was authorized by this inspection.
+
+
+## XII. FG bulk ledger balance and whole-batch transfer-closure audit (22 November 2026)
+
+**Owner raised the existing `fg_bulk_stock` and `fg_bulk_stock_ledger` as potentially sufficient stock-balance truth. Independently verified live object definitions and bounded SELECTs. All checks read-only; no DML, schema, or release change.**
+
+### Exact existing flow
+
+- `public.fg_bulk_stock_ledger` is the physical append/movement table; `public.fg_bulk_stock` is an **ordinary view** grouping by product ID and batch and summing `qty_base`. It exposes `qty_on_hand` and base UOM, rounding to three decimals and clamping abs(raw sum)<0.005 to displayed zero. It already carries source movement timestamp and category metadata.
+- The ledger includes positive FG bulk storage receipts; `event_skus` packaging consumption entries, typically negative; storage update/delete corrections; balanced internal transfers (out/in); manual adjustments and small-balance cleanup. Therefore the stock view **already gives current remaining bulk**, and a second MIS bulk-stock ledger is unnecessary.
+- `public.bottled_stock_on_hand` is an **ordinary view** built from `packaging_events + event_skus`, signed by `event_type_lkp.affects_bottled_stock`, grouped by batch/SKU and filtered to positive `on_hand`; it exposes pack counts and `total_qty_in_base` for finished-packaged-not-yet-transferred stock. Ensure product ID comes via `product_skus`; never join on batch string alone. `Transfer to FG store` has `affects_bottled_stock=-1`, `affects_bulk_stock=0`, while packing has bulk -1 and packaged +1. Transfers must **not** consume bulk twice.
+- The private `app_private.mv_bottled_rollup` is separate and cached; the direct packaged-stock balance is not itself a materialized view.
+
+### Verified live balance census
+
+- `fg_bulk_stock` produced **1,281 product/batch stock keys** in scoped full current view: **44 positive remaining**, **1,237 displayed zero**, **0 negative displayed balance**. These are **current** balances, not number of batches completed in November and not historical cutoff balances.
+- `fg_bulk_stock_ledger` presently has **6,864 movement rows**. Its reason-source census includes **764 `manual_adjustment` rows from `fn_fg_force_close` across 678 batch keys**, plus **187 `auto_zero_epsilon` rows**; separate `fg_bulk_internal_transfer` entries have matching in/out movement records. Hence **zero bulk can reflect a governed adjustment, not necessarily that every gram was packed**.
+- Current `bottled_stock_on_hand` has **7 positive batch/SKU rows** (sum of 4,304 pack units, not a cross-SKU bulk quantity). Joining by product+batch to the 1,281 bulk keys found **2 product/batch keys with displayed zero bulk but positive packaged stock still awaiting transfer**. The total number of packaged rows need not equal the number of distinct affected batch keys; a row is batch×SKU.
+- **Critical business distinction:** `fn_fg_force_close` posts a counter movement `-current bulk balance` with `reason_code='manual_adjustment'` then runs `fn_fg_reconcile_batch`. `fn_fg_auto_zero` neutralizes small nonzero balances under epsilon. `fn_fg_reconcile_batch` marks related `daily_work_log` FG bulk-storage rows `Done` when the adjusted/remaining **bulk ledger balance** is within tolerance. It does **not** verify that all finished SKUs were transferred to FG. Thus `daily_work_log.status='Done'` in FG storage is a **bulk-balance-reconciled status**, not end-to-end batch-fully-transferred status. Some different completed_on timestamps may be explainable by when source rows were recorded or adjusted, not necessarily erroneous completion events.
+
+### Revised C1–C3 output and closure rule
+
+**Separate at least these states** for one governed (product_id,batch/BMR):
+1. `IN_PROCESS_OR_BULK_REMAINING`: positive true bulk balance or eligible in-process material; report bulk remainder in base UOM.
+2. `PACKED_PENDING_TRANSFER`: packed SKU units remain positive in `bottled_stock_on_hand`, regardless of whether bulk balance displays zero.
+3. `PARTIALLY_TRANSFERRED`: one or more valid finished SKU transfers occurred while bulk and/or packaged balances remain, including partial transfers across days.
+4. `ZERO_BULK_PENDING_RECONCILIATION`: ledger balance zero but non-packing force-close/manual adjustment/corrections are present without independently accepted quantity-disposition evidence; cannot mark production wholly fulfilled solely from zero balance.
+5. `FULLY_TRANSFERRED_CONFIRMED`: all attributable batch bulk accounted for via valid packaging consumption, approved loss/adjustment, AND no positive packaged-SKU stock remains, AND transfer reconciliation/outstanding issues are resolved. This is a **proposed acceptance contract, not an already implemented status**. Confirm whether all transfers need Tally+work-log parity or a governed source hierarchy, and whether approved loss can qualify as fully accounted rather than fully transferred, before implementing.
+6. `REVIEW`: mapping, UOM, correction, stale sources, negative history or discrepancy prevents a confident status.
+
+**Crucial qualifiers:** `fg_bulk_stock.qty_on_hand` rounds/clamps, so audit closure against **raw SUM(ledger.qty_base)** with approved product-base-UOM epsilon, rather than trusting the displayed zero alone. `bottled_stock_on_hand` filters to strictly positive balances, so validate for negative/overdrawn SKU-batch net values before asserting full transfer. Do not count a batch as fully closed solely because `daily_work_log.status='Done'`, `fg_bulk_stock.qty_on_hand=0`, or a force-close adjustment occurred. A batch may have both zero bulk and remaining packaged stock. Corrections/late movements may reopen any live computed status; for historical metrics need time-bounded source events and truthful freshness.
+
+### Next bounded independent proof
+
+A. Trace ledger movement reasons to `packaging_events/event_skus` and raw batch net balances for 2 zero-bulk-but-packed keys plus one force-closed batch; B. reconcile SKU-packed increments, finished SKU transfer decrements and positive packaged on-hand by product+batch+SKU, not mixed pack counts; C. validate Tally/work-log/packaging transfer source selection and partial-transfer dates; D. prove how approved process losses/manual force-close amounts are characterized; E. define negative-balances/epsilon exceptions and historical-as-of cutoff. No parallel stock ledger, direct unbounded view in MIS RPC, or batch-complete achievements until evidence and owner source-policy acceptance.
