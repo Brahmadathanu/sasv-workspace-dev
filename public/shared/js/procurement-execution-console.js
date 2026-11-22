@@ -8550,15 +8550,6 @@ function wirePrLineTableActions() {
   const filterDrawer = qs("prLineFilterDrawer");
   const filterSelect = qs("prLineFilterSelect");
   const filterBadge = qs("prLineFilterBadge");
-  console.log(
-    "[PR Filter] btn:",
-    !!filterBtn,
-    "drawer:",
-    !!filterDrawer,
-    "select:",
-    !!filterSelect,
-  );
-
   function syncPrLineFilterBadge() {
     const active = prLineFilterValue !== "all";
     if (filterBadge) filterBadge.style.display = active ? "" : "none";
