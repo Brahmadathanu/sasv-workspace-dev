@@ -151,3 +151,44 @@ S2 outcome: **read-only dependency and period counts verified, destructive pilot
 - **Security:** privileged execution only under internal governed job role, not anonymously callable or general authenticated Data API RPC; logging/audit mandatory; privilege review before deployment.
 
 **S3 status:** Query created and live SELECT-tested, candidate preview verified. Deletion engine, archive/restore pilot, FK migration contract, monthly cron and production data pruning **NOT IMPLEMENTED**. Existing production data untouched.
+
+## S3b — OWNER CLARIFICATION: first completed Costing Suite month is November 2026 (22 Nov)
+
+**Governance override to S1/S2 interpretation (not to factual run ledger):** Owner confirmed that the complete Costing Suite workflow was only fully implemented in **November 2026**. Runs from July–October, including five historical `APPROVED` designations across four runs (Sep 122; Oct 128, 136, 140, 143), are *pre-completion implementation / acceptance-transition outputs*; their historical `APPROVED` status must not be represented as evidence of the fully finished Costing Suite. This does **not** make those database designations factually nonexistent. Retain their low-volume auditable approval/revocation records or a sealed immutable compact surrogate; do not retain large work snapshots solely because their historical designation was `APPROVED`.
+
+**Target:** all **120** runs from July–October 2026 are now `LEGACY_DETAIL_RETIREMENT_SCOPE`. Nov 2026 and later are the operational era. **Not** all 120 are immediately executable DELETE candidates. As of 22 Nov 2026, November had four runs (149–152), three SUCCESS and one FAILED; **no November APPROVED designation**, latest displayed November run 152 is a *draft*. September run122 (LOCKED) and October run143 (APPROVED) still anchor period views; run143 can also be used as latest approved cost source by pricing. Therefore, retain 143's usable data and prevent a fallback gap until a November-or-later approved source replaces it and price/report parity is proven. Lock/finalisation status is a separate constraint from owner's quality-era classification.
+
+**Live read-only verified SELECT:** `docs/master-data-costing/sql/S3B_PRECOMPLETION_RUN_RETIREMENT_SCREEN.sql` (created in same draft PR). Screen prioritises consumer and reference holds over mere approval history; requires FK-aware archive/restore before *any* writes.
+
+| Pre-completion period | Runs in legacy retirement scope | Preliminary detail pilot candidates | Holds pending replacement / separation |
+| --- | ---: | ---: | ---: |
+| July | 59 | 57 | 2 |
+| August | 5 | 4 | 1 |
+| September | 38 | 28 | 10 |
+| October | 18 | 4 | 14 |
+| **Total** | **120** | **93** | **27** |
+
+A direct catalog discovery verified **64** run-header FKs and **62 second-order FK edges** referencing tables which themselves point to the run header. These 62 edges include dependencies not directly in the 64-header-FK set. `cost_sheet_line_monthly_snapshot` and `cost_sheet_line_traceability_snapshot` have incoming scheme viability IDs, so bulk deletion requires child-first deletion or a deliberate migration with parity. The pre-completion classification is **policy eligibility**, while technical deletion eligibility remains **BLOCKED**.
+
+### Deployment work packages (bounded)
+
+**S3b-A — preserve minimum provenance (migration design + rehearsal)**
+- Immutable seal for historical owner approvals/revocations and reference run119: run ID, period, valuation, designation transitions, authority+times, checksum/fingerprint, approval reason/receipts; preserve preexisting accepted financial decisions and signed artifacts.
+- Preserve a small run register/tombstone rather than removing all run IDs without a mapped FK replacement; classify the legacy rows visibly as pre-completion, not fully production-accepted.
+- Inventory every published financial/pricing/report consumer for runs 80,82,122,143 and check pricing workbook selection is not silently impacted.
+- Restore validation with archived records and historical printable reports on an isolated staging copy.
+
+**S3b-B — disposal engine in staging (NO production installation yet)**
+- Build `preview` and `execute` as separate capabilities. Preview returns manifest of all retained/retired run IDs and table-level row counts, FK edge graph, byte allocation estimates with uncertainty, archive references and expected invariants.
+- Execution must require sealed manifest, replayable restore, explicit approved scope, advisory lock, and fresh recheck of live month closure, new approved replacement availability, reference protections and job processor idle state.
+- Derive child-to-parent order from 64 direct plus 62 second-order FK edges (do not hardcode an optimistic order); reject cycles/unclassified paths until handled. Restrict batches and statement locks; no generic `DROP CASCADE`, table-wide `TRUNCATE`, or user-facing RPC.
+- Preserve transactional Tally evidence, marketing source rows, non-snapshot registers, pricing decisions and signed reports; remove only permitted redundant *snapshot copies*. All writes logged into an immutable maintenance receipt.
+- Verify run IDs removed from detail tables, retained governance/price/printed report parity, stage processor safety, space reuse and rollback before any scheduled repeat.
+
+**S3b-C — monthly automation activation**
+- After owner-accepted S3b-B pilot, schedule expiry of previous-month unapproved details, gated by verified prior-month close/disposition; retain approved post-completion details for current month + three prior months.
+- Do not conflate the pre-November one-time legacy purge with the recurring monthly approved-retention policy; treat them as distinct scopes.
+- Do not modify running jobs 66,67,68. Independently schedule cleanup only after month-end processing, with idempotence, notification and no race against approval.
+- No deployed cleanup function, migration, archive, DML or cron change in this step; these remain future acceptance gates.
+
+**S3b outcome:** Owner policy updated and SELECT-only code + catalog checks validated on live production, **no records deleted**. This supersedes S1's proposal to keep legacy full detail merely because of earlier APPROVED labels.
