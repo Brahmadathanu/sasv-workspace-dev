@@ -240,3 +240,23 @@ The five-table totals are row counts, **not five-table physical MiB nor complete
 New run-specific assertions at `docs/master-data-costing/sql/S3D_RETENTION_STAGING_PILOT_REHEARSAL_READ_ONLY.sql`. The script opens a `READ ONLY` transaction, checks designation, major governance references, period approved/displayed pointers, exact five-table rows and rolls back. It does not create any database object. It must be **executed and verified on staging** with matching fixture data before a writer can be enabled. This document's counts were independently checked by live SELECTs; the newly committed combined script has **not yet been executed as a single unit**.
 
 **Remaining implementation work:** (a) snapshot backup/export+restore of every parent/child table for a particular run, (b) no-cross-run-FK assertion across all descendant relationships, (c) read-only function/view consumer lineage, (d) dependency-ordered *staging-only* bounded deletion and restoration dry-run plus parity tests, (e) independent November approved-run cutover, (f) guarded production pilot and later scheduled rollover. No production deletion, cron change, destructive SQL or schema migration has been authorized by this audit.
+
+## S3E — Live leaf-FK confirmation and staging-only rollback executor (22 Nov 2026)
+
+**Staging availability check:** Supabase project `qhmoqtxpeasamtlxaoak` currently lists **zero Supabase development branches**; the user has one accessible project, the live SASV production project. Creating a Supabase branch may incur hourly charges and requires distinct consent. Therefore no staging branch was created, no staging DB test was claimed, and no production writer/DDL was executed.
+
+**Pilot scope deliberately reduced:** run 87 (September 2026, undesignated/undisplayed). A fresh `pg_constraint` inspection verified **zero incoming foreign keys** to each of `costing.marketing_signed_billed_sales_evidence_snapshot` and `costing.marketing_regional_sales_evidence_snapshot`. These two tables each have **108,982 run-87 rows**, totaling **217,964** repeated evidentiary rows, with indexed `refresh_run_id` lookups. This avoids the 62 deeper FK chains in the first deletion rehearsal while keeping original source sales transactions entirely untouched.
+
+**Implemented in repo, NOT executed:** `docs/master-data-costing/sql/S3E_STAGE_ONLY_ROLLBACK_EVIDENCE_DELETE_REHEARSAL.sql`. This is a staging-only SQL transaction which:
+- Rechecks run identity/status, previous-month scope, no designation, no current display, six source-governance link categories, and no incoming FKs.
+- Copies run-87 evidence rows into transaction-local temporary tables, verifies exact source row counts against independent live evidence, deletes **only** those rows in the staging transaction, asserts receipt counts and retained run header, and always executes **ROLLBACK** at the end on success. The temporary copies are NOT a durable archive. On failure, the session must be explicitly rolled back if the client's error-stop interrupts the tail.
+- Intentionally does not touch any of the 64 run-child tables beyond the two identified leaves; no run header, price, approval, scheme, or November data is changed.
+
+**Independent mandatory acceptance sequence before enabling persistent cleanup:**
+1. Obtain an isolated, approved staging test environment (or a locally restored fixture) with exact run-87 data; confirm connection target independently. Stage branch provisioning is separately gated for cost.
+2. Establish an **external, durable restore artifact** for affected data, its checksums and replay procedure, independently verify a restore in that isolated environment. TEMP table rollback alone is not disaster recovery.
+3. Execute S3D read-only controls on staging and S3E rollback rehearsal; after ROLLBACK, re-query both source tables: **108,982 rows** in each, no changes to counts/fingerprints for September 122, October 143, November 152.
+4. Verify no non-FK downstream reports materialise side effects, no writer/schema races, no permission changes. Document query durations, lock waits and actual record counts from receipts; do not claim MiB reclaimed from row counts.
+5. Only then implement a separately reviewed permanent batched cleanup executor plus immutable per-run archive/tombstone and monthly job. The release acceptance and pricing governance must remain unaffected.
+
+**S3E status: repo implementation drafted and committed, static metadata validated live, staging execution NOT TESTED; production data/cron UNCHANGED.**
