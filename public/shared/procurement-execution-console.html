@@ -1991,6 +1991,140 @@
           padding: 14px;
         }
       }
+
+      /* PEC S4 mobile acceptance refinement — presentation only.
+         Full viewport for all in-page dialogs, safe intrinsic form widths,
+         and narrow-screen evidence cards. Desktop/table structure is unchanged. */
+      @media (max-width: 680px) {
+        .modal-backdrop {
+          padding: 0 !important;
+          align-items: stretch;
+          justify-content: stretch;
+        }
+        .modal-backdrop > .modal {
+          width: 100% !important;
+          max-width: none !important;
+          min-width: 0 !important;
+          height: 100dvh !important;
+          max-height: 100dvh !important;
+          border: 0 !important;
+          border-radius: 0 !important;
+          box-sizing: border-box;
+          margin: 0 !important;
+          padding-bottom: max(12px, env(safe-area-inset-bottom));
+          overflow: hidden;
+        }
+        .modal-backdrop > .modal > .modal-header {
+          flex: 0 0 auto;
+        }
+        .modal-backdrop > .modal > .modal-body {
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+          overscroll-behavior: contain;
+        }
+        .modal-backdrop > .modal > .actions {
+          flex: 0 0 auto;
+        }
+        #generatePrModalBackdrop .form-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          align-items: start;
+          gap: 12px;
+        }
+        #generatePrModalBackdrop .form-group {
+          min-width: 0;
+          align-self: start;
+        }
+        #generatePrModalBackdrop .form-group input,
+        #generatePrModalBackdrop .form-group select,
+        #generatePrModalBackdrop .form-group textarea {
+          min-width: 0;
+          max-width: 100%;
+          width: 100%;
+          box-sizing: border-box;
+        }
+        #generatePrModalBackdrop input[type="month"],
+        #generatePrModalBackdrop input[type="date"] {
+          display: block;
+          min-width: 0;
+          max-width: 100%;
+          font: inherit;
+          font-size: 14px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-scroll {
+          overflow: visible;
+          max-height: none;
+          border: 0;
+          border-radius: 0;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table {
+          display: block;
+          min-width: 0;
+          width: 100%;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table thead {
+          display: none;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table tbody {
+          display: grid;
+          gap: 10px;
+          min-width: 0;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table tr {
+          display: grid;
+          grid-template-columns: 1fr;
+          min-width: 0;
+          padding: 10px 12px;
+          border: 1px solid var(--border, #e5e7eb);
+          border-radius: 10px;
+          background: var(--panel-bg, #fff);
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td,
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          flex-wrap: wrap;
+          gap: 4px 10px;
+          min-width: 0;
+          width: 100%;
+          padding: 6px 0;
+          border-bottom: 1px solid var(--border, #e5e7eb);
+          overflow-wrap: anywhere;
+          box-sizing: border-box;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:last-child {
+          border-bottom: 0;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td::before {
+          color: var(--muted, #64748b);
+          font-weight: 600;
+          font-size: 11px;
+          flex: 0 0 auto;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(1)::before { content: "Item / Evidence"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(2)::before { content: "MRP"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(3)::before { content: "PR Final"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(4)::before { content: "12m Usage"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(5)::before { content: "Stock"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(6)::before { content: "Open Indents"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(7)::before { content: "Illustrative Floor"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(8)::before { content: "Review state"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(9)::before { content: "Draft action"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child,
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(7) {
+          display: block;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child::before,
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(7)::before {
+          display: block;
+          margin-bottom: 4px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td[colspan]::before {
+          content: none;
+        }
+      }
     </style>
     <!-- PEC-ERP-C1: SASV Workspace specialisation after inline legacy styles so token rules win the cascade -->
     <link rel="stylesheet" href="../shared/css/sasv-procurement-execution-console.css" />
@@ -5456,10 +5590,7 @@
           <div class="form-grid">
             <div class="form-group">
               <label for="prNewNumber">PR Number <span style="color: red">*</span></label>
-              <input id="prNewNumber" placeholder="e.g. PR-2026-07" autocomplete="off" aria-describedby="prNumberHint" />
-              <p id="prNumberHint" class="muted" role="status" aria-live="polite" style="font-size: 12px; margin: 6px 0 0">
-                Suggested from existing PRs; editable before generation.
-              </p>
+              <input id="prNewNumber" placeholder="e.g. PR-2026-07" autocomplete="off" />
             </div>
             <div class="form-group">
               <label for="prEffectiveFrom">Effective From <span style="color: red">*</span></label>
