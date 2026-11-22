@@ -2204,6 +2204,30 @@
           display: inline;
         }
       }
+
+      .pec-ccf-mobile-help, .pec-ccf-item-evidence { display: none; }
+      @media (max-width: 680px) {
+        #ccfPreviewModalBackdrop .modal-body > .pec-section-note { display: none; }
+        #ccfPreviewModalBackdrop .pec-ccf-mobile-help { display: block; margin: 0 0 5px; color: var(--muted, #64748b); font-size: 11px; }
+        #ccfPreviewModalBackdrop .pec-ccf-mobile-help summary { cursor: pointer; padding: 4px 0; color: var(--primary,#0b605a); }
+        #ccfPreviewModalBackdrop .pec-ccf-mobile-help p { margin: 4px 0 6px; line-height: 1.35; }
+        #ccfPreviewModalBackdrop .pec-ccf-summary { margin: 4px 0 6px; padding: 7px 9px; font-size: 11px; line-height: 1.3; }
+        #ccfPreviewModalBackdrop .pec-ccf-search-row { margin: 3px 0 7px; gap: 4px; font-size: 12px; }
+        #ccfPreviewModalBackdrop .pec-ccf-table tbody { gap: 6px; }
+        #ccfPreviewModalBackdrop .pec-ccf-table tr:not(:has(td[colspan])) { padding: 7px 9px; gap: 0 10px; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td,
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child { padding: 2px 0; font-size: 12px; line-height: 1.2; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td::before { font-size: 10px; margin-bottom: 1px; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child { padding-bottom: 5px; margin-bottom: 3px; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child strong { font-size: 13px; line-height: 1.25; }
+        #ccfPreviewModalBackdrop .pec-ccf-desktop-evidence { display: none !important; }
+        #ccfPreviewModalBackdrop .pec-ccf-item-evidence { display: block; margin-top: 2px; font-size: 10px; color: var(--muted,#64748b); }
+        #ccfPreviewModalBackdrop .pec-ccf-item-evidence summary { display: list-item; cursor: pointer; padding: 2px 0; }
+        #ccfPreviewModalBackdrop .pec-ccf-item-evidence span { display: block; line-height: 1.3; margin-bottom: 3px; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(7) .muted { font-size: 10px; margin-top: 1px; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(8) { padding-top: 5px; margin-top: 3px; font-size: 10px; overflow-wrap: anywhere; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(9) { font-size: 11px; }
+      }
 </style>
     <!-- PEC-ERP-C1: SASV Workspace specialisation after inline legacy styles so token rules win the cascade -->
     <link rel="stylesheet" href="../shared/css/sasv-procurement-execution-console.css" />
@@ -5584,6 +5608,10 @@
             Approved/issued unfulfilled indents are shown as existing commitments.
             <strong>Illustrative quantities are not purchasing quantities until an authorised Editor explicitly approves an eligible draft line.</strong>
           </p>
+          <details class="pec-ccf-mobile-help">
+            <summary>How coverage is calculated</summary>
+            <p>12 completed calendar months including zeros. MRP and consumption are alternatives, not additive. Outstanding approved/issued indents are deducted. Recommendations are not purchasing approvals.</p>
+          </details>
           <div class="pec-ccf-summary" id="ccfPreviewSummary" role="status" aria-live="polite">Loading…</div>
           <div class="pec-ccf-search-row">
             <label for="ccfPreviewFilter">Filter items</label>
