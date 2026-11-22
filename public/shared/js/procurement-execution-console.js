@@ -8822,6 +8822,11 @@ function refreshPrViewModal(row) {
     row.status === "draft" && !row.generation_filters?.s4_mode ? "" : "none";
   const btnCreateIndent = qs("btnPrCreateIndent");
   const btnDeleteDraft = qs("btnPrDeleteDraft");
+  const moreMenu = qs("prSecondaryActions");
+  if (moreMenu) {
+    moreMenu.open = false;
+    moreMenu.style.display = isTerminal ? "none" : "";
+  }
   const lockPill = qs("prLineLockPill");
   if (btnActivate) btnActivate.style.display = isDraft ? "" : "none";
   if (btnClose) {
