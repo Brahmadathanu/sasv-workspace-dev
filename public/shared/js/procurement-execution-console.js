@@ -8826,6 +8826,9 @@ function refreshPrViewModal(row) {
   const btnClose = qs("btnPrClosePr");
   const btnAddLine = qs("btnPrAddLine");
   const btnRebuild = qs("btnPrRebuildFromMrp");
+  const btnS4Reconcile = qs("btnPrS4Reconcile");
+  if(btnS4Reconcile) btnS4Reconcile.style.display =
+    row.status === "draft" && !row.generation_filters?.s4_mode ? "" : "none";
   const btnCreateIndent = qs("btnPrCreateIndent");
   const btnDeleteDraft = qs("btnPrDeleteDraft");
   const lockPill = qs("prLineLockPill");
@@ -9301,6 +9304,163 @@ function closePrViewModal() {
   backdrop.setAttribute("aria-hidden", "true");
 }
 
+// S4 authoritative generation and reconciliation use the same server plan.
+// A stale UI preview is never authority; the writer recomputes and snapshots.
+let s4PlanRows = null;
+let s4PlanSignature = "";
+let s4PlanRequestSeq = 0;
+let s4Generating = false;
+let s4Reconciling = false;
+let s4ReconcilePr = null;
+let s4ReconcileEvidence = null;
+let s4ReconRequestSeq = 0;
+
+function s4ParametersForGenerate() {
+  const start = monthToFirstDate(qs("prHorizonStart")?.value);
+  const end = monthToFirstDate(qs("prHorizonEnd")?.value);
+  const raw = qs("prMaterialClass")?.value;
+  const cls = raw ? Number(raw) : null;
+  const scope = cls === 1 ? (qs("prRmScope")?.value || "normal") : "normal";
+  return { p_start: start, p_end: end, p_class: cls, p_rm_scope: scope };
+}
+function s4Signature(p) { return JSON.stringify(p); }
+function s4Summary(rows) {
+  const auto = rows.filter(x => x.gate === "AUTO_ELIGIBLE");
+  return {
+    total: rows.length, auto: auto.length, review: rows.length - auto.length,
+    positive: auto.filter(x => Number(x.recommended_qty)>0).length,
+    zeroMrp: auto.filter(x => Number(x.mrp_net_qty)===0 &&
+      Number(x.recommended_qty)>0).length,
+    consumptionOnly: rows.filter(x => x.consumption_only).length
+  };
+}
+function s4RenderExceptions(rows, targetId) {
+  const target = qs(targetId);
+  if (!target) return;
+  const blocked = rows.filter(x => x.gate !== "AUTO_ELIGIBLE");
+  target.innerHTML = blocked.length
+    ? '<strong>Review-required items (no automatic increase):</strong>' +
+      blocked.slice(0,25).map(x => `<div>${esc(x.stock_item_name || String(x.stock_item_id))} — ${esc(x.gate)}</div>`).join("") +
+      (blocked.length>25 ? `<div>…and ${blocked.length-25} more in the PR evidence.</div>` : "")
+    : '<span class="muted">No review-required items identified by the current evidence.</span>';
+}
+function s4InvalidatePreview() {
+  ++s4PlanRequestSeq;
+  s4PlanRows=null;s4PlanSignature="";
+  const panel=qs("genS4PreviewPanel");
+  if(panel)panel.style.display="none";
+  if(qs("genS4Acknowledged"))qs("genS4Acknowledged").checked=false;
+  s4UpdateGenerateReady();
+}
+function s4UpdateGenerateReady() {
+  const btn=qs("btnGenPrConfirm");
+  if(!btn)return;
+  btn.disabled = !canWriteModule() || s4Generating || !s4PlanRows ||
+    s4PlanSignature !== s4Signature(s4ParametersForGenerate()) ||
+    !qs("genS4Acknowledged")?.checked;
+}
+async function s4PreviewForGenerate() {
+  const params=s4ParametersForGenerate();
+  if(!params.p_start || !params.p_end) {
+    toast("Select both planning months before previewing the requirement.","error");
+    return;
+  }
+  const signature=s4Signature(params);
+  const seq=++s4PlanRequestSeq;
+  s4PlanRows=null;s4PlanSignature="";
+  const panel=qs("genS4PreviewPanel");
+  panel.style.display="";
+  qs("genS4PreviewSummary").textContent="Checking stock, MRP, consumption and outstanding indents…";
+  qs("genS4PreviewExceptions").textContent="";
+  qs("genS4Acknowledged").checked=false;
+  s4UpdateGenerateReady();
+  const result=await supabase.rpc("proc_pec_s4_new_pr_plan",params);
+  if(seq!==s4PlanRequestSeq || !qs("generatePrModalBackdrop")?.classList.contains("show") ||
+    signature!==s4Signature(s4ParametersForGenerate()))return;
+  if(result.error || !Array.isArray(result.data) || !result.data.length){
+    qs("genS4PreviewSummary").textContent=
+      `Preview unavailable: ${pecErrText(result.error || {message:"No planning materials returned"})}`;
+    return;
+  }
+  s4PlanRows=result.data;s4PlanSignature=signature;
+  const sum=s4Summary(result.data);
+  qs("genS4PreviewSummary").textContent=
+    `${sum.total} materials · ${sum.positive} positive automatic requirements · ${sum.zeroMrp} zero-MRP materials now included · ${sum.consumptionOnly} consumption-only candidates · ${sum.review} require manual review. No indent will be created.`;
+  s4RenderExceptions(result.data,"genS4PreviewExceptions");
+  s4UpdateGenerateReady();
+}
+
+async function s4OpenReconciliation() {
+  const pr=state.selectedPr;
+  if(!pr || pr.status!=="draft" || !canPerformEditAction("Reconcile consumption coverage")) return;
+  if(pr.generation_filters?.s4_mode){
+    toast("S4 evidence already exists for this draft. A second reconciliation is not allowed.","error");
+    return;
+  }
+  const modal=qs("s4ReconcileModalBackdrop");
+  s4ReconcilePr=pr;
+  s4ReconcileEvidence=null;
+  const seq=++s4ReconRequestSeq;
+  qs("s4ReconcileReason").value="";
+  qs("s4ReconcileAcknowledged").checked=false;
+  qs("s4ReconcileError").textContent="";
+  qs("s4ReconcileSummary").textContent="Checking source evidence before draft reconciliation…";
+  qs("s4ReconcileExceptions").textContent="";
+  modal.classList.add("show");modal.setAttribute("aria-hidden","false");
+  s4UpdateReconcileReady();
+  const params={
+    p_start:pr.horizon_start_month,p_end:pr.horizon_end_month,
+    p_class:pr.material_class_id,
+    p_rm_scope:pr.generation_filters?.rm_scope || "normal"
+  };
+  const result=await supabase.rpc("proc_pec_s4_new_pr_plan",params);
+  if(seq!==s4ReconRequestSeq || !modal.classList.contains("show"))return;
+  if(result.error || !Array.isArray(result.data)||!result.data.length){
+    qs("s4ReconcileError").textContent=pecErrText(result.error || {message:"No planning materials"});
+    return;
+  }
+  s4ReconcileEvidence=result.data;
+  const sum=s4Summary(result.data);
+  qs("s4ReconcileSummary").textContent=
+    `${pr.pr_number}: ${sum.total} materials, ${sum.positive} positive eligible suggestions, ${sum.zeroMrp} zero-MRP additions and ${sum.review} exceptions. Untouched draft lines only; all prior edits preserved. This is an audited one-time operation.`;
+  s4RenderExceptions(result.data,"s4ReconcileExceptions");
+  s4UpdateReconcileReady();
+}
+function s4UpdateReconcileReady() {
+  const b=qs("btnS4ReconcileConfirm");if(!b)return;
+  b.disabled=!canWriteModule() || s4Reconciling || !s4ReconcilePr ||
+    !s4ReconcileEvidence || !qs("s4ReconcileAcknowledged")?.checked ||
+    (qs("s4ReconcileReason")?.value || "").trim().length<20;
+}
+function s4CloseReconciliation() {
+  if(s4Reconciling)return;
+  ++s4ReconRequestSeq;s4ReconcilePr=null;s4ReconcileEvidence=null;
+  hideModalBackdrop(qs("s4ReconcileModalBackdrop"),[qs("btnPrS4Reconcile")]);
+}
+async function s4ApplyReconciliation() {
+  if(!s4ReconcilePr || !s4ReconcileEvidence || !qs("s4ReconcileAcknowledged")?.checked ||
+    (qs("s4ReconcileReason")?.value || "").trim().length<20 ||
+    !canPerformEditAction("Reconcile draft PR"))return;
+  s4Reconciling=true;s4UpdateReconcileReady();
+  const pr=s4ReconcilePr;
+  const result=await supabase.rpc("proc_pec_s4_reconcile_draft",{
+    p_pr_id:pr.pr_id,p_expected_updated_at:pr.updated_at,
+    p_reason:qs("s4ReconcileReason").value.trim(),p_confirm:true
+  });
+  s4Reconciling=false;
+  if(result.error){
+    qs("s4ReconcileError").textContent=
+      pecWriterErrorText("S4 reconciliation was not applied",result.error);
+    s4UpdateReconcileReady();return;
+  }
+  const receipt=result.data || {};
+  s4CloseReconciliation();
+  toast(`S4 reconciled: ${receipt.updated_untouched_lines || 0} untouched lines updated; ${receipt.added_missing_lines || 0} missing items added. Review exceptions before activation.`,"success");
+  await loadPrHeaders();
+  await loadPrLines(pr.pr_id);
+  closePrViewModal(); // refresh the header from the new list before reopening
+}
+
 // Next PR number is a suggestion only. The existing unique index on
 // proc_pr_header.pr_number remains authoritative on concurrent creates.
 let prNumberSuggestionSeq = 0;
@@ -9351,6 +9511,7 @@ async function updateGeneratePrNumberSuggestion() {
 
 function openGeneratePrModal() {
   if (!canPerformEditAction("Generate PR")) return;
+  s4InvalidatePreview();
   lastFocusedBeforeGeneratePrModal =
     document.activeElement instanceof HTMLElement
       ? document.activeElement
@@ -9379,6 +9540,7 @@ function updateGeneratePrRmScopeVisibility() {
 }
 
 function closeGeneratePrModal() {
+  s4InvalidatePreview();
   ++prNumberSuggestionSeq; // discard an in-flight suggestion after dismissal
   const backdrop = qs("generatePrModalBackdrop");
   const active = document.activeElement;
@@ -9455,8 +9617,15 @@ async function generateDraftPr() {
     genFilters.rm_scope = qs("prRmScope").value || "all";
   }
 
+  if (!s4PlanRows || s4PlanSignature !== s4Signature(s4ParametersForGenerate()) ||
+      !qs("genS4Acknowledged")?.checked) {
+    toast("Preview and acknowledge the MRP + consumption requirement before generating.","error");
+    return;
+  }
+  if (s4Generating) return;
+  s4Generating=true;s4UpdateGenerateReady();
   setLoading(true);
-  const { error } = await supabase.rpc("create_pr_from_mrp_plan", {
+  const { data: s4Receipt, error } = await supabase.rpc("proc_pec_s4_generate_pr", {
     p_pr_number: prNumber,
     p_effective_from_date: effectiveFrom, // must be YYYY-MM-DD
     p_horizon_start_month: horizonStart, // now YYYY-MM-01
@@ -9464,13 +9633,16 @@ async function generateDraftPr() {
     p_material_class_id: materialClassId,
     p_generation_filters: genFilters,
     p_notes: notes,
+    p_confirm: true,
   });
   setLoading(false);
+  s4Generating=false;
+  s4UpdateGenerateReady();
   if (error) {
     toast(pecWriterErrorText("Generate PR failed", error), "error");
     return;
   }
-  toast("Draft PR generated.", "success");
+  toast(`S4 draft generated: ${s4Receipt?.auto_evidenced_lines || 0} evidenced lines, ${s4Receipt?.review_required_lines || 0} items requiring review.`, "success");
   closeGeneratePrModal();
   // Reload list
   await loadPrHeaders();
@@ -9664,6 +9836,20 @@ function wirePrControls() {
     setPrSecondaryInfoOpen(qs("prDetailMeta")?.hidden !== false);
   });
   qs("btnGeneratePr").addEventListener("click", openGeneratePrModal);
+  qs("btnGenS4Preview")?.addEventListener("click",s4PreviewForGenerate);
+  qs("genS4Acknowledged")?.addEventListener("change",s4UpdateGenerateReady);
+  ["prHorizonStart","prHorizonEnd","prMaterialClass","prRmScope"].forEach(id=>{
+    qs(id)?.addEventListener("change",s4InvalidatePreview);
+  });
+  qs("btnPrS4Reconcile")?.addEventListener("click",s4OpenReconciliation);
+  qs("btnS4ReconcileClose")?.addEventListener("click",s4CloseReconciliation);
+  qs("btnS4ReconcileCancel")?.addEventListener("click",s4CloseReconciliation);
+  qs("s4ReconcileReason")?.addEventListener("input",s4UpdateReconcileReady);
+  qs("s4ReconcileAcknowledged")?.addEventListener("change",s4UpdateReconcileReady);
+  qs("btnS4ReconcileConfirm")?.addEventListener("click",s4ApplyReconciliation);
+  qs("s4ReconcileModalBackdrop")?.addEventListener("click",e=>{
+    if(e.target.id==="s4ReconcileModalBackdrop")s4CloseReconciliation();
+  });
   // PR detail modal
   qs("btnPrViewClose").addEventListener("click", closePrViewModal);
   qs("btnPrCoveragePreview")?.addEventListener("click", openCcfPreview);
