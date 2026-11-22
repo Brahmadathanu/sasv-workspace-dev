@@ -10103,6 +10103,14 @@ function wirePrControls() {
   qs("btnCcfPreviewClose")?.addEventListener("click", closeCcfPreview);
   qs("btnCcfPreviewDone")?.addEventListener("click", closeCcfPreview);
   qs("ccfPreviewFilter")?.addEventListener("change", renderCcfPreview);
+  // The preview can be opened at desktop width then rotated/resized to mobile.
+  // Re-render the compact rows at the breakpoint instead of stretching the
+  // already-created nine-cell desktop table into oversized mobile cards.
+  window.matchMedia("(max-width: 680px)").addEventListener("change", () => {
+    if (qs("ccfPreviewModalBackdrop")?.classList.contains("show")) {
+      renderCcfPreview();
+    }
+  });
   qs("ccfPreviewModalBackdrop")?.addEventListener("click", (event) => {
     if (event.target.id === "ccfPreviewModalBackdrop") closeCcfPreview();
   });
