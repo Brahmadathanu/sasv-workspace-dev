@@ -2,6 +2,40 @@
 
 **Date:** 22 November 2026 (IST). **Programme:** PEC S4, issue #305. **Implementation:** PR #496. **Release decision:** NOT YET ISSUED. Keep the current v6.2.0 release and its GitHub latest.yml intact until a separately approved v6.3.0 publication.
 
+## CURRENT HANDOVER STATE — 22 November 2026 (authoritative checkpoint)
+
+**Stop unbounded iteration.** The user explicitly requested a clean transfer to a new project chat and an end-to-end finish without further cycling. Do not perform repetitive CI polling, reopen settled design questions, add minor enhancements, or silently rewrite draft PRs.
+
+**Source-control boundary**
+- Current implementation: [draft PR #496](https://github.com/Brahmadathanu/sasv-workspace-dev/pull/496), head `53dbd2a339627530c759ebcf5ae3180a870c0c2c`, branch `feat/pec-s4-end-to-end-20261122` against `main` at `62ac12367486c6d270b6c4264f86bd10f01a2f3a`. PR is OPEN, DRAFT, mergeable. **NOT MERGED**, so its new UI is **not on main** or in the v6.2.0 installer.
+- At this exact pinned head, **PEC Integrated Browser Acceptance #45004505941 = SUCCESS** and **PEC Vendor-wise Offset Export Integrity #45004505916 = SUCCESS**. Both completed. No need to rerun merely to reconfirm them unless source/build changes.
+- The CI acceptance covers synthetic Chromium fixture controls and repository static/security regressions, **not independently authenticated production browser acceptance**.
+
+**Live Supabase boundary — project `qhmoqtxpeasamtlxaoak`**
+- Nine previously registered S4 migrations are applied and source-present in PR #496 (including the two earlier #495 migrations already on main). Source pins use branch/hash-checked migration guards; do not apply these migrations again.
+- Latest installed S4 migration: `20261122084655_pec_s4_duplicate_pr_horizon_guard`.
+- Rolled-back **server integration tests**: new PM generator for label #1638 (Label - Punarnavasavam 450 ML) produces **2,098 Nos** from original MRP **0 Nos** with frozen evidence; new and legacy RPC paths have been tested. PR-2026-08 legacy reconciliation dry-run: **719 candidates; 91 additional missing items; 7 review cases; 621 untouched existing lines update**, including label 0→2,098. PR-2026-07 dry-run: **502 candidates; 64 additional missing items; 30 review cases; 409 untouched lines update**. Neither reconciliation was committed; the real drafts and their purchasing quantities remain untouched.
+- Canonical View-only session-claim can read 719 PM candidate rows; Edit denied; no-auth preview denied. Duplicate PR number, same-horizon duplicate PR, stale optimistic token, non-draft reconciliation and retired legacy CCF writer were tested to reject. A different horizon generated successfully inside a rolled-back transaction.
+- **No real live PR activation, indent creation, purchase order, installer publication or full signed-in Editor pilot** has been performed. Do not portray rolled-back SQL test personas as authenticated operator acceptance.
+
+**Residual work that actually prevents closure**
+1. Review the *current* diff on PR #496 against the exact pinned head for severity-level contract issues only; avoid speculative refactoring. If unchanged and CI green, advance PR to ready for review and obtain/confirm owner merge authorization, then merge in one controlled operation. User's instruction is to complete this workflow, but release/publishing and production business-data changes must have distinct gates.
+2. Verify PWA/Netlify published commit and a truly authenticated Editor plus View-only read-only preview on production, including 390px and expected review states. Never create real PRs just to test UI without authorization.
+3. For the already-existing PR-2026-07/08: show final candidate counts and exception details to the owner, then request one explicit, consolidated approval to **reconcile both drafts**, preserving manual edits; use the guarded single-run reconciler only after approval. The user wants completion, but did not explicitly authorise modification of these specific production draft quantities.
+4. Release new Electron UI as a **separate minor-version `v6.3.0` package** after merged client acceptance. v6.2.0 latest release was published 20 Nov 2026 and remains current. Bump `package.json` + `package-lock.json` on a separate release branch/PR; run Windows Electron tests and validate installer/ZIP/`latest.yml`/blockmap checksums and updater behavior. Require distinct user approval before public GitHub release/publishing or staff rollout. Do not assume PWA deployment updates installed Electron client.
+5. Finish issue #305 and release documentation only **after** server, PR behavior, signed-in browser, installer and pilot acceptance evidence are assembled.
+
+**Important semantics / caution**
+- Consumption average: 12 **completed calendar months including zeros**; horizon 1–6 months. Demand alternative = max(stock-netted MRP, independently stock-netted consumption) minus approved/issued remaining indent balance; final eligible MOQ/Nos rounding. **Never sum both demand paths** and never count a newly created PR itself as an outstanding indent.
+- New PRs: server auto-populates positive eligible recommendations; includes materials with consumption but absent from MRP; freezes per-line evidence. Ineligible/review states carry no automatic extra purchase quantity.
+- The legacy v6.2.0 RPC now routes to the hybrid generator, and MRP-only rebuild on S4 PRs is blocked. A prior #495 single-line writer with inconsistent calculation has been retired; do not revive it.
+- Source guard checked 9 planning-unit mismatches (MRP vs stock default) and added forward-only no-duplicate rule; review cases should not be silently forced.
+- Avoid running future-horizon test PRs except within explicit `BEGIN … ROLLBACK`, and avoid repeated live queries after evidence is sufficient.
+
+**Concise reporting rule:** Every continuation reply: `Server: PASS | Client: CI PASS, awaiting merge | Signed-in acceptance: PENDING | Legacy drafts: NOT RECONCILED | Electron v6.3.0: NOT PACKAGED`, updating only if evidence changes.
+
+---
+
 ## Owner-approved objective
 
 A PR must never omit a purchasable RM/PM material solely because production MRP suggests zero if historical consumption indicates a net procurement requirement. All sources must contribute to one auditable recommended quantity, not two quantities added together. Include valid consumption-only items missing from the MRP population; do not include internally produced finished-bulk/semifinished items. Keep manual corrections, permissions, origin provenance and audit history.
@@ -30,7 +64,7 @@ A PR must never omit a purchasable RM/PM material solely because production MRP 
 | 20261122084452 | Forward-only guard: never create default-UOM consumption-only duplicate when item is already in an MRP UOM |
 | 20261122084655 | Transaction-locked guard against duplicate active/draft PR for the same class, scope and complete horizon |
 
-All six source migration filenames must exactly match the registered migration versions. New SQL is branch/SHA-pinned in the existing mutation-sensitive PEC protected-path guard. Never reapply migrations already in production.
+All nine source migration filenames must exactly match the registered migration versions. New SQL is branch/SHA-pinned in the existing mutation-sensitive PEC protected-path guard. Never reapply migrations already in production.
 
 ## Acceptance receipts recorded so far
 
