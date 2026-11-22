@@ -920,6 +920,41 @@
       .detail-action-buttons .icon-btn.ghost {
         border-color: var(--border, #e5e7eb);
       }
+      /* S4 preview is informational; it never exposes a mutation control. */
+      #ccfPreviewModalBackdrop .pec-ccf-preview { max-width: 1180px; }
+      #ccfPreviewModalBackdrop .pec-ccf-summary {
+        padding: 10px 12px; margin: 10px 0; border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px; font-size: 13px; line-height: 1.5;
+      }
+      #ccfPreviewModalBackdrop .pec-ccf-search-row {
+        display: flex; align-items: center; gap: 10px; margin: 10px 0;
+      }
+      #ccfPreviewModalBackdrop .pec-ccf-search-row select {
+        width: auto; min-width: 200px;
+      }
+      #ccfPreviewModalBackdrop .pec-ccf-scroll {
+        overflow: auto; max-height: 62vh; border: 1px solid var(--border, #e5e7eb); border-radius: 8px;
+      }
+      #ccfPreviewModalBackdrop .pec-ccf-table {
+        width: 100%; border-collapse: collapse; min-width: 900px; font-size: 12px;
+      }
+      #ccfPreviewModalBackdrop .pec-ccf-table th,
+      #ccfPreviewModalBackdrop .pec-ccf-table td {
+        padding: 9px 10px; border-bottom: 1px solid var(--border, #e5e7eb);
+        text-align: left; vertical-align: top;
+      }
+      #ccfPreviewModalBackdrop .pec-ccf-table th {
+        position: sticky; top: 0; background: var(--panel-bg, #fff); z-index: 1;
+      }
+      #ccfPreviewModalBackdrop .pec-ccf-table td:first-child { min-width: 230px; }
+      #ccfPreviewModalBackdrop .pec-ccf-table td .muted {
+        display: block; margin-top: 3px; font-size: 11px;
+      }
+      @media (max-width: 520px) {
+        #ccfPreviewModalBackdrop .pec-ccf-search-row { align-items: stretch; flex-direction: column; }
+        #ccfPreviewModalBackdrop .pec-ccf-search-row select { width: 100%; }
+        #ccfPreviewModalBackdrop .pec-ccf-scroll { max-height: 58vh; }
+      }
       .detail-action-buttons .icon-btn svg {
         flex-shrink: 0;
       }
@@ -4813,6 +4848,21 @@
               </svg>
             </button>
             <button
+              id="btnPrCoveragePreview"
+              type="button"
+              class="icon-btn primary"
+              title="Review Consumption Coverage"
+              aria-label="Review Consumption Coverage"
+              aria-haspopup="dialog"
+              aria-controls="ccfPreviewModalBackdrop"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 3v18h18" /><path d="m7 15 4-5 4 2 4-7" />
+                <circle cx="19" cy="5" r="1" />
+              </svg>
+            </button>
+            <button
               id="btnPrRebuildFromMrp"
               type="button"
               data-edit-action="true"
@@ -5258,6 +5308,52 @@
           >
             Clear Vendor Assignment
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PEC S4: read-only, auditable consumption coverage preview. -->
+    <div class="modal-backdrop" id="ccfPreviewModalBackdrop" aria-hidden="true">
+      <div class="modal modal-fullpage pec-ccf-preview" role="dialog" aria-modal="true" aria-labelledby="ccfPreviewTitle">
+        <div class="modal-header page-header">
+          <div>
+            <h3 id="ccfPreviewTitle" style="margin: 0">Consumption Coverage Review</h3>
+            <p id="ccfPreviewPrContext" class="muted" style="font-size: 12px; margin: 4px 0 0"></p>
+          </div>
+          <button id="btnCcfPreviewClose" type="button" class="modal-close-btn" title="Close" aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="pec-section-note">
+            Read-only planning evidence. Based on 12 completed calendar months including months with zero usage.
+            MRP quantity and consumption coverage are alternative stock-netted plans, not additive.
+            Approved/issued unfulfilled indents are shown as existing commitments.
+            <strong>Illustrative quantities are not approved purchasing quantities.</strong>
+          </p>
+          <div class="pec-ccf-summary" id="ccfPreviewSummary" role="status" aria-live="polite">Loading…</div>
+          <div class="pec-ccf-search-row">
+            <label for="ccfPreviewFilter">Filter items</label>
+            <select id="ccfPreviewFilter">
+              <option value="gaps">Items needing review</option>
+              <option value="all">All PR lines</option>
+              <option value="zero">Zero MRP with usage</option>
+            </select>
+          </div>
+          <div class="table-scroll pec-ccf-scroll" role="region" aria-label="Consumption coverage comparison table" tabindex="0">
+            <table class="pec-ccf-table">
+              <thead><tr>
+                <th>Item / Evidence</th><th>MRP</th><th>PR Final</th><th>12m Usage</th>
+                <th>Stock</th><th>Open Indents</th><th>Illustrative Floor</th><th>Review state</th>
+              </tr></thead>
+              <tbody id="ccfPreviewTbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="button" id="btnCcfPreviewDone">Close Review</button>
         </div>
       </div>
     </div>
