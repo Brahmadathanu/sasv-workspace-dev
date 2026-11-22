@@ -77,3 +77,15 @@ A single **read-only SQL diagnostic**, reconstructed from the current committed 
 2. Only after explicit consolidated owner approval, use the canonical guarded reconciliation with reason, acknowledgement, fresh updated_at token and authorised Editor session, and verify the frozen evidence.
 3. **Same-day restriction:** Both drafts were created 22 Nov 2026 IST. The canonical reconciler rejects a PR whose creation date is not today; from **23 Nov IST** these drafts require a separate governed historic-draft review rather than a bypass.
 4. Keep v6.3.0 publication and staff rollout separately gated.
+
+## MOQ conflicts confirmed against live policies (read-only)
+
+All six rows below are simultaneously active with no effective end date. These are **real conflicting policies**, not invalid fractional count quantities:
+
+| Item | Active MOQ choices | Unit |
+|---|---|---|
+| #896 Thaleesapathri (D) | 30; 40 | Kg |
+| #972 Uzhunnu | 30; 50 | Kg |
+| #1357 Chukku Podi 40 G - Monocarton | 5,000; 10,000 | Nos |
+
+An authorised master-data decision is needed to retire the superseded policy for each item. No policy was changed in this inspection.
