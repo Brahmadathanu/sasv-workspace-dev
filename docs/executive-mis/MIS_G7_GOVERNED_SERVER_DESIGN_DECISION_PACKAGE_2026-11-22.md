@@ -518,3 +518,25 @@ The underlying `v_dwl_fg_transfer_cutoff` currently returned `2024-06-17`. This 
 **Recommended accelerated disposition (review direction only):** segregate six physically/audit-confirmable Tally-vs-log exceptions, one date-effective MRP exception, and distinct SKU full manufacturing-COP lookup. For missing logs validate matched batch/SKU/voucher and later events/ETL coverage before any backfill; absence in the recon view is not proof no physical transfer happened. Keep the six statuses as actual `MISSING_LOG` until source-resolved. Do not suppress exceptions, fabricate packing or bulk receipts, or book Tally transfer amount as manufacturing cost. No new public monetary RPC until validation/security/latency evidence and owner authorization.
 
 **Next exact bounded G7 action:** inspect the six exceptions' existing voucher-line keys and SKU breakdown using dated as-of filters and the independent log identities; inspect the accepted SKU full-COP cost-source schema and rate/period semantics. Produce final C1–C3/T1–T3 owner decision matrix. G7 OPEN; formal 6/11 (~55%). No production mutation, RLS/grants, client merge, cache or release action.
+
+
+## XXII. G7 six November transfer exceptions: Tally voucher-line identities and approved-COP gate (22 November 2026)
+
+**Read-only bounded evidence** (live `qhmoqtxpeasamtlxaoak`; explicit event window 1–21 Nov 2026; voucher-line `as_of_date=2026-11-22`; no DDL/DML). Existing `v_fg_transfer_reconciliation` returns six `MISSING_LOG` rows; each has a valid single SKU-keyed breakdown, mapped godown and no matching DWL reconciliation ID, `log_breakdown_lines=NULL`. Distinguish **no matching event in that view** from proof no work log was ever entered or a physical transfer did not occur.
+
+| Date | Product / batch | SKU | Tally packs | Product base qty (existing recon) | Original voucher / line |
+|---|---|---:|---:|---:|---|
+| 07-Nov | 771 Kantha Chendooram / 4166 | 969 | 515 | 2.575 Kg | `TN/IK/TVM/349`, inv 19, batch line 1 |
+| 07-Nov | 1025 Gunmakudori Mezhuku / 4082 | 1273 | 222 | 2.220 Kg | `TN/IK/TVM/349`, inv 20, batch line 1 |
+| 11-Nov | 808 Pavizha Parpam / 3754 | 1308 | 321 | 1.605 Kg | `TN/IK/TVM/353`, inv 4, batch line 1 |
+| 12-Nov | 1020 Agasthyar Kuzhambu / 4428 | 1271 | 200 | 1.000 Kg | `TN/IK/TVM/354`, inv 1, batch line 1 |
+| 21-Nov | 724 Mailanchi Podi / SP846 | 892 | 576 | 23.040 Kg | `TN/IK/TVM/364`, inv 1, batch line 1 |
+| 21-Nov | 871 Chirattai Thailam / 5249 | 1091 | 480 | 4.368 Kg | `TN/IK/TVM/365`, inv 1, batch line 1 |
+
+All six voucher lines are stored as `transfer_store=IK`, with their original GUID preserved in the live source. The two 07-Nov exceptions are **different inventory lines of the same voucher**, not two separate voucher documents. The base quantities are as computed by the current Tally normalization, not fresh physical verification. SKU 1091/10 mL to Kg conversion needs existing canonical density/UOM proof before it is independently relied upon in MIS manufacturing metrics.
+
+**Manufacturing-cost reference identified:** `costing.sku_internal_loaded_cost_snapshot.manufacturing_cop_per_sku` (rather than `internal_loaded_cost_per_sku`, transfer book amount, or date-effective MRP). This snapshot carries `period_start,sku_id,valuation_date,refresh_run_id,manufacturing_cop_status` for source lineage. The seven relevant November SKU rows (latest inspected run 152, valuation 16-Nov) are: SKU 892 READY ₹16.0312/pack; 969 REVIEW_REQUIRED ₹17.2460; 1091 READY ₹9.4075; 1271 REVIEW_REQUIRED ₹24.2541; 1273 REVIEW_REQUIRED ₹12.8810; 1308 READY ₹125.4079; 1350 REVIEW_REQUIRED ₹60.8184. **These are candidate draft-source values only; none is approved for verified MIS valuation in this audit.**
+
+**Critical independent approval proof:** `costing.v_costing_period_run_status` reports **November 2026 OPEN, approved_run_id=NULL, displayed_run_id=152, display_state=DRAFT**. October 2026 reports approved_run_id **143**, approved valuation 22-Oct, displayed run 143, newer draft 148. Even SKU rows marked `READY` in Nov run 152 are **not approved costing rates**. No production-transfer manufacturing achievement value may be called VERIFIED by selecting latest/READY run indiscriminately. Review whether owner-approved previous-period rate is a permissible *explicitly labelled reference proxy* for a November transfer without claiming actual November COP; period alignment and policy authorization remain open. Never use unapproved draft as if approved.
+
+**Bounded next proof:** six matched voucher keys against daily work logs, original packaging/SKU movements, date/correction/reassignment statuses; then choose the approved-run cost policy and allowed provisional-reference semantics. T1–T3 exception disposition and C1–C3 whole-batch closure stay REVIEW until actual lineage and controls pass. **No automatic backfill**, ledger correction, new public RPC, release/client/permission changes; formal 6/11 G7 OPEN.
