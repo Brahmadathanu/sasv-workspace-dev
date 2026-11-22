@@ -91,3 +91,35 @@ This finding strengthens the KEEP-first approach: Scheme Master and selected-sch
 **Safety blockers before any S2 pilot:** enumerate all 64 run FK references and the three scheme viability FK links with retention semantics, check referenced run designations/fingerprints, archive manifest+checksum+restore rehearsal, prove selected-scheme IK/OK outputs and printed cost sheets unchanged, show per-run exact byte/row estimates, document lock/WAL impact and whether VACUUM can reuse or reclaim capacity. An automated first-of-month job is prohibited before this pilot demonstrates idempotent recovery and owner accepts the exact policy.
 
 **Security sidecar:** issue [#494](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/494) tracks unresolved conflicting V1 No-access views; unrelated to destructive storage approval and not a cleared finding.
+
+## S2 — live run-sensitive bounded preview (22 Nov 2026; read-only; not a purge approval)
+
+The exact `costing.costing_run_designation` ledger has **six designated run IDs**: September **119 REFERENCE**, **122 APPROVED**; October **128,136,140 APPROVED then REVOKED**, **143 APPROVED**. **None of July/August's runs were formally designated.** Critical policy correction: `APPROVED → REVOKED` means there is a historically significant approval decision, not an ordinary disposable draft. Preserve these IDs, approval fingerprints, reason+timestamps and audit metadata regardless of whether details are later compacted.
+
+| Month | Runs | Never designated | Historically designated | Traceability lines | Signed/billed evidence rows | Regional evidence rows |
+| --- | ---: | ---: | --- | ---: | ---: | ---: |
+| July 2026 | 59 | 59 | none | 29,154 | 436,996 | 327,747 |
+| August 2026 | 5 | 5 | none | 29,197 | 327,051 | 327,051 |
+| September 2026 | 38 | 36 | 119,122 | 874,391 | 3,269,459 | 3,269,459 |
+| October 2026 | 18 | 14 | 128,136,140,143 | 442,156 | 1,746,592 | 1,746,592 |
+| November 2026 | 4 | 4 | none | 82,984 | 333,036 | 333,036 |
+
+Rows above are **exact counts** from a grouped bounded read-only production query, as observed on 22 Nov 2026. They are **not byte savings**; relation allocation, TOAST, index occupancy, space reuse and PostgreSQL file truncation differ. Three relations measured in this preview total more than 13 million evidence/traceability rows. These evidence rows may be copied on every run, even if source business sales transactions are unchanged; test true lineage and signed-report dependencies before removing any.
+
+### Decision matrix for an S2 preview candidate (NOT execute list)
+1. **PERMANENT GOVERNANCE / HOLD:** run designation ledger (including `REFERENCE`, prior `APPROVED` and `REVOKED`), approval fingerprints, approval/lock dates, financial/marketing acceptance decisions, incident and reproducibility manifests. Never delete a run solely because its designation is revoked or its `overall_status` is SUCCESS. As observed, 119,122,128,136,140,143 have historical designations. Retain the header and necessary dependencies until a reversible governance design passes.
+2. **CURRENT operational / HOLD:** run 152 (displayed November draft), run 143 (displayed approved October), run 122 (displayed approved September); no destructive action while referenced by current views/pricing.
+3. **Historical displayed without approval / HOLD:** July run 80 and August run 82 currently serve as displayed successful runs despite no approval. Displayed status is an independent protection gate; do not delete until replacement/period policy is proven.
+4. **Superseded approved details / COMPATION CANDIDATE ONLY:** October 128,136,140 and reference 119 are possible *large snapshot* compaction subjects only after archived immutable evidence and printed/financial parity. Do not delete their authoritative approval and reference ledgers.
+5. **Undesignated old runs / CANDIDATE:** July's 59 and August's 5 historical runs qualify for *screening*, subject to the displayed-run exception and other references. September's 36 and October's 14 undesignated runs are also candidate detail sets after controls; November runs are current and excluded. Candidate does not mean permission to purge.
+
+### Confirmed execution blockers
+- **64 run-header FKs**, many with `ON DELETE RESTRICT` or NO ACTION; ten large direct dependents include `cost_sheet_line_traceability_snapshot` (3546 MiB), `marketing_regional_sales_evidence_snapshot` (3114 MiB), `marketing_signed_billed_sales_evidence_snapshot` (2732 MiB), `cost_sheet_line_monthly_snapshot` (1314 MiB), and cost RM line tables.
+- Some references are **acceptance registers** (`material_review_acceptance_register.source_refresh_run_id`, `regional_marketing_evidence_acceptance.source_refresh_run_id`, etc.) and historical controls. Deleting dependent snapshot lines without a FK/lineage contract migration may destroy valid regulatory evidence even if the header survives.
+- `sku_scheme_viability_snapshot` has **three incoming RESTRICT FK references**, plus six direct view consumers; all-scheme rebuild cannot be stopped before view/client and FK migration.
+- **No production DML, DDL, VACUUM FULL, refresh, archive copy, or scheduler update executed.**
+
+### S3 design/verification required before execution
+Prepare a **read-only decision manifest** with one record per `refresh_run_id`, including period, displayed run, designation history, protected approvals/lock, all 64 dependency reference counts, accepted external ledger refs, each snapshot row count, and byte-reclamation projections labeled as estimates. Flag any run with designation history, displayed/official consumer, accepted financial evidence, approval fingerprint or legal retention as HOLD by default. Prefer a **small pilot** removing only isolated, undesignated, undisplayed historical per-run detail after sealed recoverable archive + restore rehearsal + app parity + owner approval. Do not enable automatic month-start deletion until rollback, idempotence and retention boundaries are independently tested. The 3-month rule is a *policy target* not sufficient authorization to purge older receipts.
+
+S2 outcome: **read-only dependency and period counts verified, destructive pilot BLOCKED pending independent per-run reference/lineage and recovery proofs.**
