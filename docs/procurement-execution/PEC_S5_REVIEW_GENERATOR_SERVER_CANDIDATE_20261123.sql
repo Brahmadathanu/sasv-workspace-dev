@@ -60,10 +60,12 @@ BEGIN
   END IF;
   IF p_pr_number IS NULL OR length(btrim(p_pr_number))<3
     OR p_effective_from_date IS NULL
+    OR p_horizon_start_month IS NULL OR p_horizon_end_month IS NULL
     OR p_expected_plan_signature IS NULL
     OR p_expected_plan_signature !~ '^[0-9a-f]{32}$'
   THEN RAISE EXCEPTION 'Valid PR number, effective date and current plan signature are required'; END IF;
-  IF p_material_class_id NOT IN (1,2,5) OR p_method NOT IN ('plan','hybrid') THEN
+  IF p_material_class_id IS NULL OR p_material_class_id NOT IN (1,2,5)
+    OR p_method IS NULL OR p_method NOT IN ('plan','hybrid') THEN
     RAISE EXCEPTION 'Unsupported S5 class or method';
   END IF;
 
