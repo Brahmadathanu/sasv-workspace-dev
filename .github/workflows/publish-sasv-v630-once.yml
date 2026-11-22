@@ -1,3 +1,4 @@
+# One-time owner-approved pilot publication. Fail closed on tag, SHA, and stable-channel checks.
 name: Publish SASV Workspace v6.3.0 pre-release once
 on:
   push:
