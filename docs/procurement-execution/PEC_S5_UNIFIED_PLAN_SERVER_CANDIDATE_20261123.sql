@@ -228,16 +228,18 @@ BEGIN
         AND c.month_start_date<v_month
       GROUP BY 1
       HAVING sum(c.total_consumed_qty)>0
+    ), planned_jit_ids AS MATERIALIZED (
+      SELECT DISTINCT p.stock_item_id
+      FROM public.v_mrp_procurement_plan p
+      WHERE p.material_class_id=1 AND p.month_start BETWEEN p_start AND p_end
     ), k AS MATERIALIZED (
       SELECT u.*,si.name item_name,si.default_uom_id uom_id,
         uv.code uom_code,u.used12/12*v_h period_usage
       FROM usage u
       JOIN public.inv_stock_item si ON si.id=u.item_id
       LEFT JOIN public.inv_uom uv ON uv.id=si.default_uom_id
-      WHERE NOT EXISTS (
-        SELECT 1 FROM public.v_mrp_procurement_plan p
-        WHERE p.material_class_id=1 AND p.stock_item_id=u.item_id
-          AND p.month_start BETWEEN p_start AND p_end)
+      LEFT JOIN planned_jit_ids p ON p.stock_item_id=u.item_id
+      WHERE p.stock_item_id IS NULL
     ), st AS MATERIALIZED (
       SELECT s.inv_stock_item_id item_id,sum(s.qty_value) stock_qty,
          count(*) source_count,max(s.source_kind) source_kind
