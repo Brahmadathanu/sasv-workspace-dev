@@ -12,7 +12,7 @@
 | Client | `s4UpdateGenerateReady` requires a confirmed review of the plan for every scope; `generateDraftPr` calls the hybrid writer. |
 
 ## 2. Design (additive; the hybrid functions are not modified)
-Migration `20261122153109_pec_jit_mrp_route_plan_and_generator.sql` (created with `supabase migration new`, CLI 3.2.0) adds exactly two SECURITY DEFINER functions:
+Migration `20261122163830_pec_jit_mrp_route_plan_and_generator.sql` (created with `supabase migration new`, CLI 3.2.0) adds exactly two SECURITY DEFINER functions:
 
 * `proc_pec_jit_mrp_plan(p_start,p_end,p_compare_consumption default true)` — **view** permission.
 * `proc_pec_jit_generate_pr(…, p_compare_consumption, p_confirm)` — **edit** permission, `p_confirm = true`.
@@ -44,7 +44,11 @@ RM Normal, PM, IND and RM All keep the existing hybrid/legacy functions byte-for
 ## 5. Approval gates
 1. **Owner review** of this design and the migration (SQL SHA-256 pinned in `scripts/lib/pec-protected-path-guard.mjs`).
 2. **Staging/rolled-back proof** of the migration against a production-shaped copy by a DB reviewer (the fixture is synthetic).
-3. **Owner approval of the production install** of migration `20261122153109` (additive; rollback = `DROP FUNCTION public.proc_pec_jit_generate_pr(text,date,date,date,jsonb,text,boolean,boolean); DROP FUNCTION public.proc_pec_jit_mrp_plan(date,date,boolean);`). Do not use `db push`.
+3. **Owner approval of the production install** of migration `20261122163830` (additive; rollback = `DROP FUNCTION public.proc_pec_jit_generate_pr(text,date,date,date,jsonb,text,boolean,boolean); DROP FUNCTION public.proc_pec_jit_mrp_plan(date,date,boolean);`). Do not use `db push`.
 4. **Client PR** merged only *after* gate 3 (it falls back safely if the functions are missing, but the JIT route is inert until installed).
 5. **Release** of any Electron version is a separate owner decision (v6.3.1 stays Latest).
 6. **Open design decisions for the owner:** (a) `NULL` `rm_procurement_mode` items are treated as stock-required (not JIT) — confirm; (b) IND and other classes keep the legacy contract — confirm; (c) whether JIT items with a *positive current stock row* should ever be netted again (this design says no, because the MRP view already nets opening stock); (d) whether JIT PRs should later get a governed reconciliation path (currently blocked by the frozen-evidence rule).
+
+## Production installation receipt (22 Nov 2026)
+
+Owner approved advancing from successful isolated PG17 proof to installation without a charged staging branch. The unchanged SQL content was installed through the authenticated Supabase migration tool and the server assigned registered migration version `20261122163830` (original CLI file timestamp was `20261122153109`). The repository filename and all references are aligned to the registered version to prevent future migration-history drift. Installed functions were confirmed present; public/anon EXECUTE denied and authenticated EXECUTE granted, with server permission checks retained. Pre/post production counts were unchanged (9 PR headers, 4,493 PR lines, 1,221 frozen evidence rows); no purchasing write RPC was called. This was a live-schema installation, not a paid staging rehearsal. The separate client package remains to be merged and PWA-tested; do not claim the Electron release is complete.
