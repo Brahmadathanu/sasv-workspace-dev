@@ -909,6 +909,20 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
     `${tag} RM JIT Only uses the JIT MRP plan (comparison on by default), not the hybrid plan`);
   check(await page.isVisible("#s4ReviewRoute") && await page.isVisible("#genS4CompareRow") && (await page.locator("#genS4ReviewCounts").innerText()).includes("Netted vs open indents"),
     `${tag} review shows the JIT rationale, optional comparison toggle and indent netting`);
+  check(await page.locator("#genS4Compare").getAttribute("role") === "switch" &&
+        await page.locator("#genS4Compare").isChecked() &&
+        (await page.locator("#genS4CompareRow").innerText()).includes("Optional insight") &&
+        (await page.locator("#genS4CompareRow").innerText()).includes("never changes suggested quantities"),
+    `${tag} optional historical comparison is a clearly labelled switch, not an approval`);
+  check(await page.locator("#genS4Acknowledged").getAttribute("type") === "checkbox" &&
+        !(await page.locator("#genS4Acknowledged").isChecked()) &&
+        await page.locator("#s4ReviewRouteHelp").isVisible() &&
+        !(await page.locator("#s4ReviewRouteHelp").getAttribute("open")),
+    `${tag} only the bottom control is an unchecked approval; JIT help is collapsed`);
+  await page.locator("#s4ReviewRouteHelp summary").click();
+  check((await page.locator("#s4ReviewRouteHelp").innerText()).includes("Open indents are deducted once"),
+    `${tag} planning rules remain accessible on demand`);
+  await page.locator("#s4ReviewRouteHelp summary").click();
   check((await page.locator("#genS4PreviewExceptions").innerText()).includes("Synthetic JIT Conflicting MOQ") && (await page.locator("#genS4PreviewExceptions").innerText()).toLowerCase().includes("moq policy review"),
     `${tag} MOQ-conflicting JIT item stays a review-required exception`);
   check(await page.isDisabled("#btnS4ReviewConfirm") && await page.isDisabled("#btnGenPrConfirm"), `${tag} no silent write: confirm and Generate disabled before acknowledgement`);

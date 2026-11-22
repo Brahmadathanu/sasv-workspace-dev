@@ -9674,8 +9674,9 @@ async function s4PreviewForGenerate() {
     : "Checking stock, MRP, consumption and outstanding indents…";
   if(qs("s4ReviewRoute")){
     qs("s4ReviewRoute").hidden=route!=="jit";
-    qs("s4ReviewRoute").textContent="RM (JIT Only) is procured just in time: the requirement is MRP-led. Stock mapping is not required, existing open indents are netted once, and UOM, MOQ and horizon checks still apply. Consumption items without MRP are not added.";
+    qs("s4ReviewRoute").textContent="JIT requirement is MRP-led. Stock mapping is not required.";
   }
+  if(qs("s4ReviewRouteHelp")) { qs("s4ReviewRouteHelp").hidden=route!=="jit"; qs("s4ReviewRouteHelp").open=false; }
   if(qs("genS4CompareRow"))qs("genS4CompareRow").hidden=route!=="jit";
   qs("genS4ReviewCounts").textContent="";
   qs("genS4PreviewExceptions").textContent="";
@@ -9707,10 +9708,10 @@ async function s4PreviewForGenerate() {
     const gaps=result.data.filter(r=>Number(r.consumption_gap_vs_mrp)>0).length;
     const cmp=s4CompareConsumption();
     qs("genS4PreviewSummary").textContent=
-      `${sum.total} JIT MRP materials · ${sum.auto} auto-eligible · ${sum.review} require manual review · ${netted} netted against open indents. No indent will be created.`;
+      `${sum.total} JIT MRP materials · ${sum.auto} auto-eligible · ${sum.review} need review · ${netted} with open indent commitments.`;
     qs("genS4ReviewCounts").innerHTML=
       `<div><b>${sum.auto}</b><span>Auto-eligible</span></div>`+
-      `<div class="is-review"><b>${sum.review}</b><span>Review required</span></div>`+
+      `<div class="is-review${sum.review===0?" is-zero":""}"><b>${sum.review}</b><span>Review required</span></div>`+
       `<div><b>${netted}</b><span>Netted vs open indents</span></div>`+
       `<div><b>${cmp?gaps:"—"}</b><span>${cmp?"Above MRP in history":"Comparison off"}</span></div>`;
   } else {
