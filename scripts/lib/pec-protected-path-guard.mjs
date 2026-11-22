@@ -25,6 +25,10 @@ export const INTEGRATION_PROTECTED_PATHS = new Set([
 // migration is still rejected. Working-tree (uncommitted) changes are NEVER
 // exempt: callers pass a context only for committed paths.
 export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
+  "supabase/migrations/20261122084655_pec_s4_duplicate_pr_horizon_guard.sql": Object.freeze({
+    sha256: "0c29d28eb377b770d112fa69c14da7ca30265bf2d7859d64fbcd5cabe4832685",
+    heads: Object.freeze(["feat/pec-s4-end-to-end-20261122"]),
+  }),
   "supabase/migrations/20261122084452_pec_s4_duplicate_uom_candidate_guard.sql": Object.freeze({
     sha256: "bed758b746cfdfe675d85d9205f8c70d89269caf33c9e232eb6561fb34331eca",
     heads: Object.freeze(["feat/pec-s4-end-to-end-20261122"]),
