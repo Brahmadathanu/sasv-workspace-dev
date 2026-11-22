@@ -78,14 +78,14 @@ jobs:
         run: |
           set -euo pipefail
           cat > release-notes.md <<'NOTES'
-          SASV Workspace PEC S4 patch release.
+          SASV Workspace PEC JIT procurement-route patch release.
 
-          - Reconciliation dialog: acknowledgement checkbox now aligns with its text, the dialog is content-sized with a single scroll region, and the actions respect the safe-area inset.
-          - Escape now closes only the foreground reconciliation dialog (PR detail stays open); it never closes a dialog while a reconciliation write is in progress.
-          - Includes the PEC S4 hybrid replenishment features introduced in v6.3.0 (consumption-informed draft PRs, two-stage review, Consumption Requirement Review).
-          - No database, permission, stock, MOQ or purchasing-record changes.
+          - RM (JIT Only): MRP-led requisition review with optional historical consumption comparison. Stockless JIT materials no longer require normal stock mapping evidence; governed item-level exceptions remain review-required.
+          - Standardised editable reasons for draft PR notes, reconciliation and relevant manual/status operations; manual justification remains required for actual overrides.
+          - RM Normal, PM, RM All and IND retain their existing approved S4 routes and protections.
+          - Server migration pec_jit_mrp_route_plan_and_generator (registered 20261122163830) was separately installed and verified before this client release; this installer does not run migrations or edit purchase records.
 
-          UNSIGNED WINDOWS INSTALLER: there is no code-signing certificate, so Windows SmartScreen or antivirus may warn. Verify the SHA-256 in SHA256SUMS.txt before installing. Existing v6.2.x installs receive this through the in-app updater.
+          UNSIGNED WINDOWS INSTALLER: no code-signing certificate, so Windows SmartScreen or antivirus may warn. Verify the SHA-256 in SHA256SUMS.txt before installing. Existing stable installations can receive this through the in-app updater after release verification.
           NOTES
           gh release create "v${VERSION}" --repo "${GITHUB_REPOSITORY}" --draft \
             --target "${GITHUB_SHA}" --title "SASV Workspace v${VERSION}" --notes-file release-notes.md \
