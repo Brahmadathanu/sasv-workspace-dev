@@ -24,7 +24,7 @@ BEGIN
     OR p_end < p_start
     OR p_start < (v_month - interval '1 month')::date
     OR p_start > (v_month + interval '12 months')::date
-    OR p_class NOT IN (1,2,5)
+    OR p_class IS NULL OR p_class NOT IN (1,2,5)
     OR v_method NOT IN ('plan','hybrid')
     OR (p_class=1 AND v_scope NOT IN ('normal','jit','all'))
     OR (p_class<>1 AND v_scope<>'normal')
