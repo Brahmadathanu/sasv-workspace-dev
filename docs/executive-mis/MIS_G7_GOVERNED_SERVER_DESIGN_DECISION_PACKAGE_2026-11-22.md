@@ -540,3 +540,25 @@ All six voucher lines are stored as `transfer_store=IK`, with their original GUI
 **Critical independent approval proof:** `costing.v_costing_period_run_status` reports **November 2026 OPEN, approved_run_id=NULL, displayed_run_id=152, display_state=DRAFT**. October 2026 reports approved_run_id **143**, approved valuation 22-Oct, displayed run 143, newer draft 148. Even SKU rows marked `READY` in Nov run 152 are **not approved costing rates**. No production-transfer manufacturing achievement value may be called VERIFIED by selecting latest/READY run indiscriminately. Review whether owner-approved previous-period rate is a permissible *explicitly labelled reference proxy* for a November transfer without claiming actual November COP; period alignment and policy authorization remain open. Never use unapproved draft as if approved.
 
 **Bounded next proof:** six matched voucher keys against daily work logs, original packaging/SKU movements, date/correction/reassignment statuses; then choose the approved-run cost policy and allowed provisional-reference semantics. T1–T3 exception disposition and C1–C3 whole-batch closure stay REVIEW until actual lineage and controls pass. **No automatic backfill**, ledger correction, new public RPC, release/client/permission changes; formal 6/11 G7 OPEN.
+
+
+## XXIII. Owner-disclosed voluntary transfer-reconciliation skips and six November work-log coverage classes (22 November 2026)
+
+**Owner clarification:** During the incremental rollout of daily work logging, some manufactured products (explicitly including Kantha Chendooram) did **not** have routine work logs collected. Their Tally FG transfers were sometimes intentionally omitted from manual reconciliation. A missing paired work log for such products is an **expected possible coverage gap**, not per se an unauthorized physical shipment, staff lapse or missing transfer. This does not authorize inventing a historical event or excluding the genuine Tally transferred quantity from appropriately labelled Tally-based operational metrics. Route/mandatory logging scope must be **dated and governed** so that historical optionality does not become a future bypass.
+
+**Live bounded read-only proof:** exact `daily_work_log.item=products.item` + `batch_number` lookup for six Nov cases (no batch-string-only join). Results:
+
+| Product/batch | Exact product+batch DWL records | 'Transfer to FG store' DWL records | Disposition |
+|---|---:|---:|---|
+| Kantha Chendooram 4166 | 0 | 0 | LEGACY_LOGGING_COVERAGE_UNVERIFIED; owner's product-level example supports optional historical logging, but eligibility dates not registered |
+| Gunmakudori Mezhuku 4082 | 0 | 0 | LEGACY_LOGGING_COVERAGE_UNVERIFIED; scope not yet independently authorized |
+| Pavizha Parpam 3754 | 0 | 0 | LEGACY_LOGGING_COVERAGE_UNVERIFIED |
+| Agasthyar Kuzhambu 4428 | 0 | 0 | LEGACY_LOGGING_COVERAGE_UNVERIFIED |
+| Mailanchi Podi SP846 | 5 | 0 | LOG_PRESENT_TRANSFER_MISSING; 11–13 Nov DWL: RM dispensation, FG bulk storage, quality assessment, pouch packing, monocarton packing |
+| Chirattai Thailam 5249 | 11 | 3 | DATE_SPECIFIC_TRANSFER_UNMATCHED; matching historic FG transfers on **13-Jul (480 packs, DWL18583), 14-Jul (1010 packs, DWL18635), 05-Sep (1347 packs, DWL20723)**, all Done; **no 21-Nov same batch transfer log** for the separately observed Tally 480-pack voucher |
+
+**Critical protection:** The July 480-pack log and November 480-pack voucher share quantity but **not transfer date or original source identity**. Do not match these solely by quantity; first exclude voucher correction, duplication or replay using GUID and original voucher dates. Also do not treat 0 DWLs as proof a product was formally exempt; historical scope still needs documentary/process confirmation. An old exemption cannot allow future route-governed stock transfers without required accountable evidence.
+
+**Proposed T1–T3 tri-state contract for owner review:** (1) `MATCHED` with source/quantity/UOM/date and SKU identity parity, (2) `RECON_REQUIRED` where a log was expected at the event's effective route cutover, (3) `LEGACY_LOG_NOT_COLLECTED` for separately governed dated coverage exceptions, with Tally voucher accepted *as Tally evidence* but work-log reconciliation `N/A`, not `MATCHED`. Keep `LEGACY_COVERAGE_UNVERIFIED` distinct until scope evidence exists; classify November Mailanchi and Chirattai independently. Preserve source counts, report completeness ratio with eligible denominator only, and disclose excluded count and Tally quantities separately. No blanket exemption by product name and no silent disappearance of the six from exception/audit panels.
+
+**Next exact bounded action:** discover whether a dated product/route logging-eligibility register exists; examine Chirattai November vs July voucher GUID/date lineage and Mailanchi packing-to-transfer SKU conservation, then deliver C1–C3/T1–T3 approval matrix. All stock-write/security/route enforcement implementation remains separately authorized; G7 OPEN, 6/11.
