@@ -155,3 +155,18 @@ All 226 lines had SKU aliases, quantity, distinct original line identities; zero
 5. Actual synthetic run switch/revocation and full genuine role+performance acceptance are pending.
 
 **Gate:** S2 mapping read-only proof PASSED at exact bounded fixture, G7 implementation NOT INSTALLED; formal programme 6/11 (55%). Next small step: assemble exact additive current RPC replacement review diff using this verified line cohort, test in isolated environment, archive current source checksum and rollback, and seek owner installation permission separately.
+
+
+## H. Full canonical RPC candidate prepared (review-only, not PostgreSQL-compiled)
+
+A **complete source-derived `CREATE OR REPLACE FUNCTION` candidate**, reconstructed from read-only live `pg_get_functiondef('public.get_mis_production_value_summary(date,date)'::regprocedure)`, is saved at:
+
+`docs/executive-mis/MIS_G7_S1_S2_CANONICAL_RPC_REPLACEMENT_REVIEW_ONLY_20261122.sql` (commit `60b4a80ca6fe199c2d501443aea471eca04700b5`).
+
+It keeps existing canonical function name/signature, SECDEF+STABLE, restricted search_path, MIS View/identity authorization check, receipt-basis logic and legacy output fields, while proposing **newest currently valid approved run** resolution (S1) and additive `approved_cost_reference` JSON from per-original-voucher-line SKU/READY approved manufacturing-cost joins (S2). It does **not** implement G7 S3 report-finalization writer, C1 completed-production certification or cross-source Siddha event matching; these stay separate. When no approved reference exists the candidate explicitly emits `NO_APPROVED_REFERENCE` instead of the old misleading `NO_PREVIOUS_MONTH_APPROVED_COST`; client/backward-compatibility review must accept this status delta before merge.
+
+**Strict review status:** This full-function candidate has been read back and its key placements checked, but **has NOT been installed, parsed by PostgreSQL as a replacement, migration-compiled, isolated-staging tested, runtime performance-tested or permission-regression-tested**. It is *not* an approved runnable production migration. A clean source diff and syntax/staging verification against current main, full candidate cost-coverage reconciliation and fresh source-digest evidence remain required before requesting install authorization.
+
+**Known finite review findings:** (1) current `transfer_snapshot` chooses `max(as_of_date) <= requested v_cutoff`, not a proven complete snapshot/fingerprint; (2) original current Tally book subtotal does not filter cancelled/optional, whereas additive S2 marks these excluded in rate coverage—cross-field difference must be deliberate/visible; (3) current approved-run selector is dynamic at evaluation time and must never claim historical as-known valuation; (4) historical finalized reports still need separately authorized immutable S3 writer and independent frozen payload (cost retention); (5) the one-month 226-line cohort had no cancellations/optional/negative quantities, so those future/legacy edge conditions require synthetic fixture testing; (6) no supplier or user-identifying source details should enter public aggregate JSON.
+
+**Technical next gate:** independent full source diff, exact SQL parser/synthetic deployment in isolated/staging environment; replay no-approved/draft-to-approved/revocation cases; explain/p95, genuine 3-role permission acceptance; archive pre-change full function and digest for rollback; then ask owner permission for the *precisely reviewed migration*, not blanket permission. No production mutation or release work.
