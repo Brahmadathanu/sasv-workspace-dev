@@ -25,6 +25,12 @@ export const INTEGRATION_PROTECTED_PATHS = new Set([
 // migration is still rejected. Working-tree (uncommitted) changes are NEVER
 // exempt: callers pass a context only for committed paths.
 export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
+  // Issue #502 production JIT timeout fix, registered 20261122174517.
+  // Only this exact reviewed SQL blob on its dedicated repair branch is permitted.
+  "supabase/migrations/20261122174517_pec_jit_plan_indent_balance_once_timeout_fix.sql": Object.freeze({
+    sha256: "b08d13d590f20b64539b2c23fa156e4d872753d7d3bb02b8c4f20ab95cf193ae",
+    heads: Object.freeze(["fix/pec-jit-plan-timeout-20261122"]),
+  }),
   // Issue #502: additive JIT MRP route (two new functions; no existing function replaced). Exact path + head
   // branch + LF SHA-256. Installation in production is a separate owner-approved step.
   "supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql": Object.freeze({

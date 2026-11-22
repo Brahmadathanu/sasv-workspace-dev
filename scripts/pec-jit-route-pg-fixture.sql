@@ -174,4 +174,23 @@ SET ROLE authenticated; SET pec.fixture_access='edit';
 SELECT public.proc_pec_s4_generate_pr('PR-NORM-1',:'today',:'m1',:'m2',2,'{}',NULL,true) AS rh \gset
 RESET ROLE;
 SELECT public.pec_assert((:'rh'::jsonb->>'mode')='hybrid_mrp_ccf' AND (SELECT generation_filters->>'s4_mode' FROM proc_pr_header WHERE pr_id=(:'rh'::jsonb->>'pr_id')::bigint)='12_calendar_months','PM hybrid generation unchanged (hybrid_mrp_ccf)');
+-- 10. Registered production timeout hotfix: materialize approved indent balances once.
+-- Full planned JSON output must match the pre-hotfix contract with comparison ON and OFF.
+CREATE TABLE public.pec_hotfix_before AS
+ SELECT 'true'::text choice, x FROM public.proc_pec_jit_mrp_plan(:'m1',:'m2',true) x
+ UNION ALL SELECT 'false', x FROM public.proc_pec_jit_mrp_plan(:'m1',:'m2',false) x;
+\i supabase/migrations/20261122174517_pec_jit_plan_indent_balance_once_timeout_fix.sql
+CREATE TABLE public.pec_hotfix_after AS
+ SELECT 'true'::text choice, x FROM public.proc_pec_jit_mrp_plan(:'m1',:'m2',true) x
+ UNION ALL SELECT 'false', x FROM public.proc_pec_jit_mrp_plan(:'m1',:'m2',false) x;
+SELECT public.pec_assert(
+ (SELECT md5(string_agg(choice||':'||x::text, '|' ORDER BY choice,x::text)) FROM pec_hotfix_before) =
+ (SELECT md5(string_agg(choice||':'||x::text, '|' ORDER BY choice,x::text)) FROM pec_hotfix_after),
+ 'JIT timeout hotfix preserves every plan field, quantity and review decision for both comparison modes');
+SELECT public.pec_assert(
+ (SELECT count(*) FROM pec_hotfix_before)=(SELECT count(*) FROM pec_hotfix_after),
+ 'JIT timeout hotfix does not add or remove planning candidates');
+SELECT public.pec_assert(
+ (SELECT count(*) FROM proc_pr_header WHERE pr_number='PR-JIT-1')=1,
+ 'JIT read-only planner hotfix leaves the generated fixture PR unchanged');
 SELECT 'PEC_JIT_ROUTE_PG_FIXTURE_PASS' AS result;
