@@ -920,6 +920,14 @@
       .detail-action-buttons .icon-btn.ghost {
         border-color: var(--border, #e5e7eb);
       }
+      .pec-s4-preflight-scroll {
+        max-height: 170px; overflow-y: auto; border: 1px solid var(--border,#d9e1e7);
+        padding: 7px 10px; border-radius: 8px; font-size: 12px; line-height: 1.7;
+      }
+      .pec-s4-preflight-scroll:empty { display:none; }
+      #btnGenS4Preview { justify-content:flex-start; min-height:40px; gap:8px;
+        width:100%; white-space:normal; }
+      #btnGenS4Preview:hover { color:var(--primary,#0b605a) !important; }
       /* S4 preview is read-only; a separately confirmed action invokes the
          guarded per-line draft writer when the Editor expressly opts in. */
       #ccfPreviewModalBackdrop .pec-ccf-preview { max-width: 1180px; }
@@ -4868,6 +4876,16 @@
               </svg>
             </button>
             <button
+              id="btnPrS4Reconcile"
+              type="button" data-edit-action="true" class="icon-btn primary"
+              title="Reconcile this draft PR with S4 consumption coverage"
+              aria-label="Reconcile S4 consumption coverage" style="display:none"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                aria-hidden="true"><path d="M3 12h12"/><path d="m12 8 4 4-4 4"/><path d="M5 5h14v14H5"/></svg>
+            </button>
+            <button
               id="btnPrCoveragePreview"
               type="button"
               class="icon-btn primary"
@@ -5478,6 +5496,28 @@
               <label for="prNotes">Notes</label>
               <textarea id="prNotes" placeholder="Optional notes…"></textarea>
             </div>
+            <div class="form-group full-col">
+              <button type="button" id="btnGenS4Preview" class="icon-btn with-label secondary"
+                aria-controls="genS4PreviewPanel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 3v18h18"/><path d="m7 15 4-5 4 2 4-7"/>
+                </svg>
+                <span>Preview MRP + Consumption Requirement</span>
+              </button>
+            </div>
+            <div class="form-group full-col" id="genS4PreviewPanel" style="display:none">
+              <p id="genS4PreviewSummary" class="pec-section-note" role="status" aria-live="polite"></p>
+              <label for="genS4ItemSearch" style="display:block;margin:8px 0 6px">Find planned material</label>
+              <input id="genS4ItemSearch" type="search" placeholder="Search item, MRP, coverage or review state…" style="margin-bottom:8px" />
+              <div id="genS4PreviewExceptions" class="pec-s4-preflight-scroll" role="region"
+                   aria-label="Materials requiring review"></div>
+              <label class="pec-ccf-ack">
+                <input type="checkbox" id="genS4Acknowledged"/>
+                <span>I have reviewed the suggested quantities and items requiring review.
+                Generate a draft PR with frozen item-level evidence; no indent or order will be created.</span>
+              </label>
+            </div>
           </div>
         </div>
         <p class="pec-section-note" style="margin: 8px 0 0">
@@ -5487,6 +5527,42 @@
         <div class="actions">
           <button id="btnGenPrCancel">Cancel</button>
           <button id="btnGenPrConfirm" data-edit-action="true">Generate</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- S4: explicit same-day legacy draft reconciliation, distinct from production approval. -->
+    <div class="modal-backdrop" id="s4ReconcileModalBackdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="s4ReconcileTitle" style="max-width:660px">
+        <div class="modal-header page-header">
+          <h3 id="s4ReconcileTitle" style="margin:0">Reconcile Draft with Consumption Coverage</h3>
+          <button id="btnS4ReconcileClose" class="modal-close-btn" type="button" title="Close" aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2.5" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p id="s4ReconcileSummary" class="pec-section-note" role="status" aria-live="polite">Checking evidence…</p>
+          <label for="s4ReconcileItemSearch" style="display:block;margin:8px 0 6px">Find planned material</label>
+          <input id="s4ReconcileItemSearch" type="search" placeholder="Search item or review state…" style="margin-bottom:8px" />
+          <div id="s4ReconcileExceptions" class="pec-s4-preflight-scroll"></div>
+          <div class="form-group" style="margin-top:12px">
+            <label for="s4ReconcileReason">Reason for reconciling this draft</label>
+            <textarea id="s4ReconcileReason" rows="3"
+              placeholder="Explain why consumption coverage is required for this draft…"></textarea>
+          </div>
+          <label class="pec-ccf-ack">
+            <input type="checkbox" id="s4ReconcileAcknowledged"/>
+            <span>I approve recalculation of untouched draft lines and inclusion of missing items.
+            Existing manual edits are preserved, and flagged items remain for review.</span>
+          </label>
+          <p class="muted" id="s4ReconcileError" role="alert"></p>
+        </div>
+        <div class="actions">
+          <button type="button" id="btnS4ReconcileCancel">Cancel</button>
+          <button type="button" id="btnS4ReconcileConfirm" data-edit-action="true">
+            Reconcile Draft
+          </button>
         </div>
       </div>
     </div>

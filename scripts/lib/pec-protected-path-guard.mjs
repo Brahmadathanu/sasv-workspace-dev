@@ -25,6 +25,36 @@ export const INTEGRATION_PROTECTED_PATHS = new Set([
 // migration is still rejected. Working-tree (uncommitted) changes are NEVER
 // exempt: callers pass a context only for committed paths.
 export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
+  "supabase/migrations/20261122084655_pec_s4_duplicate_pr_horizon_guard.sql": Object.freeze({
+    sha256: "0c29d28eb377b770d112fa69c14da7ca30265bf2d7859d64fbcd5cabe4832685",
+    heads: Object.freeze(["feat/pec-s4-end-to-end-20261122"]),
+  }),
+  "supabase/migrations/20261122084452_pec_s4_duplicate_uom_candidate_guard.sql": Object.freeze({
+    sha256: "bed758b746cfdfe675d85d9205f8c70d89269caf33c9e232eb6561fb34331eca",
+    heads: Object.freeze(["feat/pec-s4-end-to-end-20261122"]),
+  }),
+  "supabase/migrations/20261122083956_pec_s4_retire_old_ccf_writer.sql": Object.freeze({
+    sha256: "a19f196fb1230f92563779b223cc509214f704f2b22a0c999e903b100c891f33",
+    heads: Object.freeze(["feat/pec-s4-end-to-end-20261122"]),
+  }),
+  "supabase/migrations/20261122083237_pec_s4_legacy_electron_compatibility.sql": Object.freeze({
+    sha256: "5aede676c2442410eedfa20ee4f9307f6aebd84f8bfd86223db544f36013ce2e",
+    heads: Object.freeze(["feat/pec-s4-end-to-end-20261122"]),
+  }),
+  // S4 end-to-end: three exact new *registered production* migration blobs.
+  // No blanket exemption: head branch and content SHA-256 must both match.
+  "supabase/migrations/20261122082353_pec_s4_new_pr_hybrid_plan.sql": Object.freeze({
+    sha256: "2ef75c2953eea7e6d79b096c549f834acb15b71cae277ff8b2385ab3bea3301b",
+    heads: Object.freeze(["feat/pec-s4-end-to-end-20261122"]),
+  }),
+  "supabase/migrations/20261122082532_pec_s4_hybrid_generator_evidence.sql": Object.freeze({
+    sha256: "7296a87c0e603c0c9919dcc95ef7a6e690380676c6c552e97b1964eee8f98d70",
+    heads: Object.freeze(["feat/pec-s4-end-to-end-20261122"]),
+  }),
+  "supabase/migrations/20261122082653_pec_s4_reconcile_existing_draft.sql": Object.freeze({
+    sha256: "dea0c1e12ff1aa909997a0eaf9bfcbdd6f84b3c70e66d8dd5a635f7c3fa59b51",
+    heads: Object.freeze(["feat/pec-s4-end-to-end-20261122"]),
+  }),
   // S4 emergency CCF: two additive server migrations already registered live on
   // 22 Nov 2026; exact file/branch/LF-SHA256 only. No blanket procurement SQL
   // exemption. One is View-only preview; the other is a draft-only guarded

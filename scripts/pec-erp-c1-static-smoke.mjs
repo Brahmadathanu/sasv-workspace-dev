@@ -44,6 +44,8 @@ if (mainJs) {
     // S4: owner-requested live server contracts. The SQL blobs are separately
     // pinned to this branch and their exact sha256 in pec-protected-path-guard.
     "proc_pec_ccf_pr_preview", "proc_pec_ccf_apply_draft_line",
+    "proc_pec_s4_new_pr_plan", "proc_pec_s4_generate_pr",
+    "proc_pec_s4_reconcile_draft", "proc_pec_s4_pr_evidence",
   ]);
   const unexpected = added.filter((x) => !ALLOWED_NEW.has(x));
   ok(unexpected.length === 0, `no unexpected RPC names introduced (${unexpected.join(",") || "none"}; paged contract names allowed: ${added.filter((x) => ALLOWED_NEW.has(x)).length})`);
@@ -69,6 +71,35 @@ if (js.includes('rpc("proc_pec_ccf_apply_draft_line"')) {
       "S4 client: explicit confirmation, audit reason and stale evidence fields");
 }
 
+// S4 E2E: three exact installed server payloads; no other SQL exceptions.
+// These are additional to the prior S4 single-line preview/approval guards.
+if(js.includes('rpc("proc_pec_s4_generate_pr"')){
+  const plan=read("supabase/migrations/20261122082353_pec_s4_new_pr_hybrid_plan.sql");
+  const gen=read("supabase/migrations/20261122082532_pec_s4_hybrid_generator_evidence.sql");
+  const rec=read("supabase/migrations/20261122082653_pec_s4_reconcile_existing_draft.sql");
+  ok(plan.includes("proc_pec_s4_new_pr_plan") &&
+    plan.includes("require_permission('module:procurement-execution-console',false)") &&
+    plan.includes("v_proc_indent_line_balance") &&
+    plan.includes("v_item_consumption_monthly_by_item"),
+    "S4 E2E plan checks exact View permission, consumption and approved indent balances");
+  ok(gen.includes("proc_pec_s4_generate_pr") &&
+    gen.includes("require_permission('module:procurement-execution-console',true)") &&
+    gen.includes("proc_pr_ccf_generation_evidence") &&
+    gen.includes("ALTER TABLE public.proc_pr_ccf_generation_evidence ENABLE ROW LEVEL SECURITY") &&
+    gen.includes("REVOKE ALL ON public.proc_pr_ccf_generation_evidence FROM PUBLIC,anon,authenticated"),
+    "S4 E2E writer has Edit guard, atomic evidence and RLS");
+  ok(rec.includes("proc_pec_s4_reconcile_draft") &&
+    rec.includes("p_confirm IS DISTINCT FROM true") &&
+    rec.includes("h.updated_at IS DISTINCT FROM p_expected_updated_at") &&
+    rec.includes("l.manual_delta_qty=0") &&
+    rec.includes("l.updated_at<=l.created_at+interval '1 second'"),
+    "S4 E2E same-day draft reconciliation guards, no silent manual overwrite");
+  ok(js.includes('rpc("proc_pec_s4_new_pr_plan"') &&
+     js.includes('rpc("proc_pec_s4_generate_pr"') &&
+     js.includes('rpc("proc_pec_s4_reconcile_draft"') &&
+     !js.includes('rpc("create_pr_from_mrp_plan"'),
+    "S4 E2E client uses governed generator and never legacy MRP-only generation");
+}
 // PEC-ERP-C2: single vendor-selection writer, reused from the indent modal
 ok((js.match(/rpc\("proc_indent_set_vendor_selection"/g) || []).length === 1, "exactly one proc_indent_set_vendor_selection call site (no duplicate implementation)");
 ok(/origin === "indent"/.test(js) && /indentAllowsVendorSelection/.test(js), "indent-origin eligibility guard present");

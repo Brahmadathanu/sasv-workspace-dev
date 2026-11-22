@@ -8826,6 +8826,9 @@ function refreshPrViewModal(row) {
   const btnClose = qs("btnPrClosePr");
   const btnAddLine = qs("btnPrAddLine");
   const btnRebuild = qs("btnPrRebuildFromMrp");
+  const btnS4Reconcile = qs("btnPrS4Reconcile");
+  if(btnS4Reconcile) btnS4Reconcile.style.display =
+    row.status === "draft" && !row.generation_filters?.s4_mode ? "" : "none";
   const btnCreateIndent = qs("btnPrCreateIndent");
   const btnDeleteDraft = qs("btnPrDeleteDraft");
   const lockPill = qs("prLineLockPill");
@@ -9123,11 +9126,9 @@ let ccfPreviewPrId = null;
 let ccfApplyRow = null;
 let ccfApplyBusy = false;
 
-function canApplyCcfLine(row) {
-  return Boolean(canWriteModule() && state.selectedPr?.status === "draft" &&
-    row?.review_state === "ANCHOR_AND_POLICY_REVIEW" &&
-    Number(row.illustrative_increment) > 0 &&
-    row.stock_as_of && row.pr_line_id && !ccfApplyBusy);
+// #495 diagnostic is read-only after S4 becomes the only authoritative writer.
+function canApplyCcfLine(_row) {
+  return false;
 }
 
 function updateCcfApplyReady() {
@@ -9219,7 +9220,10 @@ function renderCcfPreview() {
     mode === "all" || (mode === "zero" ? zero(row) : gap(row)));
   const countZero = ccfPreviewRows.filter(zero).length;
   const countGap = ccfPreviewRows.filter(gap).length;
-  summary.textContent = `${ccfPreviewRows.length} PR lines examined · ${countZero} zero-MRP lines with recorded usage · ${countGap} illustrative coverage gaps. All proposed figures require source/anchor review; no PR quantities have been changed.`;
+  const isFrozen = Boolean(state.selectedPr?.generation_filters?.s4_mode);
+  summary.textContent = isFrozen
+    ? `${ccfPreviewRows.length} frozen S4 evidence rows · ${countZero} zero-MRP materials with usage · ${countGap} suggestions above the original MRP. Original generation evidence, not a new purchase approval; adjust the draft separately if needed.`
+    : `${ccfPreviewRows.length} PR lines examined · ${countZero} zero-MRP lines with recorded usage · ${countGap} illustrative coverage gaps. All proposed figures require source/anchor review; no PR quantities have been changed.`;
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="9" class="muted">No matching coverage rows. Change the filter to inspect all PR lines.</td></tr>';
     return;
@@ -9262,7 +9266,9 @@ async function openCcfPreview() {
   qs("btnCcfPreviewClose")?.focus();
   let result;
   try {
-    result = await supabase.rpc("proc_pec_ccf_pr_preview", { p_pr_id: Number(pr.pr_id) });
+    result = pr.generation_filters?.s4_mode
+      ? await supabase.rpc("proc_pec_s4_pr_evidence", { p_pr_id: Number(pr.pr_id) })
+      : await supabase.rpc("proc_pec_ccf_pr_preview", { p_pr_id: Number(pr.pr_id) });
   } catch (error) {
     result = { data: null, error };
   }
@@ -9272,7 +9278,23 @@ async function openCcfPreview() {
     qs("ccfPreviewSummary").textContent = `Consumption coverage preview unavailable: ${pecErrText(result.error)}`;
     return;
   }
-  ccfPreviewRows = Array.isArray(result.data) ? result.data : [];
+  ccfPreviewRows = Array.isArray(result.data) ? (pr.generation_filters?.s4_mode
+    ? result.data.map(e => ({
+        ...e,
+        mrp_suggested_qty:e.frozen_mrp_qty,
+        pr_effective_qty:e.frozen_recommended_qty,
+        usage_12m:e.usage_12m,
+        months_with_usage:e.positive_months,
+        calendar_monthly_average:Number(e.usage_12m || 0)/12,
+        latest_usage_month:"12 completed calendar months",
+        stock_on_hand:e.stock_qty,stock_as_of:e.stock_as_of,
+        outstanding_indent_qty:e.outstanding_indent_qty,
+        illustrative_ccf_floor:e.frozen_recommended_qty,
+        illustrative_increment:Math.max(0,Number(e.frozen_recommended_qty || 0)-Number(e.frozen_mrp_qty || 0)),
+        review_state:e.decision,
+        stock_item_name:e.stock_item_name
+      }))
+    : result.data) : [];
   renderCcfPreview();
 }
 
@@ -9299,6 +9321,181 @@ function closePrViewModal() {
   backdrop.inert = true;
   backdrop.classList.remove("show");
   backdrop.setAttribute("aria-hidden", "true");
+}
+
+// S4 authoritative generation and reconciliation use the same server plan.
+// A stale UI preview is never authority; the writer recomputes and snapshots.
+let s4PlanRows = null;
+let s4PlanSignature = "";
+let s4PlanRequestSeq = 0;
+let s4Generating = false;
+let s4Reconciling = false;
+let s4ReconcilePr = null;
+let s4ReconcileEvidence = null;
+let s4ReconRequestSeq = 0;
+
+function s4ParametersForGenerate() {
+  const start = monthToFirstDate(qs("prHorizonStart")?.value);
+  const end = monthToFirstDate(qs("prHorizonEnd")?.value);
+  const raw = qs("prMaterialClass")?.value;
+  const cls = raw ? Number(raw) : null;
+  const scope = cls === 1 ? (qs("prRmScope")?.value || "normal") : "normal";
+  return { p_start: start, p_end: end, p_class: cls, p_rm_scope: scope };
+}
+function s4Signature(p) { return JSON.stringify(p); }
+function s4Summary(rows) {
+  const auto = rows.filter(x => x.gate === "AUTO_ELIGIBLE");
+  return {
+    total: rows.length, auto: auto.length, review: rows.length - auto.length,
+    positive: auto.filter(x => Number(x.recommended_qty)>0).length,
+    zeroMrp: auto.filter(x => Number(x.mrp_net_qty)===0 &&
+      Number(x.recommended_qty)>0).length,
+    consumptionOnly: rows.filter(x => x.consumption_only).length
+  };
+}
+function s4RenderExceptions(rows, targetId) {
+  const target=qs(targetId);if(!target)return;
+  const searchId=targetId==="genS4PreviewExceptions" ? "genS4ItemSearch":"s4ReconcileItemSearch";
+  const query=(qs(searchId)?.value||"").toLocaleLowerCase().trim();
+  const toSearch=(r)=>[` ${r.stock_item_name || ""} ${r.stock_item_id || ""} ${r.gate || ""}`]
+    .join(" ").toLocaleLowerCase();
+  const matched=rows.filter(r=>!query || toSearch(r).includes(query))
+    .sort((a,b)=>{
+      const rank=r=>r.gate!=="AUTO_ELIGIBLE" ? 0 :
+        Number(r.mrp_net_qty)===0 && Number(r.recommended_qty)>0 ? 1 :
+        Number(r.recommended_qty)>Number(r.mrp_net_qty) ? 2 : 3;
+      return rank(a)-rank(b) || String(a.stock_item_name).localeCompare(String(b.stock_item_name));
+    });
+  const display=matched.slice(0,50);
+  target.innerHTML=`<div class="muted">${matched.length} matched items · showing first ${display.length}</div>`+
+    display.map(r=>{
+      const final=r.recommended_qty==null ? "Review required" : fmtQty(Number(r.recommended_qty));
+      const mrp=fmtQty(Number(r.mrp_net_qty || 0));
+      return `<div style="padding:5px 0;border-bottom:1px solid var(--border,#e4e7ed)">
+        <strong>${esc(r.stock_item_name||String(r.stock_item_id))}</strong> ·
+        <span>${esc(r.uom_code||"—")}</span>
+        <div class="muted">MRP ${esc(mrp)} · Suggested ${esc(final)} ·
+          ${esc(r.gate||"REVIEW")} ${r.consumption_only?"· Consumption-only":""}</div>
+      </div>`;
+    }).join("");
+}
+function s4InvalidatePreview() {
+  ++s4PlanRequestSeq;
+  s4PlanRows=null;s4PlanSignature="";
+  const panel=qs("genS4PreviewPanel");
+  if(panel)panel.style.display="none";
+  if(qs("genS4Acknowledged"))qs("genS4Acknowledged").checked=false;
+  s4UpdateGenerateReady();
+}
+function s4UpdateGenerateReady() {
+  const btn=qs("btnGenPrConfirm");
+  if(!btn)return;
+  btn.disabled = !canWriteModule() || s4Generating || !s4PlanRows ||
+    s4PlanSignature !== s4Signature(s4ParametersForGenerate()) ||
+    !qs("genS4Acknowledged")?.checked;
+}
+async function s4PreviewForGenerate() {
+  const params=s4ParametersForGenerate();
+  if(!params.p_start || !params.p_end) {
+    toast("Select both planning months before previewing the requirement.","error");
+    return;
+  }
+  const signature=s4Signature(params);
+  const seq=++s4PlanRequestSeq;
+  s4PlanRows=null;s4PlanSignature="";
+  const panel=qs("genS4PreviewPanel");
+  panel.style.display="";
+  qs("genS4PreviewSummary").textContent="Checking stock, MRP, consumption and outstanding indents…";
+  qs("genS4PreviewExceptions").textContent="";
+  qs("genS4Acknowledged").checked=false;
+  if(qs("genS4ItemSearch"))qs("genS4ItemSearch").value="";
+  s4UpdateGenerateReady();
+  const result=await supabase.rpc("proc_pec_s4_new_pr_plan",params);
+  if(seq!==s4PlanRequestSeq || !qs("generatePrModalBackdrop")?.classList.contains("show") ||
+    signature!==s4Signature(s4ParametersForGenerate()))return;
+  if(result.error || !Array.isArray(result.data) || !result.data.length){
+    qs("genS4PreviewSummary").textContent=
+      `Preview unavailable: ${pecErrText(result.error || {message:"No planning materials returned"})}`;
+    return;
+  }
+  s4PlanRows=result.data;s4PlanSignature=signature;
+  const sum=s4Summary(result.data);
+  qs("genS4PreviewSummary").textContent=
+    `${sum.total} materials · ${sum.positive} positive automatic requirements · ${sum.zeroMrp} zero-MRP materials now included · ${sum.consumptionOnly} consumption-only candidates · ${sum.review} require manual review. No indent will be created.`;
+  s4RenderExceptions(result.data,"genS4PreviewExceptions");
+  s4UpdateGenerateReady();
+}
+
+async function s4OpenReconciliation() {
+  const pr=state.selectedPr;
+  if(!pr || pr.status!=="draft" || !canPerformEditAction("Reconcile consumption coverage")) return;
+  if(pr.generation_filters?.s4_mode){
+    toast("S4 evidence already exists for this draft. A second reconciliation is not allowed.","error");
+    return;
+  }
+  const modal=qs("s4ReconcileModalBackdrop");
+  s4ReconcilePr=pr;
+  s4ReconcileEvidence=null;
+  const seq=++s4ReconRequestSeq;
+  qs("s4ReconcileReason").value="";
+  if(qs("s4ReconcileItemSearch"))qs("s4ReconcileItemSearch").value="";
+  qs("s4ReconcileAcknowledged").checked=false;
+  qs("s4ReconcileError").textContent="";
+  qs("s4ReconcileSummary").textContent="Checking source evidence before draft reconciliation…";
+  qs("s4ReconcileExceptions").textContent="";
+  modal.classList.add("show");modal.setAttribute("aria-hidden","false");
+  s4UpdateReconcileReady();
+  const params={
+    p_start:pr.horizon_start_month,p_end:pr.horizon_end_month,
+    p_class:pr.material_class_id,
+    p_rm_scope:pr.generation_filters?.rm_scope || "normal"
+  };
+  const result=await supabase.rpc("proc_pec_s4_new_pr_plan",params);
+  if(seq!==s4ReconRequestSeq || !modal.classList.contains("show"))return;
+  if(result.error || !Array.isArray(result.data)||!result.data.length){
+    qs("s4ReconcileError").textContent=pecErrText(result.error || {message:"No planning materials"});
+    return;
+  }
+  s4ReconcileEvidence=result.data;
+  const sum=s4Summary(result.data);
+  qs("s4ReconcileSummary").textContent=
+    `${pr.pr_number}: ${sum.total} materials, ${sum.positive} positive eligible suggestions, ${sum.zeroMrp} zero-MRP additions and ${sum.review} exceptions. Untouched draft lines only; all prior edits preserved. This is an audited one-time operation.`;
+  s4RenderExceptions(result.data,"s4ReconcileExceptions");
+  s4UpdateReconcileReady();
+}
+function s4UpdateReconcileReady() {
+  const b=qs("btnS4ReconcileConfirm");if(!b)return;
+  b.disabled=!canWriteModule() || s4Reconciling || !s4ReconcilePr ||
+    !s4ReconcileEvidence || !qs("s4ReconcileAcknowledged")?.checked ||
+    (qs("s4ReconcileReason")?.value || "").trim().length<20;
+}
+function s4CloseReconciliation() {
+  if(s4Reconciling)return;
+  ++s4ReconRequestSeq;s4ReconcilePr=null;s4ReconcileEvidence=null;
+  hideModalBackdrop(qs("s4ReconcileModalBackdrop"),[qs("btnPrS4Reconcile")]);
+}
+async function s4ApplyReconciliation() {
+  if(!s4ReconcilePr || !s4ReconcileEvidence || !qs("s4ReconcileAcknowledged")?.checked ||
+    (qs("s4ReconcileReason")?.value || "").trim().length<20 ||
+    !canPerformEditAction("Reconcile draft PR"))return;
+  s4Reconciling=true;s4UpdateReconcileReady();
+  const pr=s4ReconcilePr;
+  const result=await supabase.rpc("proc_pec_s4_reconcile_draft",{
+    p_pr_id:pr.pr_id,p_expected_updated_at:pr.updated_at,
+    p_reason:qs("s4ReconcileReason").value.trim(),p_confirm:true
+  });
+  s4Reconciling=false;
+  if(result.error){
+    qs("s4ReconcileError").textContent=
+      pecWriterErrorText("S4 reconciliation was not applied",result.error);
+    s4UpdateReconcileReady();return;
+  }
+  const receipt=result.data || {};
+  s4CloseReconciliation();
+  toast(`S4 reconciled: ${receipt.updated_untouched_lines || 0} untouched lines updated; ${receipt.added_missing_lines || 0} missing items added. Review exceptions before activation.`,"success");
+  await loadPrHeaders();
+  await loadPrLines(pr.pr_id);
+  closePrViewModal(); // refresh the header from the new list before reopening
 }
 
 // Next PR number is a suggestion only. The existing unique index on
@@ -9351,6 +9548,7 @@ async function updateGeneratePrNumberSuggestion() {
 
 function openGeneratePrModal() {
   if (!canPerformEditAction("Generate PR")) return;
+  s4InvalidatePreview();
   lastFocusedBeforeGeneratePrModal =
     document.activeElement instanceof HTMLElement
       ? document.activeElement
@@ -9379,6 +9577,7 @@ function updateGeneratePrRmScopeVisibility() {
 }
 
 function closeGeneratePrModal() {
+  s4InvalidatePreview();
   ++prNumberSuggestionSeq; // discard an in-flight suggestion after dismissal
   const backdrop = qs("generatePrModalBackdrop");
   const active = document.activeElement;
@@ -9455,8 +9654,15 @@ async function generateDraftPr() {
     genFilters.rm_scope = qs("prRmScope").value || "all";
   }
 
+  if (!s4PlanRows || s4PlanSignature !== s4Signature(s4ParametersForGenerate()) ||
+      !qs("genS4Acknowledged")?.checked) {
+    toast("Preview and acknowledge the MRP + consumption requirement before generating.","error");
+    return;
+  }
+  if (s4Generating) return;
+  s4Generating=true;s4UpdateGenerateReady();
   setLoading(true);
-  const { error } = await supabase.rpc("create_pr_from_mrp_plan", {
+  const { data: s4Receipt, error } = await supabase.rpc("proc_pec_s4_generate_pr", {
     p_pr_number: prNumber,
     p_effective_from_date: effectiveFrom, // must be YYYY-MM-DD
     p_horizon_start_month: horizonStart, // now YYYY-MM-01
@@ -9464,13 +9670,16 @@ async function generateDraftPr() {
     p_material_class_id: materialClassId,
     p_generation_filters: genFilters,
     p_notes: notes,
+    p_confirm: true,
   });
   setLoading(false);
+  s4Generating=false;
+  s4UpdateGenerateReady();
   if (error) {
     toast(pecWriterErrorText("Generate PR failed", error), "error");
     return;
   }
-  toast("Draft PR generated.", "success");
+  toast(`S4 draft generated: ${s4Receipt?.auto_evidenced_lines || 0} evidenced lines, ${s4Receipt?.review_required_lines || 0} items requiring review.`, "success");
   closeGeneratePrModal();
   // Reload list
   await loadPrHeaders();
@@ -9664,6 +9873,26 @@ function wirePrControls() {
     setPrSecondaryInfoOpen(qs("prDetailMeta")?.hidden !== false);
   });
   qs("btnGeneratePr").addEventListener("click", openGeneratePrModal);
+  qs("btnGenS4Preview")?.addEventListener("click",s4PreviewForGenerate);
+  qs("genS4ItemSearch")?.addEventListener("input",()=>{
+    if(s4PlanRows)s4RenderExceptions(s4PlanRows,"genS4PreviewExceptions");
+  });
+  qs("s4ReconcileItemSearch")?.addEventListener("input",()=>{
+    if(s4ReconcileEvidence)s4RenderExceptions(s4ReconcileEvidence,"s4ReconcileExceptions");
+  });
+  qs("genS4Acknowledged")?.addEventListener("change",s4UpdateGenerateReady);
+  ["prHorizonStart","prHorizonEnd","prMaterialClass","prRmScope"].forEach(id=>{
+    qs(id)?.addEventListener("change",s4InvalidatePreview);
+  });
+  qs("btnPrS4Reconcile")?.addEventListener("click",s4OpenReconciliation);
+  qs("btnS4ReconcileClose")?.addEventListener("click",s4CloseReconciliation);
+  qs("btnS4ReconcileCancel")?.addEventListener("click",s4CloseReconciliation);
+  qs("s4ReconcileReason")?.addEventListener("input",s4UpdateReconcileReady);
+  qs("s4ReconcileAcknowledged")?.addEventListener("change",s4UpdateReconcileReady);
+  qs("btnS4ReconcileConfirm")?.addEventListener("click",s4ApplyReconciliation);
+  qs("s4ReconcileModalBackdrop")?.addEventListener("click",e=>{
+    if(e.target.id==="s4ReconcileModalBackdrop")s4CloseReconciliation();
+  });
   // PR detail modal
   qs("btnPrViewClose").addEventListener("click", closePrViewModal);
   qs("btnPrCoveragePreview")?.addEventListener("click", openCcfPreview);
