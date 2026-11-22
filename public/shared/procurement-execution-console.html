@@ -920,7 +920,8 @@
       .detail-action-buttons .icon-btn.ghost {
         border-color: var(--border, #e5e7eb);
       }
-      /* S4 preview is informational; it never exposes a mutation control. */
+      /* S4 preview is read-only; a separately confirmed action invokes the
+         guarded per-line draft writer when the Editor expressly opts in. */
       #ccfPreviewModalBackdrop .pec-ccf-preview { max-width: 1180px; }
       #ccfPreviewModalBackdrop .pec-ccf-summary {
         padding: 10px 12px; margin: 10px 0; border: 1px solid var(--border, #e5e7eb);
@@ -947,6 +948,25 @@
         position: sticky; top: 0; background: var(--panel-bg, #fff); z-index: 1;
       }
       #ccfPreviewModalBackdrop .pec-ccf-table td:first-child { min-width: 230px; }
+      #ccfPreviewModalBackdrop .pec-ccf-table button.pec-ccf-approve-btn {
+        white-space: nowrap; min-height: 34px; padding: 6px 10px;
+        border-radius: 7px; background: rgba(16, 112, 100, 0.11);
+        border: 1px solid rgba(16, 112, 100, 0.4); color: var(--primary, #005a8d);
+        font-weight: 600; cursor: pointer;
+      }
+      #ccfPreviewModalBackdrop .pec-ccf-table button.pec-ccf-approve-btn:hover {
+        background: rgba(16, 112, 100, 0.2);
+        color: var(--primary, #005a8d);
+      }
+      #ccfApplyModalBackdrop .pec-ccf-ack {
+        display: flex; align-items: flex-start; gap: 10px; margin: 14px 0;
+        line-height: 1.5; font-size: 13px; opacity: 1; cursor: pointer;
+      }
+      #ccfApplyModalBackdrop .pec-ccf-ack input {
+        width: 18px; height: 18px; flex: 0 0 18px; margin-top: 2px;
+      }
+      #ccfApplyModalBackdrop #ccfApplyError { min-height: 18px; }
+
       #ccfPreviewModalBackdrop .pec-ccf-table td .muted {
         display: block; margin-top: 3px; font-size: 11px;
       }
@@ -5331,7 +5351,7 @@
             Read-only planning evidence. Based on 12 completed calendar months including months with zero usage.
             MRP quantity and consumption coverage are alternative stock-netted plans, not additive.
             Approved/issued unfulfilled indents are shown as existing commitments.
-            <strong>Illustrative quantities are not approved purchasing quantities.</strong>
+            <strong>Illustrative quantities are not purchasing quantities until an authorised Editor explicitly approves an eligible draft line.</strong>
           </p>
           <div class="pec-ccf-summary" id="ccfPreviewSummary" role="status" aria-live="polite">Loading…</div>
           <div class="pec-ccf-search-row">
@@ -5346,7 +5366,7 @@
             <table class="pec-ccf-table">
               <thead><tr>
                 <th>Item / Evidence</th><th>MRP</th><th>PR Final</th><th>12m Usage</th>
-                <th>Stock</th><th>Open Indents</th><th>Illustrative Floor</th><th>Review state</th>
+                <th>Stock</th><th>Open Indents</th><th>Illustrative Floor</th><th>Review state</th><th>Draft action</th>
               </tr></thead>
               <tbody id="ccfPreviewTbody"></tbody>
             </table>
@@ -5354,6 +5374,42 @@
         </div>
         <div class="actions">
           <button type="button" id="btnCcfPreviewDone">Close Review</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- S4 explicit one-line approval; server rechecks all evidence and permission. -->
+    <div class="modal-backdrop" id="ccfApplyModalBackdrop" aria-hidden="true">
+      <div class="modal" style="max-width: 600px" role="dialog" aria-modal="true" aria-labelledby="ccfApplyTitle">
+        <div class="modal-header page-header">
+          <h3 id="ccfApplyTitle" style="margin: 0">Approve Draft Consumption Coverage</h3>
+          <button id="btnCcfApplyClose" type="button" class="modal-close-btn" title="Close" aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p id="ccfApplyContext" style="font-size: 13px; line-height: 1.55"></p>
+          <p class="pec-section-note">
+            This accepts the illustrated 12-calendar-month consumption floor on one DRAFT PR line.
+            The original MRP suggestion remains unchanged. The increase is logged as a manual adjustment.
+            The server rejects stale stock/PR dates, negative overrides, outstanding-indent review,
+            changes since preview and insufficient permissions.
+          </p>
+          <div class="form-group full-col">
+            <label for="ccfApplyReason">Reason for approving this additional requirement (at least 20 characters)</label>
+            <textarea id="ccfApplyReason" rows="3" placeholder="Explain why coverage is needed…"></textarea>
+          </div>
+          <label class="pec-ccf-ack">
+            <input type="checkbox" id="ccfApplyAcknowledged"/>
+            <span>I have reviewed this item's consumption, stock and existing procurement commitments, and approve the draft quantity adjustment.</span>
+          </label>
+          <p id="ccfApplyError" class="muted" role="alert"></p>
+        </div>
+        <div class="actions">
+          <button type="button" id="btnCcfApplyCancel">Cancel</button>
+          <button type="button" id="btnCcfApplyConfirm" data-edit-action="true" disabled>Apply to Draft</button>
         </div>
       </div>
     </div>
