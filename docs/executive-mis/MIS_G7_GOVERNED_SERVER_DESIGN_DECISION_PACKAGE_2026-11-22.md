@@ -626,3 +626,22 @@ Native Siddha `DAILY LOG` bounded `C18000:D25511` search returned Kantha 4166 **
 5. Existing route stock ledger writer-security exposure and prospective atomic excess/packing permission guard from §§XVI–XVIII remain separately owned stock/logging security work; **MIS must not silently certify stock conservation while those are open**. No unscoped remediation in G7.
 
 **Execution recommendation after policy approval:** bounded server-only read model and governed summary snapshot first; reuse one canonical browser RPC and stable additive JSON fields with explicit provenance/coverage/NULL rather than proliferating RPCs. After contract proof, assign one well-contextualized batch client package to Claude Code with responsive native ERP UI, theme-token styles, no hardcoded palette, consistent canonical Home/search patterns; then real production read-only acceptance, release gates and formal G7 closure review. No rush-driven gate skipping. Formal 6/11 G7 OPEN.
+
+
+## XXVI. One-click owner policy choice and latest-approved costing reference (22 Nov 2026)
+
+**Owner direction:** simplify C1–C3/T1–T3 into one combined accept/revise decision. The MIS live cost reference should automatically use the **latest APPROVED** costing run and move to any newer approved run without manual rerun selection. This is business design direction, not authorization for implementation.
+
+**Recommended combined policy:**
+- C1: count completion only on route-specific verified final production signoff, not first storage receipt or generic Done.
+- C2: report legitimate partial FG bulk and SKU transfers, without duplicating formal completed-batch count.
+- C3: preserve original stock evidence, immutable corrections and explicit historical uncertainty instead of fabricated backfills.
+- T1: historical ERP and Siddha Google Sheets are both legitimate source systems; future product-route logging includes Siddha Parpam, Chendooram, Mezhugu, Kuzhambu and Karuppu classes with effective-dated source cutover.
+- T2: Tally voucher is valid accounting transfer evidence even without independently matched work log; only declare transfer RECONCILED after dated original voucher+batch+SKU+qty/UOM matching. Coverage exception statuses remain visible.
+- T3: distinguish Tally book transfer value, manufacturing reference value at latest approved cost, and regional/date-effective MRP notional values.
+
+**Dynamic latest approved cost rule:** For LIVE reference valuations, use the single newest eligible *approved run from canonical cost-period approval/designation governance* rather than latest numeric run ID or a draft whose SKU happens to be READY. Current evidence: October approved run 143, valuation 22-Oct; November run 152 remains draft. Eligible October rates can be used as clearly labeled latest-approved **reference** values, not November actual COP. Upon subsequent approval, live reference calculations automatically resolve the new approved run. Show cost period, source run, valuation date, reference status and SKU/value coverage. Missing/review/blocked SKU rates or UOM incompatibility remain N/A and reduce coverage. Do not turn partial covered subtotal into a purported all-product figure. Preserve bounded refresh/cache freshness and permission guards.
+
+**Historical reporting:** when a report is finalized, lock its rate/run/basis/coverage receipt to avoid silently rewriting previously published history; a deliberate revaluation creates an explicit new version. A dynamically recalculated historical-volume chart is labeled current-cost reference, not actual historic cost. No full-November actual COP claims until eligible November approval.
+
+**Single owner approval requested:** accept the combined C1–C3/T1–T3 business contract including dynamic latest-approved reference and finalized-report locking, or request amendments. No SQL/stock/Sheet/client/release/merge authorization follows automatically. Formal G7 OPEN, 6/11.
