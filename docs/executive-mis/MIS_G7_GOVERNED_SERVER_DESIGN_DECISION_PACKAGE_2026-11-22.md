@@ -288,3 +288,36 @@ A. Applied plan with all registered batches still unstarted; B. Draft BMR-linked
 ### Next bounded independent proof
 
 A. Trace ledger movement reasons to `packaging_events/event_skus` and raw batch net balances for 2 zero-bulk-but-packed keys plus one force-closed batch; B. reconcile SKU-packed increments, finished SKU transfer decrements and positive packaged on-hand by product+batch+SKU, not mixed pack counts; C. validate Tally/work-log/packaging transfer source selection and partial-transfer dates; D. prove how approved process losses/manual force-close amounts are characterized; E. define negative-balances/epsilon exceptions and historical-as-of cutoff. No parallel stock ledger, direct unbounded view in MIS RPC, or batch-complete achievements until evidence and owner source-policy acceptance.
+
+
+## XIII. End-to-end representative batch ledger, packing and FG transfer parity — 22 November 2026
+
+**Audit:** Read-only live scoped data in Supabase project `qhmoqtxpeasamtlxaoak`. Owner suggested using existing `fg_bulk_stock` and `fg_bulk_stock_ledger`; this bounded proof uses exactly those records plus `packaging_events`, `event_skus`, `bottled_stock_on_hand`, `event_type_lkp` and `v_fg_transfer_reconciliation`. No DDL, DML, mutation, permissions, client, cache or release changes.
+
+### Fixture 1 — product_id 106 / batch 6394 (Ksheerabala Thailam 101 Avarthi Soft Gel Capsule)
+
+- Product base UOM = **Nos**; ledger `FG bulk storage` +104,100 Nos (8-Jan-2026); `Capsule monocarton packing (SKU)` -104,100 Nos (9-Jan). **Raw bulk ledger balance exactly 0** (not a rounded artifact).
+- SKU 62, 100 Nos per pack: 1,041 packs produced = **104,100 Nos**; `Transfer to FG store` has **seven distinct SKU transfer event lines totaling 700 packs = 70,000 Nos**, dated 13-Jan through 13-Oct-2026. **341 packs = 34,100 Nos remain in packaged stock** (positive `bottled_stock_on_hand`).
+- Tally reconciliation for the matching product/batch shows **seven matched OK transfer groups**, 10,000 Nos each, aligned with 70,000 Nos actual transfers. This is a full packaging-but-partial transfer case, **NOT full batch transfer closure**, even though the bulk ledger reads 0.
+
+### Fixture 2 — product_id 966 / batch 5144 (Kungileeya Vennei)
+
+- Product base UOM = **Kg**. Ledger `FG bulk storage` +30.080 Kg (24-Feb-2026); SKU packaging consumption -7.200 Kg on 25-Feb and -20.200 Kg on 26-Feb, total **27.400 Kg packed**; plus `fn_fg_force_close` `manual_adjustment` **-2.680 Kg** (26-Feb). Thus **30.080 - 27.400 - 2.680 = 0.000 Kg raw bulk**. The -2.680 Kg is an adjustment, **NOT proven accepted process loss or finished output**, and must not be silently valued as packed production.
+- SKU 1239, 50 g pack: 144 + 404 = **548 packs produced (27.400 Kg)**; FG transfer event lines 144 + 211 = **355 packs (17.750 Kg)** on 26-Feb and 8-Jun. Hence **193 packs = 9.650 Kg positive packaged stock remains**.
+- Tally reconciliation reports two transfer groups MATCHED/OK at **7.200 Kg + 10.550 Kg = 17.750 Kg**, matching the packaging transfer quantity. Again **zero bulk is not full batch transfer**; it additionally has a force-close exception requiring approved disposition evidence.
+
+### Raw packaged stock negative-net caveat
+
+A separate read-only full aggregation of signed `packaging_events` × `event_skus` × `event_type_lkp.affects_bottled_stock`, grouped by product_id, batch_number and sku_id, returned **2,781 batch/SKU keys: 7 positive, 2,765 zero, 9 negative** at query time. Existing `bottled_stock_on_hand` explicitly filters `WHERE h.on_hand > 0`, so **negative SKU/batch balance exceptions are hidden from that view**. The nine cases are not yet classified (over-transfer, correcting event, duplicate, date issue, mapping or legacy), and no production records were altered. A future closure check must evaluate signed **unfiltered** net positions, require no negative unresolved SKU balances, and use `bottled_stock_on_hand` only as the positive waiting-to-transfer lens. Never infer fully transferred from the emptiness of positive-stock rows alone.
+
+### Governed C1–C3 closure policy refinement
+
+1. **Bulk consumed into packaged output** is proven from bulk ledger `event_skus` negative packaging entries, with documented adjustments separately.
+2. **Packed awaiting FG transfer** is measured by SKU-level signed packaging `+count` versus transfer `-count` movements using product+batch+SKU key, and product-base conversion only when UOM evidence passes; no mixed pack totals.
+3. **Finished output transferred** is recognized for each validated `Transfer to FG store` event, independent of whether the entire batch is closed. Tally voucher reconciliation remains a separate evidence quality flag, not a substitute for a manufacturing full-COP rate.
+4. **Fully transferred batch** must have no valid bulk remaining above governed tolerance, **no positive packaged SKU remaining**, **no negative/unresolved SKU balance**, no unreviewed force-close/correction or unexplained loss, and transfer/packing lineage parity. Distinguish `FULLY_ACCOUNTED_WITH_ACCEPTED_ADJUSTMENT` from `ALL_PRODUCTION_TRANSFERRED`; never call an unreviewed material write-off "completed manufacturing".
+5. **Status remains REVIEW** if any evidence is missing, contradictory or historically stale. As-of transfer metrics are event-based; current balances are not a historical month-end reconstruction.
+
+### Next bounded acceptance case
+
+Investigate the nine negative packaged SKU keys as grouped exception categories without changing data; sample positive/zero/negative balances by common source key; verify the effect of adjustments and corrections on transfer-line integrity, establish whether event stock accounting excludes non-packed stages, and define whether the operational module's **force-close** is a permissible *closed-accounted* status but never evidence of **all finished stock transferred**. Do not add schema or alter canonical RPC pending owner approval and validated performance/security.
