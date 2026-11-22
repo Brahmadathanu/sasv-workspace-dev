@@ -47,7 +47,7 @@ const indents = Array.from({ length: 5 }, (_, i) => ({
 }));
 const data = {
   proc_pec_indent_headers: S.empty ? [] : indents,
-  proc_pec_pr_headers: S.empty ? [] : [{ pr_id: 1, pr_number: "PR-1", status: S.ccfDraft ? "draft" : "active", effective_from_date: "2026-11-01", material_class_id: 1, line_count: 2 }],
+  proc_pec_pr_headers: S.empty ? [] : [{ pr_id: 1, pr_number: "PR-1", status: S.ccfDraft ? "draft" : "active", updated_at:"2026-11-22T07:02:14.215875+00:00",generation_filters:{rm_scope:"normal"},horizon_start_month:"2026-11-01",horizon_end_month:"2026-12-01",effective_from_date: "2026-11-01", material_class_id: 1, line_count: 2 }],
   proc_pec_purchase_excess: S.empty ? [] : [{ purchase_fact_id: 1, voucher_number: "V-1", voucher_date: "2026-11-02", stock_item_name: long, material_class_code: "RM", purchase_qty: 10, allocated_qty: 4, unallocated_qty: 6, accepted_qty: 0, net_unallocated_qty: 6 }],
   proc_pec_excess_acceptance_audit: [],
   proc_pec_buylist_material_class_options: [], proc_pec_buylist_rm_scope_options: [],
@@ -62,6 +62,30 @@ export const supabase = {
     if (S.failReads && (name.startsWith("proc_pec_") || name === "proc_procurement_action_queue_paged")) return { data: null, error: { message: "fixture failure" }, status: 400 };
     if (__r !== undefined && !(S.failReads && name.startsWith("proc_pec_"))) return mk(__r);
     if (name === "get_user_permissions") return mk(S.role === "none" ? [] : [{ target: "module:procurement-execution-console", can_view: true, can_edit: S.role === "edit" }]);
+    if(name === "proc_pec_s4_new_pr_plan") {
+      globalThis.__s4PlanCalls = (globalThis.__s4PlanCalls || 0) + 1;
+      return mk([
+        {material_class_id:2,stock_item_id:1638,stock_item_name:"Label - Punarnavasavam 450 ML",
+          uom_id:5,uom_code:"Nos",mrp_net_qty:0,recommended_qty:2098,usage_12m:12587,
+          gate:"AUTO_ELIGIBLE",consumption_only:false},
+        {material_class_id:2,stock_item_id:890,stock_item_name:"Synthetic Review Packaging",
+          uom_id:5,uom_code:"Nos",mrp_net_qty:0,recommended_qty:null,usage_12m:120,
+          gate:"STOCK_MAPPING_REVIEW",consumption_only:true}
+      ]);
+    }
+    if(name === "proc_pec_s4_generate_pr") {
+      globalThis.__s4GenerateCalls = (globalThis.__s4GenerateCalls || []);
+      globalThis.__s4GenerateCalls.push(params);
+      if(S.role!=="edit") return {data:null,error:{message:"Permission denied"}};
+      return mk({pr_id:40,pr_number:params.p_pr_number,auto_evidenced_lines:1,review_required_lines:1});
+    }
+    if(name === "proc_pec_s4_reconcile_draft") {
+      globalThis.__s4ReconcileCalls = (globalThis.__s4ReconcileCalls || []);
+      globalThis.__s4ReconcileCalls.push(params);
+      if(S.role!=="edit")return {data:null,error:{message:"Permission denied"}};
+      return mk({pr_id:1,updated_untouched_lines:1,added_missing_lines:1,review_required:1});
+    }
+    if(name === "proc_pec_s4_pr_evidence") return mk([]);
     if (name === "proc_pec_ccf_pr_preview") {
       globalThis.__ccfPreviewCalls = (globalThis.__ccfPreviewCalls || 0) + 1;
       return mk([{ pr_id: 1, pr_line_id: 77, stock_item_id: 1638, stock_item_name: "Label - Punarnavasavam 450 ML",
@@ -441,6 +465,74 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   check(await page.isVisible("#prViewModalBackdrop.show"),
     "CCF Editor: PR detail remains accessible after single-line approval");
   check(errors.length === 0, `CCF Editor: no page errors ${errors.join("|")}`);
+  await ctx.close();
+}
+
+// S4 complete generation: review requires human acknowledgement, no
+// automatic writer call while previewing, and the legacy MRP RPC is never used.
+{
+  const {ctx,page,errors}=await open({role:"edit"},VIEWPORTS[0]);
+  await page.click("#btnGeneratePr");
+  await page.fill("#prNewNumber","PR-S4-FIXTURE-01");
+  await page.fill("#prHorizonStart","2026-11");
+  await page.fill("#prHorizonEnd","2026-12");
+  await page.selectOption("#prMaterialClass","2");
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  const summary=await page.locator("#genS4PreviewSummary").textContent();
+  check(summary.includes("1 zero-MRP") && summary.includes("1 require manual review"),
+    "S4 generator: preview shows covered zero-MRP and review candidates");
+  check(await page.isDisabled("#btnGenPrConfirm"),
+    "S4 generator: cannot create without acknowledgement");
+  check(await page.evaluate(()=>(globalThis.__s4GenerateCalls || []).length)===0,
+    "S4 generator: read-only preflight never creates a PR");
+  await page.check("#genS4Acknowledged");
+  check(await page.isEnabled("#btnGenPrConfirm"),
+    "S4 generator: reviewed preview enables generation");
+  await page.click("#btnGenPrConfirm");
+  await page.waitForFunction(()=>(globalThis.__s4GenerateCalls || []).length===1);
+  const calls=await page.evaluate(()=>globalThis.__s4GenerateCalls||[]);
+  check(calls[0].p_confirm===true &&
+       calls[0].p_horizon_start_month==="2026-11-01" &&
+       calls[0].p_horizon_end_month==="2026-12-01" &&
+       calls[0].p_pr_number==="PR-S4-FIXTURE-01",
+    "S4 generator: exact acknowledged horizon and number submitted to guarded server");
+  check(errors.length===0,`S4 generator browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+// S4 legacy draft: same-day locked writer is explicitly confirmed and
+// receives the optimistic concurrency token from its real PR row.
+{
+  const {ctx,page,errors}=await open({role:"edit",ccfDraft:true},VIEWPORTS[0]);
+  await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await page.click("#prTbody tr:first-child");
+  await page.waitForSelector("#btnPrS4Reconcile:visible");
+  await page.click("#btnPrS4Reconcile");
+  await page.waitForFunction(() => document.querySelector("#s4ReconcileSummary")?.textContent.includes("zero-MRP"));
+  check(await page.isDisabled("#btnS4ReconcileConfirm"),
+    "S4 reconciliation: cannot apply before reason/acknowledgement");
+  await page.fill("#s4ReconcileReason","Reconcile the evidenced November December material requirements");
+  await page.check("#s4ReconcileAcknowledged");
+  check(await page.isEnabled("#btnS4ReconcileConfirm"),
+    "S4 reconciliation: explicit confirmation unlocks draft-only apply");
+  await page.click("#btnS4ReconcileConfirm");
+  await page.waitForFunction(()=>(globalThis.__s4ReconcileCalls||[]).length===1);
+  const calls=await page.evaluate(()=>globalThis.__s4ReconcileCalls||[]);
+  check(calls[0].p_confirm===true && Number(calls[0].p_pr_id)===1 &&
+       calls[0].p_expected_updated_at==="2026-11-22T07:02:14.215875+00:00",
+    "S4 reconciliation: exact PR concurrency token and affirmative approval");
+  check(errors.length===0,`S4 reconciliation browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+{
+  const {ctx,page}=await open({role:"view",ccfDraft:true},VIEWPORTS[2]);
+  await page.selectOption("#procTabSelect","pr");
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await page.click("#prTbody tr:first-child");
+  check(!(await page.isVisible("#btnPrS4Reconcile")) ||
+        await page.isDisabled("#btnPrS4Reconcile"),
+    "S4 View-only phone: no reconciliation writer access");
   await ctx.close();
 }
 
