@@ -9221,9 +9221,11 @@ function renderCcfPreview() {
   const countZero = ccfPreviewRows.filter(zero).length;
   const countGap = ccfPreviewRows.filter(gap).length;
   const isFrozen = Boolean(state.selectedPr?.generation_filters?.s4_mode);
-  summary.textContent = isFrozen
-    ? `${ccfPreviewRows.length} frozen S4 evidence rows · ${countZero} zero-MRP materials with usage · ${countGap} suggestions above the original MRP. Original generation evidence, not a new purchase approval; adjust the draft separately if needed.`
-    : `${ccfPreviewRows.length} PR lines examined · ${countZero} zero-MRP lines with recorded usage · ${countGap} illustrative coverage gaps. All proposed figures require source/anchor review; no PR quantities have been changed.`;
+  summary.textContent = window.matchMedia("(max-width: 680px)").matches
+    ? `${ccfPreviewRows.length} materials · ${countZero} with usage but zero MRP · ${countGap} coverage gaps. Review only.`
+    : isFrozen
+      ? `${ccfPreviewRows.length} frozen S4 evidence rows · ${countZero} zero-MRP materials with usage · ${countGap} suggestions above the original MRP. Original generation evidence, not a new purchase approval; adjust the draft separately if needed.`
+      : `${ccfPreviewRows.length} PR lines examined · ${countZero} zero-MRP lines with recorded usage · ${countGap} illustrative coverage gaps. All proposed figures require source/anchor review; no PR quantities have been changed.`;
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="9" class="muted">No matching coverage rows. Change the filter to inspect all PR lines.</td></tr>';
     return;
@@ -9235,7 +9237,8 @@ function renderCcfPreview() {
       : "Review only";
     return `<tr>
       <td><strong>${esc(row.stock_item_name || String(row.stock_item_id))}</strong>
-        <span class="muted">${esc(row.uom_code || "—")} · ${esc(evidence)}</span></td>
+        <span class="muted pec-ccf-desktop-evidence">${esc(row.uom_code || "—")} · ${esc(evidence)}</span>
+        <details class="pec-ccf-item-evidence"><summary>${esc(row.uom_code || "—")} · Evidence</summary><span>${esc(evidence)}</span></details></td>
       <td>${esc(ccfPreviewNumber(row.mrp_suggested_qty))}</td>
       <td>${esc(ccfPreviewNumber(row.pr_effective_qty))}</td>
       <td>${esc(ccfPreviewNumber(row.usage_12m))}</td>
