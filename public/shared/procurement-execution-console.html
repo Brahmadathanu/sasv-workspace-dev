@@ -2457,6 +2457,23 @@
       #ccfPreviewModalBackdrop .pec-ccf-compact-dl { display:grid; grid-template-columns:1fr auto; gap:2px 12px; margin:4px 0; }
       #ccfPreviewModalBackdrop .pec-ccf-compact-dl dt { color:var(--muted,#64748b); }
       #ccfPreviewModalBackdrop .pec-ccf-compact-dl dd { margin:0; text-align:right; font-variant-numeric:tabular-nums; }
+      /* Issue #500: reconciliation dialog. Content-sized and capped, one scroll region (the body),
+         actions pinned with safe-area padding; the acknowledgement uses the shared .pec-s4-ack layout. */
+      #s4ReconcileModalBackdrop > .modal {
+        max-width:660px; height:auto; min-height:0; overflow:hidden; max-height:min(88dvh, 820px);
+      }
+      #s4ReconcileModalBackdrop .modal-body {
+        flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain;
+      }
+      #s4ReconcileModalBackdrop .actions {
+        flex:0 0 auto; padding-bottom:calc(8px + env(safe-area-inset-bottom, 0px));
+      }
+      #s4ReconcileModalBackdrop #s4ReconcileError { margin:6px 0 0; min-height:0; }
+      #s4ReconcileModalBackdrop #s4ReconcileError:empty { display:none; }
+      @media (max-width: 680px) {
+        #s4ReconcileModalBackdrop { align-items:flex-start; }
+        #s4ReconcileModalBackdrop > .modal { height:auto !important; max-height:100dvh !important; }
+      }
 
       /* Requirement Review: consistent ERP dialog footer, including disabled state. */
       #s4ReviewModalBackdrop .pec-s4-review-actions {
@@ -6075,7 +6092,7 @@
 
     <!-- S4: explicit same-day legacy draft reconciliation, distinct from production approval. -->
     <div class="modal-backdrop" id="s4ReconcileModalBackdrop" aria-hidden="true">
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="s4ReconcileTitle" style="max-width:660px">
+      <div class="modal pec-s4-reconcile" role="dialog" aria-modal="true" aria-labelledby="s4ReconcileTitle">
         <div class="modal-header page-header">
           <h3 id="s4ReconcileTitle" style="margin:0">Reconcile Draft with Consumption Coverage</h3>
           <button id="btnS4ReconcileClose" class="modal-close-btn" type="button" title="Close" aria-label="Close">
@@ -6087,13 +6104,13 @@
           <p id="s4ReconcileSummary" class="pec-section-note" role="status" aria-live="polite">Checking evidence…</p>
           <label for="s4ReconcileItemSearch" style="display:block;margin:8px 0 6px">Find planned material</label>
           <input id="s4ReconcileItemSearch" type="search" placeholder="Search item or review state…" style="margin-bottom:8px" />
-          <div id="s4ReconcileExceptions" class="pec-s4-preflight-scroll"></div>
+          <div id="s4ReconcileExceptions" class="pec-s4-review-list" role="region" aria-label="Planned materials"></div>
           <div class="form-group" style="margin-top:12px">
             <label for="s4ReconcileReason">Reason for reconciling this draft</label>
             <textarea id="s4ReconcileReason" rows="3"
               placeholder="Explain why consumption coverage is required for this draft…"></textarea>
           </div>
-          <label class="pec-ccf-ack">
+          <label class="pec-s4-ack" for="s4ReconcileAcknowledged" style="margin-top:12px">
             <input type="checkbox" id="s4ReconcileAcknowledged"/>
             <span>I approve recalculation of untouched draft lines and inclusion of missing items.
             Existing manual edits are preserved, and flagged items remain for review.</span>

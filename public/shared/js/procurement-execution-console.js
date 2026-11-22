@@ -4308,6 +4308,10 @@ function wireActionQueueControls() {
       { id: "vwlBreakdownModalBackdrop", close: closeVwlBreakdownModal },
       { id: "indentViewModalBackdrop", close: closeIndentViewModal },
       { id: "prViewModalBackdrop", close: closePrViewModal },
+      // Foreground S4 reconciliation sits above PR detail. s4CloseReconciliation is a
+      // no-op while its writer is in flight, and the loop returns after the first match,
+      // so Escape neither closes the dialog mid-write nor falls through to PR detail.
+      { id: "s4ReconcileModalBackdrop", close: s4CloseReconciliation },
       { id: "prRebuildModalBackdrop", close: closePrRebuildModal },
       { id: "generatePrModalBackdrop", close: closeGeneratePrModal },
       { id: "s4ReviewModalBackdrop", close: s4CloseReview },
