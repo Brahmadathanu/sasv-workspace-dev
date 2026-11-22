@@ -26,6 +26,7 @@ A PR must never omit a purchasable RM/PM material solely because production MRP 
 | 20261122082532 | Atomic new PR generator + RLS-protected frozen evidence |
 | 20261122082653 | Same-day, version-checked, exactly-once reconciliation of legacy drafts |
 | 20261122083237 | Legacy Electron creation forwarded to hybrid generator; legacy S4-only MRP rebuild prohibited |
+| 20261122083956 | Retire obsolete, differently calculated legacy single-line CCF writer; legacy CCF remains diagnostic only |
 
 All six source migration filenames must exactly match the registered migration versions. New SQL is branch/SHA-pinned in the existing mutation-sensitive PEC protected-path guard. Never reapply migrations already in production.
 
