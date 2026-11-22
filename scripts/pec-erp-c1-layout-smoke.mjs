@@ -62,6 +62,15 @@ export const supabase = {
     if (S.failReads && (name.startsWith("proc_pec_") || name === "proc_procurement_action_queue_paged")) return { data: null, error: { message: "fixture failure" }, status: 400 };
     if (__r !== undefined && !(S.failReads && name.startsWith("proc_pec_"))) return mk(__r);
     if (name === "get_user_permissions") return mk(S.role === "none" ? [] : [{ target: "module:procurement-execution-console", can_view: true, can_edit: S.role === "edit" }]);
+    if (name === "proc_pec_ccf_pr_preview") {
+      globalThis.__ccfPreviewCalls = (globalThis.__ccfPreviewCalls || 0) + 1;
+      return mk([{ pr_id: 1, stock_item_id: 1638, stock_item_name: "Label - Punarnavasavam 450 ML",
+        uom_code: "Nos", mrp_suggested_qty: 0, pr_effective_qty: 0, usage_12m: 12587,
+        months_with_usage: 4, calendar_monthly_average: 1048.916667, latest_usage_month: "2026-10-01",
+        stock_on_hand: 0, stock_as_of: "2026-11-22", outstanding_indent_qty: 0,
+        illustrative_ccf_floor: 2098, illustrative_increment: 2098,
+        review_state: "ANCHOR_AND_POLICY_REVIEW", advisory_only: true }]);
+    }
     if (name === "proc_pec_pr_headers") {
       if (S.numberingDelay) await new Promise(r => setTimeout(r, S.numberingDelay));
       return mk(S.numberingRows || []);
@@ -356,6 +365,40 @@ for (const vp of VIEWPORTS) {
   await page.click("#btnVendorClose");
   check(!(await page.isVisible("#vendorModalBackdrop.show")), `${tag} vendor dialog closes without side effects`);
   check(errors.length === 0, `${tag} no Action Queue modal page errors ${errors.join("|")}`);
+  await ctx.close();
+}
+
+// S4 protected preview: genuine DOM control and read-only synthetic RPC at wide/phone.
+// No PR writer RPC in this fixture; no live business records changed.
+for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
+  const { ctx, page, errors } = await open({ role: "view" }, vp);
+  const tag = `[CCF ${vp.name}]`;
+  if (vp.width <= 520) await page.selectOption("#procTabSelect", "pr");
+  else await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)", { timeout: 5000 });
+  await page.click("#prTbody tr:first-child");
+  await page.waitForSelector("#prViewModalBackdrop.show", { timeout: 3000 });
+  await page.click("#btnPrCoveragePreview");
+  await page.waitForSelector("#ccfPreviewModalBackdrop.show", { timeout: 3000 });
+  await page.waitForFunction(() => document.querySelector("#ccfPreviewTbody tr")?.textContent.includes("Punarnavasavam"));
+  check((await page.locator("#ccfPreviewSummary").textContent()).includes("read-only") === false,
+    `${tag} preview data loaded and summary computed`);
+  const content = await page.locator("#ccfPreviewTbody").textContent();
+  check(content.includes("Punarnavasavam") && content.includes("2,098"),
+    `${tag} 12m zero-filled usage floor displayed for PM sample`);
+  check(content.includes("ANCHOR_AND_POLICY_REVIEW"),
+    `${tag} unapproved quantity clearly marked REVIEW`);
+  check(await page.locator("#ccfPreviewModalBackdrop [data-edit-action]").count() === 0,
+    `${tag} no writer action in preview modal`);
+  const state = await page.evaluate(() => ({ count: globalThis.__ccfPreviewCalls || 0,
+    scroll: document.querySelector("#ccfPreviewModalBackdrop .pec-ccf-scroll").scrollWidth,
+    width: document.querySelector("#ccfPreviewModalBackdrop .pec-ccf-scroll").clientWidth }));
+  check(state.count === 1, `${tag} only one view RPC requested`);
+  check(state.scroll >= state.width, `${tag} comparison table can scroll internally`);
+  await page.keyboard.press("Escape");
+  check(!(await page.isVisible("#ccfPreviewModalBackdrop.show")), `${tag} Escape closes only preview`);
+  check(await page.isVisible("#prViewModalBackdrop.show"), `${tag} parent PR modal preserved`);
+  check(errors.length === 0, `${tag} no browser errors ${errors.join("|")}`);
   await ctx.close();
 }
 
