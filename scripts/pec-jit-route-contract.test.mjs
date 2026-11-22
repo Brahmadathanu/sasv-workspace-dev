@@ -9,7 +9,7 @@ import { createHash } from "node:crypto";
 import { REVIEWED_SERVER_MIGRATIONS } from "./lib/pec-protected-path-guard.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const file = "supabase/migrations/20261122153109_pec_jit_mrp_route_plan_and_generator.sql";
+const file = "supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql";
 const sql = fs.readFileSync(path.join(root, file), "utf8").replace(/\r\n/g, "\n");
 const noComments = sql.replace(/--.*$/gm, "");
 
