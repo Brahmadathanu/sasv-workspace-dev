@@ -2125,7 +2125,86 @@
           content: none;
         }
       }
-    </style>
+    
+      /* PEC S4 follow-up from authenticated 390px PWA screenshot acceptance.
+         Safari month controls retain intrinsic min widths unless each input's
+         grid cell spans the viewport; preserve two-column PR/date layout. */
+      @media (max-width: 680px) {
+        #generatePrModalBackdrop #prNewNumber,
+        #generatePrModalBackdrop #prEffectiveFrom {
+          height: 44px !important;
+          min-height: 44px !important;
+          line-height: 1.25;
+          box-sizing: border-box;
+        }
+        #generatePrModalBackdrop #prHorizonStart,
+        #generatePrModalBackdrop #prHorizonEnd {
+          height: 44px;
+          min-height: 44px;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+        }
+        #generatePrModalBackdrop .form-group:has(> #prHorizonStart),
+        #generatePrModalBackdrop .form-group:has(> #prHorizonEnd) {
+          grid-column: 1 / -1;
+          min-width: 0;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table tr:not(:has(td[colspan])) {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0 12px;
+          padding: 8px 10px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td,
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child {
+          display: block;
+          padding: 4px 0;
+          font-size: 12px;
+          border-bottom: 0;
+          min-width: 0;
+          overflow-wrap: anywhere;
+          line-height: 1.35;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td::before {
+          display: block;
+          font-size: 10px;
+          line-height: 1.25;
+          margin: 0 0 2px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child {
+          grid-column: 1 / -1;
+          padding-bottom: 7px;
+          border-bottom: 1px solid var(--border, #e5e7eb);
+          margin-bottom: 3px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child .muted {
+          font-size: 10px;
+          line-height: 1.3;
+          margin-top: 2px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(7),
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(8),
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(9) {
+          grid-column: 1 / -1;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(8) {
+          border-top: 1px solid var(--border, #e5e7eb);
+          padding-top: 6px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(8),
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(9) {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 4px 8px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(8)::before,
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(9)::before {
+          display: inline;
+        }
+      }
+</style>
     <!-- PEC-ERP-C1: SASV Workspace specialisation after inline legacy styles so token rules win the cascade -->
     <link rel="stylesheet" href="../shared/css/sasv-procurement-execution-console.css" />
   </head>
@@ -5524,9 +5603,7 @@
             </table>
           </div>
         </div>
-        <div class="actions">
-          <button type="button" id="btnCcfPreviewDone">Close Review</button>
-        </div>
+
       </div>
     </div>
 
