@@ -47,7 +47,7 @@ const indents = Array.from({ length: 5 }, (_, i) => ({
 }));
 const data = {
   proc_pec_indent_headers: S.empty ? [] : indents,
-  proc_pec_pr_headers: S.empty ? [] : [{ pr_id: 1, pr_number: "PR-1", status: "active", effective_from_date: "2026-11-01", material_class_id: 1, line_count: 2 }],
+  proc_pec_pr_headers: S.empty ? [] : [{ pr_id: 1, pr_number: "PR-1", status: S.ccfDraft ? "draft" : "active", effective_from_date: "2026-11-01", material_class_id: 1, line_count: 2 }],
   proc_pec_purchase_excess: S.empty ? [] : [{ purchase_fact_id: 1, voucher_number: "V-1", voucher_date: "2026-11-02", stock_item_name: long, material_class_code: "RM", purchase_qty: 10, allocated_qty: 4, unallocated_qty: 6, accepted_qty: 0, net_unallocated_qty: 6 }],
   proc_pec_excess_acceptance_audit: [],
   proc_pec_buylist_material_class_options: [], proc_pec_buylist_rm_scope_options: [],
@@ -64,12 +64,21 @@ export const supabase = {
     if (name === "get_user_permissions") return mk(S.role === "none" ? [] : [{ target: "module:procurement-execution-console", can_view: true, can_edit: S.role === "edit" }]);
     if (name === "proc_pec_ccf_pr_preview") {
       globalThis.__ccfPreviewCalls = (globalThis.__ccfPreviewCalls || 0) + 1;
-      return mk([{ pr_id: 1, stock_item_id: 1638, stock_item_name: "Label - Punarnavasavam 450 ML",
+      return mk([{ pr_id: 1, pr_line_id: 77, stock_item_id: 1638, stock_item_name: "Label - Punarnavasavam 450 ML",
         uom_code: "Nos", mrp_suggested_qty: 0, pr_effective_qty: 0, usage_12m: 12587,
         months_with_usage: 4, calendar_monthly_average: 1048.916667, latest_usage_month: "2026-10-01",
         stock_on_hand: 0, stock_as_of: "2026-11-22", outstanding_indent_qty: 0,
         illustrative_ccf_floor: 2098, illustrative_increment: 2098,
         review_state: "ANCHOR_AND_POLICY_REVIEW", advisory_only: true }]);
+    }
+    if (name === "proc_pec_ccf_apply_draft_line") {
+      globalThis.__ccfWriterCalls = (globalThis.__ccfWriterCalls || []);
+      globalThis.__ccfWriterCalls.push(params);
+      if (S.role !== "edit") return { data: null, error: {message: "Permission denied"} };
+      if (params.p_confirm !== true || String(params.p_reason || "").length < 20 ||
+          Number(params.p_pr_line_id) !== 77 || Number(params.p_expected_ccf_floor) !== 2098)
+        return {data: null, error: {message: "Invalid CCF confirmation"}};
+      return mk({action: "CCF_APPROVED_DRAFT_ONLY", pr_line_id: 77, new_effective_qty: 2098});
     }
     if (name === "proc_pec_pr_headers") {
       if (S.numberingDelay) await new Promise(r => setTimeout(r, S.numberingDelay));
@@ -399,6 +408,39 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   check(!(await page.isVisible("#ccfPreviewModalBackdrop.show")), `${tag} Escape closes only preview`);
   check(await page.isVisible("#prViewModalBackdrop.show"), `${tag} parent PR modal preserved`);
   check(errors.length === 0, `${tag} no browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+
+// S4 Editor: no writer until a single-line explicit review, reason and checkbox.
+// The writer here is a fixture; no live PR data is used or modified.
+{
+  const { ctx, page, errors } = await open({ role: "edit", ccfDraft: true }, VIEWPORTS[0]);
+  await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await page.click("#prTbody tr:first-child");
+  await page.click("#btnPrCoveragePreview");
+  await page.waitForSelector("#ccfPreviewTbody button[data-ccf-line-id='77']");
+  check(await page.evaluate(() => (globalThis.__ccfWriterCalls || []).length) === 0,
+    "CCF Editor: preview alone never invokes writer");
+  await page.click("#ccfPreviewTbody button[data-ccf-line-id='77']");
+  await page.waitForSelector("#ccfApplyModalBackdrop.show");
+  check(await page.isDisabled("#btnCcfApplyConfirm"),
+    "CCF Editor: confirmation disabled without reason and acknowledgement");
+  await page.fill("#ccfApplyReason", "Consumption coverage needed for this approved stock review");
+  check(await page.isDisabled("#btnCcfApplyConfirm"),
+    "CCF Editor: reason alone cannot approve");
+  await page.check("#ccfApplyAcknowledged");
+  check(await page.isEnabled("#btnCcfApplyConfirm"),
+    "CCF Editor: explicit acknowledgement enables guarded action");
+  await page.click("#btnCcfApplyConfirm");
+  await page.waitForFunction(() => (globalThis.__ccfWriterCalls || []).length === 1);
+  const calls = await page.evaluate(() => globalThis.__ccfWriterCalls || []);
+  check(calls[0].p_confirm === true && Number(calls[0].p_expected_ccf_floor) === 2098,
+    "CCF Editor: exact preview floor and explicit confirmation submitted");
+  await page.waitForFunction(() => !document.getElementById("ccfApplyModalBackdrop").classList.contains("show"));
+  check(await page.isVisible("#prViewModalBackdrop.show"),
+    "CCF Editor: PR detail remains accessible after single-line approval");
+  check(errors.length === 0, `CCF Editor: no page errors ${errors.join("|")}`);
   await ctx.close();
 }
 
