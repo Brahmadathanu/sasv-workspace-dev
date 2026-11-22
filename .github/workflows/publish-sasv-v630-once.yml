@@ -127,3 +127,20 @@ jobs:
           stable="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name')"
           test "${stable}" != "v6.3.0"
           echo "Pre-release v6.3.0 published; stable Latest remains ${stable}"
+
+      - name: Post controlled publication receipt to PR #497
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          release_state="NOT_FOUND"
+          if gh release view v6.3.0 -R "${GITHUB_REPOSITORY}" --json isPrerelease,isDraft,tagName --jq '.tagName + " prerelease=" + (.isPrerelease|tostring) + " draft=" + (.isDraft|tostring)' >release-state.txt 2>/dev/null; then
+            release_state="$(cat release-state.txt)"
+          fi
+          stable="UNKNOWN"
+          stable="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name' 2>/dev/null || echo UNKNOWN)"
+          body="v6.3.0 publication verification receipt: job=${RELEASE_JOB_STATUS}; release=${release_state}; stable_latest=${stable}; run=${GITHUB_RUN_ID}; commit=${GITHUB_SHA}. Artifact provenance pinned to Windows CI 45030214044. A failed job or release NOT_FOUND means NOT PUBLISHED."
+          gh api "repos/${GITHUB_REPOSITORY}/issues/497/comments" -f body="$body" >/dev/null
