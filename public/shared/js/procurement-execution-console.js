@@ -59,6 +59,13 @@ function applyPermissionUi() {
     banner.hidden = !(hasAccess && !canEdit);
   }
 
+  const moreActions = qs("prSecondaryActions");
+  if (moreActions) {
+    // View-only users get no menu of writer actions at all (not merely disabled items).
+    if (!canEdit) moreActions.open = false;
+    moreActions.hidden = !canEdit;
+  }
+
   document.querySelectorAll("[data-edit-action='true']").forEach((el) => {
     if (
       !(
@@ -4303,6 +4310,7 @@ function wireActionQueueControls() {
       { id: "prViewModalBackdrop", close: closePrViewModal },
       { id: "prRebuildModalBackdrop", close: closePrRebuildModal },
       { id: "generatePrModalBackdrop", close: closeGeneratePrModal },
+      { id: "s4ReviewModalBackdrop", close: s4CloseReview },
       { id: "prAddLineModalBackdrop", close: closePrAddLineModal },
       { id: "prSetStatusModalBackdrop", close: closePrSetStatusModal },
       { id: "createIndentModalBackdrop", close: closeCreateIndentModal },
@@ -8824,8 +8832,9 @@ function refreshPrViewModal(row) {
   const btnDeleteDraft = qs("btnPrDeleteDraft");
   const moreMenu = qs("prSecondaryActions");
   if (moreMenu) {
-    moreMenu.open = false;
+    moreMenu.open = false; // switching/reloading a PR always collapses More actions
     moreMenu.style.display = isTerminal ? "none" : "";
+    moreMenu.hidden = !canWriteModule();
   }
   const lockPill = qs("prLineLockPill");
   if (btnActivate) btnActivate.style.display = isDraft ? "" : "none";
@@ -9218,12 +9227,12 @@ function renderCcfPreview() {
   const countGap = ccfPreviewRows.filter(gap).length;
   const isFrozen = Boolean(state.selectedPr?.generation_filters?.s4_mode);
   summary.textContent = window.matchMedia("(max-width: 680px)").matches
-    ? `${ccfPreviewRows.length} materials · ${countZero} with usage but zero MRP · ${countGap} coverage gaps. Review only.`
+    ? `${ccfPreviewRows.length} materials · ${countZero} with usage but zero MRP · ${countGap} with a suggested addition. Review only.`
     : isFrozen
-      ? `${ccfPreviewRows.length} frozen S4 evidence rows · ${countZero} zero-MRP materials with usage · ${countGap} suggestions above the original MRP. Original generation evidence, not a new purchase approval; adjust the draft separately if needed.`
-      : `${ccfPreviewRows.length} PR lines examined · ${countZero} zero-MRP lines with recorded usage · ${countGap} illustrative coverage gaps. All proposed figures require source/anchor review; no PR quantities have been changed.`;
+      ? `${ccfPreviewRows.length} frozen S4 evidence rows · ${countZero} zero-MRP materials with usage · ${countGap} suggested additions above the original MRP. Original generation evidence, not a purchase approval; adjust the draft separately if needed.`
+      : `${ccfPreviewRows.length} PR lines examined · ${countZero} zero-MRP lines with recorded usage · ${countGap} illustrative additions. All suggested figures require source/anchor review; no PR quantities have been changed.`;
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="muted">No matching coverage rows. Change the filter to inspect all PR lines.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="muted">No matching rows. Change the filter to inspect all PR lines.</td></tr>';
     return;
   }
   // A separate compact mobile representation avoids nine permanently
@@ -9237,16 +9246,21 @@ function renderCcfPreview() {
         ? `<button type="button" class="pec-ccf-approve-btn" data-edit-action="true" data-ccf-line-id="${Number(row.pr_line_id)}" aria-label="Review and approve consumption coverage for ${itemName}">Review &amp; apply</button>`
         : "Review only";
       const evidence = `Recorded in ${Number(row.months_with_usage || 0)} months; monthly average ${n(row.calendar_monthly_average)}; last use ${esc(row.latest_usage_month || "none")}; stock as-of ${esc(row.stock_as_of || "unknown")}.`;
+      const uom = esc(row.uom_code || "—");
       return `<tr class="pec-ccf-compact-row"><td colspan="9"><div class="pec-ccf-compact-card">
-        <div class="pec-ccf-compact-top"><strong>${itemName}</strong><span class="pec-ccf-compact-gate">${gate}</span></div>
-        <div class="pec-ccf-compact-metrics">
-          <span><small>MRP</small>${n(row.mrp_suggested_qty)}</span>
-          <span><small>12m Usage</small>${n(row.usage_12m)}</span>
-          <span><small>Stock</small>${n(row.stock_on_hand)}</span>
-          <span><small>Coverage</small><strong>${n(row.illustrative_ccf_floor)}</strong></span>
-        </div>
-        <details class="pec-ccf-compact-details"><summary>Details · ${esc(row.uom_code || "—")}</summary>
-          <p>${evidence}</p><p>PR final ${n(row.pr_effective_qty)} · Open indents ${n(row.outstanding_indent_qty)} · Potential increase ${n(row.illustrative_increment)}</p>
+        <div class="pec-ccf-compact-top"><strong>${itemName} <span class="pec-s4-item-uom">· ${uom}</span></strong><span class="pec-ccf-compact-gate">${gate}</span></div>
+        <div class="pec-ccf-compact-main"><span class="lbl">Suggested additional Qty</span><span class="val">${n(row.illustrative_ccf_floor)}<span class="uom">${uom}</span></span></div>
+        <details class="pec-ccf-compact-details"><summary>Supporting numbers</summary>
+          <dl class="pec-ccf-compact-dl">
+            <dt>MRP qty</dt><dd>${n(row.mrp_suggested_qty)}</dd>
+            <dt>Existing PR final</dt><dd>${n(row.pr_effective_qty)}</dd>
+            <dt>12m usage</dt><dd>${n(row.usage_12m)}</dd>
+            <dt>Stock</dt><dd>${n(row.stock_on_hand)}</dd>
+            <dt>Open indents</dt><dd>${n(row.outstanding_indent_qty)}</dd>
+            <dt>Increase vs MRP</dt><dd>${n(row.illustrative_increment)}</dd>
+          </dl>
+          <p>${evidence}</p>
+          <p>Illustrative · review only. MRP and consumption plans are alternatives, not additive.</p>
           <p>${detailAction}</p>
         </details>
       </div></td></tr>`;
@@ -9267,8 +9281,9 @@ function renderCcfPreview() {
       <td>${esc(ccfPreviewNumber(row.usage_12m))}</td>
       <td>${esc(ccfPreviewNumber(row.stock_on_hand))}</td>
       <td>${esc(ccfPreviewNumber(row.outstanding_indent_qty))}</td>
-      <td><strong>${esc(ccfPreviewNumber(row.illustrative_ccf_floor))}</strong>
-        <span class="muted">Potential increase: ${esc(ccfPreviewNumber(row.illustrative_increment))}</span></td>
+      <td><strong>${esc(ccfPreviewNumber(row.illustrative_ccf_floor))}</strong> ${esc(row.uom_code || "")}
+        <span class="muted">Illustrative · review only</span>
+        <span class="muted">Increase vs MRP: ${esc(ccfPreviewNumber(row.illustrative_increment))}</span></td>
       <td>${esc(row.review_state || "REVIEW_REQUIRED")}</td>
       <td>${action}</td>
     </tr>`;
@@ -9301,7 +9316,7 @@ async function openCcfPreview() {
   if (seq !== ccfPreviewRequestSeq || !backdrop.classList.contains("show") ||
       Number(ccfPreviewPrId) !== Number(pr.pr_id)) return;
   if (result.error) {
-    qs("ccfPreviewSummary").textContent = `Consumption coverage preview unavailable: ${pecErrText(result.error)}`;
+    qs("ccfPreviewSummary").textContent = `Requirement review unavailable: ${pecErrText(result.error)}`;
     return;
   }
   ccfPreviewRows = Array.isArray(result.data) ? (pr.generation_filters?.s4_mode
@@ -9333,7 +9348,59 @@ function closeCcfPreview() {
   if (backdrop) hideModalBackdrop(backdrop, [qs("btnPrCoveragePreview")]);
 }
 
+function closePrMoreMenu(opts = {}) {
+  const menu = qs("prSecondaryActions");
+  if (!menu || !menu.open) return;
+  menu.open = false;
+  if (opts.restoreFocus) menu.querySelector("summary")?.focus();
+}
+// One local disclosure; document listeners exist only while the menu is open
+// (added/removed on toggle), so no always-on global handler is introduced.
+function wirePrMoreMenu() {
+  const menu = qs("prSecondaryActions");
+  if (!menu || menu.dataset.moreWired === "1") return;
+  menu.dataset.moreWired = "1";
+  const summary = menu.querySelector("summary");
+  const onPointerDown = (e) => {
+    if (!menu.contains(e.target)) closePrMoreMenu();
+  };
+  const onKeyDown = (e) => {
+    // The toggle event that removes this listener is asynchronous; never swallow
+    // an Escape that belongs to another dialog once the menu is already closed.
+    if (e.key !== "Escape" || !menu.open) return;
+    e.stopImmediatePropagation(); // close only the menu, not the parent PR modal
+    e.preventDefault();
+    closePrMoreMenu({ restoreFocus: true });
+  };
+  menu.addEventListener("toggle", () => {
+    summary?.setAttribute("aria-expanded", String(menu.open));
+    if (menu.open) {
+      document.addEventListener("pointerdown", onPointerDown, true);
+      document.addEventListener("keydown", onKeyDown, true);
+    } else {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown, true);
+    }
+  });
+  // Only a definite move of focus to another element closes (a null
+  // relatedTarget occurs for Safari button clicks and must not drop the click).
+  menu.addEventListener("focusout", (e) => {
+    if (menu.open && e.relatedTarget instanceof Node && !menu.contains(e.relatedTarget)) {
+      closePrMoreMenu();
+    }
+  });
+  menu.querySelector(".pec-pr-secondary-options")?.addEventListener("click", (e) => {
+    if (!(e.target instanceof Element) || !e.target.closest("button")) return;
+    closePrMoreMenu();
+    setTimeout(() => {
+      const a = document.activeElement;
+      if (!a || a === document.body) summary?.focus();
+    }, 0);
+  });
+}
+
 function closePrViewModal() {
+  closePrMoreMenu();
   if (qs("ccfApplyModalBackdrop")?.classList.contains("show")) closeCcfApply();
   if (qs("ccfPreviewModalBackdrop")?.classList.contains("show")) closeCcfPreview();
   closeProcurementFilterDrawer(qs("prLineFilterDrawer"));
@@ -9379,11 +9446,16 @@ function s4Summary(rows) {
     consumptionOnly: rows.filter(x => x.consumption_only).length
   };
 }
+function s4GateLabel(r) {
+  if (r.gate === "AUTO_ELIGIBLE") return "Auto-eligible";
+  const t = String(r.gate || "REVIEW").toLowerCase().replace(/_/g, " ");
+  return "Review required · " + t.charAt(0).toUpperCase() + t.slice(1);
+}
 function s4RenderExceptions(rows, targetId) {
   const target=qs(targetId);if(!target)return;
   const searchId=targetId==="genS4PreviewExceptions" ? "genS4ItemSearch":"s4ReconcileItemSearch";
   const query=(qs(searchId)?.value||"").toLocaleLowerCase().trim();
-  const toSearch=(r)=>[` ${r.stock_item_name || ""} ${r.stock_item_id || ""} ${r.gate || ""}`]
+  const toSearch=(r)=>[` ${r.stock_item_name || ""} ${r.stock_item_id || ""} ${r.uom_code || ""} ${r.gate || ""} ${s4GateLabel(r)}`]
     .join(" ").toLocaleLowerCase();
   const matched=rows.filter(r=>!query || toSearch(r).includes(query))
     .sort((a,b)=>{
@@ -9393,62 +9465,145 @@ function s4RenderExceptions(rows, targetId) {
       return rank(a)-rank(b) || String(a.stock_item_name).localeCompare(String(b.stock_item_name));
     });
   const display=matched.slice(0,50);
-  target.innerHTML=`<div class="muted">${matched.length} matched items · showing first ${display.length}</div>`+
+  const q=(v)=>v===null||v===undefined||v==="" ? "—" : fmtQty(Number(v));
+  target.innerHTML=`<p class="pec-s4-count-note">${matched.length} matched items · showing first ${display.length}${matched.length>display.length?" — search to narrow":""}</p>`+
     display.map(r=>{
-      const final=r.recommended_qty==null ? "Review required" : fmtQty(Number(r.recommended_qty));
-      const mrp=fmtQty(Number(r.mrp_net_qty || 0));
-      return `<div style="padding:5px 0;border-bottom:1px solid var(--border,#e4e7ed)">
-        <strong>${esc(r.stock_item_name||String(r.stock_item_id))}</strong> ·
-        <span>${esc(r.uom_code||"—")}</span>
-        <div class="muted">MRP ${esc(mrp)} · Suggested ${esc(final)} ·
-          ${esc(r.gate||"REVIEW")} ${r.consumption_only?"· Consumption-only":""}</div>
+      const review=r.gate!=="AUTO_ELIGIBLE";
+      const suggested=r.recommended_qty==null ? "Review required" : q(r.recommended_qty);
+      const zeroMrp=!review && Number(r.mrp_net_qty)===0 && Number(r.recommended_qty)>0;
+      const ev=[
+        `<p>MRP qty ${esc(q(r.mrp_net_qty||0))} · Suggested ${esc(suggested)} ${esc(r.uom_code||"")}</p>`,
+        r.usage_12m!=null ? `<p>12-month usage ${esc(q(r.usage_12m))}</p>` : "",
+        r.stock_qty!=null ? `<p>Stock ${esc(q(r.stock_qty))}</p>` : "",
+        r.outstanding_indent_qty!=null ? `<p>Open indents ${esc(q(r.outstanding_indent_qty))}</p>` : "",
+        `<p>Gate ${esc(r.gate||"REVIEW")}</p>`
+      ].join("");
+      return `<div class="pec-s4-item">
+        <div class="pec-s4-item-top">
+          <span class="pec-s4-item-name">${esc(r.stock_item_name||String(r.stock_item_id))}
+            <span class="pec-s4-item-uom">· ${esc(r.uom_code||"—")}</span></span>
+          <span class="pec-s4-item-qty">${esc(suggested)}<small>Suggested</small></span>
+        </div>
+        <div class="pec-s4-item-sub">
+          <span class="pec-s4-badge ${review?"is-review":"is-auto"}">${esc(s4GateLabel(r))}</span>
+          ${zeroMrp?'<span class="pec-s4-badge">Zero MRP</span>':""}
+          ${r.consumption_only?'<span class="pec-s4-badge">Consumption-only</span>':""}
+        </div>
+        <details><summary>Evidence</summary>${ev}</details>
       </div>`;
     }).join("");
 }
-function s4InvalidatePreview() {
+
+// Requirement review confirmation. The confirmed signature covers every
+// parameter the server plan depends on (months, class, RM scope). PR number,
+// effective-from and notes do not enter proc_pec_s4_new_pr_plan and are
+// validated separately by the writer path; changing them never reuses a plan
+// computed for different plan parameters.
+let s4ReviewConfirmedSig = "";
+let s4ReviewConfirmedSummary = null;
+function s4InvalidatePreview(opts = {}) {
   ++s4PlanRequestSeq;
   s4PlanRows=null;s4PlanSignature="";
-  const panel=qs("genS4PreviewPanel");
-  if(panel)panel.style.display="none";
+  s4ReviewConfirmedSig="";s4ReviewConfirmedSummary=null;
   if(qs("genS4Acknowledged"))qs("genS4Acknowledged").checked=false;
+  const rv=qs("s4ReviewModalBackdrop");
+  if(!opts.keepModal && rv?.classList.contains("show")){
+    hideModalBackdrop(rv,[qs("btnGenS4Preview")]);
+  }
+  s4RenderReviewStatus();
+  s4UpdateReviewReady();
   s4UpdateGenerateReady();
+}
+function s4RenderReviewStatus() {
+  const confirmed=Boolean(s4ReviewConfirmedSig && s4ReviewConfirmedSummary);
+  const status=qs("genS4ReviewStatus");
+  if(status)status.hidden=!confirmed;
+  if(qs("btnGenS4Preview"))qs("btnGenS4Preview").hidden=confirmed;
+  if(qs("genS4ReviewHint"))qs("genS4ReviewHint").hidden=confirmed;
+  if(confirmed){
+    const sm=s4ReviewConfirmedSummary;
+    qs("genS4ReviewStatusText").textContent=
+      `Requirements reviewed · ${sm.total} materials (${sm.auto} auto-eligible, ${sm.review} review-required)`;
+  }
+}
+function s4UpdateReviewReady() {
+  const btn=qs("btnS4ReviewConfirm");
+  if(!btn)return;
+  btn.disabled = !s4PlanRows ||
+    s4PlanSignature !== s4Signature(s4ParametersForGenerate()) ||
+    !qs("genS4Acknowledged")?.checked;
 }
 function s4UpdateGenerateReady() {
   const btn=qs("btnGenPrConfirm");
   if(!btn)return;
   btn.disabled = !canWriteModule() || s4Generating || !s4PlanRows ||
-    s4PlanSignature !== s4Signature(s4ParametersForGenerate()) ||
-    !qs("genS4Acknowledged")?.checked;
+    !s4ReviewConfirmedSig ||
+    s4ReviewConfirmedSig !== s4PlanSignature ||
+    s4PlanSignature !== s4Signature(s4ParametersForGenerate());
+}
+function s4CloseReview() {
+  // Back / Close / Escape / backdrop: never approves anything. The plan is
+  // discarded so reopening cannot reuse stale acceptance.
+  ++s4PlanRequestSeq;
+  s4PlanRows=null;s4PlanSignature="";
+  s4ReviewConfirmedSig="";s4ReviewConfirmedSummary=null;
+  if(qs("genS4Acknowledged"))qs("genS4Acknowledged").checked=false;
+  s4RenderReviewStatus();
+  hideModalBackdrop(qs("s4ReviewModalBackdrop"),[qs("btnGenS4Preview")]);
+  s4UpdateReviewReady();
+  s4UpdateGenerateReady();
+}
+function s4ConfirmReview() {
+  if(!s4PlanRows || s4PlanSignature!==s4Signature(s4ParametersForGenerate()) ||
+     !qs("genS4Acknowledged")?.checked)return;
+  s4ReviewConfirmedSig=s4PlanSignature;
+  s4ReviewConfirmedSummary=s4Summary(s4PlanRows);
+  s4RenderReviewStatus();
+  hideModalBackdrop(qs("s4ReviewModalBackdrop"),
+    [qs("btnGenS4ReviewAgain"),qs("btnGenS4Preview")]);
+  s4UpdateReviewReady();
+  s4UpdateGenerateReady();
 }
 async function s4PreviewForGenerate() {
   const params=s4ParametersForGenerate();
   if(!params.p_start || !params.p_end) {
-    toast("Select both planning months before previewing the requirement.","error");
+    toast("Select both planning months before reviewing the requirement.","error");
     return;
   }
   const signature=s4Signature(params);
-  const seq=++s4PlanRequestSeq;
-  s4PlanRows=null;s4PlanSignature="";
-  const panel=qs("genS4PreviewPanel");
-  panel.style.display="";
+  s4InvalidatePreview({keepModal:true});          // clears any earlier confirmation
+  const seq=++s4PlanRequestSeq;                   // latest request wins
+  const modal=qs("s4ReviewModalBackdrop");
+  qs("s4ReviewContext").textContent=
+    `${params.p_start.slice(0,7)} to ${params.p_end.slice(0,7)} · ${
+      params.p_class===1?"RM":params.p_class===2?"PM":params.p_class===5?"IND":"All classes"}`;
   qs("genS4PreviewSummary").textContent="Checking stock, MRP, consumption and outstanding indents…";
+  qs("genS4ReviewCounts").textContent="";
   qs("genS4PreviewExceptions").textContent="";
-  qs("genS4Acknowledged").checked=false;
   if(qs("genS4ItemSearch"))qs("genS4ItemSearch").value="";
-  s4UpdateGenerateReady();
+  modal.classList.add("show");modal.setAttribute("aria-hidden","false");
+  modal.querySelector(".modal")?.focus();
   const result=await supabase.rpc("proc_pec_s4_new_pr_plan",params);
-  if(seq!==s4PlanRequestSeq || !qs("generatePrModalBackdrop")?.classList.contains("show") ||
+  if(seq!==s4PlanRequestSeq || !modal.classList.contains("show") ||
+    !qs("generatePrModalBackdrop")?.classList.contains("show") ||
     signature!==s4Signature(s4ParametersForGenerate()))return;
   if(result.error || !Array.isArray(result.data) || !result.data.length){
     qs("genS4PreviewSummary").textContent=
-      `Preview unavailable: ${pecErrText(result.error || {message:"No planning materials returned"})}`;
+      `Review unavailable: ${pecErrText(result.error || {message:"No planning materials returned"})}`;
+    s4UpdateReviewReady();
     return;
   }
   s4PlanRows=result.data;s4PlanSignature=signature;
   const sum=s4Summary(result.data);
   qs("genS4PreviewSummary").textContent=
     `${sum.total} materials · ${sum.positive} positive automatic requirements · ${sum.zeroMrp} zero-MRP materials now included · ${sum.consumptionOnly} consumption-only candidates · ${sum.review} require manual review. No indent will be created.`;
+  qs("genS4ReviewCounts").innerHTML=
+    `<div><b>${sum.auto}</b><span>Auto-eligible</span></div>`+
+    `<div class="is-review"><b>${sum.review}</b><span>Review required</span></div>`+
+    `<div><b>${sum.zeroMrp}</b><span>Zero-MRP included</span></div>`+
+    `<div><b>${sum.consumptionOnly}</b><span>Consumption-only</span></div>`;
   s4RenderExceptions(result.data,"genS4PreviewExceptions");
+  s4UpdateReviewReady();
   s4UpdateGenerateReady();
 }
 
@@ -9681,8 +9836,8 @@ async function generateDraftPr() {
   }
 
   if (!s4PlanRows || s4PlanSignature !== s4Signature(s4ParametersForGenerate()) ||
-      !qs("genS4Acknowledged")?.checked) {
-    toast("Preview and acknowledge the MRP + consumption requirement before generating.","error");
+      !s4ReviewConfirmedSig || s4ReviewConfirmedSig !== s4PlanSignature) {
+    toast("Review and confirm the requirements before generating.","error");
     return;
   }
   if (s4Generating) return;
@@ -9900,15 +10055,24 @@ function wirePrControls() {
   });
   qs("btnGeneratePr").addEventListener("click", openGeneratePrModal);
   qs("btnGenS4Preview")?.addEventListener("click",s4PreviewForGenerate);
+  qs("btnGenS4ReviewAgain")?.addEventListener("click",s4PreviewForGenerate);
+  qs("btnS4ReviewBack")?.addEventListener("click",s4CloseReview);
+  qs("btnS4ReviewClose")?.addEventListener("click",s4CloseReview);
+  qs("btnS4ReviewConfirm")?.addEventListener("click",s4ConfirmReview);
+  qs("s4ReviewModalBackdrop")?.addEventListener("click",e=>{
+    if(e.target.id==="s4ReviewModalBackdrop")s4CloseReview();
+  });
+  wirePrMoreMenu();
   qs("genS4ItemSearch")?.addEventListener("input",()=>{
     if(s4PlanRows)s4RenderExceptions(s4PlanRows,"genS4PreviewExceptions");
   });
   qs("s4ReconcileItemSearch")?.addEventListener("input",()=>{
     if(s4ReconcileEvidence)s4RenderExceptions(s4ReconcileEvidence,"s4ReconcileExceptions");
   });
-  qs("genS4Acknowledged")?.addEventListener("change",s4UpdateGenerateReady);
+  qs("genS4Acknowledged")?.addEventListener("change",s4UpdateReviewReady);
   ["prHorizonStart","prHorizonEnd","prMaterialClass","prRmScope"].forEach(id=>{
-    qs(id)?.addEventListener("change",s4InvalidatePreview);
+    qs(id)?.addEventListener("change",()=>s4InvalidatePreview());
+    qs(id)?.addEventListener("input",()=>{ if(s4ReviewConfirmedSig||s4PlanRows)s4InvalidatePreview(); });
   });
   qs("btnPrS4Reconcile")?.addEventListener("click",s4OpenReconciliation);
   qs("btnS4ReconcileClose")?.addEventListener("click",s4CloseReconciliation);

@@ -2104,12 +2104,12 @@
           flex: 0 0 auto;
         }
         #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(1)::before { content: "Item / Evidence"; }
-        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(2)::before { content: "MRP"; }
-        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(3)::before { content: "PR Final"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(2)::before { content: "MRP qty"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(3)::before { content: "Existing PR final"; }
         #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(4)::before { content: "12m Usage"; }
         #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(5)::before { content: "Stock"; }
         #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(6)::before { content: "Open Indents"; }
-        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(7)::before { content: "Illustrative Floor"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(7)::before { content: "Suggested additional Qty"; }
         #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(8)::before { content: "Review state"; }
         #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(9)::before { content: "Draft action"; }
         #ccfPreviewModalBackdrop .pec-ccf-table td:first-child,
@@ -2373,6 +2373,90 @@
       @media (max-width: 680px) {
         #prViewModalBackdrop .pec-pr-secondary-options { left: 0; right: auto; }
       }
+
+      /* ===== S4 UX package (22 Nov 2026): presentation only ===== */
+      #generatePrModalBackdrop .pec-s4-review-gate { display:flex; flex-direction:column; gap:6px; }
+      #generatePrModalBackdrop #btnGenS4Preview { width:100%; justify-content:center; }
+      .pec-s4-review-status {
+        display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+        padding:8px 10px; border:1px solid rgba(16,112,100,.35); border-radius:8px;
+        background:rgba(16,112,100,.08); font-size:13px; line-height:1.35;
+      }
+      .pec-s4-review-status[hidden], #btnGenS4Preview[hidden], #genS4ReviewHint[hidden] { display:none !important; }
+      .pec-s4-link-btn {
+        background:none; border:0; padding:4px 6px; min-height:28px; cursor:pointer;
+        color:var(--primary,#0b605a); font:inherit; font-weight:600; text-decoration:underline;
+      }
+      #s4ReviewModalBackdrop { z-index:10000; }
+      #s4ReviewModalBackdrop > .modal { max-width:860px; padding:0; min-height:0; overflow:hidden; }
+      #s4ReviewModalBackdrop > .modal > .modal-header { padding:12px 14px 8px; }
+      #s4ReviewModalBackdrop .pec-s4-review-body {
+        flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:8px 14px 12px;
+      }
+      #s4ReviewModalBackdrop > .modal:focus { outline:none; }
+      @media (min-width: 681px) {
+        #s4ReviewModalBackdrop > .modal { height:min(86dvh, 780px); max-height:86dvh; }
+      }
+      #s4ReviewModalBackdrop #genS4PreviewSummary { margin:0 0 8px; font-size:12px; line-height:1.4; }
+      .pec-s4-counts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:0 0 10px; }
+      .pec-s4-counts > div {
+        border:1px solid var(--border,#d9e1e7); border-radius:8px; padding:6px 9px;
+        background:rgba(100,116,139,.06); min-width:0;
+      }
+      .pec-s4-counts b { display:block; font-size:18px; line-height:1.15; font-variant-numeric:tabular-nums; }
+      .pec-s4-counts span { display:block; font-size:11px; color:var(--muted,#64748b); line-height:1.25; }
+      .pec-s4-counts .is-review { border-color:rgba(180,83,9,.45); background:rgba(245,158,11,.10); }
+      .pec-s4-review-search { display:flex; flex-direction:column; gap:4px; margin:0 0 8px; }
+      .pec-s4-review-search label { font-size:12px; font-weight:600; }
+      .pec-s4-review-search input { width:100%; box-sizing:border-box; min-height:36px; }
+      .pec-s4-review-list { font-size:13px; }
+      .pec-s4-review-list .pec-s4-count-note { font-size:11px; color:var(--muted,#64748b); margin:0 0 4px; }
+      .pec-s4-item { padding:7px 2px; border-bottom:1px solid var(--border,#e4e7ed); }
+      .pec-s4-item-top { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+      .pec-s4-item-name { font-weight:600; overflow-wrap:anywhere; min-width:0; }
+      .pec-s4-item-uom { font-weight:400; color:var(--muted,#64748b); font-size:12px; }
+      .pec-s4-item-qty { font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; text-align:right; }
+      .pec-s4-item-qty small { display:block; font-weight:400; font-size:10px; color:var(--muted,#64748b); }
+      .pec-s4-item-sub { display:flex; flex-wrap:wrap; gap:6px; margin-top:3px; align-items:center; }
+      .pec-s4-badge {
+        display:inline-block; padding:1px 7px; border-radius:999px; font-size:11px; line-height:1.5;
+        border:1px solid var(--border,#cbd5e1); background:rgba(100,116,139,.08);
+      }
+      .pec-s4-badge.is-review { border-color:rgba(180,83,9,.5); background:rgba(245,158,11,.14); }
+      .pec-s4-badge.is-auto { border-color:rgba(16,112,100,.45); background:rgba(16,112,100,.10); }
+      .pec-s4-item details { margin-top:3px; font-size:12px; color:var(--muted,#64748b); }
+      .pec-s4-item summary { cursor:pointer; padding:2px 0; color:var(--primary,#0b605a); }
+      .pec-s4-item details p { margin:3px 0; line-height:1.4; overflow-wrap:anywhere; }
+      .pec-s4-review-foot {
+        flex:0 0 auto; border-top:1px solid var(--border,#d9e1e7); padding:10px 14px;
+        padding-bottom:calc(10px + env(safe-area-inset-bottom, 0px));
+        background:var(--panel-bg,#fff);
+      }
+      .pec-s4-ack { display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:13px; line-height:1.45; margin:0 0 10px; }
+      .pec-s4-ack input { flex:0 0 22px; width:22px; height:22px; margin:0; accent-color:var(--primary,#0b605a); cursor:pointer; }
+      .pec-s4-ack input:focus-visible { outline:2px solid var(--primary,#0b605a); outline-offset:2px; }
+      .pec-s4-review-actions { display:flex; justify-content:flex-end; gap:8px; }
+      .pec-s4-review-actions button { min-height:40px; min-width:96px; }
+      @media (max-width: 680px) {
+        .pec-s4-counts { grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+        .pec-s4-counts b { font-size:16px; }
+        .pec-s4-review-actions button { flex:1 1 0; }
+      }
+      #ccfPreviewFilter {
+        background:rgba(16,112,100,.07); border:1px solid var(--border,#cbd5e1); border-radius:7px;
+        min-height:34px; padding:0 8px;
+      }
+      #ccfPreviewModalBackdrop .pec-ccf-table tbody tr + tr td { border-top:1px solid rgba(100,116,139,.18); }
+      #ccfPreviewModalBackdrop .pec-ccf-sub { display:block; font-size:11px; color:var(--muted,#64748b); margin-top:2px; }
+      #ccfPreviewModalBackdrop .pec-ccf-compact-main {
+        display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-top:3px;
+      }
+      #ccfPreviewModalBackdrop .pec-ccf-compact-main .lbl { font-size:11px; color:var(--muted,#64748b); }
+      #ccfPreviewModalBackdrop .pec-ccf-compact-main .val { font-weight:700; font-variant-numeric:tabular-nums; font-size:15px; }
+      #ccfPreviewModalBackdrop .pec-ccf-compact-main .uom { font-weight:400; font-size:11px; color:var(--muted,#64748b); margin-left:3px; }
+      #ccfPreviewModalBackdrop .pec-ccf-compact-dl { display:grid; grid-template-columns:1fr auto; gap:2px 12px; margin:4px 0; }
+      #ccfPreviewModalBackdrop .pec-ccf-compact-dl dt { color:var(--muted,#64748b); }
+      #ccfPreviewModalBackdrop .pec-ccf-compact-dl dd { margin:0; text-align:right; font-variant-numeric:tabular-nums; }
 </style>
     <!-- PEC-ERP-C1: SASV Workspace specialisation after inline legacy styles so token rules win the cascade -->
     <link rel="stylesheet" href="../shared/css/sasv-procurement-execution-console.css" />
@@ -5213,8 +5297,8 @@
               id="btnPrCoveragePreview"
               type="button"
               class="icon-btn primary"
-              title="Coverage review"
-              aria-label="Coverage review"
+              title="Requirement review"
+              aria-label="Consumption-based requirement review"
               aria-haspopup="dialog"
               aria-controls="ccfPreviewModalBackdrop"
             >
@@ -5250,7 +5334,7 @@
               </svg>
             </button>
             <details class="pec-pr-secondary-menu" id="prSecondaryActions">
-              <summary aria-label="More requisition actions">More actions</summary>
+              <summary aria-label="More requisition actions" aria-haspopup="menu" aria-expanded="false">More actions</summary>
               <div class="pec-pr-secondary-options">
                 <button
               id="btnPrClosePr"
@@ -5735,7 +5819,7 @@
       <div class="modal modal-fullpage pec-ccf-preview" role="dialog" aria-modal="true" aria-labelledby="ccfPreviewTitle">
         <div class="modal-header page-header">
           <div>
-            <h3 id="ccfPreviewTitle" style="margin: 0">Consumption Coverage Review</h3>
+            <h3 id="ccfPreviewTitle" style="margin: 0">Consumption Requirement Review</h3>
             <p id="ccfPreviewPrContext" class="muted" style="font-size: 12px; margin: 4px 0 0"></p>
           </div>
           <button id="btnCcfPreviewClose" type="button" class="modal-close-btn" title="Close" aria-label="Close">
@@ -5747,28 +5831,28 @@
         <div class="modal-body">
           <p class="pec-section-note">
             Read-only planning evidence. Based on 12 completed calendar months including months with zero usage.
-            MRP quantity and consumption coverage are alternative stock-netted plans, not additive.
+            MRP quantity and the consumption-based requirement are alternative stock-netted plans, not additive.
             Approved/issued unfulfilled indents are shown as existing commitments.
-            <strong>Illustrative quantities are not purchasing quantities until an authorised Editor explicitly approves an eligible draft line.</strong>
+            <strong>Suggested additional quantities are illustrative and review-only; they are not purchasing quantities.</strong>
           </p>
           <details class="pec-ccf-mobile-help">
-            <summary>How coverage is calculated</summary>
-            <p>12 completed calendar months including zeros. MRP and consumption are alternatives, not additive. Outstanding approved/issued indents are deducted. Recommendations are not purchasing approvals.</p>
+            <summary>How the requirement is calculated</summary>
+            <p>Suggested additional Qty = 12-month usage ÷ 12 × planning months, less stock and outstanding approved/issued indents, rounded up to MOQ. MRP and consumption are alternatives, not additive. Past usage is not a forecast; review only.</p>
           </details>
           <div class="pec-ccf-summary" id="ccfPreviewSummary" role="status" aria-live="polite">Loading…</div>
           <div class="pec-ccf-search-row">
             <label for="ccfPreviewFilter">Filter items</label>
-            <select id="ccfPreviewFilter">
+            <select id="ccfPreviewFilter" aria-label="Filter items">
               <option value="gaps">Items needing review</option>
               <option value="all">All PR lines</option>
               <option value="zero">Zero MRP with usage</option>
             </select>
           </div>
-          <div class="table-scroll pec-ccf-scroll" role="region" aria-label="Consumption coverage comparison table" tabindex="0">
+          <div class="table-scroll pec-ccf-scroll" role="region" aria-label="Consumption requirement comparison table" tabindex="0">
             <table class="pec-ccf-table">
               <thead><tr>
-                <th>Item / Evidence</th><th>MRP</th><th>PR Final</th><th>12m Usage</th>
-                <th>Stock</th><th>Open Indents</th><th>Illustrative Floor</th><th>Review state</th><th>Draft action</th>
+                <th>Item / Evidence</th><th>MRP Qty</th><th>Existing PR Final</th><th>12m Usage</th>
+                <th>Stock</th><th>Open Indents</th><th>Suggested additional Qty</th><th>Review state</th><th>Draft action</th>
               </tr></thead>
               <tbody id="ccfPreviewTbody"></tbody>
             </table>
@@ -5818,7 +5902,7 @@
     <div class="modal-backdrop" id="generatePrModalBackdrop" aria-hidden="true">
       <div class="modal" style="max-width: 560px" role="dialog" aria-modal="true" aria-labelledby="generatePrTitle">
         <div class="modal-header page-header">
-          <h3 style="margin: 0" id="generatePrTitle">Generate Draft PR from MRP</h3>
+          <h3 style="margin: 0" id="generatePrTitle">Create Draft PR</h3>
           <button id="btnGenPrClose" class="modal-close-btn" type="button" title="Close" aria-label="Close">
             <svg
               width="14"
@@ -5875,27 +5959,22 @@
               <label for="prNotes">Notes</label>
               <textarea id="prNotes" placeholder="Optional notes…"></textarea>
             </div>
-            <div class="form-group full-col">
+            <div class="form-group full-col pec-s4-review-gate">
               <button type="button" id="btnGenS4Preview" class="icon-btn with-label secondary"
-                aria-controls="genS4PreviewPanel">
+                aria-haspopup="dialog" aria-controls="s4ReviewModalBackdrop">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M3 3v18h18"/><path d="m7 15 4-5 4 2 4-7"/>
                 </svg>
-                <span>Preview MRP + Consumption Requirement</span>
+                <span>Review requirements</span>
               </button>
-            </div>
-            <div class="form-group full-col" id="genS4PreviewPanel" style="display:none">
-              <p id="genS4PreviewSummary" class="pec-section-note" role="status" aria-live="polite"></p>
-              <label for="genS4ItemSearch" style="display:block;margin:8px 0 6px">Find planned material</label>
-              <input id="genS4ItemSearch" type="search" placeholder="Search item, MRP, coverage or review state…" style="margin-bottom:8px" />
-              <div id="genS4PreviewExceptions" class="pec-s4-preflight-scroll" role="region"
-                   aria-label="Materials requiring review"></div>
-              <label class="pec-ccf-ack">
-                <input type="checkbox" id="genS4Acknowledged"/>
-                <span>I have reviewed the suggested quantities and items requiring review.
-                Generate a draft PR with frozen item-level evidence; no indent or order will be created.</span>
-              </label>
+              <div id="genS4ReviewStatus" class="pec-s4-review-status" role="status" aria-live="polite" hidden>
+                <span id="genS4ReviewStatusText"></span>
+                <button type="button" id="btnGenS4ReviewAgain" class="pec-s4-link-btn">Review again</button>
+              </div>
+              <p id="genS4ReviewHint" class="pec-section-note" style="margin:6px 0 0">
+                Review the MRP and consumption-based requirement before generating. Generate stays disabled until the review is confirmed.
+              </p>
             </div>
           </div>
         </div>
@@ -5906,6 +5985,42 @@
         <div class="actions">
           <button id="btnGenPrCancel">Cancel</button>
           <button id="btnGenPrConfirm" data-edit-action="true">Generate</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- S4 Task A: separate Requirement Review dialog. Read-only; only Generate in the primary dialog writes. -->
+    <div class="modal-backdrop" id="s4ReviewModalBackdrop" aria-hidden="true">
+      <div class="modal pec-s4-review" role="dialog" aria-modal="true" aria-labelledby="s4ReviewTitle" tabindex="-1">
+        <div class="modal-header page-header">
+          <div>
+            <h3 id="s4ReviewTitle" style="margin:0">Requirement Review</h3>
+            <p id="s4ReviewContext" class="muted" style="font-size:12px;margin:4px 0 0"></p>
+          </div>
+          <button id="btnS4ReviewClose" class="modal-close-btn" type="button" title="Close" aria-label="Close review">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2.5" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="modal-body pec-s4-review-body">
+          <p id="genS4PreviewSummary" class="pec-section-note" role="status" aria-live="polite"></p>
+          <div id="genS4ReviewCounts" class="pec-s4-counts" aria-label="Requirement counts"></div>
+          <div class="pec-s4-review-search">
+            <label for="genS4ItemSearch">Find planned material</label>
+            <input id="genS4ItemSearch" type="search" placeholder="Search item, UOM or review state…" autocomplete="off" />
+          </div>
+          <div id="genS4PreviewExceptions" class="pec-s4-review-list" role="region" aria-label="Planned materials"></div>
+        </div>
+        <div class="pec-s4-review-foot">
+          <label class="pec-s4-ack" for="genS4Acknowledged">
+            <input type="checkbox" id="genS4Acknowledged" />
+            <span>I have reviewed the requirements and the items needing review. Generating creates only a draft PR with frozen item-level evidence; no indent or order is created.</span>
+          </label>
+          <div class="pec-s4-review-actions">
+            <button type="button" id="btnS4ReviewBack">Back</button>
+            <button type="button" id="btnS4ReviewConfirm" class="primary" disabled>Confirm Review</button>
+          </div>
         </div>
       </div>
     </div>
