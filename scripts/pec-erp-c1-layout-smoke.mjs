@@ -62,6 +62,24 @@ export const supabase = {
     if (S.failReads && (name.startsWith("proc_pec_") || name === "proc_procurement_action_queue_paged")) return { data: null, error: { message: "fixture failure" }, status: 400 };
     if (__r !== undefined && !(S.failReads && name.startsWith("proc_pec_"))) return mk(__r);
     if (name === "get_user_permissions") return mk(S.role === "none" ? [] : [{ target: "module:procurement-execution-console", can_view: true, can_edit: S.role === "edit" }]);
+    globalThis.__rpcNames = (globalThis.__rpcNames || []); globalThis.__rpcNames.push(name);
+    if (name === "proc_pec_jit_mrp_plan") {
+      globalThis.__jitPlanCalls = (globalThis.__jitPlanCalls || []); globalThis.__jitPlanCalls.push(params);
+      if (S.jitMissing) return { data: null, error: { code: "PGRST202", message: "Could not find the function public.proc_pec_jit_mrp_plan" } };
+      const cmp = params.p_compare_consumption === true;
+      const row = (o) => ({ mode: "jit_mrp", material_class_id: 1, uom_id: 1, uom_code: "Kg", consumption_only: false, outstanding_indent_lines: 0, ...o,
+        ...(cmp ? {} : { usage_12m: null, consumption_gap_vs_mrp: null }) });
+      return mk([
+        row({ stock_item_id: 101, stock_item_name: "Synthetic JIT Herb", mrp_net_qty: 100, recommended_qty: 100, outstanding_indent_qty: 0, gate: "AUTO_ELIGIBLE", usage_12m: 120, consumption_gap_vs_mrp: 0 }),
+        row({ stock_item_id: 102, stock_item_name: "Synthetic JIT Resin", mrp_net_qty: 100, recommended_qty: 60, outstanding_indent_qty: 40, gate: "AUTO_ELIGIBLE", usage_12m: 1200, consumption_gap_vs_mrp: 20 }),
+        row({ stock_item_id: 103, stock_item_name: "Synthetic JIT Conflicting MOQ", mrp_net_qty: 20, recommended_qty: null, outstanding_indent_qty: 0, gate: "MOQ_POLICY_REVIEW", usage_12m: 5, consumption_gap_vs_mrp: 0 }),
+      ]);
+    }
+    if (name === "proc_pec_jit_generate_pr") {
+      globalThis.__jitGenerateCalls = (globalThis.__jitGenerateCalls || []); globalThis.__jitGenerateCalls.push(params);
+      if (S.role !== "edit") return { data: null, error: { message: "Permission denied" } };
+      return mk({ pr_id: 41, pr_number: params.p_pr_number, auto_evidenced_lines: 2, review_required_lines: 1, mode: "jit_mrp" });
+    }
     if(name === "proc_pec_s4_new_pr_plan") {
       globalThis.__s4PlanCalls = (globalThis.__s4PlanCalls || 0) + 1;
       if (S.planError) return { data: null, error: { message: "synthetic plan failure" } };
@@ -863,6 +881,129 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   check(!(await page.isVisible("#s4ReconcileModalBackdrop.show")) &&
         !(await page.locator("#s4ReconcileExceptions").textContent()).includes("STALE ROW"),
     "[#500 reconcile] stale preview response after close is discarded");
+  await ctx.close();
+}
+
+// Issue #502: procurement-route-aware generation and editable reason templates.
+const JIT_TPL = "Just-in-time procurement requirement based on planned production demand for the selected period. Quantities are subject to review against existing procurement commitments and applicable supplier constraints.";
+const NORMAL_TPL = "Procurement requirement prepared for the selected planning period using MRP and consumption-based estimates, considering verified stock and outstanding procurement commitments.";
+async function startJitGenerate(scenario, vp) {
+  const r = await open({ role: "edit", ...scenario }, vp);
+  const { page } = r;
+  await page.click("#btnGeneratePr");
+  await page.fill("#prNewNumber", "PR-JIT-FIXTURE-01");
+  await page.fill("#prHorizonStart", "2026-12"); await page.fill("#prHorizonEnd", "2027-01");
+  await page.selectOption("#prMaterialClass", "1");
+  await page.selectOption("#prRmScope", "jit");
+  return r;
+}
+const rpcCount = (page, n) => page.evaluate((name) => (globalThis.__rpcNames || []).filter((x) => x === name).length, n);
+for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
+  const { ctx, page, errors } = await startJitGenerate({}, vp);
+  const tag = `[#502 JIT ${vp.name}]`;
+  check((await page.inputValue("#prNotes")) === JIT_TPL, `${tag} notes default switches to the JIT wording when RM JIT Only is chosen`);
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("JIT MRP materials"));
+  const jitCalls = await page.evaluate(() => globalThis.__jitPlanCalls || []);
+  check(jitCalls.length === 1 && jitCalls[0].p_compare_consumption === true && (await rpcCount(page, "proc_pec_s4_new_pr_plan")) === 0,
+    `${tag} RM JIT Only uses the JIT MRP plan (comparison on by default), not the hybrid plan`);
+  check(await page.isVisible("#s4ReviewRoute") && await page.isVisible("#genS4CompareRow") && (await page.locator("#genS4ReviewCounts").innerText()).includes("Netted vs open indents"),
+    `${tag} review shows the JIT rationale, optional comparison toggle and indent netting`);
+  check((await page.locator("#genS4PreviewExceptions").innerText()).includes("Synthetic JIT Conflicting MOQ") && (await page.locator("#genS4PreviewExceptions").innerText()).toLowerCase().includes("moq policy review"),
+    `${tag} MOQ-conflicting JIT item stays a review-required exception`);
+  check(await page.isDisabled("#btnS4ReviewConfirm") && await page.isDisabled("#btnGenPrConfirm"), `${tag} no silent write: confirm and Generate disabled before acknowledgement`);
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-jit-requirement-review.png`) });
+  await page.check("#genS4Acknowledged"); await page.click("#btnS4ReviewConfirm");
+  check(await page.isEnabled("#btnGenPrConfirm"), `${tag} confirmed MRP review enables Generate`);
+  await page.click("#btnGenPrConfirm");
+  await page.waitForFunction(() => (globalThis.__jitGenerateCalls || []).length === 1);
+  const gen = await page.evaluate(() => ({ jit: globalThis.__jitGenerateCalls, hybrid: globalThis.__s4GenerateCalls || [] }));
+  check(gen.jit[0].p_confirm === true && gen.jit[0].p_generation_filters.rm_scope === "jit" && gen.jit[0].p_compare_consumption === true && gen.hybrid.length === 0 &&
+        gen.jit[0].p_notes === JIT_TPL,
+    `${tag} Generate calls only the JIT writer (server-owned route), with the JIT note and comparison flag`);
+  check(errors.length === 0, `${tag} no browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+{
+  // Optional comparison off; route change invalidates; edited notes are preserved with an offer; hybrid unchanged.
+  const { ctx, page } = await startJitGenerate({}, VIEWPORTS[0]);
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("JIT MRP materials"));
+  await page.uncheck("#genS4Compare");
+  await page.waitForFunction(() => (globalThis.__jitPlanCalls || []).length === 2);
+  check((await page.evaluate(() => globalThis.__jitPlanCalls[1].p_compare_consumption)) === false &&
+        !(await page.locator("#genS4PreviewExceptions").innerText()).includes("12-month usage") &&
+        (await page.locator("#genS4ReviewCounts").innerText()).includes("Comparison off"),
+    "[#502 JIT] comparison is optional: switching it off re-plans without any consumption data");
+  check(await page.isDisabled("#btnS4ReviewConfirm"), "[#502 JIT] changing the comparison choice clears any acknowledgement");
+  await page.check("#genS4Acknowledged"); await page.click("#btnS4ReviewConfirm");
+  check(await page.isEnabled("#btnGenPrConfirm"), "[#502 JIT] confirmed review (comparison off) enables Generate");
+  await page.selectOption("#prRmScope", "normal");
+  check(await page.isDisabled("#btnGenPrConfirm") && !(await page.isVisible("#genS4ReviewStatus")), "[#502 JIT] changing the route after confirmation invalidates it");
+  check((await page.inputValue("#prNotes")) === NORMAL_TPL, "[#502] unedited notes follow the route back to the standard wording");
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  check((await rpcCount(page, "proc_pec_s4_new_pr_plan")) === 1, "[#502] RM Normal still uses the existing hybrid plan");
+  await page.keyboard.press("Escape");
+  await page.fill("#prNotes", "My own wording for this requirement.");
+  await page.selectOption("#prRmScope", "jit");
+  check((await page.inputValue("#prNotes")) === "My own wording for this requirement." && await page.isVisible("#prNotesTemplateHint"),
+    "[#502] edited notes are never overwritten; the new suggested wording is offered");
+  await page.click("#btnPrNotesUseTemplate");
+  check((await page.inputValue("#prNotes")) === JIT_TPL && !(await page.isVisible("#prNotesTemplateHint")), "[#502] the offer replaces notes only on explicit request");
+  await ctx.close();
+}
+{
+  // Server functions not installed yet: conservative fallback to the existing hybrid review/writer.
+  const { ctx, page } = await startJitGenerate({ jitMissing: true }, VIEWPORTS[0]);
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  await page.check("#genS4Acknowledged"); await page.click("#btnS4ReviewConfirm");
+  await page.click("#btnGenPrConfirm");
+  await page.waitForFunction(() => (globalThis.__s4GenerateCalls || []).length === 1);
+  check((await page.evaluate(() => (globalThis.__jitGenerateCalls || []).length)) === 0 && (await rpcCount(page, "proc_pec_jit_mrp_plan")) === 1,
+    "[#502] missing JIT server functions: falls back to the hybrid review and writer (no bypass)");
+  await ctx.close();
+}
+{
+  // View-only: cannot generate by any route.
+  const { ctx, page } = await open({ role: "view" }, VIEWPORTS[0]);
+  check(!(await page.isVisible("#btnGeneratePr")) || await page.isDisabled("#btnGeneratePr"), "[#502] View-only cannot start PR generation");
+  check((await page.evaluate(() => (globalThis.__jitGenerateCalls || []).length)) === 0, "[#502] View-only made no JIT writer call");
+  await ctx.close();
+}
+{
+  // Editable reason templates in reconcile, add-line and status dialogs.
+  const { ctx, page } = await openReconcile({}, VIEWPORTS[0]);
+  const RECON = "Reconcile untouched draft PR lines with updated consumption-based requirements, preserving existing manual adjustments and retaining flagged items for separate review.";
+  check((await page.inputValue("#s4ReconcileReason")) === RECON && !(await page.isChecked("#s4ReconcileAcknowledged")) && await page.isDisabled("#btnS4ReconcileConfirm"),
+    "[#502] reconcile reason is prefilled and editable, the attestation is NOT pre-checked and confirm stays disabled");
+  await page.waitForFunction(() => document.querySelector("#s4ReconcileSummary")?.textContent.includes("zero-MRP"));
+  await page.fill("#s4ReconcileReason", "too short"); await page.check("#s4ReconcileAcknowledged");
+  check(await page.isDisabled("#btnS4ReconcileConfirm"), "[#502] the existing 20-character minimum still rejects short edited text");
+  await page.fill("#s4ReconcileReason", RECON);
+  check(await page.isEnabled("#btnS4ReconcileConfirm"), "[#502] the standard sentence satisfies the minimum only because it is a complete sentence");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ role: "edit", ccfDraft: true }, VIEWPORTS[0]);
+  await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)"); await page.click("#prTbody tr:first-child");
+  await page.waitForSelector("#btnPrAddLine:visible"); await page.click("#btnPrAddLine");
+  const PREFIX = "Quantity adjusted following review of production demand and procurement constraints. Item-specific justification: ";
+  check((await page.inputValue("#prAddLineReason")) === PREFIX, "[#502] add-line reason opens with the standard editable prefix");
+  await page.fill("#prAddLineQty", "5");
+  await page.click("#btnPrAddLineSave");
+  await page.waitForFunction(() => document.getElementById("toastContainer")?.textContent.includes("item-specific justification"));
+  check((await page.evaluate(() => (globalThis.__rpcNames || []).filter((x) => x === "proc_pr_add_line").length)) === 0,
+    "[#502] the unfinished prefix alone cannot be saved as a reason (no add-line write)");
+  await page.fill("#prAddLineReason", PREFIX + "ok");
+  await page.click("#btnPrAddLineSave");
+  check((await page.evaluate(() => (globalThis.__rpcNames || []).filter((x) => x === "proc_pr_add_line").length)) === 0,
+    "[#502] prefix plus a token justification is still rejected");
+  await page.keyboard.press("Escape");
   await ctx.close();
 }
 
