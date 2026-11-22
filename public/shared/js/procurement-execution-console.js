@@ -9115,7 +9115,179 @@ function exportPrFormPdf(pr) {
   }
 }
 
+// PEC S4: read-only consumption-coverage review for saved PRs.
+// This surface deliberately contains no quantity-writing action.
+let ccfPreviewRows = [];
+let ccfPreviewRequestSeq = 0;
+let ccfPreviewPrId = null;
+let ccfApplyRow = null;
+let ccfApplyBusy = false;
+
+function canApplyCcfLine(row) {
+  return Boolean(canWriteModule() && state.selectedPr?.status === "draft" &&
+    row?.review_state === "ANCHOR_AND_POLICY_REVIEW" &&
+    Number(row.illustrative_increment) > 0 &&
+    row.stock_as_of && row.pr_line_id && !ccfApplyBusy);
+}
+
+function updateCcfApplyReady() {
+  const btn = qs("btnCcfApplyConfirm");
+  if (!btn) return;
+  const accepted = Boolean(qs("ccfApplyAcknowledged")?.checked);
+  const reason = (qs("ccfApplyReason")?.value || "").trim();
+  btn.disabled = !(accepted && reason.length >= 20 && ccfApplyRow &&
+    canApplyCcfLine(ccfApplyRow) && !ccfApplyBusy);
+}
+
+function openCcfApply(row) {
+  if (!canApplyCcfLine(row)) return;
+  ccfApplyRow = row;
+  qs("ccfApplyReason").value = "";
+  qs("ccfApplyAcknowledged").checked = false;
+  qs("ccfApplyError").textContent = "";
+  qs("ccfApplyContext").textContent =
+    `${row.stock_item_name} (${row.uom_code || "unit"}) — ${state.selectedPr.pr_number}. Current final quantity ${ccfPreviewNumber(row.pr_effective_qty)}; proposed coverage floor ${ccfPreviewNumber(row.illustrative_ccf_floor)}; additional ${ccfPreviewNumber(row.illustrative_increment)}. Stock source as of ${row.stock_as_of}. This is an explicit, one-line draft adjustment.`;
+  const backdrop = qs("ccfApplyModalBackdrop");
+  backdrop.classList.add("show");
+  backdrop.setAttribute("aria-hidden", "false");
+  updateCcfApplyReady();
+  qs("ccfApplyReason")?.focus();
+}
+
+function closeCcfApply() {
+  if (ccfApplyBusy) return;
+  ccfApplyRow = null;
+  const backdrop = qs("ccfApplyModalBackdrop");
+  if (backdrop) hideModalBackdrop(backdrop, [qs("btnCcfPreviewClose")]);
+}
+
+async function applyCcfToDraft() {
+  const row = ccfApplyRow;
+  const pr = state.selectedPr;
+  if (!row || !pr || !canApplyCcfLine(row) ||
+      !qs("ccfApplyAcknowledged")?.checked ||
+      (qs("ccfApplyReason")?.value || "").trim().length < 20) return;
+  if (!canPerformEditAction("Apply consumption coverage to draft PR")) return;
+  const reason = qs("ccfApplyReason").value.trim();
+  ccfApplyBusy = true;
+  updateCcfApplyReady();
+  let response;
+  try {
+    response = await supabase.rpc("proc_pec_ccf_apply_draft_line", {
+      p_pr_line_id: Number(row.pr_line_id),
+      p_expected_effective_qty: String(row.pr_effective_qty),
+      p_expected_ccf_floor: String(row.illustrative_ccf_floor),
+      p_expected_stock_as_of: row.stock_as_of,
+      p_reason: reason,
+      p_confirm: true
+    });
+  } catch (error) {
+    response = { error };
+  }
+  ccfApplyBusy = false;
+  if (response?.error) {
+    qs("ccfApplyError").textContent =
+      pecWriterErrorText("Coverage approval was not applied", response.error);
+    updateCcfApplyReady();
+    return;
+  }
+  ccfApplyRow = null;
+  hideModalBackdrop(qs("ccfApplyModalBackdrop"), [qs("btnPrCoveragePreview")]);
+  toast("Draft PR line updated with explicitly approved consumption coverage.", "success");
+  await loadPrLines(pr.pr_id);
+  if (qs("ccfPreviewModalBackdrop")?.classList.contains("show")) {
+    await openCcfPreview(); // refresh from server; no stale screen quantities
+  }
+}
+
+
+function ccfPreviewNumber(n) {
+  if (n === null || n === undefined || n === "") return "—";
+  const value = Number(n);
+  return Number.isFinite(value) ? fmtQty(value) : "—";
+}
+
+function renderCcfPreview() {
+  const tbody = qs("ccfPreviewTbody");
+  const summary = qs("ccfPreviewSummary");
+  if (!tbody || !summary) return;
+  const mode = qs("ccfPreviewFilter")?.value || "gaps";
+  const gap = (row) => Number(row.illustrative_increment || 0) > 0;
+  const zero = (row) => Number(row.mrp_suggested_qty || 0) === 0 &&
+      Number(row.usage_12m || 0) > 0;
+  const rows = ccfPreviewRows.filter(row =>
+    mode === "all" || (mode === "zero" ? zero(row) : gap(row)));
+  const countZero = ccfPreviewRows.filter(zero).length;
+  const countGap = ccfPreviewRows.filter(gap).length;
+  summary.textContent = `${ccfPreviewRows.length} PR lines examined · ${countZero} zero-MRP lines with recorded usage · ${countGap} illustrative coverage gaps. All proposed figures require source/anchor review; no PR quantities have been changed.`;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="muted">No matching coverage rows. Change the filter to inspect all PR lines.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(row => {
+    const evidence = `12m recorded in ${Number(row.months_with_usage || 0)} months · average ${ccfPreviewNumber(row.calendar_monthly_average)}/month · last ${row.latest_usage_month || "none"} · stock as-of ${row.stock_as_of || "unknown"}`;
+    const action = canApplyCcfLine(row)
+      ? `<button type="button" class="pec-ccf-approve-btn" data-edit-action="true" data-ccf-line-id="${Number(row.pr_line_id)}" aria-label="Review and approve consumption coverage for ${esc(row.stock_item_name || String(row.stock_item_id))}">Review &amp; apply</button>`
+      : "Review only";
+    return `<tr>
+      <td><strong>${esc(row.stock_item_name || String(row.stock_item_id))}</strong>
+        <span class="muted">${esc(row.uom_code || "—")} · ${esc(evidence)}</span></td>
+      <td>${esc(ccfPreviewNumber(row.mrp_suggested_qty))}</td>
+      <td>${esc(ccfPreviewNumber(row.pr_effective_qty))}</td>
+      <td>${esc(ccfPreviewNumber(row.usage_12m))}</td>
+      <td>${esc(ccfPreviewNumber(row.stock_on_hand))}</td>
+      <td>${esc(ccfPreviewNumber(row.outstanding_indent_qty))}</td>
+      <td><strong>${esc(ccfPreviewNumber(row.illustrative_ccf_floor))}</strong>
+        <span class="muted">Potential increase: ${esc(ccfPreviewNumber(row.illustrative_increment))}</span></td>
+      <td>${esc(row.review_state || "REVIEW_REQUIRED")}</td>
+      <td>${action}</td>
+    </tr>`;
+  }).join("");
+}
+
+async function openCcfPreview() {
+  const pr = state.selectedPr;
+  if (!pr?.pr_id || !qs("prViewModalBackdrop")?.classList.contains("show")) return;
+  const backdrop = qs("ccfPreviewModalBackdrop");
+  if (!backdrop) return;
+  ccfPreviewPrId = pr.pr_id;
+  ccfPreviewRows = [];
+  const seq = ++ccfPreviewRequestSeq;
+  qs("ccfPreviewFilter").value = "gaps";
+  qs("ccfPreviewPrContext").textContent = `${pr.pr_number || ""} · ${pr.status || ""} · ${pr.horizon_start_month || "?"} to ${pr.horizon_end_month || "?"}`;
+  qs("ccfPreviewSummary").textContent = "Retrieving read-only consumption, stock and approved-indent evidence…";
+  qs("ccfPreviewTbody").innerHTML = "";
+  backdrop.classList.add("show");
+  backdrop.setAttribute("aria-hidden", "false");
+  qs("btnCcfPreviewClose")?.focus();
+  let result;
+  try {
+    result = await supabase.rpc("proc_pec_ccf_pr_preview", { p_pr_id: Number(pr.pr_id) });
+  } catch (error) {
+    result = { data: null, error };
+  }
+  if (seq !== ccfPreviewRequestSeq || !backdrop.classList.contains("show") ||
+      Number(ccfPreviewPrId) !== Number(pr.pr_id)) return;
+  if (result.error) {
+    qs("ccfPreviewSummary").textContent = `Consumption coverage preview unavailable: ${pecErrText(result.error)}`;
+    return;
+  }
+  ccfPreviewRows = Array.isArray(result.data) ? result.data : [];
+  renderCcfPreview();
+}
+
+function closeCcfPreview() {
+  if (qs("ccfApplyModalBackdrop")?.classList.contains("show")) closeCcfApply();
+  ++ccfPreviewRequestSeq; // latest response never re-opens a closed review
+  ccfPreviewPrId = null;
+  ccfPreviewRows = [];
+  const backdrop = qs("ccfPreviewModalBackdrop");
+  if (backdrop) hideModalBackdrop(backdrop, [qs("btnPrCoveragePreview")]);
+}
+
 function closePrViewModal() {
+  if (qs("ccfApplyModalBackdrop")?.classList.contains("show")) closeCcfApply();
+  if (qs("ccfPreviewModalBackdrop")?.classList.contains("show")) closeCcfPreview();
   closeProcurementFilterDrawer(qs("prLineFilterDrawer"));
   const backdrop = qs("prViewModalBackdrop");
   moveFocusOutsideModal(backdrop, [
@@ -9494,6 +9666,40 @@ function wirePrControls() {
   qs("btnGeneratePr").addEventListener("click", openGeneratePrModal);
   // PR detail modal
   qs("btnPrViewClose").addEventListener("click", closePrViewModal);
+  qs("btnPrCoveragePreview")?.addEventListener("click", openCcfPreview);
+  qs("ccfPreviewTbody")?.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-ccf-line-id]");
+    if (!button) return;
+    const row = ccfPreviewRows.find(x => Number(x.pr_line_id) === Number(button.dataset.ccfLineId));
+    if (row) openCcfApply(row);
+  });
+  qs("btnCcfApplyClose")?.addEventListener("click", closeCcfApply);
+  qs("btnCcfApplyCancel")?.addEventListener("click", closeCcfApply);
+  qs("ccfApplyModalBackdrop")?.addEventListener("click", (event) => {
+    if (event.target.id === "ccfApplyModalBackdrop") closeCcfApply();
+  });
+  qs("ccfApplyReason")?.addEventListener("input", updateCcfApplyReady);
+  qs("ccfApplyAcknowledged")?.addEventListener("change", updateCcfApplyReady);
+  qs("btnCcfApplyConfirm")?.addEventListener("click", applyCcfToDraft);
+  qs("btnCcfPreviewClose")?.addEventListener("click", closeCcfPreview);
+  qs("btnCcfPreviewDone")?.addEventListener("click", closeCcfPreview);
+  qs("ccfPreviewFilter")?.addEventListener("change", renderCcfPreview);
+  qs("ccfPreviewModalBackdrop")?.addEventListener("click", (event) => {
+    if (event.target.id === "ccfPreviewModalBackdrop") closeCcfPreview();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && qs("ccfApplyModalBackdrop")?.classList.contains("show")) {
+      event.stopImmediatePropagation();
+      event.preventDefault();
+      closeCcfApply();
+      return;
+    }
+    if (event.key === "Escape" && qs("ccfPreviewModalBackdrop")?.classList.contains("show")) {
+      event.stopImmediatePropagation();
+      event.preventDefault();
+      closeCcfPreview();
+    }
+  }, true);
   qs("btnPrExportMenu")?.addEventListener("click", (e) => {
     e.stopPropagation();
     toggleExportMenu("prExportMenu", qs("btnPrExportMenu"));

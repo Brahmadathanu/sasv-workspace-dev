@@ -25,6 +25,18 @@ export const INTEGRATION_PROTECTED_PATHS = new Set([
 // migration is still rejected. Working-tree (uncommitted) changes are NEVER
 // exempt: callers pass a context only for committed paths.
 export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
+  // S4 emergency CCF: two additive server migrations already registered live on
+  // 22 Nov 2026; exact file/branch/LF-SHA256 only. No blanket procurement SQL
+  // exemption. One is View-only preview; the other is a draft-only guarded
+  // single-line edit requiring explicit operator confirmation and an audit reason.
+  "supabase/migrations/20261122075009_pec_s4_ccf_pr_preview_readonly.sql": Object.freeze({
+    sha256: "2aeee1b1c4e1749d59aef3b4f8ec29e16c315f5e9babb7c8853cea58d8c58823",
+    heads: Object.freeze(["feat/pec-s4-ccf-preview-20261122"]),
+  }),
+  "supabase/migrations/20261122075447_pec_s4_ccf_apply_draft_line_guarded.sql": Object.freeze({
+    sha256: "818a672522542a12d651847b3af34ca58457dd299ce43d681214df9811134f5a",
+    heads: Object.freeze(["feat/pec-s4-ccf-preview-20261122"]),
+  }),
   "supabase/migrations/20261116022440_wp10_g2_01_clock_and_batch_size_contract.sql": Object.freeze({
     sha256: "0077b90fffbf9bd9c770ab55b85e81e8110d1c6c0a8a17135ba71bee4620dab3",
     heads: Object.freeze(["server/wp10-g2-read-only-phase1"]),
