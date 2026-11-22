@@ -41,11 +41,33 @@ if (mainJs) {
     "proc_vendorwise_buylist_operational_paged", "proc_vendorwise_buylist_operational_options",
     // R12: read-only SAFE/RESET collision preview (proposed server contract, draft server PR; client degrades if absent)
     "proc_indent_resync_collision_preview",
+    // S4: owner-requested live server contracts. The SQL blobs are separately
+    // pinned to this branch and their exact sha256 in pec-protected-path-guard.
+    "proc_pec_ccf_pr_preview", "proc_pec_ccf_apply_draft_line",
   ]);
   const unexpected = added.filter((x) => !ALLOWED_NEW.has(x));
   ok(unexpected.length === 0, `no unexpected RPC names introduced (${unexpected.join(",") || "none"}; paged contract names allowed: ${added.filter((x) => ALLOWED_NEW.has(x)).length})`);
 }
 ok(!/proc_indent_(update|edit|set)_(draft|line)[a-z_]*|proc_pr_replenish|hybrid_replenish/.test(js), "no draft-edit / replenishment RPC wired (server contract pending)");
+if (js.includes('rpc("proc_pec_ccf_apply_draft_line"')) {
+  const previewSql = read("supabase/migrations/20261122075009_pec_s4_ccf_pr_preview_readonly.sql");
+  const writerSql = read("supabase/migrations/20261122075447_pec_s4_ccf_apply_draft_line_guarded.sql");
+  ok(/proc_pec_ccf_pr_preview\(p_pr_id bigint\)/.test(previewSql) &&
+      /LANGUAGE plpgsql STABLE SECURITY DEFINER/.test(previewSql) &&
+      /require_permission\('module:procurement-execution-console',false\)/.test(previewSql) &&
+      /REVOKE ALL ON FUNCTION public\.proc_pec_ccf_pr_preview\(bigint\) FROM anon/.test(previewSql),
+      "S4 preview: exact read-only signature, canonical View guard and anon revoke");
+  ok(/proc_pec_ccf_apply_draft_line\(/.test(writerSql) &&
+      /require_permission\('module:procurement-execution-console',true\)/.test(writerSql) &&
+      /v_pr_status IS DISTINCT FROM 'draft'/.test(writerSql) &&
+      /p_confirm IS DISTINCT FROM true/.test(writerSql) &&
+      /proc_pr_set_manual_delta_pec_internal/.test(writerSql) &&
+      /REVOKE ALL ON FUNCTION public\.proc_pec_ccf_apply_draft_line/.test(writerSql),
+      "S4 writer: exact guarded draft-only audited single-line contract");
+  ok(/ccfApplyAcknowledged/.test(html) && /ccfApplyReason/.test(html) &&
+      /p_expected_ccf_floor/.test(js) && /p_expected_stock_as_of/.test(js),
+      "S4 client: explicit confirmation, audit reason and stale evidence fields");
+}
 
 // PEC-ERP-C2: single vendor-selection writer, reused from the indent modal
 ok((js.match(/rpc\("proc_indent_set_vendor_selection"/g) || []).length === 1, "exactly one proc_indent_set_vendor_selection call site (no duplicate implementation)");
