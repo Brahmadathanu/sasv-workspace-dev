@@ -103,7 +103,7 @@ if(js.includes('rpc("proc_pec_s4_generate_pr"')){
     "S4 E2E client uses governed generator and never legacy MRP-only generation");
 }
 if (js.includes('rpc("proc_pec_jit_generate_pr"')) {
-  const jit = read("supabase/migrations/20261122153109_pec_jit_mrp_route_plan_and_generator.sql");
+  const jit = read("supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql");
   ok(jit.includes("require_permission('module:procurement-execution-console',true)") &&
      jit.includes("require_permission('module:procurement-execution-console',false)") &&
      jit.includes("rm_procurement_mode='jit_procured'") &&
