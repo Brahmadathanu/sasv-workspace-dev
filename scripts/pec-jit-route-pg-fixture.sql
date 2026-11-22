@@ -80,7 +80,7 @@ SELECT public.pec_assert(:rec_201=50,'baseline RM normal item 201 hybrid recomme
 SELECT (x->>'gate') AS g101, (x->>'recommended_qty') IS NULL AS r101_null FROM public.proc_pec_s4_new_pr_plan(:'m1',:'m2',1,'jit') x WHERE (x->>'stock_item_id')='101' \gset
 SELECT public.pec_assert(:'g101'='STOCK_MAPPING_REVIEW' AND :'r101_null'::boolean,'baseline: stockless JIT item is vetoed by the hybrid stock gate (the policy mismatch)');
 
-\i supabase/migrations/20261122153109_pec_jit_mrp_route_plan_and_generator.sql
+\i supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql
 
 -- 1. Hybrid routes are byte-identical after the migration.
 SELECT public.pec_assert(NOT EXISTS(SELECT 1 FROM pec_baseline b JOIN (

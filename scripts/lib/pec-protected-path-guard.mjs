@@ -27,7 +27,7 @@ export const INTEGRATION_PROTECTED_PATHS = new Set([
 export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
   // Issue #502: additive JIT MRP route (two new functions; no existing function replaced). Exact path + head
   // branch + LF SHA-256. Installation in production is a separate owner-approved step.
-  "supabase/migrations/20261122153109_pec_jit_mrp_route_plan_and_generator.sql": Object.freeze({
+  "supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql": Object.freeze({
     sha256: "1fe2ead139e093c98af2cd17b936066972d788a902908b09ffa2114b2dc5ffd1",
     heads: Object.freeze(["feat/pec-jit-route-server-20261122"]),
   }),

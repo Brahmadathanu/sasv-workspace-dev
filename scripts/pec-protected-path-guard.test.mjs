@@ -292,7 +292,7 @@ for (const [file, expectedSha] of wp10) {
 }
 // Issue #502: additive JIT MRP route migration, exact path + branch + LF SHA-256 only.
 {
-  const file = "supabase/migrations/20261122153109_pec_jit_mrp_route_plan_and_generator.sql";
+  const file = "supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql";
   const content = fs.readFileSync(file, "utf8");
   const sha = createHash("sha256").update(content.replace(/\r\n/g, "\n")).digest("hex");
   assert.deepEqual(REVIEWED_SERVER_MIGRATIONS[file], { sha256: sha, heads: ["feat/pec-jit-route-server-20261122"] });
@@ -304,6 +304,6 @@ for (const [file, expectedSha] of wp10) {
   t2("JIT route missing context rejected", [file], [file], null);
   t2("JIT route entry grants no unrelated SQL/SW exception", [illicit, sw], [illicit, sw], context);
 }
-assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), ["supabase/migrations/20261122153109_pec_jit_mrp_route_plan_and_generator.sql", ...s4horizonguard.map(([file]) => file), ...s4uomguard.map(([file]) => file), ...s4retired.map(([file]) => file), ...s4compat.map(([file]) => file), ...s4e2e.map(([file]) => file), ...s4.map(([file]) => file), ...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact five registered S4 payloads, four WP10 payloads and unchanged legacy server/SW pins");
+assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), ["supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql", ...s4horizonguard.map(([file]) => file), ...s4uomguard.map(([file]) => file), ...s4retired.map(([file]) => file), ...s4compat.map(([file]) => file), ...s4e2e.map(([file]) => file), ...s4.map(([file]) => file), ...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact five registered S4 payloads, four WP10 payloads and unchanged legacy server/SW pins");
 
 console.log(`pec-protected-path-guard: ${passed}/${passed} PASS`);

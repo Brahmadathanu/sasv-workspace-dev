@@ -2,7 +2,7 @@ name: PEC JIT route (isolated PostgreSQL 17 fixture)
 on:
   pull_request:
     paths:
-      - "supabase/migrations/20261122153109_pec_jit_mrp_route_plan_and_generator.sql"
+      - "supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql"
       - "scripts/pec-jit-route-pg-fixture.sql"
       - "scripts/pec-jit-route-contract.test.mjs"
       - ".github/workflows/pec-jit-route-pg17.yml"
