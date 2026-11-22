@@ -1,0 +1,98 @@
+# PEC ERP — Server G1 contract proposal (11 November 2026)
+
+**Status:** design proposal, NOT production approval. Owner project #284; independently verified live definitions and constraints. No migration executed. Separate external client candidate #291.
+
+## A. Confirmed live facts
+- `proc_pec_indent_headers() RETURNS SETOF v_proc_indent_console`. Live view has **both** `indent_date` and `approved_date`; #291 can display these without schema changes.
+- Header fields: `status`, `source_pr_id`, `indent_date`, `approved_date`; status check draft/approved/issued/closed/cancelled. Lines unique (indent_id, material_class_id, stock_item_id, uom_id).
+- `proc_indent_add_line_pec_internal` is a legacy UPSERT: updates existing `requested_qty`, permitting approved/issued with reason. This is **not** suitable as the new restricted manual-draft edit contract without server-side restrictions. Preserve legacy behaviour until impact analysis/approval.
+- Approval enqueues `proc_request_snapshot_refresh('indent_approved')`, but snapshot publication is asynchronous. Buylist and bulk vendor recommendation read the published generation, which explains transient absence. The individual recommendation path reads live ranking. **Manual vendor selection via `proc_indent_set_vendor_selection_pec_internal` is already permitted for draft, approved and issued indents** (it rejects only closed/cancelled and inactive vendors); bulk recommendation intentionally requires approved/issued. These operations must not be conflated. Need consistency decision.
+- `create_pr_from_mrp_plan_pec_internal` writes draft PR lines from `sum(v_mrp_procurement_plan.procure_qty)`; underlying recursive plan already accounts for opening stock, production need, carry-forward and MOQ. A separate naive stock top-up risks double counting.
+- `public/sw.js` v393 navigations network-first, PEC JS/CSS generic cache-first. PR #291 introduces new CSS. Coordinated release policy must guarantee fresh assets for installed PWAs; not within live SQL scope.
+
+## B. Suggested server delivery packages
+### S1 — Draft independent-indent edits (bounded writer)
+Two new permission-checked public RPCs with internal core implementation or a single discriminated safe RPC (choose after signature impact check): update an existing line quantity, and update the header indent date. Require `module:procurement-execution-console` edit; `status='draft'`; `source_pr_id IS NULL`; no active `proc_pr_to_indent_map`; no existing allocation/purchase/sourcing downstream mutation incompatible with edit. Lock header/line, validate numeric strictly positive quantity, unchanged class/item/UOM, valid date, expected `updated_at` for optimistic concurrency, mandatory reason and immutable audit; return canonical updated record. Preserve line ID and manual insertion order; do not touch approved/issued data. Consider whether metadata `generation_filters.indent_date` requires a synchronized value only for independent manually created records.
+
+### S2 — Snapshot-readiness and vendor-action integrity
+Separate the three actual operations: manual vendor selection (live writer, currently available on draft); individual/bulk recommendations (live ranking vs published generation); and Vendor-wise Buying List (published generation). Expose lightweight governed status (`published_revision`, `requested_revision`, ready/not ready, latest run outcome) alongside eligible indent readiness, so the client can show deterministic `Preparing vendor options` then reveal actual candidates when **published generation contains its lines**. Do not claim ready from success of enqueue alone. Evaluate source-dependent batch recommendations and live individual vendor ranking for parity. Prefer scoped refresh/read-after-publish over redundant global re-queries; establish acceptable refresh latency via measurement before replacing orchestration. No hidden, repeated refresh storms.
+
+### S3 — Server-paged lenses
+Add read-only governed paged RPCs for PR and indent header, excess, audit and vendor-wise grouped list. Preserve existing wrappers for compatibility. Define every filter/order/export contract and stable sort tie-breaker; report total_count and snapshot/cursor semantics; cap p_limit; guard view permissions; empty/error state; prove sums/rows parity against existing unpaged sources. Client #291 already leaves these deferred; introduce progressively after read contracts are independently verified.
+
+### S4 — Hybrid PR replenishment
+Develop **preview only** first. Choose replenishment target based on stock policies, demand history, consumption variability, vendor lead time, seasonality and buffer days; no invented defaults. Demand model must treat opening usable stock, firm incoming supplies, existing indents/POs/PRs, allocation/expiry and present MRP production demand without double counting. For each item show production_need, replenishment_need, overlapping_need, stock/inbound offsets, net recommended qty, MOQ/pack rounding and method/source date. Only after representative item-level parity and owner approval add persisted generation mode/version and governed PR creation path. Do not mutate existing draft/historical PR automatically.
+
+## C. Explicit decision and acceptance gates
+- S1: Confirm zero/negative quantity policy (recommend reject), allowed date boundaries, audit/mandatory reason, whether unlinked `draft` can have sourcing decisions and their consequences.
+- S2: Retain established **draft manual vendor selection** eligibility, with existing active-vendor and mandatory-reason rules, unless user requests a policy change; do not incorrectly block it because bulk recommendation requires approved/issued. Bulk recommendation and Vendor-wise Buying List must show explicit published-generation readiness. Do not claim draft vendor mapping is impossible; investigate the exact client picker/refresh state.
+- S3: Agree pagination defaults and compatibility; use server-side exact sort and filters. Export remains full approved filtered data, not loaded viewport.
+- S4: Decide inventory protection horizon, reorder point vs min/max, item eligibility, existing requisition commitments and handling of intermittent/seasonal supplies. Do not infer business defaults from one product illustration.
+- PWA/Electron: #291 is not a release; agree exact PEC asset SW network-first/fallback and version/release checks separately.
+
+## D. Progress and authority
+G0 active, 0/6 verified. This is a reviewed proposal candidate only. No SQL applied, permissions modified, user data edited, snapshot refresh requested, client PR merged or PWA deployed. When gates are explicitly accepted: ChatGPT owns server migration verification and implementation; Claude owns client integration via one consolidated contract delta.
+
+## E. Follow-up verified 2026-11-11 — audit and refresh cadence
+- Existing AFTER INSERT/UPDATE/DELETE lifecycle triggers on `proc_indent_header` and `proc_indent_line` already write before/after row evidence; the line audit uses `manual_reason`. New writer should reuse these triggers and require a changed reason to avoid stale audit context, without creating duplicate audit tables.
+- Live record distribution at inspection: 35 standalone approved indents (12 have sourcing decisions), 6 PR-linked approved indents (all 6 with sourcing decisions), and **no current draft indents**. Consequently dry-run mutation acceptance must use nonproduction fixtures; do not write a production draft just to test.
+- Cron job **65**, `procurement_snapshot_refresh_stage_processor_every_minute`, is active with `* * * * *`. The processor handles **one of four stages per invocation** (vendor candidates, balances, priorities, final check); nominal publication requires multiple cron ticks, not mere SQL execution time. Revision 110 was caught up to published run 180 when inspected. Avoid claiming an immediate post-approval buylist refresh under this architecture.
+- Existing `proc_indent_recommend_vendors_bulk` uses **live balance/ranked candidates** while `proc_indent_recommend_and_accept_vendors_step_pec_internal` uses published generation. Manual `proc_indent_set_vendor_selection_pec_internal` rejects only closed/cancelled, and validates vendor active and auditable reason where required. These are three different vendor workflows. G1 must map precisely where the UI waits for snapshot vs where it can select now.
+- Recommended S2 design: **near-immediate actionability for manual draft vendor selection using live canonical reads**; **honest readiness indication** for published-source bulk and buylist until complete published generation. Evaluate targeted business-safe refresh optimisation separately (avoid indiscriminately collapsing atomic four-stage generation).
+
+## F. G1 review checkpoint — 2026-11-11
+
+**S1 candidate:** `ERP_S1_DRAFT_EDIT_SQL_CANDIDATE_20261111.sql` is review-only, never executed. Its new SQL endpoints rely on authoritative parent `updated_at` and expected quantity (current `proc_pec_indent_lines` does not expose individual line `updated_at`); the authorization, row locking, reason and audit logic are explicit. No isolated PostgreSQL 17.4 test instance is currently established in this session; syntax/runtime and concurrent-worker behaviours remain **UNVERIFIED**, so G2 cannot be claimed. Existing database remains untouched.
+
+**Date/identifier decision:** `proc_indent_next_number(material_class_id,date)` can generate identifiers with a `IND/YYYY-MM/<class>/...` month segment. All 41 current indents have other identifiers (read-only query found 0 of that generated format; recent examples use numeric identifiers such as 233), so **the current production dataset does not demonstrate a month mismatch**. Future generated-format indents would be affected by cross-month date corrections. Decide immutable identifier with explicitly allowed date correction vs same-month limitation before deploying S1; no silent renumbering. Explicit STOP warning added to candidate. Current quantity/date UI must not call an untested candidate.
+
+**S2 integration:** [issue #294](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/294) records a narrowed client read-after-create entry point: `proc_pec_indent_lines` provides fresh lines, `proc_indent_set_vendor_selection` permits drafts, and existing `openVendorModal`/vendor search may be reused if row-shape normalization is added. Current `openVendorModal` expects several Action Queue-only optional L1–L3 fields, so direct reuse **requires careful normalization, missing-suggestion state and current indent context**; do not synthesise ranked vendors. Save path currently reloads Action Queue, then indent lines and optionally vendor list. Ensure user remains in indent modal and no snapshot wait blocks a live manual assignment. Published bulk/vendorwise actions remain as currently governed.
+
+**C1 review:** Claude PR #291 follow-up commit `2182bcc` adds mutation-observer label refresh, two indent-modal fixture screenshots and responsive tests, plus clarified vendor wording. Preliminary source inspection aligns with requested corrections. Installed-PWA asset freshness and authenticated/per-modal operator acceptance are still open. The C1 branch must not be merged merely because synthetic tests pass.
+
+**Overall:** G0 active 0/6 verified, G1 written proposal advanced, S1 isolated runtime validation pending. No production SQL/RLS/grants/data mutation, scheduled refresh call, or client merge.
+
+## G. S1 offline/source verification checkpoint — 2026-11-11
+
+- Rechecked live RPC registry: no existing `proc_indent_*` or `proc_pec_*` update/edit/quantity/date RPC matching the requested governed operation. No production contract replacement is needed.
+- Candidate SQL updated at commit `907e384` to **fail closed for cross-month edits on identifiers matching `IND/YYYY-MM/...`**; current numeric identifiers may be date-corrected while preserving their immutable number. This is a conservative interim constraint, not an owner-approved general date governance policy. No renumbering.
+- Independent read-only source assertions against the committed candidate: **16/16 PASS**, covering two new functions, edit permission, standalone draft/PR-map constraints, parent and quantity compare-and-swap, locks, vendor decision protection, mandatory reasons, date-coded guard, existing audit, explicit ACLs, unchanged legacy add-line writer and no draft-triggered snapshot enqueue. A reproducible basic source smoke was committed to `scripts/pec-erp-s1-contract-smoke.mjs`; it is **not yet independently executed from a checkout**.
+- **Runtime BLOCKED**: this execution host has no PostgreSQL binaries; package-source refresh timed out. The linked Supabase production project has no development branches. Do not substitute a production transaction for isolated fixture tests. No branch was created that might incur hourly charges. PostgreSQL 17.4 DDL installation, auth permutations, concurrent workers, trigger audit fidelity and rollback remain **unverified**.
+- S1 next exact step: run the candidate in an isolated PG 17.4 fixture database with module permission fixtures, then review results and create an approved migration PR. Do **not** apply the `docs/` candidate or move it directly to production migrations beforehand.
+- S2 next scoped client operation: use existing `proc_pec_indent_lines` and `openVendorModal` from Indents line view; do not synthesise missing L1/L2/L3 ranked candidates. Before saving, server still validates active vendor and reason/rate. Client must reload the indent line before showing post-save state; avoid blocking it behind a slow Action Queue refresh.
+
+## H. Isolated PostgreSQL S1 fixture and C2 client handoff — 2026-11-11
+
+The S1 verification package now contains:
+- `scripts/pec-erp-s1/fixture.sql` — **synthetic** schema, auth role/permission stub, auditable indent headers/lines, active PR links and vendor decisions. Does **not** contain user or production data.
+- `scripts/pec-erp-s1/verify.mjs` — uses the existing repo ephemeral Unix-socket PostgreSQL harness (`scripts/cde2-sql-candidate/pg-isolated.mjs`), creates a new isolated database, installs the exact review-only SQL candidate, tests real RPC calls under isolated `authenticated`/`anon` roles and checks denials. Requires **exact PostgreSQL 17.4**, otherwise exits **2 / fail closed**. A green run would be *synthetic fixtures only*, not signed-in production acceptance.
+- `scripts/pec-erp-s1-contract-smoke.mjs` — static candidate contract smoke, explicitly not a database test.
+
+**Execution command (isolated host with PostgreSQL 17.4):**
+`node scripts/pec-erp-s1/verify.mjs`.
+
+**Verification status in this environment:** PostgreSQL binaries are absent; the executable SQL runtime suite has **NOT RUN**. The independent source-invariant check previously returned 16/16 PASS. The fixture/runner were reviewed for coverage but have **not** produced a runtime PASS. Existing package-source access limitations remain. Before accepting G2, install/run exact PostgreSQL 17.4 and exercise concurrent sessions plus the actual server lifecycle audit implementation (the fixture uses an explicit representative trigger stub), then perform live schema parity/security read-back.
+
+**C2 client direction:** [issue #294](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/294) now contains exact autonomous client handoff: use current `proc_pec_indent_lines` line values, open existing `openVendorModal` with no fabricated L1–L3 data, permit manual active vendor search in draft status, save through existing `proc_indent_set_vendor_selection`, refresh indent line first rather than waiting for Action Queue publication, preserve role and reason checks. This requires **no new server writer** to make immediate manual draft selection reachable. No client C2 PR has been created by ChatGPT.
+
+**Release:** #291 remains unmerged with fresh-asset and signed-in gates; no changes to production SQL, worker, approvals or datasets.
+
+## I. S1 next verification increment and C2 handoff — 2026-11-11
+
+- S1 isolated runner updated at commit `f1e2d90` with a **committed first writer / stale second writer** scenario, asserting that the stored requested quantity remains that of the first writer. This confirms test design for sequential optimistic concurrency, but is **not yet an actual test result**. True simultaneous worker-lock testing and PostgreSQL 17.4 runtime verification remain required before G2.
+- The existing project's PostgreSQL infrastructure is not used for tests; Supabase has no registered development branch. No production tables, RPCs or cron records were changed.
+- C2 prompt issued for [issue #294](https://github.com/Brahmadathanu/sasv-workspace-dev/issues/294): independent branch/PR, existing shared Indents modal -> existing vendor selection modal and `proc_indent_set_vendor_selection`; no SQL, SW, app version, merge or deployment. The owner must invoke Claude Code with the prompt; a GitHub issue/comment does not start Claude automatically.
+- C1 PR #291 remains unmerged. Any C2 branch stacking must explicitly declare its C1 base and avoid duplicate shared-css commits.
+
+## J. S3 read-contract inventory — 2026-11-11
+
+Live read-only RPC definitions show all four main header/excess read functions already enforce `require_permission('module:procurement-execution-console', false)`, return `SETOF` their respective views, and apply deterministic database ordering:
+- `proc_pec_pr_headers()`: `updated_at DESC NULLS LAST, pr_id DESC`.
+- `proc_pec_indent_headers()`: `updated_at DESC NULLS LAST, indent_id DESC`.
+- `proc_pec_purchase_excess()`: `voucher_date DESC NULLS LAST, purchase_fact_id DESC`.
+- `proc_pec_excess_acceptance_audit()`: `accepted_at DESC NULLS LAST, acceptance_id DESC`.
+- `proc_vendorwise_buylist_filtered(material_class_id, rm_scope, rate_status, assignment_status, q)`: forwards to its existing filtered internal function; visible external signature has **no paging args**.
+
+**Compatibility warning:** current client header lists apply additional client filters and sorting (e.g. PR/indent by numeric descending ID) after fetching all records, while the database's old RPC ordering is updated_at descending. A paged replacement must explicitly match *visible client order and filtering*, not merely `LIMIT/OFFSET` the old RPC. Otherwise earlier/later pages can omit or duplicate visible rows. Exports must preserve full filtered datasets, not only rendered pages.
+
+**S3 plan**: build read-only paged RPCs with the same permission requirement, server-side filters and exact UI sorting; reconcile sort/tie-breaker and search semantics against live client before migration. Test page-concatenation parity, total_count, stable pagination under inserts/updates, read-only authorization and export coverage. This is only an inventory; no S3 SQL or deployment performed.
