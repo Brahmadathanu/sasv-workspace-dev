@@ -498,3 +498,23 @@ Negative tests: authenticated-but-unprivileged actor, read-only MIS actor, no-ac
 5. Bound legacy investigation to currently indexed and identifiable sources; if no primary evidence is found, record the evidence gap as an accepted documented limitation and continue G7 current-month transfer recon/COP proof. Security and current-stock conservation safeguards remain release-blocking for any future writer even if MIS archival reporting is marked `NOT AVAILABLE`.
 
 No DDL/DML, opening balance declaration, ledger mutation, client work, PR merge or Costing Suite/Electron release action. Formal G7 OPEN, 6/11.
+
+
+## XXI. Accelerated G7 November seven-exception refresh and completed Costing Suite release note (22 November 2026)
+
+**Owner status update:** The Costing Suite Electron release is **completed (owner-reported)**. It is not an outstanding MIS dependency. Preserve its completed release state: no MIS changes to its release branch, packaging, deployment or application.
+
+**Bounded fresh live reconciliation (read-only):** `public.v_fg_transfer_reconciliation`, `transfer_date BETWEEN '2026-11-01' AND '2026-11-21'`, exception filter `recon_status <> 'MATCHED' OR valuation_status <> 'OK'`, LIMIT 35, yielded **exactly seven returned exceptions** matching previous historical November list (not a claim of general completeness beyond the inspected filter and range):
+- `2026-11-02`, product 1049, batch `SP873`, Anulomana Sookshma Choornam: `MATCHED / NOT_VALUED`, Tally 174 packs / log 174 packs. Detailed SKU `1350`, 100 g, HO_IK region `IK`: `PRICE_MISSING` because **date-effective SKU MRP policy absent for 2 Nov**. Book amount `9422.1` present; MRP notional NULL. This is *not* proof that comparable manufacturing COP is unavailable/invalid, nor a license to substitute Tally book amount or a later MRP.
+- `2026-11-07`, 771/4166 Kantha Chendooram: `MISSING_LOG/OK`, 515 Tally packs.
+- `2026-11-07`, 1025/4082 Gunmakudori Mezhuku: `MISSING_LOG/OK`, 222.
+- `2026-11-11`, 808/3754 Pavizha Parpam: `MISSING_LOG/OK`, 321.
+- `2026-11-12`, 1020/4428 Agasthyar Kuzhambu: `MISSING_LOG/OK`, 200.
+- `2026-11-21`, 724/SP846 Mailanchi Podi: `MISSING_LOG/OK`, 576.
+- `2026-11-21`, 871/5249 Chirattai Thailam: `MISSING_LOG/OK`, 480.
+
+The underlying `v_dwl_fg_transfer_cutoff` currently returned `2024-06-17`. This is a **source-policy date**, not the Tally snapshot as-of cutoff; do not call either the current calendar date or this log cutoff the Tally snapshot as-of without independent confirmation. `valuation_status=OK` here is related to the existing transfer view's pricing valuation and **does not establish manufacturing full COP**.
+
+**Recommended accelerated disposition (review direction only):** segregate six physically/audit-confirmable Tally-vs-log exceptions, one date-effective MRP exception, and distinct SKU full manufacturing-COP lookup. For missing logs validate matched batch/SKU/voucher and later events/ETL coverage before any backfill; absence in the recon view is not proof no physical transfer happened. Keep the six statuses as actual `MISSING_LOG` until source-resolved. Do not suppress exceptions, fabricate packing or bulk receipts, or book Tally transfer amount as manufacturing cost. No new public monetary RPC until validation/security/latency evidence and owner authorization.
+
+**Next exact bounded G7 action:** inspect the six exceptions' existing voucher-line keys and SKU breakdown using dated as-of filters and the independent log identities; inspect the accepted SKU full-COP cost-source schema and rate/period semantics. Produce final C1–C3/T1–T3 owner decision matrix. G7 OPEN; formal 6/11 (~55%). No production mutation, RLS/grants, client merge, cache or release action.
