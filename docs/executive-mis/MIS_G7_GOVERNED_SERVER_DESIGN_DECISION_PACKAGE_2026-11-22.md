@@ -482,3 +482,19 @@ Negative tests: authenticated-but-unprivileged actor, read-only MIS actor, no-ac
 - Next bounded G7 step: request archived original voucher/export and approved opening packaged-SKU balance evidence for the nine, or classify source-provenance dependency as BLOCKED; proceed independently to the six November missing-log and one not-valued exceptions with fresh source cutoffs.
 
 **Governance:** formal G0–G5 = 6/11 (~55%), G7 OPEN, no G8 start; PR #485 draft/unmerged; no SQL writes, privilege/cache/client/Electron or Costing Suite release modifications.
+
+
+## XX. Owner-directed proportionate legacy disposition — bounded source discovery (22 November 2026)
+
+**Owner direction:** SASV production logging evolved incrementally. Time spent on irrecoverable older logging gaps must be proportionate; the MIS must support governed transitions to a reliable new product-route control model rather than stall indefinitely attempting to reconstruct every historic legacy event. This is approval of the **review direction**, NOT authorization for stock writes/backfills/trigger changes.
+
+**Further read-only source discovery:** queried current live `information_schema` for relevant FG/packaging/opening tables and inspected definitions. `public.v_mrp_opening_stock_snapshot` is **not** a finished packed-SKU opening register: it projects raw/packaging-material stock (`rm`/`plm`) from `v_stock_current_by_item`. `public.mv_bottled_rollup` has product/base quantity and batches text, not a dated batch/SKU opening balance. `public.bottled_stock_on_hand` aggregates event-based positive-only packaged balances, not independently governed opening receipts; it cannot repair or prove negative legacy positions. `tally_fg_transfer_snapshot` and `tally_fg_transfer_voucher_lines` are separate evidence sources, but previously checked as-of retention/coverage does not prove these nine older original transfers. The discovery did **not establish** an authoritative historical opening packaged-SKU register. Do not infer no archival evidence exists elsewhere.
+
+**Proportionate disposition proposal (requires explicit owner acceptance for policy adoption and separate authorization for implementation):**
+1. Preserve all nine exact identities, signed deficits, observed event dates and reason categories in a durable **legacy exception register**, distinct from current stock. Do not convert them to zero or approved opening stock without corroboration.
+2. For any key with independently identifiable original packing/transfer/correction evidence, use an individually reviewed reconciled correction with actor, cause, stock impact, and rollback; never retroactively fabricate a physical FG bulk storage event.
+3. For remaining unreconstructible keys, label `LEGACY_SOURCE_COVERAGE_UNVERIFIED` / `HISTORICAL_STOCK_EXCEPTION` and exclude them **only from unsupported whole-batch completion/verified-valued-production assertions**. Do not remove source transactions or hide them from the exception/audit view. Establish verified cutover starting balances before treating post-cutover quantities as fully accountable; explicit stock take/approved source opening may be required.
+4. Prioritize forward product-route FG checkpoint, signed SKU transfer guards and separately permissioned inline real-excess flow under later distinct implementation authorization. Do not use historical blanket backfill to satisfy forward safety tests.
+5. Bound legacy investigation to currently indexed and identifiable sources; if no primary evidence is found, record the evidence gap as an accepted documented limitation and continue G7 current-month transfer recon/COP proof. Security and current-stock conservation safeguards remain release-blocking for any future writer even if MIS archival reporting is marked `NOT AVAILABLE`.
+
+No DDL/DML, opening balance declaration, ledger mutation, client work, PR merge or Costing Suite/Electron release action. Formal G7 OPEN, 6/11.
