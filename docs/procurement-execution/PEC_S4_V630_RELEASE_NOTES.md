@@ -31,3 +31,14 @@
 Package on a trusted Windows builder using the release candidate; never publish during testing. Verify the generated NSIS setup and ZIP alongside the blockmap and `latest.yml`, including matching version and digest evidence. Pilot on the developer PC or one authorised staff PC; inspect signed-in S4 previews and permissions without generating real requisitions. Keep the known-working v6.2.0 installer and updater metadata intact until owner approves v6.3.0 publication and rollout.
 
 **Reference:** `docs/procurement-execution/PEC_S4_E2E_RELEASE_PACKET_20261122.md` and issue #305.
+
+## 22 November 2026 — Windows release-candidate smoke receipt
+
+- Candidate head: `51312ed44ff73e8222b2b0a80cd62d6287512db1`.
+- GitHub Actions `Electron smoke (Windows, isolated profile, loopback)` run **#45007239246**: **SUCCESS**; job `smoke` #137161419005 **SUCCESS**.
+- Passed steps: repository checkout; Node setup; dependency and Electron binary install; hardening unit tests and Electron main-process smoke with a throwaway profile and loopback port.
+- **Important test boundary:** the smoke uses the **unpackaged application with the updater inactive**. It does not verify an NSIS installer, ZIP, blockmap, `latest.yml`, auto-update download/install or signed-in production pilot.
+- Run reported **no downloadable build artifacts**. No installer digest or release archive can yet be validated.
+- PWA origin and deploy preview could not be inspected through available public browsing; actual deployed commit/cache/controller and authenticated 390px Editor/View-only screens remain **NOT TESTED**.
+- Do not infer successful Netlify production deployment from the GitHub merge alone.
+- PR-2026-07 and PR-2026-08 remain guarded and not reconciled; #305 remains open and release publication HOLD remains unchanged.
