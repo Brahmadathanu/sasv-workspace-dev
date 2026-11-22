@@ -316,6 +316,23 @@ for (const [file, expectedSha] of wp10) {
   t2("JIT timeout repair on main rejected", [file], [file], { ...context, headBranch: "main" });
   t2("JIT timeout repair missing context rejected", [file], [file], null);
 }
-assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), ["supabase/migrations/20261122174517_pec_jit_plan_indent_balance_once_timeout_fix.sql", "supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql", ...s4horizonguard.map(([file]) => file), ...s4uomguard.map(([file]) => file), ...s4retired.map(([file]) => file), ...s4compat.map(([file]) => file), ...s4e2e.map(([file]) => file), ...s4.map(([file]) => file), ...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact five registered S4 payloads, four WP10 payloads and unchanged legacy server/SW pins");
+// PEC S5: one registered, exact SHA-pinned production migration, named branch only.
+{
+  const file = "supabase/migrations/20261122191542_pec_s5_unified_planning_ind_source_and_pr_reason.sql";
+  const pin = REVIEWED_SERVER_MIGRATIONS[file];
+  const content = fs.readFileSync(file, "utf8");
+  const sha = createHash("sha256").update(content.replace(/\r\n/g, "\n")).digest("hex");
+  assert.deepEqual(pin, {
+    sha256: sha, heads: ["feat/pec-s5-unified-server-20261123"]
+  });
+  const context = { headBranch: "feat/pec-s5-unified-server-20261123", readText: () => content };
+  t2("S5 registered migration exact content accepted only on its named branch", [file], [], context);
+  t2("S5 one-byte mutation rejected", [file], [file],
+    { ...context, readText: () => content + "\n-- changed" });
+  t2("S5 migration on unrelated client branch rejected", [file], [file],
+    { ...context, headBranch: "feat/pec-s5-client" });
+  t2("S5 migration without committed context rejected", [file], [file], null);
+}
+assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), ["supabase/migrations/20261122191542_pec_s5_unified_planning_ind_source_and_pr_reason.sql", "supabase/migrations/20261122174517_pec_jit_plan_indent_balance_once_timeout_fix.sql", "supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql", ...s4horizonguard.map(([file]) => file), ...s4uomguard.map(([file]) => file), ...s4retired.map(([file]) => file), ...s4compat.map(([file]) => file), ...s4e2e.map(([file]) => file), ...s4.map(([file]) => file), ...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact five registered S4 payloads, four WP10 payloads and unchanged legacy server/SW pins");
 
 console.log(`pec-protected-path-guard: ${passed}/${passed} PASS`);
