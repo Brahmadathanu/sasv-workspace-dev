@@ -9126,12 +9126,9 @@ let ccfPreviewPrId = null;
 let ccfApplyRow = null;
 let ccfApplyBusy = false;
 
-function canApplyCcfLine(row) {
-  return Boolean(!state.selectedPr?.generation_filters?.s4_mode &&
-    canWriteModule() && state.selectedPr?.status === "draft" &&
-    row?.review_state === "ANCHOR_AND_POLICY_REVIEW" &&
-    Number(row.illustrative_increment) > 0 &&
-    row.stock_as_of && row.pr_line_id && !ccfApplyBusy);
+// #495 diagnostic is read-only after S4 becomes the only authoritative writer.
+function canApplyCcfLine(_row) {
+  return false;
 }
 
 function updateCcfApplyReady() {
