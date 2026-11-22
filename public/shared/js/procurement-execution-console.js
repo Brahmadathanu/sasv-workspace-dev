@@ -9357,14 +9357,30 @@ function s4Summary(rows) {
   };
 }
 function s4RenderExceptions(rows, targetId) {
-  const target = qs(targetId);
-  if (!target) return;
-  const blocked = rows.filter(x => x.gate !== "AUTO_ELIGIBLE");
-  target.innerHTML = blocked.length
-    ? '<strong>Review-required items (no automatic increase):</strong>' +
-      blocked.slice(0,25).map(x => `<div>${esc(x.stock_item_name || String(x.stock_item_id))} — ${esc(x.gate)}</div>`).join("") +
-      (blocked.length>25 ? `<div>…and ${blocked.length-25} more in the PR evidence.</div>` : "")
-    : '<span class="muted">No review-required items identified by the current evidence.</span>';
+  const target=qs(targetId);if(!target)return;
+  const searchId=targetId==="genS4PreviewExceptions" ? "genS4ItemSearch":"s4ReconcileItemSearch";
+  const query=(qs(searchId)?.value||"").toLocaleLowerCase().trim();
+  const toSearch=(r)=>[` ${r.stock_item_name || ""} ${r.stock_item_id || ""} ${r.gate || ""}`]
+    .join(" ").toLocaleLowerCase();
+  const matched=rows.filter(r=>!query || toSearch(r).includes(query))
+    .sort((a,b)=>{
+      const rank=r=>r.gate!=="AUTO_ELIGIBLE" ? 0 :
+        Number(r.mrp_net_qty)===0 && Number(r.recommended_qty)>0 ? 1 :
+        Number(r.recommended_qty)>Number(r.mrp_net_qty) ? 2 : 3;
+      return rank(a)-rank(b) || String(a.stock_item_name).localeCompare(String(b.stock_item_name));
+    });
+  const display=matched.slice(0,50);
+  target.innerHTML=`<div class="muted">${matched.length} matched items · showing first ${display.length}</div>`+
+    display.map(r=>{
+      const final=r.recommended_qty==null ? "Review required" : fmtQty(Number(r.recommended_qty));
+      const mrp=fmtQty(Number(r.mrp_net_qty || 0));
+      return `<div style="padding:5px 0;border-bottom:1px solid var(--border,#e4e7ed)">
+        <strong>${esc(r.stock_item_name||String(r.stock_item_id))}</strong> ·
+        <span>${esc(r.uom_code||"—")}</span>
+        <div class="muted">MRP ${esc(mrp)} · Suggested ${esc(final)} ·
+          ${esc(r.gate||"REVIEW")} ${r.consumption_only?"· Consumption-only":""}</div>
+      </div>`;
+    }).join("");
 }
 function s4InvalidatePreview() {
   ++s4PlanRequestSeq;
@@ -9395,6 +9411,7 @@ async function s4PreviewForGenerate() {
   qs("genS4PreviewSummary").textContent="Checking stock, MRP, consumption and outstanding indents…";
   qs("genS4PreviewExceptions").textContent="";
   qs("genS4Acknowledged").checked=false;
+  if(qs("genS4ItemSearch"))qs("genS4ItemSearch").value="";
   s4UpdateGenerateReady();
   const result=await supabase.rpc("proc_pec_s4_new_pr_plan",params);
   if(seq!==s4PlanRequestSeq || !qs("generatePrModalBackdrop")?.classList.contains("show") ||
@@ -9424,6 +9441,7 @@ async function s4OpenReconciliation() {
   s4ReconcileEvidence=null;
   const seq=++s4ReconRequestSeq;
   qs("s4ReconcileReason").value="";
+  if(qs("s4ReconcileItemSearch"))qs("s4ReconcileItemSearch").value="";
   qs("s4ReconcileAcknowledged").checked=false;
   qs("s4ReconcileError").textContent="";
   qs("s4ReconcileSummary").textContent="Checking source evidence before draft reconciliation…";
@@ -9859,6 +9877,12 @@ function wirePrControls() {
   });
   qs("btnGeneratePr").addEventListener("click", openGeneratePrModal);
   qs("btnGenS4Preview")?.addEventListener("click",s4PreviewForGenerate);
+  qs("genS4ItemSearch")?.addEventListener("input",()=>{
+    if(s4PlanRows)s4RenderExceptions(s4PlanRows,"genS4PreviewExceptions");
+  });
+  qs("s4ReconcileItemSearch")?.addEventListener("input",()=>{
+    if(s4ReconcileEvidence)s4RenderExceptions(s4ReconcileEvidence,"s4ReconcileExceptions");
+  });
   qs("genS4Acknowledged")?.addEventListener("change",s4UpdateGenerateReady);
   ["prHorizonStart","prHorizonEnd","prMaterialClass","prRmScope"].forEach(id=>{
     qs(id)?.addEventListener("change",s4InvalidatePreview);
