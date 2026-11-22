@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   publish:
-    if: ${{ github.event.head_commit.message == 'chore(release): issue owner-approved v6.3.0 prerelease' }}
+    if: "${{ startsWith(github.event.head_commit.message, 'chore(release): issue owner-approved v6.3.0 prerelease') }}"
     runs-on: ubuntu-latest
     timeout-minutes: 18
     steps:
@@ -50,6 +50,9 @@ jobs:
           echo '4fe863ee1a5b80f503b46fa6e638cfea504922f4d669bd0cb72f4a38519a34ab  dist/SASV Workspace Setup 6.3.0.exe.blockmap' >> expected.sha256
           echo '3a900a51bfc8eb1cd7050d0af0891c5b9397836ce680f610fa31236bcf9b357b  dist/latest.yml' >> expected.sha256
           sha256sum -c expected.sha256
+          # The artifact's own SHA256SUMS.txt must agree with the pinned digests.
+          test -f dist/SHA256SUMS.txt
+          while read -r h f; do grep -Fq "${h}  $(basename "$f")" dist/SHA256SUMS.txt; done < expected.sha256
           grep -Eq '^version: 6[.]3[.]0[[:space:]]*$' dist/latest.yml
       - name: Publish as Pre-release, never Latest
         shell: bash
