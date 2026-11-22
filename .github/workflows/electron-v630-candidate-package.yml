@@ -29,8 +29,8 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $p = Get-Content package.json -Raw | ConvertFrom-Json
-          $l = Get-Content package-lock.json -Raw | ConvertFrom-Json
-          if ($p.version -ne '6.3.0' -or $l.version -ne '6.3.0' -or $l.packages.''.version -ne '6.3.0') { throw 'Candidate package versions differ' }
+          $l = Get-Content package-lock.json -Raw | ConvertFrom-Json -AsHashtable
+          if ($p.version -ne '6.3.0' -or $l.version -ne '6.3.0' -or $l['packages']['']['version'] -ne '6.3.0') { throw 'Candidate package versions differ' }
           npm ci --no-audit --no-fund
           if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
           npx install-electron
