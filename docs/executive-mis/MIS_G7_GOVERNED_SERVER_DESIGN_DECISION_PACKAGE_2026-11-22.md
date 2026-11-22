@@ -321,3 +321,36 @@ A separate read-only full aggregation of signed `packaging_events` × `event_sku
 ### Next bounded acceptance case
 
 Investigate the nine negative packaged SKU keys as grouped exception categories without changing data; sample positive/zero/negative balances by common source key; verify the effect of adjustments and corrections on transfer-line integrity, establish whether event stock accounting excludes non-packed stages, and define whether the operational module's **force-close** is a permissible *closed-accounted* status but never evidence of **all finished stock transferred**. Do not add schema or alter canonical RPC pending owner approval and validated performance/security.
+
+
+## XIV. Nine negative packaged-SKU balances — bounded exception classification (22 November 2026)
+
+**Scope and result:** independently inspected live `packaging_events` + `event_skus` signed by `event_type_lkp.affects_bottled_stock`, grouped strictly on **product_id + batch_number + sku_id**. Checked raw event/work-log references, dates, and the matching product+batch `fg_bulk_stock_ledger` movements. Read-only SELECT only, no data repairs, writes, permissions or deployment. **Nine** negative SKU-batch balances persist in the queried current record history. Dates range **29-Sep-2025 to 24-Feb-2026** (event-specific spans below); these are legacy/historical relative to November 2026, not nine proven new/current-month transfer failures.
+
+| Product | Batch | SKU | Packed packs | Transferred packs | Signed deficit (packs) | Date span in packaging/work logs | Classification at evidence gate |
+|---|---|---|---:|---:|---:|---|---|
+| 118 Avipathi Choornam | 6172 | 77 (50 g) | 2554 | 2599 | -45 | 11–20 Dec 2025 | Extra 45-pack transfer beyond recorded packing; bulk has force-close adjustment |
+| 189 Asanavilwadi Enna | 6396 | 1774 (450 mL) | 0 | 115 | -115 | 23 Jan 2026 | No positive packing event for this SKU; another SKU 205 exists in same batch, and storage update/delete + 3 force-close rows require review |
+| 328 Murivenna | 6237 | 572 (100 mL) | 2730 | 3570 | -840 | 11–18 Nov 2025 | Transfer of 840 packs precedes first recorded packing event by one day; four SKUs exist in batch; force-close adjustment |
+| 396 Chandraprabha Gulika | 6111 | 636 (100 Nos) | 150 | 443 | -293 | 23 Oct–6 Nov 2025 | Extra late transfer events beyond 150 packs recorded; no force-close ledger found |
+| 396 Chandraprabha Gulika | 6259 | 636 (100 Nos) | 0 | 446 | -446 | 17–24 Feb 2026 | No packing events for this SKU/batch; no FG bulk ledger rows found for this batch |
+| 439 Vilwadi Gulika | 6002 | 649 (100 Nos) | 105 | 803 | -698 | 25 Oct–10 Nov 2025 | Extra 698 packs transferred; bulk ledger contains distinct `manual_stock_out` -69,800 Nos, suggesting a stock-documentation pathway that **does not prove packaged output** |
+| 443 Karuthavattu Gulika | 6031 | 651 (50 Nos) | 0 | 326 | -326 | 18 Nov 2025 | No packing events; bulk ledger has a net-zero Bottling pair, no positive FG bulk storage receipt in scoped ledger |
+| 752 Keezharnelli Tablet | 4978 | 930 (100 Nos) | 920 | 973 | -53 | 29 Sep–20 Oct 2025 | Extra 53 packs transferred after recorded complete packing/transfer of 920; no FG bulk ledger rows found for this batch |
+| 959 Amukkura Lehyam | 4974 | 1231 (400 g) | 0 | 683 | -683 | 31 Oct–3 Nov 2025 | No packing events for this SKU; ledger has storage update and force-close adjustment; requires historical provenance review |
+
+**Arithmetic invariant:** four of nine (products 189, 396/batch6259, 443, 959) have **zero positive packing packs** for that exact SKU/batch; the other five have recorded packing but greater FG transfer packs. All nine transfer events above are linked to existing `daily_work_log` rows and packaging-event IDs; this is not a missing-`Transfer to FG store` event problem. All nine negative balances are hidden from `bottled_stock_on_hand` because it filters positive `on_hand > 0`.
+
+**Important limitations:** these are **signed pack-ledger exceptions**, not confirmation of theft, over-shipment or erroneous Tally entries. No user should change stock based only on this MIS investigation. Historical packing may be absent from the event model, there may be pre-migration balances, backdated corrections, repeated/alias mapping, or independent manual stock movements. The latest Tally snapshot dated 2026-11-22 does not necessarily preserve the needed historical voucher-line populations for these batches; a full all-snapshot join was not attempted, so **Tally independent parity on these nine is NOT TESTED**. Product 189 and 328 have other SKUs in the same batch, but those do **not** cancel negative stock for a different SKU unless audited, authorized conversion/repacking exists. The absence of FG bulk ledger rows for certain batches does **not** prove no physical bulk existed; only the scoped ledger records are absent.
+
+**C1–C3 classification accepted as design recommendation, subject to owner policy approval:**
+- `PACKAGED_STOCK_EXCEPTION_NEGATIVE`: signed net <0 at product+batch+SKU. Mark batch `REVIEW` even if displayed FG bulk balance 0 and positive packaged-stock view is empty.
+- `PACKAGED_STOCK_PENDING_TRANSFER`: signed net >0. Recognize packed but not yet transferred independently.
+- `PACKAGED_STOCK_BALANCED`: signed net =0 and completeness of source history verified; on its own not enough for whole-batch closure.
+- `LEGACY_COVERAGE_UNVERIFIED`: pre-existing transfer without governed opening packaged stock / pack-production history. Need approved migration cutover date and opening balances before declaring a true over-transfer.
+- `BULK_ADJUSTMENT_REVIEW`: a force-close/manual adjustment exists and material disposition has not been independently accepted; do not treat it as packed output, nor as completed transfer.
+- `FULLY_TRANSFERRED_CONFIRMED`: only with raw (unrounded) FG bulk balance within approved epsilon, no positive or negative SKU balances, all corrections/adjustments accounted, complete transfer-source lineage with reconciled SKU quantities, and appropriate historical starting balances.
+
+**Next narrow source-policy decision:** identify historically complete packaging-event coverage/cutover and whether an approved packaged-stock opening balance exists; scrutinize the nine legacy cases against earlier Tally snapshots, original stock documents and correction reasons before any data repair or irreversible full-batch classification. For ongoing periods, a guarded event-based closure model is viable using the existing ledger; a separate duplicate stock ledger remains unnecessary.
+
+**Programme status:** G7 remains OPEN. No application code, SQL migration, production repair or Costing Suite/Electron release action authorized.
