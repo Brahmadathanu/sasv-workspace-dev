@@ -123,3 +123,31 @@ Rows above are **exact counts** from a grouped bounded read-only production quer
 Prepare a **read-only decision manifest** with one record per `refresh_run_id`, including period, displayed run, designation history, protected approvals/lock, all 64 dependency reference counts, accepted external ledger refs, each snapshot row count, and byte-reclamation projections labeled as estimates. Flag any run with designation history, displayed/official consumer, accepted financial evidence, approval fingerprint or legal retention as HOLD by default. Prefer a **small pilot** removing only isolated, undesignated, undisplayed historical per-run detail after sealed recoverable archive + restore rehearsal + app parity + owner approval. Do not enable automatic month-start deletion until rollback, idempotence and retention boundaries are independently tested. The 3-month rule is a *policy target* not sufficient authorization to purge older receipts.
 
 S2 outcome: **read-only dependency and period counts verified, destructive pilot BLOCKED pending independent per-run reference/lineage and recovery proofs.**
+
+## S3 — owner-approved monthly draft-expiry policy, preview verified 22 Nov 2026
+
+**Owner policy:** Once the new valuation month begins and prior-month finalisation is confirmed, unapproved prior-month costing-run *detail* is disposable. Schedule monthly cleanup **after** the governed finalisation gate, not at the calendar rollover itself. Preserve current-month drafts and all historical approval/REFERENCE/revocation governance. Rolling detailed approved retention target: current month plus previous three months. Outside-window approved run snapshots require a separate, proven archive/compaction contract.
+
+**Executable, non-destructive SQL:** `docs/master-data-costing/sql/S3_PREVIOUS_MONTH_UNAPPROVED_RUN_PREVIEW.sql`. This is a SELECT-only script, verified against production, not a purge mechanism. All tentative candidates remain subject to FK and financial-evidence validation.
+
+| Month | Provisional unapproved previous-month runs | Holds |
+| --- | ---: | --- |
+| Jul 2026 | 57 | 1 governance-linked; 1 displayed |
+| Aug 2026 | 4 | 1 displayed |
+| Sep 2026 | 28 | 2 formally designated; 8 governance-linked |
+| Oct 2026 | 4 | 4 designated; 10 governance-linked |
+| Nov 2026 | 0 | all 4 current-month |
+
+**93 provisional candidates** across July–October. Other 31 runs held. Note that the preview identifies only six *non-snapshot* governance links; it does not yet assert no remaining foreign-key/lineage references. Thus 93 is **not** a safe deletion count. The snapshot fanout, all incoming scheme IDs and 64 direct header FKs must be resolved before DML.
+
+### Deletion-engine acceptance contract
+
+- **Closed-by-month:** Determine the target as **all months strictly before the current month**, but defer the immediately preceding month until the official finalisation/valuation status is governed and settled; if no approved run is mandated for that month, require an explicit month-close/no-approval disposition. Run/period locks prevent race with scheduled refresh and human approval. Nothing executable is triggered by the first day alone.
+- **Classification:** Never infer approval from `overall_status=SUCCESS`. Any `costing_run_designation` history (`REFERENCE`, `APPROVED`, `REVOKED`) is a permanent hold on deleting governance rows and an approval-sensitive decision on details. Check selected/displayed status, active processing, accepted evidence, references and protected exception flags. Any unresolved reference is HOLD.
+- **Keep compact history:** preserve run ID, period, valuation context, status, start/finish, errors, designation transitions, approval evidence fingerprints and cleanup receipt. If a legacy child currently FK-references the run header, preserve its lineage or migrate it to an immutable tombstone with an approved schema contract. No silent ON DELETE CASCADE expansion.
+- **Large-data disposal:** after independent archive + restore test, delete only enumerated eligible per-run snapshot rows in child-to-parent order, bounded batches with savepoint/checkpoint and repeat-safe receipts. Never independently wipe transactional sales or material source ledgers. Keep run metadata small.
+- **Verification:** pre/post row and checksum manifests per table/run, approved costs and pricing parity, workbench/printable report parity, no missing source evidence, no unexpected FK/permission faults, cron idempotence, archive reconstitution; report estimated freed logical bytes separately from allocated filesystem/quota figures.
+- **Rollout:** stage → approved isolated pilot → measured post-pilot validation → owner sign-off → schedule guarded monthly run. Do not modify cron jobs 66 weekly, 67 month-end or 68 five-minute processor: they are currently active and form the cost production processing path. New cleanup scheduling must be independent and never pre-empt the end-of-month run.
+- **Security:** privileged execution only under internal governed job role, not anonymously callable or general authenticated Data API RPC; logging/audit mandatory; privilege review before deployment.
+
+**S3 status:** Query created and live SELECT-tested, candidate preview verified. Deletion engine, archive/restore pilot, FK migration contract, monthly cron and production data pruning **NOT IMPLEMENTED**. Existing production data untouched.
