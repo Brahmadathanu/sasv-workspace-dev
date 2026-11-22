@@ -49,7 +49,7 @@ jobs:
           echo '4fe863ee1a5b80f503b46fa6e638cfea504922f4d669bd0cb72f4a38519a34ab  dist/SASV Workspace Setup 6.3.0.exe.blockmap' >> expected.sha256
           echo '3a900a51bfc8eb1cd7050d0af0891c5b9397836ce680f610fa31236bcf9b357b  dist/latest.yml' >> expected.sha256
           sha256sum -c expected.sha256
-          grep -Eq '^version: 6[.]3[.]0[[:space:]]* dist/latest.yml
+          grep -Eq '^version: 6[.]3[.]0[[:space:]]*$' dist/latest.yml
       - name: Publish as Pre-release, never Latest
         shell: bash
         env:
@@ -88,46 +88,6 @@ jobs:
           stable="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name')"
           test "${stable}" != "v6.3.0"
           echo "Pre-release v6.3.0 published; stable Latest remains ${stable}"
- dist/latest.yml
-      - name: Publish as Pre-release, never Latest
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          cat > release-notes.md <<'NOTES'
-          SASV Workspace v6.3.0 — PEC S4 hybrid replenishment
-
-          - Consumption-informed RM/PM draft PR recommendations, with 12 completed months, available stock, outstanding approved/issued indents and MOQ evidence.
-          - Revised two-stage PR creation with read-only requirement review, explicit acknowledgement and controlled generation.
-          - Mobile-friendly Consumption Requirement Review, clearer suggested additional quantities, concise actions and accessibility improvements.
-          - Existing permission and review-required gates remain enforced.
-
-          PRE-RELEASE / LIMITED PILOT: unsigned Windows installer. Windows SmartScreen may warn; verify the SHA-256 out of band and use only authorised pilot PCs. Do not distribute fleet-wide until acceptance. This pre-release is deliberately not Latest and must not change the stable auto-updater feed.
-          Binary provenance: CI run 45030214044, source commit 7dc3f034e44457619a3db9a67c2e4d21f8bf9ab1. Published source integration: 583daa270f0e188f62e13febe64aeddcf803ac38.
-          NOTES
-          gh release create v6.3.0 \
-            --repo "${GITHUB_REPOSITORY}" \
-            --target 583daa270f0e188f62e13febe64aeddcf803ac38 \
-            --title "SASV Workspace v6.3.0 — PEC S4 (Pilot)" \
-            --prerelease --latest=false \
-            --notes-file release-notes.md \
-            "dist/SASV Workspace Setup 6.3.0.exe" \
-            "dist/SASV Workspace-6.3.0-win.zip" \
-            "dist/SASV Workspace Setup 6.3.0.exe.blockmap" \
-            "dist/latest.yml" \
-            "dist/SHA256SUMS.txt"
-      - name: Confirm GitHub pre-release and stable channel isolation
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          gh release view v6.3.0 -R "${GITHUB_REPOSITORY}" --json isPrerelease,isDraft,tagName --jq 'select(.isPrerelease == true and .isDraft == false and .tagName == "v6.3.0") | .tagName' | grep -Fx v6.3.0
-          stable="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name')"
-          test "${stable}" != "v6.3.0"
-          echo "Pre-release v6.3.0 published; stable Latest remains ${stable}"
-
       - name: Post controlled publication receipt to PR #497
         if: always()
         shell: bash
