@@ -222,3 +222,21 @@ Owner has explicitly clarified that **only the November 2026 implementation epoc
 5. **Rollout:** Only after the October-to-November consumer cutover and test results, propose bounded production pilot with separate explicit approval and audit. The monthly scheduled rule remains previous-month drafts expire following finalisation; approved November+ detailed runs retain current+previous 3 months. Scheduled policy does not presume November is approved yet.
 
 **Status: S3B/S3C SQL previews source-controlled and live SELECT-verified. No deletion engine installed, no archive created, no cron activation, no production DML or DDL.**
+
+## S3D — Bounded rehearsal pilot fixture, 22 Nov 2026 (READ ONLY)
+
+**Candidate:** September `refresh_run_id=87`, `overall_status=SUCCESS`, no formal run designation, not the period displayed run (Sep displayed/approved is 122), and six independently probed run-header governance-reference categories returned **false**. This is a *provisional staging fixture*, NOT yet eligible to purge.
+
+Live exact per-run counts across five large direct snapshot relations:
+
+| Run | Period / role | Signed sales | Regional sales | Cost trace | Monthly cost lines | All-scheme rows | Five-table total |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 87 | Sep transitional; unapproved | 108,982 | 108,982 | 29,964 | 29,964 | 4,086 | **281,978** |
+| 148 | Oct transitional; unapproved | 109,162 | 109,162 | 27,632 | 27,632 | 3,768 | **277,356** |
+| 152 | Nov current, displayed draft; KEEP | 111,012 | 111,012 | 27,676 | 27,676 | 4,403 | **281,779** |
+
+The five-table totals are row counts, **not five-table physical MiB nor complete dependency counts**. No snapshot deletion occurred. Historical run 1 is low-value as a deletion-rehearsal fixture (zero rows in the five inspected large tables); choose run 87 for a meaningful stage test after archive proof.
+
+New run-specific assertions at `docs/master-data-costing/sql/S3D_RETENTION_STAGING_PILOT_REHEARSAL_READ_ONLY.sql`. The script opens a `READ ONLY` transaction, checks designation, major governance references, period approved/displayed pointers, exact five-table rows and rolls back. It does not create any database object. It must be **executed and verified on staging** with matching fixture data before a writer can be enabled. This document's counts were independently checked by live SELECTs; the newly committed combined script has **not yet been executed as a single unit**.
+
+**Remaining implementation work:** (a) snapshot backup/export+restore of every parent/child table for a particular run, (b) no-cross-run-FK assertion across all descendant relationships, (c) read-only function/view consumer lineage, (d) dependency-ordered *staging-only* bounded deletion and restoration dry-run plus parity tests, (e) independent November approved-run cutover, (f) guarded production pilot and later scheduled rollover. No production deletion, cron change, destructive SQL or schema migration has been authorized by this audit.
