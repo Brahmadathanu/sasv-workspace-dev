@@ -1,8 +1,8 @@
 # Executive MIS G7 — governed production reporting design decision package
 
 **Prepared:** 22 November 2026 IST  
-**Status:** DESIGN FOR OWNER REVIEW; NOT APPROVED FOR INSTALLATION  
-**Scope:** plan sealing, formal completion-event valuation, FG transfer reconciliation, no new client functionality yet  
+**Status:** REVISED P1–P3 LIVE-GOVERNED PLANNING DESIGN accepted for design direction by owner; C1–C3/T1–T3 review ongoing; NOT APPROVED FOR INSTALLATION  
+**Scope:** live governed plan and registered-batch reconciliation (supersedes mandatory plan sealing), formal completion-event valuation, FG transfer reconciliation; no new client functionality yet  
 **Existing backend:** Supabase `qhmoqtxpeasamtlxaoak`  
 **Source-of-truth ledger:** `docs/executive-mis/EXECUTIVE_MIS_WORKFLOW.md` on `docs/executive-mis-workflow-20261119` (draft PR #485; still unmerged into `main`)  
 **Already accepted:** sole `public.get_mis_production_value_summary(date,date)` with bounded approved-reference receipt subtotal; PR #493 client merged to `main`.  
@@ -157,3 +157,34 @@ Candidate summary: `report_month; cutoff_ist; tally_snapshot_as_of; log_source_c
 | Programme release | After G7 and G9/G10, independent from Costing Electron | LOCKED |
 
 **Important:** The recommendations are **not** silent owner approvals. The next decision is to adopt or amend this *single* design policy. Only then author/install physical schema. No asynchronous work is scheduled.
+
+
+## IX. P1–P3 revised decision — LIVE GOVERNED PLAN, NOT MANDATORY FROZEN TARGET (22 November 2026)
+
+**Owner's operating clarification:** SASV normally does not adjust quantities after quantities have been planned and one or more batches registered; however, governed changes can occur. Management reporting must reflect the *current authorized operational position* rather than an obsolete fixed forecast. The owner requested the planning design be corrected on that basis; this is approval of design direction, **not** permission for SQL installation or a formal closed G7 gate.
+
+**This section supersedes every conflicting P1–P3 recommendation earlier in this document requiring a mandatory immutable monthly seal for the active plan KPI.** Preserve earlier proposals only as superseded decision history. Do not make a frozen plan a prerequisite for *displaying current production requirements*. Keep formal comparability/cost-coverage and latency gates separate.
+
+### Source checks performed on live database, read-only
+
+- `public.v_product_bulk_consolidated_effective` selects `v_product_bulk_consolidated` (which depends on net-need-after-WIP, batch-size selection and carry-forward), joins active `production_qty_overrides`, and computes `final_make_qty=greatest(0,planned_make_qty+coalesce(override_delta,0))`. The user's description of the effective view is correct.
+- `public.v_product_bulk_consolidated_effective_with_batches` **calculates a suggested** `batch_count/batch_sizes/residual_qty` through `compute_batches(final_make_qty,...)`. It does **not** mean those batches were officially registered.
+- Actual registered batches live in `batch_plan_batches` with links to `batch_plan_headers` and `bmr_details`; `v_batch_plan_batches_status` reports whether each plan batch maps to a BMR, whether WIP, and whether planned vs BMR batch size differs. Read-only November query returned **81** `batch_plan_batches` rows linked to BMR (October: 75/75). This is a **scoped inventory**, not proof all currently recommended November quantities were registered or all 81 are approved/active for the same plan version. Header states observed overall: `applied=5`, `draft=5`, `submitted=1`; header status and product-month boundaries must be considered before counting eligible registered batches.
+- The original heavy live planning view exceeded the authenticated MIS RPC's timeout budget in a prior bounded query. No UI should call it naively in every 8-second signed-in monetary RPC; use a narrowly governed efficient/refreshable read model if required, with clear freshness timestamp and stale/failure status. No new cache or scheduler is approved here.
+
+### Revised management-information contract
+
+1. **CURRENT EFFECTIVE REQUIREMENT (live operational):** per product, month and product base UOM, use the existing effective view's `final_make_qty` (and only valid positive/appropriate rows), with `source_calculated_at` / `last_refreshed_at` as truthfully available. This is a dynamically recalculated recommendation, not an approval or immutable history. Apply later authorized overrides and changed stock/WIP as allowed by the existing governed upstream writers.
+2. **REGISTERED BATCH COMMITMENT (actual governance state):** separately count/sum current eligible registered batch-plan lines, their BMR links and sizes, filtering by header status, product/month and valid lifecycle, and handling replacements/reassignment/voids. Do **not** add suggested `compute_batches` rows to real registrations, and do not equate `BMR mapped` with complete production.
+3. **ACTIONABLE DIFFERENCE:** show remaining unregistered current requirement, extra registered capacity, and material quantity drift **per product/UOM only**, with statuses e.g. `ALIGNED`, `REQUIRES_REVIEW`, `SOURCE_INCOMPLETE`; first verify that effective requirement represents a *total production target* rather than *unregistered residual* for this period. If upstream view already deducts registered/WIP quantities, simple `final_make_qty - sum(registered)` would double deduct and is forbidden until source-semantic parity is proved. Display current requirement and registration as separate numbers before deriving a gap.
+4. **GOVERNED CHANGES:** when a legitimate plan or registered batch changes, live report updates accordingly. Preserve who/when/why through existing source governance; if history is incomplete, propose a narrow audit only after evidence. An optional dated **comparison baseline** (e.g., initial plan when batch registration began) may support trend analysis, but must not override the live KPI and is not required before G7 read-only operational reporting.
+5. **PERIOD AND AS-OF INTEGRITY:** for a selected month and historical cutoff, do **not** label the latest mutable view as the state *on that historic day*. If no audited time-versioned source exists, report `CURRENT_STATE_FOR_SELECTED_MONTH` with genuine refresh time, or `HISTORICAL_PLAN_AS_OF_UNAVAILABLE`; never imply a historical plan was reconstructed. Keep cutoff-limited transfer events and current-state planning visibly separate. Show current-month status honestly even if plan was adjusted recently.
+6. **MONEY AND ACHIEVEMENT:** a live plan can become an indicative monetary **current-target** only after rate/bulk-UOM coverage and loading performance are proven. Verified finished-SKU transfer output must be valued on a comparable approved manufacturing cost basis. Management should see `current_target_value`, `finished_transfer_manufacturing_value` and a clearly labeled *achievement versus current target* only when both comparability, coverage and cutoffs meet agreed criteria; any revision can change this percentage and must be marked as a live target. Keep `planned_reference_covered_value=NULL` and `plan_achievement_pct=NULL` in the installed canonical RPC until those proofs and separate SQL authorization are complete. Tally book transfer material-based value is distinct and never the numerator.
+
+### Revised P1–P3 disposition
+
+- **P1:** No mandatory monthly plan freeze or new plan-approval workflow for MIS. Existing authorized forecast, override and registered-batch governance remains authoritative. **Design direction ACCEPTED by owner**, permissions and change history need follow-up audit.
+- **P2:** `v_product_bulk_consolidated_effective` is the **live calculation source**; registered batches/BMR are a separate operational commitment. **Design direction ACCEPTED**, reconciliation semantics and performance proof pending.
+- **P3:** Use the approved suitable costing reference only after product bulk-stage rate, UOM, complete-cost basis and accepted-rate cutoff checks; distinguish current-target value, verified completed-SKU manufacturing value and Tally book value. **Previously accepted financial safeguards unchanged**, full rate parity not yet tested.
+
+**Revised next bounded work:** read-only source-semantic proof that the effective view is gross total target versus residual after WIP/registered batches; inspect batch_plan_header states and BMR registration correction lifecycle; design a fast live-view refresh/availability contract; write offline scenarios for registered batches vs changed live requirements; then revise the one canonical server RPC proposal. C1–C3 must be reoriented to finished SKUs transferred and batch-wide exhausted/adjusted closure per owner's operations explanation. T1–T3 recon exceptions still require process clarification. Absolutely no SQL install or client refactor here.
