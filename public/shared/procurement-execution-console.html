@@ -1991,7 +1991,521 @@
           padding: 14px;
         }
       }
-    </style>
+
+      /* PEC S4 mobile acceptance refinement — presentation only.
+         Full viewport for all in-page dialogs, safe intrinsic form widths,
+         and narrow-screen evidence cards. Desktop/table structure is unchanged. */
+      @media (max-width: 680px) {
+        .modal-backdrop {
+          padding: 0 !important;
+          align-items: stretch;
+          justify-content: stretch;
+        }
+        .modal-backdrop > .modal {
+          width: 100% !important;
+          max-width: none !important;
+          min-width: 0 !important;
+          height: 100dvh !important;
+          max-height: 100dvh !important;
+          border: 0 !important;
+          border-radius: 0 !important;
+          box-sizing: border-box;
+          margin: 0 !important;
+          padding-bottom: max(12px, env(safe-area-inset-bottom));
+          overflow: hidden;
+        }
+        .modal-backdrop > .modal > .modal-header {
+          flex: 0 0 auto;
+        }
+        .modal-backdrop > .modal > .modal-body {
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+          overscroll-behavior: contain;
+        }
+        .modal-backdrop > .modal > .actions {
+          flex: 0 0 auto;
+        }
+        #generatePrModalBackdrop .form-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          align-items: start;
+          gap: 12px;
+        }
+        #generatePrModalBackdrop .form-group {
+          min-width: 0;
+          align-self: start;
+        }
+        #generatePrModalBackdrop .form-group input,
+        #generatePrModalBackdrop .form-group select,
+        #generatePrModalBackdrop .form-group textarea {
+          min-width: 0;
+          max-width: 100%;
+          width: 100%;
+          box-sizing: border-box;
+        }
+        #generatePrModalBackdrop input[type="month"],
+        #generatePrModalBackdrop input[type="date"] {
+          display: block;
+          min-width: 0;
+          max-width: 100%;
+          font: inherit;
+          font-size: 14px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-scroll {
+          overflow: visible;
+          max-height: none;
+          border: 0;
+          border-radius: 0;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table {
+          display: block;
+          min-width: 0;
+          width: 100%;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table thead {
+          display: none;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table tbody {
+          display: grid;
+          gap: 10px;
+          min-width: 0;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table tr {
+          display: grid;
+          grid-template-columns: 1fr;
+          min-width: 0;
+          padding: 10px 12px;
+          border: 1px solid var(--border, #e5e7eb);
+          border-radius: 10px;
+          background: var(--panel-bg, #fff);
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td,
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          flex-wrap: wrap;
+          gap: 4px 10px;
+          min-width: 0;
+          width: 100%;
+          padding: 6px 0;
+          border-bottom: 1px solid var(--border, #e5e7eb);
+          overflow-wrap: anywhere;
+          box-sizing: border-box;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:last-child {
+          border-bottom: 0;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td::before {
+          color: var(--muted, #64748b);
+          font-weight: 600;
+          font-size: 11px;
+          flex: 0 0 auto;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(1)::before { content: "Item / Evidence"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(2)::before { content: "MRP qty"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(3)::before { content: "Existing PR final"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(4)::before { content: "12m Usage"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(5)::before { content: "Stock"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(6)::before { content: "Open Indents"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(7)::before { content: "Suggested additional Qty"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(8)::before { content: "Review state"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(9)::before { content: "Draft action"; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child,
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(7) {
+          display: block;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child::before,
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(7)::before {
+          display: block;
+          margin-bottom: 4px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td[colspan]::before {
+          content: none;
+        }
+      }
+    
+      /* PEC S4 follow-up from authenticated 390px PWA screenshot acceptance.
+         Safari month controls retain intrinsic min widths unless each input's
+         grid cell spans the viewport; preserve two-column PR/date layout. */
+      @media (max-width: 680px) {
+        #generatePrModalBackdrop #prNewNumber,
+        #generatePrModalBackdrop #prEffectiveFrom {
+          height: 44px !important;
+          min-height: 44px !important;
+          line-height: 1.25;
+          box-sizing: border-box;
+        }
+        #generatePrModalBackdrop #prHorizonStart,
+        #generatePrModalBackdrop #prHorizonEnd {
+          height: 44px;
+          min-height: 44px;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+        }
+        #generatePrModalBackdrop .form-group:has(> #prHorizonStart),
+        #generatePrModalBackdrop .form-group:has(> #prHorizonEnd) {
+          grid-column: 1 / -1;
+          min-width: 0;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table tr:not(:has(td[colspan])) {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0 12px;
+          padding: 8px 10px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td,
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child {
+          display: block;
+          padding: 4px 0;
+          font-size: 12px;
+          border-bottom: 0;
+          min-width: 0;
+          overflow-wrap: anywhere;
+          line-height: 1.35;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td::before {
+          display: block;
+          font-size: 10px;
+          line-height: 1.25;
+          margin: 0 0 2px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child {
+          grid-column: 1 / -1;
+          padding-bottom: 7px;
+          border-bottom: 1px solid var(--border, #e5e7eb);
+          margin-bottom: 3px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child .muted {
+          font-size: 10px;
+          line-height: 1.3;
+          margin-top: 2px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(7),
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(8),
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(9) {
+          grid-column: 1 / -1;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(8) {
+          border-top: 1px solid var(--border, #e5e7eb);
+          padding-top: 6px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(8),
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(9) {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 4px 8px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(8)::before,
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(9)::before {
+          display: inline;
+        }
+      }
+
+      .pec-ccf-mobile-help, .pec-ccf-item-evidence { display: none; }
+      @media (max-width: 680px) {
+        #ccfPreviewModalBackdrop .modal-body > .pec-section-note { display: none; }
+        #ccfPreviewModalBackdrop .pec-ccf-mobile-help { display: block; margin: 0 0 5px; color: var(--muted, #64748b); font-size: 11px; }
+        #ccfPreviewModalBackdrop .pec-ccf-mobile-help summary { cursor: pointer; padding: 4px 0; color: var(--primary,#0b605a); }
+        #ccfPreviewModalBackdrop .pec-ccf-mobile-help p { margin: 4px 0 6px; line-height: 1.35; }
+        #ccfPreviewModalBackdrop .pec-ccf-summary { margin: 4px 0 6px; padding: 7px 9px; font-size: 11px; line-height: 1.3; }
+        #ccfPreviewModalBackdrop .pec-ccf-search-row { margin: 3px 0 7px; gap: 4px; font-size: 12px; }
+        #ccfPreviewModalBackdrop .pec-ccf-table tbody { gap: 6px; }
+        #ccfPreviewModalBackdrop .pec-ccf-table tr:not(:has(td[colspan])) { padding: 7px 9px; gap: 0 10px; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td,
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child { padding: 2px 0; font-size: 12px; line-height: 1.2; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td::before { font-size: 10px; margin-bottom: 1px; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child { padding-bottom: 5px; margin-bottom: 3px; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:first-child strong { font-size: 13px; line-height: 1.25; }
+        #ccfPreviewModalBackdrop .pec-ccf-desktop-evidence { display: none !important; }
+        #ccfPreviewModalBackdrop .pec-ccf-item-evidence { display: block; margin-top: 2px; font-size: 10px; color: var(--muted,#64748b); }
+        #ccfPreviewModalBackdrop .pec-ccf-item-evidence summary { display: list-item; cursor: pointer; padding: 2px 0; }
+        #ccfPreviewModalBackdrop .pec-ccf-item-evidence span { display: block; line-height: 1.3; margin-bottom: 3px; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(7) .muted { font-size: 10px; margin-top: 1px; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(8) { padding-top: 5px; margin-top: 3px; font-size: 10px; overflow-wrap: anywhere; }
+        #ccfPreviewModalBackdrop .pec-ccf-table td:nth-child(9) { font-size: 11px; }
+      }
+
+      /* PR detail: concise operational toolbar, not development terminology. */
+      #prViewModalBackdrop .pec-pr-action-bar {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+        margin-bottom: 9px; padding-bottom: 9px;
+        border-bottom: 1px solid var(--border,#e5e7eb);
+      }
+      #prViewModalBackdrop .pec-pr-action-bar .icon-btn {
+        min-height: 34px; height: 34px; padding: 0 9px; border-radius: 7px;
+        white-space: nowrap;
+      }
+      #prViewModalBackdrop .pec-pr-action-bar .pec-action-label {
+        font-size: 12px; font-weight: 600;
+      }
+      #prViewModalBackdrop #prDetailHint {
+        font-size: 11px !important;
+        margin-top: 0 !important;
+        flex-basis: 100%;
+      }
+      /* Coverage Review: exactly one data scroll container at every width. */
+      #ccfPreviewModalBackdrop > .modal {
+        min-height: 0;
+        overflow: hidden;
+      }
+      #ccfPreviewModalBackdrop > .modal > .modal-body {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden !important;
+      }
+      #ccfPreviewModalBackdrop .pec-ccf-scroll {
+        flex: 1 1 auto; min-height: 0; max-height: none !important;
+        overflow: auto !important; overscroll-behavior: contain;
+      }
+      #ccfPreviewModalBackdrop .pec-ccf-table th {
+        position: sticky; top: 0; z-index: 2;
+      }
+      @media (min-width: 681px) {
+        #ccfPreviewModalBackdrop > .modal {
+          height: min(90dvh, 940px);
+          max-height: 90dvh;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-scroll {
+          max-width: 100%;
+          border: 1px solid var(--border,#e5e7eb);
+        }
+      }
+      @media (max-width: 680px) {
+        #prViewModalBackdrop .pec-pr-action-bar {
+          flex-wrap: wrap; overflow: visible;
+          padding-bottom: 6px;
+        }
+        #prViewModalBackdrop .pec-pr-action-bar .icon-btn {
+          flex: 0 0 auto; min-width: 36px;
+        }
+        #prViewModalBackdrop #prDetailHint { display: none; }
+        #ccfPreviewModalBackdrop .pec-ccf-scroll {
+          overflow-y: auto !important; overflow-x: hidden !important;
+          border: 0 !important;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table {
+          display: block; min-width: 0;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table tr.pec-ccf-compact-row {
+          display: block !important; padding: 0 !important;
+          border: 0 !important; background: transparent !important;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table tr.pec-ccf-compact-row > td {
+          display: block !important; min-width: 0 !important;
+          width: 100% !important; border: none !important;
+          padding: 0 !important; margin: 0 !important;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-table tr.pec-ccf-compact-row > td::before { content: none !important; }
+        #ccfPreviewModalBackdrop .pec-ccf-compact-card {
+          padding: 8px 10px; margin: 0;
+          border: 1px solid var(--border,#e5e7eb);
+          border-radius: 8px; background: var(--panel-bg,#fff);
+          line-height: 1.25;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-compact-top {
+          display: flex; justify-content: space-between;
+          gap: 8px; align-items: flex-start; margin-bottom: 5px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-compact-top strong {
+          font-size: 12px; line-height: 1.3;
+          flex: 1 1 auto; min-width: 0;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-compact-gate {
+          font-size: 10px; max-width: 38%;
+          overflow-wrap: anywhere; text-align: right;
+          color: var(--muted,#64748b);
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-compact-metrics {
+          display: grid; grid-template-columns: repeat(4,minmax(0,1fr));
+          gap: 4px;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-compact-metrics span {
+          min-width: 0; font-size: 11px;
+          overflow-wrap: anywhere;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-compact-metrics small {
+          display: block; font-size: 9px; color: var(--muted,#64748b);
+          margin-bottom: 2px; line-height: 1.1;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-compact-details {
+          margin-top: 4px; font-size: 10px;
+          color: var(--muted,#64748b);
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-compact-details summary {
+          cursor: pointer; padding: 3px 0;
+          color: var(--primary,#0b605a);
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-compact-details p {
+          margin: 3px 0; line-height: 1.4;
+          overflow-wrap: anywhere;
+        }
+        #ccfPreviewModalBackdrop .pec-ccf-compact-details .pec-ccf-approve-btn {
+          margin-top: 4px; min-height: 32px;
+        }
+      }
+
+      #prViewModalBackdrop .pec-pr-secondary-menu { position: relative; flex: 0 0 auto; font-size: 12px; }
+      #prViewModalBackdrop .pec-pr-secondary-menu > summary {
+        display: inline-flex; align-items: center; cursor: pointer;
+        min-height: 34px; padding: 0 10px;
+        border: 1px solid var(--border,#cbd5e1);
+        border-radius: 7px; background: var(--panel-bg,#fff);
+        font-weight: 600; list-style: none;
+      }
+      #prViewModalBackdrop .pec-pr-secondary-menu > summary::-webkit-details-marker { display: none; }
+      #prViewModalBackdrop .pec-pr-secondary-menu > summary::after { content: " ▾"; margin-left: 5px; }
+      #prViewModalBackdrop .pec-pr-secondary-options {
+        position: absolute; z-index: 30; top: calc(100% + 4px); right: 0;
+        display: grid; gap: 5px; min-width: 170px; padding: 8px;
+        border: 1px solid var(--border,#cbd5e1); border-radius: 8px;
+        background: var(--panel-bg,#fff); box-shadow: 0 8px 24px rgba(0,0,0,.13);
+      }
+      #prViewModalBackdrop .pec-pr-secondary-options .icon-btn {
+        width: 100%; min-height: 36px; height: auto;
+        justify-content: flex-start; padding: 6px 9px; gap: 7px;
+      }
+      #prViewModalBackdrop .pec-pr-secondary-options .pec-action-label { display: inline !important; }
+      @media (max-width: 680px) {
+        #prViewModalBackdrop .pec-pr-secondary-options { left: 0; right: auto; }
+      }
+
+      /* ===== S4 UX package (22 Nov 2026): presentation only ===== */
+      #generatePrModalBackdrop .pec-s4-review-gate { display:flex; flex-direction:column; gap:6px; }
+      #generatePrModalBackdrop #btnGenS4Preview { width:100%; justify-content:center; }
+      .pec-s4-review-status {
+        display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+        padding:8px 10px; border:1px solid rgba(16,112,100,.35); border-radius:8px;
+        background:rgba(16,112,100,.08); font-size:13px; line-height:1.35;
+      }
+      .pec-s4-review-status[hidden], #btnGenS4Preview[hidden], #genS4ReviewHint[hidden] { display:none !important; }
+      .pec-s4-link-btn {
+        background:none; border:0; padding:4px 6px; min-height:28px; cursor:pointer;
+        color:var(--primary,#0b605a); font:inherit; font-weight:600; text-decoration:underline;
+      }
+      #s4ReviewModalBackdrop { z-index:10000; }
+      #s4ReviewModalBackdrop > .modal { max-width:860px; padding:0; min-height:0; overflow:hidden; }
+      #s4ReviewModalBackdrop > .modal > .modal-header { padding:12px 14px 8px; }
+      #s4ReviewModalBackdrop .pec-s4-review-body {
+        flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:8px 14px 12px;
+      }
+      #s4ReviewModalBackdrop > .modal:focus { outline:none; }
+      @media (min-width: 681px) {
+        #s4ReviewModalBackdrop > .modal { height:min(86dvh, 780px); max-height:86dvh; }
+      }
+      #s4ReviewModalBackdrop #genS4PreviewSummary { margin:0 0 8px; font-size:12px; line-height:1.4; }
+      .pec-s4-counts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:0 0 10px; }
+      .pec-s4-counts > div {
+        border:1px solid var(--border,#d9e1e7); border-radius:8px; padding:6px 9px;
+        background:rgba(100,116,139,.06); min-width:0;
+      }
+      .pec-s4-counts b { display:block; font-size:18px; line-height:1.15; font-variant-numeric:tabular-nums; }
+      .pec-s4-counts span { display:block; font-size:11px; color:var(--muted,#64748b); line-height:1.25; }
+      .pec-s4-counts .is-review { border-color:rgba(180,83,9,.45); background:rgba(245,158,11,.10); }
+      .pec-s4-review-search { display:flex; flex-direction:column; gap:4px; margin:0 0 8px; }
+      .pec-s4-review-search label { font-size:12px; font-weight:600; }
+      .pec-s4-review-search input { width:100%; box-sizing:border-box; min-height:36px; }
+      .pec-s4-review-list { font-size:13px; }
+      .pec-s4-review-list .pec-s4-count-note { font-size:11px; color:var(--muted,#64748b); margin:0 0 4px; }
+      .pec-s4-item { padding:7px 2px; border-bottom:1px solid var(--border,#e4e7ed); }
+      .pec-s4-item-top { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+      .pec-s4-item-name { font-weight:600; overflow-wrap:anywhere; min-width:0; }
+      .pec-s4-item-uom { font-weight:400; color:var(--muted,#64748b); font-size:12px; }
+      .pec-s4-item-qty { font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; text-align:right; }
+      .pec-s4-item-qty small { display:block; font-weight:400; font-size:10px; color:var(--muted,#64748b); }
+      .pec-s4-item-sub { display:flex; flex-wrap:wrap; gap:6px; margin-top:3px; align-items:center; }
+      .pec-s4-badge {
+        display:inline-block; padding:1px 7px; border-radius:999px; font-size:11px; line-height:1.5;
+        border:1px solid var(--border,#cbd5e1); background:rgba(100,116,139,.08);
+      }
+      .pec-s4-badge.is-review { border-color:rgba(180,83,9,.5); background:rgba(245,158,11,.14); }
+      .pec-s4-badge.is-auto { border-color:rgba(16,112,100,.45); background:rgba(16,112,100,.10); }
+      .pec-s4-item details { margin-top:3px; font-size:12px; color:var(--muted,#64748b); }
+      .pec-s4-item summary { cursor:pointer; padding:2px 0; color:var(--primary,#0b605a); }
+      .pec-s4-item details p { margin:3px 0; line-height:1.4; overflow-wrap:anywhere; }
+      .pec-s4-review-foot {
+        flex:0 0 auto; border-top:1px solid var(--border,#d9e1e7); padding:10px 14px;
+        padding-bottom:calc(10px + env(safe-area-inset-bottom, 0px));
+        background:var(--panel-bg,#fff);
+      }
+      .pec-s4-ack { display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:13px; line-height:1.45; margin:0 0 10px; }
+      .pec-s4-ack input { flex:0 0 22px; width:22px; height:22px; margin:0; accent-color:var(--primary,#0b605a); cursor:pointer; }
+      .pec-s4-ack input:focus-visible { outline:2px solid var(--primary,#0b605a); outline-offset:2px; }
+      .pec-s4-review-actions { display:flex; justify-content:flex-end; gap:8px; }
+      .pec-s4-review-actions button { min-height:40px; min-width:96px; }
+      @media (max-width: 680px) {
+        .pec-s4-counts { grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+        .pec-s4-counts b { font-size:16px; }
+        .pec-s4-review-actions button { flex:1 1 0; }
+      }
+      #ccfPreviewFilter {
+        background:rgba(16,112,100,.07); border:1px solid var(--border,#cbd5e1); border-radius:7px;
+        min-height:34px; padding:0 8px;
+      }
+      #ccfPreviewModalBackdrop .pec-ccf-table tbody tr + tr td { border-top:1px solid rgba(100,116,139,.18); }
+      #ccfPreviewModalBackdrop .pec-ccf-sub { display:block; font-size:11px; color:var(--muted,#64748b); margin-top:2px; }
+      #ccfPreviewModalBackdrop .pec-ccf-compact-main {
+        display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-top:3px;
+      }
+      #ccfPreviewModalBackdrop .pec-ccf-compact-main .lbl { font-size:11px; color:var(--muted,#64748b); }
+      #ccfPreviewModalBackdrop .pec-ccf-compact-main .val { font-weight:700; font-variant-numeric:tabular-nums; font-size:15px; }
+      #ccfPreviewModalBackdrop .pec-ccf-compact-main .uom { font-weight:400; font-size:11px; color:var(--muted,#64748b); margin-left:3px; }
+      #ccfPreviewModalBackdrop .pec-ccf-compact-dl { display:grid; grid-template-columns:1fr auto; gap:2px 12px; margin:4px 0; }
+      #ccfPreviewModalBackdrop .pec-ccf-compact-dl dt { color:var(--muted,#64748b); }
+      #ccfPreviewModalBackdrop .pec-ccf-compact-dl dd { margin:0; text-align:right; font-variant-numeric:tabular-nums; }
+
+      /* Requirement Review: consistent ERP dialog footer, including disabled state. */
+      #s4ReviewModalBackdrop .pec-s4-review-actions {
+        display: flex; justify-content: flex-end; align-items: center;
+        gap: 10px; margin-top: 10px;
+      }
+      #s4ReviewModalBackdrop .pec-s4-review-actions > button {
+        appearance: none; -webkit-appearance: none;
+        box-sizing: border-box; min-height: 42px; min-width: 126px;
+        margin: 0; padding: 9px 16px;
+        border: 1px solid var(--border,#cbd5e1);
+        border-radius: 9px; background: var(--panel-bg,#fff);
+        color: var(--text-color,#182a2d);
+        font: inherit; font-size: 13px; font-weight: 650;
+        line-height: 1.3; text-align: center;
+        cursor: pointer; transition: background .12s, border-color .12s;
+      }
+      #s4ReviewModalBackdrop #btnS4ReviewBack {
+        background: rgba(100,116,139,.07);
+        border-color: rgba(100,116,139,.27);
+      }
+      #s4ReviewModalBackdrop #btnS4ReviewBack:hover {
+        background: rgba(100,116,139,.13);
+      }
+      #s4ReviewModalBackdrop #btnS4ReviewConfirm:not(:disabled) {
+        background: var(--primary,#0b605a);
+        border-color: var(--primary,#0b605a);
+        color: #fff;
+      }
+      #s4ReviewModalBackdrop #btnS4ReviewConfirm:not(:disabled):hover {
+        filter: brightness(.94);
+      }
+      #s4ReviewModalBackdrop #btnS4ReviewConfirm:disabled {
+        background: rgba(100,116,139,.10);
+        border-color: rgba(100,116,139,.20);
+        color: var(--muted,#64748b);
+        cursor: not-allowed; opacity: .85;
+      }
+      #s4ReviewModalBackdrop .pec-s4-review-actions > button:focus-visible {
+        outline: 2px solid var(--primary,#0b605a);
+        outline-offset: 2px;
+      }
+      @media (max-width: 680px) {
+        #s4ReviewModalBackdrop .pec-s4-review-actions > button {
+          min-width: 0; flex: 1 1 0; min-height: 44px;
+          padding: 9px 8px; white-space: nowrap;
+        }
+      }
+</style>
     <!-- PEC-ERP-C1: SASV Workspace specialisation after inline legacy styles so token rules win the cascade -->
     <link rel="stylesheet" href="../shared/css/sasv-procurement-execution-console.css" />
   </head>
@@ -3784,17 +4298,7 @@
           </div>
         </div>
         <div class="modal-body">
-          <div
-            style="
-              display: flex;
-              gap: 6px;
-              flex-wrap: wrap;
-              align-items: center;
-              margin-bottom: 16px;
-              padding-bottom: 14px;
-              border-bottom: 1px solid rgba(0, 0, 0, 0.07);
-            "
-          >
+          <div class="pec-pr-action-bar">
             <div
               id="iLinesActions"
               style="display: flex; gap: 6px; flex-wrap: wrap"
@@ -4802,63 +5306,15 @@
                 <polyline points="12 5 19 12 12 19"></polyline>
               </svg>
             </button>
-            <button
-              id="btnPrClosePr"
-              type="button"
-              data-edit-action="true"
-              class="icon-btn danger"
-              title="Close PR"
-              aria-label="Close PR"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-            <button
-              id="btnPrDeleteDraft"
-              type="button"
-              data-edit-action="true"
-              class="icon-btn danger"
-              title="Delete Draft PR"
-              aria-label="Delete Draft PR"
-              style="display: none"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-                <path d="M10 11v6"></path>
-                <path d="M14 11v6"></path>
-                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
-              </svg>
-            </button>
+            
+            
             <button
               id="btnPrAddLine"
               type="button"
               data-edit-action="true"
               class="icon-btn primary"
-              title="Add PR Line"
-              aria-label="Add PR Line"
+              title="Add line"
+              aria-label="Add line"
             >
               <svg
                 width="16"
@@ -4878,8 +5334,8 @@
             <button
               id="btnPrS4Reconcile"
               type="button" data-edit-action="true" class="icon-btn primary"
-              title="Reconcile this draft PR with S4 consumption coverage"
-              aria-label="Reconcile S4 consumption coverage" style="display:none"
+              title="Reconcile"
+              aria-label="Reconcile draft" style="display:none"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -4889,8 +5345,8 @@
               id="btnPrCoveragePreview"
               type="button"
               class="icon-btn primary"
-              title="Review Consumption Coverage"
-              aria-label="Review Consumption Coverage"
+              title="Requirement review"
+              aria-label="Consumption-based requirement review"
               aria-haspopup="dialog"
               aria-controls="ccfPreviewModalBackdrop"
             >
@@ -4900,30 +5356,7 @@
                 <circle cx="19" cy="5" r="1" />
               </svg>
             </button>
-            <button
-              id="btnPrRebuildFromMrp"
-              type="button"
-              data-edit-action="true"
-              class="icon-btn primary"
-              title="Rebuild from MRP"
-              aria-label="Rebuild from MRP"
-              style="display: none"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M21 12a9 9 0 1 1-3-6.7" />
-                <polyline points="21 3 21 9 15 9" />
-              </svg>
-            </button>
+            
             <button
               id="btnPrCreateIndent"
               type="button"
@@ -4948,6 +5381,85 @@
                 <polyline points="12 5 19 12 12 19"></polyline>
               </svg>
             </button>
+            <details class="pec-pr-secondary-menu" id="prSecondaryActions">
+              <summary aria-label="More requisition actions" aria-haspopup="menu" aria-expanded="false">More actions</summary>
+              <div class="pec-pr-secondary-options">
+                <button
+              id="btnPrClosePr"
+              type="button"
+              data-edit-action="true"
+              class="icon-btn danger"
+              title="Close PR"
+              aria-label="Close PR"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+                <button
+              id="btnPrDeleteDraft"
+              type="button"
+              data-edit-action="true"
+              class="icon-btn danger"
+              title="Delete draft"
+              aria-label="Delete draft"
+              style="display: none"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                <path d="M10 11v6"></path>
+                <path d="M14 11v6"></path>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+              </svg>
+            </button>
+                <button
+              id="btnPrRebuildFromMrp"
+              type="button"
+              data-edit-action="true"
+              class="icon-btn primary"
+              title="Rebuild"
+              aria-label="Rebuild"
+              style="display: none"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M21 12a9 9 0 1 1-3-6.7" />
+                <polyline points="21 3 21 9 15 9" />
+              </svg>
+            </button>
+              </div>
+            </details>
             <div
               class="export-menu"
               id="prExportMenu"
@@ -4957,8 +5469,8 @@
                 id="btnPrExportMenu"
                 type="button"
                 class="icon-btn primary"
-                title="Export Form"
-                aria-label="Export Form"
+                title="Export"
+                aria-label="Export"
                 aria-haspopup="true"
                 aria-expanded="false"
                 aria-controls="prExportMenu"
@@ -5355,7 +5867,7 @@
       <div class="modal modal-fullpage pec-ccf-preview" role="dialog" aria-modal="true" aria-labelledby="ccfPreviewTitle">
         <div class="modal-header page-header">
           <div>
-            <h3 id="ccfPreviewTitle" style="margin: 0">Consumption Coverage Review</h3>
+            <h3 id="ccfPreviewTitle" style="margin: 0">Consumption Requirement Review</h3>
             <p id="ccfPreviewPrContext" class="muted" style="font-size: 12px; margin: 4px 0 0"></p>
           </div>
           <button id="btnCcfPreviewClose" type="button" class="modal-close-btn" title="Close" aria-label="Close">
@@ -5367,32 +5879,34 @@
         <div class="modal-body">
           <p class="pec-section-note">
             Read-only planning evidence. Based on 12 completed calendar months including months with zero usage.
-            MRP quantity and consumption coverage are alternative stock-netted plans, not additive.
+            MRP quantity and the consumption-based requirement are alternative stock-netted plans, not additive.
             Approved/issued unfulfilled indents are shown as existing commitments.
-            <strong>Illustrative quantities are not purchasing quantities until an authorised Editor explicitly approves an eligible draft line.</strong>
+            <strong>Suggested additional quantities are illustrative and review-only; they are not purchasing quantities.</strong>
           </p>
+          <details class="pec-ccf-mobile-help">
+            <summary>How the requirement is calculated</summary>
+            <p>Suggested additional Qty = 12-month usage ÷ 12 × planning months, less stock and outstanding approved/issued indents, rounded up to MOQ. MRP and consumption are alternatives, not additive. Past usage is not a forecast; review only.</p>
+          </details>
           <div class="pec-ccf-summary" id="ccfPreviewSummary" role="status" aria-live="polite">Loading…</div>
           <div class="pec-ccf-search-row">
             <label for="ccfPreviewFilter">Filter items</label>
-            <select id="ccfPreviewFilter">
+            <select id="ccfPreviewFilter" aria-label="Filter items">
               <option value="gaps">Items needing review</option>
               <option value="all">All PR lines</option>
               <option value="zero">Zero MRP with usage</option>
             </select>
           </div>
-          <div class="table-scroll pec-ccf-scroll" role="region" aria-label="Consumption coverage comparison table" tabindex="0">
+          <div class="table-scroll pec-ccf-scroll" role="region" aria-label="Consumption requirement comparison table" tabindex="0">
             <table class="pec-ccf-table">
               <thead><tr>
-                <th>Item / Evidence</th><th>MRP</th><th>PR Final</th><th>12m Usage</th>
-                <th>Stock</th><th>Open Indents</th><th>Illustrative Floor</th><th>Review state</th><th>Draft action</th>
+                <th>Item / Evidence</th><th>MRP Qty</th><th>Existing PR Final</th><th>12m Usage</th>
+                <th>Stock</th><th>Open Indents</th><th>Suggested additional Qty</th><th>Review state</th><th>Draft action</th>
               </tr></thead>
               <tbody id="ccfPreviewTbody"></tbody>
             </table>
           </div>
         </div>
-        <div class="actions">
-          <button type="button" id="btnCcfPreviewDone">Close Review</button>
-        </div>
+
       </div>
     </div>
 
@@ -5436,7 +5950,7 @@
     <div class="modal-backdrop" id="generatePrModalBackdrop" aria-hidden="true">
       <div class="modal" style="max-width: 560px" role="dialog" aria-modal="true" aria-labelledby="generatePrTitle">
         <div class="modal-header page-header">
-          <h3 style="margin: 0" id="generatePrTitle">Generate Draft PR from MRP</h3>
+          <h3 style="margin: 0" id="generatePrTitle">Create Draft PR</h3>
           <button id="btnGenPrClose" class="modal-close-btn" type="button" title="Close" aria-label="Close">
             <svg
               width="14"
@@ -5456,10 +5970,7 @@
           <div class="form-grid">
             <div class="form-group">
               <label for="prNewNumber">PR Number <span style="color: red">*</span></label>
-              <input id="prNewNumber" placeholder="e.g. PR-2026-07" autocomplete="off" aria-describedby="prNumberHint" />
-              <p id="prNumberHint" class="muted" role="status" aria-live="polite" style="font-size: 12px; margin: 6px 0 0">
-                Suggested from existing PRs; editable before generation.
-              </p>
+              <input id="prNewNumber" placeholder="e.g. PR-2026-07" autocomplete="off" />
             </div>
             <div class="form-group">
               <label for="prEffectiveFrom">Effective From <span style="color: red">*</span></label>
@@ -5496,27 +6007,22 @@
               <label for="prNotes">Notes</label>
               <textarea id="prNotes" placeholder="Optional notes…"></textarea>
             </div>
-            <div class="form-group full-col">
+            <div class="form-group full-col pec-s4-review-gate">
               <button type="button" id="btnGenS4Preview" class="icon-btn with-label secondary"
-                aria-controls="genS4PreviewPanel">
+                aria-haspopup="dialog" aria-controls="s4ReviewModalBackdrop">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M3 3v18h18"/><path d="m7 15 4-5 4 2 4-7"/>
                 </svg>
-                <span>Preview MRP + Consumption Requirement</span>
+                <span>Review requirements</span>
               </button>
-            </div>
-            <div class="form-group full-col" id="genS4PreviewPanel" style="display:none">
-              <p id="genS4PreviewSummary" class="pec-section-note" role="status" aria-live="polite"></p>
-              <label for="genS4ItemSearch" style="display:block;margin:8px 0 6px">Find planned material</label>
-              <input id="genS4ItemSearch" type="search" placeholder="Search item, MRP, coverage or review state…" style="margin-bottom:8px" />
-              <div id="genS4PreviewExceptions" class="pec-s4-preflight-scroll" role="region"
-                   aria-label="Materials requiring review"></div>
-              <label class="pec-ccf-ack">
-                <input type="checkbox" id="genS4Acknowledged"/>
-                <span>I have reviewed the suggested quantities and items requiring review.
-                Generate a draft PR with frozen item-level evidence; no indent or order will be created.</span>
-              </label>
+              <div id="genS4ReviewStatus" class="pec-s4-review-status" role="status" aria-live="polite" hidden>
+                <span id="genS4ReviewStatusText"></span>
+                <button type="button" id="btnGenS4ReviewAgain" class="pec-s4-link-btn">Review again</button>
+              </div>
+              <p id="genS4ReviewHint" class="pec-section-note" style="margin:6px 0 0">
+                Review the MRP and consumption-based requirement before generating. Generate stays disabled until the review is confirmed.
+              </p>
             </div>
           </div>
         </div>
@@ -5527,6 +6033,42 @@
         <div class="actions">
           <button id="btnGenPrCancel">Cancel</button>
           <button id="btnGenPrConfirm" data-edit-action="true">Generate</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- S4 Task A: separate Requirement Review dialog. Read-only; only Generate in the primary dialog writes. -->
+    <div class="modal-backdrop" id="s4ReviewModalBackdrop" aria-hidden="true">
+      <div class="modal pec-s4-review" role="dialog" aria-modal="true" aria-labelledby="s4ReviewTitle" tabindex="-1">
+        <div class="modal-header page-header">
+          <div>
+            <h3 id="s4ReviewTitle" style="margin:0">Requirement Review</h3>
+            <p id="s4ReviewContext" class="muted" style="font-size:12px;margin:4px 0 0"></p>
+          </div>
+          <button id="btnS4ReviewClose" class="modal-close-btn" type="button" title="Close" aria-label="Close review">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2.5" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="modal-body pec-s4-review-body">
+          <p id="genS4PreviewSummary" class="pec-section-note" role="status" aria-live="polite"></p>
+          <div id="genS4ReviewCounts" class="pec-s4-counts" aria-label="Requirement counts"></div>
+          <div class="pec-s4-review-search">
+            <label for="genS4ItemSearch">Find planned material</label>
+            <input id="genS4ItemSearch" type="search" placeholder="Search item, UOM or review state…" autocomplete="off" />
+          </div>
+          <div id="genS4PreviewExceptions" class="pec-s4-review-list" role="region" aria-label="Planned materials"></div>
+        </div>
+        <div class="pec-s4-review-foot">
+          <label class="pec-s4-ack" for="genS4Acknowledged">
+            <input type="checkbox" id="genS4Acknowledged" />
+            <span>I have reviewed the requirements and the items needing review. Generating creates only a draft PR with frozen item-level evidence; no indent or order is created.</span>
+          </label>
+          <div class="pec-s4-review-actions">
+            <button type="button" id="btnS4ReviewBack">Back</button>
+            <button type="button" id="btnS4ReviewConfirm" class="primary" disabled>Confirm Review</button>
+          </div>
         </div>
       </div>
     </div>

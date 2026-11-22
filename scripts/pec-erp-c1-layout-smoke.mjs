@@ -64,6 +64,15 @@ export const supabase = {
     if (name === "get_user_permissions") return mk(S.role === "none" ? [] : [{ target: "module:procurement-execution-console", can_view: true, can_edit: S.role === "edit" }]);
     if(name === "proc_pec_s4_new_pr_plan") {
       globalThis.__s4PlanCalls = (globalThis.__s4PlanCalls || 0) + 1;
+      if (S.planError) return { data: null, error: { message: "synthetic plan failure" } };
+      if (S.planRace) {
+        // call 1 is slow and returns ONE row; call 2 is fast and returns TWO: latest must win.
+        const n = globalThis.__s4PlanCalls;
+        if (n === 1) {
+          await new Promise(r => setTimeout(r, 700));
+          return mk([{material_class_id:2,stock_item_id:1,stock_item_name:"STALE ROW",uom_id:5,uom_code:"Nos",mrp_net_qty:0,recommended_qty:1,usage_12m:1,gate:"AUTO_ELIGIBLE",consumption_only:false}]);
+        }
+      }
       return mk([
         {material_class_id:2,stock_item_id:1638,stock_item_name:"Label - Punarnavasavam 450 ML",
           uom_id:5,uom_code:"Nos",mrp_net_qty:0,recommended_qty:2098,usage_12m:12587,
@@ -452,8 +461,9 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   await ctx.close();
 }
 
-// S4 complete generation: review requires human acknowledgement, no
-// automatic writer call while previewing, and the legacy MRP RPC is never used.
+// S4 complete generation (two-stage): the primary dialog only collects
+// parameters; a SEPARATE Requirement Review dialog holds the acknowledgement.
+// Only Generate in the primary dialog may call the guarded writer.
 {
   const {ctx,page,errors}=await open({role:"edit"},VIEWPORTS[0]);
   await page.click("#btnGeneratePr");
@@ -461,18 +471,73 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   await page.fill("#prHorizonStart","2026-11");
   await page.fill("#prHorizonEnd","2026-12");
   await page.selectOption("#prMaterialClass","2");
+  check(await page.isDisabled("#btnGenPrConfirm"), "S4 generator: Generate disabled before review");
   await page.click("#btnGenS4Preview");
   await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
   const summary=await page.locator("#genS4PreviewSummary").textContent();
   check(summary.includes("1 zero-MRP") && summary.includes("1 require manual review"),
-    "S4 generator: preview shows covered zero-MRP and review candidates");
+    "S4 generator: review dialog shows covered zero-MRP and review candidates");
+  check(await page.evaluate(()=>document.querySelector("#s4ReviewModalBackdrop").classList.contains("show") &&
+        document.querySelector("#generatePrModalBackdrop").classList.contains("show") &&
+        !document.querySelector("#generatePrModalBackdrop").contains(document.querySelector("#genS4Acknowledged"))),
+    "S4 generator: review is a different dialog and holds the acknowledgement");
   check(await page.isDisabled("#btnGenPrConfirm"),
-    "S4 generator: cannot create without acknowledgement");
+    "S4 generator: cannot create without confirmed review");
+  check(await page.isDisabled("#btnS4ReviewConfirm"), "S4 review: Confirm disabled until acknowledged");
   check(await page.evaluate(()=>(globalThis.__s4GenerateCalls || []).length)===0,
-    "S4 generator: read-only preflight never creates a PR");
+    "S4 generator: read-only review never creates a PR");
+  // Back = no approval; reopening never reuses stale acknowledgement.
   await page.check("#genS4Acknowledged");
-  check(await page.isEnabled("#btnGenPrConfirm"),
-    "S4 generator: reviewed preview enables generation");
+  check(await page.isEnabled("#btnS4ReviewConfirm"), "S4 review: acknowledgement enables Confirm");
+  await page.click("#btnS4ReviewBack");
+  check(!(await page.isVisible("#s4ReviewModalBackdrop.show")) && await page.isDisabled("#btnGenPrConfirm"),
+    "S4 review: Back closes without approval, Generate stays disabled");
+  check(await page.inputValue("#prNewNumber")==="PR-S4-FIXTURE-01" && await page.inputValue("#prHorizonEnd")==="2026-12",
+    "S4 review: primary form keeps its values after Back");
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  check(!(await page.isChecked("#genS4Acknowledged")), "S4 review: reopening clears earlier acknowledgement");
+  // Escape closes only the review dialog.
+  await page.keyboard.press("Escape");
+  check(!(await page.isVisible("#s4ReviewModalBackdrop.show")) && await page.isVisible("#generatePrModalBackdrop.show"),
+    "S4 review: Escape closes only the review dialog");
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  await page.check("#genS4Acknowledged");
+  await page.click("#btnS4ReviewConfirm");
+  check(!(await page.isVisible("#s4ReviewModalBackdrop.show")), "S4 review: Confirm closes the review dialog");
+  check((await page.locator("#genS4ReviewStatusText").textContent()).startsWith("Requirements reviewed") &&
+        (await page.locator("#genS4ReviewStatusText").textContent()).includes("2 materials"),
+    "S4 review: primary form shows Requirements reviewed with count");
+  check(await page.evaluate(()=>document.activeElement?.id)==="btnGenS4ReviewAgain",
+    "S4 review: focus returns to the primary form (Review again)");
+  check(await page.isEnabled("#btnGenPrConfirm"), "S4 generator: confirmed review enables generation");
+  // Plan-signature fields invalidate; non-plan fields do not.
+  await page.fill("#prNotes","note change does not affect server plan");
+  check(await page.isEnabled("#btnGenPrConfirm"), "S4 generator: notes do not invalidate the plan");
+  await page.fill("#prHorizonEnd","2027-01");
+  await page.dispatchEvent("#prHorizonEnd","change");
+  check(await page.isDisabled("#btnGenPrConfirm") && !(await page.isVisible("#genS4ReviewStatus")),
+    "S4 generator: changed horizon invalidates confirmation");
+  await page.fill("#prHorizonEnd","2026-12");
+  await page.dispatchEvent("#prHorizonEnd","change");
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  await page.check("#genS4Acknowledged");
+  await page.click("#btnS4ReviewConfirm");
+  await page.selectOption("#prMaterialClass","1");
+  check(await page.isDisabled("#btnGenPrConfirm"), "S4 generator: changed material class invalidates confirmation");
+  await page.selectOption("#prMaterialClass","2");
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  await page.check("#genS4Acknowledged");
+  await page.click("#btnS4ReviewConfirm");
+  await page.click("#btnGenS4ReviewAgain");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  check(!(await page.isChecked("#genS4Acknowledged")) && await page.isDisabled("#btnGenPrConfirm"),
+    "S4 generator: Review again clears confirmation");
+  await page.check("#genS4Acknowledged");
+  await page.click("#btnS4ReviewConfirm");
   await page.click("#btnGenPrConfirm");
   await page.waitForFunction(()=>(globalThis.__s4GenerateCalls || []).length===1);
   const calls=await page.evaluate(()=>globalThis.__s4GenerateCalls||[]);
@@ -480,8 +545,86 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
        calls[0].p_horizon_start_month==="2026-11-01" &&
        calls[0].p_horizon_end_month==="2026-12-01" &&
        calls[0].p_pr_number==="PR-S4-FIXTURE-01",
-    "S4 generator: exact acknowledged horizon and number submitted to guarded server");
+    "S4 generator: exact confirmed horizon and number submitted to guarded server (only writer call)");
   check(errors.length===0,`S4 generator browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+// S4 UX: missing months, preview error and stale (race) responses never enable Generate.
+{
+  const {ctx,page,errors}=await open({role:"edit"},VIEWPORTS[0]);
+  await page.click("#btnGeneratePr");
+  await page.fill("#prNewNumber","PR-S4-FIXTURE-02");
+  await page.click("#btnGenS4Preview");
+  check(!(await page.isVisible("#s4ReviewModalBackdrop.show")) && await page.isDisabled("#btnGenPrConfirm"),
+    "S4 UX: missing planning months cannot open review or enable Generate");
+  await ctx.close();
+}
+{
+  const {ctx,page}=await open({role:"edit",planError:true},VIEWPORTS[0]);
+  await page.click("#btnGeneratePr");
+  await page.fill("#prHorizonStart","2026-11"); await page.fill("#prHorizonEnd","2026-12");
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("Review unavailable"));
+  await page.check("#genS4Acknowledged");
+  check(await page.isDisabled("#btnS4ReviewConfirm") && await page.isDisabled("#btnGenPrConfirm"),
+    "S4 UX: preview error leaves Confirm and Generate disabled even if acknowledged");
+  await ctx.close();
+}
+{
+  const {ctx,page}=await open({role:"edit",planRace:true},VIEWPORTS[0]);
+  await page.click("#btnGeneratePr");
+  await page.fill("#prHorizonStart","2026-11"); await page.fill("#prHorizonEnd","2026-12");
+  await page.evaluate(()=>{const b=document.getElementById("btnGenS4Preview");b.click();b.click();});
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("2 materials"));
+  await page.waitForTimeout(900);
+  check((await page.locator("#genS4PreviewSummary").textContent()).includes("2 materials") &&
+        !(await page.locator("#genS4PreviewExceptions").textContent()).includes("STALE ROW"),
+    "S4 UX: double click is latest-wins; the slow stale response is discarded");
+  await ctx.close();
+}
+// S4 UX visual/structure evidence at 1280 and 390.
+for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
+  const {ctx,page,errors}=await open({role:"edit"},vp);
+  const tag=`[S4 UX ${vp.name}]`;
+  await page.click("#btnGeneratePr");
+  await page.fill("#prNewNumber","PR-S4-FIXTURE-03");
+  await page.fill("#prHorizonStart","2026-11"); await page.fill("#prHorizonEnd","2026-12");
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-s4-create-draft-pr.png`) });
+  const prim=await page.evaluate(()=>({sw:document.querySelector("#generatePrModalBackdrop .modal").scrollWidth,
+    cw:document.querySelector("#generatePrModalBackdrop .modal").clientWidth,
+    hasPanel:Boolean(document.getElementById("genS4PreviewPanel"))}));
+  check(prim.sw<=prim.cw+1 && !prim.hasPanel, `${tag} primary form has no overflow and no inline preview panel`);
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-s4-requirement-review.png`) });
+  const m=await page.evaluate(()=>{
+    const modal=document.querySelector("#s4ReviewModalBackdrop .modal");
+    const r=modal.getBoundingClientRect();
+    const scrollers=[...modal.querySelectorAll("*"),modal].filter(e=>{
+      const o=getComputedStyle(e).overflowY; return (o==="auto"||o==="scroll");
+    }).map(e=>e.className||e.tagName);
+    const cb=document.getElementById("genS4Acknowledged"); const lab=document.querySelector('label[for="genS4Acknowledged"]');
+    const cr=cb.getBoundingClientRect(); const lr=lab.getBoundingClientRect();
+    const foot=document.querySelector("#s4ReviewModalBackdrop .pec-s4-review-foot").getBoundingClientRect();
+    return {w:r.width,h:r.height,vw:innerWidth,vh:innerHeight,scrollers,
+      cbW:cr.width,cbH:cr.height,cbInside:lab.contains(cb),labelDisplay:getComputedStyle(lab).display,
+      alignItems:getComputedStyle(lab).alignItems,cbTopOffset:Math.abs(cr.top-lr.top),
+      footBottom:foot.bottom,sw:modal.scrollWidth,cw:modal.clientWidth,
+      counts:document.querySelectorAll("#genS4ReviewCounts > div").length};
+  });
+  check(m.scrollers.length===1 && String(m.scrollers[0]).includes("pec-s4-review-body"),
+    `${tag} review dialog has exactly one vertical scroll region (${m.scrollers.join(",")})`);
+  check(m.cbInside && m.cbW>=20 && m.cbH>=20 && m.labelDisplay==="flex" && m.alignItems==="flex-start" && m.cbTopOffset<8,
+    `${tag} checkbox is inline, flex-aligned, >=20px, with label[for]`);
+  check(m.counts===4 && m.sw<=m.cw+1 && m.footBottom<=m.vh+1, `${tag} four counts, no horizontal overflow, sticky footer in viewport`);
+  if (vp.width<=520) check(Math.abs(m.w-m.vw)<2 && m.h>=m.vh-2, `${tag} review is full-screen on a phone`);
+  else check(m.w<=870 && m.h<m.vh, `${tag} review is a structured dialog on desktop`);
+  // Keyboard: label click toggles; Space on focused checkbox toggles; Confirm reachable.
+  await page.click('label[for="genS4Acknowledged"] span');
+  check(await page.isChecked("#genS4Acknowledged"), `${tag} clicking the explanatory text toggles the checkbox`);
+  await page.focus("#genS4Acknowledged"); await page.keyboard.press("Space");
+  check(!(await page.isChecked("#genS4Acknowledged")), `${tag} keyboard Space toggles the checkbox`);
+  check(errors.length===0,`${tag} no browser errors ${errors.join("|")}`);
   await ctx.close();
 }
 // S4 legacy draft: same-day locked writer is explicitly confirmed and
@@ -517,6 +660,123 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   check(!(await page.isVisible("#btnPrS4Reconcile")) ||
         await page.isDisabled("#btnPrS4Reconcile"),
     "S4 View-only phone: no reconciliation writer access");
+  await ctx.close();
+}
+
+
+// S4 Task B: Consumption Requirement Review wording, density and single scroll region.
+for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
+  const { ctx, page, errors } = await open({ role: "view" }, vp);
+  const tag = `[S4 B ${vp.name}]`;
+  if (vp.width <= 520) await page.selectOption("#procTabSelect", "pr"); else await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await page.click("#prTbody tr:first-child");
+  await page.click("#btnPrCoveragePreview");
+  await page.waitForFunction(() => document.querySelector("#ccfPreviewTbody tr")?.textContent.includes("Punarnavasavam"));
+  const root=await page.locator("#ccfPreviewModalBackdrop").innerText();
+  check(!/\bCoverage\b/i.test(root) && !/Illustrative Floor/.test(root), `${tag} no Coverage / Illustrative Floor terminology`);
+  check(root.includes("Suggested additional Qty") && root.includes("Consumption Requirement Review"), `${tag} Suggested additional Qty label and renamed title`);
+  const info=await page.evaluate(()=>{
+    const scrollers=[...document.querySelectorAll("#ccfPreviewModalBackdrop *")].filter(e=>{
+      const o=getComputedStyle(e).overflowY; return o==="auto"||o==="scroll";}).map(e=>e.className||e.tagName);
+    const sel=getComputedStyle(document.getElementById("ccfPreviewFilter")).backgroundColor;
+    const card=document.querySelector("#ccfPreviewTbody tr")?.getBoundingClientRect();
+    return {scrollers,sel,cardH:card?.height};
+  });
+  check(info.scrollers.length===1, `${tag} one vertical scroll region (${info.scrollers.join(",")})`);
+  check(!/rgba\(0, 0, 0, 0\)|transparent/.test(info.sel), `${tag} filter select has a subtle fill (${info.sel})`);
+  if (vp.width<=520) {
+    check(info.cardH<=130, `${tag} compact row height ${Math.round(info.cardH)}px <= 130`);
+    check((await page.locator("#ccfPreviewTbody .pec-ccf-compact-main").textContent()).includes("Suggested additional Qty") &&
+          (await page.locator("#ccfPreviewTbody .pec-ccf-compact-main").textContent()).includes("Nos"),
+      `${tag} compact row leads with Suggested additional Qty and UOM`);
+    await page.click("#ccfPreviewTbody .pec-ccf-compact-details summary");
+    const dl=await page.locator("#ccfPreviewTbody .pec-ccf-compact-dl").innerText();
+    check(["MRP qty","Existing PR final","12m usage","Stock","Open indents"].every(k=>dl.includes(k)), `${tag} expanded details label every supporting number`);
+  } else {
+    check((await page.locator("#ccfPreviewModalBackdrop thead").innerText()).includes("Suggested additional Qty") &&
+          (await page.locator("#ccfPreviewTbody").innerText()).includes("Illustrative · review only"),
+      `${tag} desktop table header and review-only copy`);
+  }
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-s4-consumption-requirement-review.png`) });
+  check(errors.length===0, `${tag} no browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+
+// S4 Task C: More actions closes on outside click, Escape, focus move, selection, parent close; View-only has no menu.
+for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
+  const { ctx, page, errors } = await open({ role: "edit" }, vp);
+  const tag = `[S4 C ${vp.name}]`;
+  if (vp.width <= 520) await page.selectOption("#procTabSelect", "pr"); else await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await page.click("#prTbody tr:first-child");
+  await page.waitForSelector("#prViewModalBackdrop.show");
+  const isOpen=()=>page.evaluate(()=>document.getElementById("prSecondaryActions").open);
+  const toolbar=await page.locator("#prSecondaryActions").locator("xpath=..").innerText();
+  check(!/\bS4\b/.test(toolbar), `${tag} no internal S4 marker in toolbar labels`);
+  await page.click("#prSecondaryActions > summary");
+  await page.waitForFunction(()=>document.querySelector("#prSecondaryActions > summary").getAttribute("aria-expanded")==="true");
+  check(await isOpen() && (await page.getAttribute("#prSecondaryActions > summary","aria-expanded"))==="true", `${tag} More actions opens (aria-expanded)`);
+  const clip=await page.evaluate(()=>{const o=document.querySelector("#prSecondaryActions .pec-pr-secondary-options").getBoundingClientRect();
+    return o.left>=0 && o.right<=innerWidth+1 && o.bottom<=innerHeight+1;});
+  check(clip, `${tag} menu is not clipped by the viewport`);
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-s4-more-actions-open.png`) });
+  await page.mouse.click(5, 5);
+  await page.waitForTimeout(100);
+  check(!(await isOpen()), `${tag} outside click closes`);
+  await page.click("#prSecondaryActions > summary");
+  await page.waitForFunction(()=>document.querySelector("#prSecondaryActions > summary").getAttribute("aria-expanded")==="true");
+  await page.keyboard.press("Escape");
+  check(!(await isOpen()) && await page.isVisible("#prViewModalBackdrop.show") &&
+        await page.evaluate(()=>document.activeElement?.closest("summary")!==null),
+    `${tag} Escape closes only the menu and restores focus to the trigger`);
+  await page.click("#prSecondaryActions > summary");
+  await page.waitForFunction(()=>document.querySelector("#prSecondaryActions > summary").getAttribute("aria-expanded")==="true");
+  await page.focus("#btnPrViewClose");
+  check(!(await isOpen()), `${tag} focus moving outside closes`);
+  await page.click("#prSecondaryActions > summary");
+  await page.waitForFunction(()=>document.querySelector("#prSecondaryActions > summary").getAttribute("aria-expanded")==="true");
+  await page.click("#btnPrClosePr");
+  check(!(await isOpen()), `${tag} selecting an action closes the menu`);
+  await page.waitForSelector("#prSetStatusModalBackdrop.show", { timeout: 3000 });
+  await page.keyboard.press("Escape"); // must reach the nested dialog even immediately after the menu closed
+  await page.waitForFunction(()=>!document.querySelector("#prSetStatusModalBackdrop")?.classList.contains("show"), null, { timeout: 1500 });
+  check(true, `${tag} Escape right after an action is not swallowed by the closed menu`);
+  check(await page.isVisible("#prViewModalBackdrop.show"), `${tag} parent PR modal still open after nested dialog`);
+  // no hijacked handlers: with the menu closed, Escape closes the parent modal normally
+  await page.keyboard.press("Escape");
+  await page.waitForSelector("#prViewModalBackdrop.show", { state: "detached", timeout: 1500 }).catch(() => {});
+  const lingering = await page.evaluate(()=>[...document.querySelectorAll(".modal-backdrop.show")].map(e=>e.id).join(","));
+  check(!(await page.isVisible("#prViewModalBackdrop.show")), `${tag} no lingering Escape handler once closed (still open: ${lingering||"none"})`);
+  check(errors.length===0, `${tag} no browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ role: "view" }, VIEWPORTS[0]);
+  await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await page.click("#prTbody tr:first-child");
+  await page.waitForSelector("#prViewModalBackdrop.show");
+  check(!(await page.isVisible("#prSecondaryActions")), "S4 C View-only: More actions menu is not available");
+  await ctx.close();
+}
+
+// S4 Task D: the reported 'message channel closed' rejection is browser-extension messaging.
+{
+  const srcs = ["public/shared/js/procurement-execution-console.js","public/shared/procurement-execution-console.html","public/sw.js"]
+    .map(f=>fs.readFileSync(path.join(root,"..",f),"utf8")).join("\n");
+  check(!/chrome\.runtime|browser\.runtime|runtime\.onMessage|runtime\.sendMessage/.test(srcs),
+    "S4 D: PEC client/SW contain no extension-messaging API (error is not app-owned)");
+  check(!/onunhandledrejection|addEventListener\(\s*["']unhandledrejection/.test(srcs),
+    "S4 D: no global unhandled-rejection suppression");
+  const { ctx, page } = await open({ role: "edit" }, VIEWPORTS[0]);
+  const rejections=[]; await page.exposeFunction("__rej",(m)=>rejections.push(m));
+  await page.evaluate(()=>window.addEventListener("unhandledrejection",e=>window.__rej(String(e.reason&&e.reason.message||e.reason))));
+  await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await page.click("#prTbody tr:first-child"); await page.click("#btnPrCoveragePreview");
+  await page.waitForTimeout(500);
+  check(rejections.length===0, `S4 D: clean extension-free Chromium profile shows zero unhandled rejections (${rejections.join("|")})`);
   await ctx.close();
 }
 
