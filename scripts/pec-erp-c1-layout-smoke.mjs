@@ -92,6 +92,7 @@ export const supabase = {
       globalThis.__s4ReconcileCalls = (globalThis.__s4ReconcileCalls || []);
       globalThis.__s4ReconcileCalls.push(params);
       if(S.role!=="edit")return {data:null,error:{message:"Permission denied"}};
+      if(S.reconcileDelay) await new Promise(r=>setTimeout(r,S.reconcileDelay));
       return mk({pr_id:1,updated_untouched_lines:1,added_missing_lines:1,review_required:1});
     }
     if(name === "proc_pec_s4_pr_evidence") return mk([]);
@@ -777,6 +778,91 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   await page.click("#prTbody tr:first-child"); await page.click("#btnPrCoveragePreview");
   await page.waitForTimeout(500);
   check(rejections.length===0, `S4 D: clean extension-free Chromium profile shows zero unhandled rejections (${rejections.join("|")})`);
+  await ctx.close();
+}
+
+// Issue #500: S4 reconciliation dialog alignment, single scroll, content-sized layout and Escape priority.
+async function openReconcile(scenario, vp) {
+  const r = await open({ role: "edit", ccfDraft: true, ...scenario }, vp);
+  if (vp.width <= 520) await r.page.selectOption("#procTabSelect", "pr"); else await r.page.click('.tabs .tab-btn[data-tab="pr"]');
+  await r.page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await r.page.click("#prTbody tr:first-child");
+  await r.page.waitForSelector("#btnPrS4Reconcile:visible");
+  await r.page.click("#btnPrS4Reconcile");
+  await r.page.waitForSelector("#s4ReconcileModalBackdrop.show");
+  return r;
+}
+for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
+  const { ctx, page, errors } = await openReconcile({}, vp);
+  const tag = `[#500 reconcile ${vp.name}]`;
+  await page.waitForFunction(() => document.querySelector("#s4ReconcileSummary")?.textContent.includes("zero-MRP"));
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-reconcile-modal.png`) });
+  const m = await page.evaluate(() => {
+    const modal = document.querySelector("#s4ReconcileModalBackdrop .modal");
+    const cb = document.getElementById("s4ReconcileAcknowledged");
+    const lab = cb.closest("label");
+    const cr = cb.getBoundingClientRect(), lr = lab.getBoundingClientRect();
+    const sp = lab.querySelector("span").getBoundingClientRect();
+    const scrollers = [...modal.querySelectorAll("*"), modal].filter(e => {
+      if (/^(TEXTAREA|INPUT|SELECT)$/.test(e.tagName)) return false;
+      const o = getComputedStyle(e).overflowY; return o === "auto" || o === "scroll"; }).map(e => e.className || e.tagName);
+    const actions = modal.querySelector(".actions").getBoundingClientRect();
+    const err = lab.getBoundingClientRect();
+    return { display: getComputedStyle(lab).display, align: getComputedStyle(lab).alignItems,
+      cbW: cr.width, cbH: cr.height, cbTop: Math.abs(cr.top - sp.top), textRight: sp.left >= cr.right - 1,
+      name: (lab.textContent || "").trim().length, scrollers, gap: actions.top - err.bottom,
+      actionsBottom: actions.bottom, vh: innerHeight, mh: modal.getBoundingClientRect().height,
+      sw: modal.scrollWidth, cw: modal.clientWidth };
+  });
+  check(m.display === "flex" && m.align === "flex-start" && m.cbW >= 22 && m.cbH >= 22 && m.cbTop < 8 && m.textRight && m.name > 20,
+    `${tag} acknowledgement checkbox is >=22px, top-aligned, left of its text (${m.display}/${m.align}/${Math.round(m.cbW)}px)`);
+  check(m.scrollers.length === 1 && String(m.scrollers[0]).includes("modal-body"), `${tag} exactly one vertical scroll region (${m.scrollers.join(",")})`);
+  check(m.gap <= 90, `${tag} no large blank area above the actions (${Math.round(m.gap)}px)`);
+  check(m.actionsBottom <= m.vh + 1 && m.sw <= m.cw + 1, `${tag} actions inside viewport, no horizontal overflow`);
+  await page.click('#s4ReconcileModalBackdrop label:has(#s4ReconcileAcknowledged) span');
+  check(await page.isChecked("#s4ReconcileAcknowledged"), `${tag} clicking the text toggles the checkbox`);
+  await page.focus("#s4ReconcileAcknowledged"); await page.keyboard.press("Space");
+  check(!(await page.isChecked("#s4ReconcileAcknowledged")), `${tag} Space toggles the checkbox`);
+  await page.fill("#s4ReconcileReason", "Reconcile the evidenced November December material requirements");
+  await page.check("#s4ReconcileAcknowledged");
+  check(await page.isEnabled("#btnS4ReconcileConfirm"), `${tag} reason + acknowledgement still required and sufficient`);
+  // Escape priority: first Escape closes only reconciliation; second closes PR detail.
+  await page.keyboard.press("Escape");
+  check(!(await page.isVisible("#s4ReconcileModalBackdrop.show")) && await page.isVisible("#prViewModalBackdrop.show"),
+    `${tag} first Escape closes only the reconciliation dialog`);
+  check(await page.evaluate(() => document.activeElement?.id) === "btnPrS4Reconcile", `${tag} focus returns to the Reconcile button`);
+  check((await page.evaluate(() => (globalThis.__s4ReconcileCalls || []).length)) === 0, `${tag} Escape never writes`);
+  await page.keyboard.press("Escape");
+  check(!(await page.isVisible("#prViewModalBackdrop.show")), `${tag} second Escape closes PR detail`);
+  check(errors.length === 0, `${tag} no browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+{
+  // In-flight writer: Escape, X, Cancel and backdrop never dismiss while the writer runs.
+  const { ctx, page } = await openReconcile({ reconcileDelay: 900 }, VIEWPORTS[0]);
+  await page.waitForFunction(() => document.querySelector("#s4ReconcileSummary")?.textContent.includes("zero-MRP"));
+  await page.fill("#s4ReconcileReason", "Reconcile the evidenced November December material requirements");
+  await page.check("#s4ReconcileAcknowledged");
+  await page.click("#btnS4ReconcileConfirm");
+  await page.waitForFunction(() => (globalThis.__s4ReconcileCalls || []).length === 1);
+  await page.keyboard.press("Escape");
+  await page.click("#btnS4ReconcileClose");
+  await page.mouse.click(3, 3);
+  check(await page.isVisible("#s4ReconcileModalBackdrop.show") && await page.isVisible("#prViewModalBackdrop.show"),
+    "[#500 reconcile] in-flight writer: Escape/X/backdrop do not close either dialog");
+  check(await page.isDisabled("#btnS4ReconcileConfirm"), "[#500 reconcile] in-flight writer: confirm disabled (single flight)");
+  await page.waitForFunction(() => !document.querySelector("#s4ReconcileModalBackdrop").classList.contains("show"), null, { timeout: 4000 });
+  check((await page.evaluate(() => (globalThis.__s4ReconcileCalls || []).length)) === 1, "[#500 reconcile] exactly one writer call");
+  await ctx.close();
+}
+{
+  // Stale preview: closing before the slow plan resolves must not render into / reopen the dialog.
+  const { ctx, page } = await openReconcile({ planRace: true }, VIEWPORTS[0]);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(1000);
+  check(!(await page.isVisible("#s4ReconcileModalBackdrop.show")) &&
+        !(await page.locator("#s4ReconcileExceptions").textContent()).includes("STALE ROW"),
+    "[#500 reconcile] stale preview response after close is discarded");
   await ctx.close();
 }
 

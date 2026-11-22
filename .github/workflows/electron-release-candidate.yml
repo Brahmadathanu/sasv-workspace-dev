@@ -1,0 +1,98 @@
+name: Electron Windows release candidate (smoke + NSIS/ZIP, unpublished)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/electron-release-candidate.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'public/shared/js/procurement-execution-console.js'
+      - 'public/shared/procurement-execution-console.html'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/electron-release-candidate.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify coherent version and install dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $p = Get-Content package.json -Raw | ConvertFrom-Json
+          $l = Get-Content package-lock.json -Raw | ConvertFrom-Json -AsHashtable
+          if ($p.version -notmatch '^\d+\.\d+\.\d+$') { throw 'package.json version is not plain semver' }
+          if ($l.version -ne $p.version -or $l['packages']['']['version'] -ne $p.version) { throw 'package-lock versions differ from package.json' }
+          "RELEASE_VERSION=$($p.version)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
+          npx install-electron
+          if ($LASTEXITCODE -ne 0) { throw 'Electron installation failed' }
+      - name: Electron smoke (unpackaged, throw-away profile, loopback, updater inactive)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/electron-smoke/security-hardening.test.mjs scripts/electron-smoke/electron-main-smoke.test.mjs scripts/electron-smoke/electron-updater-compat.test.mjs | tee "$RUNNER_TEMP/smoke.log"
+          if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/smoke.log"; then exit 1; fi
+          grep -Eq '^# pass [1-9]' "$RUNNER_TEMP/smoke.log"
+      - name: Build Windows NSIS and ZIP without publishing
+        shell: pwsh
+        env:
+          GH_TOKEN: ''
+          GITHUB_TOKEN: ''
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npx electron-builder --win nsis zip --publish never
+          if ($LASTEXITCODE -ne 0) { throw 'electron-builder failed' }
+      - name: Validate assets, stage release names and record hashes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $v = $env:RELEASE_VERSION
+          $exe = @(Get-ChildItem dist -File -Filter "*$v*.exe")
+          $zip = @(Get-ChildItem dist -File -Filter "*$v*.zip")
+          $blk = @(Get-ChildItem dist -File -Filter "*$v*.exe.blockmap")
+          $yml = Join-Path 'dist' 'latest.yml'
+          if ($exe.Count -ne 1 -or $zip.Count -ne 1 -or $blk.Count -ne 1 -or -not (Test-Path $yml)) { throw "Missing or ambiguous assets: exe=$($exe.Count) zip=$($zip.Count) blockmap=$($blk.Count) latest=$(Test-Path $yml)" }
+          $pv = (Get-Item $exe[0].FullName).VersionInfo.ProductVersion
+          if ($pv -ne $v) { throw "Installer ProductVersion '$pv' differs from $v" }
+          $manifest = Get-Content $yml -Raw
+          if ($manifest -notmatch "(?m)^version:\s*$([regex]::Escape($v))\s*$") { throw 'latest.yml does not identify this version' }
+          $sha512 = [Convert]::ToBase64String([Convert]::FromHexString((Get-FileHash $exe[0].FullName -Algorithm SHA512).Hash))
+          if (-not $manifest.Contains($sha512)) { throw 'latest.yml sha512 does not match the built installer' }
+          # The updater downloads the exact name in latest.yml: stage assets under those names.
+          $exeName = "SASV-Workspace-Setup-$v.exe"
+          if ($manifest -notmatch "(?m)^\s*- url:\s*$([regex]::Escape($exeName))\s*$" -or $manifest -notmatch "(?m)^path:\s*$([regex]::Escape($exeName))\s*$") { throw "latest.yml url/path is not $exeName" }
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item $exe[0].FullName "release/$exeName"
+          Copy-Item $zip[0].FullName "release/SASV-Workspace-$v-win.zip"
+          Copy-Item $blk[0].FullName "release/$exeName.blockmap"
+          Copy-Item $yml 'release/latest.yml'
+          # LF-only so GNU sha256sum -c works on the Linux publisher.
+          $lines = @(Get-ChildItem release -File | Where-Object { $_.Name -ne 'SHA256SUMS.txt' } | Sort-Object Name | ForEach-Object { $h = Get-FileHash $_.FullName -Algorithm SHA256; "$($h.Hash.ToLowerInvariant())  $($_.Name)" })
+          $sumPath = Join-Path (Get-Location) 'release/SHA256SUMS.txt'
+          [System.IO.File]::WriteAllText($sumPath, (($lines -join "`n") + "`n"))
+          Get-Content release/SHA256SUMS.txt
+          "version=$v productVersion=$pv sha=$env:GITHUB_SHA event=$env:GITHUB_EVENT_NAME run=$env:GITHUB_RUN_ID" | Set-Content -Encoding ascii release/CANDIDATE_SOURCE.txt
+      - name: Upload unpublished candidate (not a GitHub Release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sasv-windows-release-${{ env.RELEASE_VERSION }}
+          path: release/*
+          retention-days: 7
+          if-no-files-found: error

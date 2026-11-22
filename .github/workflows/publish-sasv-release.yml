@@ -1,0 +1,142 @@
+# Owner-approved, manually dispatched stable publication of a verified Windows candidate.
+# Draft first, verify, then promote; every gate fails closed before anything becomes Latest.
+name: Publish SASV Workspace stable release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (must equal package.json), e.g. 6.3.1'
+        required: true
+      build_run_id:
+        description: 'Run id of the successful Electron Windows release candidate run on this exact main commit'
+        required: true
+      installer_sha256:
+        description: 'SHA-256 of the installer, recorded independently from the build log'
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ inputs.version }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+      INSTALLER_SHA256: ${{ inputs.installer_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Gate - identity, version, build provenance, no duplicate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REPOSITORY}" = "Brahmadathanu/sasv-workspace-dev"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "${BUILD_RUN_ID}" =~ ^[0-9]+$ ]]
+          [[ "${INSTALLER_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          test "$(node -p 'require("./package.json").version')" = "${VERSION}"
+          test "$(node -p 'require("./package-lock.json").version')" = "${VERSION}"
+          test "$(node -p 'require("./package-lock.json").packages[""].version')" = "${VERSION}"
+          run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BUILD_RUN_ID}" --jq '[.conclusion,.head_sha,.event,.path]|join(" ")')"
+          echo "build run: ${run}"
+          test "${run}" = "success ${GITHUB_SHA} push .github/workflows/electron-release-candidate.yml" || test "${run}" = "success ${GITHUB_SHA} workflow_dispatch .github/workflows/electron-release-candidate.yml"
+          if gh release view "v${VERSION}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then echo "Release v${VERSION} already exists; refusing to mutate"; exit 1; fi
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/v${VERSION}" >/dev/null 2>&1; then echo "Tag v${VERSION} already exists; refusing"; exit 1; fi
+          gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name' > previous-latest.txt
+          gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '[.assets[]|.name+" "+.digest]|sort|join("\n")' > previous-latest-assets.txt
+          echo "previous stable Latest: $(cat previous-latest.txt)"
+      - name: Download candidate and verify every hash and the update manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          gh run download "${BUILD_RUN_ID}" -R "${GITHUB_REPOSITORY}" -n "sasv-windows-release-${VERSION}" -D release
+          cd release
+          ls -la
+          test "$(wc -l < SHA256SUMS.txt)" -eq 4
+          sha256sum -c SHA256SUMS.txt
+          exe="SASV-Workspace-Setup-${VERSION}.exe"
+          test "$(sha256sum "${exe}" | cut -d' ' -f1)" = "${INSTALLER_SHA256}"
+          grep -Eq "^version: ${VERSION//./[.]}[[:space:]]*$" latest.yml
+          grep -Eq "^[[:space:]]*- url: ${exe//./[.]}[[:space:]]*$" latest.yml
+          grep -Eq "^path: ${exe//./[.]}[[:space:]]*$" latest.yml
+          sha512="$(openssl dgst -sha512 -binary "${exe}" | base64 -w0)"
+          grep -Fq "sha512: ${sha512}" latest.yml
+          size="$(stat -c %s "${exe}")"
+          grep -Eq "^[[:space:]]+size: ${size}[[:space:]]*$" latest.yml
+          test -f "${exe}.blockmap" && test -f "SASV-Workspace-${VERSION}-win.zip"
+          echo "candidate verified: sha256=${INSTALLER_SHA256} size=${size}"
+      - name: Create DRAFT release (not Latest yet)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<'NOTES'
+          SASV Workspace PEC S4 patch release.
+
+          - Reconciliation dialog: acknowledgement checkbox now aligns with its text, the dialog is content-sized with a single scroll region, and the actions respect the safe-area inset.
+          - Escape now closes only the foreground reconciliation dialog (PR detail stays open); it never closes a dialog while a reconciliation write is in progress.
+          - Includes the PEC S4 hybrid replenishment features introduced in v6.3.0 (consumption-informed draft PRs, two-stage review, Consumption Requirement Review).
+          - No database, permission, stock, MOQ or purchasing-record changes.
+
+          UNSIGNED WINDOWS INSTALLER: there is no code-signing certificate, so Windows SmartScreen or antivirus may warn. Verify the SHA-256 in SHA256SUMS.txt before installing. Existing v6.2.x installs receive this through the in-app updater.
+          NOTES
+          gh release create "v${VERSION}" --repo "${GITHUB_REPOSITORY}" --draft \
+            --target "${GITHUB_SHA}" --title "SASV Workspace v${VERSION}" --notes-file release-notes.md \
+            "release/SASV-Workspace-Setup-${VERSION}.exe" \
+            "release/SASV-Workspace-${VERSION}-win.zip" \
+            "release/SASV-Workspace-Setup-${VERSION}.exe.blockmap" \
+            "release/latest.yml" \
+            "release/SHA256SUMS.txt"
+      - name: Verify uploaded draft assets against the verified build
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate --jq ".[]|select(.tag_name==\"v${VERSION}\" and .draft==true)|.assets[]|.name+\" \"+.digest" | sort > draft-assets.txt
+          cat draft-assets.txt
+          test "$(wc -l < draft-assets.txt)" -eq 5
+          while read -r h f; do grep -Fxq "${f} sha256:${h}" draft-assets.txt; done < release/SHA256SUMS.txt
+      - name: Promote to stable Latest
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release edit "v${VERSION}" --repo "${GITHUB_REPOSITORY}" --draft=false --prerelease=false --latest
+      - name: Verify stable endpoint, served update manifest and updater resolution
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name')" = "v${VERSION}"
+          gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq 'select(.draft==false and .prerelease==false)|.tag_name' | grep -Fx "v${VERSION}"
+          mkdir -p served
+          gh release download "v${VERSION}" -R "${GITHUB_REPOSITORY}" -D served
+          (cd served && sha256sum -c ../release/SHA256SUMS.txt)
+          cmp served/latest.yml release/latest.yml
+          # Updater simulation: electron-updater (GitHub provider, no allowPrerelease) resolves releases/latest,
+          # reads latest.yml, requires version greater than the installed 6.2.0 and a published asset whose
+          # name equals the manifest url, with matching size and sha512.
+          node - <<'JS'
+          const fs = require('fs'); const {execSync} = require('child_process');
+          const ver = process.env.VERSION; const repo = process.env.GITHUB_REPOSITORY;
+          const rel = JSON.parse(execSync(`gh api repos/${repo}/releases/latest`).toString());
+          if (rel.prerelease || rel.draft || rel.tag_name !== 'v' + ver) throw new Error('latest is not the stable target');
+          const yml = fs.readFileSync('served/latest.yml', 'utf8');
+          const url = /^\s*- url: (.+)$/m.exec(yml)[1].trim(); const size = Number(/^\s+size: (\d+)$/m.exec(yml)[1]);
+          const cmp = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) { if (x[i] !== y[i]) return x[i] - y[i]; } return 0; };
+          if (cmp(ver, '6.2.0') <= 0) throw new Error('target is not newer than 6.2.0');
+          const asset = rel.assets.find(a => a.name === url);
+          if (!asset) throw new Error('manifest url ' + url + ' is not a release asset: ' + rel.assets.map(a => a.name).join(','));
+          if (asset.size !== size) throw new Error('asset size differs from manifest');
+          if (!rel.assets.some(a => a.name === url + '.blockmap')) throw new Error('blockmap missing');
+          console.log('updater simulation OK: 6.2.0 -> ' + ver + ' via ' + url);
+          JS
+          if [ "$(cat previous-latest.txt)" != "v${VERSION}" ]; then
+            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$(cat previous-latest.txt)" --jq '[.assets[]|.name+" "+.digest]|sort|join("\n")' > after-previous-assets.txt
+            diff previous-latest-assets.txt after-previous-assets.txt
+          fi
+          echo "PUBLISHED v${VERSION} as stable Latest; previous stable $(cat previous-latest.txt) assets unchanged"
