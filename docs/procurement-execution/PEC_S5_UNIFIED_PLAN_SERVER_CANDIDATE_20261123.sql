@@ -196,7 +196,8 @@ BEGIN
     )
     SELECT obj || jsonb_build_object(
       'method','hybrid','planning_method','plan_plus_consumption',
-      'history_comparison',v_cmp,'source','jit_mrp_plus_history',
+      'history_comparison',v_cmp,'consumption_comparison',v_cmp,
+      'source','jit_mrp_plus_history',
       'material_scope','jit',
       'stock_qty',stock_qty,'stock_as_of',stock_as_of,
       'stock_netted_consumption',usage_stock_net,
@@ -207,6 +208,100 @@ BEGIN
          WHEN uom_code='Nos' THEN ceil(net_qty)
          ELSE net_qty END)
     FROM z ORDER BY obj->>'stock_item_name',item_id;
+
+    -- In explicitly selected hybrid mode, JIT consumption-only materials may
+    -- also enter the preview, but only with documented 12-month history and
+    -- class/UOM/MOQ/indent safeguards. JIT PLAN mode never includes these.
+    RETURN QUERY
+    WITH usage AS MATERIALIZED (
+      SELECT c.inv_stock_item_id item_id,
+        sum(c.total_consumed_qty)::numeric used12,
+        count(*) FILTER(WHERE c.total_consumed_qty>0)::integer positive_months
+      FROM public.v_item_consumption_monthly_by_item c
+      JOIN public.inv_stock_item si ON si.id=c.inv_stock_item_id
+      JOIN public.v_inv_stock_item_with_class cat ON cat.stock_item_id=si.id
+      WHERE si.active AND cat.active AND cat.category_id=1
+        AND si.rm_procurement_mode='jit_procured'
+        AND cat.subcategory_code NOT IN
+          ('finished_bulk_material','semifinished_goods')
+        AND c.month_start_date>=(v_month-interval '12 months')::date
+        AND c.month_start_date<v_month
+      GROUP BY 1
+      HAVING sum(c.total_consumed_qty)>0
+    ), k AS MATERIALIZED (
+      SELECT u.*,si.name item_name,si.default_uom_id uom_id,
+        uv.code uom_code,u.used12/12*v_h period_usage
+      FROM usage u
+      JOIN public.inv_stock_item si ON si.id=u.item_id
+      LEFT JOIN public.inv_uom uv ON uv.id=si.default_uom_id
+      WHERE NOT EXISTS (
+        SELECT 1 FROM public.v_mrp_procurement_plan p
+        WHERE p.material_class_id=1 AND p.stock_item_id=u.item_id
+          AND p.month_start BETWEEN p_start AND p_end)
+    ), st AS MATERIALIZED (
+      SELECT s.inv_stock_item_id item_id,sum(s.qty_value) stock_qty,
+         count(*) source_count,max(s.source_kind) source_kind
+      FROM public.v_stock_current_by_item s
+      JOIN k ON k.item_id=s.inv_stock_item_id GROUP BY 1
+    ), ib AS MATERIALIZED (
+      SELECT i.stock_item_id item_id,i.uom_id,
+        sum(greatest(0,i.remaining_qty)) outstanding,
+        count(*) FILTER(WHERE i.remaining_qty>0) open_lines
+      FROM public.v_proc_indent_line_balance i
+      WHERE i.material_class_id=1 GROUP BY 1,2
+    ), mq AS MATERIALIZED (
+      SELECT m.stock_item_id item_id,m.uom_id,
+        count(*) policies,max(m.moq_qty) moq_qty
+      FROM public.inv_stock_item_moq_policy m
+      JOIN k ON k.item_id=m.stock_item_id AND k.uom_id=m.uom_id
+      WHERE m.is_active AND (m.effective_from IS NULL OR m.effective_from<=v_today)
+        AND (m.effective_to IS NULL OR m.effective_to>=v_today)
+      GROUP BY 1,2
+    ), x AS (
+      SELECT k.*,s.stock_qty,s.source_count,s.source_kind,
+        coalesce(i.outstanding,0) outstanding,coalesce(i.open_lines,0) open_lines,
+        coalesce(m.policies,0) policies,m.moq_qty,
+        (SELECT max(as_of_date) FROM public.tally_rm_stock_snapshot) stock_as_of
+      FROM k LEFT JOIN st s ON s.item_id=k.item_id
+      LEFT JOIN ib i ON i.item_id=k.item_id AND i.uom_id=k.uom_id
+      LEFT JOIN mq m ON m.item_id=k.item_id AND m.uom_id=k.uom_id
+    ), y AS (
+      SELECT x.*,greatest(0,period_usage-coalesce(stock_qty,0)) usage_net,
+        CASE
+         WHEN source_count IS NOT NULL AND
+           (source_count<>1 OR source_kind<>'rm') THEN 'STOCK_MAPPING_REVIEW'
+         WHEN stock_qty<0 THEN 'NEGATIVE_STOCK_REVIEW'
+         WHEN stock_qty IS NOT NULL AND
+           (stock_as_of IS NULL OR stock_as_of NOT BETWEEN v_today-1 AND v_today)
+           THEN 'STALE_STOCK_REVIEW'
+         WHEN uom_code IS NULL THEN 'UOM_REVIEW'
+         WHEN policies>1 OR (moq_qty IS NOT NULL AND moq_qty<=0)
+           OR (uom_code='Nos' AND moq_qty IS NOT NULL AND moq_qty<>ceil(moq_qty))
+           THEN 'MOQ_POLICY_REVIEW'
+         ELSE 'AUTO_ELIGIBLE' END gate
+      FROM x
+    ), z AS (
+      SELECT y.*,greatest(0,usage_net-outstanding) net_after_indent FROM y
+    )
+    SELECT jsonb_build_object(
+      'mode','s5_unified','method','hybrid','planning_method','plan_plus_consumption',
+      'history_comparison',v_cmp,'consumption_comparison',v_cmp,
+      'source','jit_history_only','material_scope','jit',
+      'material_class_id',1,'stock_item_id',item_id,
+      'stock_item_name',item_name,'uom_id',uom_id,'uom_code',uom_code,
+      'mrp_net_qty',0,'mrp_months',0,'coverage_months',v_h,
+      'usage_12m',used12,'positive_months',positive_months,
+      'period_consumption',period_usage,'stock_qty',stock_qty,
+      'stock_as_of',stock_as_of,'stock_netted_consumption',usage_net,
+      'outstanding_indent_qty',outstanding,'outstanding_indent_lines',open_lines,
+      'net_after_indent',net_after_indent,'moq_qty',moq_qty,
+      'gate',gate,'recommended_qty',
+        CASE WHEN gate<>'AUTO_ELIGIBLE' THEN NULL
+          WHEN moq_qty>0 THEN ceil(net_after_indent/moq_qty)*moq_qty
+          WHEN uom_code='Nos' THEN ceil(net_after_indent)
+          ELSE net_after_indent END,
+      'consumption_only',true
+    ) FROM z ORDER BY item_name,item_id;
     RETURN;
   END IF;
 
