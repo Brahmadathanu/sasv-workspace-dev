@@ -56,7 +56,10 @@ test("migration is pinned in the protected-path guard to exact path, branch and 
   assert.deepEqual([...pin.heads], ["feat/pec-jit-route-server-20261122"]);
 });
 
-test("filename is later than every earlier migration (forward-only ordering)", () => {
+test("original JIT migration precedes its registered forward-only timeout correction", () => {
   const names = fs.readdirSync(path.join(root, "supabase/migrations")).filter((n) => n.endsWith(".sql")).sort();
-  assert.equal(names[names.length - 1], path.basename(file));
+  const hotfix = "20261122174517_pec_jit_plan_indent_balance_once_timeout_fix.sql";
+  assert.ok(names.indexOf(path.basename(file)) >= 0, "original registered JIT migration exists");
+  assert.ok(names.indexOf(hotfix) > names.indexOf(path.basename(file)), "timeout fix follows original JIT migration");
+  assert.equal(names[names.length - 1], hotfix, "hotfix is latest checked-in migration");
 });
