@@ -9127,7 +9127,8 @@ let ccfApplyRow = null;
 let ccfApplyBusy = false;
 
 function canApplyCcfLine(row) {
-  return Boolean(canWriteModule() && state.selectedPr?.status === "draft" &&
+  return Boolean(!state.selectedPr?.generation_filters?.s4_mode &&
+    canWriteModule() && state.selectedPr?.status === "draft" &&
     row?.review_state === "ANCHOR_AND_POLICY_REVIEW" &&
     Number(row.illustrative_increment) > 0 &&
     row.stock_as_of && row.pr_line_id && !ccfApplyBusy);
@@ -9222,7 +9223,10 @@ function renderCcfPreview() {
     mode === "all" || (mode === "zero" ? zero(row) : gap(row)));
   const countZero = ccfPreviewRows.filter(zero).length;
   const countGap = ccfPreviewRows.filter(gap).length;
-  summary.textContent = `${ccfPreviewRows.length} PR lines examined · ${countZero} zero-MRP lines with recorded usage · ${countGap} illustrative coverage gaps. All proposed figures require source/anchor review; no PR quantities have been changed.`;
+  const isFrozen = Boolean(state.selectedPr?.generation_filters?.s4_mode);
+  summary.textContent = isFrozen
+    ? `${ccfPreviewRows.length} frozen S4 evidence rows · ${countZero} zero-MRP materials with usage · ${countGap} suggestions above the original MRP. Original generation evidence, not a new purchase approval; adjust the draft separately if needed.`
+    : `${ccfPreviewRows.length} PR lines examined · ${countZero} zero-MRP lines with recorded usage · ${countGap} illustrative coverage gaps. All proposed figures require source/anchor review; no PR quantities have been changed.`;
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="9" class="muted">No matching coverage rows. Change the filter to inspect all PR lines.</td></tr>';
     return;
@@ -9265,7 +9269,9 @@ async function openCcfPreview() {
   qs("btnCcfPreviewClose")?.focus();
   let result;
   try {
-    result = await supabase.rpc("proc_pec_ccf_pr_preview", { p_pr_id: Number(pr.pr_id) });
+    result = pr.generation_filters?.s4_mode
+      ? await supabase.rpc("proc_pec_s4_pr_evidence", { p_pr_id: Number(pr.pr_id) })
+      : await supabase.rpc("proc_pec_ccf_pr_preview", { p_pr_id: Number(pr.pr_id) });
   } catch (error) {
     result = { data: null, error };
   }
@@ -9275,7 +9281,23 @@ async function openCcfPreview() {
     qs("ccfPreviewSummary").textContent = `Consumption coverage preview unavailable: ${pecErrText(result.error)}`;
     return;
   }
-  ccfPreviewRows = Array.isArray(result.data) ? result.data : [];
+  ccfPreviewRows = Array.isArray(result.data) ? (pr.generation_filters?.s4_mode
+    ? result.data.map(e => ({
+        ...e,
+        mrp_suggested_qty:e.frozen_mrp_qty,
+        pr_effective_qty:e.frozen_recommended_qty,
+        usage_12m:e.usage_12m,
+        months_with_usage:e.positive_months,
+        calendar_monthly_average:Number(e.usage_12m || 0)/12,
+        latest_usage_month:"12 completed calendar months",
+        stock_on_hand:e.stock_qty,stock_as_of:e.stock_as_of,
+        outstanding_indent_qty:e.outstanding_indent_qty,
+        illustrative_ccf_floor:e.frozen_recommended_qty,
+        illustrative_increment:Math.max(0,Number(e.frozen_recommended_qty || 0)-Number(e.frozen_mrp_qty || 0)),
+        review_state:e.decision,
+        stock_item_name:e.stock_item_name
+      }))
+    : result.data) : [];
   renderCcfPreview();
 }
 
