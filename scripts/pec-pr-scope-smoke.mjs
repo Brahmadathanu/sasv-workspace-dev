@@ -177,16 +177,12 @@ if (helpers) {
 // Generate PR: rm_scope only when materialClassId === 1
 const genDraft = extractFunction(src, "generateDraftPr");
 assert(Boolean(genDraft), "generateDraftPr is defined");
-assert(
-  /if\s*\(\s*materialClassId\s*===\s*1\s*\)\s*\{[\s\S]*?genFilters\.rm_scope\s*=/.test(
-    genDraft,
-  ),
-  "generateDraftPr sets genFilters.rm_scope only inside materialClassId === 1",
-);
-assert(
-  !/materialClassId\s*===\s*2[\s\S]{0,120}genFilters\.rm_scope/.test(genDraft),
-  "generateDraftPr does not set rm_scope for PM class id path",
-);
+// S5: the scope is resolved once in s4ParametersForGenerate (RM only) and sent as p_rm_scope.
+const paramsFn = extractFunction(src, "s4ParametersForGenerate");
+assert(Boolean(paramsFn) && /cls\s*===\s*1\s*\?[\s\S]*?prRmScope[\s\S]*?:\s*"normal"/.test(paramsFn),
+  "S5 parameters take the RM scope only when the class is RM (otherwise normal)");
+assert(/p_rm_scope:\s*params\.p_rm_scope/.test(genDraft) && !/genFilters\.rm_scope/.test(genDraft),
+  "generateDraftPr sends the resolved scope as p_rm_scope and never writes a client rm_scope filter");
 
 // VWL RM Scope contracts retained
 assert(/vwlRmScopeFilter/.test(src), "VWL vwlRmScopeFilter retained");

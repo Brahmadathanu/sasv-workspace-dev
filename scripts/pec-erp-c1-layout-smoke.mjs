@@ -63,22 +63,62 @@ export const supabase = {
     if (__r !== undefined && !(S.failReads && name.startsWith("proc_pec_"))) return mk(__r);
     if (name === "get_user_permissions") return mk(S.role === "none" ? [] : [{ target: "module:procurement-execution-console", can_view: true, can_edit: S.role === "edit" }]);
     globalThis.__rpcNames = (globalThis.__rpcNames || []); globalThis.__rpcNames.push(name);
-    if (name === "proc_pec_jit_mrp_plan") {
-      globalThis.__jitPlanCalls = (globalThis.__jitPlanCalls || []); globalThis.__jitPlanCalls.push(params);
-      if (S.jitMissing) return { data: null, error: { code: "PGRST202", message: "Could not find the function public.proc_pec_jit_mrp_plan" } };
-      const cmp = params.p_compare_consumption === true;
-      const row = (o) => ({ mode: "jit_mrp", material_class_id: 1, uom_id: 1, uom_code: "Kg", consumption_only: false, outstanding_indent_lines: 0, ...o,
-        ...(cmp ? {} : { usage_12m: null, consumption_gap_vs_mrp: null }) });
-      return mk([
-        row({ stock_item_id: 101, stock_item_name: "Synthetic JIT Herb", mrp_net_qty: 100, recommended_qty: 100, outstanding_indent_qty: 0, gate: "AUTO_ELIGIBLE", usage_12m: 120, consumption_gap_vs_mrp: 0 }),
-        row({ stock_item_id: 102, stock_item_name: "Synthetic JIT Resin", mrp_net_qty: 100, recommended_qty: 60, outstanding_indent_qty: 40, gate: "AUTO_ELIGIBLE", usage_12m: 1200, consumption_gap_vs_mrp: 20 }),
-        row({ stock_item_id: 103, stock_item_name: "Synthetic JIT Conflicting MOQ", mrp_net_qty: 20, recommended_qty: null, outstanding_indent_qty: 0, gate: "MOQ_POLICY_REVIEW", usage_12m: 5, consumption_gap_vs_mrp: 0 }),
-      ]);
+    if (name === "proc_pec_s5_review_plan") {
+      globalThis.__s5ReviewCalls = (globalThis.__s5ReviewCalls || []); globalThis.__s5ReviewCalls.push(params);
+      const n = globalThis.__s5ReviewCalls.length;
+      if (S.planError) return { data: null, error: { message: "synthetic plan failure" } };
+      if (S.planRace && n === 1) {
+        await new Promise(r => setTimeout(r, 700));
+        return mk({ plan_signature: "0".repeat(32), rows: [{ stock_item_id: 1, stock_item_name: "STALE ROW", uom_code: "Nos", mrp_net_qty: 0, recommended_qty: 1, gate: "AUTO_ELIGIBLE", consumption_only: false }] });
+      }
+      const cls = params.p_class, hyb = params.p_method === "hybrid", cmp = params.p_compare_history === true;
+      const hist = (o) => (hyb || cmp) ? o : {};
+      let rows;
+      if (cls === 5) {
+        rows = S.indEmptyPlan && !hyb ? [] : [
+          { material_class_id: 5, stock_item_id: 701, stock_item_name: "Synthetic IND Gloves", uom_code: "Nos", mrp_net_qty: 40, planned_gross_qty: 40, plan_months: 2, coverage_months: 2, outstanding_indent_qty: 0, gate: "AUTO_ELIGIBLE", recommended_qty: 40, consumption_only: false, demand_source: "operator_plan", ...hist({ period_consumption: 55, stock_netted_consumption: 55 }) },
+          { material_class_id: 5, stock_item_id: 702, stock_item_name: "Synthetic IND Missing Month", uom_code: "Nos", mrp_net_qty: 10, planned_gross_qty: 10, plan_months: 1, coverage_months: 2, outstanding_indent_qty: 0, gate: "IND_PLAN_HORIZON_REVIEW", recommended_qty: null, consumption_only: false, demand_source: "operator_plan" },
+        ];
+      } else if (cls === 1 && params.p_rm_scope === "jit") {
+        rows = [
+          { material_class_id: 1, stock_item_id: 101, stock_item_name: "Synthetic JIT Herb", uom_code: "Kg", mrp_net_qty: 100, recommended_qty: 100, outstanding_indent_qty: 0, gate: "AUTO_ELIGIBLE", consumption_only: false, ...hist({ usage_12m: 120, period_consumption: 20, consumption_gap_vs_mrp: 0 }) },
+          { material_class_id: 1, stock_item_id: 102, stock_item_name: "Synthetic JIT Resin", uom_code: "Kg", mrp_net_qty: 100, recommended_qty: 60, outstanding_indent_qty: 40, gate: "AUTO_ELIGIBLE", consumption_only: false, ...hist({ usage_12m: 1200, period_consumption: 200, consumption_gap_vs_mrp: 100 }) },
+          { material_class_id: 1, stock_item_id: 103, stock_item_name: "Synthetic JIT Conflicting MOQ", uom_code: "Kg", mrp_net_qty: 20, recommended_qty: null, outstanding_indent_qty: 0, gate: "MOQ_POLICY_REVIEW", consumption_only: false },
+        ];
+      } else {
+        rows = [
+          { material_class_id: cls, stock_item_id: 1638, stock_item_name: "Label - Punarnavasavam 450 ML", uom_code: "Nos", mrp_net_qty: 0, recommended_qty: 2098, usage_12m: 12587, gate: "AUTO_ELIGIBLE", consumption_only: false, outstanding_indent_qty: 0 },
+          { material_class_id: cls, stock_item_id: 890, stock_item_name: "Synthetic Review Packaging", uom_code: "Nos", mrp_net_qty: 0, recommended_qty: null, usage_12m: 120, gate: "STOCK_MAPPING_REVIEW", consumption_only: true, outstanding_indent_qty: 0 },
+        ];
+      }
+      const sig = Array.from(JSON.stringify([params, globalThis.__indSaves ? globalThis.__indSaves.length : 0])).reduce((h, c) => ((h * 31 + c.charCodeAt(0)) >>> 0), 7).toString(16).padStart(8, "0").repeat(4);
+      return mk({ planning_method: params.p_method, plan_signature: sig, rows, total_candidates: rows.length });
     }
-    if (name === "proc_pec_jit_generate_pr") {
-      globalThis.__jitGenerateCalls = (globalThis.__jitGenerateCalls || []); globalThis.__jitGenerateCalls.push(params);
+    if (name === "proc_pec_s5_generate_pr") {
+      globalThis.__s5GenerateCalls = (globalThis.__s5GenerateCalls || []); globalThis.__s5GenerateCalls.push(params);
       if (S.role !== "edit") return { data: null, error: { message: "Permission denied" } };
-      return mk({ pr_id: 41, pr_number: params.p_pr_number, auto_evidenced_lines: 2, review_required_lines: 1, mode: "jit_mrp" });
+      if (S.staleSig) return { data: null, error: { message: "Planning evidence changed since review; refresh and reconfirm the draft" } };
+      return mk({ pr_id: 41, pr_number: params.p_pr_number, auto_evidenced_lines: 2, review_required_lines: 1, mode: "s5_unified", method: params.p_method });
+    }
+    if (name === "proc_pec_ind_list_planned_requirements") {
+      globalThis.__indListCalls = (globalThis.__indListCalls || []); globalThis.__indListCalls.push(params);
+      const saved = (globalThis.__indSaves || []).map((p, i) => ({ id: 900 + i, stock_item_id: p.p_stock_item_id, stock_item_name: p.p_stock_item_id === 701 ? "Synthetic IND Gloves" : "Synthetic IND Missing Month", uom_code: "Nos", month_start: p.p_month_start, planned_qty: p.p_gross_required_qty, reason: p.p_reason, is_active: p.p_is_active }));
+      const base = [{ id: 1, stock_item_id: 701, stock_item_name: "Synthetic IND Gloves", uom_code: "Nos", month_start: params.p_start, planned_qty: 20, reason: "Monthly operational requirement entered for indirect material planning.", is_active: true }];
+      return mk([...base, ...saved]);
+    }
+    if (name === "proc_pec_ind_set_planned_requirement") {
+      globalThis.__indSaves = (globalThis.__indSaves || []); globalThis.__indSaves.push(params);
+      if (S.role !== "edit") return { data: null, error: { message: "Permission denied" } };
+      return mk({ id: 1, stock_item_id: params.p_stock_item_id });
+    }
+    if (name === "proc_pec_pr_lines") {
+      return mk([{ pr_line_id: 501, pr_id: 1, stock_item_id: 101, stock_item_name: "Synthetic Line Item", material_class_code: "RM", uom_code: "Kg",
+        system_suggested_qty: 100, requested_qty: 100, manual_delta_qty: 0, manual_reason: null, line_sort_no: 1 }]);
+    }
+    if (name === "proc_pr_set_manual_delta") {
+      globalThis.__manualDeltaCalls = (globalThis.__manualDeltaCalls || []); globalThis.__manualDeltaCalls.push(params);
+      if (S.role !== "edit") return { data: null, error: { message: "Permission denied" } };
+      return mk(null);
     }
     if(name === "proc_pec_s4_new_pr_plan") {
       globalThis.__s4PlanCalls = (globalThis.__s4PlanCalls || 0) + 1;
@@ -101,8 +141,8 @@ export const supabase = {
       ]);
     }
     if(name === "proc_pec_s4_generate_pr") {
-      globalThis.__s4GenerateCalls = (globalThis.__s4GenerateCalls || []);
-      globalThis.__s4GenerateCalls.push(params);
+      globalThis.__s4LegacyGenerateCalls = (globalThis.__s4LegacyGenerateCalls || []);
+      globalThis.__s4LegacyGenerateCalls.push(params);
       if(S.role!=="edit") return {data:null,error:{message:"Permission denied"}};
       return mk({pr_id:40,pr_number:params.p_pr_number,auto_evidenced_lines:1,review_required_lines:1});
     }
@@ -140,7 +180,7 @@ export const supabase = {
     if (name in data) return mk(data[name]);
     return mk([]);
   },
-  from: () => { const b = { select: () => b, eq: () => b, limit: () => b, order: () => b, in: () => b, ilike: () => b, then: (r) => r(mk([])) }; return b; },
+  from: (table) => { const rows = table === "v_inv_stock_item_with_class" ? [{ stock_item_id: 701, code: "IND-701", name: "Synthetic IND Gloves", default_uom_id: 2 }, { stock_item_id: 702, code: "IND-702", name: "Synthetic IND Missing Month", default_uom_id: 2 }] : []; const one = () => Promise.resolve(mk(table === "inv_uom" ? { code: "Nos" } : null)); const b = { select: () => b, eq: () => b, limit: () => b, order: () => b, in: () => b, ilike: () => b, single: one, maybeSingle: one, then: (r) => r(mk(rows)) }; return b; },
   schema: () => ({ from: () => ({}) }),
 };
 export const labSupabase = supabase; export const hrSupabase = supabase;
@@ -156,7 +196,7 @@ async function open(scenario, vp) {
   const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   const errors = [];
-  page.on("pageerror", (e) => errors.push(String(e)));
+  page.on("pageerror", (e) => { errors.push(String(e)); if (process.env.PEC_DEBUG) console.error("PAGEERROR", String(e)); });
   await page.route("**/js/supabaseClient.js", (r) => r.fulfill({ contentType: "text/javascript", body: stub(scenario) }));
   await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
   await page.goto(`${base}/shared/procurement-execution-console.html`);
@@ -492,10 +532,10 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   await page.selectOption("#prMaterialClass","2");
   check(await page.isDisabled("#btnGenPrConfirm"), "S4 generator: Generate disabled before review");
   await page.click("#btnGenS4Preview");
-  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("auto-eligible"));
   const summary=await page.locator("#genS4PreviewSummary").textContent();
-  check(summary.includes("1 zero-MRP") && summary.includes("1 require manual review"),
-    "S4 generator: review dialog shows covered zero-MRP and review candidates");
+  check(summary.includes("1 auto-eligible") && summary.includes("1 need review"),
+    "S4 generator: review dialog shows eligible and review candidates");
   check(await page.evaluate(()=>document.querySelector("#s4ReviewModalBackdrop").classList.contains("show") &&
         document.querySelector("#generatePrModalBackdrop").classList.contains("show") &&
         !document.querySelector("#generatePrModalBackdrop").contains(document.querySelector("#genS4Acknowledged"))),
@@ -503,7 +543,7 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   check(await page.isDisabled("#btnGenPrConfirm"),
     "S4 generator: cannot create without confirmed review");
   check(await page.isDisabled("#btnS4ReviewConfirm"), "S4 review: Confirm disabled until acknowledged");
-  check(await page.evaluate(()=>(globalThis.__s4GenerateCalls || []).length)===0,
+  check(await page.evaluate(()=>(globalThis.__s5GenerateCalls || []).length)===0,
     "S4 generator: read-only review never creates a PR");
   // Back = no approval; reopening never reuses stale acknowledgement.
   await page.check("#genS4Acknowledged");
@@ -514,14 +554,14 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   check(await page.inputValue("#prNewNumber")==="PR-S4-FIXTURE-01" && await page.inputValue("#prHorizonEnd")==="2026-12",
     "S4 review: primary form keeps its values after Back");
   await page.click("#btnGenS4Preview");
-  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("auto-eligible"));
   check(!(await page.isChecked("#genS4Acknowledged")), "S4 review: reopening clears earlier acknowledgement");
   // Escape closes only the review dialog.
   await page.keyboard.press("Escape");
   check(!(await page.isVisible("#s4ReviewModalBackdrop.show")) && await page.isVisible("#generatePrModalBackdrop.show"),
     "S4 review: Escape closes only the review dialog");
   await page.click("#btnGenS4Preview");
-  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("auto-eligible"));
   await page.check("#genS4Acknowledged");
   await page.click("#btnS4ReviewConfirm");
   check(!(await page.isVisible("#s4ReviewModalBackdrop.show")), "S4 review: Confirm closes the review dialog");
@@ -541,30 +581,33 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   await page.fill("#prHorizonEnd","2026-12");
   await page.dispatchEvent("#prHorizonEnd","change");
   await page.click("#btnGenS4Preview");
-  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("auto-eligible"));
   await page.check("#genS4Acknowledged");
   await page.click("#btnS4ReviewConfirm");
   await page.selectOption("#prMaterialClass","1");
   check(await page.isDisabled("#btnGenPrConfirm"), "S4 generator: changed material class invalidates confirmation");
   await page.selectOption("#prMaterialClass","2");
   await page.click("#btnGenS4Preview");
-  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("auto-eligible"));
   await page.check("#genS4Acknowledged");
   await page.click("#btnS4ReviewConfirm");
   await page.click("#btnGenS4ReviewAgain");
-  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("auto-eligible"));
   check(!(await page.isChecked("#genS4Acknowledged")) && await page.isDisabled("#btnGenPrConfirm"),
     "S4 generator: Review again clears confirmation");
   await page.check("#genS4Acknowledged");
   await page.click("#btnS4ReviewConfirm");
   await page.click("#btnGenPrConfirm");
-  await page.waitForFunction(()=>(globalThis.__s4GenerateCalls || []).length===1);
-  const calls=await page.evaluate(()=>globalThis.__s4GenerateCalls||[]);
+  await page.waitForFunction(()=>(globalThis.__s5GenerateCalls || []).length===1);
+  const calls=await page.evaluate(()=>globalThis.__s5GenerateCalls||[]);
   check(calls[0].p_confirm===true &&
        calls[0].p_horizon_start_month==="2026-11-01" &&
        calls[0].p_horizon_end_month==="2026-12-01" &&
        calls[0].p_pr_number==="PR-S4-FIXTURE-01",
     "S4 generator: exact confirmed horizon and number submitted to guarded server (only writer call)");
+  check(calls[0].p_material_class_id===2 && calls[0].p_method==="hybrid" && calls[0].p_rm_scope==="normal" &&
+        /^[0-9a-f]{32}$/.test(calls[0].p_expected_plan_signature),
+    "[#508] PM defaults to the hybrid method and the writer receives class, method, scope and the reviewed signature");
   check(errors.length===0,`S4 generator browser errors ${errors.join("|")}`);
   await ctx.close();
 }
@@ -582,6 +625,7 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   const {ctx,page}=await open({role:"edit",planError:true},VIEWPORTS[0]);
   await page.click("#btnGeneratePr");
   await page.fill("#prHorizonStart","2026-11"); await page.fill("#prHorizonEnd","2026-12");
+  await page.selectOption("#prMaterialClass","2");
   await page.click("#btnGenS4Preview");
   await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("Review unavailable"));
   await page.check("#genS4Acknowledged");
@@ -593,6 +637,7 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   const {ctx,page}=await open({role:"edit",planRace:true},VIEWPORTS[0]);
   await page.click("#btnGeneratePr");
   await page.fill("#prHorizonStart","2026-11"); await page.fill("#prHorizonEnd","2026-12");
+  await page.selectOption("#prMaterialClass","2");
   await page.evaluate(()=>{const b=document.getElementById("btnGenS4Preview");b.click();b.click();});
   await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("2 materials"));
   await page.waitForTimeout(900);
@@ -608,13 +653,14 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   await page.click("#btnGeneratePr");
   await page.fill("#prNewNumber","PR-S4-FIXTURE-03");
   await page.fill("#prHorizonStart","2026-11"); await page.fill("#prHorizonEnd","2026-12");
+  await page.selectOption("#prMaterialClass","1");
   if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-s4-create-draft-pr.png`) });
   const prim=await page.evaluate(()=>({sw:document.querySelector("#generatePrModalBackdrop .modal").scrollWidth,
     cw:document.querySelector("#generatePrModalBackdrop .modal").clientWidth,
     hasPanel:Boolean(document.getElementById("genS4PreviewPanel"))}));
   check(prim.sw<=prim.cw+1 && !prim.hasPanel, `${tag} primary form has no overflow and no inline preview panel`);
   await page.click("#btnGenS4Preview");
-  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("auto-eligible"));
   if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-s4-requirement-review.png`) });
   const m=await page.evaluate(()=>{
     const modal=document.querySelector("#s4ReviewModalBackdrop .modal");
@@ -884,106 +930,199 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   await ctx.close();
 }
 
-// Issue #502: procurement-route-aware generation and editable reason templates.
-const JIT_TPL = "Just-in-time procurement requirement based on planned production demand for the selected period. Quantities are subject to review against existing procurement commitments and applicable supplier constraints.";
-const NORMAL_TPL = "Procurement requirement prepared for the selected planning period using MRP and consumption-based estimates, considering verified stock and outstanding procurement commitments.";
-async function startJitGenerate(scenario, vp) {
+// PEC S5 (issue #508): one planning flow for RM Normal, RM JIT, PM and IND; reason templates; manual-quantity reason.
+const TPL = {
+  jit: "Just-in-time procurement requirement based on planned production demand for the selected period. Quantities are subject to review against existing procurement commitments and applicable supplier constraints.",
+  hybrid: "Procurement requirement prepared for the selected planning period using MRP and consumption-based estimates, considering verified stock and outstanding procurement commitments.",
+  plan: "Procurement requirement prepared for the selected planning period from the stock-netted production plan, considering outstanding procurement commitments.",
+  indPlan: "Indirect material requirement prepared from the monthly operational plan for the selected period, considering verified stock and outstanding procurement commitments.",
+};
+async function startS5(scenario, vp, cls, scope) {
   const r = await open({ role: "edit", ...scenario }, vp);
   const { page } = r;
   await page.click("#btnGeneratePr");
-  await page.fill("#prNewNumber", "PR-JIT-FIXTURE-01");
+  await page.fill("#prNewNumber", "PR-S5-FIXTURE-01");
   await page.fill("#prHorizonStart", "2026-12"); await page.fill("#prHorizonEnd", "2027-01");
-  await page.selectOption("#prMaterialClass", "1");
-  await page.selectOption("#prRmScope", "jit");
+  if (cls) await page.selectOption("#prMaterialClass", String(cls));
+  if (scope) await page.selectOption("#prRmScope", scope);
   return r;
 }
 const rpcCount = (page, n) => page.evaluate((name) => (globalThis.__rpcNames || []).filter((x) => x === name).length, n);
+const reviewReady = (page) => page.waitForFunction(() => /auto-eligible|No operational plan|No planning candidates/.test(document.querySelector("#genS4PreviewSummary")?.textContent || ""));
+{
+  // Defaults per route, explicit choice preserved, plain-English help, IND editor only for IND.
+  const { ctx, page } = await startS5({}, VIEWPORTS[0], 1, "normal");
+  const m = () => page.inputValue("#prPlanMethod");
+  check((await m()) === "hybrid", "[#508] RM Normal defaults to Plan + Historical Consumption");
+  await page.selectOption("#prRmScope", "jit");
+  check((await m()) === "plan" && (await page.locator("#prPlanMethodHelp").innerText()).includes("bought as needed"), "[#508] RM JIT defaults to Plan-based with plain-English help");
+  await page.selectOption("#prMaterialClass", "2");
+  check((await m()) === "hybrid" && !(await page.isVisible("#btnIndPlanEditor")), "[#508] PM defaults to hybrid; no IND editor button");
+  await page.selectOption("#prMaterialClass", "5");
+  check((await m()) === "plan" && await page.isVisible("#btnIndPlanEditor") && (await page.locator("#prPlanMethodHelp").innerText()).includes("Operational Planned Requirement"),
+    "[#508] IND defaults to Plan-based with the operational-plan button and wording");
+  await page.selectOption("#prPlanMethod", "hybrid");
+  await page.selectOption("#prMaterialClass", "2");
+  check((await m()) === "hybrid", "[#508] an explicit method choice survives a class change");
+  check((await page.locator("#prPlanMethod option").allInnerTexts()).join("|") === "Plan-based requirement|Plan + Historical Consumption", "[#508] exactly two genuine methods are offered");
+  check((await page.locator("#prMaterialClass option").allInnerTexts()).every((x) => !/all classes/i.test(x)), "[#508] class is required; no All-Classes option remains");
+  await ctx.close();
+}
 for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
-  const { ctx, page, errors } = await startJitGenerate({}, vp);
-  const tag = `[#502 JIT ${vp.name}]`;
-  check((await page.inputValue("#prNotes")) === JIT_TPL, `${tag} notes default switches to the JIT wording when RM JIT Only is chosen`);
+  const { ctx, page, errors } = await startS5({}, vp, 1, "jit");
+  const tag = `[#508 JIT-plan ${vp.name}]`;
+  check((await page.inputValue("#prNotes")) === TPL.jit, `${tag} notes default is the JIT wording`);
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-s5-create-draft-pr.png`) });
   await page.click("#btnGenS4Preview");
-  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("JIT MRP materials"));
-  const jitCalls = await page.evaluate(() => globalThis.__jitPlanCalls || []);
-  check(jitCalls.length === 1 && jitCalls[0].p_compare_consumption === true && (await rpcCount(page, "proc_pec_s4_new_pr_plan")) === 0,
-    `${tag} RM JIT Only uses the JIT MRP plan (comparison on by default), not the hybrid plan`);
-  check(await page.isVisible("#s4ReviewRoute") && await page.isVisible("#genS4CompareRow") && (await page.locator("#genS4ReviewCounts").innerText()).includes("Netted vs open indents"),
-    `${tag} review shows the JIT rationale, optional comparison toggle and indent netting`);
-  check(await page.locator("#genS4Compare").getAttribute("role") === "switch" &&
-        await page.locator("#genS4Compare").isChecked() &&
-        (await page.locator("#genS4CompareRow").innerText()).includes("Optional insight") &&
-        (await page.locator("#genS4CompareRow").innerText()).includes("never changes suggested quantities"),
-    `${tag} optional historical comparison is a clearly labelled switch, not an approval`);
-  check(await page.locator("#genS4Acknowledged").getAttribute("type") === "checkbox" &&
-        !(await page.locator("#genS4Acknowledged").isChecked()) &&
-        await page.locator("#s4ReviewRouteHelp").isVisible() &&
-        !(await page.locator("#s4ReviewRouteHelp").getAttribute("open")),
-    `${tag} only the bottom control is an unchecked approval; JIT help is collapsed`);
-  await page.locator("#s4ReviewRouteHelp summary").click();
-  check((await page.locator("#s4ReviewRouteHelp").innerText()).includes("Open indents are deducted once"),
-    `${tag} planning rules remain accessible on demand`);
-  await page.locator("#s4ReviewRouteHelp summary").click();
-  check((await page.locator("#genS4PreviewExceptions").innerText()).includes("Synthetic JIT Conflicting MOQ") && (await page.locator("#genS4PreviewExceptions").innerText()).toLowerCase().includes("moq policy review"),
-    `${tag} MOQ-conflicting JIT item stays a review-required exception`);
-  check(await page.isDisabled("#btnS4ReviewConfirm") && await page.isDisabled("#btnGenPrConfirm"), `${tag} no silent write: confirm and Generate disabled before acknowledgement`);
-  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-jit-requirement-review.png`) });
+  await reviewReady(page);
+  const rv = await page.evaluate(() => globalThis.__s5ReviewCalls || []);
+  check(rv.length === 1 && rv[0].p_class === 1 && rv[0].p_rm_scope === "jit" && rv[0].p_method === "plan" && rv[0].p_compare_history === true &&
+        (await rpcCount(page, "proc_pec_s4_new_pr_plan")) === 0 && (await rpcCount(page, "proc_pec_jit_mrp_plan")) === 0,
+    `${tag} one common review RPC (proc_pec_s5_review_plan) with class/scope/method/compare`);
+  check((await page.locator("#s4ReviewMethodNote").innerText()).includes("Plan-based requirement") &&
+        (await page.locator("#genS4Compare").getAttribute("role")) === "switch" && await page.locator("#genS4Compare").isChecked() &&
+        (await page.locator("#genS4CompareRow").innerText()).includes("never changes a quantity") &&
+        (await page.locator("#genS4ReviewCounts").innerText()).includes("Netted vs open indents"),
+    `${tag} review shows the method, the plain-English comparison switch and indent netting`);
+  await page.locator("#s4ReviewMethodHelp summary").click();
+  check((await page.locator("#s4ReviewMethodHelpText").innerText()).includes("stock mapping is not required"), `${tag} method help is expandable and plain English`);
+  check((await page.locator("#genS4PreviewExceptions").innerText()).toLowerCase().includes("moq policy review"), `${tag} MOQ-conflicting item stays a review-required exception`);
+  check(await page.isDisabled("#btnS4ReviewConfirm") && await page.isDisabled("#btnGenPrConfirm"), `${tag} no silent write before acknowledgement`);
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-s5-requirement-review-jit.png`) });
   await page.check("#genS4Acknowledged"); await page.click("#btnS4ReviewConfirm");
-  check(await page.isEnabled("#btnGenPrConfirm"), `${tag} confirmed MRP review enables Generate`);
   await page.click("#btnGenPrConfirm");
-  await page.waitForFunction(() => (globalThis.__jitGenerateCalls || []).length === 1);
-  const gen = await page.evaluate(() => ({ jit: globalThis.__jitGenerateCalls, hybrid: globalThis.__s4GenerateCalls || [] }));
-  check(gen.jit[0].p_confirm === true && gen.jit[0].p_generation_filters.rm_scope === "jit" && gen.jit[0].p_compare_consumption === true && gen.hybrid.length === 0 &&
-        gen.jit[0].p_notes === JIT_TPL,
-    `${tag} Generate calls only the JIT writer (server-owned route), with the JIT note and comparison flag`);
+  await page.waitForFunction(() => (globalThis.__s5GenerateCalls || []).length === 1);
+  const g = (await page.evaluate(() => globalThis.__s5GenerateCalls))[0];
+  const sigReviewed = await page.evaluate(() => globalThis.__s5ReviewCalls.length);
+  check(g.p_confirm === true && g.p_material_class_id === 1 && g.p_rm_scope === "jit" && g.p_method === "plan" && g.p_compare_history === true &&
+        /^[0-9a-f]{32}$/.test(g.p_expected_plan_signature) && g.p_notes === TPL.jit && sigReviewed === 1,
+    `${tag} Generate sends the reviewed plan_signature, method and scope to proc_pec_s5_generate_pr`);
+  check((await rpcCount(page, "proc_pec_s4_generate_pr")) === 0 && (await rpcCount(page, "proc_pec_jit_generate_pr")) === 0, `${tag} legacy S4/JIT writers are never called`);
   check(errors.length === 0, `${tag} no browser errors ${errors.join("|")}`);
   await ctx.close();
 }
 {
-  // Optional comparison off; route change invalidates; edited notes are preserved with an offer; hybrid unchanged.
-  const { ctx, page } = await startJitGenerate({}, VIEWPORTS[0]);
-  await page.click("#btnGenS4Preview");
-  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("JIT MRP materials"));
+  // History comparison is informational: toggling re-reviews and clears acknowledgement, quantities unchanged.
+  const { ctx, page } = await startS5({}, VIEWPORTS[0], 1, "jit");
+  await page.click("#btnGenS4Preview"); await reviewReady(page);
+  const qtyText = async () => (await page.locator("#genS4PreviewExceptions").innerText()).replace(/\s+/g, " ").match(/Synthetic JIT Herb[^]*?Synthetic JIT Resin[^]*?(?=Auto|$)/)?.[0].match(/\b(100|60)\b/g)?.join(",");
+  const before = await qtyText();
+  await page.check("#genS4Acknowledged");
   await page.uncheck("#genS4Compare");
-  await page.waitForFunction(() => (globalThis.__jitPlanCalls || []).length === 2);
-  check((await page.evaluate(() => globalThis.__jitPlanCalls[1].p_compare_consumption)) === false &&
-        !(await page.locator("#genS4PreviewExceptions").innerText()).includes("12-month usage") &&
-        (await page.locator("#genS4ReviewCounts").innerText()).includes("Comparison off"),
-    "[#502 JIT] comparison is optional: switching it off re-plans without any consumption data");
-  check(await page.isDisabled("#btnS4ReviewConfirm"), "[#502 JIT] changing the comparison choice clears any acknowledgement");
+  await page.waitForFunction(() => (globalThis.__s5ReviewCalls || []).length === 2);
+  await reviewReady(page);
+  check((await page.evaluate(() => globalThis.__s5ReviewCalls[1].p_compare_history)) === false && !(await page.isChecked("#genS4Acknowledged")) && await page.isDisabled("#btnS4ReviewConfirm"),
+    "[#508] switching history comparison off re-reviews and clears the acknowledgement");
+  check((await qtyText()) === before && (await page.locator("#genS4ReviewCounts").innerText()).includes("Comparison off"), "[#508] recommended quantities are identical with comparison ON and OFF");
+  await ctx.close();
+}
+{
+  // Changing the method after a confirmed review invalidates it; hybrid explains that history drives the quantity.
+  const { ctx, page } = await startS5({}, VIEWPORTS[0], 1, "jit");
+  await page.click("#btnGenS4Preview"); await reviewReady(page);
   await page.check("#genS4Acknowledged"); await page.click("#btnS4ReviewConfirm");
-  check(await page.isEnabled("#btnGenPrConfirm"), "[#502 JIT] confirmed review (comparison off) enables Generate");
-  await page.selectOption("#prRmScope", "normal");
-  check(await page.isDisabled("#btnGenPrConfirm") && !(await page.isVisible("#genS4ReviewStatus")), "[#502 JIT] changing the route after confirmation invalidates it");
-  check((await page.inputValue("#prNotes")) === NORMAL_TPL, "[#502] unedited notes follow the route back to the standard wording");
-  await page.click("#btnGenS4Preview");
-  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
-  check((await rpcCount(page, "proc_pec_s4_new_pr_plan")) === 1, "[#502] RM Normal still uses the existing hybrid plan");
+  check(await page.isEnabled("#btnGenPrConfirm"), "[#508] confirmed review enables Generate");
+  await page.selectOption("#prPlanMethod", "hybrid");
+  check(await page.isDisabled("#btnGenPrConfirm") && !(await page.isVisible("#genS4ReviewStatus")), "[#508] changing the method after confirmation invalidates it");
+  check((await page.inputValue("#prNotes")) === TPL.hybrid, "[#508] unedited notes follow the method");
+  await page.click("#btnGenS4Preview"); await reviewReady(page);
+  check((await page.evaluate(() => globalThis.__s5ReviewCalls[1].p_method)) === "hybrid" &&
+        (await page.locator("#genS4CompareRow").innerText()).includes("always shown"), "[#508] hybrid review uses method=hybrid and says history is always shown");
   await page.keyboard.press("Escape");
   await page.fill("#prNotes", "My own wording for this requirement.");
-  await page.selectOption("#prRmScope", "jit");
-  check((await page.inputValue("#prNotes")) === "My own wording for this requirement." && await page.isVisible("#prNotesTemplateHint"),
-    "[#502] edited notes are never overwritten; the new suggested wording is offered");
+  await page.selectOption("#prPlanMethod", "plan");
+  check((await page.inputValue("#prNotes")) === "My own wording for this requirement." && await page.isVisible("#prNotesTemplateHint"), "[#508] edited notes are preserved and the new wording is only offered");
   await page.click("#btnPrNotesUseTemplate");
-  check((await page.inputValue("#prNotes")) === JIT_TPL && !(await page.isVisible("#prNotesTemplateHint")), "[#502] the offer replaces notes only on explicit request");
+  check((await page.inputValue("#prNotes")) === TPL.jit && !(await page.isVisible("#prNotesTemplateHint")), "[#508] the offer replaces notes only on explicit request");
   await ctx.close();
 }
 {
-  // Server functions not installed yet: conservative fallback to the existing hybrid review/writer.
-  const { ctx, page } = await startJitGenerate({ jitMissing: true }, VIEWPORTS[0]);
-  await page.click("#btnGenS4Preview");
-  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("zero-MRP"));
+  // Stale signature at the writer: refresh and reconfirm, never push through.
+  const { ctx, page } = await startS5({ staleSig: true }, VIEWPORTS[0], 2);
+  await page.click("#btnGenS4Preview"); await reviewReady(page);
   await page.check("#genS4Acknowledged"); await page.click("#btnS4ReviewConfirm");
   await page.click("#btnGenPrConfirm");
-  await page.waitForFunction(() => (globalThis.__s4GenerateCalls || []).length === 1);
-  check((await page.evaluate(() => (globalThis.__jitGenerateCalls || []).length)) === 0 && (await rpcCount(page, "proc_pec_jit_mrp_plan")) === 1,
-    "[#502] missing JIT server functions: falls back to the hybrid review and writer (no bypass)");
+  await page.waitForFunction(() => document.getElementById("toastContainer")?.textContent.includes("plan changed since you reviewed"));
+  check(await page.isDisabled("#btnGenPrConfirm") && !(await page.isVisible("#genS4ReviewStatus")) && (await rpcCount(page, "proc_pec_s5_generate_pr")) === 1,
+    "[#508] a stale plan signature forces a fresh review (Generate disabled again)");
   await ctx.close();
 }
 {
-  // View-only: cannot generate by any route.
+  // IND: operational plan editor through the guarded RPCs; missing months flagged; saving invalidates the review.
+  const { ctx, page, errors } = await startS5({}, VIEWPORTS[0], 5);
+  check((await page.inputValue("#prPlanMethod")) === "plan" && (await page.inputValue("#prNotes")) === TPL.indPlan, "[#508] IND: plan-based default and IND wording");
+  await page.click("#btnIndPlanEditor");
+  await page.waitForSelector("#indPlanModalBackdrop.show");
+  await page.waitForFunction(() => document.querySelector("#indPlanList")?.textContent.includes("Synthetic IND Gloves"));
+  const chips = (await page.locator("#indPlanList .pec-ind-plan-chip").allInnerTexts()).join("|");
+  check(chips.includes("20") && chips.includes("missing"), "[#508] IND editor lists planned months and flags a missing month");
+  check((await page.locator("#indPlanModalBackdrop").innerText()).includes("not production MRP"), "[#508] IND editor is labelled an operator plan, not production MRP");
+  check((await page.evaluate(() => (globalThis.__indSaves || []).length)) === 0, "[#508] opening the editor writes nothing");
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, "wide-s5-ind-plan-editor.png") });
+  await page.locator('#indPlanList .pec-ind-plan-chip:has-text("missing")').first().click().catch(() => {});
+  await page.selectOption("#indPlanItem", "701");
+  await page.selectOption("#indPlanMonth", { index: 1 });
+  await page.fill("#indPlanQty", "0");
+  await page.fill("#indPlanReason", "short");
+  await page.click("#btnIndPlanSave");
+  check((await page.locator("#indPlanError").innerText()).includes("at least 10") && (await page.evaluate(() => (globalThis.__indSaves || []).length)) === 0, "[#508] a short reason is rejected before any RPC");
+  await page.fill("#indPlanReason", "Explicit zero planned for this month.");
+  await page.click("#btnIndPlanSave");
+  await page.waitForFunction(() => (globalThis.__indSaves || []).length === 1);
+  const sv = (await page.evaluate(() => globalThis.__indSaves))[0];
+  check(sv.p_stock_item_id === 701 && sv.p_gross_required_qty === 0 && /^\d{4}-\d{2}-01$/.test(sv.p_month_start) && sv.p_is_active === true && sv.p_reason === "Explicit zero planned for this month.",
+    "[#508] an explicit zero is saved through proc_pec_ind_set_planned_requirement with the typed reason");
+  await page.keyboard.press("Escape");
+  check(!(await page.isVisible("#indPlanModalBackdrop.show")) && await page.isVisible("#generatePrModalBackdrop.show"), "[#508] Escape closes only the IND editor");
+  await page.click("#btnGenS4Preview"); await reviewReady(page);
+  check((await page.locator("#genS4PreviewExceptions").innerText()).toLowerCase().includes("ind plan horizon review"), "[#508] IND review shows the missing-month exception");
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, "wide-s5-requirement-review-ind.png") });
+  check(errors.length === 0, `[#508] IND flow has no browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+{
+  // IND with no plan entries: honest empty state, nothing invented.
+  const { ctx, page } = await startS5({ indEmptyPlan: true }, VIEWPORTS[2], 5);
+  await page.click("#btnGenS4Preview"); await reviewReady(page);
+  check((await page.locator("#genS4PreviewSummary").innerText()).includes("No operational plan entries") && await page.isDisabled("#btnS4ReviewConfirm"),
+    "[#508] IND plan-based with no entries shows an empty state and cannot be confirmed");
+  await ctx.close();
+}
+{
+  // View-only: IND editor is read-only; no generation by any route.
   const { ctx, page } = await open({ role: "view" }, VIEWPORTS[0]);
-  check(!(await page.isVisible("#btnGeneratePr")) || await page.isDisabled("#btnGeneratePr"), "[#502] View-only cannot start PR generation");
-  check((await page.evaluate(() => (globalThis.__jitGenerateCalls || []).length)) === 0, "[#502] View-only made no JIT writer call");
+  check(!(await page.isVisible("#btnGeneratePr")) || await page.isDisabled("#btnGeneratePr"), "[#508] View-only cannot start PR generation");
+  check((await rpcCount(page, "proc_pec_s5_generate_pr")) === 0 && (await rpcCount(page, "proc_pec_ind_set_planned_requirement")) === 0, "[#508] View-only made no writer call");
+  await ctx.close();
+}
+{
+  // Manual quantity change: neutral editable reason prefilled immediately; custom reasons preserved.
+  const { ctx, page } = await open({ role: "edit", ccfDraft: true }, VIEWPORTS[0]);
+  await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)"); await page.click("#prTbody tr:first-child");
+  await page.waitForSelector('input[data-field="final_qty"]');
+  const qty = page.locator('input[data-field="final_qty"]').first();
+  const reason = page.locator('input[data-field="reason"]').first();
+  await qty.fill("120");
+  check((await reason.inputValue()) === "Manual quantity adjustment during PR review: 100 to 120.", "[#508] changing the quantity prefills the neutral previous-to-new reason immediately");
+  await qty.fill("130");
+  check((await reason.inputValue()) === "Manual quantity adjustment during PR review: 100 to 130.", "[#508] the auto reason follows further edits before saving");
+  await qty.press("Enter");
+  await page.waitForFunction(() => (globalThis.__manualDeltaCalls || []).length === 1);
+  let c = (await page.evaluate(() => globalThis.__manualDeltaCalls))[0];
+  check(c.p_pr_line_id === 501 && c.p_manual_delta_qty === 30 && c.p_manual_reason === "Manual quantity adjustment during PR review: 100 to 130.", "[#508] quantity and the neutral reason are saved together via proc_pr_set_manual_delta");
+  await page.waitForSelector('input[data-field="final_qty"]');
+  const reason2 = page.locator('input[data-field="reason"]').first();
+  await reason2.fill("Supplier lead time extended; ordering earlier.");
+  await reason2.press("Enter");
+  await page.waitForFunction(() => (globalThis.__manualDeltaCalls || []).length === 2);
+  const qty2 = page.locator('input[data-field="final_qty"]').first();
+  await qty2.fill("140");
+  check((await page.locator('input[data-field="reason"]').first().inputValue()) === "Supplier lead time extended; ordering earlier.", "[#508] a custom typed reason is never overwritten by the default");
+  await qty2.press("Enter");
+  await page.waitForFunction(() => (globalThis.__manualDeltaCalls || []).length === 3);
+  c = (await page.evaluate(() => globalThis.__manualDeltaCalls))[2];
+  check(c.p_manual_reason === "Supplier lead time extended; ordering earlier." && c.p_manual_delta_qty === 40, "[#508] the custom reason is what is saved");
   await ctx.close();
 }
 {

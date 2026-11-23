@@ -48,29 +48,40 @@ if (mainJs) {
     "proc_pec_s4_reconcile_draft", "proc_pec_s4_pr_evidence",
     // Issue #502: server-owned JIT MRP route (pinned server PR; client falls back to hybrid if absent).
     "proc_pec_jit_mrp_plan", "proc_pec_jit_generate_pr",
+    // S5 (issue #508): installed server contract 20261122191542 (SQL pinned on the merged server PR #509).
+    "proc_pec_s5_review_plan", "proc_pec_s5_generate_pr",
+    "proc_pec_ind_list_planned_requirements", "proc_pec_ind_set_planned_requirement",
   ]);
   const unexpected = added.filter((x) => !ALLOWED_NEW.has(x));
   ok(unexpected.length === 0, `no unexpected RPC names introduced (${unexpected.join(",") || "none"}; paged contract names allowed: ${added.filter((x) => ALLOWED_NEW.has(x)).length})`);
 }
 ok(!/proc_indent_(update|edit|set)_(draft|line)[a-z_]*|proc_pr_replenish|hybrid_replenish/.test(js), "no draft-edit / replenishment RPC wired (server contract pending)");
-if (js.includes('rpc("proc_pec_ccf_apply_draft_line"')) {
+{
   const previewSql = read("supabase/migrations/20261122075009_pec_s4_ccf_pr_preview_readonly.sql");
-  const writerSql = read("supabase/migrations/20261122075447_pec_s4_ccf_apply_draft_line_guarded.sql");
   ok(/proc_pec_ccf_pr_preview\(p_pr_id bigint\)/.test(previewSql) &&
       /LANGUAGE plpgsql STABLE SECURITY DEFINER/.test(previewSql) &&
       /require_permission\('module:procurement-execution-console',false\)/.test(previewSql) &&
       /REVOKE ALL ON FUNCTION public\.proc_pec_ccf_pr_preview\(bigint\) FROM anon/.test(previewSql),
-      "S4 preview: exact read-only signature, canonical View guard and anon revoke");
-  ok(/proc_pec_ccf_apply_draft_line\(/.test(writerSql) &&
-      /require_permission\('module:procurement-execution-console',true\)/.test(writerSql) &&
-      /v_pr_status IS DISTINCT FROM 'draft'/.test(writerSql) &&
-      /p_confirm IS DISTINCT FROM true/.test(writerSql) &&
-      /proc_pr_set_manual_delta_pec_internal/.test(writerSql) &&
-      /REVOKE ALL ON FUNCTION public\.proc_pec_ccf_apply_draft_line/.test(writerSql),
-      "S4 writer: exact guarded draft-only audited single-line contract");
-  ok(/ccfApplyAcknowledged/.test(html) && /ccfApplyReason/.test(html) &&
-      /p_expected_ccf_floor/.test(js) && /p_expected_stock_as_of/.test(js),
-      "S4 client: explicit confirmation, audit reason and stale evidence fields");
+      "legacy PR evidence preview: exact read-only signature, canonical View guard and anon revoke");
+}
+// S5: verified-redundant client code is gone (server RPCs are retained for installed legacy clients).
+ok(!/openCcfApply|applyCcfToDraft|canApplyCcfLine|proc_pec_ccf_apply_draft_line|data-ccf-line-id/.test(js) &&
+   !/ccfApplyModalBackdrop|ccfApplyReason|ccfApplyAcknowledged|pec-ccf-approve-btn/.test(html),
+  "S5 cleanup: retired CCF apply writer UI/handlers/styles removed from the client");
+ok(!/prEditReqModalBackdrop|prEditDeltaModalBackdrop/.test(html) && !/prEditReq|prEditDelta/.test(js),
+  "S5 cleanup: unwired legacy edit-quantity/edit-delta modals removed");
+ok(!/proc_pec_jit_|proc_pec_s4_generate_pr|s4PlanRoute|s4JitServerMissing|s4IsMissingRpc|s4ReviewRoute/.test(js),
+  "S5 cleanup: JIT-specific and S4 generator client routes removed (single S5 flow)");
+ok(js.includes('rpc("proc_pec_s5_review_plan"') && js.includes('rpc("proc_pec_s5_generate_pr"') &&
+   js.includes('rpc("proc_pec_ind_list_planned_requirements"') && js.includes('rpc("proc_pec_ind_set_planned_requirement"') &&
+   !js.includes('rpc("create_pr_from_mrp_plan"') && !/\.from\("proc_pec_ind_planned_requirement/.test(js),
+  "S5: client uses only the guarded S5/IND RPCs, never legacy generation or direct IND table access");
+{
+  const s5 = read("supabase/migrations/20261122191542_pec_s5_unified_planning_ind_source_and_pr_reason.sql");
+  ok(s5.includes("proc_pec_s5_review_plan(") && s5.includes("proc_pec_s5_generate_pr(") &&
+     s5.includes("p_expected_plan_signature") && s5.includes("p_confirm IS DISTINCT FROM true") &&
+     /proc_pec_ind_set_planned_requirement[\s\S]*require_permission\('module:procurement-execution-console',true\)/.test(s5),
+    "S5: installed server contract is signature-bound, confirmation-gated and Edit-guarded");
 }
 
 // S4 E2E: three exact installed server payloads; no other SQL exceptions.
