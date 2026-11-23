@@ -42,7 +42,7 @@ jobs:
           PGDATABASE: s3f_fixture
         run: |
           set -euo pipefail
-          sed 's/generate_series(1,1100)/generate_series(1,108982)/g' docs/master-data-costing/sql/S3L_SYNTHETIC_PG17_FIXTURE.sql > "$RUNNER_TEMP/archive-fixture.sql"
+          sed -e 's/generate_series(1,1100)/generate_series(1,108982)/g' -e 's/(3001,122,/(300001,122,/g' -e 's/(3002,153,/(300002,153,/g' docs/master-data-costing/sql/S3L_SYNTHETIC_PG17_FIXTURE.sql > "$RUNNER_TEMP/archive-fixture.sql"
           psql -X -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/archive-fixture.sql" > "$RUNNER_TEMP/pg-fixture-install.txt"
           test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM costing.marketing_signed_billed_sales_evidence_snapshot WHERE refresh_run_id=87")" = 108982
           test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM costing.marketing_regional_sales_evidence_snapshot WHERE refresh_run_id=87")" = 108982
