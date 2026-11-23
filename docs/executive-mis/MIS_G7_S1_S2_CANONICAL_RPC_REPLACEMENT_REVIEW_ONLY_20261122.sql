@@ -57,9 +57,10 @@ BEGIN
   IF v_run IS NULL THEN
     RETURN jsonb_build_object(
       'report_month',v_month,'as_of_date',v_cutoff,
-      'status','NO_APPROVED_REFERENCE','plan_status','LIVE_INDICATIVE',
+      'status','NO_PREVIOUS_MONTH_APPROVED_COST','plan_status','LIVE_INDICATIVE',
       'approved_cost_reference',jsonb_build_object(
-         'coverage_status','NO_APPROVED_REFERENCE','reference_run_id',NULL),
+         'coverage_status','NO_APPROVED_REFERENCE',
+         'reference_run_id',NULL,'basis_note','No currently eligible approved run'),
       'completed_reference_value',NULL,'plan_achievement_pct',NULL,
       'comparability','NOT_COMPARABLE'
     );
