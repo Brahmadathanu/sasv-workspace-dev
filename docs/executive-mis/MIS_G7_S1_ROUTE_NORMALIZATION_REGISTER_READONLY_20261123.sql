@@ -47,7 +47,7 @@ WITH fg AS (
  WHEN m.mandatory_fg_activity_steps<>1 THEN 'MANDATORY_FG_STAGE_GAP'
  ELSE 'ACTIVITY_ROUTE_CORRELATED_NOT_SIGNED' END review_queue
  FROM fg f JOIN route_rollup r ON r.work_log_id=f.work_log_id
- JOIN mapped m ON m.work_log_id=f.id JOIN bmr b ON b.work_log_id=f.work_log_id
+ JOIN mapped m ON m.work_log_id=f.work_log_id JOIN bmr b ON b.work_log_id=f.work_log_id
 )
 SELECT review_queue,count(*) work_log_events,
  count(DISTINCT product_id) affected_products,
