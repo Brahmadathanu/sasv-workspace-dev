@@ -66,4 +66,11 @@ jobs:
           grep -q '"isolatedTempRestoreVerified": true' "$RUNNER_TEMP/restore-verification.txt"
           test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM costing.marketing_signed_billed_sales_evidence_snapshot WHERE refresh_run_id=87")" = 108982
           test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM costing.marketing_regional_sales_evidence_snapshot WHERE refresh_run_id=87")" = 108982
+          # S3N catalog-driven direct-FK archive: includes keyless
+          # designation relation (zero rows for run 87 in this fixture).
+          node docs/master-data-costing/tools/archive-run87-direct-fks.mjs --run-id 87 --out "$RUNNER_TEMP/direct-fk-archive" --expected-relations 3 | tee "$RUNNER_TEMP/direct-fk-export.txt"
+          node docs/master-data-costing/tools/verify-run87-direct-fks.mjs "$RUNNER_TEMP/direct-fk-archive" | tee "$RUNNER_TEMP/direct-fk-verify.txt"
+          grep -q '"relationCount":3' "$RUNNER_TEMP/direct-fk-verify.txt"
+          grep -q '"verifiedRows":217964' "$RUNNER_TEMP/direct-fk-verify.txt"
+          echo S3N_PG17_CATALOG_DIRECT_FK_ARCHIVE_PASS
           echo S3F_S3G_PG17_FULLSIZE_ARCHIVE_RESTORE_PASS
