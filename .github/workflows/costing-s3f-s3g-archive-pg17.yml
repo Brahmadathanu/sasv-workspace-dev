@@ -1,0 +1,69 @@
+name: Costing S3F S3G full-size synthetic archive restore PG17
+on:
+  pull_request:
+    paths:
+      - "docs/master-data-costing/tools/**"
+      - "docs/master-data-costing/sql/S3L_SYNTHETIC_PG17_FIXTURE.sql"
+      - ".github/workflows/costing-s3f-s3g-archive-pg17.yml"
+permissions:
+  contents: read
+jobs:
+  fullsize-archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture_only
+          POSTGRES_DB: s3f_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d s3f_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install existing pg dependency without install scripts
+        run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+      - name: Full-size synthetic run 87 without production data
+        env:
+          PGPASSWORD: fixture_only
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: s3f_fixture
+        run: |
+          set -euo pipefail
+          sed 's/generate_series(1,1100)/generate_series(1,108982)/g' docs/master-data-costing/sql/S3L_SYNTHETIC_PG17_FIXTURE.sql > "$RUNNER_TEMP/archive-fixture.sql"
+          psql -X -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/archive-fixture.sql" > "$RUNNER_TEMP/pg-fixture-install.txt"
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM costing.marketing_signed_billed_sales_evidence_snapshot WHERE refresh_run_id=87")" = 108982
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM costing.marketing_regional_sales_evidence_snapshot WHERE refresh_run_id=87")" = 108982
+      - name: Archive and typed temporary restore with SHA validation
+        env:
+          SASV_ARCHIVE_DATABASE_URL: postgresql://postgres:fixture_only@127.0.0.1:5432/s3f_fixture
+          SASV_ISOLATED_STAGE_DATABASE_URL: postgresql://postgres:fixture_only@127.0.0.1:5432/s3f_fixture
+          SASV_STAGE_RESTORE_ATTESTATION: ISOLATED_STAGE_RESTORE_RUN87_NOT_PRODUCTION
+          PGPASSWORD: fixture_only
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: s3f_fixture
+        run: |
+          set -euo pipefail
+          node --test docs/master-data-costing/tools/archive-run87.test.mjs docs/master-data-costing/tools/restore-verify-run87.test.mjs
+          node docs/master-data-costing/tools/archive-run87.mjs --run-id 87 --out "$RUNNER_TEMP/run87-archive" --page-size 500
+          node docs/master-data-costing/tools/verify-run87.mjs "$RUNNER_TEMP/run87-archive" | tee "$RUNNER_TEMP/archive-verification.txt"
+          grep -q '"offlineDigestVerified":true' "$RUNNER_TEMP/archive-verification.txt"
+          node docs/master-data-costing/tools/restore-verify-run87.mjs "$RUNNER_TEMP/run87-archive" | tee "$RUNNER_TEMP/restore-verification.txt"
+          grep -q '"isolatedTempRestoreVerified": true' "$RUNNER_TEMP/restore-verification.txt"
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM costing.marketing_signed_billed_sales_evidence_snapshot WHERE refresh_run_id=87")" = 108982
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM costing.marketing_regional_sales_evidence_snapshot WHERE refresh_run_id=87")" = 108982
+          echo S3F_S3G_PG17_FULLSIZE_ARCHIVE_RESTORE_PASS
