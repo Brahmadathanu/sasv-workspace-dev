@@ -12,7 +12,7 @@
 -- No run headers, accepted governance rows or product/pricing tables touched.
 --
 -- Safety features:
---  * explicit staging opt-in, plus production project hostname guard when exposed
+--  * explicit opt-in ONLY; isolation must be verified OUTSIDE SQL by operator
 --  * one known run id (87), 2026-09-01 period and unchanged designation guards
 --  * fail closed if expected row counts differ
 --  * all changes inside ONE transaction, explicit ROLLBACK at bottom
