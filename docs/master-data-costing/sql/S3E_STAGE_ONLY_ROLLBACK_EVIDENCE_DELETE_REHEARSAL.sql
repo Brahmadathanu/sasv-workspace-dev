@@ -25,7 +25,34 @@
 -- To opt in on an isolated stage DB, run this *single session* script with
 -- the following staging guard inside the transaction. Do not set it in prod.
 
+-- S3E BLOCKER DISCOVERED 23 NOV 2026:
+-- fn_enforce_mutable_refresh_run_snapshot() explicitly prohibits DELETE for
+-- SUCCESS runs, including test run 87. The following deletion rehearsal is
+-- DISABLED unless an independently reviewed, deployed governance-safe
+-- maintenance pathway is introduced on isolated staging. Never disable,
+-- bypass or change the trigger merely to make this script pass.
+-- Current function permits mutation only QUEUED, RUNNING, FAILED. No live
+-- deletion was attempted.
+
 BEGIN;
+-- Fail closed on the known, currently installed terminal-run mutation guard.
+DO $preflight$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_trigger t
+    JOIN pg_proc p ON p.oid=t.tgfoid
+    JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE t.tgrelid IN (
+      'costing.marketing_signed_billed_sales_evidence_snapshot'::regclass,
+      'costing.marketing_regional_sales_evidence_snapshot'::regclass
+    )
+    AND t.tgenabled <> 'D' AND n.nspname='costing'
+    AND p.proname='fn_enforce_mutable_refresh_run_snapshot'
+  ) THEN
+    RAISE EXCEPTION 'S3E_BLOCKED_TERMINAL_RUN_GUARD: SUCCESS run 87 cannot be deleted under existing snapshot writer policy';
+  END IF;
+END
+$preflight$;
 SET LOCAL lock_timeout = '3s';
 SET LOCAL statement_timeout = '10min';
 SET LOCAL idle_in_transaction_session_timeout = '12min';
