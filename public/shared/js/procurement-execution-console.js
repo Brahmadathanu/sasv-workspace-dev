@@ -9474,8 +9474,8 @@ function pecMethodHelp(p) {
   const hybrid = p.p_method === "hybrid";
   if (p.p_class === 5) {
     return hybrid
-      ? "Takes the higher of your Operational Planned Requirement and the last 12 completed months of consumption projected over the period, each net of current stock. The two are never added together."
-      : "Uses the monthly Operational Planned Requirement you enter for IND materials (not production MRP), net of current stock. Every planning month needs an entry; a missing month is flagged for review and nothing is guessed from history.";
+      ? "Takes the higher of your monthly IND plan and the last 12 completed months of consumption, each adjusted for stock, then nets outstanding indents. The two are never added together."
+      : "Uses your monthly IND plan, adjusted for available stock and outstanding indents. Missing months are flagged for review.";
   }
   if (pecIsJitRoute(p)) {
     return hybrid
