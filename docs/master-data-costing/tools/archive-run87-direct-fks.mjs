@@ -3,7 +3,7 @@
 // This is NOT full-run recovery: descendants without direct run_id and
 // non-FK business references are explicitly OUT OF SCOPE.
 import { createHash } from 'node:crypto';
-import { mkdir, readdir, rename, rm, writeFile, createWriteStream } from 'node:fs';
+import { createWriteStream } from 'node:fs';
 import { promises as fs } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { createGzip } from 'node:zlib';
@@ -69,7 +69,7 @@ export async function archiveDirectRelation(client,row,out,pageSize) {
     const exact=(await client.query(
       `SELECT count(*)::text AS n FROM ${table} t WHERE t.${column}=$1`,[RUN])).rows[0].n;
     if(BigInt(exact)!==BigInt(count))throw Error('Row count mismatch '+table);
-    await rename(partial,target);
+    await fs.rename(partial,target);
     return {
       table:row.schema_name+'.'+row.table_name,runColumn:row.run_column,
       fkName:row.fk_name,fkAction:row.fk_action,
@@ -77,7 +77,7 @@ export async function archiveDirectRelation(client,row,out,pageSize) {
       filename,count,sha256UncompressedJsonl:hash.digest('hex'),
       extractionCursor:'physical ctid within REPEATABLE READ snapshot'
     };
-  }catch(e){gzip.destroy();output.destroy();await rm(partial,{force:true}).catch(()=>{});throw e;}
+  }catch(e){gzip.destroy();output.destroy();await fs.rm(partial,{force:true}).catch(()=>{});throw e;}
 }
 export async function archiveDirectRun(client,out,expectedRelations=64,pageSize=500) {
   await fs.mkdir(out,{recursive:true});
