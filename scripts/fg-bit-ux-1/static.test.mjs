@@ -79,12 +79,12 @@ test("canonical page is shared by Electron and PWA", () => {
     assert.ok(html.includes('="' + asset + '"'), asset);
     assert.ok(fs.existsSync(path.join(root, "public/shared", asset)), asset);
   }
-  assert.match(js, /import \\{ Platform \\} from "\\.\\/platform\\.js"/);
-  assert.match(js, /Platform\\.goHome\\(\\)/);
-  assert.match(js, /Platform\\.isElectron/);
+  assert.match(js, /import \{ Platform \} from "\.\/platform\.js"/);
+  assert.match(js, /Platform\.goHome\(\)/);
+  assert.match(js, /Platform\.isElectron/);
   assert.ok(js.includes('"/login.html"'));
   assert.ok(js.includes('"/utilities-hub/index.html"'));
-  assert.doesNotMatch(js, /window\\.location\\.protocol\\s*===\\s*"file:"/);
+  assert.doesNotMatch(js, /window\.location\.protocol\s*===\s*"file:"/);
   assert.match(html, /guidance-indicator/);
   assert.match(js, /function isTransferReady\(/);
   assert.match(js, /Destination sub-section is required/);
