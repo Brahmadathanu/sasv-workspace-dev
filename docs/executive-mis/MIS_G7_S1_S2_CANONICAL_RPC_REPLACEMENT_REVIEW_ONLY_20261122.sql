@@ -201,8 +201,13 @@ BEGIN
   ),
   transfer_ref_rollup AS (
     SELECT count(*) source_line_count,
+           count(*) FILTER (WHERE coverage_reason NOT IN
+             ('EXCLUDED_CANCELLED','EXCLUDED_OPTIONAL')) eligible_line_count,
+           count(*) FILTER (WHERE coverage_reason IN
+             ('EXCLUDED_CANCELLED','EXCLUDED_OPTIONAL')) excluded_line_count,
            count(*) FILTER (WHERE coverage_reason='COVERED') covered_line_count,
-           count(*) FILTER (WHERE coverage_reason<>'COVERED') uncovered_line_count,
+           count(*) FILTER (WHERE coverage_reason NOT IN
+             ('COVERED','EXCLUDED_CANCELLED','EXCLUDED_OPTIONAL')) uncovered_line_count,
            sum(transfer_amount) book_transfer_value,
            round(sum(qty_value*manufacturing_cop_per_sku)
              FILTER (WHERE coverage_reason='COVERED'),2) covered_reference_subtotal,
@@ -223,6 +228,8 @@ BEGIN
         'evaluated_at_ist',now() AT TIME ZONE 'Asia/Kolkata',
         'tally_snapshot_as_of',(SELECT as_of_date FROM transfer_snapshot),
         'source_line_count',(SELECT source_line_count FROM transfer_ref_rollup),
+        'eligible_line_count',(SELECT eligible_line_count FROM transfer_ref_rollup),
+        'excluded_line_count',(SELECT excluded_line_count FROM transfer_ref_rollup),
         'covered_line_count',(SELECT covered_line_count FROM transfer_ref_rollup),
         'uncovered_line_count',(SELECT uncovered_line_count FROM transfer_ref_rollup),
         'covered_reference_subtotal',(SELECT covered_reference_subtotal FROM transfer_ref_rollup),
@@ -230,7 +237,8 @@ BEGIN
         'coverage_reasons',(SELECT reason_counts FROM transfer_ref_rollup),
         'coverage_status',CASE
             WHEN (SELECT source_line_count FROM transfer_ref_rollup)=0 THEN 'NO_TRANSFER_LINES'
-            WHEN (SELECT uncovered_line_count FROM transfer_ref_rollup)=0 THEN 'FULL_SOURCE_RATE_COVERAGE'
+            WHEN (SELECT eligible_line_count FROM transfer_ref_rollup)=0 THEN 'NO_ELIGIBLE_TRANSFER_LINES'
+            WHEN (SELECT uncovered_line_count FROM transfer_ref_rollup)=0 THEN 'FULL_ELIGIBLE_RATE_COVERAGE'
             ELSE 'PARTIAL_SOURCE_RATE_COVERAGE' END,
         'transfer_reconciliation','NOT_VERIFIED'
       ),
