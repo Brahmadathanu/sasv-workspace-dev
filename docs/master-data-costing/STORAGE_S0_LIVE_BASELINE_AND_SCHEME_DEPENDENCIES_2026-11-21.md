@@ -260,3 +260,17 @@ New run-specific assertions at `docs/master-data-costing/sql/S3D_RETENTION_STAGI
 5. Only then implement a separately reviewed permanent batched cleanup executor plus immutable per-run archive/tombstone and monthly job. The release acceptance and pricing governance must remain unaffected.
 
 **S3E status: repo implementation drafted and committed, static metadata validated live, staging execution NOT TESTED; production data/cron UNCHANGED.**
+
+## S3F — Offline-tested read-only archive tooling, 23 November 2026
+
+Source-controlled Node utilities (no new dependencies; repository already has `pg`):
+- `docs/master-data-costing/tools/archive-run87.mjs`: fixed two-table allowlist, `REPEATABLE READ READ ONLY` DB transaction, row-id keyset pagination, raw PostgreSQL `row_to_json(t)::text` streaming to gzipped JSONL, SHA-256 digest, exact 108,982-per-table count check and rejection/removal of incomplete output. Uses only a privately supplied `SASV_ARCHIVE_DATABASE_URL`; no database writes, restore, or deletion operations.
+- `docs/master-data-costing/tools/verify-run87.mjs`: independent offline integrity check of archive manifest, data digest and row count. It cannot assert successful restoration.
+- `docs/master-data-costing/tools/archive-run87.test.mjs`: Node built-in test runner fake-query tests. **3/3 PASS** in isolated local execution; no production database connection used in the test.
+- `docs/master-data-costing/tools/README.md`: secure operator instructions and mandatory restore gate.
+
+The source scripts were committed to this draft branch; production archival extraction has **not** been run and no archive artifact is asserted to exist. This is partial two-leaf backup tooling, *not* a complete archive of all 64 direct/62 nested run dependencies. A separately verified isolated database, stage restore and authenticated parity proof remain mandatory before S3E DELETE-in-ROLLBACK rehearsal and any persistent cleanup.
+
+**Current operational-pointer update, read-only 23 Nov 2026:** October approved/displayed = 143; November `approved_run_id=NULL`, `displayed_run_id=153` (`LATEST_SUCCESS`). The previous observed November draft 152 was superseded as displayed; **do not promote 153 to approved or cut over October 143 pricing without the owner's existing approval procedure**. Static row-87 historical fixture is distinct from this moving pointer.
+
+Security note: S3E opt-in flag is not a staging-environment attestation. Operator must independently establish the DB project identity and isolation outside SQL. No billable Supabase branch, archive, DML, DDL, cron or production deletion was created.
