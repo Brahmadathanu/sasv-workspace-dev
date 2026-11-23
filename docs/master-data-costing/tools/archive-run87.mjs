@@ -78,6 +78,7 @@ export async function archiveRun(client, outputDir, pageSize=500) {
   let tx = false;
   try {
     await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    await client.query("SET LOCAL TIME ZONE 'UTC'");
     tx = true;
     const {rows:run} = await client.query(
       'SELECT id::text AS id, period_start::text, overall_status FROM costing.costing_refresh_run WHERE id=$1',[RUN_ID]);
