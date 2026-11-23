@@ -13,6 +13,7 @@
     "branding:generate": "node tools/generate-branding-assets.js",
     "sync-db": "node tools/sync-supabase-types.mjs",
     "electron:install": "install-electron",
+    "test:mis-g7": "node --test supabase/tests/mis_g7/*.test.mjs",
     "test:electron": "node --test scripts/electron-smoke/security-hardening.test.mjs scripts/electron-smoke/electron-main-smoke.test.mjs"
   },
   "author": "",

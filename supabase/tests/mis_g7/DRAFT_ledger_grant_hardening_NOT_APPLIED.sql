@@ -1,0 +1,10 @@
+-- DRAFT ONLY. NOT a migration, NOT applied, NOT tested against live.
+-- Revoking direct authenticated DML on public.fg_bulk_stock_ledger is safe ONLY IF every
+-- legitimate writer (trg_fg_ledger_from_dwl/_es, fn_fg_force_close, fn_fg_auto_zero,
+-- internal-transfer trigger, fn_fg_ledger_add) runs SECURITY DEFINER with an owner that
+-- retains table access. Live function security attributes were NOT verified by this package
+-- (no live access). Verify with: select proname, prosecdef from pg_proc where proname like 'fn_fg_%' or proname like 'trg_fg_%';
+-- Then, in a separately owner-authorized migration:
+--   DROP POLICY fg_bulk_stock_ledger_authenticated_crud ON public.fg_bulk_stock_ledger;
+--   REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fg_bulk_stock_ledger FROM authenticated, anon;
+-- and re-run the full old-writer regression with an authenticated JWT.
