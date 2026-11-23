@@ -245,7 +245,7 @@ CREATE FUNCTION public.fn_fg_auto_zero(p_product integer, p_bn text, p_eps numer
 DECLARE b numeric; BEGIN
   SELECT COALESCE(SUM(qty_base),0) INTO b FROM public.fg_bulk_stock_ledger WHERE product_id=p_product AND batch_number=p_bn;
   IF b <> 0 AND abs(b) <= p_eps THEN
-    PERFORM pg_sleep(0.8);
+    IF p_eps >= 1 THEN PERFORM pg_sleep(0.8); END IF;   -- test hook for read-before-write race
     INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id)
     VALUES (p_product,p_bn,CURRENT_DATE,-b,-b,'kg','AUTO_ZERO','manual',0); END IF; RETURN b; END $$;
 CREATE FUNCTION public.fn_fg_ledger_add(p_product integer, p_bn text, p_qty numeric, p_reason text, p_src_id integer, p_src text, p_date date) RETURNS void LANGUAGE sql SET search_path TO 'pg_catalog', 'public', 'public', 'pg_temp' AS $$
@@ -260,3 +260,46 @@ GRANT EXECUTE ON FUNCTION public.fn_fg_auto_zero(integer,text,numeric) TO authen
 REVOKE ALL ON FUNCTION public.fn_fg_force_close(integer,text,numeric) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.fn_fg_force_close(integer,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.fn_fg_force_close(integer,text) TO authenticated;
+
+-- ===== Reconcile chain (live: independent review of PR #522 @ e938b557, READ ONLY) =====
+-- fn_fg_reconcile_batch: SECURITY INVOKER, search_path pg_catalog,public,pg_temp, EXECUTE only postgres+service_role.
+-- Reads batch balance, calls fn_fg_auto_zero within epsilon, then marks eligible FG worklogs Done behind a guarded
+-- transaction-local flag. Called by three statement-level ledger triggers (INVOKER, authenticated EXECUTE).
+-- BODIES ARE SHIM RECONSTRUCTIONS of the described behavior (live bodies not available); flag name/guard are assumptions.
+CREATE FUNCTION public.fn_fg_reconcile_batch(p_product integer, p_bn text, p_eps numeric) RETURNS void LANGUAGE plpgsql
+ SET search_path TO 'pg_catalog', 'public', 'pg_temp' AS $$
+DECLARE b numeric; BEGIN
+  SELECT COALESCE(SUM(qty_base),0) INTO b FROM public.fg_bulk_stock_ledger WHERE product_id=p_product AND batch_number=p_bn;
+  IF b <> 0 AND abs(b) <= p_eps THEN PERFORM public.fn_fg_auto_zero(p_product, p_bn, p_eps);
+    SELECT COALESCE(SUM(qty_base),0) INTO b FROM public.fg_bulk_stock_ledger WHERE product_id=p_product AND batch_number=p_bn; END IF;
+  IF b = 0 THEN
+    PERFORM set_config('mis.fg_reconcile', '1', true);
+    UPDATE public.daily_work_log w SET status='Done' FROM public.products p
+     WHERE p.id=p_product AND w.item=p.item AND w.batch_number=p_bn AND w.activity='FG bulk storage' AND w.status='In Storage';
+    PERFORM set_config('mis.fg_reconcile', '', true);
+  END IF; END $$;
+CREATE FUNCTION public.trg_dwl_fg_done_guard() RETURNS trigger LANGUAGE plpgsql SET search_path TO 'pg_catalog','public','pg_temp' AS $$
+BEGIN IF NEW.activity='FG bulk storage' AND NEW.status='Done' AND OLD.status IS DISTINCT FROM 'Done'
+        AND coalesce(current_setting('mis.fg_reconcile', true), '') <> '1' THEN
+  RAISE EXCEPTION 'FG bulk Done is set only by batch reconciliation'; END IF; RETURN NEW; END $$;
+CREATE TRIGGER trg_dwl_fg_done_guard BEFORE UPDATE OF status ON public.daily_work_log FOR EACH ROW EXECUTE FUNCTION public.trg_dwl_fg_done_guard();
+CREATE FUNCTION public.trg_fg_ledger_reconcile_ins_stmt() RETURNS trigger LANGUAGE plpgsql SET search_path TO 'pg_catalog','public','pg_temp' AS $$
+DECLARE r record; BEGIN FOR r IN SELECT DISTINCT product_id, batch_number FROM new_rows LOOP
+  PERFORM public.fn_fg_reconcile_batch(r.product_id, r.batch_number, 0.001); END LOOP; RETURN NULL; END $$;
+CREATE FUNCTION public.trg_fg_ledger_reconcile_upd_stmt() RETURNS trigger LANGUAGE plpgsql SET search_path TO 'pg_catalog','public','pg_temp' AS $$
+DECLARE r record; BEGIN FOR r IN SELECT product_id, batch_number FROM new_rows UNION SELECT product_id, batch_number FROM old_rows LOOP
+  PERFORM public.fn_fg_reconcile_batch(r.product_id, r.batch_number, 0.001); END LOOP; RETURN NULL; END $$;
+CREATE FUNCTION public.trg_fg_ledger_reconcile_del_stmt() RETURNS trigger LANGUAGE plpgsql SET search_path TO 'pg_catalog','public','pg_temp' AS $$
+DECLARE r record; BEGIN FOR r IN SELECT DISTINCT product_id, batch_number FROM old_rows LOOP
+  PERFORM public.fn_fg_reconcile_batch(r.product_id, r.batch_number, 0.001); END LOOP; RETURN NULL; END $$;
+CREATE TRIGGER trg_fg_ledger_reconcile_ins_stmt AFTER INSERT ON public.fg_bulk_stock_ledger REFERENCING NEW TABLE AS new_rows FOR EACH STATEMENT EXECUTE FUNCTION public.trg_fg_ledger_reconcile_ins_stmt();
+CREATE TRIGGER trg_fg_ledger_reconcile_upd_stmt AFTER UPDATE ON public.fg_bulk_stock_ledger REFERENCING OLD TABLE AS old_rows NEW TABLE AS new_rows FOR EACH STATEMENT EXECUTE FUNCTION public.trg_fg_ledger_reconcile_upd_stmt();
+CREATE TRIGGER trg_fg_ledger_reconcile_del_stmt AFTER DELETE ON public.fg_bulk_stock_ledger REFERENCING OLD TABLE AS old_rows FOR EACH STATEMENT EXECUTE FUNCTION public.trg_fg_ledger_reconcile_del_stmt();
+REVOKE ALL ON FUNCTION public.fn_fg_reconcile_batch(integer,text,numeric) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.fn_fg_reconcile_batch(integer,text,numeric) TO service_role;
+REVOKE ALL ON FUNCTION public.trg_fg_ledger_reconcile_ins_stmt(), public.trg_fg_ledger_reconcile_upd_stmt(), public.trg_fg_ledger_reconcile_del_stmt() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.trg_fg_ledger_reconcile_ins_stmt(), public.trg_fg_ledger_reconcile_upd_stmt(), public.trg_fg_ledger_reconcile_del_stmt() TO authenticated;
+-- governed old-client write path stand-in (live: rpc_update_daily_work_log_with_packaging is SECURITY DEFINER)
+CREATE FUNCTION public.t_client_rpc(p_sql text) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog','public','pg_temp' AS $$
+BEGIN EXECUTE p_sql; END $$;
+GRANT EXECUTE ON FUNCTION public.t_client_rpc(text) TO authenticated;

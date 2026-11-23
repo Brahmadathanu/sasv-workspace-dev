@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { startPg, installBaseAndMigrations, MIGRATIONS as MIGRATION_FILES } from './pg_harness.mjs';
+import { startPg, installBaseAndMigrations, seedShimFingerprintsSql, MIGRATIONS as MIGRATION_FILES } from './pg_harness.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DB = 'g7';
@@ -274,6 +274,18 @@ T('S3 different batches do not block each other; opposite-order multi-lock does 
 // ------------------- production-shape parity / security / boundary -------------------
 const LEGACY_WRITERS = ['trg_fg_ledger_from_dwl()', 'trg_fg_ledger_from_es()', 'trg_fg_bulk_internal_transfer_to_ledger()',
   'fn_fg_auto_zero(integer,text,numeric)', 'fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)', 'fn_fg_force_close(integer,text,numeric)'];
+const RECON_TRIGGERS = ['trg_fg_ledger_reconcile_ins_stmt()', 'trg_fg_ledger_reconcile_upd_stmt()', 'trg_fg_ledger_reconcile_del_stmt()'];
+const CHAIN = [...LEGACY_WRITERS, 'fn_fg_reconcile_batch(integer,text,numeric)', ...RECON_TRIGGERS];
+const LIVE_SHAS = {
+  'fn_fg_auto_zero(integer,text,numeric)': '705fecd3e68576272af73b5230737c98689c9f538d88e40d723a5b935ae5a582',
+  'fn_fg_force_close(integer,text,numeric)': 'c48578e7e08d311aebdefdaaf512bbfe2a87daecf61c2bde735f46d1e7cff10d',
+  'fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)': '9b9a1a4975679358a2628f3e598a75a2a4b0ac658173da9f6f1950cdd6629675',
+  'trg_fg_bulk_internal_transfer_to_ledger()': '6adab6d8180d2d0f15f8415acd51403691cc6f64c58b549b71ce386e6faa69c5',
+  'trg_fg_ledger_from_dwl()': 'ffe12985b5e7c135766655c4893a886adc2d1a36bd6a181c80cd185649c2eec1',
+  'trg_fg_ledger_from_es()': 'cc32357d320fb63278632c5726085bdcf6b32395453838d39cac8c3584faed28',
+  'trg_fg_ledger_reconcile_ins_stmt()': 'd4cdfe3dbc827d0e14122fe41993981e65b4903bd18d8da3d0013fd730cc2412',
+  'trg_fg_ledger_reconcile_upd_stmt()': 'a298bcff5a7fede05d59c4d77c4673fd4fe5db2f5609914cb900dedfbf6b5f7b',
+  'trg_fg_ledger_reconcile_del_stmt()': 'd09789baea588ff64d78e9b787ae769a4dff2df9f307547bfcdedd562cb995ad' };
 const setMode = (m) => { const r = q(`UPDATE app_private.mis_g7_enforcement SET mode='${m}'`); assert.equal(r.status, 0, r.err); };
 const anon = (sql) => pg.psql(DB, `SET ROLE anon; ${sql}`);
 
@@ -589,6 +601,7 @@ T('PRECHECK S3b fails closed when an invoker function still calls a revoked help
   assert.equal(pg.psql('g7pc', base).status, 0);
   const mig = (f) => fs.readFileSync(path.resolve(here, '../../migrations', f), 'utf8');
   for (const f of MIGRATION_FILES.slice(0, 3)) assert.equal(pg.psql('g7pc', mig(f)).status, 0);
+  assert.equal(pg.psql('g7pc', seedShimFingerprintsSql()).status, 0);
   assert.equal(pg.psql('g7pc', `CREATE FUNCTION public.sneaky_invoker() RETURNS void LANGUAGE sql AS $$ SELECT public.fn_fg_ledger_add(1,'x',1,'x',0,'x',CURRENT_DATE) $$;`).status, 0);
   const r = pg.psql('g7pc', mig(MIGRATION_FILES[3]));
   assert.notEqual(r.status, 0); assert.match(r.err, /invoker functions call revoked helpers: sneaky_invoker\(\)/);
@@ -605,41 +618,167 @@ T('ROLLBACK exact: S3b rollback restores function defs (sha), ACLs, search_path,
   const x = (sql, o) => pg.psql('g7rb', sql, o);
   assert.equal(x(base).status, 0); assert.equal(x(fs.readFileSync(path.join(here, '01_seed.sql'), 'utf8')).status, 0);
   for (const f of MIGRATION_FILES.slice(0, 3)) assert.equal(x(mig(f)).status, 0, f);
+  assert.equal(x(seedShimFingerprintsSql()).status, 0);
   // NULL acl is treated as acldefault() (semantically identical effective privileges)
   const snapR = () => x(`SELECT jsonb_pretty(jsonb_agg(jsonb_build_object('fn', p.oid::regprocedure::text, 'def_sha', encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex'),
        'secdef', p.prosecdef, 'cfg', p.proconfig, 'acl', (SELECT string_agg(x::text, ',' ORDER BY x::text) FROM unnest(coalesce(p.proacl, acldefault('f', p.proowner))) x)) ORDER BY p.oid::regprocedure::text))
-     FROM pg_proc p WHERE p.oid IN (${LEGACY_WRITERS.map((w) => `'public.${w}'::regprocedure`).join(',')})
+     FROM pg_proc p WHERE p.oid IN (${CHAIN.map((w) => `'public.${w}'::regprocedure`).join(',')})
     UNION ALL SELECT (SELECT string_agg(x::text, ',' ORDER BY x::text) FROM pg_class c, unnest(coalesce(c.relacl, acldefault('r', c.relowner))) x WHERE c.oid='public.fg_bulk_stock_ledger'::regclass)
     UNION ALL SELECT (SELECT string_agg(polname::text||':'||polcmd::text, ',') FROM pg_policy WHERE polrelid='public.fg_bulk_stock_ledger'::regclass)
     UNION ALL SELECT (SELECT relrowsecurity::text FROM pg_class WHERE oid='public.fg_bulk_stock_ledger'::regclass)`);
   const snap = () => { const r = snapR(); assert.equal(r.status, 0, r.err); assert.ok(r.out.length > 200); return r.out; };
   const before = snap();
-  const crud = (b) => {   // old-client signed-in DWL, packaging and transfer CRUD
-    assert.equal(x(`INSERT INTO public.bmr_details(id,product_id,bn,lifecycle_status) VALUES ((SELECT max(id)+1 FROM public.bmr_details),1,'${b}','Released'); INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status,storage_qty,storage_qty_uom) VALUES ('P1','${b}','FG bulk storage','2026-11-12','Done',50,'kg')`, { uid: PACKER }).status, 0);
-    x(`INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status) VALUES ('P1','${b}','Filling','2026-11-12','Done'); INSERT INTO public.packaging_events(work_log_id,event_type) SELECT max(id),'Bottling' FROM public.daily_work_log`, { uid: PACKER });
+  const crud = (b, governed = false) => {   // old-client DWL, packaging and transfer CRUD; governed = via definer RPC stand-in (the only path that works pre-S3b)
+    const w = (sql) => governed ? x(`SELECT public.t_client_rpc($q$${sql}$q$)`, { uid: PACKER }) : x(sql, { uid: PACKER });
+    assert.equal(w(`INSERT INTO public.bmr_details(id,product_id,bn,lifecycle_status) VALUES ((SELECT max(id)+1 FROM public.bmr_details),1,'${b}','Released'); INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status,storage_qty,storage_qty_uom) VALUES ('P1','${b}','FG bulk storage','2026-11-12','In Storage',50,'kg')`).status, 0);
+    w(`INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status) VALUES ('P1','${b}','Filling','2026-11-12','Done'); INSERT INTO public.packaging_events(work_log_id,event_type) SELECT max(id),'Bottling' FROM public.daily_work_log`);
     const ev = x(`SELECT pe.id FROM public.packaging_events pe JOIN public.daily_work_log w ON w.id=pe.work_log_id WHERE w.batch_number='${b}'`).out;
-    assert.equal(x(`INSERT INTO public.event_skus(packaging_event_id,sku_id,"count") VALUES (${ev},10,10)`, { uid: PACKER }).status, 0);
-    assert.equal(x(`UPDATE public.event_skus SET "count"=20 WHERE packaging_event_id=${ev}`, { uid: PACKER }).status, 0);
-    assert.equal(x(`INSERT INTO public.fg_bulk_internal_transfer(product_id,batch_number,qty_base,from_plant,to_plant) VALUES (1,'${b}',5,1,2)`, { uid: PACKER }).status, 0);
-    assert.equal(x(`DELETE FROM public.event_skus WHERE packaging_event_id=${ev}`, { uid: PACKER }).status, 0);
+    assert.equal(w(`INSERT INTO public.event_skus(packaging_event_id,sku_id,"count") VALUES (${ev},10,10)`).status, 0);
+    assert.equal(w(`UPDATE public.event_skus SET "count"=20 WHERE packaging_event_id=${ev}`).status, 0);
+    assert.equal(w(`INSERT INTO public.fg_bulk_internal_transfer(product_id,batch_number,qty_base,from_plant,to_plant) VALUES (1,'${b}',5,1,2)`).status, 0);
+    assert.equal(w(`DELETE FROM public.event_skus WHERE packaging_event_id=${ev}`).status, 0);
     return Number(x(`SELECT sum(qty_base) FROM public.fg_bulk_stock_ledger WHERE batch_number='${b}'`).out);
   };
-  assert.equal(crud('RB1'), 50);                                                    // before S3b (legacy state)
-  assert.equal(x(`SELECT public.fn_fg_ledger_add(1,'RB1',1,'x',0,'m',CURRENT_DATE)`, { uid: PACKER }).status, 0);   // legacy authenticated helper works pre-S3b
+  assert.equal(crud('RB1', true), 50);                                              // before S3b (legacy state, governed definer path)
+  const preSha = Object.fromEntries(x(`SELECT p.oid::regprocedure::text||'='||encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex') FROM pg_proc p WHERE p.oid IN (${CHAIN.map((w) => `'public.${w}'::regprocedure`).join(',')})`).out.split('\n').map((l) => l.split('=')));
+  // pre-S3b a direct authenticated ledger write fires the INVOKER statement trigger, which cannot reach the postgres/service_role-only reconciler
+  assert.match(x(`SELECT public.fn_fg_ledger_add(1,'RB1',1,'x',0,'m',CURRENT_DATE)`, { uid: PACKER }).err, /permission denied for function fn_fg_reconcile_batch/);
+  assert.equal(x(`SELECT public.t_client_rpc($q$SELECT public.fn_fg_ledger_add(1,'RB1',1,'x',0,'m',CURRENT_DATE)$q$)`, { uid: PACKER }).status, 0);   // governed definer path works
   assert.equal(x(mig(MIGRATION_FILES[3])).status, 0);
   assert.notEqual(snap(), before);
-  assert.equal(crud('RB2'), 50);                                                    // after S3b (restricted)
+  // immutable packet: baseline stores full source + sha of every chain function as it was pre-S3b
+  for (const [fn, sha] of Object.entries(preSha)) {
+    assert.equal(x(`SELECT def_sha FROM app_private.mis_g7_s3b_baseline WHERE obj='${fn}'`).out, sha, fn);
+    assert.equal(x(`SELECT encode(sha256(convert_to(def,'UTF8')),'hex')=def_sha AND length(def)>50 FROM app_private.mis_g7_s3b_baseline WHERE obj='${fn}'`).out, 't');
+  }
+  assert.equal(x(`SELECT count(*) FROM app_private.mis_g7_s3b_baseline WHERE kind='function'`).out, String(CHAIN.length));
+  assert.equal(crud('RB2'), 50);                                                    // after S3b (direct authenticated path now runs through the definer chain)
   assert.match(x(`INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,qty,qty_base) VALUES (1,'RB2',1,1)`, { uid: PACKER }).err, /permission denied/);
   const rb = fs.readFileSync(path.resolve(here, '../../../docs/executive-mis-g7-server/ROLLBACK_NOT_A_MIGRATION.sql'), 'utf8');
   const s3b = rb.slice(rb.indexOf('-- ==== S3B ROLLBACK ===='));
   assert.ok(s3b.length > 100);
   assert.equal(x(s3b).status, 0, x(s3b).err);
   assert.equal(snap(), before, 'rollback must restore exact pg_get_functiondef sha, ACLs, search_path, secdef, table ACL, policies, RLS');
-  assert.equal(crud('RB3'), 50);                                                    // after rollback
-  assert.equal(x(`SELECT public.fn_fg_ledger_add(1,'RB3',1,'x',0,'m',CURRENT_DATE)`, { uid: PACKER }).status, 0);   // helper access restored exactly
+  assert.equal(crud('RB3', true), 50);                                              // after rollback (governed definer path, as before S3b)
+  assert.match(x(`INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status,storage_qty,storage_qty_uom) VALUES ('P1','RB3','FG bulk storage','2026-11-12','In Storage',1,'kg')`, { uid: PACKER }).err, /permission denied for function fn_fg_reconcile_batch/);   // legacy direct-invoker behavior restored exactly
+  assert.equal(x(`SELECT has_function_privilege('authenticated','public.fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)','EXECUTE')`).out, 't');   // helper EXECUTE restored exactly
+  assert.equal(x(`SELECT has_function_privilege('authenticated','public.fn_fg_reconcile_batch(integer,text,numeric)','EXECUTE')`).out, 'f');   // reconciler ACL never widened
   // signed history retained, gate objects remain but are inert (triggers dropped)
   assert.equal(x(`SELECT count(*) FROM pg_trigger WHERE tgname LIKE '00_mis_g7_%gate'`).out, '0');
   assert.equal(x(`SELECT to_regclass('app_private.mis_batch_stage_event') IS NOT NULL`).out, 't');
   assert.equal(x(`SELECT to_regclass('app_private.mis_g7_direct_pack_audit') IS NOT NULL`).out, 't');
+});
+
+// ---------------- review round 3: reconcile chain (fn_fg_reconcile_batch + 3 statement triggers) ----------------
+const SERVICE = '00000000-0000-0000-0000-0000000000bb';
+const asService = (sql) => pg.psql(DB, `SET ROLE service_role; ${sql}`);
+const fgDwl = (b, qty, status = 'In Storage') => q(`INSERT INTO public.bmr_details(id,product_id,bn,lifecycle_status) VALUES ((SELECT max(id)+1 FROM public.bmr_details),1,'${b}','Released');
+   INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status,storage_qty,storage_qty_uom) VALUES ('P1','${b}','FG bulk storage','2026-11-10','${status}',${qty},'kg');
+   INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status) VALUES ('P1','${b}','Filling','2026-11-11','Done');
+   INSERT INTO public.packaging_events(work_log_id,event_type) SELECT max(id),'Bottling' FROM public.daily_work_log`);
+const dwlStatus = (b) => val(`SELECT status FROM public.daily_work_log WHERE batch_number='${b}' AND activity='FG bulk storage'`);
+
+T('CHAIN structure: three statement triggers -> definer chain; reconciler ACL postgres+service_role only; helpers closed', () => {
+  for (const f of RECON_TRIGGERS) {
+    assert.equal(val(`SELECT prosecdef FROM pg_proc WHERE oid='public.${f}'::regprocedure`), 't', f);
+    assert.equal(val(`SELECT count(*) FROM pg_trigger t WHERE t.tgfoid='public.${f}'::regprocedure AND t.tgrelid='public.fg_bulk_stock_ledger'::regclass AND (t.tgtype & 1)=0 AND NOT t.tgisinternal`), '1', f);
+    for (const role of ['authenticated', 'anon', 'public']) assert.equal(val(`SELECT has_function_privilege('${role}','public.${f}','EXECUTE')`), 'f', `${role} ${f}`);
+  }
+  const rb = 'public.fn_fg_reconcile_batch(integer,text,numeric)';
+  assert.equal(val(`SELECT prosecdef FROM pg_proc WHERE oid='${rb}'::regprocedure`), 't');
+  for (const role of ['authenticated', 'anon', 'public']) assert.equal(val(`SELECT has_function_privilege('${role}','${rb}','EXECUTE')`), 'f', role);
+  assert.equal(val(`SELECT has_function_privilege('service_role','${rb}','EXECUTE')`), 't');
+  assert.match(val(`SELECT array_to_string(proconfig,';') FROM pg_proc WHERE oid='${rb}'::regprocedure`), /search_path=pg_catalog, public, pg_temp/);
+});
+T('CHAIN direct calls denied for authenticated, anon and PUBLIC; service_role keeps trusted reconcile', () => {
+  const b = bn('CH0'); mk(b);
+  const calls = [`SELECT public.fn_fg_reconcile_batch(1,'${b}',0.001)`, `SELECT public.fn_fg_auto_zero(1,'${b}',0.001)`];
+  for (const [label, uid] of ROLES) for (const c of calls) assert.match(q(c, uid).err, /permission denied for function/, `${label}: ${c}`);
+  for (const c of calls) assert.match(anon(c).err, /permission denied for function/, `anon: ${c}`);
+  const r = asService(`SELECT public.fn_fg_reconcile_batch(1,'${b}',0.001)`); assert.equal(r.status, 0, r.err);   // definer: runs as owner
+  assert.match(asService(`SELECT public.fn_fg_auto_zero(1,'${b}',0.001)`).err, /permission denied for function/);   // helper stays closed even to service_role
+  assert.equal(bal(b), 100);
+});
+T('CHAIN insert path: authenticated pack leaves epsilon dust -> statement trigger -> reconcile -> auto-zero -> guarded Done', () => {
+  const b = bn('CH1'); fgDwl(b, 0.5005);
+  assert.equal(dwlStatus(b), 'In Storage'); assert.equal(bal(b), 0.5005);          // insert trigger chain ran: non-zero stays In Storage
+  assert.equal(JSON.parse(sign(b, SIGNER, '0.5005').out).ok, true);
+  const r = JSON.parse(pack(b, [{ sku_id: 10, count: 1 }]).out);                   // PACKER (authenticated) -> definer RPC -> es -> ledger -> stmt trigger
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(Number(r.balance_after_base), 0);
+  assert.equal(bal(b), 0);
+  assert.equal(val(`SELECT count(*) FROM public.fg_bulk_stock_ledger WHERE batch_number='${b}' AND reason_code='AUTO_ZERO'`), '1');
+  assert.equal(dwlStatus(b), 'Done');
+});
+T('CHAIN direct authenticated old-client SKU insert also runs the full chain (no client privilege needed)', () => {
+  const b = bn('CH2'); fgDwl(b, 0.5005); const ev = evId(b);
+  const r = q(`INSERT INTO public.event_skus(packaging_event_id,sku_id,"count") VALUES (${ev},10,1)`, PACKER); assert.equal(r.status, 0, r.err);
+  assert.equal(bal(b), 0); assert.equal(dwlStatus(b), 'Done');
+});
+T('CHAIN update and delete statement triggers: reconcile on UPDATE/DELETE, Done only when balance is exactly zero', () => {
+  const b = bn('CH3'); fgDwl(b, 5);
+  assert.equal(q(`UPDATE public.fg_bulk_stock_ledger SET qty=0, qty_base=0 WHERE batch_number='${b}' AND source_table='daily_work_log'`).status, 0);   // upd_stmt
+  assert.equal(dwlStatus(b), 'Done');
+  q(`UPDATE public.daily_work_log SET status='In Storage' WHERE batch_number='${b}' AND activity='FG bulk storage'`);   // reopening is allowed; only marking Done is governed
+  assert.equal(q(`SELECT public.fn_fg_ledger_add(1,'${b}',2,'ADJ',77,'manual','2026-11-12')`).status, 0);            // bal 2 -> stays open
+  assert.equal(dwlStatus(b), 'In Storage');
+  assert.equal(q(`DELETE FROM public.fg_bulk_stock_ledger WHERE batch_number='${b}' AND reason_code='ADJ'`).status, 0);   // del_stmt -> bal 0 -> Done
+  assert.equal(dwlStatus(b), 'Done');
+  // update touching a batch with remaining stock must not mark Done
+  const c = bn('CH4'); fgDwl(c, 5);
+  q(`UPDATE public.fg_bulk_stock_ledger SET qty=4, qty_base=4 WHERE batch_number='${c}' AND source_table='daily_work_log'`);
+  assert.equal(dwlStatus(c), 'In Storage');
+  // transfer UPDATE/DELETE leg rebuild goes through the same triggers without breaking
+  q(`INSERT INTO public.fg_bulk_internal_transfer(product_id,batch_number,qty_base,from_plant,to_plant) VALUES (1,'${c}',3,1,2)`, PACKER);
+  const id = val(`SELECT max(id) FROM public.fg_bulk_internal_transfer WHERE batch_number='${c}'`);
+  assert.equal(q(`UPDATE public.fg_bulk_internal_transfer SET qty_base=2 WHERE id=${id}`, PACKER).status, 0);
+  assert.equal(q(`DELETE FROM public.fg_bulk_internal_transfer WHERE id=${id}`, PACKER).status, 0);
+  assert.equal(bal(c), 4); assert.equal(dwlStatus(c), 'In Storage');
+});
+T('CHAIN governed Done: ordinary users cannot mark an FG bulk work log Done directly; reconciliation can', () => {
+  const b = bn('CH5'); fgDwl(b, 5);
+  assert.match(q(`UPDATE public.daily_work_log SET status='Done' WHERE batch_number='${b}' AND activity='FG bulk storage'`, PACKER).err, /Done is set only by batch reconciliation/);
+  assert.equal(dwlStatus(b), 'In Storage');
+  // the guard flag is transaction-local and cleared by the reconciler: it does not leak to a later statement
+  assert.equal(q(`SELECT public.fn_fg_ledger_add(1,'${b}',-5,'ADJ',78,'manual','2026-11-12')`).status, 0);
+  assert.equal(dwlStatus(b), 'Done');
+  assert.equal(val(`SELECT coalesce(current_setting('mis.fg_reconcile', true),'')`), '');
+});
+T('CHAIN concurrency: reconciliation inside the batch lock; concurrent dust packers resolve to one Done, zero balance', async () => {
+  const b = bn('CH6'); fgDwl(b, 1.0005); sign(b, SIGNER, '1.0005'); const e = evId(b);
+  const call = (sku) => `SELECT public.mis_pack_fg_bulk_v1('${randomUUID()}',${e},'[{"sku_id":${sku},"count":1}]'::jsonb)`;   // 0.5 kg each
+  const [x, y] = await Promise.all([pg.psqlAsync(DB, call(10), { uid: PACKER }), pg.psqlAsync(DB, call(11).replace('"count":1', '"count":1'), { uid: PACKER })]);
+  const rs = [x, y].map((r) => JSON.parse(r.out.split('\n').find((l) => l.startsWith('{'))));
+  assert.ok(rs.every((r) => r.ok), JSON.stringify(rs));
+  assert.equal(bal(b), 0); assert.equal(dwlStatus(b), 'Done');
+  assert.equal(val(`SELECT count(*) FROM public.fg_bulk_stock_ledger WHERE batch_number='${b}' AND reason_code='AUTO_ZERO'`), '1');
+});
+
+// ---------------- fingerprint + resolved-graph install prechecks ----------------
+const freshPre = (name) => {
+  pg.createDb(name);
+  const mig = (f) => fs.readFileSync(path.resolve(here, '../../migrations', f), 'utf8');
+  assert.equal(pg.psql(name, fs.readFileSync(path.join(here, '00_base_schema_shim.sql'), 'utf8')).status, 0);
+  for (const f of MIGRATION_FILES.slice(0, 3)) assert.equal(pg.psql(name, mig(f)).status, 0, f);
+  return { mig3b: mig(MIGRATION_FILES[3]), run: (sql) => pg.psql(name, sql) };
+};
+T('FINGERPRINT migration pins the supplied live SHAs; literal pins refuse a non-identical schema; mutation after seeding refuses', () => {
+  const mig3b = fs.readFileSync(path.resolve(here, '../../migrations', MIGRATION_FILES[3]), 'utf8');
+  for (const [fn, sha] of Object.entries(LIVE_SHAS)) assert.ok(mig3b.includes(`'${fn}','${sha}'`), fn);
+  const a = freshPre('g7fp');                                         // no shim seeding: literal live SHAs are enforced
+  const r = a.run(a.mig3b); assert.notEqual(r.status, 0); assert.match(r.err, /live function fingerprint mismatch/);
+  assert.equal(a.run(`SELECT prosecdef FROM pg_proc WHERE oid='public.fn_fg_auto_zero(integer,text,numeric)'::regprocedure`).out, 'f');   // nothing applied
+  assert.equal(a.run(`SELECT has_table_privilege('authenticated','public.fg_bulk_stock_ledger','INSERT')`).out, 't');
+  const b = freshPre('g7fm'); assert.equal(b.run(seedShimFingerprintsSql()).status, 0);
+  assert.equal(b.run(`CREATE OR REPLACE FUNCTION public.fn_fg_ledger_add(p_product integer, p_bn text, p_qty numeric, p_reason text, p_src_id integer, p_src text, p_date date) RETURNS void LANGUAGE sql SET search_path TO 'pg_catalog','public','public','pg_temp' AS $$ SELECT 1 $$`).status, 0);
+  assert.match(b.run(b.mig3b).err, /fingerprint mismatch.*fn_fg_ledger_add/);
+});
+T('GRAPH precheck refuses: invoker caller of the reconciler, client-executable reconciler, missing statement trigger, unpinned chain member', () => {
+  const run1 = (setup, re) => { const g = freshPre(`g7g${++n}`); assert.equal(g.run(seedShimFingerprintsSql()).status, 0); assert.equal(g.run(setup).status, 0, setup);
+    const r = g.run(g.mig3b); assert.notEqual(r.status, 0); assert.match(r.err, re, r.err);
+    assert.equal(g.run(`SELECT prosecdef FROM pg_proc WHERE oid='public.fn_fg_reconcile_batch(integer,text,numeric)'::regprocedure`).out, 'f'); };
+  run1(`CREATE FUNCTION public.sneaky_reconcile() RETURNS void LANGUAGE sql AS $$ SELECT public.fn_fg_reconcile_batch(1,'x',0.001) $$`, /invoker functions call revoked helpers: sneaky_reconcile\(\)/);
+  run1(`GRANT EXECUTE ON FUNCTION public.fn_fg_reconcile_batch(integer,text,numeric) TO authenticated`, /fn_fg_reconcile_batch is executable by a client role/);
+  run1(`DROP TRIGGER trg_fg_ledger_reconcile_del_stmt ON public.fg_bulk_stock_ledger`, /trg_fg_ledger_reconcile_del_stmt\(\) is not an installed statement-level trigger/);
+  run1(`ALTER FUNCTION public.fn_fg_reconcile_batch(integer,text,numeric) RESET search_path`, /fn_fg_reconcile_batch\(integer,text,numeric\) has no pinned search_path/);
 });
 test('BLOCKED (not PASS): live-schema compile, live role/JWT simulation, early-lock force-close/auto-zero wrappers, legitimate corrections under ENFORCE', { skip: 'BLOCKED: needs live definitions / owner authorization; see README' }, () => {});

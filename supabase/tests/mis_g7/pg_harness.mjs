@@ -74,9 +74,20 @@ export function startPg() {
   return api;
 }
 
+// Shim bodies are reconstructions, so they cannot hash to the live SHAs pinned in the S3b migration. Tests therefore
+// pre-seed app_private.mis_g7_s3b_expected_sha (the migration's INSERT is ON CONFLICT DO NOTHING) with the SHAs of the
+// shim functions, keeping the verification mechanism itself live. Separate tests prove the literal live SHAs refuse the shim.
+export const SHIM_CHAIN = ['fn_fg_auto_zero(integer,text,numeric)', 'fn_fg_force_close(integer,text,numeric)',
+  'fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)', 'trg_fg_bulk_internal_transfer_to_ledger()', 'trg_fg_ledger_from_dwl()',
+  'trg_fg_ledger_from_es()', 'trg_fg_ledger_reconcile_ins_stmt()', 'trg_fg_ledger_reconcile_upd_stmt()', 'trg_fg_ledger_reconcile_del_stmt()'];
+export const seedShimFingerprintsSql = () => `CREATE SCHEMA IF NOT EXISTS app_private;
+CREATE TABLE IF NOT EXISTS app_private.mis_g7_s3b_expected_sha (obj text PRIMARY KEY, sha text NOT NULL CHECK (sha ~ '^[0-9a-f]{64}$'));
+INSERT INTO app_private.mis_g7_s3b_expected_sha SELECT o, encode(sha256(convert_to(pg_get_functiondef(to_regprocedure('public.' || o)), 'UTF8')), 'hex')
+  FROM unnest(ARRAY[${SHIM_CHAIN.map((o) => `'${o}'`).join(',')}]) o ON CONFLICT DO NOTHING;`;
 export function installBaseAndMigrations(pg, db) {
   const files = [path.join(here, '00_base_schema_shim.sql'), ...MIGRATIONS.map((m) => path.join(migDir, m))];
   for (const f of files) {
+    if (f.endsWith('s3b_protected_stock_write_boundary.sql')) { const q = pg.psql(db, seedShimFingerprintsSql()); if (q.status !== 0) throw new Error(q.err); }
     const r = pg.psql(db, fs.readFileSync(f, 'utf8'));
     if (r.status !== 0) throw new Error(`install failed ${path.basename(f)}: ${r.err}`);
   }

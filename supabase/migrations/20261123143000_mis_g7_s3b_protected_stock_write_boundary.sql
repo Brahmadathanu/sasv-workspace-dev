@@ -17,21 +17,47 @@
 -- is exact whatever the live privileges really were. Insert-only; retained after rollback.
 CREATE TABLE IF NOT EXISTS app_private.mis_g7_s3b_baseline (
   obj text PRIMARY KEY, kind text NOT NULL CHECK (kind IN ('function','table')),
-  acl aclitem[], secdef boolean, proconfig text[], captured_at timestamptz NOT NULL DEFAULT clock_timestamp());
+  acl aclitem[], secdef boolean, proconfig text[], def text, def_sha text, captured_at timestamptz NOT NULL DEFAULT clock_timestamp());
 DROP TRIGGER IF EXISTS mis_g7_s3b_baseline_append_only ON app_private.mis_g7_s3b_baseline;
 CREATE TRIGGER mis_g7_s3b_baseline_append_only BEFORE UPDATE OR DELETE ON app_private.mis_g7_s3b_baseline
   FOR EACH ROW EXECUTE FUNCTION app_private.mis_g7_append_only_guard();
 ALTER TABLE app_private.mis_g7_s3b_baseline ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE app_private.mis_g7_s3b_baseline FROM PUBLIC, anon, authenticated;
-INSERT INTO app_private.mis_g7_s3b_baseline (obj, kind, acl, secdef, proconfig)
-SELECT p.oid::regprocedure::text, 'function', p.proacl, p.prosecdef, p.proconfig FROM pg_proc p
- WHERE p.oid = ANY (ARRAY[to_regprocedure('public.trg_fg_ledger_from_dwl()'), to_regprocedure('public.trg_fg_ledger_from_es()'),
+-- Full pre-change function source + SHA-256 are persisted too (immutable deployment packet). Scope = the six
+-- writers PLUS the reconcile chain discovered by the independent review: fn_fg_reconcile_batch and the three
+-- statement-level triggers that call it.
+INSERT INTO app_private.mis_g7_s3b_baseline (obj, kind, acl, secdef, proconfig, def, def_sha)
+SELECT p.oid::regprocedure::text, 'function', p.proacl, p.prosecdef, p.proconfig, pg_get_functiondef(p.oid),
+       encode(sha256(convert_to(pg_get_functiondef(p.oid), 'UTF8')), 'hex')
+  FROM pg_proc p WHERE p.oid = ANY (ARRAY[to_regprocedure('public.trg_fg_ledger_from_dwl()'), to_regprocedure('public.trg_fg_ledger_from_es()'),
    to_regprocedure('public.trg_fg_bulk_internal_transfer_to_ledger()'), to_regprocedure('public.fn_fg_auto_zero(integer,text,numeric)'),
    to_regprocedure('public.fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)'),
-   to_regprocedure('public.fn_fg_force_close(integer,text,numeric)')]::oid[])
+   to_regprocedure('public.fn_fg_force_close(integer,text,numeric)'),
+   to_regprocedure('public.fn_fg_reconcile_batch(integer,text,numeric)'),
+   to_regprocedure('public.trg_fg_ledger_reconcile_ins_stmt()'), to_regprocedure('public.trg_fg_ledger_reconcile_upd_stmt()'),
+   to_regprocedure('public.trg_fg_ledger_reconcile_del_stmt()')]::oid[])
 ON CONFLICT (obj) DO NOTHING;
 INSERT INTO app_private.mis_g7_s3b_baseline (obj, kind, acl)
 SELECT 'public.fg_bulk_stock_ledger', 'table', c.relacl FROM pg_class c WHERE c.oid = 'public.fg_bulk_stock_ledger'::regclass
+ON CONFLICT (obj) DO NOTHING;
+
+-- Live fingerprints (SHA-256 of pg_get_functiondef, independent READ ONLY review of PR #522 @ e938b557, before S3b).
+-- The install FAILS CLOSED unless every listed function still hashes to its reviewed value. (reconcile_batch's
+-- fingerprint was not supplied: it is only captured in the baseline and must be added to the packet.)
+CREATE TABLE IF NOT EXISTS app_private.mis_g7_s3b_expected_sha (
+  obj text PRIMARY KEY, sha text NOT NULL CHECK (sha ~ '^[0-9a-f]{64}$'));
+ALTER TABLE app_private.mis_g7_s3b_expected_sha ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE app_private.mis_g7_s3b_expected_sha FROM PUBLIC, anon, authenticated;
+INSERT INTO app_private.mis_g7_s3b_expected_sha (obj, sha) VALUES
+ ('fn_fg_auto_zero(integer,text,numeric)','705fecd3e68576272af73b5230737c98689c9f538d88e40d723a5b935ae5a582'),
+ ('fn_fg_force_close(integer,text,numeric)','c48578e7e08d311aebdefdaaf512bbfe2a87daecf61c2bde735f46d1e7cff10d'),
+ ('fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)','9b9a1a4975679358a2628f3e598a75a2a4b0ac658173da9f6f1950cdd6629675'),
+ ('trg_fg_bulk_internal_transfer_to_ledger()','6adab6d8180d2d0f15f8415acd51403691cc6f64c58b549b71ce386e6faa69c5'),
+ ('trg_fg_ledger_from_dwl()','ffe12985b5e7c135766655c4893a886adc2d1a36bd6a181c80cd185649c2eec1'),
+ ('trg_fg_ledger_from_es()','cc32357d320fb63278632c5726085bdcf6b32395453838d39cac8c3584faed28'),
+ ('trg_fg_ledger_reconcile_ins_stmt()','d4cdfe3dbc827d0e14122fe41993981e65b4903bd18d8da3d0013fd730cc2412'),
+ ('trg_fg_ledger_reconcile_upd_stmt()','a298bcff5a7fede05d59c4d77c4673fd4fe5db2f5609914cb900dedfbf6b5f7b'),
+ ('trg_fg_ledger_reconcile_del_stmt()','d09789baea588ff64d78e9b787ae769a4dff2df9f307547bfcdedd562cb995ad')
 ON CONFLICT (obj) DO NOTHING;
 
 -- Review correction (PR #522 head 9d6f249): converting a publicly EXECUTABLE writer to SECURITY DEFINER
@@ -40,38 +66,64 @@ ON CONFLICT (obj) DO NOTHING;
 -- fn_fg_ledger_add / fn_fg_auto_zero (only fn_fg_force_close(integer,text), a definer wrapper that is NOT
 -- altered here); trigger functions need no EXECUTE by the invoking role. The install fails closed if any
 -- other non-definer function body references the two helpers (an invoker caller would silently break).
+-- Resolved-graph precheck (review of e938b557): the reconcile chain
+--   3 statement triggers (trg_fg_ledger_reconcile_{ins,upd,del}_stmt, SECURITY INVOKER, authenticated EXECUTE)
+--     -> fn_fg_reconcile_batch (SECURITY INVOKER, EXECUTE postgres+service_role only)
+--       -> fn_fg_auto_zero (+ guarded transaction-local Done marking)
+-- would run as the DML user and break once EXECUTE on fn_fg_auto_zero is revoked. Resolution implemented here:
+-- convert the whole chain to SECURITY DEFINER (owner context, pinned search_path, bodies untouched) so automatic
+-- reconciliation + governed Done marking keep working for every writer, while EXECUTE on the privileged helpers
+-- stays closed to clients. fn_fg_reconcile_batch's own ACL is NOT changed (must already exclude clients).
 DO $$
-DECLARE s text; v_callers text; v_cfg text[];
-BEGIN
-  FOREACH s IN ARRAY ARRAY[
+DECLARE s text; v_callers text; v_cfg text[]; v_bad text; v_oid oid;
+  v_chain text[] := ARRAY[
     'public.trg_fg_ledger_from_dwl()','public.trg_fg_ledger_from_es()',
     'public.trg_fg_bulk_internal_transfer_to_ledger()','public.fn_fg_auto_zero(integer,text,numeric)',
     'public.fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)',
-    'public.fn_fg_force_close(integer,text,numeric)'] LOOP
-    IF to_regprocedure(s) IS NULL THEN RAISE EXCEPTION 'MIS_G7_S3B: legacy writer % missing; refusing install', s; END IF;
+    'public.fn_fg_force_close(integer,text,numeric)','public.fn_fg_reconcile_batch(integer,text,numeric)',
+    'public.trg_fg_ledger_reconcile_ins_stmt()','public.trg_fg_ledger_reconcile_upd_stmt()','public.trg_fg_ledger_reconcile_del_stmt()'];
+  v_closed text[] := ARRAY[   -- EXECUTE revoked from clients (everything in the chain except the reconciler, whose ACL is kept)
+    'public.trg_fg_ledger_from_dwl()','public.trg_fg_ledger_from_es()',
+    'public.trg_fg_bulk_internal_transfer_to_ledger()','public.fn_fg_auto_zero(integer,text,numeric)',
+    'public.fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)',
+    'public.fn_fg_force_close(integer,text,numeric)',
+    'public.trg_fg_ledger_reconcile_ins_stmt()','public.trg_fg_ledger_reconcile_upd_stmt()','public.trg_fg_ledger_reconcile_del_stmt()'];
+BEGIN
+  FOREACH s IN ARRAY v_chain LOOP
+    IF to_regprocedure(s) IS NULL THEN RAISE EXCEPTION 'MIS_G7_S3B: chain function % missing; refusing install', s; END IF;
     SELECT proconfig INTO v_cfg FROM pg_proc WHERE oid = to_regprocedure(s);
     IF v_cfg IS NULL OR NOT EXISTS (SELECT 1 FROM unnest(v_cfg) c WHERE c LIKE 'search_path=%') THEN
       RAISE EXCEPTION 'MIS_G7_S3B: % has no pinned search_path; refusing DEFINER conversion', s; END IF;
   END LOOP;
+  -- reviewed fingerprints must still match
+  SELECT string_agg(e.obj || ' live=' || coalesce(encode(sha256(convert_to(pg_get_functiondef(to_regprocedure('public.' || e.obj)), 'UTF8')), 'hex'), 'MISSING'), '; ')
+    INTO v_bad FROM app_private.mis_g7_s3b_expected_sha e
+   WHERE coalesce(encode(sha256(convert_to(pg_get_functiondef(to_regprocedure('public.' || e.obj)), 'UTF8')), 'hex'), '') <> e.sha;
+  IF v_bad IS NOT NULL THEN RAISE EXCEPTION 'MIS_G7_S3B: live function fingerprint mismatch (definitions changed since review): %', v_bad; END IF;
+  -- the reconciler must not already be client-executable (we never widen it)
+  v_oid := to_regprocedure('public.fn_fg_reconcile_batch(integer,text,numeric)');
+  IF has_function_privilege('authenticated', v_oid, 'EXECUTE') OR has_function_privilege('anon', v_oid, 'EXECUTE')
+     OR has_function_privilege('public'::name, v_oid, 'EXECUTE') THEN
+    RAISE EXCEPTION 'MIS_G7_S3B: fn_fg_reconcile_batch is executable by a client role; resolve before install'; END IF;
+  -- the three reconcile triggers must be the statement-level ledger triggers that reach the reconciler
+  FOREACH s IN ARRAY ARRAY['public.trg_fg_ledger_reconcile_ins_stmt()','public.trg_fg_ledger_reconcile_upd_stmt()','public.trg_fg_ledger_reconcile_del_stmt()'] LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger t WHERE t.tgfoid = to_regprocedure(s) AND t.tgrelid = 'public.fg_bulk_stock_ledger'::regclass
+                    AND NOT t.tgisinternal AND (t.tgtype & 1) = 0) THEN
+      RAISE EXCEPTION 'MIS_G7_S3B: % is not an installed statement-level trigger on fg_bulk_stock_ledger', s; END IF;
+  END LOOP;
+  -- every OTHER non-definer function that references a chain entrypoint would silently break: refuse
   SELECT string_agg(p.oid::regprocedure::text, ', ') INTO v_callers
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
    WHERE p.prokind = 'f' AND NOT p.prosecdef AND n.nspname NOT IN ('pg_catalog','information_schema')
-     AND (p.prosrc ILIKE '%fn_fg_ledger_add%' OR p.prosrc ILIKE '%fn_fg_auto_zero%')
-     AND p.oid <> ALL (ARRAY[to_regprocedure('public.fn_fg_auto_zero(integer,text,numeric)'),
-                             to_regprocedure('public.fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)')]::oid[]);
+     AND (p.prosrc ILIKE '%fn_fg_ledger_add%' OR p.prosrc ILIKE '%fn_fg_auto_zero%' OR p.prosrc ILIKE '%fn_fg_reconcile_batch%')
+     AND p.oid <> ALL (SELECT to_regprocedure(c)::oid FROM unnest(v_chain) c);
   IF v_callers IS NOT NULL THEN
     RAISE EXCEPTION 'MIS_G7_S3B: invoker functions call revoked helpers: %; review before install', v_callers; END IF;
   -- trg_fg_ledger_from_dwl pins search_path=public ONLY (live): under DEFINER that lets pg_temp objects shadow
   -- public relations. Pin pg_catalog,public,pg_temp (pg_temp last) before elevating.
   ALTER FUNCTION public.trg_fg_ledger_from_dwl() SET search_path = pg_catalog, public, pg_temp;
-  FOREACH s IN ARRAY ARRAY[
-    'public.trg_fg_ledger_from_dwl()','public.trg_fg_ledger_from_es()',
-    'public.trg_fg_bulk_internal_transfer_to_ledger()','public.fn_fg_auto_zero(integer,text,numeric)',
-    'public.fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)',
-    'public.fn_fg_force_close(integer,text,numeric)'] LOOP
-    EXECUTE format('ALTER FUNCTION %s SECURITY DEFINER', s);
-    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', s);
-  END LOOP;
+  FOREACH s IN ARRAY v_chain LOOP EXECUTE format('ALTER FUNCTION %s SECURITY DEFINER', s); END LOOP;
+  FOREACH s IN ARRAY v_closed LOOP EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', s); END LOOP;
 END $$;
 -- Direct ledger mutation is no longer an authenticated capability (RLS policy kept: it still grants SELECT).
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON TABLE public.fg_bulk_stock_ledger FROM PUBLIC, anon, authenticated;   -- original ACL recorded in mis_g7_s3b_baseline
