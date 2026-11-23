@@ -61,5 +61,6 @@ test("original JIT migration precedes its registered forward-only timeout correc
   const hotfix = "20261122174517_pec_jit_plan_indent_balance_once_timeout_fix.sql";
   assert.ok(names.indexOf(path.basename(file)) >= 0, "original registered JIT migration exists");
   assert.ok(names.indexOf(hotfix) > names.indexOf(path.basename(file)), "timeout fix follows original JIT migration");
-  assert.equal(names[names.length - 1], hotfix, "hotfix is latest checked-in migration");
+  // Later migrations (for example S5) may follow; no other JIT-named migration may come after the correction.
+  assert.ok(!names.slice(names.indexOf(hotfix) + 1).some((n) => /jit/i.test(n)), "no JIT migration follows the registered correction");
 });

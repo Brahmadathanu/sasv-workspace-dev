@@ -4315,6 +4315,7 @@ function wireActionQueueControls() {
       { id: "prRebuildModalBackdrop", close: closePrRebuildModal },
       { id: "generatePrModalBackdrop", close: closeGeneratePrModal },
       { id: "s4ReviewModalBackdrop", close: s4CloseReview },
+      { id: "indPlanModalBackdrop", close: closeIndPlanEditor },
       { id: "prAddLineModalBackdrop", close: closePrAddLineModal },
       { id: "prSetStatusModalBackdrop", close: closePrSetStatusModal },
       { id: "createIndentModalBackdrop", close: closeCreateIndentModal },
@@ -8457,13 +8458,12 @@ async function commitFinalQty(
   if (delta === 0) {
     reasonText = "";
     if (reasonInput) reasonInput.value = "";
-  } else if (pecReasonIsPlaceholderOnly(reasonText)) {
-    // A quantity override needs a real, item-specific justification. Offer the standard wording
-    // (editable) but never save the unfinished prefix as the reason.
-    if (reasonInput && !reasonText) {
-      pecApplyReasonTemplate(reasonInput, PEC_REASON_TEMPLATES.qtyOverride);
-    }
-    throw new Error("Add an item-specific justification in the Reason column, then enter the quantity again.");
+  } else if (!reasonText || pecIsAutoAdjustmentReason(reasonText)) {
+    // Neutral, truthful default (previous -> new final quantity). A reason the operator typed
+    // themselves is never replaced; an earlier auto-derived one is refreshed to the real change.
+    const oldFinal = Number(row.requested_qty || 0) + Number(row.manual_delta_qty || 0);
+    reasonText = pecManualAdjustmentReason(oldFinal, newFinalQty);
+    if (reasonInput) reasonInput.value = reasonText;
   }
   // Use correct DB param names: p_manual_reason instead of p_reason
   const { error } = await supabase.rpc("proc_pr_set_manual_delta", {
@@ -8482,10 +8482,6 @@ async function commitReason(prLineId, reasonText) {
   const row = prLineAll.find((item) => Number(item.pr_line_id) === prLineId);
   if (!row) return;
   const currentDelta = Number(row.manual_delta_qty || 0);
-  if (currentDelta && String(reasonText || "").trim().startsWith(PEC_REASON_TEMPLATES.qtyOverride.trim()) &&
-      pecReasonIsPlaceholderOnly(reasonText)) {
-    throw new Error("Complete the item-specific justification for this quantity adjustment.");
-  }
   // If only the reason changed (final qty unchanged), call proc_pr_set_manual_reason
   if (!currentDelta) {
     const { error } = await supabase.rpc("proc_pr_set_manual_reason", {
@@ -8637,6 +8633,21 @@ function wirePrLineTableActions() {
       setInlineCellSaving(inputEl, false);
     }
   };
+
+  // Prefill the neutral Reason as soon as the quantity changes; never overwrite a typed reason.
+  tbody.addEventListener("input", (e) => {
+    const inputEl = e.target.closest('input[data-field="final_qty"]');
+    if (!inputEl || !inputEl.value.trim()) return;
+    const reasonInput = inputEl.closest("tr")?.querySelector('input[data-field="reason"]');
+    const newFinal = Number(inputEl.value);
+    if (!(reasonInput instanceof HTMLInputElement) || Number.isNaN(newFinal) || newFinal < 0) return;
+    const current = reasonInput.value.trim();
+    if (current && !pecIsAutoAdjustmentReason(current)) return;
+    const requested = Number(inputEl.dataset.requested || 0);
+    reasonInput.value = newFinal === requested
+      ? ""
+      : pecManualAdjustmentReason(Number(inputEl.dataset.old || 0), newFinal);
+  });
 
   tbody.addEventListener("focusin", (e) => {
     const inputEl = e.target.closest("input[data-field]");
@@ -8839,7 +8850,7 @@ function refreshPrViewModal(row) {
   const btnRebuild = qs("btnPrRebuildFromMrp");
   const btnS4Reconcile = qs("btnPrS4Reconcile");
   if(btnS4Reconcile) btnS4Reconcile.style.display =
-    row.status === "draft" && !row.generation_filters?.s4_mode ? "" : "none";
+    row.status === "draft" && !pecIsFrozenEvidencePr(row) ? "" : "none";
   const btnCreateIndent = qs("btnPrCreateIndent");
   const btnDeleteDraft = qs("btnPrDeleteDraft");
   const moreMenu = qs("prSecondaryActions");
@@ -9140,84 +9151,6 @@ function exportPrFormPdf(pr) {
 let ccfPreviewRows = [];
 let ccfPreviewRequestSeq = 0;
 let ccfPreviewPrId = null;
-let ccfApplyRow = null;
-let ccfApplyBusy = false;
-
-// #495 diagnostic is read-only after S4 becomes the only authoritative writer.
-function canApplyCcfLine(_row) {
-  return false;
-}
-
-function updateCcfApplyReady() {
-  const btn = qs("btnCcfApplyConfirm");
-  if (!btn) return;
-  const accepted = Boolean(qs("ccfApplyAcknowledged")?.checked);
-  const reason = (qs("ccfApplyReason")?.value || "").trim();
-  btn.disabled = !(accepted && reason.length >= 20 && ccfApplyRow &&
-    canApplyCcfLine(ccfApplyRow) && !ccfApplyBusy);
-}
-
-function openCcfApply(row) {
-  if (!canApplyCcfLine(row)) return;
-  ccfApplyRow = row;
-  qs("ccfApplyReason").value = "";
-  qs("ccfApplyAcknowledged").checked = false;
-  qs("ccfApplyError").textContent = "";
-  qs("ccfApplyContext").textContent =
-    `${row.stock_item_name} (${row.uom_code || "unit"}) — ${state.selectedPr.pr_number}. Current final quantity ${ccfPreviewNumber(row.pr_effective_qty)}; proposed coverage floor ${ccfPreviewNumber(row.illustrative_ccf_floor)}; additional ${ccfPreviewNumber(row.illustrative_increment)}. Stock source as of ${row.stock_as_of}. This is an explicit, one-line draft adjustment.`;
-  const backdrop = qs("ccfApplyModalBackdrop");
-  backdrop.classList.add("show");
-  backdrop.setAttribute("aria-hidden", "false");
-  updateCcfApplyReady();
-  qs("ccfApplyReason")?.focus();
-}
-
-function closeCcfApply() {
-  if (ccfApplyBusy) return;
-  ccfApplyRow = null;
-  const backdrop = qs("ccfApplyModalBackdrop");
-  if (backdrop) hideModalBackdrop(backdrop, [qs("btnCcfPreviewClose")]);
-}
-
-async function applyCcfToDraft() {
-  const row = ccfApplyRow;
-  const pr = state.selectedPr;
-  if (!row || !pr || !canApplyCcfLine(row) ||
-      !qs("ccfApplyAcknowledged")?.checked ||
-      (qs("ccfApplyReason")?.value || "").trim().length < 20) return;
-  if (!canPerformEditAction("Apply consumption coverage to draft PR")) return;
-  const reason = qs("ccfApplyReason").value.trim();
-  ccfApplyBusy = true;
-  updateCcfApplyReady();
-  let response;
-  try {
-    response = await supabase.rpc("proc_pec_ccf_apply_draft_line", {
-      p_pr_line_id: Number(row.pr_line_id),
-      p_expected_effective_qty: String(row.pr_effective_qty),
-      p_expected_ccf_floor: String(row.illustrative_ccf_floor),
-      p_expected_stock_as_of: row.stock_as_of,
-      p_reason: reason,
-      p_confirm: true
-    });
-  } catch (error) {
-    response = { error };
-  }
-  ccfApplyBusy = false;
-  if (response?.error) {
-    qs("ccfApplyError").textContent =
-      pecWriterErrorText("Coverage approval was not applied", response.error);
-    updateCcfApplyReady();
-    return;
-  }
-  ccfApplyRow = null;
-  hideModalBackdrop(qs("ccfApplyModalBackdrop"), [qs("btnPrCoveragePreview")]);
-  toast("Draft PR line updated with explicitly approved consumption coverage.", "success");
-  await loadPrLines(pr.pr_id);
-  if (qs("ccfPreviewModalBackdrop")?.classList.contains("show")) {
-    await openCcfPreview(); // refresh from server; no stale screen quantities
-  }
-}
-
 
 function ccfPreviewNumber(n) {
   if (n === null || n === undefined || n === "") return "—";
@@ -9237,11 +9170,11 @@ function renderCcfPreview() {
     mode === "all" || (mode === "zero" ? zero(row) : gap(row)));
   const countZero = ccfPreviewRows.filter(zero).length;
   const countGap = ccfPreviewRows.filter(gap).length;
-  const isFrozen = Boolean(state.selectedPr?.generation_filters?.s4_mode);
+  const isFrozen = pecIsFrozenEvidencePr(state.selectedPr);
   summary.textContent = window.matchMedia("(max-width: 680px)").matches
     ? `${ccfPreviewRows.length} materials · ${countZero} with usage but zero MRP · ${countGap} with a suggested addition. Review only.`
     : isFrozen
-      ? `${ccfPreviewRows.length} frozen S4 evidence rows · ${countZero} zero-MRP materials with usage · ${countGap} suggested additions above the original MRP. Original generation evidence, not a purchase approval; adjust the draft separately if needed.`
+      ? `${ccfPreviewRows.length} frozen evidence rows · ${countZero} zero-MRP materials with usage · ${countGap} suggested additions above the original MRP. Original generation evidence, not a purchase approval; adjust the draft separately if needed.`
       : `${ccfPreviewRows.length} PR lines examined · ${countZero} zero-MRP lines with recorded usage · ${countGap} illustrative additions. All suggested figures require source/anchor review; no PR quantities have been changed.`;
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="9" class="muted">No matching rows. Change the filter to inspect all PR lines.</td></tr>';
@@ -9254,9 +9187,7 @@ function renderCcfPreview() {
       const itemName = esc(row.stock_item_name || String(row.stock_item_id));
       const gate = esc(row.review_state || "REVIEW_REQUIRED");
       const n = (value) => esc(ccfPreviewNumber(value));
-      const detailAction = canApplyCcfLine(row)
-        ? `<button type="button" class="pec-ccf-approve-btn" data-edit-action="true" data-ccf-line-id="${Number(row.pr_line_id)}" aria-label="Review and approve consumption coverage for ${itemName}">Review &amp; apply</button>`
-        : "Review only";
+      const detailAction = "Review only";
       const evidence = `Recorded in ${Number(row.months_with_usage || 0)} months; monthly average ${n(row.calendar_monthly_average)}; last use ${esc(row.latest_usage_month || "none")}; stock as-of ${esc(row.stock_as_of || "unknown")}.`;
       const uom = esc(row.uom_code || "—");
       return `<tr class="pec-ccf-compact-row"><td colspan="9"><div class="pec-ccf-compact-card">
@@ -9281,9 +9212,7 @@ function renderCcfPreview() {
   }
   tbody.innerHTML = rows.map(row => {
     const evidence = `12m recorded in ${Number(row.months_with_usage || 0)} months · average ${ccfPreviewNumber(row.calendar_monthly_average)}/month · last ${row.latest_usage_month || "none"} · stock as-of ${row.stock_as_of || "unknown"}`;
-    const action = canApplyCcfLine(row)
-      ? `<button type="button" class="pec-ccf-approve-btn" data-edit-action="true" data-ccf-line-id="${Number(row.pr_line_id)}" aria-label="Review and approve consumption coverage for ${esc(row.stock_item_name || String(row.stock_item_id))}">Review &amp; apply</button>`
-      : "Review only";
+    const action = "Review only";
     return `<tr>
       <td><strong>${esc(row.stock_item_name || String(row.stock_item_id))}</strong>
         <span class="muted pec-ccf-desktop-evidence">${esc(row.uom_code || "—")} · ${esc(evidence)}</span>
@@ -9319,7 +9248,7 @@ async function openCcfPreview() {
   qs("btnCcfPreviewClose")?.focus();
   let result;
   try {
-    result = pr.generation_filters?.s4_mode
+    result = pecIsFrozenEvidencePr(pr)
       ? await supabase.rpc("proc_pec_s4_pr_evidence", { p_pr_id: Number(pr.pr_id) })
       : await supabase.rpc("proc_pec_ccf_pr_preview", { p_pr_id: Number(pr.pr_id) });
   } catch (error) {
@@ -9331,7 +9260,7 @@ async function openCcfPreview() {
     qs("ccfPreviewSummary").textContent = `Requirement review unavailable: ${pecErrText(result.error)}`;
     return;
   }
-  ccfPreviewRows = Array.isArray(result.data) ? (pr.generation_filters?.s4_mode
+  ccfPreviewRows = Array.isArray(result.data) ? (pecIsFrozenEvidencePr(pr)
     ? result.data.map(e => ({
         ...e,
         mrp_suggested_qty:e.frozen_mrp_qty,
@@ -9352,7 +9281,6 @@ async function openCcfPreview() {
 }
 
 function closeCcfPreview() {
-  if (qs("ccfApplyModalBackdrop")?.classList.contains("show")) closeCcfApply();
   ++ccfPreviewRequestSeq; // latest response never re-opens a closed review
   ccfPreviewPrId = null;
   ccfPreviewRows = [];
@@ -9413,7 +9341,6 @@ function wirePrMoreMenu() {
 
 function closePrViewModal() {
   closePrMoreMenu();
-  if (qs("ccfApplyModalBackdrop")?.classList.contains("show")) closeCcfApply();
   if (qs("ccfPreviewModalBackdrop")?.classList.contains("show")) closeCcfPreview();
   closeProcurementFilterDrawer(qs("prLineFilterDrawer"));
   const backdrop = qs("prViewModalBackdrop");
@@ -9443,6 +9370,10 @@ let s4ReconRequestSeq = 0;
 // never pre-checking an attestation, never overwriting text the user has edited.
 const PEC_REASON_TEMPLATES = Object.freeze({
   notesNormal: "Procurement requirement prepared for the selected planning period using MRP and consumption-based estimates, considering verified stock and outstanding procurement commitments.",
+  notesPlan: "Procurement requirement prepared for the selected planning period from the stock-netted production plan, considering outstanding procurement commitments.",
+  notesIndPlan: "Indirect material requirement prepared from the monthly operational plan for the selected period, considering verified stock and outstanding procurement commitments.",
+  notesIndHybrid: "Indirect material requirement prepared from the monthly operational plan and consumption-based estimates for the selected period, considering verified stock and outstanding procurement commitments.",
+  indPlanReason: "Monthly operational requirement entered for indirect material planning.",
   notesJit: "Just-in-time procurement requirement based on planned production demand for the selected period. Quantities are subject to review against existing procurement commitments and applicable supplier constraints.",
   reconcile: "Reconcile untouched draft PR lines with updated consumption-based requirements, preserving existing manual adjustments and retaining flagged items for separate review.",
   qtyOverride: "Quantity adjusted following review of production demand and procurement constraints. Item-specific justification: ",
@@ -9472,9 +9403,22 @@ function pecReasonIsPlaceholderOnly(value, prefix = PEC_REASON_TEMPLATES.qtyOver
   if (!v || v === p) return true;
   return v.startsWith(p) && v.slice(p.length).trim().length < PEC_MIN_SPECIFIC_JUSTIFICATION;
 }
-function pecNotesTemplateForRoute() {
-  return s4PlanRoute() === "jit" ? PEC_REASON_TEMPLATES.notesJit : PEC_REASON_TEMPLATES.notesNormal;
+// Wording matches the server fallback in proc_pr_set_manual_delta.
+const PEC_AUTO_ADJUSTMENT_RE = /^Manual quantity adjustment during PR review: .+ to .+\.$/;
+function pecIsAutoAdjustmentReason(text) {
+  return PEC_AUTO_ADJUSTMENT_RE.test(String(text ?? "").trim());
 }
+function pecManualAdjustmentReason(oldFinal, newFinal) {
+  return `Manual quantity adjustment during PR review: ${Number(oldFinal)} to ${Number(newFinal)}.`;
+}
+function pecNotesTemplateForRoute() {
+  const p = s4ParametersForGenerate();
+  const hybrid = p.p_method === "hybrid";
+  if (p.p_class === 5) return hybrid ? PEC_REASON_TEMPLATES.notesIndHybrid : PEC_REASON_TEMPLATES.notesIndPlan;
+  if (pecIsJitRoute(p) && !hybrid) return PEC_REASON_TEMPLATES.notesJit;
+  return hybrid ? PEC_REASON_TEMPLATES.notesNormal : PEC_REASON_TEMPLATES.notesPlan;
+}
+const PEC_NOTES_TEMPLATE_KEYS = ["notesNormal","notesPlan","notesJit","notesIndPlan","notesIndHybrid"];
 // Swap the notes default when the route changes, but only if the user has not edited it; if they
 // have, keep their text and offer (not force) the new suggested wording.
 function pecSyncNotesTemplate() {
@@ -9488,42 +9432,80 @@ function pecSyncNotesTemplate() {
     if (hint) hint.hidden = true;
     return;
   }
-  const isOtherTemplate = [PEC_REASON_TEMPLATES.notesNormal, PEC_REASON_TEMPLATES.notesJit].includes(el.value.trim());
+  const isOtherTemplate = PEC_NOTES_TEMPLATE_KEYS.some((k) => PEC_REASON_TEMPLATES[k] === el.value.trim());
   if (hint) hint.hidden = el.value.trim() === desired || isOtherTemplate;
   if (isOtherTemplate && el.value.trim() !== desired) pecApplyReasonTemplate(el, desired);
 }
 
+// S5 (issue #508): one planning flow for RM Normal, RM JIT, PM and IND. Two real methods
+// (plan | hybrid); the history comparison is a separate, informational switch that never
+// changes a quantity. Class, scope and method are validated by the server, not by this client.
+let s5ServerSignature = "";          // plan_signature returned by the last review
+let s5ConfirmedServerSignature = ""; // the signature the operator actually confirmed
+function pecDefaultPlanMethod(cls, scope) {
+  if (cls === 1) return scope === "jit" ? "plan" : "hybrid"; // RM Normal / RM All = hybrid, RM JIT = plan
+  if (cls === 5) return "plan";                              // IND = operational plan
+  return "hybrid";                                           // PM (and unselected) = hybrid
+}
+function s4CompareHistory() {
+  const el = qs("genS4Compare");
+  return el ? el.checked : true;
+}
 function s4ParametersForGenerate() {
   const start = monthToFirstDate(qs("prHorizonStart")?.value);
   const end = monthToFirstDate(qs("prHorizonEnd")?.value);
   const raw = qs("prMaterialClass")?.value;
   const cls = raw ? Number(raw) : null;
   const scope = cls === 1 ? (qs("prRmScope")?.value || "normal") : "normal";
-  return { p_start: start, p_end: end, p_class: cls, p_rm_scope: scope };
+  const method = qs("prPlanMethod")?.value === "hybrid" ? "hybrid" : "plan";
+  return { p_start: start, p_end: end, p_class: cls, p_rm_scope: scope,
+           p_method: method, p_compare_history: s4CompareHistory() };
 }
 function s4Signature(p) { return JSON.stringify(p); }
-// Issue #502: procurement route. RM + "JIT Only" is MRP-led (server-owned route functions);
-// everything else keeps the approved S4 hybrid pipeline unchanged. If the JIT functions are not
-// installed on the server yet, the client falls back to the conservative hybrid review.
-let s4JitServerMissing = false;
-function s4PlanRoute() {
+function s4CurrentSignature() { return s4Signature(s4ParametersForGenerate()); }
+// S4 and S5 PRs both carry frozen per-item evidence; neither may be reconciled or rebuilt from MRP.
+function pecIsFrozenEvidencePr(pr) {
+  const gf = pr?.generation_filters;
+  return Boolean(gf?.s4_mode || gf?.s5_mode);
+}
+function pecIsJitRoute(p) { return p.p_class === 1 && p.p_rm_scope === "jit"; }
+function pecMethodLabel(m) { return m === "hybrid" ? "Plan + Historical Consumption" : "Plan-based requirement"; }
+function pecMethodHelp(p) {
+  const hybrid = p.p_method === "hybrid";
+  if (p.p_class === 5) {
+    return hybrid
+      ? "Takes the higher of your Operational Planned Requirement and the last 12 completed months of consumption projected over the period, each net of current stock. The two are never added together."
+      : "Uses the monthly Operational Planned Requirement you enter for IND materials (not production MRP), net of current stock. Every planning month needs an entry; a missing month is flagged for review and nothing is guessed from history.";
+  }
+  if (pecIsJitRoute(p)) {
+    return hybrid
+      ? "Takes the higher of the stock-netted production plan and the last 12 completed months of consumption, so history-only JIT materials can appear. The two are never added together."
+      : "JIT materials are bought as needed. Uses the stock-netted production plan only: stock mapping is not required and materials that appear only in history are not added.";
+  }
+  return hybrid
+    ? "Takes the higher of two separately stock-netted figures: the production plan (MRP) and the last 12 completed months of consumption projected over the period. They are never added together."
+    : "Uses the production plan (MRP), which is already net of stock. Historical consumption does not raise the quantity.";
+}
+function pecCompareHint(p) {
+  return p.p_method === "hybrid"
+    ? "History already drives this quantity and is always shown. This switch only adds a side-by-side comparison; quantities never change."
+    : "Shows what history suggests beside the plan. Switching it on or off never changes a quantity.";
+}
+// Default planning method follows the route until the operator chooses one explicitly.
+function pecSyncPlanMethod() {
+  const sel = qs("prPlanMethod");
+  if (!sel) return;
   const p = s4ParametersForGenerate();
-  return p.p_class === 1 && p.p_rm_scope === "jit" && !s4JitServerMissing ? "jit" : "hybrid";
+  if (sel.dataset.userChosen !== "true") sel.value = pecDefaultPlanMethod(p.p_class, p.p_rm_scope);
+  const q = s4ParametersForGenerate();
+  const help = qs("prPlanMethodHelp");
+  if (help) help.textContent = q.p_class ? pecMethodHelp(q) : "Choose a material class to see how the quantity is calculated.";
+  const indBtn = qs("btnIndPlanEditor");
+  if (indBtn) indBtn.hidden = q.p_class !== 5;
 }
-function s4CompareConsumption() {
-  const el = qs("genS4Compare");
-  return el ? el.checked : true;
-}
-function s4CurrentSignature() {
-  const p = s4ParametersForGenerate();
-  const route = s4PlanRoute();
-  return route === "jit"
-    ? JSON.stringify({ ...p, route, compare: s4CompareConsumption() })
-    : JSON.stringify(p); // hybrid signature is exactly the previous one
-}
-function s4IsMissingRpc(err) {
-  const text = `${err?.code || ""} ${err?.message || ""}`;
-  return /PGRST202|42883|could not find the function|does not exist/i.test(text);
+function pecSyncRouteUi() {
+  pecSyncPlanMethod();
+  pecSyncNotesTemplate();
 }
 function s4Summary(rows) {
   const auto = rows.filter(x => x.gate === "AUTO_ELIGIBLE");
@@ -9564,6 +9546,8 @@ function s4RenderExceptions(rows, targetId) {
       const ev=[
         `<p>MRP qty ${esc(q(r.mrp_net_qty||0))} · Suggested ${esc(suggested)} ${esc(r.uom_code||"")}</p>`,
         r.usage_12m!=null ? `<p>12-month usage ${esc(q(r.usage_12m))}</p>` : "",
+        r.planned_gross_qty!=null ? `<p>Operational plan ${esc(q(r.planned_gross_qty))} (${esc(String(r.plan_months ?? 0))} of ${esc(String(r.coverage_months ?? ""))} months entered)</p>` : "",
+        r.period_consumption!=null ? `<p>Projected consumption for the period ${esc(q(r.period_consumption))}</p>` : "",
         r.consumption_gap_vs_mrp!=null ? `<p>Historical consumption above MRP (informational) ${esc(q(r.consumption_gap_vs_mrp))}</p>` : "",
         r.stock_qty!=null ? `<p>Stock ${esc(q(r.stock_qty))}</p>` : "",
         r.outstanding_indent_qty!=null ? `<p>Open indents ${esc(q(r.outstanding_indent_qty))}</p>` : "",
@@ -9596,6 +9580,7 @@ function s4InvalidatePreview(opts = {}) {
   ++s4PlanRequestSeq;
   s4PlanRows=null;s4PlanSignature="";
   s4ReviewConfirmedSig="";s4ReviewConfirmedSummary=null;
+  s5ServerSignature="";s5ConfirmedServerSignature="";
   if(qs("genS4Acknowledged"))qs("genS4Acknowledged").checked=false;
   const rv=qs("s4ReviewModalBackdrop");
   if(!opts.keepModal && rv?.classList.contains("show")){
@@ -9628,7 +9613,8 @@ function s4UpdateGenerateReady() {
   const btn=qs("btnGenPrConfirm");
   if(!btn)return;
   btn.disabled = !canWriteModule() || s4Generating || !s4PlanRows ||
-    !s4ReviewConfirmedSig ||
+    !s4ReviewConfirmedSig || !s5ConfirmedServerSignature ||
+    s5ConfirmedServerSignature !== s5ServerSignature ||
     s4ReviewConfirmedSig !== s4PlanSignature ||
     s4PlanSignature !== s4CurrentSignature();
 }
@@ -9638,6 +9624,7 @@ function s4CloseReview() {
   ++s4PlanRequestSeq;
   s4PlanRows=null;s4PlanSignature="";
   s4ReviewConfirmedSig="";s4ReviewConfirmedSummary=null;
+  s5ServerSignature="";s5ConfirmedServerSignature="";
   if(qs("genS4Acknowledged"))qs("genS4Acknowledged").checked=false;
   s4RenderReviewStatus();
   hideModalBackdrop(qs("s4ReviewModalBackdrop"),[qs("btnGenS4Preview")]);
@@ -9648,6 +9635,7 @@ function s4ConfirmReview() {
   if(!s4PlanRows || s4PlanSignature!==s4CurrentSignature() ||
      !qs("genS4Acknowledged")?.checked)return;
   s4ReviewConfirmedSig=s4PlanSignature;
+  s5ConfirmedServerSignature=s5ServerSignature;
   s4ReviewConfirmedSummary=s4Summary(s4PlanRows);
   s4RenderReviewStatus();
   hideModalBackdrop(qs("s4ReviewModalBackdrop"),
@@ -9655,84 +9643,256 @@ function s4ConfirmReview() {
   s4UpdateReviewReady();
   s4UpdateGenerateReady();
 }
+function pecHistoryGap(r) {
+  if (r.consumption_gap_vs_mrp != null) return Number(r.consumption_gap_vs_mrp) || 0;
+  if (r.stock_netted_consumption != null && r.mrp_net_qty != null) {
+    return Math.max(0, Number(r.stock_netted_consumption) - Number(r.mrp_net_qty));
+  }
+  return 0;
+}
 async function s4PreviewForGenerate() {
   const params=s4ParametersForGenerate();
+  if(!params.p_class){
+    toast("Select a material class (RM, PM or IND) before reviewing the requirement.","error");
+    return;
+  }
   if(!params.p_start || !params.p_end) {
     toast("Select both planning months before reviewing the requirement.","error");
     return;
   }
-  const route=s4PlanRoute();
   const signature=s4CurrentSignature();
   s4InvalidatePreview({keepModal:true});          // clears any earlier confirmation
   const seq=++s4PlanRequestSeq;                   // latest request wins
   const modal=qs("s4ReviewModalBackdrop");
+  const classLabel=params.p_class===1?"RM":params.p_class===2?"PM":"IND";
+  const scopeLabel=params.p_class===1?(params.p_rm_scope==="jit"?" (JIT Only)":params.p_rm_scope==="all"?" (All)":" (Normal)"):"";
   qs("s4ReviewContext").textContent=
-    `${params.p_start.slice(0,7)} to ${params.p_end.slice(0,7)} · ${
-      params.p_class===1?"RM":params.p_class===2?"PM":params.p_class===5?"IND":"All classes"}`;
-  qs("genS4PreviewSummary").textContent=route==="jit"
-    ? "Checking MRP and outstanding indents for RM (JIT Only)…"
-    : "Checking stock, MRP, consumption and outstanding indents…";
-  if(qs("s4ReviewRoute")){
-    qs("s4ReviewRoute").hidden=route!=="jit";
-    qs("s4ReviewRoute").textContent="JIT requirement is MRP-led. Stock mapping is not required.";
-  }
-  if(qs("s4ReviewRouteHelp")) { qs("s4ReviewRouteHelp").hidden=route!=="jit"; qs("s4ReviewRouteHelp").open=false; }
-  if(qs("genS4CompareRow"))qs("genS4CompareRow").hidden=route!=="jit";
+    `${params.p_start.slice(0,7)} to ${params.p_end.slice(0,7)} · ${classLabel}${scopeLabel}`;
+  qs("s4ReviewMethodNote").textContent=`Method: ${pecMethodLabel(params.p_method)}`;
+  qs("s4ReviewMethodHelpText").textContent=pecMethodHelp(params);
+  qs("genS4CompareHint").textContent=pecCompareHint(params);
+  qs("genS4PreviewSummary").textContent="Checking plan, stock, consumption and outstanding indents…";
   qs("genS4ReviewCounts").textContent="";
   qs("genS4PreviewExceptions").textContent="";
+  if(qs("s4ReviewMethodHelp"))qs("s4ReviewMethodHelp").open=false;
   if(qs("genS4ItemSearch"))qs("genS4ItemSearch").value="";
   modal.classList.add("show");modal.setAttribute("aria-hidden","false");
   modal.querySelector(".modal")?.focus();
-  const result=route==="jit"
-    ? await supabase.rpc("proc_pec_jit_mrp_plan",{
-        p_start:params.p_start,p_end:params.p_end,p_compare_consumption:s4CompareConsumption()})
-    : await supabase.rpc("proc_pec_s4_new_pr_plan",params);
+  const result=await supabase.rpc("proc_pec_s5_review_plan",params);
   if(seq!==s4PlanRequestSeq || !modal.classList.contains("show") ||
     !qs("generatePrModalBackdrop")?.classList.contains("show") ||
     signature!==s4CurrentSignature())return;
-  if(route==="jit" && result.error && s4IsMissingRpc(result.error)){
-    s4JitServerMissing=true;
-    toast("The JIT MRP route is not installed on the server yet; using the standard hybrid review.","error");
-    return s4PreviewForGenerate();
-  }
-  if(result.error || !Array.isArray(result.data) || !result.data.length){
+  const data=result.data;
+  const rows=Array.isArray(data?.rows)?data.rows:null;
+  if(result.error || !rows || !data?.plan_signature){
     qs("genS4PreviewSummary").textContent=
-      `Review unavailable: ${pecErrText(result.error || {message:"No planning materials returned"})}`;
+      `Review unavailable: ${pecErrText(result.error || {message:"No review returned"})}`;
     s4UpdateReviewReady();
     return;
   }
-  s4PlanRows=result.data;s4PlanSignature=signature;
-  const sum=s4Summary(result.data);
-  if(route==="jit"){
-    const netted=result.data.filter(r=>Number(r.outstanding_indent_qty)>0).length;
-    const gaps=result.data.filter(r=>Number(r.consumption_gap_vs_mrp)>0).length;
-    const cmp=s4CompareConsumption();
-    qs("genS4PreviewSummary").textContent=
-      `${sum.total} JIT MRP materials · ${sum.auto} auto-eligible · ${sum.review} need review · ${netted} with open indent commitments.`;
-    qs("genS4ReviewCounts").innerHTML=
-      `<div><b>${sum.auto}</b><span>Auto-eligible</span></div>`+
-      `<div class="is-review${sum.review===0?" is-zero":""}"><b>${sum.review}</b><span>Review required</span></div>`+
-      `<div><b>${netted}</b><span>Netted vs open indents</span></div>`+
-      `<div><b>${cmp?gaps:"—"}</b><span>${cmp?"Above MRP in history":"Comparison off"}</span></div>`;
-  } else {
+  if(!rows.length){
+    qs("genS4PreviewSummary").textContent=params.p_class===5 && params.p_method==="plan"
+      ? "No operational plan entries for these months yet. Use “Operational planned requirement (IND)…” to enter the monthly quantities, then review again."
+      : "No planning candidates for this class, method and period.";
+    s4UpdateReviewReady();
+    return;
+  }
+  s4PlanRows=rows;s4PlanSignature=signature;s5ServerSignature=data.plan_signature;
+  const sum=s4Summary(rows);
+  const netted=rows.filter(r=>Number(r.outstanding_indent_qty)>0).length;
+  const hybrid=params.p_method==="hybrid";
+  const raised=rows.filter(r=>r.consumption_only || pecHistoryGap(r)>0).length;
   qs("genS4PreviewSummary").textContent=
-    `${sum.total} materials · ${sum.positive} positive automatic requirements · ${sum.zeroMrp} zero-MRP materials now included · ${sum.consumptionOnly} consumption-only candidates · ${sum.review} require manual review. No indent will be created.`;
+    `${sum.total} materials · ${sum.auto} auto-eligible · ${sum.review} need review · ${netted} with open indent commitments. No indent will be created.`;
   qs("genS4ReviewCounts").innerHTML=
     `<div><b>${sum.auto}</b><span>Auto-eligible</span></div>`+
-    `<div class="is-review"><b>${sum.review}</b><span>Review required</span></div>`+
-    `<div><b>${sum.zeroMrp}</b><span>Zero-MRP included</span></div>`+
-    `<div><b>${sum.consumptionOnly}</b><span>Consumption-only</span></div>`;
-  }
-  s4RenderExceptions(result.data,"genS4PreviewExceptions");
+    `<div class="is-review${sum.review===0?" is-zero":""}"><b>${sum.review}</b><span>Review required</span></div>`+
+    `<div><b>${netted}</b><span>Netted vs open indents</span></div>`+
+    `<div><b>${(hybrid||params.p_compare_history)?raised:"—"}</b><span>${hybrid?"Raised by history":params.p_compare_history?"Above plan in history":"Comparison off"}</span></div>`;
+  s4RenderExceptions(rows,"genS4PreviewExceptions");
   s4UpdateReviewReady();
   s4UpdateGenerateReady();
+}
+
+// ── S5: IND "Operational Planned Requirement" editor ─────────────────────────
+// Monthly operator plan for indirect materials. All reads/writes go through the guarded
+// RPCs (list = View, set = Edit); there is no direct table access and nothing is saved
+// until an Editor presses Save. It is NOT production MRP and never derives numbers from history.
+let indPlanItems = null;
+let indPlanEntries = [];
+let indPlanSeq = 0;
+let indPlanSaving = false;
+function indPlanHorizon() {
+  const start = monthToFirstDate(qs("prHorizonStart")?.value);
+  const end = monthToFirstDate(qs("prHorizonEnd")?.value);
+  return start && end && /^\d{4}-\d{2}-\d{2}$/.test(start) && /^\d{4}-\d{2}-\d{2}$/.test(end) ? { start, end } : null;
+}
+function indPlanMonths(h) {
+  const out = [];
+  let [y, m] = h.start.split("-").map(Number);
+  const [ey, em] = h.end.split("-").map(Number);
+  while ((y < ey || (y === ey && m <= em)) && out.length < 12) {
+    out.push(`${y}-${String(m).padStart(2, "0")}-01`);
+    if (++m > 12) { m = 1; y++; }
+  }
+  return out;
+}
+function indPlanCurrentMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+function indPlanMonthLabel(iso) {
+  return new Date(`${iso}T00:00:00`).toLocaleString("en-GB", { month: "short", year: "numeric" });
+}
+async function indPlanLoadItems() {
+  if (indPlanItems) return indPlanItems;
+  const { data, error } = await supabase
+    .from("v_inv_stock_item_with_class")
+    .select("stock_item_id,code,name,default_uom_id")
+    .eq("active", true).eq("category_id", 5)
+    .order("name", { ascending: true }).limit(500);
+  if (error) throw error;
+  indPlanItems = data || [];
+  return indPlanItems;
+}
+function indPlanEntryFor(itemId, month) {
+  return indPlanEntries.find((e) => Number(e.stock_item_id) === Number(itemId) &&
+    String(e.month_start).slice(0, 10) === month) || null;
+}
+function indPlanRender() {
+  const list = qs("indPlanList");
+  const h = indPlanHorizon();
+  if (!list || !h) return;
+  const months = indPlanMonths(h);
+  const current = indPlanCurrentMonth();
+  const byItem = new Map();
+  indPlanEntries.forEach((e) => {
+    if (!byItem.has(e.stock_item_id)) byItem.set(e.stock_item_id, { name: e.stock_item_name, uom: e.uom_code });
+  });
+  if (!byItem.size) {
+    list.innerHTML = '<p class="muted">No entries for these months yet. Add the first one below; nothing is saved until you press Save.</p>';
+    return;
+  }
+  list.innerHTML = [...byItem.entries()]
+    .sort((a, b) => String(a[1].name).localeCompare(String(b[1].name)))
+    .map(([id, it]) => `<div class="pec-ind-plan-item"><strong>${esc(it.name || String(id))}</strong>
+      <span class="muted">· ${esc(it.uom || "—")}</span>
+      <div class="pec-ind-plan-months">${months.map((m) => {
+        const e = indPlanEntryFor(id, m);
+        const lbl = indPlanMonthLabel(m);
+        const text = e ? `${lbl}: ${fmtQty(Number(e.planned_qty))}${e.is_active ? "" : " (off)"}` : `${lbl}: missing`;
+        const cls = !e ? "is-missing" : e.is_active ? "" : "is-off";
+        return `<button type="button" class="pec-ind-plan-chip ${cls}" data-ind-item="${Number(id)}" data-ind-month="${m}" ${m < current ? "disabled" : ""}
+          aria-label="${esc(it.name || "")} ${esc(text)}${m < current ? " (past month, read-only)" : ""}">${esc(text)}</button>`;
+      }).join("")}</div></div>`).join("");
+}
+function indPlanFillForm(itemId, month) {
+  const e = indPlanEntryFor(itemId, month);
+  qs("indPlanQty").value = e ? String(e.planned_qty) : "";
+  qs("indPlanActive").checked = e ? Boolean(e.is_active) : true;
+  const reason = qs("indPlanReason");
+  if (e && e.reason) { reason.value = e.reason; reason.dataset.pecTemplate = ""; reason.dataset.pecUserEdited = "true"; }
+  else pecApplyReasonTemplate(reason, PEC_REASON_TEMPLATES.indPlanReason);
+  qs("indPlanFormTitle").textContent = e ? "Change entry" : "Add an entry";
+}
+async function indPlanOnItemChange() {
+  const item = (indPlanItems || []).find((x) => Number(x.stock_item_id) === Number(qs("indPlanItem").value));
+  qs("indPlanUom").textContent = item?.default_uom_id ? `(${await fetchUomCode(item.default_uom_id)})` : "";
+  indPlanPrefillFromSelection();
+}
+function indPlanPrefillFromSelection() {
+  indPlanFillForm(Number(qs("indPlanItem").value), qs("indPlanMonth").value);
+}
+function indPlanSelect(itemId, month) {
+  qs("indPlanItem").value = String(itemId);
+  qs("indPlanMonth").value = month;
+  void indPlanOnItemChange();
+  qs("indPlanQty")?.focus();
+}
+async function indPlanReload() {
+  const h = indPlanHorizon();
+  if (!h) return;
+  const seq = ++indPlanSeq;
+  const { data, error } = await supabase.rpc("proc_pec_ind_list_planned_requirements", { p_start: h.start, p_end: h.end });
+  if (seq !== indPlanSeq || !qs("indPlanModalBackdrop")?.classList.contains("show")) return;
+  if (error) {
+    qs("indPlanStatus").textContent = `Could not load the plan: ${pecErrText(error)}`;
+    return;
+  }
+  indPlanEntries = Array.isArray(data) ? data : [];
+  indPlanRender();
+}
+async function openIndPlanEditor() {
+  const h = indPlanHorizon();
+  if (!h) { toast("Select the planning months first.", "error"); return; }
+  const modal = qs("indPlanModalBackdrop");
+  const months = indPlanMonths(h);
+  const current = indPlanCurrentMonth();
+  qs("indPlanContext").textContent = `${h.start.slice(0, 7)} to ${h.end.slice(0, 7)}`;
+  qs("indPlanStatus").textContent = "Loading the operational plan…";
+  qs("indPlanError").textContent = "";
+  qs("indPlanList").textContent = "";
+  const monthSel = qs("indPlanMonth");
+  const editable = months.filter((m) => m >= current);
+  monthSel.innerHTML = editable.map((m) => `<option value="${m}">${esc(indPlanMonthLabel(m))}</option>`).join("");
+  const writable = canWriteModule() && editable.length > 0;
+  ["indPlanItem", "indPlanMonth", "indPlanQty", "indPlanActive", "indPlanReason"].forEach((id) => { qs(id).disabled = !writable; });
+  modal.classList.add("show");
+  modal.setAttribute("aria-hidden", "false");
+  modal.querySelector(".modal")?.focus();
+  try {
+    const items = await indPlanLoadItems();
+    qs("indPlanItem").innerHTML = '<option value="">Select material…</option>' +
+      items.map((i) => `<option value="${Number(i.stock_item_id)}">${esc(i.name || i.code || String(i.stock_item_id))}</option>`).join("");
+  } catch (err) {
+    qs("indPlanStatus").textContent = `Could not load IND materials: ${pecErrText(err)}`;
+    return;
+  }
+  indPlanFillForm(0, monthSel.value);
+  await indPlanReload();
+  qs("indPlanStatus").textContent = writable
+    ? "Select a month chip or choose a material and month below. Entries are saved only when you press Save."
+    : "Read-only: an Editor is needed to change the operational plan.";
+}
+function closeIndPlanEditor() {
+  if (indPlanSaving) return;
+  ++indPlanSeq;
+  hideModalBackdrop(qs("indPlanModalBackdrop"), [qs("btnIndPlanEditor")]);
+}
+async function saveIndPlanEntry() {
+  if (indPlanSaving || !canPerformEditAction("Save operational plan")) return;
+  const itemId = Number(qs("indPlanItem").value);
+  const month = qs("indPlanMonth").value;
+  const rawQty = qs("indPlanQty").value.trim();
+  const qty = Number(rawQty);
+  const reason = qs("indPlanReason").value.trim();
+  const err = qs("indPlanError");
+  err.textContent = "";
+  if (!itemId) { err.textContent = "Select a material."; return; }
+  if (!month) { err.textContent = "Select a month."; return; }
+  if (!rawQty || Number.isNaN(qty) || qty < 0) { err.textContent = "Enter a planned quantity of 0 or more."; return; }
+  if (reason.length < 10) { err.textContent = "Enter a reason of at least 10 characters."; return; }
+  indPlanSaving = true;
+  qs("btnIndPlanSave").disabled = true;
+  const { error } = await supabase.rpc("proc_pec_ind_set_planned_requirement", {
+    p_stock_item_id: itemId, p_month_start: month, p_gross_required_qty: qty,
+    p_reason: reason, p_is_active: qs("indPlanActive").checked,
+  });
+  indPlanSaving = false;
+  qs("btnIndPlanSave").disabled = !canWriteModule();
+  if (error) { err.textContent = pecWriterErrorText("Operational plan was not saved", error); return; }
+  toast("Operational planned requirement saved.", "success");
+  // The plan changed, so any earlier review of it is no longer valid.
+  s4InvalidatePreview({ keepModal: false });
+  await indPlanReload();
+  qs("indPlanStatus").textContent = `Saved ${new Date().toLocaleTimeString()}. The change is recorded in the server audit trail. Review the requirements again before generating.`;
 }
 
 async function s4OpenReconciliation() {
   const pr=state.selectedPr;
   if(!pr || pr.status!=="draft" || !canPerformEditAction("Reconcile consumption coverage")) return;
-  if(pr.generation_filters?.s4_mode){
-    toast("S4 evidence already exists for this draft. A second reconciliation is not allowed.","error");
+  if(pecIsFrozenEvidencePr(pr)){
+    toast("Frozen planning evidence already exists for this draft. A second reconciliation is not allowed.","error");
     return;
   }
   const modal=qs("s4ReconcileModalBackdrop");
@@ -9863,6 +10023,8 @@ function openGeneratePrModal() {
   qs("prMaterialClass").value = "";
   qs("prRmScope").value = "normal";
   qs("prRmScopeRow").style.display = "none";
+  if (qs("prPlanMethod")) qs("prPlanMethod").dataset.userChosen = "false";
+  pecSyncPlanMethod();
   pecApplyReasonTemplate(qs("prNotes"), pecNotesTemplateForRoute());
   if (qs("prNotesTemplateHint")) qs("prNotesTemplateHint").hidden = true;
   const backdrop = qs("generatePrModalBackdrop");
@@ -9880,6 +10042,7 @@ function updateGeneratePrRmScopeVisibility() {
 }
 
 function closeGeneratePrModal() {
+  if (qs("indPlanModalBackdrop")?.classList.contains("show")) closeIndPlanEditor();
   s4InvalidatePreview();
   ++prNumberSuggestionSeq; // discard an in-flight suggestion after dismissal
   const backdrop = qs("generatePrModalBackdrop");
@@ -9946,55 +10109,53 @@ async function generateDraftPr() {
 
   const horizonStart = monthToFirstDate(horizonStartRaw);
   const horizonEnd = monthToFirstDate(horizonEndRaw);
-  const materialClassRaw = qs("prMaterialClass").value;
-  const materialClassId = materialClassRaw ? Number(materialClassRaw) : null;
-  const notes = (qs("prNotes").value || "").trim() || null;
-  const genFilters = {
-    source: "v_mrp_procurement_plan",
-    run: new Date().toISOString().slice(0, 10).replaceAll("-", ""),
-  };
-  if (materialClassId === 1) {
-    genFilters.rm_scope = qs("prRmScope").value || "all";
+  const params = s4ParametersForGenerate();
+  const materialClassId = params.p_class;
+  if (!materialClassId) {
+    toast("Select a material class (RM, PM or IND).", "error");
+    return;
   }
+  const notes = (qs("prNotes").value || "").trim() || null;
+  const genFilters = { run: new Date().toISOString().slice(0, 10).replaceAll("-", "") };
 
   if (!s4PlanRows || s4PlanSignature !== s4CurrentSignature() ||
-      !s4ReviewConfirmedSig || s4ReviewConfirmedSig !== s4PlanSignature) {
+      !s4ReviewConfirmedSig || s4ReviewConfirmedSig !== s4PlanSignature ||
+      !s5ConfirmedServerSignature || s5ConfirmedServerSignature !== s5ServerSignature) {
     toast("Review and confirm the requirements before generating.","error");
     return;
   }
   if (s4Generating) return;
   s4Generating=true;s4UpdateGenerateReady();
   setLoading(true);
-  const jitRoute = s4PlanRoute() === "jit";
-  const { data: s4Receipt, error } = jitRoute
-    ? await supabase.rpc("proc_pec_jit_generate_pr", {
-        p_pr_number: prNumber,
-        p_effective_from_date: effectiveFrom,
-        p_horizon_start_month: horizonStart,
-        p_horizon_end_month: horizonEnd,
-        p_generation_filters: { ...genFilters, rm_scope: "jit" },
-        p_notes: notes,
-        p_compare_consumption: s4CompareConsumption(),
-        p_confirm: true,
-      })
-    : await supabase.rpc("proc_pec_s4_generate_pr", {
+  const { data: s5Receipt, error } = await supabase.rpc("proc_pec_s5_generate_pr", {
     p_pr_number: prNumber,
     p_effective_from_date: effectiveFrom, // must be YYYY-MM-DD
-    p_horizon_start_month: horizonStart, // now YYYY-MM-01
-    p_horizon_end_month: horizonEnd, // now YYYY-MM-01
+    p_horizon_start_month: horizonStart,
+    p_horizon_end_month: horizonEnd,
     p_material_class_id: materialClassId,
+    p_rm_scope: params.p_rm_scope,
+    p_method: params.p_method,
+    p_compare_history: params.p_compare_history,
     p_generation_filters: genFilters,
     p_notes: notes,
+    p_expected_plan_signature: s5ConfirmedServerSignature,
     p_confirm: true,
   });
   setLoading(false);
   s4Generating=false;
-  s4UpdateGenerateReady();
   if (error) {
+    // A changed plan (stock, indents, IND entries) is not an error to push through: review again.
+    if (/changed since review|refresh and reconfirm/i.test(`${error?.message || ""}`)) {
+      s4InvalidatePreview();
+      toast("The plan changed since you reviewed it. Review the requirements again before generating.", "error");
+      return;
+    }
+    s4UpdateGenerateReady();
     toast(pecWriterErrorText("Generate PR failed", error), "error");
     return;
   }
-  toast(`${jitRoute ? "JIT MRP draft" : "S4 draft"} generated: ${s4Receipt?.auto_evidenced_lines || 0} evidenced lines, ${s4Receipt?.review_required_lines || 0} items requiring review.`, "success");
+  s4UpdateGenerateReady();
+  toast(`Draft PR generated (${pecMethodLabel(params.p_method)}): ${s5Receipt?.auto_evidenced_lines || 0} evidenced lines, ${s5Receipt?.review_required_lines || 0} items requiring review.`, "success");
   closeGeneratePrModal();
   // Reload list
   await loadPrHeaders();
@@ -10207,7 +10368,27 @@ function wirePrControls() {
     pecApplyReasonTemplate(qs("prNotes"),pecNotesTemplateForRoute());
     pecSyncNotesTemplate();
   });
-  ["prMaterialClass","prRmScope"].forEach(id=>qs(id)?.addEventListener("change",pecSyncNotesTemplate));
+  ["prMaterialClass","prRmScope"].forEach(id=>qs(id)?.addEventListener("change",pecSyncRouteUi));
+  qs("prPlanMethod")?.addEventListener("change",()=>{
+    qs("prPlanMethod").dataset.userChosen="true";
+    pecSyncRouteUi();
+  });
+  qs("btnIndPlanEditor")?.addEventListener("click",openIndPlanEditor);
+  qs("btnIndPlanClose")?.addEventListener("click",closeIndPlanEditor);
+  qs("btnIndPlanDone")?.addEventListener("click",closeIndPlanEditor);
+  qs("btnIndPlanSave")?.addEventListener("click",saveIndPlanEntry);
+  qs("indPlanItem")?.addEventListener("change",indPlanOnItemChange);
+  qs("indPlanMonth")?.addEventListener("change",indPlanPrefillFromSelection);
+  qs("indPlanForm")?.addEventListener("submit",(e)=>{e.preventDefault();saveIndPlanEntry();});
+  qs("indPlanList")?.addEventListener("click",(e)=>{
+    const chip=e.target.closest("button[data-ind-item]");
+    if(chip)indPlanSelect(Number(chip.dataset.indItem),chip.dataset.indMonth);
+  });
+  qs("indPlanModalBackdrop")?.addEventListener("click",(e)=>{
+    if(e.target.id==="indPlanModalBackdrop")closeIndPlanEditor();
+  });
+  pecWireReasonField(qs("indPlanReason"));
+  qs("prHorizonStart")?.addEventListener("change",pecSyncPlanMethod);
   qs("btnS4ReviewBack")?.addEventListener("click",s4CloseReview);
   qs("btnS4ReviewClose")?.addEventListener("click",s4CloseReview);
   qs("btnS4ReviewConfirm")?.addEventListener("click",s4ConfirmReview);
@@ -10222,7 +10403,7 @@ function wirePrControls() {
     if(s4ReconcileEvidence)s4RenderExceptions(s4ReconcileEvidence,"s4ReconcileExceptions");
   });
   qs("genS4Acknowledged")?.addEventListener("change",s4UpdateReviewReady);
-  ["prHorizonStart","prHorizonEnd","prMaterialClass","prRmScope"].forEach(id=>{
+  ["prHorizonStart","prHorizonEnd","prMaterialClass","prRmScope","prPlanMethod"].forEach(id=>{
     qs(id)?.addEventListener("change",()=>s4InvalidatePreview());
     qs(id)?.addEventListener("input",()=>{ if(s4ReviewConfirmedSig||s4PlanRows)s4InvalidatePreview(); });
   });
@@ -10238,20 +10419,6 @@ function wirePrControls() {
   // PR detail modal
   qs("btnPrViewClose").addEventListener("click", closePrViewModal);
   qs("btnPrCoveragePreview")?.addEventListener("click", openCcfPreview);
-  qs("ccfPreviewTbody")?.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-ccf-line-id]");
-    if (!button) return;
-    const row = ccfPreviewRows.find(x => Number(x.pr_line_id) === Number(button.dataset.ccfLineId));
-    if (row) openCcfApply(row);
-  });
-  qs("btnCcfApplyClose")?.addEventListener("click", closeCcfApply);
-  qs("btnCcfApplyCancel")?.addEventListener("click", closeCcfApply);
-  qs("ccfApplyModalBackdrop")?.addEventListener("click", (event) => {
-    if (event.target.id === "ccfApplyModalBackdrop") closeCcfApply();
-  });
-  qs("ccfApplyReason")?.addEventListener("input", updateCcfApplyReady);
-  qs("ccfApplyAcknowledged")?.addEventListener("change", updateCcfApplyReady);
-  qs("btnCcfApplyConfirm")?.addEventListener("click", applyCcfToDraft);
   qs("btnCcfPreviewClose")?.addEventListener("click", closeCcfPreview);
   qs("btnCcfPreviewDone")?.addEventListener("click", closeCcfPreview);
   qs("ccfPreviewFilter")?.addEventListener("change", renderCcfPreview);
@@ -10267,12 +10434,6 @@ function wirePrControls() {
     if (event.target.id === "ccfPreviewModalBackdrop") closeCcfPreview();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && qs("ccfApplyModalBackdrop")?.classList.contains("show")) {
-      event.stopImmediatePropagation();
-      event.preventDefault();
-      closeCcfApply();
-      return;
-    }
     if (event.key === "Escape" && qs("ccfPreviewModalBackdrop")?.classList.contains("show")) {
       event.stopImmediatePropagation();
       event.preventDefault();

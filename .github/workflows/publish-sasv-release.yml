@@ -78,12 +78,13 @@ jobs:
         run: |
           set -euo pipefail
           cat > release-notes.md <<'NOTES'
-          SASV Workspace v6.3.3 — PEC JIT requirement-review usability patch.
+          SASV Workspace v6.4.0 — PEC S5 unified procurement planning.
 
-          - The optional historical-consumption comparison now appears as a labelled on/off switch, visually distinct from the sole mandatory acknowledgement for review confirmation.
-          - Shorter JIT planning explanation with expandable rules, tighter planned-material rows, a neutral zero-review metric and improved modal density.
-          - The existing consent gate, history-comparison request invalidation, server authorization and MRP/indent calculation are unchanged.
-          - Server timeout hotfix (migration 20261122174517) was separately installed and source-registered before this release; the Electron installer does not change the database or purchasing records.
+          - One planning flow for RM Normal, RM JIT, PM and IND: choose Plan-based requirement or Plan + Historical Consumption, with sensible defaults per route and a plain-English explanation. History comparison is an optional switch that never changes a recommended quantity.
+          - IND (indirect materials): new Operational Planned Requirement editor for monthly operator plans (explicitly not production MRP); missing months are flagged for review.
+          - Draft PR generation now uses the signed server review (stale plans must be reviewed again); existing permissions, frozen evidence, duplicate prevention and review gates are unchanged.
+          - Changing a PR line quantity now prefills an editable, neutral previous-to-new Reason; custom reasons are preserved.
+          - Redundant client code (retired coverage-approval writer, unused edit dialogs and the separate JIT route) was removed. No database, permission or purchasing-record change ships in this installer.
 
           UNSIGNED WINDOWS INSTALLER: no code-signing certificate; SmartScreen or antivirus may warn. Verify the SHA-256 in SHA256SUMS.txt. Existing stable installs may upgrade through the app updater after publication verification.
           NOTES
