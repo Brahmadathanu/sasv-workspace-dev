@@ -1,7 +1,17 @@
 // Offline, pure model of the G7 Tally FG-transfer snapshot provenance checks.
-// REVIEW ONLY: models the live finalize_fg_transfer_snapshot evidence checks as
-// described in the G7 handoff (the finalizer body is NOT in repo migrations) plus
-// the independent-manifest requirement. No DB, network or Supabase access.
+// REVIEW ONLY. No DB, network or Supabase access.
+// Two layers, kept separate in every result:
+//   INSTALLED - checks the live finalize_fg_transfer_snapshot performs (per the
+//               read-only live review; the body is NOT in repo migrations):
+//               done FETCH/PARSE jobs, parse_status, params.parsed_row_count,
+//               source size (>= 0) / hash / parse timestamp, single company,
+//               contiguous scopes from fiscal start to as-of.
+//   PROPOSED_MIS - additional, stricter MIS checks that are NOT installed:
+//               size > 0 and 64-hex hash, parsed_row_count == published rows,
+//               undeclared empty chunk, unexpected published key, and the
+//               independent-manifest requirement.
+// No real, independently proven source manifest exists. Any CERTIFIED result
+// here is a SYNTHETIC fixture assertion and must never be read as live evidence.
 
 export const KNOWN_TALLY_ERROR = Object.freeze({
   size: 234,
@@ -12,8 +22,10 @@ export const STATUS = Object.freeze({
   PUBLISHED: "SOURCE_PARSED_AND_PUBLISHED",
   NOT_CERTIFIED: "NOT_CERTIFIED",
 });
+export const REAL_MANIFEST_PROVEN = false; // no independently verified manifest/receipt exists
 export const MANIFEST_SOURCE = Object.freeze({
-  INDEPENDENT: "INDEPENDENT_MANIFEST",
+  // Fixture assertion only: the caller SAYS the keys came from an external plan.
+  INDEPENDENT: "INDEPENDENT_MANIFEST_ASSERTED_SYNTHETIC",
   DERIVED: "DERIVED_FROM_PUBLISHED_ROWS",
 });
 
@@ -32,9 +44,14 @@ export function applyTerminalValidation(job) {
   return isKnownTallyErrorFingerprint(p.source_size_bytes, p.source_hash) ? { ...job, status: "error" } : job;
 }
 
-function validSource(p) {
-  return Number.isInteger(p.source_size_bytes) && p.source_size_bytes > 0 && HASH.test(String(p.source_hash ?? "").toLowerCase())
+// INSTALLED: size integer >= 0, non-empty hash, not the known error fingerprint.
+function installedSourceOk(p) {
+  return Number.isInteger(p.source_size_bytes) && p.source_size_bytes >= 0 && String(p.source_hash ?? "").trim() !== ""
     && !isKnownTallyErrorFingerprint(p.source_size_bytes, p.source_hash);
+}
+// PROPOSED_MIS: stricter than installed (a zero-byte or non-sha256 source is suspicious).
+function strictSourceOk(p) {
+  return p.source_size_bytes > 0 && HASH.test(String(p.source_hash ?? "").toLowerCase());
 }
 
 /**
@@ -46,57 +63,81 @@ function validSource(p) {
 export function evaluateSnapshot(input) {
   const { store, asOf, expected, published = [], fiscalStart = "2026-04-01" } = input;
   const jobs = (input.jobs ?? []).map(applyTerminalValidation);
-  const reasons = [];
+  const installed = [];
+  const proposed = [];
   const warnings = [];
   const keys = expected?.keys ?? [];
-  if (!store || !asOf) reasons.push("MISSING_STORE_OR_AS_OF");
-  if (!Array.isArray(keys) || keys.length === 0) reasons.push("NO_EXPECTED_KEYS");
+  if (!store || !asOf) installed.push("MISSING_STORE_OR_AS_OF");
+  if (!Array.isArray(keys) || keys.length === 0) installed.push("NO_EXPECTED_KEYS");
 
   const scopes = [];
   const companies = new Set();
   for (const key of keys) {
     const fetch = jobs.find((j) => j.job_type === "FETCH_XML" && j.status === "done" && j.params?.save_key === key);
-    if (!fetch) { reasons.push(`MISSING_OR_REJECTED_FETCH:${key}`); continue; }
-    if (!validSource(fetch.params)) reasons.push(`INVALID_FETCH_SOURCE:${key}`);
+    if (!fetch) { installed.push(`MISSING_OR_REJECTED_FETCH:${key}`); continue; }
+    if (!installedSourceOk(fetch.params)) installed.push(`INVALID_FETCH_SOURCE:${key}`);
+    else if (!strictSourceOk(fetch.params)) proposed.push(`STRICT_FETCH_SOURCE_FAILED:${key}`);
     const parse = jobs.find((j) => j.job_type === "PARSE_FG_TRANSFER_CHUNK" && j.status === "done" && j.params?.source_key === key
       && j.params?.as_of_date === asOf && String(j.params?.store).toUpperCase() === String(store).toUpperCase());
-    if (!parse) { reasons.push(`MISSING_OR_REJECTED_PARSE:${key}`); continue; }
+    if (!parse) { installed.push(`MISSING_OR_REJECTED_PARSE:${key}`); continue; }
     const p = parse.params;
-    if (String(p.parse_status ?? "").trim().toUpperCase() !== "SUCCESS") reasons.push(`PARSE_STATUS_NOT_SUCCESS:${key}`);
-    if (!validSource(p)) reasons.push(`INVALID_PARSE_SOURCE:${key}`);
-    if (!Number.isInteger(p.parse_count) || p.parse_count < 0) reasons.push(`INVALID_PARSE_COUNT:${key}`);
-    if (!p.parsed_at || Number.isNaN(Date.parse(p.parsed_at))) reasons.push(`INVALID_PARSE_TIMESTAMP:${key}`);
+    if (String(p.parse_status ?? "").trim().toUpperCase() !== "SUCCESS") installed.push(`PARSE_STATUS_NOT_SUCCESS:${key}`);
+    if (!installedSourceOk(p)) installed.push(`INVALID_PARSE_SOURCE:${key}`);
+    else if (!strictSourceOk(p)) proposed.push(`STRICT_PARSE_SOURCE_FAILED:${key}`);
+    const rows = p.parsed_row_count;
+    if (!Number.isInteger(rows) || rows < 0) installed.push(`INVALID_PARSED_ROW_COUNT:${key}`);
+    if (!p.parsed_at || Number.isNaN(Date.parse(p.parsed_at))) installed.push(`INVALID_PARSE_TIMESTAMP:${key}`);
     const pub = published.find((r) => r.source_key === key);
     const pubRows = pub?.rows ?? 0;
-    if (Number.isInteger(p.parse_count) && pubRows !== p.parse_count) reasons.push(`PARSED_PUBLISHED_COUNT_MISMATCH:${key}`);
-    if (p.parse_count === 0 && !(expected?.zero_row_ok ?? []).includes(key)) reasons.push(`UNDECLARED_EMPTY_CHUNK:${key}`);
-    if (p.parse_count === 0 && (expected?.zero_row_ok ?? []).includes(key)) warnings.push(`DECLARED_EMPTY_CHUNK:${key}`);
+    // PROPOSED_MIS: per-source parsed vs published row parity (not an installed finalizer check).
+    if (Number.isInteger(rows) && pubRows !== rows) proposed.push(`PARSED_PUBLISHED_COUNT_MISMATCH:${key}`);
+    if (rows === 0 && !(expected?.zero_row_ok ?? []).includes(key)) proposed.push(`UNDECLARED_EMPTY_CHUNK:${key}`);
+    if (rows === 0 && (expected?.zero_row_ok ?? []).includes(key)) warnings.push(`DECLARED_EMPTY_CHUNK:${key}`);
     if (p.company) companies.add(p.company);
     if (pub?.company) companies.add(pub.company);
     scopes.push({ key, from: p.scope_from, to: p.scope_to });
   }
-  if (companies.size > 1) reasons.push("MIXED_COMPANY");
+  if (companies.size > 1) installed.push("MIXED_COMPANY");
 
   const sorted = scopes.filter((s) => s.from && s.to).sort((a, b) => day(a.from) - day(b.from));
-  if (sorted.length !== scopes.length) reasons.push("MISSING_SCOPE_DATES");
+  if (sorted.length !== scopes.length) installed.push("MISSING_SCOPE_DATES");
   if (sorted.length) {
-    if (sorted[0].from !== fiscalStart) reasons.push("SCOPE_NOT_STARTING_AT_FISCAL_START");
-    if (sorted.at(-1).to !== asOf) reasons.push("SCOPE_NOT_ENDING_AT_AS_OF");
+    if (sorted[0].from !== fiscalStart) installed.push("SCOPE_NOT_STARTING_AT_FISCAL_START");
+    if (sorted.at(-1).to !== asOf) installed.push("SCOPE_NOT_ENDING_AT_AS_OF");
     for (let i = 1; i < sorted.length; i++) {
       const want = addDays(sorted[i - 1].to, 1);
-      if (sorted[i].from > want) reasons.push(`SCOPE_GAP:${sorted[i - 1].to}..${sorted[i].from}`);
-      if (sorted[i].from < want) reasons.push(`SCOPE_OVERLAP:${sorted[i - 1].to}..${sorted[i].from}`);
+      if (sorted[i].from > want) installed.push(`SCOPE_GAP:${sorted[i - 1].to}..${sorted[i].from}`);
+      if (sorted[i].from < want) installed.push(`SCOPE_OVERLAP:${sorted[i - 1].to}..${sorted[i].from}`);
     }
   }
 
   // Published chunks the expected list does not cover (e.g. extra/stale source key).
-  for (const r of published) if (r.rows > 0 && !keys.includes(r.source_key)) reasons.push(`UNEXPECTED_PUBLISHED_KEY:${r.source_key}`);
+  for (const r of published) if (r.rows > 0 && !keys.includes(r.source_key)) proposed.push(`UNEXPECTED_PUBLISHED_KEY:${r.source_key}`);
 
-  if (reasons.length) return { status: STATUS.NOT_CERTIFIED, reasons, warnings };
+  const reasons = [...installed, ...proposed];
+  const layers = { installed_reasons: installed, proposed_mis_reasons: proposed, real_manifest_proven: REAL_MANIFEST_PROVEN };
+  if (reasons.length) return { status: STATUS.NOT_CERTIFIED, reasons, ...layers, warnings };
   if (expected?.source !== MANIFEST_SOURCE.INDEPENDENT) {
-    return { status: STATUS.PUBLISHED, reasons: ["EXPECTED_KEYS_NOT_INDEPENDENT_OF_PUBLISHED_ROWS"], warnings };
+    return { status: STATUS.PUBLISHED, reasons: ["EXPECTED_KEYS_NOT_INDEPENDENT_OF_PUBLISHED_ROWS"], ...layers, warnings };
   }
-  return { status: STATUS.CERTIFIED, reasons: [], warnings };
+  // Synthetic only: the manifest independence is asserted by the fixture, not proven.
+  return { status: STATUS.CERTIFIED, reasons: [], ...layers, evidence_basis: "SYNTHETIC_FIXTURE_ASSERTION", warnings };
+}
+
+/**
+ * Models the described rebuild semantics (latest voucher alteration wins per
+ * store/GUID-or-fallback/inventory_line_no/batch_line_no/raw_godown; cancelled or
+ * optional latest versions are excluded). Fixture of the intended parity target
+ * for the S1/S2 candidate; does not claim to equal the live body.
+ */
+export function latestWinsLines(lines) {
+  const k = (l) => [l.store, l.guid ?? l.fallback_key, l.inventory_line_no, l.batch_line_no ?? 0, l.raw_godown ?? ""].join("|");
+  const latest = new Map();
+  for (const l of lines) {
+    const cur = latest.get(k(l));
+    if (!cur || l.alter_id > cur.alter_id) latest.set(k(l), l);
+  }
+  return [...latest.values()].filter((l) => !l.cancelled && !l.optional);
 }
 
 /** Voucher-line summary. Tally book value only; no manufacturing COP is derived. */

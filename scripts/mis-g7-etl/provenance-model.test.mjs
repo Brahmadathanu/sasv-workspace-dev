@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  STATUS, MANIFEST_SOURCE, KNOWN_TALLY_ERROR, evaluateSnapshot, summarizeLines, diffSnapshots,
+  STATUS, MANIFEST_SOURCE, KNOWN_TALLY_ERROR, evaluateSnapshot, summarizeLines, diffSnapshots, latestWinsLines, REAL_MANIFEST_PROVEN,
 } from "./provenance-model.mjs";
 
 const AS_OF = "2026-11-23";
@@ -20,7 +20,7 @@ function fixture({ store = "IK", source = MANIFEST_SOURCE.INDEPENDENT } = {}) {
     jobs.push({ job_type: "FETCH_XML", status: "done", params: { save_key: key, source_size_bytes: 5000 + i, source_hash: h(i + 1) } });
     jobs.push({ job_type: "PARSE_FG_TRANSFER_CHUNK", status: "done", params: {
       source_key: key, as_of_date: AS_OF, store, parse_status: "SUCCESS", source_size_bytes: 5000 + i, source_hash: h(i + 1),
-      parse_count: 10 + i, parsed_at: "2026-11-23T01:00:00Z", scope_from: from, scope_to: to, company: "SASV" } });
+      parsed_row_count: 10 + i, parsed_at: "2026-11-23T01:00:00Z", scope_from: from, scope_to: to, company: "SASV" } });
     published.push({ source_key: key, company: "SASV", rows: 10 + i });
   });
   return { store, asOf: AS_OF, expected: { keys, source }, jobs, published };
@@ -29,9 +29,13 @@ const parseOf = (f, i) => f.jobs.filter((j) => j.job_type === "PARSE_FG_TRANSFER
 const fetchOf = (f, i) => f.jobs.filter((j) => j.job_type === "FETCH_XML")[i];
 const has = (r, prefix) => r.reasons.some((x) => x.startsWith(prefix));
 
-test("eight sequential monthly chunks with independent manifest certify", () => {
+test("eight chunks + asserted manifest certify SYNTHETICALLY only; no real manifest is proven", () => {
   const r = evaluateSnapshot(fixture());
   assert.equal(r.status, STATUS.CERTIFIED);
+  assert.equal(r.evidence_basis, "SYNTHETIC_FIXTURE_ASSERTION");
+  assert.equal(r.real_manifest_proven, false);
+  assert.equal(REAL_MANIFEST_PROVEN, false);
+  assert.deepEqual([r.installed_reasons, r.proposed_mis_reasons], [[], []]);
 });
 
 test("keys derived only from published rows never certify (max SOURCE_PARSED_AND_PUBLISHED)", () => {
@@ -66,7 +70,7 @@ test("missing expected ninth chunk is withheld", () => {
 
 test("empty but successfully parsed chunk requires explicit manifest declaration", () => {
   const f = fixture();
-  parseOf(f, 2).params.parse_count = 0; f.published[2].rows = 0;
+  parseOf(f, 2).params.parsed_row_count = 0; f.published[2].rows = 0;
   const r = evaluateSnapshot(f);
   assert.equal(r.status, STATUS.NOT_CERTIFIED);
   assert.ok(has(r, "UNDECLARED_EMPTY_CHUNK"));
@@ -101,10 +105,10 @@ test("parse status failure", () => {
 
 test("invalid hash / size / count / timestamp", () => {
   const cases = [
-    ["INVALID_PARSE_SOURCE", (f) => { parseOf(f, 0).params.source_hash = "xyz"; }],
-    ["INVALID_PARSE_SOURCE", (f) => { parseOf(f, 0).params.source_size_bytes = 0; }],
+    ["INVALID_PARSE_SOURCE", (f) => { parseOf(f, 0).params.source_hash = ""; }],
+    ["INVALID_PARSE_SOURCE", (f) => { parseOf(f, 0).params.source_size_bytes = -5; }],
     ["INVALID_FETCH_SOURCE", (f) => { fetchOf(f, 0).params.source_hash = null; }],
-    ["INVALID_PARSE_COUNT", (f) => { parseOf(f, 0).params.parse_count = -1; }],
+    ["INVALID_PARSED_ROW_COUNT", (f) => { parseOf(f, 0).params.parsed_row_count = -1; }],
     ["INVALID_PARSE_TIMESTAMP", (f) => { parseOf(f, 0).params.parsed_at = "not-a-date"; }],
   ];
   for (const [code, mutate] of cases) {
@@ -115,9 +119,38 @@ test("invalid hash / size / count / timestamp", () => {
   }
 });
 
-test("parsed vs published count mismatch", () => {
+test("parsed vs published count mismatch is a PROPOSED_MIS check, not installed", () => {
   const f = fixture(); f.published[5].rows += 1;
-  assert.ok(has(evaluateSnapshot(f), "PARSED_PUBLISHED_COUNT_MISMATCH"));
+  const r = evaluateSnapshot(f);
+  assert.ok(has(r, "PARSED_PUBLISHED_COUNT_MISMATCH"));
+  assert.equal(r.installed_reasons.length, 0);
+  assert.equal(r.proposed_mis_reasons.length, 1);
+});
+
+test("installed source-size policy is >= 0; zero size is only caught by the stricter proposed check", () => {
+  const f = fixture(); parseOf(f, 0).params.source_size_bytes = 0;
+  const r = evaluateSnapshot(f);
+  assert.equal(r.installed_reasons.length, 0);
+  assert.ok(r.proposed_mis_reasons.some((x) => x.startsWith("STRICT_PARSE_SOURCE_FAILED")));
+  assert.equal(r.status, STATUS.NOT_CERTIFIED);
+  const g = fixture(); parseOf(g, 0).params.source_size_bytes = -1;
+  assert.ok(evaluateSnapshot(g).installed_reasons.some((x) => x.startsWith("INVALID_PARSE_SOURCE")));
+  const bad = fixture(); parseOf(bad, 0).params.source_hash = "xyz"; // non-empty: installed passes, proposed fails
+  const b = evaluateSnapshot(bad);
+  assert.equal(b.installed_reasons.length, 0);
+  assert.ok(b.proposed_mis_reasons.some((x) => x.startsWith("STRICT_PARSE_SOURCE_FAILED")));
+});
+
+test("latest voucher alteration wins; cancelled/optional latest versions are excluded; reversals net", () => {
+  const base = { store: "IK", guid: "g1", inventory_line_no: 1, batch_line_no: 0, raw_godown: "MAIN" };
+  const rows = latestWinsLines([
+    { ...base, alter_id: 1, amount: 100 }, { ...base, alter_id: 2, amount: 90 },
+    { ...base, guid: "g2", alter_id: 1, amount: 50 }, { ...base, guid: "g2", alter_id: 2, amount: 50, cancelled: true },
+    { ...base, guid: "g3", alter_id: 1, amount: 30, optional: true },
+    { ...base, guid: "g4", alter_id: 1, amount: 40 }, { ...base, guid: "g4", inventory_line_no: 2, alter_id: 1, amount: -40 },
+  ]);
+  assert.deepEqual(rows.map((r) => `${r.guid}:${r.amount}`).sort(), ["g1:90", "g4:-40", "g4:40"]);
+  assert.equal(summarizeLines(rows).book_value, 90);
 });
 
 test("scope gap, overlap, wrong start and wrong end", () => {
