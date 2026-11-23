@@ -17,3 +17,21 @@ The exporter uses `REPEATABLE READ READ ONLY`, fixed allowlisted SQL, primary-ke
 **Not proven:** row restoration, durability after machine loss, full 64-table per-run completeness, RLS-consistent round trip, production physical storage reclamation, October-to-November costing cutover, or monthly scheduling. The manifest explicitly marks `restoreVerified:false` and `productionDeletionAuthorised:false`. Restore must be independently rehearsed to a separately authorised isolated Postgres database, preserving identity-by-default primary keys and foreign keys, before S3E staging deletion rehearsal or any permanent cleanup.
 
 **Staging status:** no Supabase development branch existed at the last check; creating a billable branch requires separate cost approval. No live cleanup DML or DDL is authorized by these tools.
+
+## S3G — typed restore verification on an isolated PostgreSQL database
+
+`restore-verify-run87.mjs` validates S3F's two archived evidence tables using transaction-local temporary tables, matching PostgreSQL types and independent re-serialization SHA-256. It is **not** a production restore, an end-to-end backup or a deletion executor.
+
+Operator prerequisite: independently verify that `SASV_ISOLATED_STAGE_DATABASE_URL` points to an isolated staging database, not the SASV production project or production pooler. An environment-variable attestation is additional defense, not authoritative environment isolation.
+
+```powershell
+# Set the confidential staging DB URL through secure local configuration only.
+$env:SASV_STAGE_RESTORE_ATTESTATION = "ISOLATED_STAGE_RESTORE_RUN87_NOT_PRODUCTION"
+node docs/master-data-costing/tools/restore-verify-run87.mjs "D:\\PRIVATE-SASV-ARCHIVE\\run87"
+node --test docs/master-data-costing/tools/*.test.mjs
+Remove-Item Env:SASV_STAGE_RESTORE_ATTESTATION
+```
+
+The tool verifies compressed archive hashes before initiating a DB transaction, creates temporary tables corresponding to the two original leaf relations, converts JSON using `jsonb_populate_record`, checks row totals and UTC-normalized row JSON serialization hashes, and executes `ROLLBACK` in `finally`. No data is imported into original tables. A successful receipt attests only **isolated typed temp-table restoration**, not production-recovery or purge authority.
+
+This script has not been executed against an isolated staging DB; no project branch, data export, or production write was created.
