@@ -42,6 +42,7 @@ export async function performRestoreVerification(client, archiveDir, opts={}) {
   try {
     await client.query('BEGIN');
     inTransaction=true;
+    await client.query("SET LOCAL TIME ZONE 'UTC'");
     await client.query("SET LOCAL lock_timeout = '3s'");
     await client.query("SET LOCAL statement_timeout = '10min'");
     await client.query("SET LOCAL idle_in_transaction_session_timeout = '12min'");
