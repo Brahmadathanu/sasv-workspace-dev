@@ -2510,7 +2510,21 @@
       .pec-s4-method-help summary { color:var(--primary,#0b605a); cursor:pointer; font-weight:600; }
       .pec-s4-method-help p { margin:5px 0 2px; }
       #prPlanMethodRow select { width:100%; }
-      #btnIndPlanEditor[hidden] { display:none !important; }
+      /* UX-F1: dedicated trigger. The shared .icon-btn rules (fixed 34-36px width) are deliberately NOT used:
+         body.sasv-pec .icon-btn outranks .icon-btn.with-label and crushed this label into a narrow column. */
+      #prPlanMethodRow .pec-plan-method-help { margin:6px 0 0; font-size:12px; line-height:1.45; }
+      #prPlanMethodRow .pec-ind-plan-trigger {
+        display:flex; align-items:center; gap:8px; width:100%; min-width:0; box-sizing:border-box;
+        min-height:40px; height:auto; margin:10px 0 0; padding:8px 12px;
+        border:1px solid var(--border,#cbd5e1); border-radius:8px; background:rgba(16,112,100,.07);
+        color:inherit; font:inherit; font-size:13px; font-weight:600; line-height:1.3; text-align:left; cursor:pointer;
+      }
+      #prPlanMethodRow .pec-ind-plan-trigger:hover { background:rgba(16,112,100,.14); border-color:var(--primary,#0b605a); }
+      #prPlanMethodRow .pec-ind-plan-trigger:focus-visible { outline:2px solid var(--primary,#0b605a); outline-offset:2px; }
+      #prPlanMethodRow .pec-ind-plan-trigger svg { flex:0 0 auto; }
+      #prPlanMethodRow .pec-ind-plan-trigger > svg:last-child { opacity:.65; }
+      #prPlanMethodRow .pec-ind-plan-trigger-label { flex:1 1 auto; min-width:0; overflow-wrap:anywhere; }
+      #prPlanMethodRow .pec-ind-plan-trigger[hidden] { display:none !important; }
       #indPlanModalBackdrop { z-index:10001; }
       #indPlanModalBackdrop > .modal { max-width:760px; height:auto; min-height:0; overflow:hidden; max-height:min(90dvh, 860px); }
       #indPlanModalBackdrop .pec-ind-plan-body { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
@@ -6003,10 +6017,18 @@
                 <option value="plan">Plan-based requirement</option>
                 <option value="hybrid">Plan + Historical Consumption</option>
               </select>
-              <p id="prPlanMethodHelp" class="pec-section-note" style="margin:4px 0 0"></p>
-              <button type="button" id="btnIndPlanEditor" class="icon-btn with-label secondary" hidden
-                aria-haspopup="dialog" aria-controls="indPlanModalBackdrop" style="margin-top:6px">
-                <span>Operational planned requirement (IND)…</span>
+              <p id="prPlanMethodHelp" class="pec-section-note pec-plan-method-help"></p>
+              <button type="button" id="btnIndPlanEditor" class="pec-ind-plan-trigger" hidden
+                aria-haspopup="dialog" aria-controls="indPlanModalBackdrop">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5h6M9 11h6M9 15h4"/>
+                </svg>
+                <span class="pec-ind-plan-trigger-label">Manage IND planned requirements</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m9 6 6 6-6 6"/>
+                </svg>
               </button>
             </div>
             <div class="form-group full-col">

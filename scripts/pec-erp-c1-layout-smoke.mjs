@@ -959,7 +959,7 @@ const reviewReady = (page) => page.waitForFunction(() => /auto-eligible|No opera
   await page.selectOption("#prMaterialClass", "2");
   check((await m()) === "hybrid" && !(await page.isVisible("#btnIndPlanEditor")), "[#508] PM defaults to hybrid; no IND editor button");
   await page.selectOption("#prMaterialClass", "5");
-  check((await m()) === "plan" && await page.isVisible("#btnIndPlanEditor") && (await page.locator("#prPlanMethodHelp").innerText()).includes("Operational Planned Requirement"),
+  check((await m()) === "plan" && await page.isVisible("#btnIndPlanEditor") && (await page.locator("#prPlanMethodHelp").innerText()).includes("monthly IND plan"),
     "[#508] IND defaults to Plan-based with the operational-plan button and wording");
   await page.selectOption("#prPlanMethod", "hybrid");
   await page.selectOption("#prMaterialClass", "2");
@@ -1157,6 +1157,96 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   check((await page.evaluate(() => (globalThis.__rpcNames || []).filter((x) => x === "proc_pr_add_line").length)) === 0,
     "[#502] prefix plus a token justification is still rejected");
   await page.keyboard.press("Escape");
+  await ctx.close();
+}
+
+// PEC S5 UX-F1 (issue #511): the IND planning-editor trigger is one compact, full-width, non-overlapping row at every width.
+const UXF1_VIEWPORTS = [
+  { name: "w320", width: 320, height: 640 }, { name: "w390", width: 390, height: 800 },
+  { name: "w768", width: 768, height: 1024 }, { name: "w1440", width: 1440, height: 900 },
+  { name: "short", width: 390, height: 480 },
+];
+async function uxf1Open(vp, cls, method) {
+  const r = await open({ role: "edit" }, vp);
+  await r.page.click("#btnGeneratePr");
+  await r.page.fill("#prNewNumber", "PR-UXF1-01");
+  await r.page.fill("#prHorizonStart", "2026-12"); await r.page.fill("#prHorizonEnd", "2027-01");
+  await r.page.selectOption("#prMaterialClass", String(cls));
+  if (method) await r.page.selectOption("#prPlanMethod", method);
+  return r;
+}
+const uxf1Measure = (page) => page.evaluate(() => {
+  const b = document.getElementById("btnIndPlanEditor"), row = document.getElementById("prPlanMethodRow");
+  const help = document.getElementById("prPlanMethodHelp"), notes = document.getElementById("prNotes");
+  const label = b.querySelector(".pec-ind-plan-trigger-label"), modal = document.querySelector("#generatePrModalBackdrop .modal");
+  const br = b.getBoundingClientRect(), rr = row.getBoundingClientRect(), hr = help.getBoundingClientRect(), nr = notes.getBoundingClientRect();
+  const lr = label.getBoundingClientRect(), lh = parseFloat(getComputedStyle(label).lineHeight) || 17;
+  const actions = document.querySelector("#generatePrModalBackdrop .actions").getBoundingClientRect();
+  const cs = getComputedStyle(b);
+  return { bw: br.width, rw: rr.width, bh: br.height, bt: br.top, bb: br.bottom, hb: hr.bottom, nt: nr.top, labelLines: Math.round(lr.height / lh),
+    labelW: lr.width, display: cs.display, ml: br.left - rr.left, mr: rr.right - br.right,
+    hScroll: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 || modal.scrollWidth > modal.clientWidth + 1,
+    actionsTop: actions.top, actionsBottom: actions.bottom, vh: innerHeight,
+    name: (b.textContent || "").replace(/\s+/g, " ").trim(), classes: b.className };
+});
+for (const vp of UXF1_VIEWPORTS) {
+  const { ctx, page, errors } = await uxf1Open(vp, 5);
+  const tag = `[UX-F1 ${vp.name} IND plan]`;
+  await page.waitForSelector("#btnIndPlanEditor:visible");
+  await page.locator("#btnIndPlanEditor").scrollIntoViewIfNeeded();
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-uxf1-ind-create-draft-pr.png`) });
+  const m = await uxf1Measure(page);
+  check(m.bw >= m.rw - 1 && m.ml <= 1 && m.mr <= 1 && m.display === "flex", `${tag} trigger fills its row (${Math.round(m.bw)}/${Math.round(m.rw)}px)`);
+  check(m.labelLines <= 2 && m.labelW >= Math.min(120, m.rw * 0.4), `${tag} label is one or two readable lines, not a crushed column (${m.labelLines} line(s), ${Math.round(m.labelW)}px)`);
+  check(m.bt >= m.hb + 4 && m.nt >= m.bb + 8, `${tag} help, trigger and Notes are separated with no overlap (help→trigger ${Math.round(m.bt - m.hb)}px, trigger→notes ${Math.round(m.nt - m.bb)}px)`);
+  check(!m.hScroll, `${tag} no horizontal overflow`);
+  check(m.name === "Manage IND planned requirements" && !/icon-btn/.test(m.classes), `${tag} accessible name is the visible label and the shared .icon-btn sizing is not used`);
+  check(await page.getByRole("button", { name: "Manage IND planned requirements" }).count() === 1, `${tag} exposed once to assistive technology`);
+  check(m.actionsBottom <= m.vh + 1 && m.actionsTop >= 0, `${tag} Generate/Cancel footer stays visible`);
+  check((await page.locator("#prPlanMethodHelp").innerText()) === "Uses your monthly IND plan, adjusted for available stock and outstanding indents. Missing months are flagged for review.", `${tag} IND plan helper is the approved short text`);
+  // Keyboard focus is visible and the nested editor returns focus to the trigger.
+  await page.focus("#prPlanMethod"); await page.keyboard.press("Tab");
+  check((await page.evaluate(() => document.activeElement?.id)) === "btnIndPlanEditor" &&
+        (await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle)) !== "none", `${tag} keyboard Tab reaches the trigger with a visible focus ring`);
+  await page.keyboard.press("Enter");
+  await page.waitForSelector("#indPlanModalBackdrop.show");
+  await page.keyboard.press("Escape");
+  check(!(await page.isVisible("#indPlanModalBackdrop.show")) && await page.isVisible("#generatePrModalBackdrop.show") &&
+        (await page.evaluate(() => document.activeElement?.id)) === "btnIndPlanEditor", `${tag} Escape closes only the editor and focus returns to the trigger`);
+  check(errors.length === 0, `${tag} no browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+for (const vp of [UXF1_VIEWPORTS[1], UXF1_VIEWPORTS[4]]) {
+  const { ctx, page } = await uxf1Open(vp, 5, "hybrid");
+  const tag = `[UX-F1 ${vp.name} IND hybrid]`;
+  await page.waitForSelector("#btnIndPlanEditor:visible");
+  await page.locator("#btnIndPlanEditor").scrollIntoViewIfNeeded();
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-uxf1-ind-hybrid.png`) });
+  const m = await uxf1Measure(page);
+  check(m.bw >= m.rw - 1 && m.nt >= m.bb + 8 && !m.hScroll, `${tag} full-width trigger, separated from Notes, no overflow`);
+  const help = await page.locator("#prPlanMethodHelp").innerText();
+  check(/higher of your monthly IND plan and the last 12 completed months/.test(help) && /never added together/.test(help), `${tag} hybrid helper still explains higher-of (never summed)`);
+  // The modal scrolls to reach the footer at short heights.
+  await page.locator("#generatePrModalBackdrop .modal").evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  const f = await page.locator("#generatePrModalBackdrop .actions").boundingBox();
+  check(f && f.y + f.height <= vp.height + 1, `${tag} footer reachable at ${vp.height}px height`);
+  await ctx.close();
+}
+for (const [vp, label] of [[UXF1_VIEWPORTS[0], "Geplante Anforderungen für indirekte Materialien verwalten und prüfen (IND-Planung)"], [UXF1_VIEWPORTS[1], "Gestionar los requisitos planificados de materiales indirectos para el periodo"]]) {
+  const { ctx, page } = await uxf1Open(vp, 5);
+  await page.locator(".pec-ind-plan-trigger-label").evaluate((el, t) => { el.textContent = t; }, label);
+  const m = await uxf1Measure(page);
+  check(m.bw >= m.rw - 1 && m.nt >= m.bb + 8 && !m.hScroll && m.labelLines <= 4, `[UX-F1 ${vp.name}] a long localized label wraps inside the trigger without overlap or overflow`);
+  await page.locator("#btnIndPlanEditor").scrollIntoViewIfNeeded();
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-uxf1-long-label.png`) });
+  await ctx.close();
+}
+for (const [cls, scope, tagName] of [[1, "normal", "RM Normal"], [1, "jit", "RM JIT"], [2, null, "PM"]]) {
+  const { ctx, page } = await open({ role: "edit" }, UXF1_VIEWPORTS[1]);
+  await page.click("#btnGeneratePr");
+  await page.selectOption("#prMaterialClass", String(cls));
+  if (scope) await page.selectOption("#prRmScope", scope);
+  check(!(await page.isVisible("#btnIndPlanEditor")) && (await page.locator("#btnIndPlanEditor").getAttribute("hidden")) !== null, `[UX-F1] ${tagName}: the IND trigger is hidden`);
   await ctx.close();
 }
 

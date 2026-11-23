@@ -126,6 +126,17 @@ if (js.includes('rpc("proc_pec_jit_generate_pr"')) {
   ok(!js.includes('reasonText = "Quantity adjustment"') && js.includes("pecReasonIsPlaceholderOnly"),
     "reason templates: no silent generic override reason; placeholder-only input is rejected");
 }
+// UX-F1: the IND planning-editor trigger uses a dedicated full-width class, never the shared fixed-width .icon-btn.
+{
+  const tag = (html.match(/<button[^>]*id="btnIndPlanEditor"[^>]*>/) || [""])[0];
+  ok(/class="pec-ind-plan-trigger"/.test(tag) && !/icon-btn/.test(tag) && /aria-controls="indPlanModalBackdrop"/.test(tag) && /\bhidden\b/.test(tag),
+    "UX-F1: trigger keeps its id/aria-controls/hidden state and uses .pec-ind-plan-trigger without .icon-btn");
+  const rule = (html.match(/#prPlanMethodRow \.pec-ind-plan-trigger \{([^}]*)\}/) || [,""])[1];
+  ok(/width:100%/.test(rule) && /min-width:0/.test(rule) && /box-sizing:border-box/.test(rule) && /display:flex/.test(rule) && /height:auto/.test(rule),
+    "UX-F1: trigger rule is full-width, min-width:0, border-box, flex, auto height");
+  ok(/Manage IND planned requirements/.test(html) && /Uses your monthly IND plan, adjusted for available stock and outstanding indents\. Missing months are flagged for review\./.test(js),
+    "UX-F1: approved trigger label and short IND plan helper text");
+}
 // PEC-ERP-C2: single vendor-selection writer, reused from the indent modal
 ok((js.match(/rpc\("proc_indent_set_vendor_selection"/g) || []).length === 1, "exactly one proc_indent_set_vendor_selection call site (no duplicate implementation)");
 ok(/origin === "indent"/.test(js) && /indentAllowsVendorSelection/.test(js), "indent-origin eligibility guard present");
