@@ -72,7 +72,21 @@ VALUES (143,'marketing_signed_billed_sales_evidence_snapshot',1,
  repeat('a',64),repeat('b',64),true,'fixture_only',clock_timestamp()+interval '1 day')"
 reject "approved-run-143-positive-bypass" "SELECT costing_retention.execute_leaf_batch(2)" sasv_retention_executor
 
-assert_count "marketing_regional_sales_evidence_snapshot" 87 1100
+# Independent second leaf-table acceptance, including 500/500/100 receipts.
+admin "INSERT INTO costing_retention.sealed_batch_approval
+(refresh_run_id,table_name,approved_total_rows,archive_sha256,restore_receipt_sha256,
+ restore_verified,approver,expires_at)
+VALUES (87,'marketing_regional_sales_evidence_snapshot',1100,
+ repeat('c',64),repeat('d',64),true,'fixture_only',clock_timestamp()+interval '1 day')"
+test "$(login "SELECT costing_retention.execute_leaf_batch(3)")" = 500
+assert_count "marketing_regional_sales_evidence_snapshot" 87 600
+test "$(login "SELECT costing_retention.execute_leaf_batch(3)")" = 500
+assert_count "marketing_regional_sales_evidence_snapshot" 87 100
+test "$(login "SELECT costing_retention.execute_leaf_batch(3)")" = 100
+assert_count "marketing_regional_sales_evidence_snapshot" 87 0
+test "$(admin "SELECT state FROM costing_retention.sealed_batch_approval WHERE id=3")" = COMPLETE
+test "$(admin "SELECT count(*) FROM costing_retention.batch_receipt WHERE approval_id=3")" = 3
+reject "regional-completed-approval-reuse" "SELECT costing_retention.execute_leaf_batch(3)" sasv_retention_executor
 assert_count "marketing_signed_billed_sales_evidence_snapshot" 122 1
 assert_count "marketing_signed_billed_sales_evidence_snapshot" 153 1
 assert_count "marketing_regional_sales_evidence_snapshot" 122 1
