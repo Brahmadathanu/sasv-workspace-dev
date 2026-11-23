@@ -296,3 +296,17 @@ Read-only period grouping: 120 legacy runs = **104 SUCCESS**, **15 FAILED**, **1
 **Correction made:** S3E script amended to **fail closed** at an early preflight when the active terminal-run trigger exists; it does not disable/bypass any guard. `docs/master-data-costing/sql/S3H_RETENTION_MUTATION_GUARD_READ_ONLY.sql` records exact read-only introspection/period counts. The next engineering package must introduce an explicitly reviewed retention-maintenance policy pathway that authorizes narrowly scoped, audited disposal of **undesignated historical terminal** snapshots while preserving normal writer immutability; it must pass independent authorization/permissions, run-ID, archive, approval, month-lock, and rollback proofs. **Never set a user-modifiable GUC as sole authorization, alter run status to make deletion pass, or disable triggers in production**. No production DML/DDL, archive export or scheduled maintenance was executed.
 
 **S3H status: production PostgreSQL typed-conversion sample verified; source-control safety correction applied; actual stage restore and deletion remain BLOCKED.**
+
+## S3I / S3J — Guard-preserving retention authorisation boundary (23 November 2026)
+
+Live read-only privileged-function inspection: `costing.fn_enforce_mutable_refresh_run_snapshot` and `costing.fn_guard_designated_run_rows` are owned by `postgres`, execute as SECURITY DEFINER, and have EXECUTE ACL restricted to `postgres`. Neither `anon` nor `authenticated` has direct EXECUTE in the tested live privilege check. These protections are an essential production security invariant and must not be weakened by a general writer bypass. Trigger code's `current_user` is the function owner, not a trustable original-caller identity.
+
+`docs/master-data-costing/sql/S3I_GOVERNED_RETENTION_POLICY_PREVIEW.sql` implements the **read-only policy predicate** with an actual negative/positive fixture comparison. Nine production live test IDs all matched their expected classifications **9/9 PASS**:
+- Pre-Nov non-designated and undisplayed: run 87 and 148 => `PREVIEW_ONLY_NEEDS_ARCHIVE_AND_GOVERNED_EXECUTOR` (not DELETE_ELIGIBLE).
+- Historical designated: 122,128,136,140,143 => HOLD.
+- November: 152,153 => HOLD.
+- Historical reference run 119 remains protected by designation history (not part of the above nine fixture query).
+
+`docs/master-data-costing/S3J_GOVERNED_RETENTION_EXECUTOR_CONTRACT.md` specifies the dedicated direct maintenance-role boundary, private manifest and audit records, same-transaction run/table/receipt binding, preservation of original snapshot guards, and privilege denial matrix. It explicitly forbids treating a modifiable session GUC alone, altering run status, disabling triggers, TRUNCATE or blanket CASCADE as authorisation.
+
+**Execution state:** server permission and classification proof read-only PASS. Privileged maintenance function/role/ledger, trigger exception, archiving and real staging deletion **NOT IMPLEMENTED or tested**. No production DML, DDL, security-policy change or scheduler change. The safe next gate is implementation and isolated positive/negative security proof of this exact retention-only exception before production deployment; do not confuse the design contract with a deployed cleanup mechanism.
