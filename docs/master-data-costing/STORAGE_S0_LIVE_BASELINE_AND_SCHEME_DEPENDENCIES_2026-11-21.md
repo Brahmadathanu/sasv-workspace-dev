@@ -320,3 +320,17 @@ Live read-only privileged-function inspection: `costing.fn_enforce_mutable_refre
 **Important limits:** source has **not** passed a real PostgreSQL deployment/rollback, function compilation, role-based positive/negative case execution, archive recovery or security code review. The 500-row loop is designed for one batch per call, not yet an approved permanent production mechanism. It also covers **only two tables** and does not solve the full 64+62 run-dependency graph, physical disk reclamation, all-scheme retirement, or October 143 to governed-November approval cutover. No new Supabase dev branch was bought. **NO live DDL, DML, role, trigger, cron, application change or archive extraction was performed.**
 
 **Next gate:** independently provision a free isolated local PG17 fixture with the source trigger definitions, compile S3K in that fixture, prove all negative role/approval tests and run87-only positive 500-row rollback/restore test, then seek independent audit/security review before a production migration is even considered. Existing source-control PR remains draft.
+
+## S3L — isolated PostgreSQL availability and S3K static security gate (23 Nov 2026)
+
+Attempted to locate an available no-cost local PostgreSQL engine in this execution container. `postgres`, `initdb`, `psql`, Docker and a configured installable `postgresql-17` package were **not present**. No free isolated PostgreSQL instance could be started in this turn. No paid Supabase branch was provisioned, and importantly **no production writer/DML/DDL or trigger alteration was used as a substitute**.
+
+**Actual code hardening:** stage-only `S3K_STAGE_ONLY_RETENTION_EXECUTOR_REVIEW.sql` now fails closed if either of the two current immutable trigger-function definitions or their `postgres` SECURITY DEFINER ownership differs from the live PG17.4 references, or if the expected four active row guards are absent. Read-only live `md5(pg_get_functiondef(...))` fingerprints on 23 Nov:
+- `fn_enforce_mutable_refresh_run_snapshot`: `2fc573625296de9ccde5d722fdd4a3de`.
+- `fn_guard_designated_run_rows`: `5629ce76254a5ed45cde5529ce91caee`.
+
+These MD5 values are **source drift markers only**, not a signed approval or a substitute for restore authorization. Before staging execution, pin checks must be reviewed against the **actual isolated fixture's function definitions**. A mismatch must stop installation, not be bypassed.
+
+**Offline static review:** 23/23 source checks PASS (scope, fixed run 87, two table allowlist, executor role, 500-row cap, no trigger disabling or status spoofing, private authorization and transaction context, source-fingerprint and trigger-count guards). Reproducible Node test source committed to `docs/master-data-costing/sql/S3L_STAGE_EXECUTOR_STATIC_GATES.test.mjs`, runnable as `node --test docs/master-data-costing/sql/S3L_STAGE_EXECUTOR_STATIC_GATES.test.mjs`. **These are source-only checks; no PostgreSQL syntax compile, role-based negative-access test, positive 500-row deletion/rollback, actual restore or concurrent-writer proof was performed.**
+
+**Verdict:** S3K remains **REVIEW_ONLY / NOT DEPLOYABLE** until its security and SQL semantics pass an actual isolated PostgreSQL 17 deployment and the independent archival/restore gates. Retention scope must not be broadened beyond two historical run-87 evidence tables by this scaffolding. No production changes.
