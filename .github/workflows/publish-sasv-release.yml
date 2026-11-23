@@ -78,11 +78,12 @@ jobs:
         run: |
           set -euo pipefail
           cat > release-notes.md <<'NOTES'
-          SASV Workspace v6.4.1 — PEC S5 IND planning layout patch.
+          SASV Workspace v6.4.2 — FG Bulk Internal Transfer Electron HOME navigation patch.
 
-          - Create Draft PR (IND): the "Manage IND planned requirements" button is now a full-width, readable row (it was crushed into a narrow column), with clean spacing before Notes at phone, tablet and desktop widths.
-          - The IND plan-based helper text is shorter: it uses your monthly IND plan, adjusted for available stock and outstanding indents; missing months are flagged for review.
-          - Layout and wording only: no change to calculations, permissions, review signatures, quantities or purchasing records. No database change ships in this installer.
+          - FIXED: FG Bulk Internal Transfer HOME now returns to the Electron dashboard instead of showing `Cannot GET /utilities-hub/index.html`.
+          - FIXED: Expired-session routing now opens the correct Electron login screen while preserving the web/PWA hub route.
+          - Reuses the existing shared platform routing contract; no change to stock balances, transfers, permissions, Supabase functions or data.
+          - Regression coverage includes the Electron local HTTP origin and the hosted web/PWA route.
 
           UNSIGNED WINDOWS INSTALLER: no code-signing certificate; SmartScreen or antivirus may warn. Verify the SHA-256 in SHA256SUMS.txt. Existing stable installs may upgrade through the app updater after publication verification.
           NOTES
