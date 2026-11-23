@@ -66,6 +66,8 @@ WITH ranked AS (
  'tally_snapshot_as_of','2026-11-23',
  'approved_cost_run_id',143,
  'source_line_count',(SELECT count(*) FROM priced),
+ 'distinct_original_line_ids',(SELECT count(DISTINCT id) FROM priced),
+ 'alias_join_cardinality_safe',(SELECT count(*)=count(DISTINCT id) FROM priced),
  'eligible_line_count',(SELECT count(*) FROM priced WHERE coverage_reason NOT IN
     ('EXCLUDED_SUPERSEDED','EXCLUDED_CANCELLED','EXCLUDED_OPTIONAL')),
  'covered_line_count',(SELECT count(*) FROM priced WHERE coverage_reason='COVERED'),
@@ -81,6 +83,8 @@ WITH ranked AS (
  ) payload
 )
 SELECT payload->>'source_line_count' source_lines,
+payload->>'distinct_original_line_ids' distinct_source_lines,
+payload->>'alias_join_cardinality_safe' alias_join_cardinality_safe,
 payload->>'eligible_line_count' eligible_lines,
 payload->>'covered_line_count' covered_lines,
 payload->>'uncovered_line_count' uncovered_lines,
