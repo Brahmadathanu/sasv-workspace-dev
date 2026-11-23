@@ -19,6 +19,14 @@ assert_count() {
   test "$n" = "$expected" || { echo "S3L COUNT FAIL ${table}/${run}: ${n} != ${expected}"; exit 1; }
 }
 psql -X -v ON_ERROR_STOP=1 -f "$sql_dir/S3L_SYNTHETIC_PG17_FIXTURE.sql" | tee /tmp/s3l-setup.txt
+# Actual catalog-driven inventory acceptance on isolated synthetic schema.
+# Production may have 64 direct run FKs; fixture deliberately has fewer.
+psql -X -v ON_ERROR_STOP=1 -f "$sql_dir/S3M_FULL_RUN_DEPENDENCY_INVENTORY_READ_ONLY.sql" > /tmp/s3m-inventory.txt
+test "$(admin "SELECT count(*) FROM pg_constraint WHERE contype='f' AND confrelid='costing.costing_refresh_run'::regclass")" -ge 2
+grep -q 'marketing_signed_billed_sales_evidence_snapshot' /tmp/s3m-inventory.txt
+grep -q 'marketing_regional_sales_evidence_snapshot' /tmp/s3m-inventory.txt
+grep -q 'HOLD_GOVERNANCE_OR_STATE' /tmp/s3m-inventory.txt
+echo "S3M_PG17_CATALOG_INVENTORY_PASS"
 # Expected exact live function definitions. If fixture format differs, stop and
 # inspect instead of silently weakening the existing guard signature check.
 test "$(admin "SELECT md5(pg_get_functiondef('costing.fn_enforce_mutable_refresh_run_snapshot()'::regprocedure))")" = "2fc573625296de9ccde5d722fdd4a3de"
