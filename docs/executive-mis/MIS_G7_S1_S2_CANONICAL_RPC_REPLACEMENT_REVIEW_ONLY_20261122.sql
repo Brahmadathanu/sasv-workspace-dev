@@ -166,12 +166,28 @@ BEGIN
     WHERE t.voucher_date>=v_month AND t.voucher_date<=v_cutoff
   )
   ,
+  -- Mirror the installed FG transfer publisher's voucher alteration precedence.
+  -- The latest version wins BEFORE cancellation/optional classification.
+  transfer_ref_ranked AS (
+    SELECT t.*,
+           row_number() OVER (
+             PARTITION BY t.transfer_store,
+               coalesce(nullif(t.voucher_guid,''),'__NO_GUID__'),
+               t.inventory_line_no,t.batch_line_no,coalesce(t.raw_godown,'')
+             ORDER BY coalesce(t.voucher_alterid,0) DESC,
+                      t.as_of_date DESC,t.id DESC
+           ) AS version_rank
+    FROM public.tally_fg_transfer_voucher_lines t
+    JOIN transfer_snapshot ts ON ts.as_of_date=t.as_of_date
+    WHERE t.voucher_date>=v_month AND t.voucher_date<=v_cutoff
+  ),
   transfer_ref_lines AS (
     SELECT t.as_of_date,t.voucher_guid,t.inventory_line_no,
            t.batch_line_no,t.voucher_date,t.batch_code,
            t.qty_value,t.transfer_amount,a.sku_id,
            k.manufacturing_cop_per_sku,
            CASE
+             WHEN t.version_rank>1 THEN 'EXCLUDED_SUPERSEDED'
              WHEN coalesce(t.is_cancelled,false) THEN 'EXCLUDED_CANCELLED'
              WHEN coalesce(t.is_optional,false) THEN 'EXCLUDED_OPTIONAL'
              WHEN a.sku_id IS NULL THEN 'SKU_UNMAPPED'
@@ -191,25 +207,25 @@ BEGIN
                THEN 'QUANTITY_UNUSABLE'
              ELSE 'COVERED'
            END coverage_reason
-    FROM public.tally_fg_transfer_voucher_lines t
-    JOIN transfer_snapshot ts ON ts.as_of_date=t.as_of_date
+    FROM transfer_ref_ranked t
     LEFT JOIN public.sku_aliases a
       ON a.alias_key=public.f_norm_key(t.item_name)
     LEFT JOIN public.product_skus ps ON ps.id=a.sku_id
     LEFT JOIN costing.sku_internal_loaded_cost_snapshot k
       ON k.refresh_run_id=v_run AND k.sku_id=a.sku_id
-    WHERE t.voucher_date>=v_month AND t.voucher_date<=v_cutoff
   ),
   transfer_ref_rollup AS (
     SELECT count(*) source_line_count,
            count(*) FILTER (WHERE coverage_reason NOT IN
-             ('EXCLUDED_CANCELLED','EXCLUDED_OPTIONAL')) eligible_line_count,
+             ('EXCLUDED_SUPERSEDED','EXCLUDED_CANCELLED','EXCLUDED_OPTIONAL')) eligible_line_count,
            count(*) FILTER (WHERE coverage_reason IN
-             ('EXCLUDED_CANCELLED','EXCLUDED_OPTIONAL')) excluded_line_count,
+             ('EXCLUDED_SUPERSEDED','EXCLUDED_CANCELLED','EXCLUDED_OPTIONAL')) excluded_line_count,
            count(*) FILTER (WHERE coverage_reason='COVERED') covered_line_count,
            count(*) FILTER (WHERE coverage_reason NOT IN
-             ('COVERED','EXCLUDED_CANCELLED','EXCLUDED_OPTIONAL')) uncovered_line_count,
-           sum(transfer_amount) book_transfer_value,
+             ('COVERED','EXCLUDED_SUPERSEDED','EXCLUDED_CANCELLED','EXCLUDED_OPTIONAL')) uncovered_line_count,
+           sum(transfer_amount) FILTER (WHERE coverage_reason NOT IN
+             ('EXCLUDED_SUPERSEDED','EXCLUDED_CANCELLED','EXCLUDED_OPTIONAL')) book_transfer_value,
+           sum(transfer_amount) raw_book_transfer_value,
            round(sum(qty_value*manufacturing_cop_per_sku)
              FILTER (WHERE coverage_reason='COVERED'),2) covered_reference_subtotal,
            (SELECT jsonb_object_agg(coverage_reason,n)
@@ -237,6 +253,7 @@ BEGIN
         'uncovered_line_count',(SELECT uncovered_line_count FROM transfer_ref_rollup),
         'covered_reference_subtotal',(SELECT covered_reference_subtotal FROM transfer_ref_rollup),
         'tally_source_book_amount',(SELECT book_transfer_value FROM transfer_ref_rollup),
+        'tally_raw_book_amount',(SELECT raw_book_transfer_value FROM transfer_ref_rollup),
         'coverage_reasons',(SELECT reason_counts FROM transfer_ref_rollup),
         'coverage_status',CASE
             WHEN (SELECT as_of_date FROM transfer_snapshot) IS NULL THEN 'NO_SNAPSHOT'
