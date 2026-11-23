@@ -62,7 +62,30 @@ WITH ids(id, expected) AS (
         (152::bigint,'HOLD_POST_COMPLETION'),
         (153::bigint,'HOLD_POST_COMPLETION')
 )
-SELECT id,expected FROM ids ORDER BY id;
+SELECT f.id, f.expected,
+  CASE
+    WHEN r.id IS NULL THEN 'MISSING_RUN'
+    WHEN r.period_start >= DATE '2026-11-01' THEN 'HOLD_POST_COMPLETION'
+    WHEN EXISTS(SELECT 1 FROM costing.costing_run_designation d WHERE d.refresh_run_id=r.id)
+      THEN 'HOLD_HISTORIC_DESIGNATION'
+    WHEN COALESCE(v.displayed_run_id=r.id,false)
+       OR COALESCE(v.approved_run_id=r.id,false)
+      THEN 'HOLD_PERIOD_POINTER'
+    WHEN EXISTS(SELECT 1 FROM costing.material_review_acceptance_register x WHERE x.source_refresh_run_id=r.id)
+       OR EXISTS(SELECT 1 FROM costing.regional_marketing_evidence_acceptance x WHERE x.source_refresh_run_id=r.id)
+       OR EXISTS(SELECT 1 FROM costing.sales_allocation_quantity_driver_acceptance x WHERE x.source_refresh_run_id=r.id)
+       OR EXISTS(SELECT 1 FROM costing.cost_driver_policy_cutover_acceptance x WHERE x.accepted_refresh_run_id=r.id)
+       OR EXISTS(SELECT 1 FROM costing.manufacturing_cost_behaviour_split x WHERE x.reference_refresh_run_id=r.id)
+       OR EXISTS(SELECT 1 FROM costing.costing_period_refresh_authorization x WHERE x.consumed_by_run_id=r.id)
+      THEN 'HOLD_ACCEPTANCE_LINK'
+    WHEN r.overall_status IN ('SUCCESS','FAILED','CANCELLED')
+      THEN 'PREVIEW_ONLY_NEEDS_ARCHIVE_AND_GOVERNED_EXECUTOR'
+    ELSE 'HOLD_QUEUED_RUNNING_OR_UNKNOWN'
+  END AS actual
+FROM ids f
+LEFT JOIN costing.costing_refresh_run r ON r.id=f.id
+LEFT JOIN costing.v_costing_period_run_status v ON v.period_start=r.period_start
+ORDER BY f.id;
 
 -- Do not activate deletion until:
 -- 1. An independent retention-specific identity, fixed execution grants and
