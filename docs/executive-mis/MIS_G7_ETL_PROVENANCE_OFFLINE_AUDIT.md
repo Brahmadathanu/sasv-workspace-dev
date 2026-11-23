@@ -38,10 +38,11 @@
 
 Model results expose `installed_reasons` and `proposed_mis_reasons` separately. The earlier draft's `parse_count` field was wrong; the model now uses the live `parsed_row_count`.
 
-## 2. Independent manifest / durable receipt: none found
+## 2. Existing finalizer job receipt located in live database; independent plan certification remains unproved
 
-- No table, view or function in the repo stores a planned-chunk manifest or a per-store/as-of finalizer success receipt.
-- `etl_jobs.params` (+ `etl_job_status_history`) is the only durable trace. Expected keys passed to the finalizer are caller-supplied jsonb.
+- **Subsequent independent READ-ONLY live discovery (23 Nov 2026):** actual `public.etl_jobs` records of `job_type='FINALIZE_FG_TRANSFER_SNAPSHOT'` **already retain a completed/ACCEPTED per-store/as-of operational finalization receipt**: job UUID, `params.expected_keys` (eight declared keys per inspected store), company, fiscal start, timestamps and `etl_job_status_history` queued/in_progress/done. The earlier statement that no receipt exists was too broad. The job source is outside this repo's migrations, hence it was not traceable by the original repository-only audit.
+- Six of six inspected Nov21–23 IK/OK store/day finalizer manifests match eight published source keys each. For Nov23 finalizer was queued before the latest parse finished. This supports a pre-publication declaration, **but does not prove** the external Tally agent's independent planning algorithm, immutability of job params, atomic joint-store publication or an immutable financial MIS report receipt.
+- Existing `etl_jobs.params` and `etl_job_status_history` should be reused; do **not** introduce a duplicate ETL ledger. Complete proof and proposed server-only read model: `docs/executive-mis/MIS_G7_FINALIZATION_AND_TALLY_PROVENANCE_CONTRACT_REVIEW_ONLY_20261123.md` on docs PR #485.
 - Fixture caveat: `expected.source = INDEPENDENT_MANIFEST_ASSERTED_SYNTHETIC` is only a flag the fixture sets. It proves nothing about a real manifest; `SNAPSHOT_CERTIFIED_COMPLETE` from the model is synthetic (`evidence_basis=SYNTHETIC_FIXTURE_ASSERTION`, `real_manifest_proven=false`) and must never be quoted as live evidence.
 - Consequence (already noted live): if the key list is derived from published rows, a zero-row chunk omitted by the producer cannot be detected. The offline test `omitted zero-row chunk evades row-derived keys…` models exactly this.
 
@@ -77,6 +78,6 @@ Run: `node --test scripts/mis-g7-etl/*.test.mjs` (19 tests)
 
 1. Finalizer / rebuild-window DDL is not in the repo (drift): capture the reviewed live definitions as a committed baseline on the server-review path. Cross-store atomicity and locking are not demonstrated.
 2. Planner of expected chunks (Tally agent) is outside the repo → needs owner-side evidence of how keys are generated.
-3. No independently verified receipt or real manifest exists; do not claim `SNAPSHOT_CERTIFIED_COMPLETE`.
+3. An **operational done/ACCEPTED finalizer job receipt does exist** (subsequent read-only evidence); a **proven independently generated immutable manifest, cross-store atomic publication and frozen MIS financial report receipt do not yet exist**. Do not claim `SNAPSHOT_CERTIFIED_COMPLETE`.
 
 **Next server governance gate:** (a) owner decision on where the independent expected-chunk plan originates; (b) S1/S2 candidate parity with latest-alteration/cancelled precedence and its fixtures; (c) only then a private status-derivation design. Live read-only definition review is done.
