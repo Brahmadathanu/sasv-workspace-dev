@@ -199,7 +199,7 @@ BEGIN
              WHEN ps.pack_size IS DISTINCT FROM k.pack_size
                   OR ps.uom IS DISTINCT FROM k.pack_uom
                THEN 'PACK_DEFINITION_MISMATCH'
-             WHEN public.f_norm_key(t.qty_unit_text) NOT IN
+             WHEN coalesce(public.f_norm_key(t.qty_unit_text),'') NOT IN
                ('btl','bottle','nos','no','pcs','piece','pack','pkt',
                 'box','jar','tin','tube','sachet','strip','unit','units')
                THEN 'QUANTITY_NOT_IN_PACKS'
