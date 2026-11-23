@@ -10,19 +10,19 @@ WITH fg AS (
  WHERE wl.activity='FG bulk storage'
    AND wl.log_date BETWEEN '2026-11-01' AND '2026-11-21'
 ), route_rollup AS (
- SELECT f.id work_log_id,
+ SELECT f.work_log_id,
  COUNT(DISTINCT pr.id) FILTER(WHERE pr.status='APPROVED') any_approved_routes,
  COUNT(DISTINCT pr.id) FILTER(WHERE pr.status='APPROVED'
   AND pr.effective_from<=f.log_date
   AND (pr.effective_to IS NULL OR pr.effective_to>=f.log_date)) effective_approved_routes
  FROM fg f LEFT JOIN costing.product_process_route pr ON pr.product_id=f.product_id
- GROUP BY f.id
+ GROUP BY f.work_log_id
 ), mapped AS (
  SELECT f.work_log_id,COUNT(DISTINCT s.id) FILTER(WHERE a.activity_name='FG bulk storage'
        AND s.is_mandatory) mandatory_fg_activity_steps,
        COUNT(DISTINCT s.id) FILTER(WHERE a.activity_name='FG bulk storage') any_fg_activity_steps,
        COUNT(DISTINCT pr.id) approved_route_ids
- FROM (SELECT id work_log_id, product_id,log_date FROM fg) f
+ FROM (SELECT work_log_id, product_id,log_date FROM fg) f
  LEFT JOIN costing.product_process_route pr ON pr.product_id=f.product_id
    AND pr.status='APPROVED'
    AND pr.effective_from<=f.log_date
@@ -32,10 +32,10 @@ WITH fg AS (
  LEFT JOIN public.activities a ON a.id=s.activity_id
  GROUP BY f.work_log_id
 ), bmr AS (
- SELECT f.id work_log_id,count(b.id) bmr_matches
+ SELECT f.work_log_id,count(b.id) bmr_matches
  FROM fg f LEFT JOIN public.bmr_details b
  ON b.product_id=f.product_id AND b.bn=f.batch_number
- GROUP BY f.id
+ GROUP BY f.work_log_id
 ), classified AS (
  SELECT f.*,r.any_approved_routes,r.effective_approved_routes,
  m.any_fg_activity_steps,m.mandatory_fg_activity_steps,b.bmr_matches,
@@ -46,8 +46,8 @@ WITH fg AS (
  WHEN r.effective_approved_routes>1 THEN 'APPROVED_ROUTE_OVERLAP'
  WHEN m.mandatory_fg_activity_steps<>1 THEN 'MANDATORY_FG_STAGE_GAP'
  ELSE 'ACTIVITY_ROUTE_CORRELATED_NOT_SIGNED' END review_queue
- FROM fg f JOIN route_rollup r ON r.work_log_id=f.id
- JOIN mapped m ON m.work_log_id=f.id JOIN bmr b ON b.work_log_id=f.id
+ FROM fg f JOIN route_rollup r ON r.work_log_id=f.work_log_id
+ JOIN mapped m ON m.work_log_id=f.id JOIN bmr b ON b.work_log_id=f.work_log_id
 )
 SELECT review_queue,count(*) work_log_events,
  count(DISTINCT product_id) affected_products,
