@@ -15,19 +15,22 @@ BEGIN;
 DO $gate$
 BEGIN
   IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='sasv_retention_executor'
-      AND rolcanlogin AND NOT rolbypassrls) THEN
+      AND rolcanlogin AND NOT rolbypassrls AND NOT rolinherit) THEN
     RAISE EXCEPTION 'S3K: separately provisioned dedicated LOGIN role required';
   END IF;
   IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='sasv_retention_executor' AND rolsuper) THEN
     RAISE EXCEPTION 'S3K: executor must not be superuser';
   END IF;
+  IF to_regnamespace('costing_retention') IS NOT NULL THEN
+    RAISE EXCEPTION 'S3K: private schema already exists; review separately, never reuse silently';
+  END IF;
 END $gate$;
 
-CREATE SCHEMA IF NOT EXISTS costing_retention;
+CREATE SCHEMA costing_retention;
 REVOKE ALL ON SCHEMA costing_retention FROM PUBLIC, anon, authenticated, service_role;
 -- The namespace is NOT an exposed PostgREST schema.
 
-CREATE TABLE IF NOT EXISTS costing_retention.sealed_batch_approval (
+CREATE TABLE costing_retention.sealed_batch_approval (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  refresh_run_id bigint NOT NULL REFERENCES costing.costing_refresh_run(id) ON DELETE RESTRICT,
  table_name text NOT NULL CHECK(table_name IN
@@ -43,7 +46,7 @@ CREATE TABLE IF NOT EXISTS costing_retention.sealed_batch_approval (
  UNIQUE(refresh_run_id,table_name),
  CHECK(expires_at > sealed_at)
 );
-CREATE TABLE IF NOT EXISTS costing_retention.active_transaction (
+CREATE TABLE costing_retention.active_transaction (
  backend_pid integer NOT NULL,
  transaction_id bigint NOT NULL,
  login_name text NOT NULL,
@@ -52,7 +55,7 @@ CREATE TABLE IF NOT EXISTS costing_retention.active_transaction (
  table_name text NOT NULL,
  PRIMARY KEY(backend_pid,transaction_id)
 );
-CREATE TABLE IF NOT EXISTS costing_retention.batch_receipt (
+CREATE TABLE costing_retention.batch_receipt (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  approval_id bigint NOT NULL REFERENCES costing_retention.sealed_batch_approval(id),
  refresh_run_id bigint NOT NULL,
@@ -69,12 +72,11 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA costing_retention FROM PUBLIC,anon,authent
 CREATE OR REPLACE FUNCTION costing_retention.is_authorized_leaf_delete(
  p_run bigint,p_table text
 ) RETURNS boolean
-LANGUAGE sql STABLE SECURITY DEFINER
+LANGUAGE sql VOLATILE SECURITY DEFINER
 SET search_path = pg_catalog, costing_retention
 AS $fn$
 SELECT
  session_user = 'sasv_retention_executor'
- AND p_run < 0 + 1000000000
  AND p_table IN ('marketing_signed_billed_sales_evidence_snapshot',
                  'marketing_regional_sales_evidence_snapshot')
  AND EXISTS(
