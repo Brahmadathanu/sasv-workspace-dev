@@ -39,3 +39,17 @@ The governing stock identity is `product_id + exact batch_number`, with `bmr_id`
 **Not produced:** a real signed stage writer, safe all-writer batch lock, RLS/JWT enforcement, C2 atomic excess, source-backed C3 repair for 29 omitted pack lines, immutable S3 financial receipt or full isolated PG compile/concurrency tests. These must precede owner installation authorization. Do not install a narrow packaging trigger alone or modify source ledger as a test.
 
 **Next bounded engineering action:** derive explicit route-family-to-FG-stage map with source-backed coverage/collision checks; then implement complete stage execution writer and shared stock serialization in free isolated PostgreSQL, with role/concurrency acceptance. No paid Supabase branch and no production DDL/DML.
+
+
+## Additional S1 blocker discrimination (production READ ONLY, 23 November)
+
+A second independent read-only pass tested **all approved routes regardless of effective date** for the 80 FG bulk work logs:
+
+- **52/80 have no approved route anywhere in the inspected current route master**, not just a missing effective-date match. This is a product-route coverage/migration problem, separate from FG execution logs.
+- **17/80** have a uniquely effective approved route but **zero steps mapped to `public.activities.activity_name='FG bulk storage'`**, and zero alternate `step_key ILIKE '%bulk%'` entries in that evaluated set. These are *missing mandatory FG boundary definitions in the current route*, not merely an overly narrow four-key allowlist.
+- The **one overlapping approved route** requires an explicit resolution of the current master versions.
+- **10/80** have unique effective route + explicit FG boundary + BMR correlation, but remain **NOT SIGNED**.
+
+Examples of currently approved routes lacking the FG storage stage include product routes PR-649-V1, PR-658-V1, PR-670-V1, PR-697-V1, PR-722-V1, PRODUCT_830_ROUTE, PRODUCT_838_ROUTE, PRODUCT_854_ROUTE, PR-954-V1, PR-959-V1 and PR-971-V1, each showing transfer steps that are **not equivalent** to the missing FG bulk receipt stage. Product 262 version PR-262-V2 also lacked the stage in the inspected route profile and overlaps V1 in the November batch-date lookup. These are **route design review candidates**, NOT authorization to directly edit approved historic routes.
+
+**Revised immediate engineering gate:** First establish approved product-route coverage and normalize the mandatory FG bulk boundary for affected product routes through versioned governance, while permitting documented historical C3 source exceptions. Then sign batch execution only for matched route/step/BMR evidence. Do not auto-generate signed execution for the existing 80 FG work logs or enforce a strict C1 gate while those route gaps persist.
