@@ -25,6 +25,12 @@ export const INTEGRATION_PROTECTED_PATHS = new Set([
 // migration is still rejected. Working-tree (uncommitted) changes are NEVER
 // exempt: callers pass a context only for committed paths.
 export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
+  // PEC S5 unified planning: owner-authorized live migration version 20261122191542.
+  // Exact GitHub source on the named S5 server branch only, LF-SHA256 pinned.
+  "supabase/migrations/20261122191542_pec_s5_unified_planning_ind_source_and_pr_reason.sql": Object.freeze({
+    sha256: "c1661a3bf194ddd6b2afef54eb88753ad81f9576adb3309627e7cf7356a88486",
+    heads: Object.freeze(["feat/pec-s5-unified-server-20261123"]),
+  }),
   // Issue #502 production JIT timeout fix, registered 20261122174517.
   // Only this exact reviewed SQL blob on its dedicated repair branch is permitted.
   "supabase/migrations/20261122174517_pec_jit_plan_indent_balance_once_timeout_fix.sql": Object.freeze({
