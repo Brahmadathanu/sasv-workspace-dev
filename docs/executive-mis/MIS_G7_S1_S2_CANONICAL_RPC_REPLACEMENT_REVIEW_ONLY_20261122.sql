@@ -228,6 +228,8 @@ BEGIN
         'reference_valuation_date',v_valuation,
         'evaluated_at_ist',now() AT TIME ZONE 'Asia/Kolkata',
         'tally_snapshot_as_of',(SELECT as_of_date FROM transfer_snapshot),
+        'snapshot_completeness_status','NOT_CERTIFIED',
+        'source_lineage_status','TALLY_VOUCHER_LINES_ONLY',
         'source_line_count',(SELECT source_line_count FROM transfer_ref_rollup),
         'eligible_line_count',(SELECT eligible_line_count FROM transfer_ref_rollup),
         'excluded_line_count',(SELECT excluded_line_count FROM transfer_ref_rollup),
@@ -237,6 +239,7 @@ BEGIN
         'tally_source_book_amount',(SELECT book_transfer_value FROM transfer_ref_rollup),
         'coverage_reasons',(SELECT reason_counts FROM transfer_ref_rollup),
         'coverage_status',CASE
+            WHEN (SELECT as_of_date FROM transfer_snapshot) IS NULL THEN 'NO_SNAPSHOT'
             WHEN (SELECT source_line_count FROM transfer_ref_rollup)=0 THEN 'NO_TRANSFER_LINES'
             WHEN (SELECT eligible_line_count FROM transfer_ref_rollup)=0 THEN 'NO_ELIGIBLE_TRANSFER_LINES'
             WHEN (SELECT uncovered_line_count FROM transfer_ref_rollup)=0 THEN 'FULL_ELIGIBLE_RATE_COVERAGE'
