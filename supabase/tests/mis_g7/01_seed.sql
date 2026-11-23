@@ -11,6 +11,7 @@ INSERT INTO costing.production_route_family_route_step(id,family_route_id,activi
 INSERT INTO public.test_perm VALUES
  ('00000000-0000-0000-0000-000000000001','module:mis-batch-stage-signer'),
  ('00000000-0000-0000-0000-000000000002','module:mis-fg-bulk-packing'),
+ ('00000000-0000-0000-0000-000000000002','module:daily-work-log'),  -- shim: force-close wrapper permission
  ('00000000-0000-0000-0000-000000000003','module:mis-fg-bulk-packing'),
  ('00000000-0000-0000-0000-000000000003','module:mis-fg-excess-adjustment');
 -- P3/P4/P5 batches (historical-style: DWL exists, route missing/gapped/overlapping)

@@ -4,7 +4,8 @@
 -- trg_fg_ledger_from_es() and fn_fg_ledger_check_negative() bodies are the exact live
 -- baselines (SHA256 cc32357d.../211a6e87...) from the packet; force-close/auto-zero/
 -- transfer are simplified stand-ins that mimic the audited write semantics.
-CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN;
+DO $$ DECLARE r text; BEGIN FOREACH r IN ARRAY ARRAY['anon','authenticated','service_role'] LOOP
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN EXECUTE format('CREATE ROLE %I NOLOGIN', r); END IF; END LOOP; END $$;  -- roles are cluster-global
 CREATE SCHEMA auth; CREATE SCHEMA costing; CREATE SCHEMA app_private; GRANT USAGE ON SCHEMA app_private TO authenticated;  -- live precondition: authenticated has USAGE
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS
  $$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
@@ -24,9 +25,10 @@ CREATE TABLE public.daily_work_log (id serial PRIMARY KEY, item text, batch_numb
   storage_qty numeric, storage_qty_uom text, completed_on date);
 CREATE TABLE costing.product_process_route (id bigserial PRIMARY KEY, product_id integer, status text, effective_from date, effective_to date, base_route_family_route_id bigint);
 CREATE TABLE costing.production_route_family_route_step (id bigserial PRIMARY KEY, family_route_id bigint, activity_id integer, is_mandatory boolean);
-CREATE TYPE public.packaging_event_type AS ENUM ('Bottling','Labelling','Cartoning','Capsule monocarton','Transfer to FG store');  -- live: user-defined enum
-CREATE TABLE public.packaging_events (id bigserial PRIMARY KEY, work_log_id bigint REFERENCES public.daily_work_log(id), event_type public.packaging_event_type);
-CREATE TABLE public.event_type_lkp (label public.packaging_event_type PRIMARY KEY, affects_bulk_stock numeric, is_packaging boolean, active boolean DEFAULT true);
+CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;  -- live: packaging_events.event_type is CITEXT (pg_typeof, 6514 rows), NOT an enum
+CREATE TABLE public.packaging_events (id bigserial PRIMARY KEY, work_log_id bigint REFERENCES public.daily_work_log(id), event_type public.citext);
+CREATE TABLE public.event_type_lkp (label public.citext PRIMARY KEY  -- label type NOT evidenced live; migrations compare with the SAME expression as the legacy trigger (label = event_type), so semantics match whichever it is
+  , affects_bulk_stock numeric, is_packaging boolean, active boolean DEFAULT true);
 CREATE TABLE public.event_skus (id bigserial PRIMARY KEY, packaging_event_id bigint REFERENCES public.packaging_events(id) ON DELETE CASCADE, sku_id bigint, "count" integer NOT NULL DEFAULT 0 CHECK ("count" >= 0));
 CREATE TABLE public.fg_bulk_stock_ledger (id bigserial PRIMARY KEY, product_id integer NOT NULL REFERENCES public.products(id), batch_number text NOT NULL,
   movement_date date, qty numeric, qty_base numeric NOT NULL, uom text, reason_code text, source_table text, source_id integer,  -- live: integer
@@ -208,14 +210,14 @@ $function$;
 CREATE TRIGGER trg_fg_ledger_from_es AFTER INSERT OR UPDATE OR DELETE ON public.event_skus FOR EACH ROW EXECUTE FUNCTION public.trg_fg_ledger_from_es();
 
 -- Simplified stand-ins for other audited writers (semantics: read balance, then insert).
-CREATE FUNCTION public.fn_fg_force_close(p_product integer, p_bn text, p_sleep numeric) RETURNS numeric LANGUAGE plpgsql AS $$
+CREATE FUNCTION public.fn_fg_force_close(p_product integer, p_bn text, p_sleep numeric) RETURNS numeric LANGUAGE plpgsql SET search_path TO 'pg_catalog', 'public', 'public', 'pg_temp' AS $$
 DECLARE b numeric; BEGIN
   SELECT COALESCE(SUM(qty_base),0) INTO b FROM public.fg_bulk_stock_ledger WHERE product_id=p_product AND batch_number=p_bn;
   IF p_sleep > 0 THEN PERFORM pg_sleep(p_sleep); END IF;
   INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id)
   VALUES (p_product,p_bn,CURRENT_DATE,-b,-b,(SELECT uom_base FROM public.products WHERE id=p_product),'FORCE_CLOSE','manual',0);
   RETURN b; END $$;
-CREATE FUNCTION public.trg_fg_bulk_internal_transfer_to_ledger() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE FUNCTION public.trg_fg_bulk_internal_transfer_to_ledger() RETURNS trigger LANGUAGE plpgsql SET search_path TO 'pg_catalog', 'public', 'public', 'pg_temp' AS $$
 BEGIN
   IF TG_OP IN ('UPDATE','DELETE') THEN
     DELETE FROM public.fg_bulk_stock_ledger WHERE source_table='fg_bulk_internal_transfer' AND source_id=OLD.id; END IF;
@@ -226,11 +228,12 @@ BEGIN
   RETURN COALESCE(NEW,OLD); END $$;
 CREATE TRIGGER trg_fg_bulk_internal_transfer AFTER INSERT OR UPDATE OR DELETE ON public.fg_bulk_internal_transfer FOR EACH ROW EXECUTE FUNCTION public.trg_fg_bulk_internal_transfer_to_ledger();
 
-CREATE FUNCTION public.fn_fg_force_close(p_product integer, p_bn text) RETURNS numeric LANGUAGE plpgsql SECURITY DEFINER AS $$
-BEGIN RETURN public.fn_fg_force_close(p_product, p_bn, 0); END $$;
+CREATE FUNCTION public.fn_fg_force_close(p_product integer, p_bn text) RETURNS numeric LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog','public','pg_temp' AS $$
+BEGIN PERFORM public.require_permission('module:daily-work-log', true);  -- SHIM ASSUMPTION: live wrapper is permission-gated; target name not evidenced
+  RETURN public.fn_fg_force_close(p_product, p_bn, 0); END $$;
 GRANT EXECUTE ON FUNCTION public.fn_fg_force_close(integer,text) TO authenticated;
 -- INVOKER (as live): DWL receipt trigger, auto-zero, helper.
-CREATE FUNCTION public.trg_fg_ledger_from_dwl() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE FUNCTION public.trg_fg_ledger_from_dwl() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
 DECLARE pid int; BEGIN
   IF NEW.activity = 'FG bulk storage' AND coalesce(NEW.storage_qty,0) > 0 THEN
     SELECT id INTO pid FROM public.products WHERE item = NEW.item;
@@ -238,13 +241,22 @@ DECLARE pid int; BEGIN
     VALUES (pid,NEW.batch_number,NEW.log_date,NEW.storage_qty,NEW.storage_qty,NEW.storage_qty_uom,'FG bulk storage','daily_work_log',NEW.id);
   END IF; RETURN NEW; END $$;
 CREATE TRIGGER trg_fg_ledger_from_dwl AFTER INSERT ON public.daily_work_log FOR EACH ROW EXECUTE FUNCTION public.trg_fg_ledger_from_dwl();
-CREATE FUNCTION public.fn_fg_auto_zero(p_product integer, p_bn text, p_eps numeric) RETURNS numeric LANGUAGE plpgsql AS $$
+CREATE FUNCTION public.fn_fg_auto_zero(p_product integer, p_bn text, p_eps numeric) RETURNS numeric LANGUAGE plpgsql SET search_path TO 'pg_catalog', 'public', 'public', 'pg_temp' AS $$
 DECLARE b numeric; BEGIN
   SELECT COALESCE(SUM(qty_base),0) INTO b FROM public.fg_bulk_stock_ledger WHERE product_id=p_product AND batch_number=p_bn;
   IF b <> 0 AND abs(b) <= p_eps THEN
     PERFORM pg_sleep(0.8);
     INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id)
     VALUES (p_product,p_bn,CURRENT_DATE,-b,-b,'kg','AUTO_ZERO','manual',0); END IF; RETURN b; END $$;
-CREATE FUNCTION public.fn_fg_ledger_add(p_product integer, p_bn text, p_qty numeric, p_reason text, p_src_id integer, p_src text, p_date date) RETURNS void LANGUAGE sql AS $$
+CREATE FUNCTION public.fn_fg_ledger_add(p_product integer, p_bn text, p_qty numeric, p_reason text, p_src_id integer, p_src text, p_date date) RETURNS void LANGUAGE sql SET search_path TO 'pg_catalog', 'public', 'public', 'pg_temp' AS $$
   INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id)
   VALUES (p_product,p_bn,p_date,p_qty,p_qty,'kg',p_reason,p_src,p_src_id) $$;
+
+-- Live ACL shape (independent review): ledger_add / auto_zero EXECUTE for authenticated only; force_close(int,text,numeric) none; wrapper authenticated.
+REVOKE ALL ON FUNCTION public.fn_fg_ledger_add(integer,text,numeric,text,integer,text,date) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.fn_fg_ledger_add(integer,text,numeric,text,integer,text,date) TO authenticated;
+REVOKE ALL ON FUNCTION public.fn_fg_auto_zero(integer,text,numeric) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.fn_fg_auto_zero(integer,text,numeric) TO authenticated;
+REVOKE ALL ON FUNCTION public.fn_fg_force_close(integer,text,numeric) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.fn_fg_force_close(integer,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.fn_fg_force_close(integer,text) TO authenticated;

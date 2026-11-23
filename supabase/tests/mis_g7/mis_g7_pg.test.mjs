@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { startPg, installBaseAndMigrations } from './pg_harness.mjs';
+import { startPg, installBaseAndMigrations, MIGRATIONS as MIGRATION_FILES } from './pg_harness.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DB = 'g7';
@@ -215,7 +215,7 @@ T('S3 pack RPC vs force-close: force-close (reads stale balance) fails closed, n
   const b = bn('S3B'); mkSigned(b);
   const A = pg.psqlAsync(DB, hold(`SELECT public.mis_pack_fg_bulk_v1('${randomUUID()}',${evId(b)},'[{"sku_id":10,"count":20}]'::jsonb)`, 2), { uid: PACKER });
   await delay(500);
-  const B = pg.psqlAsync(DB, `SELECT public.fn_fg_force_close(1,'${b}')`);
+  const B = pg.psqlAsync(DB, `SELECT public.fn_fg_force_close(1,'${b}',0)`);
   const [a, f] = await Promise.all([A, B]);
   assert.equal(a.status, 0, a.err); assert.notEqual(f.status, 0); assert.match(f.err, /would make stock negative/);
   assert.equal(bal(b), 90);
@@ -283,7 +283,7 @@ T('PARITY live-evidenced types: bigint ids, enum event_type, integer ledger sour
     ['public.event_skus', 'packaging_event_id'], ['public.event_skus', 'sku_id'], ['public.product_skus', 'id'], ['public.product_skus', 'product_id'],
     ['app_private.mis_fg_pack_request', 'packaging_event_id'], ['app_private.mis_fg_signed_excess_receipt', 'packaging_event_id'], ['app_private.mis_g7_pack_ticket', 'packaging_event_id']])
     assert.equal(t(tbl, col), 'bigint:int8', `${tbl}.${col}`);
-  assert.equal(t('public.packaging_events', 'event_type'), 'USER-DEFINED:packaging_event_type');
+  assert.equal(t('public.packaging_events', 'event_type'), 'USER-DEFINED:citext');
   assert.equal(t('public.fg_bulk_stock_ledger', 'source_id'), 'integer:int4');
   assert.equal(val(`SELECT pg_get_function_identity_arguments('public.mis_pack_fg_bulk_v1(uuid,bigint,jsonb,jsonb)'::regprocedure)`), 'p_request_id uuid, p_packaging_event_id bigint, p_lines jsonb, p_excess jsonb');
   assert.equal(val(`SELECT to_regprocedure('public.mis_pack_fg_bulk_v1(uuid,integer,jsonb,jsonb)') IS NULL`), 't');   // no narrowing overload
@@ -296,7 +296,7 @@ T('PARITY writers SECURITY DEFINER after S3b; public RPCs definer; helpers not c
     assert.equal(val(`SELECT has_function_privilege('authenticated','public.${fn}','EXECUTE')`), 't');
     assert.equal(val(`SELECT has_function_privilege('anon','public.${fn}','EXECUTE')`), 'f');
   }
-  for (const f of ['app_private.mis_lock_fg_batch(integer,text)', 'app_private.mis_resolve_batch_stage(integer,text,integer,bigint)', 'app_private.mis_stage_fp(integer,text,integer,bigint,integer)', 'app_private.mis_g7_gate_check(text,text,bigint,bigint)'])
+  for (const f of ['app_private.mis_lock_fg_batch(integer,text)', 'app_private.mis_resolve_batch_stage(integer,text,integer,bigint)', 'app_private.mis_stage_fp(integer,text,integer,bigint,integer)', 'app_private.mis_g7_gate_check(text,text,bigint,bigint,boolean)'])
     assert.equal(val(`SELECT has_function_privilege('authenticated','${f}','EXECUTE')`), 'f', f);
   assert.match(q(`SELECT app_private.mis_lock_fg_batch(1,'x')`, SIGNER).err, /permission denied/);
   for (const p of ['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE']) for (const role of ['authenticated', 'anon'])
@@ -318,7 +318,7 @@ T('BOUNDARY direct authenticated/anon ledger DML denied (insert/update/delete)',
   }
   assert.equal(bal(b), 100);
 });
-T('BOUNDARY old-client authenticated writers still work (AUDIT mode): DWL receipt, direct SKU insert, transfer, auto-zero, ledger_add, force-close', () => {
+T('BOUNDARY old-client authenticated writers still work (AUDIT mode): DWL receipt, direct SKU insert/update/delete, transfer, force-close wrapper', () => {
   setMode('AUDIT');
   const b = bn('BD2'); const AU = PACKER;
   // DWL receipt trigger as authenticated (invoker -> definer)
@@ -333,12 +333,13 @@ T('BOUNDARY old-client authenticated writers still work (AUDIT mode): DWL receip
   assert.equal(Number(val(`SELECT count(*) FROM app_private.mis_g7_direct_pack_audit`)), before + 1);
   assert.equal(q(`UPDATE public.event_skus SET "count"=20 WHERE packaging_event_id=${ev}`, AU).status, 0); assert.equal(bal(b), 40);
   assert.equal(q(`DELETE FROM public.event_skus WHERE packaging_event_id=${ev}`, AU).status, 0); assert.equal(bal(b), 50);
-  assert.equal(q(`SELECT public.fn_fg_ledger_add(1,'${b}',5,'ADJ',0,'manual','2026-11-12')`, AU).status, 0); assert.equal(bal(b), 55);
+  // helpers are NOT client-callable after S3b (P0 review fix): see 'AUTHZ' tests. Server-side callers (owner) still work:
+  assert.equal(q(`SELECT public.fn_fg_ledger_add(1,'${b}',5,'ADJ',0,'manual','2026-11-12')`).status, 0); assert.equal(bal(b), 55);
   assert.equal(q(`INSERT INTO public.fg_bulk_internal_transfer(product_id,batch_number,qty_base,from_plant,to_plant) VALUES (1,'${b}',10,1,2)`, AU).status, 0); assert.equal(bal(b), 55);
-  assert.equal(q(`SELECT public.fn_fg_auto_zero(1,'${b}',0.001)`, AU).status, 0);
-  assert.equal(q(`SELECT public.fn_fg_force_close(1,'${b}')`, AU).status, 0); assert.equal(bal(b), 0);
-  // negative guard still protects old clients
-  assert.match(q(`SELECT public.fn_fg_ledger_add(1,'${b}',-1,'ADJ',0,'manual','2026-11-12')`, AU).err, /would make stock negative/);
+  assert.equal(q(`SELECT public.fn_fg_auto_zero(1,'${b}',0.001)`).status, 0);
+  assert.equal(q(`SELECT public.fn_fg_force_close(1,'${b}')`, AU).status, 0); assert.equal(bal(b), 0);   // permission-gated definer wrapper (client's real call)
+  // negative guard still protects the server-side writer path
+  assert.match(q(`SELECT public.fn_fg_ledger_add(1,'${b}',-1,'ADJ',0,'manual','2026-11-12')`).err, /would make stock negative/);
 });
 T('BOUNDARY ENFORCE mode: direct SKU INSERT/UPDATE/DELETE, header reassignment/retype/delete denied; RPC and non-bulk still allowed', () => {
   const b = bn('BD3'); mkSigned(b); const ev = evId(b);
@@ -427,7 +428,7 @@ T('RACE force-close (read-before-write) vs concurrent transfer INSERT: no negati
   const tr = `INSERT INTO public.fg_bulk_internal_transfer(product_id,batch_number,qty_base,from_plant,to_plant) VALUES (1,'${b}',100,1,2)`;
   const A = pg.psqlAsync(DB, hold(tr, 2));
   await delay(400);
-  const B = pg.psqlAsync(DB, `SELECT public.fn_fg_force_close(1,'${b}')`);
+  const B = pg.psqlAsync(DB, `SELECT public.fn_fg_force_close(1,'${b}',0)`);
   const [a, bb] = await Promise.all([A, B]);
   assert.equal(a.status, 0, a.err); assert.equal(bb.status, 0, bb.err);        // out/in legs net zero; close then drains cleanly
   assert.ok(bb.ms >= 1400); assert.equal(bal(b), 0);
@@ -468,5 +469,177 @@ T('RACE concurrent excess packs on same batch: only one excess + one pack can co
   assert.equal(rs[0].ok, true); assert.equal(rs[1].ok, false);
   assert.ok(['INSUFFICIENT_AFTER_EXCESS', 'SKU_LINE_EXISTS'].includes(rs[1].code), rs[1].code);
   assert.equal(bal(b), 0); assert.equal(val(`SELECT count(*) FROM app_private.mis_fg_signed_excess_receipt WHERE batch_number='${b}'`), '1');
+});
+
+// ---------------- review round 2: P0 EXECUTE bypass, citext, retyping, overflow, rollback ----------------
+const ROLES = [['authenticated ordinary', SIGNER], ['authenticated packer', PACKER], ['authenticated excess', EXCESS], ['authenticated nobody', NOBODY]];
+T('AUTHZ P0: no client role can execute any stock-writing legacy function directly (positive or negative stock)', () => {
+  const b = bn('AZ1'); mk(b);
+  const calls = [`SELECT public.fn_fg_ledger_add(1,'${b}',5,'X',0,'manual','2026-11-12')`, `SELECT public.fn_fg_ledger_add(1,'${b}',-5,'X',0,'manual','2026-11-12')`,
+    `SELECT public.fn_fg_auto_zero(1,'${b}',1000)`, `SELECT public.fn_fg_force_close(1,'${b}',0)`];
+  for (const [label, uid] of ROLES) for (const c of calls) assert.match(q(c, uid).err, /permission denied for function/, `${label}: ${c}`);
+  for (const c of calls) assert.match(anon(c).err, /permission denied for function/, `anon: ${c}`);
+  for (const f of LEGACY_WRITERS) for (const role of ['authenticated', 'anon', 'public'])
+    assert.equal(val(`SELECT has_function_privilege('${role}','public.${f}','EXECUTE')`), 'f', `${role} ${f}`);
+  assert.equal(bal(b), 100);
+});
+T('AUTHZ P0: force-close wrapper stays permission-gated (no permission -> denied, nothing written)', () => {
+  const b = bn('AZ2'); mk(b);
+  assert.match(q(`SELECT public.fn_fg_force_close(1,'${b}')`, NOBODY).err, /permission denied/);
+  assert.match(anon(`SELECT public.fn_fg_force_close(1,'${b}')`).err, /permission denied/);
+  assert.equal(bal(b), 100);
+});
+T('AUTHZ P0 allowlist: only reviewed SECURITY DEFINER functions that touch the ledger are executable by clients', () => {
+  const rows = val(`SELECT coalesce(string_agg(p.oid::regprocedure::text, ' | ' ORDER BY p.oid::regprocedure::text),'')
+     FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE p.prosecdef AND n.nspname IN ('public','app_private','costing') AND p.prokind='f'
+      AND (p.prosrc ILIKE '%fg_bulk_stock_ledger%' OR p.prosrc ILIKE '%fn_fg_ledger_add%' OR p.prosrc ILIKE '%fn_fg_force_close%' OR p.prosrc ILIKE '%fn_fg_auto_zero%')
+      AND (has_function_privilege('authenticated', p.oid, 'EXECUTE') OR has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('public'::name, p.oid, 'EXECUTE'))`);
+  // trigger functions are executable only as triggers (have no direct-call surface) and are asserted separately above
+  const allowed = new Set(['fn_fg_force_close(integer,text)', 'mis_pack_fg_bulk_v1(uuid,bigint,jsonb,jsonb)', 'mis_sign_batch_stage_v1(uuid,integer,text,integer,bigint,integer,numeric,text)']);
+  for (const r of rows.split(' | ').filter(Boolean)) assert.ok([...allowed].some((a) => r.endsWith(a)), `unexpected client-executable ledger-touching definer: ${r}`);
+});
+T('AUTHZ S3b hardening: legacy writers pin search_path with pg_temp last (dwl was public-only)', () => {
+  for (const w of LEGACY_WRITERS) {
+    const cfg = val(`SELECT array_to_string(proconfig,';') FROM pg_proc WHERE oid='public.${w}'::regprocedure`);
+    assert.match(cfg, /search_path=/, w);
+    assert.doesNotMatch(cfg.split('search_path=')[1], /^public(;|$)/, `${w} still public-only: ${cfg}`);
+  }
+  assert.match(val(`SELECT array_to_string(proconfig,';') FROM pg_proc WHERE oid='public.trg_fg_ledger_from_dwl()'::regprocedure`), /pg_catalog, public, pg_temp/);
+  // temp-table shadow attack on the DEFINER dwl trigger has no effect
+  const b = bn('AZ3');
+  const r = q(`CREATE TEMP TABLE products (id int, item text); INSERT INTO products VALUES (999,'P1');
+    INSERT INTO public.bmr_details(id,product_id,bn,lifecycle_status) VALUES ((SELECT max(id)+1 FROM public.bmr_details),1,'${b}','Released');
+    INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status,storage_qty,storage_qty_uom) VALUES ('P1','${b}','FG bulk storage','2026-11-12','Done',7,'kg')`, PACKER);
+  assert.equal(r.status, 0, r.err);
+  assert.equal(bal(b), 7);                                    // receipt posted to the REAL product 1, not the shadow row
+});
+T('CITEXT parity: case-variant event types are still bulk-affecting (RPC, gate), legacy trigger agrees', () => {
+  const b = bn('CI1'); mkSigned(b); const ev = evId(b);
+  q(`UPDATE public.packaging_events SET event_type='bOtTlInG' WHERE id=${ev}`);
+  assert.equal(val(`SELECT app_private.mis_g7_event_is_bulk(${ev})`), 't');
+  assert.equal(val(`SELECT pg_typeof(event_type)::text FROM public.packaging_events WHERE id=${ev}`), 'citext');
+  const r = JSON.parse(pack(b, [{ sku_id: 10, count: 4 }]).out); assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(bal(b), 98);                                   // legacy trigger depleted despite case difference
+  q(`UPDATE public.packaging_events SET event_type='TRANSFER to fg STORE' WHERE id=${ev}`);
+  assert.equal(val(`SELECT app_private.mis_g7_event_is_bulk(${ev})`), 'f');
+});
+T('RETYPE non-bulk -> bulk (and bulk -> non-bulk) with existing SKU lines is audited/denied; ledger never fabricates stock', () => {
+  const b = bn('RT1'); mkSigned(b); const ev = evId(b);
+  q(`UPDATE public.packaging_events SET event_type='Transfer to FG store' WHERE id=${ev}`);            // header now non-bulk
+  assert.equal(q(`INSERT INTO public.event_skus(packaging_event_id,sku_id,"count") VALUES (${ev},10,10)`, PACKER).status, 0);   // no depletion (affects=0)
+  assert.equal(bal(b), 100);
+  const aud = () => Number(val(`SELECT count(*) FROM app_private.mis_g7_direct_pack_audit WHERE tbl='packaging_events'`));
+  setMode('ENFORCE');
+  try {
+    assert.match(q(`UPDATE public.packaging_events SET event_type='Bottling' WHERE id=${ev}`, PACKER).err, /MIS_G7_DIRECT_PACKING_DENIED/);
+    assert.match(q(`UPDATE public.packaging_events SET event_type='labelling' WHERE id=${ev}`, PACKER).err, /MIS_G7_DIRECT_PACKING_DENIED/);   // citext case variant
+    assert.equal(val(`SELECT event_type FROM public.packaging_events WHERE id=${ev}`), 'Transfer to FG store');
+  } finally { setMode('AUDIT'); }
+  const before = aud();
+  assert.equal(q(`UPDATE public.packaging_events SET event_type='Bottling' WHERE id=${ev}`, PACKER).status, 0);   // AUDIT allows but logs
+  assert.equal(aud(), before + 1);
+  // the hazard the guard exists for: after retype, deleting the pre-existing line returns stock that was never depleted
+  setMode('ENFORCE');
+  try { assert.match(q(`DELETE FROM public.event_skus WHERE packaging_event_id=${ev}`, PACKER).err, /DIRECT_PACKING_DENIED/); assert.equal(bal(b), 100); }
+  finally { setMode('AUDIT'); }
+  // retype of a header with NO lines carries no ledger effect and is not gated
+  const b2 = bn('RT2'); mk(b2); setMode('ENFORCE');
+  try { assert.equal(q(`UPDATE public.packaging_events SET event_type='Cartoning' WHERE id=${evId(b2)}`, PACKER).status, 0); } finally { setMode('AUDIT'); }
+});
+T('OVERFLOW integer ledger source_id: excess_id beyond int range raises and rolls everything back', () => {
+  const b = bn('OV1'); mkSigned(b, 10);
+  q(`ALTER TABLE app_private.mis_fg_signed_excess_receipt ALTER COLUMN excess_id RESTART WITH 2147483648`);
+  try {
+    const r = pack(b, [{ sku_id: 10, count: 50 }], { uid: EXCESS, excess: { qty_base: 15, evidence_ref: 'e', reason: 'r' } });
+    assert.match(r.err, /MIS_G7_SOURCE_ID_OVERFLOW/);
+  } finally { q(`ALTER TABLE app_private.mis_fg_signed_excess_receipt ALTER COLUMN excess_id RESTART WITH 500000`); }
+  assert.equal(bal(b), 10); assert.equal(val(`SELECT count(*) FROM app_private.mis_fg_signed_excess_receipt WHERE batch_number='${b}'`), '0');
+  assert.equal(val(`SELECT count(*) FROM app_private.mis_fg_pack_request WHERE batch_number='${b}'`), '0');
+});
+T('CONCURRENCY cross-batch workload: mixed pack/transfer/ledger sessions on 3 batches, no deadlock, exact final balances', async () => {
+  const bs = [bn('XW'), bn('XW'), bn('XW')]; bs.forEach((b) => mkSigned(b, 200));
+  const jobs = [];
+  for (let i = 0; i < 12; i++) {
+    const b = bs[i % 3];
+    if (i % 3 === 0) jobs.push(pg.psqlAsync(DB, `SELECT public.mis_pack_fg_bulk_v1('${randomUUID()}',${evId(b)},'[{"sku_id":${i % 2 ? 10 : 11},"count":2}]'::jsonb)`, { uid: PACKER }));   // -1 kg once per SKU line; second same-sku refused
+    else if (i % 3 === 1) jobs.push(pg.psqlAsync(DB, `INSERT INTO public.fg_bulk_internal_transfer(product_id,batch_number,qty_base,from_plant,to_plant) VALUES (1,'${b}',10,1,2)`));
+    else jobs.push(pg.psqlAsync(DB, `SELECT public.fn_fg_ledger_add(1,'${b}',-2,'WL',0,'manual','2026-11-12')`));
+  }
+  const res = await Promise.all(jobs);
+  assert.ok(res.every((r) => !/deadlock/.test(r.err)), res.map((r) => r.err).join('|'));
+  const packed = (b) => val(`SELECT count(*) FROM public.event_skus WHERE packaging_event_id=${evId(b)}`);
+  assert.equal(bal(bs[0]), 200 - Number(packed(bs[0])));       // each accepted pack line = exactly 1 kg
+  assert.equal(bal(bs[1]), 200);                               // transfers net zero
+  assert.equal(bal(bs[2]), 200 - 2 * 4);                       // 4 writers x -2
+});
+T('CONCURRENCY multi-row opposite-order ledger INSERT: deadlock victim retried once succeeds (documented bounded-retry policy)', async () => {
+  const b1 = bn('RR1'), b2 = bn('RR2'); mk(b1); mk(b2);
+  const stmt = (x, y) => `INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,qty,qty_base,uom,reason_code,source_table,source_id)
+     SELECT 1, v.bn, -1, -1, 'kg', 'MR', 'mr', v.o FROM (SELECT bn, o, pg_sleep(1) FROM (VALUES ('${x}',1),('${y}',2)) t(bn,o)) v`;
+  const run = async (x, y) => { for (let a = 1; a <= 3; a++) { const r = await pg.psqlAsync(DB, stmt(x, y)); if (r.status === 0) return { ...r, attempts: a }; if (!/deadlock detected/.test(r.err)) return r; } return { status: 1, err: 'retry exhausted' }; };
+  const [ra, rb] = await Promise.all([run(b1, b2), run(b2, b1)]);
+  assert.equal(ra.status, 0, ra.err); assert.equal(rb.status, 0, rb.err);
+  assert.equal(bal(b1), 98); assert.equal(bal(b2), 98);        // both complete exactly once; no partial rows from the aborted attempt
+});
+T('PRECHECK S3b fails closed when an invoker function still calls a revoked helper', () => {
+  pg.createDb('g7pc');
+  const files = ['00_base_schema_shim.sql'];
+  const base = fs.readFileSync(path.join(here, '00_base_schema_shim.sql'), 'utf8');
+  assert.equal(pg.psql('g7pc', base).status, 0);
+  const mig = (f) => fs.readFileSync(path.resolve(here, '../../migrations', f), 'utf8');
+  for (const f of MIGRATION_FILES.slice(0, 3)) assert.equal(pg.psql('g7pc', mig(f)).status, 0);
+  assert.equal(pg.psql('g7pc', `CREATE FUNCTION public.sneaky_invoker() RETURNS void LANGUAGE sql AS $$ SELECT public.fn_fg_ledger_add(1,'x',1,'x',0,'x',CURRENT_DATE) $$;`).status, 0);
+  const r = pg.psql('g7pc', mig(MIGRATION_FILES[3]));
+  assert.notEqual(r.status, 0); assert.match(r.err, /invoker functions call revoked helpers: sneaky_invoker\(\)/);
+  assert.equal(pg.psql('g7pc', `SELECT prosecdef FROM pg_proc WHERE oid='public.fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)'::regprocedure`).out, 'f');   // nothing partially applied
+  assert.equal(pg.psql('g7pc', `SELECT has_table_privilege('authenticated','public.fg_bulk_stock_ledger','INSERT')`).out, 't');
+  // and a missing search_path pin also fails closed
+  pg.psql('g7pc', `DROP FUNCTION public.sneaky_invoker(); ALTER FUNCTION public.fn_fg_auto_zero(integer,text,numeric) RESET search_path`);
+  assert.match(pg.psql('g7pc', mig(MIGRATION_FILES[3])).err, /no pinned search_path/);
+});
+T('ROLLBACK exact: S3b rollback restores function defs (sha), ACLs, search_path, table privileges; old-client CRUD before/after', () => {
+  pg.createDb('g7rb');
+  const base = fs.readFileSync(path.join(here, '00_base_schema_shim.sql'), 'utf8');
+  const mig = (f) => fs.readFileSync(path.resolve(here, '../../migrations', f), 'utf8');
+  const x = (sql, o) => pg.psql('g7rb', sql, o);
+  assert.equal(x(base).status, 0); assert.equal(x(fs.readFileSync(path.join(here, '01_seed.sql'), 'utf8')).status, 0);
+  for (const f of MIGRATION_FILES.slice(0, 3)) assert.equal(x(mig(f)).status, 0, f);
+  // NULL acl is treated as acldefault() (semantically identical effective privileges)
+  const snapR = () => x(`SELECT jsonb_pretty(jsonb_agg(jsonb_build_object('fn', p.oid::regprocedure::text, 'def_sha', encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex'),
+       'secdef', p.prosecdef, 'cfg', p.proconfig, 'acl', (SELECT string_agg(x::text, ',' ORDER BY x::text) FROM unnest(coalesce(p.proacl, acldefault('f', p.proowner))) x)) ORDER BY p.oid::regprocedure::text))
+     FROM pg_proc p WHERE p.oid IN (${LEGACY_WRITERS.map((w) => `'public.${w}'::regprocedure`).join(',')})
+    UNION ALL SELECT (SELECT string_agg(x::text, ',' ORDER BY x::text) FROM pg_class c, unnest(coalesce(c.relacl, acldefault('r', c.relowner))) x WHERE c.oid='public.fg_bulk_stock_ledger'::regclass)
+    UNION ALL SELECT (SELECT string_agg(polname::text||':'||polcmd::text, ',') FROM pg_policy WHERE polrelid='public.fg_bulk_stock_ledger'::regclass)
+    UNION ALL SELECT (SELECT relrowsecurity::text FROM pg_class WHERE oid='public.fg_bulk_stock_ledger'::regclass)`);
+  const snap = () => { const r = snapR(); assert.equal(r.status, 0, r.err); assert.ok(r.out.length > 200); return r.out; };
+  const before = snap();
+  const crud = (b) => {   // old-client signed-in DWL, packaging and transfer CRUD
+    assert.equal(x(`INSERT INTO public.bmr_details(id,product_id,bn,lifecycle_status) VALUES ((SELECT max(id)+1 FROM public.bmr_details),1,'${b}','Released'); INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status,storage_qty,storage_qty_uom) VALUES ('P1','${b}','FG bulk storage','2026-11-12','Done',50,'kg')`, { uid: PACKER }).status, 0);
+    x(`INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status) VALUES ('P1','${b}','Filling','2026-11-12','Done'); INSERT INTO public.packaging_events(work_log_id,event_type) SELECT max(id),'Bottling' FROM public.daily_work_log`, { uid: PACKER });
+    const ev = x(`SELECT pe.id FROM public.packaging_events pe JOIN public.daily_work_log w ON w.id=pe.work_log_id WHERE w.batch_number='${b}'`).out;
+    assert.equal(x(`INSERT INTO public.event_skus(packaging_event_id,sku_id,"count") VALUES (${ev},10,10)`, { uid: PACKER }).status, 0);
+    assert.equal(x(`UPDATE public.event_skus SET "count"=20 WHERE packaging_event_id=${ev}`, { uid: PACKER }).status, 0);
+    assert.equal(x(`INSERT INTO public.fg_bulk_internal_transfer(product_id,batch_number,qty_base,from_plant,to_plant) VALUES (1,'${b}',5,1,2)`, { uid: PACKER }).status, 0);
+    assert.equal(x(`DELETE FROM public.event_skus WHERE packaging_event_id=${ev}`, { uid: PACKER }).status, 0);
+    return Number(x(`SELECT sum(qty_base) FROM public.fg_bulk_stock_ledger WHERE batch_number='${b}'`).out);
+  };
+  assert.equal(crud('RB1'), 50);                                                    // before S3b (legacy state)
+  assert.equal(x(`SELECT public.fn_fg_ledger_add(1,'RB1',1,'x',0,'m',CURRENT_DATE)`, { uid: PACKER }).status, 0);   // legacy authenticated helper works pre-S3b
+  assert.equal(x(mig(MIGRATION_FILES[3])).status, 0);
+  assert.notEqual(snap(), before);
+  assert.equal(crud('RB2'), 50);                                                    // after S3b (restricted)
+  assert.match(x(`INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,qty,qty_base) VALUES (1,'RB2',1,1)`, { uid: PACKER }).err, /permission denied/);
+  const rb = fs.readFileSync(path.resolve(here, '../../../docs/executive-mis-g7-server/ROLLBACK_NOT_A_MIGRATION.sql'), 'utf8');
+  const s3b = rb.slice(rb.indexOf('-- ==== S3B ROLLBACK ===='));
+  assert.ok(s3b.length > 100);
+  assert.equal(x(s3b).status, 0, x(s3b).err);
+  assert.equal(snap(), before, 'rollback must restore exact pg_get_functiondef sha, ACLs, search_path, secdef, table ACL, policies, RLS');
+  assert.equal(crud('RB3'), 50);                                                    // after rollback
+  assert.equal(x(`SELECT public.fn_fg_ledger_add(1,'RB3',1,'x',0,'m',CURRENT_DATE)`, { uid: PACKER }).status, 0);   // helper access restored exactly
+  // signed history retained, gate objects remain but are inert (triggers dropped)
+  assert.equal(x(`SELECT count(*) FROM pg_trigger WHERE tgname LIKE '00_mis_g7_%gate'`).out, '0');
+  assert.equal(x(`SELECT to_regclass('app_private.mis_batch_stage_event') IS NOT NULL`).out, 't');
+  assert.equal(x(`SELECT to_regclass('app_private.mis_g7_direct_pack_audit') IS NOT NULL`).out, 't');
 });
 test('BLOCKED (not PASS): live-schema compile, live role/JWT simulation, early-lock force-close/auto-zero wrappers, legitimate corrections under ENFORCE', { skip: 'BLOCKED: needs live definitions / owner authorization; see README' }, () => {});

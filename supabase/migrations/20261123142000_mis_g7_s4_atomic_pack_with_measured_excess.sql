@@ -101,7 +101,7 @@ BEGIN
   IF v_prod.id IS NULL OR coalesce(btrim(v_prod.batch_number),'') = '' THEN
     RETURN jsonb_build_object('ok', false, 'code', 'BATCH_IDENTITY_MISSING'); END IF;
   v_batch := v_prod.batch_number;
-  SELECT label, affects_bulk_stock, is_packaging INTO v_lkp FROM public.event_type_lkp WHERE label::text = v_pe.event_type::text AND active;
+  SELECT label, affects_bulk_stock, is_packaging INTO v_lkp FROM public.event_type_lkp WHERE label = v_pe.event_type AND active;
   IF v_lkp.label IS NULL OR NOT v_lkp.is_packaging OR v_lkp.affects_bulk_stock = 0 THEN
     RETURN jsonb_build_object('ok', false, 'code', 'EVENT_NOT_BULK_AFFECTING'); END IF;
   IF v_lkp.affects_bulk_stock > 0 THEN RETURN jsonb_build_object('ok', false, 'code', 'EVENT_NOT_DEPLETING'); END IF;
@@ -166,6 +166,8 @@ BEGIN
       (request_id, product_id, batch_number, packaging_event_id, fg_stage_event_id, qty_base, base_uom, evidence_ref, reason, measured_by)
     VALUES (p_request_id, v_prod.id, v_batch, p_packaging_event_id, v_stage, v_ex_qty, v_prod.uom_base, v_ex_ev, v_ex_reason, v_actor)
     RETURNING excess_id INTO v_excess_id;
+    -- ledger.source_id is integer (live); never rely on implicit narrowing of the bigint identity
+    IF v_excess_id > 2147483647 THEN RAISE EXCEPTION 'MIS_G7_SOURCE_ID_OVERFLOW: excess_id %', v_excess_id USING ERRCODE = '22003'; END IF;
     INSERT INTO public.fg_bulk_stock_ledger (product_id, batch_number, movement_date, qty, qty_base, uom, reason_code, source_table, source_id, created_at)
     VALUES (v_prod.id, v_batch, CURRENT_DATE, v_ex_qty, v_ex_qty, v_prod.uom_base, 'FG_EXCESS_MEASURED', 'mis_fg_signed_excess_receipt', v_excess_id, now());
   END IF;
@@ -174,6 +176,7 @@ BEGIN
   VALUES (txid_current(), p_packaging_event_id, p_request_id) ON CONFLICT DO NOTHING;
   FOR v_ln IN SELECT (e->>'sku_id')::bigint sku_id, (e->>'count')::int cnt FROM jsonb_array_elements(v_lines) e LOOP
     INSERT INTO public.event_skus (packaging_event_id, sku_id, "count") VALUES (p_packaging_event_id, v_ln.sku_id, v_ln.cnt) RETURNING id INTO v_id;
+    IF v_id > 2147483647 THEN RAISE EXCEPTION 'MIS_G7_SOURCE_ID_OVERFLOW: event_skus.id %', v_id USING ERRCODE = '22003'; END IF;
     v_ids := v_ids || v_id;
   END LOOP;
   -- Defend against the legacy trigger's silent-skip: every line must have produced its depletion.
