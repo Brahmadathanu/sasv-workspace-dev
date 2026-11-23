@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient.js";
 import { mountModuleHome, mountModuleIcon } from "./sasv-module-chrome.js";
+import { Platform } from "./platform.js";
 
 // FG Bulk Internal Transfer - modal-driven ERP UX
 // DB / RPC contract preserved exactly.
@@ -116,8 +117,8 @@ function fmtQty(v) {
 async function requireSession() {
   const { data: { session } = {} } = await supabase.auth.getSession();
   if (!session) {
-    window.location.href = window.location.protocol === "file:"
-      ? "../../login.html"
+    window.location.href = Platform.isElectron
+      ? "/login.html"
       : "/utilities-hub/index.html";
     throw new Error("No session");
   }
@@ -1040,9 +1041,7 @@ async function initPage() {
       "click",
       () => {
         // Both clients render the same shared HTML; navigation depends on runtime.
-        window.location.href = window.location.protocol === "file:"
-          ? "../../index.html"
-          : "/utilities-hub/index.html";
+        Platform.goHome();
       },
     );
 
