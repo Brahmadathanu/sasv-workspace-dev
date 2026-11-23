@@ -40,6 +40,22 @@ CREATE TABLE app_private.mis_report_receipt (
         as_of_cutoff < (report_month + interval '1 month')::date)
 );
 
+-- IMPORTANT: live app_private schema grants authenticated USAGE; therefore
+-- schema location ALONE is not an access boundary. Enforce exact table access.
+-- Review-only DDL, never execute in production without separately approved migration.
+ALTER TABLE app_private.mis_report_receipt ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_private.mis_report_receipt FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE app_private.mis_report_receipt
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON SEQUENCE app_private.mis_report_receipt_receipt_id_seq
+  FROM PUBLIC, anon, authenticated;
+
+-- No client policy or table DML grant is intentionally created. Future
+-- SECURITY DEFINER writer must be explicitly scoped, audited, and executed
+-- via a narrowly granted wrapper after real role tests. FORCE RLS demands
+-- an explicitly reviewed privileged server execution path; do not assume
+-- that defining the table and adding a writer will automatically permit INSERT.
+
 -- Indexed read for a report's latest version. There is no mutable active=true flag.
 CREATE INDEX mis_report_receipt_latest_idx
  ON app_private.mis_report_receipt
@@ -59,6 +75,9 @@ BEGIN
     USING ERRCODE='42501';
 END;
 $$;
+
+REVOKE ALL ON FUNCTION app_private.mis_report_receipt_block_mutation()
+  FROM PUBLIC, anon, authenticated;
 
 CREATE TRIGGER mis_report_receipt_no_update_delete
  BEFORE UPDATE OR DELETE ON app_private.mis_report_receipt
