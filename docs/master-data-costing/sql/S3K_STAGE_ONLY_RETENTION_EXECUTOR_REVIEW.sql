@@ -24,6 +24,36 @@ BEGIN
   IF to_regnamespace('costing_retention') IS NOT NULL THEN
     RAISE EXCEPTION 'S3K: private schema already exists; review separately, never reuse silently';
   END IF;
+  -- Pinned definitions from the live PG17.4 server on 23 Nov 2026.
+  -- MD5 is a source-drift fingerprint here, NOT a security approval signature.
+  -- A locally recreated or upgraded trigger must be independently reviewed and
+  -- explicitly re-pinned before this stage installer can proceed.
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE n.nspname='costing'
+      AND p.proname='fn_enforce_mutable_refresh_run_snapshot'
+      AND pg_get_userbyid(p.proowner)='postgres' AND p.prosecdef
+      AND md5(pg_get_functiondef(p.oid))='2fc573625296de9ccde5d722fdd4a3de'
+  ) OR NOT EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE n.nspname='costing'
+      AND p.proname='fn_guard_designated_run_rows'
+      AND pg_get_userbyid(p.proowner)='postgres' AND p.prosecdef
+      AND md5(pg_get_functiondef(p.oid))='5629ce76254a5ed45cde5529ce91caee'
+  ) THEN
+    RAISE EXCEPTION 'S3K: live guard source/owner drift detected; independent review required';
+  END IF;
+  IF (
+    SELECT count(*) FROM pg_trigger t JOIN pg_proc p ON p.oid=t.tgfoid
+    WHERE t.tgenabled='O'
+      AND t.tgrelid IN (
+        'costing.marketing_signed_billed_sales_evidence_snapshot'::regclass,
+        'costing.marketing_regional_sales_evidence_snapshot'::regclass)
+      AND p.proname IN ('fn_enforce_mutable_refresh_run_snapshot',
+                       'fn_guard_designated_run_rows')
+  ) <> 4 THEN
+    RAISE EXCEPTION 'S3K: expected four active run immutability triggers';
+  END IF;
 END $gate$;
 
 CREATE SCHEMA costing_retention;
