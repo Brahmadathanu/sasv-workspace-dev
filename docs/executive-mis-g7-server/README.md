@@ -6,7 +6,8 @@ Issue #521. Base `62b1f12c` (= `origin/main`, v6.4.2). Workflow reference: PR #4
 ## Migrations (apply in order; new files only, no installed migration edited)
 1. `20261123140000_mis_g7_s2_signed_batch_stage_events.sql` – append-only `app_private.mis_batch_stage_event` (SIGN + CORRECTION), route/BMR resolver, shared lock primitives, `mis_sign_batch_stage_v1`, `mis_correct_batch_stage_v1`.
 2. `20261123141000_mis_g7_s3_fg_ledger_shared_batch_lock.sql` – common BEFORE trigger `00_mis_g7_fg_batch_lock` on `fg_bulk_stock_ledger` (every writer, INSERT/UPDATE/DELETE) taking `product_id + exact batch_number` advisory xact lock.
-3. `20261123142000_mis_g7_s4_atomic_pack_with_measured_excess.sql` – excess receipt + request tables (append-only), `mis_pack_fg_bulk_v1`.
+3. `20261123142000_mis_g7_s4_atomic_pack_with_measured_excess.sql` – excess receipt + request + ticket tables (append-only), `mis_pack_fg_bulk_v1(uuid, bigint, jsonb, jsonb)` (live types: bigint event/SKU ids, enum event_type).
+4. `20261123143000_mis_g7_s3b_protected_stock_write_boundary.sql` – **separately owner-authorized**: converts the six SECURITY INVOKER legacy writers to SECURITY DEFINER (attribute only; fingerprints change), revokes authenticated/anon ledger DML, adds AUDIT/ENFORCE ticketed gate on `event_skus`/`packaging_events`. Default mode AUDIT = old clients keep working and direct bulk packing writes are logged to `app_private.mis_g7_direct_pack_audit`.
 Dependencies not created here: legacy tables/triggers, `public.require_permission(text,boolean)`, `auth.uid()`, `costing.*` route tables (columns used: see resolver). Rollback: `ROLLBACK_NOT_A_MIGRATION.sql` (keeps signed history).
 
 ## Permissions (new targets; owner must register/assign — NOT granted by migrations)
@@ -27,4 +28,12 @@ Dependencies not created here: legacy tables/triggers, `public.require_permissio
 - Location is not used as a gate; excess/ledger rows written by the RPC leave location NULL.
 
 ## Tests (`node --test supabase/tests/mis_g7/*.test.mjs`)
-Real local PostgreSQL 16 (ephemeral cluster, no Supabase): 21 DB tests pass incl. concurrent sessions; 3 offline policy tests pass. See PR body for the list and BLOCKED items.
+Real local PostgreSQL 16 (ephemeral cluster, no Supabase) against a production-shaped shim (bigint ids, enum event_type, integer ledger source_id, SECURITY INVOKER legacy writers, installed trigger names): 34 DB tests + 3 offline pass, 1 BLOCKED-skip. Added in the review-correction round: schema/ACL/trigger-order parity, C1 evidence (qty = DWL receipt, base UOM, ledger holds it, stale-source recheck at pack), protected boundary (AUDIT + ENFORCE incl. line/header reassignment, retype, delete), old-client authenticated positive paths, direct-DML denial for authenticated and anon, and real multi-writer races (auto-zero, force-close, transfer INSERT/UPDATE/DELETE, multi-row ledger deadlock fail-closed, concurrent excess).
+
+New refusal codes: `STAGE_SOURCE_CHANGED`, `PACKAGING_EVENT_CHANGED`; signer: `FG_RECEIPT_EVIDENCE_MISSING`, `FG_UOM_MISMATCH`, `MEASURED_QTY_MISMATCH`. Raised under ENFORCE for direct writes: `MIS_G7_DIRECT_PACKING_DENIED` (42501).
+
+## Known limits (unresolved)
+- force-close/auto-zero still read balance before locking (no live bodies to wrap): under a race they fail closed (negative guard), never over-draw.
+- Multi-row ledger statements touching batches in opposite orders can deadlock; PostgreSQL aborts one fully (tested).
+- ENFORCE blocks legitimate direct SKU corrections and the governed DWL-update RPC's packaging writes until a correction RPC / ticketed integration exists; do not flip until then.
+- Permission targets unregistered live; role assignment owner-authorized.

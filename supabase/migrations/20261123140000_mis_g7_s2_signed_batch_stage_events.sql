@@ -204,6 +204,24 @@ SET search_path = pg_catalog, pg_temp AS $f$
 $f$;
 REVOKE ALL ON FUNCTION app_private.mis_stage_is_signed(integer,text,text) FROM PUBLIC, anon, authenticated;
 
+-- Shared source fingerprint (used at sign time AND re-verified at pack time).
+-- Returns NULL when the resolver does not return OK (e.g. route/DWL changed since signing).
+CREATE OR REPLACE FUNCTION app_private.mis_stage_fp(p_product_id integer, p_batch text, p_work_log_id integer,
+                                                    p_route_step_id bigint, p_occ integer)
+RETURNS text LANGUAGE plpgsql STABLE
+SET search_path = pg_catalog, public, costing, pg_temp AS $f$
+DECLARE r record;
+BEGIN
+  SELECT * INTO r FROM app_private.mis_resolve_batch_stage(p_product_id, p_batch, p_work_log_id, p_route_step_id);
+  IF r.code <> 'OK' THEN RETURN NULL; END IF;
+  RETURN encode(sha256(convert_to(jsonb_build_object(
+      'product_id', p_product_id, 'batch', p_batch, 'bmr_id', r.bmr_id, 'route_id', r.route_id,
+      'route_step_id', r.route_step_id, 'occurrence', p_occ, 'work_log_id', p_work_log_id,
+      'wl_status', r.wl_status, 'wl_storage_qty', r.wl_storage_qty, 'wl_storage_uom', r.wl_storage_uom,
+      'wl_log_date', r.wl_log_date, 'activity', r.activity_name)::text, 'UTF8')), 'hex');
+END $f$;
+REVOKE ALL ON FUNCTION app_private.mis_stage_fp(integer,text,integer,bigint,integer) FROM PUBLIC, anon, authenticated;
+
 -- ---------------------------------------------------------------------------
 -- Public RPC: sign a batch stage. Actor is auth.uid(); client flags never trusted.
 CREATE OR REPLACE FUNCTION public.mis_sign_batch_stage_v1(
@@ -254,15 +272,26 @@ BEGIN
     IF p_measured_qty_base IS NULL OR p_measured_qty_base <= 0 THEN
       RETURN jsonb_build_object('ok', false, 'code', 'MEASURED_QTY_REQUIRED');
     END IF;
+    -- C1 evidence: the certified amount must be the actual DWL FG receipt, in the product base UOM,
+    -- and the batch ledger must really hold at least that positive stock. No unit guessing.
+    IF r.wl_storage_qty IS NULL OR r.wl_storage_qty <= 0 THEN
+      RETURN jsonb_build_object('ok', false, 'code', 'FG_RECEIPT_EVIDENCE_MISSING', 'detail', 'work log has no positive storage_qty');
+    END IF;
+    IF r.wl_storage_uom IS DISTINCT FROM v_uom THEN
+      RETURN jsonb_build_object('ok', false, 'code', 'FG_UOM_MISMATCH', 'work_log_uom', r.wl_storage_uom, 'base_uom', v_uom);
+    END IF;
+    IF p_measured_qty_base <> r.wl_storage_qty THEN
+      RETURN jsonb_build_object('ok', false, 'code', 'MEASURED_QTY_MISMATCH', 'work_log_qty', r.wl_storage_qty, 'measured_qty_base', p_measured_qty_base);
+    END IF;
+    IF (SELECT coalesce(sum(qty_base), 0) FROM public.fg_bulk_stock_ledger
+         WHERE product_id = p_product_id AND batch_number = v_batch AND qty_base > 0) < p_measured_qty_base THEN
+      RETURN jsonb_build_object('ok', false, 'code', 'FG_RECEIPT_EVIDENCE_MISSING', 'detail', 'ledger holds less positive stock than measured');
+    END IF;
   ELSE
     v_uom := CASE WHEN p_measured_qty_base IS NULL THEN NULL
                   ELSE (SELECT uom_base FROM public.products WHERE id = p_product_id) END;
   END IF;
-  v_fp := encode(sha256(convert_to(jsonb_build_object(
-      'product_id', p_product_id, 'batch', v_batch, 'bmr_id', r.bmr_id, 'route_id', r.route_id,
-      'route_step_id', r.route_step_id, 'occurrence', v_occ, 'work_log_id', p_work_log_id,
-      'wl_status', r.wl_status, 'wl_storage_qty', r.wl_storage_qty, 'wl_storage_uom', r.wl_storage_uom,
-      'wl_log_date', r.wl_log_date, 'activity', r.activity_name)::text, 'UTF8')), 'hex');
+  v_fp := app_private.mis_stage_fp(p_product_id, v_batch, p_work_log_id, p_route_step_id, v_occ);
   INSERT INTO app_private.mis_batch_stage_event
     (event_kind, product_id, batch_number, bmr_id, route_id, route_step_id, step_occurrence, stage_role,
      work_log_id, measured_qty_base, measured_uom, evidence_ref, signed_by, source_fingerprint, idempotency_key)

@@ -102,8 +102,8 @@ T('S2 events are append-only even for superuser; direct authenticated DML denied
   assert.match(q(`DELETE FROM app_private.mis_batch_stage_event WHERE event_id=${ev}`).err, /APPEND_ONLY/);
   assert.match(q(`TRUNCATE app_private.mis_batch_stage_event`).err, /APPEND_ONLY|cannot truncate/);
   assert.match(q(`TRUNCATE app_private.mis_fg_pack_request`).err, /APPEND_ONLY/);
-  for (const tbl of ['mis_batch_stage_event', 'mis_fg_signed_excess_receipt', 'mis_fg_pack_request']) {
-    for (const stmt of [`SELECT 1 FROM app_private.${tbl}`, `DELETE FROM app_private.${tbl}`, `UPDATE app_private.${tbl} SET evidence_ref=evidence_ref`])
+  for (const [tbl, col] of [['mis_batch_stage_event', 'evidence_ref'], ['mis_fg_signed_excess_receipt', 'reason'], ['mis_fg_pack_request', 'actor'], ['mis_g7_pack_ticket', 'request_id'], ['mis_g7_enforcement', 'mode'], ['mis_g7_direct_pack_audit', 'op']]) {
+    for (const stmt of [`SELECT 1 FROM app_private.${tbl}`, `DELETE FROM app_private.${tbl}`, `UPDATE app_private.${tbl} SET ${col}=${col}`])
       assert.match(q(stmt, SIGNER).err, /permission denied/, stmt);
   }
   assert.match(q(`INSERT INTO app_private.mis_batch_stage_event(event_kind) VALUES ('SIGN')`, SIGNER).err, /permission denied/);
@@ -150,7 +150,7 @@ T('S4 validation: sku mismatch, bad counts, non-bulk event, no trusted client fl
   assert.equal(JSON.parse(pack(b, [{ sku_id: 10, count: 0 }]).out).code, 'INVALID_INPUT');
   assert.equal(JSON.parse(pack(b, [{ sku_id: 10, count: 1 }, { sku_id: 10, count: 1 }]).out).code, 'INVALID_INPUT');
   assert.equal(JSON.parse(pack(b, []).out).code, 'INVALID_INPUT');
-  q(`UPDATE public.packaging_events SET event_type='Labeling' WHERE id=${evId(b)}`);
+  q(`UPDATE public.packaging_events SET event_type='Transfer to FG store' WHERE id=${evId(b)}`);
   assert.equal(JSON.parse(pack(b, [{ sku_id: 10, count: 1 }]).out).code, 'EVENT_NOT_BULK_AFFECTING');
   assert.equal(bal(b), 100);
 });
@@ -270,11 +270,203 @@ T('S3 different batches do not block each other; opposite-order multi-lock does 
   const [rx, ry] = await Promise.all([x, y]);
   assert.equal(rx.status, 0, rx.err); assert.equal(ry.status, 0, ry.err);
 });
-T('S3 legacy ledger access for authenticated is UNCHANGED (hardening is a draft, not applied)', () => {
-  // Documents the residual: direct authenticated DML on the ledger still works => the shared
-  // lock protects concurrency (all paths take it) but does not forbid bypass of S2/S4 gates.
-  const b = bn('S3H'); mk(b);
-  const r = q(`INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,qty,qty_base,uom) VALUES (1,'${b}',1,1,'kg')`, SIGNER);
-  assert.equal(r.status, 0, 'expected direct authenticated insert still permitted');
+
+// ------------------- production-shape parity / security / boundary -------------------
+const LEGACY_WRITERS = ['trg_fg_ledger_from_dwl()', 'trg_fg_ledger_from_es()', 'trg_fg_bulk_internal_transfer_to_ledger()',
+  'fn_fg_auto_zero(integer,text,numeric)', 'fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)', 'fn_fg_force_close(integer,text,numeric)'];
+const setMode = (m) => { const r = q(`UPDATE app_private.mis_g7_enforcement SET mode='${m}'`); assert.equal(r.status, 0, r.err); };
+const anon = (sql) => pg.psql(DB, `SET ROLE anon; ${sql}`);
+
+T('PARITY live-evidenced types: bigint ids, enum event_type, integer ledger source_id, new RPC/table types', () => {
+  const t = (tbl, col) => val(`SELECT data_type||':'||udt_name FROM information_schema.columns WHERE table_schema='${tbl.split('.')[0]}' AND table_name='${tbl.split('.')[1]}' AND column_name='${col}'`);
+  for (const [tbl, col] of [['public.packaging_events', 'id'], ['public.packaging_events', 'work_log_id'], ['public.event_skus', 'id'],
+    ['public.event_skus', 'packaging_event_id'], ['public.event_skus', 'sku_id'], ['public.product_skus', 'id'], ['public.product_skus', 'product_id'],
+    ['app_private.mis_fg_pack_request', 'packaging_event_id'], ['app_private.mis_fg_signed_excess_receipt', 'packaging_event_id'], ['app_private.mis_g7_pack_ticket', 'packaging_event_id']])
+    assert.equal(t(tbl, col), 'bigint:int8', `${tbl}.${col}`);
+  assert.equal(t('public.packaging_events', 'event_type'), 'USER-DEFINED:packaging_event_type');
+  assert.equal(t('public.fg_bulk_stock_ledger', 'source_id'), 'integer:int4');
+  assert.equal(val(`SELECT pg_get_function_identity_arguments('public.mis_pack_fg_bulk_v1(uuid,bigint,jsonb,jsonb)'::regprocedure)`), 'p_request_id uuid, p_packaging_event_id bigint, p_lines jsonb, p_excess jsonb');
+  assert.equal(val(`SELECT to_regprocedure('public.mis_pack_fg_bulk_v1(uuid,integer,jsonb,jsonb)') IS NULL`), 't');   // no narrowing overload
+  assert.equal(val(`SELECT count(*) FROM pg_proc WHERE proname='mis_pack_fg_bulk_v1'`), '1');
 });
-test('BLOCKED (not PASS): ledger direct-DML denial, early-lock force-close/auto-zero wrappers, live-schema compile', { skip: 'BLOCKED: requires live function security attributes / owner authorization; see README' }, () => {});
+T('PARITY writers SECURITY DEFINER after S3b; public RPCs definer; helpers not callable by clients; ACLs', () => {
+  for (const w of LEGACY_WRITERS) assert.equal(val(`SELECT prosecdef FROM pg_proc WHERE oid='public.${w}'::regprocedure`), 't', w);
+  for (const [fn, acl] of [['mis_sign_batch_stage_v1(uuid,integer,text,integer,bigint,integer,numeric,text)', true], ['mis_correct_batch_stage_v1(uuid,bigint,text)', true], ['mis_pack_fg_bulk_v1(uuid,bigint,jsonb,jsonb)', true]]) {
+    assert.equal(val(`SELECT prosecdef FROM pg_proc WHERE oid='public.${fn}'::regprocedure`), 't');
+    assert.equal(val(`SELECT has_function_privilege('authenticated','public.${fn}','EXECUTE')`), 't');
+    assert.equal(val(`SELECT has_function_privilege('anon','public.${fn}','EXECUTE')`), 'f');
+  }
+  for (const f of ['app_private.mis_lock_fg_batch(integer,text)', 'app_private.mis_resolve_batch_stage(integer,text,integer,bigint)', 'app_private.mis_stage_fp(integer,text,integer,bigint,integer)', 'app_private.mis_g7_gate_check(text,text,bigint,bigint)'])
+    assert.equal(val(`SELECT has_function_privilege('authenticated','${f}','EXECUTE')`), 'f', f);
+  assert.match(q(`SELECT app_private.mis_lock_fg_batch(1,'x')`, SIGNER).err, /permission denied/);
+  for (const p of ['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE']) for (const role of ['authenticated', 'anon'])
+    assert.equal(val(`SELECT has_table_privilege('${role}','public.fg_bulk_stock_ledger','${p}')`), 'f', `${role} ${p}`);
+  assert.equal(val(`SELECT has_table_privilege('authenticated','public.fg_bulk_stock_ledger','SELECT')`), 't');
+  assert.equal(val(`SELECT has_function_privilege('authenticated','app_private.trg_mis_fg_ledger_batch_lock()','EXECUTE')`), 'f');
+});
+T('PARITY S3 lock trigger fires first among all BEFORE INSERT ledger triggers (installed trigger list)', () => {
+  const names = val(`SELECT string_agg(tgname, ',' ORDER BY tgname COLLATE "C") FROM pg_trigger WHERE tgrelid='public.fg_bulk_stock_ledger'::regclass AND NOT tgisinternal AND (tgtype & 2)=2 AND (tgtype & 4)=4`);
+  assert.equal(names.split(',')[0], '00_mis_g7_fg_batch_lock', names);
+  assert.ok(names.includes('trg_fg_ledger_check_neg'));
+  assert.equal(val(`SELECT count(*) FROM pg_trigger WHERE tgrelid='public.fg_bulk_stock_ledger'::regclass AND tgname='00_mis_g7_fg_batch_lock' AND (tgtype&2)=2 AND (tgtype&4)=4 AND (tgtype&8)=8 AND (tgtype&16)=16`), '1'); // BEFORE INSERT/DELETE/UPDATE
+});
+T('BOUNDARY direct authenticated/anon ledger DML denied (insert/update/delete)', () => {
+  const b = bn('BD1'); mk(b);
+  const row = `INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,qty,qty_base,uom) VALUES (1,'${b}',1,1,'kg')`;
+  for (const stmt of [row, `UPDATE public.fg_bulk_stock_ledger SET qty_base=qty_base+1 WHERE batch_number='${b}'`, `DELETE FROM public.fg_bulk_stock_ledger WHERE batch_number='${b}'`]) {
+    assert.match(q(stmt, SIGNER).err, /permission denied/, stmt); assert.match(anon(stmt).err, /permission denied/, stmt);
+  }
+  assert.equal(bal(b), 100);
+});
+T('BOUNDARY old-client authenticated writers still work (AUDIT mode): DWL receipt, direct SKU insert, transfer, auto-zero, ledger_add, force-close', () => {
+  setMode('AUDIT');
+  const b = bn('BD2'); const AU = PACKER;
+  // DWL receipt trigger as authenticated (invoker -> definer)
+  assert.equal(q(`INSERT INTO public.bmr_details(id,product_id,bn,lifecycle_status) VALUES ((SELECT max(id)+1 FROM public.bmr_details),1,'${b}','Released'); INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status,storage_qty,storage_qty_uom) VALUES ('P1','${b}','FG bulk storage','2026-11-12','Done',50,'kg')`, AU).status, 0);
+  assert.equal(bal(b), 50);
+  // legacy direct event_skus insert (old client) depletes via es trigger and is audited
+  q(`INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status) VALUES ('P1','${b}','Filling','2026-11-12','Done'); INSERT INTO public.packaging_events(work_log_id,event_type) SELECT max(id),'Bottling' FROM public.daily_work_log`, AU);
+  const ev = evId(b);
+  const before = Number(val(`SELECT count(*) FROM app_private.mis_g7_direct_pack_audit`));
+  let r = q(`INSERT INTO public.event_skus(packaging_event_id,sku_id,"count") VALUES (${ev},10,10)`, AU); assert.equal(r.status, 0, r.err);
+  assert.equal(bal(b), 45);
+  assert.equal(Number(val(`SELECT count(*) FROM app_private.mis_g7_direct_pack_audit`)), before + 1);
+  assert.equal(q(`UPDATE public.event_skus SET "count"=20 WHERE packaging_event_id=${ev}`, AU).status, 0); assert.equal(bal(b), 40);
+  assert.equal(q(`DELETE FROM public.event_skus WHERE packaging_event_id=${ev}`, AU).status, 0); assert.equal(bal(b), 50);
+  assert.equal(q(`SELECT public.fn_fg_ledger_add(1,'${b}',5,'ADJ',0,'manual','2026-11-12')`, AU).status, 0); assert.equal(bal(b), 55);
+  assert.equal(q(`INSERT INTO public.fg_bulk_internal_transfer(product_id,batch_number,qty_base,from_plant,to_plant) VALUES (1,'${b}',10,1,2)`, AU).status, 0); assert.equal(bal(b), 55);
+  assert.equal(q(`SELECT public.fn_fg_auto_zero(1,'${b}',0.001)`, AU).status, 0);
+  assert.equal(q(`SELECT public.fn_fg_force_close(1,'${b}')`, AU).status, 0); assert.equal(bal(b), 0);
+  // negative guard still protects old clients
+  assert.match(q(`SELECT public.fn_fg_ledger_add(1,'${b}',-1,'ADJ',0,'manual','2026-11-12')`, AU).err, /would make stock negative/);
+});
+T('BOUNDARY ENFORCE mode: direct SKU INSERT/UPDATE/DELETE, header reassignment/retype/delete denied; RPC and non-bulk still allowed', () => {
+  const b = bn('BD3'); mkSigned(b); const ev = evId(b);
+  const r0 = JSON.parse(pack(b, [{ sku_id: 10, count: 10 }]).out); assert.equal(r0.ok, true);   // RPC creates a line (AUDIT)
+  setMode('ENFORCE');
+  try {
+    const d = (stmt) => assert.match(q(stmt, PACKER).err, /MIS_G7_DIRECT_PACKING_DENIED/, stmt);
+    d(`INSERT INTO public.event_skus(packaging_event_id,sku_id,"count") VALUES (${ev},11,1)`);
+    d(`UPDATE public.event_skus SET "count"=99 WHERE packaging_event_id=${ev}`);
+    d(`DELETE FROM public.event_skus WHERE packaging_event_id=${ev}`);
+    const other = bn('BD3o'); mk(other); const ev2 = evId(other);
+    d(`UPDATE public.event_skus SET packaging_event_id=${ev2} WHERE packaging_event_id=${ev}`);          // line reassignment
+    d(`UPDATE public.packaging_events SET work_log_id=(SELECT work_log_id FROM public.packaging_events WHERE id=${ev2}) WHERE id=${ev}`); // header reassignment
+    d(`UPDATE public.packaging_events SET event_type='Labelling' WHERE id=${ev}`);
+    d(`DELETE FROM public.packaging_events WHERE id=${ev}`);                                             // cascade path
+    assert.equal(bal(b), 95);
+    // RPC still works under ENFORCE (ticketed)
+    const r = JSON.parse(pack(b, [{ sku_id: 11, count: 2 }]).out); assert.equal(r.ok, true, JSON.stringify(r));  // 2*0.5kg
+    assert.equal(bal(b), 94);
+    // non-bulk event headers/lines are not gated
+    q(`UPDATE public.packaging_events SET event_type='Transfer to FG store' WHERE id=${ev2}`, PACKER);
+    assert.equal(q(`INSERT INTO public.event_skus(packaging_event_id,sku_id,"count") VALUES (${ev2},10,3)`, PACKER).status, 0);
+    assert.equal(bal(other), 100);                                                                       // affects=0 -> no depletion
+    // ticket must not authorize another transaction: ticket for ev exists, a later direct write is still denied
+    d(`INSERT INTO public.event_skus(packaging_event_id,sku_id,"count") VALUES (${ev},10,1)`);
+  } finally { setMode('AUDIT'); }
+});
+T('BOUNDARY denied direct write leaves header intact and creates no orphan lines', () => {
+  const b = bn('BD4'); mkSigned(b); const ev = evId(b);
+  setMode('ENFORCE');
+  try { assert.match(q(`INSERT INTO public.event_skus(packaging_event_id,sku_id,"count") VALUES (${ev},10,5)`, PACKER).err, /DIRECT_PACKING_DENIED/); }
+  finally { setMode('AUDIT'); }
+  assert.equal(val(`SELECT count(*) FROM public.packaging_events WHERE id=${ev}`), '1');
+  assert.equal(val(`SELECT count(*) FROM public.event_skus WHERE packaging_event_id=${ev}`), '0');
+  assert.equal(bal(b), 100);
+  // RPC refusal on same header leaves header and zero lines too
+  assert.equal(JSON.parse(pack(b, [{ sku_id: 10, count: 9999 }]).out).code, 'INSUFFICIENT_BULK');
+  assert.equal(val(`SELECT count(*) FROM public.event_skus WHERE packaging_event_id=${ev}`), '0');
+  // existing line on header: the RPC refuses duplicate SKU line rather than double posting
+  assert.equal(JSON.parse(pack(b, [{ sku_id: 10, count: 2 }]).out).ok, true);
+  assert.equal(JSON.parse(pack(b, [{ sku_id: 10, count: 2 }]).out).code, 'SKU_LINE_EXISTS');
+});
+T('C1 evidence: measured qty must equal DWL FG receipt in base UOM; ledger must hold it; stale source blocks pack', () => {
+  const s = (b, qty, wl) => JSON.parse(val(`SELECT public.mis_sign_batch_stage_v1('${randomUUID()}',1,'${b}',${wl ?? wlFg(b)},2,1,${qty},'e')`, SIGNER));
+  const b1 = bn('C1a'); mk(b1);
+  assert.equal(s(b1, 99).code, 'MEASURED_QTY_MISMATCH');
+  assert.equal(s(b1, 1000).code, 'MEASURED_QTY_MISMATCH');
+  q(`UPDATE public.daily_work_log SET storage_qty_uom='g' WHERE id=${wlFg(b1)}`);
+  assert.equal(s(b1, 100).code, 'FG_UOM_MISMATCH');
+  q(`UPDATE public.daily_work_log SET storage_qty_uom='kg', storage_qty=0 WHERE id=${wlFg(b1)}`);
+  assert.equal(s(b1, 100).code, 'FG_RECEIPT_EVIDENCE_MISSING');
+  const b2 = bn('C1b'); mk(b2); q(`DELETE FROM public.fg_bulk_stock_ledger WHERE batch_number='${b2}'`);
+  assert.equal(s(b2, 100).code, 'FG_RECEIPT_EVIDENCE_MISSING');
+  assert.equal(val(`SELECT count(*) FROM app_private.mis_batch_stage_event WHERE batch_number IN ('${b1}','${b2}')`), '0');
+  const b3 = bn('C1c'); mkSigned(b3);                                  // sign OK, then source quantity drifts
+  q(`UPDATE public.daily_work_log SET storage_qty=101 WHERE id=${wlFg(b3)}`);
+  const r = JSON.parse(pack(b3, [{ sku_id: 10, count: 2 }]).out);
+  assert.equal(r.code, 'STAGE_SOURCE_CHANGED'); assert.equal(bal(b3), 100);
+  const b4 = bn('C1d'); mkSigned(b4);                                  // route un-approved after signing
+  q(`UPDATE costing.product_process_route SET status='RETIRED' WHERE id=1`);
+  try { assert.equal(JSON.parse(pack(b4, [{ sku_id: 10, count: 2 }]).out).code, 'STAGE_SOURCE_CHANGED'); }
+  finally { q(`UPDATE costing.product_process_route SET status='APPROVED' WHERE id=1`); }
+  assert.equal(JSON.parse(pack(b4, [{ sku_id: 10, count: 2 }]).out).ok, true);
+});
+T('PERMISSION unregistered targets fail closed even for an authenticated admin-like user', () => {
+  const ADMIN = '00000000-0000-0000-0000-0000000000aa';   // authenticated, holds only unrelated permissions
+  q(`INSERT INTO public.test_perm VALUES ('${ADMIN}','module:production-route-manager')`);
+  const b = bn('PM1'); mk(b);
+  assert.match(sign(b, ADMIN).err, /permission denied/);
+  assert.match(pack(b, [{ sku_id: 10, count: 1 }], { uid: ADMIN }).err, /permission denied/);
+  assert.match(q(`SELECT public.mis_correct_batch_stage_v1('${randomUUID()}',1,'x')`, ADMIN).err, /permission denied/);
+});
+
+// ---------------- real multi-writer concurrency (beyond helper calls) ----------------
+T('RACE auto-zero (read-before-write) vs concurrent ledger writer: fails closed, never over-draws', async () => {
+  const b = bn('RC1'); mk(b, 0.4);
+  const A = pg.psqlAsync(DB, hold(`SELECT public.fn_fg_ledger_add(1,'${b}',-0.4,'ADJ',0,'manual','2026-11-12')`, 2));
+  await delay(400);
+  const B = pg.psqlAsync(DB, `SELECT public.fn_fg_auto_zero(1,'${b}',1)`);     // reads +0.4 (A uncommitted), then inserts -0.4
+  const [a, bb] = await Promise.all([A, B]);
+  assert.equal(a.status, 0, a.err); assert.notEqual(bb.status, 0); assert.match(bb.err, /would make stock negative/);
+  assert.equal(bal(b), 0);
+});
+T('RACE force-close (read-before-write) vs concurrent transfer INSERT: no negative balance', async () => {
+  const b = bn('RC2'); mk(b);
+  const tr = `INSERT INTO public.fg_bulk_internal_transfer(product_id,batch_number,qty_base,from_plant,to_plant) VALUES (1,'${b}',100,1,2)`;
+  const A = pg.psqlAsync(DB, hold(tr, 2));
+  await delay(400);
+  const B = pg.psqlAsync(DB, `SELECT public.fn_fg_force_close(1,'${b}')`);
+  const [a, bb] = await Promise.all([A, B]);
+  assert.equal(a.status, 0, a.err); assert.equal(bb.status, 0, bb.err);        // out/in legs net zero; close then drains cleanly
+  assert.ok(bb.ms >= 1400); assert.equal(bal(b), 0);
+});
+T('RACE transfer UPDATE/DELETE leg rebuild vs pack RPC: serialized, balance consistent', async () => {
+  const b = bn('RC3'); mkSigned(b);
+  q(`INSERT INTO public.fg_bulk_internal_transfer(product_id,batch_number,qty_base,from_plant,to_plant) VALUES (1,'${b}',40,1,2)`);
+  const id = val(`SELECT id FROM public.fg_bulk_internal_transfer WHERE batch_number='${b}'`);
+  const A = pg.psqlAsync(DB, hold(`UPDATE public.fg_bulk_internal_transfer SET qty_base=60 WHERE id=${id}`, 2));
+  await delay(400);
+  const B = pg.psqlAsync(DB, `SELECT public.mis_pack_fg_bulk_v1('${randomUUID()}',${evId(b)},'[{"sku_id":10,"count":10}]'::jsonb)`, { uid: PACKER });
+  const [a, bb] = await Promise.all([A, B]);
+  assert.equal(a.status, 0, a.err); assert.ok(bb.ms >= 1400, `pack waited ${bb.ms}`);
+  assert.equal(JSON.parse(bb.out.split('\n').find((l) => l.startsWith('{'))).ok, true);
+  assert.equal(bal(b), 95);
+  const D = pg.psqlAsync(DB, hold(`DELETE FROM public.fg_bulk_internal_transfer WHERE id=${id}`, 1.5));
+  await delay(300);
+  const P = pg.psqlAsync(DB, `SELECT public.fn_fg_ledger_add(1,'${b}',-1,'ADJ',0,'manual','2026-11-12')`);
+  const [d, p] = await Promise.all([D, P]); assert.equal(d.status, 0); assert.equal(p.status, 0); assert.equal(bal(b), 94);
+});
+T('RACE multi-row ledger INSERT with opposite batch order: deadlock is detected, loser rolls back fully (fail closed)', async () => {
+  const b1 = bn('RC4'), b2 = bn('RC5'); mk(b1); mk(b2);
+  const stmt = (x, y) => `INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,qty,qty_base,uom,reason_code,source_table,source_id)
+     SELECT 1, v.bn, -1, -1, 'kg', 'MR', 'mr', ${'v.o'} FROM (SELECT bn, o, pg_sleep(1) FROM (VALUES ('${x}',1),('${y}',2)) t(bn,o)) v`;
+  // service-role style direct DML (superuser) to bypass the S3b revoke: tests writer ordering only
+  const [ra, rb] = await Promise.all([pg.psqlAsync(DB, stmt(b1, b2)), pg.psqlAsync(DB, stmt(b2, b1))]);
+  const fails = [ra, rb].filter((r) => r.status !== 0);
+  assert.equal(fails.length, 1, `exactly one session must lose: ${ra.err} | ${rb.err}`);
+  assert.match(fails[0].err, /deadlock detected/);
+  assert.equal(bal(b1), 99); assert.equal(bal(b2), 99);       // winner's 2 rows only, loser fully rolled back
+});
+T('RACE concurrent excess packs on same batch: only one excess + one pack can consume the measured stock', async () => {
+  const b = bn('RC6'); mkSigned(b, 10); const e = evId(b);
+  const ex = { qty_base: 15, evidence_ref: 'scale', reason: 'measured' };
+  const call = (sku, k) => `SELECT public.mis_pack_fg_bulk_v1('${k}',${e},'[{"sku_id":${sku},"count":50}]'::jsonb,'${JSON.stringify(ex)}'::jsonb)`;   // each needs 25 kg (sku10) / 25 kg (sku11 500g*0.001*50)
+  const [x, y] = await Promise.all([pg.psqlAsync(DB, hold(call(10, randomUUID()), 1.5), { uid: EXCESS }), (async () => { await delay(300); return pg.psqlAsync(DB, call(11, randomUUID()), { uid: EXCESS }); })()]);
+  const rs = [x, y].map((r) => JSON.parse(r.out.split('\n').find((l) => l.startsWith('{'))));
+  assert.equal(rs[0].ok, true); assert.equal(rs[1].ok, false);
+  assert.ok(['INSUFFICIENT_AFTER_EXCESS', 'SKU_LINE_EXISTS'].includes(rs[1].code), rs[1].code);
+  assert.equal(bal(b), 0); assert.equal(val(`SELECT count(*) FROM app_private.mis_fg_signed_excess_receipt WHERE batch_number='${b}'`), '1');
+});
+test('BLOCKED (not PASS): live-schema compile, live role/JWT simulation, early-lock force-close/auto-zero wrappers, legitimate corrections under ENFORCE', { skip: 'BLOCKED: needs live definitions / owner authorization; see README' }, () => {});

@@ -5,7 +5,7 @@
 -- baselines (SHA256 cc32357d.../211a6e87...) from the packet; force-close/auto-zero/
 -- transfer are simplified stand-ins that mimic the audited write semantics.
 CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN;
-CREATE SCHEMA auth; CREATE SCHEMA costing;
+CREATE SCHEMA auth; CREATE SCHEMA costing; CREATE SCHEMA app_private; GRANT USAGE ON SCHEMA app_private TO authenticated;  -- live precondition: authenticated has USAGE
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS
  $$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 GRANT USAGE ON SCHEMA auth, public, costing TO anon, authenticated, service_role;
@@ -17,18 +17,19 @@ CREATE FUNCTION public.require_permission(p_target text, p_edit boolean) RETURNS
 GRANT EXECUTE ON FUNCTION public.require_permission(text,boolean) TO authenticated;
 
 CREATE TABLE public.products (id integer PRIMARY KEY, item text UNIQUE NOT NULL, uom_base text NOT NULL, conversion_to_base numeric);
-CREATE TABLE public.product_skus (id integer PRIMARY KEY, product_id integer REFERENCES public.products(id), pack_size numeric, uom text);
+CREATE TABLE public.product_skus (id bigint PRIMARY KEY, product_id bigint, pack_size numeric, uom text);  -- live: BIGINT ids
 CREATE TABLE public.activities (id integer PRIMARY KEY, activity_name text UNIQUE NOT NULL);
 CREATE TABLE public.bmr_details (id integer PRIMARY KEY, product_id integer REFERENCES public.products(id), bn text, lifecycle_status text);
 CREATE TABLE public.daily_work_log (id serial PRIMARY KEY, item text, batch_number text, activity text, log_date date, status text,
   storage_qty numeric, storage_qty_uom text, completed_on date);
 CREATE TABLE costing.product_process_route (id bigserial PRIMARY KEY, product_id integer, status text, effective_from date, effective_to date, base_route_family_route_id bigint);
 CREATE TABLE costing.production_route_family_route_step (id bigserial PRIMARY KEY, family_route_id bigint, activity_id integer, is_mandatory boolean);
-CREATE TABLE public.event_type_lkp (label text PRIMARY KEY, affects_bulk_stock numeric, is_packaging boolean, active boolean DEFAULT true);
-CREATE TABLE public.packaging_events (id serial PRIMARY KEY, work_log_id integer REFERENCES public.daily_work_log(id), event_type text);
-CREATE TABLE public.event_skus (id serial PRIMARY KEY, packaging_event_id integer REFERENCES public.packaging_events(id), sku_id integer, "count" integer NOT NULL DEFAULT 0 CHECK ("count" >= 0));
+CREATE TYPE public.packaging_event_type AS ENUM ('Bottling','Labelling','Cartoning','Capsule monocarton','Transfer to FG store');  -- live: user-defined enum
+CREATE TABLE public.packaging_events (id bigserial PRIMARY KEY, work_log_id bigint REFERENCES public.daily_work_log(id), event_type public.packaging_event_type);
+CREATE TABLE public.event_type_lkp (label public.packaging_event_type PRIMARY KEY, affects_bulk_stock numeric, is_packaging boolean, active boolean DEFAULT true);
+CREATE TABLE public.event_skus (id bigserial PRIMARY KEY, packaging_event_id bigint REFERENCES public.packaging_events(id) ON DELETE CASCADE, sku_id bigint, "count" integer NOT NULL DEFAULT 0 CHECK ("count" >= 0));
 CREATE TABLE public.fg_bulk_stock_ledger (id bigserial PRIMARY KEY, product_id integer NOT NULL REFERENCES public.products(id), batch_number text NOT NULL,
-  movement_date date, qty numeric, qty_base numeric NOT NULL, uom text, reason_code text, source_table text, source_id bigint,
+  movement_date date, qty numeric, qty_base numeric NOT NULL, uom text, reason_code text, source_table text, source_id integer,  -- live: integer
   created_at timestamptz DEFAULT now(), section_id int, subsection_id int, area_id int, plant_id int);
 CREATE TABLE public.fg_bulk_internal_transfer (id serial PRIMARY KEY, product_id integer, batch_number text, qty_base numeric, from_plant int, to_plant int);
 ALTER TABLE public.fg_bulk_stock_ledger ENABLE ROW LEVEL SECURITY;
@@ -46,7 +47,7 @@ BEGIN
     RAISE EXCEPTION 'Cannot post % % for product %, BN %: would make stock negative (%.3f)',
       NEW.qty_base, (SELECT uom_base FROM products WHERE id = NEW.product_id), NEW.product_id, NEW.batch_number, new_total;
   END IF; RETURN NEW; END; $function$;
-CREATE TRIGGER fg_ledger_check_negative BEFORE INSERT ON public.fg_bulk_stock_ledger FOR EACH ROW EXECUTE FUNCTION public.fn_fg_ledger_check_negative();
+CREATE TRIGGER trg_fg_ledger_check_neg BEFORE INSERT ON public.fg_bulk_stock_ledger FOR EACH ROW EXECUTE FUNCTION public.fn_fg_ledger_check_negative();
 
 -- EXACT live baseline of trg_fg_ledger_from_es (sha256 cc32357d...)
 CREATE OR REPLACE FUNCTION public.trg_fg_ledger_from_es()
@@ -207,7 +208,7 @@ $function$;
 CREATE TRIGGER trg_fg_ledger_from_es AFTER INSERT OR UPDATE OR DELETE ON public.event_skus FOR EACH ROW EXECUTE FUNCTION public.trg_fg_ledger_from_es();
 
 -- Simplified stand-ins for other audited writers (semantics: read balance, then insert).
-CREATE FUNCTION public.fn_fg_force_close(p_product int, p_bn text, p_sleep numeric DEFAULT 0) RETURNS numeric LANGUAGE plpgsql AS $$
+CREATE FUNCTION public.fn_fg_force_close(p_product integer, p_bn text, p_sleep numeric) RETURNS numeric LANGUAGE plpgsql AS $$
 DECLARE b numeric; BEGIN
   SELECT COALESCE(SUM(qty_base),0) INTO b FROM public.fg_bulk_stock_ledger WHERE product_id=p_product AND batch_number=p_bn;
   IF p_sleep > 0 THEN PERFORM pg_sleep(p_sleep); END IF;
@@ -224,3 +225,26 @@ BEGIN
            (NEW.product_id,NEW.batch_number,CURRENT_DATE, NEW.qty_base, NEW.qty_base,'kg','TRANSFER_IN','fg_bulk_internal_transfer',NEW.id,NEW.to_plant); END IF;
   RETURN COALESCE(NEW,OLD); END $$;
 CREATE TRIGGER trg_fg_bulk_internal_transfer AFTER INSERT OR UPDATE OR DELETE ON public.fg_bulk_internal_transfer FOR EACH ROW EXECUTE FUNCTION public.trg_fg_bulk_internal_transfer_to_ledger();
+
+CREATE FUNCTION public.fn_fg_force_close(p_product integer, p_bn text) RETURNS numeric LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN RETURN public.fn_fg_force_close(p_product, p_bn, 0); END $$;
+GRANT EXECUTE ON FUNCTION public.fn_fg_force_close(integer,text) TO authenticated;
+-- INVOKER (as live): DWL receipt trigger, auto-zero, helper.
+CREATE FUNCTION public.trg_fg_ledger_from_dwl() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE pid int; BEGIN
+  IF NEW.activity = 'FG bulk storage' AND coalesce(NEW.storage_qty,0) > 0 THEN
+    SELECT id INTO pid FROM public.products WHERE item = NEW.item;
+    INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id)
+    VALUES (pid,NEW.batch_number,NEW.log_date,NEW.storage_qty,NEW.storage_qty,NEW.storage_qty_uom,'FG bulk storage','daily_work_log',NEW.id);
+  END IF; RETURN NEW; END $$;
+CREATE TRIGGER trg_fg_ledger_from_dwl AFTER INSERT ON public.daily_work_log FOR EACH ROW EXECUTE FUNCTION public.trg_fg_ledger_from_dwl();
+CREATE FUNCTION public.fn_fg_auto_zero(p_product integer, p_bn text, p_eps numeric) RETURNS numeric LANGUAGE plpgsql AS $$
+DECLARE b numeric; BEGIN
+  SELECT COALESCE(SUM(qty_base),0) INTO b FROM public.fg_bulk_stock_ledger WHERE product_id=p_product AND batch_number=p_bn;
+  IF b <> 0 AND abs(b) <= p_eps THEN
+    PERFORM pg_sleep(0.8);
+    INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id)
+    VALUES (p_product,p_bn,CURRENT_DATE,-b,-b,'kg','AUTO_ZERO','manual',0); END IF; RETURN b; END $$;
+CREATE FUNCTION public.fn_fg_ledger_add(p_product integer, p_bn text, p_qty numeric, p_reason text, p_src_id integer, p_src text, p_date date) RETURNS void LANGUAGE sql AS $$
+  INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id)
+  VALUES (p_product,p_bn,p_date,p_qty,p_qty,'kg',p_reason,p_src,p_src_id) $$;

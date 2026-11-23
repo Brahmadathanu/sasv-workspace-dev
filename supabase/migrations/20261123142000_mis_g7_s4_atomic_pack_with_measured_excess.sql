@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS app_private.mis_fg_signed_excess_receipt (
   request_id uuid NOT NULL UNIQUE,
   product_id integer NOT NULL REFERENCES public.products(id),
   batch_number text NOT NULL CHECK (length(btrim(batch_number)) > 0),
-  packaging_event_id integer NOT NULL,
+  packaging_event_id bigint NOT NULL,
   fg_stage_event_id bigint NOT NULL REFERENCES app_private.mis_batch_stage_event(event_id),
   qty_base numeric NOT NULL CHECK (qty_base > 0),
   base_uom text NOT NULL CHECK (length(btrim(base_uom)) > 0),
@@ -26,12 +26,18 @@ CREATE TABLE IF NOT EXISTS app_private.mis_fg_pack_request (
   request_hash text NOT NULL CHECK (request_hash ~ '^[0-9a-f]{64}$'),
   product_id integer NOT NULL,
   batch_number text NOT NULL,
-  packaging_event_id integer NOT NULL,
+  packaging_event_id bigint NOT NULL,
   response jsonb NOT NULL,
   created_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
+-- Single-transaction packing tickets: lets the protected event_skus gate (migration 4) recognise
+-- lines written by THIS RPC. Private, insert-only; clients cannot forge it (a GUC could be forged).
+CREATE TABLE IF NOT EXISTS app_private.mis_g7_pack_ticket (
+  txid bigint NOT NULL, packaging_event_id bigint NOT NULL, request_id uuid NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  PRIMARY KEY (txid, packaging_event_id));
 DO $$ DECLARE t text; BEGIN
-  FOREACH t IN ARRAY ARRAY['mis_fg_signed_excess_receipt','mis_fg_pack_request'] LOOP
+  FOREACH t IN ARRAY ARRAY['mis_fg_signed_excess_receipt','mis_fg_pack_request','mis_g7_pack_ticket'] LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS %I ON app_private.%I', t||'_append_only', t);
     EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE OR DELETE ON app_private.%I FOR EACH ROW EXECUTE FUNCTION app_private.mis_g7_append_only_guard()', t||'_append_only', t);
     EXECUTE format('DROP TRIGGER IF EXISTS %I ON app_private.%I', t||'_no_truncate', t);
@@ -43,7 +49,7 @@ END $$;
 REVOKE ALL ON SEQUENCE app_private.mis_fg_signed_excess_receipt_excess_id_seq FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.mis_pack_fg_bulk_v1(
-  p_request_id uuid, p_packaging_event_id integer, p_lines jsonb, p_excess jsonb DEFAULT NULL)
+  p_request_id uuid, p_packaging_event_id bigint, p_lines jsonb, p_excess jsonb DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $f$
 DECLARE
@@ -54,7 +60,7 @@ DECLARE
   v_required numeric := 0; v_available numeric; v_base_per numeric;
   v_ex_qty numeric; v_ex_ev text; v_ex_reason text; v_excess_id bigint;
   v_stage bigint; v_ids bigint[] := '{}'; v_id bigint; v_after numeric; v_posted numeric;
-  v_resp jsonb; v_can_excess boolean;
+  v_resp jsonb; v_can_excess boolean; v_se record; v_fpnow text;
 BEGIN
   PERFORM public.require_permission('module:mis-fg-bulk-packing', true);
   IF v_actor IS NULL THEN RAISE EXCEPTION 'MIS_G7_AUTH_REQUIRED' USING ERRCODE = '42501'; END IF;
@@ -64,8 +70,8 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'code', 'INVALID_INPUT'); END IF;
   -- normalize lines (only sku_id,count read; any other key ignored)
   BEGIN
-    SELECT jsonb_agg(jsonb_build_object('sku_id', (e->>'sku_id')::int, 'count', (e->>'count')::int)
-                     ORDER BY (e->>'sku_id')::int) INTO v_lines
+    SELECT jsonb_agg(jsonb_build_object('sku_id', (e->>'sku_id')::bigint, 'count', (e->>'count')::int)
+                     ORDER BY (e->>'sku_id')::bigint) INTO v_lines
       FROM jsonb_array_elements(p_lines) e;
   EXCEPTION WHEN OTHERS THEN
     RETURN jsonb_build_object('ok', false, 'code', 'INVALID_INPUT'); END;
@@ -95,12 +101,17 @@ BEGIN
   IF v_prod.id IS NULL OR coalesce(btrim(v_prod.batch_number),'') = '' THEN
     RETURN jsonb_build_object('ok', false, 'code', 'BATCH_IDENTITY_MISSING'); END IF;
   v_batch := v_prod.batch_number;
-  SELECT label, affects_bulk_stock, is_packaging INTO v_lkp FROM public.event_type_lkp WHERE label = v_pe.event_type AND active;
+  SELECT label, affects_bulk_stock, is_packaging INTO v_lkp FROM public.event_type_lkp WHERE label::text = v_pe.event_type::text AND active;
   IF v_lkp.label IS NULL OR NOT v_lkp.is_packaging OR v_lkp.affects_bulk_stock = 0 THEN
     RETURN jsonb_build_object('ok', false, 'code', 'EVENT_NOT_BULK_AFFECTING'); END IF;
   IF v_lkp.affects_bulk_stock > 0 THEN RETURN jsonb_build_object('ok', false, 'code', 'EVENT_NOT_DEPLETING'); END IF;
 
   PERFORM app_private.mis_lock_fg_batch(v_prod.id, v_batch);   -- before any balance read
+  -- Header lifecycle: the event header is created by the legacy governed DWL path and must be
+  -- unchanged since we read it. Locked AFTER the batch lock (same order as all other writers).
+  PERFORM 1 FROM public.packaging_events WHERE id = p_packaging_event_id
+     AND work_log_id = v_pe.work_log_id AND event_type = v_pe.event_type FOR UPDATE;
+  IF NOT FOUND THEN RETURN jsonb_build_object('ok', false, 'code', 'PACKAGING_EVENT_CHANGED'); END IF;
 
   SELECT s.event_id INTO v_stage FROM app_private.mis_batch_stage_event s
    WHERE s.event_kind = 'SIGN' AND s.product_id = v_prod.id AND s.batch_number = v_batch AND s.stage_role = 'FG_BULK'
@@ -108,10 +119,15 @@ BEGIN
    ORDER BY s.event_id DESC LIMIT 1;
   IF v_stage IS NULL THEN
     RETURN jsonb_build_object('ok', false, 'code', 'FG_STAGE_NOT_SIGNED', 'historical_state', 'NOT_VERIFIED'); END IF;
+  SELECT s.source_fingerprint, s.work_log_id AS wl, s.route_step_id AS stp, s.step_occurrence AS occ INTO v_se
+    FROM app_private.mis_batch_stage_event s WHERE s.event_id = v_stage;
+  v_fpnow := app_private.mis_stage_fp(v_prod.id, v_batch, v_se.wl, v_se.stp, v_se.occ);
+  IF v_fpnow IS NULL OR v_fpnow <> v_se.source_fingerprint THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'STAGE_SOURCE_CHANGED', 'historical_state', 'NOT_VERIFIED'); END IF;
   IF NOT EXISTS (SELECT 1 FROM public.fg_bulk_stock_ledger WHERE product_id = v_prod.id AND batch_number = v_batch AND qty_base > 0) THEN
     RETURN jsonb_build_object('ok', false, 'code', 'FG_RECEIPT_MISSING'); END IF;
 
-  FOR v_ln IN SELECT (e->>'sku_id')::int sku_id, (e->>'count')::int cnt FROM jsonb_array_elements(v_lines) e LOOP
+  FOR v_ln IN SELECT (e->>'sku_id')::bigint sku_id, (e->>'count')::int cnt FROM jsonb_array_elements(v_lines) e LOOP
     SELECT id, product_id, pack_size, uom INTO v_sku FROM public.product_skus WHERE id = v_ln.sku_id;
     IF v_sku.id IS NULL THEN RETURN jsonb_build_object('ok', false, 'code', 'SKU_NOT_FOUND', 'sku_id', v_ln.sku_id); END IF;
     IF v_sku.product_id <> v_prod.id THEN RETURN jsonb_build_object('ok', false, 'code', 'SKU_PRODUCT_MISMATCH', 'sku_id', v_ln.sku_id); END IF;
@@ -154,7 +170,9 @@ BEGIN
     VALUES (v_prod.id, v_batch, CURRENT_DATE, v_ex_qty, v_ex_qty, v_prod.uom_base, 'FG_EXCESS_MEASURED', 'mis_fg_signed_excess_receipt', v_excess_id, now());
   END IF;
 
-  FOR v_ln IN SELECT (e->>'sku_id')::int sku_id, (e->>'count')::int cnt FROM jsonb_array_elements(v_lines) e LOOP
+  INSERT INTO app_private.mis_g7_pack_ticket (txid, packaging_event_id, request_id)
+  VALUES (txid_current(), p_packaging_event_id, p_request_id) ON CONFLICT DO NOTHING;
+  FOR v_ln IN SELECT (e->>'sku_id')::bigint sku_id, (e->>'count')::int cnt FROM jsonb_array_elements(v_lines) e LOOP
     INSERT INTO public.event_skus (packaging_event_id, sku_id, "count") VALUES (p_packaging_event_id, v_ln.sku_id, v_ln.cnt) RETURNING id INTO v_id;
     v_ids := v_ids || v_id;
   END LOOP;
@@ -174,5 +192,5 @@ BEGIN
   VALUES (p_request_id, v_actor, v_hash, v_prod.id, v_batch, p_packaging_event_id, v_resp);
   RETURN v_resp;
 END $f$;
-REVOKE ALL ON FUNCTION public.mis_pack_fg_bulk_v1(uuid,integer,jsonb,jsonb) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.mis_pack_fg_bulk_v1(uuid,integer,jsonb,jsonb) TO authenticated;
+REVOKE ALL ON FUNCTION public.mis_pack_fg_bulk_v1(uuid,bigint,jsonb,jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.mis_pack_fg_bulk_v1(uuid,bigint,jsonb,jsonb) TO authenticated;

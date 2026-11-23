@@ -11,6 +11,7 @@ export const MIGRATIONS = [
   '20261123140000_mis_g7_s2_signed_batch_stage_events.sql',
   '20261123141000_mis_g7_s3_fg_ledger_shared_batch_lock.sql',
   '20261123142000_mis_g7_s4_atomic_pack_with_measured_excess.sql',
+  '20261123143000_mis_g7_s3b_protected_stock_write_boundary.sql',
 ];
 
 function findBin() {
