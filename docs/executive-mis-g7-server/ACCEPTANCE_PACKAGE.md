@@ -1,5 +1,10 @@
 # MIS G7 server acceptance package (S2–S5b, draft PR #522)
 
+## Production deployment update — 24 November 2026 (supersedes older status below)
+
+**S2 already installed, all others still HOLD.** Supabase registered S2 as **`20261124055734`** / `mis_g7_s2_signed_batch_stage_events`, from draft SQL file `20261123140000_mis_g7_s2_signed_batch_stage_events.sql` (head `fcf10689`, blob `055b1cdfa1c8be970939f57e7e866f126ec55f03`). Reconcile this discrepancy before repo migration-history operations; **do not replay S2**. Post-install: 2 signer/correction RPCs exist (authenticated yes, anon no), 0 signed events, 0 assignments to five new targets, no S3 lock, no S3b gate, no packing RPC. Steps **2–7 S3 through S5b remain NOT INSTALLED**; legacy FG stock writer behavior is still unchanged, ENFORCE not active. Prior catalog checks 17/17 and 7/7 PASS, but actual complete-schema migration/role/JWT acceptance still open. Owner permitted progressing toward production; this is **not** permission to ignore known disruption risk from S3/S3b/S5b. Keep controlled AUDIT-first approach, no ENFORCE before full signed-stage/legacy-editor acceptance. See `MIS_G7_CONTINUATION_HANDOVER_20261124.md` for complete receipts, exact next gate, and progress **G7 OPEN 6/11 (~55%)**. The original tables below describe intended seven-migration apply order; skip step 1 on production and do not apply remaining steps without their safety gate.
+
+
 Status: **review/acceptance package. Nothing here is applied to any database.** Owner remains production authority.
 Scope kept: stage-first accounting (`product_id + exact batch_number`, BMR link, versioned route, mandatory signed FG bulk stage before packing, SKU pack-size → base-UOM), atomic separately-authorized measured excess, location NOT a gate. Not touched: `get_mis_production_value_summary`, PRs #485/#517, the five PEC migrations.
 
