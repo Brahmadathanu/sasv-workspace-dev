@@ -2,6 +2,12 @@
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 import { mountModuleHome } from "./sasv-module-chrome.js";
+// Versioned specifier: public/sw.js is protected on client PRs (release PR only), so the
+// cache-first path for a new module is made safe by bumping this suffix on every edit.
+import { createModalStack } from "./pec-modal-stack.js?v=20261124b";
+
+// Single owner of dialog stacking + Escape dismissal (see pec-modal-stack.js).
+const modalStack = createModalStack();
 
 // ─── Module access (direct URL + read-only) ─────────────────────────────────
 const MODULE_ID = "procurement-execution-console";
@@ -1542,27 +1548,20 @@ function wireProcurementOverlayA11y() {
     true,
   );
 
-  document.addEventListener(
-    "keydown",
-    (e) => {
-      if (e.key !== "Escape") return;
-
-      const openDrawers = [...document.querySelectorAll(".pec-filter-drawer.open")];
-      const openDrawer = openDrawers[openDrawers.length - 1] || null;
-      if (openDrawer) {
-        e.preventDefault();
-        e.stopPropagation();
-        closeProcurementFilterDrawer(openDrawer, { restoreFocus: true });
-        return;
-      }
-
-      if (document.querySelector(".export-menu.open")) {
-        e.preventDefault();
-        e.stopPropagation();
-        closeAllExportMenus({ restoreFocus: true });
-      }
-    },
-    true,
+  // Escape for drawers/menus is dispatched by the modal stack so that only the
+  // layer that is visually on top is dismissed (no competing handlers).
+  modalStack.registerTransientSource(() =>
+    [...document.querySelectorAll(".pec-filter-drawer.open")].map((drawer) => ({
+      // Floating drawers may be re-parented to <body>; ownership follows the trigger.
+      owner: (findControlledTrigger(drawer) || drawer).closest(".modal-backdrop"),
+      close: () => closeProcurementFilterDrawer(drawer, { restoreFocus: true }),
+    })),
+  );
+  modalStack.registerTransientSource(() =>
+    [...document.querySelectorAll(".export-menu.open")].map((menu) => ({
+      owner: (findControlledTrigger(menu) || menu).closest(".modal-backdrop"),
+      close: () => closeAllExportMenus({ restoreFocus: true }),
+    })),
   );
 }
 
@@ -1861,6 +1860,9 @@ function syncFilterSheetState() {
 }
 
 function positionFloatingFilterDrawer(btn, drawer) {
+  // Portaled to <body>: layer it from the modal stack (above its owner, below any later dialog).
+  const drawerZ = modalStack.transientZ(btn);
+  drawer.style.setProperty("--pec-transient-z", String(drawerZ));
   if (!btn || !drawer) return;
   if (pecIsSheetViewport()) {
     // Phones: a full-viewport sheet (CSS); no anchored geometry.
@@ -1876,7 +1878,7 @@ function positionFloatingFilterDrawer(btn, drawer) {
   drawer.style.position = "fixed";
   drawer.style.right = "auto";
   drawer.style.bottom = "auto";
-  drawer.style.zIndex = "2147483647";
+  drawer.style.zIndex = String(drawerZ);
 
   const margin = 4;
   const dropW = drawer.offsetWidth || 220;
@@ -2248,13 +2250,18 @@ async function submitHardDeleteConfirm() {
   }
 
   const reason = (qs("hardDeleteReason")?.value || "").trim() || null;
+  const hdBackdrop = qs("hardDeleteModalBackdrop");
   setLoading(true);
+  // In-flight delete: Escape must not dismiss the dialog (nor anything beneath it).
+  if (hdBackdrop) hdBackdrop.dataset.pecEscape = "protect";
   try {
     await hardDeleteOnConfirm(reason);
+    if (hdBackdrop) delete hdBackdrop.dataset.pecEscape;
     closeHardDeleteModal(true);
   } catch (err) {
     toast(err?.message || "Delete failed.", "error");
   } finally {
+    if (hdBackdrop) delete hdBackdrop.dataset.pecEscape;
     setLoading(false);
   }
 }
@@ -4287,66 +4294,44 @@ function wireActionQueueControls() {
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".export-menu")) closeAllExportMenus();
   });
-  // ESC key closes detail modal (and vendor modal)
-  document.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
-    closeAllExportMenus();
-    const modals = [
-      { id: "workflowGuideModalBackdrop", close: closeWorkflowGuideModal },
-      { id: "detailModalBackdrop", close: closeDetailModal },
-      { id: "vendorModalBackdrop", close: closeVendorModal },
-      { id: "acceptExcessModalBackdrop", close: closeAcceptExcessModal },
-      { id: "eAuditModalBackdrop", close: closeExcessAuditModal },
-      {
-        id: "vwlSplitReviewModalBackdrop",
-        close: closeVwlSplitReviewModal,
-      },
-      {
-        id: "vwlSplitActionConfirmModalBackdrop",
-        close: () => closeVwlSplitActionConfirmModal(false),
-      },
-      { id: "vwlBreakdownModalBackdrop", close: closeVwlBreakdownModal },
-      { id: "indentViewModalBackdrop", close: closeIndentViewModal },
-      { id: "prViewModalBackdrop", close: closePrViewModal },
-      // Foreground S4 reconciliation sits above PR detail. s4CloseReconciliation is a
-      // no-op while its writer is in flight, and the loop returns after the first match,
-      // so Escape neither closes the dialog mid-write nor falls through to PR detail.
-      { id: "s4ReconcileModalBackdrop", close: s4CloseReconciliation },
-      { id: "prRebuildModalBackdrop", close: closePrRebuildModal },
-      { id: "generatePrModalBackdrop", close: closeGeneratePrModal },
-      { id: "s4ReviewModalBackdrop", close: s4CloseReview },
-      { id: "indPlanModalBackdrop", close: closeIndPlanEditor },
-      { id: "prAddLineModalBackdrop", close: closePrAddLineModal },
-      { id: "prSetStatusModalBackdrop", close: closePrSetStatusModal },
-      { id: "createIndentModalBackdrop", close: closeCreateIndentModal },
-      { id: "indentFromPrModalBackdrop", close: closeIndentFromPrModal },
-      { id: "indentActionModalBackdrop", close: closeIndentActionModal },
-      { id: "indentAddLineModalBackdrop", close: closeIndentAddLineModal },
-      {
-        id: "vendorAcceptModeModalBackdrop",
-        close: closeVendorAcceptModeModal,
-      },
-      { id: "indentSourcePrModalBackdrop", close: closeIndentSourcePrModal },
-      { id: "indentResyncModalBackdrop", close: closeIndentResyncModal },
-      { id: "stockPickerModalBackdrop", close: closeStockItemPicker },
-      { id: "exportIndentModalBackdrop", close: closeExportIndentModal },
-      { id: "hardDeleteModalBackdrop", close: () => closeHardDeleteModal(false) },
-      {
-        id: "snapshotRefreshModalBackdrop",
-        close: () => closeSnapshotRefreshModal(false),
-      },
-      {
-        id: "clearSelectedVendorModalBackdrop",
-        close: () => closeClearSelectedVendorModal(false),
-      },
-    ];
-    for (const m of [...modals].reverse()) {
-      if (qs(m.id)?.classList.contains("show")) {
-        m.close();
-        return;
-      }
-    }
+  // Escape is owned by the modal stack (pec-modal-stack.js): the dialog that is
+  // visually on top is the only one dismissed, once per key press. These are the
+  // dialogs' existing dismiss functions (cancel/close, never confirm). A closer
+  // that refuses (e.g. s4CloseReconciliation while its writer is in flight) still
+  // consumes the key, so Escape can never fall through to the dialog underneath.
+  modalStack.registerClosers({
+    workflowGuideModalBackdrop: closeWorkflowGuideModal,
+    detailModalBackdrop: closeDetailModal,
+    vendorModalBackdrop: closeVendorModal,
+    acceptExcessModalBackdrop: closeAcceptExcessModal,
+    eAuditModalBackdrop: closeExcessAuditModal,
+    vwlSplitReviewModalBackdrop: closeVwlSplitReviewModal,
+    vwlSplitActionConfirmModalBackdrop: () => closeVwlSplitActionConfirmModal(false),
+    vwlBreakdownModalBackdrop: closeVwlBreakdownModal,
+    indentViewModalBackdrop: closeIndentViewModal,
+    prViewModalBackdrop: closePrViewModal,
+    s4ReconcileModalBackdrop: s4CloseReconciliation,
+    prRebuildModalBackdrop: closePrRebuildModal,
+    generatePrModalBackdrop: closeGeneratePrModal,
+    s4ReviewModalBackdrop: s4CloseReview,
+    indPlanModalBackdrop: closeIndPlanEditor,
+    prAddLineModalBackdrop: closePrAddLineModal,
+    prSetStatusModalBackdrop: closePrSetStatusModal,
+    createIndentModalBackdrop: closeCreateIndentModal,
+    indentFromPrModalBackdrop: closeIndentFromPrModal,
+    indentActionModalBackdrop: closeIndentActionModal,
+    indentAddLineModalBackdrop: closeIndentAddLineModal,
+    vendorAcceptModeModalBackdrop: closeVendorAcceptModeModal,
+    indentSourcePrModalBackdrop: closeIndentSourcePrModal,
+    indentResyncModalBackdrop: closeIndentResyncModal,
+    stockPickerModalBackdrop: closeStockItemPicker,
+    exportIndentModalBackdrop: closeExportIndentModal,
+    hardDeleteModalBackdrop: () => closeHardDeleteModal(false),
+    snapshotRefreshModalBackdrop: () => closeSnapshotRefreshModal(false),
+    clearSelectedVendorModalBackdrop: () => closeClearSelectedVendorModal(false),
+    ccfPreviewModalBackdrop: closeCcfPreview,
   });
+  modalStack.install();
 }
 
 // ─── INDENT TAB ───────────────────────────────────────────────────────────────
@@ -5027,7 +5012,7 @@ function openVendorAcceptModeModal(indentArg) {
   if (!backdrop) return;
 
   backdrop.dataset.indentId = String(indent.indent_id);
-  qs("vendorAcceptModeItem").textContent = indent.indent_number || "";
+  qs("vendorAcceptModeItem").textContent = formatIndentContextRef(indent.indent_number);
 
   const defaultMode = backdrop.querySelector(
     'input[name="vendorAcceptMode"][value="false"]',
@@ -5037,6 +5022,13 @@ function openVendorAcceptModeModal(indentArg) {
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
   requestAnimationFrame(() => defaultMode?.focus());
+}
+
+/** Subdued dialog context, e.g. "Indent #161" (numeric numbers) or "Indent IND-26-103". */
+function formatIndentContextRef(indentNumber) {
+  const n = String(indentNumber ?? "").trim();
+  if (!n) return "";
+  return /^\d+$/.test(n) ? `Indent #${n}` : `Indent ${n}`;
 }
 
 function closeVendorAcceptModeModal() {
@@ -5741,7 +5733,7 @@ function openIndentActionModal(indent, action) {
       "Confirming will force-close this indent using your override reason and bypass strict completion checks.",
   };
   qs("indentActionTitle").textContent = titles[action] ?? "Confirm Action";
-  qs("indentActionItem").textContent = indent.indent_number;
+  qs("indentActionItem").textContent = formatIndentContextRef(indent.indent_number);
   qs("indentActionExplain").textContent =
     explain[action] ?? "Please review this action before confirming.";
   qs("indentApproveDateRow").style.display = action === "approve" ? "" : "none";
@@ -8679,6 +8671,7 @@ function wirePrLineTableActions() {
         inputEl.blur();
       }
     } else if (e.key === "Escape") {
+      e.stopPropagation(); // cancel the inline edit only; never dismiss the PR modal around it
       inputEl.value = inputEl.dataset.old ?? "";
       inputEl.blur();
     }
@@ -9304,22 +9297,19 @@ function wirePrMoreMenu() {
   const onPointerDown = (e) => {
     if (!menu.contains(e.target)) closePrMoreMenu();
   };
-  const onKeyDown = (e) => {
-    // The toggle event that removes this listener is asynchronous; never swallow
-    // an Escape that belongs to another dialog once the menu is already closed.
-    if (e.key !== "Escape" || !menu.open) return;
-    e.stopImmediatePropagation(); // close only the menu, not the parent PR modal
-    e.preventDefault();
-    closePrMoreMenu({ restoreFocus: true });
-  };
+  // Escape is dispatched by the modal stack (transient layer owned by the PR modal),
+  // so the menu closes first and never swallows an Escape meant for another dialog.
+  modalStack.registerTransientSource(() =>
+    menu.open
+      ? [{ owner: menu.closest(".modal-backdrop"), close: () => closePrMoreMenu({ restoreFocus: true }) }]
+      : [],
+  );
   menu.addEventListener("toggle", () => {
     summary?.setAttribute("aria-expanded", String(menu.open));
     if (menu.open) {
       document.addEventListener("pointerdown", onPointerDown, true);
-      document.addEventListener("keydown", onKeyDown, true);
     } else {
       document.removeEventListener("pointerdown", onPointerDown, true);
-      document.removeEventListener("keydown", onKeyDown, true);
     }
   });
   // Only a definite move of focus to another element closes (a null
@@ -10433,13 +10423,6 @@ function wirePrControls() {
   qs("ccfPreviewModalBackdrop")?.addEventListener("click", (event) => {
     if (event.target.id === "ccfPreviewModalBackdrop") closeCcfPreview();
   });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && qs("ccfPreviewModalBackdrop")?.classList.contains("show")) {
-      event.stopImmediatePropagation();
-      event.preventDefault();
-      closeCcfPreview();
-    }
-  }, true);
   qs("btnPrExportMenu")?.addEventListener("click", (e) => {
     e.stopPropagation();
     toggleExportMenu("prExportMenu", qs("btnPrExportMenu"));
