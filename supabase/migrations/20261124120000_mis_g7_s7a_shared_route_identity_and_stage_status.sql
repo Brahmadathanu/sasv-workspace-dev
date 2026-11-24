@@ -244,3 +244,55 @@ END $f$;
 
 REVOKE ALL ON FUNCTION public.mis_get_batch_route_context_v1(integer,text,integer), public.mis_get_batch_stage_status_v1(integer,text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.mis_get_batch_route_context_v1(integer,text,integer), public.mis_get_batch_stage_status_v1(integer,text) TO authenticated;
+
+-- ---------- exact FG receipt evidence (read-only helpers; used by S7b writers and S7c reads) ----------
+-- A positive ledger row is NOT necessarily an original FG production receipt: the ledger also carries packaging returns (event_skus),
+-- internal transfers (fg_bulk_internal_transfer) and manual entries/corrections. The certified receipt is tied to the exact FG work-log
+-- SOURCE RECORD: ledger rows with source_table = 'daily_work_log' AND source_id = that work log AND the same product and batch AND a
+-- receipt reason ('FG bulk storage', 'FG bulk storage (In Storage)', 'FG bulk storage (update)'). Legitimate receipt updates post further
+-- rows against the same work log, so the evidence is the NET of those rows, which must equal the work log's current storage quantity
+-- (tolerance 0.0005 base units for numeric scale). Transfers, packaging movements and manual corrections never count.
+CREATE OR REPLACE FUNCTION app_private.mis_g7_fg_receipt(p_product_id integer, p_batch text, p_work_log_id integer)
+RETURNS jsonb LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $f$
+DECLARE w record; u text; n numeric; c bigint; tol constant numeric := 0.0005;
+BEGIN
+  SELECT d.id, d.activity, d.storage_qty, d.storage_qty_uom, d.batch_number, p.id AS pid, p.uom_base
+    INTO w FROM public.daily_work_log d JOIN public.products p ON p.item = d.item WHERE d.id = p_work_log_id;
+  IF w.id IS NULL OR w.pid IS DISTINCT FROM p_product_id OR w.batch_number IS DISTINCT FROM p_batch OR w.activity IS DISTINCT FROM 'FG bulk storage' THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'NOT_FG_RECEIPT_LOG'); END IF;
+  IF w.storage_qty IS NULL OR w.storage_qty <= 0 THEN RETURN jsonb_build_object('ok', false, 'code', 'QTY_NOT_POSITIVE', 'log_qty', w.storage_qty); END IF;
+  IF w.storage_qty_uom IS DISTINCT FROM w.uom_base THEN RETURN jsonb_build_object('ok', false, 'code', 'UOM_MISMATCH', 'log_uom', w.storage_qty_uom, 'base_uom', w.uom_base); END IF;
+  SELECT coalesce(sum(g.qty_base), 0), count(*) INTO n, c FROM public.fg_bulk_stock_ledger g
+   WHERE g.source_table = 'daily_work_log' AND g.source_id = p_work_log_id AND g.product_id = p_product_id AND g.batch_number = p_batch
+     AND (g.reason_code = 'FG bulk storage' OR g.reason_code LIKE 'FG bulk storage (%)');
+  IF c = 0 THEN RETURN jsonb_build_object('ok', false, 'code', 'NO_SOURCE_LEDGER', 'log_qty', w.storage_qty); END IF;
+  IF abs(n - w.storage_qty) > tol THEN RETURN jsonb_build_object('ok', false, 'code', 'LEDGER_MISMATCH', 'log_qty', w.storage_qty, 'ledger_net_base', n, 'rows', c); END IF;
+  RETURN jsonb_build_object('ok', true, 'code', 'OK', 'log_qty', w.storage_qty, 'ledger_net_base', n, 'rows', c);
+END $f$;
+REVOKE ALL ON FUNCTION app_private.mis_g7_fg_receipt(integer,text,integer) FROM PUBLIC, anon, authenticated;
+
+-- Work log of the batch's current valid (latest, uncorrected) FG_BULK signature, exactly as the packing writer selects it. NULL when none.
+CREATE OR REPLACE FUNCTION app_private.mis_g7_fg_stage_log(p_product_id integer, p_batch text)
+RETURNS integer LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $f$
+  SELECT s.work_log_id FROM app_private.mis_batch_stage_event s
+   WHERE s.event_kind = 'SIGN' AND s.product_id = p_product_id AND s.batch_number = p_batch AND s.stage_role = 'FG_BULK'
+     AND NOT EXISTS (SELECT 1 FROM app_private.mis_batch_stage_event c WHERE c.event_kind = 'CORRECTION' AND c.corrects_event_id = s.event_id)
+   ORDER BY s.event_id DESC LIMIT 1
+$f$;
+REVOKE ALL ON FUNCTION app_private.mis_g7_fg_stage_log(integer,text) FROM PUBLIC, anon, authenticated;
+
+-- Batch-level receipt evidence: OK when ANY FG work log of the batch carries exact source evidence; otherwise the code of the latest FG log
+-- ('NO_FG_LOG' when none exists). Used for display/exception classification when no valid signature selects a specific log.
+CREATE OR REPLACE FUNCTION app_private.mis_g7_batch_receipt_code(p_product_id integer, p_batch text)
+RETURNS text LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $f$
+DECLARE r record; c text; first_code text := 'NO_FG_LOG'; seen boolean := false;
+BEGIN
+  FOR r IN SELECT d.id FROM public.daily_work_log d JOIN public.products p ON p.item = d.item
+            WHERE p.id = p_product_id AND d.batch_number = p_batch AND d.activity = 'FG bulk storage' ORDER BY d.log_date DESC, d.id DESC LOOP
+    c := coalesce(app_private.mis_g7_fg_receipt(p_product_id, p_batch, r.id)->>'code', 'NOT_FG_RECEIPT_LOG');
+    IF c = 'OK' THEN RETURN 'OK'; END IF;
+    IF NOT seen THEN first_code := c; seen := true; END IF;          -- report the latest FG log's finding
+  END LOOP;
+  RETURN first_code;
+END $f$;
+REVOKE ALL ON FUNCTION app_private.mis_g7_batch_receipt_code(integer,text) FROM PUBLIC, anon, authenticated;

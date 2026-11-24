@@ -10,7 +10,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { startPg, MIGRATIONS, FINGERPRINT_MIGRATION } from '../pg_harness.mjs';
 import { extractRouteEngine, ENGINE_FUNCTIONS } from './extract_route_engine.mjs';
-import { buildS7Databases, run1 as run1p, mig, S7A, S7B, asTx, SIGNER, PACKER, EXCESS, NOBODY, SIGNV, PACKV, EXECV } from './build_db.mjs';
+import { buildS7Databases, run1 as run1p, mig, S7A, S7B, S7C, asTx, SIGNER, PACKER, EXCESS, NOBODY, SIGNV, PACKV, EXECV } from './build_db.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../../..');
@@ -306,8 +306,8 @@ T('exception summary performance: 92-day window with 400 FG batches (real route 
 });
 
 /* ───────────── legacy compatibility, rollback, preservation ───────────── */
-T('S2–S6 are preserved: every pre-existing function definition outside the two replaced ones is byte-identical after S7', () => {
-  const list = (db) => val(db, `SELECT string_agg(p.oid::regprocedure::text||':'||md5(pg_get_functiondef(p.oid))||':'||coalesce(p.proacl::text,''), E'\\n' ORDER BY p.oid::regprocedure::text) FROM pg_proc p WHERE p.prokind='f' AND p.pronamespace IN ('app_private'::regnamespace,'public'::regnamespace) AND p.proname NOT LIKE 's7\\_%' AND p.proname NOT LIKE 't\\_%' AND p.oid::regprocedure::text NOT LIKE '%mis_get_%' AND p.oid::regprocedure::text NOT LIKE '%mis_preview%' AND p.oid::regprocedure::text NOT LIKE '%mis_g7_route_context%' AND p.oid::regprocedure::text NOT LIKE '%mis_g7_fg_state%' AND p.oid::regprocedure::text NOT LIKE '%mis_g7_batch_stage_status%' AND p.oid::regprocedure::text NOT LIKE '%mis_g7_can_view%' AND p.oid::regprocedure::text NOT LIKE '%mis_resolve_batch_stage%'`);
+T('S2–S6 are preserved: every pre-existing function definition outside the resolver and the two receipt-patched writers is byte-identical after S7', () => {
+  const list = (db) => val(db, `SELECT string_agg(p.oid::regprocedure::text||':'||md5(pg_get_functiondef(p.oid))||':'||coalesce(p.proacl::text,''), E'\\n' ORDER BY p.oid::regprocedure::text) FROM pg_proc p WHERE p.prokind='f' AND p.pronamespace IN ('app_private'::regnamespace,'public'::regnamespace) AND p.proname NOT LIKE 's7\\_%' AND p.proname NOT LIKE 't\\_%' AND p.oid::regprocedure::text NOT LIKE '%mis_get_%' AND p.oid::regprocedure::text NOT LIKE '%mis_preview%' AND p.oid::regprocedure::text NOT LIKE '%mis_g7_route_context%' AND p.oid::regprocedure::text NOT LIKE '%mis_g7_fg_state%' AND p.oid::regprocedure::text NOT LIKE '%mis_g7_batch_stage_status%' AND p.oid::regprocedure::text NOT LIKE '%mis_g7_can_view%' AND p.oid::regprocedure::text NOT LIKE '%mis_resolve_batch_stage%' AND p.oid::regprocedure::text NOT LIKE '%mis_g7_fg_receipt%' AND p.oid::regprocedure::text NOT LIKE '%mis_g7_fg_stage_log%' AND p.oid::regprocedure::text NOT LIKE '%mis_g7_batch_receipt_code%' AND p.oid::regprocedure::text NOT LIKE '%mis_sign_batch_stage_v1%' AND p.oid::regprocedure::text NOT LIKE '%mis_pack_fg_bulk_v1%'`);
   assert.equal(list('s7'), list('pre7'));
   assert.equal(val('s7', `SELECT mode FROM app_private.mis_g7_enforcement`), 'AUDIT');
   assert.equal(val('s7', `SELECT count(*) FROM public.test_perm WHERE target IN ('module:mis-g7-enforcement-admin','module:mis-g7-core-migration-signoff','module:mis-batch-governance')`), '0');
@@ -322,21 +322,22 @@ T('staged rollback: S7B then S7A restore the exact original resolver, keep S2–
   const d = 'rb'; const b = bn('RBK'); const w = val(d, `SELECT public.s7_batch('ProductRoute','${b}','2026-10-31')`);
   const s0 = Jt(d, `SELECT public.mis_sign_batch_stage_v1('${newKey()}',22,'${b}',${w},103,1,10,'WB')`, SIGNER); assert.equal(s0.ok, true);      // product route 20, positive identities only
   const origSha = val('pre7', `SELECT encode(sha256(convert_to(pg_get_functiondef('app_private.mis_resolve_batch_stage(integer,text,integer,bigint)'::regprocedure),'UTF8')),'hex')`);
-  assert.notEqual(pg.psql(d, asTx(sections('S7A ROLLBACK'))).status, 0, 'S7B must be rolled back first');
-  assert.equal(pg.psql(d, asTx(sections('S7B ROLLBACK'))).status, 0);
+  assert.notEqual(pg.psql(d, asTx(sections('S7A ROLLBACK'))).status, 0, 'S7C and S7B must be rolled back first');
+  assert.notEqual(pg.psql(d, asTx(sections('S7B ROLLBACK'))).status, 0, 'S7C must be rolled back before S7B');
+  assert.equal(pg.psql(d, asTx(sections('S7C ROLLBACK'))).status, 0); assert.equal(pg.psql(d, asTx(sections('S7B ROLLBACK'))).status, 0);
   assert.equal(pg.psql(d, asTx(sections('S7A ROLLBACK'))).status, 0, 'compatible signature must not block rollback');
   assert.equal(val(d, `SELECT encode(sha256(convert_to(pg_get_functiondef('app_private.mis_resolve_batch_stage(integer,text,integer,bigint)'::regprocedure),'UTF8')),'hex')`), origSha);
   assert.equal(val(d, `SELECT count(*) FROM pg_proc WHERE proname IN ('mis_get_batch_route_context_v1','mis_get_batch_stage_status_v1','mis_preview_pack_fg_bulk_v1','mis_get_governance_exception_summary_v1','mis_g7_route_context')`), '0');
   assert.equal(val(d, `SELECT count(*) FROM app_private.mis_batch_stage_event WHERE event_id=${s0.event_id}`), '1');
   assert.equal(val(d, `SELECT source_fingerprint = app_private.mis_stage_fp(22,'${b}',${w},103,1) FROM app_private.mis_batch_stage_event WHERE event_id=${s0.event_id}`), 't', 'signature still verifies under the original resolver');
-  assert.equal(pg.psql(d, asTx(mig(S7A))).status, 0, 'forward re-install after rollback');  assert.equal(pg.psql(d, asTx(mig(S7B))).status, 0);
+  assert.equal(pg.psql(d, asTx(mig(S7A))).status, 0, 'forward re-install after rollback');  assert.equal(pg.psql(d, asTx(mig(S7B))).status, 0); assert.equal(pg.psql(d, asTx(mig(S7C))).status, 0);
 });
 T('rollback is REFUSED once genuine S7-only identities exist (negative route/step ids), and a refused rollback changes nothing', () => {
   const sections = (name) => new RegExp(`-- ===== ${name} =====\\n([\\s\\S]*?)-- ===== END ${name} =====`).exec(doc('S7_ROLLBACK_NOT_A_MIGRATION.sql'))[1];
   const d = 'g_rbref'; assert.equal(pg.psql('postgres', `CREATE DATABASE ${d} TEMPLATE clean7`).status, 0);
   const b = bn('NEG'); const w = val(d, `SELECT public.s7_batch('Inherited','${b}','2026-11-10')`); assert.equal(Jt(d, `SELECT public.mis_sign_batch_stage_v1('${newKey()}',21,'${b}',${w},103,1,10,'WB')`, SIGNER).ok, true);   // route_id -11
   const hash = (db) => val(db, `SELECT md5(pg_get_functiondef('app_private.mis_resolve_batch_stage(integer,text,integer,bigint)'::regprocedure))`); const h0 = hash(d);
-  assert.equal(pg.psql(d, asTx(sections('S7B ROLLBACK'))).status, 0);
+  assert.equal(pg.psql(d, asTx(sections('S7C ROLLBACK'))).status, 0); assert.equal(pg.psql(d, asTx(sections('S7B ROLLBACK'))).status, 0);
   const r = pg.psql(d, asTx(sections('S7A ROLLBACK'))); assert.notEqual(r.status, 0); assert.match(r.err, /MIS_G7_S7_ROLLBACK_INCOMPATIBLE_IDENTITIES/);
   assert.equal(hash(d), h0); assert.equal(val(d, `SELECT count(*) FROM app_private.mis_batch_stage_event`), '1'); assert.equal(status(d, 21, b).fg_bulk_state, 'SIGNED');
 });
@@ -345,7 +346,7 @@ T('rollback guard also refuses when restoring would invalidate a genuine positiv
   const d = 'g_rbinc'; assert.equal(pg.psql('postgres', `CREATE DATABASE ${d} TEMPLATE clean7`).status, 0);
   const b = bn('REP'); val(d, `SELECT public.s7_batch('ProductRoute','${b}','2026-11-10')`); const wb = val(d, `SELECT public.s7_log('ProductRoute','${b}','Blending','2026-11-11')`);
   assert.equal(Jt(d, `SELECT public.mis_sign_batch_stage_v1('${newKey()}',22,'${b}',${wb},102,1,NULL,'WB')`, SIGNER).ok, true);     // positive id 102, but its effective activity is the override's
-  assert.equal(pg.psql(d, asTx(sections('S7B ROLLBACK'))).status, 0);
+  assert.equal(pg.psql(d, asTx(sections('S7C ROLLBACK'))).status, 0); assert.equal(pg.psql(d, asTx(sections('S7B ROLLBACK'))).status, 0);
   const r = pg.psql(d, asTx(sections('S7A ROLLBACK'))); assert.notEqual(r.status, 0); assert.match(r.err, /MIS_G7_S7_ROLLBACK_INCOMPATIBLE_SIGNATURES/);
 });
 T('install is refused when an existing valid signature would stop verifying (compatibility proof)', () => {
@@ -384,7 +385,7 @@ T('registry proposal: canonical permission_targets first (fk_app_modules_target)
 
 T('CONTRACT: the S7 entries of client_rpc_contract.json match the installed S7 catalog (arguments, defaults, result, security, volatility, documented codes)', () => {
   const c = JSON.parse(fs.readFileSync(path.join(root, 'docs/executive-mis-g7-server/client_rpc_contract.json'), 'utf8'));
-  const s7 = c.rpcs.filter((r) => r.status === 'S7a' || r.status === 'S7b'); assert.equal(s7.length, 4); assert.equal(c.contract_version, 'mis-g7-s2-s7/1');
+  const s7 = c.rpcs.filter((r) => r.status === 'S7a' || r.status === 'S7c'); assert.equal(s7.length, 4); assert.equal(c.contract_version, 'mis-g7-s2-s7/1');
   const helpers = { mis_get_batch_route_context_v1: ['mis_g7_route_context'], mis_get_batch_stage_status_v1: ['mis_g7_batch_stage_status'], mis_preview_pack_fg_bulk_v1: [], mis_get_governance_exception_summary_v1: [] };
   for (const r of s7) {
     assert.equal(val('s7', `SELECT count(*) FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname='${r.name}'`), '1', `${r.name} overloaded`);
@@ -399,4 +400,116 @@ T('CONTRACT: the S7 entries of client_rpc_contract.json match the installed S7 c
     for (const k of r.step_keys ?? []) assert.ok(src.includes(`'${k}'`), `${r.name}: step key ${k}`);
     for (const k of [...(r.event_keys ?? []), ...(r.item_keys ?? [])]) assert.ok(src.includes(`'${k}'`), `${r.name}: key ${k}`);
   }
+});
+
+/* ───────────── S7b: exact FG receipt evidence ───────────── */
+const dbSigned = (b) => Number(val('s7', `SELECT count(*) FROM app_private.mis_batch_stage_event WHERE batch_number='${b}' AND event_kind='SIGN'`));
+const SIGN_SIG = 'public.mis_sign_batch_stage_v1(uuid,integer,text,integer,bigint,integer,numeric,text)', PACK_SIG = 'public.mis_pack_fg_bulk_v1(uuid,bigint,jsonb,jsonb)';
+const body = (file, fn) => { const t = mig(file); const i = t.indexOf(`CREATE OR REPLACE FUNCTION ${fn}(`); const a = t.indexOf('$f$', i) + 3; return t.slice(a, t.indexOf('$f$', a)); };
+const ledgerRow = (db, p, b, qty, src, id, reason) => run1(db, `INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id) VALUES (${p},'${b}','2026-11-12',${qty},${qty},'kg','${reason}','${src}',${id})`);
+const rcpt = (db, p, b, w) => J(db, `SELECT app_private.mis_g7_fg_receipt(${p},'${b}',${w})`);
+const signAt = (db, p, b, w, qty, uid = SIGNER) => Jt(db, `SELECT public.mis_sign_batch_stage_v1('${newKey()}',${p},'${b}',${w},103,1,${qty},'WB-S7B')`, uid);
+T('S7b patch: pins equal the installed S2/S4 sources, the patched results are the accepted ones, ACL/security preserved, baseline persisted; drift/ENFORCE/missing-S7a refused', () => {
+  for (const [file, fn, sig, key] of [['20261123140000_mis_g7_s2_signed_batch_stage_events.sql', 'public.mis_sign_batch_stage_v1', SIGN_SIG, 'sign'], ['20261123142000_mis_g7_s4_atomic_pack_with_measured_excess.sql', 'public.mis_pack_fg_bulk_v1', PACK_SIG, 'pack']]) {
+    const fileSha = sha(body(file, fn)); assert.ok(mig(S7B).includes(`'${fileSha}'`), `${key}: pin = file-derived sha`);
+    assert.equal(val('pre7', `SELECT encode(sha256(convert_to(prosrc,'UTF8')),'hex') FROM pg_proc WHERE oid='${sig}'::regprocedure`), fileSha, `${key}: installed = file`);
+    const after = val('s7', `SELECT encode(sha256(convert_to(prosrc,'UTF8')),'hex') FROM pg_proc WHERE oid='${sig}'::regprocedure`); assert.ok(mig(S7B).includes(`'${after}'`), `${key}: patched result pinned`); assert.notEqual(after, fileSha);
+    assert.equal(val('s7', `SELECT concat(has_function_privilege('authenticated','${sig}','EXECUTE'),has_function_privilege('anon','${sig}','EXECUTE'),(SELECT prosecdef FROM pg_proc WHERE oid='${sig}'::regprocedure),(SELECT proconfig::text FROM pg_proc WHERE oid='${sig}'::regprocedure))`), val('pre7', `SELECT concat(has_function_privilege('authenticated','${sig}','EXECUTE'),has_function_privilege('anon','${sig}','EXECUTE'),(SELECT prosecdef FROM pg_proc WHERE oid='${sig}'::regprocedure),(SELECT proconfig::text FROM pg_proc WHERE oid='${sig}'::regprocedure))`), `${key}: ACL/security/config unchanged`);
+    assert.equal(val('s7', `SELECT count(*) FROM app_private.mis_g7_s7_baseline WHERE obj='${sig}' AND sha256=encode(sha256(convert_to(def,'UTF8')),'hex')`), '1');
+  }
+  const refuse = (name, setup, expect) => { const d = `g_b_${name}`; assert.equal(pg.psql('postgres', `CREATE DATABASE ${d} TEMPLATE pre7`).status, 0); if (name !== 'noa') run1(d, asTx(mig(S7A))); if (setup) run1(d, setup);
+    const r = pg.psql(d, asTx(mig(S7B))); assert.notEqual(r.status, 0, name); assert.match(r.err, expect, name); assert.equal(val(d, `SELECT position('mis_g7_fg_receipt' IN prosrc) FROM pg_proc WHERE oid='${SIGN_SIG}'::regprocedure`), '0', `${name}: signer untouched`); };
+  refuse('noa', null, /MIS_G7_S7B_PRECONDITION/); refuse('enf', `UPDATE app_private.mis_g7_enforcement SET mode='ENFORCE'`, /MIS_G7_S7B_PRECONDITION/);
+  const sgn = pg.psql('pre7', `SELECT pg_get_functiondef('${SIGN_SIG}'::regprocedure)`).out;
+  refuse('drift', sgn.replace('BEGIN', 'BEGIN /* tampered */').replace(/\$f\$/g, '$f$'), /MIS_G7_S7B_SOURCE_DRIFT/);
+});
+T('exact receipt evidence helper: exact source, missing, unrelated positive stock, transfer-only, packaging return, mixed stock, wrong log/product/UOM/quantity', () => {
+  const ok = (b, qty = 10) => { const w = val('s7', `SELECT public.s7_batch('Inherited','${b}','2026-11-10',${qty})`); return w; };
+  const b1 = bn('RX'); const w1 = ok(b1); let r = rcpt('s7', 21, b1, w1); assert.deepEqual([r.ok, r.code, r.ledger_net_base, r.rows], [true, 'OK', 10, 1]);
+  // unrelated positive stock: the log's own receipt rows are gone, only a manual entry carries stock
+  const b2 = bn('RU'); const w2 = ok(b2); run1('s7', `DELETE FROM public.fg_bulk_stock_ledger WHERE batch_number='${b2}'`); ledgerRow('s7', 21, b2, 10, 'manual_entry', 1, 'MANUAL'); r = rcpt('s7', 21, b2, w2); assert.deepEqual([r.ok, r.code], [false, 'NO_SOURCE_LEDGER']);
+  assert.equal(val('s7', `SELECT coalesce(sum(qty_base),0) FROM public.fg_bulk_stock_ledger WHERE batch_number='${b2}'`), '10.000000'.replace(/\.?0+$/, '') === '10' ? '10' : '10');   // batch stock IS positive: the old rule would have accepted
+  // transfer-only positive stock
+  const b3 = bn('RT'); const w3 = ok(b3); run1('s7', `DELETE FROM public.fg_bulk_stock_ledger WHERE batch_number='${b3}'`); ledgerRow('s7', 21, b3, 10, 'fg_bulk_internal_transfer', 55, 'TRANSFER_IN'); assert.equal(rcpt('s7', 21, b3, w3).code, 'NO_SOURCE_LEDGER');
+  // packaging return (positive event_skus movement) never counts; neither does a stray row pointing at another work log id
+  const b4 = bn('RP'); const w4 = ok(b4); run1('s7', `DELETE FROM public.fg_bulk_stock_ledger WHERE batch_number='${b4}'`); ledgerRow('s7', 21, b4, 10, 'event_skus', Number(w4), 'PACK_RETURN'); ledgerRow('s7', 21, b4, 10, 'daily_work_log', Number(w4) + 100000, 'FG bulk storage'); assert.equal(rcpt('s7', 21, b4, w4).code, 'NO_SOURCE_LEDGER');
+  // mixed: unrelated manual stock on the same batch does not inflate the certified receipt
+  const b5 = bn('RM'); const w5 = ok(b5); ledgerRow('s7', 21, b5, 5, 'manual_stock_correction', 2, 'MANUAL'); r = rcpt('s7', 21, b5, w5); assert.deepEqual([r.ok, r.ledger_net_base], [true, 10]);
+  // wrong identity / quantity / UOM
+  assert.equal(rcpt('s7', 22, b1, w1).code, 'NOT_FG_RECEIPT_LOG'); assert.equal(rcpt('s7', 21, 'OTHER', w1).code, 'NOT_FG_RECEIPT_LOG');
+  const lg = val('s7', `SELECT public.s7_log('Inherited','${b1}','Mixing','2026-11-11')`); assert.equal(rcpt('s7', 21, b1, lg).code, 'NOT_FG_RECEIPT_LOG');
+  const b6 = bn('RQ'); const w6 = ok(b6); run1('s7', `UPDATE public.daily_work_log SET storage_qty_uom='g' WHERE id=${w6}`); assert.equal(rcpt('s7', 21, b6, w6).code, 'UOM_MISMATCH'); run1('s7', `UPDATE public.daily_work_log SET storage_qty_uom='kg', storage_qty=0 WHERE id=${w6}`); assert.equal(rcpt('s7', 21, b6, w6).code, 'QTY_NOT_POSITIVE');
+  // reason family: receipt reasons count, anything else against the same source does not
+  const b7 = bn('RR'); const w7 = ok(b7); ledgerRow('s7', 21, b7, 7, 'daily_work_log', Number(w7), 'FG TRANSFER'); assert.equal(rcpt('s7', 21, b7, w7).ledger_net_base, 10);
+  const b8 = bn('RI'); const w8 = ok(b8); run1('s7', `DELETE FROM public.fg_bulk_stock_ledger WHERE batch_number='${b8}'`); ledgerRow('s7', 21, b8, 10, 'daily_work_log', Number(w8), 'FG bulk storage (In Storage)'); assert.equal(rcpt('s7', 21, b8, w8).code, 'OK');
+});
+T('signer (patched S2 writer): exact receipt required — the OLD rule demonstrably accepted unrelated/transfer stock, the patched writer refuses it; mismatch has its own code', () => {
+  // OLD behaviour (S2 as installed, no S7): signing succeeds on a product route although the log has no receipt of its own and only a transfer carries stock
+  const bo = bn('OLD'); const wo = val('pre7', `SELECT public.s7_batch('ProductRoute','${bo}','2026-10-31',10)`); run1('pre7', `DELETE FROM public.fg_bulk_stock_ledger WHERE batch_number='${bo}'`);
+  run1('pre7', `INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id) VALUES (22,'${bo}','2026-11-01',10,10,'kg','TRANSFER_IN','fg_bulk_internal_transfer',9)`);
+  assert.equal(Jt('pre7', `SELECT public.mis_sign_batch_stage_v1('${newKey()}',22,'${bo}',${wo},103,1,10,'WB')`, SIGNER).ok, true, 'S2 rule accepted transfer stock as a receipt');
+  // PATCHED behaviour
+  const b = bn('NEW'); const w = val('s7', `SELECT public.s7_batch('Inherited','${b}','2026-11-10',10)`); run1('s7', `DELETE FROM public.fg_bulk_stock_ledger WHERE batch_number='${b}'`); ledgerRow('s7', 21, b, 10, 'fg_bulk_internal_transfer', 9, 'TRANSFER_IN');
+  const r = signAt('s7', 21, b, w, 10); assert.deepEqual([r.ok, r.code, r.receipt], [false, 'FG_RECEIPT_EVIDENCE_MISSING', 'NO_SOURCE_LEDGER']); assert.equal(dbSigned(b), 0);
+  ledgerRow('s7', 21, b, 10, 'daily_work_log', Number(w), 'FG bulk storage'); assert.equal(signAt('s7', 21, b, w, 10).ok, true);
+  // ledger net differs from the logged quantity (log says 12, ledger has 10): distinct refusal with both figures
+  const m = bn('MIS'); const wm = val('s7', `SELECT public.s7_batch('Inherited','${m}','2026-11-10',10)`); run1('s7', `UPDATE public.daily_work_log SET storage_qty=12 WHERE id=${wm}`);
+  const mm = signAt('s7', 21, m, wm, 12); assert.deepEqual([mm.ok, mm.code, mm.log_qty, mm.ledger_net_base], [false, 'FG_RECEIPT_LEDGER_MISMATCH', 12, 10]);
+  assert.equal(signAt('s7', 21, m, wm, 10).code, 'MEASURED_QTY_MISMATCH');
+});
+T('legitimate receipt updates: delta row, reverse-and-repost, in-place ledger update; a log edit invalidates the old signature and re-signing certifies the new net; silent ledger drift is refused', () => {
+  const mk = (pre) => { const b = bn(pre); const w = val('s7', `SELECT public.s7_batch('Inherited','${b}','2026-11-10',10)`); return { b, w }; };
+  // (a) delta-style update
+  let { b, w } = mk('UD'); const s1 = signAt('s7', 21, b, w, 10); assert.equal(s1.ok, true);
+  run1('s7', `UPDATE public.daily_work_log SET storage_qty=12 WHERE id=${w}`); assert.equal(status('s7', 21, b).fg_bulk_state, 'SOURCE_CHANGED');
+  assert.equal(Jt('s7', `SELECT public.mis_correct_batch_stage_v1('${newKey()}',${s1.event_id},'log quantity updated')`, SIGNER).ok, true);
+  assert.equal(signAt('s7', 21, b, w, 12).code, 'FG_RECEIPT_LEDGER_MISMATCH', 'log edited but the ledger not yet updated');
+  ledgerRow('s7', 21, b, 2, 'daily_work_log', Number(w), 'FG bulk storage (update)'); assert.equal(rcpt('s7', 21, b, w).ledger_net_base, 12); assert.equal(signAt('s7', 21, b, w, 12).ok, true); assert.equal(status('s7', 21, b).fg_bulk_state, 'SIGNED');
+  // (b) reverse-and-repost update
+  ({ b, w } = mk('UR')); run1('s7', `UPDATE public.daily_work_log SET storage_qty=12 WHERE id=${w}`); ledgerRow('s7', 21, b, 5, 'manual_entry', 3, 'MANUAL');   // keep stock positive while reversing
+  ledgerRow('s7', 21, b, -10, 'daily_work_log', Number(w), 'FG bulk storage (update)'); ledgerRow('s7', 21, b, 12, 'daily_work_log', Number(w), 'FG bulk storage (update)'); assert.deepEqual([rcpt('s7', 21, b, w).ok, rcpt('s7', 21, b, w).ledger_net_base, rcpt('s7', 21, b, w).rows], [true, 12, 3]); assert.equal(signAt('s7', 21, b, w, 12).ok, true);
+  // (c) in-place ledger update
+  ({ b, w } = mk('UI')); run1('s7', `UPDATE public.daily_work_log SET storage_qty=8 WHERE id=${w}; UPDATE public.fg_bulk_stock_ledger SET qty=8, qty_base=8 WHERE source_table='daily_work_log' AND source_id=${w}`); assert.equal(signAt('s7', 21, b, w, 8).ok, true);
+  // (d) silent ledger drift after signing: log unchanged, ledger changed -> not SOURCE_CHANGED (fingerprint) but the receipt evidence is gone for packing/exceptions
+  ({ b, w } = mk('UX')); const s4 = signAt('s7', 21, b, w, 10); assert.equal(s4.ok, true); ledgerRow('s7', 21, b, 3, 'daily_work_log', Number(w), 'FG bulk storage (update)');
+  const ev = val('s7', `SELECT public.s7_event(public.s7_log('Inherited','${b}','Bottling','2026-11-11'))`); const pv = preview(ev, [{ sku_id: 10, count: 2 }]); assert.deepEqual([pv.ok, pv.preview_code, pv.receipt_code], [true, 'FG_RECEIPT_MISSING', 'LEDGER_MISMATCH']);
+  const pk = pack(newKey(), ev, [{ sku_id: 10, count: 2 }]); assert.deepEqual([pk.code, pk.receipt], ['FG_RECEIPT_MISSING', 'LEDGER_MISMATCH']);
+});
+T('packing, preview and exception summary classify receipts identically (signed stage log is the evidence); transfer-only and unrelated stock are MISSING_RECEIPT; S6 Done and real source changes behave', () => {
+  const d = 'g_rcpt'; assert.equal(pg.psql('postgres', `CREATE DATABASE ${d} TEMPLATE clean7`).status, 0);
+  const mkb = (b, qty = 10) => val(d, `SELECT public.s7_batch('Inherited','${b}','2026-11-12',${qty})`);
+  const okb = 'G-OK'; const wok = mkb(okb); const sg = Jt(d, `SELECT public.mis_sign_batch_stage_v1('${newKey()}',21,'${okb}',${wok},103,1,10,'WB')`, SIGNER); assert.equal(sg.ok, true);
+  const evk = val(d, `SELECT public.s7_event(public.s7_log('Inherited','${okb}','Bottling','2026-11-13'))`);
+  const pvOk = J(d, `SELECT public.mis_preview_pack_fg_bulk_v1(${evk},'[{"sku_id":10,"count":4}]'::jsonb)`, PACKER); assert.deepEqual([pvOk.preview_code, pvOk.receipt_code, pvOk.receipt_present], ['OK', 'OK', true]);
+  run1(d, `SELECT set_config('app.fg_reconcile','1',false); UPDATE public.daily_work_log SET status='Done' WHERE id=${wok}`); assert.equal(J(d, `SELECT public.mis_preview_pack_fg_bulk_v1(${evk},'[{"sku_id":10,"count":4}]'::jsonb)`, PACKER).preview_code, 'OK', 'Done closure keeps receipt + signature');
+  assert.equal(J(d, `SELECT public.mis_pack_fg_bulk_v1('${newKey()}',${evk},'[{"sku_id":10,"count":4}]'::jsonb,NULL)`, PACKER).ok, true);
+  run1(d, `UPDATE public.daily_work_log SET storage_qty=9 WHERE id=${wok}`); const sc = J(d, `SELECT public.mis_preview_pack_fg_bulk_v1(${evk},'[{"sku_id":11,"count":1}]'::jsonb)`, PACKER); assert.equal(sc.preview_code, 'STAGE_SOURCE_CHANGED');
+  const tb = 'G-TR'; const wtr = mkb(tb); run1(d, `DELETE FROM public.fg_bulk_stock_ledger WHERE batch_number='${tb}'`); ledgerRow(d, 21, tb, 10, 'fg_bulk_internal_transfer', 70, 'TRANSFER_IN');
+  const ub = 'G-UN'; mkb(ub); run1(d, `DELETE FROM public.fg_bulk_stock_ledger WHERE batch_number='${ub}'`); ledgerRow(d, 21, ub, 10, 'manual_entry', 71, 'MANUAL');
+  const mb = 'G-MM'; const wmm = mkb(mb); run1(d, `UPDATE public.daily_work_log SET storage_qty=11 WHERE id=${wmm}`);
+  const s = J(d, `SELECT public.mis_get_governance_exception_summary_v1('2026-11-01','2026-11-30',200,0)`, EXECV); const det = (b) => s.items.filter((i) => i.batch_number === b && i.state === 'MISSING_RECEIPT').map((i) => i.detail);
+  assert.deepEqual(det(tb), ['NO_SOURCE_LEDGER']); assert.deepEqual(det(ub), ['NO_SOURCE_LEDGER']); assert.deepEqual(det(mb), ['LEDGER_MISMATCH']); assert.deepEqual(det(okb), ['LEDGER_MISMATCH']);   // log edited to 9 after signing, ledger still 10: receipt evidence no longer exact
+  // an unsigned batch whose evidence is a transfer: preview (batch level) agrees with the summary
+  const evt = val(d, `SELECT public.s7_event(public.s7_log('Inherited','${tb}','Bottling','2026-11-13'))`); const pt = J(d, `SELECT public.mis_preview_pack_fg_bulk_v1(${evt},'[{"sku_id":10,"count":1}]'::jsonb)`, PACKER); assert.equal(pt.receipt_code, 'NO_SOURCE_LEDGER'); assert.equal(pt.receipt_present, false);
+  // several FG receipt logs for one batch: any exact receipt log satisfies the batch-level classification
+  const mb2 = 'G-ML'; const w1 = mkb(mb2, 6); const w2 = val(d, `SELECT public.s7_log('Inherited','${mb2}','FG bulk storage','2026-11-14')`); run1(d, `UPDATE public.daily_work_log SET storage_qty=4, storage_qty_uom='kg' WHERE id=${w2}`);
+  assert.equal(val(d, `SELECT app_private.mis_g7_batch_receipt_code(21,'${mb2}')`), 'OK'); assert.equal(val(d, `SELECT app_private.mis_g7_batch_receipt_code(21,'NO-SUCH')`), 'NO_FG_LOG'); void w1;
+});
+T('pre-install live check SQL is read-only and runs: every pin check passes on the accepted pre-S7 catalog, receipt-semantics diagnostics return rows', () => {
+  const d = 'g_ro'; assert.equal(pg.psql('postgres', `CREATE DATABASE ${d} TEMPLATE pre7`).status, 0);
+  run1(d, `CREATE TABLE public.user_permissions_canonical (user_id uuid, target text, can_view boolean, can_edit boolean)`);
+  const sql = fs.readFileSync(path.join(root, 'docs/executive-mis-g7-server/S7_PREINSTALL_LIVE_CHECK_READONLY.sql'), 'utf8');
+  assert.doesNotMatch(sql.replace(/^\s*--.*$/gm, ''), /\b(insert|update|delete|create|drop|alter|grant|revoke|truncate)\b/i);
+  const before = val(d, `SELECT (SELECT count(*) FROM public.fg_bulk_stock_ledger)||'/'||(SELECT count(*) FROM public.daily_work_log)`);
+  const r = pg.psql(d, sql); assert.equal(r.status, 0, r.err); assert.equal(val(d, `SELECT (SELECT count(*) FROM public.fg_bulk_stock_ledger)||'/'||(SELECT count(*) FROM public.daily_work_log)`), before);
+  const checks = r.out.split('\n').filter((l) => /\|(t|f)$/.test(l)); assert.ok(checks.length >= 14, `${checks.length} checks`); const failing = checks.filter((l) => l.endsWith('|f'));
+  // pre7 carries one signature written by the S2-behaviour test above, so only that state check may be false here
+  assert.deepEqual(failing.map((l) => l.split('|')[0]).filter((n) => n !== 'no signed stage events'), [], 'accepted pre-S7 catalog must satisfy every pin');
+});
+
+T('CONTRACT: S7b additions to the sign RPC (codes_s7b) are produced by the patched signer and by nothing before S7b', () => {
+  const c = JSON.parse(fs.readFileSync(path.join(root, 'docs/executive-mis-g7-server/client_rpc_contract.json'), 'utf8')); const r = c.rpcs.find((x) => x.name === 'mis_sign_batch_stage_v1');
+  assert.deepEqual(r.codes_s7b, ['FG_RECEIPT_LEDGER_MISMATCH']);
+  const srcOf = (db) => val(db, `SELECT replace(prosrc, E'\\n', ' ') FROM pg_proc WHERE oid='${SIGN_SIG}'::regprocedure`);
+  for (const code of r.codes_s7b) { assert.ok(srcOf('s7').includes(`'${code}'`), code); assert.ok(!srcOf('pre7').includes(`'${code}'`), `${code} must not exist before S7b`); }
 });

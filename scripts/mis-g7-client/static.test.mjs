@@ -102,8 +102,8 @@ test("hand-off into Add Log Entry is default-disabled and the legacy page change
   assert.match(add, /rpc_create_daily_work_log_with_packaging/);                                 // legacy save RPC unchanged
 });
 test("prepared S7 migrations: identities recorded, forward-only, not in the live list, rollback has compatibility guards", () => {
-  const man = JSON.parse(read("docs/executive-mis-g7-server/MIGRATION_IDENTITIES.json")); assert.equal(man.migrations.length, 8); assert.equal(man.pending_migrations.length, 2);
+  const man = JSON.parse(read("docs/executive-mis-g7-server/MIGRATION_IDENTITIES.json")); assert.equal(man.migrations.length, 8); assert.equal(man.pending_migrations.length, 3);
   for (const m of man.pending_migrations) { const b = fs.readFileSync(new URL(`../../supabase/migrations/${m.repo_file}`, import.meta.url)); assert.equal(sha256(b), m.sha256, m.repo_file); assert.equal(b.length, m.bytes); assert.equal(m.registered_version, null); assert.match(m.status, /PREPARED/); assert.ok(!man.migrations.some((x) => x.repo_file === m.repo_file)); }
-  const rb = read("docs/executive-mis-g7-server/S7_ROLLBACK_NOT_A_MIGRATION.sql"); for (const g of ["MIS_G7_S7_ROLLBACK_INCOMPATIBLE_IDENTITIES", "MIS_G7_S7_ROLLBACK_INCOMPATIBLE_SIGNATURES", "MIS_G7_S7_ROLLBACK_ORDER"]) assert.ok(rb.includes(g), g);
+  const rb = read("docs/executive-mis-g7-server/S7_ROLLBACK_NOT_A_MIGRATION.sql"); for (const g of ["MIS_G7_S7_ROLLBACK_INCOMPATIBLE_IDENTITIES", "MIS_G7_S7_ROLLBACK_INCOMPATIBLE_SIGNATURES", "MIS_G7_S7_ROLLBACK_ORDER", "S7B ROLLBACK", "S7C ROLLBACK"]) assert.ok(rb.includes(g), g);
   for (const m of man.pending_migrations) assert.doesNotMatch(read(`supabase/migrations/${m.repo_file}`), /mis_resolve_batch_stage_s2_legacy|DROP TABLE app_private\.mis_batch_stage_event|DELETE FROM app_private\.mis_batch_stage_event/);
 });

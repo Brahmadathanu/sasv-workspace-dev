@@ -5,7 +5,7 @@ import {
   RPC, IntentRegistry, callRpc, describeRefusal, normalizeLines, validateExcess, packReceipt, correctionReceipt,
   fmtQty, packScope, correctPackScope, correctStageScope, signScope, signableSteps, loadCapabilities, modeLabel,
   GOVERNANCE_STATES, HISTORICAL_AUDIT_SNAPSHOT, stateFromRefusal,
-  idArg, getRouteContext, getStageStatus, getPreview, getExceptionSummary, describePreview, contextSteps, routeLabel, eventState, DAYS,
+  idArg, getRouteContext, getStageStatus, getPreview, getExceptionSummary, describePreview, contextSteps, routeLabel, eventState, DAYS, receiptText,
 } from "./mis-g7-contract.js";
 
 /* ── state ───────────────────────────────────────────────────── */
@@ -416,7 +416,7 @@ function previewHtml(pv) {
   if (pv.refused) { const d = describeRefusal(pv.refused); return `<div class="mbg-gap mbg-danger" role="note">${esc(d.title)}. ${esc(d.fix)}</div>`; }
   const d = pv.data; const m = describePreview(d); const u = esc(d.base_uom);
   const tone = m.code === "OK" ? "ok" : m.blocking ? "danger" : "warn";
-  return `<div class="mbg-banner mbg-${tone}" style="margin:6px 0"><strong>${esc(m.title)}.</strong> ${esc(m.fix)} ${m.state ? stateBadge(m.state) : ""}${kv([["Required", `${fmtQty(d.required_base)} ${u}`], ["Available", `${fmtQty(d.available_base)} ${u}`], ...(d.shortfall_base > 0 ? [["Shortfall", `${fmtQty(d.shortfall_base)} ${u}`, true]] : [["Balance after", `${fmtQty(d.available_base - d.required_base)} ${u}`]])])}<div class="mbg-note">Advisory preview; the posting is re-validated by the server.</div></div>`;
+  return `<div class="mbg-banner mbg-${tone}" style="margin:6px 0"><strong>${esc(m.title)}.</strong> ${esc(m.fix)} ${m.state ? stateBadge(m.state) : ""}${d.preview_code === "FG_RECEIPT_MISSING" && d.receipt_code ? `<div class="mbg-note">${esc(receiptText(d.receipt_code))}</div>` : ""}${kv([["Required", `${fmtQty(d.required_base)} ${u}`], ["Available", `${fmtQty(d.available_base)} ${u}`], ...(d.shortfall_base > 0 ? [["Shortfall", `${fmtQty(d.shortfall_base)} ${u}`, true]] : [["Balance after", `${fmtQty(d.available_base - d.required_base)} ${u}`]])])}<div class="mbg-note">Advisory preview; the posting is re-validated by the server.</div></div>`;
 }
 function paintPreview() {
   const nt = $("packNote"); if (nt) nt.textContent = `Counts are package units. ${S.previewOff || S.s7 === false ? "The server converts them to the base unit; the required bulk is shown after posting." : "The server previews the required bulk before you post; posting re-validates under its own locks."}`;
@@ -559,7 +559,7 @@ function excLiveHtml() {
   if (!S.caps.canViewExceptions) return `<p class="mbg-note">Live exception counts are visible to Executive MIS viewers.</p>`;
   const e = excWindow(); const d = e.data;
   const tiles = d ? Object.keys(GOVERNANCE_STATES).filter((k) => k in d.counts || k === "SIGNED").map((k) => `<div class="mbg-tile"><div class="mbg-lbl">${esc(GOVERNANCE_STATES[k].label)}</div><strong>${esc(d.counts[k] ?? 0)}</strong></div>`).join("") : "";
-  const rows = d ? d.items.map((i) => `<tr><td>${stateBadge(i.state)}</td><td>${esc(i.product)}</td><td>${esc(i.batch_number)}</td><td>${esc(i.detail ? String(i.detail).replace(/_/g, " ").toLowerCase() : "")}</td><td><button type="button" class="mbg-btn mbg-btn-sm" data-open="${esc(i.product_id)}|${esc(i.batch_number)}">Open</button></td></tr>`).join("") : "";
+  const rows = d ? d.items.map((i) => `<tr><td>${stateBadge(i.state)}</td><td>${esc(i.product)}</td><td>${esc(i.batch_number)}</td><td>${esc(i.detail ? receiptText(i.detail) : "")}</td><td><button type="button" class="mbg-btn mbg-btn-sm" data-open="${esc(i.product_id)}|${esc(i.batch_number)}">Open</button></td></tr>`).join("") : "";
   return `<div class="mbg-row"><div class="mbg-field"><label for="excFrom">From</label><input id="excFrom" class="mbg-input" type="date" value="${esc(e.from)}"></div><div class="mbg-field"><label for="excTo">To</label><input id="excTo" class="mbg-input" type="date" value="${esc(e.to)}"></div><button id="excGo" class="mbg-btn" type="button">${e.loading ? "Loading…" : "Refresh"}</button></div>
     ${e.err ? `<div class="mbg-gap mbg-danger" role="note">${esc(e.err)}</div>` : ""}
     ${d ? `<p class="mbg-note">${esc(d.count_unit)}. Scope: FG bulk storage logs and depleting packaging, ${esc(d.from)} to ${esc(d.to)}; ${esc(d.total_batches)} product/batches. Governance cut-over ${esc(d.governance_cutover)}: earlier unsigned batches are historical (not verified).</p>

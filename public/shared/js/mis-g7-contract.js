@@ -36,7 +36,8 @@ export const REFUSALS = Object.freeze({
   APPROVED_ROUTE_OVERLAP: { kind: "route", title: "More than one approved route covers this date", fix: "Route master must be corrected before signing." },
   BMR_IDENTITY_REVIEW: { kind: "identity", title: "Batch does not resolve to exactly one BMR", fix: "BMR identity needs review in BMR administration." },
   EFFECTIVE_DATE_ROUTE_GAP: { kind: "route", title: "Approved routes exist but none is effective on the work-log date", fix: "Route master needs an effective-dated version." },
-  FG_RECEIPT_EVIDENCE_MISSING: { kind: "evidence", title: "No FG bulk receipt evidence for this log", fix: "Record the FG bulk receipt before signing." },
+  FG_RECEIPT_EVIDENCE_MISSING: { kind: "evidence", title: "No ledger receipt was posted for this FG work log", fix: "Transfers, packaging returns and manual stock entries are not receipts; the FG bulk storage log itself must have posted its receipt." },
+  FG_RECEIPT_LEDGER_MISMATCH: { kind: "evidence", title: "The ledger receipt of this work log differs from the logged quantity", fix: "Reconcile the log and its stock receipt before signing." },
   FG_UOM_MISMATCH: { kind: "evidence", title: "FG receipt unit differs from the base unit", fix: "Correct the receipt unit at source." },
   IDEMPOTENCY_KEY_REUSED: { kind: "idempotency", title: "This request key was already used for a different request", fix: "Start the action again." },
   INVALID_INPUT: { kind: "input", title: "Input rejected by the server", fix: "Check the entered values." },
@@ -58,7 +59,7 @@ export const REFUSALS = Object.freeze({
   EXCESS_INVALID: { kind: "input", title: "Measured excess is incomplete", fix: "Enter quantity, reason and evidence reference." },
   EXCESS_NOT_AUTHORIZED: { kind: "permission", title: "You are not authorized to record measured excess", fix: "Ask an authorized operator." },
   EXCESS_NOT_NEEDED: { kind: "state", title: "Stock is sufficient; excess is not needed", fix: "Post without excess." },
-  FG_RECEIPT_MISSING: { kind: "evidence", title: "No FG bulk receipt for this batch", fix: "Record the FG bulk receipt first." },
+  FG_RECEIPT_MISSING: { kind: "evidence", title: "No exact FG receipt evidence for the signed stage", fix: "The signed FG work log must have a ledger receipt equal to its logged quantity; transfers, returns and manual entries do not count." },
   FG_STAGE_NOT_SIGNED: { kind: "state", title: "FG bulk stage is not signed for this batch", fix: "Sign the FG bulk stage first.", historical: true },
   INSUFFICIENT_AFTER_EXCESS: { kind: "stock", title: "Stock is still insufficient after the measured excess", fix: "Re-measure the excess or reduce the counts." },
   INSUFFICIENT_BULK: { kind: "stock", title: "Insufficient bulk stock", fix: "Reduce counts or record measured excess if authorized." },
@@ -161,6 +162,19 @@ export function classifyRpc(res) {
   if (data && typeof data === "object" && data.ok === true) return { kind: "ok", data, replay: data.idempotent_replay === true };
   return { kind: "uncertain", code: "UNEXPECTED_RESPONSE", message: "Unexpected server response; outcome could not be confirmed." };
 }
+
+/** Receipt-evidence finding codes of mis_g7_fg_receipt (preview receipt_code, exception detail, writer `receipt`). */
+export const RECEIPT_CODES = Object.freeze({
+  OK: "Exact receipt evidence",
+  NO_SOURCE_LEDGER: "No ledger receipt posted by the FG work log (other positive stock does not count)",
+  LEDGER_MISMATCH: "Ledger receipt differs from the logged quantity",
+  NOT_FG_RECEIPT_LOG: "Not an FG bulk storage log of this product and batch",
+  QTY_NOT_POSITIVE: "FG work log has no positive quantity",
+  UOM_MISMATCH: "FG work log unit is not the product base unit",
+  NO_FG_LOG: "No FG bulk storage log for this batch",
+  PACKING_LINE_WITHOUT_DEPLETION: "Packing line without recorded depletion",
+});
+export const receiptText = (c) => RECEIPT_CODES[c] || REFUSALS[c]?.title || String(c || "").replace(/_/g, " ").toLowerCase();
 
 export function describeRefusal(code) {
   return REFUSALS[code] || { kind: "other", title: code ? `Refused: ${code}` : "Refused", fix: "" };

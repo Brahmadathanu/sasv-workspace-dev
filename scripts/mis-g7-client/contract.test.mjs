@@ -17,7 +17,7 @@ test("RPC names and refusal codes stay aligned with client_rpc_contract.json", (
   const names = new Set(contract.rpcs.map((r) => r.name));
   for (const k of ["sign", "correctStage", "pack", "correctPack", "readiness"]) assert.ok(names.has(RPC[k]), RPC[k]);
   for (const r of contract.rpcs.filter((x) => ["mis_sign_batch_stage_v1", "mis_correct_batch_stage_v1", "mis_pack_fg_bulk_v1", "mis_correct_pack_line_v1"].includes(x.name))) {
-    for (const code of r.codes) assert.ok(REFUSALS[code], `no operator wording for ${r.name}:${code}`);
+    for (const code of [...r.codes, ...(r.codes_s7b ?? [])]) assert.ok(REFUSALS[code], `no operator wording for ${r.name}:${code}`);
   }
   assert.equal(Object.keys(MIS_TARGETS).length, 5);
   assert.deepEqual(Object.values(MIS_TARGETS).sort(), ["module:mis-batch-stage-signer", "module:mis-fg-bulk-packing", "module:mis-fg-excess-adjustment", "module:mis-g7-core-migration-signoff", "module:mis-g7-enforcement-admin"]);

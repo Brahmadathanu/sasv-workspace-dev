@@ -28,7 +28,7 @@ const rows = ORDER.map((f, i) => {
     status: i === 0 ? 'LIVE (installed; never replay)' : 'LIVE (installed; AUDIT; never replay)', bytes: b.length, sha256: crypto.createHash('sha256').update(b).digest('hex'), git_blob_sha1: blob(b) };
 });
 // Prepared (NOT installed) forward-only migrations: identities only; they never enter `migrations` (the eight LIVE rows) until registered in production.
-const PENDING = ['20261124120000_mis_g7_s7a_shared_route_identity_and_stage_status.sql', '20261124121000_mis_g7_s7b_governed_previews_and_exception_summary.sql'];
+const PENDING = ['20261124120000_mis_g7_s7a_shared_route_identity_and_stage_status.sql', '20261124121000_mis_g7_s7b_exact_fg_receipt_evidence.sql', '20261124122000_mis_g7_s7c_governed_previews_and_exception_summary.sql'];
 const pending = PENDING.filter((f) => fs.existsSync(path.join(migDir, f))).map((f, i) => { const b = fs.readFileSync(path.join(migDir, f)); return {
   seq: 9 + i, repo_file: f, supabase_migration_name: `mis_g7_${f.replace(/^\d{14}_mis_g7_/, '').replace(/\.sql$/, '')}`, registered_version: null, status: 'PREPARED (not installed; owner authorization required; forward-only)',
   bytes: b.length, sha256: crypto.createHash('sha256').update(b).digest('hex'), git_blob_sha1: blob(b) }; });

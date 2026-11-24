@@ -91,19 +91,29 @@
       "supabase_migration_name": "mis_g7_s7a_shared_route_identity_and_stage_status",
       "registered_version": null,
       "status": "PREPARED (not installed; owner authorization required; forward-only)",
-      "bytes": 19258,
-      "sha256": "e4c7c5bd3b9e8502c3b51589f6a2366058c2e3c8b4ce49c997761e1623f3ac02",
-      "git_blob_sha1": "6af60e3c86510672b910720895facc86b01a513a"
+      "bytes": 24071,
+      "sha256": "511d4f5914f2921e4c214c7205835447c02393f1dff02c64f3c0feff441aca1d",
+      "git_blob_sha1": "e1e9060aa6e63157eceb136f8535c1ced960d46f"
     },
     {
       "seq": 10,
-      "repo_file": "20261124121000_mis_g7_s7b_governed_previews_and_exception_summary.sql",
-      "supabase_migration_name": "mis_g7_s7b_governed_previews_and_exception_summary",
+      "repo_file": "20261124121000_mis_g7_s7b_exact_fg_receipt_evidence.sql",
+      "supabase_migration_name": "mis_g7_s7b_exact_fg_receipt_evidence",
       "registered_version": null,
       "status": "PREPARED (not installed; owner authorization required; forward-only)",
-      "bytes": 13475,
-      "sha256": "6e7086b4a62d122e4b34e795d796a262a39acfd513f9e290478996b3fcfac4a5",
-      "git_blob_sha1": "f6fcfe0105d0a90be17717407499823c805ce2de"
+      "bytes": 5779,
+      "sha256": "abc8def6efe0d9e1508458eda3d35815de7b37f920fbeb93f57313f036620f7e",
+      "git_blob_sha1": "b102af59bb7ead096c6ee163ae8522a57e595be5"
+    },
+    {
+      "seq": 11,
+      "repo_file": "20261124122000_mis_g7_s7c_governed_previews_and_exception_summary.sql",
+      "supabase_migration_name": "mis_g7_s7c_governed_previews_and_exception_summary",
+      "registered_version": null,
+      "status": "PREPARED (not installed; owner authorization required; forward-only)",
+      "bytes": 14632,
+      "sha256": "1d7df765fb4aac595ab23b161452ec6dc8fa0aeb76d06605a4ca185c986309cb",
+      "git_blob_sha1": "b0a78bf127e021c1e09b9dbdd0d94ce87ec9aee7"
     }
   ]
 }

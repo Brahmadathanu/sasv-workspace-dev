@@ -1,13 +1,18 @@
--- MIS G7 S7b: advisory packing/correction preview and bounded live governance-exception summary.
--- FORWARD-ONLY. NOT INSTALLED. Requires S7a. READ-ONLY functions (STABLE; no table is written). No permission assigned.
+-- MIS G7 S7c: advisory packing/correction preview and bounded live governance-exception summary.
+-- FORWARD-ONLY. NOT INSTALLED. Requires S7a and S7b (exact FG receipt evidence in the writers, so previews and exceptions classify receipts the same way). READ-ONLY functions (STABLE; no table is written). No permission assigned.
 -- The writers (mis_pack_fg_bulk_v1 / mis_correct_pack_line_v1) stay authoritative and re-validate under their own locks.
 
 DO $guard$
 BEGIN
   IF to_regprocedure('app_private.mis_g7_route_context(integer,text,integer)') IS NULL
      OR to_regprocedure('app_private.mis_g7_fg_state(integer,text)') IS NULL
-     OR to_regprocedure('app_private.mis_g7_can_view(text)') IS NULL THEN
-    RAISE EXCEPTION 'MIS_G7_S7B_PRECONDITION: S7a is not installed';
+     OR to_regprocedure('app_private.mis_g7_can_view(text)') IS NULL
+     OR to_regprocedure('app_private.mis_g7_fg_receipt(integer,text,integer)') IS NULL THEN
+    RAISE EXCEPTION 'MIS_G7_S7C_PRECONDITION: S7a is not installed';
+  END IF;
+  IF position('mis_g7_fg_receipt' IN (SELECT prosrc FROM pg_proc WHERE oid = 'public.mis_sign_batch_stage_v1(uuid,integer,text,integer,bigint,integer,numeric,text)'::regprocedure)) = 0
+     OR position('mis_g7_fg_receipt' IN (SELECT prosrc FROM pg_proc WHERE oid = 'public.mis_pack_fg_bulk_v1(uuid,bigint,jsonb,jsonb)'::regprocedure)) = 0 THEN
+    RAISE EXCEPTION 'MIS_G7_S7C_PRECONDITION: S7b is not installed (writers do not yet use exact receipt evidence)';
   END IF;
 END $guard$;
 
@@ -26,7 +31,7 @@ DECLARE
   v_lines jsonb; v_x record;
   v_sku_id bigint; v_sku_prod bigint; v_sku_pack numeric; v_sku_uom text;
   v_per numeric; v_delta numeric := 0; v_available numeric; v_old_dep numeric; v_posted numeric;
-  v_problem text; v_receipt boolean; v_code text := 'OK'; v_basis boolean := NULL;
+  v_problem text; v_receipt boolean; v_code text := 'OK'; v_basis boolean := NULL; v_stage_log integer; v_receipt_code text;
 BEGIN
   PERFORM public.require_permission('module:mis-fg-bulk-packing', false);
   IF p_packaging_event_id IS NULL THEN RETURN jsonb_build_object('ok', false, 'code', 'INVALID_INPUT'); END IF;
@@ -83,7 +88,10 @@ BEGIN
   END;
 
   SELECT coalesce(sum(qty_base), 0) INTO v_available FROM public.fg_bulk_stock_ledger WHERE product_id = v_pid AND batch_number = v_batch;
-  v_receipt := EXISTS (SELECT 1 FROM public.fg_bulk_stock_ledger WHERE product_id = v_pid AND batch_number = v_batch AND qty_base > 0);
+  -- exact receipt evidence, selected exactly as the packing writer does: the SIGNED stage's work log (else batch level, for display)
+  v_stage_log := app_private.mis_g7_fg_stage_log(v_pid, v_batch);
+  v_receipt_code := CASE WHEN v_stage_log IS NOT NULL THEN app_private.mis_g7_fg_receipt(v_pid, v_batch, v_stage_log)->>'code' ELSE app_private.mis_g7_batch_receipt_code(v_pid, v_batch) END;
+  v_receipt := v_receipt_code = 'OK';
   v_problem := app_private.mis_g7_stage_problem(v_pid, v_batch);
   IF v_mode = 'CORRECT' THEN
     v_basis := NOT (v_posted = 0 AND v_old_dep <> 0) AND v_posted = -v_old_dep;
@@ -104,7 +112,7 @@ BEGIN
     'product_id', v_pid, 'batch_number', v_batch, 'base_uom', v_uom, 'packaging_event_id', v_pe_id,
     'available_base', v_available, 'required_base', greatest(v_delta, 0), 'stock_delta_base', -v_delta,
     'shortfall_base', CASE WHEN v_delta > v_available THEN v_delta - v_available ELSE 0 END,
-    'stage_problem', v_problem, 'receipt_present', v_receipt,
+    'stage_problem', v_problem, 'receipt_present', v_receipt, 'receipt_code', v_receipt_code,
     'eligible_without_excess', v_code = 'OK',
     'excess_permitted', app_private.mis_g7_has_permission('module:mis-fg-bulk-packing') AND app_private.mis_g7_has_permission('module:mis-fg-excess-adjustment'),
     'event_sku_id', v_line_id, 'old_count', v_line_cnt, 'new_count', p_new_count,
@@ -143,8 +151,9 @@ BEGIN
       FROM logs l CROSS JOIN LATERAL (SELECT app_private.mis_g7_route_context(l.pid, l.batch_number, l.id) AS ctx) c
      WHERE c.ctx->>'code' <> 'OK'
   ), receipt AS MATERIALIZED (
-    SELECT b.pid, b.item, b.batch_number, 'MISSING_RECEIPT'::text AS state, NULL::text AS detail FROM batches b
-     WHERE NOT EXISTS (SELECT 1 FROM public.fg_bulk_stock_ledger g WHERE g.product_id = b.pid AND g.batch_number = b.batch_number AND g.qty_base > 0)
+    -- exact receipt evidence (ledger rows of an FG work log of the batch, net = logged quantity); transfers, packaging returns and manual entries never count
+    SELECT b.pid, b.item, b.batch_number, 'MISSING_RECEIPT'::text AS state, r.c AS detail FROM batches b
+      CROSS JOIN LATERAL (SELECT app_private.mis_g7_batch_receipt_code(b.pid, b.batch_number) AS c) r WHERE r.c <> 'OK'
   ), nodep AS MATERIALIZED (
     SELECT pl.pid, pl.item, pl.batch_number, pl.line_id FROM pack_lines pl
      WHERE NOT EXISTS (SELECT 1 FROM public.fg_bulk_stock_ledger g WHERE g.source_table = 'event_skus' AND g.source_id = pl.line_id::integer

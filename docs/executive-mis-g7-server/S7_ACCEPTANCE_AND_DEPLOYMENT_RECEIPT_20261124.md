@@ -1,5 +1,7 @@
 # MIS G7 — S7 server acceptance, deployment package and final client integration (24 Nov 2026)
 
+> **Revision 2 (receipt-evidence finding).** The package is now **three** forward-only migrations: **S7a** (route identity, status, helpers), **S7b** (NEW: exact FG receipt evidence in the signing and packing writers) and **S7c** (previews and exception summary; was "S7b" in revision 1). The authoritative identities, tests and blockers are in `S7_FINAL_REAL_CATALOG_ACCEPTANCE_RECEIPT_20261124.md`; where this document says "S7b" for previews/exceptions or lists only two migrations, that receipt is current.
+
 **Status: G7 OPEN 7/11 (64%), G8 parked.** S7 is **prepared, tested in isolation, NOT installed**. No production write, migration installation, permission assignment, core sign-off, ENFORCE, merge, release, PEC cleanup, backfill or Costing change was made. Production stays AUDIT, core gate `CORE_MIGRATION_NOT_ACCEPTED`. S2–S6 files are untouched and never replayed.
 
 ## 1. What "isolated" means here (read this first)

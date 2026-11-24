@@ -155,7 +155,7 @@ test('source revision shows SOURCE_CHANGED from the server; Done closure does no
   const b = bn('SC'); const w = mkBatch('Inherited', b, '2026-11-10'); const s = await open(SIGNER); await select(s.page, 'Inherited', b); await signUi(s.page, w);
   sql('live7', `SELECT set_config('app.fg_reconcile','1',false); UPDATE public.daily_work_log SET status='Done' WHERE id=${w}`);
   await select(s.page, 'Inherited', b); assert.match(await s.page.textContent('#identity'), /Signed/);
-  sql('live7', `UPDATE public.daily_work_log SET storage_qty=9 WHERE id=${w}`); await select(s.page, 'Inherited', b);
+  sql('live7', `UPDATE public.daily_work_log SET storage_qty=9 WHERE id=${w}; INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id) VALUES (21,'${b}','2026-11-12',-1,-1,'kg','FG bulk storage (update)','daily_work_log',${w})`); await select(s.page, 'Inherited', b);
   await s.page.waitForFunction(() => /Source changed/.test(document.getElementById('identity').textContent)); assert.match(await s.page.textContent('#sigTable'), /Void to re-sign/);
   await s.page.click('[data-void]'); await s.page.fill('#cReason', 'quantity corrected in log'); await s.page.click('#mCorr'); await s.page.waitForSelector("#banner:has-text('Signature voided')");
   await s.page.waitForFunction(() => /Unsigned/.test(document.getElementById('identity').textContent)); await signUi(s.page, w, '9'); assert.equal(dbSigned(b), 2); await s.ctx.close();
@@ -239,4 +239,24 @@ test('hand-off (flag on) shows nothing without the signer right, when already si
   await h.page.evaluate((id) => window.run({ flag: true, search: `?mis_sign=${id}` }), w); await h.page.fill('#misHoEv', 'E'); await h.page.click('#misHoSign'); await h.page.waitForFunction(() => /Signed \(event/.test(document.getElementById('misHoMsg').textContent));
   assert.equal((await run(h)).reason, 'already-signed'); await h.ctx.close();
   const bp = bn('HO4'); const wp = sql('pre7', `SELECT public.s7_batch('ProductRoute','${bp}','2026-10-31')`); const a = await openHost(SIGNER, 'pre7'); assert.equal((await run(a, wp)).reason, 's7-absent'); assert.equal(await a.page.$('#mis-handoff'), null); await a.ctx.close();
+});
+
+/* ───────── exact FG receipt evidence (S7b) through the real page and the real server ───────── */
+test('transfer-only / unrelated positive stock is not a receipt: the signer is refused with a clear reason, exceptions say why, preview agrees', { skip: SK }, async () => {
+  const b = bn('TR'); const w = mkBatch('Inherited', b, '2026-11-10'); sql('live7', `DELETE FROM public.fg_bulk_stock_ledger WHERE batch_number='${b}'`);
+  sql('live7', `INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id) VALUES (21,'${b}','2026-11-12',10,10,'kg','TRANSFER_IN','fg_bulk_internal_transfer',77)`);
+  const s = await open(SIGNER); await select(s.page, 'Inherited', b);
+  await s.page.click(`#logTable tr[data-log="${w}"]`); await s.page.waitForFunction(() => !!document.querySelector('#stepTable tr[aria-selected="true"]'));
+  await s.page.fill('#mqty', '10'); await s.page.fill('#evref', 'WB-TR'); await s.page.click('#signBtn'); await s.page.click('#mSign');
+  await s.page.waitForFunction(() => /No ledger receipt was posted for this FG work log/.test(document.getElementById('modalMsg').textContent)); assert.match(await s.page.textContent('#modalMsg'), /Transfers, packaging returns and manual stock entries are not receipts/); assert.equal(dbSigned(b), 0);
+  await shot(s.page, '19-bridge-receipt-refused.png'); await s.ctx.close();
+  const e = await open(EXECV); await e.page.click('#tab-exc'); await e.page.fill('#excFrom', '2026-11-01'); await e.page.fill('#excTo', '2026-11-30'); await e.page.click('#excGo');
+  await e.page.waitForFunction((x) => [...document.querySelectorAll('#excTable tbody tr')].some((r) => r.textContent.includes(x) && /Missing FG receipt/.test(r.textContent) && /No ledger receipt posted by the FG work log/.test(r.textContent)), b); await e.ctx.close();
+});
+test('legitimate receipt update through the UI: edit invalidates the signature (Source changed), void, re-sign certifies the new exact net', { skip: SK }, async () => {
+  const b = bn('UP'); const w = mkBatch('Inherited', b, '2026-11-10'); const s = await open(SIGNER); await select(s.page, 'Inherited', b); await signUi(s.page, w);
+  sql('live7', `UPDATE public.daily_work_log SET storage_qty=12 WHERE id=${w}; INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id) VALUES (21,'${b}','2026-11-12',2,2,'kg','FG bulk storage (update)','daily_work_log',${w})`);
+  await select(s.page, 'Inherited', b); await s.page.waitForFunction(() => /Source changed/.test(document.getElementById('identity').textContent));
+  await s.page.click('[data-void]'); await s.page.fill('#cReason', 'log quantity updated'); await s.page.click('#mCorr'); await s.page.waitForSelector("#banner:has-text('Signature voided')");
+  await signUi(s.page, w, '12'); assert.equal(dbSigned(b), 2); assert.equal(ledger(b), 12); await s.ctx.close();
 });

@@ -6,7 +6,8 @@
     "Historical rows without a signed stage are NOT_VERIFIED: refusals carry historical_state:'NOT_VERIFIED'. Location is never a gate.",
     "UI: no hard-coded theme palette is implied by this contract; the excess modal is shown only after INSUFFICIENT_BULK with excess_permitted:true.",
     "S7 identities: bigint ids that can exceed 2^53 or be negative are returned as TEXT in jsonb (route_id, route_step_id, event_id, override_id). route_step_id > 0 is a base/inherited step (costing.production_route_family_route_step.id); < 0 is an ADD_STEP override (-costing.product_process_route_override.id). route_id > 0 is a product-specific route; < 0 is an inherited family route (-family_route_id). Pass route_step_id to mis_sign_batch_stage_v1 as the signed integer.",
-    "S7 route context is computed by the Costing route engine at the work-log date; the signer resolves through the SAME private context, so every step a context lists with activity_matches:true is signable and nothing else is."
+    "S7 route context is computed by the Costing route engine at the work-log date; the signer resolves through the SAME private context, so every step a context lists with activity_matches:true is signable and nothing else is.",
+    "S7b receipt evidence: a positive ledger row is not an FG production receipt. The receipt is the net of ledger rows with source_table='daily_work_log', source_id = the FG work log, the same product and batch and a receipt reason ('FG bulk storage', '\u2026 (In Storage)', '\u2026 (update)'); it must equal the log's current storage quantity (tolerance 0.0005 base units). Legitimate receipt updates post further rows against the same work log and are therefore included in the net."
   ],
   "rpcs": [
     {
@@ -71,6 +72,10 @@
         "STAGE_ALREADY_SIGNED",
         "STEP_NOT_IN_EFFECTIVE_ROUTE",
         "WORK_LOG_IDENTITY_MISMATCH"
+      ],
+      "s7b_note": "After S7b (exact FG receipt evidence): FG_RECEIPT_EVIDENCE_MISSING (+ receipt: NO_SOURCE_LEDGER|NOT_FG_RECEIPT_LOG|QTY_NOT_POSITIVE|UOM_MISMATCH) when the FG work log posted no receipt of its own; FG_RECEIPT_LEDGER_MISMATCH (+ log_qty, ledger_net_base) when the net of its receipt ledger rows differs from the logged quantity. Transfers, packaging returns and manual entries never count.",
+      "codes_s7b": [
+        "FG_RECEIPT_LEDGER_MISMATCH"
       ]
     },
     {
@@ -177,7 +182,8 @@
         "SKU_PACK_SIZE_INVALID",
         "SKU_PRODUCT_MISMATCH",
         "STAGE_SOURCE_CHANGED"
-      ]
+      ],
+      "s7b_note": "After S7b: FG_RECEIPT_MISSING is judged on the SIGNED stage's work log with exact receipt evidence and carries 'receipt' (finding code)."
     },
     {
       "name": "mis_correct_pack_line_v1",
@@ -479,7 +485,7 @@
     },
     {
       "name": "mis_preview_pack_fg_bulk_v1",
-      "status": "S7b",
+      "status": "S7c",
       "args": [
         [
           "p_packaging_event_id",
@@ -530,7 +536,8 @@
         "new_count",
         "has_depletion_basis",
         "expected_posted_base",
-        "posted_base"
+        "posted_base",
+        "receipt_code"
       ],
       "preview_codes": [
         "OK",
@@ -560,7 +567,7 @@
     },
     {
       "name": "mis_get_governance_exception_summary_v1",
-      "status": "S7b",
+      "status": "S7c",
       "args": [
         [
           "p_from",
@@ -620,7 +627,24 @@
       "codes": [
         "INVALID_INPUT"
       ],
-      "notes": "Counts are distinct product/batch per state (states overlap); line_counts are distinct event_skus lines. Unsigned batches whose FG log predates governance_cutover are NOT_VERIFIED, never UNSIGNED/SIGNED."
+      "notes": "Counts are distinct product/batch per state (states overlap); line_counts are distinct event_skus lines. Unsigned batches whose FG log predates governance_cutover are NOT_VERIFIED, never UNSIGNED/SIGNED.",
+      "detail_codes": [
+        "PRODUCT_ROUTE_COVERAGE",
+        "EFFECTIVE_DATE_ROUTE_GAP",
+        "APPROVED_ROUTE_OVERLAP",
+        "MANDATORY_FG_STAGE_GAP",
+        "STEP_NOT_IN_EFFECTIVE_ROUTE",
+        "ROUTE_INVALID",
+        "ROUTE_RESOLUTION_ERROR",
+        "BMR_IDENTITY_REVIEW",
+        "PACKING_LINE_WITHOUT_DEPLETION",
+        "NO_SOURCE_LEDGER",
+        "LEDGER_MISMATCH",
+        "NOT_FG_RECEIPT_LOG",
+        "QTY_NOT_POSITIVE",
+        "UOM_MISMATCH",
+        "NO_FG_LOG"
+      ]
     }
   ],
   "enforce_mode_error": "MIS_G7_DIRECT_PACKING_DENIED (42501): direct bulk-affecting event_skus INSERT/UPDATE/DELETE and header reassign/retype/delete are refused unless made by mis_pack_fg_bulk_v1 / mis_correct_pack_line_v1 in the same transaction.",

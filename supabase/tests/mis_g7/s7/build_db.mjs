@@ -9,7 +9,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../../..');
 export const mig = (f) => fs.readFileSync(path.join(root, 'supabase/migrations', f), 'utf8');
 export const S7A = '20261124120000_mis_g7_s7a_shared_route_identity_and_stage_status.sql';
-export const S7B = '20261124121000_mis_g7_s7b_governed_previews_and_exception_summary.sql';
+export const S7B = '20261124121000_mis_g7_s7b_exact_fg_receipt_evidence.sql';
+export const S7C = '20261124122000_mis_g7_s7c_governed_previews_and_exception_summary.sql';
 export const U = (n) => `00000000-0000-0000-0000-0000000000${n}`;
 export const SIGNER = U('01'), PACKER = U('02'), EXCESS = U('03'), NOBODY = U('04'), SIGNV = U('11'), PACKV = U('12'), EXECV = U('21');
 export const asTx = (sql) => `BEGIN;\n${sql}\nCOMMIT;`;
@@ -90,5 +91,5 @@ export function buildS7Databases(pg, withS7 = ['s7']) {
   for (const f of MIGRATIONS) { if (f.includes('s3b_')) run1(pg, 'pre7', seedShimFingerprintsSql()); run1(pg, 'pre7', mig(f)); }
   run1(pg, 'pre7', mig(PATCHED_CORE_MIGRATION)); run1(pg, 'pre7', mig(FINGERPRINT_MIGRATION));
   run1(pg, 'pre7', seedSql());
-  for (const d of withS7) { if (pg.psql('postgres', `CREATE DATABASE ${d} TEMPLATE pre7`).status !== 0) throw new Error('clone ' + d); run1(pg, d, asTx(mig(S7A))); run1(pg, d, asTx(mig(S7B))); }
+  for (const d of withS7) { if (pg.psql('postgres', `CREATE DATABASE ${d} TEMPLATE pre7`).status !== 0) throw new Error('clone ' + d); run1(pg, d, asTx(mig(S7A))); run1(pg, d, asTx(mig(S7B))); run1(pg, d, asTx(mig(S7C))); }
 }
