@@ -52,3 +52,23 @@ Remove-Item Env:SASV_ARCHIVE_DATABASE_URL
 **Hard stop conditions:** refuse if the archive directory is populated, live FK topology differs from 64, run87 identity/status changes, run87 becomes designated/displayed, any table count diverges during the repeatable-read snapshot, or checksum verification fails. The output is confidential business data, and no archive should be transferred into CI. Independently copy/verify the encrypted archive to a separately secured backup location before considering any production change. This first archive covers **64 direct FK relations only**; it does **not** certify nested FK-consistent business recovery or cross-run isolation, and its manifest must remain `productionDeletionAuthorised:false`.
 
 The assistant's current connected Supabase SQL interface does not supply a private PostgreSQL DSN or a secure local archive destination. **It cannot perform this workstation-only sensitive export directly through that interface.** The above commands are the required operator handoff, not evidence that any real backup exists.
+
+## S3R — Windows secure operator archive (24 November 2026)
+
+**Preferred single-command path on the authorised SASV developer workstation, NOT GitHub Actions:**
+```powershell
+# First configure and validate a private PostgreSQL SELECT-only account locally.
+# Securely set SASV_ARCHIVE_DATABASE_URL in the current process; never paste
+# the password, URL, archive or raw business rows in a chat, GitHub or logs.
+# The DSN must specify TLS, preferably sslmode=verify-full.
+# Ensure Node dependencies are installed in the existing repo via npm ci.
+pwsh -NoProfile -File docs/master-data-costing/tools/run87-secure-archive-windows.ps1 `
+  -ArchiveDriveRoot "D:\\SASV-RETENTION" `
+  -BackupDriveRoot "E:\\SASV-RETENTION"
+Remove-Item Env:SASV_ARCHIVE_DATABASE_URL
+```
+The illustrated drive letters are **examples only**, not known existing drives. Both roots must already exist, be local Windows volumes with BitLocker ProtectionStatus **On**, and be on distinct drive letters. The operator must separately establish that these are truly **independent physical media**; two partitions on the same disk do not count as independent backups. Ordinary unencrypted folders and network drives are refused. A complete archive creates precisely 64 compressed relation files plus manifest under `SASV-run87-direct` on each protected drive; existing directories are never overwritten. The script independently rechecks SHA hashes and original row counts in each archive copy, then compares compressed file hashes primary versus backup. It records metadata only in a local `SASV-run87-archive-receipt.json` file.
+
+The receipt is intentionally marked `restoreVerified:false`, `foreignKeyBusinessParityVerified:false`, `productionDeletionAuthorised:false`. **Do not use this receipt to justify deleting production data.** A separate full FK-preserving restore and business-consumer validation are still required.
+
+**Preflight as of 24 Nov:** production read-only catalog confirms historical run 87 is SUCCESS, not designated/approved/displayed, and all 64 directly linked relations are ordinary/partitioned tables. No dedicated production PostgreSQL connection/password is available to this conversation; actual archive operator execution therefore remains pending. This script does not create credentials or modify production.
