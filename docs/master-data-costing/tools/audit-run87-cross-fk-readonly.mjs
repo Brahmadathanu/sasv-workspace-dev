@@ -33,8 +33,8 @@ export async function loadFkEdges(client) {
       child_n.nspname AS child_schema, child.relname AS child_table,
       parent_n.nspname AS parent_schema, parent.relname AS parent_table,
       dc.run_column AS child_run_column, dp.run_column AS parent_run_column,
-      array_agg(ca.attname ORDER BY u.n) AS child_columns,
-      array_agg(pa.attname ORDER BY u.n) AS parent_columns
+      array_agg(ca.attname::text ORDER BY u.n) AS child_columns,
+      array_agg(pa.attname::text ORDER BY u.n) AS parent_columns
     FROM pg_constraint f
     JOIN direct dc ON dc.relid=f.conrelid
     JOIN direct dp ON dp.relid=f.confrelid
