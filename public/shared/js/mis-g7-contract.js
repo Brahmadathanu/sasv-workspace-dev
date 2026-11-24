@@ -22,6 +22,11 @@ export const RPC = Object.freeze({
   correctPack: "mis_correct_pack_line_v1",
   readiness: "mis_g7_enforcement_readiness_v1",
   effectiveRoute: "rpc_get_effective_product_process_route",
+  // S7 (prepared; absent until installed): shared route context, persistent status, advisory preview, live exceptions
+  routeContext: "mis_get_batch_route_context_v1",
+  stageStatus: "mis_get_batch_stage_status_v1",
+  preview: "mis_preview_pack_fg_bulk_v1",
+  exceptions: "mis_get_governance_exception_summary_v1",
 });
 
 /** Server refusal code -> operator wording. `kind` drives severity styling, `fix` is a short next step. */
@@ -65,6 +70,9 @@ export const REFUSALS = Object.freeze({
   SKU_PACK_SIZE_INVALID: { kind: "identity", title: "SKU pack size is invalid", fix: "SKU master data needs correction." },
   SKU_PRODUCT_MISMATCH: { kind: "identity", title: "SKU belongs to another product", fix: "Select this product's SKUs only." },
   STAGE_SOURCE_CHANGED: { kind: "state", title: "Source changed after the stage was signed", fix: "Correct the signature and sign the stage again.", resign: true },
+  // S7 route context
+  ROUTE_INVALID: { kind: "route", title: "The effective route is not valid", fix: "Route master deficiency; signing is blocked." },
+  ROUTE_RESOLUTION_ERROR: { kind: "route", title: "The route could not be resolved", fix: "Route master needs review; signing is blocked." },
   // pack correction
   CORRECTION_LEDGER_MISMATCH: { kind: "evidence", title: "Stock ledger does not match this line's recorded depletion", fix: "Blocked; needs evidence-first repair." },
   CORRECTION_LINE_CHANGED: { kind: "state", title: "Line changed since it was loaded", fix: "Reload and review." },
@@ -133,6 +141,7 @@ export function classifyRpc(res) {
     const msg = String(error.message ?? "");
     const status = Number(error.status ?? error.statusCode ?? NaN);
     const m = /MIS_G7_[A-Z_]+/.exec(msg);
+    if (code === "42883" || code === "PGRST202" || /could not find the function|function .* does not exist/i.test(msg)) return { kind: "unavailable", code: code || "UNAVAILABLE", message: "This server function is not installed." };
     if (code === "40P01" || code === "40001") return { kind: "retryable", code, message: msg };
     if (code === "42501" || status === 401 || status === 403) {
       const raisedCode = m?.[0];
@@ -227,9 +236,12 @@ export const GOVERNANCE_STATES = Object.freeze({
   MISSING_ROUTE: { label: "Missing route", tone: "danger", text: "No effective approved route (or route deficiency). Route master must be corrected; signing is blocked." },
   MISSING_RECEIPT: { label: "Missing FG receipt", tone: "danger", text: "No signed FG bulk receipt, so governed packing is blocked." },
   NOT_VERIFIED: { label: "Not verified", tone: "muted", text: "Historical record with no signed evidence. Not assumed correct and not backfilled." },
+  BMR_IDENTITY_REVIEW: { label: "BMR review", tone: "danger", text: "The batch does not resolve to exactly one BMR. Identity must be reviewed before any signing." },
 });
 
 export function stateFromRefusal(code, historical) {
+  if (code === "BMR_IDENTITY_REVIEW") return "BMR_IDENTITY_REVIEW";
+  if (code === "ROUTE_INVALID" || code === "ROUTE_RESOLUTION_ERROR") return "MISSING_ROUTE";
   if (code === "STAGE_SOURCE_CHANGED") return "SOURCE_CHANGED";
   if (code === "FG_RECEIPT_MISSING" || code === "FG_RECEIPT_EVIDENCE_MISSING") return "MISSING_RECEIPT";
   if (["PRODUCT_ROUTE_COVERAGE", "EFFECTIVE_DATE_ROUTE_GAP", "APPROVED_ROUTE_OVERLAP", "MANDATORY_FG_STAGE_GAP", "STEP_NOT_IN_EFFECTIVE_ROUTE"].includes(code)) return "MISSING_ROUTE";
@@ -284,7 +296,9 @@ export async function loadCapabilities(client, { check } = {}) {
     const [v, e] = await Promise.all([ask(t, "view"), ask(t, "edit")]);
     out[k] = { view: v, edit: v && e };           // the server requires view AND edit for writes
   }));
+  const execView = await ask("module:executive-mis-dashboard", "view");
   return {
+    canViewExceptions: execView,
     canSign: out.signer.edit, canPack: out.packing.edit, canExcess: out.packing.edit && out.excess.edit,
     canViewReadiness: out.enforcementAdmin.view, canSwitchMode: out.enforcementAdmin.edit, canCoreSignoff: out.coreSignoff.edit,
     raw: out,
@@ -297,4 +311,57 @@ export function modeLabel(readiness) {
   if (m === "ENFORCE") return { mode: "ENFORCE", tone: "danger", text: "ENFORCE: direct bulk packing writes are refused; use governed packing only." };
   if (m === "AUDIT") return { mode: "AUDIT", tone: "info", text: "AUDIT: legacy logging and packing still work and are only observed. Governed paths are available but not mandatory." };
   return { mode: "UNKNOWN", tone: "muted", text: "Enforcement mode not visible to your account. Legacy paths remain available unless the server refuses them." };
+}
+
+/* ───────── S7 read contracts (bigint-safe: ids are TEXT in responses) ───────── */
+
+/** Signed integer argument for bigint RPC parameters: a safe number when possible, else the exact decimal string. */
+export function idArg(v) {
+  const n = Number(v);
+  return Number.isSafeInteger(n) ? n : String(v);
+}
+export const DAYS = 86400000;
+
+export async function getRouteContext(client, productId, batch, workLogId, opts) {
+  return callRpc(client, RPC.routeContext, { p_product_id: productId, p_batch: batch, p_work_log_id: workLogId }, opts);
+}
+export async function getStageStatus(client, productId, batch, opts) {
+  return callRpc(client, RPC.stageStatus, { p_product_id: productId, p_batch: batch }, opts);
+}
+/** Advisory preview of a pack ({lines}) or a correction ({eventSkuId,newCount}). */
+export async function getPreview(client, eventId, { lines, eventSkuId, newCount } = {}, opts) {
+  const args = eventSkuId != null
+    ? { p_packaging_event_id: idArg(eventId), p_lines: null, p_event_sku_id: idArg(eventSkuId), p_new_count: newCount }
+    : { p_packaging_event_id: idArg(eventId), p_lines: lines, p_event_sku_id: null, p_new_count: null };
+  return callRpc(client, RPC.preview, args, opts);
+}
+export async function getExceptionSummary(client, from, to, limit = 25, offset = 0, opts) {
+  return callRpc(client, RPC.exceptions, { p_from: from, p_to: to, p_limit: limit, p_offset: offset }, opts);
+}
+
+/** classifyRpc treats ok:false as refused; the S7 reads use ok:true for state-dependent outcomes. */
+export const PREVIEW_BLOCKING = Object.freeze(new Set(["FG_STAGE_NOT_SIGNED", "STAGE_SOURCE_CHANGED", "BATCH_IDENTITY_MISSING", "FG_RECEIPT_MISSING", "CORRECTION_NO_DEPLETION_BASIS", "CORRECTION_LEDGER_MISMATCH", "CORRECTION_NO_CHANGE"]));
+export function describePreview(p) {
+  if (!p) return null;
+  const code = p.preview_code;
+  const d = code === "OK" ? { title: "Ready to post", fix: "" } : code === "INSUFFICIENT_BULK" ? { title: "Insufficient bulk", fix: p.excess_permitted ? "Measured excess can be recorded when posting." : "Reduce the counts or ask an authorized operator." } : describeRefusal(code);
+  return { code, blocking: PREVIEW_BLOCKING.has(code), title: d.title, fix: d.fix, state: stateFromRefusal(code, code === "FG_STAGE_NOT_SIGNED" || code === "CORRECTION_NO_DEPLETION_BASIS") };
+}
+
+/** Normalise a route context for the signing form. Every listed step is signable; activity_matches picks the step for the chosen work log. */
+export function contextSteps(ctx) {
+  const steps = Array.isArray(ctx?.steps) ? ctx.steps : [];
+  return steps.map((s) => ({
+    stepId: String(s.route_step_id), kind: s.step_kind, seq: Number(s.sequence_no), activity: s.activity_name, mandatory: !!s.is_mandatory,
+    allowsRepeat: !!s.allows_repeat, expected: s.expected_occurrence_count != null ? Number(s.expected_occurrence_count) : null,
+    isFg: s.stage_role === "FG_BULK", role: s.stage_role, matches: !!s.activity_matches, source: s.source_type,
+  }));
+}
+export const routeLabel = (ctx) => (ctx?.route_kind === "ROUTE_FAMILY_INHERITED" ? `inherited family route #${ctx.family_route_id}` : ctx?.product_route_id ? `product route #${ctx.product_route_id}` : "route");
+
+/** Display state of one stage event from mis_get_batch_stage_status_v1. */
+export function eventState(e) {
+  if (e.state === "SIGNED") return "SIGNED";
+  if (e.state === "SOURCE_CHANGED") return "SOURCE_CHANGED";
+  return null;   // CORRECTED / CORRECTION are history
 }

@@ -1,5 +1,7 @@
 # MIS G7 — client implementation and integrated acceptance (24 Nov 2026)
 
+> **Update (S7):** gaps G-1 to G-4 below are addressed by the prepared (not installed) S7 server package and the matching client integration; see `S7_ACCEPTANCE_AND_DEPLOYMENT_RECEIPT_20261124.md`. Where this document and that one differ, the S7 receipt is current. The §5 smoke matrix is superseded by §8 of the S7 receipt.
+
 **Status:** client package complete and tested against an isolated model of the documented server contract. **G7 OPEN 7/11 (64%), G8 parked.** Production stays in AUDIT, core gate `CORE_MIGRATION_NOT_ACCEPTED`, ENFORCE prohibited, no permission assigned, no production write performed. Server provenance (PR #522, contract `mis-g7-s2-s5b/1`) is unchanged; no migration SQL was touched.
 
 ## 1. What was built

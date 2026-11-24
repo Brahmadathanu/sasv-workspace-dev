@@ -1,10 +1,12 @@
 {
-  "contract_version": "mis-g7-s2-s5b/1",
+  "contract_version": "mis-g7-s2-s7/1",
   "notes": [
     "All RPCs return jsonb. Domain refusals are HTTP-200 {ok:false, code,...} with NOTHING written; raised errors (SQLSTATE 42501 permission/MIS_G7_AUTH_REQUIRED, P0001 MIS_G7_DEPLETION_MISMATCH / MIS_G7_CORRECTION_MISMATCH / MIS_G7_NEGATIVE_BALANCE, 22003 MIS_G7_SOURCE_ID_OVERFLOW, 40P01/40001 retry up to 3x) roll the whole transaction back.",
     "Actor is always auth.uid(); no client 'authorized'/'committed' flag is read. Generate one UUID per user intent (request/idempotency key); replay returns the stored result with idempotent_replay:true.",
     "Historical rows without a signed stage are NOT_VERIFIED: refusals carry historical_state:'NOT_VERIFIED'. Location is never a gate.",
-    "UI: no hard-coded theme palette is implied by this contract; the excess modal is shown only after INSUFFICIENT_BULK with excess_permitted:true."
+    "UI: no hard-coded theme palette is implied by this contract; the excess modal is shown only after INSUFFICIENT_BULK with excess_permitted:true.",
+    "S7 identities: bigint ids that can exceed 2^53 or be negative are returned as TEXT in jsonb (route_id, route_step_id, event_id, override_id). route_step_id > 0 is a base/inherited step (costing.production_route_family_route_step.id); < 0 is an ADD_STEP override (-costing.product_process_route_override.id). route_id > 0 is a product-specific route; < 0 is an inherited family route (-family_route_id). Pass route_step_id to mis_sign_batch_stage_v1 as the signed integer.",
+    "S7 route context is computed by the Costing route engine at the work-log date; the signer resolves through the SAME private context, so every step a context lists with activity_matches:true is signable and nothing else is."
   ],
   "rpcs": [
     {
@@ -359,8 +361,269 @@
         "LEGACY_DWL_EDITOR_NOT_MIGRATED",
         "ALREADY_ACCEPTED"
       ]
+    },
+    {
+      "name": "mis_get_batch_route_context_v1",
+      "status": "S7a",
+      "args": [
+        [
+          "p_product_id",
+          "integer"
+        ],
+        [
+          "p_batch",
+          "text"
+        ],
+        [
+          "p_work_log_id",
+          "integer"
+        ]
+      ],
+      "permission": "module:mis-batch-stage-signer (view)",
+      "ok_keys": [
+        "ok",
+        "code",
+        "bmr_id",
+        "route_id",
+        "route_kind",
+        "product_route_id",
+        "family_route_id",
+        "route_source",
+        "work_log_id",
+        "log_date",
+        "activity",
+        "status",
+        "storage_qty",
+        "storage_uom",
+        "steps"
+      ],
+      "step_keys": [
+        "route_step_id",
+        "step_kind",
+        "base_step_id",
+        "override_id",
+        "effective_step_key",
+        "activity_name",
+        "sequence_no",
+        "is_mandatory",
+        "allows_repeat",
+        "expected_occurrence_count",
+        "source_type",
+        "stage_role",
+        "activity_matches"
+      ],
+      "codes": [
+        "INVALID_INPUT",
+        "WORK_LOG_IDENTITY_MISMATCH",
+        "BMR_IDENTITY_REVIEW",
+        "APPROVED_ROUTE_OVERLAP",
+        "PRODUCT_ROUTE_COVERAGE",
+        "EFFECTIVE_DATE_ROUTE_GAP",
+        "ROUTE_INVALID",
+        "ROUTE_RESOLUTION_ERROR",
+        "MANDATORY_FG_STAGE_GAP",
+        "STEP_NOT_IN_EFFECTIVE_ROUTE"
+      ],
+      "notes": "ok:false responses carry the work-log fields when the work log resolved. Never raises for engine failures."
+    },
+    {
+      "name": "mis_get_batch_stage_status_v1",
+      "status": "S7a",
+      "args": [
+        [
+          "p_product_id",
+          "integer"
+        ],
+        [
+          "p_batch",
+          "text"
+        ]
+      ],
+      "permission": "any view of module:mis-batch-stage-signer, module:mis-fg-bulk-packing or module:executive-mis-dashboard",
+      "ok_keys": [
+        "ok",
+        "product_id",
+        "batch_number",
+        "fg_bulk_state",
+        "events"
+      ],
+      "fg_bulk_states": [
+        "SIGNED",
+        "UNSIGNED",
+        "SOURCE_CHANGED",
+        "NOT_VERIFIED"
+      ],
+      "event_keys": [
+        "event_id",
+        "event_kind",
+        "route_id",
+        "route_step_id",
+        "step_occurrence",
+        "work_log_id",
+        "stage_role",
+        "signed_at",
+        "corrects_event_id",
+        "measured_qty_base",
+        "measured_uom",
+        "state"
+      ],
+      "event_states": [
+        "SIGNED",
+        "CORRECTED",
+        "CORRECTION",
+        "SOURCE_CHANGED"
+      ],
+      "codes": [
+        "INVALID_INPUT"
+      ]
+    },
+    {
+      "name": "mis_preview_pack_fg_bulk_v1",
+      "status": "S7b",
+      "args": [
+        [
+          "p_packaging_event_id",
+          "bigint"
+        ],
+        [
+          "p_lines",
+          "jsonb"
+        ],
+        [
+          "p_event_sku_id",
+          "bigint"
+        ],
+        [
+          "p_new_count",
+          "integer"
+        ]
+      ],
+      "defaults": {
+        "p_lines": "NULL",
+        "p_event_sku_id": "NULL",
+        "p_new_count": "NULL"
+      },
+      "permission": "module:mis-fg-bulk-packing (view)",
+      "request_shape": {
+        "pack": "p_packaging_event_id + p_lines [{sku_id,count>0}]",
+        "correct": "p_packaging_event_id + p_event_sku_id + p_new_count (>=0); p_lines must be NULL"
+      },
+      "ok_keys": [
+        "ok",
+        "advisory",
+        "mode",
+        "preview_code",
+        "product_id",
+        "batch_number",
+        "base_uom",
+        "packaging_event_id",
+        "available_base",
+        "required_base",
+        "stock_delta_base",
+        "shortfall_base",
+        "stage_problem",
+        "receipt_present",
+        "eligible_without_excess",
+        "excess_permitted",
+        "event_sku_id",
+        "old_count",
+        "new_count",
+        "has_depletion_basis",
+        "expected_posted_base",
+        "posted_base"
+      ],
+      "preview_codes": [
+        "OK",
+        "FG_STAGE_NOT_SIGNED",
+        "STAGE_SOURCE_CHANGED",
+        "BATCH_IDENTITY_MISSING",
+        "FG_RECEIPT_MISSING",
+        "INSUFFICIENT_BULK",
+        "CORRECTION_NO_CHANGE",
+        "CORRECTION_NO_DEPLETION_BASIS",
+        "CORRECTION_LEDGER_MISMATCH"
+      ],
+      "codes": [
+        "INVALID_INPUT",
+        "PACKAGING_EVENT_NOT_FOUND",
+        "BATCH_IDENTITY_MISSING",
+        "EVENT_NOT_BULK_AFFECTING",
+        "EVENT_NOT_DEPLETING",
+        "CORRECTION_LINE_NOT_FOUND",
+        "SKU_NOT_FOUND",
+        "SKU_PRODUCT_MISMATCH",
+        "SKU_PACK_SIZE_INVALID",
+        "SKU_CONVERSION_INVALID",
+        "SKU_LINE_EXISTS"
+      ],
+      "notes": "Advisory and read-only (STABLE). The writer RPCs remain authoritative and re-validate under their locks."
+    },
+    {
+      "name": "mis_get_governance_exception_summary_v1",
+      "status": "S7b",
+      "args": [
+        [
+          "p_from",
+          "date"
+        ],
+        [
+          "p_to",
+          "date"
+        ],
+        [
+          "p_limit",
+          "integer"
+        ],
+        [
+          "p_offset",
+          "integer"
+        ]
+      ],
+      "defaults": {
+        "p_limit": "50",
+        "p_offset": "0"
+      },
+      "permission": "module:executive-mis-dashboard (view)",
+      "bounds": "p_to-p_from <= 92 days; 1 <= p_limit <= 200; p_offset >= 0",
+      "ok_keys": [
+        "ok",
+        "scope",
+        "from",
+        "to",
+        "count_unit",
+        "total_batches",
+        "governance_cutover",
+        "counts",
+        "line_count_unit",
+        "line_counts",
+        "total_items",
+        "items",
+        "limit",
+        "offset"
+      ],
+      "states": [
+        "SIGNED",
+        "UNSIGNED",
+        "SOURCE_CHANGED",
+        "NOT_VERIFIED",
+        "MISSING_ROUTE",
+        "MISSING_RECEIPT",
+        "BMR_IDENTITY_REVIEW"
+      ],
+      "item_keys": [
+        "product_id",
+        "product",
+        "batch_number",
+        "state",
+        "detail"
+      ],
+      "codes": [
+        "INVALID_INPUT"
+      ],
+      "notes": "Counts are distinct product/batch per state (states overlap); line_counts are distinct event_skus lines. Unsigned batches whose FG log predates governance_cutover are NOT_VERIFIED, never UNSIGNED/SIGNED."
     }
   ],
   "enforce_mode_error": "MIS_G7_DIRECT_PACKING_DENIED (42501): direct bulk-affecting event_skus INSERT/UPDATE/DELETE and header reassign/retype/delete are refused unless made by mis_pack_fg_bulk_v1 / mis_correct_pack_line_v1 in the same transaction.",
-  "legacy_editor_note": "rpc_update_daily_work_log_with_packaging (30 arguments, DEFINER, module:edit-log-entry edit; sha256 4c82b4a3...d7b4) and fn_parse_sku_breakdown (sha256 ec5fe3ea...29db) are NOT changed. The __core (live sha256 df7290df...6aec) is changed only by migration S5b (one function-local plpgsql directive + three added statements; patched sha256 dfa5a5e9...1bcc), which is owner-gated; its client contract is unchanged (same arguments, same result columns daily_work_log_id/packaging_event_id/inserted_event_sku_count, same sku_breakdown grammar e.g. '40 g x 576; 10 mL x 480'). Under AUDIT everything behaves as today; ENFORCE additionally needs the owner sign-off for the patched SHA. New refusal exceptions raised by the editor in either mode when a bulk-affecting chain would violate the rules (whole edit rolled back): MIS_G7_CHAIN_STAGE_NOT_SIGNED, MIS_G7_CHAIN_STAGE_SOURCE_CHANGED, MIS_G7_CHAIN_CONSERVATION_MISMATCH, MIS_G7_CHAIN_BATCH_IDENTITY_MISSING, MIS_G7_CHAIN_SKU_INVALID, MIS_G7_CHAIN_EVENT_NOT_DEPLETING, MIS_G7_CHAIN_REPLACE_NOT_FINISHED (SQLSTATE P0001)."
+  "legacy_editor_note": "rpc_update_daily_work_log_with_packaging (30 arguments, DEFINER, module:edit-log-entry edit; sha256 4c82b4a3...d7b4) and fn_parse_sku_breakdown (sha256 ec5fe3ea...29db) are NOT changed. The __core (live sha256 df7290df...6aec) is changed only by migration S5b (one function-local plpgsql directive + three added statements; patched sha256 dfa5a5e9...1bcc), which is owner-gated; its client contract is unchanged (same arguments, same result columns daily_work_log_id/packaging_event_id/inserted_event_sku_count, same sku_breakdown grammar e.g. '40 g x 576; 10 mL x 480'). Under AUDIT everything behaves as today; ENFORCE additionally needs the owner sign-off for the patched SHA. New refusal exceptions raised by the editor in either mode when a bulk-affecting chain would violate the rules (whole edit rolled back): MIS_G7_CHAIN_STAGE_NOT_SIGNED, MIS_G7_CHAIN_STAGE_SOURCE_CHANGED, MIS_G7_CHAIN_CONSERVATION_MISMATCH, MIS_G7_CHAIN_BATCH_IDENTITY_MISSING, MIS_G7_CHAIN_SKU_INVALID, MIS_G7_CHAIN_EVENT_NOT_DEPLETING, MIS_G7_CHAIN_REPLACE_NOT_FINISHED (SQLSTATE P0001).",
+  "s7_status": "PREPARED, NOT INSTALLED. The four S7 read RPCs below exist only after owner-authorized installation of 20261124120000 (S7a) and 20261124121000 (S7b). Clients must treat their absence (42883 / PGRST202) as \"S7 not installed\" and fall back to the S2\u2013S6 contract."
 }

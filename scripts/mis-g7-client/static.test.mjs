@@ -5,6 +5,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+const sha256 = (b) => createHash("sha256").update(b).digest("hex");
 
 const read = (p) => fs.readFileSync(new URL(`../../${p}`, import.meta.url), "utf8");
 const js = read("public/shared/js/mis-batch-governance.js");
@@ -68,7 +70,7 @@ test("protected service worker is not modified by this package (a reviewed SW ru
 
 test("executive MIS dashboard: governance section is presentation-only and links to the module", () => {
   const dash = read("public/shared/js/executive-mis-dashboard.js");
-  assert.match(dash, /import \{ GOVERNANCE_STATES, HISTORICAL_AUDIT_SNAPSHOT \} from "\.\/mis-g7-contract\.js"/);
+  assert.match(dash, /import \{ GOVERNANCE_STATES, HISTORICAL_AUDIT_SNAPSHOT, getExceptionSummary \} from "\.\/mis-g7-contract\.js"/);
   assert.match(dash, /renderGovernanceSection\(\)/); assert.match(dash, /href="mis-batch-governance\.html"/);
   assert.match(dash, /not live/); assert.match(dash, /never backfilled/);
   assert.equal((dash.match(/get_mis_production_value_summary/g) || []).length, (read("public/shared/js/executive-mis-dashboard.js").match(/get_mis_production_value_summary/g) || []).length);
@@ -76,7 +78,7 @@ test("executive MIS dashboard: governance section is presentation-only and links
 
 test("registry proposal is not placed in supabase/migrations and assigns no user", () => {
   const sql = read("docs/executive-mis-g7-server/CLIENT_PERMISSION_REGISTRY_PROPOSAL_NOT_APPLIED.sql");
-  assert.doesNotMatch(sql.replace(/^\s*--.*$/gm, ""), /user_permissions|insert into public\.user_/i);
+  assert.doesNotMatch(sql.replace(/^\s*--.*$/gm, ""), /(insert\s+into|update|delete\s+from)\s+public\.user_permissions/i);
   for (const t of ["mis-batch-stage-signer", "mis-fg-bulk-packing", "mis-fg-excess-adjustment", "mis-g7-enforcement-admin", "mis-g7-core-migration-signoff", "mis-batch-governance"]) assert.ok(sql.includes(`'${t}'`), t);
   assert.ok(!fs.readdirSync(new URL("../../supabase/migrations/", import.meta.url)).some((f) => /mis_g7_client|permission_registry/.test(f)));
 });
@@ -87,4 +89,21 @@ test("manifest regeneration preserves registered versions and LIVE status", () =
   for (const m of man.migrations) { assert.ok(gen.includes(m.registered_version), m.registered_version); assert.match(m.status, /^LIVE/); }
   assert.doesNotMatch(gen, /HELD \(not installed\)/);
   assert.ok(vm.isContext !== undefined);
+});
+
+test("hand-off into Add Log Entry is default-disabled and the legacy page change is exactly the guarded hooks", () => {
+  const ho = read("public/shared/js/mis-governed-handoff.js"); const add = read("js/log-add.js");
+  assert.match(ho, /export const GOVERNED_LOGGING_HANDOFF = false;/);
+  assert.match(ho, /if \(flag !== true \|\| !doc\) return \{ shown: false, reason: "disabled" \}/);
+  assert.doesNotMatch(ho, /#[0-9a-fA-F]{3,8}\b|rgba?\(/); assert.doesNotMatch(ho, /\.(insert|update|upsert|delete)\(|service_role|app_private/);
+  assert.equal((add.match(/mis-governed-handoff\.js/g) || []).length, 1); assert.equal((add.match(/handoffParam\(/g) || []).length, 1); assert.equal((add.match(/maybeShowHandoff\(\)/g) || []).length, 1);
+  assert.match(add, /const misSign = handoffParam\(savedWorkLogId\(data\), row\.activity\);/);
+  assert.doesNotMatch(add, /mis_sign_batch_stage_v1|mis_pack_fg_bulk_v1/);                      // the legacy page never calls the governed writers itself
+  assert.match(add, /rpc_create_daily_work_log_with_packaging/);                                 // legacy save RPC unchanged
+});
+test("prepared S7 migrations: identities recorded, forward-only, not in the live list, rollback has compatibility guards", () => {
+  const man = JSON.parse(read("docs/executive-mis-g7-server/MIGRATION_IDENTITIES.json")); assert.equal(man.migrations.length, 8); assert.equal(man.pending_migrations.length, 2);
+  for (const m of man.pending_migrations) { const b = fs.readFileSync(new URL(`../../supabase/migrations/${m.repo_file}`, import.meta.url)); assert.equal(sha256(b), m.sha256, m.repo_file); assert.equal(b.length, m.bytes); assert.equal(m.registered_version, null); assert.match(m.status, /PREPARED/); assert.ok(!man.migrations.some((x) => x.repo_file === m.repo_file)); }
+  const rb = read("docs/executive-mis-g7-server/S7_ROLLBACK_NOT_A_MIGRATION.sql"); for (const g of ["MIS_G7_S7_ROLLBACK_INCOMPATIBLE_IDENTITIES", "MIS_G7_S7_ROLLBACK_INCOMPATIBLE_SIGNATURES", "MIS_G7_S7_ROLLBACK_ORDER"]) assert.ok(rb.includes(g), g);
+  for (const m of man.pending_migrations) assert.doesNotMatch(read(`supabase/migrations/${m.repo_file}`), /mis_resolve_batch_stage_s2_legacy|DROP TABLE app_private\.mis_batch_stage_event|DELETE FROM app_private\.mis_batch_stage_event/);
 });

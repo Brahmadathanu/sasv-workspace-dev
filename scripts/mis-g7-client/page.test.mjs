@@ -84,7 +84,8 @@ test("authorized stage signing: route + exact work-log evidence + confirm modal 
   assert.match(await page.textContent("#panel-sign"), /Not signable/); assert.match(await page.textContent("#panel-sign"), /override steps/i);
   await shot(page, "01-sign-desktop.png");
   await page.click('#stepTable tr:has-text("FG bulk storage")'); await page.click('#logTable tr[data-log="1002"]');
-  await page.fill("#mqty", "10"); await page.click("#signBtn");
+  await page.fill("#mqty", "10"); await page.click("#signBtn"); assert.match(await page.textContent("#banner"), /Evidence reference is required/); assert.equal((await calls(page, "mis_sign_batch_stage_v1")).length, 0);
+  await page.fill("#evref", "WB-1"); await page.click("#signBtn");
   assert.equal(await page.$eval("#modalRoot", (e) => e.hidden), false); assert.match(await page.textContent("#modalBody"), /BMR[\s\S]*#101/);
   await page.keyboard.press("Escape"); assert.equal(await page.$eval("#modalRoot", (e) => e.hidden), true); assert.equal(await page.evaluate(() => document.activeElement.id), "signBtn");
   await page.click("#signBtn"); await page.click("#mSign"); await page.waitForSelector("#banner:has-text('Stage signed')");

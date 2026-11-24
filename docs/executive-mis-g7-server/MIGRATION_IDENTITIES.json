@@ -83,5 +83,27 @@
       "sha256": "c429b4d888e40b7232551db4e6a1f011e5b0cb1830ce4d1d17a5b2b2222d680e",
       "git_blob_sha1": "af5bceee51358e190ee2840b35c9c32a9cb47ee7"
     }
+  ],
+  "pending_migrations": [
+    {
+      "seq": 9,
+      "repo_file": "20261124120000_mis_g7_s7a_shared_route_identity_and_stage_status.sql",
+      "supabase_migration_name": "mis_g7_s7a_shared_route_identity_and_stage_status",
+      "registered_version": null,
+      "status": "PREPARED (not installed; owner authorization required; forward-only)",
+      "bytes": 19258,
+      "sha256": "e4c7c5bd3b9e8502c3b51589f6a2366058c2e3c8b4ce49c997761e1623f3ac02",
+      "git_blob_sha1": "6af60e3c86510672b910720895facc86b01a513a"
+    },
+    {
+      "seq": 10,
+      "repo_file": "20261124121000_mis_g7_s7b_governed_previews_and_exception_summary.sql",
+      "supabase_migration_name": "mis_g7_s7b_governed_previews_and_exception_summary",
+      "registered_version": null,
+      "status": "PREPARED (not installed; owner authorization required; forward-only)",
+      "bytes": 13475,
+      "sha256": "6e7086b4a62d122e4b34e795d796a262a39acfd513f9e290478996b3fcfac4a5",
+      "git_blob_sha1": "f6fcfe0105d0a90be17717407499823c805ce2de"
+    }
   ]
 }

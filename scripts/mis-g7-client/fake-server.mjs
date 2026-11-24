@@ -54,6 +54,7 @@ const handlers = {
     if (!can(cfg, "module:mis-batch-stage-signer", true)) return raised("42501", "permission required: module:mis-batch-stage-signer");
     const prior = cfg.stage_requests[a.p_idempotency_key];
     if (prior) return prior.h === hash(a) ? { data: { ...clone(prior.res), idempotent_replay: true }, error: null } : refuse("IDEMPOTENCY_KEY_REUSED");
+    if (!a.p_evidence_ref || !String(a.p_evidence_ref).trim()) return refuse("INVALID_INPUT");    // live S2: evidence_ref is mandatory
     const wl = cfg.logs.find((l) => l.id === a.p_work_log_id); const prod = cfg.products.find((p) => p.id === a.p_product_id);
     if (!wl || !prod || wl.item !== prod.item || wl.batch_number !== a.p_batch_number) return refuse("WORK_LOG_IDENTITY_MISMATCH");
     if (cfg.bmr.filter((b) => b.product_id === a.p_product_id && b.bn === a.p_batch_number).length !== 1) return refuse("BMR_IDENTITY_REVIEW");

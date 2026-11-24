@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import {
   classifyRpc, callRpc, IntentRegistry, packScope, normalizeLines, validateExcess, signableSteps, loadCapabilities, modeLabel,
-  RPC, REFUSALS, MIS_TARGETS, stateFromRefusal, newIntentKey, describeRefusal, correctionReceipt, packReceipt,
+  RPC, REFUSALS, MIS_TARGETS, idArg, contextSteps, routeLabel, describePreview, eventState, getPreview, getStageStatus, getRouteContext, getExceptionSummary, stateFromRefusal, newIntentKey, describeRefusal, correctionReceipt, packReceipt,
 } from "../../public/shared/js/mis-g7-contract.js";
 import { createFake, defaultConfig } from "./fake-server.mjs";
 
@@ -89,7 +89,7 @@ test("authorized stage signing succeeds, replays idempotently, and unauthorized 
 
 test("route ambiguity, BMR ambiguity and activity/step discrepancies are surfaced as server refusals", async () => {
   const cfg = defaultConfig(); const sb = createFake(cfg);
-  const base = { p_idempotency_key: newIntentKey(), p_product_id: 7, p_batch_number: "B-DUP", p_work_log_id: 1201, p_route_step_id: 42, p_step_occurrence: 1, p_measured_qty_base: 5, p_evidence_ref: null };
+  const base = { p_idempotency_key: newIntentKey(), p_product_id: 7, p_batch_number: "B-DUP", p_work_log_id: 1201, p_route_step_id: 42, p_step_occurrence: 1, p_measured_qty_base: 5, p_evidence_ref: "WB" };
   assert.equal((await callRpc(sb, RPC.sign, base)).code, "BMR_IDENTITY_REVIEW");
   assert.equal((await callRpc(sb, RPC.sign, { ...base, p_batch_number: "T-001", p_product_id: 8, p_work_log_id: 2001 })).code, "PRODUCT_ROUTE_COVERAGE");
   assert.equal((await callRpc(sb, RPC.sign, { ...base, p_batch_number: "B-001", p_work_log_id: 1001, p_route_step_id: 42 })).code, "ACTIVITY_STEP_MISMATCH");
@@ -162,7 +162,7 @@ test("stage correction voids a signature; source revision then requires re-signi
   wl.storage_qty = 9; const chg = await callRpc(sb, RPC.pack, pack(cfg, { p_lines: [{ sku_id: 71, count: 1 }] })); assert.equal(chg.code, "STAGE_SOURCE_CHANGED"); assert.equal(stateFromRefusal(chg.code), "SOURCE_CHANGED");
   const corr = await callRpc(sb, RPC.correctStage, { p_idempotency_key: newIntentKey(), p_event_id: s.data.event_id, p_reason: "log quantity corrected" }); assert.equal(corr.kind, "ok");
   assert.equal((await callRpc(sb, RPC.correctStage, { p_idempotency_key: newIntentKey(), p_event_id: s.data.event_id, p_reason: "again" })).code, "ALREADY_CORRECTED");
-  assert.equal((await callRpc(sb, RPC.sign, { p_idempotency_key: newIntentKey(), p_product_id: 7, p_batch_number: "B-001", p_work_log_id: 1002, p_route_step_id: 42, p_step_occurrence: 1, p_measured_qty_base: 9, p_evidence_ref: null })).kind, "ok");
+  assert.equal((await callRpc(sb, RPC.sign, { p_idempotency_key: newIntentKey(), p_product_id: 7, p_batch_number: "B-001", p_work_log_id: 1002, p_route_step_id: 42, p_step_occurrence: 1, p_measured_qty_base: 9, p_evidence_ref: "WB-2" })).kind, "ok");
 });
 
 test("readiness is admin-gated and AUDIT is reported as AUDIT; no enforcement or core sign-off RPC is wrapped by the client", async () => {
@@ -171,4 +171,50 @@ test("readiness is admin-gated and AUDIT is reported as AUDIT; no enforcement or
   cfg.caps["module:mis-g7-enforcement-admin"] = [1, 0]; const r = await callRpc(sb, RPC.readiness, { p_days: 7 }); assert.equal(r.kind, "ok"); assert.equal(modeLabel(r.data).mode, "AUDIT");
   const rpcValues = Object.values(RPC); assert.ok(!rpcValues.some((v) => /set_enforcement|record_core_migration/.test(v)));
   assert.equal(describeRefusal("NOPE").kind, "other");
+});
+
+/* ───────── S7 client contract helpers ───────── */
+test("S7 RPC names are in client_rpc_contract.json with their documented arguments", () => {
+  const by = Object.fromEntries(contract.rpcs.map((r) => [r.name, r]));
+  for (const k of ["routeContext", "stageStatus", "preview", "exceptions"]) assert.ok(by[RPC[k]], RPC[k]);
+  assert.deepEqual(by[RPC.routeContext].args.map((a) => a[0]), ["p_product_id", "p_batch", "p_work_log_id"]);
+  assert.deepEqual(by[RPC.preview].args.map((a) => a[0]), ["p_packaging_event_id", "p_lines", "p_event_sku_id", "p_new_count"]);
+  assert.deepEqual(by[RPC.exceptions].args.map((a) => a[0]), ["p_from", "p_to", "p_limit", "p_offset"]);
+  for (const code of by[RPC.routeContext].codes) assert.ok(REFUSALS[code], `no wording for ${code}`);
+  for (const code of by[RPC.preview].preview_codes.filter((c) => c !== "OK" && c !== "INSUFFICIENT_BULK")) assert.ok(REFUSALS[code], `no wording for preview ${code}`);
+});
+test("absence of S7 is classified as unavailable (never as a failure of the operation)", () => {
+  for (const e of [{ code: "42883", message: "x" }, { code: "PGRST202", message: "x" }, { message: "Could not find the function public.mis_get_batch_stage_status_v1" }]) assert.equal(classifyRpc({ error: e }).kind, "unavailable");
+});
+test("ids: bigint-safe argument passing; negative and >2^53 identities survive", () => {
+  assert.equal(idArg("103"), 103); assert.equal(idArg("-701"), -701); assert.equal(idArg("9007199254740993"), "9007199254740993"); assert.equal(idArg(-9007199254740993n), "-9007199254740993");
+});
+test("context steps: all offered steps are signable, ADDED steps keep their negative text id, labels distinguish inherited from product routes", () => {
+  const ctx = { route_kind: "ROUTE_FAMILY_INHERITED", family_route_id: "11", steps: [{ route_step_id: "103", step_kind: "BASE", sequence_no: 30, activity_name: "FG bulk storage", stage_role: "FG_BULK", activity_matches: true, is_mandatory: true }, { route_step_id: "-701", step_kind: "ADDED", sequence_no: 15, activity_name: "Heating", stage_role: "OTHER", activity_matches: false }] };
+  const s = contextSteps(ctx); assert.deepEqual(s.map((x) => [x.stepId, x.isFg, x.matches, x.kind]), [["103", true, true, "BASE"], ["-701", false, false, "ADDED"]]);
+  assert.equal(routeLabel(ctx), "inherited family route #11"); assert.equal(routeLabel({ product_route_id: "21" }), "product route #21");
+});
+test("preview wording: blocking outcomes block, insufficient does not, excess authority shapes the hint", () => {
+  assert.equal(describePreview({ preview_code: "OK" }).blocking, false);
+  assert.equal(describePreview({ preview_code: "INSUFFICIENT_BULK", excess_permitted: true }).blocking, false); assert.match(describePreview({ preview_code: "INSUFFICIENT_BULK", excess_permitted: true }).fix, /excess/i); assert.doesNotMatch(describePreview({ preview_code: "INSUFFICIENT_BULK", excess_permitted: false }).fix, /can be recorded/);
+  for (const c of ["FG_STAGE_NOT_SIGNED", "STAGE_SOURCE_CHANGED", "FG_RECEIPT_MISSING", "CORRECTION_NO_DEPLETION_BASIS", "CORRECTION_LEDGER_MISMATCH", "CORRECTION_NO_CHANGE"]) assert.equal(describePreview({ preview_code: c }).blocking, true, c);
+  assert.equal(describePreview({ preview_code: "FG_STAGE_NOT_SIGNED" }).state, "NOT_VERIFIED"); assert.equal(describePreview({ preview_code: "STAGE_SOURCE_CHANGED" }).state, "SOURCE_CHANGED");
+  assert.equal(eventState({ state: "SIGNED" }), "SIGNED"); assert.equal(eventState({ state: "SOURCE_CHANGED" }), "SOURCE_CHANGED"); assert.equal(eventState({ state: "CORRECTED" }), null);
+});
+test("S7 reads send exactly the documented arguments (pack and correct previews are exclusive)", async () => {
+  const seen = []; const client = { rpc: async (n, a) => { seen.push([n, a]); return { data: { ok: true }, error: null }; } };
+  await getRouteContext(client, 21, "B", 5); await getStageStatus(client, 21, "B"); await getPreview(client, "5001", { lines: [{ sku_id: 1, count: 2 }] }); await getPreview(client, 5001, { eventSkuId: 9, newCount: 0 }); await getExceptionSummary(client, "2026-11-01", "2026-11-30", 25, 50);
+  assert.deepEqual(seen.map((x) => x[0]), [RPC.routeContext, RPC.stageStatus, RPC.preview, RPC.preview, RPC.exceptions]);
+  assert.deepEqual(seen[2][1], { p_packaging_event_id: 5001, p_lines: [{ sku_id: 1, count: 2 }], p_event_sku_id: null, p_new_count: null });
+  assert.deepEqual(seen[3][1], { p_packaging_event_id: 5001, p_lines: null, p_event_sku_id: 9, p_new_count: 0 });
+  assert.deepEqual(seen[4][1], { p_from: "2026-11-01", p_to: "2026-11-30", p_limit: 25, p_offset: 50 });
+});
+test("capabilities add the executive-MIS exception view without granting any write right", async () => {
+  const cfg = defaultConfig(); cfg.caps["module:executive-mis-dashboard"] = [1, 0]; const c = await loadCapabilities(createFake(cfg));
+  assert.equal(c.canViewExceptions, true); assert.equal(c.canSign && c.canPack, true); cfg.caps = { "module:executive-mis-dashboard": [1, 0] }; const only = await loadCapabilities(createFake(cfg)); assert.deepEqual([only.canViewExceptions, only.canSign, only.canPack, only.canExcess], [true, false, false, false]);
+});
+test("model parity: signing requires an evidence reference (live S2 contract)", async () => {
+  const cfg = defaultConfig(); const sb = createFake(cfg);
+  const r = await callRpc(sb, RPC.sign, { p_idempotency_key: newIntentKey(), p_product_id: 7, p_batch_number: "B-001", p_work_log_id: 1002, p_route_step_id: 42, p_step_occurrence: 1, p_measured_qty_base: 10, p_evidence_ref: null });
+  assert.equal(r.code, "INVALID_INPUT"); assert.equal(cfg.signed.length, 0);
 });

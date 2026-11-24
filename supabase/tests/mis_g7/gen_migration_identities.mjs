@@ -27,7 +27,12 @@ const rows = ORDER.map((f, i) => {
   return { seq: i + 1, repo_file: f, supabase_migration_name: `mis_g7_${name.replace(/\.sql$/, '')}`, registered_version: REGISTERED[name.replace(/\.sql$/, '')] ?? null,
     status: i === 0 ? 'LIVE (installed; never replay)' : 'LIVE (installed; AUDIT; never replay)', bytes: b.length, sha256: crypto.createHash('sha256').update(b).digest('hex'), git_blob_sha1: blob(b) };
 });
+// Prepared (NOT installed) forward-only migrations: identities only; they never enter `migrations` (the eight LIVE rows) until registered in production.
+const PENDING = ['20261124120000_mis_g7_s7a_shared_route_identity_and_stage_status.sql', '20261124121000_mis_g7_s7b_governed_previews_and_exception_summary.sql'];
+const pending = PENDING.filter((f) => fs.existsSync(path.join(migDir, f))).map((f, i) => { const b = fs.readFileSync(path.join(migDir, f)); return {
+  seq: 9 + i, repo_file: f, supabase_migration_name: `mis_g7_${f.replace(/^\d{14}_mis_g7_/, '').replace(/\.sql$/, '')}`, registered_version: null, status: 'PREPARED (not installed; owner authorization required; forward-only)',
+  bytes: b.length, sha256: crypto.createHash('sha256').update(b).digest('hex'), git_blob_sha1: blob(b) }; });
 fs.writeFileSync(out, JSON.stringify({ manifest_version: 'mis-g7-migration-identities/1', patched_core_sha256: PATCHED_CORE_SHA,
   note: 'All eight identities registered in production, verified 2026-11-24. S2 preserved. S3–S6 applied once from 74ed6c49c8655d22eedc6dc32ed09c0f238f5126 under explicit owner authorization accepting the isolated PG17.4 test limitation. No ENFORCE or core sign-off. Do not replay or db push from mismatched filename prefixes.',
-  migrations: rows }, null, 2) + '\n');
+  migrations: rows, pending_migrations: pending }, null, 2) + '\n');
 console.log(`wrote ${out}`); for (const r of rows) console.log(r.seq, r.repo_file, r.git_blob_sha1.slice(0, 10), r.sha256.slice(0, 12));

@@ -292,7 +292,7 @@ T('CORE read-only pre-migration check: 6/6 TRUE against the exact live editor so
 T('CONTRACT client_rpc_contract.json matches catalog signatures and refusal codes bidirectionally', () => {
   const c = JSON.parse(fs.readFileSync(path.join(docs, 'client_rpc_contract.json'), 'utf8'));
   const resolverSrc = val(`SELECT replace(prosrc, E'\\n', ' ') FROM pg_proc WHERE oid='app_private.mis_resolve_batch_stage(integer,text,integer,bigint)'::regprocedure`);
-  for (const r of c.rpcs) {
+  for (const r of c.rpcs.filter((x) => !x.status)) {            // S7 entries (status S7a/S7b) are verified against the S7 catalog in s7/mis_g7_s7_pg.test.mjs
     const oid = val(`SELECT p.oid FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname='${r.name}'`);
     assert.equal(val(`SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname='${r.name}'`), '1', `${r.name} overloaded`);
     const args = val(`SELECT pg_get_function_arguments(${oid})`).split(', ').map((a) => a.replace(/ DEFAULT .*$/, '').split(' '));
@@ -324,7 +324,8 @@ T('MIGRATION FILE NAMES: every migration timestamp is a valid UTC date-time, nam
   const ts = (f) => { const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})_/.exec(f); assert.ok(m, `bad migration name ${f}`); const [Y, Mo, D, h, mi, se] = m.slice(1).map(Number);
     const d = new Date(Date.UTC(Y, Mo - 1, D, h, mi, se)); assert.ok(d.getUTCFullYear() === Y && d.getUTCMonth() === Mo - 1 && d.getUTCDate() === D && d.getUTCHours() === h && d.getUTCMinutes() === mi && d.getUTCSeconds() === se, `invalid timestamp in ${f}`); return m.slice(1).join(''); };
   const stamps = names.map(ts); assert.equal(new Set(stamps).size, stamps.length, 'duplicate timestamps');
-  const g7 = names.filter((f) => /mis_g7_/.test(f)); assert.equal(g7.length, 8);
+  const all = names.filter((f) => /mis_g7_/.test(f)); const s7 = all.filter((f) => /_s7[a-z]_/.test(f)); const g7 = all.filter((f) => !/_s7[a-z]_/.test(f)); assert.equal(g7.length, 8);
+  assert.ok(s7.every((f) => ts(f) > ts(FINGERPRINT_MIGRATION)), 'S7 forward migrations sort after S6'); assert.deepEqual(s7, [...s7].sort());
   const first = names.indexOf(g7[0]); assert.ok(names.slice(0, first).every((f) => ts(f) < ts(g7[0])));
   g7.forEach((f, i) => { if (i) assert.ok(ts(f) > ts(g7[i - 1]), `${f} must sort after ${g7[i - 1]}`); });
   assert.deepEqual(MIGRATIONS, g7.filter((f) => !f.includes('s5b_') && !f.includes('s6_')));                                  // harness order == apply order (S5b is explicitly owner-gated)

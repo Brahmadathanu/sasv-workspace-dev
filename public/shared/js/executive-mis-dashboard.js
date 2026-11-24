@@ -1,6 +1,6 @@
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
-import { GOVERNANCE_STATES, HISTORICAL_AUDIT_SNAPSHOT } from "./mis-g7-contract.js";
+import { GOVERNANCE_STATES, HISTORICAL_AUDIT_SNAPSHOT, getExceptionSummary } from "./mis-g7-contract.js";
 
 const MODULE_ID = "executive-mis-dashboard";
 const PLAN_WARNING_STATUS =
@@ -1845,9 +1845,27 @@ function renderGovernanceSection() {
     <details class="mis-gov" id="productionGovernance">
       <summary>Production evidence status <span class="mis-gov-mode">AUDIT mode: governed signing is available, not yet mandatory</span></summary>
       <ul class="mis-gov-states">${states}</ul>
+      <div id="govLive" class="mis-gov-live" aria-live="polite"></div>
       <p class="mis-gov-hist"><strong>Historical, not verified</strong> (reference snapshot, ${escapeHtml(h.window)}; not live): ${h.missingDepletionLines} packing lines in ${h.missingDepletionProductBatches} product-batches have no recorded depletion; route-master deficiencies on ${h.fgBulkLogs} FG bulk logs: ${gaps}. These are never backfilled or assumed correct and are kept separate from newly governed records.</p>
       <p class="mis-gov-link"><a href="mis-batch-governance.html">Open Batch Governance</a></p>
     </details>`;
+}
+
+// Live governed counts (S7 server read, last 30 days). Absent/denied/failed => the static definitions above stay; nothing is inferred client-side.
+let GOV_LIVE_TOKEN = 0;
+async function loadGovernanceLive() {
+  const el = document.getElementById("govLive"); if (!el) return;
+  const tok = ++GOV_LIVE_TOKEN; const to = istToday(); const from = new Date(new Date(`${to}T00:00:00Z`).getTime() - 30 * 86400000).toISOString().slice(0, 10);
+  el.innerHTML = `<span class="mis-gov-hist">Loading live counts…</span>`;
+  const res = await getExceptionSummary(supabase, from, to, 1, 0);
+  if (tok !== GOV_LIVE_TOKEN || !document.getElementById("govLive")) return;
+  if (res.kind !== "ok") {
+    el.innerHTML = res.kind === "unavailable" ? "" : `<span class="mis-gov-hist">Live counts unavailable${res.kind === "denied" ? " for your account" : ""}.</span>`;
+    return;
+  }
+  const d = res.data; const tags = Object.keys(GOVERNANCE_STATES).filter((k) => k in d.counts)
+    .map((k) => `<span class="mis-gov-tag mis-gov-${escapeHtml(GOVERNANCE_STATES[k].tone)}">${escapeHtml(GOVERNANCE_STATES[k].label)} ${escapeHtml(d.counts[k])}</span>`).join(" ");
+  el.innerHTML = `<p class="mis-gov-hist"><strong>Live, ${escapeHtml(d.from)} to ${escapeHtml(d.to)}</strong> (${escapeHtml(d.count_unit)}; ${escapeHtml(d.total_batches)} product/batches; cut-over ${escapeHtml(d.governance_cutover)}): ${tags || "no FG batches in the window"}. ${escapeHtml(d.line_counts.PACKING_LINES_WITHOUT_DEPLETION)} of ${escapeHtml(d.line_counts.PACKING_LINES)} packing lines have no recorded depletion (distinct lines).</p>`;
 }
 
 function renderProductionShell() {
@@ -1858,6 +1876,7 @@ function renderProductionShell() {
   `;
   renderProductionValueBody();
   renderProductionCountsBody();
+  document.getElementById("productionGovernance")?.addEventListener("toggle", (e) => { if (e.target.open) loadGovernanceLive(); });
 }
 
 async function loadProductionTab() {

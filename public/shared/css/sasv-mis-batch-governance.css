@@ -132,3 +132,8 @@ body.sasv-mbg #homeBtn.sasv-home-btn:focus-visible { outline: 2px solid var(--sa
 .mbg-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
 .mbg-legend > div { display: flex; gap: 8px; align-items: flex-start; }
 .mbg-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+.mbg-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin: 8px 0; }
+.mbg-tile { border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-md); background: var(--sasv-surface-soft); padding: 6px 10px; }
+.mbg-tile strong { font-size: 1.125rem; font-variant-numeric: tabular-nums; }
+.mbg-preview:empty { display: none; }
