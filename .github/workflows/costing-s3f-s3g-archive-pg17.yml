@@ -78,5 +78,20 @@ jobs:
           grep -q '"relationCount":64' "$RUNNER_TEMP/direct-fk-restored.txt"
           grep -q '"verifiedRows":217964' "$RUNNER_TEMP/direct-fk-restored.txt"
           echo S3P_PG17_64_DIRECT_RELATION_TYPED_RESTORE_PASS
+          # S3Q: bidirectional FK isolation is checked against all 62 internal
+          # relationships in the isolated synthetic topology, with deliberate
+          # adversarial other-run -> run87 FK link added AFTER the clean pass.
+          SASV_AUDIT_DATABASE_URL="postgresql://postgres:fixture_only@127.0.0.1:5432/s3f_fixture" \
+            node docs/master-data-costing/tools/audit-run87-cross-fk-readonly.mjs | tee "$RUNNER_TEMP/s3q-clean.txt"
+          grep -q '"checksPerformed":124' "$RUNNER_TEMP/s3q-clean.txt"
+          grep -q '"decision":"FK_LINKS_ONLY_PASS"' "$RUNNER_TEMP/s3q-clean.txt"
+          psql -X -v ON_ERROR_STOP=1 -c "INSERT INTO costing.s3n_pk_07(refresh_run_id,parent_evidence_id,placeholder) VALUES (148,1,'adversarial-cross-run')"
+          if SASV_AUDIT_DATABASE_URL="postgresql://postgres:fixture_only@127.0.0.1:5432/s3f_fixture" \
+            node docs/master-data-costing/tools/audit-run87-cross-fk-readonly.mjs > "$RUNNER_TEMP/s3q-cross.txt"; then
+            echo "S3Q failed to block an injected cross-run FK"; exit 1
+          fi
+          grep -q '"decision":"HOLD"' "$RUNNER_TEMP/s3q-cross.txt"
+          grep -q '"outcome":"BLOCK_CROSS_RUN"' "$RUNNER_TEMP/s3q-cross.txt"
+          echo S3Q_PG17_BIDIRECTIONAL_FK_SAFE_AND_ADVERSARIAL_PASS
           echo S3N_PG17_CATALOG_DIRECT_FK_ARCHIVE_PASS
           echo S3F_S3G_PG17_FULLSIZE_ARCHIVE_RESTORE_PASS
