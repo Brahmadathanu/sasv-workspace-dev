@@ -1,5 +1,10 @@
 # MIS G7 S2–S4 server package (draft; not applied, not deployed)
 
+## LIVE DEPLOYMENT OVERRIDE — 24 November 2026
+
+**S2 IS LIVE** on Supabase `qhmoqtxpeasamtlxaoak`; migration action registered version `20261124055734` under `mis_g7_s2_signed_batch_stage_events` from draft source filename `20261123140000_mis_g7_s2_signed_batch_stage_events.sql`. **Do not replay S2 or assume filename version equals DB registered version.** The only live G7 change is S2; signer and correction RPCs exist but the five new MIS permission targets have **zero assignments**, and no historical signatures (0 rows) were fabricated. **S3, S4, S3b, S4b, S5, S5b remain UNINSTALLED; no stock locking or packaging ENFORCE is live.** PR #522 remains draft. Last independent post-install read-only checks: S3 lock trigger absent, S3b gate absent, pack RPC absent. Prior 17/17 S3b and 7/7 core pre-install catalog checks are not migration/JWT acceptance. See authoritative `MIS_G7_CONTINUATION_HANDOVER_20261124.md` and `ACCEPTANCE_PACKAGE.md`. **G7 OPEN 6/11 (~55%), G8 parked.** Existing lower sections were written before the S2 rollout and any contradictory 'nothing applied' or older S3b design notes are historical snapshots superseded by this block.
+
+
 Issue #521. Base `62b1f12c` (= `origin/main`, v6.4.2). Workflow reference: PR #485 (`docs/executive-mis-workflow-20261119`, §83). #485/#517 untouched.
 `public.get_mis_production_value_summary(date,date)` is not referenced or modified.
 
