@@ -26,8 +26,13 @@ function loadStub() {
   const a = src.indexOf("function stub(scenario) {");
   const b = src.indexOf("\nconst browser = await chromium.launch()");
   if (a < 0 || b < 0 || b < a) throw new Error("pec-ui-harness: cannot locate the stub() fixture in pec-erp-c1-layout-smoke.mjs");
-  // eslint-disable-next-line no-new-func
-  return new Function("PAGED_SHIM", `${src.slice(a, b)}\nreturn stub;`)(PAGED_SHIM);
+  const stub = new Function("PAGED_SHIM", `${src.slice(a, b)}\nreturn stub;`)(PAGED_SHIM);
+  // Harness-only extension: scenario.delays = { rpcName: ms } slows a named RPC so busy
+  // (in-flight) states can be held open deterministically. Fixture source is not modified.
+  return (scenario) => stub(scenario).replace(
+    "rpc: async (name, params) => {",
+    "rpc: async (name, params) => { if (S.delays && S.delays[name]) await new Promise((r) => setTimeout(r, S.delays[name]));",
+  );
 }
 
 export async function startHarness() {
@@ -64,5 +69,14 @@ export async function startHarness() {
     await page.waitForSelector("#indentViewModalBackdrop.show");
     await page.waitForTimeout(500);
   }
-  return { open, openIndentModal, close: async () => { await browser.close(); server.close(); } };
+  /** Same as openIndentModal but for the n-th row (1-based). Row 1 is a draft indent in the fixture. */
+  async function openIndentModalAt(page, vp, row) {
+    if (vp.width <= 520) await page.selectOption("#procTabSelect", "indents");
+    else await page.click('.tabs .tab-btn[data-tab="indents"]');
+    await page.waitForTimeout(400);
+    await page.click(`#iTbody tr:nth-child(${row})`);
+    await page.waitForSelector("#indentViewModalBackdrop.show");
+    await page.waitForTimeout(500);
+  }
+  return { open, openIndentModal, openIndentModalAt, close: async () => { await browser.close(); server.close(); } };
 }

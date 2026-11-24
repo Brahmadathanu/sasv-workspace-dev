@@ -4,7 +4,7 @@ import { Platform } from "./platform.js";
 import { mountModuleHome } from "./sasv-module-chrome.js";
 // Versioned specifier: public/sw.js is protected on client PRs (release PR only), so the
 // cache-first path for a new module is made safe by bumping this suffix on every edit.
-import { createModalStack } from "./pec-modal-stack.js?v=20261124a";
+import { createModalStack } from "./pec-modal-stack.js?v=20261124b";
 
 // Single owner of dialog stacking + Escape dismissal (see pec-modal-stack.js).
 const modalStack = createModalStack();
@@ -1860,6 +1860,9 @@ function syncFilterSheetState() {
 }
 
 function positionFloatingFilterDrawer(btn, drawer) {
+  // Portaled to <body>: layer it from the modal stack (above its owner, below any later dialog).
+  const drawerZ = modalStack.transientZ(btn);
+  drawer.style.setProperty("--pec-transient-z", String(drawerZ));
   if (!btn || !drawer) return;
   if (pecIsSheetViewport()) {
     // Phones: a full-viewport sheet (CSS); no anchored geometry.
@@ -1875,7 +1878,7 @@ function positionFloatingFilterDrawer(btn, drawer) {
   drawer.style.position = "fixed";
   drawer.style.right = "auto";
   drawer.style.bottom = "auto";
-  drawer.style.zIndex = "2147483647";
+  drawer.style.zIndex = String(drawerZ);
 
   const margin = 4;
   const dropW = drawer.offsetWidth || 220;
@@ -2247,13 +2250,18 @@ async function submitHardDeleteConfirm() {
   }
 
   const reason = (qs("hardDeleteReason")?.value || "").trim() || null;
+  const hdBackdrop = qs("hardDeleteModalBackdrop");
   setLoading(true);
+  // In-flight delete: Escape must not dismiss the dialog (nor anything beneath it).
+  if (hdBackdrop) hdBackdrop.dataset.pecEscape = "protect";
   try {
     await hardDeleteOnConfirm(reason);
+    if (hdBackdrop) delete hdBackdrop.dataset.pecEscape;
     closeHardDeleteModal(true);
   } catch (err) {
     toast(err?.message || "Delete failed.", "error");
   } finally {
+    if (hdBackdrop) delete hdBackdrop.dataset.pecEscape;
     setLoading(false);
   }
 }

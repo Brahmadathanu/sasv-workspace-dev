@@ -77,6 +77,28 @@ Generate PR.
 Preserved: both vendor-handling choices and wording, the default (clear inactive recommendations
 only), permission checks, confirmation semantics and all element ids.
 
+## 3a. Review hardening (after independent review of a468de5)
+
+Each item was first reproduced by a failing test, then fixed:
+
+1. **Same-turn opens in reverse DOM order** fell back to DOM order (the stack was rebuilt from a DOM
+   scan). The manager now applies the ordered `MutationRecord`s (`attributeOldValue`), so actual open
+   order wins and a re-opened dialog moves to the top.
+2. **Focus left on a hidden element**: when the dismissed dialog's focused control stayed attached but
+   invisible, focus ended on `<body>`. Focus is now treated as lost when it is inside the dismissed
+   dialog or on any non-rendered element, and returns to the initiator.
+3. **Busy dialogs**: the in-flight Delete Draft confirm could be dismissed mid-write. It is now marked
+   `data-pec-escape="protect"` for the duration of the write (the reconcile and IND-plan writers were
+   already guarded). `aria-busy="true"` is also honoured.
+4. **Drawer stacking**: portaled filter drawers carried a fixed `z-index: 2147483647`, so they covered
+   dialogs opened above their owner. Their z-index now comes from `modalStack.transientZ` (owner + 5).
+   Export menus and the PR More menu live inside their dialog and already stack correctly.
+5. Lint/syntax: `node --check` on all changed JS; ESLint 9 with the repository config. The 16
+   pre-existing `no-unused-vars` / `no-useless-catch` errors in `procurement-execution-console.js` are
+   identical on main; the new files are clean.
+
+Module import version suffix advanced to `?v=20261124b`.
+
 ## 4. Evidence
 
 - Screenshots: `docs/procurement-execution/evidence/pec-modal-ux/{before,after}` at 1440 px and 390 px

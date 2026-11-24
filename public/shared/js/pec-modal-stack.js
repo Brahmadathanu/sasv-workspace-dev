@@ -24,6 +24,10 @@
 //    page). They take Escape first only when they belong to the topmost layer.
 //  - Focus returns to the control that was focused when the dialog opened, unless
 //    the closing code already moved focus somewhere real.
+//  - Dialogs opened in the same task keep their ACTUAL open order (taken from the ordered
+//    MutationRecords), never DOM order. Re-opening moves a dialog to the top.
+//  - Portaled drawers take their z-index from the stack (transientZ), so a dialog opened
+//    above their owner always covers them.
 //  - Escape performs no business action: closers are the dialogs' existing
 //    dismiss functions (cancel/close), never confirm handlers.
 
@@ -59,30 +63,30 @@ export function createModalStack({ doc = document, win = window } = {}) {
     }
   }
 
-  /** Reconcile the stack with the DOM. Safe to call at any time. Returns the stack. */
-  function sync() {
-    if (observer) observer.takeRecords();
-    const open = Array.from(doc.querySelectorAll(SELECTOR)).filter(isOpen);
-    const openSet = new Set(open);
+  const hasShow = (cls) => /(^|\s)show(\s|$)/.test(cls || "");
 
-    // closed since last sync
-    const closed = stack.filter((el) => !openSet.has(el));
-    if (closed.length) {
-      stack = stack.filter((el) => openSet.has(el));
-      for (const el of closed) {
-        el.style.zIndex = "";
-        const from = initiators.get(el);
-        initiators.delete(el);
-        const active = doc.activeElement;
-        const focusLost = !active || active === doc.body || !doc.contains(active);
-        if (focusLost && visibleFocusable(from)) {
-          try { from.focus({ preventScroll: true }); } catch { /* no-op */ }
-        }
-      }
+  function release(el) {
+    el.style.zIndex = "";
+    const from = initiators.get(el);
+    initiators.delete(el);
+    const active = doc.activeElement;
+    // Focus is "lost" when it is on nothing, on a detached element, inside the dialog that was
+    // just dismissed, or on any element that is attached but no longer rendered.
+    const focusLost =
+      !active ||
+      active === doc.body ||
+      !doc.contains(active) ||
+      el.contains(active) ||
+      active.getClientRects().length === 0;
+    if (focusLost && visibleFocusable(from)) {
+      try { from.focus({ preventScroll: true }); } catch { /* no-op */ }
     }
-    // newly opened since last sync (DOM order if several appeared together)
-    for (const el of open) {
-      if (stack.includes(el)) continue;
+  }
+
+  function moveToTop(el) {
+    const i = stack.indexOf(el);
+    if (i >= 0) stack.splice(i, 1);
+    else {
       const active = doc.activeElement;
       initiators.set(
         el,
@@ -90,8 +94,53 @@ export function createModalStack({ doc = document, win = window } = {}) {
           ? active
           : lastFocus,
       );
-      stack.push(el);
     }
+    stack.push(el);
+  }
+
+  function drop(el) {
+    const i = stack.indexOf(el);
+    if (i >= 0) { stack.splice(i, 1); release(el); }
+  }
+
+  /** Apply ordered MutationRecords so the stack reflects actual open order. */
+  function applyRecords(records) {
+    const byEl = new Map();
+    records.forEach((r, i) => {
+      if (r.type !== "attributes") return;
+      if (!byEl.has(r.target)) byEl.set(r.target, []);
+      byEl.get(r.target).push(i);
+    });
+    records.forEach((r, i) => {
+      if (r.type === "attributes" && r.target.matches?.(SELECTOR)) {
+        const idx = byEl.get(r.target);
+        const pos = idx.indexOf(i);
+        const after = pos < idx.length - 1 ? records[idx[pos + 1]].oldValue : r.target.getAttribute("class");
+        const was = hasShow(r.oldValue);
+        const now = hasShow(after);
+        if (!was && now) moveToTop(r.target);
+        else if (was && !now) drop(r.target);
+      } else if (r.type === "childList") {
+        r.removedNodes.forEach((n) => {
+          if (n instanceof win.Element) [n, ...n.querySelectorAll(SELECTOR)].forEach((x) => stack.includes(x) && drop(x));
+        });
+        r.addedNodes.forEach((n) => {
+          if (!(n instanceof win.Element)) return;
+          [n, ...n.querySelectorAll(SELECTOR)].filter((x) => x.matches(SELECTOR) && isOpen(x)).forEach(moveToTop);
+        });
+      }
+    });
+  }
+
+  /** Reconcile the stack with the DOM. Safe to call at any time. Returns the stack. */
+  function sync(records = []) {
+    const pending = observer ? observer.takeRecords() : [];
+    if (records.length || pending.length) applyRecords([...records, ...pending]);
+    // Authoritative final check against the DOM (covers anything opened before install()).
+    const open = Array.from(doc.querySelectorAll(SELECTOR)).filter(isOpen);
+    const openSet = new Set(open);
+    stack.filter((el) => !openSet.has(el)).forEach(drop);
+    for (const el of open) if (!stack.includes(el)) moveToTop(el);
     stack.forEach((el, i) => {
       const z = String(MODAL_BASE_Z + (i + 1) * Z_STEP);
       if (el.style.zIndex !== z) el.style.zIndex = z;
@@ -114,7 +163,8 @@ export function createModalStack({ doc = document, win = window } = {}) {
 
   /** Dismiss the top dialog through its registered closer. Returns the layer handled. */
   function dismissTop(el) {
-    if (el.dataset.pecEscape === "protect") return;
+    // Protected or busy (in-flight writer) dialogs consume Escape and stay open.
+    if (el.dataset.pecEscape === "protect" || el.getAttribute("aria-busy") === "true") return;
     const closer = closers.get(el.id);
     if (closer) { closer(); return; }
     fallbackClose(el); // dynamically created dialogs: use their own close control
@@ -157,6 +207,13 @@ export function createModalStack({ doc = document, win = window } = {}) {
     registerTransientSource(fn) { transientSources.push(fn); },
     sync,
     top,
+    /** z-index for a portaled drawer/popover anchored to `anchor`: above its owning dialog, below the next layer. */
+    transientZ(anchor) {
+      const owner = anchor instanceof win.Element ? anchor.closest(SELECTOR) : null;
+      sync();
+      const z = owner && stack.includes(owner) ? Number(owner.style.zIndex) : MODAL_BASE_Z;
+      return z + Z_STEP / 2 - (owner && stack.includes(owner) ? 0 : Z_STEP);
+    },
     get depth() { return sync().length; },
     stack() { return sync().slice(); },
     install() {
@@ -169,13 +226,15 @@ export function createModalStack({ doc = document, win = window } = {}) {
       const isBackdrop = (n) => n instanceof win.Element && (n.matches(SELECTOR) || !!n.querySelector?.(SELECTOR));
       observer = new win.MutationObserver((records) => {
         // Only dialog open/close/creation can change the stack.
-        if (records.some((r) => isBackdrop(r.target) || [...r.addedNodes, ...r.removedNodes].some(isBackdrop))) sync();
+        const mine = records.filter((r) => isBackdrop(r.target) || [...r.addedNodes, ...r.removedNodes].some(isBackdrop));
+        if (mine.length) sync(mine);
       });
       observer.observe(doc.body, {
         subtree: true,
         childList: true,
         attributes: true,
         attributeFilter: ["class"],
+        attributeOldValue: true,
       });
       sync();
     },

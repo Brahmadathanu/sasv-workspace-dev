@@ -52,3 +52,6 @@ Pre-existing on main: pec-erp-c1-layout-smoke 4 checkbox-geometry checks (S4 UX 
 - FAIL: Escape dismisses the dynamic dialog only
 - FAIL: Escape during IME composition is ignored
 - FAIL: dialog above takes Escape first; lower drawer and indent modal untouched ({"drawer":false,"action":true,"indent":true})
+
+## Review hardening re-run (branch after hardening)
+All suites re-run: identical failure lists to unmodified main (layout smoke 418 ok, 4 pre-existing checkbox failures; static smoke protected-path check); `pec-modal-stack-smoke` PASS with the added same-turn order, hidden-focus, in-flight delete and drawer/menu stacking checks.

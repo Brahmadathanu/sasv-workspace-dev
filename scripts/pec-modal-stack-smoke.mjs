@@ -222,6 +222,99 @@ const esc = async (page) => { await page.keyboard.press("Escape"); await page.wa
   await ctx.close();
 }
 
+
+// ── 7. review hardening ──────────────────────────────────────────────────────────────
+{
+  // 7.1 several dialogs opened synchronously in ONE task, in reverse DOM order:
+  //     actual open order wins, DOM order must not.
+  const { ctx, page } = await h.open({ role: "edit", indentDate: true }, VP);
+  const dom = await page.evaluate(() => [...document.querySelectorAll(".modal-backdrop")].map((e) => e.id));
+  const A = "indentActionModalBackdrop", B = "vendorModalBackdrop", C = "indentViewModalBackdrop";
+  check(dom.indexOf(B) < dom.indexOf(A) && dom.indexOf(C) < dom.indexOf(B), "fixture: B precedes A, C precedes B in the DOM");
+  await page.evaluate(([a, b, c]) => {
+    for (const id of [a, b, c]) document.getElementById(id).classList.add("show"); // one synchronous turn
+  }, [A, B, C]);
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(r)));
+  const z = await page.evaluate((ids) => ids.map((id) => Number(getComputedStyle(document.getElementById(id)).zIndex)), [A, B, C]);
+  check(z[0] < z[1] && z[1] < z[2], `same-turn opens keep open order, not DOM order (z ${z})`);
+  const seqS = [];
+  for (let i = 0; i < 3; i++) { await esc(page); seqS.push((await shown(page)).join("+")); }
+  check(seqS.join(" | ") === `${B}+${A} | ${A} | `, `Escape unwinds in reverse OPEN order (${seqS.join(" | ")})`);
+  // same-turn churn: A open, B open, A closed, A re-opened => A is now on top
+  await page.evaluate(([a, b]) => {
+    const A_ = document.getElementById(a), B_ = document.getElementById(b);
+    A_.classList.add("show"); B_.classList.add("show"); A_.classList.remove("show"); A_.classList.add("show");
+  }, [A, B]);
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(r)));
+  await esc(page);
+  check((await shown(page)).join() === B, "re-opened dialog is on top of the dialog opened in between (same turn)");
+  await page.evaluate(() => document.querySelectorAll(".modal-backdrop.show").forEach((e) => e.classList.remove("show")));
+  await ctx.close();
+}
+{
+  // 7.2 focus restoration when the focused element stays in the DOM but is no longer visible
+  const { ctx, page } = await h.open({ role: "edit", indentDate: true }, VP);
+  await h.openIndentModal(page, VP);
+  await page.focus("#btnIndentRecommendAcceptVendors");
+  await page.click("#btnIndentRecommendAcceptVendors");
+  await page.waitForSelector("#vendorAcceptModeModalBackdrop.show");
+  const r = await page.evaluate(async () => {
+    const inside = document.querySelector('#vendorAcceptModeModalBackdrop input[name="vendorAcceptMode"]');
+    inside.focus();
+    // a closer that hides the dialog and does NOT move focus (the element stays attached, invisible)
+    document.getElementById("vendorAcceptModeModalBackdrop").classList.remove("show");
+    await Promise.resolve(); await Promise.resolve();
+    const sync = document.activeElement?.id || document.activeElement?.tagName;
+    await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+    return { sync, later: document.activeElement?.id || document.activeElement?.tagName, attached: document.contains(inside), hidden: inside.getClientRects().length === 0 };
+  });
+  check(r.attached && r.hidden, "fixture: the previously focused radio is still attached but invisible");
+  check(r.sync === "btnIndentRecommendAcceptVendors" && r.later === "btnIndentRecommendAcceptVendors", `focus restored to the initiator, not left on a hidden element (${r.sync} / ${r.later})`);
+  await ctx.close();
+}
+{
+  // 7.3 busy dialogs consume Escape without dismissing the layers beneath them
+  const { ctx, page } = await h.open({ role: "edit", indentDate: true, delays: { proc_indent_delete_draft: 900 } }, VP);
+  await h.openIndentModalAt(page, VP, 1); // first row = draft indent
+  await page.click("#btnIndentDeleteDraft");
+  await page.waitForSelector("#hardDeleteModalBackdrop.show");
+  await page.fill("#hardDeleteConfirmText", "DELETE");
+  await page.click("#btnHardDeleteConfirm");
+  await page.waitForTimeout(150);
+  await esc(page); await esc(page);
+  check((await shown(page)).join() === "indentViewModalBackdrop,hardDeleteModalBackdrop", "in-flight delete: Escape neither closes the confirm dialog nor the indent modal");
+  await page.waitForFunction(() => !document.querySelector("#hardDeleteModalBackdrop.show"), null, { timeout: 4000 });
+  await ctx.close();
+}
+{
+  // 7.4 visual stacking: drawers and menus render above their owning dialog and below any dialog above it
+  const { ctx, page } = await h.open({ role: "edit", indentDate: true }, VP);
+  await h.openIndentModal(page, VP);
+  const topAt = (sel) => page.evaluate((s) => {
+    const el = document.querySelector(s); const r = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + Math.min(r.height / 2, 20));
+    return { inside: !!hit && (el === hit || el.contains(hit)), z: getComputedStyle(el).zIndex, hit: hit?.id || hit?.className || hit?.tagName };
+  }, sel);
+  await page.click("#iLineFilterBtn");
+  await page.waitForSelector("#iLineFilterDrawer.open");
+  let t = await topAt("#iLineFilterDrawer");
+  check(t.inside, `filter drawer is visually above its owning indent modal (${JSON.stringify(t)})`);
+  await page.evaluate(() => document.getElementById("indentActionModalBackdrop").classList.add("show"));
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(r)));
+  t = await topAt("#iLineFilterDrawer");
+  check(!t.inside, `a dialog opened above the owner covers the lower drawer (${JSON.stringify(t)})`);
+  await page.evaluate(() => document.getElementById("indentActionModalBackdrop").classList.remove("show"));
+  await page.keyboard.press("Escape"); await page.waitForTimeout(40);
+  await page.click("#btnIExportMenu");
+  await page.waitForSelector(".export-menu.open");
+  t = await topAt(".export-menu.open");
+  check(t.inside, `export menu is visually above its owning indent modal (${JSON.stringify(t)})`);
+  await page.evaluate(() => document.getElementById("indentActionModalBackdrop").classList.add("show"));
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(r)));
+  t = await topAt(".export-menu.open");
+  check(!t.inside, `a dialog opened above the owner covers the lower export menu (${JSON.stringify(t)})`);
+  await ctx.close();
+}
 await h.close();
 if (failures) { console.error(`pec-modal-stack-smoke: ${failures} FAILED`); process.exit(1); }
 console.log("pec-modal-stack-smoke: PASS");

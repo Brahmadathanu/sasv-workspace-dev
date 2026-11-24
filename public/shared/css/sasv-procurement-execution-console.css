@@ -1320,7 +1320,7 @@ body.sasv-pec.pec-sheet-open {
     max-height: none;
     border: 0;
     border-radius: 0;
-    z-index: 2147483647;
+    z-index: var(--pec-transient-z, 2147483647); /* set from the modal stack so later dialogs cover it */
   }
   body.sasv-pec .pec-filter-drawer.is-sheet .pec-filter-select,
   body.sasv-pec .pec-filter-drawer.is-sheet .pec-filter-input {
