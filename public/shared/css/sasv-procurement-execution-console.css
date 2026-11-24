@@ -1398,3 +1398,191 @@ body.sasv-pec .pec-resync-table .pec-diff { font-weight: 600; color: var(--sasv-
 body.sasv-pec .pec-resync-ack { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; font-size: 12px; }
 body.sasv-pec .pec-resync-ack input { margin-top: 2px; width: auto; min-width: 0; flex: 0 0 auto; }
 body.sasv-pec .pec-resync-ack[hidden], body.sasv-pec .pec-resync-preview[hidden], body.sasv-pec .pec-resync-conflict[hidden] { display: none; }
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   PEC secondary dialog ("pec-dialog") — PEC-UX-02
+   One reusable, token-only treatment for the action dialogs that open above the
+   full-page indent/PR modals: compact single-row header (title left, subdued
+   context + close right), consistent body padding, aligned footer, compact
+   choice rows. The full-page indent/PR modals (.pec-detail) are untouched.
+   ═════════════════════════════════════════════════════════════════════════════ */
+body.sasv-pec .modal.pec-dialog {
+  --pec-dialog-gutter: 16px;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+}
+body.sasv-pec .pec-dialog > .modal-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sasv-space-3, 12px);
+  min-height: 44px;
+  margin: 0;
+  padding: 6px 10px 6px var(--pec-dialog-gutter);
+  background: var(--sasv-surface-soft);
+  border-bottom: 1px solid var(--sasv-divider);
+}
+body.sasv-pec .pec-dialog > .modal-header .modal-close-btn {
+  flex: none;
+  margin-left: auto;
+  min-width: var(--sasv-control-sm, 30px);
+  width: var(--sasv-control-sm, 30px);
+  height: var(--sasv-control-sm, 30px);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+body.sasv-pec .pec-dialog-heading {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: var(--sasv-space-2, 8px);
+  row-gap: 0;
+}
+body.sasv-pec .pec-dialog-heading h3,
+body.sasv-pec .pec-dialog > .modal-header > h3 {
+  margin: 0;
+  font-size: var(--sasv-text-md, 0.9375rem);
+  line-height: 1.3;
+  font-weight: var(--sasv-fw-semibold, 600);
+  color: var(--sasv-text);
+  overflow-wrap: anywhere;
+}
+body.sasv-pec .pec-dialog-ref {
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: var(--sasv-fw-medium, 500);
+  color: var(--sasv-text-muted);
+  overflow-wrap: anywhere;
+}
+body.sasv-pec .pec-dialog-ref:empty {
+  display: none;
+}
+/* Body: either an explicit .modal-body or the dialog's direct content children. */
+body.sasv-pec .pec-dialog > .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px var(--pec-dialog-gutter) 4px;
+}
+body.sasv-pec .pec-dialog > :not(.modal-header):not(.modal-body):not(.actions) {
+  margin-left: var(--pec-dialog-gutter);
+  margin-right: var(--pec-dialog-gutter);
+}
+body.sasv-pec .pec-dialog > .modal-header + :not(.modal-body):not(.actions) {
+  margin-top: 14px;
+}
+body.sasv-pec .pec-dialog > .modal-body .muted:first-child {
+  margin-top: 0;
+}
+/* Footer */
+body.sasv-pec .modal-backdrop .modal.pec-dialog > .actions {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--sasv-space-2, 8px);
+  margin: 14px 0 0;
+  padding: 10px var(--pec-dialog-gutter);
+  background: var(--sasv-surface-soft);
+  border-top: 1px solid var(--sasv-divider);
+  position: static;
+}
+body.sasv-pec .modal-backdrop.show .modal.pec-dialog > .actions {
+  position: sticky;
+  bottom: 0;
+  padding: 10px var(--pec-dialog-gutter) calc(10px + env(safe-area-inset-bottom, 0px));
+}
+body.sasv-pec .modal.pec-dialog > .actions button {
+  min-height: var(--sasv-control-md, 36px);
+  padding: 0 14px;
+  border-radius: var(--sasv-radius-sm, 6px);
+}
+/* Cancel / secondary: neutral outline (the last button keeps the PEC primary/danger styles) */
+body.sasv-pec .modal.pec-dialog > .actions button:not(:last-child):not(.primary):not(.danger) {
+  background: var(--sasv-surface-elevated);
+  border: 1px solid var(--sasv-control-border);
+  color: var(--sasv-text);
+}
+body.sasv-pec .modal.pec-dialog > .actions button:not(:last-child):not(.primary):not(.danger):hover:not(:disabled) {
+  background: var(--sasv-action-secondary-hover);
+  border-color: var(--sasv-control-border-hover, var(--sasv-control-border));
+}
+/* Choice rows (radio / checkbox lists) */
+body.sasv-pec .erp-choice-modal {
+  max-width: 520px;
+}
+body.sasv-pec .erp-modal-note {
+  margin: 0 0 10px;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  color: var(--sasv-text-secondary);
+}
+body.sasv-pec .erp-choice-list {
+  display: grid;
+  gap: var(--sasv-space-2, 8px);
+}
+body.sasv-pec .erp-choice-row {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  column-gap: 10px;
+  align-items: start;
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-md, 8px);
+  background: var(--sasv-surface-elevated);
+  color: var(--sasv-text);
+  cursor: pointer;
+  text-align: left;
+  font-weight: var(--sasv-fw-regular, 400);
+}
+body.sasv-pec .erp-choice-row:hover {
+  background: var(--sasv-action-secondary-hover);
+  border-color: var(--sasv-control-border-hover, var(--sasv-control-border));
+}
+body.sasv-pec .erp-choice-row:has(input:checked),
+body.sasv-pec .erp-choice-row.is-selected {
+  background: var(--sasv-action-primary-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+}
+body.sasv-pec .erp-choice-row:focus-within {
+  outline: 2px solid var(--sasv-focus-ring-raw, var(--sasv-action-primary));
+  outline-offset: 1px;
+}
+body.sasv-pec .erp-choice-row input[type="radio"],
+body.sasv-pec .erp-choice-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  margin: 2px 0 0;
+  padding: 0;
+  justify-self: start;
+  accent-color: var(--sasv-action-primary);
+  box-shadow: none;
+}
+body.sasv-pec .erp-choice-title {
+  display: block;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: var(--sasv-fw-semibold, 600);
+  line-height: 1.3;
+  color: var(--sasv-text);
+}
+body.sasv-pec .erp-choice-desc {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--sasv-text-xs, 0.75rem);
+  line-height: 1.35;
+  color: var(--sasv-text-secondary);
+}
+@media (max-width: 680px) {
+  body.sasv-pec .modal.pec-dialog { --pec-dialog-gutter: 14px; }
+  body.sasv-pec .modal-backdrop.show .modal.pec-dialog > .actions button { flex: 1 1 0; }
+}
