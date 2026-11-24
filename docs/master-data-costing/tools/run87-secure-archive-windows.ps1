@@ -15,7 +15,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 function Assert-EncryptedVolume([string]$path) {
-  if ($path -notmatch '^[A-Za-z]:\') {
+  if ($path -notmatch '^[A-Za-z]:\\') {
     throw "Use a full local drive path for both archive destinations."
   }
   $full = [IO.Path]::GetFullPath($path)
@@ -24,7 +24,8 @@ function Assert-EncryptedVolume([string]$path) {
     throw "Only local Windows drive paths are accepted; network and UNC shares are excluded."
   }
   $drive = $root.Substring(0,2)
-  $volume = Get-BitLockerVolume -MountPoint $drive -ErrorAction Stop
+  try { $volume = Get-BitLockerVolume -MountPoint $drive -ErrorAction Stop }
+  catch { throw "Cannot read BitLocker status for $drive; run from an elevated (Administrator) PowerShell. $($_.Exception.Message)" }
   if ($null -eq $volume -or $volume.ProtectionStatus.ToString() -ne 'On') {
     throw "BitLocker protection must be ON for drive $drive."
   }

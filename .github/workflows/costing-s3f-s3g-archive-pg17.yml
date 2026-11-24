@@ -78,6 +78,14 @@ jobs:
           grep -q '"relationCount":64' "$RUNNER_TEMP/direct-fk-restored.txt"
           grep -q '"verifiedRows":217964' "$RUNNER_TEMP/direct-fk-restored.txt"
           echo S3P_PG17_64_DIRECT_RELATION_TYPED_RESTORE_PASS
+          # S3S: FK-preserving restore into real tables of an isolated copy of the schema.
+          psql -X -v ON_ERROR_STOP=1 -d postgres -c "CREATE DATABASE s3f_restore TEMPLATE s3f_fixture"
+          psql -X -v ON_ERROR_STOP=1 -d s3f_restore -q -c "DO \$\$ DECLARE r record; BEGIN FOR r IN SELECT format('%I.%I',schemaname,tablename) t FROM pg_tables WHERE schemaname='costing' LOOP EXECUTE 'TRUNCATE '||r.t||' CASCADE'; END LOOP; END \$\$"
+          SASV_ISOLATED_STAGE_DATABASE_URL="postgresql://postgres:fixture_only@127.0.0.1:5432/s3f_restore"             node docs/master-data-costing/tools/restore-full-run87-direct-fks.mjs "$RUNNER_TEMP/direct-fk-archive" | tee "$RUNNER_TEMP/s3s-restore.txt"
+          grep -q '"restoredRows":217964' "$RUNNER_TEMP/s3s-restore.txt"
+          grep -q '"internalFkChecked":62,"internalFkOrphanRows":0' "$RUNNER_TEMP/s3s-restore.txt"
+          grep -q '"rowLevelDigestsVerified":true' "$RUNNER_TEMP/s3s-restore.txt"
+          echo S3S_PG17_FK_PRESERVING_REAL_TABLE_RESTORE_PASS
           # S3Q: bidirectional FK isolation is checked against all 62 internal
           # relationships in the isolated synthetic topology, with deliberate
           # adversarial other-run -> run87 FK link added AFTER the clean pass.
