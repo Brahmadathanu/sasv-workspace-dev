@@ -303,3 +303,11 @@ GRANT EXECUTE ON FUNCTION public.trg_fg_ledger_reconcile_ins_stmt(), public.trg_
 CREATE FUNCTION public.t_client_rpc(p_sql text) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog','public','pg_temp' AS $$
 BEGIN EXECUTE p_sql; END $$;
 GRANT EXECUTE ON FUNCTION public.t_client_rpc(text) TO authenticated;
+
+-- fn_fg_mark_done_if_zero (live, pre-install read-only run): SECURITY INVOKER, authenticated+service_role EXECUTE,
+-- pinned search_path, body calls the reconciler directly. SHIM RECONSTRUCTION of that behavior.
+CREATE FUNCTION public.fn_fg_mark_done_if_zero(p_product_id integer, p_batch_number text, p_eps numeric) RETURNS void LANGUAGE plpgsql
+ SET search_path TO 'pg_catalog', 'public', 'public', 'pg_temp' AS $$
+BEGIN PERFORM public.fn_fg_reconcile_batch(p_product_id, p_batch_number, p_eps); END $$;
+REVOKE ALL ON FUNCTION public.fn_fg_mark_done_if_zero(integer,text,numeric) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.fn_fg_mark_done_if_zero(integer,text,numeric) TO authenticated, service_role;

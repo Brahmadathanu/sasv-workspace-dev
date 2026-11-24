@@ -275,7 +275,8 @@ T('S3 different batches do not block each other; opposite-order multi-lock does 
 const LEGACY_WRITERS = ['trg_fg_ledger_from_dwl()', 'trg_fg_ledger_from_es()', 'trg_fg_bulk_internal_transfer_to_ledger()',
   'fn_fg_auto_zero(integer,text,numeric)', 'fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)', 'fn_fg_force_close(integer,text,numeric)'];
 const RECON_TRIGGERS = ['trg_fg_ledger_reconcile_ins_stmt()', 'trg_fg_ledger_reconcile_upd_stmt()', 'trg_fg_ledger_reconcile_del_stmt()'];
-const CHAIN = [...LEGACY_WRITERS, 'fn_fg_reconcile_batch(integer,text,numeric)', ...RECON_TRIGGERS];
+const MARK_DONE = 'fn_fg_mark_done_if_zero(integer,text,numeric)';
+const CHAIN = [...LEGACY_WRITERS, 'fn_fg_reconcile_batch(integer,text,numeric)', ...RECON_TRIGGERS, MARK_DONE];   // 11 pinned functions
 const LIVE_SHAS = {
   'fn_fg_auto_zero(integer,text,numeric)': '705fecd3e68576272af73b5230737c98689c9f538d88e40d723a5b935ae5a582',
   'fn_fg_force_close(integer,text,numeric)': 'c48578e7e08d311aebdefdaaf512bbfe2a87daecf61c2bde735f46d1e7cff10d',
@@ -285,7 +286,9 @@ const LIVE_SHAS = {
   'trg_fg_ledger_from_es()': 'cc32357d320fb63278632c5726085bdcf6b32395453838d39cac8c3584faed28',
   'trg_fg_ledger_reconcile_ins_stmt()': 'd4cdfe3dbc827d0e14122fe41993981e65b4903bd18d8da3d0013fd730cc2412',
   'trg_fg_ledger_reconcile_upd_stmt()': 'a298bcff5a7fede05d59c4d77c4673fd4fe5db2f5609914cb900dedfbf6b5f7b',
-  'trg_fg_ledger_reconcile_del_stmt()': 'd09789baea588ff64d78e9b787ae769a4dff2df9f307547bfcdedd562cb995ad' };
+  'trg_fg_ledger_reconcile_del_stmt()': 'd09789baea588ff64d78e9b787ae769a4dff2df9f307547bfcdedd562cb995ad',
+  'fn_fg_reconcile_batch(integer,text,numeric)': 'b229faad84f128420eb61caae3fb0678b15772d22b0d13f416c0332a92b9a7be',
+  'fn_fg_mark_done_if_zero(integer,text,numeric)': '278f4fdc43cc5886b57995407d6cc5cdc52404362fb0135ab19aedd440cacb6a' };
 const setMode = (m) => { const r = q(`UPDATE app_private.mis_g7_enforcement SET mode='${m}'`); assert.equal(r.status, 0, r.err); };
 const anon = (sql) => pg.psql(DB, `SET ROLE anon; ${sql}`);
 
@@ -505,10 +508,10 @@ T('AUTHZ P0 allowlist: only reviewed SECURITY DEFINER functions that touch the l
   const rows = val(`SELECT coalesce(string_agg(p.oid::regprocedure::text, ' | ' ORDER BY p.oid::regprocedure::text),'')
      FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
     WHERE p.prosecdef AND n.nspname IN ('public','app_private','costing') AND p.prokind='f'
-      AND (p.prosrc ILIKE '%fg_bulk_stock_ledger%' OR p.prosrc ILIKE '%fn_fg_ledger_add%' OR p.prosrc ILIKE '%fn_fg_force_close%' OR p.prosrc ILIKE '%fn_fg_auto_zero%')
+      AND (p.prosrc ILIKE '%fg_bulk_stock_ledger%' OR p.prosrc ILIKE '%fn_fg_ledger_add%' OR p.prosrc ILIKE '%fn_fg_force_close%' OR p.prosrc ILIKE '%fn_fg_auto_zero%' OR p.prosrc ILIKE '%fn_fg_reconcile_batch%' OR p.prosrc ILIKE '%fn_fg_mark_done_if_zero%')
       AND (has_function_privilege('authenticated', p.oid, 'EXECUTE') OR has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('public'::name, p.oid, 'EXECUTE'))`);
   // trigger functions are executable only as triggers (have no direct-call surface) and are asserted separately above
-  const allowed = new Set(['fn_fg_force_close(integer,text)', 'mis_pack_fg_bulk_v1(uuid,bigint,jsonb,jsonb)', 'mis_sign_batch_stage_v1(uuid,integer,text,integer,bigint,integer,numeric,text)']);
+  const allowed = new Set(['fn_fg_force_close(integer,text)', 'fn_fg_mark_done_if_zero(integer,text,numeric)', 'mis_pack_fg_bulk_v1(uuid,bigint,jsonb,jsonb)', 'mis_sign_batch_stage_v1(uuid,integer,text,integer,bigint,integer,numeric,text)']);
   for (const r of rows.split(' | ').filter(Boolean)) assert.ok([...allowed].some((a) => r.endsWith(a)), `unexpected client-executable ledger-touching definer: ${r}`);
 });
 T('AUTHZ S3b hardening: legacy writers pin search_path with pg_temp last (dwl was public-only)', () => {
@@ -639,6 +642,8 @@ T('ROLLBACK exact: S3b rollback restores function defs (sha), ACLs, search_path,
     assert.equal(w(`DELETE FROM public.event_skus WHERE packaging_event_id=${ev}`).status, 0);
     return Number(x(`SELECT sum(qty_base) FROM public.fg_bulk_stock_ledger WHERE batch_number='${b}'`).out);
   };
+  // pre-S3b: authenticated can EXECUTE mark_done_if_zero but its invoker call into the reconciler is denied (reconciler is postgres/service_role only)
+  assert.match(x(`SELECT public.fn_fg_mark_done_if_zero(1,'RB1',0.001)`, { uid: PACKER }).err, /permission denied for function fn_fg_reconcile_batch/);
   assert.equal(crud('RB1', true), 50);                                              // before S3b (legacy state, governed definer path)
   const preSha = Object.fromEntries(x(`SELECT p.oid::regprocedure::text||'='||encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex') FROM pg_proc p WHERE p.oid IN (${CHAIN.map((w) => `'public.${w}'::regprocedure`).join(',')})`).out.split('\n').map((l) => l.split('=')));
   // pre-S3b a direct authenticated ledger write fires the INVOKER statement trigger, which cannot reach the postgres/service_role-only reconciler
@@ -651,7 +656,9 @@ T('ROLLBACK exact: S3b rollback restores function defs (sha), ACLs, search_path,
     assert.equal(x(`SELECT def_sha FROM app_private.mis_g7_s3b_baseline WHERE obj='${fn}'`).out, sha, fn);
     assert.equal(x(`SELECT encode(sha256(convert_to(def,'UTF8')),'hex')=def_sha AND length(def)>50 FROM app_private.mis_g7_s3b_baseline WHERE obj='${fn}'`).out, 't');
   }
-  assert.equal(x(`SELECT count(*) FROM app_private.mis_g7_s3b_baseline WHERE kind='function'`).out, String(CHAIN.length));
+  assert.equal(x(`SELECT count(*) FROM app_private.mis_g7_s3b_baseline WHERE kind='function'`).out, String(CHAIN.length));   // includes mark_done_if_zero
+  assert.equal(x(`SELECT prosrc LIKE '%MIS_G7_MARK_DONE_WRAPPER%' FROM pg_proc WHERE oid='public.${MARK_DONE}'::regprocedure`).out, 't');
+  assert.equal(x(`SELECT to_regprocedure('public.fn_fg_mark_done_if_zero_legacy(integer,text,numeric)') IS NOT NULL`).out, 't');
   assert.equal(crud('RB2'), 50);                                                    // after S3b (direct authenticated path now runs through the definer chain)
   assert.match(x(`INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,qty,qty_base) VALUES (1,'RB2',1,1)`, { uid: PACKER }).err, /permission denied/);
   const rb = fs.readFileSync(path.resolve(here, '../../../docs/executive-mis-g7-server/ROLLBACK_NOT_A_MIGRATION.sql'), 'utf8');
@@ -662,6 +669,8 @@ T('ROLLBACK exact: S3b rollback restores function defs (sha), ACLs, search_path,
   assert.equal(crud('RB3', true), 50);                                              // after rollback (governed definer path, as before S3b)
   assert.match(x(`INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status,storage_qty,storage_qty_uom) VALUES ('P1','RB3','FG bulk storage','2026-11-12','In Storage',1,'kg')`, { uid: PACKER }).err, /permission denied for function fn_fg_reconcile_batch/);   // legacy direct-invoker behavior restored exactly
   assert.equal(x(`SELECT has_function_privilege('authenticated','public.fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)','EXECUTE')`).out, 't');   // helper EXECUTE restored exactly
+  assert.equal(x(`SELECT to_regprocedure('public.fn_fg_mark_done_if_zero_legacy(integer,text,numeric)') IS NULL`).out, 't');   // rename undone, wrapper dropped
+  assert.match(x(`SELECT public.fn_fg_mark_done_if_zero(1,'RB3',0.001)`, { uid: PACKER }).err, /permission denied for function fn_fg_reconcile_batch/);   // exact legacy behavior returns
   assert.equal(x(`SELECT has_function_privilege('authenticated','public.fn_fg_reconcile_batch(integer,text,numeric)','EXECUTE')`).out, 'f');   // reconciler ACL never widened
   // signed history retained, gate objects remain but are inert (triggers dropped)
   assert.equal(x(`SELECT count(*) FROM pg_trigger WHERE tgname LIKE '00_mis_g7_%gate'`).out, '0');
@@ -780,5 +789,116 @@ T('GRAPH precheck refuses: invoker caller of the reconciler, client-executable r
   run1(`GRANT EXECUTE ON FUNCTION public.fn_fg_reconcile_batch(integer,text,numeric) TO authenticated`, /fn_fg_reconcile_batch is executable by a client role/);
   run1(`DROP TRIGGER trg_fg_ledger_reconcile_del_stmt ON public.fg_bulk_stock_ledger`, /trg_fg_ledger_reconcile_del_stmt\(\) is not an installed statement-level trigger/);
   run1(`ALTER FUNCTION public.fn_fg_reconcile_batch(integer,text,numeric) RESET search_path`, /fn_fg_reconcile_batch\(integer,text,numeric\) has no pinned search_path/);
+});
+
+// ---------------- review round 4: fn_fg_mark_done_if_zero (authenticated-callable invoker edge into the reconciler) ----------------
+// Dust fixtures: the automatic reconciliation chain would zero epsilon dust at insert time, so the INSERT statement trigger is
+// disabled just for fixture creation (owner-only DDL) to leave a batch that only mark_done_if_zero can reconcile.
+const fgDwlQuiet = (b, qty) => { q(`ALTER TABLE public.fg_bulk_stock_ledger DISABLE TRIGGER trg_fg_ledger_reconcile_ins_stmt`);
+  try { fgDwl(b, qty); } finally { q(`ALTER TABLE public.fg_bulk_stock_ledger ENABLE TRIGGER trg_fg_ledger_reconcile_ins_stmt`); } };
+const MDZ = (uid, b, eps = 0.001, p = 1) => q(`SELECT public.fn_fg_mark_done_if_zero(${p},'${b}',${eps})`, uid);
+const svc = (sql) => pg.psql(DB, `SET ROLE service_role; ${sql}`);
+T('MARK_DONE structure: public wrapper is the only client-callable entry; legacy body is closed (service_role only)', () => {
+  const w = `public.${MARK_DONE}`; const l = 'public.fn_fg_mark_done_if_zero_legacy(integer,text,numeric)';
+  assert.equal(val(`SELECT prosecdef FROM pg_proc WHERE oid='${w}'::regprocedure`), 't');
+  assert.match(val(`SELECT array_to_string(proconfig,';') FROM pg_proc WHERE oid='${w}'::regprocedure`), /search_path=pg_catalog, public, pg_temp/);
+  assert.equal(val(`SELECT pg_get_function_result('${w}'::regprocedure)`), 'void');
+  assert.equal(val(`SELECT pg_get_function_arguments('${w}'::regprocedure)`), 'p_product_id integer, p_batch_number text, p_eps numeric');
+  for (const [role, fn, exp] of [['authenticated', w, 't'], ['service_role', w, 't'], ['anon', w, 'f'], ['public', w, 'f'],
+                                 ['authenticated', l, 'f'], ['anon', l, 'f'], ['public', l, 'f'], ['service_role', l, 't']])
+    assert.equal(val(`SELECT has_function_privilege('${role}','${fn}','EXECUTE')`), exp, `${role} ${fn}`);
+  assert.equal(val(`SELECT prosecdef FROM pg_proc WHERE oid='${l}'::regprocedure`), 't');
+  assert.equal(val(`SELECT has_function_privilege('authenticated','app_private.mis_g7_max_epsilon()','EXECUTE')`), 'f');
+});
+T('MARK_DONE authz: unauthenticated, anon and permissionless users denied; nothing written', () => {
+  const b = bn('MD1'); fgDwlQuiet(b, 0.0004);   // dust only: would auto-zero and Done if reached
+  const before = bal(b);
+  for (const [label, uid] of [['nobody', NOBODY], ['signer-only', SIGNER], ['pack+excess perms only (no daily-work-log)', EXCESS]])
+    assert.match(MDZ(uid, b).err, /permission denied/, label);
+  assert.match(anon(`SELECT public.fn_fg_mark_done_if_zero(1,'${b}',0.001)`).err, /permission denied/);
+  assert.match(pg.psql(DB, `SET ROLE authenticated; SELECT public.fn_fg_mark_done_if_zero(1,'${b}',0.001)`).err, /MIS_G7_AUTH_REQUIRED|permission denied/);   // authenticated role without JWT subject
+  assert.match(q(`SELECT public.fn_fg_mark_done_if_zero_legacy(1,'${b}',0.001)`, PACKER).err, /permission denied for function/);   // legacy body not reachable
+  assert.equal(bal(b), before); assert.equal(dwlStatus(b), 'In Storage');
+  // forging a role claim as an ordinary authenticated user does not help: a custom claim cannot change the executing role or permissions on the legacy body
+  assert.match(pg.psql(DB, `SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${NOBODY}',false); SELECT public.fn_fg_mark_done_if_zero_legacy(1,'${b}',0.001)`).err, /permission denied for function/);
+});
+T('MARK_DONE authorized old-client behavior: Done when zero, dust auto-zero within epsilon, no Done with stock', () => {
+  const z = bn('MD2'); fgDwl(z, 5);
+  q(`UPDATE public.fg_bulk_stock_ledger SET qty=0, qty_base=0 WHERE batch_number='${z}' AND source_table='daily_work_log'`);   // reconciler already marked Done on that update
+  q(`UPDATE public.daily_work_log SET status='In Storage' WHERE batch_number='${z}' AND activity='FG bulk storage'`);        // reopen
+  assert.equal(MDZ(PACKER, z).status, 0);                                   // authorized user: zero balance -> Done
+  assert.equal(dwlStatus(z), 'Done');
+  const d = bn('MD3'); fgDwlQuiet(d, 0.0005);                                    // dust within epsilon
+  assert.equal(MDZ(PACKER, d).status, 0);
+  assert.equal(bal(d), 0); assert.equal(val(`SELECT count(*) FROM public.fg_bulk_stock_ledger WHERE batch_number='${d}' AND reason_code='AUTO_ZERO'`), '1');
+  assert.equal(dwlStatus(d), 'Done');
+  const k = bn('MD4'); fgDwl(k, 5);                                         // real stock: nothing happens
+  assert.equal(MDZ(PACKER, k).status, 0);
+  assert.equal(bal(k), 5); assert.equal(dwlStatus(k), 'In Storage');
+  assert.equal(MDZ(PACKER, k, 0).status, 0); assert.equal(bal(k), 5);        // eps = 0 allowed
+});
+T('MARK_DONE cannot be used to zero meaningful stock: caller epsilon is capped; invalid input refused', () => {
+  const b = bn('MD5'); fgDwl(b, 5);
+  assert.match(MDZ(PACKER, b, 1000).err, /MIS_G7_EPS_OUT_OF_RANGE/);
+  assert.match(MDZ(PACKER, b, 0.0011).err, /MIS_G7_EPS_OUT_OF_RANGE/);
+  assert.match(MDZ(PACKER, b, -1).err, /MIS_G7_EPS_OUT_OF_RANGE/);
+  assert.match(q(`SELECT public.fn_fg_mark_done_if_zero(1,'${b}',NULL)`, PACKER).err, /MIS_G7_EPS_OUT_OF_RANGE/);
+  assert.match(q(`SELECT public.fn_fg_mark_done_if_zero(NULL,'${b}',0.001)`, PACKER).err, /MIS_G7_INVALID_INPUT/);
+  assert.match(q(`SELECT public.fn_fg_mark_done_if_zero(1,'  ',0.001)`, PACKER).err, /MIS_G7_INVALID_INPUT/);
+  assert.equal(bal(b), 5); assert.equal(dwlStatus(b), 'In Storage');
+  assert.equal(val(`SELECT count(*) FROM public.fg_bulk_stock_ledger WHERE batch_number='${b}' AND reason_code='AUTO_ZERO'`), '0');
+});
+T('MARK_DONE trusted service_role path keeps working without a user JWT; ordinary roles cannot reuse it', () => {
+  const b = bn('MD6'); fgDwlQuiet(b, 0.0005);
+  const r = svc(`SELECT public.fn_fg_mark_done_if_zero(1,'${b}',0.001)`); assert.equal(r.status, 0, r.err);
+  assert.equal(bal(b), 0); assert.equal(dwlStatus(b), 'Done');
+  const c = bn('MD7'); fgDwlQuiet(c, 0.0005);
+  assert.equal(svc(`SELECT public.fn_fg_mark_done_if_zero_legacy(1,'${c}',0.001)`).status, 0);   // service_role keeps the closed legacy body
+  assert.equal(dwlStatus(c), 'Done');
+  const d = bn('MD8'); fgDwl(d, 5);
+  assert.match(svc(`SELECT public.fn_fg_mark_done_if_zero(1,'${d}',1000)`).err, /MIS_G7_EPS_OUT_OF_RANGE/);   // epsilon cap applies to service_role too
+  // a forged role CLAIM on an ordinary authenticated session grants nothing: the wrapper trusts the real database role only
+  const e = bn('MD9'); fgDwlQuiet(e, 0.0005);
+  const forged = pg.psql(DB, `SET ROLE authenticated; SELECT set_config('request.jwt.claim.role','service_role',false); SELECT public.fn_fg_mark_done_if_zero_legacy(1,'${e}',0.001)`);
+  assert.match(forged.err, /permission denied for function/);
+  const forged2 = pg.psql(DB, `SET ROLE authenticated; SELECT set_config('request.jwt.claim.role','service_role',false); SELECT set_config('request.jwt.claim.sub','${NOBODY}',false); SELECT public.fn_fg_mark_done_if_zero(1,'${e}',0.001)`);
+  assert.match(forged2.err, /permission denied/);                                // claim forgery cannot bypass the permission check on the wrapper
+  assert.equal(bal(e), 0.0005);
+});
+T('MARK_DONE concurrency: wrapper takes the batch lock; races with pack/ledger writers are serialized and never over-draw', async () => {
+  const b = bn('MD10'); fgDwl(b, 1.0005); sign(b, SIGNER, '1.0005'); const e = evId(b);
+  const A = pg.psqlAsync(DB, hold(`SELECT public.mis_pack_fg_bulk_v1('${randomUUID()}',${e},'[{"sku_id":10,"count":1}]'::jsonb)`, 1.5), { uid: PACKER });
+  await delay(400);
+  const B = pg.psqlAsync(DB, `SELECT public.fn_fg_mark_done_if_zero(1,'${b}',0.001)`, { uid: PACKER });
+  const [a, bb] = await Promise.all([A, B]);
+  assert.equal(a.status, 0, a.err); assert.equal(bb.status, 0, bb.err); assert.ok(bb.ms >= 1000, `wrapper waited on batch lock (${bb.ms}ms)`);
+  assert.equal(bal(b), 0.5005); assert.equal(dwlStatus(b), 'In Storage');      // stock remains (0.5005 > eps): no premature Done
+});
+T('MARK_DONE graph precheck: pinned SHA, other invoker callers, pinned search_path, pre-existing legacy name all refuse install', () => {
+  const mig3b = fs.readFileSync(path.resolve(here, '../../migrations', MIGRATION_FILES[3]), 'utf8');
+  for (const fn of ['fn_fg_reconcile_batch(integer,text,numeric)', MARK_DONE]) assert.ok(mig3b.includes(`'${fn}','${LIVE_SHAS[fn]}'`), fn);
+  const run1 = (setup, re, legacyPre = false) => { const g = freshPre(`g7m${++n}`); assert.equal(g.run(seedShimFingerprintsSql()).status, 0); assert.equal(g.run(setup).status, 0, setup);
+    const r = g.run(g.mig3b); assert.notEqual(r.status, 0); assert.match(r.err, re, r.err);
+    assert.equal(g.run(`SELECT prosecdef FROM pg_proc WHERE oid='public.${MARK_DONE}'::regprocedure`).out, 'f');       // nothing applied (rolled back)
+    assert.equal(g.run(`SELECT to_regprocedure('public.fn_fg_mark_done_if_zero_legacy(integer,text,numeric)') IS NULL`).out, legacyPre ? 'f' : 't'); };   // no rename happened
+  run1(`CREATE FUNCTION public.sneaky_mark() RETURNS void LANGUAGE sql AS $$ SELECT public.fn_fg_mark_done_if_zero(1,'x',0.001) $$`, /invoker functions call revoked helpers: sneaky_mark\(\)/);
+  run1(`ALTER FUNCTION public.fn_fg_mark_done_if_zero(integer,text,numeric) RESET search_path`, /fingerprint mismatch.*fn_fg_mark_done_if_zero|has no pinned search_path/);
+  run1(`CREATE FUNCTION public.fn_fg_mark_done_if_zero_legacy(integer,text,numeric) RETURNS void LANGUAGE sql AS $$ SELECT 1 $$`, /fn_fg_mark_done_if_zero_legacy already exists/, true);
+  run1(`CREATE OR REPLACE FUNCTION public.fn_fg_mark_done_if_zero(p_product_id integer, p_batch_number text, p_eps numeric) RETURNS void LANGUAGE sql SET search_path TO 'pg_catalog','public','public','pg_temp' AS $$ SELECT 1 $$`, /fingerprint mismatch.*fn_fg_mark_done_if_zero|no longer references the reconciler/);
+});
+T('PREINSTALL read-only script executes (no writes) and flags an unaccounted invoker caller; literal SHAs refuse the shim', () => {
+  const sqlFile = fs.readFileSync(path.resolve(here, '../../../docs/executive-mis-g7-server/S3B_PREINSTALL_LIVE_CHECK_READONLY.sql'), 'utf8');
+  const g = freshPre(`g7ro${++n}`);
+  const rows = (o) => Object.fromEntries(o.split('\n').filter(Boolean).map((l) => { const [a, b] = l.split('|'); return [a, b]; }));
+  const r1 = g.run(sqlFile); assert.equal(r1.status, 0, r1.err);
+  const m1 = rows(r1.out);
+  assert.equal(Object.keys(m1).length, 15);                                   // 11 fingerprints + 4 structural rows
+  for (const fn of Object.keys(LIVE_SHAS)) assert.equal(m1[fn], 'f', fn);       // reconstructed shim cannot equal live SHAs
+  assert.equal(m1['reconciler not client-executable'], 't'); assert.equal(m1['no other invoker caller of helpers/reconciler'], 't');
+  assert.equal(m1['fn_fg_mark_done_if_zero legacy name free'], 't');
+  assert.equal(m1['mark_done is invoker, authenticated-callable, pinned search_path (expected pre-install state)'], 't');
+  assert.equal(g.run(`CREATE FUNCTION public.sneaky() RETURNS void LANGUAGE sql AS $$ SELECT public.fn_fg_mark_done_if_zero(1,'x',0) $$`).status, 0);
+  assert.equal(rows(g.run(sqlFile).out)['no other invoker caller of helpers/reconciler'], 'f');
+  assert.equal(g.run(`SELECT count(*) FROM pg_proc WHERE proname='fn_fg_mark_done_if_zero_legacy'`).out, '0');   // read-only: nothing created
 });
 test('BLOCKED (not PASS): live-schema compile, live role/JWT simulation, early-lock force-close/auto-zero wrappers, legitimate corrections under ENFORCE', { skip: 'BLOCKED: needs live definitions / owner authorization; see README' }, () => {});

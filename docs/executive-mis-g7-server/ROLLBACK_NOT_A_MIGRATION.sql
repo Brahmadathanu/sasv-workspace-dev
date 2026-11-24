@@ -14,6 +14,19 @@ DROP FUNCTION IF EXISTS app_private.trg_mis_fg_ledger_batch_lock();
 -- RLS state/policies are untouched by S3b. Retained: gate/audit/ticket/baseline tables and all signed history.
 DROP TRIGGER IF EXISTS "00_mis_g7_event_skus_gate" ON public.event_skus;
 DROP TRIGGER IF EXISTS "00_mis_g7_packaging_events_gate" ON public.packaging_events;
+-- mark_done_if_zero: remove the wrapper (only if it is ours) and give the original function its name back; the generic
+-- baseline loop below then restores its SECURITY attribute, search_path and ACL.
+DO $$
+BEGIN
+  IF to_regprocedure('public.fn_fg_mark_done_if_zero_legacy(integer,text,numeric)') IS NOT NULL THEN
+    IF to_regprocedure('public.fn_fg_mark_done_if_zero(integer,text,numeric)') IS NOT NULL THEN
+      IF (SELECT prosrc FROM pg_proc WHERE oid = to_regprocedure('public.fn_fg_mark_done_if_zero(integer,text,numeric)')) NOT LIKE '%MIS_G7_MARK_DONE_WRAPPER%' THEN
+        RAISE EXCEPTION 'S3B rollback: fn_fg_mark_done_if_zero is not the S3b wrapper; refusing'; END IF;
+      DROP FUNCTION public.fn_fg_mark_done_if_zero(integer,text,numeric);
+    END IF;
+    ALTER FUNCTION public.fn_fg_mark_done_if_zero_legacy(integer,text,numeric) RENAME TO fn_fg_mark_done_if_zero;
+  END IF;
+END $$;
 DO $$
 DECLARE b record; a record; v_cfg text;
 BEGIN
