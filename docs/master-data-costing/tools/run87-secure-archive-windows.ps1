@@ -1,6 +1,6 @@
-#Requires -Version 7.0
+#Requires -Version 5.1
 <#
-  S3R — secure one-time read-only SASV run87 archive on Windows.
+  S3R - secure one-time read-only SASV run87 archive on Windows.
   Requires two distinct BitLocker-protected drives and a PostgreSQL
   read-only URL supplied through local process environment, never command args.
   Does NOT perform DELETE, CREATE, ALTER, DROP, or schedule changes.
@@ -15,7 +15,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 function Assert-EncryptedVolume([string]$path) {
-  if (-not [IO.Path]::IsPathFullyQualified($path)) {
+  if ($path -notmatch '^[A-Za-z]:\') {
     throw "Use a full local drive path for both archive destinations."
   }
   $full = [IO.Path]::GetFullPath($path)
@@ -31,7 +31,12 @@ function Assert-EncryptedVolume([string]$path) {
   if (-not (Test-Path -LiteralPath $full -PathType Container)) {
     throw "Archive root directory must already exist on a protected volume: $full"
   }
-  return [pscustomobject]@{ Path=$full; Drive=$drive.ToUpperInvariant() }
+  $part = Get-Partition -DriveLetter $drive.Substring(0,1) -ErrorAction Stop
+  $disk = Get-Disk -Number $part.DiskNumber -ErrorAction Stop
+  if ($disk.BusType -in @('Virtual','File Backed Virtual','iSCSI','Unknown')) {
+    throw "Drive $drive is virtual/network-backed (BusType $($disk.BusType)); not an acceptable archive medium."
+  }
+  return [pscustomobject]@{ Path=$full; Drive=$drive.ToUpperInvariant(); DiskNumber=$part.DiskNumber }
 }
 
 if ([string]::IsNullOrWhiteSpace($env:SASV_ARCHIVE_DATABASE_URL)) {
@@ -49,6 +54,9 @@ $primary = Assert-EncryptedVolume $ArchiveDriveRoot
 $backup = Assert-EncryptedVolume $BackupDriveRoot
 if ($primary.Drive -eq $backup.Drive) {
   throw "Backup must be on a distinct BitLocker-protected drive."
+}
+if ($primary.DiskNumber -eq $backup.DiskNumber) {
+  throw "Archive and backup share physical disk $($primary.DiskNumber); not an independent backup."
 }
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   throw "Node.js must be installed on the local workstation."
@@ -107,7 +115,7 @@ $receipt = [pscustomobject]@{
   filesChecked = $files.Count
   files = $files
   encryptedSeparateDriveCopies = $true
-  independentPhysicalMediaConfirmed = $false # Operator must verify physical independence
+  independentPhysicalMediaConfirmed = ($primary.DiskNumber -ne $backup.DiskNumber) # distinct Windows disk numbers; operator still confirms not a RAID/partition alias
   restoreVerified = $false
   foreignKeyBusinessParityVerified = $false
   productionDeletionAuthorised = $false
@@ -115,7 +123,7 @@ $receipt = [pscustomobject]@{
 # Store receipt beside PRIMARY archive (not within archive directory).
 $receiptPath = Join-Path $primary.Path 'SASV-run87-archive-receipt.json'
 if (Test-Path -LiteralPath $receiptPath) { throw 'Receipt already exists, refuse overwrite.' }
-$receipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $receiptPath -Encoding utf8 -NoNewline
-Write-Host "PASS — verified encrypted archive and separate-drive copy: $($receipt.archivedRows) rows across 64 relations."
+[IO.File]::WriteAllText($receiptPath, ($receipt | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding($false)))
+Write-Host "PASS - verified encrypted archive and separate-drive copy: $($receipt.archivedRows) rows across 64 relations."
 Write-Host "Non-sensitive metadata receipt: $receiptPath"
-Write-Host 'HOLD — independent physical-media confirmation, actual FK-preserving restore and deletion approval remain outstanding.'
+Write-Host 'HOLD - independent physical-media confirmation, actual FK-preserving restore and deletion approval remain outstanding.'

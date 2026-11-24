@@ -49,19 +49,22 @@ export async function archiveDirectRelation(client,row,out,pageSize) {
   const gzip=createGzip({level:6});
   const output=createWriteStream(partial,{flags:'wx'});
   gzip.pipe(output);
-  let cursor='(0,0)',count=0;
+  let cursorOid='0',cursor='(0,0)',count=0;
   try {
     while(true) {
+      // ctid is unique only within one physical relation; for partitioned
+      // parents the keyset is (tableoid, ctid) so no partition's rows are skipped.
       const {rows}=await client.query(
-        `SELECT t.ctid::text AS tid,row_to_json(t)::text AS json_line
-         FROM ${table} t WHERE t.${column}=$1 AND t.ctid>$2::tid
-         ORDER BY t.ctid LIMIT $3`,[RUN,cursor,pageSize]);
+        `SELECT t.tableoid::oid::text AS toid,t.ctid::text AS tid,row_to_json(t)::text AS json_line
+         FROM ${table} t WHERE t.${column}=$1
+           AND (t.tableoid::oid>$2::oid OR (t.tableoid::oid=$2::oid AND t.ctid>$3::tid))
+         ORDER BY t.tableoid::oid,t.ctid LIMIT $4`,[RUN,cursorOid,cursor,pageSize]);
       if(!rows.length)break;
       for(const r of rows) {
         const line=r.json_line+'\n';
         hash.update(line);
         if(!gzip.write(line)) await once(gzip,'drain');
-        cursor=r.tid;count++;
+        cursorOid=r.toid;cursor=r.tid;count++;
       }
       if(rows.length<pageSize)break;
     }
@@ -75,7 +78,7 @@ export async function archiveDirectRelation(client,row,out,pageSize) {
       fkName:row.fk_name,fkAction:row.fk_action,
       hasIncomingFk:row.has_incoming_fk,hasBusinessTrigger:row.has_business_trigger,
       filename,count,sha256UncompressedJsonl:hash.digest('hex'),
-      extractionCursor:'physical ctid within REPEATABLE READ snapshot'
+      extractionCursor:'(tableoid, ctid) within REPEATABLE READ snapshot'
     };
   }catch(e){gzip.destroy();output.destroy();await fs.rm(partial,{force:true}).catch(()=>{});throw e;}
 }

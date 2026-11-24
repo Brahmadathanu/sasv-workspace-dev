@@ -43,3 +43,18 @@ test('rejects count drift without leaving export',async()=>{
     await assert.rejects(()=>readFile(join(dir,'marketing_regional_sales_evidence_snapshot.jsonl.gz')));
   } finally { await rm(dir,{recursive:true,force:true}); }
 });
+
+test('direct-FK archiver pages on (tableoid, ctid) so partitioned parents lose no rows', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const src = await readFile(new URL('./archive-run87-direct-fks.mjs', import.meta.url), 'utf8');
+  assert.match(src, /ORDER BY t\.tableoid::oid,t\.ctid/);
+  assert.match(src, /cursorOid=r\.toid/);
+});
+
+test('S3R script is PowerShell 5.1 compatible, ASCII-only and demands distinct physical disks', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const ps = await readFile(new URL('./run87-secure-archive-windows.ps1', import.meta.url), 'utf8');
+  assert.doesNotMatch(ps, /[^\x00-\x7F]/);
+  assert.match(ps, /#Requires -Version 5\.1/);
+  assert.match(ps, /share physical disk/);
+});
