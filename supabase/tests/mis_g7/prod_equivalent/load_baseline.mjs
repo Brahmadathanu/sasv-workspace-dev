@@ -37,21 +37,44 @@ export function loadBaseline(pg, db, dir) {
   // schema dump (tables, types, sequences, functions, triggers, policies, ACLs, owners). Apply tolerant of ordering noise, then report remaining errors.
   const r = pg.psql(db, schema.replace(/^SET (transaction_timeout|idle_in_transaction_session_timeout)[^\n]*\n/gm, '').replace(/^SELECT pg_catalog\.set_config\('search_path', '', false\);\n/m, ''), { noStop: true });
   const errors = (r.err.match(/^ERROR:[^\n]*/gm) ?? []).filter((e) => !/already exists/i.test(e));
+  // Owners and ACLs of EVERY captured function are restored from the packet (auth.* functions are created from their captured definition and
+  // would otherwise keep default owner/ACL). ACL items are 'grantee=privs/grantor'; function privilege is EXECUTE ('X', '*' = grant option).
+  const idq = (f) => f.identity.replace(/'/g, "''");
+  const stmts = [];
+  for (const f of cat.functions) {
+    stmts.push(`ALTER FUNCTION ${f.identity} OWNER TO "${f.owner}";`);
+    if (f.acl && f.acl.length) {
+      stmts.push(`REVOKE ALL ON FUNCTION ${f.identity} FROM PUBLIC;`);
+      stmts.push(`DO $$ DECLARE r text; BEGIN FOR r IN SELECT rolname FROM pg_roles WHERE rolname NOT LIKE 'pg\\_%' AND rolname <> '${f.owner}' LOOP EXECUTE format('REVOKE ALL ON FUNCTION ${idq(f)} FROM %I', r); END LOOP; END $$;`);
+      for (const item of f.acl) {
+        const [grantee, rest] = item.split('='); const privs = rest.split('/')[0];
+        if (!privs.includes('X')) continue;
+        stmts.push(`GRANT EXECUTE ON FUNCTION ${f.identity} TO ${grantee === '' ? 'PUBLIC' : `"${grantee}"`}${privs.includes('X*') ? ' WITH GRANT OPTION' : ''};`);
+      }
+    }
+  }
+  const ar = pg.psql(db, stmts.join('\n'), { noStop: true }); errors.push(...(ar.err.match(/^ERROR:[^\n]*/gm) ?? []));
   return { errors, packet };
 }
 
-// Compare loaded vs captured (function identity -> SHA-256 of pg_get_functiondef, owner, ACL, secdef, config).
+// Compare loaded vs captured, for EVERY captured function: existence, SHA-256 of pg_get_functiondef (exact source), owner, SECURITY attribute,
+// configuration (proconfig, order-preserving) and the ACL (normalized: sorted aclitems, NULL == acldefault). Returns a list of differences.
+const sortAcl = (items) => [...items].sort().join(',');
+const defaultAcl = (owner) => sortAcl([`=X/${owner}`, `${owner}=X/${owner}`]);
 export function verifyFunctions(pg, db, packet) {
   const diffs = [];
   for (const f of packet.cat.functions) {
-    const r = pg.psql(db, `SELECT encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex')||'|'||pg_get_userbyid(p.proowner)||'|'||p.prosecdef||'|'||coalesce(p.proconfig::text,'')||'|'||
-      coalesce((SELECT string_agg(x::text, ',' ORDER BY x::text) FROM unnest(coalesce(p.proacl, acldefault('f', p.proowner))) x), '') FROM pg_proc p WHERE p.oid = to_regprocedure('${f.identity.replace(/'/g, "''")}')`);
-    const want = [f.sha256, f.owner, String(f.secdef), f.config ? `{${f.config.join(',')}}` : '', null];
-    const got = (r.out || '').split('|');
-    if (got[0] !== f.sha256) diffs.push(`${f.identity}: definition SHA differs (live ${f.sha256.slice(0, 12)} vs loaded ${String(got[0]).slice(0, 12)})`);
-    else if (got[1] !== f.owner) diffs.push(`${f.identity}: owner ${got[1]} != ${f.owner}`);
-    else if (got[2] !== String(f.secdef)) diffs.push(`${f.identity}: security attribute differs`);
-    void want; void sha;
+    const r = pg.psql(db, `SELECT encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex') || E'\\t' || pg_get_userbyid(p.proowner) || E'\\t' || p.prosecdef || E'\\t' || coalesce(array_to_string(p.proconfig, '|'), '') || E'\\t' ||
+      coalesce((SELECT string_agg(x::text, ',' ORDER BY x::text) FROM unnest(coalesce(p.proacl, acldefault('f', p.proowner))) x), '')
+      FROM pg_proc p WHERE p.oid = to_regprocedure('${f.identity.replace(/'/g, "''")}')`);
+    if (r.status !== 0 || !r.out) { diffs.push(`${f.identity}: MISSING in the loaded database`); continue; }
+    const [sha, owner, secdef, config, acl] = r.out.split('\t');
+    if (sha !== f.sha256) { diffs.push(`${f.identity}: definition SHA differs (captured ${f.sha256.slice(0, 12)} vs loaded ${sha.slice(0, 12)})`); continue; }
+    if (owner !== f.owner) diffs.push(`${f.identity}: owner ${owner} != captured ${f.owner}`);
+    if (secdef !== (f.secdef ? 'true' : 'false')) diffs.push(`${f.identity}: SECURITY DEFINER ${secdef} != captured ${f.secdef}`);
+    if (config !== (f.config ?? []).join('|')) diffs.push(`${f.identity}: configuration '${config}' != captured '${(f.config ?? []).join('|')}'`);
+    const wantAcl = f.acl && f.acl.length ? sortAcl(f.acl) : defaultAcl(f.owner);
+    if (acl !== wantAcl) diffs.push(`${f.identity}: ACL '${acl}' != captured '${wantAcl}'`);
   }
   return diffs;
 }

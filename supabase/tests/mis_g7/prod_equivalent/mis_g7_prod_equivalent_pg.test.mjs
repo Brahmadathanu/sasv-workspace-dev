@@ -59,6 +59,24 @@ T('PACKET: captured baseline loads with no unexplained errors; every captured fu
   assert.equal(packet.cat.settings['plpgsql.variable_conflict'] ?? 'error', 'error');                               // live default: no override assumed
   if (REAL) assert.ok(/^17\./.test(packet.cat.server_version), `captured from server ${packet.cat.server_version}`);
 });
+T('verifyFunctions COMPARES ACL, configuration, owner, security attribute and source (each mutation is detected; it previously fetched ACL/config without comparing)', () => {
+  assert.deepEqual(verifyFunctions(pg, DB, packet), []);
+  const f = packet.cat.functions.find((x) => /fn_parse_sku_breakdown/.test(x.identity)) ?? packet.cat.functions[0]; const id = f.identity;
+  const mut = (sql) => { assert.equal(pg.psql(DB, sql).status, 0, sql); };
+  const only = (re, n = 1) => { const d = verifyFunctions(pg, DB, packet).filter((x) => x.startsWith(id)); assert.equal(d.length, n, JSON.stringify(d)); assert.ok(d.some((x) => re.test(x)), JSON.stringify(d)); };
+  const clean = () => assert.deepEqual(verifyFunctions(pg, DB, packet).filter((x) => x.startsWith(id)), []);
+  const probe = (apply, undo, re, n = 1) => { mut(apply); try { only(re, n); } finally { mut(undo); } clean(); };
+  probe(`GRANT EXECUTE ON FUNCTION ${id} TO anon`, `REVOKE EXECUTE ON FUNCTION ${id} FROM anon`, /ACL/);
+  probe(`REVOKE EXECUTE ON FUNCTION ${id} FROM PUBLIC`, `GRANT EXECUTE ON FUNCTION ${id} TO PUBLIC`, /ACL/);
+  probe(`ALTER FUNCTION ${id} SET work_mem = '8MB'`, `ALTER FUNCTION ${id} RESET work_mem`, /configuration|SHA differs/);       // a SET clause is part of the definition text
+  probe(`ALTER FUNCTION ${id} SECURITY DEFINER`, `ALTER FUNCTION ${id} SECURITY INVOKER`, /SECURITY DEFINER|SHA differs/);
+  mut(`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='g7_tmp_owner') THEN CREATE ROLE g7_tmp_owner NOLOGIN; END IF; END $$`);
+  probe(`ALTER FUNCTION ${id} OWNER TO g7_tmp_owner`, `ALTER FUNCTION ${id} OWNER TO ${f.owner}`, /owner/, 2); mut(`DROP ROLE g7_tmp_owner`);   // a new owner changes the owner AND the owner-derived default ACL
+  // a missing function and a changed body are both reported
+  const body = pg.psql(DB, `SELECT pg_get_functiondef(to_regprocedure('${id}'))`).out;
+  mut(`DROP FUNCTION ${id}`); try { only(/MISSING/); } finally { mut(body); mut(`ALTER FUNCTION ${id} OWNER TO ${f.owner}`); }
+  clean();
+});
 T('S2 comes from the packet (INSTALLED baseline, never replayed): RPCs and tables present, zero signed rows, lock helpers still client-executable before S3', () => {
   assert.equal(val(`SELECT string_agg(proname, ',' ORDER BY proname) FROM pg_proc WHERE proname IN ('mis_sign_batch_stage_v1','mis_correct_batch_stage_v1')`), 'mis_correct_batch_stage_v1,mis_sign_batch_stage_v1');
   assert.equal(val(`SELECT count(*) FROM app_private.mis_batch_stage_event`), '0');
