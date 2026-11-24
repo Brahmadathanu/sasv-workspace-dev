@@ -35,3 +35,20 @@ Remove-Item Env:SASV_STAGE_RESTORE_ATTESTATION
 The tool verifies compressed archive hashes before initiating a DB transaction, creates temporary tables corresponding to the two original leaf relations, converts JSON using `jsonb_populate_record`, checks row totals and UTC-normalized row JSON serialization hashes, and executes `ROLLBACK` in `finally`. No data is imported into original tables. A successful receipt attests only **isolated typed temp-table restoration**, not production-recovery or purge authority.
 
 This script has not been executed against an isolated staging DB; no project branch, data export, or production write was created.
+
+## One-time actual historical archive — operational gate (NOT YET EXECUTED)
+
+After confirming an encrypted, access-restricted, independently backed-up local drive, a credentialed SASV database operator can perform the following on a **local trusted workstation only** (never GitHub Actions, project files, a chat attachment or a shared drive):
+
+```powershell
+# Use a *private read-only PostgreSQL credential* with SELECT on the costing
+# schema, provided from approved local secret storage; do not paste it in chat.
+# $env:SASV_ARCHIVE_DATABASE_URL = ...   # securely supplied
+node docs/master-data-costing/tools/archive-run87-direct-fks.mjs --run-id 87 --out "D:\\SASV-SECURE-RETENTION\\run87-direct" --expected-relations 64
+node docs/master-data-costing/tools/verify-run87-direct-fks.mjs "D:\\SASV-SECURE-RETENTION\\run87-direct"
+Remove-Item Env:SASV_ARCHIVE_DATABASE_URL
+```
+
+**Hard stop conditions:** refuse if the archive directory is populated, live FK topology differs from 64, run87 identity/status changes, run87 becomes designated/displayed, any table count diverges during the repeatable-read snapshot, or checksum verification fails. The output is confidential business data, and no archive should be transferred into CI. Independently copy/verify the encrypted archive to a separately secured backup location before considering any production change. This first archive covers **64 direct FK relations only**; it does **not** certify nested FK-consistent business recovery or cross-run isolation, and its manifest must remain `productionDeletionAuthorised:false`.
+
+The assistant's current connected Supabase SQL interface does not supply a private PostgreSQL DSN or a secure local archive destination. **It cannot perform this workstation-only sensitive export directly through that interface.** The above commands are the required operator handoff, not evidence that any real backup exists.
