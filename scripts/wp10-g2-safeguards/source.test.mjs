@@ -9,7 +9,8 @@ import { fileURLToPath } from "node:url";
 import { loadPhase1Inventory, sha256 } from "./phase1-applied-inventory.mjs";
 import { BRANCH } from "./prepare-phase1-registration.mjs";
 import { rejectedProtectedPaths } from "../lib/pec-protected-path-guard.mjs";
-import { pmBomDeltaApproved, normaliseApprovedSwDelta, WP11_PM_BOM_PATH, stripApprovedMisSwBlock } from "./wp11-approved-delta.mjs";
+import { misG7ApprovedMigrations, misG7ClientFileApproved, misG7MigrationApproved } from "./mis-g7-reporting-approved-delta.mjs";
+import { pmBomDeltaApproved, normaliseApprovedSwDelta, WP11_PM_BOM_PATH } from "./wp11-approved-delta.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
@@ -55,7 +56,8 @@ test("S4 no new permission target, registry entry, launcher entry or route in th
   // WP11 permit: the PM BOM page may differ from main ONLY by the exact reviewed, content-pinned CSS addition (see wp11-approved-delta.mjs).
   const pmBomDiff = git("diff", "-U0", "origin/main", "--", WP11_PM_BOM_PATH);
   assert.ok(pmBomDeltaApproved(pmBomDiff), `${WP11_PM_BOM_PATH} differs from main by more than the reviewed WP11 addition`);
-  for (const f of [...changed, ...untracked]) assert.ok(allowed.has(f) || (f === WP11_PM_BOM_PATH && changed.includes(f)), `unexpected changed client file: ${f}`);
+  const misBranch = process.env.GITHUB_HEAD_REF || git("branch", "--show-current").trim();   // MIS G7 reporting-only reviewed delta: exact paths, this branch only
+  for (const f of [...changed, ...untracked]) assert.ok(allowed.has(f) || misG7ClientFileApproved(f, misBranch) || (f === WP11_PM_BOM_PATH && changed.includes(f)), `unexpected changed client file: ${f}`);
 });
 
 test("S5 existing protected files remain byte-identical; SW differs only by approved classification network-first rule", () => {
@@ -65,7 +67,7 @@ test("S5 existing protected files remain byte-identical; SW differs only by appr
   }
   const existing=git("show", "origin/main:public/sw.js").replace(/\r\n/g,"\n");
   // WP11 permit: only line 2 (v393 -> v394 cache name + comment) may differ; it is mapped back before the byte-identity comparison.
-  const current=normaliseApprovedSwDelta(stripApprovedMisSwBlock(read("public/sw.js")), existing);   // MIS G7 reviewed five-line block is content-pinned and stripped first
+  const current=normaliseApprovedSwDelta(read("public/sw.js"), existing);
   if (existing.includes("    // WP10: four classification masters")) {
     // The classification network-first rule is already merged into main: the whole SW (after the single approved WP11 line-2 delta)
     // must now be byte-identical to main.
@@ -84,7 +86,9 @@ test("S6 proposal sources stay outside supabase/; only receipt/hash/branch-pinne
   const inventory = new Map(loadPhase1Inventory().map(m => [m.path, m.sha256]));
   const branch = process.env.GITHUB_HEAD_REF || git("branch", "--show-current").trim();
   const readCommitted = f => git("show", `HEAD:${f}`);
+  const misApproved = misG7ApprovedMigrations(root);
   for (const f of supa) {
+    if (misG7MigrationApproved(f, readCommitted(f), branch, misApproved)) continue;   // MIS G7: installed migration, content-pinned by SHA-256 on its own branch only
     assert.equal(branch, BRANCH, "new registration only on the owner-approved server lane");
     assert.ok(inventory.has(f), `unapproved supabase path: ${f}`);
     assert.equal(sha256(readCommitted(f)), inventory.get(f), `applied payload changed: ${f}`);

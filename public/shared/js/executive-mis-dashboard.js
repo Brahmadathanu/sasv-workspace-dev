@@ -1,6 +1,6 @@
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
-import { GOVERNANCE_STATES, HISTORICAL_AUDIT_SNAPSHOT, getExceptionSummary } from "./mis-g7-contract.js";
+import { renderEvidenceShell, mountEvidencePanel } from "./mis-evidence-report.js?mis-g7r=1";
 
 const MODULE_ID = "executive-mis-dashboard";
 const PLAN_WARNING_STATUS =
@@ -1831,52 +1831,15 @@ const PRODUCTION_COUNT_FIELDS = Object.freeze([
 let PRODUCTION_COUNTS = { status: "loading", message: "" };
 
 
-// MIS G7: how governed (signed) evidence is described. Presentation only: no signed/unsigned counts are
-// computed or inferred here, and the historical figures are a labelled reference snapshot, never live data.
-function renderGovernanceSection() {
-  const h = HISTORICAL_AUDIT_SNAPSHOT;
-  const states = Object.values(GOVERNANCE_STATES)
-    .map((g) => `<li><span class="mis-gov-tag mis-gov-${escapeHtml(g.tone)}">${escapeHtml(g.label)}</span> ${escapeHtml(g.text)}</li>`)
-    .join("");
-  const gaps = Object.entries(h.routeMasterDeficiencies)
-    .map(([k, v]) => `${escapeHtml(k.replace(/_/g, " ").toLowerCase())} ${v}`)
-    .join(" · ");
-  return `
-    <details class="mis-gov" id="productionGovernance">
-      <summary>Production evidence status <span class="mis-gov-mode">AUDIT mode: governed signing is available, not yet mandatory</span></summary>
-      <ul class="mis-gov-states">${states}</ul>
-      <div id="govLive" class="mis-gov-live" aria-live="polite"></div>
-      <p class="mis-gov-hist"><strong>Historical, not verified</strong> (reference snapshot, ${escapeHtml(h.window)}; not live): ${h.missingDepletionLines} packing lines in ${h.missingDepletionProductBatches} product-batches have no recorded depletion; route-master deficiencies on ${h.fgBulkLogs} FG bulk logs: ${gaps}. These are never backfilled or assumed correct and are kept separate from newly governed records.</p>
-      <p class="mis-gov-link"><a href="mis-batch-governance.html">Open Batch Governance</a></p>
-    </details>`;
-}
-
-// Live governed counts (S7 server read, last 30 days). Absent/denied/failed => the static definitions above stay; nothing is inferred client-side.
-let GOV_LIVE_TOKEN = 0;
-async function loadGovernanceLive() {
-  const el = document.getElementById("govLive"); if (!el) return;
-  const tok = ++GOV_LIVE_TOKEN; const to = istToday(); const from = new Date(new Date(`${to}T00:00:00Z`).getTime() - 30 * 86400000).toISOString().slice(0, 10);
-  el.innerHTML = `<span class="mis-gov-hist">Loading live counts…</span>`;
-  const res = await getExceptionSummary(supabase, from, to, 1, 0);
-  if (tok !== GOV_LIVE_TOKEN || !document.getElementById("govLive")) return;
-  if (res.kind !== "ok") {
-    el.innerHTML = res.kind === "unavailable" ? "" : `<span class="mis-gov-hist">Live counts unavailable${res.kind === "denied" ? " for your account" : ""}.</span>`;
-    return;
-  }
-  const d = res.data; const tags = Object.keys(GOVERNANCE_STATES).filter((k) => k in d.counts)
-    .map((k) => `<span class="mis-gov-tag mis-gov-${escapeHtml(GOVERNANCE_STATES[k].tone)}">${escapeHtml(GOVERNANCE_STATES[k].label)} ${escapeHtml(d.counts[k])}</span>`).join(" ");
-  el.innerHTML = `<p class="mis-gov-hist"><strong>Live, ${escapeHtml(d.from)} to ${escapeHtml(d.to)}</strong> (${escapeHtml(d.count_unit)}; ${escapeHtml(d.total_batches)} product/batches; cut-over ${escapeHtml(d.governance_cutover)}): ${tags || "no FG batches in the window"}. ${escapeHtml(d.line_counts.PACKING_LINES_WITHOUT_DEPLETION)} of ${escapeHtml(d.line_counts.PACKING_LINES)} packing lines have no recorded depletion (distinct lines).</p>`;
-}
-
 function renderProductionShell() {
   tabPanel.innerHTML = `
     ${renderProductionValueSection()}
-    ${renderGovernanceSection()}
+    ${renderEvidenceShell()}
     <div id="productionCounts" class="production-counts"></div>
   `;
   renderProductionValueBody();
   renderProductionCountsBody();
-  document.getElementById("productionGovernance")?.addEventListener("toggle", (e) => { if (e.target.open) loadGovernanceLive(); });
+  mountEvidencePanel(tabPanel, supabase, istToday());
 }
 
 async function loadProductionTab() {

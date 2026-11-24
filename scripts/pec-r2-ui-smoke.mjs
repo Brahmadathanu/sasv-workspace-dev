@@ -123,7 +123,7 @@ for (const [vp, label] of [[WIDE, "1440"], [PHONE, "390"]]) {
   const { ctx, page } = await open({ role: "edit", aq: true }, vp, "pr");
   const narrow = vp.width <= 520;
   const tabs = narrow ? await page.$$eval("#procTabSelect option", (o) => o.map((x) => x.textContent.trim())) : await page.$$eval(".tabs .tab-btn", (o) => o.map((x) => x.innerText.replace(/\s+/g, " ").trim()));
-  check(tabs.join("|") === "Purchase Requisitions|Purchase Indents|Vendor-wise Buying List|Action Queue|Excess Purchases", `${label}px: lens names (${tabs.join(" | ")})`);
+  check(tabs.join("|") === "Purchase Requisitions|Purchase Indents|Vendor-wise Buying List|Action Queue|Purchase Allocations|Excess Purchases", `${label}px: lens names (${tabs.join(" | ")})`);
   check(!(await page.evaluate(() => /PR Workbench|Overshoot/.test(document.body.innerText))), `${label}px: old names PR Workbench / Excess & Overshoot no longer shown`);
   for (const [lens, filterBtn, search, titleText, countId] of [["pr", "#prFilterBtn", "#prSearch", "Purchase Requisitions", "#prMeta"], ["indents", "#iFilterBtn", "#iSearch", "Purchase Indents", "#iMeta"], ["vendor-buylist", "#vwlFilterBtn", "#vwlSearch", "Vendor-wise Buying List", "#vwlMeta"], ["action", "#aqFilterBtn", "#fSearch", "Action Queue", "#aqMeta"], ["excess", "#eFilterBtn", "#eSearch", "Excess Purchases", "#eMeta"]]) {
     if (narrow) await page.selectOption("#procTabSelect", lens); else await page.click(`.tabs .tab-btn[data-tab="${lens}"]`);

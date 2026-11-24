@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
-import { pmBomDeltaApproved, normaliseApprovedSwDelta, stripApprovedMisSwBlock, WP11_PM_BOM_PATH } from "./wp11-approved-delta.mjs";
+import { pmBomDeltaApproved, normaliseApprovedSwDelta, WP11_PM_BOM_PATH } from "./wp11-approved-delta.mjs";
 
 const git = (...a) => execFileSync("git", a, { encoding: "utf8" });
 const lf = (s) => s.replace(/\r\n/g, "\n");
@@ -22,7 +22,7 @@ test("PM BOM: any other addition, any removed line, or a different block is reje
   assert.equal(pmBomDeltaApproved(d.replace("flex-wrap: wrap;", "flex-wrap: nowrap;")), false, "altered block");
   assert.equal(pmBomDeltaApproved(d.replace("max-width: 1100px", "max-width: 9999px")), false, "widened media query");
 });
-test("SW: only the v393->v394 line-2 delta is normalised; byte-identity of the rest is then enforced", () => {
+test("SW: only the approved line-2 deltas (v393->v394, v394->v395 + the exact v6.5.0 rules) is normalised; byte-identity of the rest is then enforced", () => {
   const b = base(), c = cur();
   if (c.split("\n")[1] === b.split("\n")[1]) return; // already merged
   assert.equal(normaliseApprovedSwDelta(c, b), b, "approved delta maps back to base exactly");
@@ -33,15 +33,18 @@ test("SW MUTATION: route / network-first / permission drift is NOT hidden by the
   const drift = (s) => assert.notEqual(normaliseApprovedSwDelta(s, b), b);
   drift(c.replace("self.skipWaiting();", "/* x */ self.skipWaiting();"));
   drift(c.replace(/\n$/, "\n// extra network-first rule\n"));
-  drift(c.replace("hub-cache-v394", "hub-cache-v395"));
+  drift(c.replace("hub-cache-v395", "hub-cache-v396"));
+  drift(c.replace("pec-modal-stack", "pec-modal-stac"));
+  drift(c.replace("pec-purchase-allocations", "pec-purchase-allocation"));
+  drift(c.replace("both new PEC modules network-first", "something else"));
   drift(c.replace("WP11 PM BOM header toolbar wraps at phone width", "something else"));
 });
-test("MIS G7 SW permit: stripping the pinned five-line block yields exactly main's service worker; altered or extra rules are not hidden", () => {
-  const b = base(), c = cur(); if (!c.includes("    // MIS G7 release candidate:")) return;          // already merged into main
-  assert.equal(stripApprovedMisSwBlock(c), b);
-  assert.equal(c.split("\n").length - b.split("\n").length, 5, "exactly five added lines");
-  assert.notEqual(stripApprovedMisSwBlock(c.replace("mis-governed-handoff|", "mis-governed-handoff|extra-module|")), b);
-  assert.notEqual(stripApprovedMisSwBlock(c.replace("sasv-mis-batch-governance", "sasv-other")), b);
-  assert.notEqual(stripApprovedMisSwBlock(c.replace(/\n$/, "\n// extra network-first rule\n")), b);
-  assert.equal(c.split("\n")[1], b.split("\n")[1], "CACHE_NAME line unchanged");
+
+test("SW: the v6.5.0 permit needs BOTH the cache line and the exact rule block (and nothing extra)", () => {
+  const b = base(), c = cur();
+  if (c.split("\n")[1] === b.split("\n")[1]) return; // already merged
+  const v394 = b.split("\n")[1];
+  if (!/hub-cache-v394/.test(v394)) return; // base is not the v394 line (permit does not apply)
+  assert.notEqual(normaliseApprovedSwDelta(c.replace(/\n    \/\/ PEC v6\.5\.0: modules[^\n]*\n[^\n]*\n[^\n]*\n/, "\n"), b), b, "cache line without the rule block");
+  assert.notEqual(normaliseApprovedSwDelta(c + "// extra\n", b), b, "extra trailing line");
 });

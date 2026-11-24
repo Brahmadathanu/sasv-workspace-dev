@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v394"; // WP11 PM BOM header toolbar wraps at phone width (genuine 390px overflow fix); v393 was WP05-W506 Staff Governance personnel-confidentiality client gate (explicit projections, edit gating); v392 was Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)
+const CACHE_NAME = "hub-cache-v395"; // PEC v6.5.0 Purchase Allocations lens + shared modal stack: both new PEC modules network-first so an installed PWA never pairs the console with a stale cached module (cache generation advanced to retire copies cached while they were cache-first); v394 was WP11 PM BOM header toolbar wraps at phone width (genuine 390px overflow fix); v393 was WP05-W506 Staff Governance personnel-confidentiality client gate (explicit projections, edit gating); v392 was Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)
 
 const PRECACHE = [
   // Hub shell
@@ -118,11 +118,6 @@ self.addEventListener("fetch", (event) => {
     /\/shared\/css\/launcher-presentation\.css$/.test(url.pathname) ||
     /\/shared\/js\/module-registry\.js$/.test(url.pathname) ||
     /\/utilities-hub\/js\/hub-auth\.js$/.test(url.pathname) ||
-    // MIS G7 release candidate: the Batch Governance page, the MIS contract helpers, the governed Add/Edit Log Entry hand-off module and the
-    // Executive MIS dashboard script (referenced with a ?mis-c1= cache-key query, which would otherwise pin a stale cache-first copy) evolve
-    // together with the server read contracts, so they are network-first (offline cache fallback). Matching is on the pathname only.
-    /\/shared\/js\/(?:mis-batch-governance|mis-g7-contract|mis-governed-handoff|executive-mis-dashboard)\.js$/.test(url.pathname) ||
-    /\/shared\/css\/sasv-mis-batch-governance\.css$/.test(url.pathname) ||
     // FG-BIT-UX-1: the page HTML is network-first, so its script/stylesheet must
     // be too, otherwise an installed PWA pairs new HTML with stale cached JS.
     /\/shared\/js\/fg-bulk-internal-transfer\.js$/.test(url.pathname) ||
@@ -134,6 +129,9 @@ self.addEventListener("fetch", (event) => {
     /\/(?:shared\/)?js\/(?:categories|subcategories|product-groups|subgroups|classification-master-access|classification-html-escape)\.js$/.test(url.pathname) ||
     /\/shared\/js\/procurement-execution-console\.js$/.test(url.pathname) ||
     /\/shared\/css\/sasv-procurement-execution-console\.css$/.test(url.pathname) ||
+    // PEC v6.5.0: modules imported by the console (modal stack; Purchase Allocations core + adapter + lens).
+    /\/shared\/js\/pec-modal-stack\.js$/.test(url.pathname) ||
+    /\/shared\/js\/pec-purchase-allocations\.js$/.test(url.pathname) ||
     // WP08 G2-0: the four shared Master Data pages (HTML is network-first) must not pair new HTML with a stale
     // cache-first script/stylesheet. These URLs were never cached by any earlier cache generation, so no
     // CACHE_NAME advance is needed; they simply must never enter the cache-first path.

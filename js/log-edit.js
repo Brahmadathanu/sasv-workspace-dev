@@ -3,7 +3,6 @@
 import { supabase } from "../public/shared/js/supabaseClient.js";
 import { requireAuthAndPermission } from "../public/shared/js/appAuth.js";
 import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
-import { mountEditGovernance, governedBlocksChainWrite } from "../public/shared/js/mis-governed-handoff.js";  // MIS G7: default-disabled governed hand-off + destructive-write guard
 
 /* global flatpickr, confirmDatePlugin, TomSelect */
 
@@ -920,8 +919,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       document.querySelectorAll(".deleteBtn").forEach((btn) => {
         btn.onclick = async (e) => {
           e.preventDefault();
-          const misGuard = await governedBlocksChainWrite({ workLogId: Number(btn.dataset.id) });   // {blocked:false} while the hand-off flag is off (default)
-          if (misGuard.blocked) { window.alert(misGuard.message); return; }
           if (await askConfirm("Delete this entry?")) {
             await clearPackaging(btn.dataset.id);
             await supabase
@@ -2286,8 +2283,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         fgGuardEl.style.display = "none";
       }
 
-      // MIS G7 governed hand-off (default-disabled): status panel and guard against destructive chain replacement (awaited so Save can never be clicked before the guard has decided)
-      await mountEditGovernance({ container: editModal.querySelector("#editForm"), workLogId: row.id, controls: ["#saveEdit"], forms: ["#editForm"] });
       // reveal modal only after fields are populated & locked
       showModal(editModal);
     }

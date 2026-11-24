@@ -115,8 +115,6 @@ export const NON_LAUNCHER = {
   "manage-products.html": "legacy redirect stub (WP08)", "manage-rm-bom.html": "legacy redirect stub (WP08)",
   "manage-pm-bom.html": "legacy redirect stub (WP08)", "manage-sp-bom.html": "legacy redirect stub (WP08)",
   "fg-bulk-internal-transfer.html": "legacy redirect stub",
-  // MIS G7 client: reachable from the Executive MIS dashboard; launcher registration is a proposal only (docs/executive-mis-g7-server/CLIENT_PERMISSION_REGISTRY_PROPOSAL_NOT_APPLIED.sql), pending owner authorization.
-  "public/shared/mis-batch-governance.html": "MIS G7 Batch Governance: launcher registration pending owner-authorized registry proposal (not applied)",
   // WP10 PWA enablement: canonical pages moved to public/shared (one source for Electron + PWA); root URLs forward.
   "manage-categories.html": "legacy redirect stub (WP10 PWA)", "manage-subcategories.html": "legacy redirect stub (WP10 PWA)",
   "manage-product-groups.html": "legacy redirect stub (WP10 PWA)", "manage-subgroups.html": "legacy redirect stub (WP10 PWA)",

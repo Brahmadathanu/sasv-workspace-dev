@@ -47,8 +47,16 @@
       .mis-gov-ok { color: var(--sasv-success, var(--mis-text)); background: var(--sasv-success-bg, var(--mis-surface-soft)); border-color: var(--sasv-success-border, var(--mis-border)); }
       .mis-gov-warn { color: var(--mis-warning); background: var(--mis-warning-bg); border-color: var(--mis-warning-border); }
       .mis-gov-danger { color: var(--mis-danger); background: var(--mis-danger-bg); border-color: var(--mis-danger-border); }
-      .mis-gov-hist, .mis-gov-link { margin: 6px 0 2px; font-size: 0.85rem; color: var(--mis-muted); }
-      .mis-gov-link a { color: var(--mis-accent); }
+      .mis-gov-hist { margin: 6px 0 2px; font-size: 0.85rem; color: var(--mis-muted); }
+      .mis-gov-bar { margin: 6px 0; font-size: 0.85rem; color: var(--mis-text-secondary); }
+      .mis-gov-bar select { margin-left: 6px; min-height: 32px; }
+      .mis-gov-table-wrap { overflow-x: auto; margin: 6px 0; max-height: 360px; overflow-y: auto; }
+      .mis-gov-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+      .mis-gov-table th { position: sticky; top: 0; background: var(--mis-surface-soft); text-align: left; font-weight: 600; }
+      .mis-gov-table th, .mis-gov-table td { padding: 4px 8px; border-bottom: 1px solid var(--mis-border); vertical-align: top; }
+      .mis-gov-pager { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.8rem; color: var(--mis-muted); }
+      .mis-gov-pager button { min-height: 32px; padding: 2px 12px; }
+      @media (max-width: 520px) { .mis-gov-tag { min-width: 0; } .mis-gov-table th, .mis-gov-table td { padding: 4px 6px; } }
 
       html,
       body {
@@ -1514,6 +1522,6 @@
       </div>
     </div>
 
-    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=13a7ac0-day-select"></script>
+    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=g7r-evidence-report-1"></script>
   </body>
 </html>

@@ -5,7 +5,6 @@
 import { supabase } from "../public/shared/js/supabaseClient.js";
 import { requireAuthAndPermission } from "../public/shared/js/appAuth.js";
 import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
-import { handoffParam, savedWorkLogId, maybeShowHandoff, HANDOFF_PARAM } from "../public/shared/js/mis-governed-handoff.js";  // MIS G7: default-disabled governed-signing hand-off
 /* global flatpickr, confirmDatePlugin */
 
 /* ─────────────────────────────  DATE HELPERS  ────────────────────────── */
@@ -1422,8 +1421,6 @@ async function handleSubmit(isNew) {
     const p = new URLSearchParams();
     p.set("prefill_item", row.item);
     p.set("prefill_bn", row.batch_number);
-    const misSign = handoffParam(savedWorkLogId(data), row.activity);   // "" while the hand-off flag is off (default)
-    if (misSign) p.set(HANDOFF_PARAM, misSign);
     window.location.href = `add-log-entry.html?${p.toString()}`;
   } else {
     clearForm();
@@ -1434,4 +1431,3 @@ form.addEventListener("submit", (e) => {
   e.preventDefault();
   handleSubmit(false);
 });
-maybeShowHandoff();   // no-op unless GOVERNED_LOGGING_HANDOFF is enabled
