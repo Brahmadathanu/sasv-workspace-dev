@@ -37,7 +37,7 @@ UNION ALL SELECT 'mark_done is invoker, authenticated-callable, pinned search_pa
 UNION ALL SELECT 'live epsilon default exists and is positive (live value 0.01; wrapper bounds epsilon by it)',
        to_regprocedure('public.fn_fg_eps_default()') IS NOT NULL AND public.fn_fg_eps_default() > 0, NULL
 UNION ALL SELECT 'force-close wrapper uses module:fg-bulk-stock (wrapper must use the same target)',
-       p.prosrc ILIKE '%require_permission(''module:fg-bulk-stock''%', NULL
+       regexp_replace(p.prosrc, '[[:space:]]+', '', 'g') ILIKE '%require_permission(''module:fg-bulk-stock'',true)%', NULL
   FROM pg_proc p WHERE p.oid = 'public.fn_fg_force_close(integer,text)'::regprocedure;
 -- Also capture (outside this file) the full pg_get_functiondef text of all ten functions into the immutable deployment packet.
 COMMIT;
