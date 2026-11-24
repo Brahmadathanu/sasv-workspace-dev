@@ -1,3 +1,5 @@
+> **SUPERSEDED SCOPE (24 Nov 2026, later the same day):** the owner restricted Executive MIS to reporting only. The operational Batch Governance page, the Add/Edit hand-offs and the five-line service-worker block described below were separated from the release candidate and preserved on `preserve/pwl-operational-g7-client-20261124` (commit `4d292fe9`) for the Production Work Log. Current candidate, results and requirement classification: `MIS_REPORTING_ONLY_CLOSURE_PACKAGE_20261124.md`. The migration reconciliation in §1 stands. The text below is the contemporaneous record and is not rewritten.
+
 # MIS G7 — client integration, deployment reconciliation and release candidate (24 Nov 2026)
 
 Branch `claude/executive-mis-g7-client-dmijyz` (started at `6ee9553401e675e78f8393215ac002b84a0727fe`; `origin/main` at `171d84e3`). G7 OPEN 7/11, G8 parked. No production write, permission assignment, core sign-off, ENFORCE switch, Electron publication or release tag was performed by this work. Governed logging activation is **default-disabled** (`GOVERNED_LOGGING_HANDOFF = false` in `public/shared/js/mis-governed-handoff.js`).

@@ -8,8 +8,8 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadPhase1Inventory, sha256 } from "./phase1-applied-inventory.mjs";
 import { BRANCH } from "./prepare-phase1-registration.mjs";
-import { rejectedProtectedPaths } from "../lib/pec-protected-path-guard.mjs";
-import { misG7ApprovedMigrations, misG7ClientFileApproved, misG7MigrationApproved } from "./mis-g7-reporting-approved-delta.mjs";
+import { rejectedProtectedPaths, REVIEWED_MIS_G7_FILES } from "../lib/pec-protected-path-guard.mjs";
+import { misG7ClientFileApproved, misG7PinnedFileApproved } from "./mis-g7-reporting-approved-delta.mjs";
 import { pmBomDeltaApproved, normaliseApprovedSwDelta, WP11_PM_BOM_PATH } from "./wp11-approved-delta.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -86,9 +86,8 @@ test("S6 proposal sources stay outside supabase/; only receipt/hash/branch-pinne
   const inventory = new Map(loadPhase1Inventory().map(m => [m.path, m.sha256]));
   const branch = process.env.GITHUB_HEAD_REF || git("branch", "--show-current").trim();
   const readCommitted = f => git("show", `HEAD:${f}`);
-  const misApproved = misG7ApprovedMigrations(root);
   for (const f of supa) {
-    if (misG7MigrationApproved(f, readCommitted(f), branch, misApproved)) continue;   // MIS G7: installed migration, content-pinned by SHA-256 on its own branch only
+    if (misG7PinnedFileApproved(f, readCommitted(f), branch, REVIEWED_MIS_G7_FILES)) continue;   // MIS G7: installed migration / isolated PG harness, content-pinned by SHA-256 on its own branch only
     assert.equal(branch, BRANCH, "new registration only on the owner-approved server lane");
     assert.ok(inventory.has(f), `unapproved supabase path: ${f}`);
     assert.equal(sha256(readCommitted(f)), inventory.get(f), `applied payload changed: ${f}`);

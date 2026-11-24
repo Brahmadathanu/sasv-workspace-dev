@@ -57,3 +57,17 @@ test("registry proposal is outside supabase/migrations and assigns no user", () 
   assert.doesNotMatch(sql.replace(/^\s*--.*$/gm, ""), /(insert\s+into|update|delete\s+from)\s+public\.user_permissions/i);
   assert.ok(!fs.readdirSync(new URL("supabase/migrations/", root)).some((f) => /mis_g7_client|permission_registry|registry_dormancy/.test(f)));
 });
+
+test("WP10 / PEC guard approved-delta is narrow: exact content on the MIS branch only; edits, other branches, renames, the service worker and other migrations stay rejected", async () => {
+  const { rejectedProtectedPaths, REVIEWED_MIS_G7_FILES } = await import("../lib/pec-protected-path-guard.mjs");
+  const HEAD = "claude/executive-mis-g7-client-dmijyz", mig = "supabase/migrations/20261124122000_mis_g7_s7c_governed_previews_and_exception_summary.sql";
+  const ctx = (branch, text) => ({ headBranch: branch, readText: () => text });
+  const ok = read(mig);
+  assert.equal(Object.keys(REVIEWED_MIS_G7_FILES).filter((f) => f.startsWith("supabase/migrations/")).length, 11);
+  assert.deepEqual(rejectedProtectedPaths([mig], false, ctx(HEAD, ok)), []);
+  assert.deepEqual(rejectedProtectedPaths([mig], false, ctx(HEAD, ok + "\n-- edit")), [mig], "one-byte edit rejected");
+  assert.deepEqual(rejectedProtectedPaths([mig], false, ctx("claude/other", ok)), [mig], "other branch rejected");
+  assert.deepEqual(rejectedProtectedPaths([mig], false, null), [mig], "no context rejected");
+  assert.deepEqual(rejectedProtectedPaths(["supabase/migrations/20261124999999_renamed_copy.sql"], false, ctx(HEAD, ok)), ["supabase/migrations/20261124999999_renamed_copy.sql"]);
+  assert.deepEqual(rejectedProtectedPaths(["public/sw.js"], false, ctx(HEAD, "x")), ["public/sw.js"], "service worker stays protected");
+});
