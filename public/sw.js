@@ -118,6 +118,11 @@ self.addEventListener("fetch", (event) => {
     /\/shared\/css\/launcher-presentation\.css$/.test(url.pathname) ||
     /\/shared\/js\/module-registry\.js$/.test(url.pathname) ||
     /\/utilities-hub\/js\/hub-auth\.js$/.test(url.pathname) ||
+    // MIS G7 release candidate: the Batch Governance page, the MIS contract helpers, the governed Add/Edit Log Entry hand-off module and the
+    // Executive MIS dashboard script (referenced with a ?mis-c1= cache-key query, which would otherwise pin a stale cache-first copy) evolve
+    // together with the server read contracts, so they are network-first (offline cache fallback). Matching is on the pathname only.
+    /\/shared\/js\/(?:mis-batch-governance|mis-g7-contract|mis-governed-handoff|executive-mis-dashboard)\.js$/.test(url.pathname) ||
+    /\/shared\/css\/sasv-mis-batch-governance\.css$/.test(url.pathname) ||
     // FG-BIT-UX-1: the page HTML is network-first, so its script/stylesheet must
     // be too, otherwise an installed PWA pairs new HTML with stale cached JS.
     /\/shared\/js\/fg-bulk-internal-transfer\.js$/.test(url.pathname) ||

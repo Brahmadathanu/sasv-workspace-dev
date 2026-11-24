@@ -63,9 +63,11 @@ test("registry route normalisation for both clients (Electron + PWA)", async () 
   assert.equal(normalizeClientRoute("../shared/mis-batch-governance.html", "electron"), "public/shared/mis-batch-governance.html");
 });
 
-test("protected service worker is not modified by this package (a reviewed SW rule is a release dependency)", () => {
-  const head = execFileSync("git", ["show", "HEAD:public/sw.js"], { cwd: new URL("../../", import.meta.url), maxBuffer: 1 << 26 }).toString().replace(/\r\n/g, "\n");
-  assert.equal(read("public/sw.js").replace(/\r\n/g, "\n"), head);
+test("service worker: only the reviewed five-line MIS network-first block differs from main's design; CACHE_NAME unchanged; guard pin matches the working file", async () => {
+  const sw = read("public/sw.js").replace(/\r\n/g, "\n"); assert.match(sw, /const CACHE_NAME = "hub-cache-v394"/);
+  assert.equal((sw.match(/MIS G7 release candidate:/g) || []).length, 1); assert.match(sw, /mis-batch-governance\|mis-g7-contract\|mis-governed-handoff\|executive-mis-dashboard/);
+  const guard = await import("../lib/pec-protected-path-guard.mjs"); const pin = guard.REVIEWED_MIS_G7_PINS["public/sw.js"];
+  assert.equal(sha256(sw), pin.sha256); assert.deepEqual(pin.heads, ["claude/executive-mis-g7-client-dmijyz"]);
 });
 
 test("executive MIS dashboard: governance section is presentation-only and links to the module", () => {
@@ -101,9 +103,25 @@ test("hand-off into Add Log Entry is default-disabled and the legacy page change
   assert.doesNotMatch(add, /mis_sign_batch_stage_v1|mis_pack_fg_bulk_v1/);                      // the legacy page never calls the governed writers itself
   assert.match(add, /rpc_create_daily_work_log_with_packaging/);                                 // legacy save RPC unchanged
 });
-test("prepared S7 migrations: identities recorded, forward-only, not in the live list, rollback has compatibility guards", () => {
-  const man = JSON.parse(read("docs/executive-mis-g7-server/MIGRATION_IDENTITIES.json")); assert.equal(man.migrations.length, 8); assert.equal(man.pending_migrations.length, 3);
-  for (const m of man.pending_migrations) { const b = fs.readFileSync(new URL(`../../supabase/migrations/${m.repo_file}`, import.meta.url)); assert.equal(sha256(b), m.sha256, m.repo_file); assert.equal(b.length, m.bytes); assert.equal(m.registered_version, null); assert.match(m.status, /PREPARED/); assert.ok(!man.migrations.some((x) => x.repo_file === m.repo_file)); }
+test("all eleven G7 migrations are LIVE with their registered versions; none is pending; installed files carry the recorded hashes; rollback keeps its compatibility guards", () => {
+  const man = JSON.parse(read("docs/executive-mis-g7-server/MIGRATION_IDENTITIES.json")); assert.equal(man.migrations.length, 11); assert.deepEqual(man.pending_migrations, []);
+  assert.deepEqual(man.migrations.slice(8).map((m) => [m.repo_file.slice(0, 14), m.registered_version]), [["20261124120000", "20261124125626"], ["20261124121000", "20261124125644"], ["20261124122000", "20261124125704"]]);
+  for (const m of man.migrations) { const b = fs.readFileSync(new URL(`../../supabase/migrations/${m.repo_file}`, import.meta.url)); assert.equal(sha256(b), m.sha256, m.repo_file); assert.equal(b.length, m.bytes); assert.match(m.registered_version, /^\d{14}$/); assert.match(m.status, /^LIVE/); }
   const rb = read("docs/executive-mis-g7-server/S7_ROLLBACK_NOT_A_MIGRATION.sql"); for (const g of ["MIS_G7_S7_ROLLBACK_INCOMPATIBLE_IDENTITIES", "MIS_G7_S7_ROLLBACK_INCOMPATIBLE_SIGNATURES", "MIS_G7_S7_ROLLBACK_ORDER", "S7B ROLLBACK", "S7C ROLLBACK"]) assert.ok(rb.includes(g), g);
-  for (const m of man.pending_migrations) assert.doesNotMatch(read(`supabase/migrations/${m.repo_file}`), /mis_resolve_batch_stage_s2_legacy|DROP TABLE app_private\.mis_batch_stage_event|DELETE FROM app_private\.mis_batch_stage_event/);
+  for (const m of man.migrations.slice(8)) assert.doesNotMatch(read(`supabase/migrations/${m.repo_file}`), /mis_resolve_batch_stage_s2_legacy|DROP TABLE app_private\.mis_batch_stage_event|DELETE FROM app_private\.mis_batch_stage_event/);
+  const reg = read("docs/executive-mis-g7-server/CLIENT_PERMISSION_REGISTRY_PROPOSAL_NOT_APPLIED.sql"); assert.match(reg, /APPLIED IN PRODUCTION/);      // historical file kept, banner says it is applied: never replay
+});
+
+test("Edit Log Entry hand-off: exactly the guarded hooks, awaited before the modal is shown, destructive row delete guarded, no governed RPC called by the legacy page", () => {
+  const ed = read("js/log-edit.js");
+  assert.equal((ed.match(/mis-governed-handoff\.js/g) || []).length, 1); assert.equal((ed.match(/mountEditGovernance\(/g) || []).length, 1); assert.equal((ed.match(/governedBlocksChainWrite\(/g) || []).length, 1);
+  assert.match(ed, /await mountEditGovernance\(\{ container: editModal\.querySelector\("#editForm"\), workLogId: row\.id, controls: \["#saveEdit"\], forms: \["#editForm"\] \}\);[\s\S]{0,200}showModal\(editModal\);/);
+  assert.match(ed, /const misGuard = await governedBlocksChainWrite\(\{ workLogId: Number\(btn\.dataset\.id\) \}\);[\s\S]{0,160}await askConfirm\("Delete this entry\?"\)/);
+  assert.doesNotMatch(ed, /mis_sign_batch_stage_v1|mis_pack_fg_bulk_v1|mis_correct_|mis_preview/); assert.match(ed, /rpc_update_daily_work_log_with_packaging/);        // legacy editor contract untouched
+  const ho = read("public/shared/js/mis-governed-handoff.js"); assert.match(ho, /destructive/i); assert.match(ho, /export const GOVERNED_LOGGING_HANDOFF = false;/);
+  assert.match(ho, /if \(flag !== true \|\| !doc\) return \{ shown: false, reason: "disabled" \}/);
+});
+test("Batch Governance accepts the deep link parameters from the logging pages and only selects (no write path is added)", () => {
+  const js = read("public/shared/js/mis-batch-governance.js"); assert.match(js, /async function applyDeepLink\(\)/); for (const k of ["product", "batch", "tab", "event", "log"]) assert.ok(js.includes(`q.get("${k}")`), k);
+  const ho = read("public/shared/js/mis-governed-handoff.js"); assert.match(ho, /export function governedLink\(/); for (const k of ["product", "batch", "tab", "event", "log"]) assert.ok(ho.includes(`q.set("${k}"`), k);
 });

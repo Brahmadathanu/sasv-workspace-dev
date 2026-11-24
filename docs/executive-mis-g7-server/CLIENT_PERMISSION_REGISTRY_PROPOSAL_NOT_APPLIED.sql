@@ -1,3 +1,9 @@
+-- ======================================================================================================================
+-- STATUS (24 Nov 2026): APPLIED IN PRODUCTION. The corrected registry (six permission_targets, six app_modules rows, Electron + PWA
+-- app_module_clients rows for Batch Governance) was applied once by the owner's delegate; zero user assignments exist. This file is kept as the
+-- historical, reviewed source of that change. DO NOT REPLAY: its own guard refuses a second run (MIS_G7_REGISTRY_PRECONDITION).
+-- (The file name still says NOT_APPLIED because it was written before application; it is deliberately not renamed.)
+-- ======================================================================================================================
 -- MIS G7 client: permission-registry preparation. PROPOSAL ONLY — NOT APPLIED, NOT A MIGRATION.
 -- Needs explicit owner authorization. Deliberately kept outside supabase/migrations.
 --

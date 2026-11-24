@@ -1,7 +1,7 @@
 // Node side of the "real isolated server" bridge: executes the client's RPC / table-select calls against the isolated PostgreSQL
 // (S2–S6 + real Costing route engine + S7) as the `authenticated` role with the caller's JWT subject. Test fixture only.
 const IDENT = /^[a-z_][a-z0-9_]*$/;
-const TABLES = new Set(['products', 'bmr_details', 'fg_bulk_stock', 'product_skus', 'daily_work_log', 'packaging_events', 'event_type_lkp', 'event_skus']);
+const TABLES = new Set(['products', 'bmr_details', 'fg_bulk_stock', 'product_skus', 'daily_work_log', 'packaging_events', 'event_type_lkp', 'event_skus', 'sections', 'subsections', 'areas', 'plant_machinery', 'activities']);
 const lit = (v) => {
   if (v === null || v === undefined) return 'NULL';
   if (typeof v === 'number' || typeof v === 'bigint') return String(v);
@@ -38,10 +38,10 @@ export function createBridge(pg, db, getUid) {
       }
       if (req.kind === 'select') {
         if (!TABLES.has(req.table)) return { data: null, error: { code: '42P01', message: `table ${req.table} not exposed` } };
-        const cols = req.cols === '*' || !req.cols ? '*' : req.cols.split(',').map((c) => { if (!IDENT.test(c.trim())) throw new Error('bad column'); return c.trim(); }).join(',');
+        const parts = req.cols === '*' || !req.cols ? null : req.cols.split(',').map((c) => c.trim()); const cols = parts && parts.every((c) => IDENT.test(c)) ? parts.join(',') : '*';   // embedded/aliased selects (legacy pages) fall back to *
         const where = (req.filters || []).map((f) => { if (!IDENT.test(f.col)) throw new Error('bad col'); return f.op === 'in' ? `${f.col} IN (${f.val.map(lit).join(',') || 'NULL'})` : `${f.col} = ${lit(f.val)}`; });
         const order = (req.order || []).map((o) => `${o.col} ${o.asc ? 'ASC' : 'DESC'}`);
-        const lim = req.range ? ` LIMIT ${req.range[1] - req.range[0] + 1} OFFSET ${req.range[0]}` : '';
+        const lim = req.limit ? ` LIMIT ${Number(req.limit)}` : req.range ? ` LIMIT ${req.range[1] - req.range[0] + 1} OFFSET ${req.range[0]}` : '';
         const r = run(`SELECT coalesce(jsonb_agg(to_jsonb(t)),'[]'::jsonb) FROM (SELECT ${cols} FROM public.${req.table}${where.length ? ' WHERE ' + where.join(' AND ') : ''}${order.length ? ' ORDER BY ' + order.join(',') : ''}${lim}) t`);
         if (r.status !== 0) return { data: null, error: parseError(r.err) };
         return { data: JSON.parse(r.out.split('\n').pop()), error: null };

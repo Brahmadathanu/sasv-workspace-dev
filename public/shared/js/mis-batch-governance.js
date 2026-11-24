@@ -278,17 +278,18 @@ function renderSign() {
     const st = S.route.steps.find(isSel); const cand = S.logs.find((l) => l.activity === st.activity); if (cand && !S.sign.logId) { S.sign.logId = cand.id; }
     renderSign();
   }));
-  p.querySelectorAll("#logTable tbody tr[data-log]").forEach((tr) => tr.addEventListener("click", async () => {
-    captureSign(); const prev = S.sign.stepId; S.sign.logId = Number(tr.dataset.log);
-    const l = S.logs.find((x) => x.id === S.sign.logId); renderSign();
-    if (S.s7) await loadContext(S.sign.logId); else await loadRoute(l?.log_date);
-    if (!S.route?.steps.some((s) => prev != null && String(s.stepId) === String(prev))) S.sign.stepId = null;   // keep a still-valid selection
-    const hit = S.route?.steps.filter((s) => s.matches); if (S.sign.stepId == null && hit && hit.length === 1) S.sign.stepId = hit[0].stepId;
-    renderSign();
-  }));
+  p.querySelectorAll("#logTable tbody tr[data-log]").forEach((tr) => tr.addEventListener("click", () => chooseLog(Number(tr.dataset.log))));
   ["occ", "mqty", "evref"].forEach((id) => $(id)?.addEventListener("input", captureSign));
   $("signBtn")?.addEventListener("click", openSignConfirm);
   renderSignedList();
+}
+async function chooseLog(id) {
+  captureSign(); const prev = S.sign.stepId; S.sign.logId = id;
+  const l = S.logs.find((x) => x.id === id); renderSign();
+  if (S.s7) await loadContext(id); else await loadRoute(l?.log_date);
+  if (!S.route?.steps.some((s) => prev != null && String(s.stepId) === String(prev))) S.sign.stepId = null;   // keep a still-valid selection
+  const hit = S.route?.steps.filter((s) => s.matches); if (S.sign.stepId == null && hit && hit.length === 1) S.sign.stepId = hit[0].stepId;
+  renderSign();
 }
 function captureSign() { if ($("occ")) { S.sign.occ = $("occ").value; S.sign.qty = $("mqty").value; S.sign.evidence = $("evref").value; } }
 const stepName = (routeStepId) => { const s = S.route?.steps.find((x) => String(x.stepId) === String(routeStepId)); return s ? s.activity : `step ${routeStepId}`; };
@@ -623,6 +624,18 @@ function updateModeBadge() {
   b.hidden = false; b.className = `mbg-badge mbg-badge-${m.tone}`; b.textContent = m.mode; b.title = m.text;
 }
 
+/* ── deep link from Add / Edit Log Entry: ?product=&batch=&tab=&event=&log= (selection only; every write still goes through the governed RPCs) ── */
+async function applyDeepLink() {
+  const q = new URLSearchParams(location.search); const pid = Number(q.get("product")); const bn = q.get("batch");
+  if (!Number.isInteger(pid) || pid <= 0 || !bn) return;
+  const p = S.products.find((x) => x.id === pid); if (!p) return;
+  const tab = q.get("tab"); if (["sign", "pack", "corr", "exc"].includes(tab)) S.tab = tab;
+  productSel.setValue(pid); await loadProduct(p); batchSel.setValue(bn); await loadBatch(bn);
+  const ev = Number(q.get("event")); if (ev && S.events.some((e) => e.id === ev)) { S.eventId = ev; try { await loadEventLines(); } catch (e) { banner("danger", esc(e.message)); } }
+  const lg = Number(q.get("log")); if (lg && S.logs.some((l) => l.id === lg)) await chooseLog(lg);
+  render();
+}
+
 /* ── init ────────────────────────────────────────────────────── */
 let productSel; let batchSel;
 (async function init() {
@@ -640,4 +653,5 @@ let productSel; let batchSel;
   try { await loadProducts(); } catch (e) { banner("danger", `Could not load products. ${esc(e.message || e)}`, [{ label: "Retry", run: () => loadProducts().then(() => banner()).catch(() => {}) }]); }
   if (S.caps.canViewReadiness) loadReadiness();
   render();
+  await applyDeepLink();
 })();

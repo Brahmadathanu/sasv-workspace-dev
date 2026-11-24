@@ -254,3 +254,14 @@ for (const [name, width, height] of [["320", 320, 640], ["390", 390, 844], ["768
     await ctx.close();
   });
 }
+
+test("HOME navigation: PWA goes to /utilities-hub/index.html, Electron goes to /index.html", { skip: SK }, async () => {
+  for (const [electron, expected] of [[false, "/utilities-hub/index.html"], [true, "/index.html"]]) {
+    const { page, ctx, errors } = await open({ wait: false });
+    if (electron) await page.addInitScript(() => { window.electronAPI = {}; });
+    await page.route("**" + expected, (r) => r.fulfill({ contentType: "text/html", body: "<title>home</title>" }));
+    await page.reload(); await page.waitForSelector("#app:not([hidden]), #gate:not([hidden])");
+    await Promise.all([page.waitForURL((u) => u.pathname === expected, { timeout: 8000 }), page.click("#homeBtn")]);
+    assert.equal(new URL(page.url()).pathname, expected); assert.deepEqual(errors, []); await ctx.close();
+  }
+});

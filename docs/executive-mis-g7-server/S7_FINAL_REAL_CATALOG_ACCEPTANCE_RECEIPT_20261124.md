@@ -1,5 +1,8 @@
 # MIS G7 — S7 final acceptance receipt, revision 2 (exact FG receipt evidence)
 
+> **STATUS NOTICE (24 Nov 2026, release candidate):** this document is a historical receipt. All eleven migrations (S2–S6 + S7a/S7b/S7c) and the permission registry are now LIVE in production; `MIGRATION_IDENTITIES.json` has no pending entries. Wording below that says "prepared", "pending" or "not installed" describes the state at the time of writing. Do not replay anything.
+
+
 **G7 OPEN 7/11 (64%), G8 parked.** S7 is **prepared and isolated-tested, NOT installed**. No production write, installation, user assignment, core sign-off, ENFORCE, merge, release, backfill or PEC change. The five protected PEC files are untouched and uncommitted; no `git stash` was used.
 
 ## 0. Read this first: the private packets did not reach this session

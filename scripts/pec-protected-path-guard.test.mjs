@@ -2,7 +2,7 @@
 // Mutation-sensitive PEC integration protected-file policy verification.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { rejectedProtectedPaths, INTEGRATION_PROTECTED_PATHS, REVIEWED_SERVER_MIGRATIONS, REVIEWED_WP08_G2_1_PINS, REVIEWED_WP11_V394_PINS } from "./lib/pec-protected-path-guard.mjs";
+import { rejectedProtectedPaths, INTEGRATION_PROTECTED_PATHS, REVIEWED_SERVER_MIGRATIONS, REVIEWED_WP08_G2_1_PINS, REVIEWED_WP11_V394_PINS, REVIEWED_MIS_G7_PINS } from "./lib/pec-protected-path-guard.mjs";
 import fs from "node:fs";
 let passed = 0;
 function test(name, changed, integration, expected) {
@@ -150,9 +150,10 @@ const r2fix = "supabase/migrations/20261114135500_pec_indent_set_status_header_l
   const head = "review/wp11-pm-bom-v394-minimal-20261117";
   assert.ok(pin && /^[a-f0-9]{64}$/.test(pin.sha256), "WP11 sw.js SHA256 pin exists");
   assert.deepEqual(pin.heads, [head], "WP11 sw.js exception restricted to its own branch");
-  const live = fs.readFileSync(sw, "utf8");
-  const lf = live.replace(/\r\n/g, "\n");
-  assert.equal(createHash("sha256").update(lf).digest("hex"), pin.sha256, "working-tree sw.js is the pinned WP11 v394 file (re-pin only with owner review)");
+  // The MIS G7 release candidate adds exactly one reviewed five-line block (own pin below); the WP11 baseline is the working tree without it.
+  const stripMis = (t) => t.replace(/    \/\/ MIS G7 release candidate:[\s\S]*?sasv-mis-batch-governance\\\.css\$\/\.test\(url\.pathname\) \|\|\n/, "");
+  const lf = stripMis(fs.readFileSync(sw, "utf8").replace(/\r\n/g, "\n")); const live = lf;
+  assert.equal(createHash("sha256").update(lf).digest("hex"), pin.sha256, "working-tree sw.js (minus the reviewed MIS block) is the pinned WP11 v394 file (re-pin only with owner review)");
   assert.ok(lf.includes('const CACHE_NAME = "hub-cache-v394"'), "v394 cache line");
   const ctx = (over = {}) => ({ headBranch: head, readText: () => live, ...over });
   const c = (name, changed, expected, context) => { assert.deepEqual(rejectedProtectedPaths(changed, false, context), expected, name); console.log("PASS:", name); passed++; };
@@ -168,6 +169,24 @@ const r2fix = "supabase/migrations/20261114135500_pec_indent_set_status_header_l
   c("WP11 pin never exempts a migration", [migrated, illicit], [migrated, illicit], ctx());
   c("WP11 pin never exempts a migration beside sw.js", [sw, illicit, migrated], [illicit, migrated], ctx());
   c("WP11 pin never exempts uncommitted/working-tree changes", [sw], [sw], undefined);
+}
+// MIS G7 release candidate (bounded, owner-authorised PWA freshness change): exact content hash + its own branch only; negative mutations always run.
+{
+  const pin = REVIEWED_MIS_G7_PINS[sw]; const head = "claude/executive-mis-g7-client-dmijyz";
+  assert.ok(pin && /^[a-f0-9]{64}$/.test(pin.sha256), "MIS G7 sw.js SHA256 pin exists"); assert.deepEqual(pin.heads, [head], "MIS G7 sw.js exception restricted to its own branch");
+  const live = fs.readFileSync(sw, "utf8"); const lf = live.replace(/\r\n/g, "\n");
+  assert.equal(createHash("sha256").update(lf).digest("hex"), pin.sha256, "working-tree sw.js is the pinned MIS G7 file (re-pin only with owner review)");
+  assert.ok(lf.includes('const CACHE_NAME = "hub-cache-v394"'), "cache generation unchanged");
+  const ctx = (over = {}) => ({ headBranch: head, readText: () => live, ...over });
+  const c = (name, changed, expected, context) => { assert.deepEqual(rejectedProtectedPaths(changed, false, context), expected, name); console.log("PASS:", name); passed++; };
+  c("MIS G7 sw.js exact content accepted on its branch", [sw], [], ctx());
+  c("MIS G7 sw.js CRLF checkout accepted", [sw], [], ctx({ readText: () => lf.replace(/\n/g, "\r\n") }));
+  c("MIS G7 sw.js one extra character rejected", [sw], [sw], ctx({ readText: () => lf + "\n// x" }));
+  c("MIS G7 sw.js with a cache bump rejected", [sw], [sw], ctx({ readText: () => lf.replace("hub-cache-v394", "hub-cache-v395") }));
+  c("MIS G7 sw.js with the MIS rule removed rejected", [sw], [sw], ctx({ readText: () => lf.replace("mis-batch-governance|", "") }));
+  c("MIS G7 sw.js rejected on another branch", [sw], [sw], ctx({ headBranch: "claude/pec-r12-resync-collision-ux-20261113" }));
+  c("MIS G7 sw.js rejected without context", [sw], [sw], null);
+  c("MIS G7 pin never exempts a migration", [migrated, illicit], [migrated, illicit], ctx());
 }
 // #400 authenticated-DML correction: proposed, pinned to its own branch (and staging for later integration) and exact content.
 const sec400 = "supabase/migrations/20261114160000_pec_revoke_authenticated_dml_policy_link_tables.sql";

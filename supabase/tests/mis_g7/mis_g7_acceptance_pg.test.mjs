@@ -372,9 +372,9 @@ T('S2 ROLLBACK section is ISOLATION-ONLY: removes just the two RPCs, keeps table
   assert.equal(run(`SELECT count(*) FROM pg_proc WHERE proname IN ('mis_sign_batch_stage_v1','mis_correct_batch_stage_v1')`).out, '0');
   assert.equal(run(`SELECT count(*) FROM app_private.mis_batch_stage_event`).out, '1');
 });
-T('MIGRATION IDENTITIES: recorded SHA-256/git-blob of all eight G7 migrations match the files; S2 equals the blob installed in production', () => {
+T('MIGRATION IDENTITIES: recorded SHA-256/git-blob of all eleven G7 migrations (S2–S7c) match the files, all LIVE, pending list empty; S2 equals the blob installed in production', () => {
   const man = JSON.parse(fs.readFileSync(path.join(docs, 'MIGRATION_IDENTITIES.json'), 'utf8'));
-  assert.equal(man.migrations.length, 8); assert.equal(man.patched_core_sha256, 'dfa5a5e9aa31b48cf41fe9d03800fff2e35e5a3825ca458b5ccb6ca6c4471bcc');
+  assert.equal(man.migrations.length, 11); assert.deepEqual(man.pending_migrations, []); assert.equal(man.patched_core_sha256, 'dfa5a5e9aa31b48cf41fe9d03800fff2e35e5a3825ca458b5ccb6ca6c4471bcc');
   const blob = (b) => createHash('sha1').update(Buffer.concat([Buffer.from(`blob ${b.length}\0`), b])).digest('hex');
   for (const m of man.migrations) {
     const b = fs.readFileSync(path.resolve(here, '../../migrations', m.repo_file));
@@ -384,8 +384,8 @@ T('MIGRATION IDENTITIES: recorded SHA-256/git-blob of all eight G7 migrations ma
   const s2 = man.migrations[0];
   assert.equal(s2.git_blob_sha1, '055b1cdfa1c8be970939f57e7e866f126ec55f03'); assert.equal(s2.bytes, 21644);                    // the S2 text that is LIVE
   assert.equal(s2.registered_version, '20261124055734'); assert.match(s2.status, /LIVE/);
-  assert.deepEqual(man.migrations.map((m) => m.repo_file), [...MIGRATIONS, '20261123150000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql', FINGERPRINT_MIGRATION]);
-  assert.deepEqual(man.migrations.map((m) => m.registered_version), ['20261124055734', '20261124080858', '20261124080913', '20261124080932', '20261124080952', '20261124081009', '20261124081022', '20261124081034']);
+  assert.deepEqual(man.migrations.map((m) => m.repo_file), [...MIGRATIONS, '20261123150000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql', FINGERPRINT_MIGRATION, '20261124120000_mis_g7_s7a_shared_route_identity_and_stage_status.sql', '20261124121000_mis_g7_s7b_exact_fg_receipt_evidence.sql', '20261124122000_mis_g7_s7c_governed_previews_and_exception_summary.sql']);
+  assert.deepEqual(man.migrations.map((m) => m.registered_version), ['20261124055734', '20261124080858', '20261124080913', '20261124080932', '20261124080952', '20261124081009', '20261124081022', '20261124081034', '20261124125626', '20261124125644', '20261124125704']);
   assert.ok(man.migrations.every((m) => /^LIVE/.test(m.status) && /never replay/.test(m.status)));
 });
 

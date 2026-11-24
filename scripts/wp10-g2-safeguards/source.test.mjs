@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { loadPhase1Inventory, sha256 } from "./phase1-applied-inventory.mjs";
 import { BRANCH } from "./prepare-phase1-registration.mjs";
 import { rejectedProtectedPaths } from "../lib/pec-protected-path-guard.mjs";
-import { pmBomDeltaApproved, normaliseApprovedSwDelta, WP11_PM_BOM_PATH } from "./wp11-approved-delta.mjs";
+import { pmBomDeltaApproved, normaliseApprovedSwDelta, WP11_PM_BOM_PATH, stripApprovedMisSwBlock } from "./wp11-approved-delta.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
@@ -65,7 +65,7 @@ test("S5 existing protected files remain byte-identical; SW differs only by appr
   }
   const existing=git("show", "origin/main:public/sw.js").replace(/\r\n/g,"\n");
   // WP11 permit: only line 2 (v393 -> v394 cache name + comment) may differ; it is mapped back before the byte-identity comparison.
-  const current=normaliseApprovedSwDelta(read("public/sw.js"), existing);
+  const current=normaliseApprovedSwDelta(stripApprovedMisSwBlock(read("public/sw.js")), existing);   // MIS G7 reviewed five-line block is content-pinned and stripped first
   if (existing.includes("    // WP10: four classification masters")) {
     // The classification network-first rule is already merged into main: the whole SW (after the single approved WP11 line-2 delta)
     // must now be byte-identical to main.

@@ -36,21 +36,21 @@ test.after(async () => { await browser?.close(); server.close(); pg?.stop(); });
 const newKey = () => crypto.randomUUID();
 const sql = (db, s, uid) => { const r = pg.psql(db, s, uid === undefined ? {} : { uid }); assert.equal(r.status, 0, r.err); return r.out.split('\n').pop(); };
 let n = 0; const bn = (p) => `${p}${++n}`;
-async function open(uid, { db = 'live7', width = 1280, height = 800 } = {}) {
+async function open(uid, { db = 'live7', width = 1280, height = 800, query = '' } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 });
   const page = await ctx.newPage(); const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
-  const bridge = createBridge(pg, db, () => uid);
+  const bridge = createBridge(pg, db, () => uid); const fault = { dropResponseOf: null, dropped: 0 };
   await page.route('**/*', (r) => {
     const u = r.request().url();
     if (u.startsWith(base)) return r.fallback();
-    if (u === 'https://bridge.test/call') { const out = bridge.handle(JSON.parse(r.request().postData())); return r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(out) }); }
+    if (u === 'https://bridge.test/call') { const req = JSON.parse(r.request().postData()); const out = bridge.handle(req); if (fault.dropResponseOf === req.name) { fault.dropResponseOf = null; fault.dropped += 1; return r.abort('failed'); } return r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(out) }); }
     if (u.startsWith('https://esm.sh/')) return r.fulfill({ contentType: 'text/javascript', body: `import { createBridgeClient } from "${base}/scripts/mis-g7-client/bridge-client.mjs"; export const createClient = () => createBridgeClient();` });
     return r.abort();
   });
   await page.addInitScript((u) => { window.__uid = u; }, uid);
-  await page.goto(`${base}/shared/mis-batch-governance.html`);
+  await page.goto(`${base}/shared/mis-batch-governance.html${query}`);
   await page.waitForSelector('#app:not([hidden]), #gate:not([hidden])');
-  return { page, ctx, errors, bridge };
+  return { page, ctx, errors, bridge, fault };
 }
 const shot = async (page, name) => { if (EVID) await page.screenshot({ path: path.join(EVID, name), fullPage: true }); };
 const pick = async (page, input, text) => { await page.fill(input, text); await page.getByRole('option', { name: text, exact: true }).first().click(); };
@@ -225,19 +225,20 @@ test('hand-off is DEFAULT-DISABLED: the shipped flag is false, adds no DOM and m
 test('hand-off (flag on): the signer signs the FG bulk stage right after logging with the logged quantity; one key; evidence required; persisted in PostgreSQL', { skip: SK }, async () => {
   const b = bn('HO1'); const w = mkBatch('Inherited', b, '2026-11-10', 12); const h = await openHost(SIGNER);
   const r = await h.page.evaluate((id) => window.run({ flag: true, search: `?mis_sign=${id}` }), w); assert.deepEqual([r.shown, r.reason], [true, 'offered']);
-  assert.match(await h.page.textContent('#mis-handoff'), /not signed[\s\S]*12 kg/); await h.page.click('#misHoSign'); assert.match(await h.page.textContent('#misHoMsg'), /Evidence reference is required/); assert.equal(dbSigned(b), 0);
-  await h.page.fill('#misHoEv', 'WB-HO'); await h.page.click('#misHoSign'); await h.page.waitForFunction(() => /Signed \(event/.test(document.getElementById('misHoMsg').textContent));
-  assert.equal(dbSigned(b), 1); assert.equal(sql('live7', `SELECT measured_qty_base FROM app_private.mis_batch_stage_event WHERE batch_number='${b}'`), '12.000000'.replace(/\.?0+$/, '')); await shot(h.page, '18-handoff-signed.png');
+  assert.match(await h.page.textContent('#mis-handoff'), /Historical record|not signed/); assert.match(await h.page.textContent('#misHoSign'), /12 kg/); await h.page.click('#misHoSign'); assert.match(await h.page.textContent('#misHoMsg'), /Evidence reference is required/); assert.equal(dbSigned(b), 0);
+  await h.page.fill('#misHoEv', 'WB-HO'); await h.page.click('#misHoSign'); await h.page.waitForFunction(() => /FG bulk stage signed/.test(document.getElementById('mis-handoff')?.textContent || ''));
+  assert.equal(dbSigned(b), 1); assert.equal(Number(sql('live7', `SELECT measured_qty_base FROM app_private.mis_batch_stage_event WHERE batch_number='${b}'`)), 12); await shot(h.page, '18-handoff-signed.png');
   const keys = new Set(h.bridge.calls.filter((c) => c.name === 'mis_sign_batch_stage_v1').map((c) => c.args.p_idempotency_key)); assert.equal(keys.size, 1);
-  const again = await openHost(PACKER); const r2 = await again.page.evaluate((id) => window.run({ flag: true, search: `?mis_sign=${id}` }), w); assert.equal(r2.shown, false); await h.ctx.close(); await again.ctx.close();
+  const again = await openHost(PACKER); await again.page.evaluate((id) => window.run({ flag: true, search: `?mis_sign=${id}` }), w); assert.equal(await again.page.$('#misHoSign'), null, 'a packer without the signer right is never offered signing'); await h.ctx.close(); await again.ctx.close();
 });
-test('hand-off (flag on) shows nothing without the signer right, when already signed, off-activity, or when S7 is absent; a route gap is stated, not hidden', { skip: SK }, async () => {
+test('hand-off (flag on): no signing offer without the signer edit right, once signed, or on unrelated logs; S7 absent shows nothing; a route gap is stated when signing is attempted', { skip: SK }, async () => {
   const b = bn('HO2'); const w = mkBatch('Inherited', b, '2026-11-10'); const run = (h, id = w) => h.page.evaluate((x) => window.run({ flag: true, search: `?mis_sign=${x}` }), id);
-  for (const [uid, why] of [[SIGNV, 'no-right'], [PACKER, 'no-right'], [NOBODY, 'no-right']]) { const h = await openHost(uid); const r = await run(h); assert.deepEqual([r.shown, r.reason], [false, why]); assert.equal(await h.page.$('#mis-handoff'), null); await h.ctx.close(); }
+  const nb = await openHost(NOBODY); assert.deepEqual([(await run(nb)).shown, (await run(nb)).reason], [false, 'no-right']); assert.equal(await nb.page.$('#mis-handoff'), null); await nb.ctx.close();
+  for (const uid of [SIGNV, PACKER]) { const h = await openHost(uid); await run(h); assert.equal(await h.page.$('#misHoSign'), null, 'view-only / packing users see state, not a sign action'); await h.ctx.close(); }
   const other = sql('live7', `SELECT public.s7_log('Inherited','${b}','Mixing','2026-11-11')`); const h = await openHost(SIGNER); assert.equal((await run(h, other)).reason, 'not-applicable'); assert.equal((await run(h, 'x')).reason, 'no-log');
-  const nr = bn('HO3'); const wn = mkBatch('NoRoute', nr, '2026-11-10'); const g = await run(h, wn); assert.deepEqual([g.shown, g.reason, g.code], [true, 'blocked', 'PRODUCT_ROUTE_COVERAGE']); assert.match(await h.page.textContent('#mis-handoff'), /cannot be signed yet[\s\S]*No approved route/); assert.equal(await h.page.$('#misHoSign'), null);
-  await h.page.evaluate((id) => window.run({ flag: true, search: `?mis_sign=${id}` }), w); await h.page.fill('#misHoEv', 'E'); await h.page.click('#misHoSign'); await h.page.waitForFunction(() => /Signed \(event/.test(document.getElementById('misHoMsg').textContent));
-  assert.equal((await run(h)).reason, 'already-signed'); await h.ctx.close();
+  const nr = bn('HO3'); const wn = mkBatch('NoRoute', nr, '2026-11-10'); const g = await run(h, wn); assert.equal(g.shown, true); await h.page.fill('#misHoEv', 'E'); await h.page.click('#misHoSign');
+  await h.page.waitForFunction(() => /No approved route/.test(document.getElementById('misHoMsg').textContent)); assert.equal(dbSigned(nr), 0);
+  await run(h); await h.page.fill('#misHoEv', 'E'); await h.page.click('#misHoSign'); await h.page.waitForFunction(() => /FG bulk stage signed/.test(document.getElementById('mis-handoff')?.textContent || '')); await run(h); assert.equal(await h.page.$('#misHoSign'), null, 'already signed: no second offer'); await h.ctx.close();
   const bp = bn('HO4'); const wp = sql('pre7', `SELECT public.s7_batch('ProductRoute','${bp}','2026-10-31')`); const a = await openHost(SIGNER, 'pre7'); assert.equal((await run(a, wp)).reason, 's7-absent'); assert.equal(await a.page.$('#mis-handoff'), null); await a.ctx.close();
 });
 
@@ -259,4 +260,42 @@ test('legitimate receipt update through the UI: edit invalidates the signature (
   await select(s.page, 'Inherited', b); await s.page.waitForFunction(() => /Source changed/.test(document.getElementById('identity').textContent));
   await s.page.click('[data-void]'); await s.page.fill('#cReason', 'log quantity updated'); await s.page.click('#mCorr'); await s.page.waitForSelector("#banner:has-text('Signature voided')");
   await signUi(s.page, w, '12'); assert.equal(dbSigned(b), 2); assert.equal(ledger(b), 12); await s.ctx.close();
+});
+
+/* ───────── deep link from Add / Edit Log Entry into Batch Governance ───────── */
+test('deep link from the logging pages preselects product, batch, tab, packaging event and work log; unknown ids are ignored', { skip: SK }, async () => {
+  const b = bn('DL'); const w = mkBatch('Inherited', b, '2026-11-10'); const ev = mkPack('Inherited', b);
+  const a = await open(SIGNER, { query: `?product=21&batch=${b}&tab=sign&log=${w}` });
+  await a.page.waitForFunction((x) => document.getElementById('identity').textContent.includes(`Batch ${x}`) && !!document.querySelector('#stepTable tr[aria-selected="true"]'), b);
+  assert.equal(await a.page.getAttribute('#tab-sign', 'aria-selected'), 'true'); assert.equal(await a.page.$eval(`#logTable tr[data-log="${w}"]`, (r) => r.getAttribute('aria-selected')), 'true'); assert.match(await a.page.textContent('#panel-sign'), /FG bulk/);
+  await a.ctx.close();
+  const p = await open(PACKER, { query: `?product=21&batch=${b}&tab=corr&event=${ev}` });
+  await p.page.waitForFunction(() => document.getElementById('tab-corr').getAttribute('aria-selected') === 'true'); assert.equal(await p.page.$eval('#eventSel', (e) => e.value), String(ev)); assert.match(await p.page.textContent('#panel-corr'), new RegExp(`packaging event #${ev}`));
+  await p.ctx.close();
+  const u = await open(SIGNER, { query: '?product=999999&batch=NOPE&tab=pack&event=1&log=2' }); await u.page.waitForTimeout(600); assert.equal(await u.page.$eval('#app', (e) => e.hidden), false); assert.equal(await u.page.$eval('#productInput', (i) => i.value), ''); assert.deepEqual(u.errors, []); await u.ctx.close();
+});
+
+test('network loss on the real server: the committed posting whose response is lost is retried with the SAME key, replays, and the ledger moves exactly once', { skip: SK }, async () => {
+  const b = bn('NL'); const w = mkBatch('Inherited', b, '2026-11-10'); const ev = mkPack('Inherited', b);
+  const s = await open(SIGNER); await select(s.page, 'Inherited', b); await signUi(s.page, w); await s.ctx.close();
+  const a = await open(PACKER); await select(a.page, 'Inherited', b); await a.page.click('#tab-pack'); await a.page.selectOption('#eventSel', ev); await a.page.waitForSelector('#skuTable');
+  await a.page.fill('input[data-sku="10"]', '4'); await a.page.waitForFunction(() => /Ready to post/.test(document.getElementById('packPreview').textContent));
+  a.fault.dropResponseOf = 'mis_pack_fg_bulk_v1'; await a.page.click('#packBtn'); await a.page.waitForSelector("#banner:has-text('Outcome not confirmed')");
+  assert.equal(a.fault.dropped, 1); assert.equal(ledger(b), 8, 'the server DID commit the posting before the response was lost');
+  assert.equal(await a.page.$eval('input[data-sku="10"]', (i) => i.disabled), true); assert.equal(await a.page.$eval('#packBtn', (x) => x.disabled), true);
+  await a.page.click('#banner button:has-text("Retry")'); await a.page.waitForSelector('#packResult .mbg-banner'); assert.match(await a.page.textContent('#packResult'), /replayed existing request/);
+  assert.equal(ledger(b), 8, 'no duplicate depletion'); assert.equal(sql('live7', `SELECT count(*) FROM public.event_skus WHERE packaging_event_id=${ev}`), '1');
+  const keys = a.bridge.calls.filter((c) => c.name === 'mis_pack_fg_bulk_v1').map((c) => c.args.p_request_id); assert.equal(keys.length, 2); assert.equal(new Set(keys).size, 1); await shot(a.page, '24-bridge-network-loss-replay.png');
+  assert.equal(sql('live7', `SELECT count(*) FROM app_private.mis_fg_pack_request WHERE packaging_event_id=${ev}`), '1'); await a.ctx.close();
+});
+test('network loss during measured excess on the real server: the excess modal keeps one key; the replay does not post a second excess receipt', { skip: SK }, async () => {
+  const b = bn('NX'); const w = mkBatch('Inherited', b, '2026-11-10'); const ev = mkPack('Inherited', b);
+  const s = await open(SIGNER); await select(s.page, 'Inherited', b); await signUi(s.page, w); await s.ctx.close();
+  const a = await open(EXCESS); await select(a.page, 'Inherited', b); await a.page.click('#tab-pack'); await a.page.selectOption('#eventSel', ev); await a.page.waitForSelector('#skuTable'); await a.page.fill('input[data-sku="10"]', '30');
+  await a.page.waitForFunction(() => /Insufficient bulk/.test(document.getElementById('packPreview').textContent)); await a.page.click('#packBtn'); await a.page.waitForSelector('#modalRoot:not([hidden])');
+  await a.page.fill('#exQty', '5'); await a.page.fill('#exReason', 'scale reading'); await a.page.fill('#exEvidence', 'WB-NX'); a.fault.dropResponseOf = 'mis_pack_fg_bulk_v1'; await a.page.click('#mPost');
+  await a.page.waitForFunction(() => /may or may not have recorded|Connection problem/i.test(document.getElementById('modalMsg').textContent)); assert.equal(ledger(b), 0, 'excess + packing committed atomically before the response was lost');
+  await a.page.click('#mPost'); await a.page.waitForSelector('#packResult .mbg-banner'); assert.match(await a.page.textContent('#packResult'), /replayed existing request/);
+  assert.equal(sql('live7', `SELECT count(*) FROM app_private.mis_fg_signed_excess_receipt WHERE batch_number='${b}'`), '1'); assert.equal(ledger(b), 0);
+  assert.equal(new Set(a.bridge.calls.filter((c) => c.name === 'mis_pack_fg_bulk_v1').map((c) => c.args.p_request_id)).size, 1); await a.ctx.close();
 });

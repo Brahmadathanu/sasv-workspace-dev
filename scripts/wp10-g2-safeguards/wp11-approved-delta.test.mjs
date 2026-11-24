@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
-import { pmBomDeltaApproved, normaliseApprovedSwDelta, WP11_PM_BOM_PATH } from "./wp11-approved-delta.mjs";
+import { pmBomDeltaApproved, normaliseApprovedSwDelta, stripApprovedMisSwBlock, WP11_PM_BOM_PATH } from "./wp11-approved-delta.mjs";
 
 const git = (...a) => execFileSync("git", a, { encoding: "utf8" });
 const lf = (s) => s.replace(/\r\n/g, "\n");
@@ -35,4 +35,13 @@ test("SW MUTATION: route / network-first / permission drift is NOT hidden by the
   drift(c.replace(/\n$/, "\n// extra network-first rule\n"));
   drift(c.replace("hub-cache-v394", "hub-cache-v395"));
   drift(c.replace("WP11 PM BOM header toolbar wraps at phone width", "something else"));
+});
+test("MIS G7 SW permit: stripping the pinned five-line block yields exactly main's service worker; altered or extra rules are not hidden", () => {
+  const b = base(), c = cur(); if (!c.includes("    // MIS G7 release candidate:")) return;          // already merged into main
+  assert.equal(stripApprovedMisSwBlock(c), b);
+  assert.equal(c.split("\n").length - b.split("\n").length, 5, "exactly five added lines");
+  assert.notEqual(stripApprovedMisSwBlock(c.replace("mis-governed-handoff|", "mis-governed-handoff|extra-module|")), b);
+  assert.notEqual(stripApprovedMisSwBlock(c.replace("sasv-mis-batch-governance", "sasv-other")), b);
+  assert.notEqual(stripApprovedMisSwBlock(c.replace(/\n$/, "\n// extra network-first rule\n")), b);
+  assert.equal(c.split("\n")[1], b.split("\n")[1], "CACHE_NAME line unchanged");
 });

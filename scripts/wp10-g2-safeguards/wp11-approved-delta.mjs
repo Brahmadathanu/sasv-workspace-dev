@@ -34,3 +34,16 @@ export function normaliseApprovedSwDelta(current, existing) {
   cur[1] = base[1];
   return cur.join("\n");
 }
+
+// MIS G7 release candidate (owner-authorised bounded PWA-freshness review): the ONLY other approved public/sw.js delta is one five-line
+// network-first block (three comment lines + two pathname rules; CACHE_NAME untouched). Content-pinned like the WP11 permits; stripped before the
+// byte-identity comparison so any other route / caching / permission drift still fails.
+export const MIS_G7_SW_BLOCK_SHA256 = "9fd891e9a726757387278ad2269b2cdf7968b61cbe73565b157a840af45223b8";
+export function stripApprovedMisSwBlock(current) {
+  const text = lf(current); const start = text.indexOf("    // MIS G7 release candidate:");
+  if (start < 0) return text;
+  const endMarker = "    /\\/shared\\/css\\/sasv-mis-batch-governance\\.css$/.test(url.pathname) ||\n";
+  const end = text.indexOf(endMarker, start); if (end < 0) return text;
+  const block = text.slice(start, end + endMarker.length);
+  return sha256(block) === MIS_G7_SW_BLOCK_SHA256 ? text.slice(0, start) + text.slice(end + endMarker.length) : text;   // unknown block: leave in place so the comparison fails
+}

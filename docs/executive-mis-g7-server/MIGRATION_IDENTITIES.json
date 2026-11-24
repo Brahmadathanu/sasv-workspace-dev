@@ -1,7 +1,7 @@
 {
   "manifest_version": "mis-g7-migration-identities/1",
   "patched_core_sha256": "dfa5a5e9aa31b48cf41fe9d03800fff2e35e5a3825ca458b5ccb6ca6c4471bcc",
-  "note": "All eight identities registered in production, verified 2026-11-24. S2 preserved. S3–S6 applied once from 74ed6c49c8655d22eedc6dc32ed09c0f238f5126 under explicit owner authorization accepting the isolated PG17.4 test limitation. No ENFORCE or core sign-off. Do not replay or db push from mismatched filename prefixes.",
+  "note": "All eleven identities (S2–S7c) registered in production, verified 2026-11-24. S2 preserved. S3–S6 applied once from 74ed6c49c8655d22eedc6dc32ed09c0f238f5126; S7a/S7b/S7c applied once as the forward-only package (registered 20261124125626 / 20261124125644 / 20261124125704) with the permission registry applied separately. Production AUDIT, core gate CORE_MIGRATION_NOT_ACCEPTED, no ENFORCE or core sign-off. Do not replay or db push from mismatched filename prefixes.",
   "migrations": [
     {
       "seq": 1,
@@ -82,15 +82,13 @@
       "bytes": 4608,
       "sha256": "c429b4d888e40b7232551db4e6a1f011e5b0cb1830ce4d1d17a5b2b2222d680e",
       "git_blob_sha1": "af5bceee51358e190ee2840b35c9c32a9cb47ee7"
-    }
-  ],
-  "pending_migrations": [
+    },
     {
       "seq": 9,
       "repo_file": "20261124120000_mis_g7_s7a_shared_route_identity_and_stage_status.sql",
       "supabase_migration_name": "mis_g7_s7a_shared_route_identity_and_stage_status",
-      "registered_version": null,
-      "status": "PREPARED (not installed; owner authorization required; forward-only)",
+      "registered_version": "20261124125626",
+      "status": "LIVE (installed; AUDIT; never replay)",
       "bytes": 24071,
       "sha256": "511d4f5914f2921e4c214c7205835447c02393f1dff02c64f3c0feff441aca1d",
       "git_blob_sha1": "e1e9060aa6e63157eceb136f8535c1ced960d46f"
@@ -99,8 +97,8 @@
       "seq": 10,
       "repo_file": "20261124121000_mis_g7_s7b_exact_fg_receipt_evidence.sql",
       "supabase_migration_name": "mis_g7_s7b_exact_fg_receipt_evidence",
-      "registered_version": null,
-      "status": "PREPARED (not installed; owner authorization required; forward-only)",
+      "registered_version": "20261124125644",
+      "status": "LIVE (installed; AUDIT; never replay)",
       "bytes": 5779,
       "sha256": "abc8def6efe0d9e1508458eda3d35815de7b37f920fbeb93f57313f036620f7e",
       "git_blob_sha1": "b102af59bb7ead096c6ee163ae8522a57e595be5"
@@ -109,11 +107,12 @@
       "seq": 11,
       "repo_file": "20261124122000_mis_g7_s7c_governed_previews_and_exception_summary.sql",
       "supabase_migration_name": "mis_g7_s7c_governed_previews_and_exception_summary",
-      "registered_version": null,
-      "status": "PREPARED (not installed; owner authorization required; forward-only)",
+      "registered_version": "20261124125704",
+      "status": "LIVE (installed; AUDIT; never replay)",
       "bytes": 14632,
       "sha256": "1d7df765fb4aac595ab23b161452ec6dc8fa0aeb76d06605a4ca185c986309cb",
       "git_blob_sha1": "b0a78bf127e021c1e09b9dbdd0d94ce87ec9aee7"
     }
-  ]
+  ],
+  "pending_migrations": []
 }
