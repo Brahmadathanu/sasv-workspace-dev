@@ -3318,15 +3318,10 @@
                 </svg>
               </button>
             </div>
-          </div>
-
-          <div class="card">
-            <div class="pec-lens-head pec-lens-head--tools">
-              <h2 class="pec-lens-title">Vendor-wise Buying List</h2>
-              <div class="pec-lens-tools"><div class="export-menu" id="vwlExportMenu">
+<div class="export-menu" id="vwlExportMenu">
                   <button
                     id="vwlExportBtn"
-                    class="icon-btn ghost"
+                    class="icon-btn primary"
                     title="Export"
                     type="button"
                     aria-label="Export"
@@ -3363,7 +3358,13 @@
                       Export Vendor-wise TSV
                     </button>
                   </div>
-                </div><span class="pec-lens-count" id="vwlMeta" aria-live="polite" aria-atomic="true"></span></div>
+                </div>
+          </div>
+
+          <div class="card">
+            <div class="pec-lens-head pec-lens-head--tools">
+              <h2 class="pec-lens-title">Vendor-wise Buying List</h2>
+              <div class="pec-lens-tools"><span class="pec-lens-count" id="vwlMeta" aria-live="polite" aria-atomic="true"></span></div>
             </div>
             <div class="table-scroll" id="vwlScroll">
               <table class="erp-table">
@@ -3401,7 +3402,24 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
                 <span id="paFilterBadge" class="pec-filter-badge" style="display: none" title="Filter active"></span>
               </button>
-              <div id="paFilterDrawer" class="pec-filter-drawer" role="dialog" aria-label="Purchase allocation filters">
+              <!-- One filter panel for the filter button AND the voucher-period indicator. Shared PEC anatomy:
+                   full-viewport sheet <=640px, anchored popover above. Draft values are committed only by Apply. -->
+              <div id="paFilterDrawer" class="pec-filter-drawer pa-filter-drawer" role="dialog" aria-label="Purchase allocation filters" data-pec-footer="apply">
+                <div class="pec-filter-section" id="paPeriodSection">
+                  <div class="pec-filter-section-title">Voucher period</div>
+                  <div class="pa-seg" role="group" aria-label="Voucher period" id="paDateSeg">
+                    <button type="button" class="pa-seg-btn" data-pa-preset="today" aria-pressed="false">Today</button>
+                    <button type="button" class="pa-seg-btn" data-pa-preset="yesterday" aria-pressed="true">Yesterday</button>
+                    <button type="button" class="pa-seg-btn" data-pa-preset="specific" aria-pressed="false">Date</button>
+                    <button type="button" class="pa-seg-btn" data-pa-preset="custom" aria-pressed="false">Range</button>
+                  </div>
+                  <div class="pa-date-inputs">
+                    <input id="paDateSpecific" class="pec-filter-input" type="date" aria-label="Voucher date" hidden />
+                    <input id="paDateFrom" class="pec-filter-input" type="date" aria-label="Voucher date from" hidden />
+                    <input id="paDateTo" class="pec-filter-input" type="date" aria-label="Voucher date to" hidden />
+                  </div>
+                  <p class="pa-date-error" id="paDateError" role="alert" hidden></p>
+                </div>
                 <div class="pec-filter-section">
                   <label class="pec-filter-label" for="paFClass">Material class</label>
                   <select id="paFClass" class="pec-filter-select">
@@ -3429,7 +3447,7 @@
                   </select>
                 </div>
                 <div class="pec-filter-section">
-                  <button id="paFClear" type="button" class="pec-filter-clear-btn">Clear filters</button>
+                  <button id="paFClear" type="button" class="pec-filter-clear-btn">Reset</button>
                 </div>
               </div>
             </div>
@@ -3439,43 +3457,35 @@
                 <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" /><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" /></svg>
               </button>
             </div>
-          </div>
-          <div class="card" style="margin-bottom: 12px">
-            <div class="pec-lens-head pec-lens-head--tools">
-              <h2 class="pec-lens-title">Purchase Allocations</h2>
-              <div class="pec-lens-tools">
-                <div class="export-menu" id="paExportMenu">
-                  <button class="icon-btn primary" id="btnPaExportMenu" title="Export" aria-label="Export options" aria-haspopup="true" aria-expanded="false" type="button" aria-controls="paExportMenu">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-                  </button>
-                  <div class="export-dropdown" id="paExportDropdown" role="menu">
-                    <button id="btnPaExportCsv" role="menuitem" type="button">Excel-compatible CSV</button>
-                    <button id="btnPaPrint" role="menuitem" type="button">Print indent deduction statement</button>
-                  </div>
-                </div>
-                <span class="pec-lens-count" id="paMeta" aria-live="polite" aria-atomic="true"></span>
+            <div class="export-menu" id="paExportMenu">
+              <button class="icon-btn primary" id="btnPaExportMenu" title="Export" aria-label="Export options" aria-haspopup="true" aria-expanded="false" type="button" aria-controls="paExportMenu">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+              </button>
+              <div class="export-dropdown" id="paExportDropdown" role="menu">
+                <button id="btnPaExportCsv" role="menuitem" type="button">Excel-compatible CSV</button>
+                <button id="btnPaPrint" role="menuitem" type="button">Print indent deduction statement</button>
               </div>
             </div>
+          </div>
+          <div class="card pa-card">
             <div class="pa-controls">
               <div class="pa-seg" role="group" aria-label="View" id="paModeSeg">
                 <button type="button" class="pa-seg-btn" data-pa-mode="indent" aria-pressed="true">Indent-wise</button>
                 <button type="button" class="pa-seg-btn" data-pa-mode="material" aria-pressed="false">Material-wise</button>
                 <button type="button" class="pa-seg-btn" data-pa-mode="vendor" aria-pressed="false">Vendor-wise</button>
               </div>
-              <div class="pa-seg" role="group" aria-label="Voucher date" id="paDateSeg">
-                <button type="button" class="pa-seg-btn" data-pa-preset="today" aria-pressed="false">Today</button>
-                <button type="button" class="pa-seg-btn" data-pa-preset="yesterday" aria-pressed="true">Yesterday</button>
-                <button type="button" class="pa-seg-btn" data-pa-preset="specific" aria-pressed="false">Date</button>
-                <button type="button" class="pa-seg-btn" data-pa-preset="custom" aria-pressed="false">Range</button>
-              </div>
-              <div class="pa-date-inputs">
-                <input id="paDateSpecific" class="pec-filter-input" type="date" aria-label="Voucher date" hidden />
-                <input id="paDateFrom" class="pec-filter-input" type="date" aria-label="Voucher date from" hidden />
-                <input id="paDateTo" class="pec-filter-input" type="date" aria-label="Voucher date to" hidden />
+              <div class="pa-strip">
+                <button type="button" class="pa-period-chip" id="paPeriodBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="paFilterDrawer" title="Voucher period (Asia/Kolkata) - change in filters">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+                  <span id="paPeriodText">Yesterday</span>
+                </button>
+                <button type="button" class="pa-summary-toggle" id="paSummaryToggle" aria-expanded="false" aria-controls="paSummary" aria-label="Allocation summary" title="Allocation summary">
+                  <span>Summary<span class="pa-digest"></span></span><span class="pa-chev" aria-hidden="true">▸</span>
+                </button>
+                <span class="pec-lens-count" id="paMeta" aria-live="polite" aria-atomic="true"></span>
               </div>
             </div>
-            <p class="pa-range-label" id="paRangeLabel" aria-live="polite"></p>
-            <div class="pa-summary" id="paSummary" aria-live="polite"></div>
+            <div class="pa-summary" id="paSummary" aria-live="polite" hidden></div>
             <div class="table-scroll pa-scroll" id="paScrollIndent"><div class="pa-indent-list" id="paIndentList"></div></div>
             <div class="table-scroll pa-scroll" id="paScrollMaterial" hidden>
               <table class="erp-table">
