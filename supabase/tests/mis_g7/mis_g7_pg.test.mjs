@@ -511,7 +511,7 @@ T('AUTHZ P0 allowlist: only reviewed SECURITY DEFINER functions that touch the l
       AND (p.prosrc ILIKE '%fg_bulk_stock_ledger%' OR p.prosrc ILIKE '%fn_fg_ledger_add%' OR p.prosrc ILIKE '%fn_fg_force_close%' OR p.prosrc ILIKE '%fn_fg_auto_zero%' OR p.prosrc ILIKE '%fn_fg_reconcile_batch%' OR p.prosrc ILIKE '%fn_fg_mark_done_if_zero%')
       AND (has_function_privilege('authenticated', p.oid, 'EXECUTE') OR has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('public'::name, p.oid, 'EXECUTE'))`);
   // trigger functions are executable only as triggers (have no direct-call surface) and are asserted separately above
-  const allowed = new Set(['fn_fg_force_close(integer,text)', 'fn_fg_mark_done_if_zero(integer,text,numeric)', 'mis_pack_fg_bulk_v1(uuid,bigint,jsonb,jsonb)', 'mis_sign_batch_stage_v1(uuid,integer,text,integer,bigint,integer,numeric,text)']);
+  const allowed = new Set(['fn_fg_force_close(integer,text)', 'mis_correct_pack_line_v1(uuid,bigint,integer,text,jsonb)', 'fn_fg_mark_done_if_zero(integer,text,numeric)', 'mis_pack_fg_bulk_v1(uuid,bigint,jsonb,jsonb)', 'mis_sign_batch_stage_v1(uuid,integer,text,integer,bigint,integer,numeric,text)']);
   for (const r of rows.split(' | ').filter(Boolean)) assert.ok([...allowed].some((a) => r.endsWith(a)), `unexpected client-executable ledger-touching definer: ${r}`);
 });
 T('AUTHZ S3b hardening: legacy writers pin search_path with pg_temp last (dwl was public-only)', () => {
@@ -662,7 +662,7 @@ T('ROLLBACK exact: S3b rollback restores function defs (sha), ACLs, search_path,
   assert.equal(crud('RB2'), 50);                                                    // after S3b (direct authenticated path now runs through the definer chain)
   assert.match(x(`INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,qty,qty_base) VALUES (1,'RB2',1,1)`, { uid: PACKER }).err, /permission denied/);
   const rb = fs.readFileSync(path.resolve(here, '../../../docs/executive-mis-g7-server/ROLLBACK_NOT_A_MIGRATION.sql'), 'utf8');
-  const s3b = rb.slice(rb.indexOf('-- ==== S3B ROLLBACK ===='));
+  const s3b = rb.slice(rb.indexOf('-- ==== S3B ROLLBACK ===='), rb.indexOf('-- ==== S4B ROLLBACK ===='));
   assert.ok(s3b.length > 100);
   assert.equal(x(s3b).status, 0, x(s3b).err);
   assert.equal(snap(), before, 'rollback must restore exact pg_get_functiondef sha, ACLs, search_path, secdef, table ACL, policies, RLS');

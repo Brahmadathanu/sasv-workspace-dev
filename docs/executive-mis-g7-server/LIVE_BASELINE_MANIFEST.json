@@ -1,0 +1,28 @@
+{
+  "manifest_version": "mis-g7-s3b-baseline/1",
+  "source": "independent live READ ONLY reviews of PR #522 (24 Nov 2026 IST); 17/17 pre-install rows passed at head 9788a95",
+  "pinned_function_sha256": {
+    "fn_fg_auto_zero(integer,text,numeric)": "705fecd3e68576272af73b5230737c98689c9f538d88e40d723a5b935ae5a582",
+    "fn_fg_force_close(integer,text,numeric)": "c48578e7e08d311aebdefdaaf512bbfe2a87daecf61c2bde735f46d1e7cff10d",
+    "fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)": "9b9a1a4975679358a2628f3e598a75a2a4b0ac658173da9f6f1950cdd6629675",
+    "trg_fg_bulk_internal_transfer_to_ledger()": "6adab6d8180d2d0f15f8415acd51403691cc6f64c58b549b71ce386e6faa69c5",
+    "trg_fg_ledger_from_dwl()": "ffe12985b5e7c135766655c4893a886adc2d1a36bd6a181c80cd185649c2eec1",
+    "trg_fg_ledger_from_es()": "cc32357d320fb63278632c5726085bdcf6b32395453838d39cac8c3584faed28",
+    "trg_fg_ledger_reconcile_ins_stmt()": "d4cdfe3dbc827d0e14122fe41993981e65b4903bd18d8da3d0013fd730cc2412",
+    "trg_fg_ledger_reconcile_upd_stmt()": "a298bcff5a7fede05d59c4d77c4673fd4fe5db2f5609914cb900dedfbf6b5f7b",
+    "trg_fg_ledger_reconcile_del_stmt()": "d09789baea588ff64d78e9b787ae769a4dff2df9f307547bfcdedd562cb995ad",
+    "fn_fg_reconcile_batch(integer,text,numeric)": "b229faad84f128420eb61caae3fb0678b15772d22b0d13f416c0332a92b9a7be",
+    "fn_fg_mark_done_if_zero(integer,text,numeric)": "278f4fdc43cc5886b57995407d6cc5cdc52404362fb0135ab19aedd440cacb6a"
+  },
+  "live_facts": {
+    "packaging_events.event_type": "citext",
+    "event_type_lkp.label": "text",
+    "ids": "bigint (packaging_events, event_skus, product_skus); fg_bulk_stock_ledger.source_id integer",
+    "fn_fg_eps_default()": "0.01",
+    "force_close_wrapper_permission": "module:fg-bulk-stock",
+    "affects_bulk_stock": "-1 depletes (Bottling/labelling/cartoning/Capsule monocarton), 0 Transfer to FG store",
+    "reconciler_execute": "postgres, service_role only",
+    "helpers_execute_before_S3b": "fn_fg_ledger_add/fn_fg_auto_zero authenticated; fn_fg_force_close(int,text,numeric) none"
+  },
+  "deployment_prerequisite": "retain full pg_get_functiondef source of all 11 functions plus ACL/RLS snapshots in an owner-governed immutable packet (migration also persists them in app_private.mis_g7_s3b_baseline)"
+}

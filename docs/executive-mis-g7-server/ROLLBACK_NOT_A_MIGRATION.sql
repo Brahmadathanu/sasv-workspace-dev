@@ -1,4 +1,6 @@
--- Rollback for MIS G7 S2-S4 migrations. NOT in supabase/migrations. Owner-authorized use only.
+-- Rollback for MIS G7 S2-S4b migrations. NOT in supabase/migrations. Owner-authorized use only.
+-- ORDER: run section S4B first, then S3B, then the S2-S4 section (top of this file, everything before the S3B marker).
+-- Sections are delimited by marker comments; each is independently executable.
 -- No legacy function was replaced by these migrations, so the legacy baselines are untouched:
 --   trg_fg_ledger_from_es  sha256 cc32357d320fb63278632c5726085bdcf6b32395453838d39cac8c3584faed28
 --   fn_fg_ledger_check_negative sha256 211a6e879999cb97d4c28a9017cff66fb3ee493fedead10c36c4d0b81f6a1090
@@ -52,4 +54,20 @@ BEGIN
       END LOOP;
     END IF;
   END LOOP;
+END $$;
+
+-- ==== S4B ROLLBACK ====
+-- Removes the ticketed correction RPC, the enforcement switch and the readiness report. Because ENFORCE needs the correction
+-- path, the mode is returned to AUDIT (logged) so legacy corrections work again. Retained: pack/correction/enforcement logs,
+-- audit rows, excess receipts and all signed history.
+DROP FUNCTION IF EXISTS public.mis_g7_enforcement_readiness_v1(integer);
+DROP FUNCTION IF EXISTS public.mis_g7_set_enforcement_v1(text,text);
+DROP FUNCTION IF EXISTS public.mis_correct_pack_line_v1(uuid,bigint,integer,text,jsonb);
+DO $$
+BEGIN
+  IF (SELECT mode FROM app_private.mis_g7_enforcement WHERE singleton) = 'ENFORCE' THEN
+    UPDATE app_private.mis_g7_enforcement SET mode = 'AUDIT', changed_at = clock_timestamp() WHERE singleton;
+    INSERT INTO app_private.mis_g7_enforcement_log (from_mode, to_mode, actor, reason)
+    VALUES ('ENFORCE', 'AUDIT', '00000000-0000-0000-0000-000000000000', 'S4B rollback: ticketed correction path removed');
+  END IF;
 END $$;

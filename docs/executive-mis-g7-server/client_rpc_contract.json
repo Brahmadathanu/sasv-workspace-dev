@@ -1,0 +1,335 @@
+{
+  "contract_version": "mis-g7-s2-s4b/1",
+  "notes": [
+    "All RPCs return jsonb. Domain refusals are HTTP-200 {ok:false, code,...} with NOTHING written; raised errors (SQLSTATE 42501 permission/MIS_G7_AUTH_REQUIRED, P0001 MIS_G7_DEPLETION_MISMATCH / MIS_G7_CORRECTION_MISMATCH / MIS_G7_NEGATIVE_BALANCE, 22003 MIS_G7_SOURCE_ID_OVERFLOW, 40P01/40001 retry up to 3x) roll the whole transaction back.",
+    "Actor is always auth.uid(); no client 'authorized'/'committed' flag is read. Generate one UUID per user intent (request/idempotency key); replay returns the stored result with idempotent_replay:true.",
+    "Historical rows without a signed stage are NOT_VERIFIED: refusals carry historical_state:'NOT_VERIFIED'. Location is never a gate.",
+    "UI: no hard-coded theme palette is implied by this contract; the excess modal is shown only after INSUFFICIENT_BULK with excess_permitted:true."
+  ],
+  "rpcs": [
+    {
+      "name": "mis_sign_batch_stage_v1",
+      "args": [
+        [
+          "p_idempotency_key",
+          "uuid"
+        ],
+        [
+          "p_product_id",
+          "integer"
+        ],
+        [
+          "p_batch_number",
+          "text"
+        ],
+        [
+          "p_work_log_id",
+          "integer"
+        ],
+        [
+          "p_route_step_id",
+          "bigint"
+        ],
+        [
+          "p_step_occurrence",
+          "integer"
+        ],
+        [
+          "p_measured_qty_base",
+          "numeric"
+        ],
+        [
+          "p_evidence_ref",
+          "text"
+        ]
+      ],
+      "permission": "module:mis-batch-stage-signer (edit)",
+      "ok_keys": [
+        "ok",
+        "idempotent_replay",
+        "event_id",
+        "stage_role",
+        "route_id",
+        "bmr_id",
+        "source_fingerprint"
+      ],
+      "codes": [
+        "ACTIVITY_STEP_MISMATCH",
+        "APPROVED_ROUTE_OVERLAP",
+        "BMR_IDENTITY_REVIEW",
+        "EFFECTIVE_DATE_ROUTE_GAP",
+        "FG_RECEIPT_EVIDENCE_MISSING",
+        "FG_UOM_MISMATCH",
+        "IDEMPOTENCY_KEY_REUSED",
+        "INVALID_INPUT",
+        "MANDATORY_FG_STAGE_GAP",
+        "MEASURED_QTY_MISMATCH",
+        "MEASURED_QTY_REQUIRED",
+        "PRODUCT_ROUTE_COVERAGE",
+        "STAGE_ALREADY_SIGNED",
+        "STEP_NOT_IN_EFFECTIVE_ROUTE",
+        "WORK_LOG_IDENTITY_MISMATCH"
+      ]
+    },
+    {
+      "name": "mis_correct_batch_stage_v1",
+      "args": [
+        [
+          "p_idempotency_key",
+          "uuid"
+        ],
+        [
+          "p_event_id",
+          "bigint"
+        ],
+        [
+          "p_reason",
+          "text"
+        ]
+      ],
+      "permission": "module:mis-batch-stage-signer (edit)",
+      "ok_keys": [
+        "ok",
+        "idempotent_replay",
+        "event_id",
+        "corrects_event_id"
+      ],
+      "codes": [
+        "INVALID_INPUT",
+        "EVENT_NOT_FOUND",
+        "IDEMPOTENCY_KEY_REUSED",
+        "ONLY_SIGN_CAN_BE_CORRECTED",
+        "ALREADY_CORRECTED"
+      ]
+    },
+    {
+      "name": "mis_pack_fg_bulk_v1",
+      "args": [
+        [
+          "p_request_id",
+          "uuid"
+        ],
+        [
+          "p_packaging_event_id",
+          "bigint"
+        ],
+        [
+          "p_lines",
+          "jsonb"
+        ],
+        [
+          "p_excess",
+          "jsonb"
+        ]
+      ],
+      "defaults": {
+        "p_excess": "NULL"
+      },
+      "permission": "module:mis-fg-bulk-packing (edit); excess additionally module:mis-fg-excess-adjustment",
+      "request_shape": {
+        "p_lines": "[{\"sku_id\":bigint,\"count\":int>0}] unique sku_id",
+        "p_excess": "{\"qty_base\":number>0,\"evidence_ref\":text,\"reason\":text} only after INSUFFICIENT_BULK with excess_permitted:true; other keys ignored"
+      },
+      "ok_keys": [
+        "ok",
+        "idempotent_replay",
+        "request_id",
+        "product_id",
+        "batch_number",
+        "packaging_event_id",
+        "required_base",
+        "available_before_base",
+        "excess_base",
+        "excess_id",
+        "balance_after_base",
+        "base_uom",
+        "event_sku_ids"
+      ],
+      "insufficient_keys": [
+        "required_base",
+        "available_base",
+        "shortfall_base",
+        "base_uom",
+        "excess_permitted",
+        "product_id",
+        "batch_number"
+      ],
+      "codes": [
+        "BATCH_IDENTITY_MISSING",
+        "EVENT_NOT_BULK_AFFECTING",
+        "EVENT_NOT_DEPLETING",
+        "EXCESS_INVALID",
+        "EXCESS_NOT_AUTHORIZED",
+        "EXCESS_NOT_NEEDED",
+        "FG_RECEIPT_MISSING",
+        "FG_STAGE_NOT_SIGNED",
+        "IDEMPOTENCY_KEY_REUSED",
+        "INSUFFICIENT_AFTER_EXCESS",
+        "INSUFFICIENT_BULK",
+        "INVALID_INPUT",
+        "PACKAGING_EVENT_CHANGED",
+        "PACKAGING_EVENT_NOT_FOUND",
+        "SKU_CONVERSION_INVALID",
+        "SKU_LINE_EXISTS",
+        "SKU_NOT_FOUND",
+        "SKU_PACK_SIZE_INVALID",
+        "SKU_PRODUCT_MISMATCH",
+        "STAGE_SOURCE_CHANGED"
+      ]
+    },
+    {
+      "name": "mis_correct_pack_line_v1",
+      "args": [
+        [
+          "p_request_id",
+          "uuid"
+        ],
+        [
+          "p_event_sku_id",
+          "bigint"
+        ],
+        [
+          "p_new_count",
+          "integer"
+        ],
+        [
+          "p_reason",
+          "text"
+        ],
+        [
+          "p_excess",
+          "jsonb"
+        ]
+      ],
+      "defaults": {
+        "p_excess": "NULL"
+      },
+      "permission": "module:mis-fg-bulk-packing (edit); excess additionally module:mis-fg-excess-adjustment",
+      "request_shape": {
+        "p_new_count": "integer >= 0; 0 removes the line and returns its depletion to stock",
+        "p_excess": "as for mis_pack_fg_bulk_v1; only when the correction INCREASES consumption beyond stock"
+      },
+      "ok_keys": [
+        "ok",
+        "idempotent_replay",
+        "request_id",
+        "event_sku_id",
+        "packaging_event_id",
+        "product_id",
+        "batch_number",
+        "old_count",
+        "new_count",
+        "line_removed",
+        "stock_delta_base",
+        "excess_base",
+        "excess_id",
+        "balance_after_base",
+        "base_uom"
+      ],
+      "insufficient_keys": [
+        "required_base",
+        "available_base",
+        "shortfall_base",
+        "base_uom",
+        "excess_permitted",
+        "product_id",
+        "batch_number"
+      ],
+      "codes": [
+        "BATCH_IDENTITY_MISSING",
+        "CORRECTION_LEDGER_MISMATCH",
+        "CORRECTION_LINE_CHANGED",
+        "CORRECTION_LINE_NOT_FOUND",
+        "CORRECTION_NO_CHANGE",
+        "CORRECTION_NO_DEPLETION_BASIS",
+        "EVENT_NOT_BULK_AFFECTING",
+        "EVENT_NOT_DEPLETING",
+        "EXCESS_INVALID",
+        "EXCESS_NOT_AUTHORIZED",
+        "EXCESS_NOT_NEEDED",
+        "FG_STAGE_NOT_SIGNED",
+        "IDEMPOTENCY_KEY_REUSED",
+        "INSUFFICIENT_AFTER_EXCESS",
+        "INSUFFICIENT_BULK",
+        "INVALID_INPUT",
+        "PACKAGING_EVENT_CHANGED",
+        "SKU_CONVERSION_INVALID",
+        "SKU_NOT_FOUND",
+        "SKU_PACK_SIZE_INVALID",
+        "SKU_PRODUCT_MISMATCH",
+        "STAGE_SOURCE_CHANGED"
+      ]
+    },
+    {
+      "name": "fn_fg_mark_done_if_zero",
+      "args": [
+        [
+          "p_product_id",
+          "integer"
+        ],
+        [
+          "p_batch_number",
+          "text"
+        ],
+        [
+          "p_eps",
+          "numeric"
+        ]
+      ],
+      "returns": "void",
+      "permission": "module:fg-bulk-stock (edit) or database role service_role",
+      "raises": [
+        "MIS_G7_INVALID_INPUT (22023)",
+        "MIS_G7_EPS_OUT_OF_RANGE (22023): epsilon must be within [0, fn_fg_eps_default()=0.01]"
+      ],
+      "codes": []
+    },
+    {
+      "name": "mis_g7_set_enforcement_v1",
+      "args": [
+        [
+          "p_mode",
+          "text"
+        ],
+        [
+          "p_reason",
+          "text"
+        ]
+      ],
+      "permission": "module:mis-g7-enforcement-admin (edit)",
+      "ok_keys": [
+        "ok",
+        "from_mode",
+        "mode"
+      ],
+      "codes": [
+        "INVALID_INPUT",
+        "CORRECTION_PATH_NOT_INSTALLED",
+        "MODE_UNCHANGED"
+      ]
+    },
+    {
+      "name": "mis_g7_enforcement_readiness_v1",
+      "args": [
+        [
+          "p_days",
+          "integer"
+        ]
+      ],
+      "defaults": {
+        "p_days": "7"
+      },
+      "permission": "module:mis-g7-enforcement-admin (view)",
+      "ok_keys": [
+        "ok",
+        "mode",
+        "window_days",
+        "direct_writes",
+        "ticketed_corrections",
+        "ticketed_packs"
+      ],
+      "codes": []
+    }
+  ],
+  "enforce_mode_error": "MIS_G7_DIRECT_PACKING_DENIED (42501): direct bulk-affecting event_skus INSERT/UPDATE/DELETE and header reassign/retype/delete are refused unless made by mis_pack_fg_bulk_v1 / mis_correct_pack_line_v1 in the same transaction."
+}
