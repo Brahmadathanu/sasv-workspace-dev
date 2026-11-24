@@ -117,8 +117,8 @@ test("non-GET requests are never intercepted", async () => {
   const h = load(current);
   assert.equal(await h.request(JS, "POST"), undefined);
 });
-test("cache version remains unchanged and no broad cache deletion added", () => {
-  assert.match(current, /const CACHE_NAME = "hub-cache-v394"/);
+test("cache generation is hub-cache-v395 (v6.5.0) and no broad cache deletion was added", () => {
+  assert.match(current, /const CACHE_NAME = "hub-cache-v395"/);
   assert.equal((current.match(/\bcaches\.delete\(/g) || []).length, 1);
 });
 test("service-worker file has consistent newline style", () => {
@@ -130,4 +130,47 @@ test("CRLF-transformed worker honours PEC network-first behaviour", async () => 
   const h = load(current.replace(/\n/g, "\r\n"));
   h.store.set(ORIGIN + CSS, "OLD"); h.network.files[CSS] = "NEW";
   assert.equal(await h.request(CSS), "NEW");
+});
+
+// ── v6.5.0: the two modules imported by the console must follow the same network-first policy ──────────
+const MODAL = "/shared/js/pec-modal-stack.js";
+const PA = "/shared/js/pec-purchase-allocations.js";
+// Baseline: the current worker with ONLY the two new module rules removed (LF-normalised).
+const noModules = current.replace(/\r\n/g, "\n")
+  .replace(/ {4}\/\/ PEC v6\.5\.0: modules imported by the console[^\n]*\n/, "")
+  .replace(/ {4}\/\\\/shared\\\/js\\\/pec-modal-stack\\\.js\$\/\.test\(url\.pathname\) \|\|\n/, "")
+  .replace(/ {4}\/\\\/shared\\\/js\\\/pec-purchase-allocations\\\.js\$\/\.test\(url\.pathname\) \|\|\n/, "");
+test("baseline without the v6.5.0 module rules serves stale cached modules (proves the rules are needed)", async () => {
+  assert.notEqual(noModules, current.replace(/\r\n/g, "\n"), "module rules must be removable");
+  for (const p of [MODAL, PA]) {
+    const h = load(noModules);
+    h.store.set(ORIGIN + p, "STALE");
+    h.network.files[p] = "FRESH";
+    assert.equal(await h.request(p), "STALE", p);
+  }
+});
+for (const [label, file] of [["modal stack", MODAL], ["Purchase Allocations", PA], ["modal stack under /public", "/public" + MODAL], ["Purchase Allocations under /public", "/public" + PA]]) {
+  test(`${label}: online fetches fresh, caches it, offline reuses the latest copy`, async () => {
+    const h = load(current);
+    h.store.set(ORIGIN + file, "OLD");
+    h.network.files[file] = "NEW";
+    assert.equal(await h.request(file), "NEW");
+    assert.equal(h.store.get(ORIGIN + file), "NEW");
+    h.network.online = false;
+    assert.equal(await h.request(file), "NEW");
+  });
+}
+test("version-suffixed module imports (?v=...) are network-first too", async () => {
+  for (const [p, q] of [[MODAL, "?v=20261124b"], [PA, "?v=20261124a"]]) {
+    const h = load(current);
+    h.store.set(ORIGIN + p + q, "OLD");
+    h.network.files[p] = "NEW";
+    assert.equal(await h.request(p + q), "NEW", p);
+  }
+});
+test("offline without a cached module correctly fails", async () => {
+  for (const p of [MODAL, PA]) {
+    const h = load(current); h.network.online = false;
+    await assert.rejects(() => h.request(p), /offline/, p);
+  }
 });
