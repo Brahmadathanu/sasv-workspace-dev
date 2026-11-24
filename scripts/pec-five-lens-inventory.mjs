@@ -21,7 +21,9 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "public");
 const htmlSrc = fs.readFileSync(path.join(root, "shared/procurement-execution-console.html"), "utf8");
-const jsSrc = fs.readFileSync(path.join(root, "shared/js/procurement-execution-console.js"), "utf8");
+// The console plus the lens modules it imports: a control wired in an imported module is still wired.
+const jsSrc = ["procurement-execution-console.js", "pec-purchase-allocations.js"]
+  .map((f) => fs.readFileSync(path.join(root, "shared/js", f), "utf8")).join("\n");
 const mdIdx = process.argv.indexOf("--md");
 const mdOut = mdIdx > 0 ? process.argv[mdIdx + 1] : null;
 
@@ -45,7 +47,7 @@ await page.goto(`${base}/shared/procurement-execution-console.html`);
 const rows = await page.evaluate(() => {
   const out = [];
   const containers = [
-    ...["pr", "action", "indents", "vendor-buylist", "excess"].map((t) => ({ key: `lens:${t}`, el: document.getElementById(`tab-${t}`) })),
+    ...["pr", "action", "indents", "vendor-buylist", "purchase-allocations", "excess"].map((t) => ({ key: `lens:${t}`, el: document.getElementById(`tab-${t}`) })),
     ...[...document.querySelectorAll(".modal-backdrop, .erp-modal-backdrop, [id$='ModalBackdrop']")].map((el) => ({ key: `modal:${el.id}`, el })),
     { key: "header", el: document.querySelector(".pec-header-card") },
     { key: "lens-nav", el: document.querySelector(".tabs-card") },
@@ -128,5 +130,5 @@ if (mdOut) fs.writeFileSync(mdOut, md + "\n");
 console.log(md);
 console.log(`\nTotal controls inventoried: ${controls}; FAIL+FIX rows: ${fails}`);
 const lensIdCount = (k) => byArea[k]?.ctl.filter((c) => c.id && c.tag !== "dialog").length ?? 0;
-console.log("ID-bearing controls per lens:", ["pr", "action", "indents", "vendor-buylist", "excess"].map((t) => `${t}=${lensIdCount("lens:" + t)}`).join(", "));
+console.log("ID-bearing controls per lens:", ["pr", "action", "indents", "vendor-buylist", "purchase-allocations", "excess"].map((t) => `${t}=${lensIdCount("lens:" + t)}`).join(", "));
 if (fails) process.exit(1);
