@@ -23,11 +23,21 @@ UNION ALL SELECT 'no other invoker caller of helpers/reconciler',
        NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE p.prokind='f' AND NOT p.prosecdef AND n.nspname NOT IN ('pg_catalog','information_schema')
            AND (p.prosrc ILIKE '%fn_fg_ledger_add%' OR p.prosrc ILIKE '%fn_fg_auto_zero%' OR p.prosrc ILIKE '%fn_fg_reconcile_batch%' OR p.prosrc ILIKE '%fn_fg_mark_done_if_zero%')
-           AND p.oid::regprocedure::text NOT IN ('fn_fg_auto_zero(integer,text,numeric)','fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)',
-             'fn_fg_reconcile_batch(integer,text,numeric)','fn_fg_mark_done_if_zero(integer,text,numeric)','trg_fg_ledger_reconcile_ins_stmt()','trg_fg_ledger_reconcile_upd_stmt()','trg_fg_ledger_reconcile_del_stmt()')), NULL
+           -- accounted set == the migration's v_chain (10) + fn_fg_mark_done_if_zero: all converted/renamed by S3b, so NOT unknown callers
+           AND p.oid::regprocedure::text NOT IN (
+             'trg_fg_ledger_from_dwl()','trg_fg_ledger_from_es()','trg_fg_bulk_internal_transfer_to_ledger()',
+             'fn_fg_auto_zero(integer,text,numeric)','fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)',
+             'fn_fg_force_close(integer,text,numeric)','fn_fg_reconcile_batch(integer,text,numeric)',
+             'trg_fg_ledger_reconcile_ins_stmt()','trg_fg_ledger_reconcile_upd_stmt()','trg_fg_ledger_reconcile_del_stmt()',
+             'fn_fg_mark_done_if_zero(integer,text,numeric)')), NULL
 UNION ALL SELECT 'fn_fg_mark_done_if_zero legacy name free', to_regprocedure('public.fn_fg_mark_done_if_zero_legacy(integer,text,numeric)') IS NULL, NULL
 UNION ALL SELECT 'mark_done is invoker, authenticated-callable, pinned search_path (expected pre-install state)',
        NOT p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE') AND p.proconfig::text LIKE '%search_path=%', NULL
-  FROM pg_proc p WHERE p.oid = 'public.fn_fg_mark_done_if_zero(integer,text,numeric)'::regprocedure;
+  FROM pg_proc p WHERE p.oid = 'public.fn_fg_mark_done_if_zero(integer,text,numeric)'::regprocedure
+UNION ALL SELECT 'live epsilon default exists and is positive (live value 0.01; wrapper bounds epsilon by it)',
+       to_regprocedure('public.fn_fg_eps_default()') IS NOT NULL AND public.fn_fg_eps_default() > 0, NULL
+UNION ALL SELECT 'force-close wrapper uses module:fg-bulk-stock (wrapper must use the same target)',
+       p.prosrc ILIKE '%require_permission(''module:fg-bulk-stock''%', NULL
+  FROM pg_proc p WHERE p.oid = 'public.fn_fg_force_close(integer,text)'::regprocedure;
 -- Also capture (outside this file) the full pg_get_functiondef text of all ten functions into the immutable deployment packet.
 COMMIT;

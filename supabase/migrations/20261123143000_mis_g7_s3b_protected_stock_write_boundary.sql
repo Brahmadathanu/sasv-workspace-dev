@@ -114,6 +114,10 @@ BEGIN
     RAISE EXCEPTION 'MIS_G7_S3B: % is already SECURITY DEFINER; unexpected state', v_md; END IF;
   IF (SELECT prosrc FROM pg_proc WHERE oid = to_regprocedure(v_md)) NOT ILIKE '%fn_fg_reconcile_batch%' THEN
     RAISE EXCEPTION 'MIS_G7_S3B: % no longer references the reconciler; re-review', v_md; END IF;
+  IF to_regprocedure('public.fn_fg_eps_default()') IS NULL THEN
+    RAISE EXCEPTION 'MIS_G7_S3B: public.fn_fg_eps_default() missing; the mark-done wrapper bounds epsilon by it'; END IF;
+  IF (SELECT public.fn_fg_eps_default()) IS NULL OR (SELECT public.fn_fg_eps_default()) <= 0 THEN
+    RAISE EXCEPTION 'MIS_G7_S3B: fn_fg_eps_default() must return a positive numeric'; END IF;
   IF to_regprocedure('public.fn_fg_mark_done_if_zero_legacy(integer,text,numeric)') IS NOT NULL THEN
     RAISE EXCEPTION 'MIS_G7_S3B: fn_fg_mark_done_if_zero_legacy already exists; refusing rename'; END IF;
   -- the reconciler must not already be client-executable (we never widen it)
@@ -133,7 +137,7 @@ BEGIN
    WHERE p.prokind = 'f' AND NOT p.prosecdef AND n.nspname NOT IN ('pg_catalog','information_schema')
      AND (p.prosrc ILIKE '%fn_fg_ledger_add%' OR p.prosrc ILIKE '%fn_fg_auto_zero%' OR p.prosrc ILIKE '%fn_fg_reconcile_batch%'
           OR p.prosrc ILIKE '%fn_fg_mark_done_if_zero%')
-     AND p.oid <> ALL (SELECT to_regprocedure(c)::oid FROM unnest(v_chain || v_md) c);
+     AND p.oid <> ALL (SELECT to_regprocedure(c)::oid FROM unnest(v_chain || v_md) c);   -- v_chain already contains fn_fg_force_close(integer,text,numeric)
   IF v_callers IS NOT NULL THEN
     RAISE EXCEPTION 'MIS_G7_S3B: invoker functions call revoked helpers: %; review before install', v_callers; END IF;
   -- trg_fg_ledger_from_dwl pins search_path=public ONLY (live): under DEFINER that lets pg_temp objects shadow
@@ -150,13 +154,13 @@ BEGIN
 END $$;
 
 -- Narrow, permission-checked public entrypoint (same name, argument list and void return as the live function).
--- Authorization: the trusted service_role database role, or an authenticated user passing the canonical edit permission
--- (target below must match the live force-close wrapper's target: VERIFY BEFORE INSTALL). The caller-chosen epsilon is
--- capped, so this can never zero a meaningful balance (the legacy function accepted any epsilon). The batch lock is
--- taken first, exactly like every other writer; stage/stock rules are untouched (no excess, no receipts, no signing).
-CREATE OR REPLACE FUNCTION app_private.mis_g7_max_epsilon() RETURNS numeric LANGUAGE sql IMMUTABLE
-SET search_path = pg_catalog, pg_temp AS $f$ SELECT 0.001::numeric $f$;
-REVOKE ALL ON FUNCTION app_private.mis_g7_max_epsilon() FROM PUBLIC, anon, authenticated;
+-- Authorization: the trusted service_role database role, or an authenticated user passing the SAME canonical permission
+-- as the installed fn_fg_force_close(integer,text) wrapper: public.require_permission('module:fg-bulk-stock', true)
+-- (verified live by the independent review). Epsilon policy: a non-NULL caller epsilon must lie in [0, fn_fg_eps_default()]
+-- (live default 0.01), i.e. the existing system threshold is preserved (nothing narrower than the live default is imposed)
+-- while a caller can still not zero a meaningful balance by passing a huge epsilon. NULL is forwarded unchanged so legacy
+-- NULL behavior is identical (NULL can never widen the zeroing threshold). The batch lock is taken first, like every other
+-- writer; stage/stock rules are untouched (no excess, no receipts, no signing).
 
 CREATE OR REPLACE FUNCTION public.fn_fg_mark_done_if_zero(p_product_id integer, p_batch_number text, p_eps numeric)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER
@@ -166,12 +170,12 @@ BEGIN
   -- Trusted service path is the ACTUAL database role (SET ROLE, which a non-member cannot forge), never a JWT-claim GUC.
   IF current_setting('role', true) IS DISTINCT FROM 'service_role' THEN
     IF auth.uid() IS NULL THEN RAISE EXCEPTION 'MIS_G7_AUTH_REQUIRED' USING ERRCODE = '42501'; END IF;
-    PERFORM public.require_permission('module:daily-work-log', true);
+    PERFORM public.require_permission('module:fg-bulk-stock', true);
   END IF;
   IF p_product_id IS NULL OR p_batch_number IS NULL OR btrim(p_batch_number) = '' THEN
     RAISE EXCEPTION 'MIS_G7_INVALID_INPUT' USING ERRCODE = '22023'; END IF;
-  IF p_eps IS NULL OR p_eps < 0 OR p_eps > app_private.mis_g7_max_epsilon() THEN
-    RAISE EXCEPTION 'MIS_G7_EPS_OUT_OF_RANGE: epsilon must be between 0 and %', app_private.mis_g7_max_epsilon() USING ERRCODE = '22023'; END IF;
+  IF p_eps IS NOT NULL AND (p_eps < 0 OR p_eps > public.fn_fg_eps_default()) THEN
+    RAISE EXCEPTION 'MIS_G7_EPS_OUT_OF_RANGE: epsilon must be between 0 and fn_fg_eps_default() (%)', public.fn_fg_eps_default() USING ERRCODE = '22023'; END IF;
   PERFORM app_private.mis_lock_fg_batch(p_product_id, p_batch_number);
   PERFORM public.fn_fg_mark_done_if_zero_legacy(p_product_id, p_batch_number, p_eps);
 END $f$;

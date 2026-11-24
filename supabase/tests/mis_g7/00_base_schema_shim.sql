@@ -216,6 +216,7 @@ DECLARE b numeric; BEGIN
   IF p_sleep > 0 THEN PERFORM pg_sleep(p_sleep); END IF;
   INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id)
   VALUES (p_product,p_bn,CURRENT_DATE,-b,-b,(SELECT uom_base FROM public.products WHERE id=p_product),'FORCE_CLOSE','manual',0);
+  PERFORM public.fn_fg_reconcile_batch(p_product, p_bn, 0.01);   -- live body references the reconciler (shim reproduces the edge)
   RETURN b; END $$;
 CREATE FUNCTION public.trg_fg_bulk_internal_transfer_to_ledger() RETURNS trigger LANGUAGE plpgsql SET search_path TO 'pg_catalog', 'public', 'public', 'pg_temp' AS $$
 BEGIN
@@ -229,7 +230,7 @@ BEGIN
 CREATE TRIGGER trg_fg_bulk_internal_transfer AFTER INSERT OR UPDATE OR DELETE ON public.fg_bulk_internal_transfer FOR EACH ROW EXECUTE FUNCTION public.trg_fg_bulk_internal_transfer_to_ledger();
 
 CREATE FUNCTION public.fn_fg_force_close(p_product integer, p_bn text) RETURNS numeric LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog','public','pg_temp' AS $$
-BEGIN PERFORM public.require_permission('module:daily-work-log', true);  -- SHIM ASSUMPTION: live wrapper is permission-gated; target name not evidenced
+BEGIN PERFORM public.require_permission('module:fg-bulk-stock', true);  -- live: installed force-close wrapper uses module:fg-bulk-stock (independent review)
   RETURN public.fn_fg_force_close(p_product, p_bn, 0); END $$;
 GRANT EXECUTE ON FUNCTION public.fn_fg_force_close(integer,text) TO authenticated;
 -- INVOKER (as live): DWL receipt trigger, auto-zero, helper.
@@ -261,6 +262,8 @@ REVOKE ALL ON FUNCTION public.fn_fg_force_close(integer,text,numeric) FROM PUBLI
 REVOKE ALL ON FUNCTION public.fn_fg_force_close(integer,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.fn_fg_force_close(integer,text) TO authenticated;
 
+-- live: installed fn_fg_eps_default() returns numeric 0.01
+CREATE FUNCTION public.fn_fg_eps_default() RETURNS numeric LANGUAGE sql IMMUTABLE AS $$ SELECT 0.01::numeric $$;
 -- ===== Reconcile chain (live: independent review of PR #522 @ e938b557, READ ONLY) =====
 -- fn_fg_reconcile_batch: SECURITY INVOKER, search_path pg_catalog,public,pg_temp, EXECUTE only postgres+service_role.
 -- Reads batch balance, calls fn_fg_auto_zero within epsilon, then marks eligible FG worklogs Done behind a guarded
@@ -285,13 +288,13 @@ BEGIN IF NEW.activity='FG bulk storage' AND NEW.status='Done' AND OLD.status IS 
 CREATE TRIGGER trg_dwl_fg_done_guard BEFORE UPDATE OF status ON public.daily_work_log FOR EACH ROW EXECUTE FUNCTION public.trg_dwl_fg_done_guard();
 CREATE FUNCTION public.trg_fg_ledger_reconcile_ins_stmt() RETURNS trigger LANGUAGE plpgsql SET search_path TO 'pg_catalog','public','pg_temp' AS $$
 DECLARE r record; BEGIN FOR r IN SELECT DISTINCT product_id, batch_number FROM new_rows LOOP
-  PERFORM public.fn_fg_reconcile_batch(r.product_id, r.batch_number, 0.001); END LOOP; RETURN NULL; END $$;
+  PERFORM public.fn_fg_reconcile_batch(r.product_id, r.batch_number, public.fn_fg_eps_default()); END LOOP; RETURN NULL; END $$;
 CREATE FUNCTION public.trg_fg_ledger_reconcile_upd_stmt() RETURNS trigger LANGUAGE plpgsql SET search_path TO 'pg_catalog','public','pg_temp' AS $$
 DECLARE r record; BEGIN FOR r IN SELECT product_id, batch_number FROM new_rows UNION SELECT product_id, batch_number FROM old_rows LOOP
-  PERFORM public.fn_fg_reconcile_batch(r.product_id, r.batch_number, 0.001); END LOOP; RETURN NULL; END $$;
+  PERFORM public.fn_fg_reconcile_batch(r.product_id, r.batch_number, public.fn_fg_eps_default()); END LOOP; RETURN NULL; END $$;
 CREATE FUNCTION public.trg_fg_ledger_reconcile_del_stmt() RETURNS trigger LANGUAGE plpgsql SET search_path TO 'pg_catalog','public','pg_temp' AS $$
 DECLARE r record; BEGIN FOR r IN SELECT DISTINCT product_id, batch_number FROM old_rows LOOP
-  PERFORM public.fn_fg_reconcile_batch(r.product_id, r.batch_number, 0.001); END LOOP; RETURN NULL; END $$;
+  PERFORM public.fn_fg_reconcile_batch(r.product_id, r.batch_number, public.fn_fg_eps_default()); END LOOP; RETURN NULL; END $$;
 CREATE TRIGGER trg_fg_ledger_reconcile_ins_stmt AFTER INSERT ON public.fg_bulk_stock_ledger REFERENCING NEW TABLE AS new_rows FOR EACH STATEMENT EXECUTE FUNCTION public.trg_fg_ledger_reconcile_ins_stmt();
 CREATE TRIGGER trg_fg_ledger_reconcile_upd_stmt AFTER UPDATE ON public.fg_bulk_stock_ledger REFERENCING OLD TABLE AS old_rows NEW TABLE AS new_rows FOR EACH STATEMENT EXECUTE FUNCTION public.trg_fg_ledger_reconcile_upd_stmt();
 CREATE TRIGGER trg_fg_ledger_reconcile_del_stmt AFTER DELETE ON public.fg_bulk_stock_ledger REFERENCING OLD TABLE AS old_rows FOR EACH STATEMENT EXECUTE FUNCTION public.trg_fg_ledger_reconcile_del_stmt();
