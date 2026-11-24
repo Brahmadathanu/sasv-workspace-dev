@@ -32,3 +32,4 @@ jobs:
             throw 'S3R deletion prohibition marker missing'
           }
           Write-Host 'S3R_WINDOWS_PARSE_AND_FAIL_CLOSED_PASS'
+          exit 0
