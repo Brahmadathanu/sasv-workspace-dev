@@ -1,15 +1,40 @@
 -- Rollback for MIS G7 S2-S4b migrations. NOT in supabase/migrations. Owner-authorized use only.
--- ORDER: run section S5B first, then S5, then S4B, then S3B, then the S2-S4 section (top of this file, everything before the S3B marker).
+-- PRODUCTION ORDER: S5B, S5, S4B, S3B, S4, S3 (six sections). The S2 section is isolation-only: S2 is installed in production and must survive.
 -- Sections are delimited by marker comments; each is independently executable.
 -- No legacy function was replaced by these migrations, so the legacy baselines are untouched:
 --   trg_fg_ledger_from_es  sha256 cc32357d320fb63278632c5726085bdcf6b32395453838d39cac8c3584faed28
 --   fn_fg_ledger_check_negative sha256 211a6e879999cb97d4c28a9017cff66fb3ee493fedead10c36c4d0b81f6a1090
 -- Signed history (app_private.mis_* tables) is deliberately RETAINED.
+-- ==== S4 ROLLBACK ====
+-- Drops the atomic pack RPC only. Excess receipts, request records and tickets are RETAINED.
 DROP FUNCTION IF EXISTS public.mis_pack_fg_bulk_v1(uuid,bigint,jsonb,jsonb);
-DROP FUNCTION IF EXISTS public.mis_correct_batch_stage_v1(uuid,bigint,text);
-DROP FUNCTION IF EXISTS public.mis_sign_batch_stage_v1(uuid,integer,text,integer,bigint,integer,numeric,text);
+-- ==== S3 ROLLBACK ====
+-- Drops the shared ledger lock trigger and restores the EXACT pre-S3 ACL of the two S2 lock helpers from app_private.mis_g7_s3_baseline
+-- (NULL acl == default PUBLIC execute; keeping them closed is the safer state, restore only if exact reversal is required).
 DROP TRIGGER IF EXISTS "00_mis_g7_fg_batch_lock" ON public.fg_bulk_stock_ledger;
 DROP FUNCTION IF EXISTS app_private.trg_mis_fg_ledger_batch_lock();
+DO $$
+DECLARE b record; a record;
+BEGIN
+  IF (SELECT count(*) FROM app_private.mis_g7_s3_baseline) <> 2 THEN RAISE EXCEPTION 'S3 rollback: baseline missing; refusing'; END IF;
+  FOR b IN SELECT * FROM app_private.mis_g7_s3_baseline ORDER BY obj LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', b.obj);
+    IF b.acl IS NULL THEN EXECUTE format('GRANT ALL ON FUNCTION %s TO PUBLIC', b.obj);
+    ELSE
+      FOR a IN SELECT x.privilege_type, x.is_grantable, x.grantee, x.grantor FROM aclexplode(b.acl) x WHERE x.grantee <> x.grantor LOOP
+        EXECUTE format('GRANT %s ON FUNCTION %s TO %s%s', a.privilege_type, b.obj,
+          CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE quote_ident((SELECT rolname FROM pg_roles WHERE oid = a.grantee)) END,
+          CASE WHEN a.is_grantable THEN ' WITH GRANT OPTION' ELSE '' END);
+      END LOOP;
+    END IF;
+  END LOOP;
+END $$;
+-- ==== S2 ROLLBACK (ISOLATION / NEVER PRODUCTION) ====
+-- S2 is LIVE in production (registered version 20261124055734) and its signed history is immutable: this section is for isolated test
+-- databases only and MUST NOT be part of any production rollback. The production staged rollback is S5B -> S5 -> S4B -> S3B -> S4 -> S3
+-- and leaves the installed S2 RPCs, tables and signed history untouched.
+DROP FUNCTION IF EXISTS public.mis_correct_batch_stage_v1(uuid,bigint,text);
+DROP FUNCTION IF EXISTS public.mis_sign_batch_stage_v1(uuid,integer,text,integer,bigint,integer,numeric,text);
 -- ==== S3B ROLLBACK ====
 -- Exact restore from app_private.mis_g7_s3b_baseline (captured by the S3b migration before it changed anything).
 -- Restores: SECURITY attribute, pinned search_path, EXECUTE ACLs of the six legacy writers, and the ledger table ACL.

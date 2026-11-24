@@ -1,0 +1,77 @@
+{
+  "manifest_version": "mis-g7-migration-identities/1",
+  "patched_core_sha256": "dfa5a5e9aa31b48cf41fe9d03800fff2e35e5a3825ca458b5ccb6ca6c4471bcc",
+  "note": "S2 file blob must equal the blob installed in production (055b1cdfa1c8be970939f57e7e866f126ec55f03). Do not edit the S2 file. Registered versions for S3..S5b are assigned at apply time: record them here after each controlled apply.",
+  "migrations": [
+    {
+      "seq": 1,
+      "repo_file": "20261123140000_mis_g7_s2_signed_batch_stage_events.sql",
+      "supabase_migration_name": "mis_g7_s2_signed_batch_stage_events",
+      "registered_version": "20261124055734",
+      "status": "LIVE (installed; never replay)",
+      "bytes": 21644,
+      "sha256": "a70ae4a41bf9063803e50496e76b5ccb922251dc3fd8b551a0f041f8a95c0131",
+      "git_blob_sha1": "055b1cdfa1c8be970939f57e7e866f126ec55f03"
+    },
+    {
+      "seq": 2,
+      "repo_file": "20261123141000_mis_g7_s3_fg_ledger_shared_batch_lock.sql",
+      "supabase_migration_name": "mis_g7_s3_fg_ledger_shared_batch_lock",
+      "registered_version": null,
+      "status": "HELD (not installed)",
+      "bytes": 3946,
+      "sha256": "ac8813aaef7b0621bc9f1a28127e11f3cf62d04abeae297402a0eac1020c9b33",
+      "git_blob_sha1": "3f2ce1bc3dae699956f6c000c68d854c492d1418"
+    },
+    {
+      "seq": 3,
+      "repo_file": "20261123142000_mis_g7_s4_atomic_pack_with_measured_excess.sql",
+      "supabase_migration_name": "mis_g7_s4_atomic_pack_with_measured_excess",
+      "registered_version": null,
+      "status": "HELD (not installed)",
+      "bytes": 14737,
+      "sha256": "c1f4648a5921203f8a28aaa5708d0f25af41aa01b8903d82c7e8675ee25d38de",
+      "git_blob_sha1": "f0d3bef001c3d8e38d3e16bdf5c64f7f1f15f89b"
+    },
+    {
+      "seq": 4,
+      "repo_file": "20261123143000_mis_g7_s3b_protected_stock_write_boundary.sql",
+      "supabase_migration_name": "mis_g7_s3b_protected_stock_write_boundary",
+      "registered_version": null,
+      "status": "HELD (not installed)",
+      "bytes": 23077,
+      "sha256": "7c4cd12b9bdb5703d8023750d506387f6e8e259040309d284119ef14b65cefde",
+      "git_blob_sha1": "df014d2ab2c7e7652bcde26bffb0b93057ef2823"
+    },
+    {
+      "seq": 5,
+      "repo_file": "20261123144000_mis_g7_s4b_ticketed_pack_corrections_and_enforcement_control.sql",
+      "supabase_migration_name": "mis_g7_s4b_ticketed_pack_corrections_and_enforcement_control",
+      "registered_version": null,
+      "status": "HELD (not installed)",
+      "bytes": 18631,
+      "sha256": "dc0c97b0afd4aeae77cd1c40ec3dc7637d7628a39db4e56a2391202b9af87a3c",
+      "git_blob_sha1": "4866c3db314ba0702485a8244e071828015e6a9d"
+    },
+    {
+      "seq": 6,
+      "repo_file": "20261123145000_mis_g7_s5_legacy_dwl_editor_chain_protection.sql",
+      "supabase_migration_name": "mis_g7_s5_legacy_dwl_editor_chain_protection",
+      "registered_version": null,
+      "status": "HELD (not installed)",
+      "bytes": 26673,
+      "sha256": "e38615b25f20a41a643b2670a1d3df46e1c2e99185f87241c07d8a0a762173a0",
+      "git_blob_sha1": "0c437af48514f4f191e25037614360a1376c7935"
+    },
+    {
+      "seq": 7,
+      "repo_file": "20261123150000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql",
+      "supabase_migration_name": "mis_g7_s5b_legacy_dwl_editor_core_integration",
+      "registered_version": null,
+      "status": "HELD (not installed)",
+      "bytes": 13668,
+      "sha256": "4dee96b7784e7196132db47f2bfaf0bff44e595645e9c5e676b79a48d727e56d",
+      "git_blob_sha1": "642126f850a264f992c266f286e87c9bcce910cc"
+    }
+  ]
+}

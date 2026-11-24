@@ -3,6 +3,7 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -330,6 +331,61 @@ T('MIGRATION FILE NAMES: every migration timestamp is a valid UTC date-time, nam
   assert.ok(g7.some((f) => f.includes('s5b_')) && ts(g7.find((f) => f.includes('s5b_'))) > ts(MIGRATIONS[MIGRATIONS.length - 1]));
 });
 
+T('S3 REMOVES authenticated direct EXECUTE on both S2 advisory-lock helpers; legitimate callers keep working; S3 refuses without S2', () => {
+  const H = ['app_private.mis_lock_fg_batch(integer,text)', 'app_private.mis_lock_fg_batches(integer,text,integer,text)'];
+  const priv = (run, role, h) => run(`SELECT has_function_privilege('${role}', '${h}', 'EXECUTE')`).out;
+  const run = freshChain('accs3');
+  // out-of-order: S3 before S2 fails closed (no helpers) and leaves nothing behind
+  const early = run(migText(MIGRATIONS[1])); assert.notEqual(early.status, 0);
+  assert.equal(run(`SELECT to_regclass('app_private.mis_g7_s3_baseline') IS NULL OR (SELECT count(*) FROM app_private.mis_g7_s3_baseline) = 0`).out, 't');
+  assert.equal(run(`SELECT count(*) FROM pg_trigger WHERE tgname = '00_mis_g7_fg_batch_lock'`).out, '0');
+  assert.equal(run(migText(MIGRATIONS[0])).status, 0);                                                           // S2 as installed in production
+  for (const h of H) for (const role of ['authenticated', 'anon', 'public']) assert.equal(priv(run, role, h), 't', `before S3: ${role} ${h}`);   // S2 left them PUBLIC-executable at function level (S2 revokes schema USAGE from anon, authenticated keeps it)
+  const lockAs = (uid, k) => pg.psql('accs3', `SELECT app_private.mis_lock_fg_batch(1,'${k}')`, { uid });
+  assert.equal(lockAs(PACKER, 'x').status, 0);                                                                  // before S3 a client could take advisory locks directly
+  assert.equal(run(migText(MIGRATIONS[1])).status, 0);                                                           // S3
+  for (const h of H) for (const role of ['authenticated', 'anon', 'public']) assert.equal(priv(run, role, h), 'f', `after S3: ${role} ${h}`);
+  assert.match(lockAs(PACKER, 'x').err, /permission denied for function mis_lock_fg_batch/);
+  assert.match(pg.psql('accs3', `SELECT app_private.mis_lock_fg_batches(1,'a',1,'b')`, { uid: SIGNER }).err, /permission denied for function mis_lock_fg_batches/);
+  assert.equal(run(`SELECT count(*) FROM app_private.mis_g7_s3_baseline`).out, '2');
+  // legitimate callers: S2 definer RPCs (they call the helpers as the owner), the S3 ledger trigger (any writer) and the correction RPC
+  assert.equal(run(`SELECT public.t_mkbatch_real('S3A', 100)`).status, 0);
+  const wl = run(`SELECT id FROM public.daily_work_log WHERE batch_number='S3A' AND activity='FG bulk storage'`).out;
+  const sg = JSON.parse(pg.psql('accs3', `SELECT public.mis_sign_batch_stage_v1('${randomUUID()}',1,'S3A',${wl},2,1,100,'e')`, { uid: SIGNER }).out); assert.equal(sg.ok, true);
+  const cr = JSON.parse(pg.psql('accs3', `SELECT public.mis_correct_batch_stage_v1('${randomUUID()}',${sg.event_id},'recount')`, { uid: SIGNER }).out); assert.equal(cr.ok, true);
+  assert.equal(run(`INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,qty,qty_base,uom) VALUES (1,'S3A',-1,-1,'kg')`).status, 0);                                   // ledger trigger takes the lock as definer
+  assert.equal(run(`SELECT count(*) FROM pg_proc p WHERE p.proname IN ('mis_lock_fg_batch','mis_lock_fg_batches') AND p.prosecdef`).out, '0');                                   // helpers themselves stay INVOKER (unchanged S2 definition)
+  // opposite-order multi-key callers still cannot deadlock (helper unchanged), exercised through the definer trigger path
+  assert.equal(run(`SELECT has_function_privilege('postgres', '${H[1]}', 'EXECUTE')`).out, 't');
+});
+T('S2 ROLLBACK section is ISOLATION-ONLY: removes just the two RPCs, keeps tables and signed history; no production section mentions them', () => {
+  const run = freshChain('accs2');
+  assert.equal(run(migText(MIGRATIONS[0])).status, 0); assert.equal(run(`SELECT public.t_mkbatch_real('S2A', 10)`).status, 0);
+  const wl = run(`SELECT id FROM public.daily_work_log WHERE batch_number='S2A' AND activity='FG bulk storage'`).out;
+  assert.equal(JSON.parse(pg.psql('accs2', `SELECT public.mis_sign_batch_stage_v1('${randomUUID()}',1,'S2A',${wl},2,1,10,'e')`, { uid: SIGNER }).out).ok, true);
+  const rb = fs.readFileSync(path.join(docs, 'ROLLBACK_NOT_A_MIGRATION.sql'), 'utf8');
+  const i2 = rb.indexOf('-- ==== S2 ROLLBACK'), i3b = rb.indexOf('-- ==== S3B ROLLBACK ===='); assert.ok(i2 > 0 && i3b > i2);
+  assert.match(rb.slice(i2, i3b), /NEVER PRODUCTION/); assert.equal(rb.slice(0, i2).includes('mis_sign_batch_stage_v1') || rb.slice(i3b).includes('mis_sign_batch_stage_v1'), false);
+  assert.equal(run(rb.slice(i2, i3b)).status, 0);
+  assert.equal(run(`SELECT count(*) FROM pg_proc WHERE proname IN ('mis_sign_batch_stage_v1','mis_correct_batch_stage_v1')`).out, '0');
+  assert.equal(run(`SELECT count(*) FROM app_private.mis_batch_stage_event`).out, '1');
+});
+T('MIGRATION IDENTITIES: recorded SHA-256/git-blob of all seven G7 migrations match the files; S2 equals the blob installed in production', () => {
+  const man = JSON.parse(fs.readFileSync(path.join(docs, 'MIGRATION_IDENTITIES.json'), 'utf8'));
+  assert.equal(man.migrations.length, 7); assert.equal(man.patched_core_sha256, 'dfa5a5e9aa31b48cf41fe9d03800fff2e35e5a3825ca458b5ccb6ca6c4471bcc');
+  const blob = (b) => createHash('sha1').update(Buffer.concat([Buffer.from(`blob ${b.length}\0`), b])).digest('hex');
+  for (const m of man.migrations) {
+    const b = fs.readFileSync(path.resolve(here, '../../migrations', m.repo_file));
+    assert.equal(createHash('sha256').update(b).digest('hex'), m.sha256, `${m.repo_file} sha256 (regenerate with gen_migration_identities.mjs after an intended change)`);
+    assert.equal(blob(b), m.git_blob_sha1, m.repo_file); assert.equal(b.length, m.bytes);
+  }
+  const s2 = man.migrations[0];
+  assert.equal(s2.git_blob_sha1, '055b1cdfa1c8be970939f57e7e866f126ec55f03'); assert.equal(s2.bytes, 21644);                    // the S2 text that is LIVE
+  assert.equal(s2.registered_version, '20261124055734'); assert.match(s2.status, /LIVE/);
+  assert.deepEqual(man.migrations.map((m) => m.repo_file), [...MIGRATIONS, '20261123150000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql']);
+  assert.ok(man.migrations.slice(1).every((m) => m.registered_version === null && /HELD/.test(m.status)));
+});
+
 // ---------------------------- migration chain + rollback ----------------------------
 const freshChain = (name, upTo = MIGRATIONS.length) => {
   pg.createDb(name);
@@ -349,9 +405,14 @@ T('MIGRATION CHAIN installs cleanly in order on a fresh production-shaped schema
   assert.equal(run(migText(MIGRATIONS[3])).status, 0); assert.equal(run(migText(MIGRATIONS[4])).status, 0);
   assert.equal(run(`SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname LIKE 'mis\\_%'`).out, '6');
 });
-T('ROLLBACK full reverse chain (S4B -> S3B -> S2-S4) restores the pre-S3b catalog exactly and keeps signed history', () => {
+T('ROLLBACK production order (S5B -> S5 -> S4B -> S3B -> S4 -> S3) restores the pre-S3 catalog exactly, keeps the installed S2 RPCs working and all signed history', () => {
   const run = freshChain('accrb');
-  for (const f of MIGRATIONS.slice(0, 3)) assert.equal(run(migText(f)).status, 0, f);
+  assert.equal(run(migText(MIGRATIONS[0])).status, 0);                                                           // S2 = the production-installed baseline (never replayed afterwards)
+  const helpers = ['app_private.mis_lock_fg_batch(integer,text)', 'app_private.mis_lock_fg_batches(integer,text,integer,text)'];
+  const helperAcl = () => run(`SELECT string_agg(p.oid::regprocedure::text||'='||coalesce((SELECT string_agg(x::text, ',' ORDER BY x::text) FROM unnest(coalesce(p.proacl, acldefault('f', p.proowner))) x),''), E'\\n' ORDER BY 1) FROM pg_proc p WHERE p.oid IN (${helpers.map((h) => `'${h}'::regprocedure`).join(',')})`).out;
+  const s2Acl = helperAcl();
+  assert.equal(run(`SELECT has_function_privilege('authenticated','${helpers[0]}','EXECUTE') AND has_function_privilege('authenticated','${helpers[1]}','EXECUTE')`).out, 't');   // S2 as installed leaves both helpers client-callable
+  for (const f of MIGRATIONS.slice(1, 3)) assert.equal(run(migText(f)).status, 0, f);
   assert.equal(run(seedShimFingerprintsSql()).status, 0);
   const chain = ['fn_fg_auto_zero(integer,text,numeric)', 'fn_fg_force_close(integer,text,numeric)', 'fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)', 'trg_fg_bulk_internal_transfer_to_ledger()',
     'trg_fg_ledger_from_dwl()', 'trg_fg_ledger_from_es()', 'trg_fg_ledger_reconcile_ins_stmt()', 'trg_fg_ledger_reconcile_upd_stmt()', 'trg_fg_ledger_reconcile_del_stmt()',
@@ -371,9 +432,11 @@ T('ROLLBACK full reverse chain (S4B -> S3B -> S2-S4) restores the pre-S3b catalo
   assert.equal(JSON.parse(sess(`SELECT public.mis_g7_set_enforcement_v1('ENFORCE','rb test')`, ADMIN).out).code, 'LEGACY_DWL_EDITOR_NOT_MIGRATED');   // fail closed
   run(`UPDATE app_private.mis_g7_enforcement SET mode='ENFORCE'`);   // owner-forced, to prove rollback returns to AUDIT
   const rb = fs.readFileSync(path.join(docs, 'ROLLBACK_NOT_A_MIGRATION.sql'), 'utf8');
-  const iS3b = rb.indexOf('-- ==== S3B ROLLBACK ===='); const iS4b = rb.indexOf('-- ==== S4B ROLLBACK ===='); const iS5 = rb.indexOf('-- ==== S5 ROLLBACK ===='); const iS5b = rb.indexOf('-- ==== S5B ROLLBACK ====');
-  assert.ok(iS3b > 0 && iS4b > iS3b && iS5 > iS4b && iS5b > iS5);
-  const secTop = rb.slice(0, iS3b), secS3b = rb.slice(iS3b, iS4b), secS4b = rb.slice(iS4b, iS5), secS5 = rb.slice(iS5, iS5b);
+  const at = (m) => rb.indexOf(`-- ==== ${m} ====`);
+  const iS4 = at('S4 ROLLBACK'), iS3 = at('S3 ROLLBACK'), iS2 = rb.indexOf('-- ==== S2 ROLLBACK'), iS3b = at('S3B ROLLBACK'), iS4b = at('S4B ROLLBACK'), iS5 = at('S5 ROLLBACK'), iS5b = at('S5B ROLLBACK');
+  assert.ok(iS4 > 0 && iS3 > iS4 && iS2 > iS3 && iS3b > iS2 && iS4b > iS3b && iS5 > iS4b && iS5b > iS5);
+  const secS4 = rb.slice(iS4, iS3), secS3 = rb.slice(iS3, iS2), secS3b = rb.slice(iS3b, iS4b), secS4b = rb.slice(iS4b, iS5), secS5 = rb.slice(iS5, iS5b), secS5b = rb.slice(iS5b);
+  assert.ok(!(secS4 + secS3 + secS3b + secS4b + secS5 + secS5b).includes('mis_sign_batch_stage_v1'));            // the production sections never touch the installed S2 RPCs
   let r = run(secS5); assert.equal(r.status, 0, r.err);
   assert.equal(run(`SELECT mode FROM app_private.mis_g7_enforcement`).out, 'AUDIT');
   r = run(secS4b); assert.equal(r.status, 0, r.err);
@@ -381,10 +444,18 @@ T('ROLLBACK full reverse chain (S4B -> S3B -> S2-S4) restores the pre-S3b catalo
   assert.equal(run(`SELECT count(*) FROM app_private.mis_g7_enforcement_log WHERE actor='00000000-0000-0000-0000-000000000000'`).out, '1');   // only the S5 rollback needed to log (already AUDIT for S4B)
   r = run(secS3b); assert.equal(r.status, 0, r.err);
   assert.equal(snap(), before, 'S3b rollback must restore chain definitions/ACLs exactly');
-  r = run(secTop); assert.equal(r.status, 0, r.err);
-  assert.equal(run(`SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname LIKE 'mis\\_%'`).out, '0');
+  r = run(secS4); assert.equal(r.status, 0, r.err); r = run(secS3); assert.equal(r.status, 0, r.err);
+  // S2 SURVIVES: both installed RPCs remain, executable by authenticated and not anon, and still work; signed history retained
+  assert.equal(run(`SELECT string_agg(p.proname, ',' ORDER BY p.proname) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname LIKE 'mis\\_%'`).out, 'mis_correct_batch_stage_v1,mis_sign_batch_stage_v1');
+  for (const f of ['public.mis_sign_batch_stage_v1(uuid,integer,text,integer,bigint,integer,numeric,text)', 'public.mis_correct_batch_stage_v1(uuid,bigint,text)']) {
+    assert.equal(run(`SELECT has_function_privilege('authenticated','${f}','EXECUTE') AND NOT has_function_privilege('anon','${f}','EXECUTE')`).out, 't', f); }
+  assert.equal(run(`SELECT public.t_mkbatch_real('RBB2',50)`).status, 0);
+  assert.equal(JSON.parse(sess(`SELECT public.mis_sign_batch_stage_v1('${randomUUID()}',1,'RBB2',${run(`SELECT id FROM public.daily_work_log WHERE batch_number='RBB2' AND activity='FG bulk storage'`).out},2,1,50,'post-rollback')`, SIGNER).out).ok, true);   // S2 RPC works without S3+
   assert.equal(run(`SELECT count(*) FROM pg_trigger WHERE tgname LIKE '00\\_mis\\_g7\\_%'`).out, '0');
-  assert.equal(run(`SELECT count(*) FROM app_private.mis_batch_stage_event`).out, '1');                                // signed history retained
+  assert.equal(run(`SELECT count(*) FROM app_private.mis_batch_stage_event`).out, '2');                                // signed history retained (+ the post-rollback signing)
+  assert.equal(helperAcl(), s2Acl, 'S3 rollback restores the exact S2-installed helper ACLs');
+  for (const t of ['mis_fg_signed_excess_receipt', 'mis_fg_pack_request', 'mis_g7_pack_ticket', 'mis_g7_enforcement', 'mis_g7_direct_pack_audit', 'mis_fg_pack_correction', 'mis_g7_chain_ticket', 'mis_g7_s3_baseline', 'mis_g7_s3b_baseline', 'mis_g7_s5_baseline'])
+    assert.equal(run(`SELECT to_regclass('app_private.${t}') IS NOT NULL`).out, 't', t);                                // evidence/baseline tables retained
   assert.equal(run(`SELECT has_function_privilege('authenticated','public.fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)','EXECUTE')`).out, 't');   // legacy ACL back
   // legacy compatibility restored: governed definer path and legacy invoker behavior are the pre-S3b ones
   assert.equal(sess(`SELECT public.t_client_rpc($q$INSERT INTO public.event_skus(packaging_event_id,sku_id,"count") SELECT id,10,2 FROM public.packaging_events ORDER BY id DESC LIMIT 1$q$)`, PACKER).status, 0);

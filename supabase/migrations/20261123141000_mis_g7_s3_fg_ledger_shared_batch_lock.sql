@@ -14,6 +14,24 @@
 -- Early-lock wrappers for those need live baselines (S3 TODO). No location gate.
 -- Direct-DML grant hardening is NOT in this migration; see
 -- supabase/tests/mis_g7/DRAFT_ledger_grant_hardening_NOT_APPLIED.sql.
+-- Exact pre-change ACL of the two S2 advisory-lock helpers (S2 left them with the default PUBLIC EXECUTE, so authenticated could call them
+-- directly and take arbitrary advisory locks). S3 closes that; the rollback restores exactly this recorded state (captured once).
+-- Legitimate callers are unaffected: the S2 sign/correct RPCs and the S3 ledger trigger are SECURITY DEFINER and run as the owner.
+CREATE TABLE IF NOT EXISTS app_private.mis_g7_s3_baseline (
+  obj text PRIMARY KEY, acl aclitem[], captured_at timestamptz NOT NULL DEFAULT clock_timestamp());
+DROP TRIGGER IF EXISTS mis_g7_s3_baseline_append_only ON app_private.mis_g7_s3_baseline;
+CREATE TRIGGER mis_g7_s3_baseline_append_only BEFORE UPDATE OR DELETE ON app_private.mis_g7_s3_baseline
+  FOR EACH ROW EXECUTE FUNCTION app_private.mis_g7_append_only_guard();
+ALTER TABLE app_private.mis_g7_s3_baseline ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE app_private.mis_g7_s3_baseline FROM PUBLIC, anon, authenticated;
+INSERT INTO app_private.mis_g7_s3_baseline (obj, acl)
+SELECT p.oid::regprocedure::text, p.proacl FROM pg_proc p
+ WHERE p.oid = ANY (ARRAY[to_regprocedure('app_private.mis_lock_fg_batch(integer,text)'), to_regprocedure('app_private.mis_lock_fg_batches(integer,text,integer,text)')]::oid[])
+ON CONFLICT (obj) DO NOTHING;
+DO $$ BEGIN
+  IF (SELECT count(*) FROM app_private.mis_g7_s3_baseline) <> 2 THEN RAISE EXCEPTION 'MIS_G7_S3: S2 lock helpers missing; S2 must be installed first'; END IF;
+END $$;
+
 CREATE OR REPLACE FUNCTION app_private.trg_mis_fg_ledger_batch_lock()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp AS $f$

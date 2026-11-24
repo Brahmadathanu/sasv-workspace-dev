@@ -51,12 +51,13 @@ export function startPg() {
   const psqlArgs = (db) => ['-h', sock, '-p', port, '-U', 'postgres', '-d', db, '-X', '-A', '-t', '-q'];
   const env = { ...process.env, PGOPTIONS: '' };
   const api = {
-    bin, dir,
+    bin, dir, serverVersion: spawnSync(path.join(bin, 'postgres'), ['--version'], { ...own, encoding: 'utf8' }).stdout.trim(),
+    url(db) { return `postgresql://postgres@localhost/${db}?host=${encodeURIComponent(sock)}&port=${port}`; },
     stop() { run('pg_ctl', ['-D', data, '-m', 'immediate', '-w', 'stop']); fs.rmSync(dir, { recursive: true, force: true }); },
     // synchronous script execution; returns {out, err, status}
-    psql(db, script, { uid, vc } = {}) {
+    psql(db, script, { uid, vc, noStop } = {}) {
       const pre = uid === undefined ? '' : (uid === null ? `SET ROLE authenticated;` : `SET ROLE authenticated; \\o /dev/null\nSELECT set_config('request.jwt.claim.sub','${uid}',false), set_config('request.jwt.claims', '{"sub":"${uid}","email":"${uid}@example.test","role":"authenticated"}', false);\n\\o`);
-      const r = spawnSync(path.join(bin, 'psql'), [...psqlArgs(db), '-v', 'ON_ERROR_STOP=1'], { ...own, input: pre + '\n' + script, encoding: 'utf8', env: vc ? { ...env, PGOPTIONS: '-c plpgsql.variable_conflict=use_column' } : env });
+      const r = spawnSync(path.join(bin, 'psql'), [...psqlArgs(db), '-v', `ON_ERROR_STOP=${noStop ? 0 : 1}`], { ...own, input: pre + '\n' + script, encoding: 'utf8', env: vc ? { ...env, PGOPTIONS: '-c plpgsql.variable_conflict=use_column' } : env });
       return { out: (r.stdout || '').trim(), err: (r.stderr || '').trim(), status: r.status };
     },
     // async (for concurrent sessions); resolves with timing
