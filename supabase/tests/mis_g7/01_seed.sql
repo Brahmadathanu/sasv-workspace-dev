@@ -1,7 +1,9 @@
 INSERT INTO public.products VALUES (1,'P1','kg',0.001),(2,'P2','L',NULL),(3,'P3','kg',1),(4,'P4','kg',1),(5,'P5','kg',1);
 INSERT INTO public.product_skus VALUES (10,1,0.5,'kg'),(11,1,500,'g'),(20,2,1,'bottle'),(30,3,1,'kg');
 INSERT INTO public.activities VALUES (1,'Mixing'),(2,'FG bulk storage'),(3,'Filling');
-INSERT INTO public.event_type_lkp VALUES ('Bottling',-1,true,true),('Labelling',-1,true,true),('Cartoning',-1,true,true),('Capsule monocarton',-1,true,true),('Transfer to FG store',0,true,true);
+INSERT INTO public.event_type_lkp(label,affects_bulk_stock,is_packaging,active) VALUES ('Bottling',-1,true,true),('Labelling',-1,true,true),('Cartoning',-1,true,true),('Capsule monocarton',-1,true,true),('Transfer to FG store',0,true,true),
+  ('FG bulk storage',1,false,true);   -- live: FG receipt activity (+1, not packaging)
+UPDATE public.event_type_lkp SET code = label;
 -- P1: one approved route with mandatory FG step. P3: no route. P4: route without FG step. P5: overlapping routes.
 INSERT INTO costing.product_process_route(id,product_id,status,effective_from,effective_to,base_route_family_route_id) VALUES
  (1,1,'APPROVED','2026-01-01',NULL,1),(4,4,'APPROVED','2026-01-01',NULL,4),

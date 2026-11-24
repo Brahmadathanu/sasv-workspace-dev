@@ -34,6 +34,12 @@
     "wrapper_security": "SECURITY DEFINER; require_permission('module:edit-log-entry', true)",
     "core_security": "SECURITY DEFINER; not executable by authenticated",
     "behavior": "deletes the work log's event_skus then packaging_events header(s), recreates header + event_skus from sku_breakdown, deletes chain when row stops being Done/packaging, applies governed FG source quantity deltas, invokes fn_fg_reconcile_batch",
-    "wrapper_sha256": "NOT SUPPLIED - capture before migration"
+    "wrapper_sha256": "4c82b4a3263f3f868e8ac4dc696f5b68efd58e593fe4adb4d92a7ec7fb1bd7b4",
+    "parser": "fn_parse_sku_breakdown(text)",
+    "parser_sha256": "ec5fe3ead3e839d4ccad6c9f7e37c5775e1299c0b46ad71cc9a6b9eb7c5b29db",
+    "source_reference": "LIVE_DWL_EDITOR_REFERENCE_ONLY_20261124.md (exact pg_get_functiondef text; tests install it verbatim and assert the SHA-256 values)",
+    "s5b_patched_core_sha256": "b0f4575fd971c4c24d695556fe327f713fc6227b7cf9357c9b78d8321add671f",
+    "s5b_patch": "LIVE_DWL_EDITOR_CORE_S5_PATCH.diff: exactly three added PERFORM statements (begin after the row lock; finish before each of the two RETURN QUERY exits), nothing removed",
+    "required_database_setting": "plpgsql.variable_conflict = use_column (the live core's OUT column packaging_event_id collides with the event_skus column; verify on production: CORE_PREINSTALL_LIVE_CHECK_READONLY.sql row 3)"
   }
 }

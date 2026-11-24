@@ -1,5 +1,5 @@
 -- Rollback for MIS G7 S2-S4b migrations. NOT in supabase/migrations. Owner-authorized use only.
--- ORDER: run section S5 first, then S4B, then S3B, then the S2-S4 section (top of this file, everything before the S3B marker).
+-- ORDER: run section S5B first, then S5, then S4B, then S3B, then the S2-S4 section (top of this file, everything before the S3B marker).
 -- Sections are delimited by marker comments; each is independently executable.
 -- No legacy function was replaced by these migrations, so the legacy baselines are untouched:
 --   trg_fg_ledger_from_es  sha256 cc32357d320fb63278632c5726085bdcf6b32395453838d39cac8c3584faed28
@@ -96,4 +96,24 @@ DROP FUNCTION IF EXISTS app_private.mis_g7_chain_replace_finish(bigint);
 DROP FUNCTION IF EXISTS app_private.mis_g7_core_gate();
 DO $$ DECLARE b record; BEGIN
   FOR b IN SELECT * FROM app_private.mis_g7_s5_baseline ORDER BY obj LOOP EXECUTE b.def; END LOOP;
+END $$;
+
+-- ==== S5B ROLLBACK ====
+-- Restores the EXACT original live core (sha256 df7290df…6aec) from app_private.mis_g7_s5b_baseline and verifies the hash. The wrapper and the
+-- SKU parser were never touched. If ENFORCE is on it is returned to AUDIT (the original core cannot run under ENFORCE) and logged.
+-- Run this BEFORE the S5 section (S5 refuses to roll back while the core still calls its primitives).
+DO $$
+DECLARE b record; v_sha text;
+BEGIN
+  SELECT * INTO b FROM app_private.mis_g7_s5b_baseline ORDER BY captured_at LIMIT 1;
+  IF NOT FOUND THEN RAISE EXCEPTION 'S5B rollback: no baseline recorded; refusing'; END IF;
+  IF b.def_sha <> 'df7290df4a17e4af9f0aed43cf564007a35b957d8899b98869d7d35531296aec' THEN RAISE EXCEPTION 'S5B rollback: baseline is not the reviewed live core; refusing'; END IF;
+  EXECUTE b.def;
+  SELECT encode(sha256(convert_to(pg_get_functiondef(to_regprocedure(b.obj)), 'UTF8')), 'hex') INTO v_sha;
+  IF v_sha <> b.def_sha THEN RAISE EXCEPTION 'S5B rollback: restored core hash % differs from baseline %', v_sha, b.def_sha; END IF;
+  IF (SELECT mode FROM app_private.mis_g7_enforcement WHERE singleton) = 'ENFORCE' THEN
+    UPDATE app_private.mis_g7_enforcement SET mode = 'AUDIT', changed_at = clock_timestamp() WHERE singleton;
+    INSERT INTO app_private.mis_g7_enforcement_log (from_mode, to_mode, actor, reason)
+    VALUES ('ENFORCE', 'AUDIT', '00000000-0000-0000-0000-000000000000', 'S5B rollback: original DWL editor core restored');
+  END IF;
 END $$;

@@ -9,6 +9,8 @@ DO $$ DECLARE r text; BEGIN FOREACH r IN ARRAY ARRAY['anon','authenticated','ser
 CREATE SCHEMA auth; CREATE SCHEMA costing; CREATE SCHEMA app_private; GRANT USAGE ON SCHEMA app_private TO authenticated;  -- live precondition: authenticated has USAGE
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS
  $$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$ SELECT coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
+GRANT EXECUTE ON FUNCTION auth.jwt() TO anon, authenticated, service_role;
 GRANT USAGE ON SCHEMA auth, public, costing TO anon, authenticated, service_role;
 CREATE TABLE public.test_perm (uid uuid, target text, can_view boolean NOT NULL DEFAULT true, can_edit boolean NOT NULL DEFAULT true);  -- live user_permissions_canonical: can_view/can_edit
 CREATE FUNCTION public.require_permission(p_target text, p_edit boolean) RETURNS void
@@ -21,18 +23,19 @@ CREATE TABLE public.products (id integer PRIMARY KEY, item text UNIQUE NOT NULL,
 CREATE TABLE public.product_skus (id bigint PRIMARY KEY, product_id bigint, pack_size numeric, uom text);  -- live: BIGINT ids
 CREATE TABLE public.activities (id integer PRIMARY KEY, activity_name text UNIQUE NOT NULL);
 CREATE TABLE public.bmr_details (id integer PRIMARY KEY, product_id integer REFERENCES public.products(id), bn text, lifecycle_status text);
-CREATE TABLE public.daily_work_log (id serial PRIMARY KEY, item text, batch_number text, activity text, log_date date, status text,
-  storage_qty numeric, storage_qty_uom text, completed_on date);
+CREATE TABLE public.daily_work_log (id serial PRIMARY KEY, log_date date, section_id integer, subsection_id integer, area_id integer, plant_id integer,
+  item text, batch_number text, batch_size numeric, batch_uom text, activity text, juice_or_decoction text, specify text, count_of_saravam integer,
+  fuel text, fuel_under text, fuel_over text, started_on date, due_date date, status text, completed_on date, qty_after_process numeric, qty_uom text,
+  remarks text, lab_ref_number text, sku_breakdown text, storage_qty numeric, storage_qty_uom text, rm_juice_qty numeric, rm_juice_uom text);
 CREATE TABLE costing.product_process_route (id bigserial PRIMARY KEY, product_id integer, status text, effective_from date, effective_to date, base_route_family_route_id bigint);
 CREATE TABLE costing.production_route_family_route_step (id bigserial PRIMARY KEY, family_route_id bigint, activity_id integer, is_mandatory boolean);
 CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;  -- live: packaging_events.event_type is CITEXT (pg_typeof, 6514 rows), NOT an enum
 CREATE TABLE public.packaging_events (id bigserial PRIMARY KEY, work_log_id bigint REFERENCES public.daily_work_log(id), event_type public.citext);
-CREATE TABLE public.event_type_lkp (label public.citext PRIMARY KEY  -- label type NOT evidenced live; migrations compare with the SAME expression as the legacy trigger (label = event_type), so semantics match whichever it is
-  , affects_bulk_stock numeric, is_packaging boolean, active boolean DEFAULT true);
+CREATE TABLE public.event_type_lkp (label text PRIMARY KEY, affects_bulk_stock numeric, is_packaging boolean, active boolean DEFAULT true, code text);  -- live (independent review): label is TEXT; code text (core joins on code, wrapper on label);
 CREATE TABLE public.event_skus (id bigserial PRIMARY KEY, packaging_event_id bigint REFERENCES public.packaging_events(id) ON DELETE CASCADE, sku_id bigint, "count" integer NOT NULL DEFAULT 0 CHECK ("count" >= 0));
 CREATE TABLE public.fg_bulk_stock_ledger (id bigserial PRIMARY KEY, product_id integer NOT NULL REFERENCES public.products(id), batch_number text NOT NULL,
   movement_date date, qty numeric, qty_base numeric NOT NULL, uom text, reason_code text, source_table text, source_id integer,  -- live: integer
-  created_at timestamptz DEFAULT now(), section_id int, subsection_id int, area_id int, plant_id int);
+  created_at timestamptz DEFAULT now(), created_by text, section_id int, subsection_id int, area_id int, plant_id int);
 CREATE TABLE public.fg_bulk_internal_transfer (id serial PRIMARY KEY, product_id integer, batch_number text, qty_base numeric, from_plant int, to_plant int);
 ALTER TABLE public.fg_bulk_stock_ledger ENABLE ROW LEVEL SECURITY;
 CREATE POLICY fg_bulk_stock_ledger_authenticated_crud ON public.fg_bulk_stock_ledger FOR ALL TO authenticated USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
@@ -276,14 +279,14 @@ DECLARE b numeric; BEGIN
   IF b <> 0 AND abs(b) <= p_eps THEN PERFORM public.fn_fg_auto_zero(p_product, p_bn, p_eps);
     SELECT COALESCE(SUM(qty_base),0) INTO b FROM public.fg_bulk_stock_ledger WHERE product_id=p_product AND batch_number=p_bn; END IF;
   IF b = 0 THEN
-    PERFORM set_config('mis.fg_reconcile', '1', true);
+    PERFORM set_config('app.fg_reconcile', '1', true);
     UPDATE public.daily_work_log w SET status='Done' FROM public.products p
      WHERE p.id=p_product AND w.item=p.item AND w.batch_number=p_bn AND w.activity='FG bulk storage' AND w.status='In Storage';
-    PERFORM set_config('mis.fg_reconcile', '', true);
+    PERFORM set_config('app.fg_reconcile', '', true);
   END IF; END $$;
 CREATE FUNCTION public.trg_dwl_fg_done_guard() RETURNS trigger LANGUAGE plpgsql SET search_path TO 'pg_catalog','public','pg_temp' AS $$
 BEGIN IF NEW.activity='FG bulk storage' AND NEW.status='Done' AND OLD.status IS DISTINCT FROM 'Done'
-        AND coalesce(current_setting('mis.fg_reconcile', true), '') <> '1' THEN
+        AND coalesce(current_setting('app.fg_reconcile', true), '') <> '1' THEN
   RAISE EXCEPTION 'FG bulk Done is set only by batch reconciliation'; END IF; RETURN NEW; END $$;
 CREATE TRIGGER trg_dwl_fg_done_guard BEFORE UPDATE OF status ON public.daily_work_log FOR EACH ROW EXECUTE FUNCTION public.trg_dwl_fg_done_guard();
 CREATE FUNCTION public.trg_fg_ledger_reconcile_ins_stmt() RETURNS trigger LANGUAGE plpgsql SET search_path TO 'pg_catalog','public','pg_temp' AS $$
@@ -315,39 +318,3 @@ BEGIN PERFORM public.fn_fg_reconcile_batch(p_product_id, p_batch_number, p_eps);
 REVOKE ALL ON FUNCTION public.fn_fg_mark_done_if_zero(integer,text,numeric) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.fn_fg_mark_done_if_zero(integer,text,numeric) TO authenticated, service_role;
 
--- ===== Governed legacy DWL editor (live facts from the independent review; BODIES ARE SHIM RECONSTRUCTIONS, argument list assumed) =====
--- wrapper: SECURITY DEFINER, require_permission('module:edit-log-entry', true), calls __core.
--- __core (live sha256 df7290df...): SECURITY DEFINER, NOT executable by authenticated; applies governed FG source quantity
--- delta into the ledger, DELETES the work log's event_skus then packaging_events header(s), updates status, and RECREATES a
--- header + event_skus from sku_breakdown (nothing is recreated when the row stops being Done / has no breakdown).
-CREATE FUNCTION public.rpc_update_daily_work_log_with_packaging__core(p_work_log_id bigint, p_status text, p_sku_breakdown text, p_event_type text, p_storage_qty numeric)
- RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog','public','pg_temp' AS $$
-DECLARE v_old numeric; v_pid int; v_item text; v_act text; v_hdr bigint; v_part text; v_bn text;
-BEGIN
-  SELECT item, activity, storage_qty, batch_number INTO v_item, v_act, v_old, v_bn FROM public.daily_work_log WHERE id = p_work_log_id FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'work log % not found', p_work_log_id; END IF;
-  IF p_storage_qty IS NOT NULL AND v_act = 'FG bulk storage' THEN
-    SELECT id INTO v_pid FROM public.products WHERE item = v_item;
-    IF p_storage_qty <> coalesce(v_old, 0) THEN
-      INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id)
-      VALUES (v_pid, v_bn, CURRENT_DATE, p_storage_qty - coalesce(v_old,0), p_storage_qty - coalesce(v_old,0), 'kg', 'FG source correction', 'daily_work_log', p_work_log_id);
-    END IF;
-    UPDATE public.daily_work_log SET storage_qty = p_storage_qty WHERE id = p_work_log_id;
-  END IF;
-  DELETE FROM public.event_skus WHERE packaging_event_id IN (SELECT id FROM public.packaging_events WHERE work_log_id = p_work_log_id);
-  DELETE FROM public.packaging_events WHERE work_log_id = p_work_log_id;
-  UPDATE public.daily_work_log SET status = p_status WHERE id = p_work_log_id;
-  IF p_status = 'Done' AND p_sku_breakdown IS NOT NULL AND btrim(p_sku_breakdown) <> '' THEN
-    INSERT INTO public.packaging_events(work_log_id, event_type) VALUES (p_work_log_id, p_event_type::public.citext) RETURNING id INTO v_hdr;
-    FOREACH v_part IN ARRAY string_to_array(p_sku_breakdown, ',') LOOP
-      INSERT INTO public.event_skus(packaging_event_id, sku_id, "count") VALUES (v_hdr, split_part(v_part, ':', 1)::bigint, split_part(v_part, ':', 2)::int);
-    END LOOP;
-  END IF;
-END $$;
-CREATE FUNCTION public.rpc_update_daily_work_log_with_packaging(p_work_log_id bigint, p_status text, p_sku_breakdown text, p_event_type text, p_storage_qty numeric DEFAULT NULL)
- RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog','public','pg_temp' AS $$
-BEGIN PERFORM public.require_permission('module:edit-log-entry', true);
-  PERFORM public.rpc_update_daily_work_log_with_packaging__core(p_work_log_id, p_status, p_sku_breakdown, p_event_type, p_storage_qty); END $$;
-REVOKE ALL ON FUNCTION public.rpc_update_daily_work_log_with_packaging__core(bigint,text,text,text,numeric) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.rpc_update_daily_work_log_with_packaging(bigint,text,text,text,numeric) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.rpc_update_daily_work_log_with_packaging(bigint,text,text,text,numeric) TO authenticated;

@@ -12,6 +12,7 @@ UNION ALL SELECT 'wrapper is SECURITY DEFINER, authenticated-callable, requires 
   FROM pg_proc p WHERE p.proname = 'rpc_update_daily_work_log_with_packaging' AND p.pronamespace = 'public'::regnamespace
 UNION ALL SELECT 'core deletes event_skus and packaging_events (delete/recreate workflow present)', p.prosrc ILIKE '%delete%event_skus%' AND p.prosrc ILIKE '%delete%packaging_events%', NULL
   FROM pg_proc p WHERE p.proname = 'rpc_update_daily_work_log_with_packaging__core' AND p.pronamespace = 'public'::regnamespace
+UNION ALL SELECT 'plpgsql.variable_conflict = use_column (the live core needs it: OUT column packaging_event_id vs table column)', current_setting('plpgsql.variable_conflict', true) = 'use_column' OR EXISTS (SELECT 1 FROM pg_db_role_setting s WHERE s.setdatabase IN (0, (SELECT oid FROM pg_database WHERE datname = current_database())) AND s.setconfig::text LIKE '%plpgsql.variable_conflict=use_column%'), current_setting('plpgsql.variable_conflict', true)
 UNION ALL SELECT 'core not yet migrated (no S5 primitive calls)', p.prosrc NOT ILIKE '%mis_g7_chain_replace%', NULL
   FROM pg_proc p WHERE p.proname = 'rpc_update_daily_work_log_with_packaging__core' AND p.pronamespace = 'public'::regnamespace;
 -- Capture (outside this file): full pg_get_functiondef of the wrapper and core, ACLs, owner, and the sku_breakdown format actually parsed.

@@ -3,17 +3,21 @@
 -- them from sku_breakdown, deletes the whole chain when the row stops being Done/packaging, applies governed FG source
 -- quantity deltas and reconciles). INSTALLABLE CODE ONLY; depends on S2..S4b. Not applied anywhere.
 --
--- WHAT THIS DOES NOT DO: it does not rewrite or "ticket around" the live core (its source is only known by SHA
--- df7290df4a17e4af9f0aed43cf564007a35b957d8899b98869d7d35531296aec and must be reviewed before it is migrated).
--- A general-purpose caller ticket would let the old editor bypass signed-stage authorization; instead this migration
+-- WHAT THIS DOES NOT DO: it does not modify the live core and does not "ticket around" it. The exact live source (core sha256
+-- df7290df4a17e4af9f0aed43cf564007a35b957d8899b98869d7d35531296aec) is retained in
+-- docs/executive-mis-g7-server/LIVE_DWL_EDITOR_REFERENCE_ONLY_20261124.md; the minimal patch that calls the primitives below is the
+-- separate OWNER-GATED migration S5b (…146000). A general-purpose caller ticket would let the old editor bypass signed-stage
+-- authorization; instead this migration
 -- provides two PRIVATE primitives a reviewed core calls (begin before its first write, finish after its last write):
 --   begin  : batch lock, snapshot of the chain's current lines, a work-log-scoped ticket that the event_skus/packaging_events
 --            gate honours ONLY for that work log, in this transaction.
 --   finish : verifies (a) when any bulk-affecting line exists before or after the edit: signed + un-drifted FG stage,
 --            (b) FG stock conservation: the ledger movements of ALL old and new lines of the chain net to exactly the
 --            depletion implied by the new lines (so deleting a line that was never depleted -- the historical missing
---            depletion class -- cannot manufacture stock), (c) balance >= 0. Any violation raises and the whole edit
---            rolls back atomically. A DEFERRED constraint trigger refuses to COMMIT a ticket that was never finished,
+--            depletion class -- cannot manufacture stock), (c) balance >= 0. Under ENFORCE any violation raises and the whole
+--            edit rolls back atomically; under AUDIT (default) it is only recorded in app_private.mis_g7_direct_pack_audit
+--            (tbl='chain_replace') and the legacy behavior proceeds unchanged. The identity change of the work log (item/batch)
+--            is verified per identity. A DEFERRED constraint trigger refuses to COMMIT a ticket that was never finished,
 --            so a migrated core cannot skip the verification.
 -- ENFORCE stays impossible (fail closed) until the live core demonstrably calls both primitives AND an owner sign-off
 -- is recorded for the core's exact current SHA-256 (separate permission target):
@@ -98,59 +102,118 @@ BEGIN
   VALUES (txid_current(), p_work_log_id, v_wl.pid, v_wl.batch_number, v_ids, v_bulk) ON CONFLICT DO NOTHING;
 END $f$;
 
+-- Violations of the chain rules: ENFORCE (or a missing mode row: fail closed) raises and rolls the whole edit back; AUDIT only RECORDS the
+-- violation in the append-only audit log and lets the legacy behavior proceed (AUDIT = observation, old clients unchanged).
+ALTER TABLE app_private.mis_g7_direct_pack_audit ADD COLUMN IF NOT EXISTS detail text;
+CREATE OR REPLACE FUNCTION app_private.mis_g7_chain_violation(p_code text, p_work_log_id bigint, p_detail text)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $f$
+DECLARE v_mode text;
+BEGIN
+  SELECT mode INTO v_mode FROM app_private.mis_g7_enforcement WHERE singleton;
+  IF coalesce(v_mode, 'ENFORCE') = 'ENFORCE' THEN
+    RAISE EXCEPTION 'MIS_G7_%: %', p_code, p_detail USING ERRCODE = 'P0001';
+  END IF;
+  INSERT INTO app_private.mis_g7_direct_pack_audit(op, tbl, packaging_event_id, sku_id, actor, txid, mode, detail)
+  VALUES (p_code, 'chain_replace', NULL, NULL, auth.uid(), txid_current(), v_mode, 'work_log ' || p_work_log_id || ': ' || p_detail);
+END $f$;
+REVOKE ALL ON FUNCTION app_private.mis_g7_chain_violation(text,bigint,text) FROM PUBLIC, anon, authenticated;
+
+-- Stage state for ONE product/batch identity: NULL = signed and un-drifted FG_BULK stage, otherwise the violation code.
+CREATE OR REPLACE FUNCTION app_private.mis_g7_stage_problem(p_product_id integer, p_batch text)
+RETURNS text LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $f$
+DECLARE v_stage bigint; v_se record; v_fpnow text;
+BEGIN
+  IF p_product_id IS NULL OR coalesce(btrim(p_batch), '') = '' THEN RETURN 'CHAIN_BATCH_IDENTITY_MISSING'; END IF;
+  SELECT s.event_id INTO v_stage FROM app_private.mis_batch_stage_event s
+   WHERE s.event_kind = 'SIGN' AND s.product_id = p_product_id AND s.batch_number = p_batch AND s.stage_role = 'FG_BULK'
+     AND NOT EXISTS (SELECT 1 FROM app_private.mis_batch_stage_event c WHERE c.event_kind = 'CORRECTION' AND c.corrects_event_id = s.event_id)
+   ORDER BY s.event_id DESC LIMIT 1;
+  IF v_stage IS NULL THEN RETURN 'CHAIN_STAGE_NOT_SIGNED'; END IF;
+  SELECT s.source_fingerprint, s.work_log_id AS wl, s.route_step_id AS stp, s.step_occurrence AS occ INTO v_se
+    FROM app_private.mis_batch_stage_event s WHERE s.event_id = v_stage;
+  v_fpnow := app_private.mis_stage_fp(p_product_id, p_batch, v_se.wl, v_se.stp, v_se.occ);
+  IF v_fpnow IS NULL OR v_fpnow <> v_se.source_fingerprint THEN RETURN 'CHAIN_STAGE_SOURCE_CHANGED'; END IF;
+  RETURN NULL;
+END $f$;
+REVOKE ALL ON FUNCTION app_private.mis_g7_stage_problem(integer,text) FROM PUBLIC, anon, authenticated;
+
+-- Net FG ledger effect, for one product/batch identity, of every movement ever sourced from the given event_skus ids.
+CREATE OR REPLACE FUNCTION app_private.mis_g7_chain_net(p_product_id integer, p_batch text, p_ids bigint[])
+RETURNS numeric LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $f$
+  SELECT coalesce(sum(qty_base), 0) FROM public.fg_bulk_stock_ledger
+   WHERE source_table = 'event_skus' AND source_id = ANY (ARRAY(SELECT x::int FROM unnest(p_ids) x))
+     AND product_id = p_product_id AND batch_number = p_batch
+$f$;
+REVOKE ALL ON FUNCTION app_private.mis_g7_chain_net(integer,text,bigint[]) FROM PUBLIC, anon, authenticated;
+
 CREATE OR REPLACE FUNCTION app_private.mis_g7_chain_replace_finish(p_work_log_id bigint)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $f$
 DECLARE
-  t app_private.mis_g7_chain_ticket; v_ln record; v_sku record; v_prod record; v_lkp record; v_base_per numeric;
-  v_required numeric := 0; v_any_new_bulk boolean := false; v_ids bigint[]; v_posted numeric; v_stage bigint; v_se record; v_fpnow text; v_bal numeric;
+  t app_private.mis_g7_chain_ticket; v_ln record; v_sku record; v_new record; v_prod record; v_lkp record; v_base_per numeric;
+  v_required numeric := 0; v_any_new_bulk boolean := false; v_ids bigint[]; v_same boolean; v_bal numeric; v_calc_ok boolean := true; v_prob text; v_net numeric;
 BEGIN
   SELECT * INTO t FROM app_private.mis_g7_chain_ticket WHERE txid = txid_current() AND work_log_id = p_work_log_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'MIS_G7_CHAIN_REPLACE_NOT_BEGUN: work log %', p_work_log_id USING ERRCODE = 'P0001'; END IF;
   IF t.finished_at IS NOT NULL THEN RETURN; END IF;
-  SELECT p.id, p.uom_base, p.conversion_to_base INTO v_prod FROM public.products p WHERE p.id = t.product_id;
+  -- The editor may change the work log's item/batch identity: lines are always created under the identity AFTER the edit,
+  -- the old chain was consumed under the identity captured by begin. Both are verified.
+  SELECT p.id AS pid, wl.batch_number AS bn INTO v_new FROM public.daily_work_log wl LEFT JOIN public.products p ON p.item = wl.item WHERE wl.id = p_work_log_id;
+  v_same := (t.product_id IS NOT DISTINCT FROM v_new.pid) AND (t.batch_number IS NOT DISTINCT FROM v_new.bn);
+  SELECT p.id, p.uom_base, p.conversion_to_base INTO v_prod FROM public.products p WHERE p.id = v_new.pid;
   v_ids := t.old_line_ids;
   FOR v_ln IN SELECT es.id, es.sku_id, es."count" AS cnt, pe.event_type FROM public.event_skus es
                 JOIN public.packaging_events pe ON pe.id = es.packaging_event_id WHERE pe.work_log_id = p_work_log_id ORDER BY es.id LOOP
     v_ids := v_ids || v_ln.id;
     IF NOT app_private.mis_g7_type_is_bulk(v_ln.event_type) THEN CONTINUE; END IF;
     v_any_new_bulk := true;
-    IF v_prod.id IS NULL THEN RAISE EXCEPTION 'MIS_G7_CHAIN_BATCH_IDENTITY_MISSING: work log %', p_work_log_id USING ERRCODE = 'P0001'; END IF;
+    IF v_prod.id IS NULL THEN PERFORM app_private.mis_g7_chain_violation('CHAIN_BATCH_IDENTITY_MISSING', p_work_log_id, 'no product for the work log item'); v_calc_ok := false; CONTINUE; END IF;
     SELECT label, affects_bulk_stock INTO v_lkp FROM public.event_type_lkp WHERE label = v_ln.event_type AND active;
-    IF v_lkp.affects_bulk_stock > 0 THEN RAISE EXCEPTION 'MIS_G7_CHAIN_EVENT_NOT_DEPLETING: line %', v_ln.id USING ERRCODE = 'P0001'; END IF;
+    IF v_lkp.affects_bulk_stock > 0 THEN PERFORM app_private.mis_g7_chain_violation('CHAIN_EVENT_NOT_DEPLETING', p_work_log_id, 'line ' || v_ln.id); v_calc_ok := false; CONTINUE; END IF;
     SELECT id, product_id, pack_size, uom INTO v_sku FROM public.product_skus WHERE id = v_ln.sku_id;
     IF v_sku.id IS NULL OR v_sku.product_id <> v_prod.id OR v_sku.pack_size IS NULL OR v_sku.pack_size <= 0 THEN
-      RAISE EXCEPTION 'MIS_G7_CHAIN_SKU_INVALID: line % sku %', v_ln.id, v_ln.sku_id USING ERRCODE = 'P0001'; END IF;
-    IF v_sku.uom = v_prod.uom_base THEN v_base_per := v_sku.pack_size;
+      PERFORM app_private.mis_g7_chain_violation('CHAIN_SKU_INVALID', p_work_log_id, 'line ' || v_ln.id || ' sku ' || v_ln.sku_id); v_calc_ok := false; CONTINUE; END IF;
+    IF v_sku.uom = v_prod.uom_base THEN v_base_per := v_sku.pack_size;   -- exact comparison, identical to trg_fg_ledger_from_es
     ELSE
       IF v_prod.conversion_to_base IS NULL OR v_prod.conversion_to_base <= 0 THEN
-        RAISE EXCEPTION 'MIS_G7_CHAIN_SKU_INVALID: conversion for sku %', v_ln.sku_id USING ERRCODE = 'P0001'; END IF;
+        PERFORM app_private.mis_g7_chain_violation('CHAIN_SKU_INVALID', p_work_log_id, 'conversion for sku ' || v_ln.sku_id); v_calc_ok := false; CONTINUE; END IF;
       v_base_per := v_sku.pack_size * v_prod.conversion_to_base;
     END IF;
     v_required := v_required + v_ln.cnt * v_base_per * (-v_lkp.affects_bulk_stock);
   END LOOP;
   IF t.old_bulk OR v_any_new_bulk THEN
-    IF v_prod.id IS NULL OR coalesce(btrim(t.batch_number), '') = '' THEN
-      RAISE EXCEPTION 'MIS_G7_CHAIN_BATCH_IDENTITY_MISSING: work log %', p_work_log_id USING ERRCODE = 'P0001'; END IF;
-    -- stage authorization is evaluated on the FINAL state, atomically with the edit
-    SELECT s.event_id INTO v_stage FROM app_private.mis_batch_stage_event s
-     WHERE s.event_kind = 'SIGN' AND s.product_id = v_prod.id AND s.batch_number = t.batch_number AND s.stage_role = 'FG_BULK'
-       AND NOT EXISTS (SELECT 1 FROM app_private.mis_batch_stage_event c WHERE c.event_kind = 'CORRECTION' AND c.corrects_event_id = s.event_id)
-     ORDER BY s.event_id DESC LIMIT 1;
-    IF v_stage IS NULL THEN RAISE EXCEPTION 'MIS_G7_CHAIN_STAGE_NOT_SIGNED: product % batch %', v_prod.id, t.batch_number USING ERRCODE = 'P0001'; END IF;
-    SELECT s.source_fingerprint, s.work_log_id AS wl, s.route_step_id AS stp, s.step_occurrence AS occ INTO v_se
-      FROM app_private.mis_batch_stage_event s WHERE s.event_id = v_stage;
-    v_fpnow := app_private.mis_stage_fp(v_prod.id, t.batch_number, v_se.wl, v_se.stp, v_se.occ);
-    IF v_fpnow IS NULL OR v_fpnow <> v_se.source_fingerprint THEN
-      RAISE EXCEPTION 'MIS_G7_CHAIN_STAGE_SOURCE_CHANGED: product % batch %', v_prod.id, t.batch_number USING ERRCODE = 'P0001'; END IF;
-    -- conservation: every ledger movement ever sourced from an old or new line of this chain nets to the new depletion
-    SELECT coalesce(sum(qty_base), 0) INTO v_posted FROM public.fg_bulk_stock_ledger
-     WHERE source_table = 'event_skus' AND source_id = ANY (ARRAY(SELECT x::int FROM unnest(v_ids) x))
-       AND product_id = v_prod.id AND batch_number = t.batch_number;
-    IF v_posted <> -v_required THEN
-      RAISE EXCEPTION 'MIS_G7_CHAIN_CONSERVATION_MISMATCH: expected % posted %', -v_required, v_posted USING ERRCODE = 'P0001'; END IF;
-    SELECT coalesce(sum(qty_base), 0) INTO v_bal FROM public.fg_bulk_stock_ledger WHERE product_id = v_prod.id AND batch_number = t.batch_number;
-    IF v_bal < 0 THEN RAISE EXCEPTION 'MIS_G7_NEGATIVE_BALANCE' USING ERRCODE = 'P0001'; END IF;
+    -- stage authorization on the identity(ies) actually touched, evaluated on the FINAL state, atomically with the edit
+    IF t.old_bulk THEN
+      v_prob := app_private.mis_g7_stage_problem(t.product_id, t.batch_number);
+      IF v_prob IS NOT NULL THEN PERFORM app_private.mis_g7_chain_violation(v_prob, p_work_log_id, 'old identity product ' || coalesce(t.product_id::text, '?') || ' batch ' || coalesce(t.batch_number, '?')); END IF;
+    END IF;
+    IF v_any_new_bulk AND NOT (v_same AND t.old_bulk) THEN
+      v_prob := app_private.mis_g7_stage_problem(v_new.pid, v_new.bn);
+      IF v_prob IS NOT NULL THEN PERFORM app_private.mis_g7_chain_violation(v_prob, p_work_log_id, 'product ' || coalesce(v_new.pid::text, '?') || ' batch ' || coalesce(v_new.bn, '?')); END IF;
+    END IF;
+    -- conservation: the old identity nets to the new depletion when unchanged; otherwise old nets to 0 and new to -required
+    IF v_calc_ok THEN
+      IF v_same THEN
+        v_net := app_private.mis_g7_chain_net(v_new.pid, v_new.bn, v_ids);
+        IF v_net <> -v_required THEN PERFORM app_private.mis_g7_chain_violation('CHAIN_CONSERVATION_MISMATCH', p_work_log_id, 'expected ' || (-v_required) || ' posted ' || v_net); END IF;
+      ELSE
+        IF t.product_id IS NOT NULL THEN
+          v_net := app_private.mis_g7_chain_net(t.product_id, t.batch_number, v_ids);
+          IF v_net <> 0 THEN PERFORM app_private.mis_g7_chain_violation('CHAIN_CONSERVATION_MISMATCH', p_work_log_id, 'old identity expected 0 posted ' || v_net); END IF;
+        END IF;
+        IF v_new.pid IS NOT NULL THEN
+          v_net := app_private.mis_g7_chain_net(v_new.pid, v_new.bn, v_ids);
+          IF v_net <> -v_required THEN PERFORM app_private.mis_g7_chain_violation('CHAIN_CONSERVATION_MISMATCH', p_work_log_id, 'new identity expected ' || (-v_required) || ' posted ' || v_net); END IF;
+        END IF;
+      END IF;
+    END IF;
+    FOR v_bal IN SELECT coalesce(sum(l.qty_base), 0) FROM public.fg_bulk_stock_ledger l
+                  WHERE (l.product_id, l.batch_number) IN ((t.product_id, t.batch_number), (v_new.pid, v_new.bn)) GROUP BY l.product_id, l.batch_number LOOP
+      IF v_bal < 0 THEN PERFORM app_private.mis_g7_chain_violation('NEGATIVE_BALANCE', p_work_log_id, 'ledger balance ' || v_bal); END IF;
+    END LOOP;
   END IF;
   UPDATE app_private.mis_g7_chain_ticket SET finished_at = clock_timestamp() WHERE txid = t.txid AND work_log_id = t.work_log_id;
 END $f$;

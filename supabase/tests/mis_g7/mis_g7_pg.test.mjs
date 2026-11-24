@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { startPg, installBaseAndMigrations, seedShimFingerprintsSql, MIGRATIONS as MIGRATION_FILES } from './pg_harness.mjs';
+import { startPg, installBaseAndMigrations, installLiveEditor, seedShimFingerprintsSql, MIGRATIONS as MIGRATION_FILES } from './pg_harness.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DB = 'g7';
@@ -512,7 +512,7 @@ T('AUTHZ P0 allowlist: only reviewed SECURITY DEFINER functions that touch the l
       AND (has_function_privilege('authenticated', p.oid, 'EXECUTE') OR has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('public'::name, p.oid, 'EXECUTE'))`);
   // trigger functions are executable only as triggers (have no direct-call surface) and are asserted separately above
   const allowed = new Set(['fn_fg_force_close(integer,text)', 'mis_correct_pack_line_v1(uuid,bigint,integer,text,jsonb)', 'fn_fg_mark_done_if_zero(integer,text,numeric)', 'mis_pack_fg_bulk_v1(uuid,bigint,jsonb,jsonb)', 'mis_sign_batch_stage_v1(uuid,integer,text,integer,bigint,integer,numeric,text)']);
-  for (const r of rows.split(' | ').filter(Boolean)) assert.ok([...allowed].some((a) => r.endsWith(a)), `unexpected client-executable ledger-touching definer: ${r}`);
+  for (const r of rows.split(' | ').filter(Boolean)) assert.ok([...allowed].some((a) => r.endsWith(a)) || r.startsWith('rpc_update_daily_work_log_with_packaging('), `unexpected client-executable ledger-touching definer: ${r}`);   // the governed DWL editor wrapper (live, unchanged)
 });
 T('AUTHZ S3b hardening: legacy writers pin search_path with pg_temp last (dwl was public-only)', () => {
   for (const w of LEGACY_WRITERS) {
@@ -529,15 +529,20 @@ T('AUTHZ S3b hardening: legacy writers pin search_path with pg_temp last (dwl wa
   assert.equal(r.status, 0, r.err);
   assert.equal(bal(b), 7);                                    // receipt posted to the REAL product 1, not the shadow row
 });
-T('CITEXT parity: case-variant event types are still bulk-affecting (RPC, gate), legacy trigger agrees', () => {
+T('CITEXT parity: event_type is citext, event_type_lkp.label is text (live); gate/RPC use the SAME comparison as the legacy trigger', () => {
   const b = bn('CI1'); mkSigned(b); const ev = evId(b);
-  q(`UPDATE public.packaging_events SET event_type='bOtTlInG' WHERE id=${ev}`);
-  assert.equal(val(`SELECT app_private.mis_g7_event_is_bulk(${ev})`), 't');
   assert.equal(val(`SELECT pg_typeof(event_type)::text FROM public.packaging_events WHERE id=${ev}`), 'citext');
-  const r = JSON.parse(pack(b, [{ sku_id: 10, count: 4 }]).out); assert.equal(r.ok, true, JSON.stringify(r));
-  assert.equal(bal(b), 98);                                   // legacy trigger depleted despite case difference
-  q(`UPDATE public.packaging_events SET event_type='TRANSFER to fg STORE' WHERE id=${ev}`);
+  assert.equal(val(`SELECT pg_typeof(label)::text FROM public.event_type_lkp LIMIT 1`), 'text');
+  assert.equal(val(`SELECT app_private.mis_g7_event_is_bulk(${ev})`), 't');
+  // text = citext resolves to case-SENSITIVE text equality: a case-variant header is not bulk-affecting for the legacy trigger either,
+  // so the gate and the RPC must agree with it (never claim a depletion the trigger will not post)
+  q(`UPDATE public.packaging_events SET event_type='bOtTlInG' WHERE id=${ev}`);
   assert.equal(val(`SELECT app_private.mis_g7_event_is_bulk(${ev})`), 'f');
+  assert.equal(JSON.parse(pack(b, [{ sku_id: 10, count: 4 }]).out).code, 'EVENT_NOT_BULK_AFFECTING');
+  q(`INSERT INTO public.event_skus(packaging_event_id,sku_id,"count") VALUES (${ev},10,4)`);
+  assert.equal(bal(b), 100);                                   // legacy trigger posted nothing: same decision
+  q(`UPDATE public.packaging_events SET event_type='Bottling' WHERE id=${ev}`);
+  assert.equal(val(`SELECT app_private.mis_g7_event_is_bulk(${ev})`), 't');
 });
 T('RETYPE non-bulk -> bulk (and bulk -> non-bulk) with existing SKU lines is audited/denied; ledger never fabricates stock', () => {
   const b = bn('RT1'); mkSigned(b); const ev = evId(b);
@@ -548,7 +553,7 @@ T('RETYPE non-bulk -> bulk (and bulk -> non-bulk) with existing SKU lines is aud
   setMode('ENFORCE');
   try {
     assert.match(q(`UPDATE public.packaging_events SET event_type='Bottling' WHERE id=${ev}`, PACKER).err, /MIS_G7_DIRECT_PACKING_DENIED/);
-    assert.match(q(`UPDATE public.packaging_events SET event_type='labelling' WHERE id=${ev}`, PACKER).err, /MIS_G7_DIRECT_PACKING_DENIED/);   // citext case variant
+    assert.match(q(`UPDATE public.packaging_events SET event_type='Labelling' WHERE id=${ev}`, PACKER).err, /MIS_G7_DIRECT_PACKING_DENIED/);   // another bulk-affecting type
     assert.equal(val(`SELECT event_type FROM public.packaging_events WHERE id=${ev}`), 'Transfer to FG store');
   } finally { setMode('AUDIT'); }
   const before = aud();
@@ -601,7 +606,7 @@ T('PRECHECK S3b fails closed when an invoker function still calls a revoked help
   pg.createDb('g7pc');
   const files = ['00_base_schema_shim.sql'];
   const base = fs.readFileSync(path.join(here, '00_base_schema_shim.sql'), 'utf8');
-  assert.equal(pg.psql('g7pc', base).status, 0);
+  assert.equal(pg.psql('g7pc', base).status, 0); installLiveEditor(pg, 'g7pc');
   const mig = (f) => fs.readFileSync(path.resolve(here, '../../migrations', f), 'utf8');
   for (const f of MIGRATION_FILES.slice(0, 3)) assert.equal(pg.psql('g7pc', mig(f)).status, 0);
   assert.equal(pg.psql('g7pc', seedShimFingerprintsSql()).status, 0);
@@ -619,7 +624,7 @@ T('ROLLBACK exact: S3b rollback restores function defs (sha), ACLs, search_path,
   const base = fs.readFileSync(path.join(here, '00_base_schema_shim.sql'), 'utf8');
   const mig = (f) => fs.readFileSync(path.resolve(here, '../../migrations', f), 'utf8');
   const x = (sql, o) => pg.psql('g7rb', sql, o);
-  assert.equal(x(base).status, 0); assert.equal(x(fs.readFileSync(path.join(here, '01_seed.sql'), 'utf8')).status, 0);
+  assert.equal(x(base).status, 0); installLiveEditor(pg, 'g7rb'); assert.equal(x(fs.readFileSync(path.join(here, '01_seed.sql'), 'utf8')).status, 0);
   for (const f of MIGRATION_FILES.slice(0, 3)) assert.equal(x(mig(f)).status, 0, f);
   assert.equal(x(seedShimFingerprintsSql()).status, 0);
   // NULL acl is treated as acldefault() (semantically identical effective privileges)
@@ -750,7 +755,7 @@ T('CHAIN governed Done: ordinary users cannot mark an FG bulk work log Done dire
   // the guard flag is transaction-local and cleared by the reconciler: it does not leak to a later statement
   assert.equal(q(`SELECT public.fn_fg_ledger_add(1,'${b}',-5,'ADJ',78,'manual','2026-11-12')`).status, 0);
   assert.equal(dwlStatus(b), 'Done');
-  assert.equal(val(`SELECT coalesce(current_setting('mis.fg_reconcile', true),'')`), '');
+  assert.equal(val(`SELECT coalesce(current_setting('app.fg_reconcile', true),'')`), '');
 });
 T('CHAIN concurrency: reconciliation inside the batch lock; concurrent dust packers resolve to one Done, zero balance', async () => {
   const b = bn('CH6'); fgDwl(b, 1.0005); sign(b, SIGNER, '1.0005'); const e = evId(b);
@@ -766,7 +771,7 @@ T('CHAIN concurrency: reconciliation inside the batch lock; concurrent dust pack
 const freshPre = (name) => {
   pg.createDb(name);
   const mig = (f) => fs.readFileSync(path.resolve(here, '../../migrations', f), 'utf8');
-  assert.equal(pg.psql(name, fs.readFileSync(path.join(here, '00_base_schema_shim.sql'), 'utf8')).status, 0);
+  assert.equal(pg.psql(name, fs.readFileSync(path.join(here, '00_base_schema_shim.sql'), 'utf8')).status, 0); installLiveEditor(pg, name);
   for (const f of MIGRATION_FILES.slice(0, 3)) assert.equal(pg.psql(name, mig(f)).status, 0, f);
   return { mig3b: mig(MIGRATION_FILES[3]), run: (sql) => pg.psql(name, sql) };
 };
