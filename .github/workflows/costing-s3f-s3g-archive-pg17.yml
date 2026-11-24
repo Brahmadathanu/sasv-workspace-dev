@@ -81,6 +81,12 @@ jobs:
           # S3Q: bidirectional FK isolation is checked against all 62 internal
           # relationships in the isolated synthetic topology, with deliberate
           # adversarial other-run -> run87 FK link added AFTER the clean pass.
+          # Real-default safety: refuse to clear non-indexed edges.
+          if SASV_AUDIT_DATABASE_URL="postgresql://postgres:fixture_only@127.0.0.1:5432/s3f_fixture" \
+            node docs/master-data-costing/tools/audit-run87-cross-fk-readonly.mjs > "$RUNNER_TEMP/s3q-default.txt"; then
+            echo "S3Q unsafe default: unindexed FK marked clear"; exit 1
+          fi
+          grep -q '"outcome":"UNKNOWN_UNINDEXED_FK_REQUIRES_QUERY_PLAN_OR_OFFLINE_CHECK"' "$RUNNER_TEMP/s3q-default.txt"
           SASV_ALLOW_UNINDEXED_SYNTHETIC_FK=1 SASV_AUDIT_DATABASE_URL="postgresql://postgres:fixture_only@127.0.0.1:5432/s3f_fixture" \
             node docs/master-data-costing/tools/audit-run87-cross-fk-readonly.mjs | tee "$RUNNER_TEMP/s3q-clean.txt"
           grep -q '"checksPerformed":124' "$RUNNER_TEMP/s3q-clean.txt"
