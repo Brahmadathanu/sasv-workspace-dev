@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - "docs/master-data-costing/tools/**"
+      - "docs/master-data-costing/sql/route2/**"
       - "docs/master-data-costing/sql/S3L_SYNTHETIC_PG17_FIXTURE.sql"
       - ".github/workflows/costing-s3f-s3g-archive-pg17.yml"
 permissions:
@@ -109,3 +110,15 @@ jobs:
           echo S3Q_PG17_BIDIRECTIONAL_FK_SAFE_AND_ADVERSARIAL_PASS
           echo S3N_PG17_CATALOG_DIRECT_FK_ARCHIVE_PASS
           echo S3F_S3G_PG17_FULLSIZE_ARCHIVE_RESTORE_PASS
+          # Route 2 role package (synthetic only): create, enable login, verify, drop; each fails closed.
+          R2=docs/master-data-costing/sql/route2
+          psql -X -v ON_ERROR_STOP=1 -q -f $R2/R2_01_create_archive_ro_role.sql
+          if psql -X -v ON_ERROR_STOP=1 -q -f $R2/R2_01_create_archive_ro_role.sql 2>/dev/null; then echo "R2_01 not idempotent-safe"; exit 1; fi
+          psql -X -v ON_ERROR_STOP=1 -q -c "DO \$\$ BEGIN EXECUTE format('ALTER ROLE sasv_archive_ro LOGIN PASSWORD %L VALID UNTIL %L', 'ci-only', (now() + interval '7 days')::text); END \$\$"
+          psql -X -v ON_ERROR_STOP=1 -q -f $R2/R2_03_verify_archive_ro_permissions.sql 2>&1 | tee "$RUNNER_TEMP/r2-verify.txt"
+          grep -q 'R2_03 PASS' "$RUNNER_TEMP/r2-verify.txt"
+          grep -q 'run 87 rows across direct relations (admin view) = 217964' "$RUNNER_TEMP/r2-verify.txt"
+          SASV_ARCHIVE_DATABASE_URL="postgresql://sasv_archive_ro:ci-only@127.0.0.1:5432/s3f_fixture?sslmode=disable"             node docs/master-data-costing/tools/archive-run87-direct-fks.mjs --run-id 87 --out "$RUNNER_TEMP/ro-archive" --expected-relations 64 | grep -q '"rows":217964'
+          psql -X -v ON_ERROR_STOP=1 -q -f $R2/R2_99_revoke_and_drop_archive_ro_role.sql
+          test "$(psql -X -At -c "SELECT count(*) FROM pg_roles WHERE rolname='sasv_archive_ro'")" = 0
+          echo R2_SELECT_ONLY_ROLE_PACKAGE_PG17_PASS

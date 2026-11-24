@@ -1,0 +1,90 @@
+-- ROUTE 2 / STEP 1 of 4 -- create the dedicated, temporary, SELECT-only archive role.
+-- STATUS: PREPARED, NOT EXECUTED. Requires explicit owner approval of THIS file.
+-- Run once, as the project administrator, in the Supabase SQL editor (or psql).
+--
+-- Everything happens inside ONE anonymous DO block, so the script is atomic:
+-- any failed expectation raises an exception and NOTHING is created.
+-- It never reads business rows, never writes to costing tables, never touches
+-- triggers, run status, policies or existing roles. The role is created NOLOGIN;
+-- step 2 (generated locally, contains only a SCRAM verifier) enables login for 7 days.
+--
+-- Granted: USAGE on schema costing; SELECT on exactly
+--   * the direct run-linked relations (single-column FK -> costing.costing_refresh_run,
+--     the same catalog rule used by archive-run87-direct-fks.mjs; must be exactly 64),
+--   * costing.costing_refresh_run (run header),
+--   * costing.costing_run_designation and the view costing.v_costing_period_run_status
+--     (read by the archiver's "run 87 is not designated/displayed/approved" gate).
+-- BYPASSRLS is added ONLY IF one of those relations has row level security enabled,
+-- because otherwise the role would silently see a subset of rows. If your project
+-- does not allow the administrator to grant BYPASSRLS this script fails closed.
+DO $r2$
+DECLARE
+  c_role constant text := 'sasv_archive_ro';
+  c_expected constant int := 64;
+  v_status text; v_period text; v_opts text[]; v_kind "char";
+  rel record; v_rels oid[] := '{}'; v_pairs int := 0; v_rls boolean := false; v_grants int := 0;
+  v_extra text;
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = c_role) THEN
+    RAISE EXCEPTION 'R2 HOLD: role % already exists; run R2_99 first or investigate', c_role;
+  END IF;
+  IF to_regclass('costing.costing_refresh_run') IS NULL
+     OR to_regclass('costing.costing_run_designation') IS NULL
+     OR to_regclass('costing.v_costing_period_run_status') IS NULL THEN
+    RAISE EXCEPTION 'R2 HOLD: header, designation table or status view missing';
+  END IF;
+  SELECT overall_status, period_start::text INTO v_status, v_period
+    FROM costing.costing_refresh_run WHERE id = 87;
+  IF NOT FOUND OR v_status <> 'SUCCESS' OR v_period <> '2026-09-01' THEN
+    RAISE EXCEPTION 'R2 HOLD: run 87 identity drift (%, %)', v_status, v_period;
+  END IF;
+  SELECT c.relkind, c.reloptions INTO v_kind, v_opts FROM pg_class c
+    WHERE c.oid = 'costing.v_costing_period_run_status'::regclass;
+  IF v_kind <> 'v' OR EXISTS (SELECT 1 FROM unnest(coalesce(v_opts,'{}')) o WHERE o ILIKE 'security_invoker=%true%' OR o ILIKE 'security_invoker=on') THEN
+    RAISE EXCEPTION 'R2 HOLD: status view is not a plain definer-rights view; its underlying tables would also need review';
+  END IF;
+
+  FOR rel IN
+    SELECT c.oid AS relid, n.nspname AS s, c.relname AS t, c.relkind AS k,
+           (c.relrowsecurity OR c.relforcerowsecurity) AS rls, att.attname AS col
+    FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    JOIN pg_attribute att ON att.attrelid = c.oid AND att.attnum = con.conkey[1]
+    WHERE con.contype = 'f' AND con.confrelid = 'costing.costing_refresh_run'::regclass
+      AND n.nspname = 'costing' AND array_length(con.conkey, 1) = 1
+    ORDER BY n.nspname, c.relname, att.attname
+  LOOP
+    v_pairs := v_pairs + 1;
+    IF rel.k NOT IN ('r','p') OR rel.s <> 'costing' OR rel.t !~ '^[a-z_][a-z0-9_]*$' THEN
+      RAISE EXCEPTION 'R2 HOLD: unexpected relation kind/name in direct-FK inventory';
+    END IF;
+    IF NOT rel.relid = ANY (v_rels) THEN v_rels := v_rels || rel.relid; END IF;
+    v_rls := v_rls OR rel.rls;
+  END LOOP;
+  IF v_pairs <> c_expected THEN
+    RAISE EXCEPTION 'R2 HOLD: direct FK inventory drift: % vs expected %', v_pairs, c_expected;
+  END IF;
+  FOREACH v_extra IN ARRAY ARRAY['costing.costing_refresh_run','costing.costing_run_designation'] LOOP
+    IF NOT v_extra::regclass::oid = ANY (v_rels) THEN v_rels := v_rels || v_extra::regclass::oid; END IF;
+    v_rls := v_rls OR (SELECT relrowsecurity OR relforcerowsecurity FROM pg_class WHERE oid = v_extra::regclass);
+  END LOOP;
+
+  EXECUTE format('CREATE ROLE %I NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION %s CONNECTION LIMIT 2',
+                 c_role, CASE WHEN v_rls THEN 'BYPASSRLS' ELSE 'NOBYPASSRLS' END);
+  EXECUTE format('ALTER ROLE %I SET default_transaction_read_only = on', c_role);
+  EXECUTE format('ALTER ROLE %I SET statement_timeout = ''15min''', c_role);
+  EXECUTE format('ALTER ROLE %I SET idle_in_transaction_session_timeout = ''5min''', c_role);
+  EXECUTE format('COMMENT ON ROLE %I IS %L', c_role,
+                 'TEMPORARY SELECT-only SASV run-87 archive role; approved by owner; drop with R2_99');
+  EXECUTE format('GRANT USAGE ON SCHEMA costing TO %I', c_role);
+  FOR rel IN SELECT n.nspname s, c.relname t FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+             WHERE c.oid = ANY (v_rels) LOOP
+    EXECUTE format('GRANT SELECT ON TABLE %I.%I TO %I', rel.s, rel.t, c_role);
+    v_grants := v_grants + 1;
+  END LOOP;
+  EXECUTE format('GRANT SELECT ON TABLE costing.v_costing_period_run_status TO %I', c_role);
+  v_grants := v_grants + 1;
+  RAISE NOTICE 'R2_01 OK: role % created NOLOGIN, % SELECT grants, bypassrls=%', c_role, v_grants, v_rls;
+END
+$r2$;

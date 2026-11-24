@@ -21,7 +21,8 @@ export async function directRelations(client) {
     att.attname AS run_column, con.conname AS fk_name,con.confdeltype AS fk_action,
     pg_total_relation_size(c.oid)::text AS allocated_bytes,
     EXISTS(SELECT 1 FROM pg_constraint f WHERE f.contype='f' AND f.confrelid=c.oid) AS has_incoming_fk,
-    EXISTS(SELECT 1 FROM pg_trigger tr WHERE tr.tgrelid=c.oid AND NOT tr.tgisinternal AND tr.tgenabled<>'D') AS has_business_trigger
+    EXISTS(SELECT 1 FROM pg_trigger tr WHERE tr.tgrelid=c.oid AND NOT tr.tgisinternal AND tr.tgenabled<>'D') AS has_business_trigger,
+    (c.relrowsecurity OR c.relforcerowsecurity) AS has_rls
     FROM pg_constraint con
     JOIN pg_class c ON c.oid=con.conrelid
     JOIN pg_namespace n ON n.oid=c.relnamespace
@@ -102,6 +103,11 @@ export async function archiveDirectRun(client,out,expectedRelations=64,pageSize=
     const relations=await directRelations(client);
     if(relations.length!==expectedRelations)
       throw Error(`Direct FK inventory drift: ${relations.length} vs ${expectedRelations}`);
+    // Under row level security a non-bypass role silently reads a subset of rows and the
+    // exporter's own count check would agree with it. Refuse instead.
+    const me=(await client.query('SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user')).rows[0];
+    if(relations.some(r=>r.has_rls)&&!(me&&(me.rolsuper||me.rolbypassrls)))
+      throw Error('RLS enabled on archived relation but archive role lacks BYPASSRLS; refuse partial archive');
     const inventory=[];
     for(const rel of relations)inventory.push(await archiveDirectRelation(client,rel,out,pageSize));
     await client.query('COMMIT');tx=false;
