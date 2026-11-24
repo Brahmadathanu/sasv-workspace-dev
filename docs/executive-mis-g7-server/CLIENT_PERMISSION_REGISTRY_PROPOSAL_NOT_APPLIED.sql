@@ -15,13 +15,36 @@
 --     'module:mis-batch-stage-signer','module:mis-fg-bulk-packing','module:mis-fg-excess-adjustment',
 --     'module:mis-g7-enforcement-admin','module:mis-g7-core-migration-signoff');          -- expected 0 before AND after
 --
--- Rollback:
+-- Rollback only before any assignment or live use, after owner approval:
 --   delete from public.app_module_clients where module_key = 'mis-batch-governance';
 --   delete from public.app_modules where module_key in ('mis-batch-stage-signer','mis-fg-bulk-packing',
 --     'mis-fg-excess-adjustment','mis-g7-enforcement-admin','mis-g7-core-migration-signoff','mis-batch-governance');
 
 begin;
 
+-- Fail closed: no overwrite of an existing registry or assignment.
+DO $guard$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.app_modules WHERE module_key IN ('mis-batch-governance','mis-batch-stage-signer','mis-fg-bulk-packing','mis-fg-excess-adjustment','mis-g7-enforcement-admin','mis-g7-core-migration-signoff'))
+     OR EXISTS (SELECT 1 FROM public.permission_targets WHERE key IN ('module:mis-batch-governance','module:mis-batch-stage-signer','module:mis-fg-bulk-packing','module:mis-fg-excess-adjustment','module:mis-g7-enforcement-admin','module:mis-g7-core-migration-signoff'))
+     OR EXISTS (SELECT 1 FROM public.user_permissions_canonical WHERE target IN ('module:mis-batch-governance','module:mis-batch-stage-signer','module:mis-fg-bulk-packing','module:mis-fg-excess-adjustment','module:mis-g7-enforcement-admin','module:mis-g7-core-migration-signoff'))
+     OR NOT EXISTS (SELECT 1 FROM public.app_modules WHERE module_key='executive-mis-dashboard' AND section_key IS NOT NULL) THEN
+    RAISE EXCEPTION 'MIS_G7_REGISTRY_PRECONDITION';
+  END IF;
+END $guard$;
+
+-- Live FK fk_app_modules_target requires the canonical targets FIRST.
+INSERT INTO public.permission_targets (key,kind,label,sort_order,is_assignable)
+VALUES
+ ('module:mis-batch-governance','module','Batch Governance',1071,true),
+ ('module:mis-batch-stage-signer','module','MIS: Batch stage signer',1072,true),
+ ('module:mis-fg-bulk-packing','module','MIS: FG bulk packing',1073,true),
+ ('module:mis-fg-excess-adjustment','module','MIS: FG excess adjustment',1074,true),
+ ('module:mis-g7-enforcement-admin','module','MIS: G7 enforcement admin',1075,true),
+ ('module:mis-g7-core-migration-signoff','module','MIS: G7 core migration sign-off',1076,true);
+
+
+-- Rollback also deletes the six newly created permission_targets after deleting app_modules.
 -- Section reuse: same navigation section as the Executive MIS dashboard (no new section).
 with sec as (select section_key from public.app_modules where module_key = 'executive-mis-dashboard')
 insert into public.app_modules
@@ -35,17 +58,14 @@ from (values
   ('mis-g7-enforcement-admin',      'MIS: G7 enforcement admin',    'View enforcement readiness; edit switches AUDIT/ENFORCE (owner governed).',                 75, false),
   ('mis-g7-core-migration-signoff', 'MIS: G7 core migration sign-off','Record owner sign-off of the patched legacy DWL editor core SHA (owner governed).',        76, false)
 ) as v(module_key, label, description, sort_order, nav)
-on conflict (module_key) do update
-  set target_key = excluded.target_key, label = excluded.label, description = excluded.description,
-      is_assignable = excluded.is_assignable, show_in_navigation = excluded.show_in_navigation, updated_at = now();
+;
 
 -- Only the page is launchable; the five permission targets are not navigation entries.
 insert into public.app_module_clients (module_key, client_key, route_path, nav_enabled, launch_mode, updated_at)
 values
   ('mis-batch-governance', 'electron', 'public/shared/mis-batch-governance.html', true, 'direct', now()),
   ('mis-batch-governance', 'pwa',      'public/shared/mis-batch-governance.html', true, 'direct', now())
-on conflict (module_key, client_key) do update
-  set route_path = excluded.route_path, nav_enabled = excluded.nav_enabled, launch_mode = excluded.launch_mode, updated_at = now();
+;
 
 commit;
 -- Not included, by design: any insert/update on user_permissions_canonical; any change to executive-mis-dashboard;
