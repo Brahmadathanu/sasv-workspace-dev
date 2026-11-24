@@ -91,6 +91,28 @@ export function resolveDateRange(date, now = new Date()) {
   };
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const dmy = (ymd, { year = true, month = true } = {}) => {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return `${d}${month ? ` ${MONTHS[m - 1]}` : ""}${year ? ` ${y}` : ""}`;
+};
+
+/**
+ * Compact selected-period text for the toolbar indicator (presentation only; exports keep range.label).
+ *   Yesterday · 23 Nov 2026 | Today · 24 Nov 2026 | 23 Nov 2026 | 1–23 Nov 2026 | 28 Oct – 3 Nov 2026 | 28 Dec 2026 – 3 Jan 2027
+ */
+export function formatPeriodLabel(range) {
+  if (!range?.valid) return "Select dates";
+  const { from, to, preset } = range;
+  if (preset === "today" || preset === "yesterday") return `${preset === "today" ? "Today" : "Yesterday"} · ${dmy(from)}`;
+  if (from === to) return dmy(from);
+  const [fy, fm] = from.split("-");
+  const [ty, tm] = to.split("-");
+  if (fy === ty && fm === tm) return `${dmy(from, { year: false, month: false })}–${dmy(to)}`;
+  if (fy === ty) return `${dmy(from, { year: false })} – ${dmy(to)}`;
+  return `${dmy(from)} – ${dmy(to)}`;
+}
+
 // ── coordinated lens state ────────────────────────────────────────────────────────────
 export function createInitialState() {
   return {
@@ -122,6 +144,18 @@ export function reduceState(state, action) {
       if (action.key === "allocationStatus" && !ALLOCATION_STATUSES.includes(value)) value = "all";
       if (action.key === "materialClass") value = value.toUpperCase() === "PLM" ? "PM" : value.toUpperCase();
       return { ...state, filters: { ...state.filters, [action.key]: value } };
+    }
+    case "applyFilters": {
+      // One atomic commit of the filter panel's draft (voucher period + filters): a single state change, a single reload.
+      let next = state;
+      if (action.date) {
+        const d = action.date;
+        next = d.preset === "specific" ? reduceState(next, { type: "setSpecificDate", value: d.specific })
+          : d.preset === "custom" ? reduceState(next, { type: "setCustomRange", from: d.from, to: d.to })
+          : reduceState(next, { type: "setDatePreset", preset: d.preset });
+      }
+      for (const [key, value] of Object.entries(action.filters || {})) next = reduceState(next, { type: "setFilter", key, value });
+      return JSON.stringify(next) === JSON.stringify(state) ? state : next;
     }
     case "resetFilters":
       return { ...state, filters: createInitialState().filters, search: "" };
@@ -624,15 +658,10 @@ export function initPurchaseAllocationsLens(ctx) {
   function renderControls() {
     const r = resolveDateRange(st.date, nowFn());
     qs("paModeSeg").querySelectorAll("[data-pa-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.paMode === st.mode)));
-    qs("paDateSeg").querySelectorAll("[data-pa-preset]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.paPreset === r.preset)));
-    qs("paDateSpecific").hidden = r.preset !== "specific";
-    qs("paDateFrom").hidden = r.preset !== "custom";
-    qs("paDateTo").hidden = r.preset !== "custom";
-    if (r.preset === "specific") qs("paDateSpecific").value = st.date.specific || "";
-    if (r.preset === "custom") { qs("paDateFrom").value = st.date.from || ""; qs("paDateTo").value = st.date.to || ""; }
-    const lab = qs("paRangeLabel");
-    lab.textContent = r.valid ? `Voucher dates (Asia/Kolkata): ${r.label}` : r.error;
-    lab.classList.toggle("is-error", !r.valid);
+    // Compact applied-period indicator (the only permanent date UI); the pickers live in the filter panel.
+    const periodText = formatPeriodLabel(r);
+    qs("paPeriodText").textContent = periodText;
+    qs("paPeriodBtn").setAttribute("aria-label", `Voucher period: ${periodText}. Change in filters`);
     const n = activeFilterCount(st);
     const badge = qs("paFilterBadge");
     badge.style.display = n ? "" : "none";
@@ -641,6 +670,55 @@ export function initPurchaseAllocationsLens(ctx) {
     for (const m of VIEW_MODES) qs({ indent: "paScrollIndent", material: "paScrollMaterial", vendor: "paScrollVendor" }[m]).hidden = m !== st.mode;
     const matchHidden = !indentFilterActive();
     document.querySelectorAll("#tab-purchase-allocations .pa-col-match").forEach((el) => { el.hidden = matchHidden; });
+  }
+
+  // ── filter panel: draft (unapplied) values, committed only by Apply ─────────────────
+  let draft = null;
+  const draftRange = () => resolveDateRange(draft.date, nowFn());
+  function syncDraftFromApplied() {
+    const r = resolveDateRange(st.date, nowFn());
+    draft = {
+      date: { preset: r.preset, specific: r.preset === "specific" ? r.from : (st.date.specific || r.from || ""), from: st.date.from || r.from || "", to: st.date.to || r.to || "" },
+      filters: { ...st.filters },
+    };
+    renderDraft();
+  }
+  function renderDraft() {
+    const r = draftRange();
+    qs("paDateSeg").querySelectorAll("[data-pa-preset]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.paPreset === draft.date.preset)));
+    qs("paDateSpecific").hidden = draft.date.preset !== "specific";
+    qs("paDateFrom").hidden = draft.date.preset !== "custom";
+    qs("paDateTo").hidden = draft.date.preset !== "custom";
+    qs("paDateSpecific").value = draft.date.specific || "";
+    qs("paDateFrom").value = draft.date.from || "";
+    qs("paDateTo").value = draft.date.to || "";
+    qs("paFClass").value = draft.filters.materialClass;
+    qs("paFIndent").value = draft.filters.indentQ;
+    qs("paFVendor").value = draft.filters.vendorQ;
+    qs("paFStatus").value = draft.filters.allocationStatus;
+    // Validation message is shown only once the user has touched a picker, never on open.
+    const err = qs("paDateError");
+    err.hidden = r.valid || !draft.touched;
+    err.textContent = r.valid ? "" : r.error;
+  }
+  function selectDraftPreset(preset) {
+    const cur = draftRange();
+    draft.touched = false;
+    if (preset === "specific") draft.date = { ...draft.date, preset, specific: cur.valid ? cur.from : (draft.date.specific || "") };
+    else if (preset === "custom") draft.date = { ...draft.date, preset, from: cur.valid ? cur.from : (draft.date.from || ""), to: cur.valid ? cur.to : (draft.date.to || "") };
+    else draft.date = { ...draft.date, preset };
+    renderDraft();
+  }
+  function applyDraft() {
+    const r = draftRange();
+    if (!r.valid) { draft.touched = true; renderDraft(); return false; } // blocked: no request, panel stays open
+    const f = { materialClass: qs("paFClass").value, indentQ: qs("paFIndent").value, vendorQ: qs("paFVendor").value, allocationStatus: qs("paFStatus").value };
+    dispatch({ type: "applyFilters", date: draft.date, filters: f });
+    return true;
+  }
+  function resetDraft() {
+    draft = { date: { preset: DEFAULT_PRESET, specific: "", from: "", to: "" }, filters: createInitialState().filters, touched: false };
+    renderDraft();
   }
 
   function renderMeta() {
@@ -681,10 +759,10 @@ export function initPurchaseAllocationsLens(ctx) {
       card.innerHTML = `
         <div class="pa-indent-head">
           <button type="button" class="pa-indent-toggle" aria-expanded="${open ? "true" : "false"}" aria-controls="${bodyId}">
-            <span class="pa-chev" aria-hidden="true">▸</span>
-            <span class="pa-indent-title">Indent ${esc(row.indentNumber)}</span>
+            <span class="pa-indent-line1"><span class="pa-chev" aria-hidden="true">▸</span>
+              <span class="pa-indent-title">Indent ${esc(row.indentNumber)}</span>
+              <span class="pa-indent-alloc">Allocated: ${esc(describeUomField(row.totalsByUom, "allocatedQty"))}</span></span>
             <span class="pa-indent-meta">${row.approvedDate ? `Approved ${esc(row.approvedDate)} · ` : ""}${esc(plural(row.materialLineCount, ["material line", "material lines"]))}</span>
-            <span class="pa-indent-meta">Allocated: ${esc(describeUomField(row.totalsByUom, "allocatedQty"))}</span>
           </button>
           <button type="button" class="pa-link-btn" data-open-indent="${esc(row.indentId)}" data-indent-number="${esc(row.indentNumber)}">Open indent</button>
         </div>
@@ -794,17 +872,33 @@ export function initPurchaseAllocationsLens(ctx) {
     applyRowCards(qs("tab-purchase-allocations"));
   }
 
+  const SUMMARY_FIELDS = (match) => [
+    ["Purchased", "grossQty"], ["Effective", "effectiveQty"], [match ? "Allocated (any indent)" : "Allocated", "allocatedQty"],
+    ...(match ? [["Allocated to filtered indent", "matchingAllocatedQty"]] : []),
+    ["Unallocated", "unallocatedQty"], ["Accepted excess", "acceptedQty"], ["Net unallocated", "netUnallocatedQty"],
+  ];
   function renderSummary(sum, err) {
     const box = qs("paSummary");
-    if (err) { box.innerHTML = stateBox(retryHtml(`Could not load the period summary: ${err}`), "is-error"); return; }
-    if (!sum) { box.innerHTML = ""; return; }
+    if (err) { box.innerHTML = stateBox(retryHtml(`Could not load the period summary: ${err}`), "is-error"); setSummaryDigest(null); return; }
+    if (!sum) { box.innerHTML = ""; setSummaryDigest(null); return; }
     const match = indentFilterActive();
-    const head = `<tr><th>UOM</th><th>Purchased</th><th>Effective</th><th>${match ? "Allocated (any indent)" : "Allocated"}</th>${match ? "<th>Allocated to filtered indent</th>" : ""}<th>Unallocated</th><th>Accepted excess</th></tr>`;
-    const rows = sum.totalsByUom.map((t) => `<tr><td>${esc(t.uom)}</td><td>${esc(q(t.grossQty))}</td><td>${esc(q(t.effectiveQty))}</td><td>${esc(q(t.allocatedQty))}</td>${match ? `<td>${esc(q(t.matchingAllocatedQty))}</td>` : ""}<td>${esc(q(t.unallocatedQty))}</td><td>${esc(q(t.acceptedQty))}</td></tr>`).join("");
+    const fields = SUMMARY_FIELDS(match);
+    // One block per UOM (never summed across UOMs); label/value pairs wrap to the available width, so no horizontal scrolling.
+    const blocks = sum.totalsByUom.map((t) => `<section class="pa-uom-block" aria-label="${esc(t.uom)} totals"><h4>${esc(t.uom)}</h4><dl>${
+      fields.map(([label, key]) => `<div><dt>${esc(label)}</dt><dd>${esc(q(t[key]))}</dd></div>`).join("")}</dl></section>`).join("");
     box.innerHTML = `
       <div class="pa-summary-counts">${esc(plural(sum.purchaseFactCount, ["receipt", "receipts"]))} · ${esc(plural(sum.affectedIndentCount, ["indent", "indents"]))} · ${esc(plural(sum.affectedIndentLineCount, ["indent line", "indent lines"]))}</div>
-      ${sum.totalsByUom.length ? `<table class="pa-uom-table"><thead>${head}</thead><tbody>${rows}</tbody></table>` : ""}
+      ${blocks}
       <p class="pa-note">${esc(sum.coverage)} ${esc(sum.balanceBasis)}${match ? " Unallocated is receipt-wide; allocations to other indents are not excess." : ""} Quantities are never totalled across units of measure.</p>`;
+    setSummaryDigest(sum);
+  }
+  function setSummaryDigest(sum) {
+    const t = qs("paSummaryToggle");
+    t.querySelector(".pa-digest").textContent = sum ? ` · ${plural(sum.purchaseFactCount, ["receipt", "receipts"])}` : "";
+  }
+  function setSummaryOpen(open) {
+    qs("paSummary").hidden = !open;
+    qs("paSummaryToggle").setAttribute("aria-expanded", String(open));
   }
 
   async function loadSummary(c) {
@@ -854,13 +948,6 @@ export function initPurchaseAllocationsLens(ctx) {
     st = next;
     if (reloadAll) reload(); else { renderControls(); ensureMode(); }
   };
-
-  function selectPreset(preset) {
-    const cur = resolveDateRange(st.date, nowFn());
-    if (preset === "specific") dispatch({ type: "setSpecificDate", value: cur.valid ? cur.from : "" });
-    else if (preset === "custom") dispatch({ type: "setCustomRange", from: cur.valid ? cur.from : "", to: cur.valid ? cur.to : "" });
-    else dispatch({ type: "setDatePreset", preset });
-  }
 
   // ── drill-down ─────────────────────────────────────────────────────────────────────
   function receiptBlockHtml(g, withFilterNote) {
@@ -1007,24 +1094,29 @@ export function initPurchaseAllocationsLens(ctx) {
     if (wired) return;
     wired = true;
     qs("paModeSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-pa-mode]"); if (b) dispatch({ type: "setMode", mode: b.dataset.paMode }, { reloadAll: false }); });
-    qs("paDateSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-pa-preset]"); if (b) selectPreset(b.dataset.paPreset); });
-    qs("paDateSpecific").addEventListener("change", (e) => dispatch({ type: "setSpecificDate", value: e.target.value }));
-    const range = () => dispatch({ type: "setCustomRange", from: qs("paDateFrom").value, to: qs("paDateTo").value });
+    const drawer = qs("paFilterDrawer");
+    drawer.addEventListener("pec-filter-open", syncDraftFromApplied);
+    drawer.addEventListener("pec-filter-apply", (e) => { if (!applyDraft()) e.preventDefault(); });
+    qs("paDateSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-pa-preset]"); if (b) selectDraftPreset(b.dataset.paPreset); });
+    qs("paDateSpecific").addEventListener("change", (e) => { draft.date.specific = e.target.value; draft.touched = true; renderDraft(); });
+    const range = () => { draft.date.from = qs("paDateFrom").value; draft.date.to = qs("paDateTo").value; draft.touched = true; renderDraft(); };
     qs("paDateFrom").addEventListener("change", range);
     qs("paDateTo").addEventListener("change", range);
+    // The voucher-period indicator opens the SAME panel (same draft, same Apply) and moves focus to its period section.
+    qs("paPeriodBtn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      ctx.toggleFilterDrawer(qs("paPeriodBtn"), drawer, null);
+      if (drawer.classList.contains("open")) {
+        qs("paPeriodSection").scrollIntoView?.({ block: "nearest" });
+        (qs("paDateSeg").querySelector('[aria-pressed="true"]') || qs("paDateSeg").querySelector("button"))?.focus?.({ preventScroll: true });
+      }
+    });
+    qs("paSummaryToggle").addEventListener("click", () => setSummaryOpen(qs("paSummaryToggle").getAttribute("aria-expanded") !== "true"));
     const debounced = (fn) => { clearTimeout(searchTimer); searchTimer = setTimeout(fn, 300); };
     qs("paSearch").addEventListener("input", (e) => { qs("paSearchClear").style.display = e.target.value ? "" : "none"; debounced(() => dispatch({ type: "setSearch", value: qs("paSearch").value })); });
     qs("paSearch").addEventListener("keydown", (e) => { if (e.key === "Enter") { clearTimeout(searchTimer); dispatch({ type: "setSearch", value: qs("paSearch").value }); } });
     qs("paSearchClear").addEventListener("click", () => { qs("paSearch").value = ""; clearTimeout(searchTimer); dispatch({ type: "setSearch", value: "" }); qs("paSearch").focus(); });
-    qs("paFClass").addEventListener("change", (e) => dispatch({ type: "setFilter", key: "materialClass", value: e.target.value }));
-    qs("paFStatus").addEventListener("change", (e) => dispatch({ type: "setFilter", key: "allocationStatus", value: e.target.value }));
-    qs("paFIndent").addEventListener("input", (e) => debounced(() => dispatch({ type: "setFilter", key: "indentQ", value: e.target.value })));
-    qs("paFVendor").addEventListener("input", (e) => debounced(() => dispatch({ type: "setFilter", key: "vendorQ", value: e.target.value })));
-    qs("paFClear").addEventListener("click", () => {
-      ["paFClass", "paFIndent", "paFVendor"].forEach((id) => { qs(id).value = ""; });
-      qs("paFStatus").value = "all"; qs("paSearch").value = "";
-      dispatch({ type: "resetFilters" });
-    });
+    qs("paFClear").addEventListener("click", resetDraft); // Reset restores the draft to defaults (Yesterday, no filters); Apply commits
     qs("btnPaExportMenu").addEventListener("click", (e) => { e.stopPropagation(); toggleExportMenu("paExportMenu", qs("btnPaExportMenu")); });
     qs("btnPaExportCsv").addEventListener("click", () => { closeAllExportMenus(); runExport("csv"); });
     qs("btnPaPrint").addEventListener("click", () => { closeAllExportMenus(); runExport("print"); });

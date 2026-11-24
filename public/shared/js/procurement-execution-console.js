@@ -6,7 +6,7 @@ import { mountModuleHome } from "./sasv-module-chrome.js";
 // cache-first path for a new module is made safe by bumping this suffix on every edit.
 import { createModalStack } from "./pec-modal-stack.js?v=20261124b";
 // Purchase Allocations lens (core + V1 adapter + controller). Versioned for the same reason as above.
-import { initPurchaseAllocationsLens } from "./pec-purchase-allocations.js?v=20261124a";
+import { initPurchaseAllocationsLens } from "./pec-purchase-allocations.js?v=20261125a";
 
 // Single owner of dialog stacking + Escape dismissal (see pec-modal-stack.js).
 const modalStack = createModalStack();
@@ -1073,13 +1073,20 @@ function bindFilterTrigger(btnId, drawerId, focusId) {
   drawer._ownerBtn = btn;
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (drawer.classList.contains("open")) {
-      closeFloatingFilterDrawer(btn, drawer);
-    } else {
-      closeVendorBuylistDrawers?.(null);
-      openFloatingFilterDrawer(btn, drawer, focusId ? qs(focusId) : null);
-    }
+    toggleFilterDrawerFrom(btn, drawer, focusId ? qs(focusId) : null);
   });
+}
+
+/** Open/close a filter panel anchored to `btn`. Shared by every trigger of that panel (e.g. a lens's filter button
+ *  and its selected-period indicator), so there is exactly one panel, one state and one open/close path. */
+function toggleFilterDrawerFrom(btn, drawer, focusEl = null) {
+  if (!btn || !drawer) return;
+  if (drawer.classList.contains("open") && drawer._ownerBtn === btn) {
+    closeFloatingFilterDrawer(btn, drawer);
+  } else {
+    closeVendorBuylistDrawers?.(null);
+    openFloatingFilterDrawer(btn, drawer, focusEl);
+  }
 }
 
 function wireFilterTriggers() {
@@ -1216,6 +1223,7 @@ function getPurchaseAllocationsLens() {
       downloadText, makeExportTimestamp, toggleExportMenu, closeAllExportMenus,
       errText: (e) => pecErrText(e),
       pageSize: () => state.pageSize,
+      toggleFilterDrawer: (btn, drawer, focusEl) => toggleFilterDrawerFrom(btn, drawer, focusEl),
       openIndent: (id, number) => jumpToIndent(id, number),
     });
   }
@@ -1864,16 +1872,23 @@ function enhanceFilterDrawer(drawer) {
   if (!legacyClear) { clear.type = "button"; clear.className = "pec-filter-clear-btn"; }
   clear.textContent = "Clear";
   body.querySelector(".pec-filter-actions")?.remove();
+  // Draft-and-apply panels (data-pec-footer="apply"): footer is Reset + Apply filters. Apply fires a cancelable
+  // "pec-filter-apply" event (the owner validates and commits); close / Escape / outside click discard the draft.
+  const applyMode = drawer.dataset.pecFooter === "apply";
+  if (applyMode) clear.textContent = "Reset";
   const done = document.createElement("button");
   done.type = "button";
   done.className = "pec-filter-done-btn";
-  done.textContent = "Done";
+  done.textContent = applyMode ? "Apply filters" : "Done";
   foot.append(clear, done);
   drawer.append(head, body, foot);
   drawer.setAttribute("aria-modal", "false");
   const close = () => closeProcurementFilterDrawer(drawer, { restoreFocus: true });
   head.querySelector(".pec-filter-close").addEventListener("click", close);
-  done.addEventListener("click", close);
+  done.addEventListener("click", () => {
+    if (applyMode && !drawer.dispatchEvent(new CustomEvent("pec-filter-apply", { cancelable: true }))) return;
+    close();
+  });
   if (!legacyClear) {
     clear.addEventListener("click", () => {
       body.querySelectorAll("select, input, textarea").forEach(resetFilterControl);
@@ -1992,8 +2007,9 @@ function openFloatingFilterDrawer(btn, drawer, focusEl) {
   }
 
   enhanceFilterDrawer(drawer);
-  drawer.classList.add("open");
   drawer._ownerBtn = btn;
+  drawer.dispatchEvent(new CustomEvent("pec-filter-open", { detail: { trigger: btn } })); // owner re-syncs its draft from applied state
+  drawer.classList.add("open");
   btn.setAttribute("aria-expanded", "true");
   positionFloatingFilterDrawer(btn, drawer);
   startFloatingFilterDrawerTracking(btn, drawer);
