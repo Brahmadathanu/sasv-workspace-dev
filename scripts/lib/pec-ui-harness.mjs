@@ -31,7 +31,9 @@ function loadStub() {
   // (in-flight) states can be held open deterministically. Fixture source is not modified.
   return (scenario) => stub(scenario).replace(
     "rpc: async (name, params) => {",
-    "rpc: async (name, params) => { if (S.delays && S.delays[name]) await new Promise((r) => setTimeout(r, S.delays[name]));",
+    "rpc: async (name, params) => { if (S.delays && S.delays[name]) await new Promise((r) => setTimeout(r, S.delays[name]));" +
+    // Test hook: a page-side handler (globalThis.__paRpc) may answer a named RPC with a full {data,error} result.
+    " if (globalThis.__paRpc) { const __h = await globalThis.__paRpc(name, params); if (__h !== undefined) return __h; }",
   );
 }
 
@@ -48,11 +50,13 @@ export async function startHarness() {
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   const base = `http://127.0.0.1:${server.address().port}`;
   const browser = await chromium.launch();
-  async function open(scenario, vp, { dsf = 1 } = {}) {
+  async function open(scenario, vp, { dsf = 1, fixedTime = null, init = null } = {}) {
     const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: dsf });
     const page = await ctx.newPage();
     const errors = [];
     page.on("pageerror", (e) => errors.push(String(e)));
+    if (fixedTime) await page.clock.setFixedTime(fixedTime); // Date only; timers keep running
+    if (init) await page.addInitScript(init.fn, init.arg);
     await page.route("**/js/supabaseClient.js", (r) => r.fulfill({ contentType: "text/javascript", body: stub(scenario) }));
     await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
     await page.goto(`${base}/shared/procurement-execution-console.html`);

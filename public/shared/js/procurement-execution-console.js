@@ -5,6 +5,8 @@ import { mountModuleHome } from "./sasv-module-chrome.js";
 // Versioned specifier: public/sw.js is protected on client PRs (release PR only), so the
 // cache-first path for a new module is made safe by bumping this suffix on every edit.
 import { createModalStack } from "./pec-modal-stack.js?v=20261124b";
+// Purchase Allocations lens (core + V1 adapter + controller). Versioned for the same reason as above.
+import { initPurchaseAllocationsLens } from "./pec-purchase-allocations.js?v=20261124a";
 
 // Single owner of dialog stacking + Escape dismissal (see pec-modal-stack.js).
 const modalStack = createModalStack();
@@ -349,6 +351,20 @@ async function rpcPecPaged(name, params, signal = null) {
   const { data, error } = res;
   if (error) throw pecDescribeError(error, { requestId, rpc: name, status: res.status ?? 0 });
   return unpackPagedRows(data);
+}
+
+/** Non-paged JSON-object RPC (e.g. the Purchase Allocations summary) with the same diagnostics as rpcPecPaged. */
+async function rpcPecJson(name, params, signal = null) {
+  const requestId = `pec-${Date.now().toString(36)}-${++pecRequestCounter}`;
+  let res;
+  try {
+    const query = supabase.rpc(name, params);
+    res = await (signal && typeof query?.abortSignal === "function" ? query.abortSignal(signal) : query);
+  } catch (thrown) {
+    throw pecDescribeError(thrown, { requestId, rpc: name, status: 0 });
+  }
+  if (res.error) throw pecDescribeError(res.error, { requestId, rpc: name, status: res.status ?? 0 });
+  return res.data;
 }
 
 function rpcPecPrHeadersPaged({ status, classId, q, limit, offset, signal }) {
@@ -999,6 +1015,8 @@ const PEC_CARD_ROLES = {
   vwlTbody: { Item: "title", Amount: "key", "Vendor / Local Purchase": "sub" },
   aqTbody: { Item: "title", "Qty Pending": "key", Band: "status", "Indent#": "sub" },
   eTbody: { Item: "title", "Net Unalloc": "key", Voucher: "sub" },
+  paMaterialTbody: { Material: "title", Status: "status", Unallocated: "key", "Matching indent": "meta" },
+  paVendorTbody: { Supplier: "title", Unallocated: "key" },
   prLinesTbody: { Item: "title", "Final Qty": "key", Reason: "note" },
   iLinesTbody: { Item: "title", Remaining: "key", "#": "aux" },
   eAuditTbody: { Item: "title", "Accepted Qty": "key", Reason: "note" },
@@ -1071,6 +1089,7 @@ function wireFilterTriggers() {
     ["iFilterBtn", "iFilterDrawer"],
     ["vwlFilterBtn", "vwlFilterDrawer"],
     ["eFilterBtn", "eFilterPanel"],
+    ["paFilterBtn", "paFilterDrawer"],
     ["prLineFilterBtn", "prLineFilterDrawer", "prLineFilterSelect"],
     ["iLineFilterBtn", "iLineFilterDrawer", "iLineFilterSelect"],
   ].forEach(([b, d, f]) => bindFilterTrigger(b, d, f));
@@ -1189,6 +1208,20 @@ async function requireSession() {
   if (!session) window.location.href = "../../login.html";
 }
 
+let purchaseAllocationsLens = null;
+function getPurchaseAllocationsLens() {
+  if (!purchaseAllocationsLens) {
+    purchaseAllocationsLens = initPurchaseAllocationsLens({
+      qs, esc, toast, createFeed, rpcPecPaged, rpcPecJson, hideModalBackdrop, applyRowCards, setTab,
+      downloadText, makeExportTimestamp, toggleExportMenu, closeAllExportMenus,
+      errText: (e) => pecErrText(e),
+      pageSize: () => state.pageSize,
+      openIndent: (id, number) => jumpToIndent(id, number),
+    });
+  }
+  return purchaseAllocationsLens;
+}
+
 function setTab(tab) {
   closeVendorBuylistDrawers();
   closeAllProcurementFilterDrawers();
@@ -1206,6 +1239,7 @@ function setTab(tab) {
     loadActionQueue({ refreshIndentOptions: !aqIndentOptionsLoaded });
   if (tab === "pr") loadPrHeaders();
   if (tab === "indents") loadIndents();
+  if (tab === "purchase-allocations") getPurchaseAllocationsLens().activate();
   if (tab === "excess") {
     loadExcess();
   }
@@ -1443,12 +1477,14 @@ function configureStaticDisclosureTriggers() {
     ["iFilterBtn", "iFilterDrawer", "dialog"],
     ["vwlFilterBtn", "vwlFilterDrawer", "dialog"],
     ["eFilterBtn", "eFilterPanel", "dialog"],
+    ["paFilterBtn", "paFilterDrawer", "dialog"],
     ["prLineFilterBtn", "prLineFilterDrawer", "dialog"],
     ["iLineFilterBtn", "iLineFilterDrawer", "dialog"],
     ["vwlExportBtn", "vwlExportMenu", "menu"],
     ["btnIndentResyncMenu", "iResyncMenu", "menu"],
     ["btnIExportMenu", "iExportMenu", "menu"],
     ["btnPrExportMenu", "prExportMenu", "menu"],
+    ["btnPaExportMenu", "paExportMenu", "menu"],
   ].forEach(([btnId, panelId, hasPopup]) =>
     configureDisclosureTrigger(btnId, panelId, { hasPopup }),
   );
@@ -4330,6 +4366,9 @@ function wireActionQueueControls() {
     snapshotRefreshModalBackdrop: () => closeSnapshotRefreshModal(false),
     clearSelectedVendorModalBackdrop: () => closeClearSelectedVendorModal(false),
     ccfPreviewModalBackdrop: closeCcfPreview,
+    paDrillModalBackdrop: () => (purchaseAllocationsLens
+      ? purchaseAllocationsLens.closeDrill()
+      : hideModalBackdrop(qs("paDrillModalBackdrop"), [])),
   });
   modalStack.install();
 }
@@ -4989,6 +5028,8 @@ function closeIndentViewModal() {
   state.currentIndentId = null;
   hideModalBackdrop(qs("indentViewModalBackdrop"), [qs("iSearch")]);
   closeAllExportMenus();
+  // Opened from Purchase Allocations? Return there (filters, mode, date and scroll preserved).
+  purchaseAllocationsLens?.onIndentViewClosed();
 }
 
 function openVendorAcceptModeModal(indentArg) {
