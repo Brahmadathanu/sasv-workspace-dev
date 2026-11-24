@@ -6,20 +6,20 @@ Machine-readable identities (file SHA-256, git blob SHA-1, bytes, registered ver
 | # | Repository file | Supabase migration name | Registered version | Status |
 |---|---|---|---|---|
 | 1 | `20261123140000_mis_g7_s2_signed_batch_stage_events.sql` | `mis_g7_s2_signed_batch_stage_events` | **`20261124055734`** | **LIVE** — never replay, never edit |
-| 2 | `20261123141000_mis_g7_s3_fg_ledger_shared_batch_lock.sql` | `mis_g7_s3_fg_ledger_shared_batch_lock` | assigned at apply | HELD |
-| 3 | `20261123142000_mis_g7_s4_atomic_pack_with_measured_excess.sql` | `mis_g7_s4_atomic_pack_with_measured_excess` | assigned at apply | HELD |
-| 4 | `20261123143000_mis_g7_s3b_protected_stock_write_boundary.sql` | `mis_g7_s3b_protected_stock_write_boundary` | assigned at apply | HELD |
-| 5 | `20261123144000_mis_g7_s4b_ticketed_pack_corrections_and_enforcement_control.sql` | `mis_g7_s4b_ticketed_pack_corrections_and_enforcement_control` | assigned at apply | HELD |
-| 6 | `20261123145000_mis_g7_s5_legacy_dwl_editor_chain_protection.sql` | `mis_g7_s5_legacy_dwl_editor_chain_protection` | assigned at apply | HELD |
-| 7 | `20261123150000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql` | `mis_g7_s5b_legacy_dwl_editor_core_integration` | assigned at apply | HELD, owner-gated, patched core SHA `dfa5a5e9…1bcc` |
-| 8 | `20261123151000_mis_g7_s6_fg_stage_fingerprint_excludes_inventory_status.sql` | `mis_g7_s6_fg_stage_fingerprint_excludes_inventory_status` | assigned at apply | HELD, owner-review; forward-only; replaces only `app_private.mis_stage_fp` (S2 untouched) |
+| 2 | `20261123141000_mis_g7_s3_fg_ledger_shared_batch_lock.sql` | `mis_g7_s3_fg_ledger_shared_batch_lock` | **`20261124080858`** | **LIVE — AUDIT**, never replay |
+| 3 | `20261123142000_mis_g7_s4_atomic_pack_with_measured_excess.sql` | `mis_g7_s4_atomic_pack_with_measured_excess` | **`20261124080913`** | **LIVE — AUDIT**, never replay |
+| 4 | `20261123143000_mis_g7_s3b_protected_stock_write_boundary.sql` | `mis_g7_s3b_protected_stock_write_boundary` | **`20261124080932`** | **LIVE — AUDIT**, never replay |
+| 5 | `20261123144000_mis_g7_s4b_ticketed_pack_corrections_and_enforcement_control.sql` | `mis_g7_s4b_ticketed_pack_corrections_and_enforcement_control` | **`20261124080952`** | **LIVE — AUDIT**, never replay |
+| 6 | `20261123145000_mis_g7_s5_legacy_dwl_editor_chain_protection.sql` | `mis_g7_s5_legacy_dwl_editor_chain_protection` | **`20261124081009`** | **LIVE — AUDIT**, never replay |
+| 7 | `20261123150000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql` | `mis_g7_s5b_legacy_dwl_editor_core_integration` | **`20261124081022`** | **LIVE — AUDIT**, never replay |
+| 8 | `20261123151000_mis_g7_s6_fg_stage_fingerprint_excludes_inventory_status.sql` | `mis_g7_s6_fg_stage_fingerprint_excludes_inventory_status` | **`20261124081034`** | **LIVE — AUDIT**, never replay |
 
 **Tracking rules (no production history is modified):**
-- The repo S2 prefix (`20261123140000`) differs from the registered version (`20261124055734`). Do **not** run `supabase db push` / `migration up` from this branch: the CLI would see S2 as unapplied (replay) and S3–S5b as older than the latest remote migration. Apply S3→S5b **one at a time with the Supabase migration tool by name** (the tool assigns the version), and record each registered version in `MIGRATION_IDENTITIES.json` and on PR #522.
+- The repo S2 prefix (`20261123140000`) differs from the registered version (`20261124055734`). Do **not** run `supabase db push` / `migration up` from this branch: the CLI would see S2 as unapplied (replay) and S3–S5b as older than the latest remote migration. S3→S6 were applied once each with the migration tool by name; their registered versions are recorded in the manifest. Do not apply again.
 - After the last controlled apply, a follow-up commit may `git mv` the eight files to their registered versions so CLI history matches (rename only; production history untouched). Until then the filename↔version table above is the source of truth.
 - Every file is applied exactly once; none is idempotent-safe to replay except by design (S3b/S5b fail closed on a second run: fingerprints/baseline).
 
-## 2. Deployment sequence (controlled; each step needs separate owner authorization; AUDIT only; ENFORCE is never activated here)
+## 2. Deployment sequence (controlled; seven-step package authorized by owner on 2026-11-24; AUDIT only; ENFORCE is never activated here)
 Pre-flight for the whole sequence: `S3B_PREINSTALL_LIVE_CHECK_READONLY.sql` (17/17) and `CORE_PREINSTALL_LIVE_CHECK_READONLY.sql` (7/7) immediately before S3b/S5b; immutable source+ACL+RLS+trigger packet of the 11 functions retained (S3b also persists it in `app_private.mis_g7_s3b_baseline`); confirm `app_private.mis_batch_stage_event` row count and the five permission targets' assignments (expected 0).
 | Step | Apply | Read-only receipt required before the next step | Rollback section (in `ROLLBACK_NOT_A_MIGRATION.sql`) |
 |---|---|---|---|
@@ -30,7 +30,7 @@ Pre-flight for the whole sequence: `S3B_PREINSTALL_LIVE_CHECK_READONLY.sql` (17/
 | S5 | `…145000` | primitives closed to clients; constraint trigger on the ticket table; `mis_g7_s5_baseline` 3 rows; readiness reports `core_gate = LEGACY_DWL_EDITOR_NOT_MIGRATED` | `S5 ROLLBACK` |
 | S5b | `…150000` (owner-gated) | core SHA equals `dfa5a5e9aa31b48cf41fe9d03800fff2e35e5a3825ca458b5ccb6ca6c4471bcc`; wrapper `4c82b4a3…d7b4` and parser `ec5fe3ea…29db` unchanged; core still not client-executable; `mis_g7_s5b_baseline` holds the original core (`df7290df…6aec`); readiness `core_gate = CORE_MIGRATION_NOT_ACCEPTED` | `S5B ROLLBACK` |
 | S6 (owner review) | `…151000` | **precondition (fail closed):** `mis_stage_fp` equals the S2 definition `69445f98…3434` and **no uncorrected FG_BULK signature exists** (live count verified 0); afterwards `mis_g7_s6_baseline` holds 1 row; FG_BULK fingerprints no longer include `daily_work_log.status` (quantity/UOM/date/activity/batch/BMR/route/work-log identity still do); non-FG payload byte-identical to S2 | `S6 ROLLBACK` (restores the exact S2 function; signatures made under S6 then need correct+re-sign; nothing deleted) |
-Stop criteria at any step: any non-zero install error, any receipt mismatch, any daily logging failure reported by an operator → run that step's rollback section immediately (the install itself is transactional per migration).
+Stop criteria at any step: any non-zero install error, any receipt mismatch, any daily logging failure reported by an operator → stop, assess the exact affected chain and obtain controlled rollback authorization (preserve genuine signatures) (the install itself is transactional per migration).
 Not part of this sequence: permission assignment/registration (owner governance), core sign-off (`mis_g7_record_core_migration_acceptance_v1`), ENFORCE, client release, historical backfill.
 
 ## 3. Staged rollback that PRESERVES installed S2
@@ -38,4 +38,7 @@ Production order: **S6 → S5B → S5 → S4B → S3B → S4 → S3** (seven sec
 Tested (PostgreSQL 16, isolated): after the seven sections the catalog equals the pre-S3 state (function definitions/SHA, ACL, security attributes, config, ledger ACL), S2 RPCs still sign, signed rows are retained, evidence/baseline/audit tables are retained, legacy writers behave as before.
 
 ## 4. Production-equivalent run (needs read access this repository's automation does not have)
-See `supabase/tests/mis_g7/prod_equivalent/README_PROD_EQUIVALENT.md`: read-only capture of the real schema + function definitions into a LOCAL protected packet, load into an isolated database, S2 taken from the packet (installed baseline), S3→S5b applied with the real literal pins. The tooling is committed and round-trip tested; the real packet has not been captured.
+See `supabase/tests/mis_g7/prod_equivalent/README_PROD_EQUIVALENT.md`: read-only capture of the real schema + function definitions into a LOCAL protected packet, load into an isolated database, S2 taken from the packet (installed baseline), S3→S5b applied with the real literal pins. The actual baseline and supplement were captured privately and replayed on PG16.15: 34/34 real-catalog tests, 148/150 overall, zero failures, two blocked placeholders. Owner explicitly accepted the isolated PG17.4 execution limitation. All seven held migrations installed successfully on live PG17.4 and catalog-verified; authenticated operational smoke remains outstanding. No private packet is committed.
+
+## 5. Live installation receipt — 2026-11-24
+Owner authorized exact candidate `74ed6c49c8655d22eedc6dc32ed09c0f238f5126`. All seven installations succeeded. Live AUDIT; 0 signed events, pack requests, excess receipts, corrections, new permission assignments and core sign-offs at rollout completion. Patched core SHA matches manifest; S6 fingerprint SHA `d438e858f03325bfbecc6f564999bd359d81d7ee24ecf2a4b7c98a92dab359d4`. Fresh catalog: seven public RPCs authenticated-only, sixteen private tables RLS-enabled and client-write-denied. Core gate `CORE_MIGRATION_NOT_ACCEPTED`. G7 7/11; G8 parked. Authenticated operational acceptance remains outstanding; no synthetic production writes. No merge, release, ENFORCE or unrelated change.
