@@ -68,3 +68,8 @@ acceptance-*/
 .tmp-*/
 scripts/tmp-*
 *.log
+
+# Route 2 authentication material must never be committed
+*.dpapi
+R2_02_enable_login.sql
+ro-password*

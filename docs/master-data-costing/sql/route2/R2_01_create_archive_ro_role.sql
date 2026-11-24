@@ -14,9 +14,18 @@
 --   * costing.costing_refresh_run (run header),
 --   * costing.costing_run_designation and the view costing.v_costing_period_run_status
 --     (read by the archiver's "run 87 is not designated/displayed/approved" gate).
--- BYPASSRLS is added ONLY IF one of those relations has row level security enabled,
--- because otherwise the role would silently see a subset of rows. If your project
--- does not allow the administrator to grant BYPASSRLS this script fails closed.
+-- BYPASSRLS DECISION (reviewed). The live database has RLS on 29 of the 65 granted tables.
+-- A role that matches no policy sees ZERO rows there, so a complete archive needs one of:
+--   (a) BYPASSRLS on this role  -- chosen: affects only relations the role can already
+--       SELECT (66), grants no access by itself, and R2_03 proves the effective-access set;
+--   (b) new RLS policies on 29 production tables -- rejected: 29 production DDL changes to
+--       the very protection layer we must not touch, and they would outlive the role;
+--   (c) membership in service_role/another BYPASSRLS role -- rejected: inherits broad ALL
+--       privileges far beyond SELECT on 66 relations;
+--   (d) the administrator credential -- rejected by the owner.
+-- BYPASSRLS is added ONLY IF a granted relation has RLS enabled. If the administrator is
+-- not allowed to grant it (PG16+: CREATEROLE may only grant attributes it holds) this script
+-- fails closed BEFORE creating anything.
 DO $r2$
 DECLARE
   c_role constant text := 'sasv_archive_ro';
@@ -70,6 +79,11 @@ BEGIN
     v_rls := v_rls OR (SELECT relrowsecurity OR relforcerowsecurity FROM pg_class WHERE oid = v_extra::regclass);
   END LOOP;
 
+  IF v_rls AND NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = current_user AND (rolsuper OR (rolbypassrls AND rolcreaterole))) THEN
+    RAISE EXCEPTION 'R2 HOLD: granted relations use RLS but current_user cannot grant BYPASSRLS; nothing created';
+  END IF;
+  RAISE NOTICE 'R2_01 info: % of % relations in the grant set have RLS enabled',
+    (SELECT count(*) FROM pg_class WHERE oid = ANY (v_rels) AND (relrowsecurity OR relforcerowsecurity)), cardinality(v_rels);
   EXECUTE format('CREATE ROLE %I NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION %s CONNECTION LIMIT 2',
                  c_role, CASE WHEN v_rls THEN 'BYPASSRLS' ELSE 'NOBYPASSRLS' END);
   EXECUTE format('ALTER ROLE %I SET default_transaction_read_only = on', c_role);

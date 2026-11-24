@@ -58,3 +58,14 @@ test('S3R script is PowerShell 5.1 compatible, ASCII-only and demands distinct p
   assert.match(ps, /#Requires -Version 5\.1/);
   assert.match(ps, /share physical disk/);
 });
+
+test('no authentication material is tracked in git (SCRAM verifiers, DPAPI files, role passwords)', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const files = execFileSync('git', ['ls-files'], { encoding: 'utf8' }).split('\n').filter(Boolean);
+  assert.equal(files.filter(f => /\.dpapi$|R2_02_enable_login\.sql$/.test(f)).length, 0);
+  const { readFile } = await import('node:fs/promises');
+  for (const f of files.filter(f => /(^|\/)(route2\/|tools\/).*\.(sql|ps1|mjs|sh)$/.test(f))) {
+    const txt = await readFile(f, 'utf8');
+    assert.doesNotMatch(txt, /SCRAM-SHA-256\$\d+:/, `verifier-like string in ${f}`);
+  }
+});
