@@ -22,7 +22,7 @@ test("PM BOM: any other addition, any removed line, or a different block is reje
   assert.equal(pmBomDeltaApproved(d.replace("flex-wrap: wrap;", "flex-wrap: nowrap;")), false, "altered block");
   assert.equal(pmBomDeltaApproved(d.replace("max-width: 1100px", "max-width: 9999px")), false, "widened media query");
 });
-test("SW: only the v393->v394 line-2 delta is normalised; byte-identity of the rest is then enforced", () => {
+test("SW: only the approved line-2 deltas (v393->v394, v394->v395 + the exact v6.5.0 rules) is normalised; byte-identity of the rest is then enforced", () => {
   const b = base(), c = cur();
   if (c.split("\n")[1] === b.split("\n")[1]) return; // already merged
   assert.equal(normaliseApprovedSwDelta(c, b), b, "approved delta maps back to base exactly");
@@ -33,6 +33,18 @@ test("SW MUTATION: route / network-first / permission drift is NOT hidden by the
   const drift = (s) => assert.notEqual(normaliseApprovedSwDelta(s, b), b);
   drift(c.replace("self.skipWaiting();", "/* x */ self.skipWaiting();"));
   drift(c.replace(/\n$/, "\n// extra network-first rule\n"));
-  drift(c.replace("hub-cache-v394", "hub-cache-v395"));
+  drift(c.replace("hub-cache-v395", "hub-cache-v396"));
+  drift(c.replace("pec-modal-stack", "pec-modal-stac"));
+  drift(c.replace("pec-purchase-allocations", "pec-purchase-allocation"));
+  drift(c.replace("both new PEC modules network-first", "something else"));
   drift(c.replace("WP11 PM BOM header toolbar wraps at phone width", "something else"));
+});
+
+test("SW: the v6.5.0 permit needs BOTH the cache line and the exact rule block (and nothing extra)", () => {
+  const b = base(), c = cur();
+  if (c.split("\n")[1] === b.split("\n")[1]) return; // already merged
+  const v394 = b.split("\n")[1];
+  if (!/hub-cache-v394/.test(v394)) return; // base is not the v394 line (permit does not apply)
+  assert.notEqual(normaliseApprovedSwDelta(c.replace(/\n    \/\/ PEC v6\.5\.0: modules[^\n]*\n[^\n]*\n[^\n]*\n/, "\n"), b), b, "cache line without the rule block");
+  assert.notEqual(normaliseApprovedSwDelta(c + "// extra\n", b), b, "extra trailing line");
 });

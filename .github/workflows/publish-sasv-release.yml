@@ -78,12 +78,12 @@ jobs:
         run: |
           set -euo pipefail
           cat > release-notes.md <<'NOTES'
-          SASV Workspace v6.4.2 — FG Bulk Internal Transfer Electron HOME navigation patch.
+          SASV Workspace v6.5.0 — PEC Purchase Allocations and dialog improvements.
 
-          - FIXED: FG Bulk Internal Transfer HOME now returns to the Electron dashboard instead of showing `Cannot GET /utilities-hub/index.html`.
-          - FIXED: Expired-session routing now opens the correct Electron login screen while preserving the web/PWA hub route.
-          - Reuses the existing shared platform routing contract; no change to stock balances, transfers, permissions, Supabase functions or data.
-          - Regression coverage includes the Electron local HTTP origin and the hosted web/PWA route.
+          - NEW: Procurement Execution Console "Purchase Allocations" lens (before Excess Purchases). Review which indents each purchase receipt was allocated to, by indent, material or supplier, for a voucher date or range (default: yesterday, India time). Drill into the receipt-to-indent trail, open the indent and return, and export complete CSV or print an indent deduction statement. Read-only: it changes no allocation, indent, vendor or purchase record. Opening and closing balances are reconstructed under the current allocation rules, and quantities are never totalled across units.
+          - FIXED: pressing Escape in a nested dialog now closes only the top dialog (including Select Vendor opened from an indent line); held keys and busy or in-progress dialogs no longer close the indent underneath.
+          - IMPROVED: Recommend & Accept Vendors and the related indent action dialogs use a compact, consistent layout (title, indent number and close on one row; aligned Cancel and Confirm). Choices, defaults and permissions are unchanged.
+          - Requires the Purchase Allocations reporting database objects already deployed to production; no database change ships in this installer. No change to FIFO allocation, permissions or purchasing records.
 
           UNSIGNED WINDOWS INSTALLER: no code-signing certificate; SmartScreen or antivirus may warn. Verify the SHA-256 in SHA256SUMS.txt. Existing stable installs may upgrade through the app updater after publication verification.
           NOTES

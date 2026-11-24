@@ -173,11 +173,22 @@ export const REVIEWED_WP11_V394_PINS = Object.freeze({
   }),
 });
 
+// PEC v6.5.0 release (Purchase Allocations lens + modal stack): the ONLY change to public/sw.js is the hub-cache-v394 -> hub-cache-v395
+// advance plus network-first rules for the two new PEC modules (pec-modal-stack.js, pec-purchase-allocations.js). Owner-authorised
+// release step. Exact path + exact head branch + SHA-256 of the LF-normalised file; any other content, branch, protected path or SQL
+// migration stays rejected; the global protected-path policy is unchanged.
+export const REVIEWED_PEC_V650_PINS = Object.freeze({
+  "public/sw.js": Object.freeze({
+    sha256: "0978bc1bd64f099d0e53a5c3d42c36b414471572438a817e4e32416034579c5c",
+    heads: Object.freeze(["claude/busy-brahmagupta-3vslus"]),
+  }),
+});
+
 const lfSha256 = (text) => createHash("sha256").update(String(text).replace(/\r\n/g, "\n")).digest("hex");
 
 function reviewedServerException(path, ctx) {
   if (!ctx || typeof ctx.readText !== "function") return false;
-  return [REVIEWED_SERVER_MIGRATIONS[path], REVIEWED_WP08_G2_1_PINS[path], REVIEWED_WP09_G2_PINS[path], REVIEWED_WP11_V394_PINS[path]].some((entry) => {
+  return [REVIEWED_SERVER_MIGRATIONS[path], REVIEWED_WP08_G2_1_PINS[path], REVIEWED_WP09_G2_PINS[path], REVIEWED_WP11_V394_PINS[path], REVIEWED_PEC_V650_PINS[path]].some((entry) => {
     if (!entry || !entry.heads.includes(ctx.headBranch)) return false;
     try { return lfSha256(ctx.readText(path)) === entry.sha256; } catch { return false; }
   });
