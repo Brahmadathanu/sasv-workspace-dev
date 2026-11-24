@@ -48,3 +48,13 @@ test("SW: the v6.5.0 permit needs BOTH the cache line and the exact rule block (
   assert.notEqual(normaliseApprovedSwDelta(c.replace(/\n    \/\/ PEC v6\.5\.0: modules[^\n]*\n[^\n]*\n[^\n]*\n/, "\n"), b), b, "cache line without the rule block");
   assert.notEqual(normaliseApprovedSwDelta(c + "// extra\n", b), b, "extra trailing line");
 });
+
+test("SW: the v6.5.1 permit is the exact v395->v396 line-2 advance only", () => {
+  const b = base(), c = cur();
+  const bl = b.split("\n")[1];
+  if (!/hub-cache-v395/.test(bl) || c.split("\n")[1] === bl) return; // permit does not apply
+  assert.equal(normaliseApprovedSwDelta(c, b), b, "v395->v396 advance maps back to base");
+  assert.notEqual(normaliseApprovedSwDelta(c.replace("hub-cache-v396", "hub-cache-v397"), b), b, "another generation");
+  assert.notEqual(normaliseApprovedSwDelta(c.replace("self.skipWaiting();", "/* x */ self.skipWaiting();"), b), b, "extra drift");
+  assert.notEqual(normaliseApprovedSwDelta(c.replace(/\n$/, "\n// extra\n"), b), b, "extra trailing line");
+});
