@@ -28,7 +28,7 @@ S2 (live, version `20261124055734`) is untouched.
 * Rollback test: after S5B→S5→S4B→S3B→S4→S3 every pre-S3 function (SHA/owner/security/config/ACL), trigger and table-ACL line equals the S2 baseline; the S2 RPCs still work; signed history retained; original core SHA `df7290df…` restored.
 
 ## Real-catalog findings (not defects of the migrations; decisions for the owner)
-1. **S2 stage fingerprint includes `daily_work_log.status`.** When a batch is fully packed, the governed reconciliation closes the FG row (`Doing`→`Done`), so the signed stage fingerprint no longer matches:
+1. **(Resolved by S6 — see FINAL_RESIDUAL_ACCEPTANCE_RECEIPT_20261124.md.) S2 stage fingerprint includes `daily_work_log.status`.** When a batch is fully packed, the governed reconciliation closes the FG row (`Doing`→`Done`), so the signed stage fingerprint no longer matches:
    later pack/correction calls return `STAGE_SOURCE_CHANGED` until the signer corrects and re-signs the stage (recovery verified in the suite). S2 is live and was not modified. Option: exclude `wl_status` from the fingerprint in a later migration (needs owner approval).
 2. **Real ACL**: `authenticated` has no INSERT on `event_skus`, `packaging_events`, `fg_bulk_stock_ledger` (only `daily_work_log`); legacy stock writes happen through `service_role` and the SECURITY DEFINER editor wrapper/core. AUDIT logging and ENFORCE gating are verified on exactly those paths.
 3. Real `require_permission` raises (it does not return a refusal) for non-permitted callers; RPC refusals for authorisation are therefore errors, domain refusals are structured JSON.

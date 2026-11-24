@@ -90,6 +90,8 @@ INSERT INTO app_private.mis_g7_s3b_expected_sha SELECT o, encode(sha256(convert_
   FROM unnest(ARRAY[${SHIM_CHAIN.map((o) => `'${o}'`).join(',')}]) o ON CONFLICT DO NOTHING;`;
 // ---- exact live DWL editor source (read-only reference committed from production: wrapper, __core and parser) ----
 export const PATCHED_CORE_MIGRATION = '20261123150000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql';   // owner-gated; NOT in the default install list
+export const FINGERPRINT_MIGRATION = '20261123151000_mis_g7_s6_fg_stage_fingerprint_excludes_inventory_status.sql';   // owner-review; NOT in the default install list
+export const S2_FINGERPRINT_FN_SHA = '69445f9880dea3874b6d30ae04469fa18f5c0ac1fbfc5ed13e961bfd4d083434';
 export const PATCHED_CORE_SHA = 'dfa5a5e9aa31b48cf41fe9d03800fff2e35e5a3825ca458b5ccb6ca6c4471bcc';
 export const LIVE_EDITOR_MD = path.resolve(here, '../../../docs/executive-mis-g7-server/LIVE_DWL_EDITOR_REFERENCE_ONLY_20261124.md');
 export const LIVE_EDITOR_SHA = {

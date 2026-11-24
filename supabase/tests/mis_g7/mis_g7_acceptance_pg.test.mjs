@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { startPg, installBaseAndMigrations, installLiveEditor, seedShimFingerprintsSql, MIGRATIONS } from './pg_harness.mjs';
+import { startPg, installBaseAndMigrations, installLiveEditor, seedShimFingerprintsSql, MIGRATIONS, FINGERPRINT_MIGRATION } from './pg_harness.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const docs = path.resolve(here, '../../../docs/executive-mis-g7-server');
@@ -324,11 +324,12 @@ T('MIGRATION FILE NAMES: every migration timestamp is a valid UTC date-time, nam
   const ts = (f) => { const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})_/.exec(f); assert.ok(m, `bad migration name ${f}`); const [Y, Mo, D, h, mi, se] = m.slice(1).map(Number);
     const d = new Date(Date.UTC(Y, Mo - 1, D, h, mi, se)); assert.ok(d.getUTCFullYear() === Y && d.getUTCMonth() === Mo - 1 && d.getUTCDate() === D && d.getUTCHours() === h && d.getUTCMinutes() === mi && d.getUTCSeconds() === se, `invalid timestamp in ${f}`); return m.slice(1).join(''); };
   const stamps = names.map(ts); assert.equal(new Set(stamps).size, stamps.length, 'duplicate timestamps');
-  const g7 = names.filter((f) => /mis_g7_/.test(f)); assert.equal(g7.length, 7);
+  const g7 = names.filter((f) => /mis_g7_/.test(f)); assert.equal(g7.length, 8);
   const first = names.indexOf(g7[0]); assert.ok(names.slice(0, first).every((f) => ts(f) < ts(g7[0])));
   g7.forEach((f, i) => { if (i) assert.ok(ts(f) > ts(g7[i - 1]), `${f} must sort after ${g7[i - 1]}`); });
-  assert.deepEqual(MIGRATIONS, g7.filter((f) => !f.includes('s5b_')));                                  // harness order == apply order (S5b is explicitly owner-gated)
+  assert.deepEqual(MIGRATIONS, g7.filter((f) => !f.includes('s5b_') && !f.includes('s6_')));                                  // harness order == apply order (S5b is explicitly owner-gated)
   assert.ok(g7.some((f) => f.includes('s5b_')) && ts(g7.find((f) => f.includes('s5b_'))) > ts(MIGRATIONS[MIGRATIONS.length - 1]));
+  assert.equal(g7[g7.length - 1], FINGERPRINT_MIGRATION); assert.ok(ts(FINGERPRINT_MIGRATION) > ts(g7.find((f) => f.includes('s5b_'))));
 });
 
 T('S3 REMOVES authenticated direct EXECUTE on both S2 advisory-lock helpers; legitimate callers keep working; S3 refuses without S2', () => {
@@ -370,9 +371,9 @@ T('S2 ROLLBACK section is ISOLATION-ONLY: removes just the two RPCs, keeps table
   assert.equal(run(`SELECT count(*) FROM pg_proc WHERE proname IN ('mis_sign_batch_stage_v1','mis_correct_batch_stage_v1')`).out, '0');
   assert.equal(run(`SELECT count(*) FROM app_private.mis_batch_stage_event`).out, '1');
 });
-T('MIGRATION IDENTITIES: recorded SHA-256/git-blob of all seven G7 migrations match the files; S2 equals the blob installed in production', () => {
+T('MIGRATION IDENTITIES: recorded SHA-256/git-blob of all eight G7 migrations match the files; S2 equals the blob installed in production', () => {
   const man = JSON.parse(fs.readFileSync(path.join(docs, 'MIGRATION_IDENTITIES.json'), 'utf8'));
-  assert.equal(man.migrations.length, 7); assert.equal(man.patched_core_sha256, 'dfa5a5e9aa31b48cf41fe9d03800fff2e35e5a3825ca458b5ccb6ca6c4471bcc');
+  assert.equal(man.migrations.length, 8); assert.equal(man.patched_core_sha256, 'dfa5a5e9aa31b48cf41fe9d03800fff2e35e5a3825ca458b5ccb6ca6c4471bcc');
   const blob = (b) => createHash('sha1').update(Buffer.concat([Buffer.from(`blob ${b.length}\0`), b])).digest('hex');
   for (const m of man.migrations) {
     const b = fs.readFileSync(path.resolve(here, '../../migrations', m.repo_file));
@@ -382,7 +383,7 @@ T('MIGRATION IDENTITIES: recorded SHA-256/git-blob of all seven G7 migrations ma
   const s2 = man.migrations[0];
   assert.equal(s2.git_blob_sha1, '055b1cdfa1c8be970939f57e7e866f126ec55f03'); assert.equal(s2.bytes, 21644);                    // the S2 text that is LIVE
   assert.equal(s2.registered_version, '20261124055734'); assert.match(s2.status, /LIVE/);
-  assert.deepEqual(man.migrations.map((m) => m.repo_file), [...MIGRATIONS, '20261123150000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql']);
+  assert.deepEqual(man.migrations.map((m) => m.repo_file), [...MIGRATIONS, '20261123150000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql', FINGERPRINT_MIGRATION]);
   assert.ok(man.migrations.slice(1).every((m) => m.registered_version === null && /HELD/.test(m.status)));
 });
 
@@ -435,7 +436,7 @@ T('ROLLBACK production order (S5B -> S5 -> S4B -> S3B -> S4 -> S3) restores the 
   const at = (m) => rb.indexOf(`-- ==== ${m} ====`);
   const iS4 = at('S4 ROLLBACK'), iS3 = at('S3 ROLLBACK'), iS2 = rb.indexOf('-- ==== S2 ROLLBACK'), iS3b = at('S3B ROLLBACK'), iS4b = at('S4B ROLLBACK'), iS5 = at('S5 ROLLBACK'), iS5b = at('S5B ROLLBACK');
   assert.ok(iS4 > 0 && iS3 > iS4 && iS2 > iS3 && iS3b > iS2 && iS4b > iS3b && iS5 > iS4b && iS5b > iS5);
-  const secS4 = rb.slice(iS4, iS3), secS3 = rb.slice(iS3, iS2), secS3b = rb.slice(iS3b, iS4b), secS4b = rb.slice(iS4b, iS5), secS5 = rb.slice(iS5, iS5b), secS5b = rb.slice(iS5b);
+  const secS4 = rb.slice(iS4, iS3), secS3 = rb.slice(iS3, iS2), secS3b = rb.slice(iS3b, iS4b), secS4b = rb.slice(iS4b, iS5), secS5 = rb.slice(iS5, iS5b), secS5b = rb.slice(iS5b, rb.indexOf('-- ==== S6 ROLLBACK ===='));
   assert.ok(!(secS4 + secS3 + secS3b + secS4b + secS5 + secS5b).includes('mis_sign_batch_stage_v1'));            // the production sections never touch the installed S2 RPCs
   let r = run(secS5); assert.equal(r.status, 0, r.err);
   assert.equal(run(`SELECT mode FROM app_private.mis_g7_enforcement`).out, 'AUDIT');

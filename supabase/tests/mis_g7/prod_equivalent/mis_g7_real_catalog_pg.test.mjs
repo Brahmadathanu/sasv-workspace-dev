@@ -8,13 +8,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { startPg, MIGRATIONS, PATCHED_CORE_MIGRATION, PATCHED_CORE_SHA } from '../pg_harness.mjs';
+import { startPg, MIGRATIONS, PATCHED_CORE_MIGRATION, FINGERPRINT_MIGRATION, PATCHED_CORE_SHA, S2_FINGERPRINT_FN_SHA } from '../pg_harness.mjs';
 import { loadStructuredPacket, readStructuredPacket, verifyRelations, verifyEnvironment, findMissingDependencies } from './load_structured_packet.mjs';
 import { verifyFunctions } from './load_baseline.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../../..');
 const PACKET = process.env.MIS_G7_PACKET || path.join(root, '.local/mis-g7-prod-baseline/packet.json');
+const SUPP = process.env.MIS_G7_SUPPLEMENT || path.join(root, '.local/mis-g7-prod-baseline/supplement.json');
 const docs = path.join(root, 'docs/executive-mis-g7-server');
 const mig = (f) => fs.readFileSync(path.join(root, 'supabase/migrations', f), 'utf8');
 const SIGNER = '00000000-0000-0000-0000-000000000001', PACKER = '00000000-0000-0000-0000-000000000002', EXCESS = '00000000-0000-0000-0000-000000000003';
@@ -24,19 +25,21 @@ const DB = 'real', BASE = 'base';
 let pg = null, blocked = null, loaded = null, basePacket = null;
 
 before(() => {
-  if (!fs.existsSync(PACKET)) { blocked = 'BLOCKED: production catalog packet not present (.local/mis-g7-prod-baseline/packet.json)'; return; }
+  if (!fs.existsSync(PACKET) || !fs.existsSync(SUPP)) { blocked = 'BLOCKED: production catalog packet/supplement not present (.local/mis-g7-prod-baseline/{packet,supplement}.json)'; return; }
   pg = startPg();
   if (!pg) { blocked = 'BLOCKED: local PostgreSQL unavailable'; return; }
   pg.createDb(BASE);
   const major = Number((pg.serverVersion.match(/(\d+)\./) ?? [])[1]);
-  loaded = loadStructuredPacket(pg, BASE, PACKET, { serverMajor: major });
+  loaded = loadStructuredPacket(pg, BASE, PACKET, { serverMajor: major, supplement: SUPP });
   basePacket = loaded.packet;
-  // working copies from the replayed baseline (= the production state with S2 installed): never replay S2 again
-  for (const d of [DB, 'rb']) assert.equal(pg.psql('postgres', `CREATE DATABASE ${d} TEMPLATE ${BASE}`).status, 0);
-  for (const d of [DB, 'rb']) {
-    for (const f of [...MIGRATIONS.slice(1), PATCHED_CORE_MIGRATION]) { const r = pg.psql(d, mig(f)); assert.equal(r.status, 0, `${d} ${f}: ${r.err}`); }
-    const r = pg.psql(d, fs.readFileSync(path.join(here, 'real_catalog_fixture.sql'), 'utf8')); assert.equal(r.status, 0, r.err);
+  // working copies from the replayed baseline (= the production state with S2 installed): never replay S2 again.
+  //   pre  = production as it is today + synthetic fixture (S3b NOT installed)      pre6 = S3..S5b, no S6
+  //   real = S3..S5b + S6                                                            rb   = same as real, used for the staged rollback
+  for (const d of ['pre', 'pre6', DB, 'rb']) assert.equal(pg.psql('postgres', `CREATE DATABASE ${d} TEMPLATE ${BASE}`).status, 0);
+  for (const d of ['pre6', DB, 'rb']) {
+    for (const f of [...MIGRATIONS.slice(1), PATCHED_CORE_MIGRATION, ...(d === 'pre6' ? [] : [FINGERPRINT_MIGRATION])]) { const r = pg.psql(d, mig(f)); assert.equal(r.status, 0, `${d} ${f}: ${r.err}`); }
   }
+  for (const d of ['pre', 'pre6', DB, 'rb']) { const r = pg.psql(d, fs.readFileSync(path.join(here, 'real_catalog_fixture.sql'), 'utf8')); assert.equal(r.status, 0, `${d} fixture: ${r.err}`); }
 });
 after(() => { if (pg) pg.stop(); });
 
@@ -73,37 +76,68 @@ const sha = (db, sig) => dq(db, `SELECT encode(sha256(convert_to(pg_get_function
 const auditCount = (where = 'true') => Number(val(`SELECT count(*) FROM app_private.mis_g7_direct_pack_audit WHERE ${where}`));
 
 // ===================================================== 1. REPLAY FIDELITY =====================================================
-T('REPLAY: packet integrity and structured ingestion (no silent omissions; every skipped/unsupported item is reported)', () => {
-  const st = fs.statSync(PACKET);
+const RESIDUAL = /plm_bom_revision|plm_sku_bom_revision_as_of|fn_costing_run_scoped_set_md5/;
+T('REPLAY: packet + supplement integrity and merge (conflicting duplicates rejected; every skipped/unsupported item reported)', () => {
   if (!process.env.MIS_G7_PACKET) {
-    assert.equal(st.size, 260034);
+    assert.equal(fs.statSync(PACKET).size, 260034);
     assert.equal(createHash('sha256').update(fs.readFileSync(PACKET)).digest('hex'), '8ebb31e4279d322bdbe12db1aa2f178e219dd44f71f96e1553b1e46288d3dfa3');
   }
+  if (!process.env.MIS_G7_SUPPLEMENT) {
+    assert.equal(fs.statSync(SUPP).size, 101367);
+    assert.equal(createHash('sha256').update(fs.readFileSync(SUPP)).digest('hex'), '5861d7da9c9e29a3e9dd769e685f9bbb9bd2b8ad518b9611a0c4be7fbf2c79b2');
+  }
+  assert.equal(loaded.functions.length, 73); assert.equal(basePacket.relations.length, 45);          // combined scope: 73 unique functions, 45 relations
+  assert.equal(basePacket.mergeInfo.duplicateRelations.length, 8);                                    // 8 relations captured twice, identical -> collapsed
+  // a CONFLICTING duplicate is an error, never silently resolved
+  const bad = JSON.parse(fs.readFileSync(SUPP, 'utf8')); bad.relations.find((r) => r.name === 'products').owner = 'someone_else';
+  const tmp = path.join(pg.dir, 'bad_supplement.json'); fs.writeFileSync(tmp, JSON.stringify(bad));
+  assert.throws(() => readStructuredPacket(PACKET, tmp), /conflicting duplicate relation record public\.products/);
+  const badF = JSON.parse(fs.readFileSync(SUPP, 'utf8')); badF.functions.find((f) => f.identity === 'costing.fn_wp04_readiness_bump_source_epoch()').sha256 = '0'.repeat(64);
+  fs.writeFileSync(tmp, JSON.stringify(badF)); assert.throws(() => readStructuredPacket(PACKET, tmp), /conflicting duplicate function record/);
   const r = loaded.report;
-  // the ONLY object-creation errors are the 23 RLS policies whose predicate functions are absent from the targeted capture
-  assert.equal(r.errors.length, 23, r.errors.join('\n'));
-  for (const e of r.errors) assert.match(e, /^policy .*function (app_has_permission\(text, text\)|app_is_provisioned_user\(\)|is_admin\(\)) does not exist/);
-  assert.deepEqual([...new Set(r.errors.map((e) => e.match(/function ([a-z_]+\()/)[1]))].sort(), ['app_has_permission(', 'app_is_provisioned_user(', 'is_admin(']);
+  // the 23 RLS policies are RESTORED from the captured predicate functions (incl. app_has_permission_core); the only remaining errors are the two uncaptured dependencies below
+  assert.ok(r.errors.every((e) => RESIDUAL.test(e)), r.errors.filter((e) => !RESIDUAL.test(e)).join('\n'));
+  assert.ok(r.errors.some((e) => /plm_bom_revision/.test(e)) && r.errors.some((e) => /fn_costing_run_scoped_set_md5/.test(e)));
+  assert.equal(r.errors.filter((e) => /^policy /.test(e)).length, 0);
+  assert.deepEqual(r.missingRoles, []);                                                              // dashboard_user now comes from the supplement
   assert.deepEqual(r.unsupported.map((u) => u.extension).sort(), ['hypopg', 'index_advisor', 'pg_cron', 'pg_net', 'supabase_vault']);
   assert.ok(r.unsupported.every((u) => u.referencedByCapturedObjects === false), 'no captured object depends on an unsupported extension');
+  assert.equal(basePacket.live_state[0].signed_event_rows, 0); assert.equal(basePacket.live_state[0].authenticated_ledger_insert, true); assert.equal(basePacket.live_state[0].server_version, '17.4');
 });
-T('REPLAY: all 49 captured functions equal the packet (existence, SHA-256 of pg_get_functiondef, owner, security, config, ACL)', () => {
+T('REPLAY: 72 of 73 captured functions equal the packet (SHA-256, owner, security, config, ACL); the 73rd needs the uncaptured type public.plm_bom_revision', () => {
   const d = verifyFunctions(pg, BASE, { cat: { functions: loaded.functions } });
-  assert.deepEqual(d, [], JSON.stringify(d).slice(0, 2000));
-  assert.equal(loaded.functions.length, 49);
+  assert.deepEqual(d, ['plm_sku_bom_revision_as_of(bigint,date): MISSING in the loaded database'], JSON.stringify(d).slice(0, 2000));
 });
-T('REPLAY: relations and environment equal the packet (columns, constraints, indexes, triggers, ACL, owners, RLS, roles); only the 23 reported policies differ', () => {
+T('REPLAY: relations, views and environment equal the packet (columns, constraints, indexes, triggers, ACL, owners, RLS, ALL policies, roles, sequences)', () => {
   const rd = verifyRelations(pg, BASE, basePacket);
-  const nonPolicy = rd.filter((x) => !/: policy /.test(x)); assert.deepEqual(nonPolicy, [], JSON.stringify(nonPolicy).slice(0, 2000));
+  assert.deepEqual(rd, ["costing.costing_run_fingerprint.scoped_table_set_md5: default '' != 'costing.fn_costing_run_scoped_set_md5()'"], JSON.stringify(rd).slice(0, 2000));
   assert.deepEqual(verifyEnvironment(pg, BASE, basePacket), []);
+  for (const rel of ['public.categories', 'public.sub_categories', 'public.product_groups', 'public.sub_groups', 'public.permission_targets', 'public.user_permissions_canonical'])
+    assert.equal(dq(BASE, `SELECT count(*) FROM pg_policies WHERE schemaname||'.'||tablename='${rel}'`).out, String(basePacket.relations.find((r) => `${r.schema}.${r.name}` === rel).policies.length), rel);
+  assert.equal(dq(BASE, `SELECT count(*) FROM pg_policies`).out, String(basePacket.relations.reduce((a, r) => a + r.policies.length, 0)));
+  // dashboard_user attributes, sequences and the valuation designation view
+  assert.equal(dq(BASE, `SELECT rolcreaterole::text||rolcreatedb::text||rolcanlogin::text||rolreplication::text||rolbypassrls::text FROM pg_roles WHERE rolname='dashboard_user'`).out, 'truetruefalsetruefalse');
+  assert.equal(dq(BASE, `SELECT count(*) FROM pg_class WHERE relkind='S' AND relname IN ('costing_refresh_run_id_seq','effective_date_backdate_log_id_seq','batch_plan_batches_id_seq','batch_plan_headers_id_seq')`).out, '4');
+  assert.equal(dq(BASE, `SELECT has_table_privilege('authenticated','costing.v_costing_run_effective_designation','SELECT')`).out, 't');
+  assert.equal(dq(BASE, `SELECT pg_get_viewdef('costing.v_costing_run_effective_designation'::regclass)`).out.replace(/\s+/g, ' ').trim().replace(/;$/, ''), basePacket.views[0].def.replace(/\s+/g, ' ').trim().replace(/;$/, ''));
 });
-T('REPLAY: consolidated list of live objects the packet references but did NOT capture (ChatGPT must extract these)', () => {
-  const miss = findMissingDependencies(pg, BASE, basePacket, loaded.functions);
-  // functions referenced by captured RLS policies / triggers
-  console.log('MISSING-CALLS', JSON.stringify(miss));
-  // relations referenced by captured trigger functions and not present
-  const rels = dq(DB, `SELECT string_agg(x,',' ORDER BY x) FROM unnest(ARRAY['public.supply_rollup_refresh_queue','public.product_sku_change_log','public.batch_plan_batches','costing.effective_date_guard_config','costing.effective_date_backdate_log','costing.readiness_portfolio_source_epoch']) x WHERE to_regclass(x) IS NULL AND x <> 'public.supply_rollup_refresh_queue'`).out;
-  assert.equal(rels, 'costing.effective_date_backdate_log,costing.effective_date_guard_config,costing.readiness_portfolio_source_epoch,public.batch_plan_batches,public.product_sku_change_log');
+T('REPLAY: real policies work: permission_targets / user_permissions_canonical RLS via the captured is_admin() and app_has_permission_core; categories via app_has_permission', () => {
+  // non-admin authenticated user: the captured upc_select_admin_or_self policy shows only the caller's own rows
+  const own = val(`SELECT count(*) FROM public.user_permissions_canonical`, PACKER); assert.equal(own, '3');                                                                           // the packer's own three permission rows only
+  assert.equal(val(`SELECT count(*) FROM public.user_permissions_canonical WHERE user_id <> auth.uid()`, PACKER), '0');
+  assert.match(q(`INSERT INTO public.user_permissions_canonical(user_id,target,can_view,can_edit) VALUES ('${NOBODY}','module:fg-bulk-stock',true,true)`, PACKER).err, /row-level security|permission denied/i);
+  assert.match(q(`INSERT INTO public.permission_targets(key,kind,label) VALUES ('module:syn-x','module','x')`, PACKER).err, /row-level security|permission denied/i);
+  assert.equal(val(`SELECT count(*) FROM public.categories`, PACKER) >= '0', true);
+});
+T('REPLAY: uncaptured live objects still referenced by captured objects (all Costing-only; none on the stock/G7 path)', () => {
+  const noise = new Set(['applied', 'greatest', 'prohibited', 'reference', 'revision', 's']);                          // SQL words / comment fragments the text scan also reports
+  const miss = findMissingDependencies(pg, BASE, basePacket, loaded.functions).filter((x) => !noise.has(x));
+  assert.deepEqual(miss, ['fn_compute_run_fingerprint', 'fn_costing_run_scoped_set_md5', 'fn_resolve_effective_product_process_route', 'fn_resolve_effective_route_family_route',
+    'fn_validate_product_process_route', 'fn_validate_route_family_route', 'plm_sku_bom_revision_as_of'], JSON.stringify(miss));   // plm_sku_bom_revision_as_of = captured but not creatable without the type below
+  assert.equal(dq(BASE, `SELECT to_regtype('public.plm_bom_revision') IS NULL`).out, 't');                            // the uncaptured return type behind it
+  // none of the missing objects is reachable from the G7 stock path: no captured stock function/trigger on the ledger/DWL/event tables references them
+  const stock = loaded.functions.filter((f) => /^(public\.(fn_fg_|trg_fg_|rpc_update_daily|fn_parse_sku|mis_)|app_private\.mis_)/.test(f.identity));
+  for (const f of stock) assert.ok(!/fn_compute_run_fingerprint|scoped_set_md5|fn_resolve_effective|fn_validate_(product|route)|plm_bom_revision|plm_sku_bom/.test(f.def), f.identity);
 });
 T('REPLAY: S3..S5b were installed from the replayed S2 baseline with their LITERAL pins (no seeded fingerprints); patched core SHA and helper ACL', () => {
   assert.equal(val(`SELECT count(*) FROM app_private.mis_g7_s3b_expected_sha`), '11');
@@ -158,14 +192,175 @@ T('AUDIT legacy trusted writer (service_role, the only role with table DML): dir
   assert.equal(val(`SELECT mode||'|'||op||'|'||tbl FROM app_private.mis_g7_direct_pack_audit ORDER BY 1 DESC LIMIT 1`).split('|').length, 3);
   assert.equal(pg.psql(DB, `SET ROLE service_role; DELETE FROM public.event_skus WHERE packaging_event_id=${e}`).status, 0); assert.equal(bal(b), 100);
 });
-T('FINDING (S2 fingerprint includes DWL status): the governed close of a fully packed batch changes wl_status, so later pack/corrections need the stage corrected and re-signed (recovery path verified)', () => {
+T('S6 fully depleted batch: governed auto-closure (Doing->Done) does NOT invalidate the signed receipt; later governed correction works without re-signing', () => {
   const b = bn('FN1'); mkSigned(b, 10); assert.equal(pack(b, [{ sku_id: 10, count: 20 }]).ok, true);       // 10 Kg packed -> balance 0 -> governed auto-close -> FG DWL Done
   assert.equal(val(`SELECT status FROM public.daily_work_log WHERE id=${fgId(b)}`), 'Done');
-  const id = lineId(b, 10); const r = corr(id, 10); assert.equal(r.code, 'STAGE_SOURCE_CHANGED', JSON.stringify(r)); assert.equal(bal(b), 0);
-  const sev = val(`SELECT max(event_id) FROM app_private.mis_batch_stage_event WHERE batch_number='${b}' AND event_kind='SIGN'`);
-  assert.equal(J(`SELECT public.mis_correct_batch_stage_v1('${randomUUID()}', ${sev}, 'FG receipt row closed by governed reconciliation')`, SIGNER).ok, true);
-  assert.equal(sign(b, 10).ok, true);                                                                   // re-sign evidence of the same receipt
-  assert.equal(corr(id, 10).ok, true); assert.equal(bal(b), 5);
+  const id = lineId(b, 10); const r = corr(id, 10); assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(bal(b), 5);
+  assert.equal(val(`SELECT count(*) FROM app_private.mis_batch_stage_event WHERE batch_number='${b}'`), '1');   // still the ONE original signature
+});
+T('S6 control (no S6, same replayed catalog): the same sequence reports STAGE_SOURCE_CHANGED and needs correct+re-sign', () => {
+  const run = (sql, uid) => dq('pre6', sql, uid); const jv = (sql, uid) => { const r = run(sql, uid); assert.equal(r.status, 0, r.err); return jl(r.out); };
+  const b = 'P6C1'; assert.equal(run(`SELECT public.t_mkbatch('${b}', 10)`).status, 0);
+  const wl = run(`SELECT id FROM public.daily_work_log WHERE batch_number='${b}' AND activity='FG bulk storage'`).out;
+  assert.equal(jv(`SELECT public.mis_sign_batch_stage_v1('${randomUUID()}',1,'${b}',${wl},2,1,10,'w')`, SIGNER).ok, true);
+  const ev = run(`SELECT pe.id FROM public.packaging_events pe JOIN public.daily_work_log w ON w.id=pe.work_log_id WHERE w.batch_number='${b}'`).out;
+  assert.equal(jv(`SELECT public.mis_pack_fg_bulk_v1('${randomUUID()}',${ev},'[{"sku_id":10,"count":20}]'::jsonb,NULL)`, PACKER).ok, true);
+  const line = run(`SELECT id FROM public.event_skus WHERE packaging_event_id=${ev}`).out;
+  assert.equal(jv(`SELECT public.mis_correct_pack_line_v1('${randomUUID()}',${line},10,'recount',NULL)`, PACKER).code, 'STAGE_SOURCE_CHANGED');
+  assert.equal(run(`SELECT encode(sha256(convert_to(pg_get_functiondef('app_private.mis_stage_fp(integer,text,integer,bigint,integer)'::regprocedure),'UTF8')),'hex')`).out, S2_FINGERPRINT_FN_SHA);
+});
+T('S6 genuine receipt revision still invalidates the signature: quantity, UOM, date, activity, batch identity each require governed correction and re-signing', () => {
+  const fpOf = (b) => val(`SELECT app_private.mis_stage_fp(1,'${b}',${fgId(b)},2,1)`);
+  const b = bn('FN2'); mkSigned(b, 100); const fp0 = fpOf(b); const w = fgId(b);
+  assert.equal(fp0, val(`SELECT source_fingerprint FROM app_private.mis_batch_stage_event WHERE batch_number='${b}' AND event_kind='SIGN'`));
+  // status is not evidence: Doing -> In Storage -> Done leaves the fingerprint unchanged
+  for (const st of ['In Storage', 'Doing']) { assert.equal(q(`UPDATE public.daily_work_log SET status='${st}' WHERE id=${w}`).status, 0); assert.equal(fpOf(b), fp0, st); }
+  assert.equal(q(`SET app.allow_fg_done='1'; UPDATE public.daily_work_log SET status='Done' WHERE id=${w}`).status, 0); assert.equal(fpOf(b), fp0, 'Done');
+  assert.equal(q(`UPDATE public.daily_work_log SET status='Doing' WHERE id=${w}`).status, 0);
+  // every real evidence field changes it
+  const flip = (set, back) => { assert.equal(q(`UPDATE public.daily_work_log SET ${set} WHERE id=${w}`).status, 0); const f = fpOf(b); assert.equal(q(`UPDATE public.daily_work_log SET ${back} WHERE id=${w}`).status, 0); return f; };
+  assert.notEqual(flip('log_date=log_date+1', 'log_date=log_date-1'), fp0, 'date');
+  assert.equal(fpOf(b), fp0, 'restored');
+  // every other evidence field, perturbed inside a rolled-back transaction (triggers off ONLY for this what-if), changes (or voids) the fingerprint
+  const variant = (setSql) => { const r = q(`BEGIN; SET LOCAL session_replication_role=replica; ${setSql}; SELECT 'FP=' || coalesce(app_private.mis_stage_fp(1,'${b}',${w},2,1),'NULL'); ROLLBACK;`); assert.equal(r.status, 0, r.err); return r.out.split('\n').find((l) => l.startsWith('FP=')).slice(3); };
+  for (const [name, set] of [['quantity', `UPDATE public.daily_work_log SET storage_qty=storage_qty+1 WHERE id=${w}`], ['uom', `UPDATE public.daily_work_log SET storage_qty_uom='L' WHERE id=${w}`],
+    ['activity', `UPDATE public.daily_work_log SET activity='Mixing' WHERE id=${w}`], ['batch identity', `UPDATE public.daily_work_log SET batch_number='${b}z' WHERE id=${w}`],
+    ['route', `UPDATE costing.product_process_route SET effective_to='2026-11-09' WHERE id=1`],
+    ['BMR identity', `DELETE FROM public.bmr_details WHERE product_id=1 AND bn='${b}'`]]) {
+    const v = variant(set); assert.notEqual(v, fp0, name); assert.ok(v === 'NULL' || /^[0-9a-f]{64}$/.test(v), name);
+  }
+  assert.equal(variant('SELECT 1'), fp0, 'control: the what-if harness itself changes nothing');
+  // the pack path refuses after a genuine revision until the signer corrects and re-signs
+  assert.equal(pack(b, [{ sku_id: 10, count: 2 }]).ok, true);
+  assert.equal(q(`UPDATE public.daily_work_log SET log_date=log_date+1 WHERE id=${w}`).status, 0);
+  assert.equal(pack(b, [{ sku_id: 11, count: 2 }]).code, 'STAGE_SOURCE_CHANGED');
+  assert.equal(q(`UPDATE public.daily_work_log SET log_date=log_date-1 WHERE id=${w}`).status, 0);
+  assert.equal(pack(b, [{ sku_id: 11, count: 2 }]).ok, true);
+});
+T('S6 precondition: refuses over an uncorrected FG_BULK signature (no rewrite); after correction installs; baseline pinned to the S2 definition', () => {
+  const refused = dq('pre6', mig(FINGERPRINT_MIGRATION)); assert.notEqual(refused.status, 0);
+  assert.match(refused.err, /MIS_G7_S6: 1 uncorrected FG_BULK signature\(s\) carry the old fingerprint; refusing/);
+  const fnsha = (db) => dq(db, `SELECT encode(sha256(convert_to(pg_get_functiondef('app_private.mis_stage_fp(integer,text,integer,bigint,integer)'::regprocedure),'UTF8')),'hex')`).out;
+  assert.equal(fnsha('pre6'), S2_FINGERPRINT_FN_SHA);                                                              // unchanged, nothing rewritten
+  assert.equal(dq('pre6', `SELECT count(*) FROM app_private.mis_g7_s6_baseline`).out, '0');
+  const ev = dq('pre6', `SELECT max(event_id) FROM app_private.mis_batch_stage_event WHERE event_kind='SIGN'`).out;
+  assert.equal(JSON.parse(dq('pre6', `SELECT public.mis_correct_batch_stage_v1('${randomUUID()}',${ev},'pre-S6 correction')`, SIGNER).out).ok, true);
+  const r = dq('pre6', mig(FINGERPRINT_MIGRATION)); assert.equal(r.status, 0, r.err);
+  assert.notEqual(fnsha('pre6'), S2_FINGERPRINT_FN_SHA);
+  assert.equal(dq('pre6', `SELECT def_sha FROM app_private.mis_g7_s6_baseline`).out, S2_FINGERPRINT_FN_SHA);
+  assert.match(dq('pre6', `UPDATE app_private.mis_g7_s6_baseline SET def='x'`).err, /APPEND_ONLY/);
+  assert.equal(dq('pre6', `SELECT has_function_privilege('authenticated','app_private.mis_stage_fp(integer,text,integer,bigint,integer)','EXECUTE')`).out, 'f');
+  assert.equal(fnsha('real'), fnsha('pre6'));                                                                      // identical installed definition
+  // the migration also refuses a changed (non-S2) fingerprint function
+  const t = dq(DB, mig(FINGERPRINT_MIGRATION)); assert.match(t.err, /not the reviewed S2 definition/);                // a second apply (or any non-S2 function) fails closed
+  // non-FG stage: the payload is byte-identical to the S2 formula (status INCLUDED) and a status change still invalidates it
+  const b = bn('NF1'); mk(b, 100);
+  const wlm = val(`INSERT INTO public.daily_work_log(log_date,section_id,subsection_id,area_id,item,batch_number,batch_size,batch_uom,activity,started_on,due_date,status) VALUES ('2026-11-10',1,1,1,'SYN-P1','${b}',100,'Kg','Mixing','2026-11-10','2026-11-12','Doing') RETURNING id`);
+  const s2fp = `SELECT encode(sha256(convert_to(jsonb_build_object('product_id',1,'batch','${b}','bmr_id',r.bmr_id,'route_id',r.route_id,'route_step_id',r.route_step_id,'occurrence',1,'work_log_id',${wlm},'wl_status',r.wl_status,'wl_storage_qty',r.wl_storage_qty,'wl_storage_uom',r.wl_storage_uom,'wl_log_date',r.wl_log_date,'activity',r.activity_name)::text,'UTF8')),'hex') FROM app_private.mis_resolve_batch_stage(1,'${b}',${wlm},1) r`;
+  const cur = `SELECT app_private.mis_stage_fp(1,'${b}',${wlm},1,1)`;
+  assert.equal(val(cur), val(s2fp)); assert.match(val(cur), /^[0-9a-f]{64}$/);
+  assert.equal(q(`UPDATE public.daily_work_log SET status='Done' WHERE id=${wlm}`).status, 0);
+  assert.equal(val(cur), val(s2fp)); assert.notEqual(val(cur), val(`SELECT app_private.mis_stage_fp(1,'${b}',${fgId(b)},2,1)`));
+});
+
+// ===================================================== 2b. ACL / mutation matrix: production BEFORE S3b vs AFTER =====================================================
+const privMatrix = (db) => {
+  const out = [];
+  for (const t of ['daily_work_log', 'event_skus', 'packaging_events', 'fg_bulk_stock_ledger', 'fg_bulk_internal_transfer'])
+    for (const role of ['authenticated', 'anon', 'service_role']) out.push(`${t}/${role}=` + ['SELECT', 'INSERT', 'UPDATE', 'DELETE'].map((pv) => (dq(db, `SELECT has_table_privilege('${role}','public.${t}','${pv}')`).out === 't' ? pv[0] : '-')).join(''));
+  return out.join(' ');
+};
+T('ACL MATRIX table privileges before S3b (production as captured/verified live) and after: only fg_bulk_stock_ledger authenticated DML is closed', () => {
+  assert.equal(basePacket.live_state[0].authenticated_ledger_insert, true);                                         // independently verified live by ChatGPT
+  const pre = privMatrix('pre'), post = privMatrix(DB);
+  for (const [t, ins] of [['daily_work_log', 't'], ['event_skus', 'f'], ['packaging_events', 'f'], ['fg_bulk_stock_ledger', 't'], ['fg_bulk_internal_transfer', 't']])
+    assert.equal(dq('pre', `SELECT has_table_privilege('authenticated','public.${t}','INSERT')`).out, ins, `before ${t}`);
+  assert.match(pre, /fg_bulk_stock_ledger\/authenticated=SIUD/);                                                     // before: full DML for authenticated
+  assert.match(post, /fg_bulk_stock_ledger\/authenticated=S---/);                                                    // after: read only
+  const strip = (m) => m.split(' ').filter((x) => !x.startsWith('fg_bulk_stock_ledger/authenticated=')).join(' ');
+  assert.equal(strip(pre), strip(post), 'every other privilege in the matrix is unchanged by S3b');
+  assert.match(post, /fg_bulk_internal_transfer\/authenticated=SIUD/); assert.match(post, /fg_bulk_stock_ledger\/service_role=SIUD/); assert.match(post, /fg_bulk_stock_ledger\/anon=----/);
+  // legacy stock-writing functions: client EXECUTE before vs after
+  const fx = (db, sig, role) => dq(db, `SELECT has_function_privilege('${role}','${sig}','EXECUTE')`).out;
+  for (const [sig, before, after] of [['public.fn_fg_auto_zero(integer,text,numeric)', 't', 'f'], ['public.fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)', 't', 'f'],
+    ['public.fn_fg_mark_done_if_zero(integer,text,numeric)', 't', 't'], ['public.fn_fg_force_close(integer,text,numeric)', 'f', 'f'], ['public.fn_fg_force_close(integer,text)', 't', 't'], ['public.fn_fg_reconcile_batch(integer,text,numeric)', 'f', 'f']]) {
+    assert.equal(fx('pre', sig, 'authenticated'), before, `before ${sig}`); assert.equal(fx(DB, sig, 'authenticated'), after, `after ${sig}`); }
+  assert.equal(dq('pre', `SELECT bool_or(prosecdef) FROM pg_proc WHERE proname IN ('trg_fg_ledger_reconcile_ins_stmt','trg_fg_ledger_reconcile_upd_stmt','trg_fg_ledger_reconcile_del_stmt')`).out, 'f');   // invoker triggers before
+  assert.equal(dq(DB, `SELECT bool_and(prosecdef) FROM pg_proc WHERE proname IN ('trg_fg_ledger_reconcile_ins_stmt','trg_fg_ledger_reconcile_upd_stmt','trg_fg_ledger_reconcile_del_stmt')`).out, 't');   // definer chain after
+});
+T('ACL MATRIX mutations BEFORE S3b (original catalog): authenticated direct ledger/transfer writes and ungated legacy writers', () => {
+  const pq = (sql, uid) => dq('pre', sql, uid);
+  assert.equal(pq(`SELECT public.t_mkbatch('M1',100)`).status, 0); assert.equal(pq(`SELECT public.t_mkbatch('M2',100)`).status, 0);
+  const rowOk = (sql, uid) => { const r = pq(sql, uid); return r; };
+  // the table privilege + CRUD RLS policy would allow these, but every statement fires the INVOKER statement triggers that call fn_fg_reconcile_batch,
+  // which authenticated cannot execute -> the whole statement fails and rolls back (nothing changes)
+  for (const sql of [`INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id) VALUES (1,'M1',current_date,-1,-1,'Kg','x','t',1)`,
+    `UPDATE public.fg_bulk_stock_ledger SET qty=5,qty_base=5 WHERE batch_number='M1'`, `DELETE FROM public.fg_bulk_stock_ledger WHERE batch_number='M1'`])
+    assert.match(rowOk(sql, NOBODY).err, /permission denied for function fn_fg_reconcile_batch/, sql);
+  assert.equal(pq(`SELECT sum(qty_base) FROM public.fg_bulk_stock_ledger WHERE batch_number='M1'`).out, '100');
+  // internal transfer by authenticated fails for the same reason BEFORE S3b (S3b makes the chain definer, see the AFTER test)
+  const xfer = `INSERT INTO public.fg_bulk_internal_transfer(transfer_date,product_id,item,batch_number,qty,uom,qty_base,from_section_id,from_subsection_id,from_area_id,to_section_id,to_subsection_id,to_area_id) VALUES (current_date,1,'SYN-P1','M2',5,'Kg',5,1,1,1,1,1,1)`;
+  assert.match(rowOk(xfer, NOBODY).err, /permission denied for function fn_fg_reconcile_batch/); assert.equal(pq(`SELECT count(*) FROM public.fg_bulk_internal_transfer`).out, '0');
+  // ungated legacy writers are EXECUTABLE by any authenticated user before S3b (no permission check): they reach their bodies
+  assert.equal(rowOk(`SELECT public.fn_fg_auto_zero((SELECT id FROM public.daily_work_log WHERE batch_number='M2' AND activity='FG bulk storage'),'x',0.01)`, NOBODY).status, 0);
+  assert.match(rowOk(`SELECT public.fn_fg_ledger_add(1,'M2',-1,'Kg',1,'t',current_date)`, NOBODY).err, /ref_table/);      // live body references columns the ledger does not have (dead legacy function)
+  // trusted writer and the governed wrapper still work BEFORE: service_role DWL receipt; force-close wrapper with module:fg-bulk-stock
+  assert.equal(pg.psql('pre', `SET ROLE service_role; INSERT INTO public.daily_work_log(log_date,section_id,subsection_id,area_id,item,batch_number,batch_size,batch_uom,activity,started_on,due_date,status,storage_qty,storage_qty_uom) VALUES ('2026-11-10',1,1,1,'SYN-P1','M3',100,'Kg','FG bulk storage','2026-11-10','2026-11-12','Doing',40,'Kg')`).status, 0);
+  assert.equal(pq(`SELECT sum(qty_base) FROM public.fg_bulk_stock_ledger WHERE batch_number='M3'`).out, '40');
+});
+T('ACL MATRIX mutations AFTER S3b: direct ledger mutation closed; legitimate legacy paths preserved (transfer, trusted DWL receipt, governed editing, packing, force-close, mark-done) and ungated writers closed', () => {
+  assert.equal(val(`SELECT public.t_mkbatch('M1',100)`) !== '', true); assert.equal(val(`SELECT public.t_mkbatch('M2',100)`) !== '', true);
+  for (const sql of [`INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id) VALUES (1,'M1',current_date,-1,-1,'Kg','x','t',1)`,
+    `UPDATE public.fg_bulk_stock_ledger SET qty=5,qty_base=5 WHERE batch_number='M1'`, `DELETE FROM public.fg_bulk_stock_ledger WHERE batch_number='M1'`])
+    assert.match(q(sql, NOBODY).err, /permission denied for table fg_bulk_stock_ledger/, sql);
+  assert.equal(bal('M1'), 100);
+  assert.match(q(`SELECT public.fn_fg_auto_zero(1,'x',0.01)`, NOBODY).err, /permission denied for function fn_fg_auto_zero/);
+  assert.match(q(`SELECT public.fn_fg_ledger_add(1,'M2',-1,'Kg',1,'t',current_date)`, NOBODY).err, /permission denied for function fn_fg_ledger_add/);
+  // internal transfer by an authenticated user now WORKS (definer chain): legs posted, UPDATE rebuilds, DELETE removes; net stock unchanged for a same-batch transfer
+  const xfer = `INSERT INTO public.fg_bulk_internal_transfer(transfer_date,product_id,item,batch_number,qty,uom,qty_base,from_section_id,from_subsection_id,from_area_id,to_section_id,to_subsection_id,to_area_id) VALUES (current_date,1,'SYN-P1','M2',5,'Kg',5,1,1,1,1,1,1)`;
+  assert.equal(q(xfer, NOBODY).status, 0); assert.equal(val(`SELECT count(*) FROM public.fg_bulk_stock_ledger WHERE batch_number='M2' AND source_table='fg_bulk_internal_transfer'`), '2'); assert.equal(bal('M2'), 100);
+  assert.equal(q(`UPDATE public.fg_bulk_internal_transfer SET qty=7,qty_base=7 WHERE batch_number='M2'`, NOBODY).status, 0); assert.equal(Number(val(`SELECT sum(abs(qty_base)) FROM public.fg_bulk_stock_ledger WHERE batch_number='M2' AND source_table='fg_bulk_internal_transfer'`)), 14);
+  assert.equal(q(`DELETE FROM public.fg_bulk_internal_transfer WHERE batch_number='M2'`, NOBODY).status, 0); assert.equal(val(`SELECT count(*) FROM public.fg_bulk_stock_ledger WHERE batch_number='M2' AND source_table='fg_bulk_internal_transfer'`), '0');
+  // an over-transfer is still refused by the live negative-stock guard
+  assert.match(q(`INSERT INTO public.fg_bulk_internal_transfer(transfer_date,product_id,item,batch_number,qty,uom,qty_base,from_section_id,from_subsection_id,from_area_id,to_section_id,to_subsection_id,to_area_id) VALUES (current_date,1,'SYN-P1','M2',500,'Kg',500,1,1,1,1,1,1)`, NOBODY).err, /would make stock negative/);
+  // trusted service_role DWL receipt (legacy submission path) works
+  assert.equal(pg.psql(DB, `SET ROLE service_role; INSERT INTO public.daily_work_log(log_date,section_id,subsection_id,area_id,item,batch_number,batch_size,batch_uom,activity,started_on,due_date,status,storage_qty,storage_qty_uom) VALUES ('2026-11-10',1,1,1,'SYN-P1','M3',100,'Kg','FG bulk storage','2026-11-10','2026-11-12','Doing',40,'Kg')`).status, 0);
+  assert.equal(bal('M3'), 40);
+  // authenticated direct DWL insert is refused by the captured RLS (SELECT-only policy) BEFORE and AFTER (identical)
+  const dwl = `INSERT INTO public.daily_work_log(log_date,section_id,subsection_id,area_id,item,batch_number,batch_size,batch_uom,activity,started_on,due_date,status) VALUES ('2026-11-10',1,1,1,'SYN-P1','M4',100,'Kg','Mixing','2026-11-10','2026-11-12','Doing')`;
+  assert.match(q(dwl, PACKER).err, /row-level security/); assert.match(dq('pre', dwl, PACKER).err, /row-level security/);
+  // governed editing: same outcome before (original core) and after (patched core) for a signed batch chain create
+  const pre = (sql, uid) => dq('pre', sql, uid);
+  assert.equal(pre(`SELECT public.t_mkbatch_real('M5',100)`).status, 0);
+  const wl5 = pre(`SELECT id FROM public.daily_work_log WHERE batch_number='M5' AND activity='FG bulk storage'`).out;
+  assert.equal(JSON.parse(pre(`SELECT public.mis_sign_batch_stage_v1('${randomUUID()}',1,'M5',${wl5},2,1,100,'w')`, SIGNER).out).ok, true);
+  const f5 = pre(`SELECT id FROM public.daily_work_log WHERE batch_number='M5' AND activity='Bottling'`).out;
+  const e5 = pre(`SELECT * FROM public.t_edit_dwl(${f5}, '${JSON.stringify(DONE('0.5 kg x 10'))}'::jsonb)`, PACKER); assert.equal(e5.status, 0, e5.err);
+  const f6 = mk('M5'); const sg = sign('M5'); assert.equal(sg.ok, true); ok(edit(f6, DONE('0.5 kg x 10')));
+  assert.equal(bal('M5'), 95); assert.equal(Number(pre(`SELECT sum(qty_base) FROM public.fg_bulk_stock_ledger WHERE batch_number='M5'`).out), 95);
+  // force-close wrapper (module:fg-bulk-stock) closes a dust balance before and after; no-permission user denied both
+  const dust = (db, b) => { const r = dq(db, `SELECT public.t_mkbatch('${b}',100)`); assert.equal(r.status, 0, r.err);
+    const w = dq(db, `SELECT id FROM public.daily_work_log WHERE batch_number='${b}' AND activity='FG bulk storage'`).out;
+    const ins = dq(db, `SET session_replication_role=replica; INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id) VALUES (1,'${b}',current_date,-99.995,-99.995,'Kg','dust fixture','t',1)`); assert.equal(ins.status, 0, ins.err); return w; };
+  for (const db of ['pre', DB]) {
+    const w = dust(db, 'M6');
+    assert.match(dq(db, `SELECT public.fn_fg_force_close(${w})`, NOBODY).err, /Permission denied for module:fg-bulk-stock/);
+    const fc = dq(db, `SELECT public.fn_fg_force_close(${w})`, PACKER); assert.equal(fc.status, 0, db + fc.err);
+    assert.equal(dq(db, `SELECT status FROM public.daily_work_log WHERE id=${w}`).out, 'Done'); assert.equal(Number(dq(db, `SELECT sum(qty_base) FROM public.fg_bulk_stock_ledger WHERE batch_number='M6'`).out), 0);
+  }
+  // atomic packing exists only after S3b/S4 (new capability) and works
+  const b = bn('M7'); mkSigned(b); assert.equal(pack(b, [{ sku_id: 10, count: 2 }]).ok, true);
+  assert.equal(dq('pre', `SELECT to_regprocedure('public.mis_pack_fg_bulk_v1(uuid,bigint,jsonb,jsonb)') IS NULL`).out, 't');
+});
+T('QUEUE real supply_rollup_refresh_queue: every DWL / ledger / event write bumps last_requested via the live mark_supply_rollups_dirty triggers under the real RLS and ACL', () => {
+  assert.equal(dq(DB, `SELECT count(*) FROM pg_policies WHERE tablename='supply_rollup_refresh_queue'`).out, '1');
+  assert.equal(dq(DB, `SELECT has_table_privilege('authenticated','public.supply_rollup_refresh_queue','INSERT') AND NOT has_table_privilege('authenticated','public.supply_rollup_refresh_queue','TRUNCATE')`).out, 't');
+  const lr = () => val(`SELECT extract(epoch FROM last_requested)::bigint FROM public.supply_rollup_refresh_queue WHERE id=1`);
+  const reset = () => assert.equal(q(`UPDATE public.supply_rollup_refresh_queue SET last_requested='2000-01-01' WHERE id=1`).status, 0);
+  const old = String(Math.floor(Date.parse('2000-01-01T00:00:00Z') / 1000));
+  const b = bn('QU'); reset(); mkSigned(b); assert.notEqual(lr(), old, 'DWL/ledger/event inserts bump the queue');
+  reset(); assert.equal(pack(b, [{ sku_id: 10, count: 2 }]).ok, true); assert.notEqual(lr(), old, 'RPC packing (event_skus + ledger) bumps the queue as an authenticated definer chain');
+  reset(); assert.equal(q(`SELECT public.mis_sign_batch_stage_v1(gen_random_uuid(),1,'${b}',0,0,1,1,'x')`, SIGNER).status, 0); assert.equal(lr(), old, 'a refused signing writes nothing and does not bump the queue');
 });
 
 // ===================================================== 3. Roles / permissions on the real require_permission =====================================================
@@ -353,21 +548,21 @@ T('ENFORCE readiness: refused until the owner signs off THIS exact patched core 
 });
 
 // ===================================================== 10. Exact S2-preserving rollback =====================================================
-T('ROLLBACK on the replayed catalog: S5B->S5->S4B->S3B->S4->S3 restores the S2 production baseline exactly (functions, ACLs, config, triggers, table grants); S2 RPCs survive', () => {
+T('ROLLBACK on the replayed catalog: S6->S5B->S5->S4B->S3B->S4->S3 restores the S2 production baseline exactly (functions, ACLs, config, triggers, table grants); S2 RPCs survive', () => {
   const rb = 'rb';
   const snapSql = `SELECT string_agg(x, E'\\n' ORDER BY x) FROM (
       SELECT p.oid::regprocedure::text||'|'||encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex')||'|'||pg_get_userbyid(p.proowner)||'|'||p.prosecdef||'|'||coalesce(array_to_string(p.proconfig,';'),'')||'|'||
         coalesce((SELECT string_agg(a::text,',' ORDER BY a::text) FROM unnest(coalesce(p.proacl, acldefault('f',p.proowner))) a),'') AS x
-        FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname IN ('public','costing','auth') AND p.prokind='f' AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid=p.oid AND d.deptype='e')
+        FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname IN ('public','costing','auth','app_private') AND p.prokind='f' AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid=p.oid AND d.deptype='e')
       UNION ALL SELECT 'T|'||c.oid::regclass::text||'|'||t.tgname::text||'|'||t.tgenabled::text||'|'||encode(sha256(convert_to(pg_get_triggerdef(t.oid),'UTF8')),'hex') FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE NOT t.tgisinternal AND n.nspname IN ('public','costing')
       UNION ALL SELECT 'R|'||c.oid::regclass::text||'|'||coalesce((SELECT string_agg(a::text,',' ORDER BY a::text) FROM unnest(coalesce(c.relacl, acldefault('r',c.relowner))) a),'') FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind IN ('r','p') AND n.nspname IN ('public','costing')) s`;
   // the pre-S3 state is the BASE database (production-state, S2 installed). Compare only objects that exist in BASE; new G7 objects (S3+ functions/tables) must be gone or retained evidence.
   const baseSnap = dq(BASE, snapSql); assert.equal(baseSnap.status, 0, baseSnap.err);
   const rbText = fs.readFileSync(path.join(docs, 'ROLLBACK_NOT_A_MIGRATION.sql'), 'utf8');
   const at = (m) => rbText.indexOf(`-- ==== ${m} ====`);
-  const iS4 = at('S4 ROLLBACK'), iS3 = at('S3 ROLLBACK'), iS2 = rbText.indexOf('-- ==== S2 ROLLBACK'), iS3b = at('S3B ROLLBACK'), iS4b = at('S4B ROLLBACK'), iS5 = at('S5 ROLLBACK'), iS5b = at('S5B ROLLBACK');
-  assert.ok(iS4 > 0 && iS3 > iS4 && iS2 > iS3 && iS3b > iS2 && iS4b > iS3b && iS5 > iS4b && iS5b > iS5);
-  const sec = { s5b: rbText.slice(iS5b), s5: rbText.slice(iS5, iS5b), s4b: rbText.slice(iS4b, iS5), s3b: rbText.slice(iS3b, iS4b), s4: rbText.slice(iS4, iS3), s3: rbText.slice(iS3, iS2) };
+  const iS4 = at('S4 ROLLBACK'), iS3 = at('S3 ROLLBACK'), iS2 = rbText.indexOf('-- ==== S2 ROLLBACK'), iS3b = at('S3B ROLLBACK'), iS4b = at('S4B ROLLBACK'), iS5 = at('S5 ROLLBACK'), iS5b = at('S5B ROLLBACK'), iS6 = at('S6 ROLLBACK');
+  assert.ok(iS4 > 0 && iS3 > iS4 && iS2 > iS3 && iS3b > iS2 && iS4b > iS3b && iS5 > iS4b && iS5b > iS5 && iS6 > iS5b);
+  const sec = { s6: rbText.slice(iS6), s5b: rbText.slice(iS5b, iS6), s5: rbText.slice(iS5, iS5b), s4b: rbText.slice(iS4b, iS5), s3b: rbText.slice(iS3b, iS4b), s4: rbText.slice(iS4, iS3), s3: rbText.slice(iS3, iS2) };
   assert.ok(!Object.values(sec).join('').includes('mis_sign_batch_stage_v1'));
   // exercise the installed system and leave state behind (a signed stage, a pack, owner-forced ENFORCE)
   const rbq = (sql, uid) => dq(rb, sql, uid);
@@ -375,7 +570,17 @@ T('ROLLBACK on the replayed catalog: S5B->S5->S4B->S3B->S4->S3 restores the S2 p
   const wl = rbq(`SELECT id FROM public.daily_work_log WHERE batch_number='RBB1' AND activity='FG bulk storage'`).out;
   assert.equal(JSON.parse(rbq(`SELECT public.mis_sign_batch_stage_v1('${randomUUID()}',1,'RBB1',${wl},2,1,100,'e')`, SIGNER).out).ok, true);
   assert.equal(rbq(`UPDATE app_private.mis_g7_enforcement SET mode='ENFORCE'`).status, 0);
-  for (const k of ['s5b', 's5', 's4b', 's3b', 's4', 's3']) { const r = rbq(sec[k]); assert.equal(r.status, 0, `${k}: ${r.err}`); }
+  const fpSha = () => rbq(`SELECT encode(sha256(convert_to(pg_get_functiondef('app_private.mis_stage_fp(integer,text,integer,bigint,integer)'::regprocedure),'UTF8')),'hex')`).out;
+  assert.notEqual(fpSha(), S2_FINGERPRINT_FN_SHA);                                                                  // S6 is installed in rb
+  for (const k of ['s6', 's5b', 's5', 's4b', 's3b', 's4', 's3']) {
+    const r = rbq(sec[k]); assert.equal(r.status, 0, `${k}: ${r.err}`);
+    if (k === 's6') {
+      assert.equal(fpSha(), S2_FINGERPRINT_FN_SHA, 'S6 rollback restores the exact S2 fingerprint function');
+      assert.match(r.err, /S6 rollback: 1 FG_BULK signature\(s\) will require correction and re-signing/);                  // honest notice: signature made under S6 needs re-signing
+      assert.match(rbq(`SELECT public.mis_pack_fg_bulk_v1('${randomUUID()}', 1, '[{"sku_id":10,"count":1}]'::jsonb, NULL)`, PACKER).out, /STAGE_SOURCE_CHANGED|FG_STAGE_NOT_SIGNED|PACKAGING_EVENT/);
+      assert.equal(rbq(`SELECT mode FROM app_private.mis_g7_enforcement`).out.split('\n').pop(), 'ENFORCE');         // untouched by S6
+    }
+  }
   assert.equal(rbq(`SELECT mode FROM app_private.mis_g7_enforcement`).out.split('\n').pop(), 'AUDIT');
   const after = dq(rb, snapSql); assert.equal(after.status, 0, after.err);
   const A = new Set(after.out.split('\n')), B = baseSnap.out.split('\n');

@@ -72,6 +72,16 @@
       "bytes": 13668,
       "sha256": "4dee96b7784e7196132db47f2bfaf0bff44e595645e9c5e676b79a48d727e56d",
       "git_blob_sha1": "642126f850a264f992c266f286e87c9bcce910cc"
+    },
+    {
+      "seq": 8,
+      "repo_file": "20261123151000_mis_g7_s6_fg_stage_fingerprint_excludes_inventory_status.sql",
+      "supabase_migration_name": "mis_g7_s6_fg_stage_fingerprint_excludes_inventory_status",
+      "registered_version": null,
+      "status": "HELD (not installed)",
+      "bytes": 4608,
+      "sha256": "c429b4d888e40b7232551db4e6a1f011e5b0cb1830ce4d1d17a5b2b2222d680e",
+      "git_blob_sha1": "af5bceee51358e190ee2840b35c9c32a9cb47ee7"
     }
   ]
 }

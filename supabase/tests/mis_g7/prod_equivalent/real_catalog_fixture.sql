@@ -1,12 +1,10 @@
 -- SYNTHETIC fixture rows only (no real users, products or business data) for the real-catalog acceptance suite.
--- Master data is inserted with session_replication_role=replica because several live triggers on those tables call objects that
--- are NOT in the captured packet (product_sku_change_log, fn_sku_activation_missing_items, ...). All stock-bearing DML
+-- Master data (sections..products, routes, BMR) is inserted with session_replication_role=replica ONLY to isolate unrelated Costing activation/approval
+-- guards: costing.fn_sku_activation_missing_items -> public.plm_sku_bom_revision_as_of needs public.plm_bom_revision, and the fingerprint default needs
+-- costing.fn_costing_run_scoped_set_md5(); neither object is in the captured catalog (see the receipt). All stock-bearing DML
 -- (DWL, packaging events, SKU lines, ledger) runs later with every live trigger enabled.
--- TEST-ONLY STAND-IN (NOT a production reconstruction): the live DML triggers mark_supply_rollups_dirty() UPDATE public.supply_rollup_refresh_queue,
--- which was not in the captured packet. A one-row queue table with only the two columns the trigger touches lets live DML run.
-CREATE TABLE IF NOT EXISTS public.supply_rollup_refresh_queue(id int PRIMARY KEY, last_requested timestamptz);
-INSERT INTO public.supply_rollup_refresh_queue VALUES (1, now()) ON CONFLICT DO NOTHING;
-GRANT ALL ON public.supply_rollup_refresh_queue TO authenticated, service_role;
+-- The live supply_rollup_refresh_queue is replayed from the captured supplement (relation, ACL, RLS policy, PK). Only its single synthetic queue row is inserted here.
+INSERT INTO public.supply_rollup_refresh_queue(id, last_requested, last_run) VALUES (1, '2000-01-01', '2000-01-01') ON CONFLICT DO NOTHING;
 BEGIN;
 SET LOCAL session_replication_role = replica;
 INSERT INTO public.sections(id,section_name) OVERRIDING SYSTEM VALUE VALUES (1,'SYN-SECTION');

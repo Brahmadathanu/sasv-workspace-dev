@@ -4,12 +4,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { MIGRATIONS, PATCHED_CORE_MIGRATION, PATCHED_CORE_SHA } from './pg_harness.mjs';
+import { MIGRATIONS, PATCHED_CORE_MIGRATION, FINGERPRINT_MIGRATION, PATCHED_CORE_SHA } from './pg_harness.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const migDir = path.resolve(here, '../../migrations');
 const out = path.resolve(here, '../../../docs/executive-mis-g7-server/MIGRATION_IDENTITIES.json');
-const ORDER = [...MIGRATIONS, PATCHED_CORE_MIGRATION];
+const ORDER = [...MIGRATIONS, PATCHED_CORE_MIGRATION, FINGERPRINT_MIGRATION];
 // Registered Supabase versions: S2 is LIVE (applied with the Supabase migration tool, name below). The others are assigned by the tool at apply time.
 const REGISTERED = { 's2_signed_batch_stage_events': '20261124055734' };
 const blob = (b) => crypto.createHash('sha1').update(Buffer.concat([Buffer.from(`blob ${b.length}\0`), b])).digest('hex');

@@ -416,7 +416,7 @@ T('ROLLBACK: S5b rollback restores the EXACT original core (SHA df7290df…), wr
   assert.equal(run(migText(PATCHED_CORE_MIGRATION)).status, 0); assert.equal(dsha('rpc_update_daily_work_log_with_packaging__core'), PATCHED_CORE_SHA);
   const rb = fs.readFileSync(path.join(docs, 'ROLLBACK_NOT_A_MIGRATION.sql'), 'utf8');
   const iS5 = rb.indexOf('-- ==== S5 ROLLBACK ===='), iS5b = rb.indexOf('-- ==== S5B ROLLBACK ===='); assert.ok(iS5 > 0 && iS5b > iS5);
-  const s5 = rb.slice(iS5, iS5b), s5b = rb.slice(iS5b);
+  const s5 = rb.slice(iS5, iS5b), s5b = rb.slice(iS5b, rb.indexOf('-- ==== S6 ROLLBACK ===='));
   const early = run(s5); assert.notEqual(early.status, 0); assert.match(early.err, /live core still calls the S5 primitives/);       // wrong order is refused
   run(`UPDATE app_private.mis_g7_enforcement SET mode='ENFORCE'`);                                                                    // owner-forced state to prove the mode return
   const r = run(s5b); assert.equal(r.status, 0, r.err);

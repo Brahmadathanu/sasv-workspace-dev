@@ -16,11 +16,44 @@ const PRIV = {
 };
 const sortedAcl = (items) => [...(items ?? [])].sort().join(',');
 
-export function readStructuredPacket(file) {
+// canonical form for conflict detection between packets: object keys sorted, arrays of strings sorted
+const canon = (v) => (Array.isArray(v) ? (v.every((x) => typeof x === 'string') ? [...v].sort() : v.map(canon)) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v);
+const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
+// Merge a supplementary packet into the base (by identity). Identical duplicates collapse; a CONFLICTING duplicate is an error (never silently resolved).
+function mergeSupplement(p, sup) {
+  if (!/supplement/.test(sup.format ?? '')) throw new Error('not a supplement packet');
+  const rk = (r) => `${r.schema}.${r.name}`;
+  for (const r of sup.relations ?? []) for (const k of ['columns', 'constraints', 'indexes', 'triggers', 'policies']) r[k] = r[k] ?? [];
+  p.relations = p.relations.map((r) => r);
+  const byKey = new Map(p.relations.map((r) => [rk(r), r]));
+  const dupRel = [];
+  for (const r of sup.relations ?? []) {
+    const prev = byKey.get(rk(r));
+    if (!prev) { p.relations.push(r); byKey.set(rk(r), r); continue; }
+    dupRel.push(rk(r));
+    // a supplementary capture of an already captured relation may only ADD policies/triggers/etc. -- compare the shared structural fields
+    for (const k of ['owner', 'acl', 'rls', 'force_rls', 'columns', 'constraints', 'indexes', 'triggers'])
+      if (!same(prev[k], r[k])) throw new Error(`conflicting duplicate relation record ${rk(r)} (${k})`);
+    const pol = new Set(prev.policies.map((x) => x.policyname));
+    for (const x of r.policies) if (!pol.has(x.policyname)) prev.policies.push(x); else if (!same(prev.policies.find((y) => y.policyname === x.policyname), x)) throw new Error(`conflicting policy ${rk(r)}.${x.policyname}`);
+  }
+  p.functions = [...p.functions, ...(sup.functions ?? [])];
+  p.trigger_functions = [...p.trigger_functions, ...(sup.trigger_functions ?? [])];
+  const env = p.environment; const se = sup.environment ?? {};
+  for (const r of se.roles ?? []) { const prev = env.roles.find((x) => x.rolname === r.rolname); if (!prev) env.roles.push(r); else if (!same(prev, r)) throw new Error(`conflicting role ${r.rolname}`); }
+  env.memberships.push(...(se.memberships ?? []).filter((m) => !env.memberships.some((x) => same(x, m))));
+  for (const s of se.sequences ?? []) { const prev = env.sequences.find((x) => x.schema === s.schema && x.name === s.name); if (!prev) env.sequences.push(s); else if (!same(prev, s)) throw new Error(`conflicting sequence ${s.schema}.${s.name}`); }
+  p.views = [...(p.views ?? []), ...(sup.views ?? [])];
+  p.live_state = [...(p.live_state ?? []), ...(sup.live_state ?? [])];
+  p.mergeInfo = { duplicateRelations: dupRel };
+}
+
+export function readStructuredPacket(file, supplementFile) {
   const raw = fs.readFileSync(file, 'utf8');
   const p = JSON.parse(raw);
   for (const k of ['format', 'functions', 'relations', 'trigger_functions', 'environment']) if (!(k in p)) throw new Error(`packet missing ${k}`);
   for (const r of p.relations) for (const k of ['columns', 'constraints', 'indexes', 'triggers', 'policies']) r[k] = r[k] ?? [];
+  if (supplementFile) mergeSupplement(p, JSON.parse(fs.readFileSync(supplementFile, 'utf8')));
   // deduplicate functions + trigger functions by identity; a conflicting duplicate (different fingerprint/owner/ACL/config) is an ERROR
   const fns = new Map();
   for (const f of [...p.functions, ...p.trigger_functions]) {
@@ -48,8 +81,8 @@ function aclGrantSql(kind, objSql, items, owner, known, serverMajor) {
   return { sql: out, notes };
 }
 
-export function loadStructuredPacket(pg, db, file, { serverMajor = 16 } = {}) {
-  const { p, functions, duplicates } = readStructuredPacket(file);
+export function loadStructuredPacket(pg, db, file, { serverMajor = 16, supplement } = {}) {
+  const { p, functions, duplicates } = readStructuredPacket(file, supplement);
   const env = p.environment;
   const report = { errors: [], unsupported: [], notes: [], counts: { functions: functions.length, duplicates, relations: p.relations.length } };
   const run = (sql, label, { strict = false } = {}) => {
@@ -63,6 +96,7 @@ export function loadStructuredPacket(pg, db, file, { serverMajor = 16 } = {}) {
   const grab = (items) => { for (const it of items ?? []) { const m = /^([^=]*)=[^/]*\/(.*)$/.exec(it); if (m) { if (m[1]) refRoles.add(m[1]); refRoles.add(m[2]); } } };
   for (const f of functions) { grab(f.acl); refRoles.add(f.owner); }
   for (const r of p.relations) { grab(r.acl); refRoles.add(r.owner); for (const c of r.columns) grab(c.acl); for (const po of r.policies) for (const x of po.roles ?? []) refRoles.add(x); }
+  for (const v of p.views ?? []) { grab(v.acl); refRoles.add(v.owner); }
   for (const s of env.schemas) { grab(s.acl); refRoles.add(s.owner); }
   for (const s of env.sequences) { grab(s.acl); refRoles.add(s.owner); }
   report.missingRoles = [...refRoles].filter((r) => r && r !== 'public' && !r.startsWith('pg_') && !roleNames.includes(r)).sort();
@@ -157,6 +191,8 @@ export function loadStructuredPacket(pg, db, file, { serverMajor = 16 } = {}) {
     for (const po of r.policies ?? []) run(`CREATE POLICY ${id(po.policyname)} ON ${qn(r.schema, r.name)} AS ${po.permissive} FOR ${po.cmd} TO ${(po.roles ?? []).map((x) => (x === 'public' ? 'PUBLIC' : id(x))).join(', ') || 'PUBLIC'}${po.qual ? ` USING (${po.qual})` : ''}${po.with_check ? ` WITH CHECK (${po.with_check})` : ''};`, `policy ${po.policyname}`);
     if (r.reloptions) run(`ALTER TABLE ${qn(r.schema, r.name)} SET (${r.reloptions.join(', ')});`, `reloptions ${r.name}`);
   }
+  // ---- views (supplement): created from the captured definition after tables/functions exist
+  for (const v of p.views ?? []) { run(`CREATE VIEW ${qn(v.schema, v.name)}${v.reloptions ? ` WITH (${v.reloptions.join(', ')})` : ''} AS ${v.def.replace(/;\s*$/, '')};`, `view ${v.schema}.${v.name}`); }
   // ---- owners, then ACLs (table, column, sequence, schema, function) so that grants are recorded against the final owner
   for (const s of env.schemas) if (s.nspname !== 'public') run(`ALTER SCHEMA ${id(s.nspname)} OWNER TO ${id(s.owner)};`, `schema owner ${s.nspname}`);
   for (const r of rels) run(`ALTER TABLE ${qn(r.schema, r.name)} OWNER TO ${id(r.owner)};`, `owner ${r.name}`);
@@ -171,6 +207,7 @@ export function loadStructuredPacket(pg, db, file, { serverMajor = 16 } = {}) {
       if (m[1] !== r.owner && privs.length) run(`GRANT ${privs.map((x) => `${x} (${id(c.name)})`).join(', ')} ON ${qn(r.schema, r.name)} TO ${m[1] === '' ? 'PUBLIC' : id(m[1])};`, `column acl ${r.name}.${c.name}`);
     }
   }
+  for (const v of p.views ?? []) { run(`ALTER VIEW ${qn(v.schema, v.name)} OWNER TO ${id(v.owner)};`, `view owner ${v.name}`); applyAcl('table', qn(v.schema, v.name), v.acl, v.owner); }
   for (const s of env.sequences) applyAcl('sequence', qn(s.schema, s.name), s.acl, s.owner);
   for (const f of functions) if (f.acl) applyAcl('function', f.identity, f.acl, f.owner);
   report.errors = report.errors.filter((e) => !/already exists/i.test(e));

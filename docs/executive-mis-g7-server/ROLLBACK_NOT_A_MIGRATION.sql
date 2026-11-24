@@ -1,5 +1,5 @@
 -- Rollback for MIS G7 S2-S4b migrations. NOT in supabase/migrations. Owner-authorized use only.
--- PRODUCTION ORDER: S5B, S5, S4B, S3B, S4, S3 (six sections). The S2 section is isolation-only: S2 is installed in production and must survive.
+-- PRODUCTION ORDER: S6, S5B, S5, S4B, S3B, S4, S3 (seven sections). The S2 section is isolation-only: S2 is installed in production and must survive.
 -- Sections are delimited by marker comments; each is independently executable.
 -- No legacy function was replaced by these migrations, so the legacy baselines are untouched:
 --   trg_fg_ledger_from_es  sha256 cc32357d320fb63278632c5726085bdcf6b32395453838d39cac8c3584faed28
@@ -141,4 +141,23 @@ BEGIN
     INSERT INTO app_private.mis_g7_enforcement_log (from_mode, to_mode, actor, reason)
     VALUES ('ENFORCE', 'AUDIT', '00000000-0000-0000-0000-000000000000', 'S5B rollback: original DWL editor core restored');
   END IF;
+END $$;
+
+-- ==== S6 ROLLBACK ====
+-- Restores the EXACT S2 fingerprint function (sha256 69445f98…3434, status included for every stage) from app_private.mis_g7_s6_baseline and verifies the hash.
+-- S2 itself (tables, RPCs, signed history) is untouched. Run this FIRST (S6 is the last migration). FG_BULK signatures made WHILE S6 was installed were
+-- fingerprinted without the status; after this rollback they fail closed (STAGE_SOURCE_CHANGED) until the signer corrects and re-signs them. Nothing is deleted.
+DO $$
+DECLARE b record; v_sha text; v_n bigint;
+BEGIN
+  SELECT * INTO b FROM app_private.mis_g7_s6_baseline ORDER BY captured_at LIMIT 1;
+  IF NOT FOUND THEN RAISE EXCEPTION 'S6 rollback: no baseline recorded; refusing'; END IF;
+  IF b.def_sha <> '69445f9880dea3874b6d30ae04469fa18f5c0ac1fbfc5ed13e961bfd4d083434' THEN RAISE EXCEPTION 'S6 rollback: baseline is not the reviewed S2 function; refusing'; END IF;
+  EXECUTE b.def;
+  SELECT encode(sha256(convert_to(pg_get_functiondef(to_regprocedure(b.obj)), 'UTF8')), 'hex') INTO v_sha;
+  IF v_sha <> b.def_sha THEN RAISE EXCEPTION 'S6 rollback: restored hash % differs from baseline %', v_sha, b.def_sha; END IF;
+  SELECT count(*) INTO v_n FROM app_private.mis_batch_stage_event s
+   WHERE s.event_kind = 'SIGN' AND s.stage_role = 'FG_BULK'
+     AND NOT EXISTS (SELECT 1 FROM app_private.mis_batch_stage_event c WHERE c.event_kind = 'CORRECTION' AND c.corrects_event_id = s.event_id);
+  IF v_n > 0 THEN RAISE NOTICE 'S6 rollback: % FG_BULK signature(s) will require correction and re-signing (old fingerprint restored)', v_n; END IF;
 END $$;
