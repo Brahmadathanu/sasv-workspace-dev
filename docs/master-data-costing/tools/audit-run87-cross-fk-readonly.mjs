@@ -34,7 +34,8 @@ export async function loadFkEdges(client) {
       parent_n.nspname AS parent_schema, parent.relname AS parent_table,
       dc.run_column AS child_run_column, dp.run_column AS parent_run_column,
       array_agg(ca.attname::text ORDER BY u.n) AS child_columns,
-      array_agg(pa.attname::text ORDER BY u.n) AS parent_columns
+      array_agg(pa.attname::text ORDER BY u.n) AS parent_columns,
+      EXISTS (SELECT 1 FROM pg_index ix WHERE ix.indrelid=f.conrelid AND ix.indisvalid AND ix.indkey[0]=f.conkey[1]) AS child_fk_leading_index
     FROM pg_constraint f
     JOIN direct dc ON dc.relid=f.conrelid
     JOIN direct dp ON dp.relid=f.confrelid
@@ -75,7 +76,7 @@ export function edgeQueries(edge) {
       WHERE ${pRun} = $1 AND ${cRun} IS DISTINCT FROM $1 LIMIT 1) AS crossing`}
   ];
 }
-export async function auditCrossRun(client, {expectedEdges=62,timeoutMs=2500}={}) {
+export async function auditCrossRun(client, {expectedEdges=62,timeoutMs=2500,allowUnindexed=false}={}) {
   if (!Number.isInteger(expectedEdges)||expectedEdges<1||expectedEdges>200)
     throw Error('Invalid expected FK count');
   if (!Number.isInteger(timeoutMs)||timeoutMs<100||timeoutMs>10000)
@@ -93,6 +94,13 @@ export async function auditCrossRun(client, {expectedEdges=62,timeoutMs=2500}={}
     const edges=await loadFkEdges(client);
     if(edges.length!==expectedEdges) throw Error(`FK topology drift: expected ${expectedEdges}, found ${edges.length}`);
     for(const edge of edges) {
+      if(!edge.child_fk_leading_index && !allowUnindexed) {
+        for(const direction of edgeQueries(edge)) checks.push({
+          fk:edge.fk_name,child:edge.child_schema+'.'+edge.child_table,
+          parent:edge.parent_schema+'.'+edge.parent_table,direction:direction.direction,
+          outcome:'UNKNOWN_UNINDEXED_FK_REQUIRES_QUERY_PLAN_OR_OFFLINE_CHECK'});
+        continue;
+      }
       for(const direction of edgeQueries(edge)) {
         // One failed SQL statement would abort the read-only transaction:
         // savepoint + rollback to savepoint lets the remaining checks run.
@@ -130,7 +138,10 @@ async function main(){
   if(!url)throw Error('Read-only SASV_AUDIT_DATABASE_URL required');
   const {default:pg}=await import('pg');
   const client=new pg.Client({connectionString:url,application_name:'sasv-s3q-readonly-fk-audit'});
-  try{await client.connect();const result=await auditCrossRun(client);
+  const testDb=new URL(url);
+  const syntheticFixture=testDb.hostname==='127.0.0.1' && testDb.pathname==='/s3f_fixture';
+  const allowUnindexed=syntheticFixture && process.env.SASV_ALLOW_UNINDEXED_SYNTHETIC_FK==='1';
+  try{await client.connect();const result=await auditCrossRun(client,{allowUnindexed});
     console.log(JSON.stringify(result));
     if(result.decision!=='FK_LINKS_ONLY_PASS')process.exitCode=2;
   }finally{await client.end();}
