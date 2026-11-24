@@ -1,8 +1,8 @@
 # PEC Purchase Allocations lens — Client PR B (frozen V1 contract)
 
-Status: client implementation complete against the **approved V1 interface specification**. The server
-endpoints are **not asserted to be deployed**; this PR must not be merged until the server deployment and
-contract parity are verified (see "Release gate").
+Status: client implementation complete against the frozen V1 interface. The server migration
+`20261124134249_pec_purchase_allocations_reporting_v1.sql` is deployed (server PR #527, merged as `80821cd`);
+see "Server verification" for what was and was not verified.
 
 ## Design
 
@@ -62,9 +62,43 @@ Safeguards implemented on the client side of the contract:
 These prove client behaviour against the **contract shapes**. They do not prove server correctness, the
 23 Nov acceptance values on live data, authenticated-browser behaviour or Windows Electron behaviour.
 
+## Server verification (added at integration)
+
+- **Isolated PostgreSQL fixture** (`scripts/pec-purchase-allocations-pg-fixture.sql`, CI workflow
+  `pec-purchase-allocations-pg17.yml` on `postgres:17`): loads the REAL repository SQL (chronological FIFO /
+  return-adjusted receipt views and the V1 reporting migration) over stand-in tables for the live-only base views,
+  with synthetic data. 109+ assertions: grants (no anon, helper not executable by any API role), permission gate
+  (no permission denied, view-only allowed), argument validation and paging bounds, fact 169565 allocations and
+  balances, approval-date semantics for opening / new demand, multi-receipt indent lines, returned (nil effective)
+  receipts, positive unallocated receipts with accepted excess, partial PM receipt, fully unallocated Nos, mapped
+  vendors grouped by id with several source labels, unmapped suppliers kept apart, indent-filter reconciliation
+  (other-indent allocation is not excess), whole-indent balances unchanged by vendor filters, per-UOM
+  reconciliation of summary / material / vendor / trail / indent modes against an independent base-view query,
+  date boundaries, class filters and the PLM alias, fractional exactness, ordering and paging, empty ranges and
+  read-only behaviour. Local run: PostgreSQL 16.15; CI runs 17.
+- **Repeated timing at fixture scale** (3,000 facts, 1,500 lines, 15 runs, local PG16): summary median
+  ~474 ms / p95 ~555 ms; 200-row trail median ~27 ms / p95 ~36 ms. This is fixture-scale evidence only, not a
+  production p95 (ChatGPT's single production observations: trail ~1.3 s, 1-23 Nov summary ~0.88 s).
+- **Contract parity** (`pec-purchase-allocations-pg-export.sql` + `pec-purchase-allocations-contract-parity.test.mjs`):
+  the real RPC output of the fixture is passed through the client adapter. This found and fixed one client defect:
+  indent numbers are text on the server; a non-numeric number such as `X7` became `NaN`. Numeric indent numbers
+  still sort numerically; text numbers sort after them.
+
+## Live acceptance (owner steps; not performed by the assistant)
+
+No authenticated access to production was available to the assistant, so no authenticated-browser or live
+acceptance is claimed. The owner can verify, signed in with PEC view permission on the deployed build:
+1. Purchase Allocations -> Yesterday / specific date 2026-11-23: summary shows the server's current figures
+   (timestamped observations at integration: 39 facts, 10 indents, 40 lines; Kg 9369.455 purchased,
+   9086.463741 allocated, 282.991259 unallocated; L 35; Nos 41066 / 30000 / 11066). These counts are mutable.
+2. Indent-wise: indent 84/107 = 5, 156/170 = 50, 191/198 = 80 Kg for purchase fact 169565; closing 0 / 0 / 20.
+3. Indent #247 shows serial 1 (110 Kg) and serial 2 (62 Kg) with opening 0 and closing 0.
+4. Material-wise and Vendor-wise drill-downs, an indent filter (other-indent allocation is not excess), CSV
+   export (complete data) and the print statement; "Open indent" returns to the lens.
+
 ## Release gate
 
-Not mergeable until: server deployment confirmed, live read-only contract parity (names, argument defaults,
-response fields) verified against this mapping, integrated browser acceptance on the deployed PWA, and the
-release PR adds network-first treatment for `pec-modal-stack.js` and `pec-purchase-allocations.js` and advances
-the service-worker cache and Electron versions after re-checking current main and the latest release.
+Merge of the lens requires the server deployment (done), contract parity (done against the real SQL output) and
+a green integrated suite. The consolidated release PR then adds network-first treatment for
+`pec-modal-stack.js` and `pec-purchase-allocations.js` and advances the service-worker cache and Electron
+versions after re-checking current main and the latest release.

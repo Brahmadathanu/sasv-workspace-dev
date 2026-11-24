@@ -185,10 +185,32 @@ export function describeTotals(totals) {
 const numOrNull = (v) => (v === null || v === undefined || v === "" || Number.isNaN(Number(v)) ? null : Number(v));
 const cmpNum = (a, b) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a - b);
 
-/** indent number (numeric), canonical indent serial (numeric), voucher date, purchase fact id. */
+/**
+ * Indent numbers are text on the server. All-digit numbers are numbers (sorted numerically);
+ * anything else (e.g. "X7") is kept as text and sorts after the numeric ones, never as NaN.
+ */
+export function indentNo(v) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  if (s === "") return null;
+  return /^\d+$/.test(s) ? Number(s) : s;
+}
+function cmpIndentNo(a, b) {
+  const x = indentNo(a), y = indentNo(b);
+  if (x === y) return 0;
+  if (x === null) return 1;
+  if (y === null) return -1;
+  const xn = typeof x === "number", yn = typeof y === "number";
+  if (xn && yn) return x - y;
+  if (xn) return -1;
+  if (yn) return 1;
+  return x.localeCompare(y, "en", { numeric: true });
+}
+
+/** indent number (numeric first, text after), canonical indent serial (numeric), voucher date, purchase fact id. */
 export function compareCanonical(a, b) {
   return (
-    cmpNum(numOrNull(a.indentNumber), numOrNull(b.indentNumber)) ||
+    cmpIndentNo(a.indentNumber, b.indentNumber) ||
     cmpNum(numOrNull(a.indentSerial), numOrNull(b.indentSerial)) ||
     String(a.voucherDate ?? "").localeCompare(String(b.voucherDate ?? "")) ||
     cmpNum(numOrNull(a.purchaseFactId), numOrNull(b.purchaseFactId))
@@ -389,7 +411,7 @@ export function mapSummary(o) {
 export function mapIndentRow(o) {
   need(o, ["indent_id", "indent_number", "approved_date", "material_line_count", "totals_by_uom"], "indent row");
   return {
-    indentId: num(o.indent_id), indentNumber: num(o.indent_number), approvedDate: o.approved_date ?? null,
+    indentId: num(o.indent_id), indentNumber: indentNo(o.indent_number), approvedDate: o.approved_date ?? null,
     materialLineCount: num0(o.material_line_count),
     totalsByUom: (o.totals_by_uom || []).map((t) => (need(t, ["uom_id", "uom_code", "allocated_qty"], "indent totals"),
       { uomId: num(t.uom_id), uom: String(t.uom_code ?? ""), allocatedQty: num0(t.allocated_qty) })).sort((a, b) => a.uom.localeCompare(b.uom)),
@@ -431,7 +453,7 @@ export function mapTrailRow(o) {
     stockItemId: num(o.stock_item_id), materialName: String(o.stock_item_name ?? ""), uomId: num(o.uom_id), uom: String(o.uom_code ?? ""),
     grossQty: num0(o.gross_qty), effectiveQty: num0(o.effective_qty), receiptAllocatedQty: num0(o.receipt_allocated_qty),
     unallocatedQty: num0(o.unallocated_qty), acceptedQty: num0(o.accepted_qty), netUnallocatedQty: num0(o.net_unallocated_qty),
-    indentId: num(o.indent_id), indentNumber: num(o.indent_number), indentLineId: num(o.indent_line_id), indentSerial: num(o.indent_line_sort_no),
+    indentId: num(o.indent_id), indentNumber: indentNo(o.indent_number), indentLineId: num(o.indent_line_id), indentSerial: num(o.indent_line_sort_no),
     approvedDate: o.approved_date ?? null, requestedQty: num(o.requested_qty), allocatedQty: alloc ? num(o.allocated_qty) : null,
     openingBalance: num(o.opening_balance), periodNewDemandQty: num(o.period_new_demand_qty), periodAllocatedQty: num(o.period_allocated_qty),
     closingBalance: num(o.closing_balance), currentBalance: num(o.current_balance), rowKind: o.row_kind,

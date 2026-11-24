@@ -5,7 +5,7 @@ import {
   istDateString, addDays, resolveDateRange, createInitialState, reduceState, activeFilterCount, requestKey, dataKey,
   sumByUom, describeTotals, formatQty, compareCanonical, sortCanonical, assertCompleteRetrieval, buildCsv, buildStatementHtml, EXPORT_NOTICES,
   PA_RPC, PaContractError, buildCommonParams, buildTrailParams, withPaging, mapSummary, mapIndentRow, mapMaterialRow, mapVendorRow, mapTrailRow,
-  receiptStatus, receiptsFromTrail, indentLinesFromTrail, reconcileTrail, groupTrailByReceipt, groupTrailByMaterial, describeUomField,
+  indentNo, receiptStatus, receiptsFromTrail, indentLinesFromTrail, reconcileTrail, groupTrailByReceipt, groupTrailByMaterial, describeUomField,
 } from "../public/shared/js/pec-purchase-allocations.js";
 import * as fx from "./fixtures/pec-purchase-allocations-view-model.mjs";
 
@@ -190,6 +190,13 @@ test("canonical ordering is numeric with nulls last", () => {
   const rows = [{ indentNumber: 156, indentSerial: 9 }, { indentNumber: 84, indentSerial: 107 }, { indentNumber: 84, indentSerial: 20 }, { indentNumber: null, indentSerial: null }, { indentNumber: 1000, indentSerial: 1 }];
   assert.deepEqual(sortCanonical(rows).map((r) => `${r.indentNumber}/${r.indentSerial}`), ["84/20", "84/107", "156/9", "1000/1", "null/null"]);
   assert.ok(compareCanonical({ indentNumber: 2, indentSerial: 1 }, { indentNumber: 10, indentSerial: 1 }) < 0);
+});
+
+test("indent numbers: all-digit text is numeric, anything else stays text and sorts after (never NaN)", () => {
+  assert.equal(indentNo("84"), 84); assert.equal(indentNo(" 156 "), 156); assert.equal(indentNo("X7"), "X7"); assert.equal(indentNo(null), null); assert.equal(indentNo(""), null);
+  assert.equal(mapIndentRow({ indent_id: 1, indent_number: "X7", approved_date: null, material_line_count: 1, totals_by_uom: [] }).indentNumber, "X7");
+  const rows = [{ indentNumber: indentNo("X7") }, { indentNumber: indentNo("1000") }, { indentNumber: indentNo("84") }, { indentNumber: null }, { indentNumber: indentNo("A2") }, { indentNumber: indentNo("X10") }];
+  assert.deepEqual(sortCanonical(rows).map((r) => r.indentNumber), [84, 1000, "A2", "X7", "X10", null]);
 });
 
 test("complete retrieval: partial, drifting or repeated pages are refused", () => {
