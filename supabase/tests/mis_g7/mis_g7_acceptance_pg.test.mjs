@@ -384,7 +384,8 @@ T('MIGRATION IDENTITIES: recorded SHA-256/git-blob of all eight G7 migrations ma
   assert.equal(s2.git_blob_sha1, '055b1cdfa1c8be970939f57e7e866f126ec55f03'); assert.equal(s2.bytes, 21644);                    // the S2 text that is LIVE
   assert.equal(s2.registered_version, '20261124055734'); assert.match(s2.status, /LIVE/);
   assert.deepEqual(man.migrations.map((m) => m.repo_file), [...MIGRATIONS, '20261123150000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql', FINGERPRINT_MIGRATION]);
-  assert.ok(man.migrations.slice(1).every((m) => m.registered_version === null && /HELD/.test(m.status)));
+  assert.deepEqual(man.migrations.map((m) => m.registered_version), ['20261124055734', '20261124080858', '20261124080913', '20261124080932', '20261124080952', '20261124081009', '20261124081022', '20261124081034']);
+  assert.ok(man.migrations.every((m) => /^LIVE/.test(m.status) && /never replay/.test(m.status)));
 });
 
 // ---------------------------- migration chain + rollback ----------------------------

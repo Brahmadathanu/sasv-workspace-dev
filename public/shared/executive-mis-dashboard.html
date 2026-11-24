@@ -37,6 +37,19 @@
         --mis-info-border: var(--sasv-info-border, var(--mis-border));
       }
 
+      /* MIS G7: production evidence status (compact, token-based) */
+      .mis-gov { margin: 10px 0; border: 1px solid var(--mis-border); border-radius: 8px; background: var(--mis-surface); padding: 6px 10px; }
+      .mis-gov > summary { cursor: pointer; font-weight: 600; color: var(--mis-text); }
+      .mis-gov > summary:focus-visible { outline: 2px solid var(--mis-focus-ring); outline-offset: 2px; }
+      .mis-gov-mode { margin-left: 8px; font-weight: 400; color: var(--mis-muted); font-size: 0.85rem; }
+      .mis-gov-states { margin: 8px 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 0.875rem; color: var(--mis-text-secondary); }
+      .mis-gov-tag { display: inline-block; min-width: 7.5em; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--mis-border); font-size: 0.8rem; font-weight: 600; text-align: center; background: var(--mis-surface-soft); color: var(--mis-muted); }
+      .mis-gov-ok { color: var(--sasv-success, var(--mis-text)); background: var(--sasv-success-bg, var(--mis-surface-soft)); border-color: var(--sasv-success-border, var(--mis-border)); }
+      .mis-gov-warn { color: var(--mis-warning); background: var(--mis-warning-bg); border-color: var(--mis-warning-border); }
+      .mis-gov-danger { color: var(--mis-danger); background: var(--mis-danger-bg); border-color: var(--mis-danger-border); }
+      .mis-gov-hist, .mis-gov-link { margin: 6px 0 2px; font-size: 0.85rem; color: var(--mis-muted); }
+      .mis-gov-link a { color: var(--mis-accent); }
+
       html,
       body {
         height: 100vh;

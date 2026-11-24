@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import { GOVERNANCE_STATES, HISTORICAL_AUDIT_SNAPSHOT } from "./mis-g7-contract.js";
 
 const MODULE_ID = "executive-mis-dashboard";
 const PLAN_WARNING_STATUS =
@@ -1829,9 +1830,30 @@ const PRODUCTION_COUNT_FIELDS = Object.freeze([
 ]);
 let PRODUCTION_COUNTS = { status: "loading", message: "" };
 
+
+// MIS G7: how governed (signed) evidence is described. Presentation only: no signed/unsigned counts are
+// computed or inferred here, and the historical figures are a labelled reference snapshot, never live data.
+function renderGovernanceSection() {
+  const h = HISTORICAL_AUDIT_SNAPSHOT;
+  const states = Object.values(GOVERNANCE_STATES)
+    .map((g) => `<li><span class="mis-gov-tag mis-gov-${escapeHtml(g.tone)}">${escapeHtml(g.label)}</span> ${escapeHtml(g.text)}</li>`)
+    .join("");
+  const gaps = Object.entries(h.routeMasterDeficiencies)
+    .map(([k, v]) => `${escapeHtml(k.replace(/_/g, " ").toLowerCase())} ${v}`)
+    .join(" · ");
+  return `
+    <details class="mis-gov" id="productionGovernance">
+      <summary>Production evidence status <span class="mis-gov-mode">AUDIT mode: governed signing is available, not yet mandatory</span></summary>
+      <ul class="mis-gov-states">${states}</ul>
+      <p class="mis-gov-hist"><strong>Historical, not verified</strong> (reference snapshot, ${escapeHtml(h.window)}; not live): ${h.missingDepletionLines} packing lines in ${h.missingDepletionProductBatches} product-batches have no recorded depletion; route-master deficiencies on ${h.fgBulkLogs} FG bulk logs: ${gaps}. These are never backfilled or assumed correct and are kept separate from newly governed records.</p>
+      <p class="mis-gov-link"><a href="mis-batch-governance.html">Open Batch Governance</a></p>
+    </details>`;
+}
+
 function renderProductionShell() {
   tabPanel.innerHTML = `
     ${renderProductionValueSection()}
+    ${renderGovernanceSection()}
     <div id="productionCounts" class="production-counts"></div>
   `;
   renderProductionValueBody();

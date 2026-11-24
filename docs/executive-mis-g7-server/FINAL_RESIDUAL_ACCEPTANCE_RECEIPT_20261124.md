@@ -1,5 +1,8 @@
 # MIS G7 — final residual acceptance receipt (supersedes finding 1 of REAL_CATALOG_ACCEPTANCE_RECEIPT_20261124.md)
 
+> **STATUS NOTICE (24 Nov 2026, supersedes any older "HELD / HOLD / not installed / 6/11" wording below).** All eight G7 migrations (S2, S3, S4, S3b, S4b, S5, S5b, S6) are LIVE on production PostgreSQL 17.4 under registered versions `20261124055734`, `20261124080858`, `20261124080913`, `20261124080932`, `20261124080952`, `20261124081009`, `20261124081022`, `20261124081034` (see `MIGRATION_IDENTITIES.json` / `MIGRATION_DEPLOYMENT_MAP.md`). Production is in **AUDIT** mode; core gate `CORE_MIGRATION_NOT_ACCEPTED`; patched core SHA-256 `dfa5a5e9…1bcc`; no new MIS permission assigned; no synthetic production signatures or packing requests; ENFORCE prohibited. **G7 OPEN 7/11 (64%), G8 parked.** The text below is preserved as the contemporaneous record of its date and is not rewritten.
+
+
 Branch `claude/elegant-mccarthy-uunr4q`, draft PR #522, from `6064ce3`. No production write, migration installation, merge, ENFORCE activation, PEC cleanup, unrelated Costing change or Electron release.
 Packets (git-ignored, never committed): baseline 260034 bytes `8ebb31e4…a3`; supplement 101367 bytes `5861d7da…9b2`.
 

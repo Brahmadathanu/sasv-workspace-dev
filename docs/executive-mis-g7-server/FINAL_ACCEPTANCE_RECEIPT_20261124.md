@@ -1,5 +1,8 @@
 # MIS G7 — final server acceptance receipt (24 Nov 2026 IST) — PRODUCTION-EQUIVALENT PARTS NOT EXECUTED (see §1)
 
+> **STATUS NOTICE (24 Nov 2026, supersedes any older "HELD / HOLD / not installed / 6/11" wording below).** All eight G7 migrations (S2, S3, S4, S3b, S4b, S5, S5b, S6) are LIVE on production PostgreSQL 17.4 under registered versions `20261124055734`, `20261124080858`, `20261124080913`, `20261124080932`, `20261124080952`, `20261124081009`, `20261124081022`, `20261124081034` (see `MIGRATION_IDENTITIES.json` / `MIGRATION_DEPLOYMENT_MAP.md`). Production is in **AUDIT** mode; core gate `CORE_MIGRATION_NOT_ACCEPTED`; patched core SHA-256 `dfa5a5e9…1bcc`; no new MIS permission assigned; no synthetic production signatures or packing requests; ENFORCE prohibited. **G7 OPEN 7/11 (64%), G8 parked.** The text below is preserved as the contemporaneous record of its date and is not rewritten.
+
+
 Branch `claude/elegant-mccarthy-uunr4q`, PR #522 (draft), Issue #521. Base `main` 62b1f12c51eee3c3e3d06990f1577ec7981da0f4. Nothing in this package touched production, merged, activated ENFORCE, back-filled history, changed Costing/PEC or released Electron. **G7 OPEN 6/11 (~55%); G8 parked.**
 
 ## 1. What could and could not be done in this session (genuine blockers)

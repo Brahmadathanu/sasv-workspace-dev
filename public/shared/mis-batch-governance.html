@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en" data-sasv-theme="sasv-core">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Batch Governance</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/sasv-mis-batch-governance.css" />
+  </head>
+  <body class="sasv-mbg">
+    <header class="mbg-header">
+      <div class="mbg-header-copy">
+        <h1 class="mbg-title">Batch Governance</h1>
+        <p class="mbg-sub">Route-based stage signing, governed packing and corrections</p>
+      </div>
+      <div class="mbg-header-actions">
+        <span id="modeBadge" class="mbg-badge mbg-badge-muted" title="Enforcement mode" hidden></span>
+        <button id="homeBtn" type="button" class="sasv-home-btn" title="HOME" aria-label="HOME"></button>
+      </div>
+    </header>
+
+    <div id="gate" class="mbg-gate" role="status" hidden></div>
+
+    <main id="app" class="mbg-main" hidden>
+      <section class="mbg-context" aria-label="Product and batch">
+        <div class="mbg-field">
+          <label for="productInput">Product</label>
+          <div id="productSel" class="mbg-ss"></div>
+        </div>
+        <div class="mbg-field">
+          <label for="batchInput">Batch</label>
+          <div id="batchSel" class="mbg-ss"></div>
+        </div>
+        <div class="mbg-field mbg-field-event" id="eventField" hidden>
+          <label for="eventSel">Packaging event</label>
+          <select id="eventSel" class="mbg-input"></select>
+        </div>
+        <div id="identity" class="mbg-identity" aria-live="polite"></div>
+      </section>
+
+      <nav class="mbg-tabs" role="tablist" aria-label="Governance sections">
+        <button role="tab" id="tab-sign" aria-controls="panel-sign" aria-selected="true" data-tab="sign">Stage signing</button>
+        <button role="tab" id="tab-pack" aria-controls="panel-pack" aria-selected="false" tabindex="-1" data-tab="pack">Governed packing</button>
+        <button role="tab" id="tab-corr" aria-controls="panel-corr" aria-selected="false" tabindex="-1" data-tab="corr">Corrections</button>
+        <button role="tab" id="tab-exc" aria-controls="panel-exc" aria-selected="false" tabindex="-1" data-tab="exc">Exceptions &amp; mode</button>
+      </nav>
+
+      <div id="banner" class="mbg-banner" role="status" aria-live="polite" hidden></div>
+
+      <section id="panel-sign" role="tabpanel" aria-labelledby="tab-sign" class="mbg-panel"></section>
+      <section id="panel-pack" role="tabpanel" aria-labelledby="tab-pack" class="mbg-panel" hidden></section>
+      <section id="panel-corr" role="tabpanel" aria-labelledby="tab-corr" class="mbg-panel" hidden></section>
+      <section id="panel-exc" role="tabpanel" aria-labelledby="tab-exc" class="mbg-panel" hidden></section>
+    </main>
+
+    <div id="modalRoot" class="mbg-modal-root" hidden>
+      <div class="mbg-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" id="modalBox">
+        <div class="mbg-modal-hdr">
+          <h2 id="modalTitle"></h2>
+          <button type="button" id="modalClose" class="mbg-icon-btn" aria-label="Close">✕</button>
+        </div>
+        <div class="mbg-modal-body" id="modalBody"></div>
+        <div class="mbg-modal-msg" id="modalMsg" role="alert"></div>
+        <div class="mbg-modal-ftr" id="modalFtr"></div>
+      </div>
+    </div>
+
+    <script type="module" src="js/mis-batch-governance.js"></script>
+  </body>
+</html>
