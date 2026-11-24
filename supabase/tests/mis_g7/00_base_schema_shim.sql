@@ -10,10 +10,10 @@ CREATE SCHEMA auth; CREATE SCHEMA costing; CREATE SCHEMA app_private; GRANT USAG
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS
  $$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 GRANT USAGE ON SCHEMA auth, public, costing TO anon, authenticated, service_role;
-CREATE TABLE public.test_perm (uid uuid, target text);
+CREATE TABLE public.test_perm (uid uuid, target text, can_view boolean NOT NULL DEFAULT true, can_edit boolean NOT NULL DEFAULT true);  -- live user_permissions_canonical: can_view/can_edit
 CREATE FUNCTION public.require_permission(p_target text, p_edit boolean) RETURNS void
  LANGUAGE plpgsql SECURITY DEFINER AS $$ BEGIN
-  IF auth.uid() IS NULL OR NOT EXISTS (SELECT 1 FROM public.test_perm WHERE uid = auth.uid() AND target = p_target) THEN
+  IF auth.uid() IS NULL OR NOT EXISTS (SELECT 1 FROM public.test_perm WHERE uid = auth.uid() AND target = p_target AND can_view AND (NOT p_edit OR can_edit)) THEN   -- live semantics: can_view, and can_edit when p_need_edit
     RAISE EXCEPTION 'permission denied for %', p_target USING ERRCODE = '42501'; END IF; END $$;
 GRANT EXECUTE ON FUNCTION public.require_permission(text,boolean) TO authenticated;
 
@@ -314,3 +314,40 @@ CREATE FUNCTION public.fn_fg_mark_done_if_zero(p_product_id integer, p_batch_num
 BEGIN PERFORM public.fn_fg_reconcile_batch(p_product_id, p_batch_number, p_eps); END $$;
 REVOKE ALL ON FUNCTION public.fn_fg_mark_done_if_zero(integer,text,numeric) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.fn_fg_mark_done_if_zero(integer,text,numeric) TO authenticated, service_role;
+
+-- ===== Governed legacy DWL editor (live facts from the independent review; BODIES ARE SHIM RECONSTRUCTIONS, argument list assumed) =====
+-- wrapper: SECURITY DEFINER, require_permission('module:edit-log-entry', true), calls __core.
+-- __core (live sha256 df7290df...): SECURITY DEFINER, NOT executable by authenticated; applies governed FG source quantity
+-- delta into the ledger, DELETES the work log's event_skus then packaging_events header(s), updates status, and RECREATES a
+-- header + event_skus from sku_breakdown (nothing is recreated when the row stops being Done / has no breakdown).
+CREATE FUNCTION public.rpc_update_daily_work_log_with_packaging__core(p_work_log_id bigint, p_status text, p_sku_breakdown text, p_event_type text, p_storage_qty numeric)
+ RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog','public','pg_temp' AS $$
+DECLARE v_old numeric; v_pid int; v_item text; v_act text; v_hdr bigint; v_part text; v_bn text;
+BEGIN
+  SELECT item, activity, storage_qty, batch_number INTO v_item, v_act, v_old, v_bn FROM public.daily_work_log WHERE id = p_work_log_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'work log % not found', p_work_log_id; END IF;
+  IF p_storage_qty IS NOT NULL AND v_act = 'FG bulk storage' THEN
+    SELECT id INTO v_pid FROM public.products WHERE item = v_item;
+    IF p_storage_qty <> coalesce(v_old, 0) THEN
+      INSERT INTO public.fg_bulk_stock_ledger(product_id,batch_number,movement_date,qty,qty_base,uom,reason_code,source_table,source_id)
+      VALUES (v_pid, v_bn, CURRENT_DATE, p_storage_qty - coalesce(v_old,0), p_storage_qty - coalesce(v_old,0), 'kg', 'FG source correction', 'daily_work_log', p_work_log_id);
+    END IF;
+    UPDATE public.daily_work_log SET storage_qty = p_storage_qty WHERE id = p_work_log_id;
+  END IF;
+  DELETE FROM public.event_skus WHERE packaging_event_id IN (SELECT id FROM public.packaging_events WHERE work_log_id = p_work_log_id);
+  DELETE FROM public.packaging_events WHERE work_log_id = p_work_log_id;
+  UPDATE public.daily_work_log SET status = p_status WHERE id = p_work_log_id;
+  IF p_status = 'Done' AND p_sku_breakdown IS NOT NULL AND btrim(p_sku_breakdown) <> '' THEN
+    INSERT INTO public.packaging_events(work_log_id, event_type) VALUES (p_work_log_id, p_event_type::public.citext) RETURNING id INTO v_hdr;
+    FOREACH v_part IN ARRAY string_to_array(p_sku_breakdown, ',') LOOP
+      INSERT INTO public.event_skus(packaging_event_id, sku_id, "count") VALUES (v_hdr, split_part(v_part, ':', 1)::bigint, split_part(v_part, ':', 2)::int);
+    END LOOP;
+  END IF;
+END $$;
+CREATE FUNCTION public.rpc_update_daily_work_log_with_packaging(p_work_log_id bigint, p_status text, p_sku_breakdown text, p_event_type text, p_storage_qty numeric DEFAULT NULL)
+ RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog','public','pg_temp' AS $$
+BEGIN PERFORM public.require_permission('module:edit-log-entry', true);
+  PERFORM public.rpc_update_daily_work_log_with_packaging__core(p_work_log_id, p_status, p_sku_breakdown, p_event_type, p_storage_qty); END $$;
+REVOKE ALL ON FUNCTION public.rpc_update_daily_work_log_with_packaging__core(bigint,text,text,text,numeric) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.rpc_update_daily_work_log_with_packaging(bigint,text,text,text,numeric) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.rpc_update_daily_work_log_with_packaging(bigint,text,text,text,numeric) TO authenticated;

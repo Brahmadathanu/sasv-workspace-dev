@@ -13,6 +13,7 @@ export const MIGRATIONS = [
   '20261123142000_mis_g7_s4_atomic_pack_with_measured_excess.sql',
   '20261123143000_mis_g7_s3b_protected_stock_write_boundary.sql',
   '20261123144000_mis_g7_s4b_ticketed_pack_corrections_and_enforcement_control.sql',
+  '20261123145000_mis_g7_s5_legacy_dwl_editor_chain_protection.sql',
 ];
 
 function findBin() {

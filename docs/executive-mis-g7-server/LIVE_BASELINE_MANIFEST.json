@@ -22,7 +22,18 @@
     "force_close_wrapper_permission": "module:fg-bulk-stock",
     "affects_bulk_stock": "-1 depletes (Bottling/labelling/cartoning/Capsule monocarton), 0 Transfer to FG store",
     "reconciler_execute": "postgres, service_role only",
-    "helpers_execute_before_S3b": "fn_fg_ledger_add/fn_fg_auto_zero authenticated; fn_fg_force_close(int,text,numeric) none"
+    "helpers_execute_before_S3b": "fn_fg_ledger_add/fn_fg_auto_zero authenticated; fn_fg_force_close(int,text,numeric) none",
+    "require_permission": "checks auth.uid(), can_view=true and (when p_need_edit) can_edit=true",
+    "new_permission_targets_rows": "0 rows for the four MIS targets (plus module:mis-g7-core-migration-signoff from S5); module:fg-bulk-stock and module:edit-log-entry already granted (6 / 3 editors)"
   },
-  "deployment_prerequisite": "retain full pg_get_functiondef source of all 11 functions plus ACL/RLS snapshots in an owner-governed immutable packet (migration also persists them in app_private.mis_g7_s3b_baseline)"
+  "deployment_prerequisite": "retain full pg_get_functiondef source of all 11 functions plus ACL/RLS snapshots in an owner-governed immutable packet (migration also persists them in app_private.mis_g7_s3b_baseline)",
+  "legacy_dwl_editor": {
+    "core": "rpc_update_daily_work_log_with_packaging__core",
+    "core_sha256": "df7290df4a17e4af9f0aed43cf564007a35b957d8899b98869d7d35531296aec",
+    "wrapper": "rpc_update_daily_work_log_with_packaging",
+    "wrapper_security": "SECURITY DEFINER; require_permission('module:edit-log-entry', true)",
+    "core_security": "SECURITY DEFINER; not executable by authenticated",
+    "behavior": "deletes the work log's event_skus then packaging_events header(s), recreates header + event_skus from sku_breakdown, deletes chain when row stops being Done/packaging, applies governed FG source quantity deltas, invokes fn_fg_reconcile_batch",
+    "wrapper_sha256": "NOT SUPPLIED - capture before migration"
+  }
 }

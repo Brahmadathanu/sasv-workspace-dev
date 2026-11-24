@@ -1,5 +1,5 @@
 {
-  "contract_version": "mis-g7-s2-s4b/1",
+  "contract_version": "mis-g7-s2-s5/1",
   "notes": [
     "All RPCs return jsonb. Domain refusals are HTTP-200 {ok:false, code,...} with NOTHING written; raised errors (SQLSTATE 42501 permission/MIS_G7_AUTH_REQUIRED, P0001 MIS_G7_DEPLETION_MISMATCH / MIS_G7_CORRECTION_MISMATCH / MIS_G7_NEGATIVE_BALANCE, 22003 MIS_G7_SOURCE_ID_OVERFLOW, 40P01/40001 retry up to 3x) roll the whole transaction back.",
     "Actor is always auth.uid(); no client 'authorized'/'committed' flag is read. Generate one UUID per user intent (request/idempotency key); replay returns the stored result with idempotent_replay:true.",
@@ -296,15 +296,18 @@
           "text"
         ]
       ],
-      "permission": "module:mis-g7-enforcement-admin (edit)",
+      "permission": "module:mis-g7-enforcement-admin (edit). ENFORCE additionally requires the legacy DWL editor core to call the S5 primitives AND an owner sign-off for its exact SHA-256 (fail closed)",
       "ok_keys": [
         "ok",
         "from_mode",
         "mode"
       ],
       "codes": [
-        "INVALID_INPUT",
+        "CORE_MIGRATION_NOT_ACCEPTED",
         "CORRECTION_PATH_NOT_INSTALLED",
+        "INVALID_INPUT",
+        "LEGACY_DWL_EDITOR_NOT_FOUND",
+        "LEGACY_DWL_EDITOR_NOT_MIGRATED",
         "MODE_UNCHANGED"
       ]
     },
@@ -324,12 +327,40 @@
         "ok",
         "mode",
         "window_days",
+        "core_gate",
         "direct_writes",
         "ticketed_corrections",
-        "ticketed_packs"
+        "ticketed_packs",
+        "chain_replacements"
       ],
       "codes": []
+    },
+    {
+      "name": "mis_g7_record_core_migration_acceptance_v1",
+      "args": [
+        [
+          "p_core_sha",
+          "text"
+        ],
+        [
+          "p_evidence_ref",
+          "text"
+        ]
+      ],
+      "permission": "module:mis-g7-core-migration-signoff (edit)",
+      "ok_keys": [
+        "ok",
+        "core_sha"
+      ],
+      "codes": [
+        "INVALID_INPUT",
+        "LEGACY_DWL_EDITOR_NOT_FOUND",
+        "CORE_SHA_MISMATCH",
+        "LEGACY_DWL_EDITOR_NOT_MIGRATED",
+        "ALREADY_ACCEPTED"
+      ]
     }
   ],
-  "enforce_mode_error": "MIS_G7_DIRECT_PACKING_DENIED (42501): direct bulk-affecting event_skus INSERT/UPDATE/DELETE and header reassign/retype/delete are refused unless made by mis_pack_fg_bulk_v1 / mis_correct_pack_line_v1 in the same transaction."
+  "enforce_mode_error": "MIS_G7_DIRECT_PACKING_DENIED (42501): direct bulk-affecting event_skus INSERT/UPDATE/DELETE and header reassign/retype/delete are refused unless made by mis_pack_fg_bulk_v1 / mis_correct_pack_line_v1 in the same transaction.",
+  "legacy_editor_note": "rpc_update_daily_work_log_with_packaging (DEFINER, module:edit-log-entry edit) and __core (DEFINER, not executable by authenticated, live sha256 df7290df4a17e4af9f0aed43cf564007a35b957d8899b98869d7d35531296aec) are NOT changed by this package; their client contract is unchanged. Under AUDIT they work as today; ENFORCE stays refused until the core is migrated to the S5 primitives and signed off."
 }

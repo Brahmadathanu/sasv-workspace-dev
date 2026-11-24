@@ -1,5 +1,5 @@
 -- Rollback for MIS G7 S2-S4b migrations. NOT in supabase/migrations. Owner-authorized use only.
--- ORDER: run section S4B first, then S3B, then the S2-S4 section (top of this file, everything before the S3B marker).
+-- ORDER: run section S5 first, then S4B, then S3B, then the S2-S4 section (top of this file, everything before the S3B marker).
 -- Sections are delimited by marker comments; each is independently executable.
 -- No legacy function was replaced by these migrations, so the legacy baselines are untouched:
 --   trg_fg_ledger_from_es  sha256 cc32357d320fb63278632c5726085bdcf6b32395453838d39cac8c3584faed28
@@ -70,4 +70,30 @@ BEGIN
     INSERT INTO app_private.mis_g7_enforcement_log (from_mode, to_mode, actor, reason)
     VALUES ('ENFORCE', 'AUDIT', '00000000-0000-0000-0000-000000000000', 'S4B rollback: ticketed correction path removed');
   END IF;
+END $$;
+
+-- ==== S5 ROLLBACK ====
+-- Removes the legacy-DWL-editor protection primitives, acceptance RPC and gate. REFUSES while the live core still calls the
+-- primitives (revert/replace the migrated core first, otherwise it would break). The three functions S5 replaced are restored
+-- EXACTLY from app_private.mis_g7_s5_baseline. Retained: tickets, acceptance records, baselines, all logs and signed history.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'rpc_update_daily_work_log_with_packaging__core' AND pronamespace = 'public'::regnamespace
+              AND (prosrc LIKE '%mis_g7_chain_replace_begin%' OR prosrc LIKE '%mis_g7_chain_replace_finish%')) THEN
+    RAISE EXCEPTION 'S5 rollback: the live core still calls the S5 primitives; revert the core first'; END IF;
+  IF (SELECT count(*) FROM app_private.mis_g7_s5_baseline) <> 3 THEN RAISE EXCEPTION 'S5 rollback: baseline missing; refusing'; END IF;
+  IF (SELECT mode FROM app_private.mis_g7_enforcement WHERE singleton) = 'ENFORCE' THEN   -- the unmigrated core cannot run under ENFORCE
+    UPDATE app_private.mis_g7_enforcement SET mode = 'AUDIT', changed_at = clock_timestamp() WHERE singleton;
+    INSERT INTO app_private.mis_g7_enforcement_log (from_mode, to_mode, actor, reason)
+    VALUES ('ENFORCE', 'AUDIT', '00000000-0000-0000-0000-000000000000', 'S5 rollback: legacy DWL editor protection removed');
+  END IF;
+END $$;
+DROP FUNCTION IF EXISTS public.mis_g7_record_core_migration_acceptance_v1(text,text);
+DROP TRIGGER IF EXISTS mis_g7_chain_ticket_must_finish ON app_private.mis_g7_chain_ticket;
+DROP FUNCTION IF EXISTS app_private.trg_mis_g7_chain_ticket_must_finish();
+DROP FUNCTION IF EXISTS app_private.mis_g7_chain_replace_begin(bigint);
+DROP FUNCTION IF EXISTS app_private.mis_g7_chain_replace_finish(bigint);
+DROP FUNCTION IF EXISTS app_private.mis_g7_core_gate();
+DO $$ DECLARE b record; BEGIN
+  FOR b IN SELECT * FROM app_private.mis_g7_s5_baseline ORDER BY obj LOOP EXECUTE b.def; END LOOP;
 END $$;
