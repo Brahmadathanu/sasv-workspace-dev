@@ -203,8 +203,10 @@ ALTER TABLE app_private.mis_g7_direct_pack_audit ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE app_private.mis_g7_direct_pack_audit FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON SEQUENCE app_private.mis_g7_direct_pack_audit_audit_id_seq FROM PUBLIC, anon, authenticated;
 
--- citext parity: event_type is CITEXT live, so compare WITHOUT ::text casts (case-insensitive, like the legacy trigger).
-CREATE OR REPLACE FUNCTION app_private.mis_g7_type_is_bulk(p_type public.citext)
+-- Parity with the legacy trigger: event_type is CITEXT live and event_type_lkp.label is TEXT; `label = event_type` resolves to text = text (case-sensitive),
+-- so the gate compares the SAME way. The parameter is plain text on purpose: the citext type lives in schema `extensions` in production (not `public`),
+-- and a citext argument is implicitly cast to text, so no schema-qualified citext type is referenced.
+CREATE OR REPLACE FUNCTION app_private.mis_g7_type_is_bulk(p_type text)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $f$
   SELECT p_type IS NOT NULL AND EXISTS (SELECT 1 FROM public.event_type_lkp l
@@ -262,7 +264,7 @@ BEGIN
   END IF;
   RETURN COALESCE(NEW, OLD);
 END $f$;
-REVOKE ALL ON FUNCTION app_private.mis_g7_type_is_bulk(public.citext), app_private.mis_g7_event_is_bulk(bigint),
+REVOKE ALL ON FUNCTION app_private.mis_g7_type_is_bulk(text), app_private.mis_g7_event_is_bulk(bigint),
   app_private.mis_g7_gate_check(text,text,bigint,bigint,boolean),
   app_private.trg_mis_g7_event_skus_gate(), app_private.trg_mis_g7_packaging_events_gate() FROM PUBLIC, anon, authenticated;
 

@@ -15,7 +15,8 @@
     "electron:install": "install-electron",
     "test:mis-g7": "node --test supabase/tests/mis_g7/*.test.mjs supabase/tests/mis_g7/prod_equivalent/*.test.mjs",
     "test:mis-g7:prod-equivalent": "node --test supabase/tests/mis_g7/prod_equivalent/mis_g7_prod_equivalent_pg.test.mjs",
-    "test:electron": "node --test scripts/electron-smoke/security-hardening.test.mjs scripts/electron-smoke/electron-main-smoke.test.mjs"
+    "test:electron": "node --test scripts/electron-smoke/security-hardening.test.mjs scripts/electron-smoke/electron-main-smoke.test.mjs",
+    "test:mis-g7:real-catalog": "node --test supabase/tests/mis_g7/prod_equivalent/mis_g7_real_catalog_pg.test.mjs"
   },
   "author": "",
   "license": "ISC",

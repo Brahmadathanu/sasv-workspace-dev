@@ -39,9 +39,9 @@
       "supabase_migration_name": "mis_g7_s3b_protected_stock_write_boundary",
       "registered_version": null,
       "status": "HELD (not installed)",
-      "bytes": 23077,
-      "sha256": "7c4cd12b9bdb5703d8023750d506387f6e8e259040309d284119ef14b65cefde",
-      "git_blob_sha1": "df014d2ab2c7e7652bcde26bffb0b93057ef2823"
+      "bytes": 23351,
+      "sha256": "cbdf9c1c8d27cf0f14ebc985fb034d4198f0c31dd6ff683fa028ebdfaa1929cf",
+      "git_blob_sha1": "218739f7962c25c19a23888dd787bd6fac180016"
     },
     {
       "seq": 5,
