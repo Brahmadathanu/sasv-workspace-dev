@@ -137,7 +137,7 @@ CREATE OR REPLACE FUNCTION public.mis_preview_pack_fg_bulk_v1(p_packaging_event_
  p_event_sku_id bigint DEFAULT NULL,p_new_count integer DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $f$
 DECLARE h record; l record; x record; sku record; n integer; v_required numeric:=0; v_available numeric;
- v_per numeric; v_old numeric; v_posted numeric; v_problem text; v_basis boolean;
+ v_per numeric; v_old numeric; v_posted numeric; v_problem text; v_basis boolean; v_receipt boolean;
 BEGIN
   PERFORM public.require_permission('module:mis-fg-bulk-packing',false);
   SELECT pe.id,p.id pid,p.uom_base,p.conversion_to_base,w.batch_number,e.affects_bulk_stock,e.is_packaging,e.active
@@ -150,6 +150,7 @@ BEGIN
   SELECT coalesce(sum(qty_base),0) INTO v_available FROM public.fg_bulk_stock_ledger
     WHERE product_id=h.pid AND batch_number=h.batch_number;
   v_problem:=app_private.mis_g7_stage_problem(h.pid,h.batch_number);
+  SELECT EXISTS (SELECT 1 FROM public.fg_bulk_stock_ledger WHERE product_id=h.pid AND batch_number=h.batch_number AND qty_base>0) INTO v_receipt;
   IF p_event_sku_id IS NOT NULL THEN
     IF p_lines IS NOT NULL OR p_new_count IS NULL OR p_new_count<0 THEN RETURN jsonb_build_object('ok',false,'code','INVALID_INPUT'); END IF;
     SELECT es.id,es.sku_id,es."count" cnt INTO l FROM public.event_skus es
@@ -187,6 +188,8 @@ BEGIN
   RETURN jsonb_build_object('ok',true,'advisory',true,'product_id',h.pid,'batch_number',h.batch_number,'base_uom',h.uom_base,
     'available_base',v_available,'required_base',greatest(v_required,0),'stock_delta_base',-v_required,
     'shortfall_base',greatest(v_required-v_available,0),'stage_problem',v_problem,
+    'receipt_present',v_receipt,'eligible_without_excess',v_problem IS NULL AND (p_event_sku_id IS NOT NULL OR v_receipt)
+      AND (p_event_sku_id IS NULL OR (v_basis AND p_new_count<>l.cnt)) AND v_required<=v_available,
     'has_depletion_basis',v_basis,'expected_posted_base',-v_old,'posted_base',v_posted,
     'excess_permitted',app_private.mis_g7_has_permission('module:mis-fg-bulk-packing') AND app_private.mis_g7_has_permission('module:mis-fg-excess-adjustment'));
 END $f$;
@@ -217,6 +220,8 @@ BEGIN
     UNION SELECT DISTINCT l.pid,l.batch_number,'MISSING_ROUTE' FROM logs l
       CROSS JOIN LATERAL (SELECT app_private.mis_g7_route_context(l.pid,l.batch_number,l.id::integer) ctx) c
       WHERE c.ctx->>'code' IN ('PRODUCT_ROUTE_COVERAGE','APPROVED_ROUTE_OVERLAP','MANDATORY_FG_STAGE_GAP','STEP_NOT_IN_EFFECTIVE_ROUTE')
+    UNION SELECT DISTINCT l.pid,l.batch_number,'BMR_IDENTITY_REVIEW' FROM logs l
+      WHERE (SELECT count(*) FROM public.bmr_details b WHERE b.product_id=l.pid AND b.bn=l.batch_number)<>1
     UNION SELECT b.pid,b.batch_number,'MISSING_RECEIPT' FROM batches b WHERE NOT EXISTS
       (SELECT 1 FROM public.fg_bulk_stock_ledger g WHERE g.product_id=b.pid AND g.batch_number=b.batch_number
         AND g.source_table='daily_work_log' AND g.qty_base>0)
