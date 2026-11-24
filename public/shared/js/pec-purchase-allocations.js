@@ -234,6 +234,8 @@ export const EXPORT_NOTICES = Object.freeze([
   "Quantities are never totalled across different units of measure.",
 ]);
 
+const BOM = String.fromCharCode(0xfeff); // UTF-8 byte-order mark so Excel opens the file as UTF-8
+
 function csvCell(value) {
   const s = String(value ?? "");
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -263,7 +265,7 @@ export function buildCsv(spec) {
     lines.push([`${t.label} (per unit of measure)`]);
     for (const it of t.items) lines.push([it.uom, it.total]);
   }
-  return `﻿${lines.map((l) => l.map(csvCell).join(",")).join("\r\n")}\r\n`;
+  return `${BOM}${lines.map((l) => l.map(csvCell).join(",")).join("\r\n")}\r\n`;
 }
 
 export function escapeHtml(value) {
