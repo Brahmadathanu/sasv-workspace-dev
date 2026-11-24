@@ -54,9 +54,9 @@ export function startPg() {
     bin, dir,
     stop() { run('pg_ctl', ['-D', data, '-m', 'immediate', '-w', 'stop']); fs.rmSync(dir, { recursive: true, force: true }); },
     // synchronous script execution; returns {out, err, status}
-    psql(db, script, { uid } = {}) {
+    psql(db, script, { uid, vc } = {}) {
       const pre = uid === undefined ? '' : (uid === null ? `SET ROLE authenticated;` : `SET ROLE authenticated; \\o /dev/null\nSELECT set_config('request.jwt.claim.sub','${uid}',false), set_config('request.jwt.claims', '{"sub":"${uid}","email":"${uid}@example.test","role":"authenticated"}', false);\n\\o`);
-      const r = spawnSync(path.join(bin, 'psql'), [...psqlArgs(db), '-v', 'ON_ERROR_STOP=1'], { ...own, input: pre + '\n' + script, encoding: 'utf8', env });
+      const r = spawnSync(path.join(bin, 'psql'), [...psqlArgs(db), '-v', 'ON_ERROR_STOP=1'], { ...own, input: pre + '\n' + script, encoding: 'utf8', env: vc ? { ...env, PGOPTIONS: '-c plpgsql.variable_conflict=use_column' } : env });
       return { out: (r.stdout || '').trim(), err: (r.stderr || '').trim(), status: r.status };
     },
     // async (for concurrent sessions); resolves with timing
@@ -71,11 +71,8 @@ export function startPg() {
         p.stdin.end(pre + '\n' + script);
       });
     },
-    // The exact live core declares OUT columns (RETURNS TABLE ... packaging_event_id) and also uses a table column of the same name unqualified
-    // (DELETE FROM event_skus WHERE packaging_event_id = ...). That only compiles/runs with plpgsql.variable_conflict = use_column, so the live
-    // database MUST carry that setting; test databases mirror it (verified by CORE_PREINSTALL_LIVE_CHECK_READONLY.sql).
-    createDb(name) { run('createdb', ['-h', sock, '-p', port, '-U', 'postgres', name]);
-      spawnSync(path.join(bin, 'psql'), ['-h', sock, '-p', port, '-U', 'postgres', '-d', 'postgres', '-X', '-q', '-c', `ALTER DATABASE "${name}" SET plpgsql.variable_conflict = 'use_column'`], { ...own, encoding: 'utf8' }); },
+    // Test databases use the server DEFAULT plpgsql.variable_conflict = error (as the live server does); no database/role override is applied.
+    createDb(name) { run('createdb', ['-h', sock, '-p', port, '-U', 'postgres', name]); },
   };
   return api;
 }
@@ -91,8 +88,8 @@ CREATE TABLE IF NOT EXISTS app_private.mis_g7_s3b_expected_sha (obj text PRIMARY
 INSERT INTO app_private.mis_g7_s3b_expected_sha SELECT o, encode(sha256(convert_to(pg_get_functiondef(to_regprocedure('public.' || o)), 'UTF8')), 'hex')
   FROM unnest(ARRAY[${SHIM_CHAIN.map((o) => `'${o}'`).join(',')}]) o ON CONFLICT DO NOTHING;`;
 // ---- exact live DWL editor source (read-only reference committed from production: wrapper, __core and parser) ----
-export const PATCHED_CORE_MIGRATION = '20261123146000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql';   // owner-gated; NOT in the default install list
-export const PATCHED_CORE_SHA = 'b0f4575fd971c4c24d695556fe327f713fc6227b7cf9357c9b78d8321add671f';
+export const PATCHED_CORE_MIGRATION = '20261123150000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql';   // owner-gated; NOT in the default install list
+export const PATCHED_CORE_SHA = 'dfa5a5e9aa31b48cf41fe9d03800fff2e35e5a3825ca458b5ccb6ca6c4471bcc';
 export const LIVE_EDITOR_MD = path.resolve(here, '../../../docs/executive-mis-g7-server/LIVE_DWL_EDITOR_REFERENCE_ONLY_20261124.md');
 export const LIVE_EDITOR_SHA = {
   'fn_parse_sku_breakdown': 'ec5fe3ead3e839d4ccad6c9f7e37c5775e1299c0b46ad71cc9a6b9eb7c5b29db',

@@ -9,6 +9,8 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { startPg, installBaseAndMigrations, installLiveEditor, liveEditorBlocks, seedShimFingerprintsSql, MIGRATIONS, LIVE_EDITOR_SHA, PATCHED_CORE_MIGRATION, PATCHED_CORE_SHA } from './pg_harness.mjs';
+// NOTE: databases run with the server DEFAULT plpgsql.variable_conflict = error (as live). The ORIGINAL core cannot run chain replacement/removal under
+// that default (ambiguous column reference); tests that exercise the original core's remaining semantics set the session value `use_column` (UC) on purpose.
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const docs = path.resolve(here, '../../../docs/executive-mis-g7-server');
@@ -42,13 +44,14 @@ const J = (sql, uid) => jl(q(sql, uid).out);
 const anon = (sql) => pg.psql(DB, `SET ROLE anon; ${sql}`);
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 const hold = (body, secs) => `BEGIN; ${body}; SELECT pg_sleep(${secs}); COMMIT;`;
+let UC = false;                                    // session-level override, used ONLY to exercise the original core's semantics
 let n = 0; const bn = (p) => `${p}${++n}`;
 
 const mk = (b, qty = 100) => val(`SELECT public.t_mkbatch_real('${b}', ${qty})`);            // returns the packaging work log id
 const fgId = (b) => val(`SELECT id FROM public.daily_work_log WHERE batch_number='${b}' AND activity='FG bulk storage'`);
 const sign = (b, qty = 100) => J(`SELECT public.mis_sign_batch_stage_v1('${randomUUID()}',1,'${b}',${fgId(b)},2,1,${qty},'weighment ${b}')`, SIGNER);
 const mkSigned = (b, qty = 100) => { const f = mk(b, qty); const r = sign(b, qty); assert.equal(r.ok, true, JSON.stringify(r)); return f; };
-const edit = (id, patch = {}, uid = PACKER) => q(`SELECT * FROM public.t_edit_dwl(${id}, '${JSON.stringify(patch).replace(/'/g, "''")}'::jsonb)`, uid);
+const edit = (id, patch = {}, uid = PACKER) => pg.psql(DB, `SELECT * FROM public.t_edit_dwl(${id}, '${JSON.stringify(patch).replace(/'/g, "''")}'::jsonb)`, { uid, vc: UC });   // vc: connection-level option for the ORIGINAL-core semantics runs only
 const bal = (b) => Number(val(`SELECT coalesce(sum(qty_base),0) FROM public.fg_bulk_stock_ledger WHERE product_id=1 AND batch_number='${b}'`));
 const lines = (id) => val(`SELECT coalesce(string_agg(es.sku_id||':'||es."count", ',' ORDER BY es.sku_id),'-') FROM public.event_skus es JOIN public.packaging_events pe ON pe.id=es.packaging_event_id WHERE pe.work_log_id=${id}`);
 const hdrs = (id) => val(`SELECT count(*) FROM public.packaging_events WHERE work_log_id=${id}`);
@@ -96,7 +99,17 @@ T('PARSER real inputs (exact live grammar): pack size / UOM / count, ";" separat
 });
 
 // ====================================== ORIGINAL core (unpatched), AUDIT ======================================
-T('ORIGINAL core, AUDIT: delete/recreate with sku_breakdown keeps FG stock exact; edits are logged (production logging compatibility)', () => {
+T('ORIGINAL core under the live DEFAULT (error): creating a chain works, replacing/removing an existing chain raises an ambiguous-column error (rolled back)', () => {
+  assert.equal(UC, false); const b = bn('V0'); const f = mkSigned(b);
+  ok(edit(f, DONE('0.5 kg x 4'))); assert.equal(lines(f), '10:4'); assert.equal(bal(b), 98);                                     // first creation: no old chain, no ambiguous statement
+  for (const patch of [DONE('0.5 kg x 6'), { status: 'In Progress' }]) {
+    const r = edit(f, patch); assert.notEqual(r.status, 0); assert.match(r.err, /column reference "packaging_event_id" is ambiguous/);
+    assert.equal(lines(f), '10:4'); assert.equal(bal(b), 98); assert.equal(status(f), 'Done');                                   // nothing partially applied
+  }
+  ok(edit(val(`SELECT id FROM public.daily_work_log WHERE batch_number='${b}' AND activity='FG bulk storage'`), { storage_qty: 110 })); assert.equal(bal(b), 108);   // wrapper/FG path unaffected by the setting
+});
+T('ORIGINAL core (session use_column), AUDIT: delete/recreate with sku_breakdown keeps FG stock exact; edits are logged (production logging compatibility)', () => {
+  UC = true;
   assert.equal(val(`SELECT mode FROM app_private.mis_g7_enforcement`), 'AUDIT'); assert.equal(sha('rpc_update_daily_work_log_with_packaging__core'), ORIG_CORE_SHA);
   const a0 = Number(val(`SELECT count(*) FROM app_private.mis_g7_direct_pack_audit`));
   baselineWorkflow = workflow('W');
@@ -104,8 +117,10 @@ T('ORIGINAL core, AUDIT: delete/recreate with sku_breakdown keeps FG stock exact
     'create|' + baselineWorkflow[0].split('|')[1] + '|90', 'replace-2-segments|' + baselineWorkflow[1].split('|')[1] + '|93', 'retype-cartoning|' + baselineWorkflow[2].split('|')[1] + '|70',
     'chain-removed|-|100', 'recreate|' + baselineWorkflow[4].split('|')[1] + '|96', 'same-chain-reedit|' + baselineWorkflow[5].split('|')[1] + '|96']);
   assert.ok(Number(val(`SELECT count(*) FROM app_private.mis_g7_direct_pack_audit`)) > a0);
+  UC = false;
 });
-T('ORIGINAL core, AUDIT: error paths roll back whole; wrapper source-identity rules and FG source-quantity corrections work', () => {
+T('ORIGINAL core (session use_column), AUDIT: error paths roll back whole; wrapper source-identity rules and FG source-quantity corrections work', () => {
+  UC = true;
   const b = bn('E1'); const f = mkSigned(b); const fg = fgId(b);
   ok(edit(f, DONE('0.5 kg x 10'))); const keep = bal(b);
   assert.match(edit(f, DONE('0.5 kg x 1000')).err, /would make stock negative/); assert.equal(lines(f), '10:10'); assert.equal(bal(b), keep);
@@ -118,11 +133,12 @@ T('ORIGINAL core, AUDIT: error paths roll back whole; wrapper source-identity ru
   assert.match(edit(fg, { storage_qty_uom: 'g' }).err, /UOM is immutable/);
   ok(edit(fg, { storage_qty: 120 })); assert.equal(bal(b), keep + 20);
   assert.equal(val(`SELECT reason_code||'|'||qty_base||'|'||created_by FROM public.fg_bulk_stock_ledger WHERE batch_number='${b}' AND reason_code LIKE 'FG source quantity correction%'`), `FG source quantity correction increase|20|${PACKER}@example.test`);   // actor from the JWT email claim
-  ok(edit(fg, { storage_qty: 100 })); assert.equal(bal(b), keep);
+  ok(edit(fg, { storage_qty: 100 })); assert.equal(bal(b), keep); UC = false;
   // the revision was reversed, so the signed source is un-drifted again and the new RPCs accept the batch
   assert.equal(J(`SELECT public.mis_pack_fg_bulk_v1('${randomUUID()}', ${val(`SELECT id FROM public.packaging_events WHERE work_log_id=${f}`)}, '[{"sku_id":11,"count":2}]'::jsonb)`, PACKER).ok, true);
 });
-T('ORIGINAL core, AUDIT: legacy hazards the S5 verification exists for (documented): never-depleted line delete and cross-batch move manufacture stock', () => {
+T('ORIGINAL core (session use_column), AUDIT: legacy hazards the S5 verification exists for (documented): never-depleted line delete and cross-batch move manufacture stock', () => {
+  UC = true;
   const h = bn('E2'); const hf = mkSigned(h);
   q(`ALTER TABLE public.event_skus DISABLE TRIGGER trg_fg_ledger_from_es`);
   try { q(`INSERT INTO public.packaging_events(work_log_id,event_type) VALUES (${hf},'Bottling'); INSERT INTO public.event_skus(packaging_event_id,sku_id,"count") SELECT max(id),10,20 FROM public.packaging_events`); }
@@ -132,7 +148,7 @@ T('ORIGINAL core, AUDIT: legacy hazards the S5 verification exists for (document
   ok(edit(af, DONE('0.5 kg x 20'))); assert.equal(bal(a), 90);
   ok(edit(af, { batch_number: c, ...DONE('0.5 kg x 20') }));                                                              // identity change in one edit
   assert.equal(bal(a), 90); assert.equal(bal(c), 100);                                                                                       // old batch never returned; new batch: +10 (delete) -10 (create) -- stock is mis-assigned
-  assert.equal(chainNet(a), -10);
+  assert.equal(chainNet(a), -10); UC = false;
 });
 T('ENFORCE FAILS CLOSED with the unpatched core: refusal code, readiness blocker, owner-forced ENFORCE rolls the real editor back whole', () => {
   assert.equal(J(`SELECT public.mis_g7_set_enforcement_v1('ENFORCE','try')`, ADMIN).code, 'LEGACY_DWL_EDITOR_NOT_MIGRATED');
@@ -164,13 +180,14 @@ T('S5b install FAILS CLOSED: changed core/wrapper/parser, client-executable core
   r = run(mig); assert.notEqual(r.status, 0); assert.match(core(r), /rpc_update_daily_work_log_with_packaging__core live=/);     // mutated core
   run = fresh('s5bE', `GRANT EXECUTE ON FUNCTION public.${coreName}(bigint,date,integer,integer,integer,integer,text,text,numeric,text,text,text,text,integer,text,text,text,date,date,text,date,numeric,text,text,text,text,numeric,text,numeric,text) TO authenticated`);
   r = run(mig); assert.notEqual(r.status, 0); assert.match(core(r), /core is client-executable/);
-  run = fresh('s5bF', 'DROP FUNCTION app_private.mis_g7_chain_replace_begin(bigint)'); r = run(mig); assert.notEqual(r.status, 0); assert.match(core(r), /S5 primitives missing/);
+  run = fresh('s5bF', 'DROP FUNCTION app_private.mis_g7_chain_replace_begin(bigint,text,text)'); r = run(mig); assert.notEqual(r.status, 0); assert.match(core(r), /S5 primitives missing/);
   assert.equal(run(`SELECT encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex') FROM pg_proc p WHERE proname='${coreName}'`).out, ORIG_CORE_SHA);   // nothing applied
 });
 T('S5b install: ONLY three statements added; wrapper/parser untouched; patched core pins to the reviewed SHA; ACL/security unchanged; baseline retained', () => {
   const diff = fs.readFileSync(path.join(docs, 'LIVE_DWL_EDITOR_CORE_S5_PATCH.diff'), 'utf8');
   const dl = diff.split('\n'); const added = dl.filter((l) => l.startsWith('+') && !l.startsWith('+++')); const removed = dl.filter((l) => l.startsWith('-') && !l.startsWith('---'));
   assert.equal(added.filter((l) => /PERFORM app_private\.mis_g7_chain_replace_(begin|finish)/.test(l)).length, 3);                // exactly three added statements ...
+  assert.equal(added.filter((l) => l === '+#variable_conflict use_column').length, 1);                                             // ... one function-local directive (no server/db/role setting)
   assert.equal(removed.length, 0);                                                                                                // ... and nothing removed from the live core
   const r = q(migText(PATCHED_CORE_MIGRATION)); assert.equal(r.status, 0, r.err);
   assert.equal(sha('rpc_update_daily_work_log_with_packaging__core'), PATCHED_CORE_SHA);
@@ -178,7 +195,8 @@ T('S5b install: ONLY three statements added; wrapper/parser untouched; patched c
   assert.equal(sha('rpc_update_daily_work_log_with_packaging'), LIVE_EDITOR_SHA.rpc_update_daily_work_log_with_packaging);
   assert.equal(sha('fn_parse_sku_breakdown'), LIVE_EDITOR_SHA.fn_parse_sku_breakdown);
   assert.equal(val(`SELECT prosecdef FROM pg_proc WHERE oid=${coreOid}`), 't'); assert.equal(val(`SELECT has_function_privilege('authenticated', ${coreOid}, 'EXECUTE')`), 'f');
-  assert.equal(val(`SELECT array_to_string(proconfig,';') FROM pg_proc WHERE oid=${coreOid}`), 'search_path=public');
+  assert.equal(val(`SELECT array_to_string(proconfig,';') FROM pg_proc WHERE oid=${coreOid}`), 'search_path=public');   // no per-function GUC added
+  assert.equal(val(`SELECT prosrc LIKE E'%#variable_conflict use_column\\nDECLARE%' FROM pg_proc WHERE oid=${coreOid}`), 't');
   assert.equal(val(`SELECT def_sha FROM app_private.mis_g7_s5b_baseline`), ORIG_CORE_SHA);
   assert.equal(val(`SELECT encode(sha256(convert_to(def,'UTF8')),'hex')=def_sha FROM app_private.mis_g7_s5b_baseline`), 't');
   assert.match(q(`UPDATE app_private.mis_g7_s5b_baseline SET def='x'`).err, /APPEND_ONLY/);
@@ -194,7 +212,8 @@ T('GATE after patch: still refused until the owner signs off THIS exact patched 
 });
 
 // ====================================== PATCHED core: behavior preserved, protections active ======================================
-T('PATCHED core, AUDIT: identical outcomes to the original core for the same edit script (sku_breakdown, delete/recreate, retype, remove)', () => {
+T('PATCHED core under the DEFAULT error setting, AUDIT: identical outcomes to the ORIGINAL core (run with use_column) for the same edit script (sku_breakdown, delete/recreate, retype, remove)', () => {
+  assert.equal(UC, false);
   const got = workflow('P');
   assert.equal(got.length, baselineWorkflow.length);
   const norm = (x) => x.split('|').slice(0, 1).concat(x.split('|').slice(1)).join('|');
@@ -296,7 +315,7 @@ T('PATCHED core, AUDIT: violations are RECORDED (append-only) but never block --
 T('PATCHED core: a core that never calls finish cannot commit; one that skips begin gets no bypass; tickets are private, scoped and per transaction', () => {
   const b = bn('PF'); const f = mkSigned(b); const def = q(`SELECT pg_get_functiondef(${coreOid})`).out;
   const finishLess = def.replaceAll('PERFORM app_private.mis_g7_chain_replace_finish(p_id);', '');
-  const beginLess = def.replace('PERFORM app_private.mis_g7_chain_replace_begin(p_id);', '');
+  const beginLess = def.replace('PERFORM app_private.mis_g7_chain_replace_begin(p_id, p_item, p_batch_number);', '');
   assert.notEqual(finishLess, def); assert.notEqual(beginLess, def);
   try {
     assert.equal(q(finishLess).status, 0);
@@ -327,6 +346,40 @@ T('PATCHED core: a core that never calls finish cannot commit; one that skips be
   setModeSql('ENFORCE');
   try { assert.match(q(`SELECT public.t_scope_probe(${a2f}, ${b2f})`).err, /MIS_G7_DIRECT_PACKING_DENIED/); } finally { setModeSql('AUDIT'); q(`DROP FUNCTION public.t_scope_probe(bigint,bigint)`); }
   assert.equal(lines(b2f), '10:2');
+});
+T('PATCHED core, old/new PRODUCT identity change: conserved per product+batch (ENFORCE refuses, AUDIT records the legacy mis-assignment)', () => {
+  const a = bn('PP_a'), c = bn('PP_c'), u = bn('PP_u');
+  const af = mkSigned(a); const cf = val(`SELECT public.t_mkbatch_real('${c}', 100, 'Bottling', 'P3')`); const uf = mk(u);        // P3: no approved route -> cannot be signed
+  ok(edit(af, DONE('0.5 kg x 20'))); assert.equal(bal(a), 90);
+  const pbal = (b) => Number(val(`SELECT coalesce(sum(qty_base),0) FROM public.fg_bulk_stock_ledger WHERE batch_number='${b}'`));
+  const cnt = () => Number(val(`SELECT count(*) FROM app_private.mis_g7_direct_pack_audit WHERE tbl='chain_replace'`));
+  // AUDIT: legacy move P1/a -> P3/c proceeds; the old batch is never credited back, the new product/batch is credited by the delete trigger, then debited by the new chain
+  const n0 = cnt(); ok(edit(af, { item: 'P3', batch_number: c, ...DONE('1 kg x 4') }));
+  assert.equal(pbal(a), 90); assert.equal(pbal(c), 96); assert.ok(cnt() >= n0 + 1);                                                  // violations recorded (conservation + unsigned target)
+  // ENFORCE: a signed source product/batch moved to another product/batch is refused whole
+  const a2 = bn('PP_a2'); const a2f = mkSigned(a2); ok(edit(a2f, DONE('0.5 kg x 20'))); assert.equal(bal(a2), 90);
+  const b2 = bn('PP_b2'); val(`SELECT public.t_mkbatch_real('${b2}', 100, 'Bottling', 'P3')`);
+  assert.equal(J(`SELECT public.mis_g7_set_enforcement_v1('ENFORCE','x')`, ADMIN).ok, true);
+  try {
+    const r = edit(a2f, { item: 'P3', batch_number: b2, ...DONE('1 kg x 4') });
+    assert.notEqual(r.status, 0); assert.match(r.err, /MIS_G7_CHAIN_(CONSERVATION_MISMATCH|STAGE_NOT_SIGNED)/);
+    assert.equal(val(`SELECT item||'/'||batch_number FROM public.daily_work_log WHERE id=${a2f}`), `P1/${a2}`); assert.equal(lines(a2f), '10:20'); assert.equal(bal(a2), 90); assert.equal(pbal(b2), 100);
+    // identity-preserving edit of the same chain still works under ENFORCE
+    ok(edit(a2f, DONE('0.5 kg x 10'))); assert.equal(bal(a2), 95);
+  } finally { setModeSql('AUDIT'); }
+});
+T('PATCHED core, lock ordering across batches: two opposite batch moves serialize on the canonical lock order (no deadlock)', async () => {
+  const x = bn('LO_x'), y = bn('LO_y'); const xf = mkSigned(x), yf = mkSigned(y);
+  ok(edit(xf, DONE('0.5 kg x 2'))); ok(edit(yf, DONE('0.5 kg x 2')));
+  const mv = (id, to) => `SELECT * FROM public.t_edit_dwl(${id}, '${JSON.stringify({ batch_number: to, ...DONE('0.5 kg x 2') })}'::jsonb)`;
+  const A = pg.psqlAsync(DB, hold(mv(xf, y), 1.2), { uid: PACKER });                     // x -> y
+  await delay(300);
+  const B = pg.psqlAsync(DB, mv(yf, x), { uid: PACKER });                                 // y -> x (opposite order)
+  const [a, bb] = await Promise.all([A, B]);
+  assert.doesNotMatch(a.err + bb.err, /deadlock detected/); assert.equal(a.status, 0, a.err); assert.equal(bb.status, 0, bb.err);   // AUDIT: legacy move proceeds, violations recorded
+  assert.ok(bb.ms >= 800, `second move waited on the first (${bb.ms}ms)`);
+  assert.equal(val(`SELECT batch_number FROM public.daily_work_log WHERE id=${xf}`), y); assert.equal(val(`SELECT batch_number FROM public.daily_work_log WHERE id=${yf}`), x);
+  assert.equal(val(`SELECT count(*) FROM app_private.mis_g7_chain_ticket WHERE finished_at IS NULL`), '0');
 });
 T('JWT / ROLES on the real editor: View-only, no-permission, anon and service_role-less callers are denied; actor is stamped from the JWT; edits never trust client flags', () => {
   const b = bn('JR'); const f = mkSigned(b);
@@ -372,7 +425,7 @@ T('ROLLBACK: S5b rollback restores the EXACT original core (SHA df7290df…), wr
   assert.equal(run(`SELECT count(*) FROM app_private.mis_g7_enforcement_log WHERE reason LIKE 'S5B rollback%'`).out, '1');
   assert.equal(run(`SELECT count(*) FROM app_private.mis_g7_s5b_baseline`).out, '1');                                                // baseline retained
   const ok = run(s5); assert.equal(ok.status, 0, ok.err);                                                                             // now S5 can be rolled back
-  assert.equal(run(`SELECT to_regprocedure('app_private.mis_g7_chain_replace_begin(bigint)') IS NULL`).out, 't');
+  assert.equal(run(`SELECT to_regprocedure('app_private.mis_g7_chain_replace_begin(bigint,text,text)') IS NULL`).out, 't');
   // original editor works exactly as before (legacy behavior), including a real edit
   run(`SELECT public.t_mkbatch_real('RBX', 100)`);
   const wl = run(`SELECT id FROM public.daily_work_log WHERE batch_number='RBX' AND activity='Bottling'`).out;

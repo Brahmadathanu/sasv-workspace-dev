@@ -16,10 +16,11 @@ END $$;
 GRANT EXECUTE ON FUNCTION public.t_edit_dwl(bigint, jsonb) TO authenticated;
 -- Real-flow batch: FG bulk storage row (the DWL trigger posts the receipt, like live) + a packaging work log (activity = lkp code Bottling,
 -- not Done, no chain yet). Returns the packaging work log id.
-CREATE FUNCTION public.t_mkbatch_real(p_bn text, p_qty numeric, p_act text DEFAULT 'Bottling') RETURNS bigint LANGUAGE plpgsql AS $$
-DECLARE w bigint; f bigint; BEGIN
-  INSERT INTO public.bmr_details(id,product_id,bn,lifecycle_status) VALUES ((SELECT coalesce(max(id),1000)+1 FROM public.bmr_details),1,p_bn,'Released');
+CREATE FUNCTION public.t_mkbatch_real(p_bn text, p_qty numeric, p_act text DEFAULT 'Bottling', p_item text DEFAULT 'P1') RETURNS bigint LANGUAGE plpgsql AS $$
+DECLARE w bigint; f bigint; pid int; BEGIN
+  SELECT id INTO pid FROM public.products WHERE item = p_item;
+  INSERT INTO public.bmr_details(id,product_id,bn,lifecycle_status) VALUES ((SELECT coalesce(max(id),1000)+1 FROM public.bmr_details),pid,p_bn,'Released');
   INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status,storage_qty,storage_qty_uom)
-    VALUES ('P1',p_bn,'FG bulk storage','2026-11-10','Done',p_qty,'kg') RETURNING id INTO w;
-  INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status) VALUES ('P1',p_bn,p_act,'2026-11-11','In Progress') RETURNING id INTO f;
+    VALUES (p_item,p_bn,'FG bulk storage','2026-11-10','Done',p_qty,'kg') RETURNING id INTO w;
+  INSERT INTO public.daily_work_log(item,batch_number,activity,log_date,status) VALUES (p_item,p_bn,p_act,'2026-11-11','In Progress') RETURNING id INTO f;
   RETURN f; END $$;

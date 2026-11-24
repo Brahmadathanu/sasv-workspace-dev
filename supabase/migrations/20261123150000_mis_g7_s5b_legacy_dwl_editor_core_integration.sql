@@ -1,8 +1,15 @@
 -- MIS G7 S5b: minimal protected integration of the governed legacy DWL editor core with the S5 primitives.
 -- OWNER-GATED, NOT INSTALLED. Requires S5 (…145000). Generated from the EXACT live source retained in
 -- docs/executive-mis-g7-server/LIVE_DWL_EDITOR_REFERENCE_ONLY_20261124.md; the ONLY differences from the live core are three inserted
--- statements (see docs/executive-mis-g7-server/LIVE_DWL_EDITOR_CORE_S5_PATCH.diff):
---   1. PERFORM app_private.mis_g7_chain_replace_begin(p_id);   right after the row lock/NOT FOUND check, before ANY write
+-- lines (see docs/executive-mis-g7-server/LIVE_DWL_EDITOR_CORE_S5_PATCH.diff):
+--   0. #variable_conflict use_column   function-local plpgsql directive (first body line). The live core has an OUT column named
+--      packaging_event_id AND an unqualified reference to the event_skus column of that name; under the server default
+--      plpgsql.variable_conflict = error that statement raises 'column reference is ambiguous'. The directive resolves it to the column
+--      (the evident intent, and what the code does under use_column) WITHOUT any server/database/role setting change.
+--      OWNER DECISION: where the live default is `error`, chain replacement/removal on an EXISTING chain currently RAISES; with this
+--      patch it works as written. The wrapper is unaffected (it compiles/runs under `error`).
+--   1. PERFORM app_private.mis_g7_chain_replace_begin(p_id, p_item, p_batch_number);   right after the row lock/NOT FOUND check, before ANY write
+--      (the edit's NEW item/batch are passed so both identities are locked in one canonical order)
 --   2. PERFORM app_private.mis_g7_chain_replace_finish(p_id);  before the early 'no packaging chain' RETURN
 --   3. PERFORM app_private.mis_g7_chain_replace_finish(p_id);  before the final RETURN
 -- The wrapper (rpc_update_daily_work_log_with_packaging, sha256 4c82b4a3…d7b4: permission check, FG source-quantity corrections, GUC flags,
@@ -23,7 +30,7 @@ DO $$
 DECLARE v_core oid := to_regprocedure('public.rpc_update_daily_work_log_with_packaging__core(bigint,date,integer,integer,integer,integer,text,text,numeric,text,text,text,text,integer,text,text,text,date,date,text,date,numeric,text,text,text,text,numeric,text,numeric,text)'); v_bad text;
 BEGIN
   IF v_core IS NULL THEN RAISE EXCEPTION 'MIS_G7_S5B: live core missing; refusing'; END IF;
-  IF to_regprocedure('app_private.mis_g7_chain_replace_begin(bigint)') IS NULL OR to_regprocedure('app_private.mis_g7_chain_replace_finish(bigint)') IS NULL THEN
+  IF to_regprocedure('app_private.mis_g7_chain_replace_begin(bigint,text,text)') IS NULL OR to_regprocedure('app_private.mis_g7_chain_replace_finish(bigint)') IS NULL THEN
     RAISE EXCEPTION 'MIS_G7_S5B: S5 primitives missing; apply S5 first'; END IF;
   SELECT string_agg(x.n || ' live=' || x.live, '; ') INTO v_bad FROM (
     SELECT p.proname AS n, encode(sha256(convert_to(pg_get_functiondef(p.oid), 'UTF8')), 'hex') AS live,
@@ -48,6 +55,7 @@ CREATE OR REPLACE FUNCTION public.rpc_update_daily_work_log_with_packaging__core
  SECURITY DEFINER
  SET search_path TO 'public'
 AS $function$
+#variable_conflict use_column
 DECLARE
   v_existing_dwl public.daily_work_log%ROWTYPE;
   v_old_packaging_event_id bigint;
@@ -83,9 +91,10 @@ BEGIN
     RAISE EXCEPTION 'No daily_work_log row found for id %', p_id;
   END IF;
 
-  /* MIS G7 S5: protected packaging-chain replacement. begin = batch lock + work-log-scoped ticket + chain snapshot,
-     taken before the first write; finish (below, before every RETURN) verifies signed FG stage and FG stock conservation. */
-  PERFORM app_private.mis_g7_chain_replace_begin(p_id);
+  /* MIS G7 S5: protected packaging-chain replacement. begin = batch locks (old + new identity, canonical order) + work-log-scoped
+     ticket + chain snapshot, taken before the first write; finish (below, before every RETURN) verifies signed FG stage and FG stock
+     conservation. */
+  PERFORM app_private.mis_g7_chain_replace_begin(p_id, p_item, p_batch_number);
 
   /*
     2) Determine whether this edited row should have packaging chain.
@@ -273,7 +282,7 @@ DO $$
 DECLARE v_core oid := to_regprocedure('public.rpc_update_daily_work_log_with_packaging__core(bigint,date,integer,integer,integer,integer,text,text,numeric,text,text,text,text,integer,text,text,text,date,date,text,date,numeric,text,text,text,text,numeric,text,numeric,text)'); v_sha text;
 BEGIN
   v_sha := encode(sha256(convert_to(pg_get_functiondef(v_core), 'UTF8')), 'hex');
-  IF v_sha <> 'b0f4575fd971c4c24d695556fe327f713fc6227b7cf9357c9b78d8321add671f' THEN RAISE EXCEPTION 'MIS_G7_S5B: patched core hash % does not match the reviewed patched hash', v_sha; END IF;
+  IF v_sha <> 'dfa5a5e9aa31b48cf41fe9d03800fff2e35e5a3825ca458b5ccb6ca6c4471bcc' THEN RAISE EXCEPTION 'MIS_G7_S5B: patched core hash % does not match the reviewed patched hash', v_sha; END IF;
   IF NOT (SELECT prosecdef FROM pg_proc WHERE oid = v_core) OR has_function_privilege('authenticated', v_core, 'EXECUTE') OR has_function_privilege('anon', v_core, 'EXECUTE') THEN
     RAISE EXCEPTION 'MIS_G7_S5B: core security attributes changed unexpectedly'; END IF;
 END $$;

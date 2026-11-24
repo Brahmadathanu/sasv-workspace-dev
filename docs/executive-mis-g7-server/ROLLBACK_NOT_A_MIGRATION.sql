@@ -91,7 +91,7 @@ END $$;
 DROP FUNCTION IF EXISTS public.mis_g7_record_core_migration_acceptance_v1(text,text);
 DROP TRIGGER IF EXISTS mis_g7_chain_ticket_must_finish ON app_private.mis_g7_chain_ticket;
 DROP FUNCTION IF EXISTS app_private.trg_mis_g7_chain_ticket_must_finish();
-DROP FUNCTION IF EXISTS app_private.mis_g7_chain_replace_begin(bigint);
+DROP FUNCTION IF EXISTS app_private.mis_g7_chain_replace_begin(bigint,text,text);
 DROP FUNCTION IF EXISTS app_private.mis_g7_chain_replace_finish(bigint);
 DROP FUNCTION IF EXISTS app_private.mis_g7_core_gate();
 DO $$ DECLARE b record; BEGIN

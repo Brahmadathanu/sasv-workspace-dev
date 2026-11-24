@@ -170,7 +170,7 @@ T('CORR vs concurrent pack on a scarce batch: never negative; loser gets structu
 let enforceReady = false;
 function ensureEnforceReady() {
   if (enforceReady) return;
-  const mig = migText('20261123146000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql');
+  const mig = migText('20261123150000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql');
   assert.equal(pg.psql(DB, mig).status, 0);
   const sha = val(`SELECT encode(sha256(convert_to(pg_get_functiondef(p.oid),'UTF8')),'hex') FROM pg_proc p WHERE p.proname='rpc_update_daily_work_log_with_packaging__core'`);
   assert.equal(J(`SELECT public.mis_g7_record_core_migration_acceptance_v1('${sha}','owner review G7-core-1')`, SIGNOFF).ok, true);
@@ -316,6 +316,18 @@ T('BASELINE manifest == migration pins == read-only script == tests (one consist
   assert.ok(mig.includes('module:fg-bulk-stock') && !mig.includes('module:daily-work-log'));
   assert.equal(val(`SELECT count(*) FROM app_private.mis_g7_s3b_expected_sha`), '11');
   assert.equal(val(`SELECT count(*) FROM app_private.mis_g7_s3b_baseline WHERE kind='function' AND def IS NOT NULL AND def_sha ~ '^[0-9a-f]{64}$'`), '11');
+});
+
+T('MIGRATION FILE NAMES: every migration timestamp is a valid UTC date-time, names are unique and sorted, the G7 set is strictly increasing and after all earlier migrations', () => {
+  const dir = path.resolve(here, '../../migrations'); const names = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
+  const ts = (f) => { const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})_/.exec(f); assert.ok(m, `bad migration name ${f}`); const [Y, Mo, D, h, mi, se] = m.slice(1).map(Number);
+    const d = new Date(Date.UTC(Y, Mo - 1, D, h, mi, se)); assert.ok(d.getUTCFullYear() === Y && d.getUTCMonth() === Mo - 1 && d.getUTCDate() === D && d.getUTCHours() === h && d.getUTCMinutes() === mi && d.getUTCSeconds() === se, `invalid timestamp in ${f}`); return m.slice(1).join(''); };
+  const stamps = names.map(ts); assert.equal(new Set(stamps).size, stamps.length, 'duplicate timestamps');
+  const g7 = names.filter((f) => /mis_g7_/.test(f)); assert.equal(g7.length, 7);
+  const first = names.indexOf(g7[0]); assert.ok(names.slice(0, first).every((f) => ts(f) < ts(g7[0])));
+  g7.forEach((f, i) => { if (i) assert.ok(ts(f) > ts(g7[i - 1]), `${f} must sort after ${g7[i - 1]}`); });
+  assert.deepEqual(MIGRATIONS, g7.filter((f) => !f.includes('s5b_')));                                  // harness order == apply order (S5b is explicitly owner-gated)
+  assert.ok(g7.some((f) => f.includes('s5b_')) && ts(g7.find((f) => f.includes('s5b_'))) > ts(MIGRATIONS[MIGRATIONS.length - 1]));
 });
 
 // ---------------------------- migration chain + rollback ----------------------------

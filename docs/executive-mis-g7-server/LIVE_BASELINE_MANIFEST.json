@@ -38,8 +38,9 @@
     "parser": "fn_parse_sku_breakdown(text)",
     "parser_sha256": "ec5fe3ead3e839d4ccad6c9f7e37c5775e1299c0b46ad71cc9a6b9eb7c5b29db",
     "source_reference": "LIVE_DWL_EDITOR_REFERENCE_ONLY_20261124.md (exact pg_get_functiondef text; tests install it verbatim and assert the SHA-256 values)",
-    "s5b_patched_core_sha256": "b0f4575fd971c4c24d695556fe327f713fc6227b7cf9357c9b78d8321add671f",
-    "s5b_patch": "LIVE_DWL_EDITOR_CORE_S5_PATCH.diff: exactly three added PERFORM statements (begin after the row lock; finish before each of the two RETURN QUERY exits), nothing removed",
-    "required_database_setting": "plpgsql.variable_conflict = use_column (the live core's OUT column packaging_event_id collides with the event_skus column; verify on production: CORE_PREINSTALL_LIVE_CHECK_READONLY.sql row 3)"
+    "s5b_patched_core_sha256": "dfa5a5e9aa31b48cf41fe9d03800fff2e35e5a3825ca458b5ccb6ca6c4471bcc",
+    "s5b_patch": "LIVE_DWL_EDITOR_CORE_S5_PATCH.diff: one function-local directive line (#variable_conflict use_column) + three added PERFORM statements (begin(p_id, p_item, p_batch_number) after the row lock; finish before each of the two RETURN QUERY exits); nothing removed",
+    "required_database_setting": "NONE. Live default is plpgsql.variable_conflict = error (source: default). The original core's statements 'DELETE FROM event_skus WHERE packaging_event_id = v_old_packaging_event_id' are ambiguous under error (OUT column packaging_event_id); the patched core resolves them with a function-local directive. OWNER DECISION: replacing/removing an existing chain raises today under the default; after S5b it works as written.",
+    "s5b_migration": "20261123150000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql (renamed from the invalid 20261123146000: 14:60:00)"
   }
 }

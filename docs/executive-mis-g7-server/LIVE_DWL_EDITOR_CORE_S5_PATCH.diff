@@ -1,17 +1,26 @@
 --- live core (sha256 df7290df...)
 +++ S5b patched core
-@@ -38,6 +38,10 @@
+@@ -4,6 +4,7 @@
+  SECURITY DEFINER
+  SET search_path TO 'public'
+ AS $function$
++#variable_conflict use_column
+ DECLARE
+   v_existing_dwl public.daily_work_log%ROWTYPE;
+   v_old_packaging_event_id bigint;
+@@ -38,6 +39,11 @@
    IF NOT FOUND THEN
      RAISE EXCEPTION 'No daily_work_log row found for id %', p_id;
    END IF;
 +
-+  /* MIS G7 S5: protected packaging-chain replacement. begin = batch lock + work-log-scoped ticket + chain snapshot,
-+     taken before the first write; finish (below, before every RETURN) verifies signed FG stage and FG stock conservation. */
-+  PERFORM app_private.mis_g7_chain_replace_begin(p_id);
++  /* MIS G7 S5: protected packaging-chain replacement. begin = batch locks (old + new identity, canonical order) + work-log-scoped
++     ticket + chain snapshot, taken before the first write; finish (below, before every RETURN) verifies signed FG stage and FG stock
++     conservation. */
++  PERFORM app_private.mis_g7_chain_replace_begin(p_id, p_item, p_batch_number);
  
    /*
      2) Determine whether this edited row should have packaging chain.
-@@ -118,6 +122,8 @@
+@@ -118,6 +124,8 @@
         WHERE id = v_old_packaging_event_id;
      END IF;
  
@@ -20,7 +29,7 @@
      RETURN QUERY
      SELECT p_id, NULL::bigint, 0;
  
-@@ -212,6 +218,8 @@
+@@ -212,6 +220,8 @@
    /*
      12) Return final result
    */

@@ -6,10 +6,10 @@
 -- WHAT THIS DOES NOT DO: it does not modify the live core and does not "ticket around" it. The exact live source (core sha256
 -- df7290df4a17e4af9f0aed43cf564007a35b957d8899b98869d7d35531296aec) is retained in
 -- docs/executive-mis-g7-server/LIVE_DWL_EDITOR_REFERENCE_ONLY_20261124.md; the minimal patch that calls the primitives below is the
--- separate OWNER-GATED migration S5b (…146000). A general-purpose caller ticket would let the old editor bypass signed-stage
+-- separate OWNER-GATED migration S5b (…150000). A general-purpose caller ticket would let the old editor bypass signed-stage
 -- authorization; instead this migration
 -- provides two PRIVATE primitives a reviewed core calls (begin before its first write, finish after its last write):
---   begin  : batch lock, snapshot of the chain's current lines, a work-log-scoped ticket that the event_skus/packaging_events
+--   begin  : batch locks (old AND new identity, one canonical order), snapshot of the chain's current lines, a work-log-scoped ticket that the event_skus/packaging_events
 --            gate honours ONLY for that work log, in this transaction.
 --   finish : verifies (a) when any bulk-affecting line exists before or after the edit: signed + un-drifted FG stage,
 --            (b) FG stock conservation: the ledger movements of ALL old and new lines of the chain net to exactly the
@@ -84,17 +84,21 @@ REVOKE ALL ON FUNCTION app_private.mis_g7_gate_check(text,text,bigint,bigint,boo
 
 -- ---------------------------------------------------------------------------
 -- Private primitives for a reviewed core (closed to every client role).
-CREATE OR REPLACE FUNCTION app_private.mis_g7_chain_replace_begin(p_work_log_id bigint)
+CREATE OR REPLACE FUNCTION app_private.mis_g7_chain_replace_begin(p_work_log_id bigint, p_new_item text DEFAULT NULL, p_new_batch text DEFAULT NULL)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $f$
-DECLARE v_wl record; v_ids bigint[]; v_bulk boolean;
+DECLARE v_wl record; v_ids bigint[]; v_bulk boolean; v_new_pid integer; v_old_ok boolean; v_new_ok boolean;
 BEGIN
   IF p_work_log_id IS NULL THEN RAISE EXCEPTION 'MIS_G7_CHAIN_INVALID_WORK_LOG' USING ERRCODE = '22023'; END IF;
   SELECT wl.id, wl.batch_number, p.id AS pid INTO v_wl
     FROM public.daily_work_log wl LEFT JOIN public.products p ON p.item = wl.item WHERE wl.id = p_work_log_id;
-  IF v_wl.id IS NOT NULL AND v_wl.pid IS NOT NULL AND coalesce(btrim(v_wl.batch_number), '') <> '' THEN
-    PERFORM app_private.mis_lock_fg_batch(v_wl.pid, v_wl.batch_number);          -- same lock order as every writer
-  END IF;
+  -- The editor may move the work log to another item/batch in the same edit: its arguments tell us the NEW identity up front, so BOTH
+  -- identities are locked in ONE canonical (sorted) order before any write. Two opposite moves therefore serialize instead of deadlocking.
+  IF p_new_item IS NOT NULL THEN SELECT p.id INTO v_new_pid FROM public.products p WHERE p.item = p_new_item LIMIT 1; END IF;
+  v_old_ok := v_wl.id IS NOT NULL AND v_wl.pid IS NOT NULL AND coalesce(btrim(v_wl.batch_number), '') <> '';
+  v_new_ok := v_new_pid IS NOT NULL AND coalesce(btrim(p_new_batch), '') <> '';
+  PERFORM app_private.mis_lock_fg_batches(CASE WHEN v_old_ok THEN v_wl.pid END, CASE WHEN v_old_ok THEN v_wl.batch_number END,
+                                          CASE WHEN v_new_ok THEN v_new_pid END, CASE WHEN v_new_ok THEN p_new_batch END);
   SELECT coalesce(array_agg(es.id ORDER BY es.id), '{}'), coalesce(bool_or(app_private.mis_g7_type_is_bulk(pe.event_type)), false)
     INTO v_ids, v_bulk
     FROM public.event_skus es JOIN public.packaging_events pe ON pe.id = es.packaging_event_id WHERE pe.work_log_id = p_work_log_id;
@@ -228,7 +232,7 @@ END $f$;
 DROP TRIGGER IF EXISTS mis_g7_chain_ticket_must_finish ON app_private.mis_g7_chain_ticket;
 CREATE CONSTRAINT TRIGGER mis_g7_chain_ticket_must_finish AFTER INSERT ON app_private.mis_g7_chain_ticket
   DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.trg_mis_g7_chain_ticket_must_finish();
-REVOKE ALL ON FUNCTION app_private.mis_g7_chain_replace_begin(bigint), app_private.mis_g7_chain_replace_finish(bigint),
+REVOKE ALL ON FUNCTION app_private.mis_g7_chain_replace_begin(bigint,text,text), app_private.mis_g7_chain_replace_finish(bigint),
   app_private.trg_mis_g7_chain_ticket_must_finish() FROM PUBLIC, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
