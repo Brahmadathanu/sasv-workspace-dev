@@ -18,7 +18,7 @@ SET LOCAL lock_timeout = '3s';
 SET LOCAL statement_timeout = '60s';
 DO $s1$
 DECLARE
-  c_pinned constant text[] := ARRAY[]::text[];
+  c_pinned constant text[] := ARRAY['public.rpc_eaushadhi_document_upload_contract(integer, text, text)|5bb91bb60e9d344183e725bf6f20d0f0', 'public.rpc_eaushadhi_pharmacological_action_options()|d649fb13c4336c5c5b054898155dc9cd', 'public.rpc_eaushadhi_product_actions_get(integer)|193586dcc0acfaa157a6b9fc7f24f33f', 'public.rpc_eaushadhi_product_classification_options(text, bigint)|e4145cc0dc0188c47bbfedddbbdb9da7', 'public.rpc_eaushadhi_product_classification_review_get(integer)|37183e238f164ae8990ed9e3ff82716f', 'public.rpc_eaushadhi_product_classification_review_save(integer, bigint, bigint, bigint, bigint, text, text, boolean)|7fe6eb30177bb55c46bd80718eebdd92', 'public.rpc_eaushadhi_product_evidence_status(integer)|8fb70200b1f5bd9bd325d9e2eff79999', 'public.rpc_eaushadhi_product_review_get(integer)|b7694fd45e9793cf043c4675bed914fa', 'public.rpc_eaushadhi_promote_verified_formulation(integer, bigint, text)|3a905e04a6b2347e83a1340abe128050', 'public.rpc_eaushadhi_register_approved_product_copy(integer, text, text, text, text, bigint, text, text)|6a7cbc866262ab1cdf644a9a8ab54d9e']::text[];
   c_expected constant int := 10;
   c_api constant text[] := ARRAY['anon','authenticated','service_role','postgres'];
   -- Roles the OWNER explicitly accepts losing EXECUTE (they relied solely on PUBLIC). Default: none.
@@ -27,6 +27,9 @@ DECLARE
   v_unpinned text; v_nonpub_acl text;
   v_before_acl jsonb := '{}'::jsonb; v_after_acl text;
   v_losers text := ''; v_covered text := '';
+  v_can_set boolean; v_b boolean;
+  -- PG16+ has a per-membership SET option; before that, membership implies SET ROLE.
+  v_setpriv text := CASE WHEN current_setting('server_version_num')::int >= 160000 THEN 'SET' ELSE 'MEMBER' END;
 BEGIN
   IF current_user = 'sasv_archive_ro' THEN RAISE EXCEPTION 'SEC-01 HOLD: must run as the function owner, not the archive role'; END IF;
   IF coalesce(array_length(c_pinned, 1), 0) <> c_expected THEN
@@ -103,7 +106,12 @@ BEGIN
     END IF;
     IF NOT ro.can_exec AND ro.now_exec THEN RAISE EXCEPTION 'SEC-01 FAIL: % GAINED execute on %', ro.role_name, ro.fn_oid::regprocedure; END IF;
     IF ro.can_exec AND NOT ro.now_exec AND NOT (ro.role_name = ANY (c_api)) THEN
-      IF EXISTS (SELECT 1 FROM unnest(c_api) g WHERE pg_has_role(ro.role_name, g, 'MEMBER')) THEN
+      v_can_set := false;
+      FOREACH r IN ARRAY c_api LOOP
+        EXECUTE format('SELECT pg_has_role(%L, %L, %L)', ro.role_name, r, v_setpriv) INTO v_b;
+        v_can_set := v_can_set OR v_b;
+      END LOOP;
+      IF v_can_set THEN
         IF position(ro.role_name || ' ' IN v_covered) = 0 THEN v_covered := v_covered || ro.role_name || ' '; END IF;
       ELSIF ro.role_name = 'sasv_archive_ro' THEN
         NULL; -- intended: the temporary archive role must NOT reach these functions

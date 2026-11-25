@@ -20,7 +20,9 @@ expect_fail() {
 expect_ok() { F "$1" >"$TMP/s1-ok.txt" 2>&1 || { cat "$TMP/s1-ok.txt"; fail "should pass: $2"; }; }
 acl_snapshot() { A "SELECT string_agg(proname || '=' || coalesce((SELECT string_agg(x, ',' ORDER BY x) FROM unnest(proacl::text[]) x),'NULL'), ';' ORDER BY proname) FROM pg_proc WHERE proname LIKE 'rpc\_eaushadhi\_zz\_%'"; }
 matrix() { A "SELECT string_agg(r.rolname || ':' || p.proname || ':' || has_function_privilege(r.oid,p.oid,'EXECUTE'), ';' ORDER BY r.rolname, p.proname) FROM pg_roles r, pg_proc p WHERE r.rolname IN ('anon','authenticated','service_role','postgres') AND p.proname LIKE 'rpc\_eaushadhi\_zz\_%'"; }
-mk() { sed "s#c_pinned constant text\[\] := ARRAY\[\]::text\[\];#c_pinned constant text[] := ARRAY[$LIST]::text[];#" "$1" > "$2"; }
+mk() { sed "s#c_pinned constant text\[\] := ARRAY\[.*\]::text\[\];#c_pinned constant text[] := ARRAY[$LIST]::text[];#" "$1" > "$2"; }
+empty_pins() { sed "s#c_pinned constant text\[\] := ARRAY\[.*\]::text\[\];#c_pinned constant text[] := ARRAY[]::text[];#" "$1" > "$2"; }
+INFRA="authenticator cli_login_postgres dashboard_user pgbouncer supabase_auth_admin supabase_functions_admin supabase_privileged_role supabase_read_only_user supabase_realtime_admin supabase_replication_admin supabase_storage_admin"
 create_fn() { # N
   local n="$1"
   if [ "$n" -ge 9 ]; then
@@ -31,15 +33,61 @@ create_fn() { # N
     A "GRANT EXECUTE ON FUNCTION public.rpc_eaushadhi_zz_$n(int) TO anon, authenticated, service_role, postgres"
   fi
 }
+STUBNAMES="$(grep -o "public\.rpc_eaushadhi_[a-z_]*(" $S1/S1_01_revoke_public_execute_eaushadhi_rpc.sql | sed "s/public\.//; s/($//" | sort -u | sed "s/.*/'&'/" | paste -sd, -)"
 cleanup() {
   A "DO \$\$ DECLARE f record; BEGIN FOR f IN SELECT oid::regprocedure AS s FROM pg_proc WHERE proname LIKE 'rpc\_eaushadhi\_zz\_%' LOOP EXECUTE 'DROP FUNCTION ' || f.s; END LOOP; END \$\$"
-  for r in zz_dep zz_member zz_new; do A "DROP ROLE IF EXISTS $r"; done
+  A "DO \$\$ DECLARE f record; BEGIN FOR f IN SELECT oid::regprocedure AS s FROM pg_proc WHERE proname IN ($STUBNAMES) LOOP EXECUTE 'DROP FUNCTION ' || f.s; END LOOP; END \$\$"
+  for r in zz_dep zz_member zz_new $INFRA; do A "DROP ROLE IF EXISTS $r"; done
 }
 
 # ---- setup ---------------------------------------------------------------------------------------------------
 if [ "$(A "SELECT count(*) FROM pg_roles WHERE rolname='sasv_archive_ro'")" != 0 ]; then F $R2/R2_99_revoke_and_drop_archive_ro_role.sql >/dev/null 2>&1; fi
 cleanup
 for r in anon authenticated service_role; do A "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='$r') THEN CREATE ROLE $r NOLOGIN; END IF; END \$\$"; done
+# ---- the REAL production pins: shape, uniqueness, consistency, resolvability, gate behaviour ----------------------
+REAL="$(grep -o "'public\.rpc_eaushadhi_[^']*|[0-9a-f]\{32\}'" $S1/S1_01_revoke_public_execute_eaushadhi_rpc.sql | tr -d "'")"
+test "$(echo "$REAL" | wc -l)" = 10
+test "$(echo "$REAL" | sort -u | wc -l)" = 10
+for f in S1_02_verify_public_execute_revoked S1_03_role_compatibility_assessment S1_99_rollback_restore_public_execute; do
+  [ "$(grep -o "'public\.rpc_eaushadhi_[^']*|[0-9a-f]\{32\}'" $S1/$f.sql | tr -d "'")" = "$REAL" ] || fail "pin list differs in $f"
+done
+echo "SEC-01 real pins: 10 unique entries, identical in S1_01/S1_02/S1_03/S1_99"
+echo "$REAL" | while IFS= read -r line; do
+  sig="${line%%|*}"; name="${sig#public.}"; name="${name%%(*}"; types="${sig#*(}"; types="${types%)}"
+  A "CREATE FUNCTION public.$name($types) RETURNS int LANGUAGE sql SECURITY DEFINER AS 'SELECT 1'" >/dev/null
+  A "GRANT EXECUTE ON FUNCTION public.$name($types) TO anon, authenticated, service_role, postgres" >/dev/null
+done
+F $S1/S1_00_discover_public_definer_functions.sql >"$TMP/s1-stub00.txt" 2>&1
+[ "$(grep -o "entry: '[^']*'" "$TMP/s1-stub00.txt" | sed "s/^entry: '//; s/|[0-9a-f]*'$//" | sort)" = "$(echo "$REAL" | sed 's/|[0-9a-f]*$//' | sort)" ] || fail "S1_00 signature format differs from the production pins"
+echo "SEC-01 real pins: signature text matches what S1_00 prints for identical signatures"
+expect_fail $S1/S1_01_revoke_public_execute_eaushadhi_rpc.sql 'definition fingerprint drift' "real pins reject same-signature functions with a different definition"
+# Infrastructure roles: authenticator may SET ROLE into the API roles; the others are plain roles.
+for r in $INFRA; do A "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='$r') THEN CREATE ROLE $r NOLOGIN; END IF; END \$\$"; done
+A "ALTER ROLE authenticator LOGIN NOINHERIT"
+A "GRANT anon, authenticated, service_role TO authenticator"
+assess() { F $S1/S1_03_role_compatibility_assessment.sql >"$TMP/s1-03.txt" 2>&1 || { cat "$TMP/s1-03.txt"; fail "S1_03"; }; }
+assess
+grep -q 'role authenticator \[COVERED_BY_SET_ROLE\]: login=t inherit=f | direct=0/10 inherited=0/10 public_only=10/10' "$TMP/s1-03.txt" || { grep 'role ' "$TMP/s1-03.txt"; fail "authenticator should be COVERED_BY_SET_ROLE"; }
+for r in pgbouncer dashboard_user supabase_auth_admin supabase_storage_admin supabase_read_only_user cli_login_postgres; do
+  grep -q "role $r \[LOSES_ACCESS_NO_PATH\]" "$TMP/s1-03.txt" || fail "$r should be LOSES_ACCESS_NO_PATH in the fixture"
+done
+grep -q 'function-level evidence' "$TMP/s1-03.txt"
+echo "SEC-01 S1_03: authenticator is COVERED_BY_SET_ROLE (NOINHERIT member); roles outside the API roles LOSE access"
+if [ "$(A "SHOW server_version_num")" -ge 160000 ]; then
+  A "REVOKE anon, authenticated, service_role FROM authenticator"
+  A "GRANT anon, authenticated, service_role TO authenticator WITH INHERIT FALSE, SET FALSE"
+  assess
+  grep -q 'role authenticator \[LOSES_ACCESS_NO_PATH\]' "$TMP/s1-03.txt" || fail "membership without SET must not count as covered"
+  A "REVOKE anon, authenticated, service_role FROM authenticator"
+  A "GRANT anon, authenticated, service_role TO authenticator WITH INHERIT TRUE, SET FALSE"
+  assess
+  grep -q 'role authenticator \[KEEPS_ACCESS\]' "$TMP/s1-03.txt" || fail "INHERIT membership keeps access"
+  A "REVOKE anon, authenticated, service_role FROM authenticator"
+  A "GRANT anon, authenticated, service_role TO authenticator"
+  echo "SEC-01 S1_03: membership WITHOUT the SET/INHERIT options is not treated as coverage"
+fi
+A "DO \$\$ DECLARE f record; BEGIN FOR f IN SELECT oid::regprocedure AS s FROM pg_proc WHERE proname IN ($STUBNAMES) LOOP EXECUTE 'DROP FUNCTION ' || f.s; END LOOP; END \$\$"
+
 for n in 01 02 03 04 05 06 07 08 09 10; do create_fn "$n"; done
 ORIG_ACL="$(acl_snapshot)"; ORIG_MATRIX="$(matrix)"
 echo "$ORIG_ACL" | grep -Eq '(=|,)=X/postgres' || fail "fixture functions should start PUBLIC-executable"
@@ -57,6 +105,11 @@ PRE="$(A "SELECT coalesce(string_agg(quote_literal(rolname), ','), '') FROM pg_r
 sed "s#c_accepted_losers constant text\[\] := ARRAY\[\]::text\[\];#c_accepted_losers constant text[] := ARRAY[$PRE]::text[];#" "$TMP/s1-01-raw.sql" > "$TMP/s1-01.sql"
 mk $S1/S1_02_verify_public_execute_revoked.sql      "$TMP/s1-02.sql"
 mk $S1/S1_99_rollback_restore_public_execute.sql    "$TMP/s1-99.sql"
+mk $S1/S1_03_role_compatibility_assessment.sql      "$TMP/s1-03z.sql"
+expect_ok "$TMP/s1-03z.sql" "S1_03 on the fixture set"
+grep -q "role authenticator \[COVERED_BY_SET_ROLE\]" "$TMP/s1-ok.txt"
+mk $S1/S1_01_revoke_public_execute_eaushadhi_rpc.sql "$TMP/s1-01-unaccepted.sql"
+expect_fail "$TMP/s1-01-unaccepted.sql" "role cli_login_postgres relied solely on PUBLIC" "infrastructure roles with no path stop S1_01 while the accepted list is empty"
 echo "SEC-01 S1_00 discovery: 10 entries, read-only"
 
 # ---- motive: Route 2 R2_03 rejects the reachable definers BEFORE the revoke ----------------------------------------
@@ -67,9 +120,10 @@ grep -q 'REACHABLE SECURITY DEFINER: public.rpc_eaushadhi_zz_01' "$TMP/s1-r203a.
 echo "SEC-01 motive confirmed: R2_03 rejects the ten before the revoke"
 
 # ---- fail-closed gates (each must leave ACLs untouched) -----------------------------------------------------------
-expect_fail $S1/S1_01_revoke_public_execute_eaushadhi_rpc.sql 'pinned list not populated' "unpopulated pin list"
-expect_fail $S1/S1_02_verify_public_execute_revoked.sql 'pinned list not populated' "S1_02 unpopulated pin list"
-expect_fail $S1/S1_99_rollback_restore_public_execute.sql 'pinned list not populated' "S1_99 unpopulated pin list"
+for f in S1_01_revoke_public_execute_eaushadhi_rpc S1_02_verify_public_execute_revoked S1_99_rollback_restore_public_execute S1_03_role_compatibility_assessment; do
+  empty_pins $S1/$f.sql "$TMP/s1-empty.sql"
+  expect_fail "$TMP/s1-empty.sql" 'pinned list not populated' "$f with an empty pin list"
+done
 expect_fail "$TMP/s1-02.sql" 'PUBLIC still holds' "S1_02 before the revoke"
 expect_fail "$TMP/s1-99.sql" 'already PUBLIC-executable' "rollback before the change"
 
@@ -108,7 +162,7 @@ A "DROP ROLE zz_dep"
 A "CREATE ROLE zz_member LOGIN NOINHERIT"; A "GRANT authenticated TO zz_member"
 expect_ok "$TMP/s1-01.sql" "SEC-01 apply"
 grep -q 'S1_01 OK: PUBLIC EXECUTE revoked on 10 functions' "$TMP/s1-ok.txt"
-grep -q 'retain it by membership/SET ROLE: \[zz_member\]' "$TMP/s1-ok.txt" || { cat "$TMP/s1-ok.txt"; fail "NOINHERIT member should be reported as covered"; }
+grep 'retain it by membership/SET ROLE' "$TMP/s1-ok.txt" | grep -q 'authenticator' && grep 'retain it by membership/SET ROLE' "$TMP/s1-ok.txt" | grep -q 'zz_member' || { cat "$TMP/s1-ok.txt"; fail "NOINHERIT members should be reported as covered"; }
 [ "$(matrix)" = "$ORIG_MATRIX" ] || fail "application-role EXECUTE matrix changed"
 ! acl_snapshot | grep -Eq '(=|,)=X/postgres' || fail "a PUBLIC entry remains"
 for r in anon authenticated service_role; do

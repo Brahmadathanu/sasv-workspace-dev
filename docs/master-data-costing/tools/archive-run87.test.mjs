@@ -78,11 +78,12 @@ test('SEC-01 package: separate, minimal, fail-closed, identical pin lists, no di
   const s01 = await rd('S1_01_revoke_public_execute_eaushadhi_rpc.sql');
   const s02 = await rd('S1_02_verify_public_execute_revoked.sql');
   const s99 = await rd('S1_99_rollback_restore_public_execute.sql');
+  const s03 = await rd('S1_03_role_compatibility_assessment.sql');
   // Only the two reviewed statements change privileges; discovery/verify are read-only.
-  assert.match(s00, /BEGIN READ ONLY/); assert.match(s02, /BEGIN READ ONLY/);
+  assert.match(s00, /BEGIN READ ONLY/); assert.match(s02, /BEGIN READ ONLY/); assert.match(s03, /BEGIN READ ONLY/);
   for (const t of [s00, s02]) assert.doesNotMatch(t, /\b(GRANT|REVOKE|ALTER|DROP|CREATE)\b(?![^\n]*--)(?=\s+(?:EXECUTE|ON|ROLE|FUNCTION|TABLE))/);
-  assert.equal([...s01.matchAll(/EXECUTE format\('([^']*)'/g)].map(m => m[1]).join('|'), 'REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC');
-  assert.equal([...s99.matchAll(/EXECUTE format\('([^']*)'/g)].map(m => m[1]).join('|'), 'GRANT EXECUTE ON FUNCTION %s TO PUBLIC');
+  assert.equal([...s01.matchAll(/EXECUTE format\('([^']*)'/g)].map(m => m[1]).filter(x => !/^SELECT /.test(x)).join('|'), 'REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC');
+  assert.equal([...s99.matchAll(/EXECUTE format\('([^']*)'/g)].map(m => m[1]).filter(x => !/^SELECT /.test(x)).join('|'), 'GRANT EXECUTE ON FUNCTION %s TO PUBLIC');
   for (const t of [s01, s02, s99]) {
     assert.match(t, /c_expected constant int := 10/);
     assert.match(t, /pinned list not populated/);
@@ -91,10 +92,15 @@ test('SEC-01 package: separate, minimal, fail-closed, identical pin lists, no di
   }
   // Pin arrays are identical across S1_01 / S1_02 / S1_99 (and still empty until the owner approves a list).
   const pin = t => t.match(/c_pinned constant text\[\] := (ARRAY\[[^;]*\]::text\[\]);/)[1];
-  assert.equal(pin(s01), pin(s02)); assert.equal(pin(s01), pin(s99));
+  assert.equal(pin(s01), pin(s02)); assert.equal(pin(s01), pin(s99)); assert.equal(pin(s01), pin(s03));
+  const entries = [...pin(s01).matchAll(/'([^']+)'/g)].map(m => m[1]);
+  assert.equal(entries.length, 10); assert.equal(new Set(entries).size, 10);
+  for (const e of entries) assert.match(e, /^public\.rpc_eaushadhi_[a-z_]+\([a-z, ]*\)\|[0-9a-f]{32}$/);
+  assert.deepEqual(entries.map(e => e.split('|')[0]).sort(), entries.map(e => e.split('|')[0]));
+  assert.match(s01, /c_accepted_losers constant text\[\] := ARRAY\[\]::text\[\];/);
   // SEC-01 must stay separate from Route 2 role creation.
   for (const t of [s01, s02, s99]) assert.doesNotMatch(t, /CREATE ROLE|GRANT SELECT|R2_0[1-5]/);
-  assert.deepEqual((await readdir(dir)).sort(), ['S1_00_discover_public_definer_functions.sql','S1_01_revoke_public_execute_eaushadhi_rpc.sql','S1_02_verify_public_execute_revoked.sql','S1_99_rollback_restore_public_execute.sql','S1_FIXTURE_ACCEPTANCE.sh']);
+  assert.deepEqual((await readdir(dir)).sort(), ['S1_00_discover_public_definer_functions.sql','S1_01_revoke_public_execute_eaushadhi_rpc.sql','S1_02_verify_public_execute_revoked.sql','S1_03_role_compatibility_assessment.sql','S1_99_rollback_restore_public_execute.sql','S1_FIXTURE_ACCEPTANCE.sh']);
   // Every eAushadhi client calls RPCs through PostgREST/Supabase API roles (anon/authenticated/service_role),
   // which keep their explicit EXECUTE grants; none connects as a direct database login.
   const { execFileSync } = await import('node:child_process');
