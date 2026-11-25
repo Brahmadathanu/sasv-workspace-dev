@@ -173,7 +173,7 @@ export const REVIEWED_WP11_V394_PINS = Object.freeze({
   }),
 });
 
-// PEC v6.5.0 release (Purchase Allocations lens + modal stack): the ONLY change to public/sw.js is the hub-cache-v394 -> hub-cache-v396
+// PEC v6.5.0 release (Purchase Allocations lens + modal stack): the ONLY change to public/sw.js is the hub-cache-v394 -> hub-cache-v395
 // advance plus network-first rules for the two new PEC modules (pec-modal-stack.js, pec-purchase-allocations.js). Owner-authorised
 // release step. Exact path + exact head branch + SHA-256 of the LF-normalised file; any other content, branch, protected path or SQL
 // migration stays rejected; the global protected-path policy is unchanged.

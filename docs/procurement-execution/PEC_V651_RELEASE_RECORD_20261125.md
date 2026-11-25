@@ -5,7 +5,8 @@ Previous stable: v6.5.0 (`a72af1e`), cache `hub-cache-v395`; both re-checked aga
 | Item | Reference |
 |---|---|
 | UX03 client implementation (squash-merged) | PR #532, `f7d2e6d` |
-| Release PR #533: owner refinement (Summary pinned right, PEC chevron), version 6.5.1, `public/sw.js` cache v396, reviewed guard pin `REVIEWED_PEC_V651_PINS`, exact v395->v396 permit in `wp11-approved-delta.mjs`, cache-name pins, release notes | #533 (combined: the remote branch already carried the release prep and force-push is not permitted) |
+| Owner refinement: Summary pinned right + PEC chevron (client PR, squash-merged) | PR #533, `1049142` |
+| Release PR: version 6.5.1, `public/sw.js` cache v396, reviewed guard pin `REVIEWED_PEC_V651_PINS`, exact v395->v396 permit in `wp11-approved-delta.mjs`, cache-name pins, release notes | release PR (this) |
 
 Design, measurements (594 -> 276 px at 390x844) and evidence: `PEC_UX03_MOBILE_USABILITY_REFINEMENT_20261125.md`.
 
