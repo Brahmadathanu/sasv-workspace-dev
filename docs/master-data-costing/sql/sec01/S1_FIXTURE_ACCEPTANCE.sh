@@ -63,16 +63,21 @@ echo "SEC-01 real pins: signature text matches what S1_00 prints for identical s
 expect_fail $S1/S1_01_revoke_public_execute_eaushadhi_rpc.sql 'definition fingerprint drift' "real pins reject same-signature functions with a different definition"
 # Infrastructure roles: authenticator may SET ROLE into the API roles; the others are plain roles.
 for r in $INFRA; do A "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='$r') THEN CREATE ROLE $r NOLOGIN; END IF; END \$\$"; done
-A "ALTER ROLE authenticator LOGIN NOINHERIT"
-A "GRANT anon, authenticated, service_role TO authenticator"
+# Production topology (S1_03 on production): authenticator, cli_login_postgres, supabase_storage_admin can SET ROLE
+# into the API roles; the other eight have no membership.
+for r in authenticator cli_login_postgres supabase_storage_admin; do A "ALTER ROLE $r LOGIN NOINHERIT"; A "GRANT anon, authenticated, service_role TO $r"; done
+EIGHT="dashboard_user pgbouncer supabase_auth_admin supabase_functions_admin supabase_privileged_role supabase_read_only_user supabase_realtime_admin supabase_replication_admin"
 assess() { F $S1/S1_03_role_compatibility_assessment.sql >"$TMP/s1-03.txt" 2>&1 || { cat "$TMP/s1-03.txt"; fail "S1_03"; }; }
 assess
 grep -q 'role authenticator \[COVERED_BY_SET_ROLE\]: login=t inherit=f | direct=0/10 inherited=0/10 public_only=10/10' "$TMP/s1-03.txt" || { grep 'role ' "$TMP/s1-03.txt"; fail "authenticator should be COVERED_BY_SET_ROLE"; }
-for r in pgbouncer dashboard_user supabase_auth_admin supabase_storage_admin supabase_read_only_user cli_login_postgres; do
-  grep -q "role $r \[LOSES_ACCESS_NO_PATH\]" "$TMP/s1-03.txt" || fail "$r should be LOSES_ACCESS_NO_PATH in the fixture"
+for r in cli_login_postgres supabase_storage_admin; do
+  grep -q "role $r \[COVERED_BY_SET_ROLE\]" "$TMP/s1-03.txt" || fail "$r should be COVERED_BY_SET_ROLE"
 done
+GOT="$(grep -o 'role [a-z_]* \[LOSES_ACCESS_NO_PATH\]' "$TMP/s1-03.txt" | sed 's/^role //; s/ .*//' | grep -E "^($(echo $INFRA | tr ' ' '|'))$" | sort | paste -sd' ' -)"
+[ "$GOT" = "$(echo $EIGHT | tr ' ' '
+' | sort | paste -sd' ' -)" ] || fail "LOSES_ACCESS_NO_PATH set among infrastructure roles is [$GOT]"
 grep -q 'function-level evidence' "$TMP/s1-03.txt"
-echo "SEC-01 S1_03: authenticator is COVERED_BY_SET_ROLE (NOINHERIT member); roles outside the API roles LOSE access"
+echo "SEC-01 S1_03: authenticator, cli_login_postgres, supabase_storage_admin COVERED_BY_SET_ROLE; exactly the eight accepted roles LOSE access"
 if [ "$(A "SHOW server_version_num")" -ge 160000 ]; then
   A "REVOKE anon, authenticated, service_role FROM authenticator"
   A "GRANT anon, authenticated, service_role TO authenticator WITH INHERIT FALSE, SET FALSE"
@@ -101,15 +106,27 @@ test "$(echo "$LIST" | tr ',' '\n' | grep -c 'rpc_eaushadhi_zz_')" = 10
 mk $S1/S1_01_revoke_public_execute_eaushadhi_rpc.sql "$TMP/s1-01-raw.sql"
 # Other roles that exist in a shared CI/dev cluster (e.g. S3L fixture roles) and rely only on PUBLIC are the
 # owner's declared accepted losers for this synthetic run; zz_dep must still be caught.
-PRE="$(A "SELECT coalesce(string_agg(quote_literal(rolname), ','), '') FROM pg_roles WHERE NOT rolsuper AND rolname !~ '^pg_' AND rolname NOT IN ('anon','authenticated','service_role','sasv_archive_ro')")"
-sed "s#c_accepted_losers constant text\[\] := ARRAY\[\]::text\[\];#c_accepted_losers constant text[] := ARRAY[$PRE]::text[];#" "$TMP/s1-01-raw.sql" > "$TMP/s1-01.sql"
+SHIPPED8="$(grep -o "c_accepted_losers constant text\[\] := ARRAY\[[^]]*\]" $S1/S1_01_revoke_public_execute_eaushadhi_rpc.sql | grep -o "'[a-z_]*'" | tr -d "'" | sort | paste -sd' ' -)"
+[ "$SHIPPED8" = "$(echo $EIGHT | tr ' ' '
+' | sort | paste -sd' ' -)" ] || fail "shipped accepted-losers list is [$SHIPPED8], not exactly the owner-approved eight"
+# Other roles that exist only in a shared dev/CI cluster (e.g. S3L fixture roles) are fixture noise: accept them in a
+# test copy, never in the shipped file.
+OTHER="$(A "SELECT coalesce(string_agg(quote_literal(rolname), ','), '') FROM pg_roles WHERE NOT rolsuper AND rolname !~ '^pg_' AND rolname NOT IN ('anon','authenticated','service_role','sasv_archive_ro','zz_dep','zz_member','zz_new','$(echo $INFRA | sed "s/ /','/g")')")"
+EIGHTLIT="$(echo $EIGHT | sed "s/ /','/g; s/^/'/; s/\$/'/")"
+sed "s#c_accepted_losers constant text\[\] := ARRAY\[[^]]*\]::text\[\];#c_accepted_losers constant text[] := ARRAY[$EIGHTLIT${OTHER:+,$OTHER}]::text[];#" "$TMP/s1-01-raw.sql" > "$TMP/s1-01.sql"
+if [ -z "$OTHER" ]; then SHIPPED_EXACT=1; else SHIPPED_EXACT=0; fi
 mk $S1/S1_02_verify_public_execute_revoked.sql      "$TMP/s1-02.sql"
 mk $S1/S1_99_rollback_restore_public_execute.sql    "$TMP/s1-99.sql"
 mk $S1/S1_03_role_compatibility_assessment.sql      "$TMP/s1-03z.sql"
 expect_ok "$TMP/s1-03z.sql" "S1_03 on the fixture set"
 grep -q "role authenticator \[COVERED_BY_SET_ROLE\]" "$TMP/s1-ok.txt"
-mk $S1/S1_01_revoke_public_execute_eaushadhi_rpc.sql "$TMP/s1-01-unaccepted.sql"
-expect_fail "$TMP/s1-01-unaccepted.sql" "role cli_login_postgres relied solely on PUBLIC" "infrastructure roles with no path stop S1_01 while the accepted list is empty"
+sed "s#'pgbouncer',##" "$TMP/s1-01.sql" > "$TMP/s1-01-unaccepted.sql"
+expect_fail "$TMP/s1-01-unaccepted.sql" "role pgbouncer relied solely on PUBLIC" "a ninth infrastructure role outside the accepted eight stops S1_01"
+if [ "$SHIPPED_EXACT" = 1 ]; then
+  : # the shipped file (eight only) is exercised unmodified below
+else
+  expect_fail "$TMP/s1-01-raw.sql" "relied solely on PUBLIC" "shipped list alone does not accept unrelated cluster roles (no wildcard)"
+fi
 echo "SEC-01 S1_00 discovery: 10 entries, read-only"
 
 # ---- motive: Route 2 R2_03 rejects the reachable definers BEFORE the revoke ----------------------------------------
@@ -150,7 +167,7 @@ expect_fail "$TMP/s1-01.sql" 'role zz_dep relied solely on PUBLIC' "role dependi
 [ "$(matrix)" = "$ORIG_MATRIX" ] || fail "API matrix changed by a failed run"
 
 # Owner-accepted loser mechanism, then rollback to the exact original ACL.
-sed "s#c_accepted_losers constant text\[\] := ARRAY\[$PRE\]::text\[\];#c_accepted_losers constant text[] := ARRAY[${PRE:+$PRE,}'zz_dep']::text[];#" "$TMP/s1-01.sql" > "$TMP/s1-01-acc.sql"
+sed "s#c_accepted_losers constant text\[\] := ARRAY\[#c_accepted_losers constant text[] := ARRAY['zz_dep',#" "$TMP/s1-01.sql" > "$TMP/s1-01-acc.sql"
 expect_ok "$TMP/s1-01-acc.sql" "owner-accepted loser"
 grep -q 'zz_dep(accepted)' "$TMP/s1-ok.txt"
 expect_ok "$TMP/s1-99.sql" "rollback after accepted-loser run"
@@ -160,7 +177,16 @@ A "DROP ROLE zz_dep"
 
 # ---- the real change ----------------------------------------------------------------------------------------------
 A "CREATE ROLE zz_member LOGIN NOINHERIT"; A "GRANT authenticated TO zz_member"
-expect_ok "$TMP/s1-01.sql" "SEC-01 apply"
+shape() { A "SELECT DISTINCT (SELECT string_agg(x, ',' ORDER BY x) FROM unnest(proacl::text[]) x) FROM pg_proc WHERE proname LIKE 'rpc\_eaushadhi\_zz\_%'"; }
+PROD_SHAPE="=X/postgres,anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres"
+POST_SHAPE="anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres"
+[ "$(shape)" = "$PROD_SHAPE" ] || fail "fixture ACL is not the production shape: $(shape)"
+if [ "$SHIPPED_EXACT" = 1 ]; then APPLY="$TMP/s1-01-raw.sql"; else APPLY="$TMP/s1-01.sql"; fi
+expect_ok "$APPLY" "SEC-01 apply (shipped file, owner-approved eight)"
+[ "$(shape)" = "$POST_SHAPE" ] || fail "post-apply ACL shape is $(shape)"
+for r in $EIGHT; do grep -q "$r(accepted)" "$TMP/s1-ok.txt" || fail "$r not reported as an accepted loser"; done
+for r in authenticator cli_login_postgres supabase_storage_admin; do grep 'retain it by membership/SET ROLE' "$TMP/s1-ok.txt" | grep -q "$r" || fail "$r not reported as covered"; done
+echo "SEC-01 applied: production ACL shape {PUBLIC,4 API roles} -> {4 API roles}; eight accepted losers reported; three SET-role infrastructure roles covered (shipped file unmodified: $SHIPPED_EXACT)"
 grep -q 'S1_01 OK: PUBLIC EXECUTE revoked on 10 functions' "$TMP/s1-ok.txt"
 grep 'retain it by membership/SET ROLE' "$TMP/s1-ok.txt" | grep -q 'authenticator' && grep 'retain it by membership/SET ROLE' "$TMP/s1-ok.txt" | grep -q 'zz_member' || { cat "$TMP/s1-ok.txt"; fail "NOINHERIT members should be reported as covered"; }
 [ "$(matrix)" = "$ORIG_MATRIX" ] || fail "application-role EXECUTE matrix changed"
@@ -189,6 +215,8 @@ create_fn 03
 POST_ACL="$(acl_snapshot)"
 expect_ok "$TMP/s1-99.sql" "rollback"
 [ "$(acl_snapshot)" = "$ORIG_ACL" ] || fail "rollback ACL differs from original"
+[ "$(shape)" = "$PROD_SHAPE" ] || fail "rollback did not restore the production ACL shape: $(shape)"
+echo "SEC-01 rollback restored the exact production ACL shape"
 expect_fail "$TMP/s1-99.sql" 'already PUBLIC-executable' "rollback twice"
 expect_ok "$TMP/s1-01.sql" "re-apply after rollback"
 [ "$(acl_snapshot)" = "$POST_ACL" ] || fail "re-apply ACL differs from first apply"
