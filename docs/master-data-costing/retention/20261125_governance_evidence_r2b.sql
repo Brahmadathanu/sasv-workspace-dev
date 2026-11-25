@@ -17,10 +17,8 @@ UPDATE costing.sales_allocation_quantity_driver_acceptance a SET governance_even
 FROM costing.governance_evidence_event e WHERE e.evidence_category='SALES_QUANTITY_DRIVER' AND e.acceptance_id=a.id
  AND e.id=(SELECT max(x.id) FROM costing.governance_evidence_event x WHERE x.evidence_category=e.evidence_category AND x.acceptance_id=e.acceptance_id)
  AND e.acceptance_evidence=to_jsonb(a)-'governance_event_id'-'governance_category';
-ALTER TABLE costing.regional_marketing_evidence_acceptance ALTER COLUMN governance_event_id SET NOT NULL,
- ADD CONSTRAINT regional_acceptance_permanent_evidence_fk FOREIGN KEY(governance_event_id,governance_category,id) REFERENCES costing.governance_evidence_event(id,evidence_category,acceptance_id);
-ALTER TABLE costing.sales_allocation_quantity_driver_acceptance ALTER COLUMN governance_event_id SET NOT NULL,
- ADD CONSTRAINT sales_acceptance_permanent_evidence_fk FOREIGN KEY(governance_event_id,governance_category,id) REFERENCES costing.governance_evidence_event(id,evidence_category,acceptance_id);
+ALTER TABLE costing.regional_marketing_evidence_acceptance ADD CONSTRAINT regional_acceptance_permanent_evidence_fk FOREIGN KEY(governance_event_id,governance_category,id) REFERENCES costing.governance_evidence_event(id,evidence_category,acceptance_id) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE costing.sales_allocation_quantity_driver_acceptance ADD CONSTRAINT sales_acceptance_permanent_evidence_fk FOREIGN KEY(governance_event_id,governance_category,id) REFERENCES costing.governance_evidence_event(id,evidence_category,acceptance_id) DEFERRABLE INITIALLY DEFERRED;
 CREATE OR REPLACE FUNCTION costing.fn_capture_governance_evidence_event() RETURNS trigger
 LANGUAGE plpgsql SECURITY INVOKER SET search_path=pg_catalog,costing AS $$
 DECLARE j jsonb; k jsonb; cat text; prior jsonb; source_ok boolean; event_id bigint;
@@ -29,6 +27,11 @@ BEGIN
  j:=to_jsonb(NEW)-'governance_event_id'-'governance_category';
  IF TG_TABLE_SCHEMA<>'costing' THEN RAISE EXCEPTION 'Unexpected evidence source'; END IF;
  IF TG_OP='UPDATE' THEN
+  IF pg_trigger_depth()>1 AND NEW.governance_event_id IS DISTINCT FROM OLD.governance_event_id
+   AND j IS NOT DISTINCT FROM to_jsonb(OLD)-'governance_event_id'-'governance_category' THEN
+   IF NOT EXISTS(SELECT 1 FROM costing.governance_evidence_event e WHERE e.id=NEW.governance_event_id AND e.acceptance_id=NEW.id AND e.evidence_category=NEW.governance_category AND e.acceptance_evidence=j) THEN RAISE EXCEPTION 'Invalid internal evidence pointer'; END IF;
+   RETURN NULL;
+  END IF;
   IF NEW.id<>OLD.id THEN RAISE EXCEPTION 'Acceptance identity is immutable'; END IF;
   SELECT acceptance_evidence INTO STRICT prior FROM costing.governance_evidence_event WHERE id=OLD.governance_event_id;
   IF prior IS DISTINCT FROM to_jsonb(OLD)-'governance_event_id'-'governance_category' THEN RAISE EXCEPTION 'Prior evidence mismatch'; END IF;
@@ -60,10 +63,40 @@ BEGIN
  END IF;
  INSERT INTO costing.governance_evidence_event(evidence_category,acceptance_id,source_refresh_run_id,event_kind,original_snapshot_keys,acceptance_evidence,original_fingerprint)
  VALUES(cat,NEW.id,NEW.source_refresh_run_id,TG_OP,k,j,NEW.evidence_fingerprint) RETURNING id INTO event_id;
- NEW.governance_event_id:=event_id;
- RETURN NEW;
+ IF cat='REGIONAL_MARKETING' THEN
+  UPDATE costing.regional_marketing_evidence_acceptance SET governance_event_id=event_id WHERE id=NEW.id;
+ ELSE
+  UPDATE costing.sales_allocation_quantity_driver_acceptance SET governance_event_id=event_id WHERE id=NEW.id;
+ END IF;
+ RETURN NULL;
 END $$;
-CREATE TRIGGER capture_governance_evidence BEFORE INSERT OR UPDATE OR DELETE ON costing.regional_marketing_evidence_acceptance FOR EACH ROW EXECUTE FUNCTION costing.fn_capture_governance_evidence_event();
-CREATE TRIGGER capture_governance_evidence BEFORE INSERT OR UPDATE OR DELETE ON costing.sales_allocation_quantity_driver_acceptance FOR EACH ROW EXECUTE FUNCTION costing.fn_capture_governance_evidence_event();
+CREATE TRIGGER capture_governance_evidence AFTER INSERT OR UPDATE OR DELETE ON costing.regional_marketing_evidence_acceptance FOR EACH ROW EXECUTE FUNCTION costing.fn_capture_governance_evidence_event();
+CREATE TRIGGER capture_governance_evidence AFTER INSERT OR UPDATE OR DELETE ON costing.sales_allocation_quantity_driver_acceptance FOR EACH ROW EXECUTE FUNCTION costing.fn_capture_governance_evidence_event();
+DO $ BEGIN
+ IF EXISTS(SELECT 1 FROM costing.regional_marketing_evidence_acceptance WHERE governance_event_id IS NULL)
+ OR EXISTS(SELECT 1 FROM costing.sales_allocation_quantity_driver_acceptance WHERE governance_event_id IS NULL)
+ THEN RAISE EXCEPTION 'Incomplete baseline evidence mapping'; END IF;
+END $;
+CREATE FUNCTION costing.fn_assert_governance_evidence_link() RETURNS trigger
+LANGUAGE plpgsql SECURITY INVOKER SET search_path=pg_catalog,costing AS $
+DECLARE current_row jsonb;
+BEGIN
+ IF TG_TABLE_NAME='regional_marketing_evidence_acceptance' THEN
+  SELECT to_jsonb(a) INTO current_row FROM costing.regional_marketing_evidence_acceptance a WHERE a.id=NEW.id;
+ ELSE
+  SELECT to_jsonb(a) INTO current_row FROM costing.sales_allocation_quantity_driver_acceptance a WHERE a.id=NEW.id;
+ END IF;
+ IF current_row IS NULL OR NOT EXISTS (
+  SELECT 1 FROM costing.governance_evidence_event e
+  WHERE e.id=(current_row->>'governance_event_id')::bigint
+  AND e.acceptance_id=(current_row->>'id')::bigint
+  AND e.evidence_category=current_row->>'governance_category'
+  AND e.acceptance_evidence=current_row-'governance_event_id'-'governance_category'
+ ) THEN RAISE EXCEPTION 'Missing or inconsistent permanent governance evidence'; END IF;
+ RETURN NULL;
+END $;
+REVOKE ALL ON FUNCTION costing.fn_assert_governance_evidence_link() FROM PUBLIC,anon,authenticated,service_role;
+CREATE CONSTRAINT TRIGGER assert_governance_evidence_link AFTER INSERT OR UPDATE ON costing.regional_marketing_evidence_acceptance DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION costing.fn_assert_governance_evidence_link();
+CREATE CONSTRAINT TRIGGER assert_governance_evidence_link AFTER INSERT OR UPDATE ON costing.sales_allocation_quantity_driver_acceptance DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION costing.fn_assert_governance_evidence_link();
 -- Existing source FKs intentionally remain until R2C cutover after integration tests.
 COMMIT;
