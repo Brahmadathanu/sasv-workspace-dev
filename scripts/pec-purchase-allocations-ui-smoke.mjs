@@ -105,6 +105,11 @@ async function openLens(vp, { role = "edit", data = baseData(), opts = {} } = {}
 }
 const calls = (page, suffix) => page.evaluate((s) => globalThis.__paCalls.filter((c) => c.name.endsWith(s)), suffix);
 const shot = async (page, name) => { if (shotsDir) { await page.waitForTimeout(250); await page.screenshot({ path: path.join(shotsDir, `${name}.png`) }); } };
+// Filter panel helpers: the panel is draft-and-apply; nothing changes until "Apply filters".
+const openFilters = async (page, via = "#paFilterBtn") => { await page.click(via); await page.waitForSelector("#paFilterDrawer.open"); };
+const applyFilters = async (page) => { await page.click("#paFilterDrawer .pec-filter-done-btn"); await page.waitForFunction(() => !document.querySelector("#paFilterDrawer.open")); };
+const setFilters = async (page, fn) => { await openFilters(page); await fn(page); await applyFilters(page); };
+const openSummary = async (page) => { if ((await page.getAttribute("#paSummaryToggle", "aria-expanded")) !== "true") await page.click("#paSummaryToggle"); };
 const shown = (page) => page.evaluate(() => [...document.querySelectorAll(".modal-backdrop.show")].map((e) => e.id));
 
 // ── 1. navigation, defaults, request contract ────────────────────────────────────────
@@ -113,17 +118,23 @@ const shown = (page) => page.evaluate(() => [...document.querySelectorAll(".moda
   const tabs = await page.$$eval(".tabs .tab-btn", (n) => n.map((b) => b.dataset.tab));
   check(tabs.indexOf("purchase-allocations") === tabs.indexOf("excess") - 1, `Purchase Allocations sits immediately before Excess Purchases (${tabs.join(",")})`);
   check(await page.getAttribute('[data-pa-mode="indent"]', "aria-pressed") === "true", "Indent-wise is the default mode");
-  check(await page.getAttribute('[data-pa-preset="yesterday"]', "aria-pressed") === "true", "Yesterday is the default date preset");
+  check((await page.innerText("#paPeriodText")) === "Yesterday · 23 Nov 2026", `Yesterday is the default voucher period (${await page.innerText("#paPeriodText")})`);
+  await openFilters(page);
+  check(await page.getAttribute('[data-pa-preset="yesterday"]', "aria-pressed") === "true", "Yesterday is the default preset in the filter panel");
+  await page.keyboard.press("Escape");
   await page.waitForSelector(".pa-indent-card");
   const [first] = await calls(page, "_indent_paged");
   check(first.p.p_date_from === "2026-11-23" && first.p.p_date_to === "2026-11-23", `Yesterday resolves in Asia/Kolkata (${first.p.p_date_from})`);
   check(first.p.p_status === "all" && first.p.p_limit === 30 && first.p.p_offset === 0 && first.p.p_material_class_code === null, "common V1 arguments and defaults are sent");
   const sum = (await calls(page, "_summary"))[0];
   check(sum && !("p_limit" in sum.p) && !("p_offset" in sum.p), "summary RPC takes no paging parameters");
-  check((await page.innerText("#paRangeLabel")).includes("2026-11-23"), "range label shows the voucher date");
+  check(await page.isHidden("#paSummary") && (await page.getAttribute("#paSummaryToggle", "aria-expanded")) === "false", "Allocation Summary is collapsed by default");
+  await openSummary(page);
+  await shot(page, "desktop-summary-expanded");
   const summaryText = await page.innerText("#paSummary");
   check(/39 receipts/.test(summaryText) && /9 indents/.test(summaryText) && /38 indent lines/.test(summaryText), `summary counts (${summaryText.slice(0, 60).replace(/\s+/g, " ")})`);
   check(/9,369\.455/.test(summaryText) && /8,914\.463741/.test(summaryText) && /454\.991259/.test(summaryText), "Kg totals keep 6-decimal precision");
+  check(["Purchased", "Effective", "Allocated", "Unallocated", "Accepted excess", "Net unallocated"].every((l) => summaryText.includes(l)), "expanded summary exposes every figure");
   check(/41,066/.test(summaryText) && /\bL\b/.test(summaryText) && /Nos/.test(summaryText), "L and Nos totals shown separately");
   check(/reconstructed/i.test(summaryText) && /never totalled across units/i.test(summaryText), "balance basis and no-mixing notes are shown");
   const titles = await page.$$eval(".pa-indent-title", (n) => n.map((e) => e.textContent.trim()));
@@ -183,11 +194,11 @@ const shown = (page) => page.evaluate(() => [...document.querySelectorAll(".moda
   check(c.p.p_q === "resin", "search is sent as p_q");
   // indent filter -> p_indent_q; matching column appears
   await page.fill("#paSearch", "");
-  await page.click("#paFilterBtn");
-  await page.fill("#paFIndent", "84");
+  await setFilters(page, (p) => p.fill("#paFIndent", "84"));
   await page.waitForFunction(() => !document.querySelector("#tab-purchase-allocations th.pa-col-match").hidden);
   const ic = (await calls(page, "_material_paged")).slice(-1)[0];
   check(ic.p.p_indent_q === "84", "indent filter is sent as p_indent_q");
+  await openSummary(page);
   const s2 = await page.innerText("#paSummary");
   check(/Allocated \(any indent\)/.test(s2) && /Allocated to filtered indent/.test(s2) && /not excess/.test(s2), "filtered summary distinguishes receipt-wide vs matching allocation and says other-indent allocation is not excess");
   check(await page.innerText("#paFilterBadge") === "1", "filter badge counts active filters");
@@ -236,20 +247,16 @@ const shown = (page) => page.evaluate(() => [...document.querySelectorAll(".moda
   check(/Returned: nil effective quantity/.test(t) && /Not allocated to any indent/.test(t), "returned receipt and positive unallocated receipt are explained differently");
   check(/Returned \(nil effective\)/.test(t) && /Unallocated/.test(t), "both status badges present");
   await page.keyboard.press("Escape");
-  await page.click("#paFilterBtn");
-  await page.fill("#paFIndent", "300");
-  await page.waitForTimeout(450);
-  await page.keyboard.press("Escape");
+  await setFilters(page, (p) => p.fill("#paFIndent", "300"));
   await ctx.close();
 }
 {
   const data = baseData({ material: [mat({ stock_item_id: 9300, stock_item_name: "Synthetic Root", gross_qty: "100", effective_qty: "100", allocated_qty: "100", matching_allocated_qty: "60" })] });
   const { ctx, page } = await openLens(VP, { data });
   await page.click('[data-pa-mode="material"]');
-  await page.click("#paFilterBtn"); await page.fill("#paFIndent", "300");
+  await setFilters(page, (p) => p.fill("#paFIndent", "300"));
   await page.waitForSelector("#paMaterialTbody tr.clickable-row");
   await page.waitForFunction(() => !document.querySelector("#tab-purchase-allocations th.pa-col-match").hidden);
-  await page.keyboard.press("Escape");
   await page.click("#paMaterialTbody tr.clickable-row");
   await page.waitForSelector("#paDrillModalBackdrop.show .pa-receipt");
   const t = await page.innerText("#paDrillBody");
@@ -279,8 +286,8 @@ const shown = (page) => page.evaluate(() => [...document.querySelectorAll(".moda
 {
   const { ctx, page } = await openLens(VP, { opts: { delays: [{ date: "2026-11-24", name: "indent_paged", ms: 900 }] } });
   await page.waitForSelector(".pa-indent-card");
-  await page.click('[data-pa-preset="today"]');
-  await page.click('[data-pa-preset="yesterday"]');
+  await setFilters(page, (p) => p.click('[data-pa-preset="today"]'));
+  await setFilters(page, (p) => p.click('[data-pa-preset="yesterday"]'));
   await page.waitForTimeout(1300);
   const titles = await page.$$eval(".pa-indent-title", (n) => n.map((e) => e.textContent.trim()));
   check(titles.join("|") === "Indent 156|Indent 84|Indent 191", `slow stale response for Today never overwrites Yesterday (${titles.join("|")})`);
@@ -299,6 +306,7 @@ const shown = (page) => page.evaluate(() => [...document.querySelectorAll(".moda
   const { ctx, page } = await openLens(VP, { data: baseData({ indent: [], summary: { ...fx.SUMMARY_RAW, purchase_fact_count: 0, affected_indent_count: 0, affected_indent_line_count: 0, totals_by_uom: [] } }) });
   await page.waitForSelector(".pa-state");
   check(/No allocations in the selected period/.test(await page.innerText("#paIndentList")), "empty result has a meaningful empty state");
+  await openSummary(page);
   check(/0 receipts/.test(await page.innerText("#paSummary")), "zero summary renders");
   await ctx.close();
 }
@@ -306,18 +314,22 @@ const shown = (page) => page.evaluate(() => [...document.querySelectorAll(".moda
   const { ctx, page } = await openLens(VP);
   await page.waitForSelector(".pa-indent-card");
   const n0 = (await calls(page, "_indent_paged")).length;
+  await openFilters(page);
   await page.click('[data-pa-preset="custom"]');
   await page.fill("#paDateFrom", "2026-11-24"); await page.fill("#paDateTo", "2026-11-01");
-  await page.waitForTimeout(400);
-  check(/must not be after/.test(await page.innerText("#paRangeLabel")), "reversed custom range shows a validation message");
-  check((await calls(page, "_indent_paged")).length === n0 + 1 || (await calls(page, "_indent_paged")).length === n0, "no RPC is sent for an invalid range (beyond the preset switch)");
-  const sent = (await calls(page, "_indent_paged")).filter((c) => c.p.p_date_from > c.p.p_date_to);
-  check(sent.length === 0, "never sends from > to");
+  check(/must not be after/.test(await page.innerText("#paDateError")), "reversed custom range shows a validation message in the panel");
+  await page.click("#paFilterDrawer .pec-filter-done-btn");
+  check(await page.isVisible("#paFilterDrawer.open"), "Apply is refused for an invalid range (panel stays open)");
+  await page.waitForTimeout(300);
+  check((await calls(page, "_indent_paged")).length === n0, "no RPC is sent for an invalid range");
+  check((await page.innerText("#paPeriodText")) === "Yesterday · 23 Nov 2026", "applied period indicator is unchanged by an invalid draft");
   await page.fill("#paDateTo", "2026-11-23");
   await page.fill("#paDateFrom", "2026-11-22");
+  await applyFilters(page);
   await page.waitForSelector(".pa-indent-card");
   const last = (await calls(page, "_indent_paged")).slice(-1)[0];
   check(last.p.p_date_from === "2026-11-22" && last.p.p_date_to === "2026-11-23", `valid range resumes requests (${last.p.p_date_from}..${last.p.p_date_to})`);
+  check((await page.innerText("#paPeriodText")) === "22–23 Nov 2026", `indicator shows the applied range (${await page.innerText("#paPeriodText")})`);
   await ctx.close();
 }
 {
@@ -426,6 +438,124 @@ for (const vp of [NARROW, TABLET]) {
   check(rpc.every((n) => /^proc_pec_purchase_alloc_(summary|indent_paged|material_paged|vendor_paged|trail_paged)$/.test(n)), `only the five frozen RPC names are used (${rpc.join(",")})`);
   await ctx.close();
 }
+// ── 9. PEC-UX03: filter panel, period indicator, summary, density ────────────────────
+{
+  const { ctx, page } = await openLens(VP);
+  await page.waitForSelector(".pa-indent-card");
+  check((await page.locator("[data-pa-preset]").count()) === 4 && (await page.locator("#tab-purchase-allocations > .pa-card [data-pa-preset], #tab-purchase-allocations > .pec-search-card > :not(.pec-filter-wrap) [data-pa-preset]").count()) === 0, "date presets exist once (four buttons) and only inside the filter panel; no permanent date-control panel in the lens body");
+  await openFilters(page);
+  check(await page.evaluate(() => ["paDateSeg", "paDateSpecific", "paDateFrom", "paDateTo"].every((id) => document.getElementById(id).closest("#paFilterDrawer"))), "presets and pickers are inside the filter panel");
+  const geo = await page.evaluate(() => { const d = document.getElementById("paFilterDrawer").getBoundingClientRect(), b = document.getElementById("paFilterBtn").getBoundingClientRect(); return { sheet: document.getElementById("paFilterDrawer").classList.contains("is-sheet"), dl: d.left, dt: d.top, bl: b.left, bb: b.bottom, dw: d.width, vw: innerWidth }; });
+  check(!geo.sheet && Math.abs(geo.dl - geo.bl) < 16 && geo.dt >= geo.bb && geo.dw >= 320, `desktop: anchored panel opens at the filter button (${JSON.stringify(geo)})`);
+  await shot(page, "desktop-filter-anchored");
+  await page.keyboard.press("Escape");
+  check(await page.waitForFunction(() => document.activeElement?.id === "paFilterBtn", null, { timeout: 3000 }).then(() => true, () => false), "Escape closes the panel and returns focus to the filter button");
+  // indicator opens the SAME panel, anchored at the indicator, focused on the period section
+  await page.click("#paPeriodBtn");
+  await page.waitForSelector("#paFilterDrawer.open");
+  const g2 = await page.evaluate(() => { const d = document.getElementById("paFilterDrawer").getBoundingClientRect(), b = document.getElementById("paPeriodBtn").getBoundingClientRect(); return { dl: d.left, dt: d.top, bl: b.left, bb: b.bottom, focus: document.activeElement?.closest("#paDateSeg") !== null, n: document.querySelectorAll("#paFilterDrawer").length }; });
+  check(g2.n === 1 && g2.focus && Math.abs(g2.dl - g2.bl) < 16 && g2.dt >= g2.bb, `indicator opens the same single panel near itself, focus on the period section (${JSON.stringify(g2)})`);
+  await page.keyboard.press("Escape");
+  check(await page.waitForFunction(() => document.activeElement?.id === "paPeriodBtn", null, { timeout: 3000 }).then(() => true, () => false), "focus returns to the period indicator");
+  // draft is separate from applied state
+  const n0 = (await calls(page, "_indent_paged")).length;
+  await openFilters(page);
+  await page.click('[data-pa-preset="today"]');
+  await page.selectOption("#paFClass", "RM");
+  await page.fill("#paFVendor", "kera");
+  await page.waitForTimeout(450);
+  check((await calls(page, "_indent_paged")).length === n0 && (await page.innerText("#paPeriodText")) === "Yesterday · 23 Nov 2026", "unapplied changes neither request data nor change the indicator");
+  await page.click("#paFilterDrawer .pec-filter-close");
+  await openFilters(page);
+  check((await page.getAttribute('[data-pa-preset="yesterday"]', "aria-pressed")) === "true" && (await page.inputValue("#paFClass")) === "" && (await page.inputValue("#paFVendor")) === "", "closing without Apply discards the draft; the panel re-opens at the applied values");
+  await page.click('[data-pa-preset="today"]');
+  await page.selectOption("#paFClass", "RM");
+  await page.fill("#paFVendor", "kera");
+  const before = (await calls(page, "_indent_paged")).length;
+  await applyFilters(page);
+  await page.waitForFunction((n) => globalThis.__paCalls.filter((c) => c.name.endsWith("_indent_paged")).length > n, before);
+  await page.waitForTimeout(300);
+  const applied = (await calls(page, "_indent_paged")).slice(before);
+  check(applied.length === 1 && applied[0].p.p_date_from === "2026-11-24" && applied[0].p.p_material_class_code === "RM" && applied[0].p.p_vendor_q === "kera", `Apply commits period and filters in ONE request (${applied.length})`);
+  check((await page.innerText("#paPeriodText")) === "Today · 24 Nov 2026" && (await page.innerText("#paFilterBadge")) === "2", "indicator and badge reflect the applied state");
+  // Reset restores defaults (Yesterday, no filters); Apply commits them
+  await openFilters(page, "#paPeriodBtn");
+  await page.click("#paFilterDrawer .pec-filter-clear-btn");
+  check((await page.getAttribute('[data-pa-preset="yesterday"]', "aria-pressed")) === "true" && (await page.inputValue("#paFClass")) === "", "Reset restores Yesterday and clears the draft filters");
+  await applyFilters(page);
+  await page.waitForFunction(() => document.getElementById("paPeriodText").textContent === "Yesterday · 23 Nov 2026");
+  check(await page.isHidden("#paFilterBadge"), "after Reset + Apply there are no active filters");
+  // specific date and range
+  await setFilters(page, async (p) => { await p.click('[data-pa-preset="specific"]'); await p.fill("#paDateSpecific", "2026-11-20"); });
+  await page.waitForFunction(() => document.getElementById("paPeriodText").textContent === "20 Nov 2026");
+  const sp = (await calls(page, "_indent_paged")).slice(-1)[0];
+  check(sp.p.p_date_from === "2026-11-20" && sp.p.p_date_to === "2026-11-20", "specific date is an inclusive single voucher day");
+  await setFilters(page, async (p) => { await p.click('[data-pa-preset="custom"]'); await p.fill("#paDateFrom", "2026-11-01"); await p.fill("#paDateTo", "2026-11-23"); });
+  await page.waitForFunction(() => document.getElementById("paPeriodText").textContent === "1–23 Nov 2026");
+  const rg = (await calls(page, "_indent_paged")).slice(-1)[0];
+  check(rg.p.p_date_from === "2026-11-01" && rg.p.p_date_to === "2026-11-23", "custom range is inclusive");
+  // summary collapse keeps state and does not reload
+  await openSummary(page);
+  const sc0 = (await calls(page, "_summary")).length, ic0 = (await calls(page, "_indent_paged")).length;
+  await page.click("#paSummaryToggle");
+  await page.waitForTimeout(250);
+  check(await page.isHidden("#paSummary") && (await calls(page, "_summary")).length === sc0 && (await calls(page, "_indent_paged")).length === ic0 && (await page.innerText("#paPeriodText")) === "1–23 Nov 2026", "collapsing the summary reloads nothing and keeps filters");
+  await ctx.close();
+}
+{
+  // narrow: the same panel is a full-viewport sheet (shared PEC implementation)
+  const { ctx, page } = await openLens({ name: "phone", width: 390, height: 844 });
+  await page.waitForSelector(".pa-indent-card");
+  const first = await page.$eval(".pa-indent-card", (e) => Math.round(e.getBoundingClientRect().top));
+  check(first <= 386, `pre-data height at 390x844 is <= 386px (35% below the 594px v6.5.0 baseline): ${first}px`);
+  check(await page.isHidden("#paSummary"), "[narrow] Allocation Summary collapsed by default");
+  for (const via of ["#paFilterBtn", "#paPeriodBtn"]) {
+    await openFilters(page, via);
+    const r = await page.evaluate(() => { const d = document.getElementById("paFilterDrawer"), b = d.getBoundingClientRect(), body = d.querySelector(".pec-filter-drawer-body"), f = d.querySelector(".pec-filter-actions").getBoundingClientRect();
+      return { sheet: d.classList.contains("is-sheet"), l: b.left, t: b.top, w: b.width, h: b.height, vw: innerWidth, vh: innerHeight, bodyScroll: getComputedStyle(body).overflowY, footBottom: f.bottom, locked: document.body.classList.contains("pec-sheet-open"),
+        title: d.querySelector(".pec-filter-drawer-title").textContent, close: !!d.querySelector(".pec-filter-close"), apply: d.querySelector(".pec-filter-done-btn").textContent, reset: d.querySelector(".pec-filter-clear-btn").textContent }; });
+    check(r.sheet && r.l === 0 && r.t === 0 && r.w === r.vw && r.h === r.vh && r.bodyScroll === "auto" && Math.round(r.footBottom) === r.vh && r.locked && r.close && r.apply === "Apply filters" && r.reset === "Reset",
+      `[narrow] ${via} opens the full-page sheet: header+close, scrolling body, Reset/Apply footer, background locked (${JSON.stringify(r)})`);
+    await page.keyboard.press("Escape");
+    check(!(await page.isVisible("#paFilterDrawer")) && (await page.evaluate(() => !document.body.classList.contains("pec-sheet-open"))), `[narrow] Escape dismisses the sheet and unlocks the page (${via})`);
+  }
+  await page.click("#paSummaryToggle");
+  const o = await page.evaluate(() => { const s = document.getElementById("paSummary"); return { w: s.scrollWidth - s.clientWidth, page: document.documentElement.scrollWidth - innerWidth }; });
+  check(o.w <= 1 && o.page <= 1, `[narrow] expanded summary has no horizontal clipping (${JSON.stringify(o)})`);
+  await shot(page, "phone-summary-expanded");
+  await page.click("#paSummaryToggle");
+  await openFilters(page, "#paPeriodBtn");
+  await shot(page, "phone-filter-sheet");
+  await ctx.close();
+}
+
+// ── 10. PEC v6.5.1: Summary control pinned right, PEC chevron, no overlap for long periods ──
+for (const w of [375, 390, 430, 820, 1440]) {
+  const { ctx, page } = await openLens({ name: `w${w}`, width: w, height: 844 });
+  await page.waitForSelector(".pa-indent-card");
+  for (const mode of ["indent", "material", "vendor"]) {
+    await page.click(`[data-pa-mode="${mode}"]`);
+    const g = await page.evaluate(() => { const r = (id) => document.getElementById(id).getBoundingClientRect(), st = document.querySelector(".pa-strip").getBoundingClientRect(), c = r("paPeriodBtn"), t = r("paSummaryToggle");
+      return { stRight: st.right, tRight: t.right, tLeft: t.left, cLeft: c.left, cRight: c.right, stLeft: st.left, ch: c.height, th: t.height }; });
+    check(Math.abs(g.stRight - g.tRight) <= 1 && g.cRight < g.tLeft && Math.abs(g.cLeft - g.stLeft) <= 1 && Math.abs(g.ch - g.th) <= 1, `[${w}] ${mode}: Summary pinned to the far right, period indicator left, equal heights, no overlap (${JSON.stringify(g)})`);
+  }
+  const svg = await page.$eval("#paSummaryToggle svg", (e) => ({ pts: e.querySelector("polyline").getAttribute("points"), w: e.getAttribute("width"), sw: e.getAttribute("stroke-width"), txt: document.getElementById("paSummaryToggle").textContent.includes("▸") }));
+  check(svg.pts === "6 9 12 15 18 9" && svg.w === "14" && svg.sw === "2.5" && !svg.txt, `[${w}] Summary uses the PEC chevron svg, not the solid triangle`);
+  const rot = () => page.$eval("#paSummaryToggle svg", (e) => getComputedStyle(e).transform);
+  await page.waitForTimeout(200);
+  check((await rot()) === "none", `[${w}] collapsed: chevron points down`);
+  await page.click("#paSummaryToggle");
+  await page.waitForTimeout(250);
+  check((await rot()).startsWith("matrix(-1") && (await page.getAttribute("#paSummaryToggle", "aria-expanded")) === "true", `[${w}] expanded: chevron points up, aria-expanded=true`);
+  await page.click("#paSummaryToggle");
+  await setFilters(page, async (p) => { await p.click('[data-pa-preset="custom"]'); await p.fill("#paDateFrom", "2026-10-28"); await p.fill("#paDateTo", "2026-11-03"); });
+  await page.waitForFunction(() => document.getElementById("paPeriodText").textContent === "28 Oct – 3 Nov 2026");
+  const lg = await page.evaluate(() => { const c = document.getElementById("paPeriodBtn").getBoundingClientRect(), t = document.getElementById("paSummaryToggle").getBoundingClientRect(); return { gap: t.left - c.right, over: document.documentElement.scrollWidth - innerWidth, tR: t.right, vw: innerWidth }; });
+  check(lg.gap >= 0 && lg.over <= 1 && lg.tR <= lg.vw, `[${w}] long custom range: no overlap or clipping (${JSON.stringify(lg)})`);
+  await shot(page, `refine-${w}`);
+  await ctx.close();
+}
+
 {
   // existing lenses still load and the excess lens is unaffected
   const { ctx, page, errors } = await openLens(VP);

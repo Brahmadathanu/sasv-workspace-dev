@@ -1591,19 +1591,20 @@ body.sasv-pec .erp-choice-desc {
    Purchase Allocations lens (PEC-PA-02). Token-only; reuses the shared filter,
    search, export-menu, card-table and dialog components.
    ═════════════════════════════════════════════════════════════════════════════ */
+body.sasv-pec .pa-card { padding: 8px 10px; }
 body.sasv-pec .pa-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--sasv-space-2, 8px) var(--sasv-space-3, 12px);
-  margin: 8px 0 4px;
+  gap: 6px 10px;
+  margin: 0 0 8px;
 }
 body.sasv-pec .pa-seg {
   display: inline-flex;
   border: 1px solid var(--sasv-control-border);
   border-radius: var(--sasv-radius-sm, 6px);
   overflow: hidden;
-  background: var(--sasv-surface-elevated);
+  background: var(--sasv-surface);
 }
 body.sasv-pec .pa-seg-btn {
   min-height: var(--sasv-control-sm, 32px);
@@ -1618,34 +1619,58 @@ body.sasv-pec .pa-seg-btn {
 }
 body.sasv-pec .pa-seg-btn:last-child { border-right: 0; }
 body.sasv-pec .pa-seg-btn:hover { background: var(--sasv-action-secondary-hover); }
+body.sasv-pec .pa-seg-btn:focus-visible { outline: 3px solid var(--sasv-focus-ring); outline-offset: -3px; }
 body.sasv-pec .pa-seg-btn[aria-pressed="true"] {
   background: var(--sasv-action-primary-soft);
   color: var(--sasv-action-primary-active);
 }
-body.sasv-pec .pa-date-inputs { display: inline-flex; flex-wrap: wrap; gap: var(--sasv-space-2, 8px); }
-body.sasv-pec .pa-date-inputs input[hidden] { display: none; }
-body.sasv-pec .pa-date-inputs input { min-height: var(--sasv-control-sm, 32px); width: auto; }
-body.sasv-pec .pa-range-label {
-  margin: 2px 0 8px;
-  font-size: var(--sasv-text-sm, 0.8125rem);
-  color: var(--sasv-text-secondary);
+/* Context strip: applied period (opens the filter panel) · summary toggle · count */
+body.sasv-pec .pa-strip { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; }
+/* period indicator left; count after it; Summary pinned to the far right with flexible space between */
+body.sasv-pec .pa-strip .pec-lens-count { order: 1; }
+body.sasv-pec .pa-strip .pa-summary-toggle { order: 2; margin-left: auto; flex: 0 0 auto; }
+body.sasv-pec .pa-strip .pa-period-chip { flex: 0 1 auto; }
+body.sasv-pec .pa-period-chip,
+body.sasv-pec .pa-summary-toggle {
+  display: inline-flex; align-items: center; gap: 6px; min-height: var(--sasv-control-sm, 32px); padding: 0 10px;
+  border: 1px solid var(--sasv-control-border); border-radius: var(--sasv-radius-sm, 6px);
+  background: var(--sasv-surface); color: var(--sasv-text);
+  font-size: var(--sasv-text-sm, 0.8125rem); font-weight: var(--sasv-fw-semibold, 600); cursor: pointer; white-space: nowrap; min-width: 0;
 }
-body.sasv-pec .pa-range-label.is-error { color: var(--sasv-danger); }
+body.sasv-pec .pa-period-chip span { overflow: hidden; text-overflow: ellipsis; }
+body.sasv-pec .pa-period-chip svg { flex: 0 0 auto; color: var(--sasv-text-muted); }
+body.sasv-pec .pa-period-chip:hover,
+body.sasv-pec .pa-summary-toggle:hover { background: var(--sasv-action-secondary-hover); }
+body.sasv-pec .pa-period-chip:focus-visible,
+body.sasv-pec .pa-summary-toggle:focus-visible { outline: 3px solid var(--sasv-focus-ring); outline-offset: 0; }
+body.sasv-pec .pa-period-chip[aria-expanded="true"],
+body.sasv-pec .pa-summary-toggle[aria-expanded="true"] { background: var(--sasv-action-primary-soft); color: var(--sasv-action-primary-active); }
+body.sasv-pec .pa-summary-chevron { flex: 0 0 auto; transition: transform 0.12s; }
+body.sasv-pec .pa-summary-toggle[aria-expanded="true"] .pa-summary-chevron { transform: rotate(180deg); }
+body.sasv-pec .pa-digest { font-weight: var(--sasv-fw-regular, 400); color: var(--sasv-text-muted); }
+/* Filter panel: voucher-period section */
+body.sasv-pec .pa-filter-drawer .pa-seg { display: flex; width: 100%; }
+body.sasv-pec .pa-filter-drawer .pa-seg-btn { flex: 1 1 0; padding: 0 6px; }
+body.sasv-pec .pa-date-inputs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+body.sasv-pec .pa-date-inputs input[hidden] { display: none; }
+body.sasv-pec .pa-date-inputs input { flex: 1 1 130px; min-height: var(--sasv-control-sm, 32px); width: auto; }
+body.sasv-pec .pa-date-error { margin: 6px 0 0; font-size: var(--sasv-text-xs, 0.75rem); color: var(--sasv-danger); }
+@media (min-width: 641px) { body.sasv-pec .pa-filter-drawer { width: 340px; } }
 
 /* summary */
-body.sasv-pec .pa-summary { margin: 0 0 10px; font-size: var(--sasv-text-sm, 0.8125rem); }
-body.sasv-pec .pa-summary:empty { display: none; }
-body.sasv-pec .pa-summary-counts { color: var(--sasv-text); font-weight: var(--sasv-fw-semibold, 600); margin-bottom: 4px; }
-body.sasv-pec .pa-uom-table { border-collapse: collapse; width: auto; max-width: 100%; }
-body.sasv-pec .pa-uom-table th,
-body.sasv-pec .pa-uom-table td { padding: 3px 10px; text-align: right; border-bottom: 1px solid var(--sasv-divider); white-space: nowrap; }
-body.sasv-pec .pa-uom-table th:first-child,
-body.sasv-pec .pa-uom-table td:first-child { text-align: left; font-weight: var(--sasv-fw-semibold, 600); }
-body.sasv-pec .pa-uom-table th { color: var(--sasv-text-muted); font-weight: var(--sasv-fw-medium, 500); font-size: var(--sasv-text-xs, 0.75rem); }
+body.sasv-pec .pa-summary { margin: 0 0 8px; padding: 8px 10px; font-size: var(--sasv-text-sm, 0.8125rem); border: 1px solid var(--sasv-divider); border-radius: var(--sasv-radius-sm, 6px); background: var(--sasv-surface-soft); }
+body.sasv-pec .pa-summary[hidden] { display: none; }
+body.sasv-pec .pa-summary-counts { color: var(--sasv-text); font-weight: var(--sasv-fw-semibold, 600); margin-bottom: 6px; }
+body.sasv-pec .pa-uom-block { padding: 6px 0; border-top: 1px solid var(--sasv-divider); }
+body.sasv-pec .pa-uom-block h4 { margin: 0 0 4px; font-size: var(--sasv-text-sm, 0.8125rem); font-weight: var(--sasv-fw-semibold, 600); }
+body.sasv-pec .pa-uom-block dl { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 4px 12px; }
+body.sasv-pec .pa-uom-block dl > div { min-width: 0; }
+body.sasv-pec .pa-uom-block dt { color: var(--sasv-text-muted); font-size: var(--sasv-text-xs, 0.75rem); line-height: 1.25; }
+body.sasv-pec .pa-uom-block dd { margin: 0; font-weight: var(--sasv-fw-semibold, 600); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 body.sasv-pec .pa-note { margin: 6px 0 0; color: var(--sasv-text-muted); font-size: var(--sasv-text-xs, 0.75rem); }
 
 /* lists */
-body.sasv-pec .pa-scroll { max-height: calc(100vh - 360px); min-height: 120px; overflow: auto; }
+body.sasv-pec .pa-scroll { max-height: calc(100vh - 300px); min-height: 120px; overflow: auto; }
 body.sasv-pec .pa-scroll[hidden] { display: none; }
 body.sasv-pec .pa-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 body.sasv-pec .pa-uom-stack { display: grid; gap: 1px; justify-items: end; }
@@ -1666,15 +1691,18 @@ body.sasv-pec .pa-badge[data-status="partial"] { background: var(--sasv-warning-
 body.sasv-pec .pa-badge[data-status="unallocated"] { background: var(--sasv-danger-bg); border-color: var(--sasv-danger-border); color: var(--sasv-danger); }
 body.sasv-pec .pa-badge[data-status="returned"] { background: var(--sasv-info-bg); border-color: var(--sasv-info-border); color: var(--sasv-info); }
 
-body.sasv-pec .pa-indent-list { display: grid; gap: 8px; padding: 2px 0; }
+body.sasv-pec .pa-indent-list { display: grid; gap: 6px; padding: 0; }
 body.sasv-pec .pa-indent-card { border: 1px solid var(--sasv-divider); border-radius: var(--sasv-radius-md, 8px); background: var(--sasv-surface-elevated); }
-body.sasv-pec .pa-indent-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 12px; }
+body.sasv-pec .pa-indent-head { display: flex; align-items: center; gap: 8px; padding: 6px 10px; }
 body.sasv-pec .pa-indent-toggle {
-  flex: 1 1 260px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; text-align: left;
-  background: transparent; border: 0; padding: 0; color: var(--sasv-text); cursor: pointer; font: inherit; min-height: 28px;
+  flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: 1px; text-align: left;
+  background: transparent; border: 0; padding: 0; color: var(--sasv-text); cursor: pointer; font: inherit; min-height: 40px;
 }
+body.sasv-pec .pa-indent-line1 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; min-width: 0; }
 body.sasv-pec .pa-indent-title { font-weight: var(--sasv-fw-semibold, 600); }
-body.sasv-pec .pa-indent-meta { color: var(--sasv-text-muted); font-size: var(--sasv-text-sm, 0.8125rem); }
+body.sasv-pec .pa-indent-alloc { font-size: var(--sasv-text-sm, 0.8125rem); color: var(--sasv-text-secondary); font-variant-numeric: tabular-nums; }
+body.sasv-pec .pa-indent-meta { color: var(--sasv-text-muted); font-size: var(--sasv-text-xs, 0.75rem); padding-left: 16px; }
+body.sasv-pec .pa-indent-head .pa-link-btn { flex: 0 0 auto; }
 body.sasv-pec .pa-chev { transition: transform 0.12s; display: inline-block; }
 body.sasv-pec .pa-indent-toggle[aria-expanded="true"] .pa-chev { transform: rotate(90deg); }
 body.sasv-pec .pa-indent-lines { border-top: 1px solid var(--sasv-divider); padding: 6px 12px 10px; overflow-x: auto; }
@@ -1700,12 +1728,10 @@ body.sasv-pec .pa-receipt-body { padding: 6px 12px 8px; overflow-x: auto; }
 body.sasv-pec .pa-drill-material { margin: 14px 0 6px; font-weight: var(--sasv-fw-semibold, 600); }
 
 @media (max-width: 680px) {
-  body.sasv-pec .pa-controls { gap: 8px; }
-  body.sasv-pec .pa-seg { width: 100%; }
-  body.sasv-pec .pa-seg-btn { flex: 1 1 0; padding: 0 6px; }
-  body.sasv-pec .pa-date-inputs, body.sasv-pec .pa-date-inputs input { width: 100%; }
+  body.sasv-pec .pa-card { padding: 6px 8px; }
+  body.sasv-pec .pa-controls > .pa-seg { width: 100%; }
+  body.sasv-pec .pa-controls > .pa-seg .pa-seg-btn { flex: 1 1 0; padding: 0 4px; }
+  body.sasv-pec .pa-strip { width: 100%; }
+  body.sasv-pec .pa-digest { display: none; }
   body.sasv-pec .pa-scroll { max-height: none; }
-  body.sasv-pec .pa-uom-table { display: block; overflow-x: auto; }
-  body.sasv-pec .pa-uom-table th, body.sasv-pec .pa-uom-table td { padding: 3px 6px; }
-  body.sasv-pec .pa-uom-table th { white-space: normal; text-align: right; vertical-align: bottom; }
 }

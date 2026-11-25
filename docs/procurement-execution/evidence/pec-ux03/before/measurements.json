@@ -1,0 +1,137 @@
+[
+  {
+    "width": 375,
+    "height": 812,
+    "mode": "indent",
+    "firstTop": 594,
+    "visible": 2,
+    "vh": 812,
+    "hscroll": false
+  },
+  {
+    "width": 375,
+    "height": 812,
+    "mode": "material",
+    "firstTop": 592,
+    "visible": 3,
+    "vh": 812,
+    "hscroll": false
+  },
+  {
+    "width": 375,
+    "height": 812,
+    "mode": "vendor",
+    "firstTop": 592,
+    "visible": 3,
+    "vh": 812,
+    "hscroll": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "mode": "indent",
+    "firstTop": 594,
+    "visible": 2,
+    "vh": 844,
+    "hscroll": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "mode": "material",
+    "firstTop": 592,
+    "visible": 3,
+    "vh": 844,
+    "hscroll": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "mode": "vendor",
+    "firstTop": 592,
+    "visible": 3,
+    "vh": 844,
+    "hscroll": false
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "mode": "indent",
+    "firstTop": 572,
+    "visible": 3,
+    "vh": 932,
+    "hscroll": false
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "mode": "material",
+    "firstTop": 570,
+    "visible": 4,
+    "vh": 932,
+    "hscroll": false
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "mode": "vendor",
+    "firstTop": 570,
+    "visible": 4,
+    "vh": 932,
+    "hscroll": false
+  },
+  {
+    "width": 820,
+    "height": 1180,
+    "mode": "indent",
+    "firstTop": 566,
+    "visible": 3,
+    "vh": 1180,
+    "hscroll": false
+  },
+  {
+    "width": 820,
+    "height": 1180,
+    "mode": "material",
+    "firstTop": 591,
+    "visible": 10,
+    "vh": 1180,
+    "hscroll": false
+  },
+  {
+    "width": 820,
+    "height": 1180,
+    "mode": "vendor",
+    "firstTop": 591,
+    "visible": 6,
+    "vh": 1180,
+    "hscroll": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "mode": "indent",
+    "firstTop": 543,
+    "visible": 3,
+    "vh": 900,
+    "hscroll": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "mode": "material",
+    "firstTop": 568,
+    "visible": 7,
+    "vh": 900,
+    "hscroll": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "mode": "vendor",
+    "firstTop": 568,
+    "visible": 6,
+    "vh": 900,
+    "hscroll": false
+  }
+]

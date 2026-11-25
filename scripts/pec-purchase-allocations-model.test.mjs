@@ -5,7 +5,7 @@ import {
   istDateString, addDays, resolveDateRange, createInitialState, reduceState, activeFilterCount, requestKey, dataKey,
   sumByUom, describeTotals, formatQty, compareCanonical, sortCanonical, assertCompleteRetrieval, buildCsv, buildStatementHtml, EXPORT_NOTICES,
   PA_RPC, PaContractError, buildCommonParams, buildTrailParams, withPaging, mapSummary, mapIndentRow, mapMaterialRow, mapVendorRow, mapTrailRow,
-  indentNo, receiptStatus, receiptsFromTrail, indentLinesFromTrail, reconcileTrail, groupTrailByReceipt, groupTrailByMaterial, describeUomField,
+  indentNo, formatPeriodLabel, receiptStatus, receiptsFromTrail, indentLinesFromTrail, reconcileTrail, groupTrailByReceipt, groupTrailByMaterial, describeUomField,
 } from "../public/shared/js/pec-purchase-allocations.js";
 import * as fx from "./fixtures/pec-purchase-allocations-view-model.mjs";
 
@@ -231,4 +231,29 @@ test("print statement: indent lines in canonical order, reconstructed labels, es
   assert.ok(!html.includes("<script>alert(1)</script>") && html.includes("&lt;script&gt;"));
   assert.match(html, /Opening \(reconstructed\)/); assert.match(html, /Closing \(reconstructed\)/); assert.match(html, /New demand in period/);
   assert.match(buildStatementHtml({ range: { from: "a", to: "a" }, generatedAt: new Date(), rows: [] }), /No allocations in the selected period/);
+});
+
+// ── PEC-UX03: compact period label and atomic filter apply ───────────────────────────
+test("formatPeriodLabel: compact, unambiguous voucher-period text", () => {
+  const now = new Date("2026-11-24T05:00:00Z");
+  const L = (date) => formatPeriodLabel(resolveDateRange(date, now));
+  assert.equal(L({ preset: "yesterday" }), "Yesterday · 23 Nov 2026");
+  assert.equal(L({ preset: "today" }), "Today · 24 Nov 2026");
+  assert.equal(L({ preset: "specific", specific: "2026-11-03" }), "3 Nov 2026");
+  assert.equal(L({ preset: "custom", from: "2026-11-01", to: "2026-11-23" }), "1–23 Nov 2026");
+  assert.equal(L({ preset: "custom", from: "2026-11-05", to: "2026-11-05" }), "5 Nov 2026");
+  assert.equal(L({ preset: "custom", from: "2026-10-28", to: "2026-11-03" }), "28 Oct – 3 Nov 2026");
+  assert.equal(L({ preset: "custom", from: "2026-12-28", to: "2027-01-03" }), "28 Dec 2026 – 3 Jan 2027");
+  assert.equal(formatPeriodLabel(resolveDateRange({ preset: "custom", from: "2026-11-24", to: "2026-11-01" }, now)), "Select dates");
+});
+
+test("applyFilters commits period + filters in one transition; no-op when nothing changes", () => {
+  const s0 = createInitialState();
+  const s1 = reduceState(s0, { type: "applyFilters", date: { preset: "custom", from: "2026-11-01", to: "2026-11-23" }, filters: { materialClass: "rm", vendorQ: " kera ", allocationStatus: "bogus" } });
+  assert.deepEqual(s1.date, { preset: "custom", specific: null, from: "2026-11-01", to: "2026-11-23" });
+  assert.deepEqual(s1.filters, { materialClass: "RM", indentQ: "", vendorQ: "kera", allocationStatus: "all" });
+  assert.equal(s1.search, s0.search);
+  assert.equal(reduceState(s0, { type: "applyFilters", date: { preset: "yesterday" }, filters: { ...s0.filters } }), s0, "unchanged draft returns the same state (no reload)");
+  const s2 = reduceState(s1, { type: "applyFilters", date: { preset: "yesterday" }, filters: createInitialState().filters });
+  assert.equal(s2.date.preset, "yesterday"); assert.equal(activeFilterCount(s2), 0);
 });

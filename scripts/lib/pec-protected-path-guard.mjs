@@ -184,6 +184,15 @@ export const REVIEWED_PEC_V650_PINS = Object.freeze({
   }),
 });
 
+// PEC v6.5.1 release (UX03 Purchase Allocations mobile refinement): the ONLY change to public/sw.js is the hub-cache-v395 -> hub-cache-v396
+// advance only (comment text unchanged; network-first rules from v6.5.0 unchanged). Exact path + exact head branch + SHA-256 of the LF-normalised file.
+export const REVIEWED_PEC_V651_PINS = Object.freeze({
+  "public/sw.js": Object.freeze({
+    sha256: "b796578ad262843f0f40cad89683154fa133e3efe8777f98fec0380fe634e351",
+    heads: Object.freeze(["claude/pec-mobile-usability-refinement-2he3l5"]),
+  }),
+});
+
 // MIS G7 reporting-only release candidate (owner-directed, 24 Nov 2026): the installed S2-S7c migrations (registered versions in
 // docs/executive-mis-g7-server/MIGRATION_IDENTITIES.json) and their isolated PostgreSQL test harness are carried UNCHANGED. Same contract as the pins above:
 // exact path + exact head branch + LF-SHA256 of the file. No installed migration may be edited, renamed or replayed; any other supabase path stays rejected.
@@ -231,7 +240,7 @@ const lfSha256 = (text) => createHash("sha256").update(String(text).replace(/\r\
 
 function reviewedServerException(path, ctx) {
   if (!ctx || typeof ctx.readText !== "function") return false;
-  return [REVIEWED_SERVER_MIGRATIONS[path], REVIEWED_WP08_G2_1_PINS[path], REVIEWED_WP09_G2_PINS[path], REVIEWED_WP11_V394_PINS[path], REVIEWED_PEC_V650_PINS[path], REVIEWED_MIS_G7_FILES[path]].some((entry) => {
+  return [REVIEWED_SERVER_MIGRATIONS[path], REVIEWED_WP08_G2_1_PINS[path], REVIEWED_WP09_G2_PINS[path], REVIEWED_WP11_V394_PINS[path], REVIEWED_PEC_V650_PINS[path], REVIEWED_PEC_V651_PINS[path], REVIEWED_MIS_G7_FILES[path]].some((entry) => {
     if (!entry || !entry.heads.includes(ctx.headBranch)) return false;
     try { return lfSha256(ctx.readText(path)) === entry.sha256; } catch { return false; }
   });
