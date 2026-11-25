@@ -1,6 +1,6 @@
 -- ROUTE 2 / STEP 3 of 4 -- permission audit. Run as administrator after R2_01 + R2_02 and
 -- BEFORE the archive. Read-only and cheap (catalog only, never reads business rows).
--- Raises on any deviation. The expensive row-count control is a separate script (R2_04).
+-- Raises on any deviation. The row-count control (R2_04) and run eligibility (R2_05) are separate scripts.
 --
 -- Method: derive the allowlist from the catalog, derive the role's EFFECTIVE privileges
 -- (direct grants + PUBLIC + any inheritance) from has_*_privilege(), and compare the exact
@@ -8,9 +8,15 @@
 DO $r2v$
 DECLARE
   c_role constant text := 'sasv_archive_ro';
+  -- OWNER-REVIEWED EXCEPTION LIST for PUBLIC-executable SECURITY DEFINER functions the role can reach
+  -- (it cannot be reduced per role: EXECUTE and USAGE on public come from PUBLIC). Empty = none accepted.
+  -- Entry format 'schema.name(identity args)|md5(pg_get_functiondef)'; R2_03 prints ready-made entries
+  -- when it finds unlisted functions. Matching is EXACT in both directions: an unlisted function, a
+  -- function whose definition changed, or a stale entry all FAIL.
+  c_accepted_definers constant text[] := ARRAY[]::text[];
   r pg_roles%ROWTYPE;
-  v_allow oid[]; v_eff oid[]; v_pairs int; v_view oid := 'costing.v_costing_period_run_status'::regclass;
-  v_missing text; v_unexpected text; v_n int; v_txt text;
+  v_allow oid[]; v_eff oid[]; v_pairs int;
+  v_missing text; v_unexpected text; v_n int; v_txt text; fn record;
 BEGIN
   SELECT * INTO r FROM pg_roles WHERE rolname = c_role;
   IF NOT FOUND THEN RAISE EXCEPTION 'R2V FAIL: role missing'; END IF;
@@ -20,7 +26,7 @@ BEGIN
     RAISE EXCEPTION 'R2V FAIL: role attributes too broad';
   END IF;
   IF NOT r.rolcanlogin THEN RAISE EXCEPTION 'R2V FAIL: login not enabled (run R2_02)'; END IF;
-  IF r.rolvaliduntil IS NULL OR r.rolvaliduntil > now() + interval '8 days' THEN
+  IF r.rolvaliduntil IS NULL OR r.rolvaliduntil > now() + interval '3 days' THEN
     RAISE EXCEPTION 'R2V FAIL: role is not time-limited';
   END IF;
   IF EXISTS (SELECT 1 FROM pg_auth_members m WHERE m.member = r.oid) THEN
@@ -42,7 +48,8 @@ BEGIN
     RAISE EXCEPTION 'R2V FAIL: an RLS policy names the role';
   END IF;
 
-  -- 2. Catalog-derived allowlist (direct run-linked relations + header + designation + status view).
+  -- 2. Catalog-derived allowlist (direct run-linked relations + header + designation). The definer-rights
+  --    status view is deliberately NOT in it: any effective access to it FAILS below.
   SELECT count(*) INTO v_pairs FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace
    WHERE con.contype = 'f' AND con.confrelid = 'costing.costing_refresh_run'::regclass
@@ -54,8 +61,7 @@ BEGIN
      WHERE con.contype = 'f' AND con.confrelid = 'costing.costing_refresh_run'::regclass
        AND n.nspname = 'costing' AND array_length(con.conkey,1) = 1
     UNION SELECT 'costing.costing_refresh_run'::regclass::oid
-    UNION SELECT 'costing.costing_run_designation'::regclass::oid
-    UNION SELECT v_view) a;
+    UNION SELECT 'costing.costing_run_designation'::regclass::oid) a;
 
   -- 3. EFFECTIVE SELECT (table- or column-level, via direct grant, PUBLIC or inheritance) over every
   --    non-system relation, compared as an exact set with the allowlist.
@@ -123,12 +129,38 @@ BEGIN
   -- 7. Executable functions: no SECURITY DEFINER function reachable by the role (default PUBLIC
   --    EXECUTE would let it run with the definer's rights), no untrusted language, no file/server-admin functions
   --    (replication-slot functions are PUBLIC-executable but require REPLICATION, which is checked above).
-  SELECT string_agg(n.nspname || '.' || p.proname, ', ') INTO v_txt FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-   WHERE p.prosecdef AND n.nspname NOT IN ('pg_catalog','information_schema')
-     AND has_function_privilege(c_role, p.oid, 'EXECUTE') AND has_schema_privilege(c_role, n.oid, 'USAGE');
+  -- Reachable = schema USAGE + EXECUTE (both normally from PUBLIC). Compared EXACTLY with the owner list.
+  FOR fn IN
+    SELECT n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' AS sig,
+           md5(pg_get_functiondef(p.oid)) AS def_md5, pg_get_userbyid(p.proowner) AS owner,
+           (p.proconfig IS NOT NULL AND EXISTS (SELECT 1 FROM unnest(p.proconfig) c WHERE c LIKE 'search_path=%')) AS path_pinned,
+           p.provolatile AS vol,
+           CASE WHEN p.prosrc ~* 'pg_has_role|current_user|session_user|is_member|has_(table|function|schema)_privilege' THEN 'role-based'
+                WHEN p.prosrc ~* 'auth\.(uid|jwt|role)\(\)|request\.jwt' THEN 'JWT-claim ONLY (spoofable by any direct DB login via set_config)'
+                ELSE 'none found' END AS guard
+      FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE p.prosecdef AND n.nspname NOT IN ('pg_catalog','information_schema')
+       AND has_function_privilege(c_role, p.oid, 'EXECUTE') AND has_schema_privilege(c_role, n.oid, 'USAGE')
+     ORDER BY 1
+  LOOP
+    RAISE NOTICE 'R2_03 REACHABLE SECURITY DEFINER: % | owner=% | search_path_pinned=% | volatility=% | body guard=% | entry: %',
+      fn.sig, fn.owner, fn.path_pinned, fn.vol, fn.guard, quote_literal(fn.sig || '|' || fn.def_md5);
+  END LOOP;
+  SELECT string_agg(q.sig, ', ') INTO v_txt FROM (
+    SELECT n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')|' || md5(pg_get_functiondef(p.oid)) AS sig
+      FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE p.prosecdef AND n.nspname NOT IN ('pg_catalog','information_schema')
+       AND has_function_privilege(c_role, p.oid, 'EXECUTE') AND has_schema_privilege(c_role, n.oid, 'USAGE')) q
+   WHERE q.sig <> ALL (c_accepted_definers);
   IF v_txt IS NOT NULL THEN
-    RAISE EXCEPTION 'R2V FAIL: SECURITY DEFINER functions executable by the role (review, then revoke EXECUTE from PUBLIC on them): %', left(v_txt, 1500);
+    RAISE EXCEPTION 'R2V FAIL: SECURITY DEFINER functions reachable by the role and NOT in the owner exception list (or changed): %', left(v_txt, 1500);
   END IF;
+  SELECT string_agg(e, ', ') INTO v_txt FROM unnest(c_accepted_definers) e WHERE NOT EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE p.prosecdef AND n.nspname NOT IN ('pg_catalog','information_schema')
+       AND has_function_privilege(c_role, p.oid, 'EXECUTE') AND has_schema_privilege(c_role, n.oid, 'USAGE')
+       AND e = n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')|' || md5(pg_get_functiondef(p.oid)));
+  IF v_txt IS NOT NULL THEN RAISE EXCEPTION 'R2V FAIL: stale/changed entries in the owner exception list: %', left(v_txt, 1500); END IF;
   SELECT string_agg(l.lanname, ', ') INTO v_txt FROM pg_language l
    WHERE NOT l.lanpltrusted AND l.lanname NOT IN ('internal','c')  -- C/internal functions can only be created by superusers
      AND has_language_privilege(c_role, l.oid, 'USAGE');
@@ -138,13 +170,10 @@ BEGIN
      AND has_function_privilege(c_role, p.oid, 'EXECUTE') AND has_schema_privilege(c_role, n.oid, 'USAGE');
   IF v_txt IS NOT NULL THEN RAISE EXCEPTION 'R2V FAIL: dangerous server/file functions executable by the role: %', left(v_txt, 1500); END IF;
 
-  -- 8. The one intentional view: report what it exposes (definer rights) so the owner can accept it.
-  SELECT string_agg(DISTINCT d.refobjid::regclass::text, ', ') INTO v_txt
-    FROM pg_rewrite rw JOIN pg_depend d ON d.objid = rw.oid AND d.classid = 'pg_rewrite'::regclass AND d.refclassid = 'pg_class'::regclass
-   WHERE rw.ev_class = v_view AND d.refobjid <> v_view;
-  RAISE NOTICE 'R2_03 VIEW EXPOSURE: costing.v_costing_period_run_status (owner %, %) reads: %',
-    (SELECT pg_get_userbyid(relowner) FROM pg_class WHERE oid = v_view), 'definer rights', v_txt;
-  RAISE NOTICE 'R2_03 VIEW DEFINITION: %', pg_get_viewdef(v_view, true);
+  -- 8. The status view is not granted to the role; the eligibility gate is administrator-only (R2_05).
+  IF has_table_privilege(c_role, 'costing.v_costing_period_run_status'::regclass, 'SELECT') THEN
+    RAISE EXCEPTION 'R2V FAIL: role can read the definer-rights status view';
+  END IF;
 
   RAISE NOTICE 'R2_03 PASS: exact effective SELECT set = % allowlisted relations; read-only, time-limited, no dangerous privileges', cardinality(v_allow);
 END

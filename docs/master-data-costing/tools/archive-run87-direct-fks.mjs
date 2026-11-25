@@ -83,7 +83,7 @@ export async function archiveDirectRelation(client,row,out,pageSize) {
     };
   }catch(e){gzip.destroy();output.destroy();await fs.rm(partial,{force:true}).catch(()=>{});throw e;}
 }
-export async function archiveDirectRun(client,out,expectedRelations=64,pageSize=500) {
+export async function archiveDirectRun(client,out,expectedRelations=64,pageSize=500,opts={}) {
   await fs.mkdir(out,{recursive:true});
   if((await fs.readdir(out)).length)throw Error('Archive directory must be empty');
   let tx=false;
@@ -95,11 +95,27 @@ export async function archiveDirectRun(client,out,expectedRelations=64,pageSize=
       "SELECT id,period_start::text AS period_start,overall_status FROM costing.costing_refresh_run WHERE id=$1",[RUN])).rows[0];
     if(!run||run.period_start!=='2026-09-01'||run.overall_status!=='SUCCESS')
       throw Error('Historical run identity drift');
-    const protectedRun=(await client.query(`SELECT
-      EXISTS(SELECT 1 FROM costing.costing_run_designation WHERE refresh_run_id=$1) AS designated,
-      EXISTS(SELECT 1 FROM costing.v_costing_period_run_status WHERE displayed_run_id=$1 OR approved_run_id=$1) AS displayed
-    `,[RUN])).rows[0];
-    if(Object.values(protectedRun).some(Boolean))throw Error('Designated/displayed run; not a pilot');
+    // Eligibility gate. With access to the definer-rights status view the exporter checks designation,
+    // displayed and approved state itself. The least-privilege archive role is NOT granted that view, so
+    // the administrator-only R2_05 gate must have run and its reference token is required and recorded.
+    const canSeeStatus=(await client.query(
+      "SELECT has_table_privilege(current_user,'costing.v_costing_period_run_status','SELECT') AS ok")).rows[0].ok;
+    let eligibility;
+    if(canSeeStatus){
+      const protectedRun=(await client.query(`SELECT
+        EXISTS(SELECT 1 FROM costing.costing_run_designation WHERE refresh_run_id=$1) AS designated,
+        EXISTS(SELECT 1 FROM costing.v_costing_period_run_status WHERE displayed_run_id=$1 OR approved_run_id=$1) AS displayed
+      `,[RUN])).rows[0];
+      if(Object.values(protectedRun).some(Boolean))throw Error('Designated/displayed run; not a pilot');
+      eligibility={mode:'exporter-checked-status-view'};
+    }else{
+      if(!/^R2E-\d{14}-[0-9a-f]{8}$/.test(opts.adminEligibilityRef||''))
+        throw Error('Archive role cannot read the status view: run R2_05 as administrator and pass --admin-eligibility-ref <token>');
+      const designated=(await client.query(
+        'SELECT EXISTS(SELECT 1 FROM costing.costing_run_designation WHERE refresh_run_id=$1) AS d',[RUN])).rows[0].d;
+      if(designated)throw Error('Designated run; not a pilot');
+      eligibility={mode:'administrator-attested-R2_05',reference:opts.adminEligibilityRef};
+    }
     const relations=await directRelations(client);
     if(relations.length!==expectedRelations)
       throw Error(`Direct FK inventory drift: ${relations.length} vs ${expectedRelations}`);
@@ -115,7 +131,7 @@ export async function archiveDirectRun(client,out,expectedRelations=64,pageSize=
       format:'sasv-direct-fk-archive-v1',sourceRunId:RUN,period:'2026-09-01',
       generatedAt:new Date().toISOString(),isolation:'REPEATABLE READ READ ONLY',
       completeness:'DIRECT_RUN_FK_ONLY__NOT_FULL_RECOVERY',
-      relationCount:inventory.length,tables:inventory,
+      relationCount:inventory.length,tables:inventory,eligibility,
       nestedFkRestored:false,restoreVerified:false,productionDeletionAuthorised:false
     };
     await fs.writeFile(join(out,'manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});
@@ -123,18 +139,19 @@ export async function archiveDirectRun(client,out,expectedRelations=64,pageSize=
   }catch(e){if(tx)await client.query('ROLLBACK').catch(()=>{});await fs.rm(out,{recursive:true,force:true}).catch(()=>{});throw e;}
 }
 function args(argv){
-  const o={};for(let i=0;i<argv.length;i+=2)o[argv[i]]=argv[i+1];
-  if(argv.length%2||o['--run-id']!=='87'||!o['--out'])throw Error('Usage: --run-id 87 --out PRIVATE_DIR [--expected-relations N]');
+  const allowed=new Set(['--run-id','--out','--expected-relations','--admin-eligibility-ref']);
+  const o={};for(let i=0;i<argv.length;i+=2){if(!allowed.has(argv[i]))throw Error('Unknown option '+argv[i]);o[argv[i]]=argv[i+1];}
+  if(argv.length%2||o['--run-id']!=='87'||!o['--out'])throw Error('Usage: --run-id 87 --out PRIVATE_DIR [--expected-relations N] [--admin-eligibility-ref R2E-...]');
   const expected=Number(o['--expected-relations']??64);
   if(!Number.isInteger(expected)||expected<1||expected>100)throw Error('Invalid relation expectation');
-  return {out:resolve(o['--out']),expected};
+  return {out:resolve(o['--out']),expected,ref:o['--admin-eligibility-ref']};
 }
 async function main(){
-  const {out,expected}=args(process.argv.slice(2));
+  const {out,expected,ref}=args(process.argv.slice(2));
   if(!process.env.SASV_ARCHIVE_DATABASE_URL)throw Error('Set private SASV_ARCHIVE_DATABASE_URL');
   const {default:pg}=await import('pg');
   const client=new pg.Client({connectionString:process.env.SASV_ARCHIVE_DATABASE_URL});
-  try{await client.connect();const x=await archiveDirectRun(client,out,expected);process.stdout.write(JSON.stringify({relationCount:x.relationCount,rows:x.tables.reduce((a,t)=>a+t.count,0),scope:x.completeness})+'\n');}
+  try{await client.connect();const x=await archiveDirectRun(client,out,expected,500,{adminEligibilityRef:ref});process.stdout.write(JSON.stringify({relationCount:x.relationCount,rows:x.tables.reduce((a,t)=>a+t.count,0),scope:x.completeness})+'\n');}
   finally{await client.end();}
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)

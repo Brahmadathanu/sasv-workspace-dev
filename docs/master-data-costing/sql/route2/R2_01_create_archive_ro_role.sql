@@ -11,17 +11,20 @@
 -- Granted: USAGE on schema costing; SELECT on exactly
 --   * the direct run-linked relations (single-column FK -> costing.costing_refresh_run,
 --     the same catalog rule used by archive-run87-direct-fks.mjs; must be exactly 64),
---   * costing.costing_refresh_run (run header),
---   * costing.costing_run_designation and the view costing.v_costing_period_run_status
---     (read by the archiver's "run 87 is not designated/displayed/approved" gate).
+--   * costing.costing_refresh_run (run header) and costing.costing_run_designation
+--     (both read by the exporter; the designation table is normally one of the 64).
+-- NOT granted (revision after review): the definer-rights status view
+-- costing.v_costing_period_run_status. The exporter does not need it to copy data; the
+-- "run 87 is not displayed/approved" eligibility gate is an ADMINISTRATOR-only step (R2_05)
+-- whose reference token is passed to the exporter (--admin-eligibility-ref).
 -- BYPASSRLS DECISION (reviewed). The live database has RLS on 29 of the 65 granted tables.
 -- A role that matches no policy sees ZERO rows there, so a complete archive needs one of:
 --   (a) BYPASSRLS on this role  -- chosen: affects only relations the role can already
---       SELECT (66), grants no access by itself, and R2_03 proves the effective-access set;
+--       SELECT (65), grants no access by itself, and R2_03 proves the effective-access set;
 --   (b) new RLS policies on 29 production tables -- rejected: 29 production DDL changes to
 --       the very protection layer we must not touch, and they would outlive the role;
 --   (c) membership in service_role/another BYPASSRLS role -- rejected: inherits broad ALL
---       privileges far beyond SELECT on 66 relations;
+--       privileges far beyond SELECT on 65 relations;
 --   (d) the administrator credential -- rejected by the owner.
 -- BYPASSRLS is added ONLY IF a granted relation has RLS enabled. If the administrator is
 -- not allowed to grant it (PG16+: CREATEROLE may only grant attributes it holds) this script
@@ -30,7 +33,7 @@ DO $r2$
 DECLARE
   c_role constant text := 'sasv_archive_ro';
   c_expected constant int := 64;
-  v_status text; v_period text; v_opts text[]; v_kind "char";
+  v_status text; v_period text;
   rel record; v_rels oid[] := '{}'; v_pairs int := 0; v_rls boolean := false; v_grants int := 0;
   v_extra text;
 BEGIN
@@ -38,21 +41,14 @@ BEGIN
     RAISE EXCEPTION 'R2 HOLD: role % already exists; run R2_99 first or investigate', c_role;
   END IF;
   IF to_regclass('costing.costing_refresh_run') IS NULL
-     OR to_regclass('costing.costing_run_designation') IS NULL
-     OR to_regclass('costing.v_costing_period_run_status') IS NULL THEN
-    RAISE EXCEPTION 'R2 HOLD: header, designation table or status view missing';
+     OR to_regclass('costing.costing_run_designation') IS NULL THEN
+    RAISE EXCEPTION 'R2 HOLD: header or designation table missing';
   END IF;
   SELECT overall_status, period_start::text INTO v_status, v_period
     FROM costing.costing_refresh_run WHERE id = 87;
   IF NOT FOUND OR v_status <> 'SUCCESS' OR v_period <> '2026-09-01' THEN
     RAISE EXCEPTION 'R2 HOLD: run 87 identity drift (%, %)', v_status, v_period;
   END IF;
-  SELECT c.relkind, c.reloptions INTO v_kind, v_opts FROM pg_class c
-    WHERE c.oid = 'costing.v_costing_period_run_status'::regclass;
-  IF v_kind <> 'v' OR EXISTS (SELECT 1 FROM unnest(coalesce(v_opts,'{}')) o WHERE o ILIKE 'security_invoker=%true%' OR o ILIKE 'security_invoker=on') THEN
-    RAISE EXCEPTION 'R2 HOLD: status view is not a plain definer-rights view; its underlying tables would also need review';
-  END IF;
-
   FOR rel IN
     SELECT c.oid AS relid, n.nspname AS s, c.relname AS t, c.relkind AS k,
            (c.relrowsecurity OR c.relforcerowsecurity) AS rls, att.attname AS col
@@ -97,8 +93,6 @@ BEGIN
     EXECUTE format('GRANT SELECT ON TABLE %I.%I TO %I', rel.s, rel.t, c_role);
     v_grants := v_grants + 1;
   END LOOP;
-  EXECUTE format('GRANT SELECT ON TABLE costing.v_costing_period_run_status TO %I', c_role);
-  v_grants := v_grants + 1;
   RAISE NOTICE 'R2_01 OK: role % created NOLOGIN, % SELECT grants, bypassrls=%', c_role, v_grants, v_rls;
 END
 $r2$;

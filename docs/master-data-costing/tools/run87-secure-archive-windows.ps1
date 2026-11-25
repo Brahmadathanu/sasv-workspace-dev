@@ -9,7 +9,8 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory=$true)][string]$ArchiveDriveRoot,
-  [Parameter(Mandatory=$true)][string]$BackupDriveRoot
+  [Parameter(Mandatory=$true)][string]$BackupDriveRoot,
+  [string]$AdminEligibilityRef = ''   # token printed by R2_05; required when the DSN is the least-privilege archive role
 )
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
@@ -77,7 +78,12 @@ foreach ($target in @($archived,$backed)) {
 }
 # Explicitly do not log the connection URL or environment values.
 Write-Host 'Starting consistent READ ONLY run87 PostgreSQL archive to encrypted local drive.'
-& node (Join-Path $toolRoot 'archive-run87-direct-fks.mjs') --run-id 87 --out $archived --expected-relations 64
+$exportArgs = @('--run-id','87','--out',$archived,'--expected-relations','64')
+if ($AdminEligibilityRef) {
+  if ($AdminEligibilityRef -notmatch '^R2E-\d{14}-[0-9a-f]{8}$') { throw 'AdminEligibilityRef is not a valid R2_05 token.' }
+  $exportArgs += @('--admin-eligibility-ref',$AdminEligibilityRef)
+}
+& node (Join-Path $toolRoot 'archive-run87-direct-fks.mjs') @exportArgs
 if ($LASTEXITCODE -ne 0) { throw "Archive exporter failed; no backup is certified." }
 & node (Join-Path $toolRoot 'verify-run87-direct-fks.mjs') $archived
 if ($LASTEXITCODE -ne 0) { throw 'Primary archive verification failed.' }
@@ -112,6 +118,7 @@ $receipt = [pscustomobject]@{
   timestampUtc = (Get-Date).ToUniversalTime().ToString('o')
   runId = 87
   relationCount = 64
+  eligibilityReference = $(if ($AdminEligibilityRef) { $AdminEligibilityRef } else { 'exporter-checked-status-view' })
   archivedRows = (($manifest.tables | Measure-Object -Property count -Sum).Sum)
   filesChecked = $files.Count
   files = $files

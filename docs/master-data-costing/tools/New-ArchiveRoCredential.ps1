@@ -4,7 +4,7 @@
 
   Generate : creates a random 40-character password, stores it ONLY as a DPAPI-protected
              file readable by the current Windows user, and writes R2_02_enable_login.sql
-             containing just a SCRAM-SHA-256 verifier (never the password) with a 7-day
+             containing just a SCRAM-SHA-256 verifier (never the password) with a 2-day
              VALID UNTIL. The password is never printed, logged or placed in the repository.
                powershell -NoProfile -File New-ArchiveRoCredential.ps1 -Mode Generate
 
@@ -48,7 +48,7 @@ if ($Mode -eq 'Generate') {
   $verifier = New-ScramVerifier $plain
   $plain = $null
   $sql = @"
--- ROUTE 2 / STEP 2 of 4 -- enable login for the temporary archive role (7 days).
+-- ROUTE 2 / STEP 2 of 4 -- enable login for the temporary archive role (2 days).
 -- Generated locally. Contains ONLY a SCRAM-SHA-256 verifier, not the password.
 -- Run as administrator after R2_01 and before R2_03.
 DO `$r2e`$
@@ -58,8 +58,8 @@ BEGIN
   IF NOT FOUND OR r.rolcanlogin OR r.rolsuper THEN
     RAISE EXCEPTION 'R2E HOLD: role missing, already login-enabled or privileged';
   END IF;
-  EXECUTE format('ALTER ROLE sasv_archive_ro LOGIN PASSWORD %L VALID UNTIL %L', '$verifier', (now() + interval '7 days')::text);
-  RAISE NOTICE 'R2_02 OK: login enabled until %', (now() + interval '7 days')::text;
+  EXECUTE format('ALTER ROLE sasv_archive_ro LOGIN PASSWORD %L VALID UNTIL %L', '$verifier', (now() + interval '2 days')::text);
+  RAISE NOTICE 'R2_02 OK: login enabled until %', (now() + interval '2 days')::text;
 END
 `$r2e`$;
 "@

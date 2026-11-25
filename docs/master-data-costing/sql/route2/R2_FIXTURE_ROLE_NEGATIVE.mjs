@@ -18,7 +18,7 @@ const allow = async (name, sql) => {
 };
 // Allowed: the archiver's own reads.
 await allow('read run header', 'SELECT count(*) FROM costing.costing_refresh_run');
-await allow('read status view', 'SELECT count(*) FROM costing.v_costing_period_run_status');
+await reject('read definer-rights status view (not granted)', 'SELECT count(*) FROM costing.v_costing_period_run_status');
 await allow('read archived relation', 'SELECT count(*) FROM costing.marketing_signed_billed_sales_evidence_snapshot WHERE refresh_run_id=87');
 // Denied while read-only default is in force.
 await reject('delete (read-only default)', 'DELETE FROM costing.marketing_signed_billed_sales_evidence_snapshot WHERE id=-1');
