@@ -1,0 +1,60 @@
+name: PEC Purchase Allocations reporting (isolated PostgreSQL 17 fixture)
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/20261124103114_pec_chronological_fifo_return_adjusted_receipts.sql"
+      - "supabase/migrations/20261124134249_pec_purchase_allocations_reporting_v1.sql"
+      - "scripts/pec-purchase-allocations-pg-fixture.sql"
+      - "scripts/pec-purchase-allocations-pg-export.sql"
+      - "scripts/pec-purchase-allocations-contract-parity.test.mjs"
+      - "public/shared/js/pec-purchase-allocations.js"
+      - ".github/workflows/pec-purchase-allocations-pg17.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pg17-fixture:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture_only
+          POSTGRES_DB: pec_pa_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pec_pa_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Isolated PostgreSQL 17 fixture - real repository SQL, synthetic data, never production
+        env:
+          PGPASSWORD: fixture_only
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: pec_pa_fixture
+        run: |
+          set -eu
+          psql -X -v ON_ERROR_STOP=1 -f scripts/pec-purchase-allocations-pg-fixture.sql 2>&1 | tee "$RUNNER_TEMP/pa-pg17.txt"
+          grep -q PEC_PURCHASE_ALLOCATIONS_PG_FIXTURE_PASS "$RUNNER_TEMP/pa-pg17.txt"
+          test "$(grep -c 'NOTICE:  ok:' "$RUNNER_TEMP/pa-pg17.txt")" -ge 100
+          grep 'NOTICE:  timing:' "$RUNNER_TEMP/pa-pg17.txt"
+      - name: Export the real RPC output and verify it through the client adapter (contract parity)
+        env:
+          PGPASSWORD: fixture_only
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: pec_pa_fixture
+        run: |
+          set -eu
+          psql -X -At -v ON_ERROR_STOP=1 -f scripts/pec-purchase-allocations-pg-export.sql > "$RUNNER_TEMP/pa-contract.json"
+          PA_CONTRACT_JSON="$RUNNER_TEMP/pa-contract.json" node --test scripts/pec-purchase-allocations-contract-parity.test.mjs

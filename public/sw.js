@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v394"; // WP11 PM BOM header toolbar wraps at phone width (genuine 390px overflow fix); v393 was WP05-W506 Staff Governance personnel-confidentiality client gate (explicit projections, edit gating); v392 was Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)
+const CACHE_NAME = "hub-cache-v396"; // PEC v6.5.0 Purchase Allocations lens + shared modal stack: both new PEC modules network-first so an installed PWA never pairs the console with a stale cached module (cache generation advanced to retire copies cached while they were cache-first); v394 was WP11 PM BOM header toolbar wraps at phone width (genuine 390px overflow fix); v393 was WP05-W506 Staff Governance personnel-confidentiality client gate (explicit projections, edit gating); v392 was Costing LOCK-P01 lock-screen CCC-edit guard (#211/#212); v391 was Costing #208 mobile Evidence-table scroll CSS; v390 was Costing UX-F1 Dashboard and compact CCC; v389 was WP-07 e-Aushadhi review UX (UX-1 to UX-10, Bundle A)
 
 const PRECACHE = [
   // Hub shell
@@ -129,6 +129,9 @@ self.addEventListener("fetch", (event) => {
     /\/(?:shared\/)?js\/(?:categories|subcategories|product-groups|subgroups|classification-master-access|classification-html-escape)\.js$/.test(url.pathname) ||
     /\/shared\/js\/procurement-execution-console\.js$/.test(url.pathname) ||
     /\/shared\/css\/sasv-procurement-execution-console\.css$/.test(url.pathname) ||
+    // PEC v6.5.0: modules imported by the console (modal stack; Purchase Allocations core + adapter + lens).
+    /\/shared\/js\/pec-modal-stack\.js$/.test(url.pathname) ||
+    /\/shared\/js\/pec-purchase-allocations\.js$/.test(url.pathname) ||
     // WP08 G2-0: the four shared Master Data pages (HTML is network-first) must not pair new HTML with a stale
     // cache-first script/stylesheet. These URLs were never cached by any earlier cache generation, so no
     // CACHE_NAME advance is needed; they simply must never enter the cache-first path.

@@ -2,7 +2,7 @@
 // Mutation-sensitive PEC integration protected-file policy verification.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { rejectedProtectedPaths, INTEGRATION_PROTECTED_PATHS, REVIEWED_SERVER_MIGRATIONS, REVIEWED_WP08_G2_1_PINS, REVIEWED_WP11_V394_PINS } from "./lib/pec-protected-path-guard.mjs";
+import { rejectedProtectedPaths, INTEGRATION_PROTECTED_PATHS, REVIEWED_SERVER_MIGRATIONS, REVIEWED_WP08_G2_1_PINS, REVIEWED_WP11_V394_PINS, REVIEWED_PEC_V650_PINS, REVIEWED_PEC_V651_PINS } from "./lib/pec-protected-path-guard.mjs";
 import fs from "node:fs";
 let passed = 0;
 function test(name, changed, integration, expected) {
@@ -152,12 +152,17 @@ const r2fix = "supabase/migrations/20261114135500_pec_indent_set_status_header_l
   assert.deepEqual(pin.heads, [head], "WP11 sw.js exception restricted to its own branch");
   const live = fs.readFileSync(sw, "utf8");
   const lf = live.replace(/\r\n/g, "\n");
-  assert.equal(createHash("sha256").update(lf).digest("hex"), pin.sha256, "working-tree sw.js is the pinned WP11 v394 file (re-pin only with owner review)");
-  assert.ok(lf.includes('const CACHE_NAME = "hub-cache-v394"'), "v394 cache line");
+  const liveIsWp11 = createHash("sha256").update(lf).digest("hex") === pin.sha256;
   const ctx = (over = {}) => ({ headBranch: head, readText: () => live, ...over });
   const c = (name, changed, expected, context) => { assert.deepEqual(rejectedProtectedPaths(changed, false, context), expected, name); console.log("PASS:", name); passed++; };
-  c("WP11 sw.js exact content accepted on its branch", [sw], [], ctx());
-  c("WP11 sw.js CRLF checkout accepted", [sw], [], ctx({ readText: () => lf.replace(/\n/g, "\r\n") }));
+  if (liveIsWp11) {
+    assert.ok(lf.includes('const CACHE_NAME = "hub-cache-v394"'), "v394 cache line");
+    c("WP11 sw.js exact content accepted on its branch", [sw], [], ctx());
+    c("WP11 sw.js CRLF checkout accepted", [sw], [], ctx({ readText: () => lf.replace(/\n/g, "\r\n") }));
+  } else {
+    console.log("NOTE: working-tree public/sw.js is no longer the WP11 v394 file (superseded by the v6.5.0 pin); WP11 acceptance cases skipped, rejection cases below always run");
+    c("WP11 pin rejects the current (v395) sw.js on the WP11 branch", [sw], [sw], ctx());
+  }
   c("WP11 sw.js one extra character rejected", [sw], [sw], ctx({ readText: () => lf + "\n// x" }));
   c("WP11 sw.js with a network-first rule removed rejected", [sw], [sw], ctx({ readText: () => lf.replace("master-data-platform", "master-data-platfor") }));
   c("WP11 sw.js with another cache generation rejected", [sw], [sw], ctx({ readText: () => lf.replace("hub-cache-v394", "hub-cache-v395") }));
@@ -166,8 +171,68 @@ const r2fix = "supabase/migrations/20261114135500_pec_indent_set_status_header_l
   c("WP11 sw.js rejected on the staging branch", [sw], [sw], ctx({ headBranch: "integration/pec-erp-staging-20261112" }));
   c("WP11 sw.js rejected without context", [sw], [sw], null);
   c("WP11 pin never exempts a migration", [migrated, illicit], [migrated, illicit], ctx());
-  c("WP11 pin never exempts a migration beside sw.js", [sw, illicit, migrated], [illicit, migrated], ctx());
+  c("WP11 pin never exempts a migration beside sw.js", [sw, illicit, migrated], liveIsWp11 ? [illicit, migrated] : [sw, illicit, migrated], ctx());
   c("WP11 pin never exempts uncommitted/working-tree changes", [sw], [sw], undefined);
+}
+// PEC v6.5.0 release exception for public/sw.js: exact content hash + its own branch only; negative mutations always run.
+{
+  const pin = REVIEWED_PEC_V650_PINS[sw];
+  const head = "claude/busy-brahmagupta-3vslus";
+  assert.ok(pin && /^[a-f0-9]{64}$/.test(pin.sha256), "v6.5.0 sw.js SHA256 pin exists");
+  assert.deepEqual(pin.heads, [head], "v6.5.0 sw.js exception restricted to its own branch");
+  const live = fs.readFileSync(sw, "utf8");
+  const lf = live.replace(/\r\n/g, "\n");
+  const liveIsV650 = createHash("sha256").update(lf).digest("hex") === pin.sha256;
+  assert.ok(lf.includes("pec-modal-stack") && lf.includes("pec-purchase-allocations"), "both PEC modules are network-first");
+  if (!liveIsV650) console.log("NOTE: working-tree public/sw.js is no longer the v6.5.0 file (superseded by the v6.5.1 pin); v6.5.0 acceptance cases skipped, rejection cases always run");
+  const ctx = (over = {}) => ({ headBranch: head, readText: () => live, ...over });
+  const c = (name, changed, expected, context) => { assert.deepEqual(rejectedProtectedPaths(changed, false, context), expected, name); console.log("PASS:", name); passed++; };
+  if (liveIsV650) {
+    c("v6.5.0 sw.js exact content accepted on its branch", [sw], [], ctx());
+    c("v6.5.0 sw.js CRLF checkout accepted", [sw], [], ctx({ readText: () => lf.replace(/\n/g, "\r\n") }));
+  } else {
+    c("v6.5.0 pin rejects the current (v396) sw.js on the v6.5.0 branch", [sw], [sw], ctx());
+  }
+  c("v6.5.0 sw.js one extra character rejected", [sw], [sw], ctx({ readText: () => lf + "\n// x" }));
+  c("v6.5.0 sw.js with the modal-stack rule removed rejected", [sw], [sw], ctx({ readText: () => lf.replace("pec-modal-stack", "pec-modal-stac") }));
+  c("v6.5.0 sw.js with the Purchase Allocations rule removed rejected", [sw], [sw], ctx({ readText: () => lf.replace("pec-purchase-allocations", "pec-purchase-allocation") }));
+  c("v6.5.0 sw.js with another cache generation rejected", [sw], [sw], ctx({ readText: () => lf.replace("hub-cache-v395", "hub-cache-v397") }));
+  c("v6.5.0 sw.js previous v394 content rejected", [sw], [sw], ctx({ readText: () => lf.replace("hub-cache-v395", "hub-cache-v394") }));
+  c("v6.5.0 sw.js rejected on another branch", [sw], [sw], ctx({ headBranch: "claude/pec-r12-resync-collision-ux-20261113" }));
+  c("v6.5.0 sw.js rejected on the staging branch", [sw], [sw], ctx({ headBranch: "integration/pec-erp-staging-20261112" }));
+  c("v6.5.0 sw.js rejected without context", [sw], [sw], null);
+  c("v6.5.0 sw.js rejected when unreadable", [sw], [sw], ctx({ readText: () => { throw new Error("nope"); } }));
+  c("v6.5.0 pin never exempts a migration", [migrated, illicit], [migrated, illicit], ctx());
+  c("v6.5.0 pin never exempts a migration beside sw.js", [sw, illicit, migrated], liveIsV650 ? [illicit, migrated] : [sw, illicit, migrated], ctx());
+  c("v6.5.0 pin never exempts uncommitted/working-tree changes", [sw], [sw], undefined);
+}
+// PEC v6.5.1 release exception for public/sw.js: exact content hash + its own branch only; negative mutations always run.
+{
+  const pin = REVIEWED_PEC_V651_PINS[sw];
+  const head = "claude/pec-mobile-usability-refinement-2he3l5";
+  assert.ok(pin && /^[a-f0-9]{64}$/.test(pin.sha256), "v6.5.1 sw.js SHA256 pin exists");
+  assert.deepEqual(pin.heads, [head], "v6.5.1 sw.js exception restricted to its own branch");
+  const live = fs.readFileSync(sw, "utf8");
+  const lf = live.replace(/\r\n/g, "\n");
+  assert.equal(createHash("sha256").update(lf).digest("hex"), pin.sha256, "working-tree sw.js is the pinned v6.5.1 file (re-pin only with owner review)");
+  assert.ok(lf.includes('const CACHE_NAME = "hub-cache-v396"'), "v396 cache line");
+  assert.ok(lf.includes("pec-modal-stack") && lf.includes("pec-purchase-allocations"), "both new PEC modules are network-first");
+  const ctx = (over = {}) => ({ headBranch: head, readText: () => live, ...over });
+  const c = (name, changed, expected, context) => { assert.deepEqual(rejectedProtectedPaths(changed, false, context), expected, name); console.log("PASS:", name); passed++; };
+  c("v6.5.1 sw.js exact content accepted on its branch", [sw], [], ctx());
+  c("v6.5.1 sw.js CRLF checkout accepted", [sw], [], ctx({ readText: () => lf.replace(/\n/g, "\r\n") }));
+  c("v6.5.1 sw.js one extra character rejected", [sw], [sw], ctx({ readText: () => lf + "\n// x" }));
+  c("v6.5.1 sw.js with the modal-stack rule removed rejected", [sw], [sw], ctx({ readText: () => lf.replace("pec-modal-stack", "pec-modal-stac") }));
+  c("v6.5.1 sw.js with the Purchase Allocations rule removed rejected", [sw], [sw], ctx({ readText: () => lf.replace("pec-purchase-allocations", "pec-purchase-allocation") }));
+  c("v6.5.1 sw.js with another cache generation rejected", [sw], [sw], ctx({ readText: () => lf.replace("hub-cache-v396", "hub-cache-v397") }));
+  c("v6.5.1 sw.js previous v395 content rejected", [sw], [sw], ctx({ readText: () => lf.replace("hub-cache-v396", "hub-cache-v395") }));
+  c("v6.5.1 sw.js rejected on another branch", [sw], [sw], ctx({ headBranch: "claude/pec-r12-resync-collision-ux-20261113" }));
+  c("v6.5.1 sw.js rejected on the staging branch", [sw], [sw], ctx({ headBranch: "integration/pec-erp-staging-20261112" }));
+  c("v6.5.1 sw.js rejected without context", [sw], [sw], null);
+  c("v6.5.1 sw.js rejected when unreadable", [sw], [sw], ctx({ readText: () => { throw new Error("nope"); } }));
+  c("v6.5.1 pin never exempts a migration", [migrated, illicit], [migrated, illicit], ctx());
+  c("v6.5.1 pin never exempts a migration beside sw.js", [sw, illicit, migrated], [illicit, migrated], ctx());
+  c("v6.5.1 pin never exempts uncommitted/working-tree changes", [sw], [sw], undefined);
 }
 // #400 authenticated-DML correction: proposed, pinned to its own branch (and staging for later integration) and exact content.
 const sec400 = "supabase/migrations/20261114160000_pec_revoke_authenticated_dml_policy_link_tables.sql";
@@ -181,6 +246,95 @@ const sec400 = "supabase/migrations/20261114160000_pec_revoke_authenticated_dml_
   t2("#400 changed content rejected", [sec400], [sec400], { ...context, readText: () => text + "\n-- malicious change" });
   t2("#400 rejected on another client branch", [sec400], [sec400], { ...context, headBranch: "claude/pec-r12-resync-collision-ux-20261113" });
   t2("#400 rejected without context", [sec400], [sec400], null);
+}
+// Owner-requested PEC S4: two registered production migrations, pinned to the
+// dedicated review branch only. Even an additional newline or a different
+// branch must fail protected-path authorization.
+// Full S4 new plan, atomic generation, and draft reconciliation — exact applied blobs.
+const s4horizonguard = [
+ ["supabase/migrations/20261122084655_pec_s4_duplicate_pr_horizon_guard.sql",
+  "0c29d28eb377b770d112fa69c14da7ca30265bf2d7859d64fbcd5cabe4832685"]
+];
+for(const [file,sha] of s4horizonguard){
+ const content=fs.readFileSync(file,"utf8");
+ assert.deepEqual(REVIEWED_SERVER_MIGRATIONS[file],{sha256:sha,heads:["feat/pec-s4-end-to-end-20261122"]});
+ assert.equal(createHash("sha256").update(content.replace(/\r\n/g,"\n")).digest("hex"),sha);
+ const ctx={headBranch:"feat/pec-s4-end-to-end-20261122",readText:()=>content};
+ t2("S4 horizon lock exact accepted",[file],[],ctx);
+ t2("S4 horizon lock changed rejected",[file],[file],{...ctx,readText:()=>content+"\n-- tamper"});
+ t2("S4 horizon lock wrong branch rejected",[file],[file],{...ctx,headBranch:"main"});
+}
+const s4uomguard = [
+  ["supabase/migrations/20261122084452_pec_s4_duplicate_uom_candidate_guard.sql",
+    "bed758b746cfdfe675d85d9205f8c70d89269caf33c9e232eb6561fb34331eca"]
+];
+for(const [file,sha] of s4uomguard){
+ const content=fs.readFileSync(file,"utf8");
+ assert.deepEqual(REVIEWED_SERVER_MIGRATIONS[file],{sha256:sha,heads:["feat/pec-s4-end-to-end-20261122"]});
+ assert.equal(createHash("sha256").update(content.replace(/\r\n/g,"\n")).digest("hex"),sha);
+ const ctx={headBranch:"feat/pec-s4-end-to-end-20261122",readText:()=>content};
+ t2("S4 UOM guard exact accepted",[file],[],ctx);
+ t2("S4 UOM guard edited rejected",[file],[file],{...ctx,readText:()=>content+"\n-- alter"});
+ t2("S4 UOM guard wrong branch rejected",[file],[file],{...ctx,headBranch:"main"});
+}
+const s4retired = [
+  ["supabase/migrations/20261122083956_pec_s4_retire_old_ccf_writer.sql",
+   "a19f196fb1230f92563779b223cc509214f704f2b22a0c999e903b100c891f33"]
+];
+for(const [file,sha] of s4retired){
+ const content=fs.readFileSync(file,"utf8");
+ assert.deepEqual(REVIEWED_SERVER_MIGRATIONS[file],{sha256:sha,heads:["feat/pec-s4-end-to-end-20261122"]});
+ assert.equal(createHash("sha256").update(content.replace(/\r\n/g,"\n")).digest("hex"),sha);
+ const ctx={headBranch:"feat/pec-s4-end-to-end-20261122",readText:()=>content};
+ t2("S4 retired writer exact content accepted", [file],[],ctx);
+ t2("S4 retired writer changed content rejected",[file],[file],{...ctx,readText:()=>content+"\n-- tamper"});
+ t2("S4 retired writer other branch rejected",[file],[file],{...ctx,headBranch:"main"});
+}
+const s4compat = [
+  ["supabase/migrations/20261122083237_pec_s4_legacy_electron_compatibility.sql","5aede676c2442410eedfa20ee4f9307f6aebd84f8bfd86223db544f36013ce2e"]
+];
+const s4e2e = [
+  ["supabase/migrations/20261122082353_pec_s4_new_pr_hybrid_plan.sql", "2ef75c2953eea7e6d79b096c549f834acb15b71cae277ff8b2385ab3bea3301b"],
+  ["supabase/migrations/20261122082532_pec_s4_hybrid_generator_evidence.sql", "7296a87c0e603c0c9919dcc95ef7a6e690380676c6c552e97b1964eee8f98d70"],
+  ["supabase/migrations/20261122082653_pec_s4_reconcile_existing_draft.sql", "dea0c1e12ff1aa909997a0eaf9bfcbdd6f84b3c70e66d8dd5a635f7c3fa59b51"],
+];
+for (const [file,sha] of s4compat) {
+ const pin=REVIEWED_SERVER_MIGRATIONS[file];
+ assert.deepEqual(pin,{sha256:sha,heads:["feat/pec-s4-end-to-end-20261122"]});
+ const content=fs.readFileSync(file,"utf8");
+ assert.equal(createHash("sha256").update(content.replace(/\r\n/g,"\n")).digest("hex"),sha);
+ const ctx={headBranch:"feat/pec-s4-end-to-end-20261122",readText:()=>content};
+ t2("S4 legacy RPC exact guard accepted: "+file,[file],[],ctx);
+ t2("S4 legacy RPC changed SQL rejected: "+file,[file],[file],{...ctx,readText:()=>content+"\n-- extra"});
+ t2("S4 legacy RPC wrong branch rejected: "+file,[file],[file],{...ctx,headBranch:"main"});
+ t2("S4 legacy RPC unrelated SQL rejected: "+file,[illicit],[illicit],ctx);
+}
+for (const [file,sha] of s4e2e) {
+  assert.deepEqual(REVIEWED_SERVER_MIGRATIONS[file], {sha256:sha,heads:["feat/pec-s4-end-to-end-20261122"]});
+  const content=fs.readFileSync(file,"utf8");
+  assert.equal(createHash("sha256").update(content.replace(/\r\n/g,"\n")).digest("hex"),sha);
+  const ctx={headBranch:"feat/pec-s4-end-to-end-20261122",readText:()=>content};
+  t2("S4 E2E exact file accepted: "+file,[file],[],ctx);
+  t2("S4 E2E altered file rejected: "+file,[file],[file],{...ctx,readText:()=>content+"\n-- unsafe"});
+  t2("S4 E2E wrong branch rejected: "+file,[file],[file],{...ctx,headBranch:"main"});
+  t2("S4 E2E no context rejected: "+file,[file],[file],null);
+  t2("S4 E2E no unrelated SQL/SW exemption: "+file,[illicit,sw],[illicit,sw],ctx);
+}
+const s4 = [
+  ["supabase/migrations/20261122075009_pec_s4_ccf_pr_preview_readonly.sql", "2aeee1b1c4e1749d59aef3b4f8ec29e16c315f5e9babb7c8853cea58d8c58823"],
+  ["supabase/migrations/20261122075447_pec_s4_ccf_apply_draft_line_guarded.sql", "818a672522542a12d651847b3af34ca58457dd299ce43d681214df9811134f5a"],
+];
+for (const [file, expectedSha] of s4) {
+  const pin = REVIEWED_SERVER_MIGRATIONS[file];
+  assert.deepEqual(pin, { sha256: expectedSha, heads: ["feat/pec-s4-ccf-preview-20261122"] });
+  const content = fs.readFileSync(file, "utf8");
+  assert.equal(createHash("sha256").update(content.replace(/\r\n/g, "\n")).digest("hex"), expectedSha);
+  const context = { headBranch: "feat/pec-s4-ccf-preview-20261122", readText: () => content };
+  t2("S4 exact registered payload accepted only on reviewed branch: " + file, [file], [], context);
+  t2("S4 modified payload rejected: " + file, [file], [file], { ...context, readText: () => content + "\n-- altered" });
+  t2("S4 unrelated branch rejected: " + file, [file], [file], { ...context, headBranch: "main" });
+  t2("S4 no context rejected: " + file, [file], [file], null);
+  t2("S4 does not exempt arbitrary SQL/SW: " + file, [illicit, sw], [illicit, sw], context);
 }
 // Owner-approved WP10 Phase 1: exact applied payloads on one server lane, not a general SQL exception.
 const wp10 = [
@@ -201,6 +355,49 @@ for (const [file, expectedSha] of wp10) {
   t2("WP10 missing context rejected: " + file, [file], [file], null);
   t2("WP10 entry grants no unrelated SQL/SW exception: " + file, [illicit, sw], [illicit, sw], context);
 }
-assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact four owner-applied WP10 payloads and unchanged seven legacy server/SW pins");
+// Issue #502: additive JIT MRP route migration, exact path + branch + LF SHA-256 only.
+{
+  const file = "supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql";
+  const content = fs.readFileSync(file, "utf8");
+  const sha = createHash("sha256").update(content.replace(/\r\n/g, "\n")).digest("hex");
+  assert.deepEqual(REVIEWED_SERVER_MIGRATIONS[file], { sha256: sha, heads: ["feat/pec-jit-route-server-20261122"] });
+  const context = { headBranch: "feat/pec-jit-route-server-20261122", readText: () => content };
+  t2("JIT route payload accepted only on its server branch", [file], [], context);
+  t2("JIT route modified payload rejected", [file], [file], { ...context, readText: () => content + "\n-- altered" });
+  t2("JIT route other branch rejected", [file], [file], { ...context, headBranch: "main" });
+  t2("JIT route client descendant branch rejected", [file], [file], { ...context, headBranch: "feat/pec-jit-route-client-20261122" });
+  t2("JIT route missing context rejected", [file], [file], null);
+  t2("JIT route entry grants no unrelated SQL/SW exception", [illicit, sw], [illicit, sw], context);
+}
+// Issue #502: production-installed JIT indent-balance timeout repair is pinned to one exact file/branch/hash.
+{
+  const file = "supabase/migrations/20261122174517_pec_jit_plan_indent_balance_once_timeout_fix.sql";
+  const content = fs.readFileSync(file, "utf8");
+  const sha = createHash("sha256").update(content.replace(/\r\n/g, "\n")).digest("hex");
+  assert.deepEqual(REVIEWED_SERVER_MIGRATIONS[file], { sha256: sha, heads: ["fix/pec-jit-plan-timeout-20261122"] });
+  const context = { headBranch: "fix/pec-jit-plan-timeout-20261122", readText: () => content };
+  t2("JIT timeout repair exact payload accepted on repair branch", [file], [], context);
+  t2("JIT timeout repair changed bytes rejected", [file], [file], { ...context, readText: () => content + "\n-- tampered" });
+  t2("JIT timeout repair on main rejected", [file], [file], { ...context, headBranch: "main" });
+  t2("JIT timeout repair missing context rejected", [file], [file], null);
+}
+// PEC S5: one registered, exact SHA-pinned production migration, named branch only.
+{
+  const file = "supabase/migrations/20261122191542_pec_s5_unified_planning_ind_source_and_pr_reason.sql";
+  const pin = REVIEWED_SERVER_MIGRATIONS[file];
+  const content = fs.readFileSync(file, "utf8");
+  const sha = createHash("sha256").update(content.replace(/\r\n/g, "\n")).digest("hex");
+  assert.deepEqual(pin, {
+    sha256: sha, heads: ["feat/pec-s5-unified-server-20261123"]
+  });
+  const context = { headBranch: "feat/pec-s5-unified-server-20261123", readText: () => content };
+  t2("S5 registered migration exact content accepted only on its named branch", [file], [], context);
+  t2("S5 one-byte mutation rejected", [file], [file],
+    { ...context, readText: () => content + "\n-- changed" });
+  t2("S5 migration on unrelated client branch rejected", [file], [file],
+    { ...context, headBranch: "feat/pec-s5-client" });
+  t2("S5 migration without committed context rejected", [file], [file], null);
+}
+assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), ["supabase/migrations/20261122191542_pec_s5_unified_planning_ind_source_and_pr_reason.sql", "supabase/migrations/20261122174517_pec_jit_plan_indent_balance_once_timeout_fix.sql", "supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql", ...s4horizonguard.map(([file]) => file), ...s4uomguard.map(([file]) => file), ...s4retired.map(([file]) => file), ...s4compat.map(([file]) => file), ...s4e2e.map(([file]) => file), ...s4.map(([file]) => file), ...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact five registered S4 payloads, four WP10 payloads and unchanged legacy server/SW pins");
 
 console.log(`pec-protected-path-guard: ${passed}/${passed} PASS`);

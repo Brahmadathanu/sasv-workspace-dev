@@ -47,7 +47,7 @@ const indents = Array.from({ length: 5 }, (_, i) => ({
 }));
 const data = {
   proc_pec_indent_headers: S.empty ? [] : indents,
-  proc_pec_pr_headers: S.empty ? [] : [{ pr_id: 1, pr_number: "PR-1", status: "active", effective_from_date: "2026-11-01", material_class_id: 1, line_count: 2 }],
+  proc_pec_pr_headers: S.empty ? [] : [{ pr_id: 1, pr_number: "PR-1", status: S.ccfDraft ? "draft" : "active", updated_at:"2026-11-22T07:02:14.215875+00:00",generation_filters:{rm_scope:"normal"},horizon_start_month:"2026-11-01",horizon_end_month:"2026-12-01",effective_from_date: "2026-11-01", material_class_id: 1, line_count: 2 }],
   proc_pec_purchase_excess: S.empty ? [] : [{ purchase_fact_id: 1, voucher_number: "V-1", voucher_date: "2026-11-02", stock_item_name: long, material_class_code: "RM", purchase_qty: 10, allocated_qty: 4, unallocated_qty: 6, accepted_qty: 0, net_unallocated_qty: 6 }],
   proc_pec_excess_acceptance_audit: [],
   proc_pec_buylist_material_class_options: [], proc_pec_buylist_rm_scope_options: [],
@@ -62,6 +62,116 @@ export const supabase = {
     if (S.failReads && (name.startsWith("proc_pec_") || name === "proc_procurement_action_queue_paged")) return { data: null, error: { message: "fixture failure" }, status: 400 };
     if (__r !== undefined && !(S.failReads && name.startsWith("proc_pec_"))) return mk(__r);
     if (name === "get_user_permissions") return mk(S.role === "none" ? [] : [{ target: "module:procurement-execution-console", can_view: true, can_edit: S.role === "edit" }]);
+    globalThis.__rpcNames = (globalThis.__rpcNames || []); globalThis.__rpcNames.push(name);
+    if (name === "proc_pec_s5_review_plan") {
+      globalThis.__s5ReviewCalls = (globalThis.__s5ReviewCalls || []); globalThis.__s5ReviewCalls.push(params);
+      const n = globalThis.__s5ReviewCalls.length;
+      if (S.planError) return { data: null, error: { message: "synthetic plan failure" } };
+      if (S.planRace && n === 1) {
+        await new Promise(r => setTimeout(r, 700));
+        return mk({ plan_signature: "0".repeat(32), rows: [{ stock_item_id: 1, stock_item_name: "STALE ROW", uom_code: "Nos", mrp_net_qty: 0, recommended_qty: 1, gate: "AUTO_ELIGIBLE", consumption_only: false }] });
+      }
+      const cls = params.p_class, hyb = params.p_method === "hybrid", cmp = params.p_compare_history === true;
+      const hist = (o) => (hyb || cmp) ? o : {};
+      let rows;
+      if (cls === 5) {
+        rows = S.indEmptyPlan && !hyb ? [] : [
+          { material_class_id: 5, stock_item_id: 701, stock_item_name: "Synthetic IND Gloves", uom_code: "Nos", mrp_net_qty: 40, planned_gross_qty: 40, plan_months: 2, coverage_months: 2, outstanding_indent_qty: 0, gate: "AUTO_ELIGIBLE", recommended_qty: 40, consumption_only: false, demand_source: "operator_plan", ...hist({ period_consumption: 55, stock_netted_consumption: 55 }) },
+          { material_class_id: 5, stock_item_id: 702, stock_item_name: "Synthetic IND Missing Month", uom_code: "Nos", mrp_net_qty: 10, planned_gross_qty: 10, plan_months: 1, coverage_months: 2, outstanding_indent_qty: 0, gate: "IND_PLAN_HORIZON_REVIEW", recommended_qty: null, consumption_only: false, demand_source: "operator_plan" },
+        ];
+      } else if (cls === 1 && params.p_rm_scope === "jit") {
+        rows = [
+          { material_class_id: 1, stock_item_id: 101, stock_item_name: "Synthetic JIT Herb", uom_code: "Kg", mrp_net_qty: 100, recommended_qty: 100, outstanding_indent_qty: 0, gate: "AUTO_ELIGIBLE", consumption_only: false, ...hist({ usage_12m: 120, period_consumption: 20, consumption_gap_vs_mrp: 0 }) },
+          { material_class_id: 1, stock_item_id: 102, stock_item_name: "Synthetic JIT Resin", uom_code: "Kg", mrp_net_qty: 100, recommended_qty: 60, outstanding_indent_qty: 40, gate: "AUTO_ELIGIBLE", consumption_only: false, ...hist({ usage_12m: 1200, period_consumption: 200, consumption_gap_vs_mrp: 100 }) },
+          { material_class_id: 1, stock_item_id: 103, stock_item_name: "Synthetic JIT Conflicting MOQ", uom_code: "Kg", mrp_net_qty: 20, recommended_qty: null, outstanding_indent_qty: 0, gate: "MOQ_POLICY_REVIEW", consumption_only: false },
+        ];
+      } else {
+        rows = [
+          { material_class_id: cls, stock_item_id: 1638, stock_item_name: "Label - Punarnavasavam 450 ML", uom_code: "Nos", mrp_net_qty: 0, recommended_qty: 2098, usage_12m: 12587, gate: "AUTO_ELIGIBLE", consumption_only: false, outstanding_indent_qty: 0 },
+          { material_class_id: cls, stock_item_id: 890, stock_item_name: "Synthetic Review Packaging", uom_code: "Nos", mrp_net_qty: 0, recommended_qty: null, usage_12m: 120, gate: "STOCK_MAPPING_REVIEW", consumption_only: true, outstanding_indent_qty: 0 },
+        ];
+      }
+      const sig = Array.from(JSON.stringify([params, globalThis.__indSaves ? globalThis.__indSaves.length : 0])).reduce((h, c) => ((h * 31 + c.charCodeAt(0)) >>> 0), 7).toString(16).padStart(8, "0").repeat(4);
+      return mk({ planning_method: params.p_method, plan_signature: sig, rows, total_candidates: rows.length });
+    }
+    if (name === "proc_pec_s5_generate_pr") {
+      globalThis.__s5GenerateCalls = (globalThis.__s5GenerateCalls || []); globalThis.__s5GenerateCalls.push(params);
+      if (S.role !== "edit") return { data: null, error: { message: "Permission denied" } };
+      if (S.staleSig) return { data: null, error: { message: "Planning evidence changed since review; refresh and reconfirm the draft" } };
+      return mk({ pr_id: 41, pr_number: params.p_pr_number, auto_evidenced_lines: 2, review_required_lines: 1, mode: "s5_unified", method: params.p_method });
+    }
+    if (name === "proc_pec_ind_list_planned_requirements") {
+      globalThis.__indListCalls = (globalThis.__indListCalls || []); globalThis.__indListCalls.push(params);
+      const saved = (globalThis.__indSaves || []).map((p, i) => ({ id: 900 + i, stock_item_id: p.p_stock_item_id, stock_item_name: p.p_stock_item_id === 701 ? "Synthetic IND Gloves" : "Synthetic IND Missing Month", uom_code: "Nos", month_start: p.p_month_start, planned_qty: p.p_gross_required_qty, reason: p.p_reason, is_active: p.p_is_active }));
+      const base = [{ id: 1, stock_item_id: 701, stock_item_name: "Synthetic IND Gloves", uom_code: "Nos", month_start: params.p_start, planned_qty: 20, reason: "Monthly operational requirement entered for indirect material planning.", is_active: true }];
+      return mk([...base, ...saved]);
+    }
+    if (name === "proc_pec_ind_set_planned_requirement") {
+      globalThis.__indSaves = (globalThis.__indSaves || []); globalThis.__indSaves.push(params);
+      if (S.role !== "edit") return { data: null, error: { message: "Permission denied" } };
+      return mk({ id: 1, stock_item_id: params.p_stock_item_id });
+    }
+    if (name === "proc_pec_pr_lines") {
+      return mk([{ pr_line_id: 501, pr_id: 1, stock_item_id: 101, stock_item_name: "Synthetic Line Item", material_class_code: "RM", uom_code: "Kg",
+        system_suggested_qty: 100, requested_qty: 100, manual_delta_qty: 0, manual_reason: null, line_sort_no: 1 }]);
+    }
+    if (name === "proc_pr_set_manual_delta") {
+      globalThis.__manualDeltaCalls = (globalThis.__manualDeltaCalls || []); globalThis.__manualDeltaCalls.push(params);
+      if (S.role !== "edit") return { data: null, error: { message: "Permission denied" } };
+      return mk(null);
+    }
+    if(name === "proc_pec_s4_new_pr_plan") {
+      globalThis.__s4PlanCalls = (globalThis.__s4PlanCalls || 0) + 1;
+      if (S.planError) return { data: null, error: { message: "synthetic plan failure" } };
+      if (S.planRace) {
+        // call 1 is slow and returns ONE row; call 2 is fast and returns TWO: latest must win.
+        const n = globalThis.__s4PlanCalls;
+        if (n === 1) {
+          await new Promise(r => setTimeout(r, 700));
+          return mk([{material_class_id:2,stock_item_id:1,stock_item_name:"STALE ROW",uom_id:5,uom_code:"Nos",mrp_net_qty:0,recommended_qty:1,usage_12m:1,gate:"AUTO_ELIGIBLE",consumption_only:false}]);
+        }
+      }
+      return mk([
+        {material_class_id:2,stock_item_id:1638,stock_item_name:"Label - Punarnavasavam 450 ML",
+          uom_id:5,uom_code:"Nos",mrp_net_qty:0,recommended_qty:2098,usage_12m:12587,
+          gate:"AUTO_ELIGIBLE",consumption_only:false},
+        {material_class_id:2,stock_item_id:890,stock_item_name:"Synthetic Review Packaging",
+          uom_id:5,uom_code:"Nos",mrp_net_qty:0,recommended_qty:null,usage_12m:120,
+          gate:"STOCK_MAPPING_REVIEW",consumption_only:true}
+      ]);
+    }
+    if(name === "proc_pec_s4_generate_pr") {
+      globalThis.__s4LegacyGenerateCalls = (globalThis.__s4LegacyGenerateCalls || []);
+      globalThis.__s4LegacyGenerateCalls.push(params);
+      if(S.role!=="edit") return {data:null,error:{message:"Permission denied"}};
+      return mk({pr_id:40,pr_number:params.p_pr_number,auto_evidenced_lines:1,review_required_lines:1});
+    }
+    if(name === "proc_pec_s4_reconcile_draft") {
+      globalThis.__s4ReconcileCalls = (globalThis.__s4ReconcileCalls || []);
+      globalThis.__s4ReconcileCalls.push(params);
+      if(S.role!=="edit")return {data:null,error:{message:"Permission denied"}};
+      if(S.reconcileDelay) await new Promise(r=>setTimeout(r,S.reconcileDelay));
+      return mk({pr_id:1,updated_untouched_lines:1,added_missing_lines:1,review_required:1});
+    }
+    if(name === "proc_pec_s4_pr_evidence") return mk([]);
+    if (name === "proc_pec_ccf_pr_preview") {
+      globalThis.__ccfPreviewCalls = (globalThis.__ccfPreviewCalls || 0) + 1;
+      return mk([{ pr_id: 1, pr_line_id: 77, stock_item_id: 1638, stock_item_name: "Label - Punarnavasavam 450 ML",
+        uom_code: "Nos", mrp_suggested_qty: 0, pr_effective_qty: 0, usage_12m: 12587,
+        months_with_usage: 4, calendar_monthly_average: 1048.916667, latest_usage_month: "2026-10-01",
+        stock_on_hand: 0, stock_as_of: "2026-11-22", outstanding_indent_qty: 0,
+        illustrative_ccf_floor: 2098, illustrative_increment: 2098,
+        review_state: "ANCHOR_AND_POLICY_REVIEW", advisory_only: true }]);
+    }
+    if (name === "proc_pec_ccf_apply_draft_line") {
+      globalThis.__ccfWriterCalls = (globalThis.__ccfWriterCalls || []);
+      globalThis.__ccfWriterCalls.push(params);
+      if (S.role !== "edit") return { data: null, error: {message: "Permission denied"} };
+      if (params.p_confirm !== true || String(params.p_reason || "").length < 20 ||
+          Number(params.p_pr_line_id) !== 77 || Number(params.p_expected_ccf_floor) !== 2098)
+        return {data: null, error: {message: "Invalid CCF confirmation"}};
+      return mk({action: "CCF_APPROVED_DRAFT_ONLY", pr_line_id: 77, new_effective_qty: 2098});
+    }
     if (name === "proc_pec_pr_headers") {
       if (S.numberingDelay) await new Promise(r => setTimeout(r, S.numberingDelay));
       return mk(S.numberingRows || []);
@@ -70,7 +180,7 @@ export const supabase = {
     if (name in data) return mk(data[name]);
     return mk([]);
   },
-  from: () => { const b = { select: () => b, eq: () => b, limit: () => b, order: () => b, in: () => b, ilike: () => b, then: (r) => r(mk([])) }; return b; },
+  from: (table) => { const rows = table === "v_inv_stock_item_with_class" ? [{ stock_item_id: 701, code: "IND-701", name: "Synthetic IND Gloves", default_uom_id: 2 }, { stock_item_id: 702, code: "IND-702", name: "Synthetic IND Missing Month", default_uom_id: 2 }] : []; const one = () => Promise.resolve(mk(table === "inv_uom" ? { code: "Nos" } : null)); const b = { select: () => b, eq: () => b, limit: () => b, order: () => b, in: () => b, ilike: () => b, single: one, maybeSingle: one, then: (r) => r(mk(rows)) }; return b; },
   schema: () => ({ from: () => ({}) }),
 };
 export const labSupabase = supabase; export const hrSupabase = supabase;
@@ -86,7 +196,7 @@ async function open(scenario, vp) {
   const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   const errors = [];
-  page.on("pageerror", (e) => errors.push(String(e)));
+  page.on("pageerror", (e) => { errors.push(String(e)); if (process.env.PEC_DEBUG) console.error("PAGEERROR", String(e)); });
   await page.route("**/js/supabaseClient.js", (r) => r.fulfill({ contentType: "text/javascript", body: stub(scenario) }));
   await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
   await page.goto(`${base}/shared/procurement-execution-console.html`);
@@ -356,6 +466,787 @@ for (const vp of VIEWPORTS) {
   await page.click("#btnVendorClose");
   check(!(await page.isVisible("#vendorModalBackdrop.show")), `${tag} vendor dialog closes without side effects`);
   check(errors.length === 0, `${tag} no Action Queue modal page errors ${errors.join("|")}`);
+  await ctx.close();
+}
+
+// S4 protected preview: genuine DOM control and read-only synthetic RPC at wide/phone.
+// No PR writer RPC in this fixture; no live business records changed.
+for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
+  const { ctx, page, errors } = await open({ role: "view" }, vp);
+  const tag = `[CCF ${vp.name}]`;
+  if (vp.width <= 520) await page.selectOption("#procTabSelect", "pr");
+  else await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)", { timeout: 5000 });
+  await page.click("#prTbody tr:first-child");
+  await page.waitForSelector("#prViewModalBackdrop.show", { timeout: 3000 });
+  await page.click("#btnPrCoveragePreview");
+  await page.waitForSelector("#ccfPreviewModalBackdrop.show", { timeout: 3000 });
+  await page.waitForFunction(() => document.querySelector("#ccfPreviewTbody tr")?.textContent.includes("Punarnavasavam"));
+  check((await page.locator("#ccfPreviewSummary").textContent()).includes("read-only") === false,
+    `${tag} preview data loaded and summary computed`);
+  const content = await page.locator("#ccfPreviewTbody").textContent();
+  check(content.includes("Punarnavasavam") && content.includes("2,098"),
+    `${tag} 12m zero-filled usage floor displayed for PM sample`);
+  check(content.includes("ANCHOR_AND_POLICY_REVIEW"),
+    `${tag} unapproved quantity clearly marked REVIEW`);
+  check(await page.locator("#ccfPreviewModalBackdrop [data-edit-action]").count() === 0,
+    `${tag} no writer action in preview modal`);
+  const state = await page.evaluate(() => ({ count: globalThis.__ccfPreviewCalls || 0,
+    scroll: document.querySelector("#ccfPreviewModalBackdrop .pec-ccf-scroll").scrollWidth,
+    width: document.querySelector("#ccfPreviewModalBackdrop .pec-ccf-scroll").clientWidth }));
+  check(state.count === 1, `${tag} only one view RPC requested`);
+  check(state.scroll >= state.width, `${tag} comparison table can scroll internally`);
+  await page.keyboard.press("Escape");
+  check(!(await page.isVisible("#ccfPreviewModalBackdrop.show")), `${tag} Escape closes only preview`);
+  check(await page.isVisible("#prViewModalBackdrop.show"), `${tag} parent PR modal preserved`);
+  check(errors.length === 0, `${tag} no browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+
+// S4 legacy diagnostic now has NO operational writer after unified
+// hybrid plan, even for Editors. Existing archived #495 RPC is retired.
+{
+  const {ctx,page,errors}=await open({role:"edit",ccfDraft:true},VIEWPORTS[0]);
+  await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await page.click("#prTbody tr:first-child");
+  await page.click("#btnPrCoveragePreview");
+  await page.waitForFunction(() => document.querySelector("#ccfPreviewTbody")?.textContent.includes("Punarnavasavam"));
+  check(await page.locator("#ccfPreviewTbody button[data-ccf-line-id]").count()===0,
+    "CCF legacy: old writer not offered to Editor; S4 reconciliation is canonical");
+  check(await page.evaluate(() => (globalThis.__ccfWriterCalls||[]).length)===0,
+    "CCF legacy: no obsolete writer called");
+  check(errors.length===0,`CCF legacy diagnostic: no page errors ${errors.join("|")}`);
+  await ctx.close();
+}
+
+// S4 complete generation (two-stage): the primary dialog only collects
+// parameters; a SEPARATE Requirement Review dialog holds the acknowledgement.
+// Only Generate in the primary dialog may call the guarded writer.
+{
+  const {ctx,page,errors}=await open({role:"edit"},VIEWPORTS[0]);
+  await page.click("#btnGeneratePr");
+  await page.fill("#prNewNumber","PR-S4-FIXTURE-01");
+  await page.fill("#prHorizonStart","2026-11");
+  await page.fill("#prHorizonEnd","2026-12");
+  await page.selectOption("#prMaterialClass","2");
+  check(await page.isDisabled("#btnGenPrConfirm"), "S4 generator: Generate disabled before review");
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("auto-eligible"));
+  const summary=await page.locator("#genS4PreviewSummary").textContent();
+  check(summary.includes("1 auto-eligible") && summary.includes("1 need review"),
+    "S4 generator: review dialog shows eligible and review candidates");
+  check(await page.evaluate(()=>document.querySelector("#s4ReviewModalBackdrop").classList.contains("show") &&
+        document.querySelector("#generatePrModalBackdrop").classList.contains("show") &&
+        !document.querySelector("#generatePrModalBackdrop").contains(document.querySelector("#genS4Acknowledged"))),
+    "S4 generator: review is a different dialog and holds the acknowledgement");
+  check(await page.isDisabled("#btnGenPrConfirm"),
+    "S4 generator: cannot create without confirmed review");
+  check(await page.isDisabled("#btnS4ReviewConfirm"), "S4 review: Confirm disabled until acknowledged");
+  check(await page.evaluate(()=>(globalThis.__s5GenerateCalls || []).length)===0,
+    "S4 generator: read-only review never creates a PR");
+  // Back = no approval; reopening never reuses stale acknowledgement.
+  await page.check("#genS4Acknowledged");
+  check(await page.isEnabled("#btnS4ReviewConfirm"), "S4 review: acknowledgement enables Confirm");
+  await page.click("#btnS4ReviewBack");
+  check(!(await page.isVisible("#s4ReviewModalBackdrop.show")) && await page.isDisabled("#btnGenPrConfirm"),
+    "S4 review: Back closes without approval, Generate stays disabled");
+  check(await page.inputValue("#prNewNumber")==="PR-S4-FIXTURE-01" && await page.inputValue("#prHorizonEnd")==="2026-12",
+    "S4 review: primary form keeps its values after Back");
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("auto-eligible"));
+  check(!(await page.isChecked("#genS4Acknowledged")), "S4 review: reopening clears earlier acknowledgement");
+  // Escape closes only the review dialog.
+  await page.keyboard.press("Escape");
+  check(!(await page.isVisible("#s4ReviewModalBackdrop.show")) && await page.isVisible("#generatePrModalBackdrop.show"),
+    "S4 review: Escape closes only the review dialog");
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("auto-eligible"));
+  await page.check("#genS4Acknowledged");
+  await page.click("#btnS4ReviewConfirm");
+  check(!(await page.isVisible("#s4ReviewModalBackdrop.show")), "S4 review: Confirm closes the review dialog");
+  check((await page.locator("#genS4ReviewStatusText").textContent()).startsWith("Requirements reviewed") &&
+        (await page.locator("#genS4ReviewStatusText").textContent()).includes("2 materials"),
+    "S4 review: primary form shows Requirements reviewed with count");
+  check(await page.evaluate(()=>document.activeElement?.id)==="btnGenS4ReviewAgain",
+    "S4 review: focus returns to the primary form (Review again)");
+  check(await page.isEnabled("#btnGenPrConfirm"), "S4 generator: confirmed review enables generation");
+  // Plan-signature fields invalidate; non-plan fields do not.
+  await page.fill("#prNotes","note change does not affect server plan");
+  check(await page.isEnabled("#btnGenPrConfirm"), "S4 generator: notes do not invalidate the plan");
+  await page.fill("#prHorizonEnd","2027-01");
+  await page.dispatchEvent("#prHorizonEnd","change");
+  check(await page.isDisabled("#btnGenPrConfirm") && !(await page.isVisible("#genS4ReviewStatus")),
+    "S4 generator: changed horizon invalidates confirmation");
+  await page.fill("#prHorizonEnd","2026-12");
+  await page.dispatchEvent("#prHorizonEnd","change");
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("auto-eligible"));
+  await page.check("#genS4Acknowledged");
+  await page.click("#btnS4ReviewConfirm");
+  await page.selectOption("#prMaterialClass","1");
+  check(await page.isDisabled("#btnGenPrConfirm"), "S4 generator: changed material class invalidates confirmation");
+  await page.selectOption("#prMaterialClass","2");
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("auto-eligible"));
+  await page.check("#genS4Acknowledged");
+  await page.click("#btnS4ReviewConfirm");
+  await page.click("#btnGenS4ReviewAgain");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("auto-eligible"));
+  check(!(await page.isChecked("#genS4Acknowledged")) && await page.isDisabled("#btnGenPrConfirm"),
+    "S4 generator: Review again clears confirmation");
+  await page.check("#genS4Acknowledged");
+  await page.click("#btnS4ReviewConfirm");
+  await page.click("#btnGenPrConfirm");
+  await page.waitForFunction(()=>(globalThis.__s5GenerateCalls || []).length===1);
+  const calls=await page.evaluate(()=>globalThis.__s5GenerateCalls||[]);
+  check(calls[0].p_confirm===true &&
+       calls[0].p_horizon_start_month==="2026-11-01" &&
+       calls[0].p_horizon_end_month==="2026-12-01" &&
+       calls[0].p_pr_number==="PR-S4-FIXTURE-01",
+    "S4 generator: exact confirmed horizon and number submitted to guarded server (only writer call)");
+  check(calls[0].p_material_class_id===2 && calls[0].p_method==="hybrid" && calls[0].p_rm_scope==="normal" &&
+        /^[0-9a-f]{32}$/.test(calls[0].p_expected_plan_signature),
+    "[#508] PM defaults to the hybrid method and the writer receives class, method, scope and the reviewed signature");
+  check(errors.length===0,`S4 generator browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+// S4 UX: missing months, preview error and stale (race) responses never enable Generate.
+{
+  const {ctx,page,errors}=await open({role:"edit"},VIEWPORTS[0]);
+  await page.click("#btnGeneratePr");
+  await page.fill("#prNewNumber","PR-S4-FIXTURE-02");
+  await page.click("#btnGenS4Preview");
+  check(!(await page.isVisible("#s4ReviewModalBackdrop.show")) && await page.isDisabled("#btnGenPrConfirm"),
+    "S4 UX: missing planning months cannot open review or enable Generate");
+  await ctx.close();
+}
+{
+  const {ctx,page}=await open({role:"edit",planError:true},VIEWPORTS[0]);
+  await page.click("#btnGeneratePr");
+  await page.fill("#prHorizonStart","2026-11"); await page.fill("#prHorizonEnd","2026-12");
+  await page.selectOption("#prMaterialClass","2");
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("Review unavailable"));
+  await page.check("#genS4Acknowledged");
+  check(await page.isDisabled("#btnS4ReviewConfirm") && await page.isDisabled("#btnGenPrConfirm"),
+    "S4 UX: preview error leaves Confirm and Generate disabled even if acknowledged");
+  await ctx.close();
+}
+{
+  const {ctx,page}=await open({role:"edit",planRace:true},VIEWPORTS[0]);
+  await page.click("#btnGeneratePr");
+  await page.fill("#prHorizonStart","2026-11"); await page.fill("#prHorizonEnd","2026-12");
+  await page.selectOption("#prMaterialClass","2");
+  await page.evaluate(()=>{const b=document.getElementById("btnGenS4Preview");b.click();b.click();});
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("2 materials"));
+  await page.waitForTimeout(900);
+  check((await page.locator("#genS4PreviewSummary").textContent()).includes("2 materials") &&
+        !(await page.locator("#genS4PreviewExceptions").textContent()).includes("STALE ROW"),
+    "S4 UX: double click is latest-wins; the slow stale response is discarded");
+  await ctx.close();
+}
+// S4 UX visual/structure evidence at 1280 and 390.
+for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
+  const {ctx,page,errors}=await open({role:"edit"},vp);
+  const tag=`[S4 UX ${vp.name}]`;
+  await page.click("#btnGeneratePr");
+  await page.fill("#prNewNumber","PR-S4-FIXTURE-03");
+  await page.fill("#prHorizonStart","2026-11"); await page.fill("#prHorizonEnd","2026-12");
+  await page.selectOption("#prMaterialClass","1");
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-s4-create-draft-pr.png`) });
+  const prim=await page.evaluate(()=>({sw:document.querySelector("#generatePrModalBackdrop .modal").scrollWidth,
+    cw:document.querySelector("#generatePrModalBackdrop .modal").clientWidth,
+    hasPanel:Boolean(document.getElementById("genS4PreviewPanel"))}));
+  check(prim.sw<=prim.cw+1 && !prim.hasPanel, `${tag} primary form has no overflow and no inline preview panel`);
+  await page.click("#btnGenS4Preview");
+  await page.waitForFunction(() => document.querySelector("#genS4PreviewSummary")?.textContent.includes("auto-eligible"));
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-s4-requirement-review.png`) });
+  const m=await page.evaluate(()=>{
+    const modal=document.querySelector("#s4ReviewModalBackdrop .modal");
+    const r=modal.getBoundingClientRect();
+    const scrollers=[...modal.querySelectorAll("*"),modal].filter(e=>{
+      const o=getComputedStyle(e).overflowY; return (o==="auto"||o==="scroll");
+    }).map(e=>e.className||e.tagName);
+    const cb=document.getElementById("genS4Acknowledged"); const lab=document.querySelector('label[for="genS4Acknowledged"]');
+    const cr=cb.getBoundingClientRect(); const lr=lab.getBoundingClientRect();
+    const foot=document.querySelector("#s4ReviewModalBackdrop .pec-s4-review-foot").getBoundingClientRect();
+    return {w:r.width,h:r.height,vw:innerWidth,vh:innerHeight,scrollers,
+      cbW:cr.width,cbH:cr.height,cbInside:lab.contains(cb),labelDisplay:getComputedStyle(lab).display,
+      alignItems:getComputedStyle(lab).alignItems,cbTopOffset:Math.abs(cr.top-lr.top),
+      footBottom:foot.bottom,sw:modal.scrollWidth,cw:modal.clientWidth,
+      counts:document.querySelectorAll("#genS4ReviewCounts > div").length};
+  });
+  check(m.scrollers.length===1 && String(m.scrollers[0]).includes("pec-s4-review-body"),
+    `${tag} review dialog has exactly one vertical scroll region (${m.scrollers.join(",")})`);
+  check(m.cbInside && m.cbW>=20 && m.cbH>=20 && m.labelDisplay==="flex" && m.alignItems==="flex-start" && m.cbTopOffset<8,
+    `${tag} checkbox is inline, flex-aligned, >=20px, with label[for]`);
+  check(m.counts===4 && m.sw<=m.cw+1 && m.footBottom<=m.vh+1, `${tag} four counts, no horizontal overflow, sticky footer in viewport`);
+  if (vp.width<=520) check(Math.abs(m.w-m.vw)<2 && m.h>=m.vh-2, `${tag} review is full-screen on a phone`);
+  else check(m.w<=870 && m.h<m.vh, `${tag} review is a structured dialog on desktop`);
+  // Keyboard: label click toggles; Space on focused checkbox toggles; Confirm reachable.
+  await page.click('label[for="genS4Acknowledged"] span');
+  check(await page.isChecked("#genS4Acknowledged"), `${tag} clicking the explanatory text toggles the checkbox`);
+  await page.focus("#genS4Acknowledged"); await page.keyboard.press("Space");
+  check(!(await page.isChecked("#genS4Acknowledged")), `${tag} keyboard Space toggles the checkbox`);
+  check(errors.length===0,`${tag} no browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+// S4 legacy draft: same-day locked writer is explicitly confirmed and
+// receives the optimistic concurrency token from its real PR row.
+{
+  const {ctx,page,errors}=await open({role:"edit",ccfDraft:true},VIEWPORTS[0]);
+  await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await page.click("#prTbody tr:first-child");
+  await page.waitForSelector("#btnPrS4Reconcile:visible");
+  await page.click("#btnPrS4Reconcile");
+  await page.waitForFunction(() => document.querySelector("#s4ReconcileSummary")?.textContent.includes("zero-MRP"));
+  check(await page.isDisabled("#btnS4ReconcileConfirm"),
+    "S4 reconciliation: cannot apply before reason/acknowledgement");
+  await page.fill("#s4ReconcileReason","Reconcile the evidenced November December material requirements");
+  await page.check("#s4ReconcileAcknowledged");
+  check(await page.isEnabled("#btnS4ReconcileConfirm"),
+    "S4 reconciliation: explicit confirmation unlocks draft-only apply");
+  await page.click("#btnS4ReconcileConfirm");
+  await page.waitForFunction(()=>(globalThis.__s4ReconcileCalls||[]).length===1);
+  const calls=await page.evaluate(()=>globalThis.__s4ReconcileCalls||[]);
+  check(calls[0].p_confirm===true && Number(calls[0].p_pr_id)===1 &&
+       calls[0].p_expected_updated_at==="2026-11-22T07:02:14.215875+00:00",
+    "S4 reconciliation: exact PR concurrency token and affirmative approval");
+  check(errors.length===0,`S4 reconciliation browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+{
+  const {ctx,page}=await open({role:"view",ccfDraft:true},VIEWPORTS[2]);
+  await page.selectOption("#procTabSelect","pr");
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await page.click("#prTbody tr:first-child");
+  check(!(await page.isVisible("#btnPrS4Reconcile")) ||
+        await page.isDisabled("#btnPrS4Reconcile"),
+    "S4 View-only phone: no reconciliation writer access");
+  await ctx.close();
+}
+
+
+// S4 Task B: Consumption Requirement Review wording, density and single scroll region.
+for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
+  const { ctx, page, errors } = await open({ role: "view" }, vp);
+  const tag = `[S4 B ${vp.name}]`;
+  if (vp.width <= 520) await page.selectOption("#procTabSelect", "pr"); else await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await page.click("#prTbody tr:first-child");
+  await page.click("#btnPrCoveragePreview");
+  await page.waitForFunction(() => document.querySelector("#ccfPreviewTbody tr")?.textContent.includes("Punarnavasavam"));
+  const root=await page.locator("#ccfPreviewModalBackdrop").innerText();
+  check(!/\bCoverage\b/i.test(root) && !/Illustrative Floor/.test(root), `${tag} no Coverage / Illustrative Floor terminology`);
+  check(root.includes("Suggested additional Qty") && root.includes("Consumption Requirement Review"), `${tag} Suggested additional Qty label and renamed title`);
+  const info=await page.evaluate(()=>{
+    const scrollers=[...document.querySelectorAll("#ccfPreviewModalBackdrop *")].filter(e=>{
+      const o=getComputedStyle(e).overflowY; return o==="auto"||o==="scroll";}).map(e=>e.className||e.tagName);
+    const sel=getComputedStyle(document.getElementById("ccfPreviewFilter")).backgroundColor;
+    const card=document.querySelector("#ccfPreviewTbody tr")?.getBoundingClientRect();
+    return {scrollers,sel,cardH:card?.height};
+  });
+  check(info.scrollers.length===1, `${tag} one vertical scroll region (${info.scrollers.join(",")})`);
+  check(!/rgba\(0, 0, 0, 0\)|transparent/.test(info.sel), `${tag} filter select has a subtle fill (${info.sel})`);
+  if (vp.width<=520) {
+    check(info.cardH<=130, `${tag} compact row height ${Math.round(info.cardH)}px <= 130`);
+    check((await page.locator("#ccfPreviewTbody .pec-ccf-compact-main").textContent()).includes("Suggested additional Qty") &&
+          (await page.locator("#ccfPreviewTbody .pec-ccf-compact-main").textContent()).includes("Nos"),
+      `${tag} compact row leads with Suggested additional Qty and UOM`);
+    await page.click("#ccfPreviewTbody .pec-ccf-compact-details summary");
+    const dl=await page.locator("#ccfPreviewTbody .pec-ccf-compact-dl").innerText();
+    check(["MRP qty","Existing PR final","12m usage","Stock","Open indents"].every(k=>dl.includes(k)), `${tag} expanded details label every supporting number`);
+  } else {
+    check((await page.locator("#ccfPreviewModalBackdrop thead").innerText()).includes("Suggested additional Qty") &&
+          (await page.locator("#ccfPreviewTbody").innerText()).includes("Illustrative · review only"),
+      `${tag} desktop table header and review-only copy`);
+  }
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-s4-consumption-requirement-review.png`) });
+  check(errors.length===0, `${tag} no browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+
+// S4 Task C: More actions closes on outside click, Escape, focus move, selection, parent close; View-only has no menu.
+for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
+  const { ctx, page, errors } = await open({ role: "edit" }, vp);
+  const tag = `[S4 C ${vp.name}]`;
+  if (vp.width <= 520) await page.selectOption("#procTabSelect", "pr"); else await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await page.click("#prTbody tr:first-child");
+  await page.waitForSelector("#prViewModalBackdrop.show");
+  const isOpen=()=>page.evaluate(()=>document.getElementById("prSecondaryActions").open);
+  const toolbar=await page.locator("#prSecondaryActions").locator("xpath=..").innerText();
+  check(!/\bS4\b/.test(toolbar), `${tag} no internal S4 marker in toolbar labels`);
+  await page.click("#prSecondaryActions > summary");
+  await page.waitForFunction(()=>document.querySelector("#prSecondaryActions > summary").getAttribute("aria-expanded")==="true");
+  check(await isOpen() && (await page.getAttribute("#prSecondaryActions > summary","aria-expanded"))==="true", `${tag} More actions opens (aria-expanded)`);
+  const clip=await page.evaluate(()=>{const o=document.querySelector("#prSecondaryActions .pec-pr-secondary-options").getBoundingClientRect();
+    return o.left>=0 && o.right<=innerWidth+1 && o.bottom<=innerHeight+1;});
+  check(clip, `${tag} menu is not clipped by the viewport`);
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-s4-more-actions-open.png`) });
+  await page.mouse.click(5, 5);
+  await page.waitForTimeout(100);
+  check(!(await isOpen()), `${tag} outside click closes`);
+  await page.click("#prSecondaryActions > summary");
+  await page.waitForFunction(()=>document.querySelector("#prSecondaryActions > summary").getAttribute("aria-expanded")==="true");
+  await page.keyboard.press("Escape");
+  check(!(await isOpen()) && await page.isVisible("#prViewModalBackdrop.show") &&
+        await page.evaluate(()=>document.activeElement?.closest("summary")!==null),
+    `${tag} Escape closes only the menu and restores focus to the trigger`);
+  await page.click("#prSecondaryActions > summary");
+  await page.waitForFunction(()=>document.querySelector("#prSecondaryActions > summary").getAttribute("aria-expanded")==="true");
+  await page.focus("#btnPrViewClose");
+  check(!(await isOpen()), `${tag} focus moving outside closes`);
+  await page.click("#prSecondaryActions > summary");
+  await page.waitForFunction(()=>document.querySelector("#prSecondaryActions > summary").getAttribute("aria-expanded")==="true");
+  await page.click("#btnPrClosePr");
+  check(!(await isOpen()), `${tag} selecting an action closes the menu`);
+  await page.waitForSelector("#prSetStatusModalBackdrop.show", { timeout: 3000 });
+  await page.keyboard.press("Escape"); // must reach the nested dialog even immediately after the menu closed
+  await page.waitForFunction(()=>!document.querySelector("#prSetStatusModalBackdrop")?.classList.contains("show"), null, { timeout: 1500 });
+  check(true, `${tag} Escape right after an action is not swallowed by the closed menu`);
+  check(await page.isVisible("#prViewModalBackdrop.show"), `${tag} parent PR modal still open after nested dialog`);
+  // no hijacked handlers: with the menu closed, Escape closes the parent modal normally
+  await page.keyboard.press("Escape");
+  await page.waitForSelector("#prViewModalBackdrop.show", { state: "detached", timeout: 1500 }).catch(() => {});
+  const lingering = await page.evaluate(()=>[...document.querySelectorAll(".modal-backdrop.show")].map(e=>e.id).join(","));
+  check(!(await page.isVisible("#prViewModalBackdrop.show")), `${tag} no lingering Escape handler once closed (still open: ${lingering||"none"})`);
+  check(errors.length===0, `${tag} no browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ role: "view" }, VIEWPORTS[0]);
+  await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await page.click("#prTbody tr:first-child");
+  await page.waitForSelector("#prViewModalBackdrop.show");
+  check(!(await page.isVisible("#prSecondaryActions")), "S4 C View-only: More actions menu is not available");
+  await ctx.close();
+}
+
+// S4 Task D: the reported 'message channel closed' rejection is browser-extension messaging.
+{
+  const srcs = ["public/shared/js/procurement-execution-console.js","public/shared/procurement-execution-console.html","public/sw.js"]
+    .map(f=>fs.readFileSync(path.join(root,"..",f),"utf8")).join("\n");
+  check(!/chrome\.runtime|browser\.runtime|runtime\.onMessage|runtime\.sendMessage/.test(srcs),
+    "S4 D: PEC client/SW contain no extension-messaging API (error is not app-owned)");
+  check(!/onunhandledrejection|addEventListener\(\s*["']unhandledrejection/.test(srcs),
+    "S4 D: no global unhandled-rejection suppression");
+  const { ctx, page } = await open({ role: "edit" }, VIEWPORTS[0]);
+  const rejections=[]; await page.exposeFunction("__rej",(m)=>rejections.push(m));
+  await page.evaluate(()=>window.addEventListener("unhandledrejection",e=>window.__rej(String(e.reason&&e.reason.message||e.reason))));
+  await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await page.click("#prTbody tr:first-child"); await page.click("#btnPrCoveragePreview");
+  await page.waitForTimeout(500);
+  check(rejections.length===0, `S4 D: clean extension-free Chromium profile shows zero unhandled rejections (${rejections.join("|")})`);
+  await ctx.close();
+}
+
+// Issue #500: S4 reconciliation dialog alignment, single scroll, content-sized layout and Escape priority.
+async function openReconcile(scenario, vp) {
+  const r = await open({ role: "edit", ccfDraft: true, ...scenario }, vp);
+  if (vp.width <= 520) await r.page.selectOption("#procTabSelect", "pr"); else await r.page.click('.tabs .tab-btn[data-tab="pr"]');
+  await r.page.waitForSelector("#prTbody tr:not(.pec-table-state)");
+  await r.page.click("#prTbody tr:first-child");
+  await r.page.waitForSelector("#btnPrS4Reconcile:visible");
+  await r.page.click("#btnPrS4Reconcile");
+  await r.page.waitForSelector("#s4ReconcileModalBackdrop.show");
+  return r;
+}
+for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
+  const { ctx, page, errors } = await openReconcile({}, vp);
+  const tag = `[#500 reconcile ${vp.name}]`;
+  await page.waitForFunction(() => document.querySelector("#s4ReconcileSummary")?.textContent.includes("zero-MRP"));
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-reconcile-modal.png`) });
+  const m = await page.evaluate(() => {
+    const modal = document.querySelector("#s4ReconcileModalBackdrop .modal");
+    const cb = document.getElementById("s4ReconcileAcknowledged");
+    const lab = cb.closest("label");
+    const cr = cb.getBoundingClientRect(), lr = lab.getBoundingClientRect();
+    const sp = lab.querySelector("span").getBoundingClientRect();
+    const scrollers = [...modal.querySelectorAll("*"), modal].filter(e => {
+      if (/^(TEXTAREA|INPUT|SELECT)$/.test(e.tagName)) return false;
+      const o = getComputedStyle(e).overflowY; return o === "auto" || o === "scroll"; }).map(e => e.className || e.tagName);
+    const actions = modal.querySelector(".actions").getBoundingClientRect();
+    const err = lab.getBoundingClientRect();
+    return { display: getComputedStyle(lab).display, align: getComputedStyle(lab).alignItems,
+      cbW: cr.width, cbH: cr.height, cbTop: Math.abs(cr.top - sp.top), textRight: sp.left >= cr.right - 1,
+      name: (lab.textContent || "").trim().length, scrollers, gap: actions.top - err.bottom,
+      actionsBottom: actions.bottom, vh: innerHeight, mh: modal.getBoundingClientRect().height,
+      sw: modal.scrollWidth, cw: modal.clientWidth };
+  });
+  check(m.display === "flex" && m.align === "flex-start" && m.cbW >= 22 && m.cbH >= 22 && m.cbTop < 8 && m.textRight && m.name > 20,
+    `${tag} acknowledgement checkbox is >=22px, top-aligned, left of its text (${m.display}/${m.align}/${Math.round(m.cbW)}px)`);
+  check(m.scrollers.length === 1 && String(m.scrollers[0]).includes("modal-body"), `${tag} exactly one vertical scroll region (${m.scrollers.join(",")})`);
+  check(m.gap <= 90, `${tag} no large blank area above the actions (${Math.round(m.gap)}px)`);
+  check(m.actionsBottom <= m.vh + 1 && m.sw <= m.cw + 1, `${tag} actions inside viewport, no horizontal overflow`);
+  await page.click('#s4ReconcileModalBackdrop label:has(#s4ReconcileAcknowledged) span');
+  check(await page.isChecked("#s4ReconcileAcknowledged"), `${tag} clicking the text toggles the checkbox`);
+  await page.focus("#s4ReconcileAcknowledged"); await page.keyboard.press("Space");
+  check(!(await page.isChecked("#s4ReconcileAcknowledged")), `${tag} Space toggles the checkbox`);
+  await page.fill("#s4ReconcileReason", "Reconcile the evidenced November December material requirements");
+  await page.check("#s4ReconcileAcknowledged");
+  check(await page.isEnabled("#btnS4ReconcileConfirm"), `${tag} reason + acknowledgement still required and sufficient`);
+  // Escape priority: first Escape closes only reconciliation; second closes PR detail.
+  await page.keyboard.press("Escape");
+  check(!(await page.isVisible("#s4ReconcileModalBackdrop.show")) && await page.isVisible("#prViewModalBackdrop.show"),
+    `${tag} first Escape closes only the reconciliation dialog`);
+  check(await page.evaluate(() => document.activeElement?.id) === "btnPrS4Reconcile", `${tag} focus returns to the Reconcile button`);
+  check((await page.evaluate(() => (globalThis.__s4ReconcileCalls || []).length)) === 0, `${tag} Escape never writes`);
+  await page.keyboard.press("Escape");
+  check(!(await page.isVisible("#prViewModalBackdrop.show")), `${tag} second Escape closes PR detail`);
+  check(errors.length === 0, `${tag} no browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+{
+  // In-flight writer: Escape, X, Cancel and backdrop never dismiss while the writer runs.
+  const { ctx, page } = await openReconcile({ reconcileDelay: 900 }, VIEWPORTS[0]);
+  await page.waitForFunction(() => document.querySelector("#s4ReconcileSummary")?.textContent.includes("zero-MRP"));
+  await page.fill("#s4ReconcileReason", "Reconcile the evidenced November December material requirements");
+  await page.check("#s4ReconcileAcknowledged");
+  await page.click("#btnS4ReconcileConfirm");
+  await page.waitForFunction(() => (globalThis.__s4ReconcileCalls || []).length === 1);
+  await page.keyboard.press("Escape");
+  await page.click("#btnS4ReconcileClose");
+  await page.mouse.click(3, 3);
+  check(await page.isVisible("#s4ReconcileModalBackdrop.show") && await page.isVisible("#prViewModalBackdrop.show"),
+    "[#500 reconcile] in-flight writer: Escape/X/backdrop do not close either dialog");
+  check(await page.isDisabled("#btnS4ReconcileConfirm"), "[#500 reconcile] in-flight writer: confirm disabled (single flight)");
+  await page.waitForFunction(() => !document.querySelector("#s4ReconcileModalBackdrop").classList.contains("show"), null, { timeout: 4000 });
+  check((await page.evaluate(() => (globalThis.__s4ReconcileCalls || []).length)) === 1, "[#500 reconcile] exactly one writer call");
+  await ctx.close();
+}
+{
+  // Stale preview: closing before the slow plan resolves must not render into / reopen the dialog.
+  const { ctx, page } = await openReconcile({ planRace: true }, VIEWPORTS[0]);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(1000);
+  check(!(await page.isVisible("#s4ReconcileModalBackdrop.show")) &&
+        !(await page.locator("#s4ReconcileExceptions").textContent()).includes("STALE ROW"),
+    "[#500 reconcile] stale preview response after close is discarded");
+  await ctx.close();
+}
+
+// PEC S5 (issue #508): one planning flow for RM Normal, RM JIT, PM and IND; reason templates; manual-quantity reason.
+const TPL = {
+  jit: "Just-in-time procurement requirement based on planned production demand for the selected period. Quantities are subject to review against existing procurement commitments and applicable supplier constraints.",
+  hybrid: "Procurement requirement prepared for the selected planning period using MRP and consumption-based estimates, considering verified stock and outstanding procurement commitments.",
+  plan: "Procurement requirement prepared for the selected planning period from the stock-netted production plan, considering outstanding procurement commitments.",
+  indPlan: "Indirect material requirement prepared from the monthly operational plan for the selected period, considering verified stock and outstanding procurement commitments.",
+};
+async function startS5(scenario, vp, cls, scope) {
+  const r = await open({ role: "edit", ...scenario }, vp);
+  const { page } = r;
+  await page.click("#btnGeneratePr");
+  await page.fill("#prNewNumber", "PR-S5-FIXTURE-01");
+  await page.fill("#prHorizonStart", "2026-12"); await page.fill("#prHorizonEnd", "2027-01");
+  if (cls) await page.selectOption("#prMaterialClass", String(cls));
+  if (scope) await page.selectOption("#prRmScope", scope);
+  return r;
+}
+const rpcCount = (page, n) => page.evaluate((name) => (globalThis.__rpcNames || []).filter((x) => x === name).length, n);
+const reviewReady = (page) => page.waitForFunction(() => /auto-eligible|No operational plan|No planning candidates/.test(document.querySelector("#genS4PreviewSummary")?.textContent || ""));
+{
+  // Defaults per route, explicit choice preserved, plain-English help, IND editor only for IND.
+  const { ctx, page } = await startS5({}, VIEWPORTS[0], 1, "normal");
+  const m = () => page.inputValue("#prPlanMethod");
+  check((await m()) === "hybrid", "[#508] RM Normal defaults to Plan + Historical Consumption");
+  await page.selectOption("#prRmScope", "jit");
+  check((await m()) === "plan" && (await page.locator("#prPlanMethodHelp").innerText()).includes("bought as needed"), "[#508] RM JIT defaults to Plan-based with plain-English help");
+  await page.selectOption("#prMaterialClass", "2");
+  check((await m()) === "hybrid" && !(await page.isVisible("#btnIndPlanEditor")), "[#508] PM defaults to hybrid; no IND editor button");
+  await page.selectOption("#prMaterialClass", "5");
+  check((await m()) === "plan" && await page.isVisible("#btnIndPlanEditor") && (await page.locator("#prPlanMethodHelp").innerText()).includes("monthly IND plan"),
+    "[#508] IND defaults to Plan-based with the operational-plan button and wording");
+  await page.selectOption("#prPlanMethod", "hybrid");
+  await page.selectOption("#prMaterialClass", "2");
+  check((await m()) === "hybrid", "[#508] an explicit method choice survives a class change");
+  check((await page.locator("#prPlanMethod option").allInnerTexts()).join("|") === "Plan-based requirement|Plan + Historical Consumption", "[#508] exactly two genuine methods are offered");
+  check((await page.locator("#prMaterialClass option").allInnerTexts()).every((x) => !/all classes/i.test(x)), "[#508] class is required; no All-Classes option remains");
+  await ctx.close();
+}
+for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
+  const { ctx, page, errors } = await startS5({}, vp, 1, "jit");
+  const tag = `[#508 JIT-plan ${vp.name}]`;
+  check((await page.inputValue("#prNotes")) === TPL.jit, `${tag} notes default is the JIT wording`);
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-s5-create-draft-pr.png`) });
+  await page.click("#btnGenS4Preview");
+  await reviewReady(page);
+  const rv = await page.evaluate(() => globalThis.__s5ReviewCalls || []);
+  check(rv.length === 1 && rv[0].p_class === 1 && rv[0].p_rm_scope === "jit" && rv[0].p_method === "plan" && rv[0].p_compare_history === true &&
+        (await rpcCount(page, "proc_pec_s4_new_pr_plan")) === 0 && (await rpcCount(page, "proc_pec_jit_mrp_plan")) === 0,
+    `${tag} one common review RPC (proc_pec_s5_review_plan) with class/scope/method/compare`);
+  check((await page.locator("#s4ReviewMethodNote").innerText()).includes("Plan-based requirement") &&
+        (await page.locator("#genS4Compare").getAttribute("role")) === "switch" && await page.locator("#genS4Compare").isChecked() &&
+        (await page.locator("#genS4CompareRow").innerText()).includes("never changes a quantity") &&
+        (await page.locator("#genS4ReviewCounts").innerText()).includes("Netted vs open indents"),
+    `${tag} review shows the method, the plain-English comparison switch and indent netting`);
+  await page.locator("#s4ReviewMethodHelp summary").click();
+  check((await page.locator("#s4ReviewMethodHelpText").innerText()).includes("stock mapping is not required"), `${tag} method help is expandable and plain English`);
+  check((await page.locator("#genS4PreviewExceptions").innerText()).toLowerCase().includes("moq policy review"), `${tag} MOQ-conflicting item stays a review-required exception`);
+  check(await page.isDisabled("#btnS4ReviewConfirm") && await page.isDisabled("#btnGenPrConfirm"), `${tag} no silent write before acknowledgement`);
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-s5-requirement-review-jit.png`) });
+  await page.check("#genS4Acknowledged"); await page.click("#btnS4ReviewConfirm");
+  await page.click("#btnGenPrConfirm");
+  await page.waitForFunction(() => (globalThis.__s5GenerateCalls || []).length === 1);
+  const g = (await page.evaluate(() => globalThis.__s5GenerateCalls))[0];
+  const sigReviewed = await page.evaluate(() => globalThis.__s5ReviewCalls.length);
+  check(g.p_confirm === true && g.p_material_class_id === 1 && g.p_rm_scope === "jit" && g.p_method === "plan" && g.p_compare_history === true &&
+        /^[0-9a-f]{32}$/.test(g.p_expected_plan_signature) && g.p_notes === TPL.jit && sigReviewed === 1,
+    `${tag} Generate sends the reviewed plan_signature, method and scope to proc_pec_s5_generate_pr`);
+  check((await rpcCount(page, "proc_pec_s4_generate_pr")) === 0 && (await rpcCount(page, "proc_pec_jit_generate_pr")) === 0, `${tag} legacy S4/JIT writers are never called`);
+  check(errors.length === 0, `${tag} no browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+{
+  // History comparison is informational: toggling re-reviews and clears acknowledgement, quantities unchanged.
+  const { ctx, page } = await startS5({}, VIEWPORTS[0], 1, "jit");
+  await page.click("#btnGenS4Preview"); await reviewReady(page);
+  const qtyText = async () => (await page.locator("#genS4PreviewExceptions").innerText()).replace(/\s+/g, " ").match(/Synthetic JIT Herb[^]*?Synthetic JIT Resin[^]*?(?=Auto|$)/)?.[0].match(/\b(100|60)\b/g)?.join(",");
+  const before = await qtyText();
+  await page.check("#genS4Acknowledged");
+  await page.uncheck("#genS4Compare");
+  await page.waitForFunction(() => (globalThis.__s5ReviewCalls || []).length === 2);
+  await reviewReady(page);
+  check((await page.evaluate(() => globalThis.__s5ReviewCalls[1].p_compare_history)) === false && !(await page.isChecked("#genS4Acknowledged")) && await page.isDisabled("#btnS4ReviewConfirm"),
+    "[#508] switching history comparison off re-reviews and clears the acknowledgement");
+  check((await qtyText()) === before && (await page.locator("#genS4ReviewCounts").innerText()).includes("Comparison off"), "[#508] recommended quantities are identical with comparison ON and OFF");
+  await ctx.close();
+}
+{
+  // Changing the method after a confirmed review invalidates it; hybrid explains that history drives the quantity.
+  const { ctx, page } = await startS5({}, VIEWPORTS[0], 1, "jit");
+  await page.click("#btnGenS4Preview"); await reviewReady(page);
+  await page.check("#genS4Acknowledged"); await page.click("#btnS4ReviewConfirm");
+  check(await page.isEnabled("#btnGenPrConfirm"), "[#508] confirmed review enables Generate");
+  await page.selectOption("#prPlanMethod", "hybrid");
+  check(await page.isDisabled("#btnGenPrConfirm") && !(await page.isVisible("#genS4ReviewStatus")), "[#508] changing the method after confirmation invalidates it");
+  check((await page.inputValue("#prNotes")) === TPL.hybrid, "[#508] unedited notes follow the method");
+  await page.click("#btnGenS4Preview"); await reviewReady(page);
+  check((await page.evaluate(() => globalThis.__s5ReviewCalls[1].p_method)) === "hybrid" &&
+        (await page.locator("#genS4CompareRow").innerText()).includes("always shown"), "[#508] hybrid review uses method=hybrid and says history is always shown");
+  await page.keyboard.press("Escape");
+  await page.fill("#prNotes", "My own wording for this requirement.");
+  await page.selectOption("#prPlanMethod", "plan");
+  check((await page.inputValue("#prNotes")) === "My own wording for this requirement." && await page.isVisible("#prNotesTemplateHint"), "[#508] edited notes are preserved and the new wording is only offered");
+  await page.click("#btnPrNotesUseTemplate");
+  check((await page.inputValue("#prNotes")) === TPL.jit && !(await page.isVisible("#prNotesTemplateHint")), "[#508] the offer replaces notes only on explicit request");
+  await ctx.close();
+}
+{
+  // Stale signature at the writer: refresh and reconfirm, never push through.
+  const { ctx, page } = await startS5({ staleSig: true }, VIEWPORTS[0], 2);
+  await page.click("#btnGenS4Preview"); await reviewReady(page);
+  await page.check("#genS4Acknowledged"); await page.click("#btnS4ReviewConfirm");
+  await page.click("#btnGenPrConfirm");
+  await page.waitForFunction(() => document.getElementById("toastContainer")?.textContent.includes("plan changed since you reviewed"));
+  check(await page.isDisabled("#btnGenPrConfirm") && !(await page.isVisible("#genS4ReviewStatus")) && (await rpcCount(page, "proc_pec_s5_generate_pr")) === 1,
+    "[#508] a stale plan signature forces a fresh review (Generate disabled again)");
+  await ctx.close();
+}
+{
+  // IND: operational plan editor through the guarded RPCs; missing months flagged; saving invalidates the review.
+  const { ctx, page, errors } = await startS5({}, VIEWPORTS[0], 5);
+  check((await page.inputValue("#prPlanMethod")) === "plan" && (await page.inputValue("#prNotes")) === TPL.indPlan, "[#508] IND: plan-based default and IND wording");
+  await page.click("#btnIndPlanEditor");
+  await page.waitForSelector("#indPlanModalBackdrop.show");
+  await page.waitForFunction(() => document.querySelector("#indPlanList")?.textContent.includes("Synthetic IND Gloves"));
+  const chips = (await page.locator("#indPlanList .pec-ind-plan-chip").allInnerTexts()).join("|");
+  check(chips.includes("20") && chips.includes("missing"), "[#508] IND editor lists planned months and flags a missing month");
+  check((await page.locator("#indPlanModalBackdrop").innerText()).includes("not production MRP"), "[#508] IND editor is labelled an operator plan, not production MRP");
+  check((await page.evaluate(() => (globalThis.__indSaves || []).length)) === 0, "[#508] opening the editor writes nothing");
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, "wide-s5-ind-plan-editor.png") });
+  await page.locator('#indPlanList .pec-ind-plan-chip:has-text("missing")').first().click().catch(() => {});
+  await page.selectOption("#indPlanItem", "701");
+  await page.selectOption("#indPlanMonth", { index: 1 });
+  await page.fill("#indPlanQty", "0");
+  await page.fill("#indPlanReason", "short");
+  await page.click("#btnIndPlanSave");
+  check((await page.locator("#indPlanError").innerText()).includes("at least 10") && (await page.evaluate(() => (globalThis.__indSaves || []).length)) === 0, "[#508] a short reason is rejected before any RPC");
+  await page.fill("#indPlanReason", "Explicit zero planned for this month.");
+  await page.click("#btnIndPlanSave");
+  await page.waitForFunction(() => (globalThis.__indSaves || []).length === 1);
+  const sv = (await page.evaluate(() => globalThis.__indSaves))[0];
+  check(sv.p_stock_item_id === 701 && sv.p_gross_required_qty === 0 && /^\d{4}-\d{2}-01$/.test(sv.p_month_start) && sv.p_is_active === true && sv.p_reason === "Explicit zero planned for this month.",
+    "[#508] an explicit zero is saved through proc_pec_ind_set_planned_requirement with the typed reason");
+  await page.keyboard.press("Escape");
+  check(!(await page.isVisible("#indPlanModalBackdrop.show")) && await page.isVisible("#generatePrModalBackdrop.show"), "[#508] Escape closes only the IND editor");
+  await page.click("#btnGenS4Preview"); await reviewReady(page);
+  check((await page.locator("#genS4PreviewExceptions").innerText()).toLowerCase().includes("ind plan horizon review"), "[#508] IND review shows the missing-month exception");
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, "wide-s5-requirement-review-ind.png") });
+  check(errors.length === 0, `[#508] IND flow has no browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+{
+  // IND with no plan entries: honest empty state, nothing invented.
+  const { ctx, page } = await startS5({ indEmptyPlan: true }, VIEWPORTS[2], 5);
+  await page.click("#btnGenS4Preview"); await reviewReady(page);
+  check((await page.locator("#genS4PreviewSummary").innerText()).includes("No operational plan entries") && await page.isDisabled("#btnS4ReviewConfirm"),
+    "[#508] IND plan-based with no entries shows an empty state and cannot be confirmed");
+  await ctx.close();
+}
+{
+  // View-only: IND editor is read-only; no generation by any route.
+  const { ctx, page } = await open({ role: "view" }, VIEWPORTS[0]);
+  check(!(await page.isVisible("#btnGeneratePr")) || await page.isDisabled("#btnGeneratePr"), "[#508] View-only cannot start PR generation");
+  check((await rpcCount(page, "proc_pec_s5_generate_pr")) === 0 && (await rpcCount(page, "proc_pec_ind_set_planned_requirement")) === 0, "[#508] View-only made no writer call");
+  await ctx.close();
+}
+{
+  // Manual quantity change: neutral editable reason prefilled immediately; custom reasons preserved.
+  const { ctx, page } = await open({ role: "edit", ccfDraft: true }, VIEWPORTS[0]);
+  await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)"); await page.click("#prTbody tr:first-child");
+  await page.waitForSelector('input[data-field="final_qty"]');
+  const qty = page.locator('input[data-field="final_qty"]').first();
+  const reason = page.locator('input[data-field="reason"]').first();
+  await qty.fill("120");
+  check((await reason.inputValue()) === "Manual quantity adjustment during PR review: 100 to 120.", "[#508] changing the quantity prefills the neutral previous-to-new reason immediately");
+  await qty.fill("130");
+  check((await reason.inputValue()) === "Manual quantity adjustment during PR review: 100 to 130.", "[#508] the auto reason follows further edits before saving");
+  await qty.press("Enter");
+  await page.waitForFunction(() => (globalThis.__manualDeltaCalls || []).length === 1);
+  let c = (await page.evaluate(() => globalThis.__manualDeltaCalls))[0];
+  check(c.p_pr_line_id === 501 && c.p_manual_delta_qty === 30 && c.p_manual_reason === "Manual quantity adjustment during PR review: 100 to 130.", "[#508] quantity and the neutral reason are saved together via proc_pr_set_manual_delta");
+  await page.waitForSelector('input[data-field="final_qty"]');
+  const reason2 = page.locator('input[data-field="reason"]').first();
+  await reason2.fill("Supplier lead time extended; ordering earlier.");
+  await reason2.press("Enter");
+  await page.waitForFunction(() => (globalThis.__manualDeltaCalls || []).length === 2);
+  const qty2 = page.locator('input[data-field="final_qty"]').first();
+  await qty2.fill("140");
+  check((await page.locator('input[data-field="reason"]').first().inputValue()) === "Supplier lead time extended; ordering earlier.", "[#508] a custom typed reason is never overwritten by the default");
+  await qty2.press("Enter");
+  await page.waitForFunction(() => (globalThis.__manualDeltaCalls || []).length === 3);
+  c = (await page.evaluate(() => globalThis.__manualDeltaCalls))[2];
+  check(c.p_manual_reason === "Supplier lead time extended; ordering earlier." && c.p_manual_delta_qty === 40, "[#508] the custom reason is what is saved");
+  await ctx.close();
+}
+{
+  // Editable reason templates in reconcile, add-line and status dialogs.
+  const { ctx, page } = await openReconcile({}, VIEWPORTS[0]);
+  const RECON = "Reconcile untouched draft PR lines with updated consumption-based requirements, preserving existing manual adjustments and retaining flagged items for separate review.";
+  check((await page.inputValue("#s4ReconcileReason")) === RECON && !(await page.isChecked("#s4ReconcileAcknowledged")) && await page.isDisabled("#btnS4ReconcileConfirm"),
+    "[#502] reconcile reason is prefilled and editable, the attestation is NOT pre-checked and confirm stays disabled");
+  await page.waitForFunction(() => document.querySelector("#s4ReconcileSummary")?.textContent.includes("zero-MRP"));
+  await page.fill("#s4ReconcileReason", "too short"); await page.check("#s4ReconcileAcknowledged");
+  check(await page.isDisabled("#btnS4ReconcileConfirm"), "[#502] the existing 20-character minimum still rejects short edited text");
+  await page.fill("#s4ReconcileReason", RECON);
+  check(await page.isEnabled("#btnS4ReconcileConfirm"), "[#502] the standard sentence satisfies the minimum only because it is a complete sentence");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ role: "edit", ccfDraft: true }, VIEWPORTS[0]);
+  await page.click('.tabs .tab-btn[data-tab="pr"]');
+  await page.waitForSelector("#prTbody tr:not(.pec-table-state)"); await page.click("#prTbody tr:first-child");
+  await page.waitForSelector("#btnPrAddLine:visible"); await page.click("#btnPrAddLine");
+  const PREFIX = "Quantity adjusted following review of production demand and procurement constraints. Item-specific justification: ";
+  check((await page.inputValue("#prAddLineReason")) === PREFIX, "[#502] add-line reason opens with the standard editable prefix");
+  await page.fill("#prAddLineQty", "5");
+  await page.click("#btnPrAddLineSave");
+  await page.waitForFunction(() => document.getElementById("toastContainer")?.textContent.includes("item-specific justification"));
+  check((await page.evaluate(() => (globalThis.__rpcNames || []).filter((x) => x === "proc_pr_add_line").length)) === 0,
+    "[#502] the unfinished prefix alone cannot be saved as a reason (no add-line write)");
+  await page.fill("#prAddLineReason", PREFIX + "ok");
+  await page.click("#btnPrAddLineSave");
+  check((await page.evaluate(() => (globalThis.__rpcNames || []).filter((x) => x === "proc_pr_add_line").length)) === 0,
+    "[#502] prefix plus a token justification is still rejected");
+  await page.keyboard.press("Escape");
+  await ctx.close();
+}
+
+// PEC S5 UX-F1 (issue #511): the IND planning-editor trigger is one compact, full-width, non-overlapping row at every width.
+const UXF1_VIEWPORTS = [
+  { name: "w320", width: 320, height: 640 }, { name: "w390", width: 390, height: 800 },
+  { name: "w768", width: 768, height: 1024 }, { name: "w1440", width: 1440, height: 900 },
+  { name: "short", width: 390, height: 480 },
+];
+async function uxf1Open(vp, cls, method) {
+  const r = await open({ role: "edit" }, vp);
+  await r.page.click("#btnGeneratePr");
+  await r.page.fill("#prNewNumber", "PR-UXF1-01");
+  await r.page.fill("#prHorizonStart", "2026-12"); await r.page.fill("#prHorizonEnd", "2027-01");
+  await r.page.selectOption("#prMaterialClass", String(cls));
+  if (method) await r.page.selectOption("#prPlanMethod", method);
+  return r;
+}
+const uxf1Measure = (page) => page.evaluate(() => {
+  const b = document.getElementById("btnIndPlanEditor"), row = document.getElementById("prPlanMethodRow");
+  const help = document.getElementById("prPlanMethodHelp"), notes = document.getElementById("prNotes");
+  const label = b.querySelector(".pec-ind-plan-trigger-label"), modal = document.querySelector("#generatePrModalBackdrop .modal");
+  const br = b.getBoundingClientRect(), rr = row.getBoundingClientRect(), hr = help.getBoundingClientRect(), nr = notes.getBoundingClientRect();
+  const lr = label.getBoundingClientRect(), lh = parseFloat(getComputedStyle(label).lineHeight) || 17;
+  const actions = document.querySelector("#generatePrModalBackdrop .actions").getBoundingClientRect();
+  const cs = getComputedStyle(b);
+  return { bw: br.width, rw: rr.width, bh: br.height, bt: br.top, bb: br.bottom, hb: hr.bottom, nt: nr.top, labelLines: Math.round(lr.height / lh),
+    labelW: lr.width, display: cs.display, ml: br.left - rr.left, mr: rr.right - br.right,
+    hScroll: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 || modal.scrollWidth > modal.clientWidth + 1,
+    actionsTop: actions.top, actionsBottom: actions.bottom, vh: innerHeight,
+    name: (b.textContent || "").replace(/\s+/g, " ").trim(), classes: b.className };
+});
+for (const vp of UXF1_VIEWPORTS) {
+  const { ctx, page, errors } = await uxf1Open(vp, 5);
+  const tag = `[UX-F1 ${vp.name} IND plan]`;
+  await page.waitForSelector("#btnIndPlanEditor:visible");
+  await page.locator("#btnIndPlanEditor").scrollIntoViewIfNeeded();
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-uxf1-ind-create-draft-pr.png`) });
+  const m = await uxf1Measure(page);
+  check(m.bw >= m.rw - 1 && m.ml <= 1 && m.mr <= 1 && m.display === "flex", `${tag} trigger fills its row (${Math.round(m.bw)}/${Math.round(m.rw)}px)`);
+  check(m.labelLines <= 2 && m.labelW >= Math.min(120, m.rw * 0.4), `${tag} label is one or two readable lines, not a crushed column (${m.labelLines} line(s), ${Math.round(m.labelW)}px)`);
+  check(m.bt >= m.hb + 4 && m.nt >= m.bb + 8, `${tag} help, trigger and Notes are separated with no overlap (help→trigger ${Math.round(m.bt - m.hb)}px, trigger→notes ${Math.round(m.nt - m.bb)}px)`);
+  check(!m.hScroll, `${tag} no horizontal overflow`);
+  check(m.name === "Manage IND planned requirements" && !/icon-btn/.test(m.classes), `${tag} accessible name is the visible label and the shared .icon-btn sizing is not used`);
+  check(await page.getByRole("button", { name: "Manage IND planned requirements" }).count() === 1, `${tag} exposed once to assistive technology`);
+  check(m.actionsBottom <= m.vh + 1 && m.actionsTop >= 0, `${tag} Generate/Cancel footer stays visible`);
+  check((await page.locator("#prPlanMethodHelp").innerText()) === "Uses your monthly IND plan, adjusted for available stock and outstanding indents. Missing months are flagged for review.", `${tag} IND plan helper is the approved short text`);
+  // Keyboard focus is visible and the nested editor returns focus to the trigger.
+  await page.focus("#prPlanMethod"); await page.keyboard.press("Tab");
+  check((await page.evaluate(() => document.activeElement?.id)) === "btnIndPlanEditor" &&
+        (await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle)) !== "none", `${tag} keyboard Tab reaches the trigger with a visible focus ring`);
+  await page.keyboard.press("Enter");
+  await page.waitForSelector("#indPlanModalBackdrop.show");
+  await page.keyboard.press("Escape");
+  check(!(await page.isVisible("#indPlanModalBackdrop.show")) && await page.isVisible("#generatePrModalBackdrop.show") &&
+        (await page.evaluate(() => document.activeElement?.id)) === "btnIndPlanEditor", `${tag} Escape closes only the editor and focus returns to the trigger`);
+  check(errors.length === 0, `${tag} no browser errors ${errors.join("|")}`);
+  await ctx.close();
+}
+for (const vp of [UXF1_VIEWPORTS[1], UXF1_VIEWPORTS[4]]) {
+  const { ctx, page } = await uxf1Open(vp, 5, "hybrid");
+  const tag = `[UX-F1 ${vp.name} IND hybrid]`;
+  await page.waitForSelector("#btnIndPlanEditor:visible");
+  await page.locator("#btnIndPlanEditor").scrollIntoViewIfNeeded();
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-uxf1-ind-hybrid.png`) });
+  const m = await uxf1Measure(page);
+  check(m.bw >= m.rw - 1 && m.nt >= m.bb + 8 && !m.hScroll, `${tag} full-width trigger, separated from Notes, no overflow`);
+  const help = await page.locator("#prPlanMethodHelp").innerText();
+  check(/higher of your monthly IND plan and the last 12 completed months/.test(help) && /never added together/.test(help), `${tag} hybrid helper still explains higher-of (never summed)`);
+  // The modal scrolls to reach the footer at short heights.
+  await page.locator("#generatePrModalBackdrop .modal").evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  const f = await page.locator("#generatePrModalBackdrop .actions").boundingBox();
+  check(f && f.y + f.height <= vp.height + 1, `${tag} footer reachable at ${vp.height}px height`);
+  await ctx.close();
+}
+for (const [vp, label] of [[UXF1_VIEWPORTS[0], "Geplante Anforderungen für indirekte Materialien verwalten und prüfen (IND-Planung)"], [UXF1_VIEWPORTS[1], "Gestionar los requisitos planificados de materiales indirectos para el periodo"]]) {
+  const { ctx, page } = await uxf1Open(vp, 5);
+  await page.locator(".pec-ind-plan-trigger-label").evaluate((el, t) => { el.textContent = t; }, label);
+  const m = await uxf1Measure(page);
+  check(m.bw >= m.rw - 1 && m.nt >= m.bb + 8 && !m.hScroll && m.labelLines <= 4, `[UX-F1 ${vp.name}] a long localized label wraps inside the trigger without overlap or overflow`);
+  await page.locator("#btnIndPlanEditor").scrollIntoViewIfNeeded();
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, `${vp.name}-uxf1-long-label.png`) });
+  await ctx.close();
+}
+for (const [cls, scope, tagName] of [[1, "normal", "RM Normal"], [1, "jit", "RM JIT"], [2, null, "PM"]]) {
+  const { ctx, page } = await open({ role: "edit" }, UXF1_VIEWPORTS[1]);
+  await page.click("#btnGeneratePr");
+  await page.selectOption("#prMaterialClass", String(cls));
+  if (scope) await page.selectOption("#prRmScope", scope);
+  check(!(await page.isVisible("#btnIndPlanEditor")) && (await page.locator("#btnIndPlanEditor").getAttribute("hidden")) !== null, `[UX-F1] ${tagName}: the IND trigger is hidden`);
   await ctx.close();
 }
 

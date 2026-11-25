@@ -73,3 +73,6 @@ scripts/tmp-*
 *.dpapi
 R2_02_enable_login.sql
 ro-password*
+
+# MIS G7: local protected production-baseline packets (schema definitions; never commit)
+.local/

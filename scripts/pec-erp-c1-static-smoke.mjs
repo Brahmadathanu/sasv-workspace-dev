@@ -41,12 +41,102 @@ if (mainJs) {
     "proc_vendorwise_buylist_operational_paged", "proc_vendorwise_buylist_operational_options",
     // R12: read-only SAFE/RESET collision preview (proposed server contract, draft server PR; client degrades if absent)
     "proc_indent_resync_collision_preview",
+    // S4: owner-requested live server contracts. The SQL blobs are separately
+    // pinned to this branch and their exact sha256 in pec-protected-path-guard.
+    "proc_pec_ccf_pr_preview", "proc_pec_ccf_apply_draft_line",
+    "proc_pec_s4_new_pr_plan", "proc_pec_s4_generate_pr",
+    "proc_pec_s4_reconcile_draft", "proc_pec_s4_pr_evidence",
+    // Issue #502: server-owned JIT MRP route (pinned server PR; client falls back to hybrid if absent).
+    "proc_pec_jit_mrp_plan", "proc_pec_jit_generate_pr",
+    // S5 (issue #508): installed server contract 20261122191542 (SQL pinned on the merged server PR #509).
+    "proc_pec_s5_review_plan", "proc_pec_s5_generate_pr",
+    "proc_pec_ind_list_planned_requirements", "proc_pec_ind_set_planned_requirement",
   ]);
   const unexpected = added.filter((x) => !ALLOWED_NEW.has(x));
   ok(unexpected.length === 0, `no unexpected RPC names introduced (${unexpected.join(",") || "none"}; paged contract names allowed: ${added.filter((x) => ALLOWED_NEW.has(x)).length})`);
 }
 ok(!/proc_indent_(update|edit|set)_(draft|line)[a-z_]*|proc_pr_replenish|hybrid_replenish/.test(js), "no draft-edit / replenishment RPC wired (server contract pending)");
+{
+  const previewSql = read("supabase/migrations/20261122075009_pec_s4_ccf_pr_preview_readonly.sql");
+  ok(/proc_pec_ccf_pr_preview\(p_pr_id bigint\)/.test(previewSql) &&
+      /LANGUAGE plpgsql STABLE SECURITY DEFINER/.test(previewSql) &&
+      /require_permission\('module:procurement-execution-console',false\)/.test(previewSql) &&
+      /REVOKE ALL ON FUNCTION public\.proc_pec_ccf_pr_preview\(bigint\) FROM anon/.test(previewSql),
+      "legacy PR evidence preview: exact read-only signature, canonical View guard and anon revoke");
+}
+// S5: verified-redundant client code is gone (server RPCs are retained for installed legacy clients).
+ok(!/openCcfApply|applyCcfToDraft|canApplyCcfLine|proc_pec_ccf_apply_draft_line|data-ccf-line-id/.test(js) &&
+   !/ccfApplyModalBackdrop|ccfApplyReason|ccfApplyAcknowledged|pec-ccf-approve-btn/.test(html),
+  "S5 cleanup: retired CCF apply writer UI/handlers/styles removed from the client");
+ok(!/prEditReqModalBackdrop|prEditDeltaModalBackdrop/.test(html) && !/prEditReq|prEditDelta/.test(js),
+  "S5 cleanup: unwired legacy edit-quantity/edit-delta modals removed");
+ok(!/proc_pec_jit_|proc_pec_s4_generate_pr|s4PlanRoute|s4JitServerMissing|s4IsMissingRpc|s4ReviewRoute/.test(js),
+  "S5 cleanup: JIT-specific and S4 generator client routes removed (single S5 flow)");
+ok(js.includes('rpc("proc_pec_s5_review_plan"') && js.includes('rpc("proc_pec_s5_generate_pr"') &&
+   js.includes('rpc("proc_pec_ind_list_planned_requirements"') && js.includes('rpc("proc_pec_ind_set_planned_requirement"') &&
+   !js.includes('rpc("create_pr_from_mrp_plan"') && !/\.from\("proc_pec_ind_planned_requirement/.test(js),
+  "S5: client uses only the guarded S5/IND RPCs, never legacy generation or direct IND table access");
+{
+  const s5 = read("supabase/migrations/20261122191542_pec_s5_unified_planning_ind_source_and_pr_reason.sql");
+  ok(s5.includes("proc_pec_s5_review_plan(") && s5.includes("proc_pec_s5_generate_pr(") &&
+     s5.includes("p_expected_plan_signature") && s5.includes("p_confirm IS DISTINCT FROM true") &&
+     /proc_pec_ind_set_planned_requirement[\s\S]*require_permission\('module:procurement-execution-console',true\)/.test(s5),
+    "S5: installed server contract is signature-bound, confirmation-gated and Edit-guarded");
+}
 
+// S4 E2E: three exact installed server payloads; no other SQL exceptions.
+// These are additional to the prior S4 single-line preview/approval guards.
+if(js.includes('rpc("proc_pec_s4_generate_pr"')){
+  const plan=read("supabase/migrations/20261122082353_pec_s4_new_pr_hybrid_plan.sql");
+  const gen=read("supabase/migrations/20261122082532_pec_s4_hybrid_generator_evidence.sql");
+  const rec=read("supabase/migrations/20261122082653_pec_s4_reconcile_existing_draft.sql");
+  ok(plan.includes("proc_pec_s4_new_pr_plan") &&
+    plan.includes("require_permission('module:procurement-execution-console',false)") &&
+    plan.includes("v_proc_indent_line_balance") &&
+    plan.includes("v_item_consumption_monthly_by_item"),
+    "S4 E2E plan checks exact View permission, consumption and approved indent balances");
+  ok(gen.includes("proc_pec_s4_generate_pr") &&
+    gen.includes("require_permission('module:procurement-execution-console',true)") &&
+    gen.includes("proc_pr_ccf_generation_evidence") &&
+    gen.includes("ALTER TABLE public.proc_pr_ccf_generation_evidence ENABLE ROW LEVEL SECURITY") &&
+    gen.includes("REVOKE ALL ON public.proc_pr_ccf_generation_evidence FROM PUBLIC,anon,authenticated"),
+    "S4 E2E writer has Edit guard, atomic evidence and RLS");
+  ok(rec.includes("proc_pec_s4_reconcile_draft") &&
+    rec.includes("p_confirm IS DISTINCT FROM true") &&
+    rec.includes("h.updated_at IS DISTINCT FROM p_expected_updated_at") &&
+    rec.includes("l.manual_delta_qty=0") &&
+    rec.includes("l.updated_at<=l.created_at+interval '1 second'"),
+    "S4 E2E same-day draft reconciliation guards, no silent manual overwrite");
+  ok(js.includes('rpc("proc_pec_s4_new_pr_plan"') &&
+     js.includes('rpc("proc_pec_s4_generate_pr"') &&
+     js.includes('rpc("proc_pec_s4_reconcile_draft"') &&
+     !js.includes('rpc("create_pr_from_mrp_plan"'),
+    "S4 E2E client uses governed generator and never legacy MRP-only generation");
+}
+if (js.includes('rpc("proc_pec_jit_generate_pr"')) {
+  const jit = read("supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql");
+  ok(jit.includes("require_permission('module:procurement-execution-console',true)") &&
+     jit.includes("require_permission('module:procurement-execution-console',false)") &&
+     jit.includes("rm_procurement_mode='jit_procured'") &&
+     jit.includes("p_confirm IS DISTINCT FROM true"),
+    "JIT route: server contract is permission-gated, confirmation-gated and jit_procured-only");
+  ok(js.includes("s4IsMissingRpc") && js.includes('rpc("proc_pec_jit_mrp_plan"') &&
+     js.includes('rpc("proc_pec_s4_generate_pr"'),
+    "JIT route: client falls back to the existing hybrid review when the server functions are absent");
+  ok(!js.includes('reasonText = "Quantity adjustment"') && js.includes("pecReasonIsPlaceholderOnly"),
+    "reason templates: no silent generic override reason; placeholder-only input is rejected");
+}
+// UX-F1: the IND planning-editor trigger uses a dedicated full-width class, never the shared fixed-width .icon-btn.
+{
+  const tag = (html.match(/<button[^>]*id="btnIndPlanEditor"[^>]*>/) || [""])[0];
+  ok(/class="pec-ind-plan-trigger"/.test(tag) && !/icon-btn/.test(tag) && /aria-controls="indPlanModalBackdrop"/.test(tag) && /\bhidden\b/.test(tag),
+    "UX-F1: trigger keeps its id/aria-controls/hidden state and uses .pec-ind-plan-trigger without .icon-btn");
+  const rule = (html.match(/#prPlanMethodRow \.pec-ind-plan-trigger \{([^}]*)\}/) || [,""])[1];
+  ok(/width:100%/.test(rule) && /min-width:0/.test(rule) && /box-sizing:border-box/.test(rule) && /display:flex/.test(rule) && /height:auto/.test(rule),
+    "UX-F1: trigger rule is full-width, min-width:0, border-box, flex, auto height");
+  ok(/Manage IND planned requirements/.test(html) && /Uses your monthly IND plan, adjusted for available stock and outstanding indents\. Missing months are flagged for review\./.test(js),
+    "UX-F1: approved trigger label and short IND plan helper text");
+}
 // PEC-ERP-C2: single vendor-selection writer, reused from the indent modal
 ok((js.match(/rpc\("proc_indent_set_vendor_selection"/g) || []).length === 1, "exactly one proc_indent_set_vendor_selection call site (no duplicate implementation)");
 ok(/origin === "indent"/.test(js) && /indentAllowsVendorSelection/.test(js), "indent-origin eligibility guard present");

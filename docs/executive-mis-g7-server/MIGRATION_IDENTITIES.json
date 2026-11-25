@@ -1,0 +1,118 @@
+{
+  "manifest_version": "mis-g7-migration-identities/1",
+  "patched_core_sha256": "dfa5a5e9aa31b48cf41fe9d03800fff2e35e5a3825ca458b5ccb6ca6c4471bcc",
+  "note": "All eleven identities (S2–S7c) registered in production, verified 2026-11-24. S2 preserved. S3–S6 applied once from 74ed6c49c8655d22eedc6dc32ed09c0f238f5126; S7a/S7b/S7c applied once as the forward-only package (registered 20261124125626 / 20261124125644 / 20261124125704) with the permission registry applied separately. Production AUDIT, core gate CORE_MIGRATION_NOT_ACCEPTED, no ENFORCE or core sign-off. Do not replay or db push from mismatched filename prefixes.",
+  "migrations": [
+    {
+      "seq": 1,
+      "repo_file": "20261123140000_mis_g7_s2_signed_batch_stage_events.sql",
+      "supabase_migration_name": "mis_g7_s2_signed_batch_stage_events",
+      "registered_version": "20261124055734",
+      "status": "LIVE (installed; never replay)",
+      "bytes": 21644,
+      "sha256": "a70ae4a41bf9063803e50496e76b5ccb922251dc3fd8b551a0f041f8a95c0131",
+      "git_blob_sha1": "055b1cdfa1c8be970939f57e7e866f126ec55f03"
+    },
+    {
+      "seq": 2,
+      "repo_file": "20261123141000_mis_g7_s3_fg_ledger_shared_batch_lock.sql",
+      "supabase_migration_name": "mis_g7_s3_fg_ledger_shared_batch_lock",
+      "registered_version": "20261124080858",
+      "status": "LIVE (installed; AUDIT; never replay)",
+      "bytes": 3946,
+      "sha256": "ac8813aaef7b0621bc9f1a28127e11f3cf62d04abeae297402a0eac1020c9b33",
+      "git_blob_sha1": "3f2ce1bc3dae699956f6c000c68d854c492d1418"
+    },
+    {
+      "seq": 3,
+      "repo_file": "20261123142000_mis_g7_s4_atomic_pack_with_measured_excess.sql",
+      "supabase_migration_name": "mis_g7_s4_atomic_pack_with_measured_excess",
+      "registered_version": "20261124080913",
+      "status": "LIVE (installed; AUDIT; never replay)",
+      "bytes": 14737,
+      "sha256": "c1f4648a5921203f8a28aaa5708d0f25af41aa01b8903d82c7e8675ee25d38de",
+      "git_blob_sha1": "f0d3bef001c3d8e38d3e16bdf5c64f7f1f15f89b"
+    },
+    {
+      "seq": 4,
+      "repo_file": "20261123143000_mis_g7_s3b_protected_stock_write_boundary.sql",
+      "supabase_migration_name": "mis_g7_s3b_protected_stock_write_boundary",
+      "registered_version": "20261124080932",
+      "status": "LIVE (installed; AUDIT; never replay)",
+      "bytes": 23351,
+      "sha256": "cbdf9c1c8d27cf0f14ebc985fb034d4198f0c31dd6ff683fa028ebdfaa1929cf",
+      "git_blob_sha1": "218739f7962c25c19a23888dd787bd6fac180016"
+    },
+    {
+      "seq": 5,
+      "repo_file": "20261123144000_mis_g7_s4b_ticketed_pack_corrections_and_enforcement_control.sql",
+      "supabase_migration_name": "mis_g7_s4b_ticketed_pack_corrections_and_enforcement_control",
+      "registered_version": "20261124080952",
+      "status": "LIVE (installed; AUDIT; never replay)",
+      "bytes": 18631,
+      "sha256": "dc0c97b0afd4aeae77cd1c40ec3dc7637d7628a39db4e56a2391202b9af87a3c",
+      "git_blob_sha1": "4866c3db314ba0702485a8244e071828015e6a9d"
+    },
+    {
+      "seq": 6,
+      "repo_file": "20261123145000_mis_g7_s5_legacy_dwl_editor_chain_protection.sql",
+      "supabase_migration_name": "mis_g7_s5_legacy_dwl_editor_chain_protection",
+      "registered_version": "20261124081009",
+      "status": "LIVE (installed; AUDIT; never replay)",
+      "bytes": 26673,
+      "sha256": "e38615b25f20a41a643b2670a1d3df46e1c2e99185f87241c07d8a0a762173a0",
+      "git_blob_sha1": "0c437af48514f4f191e25037614360a1376c7935"
+    },
+    {
+      "seq": 7,
+      "repo_file": "20261123150000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql",
+      "supabase_migration_name": "mis_g7_s5b_legacy_dwl_editor_core_integration",
+      "registered_version": "20261124081022",
+      "status": "LIVE (installed; AUDIT; never replay)",
+      "bytes": 13668,
+      "sha256": "4dee96b7784e7196132db47f2bfaf0bff44e595645e9c5e676b79a48d727e56d",
+      "git_blob_sha1": "642126f850a264f992c266f286e87c9bcce910cc"
+    },
+    {
+      "seq": 8,
+      "repo_file": "20261123151000_mis_g7_s6_fg_stage_fingerprint_excludes_inventory_status.sql",
+      "supabase_migration_name": "mis_g7_s6_fg_stage_fingerprint_excludes_inventory_status",
+      "registered_version": "20261124081034",
+      "status": "LIVE (installed; AUDIT; never replay)",
+      "bytes": 4608,
+      "sha256": "c429b4d888e40b7232551db4e6a1f011e5b0cb1830ce4d1d17a5b2b2222d680e",
+      "git_blob_sha1": "af5bceee51358e190ee2840b35c9c32a9cb47ee7"
+    },
+    {
+      "seq": 9,
+      "repo_file": "20261124120000_mis_g7_s7a_shared_route_identity_and_stage_status.sql",
+      "supabase_migration_name": "mis_g7_s7a_shared_route_identity_and_stage_status",
+      "registered_version": "20261124125626",
+      "status": "LIVE (installed; AUDIT; never replay)",
+      "bytes": 24071,
+      "sha256": "511d4f5914f2921e4c214c7205835447c02393f1dff02c64f3c0feff441aca1d",
+      "git_blob_sha1": "e1e9060aa6e63157eceb136f8535c1ced960d46f"
+    },
+    {
+      "seq": 10,
+      "repo_file": "20261124121000_mis_g7_s7b_exact_fg_receipt_evidence.sql",
+      "supabase_migration_name": "mis_g7_s7b_exact_fg_receipt_evidence",
+      "registered_version": "20261124125644",
+      "status": "LIVE (installed; AUDIT; never replay)",
+      "bytes": 5779,
+      "sha256": "abc8def6efe0d9e1508458eda3d35815de7b37f920fbeb93f57313f036620f7e",
+      "git_blob_sha1": "b102af59bb7ead096c6ee163ae8522a57e595be5"
+    },
+    {
+      "seq": 11,
+      "repo_file": "20261124122000_mis_g7_s7c_governed_previews_and_exception_summary.sql",
+      "supabase_migration_name": "mis_g7_s7c_governed_previews_and_exception_summary",
+      "registered_version": "20261124125704",
+      "status": "LIVE (installed; AUDIT; never replay)",
+      "bytes": 14632,
+      "sha256": "1d7df765fb4aac595ab23b161452ec6dc8fa0aeb76d06605a4ca185c986309cb",
+      "git_blob_sha1": "b0a78bf127e021c1e09b9dbdd0d94ce87ec9aee7"
+    }
+  ],
+  "pending_migrations": []
+}
