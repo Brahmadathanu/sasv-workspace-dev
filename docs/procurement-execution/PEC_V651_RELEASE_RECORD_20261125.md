@@ -23,8 +23,22 @@ Tag `v6.5.0`, target `a72af1e4bc9b34f5109e62051bf97ab4252f7f01`, published 2026-
 - Release: tag `v6.5.1` -> `c6587a1` (lightweight tag, commit object), stable Latest, assets `SASV-Workspace-Setup-6.5.1.exe` (141,490,920 B), `SASV-Workspace-6.5.1-win.zip`, blockmap, `latest.yml`, `SHA256SUMS.txt`; SHA256SUMS lists the installer hash above; `latest.yml` version 6.5.1 and is served by `/releases/latest/download/latest.yml`.
 - Production PWA (`sasv-utilities-hub.netlify.app`): serves `hub-cache-v396`; `pec-release-provenance-check --url` byte-identical for the console HTML, JS, CSS and `sw.js`; `pec-purchase-allocations.js` and `pec-modal-stack.js` byte-identical to the repository.
 
-## Not claimed
-Authenticated PWA acceptance, real-device and Windows installation acceptance are owner-side.
+## Final owner operational acceptance — 2026-11-25
+
+**Status: CLOSED — owner approved all eight operational acceptance checks on v6.5.1.** Acceptance was explicitly confirmed in the SASV Workspace programme-control conversation on 25 November 2026 (IST). The consolidated owner acceptance covers:
+
+1. PWA compact layout and professional appearance.
+2. PWA full-page filter modal on narrow screens.
+3. PWA right-aligned Summary button and chevron.
+4. PWA date filters, allocation results and drill-downs.
+5. Electron successful update to v6.5.1.
+6. Electron anchored filter panel on regular screens.
+7. Electron nested modal Escape behaviour.
+8. Electron Purchase Allocations exports and print functionality.
+
+These are owner-attested operational results, not independently executed browser or Windows tests by the implementation agent. All scoped work packages (UX-01/02, PA-01/02, integrated acceptance, UX03-A/B/C/D and release) are closed. No additional release or business-data change is required. Immutable allocation-change history remains deferred and is not an outstanding acceptance item. The unrelated five CRLF-only migration working-tree changes remain outside scope.
+
+Closure review independently confirmed PRs #532, #533 and #534 merged, package.json on main at 6.5.1, and public/sw.js on main at hub-cache-v396. Publication and deployed asset verification evidence is recorded above; no new installer download or authenticated device test was executed by the closure reviewer.
 
 ## Publication procedure
 Merge (squash) -> `electron-release-candidate.yml` on that main commit -> `publish-sasv-release.yml` (`version=6.5.1`, `build_run_id`, `installer_sha256`) -> verify tag, installer, ZIP, blockmap, `latest.yml`, `SHA256SUMS.txt`, Latest status and `node scripts/pec-release-provenance-check.mjs --url=<PWA host>` serving `hub-cache-v396`. Rollback: v6.5.0 remains available; client-only, read-only for allocations.
