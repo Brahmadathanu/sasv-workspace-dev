@@ -177,7 +177,7 @@ A "DROP ROLE zz_dep"
 
 # ---- the real change ----------------------------------------------------------------------------------------------
 A "CREATE ROLE zz_member LOGIN NOINHERIT"; A "GRANT authenticated TO zz_member"
-shape() { A "SELECT DISTINCT (SELECT string_agg(x, ',' ORDER BY x) FROM unnest(proacl::text[]) x) FROM pg_proc WHERE proname LIKE 'rpc\_eaushadhi\_zz\_%'"; }
+shape() { A "SELECT DISTINCT (SELECT string_agg(x, ',' ORDER BY x COLLATE \"C\") FROM unnest(proacl::text[]) x) FROM pg_proc WHERE proname LIKE 'rpc\_eaushadhi\_zz\_%'"; }
 PROD_SHAPE="=X/postgres,anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres"
 POST_SHAPE="anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres"
 [ "$(shape)" = "$PROD_SHAPE" ] || fail "fixture ACL is not the production shape: $(shape)"
