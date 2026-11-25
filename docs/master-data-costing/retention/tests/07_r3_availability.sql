@@ -6,7 +6,7 @@ SELECT 'FIDELITY pointer_view_md5_matches_live_pin='||(md5(pg_get_viewdef('costi
     || ' server='||current_setting('server_version');
 -- Pre-change snapshot of the pointer view for parity
 CREATE TABLE t.ptr_before AS SELECT * FROM costing.v_current_successful_costing_refresh_run;
-SELECT set_config('costing_retention.pointer_view_md5',md5(pg_get_viewdef('costing.v_current_successful_costing_refresh_run'::regclass)),false);
+DO $$ BEGIN ASSERT md5(pg_get_viewdef('costing.v_current_successful_costing_refresh_run'::regclass))='5cc25791985abf5d336fb9311da3d6f1','fixture pointer view must equal the live pin so R3 is tested against the real production pin'; END $$;
 \i ../candidates/R3_run_detail_availability.sql
 DO $$ BEGIN
  -- parity: with no purged runs the pointer view is unchanged for all rows and columns

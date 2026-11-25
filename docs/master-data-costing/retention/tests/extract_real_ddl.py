@@ -9,19 +9,19 @@ targets = [
 ]
 out = []
 for fn, name in targets:
-    txt = (root / "supabase/migrations" / fn).read_text()
+    txt = open(root / "supabase/migrations" / fn, newline="").read()
     m = re.search(r"create or replace view " + re.escape(name) + r" as.*?;\n", txt, re.S | re.I)
     if not m:
         sys.exit(f"cannot extract {name} from {fn}")
     out.append(m.group(0))
-txt=(root/"supabase/migrations/20261019053600_w2_governed_period_lifecycle.sql").read_text()
+txt=open(root/"supabase/migrations/20261019053600_w2_governed_period_lifecycle.sql",newline="").read()
 m=re.search(r"create or replace function costing\.fn_w2_run_checks\(.*?\nend \$f\$;\n",txt,re.S|re.I)
 if not m: sys.exit("cannot extract fn_w2_run_checks")
 out.append(m.group(0))
 # live guard bodies as pinned by S3L (md5 2fc573.. / 5629ce..) - copied from the reviewed S3L fixture, not hand-written here
-s3l=(root/"docs/master-data-costing/sql/S3L_SYNTHETIC_PG17_FIXTURE.sql").read_text()
+s3l=open(root/"docs/master-data-costing/sql/S3L_SYNTHETIC_PG17_FIXTURE.sql",newline="").read()
 for nm in ("fn_enforce_mutable_refresh_run_snapshot","fn_guard_designated_run_rows"):
     m=re.search(r"CREATE OR REPLACE FUNCTION costing\."+nm+r"\(\).*?\$function\$;\n",s3l,re.S)
     if not m: sys.exit("cannot extract "+nm)
     out.append(m.group(0))
-print("\n".join(out))
+sys.stdout.buffer.write("\n".join(out).encode("utf-8"))

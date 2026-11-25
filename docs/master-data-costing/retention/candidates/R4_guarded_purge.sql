@@ -255,6 +255,7 @@ BEGIN
  v_def:=pg_get_functiondef(v_oid);
  IF position('is_authorized_purge_delete' IN v_def)>0 THEN RETURN; END IF;
  IF md5(v_def)<>pin THEN RAISE EXCEPTION 'R4: live terminal guard drifted from reviewed pin; re-review before install'; END IF;
+ v_def:=replace(v_def,E'\r\n',E'\n');   -- the live body has CRLF line endings; pin was verified on the original bytes above
  v_anchor:=$a$    if v_status not in (
         'QUEUED',
         'RUNNING',
@@ -282,6 +283,7 @@ BEGIN
  v_def:=pg_get_functiondef(v_oid);
  IF position('is_authorized_purge_delete' IN v_def)>0 THEN RETURN; END IF;
  IF md5(v_def)<>pin THEN RAISE EXCEPTION 'R4: live designated-run guard drifted from reviewed pin; re-review before install'; END IF;
+ v_def:=replace(v_def,E'\r\n',E'\n');
  v_anchor:=$a$    if v_des in ('REFERENCE','APPROVED','REVOKED') then
       raise exception 'AU2_DESIGNATED_RUN_IMMUTABLE: run % is %; % on costing.% prohibited', v_run, v_des$a$;
  v_n:=(length(v_def)-length(replace(v_def,v_anchor,'')))/length(v_anchor);

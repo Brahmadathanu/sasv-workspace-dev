@@ -10,14 +10,14 @@ PASS 05_r1_ledger
 PASS 06_r2c_cutover_and_purged_source
 FIDELITY pointer_view_md5_matches_live_pin=true effective_designation=true period_status=true server=16.15 
 PASS 07_r3_availability
-FIDELITY terminal_guard_md5_matches_live_pin=false designated_guard=true
+FIDELITY terminal_guard_md5_matches_live_pin=true designated_guard=true
 PASS 08_r4_purge
 PASS resumable-partial-state
-PASS purge-waits-for-period-governance-lock (1957ms)
+PASS purge-waits-for-period-governance-lock (1968ms)
 PASS concurrent-drivers-exact-accounting
 PASS stale-preview-recomputed-at-execution
 PASS 10_r5_turnover
 PASS overlapping-tick-refused
 PASS executor-login-least-privilege
 PASS 12_preflight_scripts_parse
-RETENTION_PG_TESTS_DONE (run_all.sh exit 0; 19 PASS lines)
+RETENTION_PG_TESTS_DONE (run_all.sh exit 0; RETENTION_PG_ALL_PASS count=19)
