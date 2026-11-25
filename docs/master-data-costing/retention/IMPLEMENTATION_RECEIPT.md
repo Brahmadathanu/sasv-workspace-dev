@@ -11,14 +11,15 @@ Starting point: assignment commit `bfb05fa8`. Prior run-87 archive workflow not 
 | `b696ec7` | R4 guarded purge + R3 client contract module/tests + race/rollback/silent-skip tests |
 | `baddba7` | R5 planner/tick, five read-only live preflights, PG17 workflow, acceptance runner |
 | `54e7474` | Alignment to the 25 Nov owner decision (details below), docs, evidence |
-| head of branch | + this receipt, consumer audit, deployment sequence (see `git log`) |
+| `f5ab9cf` | Consolidated receipt, consumer audit, deployment sequence |
+| `af8b96f` | R4 CRLF-tolerant guard patches vs real live md5 pins; byte-faithful fixture |
 
 ## Where the code is
 `docs/master-data-costing/retention/candidates/` R1, R2A, R2B, R2C, R3, R4 (+allowlist generator), R5 · `preflight/` PREFLIGHT_00–05 (read-only) · `tests/` fixture + 12 suites · `evidence/` local receipt · `R3_CONSUMER_AUDIT.md` · `R6_R7_PLAN.md` · `DEPLOYMENT_SEQUENCE.md` · `.github/workflows/retention-r1-r5-pg17.yml` · client: `public/shared/js/costing-run-detail-availability.js` + `scripts/costing-retention/run-detail-availability.test.mjs`.
 
 ## Test results (exact)
 * **Local, PostgreSQL 16.15** (the sandbox could not obtain a PG17 server: PGDG blocked by the egress proxy and a manual binary download was refused by the session's safety control; I did not work around it): `tests/run_all.sh` → **exit 0, 19 PASS lines**, receipt `evidence/PG16_LOCAL_RECEIPT_2026-11-25.txt`. Client: `node --test scripts/costing-retention/run-detail-availability.test.mjs` → **6/6 pass**.
-* **PostgreSQL 17.12 (GitHub Actions, `retention-r1-r5-pg17`, postgres:17 service, no secrets):** run `45662712904` on head `f5ab9cf` → **success, `server_version=17.12`, `RETENTION_PG_ALL_PASS count=19`, client 6/6**. That run pre-dates the CRLF-fidelity fix below; the re-run on the final head is reported on PR #491 and must be green before this is relied on.
+* **PostgreSQL 17.12 (GitHub Actions, `retention-r1-r5-pg17`, postgres:17 service, no secrets):** run `45663226024` on code head `af8b96f` → **success, `server_version=17.12`, `RETENTION_PG_ALL_PASS count=19`, all `FIDELITY … true` (pointer/designation/period views and both guards equal the live md5 pins), client 6/6**. Earlier run `45662712904` (head `f5ab9cf`, before the CRLF-fidelity fix) also passed 19/19. Commits after `af8b96f` are documentation only.
 * Pre-existing unrelated failure in this clone: `scripts/costing-recalculation/recalculation.test.mjs` "material acceptance remains byte-identical…" (`git show 85a163f…` — historical object absent in the shallow clone). Fails identically without my changes.
 * **Fixture fidelity (asserted, not informational):** the fixture's pointer view, effective-designation view, period-status view and both snapshot guards reproduce the **live md5 pins** byte-for-byte (`FIDELITY … true`), and R3/R4 are installed in the tests against those real pins (no override). Finding while doing this: the live terminal-guard body contains **CRLF** line endings; my first extractor normalised them and the anchor patch would have matched nothing in production (fail-closed abort, i.e. undeployable). R4 now verifies the pin on the original bytes, then normalises CRLF→LF before anchoring, and the extractor is byte-faithful.
 
