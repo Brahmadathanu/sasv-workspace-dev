@@ -1,4 +1,14 @@
 -- ======================================================================================================================
+-- *** STATUS 2026-11-25: APPLIED IN PRODUCTION — DO NOT REPLAY. ***
+-- Owner decision D1 approved; the transaction below was applied once after precheck from approved blob 074bdc52a194d3d94c9ecda32b20b11764fd038b
+-- (this file before this notice). Verified postcheck: one active/assignable module hidden, two navigation routes disabled, six MIS targets retained,
+-- zero operational assignments, AUDIT, CORE_MIGRATION_NOT_ACCEPTED. Navigation flags only. See MIS_REPORTING_OWNER_DECISIONS_LIVE_RECEIPT_20261125.md.
+-- The filename keeps "NOT_APPLIED" only because the receipts reference it by name; it is retained as the audit record, NOT as a pending proposal.
+-- The statements are intentionally disabled below by a hard stop.
+-- ======================================================================================================================
+DO $already_applied$ BEGIN RAISE EXCEPTION 'MIS_REGISTRY_DORMANCY_ALREADY_APPLIED_DO_NOT_REPLAY'; END $already_applied$;
+
+-- ======================================================================================================================
 -- PROPOSAL ONLY — NOT APPLIED, NOT A MIGRATION. Needs explicit owner authorization (decision D1 in MIS_REPORTING_ONLY_CLOSURE_PACKAGE_20261124.md).
 -- Purpose: the reporting-only MIS release no longer ships public/shared/mis-batch-governance.html, but the production registry (applied earlier,
 -- CLIENT_PERMISSION_REGISTRY_PROPOSAL_NOT_APPLIED.sql) still holds a launchable 'mis-batch-governance' module whose Electron/PWA routes point at that page.
