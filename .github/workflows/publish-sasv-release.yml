@@ -78,12 +78,11 @@ jobs:
         run: |
           set -euo pipefail
           cat > release-notes.md <<'NOTES'
-          SASV Workspace v6.5.1 — Purchase Allocations mobile usability patch.
+          SASV Workspace v6.6.0 — Executive MIS production evidence report and consistent live production counts.
 
-          - IMPROVED: Purchase Allocations shows the indent, material or supplier cards much sooner on a phone (about half the vertical space above the data). Voucher-date choices (Today, Yesterday, Date, Range) now live in the Filters panel together with the other filters, with Reset and Apply filters; the panel opens as a full page on phones and beside its button on larger screens. A compact voucher-period chip shows the applied dates and opens the same panel.
-          - IMPROVED: The Allocation Summary is a collapsed, expandable section with every per-unit figure and the balance notes; quantities are never totalled across units.
-          - IMPROVED: Compact toolbar and cards; the Vendor-wise Buying List export button no longer takes a row of its own on phones.
-          - Includes everything in v6.5.0 (Purchase Allocations lens, Escape fix, compact dialogs). Client-only: no database change and no change to FIFO allocation, permissions or purchasing records.
+          - NEW: Executive MIS Production tab "Production evidence status": a read-only report of governed-logging evidence (signed, unsigned, source changed, missing route, missing FG receipt, not verified) for a 7, 30 or 92 day window, with a server-paged findings list. Historical records are shown as Not verified and are never backfilled; a dated reference snapshot is clearly labelled as not live.
+          - FIXED: The Active Pipeline, Work in Process and Overdue Work in Process headline cards now use the same live batch pipeline as the Production tab, so the two always agree. The executive-summary snapshot keeps its own refresh time, and live figures are labelled Live.
+          - Reporting only: no stock, signing, packing or log-entry change; Add/Edit Log Entry are unchanged. Planned value, plan achievement and completed-production value remain shown as unavailable until their sources exist. No database change ships in this installer (the supporting reporting functions are already deployed).
 
           UNSIGNED WINDOWS INSTALLER: no code-signing certificate; SmartScreen or antivirus may warn. Verify the SHA-256 in SHA256SUMS.txt. Existing stable installs may upgrade through the app updater after publication verification.
           NOTES
