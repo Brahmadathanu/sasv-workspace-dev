@@ -147,7 +147,11 @@ BEGIN
  IF EXISTS(SELECT 1 FROM costing.costing_run_designation d WHERE d.refresh_run_id=p_run)
   THEN RETURN QUERY SELECT 'DESIGNATION_HISTORY','designated runs are never purged by this package'; END IF;
  SELECT s.displayed_run_id,s.approved_run_id INTO v_disp,v_appr FROM costing.v_costing_period_run_status s WHERE s.period_start=r.period_start;
- IF v_disp=p_run OR v_appr=p_run THEN RETURN QUERY SELECT 'DISPLAYED_OR_APPROVED_POINTER',p_run::text; END IF;
+ IF v_appr=p_run THEN RETURN QUERY SELECT 'APPROVED_POINTER',p_run::text; END IF;
+ -- the displayed (non-approved) run of a month inside the maximum retention window (current + previous 3 months) is protected;
+ -- outside the window an unapproved displayed draft may go, leaving an explicit "no current run" for that old month (R3).
+ IF v_disp=p_run AND r.period_start >= (date_trunc('month',costing_retention.fn_today_ist())-interval '3 months')::date
+  THEN RETURN QUERY SELECT 'DISPLAYED_RUN_IN_RETENTION_WINDOW',p_run::text; END IF;
  IF EXISTS(SELECT 1 FROM costing.costing_refresh_run x WHERE x.period_start=r.period_start AND x.overall_status IN ('QUEUED','RUNNING'))
   THEN RETURN QUERY SELECT 'ACTIVE_RUN_IN_PERIOD',r.period_start::text; END IF;
  IF EXISTS(SELECT 1 FROM costing.costing_period_refresh_authorization a WHERE a.consumed_by_run_id=p_run)

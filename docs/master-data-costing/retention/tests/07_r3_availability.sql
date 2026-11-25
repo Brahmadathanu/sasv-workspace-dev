@@ -52,7 +52,8 @@ DO $$ BEGIN ASSERT NOT EXISTS (SELECT 1 FROM costing.v_current_successful_costin
 UPDATE costing.costing_run_retention_ledger SET detail_state='DETAILS_PURGED',details_purged_at=now(),purge_receipt_id=gen_random_uuid(),verification_digest='fixture' WHERE refresh_run_id=150;
 DO $$ BEGIN ASSERT NOT EXISTS (SELECT 1 FROM costing.v_current_successful_costing_refresh_run WHERE period_start='2026-09-01'),'purged => explicit no current run';
  ASSERT (SELECT refresh_run_id FROM costing.v_current_successful_costing_refresh_run WHERE period_start='2026-10-01')=143,'October unaffected'; END $$;
--- (rollback of the fixture state so later suites see the original governance)
+-- restore fixture governance for later suites (fixture table is a plain table; live table is append-only)
+DELETE FROM costing.costing_run_designation WHERE reason='fixture revoke for pointer test';
 -- approval preflight real function: DETAILS_AVAILABLE check present, passes for available run, fails for purged run
 INSERT INTO costing.v_sku_detailed_cost_sheet_t VALUES(152,1,'READY'),(150,1,'READY');
 DO $$ DECLARE c jsonb; BEGIN
