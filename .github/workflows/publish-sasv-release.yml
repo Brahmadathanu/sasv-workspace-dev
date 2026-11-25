@@ -78,12 +78,12 @@ jobs:
         run: |
           set -euo pipefail
           cat > release-notes.md <<'NOTES'
-          SASV Workspace v6.5.1 — Purchase Allocations mobile usability patch.
+          SASV Workspace v6.5.0 — PEC Purchase Allocations and dialog improvements.
 
-          - IMPROVED: Purchase Allocations shows the indent, material or supplier cards much sooner on a phone (about half the vertical space above the data). Voucher-date choices (Today, Yesterday, Date, Range) now live in the Filters panel together with the other filters, with Reset and Apply filters; the panel opens as a full page on phones and beside its button on larger screens. A compact voucher-period chip shows the applied dates and opens the same panel.
-          - IMPROVED: The Allocation Summary is a collapsed, expandable section with every per-unit figure and the balance notes; quantities are never totalled across units.
-          - IMPROVED: Compact toolbar and cards; the Vendor-wise Buying List export button no longer takes a row of its own on phones.
-          - Includes everything in v6.5.0 (Purchase Allocations lens, Escape fix, compact dialogs). Client-only: no database change and no change to FIFO allocation, permissions or purchasing records.
+          - NEW: Procurement Execution Console "Purchase Allocations" lens (before Excess Purchases). Review which indents each purchase receipt was allocated to, by indent, material or supplier, for a voucher date or range (default: yesterday, India time). Drill into the receipt-to-indent trail, open the indent and return, and export complete CSV or print an indent deduction statement. Read-only: it changes no allocation, indent, vendor or purchase record. Opening and closing balances are reconstructed under the current allocation rules, and quantities are never totalled across units.
+          - FIXED: pressing Escape in a nested dialog now closes only the top dialog (including Select Vendor opened from an indent line); held keys and busy or in-progress dialogs no longer close the indent underneath.
+          - IMPROVED: Recommend & Accept Vendors and the related indent action dialogs use a compact, consistent layout (title, indent number and close on one row; aligned Cancel and Confirm). Choices, defaults and permissions are unchanged.
+          - Requires the Purchase Allocations reporting database objects already deployed to production; no database change ships in this installer. No change to FIFO allocation, permissions or purchasing records.
 
           UNSIGNED WINDOWS INSTALLER: no code-signing certificate; SmartScreen or antivirus may warn. Verify the SHA-256 in SHA256SUMS.txt. Existing stable installs may upgrade through the app updater after publication verification.
           NOTES

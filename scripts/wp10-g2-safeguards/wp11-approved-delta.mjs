@@ -54,10 +54,5 @@ export function normaliseApprovedSwDelta(current, existing) {
     cur[1] = base[1];
     return cur.join("\n");
   }
-  const w = /^const CACHE_NAME = "hub-cache-v395"; \/\/ (.*)$/.exec(base[1]);
-  if (w && cur[1] === 'const CACHE_NAME = "hub-cache-v396"; // ' + w[1]) { // PEC v6.5.1: cache generation advance only, comment verbatim, no other line
-    cur[1] = base[1];
-    return cur.join("\n");
-  }
   return cur.join("\n"); // not an approved delta: leave as is (comparison will fail)
 }

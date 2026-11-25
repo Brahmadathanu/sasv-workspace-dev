@@ -48,7 +48,7 @@ test("v393 client updates to v394 through the normal lifecycle and receives the 
 
     phase = "new"; // the deployed release changes: new sw.js (v394) and corrected page
     await page.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); await r.update(); });
-    await page.evaluate(() => new Promise((resolve, reject) => { const end = Date.now() + 30000; const tick = async () => { if ((await caches.keys()).join() === "hub-cache-v396") return resolve(); if (Date.now() > end) return reject(new Error("v394 did not activate in 30s")); setTimeout(tick, 250); }; tick(); }));
+    await page.evaluate(() => new Promise((resolve, reject) => { const end = Date.now() + 30000; const tick = async () => { if ((await caches.keys()).join() === "hub-cache-v395") return resolve(); if (Date.now() > end) return reject(new Error("v394 did not activate in 30s")); setTimeout(tick, 250); }; tick(); }));
     await page.reload({ waitUntil: "load" });
     const after = await page.evaluate(async () => ({
       keys: await caches.keys(),
@@ -56,7 +56,7 @@ test("v393 client updates to v394 through the normal lifecycle and receives the 
       pageHasRule: document.documentElement.outerHTML.includes("WP11: .hdr-top is nowrap") || [...document.styleSheets].some((s) => { try { return [...s.cssRules].some((r) => r.cssText.includes("hdr-top")); } catch { return false; } }),
       fetched: (await (await fetch("/shared/manage-pm-bom.html")).text()).includes("WP11: .hdr-top is nowrap"),
     }));
-    assert.deepEqual(after.keys, ["hub-cache-v396"], "only the new generation remains (old purged on activate)");
+    assert.deepEqual(after.keys, ["hub-cache-v395"], "only the new generation remains (old purged on activate)");
     assert.equal(after.ctrl, true, "still controlled");
     assert.equal(after.fetched, true, "client now receives the corrected PM BOM page");
   } finally { await context.close(); await l.close(); server.close(); }
