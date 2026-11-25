@@ -1,6 +1,21 @@
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 import { renderEvidenceShell, mountEvidencePanel } from "./mis-evidence-report.js?mis-g7r=1";
+import {
+  LENSES,
+  lensFromHash,
+  hasValue,
+  analyzeInventorySummary,
+  inventoryCanonicalAvailable,
+  sanitizeInventoryFilter,
+  INVENTORY_CANONICAL_FILTERS,
+  analyzeSalesSummary,
+  financeBars,
+  pipelineBars,
+  overviewNarrative,
+  alertsViewModel,
+  shouldResetPage,
+} from "./executive-intelligence-model.js?ei-r2=1";
 
 const MODULE_ID = "executive-mis-dashboard";
 const PLAN_WARNING_STATUS =
@@ -11,48 +26,15 @@ let DATA_REFRESH_TIME = null;
 let ACTIVE_INFO_BUTTON = null;
 let ACTIVE_POPOVER = null;
 let POPOVER_OPENED_BY_HOVER = false;
-let ACTIVE_TAB = "finance";
-let FINANCE_FILTER = "payables";
-let FINANCE_SEARCH = "";
-let FINANCE_CURRENT_PAGE = 1;
-let FINANCE_PAGE_SIZE = 25;
-let FINANCE_TOTAL_ROWS = 0;
-let FINANCE_ROWS = [];
-let FINANCE_SUMMARY = null;
+let ACTIVE_TAB = lensFromHash(window.location.hash);
 let FINANCE_LAST_FOCUS = null;
-let FINANCE_IS_LOADING = false;
-let FINANCE_ERROR = "";
-let SALES_SEARCH = "";
-let SALES_CURRENT_PAGE = 1;
-let SALES_PAGE_SIZE = 25;
-let SALES_TOTAL_ROWS = 0;
-let SALES_ROWS = [];
-let SALES_SUMMARY = null;
-let SALES_IS_LOADING = false;
-let SALES_ERROR = "";
-let INVENTORY_FILTER = "all";
-let INVENTORY_SEARCH = "";
-let INVENTORY_CURRENT_PAGE = 1;
-let INVENTORY_PAGE_SIZE = 25;
-let INVENTORY_TOTAL_ROWS = 0;
-let INVENTORY_ROWS = [];
-let INVENTORY_SUMMARY = null;
-let INVENTORY_IS_LOADING = false;
-let INVENTORY_ERROR = "";
-let FG_FILTER = "all";
-let FG_SEARCH = "";
-let FG_CURRENT_PAGE = 1;
-let FG_PAGE_SIZE = 25;
-let FG_TOTAL_ROWS = 0;
-let FG_ROWS = [];
-let FG_SUMMARY = null;
-let FG_IS_LOADING = false;
-let FG_ERROR = "";
 // ONE shared live pipeline response (v_mis_batch_pipeline) feeds the three headline production count cards AND the
 // Production lens. It is deliberately NOT a tab request key: a tab switch must never discard it. status: idle | loading | ok | error.
 let LIVE_PIPELINE = { status: "idle", data: null, asOf: null, message: "" };
 let LIVE_PIPELINE_INFLIGHT = null;
 let LAST_SUMMARY_ROW = null;
+// Executive-summary snapshot (mv_mis_executive_summary). status: idle | loading | ok | empty | error. Own latest-wins key.
+let SUMMARY_STATE = { status: "idle", row: null, message: "" };
 const LIVE_PIPELINE_REUSE_MS = 30000;
 // Canonical G7 production value summary (server computed; the browser never derives a rupee figure).
 // status: loading | ok | error | denied | expired | invalid
@@ -83,7 +65,6 @@ const TAB_REQUEST_KEYS = [
   "production",
   "production:value",
 ];
-let TAB_LOAD_COUNT = 0;
 let ACTIVE_TAB_FAILED = false;
 
 function beginRequest(key) {
@@ -118,7 +99,10 @@ function errorMessage(error) {
 // typed after the request was sent.
 function renderToolbarUnlessTyping(searchInputId, renderFn) {
   if (document.activeElement?.id === searchInputId) return;
+  // A keyboard user who just used a toolbar button keeps focus on it across the re-render.
+  const activeId = document.activeElement?.tagName === "BUTTON" ? document.activeElement.id : "";
   renderFn();
+  if (activeId && document.activeElement?.id !== activeId) document.getElementById(activeId)?.focus?.();
 }
 
 function renderTableState(prefix, { loading, error, loadingText, emptyText, errorText, retryKey }) {
@@ -137,10 +121,8 @@ function renderTableState(prefix, { loading, error, loadingText, emptyText, erro
 
 const $ = (id) => document.getElementById(id);
 const statusArea = $("statusArea");
-const kpiGrid = $("kpiGrid");
 const refreshBtn = $("refreshBtn");
 const lastRefreshed = $("lastRefreshed");
-const planningNotice = $("planningNotice");
 const detailTabs = $("detailTabs");
 const detailTabSelect = $("detailTabSelect");
 const tabPanel = $("tabPanel");
@@ -149,15 +131,6 @@ const financeModalTitle = $("financeModalTitle");
 const financeModalSubtitle = $("financeModalSubtitle");
 const financeModalContent = $("financeModalContent");
 const financeModalClose = $("financeModalClose");
-
-const DETAIL_TABS = [
-  { id: "finance", label: "Finance" },
-  { id: "sales", label: "Sales" },
-  { id: "inventory", label: "Inventory" },
-  { id: "finished-goods", label: "Finished Goods" },
-  { id: "production", label: "Production" },
-  { id: "alerts", label: "Alerts" },
-];
 
 function setStatus(message, type = "info") {
   if (!statusArea) return;
@@ -281,67 +254,68 @@ async function loadPermissions(sessionUserId) {
   return outcome;
 }
 
-function setPlanningNotice(row) {
-  if (!planningNotice) return;
-  if (row.planning_period_status !== PLAN_WARNING_STATUS) {
-    planningNotice.hidden = true;
-    planningNotice.textContent = "";
-    return;
-  }
-  planningNotice.textContent = `Production plan notice: Current month production plan is not available. Showing next available planning month: ${formatDateIN(row.planning_month_start)}.`;
-  planningNotice.hidden = false;
+const FMT = {
+  currency: (v) => formatCurrencyINR(v),
+  integer: (v) => formatIntegerIN(v),
+  date: (v) => formatDateIN(v),
+};
+
+// A missing figure is a word, never "0" or "-" that could be read as a value.
+function orWord(value, formatter, word = "Unavailable") {
+  return hasValue(value) ? formatter(value) : word;
 }
 
-async function loadExecutiveSummary() {
-  const tabLoadMarker = TAB_LOAD_COUNT;
+// Production plan notice (legacy plan-month fallback) is only meaningful inside the Production Performance lens.
+function planningNoticeHtml(row) {
+  if (!row || row.planning_period_status !== PLAN_WARNING_STATUS) return "";
+  return `<div class="planning-notice" role="note">Production plan notice: Current month production plan is not available. Showing next available planning month: ${escapeHtml(formatDateIN(row.planning_month_start))}.</div>`;
+}
+
+// Executive-summary snapshot. Independent latest-wins key ("summary"); the active lens never waits for it.
+async function loadExecutiveSummary({ reloadLens = true } = {}) {
+  const token = beginRequest("summary");
   try {
     if (refreshBtn) refreshBtn.disabled = true;
-    if (kpiGrid) kpiGrid.innerHTML = "";
     closeKpiPopover();
-    setStatus("Loading executive summary...", "info");
-    // Refresh = one new live pipeline request (supersedes any older one) running beside the snapshot read.
-    loadLivePipeline({ force: true });
-
-    const { data, error } = await supabase
-      .from("mv_mis_executive_summary")
-      .select("*")
-      .eq("mis_summary_id", 1)
-      .single();
-
-    if (error) {
-      if (error.code === "PGRST116") {
-        setStatus("No MIS executive summary data is available.", "warning");
-        return;
-      }
-      console.error("[MIS] mv_mis_executive_summary load failed", error);
-      setStatus(
-        `Failed to load executive summary. ${error.message || "See console for details."}`,
-        "error",
-      );
-      return;
-    }
-
-    console.log("[MIS] Materialized View Row", data);
-
-    if (!data) {
-      setStatus("No MIS executive summary data is available.", "warning");
-      return;
-    }
-
-    LAST_SUMMARY_ROW = data;
-    renderKpiCards(data);
-    setPlanningNotice(data);
-    DATA_REFRESH_TIME = data.mv_refreshed_at
-      ? new Date(data.mv_refreshed_at)
-      : null;
-    updateFreshnessIndicator();
     clearStatus();
-    // If the user switched tab while the summary was loading, that tab has
-    // already fetched its own data; reloading it here would be a duplicate.
-    if (TAB_LOAD_COUNT === tabLoadMarker) await loadActiveTab();
+    SUMMARY_STATE = { status: "loading", row: null, message: "" };
+    // Refresh = one new live pipeline request (supersedes any older one) running beside the snapshot read.
+    // A summary-only retry does not touch the pipeline.
+    if (reloadLens) loadLivePipeline({ force: true });
+    else loadLivePipeline();
+    if (ACTIVE_TAB === "overview") renderOverview();
+    else if (reloadLens) loadActiveTab();
+    else renderSummaryConsumers();
+
+    const { data, error } = await settle(
+      supabase.from("mv_mis_executive_summary").select("*").eq("mis_summary_id", 1).single(),
+    );
+    if (!isLatestRequest("summary", token)) return;
+
+    if (error && error.code === "PGRST116") {
+      SUMMARY_STATE = { status: "empty", row: null, message: "No MIS executive summary data is available." };
+    } else if (error) {
+      console.error("[MIS] mv_mis_executive_summary load failed", error);
+      SUMMARY_STATE = { status: "error", row: null, message: errorMessage(error) };
+      if (ACTIVE_TAB === "overview") ACTIVE_TAB_FAILED = true;
+    } else if (!data) {
+      SUMMARY_STATE = { status: "empty", row: null, message: "No MIS executive summary data is available." };
+    } else {
+      LAST_SUMMARY_ROW = data;
+      SUMMARY_STATE = { status: "ok", row: data, message: "" };
+      DATA_REFRESH_TIME = data.mv_refreshed_at ? new Date(data.mv_refreshed_at) : null;
+    }
+    updateFreshnessIndicator();
+    renderSummaryConsumers();
   } finally {
     if (refreshBtn) refreshBtn.disabled = false;
   }
+}
+
+function renderSummaryConsumers() {
+  if (ACTIVE_TAB === "overview") renderOverview();
+  else if (ACTIVE_TAB === "finance") renderFinanceMetrics();
+  else if (ACTIVE_TAB === "production") renderProductionPlanNotice();
 }
 
 function livePipelineValue(field) {
@@ -354,12 +328,10 @@ function livePipelineSource() {
   return LIVE_PIPELINE.status === "error" ? "Live pipeline unavailable" : "Live pipeline loading";
 }
 
-// Repaint every consumer of the shared live pipeline from the one state object: headline cards and the Production lens.
+// Repaint every consumer of the shared live pipeline from the one state object: the Overview production group and the
+// Production Performance lens.
 function renderLivePipelineConsumers() {
-  if (LAST_SUMMARY_ROW && kpiGrid && kpiGrid.innerHTML) {
-    closeKpiPopover();
-    renderKpiCards(LAST_SUMMARY_ROW);
-  }
+  if (ACTIVE_TAB === "overview") renderOverview();
   renderProductionCountsBody();
 }
 
@@ -394,142 +366,156 @@ function loadLivePipeline({ force = false } = {}) {
   return tracked;
 }
 
-function renderKpiCards(row) {
-  if (!kpiGrid) return;
-
-  const financialDate = sourceText(
-    row.financial_position_date,
-    "Financial position",
+// ---------------------------------------------------------------------------
+// Overview: management narrative, reporting context, grouped domain indicators and
+// real same-unit comparisons. No targets, trends or month-on-month claims exist
+// in the source, so none are drawn.
+// ---------------------------------------------------------------------------
+function indicatorCard(card, index) {
+  const info = encodeURIComponent(
+    JSON.stringify({ title: card.title, note: card.note, source: card.source, detail: card.detail }),
   );
-  const salesDate = sourceText(row.sales_position_date, "Sales position");
-  const inventoryDate = sourceText(
-    row.report_generated_date,
-    "Report generated",
-  );
-  const productionDate = sourceText(
-    row.production_report_month_start,
-    "Production month",
-  );
+  return `
+    <article class="kpi-card ${card.state || ""}">
+      <div class="kpi-title">${escapeHtml(card.title)}</div>
+      <div class="kpi-value">${escapeHtml(card.value)}</div>
+      ${card.basis ? `<div class="kpi-basis">${escapeHtml(card.basis)}</div>` : ""}
+      <button class="kpi-info-btn" type="button" aria-label="Show details for ${escapeHtml(card.title)}" aria-expanded="false" data-kpi-index="${index}" data-kpi-info="${info}" data-focus-key="kpi-${index}">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+      </button>
+    </article>`;
+}
 
-  const cards = [
-    {
-      title: "Payables \u2014 Sundry Creditors",
-      value: formatCurrencyINR(row.payables_sundry_creditors),
-      note: "Outstanding balance under Sundry Creditors as per latest Tally outstanding snapshot.",
-      source: financialDate,
-      detail: "Financial liability position from Sundry Creditors.",
-    },
-    {
-      title: "Receivables \u2014 Sundry Debtors",
-      value: formatCurrencyINR(row.receivables_sundry_debtors),
-      note: "Outstanding balance under Sundry Debtors as per latest Tally outstanding snapshot.",
-      source: financialDate,
-      detail: "Financial asset position from Sundry Debtors.",
-    },
-    {
-      title: "Net Sundry Position",
-      value: formatCurrencyINR(row.net_sundry_position),
-      note: "Receivables minus Payables. Negative value means payables exceed receivables.",
-      source: financialDate,
-      detail: "Calculation: Sundry Debtors minus Sundry Creditors.",
-      state: Number(row.net_sundry_position) < 0 ? "caution" : "",
-    },
-    {
-      title: "Month-to-Date Sales",
-      value: formatCurrencyINR(row.sales_value_month_to_date),
-      note: "Sales from first day of the month up to latest available sales date.",
-      source: salesDate,
-      detail: "Month-to-date sales value for the current reporting month.",
-    },
-    {
-      title: "Manufacturing Inventory Value",
-      value: formatCurrencyINR(row.manufacturing_inventory_value),
-      note: "Raw material, packing material, consumables, and fuel inventory value.",
-      source: inventoryDate,
-      detail: "Manufacturing-side stock value from the generated report.",
-    },
-    {
-      title: "Finished Goods Inventory Value",
-      value: formatCurrencyINR(row.fg_inventory_value_overall),
-      note: "Finished goods stock value from Inside Kerala, Kozhikode, and Outside Kerala stock.",
-      source: inventoryDate,
-      detail:
-        "Overall finished goods inventory value across included locations.",
-    },
-    {
-      title: "Active Pipeline Batches",
-      value: livePipelineValue("active_pipeline_batch_count"),
-      note: "Batches currently in Not Initiated, Work in Process, Finished Goods Bulk, or Bottled Stock stages. Live count: same source as the Production tab.",
-      source: livePipelineSource(),
-      detail: "Live count of active batches in the production pipeline (not the executive-summary snapshot).",
-    },
-    {
-      title: "Work in Process Batches",
-      value: livePipelineValue("work_in_process_batch_count"),
-      note: "Batches currently in Work in Process stage. Live count: same source as the Production tab.",
-      source: livePipelineSource(),
-      detail: "Live subset of active pipeline batches currently in WIP (not the executive-summary snapshot).",
-    },
-    {
-      title: "Overdue Work in Process Batches",
-      value: livePipelineValue("overdue_work_in_process_batch_count"),
-      note: "Work in Process batches running beyond the expected production window. Live count: same source as the Production tab.",
-      source: livePipelineSource(),
-      detail: "Live count. Positive values need operational follow-up.",
-      state:
-        LIVE_PIPELINE.status === "ok" && Number(LIVE_PIPELINE.data?.overdue_work_in_process_batch_count) > 0 ? "caution" : "",
-    },
-    {
-      title: "Transferred to Finished Goods Value",
-      value: formatCurrencyINR(row.transferred_to_finished_goods_value),
-      note: "Executive-summary SNAPSHOT of production value moved into finished goods. A separate source from the Production tab's Tally book figure; the two are not expected to match.",
-      source: productionDate,
-      detail: "Source: executive summary (materialized view). Compare with the Production tab's Tally book value only as a different basis.",
-    },
-  ];
+function barsHtml(series, { label, format, unit }) {
+  if (!series) return "";
+  return `
+    <ul class="ei-bars" aria-label="${escapeHtml(label)}">
+      ${series.rows
+        .map(
+          (r) => `<li class="ei-bar-row"><span class="ei-bar-label">${escapeHtml(r.label)}</span><span class="ei-bar-track" aria-hidden="true"><span class="ei-bar-fill" style="width:${r.pct}%"></span></span><span class="ei-bar-value">${escapeHtml(format(r.signed ?? r.value))}</span></li>`,
+        )
+        .join("")}
+    </ul>
+    ${unit ? `<div class="ei-bars-note">${escapeHtml(unit)}</div>` : ""}`;
+}
 
-  kpiGrid.innerHTML = cards
-    .map((card, index) => {
-      const info = encodeURIComponent(
-        JSON.stringify({
-          title: card.title,
-          note: card.note,
-          source: card.source,
-          detail: card.detail,
-        }),
-      );
-      return `
-        <article class="kpi-card ${card.state || ""}">
-          <div class="kpi-title">${escapeHtml(card.title)}</div>
-          <div class="kpi-value">${escapeHtml(card.value)}</div>
-          <button
-            class="kpi-info-btn"
-            type="button"
-            aria-label="Show details for ${escapeHtml(card.title)}"
-            aria-expanded="false"
-            data-kpi-index="${index}"
-            data-kpi-info="${info}"
-          >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="16" x2="12" y2="12"></line>
-              <line x1="12" y1="8" x2="12.01" y2="8"></line>
-            </svg>
-          </button>
-        </article>
-      `;
-    })
-    .join("");
+function overviewGroup({ id, title, lens, lensLabel, asOf, cards, extra = "" }) {
+  return `
+    <section class="ei-group" data-domain="${id}" aria-labelledby="eiGroup-${id}">
+      <header class="ei-group-head">
+        <h3 class="ei-group-title" id="eiGroup-${id}">${escapeHtml(title)}</h3>
+        ${asOf ? `<span class="ei-asof">${escapeHtml(asOf)}</span>` : ""}
+        <button type="button" class="ei-link" data-lens-link="${lens}" data-focus-key="link-${lens}" aria-label="Open ${escapeHtml(lensLabel)}">${escapeHtml(lensLabel)}<span aria-hidden="true"> &rsaquo;</span></button>
+      </header>
+      <div class="ei-indicators">${cards}</div>
+      ${extra}
+    </section>`;
+}
+
+function buildOverviewCards(row) {
+  const st = SUMMARY_STATE.status;
+  const snap = (v, fmt) => (st === "loading" || st === "idle" ? "Loading..." : st === "ok" ? orWord(v, fmt) : "Unavailable");
+  const r = row || {};
+  const financialDate = sourceText(r.financial_position_date, "Financial position");
+  const salesDate = sourceText(r.sales_position_date, "Sales position");
+  const inventoryDate = sourceText(r.report_generated_date, "Report generated");
+  const productionDate = sourceText(r.production_report_month_start, "Production month");
+  const pipeOk = LIVE_PIPELINE.status === "ok" && LIVE_PIPELINE.data;
+  const overdue = pipeOk ? Number(LIVE_PIPELINE.data.overdue_work_in_process_batch_count) : NaN;
+  let i = 0;
+  const c = (card) => indicatorCard(card, i++);
+  return {
+    finance: [
+      c({ title: "Payables — Sundry Creditors", value: snap(r.payables_sundry_creditors, formatCurrencyINR), basis: "Current position", note: "Outstanding balance under Sundry Creditors as per latest Tally outstanding snapshot.", source: financialDate, detail: "Financial liability position from Sundry Creditors." }),
+      c({ title: "Receivables — Sundry Debtors", value: snap(r.receivables_sundry_debtors, formatCurrencyINR), basis: "Current position", note: "Outstanding balance under Sundry Debtors as per latest Tally outstanding snapshot.", source: financialDate, detail: "Financial asset position from Sundry Debtors." }),
+      c({ title: "Net Sundry Position", value: snap(r.net_sundry_position, formatCurrencyINR), basis: "Current position", note: "Receivables minus Payables. Negative value means payables exceed receivables.", source: financialDate, detail: "Calculation: Sundry Debtors minus Sundry Creditors.", state: st === "ok" && Number(r.net_sundry_position) < 0 ? "caution" : "" }),
+    ].join(""),
+    sales: [
+      c({ title: "Month-to-Date Sales", value: snap(r.sales_value_month_to_date, formatCurrencyINR), basis: "Month to date", note: "Sales from first day of the month up to latest available sales date.", source: salesDate, detail: "Month-to-date sales value for the current reporting month." }),
+    ].join(""),
+    stock: [
+      c({ title: "Manufacturing Inventory Value", value: snap(r.manufacturing_inventory_value, formatCurrencyINR), basis: "Current position", note: "Manufacturing materials stock value from the executive-summary snapshot (legacy source classification). The Materials Inventory lens shows the canonical category split and valuation coverage.", source: inventoryDate, detail: "Manufacturing-side stock value from the generated report." }),
+      c({ title: "Finished Goods Inventory Value", value: snap(r.fg_inventory_value_overall, formatCurrencyINR), basis: "Current position", note: "Finished goods stock value from Inside Kerala, Kozhikode, and Outside Kerala stock.", source: inventoryDate, detail: "Overall finished goods inventory value across included locations." }),
+    ].join(""),
+    live: [
+      c({ title: "Active Pipeline Batches", value: livePipelineValue("active_pipeline_batch_count"), basis: "Live now", note: "Batches currently in Not Initiated, Work in Process, Finished Goods Bulk, or Bottled Stock stages. Live count: same source as the Production Performance lens.", source: livePipelineSource(), detail: "Live count of active batches in the production pipeline (not the executive-summary snapshot)." }),
+      c({ title: "Work in Process Batches", value: livePipelineValue("work_in_process_batch_count"), basis: "Live now", note: "Batches currently in Work in Process stage. Live count: same source as the Production Performance lens.", source: livePipelineSource(), detail: "Live subset of active pipeline batches currently in WIP (not the executive-summary snapshot)." }),
+      c({ title: "Overdue Work in Process Batches", value: livePipelineValue("overdue_work_in_process_batch_count"), basis: "Live now", note: "Work in Process batches running beyond the expected production window. Live count: same source as the Production Performance lens.", source: livePipelineSource(), detail: "Live count. Positive values need operational follow-up.", state: pipeOk && overdue > 0 ? "caution" : "" }),
+    ].join(""),
+    flow: [
+      c({ title: "Transferred to Finished Goods Value", value: snap(r.transferred_to_finished_goods_value, formatCurrencyINR), basis: "Snapshot period flow", note: "Executive-summary SNAPSHOT of production value moved into finished goods. A separate source from the Production Performance Tally book figure; the two are not expected to match.", source: productionDate, detail: "Source: executive summary (materialized view). Compare with the Tally book value in Production Performance only as a different basis." }),
+    ].join(""),
+  };
+}
+
+function overviewContextChips(row) {
+  const chips = [];
+  if (row?.financial_position_date) chips.push(`Financial position ${formatDateIN(row.financial_position_date)}`);
+  if (row?.sales_position_date) chips.push(`Sales up to ${formatDateIN(row.sales_position_date)}`);
+  if (row?.report_generated_date) chips.push(`Inventory report ${formatDateIN(row.report_generated_date)}`);
+  if (DATA_REFRESH_TIME) chips.push(`Summary snapshot refreshed ${formatDateTimeIN(DATA_REFRESH_TIME)}`);
+  chips.push(LIVE_PIPELINE.status === "ok" && LIVE_PIPELINE.asOf ? `Production counts live, loaded ${formatDateTimeIN(LIVE_PIPELINE.asOf)}` : LIVE_PIPELINE.status === "error" ? "Live production counts unavailable" : "Live production counts loading");
+  return chips.map((t) => `<li>${escapeHtml(t)}</li>`).join("");
+}
+
+function withFocusRestore(fn) {
+  const key = document.activeElement?.getAttribute?.("data-focus-key");
+  fn();
+  if (key) tabPanel?.querySelector(`[data-focus-key="${key}"]`)?.focus?.({ preventScroll: true });
+}
+
+function renderOverview() {
+  if (!tabPanel || ACTIVE_TAB !== "overview") return;
+  withFocusRestore(() => {
+    closeKpiPopover();
+    const st = SUMMARY_STATE;
+    const row = st.status === "ok" ? st.row : null;
+    const cards = buildOverviewCards(row);
+    const narrative = overviewNarrative(row, LIVE_PIPELINE, FMT);
+    const pipeSeries = LIVE_PIPELINE.status === "ok" ? pipelineBars(LIVE_PIPELINE.data) : null;
+    const banner =
+      st.status === "error"
+        ? `<div class="ei-state error" role="alert">Executive summary could not be loaded. ${escapeHtml(st.message)} <button type="button" class="mis-retry-btn" data-mis-retry="summary">Retry</button></div>`
+        : st.status === "empty"
+          ? `<div class="ei-state" role="status">${escapeHtml(st.message)}</div>`
+          : st.status === "loading" || st.status === "idle"
+            ? `<div class="ei-state" role="status"><span class="table-loading-spinner" aria-hidden="true"></span> Loading executive summary...</div>`
+            : "";
+    tabPanel.setAttribute("aria-busy", st.status === "loading" ? "true" : "false");
+    tabPanel.innerHTML = `
+      <div class="ei-overview">
+        <h2 class="ei-sr">Overview</h2>
+        ${banner}
+        <ul class="ei-context" aria-label="Reporting context">${overviewContextChips(row)}</ul>
+        ${
+          narrative.length
+            ? `<section class="ei-narrative" aria-labelledby="eiNarrativeTitle"><h3 class="ei-section-title" id="eiNarrativeTitle">Management summary</h3><ul>${narrative
+                .map((n) => `<li><a href="#${n.lens}" class="ei-text-link" data-lens-link="${n.lens}">${escapeHtml(n.text)}</a></li>`)
+                .join("")}</ul></section>`
+            : ""
+        }
+        <div class="ei-groups" id="kpiGrid" aria-live="polite">
+          ${overviewGroup({ id: "finance", title: "Finance", lens: "finance", lensLabel: "Finance", asOf: row?.financial_position_date ? `Position ${formatDateIN(row.financial_position_date)}` : "", cards: cards.finance, extra: barsHtml(financeBars(row), { label: "Receivables and payables outstanding, magnitudes", format: formatCurrencyINR, unit: "Outstanding balances at the position date; bar length compares magnitudes, figures keep their Tally sign." }) })}
+          ${overviewGroup({ id: "sales", title: "Sales", lens: "sales", lensLabel: "Sales Performance", asOf: row?.sales_position_date ? `To ${formatDateIN(row.sales_position_date)}` : "", cards: cards.sales })}
+          ${overviewGroup({ id: "stock", title: "Stock on hand", lens: "inventory", lensLabel: "Materials Inventory", asOf: row?.report_generated_date ? `Report ${formatDateIN(row.report_generated_date)}` : "", cards: cards.stock, extra: `<button type="button" class="ei-link ei-link-inline" data-lens-link="finished-goods" data-focus-key="link-finished-goods">Finished Goods <span aria-hidden="true">&rsaquo;</span></button>` })}
+          ${overviewGroup({ id: "production", title: "Production", lens: "production", lensLabel: "Production Performance", asOf: LIVE_PIPELINE.status === "ok" && LIVE_PIPELINE.asOf ? `Live ${formatDateTimeIN(LIVE_PIPELINE.asOf)}` : "", cards: cards.live + cards.flow, extra: barsHtml(pipeSeries, { label: "Live batches by stage", format: formatIntegerIN, unit: "Live batches by stage. Active pipeline also includes Not Initiated batches, not shown separately." }) })}
+          <section class="ei-group" data-domain="alerts" aria-labelledby="eiGroup-alerts">
+            <header class="ei-group-head">
+              <h3 class="ei-group-title" id="eiGroup-alerts">Management alerts</h3>
+              <button type="button" class="ei-link" data-lens-link="alerts" data-focus-key="link-alerts">Management Alerts<span aria-hidden="true"> &rsaquo;</span></button>
+            </header>
+            <p class="ei-unavailable">Not connected yet. No alert figures are shown, and none are implied.</p>
+          </section>
+        </div>
+      </div>`;
+  });
+}
+
+function renderProductionPlanNotice() {
+  const host = $("productionPlanNotice");
+  if (host) host.innerHTML = planningNoticeHtml(LAST_SUMMARY_ROW);
 }
 
 function updateFreshnessIndicator() {
@@ -650,51 +636,85 @@ function openKpiPopover(button, toggle = true) {
   positionKpiPopover(button, popover);
 }
 
+// Lens navigation. Compact tabs on wide screens; on narrow screens an always-reachable select. Both reflect ACTIVE_TAB.
+// The URL hash is kept in step with replaceState so Back/Home semantics are unchanged (no extra history entries).
 function renderDetailTabs() {
   if (detailTabs) {
-    detailTabs.innerHTML = DETAIL_TABS.map(
+    detailTabs.innerHTML = LENSES.map(
       (tab) => `
       <button
         type="button"
         class="pill ${tab.id === ACTIVE_TAB ? "active" : ""}"
         data-tab="${tab.id}"
+        id="lensTab-${tab.id}"
         role="tab"
         aria-selected="${tab.id === ACTIVE_TAB ? "true" : "false"}"
-      >
-        ${escapeHtml(tab.label)}
-      </button>
-    `,
+        aria-controls="tabPanel"
+        tabindex="${tab.id === ACTIVE_TAB ? "0" : "-1"}"
+      >${escapeHtml(tab.label)}</button>`,
     ).join("");
   }
 
   if (detailTabSelect) {
-    detailTabSelect.innerHTML = DETAIL_TABS.map(
-      (tab) =>
-        `<option value="${escapeHtml(tab.id)}">${escapeHtml(tab.label)}</option>`,
+    detailTabSelect.innerHTML = LENSES.map(
+      (tab) => `<option value="${escapeHtml(tab.id)}">${escapeHtml(tab.label)}</option>`,
     ).join("");
     detailTabSelect.value = ACTIVE_TAB;
   }
+  if (tabPanel) {
+    tabPanel.setAttribute("role", "tabpanel");
+    tabPanel.setAttribute("aria-labelledby", `lensTab-${ACTIVE_TAB}`);
+  }
+  try {
+    const want = `#${ACTIVE_TAB}`;
+    if (window.location.hash !== want) window.history.replaceState(null, "", want);
+  } catch {
+    /* hash sync is a convenience only */
+  }
 }
 
-function renderPlaceholderTab() {
+function lensHeadHtml(title, asOfHtml = "") {
+  return `<div class="ei-lens-head"><h2 class="ei-sr">${escapeHtml(title)}</h2>${asOfHtml ? `<div class="ei-asof-row">${asOfHtml}</div>` : ""}</div>`;
+}
+
+function renderAlertsLens() {
   if (!tabPanel) return;
-  tabPanel.innerHTML = `<div class="tab-placeholder">This section will be added in the next phase.</div>`;
+  // R4 server contract is not frozen: there is NO source to read, so the lens is explicitly unavailable.
+  const vm = alertsViewModel(null);
+  tabPanel.innerHTML = `
+    <div class="ei-lens">
+      ${lensHeadHtml("Management Alerts")}
+      <section class="ei-alerts" aria-labelledby="eiAlertsTitle">
+        <div class="ei-state ei-state-unavailable" role="status">
+          <h3 class="ei-section-title" id="eiAlertsTitle">${escapeHtml(vm.title)}</h3>
+          <p>${escapeHtml(vm.body)}</p>
+          <p class="ei-note">This lens only reports. It has no acknowledgement or other action controls. Historical not-verified evidence signatures on the Production Performance lens are not confirmed operational failures.</p>
+        </div>
+      </section>
+    </div>`;
 }
 
 // Single entry point for (re)loading the active tab. Retires every in-flight
 // tab query first so a late response can never repaint the wrong panel.
 function loadActiveTab() {
-  TAB_LOAD_COUNT += 1;
   ACTIVE_TAB_FAILED = false;
   invalidateTabRequests();
   cancelPendingSearches();
+  closeAllFilterDrawers();
   tabPanel?.classList.toggle("production-panel", ACTIVE_TAB === "production");
+  tabPanel?.classList.toggle("overview-panel", ACTIVE_TAB === "overview");
+  tabPanel?.removeAttribute("aria-busy");
+  if (ACTIVE_TAB === "overview") {
+    renderOverview();
+    // Reuses the shared live response when fresh; never a private duplicate request.
+    return loadLivePipeline();
+  }
   if (ACTIVE_TAB === "finance") return loadFinanceTab();
   if (ACTIVE_TAB === "sales") return loadSalesTab();
   if (ACTIVE_TAB === "inventory") return loadInventoryTab();
   if (ACTIVE_TAB === "finished-goods") return loadFinishedGoodsTab();
   if (ACTIVE_TAB === "production") return loadProductionTab();
-  renderPlaceholderTab();
+  renderAlertsLens();
   return Promise.resolve();
 }
 
@@ -706,13 +726,19 @@ function renderActiveTab() {
 // Choosing the tab that is already showing is a no-op (no duplicate request)
 // unless its last load failed, in which case it acts as a retry.
 function selectTab(tabId) {
-  const next = tabId || "finance";
+  const next = LENSES.some((l) => l.id === tabId) ? tabId : "overview";
   if (next === ACTIVE_TAB && !ACTIVE_TAB_FAILED) {
     if (detailTabSelect) detailTabSelect.value = ACTIVE_TAB;
     return;
   }
+  const retry = next === ACTIVE_TAB && ACTIVE_TAB === "overview" && SUMMARY_STATE.status === "error";
   ACTIVE_TAB = next;
-  renderActiveTab();
+  renderDetailTabs();
+  if (retry) {
+    loadExecutiveSummary();
+    return;
+  }
+  loadActiveTab();
 }
 
 function setTableLoading(
@@ -747,220 +773,501 @@ function setTableLoading(
   }
 }
 
-async function loadFinanceTab() {
-  if (!tabPanel) return;
-  FINANCE_ROWS = [];
-  FINANCE_TOTAL_ROWS = 0;
-  FINANCE_IS_LOADING = true;
-  FINANCE_ERROR = "";
-  renderFinanceTab();
-
-  // Summary and first page are independent; run them together so neither
-  // waits on the other (same two queries as before, no extras).
-  await Promise.all([loadFinanceSummary(), loadFinancePartyPage()]);
+// ---------------------------------------------------------------------------
+// Server-paged lenses (Finance, Sales Performance, Materials Inventory, Finished Goods).
+// One generic implementation: per-list state, a latest-wins page request and a latest-wins summary request.
+// All search, filter and paging happens on the server; the browser never scans or filters history.
+// ---------------------------------------------------------------------------
+function newListState(filter) {
+  return { filter, search: "", page: 1, size: 25, total: 0, rows: [], loading: false, error: "" };
 }
 
-async function loadFinanceSummary() {
-  const token = beginRequest("finance:summary");
-  const summaryResult = await settle(
-    supabase
-      .from("v_mis_finance_tab_summary")
-      .select("finance_scope_note")
-      .single(),
-  );
-  if (!isLatestRequest("finance:summary", token)) return;
+const metric = ({ label, value, sub = "", state = "", title = "" }) => `
+  <div class="ei-metric ${state}"${title ? ` title="${escapeHtml(title)}"` : ""}>
+    <div class="ei-metric-label">${escapeHtml(label)}</div>
+    <div class="ei-metric-value">${escapeHtml(value)}</div>
+    ${sub ? `<div class="ei-metric-sub">${escapeHtml(sub)}</div>` : ""}
+  </div>`;
 
-  if (summaryResult.error) {
-    console.error("[MIS] Finance summary load failed", summaryResult.error);
-  } else {
-    FINANCE_SUMMARY = summaryResult.data || null;
-    renderFinanceScopeNote();
+const summaryState = (L, loadingText) =>
+  L.sum.status === "loading" || L.sum.status === "idle"
+    ? `<div class="ei-state" role="status"><span class="table-loading-spinner" aria-hidden="true"></span> ${escapeHtml(loadingText)}</div>`
+    : L.sum.status === "error"
+      ? `<div class="ei-state error" role="alert">${escapeHtml(L.errorText)} ${escapeHtml(L.sum.error)} <button type="button" class="mis-retry-btn" data-mis-retry="${L.retryKey}">Retry</button></div>`
+      : "";
+
+function financeMetricsHtml() {
+  const st = SUMMARY_STATE;
+  if (st.status === "loading" || st.status === "idle") {
+    return `<div class="ei-state" role="status"><span class="table-loading-spinner" aria-hidden="true"></span> Loading position...</div>`;
   }
+  if (st.status !== "ok") {
+    return `<div class="ei-state ${st.status === "error" ? "error" : ""}" role="${st.status === "error" ? "alert" : "status"}">Outstanding position is unavailable${st.message ? `: ${escapeHtml(st.message)}` : "."} ${st.status === "error" ? `<button type="button" class="mis-retry-btn" data-mis-retry="summary">Retry</button>` : ""}</div>`;
+  }
+  const r = st.row;
+  const date = r.financial_position_date ? `Outstanding position ${formatDateIN(r.financial_position_date)}` : "Outstanding position";
+  return `
+    <div class="ei-asof-row"><span>${escapeHtml(date)}</span><span>Signed Tally balances</span></div>
+    <div class="ei-metrics">
+      ${metric({ label: "Payables — Sundry Creditors", value: orWord(r.payables_sundry_creditors, formatCurrencyINR) })}
+      ${metric({ label: "Receivables — Sundry Debtors", value: orWord(r.receivables_sundry_debtors, formatCurrencyINR) })}
+      ${metric({ label: "Net Sundry Position", value: orWord(r.net_sundry_position, formatCurrencyINR), sub: "Receivables minus payables", state: Number(r.net_sundry_position) < 0 ? "caution" : "" })}
+    </div>`;
 }
 
-function renderFinanceTab() {
-  if (!tabPanel) return;
-  tabPanel.innerHTML = `
-    <div id="financeScopeNote" class="finance-scope-note"></div>
-    <div id="financeToolbar"></div>
-    <div class="finance-table-shell">
-      <div id="financePagination" class="finance-pagination"></div>
-      <div id="financePartyTableWrap" class="finance-table-wrap"></div>
-    </div>
-  `;
-  renderFinanceScopeNote();
-  renderFinanceToolbar();
-  renderFinancePartyTable();
-  renderFinancePagination();
+function renderFinanceMetrics() {
+  const host = $("financeMetrics");
+  if (host) host.innerHTML = financeMetricsHtml();
 }
 
-function renderFinanceScopeNote() {
-  const note = $("financeScopeNote");
-  if (!note) return;
-  note.textContent = FINANCE_SUMMARY?.finance_scope_note || "";
-  note.hidden = !FINANCE_SUMMARY?.finance_scope_note;
+function basisDetails(lines) {
+  const items = lines.filter(Boolean);
+  if (!items.length) return "";
+  return `<details class="ei-basis"><summary>Basis and definitions</summary><ul>${items.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul></details>`;
 }
 
-function renderFinanceToolbar() {
-  const toolbar = $("financeToolbar");
-  if (!toolbar) return;
-  const activeFilterCount = FINANCE_FILTER === "all" ? 0 : 1;
-  toolbar.innerHTML = `
-    <div class="finance-toolbar">
-      <div class="finance-search-wrap">
-        <input
-          id="financeSearch"
-          type="text"
-          value="${escapeHtml(FINANCE_SEARCH)}"
-          placeholder="Search party or group"
-          aria-label="Search party or group"
-        />
-        <button
-          id="financeSearchClear"
-          type="button"
-          class="input-clear-btn"
-          title="Clear search"
-          aria-label="Clear search"
-          style="${FINANCE_SEARCH ? "" : "display:none"}"
-        >
-          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-            <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-            <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-          </svg>
-        </button>
-      </div>
-      <div id="financeFilterWrapper" class="finance-filter-wrapper">
-        <button
-          id="financeFilterBtn"
-          type="button"
-          class="finance-filter-btn ${activeFilterCount ? "finance-filter-btn--active" : ""}"
-          title="Filters"
-          aria-label="Filters"
-          aria-haspopup="true"
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-          </svg>
-          <span class="finance-filter-badge" style="${activeFilterCount ? "" : "display:none"}">${activeFilterCount || ""}</span>
-        </button>
-        <div id="financeFilterDrawer" class="finance-filter-drawer" role="dialog" aria-label="Finance filters">
-          <div class="finance-filter-section-title">Outstanding Group</div>
-          <ul class="finance-filter-list">
-            <li><label><input type="radio" name="financeFilter" value="payables" ${FINANCE_FILTER === "payables" ? "checked" : ""} /> Payables \u2014 Sundry Creditors</label></li>
-            <li><label><input type="radio" name="financeFilter" value="receivables" ${FINANCE_FILTER === "receivables" ? "checked" : ""} /> Receivables \u2014 Sundry Debtors</label></li>
-            <li><label><input type="radio" name="financeFilter" value="all" ${FINANCE_FILTER === "all" ? "checked" : ""} /> All</label></li>
-          </ul>
+function salesSummaryHtml(L) {
+  const wait = summaryState(L, "Loading sales summary...");
+  if (wait) return wait;
+  const m = analyzeSalesSummary(L.sum.data);
+  if (m.state !== "ok") return `<div class="ei-state ei-state-unavailable" role="status">No mapped sales dates are available yet, so no sales figures are shown.</div>`;
+  const period = m.monthStart ? `${formatDateIN(m.monthStart)} to ${formatDateIN(m.uptoDate)}` : `to ${formatDateIN(m.uptoDate)}`;
+  const n = (v) => orWord(v, formatNumberIN, "Not reported");
+  const c = (v) => orWord(v, formatCurrencyINR, "Not reported");
+  return `
+    <div class="ei-asof-row"><span>Latest mapped sales day <b>${escapeHtml(formatDateIN(m.latestDate))}</b></span><span>Month to date ${escapeHtml(period)}</span></div>
+    <div class="ei-metric-groups">
+      <section class="ei-metric-group" aria-label="Latest mapped day">
+        <h3 class="ei-metric-group-title">Latest day</h3>
+        <div class="ei-metrics">
+          ${metric({ label: "Billed sales value", value: c(m.latest.value) })}
+          ${metric({ label: "Actual units", value: n(m.latest.units) })}
+          ${metric({ label: "Billed units", value: n(m.latest.billed) })}
         </div>
-      </div>
+      </section>
+      <section class="ei-metric-group" aria-label="Month to date">
+        <h3 class="ei-metric-group-title">Month to date</h3>
+        <div class="ei-metrics">
+          ${metric({ label: "Billed sales value", value: c(m.mtd.value) })}
+          ${metric({ label: "Actual units", value: n(m.mtd.units) })}
+          ${metric({ label: "Billed units", value: n(m.mtd.billed) })}
+          ${metric({ label: "Average per sales day", value: c(m.avgPerDay), sub: m.days != null ? `over ${formatIntegerIN(m.days)} sales days in the month` : "", title: "Month-to-date billed sales divided by the days in the month that have mapped sales" })}
+          ${metric({ label: "Products sold", value: n(m.products) })}
+          ${metric({ label: "SKUs sold", value: n(m.skus) })}
+        </div>
+      </section>
     </div>
-  `;
+    ${basisDetails([
+      "Month to date runs from the first day of the latest mapped sales month to the latest mapped sales date; it does not use today's date.",
+      "Billed sales value is the signed billed amount, so returns reduce it. Actual units and billed units are separate source measures and can differ.",
+      "Average per sales day divides month-to-date billed sales by the days in the month that have mapped sales. In the product table, each product's average divides by the days that product itself sold.",
+      "No historical series or comparison with earlier periods is shown here.",
+    ])}`;
 }
 
-async function loadFinancePartyPage() {
-  const token = beginRequest("finance:page");
-  FINANCE_IS_LOADING = true;
-  FINANCE_ERROR = "";
-  if (!FINANCE_ROWS.length) renderFinancePartyTable();
+function inventorySummaryHtml(L) {
+  const wait = summaryState(L, "Loading materials summary...");
+  if (wait) return wait;
+  const a = analyzeInventorySummary(L.sum.data);
+  if (a.state !== "ok") {
+    return `
+      <div class="ei-state ei-state-unavailable" role="status">
+        <b>Canonical materials valuation is unavailable.</b>
+        The server has not supplied the canonical category and valuation fields, so category values and coverage are not shown and are not estimated.
+        Item rows below are the source rows as supplied; category filters are switched off.
+      </div>`;
+  }
+  const money = (g) => (g.valueState === "value" ? formatCurrencyINR(g.known) : g.valueState === "none" ? "No items" : "Unavailable");
+  const tiles = a.groups
+    .map((g) =>
+      metric({
+        label: g.label,
+        value: money(g),
+        sub: `${formatIntegerIN(g.count)} ${a.rowWord}${g.gaps ? ` · ${formatIntegerIN(g.gaps)} without usable valuation` : ""}`,
+        state: g.valueState === "unavailable" ? "unavailable" : "",
+      }),
+    )
+    .join("");
+  const reasons = [
+    a.gapTotal > 0 && `${formatIntegerIN(a.gapTotal)} ${a.rowWord} lack a usable valuation`,
+    a.unclassified.count > 0 && `${formatIntegerIN(a.unclassified.count)} unclassified`,
+    a.dup > 0 && `${formatIntegerIN(a.dup)} duplicate item rows`,
+    a.missingId > 0 && `${formatIntegerIN(a.missingId)} rows without an item id`,
+  ].filter(Boolean);
+  const unclassified =
+    a.unclassified.count > 0
+      ? metric({ label: "Unclassified", value: a.unclassified.value != null ? formatCurrencyINR(a.unclassified.value) : "Unavailable", sub: `${formatIntegerIN(a.unclassified.count)} ${a.rowWord}`, state: "caution" })
+      : "";
+  return `
+    <div class="ei-asof-row">
+      <span>Raw Material · Packing Material · Indirect Materials &amp; Utilities</span>
+      <span>Current stock, not period flows</span>
+    </div>
+    <div class="ei-metrics ei-metrics-wide">
+      ${metric({ label: a.certified ? "Stock value" : "Known stock value", value: a.knownValue != null ? formatCurrencyINR(a.knownValue) : "Unavailable", sub: a.certified ? "All rows valued and classified" : "Not a certified total", state: a.certified ? "" : "caution" })}
+      ${tiles}
+      ${unclassified}
+    </div>
+    <div class="ei-coverage" role="status">
+      Coverage: ${formatIntegerIN(a.valuedRows)} of ${formatIntegerIN(a.totalRows)} ${escapeHtml(a.rowWord)} valued${a.zeroQty ? ` · ${formatIntegerIN(a.zeroQty)} with zero quantity (valid zero)` : ""}${reasons.length ? ` · ${escapeHtml(reasons.join(" · "))}` : ""}.
+    </div>
+    ${barsHtml(a.composition, { label: "Known stock value by category", format: formatCurrencyINR, unit: "Known values only; rows without a usable valuation are excluded." })}
+    ${basisDetails([
+      "Known values exclude rows whose valuation is not usable. A zero quantity with no rate is a valid zero; a non-zero quantity with a missing or non-positive rate is unavailable, not zero.",
+      "The primary category is the server's category label. Source kind appears on each row only as supporting evidence.",
+      a.rowWord === "source rows" ? "Counts are source rows, not items, because duplicate or missing item identities were found." : "",
+      "Finished Goods stock is reported in its own lens.",
+    ])}`;
+}
 
-  setTableLoading(".finance-table-shell", true, "Loading finance parties...");
+function fgSummaryHtml(L) {
+  const wait = summaryState(L, "Loading finished goods summary...");
+  if (wait) return wait;
+  const s = L.sum.data;
+  if (!s) return `<div class="ei-state ei-state-unavailable" role="status">No finished goods summary is available.</div>`;
+  return `
+    <div class="ei-asof-row"><span>Current stock position</span>
+      <span>Period transfers into finished goods are on the <button type="button" class="ei-text-link ei-inline-link" data-lens-link="production">Production Performance</button> lens</span></div>
+    <div class="ei-metrics">
+      ${metric({ label: "SKUs", value: orWord(s.sku_count, formatIntegerIN) })}
+      ${metric({ label: "Stock value", value: orWord(s.stock_value_overall, formatCurrencyINR) })}
+      ${metric({ label: "Zero stock", value: orWord(s.zero_stock_sku_count, formatIntegerIN), sub: "SKUs with no stock", state: Number(s.zero_stock_sku_count) > 0 ? "caution" : "" })}
+      ${metric({ label: "Below 1 month cover", value: orWord(s.below_1_month_cover_count, formatIntegerIN), sub: "Months-of-stock status" })}
+      ${metric({ label: "Above 6 months cover", value: orWord(s.above_6_month_cover_count, formatIntegerIN), sub: "Months-of-stock status" })}
+    </div>
+    ${basisDetails([
+      "Zero stock and low cover are separate server statuses; neither is derived from an arbitrary threshold in the browser.",
+      "Stock is the current position. Transfers into finished goods are period flows and are reported under Production Performance.",
+    ])}`;
+}
 
-  const { data, error } = await settle(
-    supabase.rpc("get_mis_finance_party_page", {
-      p_group_filter: FINANCE_FILTER,
-      p_search: FINANCE_SEARCH,
-      p_limit: FINANCE_PAGE_SIZE,
-      p_offset: (FINANCE_CURRENT_PAGE - 1) * FINANCE_PAGE_SIZE,
+function financeBasisHtml(L) {
+  const note = L.sum.status === "ok" ? L.sum.data?.finance_scope_note : "";
+  return basisDetails([note, "Signed amount is the original Tally balance. The MIS total is calculated from signed balances, not by adding every absolute bill line."]);
+}
+
+const finParse = (data) => {
+  if (Array.isArray(data)) {
+    const t = data[0]?.total_rows ?? data[0]?.total_count;
+    return { rows: data, total: Number(t ?? data.length) || 0 };
+  }
+  const rows = data?.rows || [];
+  return { rows, total: Number(data?.total_rows ?? data?.total_count ?? rows.length) || 0 };
+};
+const arrParse = (data) => {
+  const rows = Array.isArray(data) ? data : [];
+  return { rows, total: Number(rows[0]?.total_rows ?? rows.length) || 0 };
+};
+
+function inventoryFilterConfig() {
+  const L = LISTS.inventory;
+  const canon = L.sum.status === "ok" ? inventoryCanonicalAvailable(L.sum.data) : null;
+  return {
+    title: "Material category",
+    ariaLabel: "Materials filters",
+    options: INVENTORY_CANONICAL_FILTERS.map((f) => ({ ...f, disabled: canon === false && f.value !== "all" })),
+    note: canon === false ? "Category filters need the canonical inventory contract, which is not available yet." : "",
+  };
+}
+
+const LISTS = {
+  finance: {
+    p: "finance", title: "Finance", noun: "parties", rpc: "get_mis_finance_party_page", wrapId: "financePartyTableWrap",
+    shell: ".finance-table-shell", loadingMsg: "Loading finance parties...", retryKey: "finance",
+    summaryTable: "v_mis_finance_tab_summary", summarySelect: "finance_scope_note", errorText: "Finance basis note could not be loaded.",
+    placeholder: "Search party or group", st: newListState("payables"), sum: { status: "idle", data: null, error: "" },
+    args: (st) => ({ p_group_filter: st.filter, p_search: st.search, p_limit: st.size, p_offset: (st.page - 1) * st.size }),
+    parse: finParse, summaryHtml: financeBasisHtml,
+    filterConfig: () => ({
+      title: "Outstanding Group", ariaLabel: "Finance filters",
+      options: [
+        { value: "payables", label: "Payables — Sundry Creditors" },
+        { value: "receivables", label: "Receivables — Sundry Debtors" },
+        { value: "all", label: "All" },
+      ],
     }),
-  );
+    activeFilters: (st) => (st.filter === "all" ? 0 : 1), defaultFilter: "payables",
+    emptyText: "No parties found for this scope.", loadErrText: "Failed to load finance parties.", loadingText: "Loading parties...",
+  },
+  sales: {
+    p: "sales", title: "Sales Performance", noun: "products", rpc: "get_mis_sales_product_page", wrapId: "salesProductTableWrap",
+    shell: ".sales-table-shell", loadingMsg: "Loading sales products...", retryKey: "sales",
+    summaryTable: "v_mis_sales_tab_summary", summarySelect: "*", errorText: "Sales summary could not be loaded.",
+    placeholder: "Search product", st: newListState(null), sum: { status: "idle", data: null, error: "" },
+    args: (st) => ({ p_search: st.search, p_limit: st.size, p_offset: (st.page - 1) * st.size }),
+    parse: arrParse, summaryHtml: salesSummaryHtml,
+    emptyText: "No products found.", loadErrText: "Failed to load sales products.", loadingText: "Preparing sales table...",
+  },
+  inventory: {
+    p: "inventory", title: "Materials Inventory", noun: "items", rpc: "get_mis_inventory_item_page", wrapId: "inventoryItemTableWrap",
+    shell: ".inventory-table-shell", loadingMsg: "Loading inventory items...", retryKey: "inventory",
+    summaryTable: "v_mis_inventory_tab_summary", summarySelect: "*", errorText: "Materials summary could not be loaded.",
+    placeholder: "Search item, code, or classification", st: newListState("all"), sum: { status: "idle", data: null, error: "" },
+    args: (st) => ({ p_source_kind: st.filter, p_search: st.search, p_limit: st.size, p_offset: (st.page - 1) * st.size }),
+    parse: arrParse, summaryHtml: inventorySummaryHtml, filterConfig: inventoryFilterConfig,
+    activeFilters: (st) => (st.filter === "all" ? 0 : 1), defaultFilter: "all",
+    emptyText: "No items found.", loadErrText: "Failed to load inventory items.", loadingText: "Preparing inventory table...",
+    // Called once the summary arrives: a non-canonical contract can never leave a category filter applied.
+    onSummary(L) {
+      const canon = L.sum.status === "ok" ? inventoryCanonicalAvailable(L.sum.data) : null;
+      const safe = sanitizeInventoryFilter(L.st.filter, canon);
+      if (safe !== L.st.filter) {
+        L.st.filter = safe;
+        L.st.page = 1;
+        renderListToolbar("inventory");
+        loadList("inventory");
+      }
+    },
+  },
+  fg: {
+    p: "fg", title: "Finished Goods", noun: "SKUs", rpc: "get_mis_finished_goods_sku_page", wrapId: "fgSkuTableWrap",
+    shell: ".fg-table-shell", loadingMsg: "Loading Finished Goods SKUs...", retryKey: "finished-goods",
+    summaryTable: "v_mis_finished_goods_tab_summary", summarySelect: "*", errorText: "Finished goods summary could not be loaded.",
+    placeholder: "Search SKU, item, or classification", st: newListState("all"), sum: { status: "idle", data: null, error: "" },
+    args: (st) => ({ p_mos_filter: st.filter, p_search: st.search, p_limit: st.size, p_offset: (st.page - 1) * st.size }),
+    parse: arrParse, summaryHtml: fgSummaryHtml,
+    filterConfig: () => ({
+      title: "MOS Status", ariaLabel: "Finished Goods filters",
+      options: [
+        { value: "all", label: "All" },
+        { value: "zero_stock", label: "Zero Stock" },
+        { value: "below_1_month", label: "Below 1 Month" },
+        { value: "one_to_three_months", label: "1 to 3 Months" },
+        { value: "above_6_months", label: "Above 6 Months" },
+        { value: "normal", label: "Normal" },
+        { value: "shaded", label: "Same IK/OK MRP" },
+      ],
+    }),
+    activeFilters: (st) => (st.filter === "all" ? 0 : 1), defaultFilter: "all",
+    emptyText: "No SKUs found.", loadErrText: "Failed to load Finished Goods SKUs.", loadingText: "Preparing Finished Goods table...",
+  },
+};
 
+const ICON_X = `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line></svg>`;
+const ICON_FILTER = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>`;
+
+function listToolbarHtml(L) {
+  const p = L.p;
+  const st = L.st;
+  const f = L.filterConfig ? L.filterConfig() : null;
+  const active = L.activeFilters ? L.activeFilters(st) : 0;
+  const filter = f
+    ? `
+      <div id="${p}FilterWrapper" class="${p}-filter-wrapper" data-list="${p}">
+        <button id="${p}FilterBtn" type="button" class="${p}-filter-btn ${active ? `${p}-filter-btn--active` : ""}" title="Filters" aria-label="Filters" aria-haspopup="dialog" aria-expanded="false" aria-controls="${p}FilterDrawer" data-act="filter-toggle" data-list="${p}">
+          ${ICON_FILTER}
+          <span class="${p}-filter-badge" style="${active ? "" : "display:none"}">${active || ""}</span>
+        </button>
+        <div id="${p}FilterDrawer" class="${p}-filter-drawer" role="dialog" aria-label="${escapeHtml(f.ariaLabel)}">
+          <div class="ei-drawer-head"><span class="ei-drawer-title">${escapeHtml(f.title)}</span>
+            <button type="button" class="ei-drawer-close" data-act="drawer-close" data-list="${p}" aria-label="Close filters" title="Close">${ICON_X}</button></div>
+          <div class="${p}-filter-section-title">${escapeHtml(f.title)}</div>
+          <ul class="${p}-filter-list">
+            ${f.options.map((o) => `<li><label><input type="radio" name="${p}Filter" value="${escapeHtml(o.value)}" ${st.filter === o.value ? "checked" : ""} ${o.disabled ? "disabled" : ""} /> ${escapeHtml(o.label)}</label></li>`).join("")}
+          </ul>
+          ${f.note ? `<div class="ei-drawer-note">${escapeHtml(f.note)}</div>` : ""}
+        </div>
+      </div>`
+    : "";
+  return `
+    <div class="${p}-toolbar">
+      <div class="${p}-search-wrap">
+        <input id="${p}Search" type="text" value="${escapeHtml(st.search)}" placeholder="${escapeHtml(L.placeholder)}" aria-label="${escapeHtml(L.placeholder)}" />
+        <button id="${p}SearchClear" type="button" class="input-clear-btn" title="Clear search" aria-label="Clear search" data-act="search-clear" data-list="${p}" style="${st.search ? "" : "display:none"}">${ICON_X}</button>
+      </div>
+      ${filter}
+    </div>`;
+}
+
+function renderListToolbar(p) {
+  const host = $(`${p}Toolbar`);
+  if (host) host.innerHTML = listToolbarHtml(LISTS[p]);
+}
+
+function listPaginationHtml(L) {
+  const { total, page, size } = L.st;
+  const p = L.p;
+  const pages = Math.max(1, Math.ceil(total / size));
+  const start = total ? (page - 1) * size + 1 : 0;
+  const end = Math.min(page * size, total);
+  const chev = (d) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="${d}"></path></svg>`;
+  return `
+    <span class="${p}-row-count">Showing ${formatIntegerIN(start)}-${formatIntegerIN(end)} of ${formatIntegerIN(total)} ${L.noun}</span>
+    <div class="${p}-page-controls">
+      <button id="${p}PrevPage" class="icon-btn" type="button" title="Previous page" aria-label="Previous page" data-act="prev" data-list="${p}" ${page <= 1 ? "disabled" : ""}>${chev("M15 6l-6 6 6 6")}</button>
+      <span>Page ${formatIntegerIN(page)} / ${formatIntegerIN(pages)}</span>
+      <button id="${p}NextPage" class="icon-btn" type="button" title="Next page" aria-label="Next page" data-act="next" data-list="${p}" ${page >= pages ? "disabled" : ""}>${chev("M9 6l6 6-6 6")}</button>
+    </div>`;
+}
+
+function renderListPagination(p) {
+  const el = $(`${p}Pagination`);
+  if (el) el.innerHTML = listPaginationHtml(LISTS[p]);
+}
+
+function renderListSummary(p) {
+  const L = LISTS[p];
+  const el = $(`${p}ScopeNote`);
+  if (el) el.innerHTML = L.summaryHtml(L);
+}
+
+function renderListShell(p) {
+  const L = LISTS[p];
+  tabPanel.innerHTML = `
+    <div class="ei-lens ei-lens-${p}">
+      ${lensHeadHtml(L.title)}
+      ${p === "finance" ? `<div id="financeMetrics" class="ei-metrics-host"></div>` : ""}
+      <div id="${p}ScopeNote" class="${p}-scope-note ei-scope"></div>
+      <div id="${p}Toolbar"></div>
+      <div class="${p}-table-shell">
+        <div id="${p}Pagination" class="${p}-pagination"></div>
+        <div id="${L.wrapId}" class="${p}-table-wrap"></div>
+      </div>
+    </div>`;
+  if (p === "finance") renderFinanceMetrics();
+  renderListSummary(p);
+  renderListToolbar(p);
+  renderListTable(p);
+  renderListPagination(p);
+}
+
+async function loadListTab(p) {
+  if (!tabPanel) return;
+  const L = LISTS[p];
+  L.st.rows = [];
+  L.st.total = 0;
+  L.st.loading = true;
+  L.st.error = "";
+  L.sum = { status: "loading", data: null, error: "" };
+  renderListShell(p);
+  await Promise.all([loadListSummary(p), loadList(p)]);
+}
+
+async function loadListSummary(p) {
+  const L = LISTS[p];
+  const token = beginRequest(`${p}:summary`);
+  const r = await settle(supabase.from(L.summaryTable).select(L.summarySelect).single());
+  if (!isLatestRequest(`${p}:summary`, token)) return;
+  if (r.error) {
+    console.error(`[MIS] ${L.title} summary load failed`, r.error);
+    L.sum = { status: "error", data: null, error: errorMessage(r.error) };
+  } else {
+    L.sum = { status: "ok", data: r.data || null, error: "" };
+  }
+  renderListSummary(p);
+  renderToolbarUnlessTyping(`${p}Search`, () => renderListToolbar(p));
+  L.onSummary?.(L);
+}
+
+async function loadList(p) {
+  const L = LISTS[p];
+  const st = L.st;
+  const key = `${p}:page`;
+  const token = beginRequest(key);
+  st.loading = true;
+  st.error = "";
+  if (!st.rows.length) renderListTable(p);
+  setTableLoading(L.shell, true, L.loadingMsg);
+
+  const { data, error } = await settle(supabase.rpc(L.rpc, L.args(st)));
   // A newer query owns the state and the loading mask; drop this response.
-  if (!isLatestRequest("finance:page", token)) return;
+  if (!isLatestRequest(key, token)) return;
 
-  setTableLoading(".finance-table-shell", false);
-  FINANCE_IS_LOADING = false;
+  setTableLoading(L.shell, false);
+  st.loading = false;
 
   if (error) {
-    console.error("[MIS] Finance party page load failed", error);
-    FINANCE_ROWS = [];
-    FINANCE_TOTAL_ROWS = 0;
-    FINANCE_ERROR = errorMessage(error);
+    console.error(`[MIS] ${L.title} page load failed`, error);
+    st.rows = [];
+    st.total = 0;
+    st.error = errorMessage(error);
     ACTIVE_TAB_FAILED = true;
-    renderFinancePartyTable();
-    renderFinancePagination();
+    renderListTable(p);
+    renderListPagination(p);
     return;
   }
 
-  if (Array.isArray(data)) {
-    FINANCE_ROWS = data;
-    const totalFromRow =
-      FINANCE_ROWS[0]?.total_rows ?? FINANCE_ROWS[0]?.total_count;
-    FINANCE_TOTAL_ROWS = Number(totalFromRow ?? FINANCE_ROWS.length) || 0;
-  } else {
-    FINANCE_ROWS = data?.rows || [];
-    FINANCE_TOTAL_ROWS =
-      Number(data?.total_rows ?? data?.total_count ?? FINANCE_ROWS.length) || 0;
+  const parsed = L.parse(data);
+  st.rows = parsed.rows;
+  st.total = parsed.total;
+  // A page beyond the last returns no rows: go back to page 1 once instead of reporting "no items".
+  if (shouldResetPage(st.rows.length, st.page)) {
+    st.page = 1;
+    return loadList(p);
   }
-  renderToolbarUnlessTyping("financeSearch", renderFinanceToolbar);
-  renderFinancePartyTable();
-  renderFinancePagination();
+  renderToolbarUnlessTyping(`${p}Search`, () => renderListToolbar(p));
+  renderListTable(p);
+  renderListPagination(p);
 }
 
-function renderFinancePartyTable() {
-  const wrap = $("financePartyTableWrap");
-  if (!wrap) return;
-  const rows = FINANCE_ROWS;
+let PENDING_FOCUS_ID = "";
+function restorePendingFocus() {
+  if (!PENDING_FOCUS_ID) return;
+  const el = $(PENDING_FOCUS_ID);
+  PENDING_FOCUS_ID = "";
+  el?.focus?.();
+}
 
-  if (!rows.length) {
-    wrap.innerHTML = renderTableState("finance", {
-      loading: FINANCE_IS_LOADING,
-      error: FINANCE_ERROR,
-      loadingText: "Loading parties...",
-      emptyText: "No parties found for this scope.",
-      errorText: "Failed to load finance parties.",
-      retryKey: "finance",
+function setListFilter(p, value) {
+  const L = LISTS[p];
+  const canon = p === "inventory" && L.sum.status === "ok" ? inventoryCanonicalAvailable(L.sum.data) : null;
+  L.st.filter = p === "inventory" ? sanitizeInventoryFilter(value, canon) : value || L.defaultFilter;
+  L.st.page = 1;
+  closeAllFilterDrawers();
+  renderListToolbar(p);
+  PENDING_FOCUS_ID = `${p}FilterBtn`;
+  restorePendingFocus();
+  loadList(p);
+}
+
+function setListSearch(p, value) {
+  const next = String(value || "").trim();
+  const L = LISTS[p];
+  if (next === L.st.search) return;
+  L.st.search = next;
+  L.st.page = 1;
+  loadList(p);
+}
+
+function clearListSearch(p) {
+  const L = LISTS[p];
+  L.st.search = "";
+  L.st.page = 1;
+  renderListToolbar(p);
+  $(`${p}Search`)?.focus?.();
+  loadList(p);
+}
+
+function goListPage(p, delta) {
+  const L = LISTS[p];
+  const pages = Math.max(1, Math.ceil(L.st.total / L.st.size));
+  const next = L.st.page + delta;
+  if (next < 1 || next > pages) return;
+  L.st.page = next;
+  loadList(p);
+}
+
+// ---- tables -------------------------------------------------------------------------------------------------------
+const th = (label, num, title) => `<th${num ? ' class="num"' : ""}${title ? ` title="${escapeHtml(title)}"` : ""} scope="col">${escapeHtml(label)}</th>`;
+
+function renderListTable(p) {
+  const L = LISTS[p];
+  const wrap = $(L.wrapId);
+  if (!wrap) return;
+  if (!L.st.rows.length) {
+    wrap.innerHTML = renderTableState(p, {
+      loading: L.st.loading, error: L.st.error, loadingText: L.loadingText,
+      emptyText: L.st.search ? `No ${L.noun} match "${L.st.search}".` : L.emptyText,
+      errorText: L.loadErrText, retryKey: L.retryKey,
     });
     return;
   }
+  wrap.innerHTML = TABLES[p](L.st.rows);
+  if (p === "finance") bindFinanceRows(wrap);
+}
 
-  wrap.innerHTML = `
-    <table class="finance-table">
-      <thead>
-        <tr>
-          <th>Party</th>
-          <th>Group</th>
-          <th class="num">Bills</th>
-          <th class="num">Outstanding</th>
-          <th class="num">Signed Balance</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows
-          .map(
-            (row, index) => `
-              <tr data-party-index="${index}" tabindex="0" aria-haspopup="dialog" aria-label="View outstanding bills for ${escapeHtml(row.party_name || "party")}">
-                <td>${escapeHtml(row.party_name || "-")}</td>
-                <td>${escapeHtml(row.mis_group_name || "-")}</td>
-                <td class="num">${escapeHtml(formatIntegerIN(row.bill_count))}</td>
-                <td class="num">${escapeHtml(formatCurrencyINR(row.outstanding_amount_mis_value))}</td>
-                <td class="num">${escapeHtml(formatCurrencyINR(row.signed_outstanding_tally_value))}</td>
-              </tr>
-            `,
-          )
-          .join("")}
-      </tbody>
-    </table>
-  `;
-
+function bindFinanceRows(wrap) {
+  const rows = LISTS.finance.st.rows;
   wrap.querySelectorAll("tbody tr").forEach((tr) => {
     const open = () => {
       const row = rows[Number(tr.getAttribute("data-party-index"))];
@@ -976,905 +1283,100 @@ function renderFinancePartyTable() {
   });
 }
 
-function renderFinancePagination() {
-  const el = $("financePagination");
-  if (!el) return;
-  const totalPages = Math.max(1, Math.ceil(FINANCE_TOTAL_ROWS / FINANCE_PAGE_SIZE));
-  const start = FINANCE_TOTAL_ROWS
-    ? (FINANCE_CURRENT_PAGE - 1) * FINANCE_PAGE_SIZE + 1
-    : 0;
-  const end = Math.min(FINANCE_CURRENT_PAGE * FINANCE_PAGE_SIZE, FINANCE_TOTAL_ROWS);
-  el.innerHTML = `
-    <span class="finance-row-count">Showing ${formatIntegerIN(start)}-${formatIntegerIN(end)} of ${formatIntegerIN(FINANCE_TOTAL_ROWS)} parties</span>
-    <div class="finance-page-controls">
-      <button id="financePrevPage" class="icon-btn" type="button" title="Previous page" aria-label="Previous page" ${FINANCE_CURRENT_PAGE <= 1 ? "disabled" : ""}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M15 6l-6 6 6 6"></path>
-        </svg>
-      </button>
-      <span>Page ${formatIntegerIN(FINANCE_CURRENT_PAGE)} / ${formatIntegerIN(totalPages)}</span>
-      <button id="financeNextPage" class="icon-btn" type="button" title="Next page" aria-label="Next page" ${FINANCE_CURRENT_PAGE >= totalPages ? "disabled" : ""}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M9 6l6 6-6 6"></path>
-        </svg>
-      </button>
-    </div>
-  `;
-}
-
-function setFinanceFilter(value) {
-  FINANCE_FILTER = value || "payables";
-  FINANCE_CURRENT_PAGE = 1;
-  closeFinanceFilterDrawer();
-  loadFinancePartyPage();
-}
-
-function setFinanceSearch(value) {
-  const next = String(value || "").trim();
-  if (next === FINANCE_SEARCH) return;
-  FINANCE_SEARCH = next;
-  FINANCE_CURRENT_PAGE = 1;
-  loadFinancePartyPage();
-}
-
-function clearFinanceSearch() {
-  FINANCE_SEARCH = "";
-  FINANCE_CURRENT_PAGE = 1;
-  renderFinanceToolbar();
-  loadFinancePartyPage();
-}
-
-function goFinancePrevPage() {
-  if (FINANCE_CURRENT_PAGE <= 1) return;
-  FINANCE_CURRENT_PAGE -= 1;
-  loadFinancePartyPage();
-}
-
-function goFinanceNextPage() {
-  const totalPages = Math.max(1, Math.ceil(FINANCE_TOTAL_ROWS / FINANCE_PAGE_SIZE));
-  if (FINANCE_CURRENT_PAGE >= totalPages) return;
-  FINANCE_CURRENT_PAGE += 1;
-  loadFinancePartyPage();
-}
-
-async function loadSalesTab() {
-  if (!tabPanel) return;
-  SALES_ROWS = [];
-  SALES_TOTAL_ROWS = 0;
-  SALES_IS_LOADING = true;
-  SALES_ERROR = "";
-  renderSalesTab();
-
-  await Promise.all([loadSalesSummary(), loadSalesProductPage()]);
-}
-
-async function loadSalesSummary() {
-  const token = beginRequest("sales:summary");
-  const summaryResult = await settle(
-    supabase.from("v_mis_sales_tab_summary").select("*").single(),
-  );
-  if (!isLatestRequest("sales:summary", token)) return;
-
-  if (summaryResult.error) {
-    console.error("[MIS] Sales summary load failed", summaryResult.error);
-  } else {
-    SALES_SUMMARY = summaryResult.data || null;
-    renderSalesScopeNote();
+function formatMosStatusLabel(value) {
+  switch (value) {
+    case "ZERO_STOCK": return "Zero Stock";
+    case "BELOW_1_MONTH": return "Below 1 Month";
+    case "ONE_TO_THREE_MONTHS": return "1 to 3 Months";
+    case "ABOVE_6_MONTHS": return "Above 6 Months";
+    case "NORMAL": return "Normal";
+    default: return value || "-";
   }
-}
-
-function renderSalesTab() {
-  if (!tabPanel) return;
-  tabPanel.innerHTML = `
-    <div id="salesScopeNote" class="sales-scope-note"></div>
-    <div id="salesToolbar"></div>
-    <div class="sales-table-shell">
-      <div id="salesPagination" class="sales-pagination"></div>
-      <div id="salesProductTableWrap" class="sales-table-wrap"></div>
-    </div>
-  `;
-  renderSalesScopeNote();
-  renderSalesToolbar();
-  renderSalesProductTable();
-  renderSalesPagination();
-}
-
-function renderSalesScopeNote() {
-  const note = $("salesScopeNote");
-  if (!note) return;
-
-  const s = SALES_SUMMARY || {};
-
-  const periodLine = `
-    Sales period: ${formatDateIN(s.month_start)} to ${formatDateIN(s.month_upto_date)}
-    | Sales days: ${formatIntegerIN(s.sales_days_available_in_month)}
-    | Products sold: ${formatIntegerIN(s.products_sold_month_to_date)}
-    | SKUs sold: ${formatIntegerIN(s.skus_sold_month_to_date)}
-  `;
-
-  note.innerHTML = `
-    <div class="sales-period-line">${escapeHtml(periodLine)}</div>
-    ${
-      s.sales_scope_note
-        ? `<div class="sales-note-line">${escapeHtml(s.sales_scope_note)}</div>`
-        : ""
-    }
-  `;
-}
-
-function renderSalesToolbar() {
-  const toolbar = $("salesToolbar");
-  if (!toolbar) return;
-  toolbar.innerHTML = `
-    <div class="sales-toolbar">
-      <div class="sales-search-wrap">
-        <input
-          id="salesSearch"
-          type="text"
-          value="${escapeHtml(SALES_SEARCH)}"
-          placeholder="Search product"
-          aria-label="Search product"
-        />
-        <button
-          id="salesSearchClear"
-          type="button"
-          class="input-clear-btn"
-          title="Clear search"
-          aria-label="Clear search"
-          style="${SALES_SEARCH ? "" : "display:none"}"
-        >
-          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-            <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-            <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-          </svg>
-        </button>
-      </div>
-    </div>
-  `;
-}
-
-async function loadSalesProductPage() {
-  const token = beginRequest("sales:page");
-  SALES_IS_LOADING = true;
-  SALES_ERROR = "";
-  if (!SALES_ROWS.length) renderSalesProductTable();
-
-  setTableLoading(".sales-table-shell", true, "Loading sales products...");
-
-  const { data, error } = await settle(
-    supabase.rpc("get_mis_sales_product_page", {
-      p_search: SALES_SEARCH,
-      p_limit: SALES_PAGE_SIZE,
-      p_offset: (SALES_CURRENT_PAGE - 1) * SALES_PAGE_SIZE,
-    }),
-  );
-
-  if (!isLatestRequest("sales:page", token)) return;
-
-  setTableLoading(".sales-table-shell", false);
-  SALES_IS_LOADING = false;
-
-  if (error) {
-    console.error("[MIS] Sales product page load failed", error);
-    SALES_ROWS = [];
-    SALES_TOTAL_ROWS = 0;
-    SALES_ERROR = errorMessage(error);
-    ACTIVE_TAB_FAILED = true;
-    renderSalesProductTable();
-    renderSalesPagination();
-    return;
-  }
-
-  SALES_ROWS = Array.isArray(data) ? data : [];
-  SALES_TOTAL_ROWS =
-    Number(SALES_ROWS[0]?.total_rows ?? SALES_ROWS.length) || 0;
-
-  renderToolbarUnlessTyping("salesSearch", renderSalesToolbar);
-  renderSalesProductTable();
-  renderSalesPagination();
-}
-
-function renderSalesProductTable() {
-  const wrap = $("salesProductTableWrap");
-  if (!wrap) return;
-
-  if (!SALES_ROWS.length) {
-    wrap.innerHTML = renderTableState("sales", {
-      loading: SALES_IS_LOADING,
-      error: SALES_ERROR,
-      loadingText: "Preparing sales table...",
-      emptyText: "No products found.",
-      errorText: "Failed to load sales products.",
-      retryKey: "sales",
-    });
-    return;
-  }
-
-  wrap.innerHTML = `
-    <table class="sales-table">
-      <thead>
-        <tr>
-          <th>Product</th>
-          <th class="num">SKUs</th>
-          <th class="num">MTD Sales</th>
-          <th class="num">MTD Units</th>
-          <th class="num">Latest Day Sales</th>
-          <th class="num">Average Daily Sales</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${SALES_ROWS.map(
-          (row) => `
-            <tr>
-              <td>${escapeHtml(row.product_name || "-")}</td>
-              <td class="num">${escapeHtml(formatIntegerIN(row.sku_count))}</td>
-              <td class="num">${escapeHtml(formatCurrencyINR(row.sales_value))}</td>
-              <td class="num">${escapeHtml(formatNumberIN(row.sales_units))}</td>
-              <td class="num">${escapeHtml(formatCurrencyINR(row.latest_day_sales_value))}</td>
-              <td class="num">${escapeHtml(formatCurrencyINR(row.average_daily_sales_value))}</td>
-            </tr>
-          `,
-        ).join("")}
-      </tbody>
-    </table>
-  `;
-}
-
-function renderSalesPagination() {
-  const el = $("salesPagination");
-  if (!el) return;
-  const totalPages = Math.max(1, Math.ceil(SALES_TOTAL_ROWS / SALES_PAGE_SIZE));
-  const start = SALES_TOTAL_ROWS
-    ? (SALES_CURRENT_PAGE - 1) * SALES_PAGE_SIZE + 1
-    : 0;
-  const end = Math.min(SALES_CURRENT_PAGE * SALES_PAGE_SIZE, SALES_TOTAL_ROWS);
-  el.innerHTML = `
-    <span class="sales-row-count">Showing ${formatIntegerIN(start)}-${formatIntegerIN(end)} of ${formatIntegerIN(SALES_TOTAL_ROWS)} products</span>
-    <div class="sales-page-controls">
-      <button id="salesPrevPage" class="icon-btn" type="button" title="Previous page" aria-label="Previous page" ${SALES_CURRENT_PAGE <= 1 ? "disabled" : ""}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M15 6l-6 6 6 6"></path>
-        </svg>
-      </button>
-      <span>Page ${formatIntegerIN(SALES_CURRENT_PAGE)} / ${formatIntegerIN(totalPages)}</span>
-      <button id="salesNextPage" class="icon-btn" type="button" title="Next page" aria-label="Next page" ${SALES_CURRENT_PAGE >= totalPages ? "disabled" : ""}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M9 6l6 6-6 6"></path>
-        </svg>
-      </button>
-    </div>
-  `;
-}
-
-function setSalesSearch(value) {
-  const next = String(value || "").trim();
-  if (next === SALES_SEARCH) return;
-  SALES_SEARCH = next;
-  SALES_CURRENT_PAGE = 1;
-  loadSalesProductPage();
-}
-
-function clearSalesSearch() {
-  SALES_SEARCH = "";
-  SALES_CURRENT_PAGE = 1;
-  renderSalesToolbar();
-  loadSalesProductPage();
-}
-
-function goSalesPrevPage() {
-  if (SALES_CURRENT_PAGE <= 1) return;
-  SALES_CURRENT_PAGE -= 1;
-  loadSalesProductPage();
-}
-
-function goSalesNextPage() {
-  const totalPages = Math.max(1, Math.ceil(SALES_TOTAL_ROWS / SALES_PAGE_SIZE));
-  if (SALES_CURRENT_PAGE >= totalPages) return;
-  SALES_CURRENT_PAGE += 1;
-  loadSalesProductPage();
-}
-
-async function loadInventoryTab() {
-  if (!tabPanel) return;
-  INVENTORY_ROWS = [];
-  INVENTORY_TOTAL_ROWS = 0;
-  INVENTORY_IS_LOADING = true;
-  INVENTORY_ERROR = "";
-  renderInventoryTab();
-
-  await Promise.all([loadInventorySummary(), loadInventoryItemPage()]);
-}
-
-async function loadInventorySummary() {
-  const token = beginRequest("inventory:summary");
-  const summaryResult = await settle(
-    supabase.from("v_mis_inventory_tab_summary").select("*").single(),
-  );
-  if (!isLatestRequest("inventory:summary", token)) return;
-
-  if (summaryResult.error) {
-    console.error("[MIS] Inventory summary load failed", summaryResult.error);
-  } else {
-    INVENTORY_SUMMARY = summaryResult.data || null;
-    renderInventoryScopeNote();
-  }
-}
-
-function renderInventoryTab() {
-  if (!tabPanel) return;
-  tabPanel.innerHTML = `
-    <div id="inventoryScopeNote" class="inventory-scope-note"></div>
-    <div id="inventoryToolbar"></div>
-    <div class="inventory-table-shell">
-      <div id="inventoryPagination" class="inventory-pagination"></div>
-      <div id="inventoryItemTableWrap" class="inventory-table-wrap"></div>
-    </div>
-  `;
-  renderInventoryScopeNote();
-  renderInventoryToolbar();
-  renderInventoryItemTable();
-  renderInventoryPagination();
-}
-
-function renderInventoryScopeNote() {
-  const note = $("inventoryScopeNote");
-  if (!note) return;
-  const s = INVENTORY_SUMMARY || {};
-  const scopeLine = `Inventory items: ${formatIntegerIN(s.total_inventory_item_count)} | Raw Material: ${formatIntegerIN(s.raw_material_item_count)} | Packing Material: ${formatIntegerIN(s.packing_material_item_count)} | Consumables: ${formatIntegerIN(s.consumables_item_count)} | Fuel: ${formatIntegerIN(s.fuel_item_count)}`;
-  note.innerHTML = `
-    <div class="inventory-scope-line">${escapeHtml(scopeLine)}</div>
-    ${
-      s.inventory_scope_note
-        ? `<div class="inventory-note-line">${escapeHtml(s.inventory_scope_note)}</div>`
-        : ""
-    }
-  `;
-}
-
-function renderInventoryToolbar() {
-  const toolbar = $("inventoryToolbar");
-  if (!toolbar) return;
-  const activeFilterCount = INVENTORY_FILTER === "all" ? 0 : 1;
-  toolbar.innerHTML = `
-    <div class="inventory-toolbar">
-      <div class="inventory-search-wrap">
-        <input
-          id="inventorySearch"
-          type="text"
-          value="${escapeHtml(INVENTORY_SEARCH)}"
-          placeholder="Search item, code, or classification"
-          aria-label="Search item, code, or classification"
-        />
-        <button
-          id="inventorySearchClear"
-          type="button"
-          class="input-clear-btn"
-          title="Clear search"
-          aria-label="Clear search"
-          style="${INVENTORY_SEARCH ? "" : "display:none"}"
-        >
-          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-            <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-            <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-          </svg>
-        </button>
-      </div>
-      <div id="inventoryFilterWrapper" class="inventory-filter-wrapper">
-        <button
-          id="inventoryFilterBtn"
-          type="button"
-          class="inventory-filter-btn ${activeFilterCount ? "inventory-filter-btn--active" : ""}"
-          title="Filters"
-          aria-label="Filters"
-          aria-haspopup="true"
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-          </svg>
-          <span class="inventory-filter-badge" style="${activeFilterCount ? "" : "display:none"}">${activeFilterCount || ""}</span>
-        </button>
-        <div id="inventoryFilterDrawer" class="inventory-filter-drawer" role="dialog" aria-label="Inventory filters">
-          <div class="inventory-filter-section-title">Inventory Type</div>
-          <ul class="inventory-filter-list">
-            <li><label><input type="radio" name="inventoryFilter" value="all" ${INVENTORY_FILTER === "all" ? "checked" : ""} /> All</label></li>
-            <li><label><input type="radio" name="inventoryFilter" value="rm" ${INVENTORY_FILTER === "rm" ? "checked" : ""} /> Raw Material</label></li>
-            <li><label><input type="radio" name="inventoryFilter" value="plm" ${INVENTORY_FILTER === "plm" ? "checked" : ""} /> Packing Material</label></li>
-            <li><label><input type="radio" name="inventoryFilter" value="consumable" ${INVENTORY_FILTER === "consumable" ? "checked" : ""} /> Consumables</label></li>
-            <li><label><input type="radio" name="inventoryFilter" value="fuel" ${INVENTORY_FILTER === "fuel" ? "checked" : ""} /> Fuel</label></li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-async function loadInventoryItemPage() {
-  const token = beginRequest("inventory:page");
-  INVENTORY_IS_LOADING = true;
-  INVENTORY_ERROR = "";
-  if (!INVENTORY_ROWS.length) renderInventoryItemTable();
-
-  setTableLoading(
-    ".inventory-table-shell",
-    true,
-    "Loading inventory items...",
-  );
-
-  const { data, error } = await settle(
-    supabase.rpc("get_mis_inventory_item_page", {
-      p_source_kind: INVENTORY_FILTER,
-      p_search: INVENTORY_SEARCH,
-      p_limit: INVENTORY_PAGE_SIZE,
-      p_offset: (INVENTORY_CURRENT_PAGE - 1) * INVENTORY_PAGE_SIZE,
-    }),
-  );
-
-  if (!isLatestRequest("inventory:page", token)) return;
-
-  setTableLoading(".inventory-table-shell", false);
-  INVENTORY_IS_LOADING = false;
-
-  if (error) {
-    console.error("[MIS] Inventory item page load failed", error);
-    INVENTORY_ROWS = [];
-    INVENTORY_TOTAL_ROWS = 0;
-    INVENTORY_ERROR = errorMessage(error);
-    ACTIVE_TAB_FAILED = true;
-    renderInventoryItemTable();
-    renderInventoryPagination();
-    return;
-  }
-
-  INVENTORY_ROWS = Array.isArray(data) ? data : [];
-  INVENTORY_TOTAL_ROWS =
-    Number(INVENTORY_ROWS[0]?.total_rows ?? INVENTORY_ROWS.length) || 0;
-
-  renderToolbarUnlessTyping("inventorySearch", renderInventoryToolbar);
-  renderInventoryItemTable();
-  renderInventoryPagination();
 }
 
 function formatInventoryClassification(row) {
-  return [
-    row.category_label,
-    row.subcategory_label,
-    row.group_label,
-    row.subgroup_label,
-  ]
+  return [row.subcategory_label, row.group_label, row.subgroup_label]
     .filter((value) => value != null && String(value).trim() !== "")
     .join(" › ");
 }
 
-function renderInventoryItemTable() {
-  const wrap = $("inventoryItemTableWrap");
-  if (!wrap) return;
-
-  if (!INVENTORY_ROWS.length) {
-    wrap.innerHTML = renderTableState("inventory", {
-      loading: INVENTORY_IS_LOADING,
-      error: INVENTORY_ERROR,
-      loadingText: "Preparing inventory table...",
-      emptyText: "No items found.",
-      errorText: "Failed to load inventory items.",
-      retryKey: "inventory",
-    });
-    return;
-  }
-
-  wrap.innerHTML = `
+const TABLES = {
+  finance: (rows) => `
+    <table class="finance-table">
+      <thead><tr>${th("Party")}${th("Group")}${th("Bills", true)}${th("Outstanding", true)}${th("Signed Balance", true)}</tr></thead>
+      <tbody>
+        ${rows.map((row, index) => `
+          <tr data-party-index="${index}" tabindex="0" aria-haspopup="dialog" aria-label="View outstanding bills for ${escapeHtml(row.party_name || "party")}">
+            <td>${escapeHtml(row.party_name || "-")}</td>
+            <td>${escapeHtml(row.mis_group_name || "-")}</td>
+            <td class="num">${escapeHtml(formatIntegerIN(row.bill_count))}</td>
+            <td class="num">${escapeHtml(formatCurrencyINR(row.outstanding_amount_mis_value))}</td>
+            <td class="num">${escapeHtml(formatCurrencyINR(row.signed_outstanding_tally_value))}</td>
+          </tr>`).join("")}
+      </tbody>
+    </table>`,
+  sales: (rows) => `
+    <table class="sales-table">
+      <thead><tr>${th("Product")}${th("SKUs", true)}${th("MTD billed sales", true)}${th("MTD actual units", true)}${th("MTD billed units", true)}${th("Latest day sales", true)}${th("Latest day units", true)}${th("Avg per product sales day", true, "Month-to-date billed sales divided by the days this product had sales")}</tr></thead>
+      <tbody>
+        ${rows.map((row) => `
+          <tr>
+            <td>${escapeHtml(row.product_name || "-")}</td>
+            <td class="num">${escapeHtml(formatIntegerIN(row.sku_count))}</td>
+            <td class="num">${escapeHtml(orWord(row.sales_value, formatCurrencyINR, "Not reported"))}</td>
+            <td class="num">${escapeHtml(orWord(row.sales_units, formatNumberIN, "Not reported"))}</td>
+            <td class="num">${escapeHtml(orWord(row.billed_units, formatNumberIN, "Not reported"))}</td>
+            <td class="num">${escapeHtml(orWord(row.latest_day_sales_value, formatCurrencyINR, "No sales"))}</td>
+            <td class="num">${escapeHtml(orWord(row.latest_day_sales_units, formatNumberIN, "No sales"))}</td>
+            <td class="num">${escapeHtml(orWord(row.average_daily_sales_value, formatCurrencyINR, "Not reported"))}</td>
+          </tr>`).join("")}
+      </tbody>
+    </table>`,
+  inventory: (rows) => `
     <table class="inventory-table">
-      <thead>
-        <tr>
-          <th>Code</th>
-          <th>Item</th>
-          <th>Type</th>
-          <th class="num">Quantity</th>
-          <th class="num">Average Rate</th>
-          <th class="num">Stock Value</th>
-          <th>Classification</th>
-        </tr>
-      </thead>
+      <thead><tr>${th("Code")}${th("Item")}${th("Category")}${th("Quantity", true)}${th("Average rate", true)}${th("Stock value", true, "Quantity x average rate; unavailable when the quantity is unknown or the rate is missing or not positive")}${th("Source")}</tr></thead>
       <tbody>
-        ${INVENTORY_ROWS.map(
-          (row) => `
-            <tr>
-              <td>${escapeHtml(row.code || "-")}</td>
-              <td>${escapeHtml(row.item_name || "-")}</td>
-              <td>${escapeHtml(row.source_label || "-")}</td>
-              <td class="num">${escapeHtml(formatNumberIN(row.qty_value))}</td>
-              <td class="num">${escapeHtml(formatCurrencyINR(row.avg_rate_value))}</td>
-              <td class="num">${escapeHtml(formatCurrencyINR(row.stock_value))}</td>
-              <td>${escapeHtml(formatInventoryClassification(row) || "-")}</td>
-            </tr>
-          `,
-        ).join("")}
+        ${rows.map((row) => {
+          const sub = formatInventoryClassification(row);
+          return `
+          <tr>
+            <td>${escapeHtml(row.code || "-")}</td>
+            <td>${escapeHtml(row.item_name || "-")}${sub ? `<div class="ei-cell-sub">${escapeHtml(sub)}</div>` : ""}</td>
+            <td>${escapeHtml(row.category_label || "Unclassified")}</td>
+            <td class="num">${escapeHtml(orWord(row.qty_value, formatNumberIN))}</td>
+            <td class="num">${escapeHtml(orWord(row.avg_rate_value, formatCurrencyINR, "No rate"))}</td>
+            <td class="num">${escapeHtml(orWord(row.stock_value, formatCurrencyINR))}</td>
+            <td><span class="ei-evidence">${escapeHtml(row.source_label || "-")}</span></td>
+          </tr>`;
+        }).join("")}
       </tbody>
-    </table>
-  `;
-}
-
-function renderInventoryPagination() {
-  const el = $("inventoryPagination");
-  if (!el) return;
-  const totalPages = Math.max(
-    1,
-    Math.ceil(INVENTORY_TOTAL_ROWS / INVENTORY_PAGE_SIZE),
-  );
-  const start = INVENTORY_TOTAL_ROWS
-    ? (INVENTORY_CURRENT_PAGE - 1) * INVENTORY_PAGE_SIZE + 1
-    : 0;
-  const end = Math.min(
-    INVENTORY_CURRENT_PAGE * INVENTORY_PAGE_SIZE,
-    INVENTORY_TOTAL_ROWS,
-  );
-  el.innerHTML = `
-    <span class="inventory-row-count">Showing ${formatIntegerIN(start)}-${formatIntegerIN(end)} of ${formatIntegerIN(INVENTORY_TOTAL_ROWS)} items</span>
-    <div class="inventory-page-controls">
-      <button id="inventoryPrevPage" class="icon-btn" type="button" title="Previous page" aria-label="Previous page" ${INVENTORY_CURRENT_PAGE <= 1 ? "disabled" : ""}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M15 6l-6 6 6 6"></path>
-        </svg>
-      </button>
-      <span>Page ${formatIntegerIN(INVENTORY_CURRENT_PAGE)} / ${formatIntegerIN(totalPages)}</span>
-      <button id="inventoryNextPage" class="icon-btn" type="button" title="Next page" aria-label="Next page" ${INVENTORY_CURRENT_PAGE >= totalPages ? "disabled" : ""}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M9 6l6 6-6 6"></path>
-        </svg>
-      </button>
-    </div>
-  `;
-}
-
-function setInventoryFilter(value) {
-  INVENTORY_FILTER = value || "all";
-  INVENTORY_CURRENT_PAGE = 1;
-  closeInventoryFilterDrawer();
-  loadInventoryItemPage();
-}
-
-function setInventorySearch(value) {
-  const next = String(value || "").trim();
-  if (next === INVENTORY_SEARCH) return;
-  INVENTORY_SEARCH = next;
-  INVENTORY_CURRENT_PAGE = 1;
-  loadInventoryItemPage();
-}
-
-function clearInventorySearch() {
-  INVENTORY_SEARCH = "";
-  INVENTORY_CURRENT_PAGE = 1;
-  renderInventoryToolbar();
-  loadInventoryItemPage();
-}
-
-function goInventoryPrevPage() {
-  if (INVENTORY_CURRENT_PAGE <= 1) return;
-  INVENTORY_CURRENT_PAGE -= 1;
-  loadInventoryItemPage();
-}
-
-function goInventoryNextPage() {
-  const totalPages = Math.max(
-    1,
-    Math.ceil(INVENTORY_TOTAL_ROWS / INVENTORY_PAGE_SIZE),
-  );
-  if (INVENTORY_CURRENT_PAGE >= totalPages) return;
-  INVENTORY_CURRENT_PAGE += 1;
-  loadInventoryItemPage();
-}
-
-async function loadFinishedGoodsTab() {
-  if (!tabPanel) return;
-  FG_ROWS = [];
-  FG_TOTAL_ROWS = 0;
-  FG_IS_LOADING = true;
-  FG_ERROR = "";
-  renderFinishedGoodsTab();
-
-  await Promise.all([loadFinishedGoodsSummary(), loadFinishedGoodsSkuPage()]);
-}
-
-async function loadFinishedGoodsSummary() {
-  const token = beginRequest("fg:summary");
-  const summaryResult = await settle(
-    supabase.from("v_mis_finished_goods_tab_summary").select("*").single(),
-  );
-  if (!isLatestRequest("fg:summary", token)) return;
-
-  if (summaryResult.error) {
-    console.error(
-      "[MIS] Finished Goods summary load failed",
-      summaryResult.error,
-    );
-  } else {
-    FG_SUMMARY = summaryResult.data || null;
-    renderFinishedGoodsScopeNote();
-  }
-}
-
-function renderFinishedGoodsTab() {
-  if (!tabPanel) return;
-  tabPanel.innerHTML = `
-    <div id="fgScopeNote" class="fg-scope-note"></div>
-    <div id="fgToolbar"></div>
-    <div class="fg-table-shell">
-      <div id="fgPagination" class="fg-pagination"></div>
-      <div id="fgSkuTableWrap" class="fg-table-wrap"></div>
-    </div>
-  `;
-  renderFinishedGoodsScopeNote();
-  renderFinishedGoodsToolbar();
-  renderFinishedGoodsSkuTable();
-  renderFinishedGoodsPagination();
-}
-
-function renderFinishedGoodsScopeNote() {
-  const note = $("fgScopeNote");
-  if (!note) return;
-  const s = FG_SUMMARY || {};
-  const scopeLine = `SKUs: ${formatIntegerIN(s.sku_count)} | Stock Value: ${formatCurrencyINR(s.stock_value_overall)} | Zero Stock: ${formatIntegerIN(s.zero_stock_sku_count)} | Below 1 Month: ${formatIntegerIN(s.below_1_month_cover_count)} | Above 6 Months: ${formatIntegerIN(s.above_6_month_cover_count)}`;
-  note.innerHTML = `
-    <div class="fg-scope-line">${escapeHtml(scopeLine)}</div>
-    ${
-      s.finished_goods_scope_note
-        ? `<div class="fg-note-line">${escapeHtml(s.finished_goods_scope_note)}</div>`
-        : ""
-    }
-  `;
-}
-
-function renderFinishedGoodsToolbar() {
-  const toolbar = $("fgToolbar");
-  if (!toolbar) return;
-  const activeFilterCount = FG_FILTER === "all" ? 0 : 1;
-  toolbar.innerHTML = `
-    <div class="fg-toolbar">
-      <div class="fg-search-wrap">
-        <input
-          id="fgSearch"
-          type="text"
-          value="${escapeHtml(FG_SEARCH)}"
-          placeholder="Search SKU, item, or classification"
-          aria-label="Search SKU, item, or classification"
-        />
-        <button
-          id="fgSearchClear"
-          type="button"
-          class="input-clear-btn"
-          title="Clear search"
-          aria-label="Clear search"
-          style="${FG_SEARCH ? "" : "display:none"}"
-        >
-          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-            <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-            <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-          </svg>
-        </button>
-      </div>
-      <div id="fgFilterWrapper" class="fg-filter-wrapper">
-        <button
-          id="fgFilterBtn"
-          type="button"
-          class="fg-filter-btn ${activeFilterCount ? "fg-filter-btn--active" : ""}"
-          title="Filters"
-          aria-label="Filters"
-          aria-haspopup="true"
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-          </svg>
-          <span class="fg-filter-badge" style="${activeFilterCount ? "" : "display:none"}">${activeFilterCount || ""}</span>
-        </button>
-        <div id="fgFilterDrawer" class="fg-filter-drawer" role="dialog" aria-label="Finished Goods filters">
-          <div class="fg-filter-section-title">MOS Status</div>
-          <ul class="fg-filter-list">
-            <li><label><input type="radio" name="fgFilter" value="all" ${FG_FILTER === "all" ? "checked" : ""} /> All</label></li>
-            <li><label><input type="radio" name="fgFilter" value="zero_stock" ${FG_FILTER === "zero_stock" ? "checked" : ""} /> Zero Stock</label></li>
-            <li><label><input type="radio" name="fgFilter" value="below_1_month" ${FG_FILTER === "below_1_month" ? "checked" : ""} /> Below 1 Month</label></li>
-            <li><label><input type="radio" name="fgFilter" value="one_to_three_months" ${FG_FILTER === "one_to_three_months" ? "checked" : ""} /> 1 to 3 Months</label></li>
-            <li><label><input type="radio" name="fgFilter" value="above_6_months" ${FG_FILTER === "above_6_months" ? "checked" : ""} /> Above 6 Months</label></li>
-            <li><label><input type="radio" name="fgFilter" value="normal" ${FG_FILTER === "normal" ? "checked" : ""} /> Normal</label></li>
-            <li><label><input type="radio" name="fgFilter" value="shaded" ${FG_FILTER === "shaded" ? "checked" : ""} /> Same IK/OK MRP</label></li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-async function loadFinishedGoodsSkuPage() {
-  const token = beginRequest("fg:page");
-  FG_IS_LOADING = true;
-  FG_ERROR = "";
-  if (!FG_ROWS.length) renderFinishedGoodsSkuTable();
-
-  setTableLoading(".fg-table-shell", true, "Loading Finished Goods SKUs...");
-
-  const { data, error } = await settle(
-    supabase.rpc("get_mis_finished_goods_sku_page", {
-      p_mos_filter: FG_FILTER,
-      p_search: FG_SEARCH,
-      p_limit: FG_PAGE_SIZE,
-      p_offset: (FG_CURRENT_PAGE - 1) * FG_PAGE_SIZE,
-    }),
-  );
-
-  if (!isLatestRequest("fg:page", token)) return;
-
-  setTableLoading(".fg-table-shell", false);
-  FG_IS_LOADING = false;
-
-  if (error) {
-    console.error("[MIS] Finished Goods SKU page load failed", error);
-    FG_ROWS = [];
-    FG_TOTAL_ROWS = 0;
-    FG_ERROR = errorMessage(error);
-    ACTIVE_TAB_FAILED = true;
-    renderFinishedGoodsSkuTable();
-    renderFinishedGoodsPagination();
-    return;
-  }
-
-  FG_ROWS = Array.isArray(data) ? data : [];
-  FG_TOTAL_ROWS = Number(FG_ROWS[0]?.total_rows ?? FG_ROWS.length) || 0;
-
-  renderToolbarUnlessTyping("fgSearch", renderFinishedGoodsToolbar);
-  renderFinishedGoodsSkuTable();
-  renderFinishedGoodsPagination();
-}
-
-function formatMosStatusLabel(value) {
-  switch (value) {
-    case "ZERO_STOCK":
-      return "Zero Stock";
-    case "BELOW_1_MONTH":
-      return "Below 1 Month";
-    case "ONE_TO_THREE_MONTHS":
-      return "1 to 3 Months";
-    case "ABOVE_6_MONTHS":
-      return "Above 6 Months";
-    case "NORMAL":
-      return "Normal";
-    default:
-      return value || "-";
-  }
-}
-
-function renderFinishedGoodsSkuTable() {
-  const wrap = $("fgSkuTableWrap");
-  if (!wrap) return;
-
-  if (!FG_ROWS.length) {
-    wrap.innerHTML = renderTableState("fg", {
-      loading: FG_IS_LOADING,
-      error: FG_ERROR,
-      loadingText: "Preparing Finished Goods table...",
-      emptyText: "No SKUs found.",
-      errorText: "Failed to load Finished Goods SKUs.",
-      retryKey: "finished-goods",
-    });
-    return;
-  }
-
-  wrap.innerHTML = `
+    </table>`,
+  fg: (rows) => `
     <table class="fg-table">
-      <thead>
-        <tr>
-          <th>Item</th>
-          <th>Pack</th>
-          <th class="num">Stock</th>
-          <th class="num">Forecast</th>
-          <th class="num">MOS</th>
-          <th class="num">Stock Value</th>
-          <th>Status</th>
-          <th>Classification</th>
-        </tr>
-      </thead>
+      <thead><tr>${th("Item")}${th("Pack")}${th("Stock", true)}${th("Forecast", true)}${th("MOS", true)}${th("Stock Value", true)}${th("Status")}${th("Classification")}</tr></thead>
       <tbody>
-        ${FG_ROWS.map(
-          (row) => {
-            const pack = [row.pack_size, row.uom]
-              .filter((value) => value != null && String(value).trim() !== "")
-              .join(" ");
-            return `
-              <tr>
-                <td>${escapeHtml(row.item || "-")}</td>
-                <td>${escapeHtml(pack || "-")}</td>
-                <td class="num">${escapeHtml(formatNumberIN(row.stock_overall))}</td>
-                <td class="num">${escapeHtml(formatNumberIN(row.forecast_overall))}</td>
-                <td class="num">${escapeHtml(formatNumberIN(row.mos_overall))}</td>
-                <td class="num">${escapeHtml(formatCurrencyINR(row.stock_value_overall))}</td>
-                <td>${escapeHtml(formatMosStatusLabel(row.mos_status))}</td>
-                <td>${escapeHtml(row.classification || "-")}</td>
-              </tr>
-            `;
-          },
-        ).join("")}
+        ${rows.map((row) => {
+          const pack = [row.pack_size, row.uom].filter((v) => v != null && String(v).trim() !== "").join(" ");
+          return `
+          <tr>
+            <td>${escapeHtml(row.item || "-")}</td>
+            <td>${escapeHtml(pack || "-")}</td>
+            <td class="num">${escapeHtml(formatNumberIN(row.stock_overall))}</td>
+            <td class="num">${escapeHtml(formatNumberIN(row.forecast_overall))}</td>
+            <td class="num">${escapeHtml(formatNumberIN(row.mos_overall))}</td>
+            <td class="num">${escapeHtml(formatCurrencyINR(row.stock_value_overall))}</td>
+            <td>${escapeHtml(formatMosStatusLabel(row.mos_status))}</td>
+            <td>${escapeHtml(row.classification || "-")}</td>
+          </tr>`;
+        }).join("")}
       </tbody>
-    </table>
-  `;
-}
+    </table>`,
+};
 
-function renderFinishedGoodsPagination() {
-  const el = $("fgPagination");
-  if (!el) return;
-  const totalPages = Math.max(1, Math.ceil(FG_TOTAL_ROWS / FG_PAGE_SIZE));
-  const start = FG_TOTAL_ROWS
-    ? (FG_CURRENT_PAGE - 1) * FG_PAGE_SIZE + 1
-    : 0;
-  const end = Math.min(FG_CURRENT_PAGE * FG_PAGE_SIZE, FG_TOTAL_ROWS);
-  el.innerHTML = `
-    <span class="fg-row-count">Showing ${formatIntegerIN(start)}-${formatIntegerIN(end)} of ${formatIntegerIN(FG_TOTAL_ROWS)} SKUs</span>
-    <div class="fg-page-controls">
-      <button id="fgPrevPage" class="icon-btn" type="button" title="Previous page" aria-label="Previous page" ${FG_CURRENT_PAGE <= 1 ? "disabled" : ""}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M15 6l-6 6 6 6"></path>
-        </svg>
-      </button>
-      <span>Page ${formatIntegerIN(FG_CURRENT_PAGE)} / ${formatIntegerIN(totalPages)}</span>
-      <button id="fgNextPage" class="icon-btn" type="button" title="Next page" aria-label="Next page" ${FG_CURRENT_PAGE >= totalPages ? "disabled" : ""}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M9 6l6 6-6 6"></path>
-        </svg>
-      </button>
-    </div>
-  `;
-}
-
-function setFinishedGoodsFilter(value) {
-  FG_FILTER = value || "all";
-  FG_CURRENT_PAGE = 1;
-  closeFinishedGoodsFilterDrawer();
-  loadFinishedGoodsSkuPage();
-}
-
-function setFinishedGoodsSearch(value) {
-  const next = String(value || "").trim();
-  if (next === FG_SEARCH) return;
-  FG_SEARCH = next;
-  FG_CURRENT_PAGE = 1;
-  loadFinishedGoodsSkuPage();
-}
-
-function clearFinishedGoodsSearch() {
-  FG_SEARCH = "";
-  FG_CURRENT_PAGE = 1;
-  renderFinishedGoodsToolbar();
-  loadFinishedGoodsSkuPage();
-}
-
-function goFinishedGoodsPrevPage() {
-  if (FG_CURRENT_PAGE <= 1) return;
-  FG_CURRENT_PAGE -= 1;
-  loadFinishedGoodsSkuPage();
-}
-
-function goFinishedGoodsNextPage() {
-  const totalPages = Math.max(1, Math.ceil(FG_TOTAL_ROWS / FG_PAGE_SIZE));
-  if (FG_CURRENT_PAGE >= totalPages) return;
-  FG_CURRENT_PAGE += 1;
-  loadFinishedGoodsSkuPage();
-}
+const loadFinanceTab = () => loadListTab("finance");
+const loadSalesTab = () => loadListTab("sales");
+const loadInventoryTab = () => loadListTab("inventory");
+const loadFinishedGoodsTab = () => loadListTab("fg");
 
 // The Production tab is two independent sections: the canonical monetary section (mounted at once)
 // and the subordinate legacy counts section. Each has its own request key, state, error and retry.
@@ -1890,9 +1392,19 @@ const PRODUCTION_COUNT_FIELDS = Object.freeze([
 
 function renderProductionShell() {
   tabPanel.innerHTML = `
-    ${renderProductionValueSection()}
-    ${renderEvidenceShell()}
-    <div id="productionCounts" class="production-counts"></div>
+    <div class="ei-lens ei-lens-production">
+      ${lensHeadHtml("Production Performance")}
+      <div id="productionPlanNotice">${planningNoticeHtml(LAST_SUMMARY_ROW)}</div>
+      <section class="ei-section" aria-labelledby="eiProdLive">
+        <h3 class="ei-section-title" id="eiProdLive">Live batch position <span class="ei-asof">Current state, not month-bound</span></h3>
+        <div id="productionCounts" class="production-counts"></div>
+      </section>
+      ${renderProductionValueSection()}
+      <section class="ei-section" aria-labelledby="eiProdExceptions">
+        <h3 class="ei-section-title" id="eiProdExceptions">Exceptions and evidence</h3>
+        ${renderEvidenceShell()}
+      </section>
+    </div>
   `;
   renderProductionValueBody();
   renderProductionCountsBody();
@@ -2169,7 +1681,8 @@ function renderProductionValueBody() {
         ${policy ? `<li>${escapeHtml(policy)}</li>` : ""}
         <li>Receipts use legacy physical storage postings; a stored receipt is not a formal batch completion.</li>
         <li>Tally book value is a separate accounting basis and is not comparable with the reference-cost figures.</li>
-        <li>The top-of-page "Transferred to Finished Goods Value" card comes from the executive summary snapshot, not from this report; the two sources can differ.</li>
+        <li>The Overview "Transferred to Finished Goods Value" indicator comes from the executive summary snapshot, not from this report; the two sources can differ.</li>
+        <li>Planned bulk value and plan achievement stay unavailable until a governed frozen plan exists. Verified completed production is deferred to the Production Work Log; receipts and Tally book value are never presented as completion.</li>
         <li>Physical quantities in Kg, L and Nos are never added together.</li>
       </ul>
     </details>`;
@@ -2183,7 +1696,7 @@ function renderProductionValueSection() {
   return `
     <section class="pv" id="productionValueSection" aria-labelledby="pvHeading">
       <div class="pv-head">
-        <h2 class="pv-heading" id="pvHeading">Production value</h2>
+        <h3 class="pv-heading ei-section-title" id="pvHeading">Production value <span class="ei-asof">Selected period</span></h3>
         <div class="pv-controls">
           <label class="pv-field"><span>Month</span>
             <select id="pvMonth" class="pv-input">${opts
@@ -2265,11 +1778,11 @@ function renderProductionCountsBody() {
   const st = LIVE_PIPELINE;
   host.setAttribute("aria-busy", st.status === "loading" ? "true" : "false");
   if (st.status === "loading" || st.status === "idle") {
-    host.innerHTML = `<div class="production-summary-heading">Live batch pipeline &mdash; current state</div><div class="pv-state" role="status"><span class="table-loading-spinner" aria-hidden="true"></span> Loading batch counts...</div>`;
+    host.innerHTML = `<div class="pv-state" role="status"><span class="table-loading-spinner" aria-hidden="true"></span> Loading batch counts...</div>`;
     return;
   }
   if (st.status === "error") {
-    host.innerHTML = `<div class="production-summary-heading">Live batch pipeline &mdash; current state</div><div class="pv-state error" role="alert">Failed to load production batch counts. ${escapeHtml(st.message)} <button type="button" class="mis-retry-btn" data-mis-retry="production-counts">Retry</button></div>`;
+    host.innerHTML = `<div class="pv-state error" role="alert">Failed to load production batch counts. ${escapeHtml(st.message)} <button type="button" class="mis-retry-btn" data-mis-retry="production-counts">Retry</button></div>`;
     return;
   }
   const s = st.data || {};
@@ -2288,8 +1801,7 @@ function renderProductionCountsBody() {
   ];
 
   host.innerHTML = `
-    <div class="production-summary-heading">Live batch pipeline &mdash; current state</div>
-    <div class="production-scope-note">Live counts of batches as they stand now${st.asOf ? ` (loaded ${escapeHtml(formatDateTimeIN(st.asOf))})` : ""}; the headline production cards use this same response. The executive-summary snapshot elsewhere on this page has its own refresh time. They are not tied to the report month selected above, which applies only to the production value section.</div>
+    <div class="production-scope-note">Batches as they stand now${st.asOf ? `, loaded ${escapeHtml(formatDateTimeIN(st.asOf))}` : ""}. The Overview uses this same response. Not tied to the report month selected below.</div>
     <div class="production-summary-grid">
       ${cards
         .map(
@@ -2305,90 +1817,59 @@ function renderProductionCountsBody() {
   `;
 }
 
-function openFinanceFilterDrawer() {
-  const drawer = $("financeFilterDrawer");
-  const btn = $("financeFilterBtn");
-  if (!drawer || !btn) return;
-  drawer.classList.add("open");
-  btn.setAttribute("aria-expanded", "true");
+// ---------------------------------------------------------------------------
+// Filter drawers: anchored popover on wide screens, full-page sheet on phones (CSS decides). One implementation for all
+// lenses: focus moves in on open and back to the trigger on close; Escape closes the topmost layer only.
+// ---------------------------------------------------------------------------
+const FILTER_LISTS = ["finance", "inventory", "fg"];
+const isPhoneSheet = () => !!window.matchMedia?.("(max-width: 640px)").matches;
+
+function filterDrawerOf(p) {
+  return { drawer: $(`${p}FilterDrawer`), btn: $(`${p}FilterBtn`) };
 }
 
-function closeFinanceFilterDrawer() {
-  const drawer = $("financeFilterDrawer");
-  const btn = $("financeFilterBtn");
+function openFilterDrawerList() {
+  return FILTER_LISTS.find((p) => filterDrawerOf(p).drawer?.classList.contains("open")) || "";
+}
+
+function closeFilterDrawer(p, { restoreFocus = false } = {}) {
+  const { drawer, btn } = filterDrawerOf(p);
   if (!drawer || !btn) return;
+  const hadFocus = drawer.contains(document.activeElement);
   drawer.classList.remove("open");
   btn.setAttribute("aria-expanded", "false");
+  if (!openFilterDrawerList()) document.body.classList.remove("ei-sheet-open");
+  if (restoreFocus || hadFocus) btn.focus();
 }
 
-function toggleFinanceFilterDrawer() {
-  const drawer = $("financeFilterDrawer");
-  if (!drawer) return;
-  if (drawer.classList.contains("open")) closeFinanceFilterDrawer();
-  else openFinanceFilterDrawer();
+function closeAllFilterDrawers(exceptP = "") {
+  FILTER_LISTS.forEach((p) => {
+    if (p !== exceptP) closeFilterDrawer(p);
+  });
 }
 
-function openInventoryFilterDrawer() {
-  const drawer = $("inventoryFilterDrawer");
-  const btn = $("inventoryFilterBtn");
+function openFilterDrawer(p) {
+  const { drawer, btn } = filterDrawerOf(p);
   if (!drawer || !btn) return;
+  closeAllFilterDrawers(p);
   drawer.classList.add("open");
   btn.setAttribute("aria-expanded", "true");
+  const sheet = isPhoneSheet();
+  drawer.setAttribute("aria-modal", sheet ? "true" : "false");
+  document.body.classList.toggle("ei-sheet-open", sheet);
+  (drawer.querySelector('input[type="radio"]:checked:not(:disabled)') || drawer.querySelector("input:not(:disabled)") || drawer.querySelector("button"))?.focus?.();
 }
 
-function closeInventoryFilterDrawer() {
-  const drawer = $("inventoryFilterDrawer");
-  const btn = $("inventoryFilterBtn");
-  if (!drawer || !btn) return;
-  drawer.classList.remove("open");
-  btn.setAttribute("aria-expanded", "false");
-}
-
-function toggleInventoryFilterDrawer() {
-  const drawer = $("inventoryFilterDrawer");
+function toggleFilterDrawer(p) {
+  const { drawer } = filterDrawerOf(p);
   if (!drawer) return;
-  if (drawer.classList.contains("open")) closeInventoryFilterDrawer();
-  else openInventoryFilterDrawer();
+  if (drawer.classList.contains("open")) closeFilterDrawer(p, { restoreFocus: true });
+  else openFilterDrawer(p);
 }
 
-function openFinishedGoodsFilterDrawer() {
-  const drawer = $("fgFilterDrawer");
-  const btn = $("fgFilterBtn");
-  if (!drawer || !btn) return;
-  drawer.classList.add("open");
-  btn.setAttribute("aria-expanded", "true");
-}
-
-function closeFinishedGoodsFilterDrawer() {
-  const drawer = $("fgFilterDrawer");
-  const btn = $("fgFilterBtn");
-  if (!drawer || !btn) return;
-  drawer.classList.remove("open");
-  btn.setAttribute("aria-expanded", "false");
-}
-
-function toggleFinishedGoodsFilterDrawer() {
-  const drawer = $("fgFilterDrawer");
-  if (!drawer) return;
-  if (drawer.classList.contains("open")) closeFinishedGoodsFilterDrawer();
-  else openFinishedGoodsFilterDrawer();
-}
-
-const debouncedSetFinanceSearch = debounce((value) => {
-  setFinanceSearch(value);
-}, 250);
-
-const debouncedSetSalesSearch = debounce((value) => {
-  setSalesSearch(value);
-}, 250);
-
-const debouncedSetInventorySearch = debounce((value) => {
-  setInventorySearch(value);
-}, 250);
-
-const debouncedSetFinishedGoodsSearch = debounce((value) => {
-  setFinishedGoodsSearch(value);
-}, 250);
+const DEBOUNCED_SEARCH = Object.fromEntries(
+  Object.keys(LISTS).map((p) => [p, debounce((value) => setListSearch(p, value), 250)]),
+);
 
 function isFinanceModalOpen() {
   return !!financeModalOverlay && !financeModalOverlay.classList.contains("hidden");
@@ -2482,19 +1963,65 @@ function closeFinanceModal() {
   FINANCE_LAST_FOCUS = null;
 }
 
+function focusLensPanel() {
+  if (!tabPanel) return;
+  tabPanel.setAttribute("tabindex", "-1");
+  tabPanel.focus({ preventScroll: false });
+}
+
+function trapTab(container, ev) {
+  const focusable = [
+    ...container.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'),
+  ].filter((el) => el.offsetParent !== null);
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (!container.contains(document.activeElement)) {
+    ev.preventDefault();
+    first.focus();
+  } else if (ev.shiftKey && document.activeElement === first) {
+    ev.preventDefault();
+    last.focus();
+  } else if (!ev.shiftKey && document.activeElement === last) {
+    ev.preventDefault();
+    first.focus();
+  }
+}
+
 function wireEvents() {
-  refreshBtn?.addEventListener("click", loadExecutiveSummary);
+  refreshBtn?.addEventListener("click", () => loadExecutiveSummary());
   $("homeBtn")?.addEventListener("click", () => Platform.goHome());
   detailTabs?.addEventListener("click", (ev) => {
     const btn = ev.target.closest(".pill");
     if (!btn) return;
     selectTab(btn.getAttribute("data-tab"));
   });
+  // Roving tabindex: arrows move focus between lens tabs; Enter/Space (native button) selects.
+  detailTabs?.addEventListener("keydown", (ev) => {
+    const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
+    if (!keys.includes(ev.key)) return;
+    const tabs = [...detailTabs.querySelectorAll(".pill")];
+    const i = tabs.indexOf(document.activeElement);
+    if (i < 0) return;
+    ev.preventDefault();
+    const next = ev.key === "Home" ? 0 : ev.key === "End" ? tabs.length - 1 : (i + (ev.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    tabs.forEach((t, k) => t.setAttribute("tabindex", k === next ? "0" : "-1"));
+    tabs[next].focus();
+  });
   detailTabSelect?.addEventListener("change", () => {
     selectTab(detailTabSelect.value);
   });
+  window.addEventListener("hashchange", () => {
+    const next = lensFromHash(window.location.hash);
+    if (next !== ACTIVE_TAB) selectTab(next);
+  });
   tabPanel?.addEventListener("change", (ev) => {
-    if (ev.target.id === "pvMonth" || ev.target.id === "pvAsOf") onProductionValueControlChange(ev);
+    if (ev.target.id === "pvMonth" || ev.target.id === "pvAsOf") {
+      onProductionValueControlChange(ev);
+      return;
+    }
+    const m = /^(finance|inventory|fg)Filter$/.exec(ev.target?.name || "");
+    if (m) setListFilter(m[1], ev.target.value);
   });
   tabPanel?.addEventListener("click", (ev) => {
     if (ev.target.closest("[data-pv-asof-clear]")) {
@@ -2504,149 +2031,58 @@ function wireEvents() {
     const retryBtn = ev.target.closest("[data-mis-retry]");
     if (retryBtn) {
       const retryKey = retryBtn.getAttribute("data-mis-retry");
-      if (retryKey === "production-value") {
-        loadProductionValue();
-        return;
-      }
-      if (retryKey === "production-counts") {
-        loadProductionCounts({ force: true });
-        return;
-      }
-      loadActiveTab();
+      if (retryKey === "production-value") loadProductionValue();
+      else if (retryKey === "production-counts") loadProductionCounts({ force: true });
+      else if (retryKey === "summary") loadExecutiveSummary({ reloadLens: false });
+      else loadActiveTab();
       return;
     }
-
-    const filterBtn = ev.target.closest("#financeFilterBtn");
-    if (filterBtn) {
+    const link = ev.target.closest("[data-lens-link]");
+    if (link) {
+      ev.preventDefault();
+      selectTab(link.getAttribute("data-lens-link"));
+      focusLensPanel();
+      return;
+    }
+    const kpiBtn = ev.target.closest(".kpi-info-btn");
+    if (kpiBtn) {
       ev.stopPropagation();
-      toggleFinanceFilterDrawer();
+      openKpiPopover(kpiBtn);
       return;
     }
-
-    const inventoryFilterBtn = ev.target.closest("#inventoryFilterBtn");
-    if (inventoryFilterBtn) {
-      ev.stopPropagation();
-      toggleInventoryFilterDrawer();
-      return;
-    }
-
-    const fgFilterBtn = ev.target.closest("#fgFilterBtn");
-    if (fgFilterBtn) {
-      ev.stopPropagation();
-      toggleFinishedGoodsFilterDrawer();
-      return;
-    }
-
-    const clearBtn = ev.target.closest("#financeSearchClear");
-    if (clearBtn) {
-      clearFinanceSearch();
-      return;
-    }
-
-    const salesClearBtn = ev.target.closest("#salesSearchClear");
-    if (salesClearBtn) {
-      clearSalesSearch();
-      return;
-    }
-
-    const inventoryClearBtn = ev.target.closest("#inventorySearchClear");
-    if (inventoryClearBtn) {
-      clearInventorySearch();
-      return;
-    }
-
-    const fgClearBtn = ev.target.closest("#fgSearchClear");
-    if (fgClearBtn) {
-      clearFinishedGoodsSearch();
-      return;
-    }
-
-    const prevBtn = ev.target.closest("#financePrevPage");
-    if (prevBtn) {
-      goFinancePrevPage();
-      return;
-    }
-
-    const nextBtn = ev.target.closest("#financeNextPage");
-    if (nextBtn) {
-      goFinanceNextPage();
-      return;
-    }
-
-    const salesPrevBtn = ev.target.closest("#salesPrevPage");
-    if (salesPrevBtn) {
-      goSalesPrevPage();
-      return;
-    }
-
-    const salesNextBtn = ev.target.closest("#salesNextPage");
-    if (salesNextBtn) {
-      goSalesNextPage();
-      return;
-    }
-
-    const inventoryPrevBtn = ev.target.closest("#inventoryPrevPage");
-    if (inventoryPrevBtn) {
-      goInventoryPrevPage();
-      return;
-    }
-
-    const inventoryNextBtn = ev.target.closest("#inventoryNextPage");
-    if (inventoryNextBtn) {
-      goInventoryNextPage();
-      return;
-    }
-
-    const fgPrevBtn = ev.target.closest("#fgPrevPage");
-    if (fgPrevBtn) {
-      goFinishedGoodsPrevPage();
-      return;
-    }
-
-    const fgNextBtn = ev.target.closest("#fgNextPage");
-    if (fgNextBtn) {
-      goFinishedGoodsNextPage();
+    const act = ev.target.closest("[data-act]");
+    if (!act) return;
+    const p = act.getAttribute("data-list");
+    switch (act.getAttribute("data-act")) {
+      case "filter-toggle":
+        ev.stopPropagation();
+        toggleFilterDrawer(p);
+        break;
+      case "drawer-close":
+        closeFilterDrawer(p, { restoreFocus: true });
+        break;
+      case "search-clear":
+        clearListSearch(p);
+        break;
+      case "prev":
+        goListPage(p, -1);
+        break;
+      case "next":
+        goListPage(p, 1);
+        break;
+      default:
     }
   });
   tabPanel?.addEventListener("input", (ev) => {
-    const clearId = {
-      financeSearch: "financeSearchClear",
-      salesSearch: "salesSearchClear",
-      inventorySearch: "inventorySearchClear",
-      fgSearch: "fgSearchClear",
-    }[ev.target?.id];
-    if (clearId) {
-      const clearBtn = $(clearId);
-      if (clearBtn) clearBtn.style.display = ev.target.value ? "" : "none";
-    }
-    if (ev.target?.id === "financeSearch") {
-      debouncedSetFinanceSearch(ev.target.value);
-    } else if (ev.target?.id === "salesSearch") {
-      debouncedSetSalesSearch(ev.target.value);
-    } else if (ev.target?.id === "inventorySearch") {
-      debouncedSetInventorySearch(ev.target.value);
-    } else if (ev.target?.id === "fgSearch") {
-      debouncedSetFinishedGoodsSearch(ev.target.value);
-    }
+    const m = /^(finance|sales|inventory|fg)Search$/.exec(ev.target?.id || "");
+    if (!m) return;
+    const clearBtn = $(`${m[1]}SearchClear`);
+    if (clearBtn) clearBtn.style.display = ev.target.value ? "" : "none";
+    DEBOUNCED_SEARCH[m[1]](ev.target.value);
   });
-  tabPanel?.addEventListener("change", (ev) => {
-    if (ev.target?.name === "financeFilter") {
-      setFinanceFilter(ev.target.value);
-    } else if (ev.target?.name === "inventoryFilter") {
-      setInventoryFilter(ev.target.value);
-    } else if (ev.target?.name === "fgFilter") {
-      setFinishedGoodsFilter(ev.target.value);
-    }
-  });
-  kpiGrid?.addEventListener("click", (ev) => {
-    const btn = ev.target.closest(".kpi-info-btn");
-    if (!btn) return;
-    ev.stopPropagation();
-    openKpiPopover(btn);
-  });
-  kpiGrid?.addEventListener("mouseover", (ev) => {
+  tabPanel?.addEventListener("mouseover", (ev) => {
     if (!window.matchMedia?.("(hover: hover)").matches) return;
-    const btn = ev.target.closest(".kpi-info-btn");
+    const btn = ev.target.closest?.(".kpi-info-btn");
     if (!btn) return;
     openKpiPopover(btn, false);
   });
@@ -2664,66 +2100,38 @@ function wireEvents() {
     }
   });
   document.addEventListener("click", (ev) => {
-    const filterWrapper = $("financeFilterWrapper");
-    if (filterWrapper && !filterWrapper.contains(ev.target)) {
-      closeFinanceFilterDrawer();
-    }
-    const inventoryFilterWrapper = $("inventoryFilterWrapper");
-    if (
-      inventoryFilterWrapper &&
-      !inventoryFilterWrapper.contains(ev.target)
-    ) {
-      closeInventoryFilterDrawer();
-    }
-    const fgFilterWrapper = $("fgFilterWrapper");
-    if (fgFilterWrapper && !fgFilterWrapper.contains(ev.target)) {
-      closeFinishedGoodsFilterDrawer();
-    }
+    // Desktop: a click outside an open filter popover closes it. (The phone sheet covers the page.)
+    FILTER_LISTS.forEach((p) => {
+      const wrap = $(`${p}FilterWrapper`);
+      if (wrap && !wrap.contains(ev.target)) closeFilterDrawer(p);
+    });
     if (!ACTIVE_POPOVER) return;
     if (ACTIVE_POPOVER.contains(ev.target)) return;
     if (ACTIVE_INFO_BUTTON && ACTIVE_INFO_BUTTON.contains(ev.target)) return;
     closeKpiPopover();
   });
   document.addEventListener("keydown", (ev) => {
-    if (ev.key === "Tab" && isFinanceModalOpen()) {
-      const focusable = [
-        ...financeModalOverlay.querySelectorAll(
-          'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        ),
-      ].filter((el) => el.offsetParent !== null);
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (!financeModalOverlay.contains(document.activeElement)) {
-        ev.preventDefault();
-        first.focus();
-      } else if (ev.shiftKey && document.activeElement === first) {
-        ev.preventDefault();
-        last.focus();
-      } else if (!ev.shiftKey && document.activeElement === last) {
-        ev.preventDefault();
-        first.focus();
+    if (ev.key === "Tab") {
+      if (isFinanceModalOpen()) {
+        trapTab(financeModalOverlay, ev);
+        return;
       }
+      const open = openFilterDrawerList();
+      if (open && isPhoneSheet()) trapTab(filterDrawerOf(open).drawer, ev);
       return;
     }
-    if (ev.key === "Escape") {
-      // If focus is inside an open filter drawer, hand it back to its button.
-      [
-        ["financeFilterDrawer", "financeFilterBtn"],
-        ["inventoryFilterDrawer", "inventoryFilterBtn"],
-        ["fgFilterDrawer", "fgFilterBtn"],
-      ].forEach(([drawerId, btnId]) => {
-        const drawer = $(drawerId);
-        if (drawer?.classList.contains("open") && drawer.contains(document.activeElement)) {
-          $(btnId)?.focus();
-        }
-      });
-      closeKpiPopover();
-      closeFinanceFilterDrawer();
-      closeInventoryFilterDrawer();
-      closeFinishedGoodsFilterDrawer();
+    if (ev.key !== "Escape") return;
+    // Escape closes the topmost layer only: bill-detail modal, then a filter drawer/sheet, then an info popover.
+    if (isFinanceModalOpen()) {
       closeFinanceModal();
+      return;
     }
+    const open = openFilterDrawerList();
+    if (open) {
+      closeFilterDrawer(open, { restoreFocus: true });
+      return;
+    }
+    closeKpiPopover();
   });
   financeModalClose?.addEventListener("click", closeFinanceModal);
   financeModalOverlay?.addEventListener("click", (ev) => {
@@ -2747,10 +2155,7 @@ function debounce(fn, wait) {
 // A debounced search typed just before a tab switch must not fire into the
 // next panel; the rebuilt toolbar renders from committed state anyway.
 function cancelPendingSearches() {
-  debouncedSetFinanceSearch.cancel();
-  debouncedSetSalesSearch.cancel();
-  debouncedSetInventorySearch.cancel();
-  debouncedSetFinishedGoodsSearch.cancel();
+  Object.values(DEBOUNCED_SEARCH).forEach((d) => d.cancel());
 }
 
 (async function init() {
@@ -2779,4 +2184,3 @@ function cancelPendingSearches() {
   updateFreshnessIndicator();
   await loadExecutiveSummary();
 })();
-

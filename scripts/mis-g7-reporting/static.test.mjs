@@ -36,8 +36,9 @@ test("reporting client is read-only: no writer RPC, no table write, no service r
 });
 
 test("dashboard cache keys are bumped so installed PWAs never pair new HTML with the cached old script (service worker untouched)", () => {
-  const html = read("public/shared/executive-mis-dashboard.html"); assert.match(html, /executive-mis-dashboard\.js\?mis-c1=g7r-pipeline-1/);
+  const html = read("public/shared/executive-mis-dashboard.html"); assert.match(html, /executive-mis-dashboard\.js\?mis-c1=ei-r2-1/);
   assert.match(read("public/shared/js/executive-mis-dashboard.js"), /from "\.\/mis-evidence-report\.js\?mis-g7r=1"/);
+  assert.match(read("public/shared/js/executive-mis-dashboard.js"), /from "\.\/executive-intelligence-model\.js\?ei-r2=1"/);
 });
 
 test("theme: reporting CSS additions use semantic tokens only", () => {

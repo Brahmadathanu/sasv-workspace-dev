@@ -25,7 +25,7 @@ test("publish root is public/, so the dashboard URL is /shared/... and /public/s
   assert.equal(reg.normalizeClientRoute("public/shared/executive-mis-dashboard.html", "electron"), "public/shared/executive-mis-dashboard.html");
   // page-relative asset references resolve under the same root
   const html = read("public/shared/executive-mis-dashboard.html");
-  assert.match(html, /src="js\/executive-mis-dashboard\.js"/);
+  assert.match(html, /src="js\/executive-mis-dashboard\.js(?:\?[^"]*)?"/);
   assert.ok(fs.existsSync(path.join(root, "public/shared/css/style.css")));
 });
 
