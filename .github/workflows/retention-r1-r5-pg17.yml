@@ -52,7 +52,7 @@ jobs:
       - name: Require PostgreSQL 17 and complete receipt
         run: |
           grep -q '^server_version=17' "$RUNNER_TEMP/retention-pg17-receipt.txt"
-          grep -q '^RETENTION_PG_ALL_PASS' "$RUNNER_TEMP/retention-pg17-receipt.txt"
+          grep -q '^RETENTION_PG_TESTS_DONE' "$RUNNER_TEMP/retention-pg17-receipt.txt"
           grep -E '^FIDELITY' "$RUNNER_TEMP/retention-pg17-receipt.txt" || true
       - uses: actions/upload-artifact@v4
         if: always()

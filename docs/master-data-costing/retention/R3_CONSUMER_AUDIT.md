@@ -1,0 +1,18 @@
+# R3 — run-selection / detail consumer audit (PR #491, Issue #539)
+
+Basis: repository migrations and client code at this branch, NOT the live catalog. `preflight/PREFLIGHT_03_consumer_inventory.sql` produces the authoritative live list.
+
+## Enforced now (tested, PG)
+| Consumer class | Mechanism | Effect when a run's detail is purged / purging / incomplete |
+|---|---|---|
+| ~39 current-run projections (every view/RPC that goes through `costing.v_current_successful_costing_refresh_run`, e.g. PPM/PM-trace/RM explain/QC/materials-stores explain, CSR printable, pricing dashboard summary, price-revision master, profit chain v3) | R3 replaces the pointer view: ranking unchanged, then `detail_state` must be available | Period shows **no current run**; never silently another draft/period. |
+| Approval and supersession preflight (`costing.fn_w2_run_checks`, used by `rpc_costing_preflight_run`, `rpc_costing_approve_run`, supersede, month-end finalisation) | Anchor-patched check `DETAILS_AVAILABLE` | A purged/incomplete run cannot be approved; message names the state. |
+| UI | `public.rpc_costing_run_detail_availability(run)` + `costing-run-detail-availability.js` (fail-closed, no fallback) | Explicit unavailable payload with reason. |
+| Exact-run RPC authors | `costing.fn_assert_run_details_available(run)` raises `RUN_DETAILS_UNAVAILABLE` | Opt-in helper. |
+
+Pricing authority: approved September 122 and October 143 are designated, so R4 refuses them unconditionally (`DESIGNATION_HISTORY`, `APPROVED_POINTER`); R5 reports them `RETAIN`. November has no approved run; the pointer keeps its **existing labelled** `LATEST_SUCCESS` behaviour ("DRAFT run N – not approved"). R3 does not promote or hide it; R5 protects all current-month detail.
+
+## NOT yet wired (blocked on live definitions) — precise list
+46 distinct repo functions take a run-id parameter (list: `rpc_refresh_*` writers, `fn_preview_*` readiness/gate previews, `fn_build_sku_pm_cost_as_of`, `fn_build_product_rm_cost_as_of`, `fn_simulate_preferred_batch_*`, `fn_ci037_fill_pricing_bridge_profit`, `fn_verify/compute_run_fingerprint`, `rpc_get_product_sku_readiness`, `fn_product_sku_readiness_enrich`, …). Exact-run reads of a **purged** run return **zero rows** (not an error) unless they call the assert helper. Consumers needing the helper before the first production purge of a run a user can still open: the exact-run cost-sheet and comparison reads (`v_sku_detailed_cost_sheet` by `refresh_run_id`), `fn_verify_run_fingerprint` (purged run reports drifted tables; harmless because purged runs are non-approved by construction), and the client screens that take a user-chosen run: `costing-suite-cost-sheet.js` (45 `refresh_run_id` uses), `costing-suite-material-cost.js`, `costing-suite-production-route*.js`, `costing-suite-*-explain-helpers.js`, `costing-approval-screen.js`, `costing-run-status-screen.js`, `costing-review-worklist.js`, `costing-cost-comparison-read.js`, `costing-draft-run-evidence*.js`.
+**Interim safe behaviour:** R4 purges only runs that are neither displayed nor approved inside the retention window, so a normally navigable run is never purged. Runs outside the window that were an unapproved displayed draft become "no current run" (explicit). Wiring the client screens is a follow-on UI change (the module and its 6 tests are ready); do not enable `purge_enabled` for runs reachable by deep link until the cost-sheet and comparison screens call `fetchRunDetailAvailability`.
+Known informational leak: `v_costing_period_run_status.newer_draft_run_id` can name a purged draft label ("newer DRAFT run N"); that view is md5-pinned by W2 and was not rewritten.

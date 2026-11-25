@@ -164,3 +164,12 @@ DO $$ BEGIN
 END $$;
 COMMIT;
 -- Legacy snapshot FKs remain until R2C.
+-- ROLLBACK (only before R2C; afterwards the permanent evidence is the sole record and must be kept):
+--   per table t in (regional_marketing_evidence_acceptance, sales_allocation_quantity_driver_acceptance):
+--     DROP TRIGGER a_governance_evidence_prepare, z_governance_evidence_record, governance_evidence_link_assert,
+--                  governance_evidence_no_delete, governance_evidence_no_truncate ON costing.t;
+--     ALTER TABLE costing.t DROP CONSTRAINT <regional_acceptance|sales_acceptance>_permanent_evidence_fk,
+--                  DROP COLUMN governance_category, DROP COLUMN governance_event_id;
+--   DROP FUNCTION costing_retention.fn_evidence_prepare(), fn_evidence_record(), fn_evidence_link_assert(), fn_evidence_reject_delete(),
+--                 fn_regional_source_ok(...), fn_sales_source_ok(...), fn_acceptance_source_findings();
+--   Keep costing.governance_evidence_event (append-only provenance).

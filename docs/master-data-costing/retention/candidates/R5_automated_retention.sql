@@ -1,25 +1,15 @@
 -- R5: automated month-turnover retention planner + resumable tick. Apply after R4. PostgreSQL 17.
 -- Installs functions/tables only. It does NOT create or alter any cron job. Scheduling is a separate, later, owner-gated step
 -- (see ../DEPLOYMENT_SEQUENCE.md; proposed statement is documentation only). Default mode of every entry point is DRY_RUN.
--- Policy (owner decision, 25 Nov 2026): November 2026 is the first authoritative month. Retain detailed data for the current
--- calendar month (Asia/Kolkata) plus the previous THREE months at most. Final approved detail only for completed retained months.
--- Prior-month drafts are purged promptly after a valid final selection. No final approval for a completed in-window month, or an
--- active reference, is an explicit HOLD that expires when the month leaves the window (drafts are never retained forever).
--- Designated (approved/reference/revoked) runs are NEVER purged by this package: outside the window they are an explicit HOLD
--- needing a separate owner-approved guard extension.
+-- Policy (owner decision, 25 Nov 2026): November 2026 is the first authoritative month; earlier (development-era) months are not
+-- retained and may be purged, previously approved runs included, once pricing authority has moved to an authoritative month.
+-- Retained window = current calendar month (Asia/Kolkata) + previous THREE months, never earlier than November 2026. Completed
+-- retained months keep only the final approved run; drafts/earlier approvals go promptly after that final selection. A completed or
+-- older authoritative month WITHOUT an approved run, and any active pricing authority, is an explicit governance HOLD that the
+-- owner resolves by approving a run or recording a month release (retention_month_release) - it does not silently expire and is
+-- never silently purged. Current-month detail is always protected. Designation/audit rows are never deleted.
 BEGIN;
 SET LOCAL lock_timeout='5s';
-CREATE TABLE costing_retention.retention_policy (
- singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
- first_authoritative_month date NOT NULL CHECK (first_authoritative_month=date_trunc('month',first_authoritative_month)::date),
- window_previous_months integer NOT NULL CHECK (window_previous_months BETWEEN 0 AND 3),
- time_zone text NOT NULL DEFAULT 'Asia/Kolkata' CHECK (time_zone='Asia/Kolkata'),
- max_runs_per_tick integer NOT NULL DEFAULT 1 CHECK (max_runs_per_tick BETWEEN 1 AND 5),
- step_batch_rows integer NOT NULL DEFAULT 20000 CHECK (step_batch_rows BETWEEN 1 AND 200000),
- purge_enabled boolean NOT NULL DEFAULT false,      -- master switch: nothing is deleted unless an owner sets this true
- updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
-);
-INSERT INTO costing_retention.retention_policy(first_authoritative_month,window_previous_months) VALUES ('2026-11-01',3);
 CREATE TABLE costing_retention.retention_job_log (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, started_at timestamptz NOT NULL DEFAULT clock_timestamp(),
  today_ist date NOT NULL, mode text NOT NULL CHECK (mode IN ('DRY_RUN','EXECUTE')),
@@ -38,12 +28,14 @@ $$ SELECT (p_ts AT TIME ZONE 'Asia/Kolkata')::date $$;
 CREATE FUNCTION costing_retention.fn_plan_retention(p_today date DEFAULT NULL)
 RETURNS TABLE(refresh_run_id bigint,period_start date,run_classification text,retention_decision text,retention_reason text,blockers text[])
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,costing,costing_retention AS $$
-DECLARE pol costing_retention.retention_policy; v_today date:=coalesce(p_today,costing_retention.fn_today_ist()); cur date; win_start date;
+DECLARE pol costing_retention.retention_policy; v_today date:=coalesce(p_today,costing_retention.fn_today_ist()); cur date; win_start date; v_sb text[];
 BEGIN
  SELECT * INTO STRICT pol FROM costing_retention.retention_policy;
- cur:=date_trunc('month',v_today)::date; win_start:=(cur-make_interval(months=>pol.window_previous_months))::date;
+ cur:=date_trunc('month',v_today)::date; win_start:=costing_retention.fn_window_start(v_today);
+ v_sb:=ARRAY(SELECT blocker||':'||detail FROM costing_retention.fn_purge_structural_blockers());   -- schema-wide, evaluated once per plan
  RETURN QUERY
- WITH base AS (
+ WITH sbl AS (SELECT v_sb AS b),
+ base AS (
   SELECT l.refresh_run_id rid,l.period_start ps,l.valuation_month vm,l.detail_state st,r.overall_status status,
    s.approved_run_id appr,s.displayed_run_id disp,
    EXISTS(SELECT 1 FROM costing.costing_run_designation d WHERE d.refresh_run_id=l.refresh_run_id) designated,
@@ -59,24 +51,40 @@ BEGIN
         WHEN b.eff='REFERENCE' THEN 'REFERENCE' WHEN b.eff='REVOKED' THEN 'REVOKED' ELSE 'DRAFT' END cls
    FROM base b),
  d AS (SELECT c.*,
+   EXISTS(SELECT 1 FROM costing_retention.retention_month_release rel WHERE rel.period_start=c.ps) rel,
    CASE
     WHEN c.st='DETAILS_PURGED' THEN ARRAY['RETAIN','details already purged; identity and governance preserved']
+    -- sticky: the decision was made when the purge started; the run is already unavailable (R3) so its pointer/approval facts have
+    -- legitimately changed. Hard technical blockers are still evaluated below and still stop it (fail closed).
+    WHEN c.st='PURGE_IN_PROGRESS' THEN ARRAY['ELIGIBLE','purge in progress: decision committed at start, resumed until verified']
     WHEN c.status IN ('QUEUED','RUNNING') THEN ARRAY['HOLD','run is active']
     WHEN c.vm>=cur THEN ARRAY['RETAIN','current or future calendar month is protected']
-    WHEN c.designated AND c.cls='FINAL_APPROVED' AND c.vm>=win_start THEN ARRAY['RETAIN','final approved run of a completed retained month']
-    WHEN c.designated THEN ARRAY['HOLD','designated run: purge requires a separately approved guard exception (never purged by this package)']
-    WHEN c.vm<win_start THEN ARRAY['ELIGIBLE','outside the retention window']
-    WHEN c.appr IS NOT NULL AND c.appr_state IN ('DETAILS_AVAILABLE','DETAILS_UNVERIFIED') THEN ARRAY['ELIGIBLE','non-final run of a completed retained month with a valid final approved run '||c.appr]
-    WHEN c.appr IS NOT NULL THEN ARRAY['HOLD','final approved run '||c.appr||' details are not available; refusing to remove the alternative']
-    ELSE ARRAY['HOLD','completed in-window month has no valid final approval; holds until the month leaves the window']
+    WHEN c.vm>=win_start AND c.rid=c.appr THEN ARRAY['RETAIN','final approved run of a completed retained month']
+    WHEN costing_retention.fn_is_active_pricing_authority(c.rid)
+      THEN ARRAY['HOLD','active pricing authority: removable only after a later approved run exists (authoritative-month cutover)']
+    WHEN c.vm>=win_start AND c.appr IS NOT NULL AND c.appr_state IN ('DETAILS_AVAILABLE','DETAILS_UNVERIFIED')
+      THEN ARRAY['ELIGIBLE','non-final run of a completed retained month with a valid final approved run '||c.appr]
+    WHEN c.vm>=win_start AND c.appr IS NOT NULL
+      THEN ARRAY['HOLD','final approved run '||c.appr||' details are not available; refusing to remove the alternative']
+    WHEN c.vm>=win_start THEN CASE WHEN EXISTS(SELECT 1 FROM costing_retention.retention_month_release rel WHERE rel.period_start=c.ps)
+      THEN ARRAY['ELIGIBLE','completed retained month released by owner without final approval']
+      ELSE ARRAY['HOLD','completed retained month has no valid final approval (governance HOLD; owner must approve or release the month)'] END
+    WHEN c.vm<pol.first_authoritative_month THEN ARRAY['ELIGIBLE','pre-authoritative development-era data (owner decision 25 Nov 2026)']
+    WHEN c.appr IS NOT NULL THEN ARRAY['ELIGIBLE','beyond the retention window and not the active pricing authority']
+    WHEN EXISTS(SELECT 1 FROM costing_retention.retention_month_release rel WHERE rel.period_start=c.ps)
+      THEN ARRAY['ELIGIBLE','month beyond the window released by owner without approved run']
+    ELSE ARRAY['HOLD','older authoritative month lacks an approved run (governance HOLD; owner must approve or release the month)']
    END dec
    FROM c)
  SELECT d.rid,d.ps,d.cls,
-   CASE WHEN d.dec[1]='ELIGIBLE' AND EXISTS(SELECT 1 FROM costing_retention.fn_purge_run_blockers(d.rid) bb WHERE bb.blocker<>'ALREADY_PURGED') THEN 'HOLD' ELSE d.dec[1] END,
-   CASE WHEN d.dec[1]='ELIGIBLE' AND EXISTS(SELECT 1 FROM costing_retention.fn_purge_run_blockers(d.rid) bb WHERE bb.blocker<>'ALREADY_PURGED')
-        THEN 'technical blocker(s): '||(SELECT string_agg(bb.blocker,', ') FROM costing_retention.fn_purge_run_blockers(d.rid) bb WHERE bb.blocker<>'ALREADY_PURGED') ELSE d.dec[2] END,
-   CASE WHEN d.dec[1]='ELIGIBLE' THEN ARRAY(SELECT bb.blocker||':'||bb.detail FROM costing_retention.fn_purge_run_blockers(d.rid) bb WHERE bb.blocker<>'ALREADY_PURGED') ELSE ARRAY[]::text[] END
- FROM d ORDER BY d.ps,d.rid;
+   CASE WHEN d.dec[1]='ELIGIBLE' AND cardinality(bl.b)>0 THEN 'HOLD' ELSE d.dec[1] END,
+   CASE WHEN d.dec[1]='ELIGIBLE' AND cardinality(bl.b)>0 THEN 'technical blocker(s): '||array_to_string(ARRAY(SELECT split_part(x,':',1) FROM unnest(bl.b) x),', ') ELSE d.dec[2] END,
+   bl.b
+ FROM d CROSS JOIN sbl
+ LEFT JOIN LATERAL (SELECT CASE WHEN d.dec[1]='ELIGIBLE'
+      THEN ARRAY(SELECT bb.blocker||':'||bb.detail FROM costing_retention.fn_purge_run_specific_blockers(d.rid) bb WHERE bb.blocker<>'ALREADY_PURGED') || sbl.b
+      ELSE ARRAY[]::text[] END AS b) bl ON true
+ ORDER BY d.ps,d.rid;
 END $$;
 
 -- Persist the verdict into the ledger (dry-run safe: touches only classification/decision/diagnostic columns).
@@ -115,7 +123,7 @@ BEGIN
  IF v_run IS NULL THEN SELECT l.refresh_run_id INTO v_run FROM costing.costing_run_retention_ledger l WHERE l.retention_decision='ELIGIBLE' AND l.detail_state<>'DETAILS_PURGED' ORDER BY l.valuation_month,l.refresh_run_id LIMIT 1; END IF;
  IF v_run IS NULL THEN INSERT INTO costing_retention.retention_job_log(today_ist,mode,outcome) VALUES(v_today,p_mode,'NOTHING_ELIGIBLE'); RETURN jsonb_build_object('outcome','NOTHING_ELIGIBLE'); END IF;
  -- an in-flight run must still be eligible under TODAY's policy (e.g. a late approval changes the verdict) - otherwise stop and report
- IF NOT EXISTS (SELECT 1 FROM costing_retention.fn_plan_retention(v_today) p WHERE p.refresh_run_id=v_run AND p.retention_decision IN ('ELIGIBLE') ) THEN
+ IF NOT EXISTS (SELECT 1 FROM costing.costing_run_retention_ledger l WHERE l.refresh_run_id=v_run AND l.retention_decision='ELIGIBLE') THEN   -- ledger was refreshed from today's plan a few lines above
   INSERT INTO costing_retention.retention_job_log(today_ist,mode,outcome,refresh_run_id,detail) VALUES(v_today,p_mode,'FAILED',v_run,jsonb_build_object('error','in-flight run no longer eligible under current policy; manual review'));
   RETURN jsonb_build_object('outcome','FAILED','run',v_run,'error','no longer eligible'); END IF;
  BEGIN

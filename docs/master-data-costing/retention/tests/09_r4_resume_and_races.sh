@@ -33,7 +33,8 @@ UPDATE costing.costing_refresh_run SET overall_status='SUCCESS',finished_at='202
 SQL
 [ "$($Q -c "SELECT count(*) FROM costing_retention.fn_purge_run_blockers(170)")" = 0 ] || fail "170 should look eligible"
 $Q -c "SELECT count(*) FROM costing_retention.fn_purge_run_preview(170)" >/dev/null
-$Q -c "INSERT INTO costing.costing_run_designation(refresh_run_id,period_start,designation,designated_by,reason) VALUES(170,'2026-10-01','REFERENCE','owner','designated after the stale preview was taken')" >/dev/null
-out="$($Q -c "SELECT costing_retention.purge_run_step(170)" 2>&1)"; echo "$out" | grep -q "DESIGNATION_HISTORY" || fail "stale preview executed: $out"
-[ "$($Q -c "SELECT count(*) FROM costing.marketing_signed_billed_sales_evidence_snapshot WHERE refresh_run_id=170")" = 5 ] || fail "designated run lost rows"
+$Q -c "INSERT INTO costing.costing_run_designation(refresh_run_id,period_start,designation,designated_by,reason) VALUES(170,'2026-10-01','APPROVED','owner','approved after the stale preview was taken')" >/dev/null
+out="$($Q -c "SELECT costing_retention.purge_run_step(170)" 2>&1)"; echo "$out" | grep -qE "ACTIVE_PRICING_AUTHORITY|RETAINED_FINAL_APPROVED" || fail "stale preview executed: $out"
+[ "$($Q -c "SELECT count(*) FROM costing.marketing_signed_billed_sales_evidence_snapshot WHERE refresh_run_id=170")" = 5 ] || fail "newly approved run lost rows"
+$Q -c "DELETE FROM costing.costing_run_designation WHERE reason='approved after the stale preview was taken'" >/dev/null
 echo "PASS stale-preview-recomputed-at-execution"

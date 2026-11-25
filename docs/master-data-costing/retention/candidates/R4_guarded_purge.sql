@@ -3,8 +3,8 @@
 -- one-table-per-call step function, scoped DELETE exception in the terminal-snapshot guard, and append-only receipts.
 -- Supersedes S3K (run-87 archive workflow; superseded by owner decision — no archive prerequisite). S3K must never be applied
 -- alongside this file (it aborts if costing_retention exists).
--- Hard rules enforced in code: no CASCADE, no TRUNCATE, no trigger disable, no header delete, never a designated run (any
--- designation history), never the displayed/approved pointer run, never a non-terminal run, fail closed on schema drift,
+-- Hard rules enforced in code: no CASCADE, no TRUNCATE, no trigger disable, no header delete, never the active pricing authority or the
+-- final approved run of a retained month, never a non-terminal run, designation rows themselves are never touched, fail closed on schema drift,
 -- on unclassified run-linked relations, on permanent->purgeable FK edges, on unindexed edges without a recorded waiver.
 BEGIN;
 SET LOCAL lock_timeout='5s';
@@ -16,6 +16,22 @@ CREATE TABLE costing_retention.purge_allowlist (
  index_waiver_reason text,   -- explicit owner waiver when run/FK column is unindexed on a large relation
  PRIMARY KEY (table_schema,table_name)
 );
+CREATE TABLE costing_retention.retention_policy (
+ singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
+ first_authoritative_month date NOT NULL CHECK (first_authoritative_month=date_trunc('month',first_authoritative_month)::date),
+ window_previous_months integer NOT NULL CHECK (window_previous_months BETWEEN 0 AND 3),
+ time_zone text NOT NULL DEFAULT 'Asia/Kolkata' CHECK (time_zone='Asia/Kolkata'),
+ max_runs_per_tick integer NOT NULL DEFAULT 1 CHECK (max_runs_per_tick BETWEEN 1 AND 5),
+ step_batch_rows integer NOT NULL DEFAULT 20000 CHECK (step_batch_rows BETWEEN 1 AND 200000),
+ purge_enabled boolean NOT NULL DEFAULT false,      -- master switch: nothing is deleted unless an owner sets this true
+ updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+INSERT INTO costing_retention.retention_policy(first_authoritative_month,window_previous_months) VALUES ('2026-11-01',3);
+CREATE TABLE costing_retention.retention_month_release (   -- explicit owner release of an unapproved month that would otherwise be a HOLD
+ period_start date PRIMARY KEY CHECK (period_start=date_trunc('month',period_start)::date),
+ reason text NOT NULL CHECK (length(btrim(reason))>=10), released_by text NOT NULL, released_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+CREATE TRIGGER retention_month_release_append_only BEFORE UPDATE OR DELETE ON costing_retention.retention_month_release FOR EACH ROW EXECUTE FUNCTION costing_retention.fn_reject_evidence_mutation();
 CREATE TABLE costing_retention.purge_context (   -- transaction-scoped authority written ONLY by purge_run_step
  backend_pid integer NOT NULL, transaction_id xid8 NOT NULL, refresh_run_id bigint NOT NULL, table_name text NOT NULL,
  PRIMARY KEY (backend_pid,transaction_id)
@@ -133,25 +149,61 @@ BEGIN
  IF to_regclass('costing_retention.test_clock') IS NOT NULL THEN EXECUTE 'SELECT fixed_today FROM costing_retention.test_clock' INTO d; END IF;
  RETURN coalesce(d,(now() AT TIME ZONE 'Asia/Kolkata')::date);
 END $$;
+-- First day of the retention window: never earlier than the first authoritative month, never more than N previous months.
+CREATE FUNCTION costing_retention.fn_window_start(p_today date DEFAULT NULL) RETURNS date
+LANGUAGE sql STABLE SET search_path=pg_catalog,costing_retention AS $$
+ SELECT greatest(p.first_authoritative_month,(date_trunc('month',coalesce(p_today,costing_retention.fn_today_ist()))-make_interval(months=>p.window_previous_months))::date)
+ FROM costing_retention.retention_policy p $$;
+-- Run is the active pricing authority: the APPROVED pointer run of the latest approved period, or an approved pointer run of a
+-- pre-authoritative month while no approved run exists yet in an authoritative month (cutover pending).
+CREATE FUNCTION costing_retention.fn_is_active_pricing_authority(p_run bigint) RETURNS boolean
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,costing,costing_retention AS $$
+DECLARE v_period date; v_appr bigint; v_max date; v_first date;
+BEGIN
+ SELECT r.period_start INTO v_period FROM costing.costing_refresh_run r WHERE r.id=p_run;
+ IF v_period IS NULL THEN RETURN false; END IF;
+ -- cheap lookups on the governed pointer (selection_basis='APPROVED' is the approved run of a month)
+ SELECT x.refresh_run_id INTO v_appr FROM costing.v_current_successful_costing_refresh_run x WHERE x.period_start=v_period AND x.selection_basis='APPROVED';
+ IF v_appr IS DISTINCT FROM p_run THEN RETURN false; END IF;
+ SELECT max(x.period_start) INTO v_max FROM costing.v_current_successful_costing_refresh_run x WHERE x.selection_basis='APPROVED';
+ IF v_period=v_max THEN RETURN true; END IF;
+ SELECT p.first_authoritative_month INTO v_first FROM costing_retention.retention_policy p;
+ RETURN v_period<v_first AND NOT EXISTS (SELECT 1 FROM costing.v_current_successful_costing_refresh_run y WHERE y.selection_basis='APPROVED' AND y.period_start>=v_first);
+END $$;
+REVOKE ALL ON FUNCTION costing_retention.fn_window_start(date),costing_retention.fn_is_active_pricing_authority(bigint) FROM PUBLIC,anon,authenticated,service_role;
+
 -- Per-run blockers (empty = this run may be purged now).
-CREATE FUNCTION costing_retention.fn_purge_run_blockers(p_run bigint)
+CREATE FUNCTION costing_retention.fn_purge_run_specific_blockers(p_run bigint)
 RETURNS TABLE(blocker text,detail text)
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,costing,costing_retention AS $$
-DECLARE l costing.costing_run_retention_ledger; r costing.costing_refresh_run; v_disp bigint; v_appr bigint; k record; x boolean;
+DECLARE l costing.costing_run_retention_ledger; r costing.costing_refresh_run; v_disp bigint; v_appr bigint; k record; x boolean; v_first date; v_ws date;
 BEGIN
  SELECT * INTO l FROM costing.costing_run_retention_ledger WHERE refresh_run_id=p_run;
  SELECT * INTO r FROM costing.costing_refresh_run WHERE id=p_run;
  IF l.refresh_run_id IS NULL OR r.id IS NULL THEN RETURN QUERY SELECT 'RUN_NOT_FOUND',p_run::text; RETURN; END IF;
  IF l.detail_state='DETAILS_PURGED' THEN RETURN QUERY SELECT 'ALREADY_PURGED',p_run::text; END IF;
  IF r.overall_status IN ('QUEUED','RUNNING') THEN RETURN QUERY SELECT 'RUN_NOT_TERMINAL',r.overall_status; END IF;
- IF EXISTS(SELECT 1 FROM costing.costing_run_designation d WHERE d.refresh_run_id=p_run)
-  THEN RETURN QUERY SELECT 'DESIGNATION_HISTORY','designated runs are never purged by this package'; END IF;
+ -- Pointer-derived verdicts (pricing authority, retained final, designated-without-final, displayed-in-window) are evaluated only
+ -- BEFORE a purge starts. Once PURGE_IN_PROGRESS the run is already unavailable (R3) and no longer the approved/displayed pointer, so
+ -- re-deriving them would flip the verdict mid-purge and strand the run. Hard blockers below still apply to in-flight runs.
+ IF l.detail_state<>'PURGE_IN_PROGRESS' THEN
  SELECT s.displayed_run_id,s.approved_run_id INTO v_disp,v_appr FROM costing.v_costing_period_run_status s WHERE s.period_start=r.period_start;
- IF v_appr=p_run THEN RETURN QUERY SELECT 'APPROVED_POINTER',p_run::text; END IF;
- -- the displayed (non-approved) run of a month inside the maximum retention window (current + previous 3 months) is protected;
- -- outside the window an unapproved displayed draft may go, leaving an explicit "no current run" for that old month (R3).
- IF v_disp=p_run AND r.period_start >= (date_trunc('month',costing_retention.fn_today_ist())-interval '3 months')::date
+ SELECT p.first_authoritative_month INTO v_first FROM costing_retention.retention_policy p;
+ v_ws:=costing_retention.fn_window_start();
+ IF costing_retention.fn_is_active_pricing_authority(p_run)
+  THEN RETURN QUERY SELECT 'ACTIVE_PRICING_AUTHORITY','approved run in use for pricing (latest approved period, or authoritative-month cutover still pending)'; END IF;
+ -- final approved run of a retained authoritative month is kept; earlier approvals/references are removable only once that final run exists
+ IF v_appr=p_run AND r.period_start>=v_ws THEN RETURN QUERY SELECT 'RETAINED_FINAL_APPROVED',p_run::text; END IF;
+ IF v_appr IS DISTINCT FROM p_run AND r.period_start>=v_first AND v_appr IS NULL
+    AND NOT EXISTS(SELECT 1 FROM costing_retention.retention_month_release rel WHERE rel.period_start=r.period_start)
+    AND EXISTS(SELECT 1 FROM costing.costing_run_designation d WHERE d.refresh_run_id=p_run)
+  THEN RETURN QUERY SELECT 'DESIGNATED_NO_FINAL_SELECTION','earlier approvals/references are kept until the month has a final approved run'; END IF;
+ -- the displayed (non-approved) run of a month inside the retention window is protected; before the first authoritative month
+ -- (development-era data) or beyond the window an unapproved displayed draft may go, leaving an explicit "no current run" (R3).
+ IF v_disp=p_run AND v_appr IS DISTINCT FROM p_run AND r.period_start>=v_ws
+    AND NOT EXISTS(SELECT 1 FROM costing_retention.retention_month_release rel WHERE rel.period_start=r.period_start)   -- explicit owner release accepts losing the only usable result
   THEN RETURN QUERY SELECT 'DISPLAYED_RUN_IN_RETENTION_WINDOW',p_run::text; END IF;
+ END IF;
  IF EXISTS(SELECT 1 FROM costing.costing_refresh_run x WHERE x.period_start=r.period_start AND x.overall_status IN ('QUEUED','RUNNING'))
   THEN RETURN QUERY SELECT 'ACTIVE_RUN_IN_PERIOD',r.period_start::text; END IF;
  IF EXISTS(SELECT 1 FROM costing.costing_period_refresh_authorization a WHERE a.consumed_by_run_id=p_run)
@@ -173,8 +225,13 @@ BEGIN
     k.cs,k.ct,k.ps,k.pt,k.pcol,k.ccol,k.prun,k.crun) INTO x USING p_run;
   IF x THEN RETURN QUERY SELECT 'CROSS_RUN_REFERENCE',k.cs||'.'||k.ct||'.'||k.conname; END IF;
  END LOOP;
- RETURN QUERY SELECT * FROM costing_retention.fn_purge_structural_blockers();
 END $$;
+
+-- Full verdict = run-specific blockers + schema-wide structural blockers (the planner evaluates the structural part once per plan).
+CREATE FUNCTION costing_retention.fn_purge_run_blockers(p_run bigint)
+RETURNS TABLE(blocker text,detail text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,costing,costing_retention AS $$
+ SELECT * FROM costing_retention.fn_purge_run_specific_blockers(p_run) UNION ALL SELECT * FROM costing_retention.fn_purge_structural_blockers() $$;
 
 -- Dry run: exact run-scoped row counts only for indexed run columns; unindexed relations report NULL (no unbounded scan).
 CREATE FUNCTION costing_retention.fn_purge_run_preview(p_run bigint)
@@ -210,6 +267,28 @@ BEGIN
        and not (tg_op='DELETE' and tg_table_schema='costing' and costing_retention.is_authorized_purge_delete(v_run_id_x,tg_table_name)) then
         raise exception$r$);
  v_def:=replace(v_def,'v_run_id_x','v_refresh_run_id');
+ v_def:=replace(v_def,'SET search_path TO ''costing'', ''public'', ''pg_temp''','SET search_path TO ''costing'', ''costing_retention'', ''public'', ''pg_temp''');
+ EXECUTE v_def;
+END $$;
+
+
+-- Designated-run guard: preserve the reviewed body, add ONLY a DELETE exception for an authorised purge context (owner decision
+-- 25 Nov 2026 permits removing detail of previously approved/reference/revoked runs once pricing authority has moved on).
+-- Eligibility is decided by purge_run_step (fn_purge_run_blockers) in the same transaction before any context is written.
+DO $$ DECLARE v_oid oid; v_def text; v_anchor text; v_n int; pin text:=coalesce(nullif(current_setting('costing_retention.designated_guard_md5',true),''),'5629ce76254a5ed45cde5529ce91caee');
+BEGIN
+ SELECT p.oid INTO v_oid FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='costing' AND p.proname='fn_guard_designated_run_rows';
+ IF v_oid IS NULL THEN RAISE EXCEPTION 'R4: designated-run guard not found'; END IF;
+ v_def:=pg_get_functiondef(v_oid);
+ IF position('is_authorized_purge_delete' IN v_def)>0 THEN RETURN; END IF;
+ IF md5(v_def)<>pin THEN RAISE EXCEPTION 'R4: live designated-run guard drifted from reviewed pin; re-review before install'; END IF;
+ v_anchor:=$a$    if v_des in ('REFERENCE','APPROVED','REVOKED') then
+      raise exception 'AU2_DESIGNATED_RUN_IMMUTABLE: run % is %; % on costing.% prohibited', v_run, v_des$a$;
+ v_n:=(length(v_def)-length(replace(v_def,v_anchor,'')))/length(v_anchor);
+ IF v_n<>1 THEN RAISE EXCEPTION 'R4: designated guard anchor count %',v_n; END IF;
+ v_def:=replace(v_def,v_anchor,$r$    if v_des in ('REFERENCE','APPROVED','REVOKED')
+       and not (tg_op='DELETE' and tg_table_schema='costing' and costing_retention.is_authorized_purge_delete(v_run,tg_table_name)) then
+      raise exception 'AU2_DESIGNATED_RUN_IMMUTABLE: run % is %; % on costing.% prohibited', v_run, v_des$r$);
  v_def:=replace(v_def,'SET search_path TO ''costing'', ''public'', ''pg_temp''','SET search_path TO ''costing'', ''costing_retention'', ''public'', ''pg_temp''');
  EXECUTE v_def;
 END $$;
@@ -266,7 +345,7 @@ BEGIN
  RETURN jsonb_build_object('run',p_run,'done',true,'total_deleted',v_total,'removed',v_removed,'receipt',v_rcpt,'verification_digest',v_digest);
 END $$;
 REVOKE ALL ON FUNCTION costing_retention.fn_today_ist(),costing_retention.fn_run_linked_inventory(),costing_retention.fn_purge_structural_blockers(),costing_retention.fn_purge_order(),
- costing_retention.fn_purge_run_blockers(bigint),costing_retention.fn_purge_run_preview(bigint),costing_retention.purge_run_step(bigint,integer)
+ costing_retention.fn_purge_run_specific_blockers(bigint),costing_retention.fn_purge_run_blockers(bigint),costing_retention.fn_purge_run_preview(bigint),costing_retention.purge_run_step(bigint,integer)
  FROM PUBLIC,anon,authenticated,service_role;
 DO $$ BEGIN
  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='sasv_retention_executor') THEN
