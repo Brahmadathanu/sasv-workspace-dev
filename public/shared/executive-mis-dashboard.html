@@ -1489,6 +1489,75 @@
       @media (max-width: 360px) {
         .ei-indicators, .ei-metrics, .ei-metrics-wide { grid-template-columns: minmax(0, 1fr); }
       }
+
+      /* EI-R3: compact ERP summaries, sales analytics, alerts. Tokens only. */
+      body.ei-sales-only .tabs-card, body.ei-sales-only #lastRefreshed { display: none; }
+      .ei-metrics { gap: 1px; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-md, 8px); background: var(--mis-divider); overflow: hidden; }
+      .ei-metric { border: 0; border-radius: 0; padding: 4px 10px; background: var(--mis-surface); }
+      .ei-metric.caution { border-left: 0; box-shadow: inset 3px 0 0 var(--mis-warning); }
+      .ei-metric-value { font-size: var(--sasv-text-md, 0.875rem); font-weight: 700; }
+      .ei-metric-label { font-size: 11px; }
+      .ei-metric-groups .ei-metrics { margin-top: 0; }
+      .ei-indicators { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; border-top: 1px solid var(--mis-divider); }
+      .kpi-card { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "t v" "b v"; align-items: center; column-gap: 8px; row-gap: 0; min-height: 0; padding: 4px 28px 4px 0; border: 0; border-bottom: 1px solid var(--mis-divider); border-left: 0; border-radius: 0; background: transparent; }
+      .kpi-card .kpi-title { grid-area: t; }
+      .kpi-card .kpi-value { grid-area: v; font-size: var(--sasv-text-md, 0.875rem); text-align: right; }
+      .kpi-card .kpi-basis { grid-area: b; }
+      .kpi-card.caution { border-left: 0; }
+      .kpi-card.caution .kpi-value { color: var(--mis-warning); }
+      .kpi-info-btn { top: 50%; transform: translateY(-50%); right: 0; }
+      .ei-group { gap: 4px; padding: 6px 10px 4px; }
+      .ei-groups { gap: var(--sasv-space-2, 8px); }
+      .ei-narrative { padding: 4px 10px; background: transparent; }
+      .ei-narrative li { font-size: var(--sasv-text-sm, 0.8125rem); }
+      .ei-context { margin: 0; color: var(--mis-muted); font-size: var(--sasv-text-xs, 0.75rem); }
+      .ei-bar-fill { min-width: 0; }
+
+      .ei-subnav { display: flex; gap: 2px; padding: 0; border-bottom: 1px solid var(--mis-border); overflow-x: auto; scrollbar-width: none; }
+      .ei-subnav::-webkit-scrollbar { display: none; }
+      .ei-subtab { flex: 0 0 auto; padding: 5px 10px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--mis-muted); font: inherit; font-size: var(--sasv-text-sm, 0.8125rem); font-weight: 600; cursor: pointer; min-height: 32px; }
+      .ei-subtab.active { color: var(--mis-accent); border-bottom-color: var(--mis-accent); }
+      .ei-subtab:hover { color: var(--mis-text); }
+      .ei-subtab:focus-visible { outline: 2px solid var(--mis-accent); outline-offset: -2px; }
+      .ei-filterbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px var(--sasv-space-3, 12px); padding: 0; }
+      .ei-filterbar[hidden] { display: none; }
+      .ei-filterbar-inner { margin: 2px 0; }
+      .ei-field { display: inline-flex; flex-direction: column; gap: 2px; color: var(--mis-muted); font-size: 11px; font-weight: 600; min-width: 0; }
+      .ei-field input, .ei-field select { min-height: 32px; padding: 3px 8px; border: 1px solid var(--mis-search-border); border-radius: var(--sasv-radius-md, 8px); background: var(--mis-search-bg); color: var(--mis-text); font: inherit; font-size: var(--sasv-text-sm, 0.8125rem); max-width: 100%; }
+      .ei-field input:focus-visible, .ei-field select:focus-visible, .ei-search input:focus-visible { outline: 2px solid var(--mis-accent); outline-offset: 1px; }
+      .ei-check { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; font-size: var(--sasv-text-sm, 0.8125rem); color: var(--mis-text-secondary); }
+      .ei-filter-note { flex: 1 0 100%; color: var(--mis-muted); font-size: var(--sasv-text-xs, 0.75rem); }
+      .ei-search { flex: 1 1 180px; min-width: 140px; }
+      .ei-search input { width: 100%; box-sizing: border-box; min-height: 32px; padding: 3px 10px; border: 1px solid var(--mis-search-border); border-radius: var(--sasv-radius-md, 8px); background: var(--mis-search-bg); color: var(--mis-text); font: inherit; font-size: var(--sasv-text-sm, 0.8125rem); }
+      .ei-segment { display: inline-flex; gap: 4px; }
+      .ei-segment [aria-pressed="true"], .ei-viewbar [aria-pressed="true"] { background: var(--mis-accent-soft); border-color: var(--mis-accent-soft-border); color: var(--mis-accent); }
+      .ei-viewbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--sasv-space-2, 8px); }
+      .ei-table-wrap { overflow: auto; max-width: 100%; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-md, 8px); max-height: min(60vh, 560px); }
+      .ei-table { width: 100%; min-width: 640px; border-collapse: collapse; }
+      .ei-table th, .ei-table td { padding: 5px 8px; border-bottom: 1px solid var(--mis-divider); font-size: 12px; text-align: left; vertical-align: top; }
+      .ei-table th { position: sticky; top: 0; z-index: 1; background: var(--mis-surface-soft); color: var(--mis-muted); font-size: 11px; font-weight: 700; }
+      .ei-table th.num, .ei-table td.num { text-align: right; }
+      .ei-missing { color: var(--mis-muted); }
+      .ei-reported { color: var(--mis-muted); font-style: italic; }
+      .ei-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; color: var(--mis-muted); font-size: var(--sasv-text-xs, 0.75rem); }
+      .ei-pager-controls { display: inline-flex; align-items: center; gap: 8px; color: var(--mis-text-secondary); }
+      .ei-compare-line { display: flex; flex-wrap: wrap; gap: 4px var(--sasv-space-4, 16px); font-size: var(--sasv-text-sm, 0.8125rem); color: var(--mis-text-secondary); }
+      .ei-dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1px; margin: 0; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-md, 8px); background: var(--mis-divider); overflow: hidden; }
+      .ei-dl-row { display: flex; justify-content: space-between; gap: 8px; padding: 4px 10px; background: var(--mis-surface); font-size: 12px; }
+      .ei-dl dt { color: var(--mis-muted); } .ei-dl dd { margin: 0; color: var(--mis-text); font-weight: 600; text-align: right; }
+      .ei-badge { padding: 1px 8px; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-pill, 999px); font-size: 11px; font-weight: 700; background: var(--mis-surface-soft); color: var(--mis-muted); }
+      .ei-badge-review { color: var(--mis-warning); background: var(--mis-warning-bg); border-color: var(--mis-warning-border); }
+      .ei-badge-clear { color: var(--mis-text-secondary); }
+      @media (max-width: 640px) {
+        .ei-filterbar { gap: 6px; }
+        .ei-field { flex: 1 1 42%; }
+        .ei-field select, .ei-field input { width: 100%; box-sizing: border-box; }
+        .ei-filter-note { margin: 0; }
+        .ei-field input, .ei-field select, .ei-search input { min-height: 36px; font-size: 16px; }
+        .ei-metrics, .ei-metrics-wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .ei-dl { grid-template-columns: minmax(0, 1fr); }
+        .ei-lens, .ei-overview { gap: 6px; }
+      }
     </style>
   </head>
   <body>
@@ -1649,6 +1718,6 @@
       </div>
     </div>
 
-    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=ei-r2-1"></script>
+    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=ei-r3-1"></script>
   </body>
 </html>

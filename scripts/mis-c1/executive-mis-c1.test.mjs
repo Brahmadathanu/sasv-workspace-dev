@@ -92,6 +92,7 @@ const tabClick = (page, id) => page.evaluate((t) => {
   if (getComputedStyle(select.closest(".tab-select-wrap")).display !== "none") {
     select.value = t; select.dispatchEvent(new Event("change", { bubbles: true }));
   } else document.querySelector(`[data-tab="${t}"]`).click();
+  if (t === "sales") document.querySelector('[data-sales-view="mtd"]')?.click(); // legacy month-to-date table lives in this sub-view
 }, id);
 const settleTimers = (page, ms = 450) => page.waitForTimeout(ms); // > 250 ms search debounce
 const maskVisible = (page, shell) => page.evaluate((s) => { const m = document.querySelector(`${s} .table-loading-mask`); return !!m && !m.hidden; }, shell);
@@ -104,13 +105,13 @@ test("tab navigation: seven lenses, aria-selected, Alerts explicitly unavailable
     await page.click('[data-tab="finance"]'); // already active
     await settleTimers(page, 150);
     assert.equal((await calls(page, "get_mis_finance_party_page")).length, before, "re-selecting the active tab must not refetch");
-    for (const [tab, sel] of [["sales", ".sales-table"], ["inventory", ".inventory-table"], ["finished-goods", ".fg-table"], ["production", ".production-summary-grid"]]) {
+    for (const [tab, sel] of [["sales", ".ei-table"], ["inventory", ".inventory-table"], ["finished-goods", ".fg-table"], ["production", ".production-summary-grid"]]) {
       await page.click(`[data-tab="${tab}"]`);
       await page.waitForSelector(`#tabPanel ${sel}`);
       assert.equal(await page.getAttribute(`[data-tab="${tab}"]`, "aria-selected"), "true");
     }
     await page.click('[data-tab="alerts"]');
-    assert.match(await page.textContent("#tabPanel"), /Management Alerts are not connected yet/);
+    assert.match(await page.textContent("#tabPanel"), /Management Alerts[\s\S]*Partial catalogue/);
     await page.click('[data-tab="overview"]');
     await page.waitForSelector(".ei-overview .kpi-card");
     assert.equal(await page.getAttribute('[data-tab="overview"]', "aria-selected"), "true");
@@ -167,7 +168,7 @@ test("Finance: filter, search, pagination, server totals, modal", { skip }, asyn
 test("Sales: request args, pagination, search", { skip }, async () => {
   const { page } = await open();
   try {
-    await page.click('[data-tab="sales"]');
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-table");
     assert.deepEqual((await calls(page, "get_mis_sales_product_page"))[0].args, { p_search: "", p_limit: 25, p_offset: 0 });
     await page.click("#salesNextPage");
@@ -381,7 +382,7 @@ test("Production value: latest response wins and a response after leaving the ta
     // leave the tab while a new request is pending: late arrival cannot repaint
     await page.selectOption("#pvMonth", { index: 0 });
     await page.waitForFunction(() => window.__mis.q.length === 3);
-    await page.click('[data-tab="sales"]');
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-table");
     await page.evaluate((r) => window.__mis.q[2].d.resolve(r), mk("2026-11-01", 333));
     await page.waitForTimeout(150);
@@ -492,7 +493,7 @@ test("independence: tab switch and Refresh with both requests in flight retire s
   const { page } = await openProductionDeferred();
   try {
     // 1) leave the tab with both in flight; the late value answer must not repaint Sales
-    await page.click('[data-tab="sales"]');
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-table");
     await resolveQ(page, "value", 0, okValue("2026-11-01", 111));
     await page.waitForTimeout(200);
@@ -840,7 +841,7 @@ test("race: stale pagination and filter responses are dropped (Sales, Inventory,
       }
     });
     // Sales: activate Next twice quickly -> pages 2 and 3 in flight; page-2 response arrives last and must be ignored.
-    await page.click('[data-tab="sales"]');
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-table");
     // (the loading mask blocks pointer input over the pager, so drive it by keyboard like a fast double activation)
     await page.focus("#salesNextPage"); await page.keyboard.press("Enter"); await page.keyboard.press("Enter");
@@ -882,7 +883,7 @@ test("race: a response for a tab the user left cannot repaint the current panel"
     });
     await page.click('[data-tab="inventory"]');
     await page.waitForFunction(() => !!window.__mis.invDeferred);
-    await page.click('[data-tab="sales"]');
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-table");
     await page.evaluate(() => window.__mis.invDeferred.resolve({ data: [{ item_name: "INV-STALE", total_rows: 1 }], error: null }));
     await page.waitForTimeout(150);
@@ -901,7 +902,7 @@ test("a tab switch during the initial summary load does not trigger a duplicate 
   });
   try {
     await page.waitForFunction(() => !!window.__mis.mvDeferred);
-    await page.click('[data-tab="sales"]');
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-table");
     const before = (await calls(page, "get_mis_sales_product_page")).length;
     await page.evaluate(() => window.__mis.mvDeferred.resolve({ data: { mis_summary_id: 1, mv_refreshed_at: new Date().toISOString() }, error: null }));
@@ -926,7 +927,7 @@ test("a pending debounced search typed before a tab switch never fires", { skip 
   const { page } = await open();
   try {
     await page.fill("#financeSearch", "late");
-    await page.click('[data-tab="sales"]'); // within the 250 ms window
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]'); // within the 250 ms window
     await settleTimers(page);
     assert.equal((await calls(page, "get_mis_finance_party_page")).some((c) => c.args.p_search === "late"), false);
   } finally { await page.context().close(); }
@@ -977,7 +978,7 @@ test("loading, empty, error and populated states are distinct (with Retry)", { s
     await page.waitForSelector(`${wrap} .finance-table`);
     // a rejected (thrown) request also settles into the error state, never a stuck mask
     await setHandler(page, "get_mis_sales_product_page", () => Promise.reject(new Error("network down")));
-    await page.click('[data-tab="sales"]');
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-status.error");
     assert.match(await page.textContent("#salesProductTableWrap"), /network down/);
     assert.equal(await maskVisible(page, ".sales-table-shell"), false);
@@ -1006,7 +1007,7 @@ test("permission denied or unverifiable: module data is never loaded; message di
       assert.match(await page.textContent("#statusArea"), text);
       await page.waitForTimeout(200);
       const names = (await calls(page)).map((c) => c.name);
-      assert.deepEqual([...new Set(names)], ["get_user_permissions"], "only the permission lookup may run");
+      assert.deepEqual([...new Set(names)], ["get_user_permissions", "ei_sales_access"], "only the permission lookup and the fail-closed capability probe may run");
       assert.equal(await page.$eval(".detail-section", (e) => getComputedStyle(e).display), "none");
       assert.equal(await page.$eval(".tabs-card", (e) => getComputedStyle(e).display), "none");
       assert.equal(await page.$("#kpiGrid"), null, "no indicators are rendered for a denied user");
