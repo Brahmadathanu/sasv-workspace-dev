@@ -13,8 +13,15 @@ Design, measurements (594 -> 276 px at 390x844) and evidence: `PEC_UX03_MOBILE_U
 ## Service-worker treatment
 Only the cache generation advances (v395 -> v396). Network-first rules for `procurement-execution-console.js`, its CSS, `pec-modal-stack.js` and `pec-purchase-allocations.js` already exist and are unchanged; the console imports the lens module with a new `?v=20261125a`. The v6.5.0 guard pin remains and tolerates supersession; the v6.5.1 pin binds exact path, head branch and SHA-256.
 
-## v6.5.0 publication evidence
-v6.5.0 was published as stable Latest (tag `v6.5.0`, release verified by the publisher workflow); the owner never installed it separately, so owner acceptance is consolidated on v6.5.1.
+## v6.5.0 publication evidence (completed)
+Tag `v6.5.0`, target `a72af1e4bc9b34f5109e62051bf97ab4252f7f01`, published 2026-11-24T17:42:18Z as stable Latest (not draft, not prerelease) by `publish-sasv-release.yml` run 45451409295 (success). Assets: installer, ZIP, blockmap, `latest.yml`, `SHA256SUMS.txt`. The owner never installed it separately, so owner acceptance is consolidated on v6.5.1.
+
+## v6.5.1 publication evidence
+- Client PRs: #532 (`f7d2e6d`), #533 (`1049142`); release PR #534, final main `c6587a10bf5653262654d81daeb163af9115a052`.
+- CI on #534: all 15 checks green (integrated-pec, wp10-offline, package, hosted-provenance, ...). On the main commit: Electron Windows release candidate run 45536311668 (success), PEC Integrated Browser Acceptance run 45536311784 (success).
+- Installer SHA-256 recorded from the build log: `52537b32fa004a7897ea7d4a6ffd2669ff8628535e888ea71181e1fbd932902b`. Publish run 45537168180 (success), published 2026-11-25T03:03:01Z.
+- Release: tag `v6.5.1` -> `c6587a1` (lightweight tag, commit object), stable Latest, assets `SASV-Workspace-Setup-6.5.1.exe` (141,490,920 B), `SASV-Workspace-6.5.1-win.zip`, blockmap, `latest.yml`, `SHA256SUMS.txt`; SHA256SUMS lists the installer hash above; `latest.yml` version 6.5.1 and is served by `/releases/latest/download/latest.yml`.
+- Production PWA (`sasv-utilities-hub.netlify.app`): serves `hub-cache-v396`; `pec-release-provenance-check --url` byte-identical for the console HTML, JS, CSS and `sw.js`; `pec-purchase-allocations.js` and `pec-modal-stack.js` byte-identical to the repository.
 
 ## Not claimed
 Authenticated PWA acceptance, real-device and Windows installation acceptance are owner-side.
