@@ -2,7 +2,7 @@
 // Mutation-sensitive PEC integration protected-file policy verification.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { rejectedProtectedPaths, INTEGRATION_PROTECTED_PATHS, REVIEWED_SERVER_MIGRATIONS, REVIEWED_WP08_G2_1_PINS, REVIEWED_WP11_V394_PINS, REVIEWED_PEC_V650_PINS } from "./lib/pec-protected-path-guard.mjs";
+import { rejectedProtectedPaths, INTEGRATION_PROTECTED_PATHS, REVIEWED_SERVER_MIGRATIONS, REVIEWED_WP08_G2_1_PINS, REVIEWED_WP11_V394_PINS, REVIEWED_PEC_V650_PINS, REVIEWED_PEC_V651_PINS } from "./lib/pec-protected-path-guard.mjs";
 import fs from "node:fs";
 let passed = 0;
 function test(name, changed, integration, expected) {
@@ -182,25 +182,57 @@ const r2fix = "supabase/migrations/20261114135500_pec_indent_set_status_header_l
   assert.deepEqual(pin.heads, [head], "v6.5.0 sw.js exception restricted to its own branch");
   const live = fs.readFileSync(sw, "utf8");
   const lf = live.replace(/\r\n/g, "\n");
-  assert.equal(createHash("sha256").update(lf).digest("hex"), pin.sha256, "working-tree sw.js is the pinned v6.5.0 file (re-pin only with owner review)");
-  assert.ok(lf.includes('const CACHE_NAME = "hub-cache-v395"'), "v395 cache line");
-  assert.ok(lf.includes("pec-modal-stack") && lf.includes("pec-purchase-allocations"), "both new PEC modules are network-first");
+  const liveIsV650 = createHash("sha256").update(lf).digest("hex") === pin.sha256;
+  assert.ok(lf.includes("pec-modal-stack") && lf.includes("pec-purchase-allocations"), "both PEC modules are network-first");
+  if (!liveIsV650) console.log("NOTE: working-tree public/sw.js is no longer the v6.5.0 file (superseded by the v6.5.1 pin); v6.5.0 acceptance cases skipped, rejection cases always run");
   const ctx = (over = {}) => ({ headBranch: head, readText: () => live, ...over });
   const c = (name, changed, expected, context) => { assert.deepEqual(rejectedProtectedPaths(changed, false, context), expected, name); console.log("PASS:", name); passed++; };
-  c("v6.5.0 sw.js exact content accepted on its branch", [sw], [], ctx());
-  c("v6.5.0 sw.js CRLF checkout accepted", [sw], [], ctx({ readText: () => lf.replace(/\n/g, "\r\n") }));
+  if (liveIsV650) {
+    c("v6.5.0 sw.js exact content accepted on its branch", [sw], [], ctx());
+    c("v6.5.0 sw.js CRLF checkout accepted", [sw], [], ctx({ readText: () => lf.replace(/\n/g, "\r\n") }));
+  } else {
+    c("v6.5.0 pin rejects the current (v396) sw.js on the v6.5.0 branch", [sw], [sw], ctx());
+  }
   c("v6.5.0 sw.js one extra character rejected", [sw], [sw], ctx({ readText: () => lf + "\n// x" }));
   c("v6.5.0 sw.js with the modal-stack rule removed rejected", [sw], [sw], ctx({ readText: () => lf.replace("pec-modal-stack", "pec-modal-stac") }));
   c("v6.5.0 sw.js with the Purchase Allocations rule removed rejected", [sw], [sw], ctx({ readText: () => lf.replace("pec-purchase-allocations", "pec-purchase-allocation") }));
-  c("v6.5.0 sw.js with another cache generation rejected", [sw], [sw], ctx({ readText: () => lf.replace("hub-cache-v395", "hub-cache-v396") }));
+  c("v6.5.0 sw.js with another cache generation rejected", [sw], [sw], ctx({ readText: () => lf.replace("hub-cache-v395", "hub-cache-v397") }));
   c("v6.5.0 sw.js previous v394 content rejected", [sw], [sw], ctx({ readText: () => lf.replace("hub-cache-v395", "hub-cache-v394") }));
   c("v6.5.0 sw.js rejected on another branch", [sw], [sw], ctx({ headBranch: "claude/pec-r12-resync-collision-ux-20261113" }));
   c("v6.5.0 sw.js rejected on the staging branch", [sw], [sw], ctx({ headBranch: "integration/pec-erp-staging-20261112" }));
   c("v6.5.0 sw.js rejected without context", [sw], [sw], null);
   c("v6.5.0 sw.js rejected when unreadable", [sw], [sw], ctx({ readText: () => { throw new Error("nope"); } }));
   c("v6.5.0 pin never exempts a migration", [migrated, illicit], [migrated, illicit], ctx());
-  c("v6.5.0 pin never exempts a migration beside sw.js", [sw, illicit, migrated], [illicit, migrated], ctx());
+  c("v6.5.0 pin never exempts a migration beside sw.js", [sw, illicit, migrated], liveIsV650 ? [illicit, migrated] : [sw, illicit, migrated], ctx());
   c("v6.5.0 pin never exempts uncommitted/working-tree changes", [sw], [sw], undefined);
+}
+// PEC v6.5.1 release exception for public/sw.js: exact content hash + its own branch only; negative mutations always run.
+{
+  const pin = REVIEWED_PEC_V651_PINS[sw];
+  const head = "claude/pec-mobile-usability-refinement-2he3l5";
+  assert.ok(pin && /^[a-f0-9]{64}$/.test(pin.sha256), "v6.5.1 sw.js SHA256 pin exists");
+  assert.deepEqual(pin.heads, [head], "v6.5.1 sw.js exception restricted to its own branch");
+  const live = fs.readFileSync(sw, "utf8");
+  const lf = live.replace(/\r\n/g, "\n");
+  assert.equal(createHash("sha256").update(lf).digest("hex"), pin.sha256, "working-tree sw.js is the pinned v6.5.1 file (re-pin only with owner review)");
+  assert.ok(lf.includes('const CACHE_NAME = "hub-cache-v396"'), "v396 cache line");
+  assert.ok(lf.includes("pec-modal-stack") && lf.includes("pec-purchase-allocations"), "both new PEC modules are network-first");
+  const ctx = (over = {}) => ({ headBranch: head, readText: () => live, ...over });
+  const c = (name, changed, expected, context) => { assert.deepEqual(rejectedProtectedPaths(changed, false, context), expected, name); console.log("PASS:", name); passed++; };
+  c("v6.5.1 sw.js exact content accepted on its branch", [sw], [], ctx());
+  c("v6.5.1 sw.js CRLF checkout accepted", [sw], [], ctx({ readText: () => lf.replace(/\n/g, "\r\n") }));
+  c("v6.5.1 sw.js one extra character rejected", [sw], [sw], ctx({ readText: () => lf + "\n// x" }));
+  c("v6.5.1 sw.js with the modal-stack rule removed rejected", [sw], [sw], ctx({ readText: () => lf.replace("pec-modal-stack", "pec-modal-stac") }));
+  c("v6.5.1 sw.js with the Purchase Allocations rule removed rejected", [sw], [sw], ctx({ readText: () => lf.replace("pec-purchase-allocations", "pec-purchase-allocation") }));
+  c("v6.5.1 sw.js with another cache generation rejected", [sw], [sw], ctx({ readText: () => lf.replace("hub-cache-v396", "hub-cache-v397") }));
+  c("v6.5.1 sw.js previous v395 content rejected", [sw], [sw], ctx({ readText: () => lf.replace("hub-cache-v396", "hub-cache-v395") }));
+  c("v6.5.1 sw.js rejected on another branch", [sw], [sw], ctx({ headBranch: "claude/pec-r12-resync-collision-ux-20261113" }));
+  c("v6.5.1 sw.js rejected on the staging branch", [sw], [sw], ctx({ headBranch: "integration/pec-erp-staging-20261112" }));
+  c("v6.5.1 sw.js rejected without context", [sw], [sw], null);
+  c("v6.5.1 sw.js rejected when unreadable", [sw], [sw], ctx({ readText: () => { throw new Error("nope"); } }));
+  c("v6.5.1 pin never exempts a migration", [migrated, illicit], [migrated, illicit], ctx());
+  c("v6.5.1 pin never exempts a migration beside sw.js", [sw, illicit, migrated], [illicit, migrated], ctx());
+  c("v6.5.1 pin never exempts uncommitted/working-tree changes", [sw], [sw], undefined);
 }
 // #400 authenticated-DML correction: proposed, pinned to its own branch (and staging for later integration) and exact content.
 const sec400 = "supabase/migrations/20261114160000_pec_revoke_authenticated_dml_policy_link_tables.sql";
