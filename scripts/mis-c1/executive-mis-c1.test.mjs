@@ -484,27 +484,27 @@ test("independence: value FAILS while counts succeed; value retry is value-only"
   } finally { await page.context().close(); }
 });
 
-test("independence: tab switch and Refresh with both requests in flight retire stale responses", { skip }, async () => {
+test("independence: tab switch and Refresh with both requests in flight retire stale responses (live pipeline is ONE shared request: no per-tab duplicate)", { skip }, async () => {
   const { page } = await openProductionDeferred();
   try {
-    // 1) leave the tab with both in flight; late answers must not repaint Sales
+    // 1) leave the tab with both in flight; the late value answer must not repaint Sales
     await page.click('[data-tab="sales"]');
     await page.waitForSelector(".sales-table");
-    await resolveQ(page, "counts", 0, okCounts);
     await resolveQ(page, "value", 0, okValue("2026-11-01", 111));
     await page.waitForTimeout(200);
     const panel = await page.textContent("#tabPanel");
     assert.doesNotMatch(panel, /#111|Production value|Active Pipeline Batches|Loading batch counts/);
-    // 2) return: fresh requests are made, the new ones win over any stale answers
+    // 2) return: the in-flight shared pipeline request is joined (still ONE counts request); the value section re-requests
     await page.click('[data-tab="production"]');
-    await page.waitForFunction(() => window.__mis.q.counts.length === 2 && window.__mis.q.value.length === 2);
-    // 3) Refresh while in flight: yet another pair, older pair retired
+    await page.waitForFunction(() => window.__mis.q.value.length === 2);
+    assert.equal(await page.evaluate(() => window.__mis.q.counts.length), 1, "no duplicate live pipeline request");
+    // 3) Refresh while in flight: a new pipeline request supersedes the first
     await page.click("#refreshBtn");
-    await page.waitForFunction(() => window.__mis.q.counts.length === 3 && window.__mis.q.value.length === 3);
-    await resolveQ(page, "counts", 2, { data: { ...okCounts.data, active_pipeline_batch_count: 333 }, error: null });
+    await page.waitForFunction(() => window.__mis.q.counts.length === 2 && window.__mis.q.value.length === 3);
+    await resolveQ(page, "counts", 1, { data: { ...okCounts.data, active_pipeline_batch_count: 333 }, error: null });
     await resolveQ(page, "value", 2, okValue("2026-11-01", 333));
     await page.waitForFunction(() => /#333/.test(document.querySelector("#productionValueBody").textContent));
-    await resolveQ(page, "counts", 1, { data: { ...okCounts.data, active_pipeline_batch_count: 222 }, error: null });
+    await resolveQ(page, "counts", 0, { data: { ...okCounts.data, active_pipeline_batch_count: 222 }, error: null });
     await resolveQ(page, "value", 1, okValue("2026-11-01", 222));
     await page.waitForTimeout(200);
     assert.match(await pvText(page), /#333/); assert.doesNotMatch(await pvText(page), /#222|#111/);

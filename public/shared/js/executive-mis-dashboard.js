@@ -48,7 +48,12 @@ let FG_ROWS = [];
 let FG_SUMMARY = null;
 let FG_IS_LOADING = false;
 let FG_ERROR = "";
-let PRODUCTION_SUMMARY = null;
+// ONE shared live pipeline response (v_mis_batch_pipeline) feeds the three headline production count cards AND the
+// Production lens. It is deliberately NOT a tab request key: a tab switch must never discard it. status: idle | loading | ok | error.
+let LIVE_PIPELINE = { status: "idle", data: null, asOf: null, message: "" };
+let LIVE_PIPELINE_INFLIGHT = null;
+let LAST_SUMMARY_ROW = null;
+const LIVE_PIPELINE_REUSE_MS = 30000;
 // Canonical G7 production value summary (server computed; the browser never derives a rupee figure).
 // status: loading | ok | error | denied | expired | invalid
 let PRODUCTION_VALUE = { status: "loading", data: null, message: "" };
@@ -294,6 +299,8 @@ async function loadExecutiveSummary() {
     if (kpiGrid) kpiGrid.innerHTML = "";
     closeKpiPopover();
     setStatus("Loading executive summary...", "info");
+    // Refresh = one new live pipeline request (supersedes any older one) running beside the snapshot read.
+    loadLivePipeline({ force: true });
 
     const { data, error } = await supabase
       .from("mv_mis_executive_summary")
@@ -321,6 +328,7 @@ async function loadExecutiveSummary() {
       return;
     }
 
+    LAST_SUMMARY_ROW = data;
     renderKpiCards(data);
     setPlanningNotice(data);
     DATA_REFRESH_TIME = data.mv_refreshed_at
@@ -334,6 +342,56 @@ async function loadExecutiveSummary() {
   } finally {
     if (refreshBtn) refreshBtn.disabled = false;
   }
+}
+
+function livePipelineValue(field) {
+  if (LIVE_PIPELINE.status === "ok" && LIVE_PIPELINE.data) return formatIntegerIN(LIVE_PIPELINE.data[field]);
+  return LIVE_PIPELINE.status === "error" ? "Unavailable" : "Loading...";
+}
+
+function livePipelineSource() {
+  if (LIVE_PIPELINE.status === "ok" && LIVE_PIPELINE.asOf) return `Live, loaded ${formatDateTimeIN(LIVE_PIPELINE.asOf)}`;
+  return LIVE_PIPELINE.status === "error" ? "Live pipeline unavailable" : "Live pipeline loading";
+}
+
+// Repaint every consumer of the shared live pipeline from the one state object: headline cards and the Production lens.
+function renderLivePipelineConsumers() {
+  if (LAST_SUMMARY_ROW && kpiGrid && kpiGrid.innerHTML) {
+    closeKpiPopover();
+    renderKpiCards(LAST_SUMMARY_ROW);
+  }
+  renderProductionCountsBody();
+}
+
+// Single reader of v_mis_batch_pipeline. Concurrent callers share one in-flight promise; `force` (refresh/retry) starts a new request
+// that supersedes any older one; a late older response can never overwrite a newer one (own latest-wins key, tab-independent).
+function loadLivePipeline({ force = false } = {}) {
+  if (!force) {
+    if (LIVE_PIPELINE_INFLIGHT) return LIVE_PIPELINE_INFLIGHT;
+    if (LIVE_PIPELINE.status === "ok" && LIVE_PIPELINE.asOf && Date.now() - LIVE_PIPELINE.asOf.getTime() < LIVE_PIPELINE_REUSE_MS) return Promise.resolve();
+  }
+  const token = beginRequest("pipeline");
+  LIVE_PIPELINE = { status: "loading", data: null, asOf: null, message: "" };
+  renderLivePipelineConsumers();
+  const run = (async () => {
+    const { data, error } = await settle(
+      // Explicit six-field projection of the cheap live pipeline view. The legacy
+      // v_mis_production_tab_summary (position x pipeline) is not queried: it times out (57014).
+      supabase.from("v_mis_batch_pipeline").select(PRODUCTION_COUNT_FIELDS.join(",")).single(),
+    );
+    if (!isLatestRequest("pipeline", token)) return;
+    if (error || !data) {
+      console.error("[MIS] Live pipeline load failed", error);
+      LIVE_PIPELINE = { status: "error", data: null, asOf: null, message: errorMessage(error) };
+      if (ACTIVE_TAB === "production") ACTIVE_TAB_FAILED = true;
+    } else {
+      LIVE_PIPELINE = { status: "ok", data, asOf: new Date(), message: "" };
+    }
+    renderLivePipelineConsumers();
+  })();
+  const tracked = run.finally(() => { if (LIVE_PIPELINE_INFLIGHT === tracked) LIVE_PIPELINE_INFLIGHT = null; });
+  LIVE_PIPELINE_INFLIGHT = tracked;
+  return tracked;
 }
 
 function renderKpiCards(row) {
@@ -400,31 +458,31 @@ function renderKpiCards(row) {
     },
     {
       title: "Active Pipeline Batches",
-      value: formatNumberIN(row.active_pipeline_batch_count),
-      note: "Batches currently in Not Initiated, Work in Process, Finished Goods Bulk, or Bottled Stock stages.",
-      source: productionDate,
-      detail: "Count of active batches in the production pipeline.",
+      value: livePipelineValue("active_pipeline_batch_count"),
+      note: "Batches currently in Not Initiated, Work in Process, Finished Goods Bulk, or Bottled Stock stages. Live count: same source as the Production tab.",
+      source: livePipelineSource(),
+      detail: "Live count of active batches in the production pipeline (not the executive-summary snapshot).",
     },
     {
       title: "Work in Process Batches",
-      value: formatNumberIN(row.work_in_process_batch_count),
-      note: "Batches currently in Work in Process stage.",
-      source: productionDate,
-      detail: "Subset of active pipeline batches currently in WIP.",
+      value: livePipelineValue("work_in_process_batch_count"),
+      note: "Batches currently in Work in Process stage. Live count: same source as the Production tab.",
+      source: livePipelineSource(),
+      detail: "Live subset of active pipeline batches currently in WIP (not the executive-summary snapshot).",
     },
     {
       title: "Overdue Work in Process Batches",
-      value: formatNumberIN(row.overdue_work_in_process_batch_count),
-      note: "Work in Process batches running beyond the expected production window.",
-      source: productionDate,
-      detail: "Positive values need operational follow-up.",
+      value: livePipelineValue("overdue_work_in_process_batch_count"),
+      note: "Work in Process batches running beyond the expected production window. Live count: same source as the Production tab.",
+      source: livePipelineSource(),
+      detail: "Live count. Positive values need operational follow-up.",
       state:
-        Number(row.overdue_work_in_process_batch_count) > 0 ? "caution" : "",
+        LIVE_PIPELINE.status === "ok" && Number(LIVE_PIPELINE.data?.overdue_work_in_process_batch_count) > 0 ? "caution" : "",
     },
     {
       title: "Transferred to Finished Goods Value",
       value: formatCurrencyINR(row.transferred_to_finished_goods_value),
-      note: "Executive-summary snapshot of production value moved into finished goods. A separate source from the Production tab's Tally book figure; the two are not expected to match.",
+      note: "Executive-summary SNAPSHOT of production value moved into finished goods. A separate source from the Production tab's Tally book figure; the two are not expected to match.",
       source: productionDate,
       detail: "Source: executive summary (materialized view). Compare with the Production tab's Tally book value only as a different basis.",
     },
@@ -499,7 +557,7 @@ function updateFreshnessIndicator() {
     statusClass = "snapshot-warning";
   }
 
-  const detailText = `Dashboard data refreshed at: ${formatDateTimeIN(DATA_REFRESH_TIME)}`;
+  const detailText = `Executive summary snapshot refreshed at: ${formatDateTimeIN(DATA_REFRESH_TIME)}. Production batch counts are live.`;
   if (label) label.textContent = relativeTimeLabel(DATA_REFRESH_TIME);
   if (detail) detail.textContent = detailText;
   lastRefreshed.className =
@@ -1828,7 +1886,6 @@ const PRODUCTION_COUNT_FIELDS = Object.freeze([
   "bottled_stock_batch_count",
   "total_canonical_batch_count",
 ]);
-let PRODUCTION_COUNTS = { status: "loading", message: "" };
 
 
 function renderProductionShell() {
@@ -1852,27 +1909,10 @@ async function loadProductionTab() {
   ]);
 }
 
-async function loadProductionCounts() {
-  const token = beginRequest("production");
-  PRODUCTION_COUNTS = { status: "loading", message: "" };
+async function loadProductionCounts({ force = false } = {}) {
+  // The lens reads the shared live pipeline (also feeding the headline cards); no private request of its own.
   renderProductionCountsBody();
-
-  const { data, error } = await settle(
-    // Explicit six-field projection of the cheap live pipeline view. The legacy
-    // v_mis_production_tab_summary (position x pipeline) is not queried: it times out (57014).
-    supabase.from("v_mis_batch_pipeline").select(PRODUCTION_COUNT_FIELDS.join(",")).single(),
-  );
-  if (!isLatestRequest("production", token)) return;
-
-  if (error) {
-    console.error("[MIS] Production summary load failed", error);
-    ACTIVE_TAB_FAILED = true;
-    PRODUCTION_COUNTS = { status: "error", message: errorMessage(error) };
-  } else {
-    PRODUCTION_SUMMARY = data || null;
-    PRODUCTION_COUNTS = { status: "ok", message: "" };
-  }
-  renderProductionCountsBody();
+  await loadLivePipeline({ force });
 }
 
 function istToday() {
@@ -2222,9 +2262,9 @@ function clearProductionAsOf() {
 function renderProductionCountsBody() {
   const host = $("productionCounts");
   if (!host) return;
-  const st = PRODUCTION_COUNTS;
+  const st = LIVE_PIPELINE;
   host.setAttribute("aria-busy", st.status === "loading" ? "true" : "false");
-  if (st.status === "loading") {
+  if (st.status === "loading" || st.status === "idle") {
     host.innerHTML = `<div class="production-summary-heading">Live batch pipeline &mdash; current state</div><div class="pv-state" role="status"><span class="table-loading-spinner" aria-hidden="true"></span> Loading batch counts...</div>`;
     return;
   }
@@ -2232,7 +2272,7 @@ function renderProductionCountsBody() {
     host.innerHTML = `<div class="production-summary-heading">Live batch pipeline &mdash; current state</div><div class="pv-state error" role="alert">Failed to load production batch counts. ${escapeHtml(st.message)} <button type="button" class="mis-retry-btn" data-mis-retry="production-counts">Retry</button></div>`;
     return;
   }
-  const s = PRODUCTION_SUMMARY || {};
+  const s = st.data || {};
   // Counts only, straight from the server. Current state of the live pipeline; not month-bound.
   const cards = [
     { title: "Active Pipeline Batches", value: formatIntegerIN(s.active_pipeline_batch_count) },
@@ -2249,7 +2289,7 @@ function renderProductionCountsBody() {
 
   host.innerHTML = `
     <div class="production-summary-heading">Live batch pipeline &mdash; current state</div>
-    <div class="production-scope-note">Counts of batches as they stand now. They are not tied to the report month selected above, which applies only to the production value section.</div>
+    <div class="production-scope-note">Live counts of batches as they stand now${st.asOf ? ` (loaded ${escapeHtml(formatDateTimeIN(st.asOf))})` : ""}; the headline production cards use this same response. The executive-summary snapshot elsewhere on this page has its own refresh time. They are not tied to the report month selected above, which applies only to the production value section.</div>
     <div class="production-summary-grid">
       ${cards
         .map(
@@ -2469,7 +2509,7 @@ function wireEvents() {
         return;
       }
       if (retryKey === "production-counts") {
-        loadProductionCounts();
+        loadProductionCounts({ force: true });
         return;
       }
       loadActiveTab();
