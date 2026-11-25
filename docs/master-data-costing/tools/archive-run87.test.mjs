@@ -69,3 +69,36 @@ test('no authentication material is tracked in git (SCRAM verifiers, DPAPI files
     assert.doesNotMatch(txt, /SCRAM-SHA-256\$\d+:/, `verifier-like string in ${f}`);
   }
 });
+
+test('SEC-01 package: separate, minimal, fail-closed, identical pin lists, no direct-DB eAushadhi clients', async () => {
+  const { readFile, readdir } = await import('node:fs/promises');
+  const dir = 'docs/master-data-costing/sql/sec01/';
+  const rd = f => readFile(dir + f, 'utf8');
+  const s00 = await rd('S1_00_discover_public_definer_functions.sql');
+  const s01 = await rd('S1_01_revoke_public_execute_eaushadhi_rpc.sql');
+  const s02 = await rd('S1_02_verify_public_execute_revoked.sql');
+  const s99 = await rd('S1_99_rollback_restore_public_execute.sql');
+  // Only the two reviewed statements change privileges; discovery/verify are read-only.
+  assert.match(s00, /BEGIN READ ONLY/); assert.match(s02, /BEGIN READ ONLY/);
+  for (const t of [s00, s02]) assert.doesNotMatch(t, /\b(GRANT|REVOKE|ALTER|DROP|CREATE)\b(?![^\n]*--)(?=\s+(?:EXECUTE|ON|ROLE|FUNCTION|TABLE))/);
+  assert.equal([...s01.matchAll(/EXECUTE format\('([^']*)'/g)].map(m => m[1]).join('|'), 'REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC');
+  assert.equal([...s99.matchAll(/EXECUTE format\('([^']*)'/g)].map(m => m[1]).join('|'), 'GRANT EXECUTE ON FUNCTION %s TO PUBLIC');
+  for (const t of [s01, s02, s99]) {
+    assert.match(t, /c_expected constant int := 10/);
+    assert.match(t, /pinned list not populated/);
+    assert.doesNotMatch(t, /DROP (ROLE|OWNED)|ALTER ROLE|BYPASSRLS|DISABLE TRIGGER|DELETE FROM|TRUNCATE/i);
+    assert.doesNotMatch(t, /SCRAM-SHA-256\$/);
+  }
+  // Pin arrays are identical across S1_01 / S1_02 / S1_99 (and still empty until the owner approves a list).
+  const pin = t => t.match(/c_pinned constant text\[\] := (ARRAY\[[^;]*\]::text\[\]);/)[1];
+  assert.equal(pin(s01), pin(s02)); assert.equal(pin(s01), pin(s99));
+  // SEC-01 must stay separate from Route 2 role creation.
+  for (const t of [s01, s02, s99]) assert.doesNotMatch(t, /CREATE ROLE|GRANT SELECT|R2_0[1-5]/);
+  assert.deepEqual((await readdir(dir)).sort(), ['S1_00_discover_public_definer_functions.sql','S1_01_revoke_public_execute_eaushadhi_rpc.sql','S1_02_verify_public_execute_revoked.sql','S1_99_rollback_restore_public_execute.sql','S1_FIXTURE_ACCEPTANCE.sh']);
+  // Every eAushadhi client calls RPCs through PostgREST/Supabase API roles (anon/authenticated/service_role),
+  // which keep their explicit EXECUTE grants; none connects as a direct database login.
+  const { execFileSync } = await import('node:child_process');
+  const files = execFileSync('git', ['ls-files', 'electron/eaushadhi-worker', 'public/shared/js/eaushadhi-review-api.js', 'supabase/functions/eaushadhi-qc-report-verify'], { encoding: 'utf8' }).split('\n').filter(f => /\.(js|ts|mjs)$/.test(f));
+  assert.ok(files.length > 5);
+  for (const f of files) assert.doesNotMatch(await readFile(f, 'utf8'), /require\(['"]pg['"]\)|from ['"]pg['"]|postgres(ql)?:\/\//, `direct DB client in ${f}`);
+});

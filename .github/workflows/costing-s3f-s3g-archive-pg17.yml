@@ -4,6 +4,7 @@ on:
     paths:
       - "docs/master-data-costing/tools/**"
       - "docs/master-data-costing/sql/route2/**"
+      - "docs/master-data-costing/sql/sec01/**"
       - "docs/master-data-costing/sql/S3L_SYNTHETIC_PG17_FIXTURE.sql"
       - ".github/workflows/costing-s3f-s3g-archive-pg17.yml"
 permissions:
@@ -115,3 +116,8 @@ jobs:
           PGPASSWORD=fixture_only PGHOST=127.0.0.1 PGPORT=5432 PGUSER=postgres PGDATABASE=s3f_fixture             bash docs/master-data-costing/sql/route2/R2_FIXTURE_ACCEPTANCE.sh 2>&1 | tee "$RUNNER_TEMP/r2-acceptance.txt" | grep -E 'FAIL|R2_FIXTURE|R2 '
           grep -q '^R2_FIXTURE_ACCEPTANCE_PASS$' "$RUNNER_TEMP/r2-acceptance.txt"
           echo R2_SELECT_ONLY_ROLE_PACKAGE_PG17_PASS
+          # SEC-01 (separate security change): revoke PUBLIC EXECUTE on ten pinned SECURITY DEFINER functions.
+          # Synthetic functions only; proves drift gates, API-role preservation, archive-role denial, rollback.
+          PGPASSWORD=fixture_only PGHOST=127.0.0.1 PGPORT=5432 PGUSER=postgres PGDATABASE=s3f_fixture             bash docs/master-data-costing/sql/sec01/S1_FIXTURE_ACCEPTANCE.sh 2>&1 | tee "$RUNNER_TEMP/s1-acceptance.txt" | grep -E 'FAIL|S1_FIXTURE|SEC-01 '
+          grep -q '^S1_FIXTURE_ACCEPTANCE_PASS$' "$RUNNER_TEMP/s1-acceptance.txt"
+          echo SEC01_PUBLIC_EXECUTE_REVOKE_PG17_PASS
