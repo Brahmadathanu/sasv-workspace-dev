@@ -1626,7 +1626,10 @@ body.sasv-pec .pa-seg-btn[aria-pressed="true"] {
 }
 /* Context strip: applied period (opens the filter panel) · summary toggle · count */
 body.sasv-pec .pa-strip { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; }
-body.sasv-pec .pa-strip .pec-lens-count { margin-left: auto; }
+/* period indicator left; count after it; Summary pinned to the far right with flexible space between */
+body.sasv-pec .pa-strip .pec-lens-count { order: 1; }
+body.sasv-pec .pa-strip .pa-summary-toggle { order: 2; margin-left: auto; flex: 0 0 auto; }
+body.sasv-pec .pa-strip .pa-period-chip { flex: 0 1 auto; }
 body.sasv-pec .pa-period-chip,
 body.sasv-pec .pa-summary-toggle {
   display: inline-flex; align-items: center; gap: 6px; min-height: var(--sasv-control-sm, 32px); padding: 0 10px;
@@ -1642,7 +1645,8 @@ body.sasv-pec .pa-period-chip:focus-visible,
 body.sasv-pec .pa-summary-toggle:focus-visible { outline: 3px solid var(--sasv-focus-ring); outline-offset: 0; }
 body.sasv-pec .pa-period-chip[aria-expanded="true"],
 body.sasv-pec .pa-summary-toggle[aria-expanded="true"] { background: var(--sasv-action-primary-soft); color: var(--sasv-action-primary-active); }
-body.sasv-pec .pa-summary-toggle[aria-expanded="true"] .pa-chev { transform: rotate(90deg); }
+body.sasv-pec .pa-summary-chevron { flex: 0 0 auto; transition: transform 0.12s; }
+body.sasv-pec .pa-summary-toggle[aria-expanded="true"] .pa-summary-chevron { transform: rotate(180deg); }
 body.sasv-pec .pa-digest { font-weight: var(--sasv-fw-regular, 400); color: var(--sasv-text-muted); }
 /* Filter panel: voucher-period section */
 body.sasv-pec .pa-filter-drawer .pa-seg { display: flex; width: 100%; }
