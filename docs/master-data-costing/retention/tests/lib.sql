@@ -1,4 +1,4 @@
-CREATE SCHEMA IF NOT EXISTS t; GRANT USAGE ON SCHEMA t TO authenticated,service_role;
+CREATE SCHEMA IF NOT EXISTS t; GRANT USAGE ON SCHEMA t TO anon,authenticated,service_role;
 -- t.fails(sql, regex): passes only if the statement raises an error matching regex (side effects rolled back).
 CREATE OR REPLACE FUNCTION t.fails(p_sql text,p_pat text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN

@@ -14,4 +14,8 @@ for fn, name in targets:
     if not m:
         sys.exit(f"cannot extract {name} from {fn}")
     out.append(m.group(0))
+txt=(root/"supabase/migrations/20261019053600_w2_governed_period_lifecycle.sql").read_text()
+m=re.search(r"create or replace function costing\.fn_w2_run_checks\(.*?\nend \$f\$;\n",txt,re.S|re.I)
+if not m: sys.exit("cannot extract fn_w2_run_checks")
+out.append(m.group(0))
 print("\n".join(out))
