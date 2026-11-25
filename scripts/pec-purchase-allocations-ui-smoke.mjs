@@ -529,6 +529,33 @@ for (const vp of [NARROW, TABLET]) {
   await ctx.close();
 }
 
+// ── 10. PEC v6.5.1: Summary control pinned right, PEC chevron, no overlap for long periods ──
+for (const w of [375, 390, 430, 820, 1440]) {
+  const { ctx, page } = await openLens({ name: `w${w}`, width: w, height: 844 });
+  await page.waitForSelector(".pa-indent-card");
+  for (const mode of ["indent", "material", "vendor"]) {
+    await page.click(`[data-pa-mode="${mode}"]`);
+    const g = await page.evaluate(() => { const r = (id) => document.getElementById(id).getBoundingClientRect(), st = document.querySelector(".pa-strip").getBoundingClientRect(), c = r("paPeriodBtn"), t = r("paSummaryToggle");
+      return { stRight: st.right, tRight: t.right, tLeft: t.left, cLeft: c.left, cRight: c.right, stLeft: st.left, ch: c.height, th: t.height }; });
+    check(Math.abs(g.stRight - g.tRight) <= 1 && g.cRight < g.tLeft && Math.abs(g.cLeft - g.stLeft) <= 1 && Math.abs(g.ch - g.th) <= 1, `[${w}] ${mode}: Summary pinned to the far right, period indicator left, equal heights, no overlap (${JSON.stringify(g)})`);
+  }
+  const svg = await page.$eval("#paSummaryToggle svg", (e) => ({ pts: e.querySelector("polyline").getAttribute("points"), w: e.getAttribute("width"), sw: e.getAttribute("stroke-width"), txt: document.getElementById("paSummaryToggle").textContent.includes("▸") }));
+  check(svg.pts === "6 9 12 15 18 9" && svg.w === "14" && svg.sw === "2.5" && !svg.txt, `[${w}] Summary uses the PEC chevron svg, not the solid triangle`);
+  const rot = () => page.$eval("#paSummaryToggle svg", (e) => getComputedStyle(e).transform);
+  await page.waitForTimeout(200);
+  check((await rot()) === "none", `[${w}] collapsed: chevron points down`);
+  await page.click("#paSummaryToggle");
+  await page.waitForTimeout(250);
+  check((await rot()).startsWith("matrix(-1") && (await page.getAttribute("#paSummaryToggle", "aria-expanded")) === "true", `[${w}] expanded: chevron points up, aria-expanded=true`);
+  await page.click("#paSummaryToggle");
+  await setFilters(page, async (p) => { await p.click('[data-pa-preset="custom"]'); await p.fill("#paDateFrom", "2026-10-28"); await p.fill("#paDateTo", "2026-11-03"); });
+  await page.waitForFunction(() => document.getElementById("paPeriodText").textContent === "28 Oct – 3 Nov 2026");
+  const lg = await page.evaluate(() => { const c = document.getElementById("paPeriodBtn").getBoundingClientRect(), t = document.getElementById("paSummaryToggle").getBoundingClientRect(); return { gap: t.left - c.right, over: document.documentElement.scrollWidth - innerWidth, tR: t.right, vw: innerWidth }; });
+  check(lg.gap >= 0 && lg.over <= 1 && lg.tR <= lg.vw, `[${w}] long custom range: no overlap or clipping (${JSON.stringify(lg)})`);
+  await shot(page, `refine-${w}`);
+  await ctx.close();
+}
+
 {
   // existing lenses still load and the excess lens is unaffected
   const { ctx, page, errors } = await openLens(VP);

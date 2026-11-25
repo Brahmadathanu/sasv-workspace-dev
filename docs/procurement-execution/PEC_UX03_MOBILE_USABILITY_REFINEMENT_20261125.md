@@ -32,3 +32,8 @@ Evidence: `docs/procurement-execution/evidence/pec-ux03/{before,after}` (per-mod
 `pec-purchase-allocations-ui-smoke` 115 checks (was 88; adds panel location, same-panel triggers, draft/apply/reset, specific/range, invalid range, one-request apply, sheet geometry, focus return, collapsed/expanded summary, pre-data height <=386 px); model tests 25; contract parity, modal-stack smoke, paging, VWL, five-lens inventory, C2/fast-track/R12/resync/serial/PR-scope smokes, PWA freshness and protected-path guard pass. Pre-existing, identical on the unmodified v6.5.0 tree: `pec-erp-c1-layout-smoke` (4 checkbox-size checks) and `pec-erp-c1-static-smoke` (reports CRLF-normalised migration files in this checkout). Not performed: authenticated PWA or real-device/Windows acceptance.
 
 Owner acceptance (consolidated, install the latest patch only): phone PWA/Windows — open Purchase Allocations; confirm period chip, filter sheet (full page on phone, anchored on desktop), Apply/Reset, summary expand, three modes, drill-down and Open indent return, CSV/print.
+
+## Owner refinement after PWA inspection (included in v6.5.1)
+- Summary toggle is pinned to the far right of the strip (period indicator on the left, flexible space between; count follows the indicator); equal control heights; verified without overlap or clipping for a long custom range at 375/390/430/820/1440 px in all three modes.
+- The solid triangle is replaced by the PEC chevron (`polyline 6 9 12 15 18 9`, 14 px, stroke 2.5): down when collapsed, up (180° rotation) when expanded; `aria-expanded` unchanged.
+- Evidence: `evidence/pec-ux03/after/refinement/` (`refine-<width>.png`).
