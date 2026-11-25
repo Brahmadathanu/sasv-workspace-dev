@@ -68,3 +68,6 @@ acceptance-*/
 .tmp-*/
 scripts/tmp-*
 *.log
+
+# MIS G7: local protected production-baseline packets (schema definitions; never commit)
+.local/

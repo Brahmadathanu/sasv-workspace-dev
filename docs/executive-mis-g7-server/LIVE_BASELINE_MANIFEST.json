@@ -1,0 +1,46 @@
+{
+  "manifest_version": "mis-g7-s3b-baseline/1",
+  "source": "independent live READ ONLY reviews of PR #522 (24 Nov 2026 IST); 17/17 pre-install rows passed at head 9788a95",
+  "pinned_function_sha256": {
+    "fn_fg_auto_zero(integer,text,numeric)": "705fecd3e68576272af73b5230737c98689c9f538d88e40d723a5b935ae5a582",
+    "fn_fg_force_close(integer,text,numeric)": "c48578e7e08d311aebdefdaaf512bbfe2a87daecf61c2bde735f46d1e7cff10d",
+    "fn_fg_ledger_add(integer,text,numeric,text,integer,text,date)": "9b9a1a4975679358a2628f3e598a75a2a4b0ac658173da9f6f1950cdd6629675",
+    "trg_fg_bulk_internal_transfer_to_ledger()": "6adab6d8180d2d0f15f8415acd51403691cc6f64c58b549b71ce386e6faa69c5",
+    "trg_fg_ledger_from_dwl()": "ffe12985b5e7c135766655c4893a886adc2d1a36bd6a181c80cd185649c2eec1",
+    "trg_fg_ledger_from_es()": "cc32357d320fb63278632c5726085bdcf6b32395453838d39cac8c3584faed28",
+    "trg_fg_ledger_reconcile_ins_stmt()": "d4cdfe3dbc827d0e14122fe41993981e65b4903bd18d8da3d0013fd730cc2412",
+    "trg_fg_ledger_reconcile_upd_stmt()": "a298bcff5a7fede05d59c4d77c4673fd4fe5db2f5609914cb900dedfbf6b5f7b",
+    "trg_fg_ledger_reconcile_del_stmt()": "d09789baea588ff64d78e9b787ae769a4dff2df9f307547bfcdedd562cb995ad",
+    "fn_fg_reconcile_batch(integer,text,numeric)": "b229faad84f128420eb61caae3fb0678b15772d22b0d13f416c0332a92b9a7be",
+    "fn_fg_mark_done_if_zero(integer,text,numeric)": "278f4fdc43cc5886b57995407d6cc5cdc52404362fb0135ab19aedd440cacb6a"
+  },
+  "live_facts": {
+    "packaging_events.event_type": "citext",
+    "event_type_lkp.label": "text",
+    "ids": "bigint (packaging_events, event_skus, product_skus); fg_bulk_stock_ledger.source_id integer",
+    "fn_fg_eps_default()": "0.01",
+    "force_close_wrapper_permission": "module:fg-bulk-stock",
+    "affects_bulk_stock": "-1 depletes (Bottling/labelling/cartoning/Capsule monocarton), 0 Transfer to FG store",
+    "reconciler_execute": "postgres, service_role only",
+    "helpers_execute_before_S3b": "fn_fg_ledger_add/fn_fg_auto_zero authenticated; fn_fg_force_close(int,text,numeric) none",
+    "require_permission": "checks auth.uid(), can_view=true and (when p_need_edit) can_edit=true",
+    "new_permission_targets_rows": "0 rows for the four MIS targets (plus module:mis-g7-core-migration-signoff from S5); module:fg-bulk-stock and module:edit-log-entry already granted (6 / 3 editors)"
+  },
+  "deployment_prerequisite": "retain full pg_get_functiondef source of all 11 functions plus ACL/RLS snapshots in an owner-governed immutable packet (migration also persists them in app_private.mis_g7_s3b_baseline)",
+  "legacy_dwl_editor": {
+    "core": "rpc_update_daily_work_log_with_packaging__core",
+    "core_sha256": "df7290df4a17e4af9f0aed43cf564007a35b957d8899b98869d7d35531296aec",
+    "wrapper": "rpc_update_daily_work_log_with_packaging",
+    "wrapper_security": "SECURITY DEFINER; require_permission('module:edit-log-entry', true)",
+    "core_security": "SECURITY DEFINER; not executable by authenticated",
+    "behavior": "deletes the work log's event_skus then packaging_events header(s), recreates header + event_skus from sku_breakdown, deletes chain when row stops being Done/packaging, applies governed FG source quantity deltas, invokes fn_fg_reconcile_batch",
+    "wrapper_sha256": "4c82b4a3263f3f868e8ac4dc696f5b68efd58e593fe4adb4d92a7ec7fb1bd7b4",
+    "parser": "fn_parse_sku_breakdown(text)",
+    "parser_sha256": "ec5fe3ead3e839d4ccad6c9f7e37c5775e1299c0b46ad71cc9a6b9eb7c5b29db",
+    "source_reference": "LIVE_DWL_EDITOR_REFERENCE_ONLY_20261124.md (exact pg_get_functiondef text; tests install it verbatim and assert the SHA-256 values)",
+    "s5b_patched_core_sha256": "dfa5a5e9aa31b48cf41fe9d03800fff2e35e5a3825ca458b5ccb6ca6c4471bcc",
+    "s5b_patch": "LIVE_DWL_EDITOR_CORE_S5_PATCH.diff: one function-local directive line (#variable_conflict use_column) + three added PERFORM statements (begin(p_id, p_item, p_batch_number) after the row lock; finish before each of the two RETURN QUERY exits); nothing removed",
+    "required_database_setting": "NONE. Live default is plpgsql.variable_conflict = error (source: default). The original core's statements 'DELETE FROM event_skus WHERE packaging_event_id = v_old_packaging_event_id' are ambiguous under error (OUT column packaging_event_id); the patched core resolves them with a function-local directive. OWNER DECISION: replacing/removing an existing chain raises today under the default; after S5b it works as written.",
+    "s5b_migration": "20261123150000_mis_g7_s5b_legacy_dwl_editor_core_integration.sql (renamed from the invalid 20261123146000: 14:60:00)"
+  }
+}
