@@ -1,4 +1,5 @@
--- REVIEW ONLY; not a registered migration.
+-- R1 forward DDL body. REVIEW ONLY: do not execute in production until exact preflight, isolated PG acceptance and explicit owner authorization.
+-- Existing API signatures, legacy summary columns, labels and filters remain. New canonical fields append to the same view.
 CREATE OR REPLACE VIEW public.v_mis_sales_tab_summary WITH (security_invoker=true) AS
 WITH latest_sales AS (
          SELECT (SELECT sales_date FROM public.v_sales_daily_normalized WHERE sales_date IS NOT NULL ORDER BY sales_date DESC LIMIT 1) AS report_date
@@ -123,22 +124,34 @@ $function$
 ;
 CREATE OR REPLACE VIEW public.v_mis_inventory_tab_summary WITH (security_invoker=true) AS
 SELECT CURRENT_DATE AS report_date,
-    sum(qty_value * avg_rate_value) FILTER (WHERE category_code = 'RM'::text) AS raw_material_inventory_value,
-    sum(qty_value * avg_rate_value) FILTER (WHERE category_code = 'PM'::text) AS packing_material_inventory_value,
+    sum(qty_value * avg_rate_value) FILTER (WHERE source_kind = 'rm'::text) AS raw_material_inventory_value,
+    sum(qty_value * avg_rate_value) FILTER (WHERE source_kind = 'plm'::text) AS packing_material_inventory_value,
     sum(qty_value * avg_rate_value) FILTER (WHERE source_kind = 'consumable'::text) AS consumables_inventory_value,
     sum(qty_value * avg_rate_value) FILTER (WHERE source_kind = 'fuel'::text) AS fuel_inventory_value,
     sum(qty_value * avg_rate_value) AS manufacturing_inventory_value,
-    count(*) FILTER (WHERE category_code = 'RM'::text) AS raw_material_item_count,
-    count(*) FILTER (WHERE category_code = 'PM'::text) AS packing_material_item_count,
+    count(*) FILTER (WHERE source_kind = 'rm'::text) AS raw_material_item_count,
+    count(*) FILTER (WHERE source_kind = 'plm'::text) AS packing_material_item_count,
     count(*) FILTER (WHERE source_kind = 'consumable'::text) AS consumables_item_count,
     count(*) FILTER (WHERE source_kind = 'fuel'::text) AS fuel_item_count,
     count(*) AS total_inventory_item_count,
-    'Manufacturing inventory: Raw Material, Packing Material, Indirect Materials & Utilities; legacy consumables/fuel retained for compatibility.'::text AS inventory_scope_note ,
-    sum(CASE WHEN qty_value = 0 THEN 0 ELSE qty_value * avg_rate_value END) FILTER (WHERE category_code = 'IND') AS indirect_material_inventory_value,
-    count(*) FILTER (WHERE category_code = 'IND') AS indirect_material_item_count,
+    'Inventory tab covers manufacturing inventory only: Raw Material, Packing Material, Consumables, and Fuel. Finished Goods inventory is handled separately in the Finished Goods tab.'::text AS inventory_scope_note,
+    sum(CASE WHEN qty_value = 0 THEN 0::numeric WHEN qty_value IS NULL OR avg_rate_value IS NULL OR avg_rate_value <= 0 THEN NULL::numeric ELSE qty_value * avg_rate_value END) FILTER (WHERE category_code = 'RM') AS canonical_rm_known_value,
+    count(*) FILTER (WHERE category_code = 'RM') AS canonical_rm_item_count,
+    count(*) FILTER (WHERE category_code = 'RM' AND (qty_value IS NULL OR (qty_value <> 0 AND (avg_rate_value IS NULL OR avg_rate_value <= 0)))) AS canonical_rm_valuation_gap_count,
+    sum(CASE WHEN qty_value = 0 THEN 0::numeric WHEN qty_value IS NULL OR avg_rate_value IS NULL OR avg_rate_value <= 0 THEN NULL::numeric ELSE qty_value * avg_rate_value END) FILTER (WHERE category_code = 'PM') AS canonical_pm_known_value,
+    count(*) FILTER (WHERE category_code = 'PM') AS canonical_pm_item_count,
+    count(*) FILTER (WHERE category_code = 'PM' AND (qty_value IS NULL OR (qty_value <> 0 AND (avg_rate_value IS NULL OR avg_rate_value <= 0)))) AS canonical_pm_valuation_gap_count,
+    sum(CASE WHEN qty_value = 0 THEN 0::numeric WHEN qty_value IS NULL OR avg_rate_value IS NULL OR avg_rate_value <= 0 THEN NULL::numeric ELSE qty_value * avg_rate_value END) FILTER (WHERE category_code = 'IND') AS canonical_ind_known_value,
+    count(*) FILTER (WHERE category_code = 'IND') AS canonical_ind_item_count,
+    count(*) FILTER (WHERE category_code = 'IND' AND (qty_value IS NULL OR (qty_value <> 0 AND (avg_rate_value IS NULL OR avg_rate_value <= 0)))) AS canonical_ind_valuation_gap_count,
+    sum(CASE WHEN qty_value = 0 THEN 0::numeric WHEN qty_value IS NULL OR avg_rate_value IS NULL OR avg_rate_value <= 0 THEN NULL::numeric ELSE qty_value * avg_rate_value END) AS inventory_known_value,
+    sum(CASE WHEN qty_value = 0 THEN 0::numeric WHEN qty_value IS NULL OR avg_rate_value IS NULL OR avg_rate_value <= 0 THEN NULL::numeric ELSE qty_value * avg_rate_value END) FILTER (WHERE category_code IS NULL OR category_code NOT IN ('RM','PM','IND')) AS unclassified_known_value,
     count(*) FILTER (WHERE category_code IS NULL OR category_code NOT IN ('RM','PM','IND')) AS unclassified_item_count,
     count(*) FILTER (WHERE qty_value IS NULL OR (qty_value <> 0 AND (avg_rate_value IS NULL OR avg_rate_value <= 0))) AS valuation_gap_item_count,
-    count(*) FILTER (WHERE qty_value = 0) AS zero_quantity_item_count
+    count(*) FILTER (WHERE qty_value = 0) AS zero_quantity_item_count,
+    count(inv_stock_item_id) - count(DISTINCT inv_stock_item_id) AS duplicate_item_row_count,
+    count(*) FILTER (WHERE inv_stock_item_id IS NULL) AS missing_item_id_count,
+    'Manufacturing inventory: RM Raw Material, PM Packing Material, IND Indirect Materials & Utilities; known values exclude valuation gaps; Finished Goods reported separately.'::text AS canonical_inventory_scope_note
  FROM public.v_stock_current_by_item;
 CREATE OR REPLACE FUNCTION public.get_mis_inventory_item_page(p_source_kind text DEFAULT 'all'::text, p_search text DEFAULT ''::text, p_limit integer DEFAULT 25, p_offset integer DEFAULT 0)
  RETURNS TABLE(source_kind text, source_label text, inv_stock_item_id bigint, code text, item_name text, qty_value numeric, avg_rate_value numeric, stock_value numeric, category_label text, subcategory_label text, group_label text, subgroup_label text, total_rows bigint)
@@ -162,7 +175,7 @@ AS $function$
       name as item_name,
       qty_value,
       avg_rate_value,
-      coalesce(qty_value, 0) * coalesce(avg_rate_value, 0) as stock_value,
+      CASE WHEN qty_value = 0 THEN 0::numeric WHEN qty_value IS NULL OR avg_rate_value IS NULL OR avg_rate_value <= 0 THEN NULL::numeric ELSE qty_value * avg_rate_value END as stock_value,
       category_label,
       subcategory_label,
       group_label,
