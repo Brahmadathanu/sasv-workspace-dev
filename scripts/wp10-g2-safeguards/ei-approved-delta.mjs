@@ -21,9 +21,15 @@ export const EI_MATURITY_CLIENT_BLOBS = Object.freeze({
   "public/shared/js/executive-mis-dashboard.js": "af183657b22ab7ff03776442a6e51c91732e6126",
   "public/shared/js/executive-intelligence-model.js": "27dd46ad870cd9c4ed9cabaa19eaf55cf8c439b5"
 });
+// Final owner cosmetic refinements, two exact client blobs only.
+export const EI_COSMETIC_BRANCH = "fix/executive-intelligence-final-cosmetics";
+export const EI_COSMETIC_CLIENT_BLOBS = Object.freeze({
+  "public/shared/executive-mis-dashboard.html": "40e6537d746f9b9122abf204b4f7d4f0200c3bb5",
+  "public/shared/js/executive-mis-dashboard.js": "99e3c3b8ec902100960a1ca6d4b0ac87ea04d8f7"
+});
 export const EI_REGISTRY_BASE = "f78f3ba6d1a403cf4b588afc5d285f48df962361";
 export function eiClientApproved(path, branch, committedBlob, workingBlob) {
- const pins = branch === EI_BRANCH ? EI_CLIENT_BLOBS : branch === EI_R5_BRANCH ? EI_R5_CLIENT_BLOBS : branch === EI_MATURITY_BRANCH ? EI_MATURITY_CLIENT_BLOBS : null;
+ const pins = branch === EI_BRANCH ? EI_CLIENT_BLOBS : branch === EI_R5_BRANCH ? EI_R5_CLIENT_BLOBS : branch === EI_MATURITY_BRANCH ? EI_MATURITY_CLIENT_BLOBS : branch === EI_COSMETIC_BRANCH ? EI_COSMETIC_CLIENT_BLOBS : null;
  return !!pins && Object.hasOwn(pins,path) && committedBlob === pins[path] && workingBlob === committedBlob;
 }
 export function eiRegistryApproved(path, branch, committedBlob, workingBlob, baseBlob) {

@@ -45,7 +45,7 @@ import {
   freshnessModel,
   FRESHNESS_GROUP_LABELS,
   activityParts,
-} from "./executive-intelligence-model.js?ei-r8=1";
+} from "./executive-intelligence-model.js?ei-r9=1";
 
 const MODULE_ID = "executive-mis-dashboard";
 const PLAN_WARNING_STATUS =
@@ -524,26 +524,38 @@ function segmentsHtml(series, { label, unit, noun = "items", cls = {} }) {
 const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const monthName = (k) => `${MONTH_SHORT[Number(k.slice(5, 7)) - 1]} ${k.slice(0, 4)}`;
 function trendHtml(t, { label, format, unit, asOf = "" }) {
-  if (!t || !t.months) return "";
-  const range = t.hi - t.lo;
-  const pctOf = (v) => (v / range) * 100;
-  const cols = t.months.map((m) => {
-    const name = `${monthName(m.key)}${m.partial ? " (partial month, to the anchor date)" : ""}`;
-    let text, bar = "";
-    if (m.state === "ok") {
-      text = format(m.value);
-      const lo = Math.min(m.value, 0), h = Math.max(Math.abs(pctOf(m.value)), m.value === 0 ? 0 : 2);
-      bar = `<span class="ei-col-bar${m.partial ? " ei-col-partial" : ""}${m.value < 0 ? " ei-col-neg" : ""}" style="bottom:${pctOf(lo - t.lo)}%;height:${h}%"></span>`;
-    } else if (m.state === "unavailable") text = `Unavailable${m.reported !== null ? `; source reported ${format(m.reported)}, not certified` : ""}`;
-    else text = "No row returned for this month (not zero)";
-    return `<li class="ei-col ei-col-${m.state}" tabindex="0" role="img" aria-label="${escapeHtml(`${name}: ${text}`)}" title="${escapeHtml(`${name}: ${text}`)}"><span class="ei-col-plot" aria-hidden="true">${bar}${m.state !== "ok" ? `<span class="ei-col-gap">${m.state === "missing" ? "–" : "n/a"}</span>` : ""}</span><span class="ei-col-label" aria-hidden="true">${escapeHtml(MONTH_SHORT[Number(m.key.slice(5, 7)) - 1])}${m.partial ? "*" : ""}</span></li>`;
+  if (!t || !t.months?.length) return "";
+  const range = t.hi - t.lo || 1;
+  const x = (i) => 12 + i * 336 / Math.max(1, t.months.length - 1);
+  const y = (v) => 8 + (t.hi - v) / range * 76;
+  const points = t.months.map((m, i) => {
+    const name = monthName(m.key) + (m.partial ? " (partial month, to the anchor date)" : "");
+    const value = m.state === "ok" ? format(m.value) : m.state === "unavailable" ? "Unavailable" + (m.reported !== null ? "; source reported " + format(m.reported) + ", not certified" : "") : "No row returned (not zero)";
+    return { m, i, name, value, x: x(i), y: m.state === "ok" ? y(m.value) : null };
   });
-  const valued = t.months.filter((m) => m.state === "ok");
-  const peak = valued.reduce((a, m) => (a === null || m.value > a.value ? m : a), null);
-  const gaps = t.months.filter((m) => m.state !== "ok").length;
+  const segments = points.slice(1).map((p, i) => {
+    const prev = points[i];
+    if (prev.y === null || p.y === null) return "";
+    return `<line class="ei-line-segment${p.m.partial || prev.m.partial ? " ei-line-partial" : ""}" x1="${prev.x}" y1="${prev.y}" x2="${p.x}" y2="${p.y}"/>`;
+  }).join("");
+  const marks = points.map(p => {
+    const desc = escapeHtml(p.name + ": " + p.value);
+    return p.y === null
+      ? `<text class="ei-line-gap" x="${p.x}" y="78" text-anchor="middle" tabindex="0" role="img" aria-label="${desc}"><title>${desc}</title>${p.m.state === "missing" ? "–" : "n/a"}</text>`
+      : `<circle class="ei-line-point${p.m.partial ? " ei-line-point-partial" : ""}" cx="${p.x}" cy="${p.y}" r="3" tabindex="0" role="img" aria-label="${desc}"><title>${desc}</title></circle>`;
+  }).join("");
+  const labels = points.map(p => `<li class="ei-col-label" title="${escapeHtml(p.name + ": " + p.value)}">${escapeHtml(MONTH_SHORT[Number(p.m.key.slice(5, 7)) - 1])}${p.m.partial ? "*" : ""}</li>`).join("");
+  const valued = t.months.filter(m => m.state === "ok");
+  const peak = valued.reduce((a,m) => a === null || m.value > a.value ? m : a, null);
+  const gaps = t.months.length - valued.length;
+  const summary = monthName(t.months[0].key) + " to " + monthName(t.months[t.months.length - 1].key) + " · peak " + (peak ? monthName(peak.key) + " " + format(peak.value) : "n/a") + (gaps ? " · " + gaps + " month(s) without a value (shown as gaps)" : "") + (t.months.some(m => m.partial) ? " · * partial month" : "");
   return `<figure class="ei-chart ei-trend">${chartHead(label, asOf)}
-    <ol class="ei-cols" aria-label="${escapeHtml(label)}">${cols.join("")}</ol>
-    <div class="ei-trend-summary">${escapeHtml(`${monthName(t.months[0].key)} to ${monthName(t.months[t.months.length - 1].key)} · peak ${peak ? `${monthName(peak.key)} ${format(peak.value)}` : "n/a"}${gaps ? ` · ${gaps} month${gaps === 1 ? "" : "s"} without a value (shown as gaps)` : ""}${t.months.some((m) => m.partial) ? " · * partial month" : ""}`)}</div>
+    <svg class="ei-line-plot" viewBox="0 0 360 92" preserveAspectRatio="none" role="group" aria-label="${escapeHtml(label)}">
+      ${[8,46,84].map(v => `<line class="ei-line-grid" x1="12" x2="348" y1="${v}" y2="${v}"/>`).join("")}
+      ${t.lo < 0 && t.hi > 0 ? `<line class="ei-line-grid" x1="12" x2="348" y1="${y(0)}" y2="${y(0)}"/>` : ""}
+      ${segments}${marks}
+    </svg><ol class="ei-cols" aria-label="Months">${labels}</ol>
+    <div class="ei-trend-summary">${escapeHtml(summary)}</div>
     ${unit ? `<figcaption class="ei-bars-note">${escapeHtml(unit)}</figcaption>` : ""}</figure>`;
 }
 

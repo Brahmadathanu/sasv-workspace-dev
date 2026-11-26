@@ -1,0 +1,2 @@
+# Final R5 cosmetic refinements
+Owner production inspection of PR #543: mostly acceptable, requests Finance summary three vertical rows without currency wrapping and Sales History line chart. Shared trend renderer also used in Overview, intentionally consistent. No backend, shared style, SW, registry, permissions or Electron change. Preserve full signed amounts, gap/partial semantics, accessible monthly values. Final formal production acceptance remains open; no Sales Viewer retirement yet. Full EI/C1, WP10 and PEC gates required.
