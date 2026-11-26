@@ -14,7 +14,7 @@ before(()=>{
  CREATE SCHEMA auth;CREATE SCHEMA app_private;
  CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$SELECT coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb,'{}'::jsonb)$$;
- CREATE FUNCTION public.app_has_permission(t text,m text) RETURNS boolean LANGUAGE sql STABLE AS $$SELECT (auth.uid()='00000000-0000-0000-0000-000000000001' AND t='module:executive-mis-dashboard') OR (auth.uid()='00000000-0000-0000-0000-000000000002' AND t='module:sales-data-viewer') OR (auth.uid()='00000000-0000-0000-0000-000000000004' AND t='module:sales-item-classification')$$;
+ CREATE FUNCTION public.app_has_permission(t text,m text) RETURNS boolean LANGUAGE sql STABLE AS $$SELECT (auth.uid()='00000000-0000-0000-0000-000000000001' AND t='module:executive-mis-dashboard') OR (auth.uid()='00000000-0000-0000-0000-000000000002' AND t='module:sales-data-viewer') OR (auth.uid()='00000000-0000-0000-0000-000000000004' AND t='module:sales-item-classification') OR (auth.uid()='00000000-0000-0000-0000-000000000005' AND t='module:sales-item-classification' AND m='edit')$;
  CREATE TABLE public.categories(id integer PRIMARY KEY,category_name text);
  CREATE TABLE public.sub_categories(id integer PRIMARY KEY,category_id integer,subcategory_name text);
  CREATE TABLE public.product_groups(id integer PRIMARY KEY,sub_category_id integer,group_name text);
@@ -39,7 +39,7 @@ before(()=>{
  ALTER TABLE public.product_skus ADD COLUMN is_sample boolean DEFAULT false;
  ALTER TABLE public.v_sales_daily_normalized ADD COLUMN source_key text;
  CREATE FUNCTION public.normalize_key(t text) RETURNS text LANGUAGE sql IMMUTABLE AS $$SELECT lower(regexp_replace(trim(t),'[[:space:]]+',' ','g'))$$;
- CREATE TABLE public.sku_aliases(alias_text text NOT NULL,alias_key text GENERATED ALWAYS AS (public.normalize_key(alias_text)) STORED PRIMARY KEY,sku_id integer REFERENCES public.product_skus(id));
+ CREATE TABLE public.sku_aliases(alias_text text NOT NULL,alias_key text GENERATED ALWAYS AS (lower(btrim(alias_text))) STORED PRIMARY KEY,sku_id integer REFERENCES public.product_skus(id));
  CREATE TABLE public.godown_aliases(alias_text text,godown_id integer);
  CREATE TABLE public.tally_sales_vreg_snapshot(id bigint GENERATED ALWAYS AS IDENTITY,voucher_date date,tally_item_name text,godown_label text,billed_amount_value numeric,inserted_at timestamptz DEFAULT now());
  CREATE TABLE public.etl_jobs(id bigint,job_type text,vreg_date_extracted date,status text,finished_at timestamptz,created_at timestamptz);
@@ -104,4 +104,25 @@ test('review queue exposes unresolved and historical pending items, denies sales
  assert.ok(y.rows.some(r=>r.state==='SASV_HISTORICAL_PACK'));
  for(const uid of [sales,denied,null])assert.notEqual(pg.psql(db,"select public.sales_item_scope_review('2026-11-01','2026-11-24')",{uid}).status,0);
  assert.notEqual(pg.psql(db,"select public.sales_item_scope_review('2025-01-01','2026-11-24')",{uid:editor}).status,0);
+});
+
+test('canonical normalization matches production generated-key discrepancy and supersedes compatible historical scope',()=>{
+ q("insert into public.sku_aliases(alias_text,sku_id) values('HRIDAYARENJINI LEPAM  250 GM',101)");
+ const y=j("select public.sales_item_scope_review('2026-11-01','2026-11-24',100,0)",editor);
+ assert.ok(!y.rows.some(r=>r.tally_item_name==='HRIDAYARENJINI LEPAM  250 GM'));
+ const x=j("select public.ei_facility_sales_scope('2026-11-24',1)");
+ assert.ok(!x.rows.some(r=>r.scope==='CLASSIFICATION_CONFLICT'));
+ assert.equal(x.rows.find(r=>r.scope==='SASV_CANONICAL_PRODUCT').source_reported_amount,110);
+});
+test('edit-only identity cannot approve scope',()=>{
+ const result=pg.psql(db,"select public.sales_item_scope_approve('EDIT ONLY','OTHER_MERCHANDISE','2026-01-01','denied')",{uid:'00000000-0000-0000-0000-000000000005'});
+ assert.notEqual(result.status,0);assert.match(result.err,/Classification edit denied/);
+});
+test('missing and duplicate summary evidence produces explicit unavailable alerts',()=>{
+ q("create or replace view public.v_mis_inventory_tab_summary as select current_date report_date,2::bigint valuation_gap_item_count,0::bigint unclassified_item_count,NULL::bigint duplicate_item_row_count,0::bigint missing_item_id_count where false; create or replace view public.v_mis_batch_pipeline as select NULL::bigint overdue_work_in_process_batch_count where false;");
+ let x=j("select public.ei_management_alerts()",executive);
+ assert.equal(x.rows.length,6);assert.ok(x.rows.every(r=>r.state==='UNAVAILABLE'));
+ q("create or replace view public.v_mis_inventory_tab_summary as select current_date report_date,0::bigint valuation_gap_item_count,0::bigint unclassified_item_count,0::bigint duplicate_item_row_count,0::bigint missing_item_id_count from generate_series(1,2);");
+ x=j("select public.ei_management_alerts()",executive);
+ assert.equal(x.rows.length,6);assert.ok(x.rows.every(r=>r.state==='UNAVAILABLE'));
 });
