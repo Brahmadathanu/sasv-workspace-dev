@@ -5,7 +5,7 @@ CREATE FUNCTION public.sales_item_scope_approve(p_alias text,p_scope text,p_effe
 RETURNS bigint LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
 DECLARE k text; current_id bigint; new_id bigint;
 BEGIN
- IF auth.uid() IS NULL OR coalesce(auth.jwt()->>'is_anonymous','false')='true' OR NOT coalesce(public.app_has_permission('module:sales-item-classification','edit'),false) THEN RAISE EXCEPTION 'Classification edit denied' USING ERRCODE='42501'; END IF;
+ IF auth.uid() IS NULL OR coalesce(auth.jwt()->>'is_anonymous','false')='true' OR NOT coalesce(public.app_has_permission('module:sales-item-classification','view'),false) OR NOT coalesce(public.app_has_permission('module:sales-item-classification','edit'),false) THEN RAISE EXCEPTION 'Classification edit denied' USING ERRCODE='42501'; END IF;
  k:=public.normalize_key(p_alias);
  IF k IS NULL OR k='' OR p_scope IS NULL  THEN RAISE EXCEPTION 'Invalid or material-specific classification requires verified material authority' USING ERRCODE='22023'; END IF;
  IF p_scope IN ('RAW_MATERIAL','PACKING_MATERIAL') THEN
