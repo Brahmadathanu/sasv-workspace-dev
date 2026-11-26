@@ -19,7 +19,7 @@ const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\
 const git = (...a) => execFileSync("git", a, { cwd: root, encoding: "utf8" });
 const eiBranch = () => process.env.GITHUB_HEAD_REF || git("branch", "--show-current").trim();
 const eiBlob = f => git("rev-parse", "HEAD:"+f).trim();
-const eiWorkingBlob = f => git("hash-object", "--", f).trim();
+const eiWorkingBlob = f => { const committed = git("show", "HEAD:"+f).replace(/\r\n/g,"\n"); return read(f) === committed ? eiBlob(f) : "DIRTY_CONTENT"; };
 const eiApproved = f => { try { return eiClientApproved(f, eiBranch(), eiBlob(f), eiWorkingBlob(f)); } catch { return false; } };
 const core = read("public/shared/js/wp10-safeguards.js");
 const ui = read("public/shared/js/wp10-safeguards-ui.js");
@@ -96,7 +96,7 @@ test("S6 proposal sources stay outside supabase/; only receipt/hash/branch-pinne
   for (const f of supa) {
     if (eiServerApproved(f, branch, eiBlob(f), eiWorkingBlob(f))) continue;
     if (misG7PinnedFileApproved(f, readCommitted(f), branch, REVIEWED_MIS_G7_FILES)) continue;   // MIS G7: installed migration / isolated PG harness, content-pinned by SHA-256 on its own branch only
-    assert.equal(branch, BRANCH, "new registration only on the owner-approved server lane");
+    assert.equal(branch, BRANCH, `new registration only on the owner-approved server lane: ${f}; committed=${eiBlob(f)}; working=${eiWorkingBlob(f)}`);
     assert.ok(inventory.has(f), `unapproved supabase path: ${f}`);
     assert.equal(sha256(readCommitted(f)), inventory.get(f), `applied payload changed: ${f}`);
   }
