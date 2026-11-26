@@ -4,10 +4,10 @@ SELECT 'FIDELITY pointer_view_md5_matches_live_pin='||(md5(pg_get_viewdef('costi
     || ' effective_designation='||(md5(pg_get_viewdef('costing.v_costing_run_effective_designation'::regclass))='b324068d66aef0c14bc6d47a921c6d56')
     || ' period_status='||(md5(pg_get_viewdef('costing.v_costing_period_run_status'::regclass))='4d728516b89a094376e60b95be12323d')
     || ' server='||current_setting('server_version');
-DO $ BEGIN
+DO $fidelity$ BEGIN
  ASSERT md5(pg_get_viewdef('costing.v_costing_period_run_status'::regclass))='4d728516b89a094376e60b95be12323d','extended production period-status definition must match live pin';
  ASSERT md5(pg_get_viewdef('costing.v_costing_run_effective_designation'::regclass))='b324068d66aef0c14bc6d47a921c6d56','designation definition must match live pin';
-END $;
+END $fidelity$;
 -- Pre-change snapshot of the pointer view for parity
 CREATE TABLE t.ptr_before AS SELECT * FROM costing.v_current_successful_costing_refresh_run;
 DO $$ BEGIN ASSERT md5(pg_get_viewdef('costing.v_current_successful_costing_refresh_run'::regclass))='5cc25791985abf5d336fb9311da3d6f1','fixture pointer view must equal the live pin so R3 is tested against the real production pin'; END $$;
