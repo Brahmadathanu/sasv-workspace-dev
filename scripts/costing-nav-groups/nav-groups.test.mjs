@@ -44,15 +44,15 @@ test("flag is independent of COSTING_PRM_CORRECTIONS_V1 (both directions)", () =
   assert.equal(isCostingPrmCorrectionsV1Enabled(only(COSTING_NAV_GROUPS_V1)), false);
 });
 
-test("registry invariants unchanged: six modules, 32 lens ids, every id resolves, ids unique", () => {
+test("registry invariants unchanged: six modules, 31 lens ids (R7: scheme-comparison retired), every id resolves, ids unique", () => {
   assert.equal(COSTING_SUITE_MODULES.length, 6);
-  assert.equal(ALL_COSTING_LENS_IDS.length, 32);
-  assert.equal(new Set(ALL_COSTING_LENS_IDS).size, 32);
-  assert.equal(Object.keys(LENS_REGISTRY).length, 32);
+  assert.equal(ALL_COSTING_LENS_IDS.length, 31);
+  assert.equal(new Set(ALL_COSTING_LENS_IDS).size, 31);
+  assert.equal(Object.keys(LENS_REGISTRY).length, 31);
   for (const id of ALL_COSTING_LENS_IDS) assert.ok(LENS_REGISTRY[id], id);
   assert.deepEqual(
     COSTING_SUITE_MODULES.map((m) => `${m.id}:${m.lensIds.length}`),
-    ["control-center:4", "material-cost:3", "cost-build:4", "pricing-policy:2", "cost-sheet-review:6", "production-route:13"],
+    ["control-center:4", "material-cost:3", "cost-build:4", "pricing-policy:2", "cost-sheet-review:5", "production-route:13"],
   );
 });
 
@@ -71,10 +71,10 @@ test("route config invariants unchanged: permission targets, default lenses, rou
 test("contract is sound: every lens of every non-PPM module appears in exactly one stable group", () => {
   assert.deepEqual(validateNavGroupContract(), []);
   const grouped = Object.values(COSTING_NAV_GROUP_CONTRACT).flatMap((gs) => gs.flatMap((g) => g.lensIds));
-  assert.equal(grouped.length, 30);
-  assert.equal(new Set(grouped).size, 30);
+  assert.equal(grouped.length, 29);
+  assert.equal(new Set(grouped).size, 29);
   const ppm = COSTING_SUITE_MODULES.find((m) => m.id === "pricing-policy").lensIds;
-  assert.deepEqual([...grouped, ...ppm].sort(), [...ALL_COSTING_LENS_IDS].sort(), "30 grouped + 2 controller-managed PPM lenses = all 32");
+  assert.deepEqual([...grouped, ...ppm].sort(), [...ALL_COSTING_LENS_IDS].sort(), "29 grouped + 2 controller-managed PPM lenses = all 31");
   for (const gs of Object.values(COSTING_NAV_GROUP_CONTRACT)) for (const g of gs) assert.ok(g.contextLabel, g.id);
 });
 
@@ -238,7 +238,7 @@ test("source: N1 does not edit registry/route-config semantics or controller fil
   // the nav modules are the only new sources and the flag lives with the other flags.
   const flags = read("public/shared/js/costing-feature-flags.js");
   assert.match(flags, /export const COSTING_NAV_GROUPS_V1 = "COSTING_NAV_GROUPS_V1";/);
-  assert.equal(COSTING_SUITE_MODULES.map((m) => m.lensIds.length).reduce((a, b) => a + b, 0), 32);
+  assert.equal(COSTING_SUITE_MODULES.map((m) => m.lensIds.length).reduce((a, b) => a + b, 0), 31);
 });
 
 test("CSS: N1 block is append-only, scoped to body.sasv-costing and has no !important / hidden overflow", () => {

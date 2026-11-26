@@ -1,4 +1,37 @@
-# Retention implementation receipt — PR #491 / Issue #539 (25 Nov 2026)
+# Retention implementation receipt — PR #491 / Issue #539
+
+**State: candidates + tests only. NOT deployed, NOTHING purged, no cron, no release, PR #491 draft/unmerged, #539 open.**
+
+## 26 Nov 2026 continuation (R3 integration, R4 dependency engineering, R7 retirement)
+Start: tested checkpoint `8d3570d` (assignment commit `de62058`). Final code head and CI links are recorded in the PR #491 comment and the "Evidence" table below (filled from the actual runs; earlier green runs are not transferred to the new head).
+
+### Delivered
+| Area | What | Where |
+|---|---|---|
+| R3 server | Fail-closed **manifest + installer** patching 3 real resolver helpers (≈ 10 public material-trace/MS/QC RPCs) and 13 public exact-run readers after their permission statements, null/default context unchanged, blocks only removed detail; SECURITY-DEFINER/plpgsql/pin/CRLF/ACL checks; DEFERRED rows for 2 functions needing live definitions | `candidates/R3B_*.sql`, `tests/13_*` |
+| R3 verification | Evidence-based UNVERIFIED→AVAILABLE (finished SUCCESS governed run + captured fingerprint + zero-drift re-verification + non-empty cost sheet), governed RPC, approval gate `DETAILS_VERIFIED` (new approvals only; legacy Sep 122/Oct 143 untouched), stale `newer_draft_run_id` fixed with every extended period-status column preserved | same |
+| R3 client | `costing-run-guard.js` at the shell's single `costingFrom`/`costingRpc` injection point (covers every explicit-run read), approval-screen availability pre-check + **Verify run details**, race/mismatch/unknown handling | `public/shared/js/`, `scripts/costing-retention/run-guard.test.mjs` (8) |
+| R4 | Relation-by-relation reviewed proposed seed (46 rows with reasons; `confirm_live` flags), 21 index candidates (CONCURRENTLY, not applied) with decision rule, dependency review incl. material-review acceptance, seed-vs-repo-FK consistency tests, **reconciled install order tested in fresh databases** (R4 engine → manual pilot → R5 planner disabled; R5 before R4 refused) | `candidates/R4_PROPOSED_ALLOWLIST_SEED.sql`, `R4_INDEX_CANDIDATES.sql`, `R4_DEPENDENCY_REVIEW.md`, `tests/14_*`, `scripts/costing-retention/r4-seed-consistency.test.mjs` (6), `preflight/PREFLIGHT_06_*` |
+| R7 | Client lens retired (route config, registry, nav groups, run-scoped set, deep-link redirect with notice, control-centre drill), stage-1 server candidate dropping only the public all-scheme API view with dependency checks | `scripts/costing-retention/scheme-comparison-retirement.test.mjs` (4), browser tests, `candidates/R7_*.sql`, `tests/15_*`, `R6_R7_PLAN.md` |
+| Docs | `R3_CONSUMER_AUDIT.md` (integrated / excluded / direct-API exposure), `DEPLOYMENT_SEQUENCE.md` (16 gated steps, rollbacks), `R4_DEPENDENCY_REVIEW.md`, `R6_R7_PLAN.md` | |
+
+### Regression results (this branch)
+* Local PG16.15, `tests/run_all.sh`: exit 0, **23 PASS**, all fidelity pins true (receipt `evidence/PG16_LOCAL_RECEIPT_2026-11-26.txt`). PG17.12 is the CI evidence (below).
+* Node: `scripts/costing-retention/*.test.mjs` **24/24**.
+* Existing suites touched by the retirement/guard: **no new failures versus the base checkout** (same failure set before/after in 11 suites: 38 failures present on the base checkout in this shallow clone — several suites read earlier commits; a full-history CI job `client-regression` reports their true status).
+* Real Chromium fixtures: cross-links 5/5 (incl. 2 retirement tests), nav-groups and flag-sweep suites updated deliberately (30→29 non-PPM lenses, 32→31 total) — results in the PR comment.
+* Deliberate expectation changes (not loosened): lens counts, `scheme-comparison` ownership, CSR subtitle, approval screen RPC allow-list (+2 retention RPCs, forbidden list unchanged).
+
+### Genuine outstanding blockers (production-only or live-evidence)
+1. **`PREFLIGHT_06` live packet** is required before install: md5 pins for the 16 manifest functions (installer refuses NULL), resolution of the 2 DEFERRED functions, the remaining ~25 of 64 live direct relations (seed names 31+8 only), live size/rows/index state for the index decisions and the `confirm_live` rows, and the live reader list (non-FK consumers).
+2. **Verification evidence on live**: runs without a captured fingerprint cannot become AVAILABLE (they stay readable UNVERIFIED); whether Sep 122 / Oct 143 have fingerprints is unknown from the repo (PREFLIGHT_06 E). Fingerprint re-verification is a heavy per-run hash — run one at a time.
+3. Direct SELECT of an exact-run **view** for a purged run returns an empty set (not wrong data); the UI is guarded, a custom API client is not (view-level guard needs live view definitions).
+4. Index set and waivers need live data and operational approval; executor login provisioning; allowlist review; scheduler enablement; R2C approval; R6 maintenance authorisation — all unchanged production gates.
+5. R7: dead controller code in the shell retained pending browser-proven removal; writer narrowing and stage-2 view drops not done (precise requirements in `R6_R7_PLAN.md`).
+6. November approval is still required before Sep 122 / Oct 143 become purgeable (R4/R5 hold them as active pricing authority).
+
+---
+# Earlier receipt (25 Nov 2026, preserved)
 
 **State: implemented as migration candidates + isolated tests. NOT deployed. NO production mutation. PR #491 NOT merged.**
 Starting point: assignment commit `bfb05fa8`. Prior run-87 archive workflow not restarted (S3K superseded, see `SUPERSEDED_DRAFTS.md`).

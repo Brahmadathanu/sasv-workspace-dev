@@ -6,6 +6,7 @@
 \i ../preflight/PREFLIGHT_03_consumer_inventory.sql
 \i ../preflight/PREFLIGHT_04_purge_candidates_and_allocation.sql
 \i ../preflight/PREFLIGHT_05_pointer_and_pricing_authority.sql
+\i ../preflight/PREFLIGHT_06_live_packet_for_r3b_r4.sql
 \o
 DO $$ BEGIN ASSERT NOT EXISTS (SELECT 1 FROM pg_class WHERE relname='x_never'),'ok'; END $$;
 \echo PASS 12_preflight_scripts_parse

@@ -57,7 +57,7 @@ test("identifiers are untouched: module key, permission target, suite id, route 
   assert.equal(ROUTE.permissionTarget, "module:cost-sheet-review");
   assert.equal(ROUTE.routePath, "public/shared/cost-sheet-review.html");
   assert.equal(SUITE.id, "cost-sheet-review");
-  assert.deepEqual([...SUITE.lensIds], ["sku-cost-sheet", "printable-cost-sheet", "cost-comparison", "scheme-comparison", "qc-action-queue", "materials-stores-action-queue"]);
+  assert.deepEqual([...SUITE.lensIds], ["sku-cost-sheet", "printable-cost-sheet", "cost-comparison", "qc-action-queue", "materials-stores-action-queue"]);
   assert.ok(fs.existsSync(path.join(root, HTML)), "file path unchanged");
   assert.ok(fs.existsSync(path.join(root, "public/shared/js/cost-sheet-review-entry.js")));
 });

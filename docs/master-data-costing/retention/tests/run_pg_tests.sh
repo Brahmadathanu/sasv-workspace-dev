@@ -5,8 +5,8 @@ here="$(cd "$(dirname "$0")" && pwd)"; repo="$(cd "$here/../../../.." && pwd)"
 mig="$repo/supabase/migrations"; cand="$here/../candidates"
 cd "$here"
 export PGDATABASE=postgres
-psql -X -qAt -c "DROP DATABASE IF EXISTS retention_fixture" -c "CREATE DATABASE retention_fixture"
-export PGDATABASE=retention_fixture
+psql -X -qAt -c "DROP DATABASE IF EXISTS ${RETENTION_DB:-retention_fixture}" -c "CREATE DATABASE ${RETENTION_DB:-retention_fixture}"
+export PGDATABASE=${RETENTION_DB:-retention_fixture}
 P="psql -X -q -t -A -v ON_ERROR_STOP=1"
 views="$(mktemp)"; python3 "$here/extract_real_ddl.py" "$repo" > "$views"
 $P -v views_file="$views" -f "$here/00_contract_fixture.sql" >/dev/null

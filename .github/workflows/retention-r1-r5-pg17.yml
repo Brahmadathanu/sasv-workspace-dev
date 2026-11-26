@@ -6,6 +6,19 @@ on:
       - "docs/master-data-costing/retention/**"
       - "public/shared/js/costing-run-detail-availability.js"
       - "scripts/costing-retention/**"
+      - "scripts/costing-approval/**"
+      - "scripts/costing-nav-groups/**"
+      - "scripts/costing-wp05-closure/**"
+      - "scripts/costing-run-status/**"
+      - "scripts/costing-cost-sheet/**"
+      - "public/shared/js/costing-run-guard.js"
+      - "public/shared/js/costing-route-config.js"
+      - "public/shared/js/costing-suite-registry.js"
+      - "public/shared/js/costing-nav-groups.js"
+      - "public/shared/js/costing-suite-shell.js"
+      - "public/shared/js/costing-approval-screen.js"
+      - "public/shared/js/costing-run-status-badge.js"
+      - "public/shared/cost-sheet-review.html"
       - "supabase/migrations/20260915041807_add_sales_allocation_quantity_driver_acceptance.sql"
       - "supabase/migrations/20260915060034_regional_marketing_evidence_acceptance_architecture.sql"
       - "supabase/migrations/20261021045619_costing_regional_evidence_continuity_20261021.sql"
@@ -40,7 +53,7 @@ jobs:
         with:
           node-version: "22"
       - name: Client availability contract tests
-        run: node --test scripts/costing-retention/run-detail-availability.test.mjs
+        run: node --test scripts/costing-retention/*.test.mjs
       - name: PostgreSQL 17 R1-R5 acceptance (real acceptance migrations + extracted governance views)
         run: bash docs/master-data-costing/retention/tests/run_all.sh
         env:
@@ -59,3 +72,22 @@ jobs:
         with:
           name: retention-pg17-receipt
           path: ${{ runner.temp }}/retention-pg17-receipt.txt
+
+  client-regression:
+    # Full history (several existing suites read earlier commits). Reports the real status of the suites touched by R3/R7.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: R3/R7 client suites and touched existing suites
+        run: |
+          node --test scripts/costing-retention/*.test.mjs scripts/costing-approval/*.test.mjs scripts/costing-nav-groups/nav-groups.test.mjs \
+            scripts/costing-wp05-closure/wp05-closure.test.mjs scripts/costing-run-status/run-status-badge.test.mjs scripts/costing-cost-sheet/cost-sheet-terminology.test.mjs \
+            scripts/costing-cross-links/cross-links.test.mjs scripts/costing-review-worklist/review-worklist.test.mjs scripts/costing-table-tools/table-tools.test.mjs 2>&1 | tee "$RUNNER_TEMP/client.txt"
+          grep -E '^# (tests|pass|fail)' "$RUNNER_TEMP/client.txt"
+          grep -q '^# fail 0' "$RUNNER_TEMP/client.txt"

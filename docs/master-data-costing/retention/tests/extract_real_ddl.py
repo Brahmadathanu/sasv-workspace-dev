@@ -24,4 +24,12 @@ for nm in ("fn_enforce_mutable_refresh_run_snapshot","fn_guard_designated_run_ro
     m=re.search(r"CREATE OR REPLACE FUNCTION costing\."+nm+r"\(\).*?\$function\$;\n",s3l,re.S)
     if not m: sys.exit("cannot extract "+nm)
     out.append(m.group(0))
+# real selected-run resolver helpers (R3B guard targets), byte-faithful
+for fn,nm in (("20260917132726_material_trace_selected_run_read_contract.sql","fn_resolve_material_trace_selected_run"),
+              ("20260919103110_materials_stores_explain_optional_exact_run_read_contract.sql","fn_resolve_materials_stores_explain_selected_run"),
+              ("20260918065615_qc_explain_optional_exact_run_read_contract.sql","fn_resolve_qc_explain_selected_run")):
+    t=open(root/"supabase/migrations"/fn,newline="").read()
+    m=re.search(r"create\s+or\s+replace\s+function\s+costing\."+nm+r"\(.*?\bAS\s+(\$\w*\$).*?\1\s*;",t,re.S|re.I)
+    if not m: sys.exit("cannot extract "+nm)
+    out.append(m.group(0)+"\n")
 sys.stdout.buffer.write("\n".join(out).encode("utf-8"))

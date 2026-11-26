@@ -21,7 +21,6 @@ export const RUN_SCOPED_LENSES = new Set([
   "sku-cost-sheet",
   "printable-cost-sheet",
   "cost-comparison",
-  "scheme-comparison",
   "sku-control-status",
 ]);
 

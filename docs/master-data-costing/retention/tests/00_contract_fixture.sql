@@ -46,7 +46,8 @@ CREATE TABLE costing.sku_regional_marketing_expense_allocation_snapshot(id bigin
 
 -- Stubs required only so the REAL costing.fn_w2_run_checks body (extracted) can execute in isolation.
 CREATE TABLE costing.costing_run_fingerprint(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,refresh_run_id bigint NOT NULL,purpose text,captured_by text,captured_at timestamptz DEFAULT now(),fingerprint jsonb);
-CREATE FUNCTION costing.fn_verify_run_fingerprint(p_refresh_run_id bigint) RETURNS TABLE(table_name text,captured jsonb,current_value jsonb,matches boolean) LANGUAGE sql AS $$ SELECT NULL::text,NULL::jsonb,NULL::jsonb,true WHERE false $$;
+CREATE TABLE costing.fp_stub(refresh_run_id bigint,table_name text,matches boolean);   -- test control for the fingerprint re-verification stub
+CREATE FUNCTION costing.fn_verify_run_fingerprint(p_refresh_run_id bigint) RETURNS TABLE(table_name text,captured jsonb,current_value jsonb,matches boolean) LANGUAGE sql AS $$ SELECT s.table_name,NULL::jsonb,NULL::jsonb,s.matches FROM costing.fp_stub s WHERE s.refresh_run_id=p_refresh_run_id $$;
 CREATE TABLE costing.v_sku_detailed_cost_sheet_t(refresh_run_id bigint,sku_id bigint,cost_sheet_status text);
 CREATE VIEW costing.v_sku_detailed_cost_sheet AS SELECT * FROM costing.v_sku_detailed_cost_sheet_t;
 CREATE TABLE costing.costing_period_refresh_authorization(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,period_start date,consumed_by_run_id bigint);

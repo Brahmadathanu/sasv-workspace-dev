@@ -49,7 +49,7 @@ export const COSTING_NAV_GROUP_CONTRACT = Object.freeze({
     { id: "policy-approval", label: "Policy approval", contextLabel: "Cost-driver policy approval", lensIds: ["driver-governance"] },
   ],
   "cost-sheet-review": [
-    { id: "review", label: "Review", contextLabel: "Read-only cost analysis", lensIds: ["sku-cost-sheet", "scheme-comparison", "cost-comparison"] },
+    { id: "review", label: "Review", contextLabel: "Read-only cost analysis", lensIds: ["sku-cost-sheet", "cost-comparison"] },
     { id: "documents", label: "Documents", contextLabel: "Printable cost sheet", lensIds: ["printable-cost-sheet"] },
     {
       id: "action-queues",

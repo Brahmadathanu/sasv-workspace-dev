@@ -18,6 +18,8 @@ import {
   pickRunDisplayStatus,
 } from "./costing-approval-labels.js";
 import { formatIst } from "./costing-run-status-badge.js";
+import { parseRunDetailAvailability } from "./costing-run-detail-availability.js";
+import { isRunReadable } from "./costing-run-guard.js";
 
 export const PERIOD_STATUS_VIEW = "v_costing_pricing_period_run_status";
 export const RUN_DISPLAY_VIEW = "v_costing_pricing_run_display_status";
@@ -332,7 +334,8 @@ export function createCostingApprovalScreenController(deps) {
         const pricing = pickPricingUseLabel(row);
         const draft = isDraftRunRow(row);
         const reviewBtn = draft && canEdit() === true
-          ? `<button type="button" class="cas-action" data-cas-review="${escapeHtml(String(id))}">Review for approval</button>`
+          ? `<button type="button" class="cas-action" data-cas-review="${escapeHtml(String(id))}">Review for approval</button>
+             <button type="button" class="cas-action" data-cas-verify="${escapeHtml(String(id))}">Verify run details</button>`
           : draft
             ? `<span class="cas-muted">View only — approval requires Costing Control Center edit permission.</span>`
             : "";
@@ -407,6 +410,38 @@ export function createCostingApprovalScreenController(deps) {
     state.countdownTimer = globalThis.setInterval?.(tick, 1000) ?? null;
   }
 
+  // R3: explicit run-detail state before any approval preview. Purged/purging/unconfirmed runs never open a preview.
+  async function readRunDetailState(numericId) {
+    try {
+      const { data, error } = await costingRpc("rpc_costing_run_detail_availability", { p_refresh_run_id: numericId });
+      return error ? parseRunDetailAvailability(null) : parseRunDetailAvailability(data);
+    } catch {
+      return parseRunDetailAvailability(null);
+    }
+  }
+
+  async function verifyRunDetails(runId) {
+    if (canEdit() !== true) {
+      showToast?.("Verifying run details requires Costing Control Center edit permission.", "warn");
+      return;
+    }
+    const numericId = Number(runId);
+    if (!Number.isFinite(numericId)) return;
+    try {
+      const { data, error } = await costingRpc("rpc_costing_verify_run_details", { p_refresh_run_id: numericId });
+      if (error) throw error;
+      const res = unwrapRpcJson(data) || {};
+      showToast?.(
+        res.verified === true
+          ? `Run ${numericId}: details verified from captured evidence.`
+          : `Run ${numericId}: not verified — ${res.reason || "evidence missing or mismatched"}. It cannot be approved.`,
+        res.verified === true ? "info" : "warn",
+      );
+    } catch (err) {
+      showToast?.(`Run ${numericId}: verification failed — ${String(err?.message || err)}`, "warn");
+    }
+  }
+
   async function openPreviewForRun(runId) {
     // SEC-A2: preview creates a server acknowledgement; never call it for view-only users.
     if (canEdit() !== true) {
@@ -416,6 +451,14 @@ export function createCostingApprovalScreenController(deps) {
     // Preview is intentionally only reachable from Review / Open preview again clicks.
     const numericId = Number(runId);
     if (!Number.isFinite(numericId)) return;
+    const detailState = await readRunDetailState(numericId);
+    if (!isRunReadable(detailState)) {
+      showToast?.(`Run ${numericId}: ${detailState.message || "details are not available"} It cannot be reviewed for approval.`, "warn");
+      return;
+    }
+    if (detailState.state === "AVAILABLE_UNVERIFIED") {
+      showToast?.(`Run ${numericId}: details are not yet verified. Use “Verify run details”; approval is blocked until verified.`, "warn");
+    }
     state.selectedRunId = numericId;
     state.preview = null;
     state.previewAckId = null;
@@ -678,6 +721,12 @@ export function createCostingApprovalScreenController(deps) {
   }
 
   function onPanelClick(event) {
+    const vbtn = event.target.closest?.("[data-cas-verify]");
+    if (vbtn) {
+      event.preventDefault();
+      void verifyRunDetails(vbtn.getAttribute("data-cas-verify"));
+      return;
+    }
     const btn = event.target.closest?.("[data-cas-review]");
     if (!btn) return;
     event.preventDefault();

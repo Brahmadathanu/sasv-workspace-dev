@@ -95,7 +95,7 @@ test("flag OFF: markup is the legacy flat suite group; none of the N1 classes or
   }
 });
 
-test("flag ON: all 30 non-PPM lens ids stay reachable by their ?lens= deep link (and 2 PPM legacy lens ids still resolve)", async (t) => {
+test("flag ON: all 29 non-PPM lens ids (R7: scheme-comparison retired) stay reachable by their ?lens= deep link (and 2 PPM legacy lens ids still resolve)", async (t) => {
   const e = await getEnv(t); if (!e) return;
   let n = 0;
   for (const c of NON_PPM) {
@@ -110,7 +110,7 @@ test("flag ON: all 30 non-PPM lens ids stay reachable by their ?lens= deep link 
       n++;
     }
   }
-  assert.equal(n, 30);
+  assert.equal(n, 29);
   const ppm = COSTING_ROUTE_CONFIG["pricing-policy-manager"];
   for (const q of ["?lens=mrp-governance", "?lens=policy-manager", "?workspace=scheme-rule-register", "?workspace=commercial-sales-assumptions", "?workspace=applied-proposal-history"]) {
     const { page, context, errors } = await openAuditPage(e, `${pageOf(ppm)}${q}`, { width: 1280, storage: FLAG_ON });
@@ -143,7 +143,7 @@ test("legacy PPM scheme-comparison URL still redirects to Cost Sheet Review with
   const ppm = COSTING_ROUTE_CONFIG["pricing-policy-manager"];
   const { page, context } = await openAuditPage(e, `${pageOf(ppm)}?lens=scheme-comparison`, { width: 1280, storage: FLAG_ON });
   assert.match(page.url(), /cost-sheet-review\.html/);
-  assert.equal((await navState(page)).active[0], "scheme-comparison");
+  assert.equal((await navState(page)).active[0], "sku-cost-sheet", "R7: legacy PPM Scheme Comparison URL lands on the replacement lens");
   await context.close();
 });
 

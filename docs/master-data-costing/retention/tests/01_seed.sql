@@ -1,5 +1,5 @@
 -- Synthetic seed produced through the REAL acceptance RPCs (as authenticated users with/without permission).
-CREATE SCHEMA t;   -- test helpers only
+CREATE SCHEMA IF NOT EXISTS t;   -- test helpers only
 GRANT USAGE ON SCHEMA t TO authenticated,service_role;
 \o /dev/null
 INSERT INTO public.user_permissions_canonical VALUES

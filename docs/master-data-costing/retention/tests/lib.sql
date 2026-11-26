@@ -9,7 +9,7 @@ BEGIN
  END;
  RAISE EXCEPTION 'expected failure but succeeded: [%]',left(p_sql,160);
 END $$;
-CREATE OR REPLACE FUNCTION t.ev() RETURNS bigint LANGUAGE sql AS $$ SELECT count(*) FROM costing.governance_evidence_event $$;
+CREATE OR REPLACE FUNCTION t.ev() RETURNS bigint LANGUAGE plpgsql AS $$ BEGIN RETURN (SELECT count(*) FROM costing.governance_evidence_event); END $$;
 CREATE TABLE IF NOT EXISTS t.marks(k text PRIMARY KEY,n bigint NOT NULL);
 CREATE OR REPLACE FUNCTION t.mark(p_k text) RETURNS void LANGUAGE sql AS $$ INSERT INTO t.marks VALUES(p_k,t.ev()) ON CONFLICT(k) DO UPDATE SET n=excluded.n $$;
 CREATE OR REPLACE FUNCTION t.delta(p_k text) RETURNS bigint LANGUAGE sql AS $$ SELECT t.ev()-(SELECT n FROM t.marks WHERE k=p_k) $$;

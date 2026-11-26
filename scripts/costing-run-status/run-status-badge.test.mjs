@@ -70,7 +70,7 @@ test("badge reads the run-status view for the active month on pricing lenses onl
   assert.equal(log.length, 2, "settled approved month is cached (Aug + Sep fetched once)");
 });
 test("pricing lenses covered", () => {
-  for (const l of ["dashboard", "sku-cost-sheet", "printable-cost-sheet", "cost-comparison", "scheme-comparison", "sku-control-status"]) assert.ok(RUN_SCOPED_LENSES.has(l));
+  for (const l of ["dashboard", "sku-cost-sheet", "printable-cost-sheet", "cost-comparison", "sku-control-status"]) assert.ok(RUN_SCOPED_LENSES.has(l));
 });
 test("hidden state ignores info", () => {
   const el = { dataset: {}, setAttribute() {}, hidden: false };
