@@ -24,7 +24,7 @@ export const EI_MATURITY_CLIENT_BLOBS = Object.freeze({
 // Final owner cosmetic refinements, two exact client blobs only.
 export const EI_COSMETIC_BRANCH = "fix/executive-intelligence-final-cosmetics";
 export const EI_COSMETIC_CLIENT_BLOBS = Object.freeze({
-  "public/shared/executive-mis-dashboard.html": "c5c9d1ca1b30bb08241196411cc9b3db0f3f5660",
+  "public/shared/executive-mis-dashboard.html": "40e6537d746f9b9122abf204b4f7d4f0200c3bb5",
   "public/shared/js/executive-mis-dashboard.js": "99e3c3b8ec902100960a1ca6d4b0ac87ea04d8f7"
 });
 export const EI_REGISTRY_BASE = "f78f3ba6d1a403cf4b588afc5d285f48df962361";
