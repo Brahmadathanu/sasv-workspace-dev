@@ -20,14 +20,14 @@ const js = fs.readFileSync(path.join(root, "public/shared/js/executive-mis-dashb
 // ---------------------------------------------------------------- static contracts (always run)
 test("server contracts are consumed unchanged (names and parameters)", () => {
   for (const obj of [
-    "mv_mis_executive_summary", "v_mis_finance_tab_summary", "get_mis_finance_party_page", "v_mis_sales_tab_summary",
-    "get_mis_sales_product_page", "v_mis_inventory_tab_summary", "get_mis_inventory_item_page",
+    "mv_mis_executive_summary", "v_mis_finance_tab_summary", "get_mis_finance_party_page", "v_ei_sales_mtd_summary",
+    "ei_sales_mtd_product_page", "v_mis_inventory_tab_summary", "get_mis_inventory_item_page",
     "v_mis_finished_goods_tab_summary", "get_mis_finished_goods_sku_page", "v_mis_batch_pipeline",
     "get_mis_production_value_summary",
   ]) assert.ok(js.includes(`"${obj}"`), obj);
   for (const p of ["p_group_filter", "p_search", "p_limit", "p_offset", "p_source_kind", "p_mos_filter"]) assert.ok(js.includes(p), p);
   // The FG filter value stays `shaded`; only the label is "Same IK/OK MRP".
-  assert.match(js, /value="shaded"[^>]*\/> Same IK\/OK MRP/);
+  assert.match(js, /value: "shaded", label: "Same IK\/OK MRP"/);
   assert.ok(!/Shaded</.test(js));
   assert.equal(/\.rpc\(\s*"get_mis_(?!finance_party_page|sales_product_page|inventory_item_page|finished_goods_sku_page|production_value_summary)/.test(js), false);
 });
@@ -35,7 +35,8 @@ test("server contracts are consumed unchanged (names and parameters)", () => {
 test("no polling or timers were added (only the existing 60 s freshness label tick)", () => {
   assert.equal((js.match(/setInterval\(/g) || []).length, 1);
   assert.match(js, /setInterval\(updateFreshnessIndicator, 60000\)/);
-  assert.equal((js.match(/debounce\(\(value\) => \{[\s\S]*?\}, 250\)/g) || []).length, 4, "four 250 ms search debounces preserved");
+  assert.equal((js.match(/debounce\(\(value\) => setListSearch\(p, value\), 250\)/g) || []).length, 1, "one 250 ms search debounce, created per list");
+  assert.equal((js.match(/^  (finance|sales|inventory|fg): \{$/gm) || []).length, 4, "...for exactly the four server-paged lists");
 });
 
 test("production secondary cards use semantic tokens, not hard-coded palette values", () => {
@@ -91,25 +92,29 @@ const tabClick = (page, id) => page.evaluate((t) => {
   if (getComputedStyle(select.closest(".tab-select-wrap")).display !== "none") {
     select.value = t; select.dispatchEvent(new Event("change", { bubbles: true }));
   } else document.querySelector(`[data-tab="${t}"]`).click();
+  if (t === "sales") document.querySelector('[data-sales-view="mtd"]')?.click(); // legacy month-to-date table lives in this sub-view
 }, id);
 const settleTimers = (page, ms = 450) => page.waitForTimeout(ms); // > 250 ms search debounce
 const maskVisible = (page, shell) => page.evaluate((s) => { const m = document.querySelector(`${s} .table-loading-mask`); return !!m && !m.hidden; }, shell);
 
-test("tab navigation: six tabs, aria-selected, Alerts placeholder, no refetch on the active tab", { skip }, async () => {
+test("tab navigation: seven lenses, aria-selected, Alerts explicitly unavailable, no refetch on the active tab", { skip }, async () => {
   const { page, consoleErrors } = await open();
   try {
-    assert.deepEqual(await page.$$eval("#detailTabs .pill", (b) => b.map((x) => x.textContent.trim())), ["Finance", "Sales", "Inventory", "Finished Goods", "Production", "Alerts"]);
+    assert.deepEqual(await page.$$eval("#detailTabs .pill", (b) => b.map((x) => x.textContent.trim())), ["Overview", "Finance", "Sales Performance", "Materials Inventory", "Finished Goods", "Production Performance", "Management Alerts"]);
     const before = (await calls(page, "get_mis_finance_party_page")).length;
     await page.click('[data-tab="finance"]'); // already active
     await settleTimers(page, 150);
     assert.equal((await calls(page, "get_mis_finance_party_page")).length, before, "re-selecting the active tab must not refetch");
-    for (const [tab, sel] of [["sales", ".sales-table"], ["inventory", ".inventory-table"], ["finished-goods", ".fg-table"], ["production", ".production-summary-grid"]]) {
+    for (const [tab, sel] of [["sales", ".ei-table"], ["inventory", ".inventory-table"], ["finished-goods", ".fg-table"], ["production", ".production-summary-grid"]]) {
       await page.click(`[data-tab="${tab}"]`);
       await page.waitForSelector(`#tabPanel ${sel}`);
       assert.equal(await page.getAttribute(`[data-tab="${tab}"]`, "aria-selected"), "true");
     }
     await page.click('[data-tab="alerts"]');
-    assert.match(await page.textContent("#tabPanel"), /This section will be added in the next phase/);
+    assert.match(await page.textContent("#tabPanel"), /Management Alerts[\s\S]*Partial catalogue/);
+    await page.click('[data-tab="overview"]');
+    await page.waitForSelector(".ei-overview .kpi-card");
+    assert.equal(await page.getAttribute('[data-tab="overview"]', "aria-selected"), "true");
     assert.deepEqual(consoleErrors, []);
   } finally { await page.context().close(); }
 });
@@ -163,15 +168,15 @@ test("Finance: filter, search, pagination, server totals, modal", { skip }, asyn
 test("Sales: request args, pagination, search", { skip }, async () => {
   const { page } = await open();
   try {
-    await page.click('[data-tab="sales"]');
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-table");
-    assert.deepEqual((await calls(page, "get_mis_sales_product_page"))[0].args, { p_search: "", p_limit: 25, p_offset: 0 });
+    assert.deepEqual((await calls(page, "ei_sales_mtd_product_page"))[0].args, { p_search: "", p_limit: 25, p_offset: 0 });
     await page.click("#salesNextPage");
     await page.waitForFunction(() => /Page 2 \/ 3/.test(document.querySelector("#salesPagination").textContent));
-    assert.equal((await calls(page, "get_mis_sales_product_page")).at(-1).args.p_offset, 25);
+    assert.equal((await calls(page, "ei_sales_mtd_product_page")).at(-1).args.p_offset, 25);
     await page.fill("#salesSearch", "arishta");
     await settleTimers(page);
-    const last = (await calls(page, "get_mis_sales_product_page")).at(-1).args;
+    const last = (await calls(page, "ei_sales_mtd_product_page")).at(-1).args;
     assert.deepEqual([last.p_search, last.p_offset], ["arishta", 0]);
     assert.match(await page.textContent("#salesPagination"), /of 4 products/);
   } finally { await page.context().close(); }
@@ -182,18 +187,18 @@ test("Inventory: filter values, search, pagination", { skip }, async () => {
   try {
     await page.click('[data-tab="inventory"]');
     await page.waitForSelector(".inventory-table");
-    assert.deepEqual(await page.$$eval('input[name="inventoryFilter"]', (r) => r.map((x) => x.value)), ["all", "rm", "plm", "consumable", "fuel"]);
+    assert.deepEqual(await page.$$eval('input[name="inventoryFilter"]', (r) => r.map((x) => x.value)), ["all", "RM", "PM", "IND"]);
     await page.click("#inventoryNextPage");
     await page.waitForFunction(() => /Page 2/.test(document.querySelector("#inventoryPagination").textContent));
     await page.click("#inventoryFilterBtn");
-    await page.check('input[name="inventoryFilter"][value="rm"]');
+    await page.check('input[name="inventoryFilter"][value="RM"]');
     await page.waitForFunction(() => /Page 1/.test(document.querySelector("#inventoryPagination").textContent));
     let a = (await calls(page, "get_mis_inventory_item_page")).at(-1).args;
-    assert.deepEqual([a.p_source_kind, a.p_offset], ["rm", 0]);
+    assert.deepEqual([a.p_source_kind, a.p_offset], ["RM", 0]);
     await page.fill("#inventorySearch", "oil");
     await settleTimers(page);
     a = (await calls(page, "get_mis_inventory_item_page")).at(-1).args;
-    assert.deepEqual([a.p_source_kind, a.p_search, a.p_offset], ["rm", "oil", 0]);
+    assert.deepEqual([a.p_source_kind, a.p_search, a.p_offset], ["RM", "oil", 0]);
     assert.match(await page.textContent("#inventoryPagination"), /of 5 items/);
   } finally { await page.context().close(); }
 });
@@ -251,8 +256,8 @@ test("Production value: four cards, covered subtotal, unavailable plan/completio
     // counts: six server counts, labelled as the live current state, no diagnostics/mixed-unit/plan strip
     assert.deepEqual(await page.$$eval(".production-summary-card .production-summary-title", (t) => t.map((x) => x.textContent)), ["Active Pipeline Batches", "Work in Process Batches", "Overdue WIP Batches", "FG Bulk Batches", "Bottled Stock Batches", "Total Canonical Batches"]);
     assert.deepEqual(await page.$$eval(".production-summary-card .production-summary-value", (t) => t.map((x) => x.textContent)), ["412", "100", "59", "7", "8", "2,581"]);
-    assert.match(await countsText(page), /Live batch pipeline — current state/);
-    assert.match(await countsText(page), /not tied to the report month/);
+    assert.match(await countsText(page), /Batches as they stand now/);
+    assert.match(await countsText(page), /Not tied to the report month/);
     const panel = await countsText(page);
     assert.equal(await page.$(".production-diagnostics"), null);
     assert.doesNotMatch(panel, /Achievement|mixed base units|Planning month|Source diagnostics|base quantity|Kg|Nos/);
@@ -377,7 +382,7 @@ test("Production value: latest response wins and a response after leaving the ta
     // leave the tab while a new request is pending: late arrival cannot repaint
     await page.selectOption("#pvMonth", { index: 0 });
     await page.waitForFunction(() => window.__mis.q.length === 3);
-    await page.click('[data-tab="sales"]');
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-table");
     await page.evaluate((r) => window.__mis.q[2].d.resolve(r), mk("2026-11-01", 333));
     await page.waitForTimeout(150);
@@ -488,7 +493,7 @@ test("independence: tab switch and Refresh with both requests in flight retire s
   const { page } = await openProductionDeferred();
   try {
     // 1) leave the tab with both in flight; the late value answer must not repaint Sales
-    await page.click('[data-tab="sales"]');
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-table");
     await resolveQ(page, "value", 0, okValue("2026-11-01", 111));
     await page.waitForTimeout(200);
@@ -560,17 +565,19 @@ for (const width of [390, 1280]) {
   });
 }
 
-test("top-level Transferred-to-FG KPI is labelled as the executive-summary source, distinct from the Tally book card", { skip }, async () => {
+test("Overview Transferred-to-FG indicator is labelled as the executive-summary source, distinct from the Tally book card", { skip }, async () => {
   const { page } = await openProduction();
   try {
-    const src = await page.evaluate(() => [...document.querySelectorAll(".kpi-card")].map((c) => c.textContent).find((t) => /Transferred to Finished Goods Value/.test(t)) || "");
-    assert.ok(src, "KPI present");
     await page.click(".pv-notes summary");
-    assert.match(await page.textContent(".pv-notes"), /top-of-page "Transferred to Finished Goods Value" card comes from the executive summary snapshot/);
+    assert.match(await page.textContent(".pv-notes"), /Overview "Transferred to Finished Goods Value" indicator comes from the executive summary snapshot/);
     assert.match((await pvCards(page))[3].badge, /Tally book basis/);
-    // the KPI popover/detail text names its source
-    const js_ = await page.evaluate(async () => (await (await fetch("/shared/js/executive-mis-dashboard.js")).text()));
-    assert.match(js_, /A separate source from the Production tab's Tally book figure/);
+    await page.click('[data-tab="overview"]');
+    await page.waitForSelector(".ei-overview .kpi-card");
+    const src = await page.evaluate(() => [...document.querySelectorAll(".kpi-card")].map((c) => c.textContent).find((t) => /Transferred to Finished Goods Value/.test(t)) || "");
+    assert.ok(src, "indicator present on the Overview");
+    assert.match(src, /Snapshot period flow/);
+    const info = await page.$$eval(".kpi-card", (cs) => cs.filter((c) => /Transferred to Finished Goods Value/.test(c.textContent)).map((c) => decodeURIComponent(c.querySelector("[data-kpi-info]").getAttribute("data-kpi-info"))));
+    assert.match(info[0], /A separate source from the Production Performance Tally book figure/);
   } finally { await page.context().close(); }
 });
 
@@ -600,7 +607,7 @@ test("counts source at runtime: one pipeline query, six fields only, no legacy/o
     await page.waitForFunction(() => document.querySelector("#productionValueBody").getAttribute("aria-busy") === "false");
     assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 1, "month selection never re-queries counts");
     assert.deepEqual(await page.$$eval(".production-summary-card .production-summary-value", (t) => t.map((x) => x.textContent)), ["412", "100", "59", "7", "8", "2,581"], "counts unchanged by month");
-    assert.match(await countsText(page), /current state/);
+    assert.match(await countsText(page), /stand now/);
   } finally { await page.context().close(); }
 });
 
@@ -825,7 +832,7 @@ test("race: stale pagination and filter responses are dropped (Sales, Inventory,
     await page.evaluate(() => {
       const m = window.__mis; m.slow = {};
       const row = (n, tot) => ({ item: n, product_name: n, item_name: n, total_rows: tot });
-      for (const name of ["get_mis_sales_product_page", "get_mis_inventory_item_page", "get_mis_finished_goods_sku_page"]) {
+      for (const name of ["ei_sales_mtd_product_page", "get_mis_inventory_item_page", "get_mis_finished_goods_sku_page"]) {
         m.handlers[name] = (a) => {
           const key = name + ":" + (a.p_offset || 0) + ":" + (a.p_source_kind || a.p_mos_filter || "");
           if (!(a.p_offset > 0) && !(a.p_source_kind && a.p_source_kind !== "all") && !(a.p_mos_filter && a.p_mos_filter !== "all")) return { data: [row("BASE", 60)], error: null };
@@ -834,13 +841,13 @@ test("race: stale pagination and filter responses are dropped (Sales, Inventory,
       }
     });
     // Sales: activate Next twice quickly -> pages 2 and 3 in flight; page-2 response arrives last and must be ignored.
-    await page.click('[data-tab="sales"]');
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-table");
     // (the loading mask blocks pointer input over the pager, so drive it by keyboard like a fast double activation)
     await page.focus("#salesNextPage"); await page.keyboard.press("Enter"); await page.keyboard.press("Enter");
-    await page.evaluate(() => { const s = window.__mis.slow; s["get_mis_sales_product_page:50:"].resolve({ data: [{ product_name: "P3", total_rows: 60 }], error: null }); });
+    await page.evaluate(() => { const s = window.__mis.slow; s["ei_sales_mtd_product_page:50:"].resolve({ data: [{ product_name: "P3", total_rows: 60 }], error: null }); });
     await page.waitForFunction(() => document.querySelector("#salesProductTableWrap").textContent.includes("P3"));
-    await page.evaluate(() => { window.__mis.slow["get_mis_sales_product_page:25:"].resolve({ data: [{ product_name: "P2-STALE", total_rows: 60 }], error: null }); });
+    await page.evaluate(() => { window.__mis.slow["ei_sales_mtd_product_page:25:"].resolve({ data: [{ product_name: "P2-STALE", total_rows: 60 }], error: null }); });
     await page.waitForTimeout(100);
     assert.doesNotMatch(await page.textContent("#salesProductTableWrap"), /P2-STALE/);
     assert.match(await page.textContent("#salesPagination"), /Page 3 \/ 3/);
@@ -848,10 +855,10 @@ test("race: stale pagination and filter responses are dropped (Sales, Inventory,
     // Inventory: switch filter rm then fuel; rm (older) resolves last and is ignored.
     await page.click('[data-tab="inventory"]');
     await page.waitForSelector(".inventory-table");
-    for (const v of ["rm", "fuel"]) { await page.click("#inventoryFilterBtn"); await page.check(`input[name="inventoryFilter"][value="${v}"]`); }
-    await page.evaluate(() => window.__mis.slow["get_mis_inventory_item_page:0:fuel"].resolve({ data: [{ item_name: "FUEL-ROW", total_rows: 1 }], error: null }));
+    for (const v of ["RM", "IND"]) { await page.click("#inventoryFilterBtn"); await page.check(`input[name="inventoryFilter"][value="${v}"]`); }
+    await page.evaluate(() => window.__mis.slow["get_mis_inventory_item_page:0:IND"].resolve({ data: [{ item_name: "FUEL-ROW", total_rows: 1 }], error: null }));
     await page.waitForFunction(() => document.querySelector("#inventoryItemTableWrap").textContent.includes("FUEL-ROW"));
-    await page.evaluate(() => window.__mis.slow["get_mis_inventory_item_page:0:rm"].resolve({ data: [{ item_name: "RM-STALE", total_rows: 5 }], error: null }));
+    await page.evaluate(() => window.__mis.slow["get_mis_inventory_item_page:0:RM"].resolve({ data: [{ item_name: "RM-STALE", total_rows: 5 }], error: null }));
     await page.waitForTimeout(100);
     assert.doesNotMatch(await page.textContent("#inventoryItemTableWrap"), /RM-STALE/);
     assert.match(await page.textContent("#inventoryPagination"), /of 1 items/);
@@ -876,7 +883,7 @@ test("race: a response for a tab the user left cannot repaint the current panel"
     });
     await page.click('[data-tab="inventory"]');
     await page.waitForFunction(() => !!window.__mis.invDeferred);
-    await page.click('[data-tab="sales"]');
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-table");
     await page.evaluate(() => window.__mis.invDeferred.resolve({ data: [{ item_name: "INV-STALE", total_rows: 1 }], error: null }));
     await page.waitForTimeout(150);
@@ -895,14 +902,13 @@ test("a tab switch during the initial summary load does not trigger a duplicate 
   });
   try {
     await page.waitForFunction(() => !!window.__mis.mvDeferred);
-    await page.click('[data-tab="sales"]');
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-table");
-    const before = (await calls(page, "get_mis_sales_product_page")).length;
+    const before = (await calls(page, "ei_sales_mtd_product_page")).length;
     await page.evaluate(() => window.__mis.mvDeferred.resolve({ data: { mis_summary_id: 1, mv_refreshed_at: new Date().toISOString() }, error: null }));
-    await page.waitForSelector(".kpi-card");
     await page.waitForTimeout(300);
-    assert.equal((await calls(page, "get_mis_sales_product_page")).length, before, "no duplicate page request");
-    assert.equal((await calls(page, "v_mis_sales_tab_summary")).length, 1);
+    assert.equal((await calls(page, "ei_sales_mtd_product_page")).length, before, "no duplicate page request");
+    assert.equal((await calls(page, "v_ei_sales_mtd_summary")).length, 1);
   } finally { await page.context().close(); }
 });
 
@@ -921,7 +927,7 @@ test("a pending debounced search typed before a tab switch never fires", { skip 
   const { page } = await open();
   try {
     await page.fill("#financeSearch", "late");
-    await page.click('[data-tab="sales"]'); // within the 250 ms window
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]'); // within the 250 ms window
     await settleTimers(page);
     assert.equal((await calls(page, "get_mis_finance_party_page")).some((c) => c.args.p_search === "late"), false);
   } finally { await page.context().close(); }
@@ -971,8 +977,8 @@ test("loading, empty, error and populated states are distinct (with Retry)", { s
     await page.fill("#financeSearch", "q"); await settleTimers(page);
     await page.waitForSelector(`${wrap} .finance-table`);
     // a rejected (thrown) request also settles into the error state, never a stuck mask
-    await setHandler(page, "get_mis_sales_product_page", () => Promise.reject(new Error("network down")));
-    await page.click('[data-tab="sales"]');
+    await setHandler(page, "ei_sales_mtd_product_page", () => Promise.reject(new Error("network down")));
+    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-status.error");
     assert.match(await page.textContent("#salesProductTableWrap"), /network down/);
     assert.equal(await maskVisible(page, ".sales-table-shell"), false);
@@ -1001,9 +1007,10 @@ test("permission denied or unverifiable: module data is never loaded; message di
       assert.match(await page.textContent("#statusArea"), text);
       await page.waitForTimeout(200);
       const names = (await calls(page)).map((c) => c.name);
-      assert.deepEqual([...new Set(names)], ["get_user_permissions"], "only the permission lookup may run");
+      assert.deepEqual([...new Set(names)], ["get_user_permissions", "ei_sales_access"], "only the permission lookup and the fail-closed capability probe may run");
       assert.equal(await page.$eval(".detail-section", (e) => getComputedStyle(e).display), "none");
-      assert.equal(await page.$eval("#kpiGrid", (e) => getComputedStyle(e).display), "none");
+      assert.equal(await page.$eval(".tabs-card", (e) => getComputedStyle(e).display), "none");
+      assert.equal(await page.$("#kpiGrid"), null, "no indicators are rendered for a denied user");
     } finally { await page.context().close(); }
   }
 });
@@ -1044,21 +1051,37 @@ for (const width of WIDTHS) {
         if (width <= 640) assert.ok(s.h >= 34, `${tab} search target height ${s.h}`);
       }
 
-      // filter drawer: inside viewport, closes on Escape and on outside click, focus returns to its button
+      // filter drawer: anchored popover on wide screens, full-page sheet on phones. Closes on Escape; focus returns to its button.
       await tabClick(page, "finance");
       await page.waitForSelector(".finance-table");
       await page.click("#financeFilterBtn");
       let [d] = await rects("#financeFilterDrawer");
       assert.ok(d.l >= 0 && d.r <= vw + 0.5, `filter drawer clipped ${JSON.stringify(d)}`);
+      if (width <= 640) {
+        const vh = await page.evaluate(() => window.innerHeight);
+        assert.ok(d.w >= vw - 1 && d.h >= vh - 1, `phone filter sheet should fill the page ${JSON.stringify(d)}`);
+        assert.ok(await page.$eval("#financeFilterDrawer .ei-drawer-close", (b) => b.getBoundingClientRect().width >= 36), "sheet has a touch-size close button");
+        assert.equal(await page.evaluate(() => document.activeElement?.name), "financeFilter", "focus moves into the sheet");
+        await page.click("#financeFilterDrawer .ei-drawer-close");
+        assert.equal(await page.$eval("#financeFilterDrawer", (e) => e.classList.contains("open")), false, "close button closes the sheet");
+        assert.equal(await page.evaluate(() => document.activeElement?.id), "financeFilterBtn");
+        await page.click("#financeFilterBtn");
+      }
       await page.focus('input[name="financeFilter"]');
       await page.keyboard.press("Escape");
       assert.equal(await page.$eval("#financeFilterDrawer", (e) => e.classList.contains("open")), false);
       assert.equal(await page.evaluate(() => document.activeElement?.id), "financeFilterBtn");
-      await page.click("#financeFilterBtn");
-      await page.mouse.click(2, vw > 600 ? 790 : 730);
-      assert.equal(await page.$eval("#financeFilterDrawer", (e) => e.classList.contains("open")), false, "outside click closes drawer");
+      if (width > 640) {
+        await page.click("#financeFilterBtn");
+        await page.mouse.click(2, 790);
+        assert.equal(await page.$eval("#financeFilterDrawer", (e) => e.classList.contains("open")), false, "outside click closes the anchored popover");
+      }
 
-      // KPI popover stays inside the viewport and closes on Escape / outside click
+      // Overview: no page overflow, groups inside the viewport, indicator popovers stay in the viewport and close on Escape
+      await tabClick(page, "overview");
+      await page.waitForSelector(".ei-overview .kpi-card");
+      await noPageOverflow("overview");
+      for (const r of await rects(".ei-group, .kpi-card")) assert.ok(r.l >= -0.5 && r.r <= vw + 0.5, `overview block clipped ${JSON.stringify(r)}`);
       await page.evaluate(() => window.scrollTo(0, 0));
       for (const idx of [0, 9]) {
         const btn = page.locator(`.kpi-info-btn[data-kpi-index="${idx}"]`);
@@ -1071,6 +1094,11 @@ for (const width of WIDTHS) {
         await page.keyboard.press("Escape");
         assert.equal(await page.$(".kpi-popover"), null);
       }
+      await tabClick(page, "alerts");
+      await page.waitForSelector(".ei-alerts");
+      await noPageOverflow("alerts");
+      await tabClick(page, "finance");
+      await page.waitForSelector(".finance-table");
 
       // Finance modal fits the viewport, closes on Escape, restores focus
       await page.locator("#financePartyTableWrap tbody tr").first().click();

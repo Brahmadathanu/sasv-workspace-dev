@@ -103,7 +103,7 @@ export function renderEvidenceShell() {
       <div id="govLive" class="mis-gov-live" aria-live="polite"></div>
       <div id="govItems" class="mis-gov-items"></div>
       <p class="mis-gov-hist"><strong>Historical, not verified</strong> (reference snapshot, ${esc(h.window)}; ${esc(h.source)}; not live): ${h.missingDepletionLines} packing lines in ${h.missingDepletionProductBatches} product-batches have no recorded depletion; route-master deficiencies on ${h.fgBulkLogs} FG bulk logs: ${gaps}. Receipt validator: ${num(r.ok)} of ${num(r.positiveFgLogs)} positive FG logs have exact ledger receipt evidence; ${r.missingSourceLedger} have none. These are never backfilled or assumed correct and stay separate from newly governed records.</p>
-      <p class="mis-gov-hist">Executive MIS only reports. Signing, packing, corrections and stock decisions are operational functions and are not available here.</p>
+      <p class="mis-gov-hist">Executive Intelligence only reports. Signing, packing, corrections and stock decisions are operational functions and are not available here.</p>
     </details>`;
 }
 
