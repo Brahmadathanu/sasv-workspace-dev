@@ -100,7 +100,7 @@ test('combined installation: sales-only MTD equals original executive report whi
  for(const uid of [denied,null]){
   assert.equal(read('v_ei_sales_mtd_summary',uid),'[]');
   assert.equal(read('ei_sales_mtd_product_page()',uid),'[]');
-  assert.equal(q('select count(*) from public.v_ei_sales_product_daily',uid),'0');
+  assert.equal(q("select count(*) from public.ei_sales_product_rows(date_trunc('month',current_date)::date,current_date)",uid),'0');
  }
 });
 test('combined installation: hierarchy filters, stable page-only export and grouped history',()=>{
@@ -122,7 +122,7 @@ test('combined installation: repeated import key is not a transaction identity',
  const x=JSON.parse(q('select public.ei_sales_coverage()',sales));
  const day=x.days.find(d=>d.raw_rows===2);
  assert.ok(day);assert.equal(day.distinct_source_keys,1);assert.equal(day.uniquely_mapped_raw_rows,2);assert.equal(day.ambiguous_mapping_rows,0);assert.equal(day.state,'OBSERVED_NOT_CERTIFIED');
- assert.equal(q('select count(*) from public.v_ei_sales_product_daily',sales),'2');
+ assert.equal(q("select count(*) from public.ei_sales_product_rows(date_trunc('month',current_date)::date,current_date)",sales),'2');
 });
 test('combined installation: facility retains incompatible scope while product analytics excludes it',()=>{
  q("insert into public.sku_aliases(alias_text,sku_id) values('ASHTAGANDHA DHOOP 35 GM',1); insert into public.tally_sales_vreg_snapshot(voucher_date,tally_item_name,godown_label,act_qty_value,bill_qty_value,billed_amount_value,source_key) values(current_date,'ASHTAGANDHA DHOOP 35 GM','DEPOT A',5,5,500,'batch-A');");
@@ -131,7 +131,7 @@ test('combined installation: facility retains incompatible scope while product a
   assert.equal(f.rows.find(r=>r.scope==='CLASSIFICATION_CONFLICT').source_reported_amount,500);
   const p=JSON.parse(q('select public.ei_sales_comparison()',sales));
   assert.equal(p.periods.find(r=>r.label==='CURRENT').sales_value,60);
-  assert.equal(q('select count(*) from public.v_ei_sales_product_daily',sales),'2');
+  assert.equal(q("select count(*) from public.ei_sales_product_rows(date_trunc('month',current_date)::date,current_date)",sales),'2');
  }finally{q("delete from public.tally_sales_vreg_snapshot where tally_item_name='ASHTAGANDHA DHOOP 35 GM'; delete from public.sku_aliases where alias_text='ASHTAGANDHA DHOOP 35 GM';");}
 });
 test('combined installation: bounded cron status and target registration do not broaden privileges',()=>{
@@ -143,4 +143,22 @@ test('combined installation: bounded cron status and target registration do not 
  assert.equal(x.refresh_job.return_message,undefined);assert.equal(x.refresh_job.command,undefined);
  assert.notEqual(pg.psql(db,'select * from cron.job_run_details',{uid:sales}).status,0);
  assert.notEqual(pg.psql(db,'select app_private.ei_sales_refresh_job_status()',{uid:denied}).status,0);
+});
+
+test('bounded product source rejects oversized windows',()=>{
+ assert.notEqual(pg.psql(db,"select count(*) from public.ei_sales_product_rows('2025-01-01','2026-12-31')",{uid:sales}).status,0);
+ assert.equal(q("select count(*) from public.ei_sales_product_rows(null,null)",sales),'0');
+});
+test('combined installation: same effective date revisions resolve once, including conflict period',()=>{
+ const editor='00000000-0000-0000-0000-000000000004';
+ // Scope decision precedes canonical alias, then later revision at the same effective date.
+ const id=Number(q("select public.sales_item_scope_approve('FUTURE LABEL','OTHER_MANUFACTURING_UNIT',current_date,'fixture decision')",editor));
+ q("select public.sales_item_scope_approve('FUTURE LABEL','SASV_HISTORICAL_PACK',current_date,'fixture revision',"+id+")",editor);
+ q("insert into public.sku_aliases(alias_text,sku_id) values('FUTURE LABEL',1); insert into public.tally_sales_vreg_snapshot(voucher_date,tally_item_name,godown_label,act_qty_value,bill_qty_value,billed_amount_value,source_key) values(current_date,'FUTURE LABEL','DEPOT A',1,1,10,'batch-A');");
+ try{
+  const x=JSON.parse(q('select public.ei_facility_sales_scope()',sales));
+  assert.ok(!x.rows.some(r=>r.scope==='CLASSIFICATION_CONFLICT'));
+  assert.equal(x.rows.find(r=>r.scope==='SASV_CANONICAL_PRODUCT').source_reported_amount,70);
+  assert.equal(q("select count(*) from public.ei_sales_product_rows(current_date,current_date)",sales),'3');
+ }finally{q("delete from public.tally_sales_vreg_snapshot where tally_item_name='FUTURE LABEL'; delete from public.sku_aliases where alias_text='FUTURE LABEL';");}
 });
