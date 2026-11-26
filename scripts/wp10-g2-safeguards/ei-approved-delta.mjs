@@ -17,7 +17,7 @@ export const EI_R5_CLIENT_BLOBS = Object.freeze({
 // Owner-directed R5 dashboard maturity, exact page-local content only.
 export const EI_MATURITY_BRANCH = "fix/executive-intelligence-r5-dashboard-maturity";
 export const EI_MATURITY_CLIENT_BLOBS = Object.freeze({
-  "public/shared/executive-mis-dashboard.html": "1496f464dca24e0b6e950038e02acbb168c2a113",
+  "public/shared/executive-mis-dashboard.html": "d8f402f41ab8f9e82f64a5127f20f710d728bd27",
   "public/shared/js/executive-mis-dashboard.js": "af183657b22ab7ff03776442a6e51c91732e6126",
   "public/shared/js/executive-intelligence-model.js": "27dd46ad870cd9c4ed9cabaa19eaf55cf8c439b5"
 });

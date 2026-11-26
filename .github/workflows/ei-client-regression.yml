@@ -21,6 +21,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Fetch main for protected-file comparison
+        run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
       - name: Isolated Chromium dependency
         run: |
           echo "NODE_PATH=$RUNNER_TEMP/eideps/node_modules" >> "$GITHUB_ENV"

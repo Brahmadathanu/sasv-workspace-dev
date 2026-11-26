@@ -1745,6 +1745,14 @@
       }
 
       /* EI-R5 maturity: inline data bars, infinite-scroll footer, compact record cards + detail dialog (tokens only) */
+      /* Finance: three compact comparable measures on typical phones; retain every label/value and basis. */
+      @media (min-width: 360px) and (max-width: 640px) {
+        #financeMetrics .ei-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+        #financeMetrics .ei-metric { padding: 4px 6px; }
+        #financeMetrics .ei-metric-label, #financeMetrics .ei-metric-sub { overflow-wrap: anywhere; }
+        #financeMetrics .ei-metric-label { line-height: 1.15; }
+        #financeMetrics .ei-metric-sub { line-height: 1.2; }
+      }
       .ei-dbar { display: block; height: 5px; margin-top: 4px; border-radius: var(--sasv-radius-pill, 999px); background: var(--mis-surface-soft); border: 1px solid var(--mis-divider); overflow: hidden; }
       .ei-dbar > span { display: block; height: 100%; background: var(--mis-accent); }
       td.num .ei-dbar { margin-left: auto; width: 100%; max-width: 120px; }
