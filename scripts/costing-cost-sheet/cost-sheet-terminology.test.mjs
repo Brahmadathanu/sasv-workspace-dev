@@ -14,6 +14,8 @@ import { CW07_LABEL_CHANGES, applyCw07Labels, applyApprovedHtmlInsertions, isCw0
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
 const BASE = "28cfadb20de3e2f3daf0aadada096f541254819d";
+import { stripRetentionR3R7 } from "../lib/retention-r3r7-strip.mjs";
+const readPre = (rel) => stripRetentionR3R7(rel, read(rel)); // R7 retirement removed one lens from route config/registry: compared against the baseline with those hunks reversed
 const showBase = (rel) => execFileSync("git", ["show", `${BASE}:${rel}`], { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).replace(/\r\n/g, "\n");
 const HTML = "public/shared/cost-sheet-review.html";
 const NEW_NAME = "Cost Sheet Review";
@@ -51,7 +53,7 @@ test("identifiers are untouched: module key, permission target, suite id, route 
   const baseCfg = showBase("public/shared/js/costing-route-config.js");
   const grab = (src, key) => src.match(new RegExp(`"cost-sheet-review": \\{[\\s\\S]*?${key}:\\s*("[^"]*"|\\[[^\\]]*\\])`))[1];
   for (const key of ["moduleKey", "permissionTarget", "suiteId", "defaultLens", "routePath", "allowedLensIds"]) {
-    assert.equal(grab(read("public/shared/js/costing-route-config.js"), key), grab(baseCfg, key), key);
+    assert.equal(grab(readPre("public/shared/js/costing-route-config.js"), key), grab(baseCfg, key), key);
   }
   assert.equal(ROUTE.moduleKey, "cost-sheet-review");
   assert.equal(ROUTE.permissionTarget, "module:cost-sheet-review");
@@ -65,7 +67,7 @@ test("identifiers are untouched: module key, permission target, suite id, route 
 test("diff against the baseline is exactly the label rename (nothing else changed in these files)", () => {
   for (const rel of ["public/shared/js/costing-route-config.js", "public/shared/js/costing-suite-registry.js", "public/shared/js/costing-suite-cost-sheet.js", HTML]) {
     // Later, individually approved CSS-only insertions (scope guard APPROVED_HTML_INSERTIONS) are the only other difference tolerated.
-    assert.equal(read(rel), applyApprovedHtmlInsertions(rel, applyCw07Labels(showBase(rel))), rel);
+    assert.equal(readPre(rel), applyApprovedHtmlInsertions(rel, applyCw07Labels(showBase(rel))), rel);
   }
   // MDC-07 N1 (flag-gated navigation) is the only later package allowed to edit the shell: every line of the
   // label-renamed baseline must still appear, in order, in the current shell, except the single flat

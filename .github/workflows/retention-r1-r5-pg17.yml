@@ -84,10 +84,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: R3/R7 client suites and touched existing suites
+      - name: R3/R7 client suites (new suites must pass) and touched existing suites (no failure that the pre-R3/R7 checkpoint did not already have)
         run: |
-          node --test scripts/costing-retention/*.test.mjs scripts/costing-approval/*.test.mjs scripts/costing-nav-groups/nav-groups.test.mjs \
-            scripts/costing-wp05-closure/wp05-closure.test.mjs scripts/costing-run-status/run-status-badge.test.mjs scripts/costing-cost-sheet/cost-sheet-terminology.test.mjs \
-            scripts/costing-cross-links/cross-links.test.mjs scripts/costing-review-worklist/review-worklist.test.mjs scripts/costing-table-tools/table-tools.test.mjs 2>&1 | tee "$RUNNER_TEMP/client.txt"
-          grep -E '^# (tests|pass|fail)' "$RUNNER_TEMP/client.txt"
-          grep -q '^# fail 0' "$RUNNER_TEMP/client.txt"
+          set -u
+          NEW="scripts/costing-retention/*.test.mjs"
+          OLD="scripts/costing-approval/*.test.mjs scripts/costing-nav-groups/nav-groups.test.mjs scripts/costing-wp05-closure/wp05-closure.test.mjs scripts/costing-run-status/run-status-badge.test.mjs scripts/costing-cost-sheet/cost-sheet-terminology.test.mjs scripts/costing-cross-links/cross-links.test.mjs scripts/costing-review-worklist/review-worklist.test.mjs scripts/costing-table-tools/table-tools.test.mjs scripts/costing-approval/sec-a2-strip.test.mjs"
+          node --test $NEW 2>&1 | tee "$RUNNER_TEMP/new.txt" | grep -E '^# (tests|pass|fail)'
+          grep -q '^# fail 0' "$RUNNER_TEMP/new.txt"
+          failing() { node --test $OLD 2>&1 | grep -E '^not ok' | sed -E 's/^not ok [0-9]+ - //' | sort -u; }
+          failing > "$RUNNER_TEMP/head-fail.txt"
+          git worktree add -q "$RUNNER_TEMP/base" 8d3570dad9b99a1f322dc753e2da0681dc55872d
+          (cd "$RUNNER_TEMP/base" && failing) > "$RUNNER_TEMP/base-fail.txt"
+          echo "failing at head: $(wc -l < "$RUNNER_TEMP/head-fail.txt"); failing at pre-R3/R7 checkpoint: $(wc -l < "$RUNNER_TEMP/base-fail.txt")"
+          NEWFAIL="$(comm -23 "$RUNNER_TEMP/head-fail.txt" "$RUNNER_TEMP/base-fail.txt")"
+          if [ -n "$NEWFAIL" ]; then echo "NEW FAILURES vs checkpoint:"; echo "$NEWFAIL"; exit 1; fi

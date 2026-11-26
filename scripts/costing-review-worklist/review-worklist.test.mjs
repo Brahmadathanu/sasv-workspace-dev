@@ -20,6 +20,7 @@ import {
 } from "../../public/shared/js/costing-suite-recommended-ui-route.js";
 import { costingStatusDisplayLabel } from "../../public/shared/js/costing-status-labels.js";
 import { readSourceLf } from "../lib/read-source-lf.mjs";
+import { retentionAddedLines } from "../lib/retention-r3r7-strip.mjs";
 import { stripN1 } from "../lib/n1-nav-strip.mjs";
 import { stripN2 } from "../lib/n2-nav-strip.mjs";
 import { unPersonnel } from "../costing-w506-conf-client/unpersonnel.mjs";
@@ -321,9 +322,10 @@ test("worklist flag OFF: legacy shell lines unchanged; every new line is behind 
     assert.equal(base.split(legacy).length, 2, "in base");
     assert.equal(head.split(legacy).length, 2, "intact in head");
   }
+  const RETENTION_ADDED = retentionAddedLines(SHELL); // retention R3/R7 hunks are verified separately (scripts/costing-retention/retention-strip.test.mjs)
   const added = git("diff", "-U0", BASE, "--", SHELL)
     .split("\n")
-    .filter((l) => l.startsWith("+") && !l.startsWith("+++"));
+    .filter((l) => l.startsWith("+") && !l.startsWith("+++") && !RETENTION_ADDED.has(l.slice(1)));
   assert.ok(added.length > 0);
   // The only call sites outside the two helpers sit directly inside the flag + lens gate.
   for (const gated of [
