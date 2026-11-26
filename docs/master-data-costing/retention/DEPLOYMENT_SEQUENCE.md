@@ -1,6 +1,6 @@
 # Production deployment sequence — storage retention (PR #491 / #539)
 
-Execution authority remains with the orchestrator after owner approval of each numbered step. **This package executed nothing against production.** Every step is a separate approval; stop on any failed check; each step has a rollback. No step changes cron jobs.
+Execution authority remains with the orchestrator within owner-approved scope. **Live steps 1–4 and R3B foundation + manifest pins in step 5 are applied; individual guard installation remains pending.** See [LIVE_DEPLOYMENT_CHECKPOINT_2026-11-26.md](LIVE_DEPLOYMENT_CHECKPOINT_2026-11-26.md) for actual receipts and current gates. Do not reapply installed migrations. Bundle routine engineering and verification; retain separate explicit authorization for destructive changes, merge/release gates, scheduler enablement and physical maintenance. Stop on failed safety checks; no cron jobs changed.
 
 Pre-conditions for every step: PR head CI (`retention-r1-r5-pg17`) green on PostgreSQL 17; no `QUEUED`/`RUNNING` costing run; a maintenance-quiet window of a few minutes (steps take `SHARE ROW EXCLUSIVE` locks with `lock_timeout=5s` — they fail fast rather than queue).
 
