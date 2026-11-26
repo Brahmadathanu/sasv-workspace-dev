@@ -20,8 +20,8 @@ const js = fs.readFileSync(path.join(root, "public/shared/js/executive-mis-dashb
 // ---------------------------------------------------------------- static contracts (always run)
 test("server contracts are consumed unchanged (names and parameters)", () => {
   for (const obj of [
-    "mv_mis_executive_summary", "v_mis_finance_tab_summary", "get_mis_finance_party_page", "v_mis_sales_tab_summary",
-    "get_mis_sales_product_page", "v_mis_inventory_tab_summary", "get_mis_inventory_item_page",
+    "mv_mis_executive_summary", "v_mis_finance_tab_summary", "get_mis_finance_party_page", "v_ei_sales_mtd_summary",
+    "ei_sales_mtd_product_page", "v_mis_inventory_tab_summary", "get_mis_inventory_item_page",
     "v_mis_finished_goods_tab_summary", "get_mis_finished_goods_sku_page", "v_mis_batch_pipeline",
     "get_mis_production_value_summary",
   ]) assert.ok(js.includes(`"${obj}"`), obj);
@@ -170,13 +170,13 @@ test("Sales: request args, pagination, search", { skip }, async () => {
   try {
     await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-table");
-    assert.deepEqual((await calls(page, "get_mis_sales_product_page"))[0].args, { p_search: "", p_limit: 25, p_offset: 0 });
+    assert.deepEqual((await calls(page, "ei_sales_mtd_product_page"))[0].args, { p_search: "", p_limit: 25, p_offset: 0 });
     await page.click("#salesNextPage");
     await page.waitForFunction(() => /Page 2 \/ 3/.test(document.querySelector("#salesPagination").textContent));
-    assert.equal((await calls(page, "get_mis_sales_product_page")).at(-1).args.p_offset, 25);
+    assert.equal((await calls(page, "ei_sales_mtd_product_page")).at(-1).args.p_offset, 25);
     await page.fill("#salesSearch", "arishta");
     await settleTimers(page);
-    const last = (await calls(page, "get_mis_sales_product_page")).at(-1).args;
+    const last = (await calls(page, "ei_sales_mtd_product_page")).at(-1).args;
     assert.deepEqual([last.p_search, last.p_offset], ["arishta", 0]);
     assert.match(await page.textContent("#salesPagination"), /of 4 products/);
   } finally { await page.context().close(); }
@@ -832,7 +832,7 @@ test("race: stale pagination and filter responses are dropped (Sales, Inventory,
     await page.evaluate(() => {
       const m = window.__mis; m.slow = {};
       const row = (n, tot) => ({ item: n, product_name: n, item_name: n, total_rows: tot });
-      for (const name of ["get_mis_sales_product_page", "get_mis_inventory_item_page", "get_mis_finished_goods_sku_page"]) {
+      for (const name of ["ei_sales_mtd_product_page", "get_mis_inventory_item_page", "get_mis_finished_goods_sku_page"]) {
         m.handlers[name] = (a) => {
           const key = name + ":" + (a.p_offset || 0) + ":" + (a.p_source_kind || a.p_mos_filter || "");
           if (!(a.p_offset > 0) && !(a.p_source_kind && a.p_source_kind !== "all") && !(a.p_mos_filter && a.p_mos_filter !== "all")) return { data: [row("BASE", 60)], error: null };
@@ -845,9 +845,9 @@ test("race: stale pagination and filter responses are dropped (Sales, Inventory,
     await page.waitForSelector(".sales-table");
     // (the loading mask blocks pointer input over the pager, so drive it by keyboard like a fast double activation)
     await page.focus("#salesNextPage"); await page.keyboard.press("Enter"); await page.keyboard.press("Enter");
-    await page.evaluate(() => { const s = window.__mis.slow; s["get_mis_sales_product_page:50:"].resolve({ data: [{ product_name: "P3", total_rows: 60 }], error: null }); });
+    await page.evaluate(() => { const s = window.__mis.slow; s["ei_sales_mtd_product_page:50:"].resolve({ data: [{ product_name: "P3", total_rows: 60 }], error: null }); });
     await page.waitForFunction(() => document.querySelector("#salesProductTableWrap").textContent.includes("P3"));
-    await page.evaluate(() => { window.__mis.slow["get_mis_sales_product_page:25:"].resolve({ data: [{ product_name: "P2-STALE", total_rows: 60 }], error: null }); });
+    await page.evaluate(() => { window.__mis.slow["ei_sales_mtd_product_page:25:"].resolve({ data: [{ product_name: "P2-STALE", total_rows: 60 }], error: null }); });
     await page.waitForTimeout(100);
     assert.doesNotMatch(await page.textContent("#salesProductTableWrap"), /P2-STALE/);
     assert.match(await page.textContent("#salesPagination"), /Page 3 \/ 3/);
@@ -904,11 +904,11 @@ test("a tab switch during the initial summary load does not trigger a duplicate 
     await page.waitForFunction(() => !!window.__mis.mvDeferred);
     await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-table");
-    const before = (await calls(page, "get_mis_sales_product_page")).length;
+    const before = (await calls(page, "ei_sales_mtd_product_page")).length;
     await page.evaluate(() => window.__mis.mvDeferred.resolve({ data: { mis_summary_id: 1, mv_refreshed_at: new Date().toISOString() }, error: null }));
     await page.waitForTimeout(300);
-    assert.equal((await calls(page, "get_mis_sales_product_page")).length, before, "no duplicate page request");
-    assert.equal((await calls(page, "v_mis_sales_tab_summary")).length, 1);
+    assert.equal((await calls(page, "ei_sales_mtd_product_page")).length, before, "no duplicate page request");
+    assert.equal((await calls(page, "v_ei_sales_mtd_summary")).length, 1);
   } finally { await page.context().close(); }
 });
 
@@ -977,7 +977,7 @@ test("loading, empty, error and populated states are distinct (with Retry)", { s
     await page.fill("#financeSearch", "q"); await settleTimers(page);
     await page.waitForSelector(`${wrap} .finance-table`);
     // a rejected (thrown) request also settles into the error state, never a stuck mask
-    await setHandler(page, "get_mis_sales_product_page", () => Promise.reject(new Error("network down")));
+    await setHandler(page, "ei_sales_mtd_product_page", () => Promise.reject(new Error("network down")));
     await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-status.error");
     assert.match(await page.textContent("#salesProductTableWrap"), /network down/);

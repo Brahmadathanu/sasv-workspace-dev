@@ -163,7 +163,7 @@ test("month grid pivots only the returned page (absent cell stays absent, never 
   assert.equal(csvCell('say "hi", ok'), '"say ""hi"", ok"'); assert.equal(csvCell(null), ""); assert.equal(csvCell(0), "0"); assert.equal(csvCell("plain"), "plain");
   const csv = buildPageCsv([{ label: "Name", get: (r) => r.n }, { label: "V", get: (r) => r.v }], [{ n: "=HYPERLINK(\"x\")", v: 1 }], "page 1 only");
   assert.deepEqual(csv.trim().split("\r\n"), ["page 1 only", "Name,V", "\"'=HYPERLINK(\"\"x\"\")\",1"]);
-  assert.equal(HISTORY_GROUPS.length, 15); assert.ok(isMonthGrouping("sku_month") && isMonthGrouping("month") && !isMonthGrouping("sku"));
+  assert.equal(HISTORY_GROUPS.length, 17); assert.ok(HISTORY_GROUPS.some((g) => g.value === "group_month") && HISTORY_GROUPS.some((g) => g.value === "subgroup_month")); assert.ok(isMonthGrouping("sku_month") && isMonthGrouping("month") && !isMonthGrouping("sku"));
 });
 
 test("sales summary: signed values, actual vs billed units and both averages kept; NULL stays NULL (no fake zero)", () => {
@@ -183,13 +183,14 @@ test("paging: only an empty out-of-range page resets (once, to page 1)", () => {
 // ------------------------------------------------------------------------------------------------ static contract guards
 test("no server endpoint is invented: the page touches exactly the pinned set of server objects, and none is written", () => {
   const js = read("public/shared/js/executive-mis-dashboard.js");
-  const names = new Set([...js.matchAll(/["']((?:get_mis|v_mis|mv_mis|ei)_[a-z_]+)["']/g)].map((m) => m[1]));
+  const names = new Set([...js.matchAll(/["']((?:get_mis|v_mis|v_ei|mv_mis|ei)_[a-z_]+)["']/g)].map((m) => m[1]));
   assert.deepEqual([...names].sort(), [
-    "ei_management_alerts", "ei_sales_access", "ei_sales_comparison", "ei_sales_coverage", "ei_sales_dimensions", "ei_sales_exceptions", "ei_sales_history", "ei_sales_refresh_status", "ei_sales_window_totals",
-    "get_mis_finance_party_page", "get_mis_finished_goods_sku_page", "get_mis_inventory_item_page", "get_mis_production_value_summary", "get_mis_sales_product_page",
-    "mv_mis_executive_summary", "v_mis_batch_pipeline", "v_mis_finance_outstanding_detail", "v_mis_finance_tab_summary", "v_mis_finished_goods_tab_summary",
-    "v_mis_inventory_tab_summary", "v_mis_sales_tab_summary",
+    "ei_facility_sales_scope", "ei_management_alerts", "ei_sales_access", "ei_sales_comparison", "ei_sales_coverage", "ei_sales_dimensions", "ei_sales_exceptions", "ei_sales_history", "ei_sales_mtd_product_page", "ei_sales_refresh_status", "ei_sales_window_totals",
+    "get_mis_finance_party_page", "get_mis_finished_goods_sku_page", "get_mis_inventory_item_page", "get_mis_production_value_summary",
+    "mv_mis_executive_summary", "v_ei_sales_mtd_summary", "v_mis_batch_pipeline", "v_mis_finance_outstanding_detail", "v_mis_finance_tab_summary", "v_mis_finished_goods_tab_summary",
+    "v_mis_inventory_tab_summary",
   ]);
+  assert.doesNotMatch(js, /get_mis_sales_product_page|v_mis_sales_tab_summary/, "Sales MTD uses only the installed ei_* contracts, never the legacy executive-only MTD objects");
   const model = read("public/shared/js/executive-intelligence-model.js");
   assert.doesNotMatch(model, /supabase|fetch\(|\.rpc\(|\.from\(|localStorage|document\.|window\./, "the model is pure and DOM-free");
   assert.doesNotMatch(js, /sales_viewer|sdv_|v_sdv|sales-viewer/, "the legacy Sales Viewer and its sources are not consumed or copied");
@@ -319,7 +320,7 @@ test("Sales Performance / Month to date (executive): latest day vs month to date
   assert.deepEqual(await page.$$eval(".sales-table th", (h) => h.map((x) => x.textContent)), ["Product", "SKUs", "MTD billed sales", "MTD actual units", "MTD billed units", "Latest day sales", "Latest day units", "Avg per product sales day"]);
   assert.match(await page.getAttribute(".sales-table th:last-child", "title"), /days this product had sales/);
   // NULLs: no fake zero anywhere
-  await setSummary(page, "v_mis_sales_tab_summary", { report_date: "2026-11-24", month_start: "2026-11-01", month_upto_date: "2026-11-24", latest_day_sales_value: null, latest_day_sales_units: null, latest_day_billed_units: null, month_to_date_sales_value: -20, month_to_date_sales_units: null, month_to_date_billed_units: null, sales_days_available_in_month: 0, average_daily_sales_value: null });
+  await setSummary(page, "v_ei_sales_mtd_summary", { report_date: "2026-11-24", month_start: "2026-11-01", month_upto_date: "2026-11-24", latest_day_sales_value: null, latest_day_sales_units: null, latest_day_billed_units: null, month_to_date_sales_value: -20, month_to_date_sales_units: null, month_to_date_billed_units: null, sales_days_available_in_month: 0, average_daily_sales_value: null });
   await page.click("#refreshBtn"); await page.waitForFunction(() => /24 Nov 2026/.test(document.querySelector("#salesScopeNote").textContent));
   const s = await text(page, "#salesScopeNote");
   assert.match(s, /-₹20\.00/); assert.equal((s.match(/Not reported/g) || []).length >= 7, true, s); assert.doesNotMatch(s.replace("-₹20.00", ""), /₹0\.00|\b0\b(?! sales days)/);
@@ -329,8 +330,8 @@ test("Sales Performance / Month to date (executive): latest day vs month to date
 test("Sales: summary failure is independent of the product table; 401/403/503 are stated with Retry that recovers; out-of-range page resets once", { skip: SK }, async () => {
   const { page } = await open({ lens: "sales" });
   await mtd(page);
-  for (const [code, msg] of [["401", "JWT expired"], ["403", "permission denied for view v_mis_sales_tab_summary"], ["503", "Service Unavailable"]]) {
-    await page.evaluate(([c, m]) => { window.__mis.fail = true; window.__mis.handlers.v_mis_sales_tab_summary = () => (window.__mis.fail ? { data: null, error: { code: c, message: m } } : { data: { report_date: "2026-05-31", month_upto_date: "2026-05-31", month_to_date_sales_value: 1 }, error: null }); }, [code, msg]);
+  for (const [code, msg] of [["401", "JWT expired"], ["403", "permission denied for view v_ei_sales_mtd_summary"], ["503", "Service Unavailable"]]) {
+    await page.evaluate(([c, m]) => { window.__mis.fail = true; window.__mis.handlers.v_ei_sales_mtd_summary = () => (window.__mis.fail ? { data: null, error: { code: c, message: m } } : { data: { report_date: "2026-05-31", month_upto_date: "2026-05-31", month_to_date_sales_value: 1 }, error: null }); }, [code, msg]);
     await page.click("#refreshBtn");
     await page.waitForSelector("#salesScopeNote .ei-state.error");
     assert.match(await text(page, "#salesScopeNote"), new RegExp(msg.split(" ")[0])); assert.ok(await page.$(".sales-table"), "product table still loads when only the summary failed");
@@ -338,10 +339,10 @@ test("Sales: summary failure is independent of the product table; 401/403/503 ar
     await page.click('#salesScopeNote [data-mis-retry="sales"]'); await page.waitForSelector(".ei-metric-group");
     assert.equal(await page.$("#salesScopeNote .ei-state.error"), null);
   }
-  await page.evaluate(() => { window.__mis.handlers.get_mis_sales_product_page = (a) => (a.p_offset > 0 ? { data: [], error: null } : { data: [{ product_name: "First", total_rows: 60 }], error: null }); });
+  await page.evaluate(() => { window.__mis.handlers.ei_sales_mtd_product_page = (a) => (a.p_offset > 0 ? { data: [], error: null } : { data: [{ product_name: "First", total_rows: 60 }], error: null }); });
   await page.click("#salesNextPage"); await page.waitForFunction(() => /Page 1 \/ /.test(document.querySelector("#salesPagination").textContent));
   assert.match(await text(page, "#salesProductTableWrap"), /First/);
-  const offs = (await calls(page, "get_mis_sales_product_page")).slice(-2).map((c) => c.args.p_offset); assert.deepEqual(offs, [25, 0]);
+  const offs = (await calls(page, "ei_sales_mtd_product_page")).slice(-2).map((c) => c.args.p_offset); assert.deepEqual(offs, [25, 0]);
   await page.context().close();
 });
 
@@ -478,7 +479,7 @@ test("a lens left mid-request cannot repaint, and a newly opened lens shows load
 test("returned content is escaped in every lens", { skip: SK }, async () => {
   const evil = '<img src=x onerror="window.__pwn=1">';
   const { page } = await open({ lens: "finance" });
-  await page.evaluate((e) => { const m = window.__mis.handlers; m.get_mis_finance_party_page = () => ({ data: [{ party_name: e, mis_group_name: e, bill_count: 1, outstanding_amount_mis_value: 1, signed_outstanding_tally_value: 1, total_rows: 1 }], error: null }); m.get_mis_sales_product_page = () => ({ data: [{ product_name: e, total_rows: 1 }], error: null }); m.get_mis_finished_goods_sku_page = () => ({ data: [{ item: e, classification: e, total_rows: 1 }], error: null }); m.v_mis_finance_tab_summary = () => ({ data: { finance_scope_note: e }, error: null }); }, evil);
+  await page.evaluate((e) => { const m = window.__mis.handlers; m.get_mis_finance_party_page = () => ({ data: [{ party_name: e, mis_group_name: e, bill_count: 1, outstanding_amount_mis_value: 1, signed_outstanding_tally_value: 1, total_rows: 1 }], error: null }); m.ei_sales_mtd_product_page = () => ({ data: [{ product_name: e, total_rows: 1 }], error: null }); m.get_mis_finished_goods_sku_page = () => ({ data: [{ item: e, classification: e, total_rows: 1 }], error: null }); m.v_mis_finance_tab_summary = () => ({ data: { finance_scope_note: e }, error: null }); }, evil);
   for (const [tab, sel] of [["finance", ".finance-table td"], ["sales", ".sales-table td"], ["finished-goods", ".fg-table td"]]) { await lensTab(page, tab, null); await page.waitForSelector(sel); await page.waitForTimeout(50); }
   await lensTab(page, "finance", ".finance-table td"); await page.click(".finance-scope-note .ei-basis > summary");
   assert.match(await text(page, ".finance-scope-note"), /<img src=x/);
@@ -504,6 +505,7 @@ test("responsive: every lens at 320/375/390/430/520/768/1280/1440 has no page-le
 });
 
 // ------------------------------------------------------------------------------------------------ R3 / R4 browser tests
+const H0 = { p_category: null, p_subcategory: null, p_group_id: null, p_subgroup: null };
 const lastArgs = async (page, name) => (await calls(page, name)).at(-1)?.args;
 const salesOpen = async (opts) => { const r = await open({ lens: "sales", noWait: true, ...opts }); await r.page.waitForSelector(".ei-subnav"); return r; };
 
@@ -524,8 +526,8 @@ test("Sales Overview: matched-period comparison with explicit ASP denominators, 
   assert.equal(w[1][4], "Not available"); assert.equal(w[1][5], "Unavailable");
   assert.match(await text(page, "#salesWin .section-x, #salesWin h3"), /excluding the anchor month/);
   // exact parameter lists, nothing else sent
-  assert.deepEqual(await lastArgs(page, "ei_sales_comparison"), { p_anchor: null, p_region: null, p_godown: null, p_product: null, p_sku: null, p_active_only: false });
-  assert.deepEqual(await lastArgs(page, "ei_sales_window_totals"), { p_anchor: null, p_region: null, p_godown: null, p_product: null, p_sku: null, p_active_only: false });
+  assert.deepEqual(await lastArgs(page, "ei_sales_comparison"), { p_anchor: null, p_region: null, p_godown: null, p_product: null, p_sku: null, p_active_only: false, ...H0 });
+  assert.deepEqual(await lastArgs(page, "ei_sales_window_totals"), { p_anchor: null, p_region: null, p_godown: null, p_product: null, p_sku: null, p_active_only: false, ...H0 });
   assert.deepEqual(await lastArgs(page, "ei_sales_dimensions"), {});
   const lazy = (await calls(page)).map((c) => c.name).filter((n) => /history|exceptions|coverage|refresh/.test(n)); assert.deepEqual(lazy, [], "history/exceptions/coverage are not requested until opened");
   assert.deepEqual(consoleErrors, []); await page.context().close();
@@ -541,7 +543,7 @@ test("Sales filters: dynamic region/godown from the master, godown follows regio
   assert.equal((await lastArgs(page, "ei_sales_comparison")).p_region, 2);
   await page.selectOption("#salesGodown", "20"); await page.check("#salesActive");
   await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_comparison").length === 4);
-  assert.deepEqual(await lastArgs(page, "ei_sales_window_totals"), { p_anchor: null, p_region: 2, p_godown: 20, p_product: null, p_sku: null, p_active_only: true });
+  assert.deepEqual(await lastArgs(page, "ei_sales_window_totals"), { p_anchor: null, p_region: 2, p_godown: 20, p_product: null, p_sku: null, p_active_only: true, ...H0 });
   await page.fill("#salesAnchor", "2027-01-01");
   assert.match(await text(page, ".ei-filter-note"), /outside the mapped range/); assert.equal((await lastArgs(page, "ei_sales_comparison")).p_anchor, null, "an out-of-range anchor is never sent");
   await page.fill("#salesAnchor", "2026-11-10");
@@ -558,9 +560,9 @@ test("Sales filters: dynamic region/godown from the master, godown follows regio
 
 test("Sales History: bounded grouped pages, stable paging, search, top/bottom, ambiguous amounts never certified, month grid never fakes cells, page-only CSV with formula safety", { skip: SK }, async () => {
   const { page } = await salesOpen(); await page.click('[data-sales-view="history"]'); await page.waitForSelector("#salesHistResults .ei-table");
-  assert.deepEqual(await lastArgs(page, "ei_sales_history"), { p_anchor: null, p_region: null, p_godown: null, p_months: 12, p_group: "month", p_product: null, p_sku: null, p_active_only: false, p_search: null, p_sort: "value_desc", p_limit: 50, p_offset: 0 });
+  assert.deepEqual(await lastArgs(page, "ei_sales_history"), { p_anchor: null, p_region: null, p_godown: null, p_months: 12, p_group: "month", p_product: null, p_sku: null, p_active_only: false, p_search: null, p_sort: "value_desc", p_limit: 50, p_offset: 0, ...H0 });
   assert.equal(await page.$$eval("#salesGroupX", (e) => e.length), 0);
-  assert.deepEqual(await page.$$eval("#salesHistGroup option", (o) => o.length), [15].length ? 15 : 0);
+  assert.deepEqual(await page.$$eval("#salesHistGroup option", (o) => o.length), [17].length ? 17 : 0);
   assert.match(await text(page, "#salesHistResults .ei-asof-row"), /Closed months from the shared monthly aggregate/); assert.match(await text(page, "#salesHistResults .ei-asof-row"), /Import completeness not certified/);
   const rows = await page.$$eval("#salesHistResults tbody tr", (r) => r.map((x) => [...x.children].map((c) => c.textContent.trim())));
   assert.equal(rows[1][2].startsWith("Unavailable"), true, "NULL certified value is Unavailable"); assert.match(rows[1][2], /2 ambiguous source groups/); assert.equal(rows[1][3], "₹999.00", "source reported amount shown separately");
@@ -596,12 +598,12 @@ test("Sales History export: this page only, scope stated, formula injection neut
     { dimension_id: "1", dimension_name: '=HYPERLINK("http://evil","x")', month: null, sales_value: 10, source_reported_amount: 10, actual_packages: 1, billed_packages: 1, asp_actual_package: 10, asp_billed_package: 10, coverage: "OBSERVED_NOT_CERTIFIED", ambiguous_amount_groups: 0 },
     { dimension_id: "2", dimension_name: "+cmd|' /C calc'!A0, \"quoted\"", month: null, sales_value: null, source_reported_amount: 5, actual_packages: null, billed_packages: 1, asp_actual_package: null, asp_billed_package: null, coverage: "MISSING_OR_AMBIGUOUS_MEASURES", ambiguous_amount_groups: 1 }] }, error: null }); });
   await page.click('[data-sales-view="history"]'); await page.waitForSelector("#salesHistResults .ei-table");
-  assert.match(await text(page, ".ei-viewbar"), /Exports only the 2 rows shown on this page, not the whole dataset/); assert.doesNotMatch(await text(page, "#salesHistResults"), /full export|all rows exported|entire dataset/i);
+  assert.match(await text(page, ".ei-viewbar"), /Exports only the 2 rows shown on this page; more rows exist on later pages, not the whole dataset/); assert.doesNotMatch(await text(page, "#salesHistResults"), /full export|all rows exported|entire dataset/i);
   const [dl] = await Promise.all([page.waitForEvent("download"), page.click("[data-sales-export]")]);
   assert.match(dl.suggestedFilename(), /^executive-intelligence-sales-history-page-1\.csv$/);
   const csv = (await import("node:fs")).readFileSync(await dl.path(), "utf8").replace(/^﻿/, "");
   const lines = csv.trim().split("\r\n");
-  assert.match(lines[0], /2 rows from page 1 only \(not the whole dataset\)/); assert.match(lines[0], /import completeness not certified/);
+  assert.match(lines[0], /PAGE ONLY: 2 rows from page 1 \(page size 50\); not the whole dataset/); assert.match(lines[0], /120 rows match the filters/); assert.match(lines[0], /has_more=true/); assert.match(lines[0], /filters: none/); assert.match(lines[0], /import completeness not certified/);
   assert.match(lines[1], /^Scope,Month,Sales value,Reported amount \(not certified\)/);
   assert.ok(lines[2].startsWith(`"'=HYPERLINK(""http://evil"",""x"")",,10,10`), lines[2]);
   assert.ok(lines[3].startsWith(`"'+cmd|' /C calc'!A0, ""quoted""",,Unavailable,5`), lines[3]);
@@ -611,7 +613,7 @@ test("Sales History export: this page only, scope stated, formula injection neut
 
 test("Sales Exceptions: current-master eligibility is separate from activity; no recorded rows is not a certified zero seller; bad scope is stated", { skip: SK }, async () => {
   const { page } = await salesOpen(); await page.click('[data-sales-view="exceptions"]'); await page.waitForSelector("#salesExcResults .ei-table");
-  assert.deepEqual(await lastArgs(page, "ei_sales_exceptions"), { p_anchor: null, p_region: null, p_godown: null, p_search: null, p_limit: 50, p_offset: 0 });
+  assert.deepEqual(await lastArgs(page, "ei_sales_exceptions"), { p_anchor: null, p_region: null, p_godown: null, p_search: null, p_limit: 50, p_offset: 0, ...H0 });
   assert.match(await text(page, "#salesExcResults .ei-asof-row"), /current SKU master, not what was listed historically/);
   const r = await page.$$eval("#salesExcResults tbody tr", (x) => x.map((t) => [...t.children].map((c) => c.textContent.trim())));
   assert.equal(r[0][3], "Listed now"); assert.match(r[0][4], /No recorded rows \(coverage not certified; not a certified zero seller\)/); assert.deepEqual(r[0].slice(5), ["No rows", "No rows", "No rows", "No rows"], "no fake zero counts");
@@ -635,7 +637,7 @@ test("Sales Coverage: raw vs mapped per day, ETL status without inferred success
   assert.equal(d[0][7], "Observed, not certified"); assert.equal(d[1][7], "Raw and mapped counts differ"); assert.equal(d[1][5], "No job recorded"); assert.deepEqual(d[1].slice(1, 3), ["120", "118"]);
   assert.match(await text(page, "#salesCov .ei-basis").catch(() => ""), /^$|Basis/);
   const r = await text(page, "#salesRefresh");
-  assert.match(r, /Refresh job status\s*Not exposed by this contract\. No success is inferred\./); assert.match(r, /Difference \(daily minus monthly\)\s*-₹2\.00/);
+  assert.match(r, /Monthly refresh job\s*Last run succeeded/); assert.match(r, /Last started\s*2[56]-Nov-2026/); assert.match(r, /Daily source was loaded after the monthly aggregate/); assert.match(r, /not a completeness certificate/); assert.match(r, /Difference \(daily minus monthly\)\s*-₹2\.00/);
   assert.equal(await page.$$eval("#salesCov .ei-badge-clear, #salesRefresh .ei-badge, #salesCov [class*=success], #salesRefresh [class*=success]", (e) => e.length), 0, "no green/OK badge anywhere");
   assert.deepEqual((await calls(page)).map((x) => x.name).filter((n) => /ei_sales_(coverage|refresh)/.test(n)).sort(), ["ei_sales_coverage", "ei_sales_refresh_status"]);
   assert.deepEqual(await lastArgs(page, "ei_sales_coverage"), { p_anchor: null });
@@ -647,7 +649,7 @@ test("Sales contract not installed / denied / expired / 503: honest per-view sta
   await page.waitForSelector("#salesCmp .ei-state");
   assert.match(await text(page, "#salesCmp"), /not available on this server yet: the Executive Intelligence sales contract is not installed\. Nothing is estimated/); assert.equal(await page.$("#salesCmp [data-sales-retry]"), null, "no pointless retry for an uninstalled contract");
   assert.match(await text(page, "#salesWin"), /Your account does not have access to Trailing window totals/);
-  assert.match(await text(page, "#salesFilters"), /Region, godown and date bounds are unavailable \(contract not installed yet\)/); assert.equal(await page.$eval("#salesRegion", (e) => e.disabled), true);
+  assert.match(await text(page, "#salesFilters"), /Region, godown, hierarchy and date bounds are unavailable \(contract not installed yet\)/); assert.equal(await page.$eval("#salesRegion", (e) => e.disabled), true);
   assert.equal(await page.$("#salesCmp td"), null, "no figure is shown in place of the missing contract");
   await page.evaluate(() => { const h = window.__mis.handlers; h.ei_sales_history = () => ({ data: null, error: { code: "503", message: "Service Unavailable" } }); h.ei_sales_exceptions = () => ({ data: null, error: { code: "401", message: "JWT expired" } }); });
   await page.click('[data-sales-view="history"]'); await page.waitForSelector("#salesHistResults .ei-state.error");
@@ -683,7 +685,7 @@ test("Sales-only entry: capability discovered via ei_sales_access, only the Sale
   assert.deepEqual(names, ["ei_sales_access", "ei_sales_comparison", "ei_sales_dimensions", "ei_sales_window_totals", "get_user_permissions"], "no summary, pipeline, inventory, finance or legacy sales request");
   assert.equal(await page.evaluate(() => document.body.classList.contains("ei-sales-only")), true);
   assert.equal(await page.$eval(".tabs-card", (e) => getComputedStyle(e).display), "none"); assert.deepEqual(await page.$$eval("#detailTabSelect option", (o) => o.map((x) => x.value)), ["sales"]);
-  assert.deepEqual(await page.$$eval("[data-sales-view]", (b) => b.map((x) => x.dataset.salesView)), ["overview", "history", "exceptions", "coverage"], "the executive-only legacy month-to-date view is not offered");
+  assert.deepEqual(await page.$$eval("[data-sales-view]", (b) => b.map((x) => x.dataset.salesView)), ["overview", "mtd", "history", "exceptions", "facility", "coverage"], "Month to date now runs on the ei_* contracts for both authorised roles");
   assert.equal(await page.evaluate(() => location.hash), "#sales", "a forged #finance hash cannot select an executive lens");
   assert.equal(await page.$(".kpi-card"), null); assert.match(await text(page, "h1"), /Executive Intelligence/);
   assert.ok(await page.$("#homeBtn")); await page.evaluate(() => { location.hash = "#finance"; }); await page.waitForTimeout(200);

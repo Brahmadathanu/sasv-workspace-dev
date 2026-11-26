@@ -23,20 +23,26 @@ async function shot(name, width, lens, prep, { permission = "granted", ready, fu
 }
 const view = (v, sel) => async (page) => { await page.click(`[data-sales-view="${v}"]`); await page.waitForSelector(sel); };
 
-for (const w of [1280, 768, 520, 390, 320]) await shot("overview", w, "overview");
-for (const w of [1280, 390]) await shot("inventory", w, "inventory");
-for (const w of [1280, 768, 390, 320]) await shot("sales-overview", w, "sales");
-for (const w of [1280, 390]) await shot("sales-history", w, "sales", view("history", "#salesHistResults .ei-table"));
+const ALL = [320, 375, 390, 430, 520, 768, 1280, 1440];
+const subs = { overview: "#salesCmp .ei-table", mtd: ".sales-table td", history: "#salesHistResults .ei-table", exceptions: "#salesExcResults .ei-table", facility: "#salesFac .ei-table", coverage: "#salesRefresh .ei-dl" };
+for (const w of ALL) await shot("overview", w, "overview");
+for (const w of ALL) for (const [v, sel] of Object.entries(subs)) await shot(`sales-${v}`, w, "sales", v === "overview" ? null : view(v, sel), { ready: "#salesCmp .ei-table" });
+for (const w of [1280, 390, 320]) for (const l of ["finance", "inventory", "finished-goods", "production", "alerts"]) await shot(l, w, l);
 await shot("sales-history-month-grid", 1280, "sales", async (page) => { await view("history", "#salesHistResults .ei-table")(page); await page.selectOption("#salesHistGroup", "sku_month"); await page.waitForSelector("[data-hist-grid]"); await page.click("[data-hist-grid]"); await page.waitForSelector(".ei-grid"); });
-await shot("sales-exceptions", 1280, "sales", view("exceptions", "#salesExcResults .ei-table"));
-for (const w of [1280, 390]) await shot("sales-coverage", w, "sales", async (page) => { await view("coverage", "#salesCov .ei-table")(page); await page.waitForSelector("#salesRefresh .ei-dl"); });
-await shot("sales-only-entry", 390, "sales", null, { permission: "sales-only" });
-await shot("sales-only-entry", 1280, "sales", null, { permission: "sales-only" });
-for (const w of [1280, 390]) await shot("alerts", w, "alerts");
-await shot("production", 1280, "production");
-await shot("finished-goods", 390, "finished-goods");
+await shot("sales-hierarchy-filters", 1280, "sales", async (page) => { await page.selectOption("#salesHier-category", "1"); await page.selectOption("#salesHier-subcategory", "11"); await page.selectOption("#salesHier-group", "111"); await page.waitForTimeout(300); });
+for (const w of [390, 320]) await shot("sales-filter-sheet", w, "sales", async (page) => { await page.click("#salesFilterToggle"); await page.waitForTimeout(150); }, { full: false });
+for (const w of [1280, 390]) await shot("sales-only", w, "sales", null, { permission: "sales-only" });
+await shot("sales-only-facility", 390, "sales", view("facility", "#salesFac .ei-table"), { permission: "sales-only", ready: "#salesCmp .ei-table" });
 await shot("finance-filter-sheet", 390, "finance", async (page) => { await page.click("#financeFilterBtn"); }, { full: false });
 await shot("inventory-canonical-unavailable", 390, "inventory", async (page) => { await page.evaluate(() => { window.__mis.handlers.v_mis_inventory_tab_summary = () => ({ data: { total_inventory_item_count: 1773 }, error: null }); }); await page.click("#refreshBtn"); await page.waitForSelector(".ei-state-unavailable"); });
+await shot("sales-facility-unavailable", 1280, "sales", async (page) => {
+  await page.evaluate(() => { window.__mis.handlers.ei_facility_sales_scope = () => ({ data: null, error: { code: "42883", message: "function does not exist" } }); });
+  await view("facility", "#salesFac .ei-state-unavailable")(page);
+}, { ready: "#salesCmp .ei-table" });
+await shot("sales-refresh-failed", 1280, "sales", async (page) => {
+  await page.evaluate(() => { const j = { status: "failed", active: true, last_started_at: "2026-11-26T01:00:00Z", last_finished_at: "2026-11-26T01:00:09Z" }; window.__mis.handlers.ei_sales_refresh_status = () => ({ data: { monthly_latest_month: "2026-11-01", monthly_source_max_inserted_at: "2026-11-25T21:45:00Z", daily_source_max_inserted_at: "2026-11-26T02:00:00Z", daily_last_date_in_month: "2026-11-25", monthly_reported_amount: 100, daily_reported_amount: 98, amount_difference: -2, refresh_job_status: "failed", refresh_job: j }, error: null }); });
+  await view("coverage", "#salesRefresh .ei-dl")(page);
+}, { ready: "#salesCmp .ei-table" });
 await shot("sales-contract-not-installed", 1280, "sales", async (page) => {
   await page.evaluate(() => { const f = () => ({ data: null, error: { code: "42883", message: "function does not exist" } }); Object.assign(window.__mis.handlers, { ei_sales_comparison: f, ei_sales_window_totals: f, ei_sales_dimensions: f }); });
   await page.click("#refreshBtn"); await page.waitForSelector("#salesCmp .ei-state-unavailable");

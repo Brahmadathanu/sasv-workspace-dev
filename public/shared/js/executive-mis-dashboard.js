@@ -27,7 +27,18 @@ import {
   label as labelOf,
   pivotMonthGrid,
   buildPageCsv,
-} from "./executive-intelligence-model.js?ei-r3=1";
+  HIERARCHY_LEVELS,
+  emptyHierarchy,
+  hierarchyOptions,
+  reconcileHierarchy,
+  hierarchyArgs,
+  hierarchyActive,
+  hierarchyLabels,
+  exportScopeLine,
+  refreshJobModel,
+  refreshFreshnessModel,
+  facilityModel,
+} from "./executive-intelligence-model.js?ei-r5=1";
 
 const MODULE_ID = "executive-mis-dashboard";
 const PLAN_WARNING_STATUS =
@@ -89,6 +100,7 @@ const TAB_REQUEST_KEYS = [
   "sales:exc",
   "sales:cov",
   "sales:refresh",
+  "sales:fac",
   "alerts",
 ];
 let ACTIVE_TAB_FAILED = false;
@@ -299,6 +311,7 @@ function planningNoticeHtml(row) {
 
 // Executive-summary snapshot. Independent latest-wins key ("summary"); the active lens never waits for it.
 async function loadExecutiveSummary({ reloadLens = true } = {}) {
+  if (!ACCESS.executive) return; // executive-only contract: never requested for a sales-only session
   const token = beginRequest("summary");
   try {
     if (refreshBtn) refreshBtn.disabled = true;
@@ -340,6 +353,7 @@ async function loadExecutiveSummary({ reloadLens = true } = {}) {
 
 // Canonical inventory summary for the Overview: own latest-wins key, reused for 30 s like the shared pipeline.
 function loadOverviewInventory({ force = false } = {}) {
+  if (!ACCESS.executive) return Promise.resolve();
   if (!force && OVERVIEW_INV.status === "ok" && OVERVIEW_INV.asOf && Date.now() - OVERVIEW_INV.asOf.getTime() < LIVE_PIPELINE_REUSE_MS) return Promise.resolve();
   const token = beginRequest("overview:inventory");
   OVERVIEW_INV = { status: "loading", data: null, asOf: null, message: "" };
@@ -378,6 +392,7 @@ function renderLivePipelineConsumers() {
 // Single reader of v_mis_batch_pipeline. Concurrent callers share one in-flight promise; `force` (refresh/retry) starts a new request
 // that supersedes any older one; a late older response can never overwrite a newer one (own latest-wins key, tab-independent).
 function loadLivePipeline({ force = false } = {}) {
+  if (!ACCESS.executive) return Promise.resolve();
   if (!force) {
     if (LIVE_PIPELINE_INFLIGHT) return LIVE_PIPELINE_INFLIGHT;
     if (LIVE_PIPELINE.status === "ok" && LIVE_PIPELINE.asOf && Date.now() - LIVE_PIPELINE.asOf.getTime() < LIVE_PIPELINE_REUSE_MS) return Promise.resolve();
@@ -725,6 +740,11 @@ function lensHeadHtml(title, asOfHtml = "") {
 // Single entry point for (re)loading the active tab. Retires every in-flight
 // tab query first so a late response can never repaint the wrong panel.
 function loadActiveTab() {
+  // Strict permission isolation: a sales-only session can only ever load the Sales lens, whatever the hash or a stale call says.
+  if (!ACCESS.executive && ACTIVE_TAB !== "sales") ACTIVE_TAB = "sales";
+  if (!ACCESS.sales) return Promise.resolve();
+  SX.filtersOpen = false;
+  document.body.classList.remove("ei-sheet-lock");
   ACTIVE_TAB_FAILED = false;
   invalidateTabRequests();
   cancelPendingSearches();
@@ -1012,9 +1032,9 @@ const LISTS = {
     emptyText: "No parties found for this scope.", loadErrText: "Failed to load finance parties.", loadingText: "Loading parties...",
   },
   sales: {
-    p: "sales", title: "Sales Performance", noun: "products", rpc: "get_mis_sales_product_page", wrapId: "salesProductTableWrap",
+    p: "sales", title: "Sales Performance", noun: "products", rpc: "ei_sales_mtd_product_page", wrapId: "salesProductTableWrap",
     shell: ".sales-table-shell", loadingMsg: "Loading sales products...", retryKey: "sales",
-    summaryTable: "v_mis_sales_tab_summary", summarySelect: "*", errorText: "Sales summary could not be loaded.",
+    summaryTable: "v_ei_sales_mtd_summary", summarySelect: "*", errorText: "Sales summary could not be loaded.",
     host: () => $("salesView"), placeholder: "Search product", st: newListState(null), sum: { status: "idle", data: null, error: "" },
     args: (st) => ({ p_search: st.search, p_limit: st.size, p_offset: (st.page - 1) * st.size }),
     parse: arrParse, summaryHtml: salesSummaryHtml,
@@ -1157,6 +1177,7 @@ function renderListShell(p) {
 
 async function loadListTab(p) {
   if (!tabPanel) return;
+  if (p !== "sales" && !ACCESS.executive) return; // finance / materials / finished goods are executive-only lenses
   const L = LISTS[p];
   L.st.rows = [];
   L.st.total = 0;
@@ -1408,38 +1429,44 @@ const loadFinishedGoodsTab = () => loadListTab("fg");
 // ---------------------------------------------------------------------------
 const SALES_VIEWS = [
   { id: "overview", label: "Overview" },
-  { id: "mtd", label: "Month to date", executiveOnly: true },
+  { id: "mtd", label: "Month to date" },
   { id: "history", label: "History" },
   { id: "exceptions", label: "Exceptions" },
-  { id: "coverage", label: "Coverage" },
+  { id: "facility", label: "Facility reconciliation" },
+  { id: "coverage", label: "Coverage & refresh" },
 ];
 const salesViews = () => SALES_VIEWS.filter((v) => !v.executiveOnly || ACCESS.executive);
 const idleRes = () => ({ status: "idle", data: null, message: "" });
-const freshSalesResults = () => ({ dims: idleRes(), cmp: idleRes(), win: idleRes(), hist: idleRes(), exc: idleRes(), cov: idleRes(), refresh: idleRes() });
+const freshSalesResults = () => ({ dims: idleRes(), cmp: idleRes(), win: idleRes(), hist: idleRes(), exc: idleRes(), cov: idleRes(), refresh: idleRes(), fac: idleRes() });
 const SX = {
-  view: "overview", anchor: "", region: "", godown: "", activeOnly: false, notice: "",
+  view: "overview", anchor: "", region: "", godown: "", activeOnly: false, notice: "", hier: emptyHierarchy(), filtersOpen: false, facMonths: 1,
   hist: { group: "month", months: 12, sort: "value_desc", search: "", page: 1, size: 50, product: "", sku: "", grid: false },
   exc: { search: "", page: 1, size: 50 },
   res: freshSalesResults(),
 };
-const SX_KEYS = { dims: "sales:dims", cmp: "sales:cmp", win: "sales:win", hist: "sales:hist", exc: "sales:exc", cov: "sales:cov", refresh: "sales:refresh" };
+const SX_KEYS = { dims: "sales:dims", cmp: "sales:cmp", win: "sales:win", hist: "sales:hist", exc: "sales:exc", cov: "sales:cov", refresh: "sales:refresh", fac: "sales:fac" };
 const intOrNull = (v) => (v === "" || v == null || !Number.isFinite(Number(v)) ? null : Math.trunc(Number(v)));
 
 function salesCommonArgs() {
   return { p_anchor: SX.anchor || null, p_region: intOrNull(SX.region), p_godown: intOrNull(SX.godown) };
 }
-// Exact parameter lists of the pinned contracts (R3_R4_SERVER_CANDIDATE.sql / R3_R4_COVERAGE_EXTENSION.sql); nothing else is sent.
+// Hierarchy ids (p_category, p_subcategory, p_group_id, p_subgroup). NOT the history `p_group` grouping choice.
+const hierArgs = () => hierarchyArgs(SX.hier);
+// Exact parameter lists of the INSTALLED contracts (migration 20261126102211_executive_intelligence_r3_r4_reporting_parity.sql, final
+// signatures); nothing else is sent. Comparison, window totals, history and exceptions accept the four hierarchy ids; coverage,
+// refresh status and dimensions take none; the facility contract takes only anchor and months.
 const SX_CALLS = {
   dims: () => ["ei_sales_dimensions", {}],
-  cmp: () => ["ei_sales_comparison", { ...salesCommonArgs(), p_product: intOrNull(SX.hist.product), p_sku: intOrNull(SX.hist.sku), p_active_only: SX.activeOnly }],
-  win: () => ["ei_sales_window_totals", { ...salesCommonArgs(), p_product: intOrNull(SX.hist.product), p_sku: intOrNull(SX.hist.sku), p_active_only: SX.activeOnly }],
+  cmp: () => ["ei_sales_comparison", { ...salesCommonArgs(), p_product: intOrNull(SX.hist.product), p_sku: intOrNull(SX.hist.sku), p_active_only: SX.activeOnly, ...hierArgs() }],
+  win: () => ["ei_sales_window_totals", { ...salesCommonArgs(), p_product: intOrNull(SX.hist.product), p_sku: intOrNull(SX.hist.sku), p_active_only: SX.activeOnly, ...hierArgs() }],
   hist: () => ["ei_sales_history", {
     ...salesCommonArgs(), p_months: SX.hist.months, p_group: SX.hist.group, p_product: intOrNull(SX.hist.product), p_sku: intOrNull(SX.hist.sku),
-    p_active_only: SX.activeOnly, p_search: SX.hist.search || null, p_sort: SX.hist.sort, p_limit: SX.hist.size, p_offset: (SX.hist.page - 1) * SX.hist.size,
+    p_active_only: SX.activeOnly, p_search: SX.hist.search || null, p_sort: SX.hist.sort, p_limit: SX.hist.size, p_offset: (SX.hist.page - 1) * SX.hist.size, ...hierArgs(),
   }],
-  exc: () => ["ei_sales_exceptions", { ...salesCommonArgs(), p_search: SX.exc.search || null, p_limit: SX.exc.size, p_offset: (SX.exc.page - 1) * SX.exc.size }],
+  exc: () => ["ei_sales_exceptions", { ...salesCommonArgs(), p_search: SX.exc.search || null, p_limit: SX.exc.size, p_offset: (SX.exc.page - 1) * SX.exc.size, ...hierArgs() }],
   cov: () => ["ei_sales_coverage", { p_anchor: SX.anchor || null }],
   refresh: () => ["ei_sales_refresh_status", {}],
+  fac: () => ["ei_facility_sales_scope", { p_anchor: SX.anchor || null, p_months: SX.facMonths }],
 };
 
 async function sxFetch(slot) {
@@ -1460,11 +1487,27 @@ async function sxFetch(slot) {
   } else {
     SX.res[slot] = { status: "error", data: null, message: "The server returned an unexpected response." };
   }
+  // A page past the last returns no rows: go back to page 1 once instead of reporting "no rows".
+  if (SX.res[slot].status === "ok" && (slot === "hist" || slot === "exc")) {
+    const st = slot === "hist" ? SX.hist : SX.exc;
+    if (shouldResetPage(Array.isArray(data.rows) ? data.rows.length : 1, st.page)) { st.page = 1; return sxFetch(slot); }
+  }
   renderSalesResults(slot);
-  if (slot === "dims") renderSalesFilters();
+  if (slot === "dims") {
+    // A remembered hierarchy choice the server no longer lists is dropped; anything already loaded with it is reloaded.
+    const r = SX.res.dims.status === "ok" ? reconcileHierarchy(SX.res.dims.data, SX.hier) : { sel: SX.hier, cleared: [] };
+    if (r.cleared.length) {
+      SX.hier = r.sel; SX.hist.page = 1; SX.exc.page = 1;
+      SX.notice = `${r.cleared.map((k) => HIERARCHY_LEVELS.find((l) => l.key === k).label).join(", ")} filter cleared because it is no longer a valid choice.`;
+      sxInvalidateFilterDependents();
+      renderSalesFilters();
+      return sxEnsureView();
+    }
+    renderSalesFilters();
+  }
 }
 
-const SX_SLOTS_FOR_VIEW = { overview: ["cmp", "win"], history: ["hist"], exceptions: ["exc"], coverage: ["cov", "refresh"], mtd: [] };
+const SX_SLOTS_FOR_VIEW = { overview: ["cmp", "win"], history: ["hist"], exceptions: ["exc"], facility: ["fac"], coverage: ["cov", "refresh"], mtd: [] };
 
 function sxEnsureView() {
   if (SX.view === "mtd") return loadListTab("sales");
@@ -1472,7 +1515,7 @@ function sxEnsureView() {
 }
 
 function sxInvalidateFilterDependents() {
-  ["cmp", "win", "hist", "exc", "cov"].forEach((s) => { SX.res[s] = idleRes(); beginRequest(SX_KEYS[s]); });
+  ["cmp", "win", "hist", "exc", "cov", "fac"].forEach((s) => { SX.res[s] = idleRes(); beginRequest(SX_KEYS[s]); });
 }
 
 function loadSalesLens() {
@@ -1490,37 +1533,67 @@ function renderSalesShell() {
       <div class="ei-subnav" role="tablist" aria-label="Sales views">
         ${salesViews().map((v) => `<button type="button" role="tab" class="ei-subtab ${v.id === SX.view ? "active" : ""}" data-sales-view="${v.id}" aria-selected="${v.id === SX.view}" tabindex="${v.id === SX.view ? "0" : "-1"}">${escapeHtml(v.label)}</button>`).join("")}
       </div>
-      <div id="salesFilters" class="ei-filterbar"></div>
+      <div id="salesFilters" class="ei-filterbar ei-filters"></div>
       <div id="salesView" class="ei-view"></div>
     </div>`;
   renderSalesFilters();
   renderSalesViewShell();
 }
 
-const SX_FILTERS = { overview: ["anchor", "region", "godown", "active"], history: ["anchor", "region", "godown", "active"], exceptions: ["anchor", "region", "godown"], coverage: ["anchor"], mtd: [] };
+const SX_FILTERS = {
+  overview: ["anchor", "region", "godown", "hier", "active"], history: ["anchor", "region", "godown", "hier", "active"], exceptions: ["anchor", "region", "godown", "hier"],
+  facility: ["anchor", "facmonths"], coverage: ["anchor"], mtd: [],
+};
+const isPhoneFilters = () => !!window.matchMedia?.("(max-width: 640px)").matches;
+const activeSalesFilterCount = () => (SX.anchor ? 1 : 0) + (SX.region ? 1 : 0) + (SX.godown ? 1 : 0) + (SX.activeOnly ? 1 : 0) + hierarchyActive(SX.hier);
 
 function renderSalesFilters() {
   const host = $("salesFilters");
   if (!host) return;
   const show = SX_FILTERS[SX.view] || [];
   host.hidden = !show.length;
-  if (!show.length) { host.innerHTML = ""; return; }
+  if (!show.length) { host.innerHTML = ""; host.classList.remove("is-open"); return; }
   const dims = SX.res.dims;
   const ok = dims.status === "ok";
   const d = ok ? dims.data : {};
   const regions = Array.isArray(d.regions) ? d.regions : [];
   const godowns = (Array.isArray(d.godowns) ? d.godowns : []).filter((g) => !SX.region || String(g.region_id) === String(SX.region));
-  const opts = (rows, current, all) => `<option value="">${all}</option>${rows.map((r) => `<option value="${escapeHtml(r.id)}"${String(r.id) === String(current) ? " selected" : ""}>${escapeHtml(r.name || r.code)}</option>`).join("")}`;
+  const opts = (rows, current, all) => `<option value="">${escapeHtml(all)}</option>${rows.map((r) => `<option value="${escapeHtml(r.id)}"${String(r.id) === String(current) ? " selected" : ""}>${escapeHtml(r.name || r.code)}</option>`).join("")}`;
   const dis = ok ? "" : " disabled";
+  const hierSelect = (l) => {
+    const rows = ok ? hierarchyOptions(d, SX.hier, l.key) : [];
+    return `<label class="ei-field"><span>${escapeHtml(l.label)}</span><select id="salesHier-${l.key}"${dis}>${opts(rows, SX.hier[l.key], ok ? l.all : "Unavailable")}</select></label>`;
+  };
+  const n = activeSalesFilterCount();
+  const open = SX.filtersOpen && isPhoneFilters();
+  host.classList.toggle("is-open", open);
   host.innerHTML = `
-    ${show.includes("anchor") ? `<label class="ei-field"><span>As of</span><input type="date" id="salesAnchor" value="${escapeHtml(SX.anchor)}"${ok && d.first_mapped_date ? ` min="${escapeHtml(d.first_mapped_date)}"` : ""}${ok && d.last_mapped_date ? ` max="${escapeHtml(d.last_mapped_date)}"` : ""} aria-label="As-of date (latest mapped day when empty)" /></label>` : ""}
-    ${show.includes("region") ? `<label class="ei-field"><span>Region</span><select id="salesRegion"${dis}>${opts(regions, SX.region, ok ? "All regions" : "Unavailable")}</select></label>` : ""}
-    ${show.includes("godown") ? `<label class="ei-field"><span>Godown</span><select id="salesGodown"${dis}>${opts(godowns, SX.godown, ok ? "All godowns" : "Unavailable")}</select></label>` : ""}
-    ${show.includes("active") ? `<label class="ei-check"><input type="checkbox" id="salesActive"${SX.activeOnly ? " checked" : ""} /> Active SKUs only <span class="ei-asof">(current master)</span></label>` : ""}
-    <button type="button" class="mis-retry-btn" id="salesFilterReset">Reset</button>
-    ${SX.notice ? `<div class="ei-filter-note" role="status">${escapeHtml(SX.notice)}</div>` : ""}
-    ${!ok && dims.status !== "idle" && dims.status !== "loading" ? `<div class="ei-filter-note" role="status">Region, godown and date bounds are unavailable (${escapeHtml(dims.status === "unavailable" ? "contract not installed yet" : dims.message || dims.status)}); views run unfiltered.</div>` : ""}
-    ${SX.hist.product || SX.hist.sku ? `<div class="ei-filter-note">Filtered to ${SX.hist.product ? `product ${escapeHtml(SX.hist.product)}` : ""}${SX.hist.sku ? ` SKU ${escapeHtml(SX.hist.sku)}` : ""} <button type="button" class="mis-retry-btn" data-sales-clear-item>Clear</button></div>` : ""}`;
+    <button type="button" class="ei-filter-toggle mis-retry-btn" id="salesFilterToggle" aria-expanded="${open}" aria-controls="salesFilterFields">Filters${n ? ` <span class="ei-filter-count" aria-label="${n} active">${n}</span>` : ""}</button>
+    <div id="salesFilterFields" class="ei-filter-fields" role="group" aria-label="Sales filters">
+      <div class="ei-filter-sheet-head"><strong>Filters</strong><button type="button" class="mis-retry-btn" id="salesFilterClose" aria-label="Close filters">Done</button></div>
+      ${show.includes("anchor") ? `<label class="ei-field"><span>As of</span><input type="date" id="salesAnchor" value="${escapeHtml(SX.anchor)}"${ok && d.first_mapped_date ? ` min="${escapeHtml(d.first_mapped_date)}"` : ""}${ok && d.last_mapped_date ? ` max="${escapeHtml(d.last_mapped_date)}"` : ""} aria-label="As-of date (latest mapped day when empty)" /></label>` : ""}
+      ${show.includes("facmonths") ? `<label class="ei-field"><span>Months</span><select id="salesFacMonths">${Array.from({ length: 12 }, (_, i) => i + 1).map((m) => `<option value="${m}"${m === SX.facMonths ? " selected" : ""}>${m}</option>`).join("")}</select></label>` : ""}
+      ${show.includes("region") ? `<label class="ei-field"><span>Region</span><select id="salesRegion"${dis}>${opts(regions, SX.region, ok ? "All regions" : "Unavailable")}</select></label>` : ""}
+      ${show.includes("godown") ? `<label class="ei-field"><span>Godown</span><select id="salesGodown"${dis}>${opts(godowns, SX.godown, ok ? "All godowns" : "Unavailable")}</select></label>` : ""}
+      ${show.includes("hier") ? HIERARCHY_LEVELS.map(hierSelect).join("") : ""}
+      ${show.includes("active") ? `<label class="ei-check"><input type="checkbox" id="salesActive"${SX.activeOnly ? " checked" : ""} /> Active SKUs only <span class="ei-asof">(current master)</span></label>` : ""}
+      <button type="button" class="mis-retry-btn" id="salesFilterReset">Reset</button>
+      ${SX.notice ? `<div class="ei-filter-note" role="status">${escapeHtml(SX.notice)}</div>` : ""}
+      ${!ok && dims.status !== "idle" && dims.status !== "loading" ? `<div class="ei-filter-note" role="status">Region, godown, hierarchy and date bounds are unavailable (${escapeHtml(dims.status === "unavailable" ? "contract not installed yet" : dims.message || dims.status)}); views run unfiltered.</div>` : ""}
+      ${SX.hist.product || SX.hist.sku ? `<div class="ei-filter-note">Filtered to ${SX.hist.product ? `product ${escapeHtml(SX.hist.product)}` : ""}${SX.hist.sku ? ` SKU ${escapeHtml(SX.hist.sku)}` : ""} <button type="button" class="mis-retry-btn" data-sales-clear-item>Clear</button></div>` : ""}
+    </div>`;
+}
+
+// Phone: the filters become a full-page sheet (Escape and Done close it, focus returns to the toggle).
+function setSalesFiltersOpen(open, { restoreFocus = false } = {}) {
+  SX.filtersOpen = !!open && isPhoneFilters();
+  const host = $("salesFilters");
+  if (!host) return;
+  host.classList.toggle("is-open", SX.filtersOpen);
+  $("salesFilterToggle")?.setAttribute("aria-expanded", String(SX.filtersOpen));
+  document.body.classList.toggle("ei-sheet-lock", SX.filtersOpen);
+  if (SX.filtersOpen) $("salesFilterFields")?.querySelector("select,input,button")?.focus?.();
+  else if (restoreFocus) $("salesFilterToggle")?.focus?.();
 }
 
 function renderSalesViewShell() {
@@ -1529,7 +1602,8 @@ function renderSalesViewShell() {
   if (SX.view === "overview") host.innerHTML = `<div id="salesCmp"></div><div id="salesWin"></div>`;
   else if (SX.view === "history") host.innerHTML = `<div id="salesHistControls">${historyControlsHtml()}</div><div id="salesHistResults"></div>`;
   else if (SX.view === "exceptions") host.innerHTML = `<div id="salesExcControls">${exceptionControlsHtml()}</div><div id="salesExcResults"></div>`;
-  else if (SX.view === "coverage") host.innerHTML = `<div id="salesCov"></div><div id="salesRefresh"></div>`;
+  else if (SX.view === "facility") host.innerHTML = `<div id="salesFac"></div>`;
+  else if (SX.view === "coverage") host.innerHTML = `<div id="salesRefresh"></div><div id="salesCov"></div>`;
   else if (SX.view === "mtd") { host.innerHTML = ""; return; }
   SX_SLOTS_FOR_VIEW[SX.view].forEach((s) => renderSalesResults(s));
 }
@@ -1689,7 +1763,7 @@ function historyResultsHtml(res) {
   const toolbar = `<div class="ei-viewbar">
       ${monthly && SX.hist.group !== "month" ? `<button type="button" class="mis-retry-btn" data-hist-grid aria-pressed="${SX.hist.grid}">${SX.hist.grid ? "Table view" : "Month grid view"}</button>` : ""}
       <button type="button" class="mis-retry-btn" data-sales-export="hist" ${rows.length ? "" : "disabled"}>Export this page (CSV)</button>
-      <span class="ei-asof">Exports only the ${formatIntegerIN(rows.length)} row${rows.length === 1 ? "" : "s"} shown on this page, not the whole dataset.</span>
+      <span class="ei-asof">Exports only the ${formatIntegerIN(rows.length)} row${rows.length === 1 ? "" : "s"} shown on this page${total > SX.hist.page * SX.hist.size ? "; more rows exist on later pages" : ""}, not the whole dataset.</span>
     </div>`;
   if (!rows.length) return `${note}<div class="ei-state ei-state-unavailable" role="status">${SX.hist.search ? `No rows match "${escapeHtml(SX.hist.search)}".` : "The server returned no rows for these filters."}</div>`;
   let body;
@@ -1723,7 +1797,7 @@ function historyResultsHtml(res) {
   return `${note}${toolbar}${body}${pagerHtml("hist", total, SX.hist.page, SX.hist.size, "rows")}
     ${basisDetails([
       "Sales value is only shown when every contributing source amount is present and unambiguous. Otherwise it is Unavailable; the reported amount beside it is the source's own sum, not a certified value.",
-      "Quantities are net package counts and are never added across different units. Hierarchy filters beyond region, godown, product and SKU are not part of the server contract yet.",
+      "Quantities are net package counts and are never added across different units. Category, subcategory, group and subgroup filters narrow by the product's current place in the product hierarchy; the Group by choice is a grouping, not a filter.",
     ])}`;
 }
 
@@ -1740,7 +1814,8 @@ function exceptionsResultsHtml(res) {
   const head = `<div class="ei-asof-row"><span>${escapeHtml(formatDateIN(d.start_date))} to ${escapeHtml(formatDateIN(d.anchor))}</span><span>Eligibility is from the current SKU master, not what was listed historically</span><span>Import completeness not certified</span></div>`;
   if (d.coverage === "NO_MAPPED_DATA") return `<div class="ei-state ei-state-unavailable" role="status">No mapped sales data is available.</div>`;
   if (!rows.length) return `${head}<div class="ei-state ei-state-unavailable" role="status">${SX.exc.search ? `No exceptions match "${escapeHtml(SX.exc.search)}".` : "The server reported no exception rows for this scope."}</div>`;
-  return `${head}<div class="ei-table-wrap"><table class="ei-table" aria-label="Sales exceptions">
+  const exportBar = `<div class="ei-viewbar"><button type="button" class="mis-retry-btn" data-sales-export="exc">Export this page (CSV)</button><span class="ei-asof">Exports only the ${formatIntegerIN(rows.length)} row${rows.length === 1 ? "" : "s"} shown on this page${total > SX.exc.page * SX.exc.size ? "; more rows exist on later pages" : ""}, not the whole dataset.</span></div>`;
+  return `${head}${exportBar}<div class="ei-table-wrap"><table class="ei-table" aria-label="Sales exceptions">
     <thead><tr>${th("Product")}${th("SKU", true)}${th("Pack")}${th("Eligibility now")}${th("Activity this month")}${th("Net billed", true)}${th("Sales rows", true)}${th("Return rows", true)}${th("Rows missing a measure", true)}</tr></thead>
     <tbody>${rows.map((r) => `<tr>
       <td>${escapeHtml(r.product_name || "-")}</td><td class="num">${escapeHtml(r.sku_id)}</td>
@@ -1778,28 +1853,85 @@ function coverageHtml(res) {
     ${basisDetails(["A recorded job status describes the last run for that day. It is not proof that the import was complete.", "Raw and mapped counts are compared per day; a difference is reported as a mismatch, never explained away."])}`;
 }
 
+const fmtWhen = (v) => (v ? formatDateTimeIN(v) : "Unavailable");
 function refreshStatusHtml(res) {
   const wait = sxState(res, "Source refresh status", "refresh");
   if (wait) return wait;
   const d = res.data;
-  const row = (k, v) => `<div class="ei-dl-row"><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd></div>`;
+  const job = refreshJobModel(d);
+  const fr = refreshFreshnessModel(d);
+  const row = (k, v, cls = "") => `<div class="ei-dl-row"><dt>${escapeHtml(k)}</dt><dd${cls ? ` class="${cls}"` : ""}>${escapeHtml(v)}</dd></div>`;
+  const order = { daily_newer: "Daily source was loaded after the monthly aggregate", monthly_newer: "Monthly aggregate was loaded after the latest daily source", same: "Daily and monthly sources were loaded at the same time", unknown: "Load order cannot be determined" }[fr.order];
+  const jobBlock = job.state === "unavailable" || job.state === "missing"
+    ? `<dl class="ei-dl">${row("Refresh job", "Status unavailable. No success is inferred.")}</dl>`
+    : `<dl class="ei-dl">
+        ${row("Monthly refresh job", job.label, `ei-job-${job.tone}`)}
+        ${job.active === false ? row("Schedule", "Job is not active") : ""}
+        ${row("Last started", fmtWhen(job.startedAt))}
+        ${row("Last finished", job.finishedAt ? fmtWhen(job.finishedAt) : job.status === "running" ? "Still running" : "Unavailable")}
+      </dl>`;
   return `
-    <h3 class="ei-section-title">Monthly and daily source <span class="ei-asof">Not certified</span></h3>
+    <h3 class="ei-section-title">Refresh status <span class="ei-asof">Latest run only; not a completeness certificate</span></h3>
+    ${jobBlock}
+    <h3 class="ei-section-title">Daily and monthly freshness <span class="ei-asof">Not certified</span></h3>
     <dl class="ei-dl">
       ${row("Latest monthly aggregate month", d.monthly_latest_month ? formatDateIN(d.monthly_latest_month) : "Unavailable")}
-      ${row("Monthly source last loaded", d.monthly_source_max_inserted_at ? formatDateTimeIN(d.monthly_source_max_inserted_at) : "Unavailable")}
-      ${row("Daily source last loaded", d.daily_source_max_inserted_at ? formatDateTimeIN(d.daily_source_max_inserted_at) : "Unavailable")}
+      ${row("Monthly source last loaded", fmtWhen(d.monthly_source_max_inserted_at))}
+      ${row("Daily source last loaded", fmtWhen(d.daily_source_max_inserted_at))}
+      ${row("Load order", order)}
       ${row("Last daily date in that month", d.daily_last_date_in_month ? formatDateIN(d.daily_last_date_in_month) : "Unavailable")}
       ${row("Monthly reported amount", money(d.monthly_reported_amount))}
       ${row("Daily reported amount", money(d.daily_reported_amount))}
       ${row("Difference (daily minus monthly)", money(d.amount_difference, "Not available"))}
-      ${row("Refresh job status", "Not exposed by this contract. No success is inferred.")}
-    </dl>`;
+    </dl>
+    ${basisDetails([
+      "The job status is the latest run of the monthly sales refresh job as recorded by the database scheduler. A finished run shows that a run completed; it does not show that the source import was complete or that figures are correct.",
+      "Closed months in history come from the monthly aggregate and the anchor month from daily data. A difference between the two aggregates is reported as is and is not explained away.",
+    ])}`;
+}
+
+// ---- facility classification and reconciliation -----------------------------------------------------------------------
+function facilityHtml(res) {
+  const wait = sxState(res, "Facility sales classification", "fac");
+  if (wait) return wait;
+  const m = facilityModel(res.data);
+  if (m.state === "no-data") return `<div class="ei-state ei-state-unavailable" role="status">No raw sales vouchers are available, so no facility classification is shown.</div>`;
+  if (m.state !== "ok") return `<div class="ei-state error" role="alert">The server returned an unrecognised facility response. Nothing is estimated in its place.</div>`;
+  const n = (v) => orWord(v, formatIntegerIN, "Unavailable");
+  const f = m.facility;
+  const rowHtml = (r) => `<tr${r.review ? ' class="ei-review-row"' : ""}>
+      <td>${escapeHtml(r.label)}${r.inProductAnalytics ? `<div class="ei-cell-sub">Counted in product analytics when the godown is also resolved</div>` : ""}${r.review ? `<div class="ei-cell-sub">Needs classification review (not a product-analytics figure)</div>` : ""}</td>
+      <td class="num">${escapeHtml(n(r.recorded))}</td><td class="num">${escapeHtml(n(r.missing))}</td>
+      <td class="num">${escapeHtml(money(r.billed, r.missing > 0 ? "Unavailable (amounts missing)" : "Unavailable"))}</td>
+      <td class="num ei-reported">${escapeHtml(money(r.reported, "None"))}</td>
+      <td class="num">${escapeHtml(n(r.unresolvedGodown))}</td></tr>`;
+  const reviewLine = m.review.length
+    ? `${m.review.map((r) => `${escapeHtml(r.label)}: ${escapeHtml(n(r.recorded))} rows`).join(" · ")}`
+    : "No rows in the unclassified or conflict scopes for this period";
+  return `
+    <div class="ei-asof-row"><span>${escapeHtml(formatDateIN(m.startDate))} to anchor ${escapeHtml(formatDateIN(m.anchor))}</span><span>Latest raw voucher day ${escapeHtml(formatDateIN(m.latestRawDate))}</span><span>Import completeness ${escapeHtml(String(m.importCompleteness).replace(/_/g, " ").toLowerCase())}</span></div>
+    ${f ? `<div class="ei-metrics ei-metrics-facility">
+      ${metric({ label: "Facility rows recorded", value: n(f.recorded), sub: "Every voucher row, incl. unresolved godowns" })}
+      ${metric({ label: "Facility billed value", value: money(f.billed), sub: f.missing > 0 ? `${formatIntegerIN(f.missing)} rows missing an amount` : "No missing amounts" })}
+      ${metric({ label: "Rows with unresolved godown", value: n(f.unresolvedGodown), sub: "Independent diagnostic" })}
+      ${metric({ label: "Needs classification review", value: m.reviewRowCount === null ? "Unavailable" : formatIntegerIN(m.reviewRowCount), sub: reviewLine })}
+    </div>` : ""}
+    <h3 class="ei-section-title">Classification by scope <span class="ei-asof">Each voucher row is classified once</span></h3>
+    <div class="ei-table-wrap"><table class="ei-table" aria-label="Facility sales by classification scope">
+      <thead><tr>${th("Scope")}${th("Rows", true)}${th("Missing amounts", true)}${th("Billed value", true)}${th("Reported amount (not certified)", true)}${th("Unresolved godown rows", true)}</tr></thead>
+      <tbody>${m.rows.map(rowHtml).join("") || `<tr><td colspan="6">The server returned no scope rows.</td></tr>`}</tbody>
+    </table></div>
+    <div class="ei-state ei-state-unavailable" role="note">Facility sales and product sales are different measures. The facility figure includes every recorded voucher row, including rows whose godown is not resolved, while product sales analytics needs a resolved SKU and a resolved godown. They are not expected to be equal and no difference between them is derived here.</div>
+    ${basisDetails([
+      m.scopeNote || "Each voucher row is assigned to exactly one scope. Conflicts are excluded from certified product scope.",
+      "Billed value is only shown when no row in that scope is missing an amount; otherwise it is Unavailable and the source's own reported sum is shown separately as not certified.",
+      "Unresolved godown is a separate diagnostic across scopes, not a classification scope. Classification assignment and approval are not available on this page.",
+    ])}`;
 }
 
 const SX_RENDER = {
   cmp: ["salesCmp", comparisonHtml], win: ["salesWin", windowTotalsHtml], hist: ["salesHistResults", historyResultsHtml],
-  exc: ["salesExcResults", exceptionsResultsHtml], cov: ["salesCov", coverageHtml], refresh: ["salesRefresh", refreshStatusHtml],
+  exc: ["salesExcResults", exceptionsResultsHtml], cov: ["salesCov", coverageHtml], refresh: ["salesRefresh", refreshStatusHtml], fac: ["salesFac", facilityHtml],
 };
 function renderSalesResults(slot) {
   const r = SX_RENDER[slot];
@@ -1834,6 +1966,16 @@ function handleSalesChange(ev) {
     if (gd && SX.region && String(gd.region_id) !== String(SX.region)) SX.godown = "";
   } else if (id === "salesGodown") { SX.godown = ev.target.value; SX.notice = ""; }
   else if (id === "salesActive") SX.activeOnly = !!ev.target.checked;
+  else if (id === "salesFacMonths") { SX.facMonths = Math.min(12, Math.max(1, Number(ev.target.value) || 1)); return void sxFetch("fac"); }
+  else if (id && id.startsWith("salesHier-")) {
+    // Cascading hierarchy: a choice clears every level below it, then pagination resets with the refreshed request.
+    const key = id.slice("salesHier-".length);
+    if (!HIERARCHY_LEVELS.some((l) => l.key === key)) return;
+    const next = { ...SX.hier, [key]: ev.target.value };
+    const r = reconcileHierarchy(SX.res.dims.status === "ok" ? SX.res.dims.data : null, next, key);
+    SX.hier = r.sel;
+    SX.notice = r.cleared.length ? `${r.cleared.map((k) => HIERARCHY_LEVELS.find((l) => l.key === k).label).join(", ")} cleared because the level above changed.` : "";
+  }
   else if (id === "salesHistGroup") { SX.hist.group = ev.target.value; SX.hist.page = 1; if (!isMonthGrouping(SX.hist.group)) SX.hist.grid = false; return void sxFetch("hist"); }
   else if (id === "salesHistMonths") { SX.hist.months = Number(ev.target.value) || 12; SX.hist.page = 1; return void sxFetch("hist"); }
   else if (id === "salesHistSort") { SX.hist.sort = ev.target.value; SX.hist.page = 1; renderSalesHistControls(); return void sxFetch("hist"); }
@@ -1849,6 +1991,42 @@ function downloadCsv(name, csv) {
   a.href = url; a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Bounded export: only the page currently returned, with a scope line that states the filters, the total and has_more.
+function salesExportFilters() {
+  const dims = SX.res.dims.status === "ok" ? SX.res.dims.data : null;
+  const name = (rows, id) => { const r = (rows || []).find((x) => String(x.id) === String(id)); return r && (r.name || r.code) ? r.name || r.code : `#${id}`; };
+  return [
+    SX.region && `Region: ${name(dims?.regions, SX.region)}`,
+    SX.godown && `Godown: ${name(dims?.godowns, SX.godown)}`,
+    ...hierarchyLabels(dims, SX.hier),
+    SX.activeOnly && "Active SKUs only (current master)",
+    SX.hist.product && `Product #${SX.hist.product}`,
+    SX.hist.sku && `SKU #${SX.hist.sku}`,
+  ].filter(Boolean);
+}
+function exportSalesPage(kind) {
+  const slot = kind === "exc" ? "exc" : "hist";
+  const d = SX.res[slot].data;
+  const rows = Array.isArray(d?.rows) ? d.rows : [];
+  if (SX.res[slot].status !== "ok" || !rows.length) return;
+  const st = slot === "exc" ? SX.exc : SX.hist;
+  const filters = salesExportFilters();
+  if (st.search) filters.push(`Search: ${st.search}`);
+  if (slot === "hist") {
+    const scope = exportScopeLine({ title: "sales history", rowsOnPage: rows.length, page: st.page, size: st.size, total: d.total, anchor: d.anchor, filters, note: `grouped by ${SX.hist.group}; ${SX.hist.months} months; order ${SX.hist.sort}` });
+    downloadCsv(`executive-intelligence-sales-history-page-${st.page}.csv`, buildPageCsv(historyColumns(), rows, scope));
+    return;
+  }
+  const cols = [
+    { label: "Product", get: (r) => r.product_name }, { label: "SKU", get: (r) => r.sku_id }, { label: "Pack", get: (r) => [r.pack_size, r.uom].filter((v) => v != null && v !== "").join(" ") },
+    { label: "Eligibility now", get: (r) => labelOf(ELIGIBILITY_LABELS, r.eligibility) }, { label: "Activity this month", get: (r) => labelOf(ACTIVITY_LABELS, r.activity_state) },
+    { label: "Net billed", get: (r) => (hasValue(r.net_billed) ? r.net_billed : "No rows") }, { label: "Sales rows", get: (r) => (hasValue(r.positive_rows) ? r.positive_rows : "No rows") },
+    { label: "Return rows", get: (r) => (hasValue(r.return_rows) ? r.return_rows : "No rows") }, { label: "Rows missing a measure", get: (r) => (hasValue(r.missing_rows) ? r.missing_rows : "No rows") },
+  ];
+  const scope = exportScopeLine({ title: "sales exceptions", rowsOnPage: rows.length, page: st.page, size: st.size, total: d.total, anchor: d.anchor, filters, note: "eligibility from the current SKU master" });
+  downloadCsv(`executive-intelligence-sales-exceptions-page-${st.page}.csv`, buildPageCsv(cols, rows, scope));
 }
 
 function handleSalesClick(ev) {
@@ -1872,15 +2050,12 @@ function handleSalesClick(ev) {
   const drill = t.closest("[data-hist-drill]");
   if (drill) { SX.hist.product = drill.getAttribute("data-hist-drill"); SX.hist.group = "sku"; SX.hist.page = 1; renderSalesHistControls(); salesFilterChanged(); return true; }
   if (t.closest("[data-sales-clear-item]")) { SX.hist.product = ""; SX.hist.sku = ""; SX.hist.page = 1; salesFilterChanged(); return true; }
-  if (t.closest("#salesFilterReset")) { Object.assign(SX, { anchor: "", region: "", godown: "", activeOnly: false, notice: "" }); SX.hist.product = ""; SX.hist.sku = ""; renderSalesHistControls(); salesFilterChanged(); return true; }
+  if (t.closest("#salesFilterToggle")) { setSalesFiltersOpen(!SX.filtersOpen); return true; }
+  if (t.closest("#salesFilterClose")) { setSalesFiltersOpen(false, { restoreFocus: true }); return true; }
+  if (t.closest("#salesFilterReset")) { Object.assign(SX, { anchor: "", region: "", godown: "", activeOnly: false, notice: "", hier: emptyHierarchy() }); SX.hist.product = ""; SX.hist.sku = ""; renderSalesHistControls(); salesFilterChanged(); return true; }
   const exp = t.closest("[data-sales-export]");
   if (exp) {
-    const d = SX.res.hist.data;
-    const rows = Array.isArray(d?.rows) ? d.rows : [];
-    if (!rows.length) return true;
-    const cols = historyColumns();
-    const scope = `Executive Intelligence sales history: ${rows.length} rows from page ${SX.hist.page} only (not the whole dataset); anchor ${d.anchor}; grouped by ${SX.hist.group}; import completeness not certified`;
-    downloadCsv(`executive-intelligence-sales-history-page-${SX.hist.page}.csv`, buildPageCsv(cols, rows, scope));
+    exportSalesPage(exp.getAttribute("data-sales-export"));
     return true;
   }
   return false;
@@ -1895,6 +2070,7 @@ let ALERTS = { status: "idle", data: null, message: "" };
 
 async function loadAlertsLens() {
   if (!tabPanel) return;
+  if (!ACCESS.executive) { ALERTS = { status: "denied", data: null, message: "" }; renderAlertsLens(); return; } // never requested without executive access
   const token = beginRequest("alerts");
   ALERTS = { status: "loading", data: null, message: "" };
   renderAlertsLens();
@@ -1972,6 +2148,7 @@ function renderProductionShell() {
 }
 
 async function loadProductionTab() {
+  if (!ACCESS.executive) return; // executive-only contract
   if (!tabPanel) return;
   if (!PRODUCTION_VALUE_MONTH) PRODUCTION_VALUE_MONTH = `${istToday().slice(0, 7)}-01`;
   renderProductionShell();
@@ -1982,6 +2159,7 @@ async function loadProductionTab() {
 }
 
 async function loadProductionCounts({ force = false } = {}) {
+  if (!ACCESS.executive) return; // executive-only contract
   // The lens reads the shared live pipeline (also feeding the headline cards); no private request of its own.
   renderProductionCountsBody();
   await loadLivePipeline({ force });
@@ -2051,6 +2229,7 @@ function classifyValueError(error) {
 }
 
 async function loadProductionValue() {
+  if (!ACCESS.executive) return; // executive-only contract
   if (!PRODUCTION_VALUE_MONTH) PRODUCTION_VALUE_MONTH = `${istToday().slice(0, 7)}-01`;
   const token = beginRequest("production:value");
   PRODUCTION_VALUE = { status: "loading", data: null, message: "" };
@@ -2436,6 +2615,7 @@ function isFinanceModalOpen() {
 }
 
 async function openFinancePartyDetails(row) {
+  if (!ACCESS.executive) return; // executive-only contract
   if (!financeModalOverlay || !financeModalContent) return;
   const token = beginRequest("finance:modal");
   // Keep the original trigger if a second row is opened while already open.
@@ -2578,7 +2758,7 @@ function wireEvents() {
     else if (next !== ACTIVE_TAB) renderDetailTabs();
   });
   tabPanel?.addEventListener("change", (ev) => {
-    if (ACTIVE_TAB === "sales" && /^sales(Anchor|Region|Godown|Active|Hist(Group|Months|Sort))$/.test(ev.target?.id || "")) {
+    if (ACTIVE_TAB === "sales" && /^sales(Anchor|Region|Godown|Active|FacMonths|Hier-(category|subcategory|group|subgroup)|Hist(Group|Months|Sort))$/.test(ev.target?.id || "")) {
       handleSalesChange(ev);
       return;
     }
@@ -2685,6 +2865,7 @@ function wireEvents() {
         trapTab(financeModalOverlay, ev);
         return;
       }
+      if (SX.filtersOpen && $("salesFilterFields")) { trapTab($("salesFilterFields"), ev); return; }
       const open = openFilterDrawerList();
       if (open && isPhoneSheet()) trapTab(filterDrawerOf(open).drawer, ev);
       return;
@@ -2693,6 +2874,10 @@ function wireEvents() {
     // Escape closes the topmost layer only: bill-detail modal, then a filter drawer/sheet, then an info popover.
     if (isFinanceModalOpen()) {
       closeFinanceModal();
+      return;
+    }
+    if (SX.filtersOpen) {
+      setSalesFiltersOpen(false, { restoreFocus: true });
       return;
     }
     const open = openFilterDrawerList();
@@ -2707,6 +2892,7 @@ function wireEvents() {
     if (ev.target === financeModalOverlay) closeFinanceModal();
   });
   window.addEventListener("resize", closeKpiPopover);
+  window.addEventListener("resize", () => { if (SX.filtersOpen && !isPhoneFilters()) setSalesFiltersOpen(false); });
   window.addEventListener("scroll", closeKpiPopover, { passive: true });
   setInterval(updateFreshnessIndicator, 60000);
 }
@@ -2762,6 +2948,7 @@ function cancelPendingSearches() {
   if (ACCESS.state === "sales-only") {
     // No executive navigation, no executive requests: only the Sales lens, loaded directly.
     document.body.classList.add("ei-sales-only");
+    clearStatus(); // the executive summary load normally clears the initial "Loading..." line; a sales-only session never runs it
     ACTIVE_TAB = "sales";
     renderDetailTabs();
     await loadActiveTab();

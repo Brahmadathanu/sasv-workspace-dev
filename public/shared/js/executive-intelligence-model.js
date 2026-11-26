@@ -280,6 +280,7 @@ export const HISTORY_GROUPS = Object.freeze([
   ["month", "Month"], ["region", "Region"], ["godown", "Godown"], ["product", "Product"], ["sku", "SKU"], ["category", "Category"],
   ["subcategory", "Subcategory"], ["group", "Group"], ["subgroup", "Subgroup"], ["region_month", "Region by month"], ["godown_month", "Godown by month"],
   ["product_month", "Product by month"], ["sku_month", "SKU by month"], ["category_month", "Category by month"], ["subcategory_month", "Subcategory by month"],
+  ["group_month", "Group by month"], ["subgroup_month", "Subgroup by month"],
 ].map(([value, label]) => ({ value, label })));
 export const HISTORY_SORTS = Object.freeze([{ value: "value_desc", label: "Highest value" }, { value: "value_asc", label: "Lowest value" }, { value: "key", label: "Name / month" }]);
 export const isMonthGrouping = (g) => g === "month" || String(g).endsWith("_month");
@@ -324,4 +325,148 @@ export function buildPageCsv(columns, rows, scopeLine) {
   lines.push(columns.map((c) => csvCell(c.label)).join(","));
   for (const r of rows) lines.push(columns.map((c) => csvCell(c.get(r))).join(","));
   return lines.join("\r\n") + "\r\n";
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Product hierarchy filters (installed contracts: p_category, p_subcategory, p_group_id, p_subgroup). `p_group` on history is the
+// GROUPING choice, never a hierarchy id. Dimensions from ei_sales_dimensions carry parent ids:
+//   categories [{id,name}] · subcategories [{id,category_id,name}] · groups [{id,subcategory_id,name}] · subgroups [{id,group_id,name}]
+// ---------------------------------------------------------------------------------------------------------------------
+export const HIERARCHY_LEVELS = Object.freeze([
+  { key: "category", dims: "categories", parent: null, arg: "p_category", label: "Category", all: "All categories" },
+  { key: "subcategory", dims: "subcategories", parent: ["category", "category_id"], arg: "p_subcategory", label: "Subcategory", all: "All subcategories" },
+  { key: "group", dims: "groups", parent: ["subcategory", "subcategory_id"], arg: "p_group_id", label: "Group", all: "All groups" },
+  { key: "subgroup", dims: "subgroups", parent: ["group", "group_id"], arg: "p_subgroup", label: "Subgroup", all: "All subgroups" },
+]);
+export const emptyHierarchy = () => ({ category: "", subcategory: "", group: "", subgroup: "" });
+const same = (a, b) => String(a) === String(b);
+
+// Options for one level, limited to the selected parent when there is one.
+export function hierarchyOptions(dims, sel, key) {
+  const lvl = HIERARCHY_LEVELS.find((l) => l.key === key);
+  const rows = dims && Array.isArray(dims[lvl.dims]) ? dims[lvl.dims] : [];
+  if (!lvl.parent || !sel[lvl.parent[0]]) return rows;
+  return rows.filter((r) => same(r[lvl.parent[1]], sel[lvl.parent[0]]));
+}
+
+// Clears every selection that is no longer valid: choosing a level clears everything below it, and a stale choice whose parent
+// no longer matches (or that the server no longer lists) is dropped. Returns a new object plus the cleared level keys.
+export function reconcileHierarchy(dims, sel, changedKey = null) {
+  const next = { ...emptyHierarchy(), ...sel };
+  const cleared = [];
+  const start = changedKey ? HIERARCHY_LEVELS.findIndex((l) => l.key === changedKey) + 1 : 0;
+  HIERARCHY_LEVELS.forEach((l, i) => {
+    if (!next[l.key]) return;
+    const parentChanged = changedKey && i >= start;
+    const listed = hierarchyOptions(dims, next, l.key).some((r) => same(r.id, next[l.key]));
+    if (parentChanged || (dims && !listed)) { next[l.key] = ""; cleared.push(l.key); }
+  });
+  return { sel: next, cleared };
+}
+
+const idOrNull = (v) => (v === "" || v == null || !Number.isFinite(Number(v)) ? null : Math.trunc(Number(v)));
+// RPC arguments for the hierarchy; an empty level is null (never 0, never an empty string).
+export function hierarchyArgs(sel) {
+  const out = {};
+  for (const l of HIERARCHY_LEVELS) out[l.arg] = idOrNull(sel && sel[l.key]);
+  return out;
+}
+export const hierarchyActive = (sel) => HIERARCHY_LEVELS.filter((l) => sel && sel[l.key]).length;
+
+// Human scope line for disclosures (export header, filter summary): names from the server dimensions, ids as fallback.
+export function hierarchyLabels(dims, sel) {
+  return HIERARCHY_LEVELS.filter((l) => sel && sel[l.key]).map((l) => {
+    const row = (dims && Array.isArray(dims[l.dims]) ? dims[l.dims] : []).find((r) => same(r.id, sel[l.key]));
+    return `${l.label}: ${row && row.name ? row.name : `#${sel[l.key]}`}`;
+  });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Bounded export: ONE returned page only. The scope line states exactly what is and is not in the file.
+// ---------------------------------------------------------------------------------------------------------------------
+export function exportScopeLine({ title, rowsOnPage, page, size, total, anchor, filters = [], note = "" }) {
+  const t = total === null || total === undefined || total === "" || !Number.isFinite(Number(total)) ? null : Number(total);
+  const hasMore = t === null ? null : page * size < t;
+  return [
+    `Executive Intelligence ${title}`,
+    `PAGE ONLY: ${rowsOnPage} row${rowsOnPage === 1 ? "" : "s"} from page ${page} (page size ${size}); not the whole dataset`,
+    t === null ? "total rows unknown" : `${t} rows match the filters`,
+    hasMore === null ? "has_more unknown" : `has_more=${hasMore}`,
+    anchor ? `anchor ${anchor}` : "",
+    filters.length ? `filters: ${filters.join("; ")}` : "filters: none",
+    note,
+    "import completeness not certified",
+  ].filter(Boolean).join(" | ");
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Actual sales refresh intelligence (ei_sales_refresh_status). The pinned pg_cron job's LATEST run is reported as-is. A succeeded
+// run proves a run finished, never that the import was complete; no completeness is inferred from any field here.
+// ---------------------------------------------------------------------------------------------------------------------
+export const REFRESH_JOB_LABELS = Object.freeze({
+  succeeded: "Last run succeeded", failed: "Last run failed", running: "Running now", starting: "Starting", connecting: "Connecting", sending: "Sending",
+  DISABLED: "Refresh job disabled", NO_RECORDED_RUN: "No recorded run", UNAVAILABLE_JOB_IDENTITY: "Refresh job not found",
+});
+export function refreshJobModel(d) {
+  if (!d || typeof d !== "object") return { state: "missing" };
+  const job = d.refresh_job && typeof d.refresh_job === "object" ? d.refresh_job : null;
+  const raw = String(d.refresh_job_status ?? (job && job.status) ?? "");
+  // Pre-job contracts reported a placeholder; anything unrecognised is shown as unavailable, never as success.
+  if (!raw || raw === "UNAVAILABLE_TO_THIS_CONTRACT") return { state: "unavailable", label: "Refresh job status unavailable" };
+  const known = Object.prototype.hasOwnProperty.call(REFRESH_JOB_LABELS, raw);
+  const tone = raw === "succeeded" ? "ok" : raw === "failed" || raw === "DISABLED" || raw === "UNAVAILABLE_JOB_IDENTITY" ? "bad" : "warn";
+  return {
+    state: known ? "known" : "unrecognised",
+    status: raw,
+    label: known ? REFRESH_JOB_LABELS[raw] : `Unrecognised status: ${raw}`,
+    tone: known ? tone : "warn",
+    active: job && typeof job.active === "boolean" ? job.active : null,
+    startedAt: (job && job.last_started_at) || null,
+    finishedAt: (job && job.last_finished_at) || null,
+  };
+}
+// Daily vs monthly freshness from the server's own timestamps. Direction only; no "up to date" claim.
+export function refreshFreshnessModel(d) {
+  if (!d || typeof d !== "object") return { state: "missing" };
+  const t = (v) => { const n = v ? Date.parse(v) : NaN; return Number.isFinite(n) ? n : null; };
+  const m = t(d.monthly_source_max_inserted_at);
+  const dl = t(d.daily_source_max_inserted_at);
+  let order = "unknown";
+  if (m !== null && dl !== null) order = dl > m ? "daily_newer" : dl < m ? "monthly_newer" : "same";
+  const diff = hasValue(d.amount_difference) ? Number(d.amount_difference) : null;
+  return { state: "ok", order, difference: diff, differenceZero: diff === 0, monthlyMonth: d.monthly_latest_month || null, dailyLast: d.daily_last_date_in_month || null };
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Facility sales classification (ei_facility_sales_scope). Facility total is every recorded voucher row (including rows whose godown
+// is unresolved); product analytics needs a resolved SKU AND godown. They are DIFFERENT measures and are never presented as equal.
+// ---------------------------------------------------------------------------------------------------------------------
+export const FACILITY_SCOPE_LABELS = Object.freeze({
+  SASV_CANONICAL_PRODUCT: "SASV canonical product", SASV_SAMPLE: "SASV sample", SASV_HISTORICAL_PACK: "SASV historical pack",
+  OTHER_MANUFACTURING_UNIT: "Other manufacturing unit", OTHER_MERCHANDISE: "Other merchandise", RAW_MATERIAL: "Raw material",
+  PACKING_MATERIAL: "Packing material", EXCLUDE_PRODUCT_ANALYTICS: "Excluded from product analytics", UNCLASSIFIED: "Unclassified (needs review)",
+  CLASSIFICATION_CONFLICT: "Classification conflict (needs review)", SKU_MAPPING_UNRESOLVED: "SKU mapping unresolved",
+});
+const REVIEW_SCOPES = Object.freeze(["UNCLASSIFIED", "CLASSIFICATION_CONFLICT"]);
+const PRODUCT_ANALYTICS_SCOPES = Object.freeze(["SASV_CANONICAL_PRODUCT"]);
+export function facilityModel(d) {
+  if (!d || typeof d !== "object") return { state: "missing" };
+  if (d.coverage === "NO_RAW_DATA") return { state: "no-data" };
+  const rowsIn = Array.isArray(d.rows) ? d.rows : null;
+  if (!rowsIn) return { state: "unrecognised" };
+  const rows = rowsIn.map((r) => ({
+    scope: String(r.scope ?? ""), label: FACILITY_SCOPE_LABELS[r.scope] || (r.scope ? String(r.scope).replace(/_/g, " ").toLowerCase() : "Unknown"),
+    recorded: num(r.recorded_rows), missing: num(r.missing_amount_rows), reported: num(r.source_reported_amount), billed: num(r.billed_value), unresolvedGodown: num(r.godown_unresolved_rows),
+    review: REVIEW_SCOPES.includes(r.scope), inProductAnalytics: PRODUCT_ANALYTICS_SCOPES.includes(r.scope),
+  }));
+  const f = d.facility && typeof d.facility === "object" ? d.facility : null;
+  // Review counts are the server's per-scope row counts for the two review scopes, shown as given; a missing count stays unknown.
+  const review = rows.filter((r) => r.review);
+  return {
+    state: "ok", anchor: d.anchor || null, startDate: d.start_date || null, latestRawDate: d.latest_raw_date || null,
+    facility: f && { recorded: num(f.recorded_rows), missing: num(f.missing_amount_rows), reported: num(f.source_reported_amount), billed: num(f.billed_value), unresolvedGodown: num(f.godown_unresolved_rows) },
+    rows, review: review.map((r) => ({ scope: r.scope, label: r.label, recorded: r.recorded })),
+    reviewRowCount: review.length ? review.reduce((a, r) => (a === null || r.recorded === null ? null : a + r.recorded), 0) : 0,
+    scopeNote: d.scope_note || "", ownership: d.ownership_classification || "", importCompleteness: d.import_completeness || "NOT_CERTIFIED",
+  };
 }

@@ -37,24 +37,39 @@
         --mis-info-border: var(--sasv-info-border, var(--mis-border));
       }
 
+      /*
+       * Executive Intelligence typography scale (compact ERP). One ladder for the whole page: every font-size below resolves to
+       * one of these tokens (which defer to the shared --sasv-text-* tokens where they exist). 16px form-control size on phones
+       * is the iOS focus-zoom floor and is the only literal size.
+       */
+      :root {
+        --ei-fs-2xs: 0.6875rem; /* 11px: table headers, badges, captions */
+        --ei-fs-xs: var(--sasv-text-xs, 0.75rem); /* 12px: notes, table cells, meta */
+        --ei-fs-sm: var(--sasv-text-sm, 0.8125rem); /* 13px: controls, tabs, body */
+        --ei-fs-md: var(--sasv-text-md, 0.875rem); /* 14px: section titles, KPI values */
+        --ei-fs-lg: var(--sasv-text-lg, 1rem); /* 16px: hero figures */
+        --ei-fs-title: 1.125rem; /* 18px: page title */
+        --ei-fs-input-phone: 16px;
+      }
+
       /* MIS G7: production evidence status (compact, token-based) */
       .mis-gov { margin: 10px 0; border: 1px solid var(--mis-border); border-radius: 8px; background: var(--mis-surface); padding: 6px 10px; }
-      .mis-gov > summary { cursor: pointer; font-weight: 600; color: var(--mis-text); }
+      .mis-gov > summary { cursor: pointer; font-weight: 600; font-size: var(--ei-fs-sm); color: var(--mis-text); }
       .mis-gov > summary:focus-visible { outline: 2px solid var(--mis-focus-ring); outline-offset: 2px; }
-      .mis-gov-mode { margin-left: 8px; font-weight: 400; color: var(--mis-muted); font-size: 0.85rem; }
-      .mis-gov-states { margin: 8px 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 0.875rem; color: var(--mis-text-secondary); }
-      .mis-gov-tag { display: inline-block; min-width: 7.5em; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--mis-border); font-size: 0.8rem; font-weight: 600; text-align: center; background: var(--mis-surface-soft); color: var(--mis-muted); }
+      .mis-gov-mode { margin-left: 8px; font-weight: 400; color: var(--mis-muted); font-size: var(--ei-fs-sm); }
+      .mis-gov-states { margin: 8px 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: var(--ei-fs-md); color: var(--mis-text-secondary); }
+      .mis-gov-tag { display: inline-block; min-width: 7.5em; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--mis-border); font-size: var(--ei-fs-xs); font-weight: 600; text-align: center; background: var(--mis-surface-soft); color: var(--mis-muted); }
       .mis-gov-ok { color: var(--sasv-success, var(--mis-text)); background: var(--sasv-success-bg, var(--mis-surface-soft)); border-color: var(--sasv-success-border, var(--mis-border)); }
       .mis-gov-warn { color: var(--mis-warning); background: var(--mis-warning-bg); border-color: var(--mis-warning-border); }
       .mis-gov-danger { color: var(--mis-danger); background: var(--mis-danger-bg); border-color: var(--mis-danger-border); }
-      .mis-gov-hist { margin: 6px 0 2px; font-size: 0.85rem; color: var(--mis-muted); }
-      .mis-gov-bar { margin: 6px 0; font-size: 0.85rem; color: var(--mis-text-secondary); }
-      .mis-gov-bar select { margin-left: 6px; min-height: 32px; }
+      .mis-gov-hist { margin: 6px 0 2px; font-size: var(--ei-fs-sm); color: var(--mis-muted); }
+      .mis-gov-bar { margin: 6px 0; font-size: var(--ei-fs-sm); color: var(--mis-text-secondary); }
+      .mis-gov-bar select { margin-left: 6px; min-height: 32px; font-size: var(--ei-fs-sm); }
       .mis-gov-table-wrap { overflow-x: auto; margin: 6px 0; max-height: 360px; overflow-y: auto; }
-      .mis-gov-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+      .mis-gov-table { width: 100%; border-collapse: collapse; font-size: var(--ei-fs-sm); }
       .mis-gov-table th { position: sticky; top: 0; background: var(--mis-surface-soft); text-align: left; font-weight: 600; }
       .mis-gov-table th, .mis-gov-table td { padding: 4px 8px; border-bottom: 1px solid var(--mis-border); vertical-align: top; }
-      .mis-gov-pager { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.8rem; color: var(--mis-muted); }
+      .mis-gov-pager { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: var(--ei-fs-xs); color: var(--mis-muted); }
       .mis-gov-pager button { min-height: 32px; padding: 2px 12px; }
       @media (max-width: 520px) { .mis-gov-tag { min-width: 0; } .mis-gov-table th, .mis-gov-table td { padding: 4px 6px; } }
 
@@ -74,6 +89,7 @@
       }
 
       body {
+        font-size: var(--ei-fs-sm); /* compact ERP default: nothing inherits an unspecified 16px */
         display: flex;
         flex-direction: column;
         padding: 20px;
@@ -96,7 +112,7 @@
       .page-sub {
         margin-top: 4px;
         color: var(--muted, #6b7280);
-        font-size: 0.95rem;
+        font-size: var(--ei-fs-sm);
         line-height: 1.4;
       }
 
@@ -149,7 +165,7 @@
         border-radius: 8px;
         background: var(--panel-bg, #fff);
         color: var(--muted, #6b7280);
-        font-size: 0.95rem;
+        font-size: var(--ei-fs-sm);
       }
 
       .status.error {
@@ -213,7 +229,7 @@
 
       .kpi-title {
         color: var(--muted, #6b7280);
-        font-size: 10.5px;
+        font-size: var(--ei-fs-2xs);
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
@@ -222,7 +238,7 @@
 
       .kpi-value {
         color: var(--text, #0f172a);
-        font-size: 18px;
+        font-size: var(--ei-fs-lg);
         font-weight: 750;
         line-height: 1.15;
         overflow-wrap: anywhere;
@@ -269,14 +285,14 @@
         background: var(--panel-bg, #fff);
         box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
         color: var(--text, #0f172a);
-        font-size: 12px;
+        font-size: var(--ei-fs-xs);
         line-height: 1.45;
       }
 
       .kpi-popover-title {
         margin-bottom: 6px;
         color: var(--muted, #6b7280);
-        font-size: 10.5px;
+        font-size: var(--ei-fs-2xs);
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
@@ -289,7 +305,7 @@
       .kpi-popover-label {
         display: block;
         color: var(--muted, #6b7280);
-        font-size: 10.5px;
+        font-size: var(--ei-fs-2xs);
         font-weight: 700;
         text-transform: uppercase;
       }
@@ -301,7 +317,7 @@
         border-radius: 8px;
         background: #fffbeb;
         color: #92400e;
-        font-size: 12.5px;
+        font-size: var(--ei-fs-xs);
         line-height: 1.45;
       }
 
@@ -340,7 +356,7 @@
         border-radius: 8px;
         background: transparent;
         color: var(--erp-muted, var(--muted, #6b7280));
-        font-size: 13px;
+        font-size: var(--ei-fs-sm);
         font-weight: 700;
         line-height: 1.2;
         white-space: nowrap;
@@ -383,7 +399,7 @@
           rgba(37, 99, 235, 0.06) 100%
         );
         color: var(--text, #0f172a);
-        font-size: 14px;
+        font-size: var(--ei-fs-md);
         font-weight: 600;
         cursor: pointer;
         appearance: none;
@@ -436,7 +452,7 @@
       .production-scope-note {
         margin-bottom: 8px;
         color: var(--muted, #6b7280);
-        font-size: 12px;
+        font-size: var(--ei-fs-xs);
         line-height: 1.45;
       }
 
@@ -453,7 +469,7 @@
       .production-summary-heading {
         margin: 6px 0 6px;
         color: var(--mis-muted);
-        font-size: 12px;
+        font-size: var(--ei-fs-xs);
         font-weight: 700;
         letter-spacing: 0.02em;
       }
@@ -471,7 +487,7 @@
       .production-status {
         padding: 18px;
         color: var(--mis-muted);
-        font-size: 13px;
+        font-size: var(--ei-fs-sm);
         text-align: center;
       }
 
@@ -495,7 +511,7 @@
 
       .production-summary-title {
         color: var(--mis-muted);
-        font-size: 10px;
+        font-size: var(--ei-fs-2xs);
         font-weight: 600;
         letter-spacing: 0.02em;
         line-height: 1.25;
@@ -503,7 +519,7 @@
 
       .production-summary-value {
         color: var(--mis-text-secondary);
-        font-size: 14px;
+        font-size: var(--ei-fs-md);
         font-weight: 650;
         line-height: 1.2;
         overflow-wrap: anywhere;
@@ -538,7 +554,7 @@
       .pv-heading {
         margin: 0;
         color: var(--mis-text);
-        font-size: 13px;
+        font-size: var(--ei-fs-sm);
         font-weight: 800;
         letter-spacing: 0.02em;
       }
@@ -548,7 +564,7 @@
         align-items: center;
         gap: 5px;
         color: var(--mis-muted);
-        font-size: 11px;
+        font-size: var(--ei-fs-2xs);
         font-weight: 700;
       }
       .pv-input {
@@ -559,7 +575,7 @@
         background: var(--mis-search-bg);
         color: var(--mis-text);
         font: inherit;
-        font-size: 12.5px;
+        font-size: var(--ei-fs-xs);
       }
       .pv-input:hover { border-color: var(--mis-accent); }
       .pv-input:focus-visible,
@@ -568,7 +584,7 @@
         outline: 2px solid var(--mis-accent);
         outline-offset: 1px;
       }
-      .pv-asof-status { margin: 0 0 6px; color: var(--mis-muted); font-size: 11.5px; line-height: 1.6; }
+      .pv-asof-status { margin: 0 0 6px; color: var(--mis-muted); font-size: var(--ei-fs-xs); line-height: 1.6; }
       .pv-asof-status b { color: var(--mis-text); font-weight: 700; }
       .pv-asof-clear { margin-left: 6px; min-height: 24px; }
       .pv-asof-notice {
@@ -579,7 +595,7 @@
         background: var(--mis-warning-bg);
         color: var(--mis-warning);
       }
-      .pv-basis { margin-bottom: 6px; color: var(--mis-muted); font-size: 11.5px; line-height: 1.5; }
+      .pv-basis { margin-bottom: 6px; color: var(--mis-muted); font-size: var(--ei-fs-xs); line-height: 1.5; }
       .pv-basis b { color: var(--mis-text); font-weight: 700; }
       .pv-kpi-grid {
         display: grid;
@@ -599,9 +615,9 @@
       }
       .pv-kpi.book { border-style: dashed; border-left-style: solid; }
       .pv-kpi.unavailable { border-left-color: var(--mis-border); }
-      .pv-kpi-title { color: var(--mis-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.02em; }
-      .pv-kpi-value { color: var(--mis-text); font-size: 19px; font-weight: 750; line-height: 1.2; overflow-wrap: anywhere; }
-      .pv-kpi.unavailable .pv-kpi-value { color: var(--mis-muted); font-size: 15px; font-weight: 650; }
+      .pv-kpi-title { color: var(--mis-muted); font-size: var(--ei-fs-2xs); font-weight: 700; letter-spacing: 0.02em; }
+      .pv-kpi-value { color: var(--mis-text); font-size: var(--ei-fs-lg); font-weight: 750; line-height: 1.2; overflow-wrap: anywhere; }
+      .pv-kpi.unavailable .pv-kpi-value { color: var(--mis-muted); font-size: var(--ei-fs-md); font-weight: 650; }
       .pv-kpi-badge {
         align-self: flex-start;
         padding: 1px 7px;
@@ -609,10 +625,10 @@
         border-radius: 999px;
         background: var(--mis-info-bg);
         color: var(--mis-info);
-        font-size: 10.5px;
+        font-size: var(--ei-fs-2xs);
         font-weight: 700;
       }
-      .pv-kpi-caption { color: var(--mis-muted); font-size: 11px; line-height: 1.4; }
+      .pv-kpi-caption { color: var(--mis-muted); font-size: var(--ei-fs-2xs); line-height: 1.4; }
       .pv-achievement {
         display: flex;
         flex-wrap: wrap;
@@ -622,12 +638,12 @@
         padding: 5px 10px;
         border: 1px solid var(--mis-divider);
         border-radius: 6px;
-        font-size: 12px;
+        font-size: var(--ei-fs-xs);
       }
       .pv-achievement-label { color: var(--mis-muted); font-weight: 700; }
       .pv-achievement-value { color: var(--mis-text); font-weight: 750; }
-      .pv-achievement-note { color: var(--mis-muted); font-size: 11px; flex: 1 1 220px; }
-      .pv-notes { margin-top: 6px; font-size: 11.5px; color: var(--mis-muted); }
+      .pv-achievement-note { color: var(--mis-muted); font-size: var(--ei-fs-2xs); flex: 1 1 220px; }
+      .pv-notes { margin-top: 6px; font-size: var(--ei-fs-xs); color: var(--mis-muted); }
       .pv-notes summary { cursor: pointer; font-weight: 700; color: var(--mis-text-secondary); }
       .pv-notes ul { margin: 4px 0 0; padding-left: 18px; line-height: 1.5; }
       .pv-state {
@@ -636,7 +652,7 @@
         gap: 8px;
         padding: 14px 8px;
         color: var(--mis-muted);
-        font-size: 12.5px;
+        font-size: var(--ei-fs-xs);
       }
       .pv-state.error {
         border: 1px solid var(--mis-danger-border);
@@ -645,7 +661,7 @@
         color: var(--mis-danger);
       }
       .production-diagnostics > summary { cursor: pointer; list-style-position: inside; }
-      .production-diag-note { padding: 6px 10px; color: var(--mis-muted); font-size: 11.5px; line-height: 1.45; border-bottom: 1px solid var(--mis-divider); }
+      .production-diag-note { padding: 6px 10px; color: var(--mis-muted); font-size: var(--ei-fs-xs); line-height: 1.45; border-bottom: 1px solid var(--mis-divider); }
       .production-diagnostics .production-table { min-width: 520px; }
       @media (max-width: 520px) {
         .pv { padding: 7px 8px 8px; }
@@ -653,7 +669,7 @@
         .pv-field { justify-content: space-between; }
         .pv-input { flex: 1 1 auto; min-height: 36px; }
         .pv-kpi-grid { grid-template-columns: 1fr 1fr; }
-        .pv-kpi-value { font-size: 17px; }
+        .pv-kpi-value { font-size: var(--ei-fs-lg); }
       }
       @media (max-width: 359px) {
         .pv-kpi-grid { grid-template-columns: 1fr; }
@@ -673,7 +689,7 @@
         border-bottom: 1px solid var(--mis-border);
         background: var(--mis-surface-soft);
         color: var(--mis-text-secondary);
-        font-size: 12px;
+        font-size: var(--ei-fs-xs);
         font-weight: 800;
         letter-spacing: 0.04em;
         text-transform: uppercase;
@@ -694,7 +710,7 @@
       .production-table td {
         padding: 8px 9px;
         border-bottom: 1px solid var(--mis-divider);
-        font-size: 12.5px;
+        font-size: var(--ei-fs-xs);
         text-align: left;
         vertical-align: top;
       }
@@ -705,7 +721,7 @@
         z-index: 2;
         background: var(--mis-surface-soft);
         color: var(--mis-muted);
-        font-size: 11px;
+        font-size: var(--ei-fs-2xs);
         font-weight: 800;
         letter-spacing: 0.04em;
         text-transform: uppercase;
@@ -747,7 +763,7 @@
         background: var(--mis-search-bg);
         color: var(--mis-text);
         font-family: inherit;
-        font-size: 13px;
+        font-size: var(--ei-fs-sm);
         line-height: 1.3;
       }
 
@@ -844,7 +860,7 @@
         border-radius: 999px;
         background: var(--mis-accent);
         color: var(--mis-on-accent);
-        font-size: 9px;
+        font-size: var(--ei-fs-2xs);
         font-weight: 700;
         line-height: 14px;
         text-align: center;
@@ -878,7 +894,7 @@
       .fg-filter-section-title {
         margin-bottom: 8px;
         color: var(--mis-muted);
-        font-size: 11px;
+        font-size: var(--ei-fs-2xs);
         font-weight: 700;
         letter-spacing: 0.05em;
         text-transform: uppercase;
@@ -902,7 +918,7 @@
         align-items: center;
         gap: 7px;
         color: var(--mis-text-secondary);
-        font-size: 13px;
+        font-size: var(--ei-fs-sm);
         cursor: pointer;
       }
 
@@ -946,7 +962,7 @@
         border-radius: 8px;
         background: var(--mis-surface);
         color: var(--mis-muted);
-        font-size: 13px;
+        font-size: var(--ei-fs-sm);
         font-weight: 600;
         box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
       }
@@ -1003,7 +1019,7 @@
       .fg-table td {
         padding: 8px 9px;
         border-bottom: 1px solid var(--mis-divider);
-        font-size: 12.5px;
+        font-size: var(--ei-fs-xs);
         text-align: left;
         vertical-align: top;
       }
@@ -1017,7 +1033,7 @@
         z-index: 2;
         background: var(--mis-surface-soft);
         color: var(--mis-muted);
-        font-size: 11px;
+        font-size: var(--ei-fs-2xs);
         font-weight: 800;
         letter-spacing: 0.04em;
         text-transform: uppercase;
@@ -1058,7 +1074,7 @@
         border-bottom: 1px solid var(--mis-border);
         background: var(--mis-surface);
         color: var(--mis-muted);
-        font-size: 12.5px;
+        font-size: var(--ei-fs-xs);
       }
 
       .finance-page-controls,
@@ -1082,7 +1098,7 @@
       .fg-status {
         padding: 18px;
         color: var(--mis-muted);
-        font-size: 13px;
+        font-size: var(--ei-fs-sm);
         text-align: center;
       }
 
@@ -1101,6 +1117,7 @@
         background: var(--mis-surface);
         color: var(--mis-accent);
         font: inherit;
+        font-size: var(--ei-fs-sm);
         font-weight: 600;
         cursor: pointer;
       }
@@ -1146,14 +1163,14 @@
 
       .finance-modal-title {
         margin: 0;
-        font-size: 15px;
+        font-size: var(--ei-fs-md);
         color: var(--mis-text);
       }
 
       .finance-modal-subtitle {
         margin-top: 3px;
         color: var(--mis-muted);
-        font-size: 12px;
+        font-size: var(--ei-fs-xs);
       }
 
       .modal-close-btn {
@@ -1181,7 +1198,7 @@
         border-radius: 7px;
         background: var(--mis-info-bg);
         color: var(--mis-info);
-        font-size: 12.5px;
+        font-size: var(--ei-fs-xs);
         line-height: 1.45;
       }
 
@@ -1195,7 +1212,7 @@
         }
 
         .page-header h1 {
-          font-size: 18px;
+          font-size: var(--ei-fs-title);
           line-height: 1.15;
         }
 
@@ -1219,7 +1236,7 @@
         }
 
         .kpi-value {
-          font-size: 16px;
+          font-size: var(--ei-fs-lg);
         }
 
         .finance-toolbar,
@@ -1325,7 +1342,7 @@
         .inventory-search-wrap input,
         .fg-search-wrap input {
           min-height: 36px;
-          font-size: 16px; /* avoids iOS focus-zoom */
+          font-size: var(--ei-fs-input-phone); /* avoids iOS focus-zoom */
         }
 
         .production-summary-grid {
@@ -1362,10 +1379,11 @@
        * EI-R2: Executive Intelligence presentation. Scoped to this page, semantic tokens only (no palette
        * values), no global overrides. Wide screens: compact lens tabs. Narrow screens: the lens select.
        */
-      .ei-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+      .sc-snapshot-label { font-size: var(--ei-fs-sm); }
+      .ei-sr { font-size: var(--ei-fs-xs); position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
       body { padding: var(--sasv-space-3, 12px) var(--sasv-space-4, 16px); }
       .header-card { padding: 0 !important; }
-      .page-header h1 { font-size: var(--sasv-text-xl, 1.25rem); line-height: 1.2; font-weight: 700; }
+      .page-header h1 { font-size: var(--ei-fs-title); line-height: 1.2; font-weight: 700; }
       .page-sub { margin-top: 2px; font-size: var(--sasv-text-sm, 0.8125rem); }
       .tabs-card { margin-top: var(--sasv-space-2, 8px); padding: 0; border: 0; background: transparent; }
       .lens-pills { padding: 4px; gap: 2px; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-md, 8px); background: var(--mis-surface); }
@@ -1374,7 +1392,7 @@
       .lens-pills .pill:focus { box-shadow: none; }
       .lens-pills .pill:focus-visible { outline: 2px solid var(--mis-accent); outline-offset: 1px; }
       .lens-pills .pill.active { background: var(--mis-accent); border-color: var(--mis-accent); color: var(--mis-on-accent); box-shadow: none; }
-      .tab-select { min-height: 40px; border: 1px solid var(--mis-accent-soft-border); background: var(--mis-search-bg); color: var(--mis-text); font-size: 16px; font-weight: 600; }
+      .tab-select { min-height: 40px; border: 1px solid var(--mis-accent-soft-border); background: var(--mis-search-bg); color: var(--mis-text); font-size: var(--ei-fs-input-phone); font-weight: 600; }
       .tab-select:focus-visible { outline: 2px solid var(--mis-accent); outline-offset: 1px; }
       .tab-select-icon { color: var(--mis-accent); }
       @media (max-width: 960px) {
@@ -1424,7 +1442,7 @@
       .kpi-card.caution { border-left-color: var(--mis-warning); }
       .kpi-card .kpi-title { font-size: var(--sasv-text-xs, 0.75rem); line-height: 1.25; font-weight: 600; letter-spacing: 0; text-transform: none; }
       .kpi-card .kpi-value { font-size: var(--sasv-text-lg, 1rem); font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
-      .kpi-basis { color: var(--mis-muted); font-size: 10.5px; line-height: 1.2; }
+      .kpi-basis { color: var(--mis-muted); font-size: var(--ei-fs-2xs); line-height: 1.2; }
 
       /* bars: real same-unit series only; values are always printed (the track is decoration) */
       .ei-bars { margin: 2px 0 0; padding: 0; list-style: none; display: grid; gap: 5px; }
@@ -1432,7 +1450,7 @@
       .ei-bar-track { height: 8px; border-radius: var(--sasv-radius-pill, 999px); background: var(--mis-surface-soft); border: 1px solid var(--mis-divider); overflow: hidden; }
       .ei-bar-fill { display: block; height: 100%; background: var(--mis-accent); }
       .ei-bar-value { font-weight: 700; color: var(--mis-text); text-align: right; white-space: nowrap; }
-      .ei-bars-note { margin-top: 3px; color: var(--mis-muted); font-size: 10.5px; line-height: 1.35; }
+      .ei-bars-note { margin-top: 3px; color: var(--mis-muted); font-size: var(--ei-fs-2xs); line-height: 1.35; }
 
       /* lens metrics */
       .ei-metric-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--sasv-space-2, 8px); }
@@ -1445,14 +1463,14 @@
       .ei-metric.unavailable .ei-metric-value { color: var(--mis-muted); font-weight: 600; }
       .ei-metric-label { color: var(--mis-muted); font-size: var(--sasv-text-xs, 0.75rem); font-weight: 600; line-height: 1.25; }
       .ei-metric-value { margin-top: 1px; color: var(--mis-text); font-size: var(--sasv-text-lg, 1rem); font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
-      .ei-metric-sub { margin-top: 1px; color: var(--mis-muted); font-size: 10.5px; line-height: 1.3; }
+      .ei-metric-sub { margin-top: 1px; color: var(--mis-muted); font-size: var(--ei-fs-2xs); line-height: 1.3; }
       .ei-coverage { color: var(--mis-text-secondary); font-size: var(--sasv-text-xs, 0.75rem); line-height: 1.45; }
       .ei-basis { color: var(--mis-muted); font-size: var(--sasv-text-xs, 0.75rem); }
       .ei-basis > summary { cursor: pointer; font-weight: 700; color: var(--mis-text-secondary); width: fit-content; }
       .ei-basis > summary:focus-visible { outline: 2px solid var(--mis-accent); outline-offset: 2px; }
       .ei-basis ul { margin: 4px 0 0; padding-left: 18px; line-height: 1.5; }
-      .ei-cell-sub { margin-top: 2px; color: var(--mis-muted); font-size: 11px; }
-      .ei-evidence { padding: 1px 6px; border: 1px solid var(--mis-divider); border-radius: var(--sasv-radius-pill, 999px); background: var(--mis-surface-soft); color: var(--mis-muted); font-size: 11px; white-space: nowrap; }
+      .ei-cell-sub { margin-top: 2px; color: var(--mis-muted); font-size: var(--ei-fs-2xs); }
+      .ei-evidence { padding: 1px 6px; border: 1px solid var(--mis-divider); border-radius: var(--sasv-radius-pill, 999px); background: var(--mis-surface-soft); color: var(--mis-muted); font-size: var(--ei-fs-2xs); white-space: nowrap; }
       .ei-metrics-host:empty, .ei-scope:empty { display: none; }
 
       /* toolbar: light-filled search, consistent controls */
@@ -1476,7 +1494,7 @@
         .finance-filter-drawer.open .ei-drawer-head, .inventory-filter-drawer.open .ei-drawer-head, .fg-filter-drawer.open .ei-drawer-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sasv-space-3, 12px); padding-bottom: var(--sasv-space-2, 8px); border-bottom: 1px solid var(--mis-border); }
         .ei-drawer-title { font-size: var(--sasv-text-lg, 1rem); font-weight: 700; color: var(--mis-text); }
         .finance-filter-drawer.open .finance-filter-section-title, .inventory-filter-drawer.open .inventory-filter-section-title, .fg-filter-drawer.open .fg-filter-section-title { display: none; }
-        .finance-filter-list label, .inventory-filter-list label, .fg-filter-list label { min-height: 44px; font-size: 16px; }
+        .finance-filter-list label, .inventory-filter-list label, .fg-filter-list label { min-height: 44px; font-size: var(--ei-fs-md); }
         body.ei-sheet-open { overflow: hidden; }
         .ei-groups { grid-template-columns: minmax(0, 1fr); }
         .ei-indicators { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1496,7 +1514,7 @@
       .ei-metric { border: 0; border-radius: 0; padding: 4px 10px; background: var(--mis-surface); }
       .ei-metric.caution { border-left: 0; box-shadow: inset 3px 0 0 var(--mis-warning); }
       .ei-metric-value { font-size: var(--sasv-text-md, 0.875rem); font-weight: 700; }
-      .ei-metric-label { font-size: 11px; }
+      .ei-metric-label { font-size: var(--ei-fs-2xs); }
       .ei-metric-groups .ei-metrics { margin-top: 0; }
       .ei-indicators { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; border-top: 1px solid var(--mis-divider); }
       .kpi-card { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "t v" "b v"; align-items: center; column-gap: 8px; row-gap: 0; min-height: 0; padding: 4px 28px 4px 0; border: 0; border-bottom: 1px solid var(--mis-divider); border-left: 0; border-radius: 0; background: transparent; }
@@ -1522,7 +1540,7 @@
       .ei-filterbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px var(--sasv-space-3, 12px); padding: 0; }
       .ei-filterbar[hidden] { display: none; }
       .ei-filterbar-inner { margin: 2px 0; }
-      .ei-field { display: inline-flex; flex-direction: column; gap: 2px; color: var(--mis-muted); font-size: 11px; font-weight: 600; min-width: 0; }
+      .ei-field { display: inline-flex; flex-direction: column; gap: 2px; color: var(--mis-muted); font-size: var(--ei-fs-2xs); font-weight: 600; min-width: 0; }
       .ei-field input, .ei-field select { min-height: 32px; padding: 3px 8px; border: 1px solid var(--mis-search-border); border-radius: var(--sasv-radius-md, 8px); background: var(--mis-search-bg); color: var(--mis-text); font: inherit; font-size: var(--sasv-text-sm, 0.8125rem); max-width: 100%; }
       .ei-field input:focus-visible, .ei-field select:focus-visible, .ei-search input:focus-visible { outline: 2px solid var(--mis-accent); outline-offset: 1px; }
       .ei-check { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; font-size: var(--sasv-text-sm, 0.8125rem); color: var(--mis-text-secondary); }
@@ -1534,8 +1552,8 @@
       .ei-viewbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--sasv-space-2, 8px); }
       .ei-table-wrap { overflow: auto; max-width: 100%; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-md, 8px); max-height: min(60vh, 560px); }
       .ei-table { width: 100%; min-width: 640px; border-collapse: collapse; }
-      .ei-table th, .ei-table td { padding: 5px 8px; border-bottom: 1px solid var(--mis-divider); font-size: 12px; text-align: left; vertical-align: top; }
-      .ei-table th { position: sticky; top: 0; z-index: 1; background: var(--mis-surface-soft); color: var(--mis-muted); font-size: 11px; font-weight: 700; }
+      .ei-table th, .ei-table td { padding: 5px 8px; border-bottom: 1px solid var(--mis-divider); font-size: var(--ei-fs-xs); text-align: left; vertical-align: top; }
+      .ei-table th { position: sticky; top: 0; z-index: 1; background: var(--mis-surface-soft); color: var(--mis-muted); font-size: var(--ei-fs-2xs); font-weight: 700; }
       .ei-table th.num, .ei-table td.num { text-align: right; }
       .ei-missing { color: var(--mis-muted); }
       .ei-reported { color: var(--mis-muted); font-style: italic; }
@@ -1543,17 +1561,44 @@
       .ei-pager-controls { display: inline-flex; align-items: center; gap: 8px; color: var(--mis-text-secondary); }
       .ei-compare-line { display: flex; flex-wrap: wrap; gap: 4px var(--sasv-space-4, 16px); font-size: var(--sasv-text-sm, 0.8125rem); color: var(--mis-text-secondary); }
       .ei-dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1px; margin: 0; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-md, 8px); background: var(--mis-divider); overflow: hidden; }
-      .ei-dl-row { display: flex; justify-content: space-between; gap: 8px; padding: 4px 10px; background: var(--mis-surface); font-size: 12px; }
+      .ei-dl-row { display: flex; justify-content: space-between; gap: 8px; padding: 4px 10px; background: var(--mis-surface); font-size: var(--ei-fs-xs); }
       .ei-dl dt { color: var(--mis-muted); } .ei-dl dd { margin: 0; color: var(--mis-text); font-weight: 600; text-align: right; }
-      .ei-badge { padding: 1px 8px; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-pill, 999px); font-size: 11px; font-weight: 700; background: var(--mis-surface-soft); color: var(--mis-muted); }
+      .ei-badge { padding: 1px 8px; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-pill, 999px); font-size: var(--ei-fs-2xs); font-weight: 700; background: var(--mis-surface-soft); color: var(--mis-muted); }
       .ei-badge-review { color: var(--mis-warning); background: var(--mis-warning-bg); border-color: var(--mis-warning-border); }
       .ei-badge-clear { color: var(--mis-text-secondary); }
+      /* Sales filters: inline bar on desktop; full-page sheet on phones (Escape / Done close it). Token-based, no palette values. */
+      .ei-filters { display: block; }
+      .ei-filter-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px var(--sasv-space-3, 12px); }
+      .ei-filter-toggle, .ei-filter-sheet-head { display: none; }
+      .ei-filter-count { display: inline-block; min-width: 1.4em; padding: 0 5px; border-radius: var(--sasv-radius-pill, 999px); background: var(--mis-accent); color: var(--mis-on-accent); font-size: var(--ei-fs-2xs); font-weight: 700; text-align: center; }
+      .ei-review-row td:first-child { box-shadow: inset 3px 0 0 var(--mis-warning); }
+      .ei-metrics-facility { margin: 4px 0 8px; }
+      .ei-job-ok { color: var(--sasv-success, var(--mis-text)); font-weight: 700; }
+      .ei-job-bad { color: var(--mis-danger); font-weight: 700; }
+      .ei-job-warn { color: var(--mis-warning); font-weight: 700; }
+      .ei-subnav { overflow-x: auto; scrollbar-width: thin; }
+      body.ei-sheet-lock { overflow: hidden; }
+      @media (max-width: 640px) {
+        .ei-filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .ei-filter-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; }
+        .ei-filter-fields { display: none; }
+        .ei-filters.is-open .ei-filter-toggle { display: none; }
+        .ei-filters.is-open .ei-filter-fields {
+          display: flex; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: var(--sasv-space-3, 12px);
+          position: fixed; inset: 0; z-index: 60; overflow-y: auto; padding: var(--sasv-space-4, 16px);
+          background: var(--mis-surface); color: var(--mis-text);
+        }
+        .ei-filters.is-open .ei-filter-sheet-head { display: flex; align-items: center; justify-content: space-between; font-size: var(--ei-fs-lg); position: sticky; top: calc(-1 * var(--sasv-space-4, 16px)); padding: var(--sasv-space-2, 8px) 0; background: var(--mis-surface); }
+        .ei-filters.is-open .ei-field { width: 100%; }
+        .ei-filters.is-open .ei-field input, .ei-filters.is-open .ei-field select { width: 100%; min-height: 44px; }
+        .ei-filters.is-open .ei-check { min-height: 44px; }
+      }
       @media (max-width: 640px) {
         .ei-filterbar { gap: 6px; }
         .ei-field { flex: 1 1 42%; }
         .ei-field select, .ei-field input { width: 100%; box-sizing: border-box; }
         .ei-filter-note { margin: 0; }
-        .ei-field input, .ei-field select, .ei-search input { min-height: 36px; font-size: 16px; }
+        .ei-field input, .ei-field select, .ei-search input { min-height: 36px; font-size: var(--ei-fs-input-phone); }
         .ei-metrics, .ei-metrics-wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .ei-dl { grid-template-columns: minmax(0, 1fr); }
         .ei-lens, .ei-overview { gap: 6px; }
@@ -1718,6 +1763,6 @@
       </div>
     </div>
 
-    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=ei-r3-1"></script>
+    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=ei-r5-1"></script>
   </body>
 </html>
