@@ -5,7 +5,6 @@ root = pathlib.Path(sys.argv[1])
 targets = [
  ("20261015165757_au2_run_governance.sql", "costing.v_costing_run_effective_designation"),
  ("20261015165757_au2_run_governance.sql", "costing.v_current_successful_costing_refresh_run"),
- ("20261019014458_w1_approved_run_feed_and_labels.sql", "costing.v_costing_period_run_status"),
 ]
 out = []
 for fn, name in targets:
@@ -14,6 +13,7 @@ for fn, name in targets:
     if not m:
         sys.exit(f"cannot extract {name} from {fn}")
     out.append(m.group(0))
+out.append((root/"docs/master-data-costing/retention/tests/live_period_status_20261125.sql").read_text())
 txt=open(root/"supabase/migrations/20261019053600_w2_governed_period_lifecycle.sql",newline="").read()
 m=re.search(r"create or replace function costing\.fn_w2_run_checks\(.*?\nend \$f\$;\n",txt,re.S|re.I)
 if not m: sys.exit("cannot extract fn_w2_run_checks")
