@@ -27,11 +27,11 @@ before(()=>{
  CREATE TABLE public.sub_categories(id integer PRIMARY KEY,category_id integer,subcategory_name text);
  CREATE TABLE public.product_groups(id integer PRIMARY KEY,sub_category_id integer,group_name text);
  CREATE TABLE public.sub_groups(id integer PRIMARY KEY,product_group_id integer,sub_group_name text);
- CREATE TABLE public.product_skus(id integer PRIMARY KEY,product_id bigint,pack_size numeric,uom text,is_active boolean,is_sample boolean,price_list_ik boolean,price_list_ok boolean);
+ CREATE TABLE public.product_skus(id bigint PRIMARY KEY,product_id bigint,pack_size numeric,uom text,is_active boolean,is_sample boolean,price_list_ik boolean,price_list_ok boolean);
  CREATE TABLE public.regions(id integer PRIMARY KEY,code text,name text);
  CREATE TABLE public.godowns(id integer PRIMARY KEY,code text,name text,region_id integer);
  CREATE FUNCTION public.normalize_key(t text) RETURNS text LANGUAGE sql IMMUTABLE AS $$SELECT lower(regexp_replace(trim(t),'[[:space:]]+',' ','g'))$$;
- CREATE TABLE public.sku_aliases(alias_text text NOT NULL,alias_key text GENERATED ALWAYS AS (lower(btrim(alias_text))) STORED PRIMARY KEY,sku_id integer REFERENCES public.product_skus(id));
+ CREATE TABLE public.sku_aliases(alias_text text NOT NULL,alias_key text GENERATED ALWAYS AS (lower(btrim(alias_text))) STORED PRIMARY KEY,sku_id bigint REFERENCES public.product_skus(id));
  CREATE TABLE public.godown_aliases(alias_text text,godown_id integer);
  CREATE TABLE public.tally_sales_vreg_snapshot(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,voucher_date date NOT NULL,tally_item_name text NOT NULL,godown_label text NOT NULL,act_qty_value numeric,bill_qty_value numeric,billed_amount_value numeric,source_key text,inserted_at timestamptz NOT NULL DEFAULT now(),UNIQUE(voucher_date,tally_item_name,godown_label));
  CREATE TABLE public.etl_jobs(id bigint,job_type text,vreg_date_extracted date,status text,finished_at timestamptz,created_at timestamptz);
@@ -71,9 +71,15 @@ before(()=>{
  assert.equal(q('select count(*) from public.mv_mis_executive_summary',sales),'1');
  // Entire ordered candidate set in one transaction, not separate commits. Literal live catalog guard
  // is deliberately not substituted with fixture hashes: production pins are checked separately.
- const order=['R3_R4_SERVER_CANDIDATE.sql','R3_MIS_ACCESS_CANDIDATE.sql','R3_R4_COVERAGE_EXTENSION.sql','R3_HISTORICAL_MEASURE_RECONCILIATION.sql','R3_FACILITY_SALES_SCOPE.sql','R3_SALES_ITEM_SCOPE_MASTER.sql','R3_UNIFIED_SALES_CLASSIFICATION.sql','R3_SALES_SCOPE_MATERIAL_BACKFILL.sql','R3_SALES_MTD_PARITY.sql','R3_R4_FINAL_PARITY_CANDIDATE.sql'];
- const sql=order.map(n=>fs.readFileSync(new URL('../../../docs/executive-mis-g7-server/'+n,import.meta.url),'utf8').replace(/^\s*(?:BEGIN|COMMIT);\s*$/gm,'')).join('\n');
- q('BEGIN;\n'+sql+'\nCOMMIT;');
+ // Replay the exact registered artifacts; only production fingerprint guard is replaced by the typed-fixture baseline.
+ const migrations=['20261126102211_executive_intelligence_r3_r4_reporting_parity.sql','20261126103241_executive_intelligence_product_rows_type_fix.sql','20261126103624_executive_intelligence_facility_latency_fix.sql'];
+ q("CREATE SCHEMA supabase_migrations; CREATE TABLE supabase_migrations.schema_migrations(version text PRIMARY KEY,name text);");
+ for(const n of migrations){
+  let sql=fs.readFileSync(new URL('../../migrations/'+n,import.meta.url),'utf8');
+  if(n.startsWith('20261126102211')){const guard=fs.readFileSync(new URL('../../../docs/executive-mis-g7-server/R3_MIS_ACCESS_INSTALL_GUARD.sql',import.meta.url),'utf8').trim();if(!sql.includes(guard))throw Error('guard identity drift');sql=sql.replace(guard,'-- Production-only fingerprint guard verified independently.');}
+  q(sql);
+  q("INSERT INTO supabase_migrations.schema_migrations VALUES('"+n.slice(0,14)+"','"+n.slice(15,-4)+"');");
+ }
 });
 after(()=>pg?.stop());
 test('exact candidate preserves executive outputs',()=>assert.deepEqual(snapshot(exec),old));
