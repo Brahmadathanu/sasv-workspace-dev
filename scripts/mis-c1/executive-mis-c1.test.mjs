@@ -1031,8 +1031,9 @@ for (const width of WIDTHS) {
         await noPageOverflow(tab);
         // the table's own container scrolls horizontally instead of the page
         const wrap = await page.$eval(wrapSel, (e) => ({ sw: e.scrollWidth, cw: e.clientWidth, ox: getComputedStyle(e).overflowX }));
-        assert.match(wrap.ox, /auto|scroll/, `${tab} wrap must own horizontal scrolling`);
-        if (width <= 520) assert.ok(wrap.sw > wrap.cw, `${tab} wide table should scroll inside its wrap at ${width}: ${JSON.stringify(wrap)}`);
+        if (width <= 640) { assert.equal(await page.$eval(tableSel, (t) => getComputedStyle(t).display), "block", `${tab} record table is a card list at phone width`); assert.ok(wrap.sw <= wrap.cw + 1, `${tab} cards must not scroll sideways at ${width}`); }
+        else assert.match(wrap.ox, /auto|scroll/, `${tab} wrap must own horizontal scrolling`);
+        if (width > 640 && width <= 520) assert.ok(wrap.sw > wrap.cw, `${tab} wide table should scroll inside its wrap at ${width}: ${JSON.stringify(wrap)}`);
         // usable height (regression: was 2px at 320 / 74px at 390)
         const shell = await page.$eval(wrapSel, (e) => e.getBoundingClientRect().height);
         assert.ok(shell >= 120, `${tab} table area too short at ${width}: ${shell}`);

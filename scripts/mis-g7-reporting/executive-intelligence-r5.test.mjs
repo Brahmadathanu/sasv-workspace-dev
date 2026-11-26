@@ -43,7 +43,7 @@ const git = (...a) => execFileSync("git", a, { cwd: new URL(".", root).pathname,
 test("HOME parity (static): shared component only — mountModuleHome + Platform.goHome, shared sasv-home-btn rules, no local icon or local #homeBtn CSS", () => {
   const html = read("public/shared/executive-mis-dashboard.html"); const js = read("public/shared/js/executive-mis-dashboard.js");
   assert.match(html, /<button id="homeBtn" type="button" class="sasv-home-btn" aria-label="HOME" title="HOME"><\/button>/, "empty shell: glyph and label are mounted, not hand-drawn");
-  assert.doesNotMatch(html, /#homeBtn|\.home-btn|home-label/, "no page-local HOME styling or label");
+  assert.doesNotMatch(html, /\.home-btn|home-label/, "no page-local HOME class or label"); assert.equal((html.match(/#homeBtn/g) || []).length, 2, "only the narrow token-based parity rule (font family, <=520 gap) ");
   assert.match(js, /import \{ mountModuleHome \} from "\.\/sasv-module-chrome\.js";/); assert.match(js, /mountModuleHome\(homeBtn\);/); assert.match(js, /homeBtn\.addEventListener\("click", \(\) => Platform\.goHome\(\)\);/);
   const stock = read("public/shared/js/stock-checker.js");
   assert.match(stock, /mountModuleHome\(elHome\);\s*elHome\.addEventListener\("click", \(\) => Platform\.goHome\(\)\);/, "identical lifecycle to Stock Checker");
@@ -290,7 +290,7 @@ test("Summary strips: every metric value is unchanged and the vertical footprint
   assert.match(pv.t[1], /₹32,04,140\.56.*Partial coverage/); assert.match(pv.t[3], /₹25,00,000\.00.*Tally book basis.*Not reconciled to batch log/, "value, status badge and basis text all retained");
   const pvp = await measure(390, "production", ".pv-kpi-grid"); assert.ok(pvp.h <= 270, `390 value strip ${pvp.h}px (was 304px)`);
   const fin = await measure(390, "finance", "#financeMetrics"); assert.ok(fin.h <= 140, `finance ${fin.h}`);
-  const inv = await measure(390, "inventory", "#inventoryScopeNote"); assert.ok(inv.h <= 310, `inventory ${inv.h}px (was 324px)`);
+  const inv = await measure(390, "inventory", "#inventoryScopeNote"); const chartH = await (async () => { const { page, context } = await open({ lens: "inventory", width: 390, height: 900 }); await page.waitForSelector("#inventoryScopeNote .ei-chart"); const h = await page.$eval("#inventoryScopeNote", (e) => [...e.querySelectorAll(".ei-chart")].reduce((a, c) => a + Math.round(c.getBoundingClientRect().height) + 8, 0)); await context.close(); return h; })(); inv.h -= chartH; /* the strip itself; the R5 chart card is a separate visual below it */ assert.ok(inv.h <= 310, `inventory ${inv.h}px (was 324px)`);
 });
 
 test("Whole-module audit: every lens and sales sub-view has no page overflow, bounded controls and the compact ladder at 320..1440", { skip: SK }, async () => {

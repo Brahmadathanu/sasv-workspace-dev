@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en-GB" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -87,6 +87,11 @@
           Arial,
           sans-serif;
       }
+
+      /* HOME parity with Stock Checker: fill/border/colour come from the shared home tokens (html[data-sasv-theme] above).
+         Stock Checker's body class also sets the shared sans family and a zero icon gap at <=520px; mirrored here, tokens only. */
+      #homeBtn.sasv-home-btn { font-family: var(--sasv-font-sans, Inter, "Segoe UI", Roboto, Arial, sans-serif); }
+      @media (max-width: 520px) { #homeBtn.sasv-home-btn { gap: 0; } }
 
       body {
         font-size: var(--ei-fs-sm); /* compact ERP default: nothing inherits an unspecified 16px */
@@ -1697,6 +1702,65 @@
         .ei-metric-group-title { margin-bottom: 2px; }
         .ei-metric-groups { gap: 4px; }
       }
+
+      /* EI-R5 final: visual intelligence (tokens only; every mark has text beside it, never colour alone) */
+      .ei-chart { margin: 8px 0 0; padding: 8px 10px; border: 1px solid var(--mis-divider); border-radius: var(--sasv-radius-md, 8px); background: var(--mis-surface); display: grid; gap: 6px; min-width: 0; }
+      .ei-chart-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 10px; }
+      .ei-chart-title { font-size: var(--ei-fs-xs); font-weight: 700; color: var(--mis-text); }
+      .ei-chart .ei-bars { margin: 0; }
+      .ei-chart .ei-bars-note { margin: 0; }
+      .ei-bar-label { overflow-wrap: anywhere; }
+      .ei-bar-gap .ei-bar-track { border-style: dashed; background: transparent; }
+      .ei-bar-gap .ei-bar-value { font-weight: 600; color: var(--mis-muted); white-space: normal; text-align: right; }
+      .ei-net-line { margin-top: 6px; font-size: var(--ei-fs-xs); color: var(--mis-text-secondary); }
+      .ei-subset { display: grid; grid-template-columns: minmax(80px, 1fr) auto; align-items: center; gap: 8px; font-size: var(--ei-fs-xs); color: var(--mis-text-secondary); }
+      .ei-subset-track { height: 10px; border-radius: var(--sasv-radius-pill, 999px); border: 1px solid var(--mis-border); background: var(--mis-accent-soft); overflow: hidden; display: block; }
+      .ei-subset-part { display: block; height: 100%; background: repeating-linear-gradient(135deg, var(--mis-warning) 0 4px, transparent 4px 7px); border-right: 2px solid var(--mis-warning); }
+      .ei-subset-text { font-weight: 700; color: var(--mis-text); }
+      .ei-seg { display: flex; height: 12px; border-radius: var(--sasv-radius-pill, 999px); overflow: hidden; border: 1px solid var(--mis-border); background: var(--mis-surface-soft); }
+      .ei-seg-part { min-width: 3px; display: block; border-right: 1px solid var(--mis-surface); }
+      .ei-seg-a { background: repeating-linear-gradient(45deg, var(--mis-muted) 0 2px, transparent 2px 5px); }
+      .ei-seg-b { background: var(--mis-info); }
+      .ei-seg-c { background: var(--mis-warning); }
+      .ei-seg-d { background: var(--mis-accent); }
+      .ei-seg-legend { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: var(--ei-fs-xs); color: var(--mis-text-secondary); }
+      .ei-seg-key { display: inline-block; width: 10px; height: 10px; margin-right: 5px; border-radius: 2px; border: 1px solid var(--mis-border); vertical-align: -1px; }
+      .ei-cols { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 3px; }
+      .ei-col { display: grid; gap: 3px; min-width: 0; border-radius: 4px; }
+      .ei-col:focus-visible { outline: 2px solid var(--mis-focus-ring); outline-offset: 1px; }
+      .ei-col-plot { position: relative; display: block; height: 76px; border-bottom: 1px solid var(--mis-border); background: var(--mis-surface-soft); border-radius: 3px 3px 0 0; }
+      .ei-col-bar { position: absolute; left: 12%; right: 12%; background: var(--mis-accent); border-radius: 2px 2px 0 0; }
+      .ei-col-neg { background: var(--mis-danger); }
+      .ei-col-partial { background: repeating-linear-gradient(135deg, var(--mis-accent) 0 3px, var(--mis-accent-soft) 3px 6px); outline: 1px dashed var(--mis-accent); }
+      .ei-col-gap { position: absolute; inset: auto 0 4px; text-align: center; font-size: var(--ei-fs-2xs); color: var(--mis-muted); }
+      .ei-col-missing .ei-col-plot { border-bottom-style: dashed; background: transparent; }
+      .ei-col-label { text-align: center; font-size: var(--ei-fs-2xs); color: var(--mis-muted); white-space: nowrap; overflow: hidden; }
+      .ei-trend-summary { font-size: var(--ei-fs-xs); color: var(--mis-text-secondary); overflow-wrap: anywhere; }
+      .ei-grid-hint { display: none; }
+      @media (max-width: 640px) {
+        .ei-chart { padding: 6px 8px; }
+        .ei-col-plot { height: 60px; }
+        .ei-col-label { font-size: var(--ei-fs-2xs); }
+        .ei-subset { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+        .ei-grid-hint { display: block; }
+        .ei-table-wrap:has(.ei-grid) { box-shadow: inset -10px 0 8px -8px var(--mis-border); }
+      }
+
+      /* EI-R5 final: record cards. Phone breakpoint <= 640px (the module's existing phone breakpoint). Same rows and handlers; CSS only.
+         Month grids (.ei-grid) are real matrices and keep contained horizontal scrolling. */
+      @media (max-width: 640px) {
+        table.ei-cards, table.ei-cards tbody { display: block; width: 100%; min-width: 0 !important; }
+        table.ei-cards thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+        table.ei-cards tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; padding: 7px 10px; border-bottom: 1px solid var(--mis-divider); }
+        table.ei-cards tbody tr:hover { background: transparent; }
+        table.ei-cards td { display: block; min-width: 0; padding: 0; border: 0; text-align: left !important; overflow: visible; white-space: normal; overflow-wrap: anywhere; font-size: var(--ei-fs-xs); }
+        table.ei-cards td[data-label]:not([data-card-primary])::before { content: attr(data-label); display: block; font-size: var(--ei-fs-2xs); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--mis-muted); }
+        table.ei-cards td[data-card-primary] { grid-column: 1 / -1; order: -1; font-size: var(--ei-fs-sm); font-weight: 700; color: var(--mis-text); }
+        table.ei-cards td[data-label=""], table.ei-cards td.ei-activity { grid-column: 1 / -1; }
+        .ei-table-wrap, .finance-table-wrap, .sales-table-wrap, .inventory-table-wrap, .fg-table-wrap { overflow-x: hidden; }
+        .ei-table-wrap:has(.ei-grid) { overflow-x: auto; }
+        .finance-modal table.ei-cards tbody tr, table.ei-cards tbody tr[tabindex]:focus-visible { outline-offset: -2px; }
+      }
     </style>
   </head>
   <body>
@@ -1835,6 +1899,6 @@
       </div>
     </div>
 
-    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=ei-r6-1"></script>
+    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=ei-r7-1"></script>
   </body>
 </html>

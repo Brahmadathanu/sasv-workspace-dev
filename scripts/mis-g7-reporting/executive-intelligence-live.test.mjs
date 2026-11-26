@@ -135,7 +135,7 @@ test("static: typography is one token ladder; no hardcoded font sizes, palette o
   const root = style.slice(style.indexOf("Executive Intelligence typography scale"));
   for (const t of ["--ei-fs-2xs", "--ei-fs-xs", "--ei-fs-sm", "--ei-fs-md", "--ei-fs-lg", "--ei-fs-title", "--ei-fs-input-phone"]) assert.match(root, new RegExp(`${t}:`));
   assert.match(root, /--ei-fs-title: 1\.125rem/); assert.match(root, /--ei-fs-input-phone: 16px/);
-  assert.doesNotMatch(html, /#homeBtn|home-label/, "HOME styling and label come only from the shared component (mountModuleHome + shared sasv-home-btn rules)");
+  assert.doesNotMatch(html, /home-label/, "HOME label comes only from the shared component"); assert.equal((html.match(/#homeBtn/g) || []).length, 2, "only the narrow token-based parity rule (shared sans family; zero icon gap at <=520px), no page-local HOME fill/border/size");
   assert.match(read("public/shared/js/executive-mis-dashboard.js"), /import \{ supabase \}/);
 });
 
