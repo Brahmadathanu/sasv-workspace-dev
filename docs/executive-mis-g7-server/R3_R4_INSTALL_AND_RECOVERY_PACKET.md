@@ -1,0 +1,20 @@
+# R3/R4 atomic installation and forward recovery — owner gated
+
+Prepared from 7bc3190d49f7d12807db6ba705be49cbc4eb216e. No production mutation authorized by this packet.
+
+Artifact: `R3_R4_ATOMIC_INSTALL_NOT_APPLIED.sql`. Source pins: `R3_R4_ATOMIC_INSTALL_MANIFEST.json`. Proposed identity 20261126153000_executive_intelligence_r3_r4_reporting_parity (reserve only after checking live history and main; do not register an unapplied migration).
+
+## Before installation
+Verify clean production catalog and latest migration history, R1 20261125152054 remains installed; confirm exact final artifact blob, CI and guard. Confirm no conflicting EI objects or classification target; verify 34 owner scope labels and 15 RM seed mappings against current canonical source. Do not replay R1 or eleven historical SKU aliases. Check protected shared sales sources, refresh job 17, operational grants and AUDIT boundary; capture definition/ACL/owner fingerprints and executive output baselines. Obtain explicit owner authorization for the exact artifact. Never deploy via an unreviewed concatenation.
+
+## Install
+Run exact artifact once with stop-on-error in one transaction under migration owner. No manual splitting, no CASCADE, no timeout escalation for reporting RPCs. Guard immediately precedes legacy access replacement. Any error rolls back entire installation. Verify actual transaction success before registering the exact identity and artifact in migration history using the supported migration path; if registration and execution are not atomic, reconcile installed definitions before any retry. Never replay on ambiguous response. Preserve existing history. Promote exact SQL to canonical migration path only after identity and execution mechanism are confirmed; do not allow automatic deployment from this draft.
+
+## Post-install acceptance
+Check 49 seed events (34 scope + 15 RM), zero classification assignments, no authenticated direct DML, anonymous denial, all 15 legacy reporting views and four legacy RPC denial for sales-only users, private executive MV direct SELECT denied and authorized wrapper intact. Verify executive output parity, sales-only MTD, hierarchy, coverage, facility totals (including independent godown/missing diagnostics), effective-dated scope, page-bounded export, cron status, actual bounded RPC latency under existing timeout. Reconcile 12-month figures against live raw source; data may legitimately have changed. Verify upstream shared normalized/monthly definitions, ACLs, refresh job and operational controls unchanged. Record actual installed hashes and migration identity. Authenticated PWA acceptance before Electron. No Sales Viewer retirement until replacement accepted.
+
+## Forward recovery
+Before commit: abort transaction. After commit: do not replay or restore insecure legacy definitions. Keep existing access remediation, private summary denial, canonical sources and classification decisions; hold client release and legacy viewer retirement. If new contracts malfunction, withdraw EXECUTE/SELECT only for affected new reporting entry points after exact dependency and ACL review, leaving legacy executive reporting and existing Sales Viewer available; preserve classification events and permission target. Prepare a separately reviewed forward-only migration against installed fingerprints, re-run affected regression, obtain owner approval. No DROP CASCADE, no R1 recovery replay, no history deletion, no re-grant of leaked executive data. If registration fails after successful DDL, reconcile actual installed definitions and record exact migration without executing DDL again.
+
+## Residual gates
+Combined synthetic replay uses exact legacy reporting definitions and typed upstream shims; production catalog guard is separately live-verified. Exact PG17.4 installed behavior and concurrent performance are post-install acceptance requirements. Client PR #541 integration, compact typography, sales-only launcher, actual PWA acceptance, Electron release, R6 exclusive-object retirement, R7 closure and remaining frozen-planning/finalization obligations remain open. G7 7/11; R0–R7 formal 0/8; G8 parked.
