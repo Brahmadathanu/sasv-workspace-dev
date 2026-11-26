@@ -10,9 +10,9 @@ export const EI_CLIENT_BLOBS = Object.freeze({
 // R5 owner-directed UX harmonisation; only three exact page-local client blobs.
 export const EI_R5_BRANCH = "fix/executive-intelligence-r5-production-ux";
 export const EI_R5_CLIENT_BLOBS = Object.freeze({
-  "public/shared/executive-mis-dashboard.html": "ec5898296d58d6cafa20ac4daeb0f73e49987419",
-  "public/shared/js/executive-mis-dashboard.js": "fc2156e0120ce41a499a809e9bfdd9c70cdc2abc",
-  "public/shared/js/executive-intelligence-model.js": "6fb6a085b5b5dfa7c7712990b356a0670d096dc3"
+  "public/shared/executive-mis-dashboard.html": "9b79bb69676694195dfe9adb7cfcff19088be9d8",
+  "public/shared/js/executive-mis-dashboard.js": "22a5f593ba09c986a539ee1dfa00d56265ae5140",
+  "public/shared/js/executive-intelligence-model.js": "5528eebcdad9a546eb8fa4f639cca233f4324b47"
 });
 export const EI_REGISTRY_BASE = "f78f3ba6d1a403cf4b588afc5d285f48df962361";
 export function eiClientApproved(path, branch, committedBlob, workingBlob) {
