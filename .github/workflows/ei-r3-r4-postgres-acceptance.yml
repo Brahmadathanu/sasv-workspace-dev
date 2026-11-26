@@ -1,0 +1,54 @@
+name: EI R3 R4 PostgreSQL acceptance
+on:
+  pull_request:
+    paths:
+      - 'docs/executive-mis-g7-server/R3*.sql'
+      - 'supabase/tests/mis_g7/ei_r3_r4*.mjs'
+      - 'supabase/tests/mis_g7/ei_access_live_catalog_fixture.sql'
+      - 'supabase/tests/mis_g7/pg_harness.mjs'
+      - '.github/workflows/ei-r3-r4-postgres-acceptance.yml'
+  push:
+    branches: [fix/executive-intelligence-r1-server]
+    paths:
+      - 'docs/executive-mis-g7-server/R3*.sql'
+      - 'supabase/tests/mis_g7/ei_r3_r4*.mjs'
+      - 'supabase/tests/mis_g7/ei_access_live_catalog_fixture.sql'
+      - '.github/workflows/ei-r3-r4-postgres-acceptance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: [16, 17]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install PostgreSQL
+        env:
+          PG_MAJOR: ${{ matrix.pg }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y "postgresql-${PG_MAJOR}"
+          echo "PG_BIN=/usr/lib/postgresql/${PG_MAJOR}/bin" >> "$GITHUB_ENV"
+      - name: Require local binaries
+        run: |
+          test -x "$PG_BIN/initdb"
+          "$PG_BIN/postgres" --version
+      - name: Initial and extended tests
+        run: |
+          set -o pipefail
+          node --test supabase/tests/mis_g7/ei_r3_r4_pg.test.mjs supabase/tests/mis_g7/ei_r3_r4_extended_pg.test.mjs supabase/tests/mis_g7/ei_r3_r4_access_pg.test.mjs | tee ei-pg-results.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ei-pg-${{ matrix.pg }}
+          path: ei-pg-results.txt

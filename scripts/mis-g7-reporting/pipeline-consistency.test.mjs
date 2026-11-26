@@ -26,21 +26,26 @@ const init = () => {
 };
 const kpi = (page, title) => page.$$eval(".kpi-card", (cs, t) => { const c = cs.find((x) => x.querySelector(".kpi-title")?.textContent.trim() === t); return c ? c.querySelector(".kpi-value").textContent.trim() : null; }, title);
 const lens = (page, title) => page.$$eval(".production-summary-card", (cs, t) => { const c = cs.find((x) => x.querySelector(".production-summary-title")?.textContent.trim() === t); return c ? c.querySelector(".production-summary-value").textContent.trim() : null; }, title);
-const open = (o) => openDashboard(browser, srv.base, { init, ...o });
+const open = (o) => openDashboard(browser, srv.base, { init, lens: "overview", ...o });
+const goOverview = async (page) => { await page.click('[data-tab="overview"]'); await page.waitForSelector(".ei-overview .kpi-card"); };
 const goProduction = async (page) => { await page.click('[data-tab="production"]'); await page.waitForSelector("#productionCounts .production-summary-card"); };
 const triple = (page) => Promise.all([kpi(page, "Active Pipeline Batches"), kpi(page, "Work in Process Batches"), kpi(page, "Overdue Work in Process Batches")]);
 const lensTriple = (page) => Promise.all([lens(page, "Active Pipeline Batches"), lens(page, "Work in Process Batches"), lens(page, "Overdue WIP Batches")]);
 
-test("headline cards equal the Production lens (live 315/96/70), not the stale snapshot (315/92/84), with exactly ONE live request", { skip: SK }, async () => {
+test("Overview indicators equal the Production lens (live 315/96/70), not the stale snapshot (315/92/84), with exactly ONE live request", { skip: SK }, async () => {
   const { page } = await open();
-  assert.deepEqual(await triple(page), ["315", "96", "70"]);
+  const overview = await triple(page);
+  assert.deepEqual(overview, ["315", "96", "70"]);
   await goProduction(page);
   assert.deepEqual(await lensTriple(page), ["315", "96", "70"]);
-  assert.deepEqual(await triple(page), await lensTriple(page));
+  assert.deepEqual(overview, await lensTriple(page), "Overview and the Production lens show the same live response");
   assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 1, "tab entry reuses the shared live response");
   assert.equal((await calls(page, "mv_mis_executive_summary")).length, 1);
   await page.click('[data-tab="finance"]'); await page.click('[data-tab="production"]'); await page.waitForSelector("#productionCounts .production-summary-card");
   assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 1, "switching tabs does not duplicate the live request");
+  await goOverview(page);
+  assert.deepEqual(await triple(page), ["315", "96", "70"]);
+  assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 1, "returning to the Overview does not duplicate it either");
   await page.context().close();
 });
 
@@ -61,14 +66,24 @@ test("Refresh: one new live request, both views move together; failure shows Una
   await page.click("#refreshBtn");
   await page.waitForSelector("#productionCounts .pv-state.error");
   assert.match(await page.textContent("#productionCounts"), /pipeline boom/);
+  await goOverview(page);
   assert.deepEqual(await triple(page), ["Unavailable", "Unavailable", "Unavailable"]);
   assert.ok(!/\b84\b|\b92\b/.test(await page.textContent("#kpiGrid")), "snapshot figures are never substituted");
-  assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 2, "one request for the first load, one for the refresh (failed)");
+  assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 3, "first load, the refresh (failed), and one retry on re-entering a lens after a failure (also failed)");
+  await page.evaluate(() => { window.__mis.pipe.mode = "ok"; });
+  await page.click('[data-tab="production"]');                       // tab entry after a failure is itself a retry
+  await page.waitForSelector("#productionCounts .production-summary-card");
+  assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 4);
+  assert.deepEqual(await lensTriple(page), ["315", "96", "70"]);
+  await goOverview(page);
+  assert.deepEqual(await triple(page), ["315", "96", "70"]);
+  await page.evaluate(() => { window.__mis.pipe.mode = "fail"; });
+  await page.click("#refreshBtn");
+  await page.click('[data-tab="production"]'); await page.waitForSelector("#productionCounts .pv-state.error");
   await page.evaluate(() => { window.__mis.pipe.mode = "ok"; });
   await page.click('[data-mis-retry="production-counts"]');
   await page.waitForSelector("#productionCounts .production-summary-card");
-  assert.equal((await calls(page, "v_mis_batch_pipeline")).length, 3);
-  assert.deepEqual(await triple(page), ["315", "96", "70"]); assert.deepEqual(await lensTriple(page), ["315", "96", "70"]);
+  assert.deepEqual(await lensTriple(page), ["315", "96", "70"]);
   await page.context().close();
 });
 
@@ -87,6 +102,7 @@ test("latest-request-wins: a late older pipeline response never overwrites a new
   await page.evaluate((v) => window.__mis.pipe.q[0].resolve(v), PIPE(111, 1, 1));  // stale A arrives late
   await page.waitForTimeout(250);
   assert.deepEqual(await lensTriple(page), ["400", "50", "5"]);
+  await goOverview(page);
   assert.deepEqual(await triple(page), ["400", "50", "5"]);
   await page.context().close();
 });
