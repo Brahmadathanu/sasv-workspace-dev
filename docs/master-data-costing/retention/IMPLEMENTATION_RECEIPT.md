@@ -3,7 +3,16 @@
 **State: candidates + tests only. NOT deployed, NOTHING purged, no cron, no release, PR #491 draft/unmerged, #539 open.**
 
 ## 26 Nov 2026 continuation (R3 integration, R4 dependency engineering, R7 retirement)
-Start: tested checkpoint `8d3570d` (assignment commit `de62058`). Final code head and CI links are recorded in the PR #491 comment and the "Evidence" table below (filled from the actual runs; earlier green runs are not transferred to the new head).
+Start: tested checkpoint `8d3570d` (assignment commit `de62058`). **Code head `40fc3d2`; later commits are documentation only.**
+
+### Evidence (this head; earlier green runs are not transferred)
+| Evidence | Result |
+|---|---|
+| PG17 `retention-pg17` job, run [45793781270](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/runs/45793781270) (job 139819109969) | **success**, `server_version=17.12`, `RETENTION_PG_ALL_PASS count=23`, all 5 fidelity pins true (pointer view, effective-designation view, period-status view, terminal guard, designated guard), new Node suites 26/26 |
+| `client-regression` job (full history), same run, job 139819110564 | **success**: new suites 26/26; touched existing suites: failing at head 2 = failing at the pre-R3/R7 checkpoint 2 (same two, pre-existing: `sec-a2-strip` "shell: the single injected permission line…" and `review-worklist` "protected files unchanged…" — both fail identically on `8d3570d`); **no new failure** |
+| Existing workflows on this head | WP05 offline costing regression [45793781…](https://github.com/Brahmadathanu/sasv-workspace-dev/actions/workflows) **success** (it had failed on `337cc42` because a historical shell-baseline test saw the R3/R7 hunks; fixed in `40fc3d2` by `scripts/lib/retention-r3r7-strip.mjs`, byte-verified against `8d3570d`), WP05 W5-06 confidentiality **success**, S3L PG17 **success**, S3R Windows **success**; WP12 eleven-flag Chromium matrix, PEC integrated browser and S3F/S3G were still running when this was written (WP12 matrix was **success** on `337cc42`) |
+| Local real-Chromium fixtures | cross-links 5/5 (2 retirement tests), nav-groups-browser 12/12, flag-sweep-browser 21/21 |
+| Local PG16.15 | `tests/run_all.sh` exit 0, 23 PASS (`evidence/PG16_LOCAL_RECEIPT_2026-11-26.txt`) |
 
 ### Delivered
 | Area | What | Where |
@@ -18,8 +27,8 @@ Start: tested checkpoint `8d3570d` (assignment commit `de62058`). Final code hea
 ### Regression results (this branch)
 * Local PG16.15, `tests/run_all.sh`: exit 0, **23 PASS**, all fidelity pins true (receipt `evidence/PG16_LOCAL_RECEIPT_2026-11-26.txt`). PG17.12 is the CI evidence (below).
 * Node: `scripts/costing-retention/*.test.mjs` **24/24**.
-* Existing suites touched by the retirement/guard: **no new failures versus the base checkout** (same failure set before/after in 11 suites: 38 failures present on the base checkout in this shallow clone — several suites read earlier commits; a full-history CI job `client-regression` reports their true status).
-* Real Chromium fixtures: cross-links 5/5 (incl. 2 retirement tests), nav-groups and flag-sweep suites updated deliberately (30→29 non-PPM lenses, 32→31 total) — results in the PR comment.
+* Existing suites touched by the retirement/guard: **no new failure versus the pre-R3/R7 checkpoint** with full history (2 pre-existing failures identical at both; the earlier "38" count came from the shallow clone and is withdrawn).
+* Real Chromium fixtures: cross-links 5/5 (incl. 2 retirement tests), nav-groups-browser 12/12, flag-sweep-browser 21/21 (counts updated deliberately 30→29 non-PPM lenses, 32→31 total).
 * Deliberate expectation changes (not loosened): lens counts, `scheme-comparison` ownership, CSR subtitle, approval screen RPC allow-list (+2 retention RPCs, forbidden list unchanged).
 
 ### Genuine outstanding blockers (production-only or live-evidence)
