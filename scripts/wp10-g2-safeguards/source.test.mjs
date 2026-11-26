@@ -12,7 +12,7 @@ import { rejectedProtectedPaths, REVIEWED_MIS_G7_FILES } from "../lib/pec-protec
 import { misG7ClientFileApproved, misG7PinnedFileApproved } from "./mis-g7-reporting-approved-delta.mjs";
 import { pmBomDeltaApproved, normaliseApprovedSwDelta, WP11_PM_BOM_PATH } from "./wp11-approved-delta.mjs";
 
-import { eiClientApproved, eiRegistryApproved, EI_BRANCH, EI_CLIENT_BLOBS, EI_REGISTRY_BASE, eiServerApproved, EI_SERVER_BLOBS } from "./ei-approved-delta.mjs";
+import { eiClientApproved, eiRegistryApproved, EI_BRANCH, EI_CLIENT_BLOBS, EI_REGISTRY_BASE, EI_R5_BRANCH, EI_R5_CLIENT_BLOBS, eiServerApproved, EI_SERVER_BLOBS } from "./ei-approved-delta.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
@@ -163,3 +163,5 @@ test("EI owner-approved delta rejects unreviewed blobs, branches, paths and base
 });
 
 test("EI registered migration and fixture permits reject drift and other branches",()=>{for(const [f,blob] of Object.entries(EI_SERVER_BLOBS)){assert.ok(eiServerApproved(f,EI_BRANCH,blob,blob));assert.equal(eiServerApproved(f,EI_BRANCH,blob,"dirty"),false);assert.equal(eiServerApproved(f,"other",blob,blob),false);}assert.equal(eiServerApproved("public/sw.js",EI_BRANCH,"x","x"),false);});
+
+test("EI R5 exact page-local blob permits reject drift, old branch, and registry or server changes",()=>{for(const [f,blob] of Object.entries(EI_R5_CLIENT_BLOBS)){assert.ok(eiClientApproved(f,EI_R5_BRANCH,blob,blob));assert.equal(eiClientApproved(f,EI_R5_BRANCH,blob,"dirty"),false);assert.equal(eiClientApproved(f,EI_BRANCH,blob,blob),false);}assert.equal(eiClientApproved("public/shared/js/module-registry.js",EI_R5_BRANCH,EI_CLIENT_BLOBS["public/shared/js/module-registry.js"],EI_CLIENT_BLOBS["public/shared/js/module-registry.js"]),false);assert.equal(eiServerApproved(Object.keys(EI_SERVER_BLOBS)[0],EI_R5_BRANCH,Object.values(EI_SERVER_BLOBS)[0],Object.values(EI_SERVER_BLOBS)[0]),false);});

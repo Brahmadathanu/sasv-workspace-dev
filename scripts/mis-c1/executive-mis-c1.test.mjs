@@ -1031,8 +1031,9 @@ for (const width of WIDTHS) {
         await noPageOverflow(tab);
         // the table's own container scrolls horizontally instead of the page
         const wrap = await page.$eval(wrapSel, (e) => ({ sw: e.scrollWidth, cw: e.clientWidth, ox: getComputedStyle(e).overflowX }));
-        assert.match(wrap.ox, /auto|scroll/, `${tab} wrap must own horizontal scrolling`);
-        if (width <= 520) assert.ok(wrap.sw > wrap.cw, `${tab} wide table should scroll inside its wrap at ${width}: ${JSON.stringify(wrap)}`);
+        if (width <= 640) { assert.equal(await page.$eval(tableSel, (t) => getComputedStyle(t).display), "block", `${tab} record table is a card list at phone width`); assert.ok(wrap.sw <= wrap.cw + 1, `${tab} cards must not scroll sideways at ${width}`); }
+        else assert.match(wrap.ox, /auto|scroll/, `${tab} wrap must own horizontal scrolling`);
+        if (width > 640 && width <= 520) assert.ok(wrap.sw > wrap.cw, `${tab} wide table should scroll inside its wrap at ${width}: ${JSON.stringify(wrap)}`);
         // usable height (regression: was 2px at 320 / 74px at 390)
         const shell = await page.$eval(wrapSel, (e) => e.getBoundingClientRect().height);
         assert.ok(shell >= 120, `${tab} table area too short at ${width}: ${shell}`);
@@ -1109,10 +1110,11 @@ for (const width of WIDTHS) {
       assert.equal(await page.$eval("#financeModalOverlay", (e) => e.classList.contains("hidden")), true);
 
       // HOME convention: label on desktop, SVG-only at <= 520px; accessible name preserved either way
-      const home = await page.$eval("#homeBtn", (b) => ({ label: getComputedStyle(b.querySelector(".home-label")).display, aria: b.getAttribute("aria-label"), svg: !!b.querySelector("svg"), h: b.getBoundingClientRect().height, w: b.getBoundingClientRect().width }));
-      assert.equal(home.svg, true); assert.equal(home.aria, "Home");
-      assert.equal(home.label === "none", width <= 520, `HOME label display at ${width}: ${home.label}`);
-      if (width <= 640) assert.ok(home.h >= 34 && home.w >= 34, `HOME target ${home.h}x${home.w}`);
+      // R5: HOME is the shared Stock Checker component (mountModuleHome + shared sasv-home-btn rules): the label is visually hidden (clipped), not display:none.
+      const home = await page.$eval("#homeBtn", (b) => { const l = b.querySelector(".home-label"); const cs = getComputedStyle(l); return { hidden: cs.position === "absolute" && parseFloat(cs.width) <= 1, aria: b.getAttribute("aria-label"), title: b.getAttribute("title"), svg: !!b.querySelector("svg"), h: b.getBoundingClientRect().height, w: b.getBoundingClientRect().width }; });
+      assert.equal(home.svg, true); assert.equal(home.aria, "HOME"); assert.equal(home.title, "HOME");
+      assert.equal(home.hidden, width <= 520, `HOME label visually hidden at ${width}: ${home.hidden}`);
+      if (width <= 640) assert.ok(home.h >= 34 && home.w >= 30, `HOME target ${home.h}x${home.w} (shared Stock Checker dimensions)`);
       await page.evaluate(() => window.scrollTo(0, 0));
       for (const r of await rects(".header-actions > *")) assert.ok(r.r <= vw + 0.5 && r.l >= 0, `header action clipped ${JSON.stringify(r)}`);
 

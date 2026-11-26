@@ -135,8 +135,7 @@ test("static: typography is one token ladder; no hardcoded font sizes, palette o
   const root = style.slice(style.indexOf("Executive Intelligence typography scale"));
   for (const t of ["--ei-fs-2xs", "--ei-fs-xs", "--ei-fs-sm", "--ei-fs-md", "--ei-fs-lg", "--ei-fs-title", "--ei-fs-input-phone"]) assert.match(root, new RegExp(`${t}:`));
   assert.match(root, /--ei-fs-title: 1\.125rem/); assert.match(root, /--ei-fs-input-phone: 16px/);
-  assert.match(html, /@media \(max-width: 520px\)[^}]*\{\s*#homeBtn \.home-label/s, "HOME label hidden (icon only) at <=520px");
-  assert.match(html, /<span class="home-label">HOME<\/span>/);
+  assert.doesNotMatch(html, /home-label/, "HOME label comes only from the shared component"); assert.equal((html.match(/#homeBtn/g) || []).length, 2, "only the narrow token-based parity rule (shared sans family; zero icon gap at <=520px), no page-local HOME fill/border/size");
   assert.match(read("public/shared/js/executive-mis-dashboard.js"), /import \{ supabase \}/);
 });
 
@@ -151,10 +150,10 @@ test("static: Sales-only isolation is enforced in the client as defence in depth
 });
 
 test("protected files: PEC, PWL, Costing, e-Aushadhi, migrations, workflows and Electron are untouched by this package", () => {
-  const base = process.env.EI_PROTECTED_BASE || "origin/fix/executive-intelligence-r1-server";
+  const base = process.env.EI_PROTECTED_BASE || "ee49e3301ec5138f39cf925c64613df7ae12007c";
   let changed;
   try { changed = execFileSync("git", ["diff", "--name-only", `${base}...HEAD`], { cwd: new URL(".", root).pathname, encoding: "utf8" }).split("\n").filter(Boolean); } catch { return; }
-  const allowed = [/^public\/shared\/(executive-mis-dashboard\.html|js\/(executive-mis-dashboard|executive-intelligence-model|module-registry|mis-evidence-report)\.js)$/, /^scripts\/(mis-c1|mis-g7-reporting)\//, /^docs\/executive-intelligence-r2\//, /^\.github\/workflows\/ei-/];
+  const allowed = [/^public\/shared\/(executive-mis-dashboard\.html|js\/(executive-mis-dashboard|executive-intelligence-model|module-registry|mis-evidence-report)\.js)$/, /^scripts\/(mis-c1|mis-g7-reporting)\//, /^scripts\/wp10-g2-safeguards\/(ei-approved-delta\.mjs|source\.test\.mjs)$/, /^docs\/executive-intelligence-r2\//, /^\.github\/workflows\/ei-/];
   const stray = changed.filter((f) => !allowed.some((re) => re.test(f)));
   assert.deepEqual(stray, [], "only the Executive Intelligence client, its tests and its docs may change relative to the server checkpoint");
   assert.equal(changed.some((f) => /^supabase\/migrations\//.test(f)), false, "no migration is added or edited");
@@ -170,22 +169,26 @@ test.after(async () => { await browser?.close(); srv?.server.close(); });
 const open = (o) => openDashboard(browser, srv.base, { lens: "sales", noWait: true, ...o });
 const text = (page, sel) => page.textContent(sel);
 const lastArgs = async (page, name) => (await calls(page, name)).at(-1)?.args;
+// R5: sales filters live behind the canonical filter button (popover on desktop, full-page sheet on phones). Open it once; it stays open across filter changes.
+const fopen = async (page) => { if ((await page.$eval("#salesFilterToggle", (e) => e.getAttribute("aria-expanded"))) !== "true") await page.click("#salesFilterToggle"); };
+const setSort = async (page, value) => { await page.click("#salesSortBtn"); await page.check(`input[name="salesSort"][value="${value}"]`); };
 const H0 = { p_category: null, p_subcategory: null, p_group_id: null, p_subgroup: null };
 const salesOpen = async (o) => { const r = await open(o); await r.page.waitForSelector(".ei-subnav"); await r.page.waitForSelector("#salesCmp .ei-table"); return r; };
 const countCalls = (page, name) => page.evaluate((n) => window.__mis.calls.filter((c) => c.name === n).length, name);
 
 test("hierarchy filters cascade in the UI: parent narrows children, change clears below, pagination resets, exact request signatures", { skip: SK }, async () => {
   const { page } = await salesOpen();
+  assert.equal(await page.$eval("#salesFilterFields", (e) => getComputedStyle(e).display), "none", "filters sit behind the canonical filter control until opened");
   assert.deepEqual(await page.$$eval("#salesHier-category option", (o) => o.map((x) => x.textContent)), ["All categories", "Medicines", "Cosmetics"]);
   assert.deepEqual(await page.$$eval("#salesHier-subcategory option", (o) => o.map((x) => x.textContent)), ["All subcategories", "Kashayam", "Arishtam", "Oils"]);
-  await page.selectOption("#salesHier-category", "1");
+  await fopen(page); await page.selectOption("#salesHier-category", "1");
   assert.deepEqual(await page.$$eval("#salesHier-subcategory option", (o) => o.map((x) => x.textContent)), ["All subcategories", "Kashayam", "Arishtam"]);
-  await page.selectOption("#salesHier-subcategory", "11"); await page.selectOption("#salesHier-group", "111"); await page.selectOption("#salesHier-subgroup", "1112");
+  await fopen(page); await page.selectOption("#salesHier-subcategory", "11"); await fopen(page); await page.selectOption("#salesHier-group", "111"); await fopen(page); await page.selectOption("#salesHier-subgroup", "1112");
   await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_comparison").at(-1).args.p_subgroup === 1112);
   const cmp = await lastArgs(page, "ei_sales_comparison");
   assert.deepEqual([cmp.p_category, cmp.p_subcategory, cmp.p_group_id, cmp.p_subgroup], [1, 11, 111, 1112]);
   assert.deepEqual(await lastArgs(page, "ei_sales_window_totals"), { p_anchor: null, p_region: null, p_godown: null, p_product: null, p_sku: null, p_active_only: false, p_category: 1, p_subcategory: 11, p_group_id: 111, p_subgroup: 1112 });
-  assert.equal(await page.$eval("#salesFilterToggle", (e) => getComputedStyle(e).display), "none", "desktop shows the inline bar, not the phone toggle");
+  assert.match(await page.getAttribute("#salesFilterToggle", "aria-label"), /^Filters, 4 active$/);
   // History: page 2 then a parent change resets to page 1; p_group stays the grouping, p_group_id the hierarchy id
   await page.click('[data-sales-view="history"]'); await page.waitForSelector("#salesHistResults .ei-table");
   assert.deepEqual([(await lastArgs(page, "ei_sales_history")).p_category, (await lastArgs(page, "ei_sales_history")).p_group_id], [1, 111]);
@@ -193,7 +196,7 @@ test("hierarchy filters cascade in the UI: parent narrows children, change clear
   await page.selectOption("#salesHistGroup", "subgroup"); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_history").at(-1).args.p_group === "subgroup");
   await page.click('[data-sales-page="hist:1"]'); await page.waitForFunction(() => /Page 2 \/ 2/.test(document.querySelector("#salesHistResults .ei-pager").textContent));
   assert.equal((await lastArgs(page, "ei_sales_history")).p_offset, 50);
-  await page.selectOption("#salesHier-category", "2");
+  await fopen(page); await page.selectOption("#salesHier-category", "2");
   await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_history").at(-1).args.p_category === 2);
   const h = await lastArgs(page, "ei_sales_history");
   assert.deepEqual([h.p_category, h.p_subcategory, h.p_group_id, h.p_subgroup, h.p_offset, h.p_group], [2, null, null, null, 0, "subgroup"], "downstream cleared, page reset, grouping kept");
@@ -205,7 +208,7 @@ test("hierarchy filters cascade in the UI: parent narrows children, change clear
   await page.click('[data-sales-view="coverage"]'); await page.waitForSelector("#salesCov .ei-table");
   assert.deepEqual(await lastArgs(page, "ei_sales_coverage"), { p_anchor: null }); assert.deepEqual(await lastArgs(page, "ei_sales_refresh_status"), {});
   assert.equal(await page.$("#salesHier-category"), null, "coverage has no hierarchy filter");
-  await page.click('[data-sales-view="history"]'); await page.click("#salesFilterReset");
+  await page.click('[data-sales-view="history"]'); await fopen(page); await page.click("#salesFilterReset");
   await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_history").at(-1).args.p_category === null);
   assert.equal(await page.$eval("#salesHier-category", (e) => e.value), "");
   await page.context().close();
@@ -213,7 +216,7 @@ test("hierarchy filters cascade in the UI: parent narrows children, change clear
 
 test("hierarchy: a remembered choice the server no longer lists is dropped and the view reloads without it", { skip: SK }, async () => {
   const { page } = await salesOpen();
-  await page.selectOption("#salesHier-category", "1");
+  await fopen(page); await page.selectOption("#salesHier-category", "1");
   await page.evaluate(() => { const h = window.__mis.handlers; const base = h.ei_sales_dimensions; window.__mis.handlers.ei_sales_dimensions = (a) => { const r = (base || (() => ({ data: {} })))(a); return r; }; });
   // Simulate the server dropping category 1 from the dimensions, then reopening the lens
   await page.evaluate(async () => {
@@ -221,7 +224,7 @@ test("hierarchy: a remembered choice the server no longer lists is dropped and t
     window.__mis.handlers.ei_sales_dimensions = (a) => ({ data: { regions: [], godowns: [], categories: [{ id: 2, name: "Cosmetics" }], subcategories: [], groups: [], subgroups: [], first_mapped_date: "2024-01-01", last_mapped_date: "2026-11-24" }, error: null });
     document.querySelector("#refreshBtn").click();
   });
-  await page.waitForFunction(() => /Category filter cleared because it is no longer a valid choice/.test(document.querySelector("#salesFilters").textContent));
+  await page.waitForFunction(() => /Category filter cleared because it is no longer a valid choice/.test(document.querySelector("#salesNotice").textContent));
   await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_comparison").at(-1).args.p_category === null);
   assert.equal(await page.$eval("#salesHier-category", (e) => e.value), "");
   await page.context().close();
@@ -270,8 +273,8 @@ test("Facility reconciliation: scope classification, review counts, unresolved g
     assert.match(await text(page, "#salesFac"), /Facility sales and product sales are different measures/); assert.match(await text(page, "#salesFac"), /no difference between them is derived here/);
     assert.match(await text(page, "#salesFac"), /Classification assignment and approval are not available on this page/);
     assert.equal(await page.$$eval("#salesFac button, #salesFac input[type=checkbox]", (e) => e.length), 0, "no classification admin affordance");
-    await page.selectOption("#salesFacMonths", "12"); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_facility_sales_scope").at(-1).args.p_months === 12);
-    await page.fill("#salesAnchor", "2026-11-10"); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_facility_sales_scope").at(-1).args.p_anchor === "2026-11-10");
+    await fopen(page); await page.selectOption("#salesFacMonths", "12"); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_facility_sales_scope").at(-1).args.p_months === 12);
+    await fopen(page); await page.fill("#salesAnchor", "2026-11-10"); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_facility_sales_scope").at(-1).args.p_anchor === "2026-11-10");
     assert.deepEqual(await lastArgs(page, "ei_facility_sales_scope"), { p_anchor: "2026-11-10", p_months: 12 });
     assert.equal(await page.$("#salesHier-category"), null, "the facility contract takes no hierarchy filter");
     assert.equal((await calls(page, "sales_item_scope_review")).length + (await calls(page, "sales_item_scope_approve")).length, 0, "no classification reader or writer is called");
@@ -291,12 +294,12 @@ test("Facility reconciliation: not-installed / denied / error / no-data / unreco
   await page.click('[data-sales-view="facility"]'); await page.waitForSelector("#salesFac .ei-table");
   for (const [resp, re] of states) {
     await page.evaluate((r) => { window.__mis.handlers.ei_facility_sales_scope = () => r; }, resp);
-    await page.selectOption("#salesFacMonths", String(2 + states.indexOf(states.find((s) => s[0] === resp))));
+    await fopen(page); await page.selectOption("#salesFacMonths", String(2 + states.indexOf(states.find((s) => s[0] === resp))));
     await page.waitForFunction((r) => new RegExp(r).test(document.getElementById("salesFac").textContent), re.source);
     assert.equal(await page.$("#salesFac .ei-table"), null, "no figures in place of a failed contract");
   }
   await page.evaluate(() => { window.__mis.handlers.ei_facility_sales_scope = () => ({ data: { anchor: "2026-11-25", start_date: "2026-11-01", latest_raw_date: "2026-11-25", facility: { recorded_rows: 5, missing_amount_rows: 0, source_reported_amount: 9, billed_value: 9, godown_unresolved_rows: 0 }, rows: [{ scope: "SASV_CANONICAL_PRODUCT", recorded_rows: 5, missing_amount_rows: 0, source_reported_amount: 9, billed_value: 9, godown_unresolved_rows: 0 }] }, error: null }); });
-  await page.selectOption("#salesFacMonths", "9"); await page.waitForSelector("#salesFac .ei-table");
+  await fopen(page); await page.selectOption("#salesFacMonths", "9"); await page.waitForSelector("#salesFac .ei-table");
   assert.match(await text(page, "#salesFac"), /No rows in the unclassified or conflict scopes for this period/);
   await page.context().close();
 });
@@ -331,7 +334,7 @@ test("Refresh intelligence: job status, started/finished, daily vs monthly fresh
 test("Sales-only: no stale 'Loading...' status line, only the Sales sub-views, no executive chrome", { skip: SK }, async () => {
   const { page } = await salesOpen({ permission: "sales-only", width: 390 });
   assert.equal(await page.$eval("#statusArea", (e) => e.textContent.trim() === "" || getComputedStyle(e).display === "none"), true, "initial Loading... is cleared");
-  assert.equal(await page.$eval("#lastRefreshed", (e) => getComputedStyle(e).display), "none");
+  assert.notEqual(await page.$eval("#lastRefreshed", (e) => getComputedStyle(e).display), "none", "R5: the freshness indicator is shown to sales-only (sales freshness only)");
   assert.deepEqual(await page.$$eval("[data-sales-view]", (b) => b.map((x) => x.dataset.salesView)), ["overview", "mtd", "history", "exceptions", "facility", "coverage"]);
   await page.context().close();
 });
@@ -362,13 +365,14 @@ test("Phone filters: compact toggle opens a full-page sheet; Escape and Done clo
   assert.equal(await page.evaluate(() => document.body.classList.contains("ei-sheet-lock")), false);
   await page.click("#salesFilterToggle"); await page.selectOption("#salesHier-category", "1");
   await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_comparison").at(-1).args.p_category === 1);
-  assert.equal(await page.$eval("#salesFilterToggle", (e) => getComputedStyle(e).display), "none", "sheet stays open across a filter change");
+  assert.equal(await page.$eval("#salesFilterToggle", (e) => e.getAttribute("aria-expanded")), "true", "sheet stays open across a filter change");
   await page.click("#salesFilterClose");
-  assert.match(await text(page, "#salesFilterToggle"), /Filters\s*1/, "the toggle states how many filters are active");
+  assert.equal(await page.getAttribute("#salesFilterToggle", "aria-label"), "Filters, 1 active", "the control states how many filters are active");
+  assert.equal(await text(page, "#salesFilterToggle .ei-ctl-badge"), "1");
   await page.click("#salesFilterToggle"); for (let i = 0; i < 14; i++) await page.keyboard.press("Tab");
   assert.equal(await page.evaluate(() => !!document.activeElement.closest("#salesFilterFields")), true, "Tab never leaves the sheet");
   await page.setViewportSize({ width: 1280, height: 800 }); await page.waitForTimeout(100);
-  assert.equal(await page.$eval("#salesFilterFields", (e) => getComputedStyle(e).position), "static", "widening the window closes the sheet");
+  assert.equal(await page.$eval("#salesFilterFields", (e) => getComputedStyle(e).position), "absolute", "widening the window turns the open sheet into the bounded popover");
   await page.context().close();
 });
 
@@ -410,8 +414,8 @@ test("Responsive: sales sub-views at 320..1440 never overflow the page; HOME is 
       const o = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, bw: document.body.scrollWidth }));
       assert.ok(o.sw <= o.cw + 1 && o.bw <= o.cw + 1, `${view} @${width}: ${JSON.stringify(o)}`);
     }
-    const label = await page.$eval("#homeBtn .home-label", (e) => getComputedStyle(e).display);
-    assert.equal(label === "none", width <= 520, `HOME label @${width}`);
+    const hidden = await page.$eval("#homeBtn .home-label", (e) => { const c = getComputedStyle(e); return c.position === "absolute" && parseFloat(c.width) <= 1; });
+    assert.equal(hidden, width <= 520, `HOME label @${width}`);
     assert.ok(await page.$("#homeBtn svg"), "HOME keeps its icon");
     await page.context().close();
   }
@@ -421,7 +425,7 @@ test("Stale responses: a hierarchy change drops the older response; a view switc
   const { page } = await salesOpen();
   await page.evaluate(() => { const m = window.__mis; m.slow = []; m.handlers.ei_sales_history = () => { const d = m.defer(); m.slow.push(d); return d.promise; }; });
   await page.click('[data-sales-view="history"]'); await page.waitForFunction(() => window.__mis.slow.length === 1);
-  await page.selectOption("#salesHier-category", "1"); await page.waitForFunction(() => window.__mis.slow.length === 2);
+  await fopen(page); await page.selectOption("#salesHier-category", "1"); await page.waitForFunction(() => window.__mis.slow.length === 2);
   const rows = (name) => ({ data: { anchor: "2026-11-24", start_date: "2025-12-01", total: 1, rows: [{ dimension_id: "N", dimension_name: name, sales_value: 1, source_reported_amount: 1, coverage: "OBSERVED_NOT_CERTIFIED" }] }, error: null });
   await page.evaluate((r) => window.__mis.slow[1].resolve(r), rows("NEWER"));
   await page.waitForFunction(() => /NEWER/.test(document.getElementById("salesHistResults").textContent));
@@ -439,7 +443,7 @@ test("Stale responses: a hierarchy change drops the older response; a view switc
 
 test("Export parity: history and exceptions export one page with scope, filters, total and has_more; MTD and facility add no whole-dataset export", { skip: SK }, async () => {
   const { page } = await salesOpen();
-  await page.selectOption("#salesHier-category", "1"); await page.selectOption("#salesRegion", "1");
+  await fopen(page); await page.selectOption("#salesHier-category", "1"); await fopen(page); await page.selectOption("#salesRegion", "1");
   await page.click('[data-sales-view="history"]'); await page.waitForSelector("#salesHistResults .ei-table");
   const [dl] = await Promise.all([page.waitForEvent("download"), page.click('[data-sales-export="hist"]')]);
   const lines = fs.readFileSync(await dl.path(), "utf8").replace(/^﻿/, "").trim().split("\r\n");

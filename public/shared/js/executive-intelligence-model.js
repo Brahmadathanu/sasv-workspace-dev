@@ -470,3 +470,171 @@ export function facilityModel(d) {
     scopeNote: d.scope_note || "", ownership: d.ownership_classification || "", importCompleteness: d.import_completeness || "NOT_CERTIFIED",
   };
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Consolidated data freshness (header indicator). Pure: the caller supplies what was ALREADY loaded; nothing is requested for it.
+// Three kinds are kept apart: snapshot generation (server materialised view), client load time (when this page last read live
+// data) and source refresh timestamps (sales monthly/daily sources and the refresh job). No staleness threshold is invented and
+// no completeness is inferred: states are only loading, ok, error or unknown.
+// input: { executive, summary:{status,at,message}, pipeline:{status,asOf}, sales:{loadedAt,status,refresh:{status,data}} }
+// ---------------------------------------------------------------------------------------------------------------------
+export function freshnessModel({ executive = false, summary = {}, pipeline = {}, sales = {} } = {}) {
+  const rows = [];
+  const add = (kind, key, label, value, state = "ok") => rows.push({ kind, key, label, value: value ?? null, state });
+  const bad = (st) => st === "error" || st === "denied" || st === "expired" || st === "unavailable" || st === "invalid";
+  let loading = false, error = false, anyTime = false;
+  if (executive) {
+    if (summary.status === "loading" || summary.status === "idle") loading = true;
+    if (summary.status === "error") error = true;
+    if (summary.at) anyTime = true;
+    add("snapshot", "snapshot", "Executive summary snapshot generated", summary.at || null, summary.at ? "ok" : summary.status === "error" ? "error" : summary.status === "loading" || summary.status === "idle" ? "loading" : "unknown");
+    if (pipeline.status === "loading" || pipeline.status === "idle") loading = true;
+    if (pipeline.status === "error") error = true;
+    if (pipeline.asOf) anyTime = true;
+    add("client", "pipeline", "Production counts loaded (live read)", pipeline.asOf || null, pipeline.asOf ? "ok" : pipeline.status === "error" ? "error" : "loading");
+  }
+  if (sales.loadedAt) { anyTime = true; add("client", "sales", "Sales data loaded (live read)", sales.loadedAt, "ok"); }
+  else if (sales.status === "loading") loading = true;
+  else if (sales.status && bad(sales.status)) { error = true; add("client", "sales", "Sales data loaded (live read)", null, "error"); }
+  const rf = sales.refresh && sales.refresh.status === "ok" ? sales.refresh.data : null;
+  if (rf) {
+    const job = refreshJobModel(rf);
+    add("source", "sales-monthly", "Sales monthly source last loaded", rf.monthly_source_max_inserted_at || null, rf.monthly_source_max_inserted_at ? "ok" : "unknown");
+    add("source", "sales-daily", "Sales daily source last loaded", rf.daily_source_max_inserted_at || null, rf.daily_source_max_inserted_at ? "ok" : "unknown");
+    if (job.state === "known") add("source", "sales-job", `Monthly refresh job: ${job.label}`, job.finishedAt || job.startedAt || null, job.tone === "bad" ? "error" : "ok");
+    if (rf.monthly_source_max_inserted_at || rf.daily_source_max_inserted_at) anyTime = true;
+  } else {
+    add("source", "sales-source", "Sales source refresh timestamps", null, sales.refresh && bad(sales.refresh.status) ? "error" : "unknown");
+  }
+  // The headline is the snapshot generation time (executive) or the sales load time (sales-only). While that is still loading the state
+  // is "loading" even if another read has already finished; the other read then only serves as a fallback time.
+  const headlineAt = executive ? summary.at || null : sales.loadedAt || null;
+  const fallbackAt = headlineAt || (executive ? pipeline.asOf || null : null);
+  const state = error ? "error" : loading && !headlineAt ? "loading" : anyTime ? "ok" : "unknown";
+  return { state, headlineAt, fallbackAt, rows, groups: ["snapshot", "client", "source"].map((k) => ({ kind: k, rows: rows.filter((r) => r.kind === k) })).filter((g) => g.rows.length) };
+}
+export const FRESHNESS_GROUP_LABELS = Object.freeze({ snapshot: "Snapshot generation", client: "Loaded by this page", source: "Source refresh" });
+
+// Activity (exceptions): a short badge label plus the explanatory note, so a long sentence never sits in a single table cell.
+export const ACTIVITY_SHORT = Object.freeze({
+  NO_RECORDED_SALES_COVERAGE_UNCERTIFIED: { label: "No recorded rows", note: "Coverage not certified; not a certified zero seller" },
+});
+export function activityParts(key, fullLabels) {
+  const short = ACTIVITY_SHORT[key];
+  if (short) return short;
+  return { label: (fullLabels && fullLabels[key]) || (key ? String(key).replace(/_/g, " ").toLowerCase() : "Unknown"), note: "" };
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// R5 visual intelligence (pure, no I/O). Every visual is built only from fields the loaded contracts already return. A value that
+// is missing stays missing (never drawn as zero), a mixed-sign or incomplete series is never charted, and page-only series say so.
+// ---------------------------------------------------------------------------------------------------------------------
+// Like barSeries but a missing value is kept as a labelled gap row; negatives or fewer than two rows (or no value) => null.
+export function barSeriesLoose(items) {
+  const rows = (items || []).filter(Boolean).map((i) => ({ label: i.label, value: hasValue(i.value) ? Number(i.value) : null, missing: i.missing || "Not available" }));
+  const vals = rows.filter((r) => r.value !== null).map((r) => r.value);
+  if (rows.length < 2 || !vals.length || vals.some((v) => v < 0)) return null;
+  const max = Math.max(...vals);
+  if (!(max > 0)) return null;
+  return { max, rows: rows.map((r) => (r.value === null ? { ...r, pct: null } : { ...r, pct: r.value === 0 ? 0 : Math.max(2, Math.round((r.value / max) * 100)) })) };
+}
+
+const PERIOD_NAMES = Object.freeze({ CURRENT: "Current", PREVIOUS_MONTH: "Previous month", PREVIOUS_YEAR: "Previous year" });
+// Matched-period sales value (server comparison periods). A period without a usable value is a gap, not zero.
+export function comparisonBars(d) {
+  const periods = d && Array.isArray(d.periods) ? d.periods : [];
+  return barSeriesLoose(periods.map((p) => ({
+    label: PERIOD_NAMES[p.label] || String(p.label || "Period"), value: p.sales_value,
+    missing: p.coverage === "NO_RECORDED_ROWS" ? "No recorded rows" : "Not available",
+  })));
+}
+
+// Average per complete month for each trailing window the server could value; an unvalued window is a gap.
+export function windowBars(d) {
+  const wins = d && Array.isArray(d.windows) ? d.windows : [];
+  return barSeriesLoose(wins.map((w) => ({
+    label: `Last ${w.n} months`, value: w.average_monthly_sales,
+    missing: Number(w.observed_months) < Number(w.n) ? "Unavailable: months missing" : "Unavailable: ambiguous amounts",
+  })));
+}
+
+// Complete chronological month series from the history contract with group = month. Valid only when every month came back in
+// one response (total <= rows, first page, no search); otherwise { reason } and the caller shows no chart.
+export function monthlyTrend(d, { group, search = "", page = 1 } = {}) {
+  if (group !== "month") return { reason: "group" };
+  if (!d || !Array.isArray(d.rows)) return { reason: "data" };
+  if (search || page !== 1 || Number(d.total) > d.rows.length) return { reason: "partial" };
+  const byMonth = new Map();
+  for (const r of d.rows) {
+    const k = String(r.month || "").slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(k) || byMonth.has(k)) return { reason: "data" };
+    byMonth.set(k, r);
+  }
+  if (byMonth.size < 2) return { reason: "short" };
+  const keys = [...byMonth.keys()].sort();
+  const start = String(d.start_date || `${keys[0]}-01`).slice(0, 7);
+  const anchorKey = String(d.anchor || "").slice(0, 7) || keys[keys.length - 1];
+  const first = start < keys[0] ? start : keys[0], last = anchorKey > keys[keys.length - 1] ? anchorKey : keys[keys.length - 1];
+  const months = [];
+  for (let [y, m] = first.split("-").map(Number); `${y}-${String(m).padStart(2, "0")}` <= last; m === 12 ? (y++, (m = 1)) : m++) {
+    const key = `${y}-${String(m).padStart(2, "0")}`;
+    const r = byMonth.get(key);
+    const ok = r && hasValue(r.sales_value);
+    months.push({ key, state: !r ? "missing" : ok ? "ok" : "unavailable", value: ok ? Number(r.sales_value) : null, reported: r && hasValue(r.source_reported_amount) ? Number(r.source_reported_amount) : null, partial: key === anchorKey && key === last, coverage: r ? r.coverage || "" : "" });
+  }
+  const vals = months.filter((x) => x.value !== null).map((x) => x.value);
+  if (!vals.length) return { reason: "empty" };
+  return { months, hi: Math.max(0, ...vals), lo: Math.min(0, ...vals), anchor: d.anchor || null };
+}
+
+// Top rows of ONE response page, labelled page-only by the caller. Returns null with fewer than two valued rows or any negative.
+export function rankedPageBars(rows, { limit = 8 } = {}) {
+  const all = Array.isArray(rows) ? rows : [];
+  const valued = all.filter((r) => hasValue(r.sales_value)).sort((a, b) => Number(b.sales_value) - Number(a.sales_value));
+  const series = barSeries(valued.slice(0, limit).map((r) => ({ label: r.dimension_name || "Unmapped", value: r.sales_value })));
+  return series ? { series, pageRows: all.length, shown: Math.min(limit, valued.length), unavailable: all.length - valued.length } : null;
+}
+
+// Facility billed value by classification scope (the installed reconciliation rows). No billed value => gap, never zero.
+export function facilityBars(m) {
+  if (!m || m.state !== "ok") return null;
+  return barSeriesLoose(m.rows.map((r) => ({ label: r.label, value: r.billed, missing: r.missing ? "Unavailable: rows missing an amount" : "Not reported" })));
+}
+
+// A subset drawn inside its parent: only when both are real counts and subset <= total (so it can never read as additive).
+export function subsetShare(total, subset) {
+  if (!hasValue(total) || !hasValue(subset)) return null;
+  const t = Number(total), s = Number(subset);
+  return t > 0 && s >= 0 && s <= t ? { total: t, subset: s, pct: Math.round((s / t) * 100) } : null;
+}
+
+// Disjoint counts as one stacked bar. Every segment keeps its own text; zero-width segments are omitted from the bar only.
+export function segmentSeries(items) {
+  const rows = (items || []).filter((i) => i && hasValue(i.value)).map((i) => ({ key: i.key, label: i.label, value: Number(i.value) }));
+  if (rows.length < 2 || rows.some((r) => r.value < 0)) return null;
+  const total = rows.reduce((a, r) => a + r.value, 0);
+  return total > 0 ? { total, rows: rows.map((r) => ({ ...r, pct: (r.value / total) * 100 })) } : null;
+}
+
+// Management alerts: counts of checks per state. UNAVAILABLE is its own segment and never merges into CLEAR.
+export function alertSegments(items) {
+  const list = Array.isArray(items) ? items : [];
+  const n = (s) => list.filter((a) => a.state === s).length;
+  return list.length ? segmentSeries([{ key: "REVIEW", label: "Needs review", value: n("REVIEW") }, { key: "CLEAR", label: "No findings", value: n("CLEAR") }, { key: "UNAVAILABLE", label: "Unavailable", value: n("UNAVAILABLE") }]) : null;
+}
+
+// Finished-goods months-of-stock statuses (disjoint server statuses). The remainder is SKUs minus the listed statuses.
+export function fgStatusSegments(s) {
+  if (!s || !["sku_count", "zero_stock_sku_count", "below_1_month_cover_count", "above_6_month_cover_count"].every((k) => hasValue(s[k]))) return null;
+  const listed = Number(s.zero_stock_sku_count) + Number(s.below_1_month_cover_count) + Number(s.above_6_month_cover_count);
+  const rest = Number(s.sku_count) - listed;
+  if (rest < 0) return null;
+  return segmentSeries([{ key: "ZERO", label: "Zero stock", value: s.zero_stock_sku_count }, { key: "LOW", label: "Below 1 month", value: s.below_1_month_cover_count }, { key: "HIGH", label: "Above 6 months", value: s.above_6_month_cover_count }, { key: "OTHER", label: "Other statuses", value: rest }]);
+}
+
+// Overview: known manufacturing-inventory value vs finished-goods value. Different valuation bases; never summed.
+export function materialFgBars(row, materialsKnownValue) {
+  if (!row) return null;
+  // Materials come from the canonical inventory summary (known value), never the legacy snapshot field.
+  return barSeriesLoose([{ label: "Materials (canonical known value)", value: materialsKnownValue, missing: "Unavailable" }, { label: "Finished goods", value: row.fg_inventory_value_overall, missing: "Unavailable" }]);
+}
