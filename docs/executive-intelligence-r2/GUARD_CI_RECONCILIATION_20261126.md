@@ -1,0 +1,2 @@
+# CI reconciliation
+PEC integrated acceptance 45816200576 passed; WP10 45816200583 S5 passed, S4 inherited evidence report and S6 registered EI migration/test paths failed scope checks. Pin exact inherited evidence report and registered migration / isolated test blobs from reviewed integrated head, no generic bypass, no migration replay. Existing PEC protected-path guard remains unchanged; S6 checks exact branch, committed and working blob identity before excluding those exact approved files from its downstream check. Rerun required.

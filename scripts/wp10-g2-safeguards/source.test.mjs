@@ -12,7 +12,7 @@ import { rejectedProtectedPaths, REVIEWED_MIS_G7_FILES } from "../lib/pec-protec
 import { misG7ClientFileApproved, misG7PinnedFileApproved } from "./mis-g7-reporting-approved-delta.mjs";
 import { pmBomDeltaApproved, normaliseApprovedSwDelta, WP11_PM_BOM_PATH } from "./wp11-approved-delta.mjs";
 
-import { eiClientApproved, eiRegistryApproved, EI_BRANCH, EI_CLIENT_BLOBS, EI_REGISTRY_BASE } from "./ei-approved-delta.mjs";
+import { eiClientApproved, eiRegistryApproved, EI_BRANCH, EI_CLIENT_BLOBS, EI_REGISTRY_BASE, eiServerApproved, EI_SERVER_BLOBS } from "./ei-approved-delta.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
@@ -94,12 +94,13 @@ test("S6 proposal sources stay outside supabase/; only receipt/hash/branch-pinne
   const branch = process.env.GITHUB_HEAD_REF || git("branch", "--show-current").trim();
   const readCommitted = f => git("show", `HEAD:${f}`);
   for (const f of supa) {
+    if (eiServerApproved(f, branch, eiBlob(f), eiWorkingBlob(f))) continue;
     if (misG7PinnedFileApproved(f, readCommitted(f), branch, REVIEWED_MIS_G7_FILES)) continue;   // MIS G7: installed migration / isolated PG harness, content-pinned by SHA-256 on its own branch only
     assert.equal(branch, BRANCH, "new registration only on the owner-approved server lane");
     assert.ok(inventory.has(f), `unapproved supabase path: ${f}`);
     assert.equal(sha256(readCommitted(f)), inventory.get(f), `applied payload changed: ${f}`);
   }
-  assert.deepEqual(rejectedProtectedPaths(supa, false, { headBranch: branch, readText: readCommitted }), []);
+  assert.deepEqual(rejectedProtectedPaths(supa.filter(f=>!eiServerApproved(f,branch,eiBlob(f),eiWorkingBlob(f))), false, { headBranch: branch, readText: readCommitted }), []);
   assert.equal(fs.existsSync(path.join(root, "supabase/draft-proposals")), false);
   assert.ok(fs.existsSync(path.join(root, "docs/master-data-costing/WP10_G2_UNAPPLIED_SQL_PROPOSALS")));
   const added = git("diff", "--name-status", "origin/main", "--", "supabase/migrations").split("\n").filter((l) => /^A/.test(l));
@@ -160,3 +161,5 @@ test("EI owner-approved delta rejects unreviewed blobs, branches, paths and base
  assert.equal(eiClientApproved(f,EI_BRANCH,"other","other"),false);
  assert.equal(eiClientApproved("public/sw.js",EI_BRANCH,blob,blob),false);
 });
+
+test("EI registered migration and fixture permits reject drift and other branches",()=>{for(const [f,blob] of Object.entries(EI_SERVER_BLOBS)){assert.ok(eiServerApproved(f,EI_BRANCH,blob,blob));assert.equal(eiServerApproved(f,EI_BRANCH,blob,"dirty"),false);assert.equal(eiServerApproved(f,"other",blob,blob),false);}assert.equal(eiServerApproved("public/sw.js",EI_BRANCH,"x","x"),false);});
