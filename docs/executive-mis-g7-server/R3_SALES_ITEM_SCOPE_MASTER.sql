@@ -42,7 +42,7 @@ CREATE FUNCTION public.sales_item_scope_approve(p_alias text,p_scope text,p_effe
 RETURNS bigint LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
 DECLARE k text; current_id bigint; new_id bigint;
 BEGIN
- IF auth.uid() IS NULL OR coalesce(auth.jwt()->>'is_anonymous','false')='true' OR NOT coalesce(public.app_has_permission('module:sales-item-classification','edit'),false) THEN RAISE EXCEPTION 'Classification edit denied' USING ERRCODE='42501'; END IF;
+ IF auth.uid() IS NULL OR coalesce(auth.jwt()->>'is_anonymous','false')='true' OR NOT coalesce(public.app_has_permission('module:sales-item-classification','view'),false) OR NOT coalesce(public.app_has_permission('module:sales-item-classification','edit'),false) THEN RAISE EXCEPTION 'Classification edit denied' USING ERRCODE='42501'; END IF;
  k:=public.normalize_key(p_alias);
  IF k IS NULL OR k='' OR p_scope IS NULL OR p_scope IN ('RAW_MATERIAL','PACKING_MATERIAL') THEN RAISE EXCEPTION 'Invalid or material-specific classification requires verified material authority' USING ERRCODE='22023'; END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended(k,7332));
@@ -64,14 +64,17 @@ BEGIN
  WITH raw AS (
  SELECT s.tally_item_name,s.voucher_date,count(*) n,sum(s.billed_amount_value) value,count(*) FILTER(WHERE s.billed_amount_value IS NULL) missing
  FROM public.tally_sales_vreg_snapshot s WHERE s.voucher_date BETWEEN p_from AND p_to GROUP BY 1,2
+ ), alias_map AS MATERIALIZED (
+ SELECT public.normalize_key(a.alias_text) AS alias_key,count(*) AS matches,min(a.sku_id) AS sku_id,bool_or(k.is_sample) AS sample
+ FROM public.sku_aliases a JOIN public.product_skus k ON k.id=a.sku_id GROUP BY 1
  ), classified AS (
- SELECT r.*,a.sku_id,c.scope,c.id classification_id
- FROM raw r LEFT JOIN public.sku_aliases a ON a.alias_key=public.normalize_key(r.tally_item_name)
+ SELECT r.*,a.sku_id,a.matches,a.sample,c.scope,c.id classification_id
+ FROM raw r LEFT JOIN alias_map a ON a.alias_key=public.normalize_key(r.tally_item_name)
  LEFT JOIN LATERAL (SELECT id,scope FROM public.sales_item_scope c WHERE c.alias_key=public.normalize_key(r.tally_item_name) AND c.effective_from<=r.voucher_date ORDER BY effective_from DESC,id DESC LIMIT 1) c ON true
  ), grouped AS (
- SELECT tally_item_name,CASE WHEN sku_id IS NOT NULL AND classification_id IS NOT NULL AND scope<>'UNCLASSIFIED' THEN 'CLASSIFICATION_CONFLICT' WHEN sku_id IS NULL AND scope IS NULL THEN 'UNCLASSIFIED' ELSE scope END AS state,
+ SELECT tally_item_name,CASE WHEN matches>1 OR (sku_id IS NOT NULL AND classification_id IS NOT NULL AND scope NOT IN ('UNCLASSIFIED','SASV_HISTORICAL_PACK','SASV_SAMPLE')) THEN 'CLASSIFICATION_CONFLICT' WHEN sku_id IS NULL AND scope IS NULL THEN 'UNCLASSIFIED' ELSE scope END AS state,
  sum(n) recorded_rows,sum(value) source_reported_amount,sum(missing) missing_amount_rows,min(voucher_date) first_date,max(voucher_date) last_date
- FROM classified WHERE (sku_id IS NULL AND (scope IS NULL OR scope='UNCLASSIFIED' OR scope IN ('SASV_HISTORICAL_PACK','SASV_SAMPLE'))) OR (sku_id IS NOT NULL AND classification_id IS NOT NULL AND scope<>'UNCLASSIFIED')
+ FROM classified WHERE (sku_id IS NULL AND (scope IS NULL OR scope='UNCLASSIFIED' OR scope IN ('SASV_HISTORICAL_PACK','SASV_SAMPLE'))) OR (matches>1 OR (sku_id IS NOT NULL AND classification_id IS NOT NULL AND scope NOT IN ('UNCLASSIFIED','SASV_HISTORICAL_PACK','SASV_SAMPLE')))
  GROUP BY 1,2
  ), page AS (SELECT * FROM grouped ORDER BY abs(source_reported_amount) DESC NULLS LAST,tally_item_name,state OFFSET p_offset LIMIT p_limit)
  SELECT jsonb_build_object('total',(SELECT count(*) FROM grouped),'limit',p_limit,'offset',p_offset,'rows',coalesce(jsonb_agg(to_jsonb(page) ORDER BY abs(source_reported_amount) DESC NULLS LAST,tally_item_name,state),'[]'::jsonb)) INTO result FROM page;
