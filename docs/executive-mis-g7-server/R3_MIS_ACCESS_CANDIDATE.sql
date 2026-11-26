@@ -629,7 +629,7 @@ AS $function$
   order by f.outstanding_amount_mis_value desc, f.party_name asc
   limit greatest(1, least(coalesce(p_limit, 25), 100))
   offset greatest(0, coalesce(p_offset, 0));
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.get_mis_finished_goods_sku_page(p_mos_filter text DEFAULT 'all'::text, p_search text DEFAULT ''::text, p_limit integer DEFAULT 25, p_offset integer DEFAULT 0)
  RETURNS TABLE(category_name text, sub_category_name text, product_group_name text, sub_group_name text, product_id integer, item text, sku_id bigint, pack_size numeric, uom text, stock_ik numeric, stock_kkd numeric, stock_ok numeric, stock_overall numeric, forecast_ik numeric, forecast_kkd numeric, forecast_ok numeric, forecast_overall numeric, mos_ik numeric, mos_kkd numeric, mos_ok numeric, mos_overall numeric, stock_value_ik numeric, stock_value_kkd numeric, stock_value_ok numeric, stock_value_overall numeric, shade_flag boolean, mos_status text, classification text, total_rows bigint)
@@ -772,7 +772,7 @@ AS $function$
     f.pack_size asc
   limit greatest(1, least(coalesce(p_limit, 25), 100))
   offset greatest(0, coalesce(p_offset, 0));
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.get_mis_inventory_item_page(p_source_kind text DEFAULT 'all'::text, p_search text DEFAULT ''::text, p_limit integer DEFAULT 25, p_offset integer DEFAULT 0)
  RETURNS TABLE(source_kind text, source_label text, inv_stock_item_id bigint, code text, item_name text, qty_value numeric, avg_rate_value numeric, stock_value numeric, category_label text, subcategory_label text, group_label text, subgroup_label text, total_rows bigint)
@@ -845,7 +845,7 @@ AS $function$
   order by f.stock_value desc nulls last, f.item_name asc, f.inv_stock_item_id asc, f.source_kind asc
   limit greatest(1, least(coalesce(p_limit, 25), 100))
   offset greatest(0, coalesce(p_offset, 0));
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.get_mis_sales_product_page(p_search text DEFAULT ''::text, p_limit integer DEFAULT 25, p_offset integer DEFAULT 0)
  RETURNS TABLE(report_date date, month_start date, month_upto_date date, product_id bigint, product_name text, sku_count bigint, sales_value numeric, sales_units numeric, billed_units numeric, latest_day_sales_value numeric, latest_day_sales_units numeric, average_daily_sales_value numeric, total_rows bigint)
@@ -925,6 +925,6 @@ AS $function$
   order by f.sales_value desc nulls last, f.product_name asc, f.product_id asc
   limit greatest(1, least(coalesce(p_limit, 25), 100))
   offset greatest(0, coalesce(p_offset, 0));
-$function$
+$function$;
 
 COMMIT;

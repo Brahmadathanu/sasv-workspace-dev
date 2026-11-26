@@ -11,9 +11,17 @@ BEGIN
  IF a IS NULL THEN RETURN jsonb_build_object('coverage','NO_MAPPED_DATA'); END IF;
  IF latest IS NULL OR a>latest OR a<date '1900-01-01' THEN RAISE EXCEPTION 'Invalid anchor' USING ERRCODE='22023'; END IF;
  m:=date_trunc('month',a)::date;
- WITH raw AS (
- SELECT voucher_date,count(*) AS raw_rows,count(*) FILTER(WHERE billed_amount_value IS NULL) AS missing_amount_rows,max(inserted_at) AS inserted_at
- FROM public.tally_sales_vreg_snapshot WHERE voucher_date BETWEEN m AND a GROUP BY voucher_date
+ WITH sku_keys AS MATERIALIZED (
+ SELECT public.normalize_key(sa.alias_text) AS key,count(*) AS matches FROM public.sku_aliases sa JOIN public.product_skus k ON k.id=sa.sku_id GROUP BY 1
+ ), godown_keys AS MATERIALIZED (
+ SELECT public.normalize_key(ga.alias_text) AS key,count(*) AS matches FROM public.godown_aliases ga JOIN public.godowns g ON g.id=ga.godown_id GROUP BY 1
+ ), raw AS (
+ SELECT s.voucher_date,count(*) AS raw_rows,count(*) FILTER(WHERE s.billed_amount_value IS NULL) AS missing_amount_rows,max(s.inserted_at) AS inserted_at,
+ count(*) FILTER(WHERE sk.matches=1 AND gd.matches=1) AS uniquely_mapped_raw_rows,
+ count(*) FILTER(WHERE coalesce(sk.matches,0)>1 OR coalesce(gd.matches,0)>1) AS ambiguous_mapping_rows
+ FROM public.tally_sales_vreg_snapshot s LEFT JOIN sku_keys sk ON sk.key=public.normalize_key(s.tally_item_name)
+ LEFT JOIN godown_keys gd ON gd.key=public.normalize_key(s.godown_label)
+ WHERE s.voucher_date BETWEEN m AND a GROUP BY s.voucher_date
  ), mapped AS (
  SELECT sales_date,count(*) AS mapped_rows,count(DISTINCT source_key) AS distinct_source_keys,max(inserted_at) AS inserted_at
  FROM public.v_sales_daily_normalized WHERE sales_date BETWEEN m AND a GROUP BY sales_date
@@ -22,10 +30,10 @@ BEGIN
  FROM public.etl_jobs WHERE job_type='UPSERT_VREG_SALES' AND vreg_date_extracted BETWEEN m AND a
  ORDER BY vreg_date_extracted,created_at DESC NULLS LAST,id DESC
  ), days AS (
- SELECT d::date AS transaction_date,r.raw_rows,n.mapped_rows,n.distinct_source_keys,r.missing_amount_rows,r.inserted_at AS raw_inserted_at,n.inserted_at AS mapped_inserted_at,j.status AS latest_job_status,j.finished_at AS latest_job_finished_at,
+ SELECT d::date AS transaction_date,r.raw_rows,n.mapped_rows,n.distinct_source_keys,r.uniquely_mapped_raw_rows,r.ambiguous_mapping_rows,r.missing_amount_rows,r.inserted_at AS raw_inserted_at,n.inserted_at AS mapped_inserted_at,j.status AS latest_job_status,j.finished_at AS latest_job_finished_at,
  CASE WHEN r.raw_rows IS NULL THEN 'NO_RAW_ROWS_NOT_CERTIFIED'
  WHEN n.mapped_rows IS NULL THEN 'NO_MAPPED_ROWS'
- WHEN r.raw_rows<>n.distinct_source_keys OR n.mapped_rows<>n.distinct_source_keys THEN 'MAPPING_COUNT_MISMATCH'
+ WHEN r.raw_rows<>r.uniquely_mapped_raw_rows OR n.mapped_rows<>r.uniquely_mapped_raw_rows OR r.ambiguous_mapping_rows>0 THEN 'MAPPING_COUNT_MISMATCH'
  WHEN r.missing_amount_rows>0 THEN 'MISSING_AMOUNTS'
  ELSE 'OBSERVED_NOT_CERTIFIED' END AS state
  FROM generate_series(m::timestamp,a::timestamp,interval '1 day') d
@@ -79,9 +87,9 @@ DECLARE result jsonb;
 BEGIN
  IF auth.uid() IS NULL OR coalesce(auth.jwt()->>'is_anonymous','false')='true' OR NOT coalesce(public.app_has_permission('module:executive-mis-dashboard','view'),false) THEN RAISE EXCEPTION 'Executive access denied' USING ERRCODE='42501'; END IF;
  WITH inventory AS (
- SELECT report_date,valuation_gap_item_count,unclassified_item_count,duplicate_item_row_count,missing_item_id_count FROM public.v_mis_inventory_tab_summary
+ SELECT CASE WHEN count(*)=1 THEN max(report_date) END AS report_date,CASE WHEN count(*)=1 THEN max(valuation_gap_item_count) END AS valuation_gap_item_count,CASE WHEN count(*)=1 THEN max(unclassified_item_count) END AS unclassified_item_count,CASE WHEN count(*)=1 THEN max(duplicate_item_row_count) END AS duplicate_item_row_count,CASE WHEN count(*)=1 THEN max(missing_item_id_count) END AS missing_item_id_count FROM public.v_mis_inventory_tab_summary
  ), pipeline AS (
- SELECT overdue_work_in_process_batch_count FROM public.v_mis_batch_pipeline
+ SELECT CASE WHEN count(*)=1 THEN max(overdue_work_in_process_batch_count) END AS overdue_work_in_process_batch_count FROM public.v_mis_batch_pipeline
  ), fg AS (
  SELECT count(*) AS observed_groups,count(*) FILTER(WHERE recon_status='MISSING_LOG') AS missing_log_groups,max(transfer_date) AS evidence_date
  FROM public.v_fg_transfer_reconciliation WHERE transfer_date>=date_trunc('month',current_date)::date AND transfer_date<=current_date

@@ -1,0 +1,53 @@
+{
+  "source_commit": "7bc3190d49f7d12807db6ba705be49cbc4eb216e",
+  "proposed_migration_version": "20261126153000",
+  "proposed_migration_name": "executive_intelligence_r3_r4_reporting_parity",
+  "artifact": "docs/executive-mis-g7-server/R3_R4_ATOMIC_INSTALL_NOT_APPLIED.sql",
+  "sources": [
+    {
+      "path": "docs/executive-mis-g7-server/R3_R4_SERVER_CANDIDATE.sql",
+      "git_blob": "dfc0229f226e4c52ce4965dba0ebac0c1e0af32a"
+    },
+    {
+      "path": "docs/executive-mis-g7-server/R3_MIS_ACCESS_INSTALL_GUARD.sql",
+      "git_blob": "c54545527248994c51c98038a19ef792161a4c09"
+    },
+    {
+      "path": "docs/executive-mis-g7-server/R3_MIS_ACCESS_CANDIDATE.sql",
+      "git_blob": "d917139a83d3a4d6e042472bd2a97906d79036af"
+    },
+    {
+      "path": "docs/executive-mis-g7-server/R3_R4_COVERAGE_EXTENSION.sql",
+      "git_blob": "db99b2c2bfde2309a8e0b4e105c00dfdebcb6f52"
+    },
+    {
+      "path": "docs/executive-mis-g7-server/R3_HISTORICAL_MEASURE_RECONCILIATION.sql",
+      "git_blob": "849eb3686af7767b3ada6977f4dd1b7d30ab76aa"
+    },
+    {
+      "path": "docs/executive-mis-g7-server/R3_FACILITY_SALES_SCOPE.sql",
+      "git_blob": "032456407a75c6aa5b0059483dcb1330f4f16587"
+    },
+    {
+      "path": "docs/executive-mis-g7-server/R3_SALES_ITEM_SCOPE_MASTER.sql",
+      "git_blob": "36a5d63af10ac694b63fb06f828736a2eca24f2f"
+    },
+    {
+      "path": "docs/executive-mis-g7-server/R3_UNIFIED_SALES_CLASSIFICATION.sql",
+      "git_blob": "580123703f59be9c100439dc54c72fdad5493ab6"
+    },
+    {
+      "path": "docs/executive-mis-g7-server/R3_SALES_SCOPE_MATERIAL_BACKFILL.sql",
+      "git_blob": "48d4b325cef85ccfd07999ae797ffe85bea89612"
+    },
+    {
+      "path": "docs/executive-mis-g7-server/R3_SALES_MTD_PARITY.sql",
+      "git_blob": "6b43318d55e6b3067e353fdae9439393690d0299"
+    },
+    {
+      "path": "docs/executive-mis-g7-server/R3_R4_FINAL_PARITY_CANDIDATE.sql",
+      "git_blob": "1dd3db3c438c8dd0b88a89247b92b2e4e6d047a2"
+    }
+  ],
+  "production_applied": false
+}
