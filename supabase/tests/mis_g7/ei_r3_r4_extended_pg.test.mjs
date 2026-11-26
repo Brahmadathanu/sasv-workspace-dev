@@ -14,7 +14,7 @@ before(()=>{
  CREATE SCHEMA auth;CREATE SCHEMA app_private;
  CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$SELECT coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb,'{}'::jsonb)$$;
- CREATE FUNCTION public.app_has_permission(t text,m text) RETURNS boolean LANGUAGE sql STABLE AS $$SELECT (auth.uid()='00000000-0000-0000-0000-000000000001' AND t='module:executive-mis-dashboard') OR (auth.uid()='00000000-0000-0000-0000-000000000002' AND t='module:sales-data-viewer') OR (auth.uid()='00000000-0000-0000-0000-000000000004' AND t='module:sales-item-classification') OR (auth.uid()='00000000-0000-0000-0000-000000000005' AND t='module:sales-item-classification' AND m='edit')$;
+ CREATE FUNCTION public.app_has_permission(t text,m text) RETURNS boolean LANGUAGE sql STABLE AS $$SELECT (auth.uid()='00000000-0000-0000-0000-000000000001' AND t='module:executive-mis-dashboard') OR (auth.uid()='00000000-0000-0000-0000-000000000002' AND t='module:sales-data-viewer') OR (auth.uid()='00000000-0000-0000-0000-000000000004' AND t='module:sales-item-classification') OR (auth.uid()='00000000-0000-0000-0000-000000000005' AND t='module:sales-item-classification' AND m='edit')$$;
  CREATE TABLE public.categories(id integer PRIMARY KEY,category_name text);
  CREATE TABLE public.sub_categories(id integer PRIMARY KEY,category_id integer,subcategory_name text);
  CREATE TABLE public.product_groups(id integer PRIMARY KEY,sub_category_id integer,group_name text);
