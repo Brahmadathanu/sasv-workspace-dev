@@ -42,6 +42,11 @@ BEGIN
  WITH raw AS (
  SELECT s.tally_item_name,s.godown_label,s.voucher_date,count(*) n,count(*) FILTER(WHERE s.billed_amount_value IS NULL) missing,sum(s.billed_amount_value) amount
  FROM public.tally_sales_vreg_snapshot s WHERE s.voucher_date BETWEEN first_date AND a GROUP BY 1,2,3
+ ), sku_map AS MATERIALIZED (
+ SELECT public.normalize_key(sa.alias_text) AS alias_key,count(*) matches,bool_or(k.is_sample) sample
+ FROM public.sku_aliases sa JOIN public.product_skus k ON k.id=sa.sku_id GROUP BY 1
+ ), godown_map AS MATERIALIZED (
+ SELECT DISTINCT public.normalize_key(ga.alias_text) AS alias_key FROM public.godown_aliases ga JOIN public.godowns g ON g.id=ga.godown_id
  ), classified AS (
  SELECT r.*,CASE
  WHEN m.matches>1 THEN 'CLASSIFICATION_CONFLICT'
@@ -49,8 +54,9 @@ BEGIN
  WHEN m.matches=1 AND m.sample IS TRUE THEN 'SASV_SAMPLE'
  WHEN m.matches=1 THEN 'SASV_CANONICAL_PRODUCT'
  ELSE coalesce(c.scope,'UNCLASSIFIED') END AS scope,
- NOT EXISTS(SELECT 1 FROM public.godown_aliases ga JOIN public.godowns g ON g.id=ga.godown_id WHERE public.normalize_key(ga.alias_text)=public.normalize_key(r.godown_label)) AS godown_unresolved
- FROM raw r CROSS JOIN LATERAL (SELECT count(*) matches,bool_or(k.is_sample) sample FROM public.sku_aliases sa JOIN public.product_skus k ON k.id=sa.sku_id WHERE public.normalize_key(sa.alias_text)=public.normalize_key(r.tally_item_name)) m
+ g.alias_key IS NULL AS godown_unresolved
+ FROM raw r LEFT JOIN sku_map m ON m.alias_key=public.normalize_key(r.tally_item_name)
+ LEFT JOIN godown_map g ON g.alias_key=public.normalize_key(r.godown_label)
  LEFT JOIN LATERAL (SELECT scope FROM public.sales_item_scope c WHERE c.alias_key=public.normalize_key(r.tally_item_name) AND c.effective_from<=r.voucher_date ORDER BY effective_from DESC,id DESC LIMIT 1) c ON true
  ), grouped AS (
  SELECT scope,sum(n) recorded_rows,sum(missing) missing_amount_rows,sum(amount) source_reported_amount,CASE WHEN sum(missing)=0 THEN sum(amount) END billed_value,
