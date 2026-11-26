@@ -88,6 +88,8 @@ BEGIN
  IF v_oid IS NULL THEN RAISE EXCEPTION 'R3: costing.fn_w2_run_checks not found'; END IF;
  v_def:=pg_get_functiondef(v_oid);
  IF position('DETAILS_AVAILABLE' IN v_def)>0 THEN RETURN; END IF;   -- idempotent
+ -- CI-040 live governance uses NO_UNRESOLVED_REVIEWS; legacy fixture uses REVIEW_REQUIRED_RECORDED.
+ IF position(v_anchor IN v_def)=0 THEN v_anchor:=$a$|| jsonb_build_object('code','NO_UNRESOLVED_REVIEWS'$a$; END IF;
  v_n:=(length(v_def)-length(replace(v_def,v_anchor,'')))/length(v_anchor);
  IF v_n<>1 THEN RAISE EXCEPTION 'R3: expected exactly one anchor in fn_w2_run_checks, found %',v_n; END IF;
  v_def:=replace(v_def,v_anchor,$r$|| jsonb_build_object('code','DETAILS_AVAILABLE','pass',(SELECT a.available FROM costing_retention.fn_run_detail_availability(p_run) a),
