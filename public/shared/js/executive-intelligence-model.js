@@ -638,3 +638,52 @@ export function materialFgBars(row, materialsKnownValue) {
   // Materials come from the canonical inventory summary (known value), never the legacy snapshot field.
   return barSeriesLoose([{ label: "Materials (canonical known value)", value: materialsKnownValue, missing: "Unavailable" }, { label: "Finished goods", value: row.fg_inventory_value_overall, missing: "Unavailable" }]);
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// R5 maturity: incremental (infinite-scroll) retrieval, record cards and loaded-scope export. Pure helpers; no I/O.
+// ---------------------------------------------------------------------------------------------------------------------
+// Append a chunk by true row identity. A row whose key is already held is dropped; a chunk that adds nothing is terminal
+// (this is what stops a server that repeats a page from looping the scroll sentinel).
+export function mergeRows(existing, incoming, keyOf) {
+  const seen = new Set(existing.map(keyOf));
+  const fresh = [];
+  for (const r of incoming || []) { const k = keyOf(r); if (!seen.has(k)) { seen.add(k); fresh.push(r); } }
+  return { rows: existing.concat(fresh), added: fresh.length };
+}
+// Terminal when everything the server reported is held, the chunk was short, or nothing new arrived.
+export function listIsDone({ held, total, chunk, size, added }) {
+  return added === 0 || chunk < size || (hasValue(total) && held >= Number(total));
+}
+// Export scope for exactly the rows loaded so far; never claims the whole dataset.
+export function exportLoadedScopeLine({ title, rowsLoaded, total, anchor, filters = [], note = "" }) {
+  const t = total === null || total === undefined || total === "" || !Number.isFinite(Number(total)) ? null : Number(total);
+  return [
+    `Executive Intelligence ${title}`,
+    `LOADED ROWS ONLY: ${rowsLoaded} row${rowsLoaded === 1 ? "" : "s"} loaded so far by scrolling; not the whole dataset unless every row was loaded`,
+    t === null ? "total rows unknown" : `${t} rows match the filters`,
+    t === null ? "has_more unknown" : `has_more=${rowsLoaded < t}`,
+    anchor ? `anchor ${anchor}` : "",
+    filters.length ? `filters: ${filters.join("; ")}` : "filters: none",
+    note,
+    "import completeness not certified",
+  ].filter(Boolean).join(" | ");
+}
+// Compact record card from a rendered record: spec items are header labels (or column indexes). Every field is also returned so the
+// detail view can show the complete record.
+export function recordCardModel(labels, texts, spec) {
+  const at = (s) => (typeof s === "number" ? s : labels.indexOf(s));
+  const val = (s) => { const i = at(s); return i >= 0 && i < texts.length ? texts[i] : null; };
+  const present = (v) => v !== null && v !== "" && v !== "-";
+  return {
+    title: val(spec.title) || "Record",
+    sub: (spec.sub || []).map(val).filter(present),
+    measure: at(spec.measure) >= 0 ? { label: labels[at(spec.measure)], value: val(spec.measure) } : null,
+    chips: (spec.chips || []).filter((s) => at(s) >= 0).map((s) => ({ label: labels[at(s)], value: val(s) })),
+    status: spec.status && present(val(spec.status)) ? val(spec.status) : "",
+    fields: labels.map((l, i) => ({ label: l, value: texts[i] ?? "" })),
+  };
+}
+// Relative magnitude for an inline data bar (0..100, null when not drawable). Negatives and missing values are never drawn as bars.
+export function inlineBarPct(value, max) {
+  return hasValue(value) && Number(value) >= 0 && Number(max) > 0 ? (Number(value) === 0 ? 0 : Math.max(2, Math.round((Number(value) / Number(max)) * 100))) : null;
+}

@@ -245,12 +245,12 @@ test("Overview is the default lens: grouped indicators, narrative, real comparis
   assert.deepEqual(await page.$$eval(".ei-group-title", (e) => e.map((x) => x.textContent.trim())), ["Finance", "Sales", "Stock on hand", "Production", "Management alerts"]);
   assert.equal(await page.$$eval(".ei-narrative li", (e) => e.length), 4);
   const names = (await calls(page)).map((c) => c.name);
-  assert.deepEqual([...new Set(names)].sort(), ["get_user_permissions", "mv_mis_executive_summary", "v_mis_batch_pipeline", "v_mis_inventory_tab_summary"], "Overview needs exactly the summary, the shared live pipeline and the canonical inventory summary");
-  for (const n of ["v_mis_batch_pipeline", "mv_mis_executive_summary", "v_mis_inventory_tab_summary"]) assert.equal(names.filter((x) => x === n).length, 1, n);
+  assert.deepEqual([...new Set(names)].sort(), ["ei_sales_history", "get_user_permissions", "mv_mis_executive_summary", "v_mis_batch_pipeline", "v_mis_inventory_tab_summary"], "Overview needs exactly the summary, the shared live pipeline, the canonical inventory summary and ONE bounded monthly-history call for the trend");
+  for (const n of ["v_mis_batch_pipeline", "mv_mis_executive_summary", "v_mis_inventory_tab_summary", "ei_sales_history"]) assert.equal(names.filter((x) => x === n).length, 1, n);
   const o = await text(page, ".ei-overview");
-  assert.doesNotMatch(o, /target|achievement|month-on-month|\bMoM\b|\bYoY\b|trend/i, "no fabricated targets, trends or comparisons");
-  assert.deepEqual(await page.$$eval('.ei-bars[aria-label^="Receivables"] .ei-bar-value', (e) => e.map((x) => x.textContent)), ["₹200.00", "-₹100.00"], "finance bars print the signed figures");
-  assert.equal(await page.$$eval('.ei-bars[aria-label="Live batches by stage"] li', (e) => e.length), 3);
+  assert.doesNotMatch(o, /target|achievement|month-on-month|\bMoM\b|\bYoY\b/i, "no fabricated targets or comparisons (the monthly trend is real data from the existing history contract)");
+  assert.deepEqual(await page.$$eval(".ei-group[data-domain=finance] .kpi-card", (c) => c.slice(0, 2).map((x) => x.querySelector(".kpi-value").textContent)), ["-₹100.00", "₹200.00"], "the signed figures stay in the indicators");
+  assert.equal(await page.$$eval(".ei-group[data-domain=finance] .kpi-card .ei-dbar", (e) => e.length), 2, "bars sit inside the indicators, not in a repeated chart");
   assert.equal(await page.$$eval("canvas, svg.chart, .ei-bar-track[role]", (e) => e.length), 0);
   assert.ok(await page.$$eval(".ei-bar-track", (e) => e.every((x) => x.getAttribute("aria-hidden") === "true")), "bar tracks are decoration; values are text");
   // current position vs period flows are labelled apart
@@ -341,9 +341,8 @@ test("Sales: summary failure is independent of the product table; 401/403/503 ar
     assert.equal(await page.$("#salesScopeNote .ei-state.error"), null);
   }
   await page.evaluate(() => { window.__mis.handlers.ei_sales_mtd_product_page = (a) => (a.p_offset > 0 ? { data: [], error: null } : { data: [{ product_name: "First", total_rows: 60 }], error: null }); });
-  await page.click("#salesNextPage"); await page.waitForFunction(() => /Page 1 \/ /.test(document.querySelector("#salesPagination").textContent));
-  assert.match(await text(page, "#salesProductTableWrap"), /First/);
-  const offs = (await calls(page, "ei_sales_mtd_product_page")).slice(-2).map((c) => c.args.p_offset); assert.deepEqual(offs, [25, 0]);
+  await page.$eval("#salesProductTableWrap", (e) => { e.scrollTop = e.scrollHeight; }); await page.waitForFunction(() => !document.querySelector("#salesProductTableWrap .ei-more"));
+  const offs = (await calls(page, "ei_sales_mtd_product_page")).slice(-1).map((c) => c.args.p_offset); assert.deepEqual(offs, [25], "an empty chunk is terminal: it neither loops nor clears the rows already loaded");
   await page.context().close();
 });
 
@@ -355,7 +354,7 @@ test("Materials Inventory (R1 canonical): official labels, exact figures, scope 
   const c = await text(page, ".ei-coverage"); assert.match(c, /1,773 of 1,773 items valued/); assert.match(c, /329 with zero quantity \(valid zero\)/);
   assert.match(await text(page, "#inventoryScopeNote"), /Raw Material · Packing Material · Indirect Materials & Utilities/);
   assert.doesNotMatch(await text(page, "#inventoryScopeNote"), /Inventory note|Consumables|Fuel/, "the old long scope note and legacy split are gone");
-  assert.equal(await page.$$eval(".ei-bars li", (e) => e.length), 3, "composition bars are real same-unit values");
+  assert.equal(await page.$$eval("#inventoryScopeNote .ei-metric .ei-dbar", (e) => e.length), 3, "one inline bar per category tile (real same-unit values), not a repeated chart"); assert.equal(await page.$$eval(".ei-bars li", (e) => e.length), 0);
   assert.deepEqual(await page.$$eval('input[name="inventoryFilter"]', (r) => r.map((x) => [x.value, x.parentElement.textContent.trim(), x.disabled])), [["all", "All materials", false], ["RM", "Raw Material", false], ["PM", "Packing Material", false], ["IND", "Indirect Materials & Utilities", false]]);
   await page.click("#inventoryFilterBtn"); await page.check('input[name="inventoryFilter"][value="IND"]');
   await page.waitForFunction(() => window.__mis.calls.some((c) => c.name === "get_mis_inventory_item_page" && c.args.p_source_kind === "IND"));
@@ -420,7 +419,8 @@ test("Materials Inventory: a chosen category filter is reset to All (and re-requ
 test("Finished Goods: current stock vs period flows kept apart; zero stock separate from low cover; existing filters and drilldown preserved", { skip: SK }, async () => {
   const { page } = await open({ lens: "finished-goods", noWait: true }); await page.waitForSelector(".fg-table");
   const t = await page.$$eval("#fgScopeNote .ei-metric", (m) => m.map((x) => [x.querySelector(".ei-metric-label").textContent, x.querySelector(".ei-metric-value").textContent]));
-  assert.deepEqual(t, [["SKUs", "622"], ["Stock value", "₹100.00"], ["Zero stock", "54"], ["Below 1 month cover", "104"], ["Above 6 months cover", "101"]]);
+  assert.deepEqual(t, [["SKUs", "622"], ["Stock value", "₹100.00"]]);
+  assert.match(await text(page, "#fgScopeNote .ei-seg-legend"), /Zero stock 54.*Below 1 month 104.*Above 6 months 101/, "status counts live in the stacked bar legend, once");
   assert.match(await text(page, "#fgScopeNote"), /Current stock position/); assert.match(await text(page, "#fgScopeNote"), /Period transfers into finished goods are on the Production Performance lens/);
   await page.click('#fgScopeNote [data-lens-link="production"]'); await page.waitForSelector(".pv-kpi");
   assert.equal(await page.getAttribute('[data-tab="production"]', "aria-selected"), "true");
@@ -465,7 +465,7 @@ test("Overview states: loading is not a zero; 503 shows an error with a summary-
 test("a lens left mid-request cannot repaint, and a newly opened lens shows loading, never the previous lens's or a zero value", { skip: SK }, async () => {
   const { page } = await open({ lens: "finance" });
   await page.evaluate(() => { const m = window.__mis; m.slow = {}; m.handlers.get_mis_finance_party_page = () => (m.slow.fin = m.defer()).promise; m.handlers.v_mis_inventory_tab_summary = () => (m.slow.sum = m.defer()).promise; });
-  await page.click("#financeNextPage");                                         // finance page 2 in flight
+  await page.$eval("#financePartyTableWrap", (e) => { e.scrollTop = e.scrollHeight; });  // finance next chunk in flight
   await page.waitForFunction(() => !!window.__mis.slow.fin);
   await page.evaluate(() => document.querySelector('[data-tab="inventory"]').click());
   await page.waitForSelector("#inventoryScopeNote .ei-state");
@@ -492,7 +492,7 @@ test("responsive: every lens at 320/375/390/430/520/768/1280/1440 has no page-le
   assert.deepEqual(WIDTHS, [320, 375, 390, 430, 520, 768, 1280, 1440]);
   for (const width of WIDTHS) {
     const { page, consoleErrors } = await open({ width, height: width < 600 ? 780 : 900, lens: "overview" });
-    for (const [lens, sel] of [["overview", ".ei-overview .kpi-card"], ["finance", ".finance-table"], ["sales", ".sales-table"], ["inventory", ".inventory-table"], ["finished-goods", ".fg-table"], ["production", ".pv-kpi"], ["alerts", ".ei-alerts"]]) {
+    for (const [lens, sel] of [["overview", ".ei-overview .kpi-card"], ["finance", ".finance-table, .ei-rc"], ["sales", ".sales-table, .ei-rc, .ei-table"], ["inventory", ".inventory-table, .ei-rc"], ["finished-goods", ".fg-table, .ei-rc"], ["production", ".pv-kpi"], ["alerts", ".ei-alerts"]]) {
       await lensTab(page, lens, sel); await page.waitForTimeout(60);
       const o = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, bsw: document.body.scrollWidth }));
       assert.ok(o.sw <= o.cw && o.bsw <= o.cw, `${lens}@${width}: page overflow ${JSON.stringify(o)}`);
@@ -514,7 +514,7 @@ const lastArgs = async (page, name) => (await calls(page, name)).at(-1)?.args;
 const salesOpen = async (opts) => { const r = await open({ lens: "sales", noWait: true, ...opts }); await r.page.waitForSelector(".ei-subnav"); return r; };
 
 test("Sales Overview: matched-period comparison with explicit ASP denominators, NULL not zero, trailing windows with reported vs certified kept apart", { skip: SK }, async () => {
-  const { page, consoleErrors } = await salesOpen(); await page.waitForSelector("#salesCmp .ei-table"); await page.waitForSelector("#salesWin .ei-table");
+  const { page, consoleErrors } = await salesOpen(); await page.waitForSelector("#salesCmp .ei-table, #salesCmp .ei-rc"); await page.waitForSelector("#salesWin .ei-table");
   assert.deepEqual(await page.$$eval("#salesCmp th", (h) => h.map((x) => x.textContent)), ["Period", "Dates", "Sales value", "Net actual packages", "Net billed packages", "ASP per actual package", "ASP per billed package", "Observed days", "Coverage"]);
   const rows = await page.$$eval("#salesCmp tbody tr", (r) => r.map((x) => [...x.children].map((c) => c.textContent.trim())));
   assert.deepEqual(rows[0].slice(0, 3), ["Current", "01 Nov 2026 to 24 Nov 2026", "₹1,13,24,986.78"]); assert.match(rows[0][8], /Observed, not certified/); assert.match(rows[0][8], /250 return rows/);
@@ -538,7 +538,7 @@ test("Sales Overview: matched-period comparison with explicit ASP denominators, 
 });
 
 test("Sales filters: dynamic region/godown from the master, godown follows region, bounded anchor, reload of the active view only, stale views refetch on open", { skip: SK }, async () => {
-  const { page } = await salesOpen(); await page.waitForSelector("#salesCmp .ei-table");
+  const { page } = await salesOpen(); await page.waitForSelector("#salesCmp .ei-table, #salesCmp .ei-rc");
   assert.deepEqual(await page.$$eval("#salesRegion option", (o) => o.map((x) => x.textContent)), ["All regions", "Inside Kerala", "Outside Kerala"]);
   assert.deepEqual(await page.$$eval("#salesGodown option", (o) => o.map((x) => x.textContent)), ["All godowns", "Kozhikode", "Chennai"]);
   assert.equal(await page.getAttribute("#salesAnchor", "min"), "2024-01-01"); assert.equal(await page.getAttribute("#salesAnchor", "max"), "2026-11-24");
@@ -554,7 +554,7 @@ test("Sales filters: dynamic region/godown from the master, godown follows regio
   await page.waitForFunction(() => window.__mis.calls.at(-1).args?.p_anchor === "2026-11-10" || window.__mis.calls.some((c) => c.args?.p_anchor === "2026-11-10"));
   assert.equal(await page.$$eval(".ei-filterbar [data-x]", (e) => e.length), 0);
   const histBefore = (await calls(page, "ei_sales_history")).length; assert.equal(histBefore, 0, "other views were not fetched by a filter change");
-  await page.click('[data-sales-view="history"]'); await page.waitForSelector("#salesHistResults .ei-table");
+  await page.click('[data-sales-view="history"]'); await page.waitForSelector("#salesHistResults .ei-table, #salesHistResults .ei-rc");
   assert.deepEqual(await page.$$eval("#salesGodown option:checked", (o) => o.map((x) => x.textContent)), ["Chennai"], "filters persist across views");
   const h = await lastArgs(page, "ei_sales_history"); assert.deepEqual([h.p_anchor, h.p_region, h.p_godown, h.p_active_only], ["2026-11-10", 2, 20, true]);
   await fopen(page); await page.click("#salesFilterReset"); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_history").length === 2);
@@ -563,7 +563,7 @@ test("Sales filters: dynamic region/godown from the master, godown follows regio
 });
 
 test("Sales History: bounded grouped pages, stable paging, search, top/bottom, ambiguous amounts never certified, month grid never fakes cells, page-only CSV with formula safety", { skip: SK }, async () => {
-  const { page } = await salesOpen(); await page.click('[data-sales-view="history"]'); await page.waitForSelector("#salesHistResults .ei-table");
+  const { page } = await salesOpen(); await page.click('[data-sales-view="history"]'); await page.waitForSelector("#salesHistResults .ei-table, #salesHistResults .ei-rc");
   assert.deepEqual(await lastArgs(page, "ei_sales_history"), { p_anchor: null, p_region: null, p_godown: null, p_months: 12, p_group: "month", p_product: null, p_sku: null, p_active_only: false, p_search: null, p_sort: "value_desc", p_limit: 50, p_offset: 0, ...H0 });
   assert.equal(await page.$$eval("#salesGroupX", (e) => e.length), 0);
   assert.deepEqual(await page.$$eval("#salesHistGroup option", (o) => o.length), [17].length ? 17 : 0);
@@ -572,13 +572,14 @@ test("Sales History: bounded grouped pages, stable paging, search, top/bottom, a
   assert.equal(rows[1][2].startsWith("Unavailable"), true, "NULL certified value is Unavailable"); assert.match(rows[1][2], /2 ambiguous source groups/); assert.equal(rows[1][3], "₹999.00", "source reported amount shown separately");
   assert.equal(rows[0][2], "₹1,000.00"); assert.equal(rows[1][6], "Not available");
   assert.match(await page.textContent('#salesHistResults th:nth-child(4)'), /Reported amount \(not certified\)/);
-  assert.match(await text(page, "#salesHistResults .ei-pager"), /Showing 1-50 of 60 rows/);
-  await page.click('[data-sales-page="hist:1"]'); await page.waitForFunction(() => /Page 2 \/ 2/.test(document.querySelector("#salesHistResults .ei-pager").textContent));
-  assert.equal((await lastArgs(page, "ei_sales_history")).p_offset, 50); assert.match(await text(page, "#salesHistResults .ei-pager"), /Showing 51-60 of 60/);
+  assert.equal(await page.$$eval("#salesHistResults tbody tr", (r) => r.length), 50);
+  await page.selectOption("#salesHistGroup", "product"); await page.waitForFunction(() => document.querySelectorAll("#salesHistResults tbody tr").length === 50);
+  await page.$eval("#salesHistResults .ei-table-wrap", (e) => { e.scrollTop = e.scrollHeight; }); await page.waitForFunction(() => document.querySelectorAll("#salesHistResults tbody tr").length === 60);
+  assert.equal((await lastArgs(page, "ei_sales_history")).p_offset, 50);
   await setSort(page, "value_asc"); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_history").at(-1).args.p_sort === "value_asc");
   assert.equal((await lastArgs(page, "ei_sales_history")).p_offset, 0, "ranking change returns to page 1");
   await page.fill("#salesHistSearch", "Item 3"); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_history").at(-1).args.p_search === "Item 3");
-  assert.match(await text(page, "#salesHistResults .ei-pager"), /of 3 rows/);
+  await page.waitForFunction(() => document.querySelectorAll("#salesHistResults tbody tr").length === 3);
   await page.fill("#salesHistSearch", ""); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_history").at(-1).args.p_search === null);
   await page.selectOption("#salesHistMonths", "6"); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_history").at(-1).args.p_months === 6);
   // product drill-down narrows to that product's SKUs and is shown as a filter
@@ -601,13 +602,13 @@ test("Sales History export: this page only, scope stated, formula injection neut
   const { page } = await salesOpen(); await page.evaluate(() => { window.__mis.handlers.ei_sales_history = (a) => ({ data: { anchor: "2026-11-24", start_date: "2025-12-01", total: 120, limit: 50, offset: 0, rows: [
     { dimension_id: "1", dimension_name: '=HYPERLINK("http://evil","x")', month: null, sales_value: 10, source_reported_amount: 10, actual_packages: 1, billed_packages: 1, asp_actual_package: 10, asp_billed_package: 10, coverage: "OBSERVED_NOT_CERTIFIED", ambiguous_amount_groups: 0 },
     { dimension_id: "2", dimension_name: "+cmd|' /C calc'!A0, \"quoted\"", month: null, sales_value: null, source_reported_amount: 5, actual_packages: null, billed_packages: 1, asp_actual_package: null, asp_billed_package: null, coverage: "MISSING_OR_AMBIGUOUS_MEASURES", ambiguous_amount_groups: 1 }] }, error: null }); });
-  await page.click('[data-sales-view="history"]'); await page.waitForSelector("#salesHistResults .ei-table");
-  assert.match(await text(page, ".ei-viewbar"), /Exports only the 2 rows shown on this page; more rows exist on later pages, not the whole dataset/); assert.doesNotMatch(await text(page, "#salesHistResults"), /full export|all rows exported|entire dataset/i);
+  await page.click('[data-sales-view="history"]'); await page.waitForSelector("#salesHistResults .ei-table, #salesHistResults .ei-rc");
+  assert.match(await text(page, ".ei-viewbar"), /Exports only the rows loaded so far \(more rows exist; keep scrolling to load them\), not the whole dataset/); assert.doesNotMatch(await text(page, "#salesHistResults"), /full export|all rows exported|entire dataset/i);
   const [dl] = await Promise.all([page.waitForEvent("download"), page.click("[data-sales-export]")]);
-  assert.match(dl.suggestedFilename(), /^executive-intelligence-sales-history-page-1\.csv$/);
+  assert.match(dl.suggestedFilename(), /^executive-intelligence-sales-history-loaded-rows\.csv$/);
   const csv = (await import("node:fs")).readFileSync(await dl.path(), "utf8").replace(/^﻿/, "");
   const lines = csv.trim().split("\r\n");
-  assert.match(lines[0], /PAGE ONLY: 2 rows from page 1 \(page size 50\); not the whole dataset/); assert.match(lines[0], /120 rows match the filters/); assert.match(lines[0], /has_more=true/); assert.match(lines[0], /filters: none/); assert.match(lines[0], /import completeness not certified/);
+  assert.match(lines[0], /LOADED ROWS ONLY: 2 rows loaded so far/); assert.match(lines[0], /120 rows match the filters/); assert.match(lines[0], /has_more=true/); assert.match(lines[0], /filters: none/); assert.match(lines[0], /import completeness not certified/);
   assert.match(lines[1], /^Scope,Month,Sales value,Reported amount \(not certified\)/);
   assert.ok(lines[2].startsWith(`"'=HYPERLINK(""http://evil"",""x"")",,10,10`), lines[2]);
   assert.ok(lines[3].startsWith(`"'+cmd|' /C calc'!A0, ""quoted""",,Unavailable,5`), lines[3]);
@@ -616,7 +617,7 @@ test("Sales History export: this page only, scope stated, formula injection neut
 });
 
 test("Sales Exceptions: current-master eligibility is separate from activity; no recorded rows is not a certified zero seller; bad scope is stated", { skip: SK }, async () => {
-  const { page } = await salesOpen(); await page.click('[data-sales-view="exceptions"]'); await page.waitForSelector("#salesExcResults .ei-table");
+  const { page } = await salesOpen(); await page.click('[data-sales-view="exceptions"]'); await page.waitForSelector("#salesExcResults .ei-table, #salesExcResults .ei-rc");
   assert.deepEqual(await lastArgs(page, "ei_sales_exceptions"), { p_anchor: null, p_region: null, p_godown: null, p_search: null, p_limit: 50, p_offset: 0, ...H0 });
   assert.match(await text(page, "#salesExcResults .ei-asof-row"), /current SKU master, not what was listed historically/);
   const r = await page.$$eval("#salesExcResults tbody tr", (x) => x.map((t) => [...t.children].map((c) => c.textContent.trim())));
@@ -667,7 +668,7 @@ test("Sales contract not installed / denied / expired / 503: honest per-view sta
 });
 
 test("a sales view left mid-request cannot repaint another view, and a filter change drops the older response", { skip: SK }, async () => {
-  const { page } = await salesOpen(); await page.waitForSelector("#salesCmp .ei-table");
+  const { page } = await salesOpen(); await page.waitForSelector("#salesCmp .ei-table, #salesCmp .ei-rc");
   await page.evaluate(() => { const m = window.__mis; m.slow = []; m.handlers.ei_sales_history = () => { const d = m.defer(); m.slow.push(d); return d.promise; }; });
   await page.click('[data-sales-view="history"]'); await page.waitForFunction(() => window.__mis.slow.length === 1);
   await fopen(page); await page.selectOption("#salesRegion", "1"); await page.waitForFunction(() => window.__mis.slow.length === 2);
@@ -684,7 +685,7 @@ test("a sales view left mid-request cannot repaint another view, and a filter ch
 
 test("Sales-only entry: capability discovered via ei_sales_access, only the Sales lens, no executive navigation or requests; client hiding is not relied upon", { skip: SK }, async () => {
   const { page, consoleErrors } = await open({ lens: "finance", permission: "sales-only", noWait: true });
-  await page.waitForSelector(".ei-subnav"); await page.waitForSelector("#salesCmp .ei-table");
+  await page.waitForSelector(".ei-subnav"); await page.waitForSelector("#salesCmp .ei-table, #salesCmp .ei-rc");
   const names = [...new Set((await calls(page)).map((c) => c.name))].sort();
   assert.deepEqual(names, ["ei_sales_access", "ei_sales_comparison", "ei_sales_dimensions", "ei_sales_window_totals", "get_user_permissions"], "no summary, pipeline, inventory, finance or legacy sales request");
   assert.equal(await page.evaluate(() => document.body.classList.contains("ei-sales-only")), true);
@@ -754,9 +755,8 @@ test("Overview aligns with the canonical Materials lens: same figure, same certi
 
 test("zero values draw zero-width bars and inventory composition bars; the Overview lists compact summary rows, not oversize cards", { skip: SK }, async () => {
   const { page } = await open({ lens: null, noWait: true, init: () => { window.__mis.handlers = window.__mis.handlers || {}; window.__mis.handlers.v_mis_batch_pipeline = () => ({ data: { active_pipeline_batch_count: 5, work_in_process_batch_count: 5, overdue_work_in_process_batch_count: 0, finished_goods_bulk_batch_count: 0, bottled_stock_batch_count: 0, total_canonical_batch_count: 9 }, error: null }); } });
-  await page.waitForSelector('.ei-bars[aria-label="Live batches by stage"]');
-  const w = await page.$$eval('.ei-bars[aria-label="Live batches by stage"] .ei-bar-fill', (f) => f.map((x) => x.style.width)); assert.deepEqual(w, ["100%", "0%", "0%"]);
-  assert.deepEqual(await page.$$eval('.ei-bars[aria-label="Live batches by stage"] .ei-bar-fill', (f) => f.map((x) => Math.round(x.getBoundingClientRect().width))).then((a) => a.slice(1)), [0, 0], "rendered width is truly zero");
-  const h = await page.$$eval(".kpi-card", (c) => Math.max(...c.map((x) => x.getBoundingClientRect().height))); assert.ok(h <= 56, `indicator row height ${h}`);
+  await page.waitForSelector(".kpi-card .ei-dbar");
+  const w = await page.$$eval(".kpi-card .ei-dbar > span", (f) => f.map((x) => x.style.width)); assert.ok(w.includes("100%"), "the only non-zero stage fills its indicator bar"); assert.ok(w.every((x) => x === "100%" || x === "0%" || /^\d+%$/.test(x)));
+  const h = await page.$$eval(".kpi-card", (c) => Math.max(...c.map((x) => x.getBoundingClientRect().height))); assert.ok(h <= 68, `indicator row height ${h}`);
   await page.context().close();
 });

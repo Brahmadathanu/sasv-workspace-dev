@@ -1,0 +1,45 @@
+name: EI reporting and C1 regression
+on:
+  pull_request:
+    paths:
+      - 'public/shared/executive-mis-dashboard.html'
+      - 'public/shared/js/executive-mis-dashboard.js'
+      - 'public/shared/js/executive-intelligence-model.js'
+      - 'scripts/mis-c1/**'
+      - 'scripts/mis-g7-reporting/**'
+      - '.github/workflows/ei-client-regression.yml'
+permissions:
+  contents: read
+jobs:
+  reporting:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch main for protected-file comparison
+        run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
+      - name: Isolated Chromium dependency
+        run: |
+          echo "NODE_PATH=$RUNNER_TEMP/eideps/node_modules" >> "$GITHUB_ENV"
+          npm install --prefix "$RUNNER_TEMP/eideps" --no-save --no-audit --no-fund --ignore-scripts playwright@1.62.1
+          "$RUNNER_TEMP/eideps/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Full reporting and C1 regression (synthetic, no live writes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const p=require('playwright'); if (!require('fs').existsSync(p.chromium.executablePath())) throw Error('Chromium missing')"
+          node --test scripts/mis-g7-reporting/*.test.mjs scripts/mis-c1/*.test.mjs | tee "$RUNNER_TEMP/ei-regression.log"
+          grep -Eq '^# pass [1-9][0-9]+' "$RUNNER_TEMP/ei-regression.log"
+          if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/ei-regression.log"; then exit 1; fi
+      - name: Preserve regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ei-client-regression
+          path: ${{ runner.temp }}/ei-regression.log
+          if-no-files-found: warn

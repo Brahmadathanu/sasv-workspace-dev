@@ -14,7 +14,8 @@ import {
   analyzeSalesSummary,
   financeBars,
   pipelineBars,
-  comparisonBars, windowBars, monthlyTrend, rankedPageBars, facilityBars, subsetShare, alertSegments, fgStatusSegments, materialFgBars,
+  comparisonBars, windowBars, monthlyTrend, facilityBars, subsetShare, alertSegments, fgStatusSegments, materialFgBars,
+  mergeRows, listIsDone, exportLoadedScopeLine, recordCardModel, inlineBarPct,
   overviewNarrative,
   alertsViewModel,
   shouldResetPage,
@@ -44,7 +45,7 @@ import {
   freshnessModel,
   FRESHNESS_GROUP_LABELS,
   activityParts,
-} from "./executive-intelligence-model.js?ei-r7=1";
+} from "./executive-intelligence-model.js?ei-r8=1";
 
 const MODULE_ID = "executive-mis-dashboard";
 const PLAN_WARNING_STATUS =
@@ -66,6 +67,7 @@ let LIVE_PIPELINE = { status: "idle", data: null, asOf: null, message: "" };
 let LIVE_PIPELINE_INFLIGHT = null;
 let LAST_SUMMARY_ROW = null;
 // Canonical inventory summary for the Overview (same view and same analysis as the Materials Inventory lens).
+let OVERVIEW_TREND = { status: "idle", data: null };
 let OVERVIEW_INV = { status: "idle", data: null, asOf: null, message: "" };
 // Executive-summary snapshot (mv_mis_executive_summary). status: idle | loading | ok | empty | error. Own latest-wins key.
 let SUMMARY_STATE = { status: "idle", row: null, message: "" };
@@ -122,6 +124,7 @@ function isLatestRequest(key, token) {
 
 function invalidateTabRequests() {
   TAB_REQUEST_KEYS.forEach((key) => beginRequest(key));
+  disposeAllMore();
 }
 
 // A rejected/thrown request must still settle into the error state rather
@@ -327,7 +330,7 @@ async function loadExecutiveSummary({ reloadLens = true } = {}) {
     updateFreshnessIndicator();
     // Refresh = one new live pipeline request (supersedes any older one) running beside the snapshot read.
     // A summary-only retry does not touch the pipeline.
-    if (reloadLens) { loadLivePipeline({ force: true }); if (ACTIVE_TAB === "overview") loadOverviewInventory({ force: true }); }
+    if (reloadLens) { loadLivePipeline({ force: true }); if (ACTIVE_TAB === "overview") { loadOverviewInventory({ force: true }); loadOverviewTrend({ force: true }); } }
     else loadLivePipeline();
     if (ACTIVE_TAB === "overview") renderOverview();
     else if (reloadLens) loadActiveTab();
@@ -371,6 +374,28 @@ function loadOverviewInventory({ force = false } = {}) {
     OVERVIEW_INV = error || !data ? { status: "error", data: null, asOf: null, message: errorMessage(error) } : { status: "ok", data, asOf: new Date(), message: "" };
     renderOverview();
   })();
+}
+
+// Overview sales trend: ONE bounded call on the existing authorised history contract (12 months, group = month), reused from the same
+// request each time the Overview opens inside the reuse window; drawn only when the whole month series arrives in that response.
+function loadOverviewTrend({ force = false } = {}) {
+  if (!ACCESS.sales) return Promise.resolve();
+  if (!force && (OVERVIEW_TREND.status === "ok" || OVERVIEW_TREND.status === "loading")) return Promise.resolve();
+  const token = beginRequest("overview:trend");
+  OVERVIEW_TREND = { status: "loading", data: null };
+  return (async () => {
+    const { data, error } = await settle(supabase.rpc("ei_sales_history", { p_months: 12, p_group: "month", p_sort: "key", p_limit: 50, p_offset: 0 }));
+    if (!isLatestRequest("overview:trend", token)) return;
+    OVERVIEW_TREND = error || !data || typeof data !== "object" ? { status: "unavailable", data: null } : { status: "ok", data };
+    if (ACTIVE_TAB === "overview") renderOverview();
+  })();
+}
+function overviewTrendHtml() {
+  if (OVERVIEW_TREND.status === "idle" || OVERVIEW_TREND.status === "loading") return `<div class="ei-bars-note" role="status">Loading monthly sales...</div>`;
+  const t = OVERVIEW_TREND.status === "ok" ? monthlyTrend(OVERVIEW_TREND.data, { group: "month" }) : { reason: "unavailable" };
+  const link = `<button type="button" class="ei-text-link ei-inline-link" data-lens-link="sales" data-focus-key="link-sales-trend">Sales Performance</button>`;
+  if (!t.months) return `<div class="ei-bars-note">No monthly trend is drawn here (the full month series was not available). Matched periods and history are on ${link}.</div>`;
+  return `${trendHtml(t, { label: "Monthly sales, last 12 months", format: formatCurrencyINR, unit: "Same figures as Sales › History; * = current partial month; gaps are months without a value, not zero. Not certified.", asOf: `To ${formatDateIN(OVERVIEW_TREND.data.anchor)}` })}<div class="ei-bars-note">Matched periods and exports: ${link}.</div>`;
 }
 
 function renderSummaryConsumers() {
@@ -442,6 +467,7 @@ function indicatorCard(card, index) {
       <div class="kpi-title">${escapeHtml(card.title)}</div>
       <div class="kpi-value">${escapeHtml(card.value)}</div>
       ${card.basis ? `<div class="kpi-basis">${escapeHtml(card.basis)}</div>` : ""}
+      ${card.bar ? `<div class="kpi-bar">${dbar(card.bar.pct, card.bar.note)}</div>` : ""}
       <button class="kpi-info-btn" type="button" aria-label="Show details for ${escapeHtml(card.title)}" aria-expanded="false" data-kpi-index="${index}" data-kpi-info="${info}" data-focus-key="kpi-${index}">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>
@@ -455,6 +481,8 @@ function indicatorCard(card, index) {
 function chartHead(title, asOf) {
   return title ? `<div class="ei-chart-head"><span class="ei-chart-title">${escapeHtml(title)}</span>${asOf ? `<span class="ei-asof">${escapeHtml(asOf)}</span>` : ""}</div>` : "";
 }
+// Inline data bar: the figure stays text beside it; the bar only adds relative size (never a second copy of the number).
+const dbar = (pct, tip) => (pct === null || pct === undefined ? "" : `<span class="ei-dbar" role="img" aria-label="${escapeHtml(tip)}" title="${escapeHtml(tip)}"><span style="width:${pct}%"></span></span>`);
 function barsHtml(series, { label, format, unit, title = "", asOf = "" }) {
   if (!series) return "";
   return `
@@ -519,41 +547,173 @@ function trendHtml(t, { label, format, unit, asOf = "" }) {
     ${unit ? `<figcaption class="ei-bars-note">${escapeHtml(unit)}</figcaption>` : ""}</figure>`;
 }
 
-// ---- responsive record cards ------------------------------------------------------------------------------------------------------
-// At phone width (<= 640px, the module's existing phone breakpoint) ordinary record tables become compact labelled cards by CSS alone,
-// over the SAME rows and handlers (no second data source, request or DOM copy). Here each cell receives its column label and explicit
-// table roles so assistive technology keeps the table semantics once the display changes. Month grids (.ei-grid) stay real
-// scrolling matrices. data-card-title="n" picks the identity cell (default: the first).
-const CARD_TABLES = ".finance-table, .sales-table, .inventory-table, .fg-table, .ei-table:not(.ei-grid)";
-function cardifyTable(t) {
-  if (t.dataset.eiCards === "1") return;
-  t.dataset.eiCards = "1";
-  t.classList.add("ei-cards");
-  t.setAttribute("role", "table");
-  const head = t.tHead?.rows[0];
-  const labels = head ? Array.from(head.cells).map((c) => c.textContent.trim()) : [];
-  if (head) { head.setAttribute("role", "row"); Array.from(head.cells).forEach((c) => c.setAttribute("role", "columnheader")); }
-  const titleIdx = Number(t.dataset.cardTitle || 0);
-  t.tBodies[0]?.setAttribute("role", "rowgroup");
-  Array.from(t.tBodies[0]?.rows || []).forEach((tr) => {
-    tr.setAttribute("role", "row");
-    Array.from(tr.cells).forEach((td, i) => {
-      td.setAttribute("role", "cell");
-      if (tr.cells.length !== labels.length) return;
-      td.setAttribute("data-label", labels[i] || "");
-      if (i === titleIdx) td.setAttribute("data-card-primary", "");
-    });
-  });
+// ---- infinite scroll plumbing ------------------------------------------------------------------------------------------------------
+// One IntersectionObserver per scroll container, rooted at the actual scroll container (the table wrap). A failed chunk disarms the
+// observer and shows Retry for that same chunk; without IntersectionObserver a keyboard-accessible Load more button is shown instead.
+const MORE_OBS = new Map();
+function disposeMore(key) { MORE_OBS.get(key)?.disconnect(); MORE_OBS.set(key, null); }
+function disposeAllMore() { MORE_OBS.forEach((o) => o?.disconnect()); MORE_OBS.clear(); }
+function moreHtml(key, { loading, error, done }) {
+  if (done) return "";
+  const noObserver = typeof IntersectionObserver !== "function";
+  const inner = error
+    ? `<span>Could not load more. ${escapeHtml(error)}</span> <button type="button" class="mis-retry-btn" data-more-retry="${key}">Retry</button>`
+    : loading ? `<span class="table-loading-spinner" aria-hidden="true"></span> Loading more...`
+    : noObserver ? `<button type="button" class="mis-retry-btn" data-more-retry="${key}">Load more</button>` : "";
+  return `<div class="ei-more${error ? " error" : ""}" data-more="${key}" role="status">${inner}</div>`;
 }
-function applyRecordCards(root = document) { root.querySelectorAll(CARD_TABLES).forEach(cardifyTable); }
+function armMore(root, key, load) {
+  disposeMore(key);
+  const sentinel = root?.querySelector(`[data-more="${key}"]`);
+  if (!sentinel || sentinel.classList.contains("error") || typeof IntersectionObserver !== "function") return;
+  const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) load(); }, { root, rootMargin: "160px", threshold: 0 });
+  io.observe(sentinel);
+  MORE_OBS.set(key, io);
+}
+window.addEventListener("pagehide", disposeAllMore);
+
+// ---- compact record cards + in-page detail dialog -------------------------------------------------------------------------------
+// At phone width (<= 640px, the module's phone breakpoint) an ordinary record table is REPLACED (never duplicated) by compact cards:
+// title, secondary identity, one primary measure, a few key values and a critical status only. Every field of the record stays reachable
+// in a detail dialog built from the same rendered cells (no new request, no information loss). The desktop table is unchanged and the
+// month grid stays a contained scrolling matrix. Finance parties keep their existing bill drilldown.
+const CARD_META = {
+  finance: { title: "Party", sub: ["Group"], measure: "Outstanding", chips: ["Bills", "Signed Balance"] },
+  inventory: { title: "Item", sub: ["Code", "Category"], measure: "Stock value", chips: ["Quantity", "Average rate"] },
+  fg: { title: "Item", sub: ["Pack"], measure: "Stock Value", chips: ["Stock", "MOS"], status: "Status" },
+  sales: { title: "Product", measure: "MTD billed sales", chips: ["SKUs", "MTD billed units"] },
+  "Period comparison": { title: "Period", sub: ["Dates"], measure: "Sales value", chips: ["Net billed packages"], status: "Coverage" },
+  "Trailing window totals": { title: "Window", measure: "Sales value", chips: ["Months observed", "Average per month"] },
+  "Sales history": { title: 0, sub: ["Month"], measure: "Sales value", chips: ["Net billed packages"], status: "Coverage" },
+  "Sales exceptions": { title: "Product", sub: ["Pack", "SKU"], measure: "Net billed", chips: ["Eligibility now"], status: "Activity this month" },
+  "Daily coverage": { title: "Date", measure: "Mapped rows", chips: ["Raw rows", "Missing amounts"], status: "State" },
+  "Facility sales by classification scope": { title: "Scope", measure: "Billed value", chips: ["Rows"] },
+  "Management alerts": { title: "Check", sub: ["Evidence date"], measure: "Findings", status: "State" },
+};
+const phoneMQ = window.matchMedia ? window.matchMedia("(max-width: 640px)") : null;
+const isPhoneCards = () => !!phoneMQ?.matches;
+function cardMetaFor(t) {
+  if (t.classList.contains("ei-grid")) return null; // genuine matrix
+  if (t.classList.contains("finance-table")) return t.closest("#financePartyTableWrap") ? CARD_META.finance : null;
+  if (t.classList.contains("inventory-table")) return CARD_META.inventory;
+  if (t.classList.contains("fg-table")) return CARD_META.fg;
+  if (t.classList.contains("sales-table")) return CARD_META.sales;
+  return CARD_META[t.getAttribute("aria-label")] || null;
+}
+const flat = (t) => t.replace(/\s+/g, " ").trim();
+const cardText = (td) => { const c = td.cloneNode(true); c.querySelectorAll(".ei-cell-sub").forEach((e) => e.remove()); return flat(c.textContent); }; // the cell's own value; its small note stays in the detail view
+const cardNote = (td) => flat(Array.from(td.querySelectorAll(".ei-cell-sub")).map((e) => e.textContent).join(" "));
+function cardHtml(m, i) {
+  const chips = m.chips.filter((c) => c.value).map((c) => `<span class="ei-rc-chip"><i>${escapeHtml(c.label)}</i> ${escapeHtml(c.value)}</span>`).join("");
+  return `<li class="ei-rc"><button type="button" class="ei-rc-btn" data-rc="${i}" aria-haspopup="dialog" aria-label="${escapeHtml(`Details for ${m.title}`)}">
+    <span class="ei-rc-top"><span class="ei-rc-title">${escapeHtml(m.title)}</span>${m.measure ? `<span class="ei-rc-measure"><b>${escapeHtml(m.measure.value)}</b><i>${escapeHtml(m.measure.label)}</i></span>` : ""}</span>
+    ${m.sub.length ? `<span class="ei-rc-sub">${escapeHtml(m.sub.join(" · "))}</span>` : ""}
+    ${chips || m.status ? `<span class="ei-rc-meta">${chips}${m.status ? `<span class="ei-rc-status">${escapeHtml(m.status)}</span>` : ""}</span>` : ""}
+    <span class="ei-rc-go" aria-hidden="true">&rsaquo;</span></button></li>`;
+}
+function cardifyTable(t) {
+  if (!isPhoneCards() || !t.isConnected) return;
+  const meta = cardMetaFor(t);
+  const head = t.tHead?.rows[0];
+  if (!meta || !head) return;
+  const labels = Array.from(head.cells).map((c) => c.textContent.trim());
+  const rows = Array.from(t.tBodies[0]?.rows || []);
+  if (!rows.length || rows.some((r) => r.cells.length !== labels.length)) return; // placeholder rows stay as they are
+  const recs = rows.map((tr) => ({ party: tr.getAttribute("data-party-index"), cells: Array.from(tr.cells).map((td) => ({ text: cardText(td), note: cardNote(td), html: td.innerHTML })) }));
+  const models = recs.map((r) => {
+    const m = recordCardModel(labels, r.cells.map((c) => c.text), meta);
+    const tn = r.cells[labels.indexOf(typeof meta.title === "number" ? labels[meta.title] : meta.title)]?.note;
+    if (tn) m.sub.push(tn); // e.g. an item's classification stays visible under its name
+    return m;
+  });
+  const list = document.createElement("ul");
+  list.className = "ei-rc-list";
+  list.setAttribute("aria-label", t.getAttribute("aria-label") || meta.title || "Records");
+  list.innerHTML = models.map(cardHtml).join("");
+  list.__rc = { labels, recs, models };
+  t.replaceWith(list);
+}
+const CARD_TABLES = ".finance-table, .sales-table, .inventory-table, .fg-table, .ei-table";
+function applyRecordCards(root = document) { if (isPhoneCards()) root.querySelectorAll(CARD_TABLES).forEach(cardifyTable); }
 if (typeof MutationObserver === "function") {
   let queued = false;
   new MutationObserver((muts) => {
-    if (queued || !muts.some((m) => m.addedNodes.length)) return;
+    if (queued || !isPhoneCards() || !muts.some((m) => m.addedNodes.length)) return;
     queued = true;
     queueMicrotask(() => { queued = false; applyRecordCards(); });
   }).observe(document.body, { childList: true, subtree: true });
 }
+
+let REC_OPEN = null; // { overlay, trigger, list, index }
+function recOverlay() {
+  let o = document.getElementById("eiRecOverlay");
+  if (o) return o;
+  o = document.createElement("div");
+  o.id = "eiRecOverlay";
+  o.className = "ei-rec-overlay";
+  o.hidden = true;
+  o.innerHTML = `<div class="ei-rec-dialog" role="dialog" aria-modal="true" aria-labelledby="eiRecTitle"><header class="ei-rec-head"><h3 id="eiRecTitle" class="ei-rec-title"></h3><button type="button" class="ei-drawer-close" data-rec-close aria-label="Close details">${iconHtml("close", 16)}</button></header><dl id="eiRecBody" class="ei-rec-body"></dl></div>`;
+  document.body.appendChild(o);
+  return o;
+}
+function openRecordDetails(btn) {
+  const list = btn.closest(".ei-rc-list");
+  const i = Number(btn.getAttribute("data-rc"));
+  const rc = list?.__rc;
+  if (!rc || !rc.recs[i]) return;
+  if (rc.recs[i].party != null && list.closest("#financePartyTableWrap")) { const row = LISTS.finance.st.rows[Number(rc.recs[i].party)]; if (row) openFinancePartyDetails(row); return; }
+  const overlay = recOverlay();
+  const m = rc.models[i];
+  overlay.querySelector("#eiRecTitle").textContent = m.title;
+  overlay.querySelector("#eiRecBody").innerHTML = rc.recs[i].cells.map((c, k) => `<div class="ei-rec-row"><dt>${escapeHtml(rc.labels[k] || "")}</dt><dd>${c.html}</dd></div>`).join("");
+  overlay.hidden = false;
+  document.body.classList.add("ei-sheet-open");
+  REC_OPEN = { overlay, trigger: btn, list, index: i, pushed: false };
+  try { history.pushState({ eiRec: 1 }, ""); REC_OPEN.pushed = true; } catch { /* history unavailable */ }
+  overlay.querySelector("[data-rec-close]").focus();
+}
+function closeRecordDetails({ restoreFocus = true, fromPop = false } = {}) {
+  if (!REC_OPEN) return;
+  const { overlay, trigger, pushed } = REC_OPEN;
+  const list = REC_OPEN.list, index = REC_OPEN.index;
+  REC_OPEN = null;
+  overlay.hidden = true;
+  if (!document.querySelector(".ei-drawer.open")) document.body.classList.remove("ei-sheet-open");
+  if (pushed && !fromPop) { try { history.back(); } catch { /* ignore */ } }
+  if (restoreFocus) (trigger?.isConnected ? trigger : document.querySelector(`.ei-rc-btn[data-rc="${index}"]`))?.focus?.({ preventScroll: true });
+  void list;
+}
+document.addEventListener("click", (ev) => {
+  const t = ev.target;
+  const card = t.closest?.(".ei-rc-btn");
+  if (card) { openRecordDetails(card); return; }
+  if (!REC_OPEN) return;
+  if (t.closest("[data-rec-close]") || t === REC_OPEN.overlay) { closeRecordDetails(); return; }
+  if (t.closest("[data-hist-drill]")) { handleSalesClick(ev); closeRecordDetails({ restoreFocus: false }); }
+});
+document.addEventListener("keydown", (ev) => {
+  if (!REC_OPEN) return;
+  if (ev.key === "Escape") { ev.stopImmediatePropagation(); closeRecordDetails(); }
+  else if (ev.key === "Tab") trapTab(REC_OPEN.overlay.querySelector(".ei-rec-dialog"), ev);
+}, true);
+window.addEventListener("popstate", () => { if (REC_OPEN) closeRecordDetails({ fromPop: true }); });
+document.addEventListener("click", (ev) => {
+  const r = ev.target.closest?.("[data-more-retry]");
+  if (!r) return;
+  const key = r.getAttribute("data-more-retry");
+  if (LISTS[key]) loadList(key, { append: true, retry: true });
+  else sxLoadMore(key, { retry: true });
+});
+
+// Breakpoint crossing: records are re-rendered by their own renderers from the state already held (no request).
+function rerenderRecords() {
+  closeRecordDetails({ restoreFocus: false });
+  const list = { finance: "finance", inventory: "inventory", "finished-goods": "fg" }[ACTIVE_TAB] || (ACTIVE_TAB === "sales" && SX.view === "mtd" ? "sales" : "");
+  if (list && LISTS[list].st.rows.length) renderListTable(list);
+  else if (ACTIVE_TAB === "sales" && SX_SLOTS_FOR_VIEW[SX.view]) SX_SLOTS_FOR_VIEW[SX.view].forEach((sl) => SX_RENDER[sl] && renderSalesResults(sl));
+  else if (ACTIVE_TAB === "alerts") renderAlertsLens();
+}
+phoneMQ?.addEventListener?.("change", rerenderRecords);
 
 function overviewGroup({ id, title, lens, lensLabel, asOf, cards, extra = "" }) {
   return `
@@ -583,7 +743,18 @@ function buildOverviewCards(row) {
   const pipeOk = LIVE_PIPELINE.status === "ok" && LIVE_PIPELINE.data;
   const overdue = pipeOk ? Number(LIVE_PIPELINE.data.overdue_work_in_process_batch_count) : NaN;
   let i = 0;
-  const c = (card) => indicatorCard(card, i++);
+  // Integrated comparison: a thin bar inside the indicator that already carries the figure (no separate chart repeating the numbers).
+  const bars = {};
+  const fb = financeBars(r);
+  if (fb) { bars["Receivables — Sundry Debtors"] = { pct: fb.rows[0].pct, note: "Magnitude vs payables" }; bars["Payables — Sundry Creditors"] = { pct: fb.rows[1].pct, note: "Magnitude vs receivables" }; }
+  const mf = materialFgBars(r, invA?.state === "ok" ? invA.knownValue : null);
+  if (mf && mf.rows.every((x) => x.pct !== null)) { bars["Materials Stock Value"] = { pct: mf.rows[0].pct, note: "Size vs finished goods; different bases, never added" }; bars["Finished Goods Inventory Value"] = { pct: mf.rows[1].pct, note: "Size vs materials; different bases, never added" }; }
+  const lp = LIVE_PIPELINE.status === "ok" ? LIVE_PIPELINE.data : null;
+  const pb = lp ? pipelineBars(lp) : null;
+  if (pb) bars["Work in Process Batches"] = { pct: pb.rows[0].pct, note: "Stage size vs FG bulk and bottled; stages do not overlap" };
+  const ss = lp ? subsetShare(lp.work_in_process_batch_count, lp.overdue_work_in_process_batch_count) : null;
+  if (ss) bars["Overdue Work in Process Batches"] = { pct: ss.pct, note: `${ss.pct}% of work in process (a subset, not a stage)` };
+  const c = (card) => indicatorCard({ ...card, bar: bars[card.title] }, i++);
   return {
     finance: [
       c({ title: "Payables — Sundry Creditors", value: snap(r.payables_sundry_creditors, formatCurrencyINR), basis: "Current position", note: "Outstanding balance under Sundry Creditors as per latest Tally outstanding snapshot.", source: financialDate, detail: "Financial liability position from Sundry Creditors." }),
@@ -623,7 +794,6 @@ function renderOverview() {
     const cards = buildOverviewCards(row);
     const invAnalysis = OVERVIEW_INV.status === "ok" ? analyzeInventorySummary(OVERVIEW_INV.data) : null;
     const narrative = overviewNarrative(row, LIVE_PIPELINE, FMT, invAnalysis);
-    const pipeSeries = LIVE_PIPELINE.status === "ok" ? pipelineBars(LIVE_PIPELINE.data) : null;
     const banner =
       st.status === "error"
         ? `<div class="ei-state error" role="alert">Executive summary could not be loaded. ${escapeHtml(st.message)} <button type="button" class="mis-retry-btn" data-mis-retry="summary">Retry</button></div>`
@@ -645,10 +815,10 @@ function renderOverview() {
             : ""
         }
         <div class="ei-groups" id="kpiGrid" aria-live="polite">
-          ${overviewGroup({ id: "finance", title: "Finance", lens: "finance", lensLabel: "Finance", asOf: row?.financial_position_date ? `Position ${formatDateIN(row.financial_position_date)}` : "", cards: cards.finance, extra: `${barsHtml(financeBars(row), { label: "Receivables and payables outstanding, magnitudes", format: formatCurrencyINR, unit: "Outstanding balances at the position date; bar length compares magnitudes, figures keep their Tally sign.", asOf: row?.financial_position_date ? `Position ${formatDateIN(row.financial_position_date)}` : "" })}${hasValue(row?.net_sundry_position) ? `<div class="ei-net-line">Net sundry position (signed, receivables minus payables): <b>${escapeHtml(formatCurrencyINR(row.net_sundry_position))}</b></div>` : ""}` })}
-          ${overviewGroup({ id: "sales", title: "Sales", lens: "sales", lensLabel: "Sales Performance", asOf: row?.sales_position_date ? `To ${formatDateIN(row.sales_position_date)}` : "", cards: cards.sales, extra: `<div class="ei-bars-note">Month-to-date only. Matched periods and monthly history are on <button type="button" class="ei-text-link ei-inline-link" data-lens-link="sales" data-focus-key="link-sales-trend">Sales Performance</button>; nothing is loaded here for them.</div>` })}
-          ${overviewGroup({ id: "stock", title: "Stock on hand", lens: "inventory", lensLabel: "Materials Inventory", asOf: row?.report_generated_date ? `Report ${formatDateIN(row.report_generated_date)}` : "", cards: cards.stock, extra: `${barsHtml(materialFgBars(row, invAnalysis?.knownValue), { label: "Known stock positions by basis", format: formatCurrencyINR, unit: "Different valuation bases (materials from the manufacturing-inventory snapshot, finished goods from the finished-goods snapshot): compared side by side, never added into one stock total.", asOf: row?.report_generated_date ? `Report ${formatDateIN(row.report_generated_date)}` : "" })}<button type="button" class="ei-link ei-link-inline" data-lens-link="finished-goods" data-focus-key="link-finished-goods">Finished Goods <span aria-hidden="true">&rsaquo;</span></button>` })}
-          ${overviewGroup({ id: "production", title: "Production", lens: "production", lensLabel: "Production Performance", asOf: LIVE_PIPELINE.status === "ok" && LIVE_PIPELINE.asOf ? `Live ${formatDateTimeIN(LIVE_PIPELINE.asOf)}` : "", cards: cards.live + cards.flow, extra: `${barsHtml(pipeSeries, { label: "Live batches by stage", format: formatIntegerIN, unit: "Distinct, non-overlapping stages; not a sequence or throughput. Active pipeline also includes Not Initiated batches, not shown separately." })}${subsetHtml(LIVE_PIPELINE.status === "ok" ? subsetShare(LIVE_PIPELINE.data?.work_in_process_batch_count, LIVE_PIPELINE.data?.overdue_work_in_process_batch_count) : null, { label: "Overdue within work in process", parent: "batches in process", part: "overdue", unit: "Overdue is a subset of work in process, not an additional stage." })}` })}
+          ${overviewGroup({ id: "finance", title: "Finance", lens: "finance", lensLabel: "Finance", asOf: row?.financial_position_date ? `Position ${formatDateIN(row.financial_position_date)}` : "", cards: cards.finance, extra: `<div class="ei-bars-note">Bars compare the size of the two balances; the signed figures are shown.</div>` })}
+          ${overviewGroup({ id: "sales", title: "Sales", lens: "sales", lensLabel: "Sales Performance", asOf: row?.sales_position_date ? `To ${formatDateIN(row.sales_position_date)}` : "", cards: cards.sales, extra: overviewTrendHtml() })}
+          ${overviewGroup({ id: "stock", title: "Stock on hand", lens: "inventory", lensLabel: "Materials Inventory", asOf: row?.report_generated_date ? `Report ${formatDateIN(row.report_generated_date)}` : "", cards: cards.stock, extra: `<div class="ei-bars-note">Bars compare size only: materials and finished goods are different valuation bases and are never added.</div><button type="button" class="ei-link ei-link-inline" data-lens-link="finished-goods" data-focus-key="link-finished-goods">Finished Goods <span aria-hidden="true">&rsaquo;</span></button>` })}
+          ${overviewGroup({ id: "production", title: "Production", lens: "production", lensLabel: "Production Performance", asOf: LIVE_PIPELINE.status === "ok" && LIVE_PIPELINE.asOf ? `Live ${formatDateTimeIN(LIVE_PIPELINE.asOf)}` : "", cards: cards.live + cards.flow, extra: `<div class="ei-bars-note">Bars: stage size against FG bulk and bottled stock (stages do not overlap); the overdue bar is its share of work in process, a subset.</div>` })}
           <section class="ei-group" data-domain="alerts" aria-labelledby="eiGroup-alerts">
             <header class="ei-group-head">
               <h3 class="ei-group-title" id="eiGroup-alerts">Management alerts</h3>
@@ -879,7 +1049,7 @@ function loadActiveTab() {
   if (ACTIVE_TAB === "overview") {
     renderOverview();
     // Reuses the shared live response when fresh; never a private duplicate request.
-    return Promise.all([loadLivePipeline(), loadOverviewInventory()]);
+    return Promise.all([loadLivePipeline(), loadOverviewInventory(), loadOverviewTrend()]);
   }
   if (ACTIVE_TAB === "finance") return loadFinanceTab();
   if (ACTIVE_TAB === "sales") return loadSalesTab();
@@ -950,14 +1120,15 @@ function setTableLoading(
 // All search, filter and paging happens on the server; the browser never scans or filters history.
 // ---------------------------------------------------------------------------
 function newListState(filter) {
-  return { filter, search: "", page: 1, size: 25, total: 0, rows: [], loading: false, error: "" };
+  return { filter, search: "", page: 1, size: 25, offset: 0, total: 0, rows: [], loading: false, error: "", done: false, more: { loading: false, error: "" } };
 }
 
-const metric = ({ label, value, sub = "", state = "", title = "" }) => `
+const metric = ({ label, value, sub = "", state = "", title = "", bar = null }) => `
   <div class="ei-metric ${state}"${title ? ` title="${escapeHtml(title)}"` : ""}>
     <div class="ei-metric-label">${escapeHtml(label)}</div>
     <div class="ei-metric-value">${escapeHtml(value)}</div>
     ${sub ? `<div class="ei-metric-sub">${escapeHtml(sub)}</div>` : ""}
+    ${bar ? dbar(bar.pct, bar.note) : ""}
   </div>`;
 
 const summaryState = (L, loadingText) =>
@@ -976,12 +1147,13 @@ function financeMetricsHtml() {
     return `<div class="ei-state ${st.status === "error" ? "error" : ""}" role="${st.status === "error" ? "alert" : "status"}">Outstanding position is unavailable${st.message ? `: ${escapeHtml(st.message)}` : "."} ${st.status === "error" ? `<button type="button" class="mis-retry-btn" data-mis-retry="summary">Retry</button>` : ""}</div>`;
   }
   const r = st.row;
+  const fbars = financeBars(r);
   const date = r.financial_position_date ? `Outstanding position ${formatDateIN(r.financial_position_date)}` : "Outstanding position";
   return `
     <div class="ei-asof-row"><span>${escapeHtml(date)}</span><span>Signed Tally balances</span></div>
     <div class="ei-metrics">
-      ${metric({ label: "Payables — Sundry Creditors", value: orWord(r.payables_sundry_creditors, formatCurrencyINR) })}
-      ${metric({ label: "Receivables — Sundry Debtors", value: orWord(r.receivables_sundry_debtors, formatCurrencyINR) })}
+      ${metric({ label: "Payables — Sundry Creditors", value: orWord(r.payables_sundry_creditors, formatCurrencyINR), bar: fbars && { pct: fbars.rows[1].pct, note: "Magnitude vs receivables" } })}
+      ${metric({ label: "Receivables — Sundry Debtors", value: orWord(r.receivables_sundry_debtors, formatCurrencyINR), bar: fbars && { pct: fbars.rows[0].pct, note: "Magnitude vs payables" } })}
       ${metric({ label: "Net Sundry Position", value: orWord(r.net_sundry_position, formatCurrencyINR), sub: "Receivables minus payables", state: Number(r.net_sundry_position) < 0 ? "caution" : "" })}
     </div>`;
 }
@@ -989,9 +1161,6 @@ function financeMetricsHtml() {
 function renderFinanceMetrics() {
   const host = $("financeMetrics");
   if (host) host.innerHTML = financeMetricsHtml();
-  const chart = $("financeChart");
-  const r = SUMMARY_STATE.status === "ok" ? SUMMARY_STATE.row : null;
-  if (chart) chart.innerHTML = barsHtml(financeBars(r), { label: "Receivables and payables outstanding, magnitudes", format: formatCurrencyINR, unit: "Magnitudes are compared; each figure keeps its Tally sign. The signed net is the separate figure above. No ageing is shown: the summary has no ageing buckets.", asOf: r?.financial_position_date ? `Position ${formatDateIN(r.financial_position_date)}` : "" });
 }
 
 function basisDetails(lines) {
@@ -1052,6 +1221,7 @@ function inventorySummaryHtml(L) {
       </div>`;
   }
   const money = (g) => (g.valueState === "value" ? formatCurrencyINR(g.known) : g.valueState === "none" ? "No items" : "Unavailable");
+  const maxKnown = Math.max(0, ...a.groups.filter((g) => g.valueState === "value").map((g) => Number(g.known)));
   const tiles = a.groups
     .map((g) =>
       metric({
@@ -1059,6 +1229,7 @@ function inventorySummaryHtml(L) {
         value: money(g),
         sub: `${formatIntegerIN(g.count)} ${a.rowWord}${g.gaps ? ` · ${formatIntegerIN(g.gaps)} without usable valuation` : ""}`,
         state: g.valueState === "unavailable" ? "unavailable" : "",
+        bar: g.valueState === "value" ? { pct: inlineBarPct(g.known, maxKnown), note: "Size vs the largest category" } : null,
       }),
     )
     .join("");
@@ -1080,7 +1251,6 @@ function inventorySummaryHtml(L) {
     <div class="ei-coverage" role="status">
       Coverage: ${escapeHtml(cov.detail)}.
     </div>
-    ${barsHtml(a.composition, { label: "Known stock value by category", format: formatCurrencyINR, unit: "Known values only; rows without a usable valuation are excluded." })}
     ${basisDetails([
       "Known values exclude rows whose valuation is not usable. A zero quantity with no rate is a valid zero; a non-zero quantity with a missing or non-positive rate is unavailable, not zero.",
       "The primary category is the server's category label. Source kind appears on each row only as supporting evidence.",
@@ -1094,17 +1264,20 @@ function fgSummaryHtml(L) {
   if (wait) return wait;
   const s = L.sum.data;
   if (!s) return `<div class="ei-state ei-state-unavailable" role="status">No finished goods summary is available.</div>`;
+  const fgSegs = fgStatusSegments(s);
   return `
     <div class="ei-asof-row"><span>Current stock position</span>
       <span>Period transfers into finished goods are on the <button type="button" class="ei-text-link ei-inline-link" data-lens-link="production">Production Performance</button> lens</span></div>
     <div class="ei-metrics">
       ${metric({ label: "SKUs", value: orWord(s.sku_count, formatIntegerIN) })}
       ${metric({ label: "Stock value", value: orWord(s.stock_value_overall, formatCurrencyINR) })}
-      ${metric({ label: "Zero stock", value: orWord(s.zero_stock_sku_count, formatIntegerIN), sub: "SKUs with no stock", state: Number(s.zero_stock_sku_count) > 0 ? "caution" : "" })}
-      ${metric({ label: "Below 1 month cover", value: orWord(s.below_1_month_cover_count, formatIntegerIN), sub: "Months-of-stock status" })}
-      ${metric({ label: "Above 6 months cover", value: orWord(s.above_6_month_cover_count, formatIntegerIN), sub: "Months-of-stock status" })}
+      ${fgSegs ? "" : [
+        metric({ label: "Zero stock", value: orWord(s.zero_stock_sku_count, formatIntegerIN), sub: "SKUs with no stock", state: Number(s.zero_stock_sku_count) > 0 ? "caution" : "" }),
+        metric({ label: "Below 1 month cover", value: orWord(s.below_1_month_cover_count, formatIntegerIN), sub: "Months-of-stock status" }),
+        metric({ label: "Above 6 months cover", value: orWord(s.above_6_month_cover_count, formatIntegerIN), sub: "Months-of-stock status" }),
+      ].join("")}
     </div>
-    ${segmentsHtml(fgStatusSegments(s), { label: "SKUs by months-of-stock status", noun: "SKUs", cls: { ZERO: "c", LOW: "b", HIGH: "d", OTHER: "a" }, unit: "Server statuses, each SKU in one status. Other statuses is SKUs minus the three listed, so it includes normal cover." })}
+    ${segmentsHtml(fgSegs, { label: "SKUs by months-of-stock status", noun: "SKUs", cls: { ZERO: "c", LOW: "b", HIGH: "d", OTHER: "a" }, unit: "Server statuses, each SKU in one status. Other statuses is SKUs minus the three listed, so it includes normal cover." })}
     ${basisDetails([
       "Zero stock and low cover are separate server statuses; neither is derived from an arbitrary threshold in the browser.",
       "Stock is the current position. Transfers into finished goods are period flows and are reported under Production Performance.",
@@ -1146,8 +1319,8 @@ const LISTS = {
     shell: ".finance-table-shell", loadingMsg: "Loading finance parties...", retryKey: "finance",
     summaryTable: "v_mis_finance_tab_summary", summarySelect: "finance_scope_note", errorText: "Finance basis note could not be loaded.",
     placeholder: "Search party or group", st: newListState("payables"), sum: { status: "idle", data: null, error: "" },
-    args: (st) => ({ p_group_filter: st.filter, p_search: st.search, p_limit: st.size, p_offset: (st.page - 1) * st.size }),
-    parse: finParse, summaryHtml: financeBasisHtml,
+    args: (st) => ({ p_group_filter: st.filter, p_search: st.search, p_limit: st.size, p_offset: st.offset }),
+    parse: finParse, summaryHtml: financeBasisHtml, key: (r) => `${r.party_name}|${r.mis_group_name}`,
     filterConfig: () => ({
       title: "Outstanding Group", ariaLabel: "Finance filters",
       options: [
@@ -1164,8 +1337,8 @@ const LISTS = {
     shell: ".sales-table-shell", loadingMsg: "Loading sales products...", retryKey: "sales",
     summaryTable: "v_ei_sales_mtd_summary", summarySelect: "*", errorText: "Sales summary could not be loaded.",
     host: () => $("salesView"), placeholder: "Search product", st: newListState(null), sum: { status: "idle", data: null, error: "" },
-    args: (st) => ({ p_search: st.search, p_limit: st.size, p_offset: (st.page - 1) * st.size }),
-    parse: arrParse, summaryHtml: salesSummaryHtml,
+    args: (st) => ({ p_search: st.search, p_limit: st.size, p_offset: st.offset }),
+    parse: arrParse, summaryHtml: salesSummaryHtml, key: (r) => String(r.product_id ?? r.product_name),
     emptyText: "No products found.", loadErrText: "Failed to load sales products.", loadingText: "Preparing sales table...",
   },
   inventory: {
@@ -1173,8 +1346,8 @@ const LISTS = {
     shell: ".inventory-table-shell", loadingMsg: "Loading inventory items...", retryKey: "inventory",
     summaryTable: "v_mis_inventory_tab_summary", summarySelect: "*", errorText: "Materials summary could not be loaded.",
     placeholder: "Search item, code, or classification", st: newListState("all"), sum: { status: "idle", data: null, error: "" },
-    args: (st) => ({ p_source_kind: st.filter, p_search: st.search, p_limit: st.size, p_offset: (st.page - 1) * st.size }),
-    parse: arrParse, summaryHtml: inventorySummaryHtml, filterConfig: inventoryFilterConfig,
+    args: (st) => ({ p_source_kind: st.filter, p_search: st.search, p_limit: st.size, p_offset: st.offset }),
+    parse: arrParse, summaryHtml: inventorySummaryHtml, filterConfig: inventoryFilterConfig, key: (r) => `${r.inv_stock_item_id ?? r.code ?? r.item_name}|${r.source_kind ?? ""}`,
     activeFilters: (st) => (st.filter === "all" ? 0 : 1), defaultFilter: "all",
     emptyText: "No items found.", loadErrText: "Failed to load inventory items.", loadingText: "Preparing inventory table...",
     // Called once the summary arrives: a non-canonical contract can never leave a category filter applied.
@@ -1194,8 +1367,8 @@ const LISTS = {
     shell: ".fg-table-shell", loadingMsg: "Loading Finished Goods SKUs...", retryKey: "finished-goods",
     summaryTable: "v_mis_finished_goods_tab_summary", summarySelect: "*", errorText: "Finished goods summary could not be loaded.",
     placeholder: "Search SKU, item, or classification", st: newListState("all"), sum: { status: "idle", data: null, error: "" },
-    args: (st) => ({ p_mos_filter: st.filter, p_search: st.search, p_limit: st.size, p_offset: (st.page - 1) * st.size }),
-    parse: arrParse, summaryHtml: fgSummaryHtml,
+    args: (st) => ({ p_mos_filter: st.filter, p_search: st.search, p_limit: st.size, p_offset: st.offset }),
+    parse: arrParse, summaryHtml: fgSummaryHtml, key: (r) => String(r.sku_id ?? `${r.item}|${r.pack_size}|${r.uom}`),
     filterConfig: () => ({
       title: "MOS Status", ariaLabel: "Finished Goods filters",
       options: [
@@ -1260,27 +1433,6 @@ function renderListToolbar(p) {
   if (host) host.innerHTML = listToolbarHtml(LISTS[p]);
 }
 
-function listPaginationHtml(L) {
-  const { total, page, size } = L.st;
-  const p = L.p;
-  const pages = Math.max(1, Math.ceil(total / size));
-  const start = total ? (page - 1) * size + 1 : 0;
-  const end = Math.min(page * size, total);
-  const chev = (d) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="${d}"></path></svg>`;
-  return `
-    <span class="${p}-row-count">Showing ${formatIntegerIN(start)}-${formatIntegerIN(end)} of ${formatIntegerIN(total)} ${L.noun}</span>
-    <div class="${p}-page-controls">
-      <button id="${p}PrevPage" class="icon-btn" type="button" title="Previous page" aria-label="Previous page" data-act="prev" data-list="${p}" ${page <= 1 ? "disabled" : ""}>${chev("M15 6l-6 6 6 6")}</button>
-      <span>Page ${formatIntegerIN(page)} / ${formatIntegerIN(pages)}</span>
-      <button id="${p}NextPage" class="icon-btn" type="button" title="Next page" aria-label="Next page" data-act="next" data-list="${p}" ${page >= pages ? "disabled" : ""}>${chev("M9 6l6 6-6 6")}</button>
-    </div>`;
-}
-
-function renderListPagination(p) {
-  const el = $(`${p}Pagination`);
-  if (el) el.innerHTML = listPaginationHtml(LISTS[p]);
-}
-
 function renderListSummary(p) {
   const L = LISTS[p];
   const el = $(`${p}ScopeNote`);
@@ -1294,11 +1446,10 @@ function renderListShell(p) {
   host.innerHTML = `
     <div class="ei-lens ei-lens-${p}">
       ${L.host ? "" : lensHeadHtml(L.title)}
-      ${p === "finance" ? `<div id="financeMetrics" class="ei-metrics-host"></div><div id="financeChart" class="ei-metrics-host"></div>` : ""}
+      ${p === "finance" ? `<div id="financeMetrics" class="ei-metrics-host"></div>` : ""}
       <div id="${p}ScopeNote" class="${p}-scope-note ei-scope"></div>
       <div id="${p}Toolbar"></div>
       <div class="${p}-table-shell">
-        <div id="${p}Pagination" class="${p}-pagination"></div>
         <div id="${L.wrapId}" class="${p}-table-wrap"></div>
       </div>
     </div>`;
@@ -1306,7 +1457,6 @@ function renderListShell(p) {
   renderListSummary(p);
   renderListToolbar(p);
   renderListTable(p);
-  renderListPagination(p);
 }
 
 async function loadListTab(p) {
@@ -1338,45 +1488,56 @@ async function loadListSummary(p) {
   L.onSummary?.(L);
 }
 
-async function loadList(p) {
+// Incremental retrieval over the installed offset/limit contract (deterministic server ORDER BY, total in every row). One request in
+// flight per list; a reset (filter, search, lens change) advances the same latest-wins token so an older chunk is ignored.
+async function loadList(p, { append = false, retry = false } = {}) {
   const L = LISTS[p];
   const st = L.st;
   const key = `${p}:page`;
+  if (append) {
+    if (st.loading || st.more.loading || st.done || (st.more.error && !retry)) return;
+    st.more = { loading: true, error: "" };
+    st.offset = st.rows.length;
+  } else {
+    st.offset = 0;
+    st.done = false;
+    st.more = { loading: false, error: "" };
+    st.loading = true;
+    st.error = "";
+  }
   const token = beginRequest(key);
-  st.loading = true;
-  st.error = "";
-  if (!st.rows.length) renderListTable(p);
-  setTableLoading(L.shell, true, L.loadingMsg);
+  if (append) renderListTable(p);
+  else {
+    if (!st.rows.length) renderListTable(p);
+    setTableLoading(L.shell, true, L.loadingMsg);
+  }
 
   const { data, error } = await settle(supabase.rpc(L.rpc, L.args(st)));
-  // A newer query owns the state and the loading mask; drop this response.
-  if (!isLatestRequest(key, token)) return;
+  if (!isLatestRequest(key, token)) return; // a newer query owns the state
 
-  setTableLoading(L.shell, false);
-  st.loading = false;
-
+  if (!append) { setTableLoading(L.shell, false); st.loading = false; }
   if (error) {
     console.error(`[MIS] ${L.title} page load failed`, error);
-    st.rows = [];
-    st.total = 0;
-    st.error = errorMessage(error);
-    ACTIVE_TAB_FAILED = true;
+    if (append) {
+      st.more = { loading: false, error: errorMessage(error) }; // earlier rows stay; Retry asks for the same chunk again
+    } else {
+      st.rows = [];
+      st.total = 0;
+      st.error = errorMessage(error);
+      ACTIVE_TAB_FAILED = true;
+    }
     renderListTable(p);
-    renderListPagination(p);
     return;
   }
-
   const parsed = L.parse(data);
-  st.rows = parsed.rows;
+  const merged = append ? mergeRows(st.rows, parsed.rows, L.key) : { rows: parsed.rows, added: parsed.rows.length };
+  if (!append) st.resetScroll = true; // a new query starts at the top; only appends and detail returns keep the position
+  st.rows = merged.rows;
   st.total = parsed.total;
-  // A page beyond the last returns no rows: go back to page 1 once instead of reporting "no items".
-  if (shouldResetPage(st.rows.length, st.page)) {
-    st.page = 1;
-    return loadList(p);
-  }
-  renderToolbarUnlessTyping(`${p}Search`, () => renderListToolbar(p));
+  st.more = { loading: false, error: "" };
+  st.done = listIsDone({ held: st.rows.length, total: parsed.total, chunk: parsed.rows.length, size: st.size, added: merged.added });
+  if (!append) renderToolbarUnlessTyping(`${p}Search`, () => renderListToolbar(p));
   renderListTable(p);
-  renderListPagination(p);
 }
 
 let PENDING_FOCUS_ID = "";
@@ -1417,15 +1578,6 @@ function clearListSearch(p) {
   loadList(p);
 }
 
-function goListPage(p, delta) {
-  const L = LISTS[p];
-  const pages = Math.max(1, Math.ceil(L.st.total / L.st.size));
-  const next = L.st.page + delta;
-  if (next < 1 || next > pages) return;
-  L.st.page = next;
-  loadList(p);
-}
-
 // ---- tables -------------------------------------------------------------------------------------------------------
 const th = (label, num, title) => `<th${num ? ' class="num"' : ""}${title ? ` title="${escapeHtml(title)}"` : ""} scope="col">${escapeHtml(label)}</th>`;
 
@@ -1434,6 +1586,7 @@ function renderListTable(p) {
   const wrap = $(L.wrapId);
   if (!wrap) return;
   if (!L.st.rows.length) {
+    disposeMore(p);
     wrap.innerHTML = renderTableState(p, {
       loading: L.st.loading, error: L.st.error, loadingText: L.loadingText,
       emptyText: L.st.search ? `No ${L.noun} match "${L.st.search}".` : L.emptyText,
@@ -1441,8 +1594,14 @@ function renderListTable(p) {
     });
     return;
   }
+  const top = L.st.resetScroll ? 0 : wrap.scrollTop; // appends and detail returns never jump the scroll position
+  L.st.resetScroll = false;
   wrap.innerHTML = TABLES[p](L.st.rows);
   if (p === "finance") bindFinanceRows(wrap);
+  applyRecordCards(wrap);
+  wrap.insertAdjacentHTML("beforeend", moreHtml(p, { ...L.st.more, done: L.st.done }));
+  wrap.scrollTop = top;
+  armMore(wrap, p, () => loadList(p, { append: true }));
 }
 
 function bindFinanceRows(wrap) {
@@ -1577,6 +1736,7 @@ const SX = {
   hist: { group: "month", months: 12, sort: "value_desc", search: "", page: 1, size: 50, product: "", sku: "", grid: false },
   exc: { search: "", page: 1, size: 50 },
   res: freshSalesResults(),
+  more: { hist: { loading: false, error: "", done: false }, exc: { loading: false, error: "", done: false } },
 };
 const SX_KEYS = { dims: "sales:dims", cmp: "sales:cmp", win: "sales:win", hist: "sales:hist", exc: "sales:exc", cov: "sales:cov", refresh: "sales:refresh", fac: "sales:fac" };
 const intOrNull = (v) => (v === "" || v == null || !Number.isFinite(Number(v)) ? null : Math.trunc(Number(v)));
@@ -1595,9 +1755,9 @@ const SX_CALLS = {
   win: () => ["ei_sales_window_totals", { ...salesCommonArgs(), p_product: intOrNull(SX.hist.product), p_sku: intOrNull(SX.hist.sku), p_active_only: SX.activeOnly, ...hierArgs() }],
   hist: () => ["ei_sales_history", {
     ...salesCommonArgs(), p_months: SX.hist.months, p_group: SX.hist.group, p_product: intOrNull(SX.hist.product), p_sku: intOrNull(SX.hist.sku),
-    p_active_only: SX.activeOnly, p_search: SX.hist.search || null, p_sort: SX.hist.sort, p_limit: SX.hist.size, p_offset: (SX.hist.page - 1) * SX.hist.size, ...hierArgs(),
+    p_active_only: SX.activeOnly, p_search: SX.hist.search || null, p_sort: SX.hist.sort, p_limit: SX.hist.size, p_offset: 0, ...hierArgs(),
   }],
-  exc: () => ["ei_sales_exceptions", { ...salesCommonArgs(), p_search: SX.exc.search || null, p_limit: SX.exc.size, p_offset: (SX.exc.page - 1) * SX.exc.size, ...hierArgs() }],
+  exc: () => ["ei_sales_exceptions", { ...salesCommonArgs(), p_search: SX.exc.search || null, p_limit: SX.exc.size, p_offset: 0, ...hierArgs() }],
   cov: () => ["ei_sales_coverage", { p_anchor: SX.anchor || null }],
   refresh: () => ["ei_sales_refresh_status", {}],
   fac: () => ["ei_facility_sales_scope", { p_anchor: SX.anchor || null, p_months: SX.facMonths }],
@@ -1606,6 +1766,7 @@ const SX_CALLS = {
 async function sxFetch(slot) {
   const key = SX_KEYS[slot];
   const token = beginRequest(key);
+  if (SX.more[slot]) SX.more[slot] = { loading: false, error: "", done: false }; // a reset advances the same token: an older chunk is ignored
   SX.res[slot] = { status: "loading", data: null, message: "" };
   renderSalesResults(slot);
   const [rpc, args] = SX_CALLS[slot]();
@@ -1622,11 +1783,6 @@ async function sxFetch(slot) {
   } else {
     SX.res[slot] = { status: "error", data: null, message: "The server returned an unexpected response." };
   }
-  // A page past the last returns no rows: go back to page 1 once instead of reporting "no rows".
-  if (SX.res[slot].status === "ok" && (slot === "hist" || slot === "exc")) {
-    const st = slot === "hist" ? SX.hist : SX.exc;
-    if (shouldResetPage(Array.isArray(data.rows) ? data.rows.length : 1, st.page)) { st.page = 1; return sxFetch(slot); }
-  }
   renderSalesResults(slot);
   updateFreshnessIndicator();
   if (slot === "dims") {
@@ -1641,6 +1797,39 @@ async function sxFetch(slot) {
     }
     renderSalesFilters();
   }
+}
+
+const SX_ROW_KEY = { hist: (r) => `${r.dimension_id}|${r.month ?? ""}`, exc: (r) => String(r.sku_id) };
+// Done for the first chunk is derived from what the server reported; later chunks record it explicitly.
+function sxMoreState(slot) {
+  const m = SX.more[slot];
+  const d = SX.res[slot].data;
+  const held = d?.rows?.length || 0;
+  const size = slot === "hist" ? SX.hist.size : SX.exc.size;
+  return { ...m, done: m.done || (!m.loading && (held < size || (hasValue(d?.total) && held >= Number(d.total)))) };
+}
+async function sxLoadMore(slot, { retry = false } = {}) {
+  const res = SX.res[slot];
+  const m = SX.more[slot];
+  if (!m || res.status !== "ok" || !Array.isArray(res.data?.rows) || m.loading || sxMoreState(slot).done || (m.error && !retry)) return;
+  const key = SX_KEYS[slot];
+  const token = beginRequest(key);
+  SX.more[slot] = { loading: true, error: "", done: false };
+  renderSalesResults(slot);
+  const [rpc, args] = SX_CALLS[slot]();
+  args.p_offset = res.data.rows.length;
+  const { data, error } = await settle(supabase.rpc(rpc, args));
+  if (!isLatestRequest(key, token)) return; // filters, search, sort or lens changed meanwhile
+  if (error || !data || !Array.isArray(data.rows)) {
+    SX.more[slot] = { loading: false, error: error ? errorMessage(error) : "The server returned an unexpected response.", done: false };
+  } else {
+    const merged = mergeRows(res.data.rows, data.rows, SX_ROW_KEY[slot]);
+    res.data = { ...res.data, rows: merged.rows, total: data.total };
+    const size = slot === "hist" ? SX.hist.size : SX.exc.size;
+    SX.more[slot] = { loading: false, error: "", done: listIsDone({ held: merged.rows.length, total: data.total, chunk: data.rows.length, size, added: merged.added }) };
+    SX.loadedAt = new Date();
+  }
+  renderSalesResults(slot);
 }
 
 const SX_SLOTS_FOR_VIEW = { overview: ["cmp", "win"], history: ["hist"], exceptions: ["exc"], facility: ["fac"], coverage: ["cov", "refresh"], mtd: [] };
@@ -1829,16 +2018,16 @@ function comparisonHtml(res) {
   const d = res.data;
   const periods = Array.isArray(d.periods) ? d.periods : [];
   if (d.coverage === "NO_MAPPED_DATA" || !periods.length) return `<div class="ei-state ei-state-unavailable" role="status">No mapped sales data is available, so no comparison is shown.</div>`;
+  const cb = comparisonBars(d);
   return `
     <div class="ei-asof-row"><span>Anchor <b>${escapeHtml(formatDateIN(d.anchor))}</b></span><span>Latest mapped day ${escapeHtml(formatDateIN(d.latest_mapped_date))}</span><span>Matched calendar day, capped at month end</span></div>
-    ${barsHtml(comparisonBars(d), { label: "Sales value, matched periods", format: formatCurrencyINR, unit: "Same elapsed calendar days in each period; a period with no usable value is a gap, not zero. Import completeness is not certified.", asOf: `Anchor ${formatDateIN(d.anchor)}` })}
     <div class="ei-table-wrap"><table class="ei-table" aria-label="Period comparison">
       <thead><tr>${th("Period")}${th("Dates")}${th("Sales value", true)}${th("Net actual packages", true)}${th("Net billed packages", true)}${th("ASP per actual package", true, "Sales value divided by net actual packages")}${th("ASP per billed package", true, "Sales value divided by net billed packages")}${th("Observed days", true)}${th("Coverage")}</tr></thead>
-      <tbody>${periods.map((p) => `
+      <tbody>${periods.map((p, pi) => `
         <tr>
           <td>${escapeHtml(periodLabel[p.label] || labelOf({}, p.label))}</td>
           <td>${escapeHtml(dateRange(p.start_date, p.end_date))}</td>
-          <td class="num">${escapeHtml(money(p.sales_value))}</td>
+          <td class="num">${escapeHtml(money(p.sales_value))}${dbar(cb?.rows[pi]?.pct ?? null, "Size vs the other matched periods")}</td>
           <td class="num">${escapeHtml(qty(p.actual_packages))}</td>
           <td class="num">${escapeHtml(qty(p.billed_packages))}</td>
           <td class="num">${escapeHtml(money(p.asp_actual_package, "Not available"))}</td>
@@ -1862,18 +2051,18 @@ function windowTotalsHtml(res) {
   const d = res.data;
   const wins = Array.isArray(d.windows) ? d.windows : [];
   if (d.coverage === "NO_MAPPED_DATA" || !wins.length) return `<div class="ei-state ei-state-unavailable" role="status">No trailing window totals are available.</div>`;
+  const wb = windowBars(d);
   return `
     <h3 class="ei-section-title">Trailing complete months <span class="ei-asof">excluding the anchor month</span></h3>
-    ${barsHtml(windowBars(d), { label: "Average sales value per complete month", format: formatCurrencyINR, unit: "Only windows with every month present and unambiguous are valued; others are shown as unavailable. The anchor month is excluded." })}
     <div class="ei-table-wrap"><table class="ei-table" aria-label="Trailing window totals">
       <thead><tr>${th("Window")}${th("Months observed", true)}${th("Sales value", true)}${th("Reported amount (not certified)", true)}${th("Average per month", true)}${th("Net actual packages", true)}${th("Net billed packages", true)}${th("ASP per actual package", true)}${th("ASP per billed package", true)}</tr></thead>
-      <tbody>${wins.map((w) => {
+      <tbody>${wins.map((w, wi) => {
         const unavailable = !hasValue(w.sales_value);
         return `
         <tr>
           <td>Last ${escapeHtml(w.n)} months<div class="ei-cell-sub">${escapeHtml(dateRange(w.start_date, w.end_date))}</div></td>
           <td class="num">${escapeHtml(formatIntegerIN(w.observed_months))} of ${escapeHtml(w.n)}</td>
-          <td class="num">${escapeHtml(unavailable ? "Unavailable" : formatCurrencyINR(w.sales_value))}${unavailable ? `<div class="ei-cell-sub">${Number(w.observed_months) < Number(w.n) ? "months missing" : "ambiguous source amounts"}</div>` : ""}</td>
+          <td class="num">${escapeHtml(unavailable ? "Unavailable" : formatCurrencyINR(w.sales_value))}${dbar(wb?.rows[wi]?.pct ?? null, "Average per month, size vs the other windows")}${unavailable ? `<div class="ei-cell-sub">${Number(w.observed_months) < Number(w.n) ? "months missing" : "ambiguous source amounts"}</div>` : ""}</td>
           <td class="num">${escapeHtml(money(w.source_reported_amount, "None"))}</td>
           <td class="num">${escapeHtml(money(w.average_monthly_sales, "Not available"))}</td>
           <td class="num">${escapeHtml(qty(w.actual_packages))}</td>
@@ -1916,19 +2105,6 @@ function historyColumns() {
   ];
 }
 
-function pagerHtml(slot, total, page, size, noun) {
-  const pages = Math.max(1, Math.ceil(total / size));
-  const start = total ? (page - 1) * size + 1 : 0;
-  const end = Math.min(page * size, total);
-  const chev = (d) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="${d}"></path></svg>`;
-  return `<div class="ei-pager"><span>Showing ${formatIntegerIN(start)}-${formatIntegerIN(end)} of ${formatIntegerIN(total)} ${noun}</span>
-    <span class="ei-pager-controls">
-      <button type="button" class="icon-btn" data-sales-page="${slot}:-1" aria-label="Previous page" ${page <= 1 ? "disabled" : ""}>${chev("M15 6l-6 6 6 6")}</button>
-      <span>Page ${formatIntegerIN(page)} / ${formatIntegerIN(pages)}</span>
-      <button type="button" class="icon-btn" data-sales-page="${slot}:1" aria-label="Next page" ${page >= pages ? "disabled" : ""}>${chev("M9 6l6 6-6 6")}</button>
-    </span></div>`;
-}
-
 function historyResultsHtml(res) {
   const wait = sxState(res, "Sales history", "hist");
   if (wait) return wait;
@@ -1940,15 +2116,14 @@ function historyResultsHtml(res) {
   const note = `<div class="ei-asof-row"><span>${escapeHtml(formatDateIN(d.start_date))} to anchor ${escapeHtml(formatDateIN(d.anchor))}</span><span>Closed months from the shared monthly aggregate; the anchor month from daily data</span><span>Import completeness not certified</span></div>`;
   const toolbar = `<div class="ei-viewbar">
       ${monthly && SX.hist.group !== "month" ? `<button type="button" class="mis-retry-btn" data-hist-grid aria-pressed="${SX.hist.grid}">${SX.hist.grid ? "Table view" : "Month grid view"}</button>` : ""}
-      <button type="button" class="mis-retry-btn" data-sales-export="hist" ${rows.length ? "" : "disabled"}>Export this page (CSV)</button>
-      <span class="ei-asof">Exports only the ${formatIntegerIN(rows.length)} row${rows.length === 1 ? "" : "s"} shown on this page${total > SX.hist.page * SX.hist.size ? "; more rows exist on later pages" : ""}, not the whole dataset.</span>
+      <button type="button" class="mis-retry-btn" data-sales-export="hist" ${rows.length ? "" : "disabled"}>Export loaded rows (CSV)</button>
+      <span class="ei-asof">Exports only the rows loaded so far${rows.length >= total ? "" : " (more rows exist; keep scrolling to load them)"}, not the whole dataset.</span>
     </div>`;
-  const trend = monthlyTrend(d, { group: SX.hist.group, search: SX.hist.search, page: SX.hist.page });
-  const ranked = !monthly ? rankedPageBars(rows) : null;
+  const trend = monthlyTrend(d, { group: SX.hist.group, search: SX.hist.search });
   const visuals = trend.months
     ? trendHtml(trend, { label: "Monthly sales value, all sales", format: formatCurrencyINR, unit: "Chronological complete calendar months from the shared monthly aggregate; the anchor month is partial. Not certified: import completeness is not verified.", asOf: `To ${formatDateIN(d.anchor)}` })
     : monthly && SX.hist.group === "month" ? `<div class="ei-note">No monthly trend is drawn: it needs the full month series in one response, and the current page or search does not give that.</div>`
-    : ranked ? barsHtml(ranked.series, { label: "Highest sales values on this page", format: formatCurrencyINR, unit: `This page only (${formatIntegerIN(ranked.shown)} of ${formatIntegerIN(ranked.pageRows)} rows shown${ranked.unavailable ? `; ${formatIntegerIN(ranked.unavailable)} without a certified value` : ""}). Not a share of the total and not a ranking of the whole dataset.` }) : "";
+ : "";
   if (!rows.length) return `${note}<div class="ei-state ei-state-unavailable" role="status">${SX.hist.search ? `No rows match "${escapeHtml(SX.hist.search)}".` : "The server returned no rows for these filters."}</div>`;
   let body;
   if (SX.hist.grid && monthly && SX.hist.group !== "month") {
@@ -1959,17 +2134,18 @@ function historyResultsHtml(res) {
         const c = r.cells[m];
         if (!c) return `<td class="num ei-missing" title="Not returned on this page; not zero">—</td>`;
         return hasValue(c.sales_value) ? `<td class="num">${escapeHtml(formatCurrencyINR(c.sales_value))}</td>` : `<td class="num ei-reported" title="Source reported amount, not certified">${escapeHtml(hasValue(c.source_reported_amount) ? `${formatCurrencyINR(c.source_reported_amount)} reported` : "Unavailable")}</td>`;
-      }).join("")}</tr>`).join("")}</tbody></table></div>
+      }).join("")}</tr>`).join("")}</tbody></table>${moreHtml("hist", sxMoreState("hist"))}</div>
       <div class="ei-note ei-grid-hint">Month grid: a genuine matrix, so it scrolls sideways inside its own panel (swipe or scroll to see every month).</div>
       <div class="ei-note">The grid shows only rows returned on this page. A dash means the cell was not returned, not zero; page through to see further rows.</div>`;
   } else {
+    const histMax = Math.max(0, ...rows.filter((r) => hasValue(r.sales_value)).map((r) => Number(r.sales_value)));
     const drill = SX.hist.group === "product" || SX.hist.group === "product_month";
     body = `<div class="ei-table-wrap"><table class="ei-table" aria-label="Sales history">
       <thead><tr>${historyColumns().map((c, i) => th(c.label, i >= (monthly ? 2 : 1) && i < historyColumns().length - 1)).join("")}${drill ? th("") : ""}</tr></thead>
       <tbody>${rows.map((r) => `<tr>
         <td>${escapeHtml(r.dimension_name || "Unmapped")}</td>
         ${monthly ? `<td>${escapeHtml(r.month ? String(r.month).slice(0, 7) : "-")}</td>` : ""}
-        <td class="num">${hasValue(r.sales_value) ? escapeHtml(formatCurrencyINR(r.sales_value)) : `Unavailable${Number(r.ambiguous_amount_groups) > 0 ? `<div class="ei-cell-sub">${escapeHtml(formatIntegerIN(r.ambiguous_amount_groups))} ambiguous source group${Number(r.ambiguous_amount_groups) === 1 ? "" : "s"}</div>` : ""}`}</td>
+        <td class="num">${hasValue(r.sales_value) ? `${escapeHtml(formatCurrencyINR(r.sales_value))}${monthly ? "" : dbar(inlineBarPct(r.sales_value, histMax), "Size vs the largest value among the rows loaded so far; not a share of the total")}` : `Unavailable${Number(r.ambiguous_amount_groups) > 0 ? `<div class="ei-cell-sub">${escapeHtml(formatIntegerIN(r.ambiguous_amount_groups))} ambiguous source group${Number(r.ambiguous_amount_groups) === 1 ? "" : "s"}</div>` : ""}`}</td>
         <td class="num ei-reported">${escapeHtml(money(r.source_reported_amount, "None"))}</td>
         <td class="num">${escapeHtml(qty(r.actual_packages))}</td>
         <td class="num">${escapeHtml(qty(r.billed_packages))}</td>
@@ -1977,9 +2153,9 @@ function historyResultsHtml(res) {
         <td class="num">${escapeHtml(money(r.asp_billed_package, "Not available"))}</td>
         <td>${escapeHtml(covText(r.coverage))}</td>
         ${drill ? `<td><button type="button" class="ei-link" data-hist-drill="${escapeHtml(r.dimension_id)}">SKUs</button></td>` : ""}
-      </tr>`).join("")}</tbody></table></div>`;
+      </tr>`).join("")}</tbody></table>${moreHtml("hist", sxMoreState("hist"))}</div>`;
   }
-  return `${note}${visuals}${toolbar}${body}${pagerHtml("hist", total, SX.hist.page, SX.hist.size, "rows")}
+  return `${note}${visuals}${toolbar}${body}
     ${basisDetails([
       "Sales value is only shown when every contributing source amount is present and unambiguous. Otherwise it is Unavailable; the reported amount beside it is the source's own sum, not a certified value.",
       "Quantities are net package counts and are never added across different units. Category, subcategory, group and subgroup filters narrow by the product's current place in the product hierarchy; the Group by choice is a grouping, not a filter.",
@@ -1997,7 +2173,7 @@ function exceptionsResultsHtml(res) {
   const head = `<div class="ei-asof-row"><span>${escapeHtml(formatDateIN(d.start_date))} to ${escapeHtml(formatDateIN(d.anchor))}</span><span>Eligibility is from the current SKU master, not what was listed historically</span><span>Import completeness not certified</span></div>`;
   if (d.coverage === "NO_MAPPED_DATA") return `<div class="ei-state ei-state-unavailable" role="status">No mapped sales data is available.</div>`;
   if (!rows.length) return `${head}<div class="ei-state ei-state-unavailable" role="status">${SX.exc.search ? `No exceptions match "${escapeHtml(SX.exc.search)}".` : "The server reported no exception rows for this scope."}</div>`;
-  const exportBar = `<div class="ei-viewbar"><button type="button" class="mis-retry-btn" data-sales-export="exc">Export this page (CSV)</button><span class="ei-asof">Exports only the ${formatIntegerIN(rows.length)} row${rows.length === 1 ? "" : "s"} shown on this page${total > SX.exc.page * SX.exc.size ? "; more rows exist on later pages" : ""}, not the whole dataset.</span></div>`;
+  const exportBar = `<div class="ei-viewbar"><button type="button" class="mis-retry-btn" data-sales-export="exc">Export loaded rows (CSV)</button><span class="ei-asof">Exports only the rows loaded so far${rows.length >= total ? "" : " (more rows exist; keep scrolling to load them)"}, not the whole dataset.</span></div>`;
   return `${head}${exportBar}<div class="ei-table-wrap"><table class="ei-table" aria-label="Sales exceptions">
     <thead><tr>${th("Product")}${th("SKU", true)}${th("Pack")}${th("Eligibility now")}${th("Activity this month")}${th("Net billed", true)}${th("Sales rows", true)}${th("Return rows", true)}${th("Rows missing a measure", true)}</tr></thead>
     <tbody>${rows.map((r) => `<tr>
@@ -2009,8 +2185,7 @@ function exceptionsResultsHtml(res) {
       <td class="num">${escapeHtml(orWord(r.positive_rows, formatIntegerIN, "No rows"))}</td>
       <td class="num">${escapeHtml(orWord(r.return_rows, formatIntegerIN, "No rows"))}</td>
       <td class="num">${escapeHtml(orWord(r.missing_rows, formatIntegerIN, "No rows"))}</td>
-    </tr>`).join("")}</tbody></table></div>
-    ${pagerHtml("exc", total, SX.exc.page, SX.exc.size, "rows")}
+    </tr>`).join("")}</tbody></table>${moreHtml("exc", sxMoreState("exc"))}</div>
     ${basisDetails([
       "“No recorded rows” means nothing was found in the mapped data for that SKU and period. Because import coverage is not certified, it is not a certified zero seller.",
       "Sales offset by returns, missing measures and no recorded rows are different situations and are kept apart.",
@@ -2082,10 +2257,12 @@ function facilityHtml(res) {
   if (m.state !== "ok") return `<div class="ei-state error" role="alert">The server returned an unrecognised facility response. Nothing is estimated in its place.</div>`;
   const n = (v) => orWord(v, formatIntegerIN, "Unavailable");
   const f = m.facility;
+  const fbar = facilityBars(m);
+  const facilityPct = (r) => fbar?.rows[m.rows.indexOf(r)]?.pct ?? null;
   const rowHtml = (r) => `<tr${r.review ? ' class="ei-review-row"' : ""}>
       <td>${escapeHtml(r.label)}${r.inProductAnalytics ? `<div class="ei-cell-sub">Counted in product analytics when the godown is also resolved</div>` : ""}${r.review ? `<div class="ei-cell-sub">Needs classification review (not a product-analytics figure)</div>` : ""}</td>
       <td class="num">${escapeHtml(n(r.recorded))}</td><td class="num">${escapeHtml(n(r.missing))}</td>
-      <td class="num">${escapeHtml(money(r.billed, r.missing > 0 ? "Unavailable (amounts missing)" : "Unavailable"))}</td>
+      <td class="num">${escapeHtml(money(r.billed, r.missing > 0 ? "Unavailable (amounts missing)" : "Unavailable"))}${dbar(facilityPct(r), "Billed value, size vs the other scopes")}</td>
       <td class="num ei-reported">${escapeHtml(money(r.reported, "None"))}</td>
       <td class="num">${escapeHtml(n(r.unresolvedGodown))}</td></tr>`;
   const reviewLine = m.review.length
@@ -2100,7 +2277,6 @@ function facilityHtml(res) {
       ${metric({ label: "Needs classification review", value: m.reviewRowCount === null ? "Unavailable" : formatIntegerIN(m.reviewRowCount), sub: reviewLine })}
     </div>` : ""}
     <h3 class="ei-section-title">Classification by scope <span class="ei-asof">Each voucher row is classified once</span></h3>
-    ${barsHtml(facilityBars(m), { label: "Facility billed value by classification scope", format: formatCurrencyINR, unit: "From the reconciliation scope rows; a scope with a missing amount is unavailable, not zero. Classification is not certified here, and facility value is not product sales." })}
     <div class="ei-table-wrap"><table class="ei-table" aria-label="Facility sales by classification scope">
       <thead><tr>${th("Scope")}${th("Rows", true)}${th("Missing amounts", true)}${th("Billed value", true)}${th("Reported amount (not certified)", true)}${th("Unresolved godown rows", true)}</tr></thead>
       <tbody>${m.rows.map(rowHtml).join("") || `<tr><td colspan="6">The server returned no scope rows.</td></tr>`}</tbody>
@@ -2121,7 +2297,13 @@ function renderSalesResults(slot) {
   const r = SX_RENDER[slot];
   if (!r) return;
   const host = $(r[0]);
-  if (host) host.innerHTML = r[1](SX.res[slot]);
+  if (!host) return;
+  const top = host.querySelector(".ei-table-wrap")?.scrollTop || 0; // appends never jump the scroll position
+  host.innerHTML = r[1](SX.res[slot]);
+  applyRecordCards(host);
+  const wrap = host.querySelector(".ei-table-wrap");
+  if (wrap) wrap.scrollTop = top;
+  if (SX.more[slot] && wrap) armMore(wrap, slot, () => sxLoadMore(slot)); else disposeMore(slot);
 }
 
 // ---- interaction ---------------------------------------------------------------------------------------------------
@@ -2198,8 +2380,8 @@ function exportSalesPage(kind) {
   const filters = salesExportFilters();
   if (st.search) filters.push(`Search: ${st.search}`);
   if (slot === "hist") {
-    const scope = exportScopeLine({ title: "sales history", rowsOnPage: rows.length, page: st.page, size: st.size, total: d.total, anchor: d.anchor, filters, note: `grouped by ${SX.hist.group}; ${SX.hist.months} months; order ${SX.hist.sort}` });
-    downloadCsv(`executive-intelligence-sales-history-page-${st.page}.csv`, buildPageCsv(historyColumns(), rows, scope));
+    const scope = exportLoadedScopeLine({ title: "sales history", rowsLoaded: rows.length, total: d.total, anchor: d.anchor, filters, note: `grouped by ${SX.hist.group}; ${SX.hist.months} months; order ${SX.hist.sort}` });
+    downloadCsv(`executive-intelligence-sales-history-loaded-rows.csv`, buildPageCsv(historyColumns(), rows, scope));
     return;
   }
   const cols = [
@@ -2208,8 +2390,8 @@ function exportSalesPage(kind) {
     { label: "Net billed", get: (r) => (hasValue(r.net_billed) ? r.net_billed : "No rows") }, { label: "Sales rows", get: (r) => (hasValue(r.positive_rows) ? r.positive_rows : "No rows") },
     { label: "Return rows", get: (r) => (hasValue(r.return_rows) ? r.return_rows : "No rows") }, { label: "Rows missing a measure", get: (r) => (hasValue(r.missing_rows) ? r.missing_rows : "No rows") },
   ];
-  const scope = exportScopeLine({ title: "sales exceptions", rowsOnPage: rows.length, page: st.page, size: st.size, total: d.total, anchor: d.anchor, filters, note: "eligibility from the current SKU master" });
-  downloadCsv(`executive-intelligence-sales-exceptions-page-${st.page}.csv`, buildPageCsv(cols, rows, scope));
+  const scope = exportLoadedScopeLine({ title: "sales exceptions", rowsLoaded: rows.length, total: d.total, anchor: d.anchor, filters, note: "eligibility from the current SKU master" });
+  downloadCsv(`executive-intelligence-sales-exceptions-loaded-rows.csv`, buildPageCsv(cols, rows, scope));
 }
 
 function handleSalesClick(ev) {
@@ -2218,15 +2400,6 @@ function handleSalesClick(ev) {
   if (view) { selectSalesView(view.getAttribute("data-sales-view")); return true; }
   const retry = t.closest("[data-sales-retry]");
   if (retry) { sxFetch(retry.getAttribute("data-sales-retry")); if (retry.getAttribute("data-sales-retry") === "dims") renderSalesFilters(); return true; }
-  const pg = t.closest("[data-sales-page]");
-  if (pg) {
-    const [slot, delta] = pg.getAttribute("data-sales-page").split(":");
-    const st = slot === "hist" ? SX.hist : SX.exc;
-    const total = Number(SX.res[slot].data?.total) || 0;
-    const next = st.page + Number(delta);
-    if (next >= 1 && next <= Math.max(1, Math.ceil(total / st.size))) { st.page = next; sxFetch(slot); }
-    return true;
-  }
   if (t.closest("[data-hist-grid]")) { SX.hist.grid = !SX.hist.grid; renderSalesResults("hist"); return true; }
   const drill = t.closest("[data-hist-drill]");
   if (drill) { SX.hist.product = drill.getAttribute("data-hist-drill"); SX.hist.group = "sku"; SX.hist.page = 1; renderSalesHistControls(); salesFilterChanged(); return true; }
@@ -2709,17 +2882,20 @@ function renderProductionCountsBody() {
     return;
   }
   const s = st.data || {};
+  const pstage = pipelineBars(s);
+  const pover = subsetShare(s.work_in_process_batch_count, s.overdue_work_in_process_batch_count);
   // Counts only, straight from the server. Current state of the live pipeline; not month-bound.
   const cards = [
     { title: "Active Pipeline Batches", value: formatIntegerIN(s.active_pipeline_batch_count) },
-    { title: "Work in Process Batches", value: formatIntegerIN(s.work_in_process_batch_count) },
+    { title: "Work in Process Batches", value: formatIntegerIN(s.work_in_process_batch_count), bar: pstage && { pct: pstage.rows[0].pct, note: "Stage size vs FG bulk and bottled; stages do not overlap" } },
     {
       title: "Overdue WIP Batches",
       value: formatIntegerIN(s.overdue_work_in_process_batch_count),
       state: Number(s.overdue_work_in_process_batch_count) > 0 ? "warning" : "",
+      bar: pover && { pct: pover.pct, note: `${pover.pct}% of work in process (a subset, not a stage)` },
     },
-    { title: "FG Bulk Batches", value: formatIntegerIN(s.finished_goods_bulk_batch_count) },
-    { title: "Bottled Stock Batches", value: formatIntegerIN(s.bottled_stock_batch_count) },
+    { title: "FG Bulk Batches", value: formatIntegerIN(s.finished_goods_bulk_batch_count), bar: pstage && { pct: pstage.rows[1].pct, note: "Stage size vs the other stages" } },
+    { title: "Bottled Stock Batches", value: formatIntegerIN(s.bottled_stock_batch_count), bar: pstage && { pct: pstage.rows[2].pct, note: "Stage size vs the other stages" } },
     { title: "Total Canonical Batches", value: formatIntegerIN(s.total_canonical_batch_count) },
   ];
 
@@ -2732,13 +2908,12 @@ function renderProductionCountsBody() {
             <div class="production-summary-card ${card.state || ""}">
               <div class="production-summary-title">${escapeHtml(card.title)}</div>
               <div class="production-summary-value">${escapeHtml(card.value)}</div>
+              ${card.bar ? dbar(card.bar.pct, card.bar.note) : ""}
             </div>
           `,
         )
         .join("")}
     </div>
-    ${barsHtml(pipelineBars(s), { label: "Live batches by stage", format: formatIntegerIN, unit: "Distinct, non-overlapping stages; not a sequence or throughput. Not Initiated batches are not shown.", asOf: st.asOf ? `Loaded ${formatDateTimeIN(st.asOf)}` : "" })}
-    ${subsetHtml(subsetShare(s.work_in_process_batch_count, s.overdue_work_in_process_batch_count), { label: "Overdue within work in process", parent: "batches in process", part: "overdue", unit: "Overdue is a subset of work in process, not an additional stage." })}
   `;
 }
 
@@ -3009,12 +3184,6 @@ function wireEvents() {
         break;
       case "search-clear":
         clearListSearch(p);
-        break;
-      case "prev":
-        goListPage(p, -1);
-        break;
-      case "next":
-        goListPage(p, 1);
         break;
       default:
     }

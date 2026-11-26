@@ -5,7 +5,7 @@ import { launchBrowser, openDashboard, startServer } from "../mis-c1/mis-harness
 const out = process.argv[2]; if (!out) throw new Error("usage: capture-r5-before-after.mjs <outDir>");
 fs.mkdirSync(out, { recursive: true });
 const chromium = launchBrowser(); const srv = await startServer(); const browser = await chromium.launch();
-const ready = { overview: ".ei-overview .kpi-card", finance: ".finance-table", sales: "#salesCmp .ei-table", inventory: ".inventory-table", "finished-goods": ".fg-table", production: ".pv-kpi", alerts: ".ei-alerts .ei-table" };
+const ready = { overview: ".ei-overview .kpi-card", finance: ".finance-table", sales: "#salesCmp .ei-table, #salesCmp .ei-rc", inventory: ".inventory-table", "finished-goods": ".fg-table", production: ".pv-kpi", alerts: ".ei-alerts .ei-table" };
 const view = (v, sel) => async (page) => { await page.click(`[data-sales-view="${v}"]`); await page.waitForSelector(sel); };
 const shots = [
   ["overview", "overview"], ["finance", "finance"], ["inventory", "inventory"], ["finished-goods", "finished-goods"], ["production", "production"], ["alerts", "alerts"],
