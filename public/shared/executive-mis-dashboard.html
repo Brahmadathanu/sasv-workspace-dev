@@ -152,12 +152,6 @@
         opacity: 0.5;
       }
 
-      #homeBtn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-      }
-
       .status {
         margin-top: 12px;
         padding: 12px;
@@ -872,7 +866,7 @@
         display: none;
         position: absolute;
         top: calc(100% + 6px);
-        right: 0;
+        left: 0; /* the filter control now leads the toolbar (filter, sort, search), so the popover opens rightwards */
         width: 280px;
         max-width: min(280px, calc(100vw - 24px));
         z-index: 300;
@@ -1220,11 +1214,6 @@
           display: none;
         }
 
-        #homeBtn {
-          padding-left: 8px;
-          padding-right: 8px;
-        }
-
         .kpi-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 7px;
@@ -1359,13 +1348,6 @@
           height: 100vh;
           max-height: none;
           border-radius: 0;
-        }
-      }
-
-      /* HOME convention: icon + HOME text on desktop, icon only at 520px and below. */
-      @media (max-width: 520px) {
-        #homeBtn .home-label {
-          display: none;
         }
       }
 
@@ -1509,7 +1491,7 @@
       }
 
       /* EI-R3: compact ERP summaries, sales analytics, alerts. Tokens only. */
-      body.ei-sales-only .tabs-card, body.ei-sales-only #lastRefreshed { display: none; }
+      body.ei-sales-only .tabs-card { display: none; } /* the freshness indicator stays: it shows only the sales freshness already authorised */
       .ei-metrics { gap: 1px; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-md, 8px); background: var(--mis-divider); overflow: hidden; }
       .ei-metric { border: 0; border-radius: 0; padding: 4px 10px; background: var(--mis-surface); }
       .ei-metric.caution { border-left: 0; box-shadow: inset 3px 0 0 var(--mis-warning); }
@@ -1566,11 +1548,6 @@
       .ei-badge { padding: 1px 8px; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-pill, 999px); font-size: var(--ei-fs-2xs); font-weight: 700; background: var(--mis-surface-soft); color: var(--mis-muted); }
       .ei-badge-review { color: var(--mis-warning); background: var(--mis-warning-bg); border-color: var(--mis-warning-border); }
       .ei-badge-clear { color: var(--mis-text-secondary); }
-      /* Sales filters: inline bar on desktop; full-page sheet on phones (Escape / Done close it). Token-based, no palette values. */
-      .ei-filters { display: block; }
-      .ei-filter-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px var(--sasv-space-3, 12px); }
-      .ei-filter-toggle, .ei-filter-sheet-head { display: none; }
-      .ei-filter-count { display: inline-block; min-width: 1.4em; padding: 0 5px; border-radius: var(--sasv-radius-pill, 999px); background: var(--mis-accent); color: var(--mis-on-accent); font-size: var(--ei-fs-2xs); font-weight: 700; text-align: center; }
       .ei-review-row td:first-child { box-shadow: inset 3px 0 0 var(--mis-warning); }
       .ei-metrics-facility { margin: 4px 0 8px; }
       .ei-job-ok { color: var(--sasv-success, var(--mis-text)); font-weight: 700; }
@@ -1578,17 +1555,65 @@
       .ei-job-warn { color: var(--mis-warning); font-weight: 700; }
       .ei-subnav { overflow-x: auto; scrollbar-width: thin; }
       body.ei-sheet-lock { overflow: hidden; }
+
+      /* ---------------------------------------------------------------------------------------------------------------
+       * R5 canonical controls: filter -> sort -> search, one icon-button size, shared ui-icons glyphs, light-filled search.
+       * Desktop filter/sort open as bounded popovers under their button; phones open full-page sheets. Tokens only.
+       * ------------------------------------------------------------------------------------------------------------- */
+      .ei-toolbar { display: flex; align-items: center; gap: var(--sasv-space-2, 8px); min-width: 0; }
+      .ei-toolextra { display: flex; align-items: center; gap: var(--sasv-space-2, 8px); flex: 1 1 auto; min-width: 0; }
+      .ei-filters, .ei-sorthost { position: relative; flex: 0 0 auto; }
+      .ei-filters[hidden] { display: none; }
+      .ei-ctl, .finance-filter-btn, .inventory-filter-btn, .fg-filter-btn {
+        position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box;
+        min-width: 36px; width: auto; height: 36px; padding: 0 9px; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-md, 8px);
+        background: var(--mis-surface); color: var(--mis-text-secondary); font: inherit; font-size: var(--ei-fs-sm); font-weight: 600; cursor: pointer;
+      }
+      .finance-filter-btn, .inventory-filter-btn, .fg-filter-btn { width: 36px; padding: 0; }
+      .ei-ctl:hover, .ei-ctl:focus-visible, .ei-ctl.is-active, .ei-ctl[aria-expanded="true"], .finance-filter-btn:hover, .inventory-filter-btn:hover, .fg-filter-btn:hover {
+        background: var(--mis-accent-soft); border-color: var(--mis-accent-soft-border); color: var(--mis-accent);
+      }
+      .ei-ctl:focus-visible { outline: 2px solid var(--mis-focus-ring); outline-offset: 2px; }
+      .ei-ctl svg, .finance-filter-btn svg, .inventory-filter-btn svg, .fg-filter-btn svg { width: 16px; height: 16px; flex: 0 0 16px; }
+      .ei-ctl-badge, .finance-filter-badge, .inventory-filter-badge, .fg-filter-badge {
+        position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; box-sizing: border-box; padding: 0 4px; border-radius: var(--sasv-radius-pill, 999px);
+        background: var(--mis-accent); color: var(--mis-on-accent); font-size: var(--ei-fs-2xs); font-weight: 700; line-height: 16px; text-align: center;
+      }
+      .ei-ctl-close { border-color: transparent; background: transparent; }
+      .ei-searchbox { position: relative; flex: 1 1 200px; min-width: 140px; }
+      .ei-searchbox input, .finance-search-wrap.ei-searchbox input, .sales-search-wrap.ei-searchbox input, .inventory-search-wrap.ei-searchbox input, .fg-search-wrap.ei-searchbox input {
+        width: 100%; height: 36px; box-sizing: border-box; padding: 0 30px 0 30px; border: 1px solid var(--mis-search-border); border-radius: var(--sasv-radius-md, 8px);
+        background: var(--mis-search-bg); color: var(--mis-text); font: inherit; font-size: var(--ei-fs-sm);
+      }
+      .ei-searchbox input:focus { border-color: var(--mis-accent); background: var(--mis-surface); outline: none; box-shadow: 0 0 0 3px var(--mis-focus-ring); }
+      .ei-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); display: inline-flex; color: var(--mis-muted); pointer-events: none; }
+      .ei-notice-host:empty { display: none; }
+      .ei-viewopts { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px var(--sasv-space-3, 12px); }
+      .ei-pop { box-sizing: border-box; z-index: 40; background: var(--mis-surface); color: var(--mis-text); border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-md, 8px); padding: 10px; box-shadow: var(--sasv-shadow-md, 0 4px 14px var(--mis-divider)); }
+      .ei-filters:not(.is-open) .ei-filter-fields, .ei-sorthost:not(.is-open) .ei-sort-panel { display: none; }
+      .ei-filter-fields { position: absolute; top: calc(100% + 6px); left: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sasv-space-2, 8px) var(--sasv-space-3, 12px); width: min(560px, calc(100vw - 24px)); max-height: min(70vh, 520px); overflow: auto; }
+      .ei-filter-fields > .ei-check, .ei-filter-fields > .ei-filter-foot, .ei-filter-fields > .ei-filter-sheet-head { grid-column: 1 / -1; }
+      .ei-filter-foot { display: flex; justify-content: flex-end; gap: 6px; }
+      .ei-filter-foot .mis-retry-btn { margin: 0; }
+      .ei-filter-foot .ei-primary { background: var(--mis-accent); border-color: var(--mis-accent); color: var(--mis-on-accent); }
+      .ei-filter-sheet-head { display: none; align-items: center; justify-content: space-between; font-size: var(--ei-fs-lg); }
+      .ei-sort-panel { position: absolute; top: calc(100% + 6px); left: 0; width: min(260px, calc(100vw - 24px)); }
+      .ei-sort-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+      .ei-sort-list label { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 6px; border-radius: var(--sasv-radius-sm, 6px); font-size: var(--ei-fs-sm); cursor: pointer; }
+      .ei-sort-list label:hover { background: var(--mis-accent-soft); }
+      .ei-sort-list svg { color: var(--mis-muted); }
       @media (max-width: 640px) {
-        .ei-filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-        .ei-filter-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; }
-        .ei-filter-fields { display: none; }
-        .ei-filters.is-open .ei-filter-toggle { display: none; }
-        .ei-filters.is-open .ei-filter-fields {
-          display: flex; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: var(--sasv-space-3, 12px);
-          position: fixed; inset: 0; z-index: 60; overflow-y: auto; padding: var(--sasv-space-4, 16px);
-          background: var(--mis-surface); color: var(--mis-text);
+        .ei-ctl-text { display: none; }
+        .ei-ctl, .finance-filter-btn, .inventory-filter-btn, .fg-filter-btn { min-width: 40px; height: 40px; }
+        .finance-filter-btn, .inventory-filter-btn, .fg-filter-btn { width: 40px; }
+        .ei-searchbox input { height: 40px; font-size: var(--ei-fs-input-phone); }
+        .ei-toolbar { gap: 6px; }
+        .ei-toolextra { flex-wrap: nowrap; }
+        .ei-filters.is-open .ei-filter-fields, .ei-sorthost.is-open .ei-sort-panel {
+          position: fixed; inset: 0; z-index: 60; width: auto; max-height: none; border: 0; border-radius: 0; overflow-y: auto; padding: var(--sasv-space-4, 16px); box-shadow: none;
         }
-        .ei-filters.is-open .ei-filter-sheet-head { display: flex; align-items: center; justify-content: space-between; font-size: var(--ei-fs-lg); position: sticky; top: calc(-1 * var(--sasv-space-4, 16px)); padding: var(--sasv-space-2, 8px) 0; background: var(--mis-surface); }
+        .ei-filters.is-open .ei-filter-fields { display: flex; flex-direction: column; gap: var(--sasv-space-3, 12px); }
+        .ei-filters.is-open .ei-filter-sheet-head, .ei-sorthost.is-open .ei-filter-sheet-head { display: flex; position: sticky; top: calc(-1 * var(--sasv-space-4, 16px)); padding: var(--sasv-space-2, 8px) 0; background: var(--mis-surface); }
         .ei-filters.is-open .ei-field { width: 100%; }
         .ei-filters.is-open .ei-field input, .ei-filters.is-open .ei-field select { width: 100%; min-height: 44px; }
         .ei-filters.is-open .ei-check { min-height: 44px; }
@@ -1602,6 +1627,75 @@
         .ei-metrics, .ei-metrics-wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .ei-dl { grid-template-columns: minmax(0, 1fr); }
         .ei-lens, .ei-overview { gap: 6px; }
+      }
+
+      /* ---------------------------------------------------------------------------------------------------------------
+       * R5 summary strips: the repeated tall KPI chips (production counts, production value) become one narrow segmented strip,
+       * the same grammar as the other lenses' .ei-metrics. Values, statuses, evidence and basis text are unchanged.
+       * ------------------------------------------------------------------------------------------------------------- */
+      .production-summary-grid, .pv-kpi-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 1px;
+        border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-md, 8px); background: var(--mis-divider); overflow: hidden;
+      }
+      .pv-kpi-grid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+      .production-summary-card, .pv-kpi { border: 0; border-radius: 0; background: var(--mis-surface); padding: 4px 10px; gap: 1px; }
+      .production-summary-card.warning, .pv-kpi.book { box-shadow: inset 3px 0 0 var(--mis-warning-border); border-style: solid; }
+      .pv-kpi { box-shadow: inset 3px 0 0 var(--mis-accent-soft-border); }
+      .pv-kpi.unavailable { box-shadow: inset 3px 0 0 var(--mis-border); }
+      .pv-kpi-value, .pv-kpi.unavailable .pv-kpi-value { font-size: var(--ei-fs-md); font-weight: 700; }
+      .pv-kpi-badge { padding: 0 6px; }
+      @media (max-width: 520px) {
+        .production-summary-grid, .pv-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .pv-kpi-value { font-size: var(--ei-fs-md); }
+      }
+      @media (max-width: 359px) { .pv-kpi-grid { grid-template-columns: minmax(0, 1fr); } }
+
+      /* Executive Summary: the first clickable cross-functional card. Subtle fill from the semantic accent-soft token. */
+      .ei-exec-summary { padding: 8px 12px 10px; border: 1px solid var(--mis-accent-soft-border); border-radius: var(--sasv-radius-md, 8px); background: var(--mis-accent-soft); background: color-mix(in srgb, var(--mis-accent-soft) 38%, var(--mis-surface)); }
+      .ei-exec-title { margin: 0 0 6px; color: var(--mis-accent); font-size: var(--ei-fs-md); font-weight: 700; letter-spacing: 0; }
+      .ei-exec-summary ul { padding-left: 16px; }
+      .ei-exec-summary li { color: var(--mis-text); }
+
+      /* Exceptions > Activity this month: a short badge plus a small note; never one long line in a single cell. */
+      .ei-activity { min-width: 150px; font-size: var(--ei-fs-xs); }
+      .ei-activity-box { max-width: 260px; }
+      .ei-activity-label { display: inline-block; padding: 0 7px; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-pill, 999px); background: var(--mis-surface-soft); color: var(--mis-text-secondary); font-size: var(--ei-fs-xs); font-weight: 600; line-height: 1.5; }
+      .ei-activity .ei-cell-sub { white-space: normal; font-size: var(--ei-fs-2xs); }
+
+      /* Consolidated data-freshness indicator (header) and its viewport-safe panel. */
+      .ei-fresh { display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; min-height: var(--sasv-control-md, 36px); padding: 0 10px; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-md, 8px); background: var(--mis-surface); color: var(--mis-text); font: inherit; font-size: var(--ei-fs-sm); font-weight: 600; cursor: pointer; }
+      .ei-fresh:hover, .ei-fresh[aria-expanded="true"] { background: var(--mis-accent-soft); border-color: var(--mis-accent-soft-border); }
+      .ei-fresh:focus-visible { outline: 2px solid var(--mis-focus-ring); outline-offset: 2px; }
+      .ei-fresh-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--mis-muted); }
+      .ei-fresh[data-state="ok"] .ei-fresh-dot { background: var(--sasv-success, var(--mis-accent)); }
+      .ei-fresh[data-state="error"] .ei-fresh-dot { background: var(--mis-danger); }
+      .ei-fresh[data-state="loading"] .ei-fresh-dot { background: var(--mis-info); }
+      .ei-fresh-icon { display: none; }
+      @media (max-width: 520px) {
+        .ei-fresh { position: relative; justify-content: center; min-width: var(--sasv-control-md, 36px); padding: 0 8px; }
+        .ei-fresh-label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+        .ei-fresh-icon { display: inline-flex; }
+        .ei-fresh-icon svg { width: 16px; height: 16px; }
+        .ei-fresh-dot { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; flex-basis: 7px; box-shadow: 0 0 0 1.5px var(--mis-surface); }
+      }
+      .ei-fresh-panel { position: fixed; z-index: 70; box-sizing: border-box; overflow: auto; padding: 10px 12px; background: var(--mis-surface); color: var(--mis-text); border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-md, 8px); box-shadow: var(--sasv-shadow-md, 0 4px 14px var(--mis-divider)); font-size: var(--ei-fs-xs); }
+      .ei-fresh-title { margin: 0 0 6px; font-size: var(--ei-fs-md); font-weight: 700; }
+      .ei-fresh-group { margin: 0 0 6px; }
+      .ei-fresh-group h3 { margin: 0 0 2px; color: var(--mis-muted); font-size: var(--ei-fs-2xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+      .ei-fresh-group dl { margin: 0; display: grid; gap: 1px; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-sm, 6px); background: var(--mis-divider); overflow: hidden; }
+      .ei-fresh-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 4px 8px; background: var(--mis-surface); }
+      .ei-fresh-row dt { color: var(--mis-text-secondary); }
+      .ei-fresh-row dd { margin: 0; text-align: right; font-weight: 600; overflow-wrap: anywhere; }
+      .ei-fresh-row.ei-fresh-error dd { color: var(--mis-danger); }
+      .ei-fresh-row.ei-fresh-unknown dd, .ei-fresh-row.ei-fresh-loading dd { color: var(--mis-muted); }
+      .ei-fresh-note { margin: 0; color: var(--mis-muted); font-size: var(--ei-fs-2xs); line-height: 1.4; }
+      @media (max-width: 420px) { .ei-fresh-row { grid-template-columns: minmax(0, 1fr); gap: 0; } .ei-fresh-row dd { text-align: left; } }
+
+      @media (max-width: 520px) {
+        .ei-metric { padding: 3px 8px; }
+        .ei-metric-value { font-size: var(--ei-fs-sm); }
+        .ei-metric-group-title { margin-bottom: 2px; }
+        .ei-metric-groups { gap: 4px; }
       }
     </style>
   </head>
@@ -1645,35 +1739,13 @@
               <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
             </svg>
           </button>
-          <div
-            id="lastRefreshed"
-            class="sc-snapshot"
-            tabindex="0"
-            role="button"
-            aria-haspopup="true"
-            aria-expanded="false"
-          >
-            <span class="sc-snapshot-dot" aria-hidden="true"></span>
-            <span class="sc-snapshot-label">Not loaded</span>
-            <div id="sc-status-detail" style="display: none">
-              Executive summary snapshot refreshed at: -
-            </div>
-          </div>
-          <button id="homeBtn" type="button" class="home-btn" title="Home" aria-label="Home">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              aria-hidden="true"
-            >
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9,22 9,12 15,12 15,22" />
-            </svg>
-            <span class="home-label">HOME</span>
+          <button id="lastRefreshed" type="button" class="ei-fresh" aria-haspopup="dialog" aria-expanded="false" aria-controls="eiFreshPanel" aria-label="Data freshness: not loaded" title="Data freshness">
+            <span class="ei-fresh-dot" aria-hidden="true"></span>
+            <span class="ei-fresh-icon" aria-hidden="true"></span>
+            <span class="ei-fresh-label">Not loaded</span>
           </button>
+          <!-- Canonical HOME: glyph, label, classes and a11y name are mounted by mountModuleHome (shared with Stock Checker); styling is the shared sasv-home-btn rules in style.css -->
+          <button id="homeBtn" type="button" class="sasv-home-btn" aria-label="HOME" title="HOME"></button>
         </div>
       </div>
     </div>
@@ -1763,6 +1835,6 @@
       </div>
     </div>
 
-    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=ei-r5-1"></script>
+    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=ei-r6-1"></script>
   </body>
 </html>

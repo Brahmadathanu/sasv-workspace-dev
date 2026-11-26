@@ -257,7 +257,8 @@ test("Overview is the default lens: grouped indicators, narrative, real comparis
   const basis = await page.$$eval(".kpi-basis", (e) => [...new Set(e.map((x) => x.textContent))].sort());
   assert.deepEqual(basis, ["Current position", "Live now", "Month to date", "Snapshot period flow"]);
   assert.match(await text(page, '.ei-group[data-domain="finance"] .ei-group-head'), /Position 24 Nov 2026/);
-  assert.match(await text(page, ".ei-context"), /Summary snapshot refreshed/);
+  assert.equal(await page.$(".ei-context"), null, "R5: the snapshot/live-load times moved into the header freshness indicator");
+  await page.click("#lastRefreshed"); assert.match(await text(page, "#eiFreshPanel"), /Executive summary snapshot generated[\s\S]*Production counts loaded/); await page.keyboard.press("Escape");
   assert.deepEqual(consoleErrors, []); await page.context().close();
 });
 
@@ -505,6 +506,9 @@ test("responsive: every lens at 320/375/390/430/520/768/1280/1440 has no page-le
 });
 
 // ------------------------------------------------------------------------------------------------ R3 / R4 browser tests
+// R5: sales filters live behind the canonical filter button (popover on desktop, full-page sheet on phones). Open it once; it stays open across filter changes.
+const fopen = async (page) => { if ((await page.$eval("#salesFilterToggle", (e) => e.getAttribute("aria-expanded"))) !== "true") await page.click("#salesFilterToggle"); };
+const setSort = async (page, value) => { await page.click("#salesSortBtn"); await page.check(`input[name="salesSort"][value="${value}"]`); };
 const H0 = { p_category: null, p_subcategory: null, p_group_id: null, p_subgroup: null };
 const lastArgs = async (page, name) => (await calls(page, name)).at(-1)?.args;
 const salesOpen = async (opts) => { const r = await open({ lens: "sales", noWait: true, ...opts }); await r.page.waitForSelector(".ei-subnav"); return r; };
@@ -538,22 +542,22 @@ test("Sales filters: dynamic region/godown from the master, godown follows regio
   assert.deepEqual(await page.$$eval("#salesRegion option", (o) => o.map((x) => x.textContent)), ["All regions", "Inside Kerala", "Outside Kerala"]);
   assert.deepEqual(await page.$$eval("#salesGodown option", (o) => o.map((x) => x.textContent)), ["All godowns", "Kozhikode", "Chennai"]);
   assert.equal(await page.getAttribute("#salesAnchor", "min"), "2024-01-01"); assert.equal(await page.getAttribute("#salesAnchor", "max"), "2026-11-24");
-  await page.selectOption("#salesRegion", "2"); assert.deepEqual(await page.$$eval("#salesGodown option", (o) => o.map((x) => x.textContent)), ["All godowns", "Chennai"], "godown options follow the region");
+  await fopen(page); await page.selectOption("#salesRegion", "2"); assert.deepEqual(await page.$$eval("#salesGodown option", (o) => o.map((x) => x.textContent)), ["All godowns", "Chennai"], "godown options follow the region");
   await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_comparison").length === 2);
   assert.equal((await lastArgs(page, "ei_sales_comparison")).p_region, 2);
-  await page.selectOption("#salesGodown", "20"); await page.check("#salesActive");
+  await fopen(page); await page.selectOption("#salesGodown", "20"); await fopen(page); await page.check("#salesActive");
   await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_comparison").length === 4);
   assert.deepEqual(await lastArgs(page, "ei_sales_window_totals"), { p_anchor: null, p_region: 2, p_godown: 20, p_product: null, p_sku: null, p_active_only: true, ...H0 });
-  await page.fill("#salesAnchor", "2027-01-01");
+  await fopen(page); await page.fill("#salesAnchor", "2027-01-01");
   assert.match(await text(page, ".ei-filter-note"), /outside the mapped range/); assert.equal((await lastArgs(page, "ei_sales_comparison")).p_anchor, null, "an out-of-range anchor is never sent");
-  await page.fill("#salesAnchor", "2026-11-10");
+  await fopen(page); await page.fill("#salesAnchor", "2026-11-10");
   await page.waitForFunction(() => window.__mis.calls.at(-1).args?.p_anchor === "2026-11-10" || window.__mis.calls.some((c) => c.args?.p_anchor === "2026-11-10"));
   assert.equal(await page.$$eval(".ei-filterbar [data-x]", (e) => e.length), 0);
   const histBefore = (await calls(page, "ei_sales_history")).length; assert.equal(histBefore, 0, "other views were not fetched by a filter change");
   await page.click('[data-sales-view="history"]'); await page.waitForSelector("#salesHistResults .ei-table");
   assert.deepEqual(await page.$$eval("#salesGodown option:checked", (o) => o.map((x) => x.textContent)), ["Chennai"], "filters persist across views");
   const h = await lastArgs(page, "ei_sales_history"); assert.deepEqual([h.p_anchor, h.p_region, h.p_godown, h.p_active_only], ["2026-11-10", 2, 20, true]);
-  await page.click("#salesFilterReset"); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_history").length === 2);
+  await fopen(page); await page.click("#salesFilterReset"); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_history").length === 2);
   assert.deepEqual(await lastArgs(page, "ei_sales_history"), { ...(await lastArgs(page, "ei_sales_history")), p_anchor: null, p_region: null, p_godown: null, p_active_only: false });
   await page.context().close();
 });
@@ -571,7 +575,7 @@ test("Sales History: bounded grouped pages, stable paging, search, top/bottom, a
   assert.match(await text(page, "#salesHistResults .ei-pager"), /Showing 1-50 of 60 rows/);
   await page.click('[data-sales-page="hist:1"]'); await page.waitForFunction(() => /Page 2 \/ 2/.test(document.querySelector("#salesHistResults .ei-pager").textContent));
   assert.equal((await lastArgs(page, "ei_sales_history")).p_offset, 50); assert.match(await text(page, "#salesHistResults .ei-pager"), /Showing 51-60 of 60/);
-  await page.click('[data-hist-rank="value_asc"]'); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_history").at(-1).args.p_sort === "value_asc");
+  await setSort(page, "value_asc"); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_history").at(-1).args.p_sort === "value_asc");
   assert.equal((await lastArgs(page, "ei_sales_history")).p_offset, 0, "ranking change returns to page 1");
   await page.fill("#salesHistSearch", "Item 3"); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_history").at(-1).args.p_search === "Item 3");
   assert.match(await text(page, "#salesHistResults .ei-pager"), /of 3 rows/);
@@ -616,13 +620,13 @@ test("Sales Exceptions: current-master eligibility is separate from activity; no
   assert.deepEqual(await lastArgs(page, "ei_sales_exceptions"), { p_anchor: null, p_region: null, p_godown: null, p_search: null, p_limit: 50, p_offset: 0, ...H0 });
   assert.match(await text(page, "#salesExcResults .ei-asof-row"), /current SKU master, not what was listed historically/);
   const r = await page.$$eval("#salesExcResults tbody tr", (x) => x.map((t) => [...t.children].map((c) => c.textContent.trim())));
-  assert.equal(r[0][3], "Listed now"); assert.match(r[0][4], /No recorded rows \(coverage not certified; not a certified zero seller\)/); assert.deepEqual(r[0].slice(5), ["No rows", "No rows", "No rows", "No rows"], "no fake zero counts");
+  assert.equal(r[0][3], "Listed now"); assert.match(r[0][4], /No recorded rows.*Coverage not certified; not a certified zero seller/); assert.deepEqual(r[0].slice(5), ["No rows", "No rows", "No rows", "No rows"], "no fake zero counts");
   assert.equal(r[1][4], "Sales offset by returns"); assert.deepEqual(r[1].slice(5), ["0", "1", "1", "0"]);
   assert.equal(r[2][3], "Inactive now"); assert.equal(r[2][4], "Missing measures");
   assert.equal(new Set(r.map((x) => x[4])).size, 3, "three different situations stay apart");
   await page.fill("#salesExcSearch", "Alpha"); await page.waitForFunction(() => window.__mis.calls.filter((c) => c.name === "ei_sales_exceptions").at(-1).args.p_search === "Alpha");
   await page.evaluate(() => { window.__mis.handlers.ei_sales_exceptions = () => ({ data: null, error: { code: "22023", message: "Unknown or conflicting godown/region" } }); });
-  await page.selectOption("#salesRegion", "1").catch(() => {});
+  await fopen(page); await page.selectOption("#salesRegion", "1").catch(() => {});
   await page.click('[data-sales-view="coverage"]'); await page.click('[data-sales-view="exceptions"]');
   await page.evaluate(() => { window.__mis.handlers.ei_sales_exceptions = () => ({ data: null, error: { code: "22023", message: "Unknown or conflicting godown/region" } }); });
   await page.fill("#salesExcSearch", "zz"); await page.waitForSelector("#salesExcResults .ei-state.error");
@@ -649,7 +653,7 @@ test("Sales contract not installed / denied / expired / 503: honest per-view sta
   await page.waitForSelector("#salesCmp .ei-state");
   assert.match(await text(page, "#salesCmp"), /not available on this server yet: the Executive Intelligence sales contract is not installed\. Nothing is estimated/); assert.equal(await page.$("#salesCmp [data-sales-retry]"), null, "no pointless retry for an uninstalled contract");
   assert.match(await text(page, "#salesWin"), /Your account does not have access to Trailing window totals/);
-  assert.match(await text(page, "#salesFilters"), /Region, godown, hierarchy and date bounds are unavailable \(contract not installed yet\)/); assert.equal(await page.$eval("#salesRegion", (e) => e.disabled), true);
+  assert.match(await text(page, "#salesNotice"), /Region, godown, hierarchy and date bounds are unavailable \(contract not installed yet\)/); assert.equal(await page.$eval("#salesRegion", (e) => e.disabled), true);
   assert.equal(await page.$("#salesCmp td"), null, "no figure is shown in place of the missing contract");
   await page.evaluate(() => { const h = window.__mis.handlers; h.ei_sales_history = () => ({ data: null, error: { code: "503", message: "Service Unavailable" } }); h.ei_sales_exceptions = () => ({ data: null, error: { code: "401", message: "JWT expired" } }); });
   await page.click('[data-sales-view="history"]'); await page.waitForSelector("#salesHistResults .ei-state.error");
@@ -666,7 +670,7 @@ test("a sales view left mid-request cannot repaint another view, and a filter ch
   const { page } = await salesOpen(); await page.waitForSelector("#salesCmp .ei-table");
   await page.evaluate(() => { const m = window.__mis; m.slow = []; m.handlers.ei_sales_history = () => { const d = m.defer(); m.slow.push(d); return d.promise; }; });
   await page.click('[data-sales-view="history"]'); await page.waitForFunction(() => window.__mis.slow.length === 1);
-  await page.selectOption("#salesRegion", "1"); await page.waitForFunction(() => window.__mis.slow.length === 2);
+  await fopen(page); await page.selectOption("#salesRegion", "1"); await page.waitForFunction(() => window.__mis.slow.length === 2);
   await page.evaluate(() => window.__mis.slow[1].resolve({ data: { anchor: "2026-11-24", start_date: "2025-12-01", total: 1, rows: [{ dimension_id: "N", dimension_name: "NEWER", sales_value: 1, source_reported_amount: 1, coverage: "OBSERVED_NOT_CERTIFIED" }] }, error: null }));
   await page.waitForFunction(() => /NEWER/.test(document.getElementById("salesHistResults").textContent));
   await page.evaluate(() => window.__mis.slow[0].resolve({ data: { anchor: "2026-11-24", start_date: "2025-12-01", total: 1, rows: [{ dimension_id: "O", dimension_name: "OLDER-STALE", sales_value: 1, source_reported_amount: 1, coverage: "OBSERVED_NOT_CERTIFIED" }] }, error: null }));

@@ -29,10 +29,16 @@ for (const w of ALL) await shot("overview", w, "overview");
 for (const w of ALL) for (const [v, sel] of Object.entries(subs)) await shot(`sales-${v}`, w, "sales", v === "overview" ? null : view(v, sel), { ready: "#salesCmp .ei-table" });
 for (const w of [1280, 390, 320]) for (const l of ["finance", "inventory", "finished-goods", "production", "alerts"]) await shot(l, w, l);
 await shot("sales-history-month-grid", 1280, "sales", async (page) => { await view("history", "#salesHistResults .ei-table")(page); await page.selectOption("#salesHistGroup", "sku_month"); await page.waitForSelector("[data-hist-grid]"); await page.click("[data-hist-grid]"); await page.waitForSelector(".ei-grid"); });
-await shot("sales-hierarchy-filters", 1280, "sales", async (page) => { await page.selectOption("#salesHier-category", "1"); await page.selectOption("#salesHier-subcategory", "11"); await page.selectOption("#salesHier-group", "111"); await page.waitForTimeout(300); });
+await shot("sales-hierarchy-filters", 1280, "sales", async (page) => { await page.click("#salesFilterToggle"); await page.selectOption("#salesHier-category", "1"); await page.selectOption("#salesHier-subcategory", "11"); await page.selectOption("#salesHier-group", "111"); await page.waitForTimeout(300); });
 for (const w of [390, 320]) await shot("sales-filter-sheet", w, "sales", async (page) => { await page.click("#salesFilterToggle"); await page.waitForTimeout(150); }, { full: false });
 for (const w of [1280, 390]) await shot("sales-only", w, "sales", null, { permission: "sales-only" });
 await shot("sales-only-facility", 390, "sales", view("facility", "#salesFac .ei-table"), { permission: "sales-only", ready: "#salesCmp .ei-table" });
+await shot("sales-sort-popover", 1280, "sales", async (page) => { await view("history", "#salesHistResults .ei-table")(page); await page.click("#salesSortBtn"); await page.waitForTimeout(150); });
+await shot("sales-sort-sheet", 390, "sales", async (page) => { await view("history", "#salesHistResults .ei-table")(page); await page.click("#salesSortBtn"); await page.waitForTimeout(150); }, { full: false });
+await shot("sales-history-toolbar", 390, "sales", view("history", "#salesHistResults .ei-table"), { full: false });
+for (const w of [1280, 390, 320]) await shot("freshness-panel", w, "overview", async (page) => { await page.click("#lastRefreshed"); await page.waitForSelector("#eiFreshPanel"); }, { full: false });
+await shot("freshness-panel-sales-only", 390, "sales", async (page) => { await page.click("#lastRefreshed"); await page.waitForSelector("#eiFreshPanel"); }, { permission: "sales-only", full: false });
+await shot("finance-filter-popover", 1280, "finance", async (page) => { await page.click("#financeFilterBtn"); await page.waitForTimeout(150); }, { full: false });
 await shot("finance-filter-sheet", 390, "finance", async (page) => { await page.click("#financeFilterBtn"); }, { full: false });
 await shot("inventory-canonical-unavailable", 390, "inventory", async (page) => { await page.evaluate(() => { window.__mis.handlers.v_mis_inventory_tab_summary = () => ({ data: { total_inventory_item_count: 1773 }, error: null }); }); await page.click("#refreshBtn"); await page.waitForSelector(".ei-state-unavailable"); });
 await shot("sales-facility-unavailable", 1280, "sales", async (page) => {

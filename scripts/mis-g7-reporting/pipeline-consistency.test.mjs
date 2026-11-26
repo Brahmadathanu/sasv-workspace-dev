@@ -51,7 +51,8 @@ test("Overview indicators equal the Production lens (live 315/96/70), not the st
 
 test("freshness: snapshot age is labelled as the executive-summary snapshot; live cards say Live and are not snapshot-dated", { skip: SK }, async () => {
   const { page } = await open();
-  assert.match(await page.textContent("#sc-status-detail"), /Executive summary snapshot refreshed at/); assert.match(await page.textContent("#sc-status-detail"), /Production batch counts are live/);
+  await page.click("#lastRefreshed"); await page.waitForSelector("#eiFreshPanel"); // R5: the detail moved from the old inline balloon into the consolidated freshness panel
+  assert.match(await page.textContent("#eiFreshPanel"), /Executive summary snapshot generated/); assert.match(await page.textContent("#eiFreshPanel"), /Production counts loaded \(live read\)/); await page.keyboard.press("Escape");
   const info = await page.$$eval('.kpi-card', (cs) => cs.filter((c) => /Pipeline|Work in Process/.test(c.querySelector(".kpi-title").textContent)).map((c) => decodeURIComponent(c.querySelector("[data-kpi-info]").getAttribute("data-kpi-info"))));
   assert.equal(info.length, 3); for (const i of info) { assert.match(i, /Live/); assert.doesNotMatch(i, /Production month/); }
   const fgv = await page.$$eval('.kpi-card', (cs) => cs.filter((c) => /Transferred to Finished Goods Value/.test(c.textContent)).map((c) => c.querySelector(".kpi-value").textContent.trim()));

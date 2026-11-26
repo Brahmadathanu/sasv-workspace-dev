@@ -470,3 +470,57 @@ export function facilityModel(d) {
     scopeNote: d.scope_note || "", ownership: d.ownership_classification || "", importCompleteness: d.import_completeness || "NOT_CERTIFIED",
   };
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Consolidated data freshness (header indicator). Pure: the caller supplies what was ALREADY loaded; nothing is requested for it.
+// Three kinds are kept apart: snapshot generation (server materialised view), client load time (when this page last read live
+// data) and source refresh timestamps (sales monthly/daily sources and the refresh job). No staleness threshold is invented and
+// no completeness is inferred: states are only loading, ok, error or unknown.
+// input: { executive, summary:{status,at,message}, pipeline:{status,asOf}, sales:{loadedAt,status,refresh:{status,data}} }
+// ---------------------------------------------------------------------------------------------------------------------
+export function freshnessModel({ executive = false, summary = {}, pipeline = {}, sales = {} } = {}) {
+  const rows = [];
+  const add = (kind, key, label, value, state = "ok") => rows.push({ kind, key, label, value: value ?? null, state });
+  const bad = (st) => st === "error" || st === "denied" || st === "expired" || st === "unavailable" || st === "invalid";
+  let loading = false, error = false, anyTime = false;
+  if (executive) {
+    if (summary.status === "loading" || summary.status === "idle") loading = true;
+    if (summary.status === "error") error = true;
+    if (summary.at) anyTime = true;
+    add("snapshot", "snapshot", "Executive summary snapshot generated", summary.at || null, summary.at ? "ok" : summary.status === "error" ? "error" : summary.status === "loading" || summary.status === "idle" ? "loading" : "unknown");
+    if (pipeline.status === "loading" || pipeline.status === "idle") loading = true;
+    if (pipeline.status === "error") error = true;
+    if (pipeline.asOf) anyTime = true;
+    add("client", "pipeline", "Production counts loaded (live read)", pipeline.asOf || null, pipeline.asOf ? "ok" : pipeline.status === "error" ? "error" : "loading");
+  }
+  if (sales.loadedAt) { anyTime = true; add("client", "sales", "Sales data loaded (live read)", sales.loadedAt, "ok"); }
+  else if (sales.status === "loading") loading = true;
+  else if (sales.status && bad(sales.status)) { error = true; add("client", "sales", "Sales data loaded (live read)", null, "error"); }
+  const rf = sales.refresh && sales.refresh.status === "ok" ? sales.refresh.data : null;
+  if (rf) {
+    const job = refreshJobModel(rf);
+    add("source", "sales-monthly", "Sales monthly source last loaded", rf.monthly_source_max_inserted_at || null, rf.monthly_source_max_inserted_at ? "ok" : "unknown");
+    add("source", "sales-daily", "Sales daily source last loaded", rf.daily_source_max_inserted_at || null, rf.daily_source_max_inserted_at ? "ok" : "unknown");
+    if (job.state === "known") add("source", "sales-job", `Monthly refresh job: ${job.label}`, job.finishedAt || job.startedAt || null, job.tone === "bad" ? "error" : "ok");
+    if (rf.monthly_source_max_inserted_at || rf.daily_source_max_inserted_at) anyTime = true;
+  } else {
+    add("source", "sales-source", "Sales source refresh timestamps", null, sales.refresh && bad(sales.refresh.status) ? "error" : "unknown");
+  }
+  // The headline is the snapshot generation time (executive) or the sales load time (sales-only). While that is still loading the state
+  // is "loading" even if another read has already finished; the other read then only serves as a fallback time.
+  const headlineAt = executive ? summary.at || null : sales.loadedAt || null;
+  const fallbackAt = headlineAt || (executive ? pipeline.asOf || null : null);
+  const state = error ? "error" : loading && !headlineAt ? "loading" : anyTime ? "ok" : "unknown";
+  return { state, headlineAt, fallbackAt, rows, groups: ["snapshot", "client", "source"].map((k) => ({ kind: k, rows: rows.filter((r) => r.kind === k) })).filter((g) => g.rows.length) };
+}
+export const FRESHNESS_GROUP_LABELS = Object.freeze({ snapshot: "Snapshot generation", client: "Loaded by this page", source: "Source refresh" });
+
+// Activity (exceptions): a short badge label plus the explanatory note, so a long sentence never sits in a single table cell.
+export const ACTIVITY_SHORT = Object.freeze({
+  NO_RECORDED_SALES_COVERAGE_UNCERTIFIED: { label: "No recorded rows", note: "Coverage not certified; not a certified zero seller" },
+});
+export function activityParts(key, fullLabels) {
+  const short = ACTIVITY_SHORT[key];
+  if (short) return short;
+  return { label: (fullLabels && fullLabels[key]) || (key ? String(key).replace(/_/g, " ").toLowerCase() : "Unknown"), note: "" };
+}

@@ -1,5 +1,7 @@
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import { mountModuleHome } from "./sasv-module-chrome.js";
+import { iconHtml } from "./ui-icons.js";
 import { renderEvidenceShell, mountEvidencePanel } from "./mis-evidence-report.js?mis-g7r=1";
 import {
   LENSES,
@@ -38,7 +40,10 @@ import {
   refreshJobModel,
   refreshFreshnessModel,
   facilityModel,
-} from "./executive-intelligence-model.js?ei-r5=1";
+  freshnessModel,
+  FRESHNESS_GROUP_LABELS,
+  activityParts,
+} from "./executive-intelligence-model.js?ei-r6=1";
 
 const MODULE_ID = "executive-mis-dashboard";
 const PLAN_WARNING_STATUS =
@@ -318,6 +323,7 @@ async function loadExecutiveSummary({ reloadLens = true } = {}) {
     closeKpiPopover();
     clearStatus();
     SUMMARY_STATE = { status: "loading", row: null, message: "" };
+    updateFreshnessIndicator();
     // Refresh = one new live pipeline request (supersedes any older one) running beside the snapshot read.
     // A summary-only retry does not touch the pipeline.
     if (reloadLens) { loadLivePipeline({ force: true }); if (ACTIVE_TAB === "overview") loadOverviewInventory({ force: true }); }
@@ -398,7 +404,7 @@ function loadLivePipeline({ force = false } = {}) {
     if (LIVE_PIPELINE.status === "ok" && LIVE_PIPELINE.asOf && Date.now() - LIVE_PIPELINE.asOf.getTime() < LIVE_PIPELINE_REUSE_MS) return Promise.resolve();
   }
   const token = beginRequest("pipeline");
-  LIVE_PIPELINE = { status: "loading", data: null, asOf: null, message: "" };
+  LIVE_PIPELINE = { status: "loading", data: null, asOf: null, message: "" }; updateFreshnessIndicator();
   renderLivePipelineConsumers();
   const run = (async () => {
     const { data, error } = await settle(
@@ -409,10 +415,10 @@ function loadLivePipeline({ force = false } = {}) {
     if (!isLatestRequest("pipeline", token)) return;
     if (error || !data) {
       console.error("[MIS] Live pipeline load failed", error);
-      LIVE_PIPELINE = { status: "error", data: null, asOf: null, message: errorMessage(error) };
+      LIVE_PIPELINE = { status: "error", data: null, asOf: null, message: errorMessage(error) }; updateFreshnessIndicator();
       if (ACTIVE_TAB === "production") ACTIVE_TAB_FAILED = true;
     } else {
-      LIVE_PIPELINE = { status: "ok", data, asOf: new Date(), message: "" };
+      LIVE_PIPELINE = { status: "ok", data, asOf: new Date(), message: "" }; updateFreshnessIndicator();
     }
     renderLivePipelineConsumers();
   })();
@@ -509,14 +515,6 @@ function buildOverviewCards(row) {
   };
 }
 
-// One short line: only what the group headers do not already say (snapshot and live-load times).
-function overviewContextLine() {
-  const parts = [];
-  if (DATA_REFRESH_TIME) parts.push(`Summary snapshot refreshed ${formatDateTimeIN(DATA_REFRESH_TIME)}`);
-  parts.push(LIVE_PIPELINE.status === "ok" && LIVE_PIPELINE.asOf ? `Production counts live, loaded ${formatDateTimeIN(LIVE_PIPELINE.asOf)}` : LIVE_PIPELINE.status === "error" ? "Live production counts unavailable" : "Live production counts loading");
-  return parts.join(" \u00b7 ");
-}
-
 function withFocusRestore(fn) {
   const key = document.activeElement?.getAttribute?.("data-focus-key");
   fn();
@@ -546,10 +544,9 @@ function renderOverview() {
       <div class="ei-overview">
         <h2 class="ei-sr">Overview</h2>
         ${banner}
-        <p class="ei-context" aria-label="Reporting context">${escapeHtml(overviewContextLine())}</p>
         ${
           narrative.length
-            ? `<section class="ei-narrative" aria-label="Management summary"><ul>${narrative
+            ? `<section class="ei-narrative ei-exec-summary" aria-labelledby="eiExecTitle"><h3 class="ei-exec-title" id="eiExecTitle">Executive Summary</h3><ul>${narrative
                 .map((n) => `<li><a href="#${n.lens}" class="ei-text-link" data-lens-link="${n.lens}">${escapeHtml(n.text)}</a></li>`)
                 .join("")}</ul></section>`
             : ""
@@ -576,39 +573,73 @@ function renderProductionPlanNotice() {
   if (host) host.innerHTML = planningNoticeHtml(LAST_SUMMARY_ROW);
 }
 
+// ---- consolidated data freshness (header) -----------------------------------------------------------------------------
+// One indicator carries what the Overview used to repeat in a muted line: snapshot generation, live client-load time and source
+// refresh timestamps. It only reflects data this page has already loaded (no extra request, nothing executive for sales-only).
+function freshInput() {
+  return {
+    executive: ACCESS.executive,
+    summary: { status: SUMMARY_STATE.status, at: DATA_REFRESH_TIME, message: SUMMARY_STATE.message },
+    pipeline: { status: LIVE_PIPELINE.status, asOf: LIVE_PIPELINE.asOf },
+    sales: { loadedAt: SX.loadedAt, status: SX.res?.dims?.status, refresh: SX.res?.refresh },
+  };
+}
+let FRESH_PANEL = null;
+function freshValue(r) {
+  if (r.value) return formatDateTimeIN(r.value);
+  return r.state === "loading" ? "Loading..." : r.state === "error" ? "Unavailable (could not be loaded)" : "Not available";
+}
+function freshPanelHtml(m) {
+  return `<h2 class="ei-fresh-title" id="eiFreshTitle">Data freshness</h2>
+    ${m.groups.map((g) => `<section class="ei-fresh-group" aria-label="${escapeHtml(FRESHNESS_GROUP_LABELS[g.kind])}"><h3>${escapeHtml(FRESHNESS_GROUP_LABELS[g.kind])}</h3><dl>${g.rows.map((r) => `<div class="ei-fresh-row ei-fresh-${r.state}"><dt>${escapeHtml(r.label)}</dt><dd>${escapeHtml(freshValue(r))}</dd></div>`).join("")}</dl></section>`).join("")}
+    <p class="ei-fresh-note">Times describe when data was generated or read; they do not show that the underlying import is complete.</p>`;
+}
+function positionFreshPanel() {
+  if (!FRESH_PANEL || !lastRefreshed) return;
+  const margin = 12;
+  const r = lastRefreshed.getBoundingClientRect();
+  const vw = document.documentElement.clientWidth;
+  const vh = window.innerHeight;
+  const width = Math.min(360, vw - margin * 2);
+  FRESH_PANEL.style.width = `${width}px`;
+  const left = Math.max(margin, Math.min(r.right - width, vw - width - margin));
+  const below = vh - r.bottom - margin - 8;
+  const above = r.top - margin - 8;
+  const openUp = below < Math.min(FRESH_PANEL.scrollHeight, 240) && above > below;
+  const room = Math.max(120, openUp ? above : below);
+  FRESH_PANEL.style.maxHeight = `${room}px`;
+  const h = Math.min(FRESH_PANEL.scrollHeight, room);
+  FRESH_PANEL.style.left = `${left}px`;
+  FRESH_PANEL.style.top = `${Math.max(margin, openUp ? r.top - h - 8 : r.bottom + 8)}px`;
+}
+function closeFreshPanel({ restoreFocus = false } = {}) {
+  if (FRESH_PANEL) { FRESH_PANEL.remove(); FRESH_PANEL = null; }
+  lastRefreshed?.setAttribute("aria-expanded", "false");
+  if (restoreFocus) lastRefreshed?.focus?.();
+}
+function toggleFreshPanel() {
+  if (FRESH_PANEL) return closeFreshPanel({ restoreFocus: true });
+  closeKpiPopover();
+  FRESH_PANEL = document.createElement("div");
+  FRESH_PANEL.id = "eiFreshPanel";
+  FRESH_PANEL.className = "ei-fresh-panel";
+  FRESH_PANEL.setAttribute("role", "dialog");
+  FRESH_PANEL.setAttribute("aria-labelledby", "eiFreshTitle");
+  FRESH_PANEL.innerHTML = freshPanelHtml(freshnessModel(freshInput()));
+  document.body.appendChild(FRESH_PANEL);
+  lastRefreshed.setAttribute("aria-expanded", "true");
+  positionFreshPanel();
+}
 function updateFreshnessIndicator() {
   if (!lastRefreshed) return;
-  const detail = $("sc-status-detail");
-  const label = lastRefreshed.querySelector(".sc-snapshot-label");
-
-  if (!DATA_REFRESH_TIME) {
-    lastRefreshed.className = lastRefreshed.className
-      .replace(/snapshot-\w+/g, "")
-      .trim();
-    if (label) label.textContent = "Not loaded";
-    if (detail) detail.textContent = "Not yet loaded";
-    lastRefreshed.setAttribute("aria-label", "Data not yet loaded");
-    return;
-  }
-
-  const elapsedMin = Math.floor(
-    (Date.now() - DATA_REFRESH_TIME.getTime()) / 60000,
-  );
-  let statusClass = "snapshot-fresh";
-  if (elapsedMin >= 60) {
-    statusClass = "snapshot-stale";
-  } else if (elapsedMin >= 15) {
-    statusClass = "snapshot-warning";
-  }
-
-  const detailText = `Executive summary snapshot refreshed at: ${formatDateTimeIN(DATA_REFRESH_TIME)}. Production batch counts are live.`;
-  if (label) label.textContent = relativeTimeLabel(DATA_REFRESH_TIME);
-  if (detail) detail.textContent = detailText;
-  lastRefreshed.className =
-    lastRefreshed.className.replace(/snapshot-\w+/g, "").trim() +
-    " " +
-    statusClass;
-  lastRefreshed.setAttribute("aria-label", detailText);
+  const m = freshnessModel(freshInput());
+  const label = lastRefreshed.querySelector(".ei-fresh-label");
+  const text = m.state === "loading" ? "Loading..." : m.state === "error" ? (m.fallbackAt ? relativeTimeLabel(m.fallbackAt) : "Unavailable") : m.fallbackAt ? relativeTimeLabel(m.fallbackAt) : "Not loaded";
+  if (label) label.textContent = text;
+  lastRefreshed.dataset.state = m.state;
+  const aria = `Data freshness: ${text}${m.state === "error" ? " (some data could not be loaded)" : ""}. Show details.`;
+  lastRefreshed.setAttribute("aria-label", aria);
+  if (FRESH_PANEL) { FRESH_PANEL.innerHTML = freshPanelHtml(m); positionFreshPanel(); }
 }
 
 function closeKpiPopover() {
@@ -743,7 +774,7 @@ function loadActiveTab() {
   // Strict permission isolation: a sales-only session can only ever load the Sales lens, whatever the hash or a stale call says.
   if (!ACCESS.executive && ACTIVE_TAB !== "sales") ACTIVE_TAB = "sales";
   if (!ACCESS.sales) return Promise.resolve();
-  SX.filtersOpen = false;
+  SX.filtersOpen = false; SX.sortOpen = false;
   document.body.classList.remove("ei-sheet-lock");
   ACTIVE_TAB_FAILED = false;
   invalidateTabRequests();
@@ -1085,8 +1116,12 @@ const LISTS = {
   },
 };
 
+// Canonical control glyphs: the shared ui-icons stroke grammar (filter / search / close). `sort` is not in the shared set, so it is drawn
+// in the same grammar here (shared component untouched).
+const GLYPH = (name, size = 16) => iconHtml(name, size);
+const ICON_SORT = { value_desc: `<svg class="sasv-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16"/><path d="m3 16 4 4 4-4"/><path d="M14 6h7M14 12h5M14 18h3"/></svg>`, value_asc: `<svg class="sasv-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 20V4"/><path d="m3 8 4-4 4 4"/><path d="M14 6h3M14 12h5M14 18h7"/></svg>`, key: `<svg class="sasv-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M4 12h7M4 17h4"/><path d="m16 15 3 3 3-3"/><path d="M19 6v12"/></svg>` };
 const ICON_X = `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line></svg>`;
-const ICON_FILTER = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>`;
+const ICON_FILTER_LEGACY = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>`;
 
 function listToolbarHtml(L) {
   const p = L.p;
@@ -1097,7 +1132,7 @@ function listToolbarHtml(L) {
     ? `
       <div id="${p}FilterWrapper" class="${p}-filter-wrapper" data-list="${p}">
         <button id="${p}FilterBtn" type="button" class="${p}-filter-btn ${active ? `${p}-filter-btn--active` : ""}" title="Filters" aria-label="Filters" aria-haspopup="dialog" aria-expanded="false" aria-controls="${p}FilterDrawer" data-act="filter-toggle" data-list="${p}">
-          ${ICON_FILTER}
+          ${GLYPH("filter")}
           <span class="${p}-filter-badge" style="${active ? "" : "display:none"}">${active || ""}</span>
         </button>
         <div id="${p}FilterDrawer" class="${p}-filter-drawer" role="dialog" aria-label="${escapeHtml(f.ariaLabel)}">
@@ -1111,13 +1146,15 @@ function listToolbarHtml(L) {
         </div>
       </div>`
     : "";
+  // Canonical order: filter, (sort where the contract has one), search. Lists page server-side in a fixed order, so no sort is offered.
   return `
-    <div class="${p}-toolbar">
-      <div class="${p}-search-wrap">
+    <div class="${p}-toolbar ei-toolbar">
+      ${filter}
+      <div class="${p}-search-wrap ei-searchbox">
+        <span class="ei-search-icon" aria-hidden="true">${GLYPH("search", 14)}</span>
         <input id="${p}Search" type="text" value="${escapeHtml(st.search)}" placeholder="${escapeHtml(L.placeholder)}" aria-label="${escapeHtml(L.placeholder)}" />
         <button id="${p}SearchClear" type="button" class="input-clear-btn" title="Clear search" aria-label="Clear search" data-act="search-clear" data-list="${p}" style="${st.search ? "" : "display:none"}">${ICON_X}</button>
       </div>
-      ${filter}
     </div>`;
 }
 
@@ -1439,7 +1476,7 @@ const salesViews = () => SALES_VIEWS.filter((v) => !v.executiveOnly || ACCESS.ex
 const idleRes = () => ({ status: "idle", data: null, message: "" });
 const freshSalesResults = () => ({ dims: idleRes(), cmp: idleRes(), win: idleRes(), hist: idleRes(), exc: idleRes(), cov: idleRes(), refresh: idleRes(), fac: idleRes() });
 const SX = {
-  view: "overview", anchor: "", region: "", godown: "", activeOnly: false, notice: "", hier: emptyHierarchy(), filtersOpen: false, facMonths: 1,
+  loadedAt: null, sortOpen: false, view: "overview", anchor: "", region: "", godown: "", activeOnly: false, notice: "", hier: emptyHierarchy(), filtersOpen: false, facMonths: 1,
   hist: { group: "month", months: 12, sort: "value_desc", search: "", page: 1, size: 50, product: "", sku: "", grid: false },
   exc: { search: "", page: 1, size: 50 },
   res: freshSalesResults(),
@@ -1484,6 +1521,7 @@ async function sxFetch(slot) {
     if (status === "error") ACTIVE_TAB_FAILED = true;
   } else if (data && typeof data === "object" && !Array.isArray(data)) {
     SX.res[slot] = { status: "ok", data, message: "" };
+    SX.loadedAt = new Date();
   } else {
     SX.res[slot] = { status: "error", data: null, message: "The server returned an unexpected response." };
   }
@@ -1493,6 +1531,7 @@ async function sxFetch(slot) {
     if (shouldResetPage(Array.isArray(data.rows) ? data.rows.length : 1, st.page)) { st.page = 1; return sxFetch(slot); }
   }
   renderSalesResults(slot);
+  updateFreshnessIndicator();
   if (slot === "dims") {
     // A remembered hierarchy choice the server no longer lists is dropped; anything already loaded with it is reloaded.
     const r = SX.res.dims.status === "ok" ? reconcileHierarchy(SX.res.dims.data, SX.hier) : { sel: SX.hier, cleared: [] };
@@ -1533,7 +1572,8 @@ function renderSalesShell() {
       <div class="ei-subnav" role="tablist" aria-label="Sales views">
         ${salesViews().map((v) => `<button type="button" role="tab" class="ei-subtab ${v.id === SX.view ? "active" : ""}" data-sales-view="${v.id}" aria-selected="${v.id === SX.view}" tabindex="${v.id === SX.view ? "0" : "-1"}">${escapeHtml(v.label)}</button>`).join("")}
       </div>
-      <div id="salesFilters" class="ei-filterbar ei-filters"></div>
+      <div class="ei-toolbar ei-toolbar-sales" id="salesCtlBar"><div id="salesFilters" class="ei-filters"></div><div id="salesToolExtra" class="ei-toolextra"></div></div>
+      <div id="salesNotice" class="ei-notice-host"></div>
       <div id="salesView" class="ei-view"></div>
     </div>`;
   renderSalesFilters();
@@ -1551,8 +1591,9 @@ function renderSalesFilters() {
   const host = $("salesFilters");
   if (!host) return;
   const show = SX_FILTERS[SX.view] || [];
+  const noticeHost = $("salesNotice");
   host.hidden = !show.length;
-  if (!show.length) { host.innerHTML = ""; host.classList.remove("is-open"); return; }
+  if (!show.length) { host.innerHTML = ""; host.classList.remove("is-open"); if (noticeHost) noticeHost.innerHTML = ""; return; }
   const dims = SX.res.dims;
   const ok = dims.status === "ok";
   const d = ok ? dims.data : {};
@@ -1565,40 +1606,78 @@ function renderSalesFilters() {
     return `<label class="ei-field"><span>${escapeHtml(l.label)}</span><select id="salesHier-${l.key}"${dis}>${opts(rows, SX.hier[l.key], ok ? l.all : "Unavailable")}</select></label>`;
   };
   const n = activeSalesFilterCount();
-  const open = SX.filtersOpen && isPhoneFilters();
+  const open = !!SX.filtersOpen;
   host.classList.toggle("is-open", open);
   host.innerHTML = `
-    <button type="button" class="ei-filter-toggle mis-retry-btn" id="salesFilterToggle" aria-expanded="${open}" aria-controls="salesFilterFields">Filters${n ? ` <span class="ei-filter-count" aria-label="${n} active">${n}</span>` : ""}</button>
-    <div id="salesFilterFields" class="ei-filter-fields" role="group" aria-label="Sales filters">
-      <div class="ei-filter-sheet-head"><strong>Filters</strong><button type="button" class="mis-retry-btn" id="salesFilterClose" aria-label="Close filters">Done</button></div>
+    <button type="button" class="ei-ctl ei-ctl-filter${n ? " is-active" : ""}" id="salesFilterToggle" title="Filters${n ? ` (${n} active)` : ""}" aria-label="Filters${n ? `, ${n} active` : ""}" aria-haspopup="dialog" aria-expanded="${open}" aria-controls="salesFilterFields">${GLYPH("filter")}${n ? `<span class="ei-ctl-badge" aria-hidden="true">${n}</span>` : ""}</button>
+    <div id="salesFilterFields" class="ei-filter-fields ei-pop" role="dialog" aria-label="Sales filters">
+      <div class="ei-filter-sheet-head"><strong>Filters</strong><button type="button" class="ei-ctl ei-ctl-close" id="salesFilterClose" aria-label="Close filters" title="Close">${ICON_X}</button></div>
       ${show.includes("anchor") ? `<label class="ei-field"><span>As of</span><input type="date" id="salesAnchor" value="${escapeHtml(SX.anchor)}"${ok && d.first_mapped_date ? ` min="${escapeHtml(d.first_mapped_date)}"` : ""}${ok && d.last_mapped_date ? ` max="${escapeHtml(d.last_mapped_date)}"` : ""} aria-label="As-of date (latest mapped day when empty)" /></label>` : ""}
       ${show.includes("facmonths") ? `<label class="ei-field"><span>Months</span><select id="salesFacMonths">${Array.from({ length: 12 }, (_, i) => i + 1).map((m) => `<option value="${m}"${m === SX.facMonths ? " selected" : ""}>${m}</option>`).join("")}</select></label>` : ""}
       ${show.includes("region") ? `<label class="ei-field"><span>Region</span><select id="salesRegion"${dis}>${opts(regions, SX.region, ok ? "All regions" : "Unavailable")}</select></label>` : ""}
       ${show.includes("godown") ? `<label class="ei-field"><span>Godown</span><select id="salesGodown"${dis}>${opts(godowns, SX.godown, ok ? "All godowns" : "Unavailable")}</select></label>` : ""}
       ${show.includes("hier") ? HIERARCHY_LEVELS.map(hierSelect).join("") : ""}
       ${show.includes("active") ? `<label class="ei-check"><input type="checkbox" id="salesActive"${SX.activeOnly ? " checked" : ""} /> Active SKUs only <span class="ei-asof">(current master)</span></label>` : ""}
-      <button type="button" class="mis-retry-btn" id="salesFilterReset">Reset</button>
-      ${SX.notice ? `<div class="ei-filter-note" role="status">${escapeHtml(SX.notice)}</div>` : ""}
-      ${!ok && dims.status !== "idle" && dims.status !== "loading" ? `<div class="ei-filter-note" role="status">Region, godown, hierarchy and date bounds are unavailable (${escapeHtml(dims.status === "unavailable" ? "contract not installed yet" : dims.message || dims.status)}); views run unfiltered.</div>` : ""}
-      ${SX.hist.product || SX.hist.sku ? `<div class="ei-filter-note">Filtered to ${SX.hist.product ? `product ${escapeHtml(SX.hist.product)}` : ""}${SX.hist.sku ? ` SKU ${escapeHtml(SX.hist.sku)}` : ""} <button type="button" class="mis-retry-btn" data-sales-clear-item>Clear</button></div>` : ""}
+      <div class="ei-filter-foot"><button type="button" class="mis-retry-btn" id="salesFilterReset">Reset</button><button type="button" class="mis-retry-btn ei-primary" id="salesFilterDone">Done</button></div>
     </div>`;
+  if (noticeHost) noticeHost.innerHTML = `
+    ${SX.notice ? `<div class="ei-filter-note" role="status">${escapeHtml(SX.notice)}</div>` : ""}
+    ${!ok && dims.status !== "idle" && dims.status !== "loading" ? `<div class="ei-filter-note" role="status">Region, godown, hierarchy and date bounds are unavailable (${escapeHtml(dims.status === "unavailable" ? "contract not installed yet" : dims.message || dims.status)}); views run unfiltered.</div>` : ""}
+    ${SX.hist.product || SX.hist.sku ? `<div class="ei-filter-note">Filtered to ${SX.hist.product ? `product ${escapeHtml(SX.hist.product)}` : ""}${SX.hist.sku ? ` SKU ${escapeHtml(SX.hist.sku)}` : ""} <button type="button" class="mis-retry-btn" data-sales-clear-item>Clear</button></div>` : ""}`;
 }
 
-// Phone: the filters become a full-page sheet (Escape and Done close it, focus returns to the toggle).
+// Filter popover (desktop, bounded under its button) / full-page sheet (phone). Escape, Done, outside click and the close glyph close it
+// and focus returns to the toggle.
 function setSalesFiltersOpen(open, { restoreFocus = false } = {}) {
-  SX.filtersOpen = !!open && isPhoneFilters();
+  SX.filtersOpen = !!open;
+  if (open) SX.sortOpen = false;
   const host = $("salesFilters");
   if (!host) return;
   host.classList.toggle("is-open", SX.filtersOpen);
   $("salesFilterToggle")?.setAttribute("aria-expanded", String(SX.filtersOpen));
-  document.body.classList.toggle("ei-sheet-lock", SX.filtersOpen);
-  if (SX.filtersOpen) $("salesFilterFields")?.querySelector("select,input,button")?.focus?.();
+  document.body.classList.toggle("ei-sheet-lock", SX.filtersOpen && isPhoneFilters());
+  if (SX.filtersOpen) { renderSalesSort(); $("salesFilterFields")?.querySelector("select,input")?.focus?.(); }
   else if (restoreFocus) $("salesFilterToggle")?.focus?.();
 }
+
+// ---- canonical sort control (history only: the only contract with a server sort) -------------------------------------------------------
+function renderSalesSort() {
+  const host = $("salesSortHost");
+  if (!host) return;
+  const h = SX.hist;
+  const cur = HISTORY_SORTS.find((o) => o.value === h.sort) || HISTORY_SORTS[0];
+  const dir = h.sort === "value_desc" ? "highest first" : h.sort === "value_asc" ? "lowest first" : "by name / month";
+  host.classList.toggle("is-open", !!SX.sortOpen);
+  host.innerHTML = `
+    <button type="button" class="ei-ctl ei-ctl-sort" id="salesSortBtn" title="Sort: ${escapeHtml(cur.label)}" aria-label="Sort, currently ${escapeHtml(cur.label)} (${dir})" aria-haspopup="dialog" aria-expanded="${!!SX.sortOpen}" aria-controls="salesSortPanel" data-sort-state="${escapeHtml(h.sort)}">${ICON_SORT[h.sort] || ICON_SORT.key}<span class="ei-ctl-text">${escapeHtml(cur.label)}</span></button>
+    <div id="salesSortPanel" class="ei-sort-panel ei-pop" role="dialog" aria-label="Sort history">
+      <div class="ei-filter-sheet-head"><strong>Sort</strong><button type="button" class="ei-ctl ei-ctl-close" id="salesSortClose" aria-label="Close sort" title="Close">${ICON_X}</button></div>
+      <ul class="ei-sort-list">${HISTORY_SORTS.map((o) => `<li><label><input type="radio" name="salesSort" value="${o.value}"${o.value === h.sort ? " checked" : ""} /> ${ICON_SORT[o.value] || ICON_SORT.key}<span>${escapeHtml(o.label)}</span></label></li>`).join("")}</ul>
+    </div>`;
+}
+function setSalesSortOpen(open, { restoreFocus = false } = {}) {
+  SX.sortOpen = !!open;
+  if (open && SX.filtersOpen) setSalesFiltersOpen(false);
+  renderSalesSort();
+  document.body.classList.toggle("ei-sheet-lock", SX.sortOpen && isPhoneFilters());
+  if (SX.sortOpen) $("salesSortPanel")?.querySelector("input:checked,input")?.focus?.();
+  else if (restoreFocus) $("salesSortBtn")?.focus?.();
+}
+function renderSalesToolExtra() {
+  const host = $("salesToolExtra");
+  if (!host) return;
+  if (SX.view === "history") {
+    host.innerHTML = `<div id="salesSortHost" class="ei-sorthost"></div>${searchboxHtml("salesHistSearch", SX.hist.search, "Search name or id", "Search history by name or id")}`;
+    renderSalesSort();
+  } else if (SX.view === "exceptions") host.innerHTML = searchboxHtml("salesExcSearch", SX.exc.search, "Search product or SKU id", "Search exceptions by product or SKU id");
+  else host.innerHTML = "";
+}
+const searchboxHtml = (id, value, placeholder, label) => `<div class="ei-searchbox"><span class="ei-search-icon" aria-hidden="true">${GLYPH("search", 14)}</span><input id="${id}" type="text" value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}" aria-label="${escapeHtml(label)}" /></div>`;
 
 function renderSalesViewShell() {
   const host = $("salesView");
   if (!host) return;
+  renderSalesToolExtra();
   if (SX.view === "overview") host.innerHTML = `<div id="salesCmp"></div><div id="salesWin"></div>`;
   else if (SX.view === "history") host.innerHTML = `<div id="salesHistControls">${historyControlsHtml()}</div><div id="salesHistResults"></div>`;
   else if (SX.view === "exceptions") host.innerHTML = `<div id="salesExcControls">${exceptionControlsHtml()}</div><div id="salesExcResults"></div>`;
@@ -1611,6 +1690,8 @@ function renderSalesViewShell() {
 function selectSalesView(id) {
   if (!salesViews().some((v) => v.id === id) || id === SX.view) return;
   SX.view = id;
+  SX.filtersOpen = false; SX.sortOpen = false;
+  document.body.classList.remove("ei-sheet-lock");
   cancelPendingSearches();
   tabPanel.querySelectorAll("[data-sales-view]").forEach((b) => {
     const on = b.getAttribute("data-sales-view") === id;
@@ -1713,13 +1794,11 @@ function windowTotalsHtml(res) {
 // ---- history ------------------------------------------------------------------------------------------------------
 function historyControlsHtml() {
   const h = SX.hist;
+  // View options (what to group and how far back). Filter, sort and search live in the canonical toolbar above.
   return `
-    <div class="ei-filterbar ei-filterbar-inner">
+    <div class="ei-viewopts">
       <label class="ei-field"><span>Group by</span><select id="salesHistGroup">${HISTORY_GROUPS.map((g) => `<option value="${g.value}"${g.value === h.group ? " selected" : ""}>${escapeHtml(g.label)}</option>`).join("")}</select></label>
       <label class="ei-field"><span>Months</span><select id="salesHistMonths">${Array.from({ length: 12 }, (_, i) => i + 1).map((n) => `<option value="${n}"${n === h.months ? " selected" : ""}>${n}</option>`).join("")}</select></label>
-      <label class="ei-field"><span>Order</span><select id="salesHistSort">${HISTORY_SORTS.map((o) => `<option value="${o.value}"${o.value === h.sort ? " selected" : ""}>${escapeHtml(o.label)}</option>`).join("")}</select></label>
-      <div class="sales-search-wrap ei-search"><input id="salesHistSearch" type="text" value="${escapeHtml(h.search)}" placeholder="Search name or id" aria-label="Search history by name or id" /></div>
-      <div class="ei-segment" role="group" aria-label="Rank view"><button type="button" class="mis-retry-btn" data-hist-rank="value_desc" aria-pressed="${h.sort === "value_desc"}">Top</button><button type="button" class="mis-retry-btn" data-hist-rank="value_asc" aria-pressed="${h.sort === "value_asc"}">Bottom</button></div>
     </div>`;
 }
 
@@ -1801,9 +1880,7 @@ function historyResultsHtml(res) {
     ])}`;
 }
 
-function exceptionControlsHtml() {
-  return `<div class="ei-filterbar ei-filterbar-inner"><div class="sales-search-wrap ei-search"><input id="salesExcSearch" type="text" value="${escapeHtml(SX.exc.search)}" placeholder="Search product or SKU id" aria-label="Search exceptions by product or SKU id" /></div></div>`;
-}
+function exceptionControlsHtml() { return ""; }
 
 function exceptionsResultsHtml(res) {
   const wait = sxState(res, "Sales exceptions", "exc");
@@ -1821,7 +1898,7 @@ function exceptionsResultsHtml(res) {
       <td>${escapeHtml(r.product_name || "-")}</td><td class="num">${escapeHtml(r.sku_id)}</td>
       <td>${escapeHtml([r.pack_size, r.uom].filter((v) => v != null && v !== "").join(" ") || "-")}</td>
       <td>${escapeHtml(labelOf(ELIGIBILITY_LABELS, r.eligibility))}</td>
-      <td>${escapeHtml(labelOf(ACTIVITY_LABELS, r.activity_state))}</td>
+      <td class="ei-activity">${(() => { const a = activityParts(r.activity_state, ACTIVITY_LABELS); return `<div class="ei-activity-box"><span class="ei-activity-label">${escapeHtml(a.label)}</span>${a.note ? `<div class="ei-cell-sub">${escapeHtml(a.note)}</div>` : ""}</div>`; })()}</td>
       <td class="num">${escapeHtml(qty(r.net_billed, "No rows"))}</td>
       <td class="num">${escapeHtml(orWord(r.positive_rows, formatIntegerIN, "No rows"))}</td>
       <td class="num">${escapeHtml(orWord(r.return_rows, formatIntegerIN, "No rows"))}</td>
@@ -1978,11 +2055,10 @@ function handleSalesChange(ev) {
   }
   else if (id === "salesHistGroup") { SX.hist.group = ev.target.value; SX.hist.page = 1; if (!isMonthGrouping(SX.hist.group)) SX.hist.grid = false; return void sxFetch("hist"); }
   else if (id === "salesHistMonths") { SX.hist.months = Number(ev.target.value) || 12; SX.hist.page = 1; return void sxFetch("hist"); }
-  else if (id === "salesHistSort") { SX.hist.sort = ev.target.value; SX.hist.page = 1; renderSalesHistControls(); return void sxFetch("hist"); }
   else return;
   salesFilterChanged();
 }
-function renderSalesHistControls() { const h = $("salesHistControls"); if (h) h.innerHTML = historyControlsHtml(); }
+function renderSalesHistControls() { const h = $("salesHistControls"); if (h) h.innerHTML = historyControlsHtml(); renderSalesSort(); }
 
 function downloadCsv(name, csv) {
   const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
@@ -2044,14 +2120,14 @@ function handleSalesClick(ev) {
     if (next >= 1 && next <= Math.max(1, Math.ceil(total / st.size))) { st.page = next; sxFetch(slot); }
     return true;
   }
-  const rank = t.closest("[data-hist-rank]");
-  if (rank) { SX.hist.sort = rank.getAttribute("data-hist-rank"); SX.hist.page = 1; renderSalesHistControls(); sxFetch("hist"); return true; }
   if (t.closest("[data-hist-grid]")) { SX.hist.grid = !SX.hist.grid; renderSalesResults("hist"); return true; }
   const drill = t.closest("[data-hist-drill]");
   if (drill) { SX.hist.product = drill.getAttribute("data-hist-drill"); SX.hist.group = "sku"; SX.hist.page = 1; renderSalesHistControls(); salesFilterChanged(); return true; }
   if (t.closest("[data-sales-clear-item]")) { SX.hist.product = ""; SX.hist.sku = ""; SX.hist.page = 1; salesFilterChanged(); return true; }
   if (t.closest("#salesFilterToggle")) { setSalesFiltersOpen(!SX.filtersOpen); return true; }
-  if (t.closest("#salesFilterClose")) { setSalesFiltersOpen(false, { restoreFocus: true }); return true; }
+  if (t.closest("#salesFilterClose") || t.closest("#salesFilterDone")) { setSalesFiltersOpen(false, { restoreFocus: true }); return true; }
+  if (t.closest("#salesSortBtn")) { setSalesSortOpen(!SX.sortOpen); return true; }
+  if (t.closest("#salesSortClose")) { setSalesSortOpen(false, { restoreFocus: true }); return true; }
   if (t.closest("#salesFilterReset")) { Object.assign(SX, { anchor: "", region: "", godown: "", activeOnly: false, notice: "", hier: emptyHierarchy() }); SX.hist.product = ""; SX.hist.sku = ""; renderSalesHistControls(); salesFilterChanged(); return true; }
   const exp = t.closest("[data-sales-export]");
   if (exp) {
@@ -2731,7 +2807,14 @@ function trapTab(container, ev) {
 function wireEvents() {
   // Sales-only users never request executive data; refresh just reloads their lens.
   refreshBtn?.addEventListener("click", () => (ACCESS.executive ? loadExecutiveSummary() : loadActiveTab()));
-  $("homeBtn")?.addEventListener("click", () => Platform.goHome());
+  // Same lifecycle as Stock Checker: shared glyph/label/a11y via mountModuleHome, then Platform.goHome (PWA and Electron).
+  const homeBtn = $("homeBtn");
+  if (homeBtn) {
+    mountModuleHome(homeBtn);
+    homeBtn.addEventListener("click", () => Platform.goHome());
+  }
+  const freshIcon = lastRefreshed?.querySelector(".ei-fresh-icon");
+  if (freshIcon) freshIcon.innerHTML = iconHtml("database", 16); // shared glyph; shown (icon only) at <=520px
   detailTabs?.addEventListener("click", (ev) => {
     const btn = ev.target.closest(".pill");
     if (!btn) return;
@@ -2758,8 +2841,14 @@ function wireEvents() {
     else if (next !== ACTIVE_TAB) renderDetailTabs();
   });
   tabPanel?.addEventListener("change", (ev) => {
-    if (ACTIVE_TAB === "sales" && /^sales(Anchor|Region|Godown|Active|FacMonths|Hier-(category|subcategory|group|subgroup)|Hist(Group|Months|Sort))$/.test(ev.target?.id || "")) {
+    if (ACTIVE_TAB === "sales" && /^sales(Anchor|Region|Godown|Active|FacMonths|Hier-(category|subcategory|group|subgroup)|Hist(Group|Months))$/.test(ev.target?.id || "")) {
       handleSalesChange(ev);
+      return;
+    }
+    if (ACTIVE_TAB === "sales" && ev.target?.name === "salesSort") {
+      const v = ev.target.value;
+      if (HISTORY_SORTS.some((o) => o.value === v) && v !== SX.hist.sort) { SX.hist.sort = v; SX.hist.page = 1; sxFetch("hist"); }
+      setSalesSortOpen(false, { restoreFocus: true });
       return;
     }
     if (ev.target.id === "pvMonth" || ev.target.id === "pvAsOf") {
@@ -2835,18 +2924,14 @@ function wireEvents() {
     if (!btn) return;
     openKpiPopover(btn, false);
   });
-  lastRefreshed?.addEventListener("click", () => {
-    const detail = $("sc-status-detail");
-    if (!detail) return;
-    const expanded = lastRefreshed.classList.toggle("sc-status-expanded");
-    lastRefreshed.setAttribute("aria-expanded", String(expanded));
-    detail.style.display = expanded ? "block" : "none";
-  });
-  lastRefreshed?.addEventListener("keydown", (ev) => {
-    if (ev.key === "Enter" || ev.key === " ") {
-      ev.preventDefault();
-      lastRefreshed.click();
-    }
+  lastRefreshed?.addEventListener("click", (ev) => { ev.stopPropagation(); toggleFreshPanel(); });
+  document.addEventListener("click", (ev) => { if (FRESH_PANEL && !FRESH_PANEL.contains(ev.target) && !lastRefreshed.contains(ev.target)) closeFreshPanel(); });
+  document.addEventListener("click", (ev) => {
+    // Sales filter and sort popovers: an outside click closes them (the phone sheets cover the page, so this only matters on desktop).
+    // composedPath() is captured at dispatch, so a control that re-rendered itself while handling this click still counts as inside.
+    const path = ev.composedPath ? ev.composedPath() : [];
+    if (SX.filtersOpen && !path.includes($("salesFilters"))) setSalesFiltersOpen(false);
+    if (SX.sortOpen && !path.includes($("salesSortHost"))) setSalesSortOpen(false);
   });
   document.addEventListener("click", (ev) => {
     // Desktop: a click outside an open filter popover closes it. (The phone sheet covers the page.)
@@ -2861,21 +2946,25 @@ function wireEvents() {
   });
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Tab") {
+      if (FRESH_PANEL) { if (!FRESH_PANEL.contains(document.activeElement) && document.activeElement !== lastRefreshed) closeFreshPanel(); return; }
       if (isFinanceModalOpen()) {
         trapTab(financeModalOverlay, ev);
         return;
       }
-      if (SX.filtersOpen && $("salesFilterFields")) { trapTab($("salesFilterFields"), ev); return; }
+      if (SX.filtersOpen && $("salesFilterFields") && isPhoneFilters()) { trapTab($("salesFilterFields"), ev); return; }
+      if (SX.sortOpen && $("salesSortPanel") && isPhoneFilters()) { trapTab($("salesSortPanel"), ev); return; }
       const open = openFilterDrawerList();
       if (open && isPhoneSheet()) trapTab(filterDrawerOf(open).drawer, ev);
       return;
     }
     if (ev.key !== "Escape") return;
+    if (FRESH_PANEL) { closeFreshPanel({ restoreFocus: true }); return; }
     // Escape closes the topmost layer only: bill-detail modal, then a filter drawer/sheet, then an info popover.
     if (isFinanceModalOpen()) {
       closeFinanceModal();
       return;
     }
+    if (SX.sortOpen) { setSalesSortOpen(false, { restoreFocus: true }); return; }
     if (SX.filtersOpen) {
       setSalesFiltersOpen(false, { restoreFocus: true });
       return;
@@ -2892,7 +2981,9 @@ function wireEvents() {
     if (ev.target === financeModalOverlay) closeFinanceModal();
   });
   window.addEventListener("resize", closeKpiPopover);
-  window.addEventListener("resize", () => { if (SX.filtersOpen && !isPhoneFilters()) setSalesFiltersOpen(false); });
+  window.addEventListener("resize", positionFreshPanel);
+  window.addEventListener("scroll", (ev) => { if (FRESH_PANEL && !FRESH_PANEL.contains(ev.target)) closeFreshPanel(); }, { passive: true, capture: true });
+  window.addEventListener("resize", () => document.body.classList.toggle("ei-sheet-lock", (SX.filtersOpen || SX.sortOpen) && isPhoneFilters()));
   window.addEventListener("scroll", closeKpiPopover, { passive: true });
   setInterval(updateFreshnessIndicator, 60000);
 }
@@ -2948,6 +3039,7 @@ function cancelPendingSearches() {
   if (ACCESS.state === "sales-only") {
     // No executive navigation, no executive requests: only the Sales lens, loaded directly.
     document.body.classList.add("ei-sales-only");
+    updateFreshnessIndicator();
     clearStatus(); // the executive summary load normally clears the initial "Loading..." line; a sales-only session never runs it
     ACTIVE_TAB = "sales";
     renderDetailTabs();
