@@ -61,16 +61,23 @@ DECLARE result jsonb;
 BEGIN
  IF auth.uid() IS NULL OR coalesce(auth.jwt()->>'is_anonymous','false')='true' OR NOT coalesce(public.app_has_permission('module:sales-item-classification','view'),false) THEN RAISE EXCEPTION 'Classification view denied' USING ERRCODE='42501'; END IF;
  IF p_from IS NULL OR p_to IS NULL OR p_to<p_from OR p_to>p_from+365 OR p_limit IS NULL OR p_limit NOT BETWEEN 1 AND 200 OR p_offset IS NULL OR p_offset NOT BETWEEN 0 AND 20000 THEN RAISE EXCEPTION 'Invalid queue bounds' USING ERRCODE='22023'; END IF;
- WITH raw AS (
+ WITH raw AS MATERIALIZED (
  SELECT s.tally_item_name,s.voucher_date,count(*) n,sum(s.billed_amount_value) value,count(*) FILTER(WHERE s.billed_amount_value IS NULL) missing
  FROM public.tally_sales_vreg_snapshot s WHERE s.voucher_date BETWEEN p_from AND p_to GROUP BY 1,2
+ ), labels AS MATERIALIZED (
+ SELECT x.tally_item_name,public.normalize_key(x.tally_item_name) alias_key FROM (SELECT DISTINCT tally_item_name FROM raw) x
+ ), scope_events AS MATERIALIZED (
+ SELECT DISTINCT ON(s.alias_key,s.effective_from) s.alias_key,s.effective_from,s.id,s.scope
+ FROM public.sales_item_scope s ORDER BY s.alias_key,s.effective_from,s.id DESC
+ ), scope_periods AS MATERIALIZED (
+ SELECT e.*,lead(e.effective_from) OVER(PARTITION BY e.alias_key ORDER BY e.effective_from) next_effective_from FROM scope_events e
  ), alias_map AS MATERIALIZED (
  SELECT public.normalize_key(a.alias_text) AS alias_key,count(*) AS matches,min(a.sku_id) AS sku_id,bool_or(k.is_sample) AS sample
  FROM public.sku_aliases a JOIN public.product_skus k ON k.id=a.sku_id GROUP BY 1
  ), classified AS (
  SELECT r.*,a.sku_id,a.matches,a.sample,c.scope,c.id classification_id
- FROM raw r LEFT JOIN alias_map a ON a.alias_key=public.normalize_key(r.tally_item_name)
- LEFT JOIN LATERAL (SELECT id,scope FROM public.sales_item_scope c WHERE c.alias_key=public.normalize_key(r.tally_item_name) AND c.effective_from<=r.voucher_date ORDER BY effective_from DESC,id DESC LIMIT 1) c ON true
+ FROM raw r JOIN labels l ON l.tally_item_name=r.tally_item_name LEFT JOIN alias_map a ON a.alias_key=l.alias_key
+ LEFT JOIN scope_periods c ON c.alias_key=l.alias_key AND c.effective_from<=r.voucher_date AND (c.next_effective_from IS NULL OR r.voucher_date<c.next_effective_from)
  ), grouped AS (
  SELECT tally_item_name,CASE WHEN matches>1 OR (sku_id IS NOT NULL AND classification_id IS NOT NULL AND scope NOT IN ('UNCLASSIFIED','SASV_HISTORICAL_PACK','SASV_SAMPLE')) THEN 'CLASSIFICATION_CONFLICT' WHEN sku_id IS NULL AND scope IS NULL THEN 'UNCLASSIFIED' ELSE scope END AS state,
  sum(n) recorded_rows,sum(value) source_reported_amount,sum(missing) missing_amount_rows,min(voucher_date) first_date,max(voucher_date) last_date

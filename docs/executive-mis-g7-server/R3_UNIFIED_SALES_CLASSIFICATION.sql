@@ -39,14 +39,23 @@ BEGIN
  IF a IS NULL THEN RETURN jsonb_build_object('coverage','NO_RAW_DATA','rows','[]'::jsonb); END IF;
  IF latest IS NULL OR a>latest OR a<date '1900-01-01' THEN RAISE EXCEPTION 'Invalid anchor' USING ERRCODE='22023'; END IF;
  first_date:=(date_trunc('month',a)-make_interval(months=>p_months-1))::date;
- WITH raw AS (
+ WITH raw AS MATERIALIZED (
  SELECT s.tally_item_name,s.godown_label,s.voucher_date,count(*) n,count(*) FILTER(WHERE s.billed_amount_value IS NULL) missing,sum(s.billed_amount_value) amount
  FROM public.tally_sales_vreg_snapshot s WHERE s.voucher_date BETWEEN first_date AND a GROUP BY 1,2,3
+ ), labels AS MATERIALIZED (
+ SELECT x.tally_item_name,public.normalize_key(x.tally_item_name) alias_key FROM (SELECT DISTINCT tally_item_name FROM raw) x
+ ), scope_events AS MATERIALIZED (
+ SELECT DISTINCT ON(s.alias_key,s.effective_from) s.alias_key,s.effective_from,s.id,s.scope
+ FROM public.sales_item_scope s ORDER BY s.alias_key,s.effective_from,s.id DESC
+ ), scope_periods AS MATERIALIZED (
+ SELECT e.*,lead(e.effective_from) OVER(PARTITION BY e.alias_key ORDER BY e.effective_from) next_effective_from FROM scope_events e
+ ), locations AS MATERIALIZED (
+ SELECT x.godown_label,public.normalize_key(x.godown_label) alias_key FROM (SELECT DISTINCT godown_label FROM raw) x
  ), sku_map AS MATERIALIZED (
  SELECT public.normalize_key(sa.alias_text) AS alias_key,count(*) matches,bool_or(k.is_sample) sample
  FROM public.sku_aliases sa JOIN public.product_skus k ON k.id=sa.sku_id GROUP BY 1
  ), godown_map AS MATERIALIZED (
- SELECT DISTINCT public.normalize_key(ga.alias_text) AS alias_key FROM public.godown_aliases ga JOIN public.godowns g ON g.id=ga.godown_id
+ SELECT public.normalize_key(ga.alias_text) AS alias_key,count(*) matches FROM public.godown_aliases ga JOIN public.godowns g ON g.id=ga.godown_id GROUP BY 1
  ), classified AS (
  SELECT r.*,CASE
  WHEN m.matches>1 THEN 'CLASSIFICATION_CONFLICT'
@@ -54,10 +63,11 @@ BEGIN
  WHEN m.matches=1 AND m.sample IS TRUE THEN 'SASV_SAMPLE'
  WHEN m.matches=1 THEN 'SASV_CANONICAL_PRODUCT'
  ELSE coalesce(c.scope,'UNCLASSIFIED') END AS scope,
- g.alias_key IS NULL AS godown_unresolved
- FROM raw r LEFT JOIN sku_map m ON m.alias_key=public.normalize_key(r.tally_item_name)
- LEFT JOIN godown_map g ON g.alias_key=public.normalize_key(r.godown_label)
- LEFT JOIN LATERAL (SELECT scope FROM public.sales_item_scope c WHERE c.alias_key=public.normalize_key(r.tally_item_name) AND c.effective_from<=r.voucher_date ORDER BY effective_from DESC,id DESC LIMIT 1) c ON true
+ coalesce(g.matches,0)<>1 AS godown_unresolved
+ FROM raw r JOIN labels l ON l.tally_item_name=r.tally_item_name JOIN locations d ON d.godown_label=r.godown_label
+ LEFT JOIN sku_map m ON m.alias_key=l.alias_key
+ LEFT JOIN godown_map g ON g.alias_key=d.alias_key
+ LEFT JOIN scope_periods c ON c.alias_key=l.alias_key AND c.effective_from<=r.voucher_date AND (c.next_effective_from IS NULL OR r.voucher_date<c.next_effective_from)
  ), grouped AS (
  SELECT scope,sum(n) recorded_rows,sum(missing) missing_amount_rows,sum(amount) source_reported_amount,CASE WHEN sum(missing)=0 THEN sum(amount) END billed_value,
  coalesce(sum(n) FILTER(WHERE godown_unresolved),0) godown_unresolved_rows FROM classified GROUP BY scope
