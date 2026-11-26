@@ -1,0 +1,82 @@
+{
+  "views": [
+    {
+      "acl": "{postgres=arwdDxtm/postgres,anon=m/postgres,authenticated=rm/postgres,service_role=arwdDxtm/postgres}",
+      "ddl": " WITH anchor AS (\n         SELECT date_trunc('month'::text, now())::date AS anchor_month\n        ), month_window AS (\n         SELECT (( SELECT anchor.anchor_month\n                   FROM anchor)) - '2 mons'::interval AS start_month,\n            ( SELECT anchor.anchor_month\n                   FROM anchor) AS end_month\n        ), last_3m AS (\n         SELECT se.sku_id,\n            se.product_id,\n            se.product_name,\n            sum(se.qty_billed) AS qty_billed_3m\n           FROM v_sdv_sales_enriched se\n             JOIN month_window w ON se.month_start >= w.start_month AND se.month_start <= w.end_month\n          GROUP BY se.sku_id, se.product_id, se.product_name\n        ), all_skus AS (\n         SELECT DISTINCT v_sdv_sales_enriched.sku_id,\n            v_sdv_sales_enriched.product_id,\n            v_sdv_sales_enriched.product_name\n           FROM v_sdv_sales_enriched\n        )\n SELECT a.sku_id,\n    a.product_id,\n    a.product_name\n   FROM all_skus a\n     LEFT JOIN last_3m z USING (sku_id, product_id, product_name)\n  WHERE COALESCE(z.qty_billed_3m, 0::numeric) = 0::numeric\n  ORDER BY a.product_name;",
+      "hash": "6e2de867688ef0fddfb773226b0e0e5b",
+      "name": "v_sdv_exc_zero_sellers_3m",
+      "owner": "postgres",
+      "options": [
+        "security_invoker=true"
+      ]
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,anon=m/postgres,authenticated=rm/postgres,service_role=arwdDxtm/postgres}",
+      "ddl": " SELECT max(source_max_inserted_at) AS max_source_at,\n        CASE\n            WHEN max(source_max_inserted_at) >= (now() - '2 days'::interval) THEN 'green'::text\n            WHEN max(source_max_inserted_at) >= (now() - '7 days'::interval) THEN 'amber'::text\n            ELSE 'red'::text\n        END AS freshness_status\n   FROM v_sdv_sales_enriched;",
+      "hash": "62ad3c50c4a797465359f71e692c541d",
+      "name": "v_sdv_freshness",
+      "owner": "postgres",
+      "options": [
+        "security_invoker=true"
+      ]
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,anon=m/postgres,authenticated=rm/postgres,service_role=arwdDxtm/postgres}",
+      "ddl": " SELECT month_start,\n    calendar_year,\n    calendar_month_no,\n    category_id,\n    category_name,\n    subcategory_id,\n    subcategory_name,\n    sum(qty_billed) AS qty_billed,\n    sum(qty_units) AS qty_units,\n    sum(qty_base) AS qty_base,\n    sum(billed_amount) AS billed_amount\n   FROM v_sdv_sales_enriched\n  GROUP BY month_start, calendar_year, calendar_month_no, category_id, category_name, subcategory_id, subcategory_name\n  ORDER BY month_start, category_name, subcategory_name;",
+      "hash": "b4af386bcd76a0ff8c8a23a054cf04da",
+      "name": "v_sdv_rollup_month_category",
+      "owner": "postgres",
+      "options": [
+        "security_invoker=true"
+      ]
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,anon=m/postgres,authenticated=rm/postgres,service_role=arwdDxtm/postgres}",
+      "ddl": " SELECT month_start,\n    calendar_year,\n    calendar_month_no,\n    godown_id,\n    godown_name,\n    product_group_id,\n    group_name,\n    sum(qty_billed) AS qty_billed,\n    sum(qty_units) AS qty_units,\n    sum(qty_base) AS qty_base,\n    sum(billed_amount) AS billed_amount\n   FROM v_sdv_sales_enriched\n  GROUP BY month_start, calendar_year, calendar_month_no, godown_id, godown_name, product_group_id, group_name\n  ORDER BY month_start, godown_name, group_name;",
+      "hash": "fe427424828226a9fea1fefc0da248af",
+      "name": "v_sdv_rollup_month_godown_group",
+      "owner": "postgres",
+      "options": [
+        "security_invoker=true"
+      ]
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,anon=m/postgres,authenticated=rm/postgres,service_role=arwdDxtm/postgres}",
+      "ddl": " SELECT month_start,\n    calendar_year,\n    calendar_month_no,\n    region_id,\n    region_code,\n    region_name,\n    sum(qty_billed) AS qty_billed,\n    sum(qty_units) AS qty_units,\n    sum(qty_base) AS qty_base,\n    sum(billed_amount) AS billed_amount\n   FROM v_sdv_sales_enriched\n  GROUP BY month_start, calendar_year, calendar_month_no, region_id, region_code, region_name\n  ORDER BY month_start, region_code;",
+      "hash": "4ab890e1410838fade81d45ce61c685d",
+      "name": "v_sdv_rollup_month_region",
+      "owner": "postgres",
+      "options": [
+        "security_invoker=true"
+      ]
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,anon=m/postgres,authenticated=rm/postgres,service_role=arwdDxtm/postgres}",
+      "ddl": " SELECT month_start,\n    calendar_year,\n    calendar_month_no,\n    sku_id,\n    product_id,\n    product_name,\n    sum(qty_billed) AS qty_billed,\n    sum(qty_units) AS qty_units,\n    sum(qty_base) AS qty_base,\n    sum(billed_amount) AS billed_amount\n   FROM v_sdv_sales_enriched\n  GROUP BY month_start, calendar_year, calendar_month_no, sku_id, product_id, product_name\n  ORDER BY month_start, product_name;",
+      "hash": "c91ecf291a6fb390b3e64a1405196907",
+      "name": "v_sdv_rollup_month_sku",
+      "owner": "postgres",
+      "options": [
+        "security_invoker=true"
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "ddl": "CREATE OR REPLACE FUNCTION public.sdv_zero_revenue_abs(p_anchor_date date, p_months integer, p_region_id integer DEFAULT NULL::integer, p_godown_id integer DEFAULT NULL::integer, p_active_only boolean DEFAULT true)\n RETURNS TABLE(sku_id integer, product_id integer, product_name text, is_active boolean)\n LANGUAGE sql\n SET search_path TO 'pg_catalog', 'public', 'public', 'pg_temp'\nAS $function$\r\nWITH months AS (\r\n  SELECT generate_series(date_trunc('month', p_anchor_date)::date - (p_months - 1) * interval '1 month',\r\n                         date_trunc('month', p_anchor_date)::date,\r\n                         interval '1 month')::date AS month_start\r\n),\r\nsales AS (\r\n  SELECT s.sku_id, s.product_id, s.month_start, s.billed_amount\r\n  FROM v_sdv_sales_enriched s\r\n  JOIN months m USING (month_start)\r\n  WHERE (p_region_id IS NULL OR s.region_id = p_region_id)\r\n    AND (p_godown_id IS NULL OR s.godown_id = p_godown_id)\r\n),\r\nbase AS (\r\n  SELECT ps.id AS sku_id, ps.product_id, p.item AS product_name, ps.is_active\r\n  FROM product_skus ps JOIN products p ON p.id = ps.product_id\r\n)\r\nSELECT b.sku_id, b.product_id, b.product_name, b.is_active\r\nFROM base b\r\nLEFT JOIN sales x ON x.sku_id = b.sku_id\r\nGROUP BY b.sku_id, b.product_id, b.product_name, b.is_active\r\nHAVING COALESCE(SUM(x.billed_amount),0) = 0\r\n   AND (NOT p_active_only OR b.is_active = TRUE)\r\nORDER BY b.product_name;\r\n$function$\n",
+      "args": "p_anchor_date date, p_months integer, p_region_id integer, p_godown_id integer, p_active_only boolean",
+      "hash": "ff820d95943766431cbe5b0e86670fbe",
+      "name": "sdv_zero_revenue_abs",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "ddl": "CREATE OR REPLACE FUNCTION public.sdv_zero_sellers_abs(p_anchor_date date, p_months integer, p_region_id integer DEFAULT NULL::integer, p_godown_id integer DEFAULT NULL::integer, p_active_only boolean DEFAULT true)\n RETURNS TABLE(sku_id integer, product_id integer, product_name text, is_active boolean)\n LANGUAGE sql\n SET search_path TO 'pg_catalog', 'public', 'public', 'pg_temp'\nAS $function$\r\nwith months as (\r\n  select generate_series(\r\n           date_trunc('month', p_anchor_date)::date - (p_months - 1) * interval '1 month',\r\n           date_trunc('month', p_anchor_date)::date,\r\n           interval '1 month'\r\n         )::date as month_start\r\n),\r\nsales as (\r\n  select s.sku_id, s.product_id, s.month_start, s.qty_billed\r\n  from sales_monthly s\r\n  join months m using (month_start)\r\n  where (p_region_id is null or s.region_id = p_region_id)\r\n    and (p_godown_id is null or s.godown_id = p_godown_id)\r\n),\r\nbase as (\r\n  select ps.id as sku_id, ps.product_id, p.item as product_name, ps.is_active\r\n  from product_skus ps\r\n  join products p on p.id = ps.product_id\r\n  -- keep all SKUs; we'll filter to active if requested in the final select\r\n)\r\nselect b.sku_id, b.product_id, b.product_name, b.is_active\r\nfrom base b\r\nleft join sales x on x.sku_id = b.sku_id\r\ngroup by b.sku_id, b.product_id, b.product_name, b.is_active\r\nhaving coalesce(sum(x.qty_billed), 0) = 0\r\n   and (not p_active_only or b.is_active = true)\r\norder by b.product_name;\r\n$function$\n",
+      "args": "p_anchor_date date, p_months integer, p_region_id integer, p_godown_id integer, p_active_only boolean",
+      "hash": "31cdcecf709971554d284d7d5980527d",
+      "name": "sdv_zero_sellers_abs",
+      "owner": "postgres"
+    }
+  ]
+}
