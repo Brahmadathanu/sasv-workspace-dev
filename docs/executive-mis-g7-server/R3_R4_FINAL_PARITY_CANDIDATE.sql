@@ -6,29 +6,47 @@ INSERT INTO public.permission_targets(key,kind,label,sort_order,is_assignable,me
 VALUES ('module:sales-item-classification','module','Sales Item Classification',900,true,'{}'::jsonb);
 -- Narrow EI projection; one raw row at most once. Shared normalization remains unchanged.
 -- Canonical sample SKU rows remain in mapped sales (legacy parity); other-unit, loose, incompatible scope and unresolved aliases do not.
-CREATE VIEW public.v_ei_sales_product_daily WITH (security_invoker=true,security_barrier=true) AS
-WITH sku_keys AS MATERIALIZED (
- SELECT public.normalize_key(a.alias_text) AS key,min(k.id) AS sku_id,min(k.product_id)::bigint AS product_id,count(*) AS matches
- FROM public.sku_aliases a JOIN public.product_skus k ON k.id=a.sku_id GROUP BY 1
-), godown_keys AS MATERIALIZED (
- SELECT public.normalize_key(a.alias_text) AS key,min(g.id) AS godown_id,min(g.region_id) AS region_id,count(*) AS matches
- FROM public.godown_aliases a JOIN public.godowns g ON g.id=a.godown_id GROUP BY 1
-)
-SELECT s.voucher_date AS sales_date,k.sku_id,k.product_id,g.godown_id,g.region_id,
- s.act_qty_value AS qty_units,s.bill_qty_value AS qty_billed,s.billed_amount_value AS billed_amount,
- s.source_key,s.inserted_at,s.id AS raw_row_id
-FROM public.tally_sales_vreg_snapshot s
-JOIN sku_keys k ON k.key=public.normalize_key(s.tally_item_name) AND k.matches=1
-JOIN godown_keys g ON g.key=public.normalize_key(s.godown_label) AND g.matches=1
-LEFT JOIN LATERAL (
- SELECT c.scope FROM public.sales_item_scope c
- WHERE c.alias_key=public.normalize_key(s.tally_item_name) AND c.effective_from<=s.voucher_date
- ORDER BY c.effective_from DESC,c.id DESC LIMIT 1
-) scope ON true
-WHERE (SELECT public.ei_can_read_sales())
-AND (scope.scope IS NULL OR scope.scope IN ('UNCLASSIFIED','SASV_HISTORICAL_PACK','SASV_SAMPLE'));
-REVOKE ALL ON public.v_ei_sales_product_daily FROM PUBLIC,anon;
-GRANT SELECT ON public.v_ei_sales_product_daily TO authenticated;
+CREATE FUNCTION public.ei_sales_product_rows(p_from date,p_to date)
+RETURNS TABLE(sales_date date,sku_id integer,product_id bigint,godown_id integer,region_id integer,
+ qty_units numeric,qty_billed numeric,billed_amount numeric,source_key text,inserted_at timestamptz,raw_row_id bigint)
+LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path=pg_catalog,public AS $$
+BEGIN
+ IF NOT public.ei_can_read_sales() THEN RETURN; END IF;
+ IF p_from IS NULL AND p_to IS NULL THEN RETURN; END IF;
+ IF p_from IS NULL OR p_to IS NULL OR p_from<date '1900-01-01' OR p_to<p_from OR p_to>p_from+366 THEN
+  RAISE EXCEPTION 'Invalid bounded product sales period' USING ERRCODE='22023'; END IF;
+ RETURN QUERY
+ WITH raw AS MATERIALIZED (
+  SELECT s.id,s.voucher_date,s.tally_item_name,s.godown_label,s.act_qty_value,s.bill_qty_value,s.billed_amount_value,s.source_key,s.inserted_at
+  FROM public.tally_sales_vreg_snapshot s WHERE s.voucher_date BETWEEN p_from AND p_to
+ ), labels AS MATERIALIZED (
+  SELECT l.tally_item_name,public.normalize_key(l.tally_item_name) AS key FROM (SELECT DISTINCT r.tally_item_name FROM raw r) l
+ ), locations AS MATERIALIZED (
+  SELECT l.godown_label,public.normalize_key(l.godown_label) AS key FROM (SELECT DISTINCT r.godown_label FROM raw r) l
+ ), sku_keys AS MATERIALIZED (
+  SELECT public.normalize_key(a.alias_text) AS key,min(k.id) AS sku_id,min(k.product_id)::bigint AS product_id,count(*) AS matches
+  FROM public.sku_aliases a JOIN public.product_skus k ON k.id=a.sku_id GROUP BY 1
+ ), godown_keys AS MATERIALIZED (
+  SELECT public.normalize_key(a.alias_text) AS key,min(g.id) AS godown_id,min(g.region_id) AS region_id,count(*) AS matches
+  FROM public.godown_aliases a JOIN public.godowns g ON g.id=a.godown_id GROUP BY 1
+ ), items AS MATERIALIZED (
+  SELECT l.tally_item_name,l.key,k.sku_id,k.product_id FROM labels l JOIN sku_keys k ON k.key=l.key AND k.matches=1
+ ), depots AS MATERIALIZED (
+  SELECT l.godown_label,g.godown_id,g.region_id FROM locations l JOIN godown_keys g ON g.key=l.key AND g.matches=1
+ ), scope_events AS MATERIALIZED (
+  SELECT DISTINCT ON(c.alias_key,c.effective_from) c.alias_key,c.effective_from,c.scope
+  FROM public.sales_item_scope c WHERE c.effective_from<=p_to ORDER BY c.alias_key,c.effective_from,c.id DESC
+ ), scope_periods AS MATERIALIZED (
+  SELECT e.alias_key,e.effective_from,lead(e.effective_from) OVER(PARTITION BY e.alias_key ORDER BY e.effective_from) AS next_effective_from,e.scope
+  FROM scope_events e
+ )
+ SELECT s.voucher_date,k.sku_id,k.product_id,g.godown_id,g.region_id,s.act_qty_value,s.bill_qty_value,s.billed_amount_value,s.source_key,s.inserted_at,s.id
+ FROM raw s JOIN items k ON k.tally_item_name=s.tally_item_name JOIN depots g ON g.godown_label=s.godown_label
+ LEFT JOIN scope_periods c ON c.alias_key=k.key AND c.effective_from<=s.voucher_date AND (c.next_effective_from IS NULL OR s.voucher_date<c.next_effective_from)
+ WHERE c.scope IS NULL OR c.scope IN ('UNCLASSIFIED','SASV_HISTORICAL_PACK','SASV_SAMPLE');
+END $$;
+REVOKE ALL ON FUNCTION public.ei_sales_product_rows(date,date) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.ei_sales_product_rows(date,date) TO authenticated;
 CREATE VIEW public.v_ei_sales_product_hierarchy WITH (security_invoker=true,security_barrier=true) AS
 SELECT p.id::bigint AS product_id,c.id AS category_id,sc.id AS subcategory_id,pg.id AS group_id,sg.id AS subgroup_id
 FROM public.products p LEFT JOIN public.sub_groups sg ON sg.id=p.sub_group_id
@@ -57,12 +75,13 @@ LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path=pg_catalog,public AS $$
 BEGIN
  PERFORM public.ei_sales_access();
  IF p_from IS NULL OR p_to IS NULL OR p_from<>date_trunc('month',p_from)::date OR p_to<>date_trunc('month',p_to)::date OR p_from>p_to OR p_to> (p_from+interval '12 months')::date THEN RAISE EXCEPTION 'Invalid month bounds' USING ERRCODE='22023'; END IF;
+ IF p_from=p_to THEN RETURN; END IF;
  RETURN QUERY
  SELECT date_trunc('month',d.sales_date)::date,d.sku_id,d.product_id,d.region_id,d.godown_id,
  CASE WHEN count(*) FILTER(WHERE d.qty_units IS NULL)=0 THEN sum(d.qty_units) END,
  CASE WHEN count(*) FILTER(WHERE d.qty_billed IS NULL)=0 THEN sum(d.qty_billed) END,
  sum(d.billed_amount),max(d.inserted_at),count(*) FILTER(WHERE d.billed_amount IS NULL)>0
- FROM public.v_ei_sales_product_daily d WHERE d.sales_date>=p_from AND d.sales_date<p_to
+ FROM public.ei_sales_product_rows(p_from,p_to-1) d WHERE d.sales_date>=p_from AND d.sales_date<p_to
  AND (p_region IS NULL OR d.region_id=p_region) AND (p_godown IS NULL OR d.godown_id=p_godown) AND (p_product IS NULL OR d.product_id=p_product) AND (p_sku IS NULL OR d.sku_id=p_sku)
  GROUP BY 1,2,3,4,5;
 END $$;
@@ -97,7 +116,7 @@ BEGIN
         CASE WHEN count(*) FILTER(WHERE s.qty_billed IS NULL)=0 THEN sum(s.qty_billed) END AS billed_packages,
         count(*) FILTER(WHERE s.qty_billed>0 OR s.qty_units>0 OR s.billed_amount>0) AS positive_rows,
         count(*) FILTER(WHERE s.qty_billed<0 OR s.qty_units<0 OR s.billed_amount<0) AS negative_rows
-      FROM public.v_ei_sales_product_daily s
+      FROM public.ei_sales_product_rows(p.start_date,p.end_date) s
       JOIN public.product_skus k ON k.id=s.sku_id
       WHERE s.sales_date BETWEEN p.start_date AND p.end_date
         AND (p_region IS NULL OR s.region_id=p_region) AND (p_godown IS NULL OR s.godown_id=p_godown)
@@ -145,7 +164,7 @@ BEGIN
       AND (p_product IS NULL OR h.product_id=p_product) AND (p_sku IS NULL OR h.sku_id=p_sku)
     UNION ALL
     SELECT anchor_month,d.sku_id,d.product_id,d.region_id,d.godown_id,d.qty_units,d.qty_billed,d.billed_amount,d.inserted_at,false,d.billed_amount IS NULL
-    FROM public.v_ei_sales_product_daily d
+    FROM public.ei_sales_product_rows(anchor_month,anchor_date) d
     WHERE d.sales_date BETWEEN anchor_month AND anchor_date
       AND (p_region IS NULL OR d.region_id=p_region) AND (p_godown IS NULL OR d.godown_id=p_godown)
       AND (p_product IS NULL OR d.product_id=p_product) AND (p_sku IS NULL OR d.sku_id=p_sku)
@@ -255,7 +274,7 @@ BEGIN
     SELECT d.sku_id,count(*) AS recorded_rows,sum(d.qty_billed) AS net_billed,
       count(*) FILTER(WHERE d.qty_billed>0) AS positive_rows,count(*) FILTER(WHERE d.qty_billed<0) AS return_rows,
       count(*) FILTER(WHERE d.qty_billed IS NULL OR d.qty_units IS NULL OR d.billed_amount IS NULL) AS missing_rows
-    FROM public.v_ei_sales_product_daily d WHERE d.sales_date BETWEEN m AND a
+    FROM public.ei_sales_product_rows(m,a) d WHERE d.sales_date BETWEEN m AND a
       AND (p_region IS NULL OR d.region_id=p_region) AND (p_godown IS NULL OR d.godown_id=p_godown) GROUP BY d.sku_id
   ), classified AS (
     SELECT k.id AS sku_id,k.product_id,p.item AS product_name,k.pack_size,k.uom,k.is_active,k.price_list_ik,k.price_list_ok,
@@ -316,8 +335,7 @@ CREATE OR REPLACE VIEW public.v_ei_sales_mtd_summary WITH (security_barrier=true
             s_1.billed_amount,
             s_1.source_key,
             s_1.inserted_at
-           FROM public.v_ei_sales_product_daily s_1
-             CROSS JOIN periods p_1
+           FROM periods p_1 CROSS JOIN LATERAL public.ei_sales_product_rows(p_1.month_start,p_1.month_upto_date) s_1
           WHERE s_1.sales_date >= p_1.month_start AND s_1.sales_date <= p_1.month_upto_date
         )
  SELECT p.report_date,
@@ -374,8 +392,7 @@ AS $function$
         then sum(s.billed_amount) / count(distinct s.sales_date)
         else null
       end as average_daily_sales_value
-    from public.v_ei_sales_product_daily s
-    cross join periods p
+    from periods p cross join lateral public.ei_sales_product_rows(p.month_start,p.month_upto_date) s
     left join public.products pr
       on pr.id = s.product_id
     where s.sales_date >= p.month_start
