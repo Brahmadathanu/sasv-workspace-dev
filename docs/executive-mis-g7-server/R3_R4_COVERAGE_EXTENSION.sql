@@ -79,9 +79,9 @@ DECLARE result jsonb;
 BEGIN
  IF auth.uid() IS NULL OR coalesce(auth.jwt()->>'is_anonymous','false')='true' OR NOT coalesce(public.app_has_permission('module:executive-mis-dashboard','view'),false) THEN RAISE EXCEPTION 'Executive access denied' USING ERRCODE='42501'; END IF;
  WITH inventory AS (
- SELECT report_date,valuation_gap_item_count,unclassified_item_count,duplicate_item_row_count,missing_item_id_count FROM public.v_mis_inventory_tab_summary
+ SELECT CASE WHEN count(*)=1 THEN max(report_date) END AS report_date,CASE WHEN count(*)=1 THEN max(valuation_gap_item_count) END AS valuation_gap_item_count,CASE WHEN count(*)=1 THEN max(unclassified_item_count) END AS unclassified_item_count,CASE WHEN count(*)=1 THEN max(duplicate_item_row_count) END AS duplicate_item_row_count,CASE WHEN count(*)=1 THEN max(missing_item_id_count) END AS missing_item_id_count FROM public.v_mis_inventory_tab_summary
  ), pipeline AS (
- SELECT overdue_work_in_process_batch_count FROM public.v_mis_batch_pipeline
+ SELECT CASE WHEN count(*)=1 THEN max(overdue_work_in_process_batch_count) END AS overdue_work_in_process_batch_count FROM public.v_mis_batch_pipeline
  ), fg AS (
  SELECT count(*) AS observed_groups,count(*) FILTER(WHERE recon_status='MISSING_LOG') AS missing_log_groups,max(transfer_date) AS evidence_date
  FROM public.v_fg_transfer_reconciliation WHERE transfer_date>=date_trunc('month',current_date)::date AND transfer_date<=current_date
