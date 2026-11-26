@@ -4,6 +4,7 @@ on:
     paths:
       - 'docs/executive-mis-g7-server/R3*.sql'
       - 'supabase/tests/mis_g7/ei_r3_r4*.mjs'
+      - 'supabase/tests/mis_g7/ei_access_live_catalog_fixture.sql'
       - 'supabase/tests/mis_g7/pg_harness.mjs'
       - '.github/workflows/ei-r3-r4-postgres-acceptance.yml'
   push:
@@ -11,6 +12,7 @@ on:
     paths:
       - 'docs/executive-mis-g7-server/R3*.sql'
       - 'supabase/tests/mis_g7/ei_r3_r4*.mjs'
+      - 'supabase/tests/mis_g7/ei_access_live_catalog_fixture.sql'
       - '.github/workflows/ei-r3-r4-postgres-acceptance.yml'
   workflow_dispatch:
 permissions:
@@ -44,7 +46,7 @@ jobs:
       - name: Initial and extended tests
         run: |
           set -o pipefail
-          node --test supabase/tests/mis_g7/ei_r3_r4_pg.test.mjs supabase/tests/mis_g7/ei_r3_r4_extended_pg.test.mjs | tee ei-pg-results.txt
+          node --test supabase/tests/mis_g7/ei_r3_r4_pg.test.mjs supabase/tests/mis_g7/ei_r3_r4_extended_pg.test.mjs supabase/tests/mis_g7/ei_r3_r4_access_pg.test.mjs | tee ei-pg-results.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
