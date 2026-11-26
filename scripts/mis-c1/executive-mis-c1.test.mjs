@@ -119,34 +119,33 @@ test("tab navigation: seven lenses, aria-selected, Alerts explicitly unavailable
   } finally { await page.context().close(); }
 });
 
-test("Finance: filter, search, pagination, server totals, modal", { skip }, async () => {
+// Infinite scroll: scroll the list's own container to its end and wait for the appended chunk (replaces the retired paginator).
+const scrollMore = async (page, wrapSel, rowSel, n) => { await page.$eval(wrapSel, (e) => { e.scrollTop = e.scrollHeight; }); await page.waitForFunction(([s, k]) => document.querySelectorAll(s).length === k, [rowSel, n]); };
+
+test("Finance: filter, search, infinite scroll, server totals, modal", { skip }, async () => {
   const { page } = await open();
   try {
     assert.deepEqual(await page.$$eval('input[name="financeFilter"]', (r) => r.map((x) => x.value)), ["payables", "receivables", "all"]);
     assert.deepEqual((await calls(page, "get_mis_finance_party_page"))[0].args, { p_group_filter: "payables", p_search: "", p_limit: 25, p_offset: 0 });
-    assert.match(await page.textContent("#financePagination"), /Showing 1-25 of 60 parties/);
-    // pagination
-    await page.click("#financeNextPage");
-    await page.waitForFunction(() => /Page 2 \/ 3/.test(document.querySelector("#financePagination").textContent));
+    assert.equal(await page.$$eval("#financePartyTableWrap tbody tr", (r) => r.length), 25);
+    // infinite scroll appends the next chunk by offset
+    await scrollMore(page, "#financePartyTableWrap", "#financePartyTableWrap tbody tr", 50);
     assert.equal((await calls(page, "get_mis_finance_party_page")).at(-1).args.p_offset, 25);
-    assert.match(await page.textContent("#financePagination"), /Showing 26-50 of 60 parties/);
     // filter resets to page 1 and sends the unchanged filter value
     await page.click("#financeFilterBtn");
     await page.check('input[name="financeFilter"][value="receivables"]');
-    await page.waitForFunction(() => /Page 1 \/ 3/.test(document.querySelector("#financePagination").textContent));
+    await page.waitForFunction(() => document.querySelectorAll("#financePartyTableWrap tbody tr").length === 25);
     const f = (await calls(page, "get_mis_finance_party_page")).at(-1).args;
     assert.equal(f.p_group_filter, "receivables"); assert.equal(f.p_offset, 0);
     assert.equal(await page.$eval("#financeFilterBtn", (b) => b.classList.contains("finance-filter-btn--active")), true);
     // search is server-side, debounced once, resets page, total comes from the server (3, not the page length)
-    await page.click("#financeNextPage");
-    await page.waitForFunction(() => /Page 2/.test(document.querySelector("#financePagination").textContent));
+    await scrollMore(page, "#financePartyTableWrap", "#financePartyTableWrap tbody tr", 50);
     const n = (await calls(page, "get_mis_finance_party_page")).length;
     await page.fill("#financeSearch", "asha");
     await settleTimers(page);
     const after = await calls(page, "get_mis_finance_party_page");
     assert.equal(after.length, n + 1, "one debounced request for one burst of input");
     assert.equal(after.at(-1).args.p_search, "asha"); assert.equal(after.at(-1).args.p_offset, 0);
-    assert.match(await page.textContent("#financePagination"), /of 3 parties/);
     assert.equal(await page.$$eval("#financePartyTableWrap tbody tr", (r) => r.length), 3);
     // modal: opens, focus moves in, Escape closes and focus returns to the row
     const row = page.locator("#financePartyTableWrap tbody tr").first();
@@ -165,41 +164,39 @@ test("Finance: filter, search, pagination, server totals, modal", { skip }, asyn
   } finally { await page.context().close(); }
 });
 
-test("Sales: request args, pagination, search", { skip }, async () => {
+test("Sales: request args, infinite scroll, search", { skip }, async () => {
   const { page } = await open();
   try {
     await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
     await page.waitForSelector(".sales-table");
     assert.deepEqual((await calls(page, "ei_sales_mtd_product_page"))[0].args, { p_search: "", p_limit: 25, p_offset: 0 });
-    await page.click("#salesNextPage");
-    await page.waitForFunction(() => /Page 2 \/ 3/.test(document.querySelector("#salesPagination").textContent));
+    await scrollMore(page, "#salesProductTableWrap", "#salesProductTableWrap tbody tr", 50);
     assert.equal((await calls(page, "ei_sales_mtd_product_page")).at(-1).args.p_offset, 25);
     await page.fill("#salesSearch", "arishta");
     await settleTimers(page);
     const last = (await calls(page, "ei_sales_mtd_product_page")).at(-1).args;
     assert.deepEqual([last.p_search, last.p_offset], ["arishta", 0]);
-    assert.match(await page.textContent("#salesPagination"), /of 4 products/);
+    assert.equal(await page.$$eval("#salesProductTableWrap tbody tr", (r) => r.length), 4);
   } finally { await page.context().close(); }
 });
 
-test("Inventory: filter values, search, pagination", { skip }, async () => {
+test("Inventory: filter values, search, infinite scroll", { skip }, async () => {
   const { page } = await open();
   try {
     await page.click('[data-tab="inventory"]');
     await page.waitForSelector(".inventory-table");
     assert.deepEqual(await page.$$eval('input[name="inventoryFilter"]', (r) => r.map((x) => x.value)), ["all", "RM", "PM", "IND"]);
-    await page.click("#inventoryNextPage");
-    await page.waitForFunction(() => /Page 2/.test(document.querySelector("#inventoryPagination").textContent));
+    await scrollMore(page, "#inventoryItemTableWrap", "#inventoryItemTableWrap tbody tr", 50);
     await page.click("#inventoryFilterBtn");
     await page.check('input[name="inventoryFilter"][value="RM"]');
-    await page.waitForFunction(() => /Page 1/.test(document.querySelector("#inventoryPagination").textContent));
+    await page.waitForFunction(() => document.querySelectorAll("#inventoryItemTableWrap tbody tr").length === 25);
     let a = (await calls(page, "get_mis_inventory_item_page")).at(-1).args;
     assert.deepEqual([a.p_source_kind, a.p_offset], ["RM", 0]);
     await page.fill("#inventorySearch", "oil");
     await settleTimers(page);
     a = (await calls(page, "get_mis_inventory_item_page")).at(-1).args;
     assert.deepEqual([a.p_source_kind, a.p_search, a.p_offset], ["RM", "oil", 0]);
-    assert.match(await page.textContent("#inventoryPagination"), /of 5 items/);
+    assert.equal(await page.$$eval("#inventoryItemTableWrap tbody tr", (r) => r.length), 5);
   } finally { await page.context().close(); }
 });
 
@@ -214,7 +211,7 @@ test("Finished Goods: filter values/labels and status labels (RPC value stays 's
     assert.deepEqual(statuses, ["Zero Stock", "Below 1 Month", "1 to 3 Months", "Above 6 Months", "Normal"]);
     await page.click("#fgFilterBtn");
     await page.check('input[name="fgFilter"][value="shaded"]');
-    await page.waitForFunction(() => document.querySelector("#fgPagination").textContent.includes("Page 1"));
+    await page.waitForFunction(() => document.querySelectorAll("#fgSkuTableWrap tbody tr").length === 25);
     assert.equal((await calls(page, "get_mis_finished_goods_sku_page")).at(-1).args.p_mos_filter, "shaded");
   } finally { await page.context().close(); }
 });
@@ -811,7 +808,6 @@ test("race: a stale search response never overwrites or unmasks the latest query
     await page.waitForTimeout(100);
     assert.doesNotMatch(await page.textContent("#financePartyTableWrap"), /STALE-A/);
     assert.equal(await maskVisible(page, ".finance-table-shell"), true, "stale completion must not remove the newer request's mask");
-    assert.doesNotMatch(await page.textContent("#financePagination"), /99/);
     await page.evaluate(() => window.__mis.slow["ab"].resolve({ data: [{ party_name: "LATEST-AB", mis_group_name: "G", bill_count: 1, outstanding_amount_mis_value: 1, signed_outstanding_tally_value: 1, total_rows: 1 }], error: null }));
     await page.waitForFunction(() => document.querySelector("#financePartyTableWrap").textContent.includes("LATEST-AB"));
     assert.equal(await maskVisible(page, ".finance-table-shell"), false);
@@ -826,53 +822,8 @@ test("race: a stale search response never overwrites or unmasks the latest query
   } finally { await page.context().close(); }
 });
 
-test("race: stale pagination and filter responses are dropped (Sales, Inventory, FG)", { skip }, async () => {
-  const { page } = await open();
-  try {
-    await page.evaluate(() => {
-      const m = window.__mis; m.slow = {};
-      const row = (n, tot) => ({ item: n, product_name: n, item_name: n, total_rows: tot });
-      for (const name of ["ei_sales_mtd_product_page", "get_mis_inventory_item_page", "get_mis_finished_goods_sku_page"]) {
-        m.handlers[name] = (a) => {
-          const key = name + ":" + (a.p_offset || 0) + ":" + (a.p_source_kind || a.p_mos_filter || "");
-          if (!(a.p_offset > 0) && !(a.p_source_kind && a.p_source_kind !== "all") && !(a.p_mos_filter && a.p_mos_filter !== "all")) return { data: [row("BASE", 60)], error: null };
-          const d = (m.slow[key] = m.defer()); return d.promise;
-        };
-      }
-    });
-    // Sales: activate Next twice quickly -> pages 2 and 3 in flight; page-2 response arrives last and must be ignored.
-    await page.click('[data-tab="sales"]'); await page.click('[data-sales-view="mtd"]');
-    await page.waitForSelector(".sales-table");
-    // (the loading mask blocks pointer input over the pager, so drive it by keyboard like a fast double activation)
-    await page.focus("#salesNextPage"); await page.keyboard.press("Enter"); await page.keyboard.press("Enter");
-    await page.evaluate(() => { const s = window.__mis.slow; s["ei_sales_mtd_product_page:50:"].resolve({ data: [{ product_name: "P3", total_rows: 60 }], error: null }); });
-    await page.waitForFunction(() => document.querySelector("#salesProductTableWrap").textContent.includes("P3"));
-    await page.evaluate(() => { window.__mis.slow["ei_sales_mtd_product_page:25:"].resolve({ data: [{ product_name: "P2-STALE", total_rows: 60 }], error: null }); });
-    await page.waitForTimeout(100);
-    assert.doesNotMatch(await page.textContent("#salesProductTableWrap"), /P2-STALE/);
-    assert.match(await page.textContent("#salesPagination"), /Page 3 \/ 3/);
-    assert.equal(await maskVisible(page, ".sales-table-shell"), false);
-    // Inventory: switch filter rm then fuel; rm (older) resolves last and is ignored.
-    await page.click('[data-tab="inventory"]');
-    await page.waitForSelector(".inventory-table");
-    for (const v of ["RM", "IND"]) { await page.click("#inventoryFilterBtn"); await page.check(`input[name="inventoryFilter"][value="${v}"]`); }
-    await page.evaluate(() => window.__mis.slow["get_mis_inventory_item_page:0:IND"].resolve({ data: [{ item_name: "FUEL-ROW", total_rows: 1 }], error: null }));
-    await page.waitForFunction(() => document.querySelector("#inventoryItemTableWrap").textContent.includes("FUEL-ROW"));
-    await page.evaluate(() => window.__mis.slow["get_mis_inventory_item_page:0:RM"].resolve({ data: [{ item_name: "RM-STALE", total_rows: 5 }], error: null }));
-    await page.waitForTimeout(100);
-    assert.doesNotMatch(await page.textContent("#inventoryItemTableWrap"), /RM-STALE/);
-    assert.match(await page.textContent("#inventoryPagination"), /of 1 items/);
-    // FG likewise
-    await page.click('[data-tab="finished-goods"]');
-    await page.waitForSelector(".fg-table");
-    for (const v of ["zero_stock", "shaded"]) { await page.click("#fgFilterBtn"); await page.check(`input[name="fgFilter"][value="${v}"]`); }
-    await page.evaluate(() => window.__mis.slow["get_mis_finished_goods_sku_page:0:shaded"].resolve({ data: [{ item: "SHADED-ROW", total_rows: 1 }], error: null }));
-    await page.waitForFunction(() => document.querySelector("#fgSkuTableWrap").textContent.includes("SHADED-ROW"));
-    await page.evaluate(() => window.__mis.slow["get_mis_finished_goods_sku_page:0:zero_stock"].resolve({ data: [{ item: "ZERO-STALE", total_rows: 9 }], error: null }));
-    await page.waitForTimeout(100);
-    assert.doesNotMatch(await page.textContent("#fgSkuTableWrap"), /ZERO-STALE/);
-  } finally { await page.context().close(); }
-});
+// (retired) "stale pagination and filter responses": the paginator no longer exists. Stale-chunk, reset and retry behaviour for every list is covered
+// by executive-intelligence-r5-maturity.test.mjs (infinite scroll).
 
 test("race: a response for a tab the user left cannot repaint the current panel", { skip }, async () => {
   const { page } = await open();
@@ -970,7 +921,7 @@ test("loading, empty, error and populated states are distinct (with Retry)", { s
     await page.click(`${wrap} .mis-retry-btn`);
     await page.waitForSelector(`${wrap} .finance-empty`);
     assert.match(await page.textContent(wrap), /No parties found/);
-    assert.match(await page.textContent("#financePagination"), /Showing 0-0 of 0 parties/);
+    assert.equal(await page.$$eval(`${wrap} .ei-more`, (e) => e.length), 0, "empty result shows no footer or counter");
     // populated
     await page.evaluate(() => { delete window.__mis.handlers.get_mis_finance_party_page; });
     await page.click("#financeSearchClear").catch(() => {});
@@ -1027,23 +978,19 @@ for (const width of WIDTHS) {
 
       for (const [tab, wrapSel, tableSel, pagSel] of [["finance", ".finance-table-wrap", ".finance-table", "#financePagination"], ["sales", ".sales-table-wrap", ".sales-table", "#salesPagination"], ["inventory", ".inventory-table-wrap", ".inventory-table", "#inventoryPagination"], ["finished-goods", ".fg-table-wrap", ".fg-table", "#fgPagination"]]) {
         await tabClick(page, tab);
-        await page.waitForSelector(`#tabPanel ${tableSel}`);
+        await page.waitForSelector(`#tabPanel ${tableSel}, #tabPanel ${wrapSel} .ei-rc`);
         await noPageOverflow(tab);
         // the table's own container scrolls horizontally instead of the page
         const wrap = await page.$eval(wrapSel, (e) => ({ sw: e.scrollWidth, cw: e.clientWidth, ox: getComputedStyle(e).overflowX }));
-        if (width <= 640) { assert.equal(await page.$eval(tableSel, (t) => getComputedStyle(t).display), "block", `${tab} record table is a card list at phone width`); assert.ok(wrap.sw <= wrap.cw + 1, `${tab} cards must not scroll sideways at ${width}`); }
+        if (width <= 640) { assert.equal(await page.$$eval(`${wrapSel} ${tableSel}`, (t) => t.length), 0, `${tab} table is replaced by compact cards at phone width`); assert.ok(await page.$(`${wrapSel} .ei-rc`)); assert.ok(wrap.sw <= wrap.cw + 1, `${tab} cards must not scroll sideways at ${width}`); }
         else assert.match(wrap.ox, /auto|scroll/, `${tab} wrap must own horizontal scrolling`);
         if (width > 640 && width <= 520) assert.ok(wrap.sw > wrap.cw, `${tab} wide table should scroll inside its wrap at ${width}: ${JSON.stringify(wrap)}`);
         // usable height (regression: was 2px at 320 / 74px at 390)
         const shell = await page.$eval(wrapSel, (e) => e.getBoundingClientRect().height);
         assert.ok(shell >= 120, `${tab} table area too short at ${width}: ${shell}`);
-        // pagination visible, inside the viewport horizontally, controls reachable
-        await page.locator(pagSel).scrollIntoViewIfNeeded();
-        const [pg] = await rects(pagSel);
-        assert.ok(pg.l >= -0.5 && pg.r <= vw + 0.5 && pg.h > 20, `${tab} pagination clipped: ${JSON.stringify(pg)}`);
-        for (const r of await rects(`${pagSel} button`)) assert.ok(r.r <= vw + 0.5 && r.w >= 28 && r.h >= 28, `${tab} pager button too small/clipped ${JSON.stringify(r)}`);
+        assert.equal(await page.$$eval(`#${tab === "finished-goods" ? "fg" : tab}Pagination, .${tab === "finished-goods" ? "fg" : tab}-page-controls`, (e) => e.length), 0, `${tab} has no paginator`);
         // sticky header stays at the top of the scrolling container
-        const sticky = await page.$eval(wrapSel, (w) => { w.scrollTop = 0; const before = w.querySelector("th").getBoundingClientRect().top - w.getBoundingClientRect().top; w.scrollTop = 120; const after = w.querySelector("th").getBoundingClientRect().top - w.getBoundingClientRect().top; return { before, after, pos: getComputedStyle(w.querySelector("th")).position }; });
+        const sticky = width <= 640 ? { pos: "sticky", before: 0, after: 0 } : await page.$eval(wrapSel, (w) => { w.scrollTop = 0; const before = w.querySelector("th").getBoundingClientRect().top - w.getBoundingClientRect().top; w.scrollTop = 120; const after = w.querySelector("th").getBoundingClientRect().top - w.getBoundingClientRect().top; return { before, after, pos: getComputedStyle(w.querySelector("th")).position }; });
         assert.equal(sticky.pos, "sticky"); assert.ok(Math.abs(sticky.after - sticky.before) < 1, `${tab} header moved ${JSON.stringify(sticky)}`);
         // search + filter usable (visible, inside viewport, real touch size on small screens)
         const searchId = { finance: "#financeSearch", sales: "#salesSearch", inventory: "#inventorySearch", "finished-goods": "#fgSearch" }[tab];
@@ -1054,7 +1001,7 @@ for (const width of WIDTHS) {
 
       // filter drawer: anchored popover on wide screens, full-page sheet on phones. Closes on Escape; focus returns to its button.
       await tabClick(page, "finance");
-      await page.waitForSelector(".finance-table");
+      await page.waitForSelector(".finance-table, .ei-rc");
       await page.click("#financeFilterBtn");
       let [d] = await rects("#financeFilterDrawer");
       assert.ok(d.l >= 0 && d.r <= vw + 0.5, `filter drawer clipped ${JSON.stringify(d)}`);
@@ -1099,10 +1046,10 @@ for (const width of WIDTHS) {
       await page.waitForSelector(".ei-alerts");
       await noPageOverflow("alerts");
       await tabClick(page, "finance");
-      await page.waitForSelector(".finance-table");
+      await page.waitForSelector(".finance-table, .ei-rc");
 
       // Finance modal fits the viewport, closes on Escape, restores focus
-      await page.locator("#financePartyTableWrap tbody tr").first().click();
+      await page.locator("#financePartyTableWrap tbody tr, #financePartyTableWrap .ei-rc-btn").first().click(); // phones: the card opens the same bill dialog
       await page.waitForSelector("#financeModalContent .finance-table");
       const [mw] = await rects(".modal-window");
       assert.ok(mw.l >= 0 && mw.r <= vw + 0.5, `modal clipped ${JSON.stringify(mw)}`);

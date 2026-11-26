@@ -156,7 +156,7 @@ export async function openDashboard(browser, base, { width = 1280, height = 800,
   await page.addInitScript((p) => { window.__mis = { permission: p }; }, permission);
   if (init) await page.addInitScript(init);
   await page.goto(base + PAGE_PATH + (lens ? `#${lens}` : ""));
-  const ready = { finance: "#financePartyTableWrap .finance-table", overview: ".ei-overview .kpi-card" }[lens];
+  const ready = { finance: "#financePartyTableWrap .finance-table, #financePartyTableWrap .ei-rc", overview: ".ei-overview .kpi-card" }[lens];
   if (!noWait && permission === "granted" && ready) await page.waitForSelector(ready, { timeout: 8000 });
   return { context, page, consoleErrors };
 }
