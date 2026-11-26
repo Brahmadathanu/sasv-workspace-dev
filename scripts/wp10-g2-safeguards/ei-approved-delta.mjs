@@ -7,9 +7,17 @@ export const EI_CLIENT_BLOBS = Object.freeze({
   "public/shared/js/executive-mis-dashboard.js": "4910e1dfb0d2570cb7966c9f8660f9da884312a7",
   "public/shared/js/executive-intelligence-model.js": "4ccc27d7dadb43fbe4aef08aafe5d891c45c947e"
 });
+// R5 owner-directed UX harmonisation; only three exact page-local client blobs.
+export const EI_R5_BRANCH = "fix/executive-intelligence-r5-production-ux";
+export const EI_R5_CLIENT_BLOBS = Object.freeze({
+  "public/shared/executive-mis-dashboard.html": "ec5898296d58d6cafa20ac4daeb0f73e49987419",
+  "public/shared/js/executive-mis-dashboard.js": "fc2156e0120ce41a499a809e9bfdd9c70cdc2abc",
+  "public/shared/js/executive-intelligence-model.js": "6fb6a085b5b5dfa7c7712990b356a0670d096dc3"
+});
 export const EI_REGISTRY_BASE = "f78f3ba6d1a403cf4b588afc5d285f48df962361";
 export function eiClientApproved(path, branch, committedBlob, workingBlob) {
- return branch === EI_BRANCH && Object.hasOwn(EI_CLIENT_BLOBS,path) && committedBlob === EI_CLIENT_BLOBS[path] && workingBlob === committedBlob;
+ const pins = branch === EI_BRANCH ? EI_CLIENT_BLOBS : branch === EI_R5_BRANCH ? EI_R5_CLIENT_BLOBS : null;
+ return !!pins && Object.hasOwn(pins,path) && committedBlob === pins[path] && workingBlob === committedBlob;
 }
 export function eiRegistryApproved(path, branch, committedBlob, workingBlob, baseBlob) {
  return path === "public/shared/js/module-registry.js" && baseBlob === EI_REGISTRY_BASE && eiClientApproved(path,branch,committedBlob,workingBlob);
