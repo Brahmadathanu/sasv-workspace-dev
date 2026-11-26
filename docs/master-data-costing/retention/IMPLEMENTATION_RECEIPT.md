@@ -14,6 +14,9 @@ Start: tested checkpoint `8d3570d` (assignment commit `de62058`). **Code head `4
 | Local real-Chromium fixtures | cross-links 5/5 (2 retirement tests), nav-groups-browser 12/12, flag-sweep-browser 21/21 |
 | Local PG16.15 | `tests/run_all.sh` exit 0, 23 PASS (`evidence/PG16_LOCAL_RECEIPT_2026-11-26.txt`) |
 
+### Broad regression check (post-handback correction)
+A full local head-vs-base comparison of every `scripts/costing-*` / `csr-*` non-browser suite (base = fresh worktree of `8d3570d`, full history) found **two regressions that CI's touched-suite job did not cover**: `costing-ccc-uxf1` "badge module…only additions" (the removed run-scoped lens line) and `costing-table-tools-pkg2` "pkg2 CSS…" (scope guard saw my cost-sheet-review.html subtitle edit). Fixed: the subtitle edit was reverted (no HTML change; "scheme viability" remains accurate for the selected-scheme drawer) and the uxf1 test tolerates exactly the one retired-lens line. The other nine failing suites in that comparison fail identically at the base (pre-existing). My first comparison script reported `base=0` because I removed its base worktree mid-run; that number was invalid and is withdrawn.
+
 ### Delivered
 | Area | What | Where |
 |---|---|---|
@@ -29,7 +32,7 @@ Start: tested checkpoint `8d3570d` (assignment commit `de62058`). **Code head `4
 * Node: `scripts/costing-retention/*.test.mjs` **24/24**.
 * Existing suites touched by the retirement/guard: **no new failure versus the pre-R3/R7 checkpoint** with full history (2 pre-existing failures identical at both; the earlier "38" count came from the shallow clone and is withdrawn).
 * Real Chromium fixtures: cross-links 5/5 (incl. 2 retirement tests), nav-groups-browser 12/12, flag-sweep-browser 21/21 (counts updated deliberately 30→29 non-PPM lenses, 32→31 total).
-* Deliberate expectation changes (not loosened): lens counts, `scheme-comparison` ownership, CSR subtitle, approval screen RPC allow-list (+2 retention RPCs, forbidden list unchanged).
+* Deliberate expectation changes (not loosened): lens counts, `scheme-comparison` ownership, approval screen RPC allow-list (+2 retention RPCs, forbidden list unchanged).
 
 ### Genuine outstanding blockers (production-only or live-evidence)
 1. **`PREFLIGHT_06` live packet** is required before install: md5 pins for the 16 manifest functions (installer refuses NULL), resolution of the 2 DEFERRED functions, the remaining ~25 of 64 live direct relations (seed names 31+8 only), live size/rows/index state for the index decisions and the `confirm_live` rows, and the live reader list (non-FK consumers).

@@ -129,7 +129,8 @@ test("header badge: flag OFF keeps the long server label exactly; flag ON shows 
 
 test("badge module: flag-OFF code path is unchanged from main (only additions plus the flag import)", () => {
   const diff = git("diff", "-U0", BASE, "--", "public/shared/js/costing-run-status-badge.js").split("\n");
-  const removed = diff.filter((l) => l.startsWith("-") && !l.startsWith("---"));
+  // R7 (26 Nov 2026) deliberately removed the retired lens from the run-scoped lens set; that single line is tolerated.
+  const removed = diff.filter((l) => l.startsWith("-") && !l.startsWith("---") && l !== '-  "scheme-comparison",');
   assert.deepEqual(removed, ['-import { isCostingApprovalScreenV1Enabled, isCostingRecalcWithDateV1Enabled, isCostingUxConsistencyV1Enabled } from "./costing-feature-flags.js";']);
   const src = read("public/shared/js/costing-run-status-badge.js");
   assert.ok(src.includes("      if (isCostingReviewWorklistV1Enabled()) {\n        applyCompactRunStatusBadge(node, describeCompactRunBadge(row), info);\n        return;\n      }\n      applyRunStatusBadge(node, info, true);"));

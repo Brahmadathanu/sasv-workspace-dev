@@ -72,7 +72,7 @@ export const COSTING_ROUTE_CONFIG = {
     defaultLens: "sku-cost-sheet",
     title: "Cost Sheet Review",
     subtitle:
-      "SKU cost details, printable cost sheets, snapshot comparison, QC and Materials / Stores action queues",
+      "SKU cost details, printable cost sheets, snapshot comparison, scheme viability, QC and Materials / Stores action queues",
     routePath: "public/shared/cost-sheet-review.html",
     allowedLensIds: [
       "sku-cost-sheet",

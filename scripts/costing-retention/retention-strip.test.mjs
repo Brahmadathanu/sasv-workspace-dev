@@ -12,7 +12,7 @@ let haveHistory = true;
 try { execFileSync("git", ["cat-file", "-e", `${PRE}^{commit}`], { cwd: root, stdio: "ignore" }); } catch { haveHistory = false; }
 
 test("strip reverses exactly the R3/R7 edits: stripped current file == the pre-R3/R7 checkpoint, byte for byte (needs full history)", { skip: !haveHistory && "checkpoint commit unavailable (shallow clone)" }, () => {
-  assert.ok(RETENTION_R3R7_FILES.length >= 8);
+  assert.ok(RETENTION_R3R7_FILES.length >= 7);
   for (const rel of RETENTION_R3R7_FILES) {
     const cur = lf(fs.readFileSync(path.join(root, rel), "utf8"));
     const pre = lf(execFileSync("git", ["show", `${PRE}:${rel}`], { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }));

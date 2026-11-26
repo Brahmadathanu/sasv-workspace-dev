@@ -49,10 +49,6 @@
  ],
  "public/shared/js/costing-route-config.js": [
   [
-   "    subtitle:\n      \"SKU cost details, printable cost sheets, snapshot comparison, QC and Materials / Stores action queues\",\n    routePath: \"public/shared/cost-sheet-review.html\",",
-   "    subtitle:\n      \"SKU cost details, printable cost sheets, snapshot comparison, scheme viability, QC and Materials / Stores action queues\",\n    routePath: \"public/shared/cost-sheet-review.html\","
-  ],
-  [
    "      \"cost-comparison\",\n      \"qc-action-queue\",",
    "      \"cost-comparison\",\n      \"scheme-comparison\",\n      \"qc-action-queue\","
   ],
@@ -95,12 +91,6 @@
   [
    "      if (action === \"scheme-risk\") {\n        await drillToLens(\"sku-cost-sheet\", {\n          status: [\"BLOCKED\", \"REVIEW_REQUIRED\"],",
    "      if (action === \"scheme-risk\") {\n        await drillToLens(\"scheme-comparison\", {\n          status: [\"BLOCKED\", \"REVIEW_REQUIRED\"],"
-  ]
- ],
- "public/shared/cost-sheet-review.html": [
-  [
-   "          <div class=\"page-sub\" id=\"subtitle\">\n            SKU cost details, printable cost sheets, snapshot comparison, QC and\n            Materials / Stores action queues\n          </div>",
-   "          <div class=\"page-sub\" id=\"subtitle\">\n            SKU cost details, printable cost sheets, snapshot comparison, scheme\n            viability, QC and Materials / Stores action queues\n          </div>"
   ]
  ]
 }
