@@ -95,3 +95,13 @@ test('coverage, windows, history and alerts execute on extension',()=>{
  assert.ok(Array.isArray(j("select public.ei_sales_history('2026-11-24',2,'month')").rows));
  assert.ok(Array.isArray(j("select public.ei_management_alerts()",executive).rows));
 });
+
+test('review queue exposes unresolved and historical pending items, denies sales readers',()=>{
+ q("insert into public.tally_sales_vreg_snapshot(voucher_date,tally_item_name,godown_label,billed_amount_value) values('2026-11-23','NEW UNCLASSIFIED','DEPOT A',55),('2026-11-23','HRIDAYARENJINI LEPAM  250 GM','DEPOT A',10)");
+ const x=j("select public.sales_item_scope_review('2026-11-01','2026-11-24',1,0)",editor);
+ assert.ok(x.total>=2);assert.equal(x.rows.length,1);assert.equal(x.rows[0].tally_item_name,'NEW UNCLASSIFIED');
+ const y=j("select public.sales_item_scope_review('2026-11-01','2026-11-24',100,0)",editor);
+ assert.ok(y.rows.some(r=>r.state==='SASV_HISTORICAL_PACK'));
+ for(const uid of [sales,denied,null])assert.notEqual(pg.psql(db,"select public.sales_item_scope_review('2026-11-01','2026-11-24')",{uid}).status,0);
+ assert.notEqual(pg.psql(db,"select public.sales_item_scope_review('2025-01-01','2026-11-24')",{uid:editor}).status,0);
+});
