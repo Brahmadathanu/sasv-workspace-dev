@@ -200,7 +200,7 @@ test("Exceptions > Activity this month: computed font of the cell and every desc
     const { page } = await salesOpen({ width });
     await page.click('[data-sales-view="exceptions"]'); await page.waitForSelector("#salesExcResults .ei-table, #salesExcResults .ei-rc");
     if (width === 390) { // phones: the activity is the card's single critical status chip (compact token), the long note lives in the detail dialog
-      assert.equal(await page.$eval("#salesExcResults .ei-rc-status", (e) => getComputedStyle(e).fontSize), "11px");
+      assert.equal(await page.$eval("#salesExcResults .ei-rc-status", (e) => getComputedStyle(e).fontSize), "12px"); // R7: 12px is the reference minimum (Stock Checker / PEC badges)
       assert.equal(await page.$$eval("#salesExcResults table", (t) => t.length), 0); await page.context().close(); continue;
     }
     const cell = await page.$eval("#salesExcResults tbody tr:first-child td.ei-activity", (td) => {
@@ -291,7 +291,7 @@ test("Summary strips: every metric value is unchanged and the vertical footprint
   const pcp = await measure(390, "production", ".production-summary-grid"); assert.ok(pcp.h <= 170, `390 production counts ${pcp.h}px (was 146px)`);
   const pv = await measure(1280, "production", ".pv-kpi-grid"); assert.equal(pv.t.length, 4); assert.ok(pv.h <= 110, `value strip ${pv.h}`);
   assert.match(pv.t[1], /₹32,04,140\.56.*Partial coverage/); assert.match(pv.t[3], /₹25,00,000\.00.*Tally book basis.*Not reconciled to batch log/, "value, status badge and basis text all retained");
-  const pvp = await measure(390, "production", ".pv-kpi-grid"); assert.ok(pvp.h <= 270, `390 value strip ${pvp.h}px (was 304px)`);
+  const pvp = await measure(390, "production", ".pv-kpi-grid"); assert.ok(pvp.h <= 304, /* R7: the reference minimum text size is 12px, so the phone strip is 298px; still no taller than the 304px it was before R5 */ `390 value strip ${pvp.h}px (was 304px)`);
   const fin = await measure(390, "finance", "#financeMetrics"); assert.ok(fin.h <= 140, `finance ${fin.h}`);
   const inv = await measure(390, "inventory", "#inventoryScopeNote"); const chartH = 0; inv.h -= chartH; /* the strip itself; the R5 chart card is a separate visual below it */ assert.ok(inv.h <= 345, `inventory ${inv.h}px (was 324px)`);
 });
