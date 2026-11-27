@@ -16,6 +16,12 @@ on:
       - '.github/workflows/electron-release-candidate.yml'
       - 'package.json'
       - 'package-lock.json'
+      - 'public/shared/sales-viewer.html'
+      - 'public/shared/js/sales-viewer.js'
+      - 'public/shared/js/module-registry.js'
+      - 'public/shared/executive-mis-dashboard.html'
+      - 'public/shared/js/executive-mis-dashboard.js'
+      - 'public/shared/js/executive-intelligence-model.js'
   workflow_dispatch:
 
 permissions:
