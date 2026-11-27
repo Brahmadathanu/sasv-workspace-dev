@@ -1,6 +1,6 @@
 # Finance ageing — server specification (for review and implementation)
 
-Status: client implemented locally on branch `fix/executive-intelligence-r8-shell` (R8.17); server objects **not installed**. With the objects absent the Finance lens shows "Ageing analysis needs a server contract that is not installed yet" and no ageing figures. Nothing here is a migration; this is a request for a reviewed design.
+Status (27 Nov 2026): **installed live** as migration `20261127144051_ei_r8_finance_ageing` (registered; never replay). Client implemented on branch `fix/executive-intelligence-r8-shell` (R8.17+). This document is the original request; the live receipt is `FINANCE_AGEING_LIVE_RECEIPT_20261127.md`. Live verification against the installed contracts matched the expected figures (payables 42,408,063.89 / receivables 22,304,842.10 at 30/60/90, zero undated) and 80 of 80 sampled parties reproduced in the browser.
 
 ## 1. What the owner asked for
 On the Finance lens (creditors and debtors outstanding): an ageing facility where the owner picks the day ranges (custom number of days), and the summary rows, each party's outstanding and the bill list adapt to it. It must be professional, finance-safe and future-proof.
