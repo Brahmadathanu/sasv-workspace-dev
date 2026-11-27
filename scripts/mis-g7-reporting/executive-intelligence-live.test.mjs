@@ -25,15 +25,15 @@ const DIMS = {
 };
 
 // ---------------------------------------------------------------------------------------------------------- launcher / registry
-test("launcher: sales-only holders reach executive-mis-dashboard; executive checks, every other module and edit access are unchanged", () => {
+test("launcher: legacy Sales Viewer permissions never open Executive Intelligence; independent executive checks unchanged", () => {
   const exec = { moduleKey: "executive-mis-dashboard", minNavMode: "view" };
   const map = (...rows) => buildPermissionMap(rows.map(([target, can_view, can_edit]) => ({ target, can_view, can_edit })));
-  assert.equal(getModuleAccessLevel(exec, map(["module:sales-data-viewer", true, false])), "view", "sales-only sees the stable executive key");
-  assert.equal(getModuleAccessLevel({ ...exec, minNavMode: "read" }, map(["module:sales-viewer", true, false])), "read", "alias spelling resolves to sales-data-viewer");
+  assert.equal(getModuleAccessLevel(exec, map(["module:sales-data-viewer", true, false])), "none", "legacy view does not authorize EI");
+  assert.equal(getModuleAccessLevel({ ...exec, minNavMode: "read" }, map(["module:sales-viewer", true, false])), "none", "legacy alias does not authorize EI");
   assert.equal(getModuleAccessLevel({ ...exec, minNavMode: "edit" }, map(["module:sales-data-viewer", true, false])), "none", "min_nav_mode edit still hides it, as for executives");
   assert.equal(getModuleAccessLevel(exec, map(["module:sales-data-viewer", false, false])), "none", "no sales view => no entry");
   assert.equal(getModuleAccessLevel(exec, map()), "none"); assert.equal(getModuleAccessLevel(exec, undefined), "none");
-  assert.equal(getModuleAccessLevel(exec, map(["module:sales-data-viewer", true, true])), "view", "sales edit never becomes executive use");
+  assert.equal(getModuleAccessLevel(exec, map(["module:sales-data-viewer", true, true])), "none", "legacy edit does not authorize EI");
   // existing executive behaviour exactly as before
   assert.equal(getModuleAccessLevel(exec, map(["module:executive-mis-dashboard", true, false])), "view");
   assert.equal(getModuleAccessLevel({ ...exec, minNavMode: "read" }, map(["module:executive-mis-dashboard", true, false])), "read");
@@ -45,9 +45,9 @@ test("launcher: sales-only holders reach executive-mis-dashboard; executive chec
   assert.equal(getModuleAccessLevel({ moduleKey: "sales-data-viewer", minNavMode: "view" }, map(["module:sales-data-viewer", true, false])), "view", "the legacy Sales Viewer stays until formal replacement");
 });
 
-test("launcher: one module key, no duplicate route, no new permission target, registry change is confined to the narrow exception", () => {
+test("launcher: one module key, no duplicate route, no new permission target, no legacy launcher exception", () => {
   const reg = read("public/shared/js/module-registry.js");
-  assert.equal((reg.match(/"executive-mis-dashboard"/g) || []).length, 1, "the key appears once, in the exception constant");
+  assert.equal((reg.match(/"executive-mis-dashboard"/g) || []).length, 0, "no legacy launcher exception");
   assert.doesNotMatch(reg, /module:sales-item-classification|supabase\.rpc|\.insert\(|\.upsert\(/);
   assert.equal(fs.existsSync(new URL("public/shared/executive-intelligence.html", root)), false);
   const contract = read("public/shared/js/launcher-presentation-contract.js");

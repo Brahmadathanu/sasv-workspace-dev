@@ -29,6 +29,7 @@ export const EI_COSMETIC_CLIENT_BLOBS = Object.freeze({
 });
 export const EI_R6_BRANCH = "fix/executive-intelligence-r6-retirement";
 export const EI_R6_CLIENT_BLOBS = Object.freeze({
+  "public/shared/js/module-registry.js": "f78f3ba6d1a403cf4b588afc5d285f48df962361",
   "public/shared/sales-viewer.html": "8e137302da17a20254d7af18c070726f82ecb5b8",
   "public/shared/js/sales-viewer.js": "abea8c67082baf547280e920a7df769a7c38f124"
 });
@@ -38,7 +39,7 @@ export function eiClientApproved(path, branch, committedBlob, workingBlob) {
  return !!pins && Object.hasOwn(pins,path) && committedBlob === pins[path] && workingBlob === committedBlob;
 }
 export function eiRegistryApproved(path, branch, committedBlob, workingBlob, baseBlob) {
- return path === "public/shared/js/module-registry.js" && baseBlob === EI_REGISTRY_BASE && eiClientApproved(path,branch,committedBlob,workingBlob);
+ return path === "public/shared/js/module-registry.js" && (baseBlob === EI_REGISTRY_BASE || (branch === EI_R6_BRANCH && baseBlob === EI_CLIENT_BLOBS[path])) && eiClientApproved(path,branch,committedBlob,workingBlob);
 }
 
 export const EI_SERVER_BLOBS = Object.freeze({
