@@ -12,7 +12,7 @@ import {
 import { launchBrowser, openDashboard, startServer, calls, WIDTHS } from "../mis-c1/mis-harness.mjs";
 
 const root = new URL("../../", import.meta.url);
-const read = (p) => fs.readFileSync(new URL(p, root), "utf8");
+const read = (p) => fs.readFileSync(new URL(p, root), "utf8").replace(/\r\n/g, "\n"); // line-ending neutral: a Windows checkout may hold CRLF
 
 // module-registry.js imports the browser-only Supabase client from a CDN URL; the pure registry logic is loaded with that one import stubbed.
 const { getModuleAccessLevel, buildPermissionMap } = await import(`data:text/javascript;base64,${Buffer.from(read("public/shared/js/module-registry.js").replace(/^import \{ supabase \} from "\.\/supabaseClient\.js";/, "const supabase = null;")).toString("base64")}`);

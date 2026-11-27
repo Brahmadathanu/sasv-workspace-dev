@@ -45,7 +45,8 @@ import {
   freshnessModel,
   FRESHNESS_GROUP_LABELS,
   activityParts,
-} from "./executive-intelligence-model.js?ei-r9=1";
+  AGE_MAX_BOUNDS, ageLabels, parseAgeBounds, parseAgeInt, ageBillsForParty,
+} from "./executive-intelligence-model.js?ei-r8=2";
 
 const MODULE_ID = "executive-mis-dashboard";
 const PLAN_WARNING_STATUS =
@@ -395,7 +396,7 @@ function overviewTrendHtml() {
   const t = OVERVIEW_TREND.status === "ok" ? monthlyTrend(OVERVIEW_TREND.data, { group: "month" }) : { reason: "unavailable" };
   const link = `<button type="button" class="ei-text-link ei-inline-link" data-lens-link="sales" data-focus-key="link-sales-trend">Sales Performance</button>`;
   if (!t.months) return `<div class="ei-bars-note">No monthly trend is drawn here (the full month series was not available). Matched periods and history are on ${link}.</div>`;
-  return `${trendHtml(t, { label: "Monthly sales, last 12 months", format: formatCurrencyINR, unit: "Same figures as Sales › History; * = current partial month; gaps are months without a value, not zero. Not certified.", asOf: `To ${formatDateIN(OVERVIEW_TREND.data.anchor)}` })}<div class="ei-bars-note">Matched periods and exports: ${link}.</div>`;
+  return `${trendHtml(t, { compact: true, label: "Monthly sales, last 12 months", format: formatCurrencyINR, unit: "* partial month; gaps are not zero; not certified.", asOf: `To ${formatDateIN(OVERVIEW_TREND.data.anchor)}` })}<div class="ei-bars-note">Matched periods and exports: ${link}.</div>`;
 }
 
 function renderSummaryConsumers() {
@@ -523,38 +524,109 @@ function segmentsHtml(series, { label, unit, noun = "items", cls = {} }) {
 // marked partial. Signed values are drawn from a shared zero line.
 const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const monthName = (k) => `${MONTH_SHORT[Number(k.slice(5, 7)) - 1]} ${k.slice(0, 4)}`;
-function trendHtml(t, { label, format, unit, asOf = "" }) {
+const INSIGHT_ICONS = { finance: "calculator", sales: "chart", inventory: "package", production: "factory", alerts: "activity" };
+// Uniform tile anatomy: lead (what), hero figure, caption (one line), meta (as-at). Parsed from the narrative sentence; every word stays
+// available (title attribute carries the full sentence) and unrecognised sentences fall back to the generic split below.
+function insightTile(text) {
+  const cap1 = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const tile = (lead, fig, cap, meta) => `<span class="ei-insight-lead">${escapeHtml(lead)}</span> <strong class="ei-insight-figure">${escapeHtml(fig)}</strong> <span class="ei-insight-cap">${escapeHtml(cap)}</span> <span class="ei-insight-meta">${escapeHtml(meta)}</span>`;
+  let m = /^Net sundry position is (-?₹[\d,]+(?:\.\d+)?): (.+?)(?: \(position (.+?)\))?\.$/.exec(text);
+  if (m) return tile("Net sundry position", m[1], cap1(m[2]), m[3] ? "Position " + m[3] : "Current position");
+  m = /^Month-to-date sales are (-?₹[\d,]+(?:\.\d+)?)(?: up to (.+?))?\.$/.exec(text);
+  if (m) return tile("Month-to-date sales", m[1], "Month to date", m[2] ? "To " + m[2] : "Latest sales date");
+  m = /^Stock on hand: materials (known value )?(-?₹[\d,]+(?:\.\d+)?)( \(not a certified total\))?(?:; finished goods (-?₹[\d,]+(?:\.\d+)?))?(?: \(report (.+?)\))?\.$/.exec(text);
+  if (m) return tile(m[1] ? "Materials known value" : "Materials stock value", m[2], [m[3] ? "(not a certified total)" : "", m[4] ? "finished goods " + m[4] : ""].filter(Boolean).map((x, i) => (i ? x : cap1(x))).join(" · ") || "Materials only", m[5] ? "Report " + m[5] : "Current position");
+  m = /^(\d[\d,]*) batch(?:es)? in Work in Process now(?:, (.+?))? \(live\)\.$/.exec(text);
+  if (m) return tile("Batches in Work in Process", m[1], m[2] ? cap1(m[2]) : "None beyond the expected window", "Live");
+  return insightHtml(text);
+}
+// Split a narrative sentence around its first key figure: lead-in, hero figure, remainder. Reading order and every word are unchanged.
+function insightHtml(text) {
+  const m = /(-?₹[\d,]+(?:\.\d+)?)|^(\d[\d,]*)(?= batch)/.exec(text);
+  if (!m) return `<span class="ei-insight-rest">${escapeHtml(text)}</span>`;
+  const fig = m[0], pre = text.slice(0, m.index).trim(), post = text.slice(m.index + fig.length);
+  return `${pre ? `<span class="ei-insight-lead">${escapeHtml(pre)}</span> ` : ""}<strong class="ei-insight-figure">${escapeHtml(fig)}</strong> <span class="ei-insight-rest">${escapeHtml(post.replace(/^[s:;,]+/, ""))}</span>`;
+}
+const INSIGHT_LABELS = { finance: "Finance", sales: "Sales", inventory: "Stock", production: "Production", alerts: "Alerts" };
+// Bold the money amounts and the leading count in an already-escaped sentence (presentation only; the words are unchanged).
+const emphasiseFigures = (html) => html.replace(/(-?₹[\d,]+(?:\.\d+)?)/g, "<strong>$1</strong>").replace(/^(\d[\d,]*)(?= batch)/, "<strong>$1</strong>");
+// Presentation helpers for the Overview cards. Pure formatting of figures the cards already hold.
+function compositionHtml(parts, { title, fmt, unit }) {
+  const total = parts.reduce((s, p) => s + p.value, 0);
+  if (!(total > 0) || parts.length < 2) return "";
+  const pct = (v) => Math.round((v / total) * 1000) / 10;
+  const text = parts.map((p) => `${p.label} ${fmt(p.value)} (${pct(p.value)}%)`).join(", ");
+  return `<figure class="ei-chart"${unit ? ` title="${escapeHtml(unit)}"` : ""}>${chartHead(title)}
+    <div class="ei-seg" role="img" aria-label="${escapeHtml(title + ": " + text)}">${parts.filter((p) => p.value > 0).map((p) => `<span class="ei-seg-part ei-seg-${p.cls}" style="width:${pct(p.value)}%" title="${escapeHtml(p.label + ": " + fmt(p.value))}"></span>`).join("")}</div>
+    <ul class="ei-seg-legend ei-seg-legend-rows">${parts.map((p) => `<li><span class="ei-seg-key ei-seg-${p.cls}" aria-hidden="true"></span> <span class="ei-seg-name">${escapeHtml(p.label)}</span> <b>${escapeHtml(fmt(p.value))}</b> <em>${pct(p.value)}%</em></li>`).join("")}</ul>
+    ${unit ? `<figcaption class="ei-bars-note">${escapeHtml(unit)}</figcaption>` : ""}</figure>`;
+}
+function receivablesCoverHtml(row) {
+  const rec = Math.abs(Number(row.receivables_sundry_debtors)), pay = Math.abs(Number(row.payables_sundry_creditors));
+  if (!Number.isFinite(rec) || !Number.isFinite(pay) || !(pay > 0) || row.receivables_sundry_debtors === null || row.payables_sundry_creditors === null) return "";
+  const cover = Math.round((rec / pay) * 1000) / 10;
+  const w = Math.min(100, cover);
+  const tip = `Receivables cover ${cover}% of payables`;
+  return `<figure class="ei-chart">${chartHead("Receivables cover of payables")}
+    <div class="ei-cover" role="img" aria-label="${escapeHtml(tip)}"><span class="ei-cover-track" aria-hidden="true"><span class="ei-cover-fill" style="width:${w}%"></span></span><b class="ei-cover-value">${cover}%</b></div>
+    <figcaption class="ei-bars-note">Receivables as a share of payables; 100% is fully covered.</figcaption></figure>`;
+}
+function overdueMeterHtml(share) {
+  if (!share) return "";
+  const tip = `${share.pct}% of work in process batches are beyond the expected window`;
+  return `<figure class="ei-chart" title="Share of work in process beyond the expected production window (a subset of that stage).">${chartHead("Work in process running late")}
+    <div class="ei-cover ei-cover-late" role="img" aria-label="${escapeHtml(tip)}"><span class="ei-cover-track" aria-hidden="true"><span class="ei-cover-fill" style="width:${Math.min(100, share.pct)}%"></span></span><b class="ei-cover-value">${share.pct}%</b></div>
+    <figcaption class="ei-bars-note">Share of work in process beyond the expected window.</figcaption></figure>`;
+}
+let TREND_SEQ = 0;
+function trendHtml(t, { label, format, unit, asOf = "", compact = false }) {
   if (!t || !t.months?.length) return "";
+  // R8: the plot keeps its own aspect ratio (no stretching: points stay round, strokes stay constant), points sit on the month columns
+  // below them, and the line carries a soft area, a labelled peak and the latest complete month. Every mark still has its text equivalent.
+  const W = 600, H = compact ? 108 : 168, top = 12, bottom = H - 18, n = t.months.length;
   const range = t.hi - t.lo || 1;
-  const x = (i) => 12 + i * 336 / Math.max(1, t.months.length - 1);
-  const y = (v) => 8 + (t.hi - v) / range * 76;
+  const x = (i) => ((i + 0.5) * W) / n;
+  const y = (v) => top + ((t.hi - v) / range) * (bottom - top);
+  const gid = "eiTrendFill" + ++TREND_SEQ;
   const points = t.months.map((m, i) => {
     const name = monthName(m.key) + (m.partial ? " (partial month, to the anchor date)" : "");
     const value = m.state === "ok" ? format(m.value) : m.state === "unavailable" ? "Unavailable" + (m.reported !== null ? "; source reported " + format(m.reported) + ", not certified" : "") : "No row returned (not zero)";
     return { m, i, name, value, x: x(i), y: m.state === "ok" ? y(m.value) : null };
   });
+  const valued = t.months.filter((m) => m.state === "ok");
+  const complete = valued.filter((m) => !m.partial);
+  const peak = valued.reduce((a, m) => (a === null || m.value > a.value ? m : a), null);
+  const low = complete.reduce((a, m) => (a === null || m.value < a.value ? m : a), null);
+  const latest = complete.length ? complete[complete.length - 1] : null;
+  // Continuous runs of valued months: a gap breaks the line and the area (a missing month is never drawn as zero).
+  const runs = [];
+  let cur = [];
+  for (const p of points) { if (p.y === null) { if (cur.length) runs.push(cur); cur = []; } else cur.push(p); }
+  if (cur.length) runs.push(cur);
+  const area = runs.filter((r) => r.length > 1).map((r) => `<path class="ei-line-area" d="M${r[0].x} ${bottom} ${r.map((p) => "L" + p.x + " " + p.y).join(" ")} L${r[r.length - 1].x} ${bottom} Z" fill="url(#${gid})"/>`).join("");
   const segments = points.slice(1).map((p, i) => {
     const prev = points[i];
     if (prev.y === null || p.y === null) return "";
     return `<line class="ei-line-segment${p.m.partial || prev.m.partial ? " ei-line-partial" : ""}" x1="${prev.x}" y1="${prev.y}" x2="${p.x}" y2="${p.y}"/>`;
   }).join("");
-  const marks = points.map(p => {
+  const marks = points.map((p) => {
     const desc = escapeHtml(p.name + ": " + p.value);
-    return p.y === null
-      ? `<text class="ei-line-gap" x="${p.x}" y="78" text-anchor="middle" tabindex="0" role="img" aria-label="${desc}"><title>${desc}</title>${p.m.state === "missing" ? "–" : "n/a"}</text>`
-      : `<circle class="ei-line-point${p.m.partial ? " ei-line-point-partial" : ""}" cx="${p.x}" cy="${p.y}" r="3" tabindex="0" role="img" aria-label="${desc}"><title>${desc}</title></circle>`;
+    if (p.y === null) return `<text class="ei-line-gap" x="${p.x}" y="${bottom - 6}" text-anchor="middle" tabindex="0" role="img" aria-label="${desc}"><title>${desc}</title>${p.m.state === "missing" ? "–" : "n/a"}</text>`;
+    const isPeak = peak && p.m.key === peak.key;
+    return `<circle class="ei-line-point${p.m.partial ? " ei-line-point-partial" : ""}${isPeak ? " ei-line-point-peak" : ""}" cx="${p.x}" cy="${p.y}" r="${isPeak ? 6 : 4.5}" tabindex="0" role="img" aria-label="${desc}"><title>${desc}</title></circle>`;
   }).join("");
-  const labels = points.map(p => `<li class="ei-col-label" title="${escapeHtml(p.name + ": " + p.value)}">${escapeHtml(MONTH_SHORT[Number(p.m.key.slice(5, 7)) - 1])}${p.m.partial ? "*" : ""}</li>`).join("");
-  const valued = t.months.filter(m => m.state === "ok");
-  const peak = valued.reduce((a,m) => a === null || m.value > a.value ? m : a, null);
+  const grid = [0, 1, 2, 3].map((k) => { const gy = top + (k * (bottom - top)) / 3; return `<line class="ei-line-grid" x1="0" x2="${W}" y1="${gy}" y2="${gy}"/>`; }).join("");
+  const zero = t.lo < 0 && t.hi > 0 ? `<line class="ei-line-grid ei-line-zero" x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}"/>` : "";
+  const labels = points.map((p) => `<li class="ei-col-label" title="${escapeHtml(p.name + ": " + p.value)}">${escapeHtml(MONTH_SHORT[Number(p.m.key.slice(5, 7)) - 1])}${p.m.partial ? "*" : ""}</li>`).join("");
   const gaps = t.months.length - valued.length;
-  const summary = monthName(t.months[0].key) + " to " + monthName(t.months[t.months.length - 1].key) + " · peak " + (peak ? monthName(peak.key) + " " + format(peak.value) : "n/a") + (gaps ? " · " + gaps + " month(s) without a value (shown as gaps)" : "") + (t.months.some(m => m.partial) ? " · * partial month" : "");
+  const stat = (k, m) => (m ? `<li><span>${k} · ${escapeHtml(monthName(m.key))}</span><b>${escapeHtml(format(m.value))}</b></li>` : "");
+  const summary = monthName(t.months[0].key) + " to " + monthName(t.months[t.months.length - 1].key) + (gaps ? " · " + gaps + " month(s) without a value (shown as gaps, not zero)" : "");
   return `<figure class="ei-chart ei-trend">${chartHead(label, asOf)}
-    <svg class="ei-line-plot" viewBox="0 0 360 92" preserveAspectRatio="none" role="group" aria-label="${escapeHtml(label)}">
-      ${[8,46,84].map(v => `<line class="ei-line-grid" x1="12" x2="348" y1="${v}" y2="${v}"/>`).join("")}
-      ${t.lo < 0 && t.hi > 0 ? `<line class="ei-line-grid" x1="12" x2="348" y1="${y(0)}" y2="${y(0)}"/>` : ""}
-      ${segments}${marks}
+    <svg class="ei-line-plot" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="group" aria-label="${escapeHtml(label)}">
+      <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--mis-accent);stop-opacity:.22"/><stop offset="1" style="stop-color:var(--mis-accent);stop-opacity:0"/></linearGradient></defs>
+      ${grid}${zero}${area}${segments}${marks}
     </svg><ol class="ei-cols" aria-label="Months">${labels}</ol>
+    <ul class="ei-trend-stats">${stat("Latest", latest)}${stat("Peak", peak)}${stat("Lowest", low)}</ul>
     <div class="ei-trend-summary">${escapeHtml(summary)}</div>
     ${unit ? `<figcaption class="ei-bars-note">${escapeHtml(unit)}</figcaption>` : ""}</figure>`;
 }
@@ -578,7 +650,10 @@ function armMore(root, key, load) {
   disposeMore(key);
   const sentinel = root?.querySelector(`[data-more="${key}"]`);
   if (!sentinel || sentinel.classList.contains("error") || typeof IntersectionObserver !== "function") return;
-  const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) load(); }, { root, rootMargin: "160px", threshold: 0 });
+  // The scroll root is the list wrap where it scrolls (desktop) and the tab panel where the panel is the single scroller (phones).
+  const oy = getComputedStyle(root).overflowY;
+  const scroller = oy === "auto" || oy === "scroll" ? root : root.closest("#tabPanel") || root;
+  const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) load(); }, { root: scroller, rootMargin: "160px", threshold: 0 });
   io.observe(sentinel);
   MORE_OBS.set(key, io);
 }
@@ -591,6 +666,7 @@ window.addEventListener("pagehide", disposeAllMore);
 // month grid stays a contained scrolling matrix. Finance parties keep their existing bill drilldown.
 const CARD_META = {
   finance: { title: "Party", sub: ["Group"], measure: "Outstanding", chips: ["Bills", "Signed Balance"] },
+  "finance-age": { title: "Party", sub: ["Group"], measure: "Outstanding", chips: ["Bills", "Oldest (days)"] },
   inventory: { title: "Item", sub: ["Code", "Category"], measure: "Stock value", chips: ["Quantity", "Average rate"] },
   fg: { title: "Item", sub: ["Pack"], measure: "Stock Value", chips: ["Stock", "MOS"], status: "Status" },
   sales: { title: "Product", measure: "MTD billed sales", chips: ["SKUs", "MTD billed units"] },
@@ -606,7 +682,7 @@ const phoneMQ = window.matchMedia ? window.matchMedia("(max-width: 640px)") : nu
 const isPhoneCards = () => !!phoneMQ?.matches;
 function cardMetaFor(t) {
   if (t.classList.contains("ei-grid")) return null; // genuine matrix
-  if (t.classList.contains("finance-table")) return t.closest("#financePartyTableWrap") ? CARD_META.finance : null;
+  if (t.classList.contains("finance-table")) return t.closest("#financePartyTableWrap") ? (t.classList.contains("finance-age-table") ? CARD_META["finance-age"] : CARD_META.finance) : null;
   if (t.classList.contains("inventory-table")) return CARD_META.inventory;
   if (t.classList.contains("fg-table")) return CARD_META.fg;
   if (t.classList.contains("sales-table")) return CARD_META.sales;
@@ -727,7 +803,7 @@ function rerenderRecords() {
 }
 phoneMQ?.addEventListener?.("change", rerenderRecords);
 
-function overviewGroup({ id, title, lens, lensLabel, asOf, cards, extra = "" }) {
+function overviewGroup({ id, title, lens, lensLabel, asOf, cards, extra = "", viz = "" }) {
   return `
     <section class="ei-group" data-domain="${id}" aria-labelledby="eiGroup-${id}">
       <header class="ei-group-head">
@@ -736,6 +812,7 @@ function overviewGroup({ id, title, lens, lensLabel, asOf, cards, extra = "" }) 
         <button type="button" class="ei-link" data-lens-link="${lens}" data-focus-key="link-${lens}" aria-label="Open ${escapeHtml(lensLabel)}">${escapeHtml(lensLabel)}<span aria-hidden="true"> &rsaquo;</span></button>
       </header>
       <div class="ei-indicators">${cards}</div>
+      <div class="ei-viz">${viz}</div>
       ${extra}
     </section>`;
 }
@@ -806,6 +883,15 @@ function renderOverview() {
     const cards = buildOverviewCards(row);
     const invAnalysis = OVERVIEW_INV.status === "ok" ? analyzeInventorySummary(OVERVIEW_INV.data) : null;
     const narrative = overviewNarrative(row, LIVE_PIPELINE, FMT, invAnalysis);
+    // R8.10: each domain card carries one visual that adds information the indicator rows do not already show, drawn from figures already
+    // loaded (no new request). Finance: how far receivables cover payables. Stock: composition of the known materials value. Production:
+    // where batches sit across stages and what share of work in process is overdue. Sales: the monthly line.
+    const pipeData = LIVE_PIPELINE.status === "ok" ? LIVE_PIPELINE.data : null;
+    const vizFinance = row ? receivablesCoverHtml(row) : "";
+    const vizStock = invAnalysis?.state === "ok" ? compositionHtml(invAnalysis.groups.filter((g) => g.known !== null && g.known > 0).map((g, i) => ({ label: g.label, value: g.known, cls: ["d", "b", "e"][i] || "e" })), { title: "Materials by category", fmt: formatCurrencyINR, unit: "Known materials value; finished goods use another basis." }) : "";
+    const stageSeries = pipeData ? pipelineBars(pipeData) : null;
+    const overdueShare = pipeData ? subsetShare(pipeData.work_in_process_batch_count, pipeData.overdue_work_in_process_batch_count) : null;
+    const vizProduction = stageSeries ? compositionHtml(stageSeries.rows.map((r, i) => ({ label: r.label, value: r.value, cls: ["d", "b", "e"][i] })), { title: "Batches by stage", fmt: formatIntegerIN, unit: "Distinct stages; Not Initiated batches are not included." }) + overdueMeterHtml(overdueShare) : "";
     const banner =
       st.status === "error"
         ? `<div class="ei-state error" role="alert">Executive summary could not be loaded. ${escapeHtml(st.message)} <button type="button" class="mis-retry-btn" data-mis-retry="summary">Retry</button></div>`
@@ -821,22 +907,22 @@ function renderOverview() {
         ${banner}
         ${
           narrative.length
-            ? `<section class="ei-narrative ei-exec-summary" aria-labelledby="eiExecTitle"><h3 class="ei-exec-title" id="eiExecTitle">Executive Summary</h3><ul>${narrative
-                .map((n) => `<li><a href="#${n.lens}" class="ei-text-link" data-lens-link="${n.lens}">${escapeHtml(n.text)}</a></li>`)
+            ? `<section class="ei-narrative ei-exec-summary" aria-labelledby="eiExecTitle"><h3 class="ei-exec-title" id="eiExecTitle">Executive Summary</h3><ul class="ei-insights">${narrative
+                .map((n) => `<li class="ei-insight" data-domain="${n.lens}"><span class="ei-insight-chip" aria-hidden="true">${iconHtml(INSIGHT_ICONS[n.lens] || "chart", { size: 16 })}</span><span class="ei-insight-tag">${escapeHtml(INSIGHT_LABELS[n.lens] || n.lens)}</span><a href="#${n.lens}" class="ei-text-link" data-lens-link="${n.lens}" title="${escapeHtml(n.text)}">${insightTile(n.text)}</a></li>`)
                 .join("")}</ul></section>`
             : ""
         }
         <div class="ei-groups" id="kpiGrid" aria-live="polite">
-          ${overviewGroup({ id: "finance", title: "Finance", lens: "finance", lensLabel: "Finance", asOf: row?.financial_position_date ? `Position ${formatDateIN(row.financial_position_date)}` : "", cards: cards.finance, extra: `<div class="ei-bars-note">Bars compare the size of the two balances; the signed figures are shown.</div>` })}
-          ${overviewGroup({ id: "sales", title: "Sales", lens: "sales", lensLabel: "Sales Performance", asOf: row?.sales_position_date ? `To ${formatDateIN(row.sales_position_date)}` : "", cards: cards.sales, extra: overviewTrendHtml() })}
-          ${overviewGroup({ id: "stock", title: "Stock on hand", lens: "inventory", lensLabel: "Materials Inventory", asOf: row?.report_generated_date ? `Report ${formatDateIN(row.report_generated_date)}` : "", cards: cards.stock, extra: `<div class="ei-bars-note">Bars compare size only: materials and finished goods are different valuation bases and are never added.</div><button type="button" class="ei-link ei-link-inline" data-lens-link="finished-goods" data-focus-key="link-finished-goods">Finished Goods <span aria-hidden="true">&rsaquo;</span></button>` })}
-          ${overviewGroup({ id: "production", title: "Production", lens: "production", lensLabel: "Production Performance", asOf: LIVE_PIPELINE.status === "ok" && LIVE_PIPELINE.asOf ? `Live ${formatDateTimeIN(LIVE_PIPELINE.asOf)}` : "", cards: cards.live + cards.flow, extra: `<div class="ei-bars-note">Bars: stage size against FG bulk and bottled stock (stages do not overlap); the overdue bar is its share of work in process, a subset.</div>` })}
+          ${overviewGroup({ id: "finance", viz: vizFinance, title: "Finance", lens: "finance", lensLabel: "Finance", asOf: row?.financial_position_date ? `Position ${formatDateIN(row.financial_position_date)}` : "", cards: cards.finance, extra: `<div class="ei-bars-note">Bars compare the size of the two balances; the signed figures are shown.</div>` })}
+          ${overviewGroup({ id: "sales", title: "Sales", lens: "sales", lensLabel: "Sales Performance", asOf: row?.sales_position_date ? `To ${formatDateIN(row.sales_position_date)}` : "", cards: cards.sales, viz: overviewTrendHtml() })}
+          ${overviewGroup({ id: "stock", viz: vizStock, title: "Stock on hand", lens: "inventory", lensLabel: "Materials Inventory", asOf: row?.report_generated_date ? `Report ${formatDateIN(row.report_generated_date)}` : "", cards: cards.stock, extra: `<div class="ei-bars-note">Bars compare size only: materials and finished goods are different valuation bases and are never added.</div><button type="button" class="ei-link ei-link-inline" data-lens-link="finished-goods" data-focus-key="link-finished-goods">Finished Goods <span aria-hidden="true">&rsaquo;</span></button>` })}
+          ${overviewGroup({ id: "production", viz: vizProduction, title: "Production", lens: "production", lensLabel: "Production Performance", asOf: LIVE_PIPELINE.status === "ok" && LIVE_PIPELINE.asOf ? `Live ${formatDateTimeIN(LIVE_PIPELINE.asOf)}` : "", cards: cards.live + cards.flow, extra: `<div class="ei-bars-note">Bars: stage size against FG bulk and bottled stock (stages do not overlap); the overdue bar is its share of work in process, a subset.</div>` })}
           <section class="ei-group" data-domain="alerts" aria-labelledby="eiGroup-alerts">
             <header class="ei-group-head">
               <h3 class="ei-group-title" id="eiGroup-alerts">Management alerts</h3>
               <button type="button" class="ei-link" data-lens-link="alerts" data-focus-key="link-alerts">Management Alerts<span aria-hidden="true"> &rsaquo;</span></button>
             </header>
-            <p class="ei-unavailable">Not connected yet. No alert figures are shown, and none are implied.</p>
+            <div class="ei-viz"><p class="ei-unavailable">Not connected yet. No alert figures are shown, and none are implied.</p></div>
           </section>
         </div>
       </div>`;
@@ -1289,7 +1375,7 @@ function fgSummaryHtml(L) {
         metric({ label: "Above 6 months cover", value: orWord(s.above_6_month_cover_count, formatIntegerIN), sub: "Months-of-stock status" }),
       ].join("")}
     </div>
-    ${segmentsHtml(fgSegs, { label: "SKUs by months-of-stock status", noun: "SKUs", cls: { ZERO: "c", LOW: "b", HIGH: "d", OTHER: "a" }, unit: "Server statuses, each SKU in one status. Other statuses is SKUs minus the three listed, so it includes normal cover." })}
+    ${fgSegs ? compositionHtml(fgSegs.rows.map((r) => ({ label: r.label, value: r.value, cls: { ZERO: "c", LOW: "b", HIGH: "d", OTHER: "e" }[r.key] || "e" })), { title: "SKUs by months of stock", fmt: formatIntegerIN, unit: "Server statuses, each SKU in one status. Other statuses is SKUs minus the three listed, so it includes normal cover." }) : ""}
     ${basisDetails([
       "Zero stock and low cover are separate server statuses; neither is derived from an arbitrary threshold in the browser.",
       "Stock is the current position. Transfers into finished goods are period flows and are reported under Production Performance.",
@@ -1325,13 +1411,291 @@ function inventoryFilterConfig() {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Finance ageing (R8.17). Optional analysis mode of the Finance lens: outstanding bills are aged from the bill date to an as-of date and
+// grouped into owner-chosen day bands; an optional age range keeps only bills inside it. The party table and the band summary come from
+// two read-only server contracts (see docs/executive-intelligence-r2/FINANCE_AGEING_SERVER_SPEC.md); when they are not installed the lens
+// says so and shows no ageing figures. The existing outstanding position, party page and bill view are untouched while ageing is off.
+// ---------------------------------------------------------------------------
+const AGE_RPC_PAGE = "get_mis_finance_ageing_party_page";
+const AGE_RPC_SUMMARY = "get_mis_finance_ageing_summary";
+const AGE_PRESETS = [[30, 60, 90], [15, 30, 60, 90], [30, 60, 90, 180], [45, 90, 180, 365]];
+const AGE_MISSING_TEXT = "Ageing analysis needs a server contract that is not installed yet, so no ageing figures are shown.";
+const AGE = { on: false, open: false, asOf: "", bounds: [30, 60, 90], min: null, max: null, error: "", sum: { status: "idle", data: null, error: "", missing: false } };
+const ageMissing = (err) => /PGRST202|42883|could not find the function|does not exist/i.test(`${err?.code || ""} ${err?.message || ""}`);
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const ageAsOf = () => AGE.asOf || String(SUMMARY_STATE.row?.financial_position_date || "").slice(0, 10) || todayISO();
+const ageArgs = () => ({ p_as_of: AGE.asOf || null, p_basis: "bill_date", p_bounds: AGE.bounds, p_age_min: AGE.min, p_age_max: AGE.max });
+const AGE_BAND_STEPS = { 2: [0, 4], 3: [0, 2, 4], 4: [0, 1, 2, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5] };
+// Share of the positive total as text (kept here, with the other ageing helpers, so the production value code stays free of arithmetic).
+const ageShareText = (v, pos) => (pos > 0 && v > 0 ? `${Math.round((v / pos) * 1000) / 10}%` : "–");
+const ageBandClass = (i, n) => `fin-age-b${(AGE_BAND_STEPS[n] || AGE_BAND_STEPS[6])[i] ?? 0}`;
+
+function ageingControlsHtml() {
+  const n = AGE.bounds.length + 1;
+  return `<button id="financeAgeBtn" type="button" class="ei-ctl fin-age-btn${AGE.on ? " is-active" : ""}" data-act="age-toggle" data-list="finance" aria-pressed="${AGE.on}" aria-expanded="${AGE.open}" aria-label="Ageing analysis" title="Ageing analysis">
+    ${iconHtml("calendar", { size: 16 })}<span class="fin-age-btn-label">Ageing${AGE.on ? `: ${n} bands` : ""}</span></button>`;
+}
+// The settings open as an in-page dialog (a full-page dialog on phones), like the other overlays, so the table below never moves.
+const ageingPanelHtml = () => "";
+let AGE_DLG = null; // { overlay, trigger }
+function ageBandSummaryText(text) {
+  const b = parseAgeBounds(text);
+  return b.error ? "" : `Bands: ${ageLabels(b.bounds).join(" · ")} days`;
+}
+function ageingDialogHtml() {
+  const posDate = String(SUMMARY_STATE.row?.financial_position_date || "").slice(0, 10);
+  const presets = AGE_PRESETS.map((b) => `<button type="button" class="fin-age-preset${b.join() === AGE.bounds.join() ? " is-active" : ""}" data-act="age-preset" data-bounds="${b.join(",")}" aria-pressed="${b.join() === AGE.bounds.join()}">${escapeHtml(b.join(" · "))}</button>`).join("");
+  return `
+    <div class="modal-window fin-age-dialog" role="dialog" aria-modal="true" aria-labelledby="financeAgeTitle">
+      <div class="modal-header">
+        <div><h2 id="financeAgeTitle" class="finance-modal-title">Ageing analysis</h2><div class="finance-modal-subtitle">Group the outstanding bills by how long they have been open.</div></div>
+        <button type="button" class="modal-close-btn" data-act="age-close" aria-label="Close ageing settings" title="Close">${ICON_X}</button>
+      </div>
+      <div class="modal-content fin-age-body">
+        <section class="fin-age-step" aria-labelledby="financeAgeStep1">
+          <h3 id="financeAgeStep1"><span aria-hidden="true">1</span>Ageing as of</h3>
+          <div class="fin-age-row"><input id="financeAgeAsOf" type="date" value="${escapeHtml(AGE.asOf || ageAsOf())}" aria-label="Ageing as of date" />${posDate ? `<button type="button" class="fin-age-link" data-act="age-asof-position" data-date="${escapeHtml(posDate)}">Use position date (${escapeHtml(formatDateIN(posDate))})</button>` : ""}</div>
+          <p class="fin-age-hint">This sets the date each bill's age is measured to. It does not change the outstanding position, which stays as at ${posDate ? escapeHtml(formatDateIN(posDate)) : "the latest position date"}.</p>
+        </section>
+        <section class="fin-age-step" aria-labelledby="financeAgeStep2">
+          <h3 id="financeAgeStep2"><span aria-hidden="true">2</span>Age bands (days)</h3>
+          <div class="fin-age-presets" role="group" aria-label="Band presets">${presets}</div>
+          <label class="fin-age-label" for="financeAgeBounds">Or enter your own limits, separated by commas (up to ${AGE_MAX_BOUNDS})</label>
+          <input id="financeAgeBounds" type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(AGE.bounds.join(", "))}" placeholder="30, 60, 90" aria-describedby="financeAgeBandHint" />
+          <p id="financeAgeBandHint" class="fin-age-bands" aria-live="polite">${escapeHtml(ageBandSummaryText(AGE.bounds.join(",")))}</p>
+        </section>
+        <section class="fin-age-step" aria-labelledby="financeAgeStep3">
+          <h3 id="financeAgeStep3"><span aria-hidden="true">3</span>Only bills aged <em>(optional)</em></h3>
+          <div class="fin-age-range-in"><input id="financeAgeMin" type="number" min="0" step="1" inputmode="numeric" value="${AGE.min ?? ""}" placeholder="from" aria-label="Minimum age in days" /><i>to</i><input id="financeAgeMax" type="number" min="0" step="1" inputmode="numeric" value="${AGE.max ?? ""}" placeholder="to" aria-label="Maximum age in days" /><i>days</i></div>
+          <p class="fin-age-hint">Leave empty to include every bill. Both limits are inclusive. Bills without a usable date are always kept and shown separately.</p>
+        </section>
+        <div id="financeAgeError" class="fin-age-error" role="alert">${escapeHtml(AGE.error)}</div>
+        <p class="fin-age-note">Age is days from the bill date to the as-of date. A bill dated after the as-of date counts as current. Credit lines keep their sign; amounts are shown in the direction of each party's net balance.</p>
+      </div>
+      <div class="fin-age-footer">
+        ${AGE.on ? `<button type="button" class="ei-ctl fin-age-off" data-act="age-reset">Turn off ageing</button>` : "<span></span>"}
+        <span class="fin-age-footer-main"><button type="button" class="ei-ctl" data-act="age-close">Cancel</button><button type="button" class="ei-ctl fin-age-apply" data-act="age-apply">Apply ageing</button></span>
+      </div>
+    </div>`;
+}
+function openAgeingDialog() {
+  if (AGE_DLG) return;
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay fin-age-overlay";
+  overlay.innerHTML = ageingDialogHtml();
+  document.body.appendChild(overlay);
+  AGE_DLG = { overlay, trigger: document.activeElement };
+  AGE.open = true; AGE.error = "";
+  $("financeAgeBtn")?.setAttribute("aria-expanded", "true");
+  const dlg = overlay.querySelector(".fin-age-dialog");
+  overlay.addEventListener("mousedown", (ev) => { if (ev.target === overlay) closeAgeingDialog(); });
+  overlay.addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-act]");
+    if (!b) return;
+    switch (b.getAttribute("data-act")) {
+      case "age-close": closeAgeingDialog(); break;
+      case "age-apply": applyAgeingSettings(); break;
+      case "age-reset": resetAgeing(); break;
+      case "age-asof-position": { const i = $("financeAgeAsOf"); if (i) i.value = b.getAttribute("data-date") || ""; break; }
+      case "age-preset": {
+        const input = $("financeAgeBounds");
+        if (input) input.value = String(b.getAttribute("data-bounds") || "").split(",").join(", ");
+        overlay.querySelectorAll(".fin-age-preset").forEach((x) => { x.classList.toggle("is-active", x === b); x.setAttribute("aria-pressed", String(x === b)); });
+        const p = $("financeAgeBandHint"); if (p) p.textContent = ageBandSummaryText(input?.value);
+        break;
+      }
+      default:
+    }
+  });
+  overlay.addEventListener("input", (ev) => {
+    if (ev.target.id !== "financeAgeBounds") return;
+    const p = $("financeAgeBandHint");
+    const t = ev.target.value;
+    if (p) p.textContent = parseAgeBounds(t).error ? parseAgeBounds(t).error : ageBandSummaryText(t);
+    overlay.querySelectorAll(".fin-age-preset").forEach((x) => { const on = String(x.getAttribute("data-bounds")).split(",").join() === String(t).split(/[\s,;]+/).filter(Boolean).join(); x.classList.toggle("is-active", on); x.setAttribute("aria-pressed", String(on)); });
+  });
+  overlay.addEventListener("keydown", (ev) => {
+    if (ev.key === "Tab") trapTab(dlg, ev);
+    else if (ev.key === "Enter" && ev.target.tagName === "INPUT") { ev.preventDefault(); applyAgeingSettings(); }
+  });
+  setTimeout(() => { if (AGE_DLG) document.body.classList.add("ei-sheet-open"); }, 0); // after the opening click has finished its outside-click handlers
+  $("financeAgeAsOf")?.focus?.();
+}
+function closeAgeingDialog({ restoreFocus = true } = {}) {
+  if (!AGE_DLG) return;
+  const { overlay, trigger } = AGE_DLG;
+  AGE_DLG = null;
+  AGE.open = false; AGE.error = "";
+  overlay.remove();
+  document.body.classList.remove("ei-sheet-open");
+  const btn = $("financeAgeBtn");
+  btn?.setAttribute("aria-expanded", "false");
+  if (restoreFocus) (btn || (trigger && document.contains(trigger) ? trigger : null))?.focus?.();
+}
+function renderFinanceAgeing() {
+  const host = $("financeAgeing");
+  if (host) host.innerHTML = financeAgeingHtml();
+}
+function financeAgeingHtml() {
+  if (!AGE.on) return "";
+  const s = AGE.sum;
+  if (s.status === "idle" || s.status === "loading") return `<div class="ei-state" role="status"><span class="table-loading-spinner" aria-hidden="true"></span> Loading ageing...</div>`;
+  if (s.status === "error") return `<div class="ei-state ${s.missing ? "ei-state-unavailable" : "error"}" role="${s.missing ? "status" : "alert"}">${escapeHtml(s.missing ? AGE_MISSING_TEXT : `Ageing could not be loaded. ${s.error}`)}${s.missing ? "" : ` <button type="button" class="mis-retry-btn" data-act="age-retry" data-list="finance">Retry</button>`}</div>`;
+  const d = s.data || {};
+  const all = Array.isArray(d) ? d : d.groups || [];
+  const want = LISTS.finance.st.filter;
+  const groups = all.filter((g) => want === "all" || g.group === want);
+  const bounds = (Array.isArray(d.bounds) && d.bounds.length ? d.bounds : AGE.bounds).map(Number);
+  const labels = ageLabels(bounds);
+  const asOf = d.as_of || ageAsOf();
+  if (!groups.length) return `<div class="ei-state ei-state-unavailable" role="status">No ageing figures were returned for this scope.</div>`;
+  const range = AGE.min !== null || AGE.max !== null ? ` · bills aged ${AGE.min ?? 0}${AGE.max !== null ? `–${AGE.max}` : "+"} days only` : "";
+  AGE_DETAIL.clear();
+  return `<section class="fin-ageing" aria-label="Ageing summary">
+    <header class="fin-ageing-head"><h3 class="fin-ageing-title">Ageing</h3><span class="ei-asof">As of ${escapeHtml(formatDateIN(asOf))} · from bill date${escapeHtml(range)}</span></header>
+    <div class="fin-ageing-groups">${groups.map((g) => ageGroupHtml(g, labels)).join("")}</div>
+  </section>`;
+}
+const AGE_DETAIL = new Map(); // group key -> { name, html, asOf } for the breakdown dialog
+function ageGroupHtml(g, labels) {
+  const amts = Array.isArray(g.bucket_amounts) ? g.bucket_amounts.map((v) => (v === null || v === undefined ? null : Number(v))) : [];
+  const cnts = Array.isArray(g.bucket_bill_counts) ? g.bucket_bill_counts : [];
+  const name = g.label || g.group || "Group";
+  if (amts.length !== labels.length) return `<div class="ei-state error" role="alert">${escapeHtml(name)}: the ageing bands returned do not match the bands asked for.</div>`;
+  const total = g.total_amount !== null && g.total_amount !== undefined ? Number(g.total_amount) : amts.reduce((a, v) => a + (v || 0), 0);
+  const pos = amts.reduce((a, v) => a + Math.max(0, v || 0), 0);
+  const cls = (i) => ageBandClass(i, labels.length);
+  const money = (v) => (v === null ? "–" : formatCurrencyINR(v));
+  const pct = (v) => (pos > 0 && v > 0 ? `${Math.round((v / pos) * 1000) / 10}%` : "–");
+  const hasUndated = Number(g.undated_amount) !== 0 && g.undated_amount != null;
+  // Slim distribution bar (positive balances only; credit bands and zero totals are stated in the table, never drawn as negative length).
+  const bar = pos > 0 ? amts.map((v, i) => (v > 0 ? `<span class="fin-age-seg ${cls(i)}" style="width:${(v / pos) * 100}%" title="${escapeHtml(`${labels[i]} days: ${money(v)}`)}"></span>` : "")).join("") : "";
+  const barAria = escapeHtml(`${name}: ${labels.map((l, i) => `${l} days ${money(amts[i])}`).join(", ")}`);
+  const bth = (l, i) => `<th scope="col" class="num ${cls(i)}"><i class="fin-age-key" aria-hidden="true"></i>${escapeHtml(l)}</th>`;
+  const table = `<table class="fin-age-mini fin-age-mini-h">
+      <thead><tr><th scope="col">Age (days)</th>${labels.map(bth).join("")}${hasUndated ? `<th scope="col" class="num fin-age-und">No date</th>` : ""}</tr></thead>
+      <tbody>
+        <tr><th scope="row">Outstanding</th>${amts.map((v) => `<td class="num${v !== null && v < 0 ? " fin-age-neg" : ""}">${escapeHtml(money(v))}</td>`).join("")}${hasUndated ? `<td class="num fin-age-und">${escapeHtml(money(Number(g.undated_amount)))}</td>` : ""}</tr>
+        <tr><th scope="row">Share</th>${amts.map((v) => `<td class="num">${pct(v)}</td>`).join("")}${hasUndated ? `<td class="num fin-age-und">–</td>` : ""}</tr>
+        <tr><th scope="row">Bills</th>${amts.map((_, i) => `<td class="num">${cnts[i] != null ? escapeHtml(formatIntegerIN(cnts[i])) : "–"}</td>`).join("")}${hasUndated ? `<td class="num fin-age-und">${g.undated_bill_count != null ? escapeHtml(formatIntegerIN(g.undated_bill_count)) : "–"}</td>` : ""}</tr>
+      </tbody></table>`;
+  // Narrow screens: the same figures as a vertical band list (one row per band).
+  const tableV = `<table class="fin-age-mini fin-age-mini-v"><thead><tr><th scope="col">Age (days)</th><th scope="col" class="num">Outstanding</th><th scope="col" class="num">Share</th><th scope="col" class="num">Bills</th></tr></thead><tbody>${labels.map((l, i) => `<tr><th scope="row"><i class="fin-age-key ${cls(i)}" aria-hidden="true"></i>${escapeHtml(l)}</th><td class="num${amts[i] !== null && amts[i] < 0 ? " fin-age-neg" : ""}">${escapeHtml(money(amts[i]))}</td><td class="num">${pct(amts[i])}</td><td class="num">${cnts[i] != null ? escapeHtml(formatIntegerIN(cnts[i])) : "–"}</td></tr>`).join("")}${hasUndated ? `<tr class="fin-age-und"><th scope="row">No date</th><td class="num">${escapeHtml(money(Number(g.undated_amount)))}</td><td class="num">–</td><td class="num">${g.undated_bill_count != null ? escapeHtml(formatIntegerIN(g.undated_bill_count)) : "–"}</td></tr>` : ""}</tbody></table>`;
+  const stat = (k, v) => (v ? `<li><span class="fin-chip-lab">${escapeHtml(k)}</span><b>${escapeHtml(v)}</b></li>` : "");
+  const stats = [
+    stat("Total outstanding", formatCurrencyINR(total)),
+    stat("Oldest bill", g.oldest_age_days != null ? `${formatIntegerIN(g.oldest_age_days)} days` : ""),
+    stat("Average age", g.weighted_avg_age_days != null ? `${formatIntegerIN(Math.round(Number(g.weighted_avg_age_days)))} days` : ""),
+    stat("Parties", g.party_count != null ? formatIntegerIN(g.party_count) : ""),
+    stat("Bills", g.bill_count != null ? formatIntegerIN(g.bill_count) : ""),
+    hasUndated ? stat("Not aged (no usable date)", money(Number(g.undated_amount))) : "",
+  ].join("");
+  AGE_DETAIL.set(g.group || name, {
+    name,
+    html: `<ul class="fin-age-stats" aria-label="Ageing figures">${stats}</ul>
+      <div class="fin-age-bar fin-age-bar-lg" role="img" aria-label="${barAria}">${bar}</div>
+      ${table}${tableV}
+      <p class="fin-age-meta">Average age is weighted by amount. Credit bands are shown in the table with their sign and are not drawn in the bar.</p>`,
+  });
+  return `<div class="fin-age-group" data-group="${escapeHtml(g.group || "")}">
+    <button type="button" class="fin-age-row" data-act="age-detail" data-group="${escapeHtml(g.group || name)}" aria-haspopup="dialog" aria-label="Open ageing breakdown for ${escapeHtml(name)}">
+      <span class="fin-age-name">${escapeHtml(name)}</span><b class="fin-age-total">${escapeHtml(formatCurrencyINR(total))}</b><span class="fin-age-go" aria-hidden="true">Breakdown <i></i></span>
+      <span class="fin-age-bar" role="img" aria-label="${barAria}">${bar}</span>
+    </button>
+  </div>`;
+}
+let AGE_BRK = null; // { overlay, trigger }
+function openAgeBreakdown(key) {
+  const d = AGE_DETAIL.get(key);
+  if (!d || AGE_BRK) return;
+  const asOf = AGE.sum.data?.as_of || ageAsOf();
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay fin-age-overlay fin-brk-overlay";
+  overlay.innerHTML = `<div class="modal-window fin-age-dialog fin-brk-dialog" role="dialog" aria-modal="true" aria-labelledby="financeBrkTitle">
+    <div class="modal-header"><div><h2 id="financeBrkTitle" class="finance-modal-title">${escapeHtml(d.name)}</h2><div class="finance-modal-subtitle">Ageing as of ${escapeHtml(formatDateIN(asOf))} · from bill date</div></div>
+      <button type="button" class="modal-close-btn" data-act="brk-close" aria-label="Close ageing breakdown" title="Close">${ICON_X}</button></div>
+    <div class="modal-content fin-brk-body">${d.html}</div></div>`;
+  document.body.appendChild(overlay);
+  AGE_BRK = { overlay, trigger: document.activeElement };
+  setTimeout(() => { if (AGE_BRK) document.body.classList.add("ei-sheet-open"); }, 0);
+  overlay.addEventListener("mousedown", (ev) => { if (ev.target === overlay) closeAgeBreakdown(); });
+  overlay.addEventListener("click", (ev) => { if (ev.target.closest('[data-act="brk-close"]')) closeAgeBreakdown(); });
+  overlay.addEventListener("keydown", (ev) => { if (ev.key === "Tab") trapTab(overlay.querySelector(".fin-brk-dialog"), ev); });
+  overlay.querySelector(".modal-close-btn")?.focus?.();
+}
+function closeAgeBreakdown({ restoreFocus = true } = {}) {
+  if (!AGE_BRK) return;
+  const { overlay, trigger } = AGE_BRK;
+  AGE_BRK = null;
+  overlay.remove();
+  document.body.classList.remove("ei-sheet-open");
+  if (restoreFocus && trigger && document.contains(trigger)) trigger.focus?.();
+}
+async function loadAgeingSummary() {
+  if (!AGE.on) return;
+  const token = beginRequest("finance:age-sum");
+  AGE.sum = { status: "loading", data: null, error: "", missing: false };
+  renderFinanceAgeing();
+  const { data, error } = await settle(supabase.rpc(AGE_RPC_SUMMARY, ageArgs()));
+  if (!isLatestRequest("finance:age-sum", token) || !AGE.on) return;
+  AGE.sum = error ? { status: "error", data: null, error: errorMessage(error), missing: ageMissing(error) } : { status: "ok", data: data || null, error: "", missing: false };
+  renderFinanceAgeing();
+}
+function reloadFinanceAgeing() {
+  closeAgeBreakdown({ restoreFocus: false });
+  const L = LISTS.finance;
+  L.st.rows = []; L.st.total = 0; L.st.done = false;
+  renderListToolbar("finance");
+  renderFinanceAgeing();
+  loadAgeingSummary();
+  loadList("finance");
+}
+function applyAgeingSettings() {
+  const b = parseAgeBounds($("financeAgeBounds")?.value);
+  const mn = parseAgeInt($("financeAgeMin")?.value), mx = parseAgeInt($("financeAgeMax")?.value);
+  const asOf = $("financeAgeAsOf")?.value || "";
+  const err = b.error || mn.error || mx.error || (mn.value !== null && mx.value !== null && mn.value > mx.value ? "The minimum age cannot be greater than the maximum age." : "") || (asOf && !Number.isFinite(Date.parse(asOf)) ? "Enter a valid as-of date." : "");
+  if (err) { AGE.error = err; const e = $("financeAgeError"); if (e) e.textContent = err; return; }
+  closeAgeingDialog({ restoreFocus: false });
+  Object.assign(AGE, { on: true, open: false, error: "", bounds: b.bounds, min: mn.value, max: mx.value, asOf: asOf === String(SUMMARY_STATE.row?.financial_position_date || "").slice(0, 10) ? "" : asOf });
+  reloadFinanceAgeing();
+}
+function resetAgeing() {
+  closeAgeingDialog({ restoreFocus: false });
+  const wasOn = AGE.on;
+  Object.assign(AGE, { on: false, open: false, error: "", min: null, max: null, asOf: "", bounds: [30, 60, 90], sum: { status: "idle", data: null, error: "", missing: false } });
+  beginRequest("finance:age-sum");
+  if (wasOn) reloadFinanceAgeing(); else renderListToolbar("finance");
+}
+function ageTableHtml(rows) {
+  const labels = ageLabels(AGE.bounds);
+  const cell = (v) => (v === null || v === undefined || Number(v) === 0 ? `<td class="num fin-age-zero">–</td>` : `<td class="num">${escapeHtml(formatCurrencyINR(v))}</td>`);
+  return `<table class="finance-table finance-age-table">
+    <thead><tr>${th("Party")}${th("Group")}${th("Bills", true)}${labels.map((l, i) => `<th class="num ${ageBandClass(i, labels.length)}" data-band title="Outstanding aged ${escapeHtml(l)} days" scope="col">${escapeHtml(l)}</th>`).join("")}${th("Outstanding", true)}${th("Oldest (days)", true)}${th("Avg age (days)", true)}</tr></thead>
+    <tbody>
+      ${rows.map((row, index) => {
+        const a = Array.isArray(row.bucket_amounts) && row.bucket_amounts.length === labels.length ? row.bucket_amounts : null;
+        return `<tr data-party-index="${index}" tabindex="0" aria-haspopup="dialog" aria-label="View outstanding bills for ${escapeHtml(row.party_name || "party")}">
+          <td>${escapeHtml(row.party_name || "-")}</td><td>${escapeHtml(row.mis_group_name || "-")}</td>
+          <td class="num">${escapeHtml(formatIntegerIN(row.bill_count))}</td>
+          ${a ? a.map(cell).join("") : labels.map(() => `<td class="num fin-age-zero" title="Bands returned do not match the bands asked for">n/a</td>`).join("")}
+          <td class="num">${escapeHtml(formatCurrencyINR(row.outstanding_amount_mis_value))}</td>
+          <td class="num">${row.oldest_age_days != null ? escapeHtml(formatIntegerIN(row.oldest_age_days)) : "–"}</td>
+          <td class="num">${row.weighted_avg_age_days != null ? escapeHtml(formatIntegerIN(Math.round(Number(row.weighted_avg_age_days)))) : "–"}</td>
+        </tr>`;
+      }).join("")}
+    </tbody>
+  </table>`;
+}
+
 const LISTS = {
   finance: {
-    p: "finance", title: "Finance", noun: "parties", rpc: "get_mis_finance_party_page", wrapId: "financePartyTableWrap",
+    p: "finance", title: "Finance", noun: "parties", get rpc() { return AGE.on ? AGE_RPC_PAGE : "get_mis_finance_party_page"; }, wrapId: "financePartyTableWrap",
     shell: ".finance-table-shell", loadingMsg: "Loading finance parties...", retryKey: "finance",
     summaryTable: "v_mis_finance_tab_summary", summarySelect: "finance_scope_note", errorText: "Finance basis note could not be loaded.",
     placeholder: "Search party or group", st: newListState("payables"), sum: { status: "idle", data: null, error: "" },
-    args: (st) => ({ p_group_filter: st.filter, p_search: st.search, p_limit: st.size, p_offset: st.offset }),
+    args: (st) => ({ p_group_filter: st.filter, p_search: st.search, p_limit: st.size, p_offset: st.offset, ...(AGE.on ? ageArgs() : {}) }),
     parse: finParse, summaryHtml: financeBasisHtml, key: (r) => `${r.party_name}|${r.mis_group_name}`,
     filterConfig: () => ({
       title: "Outstanding Group", ariaLabel: "Finance filters",
@@ -1437,7 +1801,9 @@ function listToolbarHtml(L) {
         <input id="${p}Search" type="text" value="${escapeHtml(st.search)}" placeholder="${escapeHtml(L.placeholder)}" aria-label="${escapeHtml(L.placeholder)}" />
         <button id="${p}SearchClear" type="button" class="input-clear-btn" title="Clear search" aria-label="Clear search" data-act="search-clear" data-list="${p}" style="${st.search ? "" : "display:none"}">${ICON_X}</button>
       </div>
-    </div>`;
+      ${p === "finance" ? ageingControlsHtml() : ""}
+    </div>
+    ${p === "finance" ? ageingPanelHtml() : ""}`;
 }
 
 function renderListToolbar(p) {
@@ -1458,14 +1824,14 @@ function renderListShell(p) {
   host.innerHTML = `
     <div class="ei-lens ei-lens-${p}">
       ${L.host ? "" : lensHeadHtml(L.title)}
-      ${p === "finance" ? `<div id="financeMetrics" class="ei-metrics-host"></div>` : ""}
+      ${p === "finance" ? `<div id="financeMetrics" class="ei-metrics-host"></div><div id="financeAgeing" class="fin-ageing-host"></div>` : ""}
       <div id="${p}ScopeNote" class="${p}-scope-note ei-scope"></div>
       <div id="${p}Toolbar"></div>
       <div class="${p}-table-shell">
         <div id="${L.wrapId}" class="${p}-table-wrap"></div>
       </div>
     </div>`;
-  if (p === "finance") renderFinanceMetrics();
+  if (p === "finance") { renderFinanceMetrics(); renderFinanceAgeing(); if (AGE.on && AGE.sum.status === "idle") loadAgeingSummary(); }
   renderListSummary(p);
   renderListToolbar(p);
   renderListTable(p);
@@ -1535,7 +1901,7 @@ async function loadList(p, { append = false, retry = false } = {}) {
     } else {
       st.rows = [];
       st.total = 0;
-      st.error = errorMessage(error);
+      st.error = p === "finance" && AGE.on && ageMissing(error) ? AGE_MISSING_TEXT : errorMessage(error);
       ACTIVE_TAB_FAILED = true;
     }
     renderListTable(p);
@@ -1567,6 +1933,7 @@ function setListFilter(p, value) {
   L.st.page = 1;
   closeAllFilterDrawers();
   renderListToolbar(p);
+  if (p === "finance") renderFinanceAgeing();
   PENDING_FOCUS_ID = `${p}FilterBtn`;
   restorePendingFocus();
   loadList(p);
@@ -1651,7 +2018,7 @@ function formatInventoryClassification(row) {
 }
 
 const TABLES = {
-  finance: (rows) => `
+  finance: (rows) => AGE.on ? ageTableHtml(rows) : `
     <table class="finance-table">
       <thead><tr>${th("Party")}${th("Group")}${th("Bills", true)}${th("Outstanding", true)}${th("Signed Balance", true)}</tr></thead>
       <tbody>
@@ -2993,11 +3360,14 @@ async function openFinancePartyDetails(row) {
   const token = beginRequest("finance:modal");
   // Keep the original trigger if a second row is opened while already open.
   if (!isFinanceModalOpen()) FINANCE_LAST_FOCUS = document.activeElement;
+  // The page behind never scrolls while the dialog is open (deferred: the click that opened it still runs the filter-drawer outside-click handler).
+  setTimeout(() => { if (isFinanceModalOpen()) document.body.classList.add("ei-sheet-open"); }, 0);
+  { const about = $("financeModalAbout"); if (about) about.open = !window.matchMedia?.("(max-width: 640px)").matches; const x = $("financeModalAboutExtra"); if (x) x.textContent = ""; }
   financeModalOverlay.classList.remove("hidden");
   financeModalOverlay.setAttribute("aria-hidden", "false");
   if (financeModalTitle) financeModalTitle.textContent = row.party_name || "-";
   if (financeModalSubtitle) {
-    financeModalSubtitle.textContent = `${row.mis_group_name || "-"} | ${formatCurrencyINR(row.outstanding_amount_mis_value)}`;
+    financeModalSubtitle.textContent = `${row.mis_group_name || "-"} | ${formatCurrencyINR(row.outstanding_amount_mis_value)}${AGE.on ? ` | aged as of ${formatDateIN(ageAsOf())}` : ""}`;
   }
   financeModalContent.innerHTML = `<div class="finance-status" role="status">Loading bill details...</div>`;
   financeModalClose?.focus?.();
@@ -3028,9 +3398,52 @@ async function openFinancePartyDetails(row) {
     return;
   }
 
+  // Bill list: a table on wide screens and a card list on narrow screens (both rendered; CSS shows one), so no figure needs sideways scrolling on a phone.
+  if (AGE.on) {
+    // Ageing mode: bills are aged from the bill date to the as-of date with the shared pure rule (same as the server contract): undated lines
+    // survive the age range, amounts are oriented by the sign of the party's filtered net, never forced to absolute values.
+    const asOf = ageAsOf();
+    const labels = ageLabels(AGE.bounds);
+    const res = ageBillsForParty(bills, { asOf, bounds: AGE.bounds, min: AGE.min, max: AGE.max });
+    const pos = res.bands.reduce((a, x) => a + Math.max(0, x.amount), 0);
+    const share = (v) => ageShareText(v, pos);
+    const billsWord = (n) => `${formatIntegerIN(n)} bill${n === 1 ? "" : "s"}`;
+    const rangeNote = AGE.min !== null || AGE.max !== null ? ` Bills aged ${AGE.min ?? 0}${AGE.max !== null ? `–${AGE.max}` : "+"} days are shown, plus any bills without a usable date.` : "";
+    const badge = (bill) => (bill.band < 0 ? `<span class="fin-age-badge fin-age-badge-none">No usable date</span>` : `<span class="fin-age-badge ${ageBandClass(bill.band, labels.length)}">${escapeHtml(labels[bill.band])}</span>`);
+    const chips = labels.map((l, i) => `<li class="${ageBandClass(i, labels.length)}"><span class="fin-chip-lab">${escapeHtml(l)} days</span><span class="fin-chip-share">${escapeHtml(share(res.bands[i].amount))}</span><b>${escapeHtml(formatCurrencyINR(res.bands[i].amount))}</b><span class="fin-chip-n">${escapeHtml(billsWord(res.bands[i].count))}</span></li>`).join("")
+      + (res.undated.count ? `<li class="fin-age-chip-undated"><span class="fin-chip-lab">No usable date</span><span class="fin-chip-share">–</span><b>${escapeHtml(formatCurrencyINR(res.undated.amount))}</b><span class="fin-chip-n">${escapeHtml(billsWord(res.undated.count))}</span></li>` : "");
+    const aboutText = `Aged as of ${formatDateIN(asOf)} from each bill date.${rangeNote} Band amounts follow the direction of this party's net balance; the table shows the signed Tally amounts.`;
+    const extra = $("financeModalAboutExtra"); if (extra) extra.textContent = aboutText;
+    const empty = `<tr><td colspan="6" class="fin-age-empty">No bills in this age range.</td></tr>`;
+    financeModalContent.innerHTML = `
+      <ul class="fin-age-chips" aria-label="Bands for this party">${chips}</ul>
+      <div class="finance-table-wrap fin-bill-table">
+        <table class="finance-table finance-modal-table is-aged">
+          <colgroup><col class="fm-date"><col class="fm-ref"><col class="fm-age"><col class="fm-band"><col class="fm-amt"><col class="fm-amt"></colgroup>
+          <thead><tr>${th("Bill Date")}${th("Bill Ref")}${th("Age (days)", true)}${th("Band")}${th("Tally Signed Amount", true)}${th("Line Absolute Amount", true)}</tr></thead>
+          <tbody>
+            ${res.rows.length ? res.rows.map((bill) => `<tr>
+                <td>${escapeHtml(bill.bill_date_text || "-")}</td><td title="${escapeHtml(bill.bill_ref || "")}">${escapeHtml(bill.bill_ref || "-")}</td>
+                <td class="num">${bill.age === null ? "–" : escapeHtml(formatIntegerIN(bill.age))}</td>
+                <td>${badge(bill)}</td>
+                <td class="num">${escapeHtml(formatCurrencyINR(bill.outstanding_amount_tally_value))}</td>
+                <td class="num">${escapeHtml(formatCurrencyINR(bill.outstanding_amount_abs_line_value))}</td>
+              </tr>`).join("") : empty}
+          </tbody>
+        </table>
+      </div>
+      <ul class="fin-bill-cards" aria-label="Outstanding bills">${res.rows.length ? res.rows.map((bill) => `<li class="fin-bill-card">
+          <div class="fin-bill-top"><b>${escapeHtml(bill.bill_ref || "-")}</b><span class="fin-bill-amt">${escapeHtml(formatCurrencyINR(bill.outstanding_amount_tally_value))}</span></div>
+          <div class="fin-bill-sub"><span>${escapeHtml(bill.bill_date_text || "-")}</span><span>${bill.age === null ? "No age" : `${escapeHtml(formatIntegerIN(bill.age))} days`}</span>${badge(bill)}</div>
+          <div class="fin-bill-line"><span>Line absolute amount</span><span>${escapeHtml(formatCurrencyINR(bill.outstanding_amount_abs_line_value))}</span></div>
+        </li>`).join("") : `<li class="fin-age-empty">No bills in this age range.</li>`}</ul>`;
+    return;
+  }
+
   financeModalContent.innerHTML = `
-    <div class="finance-table-wrap">
-      <table class="finance-table">
+    <div class="finance-table-wrap fin-bill-table">
+      <table class="finance-table finance-modal-table is-plain">
+        <colgroup><col class="fm-date"><col class="fm-ref"><col class="fm-amt"><col class="fm-amt"></colgroup>
         <thead>
           <tr>
             <th>Bill Date</th>
@@ -3045,7 +3458,7 @@ async function openFinancePartyDetails(row) {
               (bill) => `
                 <tr>
                   <td>${escapeHtml(bill.bill_date_text || "-")}</td>
-                  <td>${escapeHtml(bill.bill_ref || "-")}</td>
+                  <td title="${escapeHtml(bill.bill_ref || "")}">${escapeHtml(bill.bill_ref || "-")}</td>
                   <td class="num">${escapeHtml(formatCurrencyINR(bill.outstanding_amount_tally_value))}</td>
                   <td class="num">${escapeHtml(formatCurrencyINR(bill.outstanding_amount_abs_line_value))}</td>
                 </tr>
@@ -3055,6 +3468,11 @@ async function openFinancePartyDetails(row) {
         </tbody>
       </table>
     </div>
+    <ul class="fin-bill-cards" aria-label="Outstanding bills">${bills.map((bill) => `<li class="fin-bill-card">
+        <div class="fin-bill-top"><b>${escapeHtml(bill.bill_ref || "-")}</b><span class="fin-bill-amt">${escapeHtml(formatCurrencyINR(bill.outstanding_amount_tally_value))}</span></div>
+        <div class="fin-bill-sub"><span>${escapeHtml(bill.bill_date_text || "-")}</span></div>
+        <div class="fin-bill-line"><span>Line absolute amount</span><span>${escapeHtml(formatCurrencyINR(bill.outstanding_amount_abs_line_value))}</span></div>
+      </li>`).join("")}</ul>
   `;
 }
 
@@ -3066,6 +3484,7 @@ function closeFinanceModal() {
   }
   financeModalOverlay.classList.add("hidden");
   financeModalOverlay.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("ei-sheet-open");
   if (financeModalContent) financeModalContent.innerHTML = "";
   if (FINANCE_LAST_FOCUS && document.contains(FINANCE_LAST_FOCUS)) {
     FINANCE_LAST_FOCUS.focus?.();
@@ -3197,6 +3616,12 @@ function wireEvents() {
       case "search-clear":
         clearListSearch(p);
         break;
+      case "age-toggle":
+        ev.stopPropagation();
+        if (AGE_DLG) closeAgeingDialog(); else openAgeingDialog();
+        break;
+      case "age-retry": loadAgeingSummary(); break;
+      case "age-detail": openAgeBreakdown(act.getAttribute("data-group")); break;
       default:
     }
   });
@@ -3209,10 +3634,31 @@ function wireEvents() {
     if (clearBtn) clearBtn.style.display = ev.target.value ? "" : "none";
     DEBOUNCED_SEARCH[m[1]](ev.target.value);
   });
+  // R8.11: on pointer devices an info popover lives only while the pointer is on the icon or the popover, or the icon holds keyboard focus;
+  // leaving or blurring closes it (Escape too). On touch (no hover) a tap pins it until an outside tap, as before.
+  const canHover = () => !!window.matchMedia?.("(hover: hover)").matches;
+  let popoverLeaveTimer = null;
+  const maybeCloseHoverPopover = () => {
+    clearTimeout(popoverLeaveTimer);
+    popoverLeaveTimer = setTimeout(() => {
+      if (!ACTIVE_POPOVER || !canHover()) return;
+      if (ACTIVE_INFO_BUTTON?.matches(":hover") || ACTIVE_POPOVER.matches(":hover")) return;
+      closeKpiPopover();
+    }, 140);
+  };
+  tabPanel?.addEventListener("mouseout", (ev) => { if (ev.target.closest?.(".kpi-info-btn")) maybeCloseHoverPopover(); });
+  document.addEventListener("mouseout", (ev) => { if (ACTIVE_POPOVER && ev.target.closest?.(".kpi-popover")) maybeCloseHoverPopover(); });
+  tabPanel?.addEventListener("focusout", (ev) => {
+    if (!ACTIVE_POPOVER || !ev.target.closest?.(".kpi-info-btn")) return;
+    if (ACTIVE_POPOVER.contains(ev.relatedTarget)) return;
+    if (canHover() && ACTIVE_INFO_BUTTON?.matches(":hover")) return; // the pointer is still on the icon: mouseout will close it
+    closeKpiPopover();
+  });
   tabPanel?.addEventListener("mouseover", (ev) => {
     if (!window.matchMedia?.("(hover: hover)").matches) return;
     const btn = ev.target.closest?.(".kpi-info-btn");
     if (!btn) return;
+    clearTimeout(popoverLeaveTimer);
     openKpiPopover(btn, false);
   });
   lastRefreshed?.addEventListener("click", (ev) => { ev.stopPropagation(); toggleFreshPanel(); });
@@ -3249,6 +3695,8 @@ function wireEvents() {
       return;
     }
     if (ev.key !== "Escape") return;
+    if (AGE_BRK) { closeAgeBreakdown(); return; }
+    if (AGE_DLG) { closeAgeingDialog(); return; }
     if (FRESH_PANEL) { closeFreshPanel({ restoreFocus: true }); return; }
     // Escape closes the topmost layer only: bill-detail modal, then a filter drawer/sheet, then an info popover.
     if (isFinanceModalOpen()) {

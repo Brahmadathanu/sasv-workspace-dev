@@ -6,7 +6,7 @@ import fs from "node:fs";
 import { mergeRows, listIsDone, exportLoadedScopeLine, recordCardModel, inlineBarPct } from "../../public/shared/js/executive-intelligence-model.js";
 import { launchBrowser, openDashboard, startServer, calls, setHandler } from "../mis-c1/mis-harness.mjs";
 
-const read = (p) => fs.readFileSync(new URL(`../../${p}`, import.meta.url), "utf8");
+const read = (p) => fs.readFileSync(new URL(`../../${p}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 // ------------------------------------------------------------------------------------------------------------ pure
 test("mergeRows dedupes by identity; a chunk that adds nothing is terminal; short chunk or full total is terminal", () => {
@@ -37,7 +37,7 @@ test("static: no paginator remnants, one pagination-free list path, cache keys a
   const html = read("public/shared/executive-mis-dashboard.html"), js = read("public/shared/js/executive-mis-dashboard.js");
   assert.doesNotMatch(js, /Previous page|Next page|data-sales-page|goListPage|listPaginationHtml|renderListPagination|pagerHtml|PrevPage|NextPage|Showing \$\{/);
   assert.doesNotMatch(js, /Page \$\{formatIntegerIN\(page\)\}/);
-  assert.match(js, /IntersectionObserver/); assert.match(html, /executive-mis-dashboard\.js\?mis-c1=ei-r9-1/); assert.match(js, /executive-intelligence-model\.js\?ei-r9=1/);
+  assert.match(js, /IntersectionObserver/); assert.match(html, /executive-mis-dashboard\.js\?mis-c1=ei-r8-2/); assert.match(js, /executive-intelligence-model\.js\?ei-r8=2/);
   const css = html.slice(html.indexOf("EI-R5 maturity"));
   assert.ok(css.length > 2500); assert.doesNotMatch(css, /#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(/);
 });
@@ -149,7 +149,9 @@ test("record cards: Finance cards open the existing bill drilldown; desktop tabl
 test("integrated visuals: no chart block repeats the KPI chips; bars live inside the indicators; Overview trend is one bounded call; roles hold", { skip: SK }, async () => {
   const { page, context } = await open({ width: 1280, lens: "overview" }); await page.waitForSelector(".ei-overview .kpi-card");
   await page.waitForFunction(() => [...document.querySelectorAll(".kpi-card")].every((c) => !/Loading/.test(c.textContent))); await page.waitForSelector(".ei-trend, .ei-bars-note");
-  assert.equal(await page.$$eval(".ei-overview .ei-bars, .ei-overview .ei-subset", (e) => e.length), 0, "no separate bar block beneath the chips");
+  // R8.6 (owner-directed): each Overview domain card now carries one visual of its own; none may sit outside that visual region, and the figures still live in the indicators.
+  assert.equal(await page.$$eval(".ei-overview .ei-group", (g) => g.every((x) => x.querySelectorAll(":scope > .ei-viz").length === 1)), true, "one visual region per domain card");
+  assert.equal(await page.$$eval(".ei-overview .ei-bars, .ei-overview .ei-subset", (e) => e.filter((x) => !x.closest(".ei-viz")).length), 0, "no bar block outside the visual region");
   assert.ok((await page.$$eval(".kpi-card .ei-dbar", (e) => e.length)) >= 5, "bars are inside the indicators that carry the figures");
   assert.match(await page.getAttribute(".kpi-card:has(.kpi-title:text('Overdue')) .ei-dbar", "aria-label"), /% of work in process \(a subset, not a stage\)/, "bar has a text equivalent");
   assert.equal(await page.$$eval(".kpi-info-btn", (b) => b.length), 10); assert.equal(await page.$$eval(".ei-exec-summary a[data-lens-link]", (a) => a.length), 4);
