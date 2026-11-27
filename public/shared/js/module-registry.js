@@ -107,12 +107,6 @@ export function buildPermissionMap(perms) {
  * - view: can_view only when min_nav_mode is "view" (visible, locked)
  * - none: hidden / no access
  */
-const EXECUTIVE_MODULE_KEY = "executive-mis-dashboard";
-const SALES_VIEWER_MODULE_KEY = "sales-data-viewer";
-function minNavModeOf(moduleLike) {
-  return safeString(typeof moduleLike === "object" ? moduleLike?.minNavMode : "view").toLowerCase() || "view";
-}
-
 export function getModuleAccessLevel(moduleLike, permissionMap) {
   const moduleKey = normalizeModuleKey(
     typeof moduleLike === "string"
@@ -126,15 +120,6 @@ export function getModuleAccessLevel(moduleLike, permissionMap) {
       typeof moduleLike === "object" ? moduleLike?.minNavMode : "view",
     ).toLowerCase() || "view";
   const permission = permissionMap?.[moduleKey];
-  // Narrow Executive Intelligence exception (sales-only entry). The same stable module key `executive-mis-dashboard` is offered to
-  // a holder of module:sales-data-viewer (view) who has NO executive permission, so they can reach the Sales Performance lens.
-  // It never grants "use", never applies to any other module, and leaves every executive check below unchanged. It is a
-  // launcher convenience only: the page and every RPC still enforce authorization server-side.
-  if (moduleKey === EXECUTIVE_MODULE_KEY && !permission?.can_view && !permission?.can_edit) {
-    if (!permissionMap?.[SALES_VIEWER_MODULE_KEY]?.can_view) return "none";
-    const mode = minNavModeOf(moduleLike);
-    return mode === "read" ? "read" : mode !== "edit" ? "view" : "none";
-  }
   if (!permission) return "none";
   if (permission.can_edit) return "use";
 

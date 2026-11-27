@@ -118,7 +118,7 @@ test("Overview: Executive Summary heading and subtle theme fill; the old muted c
 });
 
 test("Freshness (executive): one header indicator holds snapshot, live load and source times; opens, closes and returns focus", { skip: SK }, async () => {
-  const { page } = await overviewOpen({ width: 1280 });
+  const { page } = await overviewOpen({ width: 1280, init: () => { window.__mis.handlers = { ...(window.__mis.handlers || {}), mv_mis_executive_summary: () => ({ data: { mis_summary_id: 1, mv_refreshed_at: "2026-11-26T12:34:00Z" }, error: null }) }; } });
   assert.equal(await page.$eval("#lastRefreshed", (b) => b.tagName), "BUTTON");
   assert.equal(await page.$eval("#lastRefreshed", (b) => b.dataset.state), "ok");
   assert.match(await page.getAttribute("#lastRefreshed", "aria-label"), /^Data freshness: .+\. Show details\.$/);
@@ -129,7 +129,7 @@ test("Freshness (executive): one header indicator holds snapshot, live load and 
   assert.deepEqual(groups, ["Snapshot generation", "Loaded by this page", "Source refresh"]);
   const rows = await page.$$eval("#eiFreshPanel .ei-fresh-row", (r) => r.map((x) => [x.querySelector("dt").textContent, x.querySelector("dd").textContent]));
   assert.equal(rows[0][0], "Executive summary snapshot generated"); assert.match(rows[0][1], /26-Nov-2026/, "actual snapshot timestamp");
-  assert.equal(rows[1][0], "Production counts loaded (live read)"); assert.match(rows[1][1], /26-Nov-2026/);
+  assert.equal(rows[1][0], "Production counts loaded (live read)"); const today = await page.evaluate(() => { const d = new Date(); return ["day","month","year"].map(k => new Intl.DateTimeFormat("en-IN", {[k]: k === "day" ? "2-digit" : k === "month" ? "short" : "numeric"}).format(d)).join("-"); }); assert.ok(rows[1][1].startsWith(today + " "), "live load uses the browser current date");
   assert.equal(rows.at(-1)[1], "Not available", "sales source timestamps are unknown until the sales source view is opened, never invented");
   assert.match(await text(page, "#eiFreshPanel"), /do not show that the underlying import is complete/);
   await page.keyboard.press("Escape"); assert.equal(await page.$("#eiFreshPanel"), null);

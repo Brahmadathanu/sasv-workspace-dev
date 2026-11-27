@@ -8,6 +8,8 @@ on:
       - 'package-lock.json'
       - 'public/shared/js/procurement-execution-console.js'
       - 'public/shared/procurement-execution-console.html'
+      - 'public/shared/sales-viewer.html'
+      - 'public/shared/js/sales-viewer.js'
   push:
     branches: [main]
     paths:

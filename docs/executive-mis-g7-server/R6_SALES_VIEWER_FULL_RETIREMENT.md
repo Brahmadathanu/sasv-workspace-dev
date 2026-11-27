@@ -15,3 +15,6 @@ Owner direction, 25 November 2026: once Sales Viewer replacement is finally acce
 - Verify R3/R5 replacement, permission boundaries, shared costing/reporting regressions, refresh jobs and absence of orphan legacy elements/references after installation. Record live migration identity and receipts; then R7 closure.
 
 Current state: R6 queued; no deletion or retirement performed. R3 remains active; no interruption to current server contract work. G7 7/11; G8 parked; PWL independent.
+
+## Owner override — 27 November 2026
+Do not copy, replicate, repurpose, relabel or automatically transfer Sales Viewer permissions to Executive Intelligence. The owner will decide EI access separately. Existing assignments and targets remain untouched at this stage. Already-deployed R3 launcher and five server authorization consumers still recognize the legacy Sales Viewer permission; removing that inherited-access path is an explicit cutover prerequisite, not a grant migration, and is not performed by this documentation update. Do not merge/deploy retirement as a completed independent-access transition until that boundary has been separately tested and approved.
