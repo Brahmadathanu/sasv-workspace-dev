@@ -1,0 +1,38 @@
+# Claude Code — one bounded G7 offline ETL provenance + test bulk package
+
+**Mode: COPYABLE CLAUDE BULK ASSIGNMENT. NO PRODUCTION IMPLEMENTATION. NO PAID BRANCH. STOP AT DRAFT PR.**
+Repository: `Brahmadathanu/sasv-workspace-dev`.
+Owner-approved MIS G7 C1–C3/T1–T3 policy; current formal progress 6/11 (~55%), G7 OPEN. Completed Costing Suite Electron release is protected. Existing MIS docs draft PR #485 on `docs/executive-mis-workflow-20261119` is documentation-only, must stay open and unmerged. Execute on a *new release-isolated feature branch from current main*, not on operational checkout or #485 branch; validate exact main SHA/clean worktree first. Do not checkout over dirty user files.
+
+## Objective
+
+Advance G7 **offline test/research and review-only documentation** in one self-contained autonomous batch while ChatGPT owns live server checks/owner decisions. Determine the **existing authoritative ingestion/finalization provenance** for Tally FG transfers so MIS can correctly distinguish `SOURCE_PARSED_AND_PUBLISHED` from independently `SNAPSHOT_CERTIFIED_COMPLETE` without inventing a new table, guessing expected chunks or conflating Tally book value and manufacturing COP.
+
+### Known verified live evidence (DO NOT REPEAT LIVE DB CHECKS; READ REPO AND TEST OFFLINE)
+
+- Existing SQL functions **live**: `public.fg_transfer_all_chunks_present(text,date,jsonb)` and `public.finalize_fg_transfer_snapshot(text,date,jsonb)`. Source migration `supabase/migrations/20260806085429_harden_etl_source_validation_and_status_audit.sql`, but live finalizer may have newer version: review later migrations rather than assuming old source authoritative.
+- Finalizer is **a writer** and MUST NEVER BE CALLED. Live definition checks expected keys, matching done FETCH_XML/PARSE_FG_TRANSFER_CHUNK, valid source hash/size/parse count/parse timestamp, one company, contiguous nonoverlapping source date scope starting April and finishing at as-of, then invokes `rebuild_fg_transfer_snapshot_window`.
+- Source tables: `public.tally_fg_transfer_voucher_lines` and `public.tally_fg_transfer_snapshot`, original `source_key`, as-of, store; job provenance `public.etl_jobs.params`; process history `public.etl_job_status_history`.
+- 2026-11-23 inspected snapshot: **8 unique source chunks per store**, all 8 have done FETCH_XML + successful PARSE, structured parse evidence and count parity, scope covers 2026-04-01 through 2026-11-23 with zero gap/overlap. Original lines IK2471 OK631. `fg_transfer_all_chunks_present` with 8 observed keys returned true for IK and OK. Caveat: keys taken **from the published rows** cannot independently prove all planned chunks were expected; a zero-row omitted chunk could evade such a derivation. No durable separate finalization receipt yet demonstrated.
+- Tally Nov1–21 voucher lines at Nov21–23 snapshots 226 original lines, book ₹37,11,850.56. Approved Oct costing run143 has SKU manufacturing COP for 224/226 lines, partial reference ₹39,84,998.88; absent SKU1350 and SKU41. **Do not assert full production value or monthly actual cost.**
+- Current G7 S1/S2 review-only RPC candidate `docs/executive-mis/MIS_G7_S1_S2_CANONICAL_RPC_REPLACEMENT_REVIEW_ONLY_20261122.sql` must **NOT** be installed, merged or promoted. It discloses `snapshot_completeness_status=NOT_CERTIFIED` until independently supported; keep legacy response fields and security. Baseline body `MIS_G7_PRECHANGE_LIVE_RPC_ROLLBACK_BASELINE_20261122.sql` and review packet `MIS_G7_SERVER_CHANGE_REVIEW_PACKET_20261122.md`.
+- Historic `SASV - SIDDHA DAILY WORK LOG` is a separate evidence source, NOT a Tally voucher completion certificate or exemption from product-route logging.
+
+## Single bulk work package
+
+1. **Repository provenance audit — bounded and evidence-oriented.** Trace the code paths creating expected transfer source_key lists, generating FETCH_XML/PARSE jobs, calling `finalize_fg_transfer_snapshot`, and creating/rebuilding voucher snapshots. Search migrations, ETL worker/functions, scheduled orchestrators and tests. Record exact file paths and commit references. Determine whether independent expected-file manifest/checkpoint already exists, where per-store/date finalizer success is recorded, and whether snapshot write's transaction is atomic. Distinguish the live finalizer's stronger evidence checks from `fg_transfer_all_chunks_present` alone. DO NOT create another tracking table or shadow approval mechanism.
+2. **Read-only offline fixture suite.** Build compact repo test harness in `scripts/mis-g7-etl/` using Node built-ins or existing dev deps (no new paid services, no network dependency) to model: eight sequential monthly chunks; missing expected chunk; empty-but-successfully-parsed source file; missing job, rejected 234-byte Tally error fingerprint, parse-status failure, invalid hash/size/count, mismatch of parsed and published counts, scope date gap/overlap, mixed company, retroactive correction same voucher GUID, cancelled/optional and negative transfers. Each negative case must produce `NOT_CERTIFIED`/withheld status, not a false guarantee. Include tests that prevent a fixture with expected keys derived *only from existing rows* from being certified independent-of-manifest.
+3. **Review-only MIS provenance contract.** Produce `docs/executive-mis/MIS_G7_ETL_PROVENANCE_OFFLINE_AUDIT.md` summarizing exact source and writer authority, existing safeguards, coverage exceptions, proposed trustworthy eligibility state and minimal changes needed. If no durable independent finalization receipt exists, design the smallest possible interface/read-model provenance (private, permissioned, not yet installed) using existing metadata; do not silently change G7 candidate or claim source cert without owner authorization.
+4. **Candidate regression audit (no client deployment).** Confirm current `main` client explicitly handles `NO_PREVIOUS_MONTH_APPROVED_COST` and the docs candidate keeps it; ensure new reference fields remain additive, latest approved draft/revocation gates and `NOT_VERIFIED` completion intact. Do not modify client unless offline test requires a *test-only* fixture. No Electron/PWA cache change or release.
+5. **Self-review and stop.** Run offline test command(s), document pass/fail counts and any skipped dependency. Produce diff summary, SHA, affected paths and an exact recommendation for ChatGPT's next server review gate. Push to new non-release branch and create a **draft PR only**. Never merge, deploy, publish, call server write RPCs, change migration files, rewrite costing retention or create a Supabase branch.
+
+## Constraints and authority
+
+- Authorized: repository-only offline tests and audit documentation, draft PR; local read-only file inspection; use existing Node/test dependencies. Avoid broad lint/build if release-sensitive; targeted tests.
+- Forbidden: production SQL, server schema/migration installation, any Supabase calls that mutate, Google Sheet writes, GitHub merge, Electron release/installer, PWA/SW version changes, FG stock backfill, Costing Suite pricing policy or approved-run edits, operational checkout cleanup, unnecessary separate architecture.
+- If existing workflow design contradicts later installed live source, flag **REVIEW REQUIRED**; do not overwrite owner-approved policy or silently redefine G7.
+- Keep output concise: one progress indicator (G7 OPEN 6/11), proof table, tests, draft PR and SHA, unresolved exact blockers, and stop.
+
+## Acceptance
+
+Success is a **single tested offline draft PR** providing traceable existing-ETL chain and negative fixtures, not a production-installed feature. G7 remains OPEN; ChatGPT separately assesses server evidence and seeks owner-specific authorization when ready.
