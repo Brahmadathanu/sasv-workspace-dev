@@ -16,7 +16,7 @@ export const WIDTHS = [320, 375, 390, 430, 520, 768, 1280, 1440];
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json", ".woff2": "font/woff2" };
 
 // In-page Supabase mock. Fixtures are keyed by RPC / table name; tests override via window.__mis.handlers[name].
-const SUPABASE_STUB = `
+export const SUPABASE_STUB = `
 const user = { id: "00000000-0000-0000-0000-000000000000", email: "mis-test@example.invalid" };
 const session = { access_token: "stub", user };
 const mis = (window.__mis = window.__mis || {});
@@ -88,6 +88,17 @@ const fixtures = {
   get_mis_inventory_item_page: (a) => page(searchTotal(a, 60, 5), a, (i) => ({ code: "C" + i, item_name: (a.p_search ? "Iitem " : "Item ") + (i + 1), source_label: a.p_source_kind, qty_value: 1, avg_rate_value: 1, stock_value: 1, category_label: "Cat", subcategory_label: "Sub" })),
   get_mis_finished_goods_sku_page: (a) => page(searchTotal(a, 60, 2), a, (i) => ({ item: (a.p_search ? "Fitem " : "SKU ") + (i + 1), pack_size: 100, uom: "ml", stock_overall: 1, forecast_overall: 1, mos_overall: 1, stock_value_overall: 1, mos_status: ["ZERO_STOCK", "BELOW_1_MONTH", "ONE_TO_THREE_MONTHS", "ABOVE_6_MONTHS", "NORMAL"][i % 5], classification: "Cls" })),
 };
+// Finance ageing (R8.17): synthetic, shape = docs/executive-intelligence-r2/FINANCE_AGEING_SERVER_SPEC.md. Not production figures.
+const ageSplit = (n, w) => { const t = w.reduce((a, b) => a + b, 0); return w.map((x) => Math.round((n * x) / t * 100) / 100); };
+fixtures.get_mis_finance_ageing_summary = (a) => {
+  const b = a.p_bounds || [30, 60, 90];
+  const mk = (group, label, total, w, bills, parties) => ({ group, label, total_amount: total, bucket_amounts: ageSplit(total, w.slice(0, b.length + 1)), bucket_bill_counts: w.slice(0, b.length + 1).map((x) => x * 3), bill_count: bills, party_count: parties, oldest_age_days: 412, weighted_avg_age_days: 71, undated_amount: 0 });
+  return { data: { as_of: a.p_as_of || "2026-11-27", basis: "bill_date", bounds: b, groups: [mk("payables", "Payables — Sundry Creditors", 42408063.89, [30, 24, 18, 12, 9, 7], 410, 120), mk("receivables", "Receivables — Sundry Debtors", 22304842.1, [20, 22, 25, 18, 10, 5], 260, 74)] }, error: null };
+};
+fixtures.get_mis_finance_ageing_party_page = (a) => {
+  const b = a.p_bounds || [30, 60, 90];
+  return page(searchTotal(a, 60, 3), a, (i) => { const tot = 500000 - i * 6000; return { party_name: (a.p_search ? "Match " : "Party ") + (i + 1), mis_group_name: a.p_group_filter === "receivables" ? "Sundry Debtors" : "Sundry Creditors", bill_count: 5 + (i % 7), outstanding_amount_mis_value: tot, signed_outstanding_tally_value: tot, bucket_amounts: ageSplit(tot, [5, 4, 3, 2, 1, 1].slice(0, b.length + 1)), bucket_bill_counts: [2, 1, 1, 1, 0, 0].slice(0, b.length + 1), oldest_age_days: 40 + i * 5, weighted_avg_age_days: 25 + i }; });
+};
 fixtures.v_ei_sales_mtd_summary = fixtures.v_mis_sales_tab_summary;
 fixtures.ei_sales_mtd_product_page = fixtures.get_mis_sales_product_page;
 function respond(kind, name, args, chain) {
@@ -142,7 +153,7 @@ export function startServer() {
 
 // Opens the dashboard with the mock installed on a lens (default Finance, via the URL hash). Resolves once that lens has first rendered unless opts.noWait.
 export async function openDashboard(browser, base, { width = 1280, height = 800, permission = "granted", init, noWait = false, lens = "finance", deviceScaleFactor = 1 } = {}) {
-  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor });
+  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor, timezoneId: "UTC" }); // fixed zone: formatted timestamps do not depend on the machine running the test
   const page = await context.newPage();
   const consoleErrors = [];
   page.on("console", (m) => { if (m.type() === "error") consoleErrors.push(m.text()); });

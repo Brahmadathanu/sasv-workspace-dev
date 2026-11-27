@@ -398,6 +398,31 @@ for (const [file, expectedSha] of wp10) {
     { ...context, headBranch: "feat/pec-s5-client" });
   t2("S5 migration without committed context rejected", [file], [file], null);
 }
-assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), ["supabase/migrations/20261122191542_pec_s5_unified_planning_ind_source_and_pr_reason.sql", "supabase/migrations/20261122174517_pec_jit_plan_indent_balance_once_timeout_fix.sql", "supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql", ...s4horizonguard.map(([file]) => file), ...s4uomguard.map(([file]) => file), ...s4retired.map(([file]) => file), ...s4compat.map(([file]) => file), ...s4e2e.map(([file]) => file), ...s4.map(([file]) => file), ...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact five registered S4 payloads, four WP10 payloads and unchanged legacy server/SW pins");
+// R8 registrations: exact branch + LF SHA-256, no dirty or unrelated exemption.
+const eiR8 = [
+  [
+    "supabase/migrations/20261127144051_ei_r8_finance_ageing.sql",
+    "00586d9900870b91662e65c8122bf486a67a0822e7fc01b575cc41ecbf38868f"
+  ],
+  [
+    "supabase/migrations/20261127154330_ei_guarded_summary_refresh.sql",
+    "ecf90871aaa3c15e06548525092f290193fe398b3f03dfb10250b5f442dcf427"
+  ]
+];
+for (const [file, sha] of eiR8) {
+  const content = fs.readFileSync(file, "utf8");
+  const headBranch = "fix/executive-intelligence-r8-shell";
+  assert.deepEqual(REVIEWED_SERVER_MIGRATIONS[file], {sha256:sha,heads:[headBranch]});
+  assert.equal(createHash("sha256").update(content.replace(/\r\n/g,"\n")).digest("hex"),sha);
+  const ctx = {headBranch, readText:()=>content};
+  t2("R8 exact registered migration accepted: "+file,[file],[],ctx);
+  t2("R8 CRLF checkout accepted: "+file,[file],[],{...ctx,readText:()=>content.replace(/\r\n/g,"\n").replace(/\n/g,"\r\n")});
+  t2("R8 altered migration rejected: "+file,[file],[file],{...ctx,readText:()=>content+"\n-- changed"});
+  t2("R8 wrong branch rejected: "+file,[file],[file],{...ctx,headBranch:"main"});
+  t2("R8 dirty or missing context rejected: "+file,[file],[file],null);
+  t2("R8 unrelated SQL/SW rejected: "+file,[illicit,sw],[illicit,sw],ctx);
+  t2("R8 unreadable payload rejected: "+file,[file],[file],{...ctx,readText:()=>{throw new Error("missing");}});
+}
+assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [...eiR8.map(([file])=>file), "supabase/migrations/20261122191542_pec_s5_unified_planning_ind_source_and_pr_reason.sql", "supabase/migrations/20261122174517_pec_jit_plan_indent_balance_once_timeout_fix.sql", "supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql", ...s4horizonguard.map(([file]) => file), ...s4uomguard.map(([file]) => file), ...s4retired.map(([file]) => file), ...s4compat.map(([file]) => file), ...s4e2e.map(([file]) => file), ...s4.map(([file]) => file), ...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact R8 registrations and unchanged previous server/SW pins");
 
 console.log(`pec-protected-path-guard: ${passed}/${passed} PASS`);

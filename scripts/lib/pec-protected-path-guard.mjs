@@ -25,6 +25,15 @@ export const INTEGRATION_PROTECTED_PATHS = new Set([
 // migration is still rejected. Working-tree (uncommitted) changes are NEVER
 // exempt: callers pass a context only for committed paths.
 export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
+  // R8 intermediate release: exact owner-approved production registrations; never replay.
+  "supabase/migrations/20261127144051_ei_r8_finance_ageing.sql": Object.freeze({
+    sha256: "00586d9900870b91662e65c8122bf486a67a0822e7fc01b575cc41ecbf38868f",
+    heads: Object.freeze(["fix/executive-intelligence-r8-shell"]),
+  }),
+  "supabase/migrations/20261127154330_ei_guarded_summary_refresh.sql": Object.freeze({
+    sha256: "ecf90871aaa3c15e06548525092f290193fe398b3f03dfb10250b5f442dcf427",
+    heads: Object.freeze(["fix/executive-intelligence-r8-shell"]),
+  }),
   // PEC S5 unified planning: owner-authorized live migration version 20261122191542.
   // Exact GitHub source on the named S5 server branch only, LF-SHA256 pinned.
   "supabase/migrations/20261122191542_pec_s5_unified_planning_ind_source_and_pr_reason.sql": Object.freeze({

@@ -12,7 +12,7 @@ import {
 import { launchBrowser, openDashboard, startServer, calls, WIDTHS } from "../mis-c1/mis-harness.mjs";
 
 const root = new URL("../../", import.meta.url);
-const read = (p) => fs.readFileSync(new URL(p, root), "utf8");
+const read = (p) => fs.readFileSync(new URL(p, root), "utf8").replace(/\r\n/g, "\n"); // line-ending neutral: a Windows checkout may hold CRLF
 
 // module-registry.js imports the browser-only Supabase client from a CDN URL; the pure registry logic is loaded with that one import stubbed.
 const { getModuleAccessLevel, buildPermissionMap } = await import(`data:text/javascript;base64,${Buffer.from(read("public/shared/js/module-registry.js").replace(/^import \{ supabase \} from "\.\/supabaseClient\.js";/, "const supabase = null;")).toString("base64")}`);
@@ -393,7 +393,7 @@ test("Typography: every visible text node uses the compact ladder at desktop and
           if (![11, 12, 13, 14, 16, 18].includes(px)) out.set(`${el.className || el.tagName}:${cs.fontSize}`, px);
           // 16px is reserved for hero figures and (on phones) form controls; labels, buttons, tables and notes never inherit it.
           const phoneControl = window.innerWidth <= 640 && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName);
-          if (px === 16 && !phoneControl && !el.closest(".kpi-value, .pv-kpi-value, .ei-metric-value, .production-summary-value, .ei-filter-sheet-head, .ei-drawer-title")) out.set(`inherited16:${el.tagName}.${el.className}`, px);
+          if (px === 16 && !phoneControl && !el.closest(".kpi-value, .pv-kpi-value, .ei-metric-value, .production-summary-value, .ei-filter-sheet-head, .ei-drawer-title, .ei-insight-figure, .ei-cover-value")) out.set(`inherited16:${el.tagName}.${el.className}`, px);
         }
         return [...out.entries()];
       });

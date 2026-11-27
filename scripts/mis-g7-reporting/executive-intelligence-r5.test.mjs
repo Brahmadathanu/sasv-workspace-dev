@@ -9,7 +9,7 @@ import { iconHtml } from "../../public/shared/js/ui-icons.js";
 import { launchBrowser, openDashboard, startServer, calls, WIDTHS } from "../mis-c1/mis-harness.mjs";
 
 const root = new URL("../../", import.meta.url);
-const read = (p) => fs.readFileSync(new URL(p, root), "utf8");
+const read = (p) => fs.readFileSync(new URL(p, root), "utf8").replace(/\r\n/g, "\n");
 
 // ------------------------------------------------------------------------------------------------------------ pure models
 test("freshness model: executive carries snapshot + client load + source refresh; sales-only carries no executive row; states never invent staleness", () => {
@@ -223,7 +223,7 @@ test("Canonical controls: filter, then sort, then search — shared glyphs, one 
   for (const [lens, p] of [["finance", "finance"], ["inventory", "inventory"], ["finished-goods", "fg"]]) {
     const { page } = await open({ lens, width: 1280 }); await page.waitForSelector(`#${p}FilterBtn`);
     const order = await page.$$eval(`.${p}-toolbar > *`, (e) => e.map((x) => x.id || x.className.split(" ")[0]));
-    assert.deepEqual(order, [`${p}FilterWrapper`, `${p}-search-wrap`].map((x) => x), `${lens} order ${order}`);
+    assert.deepEqual(order, [`${p}FilterWrapper`, `${p}-search-wrap`, ...(p === "finance" ? ["financeAgeBtn"] : [])], `${lens} order ${order}`); // R8.17: Finance alone gains the Ageing analysis control, after search
     assert.equal(strip(await page.$eval(`#${p}FilterBtn svg`, (s) => s.outerHTML)), strip(iconHtml("filter", 16)), `${lens} uses the shared filter glyph`);
     assert.equal(strip(await page.$eval(`#${p}Search`, (i) => i.parentElement.querySelector(".ei-search-icon svg").outerHTML)).replace(/width="14" height="14"/, 'width="16" height="16"'), strip(iconHtml("search", 16)));
     const sz = await page.$eval(`#${p}FilterBtn`, (b) => [b.getBoundingClientRect().width, b.getBoundingClientRect().height]); assert.deepEqual(sz, [36, 36], lens);
@@ -292,7 +292,7 @@ test("Summary strips: every metric value is unchanged and the vertical footprint
   const pv = await measure(1280, "production", ".pv-kpi-grid"); assert.equal(pv.t.length, 4); assert.ok(pv.h <= 110, `value strip ${pv.h}`);
   assert.match(pv.t[1], /₹32,04,140\.56.*Partial coverage/); assert.match(pv.t[3], /₹25,00,000\.00.*Tally book basis.*Not reconciled to batch log/, "value, status badge and basis text all retained");
   const pvp = await measure(390, "production", ".pv-kpi-grid"); assert.ok(pvp.h <= 304, /* R7: the reference minimum text size is 12px, so the phone strip is 298px; still no taller than the 304px it was before R5 */ `390 value strip ${pvp.h}px (was 304px)`);
-  const fin = await measure(390, "finance", "#financeMetrics"); assert.ok(fin.h <= 140, `finance ${fin.h}`);
+  const fin = await measure(390, "finance", "#financeMetrics"); assert.ok(fin.h <= 160, `finance ${fin.h}`); /* R8.18 owner-directed tinted position chips: compact one-line rows on phones (was 140px as a strip) */
   const inv = await measure(390, "inventory", "#inventoryScopeNote"); const chartH = 0; inv.h -= chartH; /* the strip itself; the R5 chart card is a separate visual below it */ assert.ok(inv.h <= 345, `inventory ${inv.h}px (was 324px)`);
 });
 

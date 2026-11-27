@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { launchBrowser, openDashboard, startServer, calls } from "../mis-c1/mis-harness.mjs";
 
-const read = (p) => fs.readFileSync(new URL(`../../${p}`, import.meta.url), "utf8");
+const read = (p) => fs.readFileSync(new URL(`../../${p}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const html = read("public/shared/executive-mis-dashboard.html");
 const css = html.slice(html.indexOf("<style>"), html.indexOf("</style>"));
 
@@ -27,7 +27,7 @@ const SK = skip || !browser ? "browser unavailable" : false;
 test.after(async () => { await browser?.close(); srv?.server.close(); });
 const open = (o) => openDashboard(browser, srv.base, { noWait: true, ...o });
 const STUB = "export const createClient=()=>({auth:{getSession:async()=>({data:{session:null}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})},from:()=>({select:()=>Promise.resolve({data:[],error:null})}),rpc:async()=>({data:[],error:null})});";
-const PROPS = ["fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "color", "textTransform", "backgroundColor"];
+const PROPS = ["fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "color", "textTransform", "backgroundColor", "borderRadius", "borderColor"];
 const grab = ([sel, props]) => { const e = [...document.querySelectorAll(sel)].find((x) => x.offsetParent !== null); if (!e) return null; const cs = getComputedStyle(e); return Object.fromEntries(props.map((p) => [p, cs[p]])); };
 async function reference(ctx, path, sel, width = 1280) {
   const page = await ctx.newPage(); await page.setViewportSize({ width, height: 900 });
@@ -40,20 +40,19 @@ test("computed parity: title, subtitle, table header, button and font family equ
   const { page, context } = await open({ width: 1280, lens: "sales" }); await page.waitForSelector(".ei-subnav"); await page.click('[data-sales-view="history"]'); await page.waitForSelector("#salesHistResults th");
   const mine = async (sel) => { const v = await page.evaluate(grab, [sel, PROPS]); assert.ok(v, `EI element ${sel} not found`); return v; };
   const refs = { pec: "/shared/procurement-execution-console.html", stock: "/shared/stock-checker.html", costsheet: "/shared/cost-sheet-review.html" };
-  // title and subtitle: identical in all three references, so they are the canonical module header
-  for (const [name, path] of Object.entries(refs)) {
-    assert.deepEqual(await mine("h1"), await reference(context, path, "h1"), `title vs ${name}`);
-    assert.deepEqual(await mine(".page-sub"), await reference(context, path, ".page-sub"), `subtitle vs ${name}`);
-  }
+  // R8 owner selects Stock & Purchase Explorer as primary shell reference; retain previous table/control comparisons.
+  const explorer = "/shared/stock-purchase-explorer.html";
+  assert.deepEqual(await mine("h1"), await reference(context, explorer, ".spe-page-title, .page-header h1"), "title vs Explorer");
+  assert.deepEqual(await mine(".page-sub"), await reference(context, explorer, ".spe-page-desc, .page-header .hint"), "subtitle vs Explorer");
   // table header: Stock Checker (uppercase variant)
   const th = await mine("#salesHistResults th"), sth = await reference(context, refs.stock, "table th");
   for (const k of ["fontFamily", "fontSize", "fontWeight", "letterSpacing", "textTransform", "color", "backgroundColor"]) assert.equal(th[k], sth[k], `table header ${k} vs Stock Checker`);
   // button: PEC / Cost Sheet Review secondary button
   const b = await mine(".mis-retry-btn"), pb = await reference(context, refs.costsheet, "button.btn, button:not(#homeBtn)");
   for (const k of ["fontFamily", "fontSize", "fontWeight"]) assert.equal(b[k], pb[k], `button ${k} vs Cost Sheet Review`);
-  // primary tab (PEC .tab) vs EI active pill
-  const tab = await mine("#detailTabs .pill.active"), ptab = await reference(context, refs.pec, ".tab, .pill, [role=tab], .tab-btn");
-  for (const k of ["fontFamily", "fontSize", "fontWeight", "color", "backgroundColor"]) assert.equal(tab[k], ptab[k], `primary tab ${k} vs PEC`);
+  // R8.2: primary tab = Explorer segmented tab (.tab-btn.active), the owner-selected primary reference (PEC solid-fill tab retired for EI)
+  const tab = await mine("#detailTabs .pill.active"), ptab = await reference(context, explorer, ".tab-btn.active");
+  for (const k of ["fontFamily", "fontSize", "fontWeight", "color", "backgroundColor", "borderRadius", "borderColor"]) assert.equal(tab[k], ptab[k], `primary tab ${k} vs Explorer`);
   await context.close();
 });
 
@@ -112,5 +111,13 @@ test("keyboard and overflow: focus order reaches HOME, refresh, tabs and a filte
       assert.notEqual(await page.evaluate(() => { document.getElementById("homeBtn").focus(); return getComputedStyle(document.activeElement).outlineStyle; }), "none", "visible focus ring");
     }
     await context.close();
+  }
+});
+
+ test("R8 shell: Explorer responsive outer gutter and header rhythm", { skip: SK }, async () => {
+  for (const [width, expected] of [[1280,"12px 16px"],[768,"12px 16px"],[390,"8px"]]) {
+    const {page,context}=await open({width,lens:"overview"});
+    const s=await page.evaluate(()=>({padding:getComputedStyle(document.body).padding,header:getComputedStyle(document.querySelector(".page-header")).paddingBottom,align:getComputedStyle(document.querySelector(".header-actions")).alignItems,font:getComputedStyle(document.body).fontSize}));
+    assert.deepEqual(s,{padding:expected,header:"10px",align:"center",font:"14px"}); await context.close();
   }
 });

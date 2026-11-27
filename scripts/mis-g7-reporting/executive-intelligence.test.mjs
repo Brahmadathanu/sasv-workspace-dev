@@ -12,7 +12,7 @@ import {
 import { launchBrowser, openDashboard, startServer, calls, WIDTHS } from "../mis-c1/mis-harness.mjs";
 
 const root = new URL("../../", import.meta.url);
-const read = (p) => fs.readFileSync(new URL(p, root), "utf8");
+const read = (p) => fs.readFileSync(new URL(p, root), "utf8").replace(/\r\n/g, "\n");
 const FMT = { currency: (v) => `INR ${v}`, integer: (v) => String(v), date: (v) => String(v) };
 
 // R1 live-receipt shaped summary (docs/executive-mis-g7-server/R1_ACCEPTANCE.md)
@@ -186,7 +186,7 @@ test("no server endpoint is invented: the page touches exactly the pinned set of
   const names = new Set([...js.matchAll(/["']((?:get_mis|v_mis|v_ei|mv_mis|ei)_[a-z_]+)["']/g)].map((m) => m[1]));
   assert.deepEqual([...names].sort(), [
     "ei_facility_sales_scope", "ei_management_alerts", "ei_sales_access", "ei_sales_comparison", "ei_sales_coverage", "ei_sales_dimensions", "ei_sales_exceptions", "ei_sales_history", "ei_sales_mtd_product_page", "ei_sales_refresh_status", "ei_sales_window_totals",
-    "get_mis_finance_party_page", "get_mis_finished_goods_sku_page", "get_mis_inventory_item_page", "get_mis_production_value_summary",
+    "get_mis_finance_ageing_party_page", "get_mis_finance_ageing_summary", "get_mis_finance_party_page", "get_mis_finished_goods_sku_page", "get_mis_inventory_item_page", "get_mis_production_value_summary",
     "mv_mis_executive_summary", "v_ei_sales_mtd_summary", "v_mis_batch_pipeline", "v_mis_finance_outstanding_detail", "v_mis_finance_tab_summary", "v_mis_finished_goods_tab_summary",
     "v_mis_inventory_tab_summary",
   ]);

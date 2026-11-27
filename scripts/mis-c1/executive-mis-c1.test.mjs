@@ -14,8 +14,8 @@ import { fileURLToPath } from "node:url";
 import { WIDTHS, calls, launchBrowser, openDashboard, setHandler, startServer } from "./mis-harness.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const html = fs.readFileSync(path.join(root, "public/shared/executive-mis-dashboard.html"), "utf8");
-const js = fs.readFileSync(path.join(root, "public/shared/js/executive-mis-dashboard.js"), "utf8");
+const html = fs.readFileSync(path.join(root, "public/shared/executive-mis-dashboard.html"), "utf8").replace(/\r\n/g, "\n");
+const js = fs.readFileSync(path.join(root, "public/shared/js/executive-mis-dashboard.js"), "utf8").replace(/\r\n/g, "\n");
 
 // ---------------------------------------------------------------- static contracts (always run)
 test("server contracts are consumed unchanged (names and parameters)", () => {
@@ -23,13 +23,13 @@ test("server contracts are consumed unchanged (names and parameters)", () => {
     "mv_mis_executive_summary", "v_mis_finance_tab_summary", "get_mis_finance_party_page", "v_ei_sales_mtd_summary",
     "ei_sales_mtd_product_page", "v_mis_inventory_tab_summary", "get_mis_inventory_item_page",
     "v_mis_finished_goods_tab_summary", "get_mis_finished_goods_sku_page", "v_mis_batch_pipeline",
-    "get_mis_production_value_summary",
+    "get_mis_production_value_summary", "get_mis_finance_ageing_party_page", "get_mis_finance_ageing_summary",
   ]) assert.ok(js.includes(`"${obj}"`), obj);
   for (const p of ["p_group_filter", "p_search", "p_limit", "p_offset", "p_source_kind", "p_mos_filter"]) assert.ok(js.includes(p), p);
   // The FG filter value stays `shaded`; only the label is "Same IK/OK MRP".
   assert.match(js, /value: "shaded", label: "Same IK\/OK MRP"/);
   assert.ok(!/Shaded</.test(js));
-  assert.equal(/\.rpc\(\s*"get_mis_(?!finance_party_page|sales_product_page|inventory_item_page|finished_goods_sku_page|production_value_summary)/.test(js), false);
+  assert.equal(/\.rpc\(\s*"get_mis_(?!finance_party_page|finance_ageing_party_page|finance_ageing_summary|sales_product_page|inventory_item_page|finished_goods_sku_page|production_value_summary)/.test(js), false);
 });
 
 test("no polling or timers were added (only the existing 60 s freshness label tick)", () => {
@@ -151,14 +151,14 @@ test("Finance: filter, search, infinite scroll, server totals, modal", { skip },
     const row = page.locator("#financePartyTableWrap tbody tr").first();
     await row.focus();
     await page.keyboard.press("Enter");
-    await page.waitForSelector("#financeModalContent .finance-table");
+    await page.waitForFunction(() => [...document.querySelectorAll("#financeModalContent .finance-table, #financeModalContent .fin-bill-card")].some((e) => e.offsetParent !== null)); /* phones show the bills as a card list */
     assert.equal(await page.evaluate(() => document.activeElement?.id), "financeModalClose");
     await page.keyboard.press("Escape");
     assert.equal(await page.$eval("#financeModalOverlay", (e) => e.classList.contains("hidden")), true);
     assert.equal(await page.evaluate(() => document.activeElement?.tagName), "TR");
     // click-open and overlay-click close
     await row.click();
-    await page.waitForSelector("#financeModalContent .finance-table");
+    await page.waitForFunction(() => [...document.querySelectorAll("#financeModalContent .finance-table, #financeModalContent .fin-bill-card")].some((e) => e.offsetParent !== null)); /* phones show the bills as a card list */
     await page.click("#financeModalClose");
     assert.equal(await page.$eval("#financeModalOverlay", (e) => e.getAttribute("aria-hidden")), "true");
   } finally { await page.context().close(); }
@@ -1050,7 +1050,7 @@ for (const width of WIDTHS) {
 
       // Finance modal fits the viewport, closes on Escape, restores focus
       await page.locator("#financePartyTableWrap tbody tr, #financePartyTableWrap .ei-rc-btn").first().click(); // phones: the card opens the same bill dialog
-      await page.waitForSelector("#financeModalContent .finance-table");
+      await page.waitForFunction(() => [...document.querySelectorAll("#financeModalContent .finance-table, #financeModalContent .fin-bill-card")].some((e) => e.offsetParent !== null)); /* phones show the bills as a card list */
       const [mw] = await rects(".modal-window");
       assert.ok(mw.l >= 0 && mw.r <= vw + 0.5, `modal clipped ${JSON.stringify(mw)}`);
       await page.keyboard.press("Escape");

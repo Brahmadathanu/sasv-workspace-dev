@@ -38,9 +38,16 @@ export const EI_R7_BRANCH = "fix/executive-intelligence-r7-design-parity";
 export const EI_R7_CLIENT_BLOBS = Object.freeze({
   "public/shared/executive-mis-dashboard.html": "2080c2b5f8c130d85b683e46c1242e0b86fb0380"
 });
+export const EI_R8_BRANCH = "fix/executive-intelligence-r8-shell";
+// R8 intermediate release (27 Nov 2026): the three exact page-local client blobs; no registry, permission or service-worker change.
+export const EI_R8_CLIENT_BLOBS = Object.freeze({
+  "public/shared/executive-mis-dashboard.html": "98a10d4bc043c8bb3472d998e42d2dcb2673ed11",
+  "public/shared/js/executive-mis-dashboard.js": "8fef6d45af965a665b6419aa5474d29407a8f0cb",
+  "public/shared/js/executive-intelligence-model.js": "292ab388f06cd056eb1188e8062ae6954f419009"
+});
 export const EI_REGISTRY_BASE = "f78f3ba6d1a403cf4b588afc5d285f48df962361";
 export function eiClientApproved(path, branch, committedBlob, workingBlob) {
- const pins = branch === EI_BRANCH ? EI_CLIENT_BLOBS : branch === EI_R5_BRANCH ? EI_R5_CLIENT_BLOBS : branch === EI_MATURITY_BRANCH ? EI_MATURITY_CLIENT_BLOBS : branch === EI_COSMETIC_BRANCH ? EI_COSMETIC_CLIENT_BLOBS : branch === EI_R6_BRANCH ? EI_R6_CLIENT_BLOBS : branch === EI_R7_BRANCH ? EI_R7_CLIENT_BLOBS : null;
+ const pins = branch === EI_BRANCH ? EI_CLIENT_BLOBS : branch === EI_R5_BRANCH ? EI_R5_CLIENT_BLOBS : branch === EI_MATURITY_BRANCH ? EI_MATURITY_CLIENT_BLOBS : branch === EI_COSMETIC_BRANCH ? EI_COSMETIC_CLIENT_BLOBS : branch === EI_R6_BRANCH ? EI_R6_CLIENT_BLOBS : branch === EI_R7_BRANCH ? EI_R7_CLIENT_BLOBS : branch === EI_R8_BRANCH ? EI_R8_CLIENT_BLOBS : null;
  return !!pins && Object.hasOwn(pins,path) && committedBlob === pins[path] && workingBlob === committedBlob;
 }
 export function eiRegistryApproved(path, branch, committedBlob, workingBlob, baseBlob) {
@@ -56,8 +63,11 @@ export const EI_SERVER_BLOBS = Object.freeze({
   "supabase/tests/mis_g7/ei_r3_r4_access_pg.test.mjs": "f35c094c2e9b8fbafeb15c37023250cd4303130c",
   "supabase/tests/mis_g7/ei_r3_r4_extended_pg.test.mjs": "93d6db88d14d28214ed619fac3123abbc74e75a4",
   "supabase/tests/mis_g7/ei_r3_r4_pg.test.mjs": "3f4cc4a84c38e048a3a59e7a2d6d7ae60234a64a",
-  "supabase/tests/mis_g7/mis_r1_reporting_pg.test.mjs": "6928a12ebd84ded192343df4af68740083c09c9b"
+  "supabase/tests/mis_g7/mis_r1_reporting_pg.test.mjs": "6928a12ebd84ded192343df4af68740083c09c9b",
+  // R8 server registrations, already applied in production (do not replay): Finance ageing and the guarded summary refresh.
+  "supabase/migrations/20261127144051_ei_r8_finance_ageing.sql": "8342ff9e9e77085f2cf5398e7e9f993a09628d1d",
+  "supabase/migrations/20261127154330_ei_guarded_summary_refresh.sql": "d754470b5797bd1928e65e624365382a2cdedce6"
 });
 export function eiServerApproved(path,branch,committedBlob,workingBlob) {
- return [EI_BRANCH,"fix/executive-intelligence-r1-server"].includes(branch) && Object.hasOwn(EI_SERVER_BLOBS,path) && committedBlob===EI_SERVER_BLOBS[path] && workingBlob===committedBlob;
+ return [EI_BRANCH,"fix/executive-intelligence-r1-server",EI_R8_BRANCH].includes(branch) && Object.hasOwn(EI_SERVER_BLOBS,path) && committedBlob===EI_SERVER_BLOBS[path] && workingBlob===committedBlob;
 }

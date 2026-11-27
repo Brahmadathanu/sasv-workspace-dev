@@ -687,3 +687,66 @@ export function recordCardModel(labels, texts, spec) {
 export function inlineBarPct(value, max) {
   return hasValue(value) && Number(value) >= 0 && Number(max) > 0 ? (Number(value) === 0 ? 0 : Math.max(2, Math.round((Number(value) / Number(max)) * 100))) : null;
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Finance ageing (R8.17): pure rules shared by the settings dialog, the bill dialog and the parity fixtures. They mirror the server rule in
+// docs/executive-intelligence-r2/FINANCE_AGEING_SERVER_SPEC.md and the installed get_mis_finance_ageing_* contracts.
+// ---------------------------------------------------------------------------------------------------------------------
+export const AGE_MAX_BOUNDS = 5;
+export const ageLabels = (bounds) => bounds.map((v, i) => `${i ? bounds[i - 1] + 1 : 0}–${v}`).concat([`Over ${bounds[bounds.length - 1]}`]);
+export function parseAgeBounds(text) {
+  const parts = String(text || "").split(/[\s,;]+/).filter(Boolean);
+  if (!parts.length || parts.length > AGE_MAX_BOUNDS) return { error: `Enter 1 to ${AGE_MAX_BOUNDS} day limits, for example 30, 60, 90.` };
+  const nums = parts.map(Number);
+  if (nums.some((n) => !Number.isInteger(n) || n < 1 || n > 3650)) return { error: "Day limits must be whole numbers from 1 to 3650." };
+  for (let i = 1; i < nums.length; i++) if (nums[i] <= nums[i - 1]) return { error: "Day limits must increase from left to right." };
+  return { bounds: nums };
+}
+export function parseAgeInt(text) {
+  const t = String(text ?? "").trim();
+  if (t === "") return { value: null };
+  const n = Number(t);
+  return Number.isInteger(n) && n >= 0 && n <= 36500 ? { value: n } : { error: "Age limits must be whole numbers of days, zero or more." };
+}
+const AGE_MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+// D-Mon-YY / D-Mon-YYYY (English month abbreviations; two-digit years are 2000+). An impossible calendar date (31-Feb-26) is NOT a date.
+export function parseBillDate(text) {
+  const m = /^\s*(\d{1,2})-([A-Za-z]{3})-(\d{2}|\d{4})\s*$/.exec(String(text || ""));
+  if (!m || !(m[2].toLowerCase() in AGE_MONTHS)) return null;
+  const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+  const mo = AGE_MONTHS[m[2].toLowerCase()], day = Number(m[1]);
+  const d = new Date(Date.UTC(y, mo, day));
+  return d.getUTCFullYear() === y && d.getUTCMonth() === mo && d.getUTCDate() === day ? d.getTime() : null;
+}
+export function billAge(text, asOfISO) {
+  const d = parseBillDate(text);
+  const a = Date.parse(asOfISO);
+  return d === null || !Number.isFinite(a) ? null : Math.round((a - d) / 86400000);
+}
+// Band 0 holds age <= first limit (including bills dated after the as-of date); the last band holds everything older than the last limit.
+export const ageBandIndex = (age, bounds) => { if (age === null) return -1; const i = bounds.findIndex((b) => age <= b); return i < 0 ? bounds.length : i; };
+// A line without a bill reference, or an explicit on-account marker, has no bill to age: it is undated.
+export const isUnreferencedBill = (ref) => { const t = String(ref ?? "").trim(); return t === "" || /^on[\s-]*account\b/i.test(t); };
+// Ages one party's bills exactly as the server does: undated bills (bad/missing date, no reference or on-account) survive any age range;
+// dated bills outside [min, max] (inclusive) are dropped; the surviving signed amounts are oriented by the sign of their NET (a net of zero keeps
+// the sign as is), independently per party; oriented amounts are banded. Individual bills are never forced to absolute values.
+export function ageBillsForParty(bills, { asOf, bounds, min = null, max = null }) {
+  const aged = (bills || []).map((b) => {
+    const amount = Number(b.outstanding_amount_tally_value);
+    const age = isUnreferencedBill(b.bill_ref) ? null : billAge(b.bill_date_text, asOf);
+    return { ...b, amount: Number.isFinite(amount) ? amount : 0, age };
+  });
+  const kept = aged.filter((b) => b.age === null || ((min === null || b.age >= min) && (max === null || b.age <= max)));
+  const net = kept.reduce((a, b) => a + b.amount, 0);
+  const orient = net < 0 ? -1 : 1;
+  const bands = bounds.concat([0]).map(() => ({ amount: 0, count: 0 }));
+  const undated = { amount: 0, count: 0 };
+  const rows = kept.map((b) => {
+    const oriented = b.amount * orient;
+    const band = b.age === null ? -1 : ageBandIndex(b.age, bounds);
+    if (band < 0) { undated.amount += oriented; undated.count += 1; } else { bands[band].amount += oriented; bands[band].count += 1; }
+    return { ...b, oriented, band };
+  });
+  rows.sort((x, y) => (y.age ?? -Infinity) - (x.age ?? -Infinity));
+  return { net, orient, bands, undated, rows };
+}
