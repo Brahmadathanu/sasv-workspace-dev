@@ -25,3 +25,6 @@ Owner overrode legacy permission continuity: no copying, relabeling, repurposing
 
 ## R7 owner direction — 27 November 2026
 Visual parity gate REOPENED, functional layout approval retained. Stable publication held pending R7. Claude owns consolidated client parity, validation, merge, exact-main candidate and guarded stable publication under owner instruction. See [R7 assignment](R7_CLAUDE_DESIGN_PARITY_RELEASE_ASSIGNMENT.md). Earlier candidate builds superseded. R6 database retirement remains separate and blocked on updated client acceptance. No permission changes.
+
+## R7 outcome — 27 November 2026
+Design-language parity merged (PR #546, main `6babbdd9`) and stable **v6.6.0** published from that exact commit (build run 45993005118, publish run 45993646580): see [R7 receipt](R7_DESIGN_PARITY_RECEIPT_20261127.md). Owner production visual acceptance, hosted PWA check and supported-client update acceptance remain open; R6 database retirement remains separate.
