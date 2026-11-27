@@ -40,11 +40,10 @@ test("computed parity: title, subtitle, table header, button and font family equ
   const { page, context } = await open({ width: 1280, lens: "sales" }); await page.waitForSelector(".ei-subnav"); await page.click('[data-sales-view="history"]'); await page.waitForSelector("#salesHistResults th");
   const mine = async (sel) => { const v = await page.evaluate(grab, [sel, PROPS]); assert.ok(v, `EI element ${sel} not found`); return v; };
   const refs = { pec: "/shared/procurement-execution-console.html", stock: "/shared/stock-checker.html", costsheet: "/shared/cost-sheet-review.html" };
-  // title and subtitle: identical in all three references, so they are the canonical module header
-  for (const [name, path] of Object.entries(refs)) {
-    assert.deepEqual(await mine("h1"), await reference(context, path, "h1"), `title vs ${name}`);
-    assert.deepEqual(await mine(".page-sub"), await reference(context, path, ".page-sub"), `subtitle vs ${name}`);
-  }
+  // R8 owner selects Stock & Purchase Explorer as primary shell reference; retain previous table/control comparisons.
+  const explorer = "/shared/stock-purchase-explorer.html";
+  assert.deepEqual(await mine("h1"), await reference(context, explorer, ".spe-page-title, .page-header h1"), "title vs Explorer");
+  assert.deepEqual(await mine(".page-sub"), await reference(context, explorer, ".spe-page-desc, .page-header .hint"), "subtitle vs Explorer");
   // table header: Stock Checker (uppercase variant)
   const th = await mine("#salesHistResults th"), sth = await reference(context, refs.stock, "table th");
   for (const k of ["fontFamily", "fontSize", "fontWeight", "letterSpacing", "textTransform", "color", "backgroundColor"]) assert.equal(th[k], sth[k], `table header ${k} vs Stock Checker`);
@@ -112,5 +111,13 @@ test("keyboard and overflow: focus order reaches HOME, refresh, tabs and a filte
       assert.notEqual(await page.evaluate(() => { document.getElementById("homeBtn").focus(); return getComputedStyle(document.activeElement).outlineStyle; }), "none", "visible focus ring");
     }
     await context.close();
+  }
+});
+
+ test("R8 shell: Explorer responsive outer gutter and header rhythm", { skip: SK }, async () => {
+  for (const [width, expected] of [[1280,"14px 16px 16px"],[768,"10px 12px 12px"],[390,"8px 8px 10px"]]) {
+    const {page,context}=await open({width,lens:"overview"});
+    const s=await page.evaluate(()=>({padding:getComputedStyle(document.body).padding,header:getComputedStyle(document.querySelector(".page-header")).paddingBottom,align:getComputedStyle(document.querySelector(".header-actions")).alignItems,font:getComputedStyle(document.body).fontSize}));
+    assert.deepEqual(s,{padding:expected,header:"10px",align:"center",font:"14px"}); await context.close();
   }
 });

@@ -38,9 +38,11 @@ export const EI_R7_BRANCH = "fix/executive-intelligence-r7-design-parity";
 export const EI_R7_CLIENT_BLOBS = Object.freeze({
   "public/shared/executive-mis-dashboard.html": "2080c2b5f8c130d85b683e46c1242e0b86fb0380"
 });
+export const EI_R8_BRANCH = "fix/executive-intelligence-r8-shell";
+export const EI_R8_CLIENT_BLOBS = Object.freeze({"public/shared/executive-mis-dashboard.html":"53cc061a1ba895908057a40fe25d400eb6a332df"});
 export const EI_REGISTRY_BASE = "f78f3ba6d1a403cf4b588afc5d285f48df962361";
 export function eiClientApproved(path, branch, committedBlob, workingBlob) {
- const pins = branch === EI_BRANCH ? EI_CLIENT_BLOBS : branch === EI_R5_BRANCH ? EI_R5_CLIENT_BLOBS : branch === EI_MATURITY_BRANCH ? EI_MATURITY_CLIENT_BLOBS : branch === EI_COSMETIC_BRANCH ? EI_COSMETIC_CLIENT_BLOBS : branch === EI_R6_BRANCH ? EI_R6_CLIENT_BLOBS : branch === EI_R7_BRANCH ? EI_R7_CLIENT_BLOBS : null;
+ const pins = branch === EI_BRANCH ? EI_CLIENT_BLOBS : branch === EI_R5_BRANCH ? EI_R5_CLIENT_BLOBS : branch === EI_MATURITY_BRANCH ? EI_MATURITY_CLIENT_BLOBS : branch === EI_COSMETIC_BRANCH ? EI_COSMETIC_CLIENT_BLOBS : branch === EI_R6_BRANCH ? EI_R6_CLIENT_BLOBS : branch === EI_R7_BRANCH ? EI_R7_CLIENT_BLOBS : branch === EI_R8_BRANCH ? EI_R8_CLIENT_BLOBS : null;
  return !!pins && Object.hasOwn(pins,path) && committedBlob === pins[path] && workingBlob === committedBlob;
 }
 export function eiRegistryApproved(path, branch, committedBlob, workingBlob, baseBlob) {
