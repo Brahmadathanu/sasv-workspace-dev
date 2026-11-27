@@ -18,22 +18,23 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - name: Fetch main for protected-file comparison
         run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
-      - name: Isolated Chromium dependency
+      - name: Isolated Chromium and WebKit dependencies
         run: |
           echo "NODE_PATH=$RUNNER_TEMP/eideps/node_modules" >> "$GITHUB_ENV"
           npm install --prefix "$RUNNER_TEMP/eideps" --no-save --no-audit --no-fund --ignore-scripts playwright@1.62.1
-          "$RUNNER_TEMP/eideps/node_modules/.bin/playwright" install --with-deps chromium
+          "$RUNNER_TEMP/eideps/node_modules/.bin/playwright" install --with-deps chromium webkit
       - name: Full reporting and C1 regression (synthetic, no live writes)
         shell: bash
         run: |
           set -euo pipefail
           node -e "const p=require('playwright'); if (!require('fs').existsSync(p.chromium.executablePath())) throw Error('Chromium missing')"
-          node --test scripts/mis-g7-reporting/*.test.mjs scripts/mis-c1/*.test.mjs | tee "$RUNNER_TEMP/ei-regression.log"
+          EI_N1_SCREENSHOTS="$RUNNER_TEMP/ei-n1-screenshots" EI_PROTECTED_BASE=${{ github.event.pull_request.base.sha }} node --test --test-reporter=tap scripts/mis-g7-reporting/*.test.mjs scripts/mis-c1/*.test.mjs | tee "$RUNNER_TEMP/ei-regression.log"
           grep -Eq '^# pass [1-9][0-9]+' "$RUNNER_TEMP/ei-regression.log"
           if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/ei-regression.log"; then exit 1; fi
       - name: Preserve regression evidence
@@ -41,5 +42,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ei-client-regression
-          path: ${{ runner.temp }}/ei-regression.log
+          path: |
+            ${{ runner.temp }}/ei-regression.log
+            ${{ runner.temp }}/ei-n1-screenshots/
           if-no-files-found: warn

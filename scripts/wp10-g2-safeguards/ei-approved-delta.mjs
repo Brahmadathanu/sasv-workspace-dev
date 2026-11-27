@@ -45,9 +45,15 @@ export const EI_R8_CLIENT_BLOBS = Object.freeze({
   "public/shared/js/executive-mis-dashboard.js": "8fef6d45af965a665b6419aa5474d29407a8f0cb",
   "public/shared/js/executive-intelligence-model.js": "292ab388f06cd056eb1188e8062ae6954f419009"
 });
+// R8 narrow-screen correction: allow only the two page-local client blobs on the N1 branch.
+const EI_R8_N1_BRANCH = "fix/ei-r8-narrow-screen-n1";
+const EI_R8_N1_CLIENT_BLOBS = Object.freeze({
+  "public/shared/executive-mis-dashboard.html": "73cc5ff03d7f6f8b1ebf187acc28c885effa65ac",
+  "public/shared/js/executive-mis-dashboard.js": "bb00be62f073530676e3d93dc08f21ab80943608",
+});
 export const EI_REGISTRY_BASE = "f78f3ba6d1a403cf4b588afc5d285f48df962361";
 export function eiClientApproved(path, branch, committedBlob, workingBlob) {
- const pins = branch === EI_BRANCH ? EI_CLIENT_BLOBS : branch === EI_R5_BRANCH ? EI_R5_CLIENT_BLOBS : branch === EI_MATURITY_BRANCH ? EI_MATURITY_CLIENT_BLOBS : branch === EI_COSMETIC_BRANCH ? EI_COSMETIC_CLIENT_BLOBS : branch === EI_R6_BRANCH ? EI_R6_CLIENT_BLOBS : branch === EI_R7_BRANCH ? EI_R7_CLIENT_BLOBS : branch === EI_R8_BRANCH ? EI_R8_CLIENT_BLOBS : null;
+ const pins = branch === EI_BRANCH ? EI_CLIENT_BLOBS : branch === EI_R5_BRANCH ? EI_R5_CLIENT_BLOBS : branch === EI_MATURITY_BRANCH ? EI_MATURITY_CLIENT_BLOBS : branch === EI_COSMETIC_BRANCH ? EI_COSMETIC_CLIENT_BLOBS : branch === EI_R6_BRANCH ? EI_R6_CLIENT_BLOBS : branch === EI_R7_BRANCH ? EI_R7_CLIENT_BLOBS : branch === EI_R8_BRANCH ? EI_R8_CLIENT_BLOBS : branch === EI_R8_N1_BRANCH ? EI_R8_N1_CLIENT_BLOBS : null;
  return !!pins && Object.hasOwn(pins,path) && committedBlob === pins[path] && workingBlob === committedBlob;
 }
 export function eiRegistryApproved(path, branch, committedBlob, workingBlob, baseBlob) {
