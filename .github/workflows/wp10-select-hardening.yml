@@ -1,0 +1,43 @@
+name: WP10 classification SELECT hardening (disposable PostgreSQL)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/wp10-select-hardening.yml'
+      - 'scripts/wp10-select-hardening/**'
+      - 'scripts/wp08-g2-0-shared-master-data/pg-harness.mjs'
+      - 'docs/master-data-costing/WP10_CLASSIFICATION_SELECT_HARDENING_UNAPPLIED_SQL/**'
+      # direct readers of the four tables are pinned: any shipped client source can add one
+      - 'js/**'
+      - 'public/shared/js/**'
+      - 'electron/**'
+      - 'main.js'
+      - 'preload.js'
+      - '*.html'
+      - 'public/shared/*.html'
+
+permissions:
+  contents: read
+
+jobs:
+  select-hardening:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install disposable PostgreSQL (local throw-away cluster only; never Supabase)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-16 postgresql-client-16
+          node --input-type=module -e "import {pgAvailable} from './scripts/wp08-g2-0-shared-master-data/pg-harness.mjs'; if (!pgAvailable()) throw Error('PostgreSQL unavailable; refusing a skipped fixture PASS');"
+      - name: Proposed SELECT-hardening SQL on disposable fixtures (Editor / View-only / No-access / module readers)
+        run: |
+          set -euo pipefail
+          node --test scripts/wp10-select-hardening/select-hardening.test.mjs | tee "$RUNNER_TEMP/sh.log"
+          if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/sh.log"; then exit 1; fi
+          grep -Eq '^# pass [1-9]' "$RUNNER_TEMP/sh.log"
