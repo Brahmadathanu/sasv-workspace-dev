@@ -1,0 +1,123 @@
+name: Costing S3F S3G full-size synthetic archive restore PG17
+on:
+  pull_request:
+    paths:
+      - "docs/master-data-costing/tools/**"
+      - "docs/master-data-costing/sql/route2/**"
+      - "docs/master-data-costing/sql/sec01/**"
+      - "docs/master-data-costing/sql/S3L_SYNTHETIC_PG17_FIXTURE.sql"
+      - ".github/workflows/costing-s3f-s3g-archive-pg17.yml"
+permissions:
+  contents: read
+jobs:
+  fullsize-archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture_only
+          POSTGRES_DB: s3f_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d s3f_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install existing pg dependency without install scripts
+        run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+      - name: Full-size synthetic run 87 without production data
+        env:
+          PGPASSWORD: fixture_only
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: s3f_fixture
+        run: |
+          set -euo pipefail
+          sed -e 's/generate_series(1,1100)/generate_series(1,108982)/g' -e 's/(3001,122,/(300001,122,/g' -e 's/(3002,153,/(300002,153,/g' docs/master-data-costing/sql/S3L_SYNTHETIC_PG17_FIXTURE.sql > "$RUNNER_TEMP/archive-fixture.sql"
+          psql -X -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/archive-fixture.sql" > "$RUNNER_TEMP/pg-fixture-install.txt"
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM costing.marketing_signed_billed_sales_evidence_snapshot WHERE refresh_run_id=87")" = 108982
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM costing.marketing_regional_sales_evidence_snapshot WHERE refresh_run_id=87")" = 108982
+      - name: Archive and typed temporary restore with SHA validation
+        env:
+          SASV_ARCHIVE_DATABASE_URL: postgresql://postgres:fixture_only@127.0.0.1:5432/s3f_fixture
+          SASV_ISOLATED_STAGE_DATABASE_URL: postgresql://postgres:fixture_only@127.0.0.1:5432/s3f_fixture
+          SASV_STAGE_RESTORE_ATTESTATION: ISOLATED_STAGE_RESTORE_RUN87_NOT_PRODUCTION
+          PGPASSWORD: fixture_only
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: s3f_fixture
+        run: |
+          set -euo pipefail
+          node --test docs/master-data-costing/tools/archive-run87.test.mjs docs/master-data-costing/tools/restore-verify-run87.test.mjs
+          node docs/master-data-costing/tools/archive-run87.mjs --run-id 87 --out "$RUNNER_TEMP/run87-archive" --page-size 500
+          node docs/master-data-costing/tools/verify-run87.mjs "$RUNNER_TEMP/run87-archive" | tee "$RUNNER_TEMP/archive-verification.txt"
+          grep -q '"offlineDigestVerified":true' "$RUNNER_TEMP/archive-verification.txt"
+          node docs/master-data-costing/tools/restore-verify-run87.mjs "$RUNNER_TEMP/run87-archive" | tee "$RUNNER_TEMP/restore-verification.txt"
+          grep -q '"isolatedTempRestoreVerified": true' "$RUNNER_TEMP/restore-verification.txt"
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM costing.marketing_signed_billed_sales_evidence_snapshot WHERE refresh_run_id=87")" = 108982
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM costing.marketing_regional_sales_evidence_snapshot WHERE refresh_run_id=87")" = 108982
+          # S3N catalog-driven direct-FK archive: includes keyless
+          # designation relation (zero rows for run 87 in this fixture).
+          psql -X -v ON_ERROR_STOP=1 -f docs/master-data-costing/sql/S3N_SYNTHETIC_64_TABLE_TOPOLOGY_PG17.sql > "$RUNNER_TEMP/s3n-topology.txt"
+          node docs/master-data-costing/tools/archive-run87-direct-fks.mjs --run-id 87 --out "$RUNNER_TEMP/direct-fk-archive" --expected-relations 64 | tee "$RUNNER_TEMP/direct-fk-export.txt"
+          node docs/master-data-costing/tools/verify-run87-direct-fks.mjs "$RUNNER_TEMP/direct-fk-archive" | tee "$RUNNER_TEMP/direct-fk-verify.txt"
+          grep -q '"relationCount":64' "$RUNNER_TEMP/direct-fk-verify.txt"
+          grep -q '"verifiedRows":217964' "$RUNNER_TEMP/direct-fk-verify.txt"
+          node docs/master-data-costing/tools/restore-verify-run87-direct-fks.mjs "$RUNNER_TEMP/direct-fk-archive" | tee "$RUNNER_TEMP/direct-fk-restored.txt"
+          grep -q '"typedTempRestoreVerified":true' "$RUNNER_TEMP/direct-fk-restored.txt"
+          grep -q '"relationCount":64' "$RUNNER_TEMP/direct-fk-restored.txt"
+          grep -q '"verifiedRows":217964' "$RUNNER_TEMP/direct-fk-restored.txt"
+          echo S3P_PG17_64_DIRECT_RELATION_TYPED_RESTORE_PASS
+          # S3S: FK-preserving restore into real tables of an isolated copy of the schema.
+          psql -X -v ON_ERROR_STOP=1 -d postgres -c "CREATE DATABASE s3f_restore TEMPLATE s3f_fixture"
+          psql -X -v ON_ERROR_STOP=1 -d s3f_restore -q -c "DO \$\$ DECLARE r record; BEGIN FOR r IN SELECT format('%I.%I',schemaname,tablename) t FROM pg_tables WHERE schemaname='costing' LOOP EXECUTE 'TRUNCATE '||r.t||' CASCADE'; END LOOP; END \$\$"
+          SASV_ISOLATED_STAGE_DATABASE_URL="postgresql://postgres:fixture_only@127.0.0.1:5432/s3f_restore"             node docs/master-data-costing/tools/restore-full-run87-direct-fks.mjs "$RUNNER_TEMP/direct-fk-archive" | tee "$RUNNER_TEMP/s3s-restore.txt"
+          grep -q '"restoredRows":217964' "$RUNNER_TEMP/s3s-restore.txt"
+          grep -q '"internalFkChecked":62,"internalFkOrphanRows":0' "$RUNNER_TEMP/s3s-restore.txt"
+          grep -q '"rowLevelDigestsVerified":true' "$RUNNER_TEMP/s3s-restore.txt"
+          echo S3S_PG17_FK_PRESERVING_REAL_TABLE_RESTORE_PASS
+          # S3Q: bidirectional FK isolation is checked against all 62 internal
+          # relationships in the isolated synthetic topology, with deliberate
+          # adversarial other-run -> run87 FK link added AFTER the clean pass.
+          # Real-default safety: refuse to clear non-indexed edges.
+          if SASV_AUDIT_DATABASE_URL="postgresql://postgres:fixture_only@127.0.0.1:5432/s3f_fixture" \
+            node docs/master-data-costing/tools/audit-run87-cross-fk-readonly.mjs > "$RUNNER_TEMP/s3q-default.txt"; then
+            echo "S3Q unsafe default: unindexed FK marked clear"; exit 1
+          fi
+          grep -q '"outcome":"UNKNOWN_UNINDEXED_FK_REQUIRES_QUERY_PLAN_OR_OFFLINE_CHECK"' "$RUNNER_TEMP/s3q-default.txt"
+          SASV_ALLOW_UNINDEXED_SYNTHETIC_FK=1 SASV_AUDIT_DATABASE_URL="postgresql://postgres:fixture_only@127.0.0.1:5432/s3f_fixture" \
+            node docs/master-data-costing/tools/audit-run87-cross-fk-readonly.mjs | tee "$RUNNER_TEMP/s3q-clean.txt"
+          grep -q '"checksPerformed":124' "$RUNNER_TEMP/s3q-clean.txt"
+          grep -q '"decision":"FK_LINKS_ONLY_PASS"' "$RUNNER_TEMP/s3q-clean.txt"
+          psql -X -v ON_ERROR_STOP=1 -c "INSERT INTO costing.s3n_pk_07(refresh_run_id,parent_evidence_id,placeholder) VALUES (148,1,'adversarial-cross-run')"
+          if SASV_ALLOW_UNINDEXED_SYNTHETIC_FK=1 SASV_AUDIT_DATABASE_URL="postgresql://postgres:fixture_only@127.0.0.1:5432/s3f_fixture" \
+            node docs/master-data-costing/tools/audit-run87-cross-fk-readonly.mjs > "$RUNNER_TEMP/s3q-cross.txt"; then
+            echo "S3Q failed to block an injected cross-run FK"; exit 1
+          fi
+          grep -q '"decision":"HOLD"' "$RUNNER_TEMP/s3q-cross.txt"
+          grep -q '"outcome":"BLOCK_CROSS_RUN"' "$RUNNER_TEMP/s3q-cross.txt"
+          echo S3Q_PG17_BIDIRECTIONAL_FK_SAFE_AND_ADVERSARIAL_PASS
+          echo S3N_PG17_CATALOG_DIRECT_FK_ARCHIVE_PASS
+          echo S3F_S3G_PG17_FULLSIZE_ARCHIVE_RESTORE_PASS
+          # Route 2 role package on the synthetic fixture: create, enable login, exact-set audit, 23 mutation
+          # tests, role-side negative access, archive as the role, fail-closed cases, drop with live session.
+          PGPASSWORD=fixture_only PGHOST=127.0.0.1 PGPORT=5432 PGUSER=postgres PGDATABASE=s3f_fixture             bash docs/master-data-costing/sql/route2/R2_FIXTURE_ACCEPTANCE.sh 2>&1 | tee "$RUNNER_TEMP/r2-acceptance.txt" | grep -E 'FAIL|R2_FIXTURE|R2 '
+          grep -q '^R2_FIXTURE_ACCEPTANCE_PASS$' "$RUNNER_TEMP/r2-acceptance.txt"
+          echo R2_SELECT_ONLY_ROLE_PACKAGE_PG17_PASS
+          # SEC-01 (separate security change): revoke PUBLIC EXECUTE on ten pinned SECURITY DEFINER functions.
+          # Synthetic functions only; proves drift gates, API-role preservation, archive-role denial, rollback.
+          PGPASSWORD=fixture_only PGHOST=127.0.0.1 PGPORT=5432 PGUSER=postgres PGDATABASE=s3f_fixture             bash docs/master-data-costing/sql/sec01/S1_FIXTURE_ACCEPTANCE.sh 2>&1 | tee "$RUNNER_TEMP/s1-acceptance.txt" | grep -E 'FAIL|S1_FIXTURE|SEC-01 '
+          grep -q '^S1_FIXTURE_ACCEPTANCE_PASS$' "$RUNNER_TEMP/s1-acceptance.txt"
+          echo SEC01_PUBLIC_EXECUTE_REVOKE_PG17_PASS

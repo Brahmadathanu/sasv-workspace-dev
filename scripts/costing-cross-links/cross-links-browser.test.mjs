@@ -103,51 +103,23 @@ async function open(e, rel, { flag = false, width = 1280 } = {}) {
 const mock = (page) => page.evaluate(() => window.__mock);
 const writesOf = (m) => ({ rpc: m.rpc.filter((c) => WRITE.test(c.name)), mutations: m.mutations });
 
+// R7: the all-scheme x all-SKU Scheme Comparison lens is retired. Old deep links land on SKU Cost Details with an explicit notice.
 for (const flag of [false, true]) {
-  test(`Scheme Comparison (nav groups ${flag ? "ON" : "OFF"}): per-row Pricing Policy link opens PPM SKU Policy Overview with period/product/SKU; no link without own context`, async (t) => {
+  test(`Scheme Comparison retired (nav groups ${flag ? "ON" : "OFF"}): deep link redirects to SKU Cost Details, no all-scheme query, nothing written`, async (t) => {
     const e = await getEnv(t); if (!e) return;
     const { context, page, errors } = await open(e, `shared/cost-sheet-review.html?lens=scheme-comparison&period_start=${PERIOD}`, { flag });
-    const links = page.locator('#tableBody a[data-sc-ppm-link="sku-overview"]');
-    assert.equal(await links.count(), 1, "only the row with its own period and SKU gets a link");
-    assert.equal(await page.locator("#tableBody tr[data-row-index]").count(), 3);
-    const href = await links.first().getAttribute("href");
-    const u = new URL(href, "http://x/");
-    assert.deepEqual(Object.fromEntries(u.searchParams), { workspace: "sku-overview", period_start: PERIOD, product_id: "3", sku_id: "30" });
-    // clicking the link does not open the row drawer
-    const popupP = context.waitForEvent("page");
-    await links.first().click();
-    const popup = await popupP;
-    await popup.waitForLoadState("load");
-    assert.match(popup.url(), /\/shared\/pricing-policy-manager\.html\?/);
-    const pu = new URL(popup.url());
-    assert.equal(pu.searchParams.get("workspace"), "sku-overview");
-    assert.equal(pu.searchParams.get("period_start"), PERIOD);
-    assert.equal(pu.searchParams.get("sku_id"), "30");
-    assert.equal(pu.searchParams.get("product_id"), "3");
-    assert.equal(await page.locator("#drawer.open, #drawer[aria-hidden='false']").count(), 0, "link click is not a row click");
-    // read-only: no write RPC or table mutation from the originating page
-    const w = writesOf(await mock(page));
-    assert.deepEqual(w, { rpc: [], mutations: [] });
-    assert.equal(await page.evaluate(() => (localStorage.getItem("COSTING_NAV_GROUPS_V1"))), flag ? "1" : null, "no flag is activated by navigation");
-    // the opener keeps its own context (no window.opener handle exposed to the new tab)
-    assert.equal(await popup.evaluate(() => window.opener), null);
+    const active = await page.evaluate(() => [...document.querySelectorAll("#lensPills .pill.active")].map((b) => b.dataset.lens));
+    assert.deepEqual(active, ["sku-cost-sheet"], "lands on the replacement lens");
+    const pills = await page.evaluate(() => [...document.querySelectorAll("#lensPills .pill")].map((b) => b.dataset.lens));
+    assert.equal(pills.includes("scheme-comparison"), false, "no Scheme Comparison pill");
+    assert.match(await page.evaluate(() => document.body.innerText), /Scheme Comparison has been retired/, "explicit notice, not a silent blank view");
+    const m = await mock(page);
+    assert.equal(m.from.includes("v_costing_pricing_sku_scheme_comparison"), false, "the all-scheme lens view is never queried");
+    assert.deepEqual(writesOf(m), { rpc: [], mutations: [] });
     assert.deepEqual(errors, []);
     await context.close();
   });
 }
-
-test("Scheme Comparison: row click still opens the Scheme drawer (historical behaviour) and the data request is unchanged", async (t) => {
-  const e = await getEnv(t); if (!e) return;
-  const { context, page, errors } = await open(e, `shared/cost-sheet-review.html?lens=scheme-comparison&period_start=${PERIOD}`);
-  await page.locator("#tableBody tr[data-row-index]").first().locator("td").nth(1).click();
-  await page.waitForTimeout(400);
-  assert.ok(await page.locator("#drawerContent").innerText().then((x) => x.trim().length > 0), "drawer opened with content");
-  const m = await mock(page);
-  assert.ok(m.from.includes("v_costing_pricing_sku_scheme_comparison"));
-  assert.deepEqual(writesOf(m), { rpc: [], mutations: [] });
-  assert.deepEqual(errors, []);
-  await context.close();
-});
 
 for (const [from, to, rpcFrom, rpcTo, label] of [
   ["qc-action-queue", "materials-stores-action-queue", "rpc_get_qc_action_queue", "rpc_get_materials_stores_action_queue", "QC → Materials & Stores"],

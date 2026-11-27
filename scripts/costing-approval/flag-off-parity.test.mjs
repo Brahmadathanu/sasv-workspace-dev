@@ -30,7 +30,8 @@ test("approval module never calls forbidden RPCs", () => {
   );
   assert.deepEqual(
     [...new Set(callSites)].sort(),
-    ["RPC.preview", "rpcName"].sort(),
+    // R3: two retention-evidence RPCs are the only additions (read-only availability probe; explicit evidence-based verification)
+    ["\"rpc_costing_run_detail_availability\"", "\"rpc_costing_verify_run_details\"", "RPC.preview", "rpcName"].sort(),
   );
   for (const name of FORBIDDEN_RPCS) {
     assert.equal(

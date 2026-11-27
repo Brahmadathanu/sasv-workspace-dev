@@ -38,7 +38,6 @@ export const COSTING_SUITE_MODULES = [
       "sku-cost-sheet",
       "printable-cost-sheet",
       "cost-comparison",
-      "scheme-comparison",
       "qc-action-queue",
       "materials-stores-action-queue",
     ],
@@ -161,14 +160,6 @@ export const LENS_REGISTRY = {
     suiteId: "pricing-policy",
     periodScoped: false,
     description: "SKU selling policy, scheme policy, and scheme rule register.",
-  },
-  "scheme-comparison": {
-    id: "scheme-comparison",
-    label: "Scheme Comparison",
-    // SC1: canonical suite owner is Cost Sheet Review (period analysis).
-    suiteId: "cost-sheet-review",
-    periodScoped: true,
-    description: "Scheme viability and margin comparison by SKU.",
   },
   "sku-cost-sheet": {
     id: "sku-cost-sheet",

@@ -104,7 +104,7 @@ test("every registered lens id resolves to exactly one owning module (deep links
   }
   assert.equal(getModuleKeyForLens("not-a-lens"), null);
   assert.equal(getModuleKeyForLens(""), null);
-  assert.equal(getModuleKeyForLens("scheme-comparison"), "cost-sheet-review", "SC1 ownership");
+  assert.equal(getModuleKeyForLens("scheme-comparison"), null, "R7: Scheme Comparison lens retired (deep links redirect via resolveRetiredLensRedirect)");
 });
 
 test("suite registry and lens registry agree: every suite lens is registered and points back to its suite", () => {

@@ -1,0 +1,96 @@
+{
+ "public/shared/js/costing-suite-shell.js": [
+  [
+   "} from \"./costing-suite-cost-sheet.js\";\nimport { createRunGuard } from \"./costing-run-guard.js\";\nimport {",
+   "} from \"./costing-suite-cost-sheet.js\";\nimport {"
+  ],
+  [
+   "  resolveRelocatedPricingPolicyTarget,\n  resolveRetiredLensRedirect,\n  buildSchemeComparisonRedirectParams,",
+   "  resolveRelocatedPricingPolicyTarget,\n  buildSchemeComparisonRedirectParams,"
+  ],
+  [
+   "  const qp = new URLSearchParams(window.location.search);\n  let lens = qp.get(\"lens\")?.trim();\n  // R7: retired lens deep links land on the replacement lens with an explicit notice (never a silent blank view).\n  const retiredLens = resolveRetiredLensRedirect(lens);\n  if (retiredLens.retired) {\n    lens = retiredLens.lens;\n    showToast(\n      \"Scheme Comparison has been retired. Showing SKU Cost Details; selected-scheme viability is unchanged.\",\n      \"info\",\n      6500,\n    );\n  }\n",
+   "  const qp = new URLSearchParams(window.location.search);\n  const lens = qp.get(\"lens\")?.trim();\n"
+  ],
+  [
+   "\n// R3: every explicit-run read goes through one guard (purged/purging runs are an explicit error, never an empty result).\nconst costingRunGuard = createRunGuard({ supabase });\nfunction costingFrom(viewName) {",
+   "\nfunction costingFrom(viewName) {"
+  ],
+  [
+   "function costingFrom(viewName) {\n  return costingRunGuard.from(viewName);\n}",
+   "function costingFrom(viewName) {\n  return supabase.from(viewName);\n}"
+  ],
+  [
+   "async function costingRpc(name, params, options = null) {\n  return costingRunGuard.rpc(name, params, options);\n}",
+   "async function costingRpc(name, params, options = null) {\n  let query = supabase.rpc(name, params);\n  if (\n    options &&\n    Number.isFinite(Number(options.rangeFrom)) &&\n    Number.isFinite(Number(options.rangeTo))\n  ) {\n    query = query.range(Number(options.rangeFrom), Number(options.rangeTo));\n  }\n  return query;\n}"
+  ]
+ ],
+ "public/shared/js/costing-approval-screen.js": [
+  [
+   "import { formatIst } from \"./costing-run-status-badge.js\";\nimport { parseRunDetailAvailability } from \"./costing-run-detail-availability.js\";\nimport { isRunReadable } from \"./costing-run-guard.js\";\n",
+   "import { formatIst } from \"./costing-run-status-badge.js\";\n"
+  ],
+  [
+   "        const reviewBtn = draft && canEdit() === true\n          ? `<button type=\"button\" class=\"cas-action\" data-cas-review=\"${escapeHtml(String(id))}\">Review for approval</button>\n             <button type=\"button\" class=\"cas-action\" data-cas-verify=\"${escapeHtml(String(id))}\">Verify run details</button>`\n          : draft",
+   "        const reviewBtn = draft && canEdit() === true\n          ? `<button type=\"button\" class=\"cas-action\" data-cas-review=\"${escapeHtml(String(id))}\">Review for approval</button>`\n          : draft"
+  ],
+  [
+   "\n  // R3: explicit run-detail state before any approval preview. Purged/purging/unconfirmed runs never open a preview.\n  async function readRunDetailState(numericId) {\n    try {\n      const { data, error } = await costingRpc(\"rpc_costing_run_detail_availability\", { p_refresh_run_id: numericId });\n      return error ? parseRunDetailAvailability(null) : parseRunDetailAvailability(data);\n    } catch {\n      return parseRunDetailAvailability(null);\n    }\n  }\n\n  async function verifyRunDetails(runId) {\n    if (canEdit() !== true) {\n      showToast?.(\"Verifying run details requires Costing Control Center edit permission.\", \"warn\");\n      return;\n    }\n    const numericId = Number(runId);\n    if (!Number.isFinite(numericId)) return;\n    try {\n      const { data, error } = await costingRpc(\"rpc_costing_verify_run_details\", { p_refresh_run_id: numericId });\n      if (error) throw error;\n      const res = unwrapRpcJson(data) || {};\n      showToast?.(\n        res.verified === true\n          ? `Run ${numericId}: details verified from captured evidence.`\n          : `Run ${numericId}: not verified \u2014 ${res.reason || \"evidence missing or mismatched\"}. It cannot be approved.`,\n        res.verified === true ? \"info\" : \"warn\",\n      );\n    } catch (err) {\n      showToast?.(`Run ${numericId}: verification failed \u2014 ${String(err?.message || err)}`, \"warn\");\n    }\n  }\n\n  async function openPreviewForRun(runId) {",
+   "\n  async function openPreviewForRun(runId) {"
+  ],
+  [
+   "    if (!Number.isFinite(numericId)) return;\n    const detailState = await readRunDetailState(numericId);\n    if (!isRunReadable(detailState)) {\n      showToast?.(`Run ${numericId}: ${detailState.message || \"details are not available\"} It cannot be reviewed for approval.`, \"warn\");\n      return;\n    }\n    if (detailState.state === \"AVAILABLE_UNVERIFIED\") {\n      showToast?.(`Run ${numericId}: details are not yet verified. Use \u201cVerify run details\u201d; approval is blocked until verified.`, \"warn\");\n    }\n    state.selectedRunId = numericId;",
+   "    if (!Number.isFinite(numericId)) return;\n    state.selectedRunId = numericId;"
+  ],
+  [
+   "  function onPanelClick(event) {\n    const vbtn = event.target.closest?.(\"[data-cas-verify]\");\n    if (vbtn) {\n      event.preventDefault();\n      void verifyRunDetails(vbtn.getAttribute(\"data-cas-verify\"));\n      return;\n    }\n    const btn = event.target.closest?.(\"[data-cas-review]\");",
+   "  function onPanelClick(event) {\n    const btn = event.target.closest?.(\"[data-cas-review]\");"
+  ]
+ ],
+ "public/shared/js/costing-route-config.js": [
+  [
+   "      \"cost-comparison\",\n      \"qc-action-queue\",",
+   "      \"cost-comparison\",\n      \"scheme-comparison\",\n      \"qc-action-queue\","
+  ],
+  [
+   "/**\n * R7: lenses retired from the Costing Suite. The all-scheme x all-SKU Scheme Comparison lens is removed from navigation;\n * old deep links land on SKU Cost Details with an explicit notice. Selected-scheme IK/OK viability (pricing, KPI, scheme\n * master register, cost-sheet evidence) is NOT part of this lens and is untouched.\n */\nexport const RETIRED_LENS_REDIRECTS = Object.freeze({\n  \"scheme-comparison\": \"sku-cost-sheet\",\n});\n\nexport function resolveRetiredLensRedirect(lensId) {\n  const id = String(lensId || \"\").trim().toLowerCase();\n  return Object.prototype.hasOwnProperty.call(RETIRED_LENS_REDIRECTS, id)\n    ? { retired: true, from: id, lens: RETIRED_LENS_REDIRECTS[id] }\n    : { retired: false };\n}\n\n/**\n * SC5: detect legacy Pricing Policy Manager Scheme Comparison targets that",
+   "/**\n * SC5: detect legacy Pricing Policy Manager Scheme Comparison targets that"
+  ],
+  [
+   "    moduleKey: \"cost-sheet-review\",\n    lens: RETIRED_LENS_REDIRECTS[\"scheme-comparison\"],\n  };",
+   "    moduleKey: \"cost-sheet-review\",\n    lens: \"scheme-comparison\",\n  };"
+  ],
+  [
+   "export function buildSchemeComparisonRedirectParams(qp) {\n  const params = { lens: RETIRED_LENS_REDIRECTS[\"scheme-comparison\"] };\n  if (!qp || typeof qp.get !== \"function\") return params;",
+   "export function buildSchemeComparisonRedirectParams(qp) {\n  const params = { lens: \"scheme-comparison\" };\n  if (!qp || typeof qp.get !== \"function\") return params;"
+  ]
+ ],
+ "public/shared/js/costing-suite-registry.js": [
+  [
+   "      \"cost-comparison\",\n      \"qc-action-queue\",",
+   "      \"cost-comparison\",\n      \"scheme-comparison\",\n      \"qc-action-queue\","
+  ],
+  [
+   "    description: \"SKU selling policy, scheme policy, and scheme rule register.\",\n  },",
+   "    description: \"SKU selling policy, scheme policy, and scheme rule register.\",\n  },\n  \"scheme-comparison\": {\n    id: \"scheme-comparison\",\n    label: \"Scheme Comparison\",\n    // SC1: canonical suite owner is Cost Sheet Review (period analysis).\n    suiteId: \"cost-sheet-review\",\n    periodScoped: true,\n    description: \"Scheme viability and margin comparison by SKU.\",\n  },"
+  ]
+ ],
+ "public/shared/js/costing-nav-groups.js": [
+  [
+   "  \"cost-sheet-review\": [\n    { id: \"review\", label: \"Review\", contextLabel: \"Read-only cost analysis\", lensIds: [\"sku-cost-sheet\", \"cost-comparison\"] },\n    { id: \"documents\", label: \"Documents\", contextLabel: \"Printable cost sheet\", lensIds: [\"printable-cost-sheet\"] },",
+   "  \"cost-sheet-review\": [\n    { id: \"review\", label: \"Review\", contextLabel: \"Read-only cost analysis\", lensIds: [\"sku-cost-sheet\", \"scheme-comparison\", \"cost-comparison\"] },\n    { id: \"documents\", label: \"Documents\", contextLabel: \"Printable cost sheet\", lensIds: [\"printable-cost-sheet\"] },"
+  ]
+ ],
+ "public/shared/js/costing-run-status-badge.js": [
+  [
+   "  \"cost-comparison\",\n  \"sku-control-status\",",
+   "  \"cost-comparison\",\n  \"scheme-comparison\",\n  \"sku-control-status\","
+  ]
+ ],
+ "public/shared/js/costing-suite-control-center.js": [
+  [
+   "      if (action === \"scheme-risk\") {\n        await drillToLens(\"sku-cost-sheet\", {\n          status: [\"BLOCKED\", \"REVIEW_REQUIRED\"],",
+   "      if (action === \"scheme-risk\") {\n        await drillToLens(\"scheme-comparison\", {\n          status: [\"BLOCKED\", \"REVIEW_REQUIRED\"],"
+  ]
+ ]
+}

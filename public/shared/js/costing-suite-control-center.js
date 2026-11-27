@@ -895,7 +895,7 @@ export function createControlCenterController(deps) {
       }
 
       if (action === "scheme-risk") {
-        await drillToLens("scheme-comparison", {
+        await drillToLens("sku-cost-sheet", {
           status: ["BLOCKED", "REVIEW_REQUIRED"],
         });
         return;

@@ -104,22 +104,22 @@ async function observe(e, moduleKey, onFlags, query = "") {
 }
 const norm = (html) => html.replace(/\s+/g, " ").trim();
 
-// ---- independent inventory (NOT derived from the files under test): 30 lens entries + 2 legacy PPM lens aliases = the
-// 32 lens ids, and 10 Pricing Policy workspaces, of the agreed programme. A change must update this literal on purpose.
+// ---- independent inventory (NOT derived from the files under test): 29 lens entries + 2 legacy PPM lens aliases = the
+// 31 lens ids (R7: scheme-comparison retired), and 10 Pricing Policy workspaces, of the agreed programme. A change must update this literal on purpose.
 const LENS_INVENTORY = {
   "costing-control-center": ["costing-review-workbench", "dashboard", "portfolio-readiness", "sku-control-status"],
   "material-cost-manager": ["manual-rate-manager", "pm-cost-trace", "rm-cost-trace"],
   "cost-build-manager": ["cost-governance", "driver-governance", "manual-provisions", "staff-governance"],
   "pricing-policy-manager": ["mrp-governance", "policy-manager"],
-  "cost-sheet-review": ["cost-comparison", "materials-stores-action-queue", "printable-cost-sheet", "qc-action-queue", "scheme-comparison", "sku-cost-sheet"],
+  "cost-sheet-review": ["cost-comparison", "materials-stores-action-queue", "printable-cost-sheet", "qc-action-queue", "sku-cost-sheet"],
   "production-route-manager": ["archived-routes", "effective-route-viewer", "historical-candidate-review", "product-route-assignments", "product-route-editor", "product-subgroup-mappings", "production-cost-centres", "route-families", "route-family-foundation-review", "route-family-mapping-review", "route-family-route-editor", "route-readiness", "shared-workload-preview"],
 };
 const PPM_WORKSPACES = ["applied-proposal-history", "approved-for-application", "commercial-sales-assumptions", "mrp-proposals", "product-derivation-policies", "proposal-decisions", "scheme-master", "scheme-rule-register", "sku-mrp-policies", "sku-overview"];
 
-test("inventory: six modules, 32 lens ids and 10 Pricing Policy workspaces exactly as agreed (route table equals the independent literal)", () => {
+test("inventory: six modules, 31 lens ids and 10 Pricing Policy workspaces exactly as agreed (route table equals the independent literal)", () => {
   assert.deepEqual(Object.keys(COSTING_ROUTE_CONFIG).sort(), Object.keys(LENS_INVENTORY).sort());
   for (const [m, lenses] of Object.entries(LENS_INVENTORY)) assert.deepEqual([...COSTING_ROUTE_CONFIG[m].allowedLensIds].sort(), lenses, m);
-  assert.equal(Object.values(LENS_INVENTORY).flat().length, 32);
+  assert.equal(Object.values(LENS_INVENTORY).flat().length, 31);
   assert.equal(PPM_WORKSPACES.length, 10);
 });
 

@@ -21,6 +21,7 @@ import {
   createCostSheetController,
   isCostSheetLens,
 } from "./costing-suite-cost-sheet.js";
+import { createRunGuard } from "./costing-run-guard.js";
 import {
   createSchemeComparisonController,
   isSchemeComparisonLens,
@@ -122,6 +123,7 @@ import {
   normalizeCostingRouteModuleKey,
   resolveActiveRouteConfig,
   resolveRelocatedPricingPolicyTarget,
+  resolveRetiredLensRedirect,
   buildSchemeComparisonRedirectParams,
 } from "./costing-route-config.js";
 
@@ -2230,7 +2232,17 @@ function syncPortfolioReadinessFilterChrome() {
 
 function applyRouteLaunchParams() {
   const qp = new URLSearchParams(window.location.search);
-  const lens = qp.get("lens")?.trim();
+  let lens = qp.get("lens")?.trim();
+  // R7: retired lens deep links land on the replacement lens with an explicit notice (never a silent blank view).
+  const retiredLens = resolveRetiredLensRedirect(lens);
+  if (retiredLens.retired) {
+    lens = retiredLens.lens;
+    showToast(
+      "Scheme Comparison has been retired. Showing SKU Cost Details; selected-scheme viability is unchanged.",
+      "info",
+      6500,
+    );
+  }
 
   if (paramsFromQuery(qp, "status")) {
     ACTIVE_FILTERS.status = paramsFromQuery(qp, "status");
@@ -2472,8 +2484,10 @@ const VIEW_BY_LENS = {
 const PERIOD_PICKER_DISABLED_TITLE =
   "Period selection is not available on this tab";
 
+// R3: every explicit-run read goes through one guard (purged/purging runs are an explicit error, never an empty result).
+const costingRunGuard = createRunGuard({ supabase });
 function costingFrom(viewName) {
-  return supabase.from(viewName);
+  return costingRunGuard.from(viewName);
 }
 
 const runStatusBadge = createRunStatusBadge({ supabase, anchor: lastRefreshed });
@@ -2488,15 +2502,7 @@ const recalculationCtrl = createRecalculationController({
 });
 
 async function costingRpc(name, params, options = null) {
-  let query = supabase.rpc(name, params);
-  if (
-    options &&
-    Number.isFinite(Number(options.rangeFrom)) &&
-    Number.isFinite(Number(options.rangeTo))
-  ) {
-    query = query.range(Number(options.rangeFrom), Number(options.rangeTo));
-  }
-  return query;
+  return costingRunGuard.rpc(name, params, options);
 }
 
 function sleepMs(ms) {

@@ -1,0 +1,27 @@
+server_version=16.15 
+PASS 01_seed
+PASS 02_apply_r1_r2a_r2b
+PASS 03_r2_adversarial
+PASS deferred-link-commit-check
+PASS immediate-constraint-mode
+PASS concurrent-insert-upsert-race
+PASS concurrent-same-row-updates
+PASS 05_r1_ledger
+PASS 06_r2c_cutover_and_purged_source
+FIDELITY pointer_view_md5_matches_live_pin=true effective_designation=true period_status=true server=16.15 
+PASS 07_r3_availability
+PASS 13_r3b_read_guards_verification
+FIDELITY terminal_guard_md5_matches_live_pin=true designated_guard=true
+PASS 08_r4_purge
+PASS resumable-partial-state
+PASS purge-waits-for-period-governance-lock (1973ms)
+PASS concurrent-drivers-exact-accounting
+PASS stale-preview-recomputed-at-execution
+PASS 10_r5_turnover
+PASS overlapping-tick-refused
+PASS executor-login-least-privilege
+PASS 14a_deploy_order_and_seed
+PASS 14b_planner_requires_engine
+PASS 15_r7_server_candidate
+PASS 12_preflight_scripts_parse
+RETENTION_PG_TESTS_DONE (run_all.sh exit 0; RETENTION_PG_ALL_PASS count=23)

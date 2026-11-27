@@ -1,0 +1,100 @@
+name: Costing retention R1-R5 isolated PostgreSQL 17
+# Synthetic fixture only. No production secrets, no network access to Supabase. Fixture password is a literal throw-away.
+on:
+  pull_request:
+    paths:
+      - "docs/master-data-costing/retention/**"
+      - "public/shared/js/costing-run-detail-availability.js"
+      - "scripts/costing-retention/**"
+      - "scripts/costing-approval/**"
+      - "scripts/costing-nav-groups/**"
+      - "scripts/costing-wp05-closure/**"
+      - "scripts/costing-run-status/**"
+      - "scripts/costing-cost-sheet/**"
+      - "public/shared/js/costing-run-guard.js"
+      - "public/shared/js/costing-route-config.js"
+      - "public/shared/js/costing-suite-registry.js"
+      - "public/shared/js/costing-nav-groups.js"
+      - "public/shared/js/costing-suite-shell.js"
+      - "public/shared/js/costing-approval-screen.js"
+      - "public/shared/js/costing-run-status-badge.js"
+      - "public/shared/cost-sheet-review.html"
+      - "supabase/migrations/20260915041807_add_sales_allocation_quantity_driver_acceptance.sql"
+      - "supabase/migrations/20260915060034_regional_marketing_evidence_acceptance_architecture.sql"
+      - "supabase/migrations/20261021045619_costing_regional_evidence_continuity_20261021.sql"
+      - "supabase/migrations/20261015165757_au2_run_governance.sql"
+      - "supabase/migrations/20261019014458_w1_approved_run_feed_and_labels.sql"
+      - "supabase/migrations/20261019053600_w2_governed_period_lifecycle.sql"
+      - "docs/master-data-costing/sql/S3L_SYNTHETIC_PG17_FIXTURE.sql"
+      - ".github/workflows/retention-r1-r5-pg17.yml"
+permissions:
+  contents: read
+jobs:
+  retention-pg17:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture_only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Client availability contract tests
+        run: node --test scripts/costing-retention/*.test.mjs
+      - name: PostgreSQL 17 R1-R5 acceptance (real acceptance migrations + extracted governance views)
+        run: bash docs/master-data-costing/retention/tests/run_all.sh
+        env:
+          PGPASSWORD: fixture_only
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          RETENTION_RECEIPT: ${{ runner.temp }}/retention-pg17-receipt.txt
+      - name: Require PostgreSQL 17 and complete receipt
+        run: |
+          grep -q '^server_version=17' "$RUNNER_TEMP/retention-pg17-receipt.txt"
+          grep -q '^RETENTION_PG_TESTS_DONE' "$RUNNER_TEMP/retention-pg17-receipt.txt"
+          grep -E '^FIDELITY' "$RUNNER_TEMP/retention-pg17-receipt.txt" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: retention-pg17-receipt
+          path: ${{ runner.temp }}/retention-pg17-receipt.txt
+
+  client-regression:
+    # Full history (several existing suites read earlier commits). Reports the real status of the suites touched by R3/R7.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: R3/R7 client suites (new suites must pass) and touched existing suites (no failure that the pre-R3/R7 checkpoint did not already have)
+        run: |
+          set -u
+          NEW="scripts/costing-retention/*.test.mjs"
+          OLD="scripts/costing-approval/*.test.mjs scripts/costing-nav-groups/nav-groups.test.mjs scripts/costing-wp05-closure/wp05-closure.test.mjs scripts/costing-run-status/run-status-badge.test.mjs scripts/costing-cost-sheet/cost-sheet-terminology.test.mjs scripts/costing-cross-links/cross-links.test.mjs scripts/costing-review-worklist/review-worklist.test.mjs scripts/costing-table-tools/table-tools.test.mjs scripts/costing-approval/sec-a2-strip.test.mjs"
+          node --test $NEW 2>&1 | tee "$RUNNER_TEMP/new.txt" | grep -E '^# (tests|pass|fail)'
+          grep -q '^# fail 0' "$RUNNER_TEMP/new.txt"
+          failing() { node --test $OLD 2>&1 | grep -E '^not ok' | sed -E 's/^not ok [0-9]+ - //' | sort -u; }
+          failing > "$RUNNER_TEMP/head-fail.txt"
+          git worktree add -q "$RUNNER_TEMP/base" 8d3570dad9b99a1f322dc753e2da0681dc55872d
+          (cd "$RUNNER_TEMP/base" && failing) > "$RUNNER_TEMP/base-fail.txt"
+          echo "failing at head: $(wc -l < "$RUNNER_TEMP/head-fail.txt"); failing at pre-R3/R7 checkpoint: $(wc -l < "$RUNNER_TEMP/base-fail.txt")"
+          NEWFAIL="$(comm -23 "$RUNNER_TEMP/head-fail.txt" "$RUNNER_TEMP/base-fail.txt")"
+          if [ -n "$NEWFAIL" ]; then echo "NEW FAILURES vs checkpoint:"; echo "$NEWFAIL"; exit 1; fi

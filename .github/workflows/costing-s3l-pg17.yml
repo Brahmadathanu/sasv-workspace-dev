@@ -1,0 +1,44 @@
+name: Costing S3L retention isolated PostgreSQL 17
+on:
+  pull_request:
+    paths:
+      - "docs/master-data-costing/sql/S3K_STAGE_ONLY_RETENTION_EXECUTOR_REVIEW.sql"
+      - "docs/master-data-costing/sql/S3L_*"
+      - ".github/workflows/costing-s3l-pg17.yml"
+permissions:
+  contents: read
+jobs:
+  retention-pg17:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture_only
+          POSTGRES_DB: s3l_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d s3l_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Offline source checks
+        run: node --test docs/master-data-costing/sql/S3L_STAGE_EXECUTOR_STATIC_GATES.test.mjs
+      - name: Isolated PostgreSQL 17 actual SQL compilation and safeguards
+        run: bash docs/master-data-costing/sql/S3L_RUN_PG17_FIXTURE.sh 2>&1 | tee "$RUNNER_TEMP/s3l-pg17.txt"
+        env:
+          PGPASSWORD: fixture_only
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: s3l_fixture
+      - name: Require complete fixture receipt
+        run: grep -q '^S3L_PG17_FIXTURE_PASS$' "$RUNNER_TEMP/s3l-pg17.txt"

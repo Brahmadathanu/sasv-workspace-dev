@@ -5,6 +5,7 @@
 import { stripCde1aShell } from "./cde1a-shell-strip.mjs";
 import { stripWp08G21Shell } from "./wp08-g2-1-strip.mjs";
 import { stripSecA2Shell, stripSecA2Approval } from "./sec-a2-strip.mjs";
+import { stripRetentionR3R7 } from "./retention-r3r7-strip.mjs"; // retention R3/R7 hunks (26 Nov 2026)
 
 const must = (text, from, to) => {
   const i = text.indexOf(from);
@@ -15,7 +16,7 @@ const must = (text, from, to) => {
 };
 
 export function stripN1Shell(src) {
-  let t = stripCde1aShell(stripSecA2Shell(stripWp08G21Shell(src))); // SEC-A2 line (sec-a2-strip.mjs) and CDE-1a additions removed first (cde1a-shell-strip.mjs)
+  let t = stripCde1aShell(stripSecA2Shell(stripWp08G21Shell(stripRetentionR3R7("public/shared/js/costing-suite-shell.js", src)))); // SEC-A2 line (sec-a2-strip.mjs) and CDE-1a additions removed first (cde1a-shell-strip.mjs)
   t = t.replace('import { isCostingNavGroupsV1Enabled } from "./costing-feature-flags.js";\nimport { resolveNavGroups, renderGroupedNavHtml, renderGroupedSelectHtml } from "./costing-nav-groups.js";\nimport { buildNavContextModel, costingNavContext, renderNavContextHtml } from "./costing-nav-context.js";\n', "");
   t = must(t, "/**\n * N1: grouped navigation is active only when", "function renderLensPillButton(");
   t = t.replace(/    \} else if \(isNavGroupsActive\(\)\) \{\n(?:.*\n)*?(?=    \} else \{\n      lensPills\.innerHTML = activeSuites)/, "");
@@ -33,6 +34,7 @@ export function stripN1Flags(src) {
 }
 
 export function stripN1(rel, text) {
+  text = stripRetentionR3R7(rel, text);
   if (rel.endsWith("public/shared/js/costing-suite-shell.js")) return stripN1Shell(text);
   if (rel.endsWith("public/shared/js/costing-feature-flags.js")) return stripN1Flags(text);
   if (rel.endsWith("public/shared/js/costing-approval-screen.js")) return stripSecA2Approval(text); // SEC-A2 CCC-edit gate (sec-a2-strip.mjs)

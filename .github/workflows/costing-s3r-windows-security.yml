@@ -1,0 +1,35 @@
+name: Costing S3R Windows operator script safety
+on:
+  pull_request:
+    paths:
+      - 'docs/master-data-costing/tools/run87-secure-archive-windows.ps1'
+      - '.github/workflows/costing-s3r-windows-security.yml'
+permissions:
+  contents: read
+jobs:
+  windows-secure-export:
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse script and reject missing local PostgreSQL secret
+        shell: pwsh
+        run: |
+          $path = 'docs/master-data-costing/tools/run87-secure-archive-windows.ps1'
+          $tokens = $null; $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path), [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            throw 'S3R Windows PowerShell syntax errors'
+          }
+          Remove-Item Env:SASV_ARCHIVE_DATABASE_URL -ErrorAction SilentlyContinue
+          $output = & pwsh -NoProfile -NonInteractive -File $path -ArchiveDriveRoot 'C:\' -BackupDriveRoot 'D:\' 2>&1
+          if ($LASTEXITCODE -eq 0) { throw 'S3R unsafe: succeeded with missing database secret' }
+          if (($output | Out-String) -notmatch 'SASV_ARCHIVE_DATABASE_URL is missing') {
+            throw 'S3R fail-closed reason changed unexpectedly'
+          }
+          if (-not ((Get-Content $path -Raw) -match 'productionDeletionAuthorised\s*=\s*\$false')) {
+            throw 'S3R deletion prohibition marker missing'
+          }
+          Write-Host 'S3R_WINDOWS_PARSE_AND_FAIL_CLOSED_PASS'
+          exit 0

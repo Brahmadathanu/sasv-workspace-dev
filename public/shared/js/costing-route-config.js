@@ -78,7 +78,6 @@ export const COSTING_ROUTE_CONFIG = {
       "sku-cost-sheet",
       "printable-cost-sheet",
       "cost-comparison",
-      "scheme-comparison",
       "qc-action-queue",
       "materials-stores-action-queue",
     ],
@@ -165,6 +164,22 @@ export function getModuleKeyForLens(lensId) {
 }
 
 /**
+ * R7: lenses retired from the Costing Suite. The all-scheme x all-SKU Scheme Comparison lens is removed from navigation;
+ * old deep links land on SKU Cost Details with an explicit notice. Selected-scheme IK/OK viability (pricing, KPI, scheme
+ * master register, cost-sheet evidence) is NOT part of this lens and is untouched.
+ */
+export const RETIRED_LENS_REDIRECTS = Object.freeze({
+  "scheme-comparison": "sku-cost-sheet",
+});
+
+export function resolveRetiredLensRedirect(lensId) {
+  const id = String(lensId || "").trim().toLowerCase();
+  return Object.prototype.hasOwnProperty.call(RETIRED_LENS_REDIRECTS, id)
+    ? { retired: true, from: id, lens: RETIRED_LENS_REDIRECTS[id] }
+    : { retired: false };
+}
+
+/**
  * SC5: detect legacy Pricing Policy Manager Scheme Comparison targets that
  * must redirect to Cost Sheet Review. Does not treat unknown tokens as relocated.
  */
@@ -185,7 +200,7 @@ export function resolveRelocatedPricingPolicyTarget({
   return {
     relocated: true,
     moduleKey: "cost-sheet-review",
-    lens: "scheme-comparison",
+    lens: RETIRED_LENS_REDIRECTS["scheme-comparison"],
   };
 }
 
@@ -194,7 +209,7 @@ export function resolveRelocatedPricingPolicyTarget({
  * Preserves status + period_start only. Drops Issue/Source and obsolete PPM nav keys.
  */
 export function buildSchemeComparisonRedirectParams(qp) {
-  const params = { lens: "scheme-comparison" };
+  const params = { lens: RETIRED_LENS_REDIRECTS["scheme-comparison"] };
   if (!qp || typeof qp.get !== "function") return params;
 
   const statusRaw = String(qp.get("status") || "").trim();

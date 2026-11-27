@@ -196,6 +196,8 @@ function buildHarness({
   const ctrl = createCostingApprovalScreenController({
     supabase: makeSupabase({ periodRow, runRows }),
     costingRpc: async (name, params) => {
+      // R3 infrastructure probe (run-detail availability): answered without being counted as an approval-flow call
+      if (name === "rpc_costing_run_detail_availability") return { data: { refresh_run_id: params.p_refresh_run_id, available: true, state: "AVAILABLE", unverified: false }, error: null };
       calls.push({ name, params });
       if (rpcImpl) return rpcImpl(name, params, calls);
       if (name === RPC.preview) return { data: basePreview(), error: null };
