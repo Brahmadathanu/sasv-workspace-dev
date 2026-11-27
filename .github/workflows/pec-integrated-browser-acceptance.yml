@@ -27,11 +27,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Fetch exact PR base tree for protected-file diff
+      - name: Fetch exact event base tree for protected-file diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
         run: |
           set -eu
           base="${GITHUB_BASE_REF:-main}"
-          git fetch --no-tags --depth=1 origin "refs/heads/${base}:refs/remotes/origin/${base}"
+          # Pin the comparison tree to the event, not a moving branch tip.
+          # A forced update here affects only the runner-local remote-tracking ref.
+          git fetch --no-tags --depth=1 origin "+${BASE_SHA}:refs/remotes/origin/${base}"
+          test "$(git rev-parse "refs/remotes/origin/${base}")" = "${BASE_SHA}"
           git rev-parse --verify "refs/remotes/origin/${base}"
       - name: Report exact reviewed R10 migration SHA-256 values
         run: node scripts/pec-r10-migration-hash-audit.mjs
