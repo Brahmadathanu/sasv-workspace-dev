@@ -28,3 +28,6 @@ Visual parity gate REOPENED, functional layout approval retained. Stable publica
 
 ## R7 outcome — 27 November 2026
 Design-language parity merged (PR #546, main `6babbdd9`) and stable **v6.6.0** published from that exact commit (build run 45993005118, publish run 45993646580): see [R7 receipt](R7_DESIGN_PARITY_RECEIPT_20261127.md). Owner production visual acceptance, hosted PWA check and supported-client update acceptance remain open; R6 database retirement remains separate.
+
+## R8 owner-guided local refinement — 27 November 2026
+Owner rejects current overall visual presentation; reopen visual acceptance, preserve v6.6.0 and functional/server baseline. Stock & Purchase Explorer is primary reference. PR #548 remains open/unmerged; Claude Code works locally in isolated R8 worktree with owner-guided browser preview, no intermediate pushes or deployments. See [R8 local handover](R8_LOCAL_REFINEMENT_HANDOVER_20261127.md). ChatGPT must not compete with local edits. R6 retirement parked until final acceptance and supported-client compatibility.
