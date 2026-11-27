@@ -96,7 +96,7 @@ j:=public.get_mis_finance_ageing_summary();
 SELECT * INTO s FROM public.v_mis_finance_tab_summary;
 FOR g IN SELECT value FROM jsonb_array_elements(j->'groups') LOOP
 SELECT coalesce(sum(value::numeric),0) INTO pos FROM jsonb_array_elements_text(g->'bucket_amounts');
-IF pos+(g->>'undated_amount')::numeric IS DISTINCT FROM (g->>'total_amount')::numeric OR (g->>'total_amount')::numeric IS DISTINCT FROM CASE WHEN g->>'group'='payables' THEN s.payables_sundry_creditors ELSE s.receivables_sundry_debtors END THEN RAISE EXCEPTION 'Group reconciliation failed'; END IF;
+IF pos+(g->>'undated_amount')::numeric IS DISTINCT FROM (g->>'total_amount')::numeric OR (g->>'total_amount')::numeric IS DISTINCT FROM (CASE WHEN g->>'group'='payables' THEN s.payables_sundry_creditors ELSE s.receivables_sundry_debtors END) THEN RAISE EXCEPTION 'Group reconciliation failed'; END IF;
 END LOOP;
 SELECT count(*) INTO mismatch FROM public.get_mis_finance_ageing_party_page('all', '',NULL,'bill_date','{30,60,90}',NULL,NULL,200,0) a JOIN public.v_mis_finance_outstanding_party_summary b USING(party_name,mis_group_name) WHERE a.outstanding_amount_mis_value IS DISTINCT FROM b.outstanding_amount_mis_value OR (SELECT sum(x) FROM unnest(a.bucket_amounts) x)+a.undated_amount IS DISTINCT FROM a.outstanding_amount_mis_value;
 IF mismatch<>0 THEN RAISE EXCEPTION 'Party reconciliation failed'; END IF;
