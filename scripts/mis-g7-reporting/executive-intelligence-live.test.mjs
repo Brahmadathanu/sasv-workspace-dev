@@ -393,7 +393,7 @@ test("Typography: every visible text node uses the compact ladder at desktop and
           if (![11, 12, 13, 14, 16, 18].includes(px)) out.set(`${el.className || el.tagName}:${cs.fontSize}`, px);
           // 16px is reserved for hero figures and (on phones) form controls; labels, buttons, tables and notes never inherit it.
           const phoneControl = window.innerWidth <= 640 && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName);
-          if (px === 16 && !phoneControl && !el.closest(".kpi-value, .pv-kpi-value, .ei-metric-value, .production-summary-value, .ei-filter-sheet-head, .ei-drawer-title")) out.set(`inherited16:${el.tagName}.${el.className}`, px);
+          if (px === 16 && !phoneControl && !el.closest(".kpi-value, .pv-kpi-value, .ei-metric-value, .production-summary-value, .ei-filter-sheet-head, .ei-drawer-title, .ei-insight-figure, .ei-cover-value")) out.set(`inherited16:${el.tagName}.${el.className}`, px);
         }
         return [...out.entries()];
       });

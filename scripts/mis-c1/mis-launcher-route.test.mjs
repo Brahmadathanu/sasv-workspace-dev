@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
+const read = (p) => fs.readFileSync(path.join(root, p), "utf8").replace(/\r\n/g, "\n"); // line-ending neutral (Windows checkouts may hold CRLF)
 
 // module-registry.js imports the Supabase client; load it with that import stubbed out.
 const src = read("public/shared/js/module-registry.js").replace(/^import .*supabaseClient\.js";\n/m, "const supabase = null;\n");
