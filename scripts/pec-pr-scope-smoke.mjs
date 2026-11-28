@@ -122,17 +122,21 @@ if (helpers) {
     prScopeText({
       material_class_code: "IND",
       material_class_label: "Indirect Materials & Utilities",
-    }) === "Indirect Materials & Utilities",
-    "future non-RM class with label",
+    }) === "Indirect Material",
+    "IND uses the canonical scope label",
   );
   assert(
-    prScopeText({ material_class_code: "IND" }) === "IND",
-    "known class without label -> code",
+    prScopeText({ material_class_code: "IND" }) === "Indirect Material",
+    "IND without label uses canonical scope",
   );
   assert(
     prScopeText({ material_class_code: "RM" }) === "Raw Material",
     "RM with no scope -> Raw Material",
   );
+  for (const [id, code, expected] of [[5, "IND", "Indirect Material"], [2, "PM", "Packing Material"]]) {
+    assert(prScopeText({material_class_id:id, material_class_code:code, rm_scope:"normal", rm_scope_label:"Normal RM", generation_filters:{rm_scope:"normal"}}) === expected, code+" ignores stale RM metadata");
+    assert(prScopeText({material_class_id:id, generation_filters:{rm_scope:"jit"}}) === expected, code+" class ID alone overrides stale RM metadata");
+  }
   assert(prScopeText({}) === "—", "unclassified row -> em dash");
   assert(prScopeText(null) === "—", "null row -> em dash");
 
