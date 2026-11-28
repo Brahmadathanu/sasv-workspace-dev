@@ -2366,10 +2366,11 @@
         .ei-kyc-table, .ei-kyc-table tbody { display: block; }
         .ei-kyc-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
         .ei-kyc-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 6px; padding: 8px 10px; margin-bottom: 6px; border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-md, 8px); background: var(--mis-surface); }
-        .ei-kyc-table.finance-table td { border: 0; padding: 0; background: transparent; }
+        .ei-kyc-table.finance-table tbody tr td { border: 0; padding: 0; background: transparent; }
         .ei-kyc-table td[data-label]::before { content: attr(data-label) " "; color: var(--mis-muted); font-size: var(--ei-fs-xs); }
         .ei-kyc-register td:nth-child(2) { text-align: right; }
         .ei-kyc-register td.num:nth-child(3) { text-align: left; }
+        .ei-kyc-register td:last-child::before { display: block; }
         .ei-kyc-table tr .ei-kyc-wide-cell { grid-column: 1 / -1; }
       }
     </style>
