@@ -90,3 +90,7 @@ Measured against Stock & Purchase Explorer computed styles (live, 998px): title/
 - Server (ChatGPT-controlled, already registered in production, not replayed): `20261127144051_ei_r8_finance_ageing`, `20261127154330_ei_guarded_summary_refresh`.
 
 **Pending (interactive refinement continues after this release):** owner review and approval of Materials Inventory and Finished Goods, then Production Performance, Sales Performance and its secondary views, Management Alerts, and final dialogs/common controls/responsive acceptance. R6 database retirement, Sales Viewer retirement and any Overview sales-snapshot freshness follow-up remain separate and untouched. R8 and the Executive Intelligence programme are **not** closed.
+
+## Debtor KYC server integration — 28 November 2026
+
+Production migration `20261128084946_ei_r8_debtor_kyc_canonical` was registered and verified on PostgreSQL 17.4. Existing v6.6.1 Finance calls reconcile on the 28 November snapshot. Verified live receivables were ₹22,553,369.10 across 4,502 bills and 1,286 parties. Management Alerts now includes the outstanding debtor KYC finding alongside the six existing alerts. The [production receipt](debtor-kyc/SERVER_PRODUCTION_RECEIPT_20261128.md) records registration, reconciliation, permissions and tests. The [consolidated client assignment](debtor-kyc/CODEX_CLIENT_IMPLEMENTATION_ASSIGNMENT_20261128.md) is the handoff for the Finance KYC panel and the remaining R8 visual work. R8 visual acceptance is 3/10. Stable Electron is v6.6.1.

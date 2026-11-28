@@ -12,7 +12,7 @@ import { rejectedProtectedPaths, REVIEWED_MIS_G7_FILES } from "../lib/pec-protec
 import { misG7ClientFileApproved, misG7PinnedFileApproved } from "./mis-g7-reporting-approved-delta.mjs";
 import { pmBomDeltaApproved, normaliseApprovedSwDelta, WP11_PM_BOM_PATH } from "./wp11-approved-delta.mjs";
 
-import { eiClientApproved, eiRegistryApproved, EI_BRANCH, EI_CLIENT_BLOBS, EI_REGISTRY_BASE, EI_R5_BRANCH, EI_R5_CLIENT_BLOBS, EI_MATURITY_BRANCH, EI_MATURITY_CLIENT_BLOBS, eiServerApproved, EI_SERVER_BLOBS } from "./ei-approved-delta.mjs";
+import { eiClientApproved, eiRegistryApproved, EI_BRANCH, EI_CLIENT_BLOBS, EI_REGISTRY_BASE, EI_R5_BRANCH, EI_R5_CLIENT_BLOBS, EI_MATURITY_BRANCH, EI_MATURITY_CLIENT_BLOBS, eiServerApproved, EI_SERVER_BLOBS, EI_DEBTOR_KYC_BRANCH, EI_DEBTOR_KYC_SERVER_BLOBS } from "./ei-approved-delta.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
@@ -167,3 +167,13 @@ test("EI registered migration and fixture permits reject drift and other branche
 test("EI R5 exact page-local blob permits reject drift, old branch, and registry or server changes",()=>{for(const [f,blob] of Object.entries(EI_R5_CLIENT_BLOBS)){assert.ok(eiClientApproved(f,EI_R5_BRANCH,blob,blob));assert.equal(eiClientApproved(f,EI_R5_BRANCH,blob,"dirty"),false);assert.equal(eiClientApproved(f,EI_BRANCH,blob,blob),false);}assert.equal(eiClientApproved("public/shared/js/module-registry.js",EI_R5_BRANCH,EI_CLIENT_BLOBS["public/shared/js/module-registry.js"],EI_CLIENT_BLOBS["public/shared/js/module-registry.js"]),false);assert.equal(eiServerApproved(Object.keys(EI_SERVER_BLOBS)[0],EI_R5_BRANCH,Object.values(EI_SERVER_BLOBS)[0],Object.values(EI_SERVER_BLOBS)[0]),false);});
 
 test("EI dashboard maturity permits only exact three client blobs on its own branch",()=>{for(const [f,blob] of Object.entries(EI_MATURITY_CLIENT_BLOBS)){assert.ok(eiClientApproved(f,EI_MATURITY_BRANCH,blob,blob));assert.equal(eiClientApproved(f,EI_MATURITY_BRANCH,blob,"dirty"),false);assert.equal(eiClientApproved(f,EI_R5_BRANCH,blob,blob),false);assert.equal(eiClientApproved(f,EI_MATURITY_BRANCH,EI_R5_CLIENT_BLOBS[f],EI_R5_CLIENT_BLOBS[f]),false);}assert.equal(eiClientApproved("public/sw.js",EI_MATURITY_BRANCH,"x","x"),false);assert.equal(eiRegistryApproved("public/shared/js/module-registry.js",EI_MATURITY_BRANCH,EI_CLIENT_BLOBS["public/shared/js/module-registry.js"],EI_CLIENT_BLOBS["public/shared/js/module-registry.js"],EI_REGISTRY_BASE),false);const f=Object.keys(EI_SERVER_BLOBS)[0];assert.equal(eiServerApproved(f,EI_MATURITY_BRANCH,EI_SERVER_BLOBS[f],EI_SERVER_BLOBS[f]),false);});
+
+test("R8 Debtor KYC permits only the installed migration and exact regression files", () => {
+  for (const [file, blob] of Object.entries(EI_DEBTOR_KYC_SERVER_BLOBS)) {
+    assert.equal(eiServerApproved(file, EI_DEBTOR_KYC_BRANCH, blob, blob), true);
+    assert.equal(eiServerApproved(file, EI_DEBTOR_KYC_BRANCH, blob, "dirty"), false);
+    assert.equal(eiServerApproved(file, EI_BRANCH, blob, blob), false);
+    assert.equal(eiServerApproved(file + ".copy", EI_DEBTOR_KYC_BRANCH, blob, blob), false);
+  }
+  assert.equal(eiServerApproved("public/sw.js", EI_DEBTOR_KYC_BRANCH, "x", "x"), false);
+});

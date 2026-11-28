@@ -2,7 +2,7 @@
 // Mutation-sensitive PEC integration protected-file policy verification.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { rejectedProtectedPaths, INTEGRATION_PROTECTED_PATHS, REVIEWED_SERVER_MIGRATIONS, REVIEWED_WP08_G2_1_PINS, REVIEWED_WP11_V394_PINS, REVIEWED_PEC_V650_PINS, REVIEWED_PEC_V651_PINS } from "./lib/pec-protected-path-guard.mjs";
+import { rejectedProtectedPaths, INTEGRATION_PROTECTED_PATHS, REVIEWED_SERVER_MIGRATIONS, REVIEWED_WP08_G2_1_PINS, REVIEWED_WP11_V394_PINS, REVIEWED_PEC_V650_PINS, REVIEWED_PEC_V651_PINS, REVIEWED_EI_DEBTOR_KYC_TESTS } from "./lib/pec-protected-path-guard.mjs";
 import fs from "node:fs";
 let passed = 0;
 function test(name, changed, integration, expected) {
@@ -400,6 +400,7 @@ for (const [file, expectedSha] of wp10) {
 }
 // R8 registrations: exact branch + LF SHA-256, no dirty or unrelated exemption.
 const eiR8 = [
+  ["supabase/migrations/20261128084946_ei_r8_debtor_kyc_canonical.sql", "6d700fe90731f667a69f99fdfea1df664db9888afb48ec8dd944f085efc4af4a", "server/ei-debtor-kyc-foundation"],
   [
     "supabase/migrations/20261127144051_ei_r8_finance_ageing.sql",
     "00586d9900870b91662e65c8122bf486a67a0822e7fc01b575cc41ecbf38868f"
@@ -409,9 +410,8 @@ const eiR8 = [
     "ecf90871aaa3c15e06548525092f290193fe398b3f03dfb10250b5f442dcf427"
   ]
 ];
-for (const [file, sha] of eiR8) {
+for (const [file, sha, headBranch = "fix/executive-intelligence-r8-shell"] of eiR8) {
   const content = fs.readFileSync(file, "utf8");
-  const headBranch = "fix/executive-intelligence-r8-shell";
   assert.deepEqual(REVIEWED_SERVER_MIGRATIONS[file], {sha256:sha,heads:[headBranch]});
   assert.equal(createHash("sha256").update(content.replace(/\r\n/g,"\n")).digest("hex"),sha);
   const ctx = {headBranch, readText:()=>content};
@@ -424,5 +424,18 @@ for (const [file, sha] of eiR8) {
   t2("R8 unreadable payload rejected: "+file,[file],[file],{...ctx,readText:()=>{throw new Error("missing");}});
 }
 assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [...eiR8.map(([file])=>file), "supabase/migrations/20261122191542_pec_s5_unified_planning_ind_source_and_pr_reason.sql", "supabase/migrations/20261122174517_pec_jit_plan_indent_balance_once_timeout_fix.sql", "supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql", ...s4horizonguard.map(([file]) => file), ...s4uomguard.map(([file]) => file), ...s4retired.map(([file]) => file), ...s4compat.map(([file]) => file), ...s4e2e.map(([file]) => file), ...s4.map(([file]) => file), ...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact R8 registrations and unchanged previous server/SW pins");
+
+for (const [file, pin] of Object.entries(REVIEWED_EI_DEBTOR_KYC_TESTS)) {
+  const content = fs.readFileSync(file, "utf8");
+  assert.deepEqual(pin.heads, ["server/ei-debtor-kyc-foundation"]);
+  assert.equal(createHash("sha256").update(content.replace(/\r\n/g,"\n")).digest("hex"), pin.sha256);
+  const ctx = { headBranch: pin.heads[0], readText: () => content };
+  t2("Debtor KYC exact committed fixture accepted: " + file, [file], [], ctx);
+  t2("Debtor KYC changed fixture rejected: " + file, [file], [file], { ...ctx, readText: () => content + "\n" });
+  t2("Debtor KYC fixture on another branch rejected: " + file, [file], [file], { ...ctx, headBranch: "main" });
+  t2("Debtor KYC uncommitted fixture rejected: " + file, [file], [file], null);
+}
+t2("Debtor KYC lane rejects unlisted fixtures and SW", ["supabase/tests/mis_g7/debtor_kyc/extra.sql",sw],
+  ["supabase/tests/mis_g7/debtor_kyc/extra.sql",sw], { headBranch:"server/ei-debtor-kyc-foundation",readText:()=>"" });
 
 console.log(`pec-protected-path-guard: ${passed}/${passed} PASS`);

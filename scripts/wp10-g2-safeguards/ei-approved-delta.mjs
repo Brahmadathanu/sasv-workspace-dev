@@ -74,6 +74,18 @@ export const EI_SERVER_BLOBS = Object.freeze({
   "supabase/migrations/20261127144051_ei_r8_finance_ageing.sql": "8342ff9e9e77085f2cf5398e7e9f993a09628d1d",
   "supabase/migrations/20261127154330_ei_guarded_summary_refresh.sql": "d754470b5797bd1928e65e624365382a2cdedce6"
 });
+export const EI_DEBTOR_KYC_BRANCH = "server/ei-debtor-kyc-foundation";
+export const EI_DEBTOR_KYC_SERVER_BLOBS = Object.freeze({
+  "supabase/migrations/20261128084946_ei_r8_debtor_kyc_canonical.sql": "246158727c11ca935b3ada07000620e6306b8e53",
+  "supabase/tests/mis_g7/debtor_kyc/baseline.sql": "0a3140d6a0e7daabd7a2d9ed7531135395a36923",
+  "supabase/tests/mis_g7/debtor_kyc/capture.sql": "7c95d61d4248277b7b1ca55f18984e61dc0b74a3",
+  "supabase/tests/mis_g7/debtor_kyc/production_authenticated.sql": "bd6de7b2ee633431923a77595ff78099bf1facf5",
+  "supabase/tests/mis_g7/debtor_kyc/production_receipt.sql": "ee930fe4354d992fd0f5a814b05c761b1cbd6a16",
+  "supabase/tests/mis_g7/debtor_kyc/regression.sql": "c999e0cce4fab4c6b17d3fed68db92cb873eda51",
+  "supabase/tests/mis_g7/debtor_kyc/run.sh": "9669980fb33b5b717620748f6920990e6ecb63ca"
+});
 export function eiServerApproved(path,branch,committedBlob,workingBlob) {
- return [EI_BRANCH,"fix/executive-intelligence-r1-server",EI_R8_BRANCH].includes(branch) && Object.hasOwn(EI_SERVER_BLOBS,path) && committedBlob===EI_SERVER_BLOBS[path] && workingBlob===committedBlob;
+ const pins = branch === EI_DEBTOR_KYC_BRANCH ? EI_DEBTOR_KYC_SERVER_BLOBS
+   : [EI_BRANCH,"fix/executive-intelligence-r1-server",EI_R8_BRANCH].includes(branch) ? EI_SERVER_BLOBS : null;
+ return !!pins && Object.hasOwn(pins,path) && committedBlob===pins[path] && workingBlob===committedBlob;
 }
