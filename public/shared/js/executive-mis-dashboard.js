@@ -1,5 +1,5 @@
 import { CLASS_DIMENSIONS, KYC_ROUTE, INCOMPLETE_KYC_ROUTE, isKycRoute, roleAccess, classificationArgs, changeClassification, collectBillPages, debtorError } from "./ei-debtor-contract.js?kyc=1";
-import { mountDebtorWorkspace, classificationFields } from "./ei-debtor-workspace.js?kyc=2";
+import { mountDebtorWorkspace, classificationFields } from "./ei-debtor-workspace.js?kyc=3";
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 import { mountModuleHome } from "./sasv-module-chrome.js";
@@ -1224,6 +1224,11 @@ function openFinanceLayer(title, { trigger = document.activeElement, workspace =
     <button type="button" class="modal-close-btn finance-modal-close" aria-label="Close" title="Close" autofocus>${ICON_X}</button>
     </header><div class="modal-content finance-modal-body ei-kyc-dialog-body"></div>`;
   const closeButton = el.querySelector("button");
+  const previousFocus = document.activeElement;
+  el.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (button && el.contains(button)) button.focus({ preventScroll: true });
+  }, { capture: true });
   closeButton.onclick = () => el.close();
   el.addEventListener("click", (event) => {
     if (event.target !== el || el.querySelector(".ei-kyc-tools-open")) return;
@@ -1241,8 +1246,10 @@ function openFinanceLayer(title, { trigger = document.activeElement, workspace =
     el.remove();
     onClose?.();
     const top = [...document.querySelectorAll("dialog[open]")].at(-1);
+    const active = document.activeElement;
+    if (active?.isConnected && active !== previousFocus && active !== document.body && (!top || top.contains(active))) return;
     if (trigger?.isConnected && (!top || top.contains(trigger))) trigger.focus({ preventScroll: true });
-    else if (top?.classList.contains("ei-kyc-workspace")) top.querySelector('[role="tab"][aria-selected="true"]')?.focus({ preventScroll: true });
+    else top?.querySelector('[role="tab"][aria-selected="true"], .modal-close-btn')?.focus({ preventScroll: true });
   }, { once: true });
   document.body.append(el);
   el.showModal();

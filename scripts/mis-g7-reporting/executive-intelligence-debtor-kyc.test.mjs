@@ -49,9 +49,10 @@ test("bill export restarts mixed snapshots and rejects duplicate IDs", async () 
 
 test("PWA serves new exact asset versions with old cache present", async () => {
   const page = "/shared/executive-mis-dashboard.html";
-  const assets = ["/shared/js/executive-mis-dashboard.js?mis-c1=ei-r8-kyc-2", "/shared/js/executive-intelligence-model.js?ei-r8=3",
-    "/shared/js/ei-debtor-contract.js?kyc=1", "/shared/js/ei-debtor-workspace.js?kyc=2"];
-  const cache = new Map([["/shared/js/executive-mis-dashboard.js?mis-c1=ei-r8-kyc-1", { value: "prior preview" }],
+  const assets = ["/shared/js/executive-mis-dashboard.js?mis-c1=ei-r8-kyc-3", "/shared/js/executive-intelligence-model.js?ei-r8=3",
+    "/shared/js/ei-debtor-contract.js?kyc=1", "/shared/js/ei-debtor-workspace.js?kyc=3"];
+  const cache = new Map([["/shared/js/executive-mis-dashboard.js?mis-c1=ei-r8-kyc-2", { value: "prior modal preview" }],
+    ["/shared/js/ei-debtor-workspace.js?kyc=2", { value: "prior modal preview" }],["/shared/js/executive-mis-dashboard.js?mis-c1=ei-r8-kyc-1", { value: "prior preview" }],
     ["/shared/js/ei-debtor-workspace.js?kyc=1", { value: "prior preview" }],["/shared/js/executive-mis-dashboard.js?mis-c1=ei-r8-n1-20261127", { value: "old" }],
     ["/shared/js/executive-intelligence-model.js?ei-r8=2", { value: "old" }]]);
   const fetches = [];
@@ -168,6 +169,7 @@ for (const engine of ["chromium", "webkit"]) {
           });
           assert.ok(fits, `${engine} at ${width}px fits without horizontal overflow`);
           await page.keyboard.press("Escape");
+          await page.locator(".ei-kyc-dialog:not(.ei-kyc-workspace)").waitFor({ state: "detached" });
           await kycTab(page, "Debtor Register").focus();
           await page.keyboard.press("ArrowRight");
           assert.equal(await kycTab(page, "Classification Masters").getAttribute("aria-selected"), "true");
