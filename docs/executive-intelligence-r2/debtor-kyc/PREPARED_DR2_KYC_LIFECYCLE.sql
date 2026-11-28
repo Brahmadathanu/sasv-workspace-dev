@@ -28,21 +28,19 @@ grant execute on function public.ei_can_access_debtor_kyc(text) to authenticated
 -- Revised owner requirement: optional KYC profile fields remain SQL NULL.
 -- No field-disposition JSON, magic NA/NIL values, or mandatory contact/address gate.
 -- Preliminary classification presence validation; full RPC must enforce actual
--- hierarchy, active masters, area applicability, resolved commercial terms,
+-- hierarchy, active masters, mandatory area membership (commercial terms optional),
 -- authorized actor, optimistic revision, audit and transactional transitions.
 create function public.ei_debtor_classification_field_errors(
  p_region_id integer,p_godown_id integer,p_district_id bigint,p_area_id bigint,
- p_type_id bigint,p_area_required boolean,p_discount numeric,p_scheme_id bigint)
+ p_type_id bigint)
 returns text[] language sql immutable security invoker set search_path=pg_catalog as $$
  select array_remove(array[
  case when p_region_id is null then 'region_id' end,
  case when p_godown_id is null then 'godown_id' end,
  case when p_district_id is null then 'district_id' end,
- case when coalesce(p_area_required,true) and p_area_id is null then 'area_id' end,
- case when p_type_id is null then 'type_id' end,
- case when p_discount is null or p_discount not between 0 and 100 then 'discount_percent' end,
- case when p_scheme_id is null then 'scheme_id' end
+ case when p_area_id is null then 'area_id' end,
+ case when p_type_id is null then 'type_id' end
  ]::text[],null)
 $$;
-revoke all on function public.ei_debtor_classification_field_errors(integer,integer,bigint,bigint,bigint,boolean,numeric,bigint) from public,anon,authenticated;
+revoke all on function public.ei_debtor_classification_field_errors(integer,integer,bigint,bigint,bigint) from public,anon,authenticated;
 -- Not an activation RPC. No direct client grants or production execution.
