@@ -423,6 +423,25 @@ for (const [file, sha] of eiR8) {
   t2("R8 unrelated SQL/SW rejected: "+file,[illicit,sw],[illicit,sw],ctx);
   t2("R8 unreadable payload rejected: "+file,[file],[file],{...ctx,readText:()=>{throw new Error("missing");}});
 }
-assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [...eiR8.map(([file])=>file), "supabase/migrations/20261122191542_pec_s5_unified_planning_ind_source_and_pr_reason.sql", "supabase/migrations/20261122174517_pec_jit_plan_indent_balance_once_timeout_fix.sql", "supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql", ...s4horizonguard.map(([file]) => file), ...s4uomguard.map(([file]) => file), ...s4retired.map(([file]) => file), ...s4compat.map(([file]) => file), ...s4e2e.map(([file]) => file), ...s4.map(([file]) => file), ...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact R8 registrations and unchanged previous server/SW pins");
+// PEC #554: two exact owner-requested, already registered production migrations.
+const pec554 = [
+  ["supabase/migrations/20261128081434_pec_enable_ind_manual_pr_line_material_kind.sql", "003a12c90dd3304f10bcd2138a1938213970431dd655799e15b7127251575849"],
+  ["supabase/migrations/20261128082037_pec_enforce_pr_header_class_and_rm_only_scope.sql", "1f082f63f8b056598dd4db48ed263d0dff8679b08b45e6b34f805340e68e06da"],
+];
+for (const [file, sha] of pec554) {
+  const content = fs.readFileSync(file, "utf8");
+  const headBranch = "fix/pec-pr-class-scope-20261128";
+  assert.deepEqual(REVIEWED_SERVER_MIGRATIONS[file], {sha256:sha,heads:[headBranch]});
+  assert.equal(createHash("sha256").update(content.replace(/\r\n/g,"\n")).digest("hex"),sha);
+  const ctx = {headBranch, readText:()=>content};
+  t2("PEC #554 exact migration accepted: "+file,[file],[],ctx);
+  t2("PEC #554 CRLF accepted: "+file,[file],[],{...ctx,readText:()=>content.replace(/\r\n/g,"\n").replace(/\n/g,"\r\n")});
+  t2("PEC #554 changed content rejected: "+file,[file],[file],{...ctx,readText:()=>content+"\n-- changed"});
+  t2("PEC #554 wrong branch rejected: "+file,[file],[file],{...ctx,headBranch:"main"});
+  t2("PEC #554 dirty or missing context rejected: "+file,[file],[file],null);
+  t2("PEC #554 unrelated SQL/SW rejected: "+file,[illicit,sw],[illicit,sw],ctx);
+  t2("PEC #554 unreadable payload rejected: "+file,[file],[file],{...ctx,readText:()=>{throw new Error("missing");}});
+}
+assert.deepEqual(Object.keys(REVIEWED_SERVER_MIGRATIONS), [...pec554.map(([file])=>file), ...eiR8.map(([file])=>file), "supabase/migrations/20261122191542_pec_s5_unified_planning_ind_source_and_pr_reason.sql", "supabase/migrations/20261122174517_pec_jit_plan_indent_balance_once_timeout_fix.sql", "supabase/migrations/20261122163830_pec_jit_mrp_route_plan_and_generator.sql", ...s4horizonguard.map(([file]) => file), ...s4uomguard.map(([file]) => file), ...s4retired.map(([file]) => file), ...s4compat.map(([file]) => file), ...s4e2e.map(([file]) => file), ...s4.map(([file]) => file), ...wp10.map(([file]) => file), addLine, sw, ...r10, r2fix, sec400], "exact PEC #554 and R8 registrations and unchanged previous server/SW pins");
 
 console.log(`pec-protected-path-guard: ${passed}/${passed} PASS`);
