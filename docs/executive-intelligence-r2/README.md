@@ -31,3 +31,7 @@ Design-language parity merged (PR #546, main `6babbdd9`) and stable **v6.6.0** p
 
 ## R8 owner-guided local refinement — 27 November 2026
 Owner rejects current overall visual presentation; reopen visual acceptance, preserve v6.6.0 and functional/server baseline. Stock & Purchase Explorer is primary reference. PR #548 remains open/unmerged; Claude Code works locally in isolated R8 worktree with owner-guided browser preview, no intermediate pushes or deployments. See [R8 local handover](R8_LOCAL_REFINEMENT_HANDOVER_20261127.md). ChatGPT must not compete with local edits. R6 retirement parked until final acceptance and supported-client compatibility.
+
+## Debtor KYC server integration — 28 November 2026
+
+Production migration `20261128084946_ei_r8_debtor_kyc_canonical` was registered and verified on PostgreSQL 17.4. Existing v6.6.1 Finance calls reconcile on the 28 November snapshot. Verified live receivables were ₹22,553,369.10 across 4,502 bills and 1,286 parties. Management Alerts now includes the outstanding debtor KYC finding alongside the six existing alerts. The [production receipt](debtor-kyc/SERVER_PRODUCTION_RECEIPT_20261128.md) records registration, reconciliation, permissions and tests. The [consolidated client assignment](debtor-kyc/CODEX_CLIENT_IMPLEMENTATION_ASSIGNMENT_20261128.md) is the handoff for the Finance KYC panel and the remaining R8 visual work. R8 visual acceptance is 3/10. Stable Electron is v6.6.1.
