@@ -1842,8 +1842,22 @@
         .ei-group, .ei-group[data-domain="production"], .ei-group[data-domain="alerts"] { grid-column: 1 / -1; }
       }
       /* Monthly sales line: native aspect ratio (never stretched), soft area, constant-width strokes, labelled extremes. */
+      .ei-trend { grid-template-columns: minmax(0, 1fr); overflow-wrap: anywhere; }
       .ei-line-plot { height: auto; }
-      .ei-trend > .ei-line-plot, .ei-trend > .ei-cols, .ei-trend > .ei-trend-stats { width: 100%; max-width: 960px; margin-inline: auto; box-sizing: border-box; }
+      .ei-trend > :is(.ei-line-plot, .ei-cols, .ei-trend-stats) { width: 100%; max-width: 960px; min-width: 0; margin-inline: auto; box-sizing: border-box; }
+      .ei-trend > .ei-cols { gap: 0; }
+      .ei-trend .ei-col-label { container: ei-month / inline-size; display: flex; justify-content: center; overflow: visible; }
+      .ei-trend .ei-col-label:first-child { justify-content: safe center; }
+      @container ei-month (width < 34px) {
+        .ei-trend .ei-col-label:not(:nth-child(2n + 1)) > span { display: none; }
+      }
+      @container ei-month (width < 22px) {
+        .ei-trend .ei-col-label > span { display: none; }
+        .ei-trend .ei-col-label:nth-child(3n + 1) > span { display: block; }
+      }
+      .ei-trend-values { font-size: var(--ei-fs-xs); color: var(--mis-text-secondary); }
+      .ei-trend-values summary { cursor: pointer; }
+      .ei-trend-values ul { margin-block: 4px 0; padding-inline-start: 20px; }
       .ei-line-plot .ei-line-grid { stroke: var(--mis-divider); stroke-dasharray: 3 4; }
       .ei-line-plot .ei-line-zero { stroke: var(--mis-border); stroke-dasharray: none; }
       .ei-line-plot .ei-line-area { stroke: none; pointer-events: none; }
@@ -1853,7 +1867,7 @@
       .ei-line-plot .ei-line-point-peak { fill: var(--mis-surface); stroke: var(--mis-accent); stroke-width: 3; }
       .ei-line-plot .ei-line-point:hover { stroke: var(--mis-accent-soft-border); stroke-width: 5; }
       .ei-line-plot .ei-line-gap { font-size: var(--ei-fs-title); }
-      .ei-trend-stats { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; }
+      .ei-trend-stats { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr)); gap: 6px; }
       .ei-trend-stats li { display: grid; gap: 1px; padding: 5px 8px; border: 1px solid var(--mis-divider); border-radius: var(--sasv-radius-sm, 6px); background: var(--mis-surface); min-width: 0; }
       .ei-trend-stats span, .ei-trend-stats em { font-size: var(--ei-fs-2xs); font-style: normal; color: var(--mis-muted); }
       .ei-trend-stats b { font-size: var(--ei-fs-sm); font-weight: var(--sasv-fw-semibold); font-variant-numeric: tabular-nums; color: var(--mis-text); overflow-wrap: anywhere; }
@@ -2417,6 +2431,6 @@
       </div>
     </div>
 
-    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=ei-r8-2"></script>
+    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=ei-r8-n1-20261127"></script>
   </body>
 </html>

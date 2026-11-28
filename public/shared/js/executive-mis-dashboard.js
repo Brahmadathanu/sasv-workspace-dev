@@ -617,17 +617,19 @@ function trendHtml(t, { label, format, unit, asOf = "", compact = false }) {
   }).join("");
   const grid = [0, 1, 2, 3].map((k) => { const gy = top + (k * (bottom - top)) / 3; return `<line class="ei-line-grid" x1="0" x2="${W}" y1="${gy}" y2="${gy}"/>`; }).join("");
   const zero = t.lo < 0 && t.hi > 0 ? `<line class="ei-line-grid ei-line-zero" x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}"/>` : "";
-  const labels = points.map((p) => `<li class="ei-col-label" title="${escapeHtml(p.name + ": " + p.value)}">${escapeHtml(MONTH_SHORT[Number(p.m.key.slice(5, 7)) - 1])}${p.m.partial ? "*" : ""}</li>`).join("");
+  const labels = points.map((p) => `<li class="ei-col-label"><span>${escapeHtml(MONTH_SHORT[Number(p.m.key.slice(5, 7)) - 1])}${p.m.partial ? "*" : ""}</span></li>`).join("");
+  const values = points.map((p) => `<li>${escapeHtml(p.name)}: ${escapeHtml(p.value)}</li>`).join("");
   const gaps = t.months.length - valued.length;
   const stat = (k, m) => (m ? `<li><span>${k} · ${escapeHtml(monthName(m.key))}</span><b>${escapeHtml(format(m.value))}</b></li>` : "");
   const summary = monthName(t.months[0].key) + " to " + monthName(t.months[t.months.length - 1].key) + (gaps ? " · " + gaps + " month(s) without a value (shown as gaps, not zero)" : "");
   return `<figure class="ei-chart ei-trend">${chartHead(label, asOf)}
-    <svg class="ei-line-plot" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="group" aria-label="${escapeHtml(label)}">
+    <svg class="ei-line-plot" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="group" aria-label="${escapeHtml(label)}">
       <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--mis-accent);stop-opacity:.22"/><stop offset="1" style="stop-color:var(--mis-accent);stop-opacity:0"/></linearGradient></defs>
       ${grid}${zero}${area}${segments}${marks}
-    </svg><ol class="ei-cols" aria-label="Months">${labels}</ol>
+    </svg><ol class="ei-cols" aria-hidden="true">${labels}</ol>
     <ul class="ei-trend-stats">${stat("Latest", latest)}${stat("Peak", peak)}${stat("Lowest", low)}</ul>
     <div class="ei-trend-summary">${escapeHtml(summary)}</div>
+    <details class="ei-trend-values"><summary>Monthly values</summary><ul>${values}</ul></details>
     ${unit ? `<figcaption class="ei-bars-note">${escapeHtml(unit)}</figcaption>` : ""}</figure>`;
 }
 
@@ -1517,10 +1519,10 @@ function openAgeingDialog() {
   });
   overlay.addEventListener("keydown", (ev) => {
     if (ev.key === "Tab") trapTab(dlg, ev);
-    else if (ev.key === "Enter" && ev.target.tagName === "INPUT") { ev.preventDefault(); applyAgeingSettings(); }
+    else if (ev.key === "Enter" && ev.target.matches("input:not([type=date])")) { ev.preventDefault(); applyAgeingSettings(); }
   });
   setTimeout(() => { if (AGE_DLG) document.body.classList.add("ei-sheet-open"); }, 0); // after the opening click has finished its outside-click handlers
-  $("financeAgeAsOf")?.focus?.();
+  dlg.querySelector(".modal-close-btn").focus({ preventScroll: true });
 }
 function closeAgeingDialog({ restoreFocus = true } = {}) {
   if (!AGE_DLG) return;

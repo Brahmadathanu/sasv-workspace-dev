@@ -152,8 +152,8 @@ export function startServer() {
 }
 
 // Opens the dashboard with the mock installed on a lens (default Finance, via the URL hash). Resolves once that lens has first rendered unless opts.noWait.
-export async function openDashboard(browser, base, { width = 1280, height = 800, permission = "granted", init, noWait = false, lens = "finance", deviceScaleFactor = 1 } = {}) {
-  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor, timezoneId: "UTC" }); // fixed zone: formatted timestamps do not depend on the machine running the test
+export async function openDashboard(browser, base, { width = 1280, height = 800, permission = "granted", init, noWait = false, lens = "finance", deviceScaleFactor = 1, hasTouch = false } = {}) {
+  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor, hasTouch, timezoneId: "UTC" }); // fixed zone: formatted timestamps do not depend on the machine running the test
   const page = await context.newPage();
   const consoleErrors = [];
   page.on("console", (m) => { if (m.type() === "error") consoleErrors.push(m.text()); });
