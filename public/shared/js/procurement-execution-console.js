@@ -9423,12 +9423,11 @@ const PEC_REASON_TEMPLATES = Object.freeze({
   indPlanReason: "Monthly operational requirement entered for indirect material planning.",
   notesJit: "Just-in-time procurement requirement based on planned production demand for the selected period. Quantities are subject to review against existing procurement commitments and applicable supplier constraints.",
   reconcile: "Reconcile untouched draft PR lines with updated consumption-based requirements, preserving existing manual adjustments and retaining flagged items for separate review.",
-  qtyOverride: "Quantity adjusted following review of production demand and procurement constraints. Item-specific justification: ",
+  addLine: "Additional procurement requirement identified during the purchase requisition review.",
   statusActive: "PR activated for indent creation.",
   statusClosed: "PR closed by user request.",
   statusCancelled: "PR cancelled by user request.",
 });
-const PEC_MIN_SPECIFIC_JUSTIFICATION = 10;
 function pecApplyReasonTemplate(el, text) {
   if (!(el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement)) return;
   el.value = text;
@@ -9443,12 +9442,8 @@ function pecWireReasonField(el) {
     if (el.id === "prNotes") pecSyncNotesTemplate();
   });
 }
-// The unfinished override prefix, or the prefix plus a token justification, is NOT a justification.
-function pecReasonIsPlaceholderOnly(value, prefix = PEC_REASON_TEMPLATES.qtyOverride) {
-  const v = String(value ?? "").trim();
-  const p = prefix.trim();
-  if (!v || v === p) return true;
-  return v.startsWith(p) && v.slice(p.length).trim().length < PEC_MIN_SPECIFIC_JUSTIFICATION;
+function pecAddLineReason(value) {
+  return String(value ?? "").trim() || PEC_REASON_TEMPLATES.addLine;
 }
 // Wording matches the server fallback in proc_pr_set_manual_delta.
 const PEC_AUTO_ADJUSTMENT_RE = /^Manual quantity adjustment during PR review: .+ to .+\.$/;
@@ -10226,7 +10221,7 @@ function openPrAddLineModal() {
   }
   qs("prAddLineUomText").textContent = "—";
   qs("prAddLineQty").value = "";
-  pecApplyReasonTemplate(qs("prAddLineReason"), PEC_REASON_TEMPLATES.qtyOverride);
+  pecApplyReasonTemplate(qs("prAddLineReason"), PEC_REASON_TEMPLATES.addLine);
   backdrop.inert = false;
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
@@ -10260,13 +10255,7 @@ async function savePrAddLine() {
   const stockItemId = Number(backdrop.dataset.stockItemId || "0");
   const uomId = Number(backdrop.dataset.uomId || "0");
   const qty = Number((qs("prAddLineQty").value || "").trim());
-  const rawReason = (qs("prAddLineReason").value || "").trim();
-  if (rawReason && pecReasonIsPlaceholderOnly(rawReason)) {
-    toast("Complete the item-specific justification, or clear the reason.", "error");
-    qs("prAddLineReason").focus();
-    return;
-  }
-  const reason = rawReason || null;
+  const reason = pecAddLineReason(qs("prAddLineReason").value);
   const materialClassRaw = qs("prAddLineClass").value;
   const materialClassId = materialClassRaw ? Number(materialClassRaw) : null;
   if (!stockItemId) {
