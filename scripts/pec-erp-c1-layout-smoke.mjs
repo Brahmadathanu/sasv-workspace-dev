@@ -47,7 +47,7 @@ const indents = Array.from({ length: 5 }, (_, i) => ({
 }));
 const data = {
   proc_pec_indent_headers: S.empty ? [] : indents,
-  proc_pec_pr_headers: S.empty ? [] : [{ pr_id: 1, pr_number: "PR-1", status: S.ccfDraft ? "draft" : "active", updated_at:"2026-11-22T07:02:14.215875+00:00",generation_filters:{rm_scope:"normal"},horizon_start_month:"2026-11-01",horizon_end_month:"2026-12-01",effective_from_date: "2026-11-01", material_class_id: 1, line_count: 2 }],
+  proc_pec_pr_headers: S.empty ? [] : [{ pr_id: 1, pr_number: "PR-1", status: S.ccfDraft ? "draft" : "active", updated_at:"2026-11-22T07:02:14.215875+00:00",generation_filters:{rm_scope:"normal"},horizon_start_month:"2026-11-01",horizon_end_month:"2026-12-01",effective_from_date: "2026-11-01", material_class_id: S.prClass || 1, line_count: 2 }],
   proc_pec_purchase_excess: S.empty ? [] : [{ purchase_fact_id: 1, voucher_number: "V-1", voucher_date: "2026-11-02", stock_item_name: long, material_class_code: "RM", purchase_qty: 10, allocated_qty: 4, unallocated_qty: 6, accepted_qty: 0, net_unallocated_qty: 6 }],
   proc_pec_excess_acceptance_audit: [],
   proc_pec_buylist_material_class_options: [], proc_pec_buylist_rm_scope_options: [],
@@ -1142,10 +1142,11 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   await ctx.close();
 }
 {
-  const { ctx, page } = await open({ role: "edit", ccfDraft: true }, VIEWPORTS[0]);
+  const { ctx, page } = await open({ role: "edit", ccfDraft: true, prClass: 5 }, VIEWPORTS[0]);
   await page.click('.tabs .tab-btn[data-tab="pr"]');
   await page.waitForSelector("#prTbody tr:not(.pec-table-state)"); await page.click("#prTbody tr:first-child");
   await page.waitForSelector("#btnPrAddLine:visible"); await page.click("#btnPrAddLine");
+  check((await page.locator("#prTbody").innerText()).includes("Indirect Material") && !(await page.locator("#prTbody").innerText()).includes("Normal RM"), "[PEC scope] IND ignores stale RM scope");
   const STANDARD = "Additional procurement requirement identified during the purchase requisition review.";
   check((await page.inputValue("#prAddLineReason")) === STANDARD, "[PEC reason hotfix] complete editable default");
   await page.fill("#prAddLineQty", "5");
@@ -1154,7 +1155,7 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   check(await rpcCount(page, "proc_pr_add_line") === 0, "[PEC reason hotfix] missing item still blocks write");
   for (const [entered, expected] of [[STANDARD, STANDARD], [STANDARD + " Urgent.", STANDARD + " Urgent."], ["Urgent", "Urgent"], ["", STANDARD]]) {
     if (!(await page.isVisible("#prAddLineModalBackdrop"))) await page.click("#btnPrAddLine");
-    await page.selectOption("#prAddLineClass", "5");
+    check(await page.isDisabled("#prAddLineClass") && await page.inputValue("#prAddLineClass") === "5", "[PEC class] IND header class is locked");
     await page.fill("#prAddLineItemSearch", "Synthetic IND Gloves");
     await page.waitForSelector("#prAddLineItemResults li[role=option]");
     await page.locator("#prAddLineItemResults li[role=option]").first().click();
