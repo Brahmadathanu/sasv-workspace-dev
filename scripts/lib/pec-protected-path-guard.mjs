@@ -25,6 +25,16 @@ export const INTEGRATION_PROTECTED_PATHS = new Set([
 // migration is still rejected. Working-tree (uncommitted) changes are NEVER
 // exempt: callers pass a context only for committed paths.
 export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
+  // PEC PR #554: owner-requested production fixes registered 28 Nov 2026.
+  // Exact migration ledger content, dedicated branch only; never replay in production.
+  "supabase/migrations/20261128081434_pec_enable_ind_manual_pr_line_material_kind.sql": Object.freeze({
+    sha256: "003a12c90dd3304f10bcd2138a1938213970431dd655799e15b7127251575849",
+    heads: Object.freeze(["fix/pec-pr-class-scope-20261128"]),
+  }),
+  "supabase/migrations/20261128082037_pec_enforce_pr_header_class_and_rm_only_scope.sql": Object.freeze({
+    sha256: "1f082f63f8b056598dd4db48ed263d0dff8679b08b45e6b34f805340e68e06da",
+    heads: Object.freeze(["fix/pec-pr-class-scope-20261128"]),
+  }),
   // R8 intermediate release: exact owner-approved production registrations; never replay.
   "supabase/migrations/20261127144051_ei_r8_finance_ageing.sql": Object.freeze({
     sha256: "00586d9900870b91662e65c8122bf486a67a0822e7fc01b575cc41ecbf38868f",
