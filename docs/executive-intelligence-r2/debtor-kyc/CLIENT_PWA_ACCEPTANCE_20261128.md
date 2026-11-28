@@ -15,7 +15,7 @@ Start the loopback previews from the repository root.
 
 The fixture accepts `?role=executive`, `kyc-viewer`, `kyc-editor`, `commercial-viewer`, `commercial-editor` or `viewer` before the hash. Fixture changes reset on reload. The live preview uses the normal signed-in Supabase session. Use the fixture for writes and checks that display sensitive profile or audit fields.
 
-The Netlify deploy preview linked from the pull request is the authenticated preview for physical iOS and desktop. Sign in through the preview's Utilities Hub and use **Executive Intelligence → Finance → Debtor KYC**.
+Sign in through the preview's Utilities Hub and use **Executive Intelligence → Finance → Debtor KYC**. The deploy preview is the authenticated candidate for physical iOS and desktop. The served entry references the candidate's versioned assets, and the JavaScript files and service worker were checked against the implementation. [Netlify preview](https://deploy-preview-555--sasv-utilities-hub.netlify.app/utilities-hub/index.html)
 
 ## Owner acceptance checklist
 
@@ -29,3 +29,7 @@ The Netlify deploy preview linked from the pull request is the authenticated pre
 - [ ] Record the production PWA receipt before scheduling the later consolidated Electron v6.6.2 work. Stable Electron v6.6.1 and Sales Viewer remain available during this acceptance sequence.
 
 The existing service worker fetches navigations from the network and keys static assets by exact URL. The Finance entry, model and new Debtor KYC scripts use versioned URLs. The regression suite exercises this upgrade with prior assets present in the cache.
+
+## Verification evidence
+
+The [Debtor KYC browser suite](../../../scripts/mis-g7-reporting/executive-intelligence-debtor-kyc.test.mjs) runs Chromium and WebKit at 320, 375, 390, 414, 430, 768 and 1440 CSS pixels. It exercises nested Escape, Finance state restoration and the fixture operations. The pull request's EI regression workflow attaches the TAP receipt, desktop and mobile KYC screenshots, and 24 wider R8 fixture captures. Live authentication and physical iOS acceptance require owner review.

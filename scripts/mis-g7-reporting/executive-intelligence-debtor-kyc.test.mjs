@@ -134,11 +134,11 @@ for (const engine of ["chromium", "webkit"]) {
   });
 }
 
-async function scenario(t, mode, lens = "finance") {
+async function scenario(t, mode, lens = "finance", width) {
   const server = await startServer();
   const browser = await playwright.chromium.launch();
   t.after(async () => { await browser.close(); server.server.close(); });
-  const instance = await openDashboard(browser, server.base, { lens, init: fixtureInit(mode), permission: mode === "unauthorized" ? "denied" : "granted" });
+  const instance = await openDashboard(browser, server.base, { lens, width, init: fixtureInit(mode), permission: mode === "unauthorized" ? "denied" : "granted" });
   instance.page.setDefaultTimeout(8000);
   return instance;
 }
@@ -151,8 +151,7 @@ test("Alerts link opens unclassified workspace and KYC/commercial roles stay ind
   assert.equal(await command(page, "Classification Masters").count(), 0);
   assert.equal(await command(page, "Commercial Policies").count(), 0);
   assert.equal(await calls(page, "ei_debtor_profile").then((value) => value.length), 0);
-  const narrow = await scenario(t, "executive", "alerts");
-  await narrow.page.setViewportSize({ width: 390, height: 800 });
+  const narrow = await scenario(t, "executive", "alerts", 390);
   await narrow.page.getByRole("button", { name: "Open unclassified Debtor KYC" }).click();
   await narrow.page.getByText("Fixture Unmapped").waitFor();
   for (const [role, masters, commercial] of [["kyc-viewer", true, false], ["kyc-editor", true, false], ["commercial-viewer", false, true], ["commercial-editor", false, true], ["unauthorized", false, false]]) {
@@ -218,7 +217,11 @@ test("KYC lifecycle, stale revisions, alias conflicts, bulk preview, audits and 
   await visibleDialog(page).getByLabel("Observed ledger name").fill("Fixture Alias");
   await fillReason(page);
   await visibleDialog(page).getByRole("button", { name: "Confirm", exact: true }).click();
-  await visibleDialog(page).getByRole("button", { name: "Inactivate alias" }).waitFor();
+  await visibleDialog(page).getByRole("button", { name: "Inactivate alias" }).click();
+  await fillReason(page);
+  await visibleDialog(page).getByRole("button", { name: "Confirm", exact: true }).click();
+  await visibleDialog(page).getByRole("button", { name: "Reactivate alias" }).waitFor();
+  assert.equal((await last(page, "ei_debtor_alias_set")).p_revision, 1);
   await visibleDialog(page).getByRole("button", { name: "Add alias" }).click();
   await visibleDialog(page).getByLabel("Observed ledger name").fill("Fixture Alias");
   await fillReason(page);
@@ -229,11 +232,16 @@ test("KYC lifecycle, stale revisions, alias conflicts, bulk preview, audits and 
   await page.getByRole("checkbox", { name: "Select Fixture Debtor 1", exact: true }).check();
   await command(page, "Bulk classification (1)").click();
   await visibleDialog(page).getByLabel("Lifecycle action").selectOption("SAVE");
-  await visibleDialog(page).getByLabel("Region", { exact: true }).selectOption("1");
+  for (const [field, id] of [["Region", "1"], ["Godown", "10"], ["District", "20"], ["Area", "30"], ["Debtor type", "40"]]) {
+    await visibleDialog(page).getByLabel(field, { exact: true }).selectOption(id);
+  }
   await fillReason(page);
   await visibleDialog(page).getByRole("button", { name: "Preview", exact: true }).click();
   await visibleDialog(page).getByText("Fixture Debtor 1 · Active").waitFor();
-  await visibleDialog(page).getByRole("button", { name: "Confirm bulk classification" }).waitFor();
+  const savesBefore = (await calls(page, "ei_debtor_save")).length;
+  await visibleDialog(page).getByRole("button", { name: "Confirm bulk classification" }).click();
+  await visibleDialog(page).getByText("Fixture Debtor 1 · Saved").waitFor();
+  assert.equal((await calls(page, "ei_debtor_save")).length, savesBefore + 1);
   await page.keyboard.press("Escape");
   await command(page, "Classification Masters").click();
   await page.getByLabel("Master", { exact: true }).selectOption("type");
@@ -306,6 +314,8 @@ test("classified Finance retains company groups, handles negative subtotal and e
   await page.locator("#financePartyTableWrap tbody tr").first().click();
   await page.locator("#financeBillTotals").getByText(/502 bills/).waitFor();
   await page.locator("#financeModalContent tbody").getByText("No usable date").first().waitFor();
+  await page.locator("#financeBillMore").scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => window.__mis.calls.some((call) => call.name === "get_mis_finance_bill_page" && call.args.p_offset === 100));
   const download = page.waitForEvent("download");
   await page.locator("#financeBillExport").click();
   const file = await (await download).path();
