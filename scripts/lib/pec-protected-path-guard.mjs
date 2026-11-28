@@ -25,6 +25,11 @@ export const INTEGRATION_PROTECTED_PATHS = new Set([
 // migration is still rejected. Working-tree (uncommitted) changes are NEVER
 // exempt: callers pass a context only for committed paths.
 export const REVIEWED_SERVER_MIGRATIONS = Object.freeze({
+  // R8 Debtor KYC server registration. This exact payload is already installed.
+  "supabase/migrations/20261128084946_ei_r8_debtor_kyc_canonical.sql": Object.freeze({
+    sha256: "6d700fe90731f667a69f99fdfea1df664db9888afb48ec8dd944f085efc4af4a",
+    heads: Object.freeze(["server/ei-debtor-kyc-foundation"]),
+  }),
   // R8 intermediate release: exact owner-approved production registrations; never replay.
   "supabase/migrations/20261127144051_ei_r8_finance_ageing.sql": Object.freeze({
     sha256: "00586d9900870b91662e65c8122bf486a67a0822e7fc01b575cc41ecbf38868f",
@@ -245,11 +250,22 @@ export const REVIEWED_MIS_G7_FILES = Object.freeze({
   "supabase/tests/mis_g7/s7/route_engine_fixture.sql": Object.freeze({ sha256: "877f75071b10d7a63b51930fc566383ea23b69e697ebc8649f0c54d5699e79ea", heads: MIS_HEAD }),
 });
 
+// Only committed regression payloads from the Debtor KYC server branch.
+const DEBTOR_KYC_HEAD = Object.freeze(["server/ei-debtor-kyc-foundation"]);
+export const REVIEWED_EI_DEBTOR_KYC_TESTS = Object.freeze({
+  "supabase/tests/mis_g7/debtor_kyc/baseline.sql": Object.freeze({ sha256: "a5fee18380ced18fc88e15c9df7c70b5d9036f228b85658d44e23ced4635b40c", heads: DEBTOR_KYC_HEAD }),
+  "supabase/tests/mis_g7/debtor_kyc/capture.sql": Object.freeze({ sha256: "3f9acde4d6d11d53612308e6563d1bbdad37656afd9fcc4a346aa9cffc840f7d", heads: DEBTOR_KYC_HEAD }),
+  "supabase/tests/mis_g7/debtor_kyc/production_authenticated.sql": Object.freeze({ sha256: "6fcc5aee3fe440cc5f1f7fe239b741effe0c73808ce3e0bbabd64c1c1c3d3898", heads: DEBTOR_KYC_HEAD }),
+  "supabase/tests/mis_g7/debtor_kyc/production_receipt.sql": Object.freeze({ sha256: "cd22986ba75cbfaaac58ab9d08b62821fbc42e8c5c6b249bc44a3f137362fb0b", heads: DEBTOR_KYC_HEAD }),
+  "supabase/tests/mis_g7/debtor_kyc/regression.sql": Object.freeze({ sha256: "fc7a257c3fa21fd453588ac35845c4f31ad3cf73693f4a2a17f4d11e5bcba028", heads: DEBTOR_KYC_HEAD }),
+  "supabase/tests/mis_g7/debtor_kyc/run.sh": Object.freeze({ sha256: "f0ec948e9a24185e446062802b8ae823cb558c9dc35bfef6c1d0df4a5212de28", heads: DEBTOR_KYC_HEAD }),
+});
+
 const lfSha256 = (text) => createHash("sha256").update(String(text).replace(/\r\n/g, "\n")).digest("hex");
 
 function reviewedServerException(path, ctx) {
   if (!ctx || typeof ctx.readText !== "function") return false;
-  return [REVIEWED_SERVER_MIGRATIONS[path], REVIEWED_WP08_G2_1_PINS[path], REVIEWED_WP09_G2_PINS[path], REVIEWED_WP11_V394_PINS[path], REVIEWED_PEC_V650_PINS[path], REVIEWED_PEC_V651_PINS[path], REVIEWED_MIS_G7_FILES[path]].some((entry) => {
+  return [REVIEWED_SERVER_MIGRATIONS[path], REVIEWED_WP08_G2_1_PINS[path], REVIEWED_WP09_G2_PINS[path], REVIEWED_WP11_V394_PINS[path], REVIEWED_PEC_V650_PINS[path], REVIEWED_PEC_V651_PINS[path], REVIEWED_MIS_G7_FILES[path], REVIEWED_EI_DEBTOR_KYC_TESTS[path]].some((entry) => {
     if (!entry || !entry.heads.includes(ctx.headBranch)) return false;
     try { return lfSha256(ctx.readText(path)) === entry.sha256; } catch { return false; }
   });
