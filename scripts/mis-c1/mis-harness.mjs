@@ -82,7 +82,6 @@ const fixtures = {
   v_mis_finished_goods_tab_summary: () => ({ data: { sku_count: 622, stock_value_overall: 100, zero_stock_sku_count: 54, below_1_month_cover_count: 104, above_6_month_cover_count: 101, finished_goods_scope_note: "FG note" }, error: null }),
   v_mis_batch_pipeline: () => ({ data: { active_pipeline_batch_count: 412, work_in_process_batch_count: 100, overdue_work_in_process_batch_count: 59, finished_goods_bulk_batch_count: 7, bottled_stock_batch_count: 8, total_canonical_batch_count: 2581 }, error: null }),
   get_mis_production_value_summary: (a) => ({ data: { report_month: a.p_report_month, as_of_date: a.p_as_of_date || "2026-11-20", approved_cost_run_id: 143, approved_cost_valuation_date: "2026-10-22", status: "BULK_RECEIPT_COVERED_REFERENCE", plan_status: "UNAVAILABLE_PENDING_FROZEN_PLAN", component_policy: "RM_STORES_PM_EXCLUDED", planned_product_count: null, planned_unvalued_count: null, planned_reference_covered_value: null, receipt_event_count: 80, receipt_unvalued_count: 2, receipt_correction_event_count: 0, receipt_reference_covered_value: 3204140.56, receipt_value_status: "PARTIAL_COVERAGE", tally_fg_transfer_book_value: 2500000, transfer_line_count: 41, tally_snapshot_as_of: "2026-11-20", transfer_reconciliation_status: "NOT_CHECKED_BY_BOOK_TOTAL", transfer_missing_amount_lines: 0, completed_reference_value: null, completed_status: "NOT_VERIFIED", plan_achievement_pct: null, comparability: "NOT_COMPARABLE" }, error: null }),
-  v_mis_finance_outstanding_detail: () => ({ data: [{ bill_date_text: "1-Apr-26", bill_ref: "B-1", outstanding_amount_tally_value: -50, outstanding_amount_abs_line_value: 50 }], error: null }),
   get_mis_finance_party_page: (a) => page(searchTotal(a, 60, 3), a, (i) => ({ party_name: (a.p_search ? "Match " : "Party ") + (i + 1), mis_group_name: a.p_group_filter === "receivables" ? "Sundry Debtors" : "Sundry Creditors", bill_count: 2, outstanding_amount_mis_value: 100, signed_outstanding_tally_value: -100 })),
   get_mis_sales_product_page: (a) => page(searchTotal(a, 60, 4), a, (i) => ({ product_name: (a.p_search ? "Sprod " : "Product ") + (i + 1), sku_count: 2, sales_value: 10, sales_units: 3, latest_day_sales_value: 1, average_daily_sales_value: 1 })),
   get_mis_inventory_item_page: (a) => page(searchTotal(a, 60, 5), a, (i) => ({ code: "C" + i, item_name: (a.p_search ? "Iitem " : "Item ") + (i + 1), source_label: a.p_source_kind, qty_value: 1, avg_rate_value: 1, stock_value: 1, category_label: "Cat", subcategory_label: "Sub" })),
@@ -90,6 +89,10 @@ const fixtures = {
 };
 // Finance ageing (R8.17): synthetic, shape = docs/executive-intelligence-r2/FINANCE_AGEING_SERVER_SPEC.md. Not production figures.
 const ageSplit = (n, w) => { const t = w.reduce((a, b) => a + b, 0); return w.map((x) => Math.round((n * x) / t * 100) / 100); };
+fixtures.ei_debtor_lookups = () => ({ data: { regions: [], godowns: [], districts: [], coverage: [], areas: [], types: [] }, error: null });
+fixtures.get_mis_finance_bill_page = (args) => ({ data: { total_rows: 1, groups: [{ bill_count: 1, company_amount: 50, party_amount: 50 }], rows: args.p_offset ? [] : [
+  { bill_id: 1, report_date: "2026-11-27", bill_date_text: "1-Apr-26", bill_ref: "B-1", outstanding_amount_tally_value: -50, outstanding_amount_abs_line_value: 50, company_amount: 50, party_amount: 50, age_days: 240, bucket_no: 3 },
+] }, error: null });
 fixtures.get_mis_finance_ageing_summary = (a) => {
   const b = a.p_bounds || [30, 60, 90];
   const mk = (group, label, total, w, bills, parties) => ({ group, label, total_amount: total, bucket_amounts: ageSplit(total, w.slice(0, b.length + 1)), bucket_bill_counts: w.slice(0, b.length + 1).map((x) => x * 3), bill_count: bills, party_count: parties, oldest_age_days: 412, weighted_avg_age_days: 71, undated_amount: 0 });
@@ -137,18 +140,25 @@ export function launchBrowser() {
   }
 }
 
-export function startServer() {
+export function startServer({ port = 0, fixture } = {}) {
   const pub = path.join(root, "public");
   const server = http.createServer((req, res) => {
     const url = decodeURIComponent((req.url || "/").split("?")[0]);
-    const file = path.join(pub, url);
-    if (!file.startsWith(pub) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+    if (fixture && url === "/shared/js/supabaseClient.js") {
+      // Serve the in-browser RPC stub only from the opt-in loopback preview server.
+      res.writeHead(200, { "content-type": "text/javascript", "cache-control": "no-store" });
+      res.end(SUPABASE_STUB +
+        "\n(" + fixture.toString() + ")(new URLSearchParams(window.location.search).get('role') || 'editor');\nexport const supabase = createClient();");
+      return;
+    }
+    const file = path.join(pub, url.endsWith("/") ? url + "index.html" : url);
+    if (!file.startsWith(pub + path.sep) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
       res.writeHead(404); res.end("not found"); return;
     }
-    res.writeHead(200, { "content-type": MIME[path.extname(file)] || "application/octet-stream" });
+    res.writeHead(200, { "cache-control": "no-store", "content-type": MIME[path.extname(file)] || "application/octet-stream" });
     fs.createReadStream(file).pipe(res);
   });
-  return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve({ server, base: `http://127.0.0.1:${server.address().port}` })));
+  return new Promise((resolve) => server.listen(port, "127.0.0.1", () => resolve({ server, base: `http://127.0.0.1:${server.address().port}` })));
 }
 
 // Opens the dashboard with the mock installed on a lens (default Finance, via the URL hash). Resolves once that lens has first rendered unless opts.noWait.
@@ -164,8 +174,7 @@ export async function openDashboard(browser, base, { width = 1280, height = 800,
     if (u.includes("esm.sh/@supabase/supabase-js")) return route.fulfill({ status: 200, contentType: "text/javascript", body: SUPABASE_STUB });
     return route.abort();
   });
-  await page.addInitScript((p) => { window.__mis = { permission: p }; }, permission);
-  if (init) await page.addInitScript(init);
+  await page.addInitScript({ content: `window.__mis = { permission: ${JSON.stringify(permission)} }; ${init ? "(" + init.toString() + ")();" : ""}` });
   await page.goto(base + PAGE_PATH + (lens ? `#${lens}` : ""));
   const ready = { finance: "#financePartyTableWrap .finance-table, #financePartyTableWrap .ei-rc", overview: ".ei-overview .kpi-card" }[lens];
   if (!noWait && permission === "granted" && ready) await page.waitForSelector(ready, { timeout: 8000 });

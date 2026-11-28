@@ -57,7 +57,7 @@ test("ranked page bars are page-only and honest; subset only when it fits inside
 test("static: bounded scope, cache keys advanced, no new dependency, token-only", () => {
   const html = read("public/shared/executive-mis-dashboard.html"), js = read("public/shared/js/executive-mis-dashboard.js");
   assert.match(html, /<html lang="en-GB" data-sasv-theme="sasv-core">/, "the shared themed home tokens");
-  assert.match(html, /executive-mis-dashboard\.js\?mis-c1=ei-r8-n1-20261127/); assert.match(js, /executive-intelligence-model\.js\?ei-r8=2/);
+  assert.match(html, /executive-mis-dashboard\.js\?mis-c1=ei-r8-kyc-3/); assert.match(js, /executive-intelligence-model\.js\?ei-r8=3/);
   assert.doesNotMatch(js, /import\s+[^;]*from\s+"https?:/); assert.doesNotMatch(html, /<script[^>]+src="https?:/);
   const r5 = html.slice(html.indexOf("EI-R5 final: visual intelligence"));
   assert.ok(r5.length > 2500); assert.doesNotMatch(r5, /#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(/);

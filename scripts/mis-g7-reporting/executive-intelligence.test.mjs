@@ -160,7 +160,7 @@ test("month grid pivots only the returned page (absent cell stays absent, never 
   assert.equal(g.rows[1].cells["2026-09-01"], undefined, "B has no September cell on this page");
   assert.equal(pivotMonthGrid([]).rows.length, 0);
   for (const evil of ["=1+1", "+SUM(A1)", "-2+3", "@cmd", "\tTAB", "\rCR"]) assert.ok(csvCell(evil).replace(/^"/, "").startsWith("'"), JSON.stringify(evil));
-  assert.equal(csvCell('say "hi", ok'), '"say ""hi"", ok"'); assert.equal(csvCell(null), ""); assert.equal(csvCell(0), "0"); assert.equal(csvCell("plain"), "plain");
+  assert.equal(csvCell('say "hi", ok'), '"say ""hi"", ok"'); assert.equal(csvCell(null), ""); assert.equal(csvCell(0), "0"); assert.equal(csvCell(-30), "-30"); assert.equal(csvCell("plain"), "plain");
   const csv = buildPageCsv([{ label: "Name", get: (r) => r.n }, { label: "V", get: (r) => r.v }], [{ n: "=HYPERLINK(\"x\")", v: 1 }], "page 1 only");
   assert.deepEqual(csv.trim().split("\r\n"), ["page 1 only", "Name,V", "\"'=HYPERLINK(\"\"x\"\")\",1"]);
   assert.equal(HISTORY_GROUPS.length, 17); assert.ok(HISTORY_GROUPS.some((g) => g.value === "group_month") && HISTORY_GROUPS.some((g) => g.value === "subgroup_month")); assert.ok(isMonthGrouping("sku_month") && isMonthGrouping("month") && !isMonthGrouping("sku"));
@@ -181,13 +181,13 @@ test("paging: only an empty out-of-range page resets (once, to page 1)", () => {
 });
 
 // ------------------------------------------------------------------------------------------------ static contract guards
-test("no server endpoint is invented: the page touches exactly the pinned set of server objects, and none is written", () => {
+test("Finance reporting reads the installed contracts and keeps KYC writes out of the dashboard", () => {
   const js = read("public/shared/js/executive-mis-dashboard.js");
   const names = new Set([...js.matchAll(/["']((?:get_mis|v_mis|v_ei|mv_mis|ei)_[a-z_]+)["']/g)].map((m) => m[1]));
   assert.deepEqual([...names].sort(), [
-    "ei_facility_sales_scope", "ei_management_alerts", "ei_sales_access", "ei_sales_comparison", "ei_sales_coverage", "ei_sales_dimensions", "ei_sales_exceptions", "ei_sales_history", "ei_sales_mtd_product_page", "ei_sales_refresh_status", "ei_sales_window_totals",
-    "get_mis_finance_ageing_party_page", "get_mis_finance_ageing_summary", "get_mis_finance_party_page", "get_mis_finished_goods_sku_page", "get_mis_inventory_item_page", "get_mis_production_value_summary",
-    "mv_mis_executive_summary", "v_ei_sales_mtd_summary", "v_mis_batch_pipeline", "v_mis_finance_outstanding_detail", "v_mis_finance_tab_summary", "v_mis_finished_goods_tab_summary",
+    "ei_debtor_lookups", "ei_facility_sales_scope", "ei_management_alerts", "ei_sales_access", "ei_sales_comparison", "ei_sales_coverage", "ei_sales_dimensions", "ei_sales_exceptions", "ei_sales_history", "ei_sales_mtd_product_page", "ei_sales_refresh_status", "ei_sales_window_totals",
+    "get_mis_finance_ageing_party_page", "get_mis_finance_ageing_summary", "get_mis_finance_bill_page", "get_mis_finance_party_page", "get_mis_finished_goods_sku_page", "get_mis_inventory_item_page", "get_mis_production_value_summary",
+    "mv_mis_executive_summary", "v_ei_sales_mtd_summary", "v_mis_batch_pipeline", "v_mis_finance_tab_summary", "v_mis_finished_goods_tab_summary",
     "v_mis_inventory_tab_summary",
   ]);
   assert.doesNotMatch(js, /get_mis_sales_product_page|v_mis_sales_tab_summary/, "Sales MTD uses only the installed ei_* contracts, never the legacy executive-only MTD objects");

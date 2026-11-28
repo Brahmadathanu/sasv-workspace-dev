@@ -224,7 +224,9 @@ export function alertsViewModel(source) {
     const findings = hasValue(r.findings) ? Number(r.findings) : null;
     // A missing count can never read as clear, whatever state label the row carries.
     const state = findings === null ? "UNAVAILABLE" : r.state === "REVIEW" || r.state === "CLEAR" ? r.state : "UNAVAILABLE";
-    return { key: String(r.key ?? ""), label: String(r.label ?? ""), evidenceDate: r.evidence_date ?? null, findings, state, severity: String(r.severity ?? "REVIEW_ONLY") };
+    const debtorKyc = r.key === "finance.debtor_kyc_incomplete" && r.deep_link?.lens === "finance" &&
+      r.deep_link?.panel === "debtor-kyc" && r.deep_link?.partition === "unclassified";
+    return { ...(debtorKyc ? { debtorKyc, exposureAmount: num(r.exposure_amount) } : {}), key: String(r.key ?? ""), label: String(r.label ?? ""), evidenceDate: r.evidence_date ?? null, findings, state, severity: String(r.severity ?? "REVIEW_ONLY") };
   });
   return { state: items.length ? "ok" : "empty", title: items.length ? "" : "No alerts reported by the source", body: "", partial, catalogue: String(d.catalogue || ""), items };
 }
@@ -315,6 +317,7 @@ export function pivotMonthGrid(rows) {
 
 // Bounded export of the rows already returned: neutralise spreadsheet formula injection and quote safely.
 export function csvCell(v) {
+  if (typeof v === "number" && Number.isFinite(v)) return String(v);
   let t = v === null || v === undefined ? "" : String(v);
   if (/^[=+\-@\t\r]/.test(t)) t = `'${t}`;
   return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;

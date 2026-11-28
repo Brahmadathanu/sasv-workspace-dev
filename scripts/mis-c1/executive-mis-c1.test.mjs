@@ -51,7 +51,8 @@ test("production secondary cards use semantic tokens, not hard-coded palette val
 
 test("production value is presentation-only: sole canonical RPC, no browser arithmetic or source queries", () => {
   const a = js.indexOf("const PV_STATUS_LABELS");
-  const b = js.indexOf("function renderProductionTab");
+  const b = js.indexOf("function renderProductionCountsBody");
+  assert.ok(a >= 0 && b > a);
   const code = js.slice(a, b) + js.slice(js.indexOf("async function loadProductionValue"), js.indexOf("const PV_STATUS_LABELS"));
   assert.doesNotMatch(code, /[\w)\]]\s+[*\/]\s+[\w(]/, "no multiplication/division in the value code");
   assert.doesNotMatch(code, /Number\([^)]*\)\s*[+\-]\s*Number\(/, "no summation of server figures");
@@ -939,11 +940,11 @@ test("loading, empty, error and populated states are distinct (with Retry)", { s
 test("Finance modal: a late bill-detail response cannot repopulate a closed modal", { skip }, async () => {
   const { page } = await open();
   try {
-    await page.evaluate(() => { const m = window.__mis; m.handlers.v_mis_finance_outstanding_detail = () => (m.bills = m.defer()).promise; });
+    await page.evaluate(() => { const m = window.__mis; m.handlers.get_mis_finance_bill_page = () => (m.bills = m.defer()).promise; });
     await page.locator("#financePartyTableWrap tbody tr").first().click();
     await page.waitForFunction(() => !!window.__mis.bills);
     await page.keyboard.press("Escape");
-    await page.evaluate(() => window.__mis.bills.resolve({ data: [{ bill_ref: "LATE", bill_date_text: "x", outstanding_amount_tally_value: 1, outstanding_amount_abs_line_value: 1 }], error: null }));
+    await page.evaluate(() => window.__mis.bills.resolve({ data: { total_rows: 1, groups: [], rows: [{ bill_id: 1, bill_ref: "LATE", bill_date_text: "x", outstanding_amount_tally_value: 1, party_amount: 1 }] }, error: null }));
     await page.waitForTimeout(100);
     assert.equal(await page.$eval("#financeModalContent", (e) => e.innerHTML), "");
     assert.equal(await page.$eval("#financeModalOverlay", (e) => e.classList.contains("hidden")), true);

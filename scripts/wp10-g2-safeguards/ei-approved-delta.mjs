@@ -51,9 +51,18 @@ const EI_R8_N1_CLIENT_BLOBS = Object.freeze({
   "public/shared/executive-mis-dashboard.html": "73cc5ff03d7f6f8b1ebf187acc28c885effa65ac",
   "public/shared/js/executive-mis-dashboard.js": "bb00be62f073530676e3d93dc08f21ab80943608",
 });
+// Debtor KYC client uses the existing Executive Intelligence shell and PWA delivery rules.
+export const EI_DEBTOR_KYC_CLIENT_BRANCH = "codex/r8-debtor-kyc-client";
+export const EI_DEBTOR_KYC_CLIENT_BLOBS = Object.freeze({
+  "public/shared/executive-mis-dashboard.html": "b47dda9bf1eab816c68ede31dc3e3c280dfd41bb",
+  "public/shared/js/executive-mis-dashboard.js": "625368427cac7a3cb2cde135766bc5bc55b0c7f8",
+  "public/shared/js/executive-intelligence-model.js": "4324624bdd26dc41300caa5dbae57dd18194e174",
+  "public/shared/js/ei-debtor-contract.js": "f0a01cf1caffecb5fe70f6d101ab30c9e9cc16e0",
+  "public/shared/js/ei-debtor-workspace.js": "a296d4636def05daf8b3bf83891e43e5cd63d2bc",
+});
 export const EI_REGISTRY_BASE = "f78f3ba6d1a403cf4b588afc5d285f48df962361";
 export function eiClientApproved(path, branch, committedBlob, workingBlob) {
- const pins = branch === EI_BRANCH ? EI_CLIENT_BLOBS : branch === EI_R5_BRANCH ? EI_R5_CLIENT_BLOBS : branch === EI_MATURITY_BRANCH ? EI_MATURITY_CLIENT_BLOBS : branch === EI_COSMETIC_BRANCH ? EI_COSMETIC_CLIENT_BLOBS : branch === EI_R6_BRANCH ? EI_R6_CLIENT_BLOBS : branch === EI_R7_BRANCH ? EI_R7_CLIENT_BLOBS : branch === EI_R8_BRANCH ? EI_R8_CLIENT_BLOBS : branch === EI_R8_N1_BRANCH ? EI_R8_N1_CLIENT_BLOBS : null;
+ const pins = branch === EI_BRANCH ? EI_CLIENT_BLOBS : branch === EI_R5_BRANCH ? EI_R5_CLIENT_BLOBS : branch === EI_MATURITY_BRANCH ? EI_MATURITY_CLIENT_BLOBS : branch === EI_COSMETIC_BRANCH ? EI_COSMETIC_CLIENT_BLOBS : branch === EI_R6_BRANCH ? EI_R6_CLIENT_BLOBS : branch === EI_R7_BRANCH ? EI_R7_CLIENT_BLOBS : branch === EI_R8_BRANCH ? EI_R8_CLIENT_BLOBS : branch === EI_R8_N1_BRANCH ? EI_R8_N1_CLIENT_BLOBS : branch === EI_DEBTOR_KYC_CLIENT_BRANCH ? EI_DEBTOR_KYC_CLIENT_BLOBS : null;
  return !!pins && Object.hasOwn(pins,path) && committedBlob === pins[path] && workingBlob === committedBlob;
 }
 export function eiRegistryApproved(path, branch, committedBlob, workingBlob, baseBlob) {

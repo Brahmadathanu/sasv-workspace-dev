@@ -153,7 +153,7 @@ test("protected files: PEC, PWL, Costing, e-Aushadhi, migrations, workflows and 
   const base = process.env.EI_PROTECTED_BASE || "ee49e3301ec5138f39cf925c64613df7ae12007c";
   let changed;
   try { changed = execFileSync("git", ["diff", "--name-only", `${base}...HEAD`], { cwd: new URL(".", root).pathname, encoding: "utf8" }).split("\n").filter(Boolean); } catch { return; }
-  const allowed = [/^public\/shared\/(executive-mis-dashboard\.html|js\/(executive-mis-dashboard|executive-intelligence-model|module-registry|mis-evidence-report)\.js)$/, /^scripts\/(mis-c1|mis-g7-reporting)\//, /^scripts\/wp10-g2-safeguards\/(ei-approved-delta\.mjs|source\.test\.mjs)$/, /^docs\/executive-intelligence-r2\//, /^\.github\/workflows\/ei-/];
+  const allowed = [/^public\/shared\/(executive-mis-dashboard\.html|js\/(executive-mis-dashboard|executive-intelligence-model|ei-debtor-contract|ei-debtor-workspace|module-registry|mis-evidence-report)\.js)$/, /^scripts\/(mis-c1|mis-g7-reporting)\//, /^scripts\/wp10-g2-safeguards\/(ei-approved-delta\.mjs|source\.test\.mjs)$/, /^docs\/executive-intelligence-r2\//, /^\.github\/workflows\/ei-/];
   const stray = changed.filter((f) => !allowed.some((re) => re.test(f)));
   assert.deepEqual(stray, [], "only the Executive Intelligence client, its tests and its docs may change relative to the server checkpoint");
   assert.equal(changed.some((f) => /^supabase\/migrations\//.test(f)), false, "no migration is added or edited");

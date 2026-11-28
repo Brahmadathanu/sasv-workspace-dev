@@ -1,3 +1,5 @@
+import { CLASS_DIMENSIONS, KYC_ROUTE, INCOMPLETE_KYC_ROUTE, isKycRoute, roleAccess, classificationArgs, changeClassification, collectBillPages, debtorError } from "./ei-debtor-contract.js?kyc=1";
+import { mountDebtorWorkspace, classificationFields } from "./ei-debtor-workspace.js?kyc=3";
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 import { mountModuleHome } from "./sasv-module-chrome.js";
@@ -45,8 +47,8 @@ import {
   freshnessModel,
   FRESHNESS_GROUP_LABELS,
   activityParts,
-  AGE_MAX_BOUNDS, ageLabels, parseAgeBounds, parseAgeInt, ageBillsForParty,
-} from "./executive-intelligence-model.js?ei-r8=2";
+  AGE_MAX_BOUNDS, ageLabels, parseAgeBounds, parseAgeInt,
+} from "./executive-intelligence-model.js?ei-r8=3";
 
 const MODULE_ID = "executive-mis-dashboard";
 const PLAN_WARNING_STATUS =
@@ -60,7 +62,24 @@ let POPOVER_OPENED_BY_HOVER = false;
 // Capability discovered from the server (ei_sales_access) for users without the executive permission. Hiding lenses is a
 // convenience only: every server contract enforces its own authorization and denied/unavailable responses fail closed.
 let ACCESS = { state: "checking", executive: false, sales: false };
-let ACTIVE_TAB = lensFromHash(window.location.hash);
+let KYC_HASH = isKycRoute(window.location.hash) ? window.location.hash : "";
+let ACTIVE_TAB = KYC_HASH ? "finance" : lensFromHash(window.location.hash);
+let KYC_PERMISSIONS = { kyc: { view: false, edit: false }, commercial: { view: false, edit: false } };
+let kycDialog;
+let financeClassificationChanged = false;
+let financeLookups;
+let financeClass = { partition: "all" };
+let financeFilterDraft;
+let stopBillMore;
+const financeClassArgs = () => classificationArgs(financeClass);
+const financeClassActive = () => Object.keys(financeClassArgs()).length > 0;
+const financeGroupScope = () => financeClassActive() ? "receivables" : LISTS.finance.st.filter;
+
+async function readDebtorRpc(name, args) {
+  const { data, error } = await supabase.rpc(name, args);
+  if (error) throw error;
+  return data;
+}
 let FINANCE_LAST_FOCUS = null;
 // ONE shared live pipeline response (v_mis_batch_pipeline) feeds the three headline production count cards AND the
 // Production lens. It is deliberately NOT a tab request key: a tab switch must never discard it. status: idle | loading | ok | error.
@@ -91,6 +110,7 @@ let PRODUCTION_VALUE_REQUESTED = ""; // "month|asof" last sent, to avoid duplica
 const REQUEST_SEQ = Object.create(null);
 const TAB_REQUEST_KEYS = [
   "finance:summary",
+  "finance:age-sum",
   "finance:page",
   "finance:modal",
   "sales:summary",
@@ -289,6 +309,10 @@ async function loadPermissions(sessionUserId) {
     if (!permsErr && Array.isArray(perms)) {
       const p = perms.find((r) => r && r.target === `module:${MODULE_ID}`);
       if (p) PERM_CAN_VIEW = !!p.can_view;
+      KYC_PERMISSIONS = {
+        kyc: roleAccess(perms, "role:ei-debtor-kyc"),
+        commercial: roleAccess(perms, "role:ei-debtor-commercial"),
+      };
       outcome = PERM_CAN_VIEW ? "granted" : "denied";
     } else {
       console.warn(
@@ -693,9 +717,9 @@ function cardMetaFor(t) {
 const flat = (t) => t.replace(/\s+/g, " ").trim();
 const cardText = (td) => { const c = td.cloneNode(true); c.querySelectorAll(".ei-cell-sub").forEach((e) => e.remove()); return flat(c.textContent); }; // the cell's own value; its small note stays in the detail view
 const cardNote = (td) => flat(Array.from(td.querySelectorAll(".ei-cell-sub")).map((e) => e.textContent).join(" "));
-function cardHtml(m, i) {
+function cardHtml(m, i, kycAlert) {
   const chips = m.chips.filter((c) => c.value).map((c) => `<span class="ei-rc-chip"><i>${escapeHtml(c.label)}</i> ${escapeHtml(c.value)}</span>`).join("");
-  return `<li class="ei-rc"><button type="button" class="ei-rc-btn" data-rc="${i}" aria-haspopup="dialog" aria-label="${escapeHtml(`Details for ${m.title}`)}">
+  return `<li class="ei-rc"><button type="button" class="ei-rc-btn" data-rc="${i}" ${kycAlert ? 'aria-haspopup="dialog" aria-label="Open unclassified Debtor KYC"' : `aria-haspopup="dialog" aria-label="${escapeHtml(`Details for ${m.title}`)}"`}>
     <span class="ei-rc-top"><span class="ei-rc-title">${escapeHtml(m.title)}</span>${m.measure ? `<span class="ei-rc-measure"><b>${escapeHtml(m.measure.value)}</b><i>${escapeHtml(m.measure.label)}</i></span>` : ""}</span>
     ${m.sub.length ? `<span class="ei-rc-sub">${escapeHtml(m.sub.join(" · "))}</span>` : ""}
     ${chips || m.status ? `<span class="ei-rc-meta">${chips}${m.status ? `<span class="ei-rc-status">${escapeHtml(m.status)}</span>` : ""}</span>` : ""}
@@ -709,7 +733,7 @@ function cardifyTable(t) {
   const labels = Array.from(head.cells).map((c) => c.textContent.trim());
   const rows = Array.from(t.tBodies[0]?.rows || []);
   if (!rows.length || rows.some((r) => r.cells.length !== labels.length)) return; // placeholder rows stay as they are
-  const recs = rows.map((tr) => ({ party: tr.getAttribute("data-party-index"), cells: Array.from(tr.cells).map((td) => ({ text: cardText(td), note: cardNote(td), html: td.innerHTML })) }));
+  const recs = rows.map((tr) => ({ party: tr.getAttribute("data-party-index"), kycAlert: !!tr.querySelector('[data-route="unclassified"]'), cells: Array.from(tr.cells).map((td) => ({ text: cardText(td), note: cardNote(td), html: td.innerHTML })) }));
   const models = recs.map((r) => {
     const m = recordCardModel(labels, r.cells.map((c) => c.text), meta);
     const tn = r.cells[labels.indexOf(typeof meta.title === "number" ? labels[meta.title] : meta.title)]?.note;
@@ -719,7 +743,7 @@ function cardifyTable(t) {
   const list = document.createElement("ul");
   list.className = "ei-rc-list";
   list.setAttribute("aria-label", t.getAttribute("aria-label") || meta.title || "Records");
-  list.innerHTML = models.map(cardHtml).join("");
+  list.innerHTML = models.map((model, index) => cardHtml(model, index, recs[index].kycAlert)).join("");
   list.__rc = { labels, recs, models };
   t.replaceWith(list);
 }
@@ -751,6 +775,7 @@ function openRecordDetails(btn) {
   const i = Number(btn.getAttribute("data-rc"));
   const rc = list?.__rc;
   if (!rc || !rc.recs[i]) return;
+  if (rc.recs[i].kycAlert) { openDebtorKyc(INCOMPLETE_KYC_ROUTE, btn); return; }
   if (rc.recs[i].party != null && list.closest("#financePartyTableWrap")) { const row = LISTS.finance.st.rows[Number(rc.recs[i].party)]; if (row) openFinancePartyDetails(row); return; }
   const overlay = recOverlay();
   const m = rc.models[i];
@@ -1120,7 +1145,7 @@ function renderDetailTabs() {
     tabPanel.setAttribute("aria-labelledby", `lensTab-${ACTIVE_TAB}`);
   }
   try {
-    const want = `#${ACTIVE_TAB}`;
+    const want = KYC_HASH && ACTIVE_TAB === "finance" ? KYC_HASH : `#${ACTIVE_TAB}`;
     if (window.location.hash !== want) window.history.replaceState(null, "", want);
   } catch {
     /* hash sync is a convenience only */
@@ -1151,7 +1176,15 @@ function loadActiveTab() {
     // Reuses the shared live response when fresh; never a private duplicate request.
     return Promise.all([loadLivePipeline(), loadOverviewInventory(), loadOverviewTrend()]);
   }
-  if (ACTIVE_TAB === "finance") return loadFinanceTab();
+  if (ACTIVE_TAB === "finance") {
+    if (financeClassificationChanged || AGE.sum.status === "loading") {
+      AGE.sum = { status: "idle" };
+      financeClassificationChanged = false;
+    }
+    const loading = loadFinanceTab();
+    if (KYC_HASH && !kycDialog?.open) openDebtorKyc(KYC_HASH, $("openDebtorKyc"));
+    return loading;
+  }
   if (ACTIVE_TAB === "sales") return loadSalesTab();
   if (ACTIVE_TAB === "inventory") return loadInventoryTab();
   if (ACTIVE_TAB === "finished-goods") return loadFinishedGoodsTab();
@@ -1180,6 +1213,71 @@ function selectTab(tabId) {
     return;
   }
   loadActiveTab();
+}
+
+function openFinanceLayer(title, { trigger = document.activeElement, workspace = false, onClose } = {}) {
+  const el = document.createElement("dialog");
+  el.className = `modal-window finance-modal ei-kyc-dialog${workspace ? " ei-kyc-workspace" : ""}`;
+  el.setAttribute("aria-label", title);
+  el.innerHTML = `<header class="modal-header finance-modal-header">
+    <h2 class="finance-modal-title">${escapeHtml(title)}</h2>
+    <button type="button" class="modal-close-btn finance-modal-close" aria-label="Close" title="Close" autofocus>${ICON_X}</button>
+    </header><div class="modal-content finance-modal-body ei-kyc-dialog-body"></div>`;
+  const closeButton = el.querySelector("button");
+  const previousFocus = document.activeElement;
+  el.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (button && el.contains(button)) button.focus({ preventScroll: true });
+  }, { capture: true });
+  closeButton.onclick = () => el.close();
+  el.addEventListener("click", (event) => {
+    if (event.target !== el || el.querySelector(".ei-kyc-tools-open")) return;
+    const box = el.getBoundingClientRect();
+    if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) el.close();
+  });
+  el.addEventListener("keydown", (event) => {
+    if (event.key === "Tab") {
+      event.stopPropagation();
+      trapTab(el, event);
+    }
+    if (event.key === "Escape") event.stopPropagation();
+  });
+  el.addEventListener("close", () => {
+    el.remove();
+    onClose?.();
+    const top = [...document.querySelectorAll("dialog[open]")].at(-1);
+    const active = document.activeElement;
+    if (active?.isConnected && active !== previousFocus && active !== document.body && (!top || top.contains(active))) return;
+    if (trigger?.isConnected && (!top || top.contains(trigger))) trigger.focus({ preventScroll: true });
+    else top?.querySelector('[role="tab"][aria-selected="true"], .modal-close-btn')?.focus({ preventScroll: true });
+  }, { once: true });
+  document.body.append(el);
+  el.showModal();
+  closeButton.focus({ preventScroll: true });
+  return { el, body: el.lastElementChild };
+}
+
+function openDebtorKyc(hash, trigger) {
+  if (!ACCESS.executive || kycDialog?.open) return;
+  closeAllFilterDrawers();
+  closeKpiPopover();
+  const modal = openFinanceLayer("Debtor KYC", { workspace: true, trigger, onClose: () => {
+    dispose();
+    if (kycDialog !== modal.el) return;
+    kycDialog = null;
+    if (isKycRoute(window.location.hash)) {
+      KYC_HASH = "";
+      window.history.replaceState(null, "", `#${ACTIVE_TAB}`);
+    }
+    if (trigger && !trigger.isConnected) (ACTIVE_TAB === "finance" ? $("openDebtorKyc") : tabPanel)?.focus({ preventScroll: true });
+  } });
+  kycDialog = modal.el;
+  const dispose = mountDebtorWorkspace(modal.body, {
+    read: readDebtorRpc, permissions: KYC_PERMISSIONS, esc: escapeHtml, money: formatCurrencyINR,
+    partition: hash === INCOMPLETE_KYC_ROUTE ? "unclassified" : "all",
+    openDialog: openFinanceLayer, glyph: GLYPH, sortIcons: ICON_SORT, trapTab,
+    onChange: () => { financeClassificationChanged = true; financeLookups = null; },
+  });
 }
 
 function setTableLoading(
@@ -1429,8 +1527,6 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const ageAsOf = () => AGE.asOf || String(SUMMARY_STATE.row?.financial_position_date || "").slice(0, 10) || todayISO();
 const ageArgs = () => ({ p_as_of: AGE.asOf || null, p_basis: "bill_date", p_bounds: AGE.bounds, p_age_min: AGE.min, p_age_max: AGE.max });
 const AGE_BAND_STEPS = { 2: [0, 4], 3: [0, 2, 4], 4: [0, 1, 2, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5] };
-// Share of the positive total as text (kept here, with the other ageing helpers, so the production value code stays free of arithmetic).
-const ageShareText = (v, pos) => (pos > 0 && v > 0 ? `${Math.round((v / pos) * 1000) / 10}%` : "–");
 const ageBandClass = (i, n) => `fin-age-b${(AGE_BAND_STEPS[n] || AGE_BAND_STEPS[6])[i] ?? 0}`;
 
 function ageingControlsHtml() {
@@ -1540,14 +1636,16 @@ function renderFinanceAgeing() {
   if (host) host.innerHTML = financeAgeingHtml();
 }
 function financeAgeingHtml() {
-  if (!AGE.on) return "";
+  if (!AGE.on && !financeClassActive()) return "";
   const s = AGE.sum;
   if (s.status === "idle" || s.status === "loading") return `<div class="ei-state" role="status"><span class="table-loading-spinner" aria-hidden="true"></span> Loading ageing...</div>`;
   if (s.status === "error") return `<div class="ei-state ${s.missing ? "ei-state-unavailable" : "error"}" role="${s.missing ? "status" : "alert"}">${escapeHtml(s.missing ? AGE_MISSING_TEXT : `Ageing could not be loaded. ${s.error}`)}${s.missing ? "" : ` <button type="button" class="mis-retry-btn" data-act="age-retry" data-list="finance">Retry</button>`}</div>`;
   const d = s.data || {};
+  if (!AGE.on) return d.filtered_receivables ? `<div class="ei-asof-row"><span>Filtered receivables</span><strong>${escapeHtml(formatCurrencyINR(d.filtered_receivables.total_amount))}</strong></div>` : "";
   const all = Array.isArray(d) ? d : d.groups || [];
   const want = LISTS.finance.st.filter;
-  const groups = all.filter((g) => want === "all" || g.group === want);
+  const groups = financeClassActive() ? [...all] : all.filter((g) => want === "all" || g.group === want);
+  if (d.filtered_receivables && financeClassActive()) groups.push({ ...d.filtered_receivables, group: "filtered", label: "Filtered receivables" });
   const bounds = (Array.isArray(d.bounds) && d.bounds.length ? d.bounds : AGE.bounds).map(Number);
   const labels = ageLabels(bounds);
   const asOf = d.as_of || ageAsOf();
@@ -1570,7 +1668,7 @@ function ageGroupHtml(g, labels) {
   const cls = (i) => ageBandClass(i, labels.length);
   const money = (v) => (v === null ? "–" : formatCurrencyINR(v));
   const pct = (v) => (pos > 0 && v > 0 ? `${Math.round((v / pos) * 1000) / 10}%` : "–");
-  const hasUndated = Number(g.undated_amount) !== 0 && g.undated_amount != null;
+  const hasUndated = Number(g.undated_bill_count) > 0 || Number(g.undated_amount || 0) !== 0;
   // Slim distribution bar (positive balances only; credit bands and zero totals are stated in the table, never drawn as negative length).
   const bar = pos > 0 ? amts.map((v, i) => (v > 0 ? `<span class="fin-age-seg ${cls(i)}" style="width:${(v / pos) * 100}%" title="${escapeHtml(`${labels[i]} days: ${money(v)}`)}"></span>` : "")).join("") : "";
   const barAria = escapeHtml(`${name}: ${labels.map((l, i) => `${l} days ${money(amts[i])}`).join(", ")}`);
@@ -1635,12 +1733,12 @@ function closeAgeBreakdown({ restoreFocus = true } = {}) {
   if (restoreFocus && trigger && document.contains(trigger)) trigger.focus?.();
 }
 async function loadAgeingSummary() {
-  if (!AGE.on) return;
+  if (!AGE.on && !financeClassActive()) return;
   const token = beginRequest("finance:age-sum");
   AGE.sum = { status: "loading", data: null, error: "", missing: false };
   renderFinanceAgeing();
-  const { data, error } = await settle(supabase.rpc(AGE_RPC_SUMMARY, ageArgs()));
-  if (!isLatestRequest("finance:age-sum", token) || !AGE.on) return;
+  const { data, error } = await settle(supabase.rpc(AGE_RPC_SUMMARY, { ...(AGE.on ? ageArgs() : {}), ...financeClassArgs() }));
+  if (!isLatestRequest("finance:age-sum", token) || (!AGE.on && !financeClassActive())) return;
   AGE.sum = error ? { status: "error", data: null, error: errorMessage(error), missing: ageMissing(error) } : { status: "ok", data: data || null, error: "", missing: false };
   renderFinanceAgeing();
 }
@@ -1697,7 +1795,7 @@ const LISTS = {
     shell: ".finance-table-shell", loadingMsg: "Loading finance parties...", retryKey: "finance",
     summaryTable: "v_mis_finance_tab_summary", summarySelect: "finance_scope_note", errorText: "Finance basis note could not be loaded.",
     placeholder: "Search party or group", st: newListState("payables"), sum: { status: "idle", data: null, error: "" },
-    args: (st) => ({ p_group_filter: st.filter, p_search: st.search, p_limit: st.size, p_offset: st.offset, ...(AGE.on ? ageArgs() : {}) }),
+    args: (st) => ({ p_group_filter: financeGroupScope(), p_search: st.search, p_limit: st.size, p_offset: st.offset, ...(AGE.on ? ageArgs() : {}), ...financeClassArgs() }),
     parse: finParse, summaryHtml: financeBasisHtml, key: (r) => `${r.party_name}|${r.mis_group_name}`,
     filterConfig: () => ({
       title: "Outstanding Group", ariaLabel: "Finance filters",
@@ -1707,7 +1805,7 @@ const LISTS = {
         { value: "all", label: "All" },
       ],
     }),
-    activeFilters: (st) => (st.filter === "all" ? 0 : 1), defaultFilter: "payables",
+    activeFilters: (st) => (st.filter === "all" ? 0 : 1) + Object.keys(financeClassArgs()).length, defaultFilter: "payables",
     emptyText: "No parties found for this scope.", loadErrText: "Failed to load finance parties.", loadingText: "Loading parties...",
   },
   sales: {
@@ -1790,6 +1888,7 @@ function listToolbarHtml(L) {
           <ul class="${p}-filter-list">
             ${f.options.map((o) => `<li><label><input type="radio" name="${p}Filter" value="${escapeHtml(o.value)}" ${st.filter === o.value ? "checked" : ""} ${o.disabled ? "disabled" : ""} /> ${escapeHtml(o.label)}</label></li>`).join("")}
           </ul>
+          ${p === "finance" ? `<div id="financeClassFields"></div><button class="ei-ctl" type="button" data-act="bill-export" data-list="finance">Export bills</button><p id="financeExportStatus" role="status"></p>` : ""}
           ${f.note ? `<div class="ei-drawer-note">${escapeHtml(f.note)}</div>` : ""}
         </div>
       </div>`
@@ -1810,7 +1909,7 @@ function listToolbarHtml(L) {
 
 function renderListToolbar(p) {
   const host = $(`${p}Toolbar`);
-  if (host) host.innerHTML = listToolbarHtml(LISTS[p]);
+  if (host && !filterDrawerOf(p).drawer?.classList.contains("open")) host.innerHTML = listToolbarHtml(LISTS[p]);
 }
 
 function renderListSummary(p) {
@@ -1826,14 +1925,14 @@ function renderListShell(p) {
   host.innerHTML = `
     <div class="ei-lens ei-lens-${p}">
       ${L.host ? "" : lensHeadHtml(L.title)}
-      ${p === "finance" ? `<div id="financeMetrics" class="ei-metrics-host"></div><div id="financeAgeing" class="fin-ageing-host"></div>` : ""}
+      ${p === "finance" ? `<div class="ei-kyc-launch"><button id="openDebtorKyc" type="button" class="ei-ctl" aria-haspopup="dialog" data-act="open-kyc">Debtor KYC</button></div><div id="financeMetrics" class="ei-metrics-host"></div><div id="financeAgeing" class="fin-ageing-host"></div>` : ""}
       <div id="${p}ScopeNote" class="${p}-scope-note ei-scope"></div>
       <div id="${p}Toolbar"></div>
       <div class="${p}-table-shell">
         <div id="${L.wrapId}" class="${p}-table-wrap"></div>
       </div>
     </div>`;
-  if (p === "finance") { renderFinanceMetrics(); renderFinanceAgeing(); if (AGE.on && AGE.sum.status === "idle") loadAgeingSummary(); }
+  if (p === "finance") { renderFinanceMetrics(); renderFinanceAgeing(); if ((AGE.on || financeClassActive()) && AGE.sum.status === "idle") loadAgeingSummary(); }
   renderListSummary(p);
   renderListToolbar(p);
   renderListTable(p);
@@ -1911,7 +2010,7 @@ async function loadList(p, { append = false, retry = false } = {}) {
   }
   const parsed = L.parse(data);
   const merged = append ? mergeRows(st.rows, parsed.rows, L.key) : { rows: parsed.rows, added: parsed.rows.length };
-  if (!append) st.resetScroll = true; // a new query starts at the top; only appends and detail returns keep the position
+  if (!append) st.resetScroll = true; // a new query starts at the top; appends keep the position
   st.rows = merged.rows;
   st.total = parsed.total;
   st.more = { loading: false, error: "" };
@@ -1933,9 +2032,13 @@ function setListFilter(p, value) {
   const canon = p === "inventory" && L.sum.status === "ok" ? inventoryCanonicalAvailable(L.sum.data) : null;
   L.st.filter = p === "inventory" ? sanitizeInventoryFilter(value, canon) : value || L.defaultFilter;
   L.st.page = 1;
+  if (p === "finance" && value !== "receivables") {
+    financeClass = { partition: "all" };
+    if (!AGE.on) beginRequest("finance:age-sum");
+  }
   closeAllFilterDrawers();
   renderListToolbar(p);
-  if (p === "finance") renderFinanceAgeing();
+  if (p === "finance") { renderFinanceAgeing(); if (AGE.on) loadAgeingSummary(); }
   PENDING_FOCUS_ID = `${p}FilterBtn`;
   restorePendingFocus();
   loadList(p);
@@ -2835,7 +2938,7 @@ function renderAlertsLens() {
       ${segmentsHtml(alertSegments(vm.items), { label: "Checks by state", noun: "checks", cls: { REVIEW: "c", CLEAR: "d", UNAVAILABLE: "a" }, unit: `Counts of checks, not of findings. Unavailable is its own state and is never counted as clear${vm.partial ? "; the catalogue is partial, so no all-clear is implied" : ""}.` })}
       ${vm.items.length ? `<div class="ei-table-wrap"><table class="ei-table" aria-label="Management alerts">
         <thead><tr>${th("Check")}${th("State")}${th("Findings", true)}${th("Evidence date")}${th("Severity")}</tr></thead>
-        <tbody>${vm.items.map((a) => `<tr><td>${escapeHtml(a.label)}</td><td><span class="ei-badge ei-badge-${a.state.toLowerCase()}">${escapeHtml(labelOf({ REVIEW: "Needs review", CLEAR: "No findings", UNAVAILABLE: "Unavailable" }, a.state))}</span></td>
+        <tbody>${vm.items.map((a) => `<tr><td>${a.debtorKyc ? `<a class="ei-link" href="${INCOMPLETE_KYC_ROUTE}" aria-haspopup="dialog" data-act="open-kyc" data-route="unclassified">${escapeHtml(a.label)}</a>${a.exposureAmount === null ? "" : `<small class="ei-kyc-alert-exposure ei-cell-sub">${escapeHtml(formatCurrencyINR(a.exposureAmount))} exposure</small>`}` : escapeHtml(a.label)}</td><td><span class="ei-badge ei-badge-${a.state.toLowerCase()}">${escapeHtml(labelOf({ REVIEW: "Needs review", CLEAR: "No findings", UNAVAILABLE: "Unavailable" }, a.state))}</span></td>
           <td class="num">${escapeHtml(a.findings === null ? "Unavailable" : formatIntegerIN(a.findings))}</td><td>${escapeHtml(a.evidenceDate ? formatDateIN(a.evidenceDate) : "-")}</td><td>${escapeHtml(a.severity.replace(/_/g, " ").toLowerCase())}</td></tr>`).join("")}</tbody></table></div>` : `<div class="ei-state ei-state-unavailable" role="status">${escapeHtml(vm.title)}. This is a partial catalogue, so it is not an all-clear.</div>`}
       ${vm.partial ? `<div class="ei-note">This is a partial catalogue. “No findings” means nothing was found by that check only; it is not an all-clear for the business.</div>` : ""}`;
   } else {
@@ -3321,6 +3424,7 @@ function closeFilterDrawer(p, { restoreFocus = false } = {}) {
   btn.setAttribute("aria-expanded", "false");
   if (!openFilterDrawerList()) document.body.classList.remove("ei-sheet-open");
   if (restoreFocus || hadFocus) btn.focus();
+  if (p === "finance") financeFilterDraft = null;
 }
 
 function closeAllFilterDrawers(exceptP = "") {
@@ -3334,6 +3438,10 @@ function openFilterDrawer(p) {
   if (!drawer || !btn) return;
   closeAllFilterDrawers(p);
   drawer.classList.add("open");
+  if (p === "finance") {
+    financeFilterDraft = { ...financeClass };
+    showFinanceClassFields();
+  }
   btn.setAttribute("aria-expanded", "true");
   const sheet = isPhoneSheet();
   drawer.setAttribute("aria-modal", sheet ? "true" : "false");
@@ -3356,131 +3464,170 @@ function isFinanceModalOpen() {
   return !!financeModalOverlay && !financeModalOverlay.classList.contains("hidden");
 }
 
-async function openFinancePartyDetails(row) {
-  if (!ACCESS.executive) return; // executive-only contract
-  if (!financeModalOverlay || !financeModalContent) return;
+async function showFinanceClassFields(focus) {
+  const host = $("financeClassFields");
+  if (!host || !financeFilterDraft) return;
+  if (!financeLookups) {
+    host.textContent = "Loading classification filters…";
+    try { financeLookups = await readDebtorRpc("ei_debtor_lookups"); }
+    catch (error) {
+      if (host.isConnected) host.innerHTML = `<p role="alert">${escapeHtml(debtorError(error))}</p><button class="ei-ctl" type="button" data-act="finance-class-retry">Retry</button>`;
+      return;
+    }
+    if (!host.isConnected || !financeFilterDraft) return;
+  }
+  const draft = financeFilterDraft;
+  host.innerHTML = `<fieldset class="ei-kyc-grid"><legend>Debtor classification</legend>
+    <label>Partition<select name="partition" aria-label="Partition">${["all", "classified", "unclassified"].map((key) => `<option ${draft.partition === key ? "selected" : ""}>${key}</option>`).join("")}</select></label>
+    ${classificationFields(escapeHtml, financeLookups, draft, { disabled: draft.partition === "unclassified", keepInactive: true })}
+    <button class="ei-ctl" type="button" data-act="finance-class-apply">Apply classification</button></fieldset>`;
+  if (focus) host.querySelector(`[name="${focus}"]`)?.focus();
+}
+
+function applyFinanceClassification() {
+  if (!financeFilterDraft) return;
+  financeClass = financeFilterDraft;
+  if (financeClassActive()) LISTS.finance.st.filter = "receivables";
+  closeFilterDrawer("finance", { restoreFocus: true });
+  renderListToolbar("finance");
+  $("financeFilterBtn")?.focus();
+  if (AGE.on || financeClassActive()) loadAgeingSummary();
+  else { beginRequest("finance:age-sum"); renderFinanceAgeing(); }
+  loadList("finance");
+}
+
+const billScope = (row) => ({
+  p_group_filter: row ? (row.mis_group_name.includes("Debtors") ? "receivables" : "payables") : financeGroupScope(),
+  p_party: row?.party_name ?? null,
+  ...(AGE.on ? ageArgs() : {}),
+  ...financeClassArgs(),
+});
+
+async function exportFinanceBills(button, row) {
+  button.disabled = true;
+  const status = row ? $("financeBillStatus") : $("financeExportStatus");
+  if (status) status.textContent = "Preparing export…";
+  try {
+    const scope = billScope(row);
+    const search = row ? "" : LISTS.finance.st.search;
+    const { rows: bills, date } = await collectBillPages(readDebtorRpc, scope);
+    const query = search.toLocaleLowerCase("en-IN");
+    const rows = query ? bills.filter((bill) => [bill.party_name, bill.mis_group_name].some((value) =>
+      String(value ?? "").toLocaleLowerCase("en-IN").includes(query))) : bills;
+    if (!rows.length) { if (status) status.textContent = "No bills in this scope."; return; }
+    const columns = [
+      ["Group", "mis_group_name"], ["Party", "party_name"], ["Bill date", "bill_date_text"], ["Bill reference", "bill_ref"],
+      ["Age (days)", "age_days"], ["Bucket index", "bucket_no"], ["Tally signed", "outstanding_amount_tally_value"],
+      ["Company oriented", "company_amount"], ["Party oriented", "party_amount"],
+    ].map(([label, key]) => ({ label, get: (bill) => bill[key] }));
+    const filters = CLASS_DIMENSIONS.filter(([key]) => scope[`p_${key}`]).map(([key, label, list, name]) => {
+      const id = scope[`p_${key}`];
+      return `${label} ${financeLookups?.[list]?.find((item) => item.id === id)?.[name] ?? id}`;
+    });
+    const description = [scope.p_party, search && `Search ${search}`, scope.p_partition, ...filters, scope.p_as_of && `Ageing as of ${scope.p_as_of}`, (scope.p_age_min != null || scope.p_age_max != null) && `Age ${scope.p_age_min ?? "any"} to ${scope.p_age_max ?? "any"} days plus undated`].filter(Boolean).join(" · ");
+    downloadCsv("finance-outstanding-bills.csv", buildPageCsv(columns, rows, `Snapshot ${date} · ${scope.p_group_filter} · ${rows.length} bills${description ? ` · ${description}` : ""}`));
+    if (status) status.textContent = "Export ready.";
+  } catch (error) {
+    if (status) status.textContent = error instanceof Error ? error.message : debtorError(error);
+  } finally { button.disabled = false; }
+}
+
+function financeBillBands(row, labels) {
+  if (!Array.isArray(row.bucket_amounts) || row.bucket_amounts.length !== labels.length) return "";
+  const amounts = row.bucket_amounts.map(Number);
+  const counts = row.bucket_bill_counts || [];
+  const positive = amounts.reduce((sum, value) => sum + Math.max(value, 0), 0);
+  const undatedCount = Number(row.bill_count) - counts.reduce((sum, count) => sum + Number(count), 0);
+  const chip = (label, value, count, css, share = "–") => `<li class="${css}"><span class="fin-chip-lab">${escapeHtml(label)}</span><span class="fin-chip-share">${share}</span><b>${escapeHtml(formatCurrencyINR(value))}</b><span class="fin-chip-n">${escapeHtml(formatIntegerIN(count))} ${Number(count) === 1 ? "bill" : "bills"}</span></li>`;
+  const bands = labels.map((label, index) => chip(label + " days", amounts[index], counts[index], ageBandClass(index, labels.length),
+    positive && amounts[index] > 0 ? `${Math.round(amounts[index] / positive * 1000) / 10}%` : "–"));
+  if (undatedCount > 0) bands.push(chip("No usable date", row.undated_amount, undatedCount, "fin-age-chip-undated"));
+  return `<ul class="fin-age-chips" aria-label="Bands for this party">${bands.join("")}</ul>`;
+}
+
+function openFinancePartyDetails(row) {
+  if (!ACCESS.executive) return;
+  if (!financeModalContent) return;
+  stopBillMore?.();
   const token = beginRequest("finance:modal");
-  // Keep the original trigger if a second row is opened while already open.
   if (!isFinanceModalOpen()) FINANCE_LAST_FOCUS = document.activeElement;
-  // The page behind never scrolls while the dialog is open (deferred: the click that opened it still runs the filter-drawer outside-click handler).
   setTimeout(() => { if (isFinanceModalOpen()) document.body.classList.add("ei-sheet-open"); }, 0);
-  { const about = $("financeModalAbout"); if (about) about.open = !window.matchMedia?.("(max-width: 640px)").matches; const x = $("financeModalAboutExtra"); if (x) x.textContent = ""; }
+  const about = $("financeModalAbout");
+  if (about) about.open = !window.matchMedia?.("(max-width: 640px)").matches;
+  $("financeModalAboutExtra").textContent = AGE.on ? `Aged from the bill date to ${formatDateIN(ageAsOf())}. Bills with no usable date remain in the selected range.` : "";
   financeModalOverlay.classList.remove("hidden");
   financeModalOverlay.setAttribute("aria-hidden", "false");
-  if (financeModalTitle) financeModalTitle.textContent = row.party_name || "-";
-  if (financeModalSubtitle) {
-    financeModalSubtitle.textContent = `${row.mis_group_name || "-"} | ${formatCurrencyINR(row.outstanding_amount_mis_value)}${AGE.on ? ` | aged as of ${formatDateIN(ageAsOf())}` : ""}`;
-  }
-  financeModalContent.innerHTML = `<div class="finance-status" role="status">Loading bill details...</div>`;
-  financeModalClose?.focus?.();
-
-  const { data, error } = await settle(
-    supabase
-      .from("v_mis_finance_outstanding_detail")
-      .select(
-        "report_date, mis_group_name, bill_date_text, bill_ref, party_name, outstanding_amount_tally_value, outstanding_amount_abs_line_value",
-      )
-      .eq("party_name", row.party_name)
-      .eq("mis_group_name", row.mis_group_name)
-      .order("bill_date_text", { ascending: true }),
-  );
-
-  // Closed, or another party opened, while this was in flight.
-  if (!isLatestRequest("finance:modal", token) || !isFinanceModalOpen()) return;
-
-  if (error) {
-    console.error("[MIS] Finance bill detail load failed", error);
-    financeModalContent.innerHTML = `<div class="finance-status error">Failed to load bill details. ${escapeHtml(error.message || "See console for details.")}</div>`;
-    return;
-  }
-
-  const bills = data || [];
-  if (!bills.length) {
-    financeModalContent.innerHTML = `<div class="finance-empty">No bill details found for this party.</div>`;
-    return;
-  }
-
-  // Bill list: a table on wide screens and a card list on narrow screens (both rendered; CSS shows one), so no figure needs sideways scrolling on a phone.
-  if (AGE.on) {
-    // Ageing mode: bills are aged from the bill date to the as-of date with the shared pure rule (same as the server contract): undated lines
-    // survive the age range, amounts are oriented by the sign of the party's filtered net, never forced to absolute values.
-    const asOf = ageAsOf();
-    const labels = ageLabels(AGE.bounds);
-    const res = ageBillsForParty(bills, { asOf, bounds: AGE.bounds, min: AGE.min, max: AGE.max });
-    const pos = res.bands.reduce((a, x) => a + Math.max(0, x.amount), 0);
-    const share = (v) => ageShareText(v, pos);
-    const billsWord = (n) => `${formatIntegerIN(n)} bill${n === 1 ? "" : "s"}`;
-    const rangeNote = AGE.min !== null || AGE.max !== null ? ` Bills aged ${AGE.min ?? 0}${AGE.max !== null ? `–${AGE.max}` : "+"} days are shown, plus any bills without a usable date.` : "";
-    const badge = (bill) => (bill.band < 0 ? `<span class="fin-age-badge fin-age-badge-none">No usable date</span>` : `<span class="fin-age-badge ${ageBandClass(bill.band, labels.length)}">${escapeHtml(labels[bill.band])}</span>`);
-    const chips = labels.map((l, i) => `<li class="${ageBandClass(i, labels.length)}"><span class="fin-chip-lab">${escapeHtml(l)} days</span><span class="fin-chip-share">${escapeHtml(share(res.bands[i].amount))}</span><b>${escapeHtml(formatCurrencyINR(res.bands[i].amount))}</b><span class="fin-chip-n">${escapeHtml(billsWord(res.bands[i].count))}</span></li>`).join("")
-      + (res.undated.count ? `<li class="fin-age-chip-undated"><span class="fin-chip-lab">No usable date</span><span class="fin-chip-share">–</span><b>${escapeHtml(formatCurrencyINR(res.undated.amount))}</b><span class="fin-chip-n">${escapeHtml(billsWord(res.undated.count))}</span></li>` : "");
-    const aboutText = `Aged as of ${formatDateIN(asOf)} from each bill date.${rangeNote} Band amounts follow the direction of this party's net balance; the table shows the signed Tally amounts.`;
-    const extra = $("financeModalAboutExtra"); if (extra) extra.textContent = aboutText;
-    const empty = `<tr><td colspan="6" class="fin-age-empty">No bills in this age range.</td></tr>`;
-    financeModalContent.innerHTML = `
-      <ul class="fin-age-chips" aria-label="Bands for this party">${chips}</ul>
-      <div class="finance-table-wrap fin-bill-table">
-        <table class="finance-table finance-modal-table is-aged">
-          <colgroup><col class="fm-date"><col class="fm-ref"><col class="fm-age"><col class="fm-band"><col class="fm-amt"><col class="fm-amt"></colgroup>
-          <thead><tr>${th("Bill Date")}${th("Bill Ref")}${th("Age (days)", true)}${th("Band")}${th("Tally Signed Amount", true)}${th("Line Absolute Amount", true)}</tr></thead>
-          <tbody>
-            ${res.rows.length ? res.rows.map((bill) => `<tr>
-                <td>${escapeHtml(bill.bill_date_text || "-")}</td><td title="${escapeHtml(bill.bill_ref || "")}">${escapeHtml(bill.bill_ref || "-")}</td>
-                <td class="num">${bill.age === null ? "–" : escapeHtml(formatIntegerIN(bill.age))}</td>
-                <td>${badge(bill)}</td>
-                <td class="num">${escapeHtml(formatCurrencyINR(bill.outstanding_amount_tally_value))}</td>
-                <td class="num">${escapeHtml(formatCurrencyINR(bill.outstanding_amount_abs_line_value))}</td>
-              </tr>`).join("") : empty}
-          </tbody>
-        </table>
-      </div>
-      <ul class="fin-bill-cards" aria-label="Outstanding bills">${res.rows.length ? res.rows.map((bill) => `<li class="fin-bill-card">
-          <div class="fin-bill-top"><b>${escapeHtml(bill.bill_ref || "-")}</b><span class="fin-bill-amt">${escapeHtml(formatCurrencyINR(bill.outstanding_amount_tally_value))}</span></div>
-          <div class="fin-bill-sub"><span>${escapeHtml(bill.bill_date_text || "-")}</span><span>${bill.age === null ? "No age" : `${escapeHtml(formatIntegerIN(bill.age))} days`}</span>${badge(bill)}</div>
-          <div class="fin-bill-line"><span>Line absolute amount</span><span>${escapeHtml(formatCurrencyINR(bill.outstanding_amount_abs_line_value))}</span></div>
-        </li>`).join("") : `<li class="fin-age-empty">No bills in this age range.</li>`}</ul>`;
-    return;
-  }
-
-  financeModalContent.innerHTML = `
-    <div class="finance-table-wrap fin-bill-table">
-      <table class="finance-table finance-modal-table is-plain">
-        <colgroup><col class="fm-date"><col class="fm-ref"><col class="fm-amt"><col class="fm-amt"></colgroup>
-        <thead>
-          <tr>
-            <th>Bill Date</th>
-            <th>Bill Ref</th>
-            <th class="num">Tally Signed Amount</th>
-            <th class="num">Line Absolute Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${bills
-            .map(
-              (bill) => `
-                <tr>
-                  <td>${escapeHtml(bill.bill_date_text || "-")}</td>
-                  <td title="${escapeHtml(bill.bill_ref || "")}">${escapeHtml(bill.bill_ref || "-")}</td>
-                  <td class="num">${escapeHtml(formatCurrencyINR(bill.outstanding_amount_tally_value))}</td>
-                  <td class="num">${escapeHtml(formatCurrencyINR(bill.outstanding_amount_abs_line_value))}</td>
-                </tr>
-              `,
-            )
-            .join("")}
-        </tbody>
-      </table>
-    </div>
-    <ul class="fin-bill-cards" aria-label="Outstanding bills">${bills.map((bill) => `<li class="fin-bill-card">
-        <div class="fin-bill-top"><b>${escapeHtml(bill.bill_ref || "-")}</b><span class="fin-bill-amt">${escapeHtml(formatCurrencyINR(bill.outstanding_amount_tally_value))}</span></div>
-        <div class="fin-bill-sub"><span>${escapeHtml(bill.bill_date_text || "-")}</span></div>
-        <div class="fin-bill-line"><span>Line absolute amount</span><span>${escapeHtml(formatCurrencyINR(bill.outstanding_amount_abs_line_value))}</span></div>
-      </li>`).join("")}</ul>
-  `;
+  financeModalTitle.textContent = row.party_name || "—";
+  financeModalSubtitle.textContent = `${row.mis_group_name || "—"} | ${formatCurrencyINR(row.outstanding_amount_mis_value)}${AGE.on ? ` | aged as of ${formatDateIN(ageAsOf())}` : ""}`;
+  const aged = AGE.on;
+  const labels = ageLabels(AGE.bounds);
+  const scope = billScope(row);
+  financeModalContent.innerHTML = `<div class="ei-kyc-actions"><button type="button" class="ei-ctl" id="financeBillExport">Export bills</button><span id="financeBillStatus" role="status"></span></div>
+    <p id="financeBillTotals"></p><div id="financeBillBands">${aged ? financeBillBands(row, labels) : ""}</div>
+    <div class="finance-table-wrap fin-bill-table"><table class="finance-table finance-modal-table ${aged ? "is-aged" : "is-plain"}">
+    <colgroup><col class="fm-date"><col class="fm-ref">${aged ? '<col class="fm-age"><col class="fm-band">' : ""}<col class="fm-amt"><col class="fm-amt"></colgroup>
+    <thead><tr>${th("Bill date")}${th("Bill ref")}${aged ? th("Age (days)", true) + th("Band") : ""}${th("Tally Signed Amount", true)}${th(aged ? "Party Amount" : "Line Absolute Amount", true)}</tr></thead><tbody></tbody></table></div>
+    <ul class="fin-bill-cards" aria-label="Outstanding bills"></ul><div id="financeBillMore" role="status"></div>`;
+  $("financeBillExport").onclick = (event) => exportFinanceBills(event.currentTarget, row);
+  const status = $("financeBillMore");
+  const tbody = financeModalContent.querySelector("tbody");
+  const cards = financeModalContent.querySelector("ul");
+  const observed = new Set();
+  let offset = 0, total = Infinity, date, busy = false, retries = 0;
+  const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting && !status.querySelector("button")) next(); });
+  stopBillMore = () => observer.disconnect();
+  const next = async () => {
+    if (busy || offset >= total || !isLatestRequest("finance:modal", token)) return;
+    busy = true;
+    status.textContent = "Loading bills…";
+    try {
+      const page = await readDebtorRpc("get_mis_finance_bill_page", { ...scope, p_limit: 100, p_offset: offset });
+      if (!isLatestRequest("finance:modal", token)) return;
+      const pageDate = page.rows[0]?.report_date;
+      if (offset && (pageDate !== date || Number(page.total_rows) !== total || page.rows.some((bill) => observed.has(bill.bill_id)))) {
+        if (++retries > 2) throw new Error("The outstanding snapshot is changing. Retry.");
+        offset = 0; total = Infinity; date = null;
+        observed.clear(); tbody.replaceChildren(); cards.replaceChildren(); $("financeBillBands").replaceChildren();
+        busy = false;
+        return next();
+      }
+      if (!offset) {
+        date = pageDate;
+        total = Number(page.total_rows);
+        $("financeBillTotals").textContent = page.groups.map((group) => `${group.bill_count} bills · party total ${formatCurrencyINR(group.party_amount)} · company-oriented total ${formatCurrencyINR(group.company_amount)}`).join(" · ");
+      }
+      for (const bill of page.rows) {
+        if (observed.has(bill.bill_id)) continue;
+        observed.add(bill.bill_id);
+        const age = bill.age_days ?? "—";
+        const band = bill.bucket_no == null ? "No usable date" : labels[bill.bucket_no] ?? "—";
+        const signed = escapeHtml(formatCurrencyINR(bill.outstanding_amount_tally_value));
+        const amount = escapeHtml(formatCurrencyINR(aged ? bill.party_amount : bill.outstanding_amount_abs_line_value));
+        const ref = escapeHtml(bill.bill_ref || "—");
+        const billDate = escapeHtml(bill.bill_date_text || "—");
+        tbody.insertAdjacentHTML("beforeend", `<tr><td>${billDate}</td><td>${ref}</td>${aged ? `<td class="num">${escapeHtml(age)}</td><td>${escapeHtml(band)}</td>` : ""}<td class="num">${signed}</td><td class="num">${amount}</td></tr>`);
+        cards.insertAdjacentHTML("beforeend", `<li class="fin-bill-card"><div class="fin-bill-top"><b>${ref}</b><span>${aged ? amount : signed}</span></div><div class="fin-bill-sub"><span>${billDate}</span>${aged ? `<span>${escapeHtml(age)} · ${escapeHtml(band)}</span>` : ""}</div><div class="fin-bill-line"><span>${aged ? "Tally signed" : "Line absolute amount"}</span><span>${aged ? signed : amount}</span></div></li>`);
+      }
+      offset += page.rows.length;
+      status.textContent = total ? `${offset} of ${total} bills` : "No bills in this scope.";
+      if (offset >= total) observer.disconnect();
+      else { observer.unobserve(status); observer.observe(status); }
+    } catch (error) {
+      if (!isLatestRequest("finance:modal", token)) return;
+      retries = 0;
+      status.innerHTML = `${escapeHtml(debtorError(error))} <button type="button" class="ei-ctl">Retry</button>`;
+      status.querySelector("button").onclick = next;
+    } finally { busy = false; }
+  };
+  observer.observe(status);
+  financeModalClose?.focus();
+  next();
 }
 
 function closeFinanceModal() {
   if (!financeModalOverlay || !isFinanceModalOpen()) return;
   beginRequest("finance:modal");
+  stopBillMore?.();
   if (financeModalOverlay.contains(document.activeElement)) {
     document.activeElement.blur();
   }
@@ -3505,8 +3652,8 @@ function focusLensPanel() {
 
 function trapTab(container, ev) {
   const focusable = [
-    ...container.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'),
-  ].filter((el) => el.offsetParent !== null);
+    ...container.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'),
+  ].filter((el) => el.offsetParent !== null && el.tabIndex >= 0);
   if (!focusable.length) return;
   const first = focusable[0];
   const last = focusable[focusable.length - 1];
@@ -3554,7 +3701,16 @@ function wireEvents() {
     selectTab(detailTabSelect.value);
   });
   window.addEventListener("hashchange", () => {
-    const next = lensFromHash(window.location.hash);
+    const hash = window.location.hash;
+    if (isKycRoute(hash) && ACCESS.executive) {
+      KYC_HASH = hash;
+      if (ACTIVE_TAB === "finance") openDebtorKyc(hash, $("openDebtorKyc"));
+      else selectTab("finance");
+      return;
+    }
+    KYC_HASH = "";
+    kycDialog?.close();
+    const next = lensFromHash(hash);
     if (next !== ACTIVE_TAB && visibleLenses().some((l) => l.id === next)) selectTab(next);
     else if (next !== ACTIVE_TAB) renderDetailTabs();
   });
@@ -3571,6 +3727,14 @@ function wireEvents() {
     }
     if (ev.target.id === "pvMonth" || ev.target.id === "pvAsOf") {
       onProductionValueControlChange(ev);
+      return;
+    }
+      if (ev.target.closest("#financeClassFields") && financeFilterDraft) {
+      const { name, value } = ev.target;
+      financeFilterDraft = name === "partition"
+        ? value === "unclassified" ? { partition: value } : { ...financeFilterDraft, partition: value }
+        : changeClassification(financeFilterDraft, name, value);
+      showFinanceClassFields(name);
       return;
     }
     const m = /^(finance|inventory|fg)Filter$/.exec(ev.target?.name || "");
@@ -3608,6 +3772,14 @@ function wireEvents() {
     if (!act) return;
     const p = act.getAttribute("data-list");
     switch (act.getAttribute("data-act")) {
+      case "open-kyc":
+        if (act.matches("a") && (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey)) break;
+        ev.preventDefault();
+        openDebtorKyc(act.dataset.route === "unclassified" ? INCOMPLETE_KYC_ROUTE : KYC_ROUTE, act);
+        break;
+      case "finance-class-retry": showFinanceClassFields(); break;
+      case "finance-class-apply": applyFinanceClassification(); break;
+      case "bill-export": exportFinanceBills(act); break;
       case "filter-toggle":
         ev.stopPropagation();
         toggleFilterDrawer(p);
@@ -3751,7 +3923,11 @@ function cancelPendingSearches() {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  if (!session) return (window.location.href = "/login.html");
+  if (!session) {
+    if (Platform.isElectron) window.location.href = "/login.html";
+    else Platform.goHome();
+    return;
+  }
 
   const permission = await loadPermissions(session.user.id);
 
