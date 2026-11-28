@@ -2,7 +2,6 @@
 alter table public.ei_debtor_kyc
  add column lifecycle_status text not null default 'DRAFT' check(lifecycle_status in ('DRAFT','ACTIVE','INACTIVE')),
  add column revision bigint not null default 1 check(revision>0),
- add column field_dispositions jsonb not null default '{}'::jsonb check(jsonb_typeof(field_dispositions)='object'),
  add column status_reason text,
  add column activated_at timestamptz,
  add column activated_by uuid,
@@ -26,27 +25,24 @@ returns boolean language sql stable security invoker set search_path=pg_catalog,
 $$;
 revoke all on function public.ei_can_access_debtor_kyc(text) from public,anon;
 grant execute on function public.ei_can_access_debtor_kyc(text) to authenticated,service_role;
--- Pure validation building block. Dispositions must be explicit and allowed per field.
--- Mandatory fields cannot be bypassed. Additional master/terms validity checks required.
-create function public.ei_debtor_kyc_field_errors(p_values jsonb,p_dispositions jsonb)
+-- Revised owner requirement: optional KYC profile fields remain SQL NULL.
+-- No field-disposition JSON, magic NA/NIL values, or mandatory contact/address gate.
+-- Preliminary classification presence validation; full RPC must enforce actual
+-- hierarchy, active masters, area applicability, resolved commercial terms,
+-- authorized actor, optimistic revision, audit and transactional transitions.
+create function public.ei_debtor_classification_field_errors(
+ p_region_id integer,p_godown_id integer,p_district_id bigint,p_area_id bigint,
+ p_type_id bigint,p_area_required boolean,p_discount numeric,p_scheme_id bigint)
 returns text[] language sql immutable security invoker set search_path=pg_catalog as $$
- select coalesce(array_agg(f.name order by f.ord) filter(where
- case when nullif(btrim(p_values->>f.name),'') is not null then
-   upper(btrim(p_values->>f.name)) in ('NA','N/A','NIL') or p_dispositions ? f.name
- else not coalesce((p_dispositions->>f.name)=any(f.allowed),false) end
- ),array[]::text[])
- from (values
- (1,'business_name',array[]::text[]),(2,'contact_person',array['NA']::text[]),
- (3,'address_line_1',array[]::text[]),(4,'address_line_2',array['NA','NIL']),
- (5,'locality',array[]::text[]),(6,'state_name',array[]::text[]),
- (7,'country_name',array[]::text[]),(8,'postal_code',array[]::text[]),
- (9,'phone',array[]::text[]),(10,'alternate_phone',array['NA','NIL']),
- (11,'email',array['NA','NIL']),(12,'gstin',array['NA','NIL']),
- (13,'notes',array['NA','NIL'])
- ) f(ord,name,allowed)
+ select array_remove(array[
+ case when p_region_id is null then 'region_id' end,
+ case when p_godown_id is null then 'godown_id' end,
+ case when p_district_id is null then 'district_id' end,
+ case when coalesce(p_area_required,true) and p_area_id is null then 'area_id' end,
+ case when p_type_id is null then 'type_id' end,
+ case when p_discount is null or p_discount not between 0 and 100 then 'discount_percent' end,
+ case when p_scheme_id is null then 'scheme_id' end
+ ]::text[],null)
 $$;
-revoke all on function public.ei_debtor_kyc_field_errors(jsonb,jsonb) from public,anon,authenticated;
--- This building block is not an activation RPC. Full validation must also
--- verify contact format, dispositions/reasons, geography, type, terms,
--- actor/revision, audit, and lifecycle transitions under transaction lock.
--- No client grants on new tables; no direct writes or production execution.
+revoke all on function public.ei_debtor_classification_field_errors(integer,integer,bigint,bigint,bigint,boolean,numeric,bigint) from public,anon,authenticated;
+-- Not an activation RPC. No direct client grants or production execution.
