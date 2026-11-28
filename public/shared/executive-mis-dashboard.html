@@ -2290,59 +2290,87 @@
         #inventoryScopeNote .ei-dbar, #fgScopeNote .ei-dbar { display: none; }
       }
 
-      /* Debtor KYC uses the Executive Intelligence shell and shared control tokens. */
-      .ei-kyc { display: grid; gap: 10px; min-width: 0; color: var(--mis-text); }
-      .ei-kyc-head, .ei-kyc-toolbar, .ei-kyc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-      .ei-kyc-toolbar { align-items: end; margin-bottom: 10px; }
+      /* Debtor KYC layers share the Finance dialog, table and control styles. */
       .ei-kyc-launch { display: flex; justify-content: end; }
-      .ei-kyc-head h2 { margin: 0; font-size: var(--ei-fs-title); }
-      .ei-kyc-content { min-width: 0; }
-      .ei-kyc-notice:empty { display: none; }
-      .ei-kyc-toolbar label, .ei-kyc-form label, .ei-kyc-grid label, .ei-kyc-dialog-body > label { display: grid; gap: 4px; min-width: 0; font-size: var(--ei-fs-sm); }
-      .ei-kyc-toolbar input, .ei-kyc-toolbar select, .ei-kyc-grid select, .ei-kyc-form input, .ei-kyc-form select, .ei-kyc-dialog-body > label input {
-        color: var(--mis-text); background: var(--sasv-surface-soft); border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-sm, 6px);
-        font: inherit; min-width: 0; width: 100%; min-height: 34px; padding: 5px 8px; box-sizing: border-box;
-      }
-      .ei-kyc-filters { max-width: 100%; }
-      .ei-kyc-filters summary { display: inline-flex; cursor: pointer; }
-      .ei-kyc-filters[open] { flex-basis: 100%; }
-      .ei-kyc-filters .ei-kyc-grid, #financeClassFields fieldset { margin: 6px 0; }
-      #financeClassFields fieldset { padding: 8px; }
-      .ei-kyc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 135px), 1fr)); gap: 8px; min-width: 0; }
-      .ei-kyc-form { display: grid; gap: 10px; }
-      .ei-kyc-form fieldset { margin: 0; min-width: 0; border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-sm, 6px); padding: 10px; }
-      .ei-kyc-actions button[aria-pressed="true"] { background: var(--sasv-selection-soft); font-weight: var(--sasv-fw-bold); }
-      .ei-kyc-table { border-collapse: collapse; width: 100%; font-size: var(--ei-fs-sm); }
-      .ei-kyc-table :is(th, td) { border-bottom: 1px solid var(--sasv-divider); text-align: left; padding: 6px 8px; overflow-wrap: anywhere; }
-      .ei-kyc-table th { background: var(--sasv-surface-soft); }
-      .ei-kyc-table :is(th, td):nth-child(n+3) { text-align: right; font-variant-numeric: tabular-nums; }
-      .ei-kyc-party { display: flex; align-items: center; gap: 6px; }
-      .ei-kyc-party button { text-align: left; white-space: normal; overflow-wrap: anywhere; min-width: 0; max-width: 100%; }
-      .ei-kyc-card { border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-sm, 6px); background: var(--mis-surface); padding: 8px 10px; margin: 0 0 6px; overflow-wrap: anywhere; }
-      .ei-kyc-card dd { margin: 0 0 6px; }
-      .ei-kyc-card pre { white-space: pre-wrap; overflow-wrap: anywhere; }
-      .ei-kyc-picker-item { padding-block: 4px; }
-      .ei-kyc-picker-item button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
-      .ei-kyc [data-more], .ei-kyc-dialog [data-more] { min-height: 24px; color: var(--mis-muted); }
-      .ei-kyc-dialog.modal-window { display: none; position: fixed; inset: 0; margin: auto; width: min(710px, calc(100% - 28px)); max-height: min(86dvh, 760px); overflow: hidden; color: var(--mis-text); background: var(--mis-surface); padding: 0; border: 1px solid var(--sasv-border); }
-      .ei-kyc-dialog.modal-window[open] { display: flex; flex-direction: column; }
-      .ei-kyc-dialog::backdrop { background: color-mix(in srgb, var(--mis-text) 45%, transparent); }
-      .ei-kyc-dialog-body { overflow-y: auto; overscroll-behavior: contain; min-height: 0; padding: 10px 14px; }
-      .ei-kyc-dialog-body [data-form-error]:empty { display: none; }
-      .ei-kyc-alert-exposure { display: block; }
+      #financeClassFields fieldset { margin: 6px 0; padding: 8px; }
       #financeFilterDrawer { max-height: min(70dvh, 520px); overflow-y: auto; }
       #financeExportStatus:empty, #financeBillTotals:empty { display: none; }
+      .ei-kyc-alert-exposure { display: block; }
+      body:has(.ei-kyc-workspace[open]) #tabPanel, body:has(.ei-kyc-workspace[open]) #financePartyTableWrap { overflow: hidden; }
+      html:has(.ei-kyc-workspace[open]) { overflow: hidden; overscroll-behavior: none; }
+      .ei-kyc-dialog.modal-window {
+        position: fixed; inset: 0; margin: auto; padding: 0; border: 1px solid var(--mis-border);
+        box-sizing: border-box; max-width: calc(100% - 36px); max-height: min(760px, calc(100dvh - 36px));
+        width: min(680px, 100%); color: var(--mis-text);
+      }
+      .ei-kyc-dialog.modal-window:not([open]) { display: none; }
+      .ei-kyc-dialog::backdrop { background: color-mix(in srgb, var(--mis-text) 42%, transparent); }
+      .ei-kyc-dialog .modal-header { flex: 0 0 auto; }
+      .ei-kyc-dialog .fin-age-footer { flex: 0 0 auto; }
+      .ei-kyc-dialog-body, .ei-kyc-content { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+      .ei-kyc-dialog .modal-content { font-size: var(--ei-fs-sm); }
+      .ei-kyc-workspace.modal-window { width: min(1080px, 100%); overflow: visible; }
+      .ei-kyc-workspace .ei-kyc-dialog-body { display: flex; flex-direction: column; overflow: visible; padding-top: 0; }
+      .ei-kyc-workspace .ei-subnav { flex: 0 0 auto; margin-bottom: 8px; }
+      .ei-kyc-workspace .ei-subtab { text-align: center; }
+      .ei-kyc-workspace [data-register-tools] { flex: 0 0 auto; padding: 0 0 8px; margin: 0; }
+      .ei-kyc-workspace [data-register-tools][hidden] { display: none; }
+      .ei-kyc-dialog .input-clear-btn[hidden] { display: none; }
+      .ei-kyc-workspace .finance-search-wrap { flex: 1 1 200px; max-width: none; }
+      .ei-kyc-workspace .finance-filter-drawer, .ei-kyc-workspace .ei-sort-panel { max-height: var(--debtor-drawer-room, 55dvh); overflow-y: auto; }
+      .ei-kyc-notice { flex: 0 0 auto; margin-bottom: 8px; }
+      .ei-kyc-notice:empty, .ei-kyc-dialog-body [data-form-error]:empty { display: none; }
+      .ei-kyc-dialog .ei-state { margin-bottom: 4px; }
+      .ei-kyc-dialog .table-loading-spinner { width: 14px; height: 14px; }
+      .ei-kyc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr)); gap: 8px; min-width: 0; }
+      .ei-kyc-grid .ei-field, .ei-kyc-form > .ei-field { display: flex; }
+      .ei-kyc-grid select { width: 100%; box-sizing: border-box; }
+      .ei-kyc-form { display: grid; gap: 8px; }
+      .ei-kyc-form fieldset { margin: 0; min-width: 0; border: 1px solid var(--mis-border); border-radius: var(--sasv-radius-sm, 6px); padding: 8px; }
+      .ei-kyc-form legend { font-size: var(--ei-fs-sm); font-weight: var(--sasv-fw-semibold); }
+      .ei-kyc-form p { margin: 0 0 4px; }
+      .ei-kyc-actions, .ei-kyc-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+      .ei-kyc-toolbar { align-items: end; margin-bottom: 8px; }
+      .ei-kyc-effective, .ei-kyc-content [data-policy-actions]:not(:empty) { margin-bottom: 8px; }
+      .ei-kyc-content .finance-table { min-width: 0; }
+      .ei-kyc-table th, .ei-kyc-table td { overflow-wrap: anywhere; }
+      .ei-kyc-party { display: flex; align-items: center; gap: 8px; }
+      .ei-kyc-party input { flex: 0 0 auto; margin: 0; }
+      .ei-kyc-party button { white-space: normal; overflow-wrap: anywhere; }
+      .ei-kyc-table .ei-badge { white-space: nowrap; }
+      .ei-kyc-table td.num { font-variant-numeric: tabular-nums; }
+      .ei-kyc-table .ei-note { display: block; margin: 2px 0 0; }
+      .ei-kyc-card { overflow-wrap: anywhere; }
+      .ei-kyc-card dd { margin: 0 0 4px; }
+      .ei-kyc-card pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+      .ei-kyc-picker-item { padding: 4px 0; border-bottom: 1px solid var(--mis-divider); }
+      .ei-kyc-picker-item button { text-align: left; white-space: normal; overflow-wrap: anywhere; }
+      .ei-kyc-dialog [data-more]:empty { height: 1px; }
       @media (max-width: 640px) {
         #financeFilterDrawer { max-height: none; }
-        .ei-kyc-toolbar input, .ei-kyc-toolbar select, .ei-kyc-form input, .ei-kyc-form select, .ei-kyc-grid select, .ei-kyc-dialog-body > label input { font-size: var(--ei-fs-input-phone); }
-        .ei-kyc-dialog.modal-window { width: 100%; max-width: none; max-height: 100dvh; border-radius: 0; }
+        .ei-kyc-dialog.modal-window { width: 100%; max-width: none; max-height: 100dvh; border: 0; border-radius: 0; }
+        .ei-kyc-workspace.modal-window { height: 100vh; height: 100dvh; }
+        .ei-kyc-workspace .ei-kyc-dialog-body { flex: 1 1 auto; }
+        .ei-kyc-dialog .modal-header { padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) 8px max(10px, env(safe-area-inset-left)); }
+        .ei-kyc-dialog .modal-content, .ei-kyc-dialog .fin-age-footer { padding: 8px max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); }
+        .ei-kyc-workspace .ei-subnav { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; }
+        .ei-kyc-workspace .ei-subtab { min-width: 0; padding: 5px; line-height: 1.2; white-space: normal; }
+        .ei-kyc-workspace [data-register-tools] { flex-wrap: wrap; }
+        .ei-kyc-workspace .finance-search-wrap { flex: 1 1 100px; min-width: 100px; }
+        .ei-kyc-workspace [data-bulk] { height: 32px; }
+        .ei-kyc-workspace .finance-filter-drawer.open, .ei-kyc-workspace .ei-sorthost.is-open .ei-sort-panel {
+          z-index: 20; max-height: none;
+          padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+        }
+        .ei-kyc-workspace .ei-kyc-tools-open .ei-searchbox, .ei-kyc-workspace .ei-kyc-tools-open [data-bulk] { visibility: hidden; }
         .ei-kyc-table, .ei-kyc-table tbody { display: block; }
         .ei-kyc-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-        .ei-kyc-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-sm, 6px); padding: 6px; margin-bottom: 6px; }
-        .ei-kyc-table td { border: 0; padding: 3px; }
-        .ei-kyc-table td:first-child, .ei-kyc-table td:last-child { grid-column: 1 / -1; }
-        .ei-kyc-table td[data-label]::before { content: attr(data-label) " "; color: var(--mis-muted); }
-        .ei-kyc-table td:last-child { text-align: left; }
+        .ei-kyc-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 6px; padding: 8px 10px; margin-bottom: 6px; border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-md, 8px); background: var(--mis-surface); }
+        .ei-kyc-table.finance-table td { border: 0; padding: 0; background: transparent; }
+        .ei-kyc-table td[data-label]::before { content: attr(data-label) " "; color: var(--mis-muted); font-size: var(--ei-fs-xs); }
+        .ei-kyc-register td:nth-child(2) { text-align: right; }
+        .ei-kyc-register td.num:nth-child(3) { text-align: left; }
+        .ei-kyc-table tr .ei-kyc-wide-cell { grid-column: 1 / -1; }
       }
     </style>
   </head>
@@ -2486,6 +2514,6 @@
       </div>
     </div>
 
-    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=ei-r8-kyc-1"></script>
+    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=ei-r8-kyc-2"></script>
   </body>
 </html>

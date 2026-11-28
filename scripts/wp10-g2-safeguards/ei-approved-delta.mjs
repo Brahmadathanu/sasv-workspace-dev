@@ -54,11 +54,11 @@ const EI_R8_N1_CLIENT_BLOBS = Object.freeze({
 // Debtor KYC client uses the existing Executive Intelligence shell and PWA delivery rules.
 export const EI_DEBTOR_KYC_CLIENT_BRANCH = "codex/r8-debtor-kyc-client";
 export const EI_DEBTOR_KYC_CLIENT_BLOBS = Object.freeze({
-  "public/shared/executive-mis-dashboard.html": "4a4e0dea8b73a9981d3874a632292c3b4a65bced",
-  "public/shared/js/executive-mis-dashboard.js": "4cabd0433ceca85a965515ace4f5fa0bef05732f",
+  "public/shared/executive-mis-dashboard.html": "873a51f02c3b1aa1dbcbc7044c8699c090d0cdcd",
+  "public/shared/js/executive-mis-dashboard.js": "ea068abe4672dbc1cf5cabe33652b387afb5e6dc",
   "public/shared/js/executive-intelligence-model.js": "4324624bdd26dc41300caa5dbae57dd18194e174",
   "public/shared/js/ei-debtor-contract.js": "f0a01cf1caffecb5fe70f6d101ab30c9e9cc16e0",
-  "public/shared/js/ei-debtor-workspace.js": "b3c74ebccc921861f239b530ade6ad9921cada9c",
+  "public/shared/js/ei-debtor-workspace.js": "a296d4636def05daf8b3bf83891e43e5cd63d2bc",
 });
 export const EI_REGISTRY_BASE = "f78f3ba6d1a403cf4b588afc5d285f48df962361";
 export function eiClientApproved(path, branch, committedBlob, workingBlob) {

@@ -1,5 +1,5 @@
 import { CLASS_DIMENSIONS, KYC_ROUTE, INCOMPLETE_KYC_ROUTE, isKycRoute, roleAccess, classificationArgs, changeClassification, collectBillPages, debtorError } from "./ei-debtor-contract.js?kyc=1";
-import { mountDebtorWorkspace, classificationFields } from "./ei-debtor-workspace.js?kyc=1";
+import { mountDebtorWorkspace, classificationFields } from "./ei-debtor-workspace.js?kyc=2";
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 import { mountModuleHome } from "./sasv-module-chrome.js";
@@ -65,14 +65,12 @@ let ACCESS = { state: "checking", executive: false, sales: false };
 let KYC_HASH = isKycRoute(window.location.hash) ? window.location.hash : "";
 let ACTIVE_TAB = KYC_HASH ? "finance" : lensFromHash(window.location.hash);
 let KYC_PERMISSIONS = { kyc: { view: false, edit: false }, commercial: { view: false, edit: false } };
-let disposeKyc;
-let suspendedFinance;
-let financeDirty = false;
+let kycDialog;
+let financeClassificationChanged = false;
 let financeLookups;
 let financeClass = { partition: "all" };
 let financeFilterDraft;
 let stopBillMore;
-let financeScrollOnLoad = null;
 const financeClassArgs = () => classificationArgs(financeClass);
 const financeClassActive = () => Object.keys(financeClassArgs()).length > 0;
 const financeGroupScope = () => financeClassActive() ? "receivables" : LISTS.finance.st.filter;
@@ -721,7 +719,7 @@ const cardText = (td) => { const c = td.cloneNode(true); c.querySelectorAll(".ei
 const cardNote = (td) => flat(Array.from(td.querySelectorAll(".ei-cell-sub")).map((e) => e.textContent).join(" "));
 function cardHtml(m, i, kycAlert) {
   const chips = m.chips.filter((c) => c.value).map((c) => `<span class="ei-rc-chip"><i>${escapeHtml(c.label)}</i> ${escapeHtml(c.value)}</span>`).join("");
-  return `<li class="ei-rc"><button type="button" class="ei-rc-btn" data-rc="${i}" ${kycAlert ? 'aria-label="Open unclassified Debtor KYC"' : `aria-haspopup="dialog" aria-label="${escapeHtml(`Details for ${m.title}`)}"`}>
+  return `<li class="ei-rc"><button type="button" class="ei-rc-btn" data-rc="${i}" ${kycAlert ? 'aria-haspopup="dialog" aria-label="Open unclassified Debtor KYC"' : `aria-haspopup="dialog" aria-label="${escapeHtml(`Details for ${m.title}`)}"`}>
     <span class="ei-rc-top"><span class="ei-rc-title">${escapeHtml(m.title)}</span>${m.measure ? `<span class="ei-rc-measure"><b>${escapeHtml(m.measure.value)}</b><i>${escapeHtml(m.measure.label)}</i></span>` : ""}</span>
     ${m.sub.length ? `<span class="ei-rc-sub">${escapeHtml(m.sub.join(" · "))}</span>` : ""}
     ${chips || m.status ? `<span class="ei-rc-meta">${chips}${m.status ? `<span class="ei-rc-status">${escapeHtml(m.status)}</span>` : ""}</span>` : ""}
@@ -777,7 +775,7 @@ function openRecordDetails(btn) {
   const i = Number(btn.getAttribute("data-rc"));
   const rc = list?.__rc;
   if (!rc || !rc.recs[i]) return;
-  if (rc.recs[i].kycAlert) { navigateFinance(INCOMPLETE_KYC_ROUTE); return; }
+  if (rc.recs[i].kycAlert) { openDebtorKyc(INCOMPLETE_KYC_ROUTE, btn); return; }
   if (rc.recs[i].party != null && list.closest("#financePartyTableWrap")) { const row = LISTS.finance.st.rows[Number(rc.recs[i].party)]; if (row) openFinancePartyDetails(row); return; }
   const overlay = recOverlay();
   const m = rc.models[i];
@@ -1147,7 +1145,7 @@ function renderDetailTabs() {
     tabPanel.setAttribute("aria-labelledby", `lensTab-${ACTIVE_TAB}`);
   }
   try {
-    const want = ACTIVE_TAB === "finance" && KYC_HASH ? KYC_HASH : `#${ACTIVE_TAB}`;
+    const want = KYC_HASH && ACTIVE_TAB === "finance" ? KYC_HASH : `#${ACTIVE_TAB}`;
     if (window.location.hash !== want) window.history.replaceState(null, "", want);
   } catch {
     /* hash sync is a convenience only */
@@ -1178,8 +1176,15 @@ function loadActiveTab() {
     // Reuses the shared live response when fresh; never a private duplicate request.
     return Promise.all([loadLivePipeline(), loadOverviewInventory(), loadOverviewTrend()]);
   }
-  if (ACTIVE_TAB === "finance") return KYC_HASH ? loadKycWorkspace() : resumeFinance();
-  leaveKycWorkspace();
+  if (ACTIVE_TAB === "finance") {
+    if (financeClassificationChanged || AGE.sum.status === "loading") {
+      AGE.sum = { status: "idle" };
+      financeClassificationChanged = false;
+    }
+    const loading = loadFinanceTab();
+    if (KYC_HASH && !kycDialog?.open) openDebtorKyc(KYC_HASH, $("openDebtorKyc"));
+    return loading;
+  }
   if (ACTIVE_TAB === "sales") return loadSalesTab();
   if (ACTIVE_TAB === "inventory") return loadInventoryTab();
   if (ACTIVE_TAB === "finished-goods") return loadFinishedGoodsTab();
@@ -1196,11 +1201,6 @@ function renderActiveTab() {
 // unless its last load failed, in which case it acts as a retry.
 function selectTab(tabId) {
   const next = visibleLenses().some((l) => l.id === tabId) ? tabId : visibleLenses()[0].id;
-  if (KYC_HASH && next === "finance" && ACTIVE_TAB === "finance") {
-    navigateFinance("");
-    return;
-  }
-  if (next !== "finance") KYC_HASH = "";
   if (next === ACTIVE_TAB && !ACTIVE_TAB_FAILED) {
     if (detailTabSelect) detailTabSelect.value = ACTIVE_TAB;
     return;
@@ -1215,71 +1215,62 @@ function selectTab(tabId) {
   loadActiveTab();
 }
 
-function navigateFinance(hash, { push = true } = {}) {
-  if (!ACCESS.executive || (ACTIVE_TAB === "finance" && KYC_HASH === hash)) return;
-  const previous = ACTIVE_TAB;
-  if (previous === "finance" && !KYC_HASH && hash) {
-    closeAllFilterDrawers();
-    closeFinanceModal();
-    closeAgeBreakdown({ restoreFocus: false });
-    closeAgeingDialog({ restoreFocus: false });
-    const wrap = $("financePartyTableWrap");
-    const pendingSearch = $("financeSearch")?.value.trim();
-    const searchChanged = pendingSearch != null && pendingSearch !== LISTS.finance.st.search;
-    if (searchChanged) LISTS.finance.st.search = pendingSearch;
-    suspendedFinance = wrap ? {
-      node: tabPanel.firstElementChild, top: tabPanel.scrollTop, listTop: wrap.scrollTop,
-      ready: !searchChanged && !LISTS.finance.st.loading && LISTS.finance.sum.status !== "loading" && AGE.sum.status !== "loading",
-    } : null;
-    suspendedFinance?.node.remove();
-    disposeMore("finance");
-  }
-  KYC_HASH = hash;
-  ACTIVE_TAB = "finance";
-  if (push) window.history.pushState(null, "", hash || "#finance");
-  renderDetailTabs();
-  loadActiveTab();
-}
-
-function leaveKycWorkspace() {
-  disposeKyc?.();
-  disposeKyc = null;
-}
-
-function loadKycWorkspace() {
-  if (!ACCESS.executive) return;
-  leaveKycWorkspace();
-  const host = document.createElement("div");
-  tabPanel.replaceChildren(host);
-  disposeKyc = mountDebtorWorkspace(host, {
-    read: readDebtorRpc, permissions: KYC_PERMISSIONS, esc: escapeHtml, money: formatCurrencyINR,
-    partition: KYC_HASH === INCOMPLETE_KYC_ROUTE ? "unclassified" : "all",
-    onChange: () => { financeDirty = true; financeLookups = null; },
-    back: () => navigateFinance(""),
+function openFinanceLayer(title, { trigger = document.activeElement, workspace = false, onClose } = {}) {
+  const el = document.createElement("dialog");
+  el.className = `modal-window finance-modal ei-kyc-dialog${workspace ? " ei-kyc-workspace" : ""}`;
+  el.setAttribute("aria-label", title);
+  el.innerHTML = `<header class="modal-header finance-modal-header">
+    <h2 class="finance-modal-title">${escapeHtml(title)}</h2>
+    <button type="button" class="modal-close-btn finance-modal-close" aria-label="Close" title="Close" autofocus>${ICON_X}</button>
+    </header><div class="modal-content finance-modal-body ei-kyc-dialog-body"></div>`;
+  const closeButton = el.querySelector("button");
+  closeButton.onclick = () => el.close();
+  el.addEventListener("click", (event) => {
+    if (event.target !== el || el.querySelector(".ei-kyc-tools-open")) return;
+    const box = el.getBoundingClientRect();
+    if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) el.close();
   });
+  el.addEventListener("keydown", (event) => {
+    if (event.key === "Tab") {
+      event.stopPropagation();
+      trapTab(el, event);
+    }
+    if (event.key === "Escape") event.stopPropagation();
+  });
+  el.addEventListener("close", () => {
+    el.remove();
+    onClose?.();
+    const top = [...document.querySelectorAll("dialog[open]")].at(-1);
+    if (trigger?.isConnected && (!top || top.contains(trigger))) trigger.focus({ preventScroll: true });
+    else if (top?.classList.contains("ei-kyc-workspace")) top.querySelector('[role="tab"][aria-selected="true"]')?.focus({ preventScroll: true });
+  }, { once: true });
+  document.body.append(el);
+  el.showModal();
+  closeButton.focus({ preventScroll: true });
+  return { el, body: el.lastElementChild };
 }
 
-function resumeFinance() {
-  const returning = !!disposeKyc;
-  leaveKycWorkspace();
-  const saved = suspendedFinance;
-  suspendedFinance = null;
-  if (saved?.ready && !financeDirty) {
-    tabPanel.replaceChildren(saved.node);
-    const wrap = $("financePartyTableWrap");
-    tabPanel.scrollTop = saved.top;
-    wrap.scrollTop = saved.listTop;
-    LISTS.finance.st.more.loading = false;
-    renderListTable("finance");
-    $("openDebtorKyc")?.focus({ preventScroll: true });
-    return;
-  }
-  financeDirty = false;
-  if (saved) financeScrollOnLoad = saved;
-  if (AGE.sum.status === "loading" || returning) AGE.sum = { status: "idle" };
-  const loading = loadFinanceTab();
-  if (returning) $("openDebtorKyc")?.focus({ preventScroll: true });
-  return loading;
+function openDebtorKyc(hash, trigger) {
+  if (!ACCESS.executive || kycDialog?.open) return;
+  closeAllFilterDrawers();
+  closeKpiPopover();
+  const modal = openFinanceLayer("Debtor KYC", { workspace: true, trigger, onClose: () => {
+    dispose();
+    if (kycDialog !== modal.el) return;
+    kycDialog = null;
+    if (isKycRoute(window.location.hash)) {
+      KYC_HASH = "";
+      window.history.replaceState(null, "", `#${ACTIVE_TAB}`);
+    }
+    if (trigger && !trigger.isConnected) (ACTIVE_TAB === "finance" ? $("openDebtorKyc") : tabPanel)?.focus({ preventScroll: true });
+  } });
+  kycDialog = modal.el;
+  const dispose = mountDebtorWorkspace(modal.body, {
+    read: readDebtorRpc, permissions: KYC_PERMISSIONS, esc: escapeHtml, money: formatCurrencyINR,
+    partition: hash === INCOMPLETE_KYC_ROUTE ? "unclassified" : "all",
+    openDialog: openFinanceLayer, glyph: GLYPH, sortIcons: ICON_SORT, trapTab,
+    onChange: () => { financeClassificationChanged = true; financeLookups = null; },
+  });
 }
 
 function setTableLoading(
@@ -1927,7 +1918,7 @@ function renderListShell(p) {
   host.innerHTML = `
     <div class="ei-lens ei-lens-${p}">
       ${L.host ? "" : lensHeadHtml(L.title)}
-      ${p === "finance" ? `<div class="ei-kyc-launch"><button id="openDebtorKyc" type="button" class="ei-ctl" data-act="open-kyc">Debtor KYC</button></div><div id="financeMetrics" class="ei-metrics-host"></div><div id="financeAgeing" class="fin-ageing-host"></div>` : ""}
+      ${p === "finance" ? `<div class="ei-kyc-launch"><button id="openDebtorKyc" type="button" class="ei-ctl" aria-haspopup="dialog" data-act="open-kyc">Debtor KYC</button></div><div id="financeMetrics" class="ei-metrics-host"></div><div id="financeAgeing" class="fin-ageing-host"></div>` : ""}
       <div id="${p}ScopeNote" class="${p}-scope-note ei-scope"></div>
       <div id="${p}Toolbar"></div>
       <div class="${p}-table-shell">
@@ -2012,7 +2003,7 @@ async function loadList(p, { append = false, retry = false } = {}) {
   }
   const parsed = L.parse(data);
   const merged = append ? mergeRows(st.rows, parsed.rows, L.key) : { rows: parsed.rows, added: parsed.rows.length };
-  if (!append) st.resetScroll = !(p === "finance" && financeScrollOnLoad); // a new query starts at the top; only appends and detail returns keep the position
+  if (!append) st.resetScroll = true; // a new query starts at the top; appends keep the position
   st.rows = merged.rows;
   st.total = parsed.total;
   st.more = { loading: false, error: "" };
@@ -2087,11 +2078,6 @@ function renderListTable(p) {
   applyRecordCards(wrap);
   wrap.insertAdjacentHTML("beforeend", moreHtml(p, { ...L.st.more, done: L.st.done }));
   wrap.scrollTop = top;
-  if (p === "finance" && financeScrollOnLoad) {
-    tabPanel.scrollTop = financeScrollOnLoad.top;
-    wrap.scrollTop = financeScrollOnLoad.listTop;
-    financeScrollOnLoad = null;
-  }
   armMore(wrap, p, () => loadList(p, { append: true }));
 }
 
@@ -2945,7 +2931,7 @@ function renderAlertsLens() {
       ${segmentsHtml(alertSegments(vm.items), { label: "Checks by state", noun: "checks", cls: { REVIEW: "c", CLEAR: "d", UNAVAILABLE: "a" }, unit: `Counts of checks, not of findings. Unavailable is its own state and is never counted as clear${vm.partial ? "; the catalogue is partial, so no all-clear is implied" : ""}.` })}
       ${vm.items.length ? `<div class="ei-table-wrap"><table class="ei-table" aria-label="Management alerts">
         <thead><tr>${th("Check")}${th("State")}${th("Findings", true)}${th("Evidence date")}${th("Severity")}</tr></thead>
-        <tbody>${vm.items.map((a) => `<tr><td>${a.debtorKyc ? `<a class="ei-link" href="${INCOMPLETE_KYC_ROUTE}" data-act="open-kyc" data-route="unclassified">${escapeHtml(a.label)}</a>${a.exposureAmount === null ? "" : `<small class="ei-kyc-alert-exposure ei-cell-sub">${escapeHtml(formatCurrencyINR(a.exposureAmount))} exposure</small>`}` : escapeHtml(a.label)}</td><td><span class="ei-badge ei-badge-${a.state.toLowerCase()}">${escapeHtml(labelOf({ REVIEW: "Needs review", CLEAR: "No findings", UNAVAILABLE: "Unavailable" }, a.state))}</span></td>
+        <tbody>${vm.items.map((a) => `<tr><td>${a.debtorKyc ? `<a class="ei-link" href="${INCOMPLETE_KYC_ROUTE}" aria-haspopup="dialog" data-act="open-kyc" data-route="unclassified">${escapeHtml(a.label)}</a>${a.exposureAmount === null ? "" : `<small class="ei-kyc-alert-exposure ei-cell-sub">${escapeHtml(formatCurrencyINR(a.exposureAmount))} exposure</small>`}` : escapeHtml(a.label)}</td><td><span class="ei-badge ei-badge-${a.state.toLowerCase()}">${escapeHtml(labelOf({ REVIEW: "Needs review", CLEAR: "No findings", UNAVAILABLE: "Unavailable" }, a.state))}</span></td>
           <td class="num">${escapeHtml(a.findings === null ? "Unavailable" : formatIntegerIN(a.findings))}</td><td>${escapeHtml(a.evidenceDate ? formatDateIN(a.evidenceDate) : "-")}</td><td>${escapeHtml(a.severity.replace(/_/g, " ").toLowerCase())}</td></tr>`).join("")}</tbody></table></div>` : `<div class="ei-state ei-state-unavailable" role="status">${escapeHtml(vm.title)}. This is a partial catalogue, so it is not an all-clear.</div>`}
       ${vm.partial ? `<div class="ei-note">This is a partial catalogue. “No findings” means nothing was found by that check only; it is not an all-clear for the business.</div>` : ""}`;
   } else {
@@ -3659,8 +3645,8 @@ function focusLensPanel() {
 
 function trapTab(container, ev) {
   const focusable = [
-    ...container.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'),
-  ].filter((el) => el.offsetParent !== null);
+    ...container.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'),
+  ].filter((el) => el.offsetParent !== null && el.tabIndex >= 0);
   if (!focusable.length) return;
   const first = focusable[0];
   const last = focusable[focusable.length - 1];
@@ -3708,9 +3694,16 @@ function wireEvents() {
     selectTab(detailTabSelect.value);
   });
   window.addEventListener("hashchange", () => {
-    if (isKycRoute(window.location.hash) && ACCESS.executive) return navigateFinance(window.location.hash, { push: false });
-    const next = lensFromHash(window.location.hash);
-    if (KYC_HASH && next === "finance" && ACCESS.executive) return navigateFinance("", { push: false });
+    const hash = window.location.hash;
+    if (isKycRoute(hash) && ACCESS.executive) {
+      KYC_HASH = hash;
+      if (ACTIVE_TAB === "finance") openDebtorKyc(hash, $("openDebtorKyc"));
+      else selectTab("finance");
+      return;
+    }
+    KYC_HASH = "";
+    kycDialog?.close();
+    const next = lensFromHash(hash);
     if (next !== ACTIVE_TAB && visibleLenses().some((l) => l.id === next)) selectTab(next);
     else if (next !== ACTIVE_TAB) renderDetailTabs();
   });
@@ -3772,7 +3765,11 @@ function wireEvents() {
     if (!act) return;
     const p = act.getAttribute("data-list");
     switch (act.getAttribute("data-act")) {
-      case "open-kyc": ev.preventDefault(); navigateFinance(act.dataset.route === "unclassified" ? INCOMPLETE_KYC_ROUTE : KYC_ROUTE); break;
+      case "open-kyc":
+        if (act.matches("a") && (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey)) break;
+        ev.preventDefault();
+        openDebtorKyc(act.dataset.route === "unclassified" ? INCOMPLETE_KYC_ROUTE : KYC_ROUTE, act);
+        break;
       case "finance-class-retry": showFinanceClassFields(); break;
       case "finance-class-apply": applyFinanceClassification(); break;
       case "bill-export": exportFinanceBills(act); break;

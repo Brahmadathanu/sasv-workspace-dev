@@ -27,7 +27,7 @@ export function classificationFields(esc, lookups, values, { disabled = false, k
     const current = values[key];
     const missing = keepInactive && current && !choices.some((row) => String(row.id) === String(current));
     const old = missing && lookups?.[list]?.find((row) => String(row.id) === String(current));
-    return `<label>${label}<select name="${key}" aria-label="${esc(label)}" ${disabled || (!choices.length && !missing) ? "disabled" : ""}>
+    return `<label class="ei-field">${label}<select name="${key}" aria-label="${esc(label)}" ${disabled || (!choices.length && !missing) ? "disabled" : ""}>
       <option value="">Any / unset</option>
       ${missing ? `<option value="${esc(current)}" selected>${esc(old?.[name] || current)} (unavailable)</option>` : ""}
       ${choices.map((row) => `<option value="${esc(row.id)}" ${String(row.id) === String(current) ? "selected" : ""}>${esc(row[name])}</option>`).join("")}
@@ -35,7 +35,7 @@ export function classificationFields(esc, lookups, values, { disabled = false, k
   }).join("");
 }
 
-export function mountDebtorWorkspace(host, { read, permissions, partition, esc, money, onChange, back }) {
+export function mountDebtorWorkspace(host, { read, permissions, partition, esc, money, onChange, openDialog, glyph, sortIcons, trapTab }) {
   const { kyc, commercial } = permissions;
   let lookups, cleanup = () => {};
   let view = "register";
@@ -48,14 +48,47 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
   let termsScope = { p_debtor: null, p_type: null, p_region: null };
   let termsDate = today();
   let debtorName = "";
+  let registerSort = "server";
+  let formSequence = 0;
+  const childDialogs = new Set();
+  const nameOrder = new Intl.Collator("en-IN", { sensitivity: "base", numeric: true });
 
   const button = (label, extra = "") => `<button type="button" class="ei-ctl" ${extra}>${esc(label)}</button>`;
-  const input = (key, label, value = "", attrs = "") => `<label>${label}<input name="${key}" value="${esc(value ?? "")}" ${attrs}></label>`;
-  const select = (key, label, options, current = "", placeholder = "Select…", disabled = false) => `<label>${label}<select name="${key}" aria-label="${esc(label)}" ${disabled ? "disabled" : ""}>${placeholder ? `<option value="">${placeholder}</option>` : ""}${options.map(([value, text]) => `<option value="${esc(value)}" ${String(value) === String(current) ? "selected" : ""}>${esc(text)}</option>`).join("")}</select></label>`;
+  const input = (key, label, value = "", attrs = "") => `<label class="ei-field">${label}<input name="${key}" value="${esc(value ?? "")}" ${attrs}></label>`;
+  const select = (key, label, options, current = "", placeholder = "Select…", disabled = false) => `<label class="ei-field">${label}<select name="${key}" aria-label="${esc(label)}" ${disabled ? "disabled" : ""}>${placeholder ? `<option value="">${placeholder}</option>` : ""}${options.map(([value, text]) => `<option value="${esc(value)}" ${String(value) === String(current) ? "selected" : ""}>${esc(text)}</option>`).join("")}</select></label>`;
   const choices = (key, name, all = false) => (lookups?.[key] || []).filter((row) => all || row.is_active !== false).map((row) => [row.id, row[name] + (row.is_active === false ? " (inactive)" : "")]);
   const nameFor = (key, id, name) => lookups?.[key]?.find((row) => String(row.id) === String(id))?.[name] ?? id ?? "—";
   const classNames = (record) => CLASS_DIMENSIONS.map(([key, , list, name]) => record[key] && nameFor(list, record[key], name)).filter(Boolean).join(" · ");
   const section = () => host.querySelector(".ei-kyc-content");
+  const contentScroll = (element) => element.closest(".ei-kyc-dialog-body, .ei-kyc-content");
+  const badge = (label, review = false) => `<span class="ei-badge ei-badge-${review ? "review" : "clear"}">${esc(label)}</span>`;
+  const loading = '<span class="table-loading-spinner" aria-hidden="true"></span> Loading…';
+  const state = (message, kind = "empty") => `<div role="${kind === "error" ? "alert" : "status"}" class="ei-state ${kind === "empty" ? "ei-state-unavailable" : kind}">${message}</div>`;
+  const searchBox = (label, value = "") => `<div class="finance-search-wrap ei-searchbox">
+    <span class="ei-search-icon" aria-hidden="true">${glyph("search", 14)}</span>
+    <input name="search" type="text" aria-label="${esc(label)}" placeholder="${esc(label)}" value="${esc(value)}" autocomplete="off">
+    <button type="button" class="input-clear-btn" aria-label="Clear search" title="Clear search" ${value ? "" : "hidden"}>${glyph("close", 14)}</button>
+  </div>`;
+
+  function bindSearch(box, update) {
+    const input = box.querySelector("input");
+    const clear = box.querySelector("button");
+    let timer;
+    const dispose = () => clearTimeout(timer);
+    input.oninput = () => {
+      dispose();
+      clear.hidden = !input.value;
+      timer = setTimeout(() => { if (input.isConnected) update(input.value.trim()); }, 250);
+    };
+    clear.onclick = () => {
+      dispose();
+      input.value = "";
+      clear.hidden = true;
+      input.focus();
+      update("");
+    };
+    return dispose;
+  }
   const setStatus = (message) => { const el = host.querySelector(".ei-kyc-notice"); if (el) el.textContent = message; };
   const reason = () => input("reason", "Reason", "", "required maxlength=2000");
   const classKeys = CLASS_DIMENSIONS.map(([key]) => key);
@@ -66,30 +99,22 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
     event.currentTarget.querySelector(`[name="${key}"]`)?.focus();
   };
 
-  function dialog(title, trigger = document.activeElement) {
-    const el = document.createElement("dialog");
-    el.className = "ei-kyc-dialog modal-window";
-    el.setAttribute("aria-label", title);
-    el.innerHTML = `<header class="modal-header"><h3 class="finance-modal-title">${esc(title)}</h3>${button("Close", 'data-close autofocus')}</header><div class="ei-kyc-dialog-body"></div>`;
-    host.append(el);
-    el.querySelector("[data-close]").onclick = () => el.close();
-    el.addEventListener("close", () => { el.remove(); if (trigger?.isConnected) trigger.focus(); }, { once: true });
-    el.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") event.stopPropagation();
-    });
-    el.showModal();
-    return { el, body: el.lastElementChild };
+  function dialog(title) {
+    const modal = openDialog(title, { onClose: () => childDialogs.delete(modal.el) });
+    childDialogs.add(modal.el);
+    return modal;
   }
 
   function loadInto(body, load, render) {
     const run = async () => {
-      body.innerHTML = '<p role="status">Loading…</p>';
+      if (body.closest("dialog")?.classList.contains("ei-kyc-workspace") === false) body.nextElementSibling?.remove();
+      body.innerHTML = state(loading, "loading");
       try {
         const data = await load();
         if (body.isConnected) render(data);
       } catch (error) {
         if (!body.isConnected) return;
-        body.innerHTML = `<p role="alert">${esc(debtorError(error))}</p>${button("Retry")}`;
+        body.innerHTML = state(esc(debtorError(error)) + ' <button type="button" class="mis-retry-btn">Retry</button>', "error");
         body.querySelector("button").onclick = run;
       }
     };
@@ -102,16 +127,17 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
     body.innerHTML = '<div data-results></div><div data-more role="status"></div>';
     const results = body.firstElementChild;
     const more = body.lastElementChild;
-    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) next(); });
+    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) next(); }, { root: contentScroll(body), rootMargin: "0px 0px 64px" });
+    let stopped = false;
     observer.observe(more);
     const next = async () => {
-      if (busy || offset >= total || !more.isConnected) return;
+      if (stopped || busy || offset >= total || !more.isConnected) return;
       busy = true;
-      more.textContent = "Loading…";
+      more.innerHTML = state(loading, "loading");
       let failed = false;
       try {
         const data = await load(offset);
-        if (!more.isConnected) return;
+        if (stopped || !more.isConnected) return;
         const { rows } = data;
         total = Number(data.total_rows);
         offset = rows.length ? offset + rows.length : total;
@@ -119,32 +145,40 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
         shown += visible.length;
         onPage(data);
         render(results, visible);
-        more.textContent = offset < total ? "Loading more when in view" : shown ? `${shown} shown` : "No matching records";
+        more.innerHTML = offset >= total && !shown ? state("No matching records") : "";
       } catch (error) {
-        if (!more.isConnected) return;
+        if (stopped || !more.isConnected) return;
         failed = true;
-        more.innerHTML = `${esc(debtorError(error))} ${button("Retry")}`;
+        more.innerHTML = state(esc(debtorError(error)) + ' <button type="button" class="mis-retry-btn">Retry</button>', "error");
         more.querySelector("button").onclick = next;
       } finally {
         busy = false;
-        if (!more.isConnected || offset >= total) observer.disconnect();
+        if (stopped || !more.isConnected || offset >= total) observer.disconnect();
         else if (!failed) { observer.unobserve(more); observer.observe(more); }
       }
     };
     next();
-    return () => observer.disconnect();
+    return () => { stopped = true; observer.disconnect(); };
   }
 
   function form(body, fields, actions, submit, reload) {
-    body.innerHTML = `<form class="ei-kyc-form">${fields}<div class="ei-kyc-actions">${actions.map(([key, label]) => `<button class="ei-ctl" type="submit" value="${key}">${label}</button>`).join("")}</div><div role="alert" data-form-error></div></form>`;
+    body.nextElementSibling?.remove();
+    const formId = `debtor-form-${++formSequence}`;
+    body.innerHTML = `<form id="${formId}" class="ei-kyc-form">${fields}<div class="ei-state error" role="alert" data-form-error></div></form>`;
+    const actionsHtml = actions.map(([key, label]) => `<button class="ei-ctl" type="submit" form="${formId}" value="${key}">${label}</button>`).join("");
+    body.insertAdjacentHTML("afterend", `<footer class="fin-age-footer"><div class="fin-age-footer-main">${actionsHtml}</div></footer>`);
     const el = body.firstElementChild;
     el.onsubmit = async (event) => {
       event.preventDefault();
       const values = Object.fromEntries(new FormData(el));
-      if ("reason" in values && !values.reason.trim()) { el.querySelector("[data-form-error]").textContent = "Enter a reason."; return; }
-      const controls = [...el.querySelectorAll('button[type="submit"]')];
-      controls.forEach((control) => { control.disabled = true; });
       const errorHost = el.querySelector("[data-form-error]");
+      if ("reason" in values && !values.reason.trim()) {
+        errorHost.textContent = "Enter a reason.";
+        errorHost.scrollIntoView({ block: "nearest" });
+        return;
+      }
+      const controls = [...body.nextElementSibling.querySelectorAll('button[type="submit"]')];
+      controls.forEach((control) => { control.disabled = true; });
       errorHost.textContent = "";
       try { await submit(values, event.submitter?.value); }
       catch (error) {
@@ -153,7 +187,10 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
           errorHost.insertAdjacentHTML("beforeend", " " + button("Reload current version"));
           errorHost.lastElementChild.onclick = reload;
         }
-      } finally { controls.forEach((control) => { control.disabled = false; }); }
+      } finally {
+        if (errorHost.textContent) errorHost.scrollIntoView({ block: "nearest" });
+        controls.forEach((control) => { control.disabled = false; });
+      }
     };
     return el;
   }
@@ -161,7 +198,7 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
   function audit(entity, id, title = "Audit history") {
     const { el, body } = dialog(title);
     const stop = paged(body, (offset) => read("ei_debtor_audit_page", { p_entity: entity, p_id: id, p_limit: 50, p_offset: offset }), (results, rows) => {
-      results.insertAdjacentHTML("beforeend", rows.map((row) => `<details class="ei-kyc-card"><summary>${esc(row.event_at)} · ${esc(row.operation)} · ${esc(row.reason)}</summary><dl><dt>Actor</dt><dd>${esc(row.actor_user_id)}</dd><dt>Previous</dt><dd><pre>${esc(JSON.stringify(row.old_record, null, 2))}</pre></dd><dt>Current</dt><dd><pre>${esc(JSON.stringify(row.new_record, null, 2))}</pre></dd></dl></details>`).join(""));
+      results.insertAdjacentHTML("beforeend", rows.map((row) => `<details class="finance-modal-note fin-about ei-kyc-card"><summary>${esc(row.event_at)} · ${esc(row.operation)} · ${esc(row.reason)}</summary><dl><dt>Actor</dt><dd>${esc(row.actor_user_id)}</dd><dt>Previous</dt><dd><pre>${esc(JSON.stringify(row.old_record, null, 2))}</pre></dd><dt>Current</dt><dd><pre>${esc(JSON.stringify(row.new_record, null, 2))}</pre></dd></dl></details>`).join(""));
     });
     el.addEventListener("close", stop, { once: true });
   }
@@ -267,6 +304,7 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
             results.push([row.ledger_name, "Saved"]);
           } catch (error) { results.push([row.ledger_name, debtorError(error)]); }
         }
+        body.nextElementSibling?.remove();
         body.innerHTML = `<ul>${results.map(([name, message]) => `<li>${esc(name)} · ${esc(message)}</li>`).join("")}</ul>`;
         changed("Bulk classification finished.");
       });
@@ -277,44 +315,84 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
     });
   }
 
+  function recordTable(container, columns) {
+    if (!container.querySelector("table")) {
+      container.insertAdjacentHTML("beforeend", `<table class="finance-table ei-kyc-table"><thead><tr>${columns.map((label) => `<th scope="col">${label}</th>`).join("")}</tr></thead><tbody></tbody></table>`);
+    }
+    return container.querySelector("tbody");
+  }
+
+  function registerFilters() {
+    return `<div class="ei-kyc-grid">
+      ${kyc.view ? select("registerMode", "Scope", [["history", "Current and historical"], ["outstanding", "Current outstanding"]], registerMode, "") : ""}
+      ${registerMode === "outstanding" ? select("partition", "Classification", [["all", "All"], ["classified", "Classified"], ["unclassified", "Unclassified"]], filters.partition, "") : ""}
+      ${select("lifecycle", "Status", STATUSES.map((value) => [value, statusLabel(value)]), lifecycle, "All statuses")}
+      ${registerMode === "outstanding" ? classificationFields(esc, lookups, filters, { disabled: filters.partition === "unclassified" }) : ""}
+    </div>`;
+  }
+
   function renderRegister() {
     const panel = section();
-    panel.innerHTML = `<div class="ei-kyc-toolbar">
-      <details class="ei-kyc-filters"><summary class="ei-ctl">Filters</summary>
-      <div class="ei-kyc-grid">
-        ${kyc.view ? select("registerMode", "Scope", [["history", "Current and historical"], ["outstanding", "Current outstanding"]], registerMode, "") : ""}
-        ${registerMode === "outstanding" ? select("partition", "Classification", [["all", "All"], ["classified", "Classified"], ["unclassified", "Unclassified"]], filters.partition, "") : ""}
-        ${select("lifecycle", "Status", STATUSES.map((status) => [status, statusLabel(status)]), lifecycle, "All statuses")}
-        ${registerMode === "outstanding" ? classificationFields(esc, lookups, filters, { disabled: filters.partition === "unclassified" }) : ""}
-      </div></details>
-      ${input("search", "Search debtors", search, 'type="search" placeholder="Search debtors" autocomplete="off"')}
-      ${kyc.edit ? button("Bulk classification", "data-bulk disabled") : ""}
-      </div><div data-list></div>`;
-    const results = panel.querySelector("[data-list]");
-    const searchInput = panel.querySelector("[name=search]");
-    const bulkButton = panel.querySelector("[data-bulk]");
+    const toolbar = host.querySelector("[data-register-tools]");
+    toolbar.hidden = false;
+    toolbar.innerHTML = `<div class="ei-filters">
+      <button type="button" class="finance-filter-btn" aria-label="Filters" title="Filters" aria-expanded="false" aria-controls="debtorFilterDrawer">${glyph("filter")}</button>
+      <div id="debtorFilterDrawer" class="finance-filter-drawer" role="dialog" aria-label="Debtor register filters">
+        <div class="ei-drawer-head"><span class="ei-drawer-title">Filters</span>
+          <button class="ei-drawer-close" type="button" aria-label="Close filters">${glyph("close")}</button></div>
+        <div data-fields>${registerFilters()}</div>
+      </div>
+    </div>
+    <div class="ei-sorthost"><button type="button" class="ei-ctl" aria-label="Sort register" title="Sort register" aria-expanded="false" aria-controls="debtorSortDrawer">${sortIcons[registerSort === "server" ? "key" : registerSort]}</button>
+      <div id="debtorSortDrawer" class="ei-pop ei-sort-panel" role="dialog" aria-label="Sort register">
+        <div class="ei-filter-sheet-head"><strong>Sort</strong><button type="button" class="ei-drawer-close" aria-label="Close sort">${glyph("close")}</button></div>
+        <ul class="ei-sort-list">${[["server", "Server order"], ["key", "Debtor name"], ["value_desc", "Outstanding balance"]].map(([value, label]) =>
+          `<li><label><input type="radio" name="debtorSort" value="${value}" ${value === registerSort ? "checked" : ""}>${esc(label)}</label></li>`).join("")}</ul>
+        <p class="ei-drawer-note">Name and balance sorts apply to loaded records.</p>
+      </div>
+    </div>
+    ${searchBox("Search debtors", search)}
+    ${kyc.edit ? button("Bulk classification", "data-bulk disabled") : ""}`;
+    const filterDrawer = toolbar.querySelector("#debtorFilterDrawer");
+    const sortDrawer = toolbar.querySelector("#debtorSortDrawer");
+    const searchInput = toolbar.querySelector("[name=search]");
+    const bulkButton = toolbar.querySelector("[data-bulk]");
     const syncSelection = () => {
-      if (!bulkButton) return;
-      bulkButton.disabled = !selected.size;
-      bulkButton.textContent = selected.size ? `Bulk classification (${selected.size})` : "Bulk classification";
+      if (bulkButton) bulkButton.disabled = !selected.size;
+    };
+    const sortRows = (table) => {
+      if (!table) return;
+      const rows = [...table.rows];
+      const compare = registerSort === "key" ? (a, b) => nameOrder.compare(a.dataset.name, b.dataset.name)
+        : registerSort === "value_desc" ? (a, b) => Number(b.dataset.balance) - Number(a.dataset.balance)
+          : (a, b) => Number(a.dataset.order) - Number(b.dataset.order);
+      rows.sort(compare);
+      table.append(...rows);
     };
     const draw = () => {
       cleanup();
+      panel.scrollTop = 0;
       const outstanding = registerMode === "outstanding";
       const load = async (offset) => {
         if (!outstanding) return read("ei_debtor_register_page", { p_search: search, p_limit: 50, p_offset: offset });
         const rows = await read("get_mis_finance_party_page", { p_search: search, p_group_filter: "receivables", p_limit: 50, p_offset: offset, ...classificationArgs(filters) });
         return { total_rows: rows[0]?.total_rows ?? offset, rows: rows.map((row) => ({ ...row, ledger_name: row.party_name, signed_amount: row.signed_outstanding_tally_value })) };
       };
-      cleanup = paged(results, load, (container, rows) => {
-        if (!container.firstElementChild) container.innerHTML = '<table class="ei-kyc-table"><thead><tr><th>Debtor</th><th>Status</th><th>Bills</th><th>Signed outstanding</th></tr></thead><tbody></tbody></table>';
+      cleanup = paged(panel, load, (container, rows) => {
+        if (!rows.length) return;
+        if (!container.firstElementChild) container.innerHTML = '<table class="finance-table ei-kyc-table ei-kyc-register"><thead><tr><th scope="col">Debtor</th><th scope="col">Status</th><th scope="col" class="num">Bills</th><th scope="col" class="num">Signed outstanding</th></tr></thead><tbody></tbody></table>';
         const table = container.querySelector("tbody");
         for (const row of rows) {
           const tr = document.createElement("tr");
           const name = esc(row.ledger_name);
           const classification = outstanding ? classNames(row) : "";
-          const open = kyc.view && row.debtor_id ? button(row.ledger_name, "data-profile") : kyc.edit ? `${name} ${button("Register", "data-register")}` : name;
-          tr.innerHTML = `<td><div class="ei-kyc-party">${kyc.edit && row.debtor_id ? `<input type="checkbox" aria-label="Select ${name}" ${selected.has(row.debtor_id) ? "checked" : ""}>` : ""}${open}</div>${classification ? `<small>${esc(classification)}</small>` : ""}</td><td data-label="Status">${statusLabel(row.kyc_status)}</td><td data-label="Bills">${esc(row.bill_count)}</td><td data-label="Signed outstanding">${esc(money(row.signed_amount))}</td>`;
+          const open = kyc.view && row.debtor_id ? `<button type="button" class="ei-text-link" data-profile aria-haspopup="dialog">${name}</button>` : kyc.edit ? `${name} ${button("Register", "data-register")}` : name;
+          tr.dataset.name = row.ledger_name;
+          tr.dataset.balance = String(Math.abs(Number(row.signed_amount)));
+          tr.dataset.order = String(table.rows.length);
+          tr.innerHTML = `<td><div class="ei-kyc-party">${kyc.edit && row.debtor_id ? `<input type="checkbox" aria-label="Select ${name}" ${selected.has(row.debtor_id) ? "checked" : ""}>` : ""}${open}</div>${classification ? `<small class="ei-cell-sub">${esc(classification)}</small>` : ""}</td>
+            <td>${badge(statusLabel(row.kyc_status), ["DRAFT", "INVALID", "UNMAPPED"].includes(row.kyc_status))}</td>
+            <td class="num" data-label="Bills">${esc(row.bill_count)}</td><td class="num" data-label="Signed outstanding">${esc(money(row.signed_amount))}</td>`;
           const check = tr.querySelector("input");
           if (check) check.onchange = () => { if (check.checked) selected.set(row.debtor_id, row); else selected.delete(row.debtor_id); syncSelection(); };
           const profile = tr.querySelector("[data-profile]");
@@ -323,29 +401,82 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
           if (add) add.onclick = () => register(row);
           table.append(tr);
         }
+        if (registerSort !== "server") sortRows(table);
       }, { filter: (row) => !lifecycle || row.kyc_status === lifecycle });
     };
-    let timer;
-    searchInput.oninput = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        if (!panel.contains(searchInput)) return;
-        search = searchInput.value.trim();
-        draw();
-      }, 250);
+    bindSearch(searchInput.parentElement, (value) => {
+      search = value;
+      draw();
+    });
+    const dialogs = [[filterDrawer, "open"], [sortDrawer, "is-open"]];
+    const closeDrawers = (focus = false) => {
+      for (const [drawer, style] of dialogs) {
+        const shell = drawer.parentElement;
+        const target = drawer === filterDrawer ? drawer : shell;
+        if (!target.classList.contains(style)) continue;
+        target.classList.remove(style);
+        shell.firstElementChild.setAttribute("aria-expanded", "false");
+        if (focus) shell.firstElementChild.focus({ preventScroll: true });
+      }
+      toolbar.classList.remove("ei-kyc-tools-open");
     };
-    panel.querySelector("details").onchange = (event) => {
+    for (const [drawer, style] of dialogs) {
+      const shell = drawer.parentElement;
+      const trigger = shell.firstElementChild;
+      trigger.onclick = () => {
+        const target = drawer === filterDrawer ? drawer : shell;
+        const wasOpen = target.classList.contains(style);
+        closeDrawers();
+        if (wasOpen) return;
+        target.classList.add(style);
+        toolbar.classList.add("ei-kyc-tools-open");
+        trigger.setAttribute("aria-expanded", "true");
+        const phone = matchMedia("(max-width: 640px)").matches;
+        drawer.setAttribute("aria-modal", String(phone));
+        drawer.style.setProperty("--debtor-drawer-room", `${Math.max(80, innerHeight - trigger.getBoundingClientRect().bottom - 18)}px`);
+        drawer.querySelector(phone ? "button" : 'select:not([disabled]), input:checked')?.focus({ preventScroll: true });
+      };
+      drawer.querySelector("button").onclick = () => closeDrawers(true);
+      drawer.onkeydown = (event) => {
+        if (event.key !== "Tab" || !matchMedia("(max-width: 640px)").matches) return;
+        event.stopPropagation();
+        trapTab(drawer, event);
+      };
+    }
+    const root = host.closest("dialog");
+    root.onclick = (event) => {
+      if (toolbar.contains(event.target) && event.target.closest(".ei-filters, .ei-sorthost")) return;
+      closeDrawers();
+    };
+    root.onkeydown = (event) => {
+      if (event.key !== "Escape" || !toolbar.classList.contains("ei-kyc-tools-open")) return;
+      event.preventDefault();
+      closeDrawers(true);
+    };
+    filterDrawer.onchange = (event) => {
       const { name, value } = event.target;
       if (name === "registerMode") registerMode = value;
       else if (name === "lifecycle") lifecycle = value;
       else if (name === "partition") filters = value === "unclassified" ? { partition: value } : { ...filters, partition: value };
       else filters = changeClassification(filters, name, value);
       search = searchInput.value.trim();
-      renderView();
-      const drawer = section().querySelector("details");
-      drawer.open = true;
-      drawer.querySelector(`[name="${name}"]`)?.focus();
+      filterDrawer.querySelector("[data-fields]").innerHTML = registerFilters();
+      filterDrawer.querySelector(`[name="${name}"]`)?.focus();
+      markFilters();
+      draw();
     };
+    sortDrawer.onchange = (event) => {
+      registerSort = event.target.value;
+      sortRows(panel.querySelector("tbody"));
+      const sortButton = sortDrawer.parentElement.firstElementChild;
+      sortButton.classList.toggle("is-active", registerSort !== "server");
+      sortButton.innerHTML = sortIcons[registerSort === "server" ? "key" : registerSort];
+      closeDrawers(true);
+    };
+    const markFilters = () => filterDrawer.parentElement.firstElementChild.classList.toggle("finance-filter-btn--active",
+      Boolean(lifecycle || Object.keys(classificationArgs(filters)).length || (kyc.view && registerMode === "outstanding")));
+    markFilters();
+    sortDrawer.parentElement.firstElementChild.classList.toggle("is-active", registerSort !== "server");
     if (bulkButton) bulkButton.onclick = bulk;
     syncSelection();
     draw();
@@ -388,35 +519,35 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
     const panel = section();
     const definition = MASTER[masterKind];
     const rows = lookups[definition.list] || [];
-    panel.innerHTML = `<div class="ei-kyc-toolbar">${select("master", "Master", Object.entries(MASTER).map(([kind, item]) => [kind, item.label]), masterKind, "")}
+    panel.innerHTML = `<div class="ei-toolbar ei-kyc-toolbar">${select("master", "Master", Object.entries(MASTER).map(([kind, item]) => [kind, item.label]), masterKind, "")}
       ${kyc.edit ? button("Add record", "data-add") : ""}</div><div data-masters></div>`;
     panel.querySelector("select").onchange = (event) => { masterKind = event.target.value; renderView(); section().querySelector("select").focus(); };
     const add = panel.querySelector("[data-add]");
     if (add) add.onclick = () => masterEditor(masterKind);
     const list = panel.querySelector("[data-masters]");
-    if (masterKind === "district") list.insertAdjacentHTML("beforeend", `<p>Regions: ${esc(choices("regions", "name", true).map(([, label]) => label).join(", "))}</p>`);
-    if (masterKind === "coverage") list.insertAdjacentHTML("beforeend", `<p>Godowns: ${esc(choices("godowns", "name", true).map(([, label]) => label).join(", "))}</p>`);
+    if (masterKind === "district") list.insertAdjacentHTML("beforeend", `<p class="ei-note">Regions: ${esc(choices("regions", "name", true).map(([, label]) => label).join(", "))}</p>`);
+    if (masterKind === "coverage") list.insertAdjacentHTML("beforeend", `<p class="ei-note">Godowns: ${esc(choices("godowns", "name", true).map(([, label]) => label).join(", "))}</p>`);
+    const table = rows.length ? recordTable(list, ["Record", "Status", "Actions"]) : null;
     for (const row of rows) {
       const title = masterKind === "coverage" ? `${nameFor("godowns", row.godown_id, "name")} · ${nameFor("districts", row.district_id, "district_name")}` : row.district_name || row.area_name || row.name;
       const detail = masterKind === "district" ? `${row.state_name} · ${nameFor("regions", row.region_id, "name")}` : masterKind === "area" ? nameFor("districts", row.district_id, "district_name") : masterKind === "type" ? `${row.code} · ${row.definition}` : "";
-      const card = document.createElement("article");
-      card.className = "ei-kyc-card";
-      card.innerHTML = `<div><strong>${esc(title)}</strong> · ${row.is_active ? "Active" : "Inactive"}</div>${detail ? `<p>${esc(detail)}</p>` : ""}<div class="ei-kyc-actions">${kyc.edit ? button("Edit", "data-edit") : ""}${button("Audit history", "data-audit")}</div>`;
-      const edit = card.querySelector("[data-edit]");
+      const record = table.insertRow();
+      record.innerHTML = `<td><strong>${esc(title)}</strong>${detail ? `<span class="ei-note">${esc(detail)}</span>` : ""}</td>
+        <td>${badge(row.is_active ? "Active" : "Inactive")}</td>
+        <td class="ei-kyc-wide-cell"><div class="ei-kyc-actions">${kyc.edit ? button("Edit", "data-edit") : ""}${button("Audit history", "data-audit")}</div></td>`;
+      const edit = record.querySelector("[data-edit]");
       if (edit) edit.onclick = () => masterEditor(masterKind, row);
-      card.querySelector("[data-audit]").onclick = () => audit(MASTER_AUDIT[masterKind], row.id ?? row.district_id);
-      list.append(card);
+      record.querySelector("[data-audit]").onclick = () => audit(MASTER_AUDIT[masterKind], row.id ?? row.district_id);
     }
-    if (!rows.length) list.insertAdjacentHTML("beforeend", "<p>No master records.</p>");
+    if (!rows.length) list.insertAdjacentHTML("beforeend", state("No master records."));
   }
 
   function picker(title, request, label, choose) {
     const { el, body } = dialog(title);
-    body.innerHTML = `${input("search", "Search", "", 'type="search" autocomplete="off"')}<div data-picker></div>`;
+    body.innerHTML = `${searchBox("Search")}<div data-picker></div>`;
     const results = body.lastElementChild;
     const search = body.querySelector("input");
     let stop = () => {};
-    let timer;
     const draw = () => {
       stop();
       stop = paged(results, (offset) => request(search.value.trim(), offset), (container, rows) => {
@@ -424,14 +555,14 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
           if (!label(row)) continue;
           const item = document.createElement("div");
           item.className = "ei-kyc-picker-item";
-          item.innerHTML = button(label(row));
+          item.innerHTML = `<button type="button" class="ei-text-link">${esc(label(row))}</button>`;
           item.firstElementChild.onclick = () => { el.close(); choose(row); };
           container.append(item);
         }
       });
     };
-    search.oninput = () => { clearTimeout(timer); timer = setTimeout(draw, 250); };
-    el.addEventListener("close", () => { stop(); clearTimeout(timer); }, { once: true });
+    const disposeSearch = bindSearch(search.parentElement, draw);
+    el.addEventListener("close", () => { stop(); disposeSearch(); }, { once: true });
     draw();
   }
 
@@ -456,7 +587,7 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
 
   function renderTerms() {
     const panel = section();
-    panel.innerHTML = `<div class="ei-kyc-toolbar">${select("type", "Debtor type", choices("types", "name", true), termsScope.p_type)}
+    panel.innerHTML = `<div class="ei-toolbar ei-kyc-toolbar">${select("type", "Debtor type", choices("types", "name", true), termsScope.p_type)}
       ${select("region", "Region", choices("regions", "name", true), termsScope.p_region)}
       ${button(debtorName || "Choose debtor", "data-debtor")}
       ${!kyc.view && !debtorName ? button("Open by debtor ID", "data-debtor-id") : ""}
@@ -502,7 +633,7 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
         loadInto(child, () => read("ei_debtor_terms_get", { p_id: scope.p_debtor, p_date: termsDate }), (data) => {
           if (!data) { child.textContent = "No debtor policy found."; return; }
           const source = { OVERRIDE: "Debtor override", TYPE: "Type–region default", UNCONFIGURED: "Unconfigured" };
-          child.innerHTML = `<dl class="ei-kyc-card"><dt>Effective discount</dt><dd>${data.discount_percent == null ? "—" : esc(data.discount_percent) + "%"} · ${esc(source[data.discount_source])}</dd><dt>Effective scheme</dt><dd>${esc(data.scheme_name ?? "—")} · ${esc(source[data.scheme_source])}${data.scheme_active === false ? " · Inactive" : ""}</dd><dt>Classification</dt><dd>${esc(nameFor("types", data.type_id, "name"))} · ${esc(nameFor("regions", data.region_id, "name"))}</dd></dl>`;
+          child.innerHTML = `<dl class="ei-dl ei-kyc-effective"><div class="ei-dl-row"><dt>Effective discount</dt><dd>${data.discount_percent == null ? "—" : esc(data.discount_percent) + "%"} · ${esc(source[data.discount_source])}</dd></div><div class="ei-dl-row"><dt>Effective scheme</dt><dd>${esc(data.scheme_name ?? "—")} · ${esc(source[data.scheme_source])}${data.scheme_active === false ? " · Inactive" : ""}</dd></div><div class="ei-dl-row"><dt>Classification</dt><dd>${esc(nameFor("types", data.type_id, "name"))} · ${esc(nameFor("regions", data.region_id, "name"))}</dd></div></dl>`;
         });
       };
       panel.querySelector("[name=date]").onchange = (event) => { if (event.target.value) { termsDate = event.target.value; refreshEffective(); } };
@@ -511,12 +642,15 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
     const actions = panel.querySelector("[data-policy-actions]");
     const history = panel.querySelector("[data-history]");
     cleanup = paged(history, (offset) => read("ei_debtor_terms_history", { ...scope, p_limit: 50, p_offset: offset }), (results, rows) => {
+      if (!rows.length) return;
+      const table = recordTable(results, ["Effective dates", "Discount", "Scheme", "Actions"]);
       for (const row of rows) {
-        const card = document.createElement("article");
-        card.className = "ei-kyc-card";
-        card.innerHTML = `<strong>${esc(row.effective_from)} → ${esc(row.effective_to ?? "Open")}</strong><p>Discount: ${row.discount_percent == null ? "Inherits" : esc(row.discount_percent) + "%"} · Scheme: ${row.scheme_id == null ? "Inherits" : esc(row.scheme_id)}</p><p>${esc(row.reason)}</p>${button("Audit history")}`;
-        card.querySelector("button").onclick = () => audit(scope.p_debtor ? "ei_debtor_terms_override" : "ei_debtor_type_terms", scope.p_debtor ?? row.id);
-        results.append(card);
+        const record = table.insertRow();
+        record.innerHTML = `<td class="ei-kyc-wide-cell"><strong>${esc(row.effective_from)} → ${esc(row.effective_to ?? "Open")}</strong><span class="ei-note">${esc(row.reason)}</span></td>
+          <td data-label="Discount">${row.discount_percent == null ? "Inherits" : esc(row.discount_percent) + "%"}</td>
+          <td data-label="Scheme">${row.scheme_id == null ? "Inherits" : esc(row.scheme_id)}</td>
+          <td class="ei-kyc-wide-cell">${button("Audit history")}</td>`;
+        record.querySelector("button").onclick = () => audit(scope.p_debtor ? "ei_debtor_terms_override" : "ei_debtor_type_terms", scope.p_debtor ?? row.id);
       }
     }, { onPage: (data) => {
       if (!commercial.edit || actions.hasChildNodes()) return;
@@ -532,7 +666,21 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
   function renderView() {
     cleanup();
     cleanup = () => {};
-    host.querySelectorAll("[data-view]").forEach((item) => item.setAttribute("aria-pressed", String(item.dataset.view === view)));
+    const tools = host.querySelector("[data-register-tools]");
+    tools.hidden = true;
+    tools.replaceChildren();
+    tools.classList.remove("ei-kyc-tools-open");
+    const root = host.closest("dialog");
+    root.onclick = null;
+    root.onkeydown = null;
+    section().scrollTop = 0;
+    host.querySelectorAll("[data-view]").forEach((item) => {
+      const active = item.dataset.view === view;
+      item.classList.toggle("active", active);
+      item.setAttribute("aria-selected", String(active));
+      item.tabIndex = active ? 0 : -1;
+      if (active) section().setAttribute("aria-labelledby", item.id);
+    });
     if (view === "masters") renderMasters();
     else if (view === "commercial") renderTerms();
     else renderRegister();
@@ -547,18 +695,36 @@ export function mountDebtorWorkspace(host, { read, permissions, partition, esc, 
     });
   }
 
-  host.innerHTML = `<section class="ei-kyc">
-    <header class="ei-kyc-head">${button("‹ Finance", "data-finance-back")}<h2 tabindex="-1">Debtor KYC</h2></header>
-    <nav class="ei-kyc-actions" aria-label="Debtor KYC sections">
-      ${button("Debtor Register", 'data-view="register"')}
-      ${kyc.view ? button("Classification Masters", 'data-view="masters"') : ""}
-      ${commercial.view ? button("Commercial Policies", 'data-view="commercial"') : ""}
-    </nav>
-    <div class="ei-kyc-notice" role="status"></div><div class="ei-kyc-content"></div>
-  </section>`;
-  host.querySelector("[data-finance-back]").onclick = back;
-  host.querySelectorAll("[data-view]").forEach((item) => { item.onclick = () => { view = item.dataset.view; setStatus(""); if (lookups) renderView(); }; });
-  host.querySelector("h2").focus();
+  const tab = (key, label) => `<button type="button" class="ei-subtab" id="debtor-tab-${key}" data-view="${key}" role="tab" aria-selected="${key === view}" aria-controls="debtorPanel" tabindex="${key === view ? 0 : -1}">${label}</button>`;
+  host.innerHTML = `<div class="ei-subnav" role="tablist" aria-label="Debtor KYC sections">
+    ${tab("register", "Debtor Register")}
+    ${kyc.view ? tab("masters", "Classification Masters") : ""}
+    ${commercial.view ? tab("commercial", "Commercial Policies") : ""}
+    </div>
+    <div class="finance-toolbar ei-toolbar" data-register-tools hidden></div>
+    <div class="ei-state ei-kyc-notice" role="status"></div>
+    <div id="debtorPanel" role="tabpanel" aria-labelledby="debtor-tab-register" class="ei-kyc-content"></div>`;
+  const tabs = [...host.querySelectorAll("[data-view]")];
+  for (const item of tabs) item.onclick = () => {
+    view = item.dataset.view;
+    setStatus("");
+    if (lookups) renderView();
+  };
+  host.querySelector("[role=tablist]").onkeydown = (event) => {
+    const index = tabs.indexOf(event.target);
+    const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
+    const next = step ? tabs[(index + step + tabs.length) % tabs.length] : event.key === "Home" ? tabs[0] : event.key === "End" ? tabs.at(-1) : null;
+    if (index < 0 || !next) return;
+    event.preventDefault();
+    next.click();
+    next.focus();
+  };
   refreshLookups();
-  return () => { cleanup(); host.remove(); };
+  return () => {
+    cleanup();
+    for (const child of childDialogs) {
+      child.close();
+      child.remove();
+    }
+  };
 }
