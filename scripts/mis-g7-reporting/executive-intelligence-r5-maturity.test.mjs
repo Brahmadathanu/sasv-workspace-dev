@@ -37,7 +37,7 @@ test("static: no paginator remnants, one pagination-free list path, cache keys a
   const html = read("public/shared/executive-mis-dashboard.html"), js = read("public/shared/js/executive-mis-dashboard.js");
   assert.doesNotMatch(js, /Previous page|Next page|data-sales-page|goListPage|listPaginationHtml|renderListPagination|pagerHtml|PrevPage|NextPage|Showing \$\{/);
   assert.doesNotMatch(js, /Page \$\{formatIntegerIN\(page\)\}/);
-  assert.match(js, /IntersectionObserver/); assert.match(html, /executive-mis-dashboard\.js\?mis-c1=ei-r8-n1-20261127/); assert.match(js, /executive-intelligence-model\.js\?ei-r8=2/);
+  assert.match(js, /IntersectionObserver/); assert.match(html, /executive-mis-dashboard\.js\?mis-c1=ei-r8-kyc-1/); assert.match(js, /executive-intelligence-model\.js\?ei-r8=3/);
   const css = html.slice(html.indexOf("EI-R5 maturity"));
   assert.ok(css.length > 2500); assert.doesNotMatch(css, /#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(/);
 });

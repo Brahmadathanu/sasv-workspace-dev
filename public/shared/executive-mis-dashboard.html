@@ -2289,7 +2289,62 @@
         #inventoryScopeNote .ei-metric-value, #fgScopeNote .ei-metric-value { color: var(--mis-text); }
         #inventoryScopeNote .ei-dbar, #fgScopeNote .ei-dbar { display: none; }
       }
-</style>
+
+      /* Debtor KYC uses the Executive Intelligence shell and shared control tokens. */
+      .ei-kyc { display: grid; gap: 10px; min-width: 0; color: var(--mis-text); }
+      .ei-kyc-head, .ei-kyc-toolbar, .ei-kyc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+      .ei-kyc-toolbar { align-items: end; margin-bottom: 10px; }
+      .ei-kyc-launch { display: flex; justify-content: end; }
+      .ei-kyc-head h2 { margin: 0; font-size: var(--ei-fs-title); }
+      .ei-kyc-content { min-width: 0; }
+      .ei-kyc-notice:empty { display: none; }
+      .ei-kyc-toolbar label, .ei-kyc-form label, .ei-kyc-grid label, .ei-kyc-dialog-body > label { display: grid; gap: 4px; min-width: 0; font-size: var(--ei-fs-sm); }
+      .ei-kyc-toolbar input, .ei-kyc-toolbar select, .ei-kyc-grid select, .ei-kyc-form input, .ei-kyc-form select, .ei-kyc-dialog-body > label input {
+        color: var(--mis-text); background: var(--sasv-surface-soft); border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-sm, 6px);
+        font: inherit; min-width: 0; width: 100%; min-height: 34px; padding: 5px 8px; box-sizing: border-box;
+      }
+      .ei-kyc-filters { max-width: 100%; }
+      .ei-kyc-filters summary { display: inline-flex; cursor: pointer; }
+      .ei-kyc-filters[open] { flex-basis: 100%; }
+      .ei-kyc-filters .ei-kyc-grid, #financeClassFields fieldset { margin: 6px 0; }
+      #financeClassFields fieldset { padding: 8px; }
+      .ei-kyc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 135px), 1fr)); gap: 8px; min-width: 0; }
+      .ei-kyc-form { display: grid; gap: 10px; }
+      .ei-kyc-form fieldset { margin: 0; min-width: 0; border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-sm, 6px); padding: 10px; }
+      .ei-kyc-actions button[aria-pressed="true"] { background: var(--sasv-selection-soft); font-weight: var(--sasv-fw-bold); }
+      .ei-kyc-table { border-collapse: collapse; width: 100%; font-size: var(--ei-fs-sm); }
+      .ei-kyc-table :is(th, td) { border-bottom: 1px solid var(--sasv-divider); text-align: left; padding: 6px 8px; overflow-wrap: anywhere; }
+      .ei-kyc-table th { background: var(--sasv-surface-soft); }
+      .ei-kyc-table :is(th, td):nth-child(n+3) { text-align: right; font-variant-numeric: tabular-nums; }
+      .ei-kyc-party { display: flex; align-items: center; gap: 6px; }
+      .ei-kyc-party button { text-align: left; white-space: normal; overflow-wrap: anywhere; min-width: 0; max-width: 100%; }
+      .ei-kyc-card { border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-sm, 6px); background: var(--mis-surface); padding: 8px 10px; margin: 0 0 6px; overflow-wrap: anywhere; }
+      .ei-kyc-card dd { margin: 0 0 6px; }
+      .ei-kyc-card pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+      .ei-kyc-picker-item { padding-block: 4px; }
+      .ei-kyc-picker-item button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+      .ei-kyc [data-more], .ei-kyc-dialog [data-more] { min-height: 24px; color: var(--mis-muted); }
+      .ei-kyc-dialog.modal-window { display: none; position: fixed; inset: 0; margin: auto; width: min(710px, calc(100% - 28px)); max-height: min(86dvh, 760px); overflow: hidden; color: var(--mis-text); background: var(--mis-surface); padding: 0; border: 1px solid var(--sasv-border); }
+      .ei-kyc-dialog.modal-window[open] { display: flex; flex-direction: column; }
+      .ei-kyc-dialog::backdrop { background: color-mix(in srgb, var(--mis-text) 45%, transparent); }
+      .ei-kyc-dialog-body { overflow-y: auto; overscroll-behavior: contain; min-height: 0; padding: 10px 14px; }
+      .ei-kyc-dialog-body [data-form-error]:empty { display: none; }
+      .ei-kyc-alert-exposure { display: block; }
+      #financeFilterDrawer { max-height: min(70dvh, 520px); overflow-y: auto; }
+      #financeExportStatus:empty, #financeBillTotals:empty { display: none; }
+      @media (max-width: 640px) {
+        #financeFilterDrawer { max-height: none; }
+        .ei-kyc-toolbar input, .ei-kyc-toolbar select, .ei-kyc-form input, .ei-kyc-form select, .ei-kyc-grid select, .ei-kyc-dialog-body > label input { font-size: var(--ei-fs-input-phone); }
+        .ei-kyc-dialog.modal-window { width: 100%; max-width: none; max-height: 100dvh; border-radius: 0; }
+        .ei-kyc-table, .ei-kyc-table tbody { display: block; }
+        .ei-kyc-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+        .ei-kyc-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; border: 1px solid var(--sasv-border); border-radius: var(--sasv-radius-sm, 6px); padding: 6px; margin-bottom: 6px; }
+        .ei-kyc-table td { border: 0; padding: 3px; }
+        .ei-kyc-table td:first-child, .ei-kyc-table td:last-child { grid-column: 1 / -1; }
+        .ei-kyc-table td[data-label]::before { content: attr(data-label) " "; color: var(--mis-muted); }
+        .ei-kyc-table td:last-child { text-align: left; }
+      }
+    </style>
   </head>
   <body>
     <div
@@ -2431,6 +2486,6 @@
       </div>
     </div>
 
-    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=ei-r8-n1-20261127"></script>
+    <script type="module" src="js/executive-mis-dashboard.js?mis-c1=ei-r8-kyc-1"></script>
   </body>
 </html>

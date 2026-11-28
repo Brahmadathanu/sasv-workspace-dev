@@ -12,7 +12,7 @@ import { rejectedProtectedPaths, REVIEWED_MIS_G7_FILES } from "../lib/pec-protec
 import { misG7ClientFileApproved, misG7PinnedFileApproved } from "./mis-g7-reporting-approved-delta.mjs";
 import { pmBomDeltaApproved, normaliseApprovedSwDelta, WP11_PM_BOM_PATH } from "./wp11-approved-delta.mjs";
 
-import { eiClientApproved, eiRegistryApproved, EI_BRANCH, EI_CLIENT_BLOBS, EI_REGISTRY_BASE, EI_R5_BRANCH, EI_R5_CLIENT_BLOBS, EI_MATURITY_BRANCH, EI_MATURITY_CLIENT_BLOBS, eiServerApproved, EI_SERVER_BLOBS, EI_DEBTOR_KYC_BRANCH, EI_DEBTOR_KYC_SERVER_BLOBS } from "./ei-approved-delta.mjs";
+import { eiClientApproved, eiRegistryApproved, EI_BRANCH, EI_CLIENT_BLOBS, EI_REGISTRY_BASE, EI_R5_BRANCH, EI_R5_CLIENT_BLOBS, EI_MATURITY_BRANCH, EI_MATURITY_CLIENT_BLOBS, eiServerApproved, EI_SERVER_BLOBS, EI_DEBTOR_KYC_BRANCH, EI_DEBTOR_KYC_SERVER_BLOBS, EI_DEBTOR_KYC_CLIENT_BRANCH, EI_DEBTOR_KYC_CLIENT_BLOBS } from "./ei-approved-delta.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
@@ -176,4 +176,15 @@ test("R8 Debtor KYC permits only the installed migration and exact regression fi
     assert.equal(eiServerApproved(file + ".copy", EI_DEBTOR_KYC_BRANCH, blob, blob), false);
   }
   assert.equal(eiServerApproved("public/sw.js", EI_DEBTOR_KYC_BRANCH, "x", "x"), false);
+});
+
+
+test("Debtor KYC client approves only the committed page-local blobs on its implementation branch", () => {
+  for (const [file, blob] of Object.entries(EI_DEBTOR_KYC_CLIENT_BLOBS)) {
+    assert.equal(eiClientApproved(file, EI_DEBTOR_KYC_CLIENT_BRANCH, blob, blob), true);
+    assert.equal(eiClientApproved(file, EI_DEBTOR_KYC_CLIENT_BRANCH, blob, "dirty"), false);
+    assert.equal(eiClientApproved(file, EI_DEBTOR_KYC_BRANCH, blob, blob), false);
+  }
+  assert.equal(eiClientApproved("public/sw.js", EI_DEBTOR_KYC_CLIENT_BRANCH, "x", "x"), false);
+  assert.equal(eiRegistryApproved("public/shared/js/module-registry.js", EI_DEBTOR_KYC_CLIENT_BRANCH, "x", "x", EI_REGISTRY_BASE), false);
 });

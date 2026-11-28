@@ -5,6 +5,7 @@ on:
       - 'public/shared/executive-mis-dashboard.html'
       - 'public/shared/js/executive-mis-dashboard.js'
       - 'public/shared/js/executive-intelligence-model.js'
+      - 'public/shared/js/ei-debtor-*.js'
       - 'scripts/mis-c1/**'
       - 'scripts/mis-g7-reporting/**'
       - '.github/workflows/ei-client-regression.yml'
@@ -34,7 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           node -e "const p=require('playwright'); if (!require('fs').existsSync(p.chromium.executablePath())) throw Error('Chromium missing')"
-          EI_N1_SCREENSHOTS="$RUNNER_TEMP/ei-n1-screenshots" EI_PROTECTED_BASE=${{ github.event.pull_request.base.sha }} node --test --test-reporter=tap scripts/mis-g7-reporting/*.test.mjs scripts/mis-c1/*.test.mjs | tee "$RUNNER_TEMP/ei-regression.log"
+          EI_KYC_SCREENSHOTS="$RUNNER_TEMP/ei-kyc-screenshots" EI_N1_SCREENSHOTS="$RUNNER_TEMP/ei-n1-screenshots" EI_R5_BASE=${{ github.event.pull_request.base.sha }} EI_PROTECTED_BASE=${{ github.event.pull_request.base.sha }} node --test --test-reporter=tap scripts/mis-g7-reporting/*.test.mjs scripts/mis-c1/*.test.mjs | tee "$RUNNER_TEMP/ei-regression.log"
           grep -Eq '^# pass [1-9][0-9]+' "$RUNNER_TEMP/ei-regression.log"
           if grep -Eq '^# (fail|skipped|cancelled) [1-9]' "$RUNNER_TEMP/ei-regression.log"; then exit 1; fi
       - name: Preserve regression evidence
@@ -45,4 +46,5 @@ jobs:
           path: |
             ${{ runner.temp }}/ei-regression.log
             ${{ runner.temp }}/ei-n1-screenshots/
+            ${{ runner.temp }}/ei-kyc-screenshots/
           if-no-files-found: warn
