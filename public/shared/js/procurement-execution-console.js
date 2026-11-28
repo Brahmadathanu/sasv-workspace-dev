@@ -1633,6 +1633,10 @@ function normalizePrRmScopeLabel(raw) {
 }
 
 function prScopeText(row) {
+  const classId = Number(row?.material_class_id || 0);
+  const code = canonicalMaterialClassCode(row?.material_class_code);
+  if (classId === 5 || (!classId && code === "IND")) return "Indirect Material";
+  if (classId === 2 || (!classId && code === "PM")) return "Packing Material";
   const explicit =
     String(row?.rm_scope_label ?? "").trim() ||
     normalizePrRmScopeLabel(row?.rm_scope) ||
@@ -10206,7 +10210,10 @@ async function generateDraftPr() {
 function openPrAddLineModal() {
   if (!canPerformEditAction("Add PR line")) return;
   const backdrop = qs("prAddLineModalBackdrop");
-  qs("prAddLineClass").value = "";
+  const classSelect = qs("prAddLineClass");
+  const headerClass = String(state.selectedPr?.material_class_id ?? "");
+  classSelect.value = headerClass;
+  classSelect.disabled = Boolean(headerClass);
   backdrop.dataset.stockItemId = "";
   backdrop.dataset.uomId = "";
   const searchInput = qs("prAddLineItemSearch");
@@ -10256,7 +10263,7 @@ async function savePrAddLine() {
   const uomId = Number(backdrop.dataset.uomId || "0");
   const qty = Number((qs("prAddLineQty").value || "").trim());
   const reason = pecAddLineReason(qs("prAddLineReason").value);
-  const materialClassRaw = qs("prAddLineClass").value;
+  const materialClassRaw = state.selectedPr.material_class_id ?? qs("prAddLineClass").value;
   const materialClassId = materialClassRaw ? Number(materialClassRaw) : null;
   if (!stockItemId) {
     toast("Select a stock item.", "error");
