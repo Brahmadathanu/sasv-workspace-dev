@@ -63,6 +63,7 @@ export const supabase = {
     if (__r !== undefined && !(S.failReads && name.startsWith("proc_pec_"))) return mk(__r);
     if (name === "get_user_permissions") return mk(S.role === "none" ? [] : [{ target: "module:procurement-execution-console", can_view: true, can_edit: S.role === "edit" }]);
     globalThis.__rpcNames = (globalThis.__rpcNames || []); globalThis.__rpcNames.push(name);
+    if (name === "proc_pr_add_line") { globalThis.__addLineCalls = (globalThis.__addLineCalls || []); globalThis.__addLineCalls.push(params); return mk(999); }
     if (name === "proc_pec_s5_review_plan") {
       globalThis.__s5ReviewCalls = (globalThis.__s5ReviewCalls || []); globalThis.__s5ReviewCalls.push(params);
       const n = globalThis.__s5ReviewCalls.length;
@@ -180,7 +181,7 @@ export const supabase = {
     if (name in data) return mk(data[name]);
     return mk([]);
   },
-  from: (table) => { const rows = table === "v_inv_stock_item_with_class" ? [{ stock_item_id: 701, code: "IND-701", name: "Synthetic IND Gloves", default_uom_id: 2 }, { stock_item_id: 702, code: "IND-702", name: "Synthetic IND Missing Month", default_uom_id: 2 }] : []; const one = () => Promise.resolve(mk(table === "inv_uom" ? { code: "Nos" } : null)); const b = { select: () => b, eq: () => b, limit: () => b, order: () => b, in: () => b, ilike: () => b, single: one, maybeSingle: one, then: (r) => r(mk(rows)) }; return b; },
+  from: (table) => { const rows = table === "v_inv_stock_item_with_class" ? [{ stock_item_id: 701, code: "IND-701", name: "Synthetic IND Gloves", default_uom_id: 2 }, { stock_item_id: 702, code: "IND-702", name: "Synthetic IND Missing Month", default_uom_id: 2 }] : []; const one = () => Promise.resolve(mk(table === "inv_uom" ? { code: "Nos" } : null)); const b = { select: () => b, eq: () => b, limit: () => b, order: () => b, in: () => b, ilike: () => b, or: () => b, single: one, maybeSingle: one, then: (r) => r(mk(rows)) }; return b; },
   schema: () => ({ from: () => ({}) }),
 };
 export const labSupabase = supabase; export const hrSupabase = supabase;
@@ -1145,18 +1146,27 @@ for (const vp of [VIEWPORTS[0], VIEWPORTS[2]]) {
   await page.click('.tabs .tab-btn[data-tab="pr"]');
   await page.waitForSelector("#prTbody tr:not(.pec-table-state)"); await page.click("#prTbody tr:first-child");
   await page.waitForSelector("#btnPrAddLine:visible"); await page.click("#btnPrAddLine");
-  const PREFIX = "Quantity adjusted following review of production demand and procurement constraints. Item-specific justification: ";
-  check((await page.inputValue("#prAddLineReason")) === PREFIX, "[#502] add-line reason opens with the standard editable prefix");
+  const STANDARD = "Additional procurement requirement identified during the purchase requisition review.";
+  check((await page.inputValue("#prAddLineReason")) === STANDARD, "[PEC reason hotfix] complete editable default");
   await page.fill("#prAddLineQty", "5");
   await page.click("#btnPrAddLineSave");
-  await page.waitForFunction(() => document.getElementById("toastContainer")?.textContent.includes("item-specific justification"));
-  check((await page.evaluate(() => (globalThis.__rpcNames || []).filter((x) => x === "proc_pr_add_line").length)) === 0,
-    "[#502] the unfinished prefix alone cannot be saved as a reason (no add-line write)");
-  await page.fill("#prAddLineReason", PREFIX + "ok");
-  await page.click("#btnPrAddLineSave");
-  check((await page.evaluate(() => (globalThis.__rpcNames || []).filter((x) => x === "proc_pr_add_line").length)) === 0,
-    "[#502] prefix plus a token justification is still rejected");
-  await page.keyboard.press("Escape");
+  await page.waitForFunction(() => document.getElementById("toastContainer")?.textContent.includes("Select a stock item"));
+  check(await rpcCount(page, "proc_pr_add_line") === 0, "[PEC reason hotfix] missing item still blocks write");
+  for (const [entered, expected] of [[STANDARD, STANDARD], [STANDARD + " Urgent.", STANDARD + " Urgent."], ["Urgent", "Urgent"], ["", STANDARD]]) {
+    if (!(await page.isVisible("#prAddLineModalBackdrop"))) await page.click("#btnPrAddLine");
+    await page.selectOption("#prAddLineClass", "5");
+    await page.fill("#prAddLineItemSearch", "Synthetic IND Gloves");
+    await page.waitForSelector("#prAddLineItemResults li[role=option]");
+    await page.locator("#prAddLineItemResults li[role=option]").first().click();
+    await page.fill("#prAddLineQty", "5");
+    await page.fill("#prAddLineReason", entered);
+    const count = await rpcCount(page, "proc_pr_add_line");
+    await page.click("#btnPrAddLineSave");
+    await page.waitForFunction(n => (globalThis.__addLineCalls || []).length === n, count + 1);
+    const call = await page.evaluate(() => globalThis.__addLineCalls.at(-1));
+    check(call.p_reason === expected && call.p_requested_qty === 5 && call.p_stock_item_id === 701 && call.p_material_class_id === 5 && call.p_uom_id === 2, "[PEC reason hotfix] exact writer payload: " + JSON.stringify(entered));
+    await page.waitForSelector("#prAddLineModalBackdrop", { state: "hidden" });
+  }
   await ctx.close();
 }
 
